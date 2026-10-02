@@ -2,6 +2,7 @@ import React from "react"
 import { imageMapper } from "../../utils/imageMapper"
 import { hyperlinks } from "../../utils/hyperlinks"
 import { useOpenGesture } from "../../hooks/useMediaQuery"
+import { fs } from "../../utils/fs"
 
 const LiveSearch = ({ results, dispatch, closeMenu }) => {
   const openGesture = useOpenGesture()
@@ -13,25 +14,27 @@ const LiveSearch = ({ results, dispatch, closeMenu }) => {
 
   const handleDoubleClick = (e, item) => {
     switch (item.type) {
+      // Folders open in a new My Computer window, which starts in fs's current directory
       case "bookmarks":
-        fs.openDirectory(item.name)
-        setDir(fs.currentDirectory.content)
-        setAddress(getPath())
-        return
       case "documents":
-        fs.openDirectory(item.name)
-        setDir(fs.currentDirectory.content)
-        setAddress(getPath())
-        return
       case "drive":
-        fs.openDirectory(item.name)
-        setDir(fs.currentDirectory.content)
-        setAddress(getPath())
-        return
       case "folder":
-        fs.openDirectory(item.name)
-        setDir(fs.currentDirectory.content)
-        setAddress(getPath())
+        fs.openDirectory(item.path)
+        dispatch({
+          type: "open_window",
+          payload: {
+            name: "My Computer",
+            minimized: false,
+            maximized: false,
+            active: true,
+            closed: false,
+            width: 600,
+            height: 400,
+            positionX: 5,
+            positionY: 100,
+            icon_url: "/assets/program_icons/computer_explorer.png",
+          },
+        })
         return
       case "text":
         dispatch({
