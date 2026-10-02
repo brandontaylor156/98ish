@@ -1,6 +1,4 @@
 import React, { useState, useReducer } from "react"
-import { Html } from "@react-three/drei"
-import { Canvas } from "@react-three/fiber"
 import TaskBar from "./components/OS-specific/TaskBar"
 import StartMenu from "./components/OS-specific/StartMenu"
 import Desktop from "./components/OS-specific/Desktop"
@@ -102,55 +100,31 @@ function App() {
   }
 
   return (
-    <>
-      <Canvas shadows camera={{ position: [-5, 2, 10], fov: 75 }}>
-        <Html fullscreen>
-          <Desktop
-            fs={fs}
-            programs={programs}
-            windows={windows}
-            dispatch={dispatch}
-            closeMenu={closeMenu}
-          />
-          <TaskBar
-            windows={windows}
-            dispatch={dispatch}
-            startMenuVisible={startMenuVisible}
-            setStartMenuVisible={setStartMenuVisible}
-          />
-          {startMenuVisible && (
-            <StartMenu
-              windows={windows}
-              dispatch={dispatch}
-              setResults={setResults}
-            />
-          )}
-          {results.length !== 0 && (
-            <LiveSearch results={results} dispatch={dispatch} />
-          )}
-        </Html>
-        {/* <ambientLight intensity={0.3} />
-        <directionalLight
-          castShadow
-          position={[0, 20, 0]}
-          intensity={1}
-          shadow-mapSize-width={1024}
-          shadow-mapSize-height={1024}
-          shadow-camera-far={40}
-          shadow-camera-left={-30}
-          shadow-camera-right={30}
-          shadow-camera-top={30}
-          shadow-camera-bottom={-30}
+    <div style={{ position: "relative", width: "100%", height: "100%", overflow: "hidden" }}>
+      <Desktop
+        fs={fs}
+        programs={programs}
+        windows={windows}
+        dispatch={dispatch}
+        closeMenu={closeMenu}
+      />
+      <TaskBar
+        windows={windows}
+        dispatch={dispatch}
+        startMenuVisible={startMenuVisible}
+        setStartMenuVisible={setStartMenuVisible}
+      />
+      {startMenuVisible && (
+        <StartMenu
+          windows={windows}
+          dispatch={dispatch}
+          setResults={setResults}
         />
-        <pointLight position={[-5, 2, 10]} intensity={1} /> */}
-        {/* <group>
-          <mesh rotation={[0, -0.4, 0]}>
-            <planeGeometry args={[100, 100]} />
-            <meshStandardMaterial color={"#008284"} />
-          </mesh>
-        </group> */}
-      </Canvas>
-    </>
+      )}
+      {results.length !== 0 && (
+        <LiveSearch results={results} dispatch={dispatch} />
+      )}
+    </div>
   )
 }
 
