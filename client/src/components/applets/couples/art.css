@@ -1,0 +1,45 @@
+/* Flowers sway a little; wilted ones drop petals */
+
+.bqHead {
+  transform-box: fill-box;
+  transform-origin: center bottom;
+  animation: bqSway 3.2s ease-in-out infinite alternate;
+}
+
+@keyframes bqSway {
+  from {
+    rotate: -3deg;
+  }
+  to {
+    rotate: 3deg;
+  }
+}
+
+.bqPetal {
+  animation: bqFall 7s ease-in infinite;
+  opacity: 0;
+}
+
+@keyframes bqFall {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) rotate(0deg);
+  }
+  10% {
+    opacity: 0.95;
+  }
+  85% {
+    opacity: 0.9;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--drift), var(--fall)) rotate(220deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bqHead,
+  .bqPetal {
+    animation: none;
+  }
+}

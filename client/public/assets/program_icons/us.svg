@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <!-- Us: two hearts, one tucked behind the other -->
+  <path d="M19 15c0-7-11-8-11 0 0 5 6 9.5 11 14 5-4.5 11-9 11-14 0-8-11-7-11 0z" fill="#000" transform="translate(1.5 1.5)"/>
+  <path d="M19 15c0-7-11-8-11 0 0 5 6 9.5 11 14 5-4.5 11-9 11-14 0-8-11-7-11 0z" fill="#f7a1b8" stroke="#a8204a" stroke-width="1.2"/>
+  <path d="M30 23c0-7.5-12-8.5-12 0 0 5.6 6.6 10.4 12 15.4 5.4-5 12-9.8 12-15.4 0-8.5-12-7.5-12 0z" fill="#000" transform="translate(1.5 1.5)"/>
+  <path d="M30 23c0-7.5-12-8.5-12 0 0 5.6 6.6 10.4 12 15.4 5.4-5 12-9.8 12-15.4 0-8.5-12-7.5-12 0z" fill="#e8405f" stroke="#7a1430" stroke-width="1.2"/>
+  <path d="M22 20.5c.5-2 2.5-3 4-2.5" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" opacity=".75"/>
+  <path d="M11.5 12.5c.4-1.6 2-2.3 3.2-2" stroke="#fff" stroke-width="1.8" fill="none" stroke-linecap="round" opacity=".75"/>
+</svg>

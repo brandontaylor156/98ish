@@ -44,6 +44,11 @@ export const ACHIEVEMENTS = [
   { id: "quiz-mind-reader", title: "Mind Reader", text: "Scored 100% on How Well Do You Know Me.", hint: "In the Lovebirds Quiz Show, guess every one of someone's answers." },
   { id: "quiz-deep-diver", title: "Deep Diver", text: "Talked through 20 Deep Talk cards.", hint: "Draw Deep Talk cards in the Lovebirds Quiz Show. Twenty of them." },
   { id: "quiz-master", title: "Quiz Master", text: "Won 10 quizzes in the Lovebirds Quiz Show.", hint: "Win ten games in the Lovebirds Quiz Show." },
+  { id: "two-hearts", title: "Two Hearts", text: "Paired up with your partner in Us.", hint: "Us (Programs > Us) is better with two." },
+  { id: "sealed-kiss", title: "Sealed with a Kiss", text: "Sent your first love letter.", hint: "Love Letters has stationery, envelopes and a wax seal waiting." },
+  { id: "first-letter", title: "Special Delivery", text: "Opened your first love letter.", hint: "Someone could write you a letter. You'd only have to open it." },
+  { id: "first-moment", title: "Our First Moment", text: "Added a moment to Our Story.", hint: "Every story needs a first page. Our Story is waiting." },
+  { id: "green-thumb", title: "Green Thumb", text: "Watered your flowers on 3 different days.", hint: "Flowers from someone special need water every day." },
 ]
 
 export const achievementById = (id) => ACHIEVEMENTS.find((a) => a.id === id) || null

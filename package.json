@@ -5,7 +5,7 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test": "node --test \"server/net/test/*.test.*\" \"server/drive/test/*.test.*\" \"server/mail/test/*.test.*\" \"server/gamechat/test/*.test.*\" \"server/puzzles/test/*.test.*\" \"server/quiz/test/*.test.*\""
+    "test": "node --test \"server/net/test/*.test.*\" \"server/drive/test/*.test.*\" \"server/mail/test/*.test.*\" \"server/gamechat/test/*.test.*\" \"server/puzzles/test/*.test.*\" \"server/quiz/test/*.test.*\" \"server/couples/test/*.test.*\""
   },
   "engines": {
     "node": ">=20"

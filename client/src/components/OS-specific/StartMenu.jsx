@@ -8,7 +8,7 @@ import RunDialog from "./RunDialog"
 import { shellAction } from "../../utils/shell"
 import "./StartMenu.css"
 
-const GROUPS = ["Accessories", "Games", "Internet", "Entertainment", "System Tools", "My Projects"]
+const GROUPS = ["Accessories", "Games", "Internet", "Entertainment", "System Tools", "Us", "My Projects"]
 const ICON = {
   programs: "/assets/programs.png",
   documents: "/assets/directory_docs.png",

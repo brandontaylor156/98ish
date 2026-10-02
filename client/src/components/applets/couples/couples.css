@@ -1,0 +1,526 @@
+/* Shared look for the couple apps: Windows 98 chrome with a soft pink heart */
+
+.usRoot {
+  position: relative;
+  height: calc(100% - 25px);
+  overflow: auto;
+  background:
+    radial-gradient(circle at 12px 12px, rgba(255, 255, 255, 0.7) 2px, transparent 2.5px) 0 0 / 26px 26px,
+    linear-gradient(#ffeef3, #fde3eb);
+  font-family: "Pixelated MS Sans Serif", Arial, sans-serif;
+  font-size: 11px;
+  color: #3a2430;
+}
+
+/* 98.css leaves the checkmark's top to the flow, which drops it below the box */
+.usRoot input[type="checkbox"]:checked + label::after,
+.llRoot input[type="checkbox"]:checked + label::after,
+.osRoot input[type="checkbox"]:checked + label::after {
+  top: 3px;
+}
+
+/* Bootstrap's legend is huge and floats; keep the 98 one */
+.usRoot legend,
+.llRoot legend,
+.osRoot legend {
+  float: none;
+  width: auto;
+  margin: 0;
+  padding: 0 3px;
+  font-size: inherit;
+  line-height: normal;
+}
+
+.usRoot h2,
+.usNotPaired h2 {
+  margin: 0;
+  font-size: 15px;
+  color: #8e1530;
+}
+
+.usPairing,
+.usNotPaired {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  max-width: 420px;
+  margin: 0 auto;
+  padding: 24px 18px;
+  text-align: center;
+}
+.usPairing p,
+.usNotPaired p {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.usNotPaired {
+  height: 100%;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+.usWaiting svg {
+  animation: usBeat 1.4s ease-in-out infinite;
+}
+@keyframes usBeat {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  20% {
+    transform: scale(1.12);
+  }
+  40% {
+    transform: scale(0.97);
+  }
+}
+
+.usPairForm {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: left;
+}
+.usPairRow {
+  display: flex;
+  gap: 6px;
+}
+.usPairRow input {
+  flex: 1;
+  min-width: 0;
+}
+
+.usRequests {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.usRequest {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #fff;
+  border: 1px solid #f0b3c4;
+}
+.usRequestButtons {
+  display: flex;
+  gap: 4px;
+}
+
+.usError {
+  color: #b00020;
+  margin: 4px 0 0;
+}
+.usOk {
+  color: #1c7a3a;
+  margin: 4px 0 0;
+}
+.usSmall {
+  color: #7a5462;
+  margin: 2px 0;
+}
+
+button.usLink {
+  all: unset;
+  cursor: pointer;
+  color: #0000c0;
+  text-decoration: underline;
+}
+
+button.usPrimary {
+  font-weight: bold;
+  background: #f9c6d4;
+  min-width: 120px;
+}
+button.usPrimary:disabled {
+  background: #e8dce0;
+}
+
+.usInput {
+  width: 100%;
+  box-sizing: border-box;
+}
+textarea.usInput {
+  resize: vertical;
+  font-family: inherit;
+}
+
+.usBadge {
+  display: inline-block;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  margin-left: 4px;
+  border-radius: 7px;
+  background: #e8405f;
+  color: #fff;
+  font-size: 10px;
+  line-height: 14px;
+  text-align: center;
+  font-weight: bold;
+}
+
+.usSticker {
+  font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  line-height: 1;
+}
+
+/* ---- the hub ---- */
+
+.usHub {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.usHeader {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #fff, #ffe4ec);
+  border: 1px solid #f2b6c7;
+  box-shadow: 0 2px 8px rgba(180, 40, 90, 0.12);
+}
+
+.usPair {
+  display: flex;
+  align-items: center;
+  flex: none;
+}
+.usAvatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 20px;
+  font-weight: bold;
+  border: 2px solid #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+}
+.usAvatar.is-me {
+  background: linear-gradient(135deg, #f7a1b8, #e8405f);
+}
+.usAvatar.is-them {
+  background: linear-gradient(135deg, #b9a4ef, #7b5cd6);
+}
+.usPairHeart {
+  margin: 0 -4px;
+  z-index: 1;
+  color: #e8405f;
+  font-size: 22px;
+  text-shadow: 0 0 3px #fff, 0 0 3px #fff;
+  animation: usBeat 1.6s ease-in-out infinite;
+}
+
+.usHeaderText {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.usNames {
+  font-size: 14px;
+  font-weight: bold;
+  color: #6b1d33;
+  overflow-wrap: anywhere;
+}
+.usTogether {
+  color: #6b4a55;
+}
+.usTogether b {
+  color: #b3203d;
+}
+
+.usStatus {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #666;
+}
+.usStatusDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #b0b0b0;
+}
+.usStatus.is-online .usStatusDot {
+  background: #3cc35a;
+  box-shadow: 0 0 4px #3cc35a;
+}
+.usStatus.is-away .usStatusDot {
+  background: #f2b632;
+}
+
+.usTiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 10px;
+}
+
+button.usTile {
+  all: unset;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 12px 8px 10px;
+  border-radius: 10px;
+  background: #fff;
+  border: 1px solid #f2c4d2;
+  box-shadow: 0 2px 0 #f2c4d2;
+  text-align: center;
+  cursor: pointer;
+  transition: transform 0.12s;
+}
+button.usTile:hover {
+  transform: translateY(-2px);
+}
+button.usTile:active {
+  transform: translateY(1px);
+  box-shadow: none;
+}
+button.usTile:focus-visible {
+  outline: 2px dotted #b3203d;
+}
+button.usTile img {
+  width: 40px;
+  height: 40px;
+}
+.usTileTitle {
+  font-weight: bold;
+  color: #6b1d33;
+}
+.usTileBlurb {
+  color: #8b5a6b;
+  font-size: 10px;
+}
+button.usTile .usBadge {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+}
+
+.usFooter {
+  text-align: right;
+}
+
+/* ---- panels (flowers, settings) ---- */
+
+.usPanel {
+  padding: 10px 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.usPanel fieldset {
+  margin: 0;
+  background: rgba(255, 255, 255, 0.6);
+}
+.usPanel fieldset > * + * {
+  margin-top: 6px;
+}
+
+.usPanelHead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.usPanelHead button {
+  min-width: 0;
+}
+
+.usShopBody {
+  display: flex;
+  gap: 12px;
+}
+.usShopPreview {
+  flex: 0 0 42%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.usShopArt {
+  width: 100%;
+  max-width: 260px;
+  overflow: visible;
+}
+.usShopControls {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.usCard {
+  max-width: 220px;
+  padding: 8px 10px;
+  background: #fffdf4;
+  border: 1px solid #e3d3a8;
+  box-shadow: 1px 2px 4px rgba(0, 0, 0, 0.15);
+  transform: rotate(-2deg);
+  font-family: "Segoe Script", "Bradley Hand", "Comic Sans MS", cursive;
+  font-size: 13px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.usFlowerPicks {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.usFlowerPick {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.usFlowerName {
+  flex: 1;
+}
+.usStepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.usStepper button {
+  min-width: 24px;
+  width: 24px;
+  padding: 0;
+}
+.usCount {
+  min-width: 16px;
+  text-align: center;
+  font-weight: bold;
+}
+.usQuick,
+.usChoices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+button.usChoice.is-on {
+  font-weight: bold;
+  box-shadow: inset 1px 1px #000, inset -1px -1px #fff;
+  background: #ffe1ea;
+}
+.usSwatches {
+  display: flex;
+  gap: 6px;
+}
+button.usSwatch {
+  min-width: 0;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px #7a5462;
+}
+button.usSwatch.is-on {
+  box-shadow:
+    0 0 0 2px #fff,
+    0 0 0 4px #e8405f;
+}
+
+.usSentList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.usSent {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.usSentArt {
+  width: 60px;
+}
+
+/* ---- photos ---- */
+
+.usAddPhoto {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.usThumb {
+  object-fit: cover;
+  background: #f6dde5;
+}
+.usThumbLoading {
+  display: inline-block;
+  background: linear-gradient(90deg, #f6dde5, #fff, #f6dde5);
+  background-size: 200% 100%;
+  animation: usShimmer 1.2s linear infinite;
+}
+@keyframes usShimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+
+/* ---- phones ---- */
+
+.usRoot.is-mobile {
+  font-size: 13px;
+}
+.usRoot.is-mobile input,
+.usRoot.is-mobile textarea,
+.usRoot.is-mobile select {
+  font-size: 16px;
+}
+/* 98.css selects are 21px tall: too short for 16px text */
+.usRoot.is-mobile select,
+.llRoot.is-mobile select,
+.osRoot.is-mobile select {
+  height: auto;
+  min-height: 32px;
+}
+.usRoot.is-mobile button {
+  min-height: 36px;
+}
+.usRoot.is-mobile .usTiles {
+  grid-template-columns: 1fr 1fr;
+}
+.usRoot.is-mobile .usShopBody {
+  flex-direction: column;
+}
+.usRoot.is-mobile .usShopPreview {
+  flex: none;
+}
+.usRoot.is-mobile .usShopArt {
+  max-width: 200px;
+}
+.usRoot.is-mobile .usStepper button {
+  min-width: 36px;
+  width: 36px;
+}
+.usRoot.is-mobile button.usSwatch {
+  width: 34px;
+  height: 34px;
+}
+.usRoot.is-mobile .usPairRow {
+  flex-direction: column;
+}

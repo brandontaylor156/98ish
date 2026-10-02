@@ -1,0 +1,161 @@
+/* The pair request and couple toasts, over the desktop */
+
+.coDim {
+  position: fixed;
+  inset: 0;
+  z-index: 100000005;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(60, 0, 30, 0.25);
+  animation: coFade 0.3s ease-out;
+}
+
+@keyframes coFade {
+  from {
+    opacity: 0;
+  }
+}
+
+.coRequest {
+  height: auto;
+  width: min(360px, 100%);
+  animation: coPop 0.45s cubic-bezier(0.2, 0.9, 0.3, 1.35);
+}
+
+@keyframes coPop {
+  from {
+    transform: scale(0.8);
+    opacity: 0;
+  }
+}
+
+.coRequestBody {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 16px 12px;
+  text-align: center;
+  background:
+    radial-gradient(circle at 10px 10px, rgba(255, 255, 255, 0.8) 2px, transparent 2.5px) 0 0 / 22px 22px,
+    linear-gradient(#fff0f4, #fde0e9);
+  font-family: "Pixelated MS Sans Serif", Arial, sans-serif;
+  font-size: 11px;
+}
+
+.coRequestBody p {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.coRequestArt svg {
+  animation: coBeat 1.4s ease-in-out infinite;
+}
+
+@keyframes coBeat {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  15% {
+    transform: scale(1.12);
+  }
+  30% {
+    transform: scale(0.97);
+  }
+  45% {
+    transform: scale(1.06);
+  }
+}
+
+.coRequestTitle {
+  font-size: 14px;
+  color: #8e1530;
+}
+
+.coRequestButtons {
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+button.coYes {
+  font-weight: bold;
+  background: #f9c6d4;
+}
+
+.coToasts {
+  position: fixed;
+  right: 8px;
+  top: 8px;
+  z-index: 100000004;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 300px;
+}
+
+.coToast {
+  height: auto;
+  animation: coSlide 0.35s ease-out;
+}
+
+@keyframes coSlide {
+  from {
+    transform: translateX(40px);
+    opacity: 0;
+  }
+}
+
+.coToast .title-bar {
+  background: linear-gradient(90deg, #a8204a, #f27c9b);
+}
+
+.coToastBody {
+  background: linear-gradient(#fff7f9, #ffe6ee);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: "Pixelated MS Sans Serif", Arial, sans-serif;
+  font-size: 11px;
+}
+
+.coToastIcon {
+  font-size: 24px;
+  line-height: 1;
+}
+
+.coToastText {
+  flex: 1;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.os-mobile .coToasts {
+  left: 8px;
+  right: 8px;
+  width: auto;
+  top: calc(env(safe-area-inset-top) + 8px);
+  bottom: auto;
+}
+
+/* one at a time on a phone */
+.os-mobile .coToast:not(:last-child) {
+  display: none;
+}
+
+.os-mobile .coRequest {
+  height: auto;
+}
+
+.os-mobile .coToastBody,
+.os-mobile .coRequestBody {
+  font-size: 13px;
+}
+
+.os-mobile .coToastBody button,
+.os-mobile .coRequestButtons button {
+  min-height: 38px;
+}

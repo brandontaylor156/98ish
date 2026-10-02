@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <!-- Love Letters: a pink envelope sealed with a heart, a letter peeking out -->
+  <rect x="6" y="15" width="38" height="26" rx="2" fill="#000"/>
+  <rect x="9" y="7" width="28" height="22" fill="#fffdf6" stroke="#9a8a7a" stroke-width="1"/>
+  <path d="M13 12h18M13 16h20M13 20h14" stroke="#e58aa4" stroke-width="1.6" stroke-linecap="round"/>
+  <rect x="4" y="13" width="38" height="26" rx="2" fill="#f7a1b8" stroke="#a8204a" stroke-width="1.2"/>
+  <path d="M4.6 38.5 20 25.5q3-2.4 6 0l15.4 13" fill="#fbc7d4" stroke="#c84a6c" stroke-width="1"/>
+  <path d="M4.6 13.6 21 27.5q2 1.6 4 0l16.4-13.9" fill="#f28fa7" stroke="#a8204a" stroke-width="1.2"/>
+  <circle cx="23" cy="26.5" r="5.2" fill="#b3203d" stroke="#7a1430" stroke-width=".8"/>
+  <path d="M23 25.2c0-1.8-2.6-2-2.6 0 0 1.2 1.4 2.2 2.6 3.2 1.2-1 2.6-2 2.6-3.2 0-2-2.6-1.8-2.6 0z" fill="#ffd1dc"/>
+</svg>

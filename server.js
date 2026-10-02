@@ -1,5 +1,6 @@
 // 98ish realtime server: the 98 Messenger (AIM-style) service on Socket.io, plus Network
-// Neighborhood (file sharing, WinPopup, network games) and the guestbook's HTTP API.
+// Neighborhood (file sharing, WinPopup, network games), the guestbook's HTTP API, and
+// couples (server/couples: pairing, love letters, Our Story, flowers).
 // Env: PORT, MONGODB_URI (accounts, guestbook and online drives; kept in memory without it).
 
 const express = require("express")
@@ -13,6 +14,7 @@ const { mailRouter } = require("./server/mail")
 const { attachGameChat } = require("./server/gamechat")
 const { puzzleRouter } = require("./server/puzzles")
 const { quizRouter } = require("./server/quiz")
+const { couplesRouter, attachCouples } = require("./server/couples")
 
 const app = express()
 app.use(cors())
@@ -27,6 +29,7 @@ app.use("/api/mail", mail)
 const puzzles = puzzleRouter()
 app.use("/api/puzzles", puzzles)
 app.use("/api/quiz", quiz)
+app.use("/api/couples", couplesRouter())
 app.use("/api", homepages)
 app.use("/api", guestbookRouter())
 
@@ -46,6 +49,7 @@ aim
     puzzles.useAim(aim)
     homepages.useAim(aim)
     quiz.useAim(aim)
+    attachCouples(io, { aim })
   })
   .catch((error) => {
     console.error("[aim] failed to start", error)

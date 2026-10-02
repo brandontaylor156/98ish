@@ -9,6 +9,8 @@ import { useFsVersion } from "../../hooks/useFs"
 import { playSystemSound } from "../../utils/systemSounds"
 import { AimProvider } from "../applets/aim/AimContext"
 import MailNotifier from "../applets/mail/MailNotifier"
+import CoupleBridge, { FlowerSpot } from "../applets/couples/CoupleBridge"
+import { useCouple } from "../../utils/couple"
 import { NetProvider } from "../applets/network/NetContext"
 import ContextMenu from "../shared/ContextMenu"
 import Dialog from "../shared/Dialog"
@@ -40,6 +42,9 @@ const Town = lazyApp(() => import("../applets/town/Town"))
 const Puzzle = lazyApp(() => import("../applets/puzzle/Puzzle"))
 const Doodle = lazyApp(() => import("../applets/doodle/Doodle"))
 const Quiz = lazyApp(() => import("../applets/quiz/Quiz"))
+const Us = lazyApp(() => import("../applets/couples/Us"))
+const LoveLetters = lazyApp(() => import("../applets/couples/LoveLetters"))
+const OurStory = lazyApp(() => import("../applets/couples/OurStory"))
 // Network Neighborhood and the head-to-head games
 const isNetWindow = (w) => w.app === "network" || !!w.app?.startsWith("net-")
 const FileExplorer = lazyApp(() => import("../applets/fileExplorer/FileExplorer"))
@@ -100,7 +105,8 @@ const useViewport = () => {
 // My Computer and the Recycle Bin first, as in Windows
 const defaultOrder = () => {
   const first = ["My Computer", "Recycle Bin"]
-  return [...first, ...desktopPrograms.map((p) => p.name).filter((n) => !first.includes(n))]
+  // (Us only shows up for couples: it takes the next free spot then)
+  return [...first, ...desktopPrograms.filter((p) => p.desktop !== "paired").map((p) => p.name).filter((n) => !first.includes(n))]
 }
 
 // Columns down the left side, top to bottom
@@ -149,6 +155,7 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
   const openGesture = useOpenGesture()
   const viewport = useViewport()
   const [positions, setPositions] = useState(() => ({ ...gridLayout(defaultOrder(), viewport), ...loadIcons() }))
+  const paired = useCouple().status === "paired"
 
   // logging off or shutting down unmounts the desktop: sign out of 98 Messenger
   useEffect(() => () => socket.disconnect(), [])
@@ -168,7 +175,7 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
   // the programs, then whatever is in C:\Desktop (files, folders, shortcuts)
   const deskDir = fs.resolve("C:/Desktop")
   const icons = [
-    ...desktopPrograms.map((p) => ({
+    ...desktopPrograms.filter((p) => p.desktop !== "paired" || paired).map((p) => ({
       ...p,
       key: p.name,
       icon: p.app === "recycle" ? (binFull ? "/assets/recycle_bin_full.png" : "/assets/recycle_bin_empty.png") : p.icon,
@@ -505,6 +512,9 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
       {window.app === "puzzle" && <Puzzle mobile={mobile} dispatch={dispatch} onClose={() => closeWindow(window, index)} onTitle={rename(index)} />}
       {window.app === "doodle" && <Doodle mobile={mobile} dispatch={dispatch} inviteTo={window.inviteTo} onClose={() => closeWindow(window, index)} onTitle={rename(index)} />}
       {window.app === "quiz" && <Quiz mobile={mobile} dispatch={dispatch} onClose={() => closeWindow(window, index)} onTitle={rename(index)} />}
+      {window.app === "us" && <Us view={window.view} mobile={mobile} />}
+      {window.app === "loveletters" && <LoveLetters view={window.view} mobile={mobile} />}
+      {window.app === "ourstory" && <OurStory focus={window.focus} mobile={mobile} />}
 
       {window.app === "calc" && (
         <Calculator
@@ -720,6 +730,7 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
           <DriveSync />
         </React.Suspense>
         <MailNotifier socket={socket} windows={windows} dispatch={dispatch} />
+        <CoupleBridge socket={socket} windows={windows} dispatch={dispatch} mobile={mobile} />
       </NetProvider>
     </AimProvider>
   )
@@ -727,6 +738,7 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
   if (mobile) {
     return withAim(
       <div className="mobileDesktop" onClick={() => closeMenu()} onContextMenu={onContextMenu} {...longPress}>
+        <FlowerSpot mobile />
         <MobileIcons key={mobileLayout} programs={icons} onOpen={openIcon} />
         {windows.map(
           (window, index) =>
@@ -763,6 +775,7 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
       onDragOver={onDragOver}
       onDrop={onDrop}
     >
+      <FlowerSpot />
       {icons.map((icon) => {
         const pos = placed[icon.key]
         return (

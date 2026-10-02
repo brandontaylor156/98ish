@@ -21,6 +21,9 @@ export const SYSTEM_PROCESSES = [
 // Window name -> executable that "owns" it.
 export const APP_PROFILES = {
   "Task Manager": { image: "taskmgr.exe", mem: 1996, threads: 3, handles: 31, cpu: [0.7, 3] },
+  Us: { image: "us.exe", mem: 2214, threads: 3, handles: 44, cpu: [0.1, 1] },
+  "Love Letters": { image: "letters.exe", mem: 3108, threads: 4, handles: 61, cpu: [0.15, 2] },
+  "Our Story": { image: "ourstory.exe", mem: 6420, threads: 5, handles: 92, cpu: [0.2, 3] },
   Tetris: { image: "tetris.exe", mem: 4212, threads: 4, handles: 57, cpu: [0.95, 9] },
   SPECTRA: { image: "spectra.exe", mem: 48212, threads: 14, handles: 312, cpu: [6, 38] },
   Hover: { image: "hover.exe", mem: 9408, threads: 6, handles: 88, cpu: [1, 22] },

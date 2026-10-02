@@ -47,9 +47,13 @@ export const programs = [
   { name: "Downhill", app: "ski", type: "ski", icon: "/assets/program_icons/ski.svg", width: 640, height: 520, group: "Games", desktop: false, single: true },
   { name: "Block Ten", app: "blockten", type: "blockten", icon: "/assets/program_icons/blockten.svg", width: 440, height: 640, group: "Games", desktop: false, single: true },
   { name: "Sunny Acres", app: "town", type: "town", icon: "/assets/program_icons/town.svg", width: 860, height: 620, group: "Games", desktop: false, single: true },
-  { name: "Photo Puzzle", app: "puzzle", type: "puzzle", icon: "/assets/program_icons/puzzle.svg", width: 820, height: 600, group: "Games", desktop: false, single: true },
-  { name: "Doodle Together", app: "doodle", type: "doodle", icon: "/assets/program_icons/doodle.svg", width: 780, height: 640, group: "Games", desktop: false, single: true },
-  { name: "Lovebirds Quiz Show", app: "quiz", type: "quiz", icon: "/assets/program_icons/quiz.svg", width: 560, height: 620, group: "Games", desktop: false, single: true },
+  { name: "Photo Puzzle", app: "puzzle", type: "puzzle", icon: "/assets/program_icons/puzzle.svg", width: 820, height: 600, group: "Us", desktop: false, single: true },
+  { name: "Doodle Together", app: "doodle", type: "doodle", icon: "/assets/program_icons/doodle.svg", width: 780, height: 640, group: "Us", desktop: false, single: true },
+  { name: "Lovebirds Quiz Show", app: "quiz", type: "quiz", icon: "/assets/program_icons/quiz.svg", width: 560, height: 620, group: "Us", desktop: false, single: true },
+  // couples (utils/couple.js): Us is on the desktop once you're paired ("paired")
+  { name: "Us", app: "us", icon: "/assets/program_icons/us.svg", width: 540, height: 540, group: "Us", desktop: "paired", single: true },
+  { name: "Love Letters", app: "loveletters", icon: "/assets/program_icons/loveletters.svg", width: 720, height: 580, group: "Us", desktop: false, single: true },
+  { name: "Our Story", app: "ourstory", icon: "/assets/program_icons/ourstory.svg", width: 760, height: 620, group: "Us", desktop: false, single: true },
 ]
 
 // The desktop shows these (MS-DOS Prompt and Display Properties live in the Start menu)

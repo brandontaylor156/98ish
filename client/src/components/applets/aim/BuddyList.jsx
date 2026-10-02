@@ -4,6 +4,7 @@ import { useOpenGesture } from "../../../hooks/useMediaQuery"
 import Dialog from "../../shared/Dialog"
 import MenuBar from "../../shared/MenuBar"
 import { AwayNote, DoorClosed, DoorOpen, NoIcon } from "./Icons"
+import { openCouples } from "../../../utils/couple"
 
 const AWAY_PRESETS = [
   "I am away from my computer right now.",
@@ -125,6 +126,8 @@ const BuddyList = () => {
         "-",
         { label: "Join a Chat Room...", onClick: () => setDialog({ kind: "chat", text: LOBBY }) },
         { label: "Block List...", onClick: () => setDialog({ kind: "blockList" }) },
+        "-",
+        { label: "Pair with a partner...", onClick: () => openCouples("Us") },
       ],
     },
     {

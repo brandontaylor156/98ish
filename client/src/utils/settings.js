@@ -21,6 +21,8 @@ export const WALLPAPERS = [
   { id: "sunset", label: "Sunset Grid", url: "/assets/themes/sunset.svg" },
   { id: "dinosaurs", label: "Dinosaurs", url: "/assets/themes/dinosaurs.svg" },
   { id: "custom", label: "(Your picture)" },
+  // photos from Our Story, taking turns while you're signed on with your partner (see utils/couple.js)
+  { id: "ourphotos", label: "Our photos ♥" },
 ]
 
 export const SCHEMES = [
@@ -147,6 +149,13 @@ export const saveWallpaperImage = (data) => {
   }
 }
 
+// the Our Story photo showing on the desktop right now (kept in memory only)
+let ourPhoto = null
+export const setOurPhoto = (data) => {
+  ourPhoto = data || null
+  listeners.forEach((fn) => fn({ ...current }))
+}
+
 // ---- what the desktop looks like ----
 
 const PATTERNS = {
@@ -204,6 +213,10 @@ export const wallpaperStyle = (settings) => {
       const data = getWallpaperImage()
       return data ? imageStyle(data, settings.display, color) : { backgroundColor: color }
     }
+    case "ourphotos":
+      return ourPhoto
+        ? { ...imageStyle(ourPhoto, settings.display === "tile" ? "stretch" : settings.display, "#3a1830"), transition: "background-image 1.2s ease" }
+        : { backgroundColor: "#f4c6d6", backgroundImage: "radial-gradient(circle at 12px 12px, rgba(255,255,255,.55) 3px, transparent 3.5px)", backgroundSize: "24px 24px" }
     default:
       if (wallpaperUrl(settings.wallpaper)) return imageStyle(wallpaperUrl(settings.wallpaper), settings.display, color)
       if (PATTERNS[settings.wallpaper]) return PATTERNS[settings.wallpaper](color)
