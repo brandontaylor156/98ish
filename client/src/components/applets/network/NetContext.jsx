@@ -370,6 +370,7 @@ export const NetProvider = ({ socket, windows, dispatch: dispatchWindow, mobile,
   }
 
   const value = {
+    socket, // the shared connection (game chat talks over it too)
     status,
     me,
     computers,

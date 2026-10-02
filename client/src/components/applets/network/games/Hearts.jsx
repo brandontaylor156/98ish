@@ -1,5 +1,6 @@
 import React, { useEffect, useLayoutEffect, useState } from "react"
 import MenuBar from "../../../shared/MenuBar"
+import GameChat, { useGameChatMenuItem } from "../../../shared/GameChat"
 import Dialog from "../../../shared/Dialog"
 import { useNet } from "../NetContext"
 import { Card, cardName } from "./Cards"
@@ -99,6 +100,7 @@ const ScoreTable = ({ view }) => {
 const Hearts = ({ matchId, onClose }) => {
   const net = useNet()
   const view = net.matches[matchId]
+  const chatItem = useGameChatMenuItem("hearts")
   const [chosen, setChosen] = useState([])
   const [error, setError] = useState(null)
   const [dialog, setDialog] = useState(null)
@@ -192,6 +194,7 @@ const Hearts = ({ matchId, onClose }) => {
         { label: "Leave Table", onClick: onClose },
       ],
     },
+    { label: "Options", items: [chatItem] },
     { label: "Help", items: [{ label: "Rules...", onClick: () => setDialog("rules") }] },
   ]
 
@@ -224,6 +227,8 @@ const Hearts = ({ matchId, onClose }) => {
   return (
     <div className="netApp htRoot">
       <MenuBar menus={menus} />
+      {/* with other people at the table, a chat just for them; alone with the computer, the Hearts lobby */}
+      <GameChat game="hearts" title="Hearts" room={view.seats.filter((s) => s.name && !s.bot).length > 1 ? `match:${matchId}` : undefined} />
       <div className="htTable">
         {lobby ? (
           <div className="htLobby">

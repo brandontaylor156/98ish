@@ -1,5 +1,6 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
 import MenuBar from "../../shared/MenuBar"
+import GameChat, { useGameChatMenuItem } from "../../shared/GameChat"
 import Dialog from "../../shared/Dialog"
 import { useIsTouch } from "../../../hooks/useMediaQuery"
 import { LEVELS, LIMITS, chord, clampCustom, createGame, createSeededGame, cycleMark, elapsedSeconds, maxMinesFor, minesLeft, neighbors, reveal } from "./engine"
@@ -54,11 +55,12 @@ const Cell = React.memo(({ index, cell, pressed, exploded, lost }) => {
 })
 
 // Minesweeper Race (Network Neighborhood) plays on a board fixed by a seed:
-// race = { seed, round, field, startAt, frozen, over, onProgress(game), onResign, panel, overlay }
+// race = { seed, round, field, startAt, frozen, over, onProgress(game), onResign, panel, overlay, chatRoom }
 const raceGame = (race) => ({ ...createSeededGame(race.field, race.seed), startedAt: race.startAt })
 
 const Minesweeper = ({ fitWindow, onClose, race }) => {
   const touch = useIsTouch()
+  const chatItem = useGameChatMenuItem(race ? "race" : "minesweeper")
   const [settings, setSettings] = useState(() => load(SETTINGS_KEY, DEFAULT_SETTINGS))
   const [best, setBest] = useState(() => load(BEST_KEY, DEFAULT_BEST))
   const [game, setGame] = useState(() => (race ? raceGame(race) : createGame(fieldFor(settings))))
@@ -285,6 +287,7 @@ const Minesweeper = ({ fitWindow, onClose, race }) => {
             { label: "Exit", onClick: () => onClose?.() },
           ],
         },
+        { label: "Options", items: [chatItem] },
         { label: "Help", items: [{ label: "How to Play...", onClick: () => setDialog({ kind: "help" }) }] },
       ]
     : [
@@ -307,6 +310,7 @@ const Minesweeper = ({ fitWindow, onClose, race }) => {
         { label: "Exit", onClick: () => onClose?.() },
       ],
     },
+    { label: "Options", items: [chatItem] },
     {
       label: "Help",
       items: [
@@ -330,6 +334,7 @@ const Minesweeper = ({ fitWindow, onClose, race }) => {
       onContextMenu={(e) => e.preventDefault()}
     >
       <MenuBar menus={menus} />
+      <GameChat game={race ? "race" : "minesweeper"} title={race ? "Minesweeper Race" : "Minesweeper"} room={race?.chatRoom} />
       <div className="msArea" ref={areaRef}>
         <div className="msGame" ref={gameRef} style={{ "--ms-cell": `${layout.cell}px`, ...(race && { position: "relative" }) }}>
           {race?.panel}

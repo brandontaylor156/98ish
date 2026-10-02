@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react"
 import MenuBar from "../../shared/MenuBar"
+import GameChat, { useGameChatMenuItem } from "../../shared/GameChat"
 import Dialog from "../../shared/Dialog"
 import { unlock } from "../../../utils/achievements"
 import * as E from "./engine"
@@ -66,6 +67,7 @@ const PieceView = ({ id, size, className = "", style }) => {
 }
 
 const BlockTen = ({ onClose, mobile }) => {
+  const chatItem = useGameChatMenuItem("blockten")
   const rootRef = useRef(null)
   const stageRef = useRef(null)
   const gridRef = useRef(null)
@@ -377,6 +379,7 @@ const BlockTen = ({ onClose, mobile }) => {
       label: "Options",
       items: [
         { label: "Sound", checked: data.sound, onClick: () => setPref({ sound: !data.sound }) },
+        chatItem,
         "-",
         ...THEMES.map((t) => ({ label: t.label, checked: theme === t.id, onClick: () => setPref({ theme: t.id }) })),
       ],
@@ -487,6 +490,7 @@ const BlockTen = ({ onClose, mobile }) => {
       data-mode={mode}
     >
       <MenuBar menus={menus} />
+      <GameChat game="blockten" title="Block Ten" />
       <div className="btStage" ref={stageRef}>
         {L && (
           <div className={L.wide ? "btLayout is-wide" : "btLayout"}>

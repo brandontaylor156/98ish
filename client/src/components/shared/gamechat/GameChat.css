@@ -1,0 +1,364 @@
+/* Game chat (GameChat.jsx, GameChatPanel.jsx) */
+
+/* ---- the title bar button ---- */
+.title-bar-controls button.gchatToggle {
+  order: -1;
+  position: relative;
+  margin-right: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* one more button: the title gives way (with "...") rather than pushing Close out of sight */
+.title-bar:has(.gchatToggle) .title-bar-text {
+  min-width: 0;
+  overflow: hidden;
+  margin-right: 6px;
+}
+
+.title-bar:has(.gchatToggle) .title-bar-text span {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.title-bar:has(.gchatToggle) .title-bar-controls {
+  flex-shrink: 0;
+}
+
+.gchatToggle .gchatBubble {
+  width: 12px;
+  height: 10px;
+}
+
+.os-mobile .title-bar-controls button.gchatToggle .gchatBubble {
+  width: 17px;
+  height: 14px;
+}
+
+.gchatToggle.is-open {
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #0a0a0a, inset -2px -2px #dfdfdf, inset 2px 2px grey;
+}
+
+.gchatUnread {
+  position: absolute;
+  top: -5px;
+  right: -7px;
+  min-width: 13px;
+  padding: 0 2px;
+  border: 1px solid #fff;
+  border-radius: 7px;
+  background: #e00000;
+  color: #fff;
+  font: bold 9px/11px Arial, sans-serif;
+  text-align: center;
+  text-shadow: none;
+  pointer-events: none;
+}
+
+/* ---- where the chat sits ---- */
+.gchatDock {
+  position: absolute;
+  z-index: 5;
+  box-sizing: border-box;
+}
+
+/* a drawer docked beside the window */
+.gchatDock--right {
+  top: 0;
+  left: 100%;
+  height: 100%;
+  min-height: 320px;
+}
+
+.gchatDock--left {
+  top: 0;
+  right: 100%;
+  height: 100%;
+  min-height: 320px;
+}
+
+/* no room beside it: inside the window, and the game gives up the width */
+.window[data-gchat-host] {
+  position: relative;
+}
+
+.gchatDock--inside {
+  top: 28px;
+  right: 3px;
+  bottom: 3px;
+  width: 220px;
+}
+
+[data-gchat="inside"] {
+  width: calc(100% - 222px) !important;
+}
+
+/* phones: a bottom sheet sliding up over the game (the game keeps its size and controls) */
+.gchatDock--sheet {
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: min(55%, 360px);
+  z-index: 30;
+  box-shadow: 0 -3px 0 rgba(0, 0, 0, 0.25);
+  animation: gchatSheetUp 0.16s ease-out;
+}
+
+@keyframes gchatSheetUp {
+  from {
+    transform: translateY(40%);
+    opacity: 0;
+  }
+}
+
+/* a new message while the chat is closed: one line across the top of the game */
+.gchatTicker {
+  position: absolute;
+  top: 28px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 29;
+  max-width: calc(100% - 16px);
+  min-width: 0 !important;
+  min-height: 0 !important;
+  padding: 3px 8px !important;
+  background: #ffffe1 !important;
+  color: #000;
+  border: 1px solid #000;
+  box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.3) !important;
+  font-family: Tahoma, Verdana, Arial, sans-serif;
+  font-size: 12px;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  animation: gchatTicker 4.5s ease-in-out forwards;
+}
+
+@keyframes gchatTicker {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -6px);
+  }
+  8%,
+  85% {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.gchatLoading {
+  height: 100%;
+  padding: 8px;
+  background: silver;
+  font-family: "Pixelated MS Sans Serif", Arial, sans-serif;
+  font-size: 11px;
+}
+
+/* ---- the chat ---- */
+.gchatPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  height: 100%;
+  box-sizing: border-box;
+  padding: 3px;
+  background: silver;
+  box-shadow: inset -1px -1px #0a0a0a, inset 1px 1px #dfdfdf, inset -2px -2px grey, inset 2px 2px #fff;
+  font-family: "Pixelated MS Sans Serif", Arial, sans-serif;
+  font-size: 11px;
+  -webkit-font-smoothing: none;
+  color: #000;
+}
+
+.gchatPanel--inside {
+  box-shadow: inset 1px 0 grey, inset 2px 0 #fff;
+  padding-left: 5px;
+}
+
+.gchatHead {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  height: 18px;
+  padding: 0 2px 0 3px;
+  background: linear-gradient(90deg, navy, #1084d0);
+  color: #fff;
+  font-weight: bold;
+  white-space: nowrap;
+}
+
+.gchatHead .gchatBubble {
+  flex-shrink: 0;
+}
+
+.gchatTitle {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.gchatStatus {
+  flex-shrink: 0;
+  margin: 0;
+}
+
+.gchatPanel .gchatCount {
+  margin: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.gchatPanel .gchatHeadBtn {
+  flex-shrink: 0;
+  min-width: 16px;
+  min-height: 14px;
+  height: 14px;
+  padding: 0;
+  font: bold 10px/12px Arial, sans-serif;
+  color: #000;
+  text-shadow: none;
+}
+
+.gchatLog {
+  flex: 1;
+  min-height: 40px;
+  overflow-y: auto;
+  padding: 3px 5px;
+  background: #fff;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px grey, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+  font-family: Arial, sans-serif;
+  font-size: 12px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.gchatLine {
+  white-space: pre-wrap;
+}
+
+.gchatPanel .gchatName {
+  display: inline;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
+  font: bold 12px Arial, sans-serif;
+  text-shadow: none;
+  cursor: pointer;
+  vertical-align: baseline;
+}
+
+.gchatPanel .gchatName:hover {
+  text-decoration: underline;
+}
+
+.gchatColon {
+  font-weight: bold;
+}
+
+.gchatSystem {
+  color: grey;
+  font-style: italic;
+  font-size: 11px;
+}
+
+.gchatFiltered {
+  color: grey;
+  font-style: italic;
+}
+
+.gchatSmiley {
+  width: 14px;
+  height: 14px;
+  vertical-align: -3px;
+}
+
+.gchatQuick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+.gchatQuick button {
+  flex-shrink: 0;
+  min-width: 0;
+  min-height: 21px;
+  padding: 0 6px;
+  white-space: nowrap;
+}
+
+.gchatNotice {
+  flex-shrink: 0;
+  color: #c00000;
+}
+
+.gchatForm {
+  display: flex;
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+.gchatForm input {
+  flex: 1;
+  min-width: 0;
+}
+
+.gchatForm button {
+  min-width: 52px;
+  padding: 0 8px;
+}
+
+/* phones: bigger targets, one scrolling row of quick messages, no zoom on the input */
+.os-mobile .gchatHead {
+  height: 30px;
+  font-size: 13px;
+}
+
+.os-mobile .gchatPanel .gchatHeadBtn {
+  min-width: 36px;
+  height: 26px;
+  font-size: 14px;
+}
+
+.os-mobile .gchatLog {
+  font-size: 15px;
+}
+
+.os-mobile .gchatPanel .gchatName {
+  font-size: 15px;
+}
+
+.os-mobile .gchatQuick {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.os-mobile .gchatQuick button {
+  min-height: 34px;
+  padding: 0 10px;
+  font-size: 13px;
+}
+
+.os-mobile .gchatForm input {
+  height: 36px;
+  font-size: 16px;
+}
+
+.os-mobile .gchatForm button {
+  min-height: 36px;
+}

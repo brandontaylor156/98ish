@@ -1,5 +1,6 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react"
 import MenuBar from "../../../shared/MenuBar"
+import GameChat, { useGameChatMenuItem } from "../../../shared/GameChat"
 import { DrawOffer, GameButtons, GameOver, PlayerBar, ResignDialog, ResultBanner, RulesDialog, waitingText } from "./GameParts"
 import { CHESS_LEVELS, useNetGame, useSoloChess } from "./useBoardGame"
 import { ChessPiece, PIECE_NAMES } from "./ChessPieces"
@@ -67,6 +68,7 @@ const MoveList = ({ sans, compact }) => {
 }
 
 const ChessBoard = ({ view, act, onClose }) => {
+  const chatItem = useGameChatMenuItem("chess")
   const [sel, setSel] = useState(null)
   const [promo, setPromo] = useState(null) // { from, to } waiting for a piece choice
   const [error, setError] = useState(null)
@@ -243,6 +245,7 @@ const ChessBoard = ({ view, act, onClose }) => {
     },
     { label: "View", items: [{ label: "Flip Board", checked: turned, onClick: () => setTurned(!turned) }] },
     ...(view.solo ? [{ label: "Level", items: Object.entries(CHESS_LEVELS).map(([level, label]) => ({ label, checked: view.level === Number(level), onClick: () => act.setLevel(Number(level)) })) }] : []),
+    { label: "Options", items: [chatItem] },
     { label: "Help", items: [{ label: "Rules...", onClick: () => setDialog("rules") }] },
   ]
 
@@ -321,6 +324,7 @@ const ChessBoard = ({ view, act, onClose }) => {
   return (
     <div className={layout.wide ? "netApp ckRoot chRoot is-wide" : "netApp ckRoot chRoot"} ref={rootRef} data-game="chess">
       <MenuBar menus={menus} />
+      <GameChat game="chess" title="Chess" room={view.solo ? undefined : `match:${view.id}`} />
       <div className="chMain">
         <div className="chLeft">
           {top}

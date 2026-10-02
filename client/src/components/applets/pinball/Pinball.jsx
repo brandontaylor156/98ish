@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react"
 import MenuBar from "../../shared/MenuBar"
+import GameChat, { useGameChatMenuItem } from "../../shared/GameChat"
 import Dialog from "../../shared/Dialog"
 import TouchControls, { fromPx, useTouchControlsMenuItem, useTouchControlsVisible } from "../../shared/controls"
 import { useIsTouch } from "../../../hooks/useMediaQuery"
@@ -96,6 +97,7 @@ const hudOf = (g) => {
 const sameHud = (a, b) => Object.keys(a).every((k) => a[k] === b[k])
 
 const Pinball = ({ onClose, onTitle, mobile }) => {
+  const chatItem = useGameChatMenuItem("pinball")
   const touch = useIsTouch()
   const rootRef = useRef(null)
   const wrapRef = useRef(null)
@@ -395,6 +397,8 @@ const Pinball = ({ onClose, onTitle, mobile }) => {
         { label: "Player Controls...", onClick: () => setDialog({ kind: "controls" }) },
         controlsMenuItem,
         { label: "Customize Touch Controls...", disabled: !showPad, onClick: () => setEditing(true) },
+        "-",
+        chatItem,
       ],
     },
     {
@@ -446,6 +450,7 @@ const Pinball = ({ onClose, onTitle, mobile }) => {
       data-paused={paused ? "1" : "0"}
     >
       <MenuBar menus={menus} />
+      <GameChat game="pinball" title="Pinball" />
       <div className="pbBody">
         {compact && (
           <div className="pbTopBar">

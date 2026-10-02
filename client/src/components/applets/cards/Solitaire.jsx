@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react"
 import MenuBar from "../../shared/MenuBar"
+import GameChat, { useGameChatMenuItem } from "../../shared/GameChat"
 import Dialog from "../../shared/Dialog"
 import CardTable, { useSize } from "./CardTable"
 import WinCascade from "./WinCascade"
@@ -34,6 +35,7 @@ const penalize = (state, n) => {
 }
 
 const Solitaire = ({ onClose }) => {
+  const chatItem = useGameChatMenuItem("solitaire")
   const [settings, setSettings] = useState(() => load(SETTINGS_KEY, DEFAULTS))
   const [play, setPlay] = useState(() => fresh(settings))
   const [selection, setSelection] = useState(null) // { pile, index } picked up by a tap
@@ -300,6 +302,7 @@ const Solitaire = ({ onClose }) => {
         { label: "Undo Ctrl+Z", disabled: !play.past.length || busy, onClick: undo },
         { label: "Deck...", onClick: () => setDialog({ kind: "deck", back: settings.back }) },
         { label: "Options...", onClick: () => setDialog({ kind: "options", ...settings }) },
+        chatItem,
         "-",
         { label: "Exit", onClick: () => onClose?.() },
       ],
@@ -319,6 +322,7 @@ const Solitaire = ({ onClose }) => {
   return (
     <div className="cardsRoot" ref={rootRef} tabIndex={-1} onKeyDown={onKeyDown} onContextMenu={(e) => e.preventDefault()}>
       <MenuBar menus={menus} />
+      <GameChat game="solitaire" title="Solitaire" />
       <div className="cardsFelt">
         <CardTable
           tableRef={tableRef}

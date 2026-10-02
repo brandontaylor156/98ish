@@ -337,6 +337,17 @@ const attachNet = (io, { aim: initialAim = null, graceMs = RESUME_GRACE_MS, game
     },
     computers,
     games,
+    // who a socket is on the network ({ pid, name }), for game chat
+    whoIs: (socket) => {
+      const c = computers.get(socket.data.netToken)
+      return c && c.socket === socket ? { pid: c.pid, name: nameOf(c) } : null
+    },
+    // either side blocks the other in 98 Messenger
+    blockedPids: (a, b) => {
+      const ca = byPid.get(a)
+      const cb = byPid.get(b)
+      return !!(ca && cb && blocked(ca, cb))
+    },
   }
 }
 

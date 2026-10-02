@@ -2,6 +2,7 @@ import React, { useEffect, useLayoutEffect, useRef, useState } from "react"
 import MenuBar from "../../../shared/MenuBar"
 import Dialog from "../../../shared/Dialog"
 import { useNet } from "../NetContext"
+import GameChat, { useGameChatMenuItem } from "../../../shared/GameChat"
 
 // Checkers against another computer. The server checks every move and sends the moves
 // you may make; pick a piece, then the square(s) to move it to (each jump of a multi-jump
@@ -29,6 +30,7 @@ const Crown = () => (
 const Checkers = ({ matchId, onClose }) => {
   const net = useNet()
   const view = net.matches[matchId]
+  const chatItem = useGameChatMenuItem("checkers")
   const [path, setPath] = useState([])
   const [sending, setSending] = useState(false)
   const [error, setError] = useState(null)
@@ -124,6 +126,7 @@ const Checkers = ({ matchId, onClose }) => {
         { label: "Exit", onClick: onClose },
       ],
     },
+    { label: "Options", items: [chatItem] },
     { label: "Help", items: [{ label: "Rules...", onClick: () => setDialog("rules") }] },
   ]
 
@@ -142,6 +145,7 @@ const Checkers = ({ matchId, onClose }) => {
   return (
     <div className="netApp ckRoot">
       <MenuBar menus={menus} />
+      <GameChat game="checkers" title="Checkers" room={`match:${matchId}`} />
       <Player color={them} name={view.names[them]} />
       <div className="ckArea" ref={areaRef}>
         <div className="ckBoard" style={{ width: size, height: size }} role="grid" aria-label="Checkerboard">

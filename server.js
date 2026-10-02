@@ -10,6 +10,7 @@ const { guestbookRouter } = require("./server/net/guestbook")
 const { driveRouter } = require("./server/drive")
 const { homepageRouter } = require("./server/net/homepages")
 const { mailRouter } = require("./server/mail")
+const { attachGameChat } = require("./server/gamechat")
 
 const app = express()
 app.use(cors())
@@ -30,6 +31,7 @@ const server = app.listen(port, () => console.log(`The server is all fired up on
 const io = require("socket.io")(server, { cors: true, maxHttpBufferSize: 2 * 1024 * 1024 })
 
 const net = attachNet(io)
+attachGameChat(io, net)
 aim = attachAim(io)
 aim
   .then((aim) => {

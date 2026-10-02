@@ -8,6 +8,7 @@ import { clampView, drawScene, emitSmoke, expansionAt, groundObjectAt, objectAt,
 import { createSounds } from "./audio"
 import { BarnPanel, Chip, ExpandPanel, FactoryPanel, HelpPanel, Icon, LevelPanel, OrdersPanel, ShopPanel, TrainPanel, fmtTime } from "./panels"
 import { unlock } from "../../../utils/achievements"
+import GameChat, { useGameChatMenuItem } from "../../shared/GameChat"
 import "./Town.css"
 
 // Sunny Acres: grow crops, raise animals, run factories, fill helicopter orders and the
@@ -695,6 +696,7 @@ const Town = ({ onClose, onTitle, mobile }) => {
   const panelObj = panel?.k === "factory" ? G.objById(s, panel.id) : null
   const level = levels[0]
   const closePanel = () => setPanel(null)
+  const chatItem = useGameChatMenuItem("town")
 
   const menus = [
     {
@@ -710,6 +712,7 @@ const Town = ({ onClose, onTitle, mobile }) => {
             setSoundOn(!soundOn)
           },
         },
+        chatItem,
         "-",
         { label: "Exit", onClick: () => onClose?.() },
       ],
@@ -723,6 +726,7 @@ const Town = ({ onClose, onTitle, mobile }) => {
   return (
     <div className={`twRoot${compact ? " twCompact" : ""}${mobile ? " twMobile" : ""}`} ref={rootRef} tabIndex={0} onKeyDown={onKeyDown}>
       <MenuBar menus={menus} />
+      <GameChat game="town" title="Sunny Acres" />
       <div className="twBody">
         <div className="twStage" ref={stageRef}>
           <canvas

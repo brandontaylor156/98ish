@@ -28,6 +28,9 @@ const createGames = ({ emit, delays = DELAYS, random = Math.random } = {}) => {
   const matches = new Map() // id -> match
 
   const send = (pid, event, payload) => pid && emit(pid, event, payload)
+  // game chat listens for results and rematches (server/gamechat)
+  const listeners = new Set()
+  const notify = (m, type) => listeners.forEach((fn) => fn(m, type))
 
   // ---------- views ----------
 
@@ -350,6 +353,7 @@ const createGames = ({ emit, delays = DELAYS, random = Math.random } = {}) => {
     m.result = { winner, draw: winner === null, reason }
     m.drawOffer = null
     publish(m)
+    notify(m, "finish")
   }
 
   const checkersMove = (pid, matchId, path) => {
@@ -468,6 +472,7 @@ const createGames = ({ emit, delays = DELAYS, random = Math.random } = {}) => {
         m.startAt = Date.now() + 3000
         m.progress = { [m.players[0]]: raceProgress(), [m.players[1]]: raceProgress() }
       }
+      notify(m, "rematch")
     }
     publish(m)
     return { ok: true }
@@ -524,6 +529,10 @@ const createGames = ({ emit, delays = DELAYS, random = Math.random } = {}) => {
     publish(m)
     const st = m.state
     if (!st) return
+    if (st.phase === "gameOver" && m.notifiedRound !== m.round) {
+      m.notifiedRound = m.round
+      notify(m, "finish")
+    }
     if (st.phase === "passing") {
       const waiting = m.seats.findIndex((s, i) => s.bot && !st.passes[i])
       if (waiting >= 0) {
@@ -666,6 +675,12 @@ const createGames = ({ emit, delays = DELAYS, random = Math.random } = {}) => {
     drop,
     resync,
     busy,
+    // the people (not computer players) in a match, or null if there's no such match
+    playersOf: (matchId) => {
+      const m = matches.get(matchId)
+      return m ? humansOf(m) : null
+    },
+    onEvent: (fn) => (listeners.add(fn), () => listeners.delete(fn)),
     matches,
     invites,
     RACE_LEVELS,

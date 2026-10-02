@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react"
 import MenuBar from "../../shared/MenuBar"
+import GameChat, { useGameChatMenuItem } from "../../shared/GameChat"
 import Dialog from "../../shared/Dialog"
 import CardTable, { useSize } from "./CardTable"
 import { DEFAULT_BACK } from "./art"
@@ -59,6 +60,7 @@ const King = ({ size, look, happy }) => (
 )
 
 const FreeCell = ({ onClose, onTitle }) => {
+  const chatItem = useGameChatMenuItem("freecell")
   const [settings, setSettings] = useState(() => load(SETTINGS_KEY, DEFAULTS))
   const [play, setPlay] = useState(() => fresh(F.randomGame()))
   const [selected, setSelected] = useState(null) // a pile id
@@ -269,6 +271,7 @@ const FreeCell = ({ onClose, onTitle }) => {
         "-",
         { label: "Statistics... F4", onClick: () => setDialog({ kind: "stats" }) },
         { label: "Options... F5", onClick: () => setDialog({ kind: "options", ...settings }) },
+        chatItem,
         "-",
         { label: "Undo F10", disabled: !play.past.length || play.status !== "playing", onClick: undo },
         "-",
@@ -293,6 +296,7 @@ const FreeCell = ({ onClose, onTitle }) => {
     <div className="cardsRoot" ref={rootRef} tabIndex={-1} onKeyDown={onKeyDown} onContextMenu={(e) => e.preventDefault()}>
       <div className="cardsMenuRow">
         <MenuBar menus={menus} />
+        <GameChat game="freecell" title="FreeCell" />
         <span className="cardsMenuInfo">{moves && moves.length === 1 ? <b>1 move left!</b> : `Cards Left: ${left}`}</span>
       </div>
       <div className="cardsFelt">

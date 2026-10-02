@@ -1,5 +1,6 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react"
 import MenuBar from "../../../shared/MenuBar"
+import GameChat, { useGameChatMenuItem } from "../../../shared/GameChat"
 import { GameButtons, GameOver, ResignDialog, ResultBanner, RulesDialog, waitingText } from "./GameParts"
 import { useNetGame, useSoloBattleship } from "./useBoardGame"
 import { SHIPS, SIZE, cellsOf, fits, randomFleet, shipInfo } from "../rules/battleship.js"
@@ -425,6 +426,7 @@ const shipFromCells = (cells) => {
 }
 
 const BattleshipGame = ({ view, act, onClose }) => {
+  const chatItem = useGameChatMenuItem("battleship")
   const [dialog, setDialog] = useState(null)
   const [size, setSize] = useState({ wide: true, cell: 24, enemyCell: 24, ownCell: 24 })
   const areaRef = useRef(null)
@@ -471,12 +473,14 @@ const BattleshipGame = ({ view, act, onClose }) => {
         { label: "Exit", onClick: onClose },
       ],
     },
+    { label: "Options", items: [chatItem] },
     { label: "Help", items: [{ label: "Rules...", onClick: () => setDialog("rules") }] },
   ]
 
   return (
     <div className="netApp ckRoot bsRoot" data-game="battleship" data-phase={placing ? "placing" : view.result ? "over" : "playing"}>
       <MenuBar menus={menus} />
+      <GameChat game="battleship" title="Battleship" room={view.solo ? undefined : `match:${view.id}`} />
       <div className="bsArea" ref={areaRef}>
         {placing ? <Placement key={view.round} view={view} act={act} size={size} /> : <Battle view={view} act={act} size={size} />}
       </div>

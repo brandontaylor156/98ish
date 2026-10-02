@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react"
 import MenuBar from "../../shared/MenuBar"
+import GameChat, { useGameChatMenuItem } from "../../shared/GameChat"
 import Dialog from "../../shared/Dialog"
 import TouchControls, { fromPx, useTouchControlsMenuItem, useTouchControlsVisible } from "../../shared/controls"
 import { ANGLES, MOOSE_AT, UNIT, addScore, distanceOf, ensureCells, loadScores, newGame, objectsNear, scoreOf, speedKmh, step } from "./skiEngine"
@@ -22,6 +23,7 @@ const touchControls = (paused) => [
 ]
 
 const Ski = ({ onClose, mobile }) => {
+  const chatItem = useGameChatMenuItem("downhill")
   const rootRef = useRef(null)
   const canvasRef = useRef(null)
   const gameRef = useRef(null)
@@ -357,6 +359,8 @@ const Ski = ({ onClose, mobile }) => {
         "-",
         controlsMenuItem,
         { label: "Customize Touch Controls...", disabled: !showPad, onClick: () => setEditing(true) },
+        "-",
+        chatItem,
       ],
     },
     { label: "Help", items: [{ label: "How to Play...", onClick: () => setDialog({ kind: "help" }) }] },
@@ -374,6 +378,7 @@ const Ski = ({ onClose, mobile }) => {
       data-round={round}
     >
       <MenuBar menus={menus} />
+      <GameChat game="downhill" title="Downhill" />
       <div className="skiStage">
         <canvas ref={canvasRef} className="skiCanvas" {...pointerProps} onContextMenu={(e) => e.preventDefault()} aria-label="Ski slope" />
         {paused && !over && (

@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react"
 import TouchControls, { GLYPHS, fromPx, useTouchControlsVisible } from "../../shared/controls"
 import { LOBBY, useAim } from "../aim/AimContext"
 import { zoneName } from "./logic"
+import GameChat, { useGameChatMenuItem } from "../../shared/GameChat"
 import "./Spectra.css"
 
 // SPECTRA: React only draws the screens over the game (title, HUD, pause, game over).
@@ -53,6 +54,7 @@ const Spectra = () => {
   const timers = useRef(new Set())
   const overAt = useRef(0)
   const touch = useTouchControlsVisible()
+  const chatItem = useGameChatMenuItem("spectra")
   const [editing, setEditing] = useState(false)
   const aim = useAim()
 
@@ -200,6 +202,7 @@ const Spectra = () => {
   return (
     <div className="spRoot" ref={containerRef} tabIndex={0} data-phase={phase}>
       <canvas className="spCanvas" ref={canvasRef} />
+      <GameChat game="spectra" title="SPECTRA" />
 
       {phase === "loading" && <div className="spCenter spLoading">Loading SPECTRA...</div>}
 
@@ -238,6 +241,9 @@ const Spectra = () => {
               Customize controls
             </button>
           )}
+          <button type="button" className="spBrag" onMouseDown={(e) => e.preventDefault()} onClick={chatItem.onClick} aria-pressed={chatItem.checked}>
+            Game chat: {chatItem.checked ? "on" : "off"}
+          </button>
           <p className="spWarning">Contains flashing colors and fast motion.</p>
         </div>
       )}

@@ -1,4 +1,5 @@
 import { useTouchControlsMenuItem, useTouchControlsVisible } from '../../../shared/controls'
+import { useGameChatMenuItem } from '../../../shared/GameChat'
 
 // One tetromino color per letter
 const TITLE_COLORS = ["__z", "__l", "__o", "__s", "__i", "__t"]
@@ -7,6 +8,7 @@ const TITLE_COLORS = ["__z", "__l", "__o", "__s", "__i", "__t"]
 const Menu = ({ onPlay, onCustomize, highScore, result }) => {
     const touchControls = useTouchControlsMenuItem()
     const showControls = useTouchControlsVisible()
+    const chat = useGameChatMenuItem('tetris')
     return (
         <div className="tetrisMenu">
             <div className="tetrisTitle">
@@ -35,6 +37,10 @@ const Menu = ({ onPlay, onCustomize, highScore, result }) => {
                     <label htmlFor="tetris-touch-controls">On-screen controls</label>
                 </span>
                 {showControls && <button type="button" onClick={onCustomize}>Customize controls...</button>}
+                <span>
+                    <input id="tetris-game-chat" type="checkbox" checked={chat.checked} onChange={chat.onClick} />
+                    <label htmlFor="tetris-game-chat">Game chat</label>
+                </span>
             </div>
         </div>
     )

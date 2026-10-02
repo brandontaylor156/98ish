@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react"
 import MenuBar from "../../../shared/MenuBar"
+import GameChat, { useGameChatMenuItem } from "../../../shared/GameChat"
 import { DrawOffer, GameButtons, GameOver, PlayerBar, ResignDialog, ResultBanner, RulesDialog, waitingText } from "./GameParts"
 import { useBoardSize, useNetGame, useSoloReversi } from "./useBoardGame"
 import "./BoardGames.css"
@@ -13,6 +14,7 @@ const other = (c) => (c === "b" ? "w" : "b")
 const Disc = ({ color, size = 12 }) => <span className={`rvSwatch rvSwatch--${color}`} style={{ width: size, height: size }} />
 
 const ReversiBoard = ({ view, act, onClose }) => {
+  const chatItem = useGameChatMenuItem("reversi")
   const [error, setError] = useState(null)
   const [sending, setSending] = useState(false)
   const [dialog, setDialog] = useState(null)
@@ -82,13 +84,14 @@ const ReversiBoard = ({ view, act, onClose }) => {
             { label: "Exit", onClick: onClose },
           ],
     },
-    { label: "Options", items: [{ label: "Show Legal Moves", checked: hints, onClick: () => setHints(!hints) }] },
+    { label: "Options", items: [{ label: "Show Legal Moves", checked: hints, onClick: () => setHints(!hints) }, chatItem] },
     { label: "Help", items: [{ label: "Rules...", onClick: () => setDialog("rules") }] },
   ]
 
   return (
     <div className="netApp ckRoot rvRoot" data-game="reversi">
       <MenuBar menus={menus} />
+      <GameChat game="reversi" title="Reversi" room={view.solo ? undefined : `match:${view.id}`} />
       <PlayerBar active={!result && view.turn === them} swatch={<Disc color={them} />} name={themName} sub={`${COLOR_NAME[them]}, ${view.counts[them]} discs`} away={view.away} thinking={view.thinking} />
       <div className="ckArea" ref={areaRef}>
         <div className="rvBoard" style={{ width: size, height: size }} role="grid" aria-label="Reversi board">

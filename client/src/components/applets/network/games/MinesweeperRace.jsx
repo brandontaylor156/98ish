@@ -120,6 +120,7 @@ const MinesweeperRace = ({ matchId, fitWindow, onClose }) => {
           onResign: () => net.resign(matchId),
           panel,
           overlay,
+          chatRoom: `match:${matchId}`,
         }}
       />
     </div>
