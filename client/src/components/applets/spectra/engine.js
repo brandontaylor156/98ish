@@ -709,6 +709,7 @@ export const createEngine = ({ canvas, container, onHud, onStatus, onEvent, best
   }
 
   const onKeyDown = (e) => {
+    if (e.target.closest?.(".tcEdit")) return // customizing the on-screen controls
     const code = e.code
     audio.unlock()
     // a focused overlay button (Play, Resume) handles its own Space/Enter
@@ -1139,6 +1140,12 @@ export const createEngine = ({ canvas, container, onHud, onStatus, onEvent, best
     },
     overdrive() {
       if (status === "playing") overdriveRequested = true
+    },
+    // on-screen buttons: hold a key down (e.g. "ArrowLeft") or let it go
+    hold(code, down) {
+      audio.unlock()
+      if (down && status === "playing") keys.add(code)
+      else keys.delete(code)
     },
     setMuted(value) {
       muted = value

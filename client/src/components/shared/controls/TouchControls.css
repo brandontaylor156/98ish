@@ -1,0 +1,298 @@
+/* On-screen game controls (TouchControls.jsx). The layer covers its positioned parent, the
+   game area; only the buttons themselves take touches. */
+
+.tcLayer {
+  position: absolute;
+  inset: 0;
+  z-index: 4; /* over game overlays, under menus (20) and dialogs */
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.tcButton,
+.tcZone,
+.tcGear {
+  position: absolute;
+  pointer-events: auto;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.tcButton {
+  opacity: var(--tc-opacity, 1);
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: bold;
+  color: #000;
+  overflow: hidden;
+}
+
+.tcButton svg {
+  fill: currentColor;
+}
+
+.tcShape--round {
+  border-radius: 50%;
+}
+
+/* Pressed look, since :active doesn't apply once pointerdown is cancelled */
+button.tcButton.is-pressed {
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #0a0a0a, inset -2px -2px #dfdfdf, inset 2px 2px #808080;
+}
+
+.tcButton.is-pressed > * {
+  transform: translate(1px, 1px);
+}
+
+.tcGear {
+  width: 28px;
+  height: 28px;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  top: 4px;
+  right: 4px;
+  opacity: 0.75;
+}
+
+/* ---- edit mode ---- */
+
+.tcEdit {
+  position: absolute;
+  inset: 0;
+  pointer-events: auto;
+  touch-action: none;
+  outline: none;
+  background-color: rgba(0, 0, 40, 0.35);
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.12) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.12) 1px, transparent 1px);
+  font-family: "Pixelated MS Sans Serif", Arial, sans-serif;
+  font-size: 11px;
+  -webkit-font-smoothing: none;
+}
+
+.tcBox {
+  position: absolute;
+  outline: 2px dashed #fff;
+  outline-offset: 0;
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.55);
+  cursor: move;
+}
+
+.tcBox > .tcButton {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.tcBox.is-selected {
+  outline-color: #ffff00;
+  z-index: 2;
+}
+
+.tcBox.is-overlap {
+  outline-color: #ff4040;
+}
+
+.tcBox.is-off {
+  outline-style: dotted;
+}
+
+.tcBox--zone {
+  background: rgba(0, 200, 255, 0.18);
+  outline-color: rgba(160, 240, 255, 0.9);
+  box-shadow: none;
+}
+
+.tcZoneLabel {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  padding: 2px 6px;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.6);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* Corner handle: drag to resize. A bigger hit area than it looks. */
+.tcHandle {
+  position: absolute;
+  right: -8px;
+  bottom: -8px;
+  width: 24px;
+  height: 24px;
+  cursor: nwse-resize;
+  z-index: 1;
+}
+
+/* zones reach the edges of the game: keep their handle inside */
+.tcBox--zone .tcHandle {
+  right: 2px;
+  bottom: 2px;
+}
+
+.tcHandle::after {
+  content: "";
+  position: absolute;
+  inset: 5px;
+  background: #fff;
+  border: 1px solid #000;
+}
+
+.tcBox.is-selected .tcHandle::after {
+  background: #ffff00;
+}
+
+.tcPanel {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(330px, calc(100% - 12px));
+  z-index: 5;
+  cursor: default;
+  color: #000;
+  text-align: left;
+}
+
+.tcPanel--top {
+  top: 6px;
+}
+
+.tcPanel--middle {
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.tcPanel--bottom {
+  bottom: 6px;
+}
+
+/* main.css makes windows fill their box; this one sizes to its contents */
+.window.tcPanel {
+  height: auto;
+  min-width: 0;
+}
+
+/* 98.css leaves the checkmark's top to the flow, which drops it below the box */
+.tcCheck input[type="checkbox"]:checked + label::after {
+  top: 3px;
+}
+
+.tcPanel .title-bar-controls button.tcPanelMove {
+  font-size: 8px;
+  line-height: 1;
+  padding: 0;
+}
+
+.tcPanelBody {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 4px 6px 6px;
+}
+
+.tcHint {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 18px;
+}
+
+.tcSlider {
+  display: grid;
+  grid-template-columns: 82px 1fr 34px;
+  align-items: center;
+  gap: 6px;
+}
+
+.tcSlider input {
+  width: 100%;
+  margin: 0;
+}
+
+.tcSlider span {
+  text-align: right;
+}
+
+.tcRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.tcCheck {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.tcWarn {
+  margin-left: auto;
+  color: #c00000;
+  font-weight: bold;
+}
+
+.tcActions {
+  justify-content: space-between;
+  flex-wrap: nowrap;
+}
+
+.tcActions button {
+  min-width: 0;
+  flex: 1 1 0;
+  padding: 0 4px;
+  min-height: 28px;
+}
+
+.tcDone {
+  font-weight: bold;
+}
+
+.os-mobile .tcActions button {
+  min-height: 34px;
+}
+
+.tcGear {
+  color: #000;
+}
+
+/* Short game areas (phones in landscape): sliders side by side, no hint until a button
+   is picked */
+.tcPanel--short .tcPanelBody {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: 12px;
+}
+
+.tcPanel--short .tcHint,
+.tcPanel--short .tcRow {
+  grid-column: 1 / -1;
+}
+
+.tcPanel--short .tcHint:not(:has(b)) {
+  display: none;
+}
+
+.tcPanel--short .tcSlider {
+  grid-template-columns: 64px 1fr 32px;
+}
+
+.tcPanel--short {
+  width: min(460px, calc(100% - 12px));
+}

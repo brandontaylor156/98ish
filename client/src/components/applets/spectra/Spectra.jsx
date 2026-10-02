@@ -1,5 +1,5 @@
-import React, { useEffect, useRef, useState } from "react"
-import { useIsTouch } from "../../../hooks/useMediaQuery"
+import React, { useEffect, useMemo, useRef, useState } from "react"
+import TouchControls, { GLYPHS, fromPx, useTouchControlsVisible } from "../../shared/controls"
 import { LOBBY, useAim } from "../aim/AimContext"
 import { zoneName } from "./logic"
 import "./Spectra.css"
@@ -29,13 +29,31 @@ const write = (key, value) => {
 
 const fmt = (n) => Math.floor(n).toLocaleString("en-US")
 
+// On-screen controls (shared/controls: players can move and resize them). Dragging anywhere
+// else still spins the ship.
+const touchControls = (meterFull) => [
+  { id: "left", label: "Spin left", icon: GLYPHS.left, shape: "round", className: "spPad", default: (size) => fromPx(size, { left: 16, bottom: 44, width: 64, height: 64 }) },
+  { id: "right", label: "Spin right", icon: GLYPHS.right, shape: "round", className: "spPad", default: (size) => fromPx(size, { left: 92, bottom: 44, width: 64, height: 64 }) },
+  {
+    id: "overdrive",
+    label: "Overdrive",
+    icon: "\u26A1",
+    shape: "round",
+    className: meterFull ? "spBolt is-ready" : "spBolt",
+    ariaDisabled: !meterFull,
+    default: (size) => fromPx(size, { right: 18, bottom: 44, width: 64, height: 64 }),
+  },
+  { id: "pause", label: "Pause", icon: GLYPHS.pause, shape: "round", className: "spPad spPad--small", default: (size) => fromPx(size, { right: 10, top: 50, width: 32, height: 32 }) },
+]
+
 const Spectra = () => {
   const containerRef = useRef(null)
   const canvasRef = useRef(null)
   const engineRef = useRef(null)
   const timers = useRef(new Set())
   const overAt = useRef(0)
-  const touch = useIsTouch()
+  const touch = useTouchControlsVisible()
+  const [editing, setEditing] = useState(false)
   const aim = useAim()
 
   const [phase, setPhase] = useState("loading") // loading | error | title | playing | paused | over
@@ -156,6 +174,28 @@ const Spectra = () => {
   }
 
   const meterFull = hud && hud.meter >= 1 && hud.overdrive <= 0
+  const controls = useMemo(() => touchControls(!!meterFull), [!!meterFull])
+
+  // customizing the controls pauses the game
+  useEffect(() => {
+    if (editing && engineRef.current?.status === "playing") engineRef.current.pause()
+  }, [editing])
+  const setEditingAndFocus = (value) => {
+    setEditing(value)
+    if (!value) containerRef.current?.focus({ preventScroll: true })
+  }
+  const padPress = (action) => {
+    const engine = engineRef.current
+    if (!engine) return
+    if (action === "left") engine.hold("ArrowLeft", true)
+    else if (action === "right") engine.hold("ArrowRight", true)
+    else if (action === "overdrive") engine.overdrive()
+    else if (action === "pause") engine.pause()
+  }
+  const padRelease = (action) => {
+    if (action === "left") engineRef.current?.hold("ArrowLeft", false)
+    else if (action === "right") engineRef.current?.hold("ArrowRight", false)
+  }
 
   return (
     <div className="spRoot" ref={containerRef} tabIndex={0} data-phase={phase}>
@@ -180,7 +220,7 @@ const Spectra = () => {
           <div className="spHow">
             {touch ? (
               <>
-                <b>Drag</b> to spin around the tunnel &middot; fly through the <b>gaps</b>
+                <b>Drag</b> (or hold the arrows) to spin around the tunnel &middot; fly through the <b>gaps</b>
                 <br />
                 Grab <b>shards</b> for a multiplier &middot; tap <b>&#9889;</b> for Overdrive
               </>
@@ -193,6 +233,11 @@ const Spectra = () => {
             )}
           </div>
           {best > 0 && <div className="spBest">Best: {fmt(best)}</div>}
+          {touch && (
+            <button type="button" className="spBrag" onClick={() => setEditing(true)}>
+              Customize controls
+            </button>
+          )}
           <p className="spWarning">Contains flashing colors and fast motion.</p>
         </div>
       )}
@@ -231,22 +276,20 @@ const Spectra = () => {
         </div>
       )}
 
-      {phase === "playing" && touch && (
-        // Never takes focus and is never truly disabled: a focused button that becomes
-        // disabled drops focus, which the game reads as "clicked away" and pauses
-        <button
-          type="button"
-          tabIndex={-1}
-          className={meterFull ? "spBolt is-ready" : "spBolt"}
-          aria-label="Overdrive"
-          aria-disabled={!meterFull}
-          onPointerDown={(e) => {
-            e.preventDefault()
-            if (meterFull) engineRef.current?.overdrive()
-          }}
-        >
-          &#9889;
-        </button>
+      {touch && phase !== "loading" && phase !== "error" && (
+        // Buttons never take focus and are never truly disabled: a focused button that
+        // becomes disabled drops focus, which the game reads as "clicked away" and pauses
+        <TouchControls
+          game="spectra"
+          controls={controls}
+          onPress={padPress}
+          onRelease={padRelease}
+          show={phase === "playing"}
+          editing={editing}
+          onEditingChange={setEditingAndFocus}
+          gearStyle={{ top: 90, right: 10, width: 32, height: 32 }}
+          gearClassName="spGear"
+        />
       )}
 
       {phase === "paused" && (
@@ -256,6 +299,11 @@ const Spectra = () => {
             Resume
           </button>
           {!touch && <p className="spHint">P or Esc to resume</p>}
+          {touch && (
+            <button type="button" className="spBrag" onClick={() => setEditing(true)}>
+              Customize controls
+            </button>
+          )}
         </div>
       )}
 

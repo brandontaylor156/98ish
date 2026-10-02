@@ -56,6 +56,7 @@ export const APP_PROFILES = {
   Chess: { image: "chess.exe", mem: 3260, threads: 3, handles: 44, cpu: [0.35, 18] },
   Battleship: { image: "battle.exe", mem: 1968, threads: 2, handles: 36, cpu: [0.2, 2] },
   Downhill: { image: "ski.exe", mem: 5124, threads: 4, handles: 61, cpu: [0.95, 11] },
+  "Block Ten": { image: "blockten.exe", mem: 1876, threads: 2, handles: 33, cpu: [0.15, 4] },
 }
 
 const fallbackProfile = (name) => ({

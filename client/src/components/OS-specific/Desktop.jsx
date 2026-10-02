@@ -17,6 +17,7 @@ import { useLongPress } from "../../hooks/useLongPress"
 import MobileIcons, { resetMobileIcons } from "./MobileIcons"
 import io from "socket.io-client"
 import { lazyApp } from "./LazyApp"
+import { PROJECTS } from "../../utils/projects"
 import { CLOSE_EVENT, quickLaunchDrop, watchSocket } from "../../utils/shell"
 
 // each app is its own download, fetched the first time it opens
@@ -34,6 +35,7 @@ const NetWindow = lazyApp(() => import("../applets/network/NetWindow"))
 const Mail = lazyApp(() => import("../applets/mail/Mail"))
 const HomePageStudio = lazyApp(() => import("../applets/homepage/HomePageStudio"))
 const Ski = lazyApp(() => import("../applets/ski/Ski"))
+const BlockTen = lazyApp(() => import("../applets/blockten/BlockTen"))
 // Network Neighborhood and the head-to-head games
 const isNetWindow = (w) => w.app === "network" || !!w.app?.startsWith("net-")
 const FileExplorer = lazyApp(() => import("../applets/fileExplorer/FileExplorer"))
@@ -57,6 +59,7 @@ const ChatInvite = lazyApp(() => import("../applets/aim/ChatInvite"))
 const AimNotice = lazyApp(() => import("../applets/aim/ChatInvite").then((m) => ({ default: m.AimNotice })))
 const DesktopThemes = lazyApp(() => import("../applets/themes/DesktopThemes"))
 const SystemProperties = lazyApp(() => import("../applets/system/SystemProperties"))
+const WebApp = lazyApp(() => import("../applets/webapp/WebApp"))
 const Backup = lazyApp(() => import("../applets/backup/Backup"))
 // keeps C: in sync with the online copy while signed on to 98 Messenger (its own small download)
 const DriveSync = React.lazy(() => import("../applets/backup/DriveSync"))
@@ -483,6 +486,7 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
       {window.app === "freecell" && <FreeCell onClose={() => closeWindow(window, index)} onTitle={rename(index)} />}
       {window.app === "pinball" && <Pinball mobile={mobile} onClose={() => closeWindow(window, index)} onTitle={rename(index)} />}
       {window.app === "ski" && <Ski mobile={mobile} onClose={() => closeWindow(window, index)} />}
+      {window.app === "blockten" && <BlockTen mobile={mobile} onClose={() => closeWindow(window, index)} />}
 
       {window.app === "calc" && (
         <Calculator
@@ -496,6 +500,9 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
       )}
       {window.app === "charmap" && <CharMap onClose={() => closeWindow(window, index)} />}
       {window.app === "datetime" && <DateTimeProperties onClose={() => closeWindow(window, index)} />}
+      {window.app === "webapp" && PROJECTS.find((p) => p.name === window.program) && (
+        <WebApp project={PROJECTS.find((p) => p.name === window.program)} mobile={mobile} />
+      )}
       {window.app === "backup" && <Backup dispatch={dispatch} mobile={mobile} />}
       {window.app === "mail" && <Mail dispatch={dispatch} onTitle={rename(index)} mobile={mobile} />}
       {window.app === "homepage" && (

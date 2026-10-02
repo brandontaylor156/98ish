@@ -1,6 +1,7 @@
-import React, { useEffect, useRef, useState } from "react"
+import React, { useEffect, useMemo, useRef, useState } from "react"
 import MenuBar from "../../shared/MenuBar"
 import Dialog from "../../shared/Dialog"
+import TouchControls, { fromPx, useTouchControlsMenuItem, useTouchControlsVisible } from "../../shared/controls"
 import { ANGLES, MOOSE_AT, UNIT, addScore, distanceOf, ensureCells, loadScores, newGame, objectsNear, scoreOf, speedKmh, step } from "./skiEngine"
 import { mooseSprite, objectSprites, skierSprite } from "./skiArt"
 import "./Ski.css"
@@ -11,6 +12,14 @@ import "./Ski.css"
 
 const SKIER_Y = 0.32 // the skier sits this far down the view
 const fmtTime = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`
+
+// On-screen buttons (shared/controls: players can move, resize and add them). Steering is
+// touch-and-hold on the slope itself. "Slow" (the Up key) is off until turned on.
+const touchControls = (paused) => [
+  { id: "jump", label: "Jump", className: "skiPadButton", opacity: 0.9, default: (size) => fromPx(size, { right: 80, bottom: 8, width: 64, height: 44 }) },
+  { id: "pause", label: paused ? "Go" : "Pause", className: "skiPadButton", opacity: 0.9, default: (size) => fromPx(size, { right: 8, bottom: 8, width: 64, height: 44 }) },
+  { id: "brake", label: "Slow", className: "skiPadButton", opacity: 0.9, enabled: false, default: (size) => fromPx(size, { left: 8, bottom: 8, width: 64, height: 44 }) },
+]
 
 const Ski = ({ onClose, mobile }) => {
   const rootRef = useRef(null)
@@ -25,6 +34,10 @@ const Ski = ({ onClose, mobile }) => {
   const [dialog, setDialog] = useState(null)
   const [tilt, setTilt] = useState(false)
   const [round, setRound] = useState(0)
+  const touchVisible = useTouchControlsVisible()
+  const controlsMenuItem = useTouchControlsMenuItem()
+  const showPad = mobile || touchVisible
+  const [editing, setEditing] = useState(false)
 
   const newRun = () => {
     gameRef.current = newGame()
@@ -189,6 +202,28 @@ const Ski = ({ onClose, mobile }) => {
     g.paused = value
     setPaused(value)
   }
+  // customizing the controls pauses the run (tap to carry on after)
+  useEffect(() => {
+    if (editing) setPause(true)
+  }, [editing])
+  const setEditingAndFocus = (value) => {
+    setEditing(value)
+    if (!value) rootRef.current?.focus()
+  }
+  const padPress = (action) => {
+    const g = gameRef.current
+    if (action === "pause") return setPause(!g.paused)
+    if (g.paused) return
+    if (action === "jump") {
+      if (g.state === "air") input.current.trick = true
+      else input.current.jump = true
+    } else if (action === "brake") input.current.brake = true
+  }
+  const padRelease = (action) => {
+    if (action === "brake") input.current.brake = false
+  }
+  const controls = useMemo(() => touchControls(paused), [paused])
+
   useEffect(() => {
     const hide = () => document.hidden && setPause(true)
     document.addEventListener("visibilitychange", hide)
@@ -315,7 +350,15 @@ const Ski = ({ onClose, mobile }) => {
         { label: "Exit", onClick: onClose },
       ],
     },
-    { label: "Options", items: [{ label: "Tilt to Steer", checked: tilt, onClick: toggleTilt }] },
+    {
+      label: "Options",
+      items: [
+        { label: "Tilt to Steer", checked: tilt, onClick: toggleTilt },
+        "-",
+        controlsMenuItem,
+        { label: "Customize Touch Controls...", disabled: !showPad, onClick: () => setEditing(true) },
+      ],
+    },
     { label: "Help", items: [{ label: "How to Play...", onClick: () => setDialog({ kind: "help" }) }] },
   ]
 
@@ -358,15 +401,17 @@ const Ski = ({ onClose, mobile }) => {
             </div>
           </div>
         )}
-        {mobile && !over && (
-          <div className="skiTouchButtons">
-            <button type="button" onPointerDown={(e) => (e.stopPropagation(), gameRef.current.state === "air" ? (input.current.trick = true) : (input.current.jump = true))}>
-              Jump
-            </button>
-            <button type="button" onClick={() => setPause(!paused)}>
-              {paused ? "Go" : "Pause"}
-            </button>
-          </div>
+        {showPad && (
+          <TouchControls
+            game="ski"
+            className="skiTouchButtons"
+            controls={controls}
+            onPress={padPress}
+            onRelease={padRelease}
+            show={!over}
+            editing={editing}
+            onEditingChange={setEditingAndFocus}
+          />
         )}
       </div>
       <div className="status-bar skiStatus">

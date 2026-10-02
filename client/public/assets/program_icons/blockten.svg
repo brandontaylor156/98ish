@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48" shape-rendering="crispEdges">
+  <rect x="2" y="6" width="40" height="40" fill="#9c9c9c" stroke="#000"/>
+  <g fill="#b2b2b2" stroke="#8a8a8a">
+    <rect x="4" y="8" width="9" height="9"/><rect x="13" y="8" width="9" height="9"/><rect x="22" y="8" width="9" height="9"/>
+    <rect x="4" y="17" width="9" height="9"/><rect x="13" y="17" width="9" height="9"/><rect x="22" y="17" width="9" height="9"/><rect x="31" y="17" width="9" height="9"/>
+    <rect x="13" y="26" width="9" height="9"/><rect x="22" y="26" width="9" height="9"/><rect x="31" y="26" width="9" height="9"/>
+  </g>
+  <g stroke="#000">
+    <rect x="4" y="35" width="9" height="9" fill="#2040e0"/><rect x="13" y="35" width="9" height="9" fill="#2040e0"/><rect x="22" y="35" width="9" height="9" fill="#2040e0"/><rect x="31" y="35" width="9" height="9" fill="#2040e0"/>
+    <rect x="4" y="26" width="9" height="9" fill="#d00000"/>
+    <rect x="31" y="8" width="9" height="9" fill="#e0b000"/>
+  </g>
+  <g fill="none" stroke="#fff" stroke-opacity=".7">
+    <path d="M5 43V36h7M14 43V36h7M23 43V36h7M32 43V36h7M5 34V27h7M32 16V9h7"/>
+  </g>
+  <g stroke="#000" stroke-width="1">
+    <rect x="28" y="1" width="9" height="9" fill="#ff8000"/><rect x="37" y="1" width="9" height="9" fill="#ff8000"/><rect x="37" y="10" width="9" height="9" fill="#ff8000"/>
+  </g>
+  <path d="M29 9V2h7M38 9V2h7M38 18v-7h7" fill="none" stroke="#fff" stroke-opacity=".7"/>
+</svg>

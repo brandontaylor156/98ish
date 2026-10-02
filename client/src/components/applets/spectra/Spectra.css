@@ -296,24 +296,40 @@
   filter: drop-shadow(0 0 14px rgba(255, 255, 255, 0.6));
 }
 
-/* touch: overdrive button */
-.spBolt {
-  position: absolute;
-  right: 18px;
-  bottom: 44px;
-  width: 64px;
-  height: 64px;
+/* On-screen buttons (positioned by shared/controls TouchControls) */
+.tcButton.spBolt,
+.tcButton.spPad {
   border-radius: 50%;
   font-size: 28px;
+  font-weight: normal !important;
   color: #fff;
   background: rgba(255, 255, 255, 0.08) !important;
   border: 2px solid rgba(255, 255, 255, 0.35);
   box-shadow: none !important;
-  opacity: 0.5;
+  /* --tc-opacity: the player's opacity setting for this button */
+  opacity: calc(var(--tc-opacity, 1) * 0.5);
 }
 
-.spBolt.is-ready {
-  opacity: 1;
+.tcButton.spPad {
+  opacity: calc(var(--tc-opacity, 1) * 0.7);
+}
+
+.spPad svg {
+  width: 26px;
+  height: 26px;
+}
+
+.spPad.is-pressed {
+  background: rgba(255, 255, 255, 0.3) !important;
+}
+
+.spPad--small svg {
+  width: 14px;
+  height: 14px;
+}
+
+.tcButton.spBolt.is-ready {
+  opacity: var(--tc-opacity, 1);
   background: radial-gradient(circle, #ff3cac, #784ba0) !important;
   border-color: #fff;
   box-shadow: 0 0 22px #ff3cac !important;
@@ -410,8 +426,17 @@
   .spMult--7,
   .spMult--8,
   .spMeterFill.is-full,
-  .spBolt.is-ready,
+  .tcButton.spBolt.is-ready,
   .spNewBest {
     animation: none;
   }
+}
+
+/* the "customize controls" gear (shared/controls), dressed like the mute button */
+.tcGear.spGear {
+  border-radius: 50%;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.35) !important;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  box-shadow: none !important;
 }

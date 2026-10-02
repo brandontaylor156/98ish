@@ -14,6 +14,7 @@ import Helper from "./components/OS-specific/Helper"
 import AchievementToast from "./components/OS-specific/AchievementToast"
 import { arrangeWindows } from "./utils/windowArrange"
 import { unlock } from "./utils/achievements"
+import { programByName } from "./utils/programs"
 
 const MsDos = lazyApp(() => import("./components/applets/dos/MsDos"))
 import { Screensaver, optionsFor, saverById, useIdle } from "./components/screensavers"
@@ -22,7 +23,17 @@ const reducer = (state, action) => {
   switch (action.type) {
     // Windows track their real position and size (x, y, width, height); new ones
     // cascade unless the opener picks a spot
-    case "open_window":
+    case "open_window": {
+      // programs that only run once (Task Manager, the games...) come forward instead of
+      // opening a second copy. Network game and Messenger windows manage themselves.
+      const program = !action.payload.netId && programByName(action.payload.program)
+      if (program?.single && action.payload.app === program.app) {
+        const open = state.findIndex((w) => !w.closed && !w.netId && w.program === program.name && w.app === program.app)
+        if (open >= 0)
+          return state.map((window, idx) =>
+            idx === open ? { ...window, minimized: false, active: true, hiddenByShell: false } : { ...window, active: false }
+          )
+      }
       return [
         ...state.map((window, idx) => {
           return { ...window, active: false }
@@ -33,6 +44,7 @@ const reducer = (state, action) => {
           y: action.payload.positionY ?? 0,
         },
       ]
+    }
 
     case "close_window":
       return state.map((window, idx) => {

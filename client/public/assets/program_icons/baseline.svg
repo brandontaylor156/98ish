@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48">
+  <!-- Baseline Today: a tennis ball over a little ranking chart -->
+  <rect x="4" y="30" width="8" height="14" fill="#1084d0" stroke="#000"/>
+  <rect x="14" y="24" width="8" height="20" fill="#000080" stroke="#000"/>
+  <rect x="24" y="34" width="8" height="10" fill="#1084d0" stroke="#000"/>
+  <circle cx="33" cy="17" r="12" fill="#d4e830" stroke="#4a5a00" stroke-width="1.5"/>
+  <path d="M22.5 11c5 2 7 10 2 16M43.5 23c-5-2-7-10-2-16" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/>
+  <circle cx="29" cy="12" r="3" fill="#fff" opacity=".45"/>
+</svg>

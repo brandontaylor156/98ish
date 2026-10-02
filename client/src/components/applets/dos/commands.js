@@ -119,6 +119,9 @@ const ALIASES = {
   battleship: "Battleship",
   ski: "Downhill",
   downhill: "Downhill",
+  blockten: "Block Ten",
+  tenten: "Block Ten",
+  blocks: "Block Ten",
 }
 
 export const programFor = (word) => {

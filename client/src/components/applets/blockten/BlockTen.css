@@ -1,0 +1,560 @@
+/* Block Ten: score bar, board and tray, in three color themes */
+
+.btRoot {
+  position: relative;
+  height: calc(100% - 25px);
+  display: flex;
+  flex-direction: column;
+  background: #c0c0c0;
+  font-family: "Pixelated MS Sans Serif", Arial, sans-serif;
+  -webkit-font-smoothing: none;
+  font-size: 11px;
+  outline: none;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+
+  /* Classic 98: the old 16-color box, bevelled blocks */
+  --c1: #ff8000;
+  --c2: #00a8a8;
+  --c3: #2040e0;
+  --c4: #d00000;
+  --c5: #8a10a0;
+  --c6: #e0b000;
+  --c7: #108818;
+  --c8: #0090ff;
+  --c9: #ff3c8c;
+  --stage: #008080;
+  --stage-pattern: radial-gradient(rgb(255 255 255 / 0.12) 1px, transparent 1.5px);
+  --grid: #9c9c9c;
+  --empty: #b2b2b2;
+  --empty-edge-a: #8a8a8a;
+  --empty-edge-b: #cecece;
+  --slot: #c0c0c0;
+  --text: #000;
+  --lcd: #000;
+  --lcd-text: #ff2020;
+  --float: #fff;
+  --float-shadow: #000;
+}
+
+.btTheme-neon {
+  --c1: #ff9f1c;
+  --c2: #00f5d4;
+  --c3: #4cc9f0;
+  --c4: #ff3864;
+  --c5: #c04dff;
+  --c6: #fee440;
+  --c7: #39ff14;
+  --c8: #3a86ff;
+  --c9: #ff5ec4;
+  --stage: #0b0820;
+  --stage-pattern: linear-gradient(rgb(255 0 200 / 0.08) 1px, transparent 1px), linear-gradient(90deg, rgb(0 240 255 / 0.08) 1px, transparent 1px);
+  --grid: #06040f;
+  --empty: #12102a;
+  --empty-edge-a: #1c1940;
+  --empty-edge-b: #1c1940;
+  --slot: #14112c;
+  --lcd: #05030c;
+  --lcd-text: #39f5ff;
+  --float: #fff;
+  --float-shadow: #ff2bd6;
+}
+
+.btTheme-pastel {
+  --c1: #ffb88a;
+  --c2: #8fdcc0;
+  --c3: #9ab8ff;
+  --c4: #ff9a9e;
+  --c5: #c8a8e8;
+  --c6: #f7dc6f;
+  --c7: #a8e6a1;
+  --c8: #8fd3f4;
+  --c9: #f9a8d4;
+  --stage: #fdf3e7;
+  --stage-pattern: radial-gradient(rgb(240 170 190 / 0.25) 1.5px, transparent 2px);
+  --grid: #eadfcf;
+  --empty: #f6eee2;
+  --empty-edge-a: #e4d6c2;
+  --empty-edge-b: #fffaf2;
+  --slot: #fbf2e6;
+  --lcd: #fffaf3;
+  --lcd-text: #c0607a;
+  --float: #fff;
+  --float-shadow: #c0607a;
+}
+
+.btStage {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  margin: 2px 3px 3px;
+  border: 2px solid;
+  border-color: #808080 #fff #fff #808080;
+  background-color: var(--stage);
+  background-image: var(--stage-pattern);
+  background-size: 14px 14px;
+  overflow: hidden;
+  touch-action: none;
+}
+
+.btLayout {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px;
+}
+
+.btLayout.is-wide {
+  flex-direction: row;
+}
+
+.btSide {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* ---- score bar ---- */
+
+.btScoreBar {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+  flex: none;
+  box-sizing: border-box;
+  padding: 4px;
+  background: #c0c0c0;
+  border: 2px solid;
+  border-color: #fff #000 #000 #fff;
+  box-shadow: inset -1px -1px #808080, inset 1px 1px #dfdfdf;
+}
+
+.btCounter {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 1px 6px;
+  background: var(--lcd);
+  border: 2px solid;
+  border-color: #808080 #fff #fff #808080;
+}
+
+.btLabel {
+  color: #a0a0a0;
+  font-size: 9px;
+  line-height: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.btNum {
+  color: var(--lcd-text);
+  font: bold 18px/20px "Courier New", ui-monospace, monospace;
+  text-shadow: 0 0 6px color-mix(in srgb, var(--lcd-text) 55%, transparent);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.btBest {
+  text-align: right;
+}
+
+.btBest .btNum {
+  color: #ffd040;
+  text-shadow: 0 0 6px rgb(255 208 64 / 0.5);
+}
+
+.btMode,
+.btTime {
+  flex: 0 1 auto;
+  text-align: center;
+}
+
+.btSmall {
+  font-size: 15px;
+}
+
+.btTime.is-low .btNum {
+  animation: btBlink 0.5s steps(2) infinite;
+}
+
+@keyframes btBlink {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+.btTheme-pastel .btLabel {
+  color: #b09a8a;
+}
+
+/* ---- the board ---- */
+
+.btFrame {
+  flex: none;
+  box-sizing: border-box;
+  padding: 2px;
+  background: var(--grid);
+  border: 2px solid;
+  border-color: #808080 #fff #fff #808080;
+  box-shadow: 0 0 0 1px #000;
+}
+
+.btTheme-neon .btFrame {
+  border-color: #3a2a80 #ff2bd6 #ff2bd6 #3a2a80;
+  box-shadow: 0 0 14px rgb(255 43 214 / 0.45), 0 0 0 1px #000;
+}
+
+.btTheme-pastel .btFrame {
+  border-color: #e4d6c2;
+  border-radius: 8px;
+  box-shadow: 0 4px 14px rgb(160 120 90 / 0.18);
+}
+
+.btGrid {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(10, var(--cell));
+  grid-template-rows: repeat(10, var(--cell));
+}
+
+.btCell {
+  position: relative;
+  box-sizing: border-box;
+  background: var(--empty);
+  box-shadow: inset 1px 1px var(--empty-edge-a), inset -1px -1px var(--empty-edge-b);
+}
+
+.btTheme-pastel .btCell:not(.btBlock) {
+  border-radius: 4px;
+  box-shadow: inset 0 0 0 1px var(--grid);
+}
+
+/* a block: Classic is bevelled like a 98 button */
+.btBlock {
+  box-sizing: border-box;
+  --bc: var(--c1);
+  background: var(--bc);
+  box-shadow: inset 3px 3px rgb(255 255 255 / 0.55), inset -3px -3px rgb(0 0 0 / 0.38), inset 0 0 0 1px rgb(0 0 0 / 0.55);
+}
+
+.btC1 { --bc: var(--c1); }
+.btC2 { --bc: var(--c2); }
+.btC3 { --bc: var(--c3); }
+.btC4 { --bc: var(--c4); }
+.btC5 { --bc: var(--c5); }
+.btC6 { --bc: var(--c6); }
+.btC7 { --bc: var(--c7); }
+.btC8 { --bc: var(--c8); }
+.btC9 { --bc: var(--c9); }
+
+.btTheme-neon .btBlock {
+  background: color-mix(in srgb, var(--bc) 30%, #0a0820);
+  border: 2px solid var(--bc);
+  box-shadow: 0 0 8px var(--bc), inset 0 0 8px color-mix(in srgb, var(--bc) 60%, transparent);
+  border-radius: 4px;
+}
+
+.btTheme-pastel .btBlock {
+  border-radius: 5px;
+  box-shadow: inset 0 -3px rgb(0 0 0 / 0.1), inset 0 2px rgb(255 255 255 / 0.6), 0 0 0 1px rgb(255 255 255 / 0.7);
+}
+
+.btCell.is-preview {
+  opacity: 0.45;
+}
+
+.btCell.is-glow {
+  opacity: 1;
+  filter: brightness(1.35) saturate(1.2);
+  animation: btGlow 0.6s ease-in-out infinite alternate;
+}
+
+@keyframes btGlow {
+  to {
+    filter: brightness(1.7) saturate(1.3);
+  }
+}
+
+.btCell.is-landed {
+  animation: btLand 0.18s ease-out;
+}
+
+@keyframes btLand {
+  from {
+    transform: scale(1.12);
+  }
+}
+
+/* cleared blocks pop and vanish */
+.btPop {
+  position: absolute;
+  pointer-events: none;
+  z-index: 2;
+  animation: btPop 0.42s ease-in forwards;
+}
+
+@keyframes btPop {
+  0% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+  30% {
+    transform: scale(1.22);
+    filter: brightness(2.2);
+  }
+  100% {
+    transform: scale(0) rotate(25deg);
+    filter: brightness(2.5);
+    opacity: 0;
+  }
+}
+
+.btFloat {
+  position: absolute;
+  z-index: 3;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  color: var(--float);
+  font: bold 16px "Pixelated MS Sans Serif", Arial, sans-serif;
+  white-space: nowrap;
+  text-shadow: 1px 1px 0 var(--float-shadow), -1px -1px 0 var(--float-shadow), 1px -1px 0 var(--float-shadow), -1px 1px 0 var(--float-shadow);
+  animation: btFloat 1s ease-out forwards;
+}
+
+.btFloat.is-big {
+  font-size: 20px;
+  color: #ffe040;
+}
+
+.btFloat.is-combo {
+  font-size: 18px;
+  color: #ff60d0;
+}
+
+.btFloat.is-streak {
+  color: #60f0ff;
+}
+
+@keyframes btFloat {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -30%) scale(0.6);
+  }
+  15% {
+    opacity: 1;
+    transform: translate(-50%, -60%) scale(1.15);
+  }
+  70% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -190%) scale(1);
+  }
+}
+
+/* ---- the tray ---- */
+
+.btTray {
+  display: flex;
+  flex: none;
+}
+
+.btTray.is-column {
+  flex-direction: column;
+}
+
+.btSide .btTray {
+  flex: 1 1 auto;
+  align-items: center;
+  justify-content: center;
+}
+
+.btSlot {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  touch-action: none;
+  cursor: grab;
+}
+
+.btSlot.is-empty {
+  cursor: default;
+}
+
+.btSlot:not(.is-empty):hover .btPiece {
+  transform: scale(1.06);
+}
+
+.btPiece {
+  position: relative;
+  flex: none;
+  transition: transform 0.1s;
+}
+
+.btPiece .btBlock {
+  position: absolute;
+}
+
+.btPiece.is-lifted {
+  visibility: hidden;
+}
+
+.btPiece.is-dealt {
+  animation: btDeal 0.25s ease-out;
+}
+
+@keyframes btDeal {
+  from {
+    transform: scale(0.3) translateY(20px);
+    opacity: 0;
+  }
+}
+
+.btSlot.is-dead .btPiece {
+  filter: grayscale(1) brightness(0.9);
+  opacity: 0.55;
+}
+
+/* the piece being dragged, at board size */
+.btGhost {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 20;
+  pointer-events: none;
+  transform-origin: 0 0;
+  filter: drop-shadow(3px 5px 0 rgb(0 0 0 / 0.35));
+}
+
+.btGhost .btPiece {
+  animation: btGrab 0.12s ease-out;
+}
+
+@keyframes btGrab {
+  from {
+    transform: scale(0.65);
+  }
+}
+
+.btGhost.is-returning {
+  transition: transform 0.18s ease-in;
+}
+
+/* ---- game over ---- */
+
+.btOverlay {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgb(0 0 40 / 0.35);
+  animation: btFadeIn 0.3s 0.45s both;
+}
+
+@keyframes btFadeIn {
+  from {
+    opacity: 0;
+  }
+}
+
+.btPanel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  max-width: calc(100% - 24px);
+  padding: 12px 20px;
+  background: #c0c0c0;
+  border: 2px solid;
+  border-color: #fff #000 #000 #fff;
+  box-shadow: inset -1px -1px #808080, inset 1px 1px #dfdfdf, 4px 4px 0 rgb(0 0 0 / 0.35);
+  text-align: center;
+  color: #000;
+}
+
+.btPanel > b {
+  font-size: 16px;
+  color: #000080;
+}
+
+.btPanel p {
+  margin: 0;
+}
+
+.btFinal {
+  font-size: 16px;
+}
+
+.btNewBest {
+  color: #c00000;
+  font-weight: bold;
+  animation: btBlink 0.6s steps(2) 4;
+}
+
+.btPanelButtons {
+  display: flex;
+  gap: 8px;
+}
+
+.btStatus {
+  flex: none;
+}
+
+.btStatus .status-bar-field:last-child {
+  flex: 2 1 auto;
+}
+
+.btHelp {
+  max-width: 340px;
+}
+
+.btScores {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 260px;
+}
+
+.btScores table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+  border: 2px solid;
+  border-color: #808080 #fff #fff #808080;
+}
+
+.btScores td {
+  padding: 1px 6px;
+}
+
+.btScoreCol {
+  text-align: right;
+  font-weight: bold;
+}
+
+.btScores p {
+  margin: 2px 0 0;
+  color: #606060;
+}
+
+/* phones: bigger touch targets for the panel buttons */
+.btRoot.is-mobile .btPanel button {
+  min-height: 40px;
+  min-width: 110px;
+  font-size: 14px;
+}

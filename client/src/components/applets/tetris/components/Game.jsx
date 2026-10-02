@@ -27,8 +27,11 @@ const Game = () => {
     const [highScore, setHighScore] = useState(readHighScore)
     const [result, setResult] = useState(null)
     const [gameId, setGameId] = useState(0)
+    const [editControls, setEditControls] = useState(false)
 
-    const start = () => {
+    // "Customize controls" starts a game paused in the controls editor
+    const start = (edit = false) => {
+        setEditControls(edit === true)
         setGameId((id) => id + 1)
         setScreen("playing")
     }
@@ -46,9 +49,9 @@ const Game = () => {
     return (
         <div className="tetrisGame">
             {screen === "playing" ? (
-                <TetrisWindow key={gameId} onGameOver={finish} onQuit={() => setScreen("menu")} />
+                <TetrisWindow key={gameId} editControls={editControls} onGameOver={finish} onQuit={() => setScreen("menu")} />
             ) : (
-                <Menu onPlay={start} highScore={highScore} result={screen === "over" ? result : null} />
+                <Menu onPlay={() => start()} onCustomize={() => start(true)} highScore={highScore} result={screen === "over" ? result : null} />
             )}
         </div>
     )

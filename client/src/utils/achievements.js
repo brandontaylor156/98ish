@@ -30,6 +30,8 @@ export const ACHIEVEMENTS = [
   { id: "konami", title: "Thirty Lives", text: "Entered the famous code on the desktop.", hint: "Up, up, down, down... on the bare desktop." },
   { id: "theme", title: "New Look", text: "Applied a desktop theme.", hint: "Settings in the Start menu has a whole new look for you." },
   { id: "switcher", title: "Juggler", text: "Switched windows from the keyboard.", hint: "Hold Alt and press Q (see Keyboard Shortcuts)." },
+  { id: "blockten-combo", title: "Triple Threat", text: "Cleared three lines with one piece in Block Ten.", hint: "In Block Ten, fill three rows or columns at once." },
+  { id: "blockten-1000", title: "Four Digits", text: "Scored 1,000 points in one game of Block Ten.", hint: "Keep a Block Ten game going long enough to reach four digits." },
   { id: "quick-launch", title: "Launch Pad", text: "Added a program to Quick Launch.", hint: "Drag a desktop icon onto the little icons next to Start." },
 ]
 

@@ -51,6 +51,10 @@ const TIPS = {
   Reversi: ["Corners can never be flipped. Grab them, and stay off the squares next to them until you can."],
   Chess: ["Drag a piece or click it, then click where it goes. Level in the menu makes the computer tougher."],
   Battleship: ["Press R (or right-click) to turn a ship while you place it. Random does it all for you."],
+  "Block Ten": [
+    "Keep a 3x3 hole open somewhere. The big square always shows up when you have no room for it!",
+    "Clear lines on moves in a row for a streak bonus. Pieces with no room left turn gray.",
+  ],
   Downhill: ["Press Space in the air off a ramp to spin. Just land before the spin ends!", "Something lives up on that mountain. Keep moving after 2,000 m..."],
 }
 

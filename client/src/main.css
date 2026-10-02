@@ -412,107 +412,29 @@ html, body, #root {
   padding: 4px 8px;
 }
 
-/* Pause above Hold at the bottom of the left panel (touch screens) */
+/* Touch screens: the on-screen controls (shared/controls TouchControls, see
+   tetrisControls.jsx) float over the window; by default Pause and Hold sit at the bottom of
+   the left panel and the pad in a row under the board (portrait) or at the edges
+   (landscape). These empty blocks keep room for them. */
 .tetrisSideButtons {
   margin-top: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+  flex: 0 0 88px;
 }
 
-.tetrisPauseButton {
-  min-width: 0;
-  padding: 0;
-  height: 32px;
-}
-
-.tetrisHoldButton {
-  height: 50px;
-}
-
-/* On-screen controls (touch screens) */
 .tetrisPad {
   grid-area: pad;
-  display: flex;
-  justify-content: space-between;
-  gap: 16px;
+  height: 106px;
 }
 
-.tetrisWindow[data-layout="landscape"] .tetrisPad {
-  display: contents;
-}
-
-.tetrisPadCluster {
-  flex: 0 1 200px;
-  display: grid;
-  grid-auto-rows: 50px;
-  gap: 6px;
-}
-
-.tetrisPadCluster--move {
-  grid-area: move;
-  grid-template-columns: repeat(3, 1fr);
-}
-
-/* One big hard drop button under the right thumb, as tall as the d-pad */
-.tetrisPadCluster--drop {
-  grid-area: drop;
-  flex-basis: 120px;
-  grid-template-columns: 1fr;
-}
-
-.tetrisPad--drop {
-  grid-row: span 2;
-}
-
-.tetrisPad--drop svg {
-  width: 36px;
-  height: 36px;
-}
-
-.tetrisWindow[data-layout="landscape"] .tetrisPadCluster {
-  align-self: end;
-  grid-template-columns: repeat(3, 52px);
-}
-
-.tetrisWindow[data-layout="landscape"] .tetrisPadCluster--drop {
-  justify-self: end;
-  grid-template-columns: 110px;
-}
-
-/* Rotate sits on top of the d-pad, like the Up key */
-.tetrisPad--up {
-  grid-column: 2;
-}
-
-.tetrisPadCluster--move > :not(.tetrisPad--up) {
-  grid-row: 2;
+.tcButton.tetrisPauseButton {
+  font-size: 11px;
+  font-weight: normal;
 }
 
 .tetrisPadButton {
-  min-width: 0;
-  min-height: 0;
-  padding: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   font-size: 14px;
   font-weight: bold;
   color: #000;
-  touch-action: none;
-}
-
-.tetrisPadButton svg {
-  fill: currentColor;
-}
-
-/* Pressed look, since :active doesn't apply once pointerdown is cancelled */
-.tetrisPadButton.is-pressed {
-  box-shadow: inset -1px -1px #fff, inset 1px 1px #0a0a0a, inset -2px -2px #dfdfdf, inset 2px 2px #808080;
-}
-
-.tetrisPadButton.is-pressed > * {
-  transform: translate(1px, 1px);
 }
 
 .tetrisLabel {
@@ -824,4 +746,20 @@ html, body, #root {
   flex: 1;
   min-height: 0;
   height: auto !important;
+}
+
+.tetrisMenuControls {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.os-mobile .tetrisMenuControls button {
+  min-height: 36px;
+}
+
+/* 98.css leaves the checkmark's top to the flow, which drops it below the box */
+.tetrisMenuControls input[type="checkbox"]:checked + label::after {
+  top: 3px;
 }

@@ -1,6 +1,7 @@
-import React, { useEffect, useRef, useState } from "react"
+import React, { useEffect, useMemo, useRef, useState } from "react"
 import MenuBar from "../../shared/MenuBar"
 import Dialog from "../../shared/Dialog"
+import TouchControls, { fromPx, useTouchControlsMenuItem, useTouchControlsVisible } from "../../shared/controls"
 import { useIsTouch } from "../../../hooks/useMediaQuery"
 import * as G from "./game"
 import { createRenderer } from "./render"
@@ -48,6 +49,31 @@ const CONTROLS = [
 
 const fmt = (n) => n.toLocaleString("en-US")
 
+// On-screen controls (shared/controls, players can move and resize them). The flippers are
+// two big invisible zones, the left and right halves of the table by default. LAUNCH sits
+// over the shooter lane (lane = where the table is drawn, from the renderer).
+const touchControls = (lane, inLane, playing) => [
+  { id: "flipLeft", action: "left", label: "Left flipper", kind: "zone", mirror: false, hidden: !playing, default: { x: 0, y: 0, w: 50, h: 100 } },
+  { id: "flipRight", action: "right", label: "Right flipper", kind: "zone", mirror: false, hidden: !playing, default: { x: 50, y: 0, w: 50, h: 100 } },
+  {
+    id: "launch",
+    label: "Launch",
+    icon: (
+      <>
+        <span>▼</span>
+        LAUNCH
+      </>
+    ),
+    className: "pbLaunch",
+    hidden: !inLane,
+    default: (size) =>
+      lane
+        ? fromPx(size, { left: Math.min(lane.left, size.width - lane.width - 4), top: lane.top, width: lane.width, height: 64 })
+        : fromPx(size, { right: 40, bottom: 80, width: 54, height: 64 }),
+  },
+  { id: "nudge", label: "Nudge", icon: "NUDGE", className: "pbNudge", hidden: !playing, default: (size) => fromPx(size, { left: 6, top: 6, width: 66, height: 34 }) },
+]
+
 const hudOf = (g) => {
   const mission = G.currentMission(g)
   const ball = g.world.balls[0]
@@ -81,7 +107,7 @@ const Pinball = ({ onClose, onTitle, mobile }) => {
   }
   const soundsRef = useRef(null)
   if (!soundsRef.current) soundsRef.current = createSounds()
-  const input = useRef({ keys: new Set(), pointers: new Map(), plungerTouch: false, nudges: [] })
+  const input = useRef({ keys: new Set(), pointers: new Map(), zones: new Set(), plungerTouch: false, nudges: [] })
   const pausedRef = useRef(false)
   const loopRef = useRef({ start: () => {}, redraw: () => {} })
   const [paused, setPausedState] = useState(false)
@@ -97,6 +123,10 @@ const Pinball = ({ onClose, onTitle, mobile }) => {
   const [laneButton, setLaneButton] = useState(null) // where the touch plunger sits
 
   const compact = mobile || width < 470
+  const touchVisible = useTouchControlsVisible()
+  const controlsMenuItem = useTouchControlsMenuItem()
+  const showPad = compact || touchVisible // on-screen LAUNCH, NUDGE and flipper zones
+  const [editing, setEditing] = useState(false)
 
   useEffect(() => {
     onTitle?.(TITLE)
@@ -114,6 +144,7 @@ const Pinball = ({ onClose, onTitle, mobile }) => {
     setPausedState(value)
     input.current.keys.clear()
     input.current.pointers.clear()
+    input.current.zones.clear()
     input.current.plungerTouch = false
     if (!value) loopRef.current.start()
     else loopRef.current.redraw()
@@ -158,8 +189,8 @@ const Pinball = ({ onClose, onTitle, mobile }) => {
       if (!pausedRef.current) {
         const i = input.current
         G.update(g, dt, {
-          left: held(LEFT_KEYS) || touching("left"),
-          right: held(RIGHT_KEYS) || touching("right"),
+          left: held(LEFT_KEYS) || touching("left") || i.zones.has("left"),
+          right: held(RIGHT_KEYS) || touching("right") || i.zones.has("right"),
           plunger: held(PLUNGER_KEYS) || i.plungerTouch,
           nudges: i.nudges.splice(0),
         })
@@ -290,6 +321,7 @@ const Pinball = ({ onClose, onTitle, mobile }) => {
     if (rootRef.current?.contains(e.relatedTarget)) return
     input.current.keys.clear()
     input.current.pointers.clear()
+    input.current.zones.clear()
     input.current.plungerTouch = false
     if (gameRef.current.mode === "play") setPaused(true)
   }
@@ -302,7 +334,8 @@ const Pinball = ({ onClose, onTitle, mobile }) => {
       setPaused(false)
       return
     }
-    if (gameRef.current.mode !== "play") return
+    // with on-screen controls the flipper zones take the touches
+    if (gameRef.current.mode !== "play" || showPad) return
     const rect = wrapRef.current.getBoundingClientRect()
     const side = e.clientX - rect.left < rect.width / 2 ? "left" : "right"
     input.current.pointers.set(e.pointerId, side)
@@ -316,20 +349,28 @@ const Pinball = ({ onClose, onTitle, mobile }) => {
     input.current.pointers.delete(e.pointerId)
   }
 
-  const plungerDown = (e) => {
-    e.stopPropagation()
+  // on-screen controls
+  const padPress = (action) => {
     soundsRef.current.unlock()
     if (pausedRef.current) return setPaused(false)
-    input.current.plungerTouch = true
-    try {
-      e.currentTarget.setPointerCapture(e.pointerId)
-    } catch {
-      // the pointer is already gone
-    }
+    if (action === "left" || action === "right") input.current.zones.add(action)
+    else if (action === "launch") input.current.plungerTouch = true
+    else if (action === "nudge") input.current.nudges.push("up")
   }
-  const plungerUp = (e) => {
-    e.stopPropagation()
-    input.current.plungerTouch = false
+  const padRelease = (action) => {
+    if (action === "left" || action === "right") input.current.zones.delete(action)
+    else if (action === "launch") input.current.plungerTouch = false
+  }
+  const playing = hud.mode === "play" && !paused
+  const controls = useMemo(() => touchControls(laneButton, hud.inLane, playing), [laneButton, hud.inLane, playing])
+
+  // customizing the controls pauses the game (it stays paused after: tap to resume)
+  useEffect(() => {
+    if (editing && gameRef.current.mode === "play") setPaused(true)
+  }, [editing])
+  const setEditingAndFocus = (value) => {
+    setEditing(value)
+    if (!value) keepFocus()
   }
 
   // ---- menus ----
@@ -352,6 +393,8 @@ const Pinball = ({ onClose, onTitle, mobile }) => {
         { label: "Music", checked: options.music, onClick: () => setOptions((o) => ({ ...o, music: !o.music })) },
         "-",
         { label: "Player Controls...", onClick: () => setDialog({ kind: "controls" }) },
+        controlsMenuItem,
+        { label: "Customize Touch Controls...", disabled: !showPad, onClick: () => setEditing(true) },
       ],
     },
     {
@@ -385,7 +428,7 @@ const Pinball = ({ onClose, onTitle, mobile }) => {
   const hint = hud.mode !== "play"
     ? compact ? "Tap New Game to play" : "Press F2 for a new game"
     : hud.inLane
-      ? compact && touch ? "Hold LAUNCH, then let go" : "Hold Space, then let go"
+      ? touchVisible ? "Hold LAUNCH, then let go" : "Hold Space, then let go"
       : ""
   const status = hud.message || hint
 
@@ -425,33 +468,16 @@ const Pinball = ({ onClose, onTitle, mobile }) => {
           onLostPointerCapture={onPointerUp}
         >
           <canvas ref={canvasRef} className="pbCanvas" />
-          {(compact || touch) && hud.inLane && !paused && laneButton && (
-            <div
-              className="pbLaunch"
-              role="button"
-              aria-label="Launch"
-              style={{ left: Math.min(laneButton.left, width - laneButton.width - 4), width: laneButton.width, top: laneButton.top }}
-              onPointerDown={plungerDown}
-              onPointerUp={plungerUp}
-              onPointerCancel={plungerUp}
-              onLostPointerCapture={plungerUp}
-            >
-              <span>▼</span>
-              LAUNCH
-            </div>
-          )}
-          {(compact || touch) && hud.mode === "play" && !paused && (
-            <div
-              className="pbNudge"
-              role="button"
-              aria-label="Nudge"
-              onPointerDown={(e) => {
-                e.stopPropagation()
-                input.current.nudges.push("up")
-              }}
-            >
-              NUDGE
-            </div>
+          {showPad && (
+            <TouchControls
+              game="pinball"
+              controls={controls}
+              onPress={padPress}
+              onRelease={padRelease}
+              show={playing}
+              editing={editing}
+              onEditingChange={setEditingAndFocus}
+            />
           )}
           {paused && hud.mode === "play" && (
             <div className="pbOverlay">
@@ -609,7 +635,8 @@ const Pinball = ({ onClose, onTitle, mobile }) => {
           </table>
           <p className="dialogText">
             On a touch screen: hold the left or right half of the table for that flipper (both at once works), hold
-            LAUNCH to pull the plunger, and tap NUDGE (or give the phone a shake) to bump the table.
+            LAUNCH to pull the plunger, and tap NUDGE (or give the phone a shake) to bump the table. Options &gt;
+            Customize Touch Controls (or the gear) moves and resizes them.
           </p>
         </Dialog>
       )}
