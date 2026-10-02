@@ -1,6 +1,7 @@
 import React, { useState } from "react"
 import { imageMapper } from "../../../utils/imageMapper"
 import { hyperlinks } from "../../../utils/hyperlinks"
+import { ieWindow } from "../../../utils/programs"
 import InputDialog from "./components/InputDialog"
 import { useOpenGesture } from "../../../hooks/useMediaQuery"
 
@@ -77,9 +78,14 @@ const FileExplorer = ({ fs, dispatch }) => {
           },
         })
         return
-      case "internet":
-        window.open(hyperlinks[item.name])
+      case "internet": {
+        // the authors' GitHub projects open in a real tab; the rest open in Internet
+        // Explorer, as of the date it's set to
+        const url = hyperlinks[item.name]
+        if (/github\.com/.test(url)) window.open(url, "_blank", "noopener")
+        else dispatch({ type: "open_window", payload: ieWindow(url) })
         return
+      }
       case "tetris":
         dispatch({
           type: "open_window",

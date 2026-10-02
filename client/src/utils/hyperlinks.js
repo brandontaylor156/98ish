@@ -3,7 +3,7 @@ export const hyperlinks = {
   Yahoo: "https://www.yahoo.com/",
   "Tim Tang": "http://www.timtang.com/ttt/",
   "Ask Jeeves": "https://www.ask.com/",
-  Geocities: "https://www.yahoo.com/",
+  Geocities: "http://www.geocities.com/",
   eBay: "https://www.ebay.com/",
   IMDb: "https://www.imdb.com/",
   "Chit Chat": "https://github.com/brandontaylor156/chit-chat",

@@ -5,6 +5,8 @@ import Notepad from "../applets/notepad/Notepad"
 import Tetris from "../applets/tetris/Tetris"
 import Hover from "../applets/hover/Hover"
 import Spectra from "../applets/spectra/Spectra"
+import InternetExplorer from "../applets/internetExplorer/InternetExplorer"
+import { ieWindow } from "../../utils/programs"
 import VideoPlayer from "../applets/videoPlayer/VideoPlayer"
 import Minesweeper from "../applets/minesweeper/Minesweeper"
 import { AimProvider } from "../applets/aim/AimContext"
@@ -32,6 +34,7 @@ const openProgram = (dispatch, program) =>
       positionX: 10,
       positionY: 0,
       icon_url: program.icon_url,
+      app: program.app,
     },
   })
 
@@ -109,6 +112,14 @@ const Desktop = ({ fs, programs, windows, dispatch, closeMenu, mobile }) => {
       {window.name == "Tetris" && <Tetris />}
       {window.name == "Hover" && <Hover />}
       {window.name == "SPECTRA" && <Spectra />}
+      {window.app === "ie" && (
+        <InternetExplorer
+          initialUrl={window.url}
+          onTitle={(name) => dispatch({ type: "rename_window", payload: { index, name } })}
+          onNewWindow={(url) => dispatch({ type: "open_window", payload: ieWindow(url) })}
+          onClose={() => closeWindow(window, index)}
+        />
+      )}
       {window.name == "My Computer" && (
         <FileExplorer fs={fs} dispatch={dispatch} />
       )}

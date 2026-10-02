@@ -1,0 +1,690 @@
+/* Internet Explorer (with a time machine). 98.css chrome around archived pages. */
+
+.ieRoot {
+  position: relative;
+  height: calc(100% - 25px);
+  display: flex;
+  flex-direction: column;
+  background: #c0c0c0;
+  color: #000;
+  font-family: "Pixelated MS Sans Serif", Arial, sans-serif;
+  -webkit-font-smoothing: none;
+  font-size: 11px;
+}
+
+.ieRoot button {
+  min-width: 0;
+}
+
+.ieRoot > * {
+  flex: none;
+}
+
+/* ---- toolbars ---- */
+
+.ieToolbar,
+.ieAddress,
+.ieTimeBar,
+.ieLinks {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 4px;
+  border-top: 1px solid #fff;
+  border-bottom: 1px solid #808080;
+}
+
+.ieTool {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  min-width: 44px !important;
+  padding: 2px 3px !important;
+  background: none !important;
+  box-shadow: none !important;
+  border: 1px solid transparent;
+  color: #000;
+}
+
+.ieTool:hover:not(:disabled),
+.ieTool.is-active {
+  border-color: #fff #808080 #808080 #fff;
+}
+
+.ieTool:active:not(:disabled),
+.ieTool.is-active {
+  border-color: #808080 #fff #fff #808080;
+}
+
+.ieTool svg {
+  fill: #000080;
+}
+
+.ieTool:disabled {
+  color: #808080;
+}
+
+.ieTool:disabled svg {
+  fill: #a0a0a0;
+}
+
+.ieToolSep {
+  width: 2px;
+  align-self: stretch;
+  margin: 2px 3px;
+  border-left: 1px solid #808080;
+  border-right: 1px solid #fff;
+}
+
+.ieThrobber {
+  margin-left: auto;
+  width: 36px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #000;
+  color: #3a8fff;
+  font: italic bold 26px "Times New Roman", serif;
+  border: 1px solid;
+  border-color: #808080 #fff #fff #808080;
+}
+
+.ieThrobber.is-busy {
+  animation: ieSpin 1s linear infinite;
+}
+
+@keyframes ieSpin {
+  to {
+    transform: rotateY(360deg);
+  }
+}
+
+.ieAddress input {
+  flex: 1;
+  min-width: 0;
+}
+
+.ieAddress button {
+  padding: 0 8px;
+}
+
+.ieTimeBar {
+  flex-wrap: wrap;
+  background: linear-gradient(90deg, #d8d0f0, #c0c0c0 60%);
+}
+
+.ieTimeLabel {
+  font-weight: bold;
+  color: #000080;
+}
+
+.ieTimeBar input[type="date"] {
+  height: 21px;
+  font-family: inherit;
+  font-size: 11px;
+}
+
+.ieTimeBar button {
+  padding: 0 6px;
+}
+
+.ieCaptured {
+  margin-left: auto;
+  color: #404040;
+}
+
+.ieLinks {
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.ieLinks > span {
+  font-weight: bold;
+  margin-right: 2px;
+}
+
+.ieLinks button {
+  padding: 1px 6px !important;
+  background: none !important;
+  box-shadow: none !important;
+  border: 1px solid transparent;
+  color: #000;
+}
+
+.ieLinks button:hover {
+  border-color: #fff #808080 #808080 #fff;
+}
+
+/* the yellow information bar */
+.ieNotice {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 4px 8px;
+  background: #ffffe1;
+  border-bottom: 1px solid #808080;
+  line-height: 1.35;
+}
+
+.ieNoticeIcon {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: bold;
+  font-family: Georgia, serif;
+  background: #000080;
+}
+
+.ieNotice--warn .ieNoticeIcon {
+  background: #c08000;
+}
+
+/* ---- body: explorer bar + page ---- */
+
+.ieBody {
+  flex: 1 1 auto !important;
+  min-height: 0;
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+}
+
+.ieView {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  background: #fff;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+  padding: 2px;
+}
+
+.ieFrame {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: #fff;
+}
+
+.ieStatus {
+  margin: 0;
+}
+
+.ieStatusText {
+  flex: 1;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.ieZone {
+  flex: none !important;
+  white-space: nowrap;
+}
+
+/* explorer bar (Favorites / History / Captures) */
+.ieExplorerBar {
+  flex: none;
+  width: 236px;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080;
+  overflow: hidden;
+}
+
+.ieBarTitle {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 3px 4px 3px 6px;
+  background: #c0c0c0;
+  font-weight: bold;
+  border-bottom: 1px solid #808080;
+}
+
+.ieBarTitle button {
+  width: 18px;
+  height: 16px;
+  padding: 0 !important;
+  line-height: 1;
+}
+
+.ieBarList,
+.ieCaptures {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px;
+  font-family: Arial, sans-serif;
+  -webkit-font-smoothing: auto;
+  font-size: 12px;
+}
+
+.ieBarAction {
+  width: 100%;
+  margin-bottom: 4px;
+  font-family: "Pixelated MS Sans Serif", Arial, sans-serif;
+  font-size: 11px;
+}
+
+.ieBarEmpty {
+  margin: 8px 4px;
+  color: #666;
+  font-size: 12px;
+}
+
+.ieBarItem {
+  display: flex;
+  align-items: stretch;
+}
+
+.ieBarItem > button:first-child {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+  padding: 3px 4px !important;
+  background: none !important;
+  box-shadow: none !important;
+  border: 0;
+  color: #0000ee;
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.ieBarItem > button:first-child:hover b {
+  text-decoration: underline;
+}
+
+.ieBarItem b {
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-weight: normal;
+}
+
+.ieBarItem small {
+  color: #666;
+}
+
+.ieBarRemove {
+  width: 20px;
+  padding: 0 !important;
+  background: none !important;
+  box-shadow: none !important;
+  border: 0;
+  color: #808080;
+}
+
+/* captures calendar */
+.ieCapSite {
+  font-weight: bold;
+  margin: 2px 2px 6px;
+  overflow-wrap: anywhere;
+}
+
+.ieYearBars {
+  display: flex;
+  align-items: flex-end;
+  gap: 1px;
+  height: 64px;
+  padding: 0 1px;
+  border-bottom: 1px solid #ccc;
+  overflow-x: auto;
+}
+
+.ieYearBars button {
+  flex: 1 0 9px;
+  height: 100%;
+  min-height: 0;
+  padding: 0 !important;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  background: none !important;
+  box-shadow: none !important;
+  border: 0;
+  cursor: pointer;
+}
+
+.ieYearBar {
+  width: 100%;
+  background: #7a9cd6;
+}
+
+.ieYearBars button.is-active .ieYearBar {
+  background: #000080;
+}
+
+.ieYearBars button:hover:not(:disabled) .ieYearBar {
+  background: #3a6ed0;
+}
+
+.ieYearLabel {
+  font-size: 8px;
+  color: #666;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: visible;
+}
+
+.ieYearBars button.is-active .ieYearLabel {
+  color: #000080;
+  font-weight: bold;
+}
+
+.ieCapYearNav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin: 6px 0 2px;
+  font-size: 14px;
+}
+
+.ieCapYearNav button {
+  width: 24px;
+  padding: 0 !important;
+  font-size: 9px;
+}
+
+.ieCapCount {
+  text-align: center;
+  color: #444;
+  margin: 2px 0 6px;
+}
+
+.ieMonths {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px 4px;
+}
+
+.ieMonthName {
+  font-weight: bold;
+  font-size: 11px;
+  text-align: center;
+}
+
+.ieMonthGrid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 1px;
+}
+
+.ieDay {
+  font-size: 8px;
+  line-height: 13px;
+  height: 13px;
+  text-align: center;
+  color: #bbb;
+}
+
+.ieDay.has-capture {
+  min-width: 0;
+  min-height: 0;
+  padding: 0 !important;
+  border: 0;
+  box-shadow: none !important;
+  border-radius: 50%;
+  background: #9fc3ff !important;
+  color: #000;
+  font-family: Arial, sans-serif;
+  font-size: 8px;
+  cursor: pointer;
+}
+
+.ieDay.is-many {
+  background: #4a86e8 !important;
+  color: #fff;
+}
+
+.ieDay.is-shown {
+  background: #ffcc00 !important;
+  color: #000;
+  outline: 1px solid #000;
+}
+
+/* error pages (styled like IE's own) */
+.ieErrorPage {
+  height: 100%;
+  overflow: auto;
+  padding: 24px 32px;
+  font-family: Verdana, Arial, sans-serif;
+  -webkit-font-smoothing: auto;
+  font-size: 12px;
+}
+
+.ieErrorPage h2 {
+  font-size: 16px;
+  margin: 0 0 12px;
+}
+
+.ieErrorPage p,
+.ieErrorPage ul {
+  margin: 0 0 10px;
+  max-width: 520px;
+  line-height: 1.5;
+}
+
+/* ---- the Start Page ---- */
+
+.ieStart {
+  height: 100%;
+  overflow: auto;
+  background: #fff;
+  font-family: Verdana, Arial, sans-serif;
+  -webkit-font-smoothing: auto;
+  font-size: 12px;
+  color: #000;
+}
+
+.ieStartHeader {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 12px 16px;
+  background: linear-gradient(90deg, #000080, #1084d0);
+  color: #fff;
+}
+
+.ieStartLogo {
+  font: bold italic 26px Georgia, "Times New Roman", serif;
+  text-shadow: 2px 2px #000040;
+}
+
+.ieStartLogo span {
+  font-size: 18px;
+  color: #ffcc00;
+}
+
+.ieStartToday {
+  font-size: 12px;
+}
+
+.ieStartMachine {
+  padding: 12px 16px;
+  background: #fffbe6;
+  border-bottom: 2px solid #ffcc00;
+}
+
+.ieStartMachine h2,
+.ieStartDirHead h2 {
+  margin: 0 0 8px;
+  font-size: 14px;
+  color: #000080;
+}
+
+.ieYears {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+
+.ieYears button {
+  padding: 2px 8px !important;
+  font-family: Verdana, Arial, sans-serif;
+  font-size: 11px;
+}
+
+.ieYears button.is-active {
+  background: #000080 !important;
+  color: #fff;
+  box-shadow: inset 1px 1px #000040 !important;
+}
+
+.ieStartGo {
+  display: flex;
+  gap: 4px;
+  max-width: 520px;
+}
+
+.ieStartGo input {
+  flex: 1;
+  min-width: 0;
+  height: 24px;
+}
+
+.ieStartDirectory {
+  padding: 12px 16px;
+}
+
+.ieStartDirHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.ieStartDirHead input {
+  width: 200px;
+  max-width: 100%;
+}
+
+.ieStartColumns {
+  columns: 3 220px;
+  column-gap: 20px;
+}
+
+.ieStartSection {
+  break-inside: avoid;
+  margin-bottom: 14px;
+}
+
+.ieStartSection h3 {
+  margin: 0 0 4px;
+  padding: 2px 6px;
+  font-size: 12px;
+  background: #e8e8f8;
+  border-left: 4px solid #000080;
+}
+
+.ieStartSection ul {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 0 6px;
+}
+
+.ieStartSection li {
+  margin: 0 0 5px;
+}
+
+.ieStartSection li button {
+  background: none !important;
+  box-shadow: none !important;
+  border: 0;
+  padding: 0 !important;
+  min-height: 0;
+  color: #0000ee;
+  text-decoration: underline;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.ieStartSection li.is-later button {
+  color: #7a7aaa;
+}
+
+.ieSince {
+  color: #888;
+  font-size: 10px;
+}
+
+.ieAbout {
+  color: #555;
+  font-size: 11px;
+}
+
+.ieStartEmpty {
+  color: #666;
+}
+
+.ieStartFooter {
+  padding: 10px 16px 16px;
+  border-top: 1px solid #ccc;
+  color: #666;
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+/* ---- phones / narrow windows ---- */
+
+.os-mobile .ieTool span,
+.os-mobile .ieLinks,
+.os-mobile .ieCaptured {
+  display: none;
+}
+
+.os-mobile .ieTool {
+  min-width: 36px !important;
+  min-height: 36px;
+  justify-content: center;
+}
+
+.os-mobile .ieThrobber {
+  width: 32px;
+  height: 32px;
+}
+
+.os-mobile .ieTimeBar input[type="date"] {
+  height: 30px;
+  font-size: 16px;
+}
+
+.os-mobile .ieTimeBar button,
+.os-mobile .ieAddress button {
+  min-height: 30px;
+}
+
+/* the explorer bar floats over the page on a phone */
+.os-mobile .ieExplorerBar {
+  position: absolute;
+  inset: 0 0 0 0;
+  z-index: 5;
+  width: auto;
+}
+
+.os-mobile .ieBody {
+  position: relative;
+}

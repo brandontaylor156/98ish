@@ -87,6 +87,12 @@ const reducer = (state, action) => {
           : { ...window, active: false }
       )
 
+    // apps that show a document title in their title bar (Internet Explorer)
+    case "rename_window":
+      return state.map((window, idx) =>
+        idx === action.payload.index ? { ...window, name: action.payload.name } : window
+      )
+
     case "move_window":
       return state.map((window, idx) =>
         idx === action.payload.index

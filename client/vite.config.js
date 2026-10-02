@@ -1,6 +1,7 @@
 import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import youtubeHandler from './api/youtube.js'
+import waybackHandler from './api/wayback.js'
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
@@ -15,6 +16,7 @@ export default defineConfig(({ mode }) => {
         name: 'dev-api',
         configureServer(server) {
           server.middlewares.use('/api/youtube', youtubeHandler)
+          server.middlewares.use('/api/wayback', waybackHandler)
         },
       },
     ],

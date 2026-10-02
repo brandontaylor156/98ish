@@ -1,3 +1,19 @@
+// An Internet Explorer window, optionally opening a page (as of the date IE is set to)
+export const ieWindow = (url) => ({
+  name: "Internet Explorer",
+  app: "ie",
+  url,
+  minimized: false,
+  maximized: false,
+  active: true,
+  closed: false,
+  width: 900,
+  height: 640,
+  positionX: 10,
+  positionY: 0,
+  icon_url: "/assets/internet_explorer.png",
+})
+
 export const programs = [
   {
     name: "SPECTRA",
@@ -12,6 +28,14 @@ export const programs = [
     icon_url: "./assets/program_icons/tetris3-48.png",
     width: 600,
     height: 600,
+  },
+  {
+    name: "Internet Explorer",
+    app: "ie",
+    image_url: "/assets/internet_explorer.png",
+    icon_url: "/assets/internet_explorer.png",
+    width: 900,
+    height: 640,
   },
   {
     name: "Task Manager",

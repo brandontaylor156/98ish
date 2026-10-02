@@ -27,6 +27,22 @@ const saveCells = (cells) => {
 
 const cellKey = ({ col, row }) => `${col},${row}`
 
+// After a tap opens an app, the browser still sends a click to whatever is now under the
+// finger: the window that just opened. Swallow that one click.
+const swallowNextClick = () => {
+  const handler = (event) => {
+    event.stopPropagation()
+    event.preventDefault()
+    cleanup()
+  }
+  const cleanup = () => {
+    window.removeEventListener("click", handler, true)
+    clearTimeout(timer)
+  }
+  window.addEventListener("click", handler, true)
+  const timer = setTimeout(cleanup, 600)
+}
+
 // Every program gets a cell: its saved one if still on screen and free, else the first gap
 const arrange = (programs, saved, columns, rows) => {
   const taken = new Set()
@@ -89,7 +105,10 @@ const MobileIcons = ({ programs, onOpen }) => {
     const g = gesture.current
     gesture.current = null
     if (!g || g.id !== event.pointerId) return
-    if (!g.dragging) return onOpen(program)
+    if (!g.dragging) {
+      swallowNextClick()
+      return onOpen(program)
+    }
 
     // Drop: snap to the nearest cell, swapping with whatever icon is there
     const from = cells[program.name]

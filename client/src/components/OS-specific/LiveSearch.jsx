@@ -1,6 +1,7 @@
 import React from "react"
 import { imageMapper } from "../../utils/imageMapper"
 import { hyperlinks } from "../../utils/hyperlinks"
+import { ieWindow } from "../../utils/programs"
 import { useOpenGesture } from "../../hooks/useMediaQuery"
 import { fs } from "../../utils/fs"
 
@@ -72,9 +73,14 @@ const LiveSearch = ({ results, dispatch, closeMenu }) => {
           },
         })
         return
-      case "internet":
-        window.open(hyperlinks[item.name])
+      case "internet": {
+        // the authors' GitHub projects open in a real tab; the rest open in Internet
+        // Explorer, as of the date it's set to
+        const url = hyperlinks[item.name]
+        if (/github\.com/.test(url)) window.open(url, "_blank", "noopener")
+        else dispatch({ type: "open_window", payload: ieWindow(url) })
         return
+      }
       case "tetris":
         dispatch({
           type: "open_window",
