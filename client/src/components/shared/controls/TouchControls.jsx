@@ -258,7 +258,7 @@ const TouchControls = ({
                 type="button"
                 tabIndex={-1}
                 aria-label={c.label}
-                aria-disabled={c.ariaDisabled || undefined}
+                aria-disabled={c.ariaDisabled === undefined ? undefined : String(!!c.ariaDisabled)}
                 data-control={c.id}
                 className={`tcButton tcShape--${c.shape || "rect"} ${pressed.has(c.id) ? "is-pressed" : ""} ${c.className || ""}`}
                 style={pxStyle(rects[c.id], { "--tc-opacity": shown.alpha * shown.opacity[c.id] })}

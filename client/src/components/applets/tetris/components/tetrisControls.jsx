@@ -99,7 +99,8 @@ export const TETRIS_CONTROLS = [
   },
 ]
 
-// The same layout for every mode (so a player's arrangement carries over), with the Item
-// button only in the Arena and no Pause online (the match doesn't stop)
+// The same layout for every mode (so a player's arrangement carries over: positions are
+// saved by id). The Item button only exists in the Arena and Pause only offline (a match
+// doesn't stop), so neither shows up, even in the layout editor, where it does nothing.
 export const controlsFor = ({ item = false, pause = true } = {}) =>
-  TETRIS_CONTROLS.map((c) => (c.id === "item" ? { ...c, hidden: !item } : c.id === "pause" ? { ...c, hidden: !pause } : c))
+  TETRIS_CONTROLS.filter((c) => (c.id === "item" ? item : c.id === "pause" ? pause : true))

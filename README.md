@@ -20,8 +20,11 @@
   the whole drive, and an optional online copy that follows your 98 Messenger account to other devices
 - **Accessories:** Notepad, WordPad (fonts, colors, pictures, printing), Paint, Sound Recorder (record, reverse,
   echo...), Calculator, Character Map and an MS-DOS Prompt
-- **Games:** Pinball: Deep Sea Dive, Solitaire, FreeCell, Minesweeper, Tetris, Downhill (skiing), Reversi, Chess,
-  Battleship, Hearts, SPECTRA (a three.js tunnel flyer) and Hover
+- **Games:** Tetris (Marathon, Sprint 40L, Ultra, Survival, and Tetris Online: Battle 2P, a 2-6 player Arena
+  with items and Sprint races, with Quick Match, computer players and star rankings), Sunny Acres (a farming and
+  town-building game), Block Ten (a 10x10 block puzzle), Pinball: Deep Sea Dive, Solitaire, FreeCell, Minesweeper,
+  Downhill, Reversi, Chess, Battleship, Hearts, SPECTRA and Hover. Every game has chat (a private room for a match,
+  a lobby for everyone playing it), and on phones you can move and resize the on-screen controls
 - **Media Player** with eight original synthesized songs
 - **Internet Explorer** with a Wayback Machine time machine, plus 98ish.com: the Guestbook, the Members directory
   and the web ring
@@ -31,6 +34,7 @@
   SmarterChild) and Outlook Express-style mail with attachments between screen names
 - **Network Neighborhood:** see who else is online, send files and pictures, WinPopup messages, and play Checkers,
   Chess, Reversi, Battleship, Hearts or a Minesweeper race against them
+- **My Projects:** Baseline Today, Job Market Radar and One Closet open as their own 98ish programs
 - **Extras:** 98ish Update, Floppy the helper, 22 hidden achievements (My Computer > Properties), and whatever
   happens if you end explorer.exe
 

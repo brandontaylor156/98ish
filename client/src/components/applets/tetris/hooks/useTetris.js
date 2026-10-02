@@ -7,7 +7,7 @@ import { MODES } from "../utils/modes"
 const DAS = 170
 const ARR = 50
 // Soft drop: a tap moves down one row; only after holding this long does it fall fast
-const SOFT_DROP_DELAY = 250 // finger taps last up to ~200ms
+const SOFT_DROP_DELAY = 300 // finger taps last up to ~200ms (slow phones stretch that a bit)
 
 const KEY_ACTIONS = {
   ArrowLeft: "left",
