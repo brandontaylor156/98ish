@@ -40,9 +40,14 @@ html, body, #root {
 /* .desktop {
 } */
 
-.desktop-row {
-  height: 100vh;
-  width: calc(100% - 1rem);
+/* Zero-size origin for windows: Rnd positions them from here (the screen's top-left),
+   and it covers nothing, so clicks still reach the desktop icons */
+.windowLayer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
 }
 
 .desktopIcon {
@@ -80,6 +85,11 @@ html, body, #root {
 
 .window::-webkit-scrollbar { 
   display: none;  
+}
+
+/* Desktop windows: the Rnd box sets the size (and the minimum width per app) */
+.desktopWindow {
+  min-width: 0;
 }
 
 .title-bar-controls button[aria-label=Minimize] {
@@ -253,7 +263,7 @@ hr.sm {
   /* Board column exactly as wide as the board (half its height), so the side panels
      hug it and the pads sit at the screen edges */
   grid-template-columns: 1fr 64px min(calc((100cqh - 12px) / 2), 40cqw) 64px 1fr;
-  grid-template-areas: "move left board right turn";
+  grid-template-areas: "move left board right drop";
 }
 
 .tetrisSide {
@@ -301,11 +311,22 @@ hr.sm {
   padding: 4px 8px;
 }
 
+/* Pause above Hold at the bottom of the left panel (touch screens) */
+.tetrisSideButtons {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
 .tetrisPauseButton {
   min-width: 0;
-  margin-top: auto;
   padding: 0;
   height: 32px;
+}
+
+.tetrisHoldButton {
+  height: 50px;
 }
 
 /* On-screen controls (touch screens) */
@@ -332,10 +353,20 @@ hr.sm {
   grid-template-columns: repeat(3, 1fr);
 }
 
-.tetrisPadCluster--turn {
-  grid-area: turn;
-  flex-basis: 140px;
-  grid-template-columns: repeat(2, 1fr);
+/* One big hard drop button under the right thumb, as tall as the d-pad */
+.tetrisPadCluster--drop {
+  grid-area: drop;
+  flex-basis: 120px;
+  grid-template-columns: 1fr;
+}
+
+.tetrisPad--drop {
+  grid-row: span 2;
+}
+
+.tetrisPad--drop svg {
+  width: 36px;
+  height: 36px;
 }
 
 .tetrisWindow[data-layout="landscape"] .tetrisPadCluster {
@@ -343,22 +374,18 @@ hr.sm {
   grid-template-columns: repeat(3, 52px);
 }
 
-.tetrisWindow[data-layout="landscape"] .tetrisPadCluster--turn {
+.tetrisWindow[data-layout="landscape"] .tetrisPadCluster--drop {
   justify-self: end;
-  grid-template-columns: repeat(2, 60px);
+  grid-template-columns: 110px;
 }
 
-/* Hard drop sits on top of the d-pad, like the Up key */
+/* Rotate sits on top of the d-pad, like the Up key */
 .tetrisPad--up {
   grid-column: 2;
 }
 
 .tetrisPadCluster--move > :not(.tetrisPad--up) {
   grid-row: 2;
-}
-
-.tetrisPad--wide {
-  grid-column: span 2;
 }
 
 .tetrisPadButton {
@@ -591,11 +618,40 @@ hr.sm {
   inset: 0 0 var(--taskbar-h) 0;
 }
 
+/* Icons sit at absolute grid positions (see MobileIcons.jsx) so they can be dragged */
 .os-mobile .mobileIcons {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
-  gap: 18px 4px;
-  padding: calc(16px + env(safe-area-inset-top)) calc(8px + env(safe-area-inset-right)) 16px calc(8px + env(safe-area-inset-left));
+  position: absolute;
+  inset: env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left);
+}
+
+.os-mobile .mobileIcon {
+  position: absolute;
+  width: 88px;
+  height: 100px;
+  padding-top: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.os-mobile .mobileIcon img {
+  width: 50px;
+  height: 50px;
+  pointer-events: none;
+}
+
+.os-mobile .mobileIcon label {
+  pointer-events: none;
+}
+
+.os-mobile .mobileIcon.is-dragging {
+  z-index: 1;
+  opacity: 0.8;
 }
 
 .os-mobile .desktopIconLabel {
@@ -666,11 +722,6 @@ hr.sm {
 .os-mobile .liveSearch {
   width: auto;
   max-height: 45dvh;
-}
-
-/* Minesweeper cells grow to fill the screen width */
-.os-mobile {
-  --ms-cell: min(calc((100vw - 12px) / 15), 36px);
 }
 
 /***************** END PHONE MODE *****************/

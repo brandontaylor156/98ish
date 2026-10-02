@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react"
 import { BOT_NAME, keyOf, useAim } from "./AimContext"
-import AimDialog from "./AimDialog"
+import Dialog from "../../shared/Dialog"
 import FormatBar from "./FormatBar"
 import { TranscriptLine, textStyle } from "./MessageText"
 import { useIsTouch } from "../../../hooks/useMediaQuery"
@@ -173,29 +173,29 @@ const ImWindow = ({ buddy, focusInput }) => {
       </div>
 
       {dialog?.kind === "warn" && (
-        <AimDialog title="Warn" okLabel="Warn" onOk={() => warn(dialog.anonymous)} onCancel={() => setDialog(null)}>
-          <p className="aimDialogText">
+        <Dialog title="Warn" okLabel="Warn" onOk={() => warn(dialog.anonymous)} onCancel={() => setDialog(null)}>
+          <p className="dialogText">
             Are you sure you want to warn {screenName}? Warnings slow down how fast someone can send messages.
           </p>
           <label className="aimCheck">
             <input type="checkbox" checked={dialog.anonymous} onChange={(e) => setDialog({ ...dialog, anonymous: e.target.checked })} />
             <span>Warn anonymously</span>
           </label>
-        </AimDialog>
+        </Dialog>
       )}
 
       {dialog?.kind === "block" && (
-        <AimDialog title="Block" okLabel="Block" onOk={toggleBlock} onCancel={() => setDialog(null)}>
-          <p className="aimDialogText">
+        <Dialog title="Block" okLabel="Block" onOk={toggleBlock} onCancel={() => setDialog(null)}>
+          <p className="dialogText">
             Block {screenName}? They won't be able to send you messages or see when you're online.
           </p>
-        </AimDialog>
+        </Dialog>
       )}
 
       {dialog?.kind === "alert" && (
-        <AimDialog title={dialog.title} onOk={() => setDialog(null)}>
-          <p className="aimDialogText">{dialog.text}</p>
-        </AimDialog>
+        <Dialog title={dialog.title} onOk={() => setDialog(null)}>
+          <p className="dialogText">{dialog.text}</p>
+        </Dialog>
       )}
     </div>
   )

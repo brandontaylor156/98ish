@@ -1,4 +1,4 @@
-import React, { useState } from "react"
+import React, { useEffect, useState } from "react"
 import { Rnd } from "react-rnd"
 import FileExplorer from "../applets/fileExplorer/FileExplorer"
 import Notepad from "../applets/notepad/Notepad"
@@ -14,6 +14,7 @@ import BuddyInfo from "../applets/aim/BuddyInfo"
 import ChatInvite, { AimNotice } from "../applets/aim/ChatInvite"
 import TaskManager from "../applets/taskManager/TaskManager"
 import { useOpenGesture } from "../../hooks/useMediaQuery"
+import MobileIcons from "./MobileIcons"
 import io from "socket.io-client"
 
 const openProgram = (dispatch, program) =>
@@ -48,12 +49,36 @@ const IconContent = ({ program, openGesture, dispatch }) => (
   </div>
 )
 
+// Narrowest a window may get. 98 Messenger's Buddy List and IMs are tall and narrow.
+const minWidthFor = (window) =>
+  window.name === "Minesweeper" ? 150
+  : window.name === "98 Messenger" || window.app?.startsWith("aim-") ? 220
+  : 300
+
+// Screen size (and the taskbar's height) for sizing maximized windows
+const useViewport = () => {
+  const measure = () => ({
+    width: document.documentElement.clientWidth,
+    height: window.innerHeight,
+    taskbar: document.querySelector(".taskbar")?.offsetHeight || 35,
+  })
+  const [viewport, setViewport] = useState(measure)
+  useEffect(() => {
+    const update = () => setViewport(measure())
+    update()
+    window.addEventListener("resize", update)
+    return () => window.removeEventListener("resize", update)
+  }, [])
+  return viewport
+}
+
 const Desktop = ({ fs, programs, windows, dispatch, closeMenu, mobile }) => {
   const [socket] = useState(() =>
     io(import.meta.env.VITE_SOCKET_URL || "http://localhost:8000")
   )
   const [share, setShare] = useState("")
   const openGesture = useOpenGesture()
+  const viewport = useViewport()
 
   // YouTube links in 98 Messenger play in a View Video window
   const openVideo = (url) => {
@@ -86,7 +111,19 @@ const Desktop = ({ fs, programs, windows, dispatch, closeMenu, mobile }) => {
         <FileExplorer fs={fs} dispatch={dispatch} />
       )}
       {window.name == "Notepad" && <Notepad file={window.file} />}
-      {window.name == "Minesweeper" && <Minesweeper />}
+      {window.name == "Minesweeper" && (
+        <Minesweeper
+          // On a desktop the window resizes to fit the board; phones and maximized
+          // windows scale the board to the space instead
+          fitWindow={
+            mobile || window.maximized
+              ? null
+              : (width, height) =>
+                  dispatch({ type: "resize_window", payload: { index, width, height } })
+          }
+          onClose={() => closeWindow(window, index)}
+        />
+      )}
 
       {window.name == "YouTube '98" && <VideoPlayer />}
       {window.name == "98 Messenger" && <Messenger />}
@@ -188,16 +225,7 @@ const Desktop = ({ fs, programs, windows, dispatch, closeMenu, mobile }) => {
   if (mobile) {
     return withAim(
       <div className="mobileDesktop" onClick={() => closeMenu()}>
-        <div className="mobileIcons">
-          {programs.map((program, index) => (
-            <IconContent
-              key={index}
-              program={program}
-              openGesture={openGesture}
-              dispatch={dispatch}
-            />
-          ))}
-        </div>
+        <MobileIcons programs={programs} onOpen={(program) => openProgram(dispatch, program)} />
         {windows.map(
           (window, index) =>
             !window.closed && (
@@ -244,73 +272,59 @@ const Desktop = ({ fs, programs, windows, dispatch, closeMenu, mobile }) => {
           )
         })}
 
-      <div className="row desktop-row d-flex justify-content-center align-items-center pb-5">
+      {/* Windows are positioned from the screen's top-left corner */}
+      <div className="windowLayer">
         {windows &&
           windows.map((window, index) => {
-            let windowStyles = ["p-0"]
-            let activeStyle
-            let maximizedStyle
-            let resizingValue = true
-            let draggingValue = false
-
-            window.minimized ? windowStyles.push("d-none") : ""
-
-            window.active
-              ? (activeStyle = { zIndex: "111111" })
-              : (activeStyle = {})
-
-            if (window.maximized) {
-              maximizedStyle = {
-                height: "calc(100dvh - var(--taskbar-h))",
-                width: "calc(100vw + 4px)",
-                transform: `translate(-${window.positionX}px, -${window.positionY}px)`,
-              }
-              resizingValue = false
-              draggingValue = true
-            }
+            if (window.closed) return null
+            const minWidth = minWidthFor(window)
+            // Maximized fills the screen above the taskbar (Rnd is positioned against the
+            // full-screen .os-root)
+            const box = window.maximized
+              ? { x: 0, y: 0, width: viewport.width, height: viewport.height - viewport.taskbar }
+              : { x: window.x, y: window.y, width: Math.max(window.width, minWidth), height: window.height }
 
             return (
-              !window.closed && (
-                <Rnd
-                  default={{
-                    x: window.initialX ?? 10 + index * 10,
-                    y: window.positionY,
-                    width: window.width,
-                    height: window.height,
-                  }}
-                  enableResizing={resizingValue}
-                  disableDragging={draggingValue}
-                  // Drag by the title bar only, so touches inside an app (a Tetris
-                  // button, a canvas) don't move the window
-                  dragHandleClassName="title-bar"
-                  cancel=".title-bar-controls"
-                  bounds="window"
-                  onDragStop={(e, data) => {
-                    dispatch({
-                      type: "setWindowPosition",
-                      payload: {
-                        name: window.name,
-                        positionX: data.x - 10,
-                        positionY: data.y,
-                        index,
-                      },
-                    })
-                  }}
-                  className={windowStyles.join(" ")}
-                  key={index}
-                  style={activeStyle}
+              <Rnd
+                key={index}
+                position={{ x: box.x, y: box.y }}
+                size={{ width: box.width, height: box.height }}
+                minWidth={minWidth}
+                minHeight={120}
+                enableResizing={!window.maximized}
+                disableDragging={window.maximized}
+                // Drag by the title bar only, so touches inside an app (a Tetris
+                // button, a canvas) don't move the window
+                dragHandleClassName="title-bar"
+                cancel=".title-bar-controls"
+                bounds="window"
+                onDragStop={(e, data) =>
+                  dispatch({ type: "move_window", payload: { index, x: data.x, y: data.y } })
+                }
+                onResizeStop={(e, direction, ref, delta, position) =>
+                  dispatch({
+                    type: "resize_window",
+                    payload: {
+                      index,
+                      width: ref.offsetWidth,
+                      height: ref.offsetHeight,
+                      x: position.x,
+                      y: position.y,
+                    },
+                  })
+                }
+                className={window.minimized ? "p-0 d-none" : "p-0"}
+                style={window.active ? { zIndex: 111111 } : undefined}
+              >
+                {/* Activate on press, as on phones above */}
+                <div
+                  className="window desktopWindow"
+                  onPointerDownCapture={() => selectActive(window, index)}
                 >
-                  {/* Activate on press, as on phones above */}
-                  <div
-                    className="window"
-                    style={maximizedStyle}
-                    onPointerDownCapture={() => selectActive(window, index)}
-                  >
-                    {renderTitleBar(window, index)}
-                    {renderContents(window, index)}
-                  </div>
-                </Rnd>
-              )
+                  {renderTitleBar(window, index)}
+                  {renderContents(window, index)}
+                </div>
+              </Rnd>
             )
           })}
       </div>

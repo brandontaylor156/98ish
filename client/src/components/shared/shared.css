@@ -1,0 +1,140 @@
+/* Shared 98-style pieces: the menu bar (MenuBar.jsx) and in-window dialogs (Dialog.jsx) */
+
+.menuBar button,
+.dialog button {
+  min-width: 0;
+}
+
+/* Undo Bootstrap's reboot margins inside these */
+.menuBar,
+.menu,
+.dialog p {
+  margin: 0;
+}
+
+.menuBar {
+  display: flex;
+  list-style: none;
+  padding: 1px 0;
+}
+
+.menuTitle {
+  position: relative;
+}
+
+.menuTitle > button,
+.menu button {
+  background: none !important;
+  box-shadow: none !important;
+  border: 0;
+  min-height: 0;
+  padding: 2px 6px !important;
+  color: #000;
+  font: inherit;
+  text-align: left;
+}
+
+.menuTitle.is-open > button {
+  background: #000080 !important;
+  color: #fff;
+}
+
+.menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 20;
+  min-width: 180px;
+  list-style: none;
+  padding: 2px !important;
+}
+
+.menu button {
+  width: 100%;
+  display: flex;
+  padding: 3px 8px 3px 2px !important;
+}
+
+.menu button:hover:not(:disabled) {
+  background: #000080 !important;
+  color: #fff;
+}
+
+.menuCheck {
+  width: 16px;
+  flex: none;
+}
+
+.menuSep {
+  margin: 3px 1px;
+  border-top: 1px solid #808080;
+  border-bottom: 1px solid #fff;
+}
+
+.dialogBackdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  background: rgba(0, 0, 0, 0.15);
+}
+
+.dialog {
+  width: min(320px, 100%);
+  max-height: 100%;
+  overflow-y: auto;
+}
+
+.dialogBody {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dialogBody textarea,
+.dialogBody input:not([type="checkbox"]),
+.dialogBody select {
+  width: 100%;
+}
+
+.dialogText {
+  line-height: 1.4;
+}
+
+.dialogButtons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.dialogButtons button {
+  min-width: 75px !important;
+}
+
+/* main.css sizes every .window to fill its Rnd box; dialogs and menus size to content */
+.window.dialog,
+.window.menu {
+  height: auto;
+  min-height: 0;
+}
+
+.window.dialog {
+  min-width: 0;
+}
+
+.window.menu {
+  min-width: 180px;
+}
+
+
+/* Dialog titles stay on one line, even in a small window */
+.dialog .title-bar-text {
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

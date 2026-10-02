@@ -186,65 +186,6 @@
   flex: none;
 }
 
-.aimMenuBar {
-  display: flex;
-  list-style: none;
-  padding: 1px 0;
-}
-
-.aimMenuTitle {
-  position: relative;
-}
-
-.aimMenuTitle > button,
-.aimMenu button {
-  background: none !important;
-  box-shadow: none !important;
-  border: 0;
-  min-height: 0;
-  padding: 2px 6px !important;
-  color: #000;
-  font: inherit;
-  text-align: left;
-}
-
-.aimMenuTitle.is-open > button {
-  background: #000080 !important;
-  color: #fff;
-}
-
-.aimMenu {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  z-index: 20;
-  min-width: 180px;
-  list-style: none;
-  padding: 2px !important;
-}
-
-.aimMenu button {
-  width: 100%;
-  display: flex;
-  padding: 3px 8px 3px 2px !important;
-}
-
-.aimMenu button:hover:not(:disabled) {
-  background: #000080 !important;
-  color: #fff;
-}
-
-.aimMenuCheck {
-  width: 16px;
-  flex: none;
-}
-
-.aimMenuSep {
-  margin: 3px 1px;
-  border-top: 1px solid #808080;
-  border-bottom: 1px solid #fff;
-}
-
 .aimBanner {
   display: flex;
   align-items: center;
@@ -398,52 +339,6 @@
 .aimToolbar button {
   flex: 1;
   padding: 0 2px;
-}
-
-/* ---- Dialogs ---- */
-
-.aimDialogBackdrop {
-  position: absolute;
-  inset: 0;
-  z-index: 30;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 8px;
-  background: rgba(0, 0, 0, 0.15);
-}
-
-.aimDialog {
-  width: min(320px, 100%);
-  max-height: 100%;
-  overflow-y: auto;
-}
-
-.aimDialogBody {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.aimDialogBody textarea,
-.aimDialogBody input:not([type="checkbox"]),
-.aimDialogBody select {
-  width: 100%;
-}
-
-.aimDialogText {
-  line-height: 1.4;
-}
-
-.aimDialogButtons {
-  display: flex;
-  justify-content: flex-end;
-  gap: 6px;
-  margin-top: 4px;
-}
-
-.aimDialogButtons button {
-  min-width: 75px !important;
 }
 
 .aimCheck {
@@ -771,21 +666,6 @@
 
 .aimNotice img {
   height: 40px;
-}
-
-/* main.css sizes every .window to fill its Rnd box; dialogs and menus size to content */
-.aimRoot .aimDialog,
-.aimRoot .aimMenu {
-  height: auto;
-  min-height: 0;
-}
-
-.aimRoot .aimDialog {
-  min-width: 0;
-}
-
-.aimRoot .aimMenu {
-  min-width: 180px;
 }
 
 /* 98.css tree-view indents nested lists twice */

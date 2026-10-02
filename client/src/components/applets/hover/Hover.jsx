@@ -15,6 +15,9 @@ const FIT = 570 // loader units that should fit the window's shorter side
 const MIN_SCALE = 0.35
 const MAX_SCALE = 1.5 // keep squares from getting chunky on big screens
 const HOT_RADIUS = 230 // hover hit area around the centre, in loader units
+// With the system "Reduce Motion" setting on (common on iPhones), keep animating but spin
+// at a gentler speed rather than freezing: this applet is the animation
+const REDUCED_SPIN = 0.35
 
 const fitScale = (w, h) => Math.min(MAX_SCALE, Math.max(MIN_SCALE, Math.min(w, h) / FIT))
 
@@ -62,13 +65,7 @@ const Hover = () => {
       if (!canRun()) return
       const dt = last ? Math.min(now - last, 100) : 0
       last = now
-      if (reduceMq.matches) {
-        // reduced motion: a still spirograph that snaps between states, no loop
-        progress = hovered ? 1 : 0
-        draw()
-        return
-      }
-      clock += dt
+      clock += reduceMq.matches ? dt * REDUCED_SPIN : dt
       const step = dt / TRANSITION
       progress = hovered ? Math.min(1, progress + step) : Math.max(0, progress - step)
       draw()

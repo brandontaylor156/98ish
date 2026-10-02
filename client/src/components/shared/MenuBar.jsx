@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react"
+import "./shared.css"
 
 // Classic menu bar: click a title to open its menu, click an item (or away) to close.
 // menus: [{ label, items: [{ label, onClick, checked, disabled } | "-"] }]
@@ -16,17 +17,17 @@ const MenuBar = ({ menus }) => {
   }, [open])
 
   return (
-    <ul className="aimMenuBar" ref={ref}>
+    <ul className="menuBar" ref={ref}>
       {menus.map((menu, i) => (
-        <li key={menu.label} className={open === i ? "aimMenuTitle is-open" : "aimMenuTitle"}>
+        <li key={menu.label} className={open === i ? "menuTitle is-open" : "menuTitle"}>
           <button type="button" onClick={() => setOpen(open === i ? null : i)} onMouseEnter={() => open !== null && setOpen(i)}>
             {menu.label}
           </button>
           {open === i && (
-            <ul className="aimMenu window">
+            <ul className="menu window">
               {menu.items.map((item, j) =>
                 item === "-" ? (
-                  <li key={j} className="aimMenuSep" role="separator" />
+                  <li key={j} className="menuSep" role="separator" />
                 ) : (
                   <li key={item.label}>
                     <button
@@ -37,7 +38,7 @@ const MenuBar = ({ menus }) => {
                         item.onClick()
                       }}
                     >
-                      <span className="aimMenuCheck">{item.checked ? "✓" : ""}</span>
+                      <span className="menuCheck">{item.checked ? "✓" : ""}</span>
                       {item.label}
                     </button>
                   </li>

@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react"
-import { createGame, hardDrop, hold, move, rotate, tick, togglePause } from "../utils/engine"
+import { createGame, hardDrop, hold, move, rotate, softDropStep, tick, togglePause } from "../utils/engine"
 
 // Delayed auto shift: hold left/right and the piece starts sliding after DAS ms, then
 // moves every ARR ms (the browser's own key repeat is far too slow for Tetris)
 const DAS = 170
 const ARR = 50
+// Soft drop: a tap moves down one row; only after holding this long does it fall fast
+const SOFT_DROP_DELAY = 250 // finger taps last up to ~200ms
 
 const KEY_ACTIONS = {
   ArrowLeft: "left",
@@ -29,7 +31,7 @@ export const useTetris = () => {
   const [game, setGame] = useState(gameRef.current)
 
   // Held keys live in a ref; the frame loop reads them
-  const input = useRef({ left: false, right: false, direction: 0, dasTimer: 0, arrTimer: 0, softDrop: false })
+  const input = useRef({ left: false, right: false, direction: 0, dasTimer: 0, arrTimer: 0, softDrop: false, softDropTimer: 0 })
 
   const update = useCallback((step) => {
     const next = step(gameRef.current)
@@ -61,7 +63,8 @@ export const useTetris = () => {
             }
           }
         }
-        return tick(next, elapsed, held.softDrop)
+        if (held.softDrop) held.softDropTimer += elapsed
+        return tick(next, elapsed, held.softDrop && held.softDropTimer >= SOFT_DROP_DELAY)
       })
 
       frame = requestAnimationFrame(loop)
@@ -85,7 +88,8 @@ export const useTetris = () => {
         startShift(action === "left" ? -1 : 1)
         break
       case "softDrop":
-        input.current.softDrop = true
+        Object.assign(input.current, { softDrop: true, softDropTimer: 0 })
+        update(softDropStep)
         break
       case "hardDrop":
         update(hardDrop)

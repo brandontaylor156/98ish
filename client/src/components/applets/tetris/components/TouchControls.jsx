@@ -17,16 +17,11 @@ const ICONS = {
             <path d="M8 2a6 6 0 1 0 6 6h-2a4 4 0 1 1-4-4v2l4-3-4-3z" />
         </Glyph>
     ),
-    rotateLeft: (
-        <Glyph>
-            <path d="M8 2a6 6 0 1 1-6 6h2a4 4 0 1 0 4-4v2L4 3l4-3z" />
-        </Glyph>
-    ),
 }
 
 // Acts on pointer down (no click delay) and holds until the finger lifts, so left/right
 // auto-repeat and soft drop work like held keys. Several buttons can be held at once.
-const PadButton = ({ action, label, press, release, onActivate, className = "", children }) => {
+export const PadButton = ({ action, label, press, release, onActivate, className = "", children }) => {
     const held = useRef(false)
     const [down, setDown] = useState(false)
 
@@ -64,22 +59,21 @@ const PadButton = ({ action, label, press, release, onActivate, className = "", 
     )
 }
 
-// On-screen controls for touch screens: a d-pad on the left thumb (hard drop on top, like
-// the Up key) and rotate/hold on the right thumb
+// On-screen controls for touch screens: a d-pad on the left thumb with rotate on top (like
+// the Up key), and one big hard drop button on the right thumb. Hold and Pause live in
+// the side panel (see TetrisWindow).
 const TouchControls = ({ press, release, onActivate }) => {
     const props = { press, release, onActivate }
     return (
         <div className="tetrisPad">
             <div className="tetrisPadCluster tetrisPadCluster--move">
-                <PadButton action="hardDrop" label="Hard drop" className="tetrisPad--up" {...props} />
+                <PadButton action="rotateRight" label="Rotate" className="tetrisPad--up" {...props} />
                 <PadButton action="left" label="Move left" {...props} />
                 <PadButton action="softDrop" label="Soft drop" {...props} />
                 <PadButton action="right" label="Move right" {...props} />
             </div>
-            <div className="tetrisPadCluster tetrisPadCluster--turn">
-                <PadButton action="hold" label="Hold" {...props}>Hold</PadButton>
-                <PadButton action="rotateLeft" label="Rotate left" {...props} />
-                <PadButton action="rotateRight" label="Rotate right" className="tetrisPad--wide" {...props} />
+            <div className="tetrisPadCluster tetrisPadCluster--drop">
+                <PadButton action="hardDrop" label="Hard drop" className="tetrisPad--drop" {...props} />
             </div>
         </div>
     )

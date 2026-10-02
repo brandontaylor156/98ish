@@ -1,8 +1,8 @@
 import React, { useState } from "react"
 import { LOBBY, BOT_NAME, keyOf, useAim, useBuddyGroups } from "./AimContext"
 import { useOpenGesture } from "../../../hooks/useMediaQuery"
-import AimDialog from "./AimDialog"
-import MenuBar from "./MenuBar"
+import Dialog from "../../shared/Dialog"
+import MenuBar from "../../shared/MenuBar"
 import { AwayNote, DoorClosed, DoorOpen, NoIcon } from "./Icons"
 
 const AWAY_PRESETS = [
@@ -267,13 +267,13 @@ const BuddyList = () => {
       {/* ---- dialogs ---- */}
 
       {dialog?.kind === "alert" && (
-        <AimDialog title={dialog.title} onOk={close}>
-          <p className="aimDialogText">{dialog.text}</p>
-        </AimDialog>
+        <Dialog title={dialog.title} onOk={close}>
+          <p className="dialogText">{dialog.text}</p>
+        </Dialog>
       )}
 
       {dialog?.kind === "away" && (
-        <AimDialog
+        <Dialog
           title="Away Message"
           okLabel="I'm Away"
           okDisabled={!dialog.text.trim()}
@@ -283,7 +283,7 @@ const BuddyList = () => {
           }}
           onCancel={close}
         >
-          <label className="aimDialogLabel">Choose an away message:</label>
+          <label className="dialogLabel">Choose an away message:</label>
           <select value={AWAY_PRESETS.includes(dialog.text) ? dialog.text : ""} onChange={(e) => setDialog({ ...dialog, text: e.target.value })}>
             {AWAY_PRESETS.map((preset) => (
               <option key={preset} value={preset}>
@@ -293,11 +293,11 @@ const BuddyList = () => {
             <option value="">(Custom message)</option>
           </select>
           <textarea rows={4} maxLength={1024} value={dialog.text} onChange={(e) => setDialog({ ...dialog, text: e.target.value })} />
-        </AimDialog>
+        </Dialog>
       )}
 
       {dialog?.kind === "profile" && (
-        <AimDialog
+        <Dialog
           title="Edit Profile"
           onOk={async () => {
             await aim.setProfile(dialog.text)
@@ -305,13 +305,13 @@ const BuddyList = () => {
           }}
           onCancel={close}
         >
-          <label className="aimDialogLabel">Tell your buddies about yourself. They'll see this in Buddy Info.</label>
+          <label className="dialogLabel">Tell your buddies about yourself. They'll see this in Buddy Info.</label>
           <textarea rows={6} maxLength={1024} value={dialog.text} onChange={(e) => setDialog({ ...dialog, text: e.target.value })} />
-        </AimDialog>
+        </Dialog>
       )}
 
       {["sendIm", "getInfo", "chat"].includes(dialog?.kind) && (
-        <AimDialog
+        <Dialog
           title={{ sendIm: "Send Instant Message", getInfo: "Get Buddy Info", chat: "Join a Chat Room" }[dialog.kind]}
           okLabel={{ sendIm: "Send", getInfo: "Get Info", chat: "Go" }[dialog.kind]}
           okDisabled={!dialog.text.trim()}
@@ -327,52 +327,52 @@ const BuddyList = () => {
           }}
           onCancel={close}
         >
-          <label className="aimDialogLabel">{dialog.kind === "chat" ? "Chat room name:" : "Screen name:"}</label>
+          <label className="dialogLabel">{dialog.kind === "chat" ? "Chat room name:" : "Screen name:"}</label>
           <input value={dialog.text} maxLength={dialog.kind === "chat" ? 32 : 16} onChange={(e) => setDialog({ ...dialog, text: e.target.value })} />
-        </AimDialog>
+        </Dialog>
       )}
 
       {dialog?.kind === "addBuddy" && (
-        <AimDialog
+        <Dialog
           title="Add Buddy"
           okLabel="Add"
           okDisabled={!dialog.text.trim() || !dialog.group}
           onOk={() => addBuddy(dialog.text, dialog.group)}
           onCancel={close}
         >
-          <label className="aimDialogLabel">Screen name of buddy:</label>
+          <label className="dialogLabel">Screen name of buddy:</label>
           <input value={dialog.text} maxLength={16} onChange={(e) => setDialog({ ...dialog, text: e.target.value })} />
-          <label className="aimDialogLabel">Add to group:</label>
+          <label className="dialogLabel">Add to group:</label>
           <select value={dialog.group} onChange={(e) => setDialog({ ...dialog, group: e.target.value })}>
             {me.groups.map((g) => (
               <option key={g.name}>{g.name}</option>
             ))}
           </select>
-        </AimDialog>
+        </Dialog>
       )}
 
       {(dialog?.kind === "addGroup" || dialog?.kind === "rename") && (
-        <AimDialog
+        <Dialog
           title={dialog.kind === "addGroup" ? "Add Group" : "Rename Group"}
           okDisabled={!dialog.text.trim()}
           onOk={() => (dialog.kind === "addGroup" ? addGroup(dialog.text) : renameGroup(selected.group, dialog.text))}
           onCancel={close}
         >
-          <label className="aimDialogLabel">Group name:</label>
+          <label className="dialogLabel">Group name:</label>
           <input value={dialog.text} maxLength={32} onChange={(e) => setDialog({ ...dialog, text: e.target.value })} />
-        </AimDialog>
+        </Dialog>
       )}
 
       {dialog?.kind === "confirmDelete" && (
-        <AimDialog title="Delete" okLabel="Yes" cancelLabel="No" onOk={removeSelected} onCancel={close}>
-          <p className="aimDialogText">{dialog.text}</p>
-        </AimDialog>
+        <Dialog title="Delete" okLabel="Yes" cancelLabel="No" onOk={removeSelected} onCancel={close}>
+          <p className="dialogText">{dialog.text}</p>
+        </Dialog>
       )}
 
       {dialog?.kind === "blockList" && (
-        <AimDialog title="Block List" onOk={close}>
+        <Dialog title="Block List" onOk={close}>
           {me.blocked.length === 0 ? (
-            <p className="aimDialogText">You haven't blocked anyone. Use the Block button in an IM window.</p>
+            <p className="dialogText">You haven't blocked anyone. Use the Block button in an IM window.</p>
           ) : (
             <ul className="aimBlockList">
               {me.blocked.map((key) => (
@@ -385,21 +385,21 @@ const BuddyList = () => {
               ))}
             </ul>
           )}
-        </AimDialog>
+        </Dialog>
       )}
 
       {dialog?.kind === "about" && (
-        <AimDialog title="About 98 Messenger" onOk={close}>
+        <Dialog title="About 98 Messenger" onOk={close}>
           <div className="aimAbout">
             <img src="/assets/program_icons/aim2.png" alt="" />
-            <p className="aimDialogText">
+            <p className="dialogText">
               <b>98 Messenger</b> Version 98ish.0
               <br />
               An homage to the instant messenger we all grew up with. Add buddies, set an away message, and say hi to{" "}
               {BOT_NAME}.
             </p>
           </div>
-        </AimDialog>
+        </Dialog>
       )}
     </div>
   )

@@ -9,13 +9,18 @@ import { useIsMobile } from "./hooks/useMediaQuery"
 
 const reducer = (state, action) => {
   switch (action.type) {
+    // Windows track their real position and size (x, y, width, height); new ones
+    // cascade unless the opener picks a spot
     case "open_window":
-      console.log(action.payload.name)
       return [
         ...state.map((window, idx) => {
           return { ...window, active: false }
         }),
-        { ...action.payload },
+        {
+          ...action.payload,
+          x: action.payload.initialX ?? 10 + state.length * 10,
+          y: action.payload.positionY ?? 0,
+        },
       ]
 
     case "close_window":
@@ -82,17 +87,27 @@ const reducer = (state, action) => {
           : { ...window, active: false }
       )
 
-    case "setWindowPosition":
-      return state.map((window, idx) => {
-        if (idx === action.payload.index) {
-          return {
-            ...window,
-            positionX: action.payload.positionX,
-            positionY: action.payload.positionY,
-          }
-        }
-        return window
-      })
+    case "move_window":
+      return state.map((window, idx) =>
+        idx === action.payload.index
+          ? { ...window, x: action.payload.x, y: action.payload.y }
+          : window
+      )
+
+    // width/height from a resize handle or an app sizing its own window (Minesweeper);
+    // x/y optional (resizing from the left or top edge moves the window too)
+    case "resize_window":
+      return state.map((window, idx) =>
+        idx === action.payload.index
+          ? {
+              ...window,
+              width: action.payload.width,
+              height: action.payload.height,
+              x: action.payload.x ?? window.x,
+              y: action.payload.y ?? window.y,
+            }
+          : window
+      )
     default:
       return state
   }

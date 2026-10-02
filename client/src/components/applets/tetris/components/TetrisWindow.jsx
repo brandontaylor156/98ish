@@ -3,7 +3,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import Board from './Board'
 import GameStats, { KeyHints } from './GameStats'
 import PiecePreview from './PiecePreview'
-import TouchControls from './TouchControls'
+import TouchControls, { PadButton } from './TouchControls'
 
 import { useTetris } from '../hooks/useTetris'
 import { useIsTouch } from '../../../../hooks/useMediaQuery'
@@ -119,14 +119,19 @@ const TetrisWindow = ({ onGameOver, onQuit }) => {
                 <GameStats score={game.score} level={game.level} lines={game.lines} />
                 {layout === "wide" && clearLabel}
                 {touch && (
-                    <button
-                        type="button"
-                        className="tetrisPauseButton"
-                        onPointerDown={(event) => event.preventDefault()}
-                        onClick={pause}
-                    >
-                        Pause
-                    </button>
+                    <div className="tetrisSideButtons">
+                        <button
+                            type="button"
+                            className="tetrisPauseButton"
+                            onPointerDown={(event) => event.preventDefault()}
+                            onClick={pause}
+                        >
+                            Pause
+                        </button>
+                        <PadButton action="hold" label="Hold" className="tetrisHoldButton" press={press} release={release} onActivate={focusWindow}>
+                            Hold
+                        </PadButton>
+                    </div>
                 )}
             </aside>
             {layout !== "wide" && clearLabel}

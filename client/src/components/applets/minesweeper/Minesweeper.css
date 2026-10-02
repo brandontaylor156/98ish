@@ -1,0 +1,201 @@
+/* Minesweeper, styled after the Windows 98 original. --ms-cell is the square size (20px
+   on a desktop, scaled to the screen on phones). */
+
+.msRoot {
+  position: relative;
+  height: calc(100% - 25px);
+  display: flex;
+  flex-direction: column;
+  background: #c0c0c0;
+  color: #000;
+  font-family: "Pixelated MS Sans Serif", Arial, sans-serif;
+  -webkit-font-smoothing: none;
+  font-size: 11px;
+  outline: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.msArea {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  display: flex;
+  padding: 8px;
+}
+
+/* Raised outer panel */
+.msGame {
+  margin: auto;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: #c0c0c0;
+  border: 3px solid;
+  border-color: #fff #808080 #808080 #fff;
+}
+
+/* Sunken header: mines left, face, timer */
+.msHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 5px;
+  border: 2px solid;
+  border-color: #808080 #fff #fff #808080;
+}
+
+.msLed {
+  width: 41px;
+  height: 25px;
+  display: block;
+  border: 1px solid;
+  border-color: #808080 #fff #fff #808080;
+}
+
+.msFaceButton {
+  width: 26px;
+  height: 26px;
+  min-width: 0 !important;
+  min-height: 0;
+  padding: 0 !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #c0c0c0;
+  border: 1px solid #808080;
+  box-shadow: inset -2px -2px #808080, inset 2px 2px #fff;
+}
+
+.msFaceButton:active {
+  box-shadow: inset 1px 1px #808080;
+}
+
+.msFaceButton:active .msFace {
+  transform: translate(1px, 1px);
+}
+
+.msFace {
+  width: 17px;
+  height: 17px;
+  display: block;
+}
+
+/* Sunken minefield */
+.msBoard {
+  display: grid;
+  border: 3px solid;
+  border-color: #808080 #fff #fff #808080;
+  /* a drag scrolls a board too big for the screen; taps and long presses still play */
+  touch-action: pan-x pan-y;
+  cursor: default;
+}
+
+.msCell {
+  width: var(--ms-cell);
+  height: var(--ms-cell);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #c0c0c0;
+  border: 2px solid;
+  border-color: #fff #808080 #808080 #fff;
+  font-weight: bold;
+  font-size: calc(var(--ms-cell) * 0.7);
+  font-family: Verdana, Arial, sans-serif;
+  -webkit-font-smoothing: auto;
+  line-height: 1;
+}
+
+/* Uncovered (or held down): flat, with a 1px grid line on the top and left */
+.msCell.is-open {
+  border-width: 1px 0 0 1px;
+  border-color: #808080;
+}
+
+.msCell.is-exploded {
+  background: #f00;
+}
+
+.msIcon {
+  width: calc(var(--ms-cell) * 0.8);
+  height: calc(var(--ms-cell) * 0.8);
+  display: block;
+}
+
+.n1 { color: #0000ff; }
+.n2 { color: #008000; }
+.n3 { color: #ff0000; }
+.n4 { color: #000080; }
+.n5 { color: #800000; }
+.n6 { color: #008080; }
+.n7 { color: #000000; }
+.n8 { color: #808080; }
+
+/* Touch screens: Dig / Flag mode switch */
+.msModeBar {
+  display: flex;
+  gap: 4px;
+}
+
+.msModeBar button {
+  flex: 1;
+  min-width: 0;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-weight: bold;
+  --ms-cell: 22px;
+}
+
+.msModeBar button.is-on {
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #0a0a0a, inset -2px -2px #dfdfdf, inset 2px 2px #808080;
+  background: repeating-conic-gradient(#c0c0c0 0 25%, #fff 0 50%) 0 0 / 2px 2px;
+}
+
+.os-mobile .msArea {
+  padding: 4px;
+}
+
+/* Dialogs */
+.msField {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.msField input {
+  width: 70px !important;
+}
+
+.msBest {
+  width: 100%;
+  table-layout: auto;
+}
+
+.msBest th {
+  padding-right: 4px;
+  font-weight: normal;
+  white-space: nowrap;
+}
+
+.msBest td {
+  padding-right: 4px;
+  white-space: nowrap;
+}
+
+/* names can be long: trim them rather than widen the dialog */
+.msBest td:last-child {
+  max-width: 70px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.msResetScores {
+  align-self: flex-start;
+}

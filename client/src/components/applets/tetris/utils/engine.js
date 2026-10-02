@@ -150,6 +150,14 @@ export const hold = (state) => {
   return state.hold ? spawn(next, state.hold) : spawnNext(next)
 }
 
+// One row down now (1 point), as when soft drop is first pressed; holding it then
+// speeds up gravity in tick(). Resets the gravity timer so it doesn't fall twice at once.
+export const softDropStep = (state) => {
+  if (state.status !== "playing") return state
+  const fallen = shift(state, 0, 1)
+  return fallen ? { ...fallen, score: fallen.score + 1, gravityTimer: 0 } : state
+}
+
 export const ghostOf = (state) => {
   let piece = state.active
   while (fits(state.board, { ...piece, y: piece.y + 1 })) piece = { ...piece, y: piece.y + 1 }

@@ -1,7 +1,7 @@
 import React, { useState } from "react"
 import { keyOf, useAim } from "./AimContext"
 import { useOpenGesture } from "../../../hooks/useMediaQuery"
-import AimDialog from "./AimDialog"
+import Dialog from "../../shared/Dialog"
 import { Composer, useStickToBottom } from "./ImWindow"
 import { TranscriptLine } from "./MessageText"
 
@@ -66,17 +66,17 @@ const ChatRoom = ({ room }) => {
       </aside>
 
       {dialog?.kind === "invite" && (
-        <AimDialog title="Buddy Chat Invitation" okLabel="Send" okDisabled={!dialog.to.trim()} onOk={invite} onCancel={() => setDialog(null)}>
-          <label className="aimDialogLabel">Screen names to invite (separate with commas):</label>
+        <Dialog title="Buddy Chat Invitation" okLabel="Send" okDisabled={!dialog.to.trim()} onOk={invite} onCancel={() => setDialog(null)}>
+          <label className="dialogLabel">Screen names to invite (separate with commas):</label>
           <input value={dialog.to} onChange={(e) => setDialog({ ...dialog, to: e.target.value })} />
-          <label className="aimDialogLabel">Invitation message:</label>
+          <label className="dialogLabel">Invitation message:</label>
           <input value={dialog.message} maxLength={256} onChange={(e) => setDialog({ ...dialog, message: e.target.value })} />
-        </AimDialog>
+        </Dialog>
       )}
       {dialog?.kind === "alert" && (
-        <AimDialog title="Chat" onOk={() => setDialog(null)}>
-          <p className="aimDialogText">{dialog.text}</p>
-        </AimDialog>
+        <Dialog title="Chat" onOk={() => setDialog(null)}>
+          <p className="dialogText">{dialog.text}</p>
+        </Dialog>
       )}
     </div>
   )

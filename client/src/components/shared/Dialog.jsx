@@ -1,8 +1,10 @@
 import React, { useEffect, useRef } from "react"
+import "./shared.css"
 
 // A small 98-style dialog floating over the window it belongs to (Add Buddy, Away
-// Message, Warn...). Enter submits, Escape cancels.
-const AimDialog = ({ title, onOk, onCancel, okLabel = "OK", cancelLabel = "Cancel", okDisabled, children }) => {
+// Message, Custom Field...). Enter submits, Escape cancels. The window's content root
+// must be position: relative.
+const Dialog = ({ title, onOk, onCancel, okLabel = "OK", cancelLabel = "Cancel", okDisabled, children }) => {
   const ref = useRef(null)
 
   useEffect(() => {
@@ -11,10 +13,10 @@ const AimDialog = ({ title, onOk, onCancel, okLabel = "OK", cancelLabel = "Cance
   }, [])
 
   return (
-    <div className="aimDialogBackdrop" onMouseDown={(e) => e.stopPropagation()}>
+    <div className="dialogBackdrop" onMouseDown={(e) => e.stopPropagation()}>
       <form
         ref={ref}
-        className="window aimDialog"
+        className="window dialog"
         onSubmit={(e) => {
           e.preventDefault()
           if (!okDisabled) onOk?.()
@@ -31,9 +33,9 @@ const AimDialog = ({ title, onOk, onCancel, okLabel = "OK", cancelLabel = "Cance
             </div>
           )}
         </div>
-        <div className="window-body aimDialogBody">
+        <div className="window-body dialogBody">
           {children}
-          <div className="aimDialogButtons">
+          <div className="dialogButtons">
             {onOk && (
               <button type="submit" disabled={okDisabled}>
                 {okLabel}
@@ -51,4 +53,4 @@ const AimDialog = ({ title, onOk, onCancel, okLabel = "OK", cancelLabel = "Cance
   )
 }
 
-export default AimDialog
+export default Dialog

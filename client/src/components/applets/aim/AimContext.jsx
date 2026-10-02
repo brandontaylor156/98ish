@@ -183,8 +183,6 @@ export const AimProvider = ({ socket, windows, dispatch: dispatchWindow, onOpenV
         maximized: false,
         active: true,
         closed: false,
-        // positionX tracks x - 10 (see Desktop's drag handler), which maximize relies on
-        positionX: x - 10,
         positionY: 40,
         icon_url: AIM_ICON,
         initialX: x,
