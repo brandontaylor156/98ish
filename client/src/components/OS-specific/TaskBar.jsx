@@ -67,8 +67,8 @@ const TaskBar = ({
                     })
                   }}
                 >
-                  <img src={window.icon_url} className="p-1 h-100" />
-                  &nbsp;<span>{window.name}</span>
+                  <img src={window.icon_url} className="p-1 h-100" draggable="false" />
+                  <span className="taskbarTabLabel">&nbsp;{window.name}</span>
                 </button>
               )
             )

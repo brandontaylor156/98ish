@@ -5,6 +5,7 @@ import Desktop from "./components/OS-specific/Desktop"
 import { fs } from "./utils/fs"
 import { programs } from "./utils/programs"
 import LiveSearch from "./components/OS-specific/LiveSearch"
+import { useIsMobile } from "./hooks/useMediaQuery"
 
 const reducer = (state, action) => {
   switch (action.type) {
@@ -93,6 +94,7 @@ function App() {
   const [windows, dispatch] = useReducer(reducer, [])
   const [startMenuVisible, setStartMenuVisible] = useState(false)
   const [results, setResults] = useState([])
+  const mobile = useIsMobile()
 
   const closeMenu = () => {
     setResults([])
@@ -100,13 +102,14 @@ function App() {
   }
 
   return (
-    <div className="os-root">
+    <div className={mobile ? "os-root os-mobile" : "os-root"}>
       <Desktop
         fs={fs}
         programs={programs}
         windows={windows}
         dispatch={dispatch}
         closeMenu={closeMenu}
+        mobile={mobile}
       />
       <TaskBar
         windows={windows}
@@ -114,15 +117,19 @@ function App() {
         startMenuVisible={startMenuVisible}
         setStartMenuVisible={setStartMenuVisible}
       />
+      {/* Start menu and search results sit just above the taskbar */}
       {startMenuVisible && (
-        <StartMenu
-          windows={windows}
-          dispatch={dispatch}
-          setResults={setResults}
-        />
-      )}
-      {results.length !== 0 && (
-        <LiveSearch results={results} dispatch={dispatch} />
+        <div className="startArea">
+          <StartMenu
+            windows={windows}
+            dispatch={dispatch}
+            setResults={setResults}
+            closeMenu={closeMenu}
+          />
+          {results.length !== 0 && (
+            <LiveSearch results={results} dispatch={dispatch} closeMenu={closeMenu} />
+          )}
+        </div>
       )}
     </div>
   )

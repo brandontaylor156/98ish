@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react"
 import { fs } from "../../utils/fs"
 
-const StartMenu = ({ dispatch, setResults }) => {
+const StartMenu = ({ dispatch, setResults, closeMenu }) => {
   const [query, setQuery] = useState("")
 
   useEffect(() => {
@@ -33,6 +33,7 @@ const StartMenu = ({ dispatch, setResults }) => {
             icon_url: "/assets/program_icons/computer_explorer.png",
           },
         })
+        closeMenu()
         return
       case "Programs":
         fs.goBackToDirectory("root")
@@ -52,6 +53,7 @@ const StartMenu = ({ dispatch, setResults }) => {
             icon_url: "/assets/program_icons/computer_explorer.png",
           },
         })
+        closeMenu()
         return
       case "Shut Down":
         return
@@ -62,15 +64,12 @@ const StartMenu = ({ dispatch, setResults }) => {
 
   const listStyle = {
     backgroundColor: "#C0C0C0",
-    position: "relative",
     height: "min-content",
     fontSize: "19px",
     textDecoration: "none",
     color: "#000",
     listStyle: "none",
     width: "max-content",
-    bottom: "275px",
-    zIndex: "99999999",
   }
 
   const itemStyle = {
@@ -86,7 +85,7 @@ const StartMenu = ({ dispatch, setResults }) => {
 
   return (
     <div>
-      <ul style={listStyle} className="window p-0">
+      <ul style={listStyle} className="window p-0 mb-0 startMenu">
         <li className="sm-link">
           <a
             href="#"
@@ -114,7 +113,7 @@ const StartMenu = ({ dispatch, setResults }) => {
           </a>
         </li>
         <li>
-          <form className="px-3">
+          <form className="px-3" onSubmit={(e) => e.preventDefault()}>
             <div className="">
               <input
                 type="text"
@@ -126,7 +125,7 @@ const StartMenu = ({ dispatch, setResults }) => {
                   setQuery(e.target.value)
                 }}
                 placeholder="Search Filesystem"
-                autocomplete="off"
+                autoComplete="off"
               />
             </div>
           </form>

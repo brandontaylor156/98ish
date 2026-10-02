@@ -1,19 +1,20 @@
-import React, { useState } from "react"
+import React, { useEffect, useState } from "react"
+
+const pad = (n) => String(n).padStart(2, "0")
 
 const DateAndTime = () => {
   const [dt, setDt] = useState(new Date())
-  setInterval(() => setDt(new Date()), 1000)
+
+  useEffect(() => {
+    const id = setInterval(() => setDt(new Date()), 1000)
+    return () => clearInterval(id)
+  }, [])
+
   return (
     <div className="status-bar">
       <p className="mb-0 small text-end status-bar-field date-and-time">
-        {dt.toDateString()}{" "}
-        {String(dt.getHours()).length === 1
-          ? "0" + String(dt.getHours())
-          : dt.getHours()}
-        :
-        {String(dt.getMinutes()).length === 1
-          ? "0" + String(dt.getMinutes())
-          : dt.getMinutes()}
+        <span className="date-and-time-date">{dt.toDateString()} </span>
+        {pad(dt.getHours())}:{pad(dt.getMinutes())}
       </p>
     </div>
   )

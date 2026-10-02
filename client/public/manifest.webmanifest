@@ -1,0 +1,11 @@
+{
+  "name": "98ish",
+  "short_name": "98ish",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#008080",
+  "theme_color": "#008080",
+  "icons": [
+    { "src": "/windows_logo.png", "sizes": "32x32", "type": "image/png" }
+  ]
+}

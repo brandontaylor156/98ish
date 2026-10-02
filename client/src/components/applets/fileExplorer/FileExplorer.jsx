@@ -2,6 +2,7 @@ import React, { useState } from "react"
 import { imageMapper } from "../../../utils/imageMapper"
 import { hyperlinks } from "../../../utils/hyperlinks"
 import InputDialog from "./components/InputDialog"
+import { useOpenGesture } from "../../../hooks/useMediaQuery"
 
 const FileExplorer = ({ fs, dispatch }) => {
   const [dir, setDir] = useState(fs.currentDirectory.content)
@@ -12,6 +13,7 @@ const FileExplorer = ({ fs, dispatch }) => {
   const [folderName, setFolderName] = useState("New Folder")
   const [newFile, setNewFile] = useState(false)
   const [fileName, setFileName] = useState("New File")
+  const openGesture = useOpenGesture()
 
   const getPath = () => {
     return `${fs.currentDirectoryPath.join("\\")}\\`.slice(5)
@@ -218,7 +220,7 @@ const FileExplorer = ({ fs, dispatch }) => {
 
   return (
     <div
-      className="mb-0 justify-content-center align-items-center"
+      className="mb-0 justify-content-center align-items-center fileExplorer"
       style={{ height: "calc(100% - 25px)" }}
     >
       {newFolder && (
@@ -249,7 +251,7 @@ const FileExplorer = ({ fs, dispatch }) => {
               onClick={() => goUp()}
             ></img>
           </div>
-          <form className="col p-0 m-0">
+          <form className="col p-0 m-0 fileExplorerAddress">
             <input
               className="w-100"
               type="text"
@@ -280,10 +282,10 @@ const FileExplorer = ({ fs, dispatch }) => {
         </div>
       </div>
       <div
-        className="bg-light overflow-scroll"
+        className="bg-light overflow-scroll fileExplorerList"
         style={{ height: "calc(100% - 32px)" }}
       >
-        <div className="row row-cols-6 m-0 align-content-start pt-3">
+        <div className="row row-cols-3 row-cols-sm-6 m-0 align-content-start pt-3">
           {dir.map((item, idx) => {
             return (
               <div key={idx} className="col p-0 text-center">
@@ -302,7 +304,7 @@ const FileExplorer = ({ fs, dispatch }) => {
                     <img
                       src={"/assets/" + imageMapper[item.type]}
                       alt=""
-                      onDoubleClick={(e) => handleDoubleClick(e, item)}
+                      {...openGesture((e) => handleDoubleClick(e, item))}
                       draggable="false"
                       dragstart="false"
                     />

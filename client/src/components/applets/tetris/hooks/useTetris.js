@@ -76,13 +76,8 @@ export const useTetris = () => {
     update((state) => move(state, direction))
   }
 
-  const onKeyDown = (event) => {
-    const action = KEY_ACTIONS[event.code]
-    if (!action) return
-    // Arrows and Space would otherwise scroll the page
-    event.preventDefault()
-    if (event.repeat) return
-
+  // Actions come from the keyboard or the on-screen touch controls
+  const press = (action) => {
     switch (action) {
       case "left":
       case "right":
@@ -110,8 +105,7 @@ export const useTetris = () => {
     }
   }
 
-  const onKeyUp = (event) => {
-    const action = KEY_ACTIONS[event.code]
+  const release = (action) => {
     const held = input.current
 
     if (action === "left" || action === "right") {
@@ -127,6 +121,20 @@ export const useTetris = () => {
     }
   }
 
+  const onKeyDown = (event) => {
+    const action = KEY_ACTIONS[event.code]
+    if (!action) return
+    // Arrows and Space would otherwise scroll the page
+    event.preventDefault()
+    if (event.repeat) return
+    press(action)
+  }
+
+  const onKeyUp = (event) => {
+    const action = KEY_ACTIONS[event.code]
+    if (action) release(action)
+  }
+
   // Forget held keys (e.g. when the window loses focus mid-press)
   const releaseKeys = () => {
     Object.assign(input.current, { left: false, right: false, direction: 0, softDrop: false })
@@ -135,5 +143,5 @@ export const useTetris = () => {
   const pause = () => update((state) => (state.status === "playing" ? togglePause(state) : state))
   const resume = () => update((state) => (state.status === "paused" ? togglePause(state) : state))
 
-  return { game, onKeyDown, onKeyUp, releaseKeys, pause, resume }
+  return { game, press, release, onKeyDown, onKeyUp, releaseKeys, pause, resume }
 }

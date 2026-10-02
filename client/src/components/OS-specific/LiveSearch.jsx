@@ -1,8 +1,16 @@
 import React from "react"
 import { imageMapper } from "../../utils/imageMapper"
 import { hyperlinks } from "../../utils/hyperlinks"
+import { useOpenGesture } from "../../hooks/useMediaQuery"
 
-const LiveSearch = ({ results, dispatch }) => {
+const LiveSearch = ({ results, dispatch, closeMenu }) => {
+  const openGesture = useOpenGesture()
+
+  const open = (e, item) => {
+    handleDoubleClick(e, item)
+    closeMenu()
+  }
+
   const handleDoubleClick = (e, item) => {
     switch (item.type) {
       case "bookmarks":
@@ -189,19 +197,13 @@ const LiveSearch = ({ results, dispatch }) => {
   }
   return (
     <div
-      className="window"
-      style={{
-        position: "absolute",
-        bottom: "250px",
-        left: "300px",
-        height: "fit-content",
-      }}
+      className="window liveSearch"
     >
       <div
         className="bg-light overflow-scroll"
         style={{ height: "calc(100% - 32px)" }}
       >
-        <div className="row row-cols-6 m-0 align-content-start pt-3">
+        <div className="row row-cols-4 row-cols-sm-6 m-0 align-content-start pt-3">
           {results.map((item, idx) => {
             return (
               <div key={idx} className="col p-0 text-center">
@@ -217,7 +219,7 @@ const LiveSearch = ({ results, dispatch }) => {
                     <img
                       src={"/assets/" + imageMapper[item.type]}
                       alt=""
-                      onDoubleClick={(e) => handleDoubleClick(e, item)}
+                      {...openGesture((e) => open(e, item))}
                     />
                     <p>{item.name}</p>
                   </div>

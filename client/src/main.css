@@ -2,6 +2,11 @@
   box-sizing: border-box;
 }
 
+:root {
+  /* The taskbar grows by the home-indicator inset on phones */
+  --taskbar-h: calc(35px + env(safe-area-inset-bottom));
+}
+
 body {
   background-image: url("/assets/98ish-desktop.png");
   background-size: cover;
@@ -14,6 +19,8 @@ html, body, #root {
   margin: 0;
   padding: 0;
   overflow: hidden;
+  /* no pull-to-refresh or rubber-banding of the whole desktop */
+  overscroll-behavior: none;
 }
 
 /* Pinned to the viewport and unscrollable: `clip` (unlike `hidden`) also blocks the
@@ -23,6 +30,9 @@ html, body, #root {
   position: fixed;
   inset: 0;
   overflow: clip;
+  /* No double-tap zoom (and its tap delay), no gray flash on tapped elements */
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 /************ DESKTOP *************/
@@ -96,8 +106,9 @@ html, body, #root {
   background-color: #C0C0C0;
   border-top: 1px solid #f4f4f4;
   border-bottom: 1px solid #4e4e4e;
+  padding-bottom: calc(2px + env(safe-area-inset-bottom));
   z-index: 99999999;
-  height: 35px;
+  height: var(--taskbar-h);
 }
 
 .taskbarLeft, .taskbarRight, .taskbarTab {
@@ -117,6 +128,22 @@ html, body, #root {
 /************ END TASKBAR *************/
 
 /************* START MENU *************/
+
+.startArea {
+  position: absolute;
+  left: 0;
+  bottom: var(--taskbar-h);
+  z-index: 99999999;
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.liveSearch {
+  width: 480px;
+  max-height: 70dvh;
+  overflow-y: auto;
+}
 
 .sm-link {
   padding: 0.5rem;
@@ -144,6 +171,7 @@ hr.sm {
 /***********  TETRIS  *************/
 
 .tetrisApp {
+  container-type: size;
   height: calc(100% - 25px);
   overflow: hidden;
   background: #c0c0c0;
@@ -189,21 +217,174 @@ hr.sm {
   font-size: 16px;
 }
 
+/* Same pieces, four arrangements (data-layout, picked in TetrisWindow from the window size
+   and whether touch is the main input) */
 .tetrisWindow {
+  position: relative;
   height: 100%;
-  display: flex;
+  display: grid;
+  grid-template-columns: 104px minmax(0, 1fr) 104px;
+  grid-template-rows: minmax(0, 1fr);
+  grid-template-areas: "left board right";
   gap: 10px;
   padding: 10px;
   outline: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.tetrisWindow--compact {
+  grid-template-columns: 64px minmax(0, 1fr) 64px;
+  gap: 6px;
+  padding: 6px;
+}
+
+/* Controls in a row under the board */
+.tetrisWindow[data-layout="portrait"] {
+  grid-template-rows: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "left board right"
+    "pad pad pad";
+}
+
+/* Controls flanking the board, under each thumb */
+.tetrisWindow[data-layout="landscape"] {
+  /* Board column exactly as wide as the board (half its height), so the side panels
+     hug it and the pads sit at the screen edges */
+  grid-template-columns: 1fr 64px min(calc((100cqh - 12px) / 2), 40cqw) 64px 1fr;
+  grid-template-areas: "move left board right turn";
 }
 
 .tetrisSide {
-  flex: none;
-  width: 104px;
   display: flex;
   flex-direction: column;
   gap: 8px;
+  min-height: 0;
   overflow: hidden;
+}
+
+.tetrisSide--left { grid-area: left; }
+.tetrisSide--right { grid-area: right; }
+
+.tetrisWindow--compact .tetrisSide {
+  gap: 4px;
+  font-size: 11px;
+}
+
+.tetrisWindow--compact .tetrisStatValue {
+  padding: 1px 3px;
+  font-size: 12px;
+}
+
+.tetrisWindow--compact .tetrisPreview {
+  --tetris-preview-cell: 11px;
+  height: 40px;
+}
+
+.tetrisWindow--compact .tetrisPreview--small {
+  --tetris-preview-cell: 8px;
+  height: 30px;
+}
+
+/* Too slim to sit under the stats: float the line-clear name over the board */
+.tetrisWindow--compact .tetrisClear {
+  position: absolute;
+  top: 30%;
+  left: 50%;
+  z-index: 1;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  pointer-events: none;
+  background: #c0c0c0;
+  box-shadow: inset -1px -1px #0a0a0a, inset 1px 1px #fff, inset -2px -2px #808080, inset 2px 2px #dfdfdf;
+  padding: 4px 8px;
+}
+
+.tetrisPauseButton {
+  min-width: 0;
+  margin-top: auto;
+  padding: 0;
+  height: 32px;
+}
+
+/* On-screen controls (touch screens) */
+.tetrisPad {
+  grid-area: pad;
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.tetrisWindow[data-layout="landscape"] .tetrisPad {
+  display: contents;
+}
+
+.tetrisPadCluster {
+  flex: 0 1 200px;
+  display: grid;
+  grid-auto-rows: 50px;
+  gap: 6px;
+}
+
+.tetrisPadCluster--move {
+  grid-area: move;
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.tetrisPadCluster--turn {
+  grid-area: turn;
+  flex-basis: 140px;
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.tetrisWindow[data-layout="landscape"] .tetrisPadCluster {
+  align-self: end;
+  grid-template-columns: repeat(3, 52px);
+}
+
+.tetrisWindow[data-layout="landscape"] .tetrisPadCluster--turn {
+  justify-self: end;
+  grid-template-columns: repeat(2, 60px);
+}
+
+/* Hard drop sits on top of the d-pad, like the Up key */
+.tetrisPad--up {
+  grid-column: 2;
+}
+
+.tetrisPadCluster--move > :not(.tetrisPad--up) {
+  grid-row: 2;
+}
+
+.tetrisPad--wide {
+  grid-column: span 2;
+}
+
+.tetrisPadButton {
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: bold;
+  color: #000;
+  touch-action: none;
+}
+
+.tetrisPadButton svg {
+  fill: currentColor;
+}
+
+/* Pressed look, since :active doesn't apply once pointerdown is cancelled */
+.tetrisPadButton.is-pressed {
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #0a0a0a, inset -2px -2px #dfdfdf, inset 2px 2px #808080;
+}
+
+.tetrisPadButton.is-pressed > * {
+  transform: translate(1px, 1px);
 }
 
 .tetrisLabel {
@@ -213,8 +394,9 @@ hr.sm {
 
 /* Board fills the free space at a fixed 1:2 ratio, whatever the window size */
 .tetrisBoardWrap {
-  flex: 1;
+  grid-area: board;
   min-width: 0;
+  min-height: 0;
   container-type: size;
   display: flex;
   justify-content: center;
@@ -411,3 +593,113 @@ hr.sm {
 
 /***********  SIZING UTILITY CLASSES ************/
 
+/***************** PHONE MODE *****************/
+/* .os-mobile is set by App from useIsMobile(): every window fills the screen above the
+   taskbar, the desktop icons become a tappable grid. */
+
+.os-mobile .mobileDesktop {
+  position: absolute;
+  inset: 0 0 var(--taskbar-h) 0;
+}
+
+.os-mobile .mobileIcons {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+  gap: 18px 4px;
+  padding: calc(16px + env(safe-area-inset-top)) calc(8px + env(safe-area-inset-right)) 16px calc(8px + env(safe-area-inset-left));
+}
+
+.os-mobile .desktopIconLabel {
+  font-size: 14px;
+  text-shadow: 1px 1px 2px #000;
+}
+
+.os-mobile .mobileWindow {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left);
+}
+
+.os-mobile .mobileWindow > .window {
+  height: 100%;
+  min-width: 0;
+}
+
+/* Title bar buttons big enough for a fingertip */
+.os-mobile .title-bar-controls button {
+  min-width: 28px;
+  height: 21px;
+  margin-left: 4px;
+}
+
+.os-mobile .title-bar-controls button[aria-label=Minimize] {
+  background-position: bottom 4px center;
+}
+
+/* iOS zooms into any input under 16px when it takes focus */
+.os-mobile input,
+.os-mobile textarea,
+.os-mobile select {
+  font-size: 16px;
+}
+
+/* Taskbar: icon-only tabs that scroll sideways, time without the date */
+.os-mobile .taskbarRight {
+  display: flex;
+  gap: 2px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.os-mobile .taskbarTab {
+  flex: none;
+  width: auto;
+  min-width: 40px;
+}
+
+.os-mobile .taskbarTabLabel,
+.os-mobile .date-and-time-date {
+  display: none;
+}
+
+/* Start menu across the bottom, search results stacked above it */
+.os-mobile .startArea {
+  right: 0;
+  flex-direction: column-reverse;
+  align-items: stretch;
+}
+
+.os-mobile .startMenu {
+  width: auto !important;
+}
+
+.os-mobile .liveSearch {
+  width: auto;
+  max-height: 45dvh;
+}
+
+/* Minesweeper cells grow to fill the screen width */
+.os-mobile {
+  --ms-cell: min(calc((100vw - 12px) / 15), 36px);
+}
+
+/***************** END PHONE MODE *****************/
+
+/* File Explorer: the address bar takes its own line above the buttons on phones */
+.os-mobile .fileExplorerAddress {
+  flex: 0 0 calc(100% - 40px);
+  margin-bottom: 4px !important;
+}
+
+/* ...so the file list fills whatever height the wrapped toolbar leaves */
+.os-mobile .fileExplorer {
+  display: flex;
+  flex-direction: column;
+}
+
+.os-mobile .fileExplorerList {
+  flex: 1;
+  min-height: 0;
+  height: auto !important;
+}
