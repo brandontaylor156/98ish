@@ -39,6 +39,7 @@ const BlockTen = lazyApp(() => import("../applets/blockten/BlockTen"))
 const Town = lazyApp(() => import("../applets/town/Town"))
 const Puzzle = lazyApp(() => import("../applets/puzzle/Puzzle"))
 const Doodle = lazyApp(() => import("../applets/doodle/Doodle"))
+const Quiz = lazyApp(() => import("../applets/quiz/Quiz"))
 // Network Neighborhood and the head-to-head games
 const isNetWindow = (w) => w.app === "network" || !!w.app?.startsWith("net-")
 const FileExplorer = lazyApp(() => import("../applets/fileExplorer/FileExplorer"))
@@ -503,6 +504,7 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
       {window.app === "town" && <Town mobile={mobile} onClose={() => closeWindow(window, index)} onTitle={rename(index)} />}
       {window.app === "puzzle" && <Puzzle mobile={mobile} dispatch={dispatch} onClose={() => closeWindow(window, index)} onTitle={rename(index)} />}
       {window.app === "doodle" && <Doodle mobile={mobile} dispatch={dispatch} inviteTo={window.inviteTo} onClose={() => closeWindow(window, index)} onTitle={rename(index)} />}
+      {window.app === "quiz" && <Quiz mobile={mobile} dispatch={dispatch} onClose={() => closeWindow(window, index)} onTitle={rename(index)} />}
 
       {window.app === "calc" && (
         <Calculator

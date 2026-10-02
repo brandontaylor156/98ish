@@ -41,6 +41,7 @@ export const imageMapper = {
   town: "program_icons/town.svg",
   puzzle: "program_icons/puzzle.svg",
   doodle: "program_icons/doodle.svg",
+  quiz: "program_icons/quiz.svg",
   programs: "programs.png",
   desktop: "directory_folder.png",
   README: "README.png",

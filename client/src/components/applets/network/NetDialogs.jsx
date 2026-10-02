@@ -150,7 +150,8 @@ export const GameInvite = ({ invite, onClose }) => {
         <p>
           <b>{invite.from}</b> invites you to {invite.game === "doodle" ? "draw together in" : "play"} <b>{invite.gameName}</b>
           {level ? ` (${level[0].toUpperCase()}${level.slice(1)})` : ""}
-          {invite.game === "tetris" ? ` (${{ battle: "Battle 2P", arena: "Arena", race: "Sprint Race" }[invite.options?.mode] || "Battle 2P"})` : ""}.
+          {invite.game === "tetris" ? ` (${{ battle: "Battle 2P", arena: "Arena", race: "Sprint Race" }[invite.options?.mode] || "Battle 2P"})` : ""}
+          {invite.game === "quiz" ? `: ${{ knowme: "How Well Do You Know Me?", tot: "This or That", trivia: "Party Trivia", deep: "Deep Talk Cards" }[invite.options?.mode] || "a quiz"}` : ""}.
           {invite.game === "hearts" && (
             <>
               <br />

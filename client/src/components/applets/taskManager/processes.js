@@ -60,6 +60,7 @@ export const APP_PROFILES = {
   "Sunny Acres": { image: "acres.exe", mem: 7480, threads: 4, handles: 88, cpu: [0.6, 9] },
   "Photo Puzzle": { image: "puzzle.exe", mem: 4210, threads: 3, handles: 47, cpu: [0.2, 6] },
   "Doodle Together": { image: "doodle.exe", mem: 3388, threads: 3, handles: 52, cpu: [0.3, 7] },
+  "Lovebirds Quiz Show": { image: "lovebird.exe", mem: 2240, threads: 3, handles: 41, cpu: [0.15, 3] },
 }
 
 const fallbackProfile = (name) => ({

@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <!-- Lovebirds Quiz Show: a little game-show screen with a heart and a question mark -->
+  <path d="M15 4l5 6M33 4l-5 6" stroke="#4a2a5a" stroke-width="2" stroke-linecap="round"/>
+  <rect x="2" y="9" width="44" height="32" rx="4" fill="#7b3fa0" stroke="#2a0f3a" stroke-width="1.5"/>
+  <g fill="#ffe066" stroke="#b8860b" stroke-width="0.6">
+    <circle cx="6" cy="13" r="1.6"/><circle cx="12" cy="13" r="1.6"/><circle cx="18" cy="13" r="1.6"/><circle cx="24" cy="13" r="1.6"/><circle cx="30" cy="13" r="1.6"/><circle cx="36" cy="13" r="1.6"/><circle cx="42" cy="13" r="1.6"/>
+    <circle cx="6" cy="37" r="1.6"/><circle cx="12" cy="37" r="1.6"/><circle cx="18" cy="37" r="1.6"/><circle cx="24" cy="37" r="1.6"/><circle cx="30" cy="37" r="1.6"/><circle cx="36" cy="37" r="1.6"/><circle cx="42" cy="37" r="1.6"/>
+  </g>
+  <rect x="6" y="16" width="36" height="18" rx="2" fill="#ffe3ef" stroke="#2a0f3a" stroke-width="1"/>
+  <path d="M17 31c-6-4-8-7-8-9.5a3.6 3.6 0 0 1 8-1.5 3.6 3.6 0 0 1 8 1.5c0 2.5-2 5.5-8 9.5z" fill="#ff4f8b" stroke="#a3123f" stroke-width="1"/>
+  <path d="M12.5 21.2a2 2 0 0 1 2.5-1.2" stroke="#fff" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+  <path d="M29 21.5a4.5 4 0 1 1 6 3.7c-1.4.6-1.8 1.4-1.8 2.8" fill="none" stroke="#2f6fd6" stroke-width="2.6" stroke-linecap="round"/>
+  <circle cx="33.2" cy="31" r="1.5" fill="#2f6fd6"/>
+  <path d="M14 41l-3 5h26l-3-5" fill="#c0c0c0" stroke="#404040" stroke-width="1" stroke-linejoin="round"/>
+</svg>

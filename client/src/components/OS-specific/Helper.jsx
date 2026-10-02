@@ -37,6 +37,7 @@ const TIPS = {
   Pinball: ["Spell D-I-V-E in the top lanes to raise your multiplier. The flippers move the lit lanes!"],
   Calculator: ["View > Scientific has sines, logs and binary. Very serious business."],
   "Media Player": ["Every song in My Music was made right here in your browser. No files, all synth!"],
+  "Lovebirds Quiz Show": ["Answer about yourself, then send it to someone special. Results wait in your Inbox!"],
   "Desktop Themes": ["Uncheck a box to keep that part of your current look. Click Pointers, Sounds, etc... to hear a theme first."],
   "System Properties": ["The Achievements tab has a hint for every secret you haven't found yet."],
   WordPad: ["Format > Paragraph indents a paragraph, and Insert > Object drops in a picture you made in Paint."],

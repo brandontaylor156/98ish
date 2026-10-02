@@ -38,6 +38,8 @@ export const GAME_INFO = {
   tetris: { name: "Tetris Online", icon: "/assets/program_icons/tetris3-48.png", app: null },
   // drawn in the Doodle Together window
   doodle: { name: "Doodle Together", icon: "/assets/program_icons/doodle.svg", app: null },
+  // played in the Lovebirds Quiz Show's own window too
+  quiz: { name: "Lovebirds Quiz Show", icon: "/assets/program_icons/quiz.svg", app: null },
 }
 
 const TOKEN_KEY = "98ish.net.token"
@@ -353,6 +355,17 @@ export const NetProvider = ({ socket, windows, dispatch: dispatchWindow, mobile,
       openDoodle(to)
       return { ok: true }
     }
+    // Quiz Show: into your game (options.roomId), or a new one (How Well Do You Know Me?)
+    if (game === "quiz") {
+      let roomId = options.roomId
+      if (!roomId) {
+        const room = await request("quiz:create", { mode: options.mode || "knowme" })
+        if (!room.ok) return room
+        roomId = room.roomId
+        openQuiz()
+      }
+      return request("net:invite", { to, game, matchId: roomId })
+    }
     if (game === "hearts") {
       const table = await request("net:heartsCreate")
       if (!table.ok) return table
@@ -382,11 +395,13 @@ export const NetProvider = ({ socket, windows, dispatch: dispatchWindow, mobile,
     const result = await request("net:inviteReply", { id: inv.id, accept })
     if (result.ok && result.tetrisRoom) openTetris() // it joins the room it was let into
     if (result.ok && result.doodleRoom) openDoodle()
+    if (result.ok && result.quizRoom) openQuiz()
     return result
   }
 
   // The Tetris window (one per desktop: comes forward if it's open)
   const openTetris = () => dispatchWindow({ type: "open_window", payload: launch("Tetris") })
+  const openQuiz = () => dispatchWindow({ type: "open_window", payload: launch("Lovebirds Quiz Show") })
 
   // The Doodle Together window (one per desktop), inviting `to` once it's ready
   const openDoodle = (to = null) => {

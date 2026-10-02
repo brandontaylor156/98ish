@@ -70,6 +70,7 @@ export const FILE_TYPE = {
   town: "town",
   puzzle: "puzzle",
   doodle: "doodle",
+  quiz: "quiz",
 }
 
 export const DIRECTORY_TYPE = {
@@ -513,6 +514,7 @@ const DEFAULT_ITEMS = [
   ["C:/Programs/Sunny Acres", "file", "town"],
   ["C:/Programs/Photo Puzzle", "file", "puzzle"],
   ["C:/Programs/Doodle Together", "file", "doodle"],
+  ["C:/Programs/Lovebirds Quiz Show", "file", "quiz"],
   ["C:/Bookmarks", "dir", "bookmarks"],
   ...["AOL", "Yahoo", "Tim Tang", "Ask Jeeves", "Geocities", "eBay", "IMDb", "Chit Chat", "ReDirector", "98ish Guestbook"].map((n) => [`C:/Bookmarks/${n}`, "file", "internet"]),
   ["C:/Hello World", "file", "text", "Hello World!"],

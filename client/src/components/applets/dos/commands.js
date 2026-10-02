@@ -129,6 +129,9 @@ const ALIASES = {
   jigsaw: "Photo Puzzle",
   doodle: "Doodle Together",
   draw: "Doodle Together",
+  quiz: "Lovebirds Quiz Show",
+  lovebirds: "Lovebirds Quiz Show",
+  quizshow: "Lovebirds Quiz Show",
 }
 
 export const programFor = (word) => {

@@ -41,6 +41,9 @@ export const ACHIEVEMENTS = [
   { id: "town-mayor", title: "Mayor of Sunny Acres", text: "Grew Sunny Acres to level 10.", hint: "Keep filling orders in Sunny Acres until your town reaches level 10." },
   { id: "puzzle-solved", title: "Piece by Piece", text: "Finished a jigsaw in Photo Puzzle.", hint: "Photo Puzzle (in Games) can cut any picture into pieces. Put one back together." },
   { id: "doodle-pair", title: "Picasso Pair", text: "Saved a drawing made with someone in Doodle Together.", hint: "Invite someone to Doodle Together, draw something together, and save it." },
+  { id: "quiz-mind-reader", title: "Mind Reader", text: "Scored 100% on How Well Do You Know Me.", hint: "In the Lovebirds Quiz Show, guess every one of someone's answers." },
+  { id: "quiz-deep-diver", title: "Deep Diver", text: "Talked through 20 Deep Talk cards.", hint: "Draw Deep Talk cards in the Lovebirds Quiz Show. Twenty of them." },
+  { id: "quiz-master", title: "Quiz Master", text: "Won 10 quizzes in the Lovebirds Quiz Show.", hint: "Win ten games in the Lovebirds Quiz Show." },
 ]
 
 export const achievementById = (id) => ACHIEVEMENTS.find((a) => a.id === id) || null

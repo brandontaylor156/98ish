@@ -12,6 +12,7 @@ const { homepageRouter } = require("./server/net/homepages")
 const { mailRouter } = require("./server/mail")
 const { attachGameChat } = require("./server/gamechat")
 const { puzzleRouter } = require("./server/puzzles")
+const { quizRouter } = require("./server/quiz")
 
 const app = express()
 app.use(cors())
@@ -21,9 +22,11 @@ app.use("/api/drive", driveRouter({ aim: () => aim }))
 // Mail and homepages first: they read bigger bodies than the guestbook's parser allows
 const mail = mailRouter()
 const homepages = homepageRouter()
+const quiz = quizRouter()
 app.use("/api/mail", mail)
 const puzzles = puzzleRouter()
 app.use("/api/puzzles", puzzles)
+app.use("/api/quiz", quiz)
 app.use("/api", homepages)
 app.use("/api", guestbookRouter())
 
@@ -42,6 +45,7 @@ aim
     mail.useAim(aim)
     puzzles.useAim(aim)
     homepages.useAim(aim)
+    quiz.useAim(aim)
   })
   .catch((error) => {
     console.error("[aim] failed to start", error)
