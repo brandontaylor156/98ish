@@ -56,6 +56,7 @@ const TIPS = {
     "Clear lines on moves in a row for a streak bonus. Pieces with no room left turn gray.",
   ],
   Downhill: ["Press Space in the air off a ramp to spin. Just land before the spin ends!", "Something lives up on that mountain. Keep moving after 2,000 m..."],
+  "Sunny Acres": ["Swipe across a whole row of ripe fields to harvest them all at once!", "Your crops keep growing while Sunny Acres is closed. Come back later for a full Barn."],
 }
 
 const GENERAL = [

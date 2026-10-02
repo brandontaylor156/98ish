@@ -67,6 +67,7 @@ export const FILE_TYPE = {
   battleship: "battleship",
   ski: "ski",
   blockten: "blockten",
+  town: "town",
 }
 
 export const DIRECTORY_TYPE = {
@@ -507,6 +508,7 @@ const DEFAULT_ITEMS = [
   ["C:/Programs/Battleship", "file", "battleship"],
   ["C:/Programs/Downhill", "file", "ski"],
   ["C:/Programs/Block Ten", "file", "blockten"],
+  ["C:/Programs/Sunny Acres", "file", "town"],
   ["C:/Bookmarks", "dir", "bookmarks"],
   ...["AOL", "Yahoo", "Tim Tang", "Ask Jeeves", "Geocities", "eBay", "IMDb", "Chit Chat", "ReDirector", "98ish Guestbook"].map((n) => [`C:/Bookmarks/${n}`, "file", "internet"]),
   ["C:/Hello World", "file", "text", "Hello World!"],

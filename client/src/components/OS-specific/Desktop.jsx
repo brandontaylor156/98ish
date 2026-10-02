@@ -36,6 +36,7 @@ const Mail = lazyApp(() => import("../applets/mail/Mail"))
 const HomePageStudio = lazyApp(() => import("../applets/homepage/HomePageStudio"))
 const Ski = lazyApp(() => import("../applets/ski/Ski"))
 const BlockTen = lazyApp(() => import("../applets/blockten/BlockTen"))
+const Town = lazyApp(() => import("../applets/town/Town"))
 // Network Neighborhood and the head-to-head games
 const isNetWindow = (w) => w.app === "network" || !!w.app?.startsWith("net-")
 const FileExplorer = lazyApp(() => import("../applets/fileExplorer/FileExplorer"))
@@ -487,6 +488,7 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
       {window.app === "pinball" && <Pinball mobile={mobile} onClose={() => closeWindow(window, index)} onTitle={rename(index)} />}
       {window.app === "ski" && <Ski mobile={mobile} onClose={() => closeWindow(window, index)} />}
       {window.app === "blockten" && <BlockTen mobile={mobile} onClose={() => closeWindow(window, index)} />}
+      {window.app === "town" && <Town mobile={mobile} onClose={() => closeWindow(window, index)} onTitle={rename(index)} />}
 
       {window.app === "calc" && (
         <Calculator

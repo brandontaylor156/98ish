@@ -1,0 +1,899 @@
+/* Sunny Acres: the map canvas fills the window; the bars and panels float over it. */
+
+.twRoot {
+  position: relative;
+  height: calc(100% - 25px);
+  display: flex;
+  flex-direction: column;
+  background: #c0c0c0;
+  color: #000;
+  font-family: "Pixelated MS Sans Serif", Arial, sans-serif;
+  -webkit-font-smoothing: none;
+  font-size: 11px;
+  outline: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* the map, plus room for a side panel next to it */
+.twBody {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+.twStage {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  background: #5cc0e6;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+}
+
+.twCanvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
+  cursor: grab;
+}
+
+.twCanvas:active {
+  cursor: grabbing;
+}
+
+.twIcon {
+  display: inline-block;
+  vertical-align: middle;
+  flex: none;
+  pointer-events: none;
+}
+
+/* ---- buttons ---- */
+.twRoot .twBtn {
+  min-width: 0;
+  min-height: 26px;
+  padding: 2px 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-family: inherit;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.twRoot .twGo:not(:disabled) {
+  font-weight: bold;
+}
+
+/* ---- top bar ---- */
+.twTop {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  right: 6px;
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  pointer-events: none;
+}
+
+.twStat {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 30px;
+  padding: 0 10px 0 6px;
+  background: #fffdf6;
+  border-radius: 15px;
+  border: 1px solid #5a4636;
+  box-shadow: 0 2px 0 rgba(60, 40, 20, 0.35);
+  font-size: 13px;
+  pointer-events: auto;
+}
+
+.twStat b {
+  font-variant-numeric: tabular-nums;
+}
+
+.twLevelStat {
+  padding-left: 2px;
+}
+
+.twStar {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  margin: -4px 0 -4px -4px;
+}
+
+.twStar b {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-size: 12px;
+  padding-top: 4px;
+  text-shadow: 0 1px 0 #1d4f8f, 1px 0 0 #1d4f8f, -1px 0 0 #1d4f8f, 0 -1px 0 #1d4f8f;
+}
+
+.twXp {
+  width: 80px;
+  height: 10px;
+  border-radius: 5px;
+  background: #dfe6ee;
+  border: 1px solid #5a4636;
+  overflow: hidden;
+}
+
+.twXp span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(#7fbcff, #3d82d8);
+  transition: width 0.4s;
+}
+
+/* ---- the tutorial ---- */
+.twTutor {
+  position: absolute;
+  top: 44px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(440px, calc(100% - 16px));
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px 6px 6px;
+  background: #fffbe8;
+  border: 1px solid #5a4636;
+  border-radius: 10px;
+  box-shadow: 0 3px 0 rgba(60, 40, 20, 0.3);
+  font-size: 12px;
+  line-height: 1.35;
+  z-index: 2;
+  pointer-events: auto;
+}
+
+.twTutorFace {
+  flex: none;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: #ffe38a;
+  border: 1px solid #5a4636;
+  display: grid;
+  place-items: center;
+}
+
+.twTutorText {
+  flex: 1;
+}
+
+/* ---- toast ---- */
+.twToast {
+  position: absolute;
+  bottom: 128px;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: calc(100% - 24px);
+  padding: 7px 14px;
+  background: rgba(40, 30, 20, 0.88);
+  color: #fff;
+  border-radius: 14px;
+  font-size: 12px;
+  text-align: center;
+  z-index: 6;
+  pointer-events: none;
+}
+
+/* ---- bottom buttons ---- */
+.twBottom {
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  bottom: 6px;
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  pointer-events: none;
+}
+
+.twRoot .twBig {
+  position: relative;
+  flex-direction: column;
+  gap: 1px;
+  width: 64px;
+  height: 56px;
+  padding: 2px;
+  pointer-events: auto;
+}
+
+.twRoot .twBig.is-on {
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #0a0a0a, inset -2px -2px #dfdfdf, inset 2px 2px #808080;
+  background: #d8d8d8;
+}
+
+.twBadge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 9px;
+  background: #e5413b;
+  color: #fff;
+  font-style: normal;
+  font-weight: bold;
+  font-size: 11px;
+  line-height: 18px;
+  border: 1px solid #fff;
+}
+
+.twPulse {
+  animation: twPulse 1s ease-in-out infinite;
+}
+
+.twPulse {
+  outline: 3px solid transparent;
+  outline-offset: 1px;
+}
+
+@keyframes twPulse {
+  50% {
+    outline-color: #ffcf3f;
+    background-color: #fff6cf;
+  }
+}
+
+.twEditHint {
+  position: absolute;
+  top: 44px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 5px 12px;
+  background: #4a8fd6;
+  color: #fff;
+  border-radius: 12px;
+  font-size: 12px;
+  pointer-events: none;
+}
+
+/* ---- seed tray, info card, place bar (just above the bottom buttons) ---- */
+.twTray,
+.twInfo,
+.twPlaceBar {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 68px;
+  max-width: calc(100% - 12px);
+  background: #fffdf6;
+  border: 1px solid #5a4636;
+  border-radius: 10px;
+  box-shadow: 0 3px 0 rgba(60, 40, 20, 0.3);
+  z-index: 3;
+}
+
+.twTray {
+  padding: 6px 34px 6px 8px;
+}
+
+.twTrayHint {
+  font-size: 11px;
+  color: #5a4636;
+  margin-bottom: 4px;
+}
+
+.twSeeds {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+}
+
+.twRoot .twSeed {
+  flex-direction: column;
+  width: 48px;
+  height: 52px;
+  padding: 2px;
+  gap: 0;
+  touch-action: none;
+}
+
+.twRoot .twSeed.is-on {
+  background: #fff1b8;
+}
+
+.twSeed small {
+  font-size: 10px;
+}
+
+.twRoot .twTrayClose {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 26px;
+  padding: 0;
+}
+
+.twInfo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  padding: 7px 10px;
+  width: max-content;
+  font-size: 12px;
+}
+
+.twInfo > span {
+  max-width: 340px;
+}
+
+.twInfoBtns {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.twPlaceBar {
+  bottom: 8px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 8px;
+  width: max-content;
+}
+
+.twPlaceName {
+  font-weight: bold;
+  font-size: 12px;
+}
+
+.twRoot .twPlaceBar .twBtn {
+  min-height: 34px;
+}
+
+/* ---- panels ---- */
+.twPanelWrap {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px;
+  background: rgba(30, 40, 60, 0.25);
+  z-index: 10;
+}
+
+.twRoot .twPanel {
+  width: min(560px, 100%);
+  min-width: 0;
+  height: auto;
+  max-height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.twPanel.twSmall,
+.twPanel.twLevel {
+  width: min(340px, 100%);
+}
+
+.twPanel .title-bar-text {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.twPanelBody {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  margin: 3px;
+  padding: 8px;
+  background: #fffdf6;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+  font-size: 11px;
+  overscroll-behavior: contain;
+}
+
+.twPanelBody p {
+  margin: 0 0 8px;
+}
+
+.twH {
+  margin: 10px 0 6px;
+  font-size: 11px;
+  font-weight: bold;
+}
+
+.twEmpty,
+.twHint {
+  color: #5a4636;
+}
+
+.twFoot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.twCenter {
+  text-align: center;
+}
+
+.twCenterRow {
+  justify-content: center;
+}
+
+.twChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 6px 1px 2px;
+  border-radius: 10px;
+  background: #f1ead8;
+  font-weight: bold;
+  white-space: nowrap;
+}
+
+.twChip.twShort,
+.twShortText {
+  color: #c0302a;
+}
+
+.twWhy {
+  color: #a3401f;
+  font-size: 10px;
+  margin: 3px 0;
+}
+
+.twCost {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  align-items: center;
+}
+
+/* shop */
+.twTabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  margin-bottom: 8px;
+}
+
+.twRoot .twTab {
+  min-height: 26px;
+  padding: 2px 10px;
+  min-width: 0;
+}
+
+.twRoot .twTab.is-on {
+  font-weight: bold;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #0a0a0a, inset -2px -2px #dfdfdf, inset 2px 2px #808080;
+  background: #e8e8e8;
+}
+
+.twGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 6px;
+}
+
+.twItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 6px;
+  text-align: center;
+  background: #fff;
+  border: 1px solid #c9bfa8;
+  border-radius: 8px;
+}
+
+.twItem.is-locked {
+  opacity: 0.6;
+}
+
+.twThumb {
+  width: 72px;
+  height: 72px;
+}
+
+.twItemName {
+  font-weight: bold;
+  font-size: 12px;
+}
+
+.twItemInfo {
+  font-size: 10px;
+  color: #5a4636;
+  min-height: 2.4em;
+}
+
+.twItemLock {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: #5a4636;
+}
+
+.twItem .twBuy {
+  margin-top: auto;
+  width: 100%;
+}
+
+/* barn */
+.twCap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 12px;
+}
+
+.twCapBar {
+  flex: 1;
+  height: 14px;
+  border-radius: 7px;
+  background: #e5dfd0;
+  border: 1px solid #5a4636;
+  overflow: hidden;
+}
+
+.twCapBar div {
+  height: 100%;
+  background: linear-gradient(#8fe07a, #4caf50);
+}
+
+.twCapBar div.is-full {
+  background: linear-gradient(#ff9a8a, #e5413b);
+}
+
+.twGoods {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.twRoot .twGood {
+  position: relative;
+  width: 52px;
+  height: 52px;
+  min-width: 0;
+  padding: 0;
+  display: grid;
+  place-items: center;
+}
+
+.twGood.is-static {
+  background: #fff;
+  border: 1px solid #c9bfa8;
+  border-radius: 6px;
+}
+
+.twRoot .twGood.is-on {
+  background: #fff1b8;
+}
+
+.twGood span {
+  position: absolute;
+  right: 1px;
+  bottom: 1px;
+  min-width: 16px;
+  padding: 0 3px;
+  border-radius: 7px;
+  background: #fffdf6;
+  border: 1px solid #a59a82;
+  color: #000;
+  font-weight: bold;
+  font-size: 10px;
+  line-height: 12px;
+  text-align: center;
+}
+
+.twSell {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 6px;
+  background: #fff6d6;
+  border-radius: 6px;
+}
+
+/* orders */
+.twOrderGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 6px;
+}
+
+.twOrder {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px;
+  background: #fff;
+  border: 1px solid #c9bfa8;
+  border-radius: 8px;
+}
+
+.twOrder.is-ready {
+  background: #eefbe6;
+  border-color: #6bbf5a;
+}
+
+.twOrder.is-wait {
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: #5a4636;
+  min-height: 120px;
+}
+
+.twNeeds {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  justify-content: center;
+}
+
+.twNeed {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-weight: bold;
+  color: #c0302a;
+  min-width: 40px;
+}
+
+.twNeed.is-ok {
+  color: #2f8a2f;
+}
+
+.twReward {
+  display: flex;
+  gap: 3px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.twOrderBtns {
+  display: flex;
+  gap: 4px;
+}
+
+.twOrderBtns .twGo {
+  flex: 1;
+}
+
+.twRoot .twTrash {
+  width: 30px;
+  padding: 0;
+}
+
+/* train */
+.twAway {
+  text-align: center;
+  padding: 10px;
+}
+
+.twCars {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.twCar {
+  flex: 1 1 100px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 6px;
+  background: #fff;
+  border: 1px solid #c9bfa8;
+  border-radius: 8px;
+}
+
+.twCar.is-done {
+  background: #eefbe6;
+}
+
+.twCarGood {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-weight: bold;
+}
+
+.twCarTag {
+  padding: 2px 6px;
+  background: #fff1b8;
+  border: 1px dashed #b8962a;
+  border-radius: 4px;
+}
+
+/* factory */
+.twSlots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.twSlot,
+.twRoot .twAddSlot {
+  width: 58px;
+  height: 58px;
+  min-width: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: #f3efe4;
+  border: 1px dashed #b5a98e;
+  border-radius: 6px;
+}
+
+.twSlot.is-run {
+  background: #fff6d6;
+  border-style: solid;
+}
+
+.twSlot.is-done {
+  background: #eefbe6;
+  border: 1px solid #6bbf5a;
+}
+
+.twSlot small {
+  font-size: 10px;
+}
+
+.twSlotEmpty {
+  color: #a59a82;
+  font-size: 10px;
+}
+
+.twRoot .twAddSlot {
+  font-size: 14px;
+  font-weight: bold;
+  gap: 2px;
+}
+
+.twRecipes {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.twRecipe {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 6px;
+  background: #fff;
+  border: 1px solid #c9bfa8;
+  border-radius: 8px;
+}
+
+.twRecipe.is-locked {
+  opacity: 0.6;
+}
+
+.twRecipeText {
+  display: flex;
+  flex-direction: column;
+  min-width: 80px;
+}
+
+.twRecipe .twCost {
+  flex: 1;
+}
+
+/* level up */
+.twLevelBig {
+  position: relative;
+  width: 56px;
+  height: 56px;
+  margin: 4px auto;
+}
+
+.twLevelBig span {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding-top: 6px;
+  color: #fff;
+  font-size: 16px;
+  font-weight: bold;
+  text-shadow: 0 1px 0 #1d4f8f, 1px 0 0 #1d4f8f, -1px 0 0 #1d4f8f, 0 -1px 0 #1d4f8f;
+}
+
+.twUnlocks {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+}
+
+.twUnlock {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 70px;
+  text-align: center;
+}
+
+.twHelpList {
+  margin: 0;
+  padding-left: 16px;
+  line-height: 1.45;
+}
+
+.twHelpList li {
+  margin-bottom: 5px;
+}
+
+/* ---- narrow windows and phones ---- */
+.twCompact .twXp {
+  width: 44px;
+}
+
+.twCompact .twStat {
+  padding: 0 7px 0 4px;
+  font-size: 12px;
+}
+
+.twCompact .twTop {
+  gap: 4px;
+}
+
+.twCompact .twRoot .twBig,
+.twCompact .twBig {
+  width: 58px;
+}
+
+.twCompact .twInfo {
+  width: calc(100% - 12px);
+}
+
+.twMobile .twBtn {
+  min-height: 34px;
+}
+
+.twMobile .twPanelWrap {
+  padding: 4px;
+}
+
+.twRoot.twMobile .twPanel {
+  width: 100%;
+}
+
+.twMobile .twGrid {
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+}
+
+.twMobile .twPanel .title-bar-controls button {
+  min-width: 30px;
+  min-height: 26px;
+}

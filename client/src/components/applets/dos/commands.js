@@ -122,6 +122,9 @@ const ALIASES = {
   blockten: "Block Ten",
   tenten: "Block Ten",
   blocks: "Block Ten",
+  town: "Sunny Acres",
+  acres: "Sunny Acres",
+  farm: "Sunny Acres",
 }
 
 export const programFor = (word) => {

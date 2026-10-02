@@ -33,6 +33,8 @@ export const ACHIEVEMENTS = [
   { id: "blockten-combo", title: "Triple Threat", text: "Cleared three lines with one piece in Block Ten.", hint: "In Block Ten, fill three rows or columns at once." },
   { id: "blockten-1000", title: "Four Digits", text: "Scored 1,000 points in one game of Block Ten.", hint: "Keep a Block Ten game going long enough to reach four digits." },
   { id: "quick-launch", title: "Launch Pad", text: "Added a program to Quick Launch.", hint: "Drag a desktop icon onto the little icons next to Start." },
+  { id: "town-order", title: "Special Delivery", text: "Filled your first helicopter order in Sunny Acres.", hint: "Sunny Acres (in Games) has a farmer waiting for some Cow Feed." },
+  { id: "town-mayor", title: "Mayor of Sunny Acres", text: "Grew Sunny Acres to level 10.", hint: "Keep filling orders in Sunny Acres until your town reaches level 10." },
 ]
 
 export const achievementById = (id) => ACHIEVEMENTS.find((a) => a.id === id) || null

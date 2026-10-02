@@ -46,6 +46,7 @@ export const programs = [
   ...PROJECTS.map((p) => ({ name: p.name, app: "webapp", icon: p.icon, width: 1000, height: 680, group: "My Projects", single: true })),
   { name: "Downhill", app: "ski", type: "ski", icon: "/assets/program_icons/ski.svg", width: 640, height: 520, group: "Games", desktop: false, single: true },
   { name: "Block Ten", app: "blockten", type: "blockten", icon: "/assets/program_icons/blockten.svg", width: 440, height: 640, group: "Games", desktop: false, single: true },
+  { name: "Sunny Acres", app: "town", type: "town", icon: "/assets/program_icons/town.svg", width: 860, height: 620, group: "Games", desktop: false, single: true },
 ]
 
 // The desktop shows these (MS-DOS Prompt and Display Properties live in the Start menu)
