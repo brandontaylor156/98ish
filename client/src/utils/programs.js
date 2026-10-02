@@ -24,8 +24,8 @@ export const programs = [
     name: "YouTube '98",
     image_url: "./assets/program_icons/video-48.png",
     icon_url: "./assets/program_icons/video-48.png",
-    width: 600,
-    height: 600,
+    width: 820,
+    height: 620,
   },
   {
     name: "My Computer",

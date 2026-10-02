@@ -78,7 +78,9 @@ html, body, #root {
   min-width: 300px;
   min-height: 25px;
   height: 100%;
-  overflow-y: hidden;
+  /* clip, not hidden: a hidden box can still be scrolled by focus() or scrollIntoView,
+     which shoves the title bar out of the window */
+  overflow: clip;
   -ms-overflow-style: none;  
   scrollbar-width: none;  
 } 
@@ -583,26 +585,7 @@ hr.sm {
 
 /********************END TETRIS *****************/
 
-/***************** VIDEO PLAYER *****************/
 
-.videoFrame {
-  height: 70vh;
-}
-
-.videoPreview {
-  width: 100%;
-}
-
-.videoItem:hover {
-  cursor: pointer;
-  text-decoration: underline;
-}
-
-.videoDescription {
-  word-break: break-all;
-}
-
-/**************** END VIDEO PLAYER *****************/
 
 
 

@@ -269,7 +269,9 @@ export const tick = (state, elapsed, softDropping) => {
 
   let next = state
   const interval = gravityInterval(state.level) / (softDropping ? SOFT_DROP_FACTOR : 1)
-  let gravityTimer = state.gravityTimer + elapsed
+  // Time saved up under normal gravity mustn't be spent all at once at the faster soft
+  // drop rate (that dropped several rows in one frame the moment soft drop kicked in)
+  let gravityTimer = (softDropping ? Math.min(state.gravityTimer, interval) : state.gravityTimer) + elapsed
 
   while (gravityTimer >= interval) {
     const fallen = shift(next, 0, 1)
