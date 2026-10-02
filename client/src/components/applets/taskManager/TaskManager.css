@@ -1,0 +1,397 @@
+/* Task Manager (NT4 / 2000 style on 98.css chrome). Everything is scoped under .tm-root. */
+
+.tm-root {
+  position: relative;
+  height: calc(100% - 25px);
+  display: flex;
+  flex-direction: column;
+  font-family: "Pixelated MS Sans Serif", Arial;
+  -webkit-font-smoothing: none;
+  font-size: 11px;
+  color: #000;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.tm-root p {
+  margin: 0;
+}
+
+/* ---- menu bar ---------------------------------------------------------- */
+
+.tm-menubar {
+  display: flex;
+  list-style: none;
+  margin: 0;
+  padding: 1px 0 1px 0;
+  flex-shrink: 0;
+}
+
+.tm-menubar-item {
+  position: relative;
+  padding: 2px 6px 3px;
+  line-height: 13px;
+}
+
+.tm-menubar-item:hover {
+  box-shadow: inset -1px -1px grey, inset 1px 1px #fff;
+}
+
+.tm-menubar-item.tm-open,
+.tm-menubar-item.tm-open:hover {
+  box-shadow: inset -1px -1px #fff, inset 1px 1px grey;
+  padding: 3px 5px 2px 7px;
+}
+
+.tm-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 50;
+  list-style: none;
+  margin: 0;
+  padding: 2px;
+  min-width: 150px;
+  background: silver;
+  box-shadow: inset -1px -1px #0a0a0a, inset 1px 1px #dfdfdf, inset -2px -2px grey, inset 2px 2px #fff;
+  white-space: nowrap;
+}
+
+.tm-menu-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 17px;
+  padding: 0 4px 0 0;
+}
+
+.tm-menu-item:hover {
+  background: navy;
+  color: #fff;
+}
+
+.tm-menu-mark {
+  width: 18px;
+  display: inline-flex;
+  justify-content: center;
+}
+
+.tm-menu-label {
+  flex: 1;
+  padding-right: 12px;
+}
+
+.tm-menu-shortcut {
+  padding-right: 6px;
+}
+
+.tm-menu-arrow {
+  width: 10px;
+  display: inline-flex;
+  justify-content: center;
+}
+
+.tm-menu-sep {
+  height: 2px;
+  margin: 3px 1px;
+  border-top: 1px solid grey;
+  border-bottom: 1px solid #fff;
+}
+
+.tm-menu-item.tm-disabled,
+.tm-menu-item.tm-disabled:hover {
+  color: grey;
+  text-shadow: 1px 1px #fff;
+}
+
+.tm-menu-item.tm-disabled:hover {
+  background: navy;
+  text-shadow: none;
+}
+
+.tm-submenu {
+  display: none;
+  top: -3px;
+  left: calc(100% - 3px);
+  min-width: 90px;
+  color: #000;
+}
+
+.tm-has-sub:hover > .tm-submenu {
+  display: block;
+}
+
+/* ---- tabs + panel ------------------------------------------------------ */
+
+.tm-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 6px 6px 7px;
+}
+
+.tm-tabs {
+  flex-shrink: 0;
+}
+
+.tm-tabs a {
+  margin: 3px 6px 2px !important;
+}
+
+.tm-root .tm-panel.window[role="tabpanel"] {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  height: auto;
+  display: flex;
+  flex-direction: column;
+  padding: 9px 9px 8px;
+  overflow: hidden;
+}
+
+/* ---- list views -------------------------------------------------------- */
+
+.tm-list {
+  flex: 1;
+  min-height: 0;
+  background: #fff;
+  outline: none;
+}
+
+.tm-table {
+  width: 100%;
+  table-layout: fixed;
+}
+
+.tm-table > tbody > tr > td {
+  height: 16px;
+  padding: 0 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tm-table > thead > tr > th {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: left;
+  z-index: 1;
+}
+
+.tm-table .tm-right,
+.tm-table > thead > tr > th.tm-right {
+  text-align: right;
+}
+
+.tm-sortable {
+  cursor: default;
+}
+
+.tm-sortable:active {
+  box-shadow: inset -1px -1px #dfdfdf, inset 1px 1px grey !important;
+  padding-left: 7px !important;
+}
+
+.tm-list:focus .tm-table > tbody > tr.highlighted > td:first-child > span,
+.tm-list:focus .tm-proc-table > tbody > tr.highlighted > td:first-child {
+  outline: 1px dotted #ff0;
+  outline-offset: -1px;
+}
+
+.tm-task-cell {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding-left: 3px !important;
+}
+
+.tm-task-cell span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tm-task-icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  image-rendering: pixelated;
+}
+
+.tm-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-top: 9px;
+  flex-shrink: 0;
+}
+
+.tm-buttons button {
+  min-width: 82px;
+}
+
+/* ---- performance ------------------------------------------------------- */
+
+.tm-perf {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 78px minmax(0, 1fr);
+  grid-template-rows: minmax(40px, 1fr) minmax(40px, 1fr) auto;
+  gap: 4px 8px;
+}
+
+/* Bootstrap's reboot strips fieldset borders and blows up legends; restore the 98.css group box. */
+.tm-root fieldset.tm-group {
+  border: 2px groove transparent;
+  border-image: url("data:image/svg+xml;charset=utf-8,%3Csvg width='5' height='5' fill='gray' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath fill-rule='evenodd' clip-rule='evenodd' d='M0 0h5v5H0V2h2v1h1V2H0' fill='%23fff'/%3E%3Cpath fill-rule='evenodd' clip-rule='evenodd' d='M0 0h4v4H0V1h1v2h2V1H0'/%3E%3C/svg%3E") 2;
+  margin: 0;
+  padding: 2px 7px 7px;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.tm-root fieldset.tm-group > legend {
+  float: none;
+  width: auto;
+  margin: 0 0 0 -2px;
+  padding: 0 2px;
+  font-size: 11px;
+  line-height: 13px;
+  background: silver;
+}
+
+.tm-screen {
+  flex: 1;
+  min-height: 0;
+  background: #000;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px grey;
+  padding: 1px;
+  display: flex;
+}
+
+.tm-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+.tm-stats {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px 8px;
+  margin-top: 2px;
+}
+
+.tm-dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  margin: 0;
+  row-gap: 0;
+  line-height: 14px;
+}
+
+.tm-dl dt,
+.tm-dl dd {
+  font-weight: normal;
+  margin: 0;
+}
+
+.tm-dl dd {
+  text-align: right;
+}
+
+/* ---- status bar -------------------------------------------------------- */
+
+.tm-status {
+  flex-shrink: 0;
+  margin: 0;
+}
+
+.tm-status .status-bar-field {
+  flex: 0 0 auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  width: 27%;
+}
+
+.tm-status .tm-status-mem {
+  flex: 1 1 auto;
+}
+
+/* ---- dialogs ----------------------------------------------------------- */
+
+.tm-modal {
+  position: absolute;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tm-root .tm-dialog.window {
+  height: auto;
+  min-width: 0;
+  max-width: calc(100% - 16px);
+  box-shadow: inset -1px -1px #0a0a0a, inset 1px 1px #dfdfdf, inset -2px -2px grey, inset 2px 2px #fff,
+    2px 2px 0 rgba(0, 0, 0, 0.35);
+}
+
+.tm-dialog .title-bar-text {
+  font-size: 11px;
+}
+
+.tm-dialog-body {
+  margin: 12px 12px 10px;
+}
+
+.tm-msg {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.tm-msg-icon {
+  flex-shrink: 0;
+}
+
+.tm-msg-text {
+  padding-top: 2px;
+  line-height: 14px;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.tm-dialog-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-top: 14px;
+}
+
+.tm-dialog-buttons-center {
+  justify-content: center;
+}
+
+.tm-newtask-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.tm-newtask-row input {
+  flex: 1;
+  min-width: 0;
+}
+
+.tm-proc-table {
+  min-width: 340px;
+}

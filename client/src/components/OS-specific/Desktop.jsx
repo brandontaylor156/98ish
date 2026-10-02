@@ -228,6 +228,7 @@ const Desktop = ({ fs, programs, windows, dispatch, closeMenu }) => {
                       <TaskManager
                         dispatch={dispatch}
                         windows={windows}
+                        selfIndex={index}
                       />
                     )}
                   </div>

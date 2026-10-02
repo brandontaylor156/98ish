@@ -1,0 +1,146 @@
+// Fake process table + CPU/memory simulation for the Task Manager.
+
+// Core NT processes that are always "running". cpu = [chance of any activity
+// per tick, max % when active]. mem in K.
+export const SYSTEM_PROCESSES = [
+  { image: "System Idle Process", pid: 0, mem: 16, threads: 1, handles: 0, critical: true },
+  { image: "System", pid: 8, mem: 216, threads: 37, handles: 172, cpu: [0.35, 2], critical: true },
+  { image: "smss.exe", pid: 140, mem: 344, threads: 6, handles: 33, critical: true },
+  { image: "csrss.exe", pid: 164, mem: 1512, threads: 10, handles: 342, cpu: [0.3, 2], critical: true },
+  { image: "winlogon.exe", pid: 184, mem: 2040, threads: 16, handles: 503, critical: true },
+  { image: "services.exe", pid: 212, mem: 3388, threads: 33, handles: 541, cpu: [0.05, 1], critical: true },
+  { image: "lsass.exe", pid: 224, mem: 1084, threads: 14, handles: 311, critical: true },
+  { image: "svchost.exe", pid: 400, mem: 2940, threads: 9, handles: 228, cpu: [0.08, 1] },
+  { image: "spoolsv.exe", pid: 428, mem: 2596, threads: 11, handles: 113 },
+  { image: "svchost.exe", pid: 452, mem: 4664, threads: 24, handles: 389, cpu: [0.1, 1] },
+  { image: "mstask.exe", pid: 476, mem: 1792, threads: 6, handles: 102 },
+  { image: "winmgmt.exe", pid: 520, mem: 812, threads: 3, handles: 94 },
+  { image: "explorer.exe", pid: 772, mem: 6124, threads: 14, handles: 282, cpu: [0.2, 3] },
+]
+
+// Window name -> executable that "owns" it.
+export const APP_PROFILES = {
+  "Task Manager": { image: "taskmgr.exe", mem: 1996, threads: 3, handles: 31, cpu: [0.7, 3] },
+  Tetris: { image: "tetris.exe", mem: 4212, threads: 4, handles: 57, cpu: [0.95, 9] },
+  Hover: { image: "hover.exe", mem: 9408, threads: 6, handles: 88, cpu: [1, 22] },
+  "YouTube '98": { image: "mplayer2.exe", mem: 7752, threads: 9, handles: 141, cpu: [0.9, 12] },
+  "View Video": { image: "iexplore.exe", mem: 11284, threads: 12, handles: 263, cpu: [0.8, 10] },
+  "My Computer": { image: "explorer.exe", mem: 3516, threads: 5, handles: 96, cpu: [0.15, 2] },
+  Notepad: { image: "notepad.exe", mem: 1356, threads: 1, handles: 22, cpu: [0.05, 1] },
+  Minesweeper: { image: "winmine.exe", mem: 1588, threads: 1, handles: 26, cpu: [0.15, 1] },
+  "98 Messenger": { image: "aim.exe", mem: 5960, threads: 8, handles: 164, cpu: [0.25, 2] },
+  Terminal: { image: "command.com", mem: 932, threads: 1, handles: 18, cpu: [0.05, 1] },
+}
+
+const fallbackProfile = (name) => ({
+  image: (name || "program").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 8) + ".exe",
+  mem: 2048,
+  threads: 2,
+  handles: 40,
+  cpu: [0.2, 2],
+})
+
+export const profileFor = (name) => APP_PROFILES[name] || fallbackProfile(name)
+
+// Stable, NT-looking (multiple of 4) PID for the window at `index`.
+export const pidForWindow = (index) => 1040 + index * 56 + ((index * 37) % 9) * 4
+
+export const PHYSICAL_TOTAL = 130612
+export const COMMIT_LIMIT = 314880
+const KERNEL_COMMIT = 21480
+
+export const buildProcessList = (windows) => {
+  const apps = []
+  ;(windows || []).forEach((w, index) => {
+    if (w.closed) return
+    const profile = profileFor(w.name)
+    apps.push({
+      ...profile,
+      key: "w" + index,
+      pid: pidForWindow(index),
+      windowIndex: index,
+    })
+  })
+  const system = SYSTEM_PROCESSES.map((p) => ({ ...p, key: "s" + p.pid, system: true }))
+  return [...system, ...apps]
+}
+
+const rand = (n) => Math.random() * n
+
+// One simulation step. `prev` is the previous sim state (or null), `procs` the
+// current process list, `seconds` how much "time" passed.
+export const stepSim = (prev, procs, seconds) => {
+  const cpu = {}
+  const mem = {}
+  const cpuTime = { ...(prev ? prev.cpuTime : {}) }
+  let busy = 0
+  // the occasional burst from one random process, like a real machine
+  const active = procs.filter((p) => p.pid !== 0)
+  const spiker = Math.random() < 0.05 && active.length ? active[Math.floor(rand(active.length))].key : null
+
+  procs.forEach((p) => {
+    if (p.pid === 0) return
+    let value = 0
+    if (p.cpu && Math.random() < p.cpu[0]) {
+      value = Math.round(rand(p.cpu[1]) + (p.cpu[1] > 4 ? p.cpu[1] / 3 : 0))
+    }
+    if (p.key === spiker) value += Math.round(12 + rand(30))
+    value = Math.min(value, 99 - busy)
+    cpu[p.key] = Math.max(0, value)
+    busy += cpu[p.key]
+
+    const last = prev && prev.mem[p.key] !== undefined ? prev.mem[p.key] : p.mem + Math.round(rand(p.mem * 0.04))
+    let next = last + Math.round((Math.random() - 0.45) * Math.max(8, p.mem * 0.006))
+    next = Math.min(Math.max(next, Math.round(p.mem * 0.97)), Math.round(p.mem * 1.08))
+    mem[p.key] = next
+  })
+  const idle = procs.find((p) => p.pid === 0)
+  if (idle) {
+    cpu[idle.key] = 100 - busy
+    mem[idle.key] = idle.mem
+  }
+
+  procs.forEach((p) => {
+    // seed process lifetimes so CPU Time doesn't all start at 0:00:00
+    if (cpuTime[p.key] === undefined) {
+      cpuTime[p.key] = p.pid === 0 ? 5321 : p.system ? Math.round(rand(p.cpu ? 40 : 4)) : 0
+    }
+    cpuTime[p.key] += ((cpu[p.key] || 0) / 100) * seconds
+  })
+
+  const procMem = Object.values(mem).reduce((a, b) => a + b, 0)
+  const commit = procMem + KERNEL_COMMIT + Math.round(rand(60))
+  const peak = Math.max(prev ? prev.peak : 0, commit + (prev ? 0 : 7360))
+  const cache = prev ? Math.min(Math.max(prev.cache + Math.round((Math.random() - 0.5) * 120), 21000), 27000) : 23448
+  const available = Math.max(4096, PHYSICAL_TOTAL - procMem - cache - 38192)
+
+  const history = prev ? prev.cpuHistory.slice(-299) : []
+  const memHistory = prev ? prev.memHistory.slice(-299) : []
+  history.push(busy)
+  memHistory.push(commit)
+
+  return {
+    tick: prev ? prev.tick + 1 : 0,
+    cpu,
+    mem,
+    cpuTime,
+    usage: busy,
+    commit,
+    peak,
+    cache,
+    available,
+    cpuHistory: history,
+    memHistory,
+    paged: prev ? prev.paged : 9872 + Math.round(rand(400)),
+    nonpaged: prev ? prev.nonpaged : 1744 + Math.round(rand(80)),
+  }
+}
+
+export const formatK = (n) => Math.round(n).toLocaleString("en-US")
+
+export const formatCpuTime = (seconds) => {
+  const s = Math.floor(seconds)
+  const h = Math.floor(s / 3600)
+  const m = Math.floor((s % 3600) / 60)
+  return `${h}:${String(m).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`
+}
