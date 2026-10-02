@@ -52,7 +52,7 @@ export const programs = [
     name: "98 Messenger",
     image_url: "/assets/program_icons/aim2-48.png",
     icon_url: "/assets/program_icons/aim2-48.png",
-    width: 600,
-    height: 400,
+    width: 260,
+    height: 520,
   },
 ]

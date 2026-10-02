@@ -1,29 +1,20 @@
-// Socket server implementation only for now. User configuration with MongoDB pending.
-// Refer to "server" folder for MongoDB configuration
+// 98ish realtime server: the 98 Messenger (AIM-style) service on Socket.io.
+// Env: PORT, MONGODB_URI (accounts; kept in memory without it).
 
-// Import express and instantiate an express server called "app"
 const express = require("express")
-const app = express()
+const cors = require("cors")
+const { attachAim } = require("./server/aim")
 
-// Middleware
-const cors = require('cors');
-app.use(cors());
+const app = express()
+app.use(cors())
+app.get("/", (request, response) => response.send("98ish chat server is running"))
 
 const port = process.env.PORT || 8000
-const server = app.listen(port, () =>
-  console.log(`The server is all fired up on port ${port}`)
-)
+const server = app.listen(port, () => console.log(`The server is all fired up on port ${port}`))
 
-// To initialize the socket, we need to
-// invoke the socket.io library
-// and pass it our Express server
 const io = require("socket.io")(server, { cors: true })
 
-io.on("connection", (socket) => {
-  console.log("New connection -->", socket.id)
-  socket.emit("welcome", "Welcome to the socket!")
-  socket.on("chat_message", (msg) => {
-    console.log("message: " + msg.content)
-    io.emit("server_message", msg)
-  })
+attachAim(io).catch((error) => {
+  console.error("[aim] failed to start", error)
+  process.exit(1)
 })

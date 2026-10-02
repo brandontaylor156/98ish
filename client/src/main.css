@@ -577,18 +577,7 @@ hr.sm {
 
 /**************** END VIDEO PLAYER *****************/
 
-/***************** CHAT APP *****************/
 
-.chatContainer {
-  overflow-y: scroll;
-}
-
-.highlightedLink:hover {
-  text-decoration: underline;
-  cursor: pointer;
-}
-
-/***************** END CHAT APP *****************/
 
 
 /***********  SIZING UTILITY CLASSES ************/

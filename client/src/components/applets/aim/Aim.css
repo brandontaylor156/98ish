@@ -1,0 +1,837 @@
+/* 98 Messenger windows. Everything is scoped under .aimRoot, which fills the
+   window body under the 25px title bar. Bootstrap's reboot is undone where it fights 98.css. */
+
+.aimRoot {
+  position: relative;
+  height: calc(100% - 25px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #c0c0c0;
+  color: #000;
+  font-family: "Pixelated MS Sans Serif", Arial, sans-serif;
+  -webkit-font-smoothing: none;
+  font-size: 11px;
+}
+
+.aimRoot > * {
+  flex: 1;
+  min-height: 0;
+}
+
+.aimRoot p,
+.aimRoot ul,
+.aimRoot menu {
+  margin: 0;
+}
+
+.aimRoot button {
+  min-width: 0;
+  padding: 0 10px;
+}
+
+.aimRoot legend {
+  float: none;
+  width: auto;
+  margin: 0;
+  padding: 0 4px;
+  font-size: inherit;
+}
+
+/* ---- Sign On ---- */
+
+.aimSignOn {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+}
+
+.aimSignOnBanner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  background: linear-gradient(#fff9d0, #ffe066);
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+}
+
+.aimSignOnBanner img {
+  height: 64px;
+  width: auto;
+}
+
+.aimSignOnBrand {
+  font-size: 20px;
+  font-weight: bold;
+  font-style: italic;
+  color: #000080;
+  font-family: Arial, sans-serif;
+  -webkit-font-smoothing: auto;
+}
+
+.aimSignOnTagline {
+  font-size: 11px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.aimSignOnFields {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+}
+
+.aimSignOnTitle {
+  font-weight: bold;
+  font-size: 13px;
+}
+
+.aimField {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.aimField input {
+  width: 100%;
+}
+
+.aimLink {
+  align-self: flex-start;
+  background: none !important;
+  box-shadow: none !important;
+  border: 0;
+  padding: 0 !important;
+  min-height: 0;
+  color: #0000ee;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.aimSignOnError {
+  color: #c00000;
+  padding: 4px 6px;
+  background: #fff;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080;
+}
+
+.aimSignOnProgress {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  text-align: center;
+}
+
+/* The running man runs while signing on */
+.aimRunningMan {
+  animation: aimRun 0.5s steps(2) infinite;
+}
+
+@keyframes aimRun {
+  50% { transform: translateX(4px) rotate(4deg); }
+}
+
+.aimProgress {
+  width: 80%;
+  height: 16px;
+  padding: 2px;
+  background: #fff;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+}
+
+.aimProgressFill {
+  height: 100%;
+  background: repeating-linear-gradient(90deg, #000080 0 8px, transparent 8px 10px);
+  transition: width 0.4s steps(4);
+}
+
+.aimSignOnFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex: none !important;
+}
+
+.aimVersion {
+  color: #404040;
+}
+
+.aimSignOnButton {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  font-weight: bold;
+}
+
+.aimSignOnButton img {
+  height: 20px;
+}
+
+/* ---- Buddy List ---- */
+
+.aimBuddyList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 0 4px 4px;
+}
+
+.aimBuddyList > * {
+  flex: none;
+}
+
+.aimMenuBar {
+  display: flex;
+  list-style: none;
+  padding: 1px 0;
+}
+
+.aimMenuTitle {
+  position: relative;
+}
+
+.aimMenuTitle > button,
+.aimMenu button {
+  background: none !important;
+  box-shadow: none !important;
+  border: 0;
+  min-height: 0;
+  padding: 2px 6px !important;
+  color: #000;
+  font: inherit;
+  text-align: left;
+}
+
+.aimMenuTitle.is-open > button {
+  background: #000080 !important;
+  color: #fff;
+}
+
+.aimMenu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 20;
+  min-width: 180px;
+  list-style: none;
+  padding: 2px !important;
+}
+
+.aimMenu button {
+  width: 100%;
+  display: flex;
+  padding: 3px 8px 3px 2px !important;
+}
+
+.aimMenu button:hover:not(:disabled) {
+  background: #000080 !important;
+  color: #fff;
+}
+
+.aimMenuCheck {
+  width: 16px;
+  flex: none;
+}
+
+.aimMenuSep {
+  margin: 3px 1px;
+  border-top: 1px solid #808080;
+  border-bottom: 1px solid #fff;
+}
+
+.aimBanner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px;
+  background: linear-gradient(#fff9d0, #ffe066);
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080;
+}
+
+.aimBanner img {
+  height: 36px;
+  width: auto;
+}
+
+.aimBannerName {
+  font-weight: bold;
+  color: #000080;
+}
+
+.aimBannerWarning {
+  color: #c00000;
+}
+
+.aimAwayBar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 4px;
+  background: #ffffe1;
+  border: 1px solid #808080;
+}
+
+.aimAwayText {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.aimTabs {
+  padding-left: 3px !important;
+  margin-bottom: -2px !important;
+}
+
+/* The tree fills whatever height is left */
+.aimBuddyList > .aimTabPanel {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  padding: 4px;
+}
+
+.aimTree {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px !important;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.aimTree ul {
+  padding-left: 14px !important;
+}
+
+/* 98.css draws tree-view dotted connectors; buddy lists don't have them */
+.aimTree ul,
+.aimTree li::before,
+.aimTree ul::before,
+.aimTree ul > li::before,
+.aimTree ul > li::after {
+  border: 0 !important;
+}
+
+.aimTree li {
+  margin-top: 0 !important;
+  padding-left: 0 !important;
+}
+
+.aimTree ul > li::before,
+.aimTree ul > li::after {
+  display: none;
+}
+
+.aimGroupHeader {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 2px;
+  font-weight: bold;
+  cursor: default;
+}
+
+.aimTwisty {
+  width: 11px;
+  height: 11px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #808080;
+  background: #fff;
+  font-weight: normal;
+  line-height: 1;
+}
+
+.aimBuddy {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 2px;
+  cursor: default;
+  white-space: nowrap;
+}
+
+.aimGroupHeader.is-selected,
+.aimBuddy.is-selected {
+  background: #000080;
+  color: #fff;
+}
+
+.aimBuddy.is-offline .aimBuddyName {
+  color: #808080;
+  font-style: italic;
+}
+
+.aimBuddy.is-idle:not(.is-selected) .aimBuddyName {
+  color: #808080;
+}
+
+.aimBuddy.is-arriving .aimBuddyName {
+  font-weight: bold;
+}
+
+.aimBuddyMeta {
+  color: inherit;
+  opacity: 0.8;
+}
+
+.aimIcon {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  flex: none;
+}
+
+.aimToolbar {
+  display: flex;
+  gap: 4px;
+}
+
+.aimToolbar button {
+  flex: 1;
+  padding: 0 2px;
+}
+
+/* ---- Dialogs ---- */
+
+.aimDialogBackdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  background: rgba(0, 0, 0, 0.15);
+}
+
+.aimDialog {
+  width: min(320px, 100%);
+  max-height: 100%;
+  overflow-y: auto;
+}
+
+.aimDialogBody {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.aimDialogBody textarea,
+.aimDialogBody input:not([type="checkbox"]),
+.aimDialogBody select {
+  width: 100%;
+}
+
+.aimDialogText {
+  line-height: 1.4;
+}
+
+.aimDialogButtons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.aimDialogButtons button {
+  min-width: 75px !important;
+}
+
+.aimCheck {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.aimCheck input {
+  position: static;
+  opacity: 1;
+  margin: 0;
+}
+
+.aimCheck input + span::before {
+  display: none;
+}
+
+.aimBlockList {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.aimBlockList li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.aimAbout {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.aimAbout img {
+  height: 56px;
+}
+
+/* ---- IM window ---- */
+
+.aimIm,
+.aimChatMain {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px;
+}
+
+.aimImHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  flex: none;
+}
+
+.aimImWarning {
+  color: #404040;
+}
+
+.aimTranscript {
+  flex: 1;
+  min-height: 60px;
+  overflow-y: auto;
+  padding: 4px 6px;
+  background: #fff;
+  font-family: Arial, sans-serif;
+  -webkit-font-smoothing: auto;
+  font-size: 12px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+  user-select: text;
+}
+
+.aimLine {
+  white-space: pre-wrap;
+}
+
+.aimName {
+  font-weight: bold;
+}
+
+.aimName--me {
+  color: #e00000;
+}
+
+.aimName--them {
+  color: #0000e0;
+}
+
+.aimTime {
+  color: #808080;
+  font-size: 10px;
+}
+
+.aimSystem {
+  color: #808080;
+  font-style: italic;
+  font-size: 11px;
+}
+
+.aimSystem--error {
+  color: #c00000;
+}
+
+.aimComposer {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: none;
+}
+
+.aimFormatBar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-wrap: wrap;
+}
+
+.aimFormatBar select {
+  max-width: 120px;
+}
+
+.aimFormatButton {
+  width: 24px;
+  height: 22px;
+  min-height: 0;
+  padding: 0 !important;
+  font-family: "Times New Roman", serif;
+  font-size: 13px;
+}
+
+.aimFormatButton.is-on {
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #0a0a0a, inset -2px -2px #dfdfdf, inset 2px 2px #808080;
+  background: repeating-conic-gradient(#c0c0c0 0 25%, #fff 0 50%) 0 0 / 2px 2px;
+}
+
+.aimColor {
+  position: relative;
+  width: 24px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: inset -1px -1px #0a0a0a, inset 1px 1px #fff, inset -2px -2px #808080, inset 2px 2px #dfdfdf;
+}
+
+.aimColorSwatch {
+  width: 14px;
+  height: 14px;
+  border: 1px solid #000;
+}
+
+.aimColor input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+}
+
+.aimComposerRow {
+  display: flex;
+  gap: 4px;
+}
+
+.aimInput {
+  flex: 1;
+  min-width: 0;
+  height: 56px;
+  resize: none;
+}
+
+.aimSend {
+  align-self: stretch;
+  font-weight: bold;
+}
+
+.aimImButtons {
+  display: flex;
+  gap: 4px;
+  flex: none;
+}
+
+.aimImButtons button {
+  flex: 1;
+  padding: 0 2px !important;
+}
+
+.aimStatusBar {
+  flex: none;
+  margin: 0 -4px -4px;
+}
+
+.aimStatusBar .status-bar-field {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---- Chat room ---- */
+
+.aimChat {
+  display: flex;
+  gap: 4px;
+}
+
+.aimChatMain {
+  flex: 1;
+  min-width: 0;
+  padding-right: 0;
+}
+
+.aimChatSide {
+  flex: none;
+  width: 130px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px 4px 4px 0;
+}
+
+.aimChatMembers {
+  flex: 1;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.aimChatMembers li {
+  padding: 1px 2px;
+  cursor: default;
+}
+
+/* ---- Buddy Info / invitation ---- */
+
+.aimInfo,
+.aimInvite {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+  overflow-y: auto;
+}
+
+.aimInfoName {
+  font-size: 16px;
+  font-weight: bold;
+  color: #000080;
+}
+
+.aimInfoTable th {
+  padding-right: 10px;
+  font-weight: bold;
+  vertical-align: top;
+}
+
+.aimInfoBox {
+  margin: 0;
+  padding: 4px 8px 8px;
+  background: #fff;
+  border: 1px solid #808080;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-family: Arial, sans-serif;
+  -webkit-font-smoothing: auto;
+  font-size: 12px;
+}
+
+.aimInfoButtons {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+  margin-top: auto;
+}
+
+.aimInviteMessage {
+  padding: 6px;
+  background: #fff;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080;
+}
+
+/* ---- Phones: bigger touch targets, no tiny text ---- */
+
+.os-mobile .aimRoot {
+  font-size: 13px;
+}
+
+.os-mobile .aimRoot button {
+  min-height: 34px;
+}
+
+.os-mobile .aimFormatButton,
+.os-mobile .aimColor {
+  width: 34px;
+  height: 34px;
+}
+
+.os-mobile .aimBuddy,
+.os-mobile .aimGroupHeader {
+  min-height: 32px;
+}
+
+.os-mobile .aimTranscript {
+  font-size: 15px;
+}
+
+.os-mobile .aimChatSide {
+  width: 104px;
+}
+
+.os-mobile .aimInput {
+  height: 64px;
+}
+
+.aimNotice {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.aimNotice img {
+  height: 40px;
+}
+
+/* main.css sizes every .window to fill its Rnd box; dialogs and menus size to content */
+.aimRoot .aimDialog,
+.aimRoot .aimMenu {
+  height: auto;
+  min-height: 0;
+}
+
+.aimRoot .aimDialog {
+  min-width: 0;
+}
+
+.aimRoot .aimMenu {
+  min-width: 180px;
+}
+
+/* 98.css tree-view indents nested lists twice */
+.aimTree ul {
+  margin-left: 0 !important;
+}
+
+/* 98.css centers label contents */
+.aimField {
+  align-items: stretch;
+}
+
+.os-mobile .aimRoot select {
+  height: 34px;
+}
+
+.os-mobile .aimFormatBar select {
+  max-width: 104px;
+}
+
+/* Phones: who's here becomes a strip above the transcript */
+.os-mobile .aimChat {
+  flex-direction: column-reverse;
+  gap: 0;
+}
+
+.os-mobile .aimChatSide {
+  width: auto;
+  flex-direction: row;
+  align-items: center;
+  padding: 4px 4px 0;
+}
+
+.os-mobile .aimChatCount {
+  flex: none;
+}
+
+.os-mobile .aimChatMembers {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  min-height: 34px;
+  align-items: center;
+  margin: 0;
+}
+
+.os-mobile .aimChatMain {
+  padding-right: 4px;
+}

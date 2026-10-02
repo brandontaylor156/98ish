@@ -74,6 +74,14 @@ const reducer = (state, action) => {
         return { ...window, active: false }
       })
 
+    // Bring an open window to the front, restoring it if minimized
+    case "focus_window":
+      return state.map((window, idx) =>
+        idx === action.payload.index
+          ? { ...window, minimized: false, active: true }
+          : { ...window, active: false }
+      )
+
     case "setWindowPosition":
       return state.map((window, idx) => {
         if (idx === action.payload.index) {

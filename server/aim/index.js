@@ -1,0 +1,505 @@
+// 98 Messenger: an AIM-style service on Socket.io. Accounts persist through the store;
+// everything else (who's online, away messages, warnings, chat rooms) lives in memory.
+
+const crypto = require("crypto")
+const bcrypt = require("bcryptjs")
+const { normalize, validate } = require("./screenNames")
+const { createStore } = require("./store")
+const { createBot, BOT_NAME } = require("./bot")
+
+const MAX_MESSAGE = 1024
+const MAX_PROFILE = 1024
+const RESUME_GRACE_MS = 20_000 // a dropped connection stays signed on this long
+const WARN_DECAY_MS = 30_000 // warning level drops 1% this often
+const IMS_PER_MINUTE = 30
+// Failed sign-ons allowed per 5 minutes, per IP and per screen name (password guessing)
+const FAILED_SIGN_ONS_PER_IP = 20
+const FAILED_SIGN_ONS_PER_NAME = 8
+
+const BOT_KEY = normalize(BOT_NAME)
+const BOT_SIGN_ON = new Date()
+
+const clean = (text, max) => String(text ?? "").replace(/[\u0000-\u0008\u000B-\u001F\u007F]/g, "").slice(0, max)
+
+// Only the formatting the client knows how to draw; anything else is dropped
+const FONTS = ["Times New Roman", "Arial", "Comic Sans MS", "Courier New", "Verdana"]
+const cleanStyle = (style = {}) => ({
+  font: FONTS.includes(style.font) ? style.font : FONTS[1],
+  size: [10, 12, 14, 18, 24].includes(style.size) ? style.size : 12,
+  color: /^#[0-9a-f]{6}$/i.test(style.color) ? style.color : "#000000",
+  bold: !!style.bold,
+  italic: !!style.italic,
+  underline: !!style.underline,
+})
+
+// Valid, de-duplicated buddy names (first spelling wins), at most 20 groups of 200
+const cleanGroups = (groups) =>
+  (Array.isArray(groups) ? groups : []).slice(0, 20).map((group) => {
+    const buddies = new Map()
+    for (const name of Array.isArray(group?.buddies) ? group.buddies : []) {
+      const valid = validate(name)
+      if (!valid.error && !buddies.has(valid.key)) buddies.set(valid.key, valid.screenName)
+    }
+    return { name: clean(group?.name, 32).trim() || "Buddies", buddies: [...buddies.values()].slice(0, 200) }
+  })
+
+// Sliding-window counter keyed by anything: hit(key) records one and says whether
+// the key is now over the limit; over(key) checks without recording
+const limiter = (limit, windowMs) => {
+  const hits = new Map()
+  const recent = (key) => (hits.get(key) || []).filter((t) => Date.now() - t < windowMs)
+  const over = (key) => recent(key).length >= limit
+  const hit = (key) => {
+    const list = recent(key)
+    list.push(Date.now())
+    hits.set(key, list)
+    return list.length > limit
+  }
+  return Object.assign(hit, { over })
+}
+
+const attachAim = async (io, { store, bot } = {}) => {
+  store ??= await createStore()
+  bot ??= createBot()
+
+  const sessions = new Map() // key -> session (signed on, possibly mid-reconnect)
+  const tokens = new Map() // resume token -> key
+  const warnings = new Map() // key -> { level, at } (survives signing off)
+  const warnCredits = new Map() // "warner>target" -> IMs received from target not yet warned for
+  const rooms = new Map() // room key -> { name, members: Set<key> }
+  const failedByIp = limiter(FAILED_SIGN_ONS_PER_IP, 5 * 60_000)
+  const failedByName = limiter(FAILED_SIGN_ONS_PER_NAME, 5 * 60_000)
+  const imLimited = limiter(IMS_PER_MINUTE, 60_000)
+
+  const warningOf = (key) => {
+    const w = warnings.get(key)
+    if (!w) return 0
+    const level = Math.max(0, w.level - Math.floor((Date.now() - w.at) / WARN_DECAY_MS))
+    if (level === 0) warnings.delete(key)
+    return level
+  }
+
+  const presenceOf = (session) => ({
+    screenName: session.user.screenName,
+    online: true,
+    away: !!session.away,
+    idleSince: session.idleSince,
+    warning: warningOf(session.key),
+    signOnAt: session.signOnAt,
+  })
+
+  const botPresence = () => ({
+    screenName: BOT_NAME,
+    online: true,
+    away: false,
+    idleSince: null,
+    warning: 0,
+    signOnAt: BOT_SIGN_ON,
+    bot: true,
+  })
+
+  const blocks = (session, otherKey) => session.user.blocked.includes(otherKey)
+  // Either side blocking hides them from each other, like the real service
+  const hidden = (a, b) => blocks(a, b.key) || blocks(b, a.key)
+
+  const emitTo = (key, event, payload) => {
+    const session = sessions.get(key)
+    if (session?.socket) session.socket.emit(event, payload)
+  }
+
+  const broadcastPresence = (subject, online = true) => {
+    const payload = online ? presenceOf(subject) : { screenName: subject.user.screenName, online: false }
+    for (const other of sessions.values()) {
+      if (other.key === subject.key || !other.socket) continue
+      if (hidden(subject, other)) continue
+      other.socket.emit("aim:presence", payload)
+    }
+  }
+
+  const onlineListFor = (session) => [
+    botPresence(),
+    ...[...sessions.values()].filter((s) => s.key !== session.key && !hidden(session, s)).map(presenceOf),
+  ]
+
+  const roomKey = (name) => normalize(name)
+  const roomMembers = (room) => [...room.members].map((k) => sessions.get(k)?.user.screenName).filter(Boolean)
+
+  const leaveRoom = (session, key, announce = true) => {
+    const room = rooms.get(key)
+    if (!room || !room.members.delete(session.key)) return
+    session.socket?.leave(`chat:${key}`)
+    if (announce) {
+      io.to(`chat:${key}`).emit("aim:chat", {
+        room: room.name,
+        system: true,
+        text: `${session.user.screenName} has left the room.`,
+        time: Date.now(),
+      })
+    }
+    io.to(`chat:${key}`).emit("aim:chatMembers", { room: room.name, members: roomMembers(room) })
+    if (room.members.size === 0) rooms.delete(key)
+  }
+
+  const signOff = (session, { announce = true } = {}) => {
+    if (sessions.get(session.key) !== session) return
+    clearTimeout(session.dropTimer)
+    for (const key of rooms.keys()) leaveRoom(session, key)
+    sessions.delete(session.key)
+    tokens.delete(session.token)
+    bot.forget(session.key)
+    if (announce) broadcastPresence(session, false)
+  }
+
+  const welcome = (session) => ({
+    ok: true,
+    token: session.token,
+    me: {
+      screenName: session.user.screenName,
+      profile: session.user.profile,
+      groups: session.user.groups,
+      blocked: session.user.blocked,
+      warning: warningOf(session.key),
+      createdAt: session.user.createdAt,
+    },
+    online: onlineListFor(session),
+  })
+
+  const attachSocket = (session, socket) => {
+    clearTimeout(session.dropTimer)
+    session.socket = socket
+    socket.data.key = session.key
+    socket.join("aim")
+    for (const [key, room] of rooms) if (room.members.has(session.key)) socket.join(`chat:${key}`)
+  }
+
+  const persist = async (session, patch) => {
+    const updated = await store.update(session.key, patch)
+    if (updated) session.user = updated
+  }
+
+  io.on("connection", (socket) => {
+    const ip = String(socket.handshake.headers["x-forwarded-for"] || socket.handshake.address).split(",")[0].trim()
+    const current = () => {
+      const session = sessions.get(socket.data.key)
+      return session?.socket === socket ? session : null
+    }
+    // Wrap a handler so it only runs for a signed-on socket and never crashes the server
+    const on = (event, handler) =>
+      socket.on(event, async (payload = {}, ack = () => {}) => {
+        if (typeof ack !== "function") ack = () => {}
+        const session = current()
+        if (!session) return ack({ ok: false, error: "You are not signed on." })
+        try {
+          await handler(session, payload || {}, ack)
+        } catch (error) {
+          console.error(`[aim] ${event} failed`, error)
+          ack({ ok: false, error: "Something went wrong. Please try again." })
+        }
+      })
+
+    socket.on("aim:signOn", async (payload = {}, ack = () => {}) => {
+      if (typeof ack !== "function") return
+      try {
+        const { screenName, key, error } = validate(payload.screenName)
+        if (failedByIp.over(ip) || (key && failedByName.over(key))) {
+          return ack({ ok: false, error: "Too many failed sign on attempts. Please wait a few minutes." })
+        }
+        if (error) return ack({ ok: false, error })
+        const password = String(payload.password || "")
+        if (password.length < 4 || password.length > 64) {
+          return ack({ ok: false, error: "Passwords must be 4-64 characters." })
+        }
+        if (key === BOT_KEY) return ack({ ok: false, error: "That screen name is not available." })
+
+        let user
+        if (payload.register) {
+          if (await store.find(key)) return ack({ ok: false, error: `The screen name ${screenName} is already taken.` })
+          try {
+            user = await store.create({ key, screenName, passwordHash: await bcrypt.hash(password, 10) })
+          } catch (err) {
+            if (err.code === 11000) return ack({ ok: false, error: `The screen name ${screenName} is already taken.` })
+            throw err
+          }
+        } else {
+          user = await store.find(key)
+          if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
+            failedByIp(ip)
+            failedByName(key)
+            return ack({ ok: false, error: "Incorrect screen name or password." })
+          }
+        }
+
+        // Signing on somewhere else bumps the old session, like the real service
+        const existing = sessions.get(key)
+        if (existing) {
+          if (existing.socket && existing.socket !== socket) {
+            existing.socket.emit("aim:kicked", {
+              reason:
+                "You have been disconnected from the 98 Messenger service because you signed on at a different location.",
+            })
+            existing.socket.leave("aim")
+          }
+          signOff(existing, { announce: false })
+        }
+
+        // Signing on as someone new from the same window signs the old name off
+        const previous = current()
+        if (previous) signOff(previous)
+
+        const session = {
+          key,
+          user,
+          token: crypto.randomBytes(24).toString("hex"),
+          signOnAt: new Date(),
+          away: null,
+          awayRepliedTo: new Set(),
+          idleSince: null,
+          socket: null,
+        }
+        sessions.set(key, session)
+        tokens.set(session.token, key)
+        attachSocket(session, socket)
+        ack(welcome(session))
+        broadcastPresence(session)
+      } catch (error) {
+        console.error("[aim] sign on failed", error)
+        ack({ ok: false, error: "The 98 Messenger service is temporarily unavailable. Please try again." })
+      }
+    })
+
+    // Reattach after a dropped connection without buddies seeing a sign off
+    socket.on("aim:resume", (payload = {}, ack = () => {}) => {
+      if (typeof ack !== "function") return
+      const key = tokens.get(String(payload.token || ""))
+      const session = key && sessions.get(key)
+      if (!session) return ack({ ok: false })
+      if (session.socket && session.socket !== socket) session.socket.leave("aim")
+      attachSocket(session, socket)
+      ack(welcome(session))
+    })
+
+    socket.on("aim:signOff", () => {
+      const session = current()
+      if (session) {
+        socket.leave("aim")
+        signOff(session)
+      }
+    })
+
+    socket.on("disconnect", () => {
+      const session = current()
+      if (!session) return
+      session.socket = null
+      session.dropTimer = setTimeout(() => signOff(session), RESUME_GRACE_MS)
+    })
+
+    on("aim:im", async (session, { to, text, style }, ack) => {
+      const message = clean(text, MAX_MESSAGE).trim()
+      if (!message) return ack({ ok: false, error: "Message is empty." })
+      if (warningOf(session.key) >= 100) {
+        return ack({ ok: false, error: "Your warning level is too high to send messages right now. Try again later." })
+      }
+      if (imLimited(session.key)) return ack({ ok: false, error: "You are sending messages too fast. Slow down!" })
+      const target = validate(to)
+      if (target.error) return ack({ ok: false, error: "Invalid screen name." })
+      const payloadStyle = cleanStyle(style)
+
+      if (target.key === BOT_KEY) {
+        ack({ ok: true })
+        socket.emit("aim:typing", { from: BOT_NAME, state: "typing" })
+        const reply = await bot.reply(session.key, session.user.screenName, message)
+        if (sessions.get(session.key) !== session) return
+        emitTo(session.key, "aim:typing", { from: BOT_NAME, state: "none" })
+        emitTo(session.key, "aim:im", {
+          from: BOT_NAME,
+          text: reply,
+          style: { ...cleanStyle(), font: "Arial", color: "#000080" },
+          time: Date.now(),
+        })
+        return
+      }
+
+      const recipient = sessions.get(target.key)
+      if (!recipient || hidden(session, recipient)) {
+        return ack({ ok: false, error: `${target.screenName} is not currently signed on.` })
+      }
+
+      emitTo(recipient.key, "aim:im", { from: session.user.screenName, text: message, style: payloadStyle, time: Date.now() })
+      const creditKey = `${recipient.key}>${session.key}`
+      warnCredits.set(creditKey, (warnCredits.get(creditKey) || 0) + 1)
+      ack({ ok: true })
+
+      // Away message goes back once per conversation for each time they go away
+      if (recipient.away && !recipient.awayRepliedTo.has(session.key)) {
+        recipient.awayRepliedTo.add(session.key)
+        socket.emit("aim:im", {
+          from: recipient.user.screenName,
+          text: recipient.away,
+          style: cleanStyle(),
+          time: Date.now(),
+          auto: true,
+        })
+      }
+    })
+
+    on("aim:typing", (session, { to, state }) => {
+      const target = validate(to)
+      if (target.error || !["typing", "entered", "none"].includes(state)) return
+      const recipient = sessions.get(target.key)
+      if (recipient && !hidden(session, recipient)) {
+        emitTo(recipient.key, "aim:typing", { from: session.user.screenName, state })
+      }
+    })
+
+    on("aim:setAway", (session, { message }, ack) => {
+      const text = clean(message, MAX_MESSAGE).trim()
+      session.away = text || null
+      session.awayRepliedTo = new Set()
+      broadcastPresence(session)
+      ack({ ok: true })
+    })
+
+    on("aim:setIdle", (session, { idle }) => {
+      const next = idle ? session.idleSince || Date.now() : null
+      if (next === session.idleSince) return
+      session.idleSince = next
+      broadcastPresence(session)
+    })
+
+    on("aim:setProfile", async (session, { profile }, ack) => {
+      await persist(session, { profile: clean(profile, MAX_PROFILE) })
+      ack({ ok: true, profile: session.user.profile })
+    })
+
+    on("aim:saveGroups", async (session, { groups }, ack) => {
+      await persist(session, { groups: cleanGroups(groups) })
+      ack({ ok: true, groups: session.user.groups })
+    })
+
+    on("aim:block", async (session, { screenName, blocked }, ack) => {
+      const target = validate(screenName)
+      if (target.error || target.key === BOT_KEY) return ack({ ok: false, error: "You can't block that screen name." })
+      const other = sessions.get(target.key)
+      const wasHidden = other && hidden(session, other)
+      const list = new Set(session.user.blocked)
+      blocked ? list.add(target.key) : list.delete(target.key)
+      await persist(session, { blocked: [...list] })
+
+      // Appear offline to (or reappear for) the other person
+      if (other && wasHidden !== hidden(session, other)) {
+        const nowHidden = hidden(session, other)
+        emitTo(other.key, "aim:presence", nowHidden ? { screenName: session.user.screenName, online: false } : presenceOf(session))
+        emitTo(session.key, "aim:presence", nowHidden ? { screenName: other.user.screenName, online: false } : presenceOf(other))
+      }
+      ack({ ok: true, blocked: session.user.blocked })
+    })
+
+    on("aim:warn", (session, { to, anonymous }, ack) => {
+      const target = validate(to)
+      if (target.error) return ack({ ok: false, error: "Invalid screen name." })
+      if (target.key === BOT_KEY) return ack({ ok: false, error: `${BOT_NAME} laughs off your warning. Nice try! :-)` })
+      const recipient = sessions.get(target.key)
+      if (!recipient) return ack({ ok: false, error: `${target.screenName} is not currently signed on.` })
+
+      // You can only warn someone once for each message they've sent you
+      const creditKey = `${session.key}>${recipient.key}`
+      const credits = warnCredits.get(creditKey) || 0
+      if (!credits) return ack({ ok: false, error: `You can only warn ${recipient.user.screenName} after they send you a message.` })
+      warnCredits.set(creditKey, credits - 1)
+
+      const level = Math.min(100, warningOf(recipient.key) + (anonymous ? 3 : 10))
+      warnings.set(recipient.key, { level, at: Date.now() })
+      emitTo(recipient.key, "aim:warned", { by: anonymous ? null : session.user.screenName, warning: level })
+      broadcastPresence(recipient)
+      ack({ ok: true, warning: level })
+    })
+
+    on("aim:getInfo", async (session, { screenName }, ack) => {
+      const target = validate(screenName)
+      if (target.error) return ack({ ok: false, error: "Invalid screen name." })
+      if (target.key === BOT_KEY) {
+        return ack({
+          ok: true,
+          info: {
+            ...botPresence(),
+            profile:
+              "Hi! I'm SmarterChild, your friendly 98ish robot buddy. IM me anytime for jokes, trivia, games, or just to chat. I never sleep! :-)",
+          },
+        })
+      }
+      const online = sessions.get(target.key)
+      if (online && !hidden(session, online)) {
+        return ack({
+          ok: true,
+          info: { ...presenceOf(online), profile: online.user.profile, awayMessage: online.away, memberSince: online.user.createdAt },
+        })
+      }
+      const user = await store.find(target.key)
+      if (!user) return ack({ ok: false, error: `${target.screenName} is not a registered screen name.` })
+      ack({ ok: true, info: { screenName: user.screenName, online: false, profile: user.profile, memberSince: user.createdAt } })
+    })
+
+    on("aim:chatJoin", (session, { room: name }, ack) => {
+      const roomName = clean(name, 32).trim().replace(/\s+/g, " ")
+      if (!/^[A-Za-z0-9][A-Za-z0-9 '!?.-]{0,31}$/.test(roomName)) return ack({ ok: false, error: "Invalid chat room name." })
+      const key = roomKey(roomName)
+      const room = rooms.get(key) || { name: roomName, members: new Set() }
+      rooms.set(key, room)
+      if (!room.members.has(session.key)) {
+        room.members.add(session.key)
+        socket.join(`chat:${key}`)
+        io.to(`chat:${key}`).emit("aim:chat", {
+          room: room.name,
+          system: true,
+          text: `${session.user.screenName} has entered the room.`,
+          time: Date.now(),
+        })
+        io.to(`chat:${key}`).emit("aim:chatMembers", { room: room.name, members: roomMembers(room) })
+      }
+      ack({ ok: true, room: room.name, members: roomMembers(room) })
+    })
+
+    on("aim:chatLeave", (session, { room }, ack) => {
+      leaveRoom(session, roomKey(clean(room, 32)))
+      ack({ ok: true })
+    })
+
+    on("aim:chatSay", (session, { room, text, style }, ack) => {
+      const key = roomKey(clean(room, 32))
+      const message = clean(text, MAX_MESSAGE).trim()
+      if (!rooms.get(key)?.members.has(session.key)) return ack({ ok: false, error: "You are not in that chat room." })
+      if (!message) return ack({ ok: false })
+      if (imLimited(session.key)) return ack({ ok: false, error: "You are sending messages too fast. Slow down!" })
+      io.to(`chat:${key}`).emit("aim:chat", {
+        room: rooms.get(key).name,
+        from: session.user.screenName,
+        text: message,
+        style: cleanStyle(style),
+        time: Date.now(),
+      })
+      ack({ ok: true })
+    })
+
+    on("aim:chatInvite", (session, { room, to, message }, ack) => {
+      const key = roomKey(clean(room, 32))
+      if (!rooms.get(key)?.members.has(session.key)) return ack({ ok: false, error: "Join the room before inviting buddies." })
+      const invited = []
+      for (const name of (Array.isArray(to) ? to : []).slice(0, 20)) {
+        const target = validate(name)
+        const recipient = !target.error && sessions.get(target.key)
+        if (!recipient || hidden(session, recipient)) continue
+        emitTo(recipient.key, "aim:chatInvite", {
+          room: rooms.get(key).name,
+          from: session.user.screenName,
+          message: clean(message, 256),
+        })
+        invited.push(recipient.user.screenName)
+      }
+      ack({ ok: true, invited })
+    })
+  })
+
+  return { store, sessions }
+}
+
+module.exports = { attachAim }

@@ -6,7 +6,12 @@ import Tetris from "../applets/tetris/Tetris"
 import Hover from "../applets/hover/Hover"
 import VideoPlayer from "../applets/videoPlayer/VideoPlayer"
 import Minesweeper from "../applets/minesweeper/Minesweeper"
-import ChatApp from "../applets/chatApp/ChatApp"
+import { AimProvider } from "../applets/aim/AimContext"
+import Messenger from "../applets/aim/Messenger"
+import ImWindow from "../applets/aim/ImWindow"
+import ChatRoom from "../applets/aim/ChatRoom"
+import BuddyInfo from "../applets/aim/BuddyInfo"
+import ChatInvite, { AimNotice } from "../applets/aim/ChatInvite"
 import TaskManager from "../applets/taskManager/TaskManager"
 import { useOpenGesture } from "../../hooks/useMediaQuery"
 import io from "socket.io-client"
@@ -50,6 +55,29 @@ const Desktop = ({ fs, programs, windows, dispatch, closeMenu, mobile }) => {
   const [share, setShare] = useState("")
   const openGesture = useOpenGesture()
 
+  // YouTube links in 98 Messenger play in a View Video window
+  const openVideo = (url) => {
+    setShare(url)
+    dispatch({
+      type: "open_window",
+      payload: {
+        name: "View Video",
+        minimized: false,
+        maximized: false,
+        active: true,
+        closed: false,
+        width: 768,
+        height: 432,
+        positionX: 10,
+        positionY: 0,
+        icon_url: "/assets/program_icons/video.png",
+      },
+    })
+  }
+
+  const closeWindow = (window, index) =>
+    dispatch({ type: "close_window", payload: { name: window.name, index } })
+
   const renderContents = (window, index) => (
     <>
       {window.name == "Tetris" && <Tetris />}
@@ -60,9 +88,20 @@ const Desktop = ({ fs, programs, windows, dispatch, closeMenu, mobile }) => {
       {window.name == "Notepad" && <Notepad file={window.file} />}
       {window.name == "Minesweeper" && <Minesweeper />}
 
-      {window.name == "YouTube '98" && <VideoPlayer socket={socket} />}
-      {window.name == "98 Messenger" && (
-        <ChatApp dispatch={dispatch} socket={socket} setShare={setShare} />
+      {window.name == "YouTube '98" && <VideoPlayer />}
+      {window.name == "98 Messenger" && <Messenger />}
+      {window.app && window.app.startsWith("aim-") && (
+        <div className="aimRoot">
+          {window.app === "aim-im" && <ImWindow buddy={window.buddy} focusInput={window.focusInput} />}
+          {window.app === "aim-chat" && <ChatRoom room={window.room} />}
+          {window.app === "aim-info" && <BuddyInfo buddy={window.buddy} />}
+          {window.app === "aim-invite" && (
+            <ChatInvite invite={window.invite} onClose={() => closeWindow(window, index)} />
+          )}
+          {window.app === "aim-notice" && (
+            <AimNotice text={window.text} onClose={() => closeWindow(window, index)} />
+          )}
+        </div>
       )}
       {window.name == "View Video" && (
         <iframe
@@ -127,12 +166,7 @@ const Desktop = ({ fs, programs, windows, dispatch, closeMenu, mobile }) => {
           <button
             className="titleBarButton"
             aria-label="Close"
-            onClick={() =>
-              dispatch({
-                type: "close_window",
-                payload: { name: window.name, index },
-              })
-            }
+            onClick={() => closeWindow(window, index)}
           ></button>
         </div>
       </div>
@@ -145,8 +179,14 @@ const Desktop = ({ fs, programs, windows, dispatch, closeMenu, mobile }) => {
       payload: { name: window.name, active: window.active, index },
     })
 
+  const withAim = (desktop) => (
+    <AimProvider socket={socket} windows={windows} dispatch={dispatch} onOpenVideo={openVideo}>
+      {desktop}
+    </AimProvider>
+  )
+
   if (mobile) {
-    return (
+    return withAim(
       <div className="mobileDesktop" onClick={() => closeMenu()}>
         <div className="mobileIcons">
           {programs.map((program, index) => (
@@ -165,7 +205,10 @@ const Desktop = ({ fs, programs, windows, dispatch, closeMenu, mobile }) => {
                 key={index}
                 className={window.minimized ? "mobileWindow d-none" : "mobileWindow"}
                 style={window.active ? { zIndex: 2 } : undefined}
-                onClick={() => selectActive(window, index)}
+                // Activate on press (capture phase, so no app can swallow it), not on
+                // click: a click that opens another window (a buddy, a link) must not
+                // hand focus back to this one afterwards
+                onPointerDownCapture={() => selectActive(window, index)}
               >
                 <div className="window">
                   {renderTitleBar(window, index)}
@@ -178,7 +221,7 @@ const Desktop = ({ fs, programs, windows, dispatch, closeMenu, mobile }) => {
     )
   }
 
-  return (
+  return withAim(
     <div onClick={(e) => closeMenu()}>
       {programs &&
         programs.map((program, index) => {
@@ -230,7 +273,7 @@ const Desktop = ({ fs, programs, windows, dispatch, closeMenu, mobile }) => {
               !window.closed && (
                 <Rnd
                   default={{
-                    x: 10 + index * 10,
+                    x: window.initialX ?? 10 + index * 10,
                     y: window.positionY,
                     width: window.width,
                     height: window.height,
@@ -253,12 +296,16 @@ const Desktop = ({ fs, programs, windows, dispatch, closeMenu, mobile }) => {
                       },
                     })
                   }}
-                  onClick={() => selectActive(window, index)}
                   className={windowStyles.join(" ")}
                   key={index}
                   style={activeStyle}
                 >
-                  <div className="window" style={maximizedStyle}>
+                  {/* Activate on press, as on phones above */}
+                  <div
+                    className="window"
+                    style={maximizedStyle}
+                    onPointerDownCapture={() => selectActive(window, index)}
+                  >
                     {renderTitleBar(window, index)}
                     {renderContents(window, index)}
                   </div>

@@ -4,7 +4,7 @@ import SearchBar from './components/SearchBar';
 import VideoList from './components/VideoList';
 import VideoDetail from './components/VideoDetail';
 
-const VideoPlayer = ({setShare, socket}) => {
+const VideoPlayer = () => {
     const [videos, setVideos] = useState([])
     const [selectedVideo, setSelectedVideo] = useState(null)
 
@@ -31,7 +31,7 @@ const VideoPlayer = ({setShare, socket}) => {
               <SearchBar handleFormSubmit={handleSubmit}/>
             </div>
             <div className="my-3">
-              <VideoDetail video={selectedVideo} setShare={setShare} socket={socket}/>
+              <VideoDetail video={selectedVideo}/>
             </div>
           </div>
           

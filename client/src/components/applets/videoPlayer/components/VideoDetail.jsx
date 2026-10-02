@@ -1,4 +1,10 @@
-const VideoDetail = ({ video, setShare, socket }) => {
+import { useState } from "react"
+import { LOBBY, useAim } from "../../aim/AimContext"
+
+const VideoDetail = ({ video }) => {
+    const aim = useAim()
+    const [shareStatus, setShareStatus] = useState(null)
+
     if (!video) {
       return <div className ="d-flex flex-column align-items-center">
          <h1>Enter search keyword to load...</h1>
@@ -26,12 +32,17 @@ const VideoDetail = ({ video, setShare, socket }) => {
               }
             </div>
             <div className="col-3 text-end">
+              {/* Posts the video to the 98ish Lobby chat room in 98 Messenger */}
               <button
                 className="btn btn-success"
-                onClick={() => socket.emit("chat_message", {name: 'Brandon', content: videoSrc, type: 'share'})}
+                onClick={async () => {
+                  const result = await aim.shareVideo(videoSrc)
+                  setShareStatus(result.ok ? `Shared in ${LOBBY}!` : result.error)
+                }}
               >
               Share Video!
               </button>
+              {shareStatus && <p className="small mb-0 mt-1">{shareStatus}</p>}
             </div>
           </div>
         </div>

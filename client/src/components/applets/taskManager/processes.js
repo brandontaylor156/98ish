@@ -53,7 +53,8 @@ export const buildProcessList = (windows) => {
   const apps = []
   ;(windows || []).forEach((w, index) => {
     if (w.closed) return
-    const profile = profileFor(w.name)
+    // Every 98 Messenger window (IMs, chat rooms) is part of aim.exe
+    const profile = profileFor(w.app?.startsWith("aim") ? "98 Messenger" : w.name)
     apps.push({
       ...profile,
       key: "w" + index,
