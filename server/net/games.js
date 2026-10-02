@@ -9,7 +9,7 @@ const hearts = require("./hearts")
 const { rules } = require("./rules")
 
 const INVITE_MS = 60_000
-const GAMES = ["checkers", "race", "hearts", "reversi", "chess", "battleship"]
+const GAMES = ["checkers", "race", "hearts", "reversi", "chess", "battleship", "tetris"]
 // two-player board games whose rules are shared with the browser (see rules.js)
 const BOARD_GAMES = ["reversi", "chess", "battleship"]
 const RACE_LEVELS = {
@@ -21,9 +21,10 @@ const BOT_NAMES = ["Ada", "Grace", "Alan", "Linus", "Hedy", "Dennis"]
 const DELAYS = { botPass: 500, botPlay: 750, trick: 1400, nextHand: 7000 }
 
 const newId = () => crypto.randomBytes(6).toString("hex")
-const GAME_NAMES = { checkers: "Checkers", race: "Minesweeper Race", hearts: "Hearts", reversi: "Reversi", chess: "Chess", battleship: "Battleship" }
+const GAME_NAMES = { checkers: "Checkers", race: "Minesweeper Race", hearts: "Hearts", reversi: "Reversi", chess: "Chess", battleship: "Battleship", tetris: "Tetris Online" }
 
-const createGames = ({ emit, delays = DELAYS, random = Math.random } = {}) => {
+// tetris: Tetris Online (tetris.js), whose private rooms take invitations from here
+const createGames = ({ emit, delays = DELAYS, random = Math.random, tetris = null } = {}) => {
   const invites = new Map() // id -> { id, game, from, fromName, to, toName, options, matchId, timer }
   const matches = new Map() // id -> match
 
@@ -231,12 +232,19 @@ const createGames = ({ emit, delays = DELAYS, random = Math.random } = {}) => {
       const pendingHere = [...invites.values()].filter((i) => i.matchId === matchId).length
       if (table.seats.filter((s) => !s).length - pendingHere <= 0) return { ok: false, error: "Every seat at the table is spoken for." }
     }
-    const inv = { id: newId(), game, from, fromName, to, toName, options: opts, matchId: game === "hearts" ? matchId : null, expiresAt: Date.now() + INVITE_MS }
+    if (game === "tetris") {
+      if (!tetris) return { ok: false, error: "Tetris Online isn't available." }
+      const check = tetris.canInvite(from, String(matchId))
+      if (!check.ok) return check
+      opts.mode = tetris.rooms.get(String(matchId)).mode
+    }
+    const inv = { id: newId(), game, from, fromName, to, toName, options: opts, matchId: game === "hearts" || game === "tetris" ? String(matchId) : null, expiresAt: Date.now() + INVITE_MS }
     inv.timer = setTimeout(() => endInvite(inv, "expired"), INVITE_MS)
     inv.timer.unref?.()
     invites.set(inv.id, inv)
     send(to, "net:invited", inviteView(inv))
-    if (inv.matchId) publish(matches.get(inv.matchId))
+    if (game === "tetris") tetris.invitedTo(inv.matchId, toName)
+    else if (inv.matchId) publish(matches.get(inv.matchId))
     return { ok: true, inviteId: inv.id }
   }
 
@@ -249,6 +257,7 @@ const createGames = ({ emit, delays = DELAYS, random = Math.random } = {}) => {
     invites.delete(inv.id)
     if (status !== "accepted") send(inv.to, "net:inviteGone", { id: inv.id })
     if (status !== "canceled") send(inv.from, "net:inviteResult", { id: inv.id, status, to: inv.toName, game: inv.game, gameName: GAME_NAMES[inv.game], error })
+    if (inv.game === "tetris") return status !== "accepted" && tetris?.inviteEnded(inv.matchId, inv.toName)
     const table = inv.matchId && matches.get(inv.matchId)
     if (table) publish(table)
   }
@@ -271,6 +280,12 @@ const createGames = ({ emit, delays = DELAYS, random = Math.random } = {}) => {
       table.names[pid] = inv.toName
       endInvite(inv, "accepted")
       return { ok: true, matchId: table.id }
+    }
+    if (inv.game === "tetris") {
+      // into the private room: the Tetris window opens and joins it
+      const result = tetris.allow(pid, inv.matchId)
+      endInvite(inv, result.ok ? "accepted" : "gone")
+      return result
     }
     endInvite(inv, "accepted")
     const m =

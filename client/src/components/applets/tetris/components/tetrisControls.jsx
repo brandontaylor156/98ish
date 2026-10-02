@@ -87,4 +87,19 @@ export const TETRIS_CONTROLS = [
       landscape: (size) => fromPx(size, { left: landscapeSide(size), bottom: PAD + ROW + PAD, width: 64, height: 32 }),
     },
   },
+  // Arena only: use the item you're holding. Bottom of the right panel, mirroring Hold.
+  {
+    id: "item",
+    label: "Use item",
+    className: "tetrisPadButton tetrisItemButton",
+    default: {
+      portrait: (size) => fromPx(size, { right: PAD, bottom: PAD + PAD_ROW + PAD, width: 64, height: ROW }),
+      landscape: (size) => fromPx(size, { right: landscapeSide(size), bottom: PAD, width: 64, height: ROW }),
+    },
+  },
 ]
+
+// The same layout for every mode (so a player's arrangement carries over), with the Item
+// button only in the Arena and no Pause online (the match doesn't stop)
+export const controlsFor = ({ item = false, pause = true } = {}) =>
+  TETRIS_CONTROLS.map((c) => (c.id === "item" ? { ...c, hidden: !item } : c.id === "pause" ? { ...c, hidden: !pause } : c))

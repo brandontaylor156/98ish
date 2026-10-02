@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { createGame, hardDrop, hold, move, rotate, softDropStep, tick, togglePause } from "../utils/engine"
+import { MODES } from "../utils/modes"
 
 // Delayed auto shift: hold left/right and the piece starts sliding after DAS ms, then
 // moves every ARR ms (the browser's own key repeat is far too slow for Tetris)
@@ -23,12 +24,22 @@ const KEY_ACTIONS = {
   KeyC: "hold",
   KeyP: "pause",
   Escape: "pause",
+  KeyV: "item",
+  KeyE: "item",
 }
 
-export const useTetris = () => {
+// One game of a mode (see utils/modes.js). options: { seed, running (false holds the
+// clock, e.g. during an online countdown), onAction (actions the engine doesn't handle,
+// like "item") }. Mirror (an Arena item) swaps left and right for a while.
+export const useTetris = (mode = "marathon", { seed, running = true, onAction } = {}) => {
   const gameRef = useRef(null)
-  if (gameRef.current === null) gameRef.current = createGame()
+  if (gameRef.current === null) gameRef.current = createGame({ seed, ...MODES[mode].options })
   const [game, setGame] = useState(gameRef.current)
+  const runningRef = useRef(running)
+  runningRef.current = running
+  const mirrorRef = useRef(false)
+  const actionRef = useRef(onAction)
+  actionRef.current = onAction
 
   // Held keys live in a ref; the frame loop reads them
   const input = useRef({ left: false, right: false, direction: 0, dasTimer: 0, arrTimer: 0, softDrop: false, softDropTimer: 0 })
@@ -41,6 +52,12 @@ export const useTetris = () => {
     }
   }, [])
 
+  // A fresh game (online: a new round on a new seed)
+  const reset = useCallback((nextSeed) => {
+    gameRef.current = createGame({ seed: nextSeed, ...MODES[mode].options })
+    setGame(gameRef.current)
+  }, [mode])
+
   useEffect(() => {
     let frame
     let last = performance.now()
@@ -50,22 +67,23 @@ export const useTetris = () => {
       last = now
       const held = input.current
 
-      update((state) => {
-        if (state.status !== "playing") return state
-        let next = state
-        if (held.direction) {
-          held.dasTimer += elapsed
-          if (held.dasTimer >= DAS) {
-            held.arrTimer += elapsed
-            while (held.arrTimer >= ARR) {
-              held.arrTimer -= ARR
-              next = move(next, held.direction)
+      if (runningRef.current)
+        update((state) => {
+          if (state.status !== "playing") return state
+          let next = state
+          if (held.direction) {
+            held.dasTimer += elapsed
+            if (held.dasTimer >= DAS) {
+              held.arrTimer += elapsed
+              while (held.arrTimer >= ARR) {
+                held.arrTimer -= ARR
+                next = move(next, held.direction)
+              }
             }
           }
-        }
-        if (held.softDrop) held.softDropTimer += elapsed
-        return tick(next, elapsed, held.softDrop && held.softDropTimer >= SOFT_DROP_DELAY)
-      })
+          if (held.softDrop) held.softDropTimer += elapsed
+          return tick(next, elapsed, held.softDrop && held.softDropTimer >= SOFT_DROP_DELAY)
+        })
 
       frame = requestAnimationFrame(loop)
     }
@@ -74,13 +92,26 @@ export const useTetris = () => {
     return () => cancelAnimationFrame(frame)
   }, [update])
 
+  // dev-only hook for the browser tests (speeding up modes, forcing endings)
+  useEffect(() => {
+    if (!import.meta.env.DEV) return
+    window.__tetris = { get: () => gameRef.current, apply: (fn) => update(fn) }
+    return () => {
+      if (window.__tetris?.get?.() === gameRef.current) delete window.__tetris
+    }
+  }, [update])
+
   const startShift = (direction) => {
     Object.assign(input.current, { direction, dasTimer: 0, arrTimer: 0 })
     update((state) => move(state, direction))
   }
 
+  const swap = (action) => (mirrorRef.current && (action === "left" || action === "right") ? (action === "left" ? "right" : "left") : action)
+
   // Actions come from the keyboard or the on-screen touch controls
-  const press = (action) => {
+  const press = (pressed) => {
+    const action = swap(pressed)
+    if (!runningRef.current && action !== "pause") return
     switch (action) {
       case "left":
       case "right":
@@ -106,10 +137,13 @@ export const useTetris = () => {
       case "pause":
         update(togglePause)
         break
+      default:
+        actionRef.current?.(action)
     }
   }
 
-  const release = (action) => {
+  const release = (released) => {
+    const action = swap(released)
     const held = input.current
 
     if (action === "left" || action === "right") {
@@ -144,8 +178,13 @@ export const useTetris = () => {
     Object.assign(input.current, { left: false, right: false, direction: 0, softDrop: false })
   }
 
+  const setMirror = (on) => {
+    releaseKeys()
+    mirrorRef.current = on
+  }
+
   const pause = () => update((state) => (state.status === "playing" ? togglePause(state) : state))
   const resume = () => update((state) => (state.status === "paused" ? togglePause(state) : state))
 
-  return { game, press, release, onKeyDown, onKeyUp, releaseKeys, pause, resume }
+  return { game, gameRef, update, reset, press, release, onKeyDown, onKeyUp, releaseKeys, pause, resume, setMirror }
 }

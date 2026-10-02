@@ -81,7 +81,8 @@ const I_KICKS = {
 export const kicksFor = (type, from, to) =>
   (type === "I" ? I_KICKS : JLSTZ_KICKS)[`${from}${to}`]
 
-export const cellClass = (type) => `tetromino__${type.toLowerCase()}`
+// Board cells hold a piece letter, "g" (garbage with a hole) or "#" (solid garbage)
+export const cellClass = (type) => (type === "#" ? "tetromino__x" : `tetromino__${type.toLowerCase()}`)
 
 // Spawn shape with empty rows/columns removed, for the Next and Hold boxes
 export const previewShape = (type) => {

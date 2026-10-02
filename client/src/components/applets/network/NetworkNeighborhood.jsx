@@ -50,6 +50,7 @@ const NetworkNeighborhood = ({ onClose }) => {
         { label: "Reversi", onClick: () => games.invite(c, "reversi") },
         { label: "Chess", onClick: () => games.invite(c, "chess") },
         { label: "Battleship", onClick: () => games.invite(c, "battleship") },
+        { label: "Tetris Battle", onClick: () => games.invite(c, "tetris") },
       ],
     },
     "-",

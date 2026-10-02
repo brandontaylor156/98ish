@@ -4,10 +4,10 @@ import Board from './Board'
 import GameStats, { KeyHints } from './GameStats'
 import PiecePreview from './PiecePreview'
 import TouchControls, { useTouchControlsVisible } from '../../../shared/controls'
-import { TETRIS_CONTROLS } from './tetrisControls'
+import { controlsFor } from './tetrisControls'
 
-import { useTetris } from '../hooks/useTetris'
-import { NEXT_COUNT, visibleCells } from '../utils/engine'
+import { NEXT_COUNT, pendingLines, visibleCells } from '../utils/engine'
+import { ITEM_INFO } from '../utils/items'
 
 // Below this width the side panels shrink so the board keeps most of the window
 const COMPACT_WIDTH = 440
@@ -34,16 +34,21 @@ const useSize = (ref) => {
     return size
 }
 
-// One game in progress. Reports the final state through onGameOver; onQuit ends early.
-const TetrisWindow = ({ onGameOver, onQuit, editControls = false }) => {
-    const { game, press, release, onKeyDown, onKeyUp, releaseKeys, pause, resume } = useTetris()
-    const cells = useMemo(() => visibleCells(game), [game.board, game.active])
+// One game in progress, driven by a useTetris() instance. Reports the end through
+// onGameOver; onQuit ends early. Online matches add: no pausing, an incoming-garbage meter,
+// an item slot (Arena), Darkness, and an overlay over the board (countdown, KO...).
+// stats: [{ label, value }] for the left panel (default: score, level, lines).
+const TetrisWindow = ({ tetris, onGameOver, onQuit, editControls = false, stats, online = false, item, dark = false, overlay = null }) => {
+    const { game, press, release, onKeyDown, onKeyUp, releaseKeys, pause, resume } = tetris
+    const cells = useMemo(() => visibleCells(game), [game.board, game.active, game.finale])
     const touch = useTouchControlsVisible()
     const [editing, setEditing] = useState(editControls)
+    const controls = useMemo(() => controlsFor({ item: item !== undefined, pause: !online }), [item !== undefined, online])
+    const meter = online ? pendingLines(game) : 0
 
     useEffect(() => {
         if (game.status === "over") onGameOver(game)
-    }, [game.status])
+    }, [game.status, game.kos])
 
     // The window itself takes keyboard focus. Losing focus (clicking another window)
     // pauses the game; clicking back in resumes it.
@@ -101,7 +106,7 @@ const TetrisWindow = ({ onGameOver, onQuit, editControls = false }) => {
         if (event.currentTarget.contains(event.relatedTarget)) return
         setFocused(false)
         releaseKeys()
-        if (game.status === "playing") {
+        if (game.status === "playing" && !online) {
             pausedByBlur.current = true
             pause()
         }
@@ -112,7 +117,9 @@ const TetrisWindow = ({ onGameOver, onQuit, editControls = false }) => {
     const clearLabel = game.lastClear && (
         <div key={game.lastClear.id} className="tetrisClear">
             {game.lastClear.labels.map((label) => <div key={label}>{label}</div>)}
-            {game.lastClear.points > 0 && <div>+{game.lastClear.points.toLocaleString()}</div>}
+            {online
+                ? game.lastClear.attack > 0 && <div>{game.lastClear.attack} line{game.lastClear.attack === 1 ? "" : "s"}!</div>
+                : game.lastClear.points > 0 && <div>+{game.lastClear.points.toLocaleString()}</div>}
         </div>
     )
 
@@ -136,7 +143,11 @@ const TetrisWindow = ({ onGameOver, onQuit, editControls = false }) => {
                     <div className="tetrisLabel">Hold</div>
                     <PiecePreview type={game.hold} dimmed={game.holdUsed} />
                 </div>
-                <GameStats score={game.score} level={game.level} lines={game.lines} />
+                <GameStats stats={stats || [
+                    { label: "Score", value: game.score.toLocaleString() },
+                    { label: "Level", value: game.level },
+                    { label: "Lines", value: game.lines },
+                ]} />
                 {layout === "wide" && clearLabel}
                 {/* room for the default Pause and Hold buttons */}
                 {touch && <div className="tetrisSideButtons" />}
@@ -144,6 +155,14 @@ const TetrisWindow = ({ onGameOver, onQuit, editControls = false }) => {
             {layout !== "wide" && clearLabel}
             <div className="tetrisBoardWrap">
                 <Board cells={cells}>
+                    {online && (
+                        <div className="tetrisMeter" aria-label={`${meter} garbage lines coming`} data-lines={meter}>
+                            <div style={{ height: `${Math.min(100, meter * 5)}%` }} />
+                        </div>
+                    )}
+                    {game.shield && <div className="tetrisShield" title="Shield: blocks the next garbage" />}
+                    {dark && <div className="tetrisDark" />}
+                    {overlay}
                     {game.status === "paused" && (
                         <div className="tetrisOverlay">
                             {focused ? (
@@ -166,13 +185,24 @@ const TetrisWindow = ({ onGameOver, onQuit, editControls = false }) => {
                 {game.queue.slice(0, NEXT_COUNT).map((type, i) => (
                     <PiecePreview key={i} type={type} small={i > 0} />
                 ))}
-                {!touch && <KeyHints />}
+                {item !== undefined && (
+                    <div className="tetrisItemSlot" title={item ? ITEM_INFO[item].about : "Clear lines to earn an item"}>
+                        <div className="tetrisLabel">Item</div>
+                        <div className={item ? "tetrisItem" : "tetrisItem tetrisItem--empty"} data-item={item || ""}>
+                            {item ? ITEM_INFO[item].name : "-"}
+                        </div>
+                        {!touch && item && <div className="tetrisItemHint"><kbd>V</kbd> to use</div>}
+                    </div>
+                )}
+                {!touch && !online && <KeyHints />}
+                {/* room for the default Item button */}
+                {touch && item !== undefined && <div className="tetrisSideButtons tetrisSideButtons--item" />}
             </aside>
             {touch && layout === "portrait" && <div className="tetrisPad" />}
             {touch && (
                 <TouchControls
                     game="tetris"
-                    controls={TETRIS_CONTROLS}
+                    controls={controls}
                     onPress={onPadPress}
                     onRelease={release}
                     editing={editing}

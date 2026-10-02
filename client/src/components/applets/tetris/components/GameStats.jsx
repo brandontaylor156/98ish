@@ -7,11 +7,10 @@ const Stat = ({label, value}) => (
     </div>
 )
 
-const GameStats = ({score, level, lines}) => (
+// stats: [{ label, value }], picked by the mode (score/level/lines, a timer...)
+const GameStats = ({ stats }) => (
     <>
-        <Stat label="Score" value={score.toLocaleString()} />
-        <Stat label="Level" value={level} />
-        <Stat label="Lines" value={lines} />
+        {stats.map((s) => <Stat key={s.label} label={s.label} value={s.value} />)}
     </>
 )
 
@@ -27,4 +26,4 @@ export const KeyHints = React.memo(() => (
     </ul>
 ))
 
-export default React.memo(GameStats)
+export default GameStats

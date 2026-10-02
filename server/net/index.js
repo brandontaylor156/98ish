@@ -10,6 +10,8 @@
 const crypto = require("crypto")
 const { limiter } = require("./limiter")
 const { createGames } = require("./games")
+const { createTetris } = require("./tetris")
+const { createTetrisRanks } = require("./tetrisRanks")
 
 const RESUME_GRACE_MS = 30_000
 const MAX_FILE_BYTES = 200 * 1024 // text documents
@@ -47,7 +49,7 @@ const validFileName = (name) => {
   return value && value.length <= 64 && !INVALID_NAME.test(value) && value !== "." && value !== ".." ? value : null
 }
 
-const attachNet = (io, { aim: initialAim = null, graceMs = RESUME_GRACE_MS, games: gameOptions = {} } = {}) => {
+const attachNet = (io, { aim: initialAim = null, graceMs = RESUME_GRACE_MS, games: gameOptions = {}, tetrisRanks = null } = {}) => {
   let aim = initialAim
   const computers = new Map() // token -> computer
   const byPid = new Map() // pid -> computer
@@ -83,7 +85,7 @@ const attachNet = (io, { aim: initialAim = null, graceMs = RESUME_GRACE_MS, game
       name: session?.user.screenName || computer.guestName,
       user: !!session,
       device: computer.device,
-      busy: games.busy(computer.pid),
+      busy: games.busy(computer.pid) || tetris.busy(computer.pid),
       since: computer.since,
     }
   }
@@ -107,7 +109,9 @@ const attachNet = (io, { aim: initialAim = null, graceMs = RESUME_GRACE_MS, game
   const emitTo = (computer, event, payload) => computer?.socket?.emit(event, payload)
   const emitPid = (pid, event, payload) => emitTo(byPid.get(pid), event, payload)
 
-  const games = createGames({ emit: emitPid, ...gameOptions })
+  // Tetris Online (the Tetris app's multiplayer modes); invitations go through games.js
+  const tetris = createTetris({ emit: emitPid, ranks: tetrisRanks || createTetrisRanks().catch(() => null) })
+  const games = createGames({ emit: emitPid, tetris, ...gameOptions })
 
   const guestName = () => {
     const taken = new Set([...computers.values()].map((c) => c.guestName))
@@ -127,6 +131,7 @@ const attachNet = (io, { aim: initialAim = null, graceMs = RESUME_GRACE_MS, game
       else if (offer.to === computer) endOffer(offer, "gone")
     }
     games.drop(computer.pid)
+    tetris.drop(computer.pid)
     broadcast()
   }
 
@@ -210,7 +215,10 @@ const attachNet = (io, { aim: initialAim = null, graceMs = RESUME_GRACE_MS, game
       socket.data.netToken = token
       socket.join("net")
       ack({ ok: true, token, me: { ...publicView(computer), hidden: !computer.visible }, computers: listFor(computer) })
-      if (resumed) games.setAway(computer.pid, false)
+      if (resumed) {
+        games.setAway(computer.pid, false)
+        tetris.setAway(computer.pid, false)
+      }
       games.resync(computer.pid)
       for (const offer of offers.values()) if (offer.to === computer) emitTo(computer, "net:fileOffer", offerView(offer))
       broadcast()
@@ -221,6 +229,7 @@ const attachNet = (io, { aim: initialAim = null, graceMs = RESUME_GRACE_MS, game
       if (!computer) return
       computer.socket = null
       games.setAway(computer.pid, true)
+      tetris.setAway(computer.pid, true)
       computer.dropTimer = setTimeout(() => removeComputer(computer), graceMs)
       broadcast()
     })
@@ -309,6 +318,9 @@ const attachNet = (io, { aim: initialAim = null, graceMs = RESUME_GRACE_MS, game
     on("net:heartsStart", (computer, { matchId }) => games.startTable(computer.pid, String(matchId)))
     on("net:heartsPass", (computer, { matchId, cards }) => games.heartsPass(computer.pid, String(matchId), cards))
     on("net:heartsPlay", (computer, { matchId, card }) => games.heartsPlay(computer.pid, String(matchId), card))
+    // ---- Tetris Online ----
+    tetris.wire(socket, current, (computer) => ({ pid: computer.pid, name: nameOf(computer), key: aimSessionOf(computer)?.key || null }))
+
     on("net:leave", (computer, { matchId }) => {
       const result = games.leave(computer.pid, String(matchId))
       broadcast()
@@ -323,7 +335,7 @@ const attachNet = (io, { aim: initialAim = null, graceMs = RESUME_GRACE_MS, game
   setInterval(() => {
     let changed = false
     for (const c of computers.values()) {
-      const signature = `${nameOf(c)} ${games.busy(c.pid)}`
+      const signature = `${nameOf(c)} ${games.busy(c.pid) || tetris.busy(c.pid)}`
       if (signature !== c.signature) changed = true
       c.signature = signature
     }
@@ -348,6 +360,7 @@ const attachNet = (io, { aim: initialAim = null, graceMs = RESUME_GRACE_MS, game
       const cb = byPid.get(b)
       return !!(ca && cb && blocked(ca, cb))
     },
+    tetris,
   }
 }
 

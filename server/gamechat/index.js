@@ -90,7 +90,9 @@ const attachGameChat = (io, net, { rate = RATE } = {}) => {
 
   const lobbies = () => [...rooms.values()].filter((r) => r.kind === "lobby").length
   const pidsIn = (room) => new Set([...room.members.values()].map((m) => m.pid))
-  const isMatchPlayer = (room, pid) => (net.games.playersOf(room.id) || []).includes(pid)
+  // a match is a network game (games.js) or a Tetris Online room (tetris.js)
+  const playersOf = (id) => net.games.playersOf(id) || net.tetris?.playersOf(id) || null
+  const isMatchPlayer = (room, pid) => (playersOf(room.id) || []).includes(pid)
   const blocked = (a, b) => a !== b && net.blockedPids(a, b)
 
   const deliver = (room, message) => {
@@ -141,7 +143,7 @@ const attachGameChat = (io, net, { rate = RATE } = {}) => {
   // Match rooms whose match is gone: tidy up now and then
   setInterval(() => {
     for (const room of rooms.values()) {
-      if (room.kind === "match" && !net.games.playersOf(room.id) && !room.members.size) rooms.delete(room.name)
+      if (room.kind === "match" && !playersOf(room.id) && !room.members.size) rooms.delete(room.name)
     }
   }, 60_000).unref?.()
 
@@ -165,7 +167,7 @@ const attachGameChat = (io, net, { rate = RATE } = {}) => {
       if (joinLimit(socket.id)) return { ok: false, error: "Too many requests." }
       let room = rooms.get(name)
       const [kind, id] = name.split(":")
-      if (kind === "match" && !(net.games.playersOf(id) || []).includes(me.pid)) {
+      if (kind === "match" && !(playersOf(id) || []).includes(me.pid)) {
         return { ok: false, error: "Only the players in this game can use its chat." }
       }
       if (!room) {

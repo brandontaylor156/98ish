@@ -404,7 +404,17 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
 
   const renderContents = (window, index) => (
     <>
-      {window.name == "Tetris" && <Tetris />}
+      {window.name == "Tetris" && (
+        <Tetris
+          mobile={mobile}
+          // Tetris Online widens the window for opponents' boards
+          fitWindow={
+            mobile || window.maximized
+              ? null
+              : (width, height) => dispatch({ type: "resize_window", payload: { index, width, height } })
+          }
+        />
+      )}
       {window.name == "Hover" && <Hover />}
       {window.name == "SPECTRA" && <Spectra />}
       {window.app === "ie" && (

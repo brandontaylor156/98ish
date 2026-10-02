@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useRef, useState } from "react"
 import { useAim } from "../aim/AimContext"
 import { FILE_TYPE, fs, uniqueName } from "../../../utils/fs"
+import { launch } from "../../../utils/programs"
 
 // The network every open 98ish desktop shares: who's on (Network Neighborhood), files
 // passed between computers, WinPopup messages and network games. Incoming things open
@@ -33,6 +34,8 @@ export const GAME_INFO = {
   reversi: { name: "Reversi", icon: "/assets/program_icons/reversi.svg", app: "net-reversi", width: 420, height: 560 },
   chess: { name: "Chess", icon: "/assets/program_icons/chess.svg", app: "net-chess", width: 700, height: 580 },
   battleship: { name: "Battleship", icon: "/assets/program_icons/battleship.svg", app: "net-battleship", width: 660, height: 500 },
+  // played in the Tetris app's own window (Tetris Online), not a network game window
+  tetris: { name: "Tetris Online", icon: "/assets/program_icons/tetris3-48.png", app: null },
 }
 
 const TOKEN_KEY = "98ish.net.token"
@@ -331,6 +334,18 @@ export const NetProvider = ({ socket, windows, dispatch: dispatchWindow, mobile,
 
   // to: a computer ({ id }) or a 98 Messenger buddy ({ screenName })
   const invite = async (to, game, options = {}) => {
+    // Tetris Online: into your room (options.roomId), or a new private Battle room; the
+    // Tetris window shows the room and who's been invited
+    if (game === "tetris") {
+      let roomId = options.roomId
+      if (!roomId) {
+        const room = await request("tetris:create", { mode: options.mode || "battle", isPrivate: true })
+        if (!room.ok) return room
+        roomId = room.roomId
+        openTetris()
+      }
+      return request("net:invite", { to, game, matchId: roomId })
+    }
     if (game === "hearts") {
       const table = await request("net:heartsCreate")
       if (!table.ok) return table
@@ -356,7 +371,14 @@ export const NetProvider = ({ socket, windows, dispatch: dispatchWindow, mobile,
 
   const cancelInvite = (id) => socket.emit("net:inviteCancel", { id })
 
-  const replyInvite = (inv, accept) => request("net:inviteReply", { id: inv.id, accept })
+  const replyInvite = async (inv, accept) => {
+    const result = await request("net:inviteReply", { id: inv.id, accept })
+    if (result.ok && result.tetrisRoom) openTetris() // it joins the room it was let into
+    return result
+  }
+
+  // The Tetris window (one per desktop: comes forward if it's open)
+  const openTetris = () => dispatchWindow({ type: "open_window", payload: launch("Tetris") })
 
   const leave = (matchId) => {
     leftMatches.current.add(matchId)
@@ -411,6 +433,9 @@ export const NetProvider = ({ socket, windows, dispatch: dispatchWindow, mobile,
     play: (matchId, card) => request("net:heartsPlay", { matchId, card }),
     leave,
     notice,
+    // for apps with their own protocol (Tetris Online)
+    socket,
+    request,
   }
 
   return <NetContext.Provider value={value}>{children}</NetContext.Provider>

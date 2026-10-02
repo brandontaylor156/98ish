@@ -142,6 +142,7 @@ const ImWindow = ({ buddy, focusInput }) => {
     { label: "Reversi", onClick: () => playGame("reversi") },
     { label: "Chess", onClick: () => playGame("chess") },
     { label: "Battleship", onClick: () => playGame("battleship") },
+    { label: "Tetris Battle", onClick: () => playGame("tetris") },
   ]
 
   const addBuddy = async () => {
