@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react"
-import { programs } from "../../../utils/programs"
+import { programs, windowFor } from "../../../utils/programs"
 import {
   APP_PROFILES,
   COMMIT_LIMIT,
@@ -295,21 +295,7 @@ const TaskManager = ({ dispatch, windows, selfIndex }) => {
       return
     }
     setDialog(null)
-    dispatch({
-      type: "open_window",
-      payload: {
-        name: program.name,
-        minimized: false,
-        maximized: false,
-        active: true,
-        closed: false,
-        width: program.width,
-        height: program.height,
-        positionX: 10,
-        positionY: 0,
-        icon_url: program.icon_url,
-      },
-    })
+    dispatch({ type: "open_window", payload: windowFor(program) })
   }
 
   const refreshNow = () => setSim((prev) => stepSim(prev, procsRef.current, 0.5))

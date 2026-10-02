@@ -1,0 +1,263 @@
+import React, { useEffect, useRef, useState } from "react"
+import Dialog from "../shared/Dialog"
+import "./Power.css"
+
+// Starting up and shutting down: the BIOS screen and splash, the startup chime, the
+// Shut Down and Log Off dialogs, and "It's now safe to turn off your computer."
+
+// ---- the startup chime (made up on the spot with Web Audio, no sound file) ----
+
+let audio = null
+const chime = (ctx) => {
+  const now = ctx.currentTime + 0.05
+  const out = ctx.createGain()
+  out.gain.value = 0.22
+  // a soft echo for some room
+  const delay = ctx.createDelay()
+  delay.delayTime.value = 0.23
+  const feedback = ctx.createGain()
+  feedback.gain.value = 0.32
+  const wet = ctx.createGain()
+  wet.gain.value = 0.35
+  delay.connect(feedback).connect(delay)
+  delay.connect(wet).connect(ctx.destination)
+  out.connect(ctx.destination)
+  out.connect(delay)
+
+  const note = (freq, start, length, type = "sine", level = 1) => {
+    const osc = ctx.createOscillator()
+    const gain = ctx.createGain()
+    osc.type = type
+    osc.frequency.value = freq
+    gain.gain.setValueAtTime(0, now + start)
+    gain.gain.linearRampToValueAtTime(level, now + start + 0.04)
+    gain.gain.exponentialRampToValueAtTime(0.001, now + start + length)
+    osc.connect(gain).connect(out)
+    osc.start(now + start)
+    osc.stop(now + start + length + 0.05)
+  }
+  // a rising E-flat major 9 arpeggio over a warm pad
+  const pad = [155.56, 233.08, 311.13, 392]
+  pad.forEach((f) => note(f, 0, 3.6, "triangle", 0.28))
+  ;[311.13, 466.16, 622.25, 783.99, 932.33, 1174.66].forEach((f, i) => note(f, 0.12 + i * 0.16, 2.4 - i * 0.15, "sine", 0.55))
+  note(1244.51, 1.15, 2.2, "sine", 0.3)
+}
+
+// Plays now if the browser allows sound, otherwise on the first click or key press soon
+export const playStartupSound = () => {
+  try {
+    audio = audio || new (window.AudioContext || window.webkitAudioContext)()
+  } catch {
+    return
+  }
+  const ctx = audio
+  if (ctx.state === "running") return chime(ctx)
+  let done = false
+  const go = () => {
+    if (done) return
+    done = true
+    cleanup()
+    ctx.resume().then(() => chime(ctx)).catch(() => {})
+  }
+  const cleanup = () => {
+    window.removeEventListener("pointerdown", go, true)
+    window.removeEventListener("keydown", go, true)
+    clearTimeout(timer)
+  }
+  ctx.resume().then(() => {
+    if (!done && ctx.state === "running") {
+      done = true
+      cleanup()
+      chime(ctx)
+    }
+  }).catch(() => {})
+  window.addEventListener("pointerdown", go, true)
+  window.addEventListener("keydown", go, true)
+  // too late to be a "startup" sound after this
+  const timer = setTimeout(() => {
+    done = true
+    cleanup()
+  }, 15000)
+}
+
+// ---- boot ----
+
+const POST = [
+  "98ish BIOS v4.10, An Energy Star Ally",
+  "Copyright (C) 1984-98, 98ish Software, Inc.",
+  "",
+  "PENTIUM-MMX CPU at 233MHz",
+  "Memory Test :  131072K OK",
+  "",
+  "Detecting IDE Primary Master ... 98ISH HARD DISK 2GB",
+  "Detecting IDE Primary Slave  ... CD-ROM 24X",
+  "",
+  "Starting Windows 98ish...",
+]
+
+export const BootScreen = ({ onDone }) => {
+  const [stage, setStage] = useState("post")
+  const [shown, setShown] = useState(0)
+  const doneRef = useRef(false)
+
+  const finish = () => {
+    if (doneRef.current) return
+    doneRef.current = true
+    onDone()
+  }
+
+  useEffect(() => {
+    if (stage === "post") {
+      if (shown < POST.length) {
+        const t = setTimeout(() => setShown((n) => n + 1), shown === 4 ? 320 : 90)
+        return () => clearTimeout(t)
+      }
+      const t = setTimeout(() => setStage("splash"), 380)
+      return () => clearTimeout(t)
+    }
+    const t = setTimeout(finish, 2400)
+    return () => clearTimeout(t)
+  }, [stage, shown])
+
+  useEffect(() => {
+    const skip = (e) => {
+      if (e.type === "keydown" && ["Shift", "Control", "Alt", "Meta"].includes(e.key)) return
+      finish()
+    }
+    // not the key press that started the boot (Enter after typing WIN)
+    const id = setTimeout(() => window.addEventListener("keydown", skip), 0)
+    return () => {
+      clearTimeout(id)
+      window.removeEventListener("keydown", skip)
+    }
+  }, [])
+
+  return (
+    <div className="powerScreen bootScreen" onPointerDown={finish} role="presentation" data-stage={stage}>
+      {stage === "post" ? (
+        <div className="postText">
+          <img className="postLogo" src="/windows_logo.png" alt="" />
+          {POST.slice(0, shown).map((line, i) => (
+            <div key={i}>{line || " "}</div>
+          ))}
+          <div className="postHint">Press any key or tap to skip</div>
+        </div>
+      ) : (
+        <div className="splash">
+          <div className="splashSky" />
+          <div className="splashBrand">
+            <img src="/windows_logo.png" alt="" />
+            <div>
+              <span className="splashWord">Windows</span>
+              <span className="splashNum">98ish</span>
+            </div>
+          </div>
+          <div className="splashBar" />
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ---- shut down ----
+
+export const ShutDownDialog = ({ onChoose, onCancel }) => {
+  const [choice, setChoice] = useState("shutdown")
+  return (
+    <div className="powerDim">
+      <Dialog title="Shut Down Windows" okLabel="OK" onOk={() => onChoose(choice)} onCancel={onCancel}>
+        <div className="shutDownBody">
+          <img src="/assets/shut_down.png" alt="" />
+          <div>
+            <p className="dialogText">What do you want the computer to do?</p>
+            {[
+              ["shutdown", "Shut down"],
+              ["restart", "Restart"],
+              ["dos", "Restart in MS-DOS mode"],
+            ].map(([id, label]) => (
+              <div className="field-row" key={id}>
+                <input id={`sd-${id}`} type="radio" name="sd" checked={choice === id} onChange={() => setChoice(id)} />
+                <label htmlFor={`sd-${id}`}>{label}</label>
+              </div>
+            ))}
+          </div>
+        </div>
+      </Dialog>
+    </div>
+  )
+}
+
+export const ShuttingDown = ({ onDone }) => {
+  useEffect(() => {
+    const t = setTimeout(onDone, 1600)
+    return () => clearTimeout(t)
+  }, [])
+  return (
+    <div className="powerScreen shuttingDown">
+      <div className="splashBrand">
+        <img src="/windows_logo.png" alt="" />
+        <div>
+          <span className="splashWord">Windows</span>
+          <span className="splashNum">98ish</span>
+        </div>
+      </div>
+      <p>Windows is shutting down.</p>
+    </div>
+  )
+}
+
+export const SafeToTurnOff = ({ onPowerOn }) => (
+  <div className="powerScreen safeOff" onClick={onPowerOn} role="button" tabIndex={0} onKeyDown={onPowerOn}>
+    <p>It's now safe to turn off</p>
+    <p>your computer.</p>
+    <small>Click or press any key to start it again</small>
+  </div>
+)
+
+// ---- log off ----
+
+export const LogOffDialog = ({ onYes, onCancel }) => (
+  <div className="powerDim">
+    <Dialog title="Log Off Windows" okLabel="Yes" cancelLabel="No" onOk={onYes} onCancel={onCancel}>
+      <div className="shutDownBody">
+        <img src="/assets/log_off.png" alt="" />
+        <p className="dialogText">Are you sure you want to log off?</p>
+      </div>
+    </Dialog>
+  </div>
+)
+
+const USER_KEY = "98ish.user"
+export const LogOn = ({ onDone }) => {
+  const [name, setName] = useState(() => {
+    try {
+      return localStorage.getItem(USER_KEY) || "Guest"
+    } catch {
+      return "Guest"
+    }
+  })
+  const done = () => {
+    try {
+      localStorage.setItem(USER_KEY, name.trim() || "Guest")
+    } catch {
+      // fine
+    }
+    onDone()
+  }
+  return (
+    <div className="powerScreen logOn">
+      <Dialog title="Welcome to Windows" okLabel="OK" onOk={done} onCancel={done}>
+        <div className="shutDownBody">
+          <img src="/windows_logo.png" alt="" />
+          <div className="logOnFields">
+            <p className="dialogText">Type a user name and password to log on to Windows.</p>
+            <label htmlFor="lo-name">User name:</label>
+            <input id="lo-name" type="text" autoFocus value={name} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && done()} />
+            <label htmlFor="lo-pass">Password:</label>
+            <input id="lo-pass" type="password" placeholder="(anything works)" autoComplete="off" onKeyDown={(e) => e.key === "Enter" && done()} />
+          </div>
+        </div>
+      </Dialog>
+    </div>
+  )
+}

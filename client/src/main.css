@@ -7,10 +7,9 @@
   --taskbar-h: calc(35px + env(safe-area-inset-bottom));
 }
 
+/* the wallpaper itself is on .os-root (Display Properties) */
 body {
-  background-image: url("/assets/98ish-desktop.png");
-  background-size: cover;
-  background-position: center;
+  background: #008080;
 }
 
 html, body, #root {
@@ -50,13 +49,67 @@ html, body, #root {
   height: 0;
 }
 
+/* The desktop proper (above the taskbar): icons, and right-clicks on empty space */
+.desktopSurface {
+  position: absolute;
+  inset: 0 0 var(--taskbar-h) 0;
+}
+
 .desktopIcon {
   cursor: default;
+}
+
+.desktopIconInner {
+  width: 88px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding-top: 4px;
+  text-align: center;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.desktopIconInner img {
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
 }
 
 .desktopIconLabel {
   font-size: 1rem;
   font-weight: 300;
+  color: #fff;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.85);
+  line-height: 1.15;
+  padding: 0 2px;
+  max-width: 100%;
+}
+
+.desktopIconInner.is-selected .desktopIconLabel {
+  background: #000080;
+  outline: 1px dotted #ffff00;
+  text-shadow: none;
+}
+
+.desktopIconInner.is-selected img {
+  filter: brightness(0.65) sepia(1) hue-rotate(190deg) saturate(4);
+}
+
+.desktopDialogLayer {
+  position: fixed;
+  inset: 0;
+  z-index: 99999998;
+}
+
+/* Title bars follow the color scheme (Display Properties > Appearance) */
+.os-root .title-bar {
+  background: linear-gradient(90deg, var(--title-a, #000080), var(--title-b, #1084d0));
+}
+
+.os-root .title-bar.inactive {
+  background: linear-gradient(90deg, var(--title-inactive-a, #808080), var(--title-inactive-b, #b5b5b5));
 }
 
 
@@ -155,20 +208,6 @@ html, body, #root {
   width: 480px;
   max-height: 70dvh;
   overflow-y: auto;
-}
-
-.sm-link {
-  padding: 0.5rem;
-}
-
-.sm-link:hover {
-  background-color:rgba(0, 0, 0, 0.2);
-}
-
-hr.sm {
-  color: #555;
-  opacity: 1;
-  box-shadow: 0 1px 0 #eee;
 }
 
 .startBtn {

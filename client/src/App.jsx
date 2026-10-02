@@ -1,11 +1,14 @@
-import React, { useState, useReducer } from "react"
+import React, { useEffect, useState, useReducer } from "react"
 import TaskBar from "./components/OS-specific/TaskBar"
 import StartMenu from "./components/OS-specific/StartMenu"
 import Desktop from "./components/OS-specific/Desktop"
-import { fs } from "./utils/fs"
-import { programs } from "./utils/programs"
 import LiveSearch from "./components/OS-specific/LiveSearch"
 import { useIsMobile } from "./hooks/useMediaQuery"
+import MsDos from "./components/applets/dos/MsDos"
+import Dialog from "./components/shared/Dialog"
+import { hasUnsavedNotepads } from "./components/applets/notepad/Notepad"
+import { BootScreen, LogOffDialog, LogOn, SafeToTurnOff, ShutDownDialog, ShuttingDown, playStartupSound } from "./components/OS-specific/Power"
+import { getSettings, schemeVars, useSettings, wallpaperStyle } from "./utils/settings"
 
 const reducer = (state, action) => {
   switch (action.type) {
@@ -30,6 +33,10 @@ const reducer = (state, action) => {
         }
         return window
       })
+
+    // logging off or shutting down
+    case "close_all":
+      return state.map((window) => ({ ...window, closed: true }))
 
     case "end_all":
       return state.map((window, idx) => {
@@ -119,47 +126,118 @@ const reducer = (state, action) => {
   }
 }
 
+// what's on screen: starting up, Windows, or one of the shut down / log off steps
+const firstPhase = () => (getSettings().bootScreen ? "boot" : "desktop")
+
 function App() {
   const [windows, dispatch] = useReducer(reducer, [])
   const [startMenuVisible, setStartMenuVisible] = useState(false)
   const [results, setResults] = useState([])
+  const [phase, setPhase] = useState(firstPhase)
+  const [power, setPower] = useState(null) // "shutdown" | "logoff" dialog
+  const [unsavedThen, setUnsavedThen] = useState(null) // what to do if the user says go ahead
   const mobile = useIsMobile()
+  const settings = useSettings()
 
   const closeMenu = () => {
     setResults([])
     setStartMenuVisible(false)
   }
 
+  // the chime, once Windows is up
+  const startedUp = () => {
+    setPhase("desktop")
+    if (getSettings().startupSound) playStartupSound()
+  }
+  useEffect(() => {
+    if (phase === "desktop" && !getSettings().bootScreen && getSettings().startupSound) playStartupSound()
+  }, [])
+
+  const restart = () => setPhase(getSettings().bootScreen ? "boot" : "desktop")
+
+  // unsaved Notepad text? ask before throwing it away
+  const checkUnsaved = (then) => (hasUnsavedNotepads() ? setUnsavedThen(() => then) : then())
+
+  const chooseShutDown = (choice) => {
+    setPower(null)
+    checkUnsaved(() => powerOff(choice))
+  }
+
+  const powerOff = (choice) => {
+    dispatch({ type: "close_all" })
+    if (choice === "dos") setPhase("dos")
+    else setPhase(choice === "restart" ? "restarting" : "shuttingDown")
+  }
+
   return (
-    <div className={mobile ? "os-root os-mobile" : "os-root"}>
-      <Desktop
-        fs={fs}
-        programs={programs}
-        windows={windows}
-        dispatch={dispatch}
-        closeMenu={closeMenu}
-        mobile={mobile}
-      />
-      <TaskBar
-        windows={windows}
-        dispatch={dispatch}
-        startMenuVisible={startMenuVisible}
-        setStartMenuVisible={setStartMenuVisible}
-      />
-      {/* Start menu and search results sit just above the taskbar */}
-      {startMenuVisible && (
-        <div className="startArea">
-          <StartMenu
+    <div
+      className={mobile ? "os-root os-mobile" : "os-root"}
+      style={{ ...wallpaperStyle(settings), ...schemeVars(settings) }}
+    >
+      {phase === "desktop" && (
+        <>
+          <Desktop windows={windows} dispatch={dispatch} closeMenu={closeMenu} mobile={mobile} />
+          <TaskBar
             windows={windows}
             dispatch={dispatch}
-            setResults={setResults}
-            closeMenu={closeMenu}
+            startMenuVisible={startMenuVisible}
+            setStartMenuVisible={setStartMenuVisible}
           />
-          {results.length !== 0 && (
-            <LiveSearch results={results} dispatch={dispatch} closeMenu={closeMenu} />
+          {/* Start menu and search results sit just above the taskbar */}
+          {startMenuVisible && (
+            <div className="startArea">
+              <StartMenu
+                dispatch={dispatch}
+                setResults={setResults}
+                closeMenu={closeMenu}
+                mobile={mobile}
+                onShutDown={() => setPower("shutdown")}
+                onLogOff={() => setPower("logoff")}
+              />
+              {results.length !== 0 && (
+                <LiveSearch results={results} dispatch={dispatch} closeMenu={closeMenu} />
+              )}
+            </div>
           )}
-        </div>
+          {power === "shutdown" && <ShutDownDialog onChoose={chooseShutDown} onCancel={() => setPower(null)} />}
+          {power === "logoff" && (
+            <LogOffDialog
+              onYes={() => {
+                setPower(null)
+                checkUnsaved(() => {
+                  dispatch({ type: "close_all" })
+                  setPhase("logOn")
+                })
+              }}
+              onCancel={() => setPower(null)}
+            />
+          )}
+          {unsavedThen && (
+            <div className="powerDim">
+              <Dialog
+                title="Windows"
+                okLabel="Yes"
+                cancelLabel="No"
+                onOk={() => {
+                  const then = unsavedThen
+                  setUnsavedThen(null)
+                  then()
+                }}
+                onCancel={() => setUnsavedThen(null)}
+              >
+                <p className="dialogText">Notepad has unsaved changes. If you continue, they'll be lost.</p>
+                <p className="dialogText">Continue anyway?</p>
+              </Dialog>
+            </div>
+          )}
+        </>
       )}
+      {phase === "boot" && <BootScreen onDone={startedUp} />}
+      {phase === "logOn" && <LogOn onDone={startedUp} />}
+      {phase === "shuttingDown" && <ShuttingDown onDone={() => setPhase("off")} />}
+      {phase === "restarting" && <ShuttingDown onDone={restart} />}
+      {phase === "off" && <SafeToTurnOff onPowerOn={restart} />}
+      {phase === "dos" && <MsDos fullScreen onClose={restart} />}
     </div>
   )
 }

@@ -138,3 +138,41 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* Right-click menus (ContextMenu.jsx): fixed to the viewport, above every window */
+.contextMenuLayer {
+  position: fixed;
+  inset: 0;
+  z-index: 100000000;
+  pointer-events: none;
+}
+
+.window.menu.contextMenu {
+  position: fixed;
+  pointer-events: auto;
+  font-family: "Pixelated MS Sans Serif", Arial, sans-serif;
+  -webkit-font-smoothing: none;
+  font-size: 11px;
+}
+
+.contextMenu button {
+  align-items: center;
+}
+
+.contextMenu button.is-default {
+  font-weight: bold;
+}
+
+.menuLabel {
+  flex: 1;
+}
+
+.menuArrow {
+  margin-left: 16px;
+  font-size: 8px;
+}
+
+.os-mobile .contextMenu button {
+  min-height: 34px !important;
+  font-size: 13px;
+}

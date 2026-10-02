@@ -1,0 +1,208 @@
+/* Start menu */
+
+.window.startMenu {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  height: auto;
+  padding: 2px;
+  overflow: visible;
+  color: #000;
+  font-family: "Pixelated MS Sans Serif", Arial, sans-serif;
+  -webkit-font-smoothing: none;
+  font-size: 11px;
+}
+
+.smBanner {
+  width: 22px;
+  flex: none;
+  background: linear-gradient(0deg, #000080, #1084d0);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 6px;
+}
+
+.smBanner span {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  color: #c0c0c0;
+  font-family: Arial, sans-serif;
+  font-size: 18px;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+.smBanner b {
+  color: #fff;
+  font-weight: 900;
+  margin-right: 2px;
+}
+
+.smMain {
+  min-width: 190px;
+  display: flex;
+  flex-direction: column;
+}
+
+.smSearch {
+  padding: 3px 4px 4px;
+}
+
+.smSearch input {
+  width: 100%;
+}
+
+.smList,
+.smSub {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.smItem {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 6px 2px 4px;
+  min-height: 24px;
+  cursor: default;
+  white-space: nowrap;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.smTop {
+  min-height: 36px;
+  font-size: 12px;
+}
+
+.smItem > img,
+.smNoIcon {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+  flex: none;
+}
+
+.smTop > img,
+.smTop > .smNoIcon {
+  width: 30px;
+  height: 30px;
+}
+
+.smLabel {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 260px;
+}
+
+.smArrow {
+  margin-left: 14px;
+  font-size: 9px;
+}
+
+.smItem:hover,
+.smItem.is-open {
+  background: #000080;
+  color: #fff;
+}
+
+.smItem.is-disabled {
+  color: #808080;
+  text-shadow: 1px 1px #fff;
+}
+
+.smItem.is-disabled:hover {
+  background: none;
+  color: #808080;
+}
+
+.smSep {
+  height: 2px;
+  margin: 3px 2px;
+  border-top: 1px solid #808080;
+  border-bottom: 1px solid #fff;
+}
+
+/* the flyout: next to its item, lined up with it */
+.window.smSub {
+  position: absolute;
+  left: calc(100% - 2px);
+  top: -3px;
+  min-width: 170px;
+  height: auto;
+  max-height: calc(100dvh - var(--taskbar-h) - 8px);
+  overflow-y: auto;
+  padding: 2px;
+  color: #000;
+  z-index: 1;
+}
+
+.smBack {
+  border-bottom: 1px solid #808080;
+  font-weight: bold;
+}
+
+.smBack .smArrow {
+  margin: 0 4px 0 0;
+}
+
+.runLayer {
+  position: fixed;
+  inset: 0;
+  z-index: 3;
+}
+
+.runLayer .dialogBackdrop {
+  position: fixed;
+}
+
+.runBody {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.runBody img {
+  width: 32px;
+  height: 32px;
+}
+
+.runError {
+  color: #c00000;
+}
+
+/* phones: full-width, bigger rows, one level at a time */
+.os-mobile .window.startMenu {
+  width: auto;
+}
+
+.os-mobile .smMain {
+  flex: 1;
+  min-width: 0;
+  max-height: calc(100dvh - var(--taskbar-h) - 60px);
+  overflow-y: auto;
+}
+
+.os-mobile .smItem {
+  min-height: 44px;
+  font-size: 14px;
+}
+
+.os-mobile .smItem:hover {
+  background: none;
+  color: inherit;
+}
+
+.os-mobile .smItem:active {
+  background: #000080;
+  color: #fff;
+}
+
+.os-mobile .smSearch input {
+  font-size: 16px;
+  height: 32px;
+}

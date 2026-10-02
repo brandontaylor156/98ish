@@ -1,0 +1,208 @@
+/* Notepad */
+
+.npRoot {
+  position: relative;
+  height: calc(100% - 25px);
+  display: flex;
+  flex-direction: column;
+  background: #c0c0c0;
+  font-family: "Pixelated MS Sans Serif", Arial, sans-serif;
+  -webkit-font-smoothing: none;
+  font-size: 11px;
+  color: #000;
+}
+
+.npRoot button {
+  min-width: 0;
+}
+
+.npText {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  margin: 0;
+  padding: 2px 4px;
+  resize: none;
+  border: 0;
+  outline: none;
+  background: #fff;
+  color: #000;
+  line-height: 1.25;
+  -webkit-font-smoothing: auto;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+  overflow: auto;
+  tab-size: 8;
+}
+
+.npText--nowrap {
+  white-space: pre;
+  overflow-wrap: normal;
+}
+
+/* Find / Replace: modeless, floats at the top right so you can keep typing */
+.window.npFind {
+  position: absolute;
+  top: 26px;
+  right: 8px;
+  z-index: 10;
+  height: auto;
+  min-width: 0;
+  width: min(380px, calc(100% - 16px));
+}
+
+.npFindBody {
+  display: flex;
+  gap: 8px;
+}
+
+.npFindFields {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.npFindFields label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.npFindFields input:not([type]) {
+  flex: 1;
+  min-width: 0;
+}
+
+.npFindOptions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.npFindButtons {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.npFindButtons button {
+  min-width: 82px !important;
+}
+
+/* Open / Save As */
+.npFdRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.npFdRow label {
+  width: 76px;
+  flex: none;
+}
+
+.npFdRow select,
+.npFdRow input {
+  flex: 1;
+  min-width: 0;
+}
+
+.npFdRow button img {
+  height: 14px;
+}
+
+.npFdList {
+  list-style: none;
+  margin: 0 !important;
+  padding: 2px !important;
+  height: 150px;
+  overflow: auto;
+  background: #fff;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+  columns: 2 140px;
+}
+
+.npFdList button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 2px !important;
+  min-height: 0;
+  background: none !important;
+  box-shadow: none !important;
+  border: 0;
+  text-align: left;
+  color: #000;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.npFdList button img {
+  width: 16px;
+  height: 16px;
+  flex: none;
+}
+
+.npFdList button.is-selected {
+  background: #000080 !important;
+  color: #fff;
+}
+
+.npFdEmpty {
+  color: #808080;
+  padding: 4px;
+}
+
+.npFdError {
+  color: #c00000;
+}
+
+/* Font */
+.npFontGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 70px;
+  gap: 6px;
+}
+
+.npFontGrid label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.npSample {
+  margin: 4px 0 0;
+  padding: 6px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border: 1px solid #808080;
+}
+
+.npSample legend {
+  float: none;
+  width: auto;
+  font-size: inherit;
+  padding: 0 4px;
+  margin: 0;
+}
+
+.os-mobile .npText {
+  font-size: 16px !important; /* no zoom-on-focus on iPhones */
+}
+
+.os-mobile .npFindBody {
+  flex-direction: column;
+}
+
+.os-mobile .npFindButtons {
+  flex-direction: row;
+  flex-wrap: wrap;
+}

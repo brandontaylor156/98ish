@@ -1,0 +1,78 @@
+/* MS-DOS Prompt */
+
+.dosRoot {
+  height: calc(100% - 25px);
+  background: #000;
+  color: #c0c0c0;
+  font-family: "Lucida Console", "Courier New", monospace;
+  font-size: 14px;
+  line-height: 1.2;
+  cursor: text;
+  overflow: hidden;
+}
+
+.dosRoot--full {
+  position: fixed;
+  inset: 0;
+  height: 100%;
+  z-index: 2147483000;
+  font-size: clamp(13px, 2.2vh, 20px);
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+
+.dosScreen {
+  height: 100%;
+  overflow-y: auto;
+  padding: 4px 6px;
+  scrollbar-width: thin;
+}
+
+.dosLine {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  min-height: 1.2em;
+}
+
+.dosInputLine {
+  position: relative;
+}
+
+.dosTyped {
+  white-space: pre-wrap;
+}
+
+.dosCursor {
+  display: inline-block;
+  width: 0.6em;
+  height: 0.18em;
+  vertical-align: baseline;
+  margin-left: 1px;
+  animation: dosBlink 1s steps(1) infinite;
+}
+
+.dosRoot:not(:focus-within) .dosCursor {
+  animation: none;
+  opacity: 0;
+}
+
+@keyframes dosBlink {
+  50% {
+    opacity: 0;
+  }
+}
+
+/* The real input sits on top of the line, invisible: it brings up phone keyboards and
+   takes the typing, while the line above shows it DOS-style */
+.dosInput {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  opacity: 0;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  font-size: 16px; /* no zoom-on-focus on iPhones */
+  color: transparent;
+  background: transparent;
+  caret-color: transparent;
+}

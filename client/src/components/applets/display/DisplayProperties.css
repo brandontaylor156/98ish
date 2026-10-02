@@ -1,0 +1,175 @@
+/* Display Properties */
+
+.dpRoot {
+  height: calc(100% - 25px);
+  display: flex;
+  flex-direction: column;
+  padding: 8px 8px 6px;
+  background: #c0c0c0;
+  color: #000;
+  font-family: "Pixelated MS Sans Serif", Arial, sans-serif;
+  -webkit-font-smoothing: none;
+  font-size: 11px;
+  overflow: auto;
+}
+
+.dpRoot button {
+  min-width: 0;
+}
+
+.dpTabs {
+  margin-bottom: -2px !important;
+}
+
+.dpTabs a {
+  color: #000 !important;
+}
+
+.window.dpPanel {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  height: auto;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow: auto;
+}
+
+.dpMonitor {
+  align-self: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.dpScreen {
+  width: 180px;
+  height: 120px;
+  border: 8px solid #c0c0c0;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, -1px -1px #fff, 1px 1px #000, 0 0 0 9px #c0c0c0, 1px 1px 0 9px #000, -1px -1px 0 9px #fff;
+  margin: 10px;
+  position: relative;
+  overflow: hidden;
+}
+
+.dpStand {
+  width: 60px;
+  height: 10px;
+  background: #c0c0c0;
+  box-shadow: inset -1px -1px #000, inset 1px 1px #fff;
+}
+
+.dpMiniWindow {
+  position: absolute;
+  left: 22px;
+  top: 26px;
+  width: 100px;
+  background: #c0c0c0;
+  box-shadow: inset -1px -1px #0a0a0a, inset 1px 1px #fff;
+  padding: 2px;
+  font-size: 8px;
+}
+
+.dpMiniTitle {
+  color: #fff;
+  font-weight: bold;
+  padding: 1px 3px;
+}
+
+.dpMiniBody {
+  background: #fff;
+  margin-top: 2px;
+  padding: 3px;
+}
+
+.dpRow {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.dpField {
+  flex: 1;
+  min-width: 0;
+}
+
+.dpField legend {
+  float: none;
+  width: auto;
+  font-size: inherit;
+  margin: 0;
+  padding: 0 3px;
+}
+
+.dpList {
+  list-style: none;
+  margin: 0;
+  padding: 2px;
+  height: 104px;
+  overflow: auto;
+  background: #fff;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+}
+
+.dpList button {
+  width: 100%;
+  text-align: left;
+  min-height: 0;
+  padding: 1px 3px;
+  background: none;
+  box-shadow: none !important;
+  color: #000;
+  text-shadow: none;
+}
+
+.dpList button.is-selected {
+  background: #000080;
+  color: #fff;
+}
+
+.dpSide {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100px;
+  padding-top: 12px;
+}
+
+.dpStack {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dpStack .field-row + .field-row {
+  margin-top: 8px;
+}
+
+.dpHint {
+  margin: 0;
+  color: #404040;
+  line-height: 1.4;
+}
+
+.dpButtons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  padding-top: 8px;
+}
+
+.dpButtons button {
+  min-width: 75px;
+}
+
+.os-mobile .dpButtons button,
+.os-mobile .dpSide button,
+.os-mobile .dpList button {
+  min-height: 34px;
+}
+
+.os-mobile .dpList {
+  height: 160px;
+}

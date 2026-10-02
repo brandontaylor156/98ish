@@ -6,14 +6,27 @@
 
 ## Features
 
-- Draggable, resizeable, windows with maximized and minimized states
-- Tree data structure for filesystem, including live search of files/directories and built-in text editor
-- Several interactive applets (Tetris, Minesweeper, YouTube client, etc.)
+- Draggable, resizable windows with maximized and minimized states, unlimited multitasking, and a phone layout
+  where every app fills the screen
+- A Windows 98 desktop: a startup screen and chime, a Start menu with cascading Programs / Documents / Favorites /
+  Settings submenus, Find, Run..., Log Off and Shut Down (including Restart in MS-DOS mode and "It's now safe to
+  turn off your computer"). Right-click the desktop (or long-press on a phone) to arrange icons, make a new
+  document or open Display Properties
+- Display Properties: wallpapers and patterns, or your own picture; color schemes; turn the startup screen and sound
+  on or off
+- A file system saved in your browser, so files and folders survive a reload. My Computer has cut / copy / paste,
+  rename, drag-and-drop text file import and a Recycle Bin you can restore from or empty
+- Notepad, as in Windows 98: Open / Save As dialogs, Find, Replace, Word Wrap, fonts, Time/Date (F5), the "save
+  changes?" prompt, and the .LOG trick
+- MS-DOS Prompt: DIR, CD, TYPE, COPY, MOVE, REN, DEL, MD, RD, DELTREE, TREE, EDIT, START, COLOR, `>` and `>>`
+  redirection, history and Tab completion, all working on the same files as My Computer. Type a program name
+  (TETRIS, WINMINE, SPECTRA...) to run it
+- Internet Explorer with a Wayback Machine time machine: browse the web as it was on any date
+- Games and applets: SPECTRA (a three.js tunnel flyer), Tetris, Minesweeper, Hover, YouTube '98, Task Manager
 - 98 Messenger, an AIM-style instant messenger: screen names with passwords, a Buddy List with groups, away
   messages, profiles, typing indicators, warnings, blocking, Buddy Chat rooms, door sounds, and SmarterChild (an
   always-online scripted buddy bot with jokes, trivia and a magic 8-ball). YouTube '98 can share videos to the 98ish
   Lobby chat room
-- Unlimited applet multitasking
 
 ## Demos
 
@@ -44,3 +57,8 @@ Environment variables:
 | Name | Value |
 | --- | --- |
 | `MONGODB_URI` | MongoDB connection string (e.g. a free MongoDB Atlas cluster) where 98 Messenger accounts, buddy lists and profiles are stored. Without it, accounts live in memory and vanish whenever the server restarts |
+
+**Keeping the chat server awake:** Render's free plan sleeps after 15 idle minutes, and the first visitor then waits
+20-50 seconds for 98 Messenger to connect. `.github/workflows/keepalive.yml` pings the server every 10 minutes from
+GitHub Actions, which is free for public repositories. GitHub pauses scheduled workflows after 60 days without a
+commit; turn it back on from the repo's **Actions** tab if that happens.

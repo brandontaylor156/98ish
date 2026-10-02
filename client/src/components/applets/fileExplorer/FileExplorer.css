@@ -1,0 +1,244 @@
+/* My Computer / Explorer and the Recycle Bin */
+
+.fxRoot {
+  position: relative;
+  height: calc(100% - 25px);
+  display: flex;
+  flex-direction: column;
+  background: #c0c0c0;
+  font-family: "Pixelated MS Sans Serif", Arial, sans-serif;
+  -webkit-font-smoothing: none;
+  font-size: 11px;
+  color: #000;
+  outline: none;
+}
+
+.fxRoot > * {
+  flex: none;
+}
+
+.fxRoot button {
+  min-width: 0;
+}
+
+.fxToolbar,
+.fxAddress {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 4px;
+  border-top: 1px solid #fff;
+  border-bottom: 1px solid #808080;
+  flex-wrap: wrap;
+}
+
+.fxToolbar button {
+  padding: 0 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.fxToolbar img {
+  height: 14px;
+}
+
+.fxSep {
+  width: 2px;
+  align-self: stretch;
+  margin: 2px 2px;
+  border-left: 1px solid #808080;
+  border-right: 1px solid #fff;
+}
+
+.fxAddress input {
+  flex: 1;
+  min-width: 0;
+}
+
+.fxView {
+  flex: 1 1 auto !important;
+  min-height: 0;
+  overflow: auto;
+  margin: 2px;
+  padding: 8px;
+  background: #fff;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(82px, 1fr));
+  grid-auto-rows: min-content;
+  gap: 8px 4px;
+  align-content: start;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.fxView--list {
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 1px 12px;
+}
+
+.fxItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 2px;
+  text-align: center;
+  cursor: default;
+  min-width: 0;
+}
+
+.fxItem img {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+}
+
+.fxView--list .fxItem {
+  flex-direction: row;
+  text-align: left;
+  padding: 1px 2px;
+}
+
+.fxView--list .fxItem img {
+  width: 16px;
+  height: 16px;
+}
+
+.fxName {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  padding: 0 2px;
+  line-height: 1.25;
+}
+
+.fxView--list .fxName {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fxItem.is-selected .fxName {
+  background: #000080;
+  color: #fff;
+  outline: 1px dotted #ffff00;
+}
+
+.fxItem.is-selected img {
+  filter: brightness(0.6) sepia(1) hue-rotate(190deg) saturate(4);
+}
+
+.fxItem.is-cut {
+  opacity: 0.5;
+}
+
+.fxEmpty {
+  grid-column: 1 / -1;
+  color: #808080;
+  margin: 0;
+}
+
+.fxStatus {
+  margin: 0;
+}
+
+.fxStatus .status-bar-field:first-child {
+  flex: 1;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.fxStatusRight {
+  flex: none !important;
+}
+
+.fxError {
+  color: #c00000;
+}
+
+.fxConfirm,
+.fxProps {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.fxConfirm img,
+.fxProps img {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+}
+
+.fxPropsTable {
+  margin-top: 6px;
+  border-top: 1px solid #808080;
+  width: 100%;
+}
+
+.fxPropsTable th {
+  font-weight: normal;
+  padding: 4px 10px 0 0;
+  vertical-align: top;
+  white-space: nowrap;
+}
+
+.fxPropsTable td {
+  padding-top: 4px;
+  overflow-wrap: anywhere;
+}
+
+/* Recycle Bin list */
+.rbList {
+  flex: 1 1 auto !important;
+  min-height: 0;
+  overflow: auto;
+  margin: 2px;
+  background: #fff;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+}
+
+.rbTable {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.rbTable th {
+  position: sticky;
+  top: 0;
+  text-align: left;
+  font-weight: normal;
+  padding: 2px 6px;
+  background: #c0c0c0;
+  box-shadow: inset -1px -1px #808080, inset 1px 1px #fff;
+}
+
+.rbTable td {
+  padding: 2px 6px;
+  white-space: nowrap;
+  cursor: default;
+}
+
+.rbTable tr.is-selected td {
+  background: #000080;
+  color: #fff;
+}
+
+.rbTable img {
+  width: 16px;
+  height: 16px;
+  vertical-align: middle;
+  margin-right: 4px;
+}
+
+.os-mobile .fxToolbar button,
+.os-mobile .fxAddress button {
+  min-height: 32px;
+}
+
+.os-mobile .rbTable td {
+  padding: 8px 6px;
+}

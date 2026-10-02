@@ -4,7 +4,8 @@ import "./shared.css"
 // A small 98-style dialog floating over the window it belongs to (Add Buddy, Away
 // Message, Custom Field...). Enter submits, Escape cancels. The window's content root
 // must be position: relative.
-const Dialog = ({ title, onOk, onCancel, okLabel = "OK", cancelLabel = "Cancel", okDisabled, children }) => {
+// onNo adds a middle button ("Yes / No / Cancel", as in "Save changes?")
+const Dialog = ({ title, onOk, onNo, onCancel, okLabel = "OK", noLabel = "No", cancelLabel = "Cancel", okDisabled, children }) => {
   const ref = useRef(null)
 
   useEffect(() => {
@@ -39,6 +40,11 @@ const Dialog = ({ title, onOk, onCancel, okLabel = "OK", cancelLabel = "Cancel",
             {onOk && (
               <button type="submit" disabled={okDisabled}>
                 {okLabel}
+              </button>
+            )}
+            {onNo && (
+              <button type="button" onClick={onNo}>
+                {noLabel}
               </button>
             )}
             {onCancel && (

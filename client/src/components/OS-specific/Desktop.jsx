@@ -1,12 +1,18 @@
-import React, { useEffect, useState } from "react"
+import React, { useEffect, useRef, useState } from "react"
 import { Rnd } from "react-rnd"
 import FileExplorer from "../applets/fileExplorer/FileExplorer"
+import RecycleBin from "../applets/fileExplorer/RecycleBin"
 import Notepad from "../applets/notepad/Notepad"
+import MsDos from "../applets/dos/MsDos"
+import DisplayProperties from "../applets/display/DisplayProperties"
 import Tetris from "../applets/tetris/Tetris"
 import Hover from "../applets/hover/Hover"
 import Spectra from "../applets/spectra/Spectra"
 import InternetExplorer from "../applets/internetExplorer/InternetExplorer"
-import { ieWindow } from "../../utils/programs"
+import { desktopPrograms, ieWindow, launch, notepadWindow, windowFor } from "../../utils/programs"
+import { openTarget } from "../../utils/openItem"
+import { fs } from "../../utils/fs"
+import { useFsVersion } from "../../hooks/useFs"
 import VideoPlayer from "../applets/videoPlayer/VideoPlayer"
 import Minesweeper from "../applets/minesweeper/Minesweeper"
 import { AimProvider } from "../applets/aim/AimContext"
@@ -16,42 +22,16 @@ import ChatRoom from "../applets/aim/ChatRoom"
 import BuddyInfo from "../applets/aim/BuddyInfo"
 import ChatInvite, { AimNotice } from "../applets/aim/ChatInvite"
 import TaskManager from "../applets/taskManager/TaskManager"
+import ContextMenu from "../shared/ContextMenu"
+import Dialog from "../shared/Dialog"
 import { useOpenGesture } from "../../hooks/useMediaQuery"
-import MobileIcons from "./MobileIcons"
+import { useLongPress } from "../../hooks/useLongPress"
+import MobileIcons, { resetMobileIcons } from "./MobileIcons"
 import io from "socket.io-client"
 
-const openProgram = (dispatch, program) =>
-  dispatch({
-    type: "open_window",
-    payload: {
-      name: program.name,
-      minimized: false,
-      maximized: false,
-      active: true,
-      closed: false,
-      width: program.width,
-      height: program.height,
-      positionX: 10,
-      positionY: 0,
-      icon_url: program.icon_url,
-      app: program.app,
-    },
-  })
-
-const IconContent = ({ program, openGesture, dispatch }) => (
-  <div
-    className="d-flex flex-column align-items-center text-center desktopIcon"
-    {...openGesture(() => openProgram(dispatch, program))}
-  >
-    <img
-      src={program.image_url}
-      style={{ width: "50px", height: "50px" }}
-      draggable="false"
-      dragstart="false"
-    />
-    <label className="desktopIconLabel text-light">{program.name}</label>
-  </div>
-)
+const ICONS_KEY = "98ish.desktopIcons"
+const CELL_W = 94
+const CELL_H = 88
 
 // Narrowest a window may get. 98 Messenger's Buddy List and IMs are tall and narrow.
 const minWidthFor = (window) =>
@@ -76,13 +56,74 @@ const useViewport = () => {
   return viewport
 }
 
-const Desktop = ({ fs, programs, windows, dispatch, closeMenu, mobile }) => {
+// My Computer and the Recycle Bin first, as in Windows
+const defaultOrder = () => {
+  const first = ["My Computer", "Recycle Bin"]
+  return [...first, ...desktopPrograms.map((p) => p.name).filter((n) => !first.includes(n))]
+}
+
+// Columns down the left side, top to bottom
+const gridLayout = (names, viewport) => {
+  const rows = Math.max(1, Math.floor((viewport.height - viewport.taskbar - 10) / CELL_H))
+  return Object.fromEntries(names.map((name, i) => [name, { x: 6 + Math.floor(i / rows) * CELL_W, y: 6 + (i % rows) * CELL_H }]))
+}
+
+const loadIcons = () => {
+  try {
+    return JSON.parse(localStorage.getItem(ICONS_KEY)) || null
+  } catch {
+    return null
+  }
+}
+
+const saveIcons = (positions) => {
+  try {
+    localStorage.setItem(ICONS_KEY, JSON.stringify(positions))
+  } catch {
+    // fine: they just won't be remembered
+  }
+}
+
+const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
+  useFsVersion()
   const [socket] = useState(() =>
     io(import.meta.env.VITE_SOCKET_URL || "http://localhost:8000")
   )
   const [share, setShare] = useState("")
+  const [menu, setMenu] = useState(null) // { x, y, items }
+  const [selected, setSelected] = useState(null)
+  const [confirmEmpty, setConfirmEmpty] = useState(false)
+  const [mobileLayout, setMobileLayout] = useState(0)
   const openGesture = useOpenGesture()
   const viewport = useViewport()
+  const [positions, setPositions] = useState(() => ({ ...gridLayout(defaultOrder(), viewport), ...loadIcons() }))
+
+  // logging off or shutting down unmounts the desktop: sign out of 98 Messenger
+  useEffect(() => () => socket.disconnect(), [])
+
+  const binFull = fs.recycleBin.content.length > 0
+  const icons = desktopPrograms.map((p) =>
+    p.app === "recycle" ? { ...p, icon: binFull ? "/assets/recycle_bin_full.png" : "/assets/recycle_bin_empty.png" } : p
+  )
+
+  const openProgram = (program) => dispatch({ type: "open_window", payload: windowFor(program) })
+
+  // ---- closing (Notepad asks about unsaved changes first) ----
+
+  const guards = useRef({})
+  const registrars = useRef({})
+  const registerFor = (index) =>
+    (registrars.current[index] ||= (fn) => {
+      guards.current[index] = fn
+      return () => {
+        if (guards.current[index] === fn) delete guards.current[index]
+      }
+    })
+
+  const closeWindow = (window, index, force = false) => {
+    if (!force && guards.current[index]?.() === false) return
+    dispatch({ type: "close_window", payload: { name: window.name, index } })
+  }
 
   // YouTube links in 98 Messenger play in a View Video window
   const openVideo = (url) => {
@@ -104,8 +145,86 @@ const Desktop = ({ fs, programs, windows, dispatch, closeMenu, mobile }) => {
     })
   }
 
-  const closeWindow = (window, index) =>
-    dispatch({ type: "close_window", payload: { name: window.name, index } })
+  const rename = (index) => (name) => dispatch({ type: "rename_window", payload: { index, name } })
+
+  // ---- right-click menus ----
+
+  const arrange = (by) => {
+    const names = defaultOrder()
+    if (by === "name") names.sort((a, b) => a.localeCompare(b))
+    if (by === "type") {
+      const rank = (n) => (n === "My Computer" ? 0 : n === "Recycle Bin" ? 1 : 2)
+      names.sort((a, b) => rank(a) - rank(b) || a.localeCompare(b))
+    }
+    const next = gridLayout(names, viewport)
+    setPositions(next)
+    saveIcons(next)
+    if (mobile) {
+      resetMobileIcons(by === "name" ? [...names] : names)
+      setMobileLayout((n) => n + 1)
+    }
+  }
+
+  const lineUp = () => {
+    const next = Object.fromEntries(
+      Object.entries(positions).map(([name, p]) => [name, { x: 6 + Math.round((p.x - 6) / CELL_W) * CELL_W, y: 6 + Math.round((p.y - 6) / CELL_H) * CELL_H }])
+    )
+    setPositions(next)
+    saveIcons(next)
+  }
+
+  const desktopMenu = () => [
+    {
+      label: "Arrange Icons",
+      items: [
+        { label: "by Name", onClick: () => arrange("name") },
+        { label: "by Type", onClick: () => arrange("type") },
+        { label: "Default", onClick: () => arrange("default") },
+      ],
+    },
+    ...(mobile ? [] : [{ label: "Line Up Icons", onClick: lineUp }]),
+    "-",
+    { label: "Refresh", onClick: () => setPositions((p) => ({ ...p })) },
+    "-",
+    {
+      label: "New",
+      items: [
+        { label: "Text Document", onClick: () => dispatch({ type: "open_window", payload: notepadWindow() }) },
+        { label: "Folder (in My Documents)", onClick: () => dispatch({ type: "open_window", payload: launch("My Computer", { path: ["C:", "Documents"] }) }) },
+      ],
+    },
+    "-",
+    { label: "Properties", onClick: () => dispatch({ type: "open_window", payload: launch("Display Properties") }) },
+  ]
+
+  const iconMenu = (program) => [
+    { label: "Open", bold: true, onClick: () => openProgram(program) },
+    ...(program.app === "recycle" ? [{ label: "Empty Recycle Bin", disabled: !binFull, onClick: () => setConfirmEmpty(true) }] : []),
+    ...(program.app === "explorer" ? [{ label: "Explore", onClick: () => dispatch({ type: "open_window", payload: launch("My Computer", { path: ["C:"] }) }) }] : []),
+    "-",
+    { label: "Properties", onClick: () => (program.app === "recycle" || program.app === "explorer" ? openProgram(program) : dispatch({ type: "open_window", payload: launch("Display Properties") })) },
+  ]
+
+  const showMenu = (x, y, program) => {
+    closeMenu()
+    setSelected(program?.name || null)
+    setMenu({ x, y, items: program ? iconMenu(program) : desktopMenu() })
+  }
+
+  const longPress = useLongPress((x, y, { target }) => {
+    if (target.closest?.(".mobileWindow, .desktopWindow, .startArea, .taskbar")) return
+    const iconEl = target.closest?.("[data-program]")
+    showMenu(x, y, iconEl ? icons.find((p) => p.name === iconEl.dataset.program) : null)
+  })
+
+  const onContextMenu = (e) => {
+    if (e.target.closest(".desktopWindow, .mobileWindow, .contextMenuLayer")) return
+    e.preventDefault()
+    const iconEl = e.target.closest("[data-program]")
+    showMenu(e.clientX, e.clientY, iconEl ? icons.find((p) => p.name === iconEl.dataset.program) : null)
+  }
+
+  // ---- window contents ----
 
   const renderContents = (window, index) => (
     <>
@@ -115,15 +234,26 @@ const Desktop = ({ fs, programs, windows, dispatch, closeMenu, mobile }) => {
       {window.app === "ie" && (
         <InternetExplorer
           initialUrl={window.url}
-          onTitle={(name) => dispatch({ type: "rename_window", payload: { index, name } })}
+          onTitle={rename(index)}
           onNewWindow={(url) => dispatch({ type: "open_window", payload: ieWindow(url) })}
           onClose={() => closeWindow(window, index)}
         />
       )}
-      {window.name == "My Computer" && (
-        <FileExplorer fs={fs} dispatch={dispatch} />
+      {window.app === "explorer" && <FileExplorer path={window.path ?? []} dispatch={dispatch} onTitle={rename(index)} />}
+      {window.app === "recycle" && <RecycleBin />}
+      {window.app === "notepad" && (
+        <Notepad
+          file={window.file}
+          onTitle={rename(index)}
+          // Notepad's own Exit has already asked about saving
+          onClose={() => closeWindow(window, index, true)}
+          registerCloseGuard={registerFor(index)}
+        />
       )}
-      {window.name == "Notepad" && <Notepad file={window.file} />}
+      {window.app === "dos" && (
+        <MsDos onClose={() => closeWindow(window, index)} onOpen={(target) => openTarget(target, dispatch)} onTitle={rename(index)} />
+      )}
+      {window.app === "display" && <DisplayProperties onClose={() => closeWindow(window, index)} />}
       {window.name == "Minesweeper" && (
         <Minesweeper
           // On a desktop the window resizes to fit the board; phones and maximized
@@ -178,7 +308,7 @@ const Desktop = ({ fs, programs, windows, dispatch, closeMenu, mobile }) => {
 
     return (
       <div
-        className="title-bar"
+        className={window.active ? "title-bar" : "title-bar inactive"}
         style={{ height: "25px" }}
         onDoubleClick={mobile ? undefined : toggleMaximize}
       >
@@ -229,6 +359,28 @@ const Desktop = ({ fs, programs, windows, dispatch, closeMenu, mobile }) => {
       payload: { name: window.name, active: window.active, index },
     })
 
+  const overlays = (
+    <>
+      {menu && <ContextMenu x={menu.x} y={menu.y} items={menu.items} onClose={() => setMenu(null)} />}
+      {confirmEmpty && (
+        <div className="desktopDialogLayer">
+          <Dialog
+            title="Confirm Multiple File Delete"
+            okLabel="Yes"
+            cancelLabel="No"
+            onOk={() => {
+              fs.emptyRecycleBin()
+              setConfirmEmpty(false)
+            }}
+            onCancel={() => setConfirmEmpty(false)}
+          >
+            <p className="dialogText">Are you sure you want to delete all of the items in the Recycle Bin? This can't be undone.</p>
+          </Dialog>
+        </div>
+      )}
+    </>
+  )
+
   const withAim = (desktop) => (
     <AimProvider socket={socket} windows={windows} dispatch={dispatch} onOpenVideo={openVideo}>
       {desktop}
@@ -237,8 +389,8 @@ const Desktop = ({ fs, programs, windows, dispatch, closeMenu, mobile }) => {
 
   if (mobile) {
     return withAim(
-      <div className="mobileDesktop" onClick={() => closeMenu()}>
-        <MobileIcons programs={programs} onOpen={(program) => openProgram(dispatch, program)} />
+      <div className="mobileDesktop" onClick={() => closeMenu()} onContextMenu={onContextMenu} {...longPress}>
+        <MobileIcons key={mobileLayout} programs={icons} onOpen={openProgram} />
         {windows.map(
           (window, index) =>
             !window.closed && (
@@ -258,32 +410,50 @@ const Desktop = ({ fs, programs, windows, dispatch, closeMenu, mobile }) => {
               </div>
             )
         )}
+        {overlays}
       </div>
     )
   }
 
   return withAim(
-    <div onClick={(e) => closeMenu()}>
-      {programs &&
-        programs.map((program, index) => {
-          return (
-            <Rnd
-              default={{
-                x: 10 + index * 100,
-                y: 10,
-                width: 50,
-                height: 50,
-              }}
-              className="p-0 desktopIcon"
-              key={index}
-              enableResizing="false"
-              dragGrid={[15, 15]}
-              bounds="window"
+    <div
+      className="desktopSurface"
+      onClick={(e) => {
+        closeMenu()
+        if (!e.target.closest(".desktopIcon")) setSelected(null)
+      }}
+      onContextMenu={onContextMenu}
+    >
+      {icons.map((program) => {
+        const pos = positions[program.name] || { x: 6, y: 6 }
+        return (
+          <Rnd
+            key={program.name}
+            position={pos}
+            size={{ width: 88, height: 76 }}
+            className="p-0 desktopIcon"
+            enableResizing={false}
+            dragGrid={[15, 15]}
+            bounds="parent"
+            onDragStop={(e, data) => {
+              if (data.x === pos.x && data.y === pos.y) return
+              const next = { ...positions, [program.name]: { x: data.x, y: data.y } }
+              setPositions(next)
+              saveIcons(next)
+            }}
+          >
+            <div
+              className={selected === program.name ? "desktopIconInner is-selected" : "desktopIconInner"}
+              data-program={program.name}
+              onPointerDown={() => setSelected(program.name)}
+              {...openGesture(() => openProgram(program))}
             >
-              <IconContent program={program} openGesture={openGesture} dispatch={dispatch} />
-            </Rnd>
-          )
-        })}
+              <img src={program.icon} draggable="false" alt="" />
+              <label className="desktopIconLabel">{program.name}</label>
+            </div>
+          </Rnd>
+        )
+      })}
 
       {/* Windows are positioned from the screen's top-left corner */}
       <div className="windowLayer">
@@ -341,6 +511,7 @@ const Desktop = ({ fs, programs, windows, dispatch, closeMenu, mobile }) => {
             )
           })}
       </div>
+      {overlays}
     </div>
   )
 }

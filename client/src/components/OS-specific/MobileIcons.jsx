@@ -64,6 +64,12 @@ const arrange = (programs, saved, columns, rows) => {
   return cells
 }
 
+// Arrange Icons: lay the icons out again in this order (remount MobileIcons after)
+export const resetMobileIcons = (names) => {
+  const columns = Math.max(1, Math.floor((document.documentElement.clientWidth - PAD * 2) / CELL_W))
+  saveCells(arrange(names.map((name) => ({ name })), {}, columns, Infinity))
+}
+
 const MobileIcons = ({ programs, onOpen }) => {
   const ref = useRef(null)
   const [size, setSize] = useState({ columns: 4, rows: 6 })
@@ -87,7 +93,7 @@ const MobileIcons = ({ programs, onOpen }) => {
   const cells = arrange(programs, saved, size.columns, size.rows)
 
   const onPointerDown = (event, program) => {
-    gesture.current = { name: program.name, x: event.clientX, y: event.clientY, dragging: false, id: event.pointerId }
+    gesture.current = { name: program.name, x: event.clientX, y: event.clientY, dragging: false, id: event.pointerId, at: performance.now() }
     event.currentTarget.setPointerCapture(event.pointerId)
   }
 
@@ -106,6 +112,8 @@ const MobileIcons = ({ programs, onOpen }) => {
     gesture.current = null
     if (!g || g.id !== event.pointerId) return
     if (!g.dragging) {
+      // held still: that was a long press (the desktop shows its menu), not a tap
+      if (performance.now() - g.at > 450) return
       swallowNextClick()
       return onOpen(program)
     }
@@ -137,6 +145,7 @@ const MobileIcons = ({ programs, onOpen }) => {
         return (
           <div
             key={program.name}
+            data-program={program.name}
             className={dragging ? "mobileIcon is-dragging" : "mobileIcon"}
             style={{
               left: PAD + cell.col * CELL_W,
@@ -149,7 +158,7 @@ const MobileIcons = ({ programs, onOpen }) => {
             onPointerCancel={onPointerCancel}
             onContextMenu={(e) => e.preventDefault()}
           >
-            <img src={program.image_url} alt="" draggable="false" />
+            <img src={program.icon} alt="" draggable="false" />
             <label className="desktopIconLabel text-light">{program.name}</label>
           </div>
         )

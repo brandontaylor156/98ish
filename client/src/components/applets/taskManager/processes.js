@@ -31,7 +31,9 @@ export const APP_PROFILES = {
   Notepad: { image: "notepad.exe", mem: 1356, threads: 1, handles: 22, cpu: [0.05, 1] },
   Minesweeper: { image: "winmine.exe", mem: 1588, threads: 1, handles: 26, cpu: [0.15, 1] },
   "98 Messenger": { image: "aim.exe", mem: 5960, threads: 8, handles: 164, cpu: [0.25, 2] },
-  Terminal: { image: "command.com", mem: 932, threads: 1, handles: 18, cpu: [0.05, 1] },
+  "MS-DOS Prompt": { image: "command.com", mem: 932, threads: 1, handles: 18, cpu: [0.05, 1] },
+  "Recycle Bin": { image: "explorer.exe", mem: 2980, threads: 4, handles: 71, cpu: [0.1, 1] },
+  "Display Properties": { image: "rundll32.exe", mem: 1704, threads: 2, handles: 39, cpu: [0.05, 1] },
 }
 
 const fallbackProfile = (name) => ({
@@ -56,7 +58,7 @@ export const buildProcessList = (windows) => {
   ;(windows || []).forEach((w, index) => {
     if (w.closed) return
     // Every 98 Messenger window (IMs, chat rooms) is part of aim.exe
-    const profile = profileFor(w.app?.startsWith("aim") ? "98 Messenger" : w.app === "ie" ? "Internet Explorer" : w.name)
+    const profile = profileFor(w.app?.startsWith("aim") ? "98 Messenger" : w.app === "ie" ? "Internet Explorer" : w.program || w.name)
     apps.push({
       ...profile,
       key: "w" + index,
