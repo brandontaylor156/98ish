@@ -15,6 +15,11 @@ export const WALLPAPERS = [
   { id: "diamonds", label: "Diamonds" },
   { id: "stripes", label: "Pinstripe" },
   { id: "dots", label: "Polka Dots" },
+  // the Desktop Themes' pictures
+  { id: "space", label: "Deep Space", url: "/assets/themes/space.svg" },
+  { id: "underwater", label: "Underwater", url: "/assets/themes/underwater.svg" },
+  { id: "sunset", label: "Sunset Grid", url: "/assets/themes/sunset.svg" },
+  { id: "dinosaurs", label: "Dinosaurs", url: "/assets/themes/dinosaurs.svg" },
   { id: "custom", label: "(Your picture)" },
 ]
 
@@ -27,6 +32,11 @@ export const SCHEMES = [
   { id: "brick", label: "Brick", title: ["#800000", "#c04040"], inactive: ["#808080", "#b5b5b5"], desktop: "#5a2020" },
   { id: "pumpkin", label: "Pumpkin", title: ["#b05000", "#f09030"], inactive: ["#808080", "#b5b5b5"], desktop: "#2a2a2a" },
   { id: "plum", label: "Plum (high color)", title: ["#402040", "#c080c0"], inactive: ["#808080", "#b5b5b5"], desktop: "#402040" },
+  // the Desktop Themes' schemes
+  { id: "nebula", label: "Nebula", title: ["#1b1458", "#6a4fd8"], inactive: ["#57566e", "#9a98b4"], desktop: "#0a0a26" },
+  { id: "lagoon", label: "Lagoon", title: ["#004c6e", "#22a7c4"], inactive: ["#6a8088", "#a9bcc2"], desktop: "#05415a" },
+  { id: "synth", label: "Synth", title: ["#a0207c", "#25b9d0"], inactive: ["#7a6a86", "#b9aec4"], desktop: "#2a0c46" },
+  { id: "jurassic", label: "Jurassic", title: ["#3e5a16", "#a39a34"], inactive: ["#7a7a66", "#b8b8a2"], desktop: "#3a4719" },
 ]
 
 export const DEFAULT_SETTINGS = {
@@ -40,6 +50,15 @@ export const DEFAULT_SETTINGS = {
   screensaver: "none", // an id from components/screensavers, or "none"
   screensaverWait: 10, // minutes
   screensaverOptions: {}, // { [id]: that screensaver's options }
+  volume: 80, // the taskbar speaker: 0-100, for system sounds and Media Player
+  muted: false,
+  soundScheme: "classic", // system sound flavor (Desktop Themes): classic | space | ocean | synth | dino
+  theme: "standard", // the Desktop Theme last applied
+  iconStyle: "none", // desktop icon effect (Desktop Themes)
+  cursor: "default", // mouse pointer set (Desktop Themes)
+  taskbarAutoHide: false,
+  taskbarClock: true,
+  quickLaunch: true, // show the Quick Launch toolbar
 }
 
 const listeners = new Set()
@@ -55,6 +74,9 @@ const read = () => {
 let current = read()
 
 export const getSettings = () => current
+
+// the master volume as a gain multiplier (0 when muted)
+export const masterGain = (s = current) => (s.muted ? 0 : Math.pow(Math.max(0, Math.min(100, s.volume ?? 80)) / 100, 2))
 
 export const setSettings = (patch) => {
   current = { ...current, ...patch }
@@ -166,6 +188,8 @@ const imageStyle = (url, display, color) => ({
   backgroundSize: display === "stretch" ? "cover" : "auto",
 })
 
+const wallpaperUrl = (id) => WALLPAPERS.find((w) => w.id === id)?.url
+
 export const schemeFor = (id) => SCHEMES.find((s) => s.id === id) || SCHEMES[0]
 
 // CSS for the desktop background
@@ -181,8 +205,9 @@ export const wallpaperStyle = (settings) => {
       return data ? imageStyle(data, settings.display, color) : { backgroundColor: color }
     }
     default:
+      if (wallpaperUrl(settings.wallpaper)) return imageStyle(wallpaperUrl(settings.wallpaper), settings.display, color)
       if (PATTERNS[settings.wallpaper]) return PATTERNS[settings.wallpaper](color)
-      return imageStyle("/assets/98ish-desktop.png", settings.display, color)
+      return imageStyle("/assets/98ish-desktop.webp", settings.display, color)
   }
 }
 
@@ -194,5 +219,25 @@ export const schemeVars = (settings) => {
     "--title-b": s.title[1],
     "--title-inactive-a": s.inactive[0],
     "--title-inactive-b": s.inactive[1],
+    // Desktop Themes: desktop icon effect and mouse pointers
+    "--icon-filter": ICON_STYLES[settings.iconStyle] || "none",
+    "--os-cursor": CURSORS[settings.cursor] || "default",
   }
+}
+
+// desktop icon effects a theme can set
+export const ICON_STYLES = {
+  none: "none",
+  glow: "drop-shadow(0 0 3px #9fd8ff) drop-shadow(0 0 1px #fff)",
+  sea: "sepia(0.35) hue-rotate(150deg) saturate(1.4) drop-shadow(0 0 2px #7fe9ff)",
+  neon: "saturate(1.6) drop-shadow(0 0 3px #ff4fd8)",
+  fossil: "sepia(0.55) saturate(1.2) drop-shadow(1px 1px 0 #2f3a10)",
+}
+
+// mouse pointer sets (small SVGs under /assets/themes/cursors)
+export const CURSORS = {
+  rocket: 'url("/assets/themes/cursors/rocket.svg") 1 1, default',
+  fish: 'url("/assets/themes/cursors/fish.svg") 1 1, default',
+  neon: 'url("/assets/themes/cursors/neon.svg") 1 1, default',
+  bone: 'url("/assets/themes/cursors/bone.svg") 1 1, default',
 }

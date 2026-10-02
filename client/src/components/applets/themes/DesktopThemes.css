@@ -1,0 +1,209 @@
+/* Desktop Themes */
+
+.dtRoot {
+  position: relative;
+  height: calc(100% - 25px);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+  background: #c0c0c0;
+  color: #000;
+  font-family: "Pixelated MS Sans Serif", Arial, sans-serif;
+  -webkit-font-smoothing: none;
+  font-size: 11px;
+  overflow: auto;
+}
+
+.dtRoot button {
+  min-width: 0;
+}
+
+.dtTop {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dtTop select {
+  flex: 1;
+  max-width: 280px;
+}
+
+.dtMain {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  gap: 8px;
+}
+
+/* the big preview: a little desktop */
+.dtPreview {
+  flex: 1;
+  min-width: 0;
+  min-height: 200px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+}
+
+.dtIcons {
+  position: absolute;
+  left: 8px;
+  top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dtIcon {
+  width: 66px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  color: #fff;
+  text-align: center;
+  text-shadow: 1px 1px 1px #000;
+  font-size: 10px;
+}
+
+.dtIcon img {
+  width: 32px;
+  height: 32px;
+  filter: var(--icon-filter, none);
+}
+
+.dtWin {
+  position: absolute;
+  right: 12%;
+  bottom: 14%;
+  width: min(62%, 220px);
+  background: #c0c0c0;
+  box-shadow: inset -1px -1px #0a0a0a, inset 1px 1px #fff, inset -2px -2px #808080, inset 2px 2px #dfdfdf;
+  padding: 3px;
+}
+
+.dtWin--inactive {
+  right: 22%;
+  bottom: 42%;
+  width: min(52%, 180px);
+}
+
+.dtWinTitle {
+  color: #fff;
+  font-weight: bold;
+  padding: 2px 4px;
+}
+
+.dtWin--inactive .dtWinTitle {
+  color: #d4d0c8;
+}
+
+.dtWinBody {
+  position: relative;
+  margin-top: 3px;
+  padding: 6px 4px 18px;
+  background: #fff;
+  box-shadow: inset 1px 1px #808080, inset -1px -1px #fff;
+}
+
+.dtCursor {
+  position: absolute;
+  right: 18px;
+  bottom: 2px;
+  width: 24px;
+  height: 24px;
+}
+
+.dtSide {
+  width: 170px;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dtField {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dtField legend {
+  float: none;
+  width: auto;
+  font-size: inherit;
+  margin: 0;
+  padding: 0 3px;
+}
+
+.dtField .field-row {
+  margin: 0;
+}
+
+.dtBlurb {
+  margin: 0;
+  min-height: 2.8em;
+  line-height: 1.4;
+  color: #303030;
+}
+
+.dtButtons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.dtButtons button {
+  min-width: 75px;
+}
+
+.dtSounds {
+  list-style: none;
+  margin: 6px 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+}
+
+.dtSounds button {
+  width: 100%;
+  text-align: left;
+  padding: 2px 6px;
+}
+
+.dtPointer {
+  width: 24px;
+  height: 24px;
+  vertical-align: middle;
+}
+
+/* phones: preview on top, settings underneath */
+.os-mobile .dtMain {
+  flex-direction: column;
+  flex: none;
+}
+
+.os-mobile .dtPreview {
+  min-height: 210px;
+}
+
+.os-mobile .dtSide {
+  width: auto;
+  flex-direction: row;
+}
+
+.os-mobile .dtSide .dtField {
+  flex: 1;
+}
+
+.os-mobile .dtRoot button {
+  min-height: 34px;
+}
+
+.os-mobile .dtField .field-row input + label::before {
+  margin-top: 1px;
+}

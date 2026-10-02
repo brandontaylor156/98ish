@@ -8,6 +8,7 @@ import { DRAG_TYPE, desktopFolder, getClipboard, moveInto, pasteInto, setClipboa
 import { useFsVersion } from "../../hooks/useFs"
 import { playSystemSound } from "../../utils/systemSounds"
 import { AimProvider } from "../applets/aim/AimContext"
+import MailNotifier from "../applets/mail/MailNotifier"
 import { NetProvider } from "../applets/network/NetContext"
 import ContextMenu from "../shared/ContextMenu"
 import Dialog from "../shared/Dialog"
@@ -16,6 +17,7 @@ import { useLongPress } from "../../hooks/useLongPress"
 import MobileIcons, { resetMobileIcons } from "./MobileIcons"
 import io from "socket.io-client"
 import { lazyApp } from "./LazyApp"
+import { CLOSE_EVENT, quickLaunchDrop, watchSocket } from "../../utils/shell"
 
 // each app is its own download, fetched the first time it opens
 const Calculator = lazyApp(() => import("../applets/calculator/Calculator"))
@@ -24,8 +26,14 @@ const DateTimeProperties = lazyApp(() => import("../applets/datetime/DateTimePro
 const Solitaire = lazyApp(() => import("../applets/cards/Solitaire"))
 const FreeCell = lazyApp(() => import("../applets/cards/FreeCell"))
 const Paint = lazyApp(() => import("../applets/paint/Paint"))
+const WordPad = lazyApp(() => import("../applets/wordpad/WordPad"))
+const SoundRecorder = lazyApp(() => import("../applets/soundRecorder/SoundRecorder"))
+const Pinball = lazyApp(() => import("../applets/pinball/Pinball"))
 const MediaPlayer = lazyApp(() => import("../applets/mediaPlayer/MediaPlayer"))
 const NetWindow = lazyApp(() => import("../applets/network/NetWindow"))
+const Mail = lazyApp(() => import("../applets/mail/Mail"))
+const HomePageStudio = lazyApp(() => import("../applets/homepage/HomePageStudio"))
+const Ski = lazyApp(() => import("../applets/ski/Ski"))
 // Network Neighborhood and the head-to-head games
 const isNetWindow = (w) => w.app === "network" || !!w.app?.startsWith("net-")
 const FileExplorer = lazyApp(() => import("../applets/fileExplorer/FileExplorer"))
@@ -47,6 +55,11 @@ const ChatRoom = lazyApp(() => import("../applets/aim/ChatRoom"))
 const BuddyInfo = lazyApp(() => import("../applets/aim/BuddyInfo"))
 const ChatInvite = lazyApp(() => import("../applets/aim/ChatInvite"))
 const AimNotice = lazyApp(() => import("../applets/aim/ChatInvite").then((m) => ({ default: m.AimNotice })))
+const DesktopThemes = lazyApp(() => import("../applets/themes/DesktopThemes"))
+const SystemProperties = lazyApp(() => import("../applets/system/SystemProperties"))
+const Backup = lazyApp(() => import("../applets/backup/Backup"))
+// keeps C: in sync with the online copy while signed on to 98 Messenger (its own small download)
+const DriveSync = React.lazy(() => import("../applets/backup/DriveSync"))
 
 const ICONS_KEY = "98ish.desktopIcons"
 const CELL_W = 94
@@ -132,6 +145,8 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
 
   // logging off or shutting down unmounts the desktop: sign out of 98 Messenger
   useEffect(() => () => socket.disconnect(), [])
+  // the taskbar's network icon
+  useEffect(() => watchSocket(socket), [])
 
   // once the desktop has settled, fetch the everyday apps in the background so they
   // open instantly (the big ones still load on first use)
@@ -186,6 +201,15 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
     if (!force && guards.current[index]?.() === false) return
     dispatch({ type: "close_window", payload: { name: window.name, index } })
   }
+
+  // a taskbar button's Close
+  const latestClose = useRef(null)
+  latestClose.current = (index) => windows[index] && !windows[index].closed && closeWindow(windows[index], index)
+  useEffect(() => {
+    const onClose = (e) => latestClose.current(e.detail.index)
+    window.addEventListener(CLOSE_EVENT, onClose)
+    return () => window.removeEventListener(CLOSE_EVENT, onClose)
+  }, [])
 
   // YouTube links in 98 Messenger play in a View Video window
   const openVideo = (url) => {
@@ -350,7 +374,7 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
     ...(program.app === "recycle" ? [{ label: "Empty Recycle Bin", disabled: !binFull, onClick: () => setConfirmEmpty(true) }] : []),
     ...(program.app === "explorer" ? [{ label: "Explore", onClick: () => dispatch({ type: "open_window", payload: launch("My Computer", { path: ["C:"] }) }) }] : []),
     "-",
-    { label: "Properties", onClick: () => (program.app === "recycle" || program.app === "explorer" ? openProgram(program) : dispatch({ type: "open_window", payload: launch("Display Properties") })) },
+    { label: "Properties", onClick: () => (program.app === "explorer" ? dispatch({ type: "open_window", payload: launch("System Properties") }) : program.app === "recycle" ? openProgram(program) : dispatch({ type: "open_window", payload: launch("Display Properties") })) },
   ]
 
   const showMenu = (x, y, icon) => {
@@ -408,10 +432,36 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
           registerCloseGuard={registerFor(index)}
         />
       )}
+      {window.app === "wordpad" && (
+        <WordPad
+          file={window.file}
+          mobile={mobile}
+          onTitle={rename(index)}
+          // WordPad's own Exit has already asked about saving
+          onClose={() => closeWindow(window, index, true)}
+          registerCloseGuard={registerFor(index)}
+        />
+      )}
+      {window.app === "recorder" && (
+        <SoundRecorder
+          file={window.file}
+          // its small window grows while a dialog (Open, Save As) needs the room
+          fitWindow={
+            mobile || window.maximized
+              ? null
+              : (width, height) => dispatch({ type: "resize_window", payload: { index, width, height } })
+          }
+          onTitle={rename(index)}
+          onClose={() => closeWindow(window, index, true)}
+          registerCloseGuard={registerFor(index)}
+        />
+      )}
       {window.app === "dos" && (
         <MsDos onClose={() => closeWindow(window, index)} onOpen={(target) => openTarget(target, dispatch)} onTitle={rename(index)} />
       )}
       {window.app === "display" && <DisplayProperties onClose={() => closeWindow(window, index)} />}
+      {window.app === "themes" && <DesktopThemes onClose={() => closeWindow(window, index)} />}
+      {window.app === "sysprops" && <SystemProperties tab={window.tab} onClose={() => closeWindow(window, index)} />}
       {window.app === "update" && <WindowsUpdate onClose={() => closeWindow(window, index)} />}
       {window.app === "media" && (
         <MediaPlayer song={window.song} windowIndex={index} onTitle={rename(index)} onClose={() => closeWindow(window, index)} />
@@ -431,6 +481,8 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
       )}
       {window.app === "solitaire" && <Solitaire onClose={() => closeWindow(window, index)} />}
       {window.app === "freecell" && <FreeCell onClose={() => closeWindow(window, index)} onTitle={rename(index)} />}
+      {window.app === "pinball" && <Pinball mobile={mobile} onClose={() => closeWindow(window, index)} onTitle={rename(index)} />}
+      {window.app === "ski" && <Ski mobile={mobile} onClose={() => closeWindow(window, index)} />}
 
       {window.app === "calc" && (
         <Calculator
@@ -444,6 +496,11 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
       )}
       {window.app === "charmap" && <CharMap onClose={() => closeWindow(window, index)} />}
       {window.app === "datetime" && <DateTimeProperties onClose={() => closeWindow(window, index)} />}
+      {window.app === "backup" && <Backup dispatch={dispatch} mobile={mobile} />}
+      {window.app === "mail" && <Mail dispatch={dispatch} onTitle={rename(index)} mobile={mobile} />}
+      {window.app === "homepage" && (
+        <HomePageStudio dispatch={dispatch} onTitle={rename(index)} onClose={() => closeWindow(window, index)} mobile={mobile} />
+      )}
 
       {window.name == "YouTube '98" && <VideoPlayer />}
       {window.name == "98 Messenger" && <Messenger />}
@@ -634,6 +691,10 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
     <AimProvider socket={socket} windows={windows} dispatch={dispatch} onOpenVideo={openVideo}>
       <NetProvider socket={socket} windows={windows} dispatch={dispatch} mobile={mobile}>
         {desktop}
+        <React.Suspense fallback={null}>
+          <DriveSync />
+        </React.Suspense>
+        <MailNotifier socket={socket} windows={windows} dispatch={dispatch} />
       </NetProvider>
     </AimProvider>
   )
@@ -690,6 +751,7 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
             bounds="parent"
             onDragStop={(e, data) => {
               if (data.x === pos.x && data.y === pos.y) return
+              if (quickLaunchDrop(icon, e, data.node)) return
               if (icon.item && dropFile(icon, e, data.node)) return
               savePosition(icon.key, data.x, data.y)
             }}

@@ -1,0 +1,407 @@
+/* Pinball: the table canvas, letterboxed, beside a score panel (a bar on top on phones) */
+
+.pbRoot {
+  position: relative;
+  height: calc(100% - 25px);
+  display: flex;
+  flex-direction: column;
+  background: #c0c0c0;
+  color: #000;
+  font-family: "Pixelated MS Sans Serif", Arial, sans-serif;
+  -webkit-font-smoothing: none;
+  font-size: 11px;
+  outline: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.pbBody {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  gap: 4px;
+  padding: 0 4px 4px;
+}
+
+.pbCompact .pbBody {
+  flex-direction: column;
+  gap: 0;
+  padding: 0;
+}
+
+.pbTable {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: #03040a;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+  touch-action: none;
+  cursor: default;
+}
+
+.pbCanvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* ---- the side panel ---- */
+
+.pbPanel {
+  flex: none;
+  width: 188px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px;
+  overflow: hidden;
+  background: linear-gradient(180deg, #0a2a4a, #050f22 70%);
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+  color: #9ff8ff;
+}
+
+.pbLogo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 6px 0 2px;
+  font-family: "Arial Black", "Segoe UI Black", Impact, Arial, sans-serif;
+  font-style: italic;
+  line-height: 1;
+  -webkit-font-smoothing: antialiased;
+}
+
+.pbLogo span {
+  font-size: 18px;
+  color: #ffd23f;
+  text-shadow: 0 0 8px rgba(255, 210, 63, 0.7), 2px 2px 0 #00131f;
+}
+
+.pbLogo b {
+  font-size: 30px;
+  font-weight: normal;
+  color: #ff7a45;
+  text-shadow: 0 0 10px rgba(255, 122, 69, 0.8), 2px 2px 0 #00131f;
+}
+
+.pbLcd {
+  background: #01070d;
+  border: 1px solid #000;
+  box-shadow: inset 1px 1px #0a0a0a, 0 0 0 1px #2b6c8a;
+  padding: 4px 6px;
+  font-family: "Courier New", Consolas, monospace;
+  -webkit-font-smoothing: antialiased;
+}
+
+.pbLcdLabel {
+  font-size: 10px;
+  letter-spacing: 1px;
+  color: #3fa6c2;
+}
+
+.pbScore {
+  font-size: 22px;
+  font-weight: bold;
+  text-align: right;
+  color: #46f0ff;
+  text-shadow: 0 0 6px rgba(70, 240, 255, 0.8);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.pbStats {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 4px;
+  text-align: center;
+}
+
+.pbStats > div {
+  display: flex;
+  flex-direction: column;
+  background: #01070d;
+  border: 1px solid #2b6c8a;
+  padding: 2px 0;
+}
+
+.pbStats span {
+  font-size: 9px;
+  color: #3fa6c2;
+}
+
+.pbStats b {
+  font-family: "Courier New", Consolas, monospace;
+  font-size: 18px;
+  color: #ffd23f;
+  text-shadow: 0 0 5px rgba(255, 210, 63, 0.7);
+  -webkit-font-smoothing: antialiased;
+}
+
+.pbStats .pbExtra {
+  grid-column: 1 / -1;
+  flex-direction: row;
+  justify-content: center;
+  gap: 8px;
+  align-items: center;
+}
+
+.pbStats .pbExtra b {
+  color: #7dff9a;
+  font-size: 14px;
+}
+
+.pbRank {
+  font-size: 15px;
+  font-weight: bold;
+  color: #7dff9a;
+  text-shadow: 0 0 5px rgba(125, 255, 154, 0.6);
+  margin-bottom: 4px;
+}
+
+.pbMissionText {
+  font-size: 13px;
+  color: #e6fbff;
+  min-height: 32px;
+}
+
+.pbBar {
+  height: 6px;
+  margin-top: 4px;
+  background: #0b2233;
+  border: 1px solid #2b6c8a;
+}
+
+.pbBar i {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #46f0ff, #7dff9a);
+  transition: width 0.2s;
+}
+
+.pbStatus {
+  min-height: 46px;
+  font-size: 13px;
+  font-weight: bold;
+  color: #ffd23f;
+  text-shadow: 0 0 5px rgba(255, 210, 63, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.pbStatus.is-tilt {
+  color: #ff4040;
+  text-shadow: 0 0 6px rgba(255, 64, 64, 0.8);
+}
+
+.pbKeys {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  color: #9fc9d8;
+}
+
+.pbKeys kbd {
+  display: inline-block;
+  min-width: 16px;
+  padding: 0 3px;
+  text-align: center;
+  font: inherit;
+  color: #000;
+  background: #c0c0c0;
+  border-radius: 0;
+  box-shadow: inset -1px -1px #0a0a0a, inset 1px 1px #fff;
+}
+
+/* ---- phones: a bar on top ---- */
+
+.pbTopBar {
+  flex: none;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  column-gap: 8px;
+  padding: 4px 8px;
+  background: linear-gradient(180deg, #0a2a4a, #050f22);
+  color: #9ff8ff;
+  font-family: "Courier New", Consolas, monospace;
+  -webkit-font-smoothing: antialiased;
+}
+
+.pbTopScore {
+  font-size: 22px;
+  font-weight: bold;
+  color: #46f0ff;
+  text-shadow: 0 0 6px rgba(70, 240, 255, 0.8);
+}
+
+.pbTopInfo {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  font-size: 13px;
+  color: #ffd23f;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.pbTopRank {
+  color: #7dff9a;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pbTopMission {
+  grid-column: 1 / -1;
+  font-size: 13px;
+  color: #e6fbff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ---- touch buttons over the table ---- */
+
+.pbLaunch,
+.pbNudge {
+  position: absolute;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "Arial Black", Impact, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  color: #fff;
+  touch-action: none;
+}
+
+.pbLaunch {
+  flex-direction: column;
+  height: 64px;
+  min-width: 52px;
+  font-size: 10px;
+  background: rgba(255, 64, 64, 0.35);
+  border: 2px solid rgba(255, 180, 160, 0.85);
+  border-radius: 10px;
+  box-shadow: 0 0 12px rgba(255, 90, 60, 0.6);
+}
+
+.pbLaunch span {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.pbLaunch:active {
+  background: rgba(255, 64, 64, 0.6);
+}
+
+.pbNudge {
+  top: 6px;
+  left: 6px;
+  height: 34px;
+  padding: 0 10px;
+  font-size: 11px;
+  background: rgba(70, 240, 255, 0.18);
+  border: 1px solid rgba(160, 250, 255, 0.6);
+  border-radius: 8px;
+}
+
+/* ---- paused / game over ---- */
+
+.pbOverlay {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 5, 15, 0.45);
+}
+
+.pbOverlayBox {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 22px;
+  background: #01070d;
+  border: 2px solid #46f0ff;
+  box-shadow: 0 0 16px rgba(70, 240, 255, 0.5);
+  color: #e6fbff;
+  font-size: 13px;
+}
+
+.pbOverlayBox b {
+  font-family: "Arial Black", Impact, Arial, sans-serif;
+  font-size: 22px;
+  font-weight: normal;
+  color: #ffd23f;
+  -webkit-font-smoothing: antialiased;
+}
+
+.pbOver {
+  background: transparent;
+  align-items: flex-end;
+  padding-bottom: 22%;
+}
+
+.pbOverlayBox button {
+  min-height: 28px;
+  padding: 0 16px;
+}
+
+/* ---- dialogs ---- */
+
+.pbInitials {
+  align-self: center;
+  width: 90px;
+  margin-top: 6px;
+  font-size: 16px;
+  text-transform: uppercase;
+  letter-spacing: 4px;
+  text-align: center;
+}
+
+.pbScores,
+.pbControls {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 6px;
+}
+
+.pbScores th,
+.pbScores td,
+.pbControls td {
+  padding: 2px 6px;
+}
+
+.pbScores th {
+  text-align: left;
+  border-bottom: 1px solid #808080;
+}
+
+.pbScores td:last-child,
+.pbScores th:last-child {
+  text-align: right;
+}
+
+.pbScores tr.is-new td {
+  background: #000080;
+  color: #fff;
+}
+
+.pbReset {
+  align-self: flex-start;
+  margin-bottom: 6px;
+}
+
+.os-mobile .pbRoot .menuBar button {
+  min-height: 32px;
+}

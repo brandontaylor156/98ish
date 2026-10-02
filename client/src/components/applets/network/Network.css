@@ -1203,3 +1203,24 @@
 .os-mobile .nnPrivacy {
   padding: 6px;
 }
+
+/* ---- Pictures sent over the network, and files dragged onto a computer ---- */
+
+.netBoxBody > img.netThumb {
+  width: auto;
+  height: auto;
+  max-width: 96px;
+  max-height: 80px;
+  border: 1px solid #000;
+  background: #fff;
+}
+
+.nnView.is-dropTarget {
+  outline: 2px dashed #000080;
+  outline-offset: -4px;
+}
+
+.nnItem.is-dropTarget .nnName {
+  background: #000080;
+  color: #fff;
+}

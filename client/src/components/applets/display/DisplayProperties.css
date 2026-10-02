@@ -234,3 +234,7 @@
 .os-mobile .ssTabRow select {
   min-height: 34px;
 }
+
+.dpSide .dpThemes {
+  margin-top: 10px;
+}

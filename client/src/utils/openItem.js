@@ -1,6 +1,6 @@
 import { fs } from "./fs"
 import { hyperlinks } from "./hyperlinks"
-import { explorerWindow, ieWindow, launch, mediaPlayerWindow, notepadWindow, paintWindow, programByType, windowFor } from "./programs"
+import { explorerWindow, ieWindow, launch, mediaPlayerWindow, notepadWindow, paintWindow, programByType, recorderWindow, windowFor, wordpadWindow } from "./programs"
 import { latestPlayer } from "../components/applets/mediaPlayer/bus"
 import { unlockAudio } from "../components/applets/mediaPlayer/audio"
 
@@ -22,6 +22,14 @@ export const openItem = (item, dispatch) => {
   }
   if (item.type === "image") {
     dispatch({ type: "open_window", payload: paintWindow(item) })
+    return true
+  }
+  if (item.type === "richtext") {
+    dispatch({ type: "open_window", payload: wordpadWindow(item) })
+    return true
+  }
+  if (item.type === "sound") {
+    dispatch({ type: "open_window", payload: recorderWindow(item) })
     return true
   }
   if (item.type === "internet") {

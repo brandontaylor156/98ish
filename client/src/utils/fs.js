@@ -3,6 +3,8 @@
 // onFsChange so open windows (My Computer, Notepad, MS-DOS Prompt) stay in sync.
 // Deleting moves items to the Recycle Bin, which remembers where they came from.
 
+import { unlock } from "./achievements"
+
 const listeners = new Set()
 let notifyQueued = false
 let silent = 0 // >0 while building trees (no change events)
@@ -43,6 +45,7 @@ export const FILE_TYPE = {
   minesweeper: "minesweeper",
   solitaire: "solitaire",
   freecell: "freecell",
+  pinball: "pinball",
   hover: "hover",
   spectra: "spectra",
   chat: "chat",
@@ -55,6 +58,14 @@ export const FILE_TYPE = {
   media: "media",
   music: "music",
   hearts: "hearts",
+  wordpad: "wordpad",
+  richtext: "richtext", // a WordPad document: sanitized HTML in textContent
+  recorder: "recorder",
+  sound: "sound", // a Wave Sound: a 16-bit mono WAV data URL in textContent
+  reversi: "reversi",
+  chess: "chess",
+  battleship: "battleship",
+  ski: "ski",
 }
 
 export const DIRECTORY_TYPE = {
@@ -342,6 +353,7 @@ export class FileSystem {
   }
 
   emptyRecycleBin() {
+    if (this.recycleBin.content.length) unlock("recycle")
     for (const item of this.recycleBin.content) this.recycleBin.removeItem(item.name)
   }
 
@@ -425,6 +437,29 @@ Tech Stack:
 - Bootstrap,
 - 98.css`
 
+// WordPad's sample document (the same kind of HTML WordPad saves)
+const WELCOME_DOC = [
+  '<p style="text-align: center"><font face="Georgia" style="font-size: 24pt" color="#000080"><b>Welcome to WordPad</b></font></p>',
+  '<p style="text-align: center"><i>Your 98ish word processor</i></p>',
+  "<p><br></p>",
+  "<p>WordPad does what Notepad can't: <b>bold</b>, <i>italic</i>, <u>underline</u>, <s>strikeout</s>, and text in ",
+  '<font color="#ff0000">red</font>, <font color="#008000">green</font> or <font color="#0000ff">blue</font>. ',
+  'Try <font face="Comic Sans MS">a friendly font</font>, <font face="Courier New">a typewriter</font>, ',
+  '<font style="font-size: 16pt">big letters</font> or <font style="font-size: 8pt">small print</font>.</p>',
+  "<p><br></p>",
+  "<p><b>Things to try:</b></p>",
+  "<ul><li>Select some text and pick a font, size or color on the format bar.</li>",
+  "<li>Format &gt; Paragraph... indents paragraphs, like the one below.</li>",
+  "<li>Insert &gt; Object... drops in a picture you made in Paint.</li>",
+  "<li>Insert &gt; Date and Time... stamps today's date.</li>",
+  "<li>File &gt; Print Preview shows how your pages will look on paper.</li></ul>",
+  "<p><br></p>",
+  '<p style="margin-left: 0.5in; margin-right: 0.5in; text-indent: 0.25in"><i>This paragraph is indented half an inch on each side, ',
+  "with its first line indented a little more, the way term papers used to look.</i></p>",
+  "<p><br></p>",
+  '<p style="text-align: right">Have fun!</p>',
+].join("")
+
 // [path, kind, type, text]
 const DEFAULT_ITEMS = [
   ["C:", "dir", "drive"],
@@ -443,9 +478,13 @@ const DEFAULT_ITEMS = [
   ["C:/Programs/YouTube '98", "file", "video"],
   ["C:/Programs/Notepad", "file", "notepad"],
   ["C:/Programs/Paint", "file", "paint"],
+  ["C:/Programs/WordPad", "file", "wordpad"],
+  ["C:/Programs/Sound Recorder", "file", "recorder"],
+  ["C:/Documents/Welcome to WordPad", "file", "richtext", WELCOME_DOC],
   ["C:/Programs/Minesweeper", "file", "minesweeper"],
   ["C:/Programs/Solitaire", "file", "solitaire"],
   ["C:/Programs/FreeCell", "file", "freecell"],
+  ["C:/Programs/Pinball", "file", "pinball"],
   ["C:/Programs/98 Messenger", "file", "chat"],
   ["C:/Programs/MS-DOS Prompt", "file", "dos"],
   ["C:/Programs/Media Player", "file", "media"],
@@ -462,11 +501,17 @@ const DEFAULT_ITEMS = [
     ["GROOVE.MID", "funky"],
   ].map(([name, id]) => [`C:/My Music/${name}`, "file", "music", id]),
   ["C:/Programs/Hearts", "file", "hearts"],
+  ["C:/Programs/Reversi", "file", "reversi"],
+  ["C:/Programs/Chess", "file", "chess"],
+  ["C:/Programs/Battleship", "file", "battleship"],
+  ["C:/Programs/Downhill", "file", "ski"],
   ["C:/Bookmarks", "dir", "bookmarks"],
   ...["AOL", "Yahoo", "Tim Tang", "Ask Jeeves", "Geocities", "eBay", "IMDb", "Chit Chat", "ReDirector", "98ish Guestbook"].map((n) => [`C:/Bookmarks/${n}`, "file", "internet"]),
   ["C:/Hello World", "file", "text", "Hello World!"],
   ["C:/README", "file", "note", README_TEXT],
   ["C:/Cover Letter", "file", "text"],
+  // a secret for the curious (an achievement)
+  ["C:/Windows/Temp/~SECRET.TXT", "file", "text", "You found the secret file!\r\n\r\nNobody ever looks in C:\\Windows\\Temp. Except you.\r\nAs a reward, here is a fact: the 98ish floppy drive holds exactly one helper.\r\n\r\n- Floppy"],
 ]
 
 // add an item at a path, creating missing folders; skips it if the name is taken
@@ -575,6 +620,30 @@ export const writeAndSave = (file, content, { created = false } = {}) => {
   else file.textContent = before
   saveNow()
   return false
+}
+
+// ---- whole-drive copies (Backup and the online drive) ----
+
+// Everything on the drive and in the Recycle Bin, in the shape it's saved in
+export const exportDrive = () => ({ root: fs.root.content.map(serialize), bin: fs.recycleBin.content.map(serialize) })
+
+// Saved folders and files made back into items (not added anywhere yet); throws if one is damaged
+export const itemsFromNodes = (nodes) => nodes.map(deserialize)
+
+// Replace everything with a copy from exportDrive(). Nothing changes if it can't be read.
+export const importDrive = (drive) => {
+  const root = quietly(() => itemsFromNodes(drive.root))
+  const bin = quietly(() => itemsFromNodes(drive.bin || []))
+  if (!root.some((item) => item.isDirectory && item.name === "C:")) throw new Error("There is no drive C: in it.")
+  quietly(() => {
+    for (const item of fs.root.content) fs.root.removeItem(item.name)
+    for (const item of fs.recycleBin.content) fs.recycleBin.removeItem(item.name)
+    for (const item of root) fs.root.insertItem(item)
+    for (const item of bin) fs.recycleBin.insertItem(item)
+    fs.openDirectory("C:")
+  })
+  changed()
+  return saveNow()
 }
 
 // For tests: wipe back to the starting files

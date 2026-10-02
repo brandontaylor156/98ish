@@ -155,6 +155,36 @@
   flex: none !important;
 }
 
+/* the online drive's sync lamp (Tools > Sync my files) */
+.fxSync {
+  flex: none !important;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.fxSyncLight {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #808080;
+  box-shadow: inset -1px -1px #404040;
+}
+
+.fxSync.is-synced .fxSyncLight {
+  background: #20c020;
+}
+
+.fxSync.is-syncing .fxSyncLight,
+.fxSync.is-pending .fxSyncLight {
+  background: #e0c000;
+}
+
+.fxSync.is-error .fxSyncLight,
+.fxSync.is-conflict .fxSyncLight {
+  background: #e02020;
+}
+
 .fxError {
   color: #c00000;
 }

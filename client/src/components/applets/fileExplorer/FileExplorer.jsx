@@ -11,16 +11,16 @@ import { launch } from "../../../utils/programs"
 import { useFsVersion } from "../../../hooks/useFs"
 import { useOpenGesture } from "../../../hooks/useMediaQuery"
 import { useLongPress } from "../../../hooks/useLongPress"
+import { UPLOAD_ACCEPT, canDownload, downloadItem, uploadInto } from "../../../utils/fileTransfer"
+import { isSyncEnabled, setSyncEnabled, statusText, useDriveSync } from "../../../utils/driveSync"
 import "./FileExplorer.css"
 
 export { formatSize, iconFor, typeName }
 
 // My Computer / Windows Explorer. Each window keeps its own folder and history; files
 // can be opened, renamed, deleted (to the Recycle Bin), cut/copied/pasted between
-// windows, and imported from your real computer (text files).
-
-
-const MAX_IMPORT_BYTES = 200 * 1024
+// windows, uploaded from your real computer (text, pictures, sounds, web pages) and
+// downloaded back to it (a folder comes down as a .zip).
 
 const sortItems = (items) =>
   [...items].sort((a, b) => (a.isDirectory !== b.isDirectory ? (a.isDirectory ? -1 : 1) : a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: "base" })))
@@ -44,6 +44,8 @@ const FileExplorer = ({ path: initialPath = ["C:"], dispatch, onTitle }) => {
   const [menu, setMenu] = useState(null) // { x, y, item }
   const [dialog, setDialog] = useState(null)
   const [address, setAddress] = useState("")
+  const [uploading, setUploading] = useState(false)
+  const sync = useDriveSync()
   const rootRef = useRef(null)
   const importRef = useRef(null)
   const openGesture = useOpenGesture()
@@ -152,23 +154,31 @@ const FileExplorer = ({ path: initialPath = ["C:"], dispatch, onTitle }) => {
 
   const properties = (item) => setDialog({ kind: "properties", item: item || dir })
 
-  const importFiles = async (fileList) => {
-    if (!canEdit) return
-    const skipped = []
-    for (const file of fileList) {
-      if (file.size > MAX_IMPORT_BYTES) {
-        skipped.push(`${file.name} (bigger than 200 KB)`)
-        continue
-      }
-      if (!/^text\//.test(file.type) && !/\.(txt|md|log|csv|json|js|html|css|ini)$/i.test(file.name)) {
-        skipped.push(`${file.name} (not a text file)`)
-        continue
-      }
-      const text = await file.text()
-      const name = uniqueName(dir, file.name.replace(/\.txt$/i, "").replace(/[\\/:"<>|]/g, "_").slice(0, 64) || "Imported")
-      setSelected(fs.createFileIn(dir, name, "text", text))
+  // real files from your computer (the file picker, or dropped on the window)
+  const upload = async (fileList) => {
+    if (!canEdit || !fileList.length) return
+    const into = dir
+    setUploading(true)
+    try {
+      const { added, problems, notes } = await uploadInto(into, fileList)
+      if (added.length) setSelected(added.at(-1))
+      const text = [...problems, ...notes].join(" ")
+      if (problems.length) setDialog({ kind: "alert", title: "Upload", text: `${problems.length === fileList.length ? "Nothing was uploaded. " : ""}${text}` })
+      else if (notes.length) setDialog({ kind: "alert", title: "Upload", text })
+    } finally {
+      setUploading(false)
     }
-    if (skipped.length) setDialog({ kind: "alert", title: "Import", text: `These weren't imported: ${skipped.join(", ")}. Only text files up to 200 KB can be imported.` })
+  }
+
+  // a copy on your real computer: files as .txt / .png / .wav / .html, folders as a .zip
+  const download = (item) => {
+    if (!item) return
+    const result = downloadItem(item)
+    if (!result.ok) return setDialog({ kind: "alert", title: "Download", text: result.error })
+    if (result.skipped.length) {
+      const list = result.skipped.slice(0, 8).join(", ") + (result.skipped.length > 8 ? ` and ${result.skipped.length - 8} more` : "")
+      setDialog({ kind: "alert", title: "Download", text: `Downloaded ${result.name}. Left out (programs, shortcuts and songs only work inside 98ish): ${list}.` })
+    }
   }
 
   const submitAddress = () => {
@@ -189,6 +199,7 @@ const FileExplorer = ({ path: initialPath = ["C:"], dispatch, onTitle }) => {
       label: "Send To",
       items: [{ label: "Desktop (create shortcut)", onClick: () => shortcut(item, desktopFolder()) }],
     },
+    { label: "Download to your computer", disabled: !canDownload(item), onClick: () => download(item) },
     "-",
     { label: "Cut", disabled: !canEdit, onClick: () => cut(item) },
     { label: "Copy", disabled: !canEdit, onClick: () => copy(item) },
@@ -218,6 +229,7 @@ const FileExplorer = ({ path: initialPath = ["C:"], dispatch, onTitle }) => {
         { label: "Text Document", disabled: !canEdit, onClick: () => newItem("file") },
       ],
     },
+    { label: "Upload from your computer...", disabled: !canEdit, onClick: () => importRef.current?.click() },
     "-",
     { label: "Properties", disabled: !path.length, onClick: () => properties(null) },
   ]
@@ -228,7 +240,9 @@ const FileExplorer = ({ path: initialPath = ["C:"], dispatch, onTitle }) => {
       items: [
         { label: "New Folder", disabled: !canEdit, onClick: () => newItem("folder") },
         { label: "New Text Document", disabled: !canEdit, onClick: () => newItem("file") },
-        { label: "Import Text File...", disabled: !canEdit, onClick: () => importRef.current?.click() },
+        "-",
+        { label: "Upload from your computer...", disabled: !canEdit, onClick: () => importRef.current?.click() },
+        { label: "Download to your computer", disabled: !canDownload(selectedItem || (canEdit ? dir : null)), onClick: () => download(selectedItem || dir) },
         "-",
         { label: "Open", disabled: !selectedItem, onClick: () => open(selectedItem) },
         { label: "Delete", disabled: !selectedItem || !canEdit, onClick: () => askDelete(selectedItem) },
@@ -264,6 +278,13 @@ const FileExplorer = ({ path: initialPath = ["C:"], dispatch, onTitle }) => {
         { label: "Recycle Bin", onClick: () => dispatch({ type: "open_window", payload: launch("Recycle Bin") }) },
       ],
     },
+    {
+      label: "Tools",
+      items: [
+        { label: "Sync my files with my 98 Messenger account", checked: isSyncEnabled(), onClick: () => setSyncEnabled(!isSyncEnabled()) },
+        { label: "Backup...", onClick: () => dispatch({ type: "open_window", payload: launch("Backup") }) },
+      ],
+    },
   ]
 
   const longPressBackground = useLongPress((x, y, { target }) => {
@@ -288,7 +309,7 @@ const FileExplorer = ({ path: initialPath = ["C:"], dispatch, onTitle }) => {
   }
 
   const objectCount = `${items.length} object${items.length === 1 ? "" : "s"}`
-  const status = selectedItem ? `${selectedItem.name} \u2014 ${typeName(selectedItem)}${selectedItem.isDirectory ? "" : `, ${formatSize(sizeOf(selectedItem))}`}` : objectCount
+  const status = uploading ? "Uploading..." : selectedItem ? `${selectedItem.name} \u2014 ${typeName(selectedItem)}${selectedItem.isDirectory ? "" : `, ${formatSize(sizeOf(selectedItem))}`}` : objectCount
 
   return (
     <div className="fxRoot" ref={rootRef} tabIndex={-1} onKeyDown={onKeyDown}>
@@ -366,7 +387,7 @@ const FileExplorer = ({ path: initialPath = ["C:"], dispatch, onTitle }) => {
           }
           if (!e.dataTransfer.files.length) return
           e.preventDefault()
-          importFiles([...e.dataTransfer.files])
+          upload([...e.dataTransfer.files])
         }}
         {...longPressBackground}
       >
@@ -397,17 +418,23 @@ const FileExplorer = ({ path: initialPath = ["C:"], dispatch, onTitle }) => {
 
       <div className="status-bar fxStatus">
         <p className="status-bar-field">{status}</p>
+        {sync.phase !== "off" && (
+          <p className={`status-bar-field fxSync is-${sync.phase}`} title={statusText(sync)}>
+            <span className="fxSyncLight" aria-hidden="true" />
+            {{ synced: "Synced", syncing: "Syncing...", pending: "Syncing...", signedOut: "Sync: signed off", conflict: "Sync: choose" }[sync.phase] || "Sync: error"}
+          </p>
+        )}
         <p className="status-bar-field fxStatusRight">{path.length ? "Local Disk (C:)" : "My Computer"}</p>
       </div>
 
       <input
         ref={importRef}
         type="file"
-        accept=".txt,.md,.log,.csv,.json,.ini,text/*"
+        accept={UPLOAD_ACCEPT}
         multiple
         className="d-none"
         onChange={(e) => {
-          importFiles([...e.target.files])
+          upload([...e.target.files])
           e.target.value = ""
         }}
       />

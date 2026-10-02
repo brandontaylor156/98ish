@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <!-- A Rich Text Document: a page with a folded corner, a blue title, colored lines of text and a bullet list -->
+  <path d="M9 3h21l9 9v33H9z" fill="#ffffff" stroke="#000" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M30 3v9h9" fill="#c0c0c0" stroke="#000" stroke-width="1.5" stroke-linejoin="round"/>
+  <g shape-rendering="crispEdges">
+    <rect x="13" y="8" width="13" height="4" fill="#0030c0"/>
+    <rect x="13" y="16" width="22" height="2" fill="#000"/>
+    <rect x="13" y="20" width="18" height="2" fill="#000"/>
+    <rect x="13" y="24" width="22" height="2" fill="#c00000"/>
+    <rect x="13" y="30" width="3" height="3" fill="#008000"/>
+    <rect x="18" y="31" width="15" height="2" fill="#000"/>
+    <rect x="13" y="36" width="3" height="3" fill="#008000"/>
+    <rect x="18" y="37" width="11" height="2" fill="#000"/>
+  </g>
+</svg>

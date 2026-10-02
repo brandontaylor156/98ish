@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from "react"
 import MenuBar from "../../shared/MenuBar"
 import Dialog from "../../shared/Dialog"
-import { notepadWindow } from "../../../utils/programs"
 import { fs } from "../../../utils/fs"
+import { openItem } from "../../../utils/openItem"
 import { GAME_INFO, formatSize, saveReceivedFile, useNet } from "./NetContext"
 import { ComposeDialog } from "./ComputerFolder"
 import { SendFileIcon } from "./icons"
@@ -49,6 +49,8 @@ export const NetNotice = ({ text, icon, onClose }) => (
   </div>
 )
 
+const KIND_NAMES = { image: "picture", sound: "sound", richtext: "document", text: "file", note: "file" }
+
 export const IncomingFile = ({ offer, onClose, dispatch }) => {
   const net = useNet()
   const [state, setState] = useState({ kind: "ask" }) // ask | busy | saved | error
@@ -82,7 +84,7 @@ export const IncomingFile = ({ offer, onClose, dispatch }) => {
           <button
             type="button"
             onClick={() => {
-              dispatch({ type: "open_window", payload: notepadWindow(state.file) })
+              openItem(state.file, dispatch)
               onClose()
             }}
           >
@@ -101,9 +103,9 @@ export const IncomingFile = ({ offer, onClose, dispatch }) => {
   return (
     <div className="netBox">
       <div className="netBoxBody">
-        <SendFileIcon />
+        {offer.preview ? <img className="netThumb" src={offer.preview} alt={`Preview of ${offer.name}`} /> : <SendFileIcon />}
         <p>
-          Incoming file from <b>{offer.from}</b>:
+          Incoming {KIND_NAMES[offer.type] || "file"} from <b>{offer.from}</b>:
           <br />
           <b>{offer.name}</b> ({formatSize(offer.size)})
           <br />

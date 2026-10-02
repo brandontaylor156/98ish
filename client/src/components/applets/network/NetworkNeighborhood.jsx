@@ -5,6 +5,7 @@ import ContextMenu from "../../shared/ContextMenu"
 import { useOpenGesture } from "../../../hooks/useMediaQuery"
 import { useLongPress } from "../../../hooks/useLongPress"
 import { describe, useNet } from "./NetContext"
+import { useFileDrop } from "./ComputerFolder"
 import { ComputerIcon, EntireNetworkIcon } from "./icons"
 import { RaceLevelDialog, useGameInvites } from "./ComputerFolder"
 
@@ -31,6 +32,9 @@ const NetworkNeighborhood = ({ onClose }) => {
 
   const open = (computer) => net.openComputer(computer)
 
+  // a file dragged from My Computer onto a computer is sent to it
+  const drop = useFileDrop((computer, item) => net.openComputer(computer, { kind: "send", path: item }), (id) => computers.find((c) => c.id === id && !c.me))
+
   const itemMenu = (c) => [
     { label: "Open", bold: true, onClick: () => open(c) },
     "-",
@@ -43,6 +47,9 @@ const NetworkNeighborhood = ({ onClose }) => {
         { label: "Checkers", onClick: () => games.invite(c, "checkers") },
         { label: "Minesweeper Race...", onClick: () => games.invite(c, "race") },
         { label: "Hearts", onClick: () => games.invite(c, "hearts") },
+        { label: "Reversi", onClick: () => games.invite(c, "reversi") },
+        { label: "Chess", onClick: () => games.invite(c, "chess") },
+        { label: "Battleship", onClick: () => games.invite(c, "battleship") },
       ],
     },
     "-",
@@ -119,13 +126,14 @@ const NetworkNeighborhood = ({ onClose }) => {
               type="button"
               key={c.id}
               data-computer={c.id}
-              className={["nnItem", selected === c.id && "is-selected", c.hidden && "is-hidden"].filter(Boolean).join(" ")}
+              className={["nnItem", selected === c.id && "is-selected", c.hidden && "is-hidden", drop.over === c.id && "is-dropTarget"].filter(Boolean).join(" ")}
               onClick={() => setSelected(c.id)}
               onContextMenu={(e) => {
                 e.preventDefault()
                 showMenu(e.clientX, e.clientY, c)
               }}
               {...openGesture(() => open(c))}
+              {...drop.targetProps(c.id)}
               title={describe(c)}
             >
               <ComputerIcon device={c.device} me={c.me} user={c.user} size={view === "details" ? 16 : 32} />
@@ -176,7 +184,8 @@ const NetworkNeighborhood = ({ onClose }) => {
             their screen name; everyone else is a GUEST computer.
             <br />
             <br />
-            Open a computer to send it a text file, a WinPopup message, or a game of Checkers, Minesweeper Race or Hearts.
+            Open a computer to send it a document, a picture or a sound (or drag one there from My Computer), a WinPopup
+            message, or a game of Checkers, Minesweeper Race, Hearts, Reversi, Chess or Battleship.
             Uncheck <b>Show my computer on the network</b> to hide.
           </p>
         </Dialog>

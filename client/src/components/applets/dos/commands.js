@@ -1,6 +1,7 @@
 import { fs, validName, FILE_TYPE } from "../../../utils/fs"
 import { now } from "../../../utils/clock"
 import { programs } from "../../../utils/programs"
+import { unlock } from "../../../utils/achievements"
 
 // The MS-DOS Prompt's command interpreter, kept apart from the screen so it can be tested
 // on its own. run(line, shell) returns { out: [lines], cls, exit, open: [...] } and may
@@ -74,10 +75,15 @@ const ALIASES = {
   mspaint: "Paint",
   pbrush: "Paint",
   freecell: "FreeCell",
+  pinball: "Pinball",
   winmine: "Minesweeper",
   minesweeper: "Minesweeper",
   mines: "Minesweeper",
   notepad: "Notepad",
+  wordpad: "WordPad",
+  write: "WordPad",
+  sndrec32: "Sound Recorder",
+  sndrec: "Sound Recorder",
   iexplore: "Internet Explorer",
   ie: "Internet Explorer",
   explorer: "My Computer",
@@ -94,10 +100,25 @@ const ALIASES = {
   "desk.cpl": "Display Properties",
   control: "Display Properties",
   recycled: "Recycle Bin",
+  backup: "Backup",
+  msbackup: "Backup",
   calc: "Calculator",
   charmap: "Character Map",
   timedate: "Date/Time Properties",
   "timedate.cpl": "Date/Time Properties",
+  themes: "Desktop Themes",
+  "themes.cpl": "Desktop Themes",
+  "sysdm.cpl": "System Properties",
+  msimn: "98ish Mail",
+  mail: "98ish Mail",
+  frontpg: "HomePage Studio",
+  homepage: "HomePage Studio",
+  reversi: "Reversi",
+  othello: "Reversi",
+  chess: "Chess",
+  battleship: "Battleship",
+  ski: "Downhill",
+  downhill: "Downhill",
 }
 
 export const programFor = (word) => {
@@ -348,6 +369,7 @@ export const run = (input, shell) => {
       return { ...result, exit: true, win: true }
     case "ver":
       out = ["", VERSION, ""]
+      unlock("dos-ver")
       break
     case "vol":
       out = [" Volume in drive C is 98ISH", " Volume Serial Number is 1998-0625"]
@@ -418,6 +440,12 @@ export const run = (input, shell) => {
       break
     case "tree":
       out = tree(args, shell)
+      unlock("dos-tree")
+      break
+    // the secret word (not in HELP)
+    case "xyzzy":
+      out = ["A puff of orange smoke drifts out of the floppy drive.", "Nothing else happens. Or does it?"]
+      unlock("xyzzy")
       break
     case "type":
     case "more": {
@@ -430,6 +458,7 @@ export const run = (input, shell) => {
       else if (item.isDirectory) out = ["Access denied"]
       else if (!item.isText && item.type !== "internet") out = [`${item.name} is a program. Type its name to run it.`]
       else out = (item.textContent || "").replace(/\r/g, "").split("\n")
+      if (item?.name === "~SECRET.TXT") unlock("hidden-file")
       break
     }
     case "md":

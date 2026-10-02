@@ -7,6 +7,7 @@ import { useFsVersion } from "../../../hooks/useFs"
 import { trackUnsaved } from "../../../utils/unsaved"
 import { now } from "../../../utils/clock"
 import "./Notepad.css"
+import { unlock } from "../../../utils/achievements"
 
 // Notepad, as in Windows 98: File / Edit / Search / Help, Word Wrap, Set Font, Time/Date
 // (F5), Find (F3) and Replace, Open/Save As over the 98ish drive, the "save changes?"
@@ -58,6 +59,12 @@ const Notepad = ({ file: initialFile = null, onTitle, onClose, registerCloseGuar
   useEffect(() => onTitle?.(`${name} - Notepad`), [name])
 
   useEffect(() => (dirty ? trackUnsaved("Notepad") : undefined), [dirty])
+
+  // achievements: the .LOG trick, and the hidden file
+  useEffect(() => {
+    if (file?.textContent?.startsWith(".LOG")) unlock("notepad-log")
+    if (file?.name === "~SECRET.TXT") unlock("hidden-file")
+  }, [file])
 
   // .LOG: put the cursor at the end, after the new time stamp
   useEffect(() => {

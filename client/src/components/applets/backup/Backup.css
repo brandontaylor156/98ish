@@ -1,0 +1,205 @@
+/* Backup */
+
+.bkRoot {
+  position: relative;
+  height: calc(100% - 25px);
+  display: flex;
+  flex-direction: column;
+  background: #c0c0c0;
+  color: #000;
+  font-family: "Pixelated MS Sans Serif", Arial, sans-serif;
+  -webkit-font-smoothing: none;
+  font-size: 11px;
+}
+
+.bkRoot p {
+  margin: 0;
+  line-height: 1.35;
+}
+
+.bkRoot button {
+  min-width: 0;
+  padding: 0 10px;
+}
+
+.bkBody {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.bkIntro {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.bkIntro img {
+  width: 40px;
+  height: 40px;
+  flex: none;
+}
+
+.bkGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 8px 10px 10px;
+  border: none;
+  /* the etched 98 group box (Bootstrap's reboot removes 98.css's) */
+  box-shadow: inset -1px -1px #fff, inset -2px 1px #808080, inset 1px -2px #808080, inset 2px 2px #fff;
+}
+
+/* undo Bootstrap's big floating legends */
+.bkGroup legend {
+  float: none;
+  width: auto;
+  margin: 0;
+  padding: 0 3px;
+  font-size: inherit;
+  line-height: inherit;
+}
+
+.bkRow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.bkNote,
+.bkSmall {
+  color: #404040;
+}
+
+.bkWarn {
+  color: #800000;
+}
+
+
+.bkStatus {
+  flex: none;
+}
+
+.bkStatusText {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* a little lamp: grey off, green synced, yellow busy, red needs you */
+.bkLight {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #808080;
+  box-shadow: inset -1px -1px #404040, inset 1px 1px #dfdfdf;
+}
+
+.is-ok .bkLight {
+  background: #20c020;
+}
+
+.is-busy .bkLight {
+  background: #e0c000;
+}
+
+.is-bad .bkLight {
+  background: #e02020;
+}
+
+.bkConfirm {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.bkConfirm img {
+  width: 32px;
+  height: 32px;
+  flex: none;
+}
+
+.bkConfirm > div {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.bkList {
+  margin: 0;
+  padding-left: 16px;
+}
+
+/* the "which copy do you keep?" question (shown over the whole desktop) */
+.bkConflict .window.dialog {
+  width: min(400px, 100%);
+}
+
+.bkConflict .dialogBody input[type="radio"] {
+  width: auto;
+}
+
+.bkChoice {
+  display: flex;
+  align-items: flex-start;
+  margin: 2px 0;
+}
+
+.bkChoice label {
+  line-height: 1.35;
+}
+
+.bkCompare {
+  border-collapse: collapse;
+  margin: 2px 0 4px;
+  width: auto;
+  background: transparent;
+}
+
+.bkCompare tr,
+.bkCompare th,
+.bkCompare td {
+  background: transparent;
+}
+
+.bkCompare th,
+.bkCompare td {
+  padding: 1px 10px 1px 0;
+  text-align: left;
+  font-weight: normal;
+}
+
+.bkCompare th {
+  font-weight: bold;
+}
+
+/* phones: bigger touch targets */
+.bkRoot.is-mobile button {
+  min-height: 36px;
+  padding: 0 14px;
+}
+
+.bkRoot.is-mobile,
+.os-mobile .bkConflict .dialogBody {
+  font-size: 13px;
+}
+
+.os-mobile .bkConflict .dialogButtons button {
+  min-height: 36px;
+}
+
+/* keep 98.css's checkbox label (Bootstrap makes labels blocks, which drops the tick below) */
+.bkCheck label {
+  display: inline-flex;
+  align-items: center;
+}

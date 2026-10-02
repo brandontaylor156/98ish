@@ -1,0 +1,588 @@
+/* HomePage Studio 98ish: blocks and properties on the left, the live page on the right */
+
+.hsRoot {
+  position: relative;
+  height: calc(100% - 25px);
+  display: flex;
+  flex-direction: column;
+  font-family: "Pixelated MS Sans Serif", Arial, sans-serif;
+  font-size: 11px;
+  background: #c0c0c0;
+  overflow: hidden;
+}
+
+.hsToolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 3px 4px;
+  border-bottom: 1px solid #808080;
+  box-shadow: 0 1px #fff;
+}
+
+button.hsInsert {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  min-width: 0;
+  padding: 2px 5px;
+  background: transparent;
+  box-shadow: none;
+}
+
+button.hsInsert:hover {
+  box-shadow: inset -1px -1px #808080, inset 1px 1px #fff;
+}
+
+button.hsInsert:active {
+  box-shadow: inset 1px 1px #808080, inset -1px -1px #fff;
+}
+
+.hsToolbarGap {
+  flex: 1;
+}
+
+button.hsPublish {
+  font-weight: bold;
+}
+
+.hsBlockIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 16px;
+  height: 16px;
+  font: bold 11px/1 Arial, sans-serif;
+  color: #fff;
+  background: #000080;
+  border: 1px solid #000;
+}
+
+.hsBlockIcon::before {
+  content: "?";
+}
+
+.hsBlockIcon--heading::before { content: "H"; }
+.hsBlockIcon--paragraph::before { content: "¶"; }
+.hsBlockIcon--marquee::before { content: "»"; }
+.hsBlockIcon--blink::before { content: "!"; }
+.hsBlockIcon--image::before { content: "★"; }
+.hsBlockIcon--photo::before { content: "▣"; }
+.hsBlockIcon--divider::before { content: "—"; }
+.hsBlockIcon--links::before { content: "@"; }
+.hsBlockIcon--counter::before { content: "#"; }
+.hsBlockIcon--guestbook::before { content: "✎"; }
+.hsBlockIcon--webring::before { content: "◎"; }
+
+.hsBlockIcon--marquee { background: #008080; }
+.hsBlockIcon--blink { background: #c00000; }
+.hsBlockIcon--image,
+.hsBlockIcon--photo { background: #808000; }
+.hsBlockIcon--divider { background: #800080; }
+.hsBlockIcon--links { background: #0060c0; }
+.hsBlockIcon--counter { background: #000; color: #40ff40; }
+.hsBlockIcon--guestbook { background: #c08000; }
+.hsBlockIcon--webring { background: #006000; }
+
+.hsMain {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+}
+
+.hsSide {
+  width: 300px;
+  min-width: 0;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.hsTabs {
+  display: flex;
+  gap: 2px;
+  padding: 0 2px;
+}
+
+.hsTabs button {
+  min-width: 0;
+  flex: 1;
+  padding: 3px 6px;
+}
+
+.hsTabs button.is-active {
+  font-weight: bold;
+  box-shadow: inset 1px 1px #fff, inset -1px 0 #0a0a0a, inset -2px 0 grey;
+  background: #c0c0c0;
+  position: relative;
+  top: 1px;
+}
+
+.hsSideBody {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 6px;
+  box-shadow: inset -1px -1px #0a0a0a, inset 1px 1px #fff, inset -2px -2px grey, inset 2px 2px #dfdfdf;
+}
+
+.hsBlocksPane {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.hsBlockList {
+  list-style: none;
+  margin: 0;
+  padding: 2px;
+  background: #fff;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+  max-height: 210px;
+  overflow: auto;
+}
+
+.hsBlockList li {
+  display: flex;
+  align-items: center;
+}
+
+.hsBlockList li.is-selected {
+  background: #000080;
+  color: #fff;
+}
+
+button.hsBlockName {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 3px;
+  background: transparent;
+  box-shadow: none;
+  color: inherit;
+  text-align: left;
+}
+
+.hsBlockSummary {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: 0.8;
+}
+
+.hsBlockTools {
+  display: flex;
+  flex: none;
+}
+
+.hsBlockTools button {
+  min-width: 0;
+  width: 20px;
+  height: 18px;
+  padding: 0;
+  font-size: 9px;
+}
+
+.hsNone {
+  padding: 10px;
+  color: #808080;
+}
+
+.hsProps {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin: 0;
+}
+
+fieldset.hsProps legend {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  float: none;
+  width: auto;
+  margin: 0;
+  padding: 0 3px;
+  font-size: inherit;
+  line-height: inherit;
+}
+
+button.hsDuplicate {
+  min-width: 0;
+  padding: 0 6px;
+}
+
+.hsRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.hsRow > label {
+  width: 70px;
+  flex: none;
+  padding-top: 3px;
+}
+
+.hsRowField {
+  flex: 1;
+  min-width: 0;
+}
+
+.hsRowField > input,
+.hsRowField > select,
+.hsRowField > textarea {
+  width: 100%;
+}
+
+.hsRowField textarea {
+  resize: vertical;
+  font-family: Arial, sans-serif;
+}
+
+.hsHint {
+  margin: 0;
+  color: #404040;
+  font-size: 11px;
+}
+
+.hsColor {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.hsColor input[type="color"] {
+  width: 40px;
+  height: 22px;
+  padding: 1px;
+}
+
+.hsColor button {
+  min-width: 0;
+  padding: 0 6px;
+}
+
+.hsToggles {
+  display: inline-flex;
+  gap: 2px;
+}
+
+button.hsToggle {
+  min-width: 24px;
+  width: 24px;
+  padding: 0;
+}
+
+.hsToggle--bold { font-weight: bold; }
+.hsToggle--italic { font-style: italic; }
+.hsToggle--underline { text-decoration: underline; }
+
+button.hsToggle.is-on {
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #0a0a0a, inset -2px -2px #dfdfdf, inset 2px 2px grey;
+  background: #e0e0e0;
+}
+
+.hsArtGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(78px, 1fr));
+  gap: 3px;
+}
+
+.hsArtGrid button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  height: 70px;
+  padding: 3px;
+  background: #000033;
+  color: #fff;
+  overflow: hidden;
+}
+
+.hsArtGrid button.is-on {
+  outline: 2px solid #ff40ff;
+  outline-offset: -2px;
+}
+
+.hsArtGrid .clipArt {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  justify-content: center;
+}
+
+.hsArtGrid .clipArt svg {
+  max-height: 42px;
+  width: auto;
+}
+
+.hsArtGrid .clipArt--rainbow,
+.hsArtGrid .clipArt--flames {
+  width: 100%;
+}
+
+.hsArtGrid .clipArt--flames svg {
+  width: 100%;
+  height: 30px;
+}
+
+.hsArtGrid .caRainbow {
+  width: 100%;
+}
+
+.hsArtGrid span:last-child {
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.hsPicture {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.hsPicture img {
+  max-width: 64px;
+  max-height: 48px;
+  border: 1px solid #808080;
+}
+
+.hsLinks {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.hsLinkRow {
+  display: flex;
+  gap: 2px;
+}
+
+.hsLinkRow input:first-child {
+  width: 40%;
+}
+
+.hsLinkRow input:nth-child(2) {
+  flex: 1;
+  min-width: 0;
+}
+
+.hsLinkRow button {
+  min-width: 0;
+  width: 22px;
+  padding: 0;
+}
+
+.hsLinks > button {
+  align-self: flex-start;
+}
+
+.hsSwatches {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 3px;
+}
+
+button.hsSwatch {
+  position: relative;
+  min-width: 0;
+  height: 34px;
+  padding: 0;
+  overflow: hidden;
+  box-shadow: inset -1px -1px #0a0a0a, inset 1px 1px #fff;
+}
+
+button.hsSwatch span {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  font-size: 10px;
+  background: rgba(255, 255, 255, 0.82);
+  color: #000;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+button.hsSwatch.is-on {
+  outline: 2px solid #000080;
+  outline-offset: -2px;
+}
+
+.hsCheck {
+  margin: 2px 0;
+}
+
+.hsPreviewFrame {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+  padding: 2px;
+}
+
+.hsPreviewBar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 4px;
+  background: #c0c0c0;
+}
+
+.hsPreviewUrl {
+  flex: 1;
+  min-width: 0;
+  padding: 1px 4px;
+  background: #fff;
+  box-shadow: inset 1px 1px #808080;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hsPreview {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+
+.hsStatus {
+  margin: 0 2px 2px;
+}
+
+.hsStatus .status-bar-field {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hsStatusUrl {
+  flex: 2;
+}
+
+.hsOver {
+  color: #c00000;
+  font-weight: bold;
+}
+
+.hsDialogText {
+  max-width: 340px;
+}
+
+.hsUrl {
+  user-select: text;
+  word-break: break-all;
+}
+
+/* ---- phones: Blocks, Page and Preview are tabs ---- */
+
+.hsRoot.is-mobile {
+  font-size: 13px;
+}
+
+.hsRoot.is-mobile input,
+.hsRoot.is-mobile select,
+.hsRoot.is-mobile textarea {
+  font-size: 16px;
+}
+
+.hsRoot.is-mobile .hsToolbar {
+  flex-wrap: nowrap;
+}
+
+.hsRoot.is-mobile .hsToolbar select {
+  flex: 1;
+  min-width: 0;
+  min-height: 36px;
+}
+
+.hsRoot.is-mobile .hsToolbarGap {
+  display: none;
+}
+
+.hsRoot.is-mobile .hsToolbar button {
+  min-width: 0;
+  padding: 0 10px;
+}
+
+.hsRoot.is-mobile .hsToolbar button {
+  min-height: 36px;
+}
+
+.hsRoot.is-mobile .hsTabs button {
+  min-height: 36px;
+}
+
+.hsRoot.is-mobile .hsMain {
+  padding: 2px;
+}
+
+.hsRoot.is-mobile .hsSide {
+  width: auto;
+  flex: 1;
+}
+
+.hsRoot.is-mobile .hsBlockList {
+  max-height: 40vh;
+}
+
+.hsRoot.is-mobile button.hsBlockName {
+  min-height: 38px;
+}
+
+.hsRoot.is-mobile .hsBlockTools button {
+  width: 34px;
+  height: 34px;
+  font-size: 12px;
+}
+
+.hsRoot.is-mobile .hsRow {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
+}
+
+.hsRoot.is-mobile .hsRow > label {
+  width: auto;
+}
+
+.hsRoot.is-mobile .hsColor input[type="color"] {
+  width: 56px;
+  height: 34px;
+}
+
+.hsRoot.is-mobile .hsColor button,
+.hsRoot.is-mobile button.hsToggle {
+  min-height: 34px;
+  min-width: 34px;
+}
+
+.hsRoot.is-mobile .hsLinkRow {
+  flex-wrap: wrap;
+}
+
+.hsRoot.is-mobile .hsLinkRow input:first-child {
+  width: 100%;
+}
+
+.hsRoot.is-mobile .hsLinkRow button {
+  width: 36px;
+}
+
+.hsRoot.is-mobile .hsStatus .status-bar-field:nth-child(2) {
+  display: none;
+}

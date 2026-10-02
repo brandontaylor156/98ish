@@ -9,6 +9,7 @@ export const DIRECTORY = [
       { name: "Minesweeper Strategy Shrine", url: "http://www.98ish.com/shrine", since: 1996, about: "Tips from a certified mine expert" },
       { name: "Cool Links of the Web", url: "http://www.98ish.com/links", since: 1996, about: "The best of the Information Superhighway" },
       { name: "Rocky's Home Page", url: "http://www.98ish.com/rock", since: 1996, about: "A pet rock with a web page" },
+      { name: "98ish Members", url: "http://www.98ish.com/members", since: 1996, about: "Homepages built by 98ish members" },
     ],
   },
   {
@@ -90,6 +91,7 @@ export const DIRECTORY = [
 // The Links bar, as on Internet Explorer 4
 export const LINKS_BAR = [
   { name: "Guestbook", url: "http://www.98ish.com/guestbook" },
+  { name: "98ish Members", url: "http://www.98ish.com/members" },
   { name: "Yahoo!", url: "http://www.yahoo.com/" },
   { name: "AltaVista", url: "http://altavista.digital.com/" },
   { name: "GeoCities", url: "http://www.geocities.com/" },

@@ -499,7 +499,13 @@ const attachAim = async (io, { store, bot } = {}) => {
     })
   })
 
-  return { store, sessions }
+  // HTTP APIs (mail, homepages) sign requests with the session's resume token
+  const authenticate = (token) => {
+    const key = tokens.get(String(token || ""))
+    return (key && sessions.get(key)) || null
+  }
+
+  return { store, sessions, authenticate }
 }
 
 module.exports = { attachAim }

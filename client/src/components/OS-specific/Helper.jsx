@@ -34,9 +34,24 @@ const TIPS = {
   Paint: ["Right-click a color to make it the background color. File > Set As Wallpaper shows off your art."],
   Solitaire: ["Double-click a card to send it home to the top row. Win, and watch the cards bounce!"],
   FreeCell: ["Game > Select Game picks any of 32,000 numbered deals. Almost all of them can be won."],
+  Pinball: ["Spell D-I-V-E in the top lanes to raise your multiplier. The flippers move the lit lanes!"],
   Calculator: ["View > Scientific has sines, logs and binary. Very serious business."],
   "Media Player": ["Every song in My Music was made right here in your browser. No files, all synth!"],
-  "Network Neighborhood": ["Double-click someone's computer to send them a file or challenge them to Checkers."],
+  "Desktop Themes": ["Uncheck a box to keep that part of your current look. Click Pointers, Sounds, etc... to hear a theme first."],
+  "System Properties": ["The Achievements tab has a hint for every secret you haven't found yet."],
+  WordPad: ["Format > Paragraph indents a paragraph, and Insert > Object drops in a picture you made in Paint."],
+  "Sound Recorder": ["Record yourself, then try Effects > Increase Speed. Instant chipmunk!"],
+  Backup: ["Sign on to 98 Messenger and turn on sync, and your files follow you to any computer. Even your phone!"],
+  "98ish Mail": ["Start typing a buddy's name in the To box and pick them from the list. Mail SmarterChild for a surprise!"],
+  "HomePage Studio": ["Click any block in the preview to edit it. Publish, and your page shows up in the 98ish Web Ring!"],
+  "Network Neighborhood": [
+    "Double-click someone's computer to send them a file or challenge them to Checkers.",
+    "Drag a picture from My Computer onto someone's computer to send it to them.",
+  ],
+  Reversi: ["Corners can never be flipped. Grab them, and stay off the squares next to them until you can."],
+  Chess: ["Drag a piece or click it, then click where it goes. Level in the menu makes the computer tougher."],
+  Battleship: ["Press R (or right-click) to turn a ship while you place it. Random does it all for you."],
+  Downhill: ["Press Space in the air off a ramp to spin. Just land before the spin ends!", "Something lives up on that mountain. Keep moving after 2,000 m..."],
 }
 
 const GENERAL = [
@@ -46,6 +61,9 @@ const GENERAL = [
   "Your files are saved in this browser, so they're still here next time.",
   "Arrange your icons from the desktop's right-click menu.",
   "Everything here is free, including me. Especially me.",
+  "Keyboard shortcuts: hold Alt and tap Q to switch windows, Ctrl+Esc opens Start, Ctrl+Alt+E opens My Computer, Ctrl+Alt+D shows the desktop, Ctrl+Alt+R is Run. (On a Mac, Alt is Option.)",
+  "Right-click the taskbar to tile your windows, or drag a desktop icon onto the little icons next to Start.",
+  "There are secrets hidden all over 98ish. Right-click My Computer and choose Properties to see which ones you've found.",
 ]
 
 const pick = (list) => list[Math.floor(Math.random() * list.length)]
@@ -121,7 +139,7 @@ const Helper = ({ windows, mobile }) => {
                 setTip(null)
                 setSettings({ helper: false })
               }}
-              title="Bring him back in Display Properties > Startup"
+              title="Bring him back from the floppy in the taskbar tray, or Display Properties > Startup"
             >
               Hide Floppy
             </button>

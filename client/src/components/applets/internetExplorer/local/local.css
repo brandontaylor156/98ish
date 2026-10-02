@@ -565,6 +565,17 @@
 }
 
 /* Phones: a little smaller, still readable */
+/* ---- member homepages fill the page themselves (member/member.css) ---- */
+
+.lsMember {
+  position: absolute;
+  inset: 2px;
+}
+
+.lsMemberLoading {
+  padding-top: 40px;
+}
+
 .os-mobile .lsRoot {
   padding: 10px;
   font-size: 15px;

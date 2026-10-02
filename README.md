@@ -6,26 +6,33 @@
 
 ## Features
 
-- **A Windows 98 desktop:** a startup screen and chime, a Start menu with cascading submenus, Find, Run..., Log Off
-  and Shut Down (including Restart in MS-DOS mode and "It's now safe to turn off your computer"). Right-click the
-  desktop (or long-press on a phone) to arrange icons or make new folders and documents right on the desktop.
-  System sounds, screensavers (3D Pipes, Starfield, Mystify, Flying 98ish, Marquee, Beziers), Display Properties
-  (wallpapers, your own picture, color schemes) and Date/Time Properties
-- **Files that stay put:** a file system saved in your browser. My Computer has cut / copy / paste, drag and drop
-  (including to and from the desktop), shortcuts, rename, text file import, picture thumbnails and a Recycle Bin
-- **Accessories:** Notepad (Find/Replace, Word Wrap, fonts, .LOG), Paint (every classic tool, saves pictures to the
-  drive, Set As Wallpaper), Calculator (Standard and Scientific), Character Map, and an MS-DOS Prompt with DIR, CD,
-  COPY, DEL, TREE, EDIT, START, redirection, history and Tab completion
-- **Games:** Solitaire and FreeCell (the classic numbered deals), Minesweeper, Tetris, Hearts, SPECTRA (a three.js
-  tunnel flyer) and Hover
-- **Media Player** with eight original synthesized songs, played live with Web Audio
-- **Internet Explorer** with a Wayback Machine time machine: browse the web as it was on any date, plus the 98ish
-  Guestbook and web ring
-- **98 Messenger**, an AIM-style instant messenger: screen names with passwords, a Buddy List, away messages,
-  profiles, typing indicators, warnings, Buddy Chat rooms and SmarterChild, a scripted buddy bot
-- **Network Neighborhood:** see who else is on 98ish right now, send them text files or a WinPopup message, and
-  challenge them to Checkers, a Minesweeper race or Hearts (computer players fill empty seats)
-- **Extras:** 98ish Update, Floppy the helper, and whatever happens if you end explorer.exe in Task Manager
+- **A Windows 98 desktop:** startup screen and chime, Start menu with cascading submenus, Run..., Log Off and Shut
+  Down (including Restart in MS-DOS mode). A taskbar with Quick Launch, a tray (volume, network, mail), Cascade /
+  Tile, an Alt+Q window switcher and keyboard shortcuts (Ctrl+Alt+E / D / R / K). Right-click the desktop (or
+  long-press on a phone) to make files and folders right there
+- **Make it yours:** Display Properties (wallpapers, your own picture, color schemes, screensavers), Desktop Themes
+  (Space, Underwater, Vaporwave, Dinosaurs: wallpaper, colors, sounds and pointers together), system sounds and
+  Date/Time Properties
+- **Install it on your phone:** add 98ish to the home screen and it opens like an app, and works offline after the
+  first visit (chat, multiplayer and the web need a connection)
+- **Files:** a drive saved in your browser, with My Computer (cut / copy / paste, drag and drop, shortcuts, picture
+  thumbnails, a Recycle Bin), upload from and download to your real computer (folders as .zip), Backup / Restore of
+  the whole drive, and an optional online copy that follows your 98 Messenger account to other devices
+- **Accessories:** Notepad, WordPad (fonts, colors, pictures, printing), Paint, Sound Recorder (record, reverse,
+  echo...), Calculator, Character Map and an MS-DOS Prompt
+- **Games:** Pinball: Deep Sea Dive, Solitaire, FreeCell, Minesweeper, Tetris, Downhill (skiing), Reversi, Chess,
+  Battleship, Hearts, SPECTRA (a three.js tunnel flyer) and Hover
+- **Media Player** with eight original synthesized songs
+- **Internet Explorer** with a Wayback Machine time machine, plus 98ish.com: the Guestbook, the Members directory
+  and the web ring
+- **HomePage Studio:** build a GeoCities-style homepage (marquees, clip art, hit counter, background music) and
+  publish it at `www.98ish.com/~yourname`
+- **98 Messenger and 98ish Mail:** AIM-style instant messaging (buddy list, away messages, chat rooms,
+  SmarterChild) and Outlook Express-style mail with attachments between screen names
+- **Network Neighborhood:** see who else is online, send files and pictures, WinPopup messages, and play Checkers,
+  Chess, Reversi, Battleship, Hearts or a Minesweeper race against them
+- **Extras:** 98ish Update, Floppy the helper, 22 hidden achievements (My Computer > Properties), and whatever
+  happens if you end explorer.exe
 
 ## Demos
 
@@ -55,7 +62,7 @@ Environment variables:
 
 | Name | Value |
 | --- | --- |
-| `MONGODB_URI` | MongoDB connection string (e.g. a free MongoDB Atlas cluster) where 98 Messenger accounts, buddy lists and profiles, and the guestbook and its hit counter, are stored. Without it they live in memory and vanish whenever the server restarts |
+| `MONGODB_URI` | MongoDB connection string (e.g. a free MongoDB Atlas cluster) where 98 Messenger accounts, buddy lists and profiles, mail, homepages, online drives, and the guestbook and its hit counters are stored. Without it they live in memory and vanish whenever the server restarts |
 
 **Keeping the chat server awake:** Render's free plan sleeps after 15 idle minutes, and the first visitor then waits
 20-50 seconds for 98 Messenger to connect. `.github/workflows/keepalive.yml` pings the server every 10 minutes from

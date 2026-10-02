@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useRef, useState } from "react"
 import { useAim } from "../aim/AimContext"
-import { fs, uniqueName } from "../../../utils/fs"
+import { FILE_TYPE, fs, uniqueName } from "../../../utils/fs"
 
 // The network every open 98ish desktop shares: who's on (Network Neighborhood), files
 // passed between computers, WinPopup messages and network games. Incoming things open
@@ -8,11 +8,31 @@ import { fs, uniqueName } from "../../../utils/fs"
 
 export const NET_ICON = "/assets/program_icons/network.svg"
 export const MAX_FILE_KB = 200
+// What can be sent, by file type, and how big it may be (the server checks again). Types
+// this desktop doesn't have yet are left out.
+const SENDABLE = {
+  text: { maxKB: 200, label: "document" },
+  note: { maxKB: 200, label: "document" },
+  richtext: { maxKB: 512, label: "document" },
+  image: { maxKB: 1536, label: "picture" },
+  sound: { maxKB: 1536, label: "sound" },
+}
+export const sendableTypes = Object.keys(SENDABLE).filter((type) => FILE_TYPE[type])
+export const canSend = (item) => !!item && !item.isDirectory && sendableTypes.includes(item.type)
+export const maxBytesFor = (type) => (SENDABLE[type]?.maxKB || MAX_FILE_KB) * 1024
+export const sizeLimitText = (type) => {
+  const kb = SENDABLE[type]?.maxKB || MAX_FILE_KB
+  return kb >= 1024 ? `${(kb / 1024).toFixed(1)} MB` : `${kb} KB`
+}
+export const fileBytes = (item) => new Blob([item.textContent]).size
 export const RECEIVED_FOLDER = ["C:", "Documents", "Received Files"]
 export const GAME_INFO = {
   checkers: { name: "Checkers", icon: "/assets/program_icons/checkers.svg", app: "net-checkers", width: 440, height: 560 },
   race: { name: "Minesweeper Race", icon: "/assets/program_icons/mine-48.png", app: "net-race", width: 300, height: 460 },
   hearts: { name: "Hearts", icon: "/assets/program_icons/hearts.svg", app: "net-hearts", width: 660, height: 560 },
+  reversi: { name: "Reversi", icon: "/assets/program_icons/reversi.svg", app: "net-reversi", width: 420, height: 560 },
+  chess: { name: "Chess", icon: "/assets/program_icons/chess.svg", app: "net-chess", width: 700, height: 580 },
+  battleship: { name: "Battleship", icon: "/assets/program_icons/battleship.svg", app: "net-battleship", width: 660, height: 500 },
 }
 
 const TOKEN_KEY = "98ish.net.token"
@@ -51,7 +71,7 @@ export const saveReceivedFile = (file) => {
     if (!next || !next.isDirectory) next = fs.createDirectoryIn(dir, uniqueName(dir, part))
     dir = next
   }
-  return fs.createFileIn(dir, uniqueName(dir, file.name), file.type === "note" ? "note" : "text", file.content)
+  return fs.createFileIn(dir, uniqueName(dir, file.name), sendableTypes.includes(file.type) ? file.type : "text", file.content)
 }
 
 // "98 Messenger user, handheld, playing a game"
@@ -61,6 +81,25 @@ export const describe = (c) =>
     .join(", ")
 
 export const formatSize =(bytes) => (bytes < 1024 ? `${bytes} bytes` : `${(bytes / 1024).toFixed(bytes < 10240 ? 1 : 0)} KB`)
+
+// A small JPEG of a picture (at most 96 pixels across) for the receiver's Accept box
+const thumbnail = (dataUrl) =>
+  new Promise((resolve, reject) => {
+    const img = new Image()
+    img.onload = () => {
+      const scale = Math.min(1, 96 / Math.max(img.width, img.height))
+      const canvas = document.createElement("canvas")
+      canvas.width = Math.max(1, Math.round(img.width * scale))
+      canvas.height = Math.max(1, Math.round(img.height * scale))
+      const ctx = canvas.getContext("2d")
+      ctx.fillStyle = "#fff"
+      ctx.fillRect(0, 0, canvas.width, canvas.height)
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+      resolve(canvas.toDataURL("image/jpeg", 0.75))
+    }
+    img.onerror = reject
+    img.src = dataUrl
+  })
 
 const NetContext = createContext(null)
 export const useNet = () => useContext(NetContext)
@@ -121,9 +160,10 @@ export const NetProvider = ({ socket, windows, dispatch: dispatchWindow, mobile,
   const notice = (title, text, icon = "info") =>
     openWindow(`notice:${Date.now()}:${Math.random()}`, { name: title, program: "Network Neighborhood", app: "net-notice", text, noticeIcon: icon, width: 340, height: 170 })
 
-  // intent: "file" | "message" opens that dialog in the computer's window
+  // intent: "file" | "message" opens that dialog in the computer's window;
+  // { kind: "send", path } sends that file (dropped on the computer)
   const openComputer = (computer, intent) => {
-    if (intent) setIntents((all) => ({ ...all, [computer.id]: { kind: intent, at: Date.now() } }))
+    if (intent) setIntents((all) => ({ ...all, [computer.id]: { ...(typeof intent === "string" ? { kind: intent } : intent), at: Date.now() } }))
     openWindow(`computer:${computer.id}`, {
       name: `\\\\${computer.name}`,
       program: "Network Neighborhood",
@@ -271,7 +311,8 @@ export const NetProvider = ({ socket, windows, dispatch: dispatchWindow, mobile,
   }
 
   const sendFile = async (computer, file) => {
-    const result = await request("net:sendFile", { to: { id: computer.id }, name: file.name, content: file.textContent, type: file.type })
+    const preview = file.type === "image" ? await thumbnail(file.textContent).catch(() => null) : null
+    const result = await request("net:sendFile", { to: { id: computer.id }, name: file.name, content: file.textContent, type: file.type, preview })
     if (result.ok) setSentFiles((s) => ({ ...s, [result.id]: { name: file.name, to: result.to, toId: computer.id, status: "waiting", at: Date.now() } }))
     return result
   }
@@ -360,6 +401,7 @@ export const NetProvider = ({ socket, windows, dispatch: dispatchWindow, mobile,
     createTable: () => request("net:heartsCreate"),
     startTable: (matchId) => request("net:heartsStart", { matchId }),
     move: (matchId, path) => request("net:checkersMove", { matchId, path }),
+    gameMove: (matchId, move) => request("net:gameMove", { matchId, move }),
     raceProgress: (matchId, progress) => request("net:raceProgress", { matchId, ...progress }),
     resign: (matchId) => request("net:resign", { matchId }),
     draw: (matchId, action) => request("net:draw", { matchId, action }),

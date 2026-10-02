@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react"
 import "./WindowsUpdate.css"
+import { unlock } from "../../../utils/achievements"
 
 // "98ish Update": scans for (made-up) critical updates, downloads them at authentic 56k
 // speeds (sped up a little), installs them, and wants a restart. Installed updates are
@@ -72,6 +73,7 @@ const WindowsUpdate = ({ onClose }) => {
           clearInterval(timer.current)
           const next = [...installed, ...queue.map((u) => ({ id: u.id, at: Date.now() }))]
           setInstalled(next)
+          if (UPDATES.every((u) => next.some((i) => i.id === u.id))) unlock("updates")
           try {
             localStorage.setItem(KEY, JSON.stringify(next))
           } catch {

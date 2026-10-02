@@ -1,0 +1,363 @@
+/* Taskbar extras (Quick Launch, the tray, popups, the window switcher), achievement
+   toasts, and the Desktop Themes' pointer and icon effects */
+
+/* Desktop Themes: mouse pointers and a desktop icon effect (CSS variables from settings) */
+.os-root {
+  cursor: var(--os-cursor, default);
+}
+.desktopIconInner img,
+.os-mobile .mobileIcon img {
+  filter: var(--icon-filter, none);
+}
+
+/* these small .window boxes size to their contents (main.css makes windows fill their box) */
+.window.switcher,
+.window.achToast,
+.window.volumePopup {
+  height: auto;
+  min-width: 0;
+}
+
+/* 98.css leaves the checkmark's top to the flow, which drops it below the box */
+.shellLayer input[type="checkbox"]:checked + label::after,
+.trayPopup input[type="checkbox"]:checked + label::after,
+.dtField input[type="checkbox"]:checked + label::after {
+  top: 3px;
+}
+
+/* ---- auto hide: the taskbar tucks away, leaving a sliver to point at ---- */
+.taskbar {
+  transition: transform 0.18s ease-out;
+}
+.taskbar.is-autohide:not(:hover):not(.is-peek) {
+  transform: translateY(calc(100% - 3px));
+}
+.os-root:has(.taskbar.is-autohide) .desktopSurface {
+  bottom: 3px;
+}
+
+/* ---- Quick Launch ---- */
+.quickLaunch {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  height: 100%;
+  margin-left: 4px;
+  padding: 0 4px 0 6px;
+  /* the raised grip and the divider, as in Windows 98 */
+  border-left: 1px solid #808080;
+  box-shadow: inset 1px 0 #fff, inset 4px 0 #c0c0c0, inset 5px 0 #fff, 1px 0 #808080, 2px 0 #fff;
+}
+.qlButton {
+  min-width: 0 !important;
+  min-height: 0 !important;
+  width: 22px;
+  height: 22px;
+  padding: 0 !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.qlButton:hover {
+  box-shadow: inset -1px -1px #808080, inset 1px 1px #fff !important;
+}
+.qlButton:active {
+  box-shadow: inset 1px 1px #808080, inset -1px -1px #fff !important;
+}
+.qlButton img {
+  width: 16px;
+  height: 16px;
+  pointer-events: none;
+}
+
+/* ---- the tray: icons and the clock in one sunken box ---- */
+.tray {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 26px;
+  padding: 0 4px 0 2px;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080;
+}
+.tray .status-bar {
+  margin: 0;
+}
+.tray .status-bar-field {
+  box-shadow: none;
+  padding: 0 0 0 2px;
+}
+.trayIcon {
+  min-width: 0 !important;
+  min-height: 0 !important;
+  width: 20px;
+  height: 20px;
+  padding: 0 !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.trayIcon:focus {
+  outline: 1px dotted #000;
+  outline-offset: -2px;
+}
+
+/* popups above the tray */
+.trayPopup {
+  position: fixed;
+  right: 6px;
+  bottom: calc(var(--taskbar-h) + 2px);
+  z-index: 100000001;
+  font-family: "Pixelated MS Sans Serif", Arial, sans-serif;
+  -webkit-font-smoothing: none;
+  font-size: 11px;
+  color: #000;
+}
+.volumePopup {
+  width: 92px;
+  padding: 6px 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.volumeTitle {
+  align-self: stretch;
+  text-align: center;
+}
+/* a sideways slider, turned upright (works in every browser) */
+.volumeSlider {
+  width: 30px;
+  height: 110px;
+  position: relative;
+}
+.volumeSlider input[type="range"] {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 104px;
+  margin: 0;
+  transform: translate(-50%, -50%) rotate(-90deg);
+}
+.volumeMute {
+  margin: 0;
+}
+.trayBalloon {
+  max-width: 250px;
+  padding: 8px 10px;
+  background: #ffffe1;
+  border: 1px solid #000;
+  border-radius: 6px;
+  box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.3);
+}
+.trayBalloon p {
+  margin: 4px 0 0;
+}
+
+/* taskbar dialogs (Run, Taskbar Properties, Keyboard Shortcuts) over everything */
+.shellLayer {
+  position: fixed;
+  inset: 0;
+  z-index: 100000000;
+}
+.shellLayer .dialogBackdrop {
+  position: fixed;
+}
+.shellLayer .runLayer {
+  z-index: auto;
+}
+.tbNote {
+  margin-top: 6px !important;
+  color: #444;
+}
+.tbPreview {
+  height: 70px;
+  margin-bottom: 8px;
+  position: relative;
+  background: #008080;
+  box-shadow: inset 1px 1px #808080, inset -1px -1px #fff;
+  overflow: hidden;
+}
+.tbPreviewWindow {
+  position: absolute;
+  left: 20px;
+  top: 8px;
+  width: 120px;
+  height: 40px;
+  background: #c0c0c0;
+  box-shadow: inset -1px -1px #000, inset 1px 1px #fff;
+  padding: 2px;
+}
+.tbPreviewTitle {
+  height: 8px;
+  background: linear-gradient(90deg, var(--title-a, #000080), var(--title-b, #1084d0));
+}
+.tbPreviewBar {
+  position: absolute;
+  left: 1px;
+  right: 1px;
+  bottom: 1px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 0 2px;
+  background: #c0c0c0;
+  border-top: 1px solid #fff;
+  font-size: 9px;
+  transition: transform 0.2s;
+}
+.tbPreviewBar.is-hidden {
+  transform: translateY(15px);
+}
+.tbPreviewStart {
+  font-weight: bold;
+  padding: 0 3px;
+  box-shadow: inset -1px -1px #000, inset 1px 1px #fff;
+}
+.tbPreviewQuick {
+  width: 22px;
+  height: 10px;
+  background: repeating-linear-gradient(90deg, #000080 0 6px, transparent 6px 8px);
+}
+.tbPreviewTab {
+  flex: 1;
+  height: 13px;
+  max-width: 70px;
+  box-shadow: inset -1px -1px #000, inset 1px 1px #fff;
+}
+.tbPreviewClock {
+  margin-left: auto;
+  padding: 0 3px;
+  box-shadow: inset 1px 1px #808080, inset -1px -1px #fff;
+}
+.shortcutTable {
+  border-collapse: collapse;
+  width: 100%;
+}
+.shortcutTable th,
+.shortcutTable td {
+  vertical-align: top;
+  padding: 3px 4px;
+  border-bottom: 1px solid #dfdfdf;
+  text-align: left;
+}
+.shortcutTable th {
+  white-space: nowrap;
+  font-weight: bold;
+  padding-right: 8px;
+}
+.os-mobile .shortcutTable th {
+  white-space: normal;
+}
+
+/* ---- Alt+Q window switcher ---- */
+.switcherLayer {
+  position: fixed;
+  inset: 0;
+  z-index: 100000002;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+.switcher {
+  pointer-events: auto;
+  max-width: min(92vw, 560px);
+  padding: 12px 14px 10px;
+  font-family: "Pixelated MS Sans Serif", Arial, sans-serif;
+  -webkit-font-smoothing: none;
+  font-size: 11px;
+}
+.switcherIcons {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px;
+}
+.switcherIcon {
+  min-width: 0 !important;
+  width: 44px;
+  height: 44px;
+  padding: 0 !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent !important;
+  box-shadow: none !important;
+  border: 2px solid transparent;
+}
+.switcherIcon.is-selected {
+  border: 2px solid #000080;
+}
+.switcherIcon img {
+  width: 32px;
+  height: 32px;
+}
+.switcherName {
+  margin-top: 10px;
+  padding: 3px 6px;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-shadow: inset 1px 1px #808080, inset -1px -1px #fff;
+  background: #c0c0c0;
+}
+
+/* ---- "Achievement unlocked" toast ---- */
+.achToast {
+  position: fixed;
+  /* left of Floppy, who lives in the corner */
+  right: 96px;
+  bottom: calc(var(--taskbar-h) + 8px);
+  z-index: 2147483000;
+  width: min(280px, calc(100vw - 104px));
+  font-family: "Pixelated MS Sans Serif", Arial, sans-serif;
+  -webkit-font-smoothing: none;
+  font-size: 11px;
+  color: #000;
+  cursor: pointer;
+  animation: achIn 0.25s ease-out;
+}
+@keyframes achIn {
+  from {
+    transform: translateY(24px);
+    opacity: 0;
+  }
+}
+.achToastBody {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 8px;
+}
+.achToastBody p {
+  margin: 2px 0 0;
+}
+.trophy.is-locked {
+  filter: grayscale(1) opacity(0.45);
+}
+
+/* phones: bigger tray buttons, no quick launch */
+.os-mobile .trayIcon {
+  width: 32px;
+  height: 30px;
+}
+.os-mobile .trayIcon svg {
+  width: 20px;
+  height: 20px;
+}
+.os-mobile .tray {
+  height: 30px;
+}
+.os-mobile .achToast {
+  right: 8px;
+  width: calc(100vw - 16px);
+}
+.os-mobile .volumePopup {
+  width: 110px;
+}

@@ -1,23 +1,68 @@
-import React, { useEffect, useId, useState } from "react"
+import React, { useEffect, useId, useRef, useState } from "react"
 import Dialog from "../../shared/Dialog"
 import { fs } from "../../../utils/fs"
 import { useFsVersion } from "../../../hooks/useFs"
 import { useOpenGesture } from "../../../hooks/useMediaQuery"
 import { iconFor } from "../fileExplorer/FileExplorer"
-import { GAME_INFO, MAX_FILE_KB, describe, formatSize, useNet } from "./NetContext"
+import { DRAG_TYPE } from "../../../utils/fsActions"
+import { GAME_INFO, canSend, describe, fileBytes, formatSize, maxBytesFor, sizeLimitText, useNet } from "./NetContext"
 import { ComputerIcon, GameIcon, MessageIcon, SendFileIcon } from "./icons"
 
 // \\GUEST-1A2B: a computer's shared folder. Send it a file or a message, or invite it to
 // a game.
 
-const MAX_BYTES = MAX_FILE_KB * 1024
 const LEVELS = [
   ["beginner", "Beginner", "9 x 9, 10 mines"],
   ["intermediate", "Intermediate", "16 x 16, 40 mines"],
   ["expert", "Expert", "16 x 30, 99 mines"],
 ]
-const sendable = (item) => !item.isDirectory && (item.type === "text" || item.type === "note")
-const byteSize = (text) => new Blob([text]).size
+const tooBig = (item) => fileBytes(item) > maxBytesFor(item.type)
+
+// Why a file can't be sent, or null if it can
+export const sendProblem = (item) => {
+  if (!item) return "That file is no longer there."
+  if (!canSend(item)) return `"${item.name}" can't be sent. You can send documents, pictures and sounds.`
+  if (tooBig(item)) return `"${item.name}" is ${formatSize(fileBytes(item))}. That kind of file can be at most ${sizeLimitText(item.type)}.`
+  return null
+}
+
+// Something dragged out of My Computer (DRAG_TYPE, its path) dropped on a computer:
+// targetProps(id) goes on each drop target, `over` is the one being hovered
+export const useFileDrop = (onDrop, find) => {
+  const [over, setOver] = useState(null)
+  const depth = useRef(0)
+  const accepts = (e) => e.dataTransfer?.types?.includes(DRAG_TYPE)
+  return {
+    over,
+    targetProps: (id) => ({
+      onDragEnter: (e) => {
+        if (!accepts(e) || !find(id)) return
+        e.preventDefault()
+        depth.current++
+        setOver(id)
+      },
+      onDragOver: (e) => {
+        if (!accepts(e) || !find(id)) return
+        e.preventDefault()
+        e.dataTransfer.dropEffect = "move"
+      },
+      onDragLeave: () => {
+        depth.current = Math.max(0, depth.current - 1)
+        if (!depth.current) setOver((o) => (o === id ? null : o))
+      },
+      onDrop: (e) => {
+        depth.current = 0
+        setOver(null)
+        const from = accepts(e) && e.dataTransfer.getData(DRAG_TYPE)
+        const computer = from && find(id)
+        if (!computer) return
+        e.preventDefault()
+        e.stopPropagation()
+        onDrop(computer, from)
+      },
+    }),
+  }
+}
 
 // Invitations, shared by Network Neighborhood and a computer's folder. `show` puts up a
 // dialog: { kind: "race", computer } to pick a level, or { kind: "alert", ... }
@@ -55,7 +100,7 @@ export const RaceLevelDialog = ({ onPick, onCancel }) => {
   )
 }
 
-// A 98-style "choose a file" box over the C: drive (text documents only)
+// A 98-style "choose a file" box over the C: drive (documents, pictures and sounds)
 export const FilePicker = ({ title = "Send File", okLabel = "Send", onPick, onCancel }) => {
   useFsVersion()
   const openGesture = useOpenGesture()
@@ -63,21 +108,21 @@ export const FilePicker = ({ title = "Send File", okLabel = "Send", onPick, onCa
   const [selected, setSelected] = useState(null)
   const dir = fs.resolve(path)
   const items = dir?.isDirectory
-    ? [...dir.content].filter((i) => i.isDirectory || sendable(i)).sort((a, b) => (a.isDirectory !== b.isDirectory ? (a.isDirectory ? -1 : 1) : a.name.localeCompare(b.name)))
+    ? [...dir.content].filter((i) => i.isDirectory || canSend(i)).sort((a, b) => (a.isDirectory !== b.isDirectory ? (a.isDirectory ? -1 : 1) : a.name.localeCompare(b.name)))
     : []
   const file = selected && items.includes(selected) && !selected.isDirectory ? selected : null
-  const size = file ? byteSize(file.textContent) : 0
-  const tooBig = size > MAX_BYTES
+  const size = file ? fileBytes(file) : 0
+  const big = !!file && tooBig(file)
 
   const enter = (item) => {
     if (item.isDirectory) {
       setPath([...path, item.name])
       setSelected(null)
-    } else if (byteSize(item.textContent) <= MAX_BYTES) onPick(item)
+    } else if (!tooBig(item)) onPick(item)
   }
 
   return (
-    <Dialog title={title} okLabel={okLabel} okDisabled={!file || tooBig} onOk={() => file && onPick(file)} onCancel={onCancel}>
+    <Dialog title={title} okLabel={okLabel} okDisabled={!file || big} onOk={() => file && onPick(file)} onCancel={onCancel}>
       <div className="netPicker">
         <div className="netPickerBar">
           <span>Look in:</span>
@@ -87,7 +132,7 @@ export const FilePicker = ({ title = "Send File", okLabel = "Send", onPick, onCa
           </button>
         </div>
         <div className="netPickerList" role="listbox" aria-label="Files">
-          {items.length === 0 && <p className="netPickerEmpty">No text documents here.</p>}
+          {items.length === 0 && <p className="netPickerEmpty">Nothing here can be sent.</p>}
           {items.map((item) => (
             <button
               type="button"
@@ -104,8 +149,8 @@ export const FilePicker = ({ title = "Send File", okLabel = "Send", onPick, onCa
             </button>
           ))}
         </div>
-        <p className={tooBig ? "netPickerInfo is-error" : "netPickerInfo"}>
-          {file ? (tooBig ? `"${file.name}" is ${formatSize(size)}. Files can be at most ${MAX_FILE_KB} KB.` : `"${file.name}", ${formatSize(size)}`) : "Pick a text document to send."}
+        <p className={big ? "netPickerInfo is-error" : "netPickerInfo"}>
+          {file ? (big ? sendProblem(file) : `"${file.name}", ${formatSize(size)}`) : "Pick a document, picture or sound to send."}
         </p>
       </div>
     </Dialog>
@@ -158,6 +203,7 @@ const ComputerFolder = ({ computerId, computerName }) => {
     net.clearIntent(computerId)
     if (intent.kind === "file") setDialog({ kind: "file" })
     if (intent.kind === "message") sendMessage()
+    if (intent.kind === "send") sendPath(intent.path)
   }, [intent, !!computer])
 
   const sendFile = async (file) => {
@@ -169,6 +215,15 @@ const ComputerFolder = ({ computerId, computerName }) => {
         : { kind: "alert", title: "Send File", text: result.error }
     )
   }
+
+  // a file from My Computer, dropped here or on this computer's icon
+  const sendPath = (path) => {
+    const item = fs.resolve(path)
+    const problem = sendProblem(item)
+    if (problem) return setDialog({ kind: "alert", title: "Send File", text: problem })
+    sendFile(item)
+  }
+  const drop = useFileDrop((_, path) => sendPath(path), () => (computer && !computer.me ? computer : null))
 
   if (!computer) {
     return (
@@ -209,7 +264,11 @@ const ComputerFolder = ({ computerId, computerName }) => {
           <p className="nnEmpty">This is your computer. Other people see it as <b>{name}</b>{net.visible ? "." : ", but it's hidden right now."}</p>
         </div>
       ) : (
-        <div className="nnView netActions" onClick={(e) => !e.target.closest("[data-action]") && setSelected(null)}>
+        <div
+          className={drop.over ? "nnView netActions is-dropTarget" : "nnView netActions"}
+          onClick={(e) => !e.target.closest("[data-action]") && setSelected(null)}
+          {...drop.targetProps(computerId)}
+        >
           {actions.map((a) => (
             <button
               type="button"

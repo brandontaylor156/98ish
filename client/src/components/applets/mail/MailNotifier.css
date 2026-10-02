@@ -1,0 +1,70 @@
+/* The "New mail has arrived!" pop-up above the clock, and the envelope in the tray */
+
+.window.mailToast {
+  height: auto;
+  min-width: 0;
+  position: fixed;
+  right: 8px;
+  bottom: 44px;
+  z-index: 200000;
+  width: 290px;
+  max-width: calc(100vw - 16px);
+  animation: mailToastIn 0.25s ease-out;
+}
+
+@keyframes mailToastIn {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+}
+
+.mailToastBody {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px;
+}
+
+.mailToastText {
+  flex: 1;
+  min-width: 0;
+}
+
+.mailToastText div {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mailToastSubject {
+  color: #444;
+}
+
+.mailTray {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  height: 22px;
+  margin-right: 4px;
+  padding: 0 3px;
+  min-width: 0;
+  box-shadow: none;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.mailTray img {
+  width: 18px;
+  height: 18px;
+}
+
+.os-mobile .mailToast {
+  bottom: 52px;
+}
+
+.os-mobile .mailToastBody button {
+  min-height: 36px;
+}

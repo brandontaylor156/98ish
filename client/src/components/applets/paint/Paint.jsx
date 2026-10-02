@@ -11,6 +11,7 @@ import { saveWallpaperImage, setSettings } from "../../../utils/settings"
 import { useFsVersion } from "../../../hooks/useFs"
 import { trackUnsaved } from "../../../utils/unsaved"
 import "./Paint.css"
+import { progress, unlock } from "../../../utils/achievements"
 
 // Paint, as in Windows 98: the tool box with its options, the color box, menus, undo,
 // selections you can drag, cut, copy and paste, text, the canvas resize handles, Open /
@@ -399,6 +400,7 @@ const Paint = ({ file: initialFile = null, mobile = false, onTitle, onClose, reg
     commitAll()
     if (id === "pick") setPrevTool(tool)
     setToolState(id)
+    progress("paint-tools", id, TOOLS.length)
     setLasso(null)
   }
 
@@ -652,6 +654,7 @@ const Paint = ({ file: initialFile = null, mobile = false, onTitle, onClose, reg
     const url = pictureUrl()
     if (!saveWallpaperImage(url)) return setDialog({ kind: "alert", title: "Paint", text: "This picture is too big to use as the wallpaper. Try making it smaller (Image > Attributes)." })
     setSettings({ wallpaper: "custom", display })
+    unlock("wallpaper")
   }
 
   // ---- colors ----

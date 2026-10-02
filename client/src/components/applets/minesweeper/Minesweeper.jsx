@@ -5,6 +5,7 @@ import { useIsTouch } from "../../../hooks/useMediaQuery"
 import { LEVELS, LIMITS, chord, clampCustom, createGame, createSeededGame, cycleMark, elapsedSeconds, maxMinesFor, minesLeft, neighbors, reveal } from "./engine"
 import { Face, FlagIcon, Led, MineIcon } from "./graphics"
 import "./Minesweeper.css"
+import { unlock } from "../../../utils/achievements"
 
 const SETTINGS_KEY = "98ish.minesweeper"
 const BEST_KEY = "98ish.minesweeper.best"
@@ -117,6 +118,7 @@ const Minesweeper = ({ fitWindow, onClose, race }) => {
   // ---- winning: a new best time asks for your name, like the original ----
   useEffect(() => {
     if (game.status !== "won" || settings.level === "custom" || race) return
+    if (settings.level === "expert") unlock("mine-expert")
     const seconds = elapsedSeconds(game)
     if (seconds < best[settings.level].seconds) setDialog({ kind: "record", seconds, name: "Anonymous" })
   }, [game.status])

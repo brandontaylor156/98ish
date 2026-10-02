@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <!-- Pinball: Deep Sea Dive: a little ocean table with a jellyfish bumper, flippers and a ball -->
+  <defs>
+    <linearGradient id="sea" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1580c0"/>
+      <stop offset="1" stop-color="#062a52"/>
+    </linearGradient>
+    <radialGradient id="ball" cx=".35" cy=".35" r=".7">
+      <stop offset="0" stop-color="#fff"/>
+      <stop offset=".5" stop-color="#cfd9e0"/>
+      <stop offset="1" stop-color="#4a5a66"/>
+    </radialGradient>
+  </defs>
+  <path d="M8 46V18A16 16 0 0 1 40 18v28z" fill="url(#sea)" stroke="#000" stroke-width="1.5"/>
+  <path d="M10 44V18a14 14 0 0 1 28 0v26" fill="none" stroke="#46f0ff" stroke-width="1.2" opacity=".9"/>
+  <path d="M16 20a6 6 0 0 1 12 0c0 1.2-1 1.6-1.6 1-.6 1-1.6 1-2.2 0-.6 1-1.6 1-2.2 0-.6 1-1.6 1-2.2 0-.6.6-1.6.2-1.6-1z" fill="#ff5fd2" stroke="#4a0a3c" stroke-width=".8"/>
+  <path d="M19 22c0 2 1 3 0 5M22 22c0 2 1 3 0 5M25 22c0 2 1 3 0 5" stroke="#ffb3ec" stroke-width=".8" fill="none"/>
+  <path d="M11 37l9 4-1 1.6-8.6-3.6z" fill="#ff7a45" stroke="#5a1800" stroke-width=".8"/>
+  <path d="M37 37l-9 4 1 1.6 8.6-3.6z" fill="#ff7a45" stroke="#5a1800" stroke-width=".8"/>
+  <circle cx="30" cy="31" r="3.4" fill="url(#ball)" stroke="#1d2a33" stroke-width=".6"/>
+  <circle cx="14" cy="27" r="1.1" fill="none" stroke="#c8f7ff" stroke-width=".6"/>
+  <circle cx="34" cy="20" r=".9" fill="none" stroke="#c8f7ff" stroke-width=".6"/>
+</svg>

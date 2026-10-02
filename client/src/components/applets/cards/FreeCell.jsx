@@ -5,6 +5,7 @@ import CardTable, { useSize } from "./CardTable"
 import { DEFAULT_BACK } from "./art"
 import { load, save } from "./storage"
 import * as F from "./freecellEngine"
+import { unlock } from "../../../utils/achievements"
 
 const SETTINGS_KEY = "98ish.freecell"
 const STATS_KEY = "98ish.freecell.stats"
@@ -134,6 +135,7 @@ const FreeCell = ({ onClose, onTitle }) => {
     if (play.status !== "playing" || auto) return
     if (F.isWon(state)) {
       record(true)
+      unlock("freecell")
       setPlay((p) => ({ ...p, status: "won", counted: true }))
       setDialog({ kind: "won" })
     } else if (moves && !moves.length) {

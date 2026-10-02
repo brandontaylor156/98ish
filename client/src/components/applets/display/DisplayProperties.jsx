@@ -12,6 +12,8 @@ import {
   setSettings,
   wallpaperStyle,
 } from "../../../utils/settings"
+import { shellAction } from "../../../utils/shell"
+import { unlock } from "../../../utils/achievements"
 import "./DisplayProperties.css"
 
 const TABS = [
@@ -41,6 +43,7 @@ const DisplayProperties = ({ onClose }) => {
       return false
     }
     setSettings(draft)
+    if (draft.wallpaper === "custom") unlock("wallpaper")
     return true
   }
 
@@ -133,6 +136,9 @@ const DisplayProperties = ({ onClose }) => {
                 <option value="center">Center</option>
                 <option value="tile">Tile</option>
               </select>
+              <button type="button" className="dpThemes" onClick={() => shellAction("themes")}>
+                Themes...
+              </button>
             </div>
           </div>
         )}

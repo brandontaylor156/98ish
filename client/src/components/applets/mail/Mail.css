@@ -1,0 +1,583 @@
+/* 98ish Mail: folder tree, message list and preview pane, like a late-90s mail program */
+
+.mlRoot {
+  position: relative;
+  height: calc(100% - 25px);
+  display: flex;
+  flex-direction: column;
+  font-family: "Pixelated MS Sans Serif", Arial, sans-serif;
+  font-size: 11px;
+  background: #c0c0c0;
+  overflow: hidden;
+}
+
+.mlToolbar,
+.mlComposeBar {
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+  padding: 2px 4px;
+  border-bottom: 1px solid #808080;
+  box-shadow: 0 1px #fff;
+  flex-wrap: wrap;
+}
+
+button.mlTool {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  min-width: 52px;
+  min-height: 40px;
+  padding: 2px 4px;
+  background: transparent;
+  box-shadow: none;
+  border: 1px solid transparent;
+}
+
+button.mlTool:hover:not(:disabled) {
+  box-shadow: inset -1px -1px #808080, inset 1px 1px #fff;
+}
+
+button.mlTool:active:not(:disabled) {
+  box-shadow: inset 1px 1px #808080, inset -1px -1px #fff;
+}
+
+button.mlTool:disabled .mlToolIcon {
+  opacity: 0.35;
+  filter: grayscale(1);
+}
+
+.mlToolIcon {
+  width: 22px;
+  height: 22px;
+  background: center / contain no-repeat;
+}
+
+.mlToolIcon--new,
+.mlToolIcon--send {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 22 22'%3E%3Crect x='2' y='6' width='15' height='11' fill='%23fff3d0' stroke='%23000'/%3E%3Cpath d='M2 6l7.5 6L17 6' fill='none' stroke='%23000'/%3E%3Cpath d='M17 1l1.2 2.6 2.8.4-2 2 .5 2.8-2.5-1.4-2.5 1.4.5-2.8-2-2 2.8-.4z' fill='%23ffd800' stroke='%23a07000' stroke-width='.6'/%3E%3C/svg%3E");
+}
+
+.mlToolIcon--send {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 22 22'%3E%3Cpath d='M2 11l18-8-5 16-4-5-5 3 1-5z' fill='%23fff' stroke='%23000'/%3E%3Cpath d='M7 12l13-9-9 11' fill='%239fd0ff' stroke='%23000' stroke-width='.6'/%3E%3C/svg%3E");
+}
+
+.mlToolIcon--reply {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 22 22'%3E%3Cpath d='M9 4L2 10l7 6v-4c5 0 8 1 11 5-1-6-4-10-11-10z' fill='%23ffd800' stroke='%23000'/%3E%3C/svg%3E");
+}
+
+.mlToolIcon--replyall {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 22 22'%3E%3Cpath d='M7 4L1 10l6 6' fill='none' stroke='%23000' stroke-width='1.6'/%3E%3Cpath d='M12 4l-7 6 7 6v-4c4 0 6 1 9 5-1-6-3-10-9-10z' fill='%23ffd800' stroke='%23000'/%3E%3C/svg%3E");
+}
+
+.mlToolIcon--forward {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 22 22'%3E%3Cpath d='M13 4l7 6-7 6v-4c-5 0-8 1-11 5 1-6 4-10 11-10z' fill='%2360c0ff' stroke='%23000'/%3E%3C/svg%3E");
+}
+
+.mlToolIcon--delete,
+.mlToolIcon--cancel {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 22 22'%3E%3Cpath d='M4 4l14 14M18 4L4 18' stroke='%23c00000' stroke-width='3.4' stroke-linecap='round'/%3E%3C/svg%3E");
+}
+
+.mlToolIcon--restore {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 22 22'%3E%3Cpath d='M5 11h12l-1 9H6z' fill='%23c0c0c0' stroke='%23000'/%3E%3Cpath d='M11 2l5 5h-3v5H9V7H6z' fill='%2340c040' stroke='%23000'/%3E%3C/svg%3E");
+}
+
+.mlToolIcon--open {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 22 22'%3E%3Cpath d='M4 2h10l4 4v14H4z' fill='%23fff' stroke='%23000'/%3E%3Cpath d='M7 9h8M7 12h8M7 15h5' stroke='%23000080'/%3E%3C/svg%3E");
+}
+
+.mlToolIcon--save {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 22 22'%3E%3Cpath d='M3 3h14l2 2v14H3z' fill='%23404090' stroke='%23000'/%3E%3Crect x='6' y='3' width='9' height='6' fill='%23fff'/%3E%3Crect x='6' y='13' width='10' height='6' fill='%23c0c0c0'/%3E%3C/svg%3E");
+}
+
+.mlToolIcon--attach {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 22 22'%3E%3Cpath d='M14 6l-6 8a2 2 0 0 0 3 2l7-9a3.5 3.5 0 0 0-5-5l-8 10a5 5 0 0 0 7 7l5-6' fill='none' stroke='%23404040' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E");
+}
+
+.mlToolIcon--sendrecv {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 22 22'%3E%3Crect x='3' y='8' width='16' height='11' fill='%23fff3d0' stroke='%23000'/%3E%3Cpath d='M7 1v6M4 4l3 3 3-3' fill='none' stroke='%23008000' stroke-width='1.6'/%3E%3Cpath d='M15 7V1M12 4l3-3 3 3' fill='none' stroke='%230000c0' stroke-width='1.6'/%3E%3C/svg%3E");
+}
+
+.mlMain {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+}
+
+.mlFolders {
+  width: 150px;
+  flex: none;
+  background: #fff;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+  padding: 2px;
+  overflow: auto;
+}
+
+.mlFoldersHead {
+  padding: 2px 4px;
+  background: #c0c0c0;
+  border-bottom: 1px solid #808080;
+}
+
+.mlFolders ul {
+  list-style: none;
+  margin: 0;
+  padding: 4px 0 0 10px;
+}
+
+.mlFolders button {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  padding: 2px 3px;
+  background: transparent;
+  box-shadow: none;
+  text-align: left;
+}
+
+.mlFolders button.is-active {
+  background: #000080;
+  color: #fff;
+}
+
+.mlFolderName.is-bold,
+.mlFolderCount {
+  font-weight: bold;
+}
+
+.mlFolderCount {
+  color: #0000c0;
+}
+
+.mlFolders button.is-active .mlFolderCount {
+  color: #fff;
+}
+
+.mlFolderIcon {
+  flex: none;
+}
+
+.mlRight {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.mlList {
+  flex: 0 0 42%;
+  min-height: 80px;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+  padding: 2px;
+}
+
+.mlRows {
+  flex: 1;
+  overflow: auto;
+}
+
+.mlRow {
+  display: grid;
+  grid-template-columns: 18px minmax(80px, 28%) 1fr 120px;
+  align-items: center;
+  cursor: default;
+  white-space: nowrap;
+}
+
+.mlRow--head {
+  background: #c0c0c0;
+}
+
+.mlColHead {
+  display: flex;
+  justify-content: space-between;
+  min-width: 0;
+  min-height: 0;
+  padding: 1px 4px;
+  text-align: left;
+}
+
+.mlRow--head .mlClip {
+  text-align: center;
+  box-shadow: inset -1px -1px #0a0a0a, inset 1px 1px #fff, inset -2px -2px grey;
+  height: 100%;
+  line-height: 18px;
+}
+
+.mlSortArrow {
+  font-size: 8px;
+}
+
+.mlRows .mlRow {
+  padding: 1px 0;
+}
+
+.mlRows .mlRow:focus {
+  outline: 1px dotted #000;
+  outline-offset: -1px;
+}
+
+.mlRow.is-unread {
+  font-weight: bold;
+}
+
+.mlRow.is-selected {
+  background: #000080;
+  color: #fff;
+}
+
+.mlRow.is-failed .mlCell--subject {
+  color: #c00000;
+}
+
+.mlRow.is-selected.is-failed .mlCell--subject {
+  color: #ffb0b0;
+}
+
+.mlCell {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0 4px;
+}
+
+.mlClip {
+  display: flex;
+  justify-content: center;
+}
+
+.mlClipIcon {
+  width: 10px;
+  height: 14px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 14'%3E%3Cpath d='M6 3v7a1.5 1.5 0 0 1-3 0V2.5a2.5 2.5 0 0 1 5 0V10a3.5 3.5 0 0 1-7 0V4' fill='none' stroke='currentColor' stroke-width='1.2'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+.mlRow.is-selected .mlClipIcon {
+  filter: invert(1);
+}
+
+.mlNone {
+  padding: 16px;
+  text-align: center;
+  color: #808080;
+}
+
+.mlPreview,
+.mlPreviewEmpty {
+  flex: 1;
+  min-height: 0;
+  background: #fff;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+  padding: 2px;
+  display: flex;
+  flex-direction: column;
+}
+
+.mlPreviewEmpty {
+  align-items: center;
+  justify-content: center;
+  color: #808080;
+}
+
+.mlPreviewHead {
+  background: #c0c0c0;
+  padding: 4px 6px;
+  border-bottom: 1px solid #808080;
+  line-height: 1.5;
+}
+
+.mlPreviewHead > div {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mlDate {
+  color: #404040;
+}
+
+.mlAttachBar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 4px 6px;
+  border-bottom: 1px solid #c0c0c0;
+  background: #f4f4f4;
+}
+
+.mlAttachment {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.mlAttachment button {
+  min-width: 0;
+  padding: 0 6px;
+  min-height: 20px;
+}
+
+.mlFileIcon {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  flex: none;
+  background: url("/assets/text_file.png") center / contain no-repeat;
+}
+
+.mlFileIcon--image {
+  background-image: url("/assets/image_file.svg");
+}
+
+.mlFileIcon--music {
+  background-image: url("/assets/program_icons/midi.svg");
+}
+
+.mlFileIcon--richtext {
+  background-image: url("/assets/richtext_file.svg"), url("/assets/text_file.png");
+}
+
+.mlFileIcon--sound {
+  background-image: url("/assets/wave_file.svg"), url("/assets/text_file.png");
+}
+
+.mlText {
+  flex: 1;
+  overflow: auto;
+  padding: 8px 10px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-family: "Courier New", Courier, monospace;
+  font-size: 13px;
+  line-height: 1.35;
+  user-select: text;
+}
+
+.mlStatus {
+  margin: 0 2px 2px;
+}
+
+.mlStatus .status-bar-field {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mlSignIn {
+  margin: auto;
+  max-width: 340px;
+  text-align: center;
+  padding: 20px;
+}
+
+.mlSignIn h2 {
+  font-size: 15px;
+  margin: 8px 0;
+}
+
+.mlSignIn p {
+  font-size: 12px;
+}
+
+.mlDialogText {
+  white-space: pre-line;
+  max-width: 340px;
+}
+
+/* ---- New Message ---- */
+
+.mlCompose {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  background: #c0c0c0;
+}
+
+.mlComposeTitle {
+  align-self: center;
+  margin-left: 8px;
+  font-weight: bold;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+
+.mlComposeHead {
+  padding: 4px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.mlField {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.mlField > label {
+  width: 52px;
+  flex: none;
+  text-align: right;
+}
+
+.mlField > input,
+.mlAddress {
+  flex: 1;
+  min-width: 0;
+}
+
+.mlAddress {
+  position: relative;
+}
+
+.mlAddress input {
+  width: 100%;
+}
+
+.mlFrom {
+  font-weight: bold;
+}
+
+.mlSuggest {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 100%;
+  z-index: 3;
+  list-style: none;
+  margin: 0;
+  padding: 1px;
+  background: #fff;
+  border: 1px solid #000;
+  max-height: 140px;
+  overflow: auto;
+}
+
+.mlSuggest li {
+  padding: 2px 4px;
+  cursor: pointer;
+}
+
+.mlSuggest li.is-active,
+.mlSuggest li:hover {
+  background: #000080;
+  color: #fff;
+}
+
+.mlAttachList {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.mlAttachList li {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+button.mlRemove {
+  min-width: 0;
+  min-height: 0;
+  padding: 0 4px;
+  line-height: 1.2;
+}
+
+.mlBody {
+  flex: 1;
+  margin: 0 6px;
+  resize: none;
+  font-family: "Courier New", Courier, monospace;
+  font-size: 13px;
+}
+
+.mlComposeFoot {
+  padding: 3px 8px 5px;
+  color: #404040;
+}
+
+/* ---- phones: one pane at a time ---- */
+
+.os-mobile .mlRoot {
+  font-size: 13px;
+}
+
+.os-mobile .mlRoot input,
+.os-mobile .mlRoot select,
+.os-mobile .mlRoot textarea {
+  font-size: 16px;
+}
+
+.os-mobile .mlToolbar {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+}
+
+.os-mobile button.mlTool {
+  min-width: 56px;
+  min-height: 46px;
+}
+
+.mlRoot.is-mobile .mlMain {
+  flex-direction: column;
+}
+
+.mlFolderPick select {
+  width: 100%;
+  min-height: 36px;
+}
+
+.mlRoot.is-mobile .mlList {
+  flex: 1;
+}
+
+.mlRoot.is-mobile .mlRow {
+  grid-template-columns: 16px minmax(70px, 34%) 1fr;
+}
+
+.mlRoot.is-mobile .mlCell--time,
+.mlRoot.is-mobile .mlRow--head .mlColHead:last-child {
+  display: none;
+}
+
+.mlRoot.is-mobile .mlRows .mlRow {
+  min-height: 40px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.mlBack {
+  min-height: 34px;
+  margin-bottom: 4px;
+}
+
+.os-mobile .mlAttachment button {
+  min-height: 34px;
+  padding: 0 10px;
+}
+
+.os-mobile .mlField > label {
+  width: 58px;
+}
+
+.os-mobile .mlSuggest li {
+  padding: 8px;
+}

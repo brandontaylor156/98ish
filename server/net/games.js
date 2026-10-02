@@ -1,14 +1,17 @@
 // Head-to-head games between computers on the network: invitations, then matches of
-// Checkers, Minesweeper Race and Hearts. The server keeps the real game state; each player
+// Checkers, Minesweeper Race, Hearts, Reversi, Chess and Battleship. The server keeps the real game state; each player
 // gets their own view of it ("net:match"). Players are computer ids (pids); games.js never
 // touches sockets, it talks through the `emit(pid, event, payload)` it's given.
 
 const crypto = require("crypto")
 const checkers = require("./checkers")
 const hearts = require("./hearts")
+const { rules } = require("./rules")
 
 const INVITE_MS = 60_000
-const GAMES = ["checkers", "race", "hearts"]
+const GAMES = ["checkers", "race", "hearts", "reversi", "chess", "battleship"]
+// two-player board games whose rules are shared with the browser (see rules.js)
+const BOARD_GAMES = ["reversi", "chess", "battleship"]
 const RACE_LEVELS = {
   beginner: { rows: 9, cols: 9, mines: 10 },
   intermediate: { rows: 16, cols: 16, mines: 40 },
@@ -18,7 +21,7 @@ const BOT_NAMES = ["Ada", "Grace", "Alan", "Linus", "Hedy", "Dennis"]
 const DELAYS = { botPass: 500, botPlay: 750, trick: 1400, nextHand: 7000 }
 
 const newId = () => crypto.randomBytes(6).toString("hex")
-const GAME_NAMES = { checkers: "Checkers", race: "Minesweeper Race", hearts: "Hearts" }
+const GAME_NAMES = { checkers: "Checkers", race: "Minesweeper Race", hearts: "Hearts", reversi: "Reversi", chess: "Chess", battleship: "Battleship" }
 
 const createGames = ({ emit, delays = DELAYS, random = Math.random } = {}) => {
   const invites = new Map() // id -> { id, game, from, fromName, to, toName, options, matchId, timer }
@@ -112,7 +115,90 @@ const createGames = ({ emit, delays = DELAYS, random = Math.random } = {}) => {
     }
   }
 
-  const viewFor = (m, pid) => (m.game === "checkers" ? checkersView(m, pid) : m.game === "race" ? raceView(m, pid) : heartsView(m, pid))
+  const resultFor = (m, pid) => m.result && { ...m.result, youWon: m.result.winner === pid, winnerName: m.names[m.result.winner] || null }
+
+  // Reversi and Chess: colors, the board, and the moves you may make when it's your turn
+  const reversiView = (m, pid) => {
+    const R = rules.reversi
+    const you = m.colors.b === pid ? "b" : "w"
+    const theirPid = m.colors[R.other(you)]
+    const yourTurn = !m.result && m.state.turn === you
+    return {
+      id: m.id,
+      game: "reversi",
+      round: m.round,
+      you,
+      names: { b: m.names[m.colors.b], w: m.names[m.colors.w] },
+      board: m.state.board,
+      turn: m.state.turn,
+      moves: m.state.moves,
+      last: m.state.last,
+      passed: m.state.passed,
+      legal: yourTurn ? R.legalMoves(m.state.board, you) : [],
+      counts: R.countDiscs(m.state.board),
+      result: resultFor(m, pid),
+      rematch: { you: m.rematch.has(pid), them: m.rematch.has(theirPid) },
+      away: !!m.away[theirPid],
+      left: m.left.has(theirPid),
+    }
+  }
+
+  const chessView = (m, pid) => {
+    const C = rules.chess
+    const you = m.colors.w === pid ? "w" : "b"
+    const theirPid = m.colors[C.other(you)]
+    const yourTurn = !m.result && m.state.turn === you
+    return {
+      id: m.id,
+      game: "chess",
+      round: m.round,
+      you,
+      names: { w: m.names[m.colors.w], b: m.names[m.colors.b] },
+      board: m.state.board,
+      turn: m.state.turn,
+      check: m.state.check,
+      sans: m.state.sans,
+      last: m.state.last,
+      legal: yourTurn ? C.movesForView(m.state) : [],
+      captured: C.captured(m.state.board),
+      drawOffer: m.drawOffer ? (m.drawOffer === pid ? "you" : "them") : null,
+      result: resultFor(m, pid),
+      rematch: { you: m.rematch.has(pid), them: m.rematch.has(theirPid) },
+      away: !!m.away[theirPid],
+      left: m.left.has(theirPid),
+    }
+  }
+
+  // Battleship: your own fleet and the shots at it, and only what you've learned about
+  // theirs. Their fleet is sent once the game is over, never before.
+  const battleshipView = (m, pid) => {
+    const B = rules.battleship
+    const side = m.players.indexOf(pid)
+    const theirPid = m.players[1 - side]
+    const st = m.state
+    const view = {
+      id: m.id,
+      game: "battleship",
+      round: m.round,
+      names: { you: m.names[pid], them: m.names[theirPid] },
+      phase: st.phase,
+      placed: { you: !!st.sides[side].fleet, them: !!st.sides[1 - side].fleet },
+      yourTurn: !m.result && st.phase === "playing" && st.turn === side,
+      firstShot: m.first === side ? "you" : "them",
+      own: B.ownView(st, side),
+      enemy: B.enemyView(st, side),
+      last: st.last && { ...st.last, by: st.last.by === side ? "you" : "them" },
+      result: resultFor(m, pid),
+      rematch: { you: m.rematch.has(pid), them: m.rematch.has(theirPid) },
+      away: !!m.away[theirPid],
+      left: m.left.has(theirPid),
+    }
+    if (m.result) view.enemyFleet = st.sides[1 - side].fleet
+    return view
+  }
+
+  const VIEWS = { checkers: checkersView, race: raceView, hearts: heartsView, reversi: reversiView, chess: chessView, battleship: battleshipView }
+  const viewFor = (m, pid) => VIEWS[m.game](m, pid)
 
   const humansOf = (m) => (m.game === "hearts" ? m.seats.filter((s) => s && !s.bot).map((s) => s.pid) : m.players.filter((p) => !m.left.has(p)))
 
@@ -127,6 +213,7 @@ const createGames = ({ emit, delays = DELAYS, random = Math.random } = {}) => {
   const invite = ({ from, fromName, to, toName, game, options = {}, matchId }) => {
     if (!GAMES.includes(game)) return { ok: false, error: "Unknown game." }
     if (from === to) return { ok: false, error: "You can't play against yourself." }
+    if (BOARD_GAMES.includes(game) && !rules[game]) return { ok: false, error: "The game is still starting up. Try again in a moment." }
     if ([...invites.values()].filter((i) => i.from === from).length >= 6) return { ok: false, error: "You have too many invitations waiting. Wait for some answers first." }
     if ([...invites.values()].some((i) => i.from === from && i.to === to && i.game === game && (i.matchId || null) === (matchId || null))) {
       return { ok: false, error: `You already invited ${toName}.` }
@@ -183,7 +270,12 @@ const createGames = ({ emit, delays = DELAYS, random = Math.random } = {}) => {
       return { ok: true, matchId: table.id }
     }
     endInvite(inv, "accepted")
-    const m = inv.game === "checkers" ? startCheckers(inv.from, inv.fromName, pid, inv.toName) : startRace(inv.from, inv.fromName, pid, inv.toName, inv.options.level)
+    const m =
+      inv.game === "checkers"
+        ? startCheckers(inv.from, inv.fromName, pid, inv.toName)
+        : inv.game === "race"
+          ? startRace(inv.from, inv.fromName, pid, inv.toName, inv.options.level)
+          : startBoardGame(inv.game, inv.from, inv.fromName, pid, inv.toName)
     return { ok: true, matchId: m.id }
   }
 
@@ -213,6 +305,26 @@ const createGames = ({ emit, delays = DELAYS, random = Math.random } = {}) => {
     m.colors = aBlack ? { b: a, r: b } : { b: b, r: a }
     m.state = checkers.newGame()
     m.drawOffer = null
+    matches.set(m.id, m)
+    publish(m)
+    return m
+  }
+
+  // A fresh Reversi, Chess or Battleship game in a match (colors already chosen)
+  const resetBoardGame = (m) => {
+    m.drawOffer = null
+    if (m.game === "battleship") m.state = { ...rules.battleship.newGame(), turn: m.first }
+    else m.state = rules[m.game].newGame()
+  }
+
+  const startBoardGame = (game, a, aName, b, bName) => {
+    const m = base(game, a, aName, b, bName)
+    const aFirst = random() < 0.5
+    // black moves first in Reversi, white in Chess; in Battleship someone shoots first
+    if (game === "reversi") m.colors = aFirst ? { b: a, w: b } : { b: b, w: a }
+    else if (game === "chess") m.colors = aFirst ? { w: a, b: b } : { w: b, b: a }
+    else m.first = aFirst ? 0 : 1
+    resetBoardGame(m)
     matches.set(m.id, m)
     publish(m)
     return m
@@ -255,6 +367,37 @@ const createGames = ({ emit, delays = DELAYS, random = Math.random } = {}) => {
     return { ok: true }
   }
 
+  // A move in Reversi ({ square }), Chess ({ from, to, promotion }) or Battleship
+  // ({ fleet } to place the ships, { cell } to fire)
+  const gameMove = (pid, matchId, move) => {
+    const m = matches.get(matchId)
+    if (!m || !BOARD_GAMES.includes(m.game) || !m.players.includes(pid)) return { ok: false, error: "No such game." }
+    if (m.result) return { ok: false, error: "The game is over." }
+    if (!move || typeof move !== "object") return { ok: false, error: "That isn't a move." }
+    if (m.game === "battleship") {
+      const B = rules.battleship
+      const side = m.players.indexOf(pid)
+      const result = move.fleet !== undefined ? B.place(m.state, side, move.fleet) : B.fire(m.state, side, move.cell)
+      if (!result.ok) return result
+      m.state = result.state
+      if (m.state.phase === "over") finish(m, pid, "sunk")
+      else publish(m)
+      return { ok: true }
+    }
+    if (m.colors[m.state.turn] !== pid) return { ok: false, error: "It isn't your turn." }
+    const result =
+      m.game === "reversi"
+        ? rules.reversi.applyMove(m.state, move.square)
+        : rules.chess.applyMove(m.state, { from: move.from, to: move.to, promotion: move.promotion ?? undefined })
+    if (!result.ok) return result
+    m.state = result.state
+    if (m.drawOffer && m.drawOffer !== pid) m.drawOffer = null // moving declines a draw offer
+    const over = m.state.result
+    if (over) finish(m, over.winner ? m.colors[over.winner] : null, over.reason)
+    else publish(m)
+    return { ok: true }
+  }
+
   const raceProgressUpdate = (pid, matchId, { revealed, flags, status, time }) => {
     const m = matches.get(matchId)
     if (!m || m.game !== "race" || !m.players.includes(pid)) return { ok: false, error: "No such game." }
@@ -287,7 +430,7 @@ const createGames = ({ emit, delays = DELAYS, random = Math.random } = {}) => {
 
   const draw = (pid, matchId, action) => {
     const m = matches.get(matchId)
-    if (!m || m.game !== "checkers" || !m.players.includes(pid) || m.result) return { ok: false, error: "No such game." }
+    if (!m || (m.game !== "checkers" && m.game !== "chess") || !m.players.includes(pid) || m.result) return { ok: false, error: "No such game." }
     if (action === "offer") {
       if (m.drawOffer) return { ok: false, error: "A draw has already been offered." }
       m.drawOffer = pid
@@ -314,6 +457,12 @@ const createGames = ({ emit, delays = DELAYS, random = Math.random } = {}) => {
         m.colors = { b: m.colors.r, r: m.colors.b } // swap colors
         m.state = checkers.newGame()
         m.drawOffer = null
+      } else if (BOARD_GAMES.includes(m.game)) {
+        // swap colors (or who shoots first)
+        if (m.game === "reversi") m.colors = { b: m.colors.w, w: m.colors.b }
+        else if (m.game === "chess") m.colors = { w: m.colors.b, b: m.colors.w }
+        else m.first = 1 - m.first
+        resetBoardGame(m)
       } else {
         m.seed = Math.floor(random() * 2 ** 31)
         m.startAt = Date.now() + 3000
@@ -503,6 +652,7 @@ const createGames = ({ emit, delays = DELAYS, random = Math.random } = {}) => {
     replyInvite,
     cancelInvite,
     checkersMove,
+    gameMove,
     raceProgressUpdate,
     resign,
     draw,
@@ -522,4 +672,4 @@ const createGames = ({ emit, delays = DELAYS, random = Math.random } = {}) => {
   }
 }
 
-module.exports = { createGames, RACE_LEVELS, GAME_NAMES }
+module.exports = { createGames, RACE_LEVELS, GAME_NAMES, BOARD_GAMES }

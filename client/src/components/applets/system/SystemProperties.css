@@ -1,0 +1,143 @@
+/* System Properties */
+
+.spRoot {
+  position: relative;
+  height: calc(100% - 25px);
+  display: flex;
+  flex-direction: column;
+  padding: 8px 8px 6px;
+  background: #c0c0c0;
+  color: #000;
+  font-family: "Pixelated MS Sans Serif", Arial, sans-serif;
+  -webkit-font-smoothing: none;
+  font-size: 11px;
+}
+
+.spRoot button {
+  min-width: 0;
+}
+
+.spTabs {
+  margin-bottom: -2px !important;
+}
+
+.spTabs a {
+  color: #000 !important;
+}
+
+.window.spPanel {
+  flex: 1;
+  min-height: 0;
+  height: auto;
+  padding: 10px;
+  overflow: auto;
+}
+
+.spGeneral {
+  display: flex;
+  gap: 14px;
+}
+
+.spLogo {
+  width: 120px;
+  flex: none;
+  display: flex;
+  justify-content: center;
+  padding-top: 10px;
+}
+
+.spLogo img {
+  width: 96px;
+  height: 96px;
+  image-rendering: pixelated;
+}
+
+.spFacts p {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.spHead {
+  margin-top: 8px !important;
+}
+
+.spFacts .spHead:first-child {
+  margin-top: 0 !important;
+}
+
+.spIndent {
+  padding-left: 22px;
+}
+
+.spAch {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.spAchHead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.spProgress {
+  flex: 1;
+}
+
+.spAchList {
+  list-style: none;
+  margin: 0;
+  padding: 2px;
+  background: #fff;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+}
+
+.spAchList li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px;
+  border-bottom: 1px dotted #c0c0c0;
+}
+
+.spAchList li > div {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.spAchList li.is-locked {
+  color: #606060;
+}
+
+.spAchList time {
+  flex: none;
+  color: #404040;
+}
+
+.spButtons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  padding-top: 8px;
+}
+
+.spButtons button {
+  min-width: 75px;
+}
+
+.os-mobile .spButtons button {
+  min-height: 34px;
+}
+
+.os-mobile .spGeneral {
+  flex-direction: column;
+  gap: 4px;
+}
+
+.os-mobile .spLogo {
+  width: auto;
+  padding-top: 0;
+}

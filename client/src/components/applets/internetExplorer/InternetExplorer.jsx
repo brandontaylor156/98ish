@@ -572,7 +572,7 @@ const InternetExplorer = ({ initialUrl, onTitle, onNewWindow, onClose }) => {
               onAddress={submitAddress}
             />
           ) : onLocal ? (
-            <LocalSite key={frame.key} url={entry.url} onOpen={(url) => openUrl(url)} />
+            <LocalSite key={frame.key} url={entry.url} onOpen={(url) => openUrl(url)} onTitle={(title) => onTitleRef.current?.(`${title} - Internet Explorer`)} />
           ) : canceled ? (
             <div className="ieErrorPage">
               <h2>Action canceled</h2>

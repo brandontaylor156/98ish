@@ -151,4 +151,23 @@ const createBot = () => {
   return { screenName: SCREEN_NAME, reply, forget }
 }
 
-module.exports = { createBot, BOT_NAME: SCREEN_NAME }
+// 98ish Mail: SmarterChild writes back to every letter with something scripted
+const MAIL_OPENERS = ["Thanks for the mail", "Ooh, mail! I love mail", "Beep boop, letter received", "You've made a robot very happy"]
+const mailReply = (screenName, subject, body) => {
+  const text = simplify(`${subject || ""} ${body || ""}`)
+  const answer = /\bjoke\b|\bfunny\b/.test(text)
+    ? `You asked for a joke, so here it is: ${pick(JOKES)}`
+    : /\b(fortune|horoscope)\b/.test(text)
+      ? `Your fortune: ${pick(FORTUNES)}`
+      : /\?/.test(`${subject} ${body}`)
+        ? `You asked me something, so I shook my magic 8-ball. It says: ${pick(EIGHT_BALL)}`
+        : `Here's a joke for your trouble: ${pick(JOKES)}`
+  return [
+    `${pick(MAIL_OPENERS)}, ${screenName}! :-)`,
+    answer,
+    "I read every letter in about 0.002 seconds. IM me anytime for trivia and games.",
+    "-- SmarterChild\n(This reply was written by a robot.)",
+  ].join("\n\n")
+}
+
+module.exports = { createBot, mailReply, BOT_NAME: SCREEN_NAME }

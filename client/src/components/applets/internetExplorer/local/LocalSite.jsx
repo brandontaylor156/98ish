@@ -1,6 +1,10 @@
 import React, { useEffect, useState } from "react"
-import { RING, SERVER_URL, localPath, localUrl, ringNeighbor, ringRandom } from "./site"
+import { RING, SERVER_URL, localPath, localUrl, memberKey, pageFor, ringNeighbor, ringRandom } from "./site"
+import { useAim } from "../../aim/AimContext"
+import MemberPage, { Odometer } from "./member/MemberPage"
+import { withIds } from "./member/schema"
 import "./local.css"
+import { unlock } from "../../../../utils/achievements"
 
 // The 98ish Web Ring: a guestbook and a few homemade homepages, served from
 // http://www.98ish.com/ inside Internet Explorer. Visitor-written text is always shown as
@@ -101,9 +105,33 @@ export const Marquee = ({ children }) => (
   </div>
 )
 
+// The ring: the built-in pages, then every published member homepage (fetched now and
+// then; the built-in pages work without the server)
+let ringCache = { at: 0, members: [] }
+export const useRing = () => {
+  const [members, setMembers] = useState(ringCache.members)
+  useEffect(() => {
+    if (Date.now() - ringCache.at < 30_000) return
+    let live = true
+    fetch(`${SERVER_URL}/api/ring`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (!data.ok) return
+        ringCache = { at: Date.now(), members: data.members }
+        if (live) setMembers(data.members)
+      })
+      .catch(() => {})
+    return () => {
+      live = false
+    }
+  }, [])
+  return [...RING, ...members.filter((m) => m && typeof m.path === "string" && memberKey(m.path))]
+}
+
 const WebRing = ({ path, onOpen }) => {
-  const prev = ringNeighbor(path, -1)
-  const next = ringNeighbor(path, 1)
+  const ring = useRing()
+  const prev = ringNeighbor(path, -1, ring)
+  const next = ringNeighbor(path, 1, ring)
   return (
     <div className="lsRing">
       <div className="lsRingTitle">~ The 98ish Web Ring ~</div>
@@ -111,7 +139,7 @@ const WebRing = ({ path, onOpen }) => {
         <a href={localUrl(prev.path)} onClick={(e) => (e.preventDefault(), onOpen(localUrl(prev.path)))}>
           &lt;&lt; Prev
         </a>
-        <a href="#random" onClick={(e) => (e.preventDefault(), onOpen(localUrl(ringRandom(path).path)))}>
+        <a href="#random" onClick={(e) => (e.preventDefault(), onOpen(localUrl(ringRandom(path, ring).path)))}>
           Random
         </a>
         <a href={localUrl(next.path)} onClick={(e) => (e.preventDefault(), onOpen(localUrl(next.path)))}>
@@ -169,6 +197,7 @@ const Guestbook = ({ onOpen }) => {
       if (!d.ok) setNotice({ ok: false, text: d.error })
       else {
         setNotice({ ok: true, text: "Thanks for signing my guestbook!! Come back soon!" })
+        unlock("guestbook")
         setForm(EMPTY_FORM)
         if (page === 1) load(1)
         else setPage(1)
@@ -437,11 +466,195 @@ const NotFound = ({ url, onOpen }) => (
   </div>
 )
 
-const PAGES = { "/guestbook": Guestbook, "/shrine": Shrine, "/links": Links, "/rock": Rock }
+// ---------- member homepages ----------
 
-const LocalSite = ({ url, onOpen }) => {
+const visitorId = () => {
+  try {
+    let id = localStorage.getItem("98ish.visitor")
+    if (!/^[a-z0-9]{8,32}$/.test(id || "")) {
+      id = Math.random().toString(36).slice(2, 12) + Date.now().toString(36)
+      localStorage.setItem("98ish.visitor", id)
+    }
+    return id
+  } catch {
+    return ""
+  }
+}
+
+// http://www.98ish.com/~name: a member's homepage, drawn from its structured document
+const MemberView = ({ memberKey: key, path, onOpen, onTitle }) => {
+  const token = useAim()?.token
+  const ring = useRing()
+  const [data, setData] = useState(null) // { screenName, page } | { error }
+  const [hits, setHits] = useState(null)
+
+  useEffect(() => {
+    let live = true
+    onTitle?.(localUrl(path))
+    fetch(`${SERVER_URL}/api/homepages/${key}`)
+      .then(async (r) => ({ status: r.status, ...(await r.json()) }))
+      .then((d) => {
+        if (!live) return
+        if (!d.ok) {
+          onTitle?.(d.status === 404 ? "404 Not Found" : "98ish")
+          return setData({ error: d.status === 404 ? "missing" : d.error })
+        }
+        setData({ ...d, page: { ...d.page, blocks: withIds(d.page.blocks) } })
+        setHits(d.hits)
+        onTitle?.(d.page.title)
+        // count this visit (the owner's own visits don't count)
+        fetch(`${SERVER_URL}/api/homepages/${key}/hit`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+          body: JSON.stringify({ visitor: visitorId() }),
+        })
+          .then((r) => r.json())
+          .then((h) => live && h.ok && setHits(h.count))
+          .catch(() => {})
+      })
+      .catch(() => live && setData({ error: "The 98ish web server isn't answering. It may be waking up; try again in a minute." }))
+    return () => {
+      live = false
+    }
+  }, [key])
+
+  if (!data) {
+    return (
+      <div className="lsRoot">
+        <p className="lsCenter lsMemberLoading">Opening {localUrl(path)}...</p>
+      </div>
+    )
+  }
+  if (data.error) {
+    return (
+      <div className="lsRoot">
+        <div className="lsPage lsPage--404">
+          <h1>{data.error === "missing" ? "404 Not Found" : "Server Busy"}</h1>
+          <p className="lsCenter">
+            {data.error === "missing" ? (
+              <>
+                Nobody has published a homepage at <b>{localUrl(path)}</b> yet.
+              </>
+            ) : (
+              data.error
+            )}
+          </p>
+          <UnderConstruction text="BUILD YOURS WITH HOMEPAGE STUDIO" />
+          <p className="lsCenter">
+            <Link url={localUrl("/members")} onOpen={onOpen}>
+              See all the members' homepages
+            </Link>
+          </p>
+        </div>
+      </div>
+    )
+  }
+  const links = {
+    prev: localUrl(ringNeighbor(path, -1, ring).path),
+    next: localUrl(ringNeighbor(path, 1, ring).path),
+    random: localUrl(ringRandom(path, ring).path),
+  }
+  // Every homepage is in the ring: a page without the Web Ring block gets one at the bottom
+  const page = data.page.blocks.some((b) => b.type === "webring") ? data.page : { ...data.page, blocks: [...data.page.blocks, { id: "ring", type: "webring" }] }
+  return (
+    <div className="lsMember">
+      <MemberPage doc={page} owner={{ screenName: data.screenName }} hits={hits} ring={links} onOpen={onOpen} />
+    </div>
+  )
+}
+
+// http://www.98ish.com/members: every published homepage, newest or most visited first
+const Members = ({ onOpen }) => {
+  const [sort, setSort] = useState("newest")
+  const [page, setPage] = useState(1)
+  const [data, setData] = useState(null)
+  const [error, setError] = useState(null)
+
+  useEffect(() => {
+    let live = true
+    setError(null)
+    fetch(`${SERVER_URL}/api/homepages?sort=${sort}&page=${page}`)
+      .then((r) => r.json())
+      .then((d) => live && (d.ok ? setData(d) : setError(d.error)))
+      .catch(() => live && setError("The 98ish web server isn't answering. It may be waking up; try again in a minute."))
+    return () => {
+      live = false
+    }
+  }, [sort, page])
+
+  return (
+    <div className="lsPage lsPage--members">
+      <Marquee>*~*~* Welcome to 98ish Members! Free homepages for everyone with a 98 Messenger screen name! *~*~*</Marquee>
+      <h1 className="lsRainbow">98ish Members</h1>
+      <p className="lsCenter">
+        Every page here was made with <b>HomePage Studio 98ish</b>. Build yours: Start, Programs, Internet, HomePage Studio. <span className="lsBlink">FREE!</span>
+      </p>
+      <div className="mbSort">
+        {[
+          ["newest", "Newest"],
+          ["popular", "Most Visited"],
+        ].map(([id, label]) => (
+          <button
+            key={id}
+            type="button"
+            className={sort === id ? "is-active" : undefined}
+            onClick={() => {
+              setSort(id)
+              setPage(1)
+            }}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      {error && <p className="lsNotice">{error}</p>}
+      {!data && !error && <p className="lsCenter">Loading the directory...</p>}
+      {data && data.members.length === 0 && <p className="lsCenter">No homepages yet. Be the first!!</p>}
+      <ul className="mbList">
+        {data?.members.map((m) => (
+          <li key={m.key} className="mbItem">
+            <div className="mbItemText">
+              <Link url={localUrl(`/~${m.key}`)} onOpen={onOpen}>
+                <span className="mbItemTitle">{m.title}</span>
+              </Link>
+              <div className="mbItemBy">
+                by {m.screenName} - updated {new Date(m.updatedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+              </div>
+            </div>
+            <div className="mbHits">
+              <Odometer count={m.hits} />
+              <div>visitors</div>
+            </div>
+          </li>
+        ))}
+      </ul>
+      {data && data.pages > 1 && (
+        <div className="lsPager">
+          <button type="button" disabled={page <= 1} onClick={() => setPage(page - 1)}>
+            &lt;&lt; Prev
+          </button>
+          <span>
+            Page {page} of {data.pages}
+          </span>
+          <button type="button" disabled={page >= data.pages} onClick={() => setPage(page + 1)}>
+            Next &gt;&gt;
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+const PAGES = { "/guestbook": Guestbook, "/shrine": Shrine, "/links": Links, "/rock": Rock, "/members": Members }
+
+const LocalSite = ({ url, onOpen, onTitle }) => {
   const path = localPath(url)
+  const member = memberKey(path)
   const Page = PAGES[path]
+  useEffect(() => {
+    if (!member) onTitle?.(pageFor(url)?.title || "98ish")
+  }, [url])
+  if (member) return <MemberView key={member} memberKey={member} path={path} onOpen={onOpen} onTitle={onTitle} />
   return (
     <div className={`lsRoot lsRoot--${path?.slice(1) || "home"}`}>
       {Page ? <Page onOpen={onOpen} /> : <NotFound url={url} onOpen={onOpen} />}

@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48" shape-rendering="crispEdges">
+  <!-- 98ish Mail: a cream envelope with a red wax seal and a swooping blue arrow -->
+  <rect x="5" y="15" width="36" height="25" fill="#000"/>
+  <rect x="4" y="14" width="36" height="25" fill="#fff3d0"/>
+  <rect x="4" y="14" width="36" height="1" fill="#fff"/>
+  <rect x="39" y="15" width="1" height="24" fill="#a08850"/>
+  <rect x="4" y="38" width="36" height="1" fill="#a08850"/>
+  <g fill="#c8b070">
+    <rect x="5" y="15" width="2" height="1"/><rect x="7" y="16" width="2" height="1"/><rect x="9" y="17" width="2" height="1"/>
+    <rect x="11" y="18" width="2" height="1"/><rect x="13" y="19" width="2" height="1"/><rect x="15" y="20" width="2" height="1"/>
+    <rect x="17" y="21" width="2" height="1"/><rect x="19" y="22" width="2" height="1"/>
+    <rect x="37" y="15" width="2" height="1"/><rect x="35" y="16" width="2" height="1"/><rect x="33" y="17" width="2" height="1"/>
+    <rect x="31" y="18" width="2" height="1"/><rect x="29" y="19" width="2" height="1"/><rect x="27" y="20" width="2" height="1"/>
+    <rect x="25" y="21" width="2" height="1"/><rect x="23" y="22" width="2" height="1"/>
+    <rect x="5" y="37" width="2" height="1"/><rect x="7" y="36" width="2" height="1"/><rect x="9" y="35" width="2" height="1"/><rect x="11" y="34" width="2" height="1"/>
+    <rect x="37" y="37" width="2" height="1"/><rect x="35" y="36" width="2" height="1"/><rect x="33" y="35" width="2" height="1"/><rect x="31" y="34" width="2" height="1"/>
+  </g>
+  <rect x="19" y="21" width="6" height="5" fill="#c01818"/>
+  <rect x="20" y="20" width="4" height="7" fill="#c01818"/>
+  <rect x="21" y="22" width="2" height="2" fill="#ff7070"/>
+  <g fill="#1048c0">
+    <rect x="19" y="10" width="4" height="2"/><rect x="22" y="8" width="5" height="2"/><rect x="26" y="6" width="10" height="2"/>
+    <rect x="34" y="8" width="4" height="2"/><rect x="36" y="10" width="4" height="2"/><rect x="38" y="12" width="3" height="2"/>
+    <rect x="35" y="14" width="10" height="2"/><rect x="37" y="16" width="6" height="2"/><rect x="39" y="18" width="2" height="2"/>
+  </g>
+  <g fill="#5d8fff">
+    <rect x="27" y="6" width="7" height="1"/><rect x="22" y="8" width="4" height="1"/>
+  </g>
+</svg>

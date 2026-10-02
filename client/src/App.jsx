@@ -11,6 +11,9 @@ import { BlueScreen, BootScreen, LogOffDialog, LogOn, SafeToTurnOff, ShutDownDia
 import { getSettings, schemeVars, useSettings, wallpaperStyle } from "./utils/settings"
 import { lazyApp } from "./components/OS-specific/LazyApp"
 import Helper from "./components/OS-specific/Helper"
+import AchievementToast from "./components/OS-specific/AchievementToast"
+import { arrangeWindows } from "./utils/windowArrange"
+import { unlock } from "./utils/achievements"
 
 const MsDos = lazyApp(() => import("./components/applets/dos/MsDos"))
 import { Screensaver, optionsFor, saverById, useIdle } from "./components/screensavers"
@@ -126,6 +129,36 @@ const reducer = (state, action) => {
             }
           : window
       )
+
+    // ---- taskbar menus ----
+
+    // Cascade / Tile (payload: { mode: "cascade" | "horizontal" | "vertical", width, height })
+    case "arrange_windows":
+      return arrangeWindows(state, action.payload)
+
+    // Minimize All / Show Desktop, remembering which windows it hid for Undo
+    case "minimize_all":
+      return state.map((window) =>
+        !window.closed && !window.minimized ? { ...window, minimized: true, active: false, hiddenByShell: true } : window
+      )
+
+    case "undo_minimize_all": {
+      const last = state.findLastIndex((w) => w.hiddenByShell && !w.closed)
+      return state.map((window, idx) =>
+        window.hiddenByShell && !window.closed
+          ? { ...window, minimized: false, hiddenByShell: false, active: idx === last }
+          : { ...window, hiddenByShell: false, active: last < 0 ? window.active : false }
+      )
+    }
+
+    // a taskbar button's Restore: neither minimized nor maximized
+    case "restore_window":
+      return state.map((window, idx) =>
+        idx === action.payload.index
+          ? { ...window, minimized: false, maximized: false, active: true }
+          : { ...window, active: false }
+      )
+
     default:
       return state
   }
@@ -173,6 +206,7 @@ function App() {
       setCrashed(e.detail?.process || "explorer.exe")
       dispatch({ type: "close_all" })
       setPhase("bsod")
+      unlock("bsod")
     }
     // Windows Update's "Restart Now"
     const restartNow = () => checkUnsaved(() => powerOff("restart"))
@@ -195,7 +229,7 @@ function App() {
   const powerOff = (choice) => {
     playSystemSound("exit")
     dispatch({ type: "close_all" })
-    if (choice === "dos") setPhase("dos")
+    if (choice === "dos") setPhase("dos"), unlock("dos-mode")
     else setPhase(choice === "restart" ? "restarting" : "shuttingDown")
   }
 
@@ -275,6 +309,7 @@ function App() {
       {phase === "off" && <SafeToTurnOff onPowerOn={restart} />}
       {phase === "dos" && <MsDos fullScreen onClose={restart} />}
       {phase === "bsod" && <BlueScreen process={crashed} onDone={restart} />}
+      <AchievementToast />
     </div>
   )
 }

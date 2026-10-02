@@ -14,7 +14,10 @@ export const programs = [
   { name: "Notepad", app: "notepad", type: "notepad", icon: "/assets/note.png", width: 520, height: 420, group: "Accessories" },
   { name: "Solitaire", app: "solitaire", type: "solitaire", icon: "/assets/program_icons/solitaire.svg", width: 620, height: 500, group: "Games", desktop: false },
   { name: "FreeCell", app: "freecell", type: "freecell", icon: "/assets/program_icons/freecell.svg", width: 640, height: 520, group: "Games", desktop: false },
+  { name: "WordPad", app: "wordpad", type: "wordpad", icon: "/assets/program_icons/wordpad.svg", width: 640, height: 480, group: "Accessories", desktop: false },
+  { name: "Sound Recorder", app: "recorder", type: "recorder", icon: "/assets/program_icons/recorder.svg", width: 340, height: 250, group: "Entertainment", desktop: false },
   { name: "Paint", app: "paint", type: "paint", icon: "/assets/program_icons/paint.svg", width: 700, height: 540, group: "Accessories", desktop: false },
+  { name: "Pinball", app: "pinball", type: "pinball", icon: "/assets/program_icons/pinball.svg", width: 620, height: 740, group: "Games", desktop: false },
   { name: "Minesweeper", type: "minesweeper", icon: "/assets/program_icons/mine-48.png", width: 373, height: 456, group: "Games" },
   { name: "98 Messenger", type: "chat", icon: "/assets/program_icons/aim2-48.png", width: 260, height: 520, group: "Internet" },
   { name: "Network Neighborhood", app: "network", icon: "/assets/program_icons/network.svg", width: 560, height: 420, group: null },
@@ -26,7 +29,17 @@ export const programs = [
   { name: "Display Properties", app: "display", icon: "/assets/vaporwave.png", width: 420, height: 470, group: null, desktop: false },
   { name: "Calculator", app: "calc", type: "calc", icon: "/assets/program_icons/calc.svg", width: 270, height: 272, group: "Accessories", desktop: false },
   { name: "Character Map", app: "charmap", type: "charmap", icon: "/assets/program_icons/charmap.svg", width: 610, height: 280, group: "System Tools", desktop: false },
+  { name: "Backup", app: "backup", icon: "/assets/program_icons/backup.svg", width: 420, height: 460, group: "System Tools", desktop: false },
   { name: "Date/Time Properties", app: "datetime", icon: "/assets/program_icons/datetime.svg", width: 420, height: 370, group: null, desktop: false },
+  { name: "Desktop Themes", app: "themes", icon: "/assets/program_icons/themes.svg", width: 560, height: 500, group: null, desktop: false },
+  { name: "System Properties", app: "sysprops", icon: "/assets/program_icons/computer_explorer.png", width: 420, height: 470, group: null, desktop: false },
+  { name: "98ish Mail", app: "mail", type: "mail", icon: "/assets/program_icons/mail.svg", width: 760, height: 540, group: "Internet", desktop: false },
+  { name: "HomePage Studio", app: "homepage", type: "homepage", icon: "/assets/program_icons/homepage.svg", width: 940, height: 620, group: "Internet", desktop: false },
+  // from the Start menu these play against the computer; Network Neighborhood opens network games
+  { name: "Reversi", app: "net-reversi", type: "reversi", icon: "/assets/program_icons/reversi.svg", width: 420, height: 560, group: "Games", desktop: false },
+  { name: "Chess", app: "net-chess", type: "chess", icon: "/assets/program_icons/chess.svg", width: 700, height: 580, group: "Games", desktop: false },
+  { name: "Battleship", app: "net-battleship", type: "battleship", icon: "/assets/program_icons/battleship.svg", width: 660, height: 500, group: "Games", desktop: false },
+  { name: "Downhill", app: "ski", type: "ski", icon: "/assets/program_icons/ski.svg", width: 640, height: 520, group: "Games", desktop: false },
 ]
 
 // The desktop shows these (MS-DOS Prompt and Display Properties live in the Start menu)
@@ -66,6 +79,12 @@ export const notepadWindow = (file = null) => launch("Notepad", { file })
 
 // Paint, optionally editing a picture from the file system
 export const paintWindow = (file = null) => launch("Paint", { file })
+
+// WordPad, optionally editing a document (rich text or plain text)
+export const wordpadWindow = (file = null) => launch("WordPad", { file })
+
+// Sound Recorder, optionally opening a Wave Sound
+export const recorderWindow = (file = null) => launch("Sound Recorder", { file })
 
 // Media Player, optionally playing a song (its id or file name, like "HIGHWAY.MID")
 export const mediaPlayerWindow = (song = null) => launch("Media Player", { song })

@@ -53,7 +53,7 @@ test("declined and expired invitations tell the inviter", () => {
   assert.equal(last("a", "net:inviteResult").status, "declined")
   assert.equal(games.replyInvite("b", inv.inviteId, true).ok, false)
   assert.equal(games.invite({ from: "a", fromName: "A", to: "a", toName: "A", game: "race" }).ok, false)
-  assert.equal(games.invite({ from: "a", fromName: "A", to: "b", toName: "B", game: "chess" }).ok, false)
+  assert.equal(games.invite({ from: "a", fromName: "A", to: "b", toName: "B", game: "poker" }).ok, false)
 })
 
 test("minesweeper race: same seed for both, progress shared, first to clear wins", () => {

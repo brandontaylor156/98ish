@@ -10,6 +10,8 @@ import { SONGS, findSong } from "./songs"
 import { registerPlayer } from "./bus"
 import { NextGlyph, PauseGlyph, PlayGlyph, PrevGlyph, RepeatGlyph, ShuffleGlyph, SpeakerGlyph, StopGlyph } from "./Glyphs"
 import "./MediaPlayer.css"
+import { masterGain, useSettings } from "../../../utils/settings"
+import { unlock } from "../../../utils/achievements"
 
 // Media Player, as in Windows 98: plays the MIDI songs in C:\My Music (all original tunes,
 // synthesized live, see songs/), with a spectrum analyzer or oscilloscope, a seek bar,
@@ -101,6 +103,7 @@ const OpenDialog = ({ onOpen, onCancel }) => {
 
 const MediaPlayer = ({ song: initialSong = null, windowIndex, onTitle, onClose }) => {
   const [prefs, setPrefsState] = useState(loadPrefs)
+  const system = useSettings() // the taskbar's master volume
   const [current, setCurrent] = useState(() => findSong(initialSong) || SONGS[0])
   const [status, setStatus] = useState("ready") // ready | playing | paused | stopped
   const [position, setPosition] = useState(0)
@@ -206,6 +209,7 @@ const MediaPlayer = ({ song: initialSong = null, windowIndex, onTitle, onClose }
 
   // a song finished: on to the next one, or stop at the end of the playlist
   const ended = () => {
+    unlock("full-song")
     const after = neighbor(1, true)
     if (after) load(after, true)
     else {
@@ -237,7 +241,7 @@ const MediaPlayer = ({ song: initialSong = null, windowIndex, onTitle, onClose }
       return
     }
     const { prefs: p, current: song } = latest.current
-    e.setVolume(gainFor(p.volume))
+    e.setVolume(gainFor(p.volume) * masterGain())
     e.setMuted(p.muted)
     e.load(song)
     if (findSong(initialSong)) {
@@ -263,9 +267,9 @@ const MediaPlayer = ({ song: initialSong = null, windowIndex, onTitle, onClose }
   }, [])
 
   useEffect(() => {
-    engineRef.current?.setVolume(gainFor(prefs.volume))
+    engineRef.current?.setVolume(gainFor(prefs.volume) * masterGain())
     engineRef.current?.setMuted(prefs.muted)
-  }, [prefs.volume, prefs.muted])
+  }, [prefs.volume, prefs.muted, system.volume, system.muted])
 
   useEffect(() => onTitle?.(`${current.file} - Media Player`), [current])
 

@@ -3,6 +3,7 @@ import MenuBar from "../../shared/MenuBar"
 import Dialog from "../../shared/Dialog"
 import CardTable, { useSize } from "./CardTable"
 import WinCascade from "./WinCascade"
+import { unlock } from "../../../utils/achievements"
 import { BACKS, DEFAULT_BACK, backUrl } from "./art"
 import { load, save } from "./storage"
 import * as K from "./klondike"
@@ -124,6 +125,7 @@ const Solitaire = ({ onClose }) => {
     setSeconds(elapsed)
     setPlay((p) => ({ ...p, status: "won", state: { ...p.state, score: p.state.score + bonus } }))
     setSelection(null)
+    unlock("solitaire")
   }, [state, play.status])
 
   // the bounce starts once the won game has been drawn

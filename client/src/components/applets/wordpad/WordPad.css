@@ -1,0 +1,509 @@
+/* WordPad */
+
+.wpRoot {
+  position: relative;
+  height: calc(100% - 25px);
+  display: flex;
+  flex-direction: column;
+  background: #c0c0c0;
+  font-family: "Pixelated MS Sans Serif", Arial, sans-serif;
+  -webkit-font-smoothing: none;
+  font-size: 11px;
+  color: #000;
+}
+
+.wpRoot button {
+  min-width: 0;
+}
+
+/* toolbar and format bar */
+.wpBar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  padding: 2px 3px;
+  border-top: 1px solid #fff;
+  border-bottom: 1px solid #808080;
+}
+
+.wpTool {
+  width: 24px;
+  height: 22px;
+  padding: 0 !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  /* flat until hovered, as on 98 toolbars */
+  background: transparent !important;
+  box-shadow: none !important;
+  font-family: Arial, sans-serif;
+  font-size: 13px;
+  color: #000;
+}
+
+.wpTool:hover {
+  box-shadow: inset -1px -1px #808080, inset 1px 1px #fff !important;
+}
+
+.wpTool:active,
+.wpTool.is-active {
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080 !important;
+}
+
+.wpTool.is-active {
+  background: repeating-conic-gradient(#c0c0c0 0% 25%, #fff 0% 50%) 0 0 / 2px 2px !important;
+}
+
+.wpSep {
+  width: 2px;
+  height: 20px;
+  margin: 0 4px;
+  flex: none;
+  border-left: 1px solid #808080;
+  border-right: 1px solid #fff;
+}
+
+.wpFontSelect {
+  width: 150px;
+}
+
+.wpSizeSelect {
+  width: 52px;
+}
+
+.wpColorWrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.window.wpColorMenu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 25;
+  height: auto;
+  min-width: 120px;
+  margin: 0;
+  padding: 2px !important;
+  list-style: none;
+}
+
+.wpColorMenu button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 6px !important;
+  min-height: 0;
+  background: none !important;
+  box-shadow: none !important;
+  border: 0;
+  text-align: left;
+  color: #000;
+}
+
+.wpColorMenu button:hover {
+  background: #000080 !important;
+  color: #fff;
+}
+
+.wpSwatch {
+  width: 22px;
+  height: 11px;
+  flex: none;
+  border: 1px solid #000;
+}
+
+/* the ruler (inches, starting where the text starts) */
+.wpRuler {
+  flex: none;
+  height: 22px;
+  padding: 3px 0 3px 0;
+  overflow: hidden;
+  border-bottom: 1px solid #808080;
+}
+
+.wpRulerTrack {
+  position: relative;
+  height: 16px;
+  margin-left: 20px;
+  background:
+    linear-gradient(#000, #000) 0 100% / 100% 0 no-repeat,
+    repeating-linear-gradient(90deg, #000 0 1px, transparent 1px 12px) 0 11px / 100% 3px no-repeat,
+    repeating-linear-gradient(90deg, #000 0 1px, transparent 1px 48px) 0 8px / 100% 6px no-repeat,
+    #fff;
+  box-shadow: inset 1px 1px #808080;
+}
+
+.wpRulerNum {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  font-size: 10px;
+  line-height: 9px;
+  background: #fff;
+  padding: 0 1px;
+}
+
+/* the document */
+.wpScroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  background: #fff;
+  cursor: text;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+}
+
+.wpScroll[hidden] {
+  display: none;
+}
+
+/* WordPad's document styles: the editor, the print copy and the preview share them */
+.wpDoc {
+  font-family: Arial, sans-serif;
+  font-size: 10pt;
+  line-height: 1.2;
+  color: #000;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  -webkit-font-smoothing: auto;
+  text-align: left;
+}
+
+.wpDoc p,
+.wpDoc div,
+.wpDoc h1,
+.wpDoc h2,
+.wpDoc h3,
+.wpDoc blockquote {
+  margin: 0;
+}
+
+.wpDoc h1 {
+  font-size: 20pt;
+}
+
+.wpDoc h2 {
+  font-size: 16pt;
+}
+
+.wpDoc h3 {
+  font-size: 13pt;
+}
+
+.wpDoc ul,
+.wpDoc ol {
+  margin: 0;
+  padding-left: 0.35in;
+}
+
+.wpDoc img {
+  max-width: 100%;
+  height: auto;
+  vertical-align: bottom;
+}
+
+.wpPage {
+  min-height: 100%;
+  padding: 4px 8px 24px 20px;
+  outline: none;
+  -webkit-user-select: text;
+  user-select: text;
+  caret-color: #000;
+}
+
+/* status bar */
+.wpStatus {
+  flex: none;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 2px;
+  padding: 2px 4px;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080;
+}
+
+.wpStatusRight {
+  padding-left: 8px;
+  box-shadow: inset 1px 0 #808080;
+}
+
+/* Find / Replace: modeless, top right, so you can keep working */
+.window.wpFind {
+  position: absolute;
+  top: 26px;
+  right: 8px;
+  z-index: 10;
+  height: auto;
+  min-width: 0;
+  width: min(400px, calc(100% - 16px));
+}
+
+.wpFindBody {
+  display: flex;
+  gap: 8px;
+}
+
+.wpFindFields {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.wpFindFields > label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.wpFindFields input:not([type]) {
+  flex: 1;
+  min-width: 0;
+}
+
+.wpFindOptions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.wpFindButtons {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.wpFindButtons button {
+  min-width: 82px !important;
+}
+
+/* dialogs */
+.wpList {
+  width: 100%;
+  background: #fff;
+}
+
+.wpFontGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 60px;
+  gap: 6px;
+}
+
+.wpFontGrid label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.wpEffects,
+.wpSample {
+  margin: 4px 0 0;
+  padding: 6px;
+  border: 1px solid #808080;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.wpEffects legend,
+.wpSample legend {
+  float: none;
+  width: auto;
+  font-size: inherit;
+  padding: 0 4px;
+  margin: 0;
+}
+
+.wpSample {
+  height: 64px;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.wpColorRow,
+.wpIndentRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.wpColorRow select {
+  flex: 1;
+}
+
+.wpIndentRow {
+  justify-content: space-between;
+}
+
+.wpIndentRow input,
+.wpIndentRow select {
+  width: 90px !important;
+  margin-left: auto;
+}
+
+/* Print Preview */
+.wpPreview {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.wpPreviewBar {
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.wpPreviewBar button {
+  min-width: 70px !important;
+}
+
+.wpPreviewCount {
+  margin-left: auto;
+  padding-right: 4px;
+}
+
+.wpPreviewArea {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 12px;
+  background: #808080;
+}
+
+.wpMeasure {
+  position: absolute;
+  left: 0;
+  top: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.wpSheetBox {
+  flex: none;
+  position: relative;
+  margin: auto;
+}
+
+.wpSheet {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 816px;
+  height: 1056px;
+  transform-origin: 0 0;
+  background: #fff;
+  box-shadow: 4px 4px 0 #000;
+}
+
+.wpSheetBody {
+  position: absolute;
+  overflow: hidden;
+}
+
+/* Printing: only the document, on plain paper */
+.wpPrintArea {
+  display: none;
+}
+
+@media print {
+  @page {
+    size: letter;
+    margin: 1in 1.25in;
+  }
+
+  html,
+  body {
+    height: auto !important;
+    overflow: visible !important;
+    background: #fff !important;
+  }
+
+  body > *:not(.wpPrintArea) {
+    display: none !important;
+  }
+
+  .wpPrintArea {
+    display: block !important;
+  }
+}
+
+/* phones: finger-sized buttons; the bars scroll sideways instead of squeezing */
+.os-mobile .wpBar {
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  padding: 3px 4px;
+  gap: 2px;
+}
+
+.os-mobile .wpBar::-webkit-scrollbar {
+  display: none;
+}
+
+.os-mobile .wpTool {
+  width: 38px;
+  height: 36px;
+}
+
+.os-mobile .wpTool svg {
+  width: 20px;
+  height: 20px;
+}
+
+.os-mobile .wpFontSelect,
+.os-mobile .wpSizeSelect {
+  flex: none;
+  height: 34px;
+  font-size: 16px;
+}
+
+.os-mobile .wpFontSelect {
+  width: 150px;
+}
+
+.os-mobile .wpSizeSelect {
+  width: 64px;
+}
+
+.os-mobile .wpRuler {
+  display: none;
+}
+
+.os-mobile .wpScroll .wpDoc {
+  font-size: 12pt; /* 16px: no zoom-on-focus on iPhones */
+}
+
+.os-mobile .wpPage {
+  padding: 8px 12px 40vh;
+}
+
+.os-mobile .wpFindBody {
+  flex-direction: column;
+}
+
+.os-mobile .wpFindButtons {
+  flex-direction: row;
+  flex-wrap: wrap;
+}
+
+.os-mobile .wpFindFields input:not([type]),
+.os-mobile .wpIndentRow input {
+  font-size: 16px;
+}
+
+.os-mobile .wpColorMenu button {
+  padding: 8px 10px !important;
+}

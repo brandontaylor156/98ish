@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <!-- A Wave Sound: a page with a folded corner and a sound wave across it -->
+  <path d="M9 3h21l9 9v33H9z" fill="#ffffff" stroke="#000" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M30 3v9h9" fill="#c0c0c0" stroke="#000" stroke-width="1.5" stroke-linejoin="round"/>
+  <rect x="12" y="17" width="24" height="20" fill="#000"/>
+  <path d="M12 27h2l2-6 2 12 2-9 2 5 2-8 2 10 2-6 2 4 2-3h4" fill="none" stroke="#00e000" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M15 41h3l3-3v8l-3-3h-3z" fill="#000080"/>
+  <path d="M24 39a4 4 0 0 1 0 6" fill="none" stroke="#000080" stroke-width="1.4"/>
+</svg>

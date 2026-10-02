@@ -139,6 +139,9 @@ const ImWindow = ({ buddy, focusInput }) => {
     { label: "Checkers", onClick: () => playGame("checkers") },
     { label: "Minesweeper Race...", onClick: () => setDialog({ kind: "race" }) },
     { label: "Hearts", onClick: () => playGame("hearts") },
+    { label: "Reversi", onClick: () => playGame("reversi") },
+    { label: "Chess", onClick: () => playGame("chess") },
+    { label: "Battleship", onClick: () => playGame("battleship") },
   ]
 
   const addBuddy = async () => {

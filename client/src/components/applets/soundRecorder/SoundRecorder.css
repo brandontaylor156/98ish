@@ -1,0 +1,163 @@
+/* Sound Recorder */
+
+.srRoot {
+  position: relative;
+  height: calc(100% - 25px);
+  display: flex;
+  flex-direction: column;
+  background: #c0c0c0;
+  font-family: "Pixelated MS Sans Serif", Arial, sans-serif;
+  -webkit-font-smoothing: none;
+  font-size: 11px;
+  color: #000;
+  user-select: none;
+}
+
+.srRoot button {
+  min-width: 0;
+}
+
+.srBody {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 8px;
+  padding: 6px 10px;
+}
+
+.srTop {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.srReadout {
+  flex: 1;
+  min-width: 64px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.srReadout--right {
+  align-items: flex-end;
+}
+
+.srTime {
+  font-variant-numeric: tabular-nums;
+}
+
+/* the green wave on black, sunk into the panel */
+.srWave {
+  flex: none;
+  padding: 2px;
+  background: #000;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+}
+
+.srWave canvas {
+  display: block;
+  width: 128px;
+  height: 44px;
+  image-rendering: pixelated;
+}
+
+.srSlider {
+  width: 100%;
+  margin: 0;
+}
+
+.srButtons {
+  display: flex;
+  gap: 4px;
+}
+
+.srButtons button {
+  flex: 1;
+  height: 28px;
+  padding: 0 !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.srButtons button:disabled svg {
+  opacity: 0.4;
+}
+
+.srStatus {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0 2px 2px;
+  padding: 2px 4px;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080;
+}
+
+.srProps {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 12px;
+}
+
+/* phones: a bigger display and finger-sized buttons */
+.os-mobile .srBody {
+  justify-content: flex-start;
+  gap: 16px;
+  padding: 16px;
+}
+
+.os-mobile .srTop {
+  flex-wrap: wrap;
+  justify-content: space-between;
+}
+
+.os-mobile .srWave {
+  order: 3;
+  flex: 1 1 100%;
+}
+
+.os-mobile .srWave canvas {
+  width: 100%;
+  height: 120px;
+}
+
+.os-mobile .srReadout {
+  font-size: 14px;
+}
+
+.os-mobile .srSlider {
+  height: 32px;
+}
+
+.os-mobile .srButtons button {
+  height: 52px;
+}
+
+.os-mobile .srButtons svg {
+  width: 24px;
+  height: 24px;
+}
+
+.os-mobile .srStatus {
+  font-size: 13px;
+  padding: 6px 8px;
+}
+
+.srRoot:focus {
+  outline: none;
+}
+
+/* a long file name in the narrow title bar trails off instead of wrapping */
+.window:has(> .srRoot) .title-bar-text {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.window:has(> .srRoot) .title-bar-text span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

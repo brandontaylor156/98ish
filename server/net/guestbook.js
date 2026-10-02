@@ -246,4 +246,4 @@ const guestbookRouter = ({ store: storeOrPromise } = {}) => {
   return router
 }
 
-module.exports = { validateEntry, isProfane, normalizeHomepage, memoryStore, createGuestbookStore, guestbookRouter, MOODS, PER_PAGE, MAX_MESSAGE, MAX_NAME }
+module.exports = { validateEntry, isProfane, LINK, normalizeHomepage, memoryStore, createGuestbookStore, guestbookRouter, MOODS, PER_PAGE, MAX_MESSAGE, MAX_NAME }

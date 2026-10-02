@@ -32,6 +32,7 @@ export const APP_PROFILES = {
   Minesweeper: { image: "winmine.exe", mem: 1588, threads: 1, handles: 26, cpu: [0.15, 1] },
   Solitaire: { image: "sol.exe", mem: 1844, threads: 1, handles: 31, cpu: [0.15, 2] },
   FreeCell: { image: "freecell.exe", mem: 1652, threads: 1, handles: 28, cpu: [0.1, 1] },
+  Pinball: { image: "pinball.exe", mem: 6840, threads: 3, handles: 74, cpu: [3, 18] },
   "98 Messenger": { image: "aim.exe", mem: 5960, threads: 8, handles: 164, cpu: [0.25, 2] },
   "MS-DOS Prompt": { image: "command.com", mem: 932, threads: 1, handles: 18, cpu: [0.05, 1] },
   "Recycle Bin": { image: "explorer.exe", mem: 2980, threads: 4, handles: 71, cpu: [0.1, 1] },
@@ -45,7 +46,16 @@ export const APP_PROFILES = {
   WinPopup: { image: "winpopup.exe", mem: 812, threads: 1, handles: 19, cpu: [0.05, 1] },
   Checkers: { image: "checkers.exe", mem: 1844, threads: 2, handles: 34, cpu: [0.2, 2] },
   "Minesweeper Race": { image: "winmine.exe", mem: 1712, threads: 2, handles: 31, cpu: [0.2, 2] },
+  Backup: { image: "msbackup.exe", mem: 2148, threads: 3, handles: 44, cpu: [0.1, 2] },
   Hearts: { image: "mshearts.exe", mem: 2380, threads: 3, handles: 47, cpu: [0.25, 3] },
+  WordPad: { image: "wordpad.exe", mem: 2856, threads: 2, handles: 44, cpu: [0.1, 2] },
+  "Sound Recorder": { image: "sndrec32.exe", mem: 1932, threads: 3, handles: 37, cpu: [0.1, 3] },
+  "98ish Mail": { image: "msimn.exe", mem: 6120, threads: 9, handles: 152, cpu: [0.2, 3] },
+  "HomePage Studio": { image: "frontpg.exe", mem: 7340, threads: 6, handles: 131, cpu: [0.3, 5] },
+  Reversi: { image: "reversi.exe", mem: 1420, threads: 2, handles: 29, cpu: [0.2, 2] },
+  Chess: { image: "chess.exe", mem: 3260, threads: 3, handles: 44, cpu: [0.35, 18] },
+  Battleship: { image: "battle.exe", mem: 1968, threads: 2, handles: 36, cpu: [0.2, 2] },
+  Downhill: { image: "ski.exe", mem: 5124, threads: 4, handles: 61, cpu: [0.95, 11] },
 }
 
 const fallbackProfile = (name) => ({

@@ -1,0 +1,127 @@
+/* Downhill: a canvas slope under a menu bar, the score along the bottom */
+
+.skiRoot {
+  position: relative;
+  height: calc(100% - 25px);
+  display: flex;
+  flex-direction: column;
+  background: #c0c0c0;
+  font-family: "Pixelated MS Sans Serif", Arial, sans-serif;
+  -webkit-font-smoothing: none;
+  font-size: 11px;
+  outline: none;
+  overflow: hidden;
+}
+
+.skiStage {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  margin: 2px 3px;
+  border: 2px solid;
+  border-color: #808080 #fff #fff #808080;
+  overflow: hidden;
+}
+
+.skiCanvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  touch-action: none;
+  cursor: crosshair;
+  image-rendering: pixelated;
+}
+
+.skiOverlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgb(0 0 40 / 0.25);
+}
+
+.skiPanel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  max-width: calc(100% - 24px);
+  padding: 10px 16px;
+  background: #c0c0c0;
+  border: 2px solid;
+  border-color: #fff #000 #000 #fff;
+  box-shadow: inset -1px -1px #808080, inset 1px 1px #dfdfdf, 4px 4px 0 rgb(0 0 0 / 0.35);
+  text-align: center;
+}
+
+.skiPanel > b {
+  font-size: 14px;
+  color: #000080;
+}
+
+.skiPanel p {
+  margin: 0;
+}
+
+.skiScore {
+  font-size: 14px;
+}
+
+.skiBest {
+  color: #c00000;
+  font-weight: bold;
+}
+
+.skiScores {
+  border-collapse: collapse;
+  background: #fff;
+  border: 2px solid;
+  border-color: #808080 #fff #fff #808080;
+}
+
+.skiScores th,
+.skiScores td {
+  padding: 1px 8px;
+  text-align: right;
+}
+
+.skiScores th {
+  background: #dfdfdf;
+  font-weight: normal;
+}
+
+.skiScores tr.is-new td {
+  background: #000080;
+  color: #fff;
+}
+
+.skiTouchButtons {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  display: flex;
+  gap: 8px;
+}
+
+.skiTouchButtons button {
+  min-width: 64px;
+  min-height: 44px;
+  font-size: 14px;
+  opacity: 0.9;
+  touch-action: manipulation;
+}
+
+.skiStatus .status-bar-field {
+  white-space: nowrap;
+}
+
+.skiHint {
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.os-mobile .skiRoot {
+  font-size: 13px;
+}

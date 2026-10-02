@@ -6,7 +6,13 @@ import { GameInvite, IncomingFile, NetNotice, Waiting, WinPopup } from "./NetDia
 import Checkers from "./games/Checkers"
 import MinesweeperRace from "./games/MinesweeperRace"
 import Hearts from "./games/Hearts"
+import { lazyApp } from "../../OS-specific/LazyApp"
 import "./Network.css"
+
+// The board games (and their computer players) load when first opened
+const Reversi = lazyApp(() => import("./games/Reversi"))
+const Chess = lazyApp(() => import("./games/Chess"))
+const Battleship = lazyApp(() => import("./games/Battleship"))
 
 // Hearts from the Start menu: open a new table (its own window), then go away
 const HeartsLauncher = ({ onClose }) => {
@@ -50,6 +56,13 @@ const NetWindow = ({ window: w, dispatch, onClose, fitWindow }) => {
       return <MinesweeperRace matchId={w.matchId} fitWindow={fitWindow} onClose={onClose} />
     case "net-hearts":
       return w.matchId ? <Hearts matchId={w.matchId} onClose={onClose} /> : <HeartsLauncher onClose={onClose} />
+    // a network match, or (opened from the Start menu) a game against the computer
+    case "net-reversi":
+      return <Reversi matchId={w.matchId} onClose={onClose} />
+    case "net-chess":
+      return <Chess matchId={w.matchId} onClose={onClose} />
+    case "net-battleship":
+      return <Battleship matchId={w.matchId} onClose={onClose} />
     default:
       return null
   }

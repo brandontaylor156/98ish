@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useReducer, useRef, useState } from "react"
 import { playSound } from "./sounds"
 import "./Aim.css"
+import { unlock } from "../../../utils/achievements"
 
 // One 98 Messenger session shared by every Messenger window: the Buddy List ("98 Messenger"),
 // Instant Message windows, chat rooms, Buddy Info and chat invitations.
@@ -375,6 +376,7 @@ export const AimProvider = ({ socket, windows, dispatch: dispatchWindow, onOpenV
     dispatch({ type: "message", screenName, message })
     sound("imSend")
     const result = await request("aim:im", { to: screenName, text, style })
+    if (result.ok && keyOf(screenName) === keyOf(BOT_NAME)) unlock("smarterchild")
     if (!result.ok) {
       dispatch({ type: "message", screenName, message: { system: true, error: true, text: result.error, time: Date.now() } })
     }
@@ -433,6 +435,8 @@ export const AimProvider = ({ socket, windows, dispatch: dispatchWindow, onOpenV
 
   const value = {
     ...state,
+    // signs 98ish Mail and HomePage Studio requests (null when signed off)
+    token: state.status === "online" ? tokenRef.current : null,
     prefs,
     setPrefs,
     signOn,
@@ -453,6 +457,7 @@ export const AimProvider = ({ socket, windows, dispatch: dispatchWindow, onOpenV
     openIm,
     openInfo,
     openVideo: onOpenVideo,
+    getToken: () => tokenRef.current, // the session token (the online drive signs in with it)
   }
 
   return <AimContext.Provider value={value}>{children}</AimContext.Provider>

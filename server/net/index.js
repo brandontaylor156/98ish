@@ -1,7 +1,7 @@
 // Network Neighborhood: every open 98ish desktop is a computer on the network. Signed-on
 // 98 Messenger users show up under their screen name, everyone else as GUEST-XXXX.
-// Computers can send each other text files (the receiver accepts or declines), WinPopup
-// messages, and invitations to games (games.js).
+// Computers can send each other files (documents, pictures, sounds: the receiver accepts or
+// declines), WinPopup messages, and invitations to games (games.js).
 //
 // A computer is identified by a secret token the browser tab keeps, so a dropped
 // connection that comes back within RESUME_GRACE_MS picks up where it left off (same name,
@@ -12,11 +12,29 @@ const { limiter } = require("./limiter")
 const { createGames } = require("./games")
 
 const RESUME_GRACE_MS = 30_000
-const MAX_FILE_BYTES = 200 * 1024
+const MAX_FILE_BYTES = 200 * 1024 // text documents
+const MAX_DATA_BYTES = 1536 * 1024 // pictures and sounds (data URLs)
+const MAX_PREVIEW_BYTES = 24 * 1024 // a picture's thumbnail, shown before accepting
 const FILE_OFFER_MS = 2 * 60_000
 const MAX_PENDING_BYTES = 16 * 1024 * 1024 // all waiting files together
 const MAX_POPUP = 500
-const FILE_TYPES = ["text", "note"]
+// What can be sent, by file type: text (cleaned of control characters) or a base64 data URL
+// of an allowed kind
+const FILE_TYPES = {
+  text: { max: MAX_FILE_BYTES },
+  note: { max: MAX_FILE_BYTES },
+  richtext: { max: 512 * 1024 },
+  image: { max: MAX_DATA_BYTES, data: /^data:image\/(png|jpeg|gif|webp|bmp);base64,/ },
+  sound: { max: MAX_DATA_BYTES, data: /^data:audio\/(wav|x-wav|wave|webm|ogg|mpeg);base64,/ },
+}
+const BASE64 = /^[A-Za-z0-9+/]*={0,2}$/
+const PREVIEW = /^data:image\/(png|jpeg);base64,[A-Za-z0-9+/]+={0,2}$/
+
+// A data URL of the right kind with real base64 after the comma
+const validData = (content, kind) => {
+  const head = kind.data.exec(content)
+  return !!head && BASE64.test(content.slice(head[0].length))
+}
 const INVALID_NAME = /[\\/:"<>|\u0000-\u001F]/
 
 const TOKEN = /^[a-f0-9]{32}$/
@@ -217,19 +235,24 @@ const attachNet = (io, { aim: initialAim = null, graceMs = RESUME_GRACE_MS, game
 
     // ---- files ----
 
-    on("net:sendFile", (computer, { to, name, content, type }) => {
+    on("net:sendFile", (computer, { to, name, content, type, preview }) => {
       const found = findTarget(computer, to)
       if (found.error) return { ok: false, error: found.error }
       const fileName = validFileName(name)
       if (!fileName) return { ok: false, error: "That file name isn't allowed." }
-      if (typeof content !== "string") return { ok: false, error: "Only documents can be sent." }
-      if (!FILE_TYPES.includes(type)) return { ok: false, error: "Only text documents can be sent." }
+      if (typeof content !== "string") return { ok: false, error: "Only files can be sent." }
+      const kind = Object.hasOwn(FILE_TYPES, type) ? FILE_TYPES[type] : null
+      if (!kind) return { ok: false, error: "That kind of file can't be sent. Try a document, a picture or a sound." }
       const size = Buffer.byteLength(content, "utf8")
-      if (size > MAX_FILE_BYTES) return { ok: false, error: `That file is too big to send. Files can be at most ${MAX_FILE_BYTES / 1024} KB.` }
+      if (size > kind.max) return { ok: false, error: `That file is too big to send. ${kind.data ? "Pictures and sounds" : "Documents"} can be at most ${kind.max >= 1024 * 1024 ? `${(kind.max / 1024 / 1024).toFixed(1)} MB` : `${kind.max / 1024} KB`}.` }
+      if (kind.data && !validData(content, kind)) return { ok: false, error: "That file looks damaged, so it wasn't sent." }
       if ([...offers.values()].filter((o) => o.to === found.target).length >= 5) return { ok: false, error: `${nameOf(found.target)} has too many files waiting. Try again later.` }
       if (pendingBytes + size > MAX_PENDING_BYTES) return { ok: false, error: "The network is busy. Try again in a minute." }
       if (fileLimit(computer.pid)) return { ok: false, error: "You're sending files too fast. Wait a minute and try again." }
-      const offer = { id: newId(), from: computer, to: found.target, name: fileName, content: clean(content, MAX_FILE_BYTES).replace(/\r\n?/g, "\n"), type, size }
+      const body = kind.data ? content : clean(content, kind.max).replace(/\r\n?/g, "\n")
+      // a picture may come with a small thumbnail for the Accept/Decline box
+      const thumb = type === "image" && typeof preview === "string" && preview.length <= MAX_PREVIEW_BYTES && PREVIEW.test(preview) ? preview : null
+      const offer = { id: newId(), from: computer, to: found.target, name: fileName, content: body, type, size, preview: thumb }
       offer.expiresAt = Date.now() + FILE_OFFER_MS
       offer.timer = setTimeout(() => endOffer(offer, "expired"), FILE_OFFER_MS)
       offers.set(offer.id, offer)
@@ -277,6 +300,7 @@ const attachNet = (io, { aim: initialAim = null, graceMs = RESUME_GRACE_MS, game
     on("net:inviteReply", (computer, { id, accept }) => games.replyInvite(computer.pid, String(id), !!accept))
     on("net:inviteCancel", (computer, { id }) => games.cancelInvite(computer.pid, String(id)))
     on("net:checkersMove", (computer, { matchId, path }) => games.checkersMove(computer.pid, String(matchId), path))
+    on("net:gameMove", (computer, { matchId, move }) => games.gameMove(computer.pid, String(matchId), move))
     on("net:raceProgress", (computer, { matchId, ...progress }) => games.raceProgressUpdate(computer.pid, String(matchId), progress))
     on("net:resign", (computer, { matchId }) => games.resign(computer.pid, String(matchId)))
     on("net:draw", (computer, { matchId, action }) => games.draw(computer.pid, String(matchId), action))
@@ -292,7 +316,7 @@ const attachNet = (io, { aim: initialAim = null, graceMs = RESUME_GRACE_MS, game
     })
   })
 
-  const offerView = (offer) => ({ id: offer.id, from: nameOf(offer.from), fromId: offer.from.pid, name: offer.name, size: offer.size, type: offer.type, expiresAt: offer.expiresAt })
+  const offerView = (offer) => ({ id: offer.id, from: nameOf(offer.from), fromId: offer.from.pid, name: offer.name, size: offer.size, type: offer.type, preview: offer.preview, expiresAt: offer.expiresAt })
 
   // Names change as people sign on and off 98 Messenger (even from another window), and
   // "busy" flags as games start and end: look every few seconds
@@ -316,4 +340,4 @@ const attachNet = (io, { aim: initialAim = null, graceMs = RESUME_GRACE_MS, game
   }
 }
 
-module.exports = { attachNet, MAX_FILE_BYTES }
+module.exports = { attachNet, MAX_FILE_BYTES, MAX_DATA_BYTES, FILE_TYPES }
