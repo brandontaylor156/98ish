@@ -1,5 +1,12 @@
 export const programs = [
   {
+    name: "SPECTRA",
+    image_url: "/assets/program_icons/spectra.svg",
+    icon_url: "/assets/program_icons/spectra.svg",
+    width: 860,
+    height: 600,
+  },
+  {
     name: "Tetris",
     image_url: "./assets/program_icons/tetris3-48.png",
     icon_url: "./assets/program_icons/tetris3-48.png",

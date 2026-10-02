@@ -109,6 +109,23 @@ const LiveSearch = ({ results, dispatch, closeMenu }) => {
           },
         })
         return
+      case "spectra":
+        dispatch({
+          type: "open_window",
+          payload: {
+            name: "SPECTRA",
+            minimized: false,
+            maximized: false,
+            active: true,
+            closed: false,
+            width: 860,
+            height: 600,
+            positionX: 10,
+            positionY: 0,
+            icon_url: "/assets/" + imageMapper.spectra,
+          },
+        })
+        return
       case "hover":
         dispatch({
           type: "open_window",

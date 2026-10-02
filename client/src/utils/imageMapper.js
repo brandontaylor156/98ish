@@ -13,6 +13,7 @@ export const imageMapper = {
   tetris: "program_icons/tetris3-48.png",
   minesweeper: "program_icons/mine-48.png",
   hover: "program_icons/hover2-48.png",
+  spectra: "program_icons/spectra.svg",
   video: "program_icons/video-48.png",
   chat: "program_icons/aim2-48.png",
   notepad: "note.png",

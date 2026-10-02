@@ -71,6 +71,7 @@ export const FILE_TYPE = {
   tetris: "tetris",
   minesweeper: "minesweeper",
   hover: "hover",
+  spectra: "spectra",
   chat: "chat",
   video: "video",
   taskmanager: "taskmanager",
@@ -517,6 +518,7 @@ fs.openDirectory("Programs")
 fs.createFile("Tetris", "tetris")
 fs.createFile("Task Manager", "taskmanager")
 fs.createFile("Hover", "hover")
+fs.createFile("SPECTRA", "spectra")
 fs.createFile("YouTube '98", "video")
 fs.createFile("Notepad", "notepad")
 fs.createFile("Minesweeper", "minesweeper")

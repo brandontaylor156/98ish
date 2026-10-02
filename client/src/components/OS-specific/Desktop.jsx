@@ -4,6 +4,7 @@ import FileExplorer from "../applets/fileExplorer/FileExplorer"
 import Notepad from "../applets/notepad/Notepad"
 import Tetris from "../applets/tetris/Tetris"
 import Hover from "../applets/hover/Hover"
+import Spectra from "../applets/spectra/Spectra"
 import VideoPlayer from "../applets/videoPlayer/VideoPlayer"
 import Minesweeper from "../applets/minesweeper/Minesweeper"
 import { AimProvider } from "../applets/aim/AimContext"
@@ -107,6 +108,7 @@ const Desktop = ({ fs, programs, windows, dispatch, closeMenu, mobile }) => {
     <>
       {window.name == "Tetris" && <Tetris />}
       {window.name == "Hover" && <Hover />}
+      {window.name == "SPECTRA" && <Spectra />}
       {window.name == "My Computer" && (
         <FileExplorer fs={fs} dispatch={dispatch} />
       )}

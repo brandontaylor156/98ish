@@ -1,0 +1,417 @@
+/* SPECTRA overlay screens. The game draws on .spCanvas underneath. */
+
+.spRoot {
+  position: relative;
+  height: calc(100% - 25px);
+  overflow: hidden;
+  background: #05010d;
+  color: #fff;
+  font-family: "Trebuchet MS", "Segoe UI", Verdana, sans-serif;
+  outline: none;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  cursor: grab;
+}
+
+.spRoot[data-phase="playing"] {
+  cursor: none;
+}
+
+.spCanvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.spRoot button {
+  font-family: inherit;
+  min-width: 0;
+  min-height: 0;
+}
+
+/* ---- shared panels ---- */
+
+.spCenter {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 20px;
+  text-align: center;
+  pointer-events: none;
+}
+
+.spCenter > * {
+  pointer-events: auto;
+}
+
+.spLoading {
+  font-size: 14px;
+  letter-spacing: 4px;
+  color: #b9a7ff;
+  animation: spBreath 1.2s ease-in-out infinite;
+}
+
+.spPanel {
+  background: radial-gradient(ellipse at center, rgba(5, 1, 13, 0.75), rgba(5, 1, 13, 0.25) 70%);
+}
+
+.spPanel h2 {
+  margin: 0;
+  font-size: 26px;
+  letter-spacing: 6px;
+  font-weight: 900;
+}
+
+.spPanel p {
+  margin: 0;
+  max-width: 360px;
+  color: #ddd;
+}
+
+/* ---- title ---- */
+
+.spLogo {
+  margin: 0;
+  font-size: clamp(44px, 13vmin, 96px);
+  font-weight: 900;
+  letter-spacing: 0.18em;
+  padding-left: 0.18em;
+  background: linear-gradient(90deg, #ff3cac, #ffb347, #f9f871, #3cffc4, #2b86ff, #b14aff, #ff3cac);
+  background-size: 300% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: spShift 6s linear infinite;
+  filter: drop-shadow(0 0 18px rgba(255, 80, 200, 0.55));
+}
+
+.spTagline {
+  margin: -6px 0 6px;
+  font-size: clamp(12px, 2.4vmin, 16px);
+  letter-spacing: 3px;
+  color: #e6dcff;
+  text-shadow: 0 0 10px #000;
+}
+
+.spPlay {
+  padding: 12px 34px !important;
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: 3px;
+  color: #fff;
+  background: linear-gradient(90deg, #ff3cac, #784ba0, #2b86c5) !important;
+  border: 2px solid rgba(255, 255, 255, 0.8);
+  border-radius: 999px;
+  box-shadow: 0 0 24px rgba(255, 60, 172, 0.6), inset 0 0 12px rgba(255, 255, 255, 0.25) !important;
+  cursor: pointer;
+  animation: spBreath 2s ease-in-out infinite;
+}
+
+.spPlay:focus-visible {
+  outline: 3px solid #fff;
+  outline-offset: 3px;
+}
+
+.spHow {
+  font-size: 13px;
+  line-height: 1.7;
+  color: #f2ecff;
+  text-shadow: 0 0 6px #000, 0 0 12px #000;
+}
+
+.spBest {
+  font-size: 14px;
+  letter-spacing: 2px;
+  color: #ffe27a;
+  text-shadow: 0 0 8px rgba(255, 200, 0, 0.6);
+}
+
+.spWarning,
+.spHint {
+  font-size: 11px !important;
+  color: #aaa !important;
+}
+
+/* ---- HUD ---- */
+
+.spHud {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  padding: 10px 14px;
+  text-shadow: 0 0 8px rgba(0, 0, 0, 0.9);
+}
+
+.spHudLeft {
+  position: absolute;
+  left: 14px;
+  top: 10px;
+}
+
+.spHudRight {
+  position: absolute;
+  right: 50px;
+  top: 10px;
+  text-align: right;
+}
+
+.spScore {
+  font-size: 30px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 1px;
+}
+
+.spMult {
+  display: inline-block;
+  margin-top: 2px;
+  padding: 1px 10px;
+  border-radius: 999px;
+  font-size: 18px;
+  font-weight: 900;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+}
+
+.spMult--3, .spMult--4 { background: rgba(60, 255, 196, 0.25); border-color: #3cffc4; }
+.spMult--5, .spMult--6 { background: rgba(255, 179, 71, 0.3); border-color: #ffb347; }
+.spMult--7, .spMult--8 {
+  background: rgba(255, 60, 172, 0.35);
+  border-color: #ff3cac;
+  animation: spBreath 0.5s ease-in-out infinite;
+}
+
+.spDistance {
+  font-size: 18px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.spZone {
+  font-size: 12px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: #d9ccff;
+}
+
+.spMeter {
+  position: absolute;
+  left: 50%;
+  bottom: 14px;
+  transform: translateX(-50%);
+  width: min(320px, 60%);
+  height: 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  background: rgba(0, 0, 0, 0.4);
+  overflow: hidden;
+}
+
+.spMeterFill {
+  height: 100%;
+  background: linear-gradient(90deg, #2b86ff, #b14aff);
+  transition: width 0.15s linear;
+}
+
+.spMeterFill.is-full {
+  background: linear-gradient(90deg, #ffb347, #ff3cac, #ffb347);
+  background-size: 200% 100%;
+  animation: spShift 1s linear infinite;
+}
+
+.spMeterFill.is-active {
+  background: linear-gradient(90deg, #fff, #f9f871, #fff);
+  transition: none;
+}
+
+.spMeter span {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 3px;
+}
+
+/* floating score pops */
+.spPops {
+  position: absolute;
+  left: 50%;
+  top: 36%;
+  transform: translateX(-50%);
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.spPop {
+  font-weight: 900;
+  font-size: 22px;
+  letter-spacing: 2px;
+  text-shadow: 0 0 12px currentColor, 0 0 3px #000;
+  animation: spPop 0.95s ease-out forwards;
+}
+
+.spPop--graze { color: #f9f871; }
+.spPop--mult { color: #3cffc4; font-size: 34px; }
+.spPop--smash { color: #ff8a3c; }
+.spPop--overdrive { color: #fff; font-size: 40px; letter-spacing: 8px; }
+
+.spBanner {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 22%;
+  text-align: center;
+  pointer-events: none;
+  animation: spBanner 2.6s ease-out forwards;
+}
+
+.spBannerZone {
+  font-size: 14px;
+  letter-spacing: 8px;
+  color: #fff;
+}
+
+.spBannerName {
+  font-size: clamp(30px, 8vmin, 56px);
+  font-weight: 900;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  background: linear-gradient(90deg, #ff3cac, #f9f871, #3cffc4, #2b86ff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 0 14px rgba(255, 255, 255, 0.6));
+}
+
+/* touch: overdrive button */
+.spBolt {
+  position: absolute;
+  right: 18px;
+  bottom: 44px;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  font-size: 28px;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08) !important;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  box-shadow: none !important;
+  opacity: 0.5;
+}
+
+.spBolt.is-ready {
+  opacity: 1;
+  background: radial-gradient(circle, #ff3cac, #784ba0) !important;
+  border-color: #fff;
+  box-shadow: 0 0 22px #ff3cac !important;
+  animation: spBreath 0.6s ease-in-out infinite;
+}
+
+.spMute {
+  position: absolute;
+  right: 10px;
+  top: 10px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  font-size: 15px;
+  background: rgba(0, 0, 0, 0.35) !important;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  box-shadow: none !important;
+  padding: 0 !important;
+  cursor: pointer;
+}
+
+/* ---- game over ---- */
+
+.spLost {
+  color: #ff3cac;
+  text-shadow: 0 0 18px #ff3cac;
+}
+
+.spNewBest {
+  font-size: 18px;
+  font-weight: 900;
+  letter-spacing: 4px;
+  color: #f9f871;
+  animation: spBreath 0.7s ease-in-out infinite;
+}
+
+.spFinal {
+  font-size: clamp(40px, 10vmin, 72px);
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 0 22px rgba(255, 255, 255, 0.6);
+}
+
+.spStats {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px 14px;
+  font-size: 13px;
+  color: #e6dcff;
+  max-width: 420px;
+}
+
+.spBrag {
+  padding: 6px 16px !important;
+  font-size: 13px;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.12) !important;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 999px;
+  box-shadow: none !important;
+  cursor: pointer;
+}
+
+/* ---- animations ---- */
+
+@keyframes spShift {
+  to {
+    background-position: 300% 0;
+  }
+}
+
+@keyframes spBreath {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.06); }
+}
+
+@keyframes spPop {
+  0% { opacity: 0; transform: translateY(10px) scale(0.7); }
+  15% { opacity: 1; transform: translateY(0) scale(1.15); }
+  100% { opacity: 0; transform: translateY(-40px) scale(1); }
+}
+
+@keyframes spBanner {
+  0% { opacity: 0; transform: scale(1.6); letter-spacing: 0.6em; }
+  15% { opacity: 1; transform: scale(1); }
+  80% { opacity: 1; }
+  100% { opacity: 0; transform: scale(0.95); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spLogo,
+  .spPlay,
+  .spMult--7,
+  .spMult--8,
+  .spMeterFill.is-full,
+  .spBolt.is-ready,
+  .spNewBest {
+    animation: none;
+  }
+}
