@@ -1,16 +1,17 @@
 import BoardCell from './BoardCell'
 
-const Board = ({board, children}) => {
+// cells: rows of class names from engine.visibleCells
+const Board = ({cells, children}) => {
     const boardStyles = {
-        gridTemplateRows: `repeat(${board.size.rows}, 1fr)`,
-        gridTemplateColumns: `repeat(${board.size.columns}, 1fr)`
+        gridTemplateRows: `repeat(${cells.length}, 1fr)`,
+        gridTemplateColumns: `repeat(${cells[0].length}, 1fr)`
     };
 
     return (
             <div className="tetrisBoard" style={boardStyles}>
-                {board.rows.map((row, y) =>
-                row.map((cell, x) =>
-                    <BoardCell key={y * board.size.columns + x} cell={cell}/>
+                {cells.map((row, y) =>
+                row.map((className, x) =>
+                    <BoardCell key={y * row.length + x} className={className}/>
                     )
                 )}
                 {children}

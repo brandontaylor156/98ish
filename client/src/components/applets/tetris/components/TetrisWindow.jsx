@@ -1,46 +1,20 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 import Board from './Board'
-import GameStats from './GameStats'
-import Previews from './Previews'
+import GameStats, { KeyHints } from './GameStats'
+import PiecePreview from './PiecePreview'
 
-import {useBoard} from '../hooks/useBoard'
-import {useGameController} from '../hooks/useGameController'
-import {useGameStats} from '../hooks/useGameStats'
-import {usePlayer} from '../hooks/usePlayer'
+import { useTetris } from '../hooks/useTetris'
+import { NEXT_COUNT, visibleCells } from '../utils/engine'
 
-// Game rows=20 columns=10 setGameOver (true=game not started)
-const TetrisWindow = ({rows, columns, setGameOver}) => {
+// One game in progress. Reports the final state through onGameOver; onQuit ends early.
+const TetrisWindow = ({ onGameOver, onQuit }) => {
+    const { game, onKeyDown, onKeyUp, releaseKeys, pause, resume } = useTetris()
+    const cells = useMemo(() => visibleCells(game), [game.board, game.active])
 
-    // gameStats initial state = buildGameStats() (LAZY INITIALIZATION, computation done only once and not necessary on subsequent re-renders)
-    // buildGameStats sets initial state to --> level: 1, linesCompleted: 0,
-    // linesPerLevel: 10, points: 0
-
-    // addLinesCleared is a function that takes in the number of new lines cleared
-    // and adjusts the state of gameStats accordingly. Utilizes useCallback for performance
-    // optimization (? still need to know how exactly)
-    const [gameStats, addLinesCleared] = useGameStats();
-
-    // initial player has the following attributes --> collided: false, isFastDropping: false,
-    // position: up top, array of tetrominoes (random), popped off tetromino from end of array of tetrominoes
-    const [player, setPlayer, resetPlayer] = usePlayer();
-
-    // takes in rows, columns from game, player/reset player from above, addLinesCleared from above
-    const [board] = useBoard({
-        rows,
-        columns,
-        player,
-        resetPlayer,
-        addLinesCleared
-    })
-
-    const { onKeyDown, paused, pause, resume } = useGameController({
-        board,
-        gameStats,
-        player,
-        setGameOver,
-        setPlayer
-    })
+    useEffect(() => {
+        if (game.status === "over") onGameOver(game)
+    }, [game.status])
 
     // The window itself takes keyboard focus. Losing focus (clicking another window)
     // pauses the game; clicking back in resumes it.
@@ -60,9 +34,12 @@ const TetrisWindow = ({rows, columns, setGameOver}) => {
         }
     }
 
-    const onBlur = () => {
+    const onBlur = (event) => {
+        // Focus moving to a control inside the game (the End game button) isn't leaving it
+        if (event.currentTarget.contains(event.relatedTarget)) return
         setFocused(false)
-        if (!paused) {
+        releaseKeys()
+        if (game.status === "playing") {
             pausedByBlur.current = true
             pause()
         }
@@ -74,25 +51,47 @@ const TetrisWindow = ({rows, columns, setGameOver}) => {
             tabIndex={0}
             ref={windowRef}
             onKeyDown={onKeyDown}
+            onKeyUp={onKeyUp}
             onFocus={onFocus}
             onBlur={onBlur}
             onMouseDown={() => windowRef.current.focus({ preventScroll: true })}
         >
             <aside className="tetrisSide">
-                <div className="tetrisLabel">Next</div>
-                <Previews tetrominoes={player.tetrominoes} />
+                <div>
+                    <div className="tetrisLabel">Hold</div>
+                    <PiecePreview type={game.hold} dimmed={game.holdUsed} />
+                </div>
+                <GameStats score={game.score} level={game.level} lines={game.lines} />
+                {game.lastClear && (
+                    <div key={game.lastClear.id} className="tetrisClear">
+                        {game.lastClear.labels.map((label) => <div key={label}>{label}</div>)}
+                        {game.lastClear.points > 0 && <div>+{game.lastClear.points.toLocaleString()}</div>}
+                    </div>
+                )}
             </aside>
             <div className="tetrisBoardWrap">
-                <Board board={board}>
-                    {paused && (
+                <Board cells={cells}>
+                    {game.status === "paused" && (
                         <div className="tetrisOverlay">
-                            {focused ? "Paused\nPress P to resume" : "Click to resume"}
+                            {focused ? (
+                                <>
+                                    <div>Paused</div>
+                                    <div className="tetrisOverlayHint">Press P or Esc to resume</div>
+                                    <button onMouseDown={(e) => e.stopPropagation()} onClick={onQuit}>End game</button>
+                                </>
+                            ) : (
+                                <div>Click to resume</div>
+                            )}
                         </div>
                     )}
                 </Board>
             </div>
             <aside className="tetrisSide">
-                <GameStats gameStats={gameStats}/>
+                <div className="tetrisLabel">Next</div>
+                {game.queue.slice(0, NEXT_COUNT).map((type, i) => (
+                    <PiecePreview key={i} type={type} small={i > 0} />
+                ))}
+                <KeyHints />
             </aside>
         </div>
     )

@@ -1,8 +1,10 @@
-const BoardCell = ({cell}) => {
+import React from "react"
+
+const BoardCell = ({className}) => {
     return(
-    <div className={`tetrisBoardCell ${cell.className}`}>
+    <div className={`tetrisBoardCell ${className}`}>
     </div>
     )
 }
 
-export default BoardCell
+export default React.memo(BoardCell)
