@@ -15,7 +15,8 @@ export const buildBoard = ({rows, columns}) => {
     }
 }
 
-export const nextBoard = ({ board, player, resetPlayer, addLinesCleared }) => {
+// Returns the next board plus what the caller should do about it (score lines, spawn a new piece)
+export const nextBoard = ({ board, player }) => {
 
   // Destructuring popped tetromino and position from player
   const { tetromino, position } = player;
@@ -71,19 +72,14 @@ export const nextBoard = ({ board, player, resetPlayer, addLinesCleared }) => {
     return acc;
   }, []);
 
-  if (linesCleared > 0) {
-    addLinesCleared(linesCleared);
-  }
-
-  // If we collided, reset the player!
-  if (player.collided || player.isFastDropping) {
-    resetPlayer();
-  }
-
-  // Return the next board
   return {
-    rows,
-    size: { ...board.size }
+    board: {
+      rows,
+      size: { ...board.size }
+    },
+    linesCleared,
+    // If we collided, the caller resets the player
+    pieceLocked: player.collided || player.isFastDropping
   };
 };
 

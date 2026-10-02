@@ -31,7 +31,7 @@ const Preview = ({tetromino}) => {
           <div className="tetrisPreviewBoard">
             {board.rows.map((row, y) =>
               row.map((cell, x) => (
-                <BoardCell key={x * board.size.columns + x} cell={cell} />
+                <BoardCell key={y * board.size.columns + x} cell={cell} />
               ))
             )}
           </div>

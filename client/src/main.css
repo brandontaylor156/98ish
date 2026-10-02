@@ -13,6 +13,16 @@ html, body, #root {
   height: 100%;
   margin: 0;
   padding: 0;
+  overflow: hidden;
+}
+
+/* Pinned to the viewport and unscrollable: `clip` (unlike `hidden`) also blocks the
+   scrolling browsers do when focusing an input in a window dragged near the bottom,
+   which used to shift the whole desktop and lift the taskbar. */
+.os-root {
+  position: fixed;
+  inset: 0;
+  overflow: clip;
 }
 
 /************ DESKTOP *************/
@@ -134,118 +144,164 @@ hr.sm {
 /***********  TETRIS  *************/
 
 .tetrisApp {
-  text-align: center;
-  color: white;
-  background-color: purple;
   height: calc(100% - 25px);
   overflow: hidden;
+  background: #c0c0c0;
+  color: #000;
+  font-family: "Pixelated MS Sans Serif", Arial;
+  -webkit-font-smoothing: none;
 }
 
 .tetrisGame {
   height: 100%;
 }
 
-.tetrisStartButton {
-  font-size: 2rem;
-}
-
 .tetrisMenu {
+  height: 100%;
   display: flex;
+  flex-direction: column;
   justify-content: center;
   align-items: center;
-  height: inherit;
+  gap: 20px;
 }
 
-.tetrisBoardCell {
-  width: auto;
+.tetrisTitle {
+  display: flex;
+  gap: 4px;
+}
+
+.tetrisTitleLetter {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 24px;
+  font-weight: bold;
+  text-shadow: 1px 1px #000;
+  box-shadow: inset 3px 3px rgba(255, 255, 255, 0.55), inset -3px -3px rgba(0, 0, 0, 0.45);
+}
+
+.tetrisStartButton {
+  min-width: 120px;
+  padding: 6px 24px;
+  font-size: 16px;
 }
 
 .tetrisWindow {
+  height: 100%;
+  display: flex;
+  gap: 10px;
+  padding: 10px;
+  outline: none;
+}
+
+.tetrisSide {
+  flex: none;
+  width: 104px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow: hidden;
+}
+
+.tetrisLabel {
+  font-weight: bold;
+  margin-bottom: 2px;
+}
+
+/* Board fills the free space at a fixed 1:2 ratio, whatever the window size */
+.tetrisBoardWrap {
+  flex: 1;
+  min-width: 0;
+  container-type: size;
   display: flex;
   justify-content: center;
   align-items: center;
-  height: 100%;
-  position: relative;
 }
 
-.tetrisRow {
-  width: 100%;
-  height: 100%;
+.tetrisBoard,
+.tetrisPreviewBoard {
+  display: grid;
+  gap: 1px;
+  padding: 2px;
+  background: #1a1a1a;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
 }
 
 .tetrisBoard {
-  display: grid;
-  grid-gap: 2px;
-  min-width: 20vw;
-  min-height: 40vw;
-  background: rgb(32, 0, 64);
   position: relative;
-  border: 3px solid black;
-  border-radius: 5px;
-}
-
-.tetrisGameStats {
-  list-style-type: none;
-  font-size: 1.2rem;
-  text-align: right;
-  font-weight: bold;
-  color: black;
-}
-
-.tetrisPreview {
-  background: rgba(0, 0, 0, 0.1);
-  border: 10px solid rgba(0, 0, 0, 0);
+  width: min(100cqw, 50cqh);
+  height: min(200cqw, 100cqh);
 }
 
 .tetrisPreviewBoard {
-  display: grid;
-  gap: 2px;
   grid-template-rows: repeat(4, 1fr);
   grid-template-columns: repeat(4, 1fr);
-  width: 11vh;
-  height: 11vh;
+  width: 76px;
+  height: 76px;
 }
 
-.tetrisGameController {
+.tetrisBoardCell {
+  background: #000;
+}
+
+.tetrisBoardCell[class*="tetromino__"] {
+  box-shadow: inset 2px 2px rgba(255, 255, 255, 0.55), inset -2px -2px rgba(0, 0, 0, 0.45);
+}
+
+.tetromino__i { background: #00c8d0; }
+.tetromino__j { background: #2850e0; }
+.tetromino__l { background: #f08000; }
+.tetromino__o { background: #e0d000; }
+.tetromino__s { background: #20b840; }
+.tetromino__t { background: #a040d0; }
+.tetromino__z { background: #e02020; }
+
+/* Landing preview: outline only */
+.tetrisBoardCell.tetromino_ghost {
+  background: #000;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
+}
+
+.tetrisOverlay {
   position: absolute;
-  top: -100em;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.65);
+  color: #fff;
+  font-size: 16px;
+  text-align: center;
+  white-space: pre-line;
 }
 
-.tetromino.ghost {
-  opacity: 0;
+.tetrisStatValue {
+  background: #fff;
+  padding: 2px 6px;
+  text-align: right;
+  font-size: 16px;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
 }
 
-.tetromino__i {
-  background-color: rgba(80, 227, 230, 1);
+.tetrisKeys {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0 0;
+  font-size: 11px;
+  line-height: 1.9;
 }
 
-.tetromino__j {
-  background-color: rgba(36, 95, 223, 1);
-}
-
-.tetromino__l {
-  background-color: orangered;
-}
-
-.tetromino__o {
-  background-color: rgba(223, 217, 36, 1);
-}
-
-.tetromino__s {
-  background-color: rgba(48, 211, 56, 1);
-}
-
-.tetromino__t {
-  background-color: rgba(132, 61, 198, 1);
-}
-
-.tetromino__z {
-  background-color: red;
-}
-
-.tetromino_ghost {
-  background-color: transparent;
-  border: 2px solid rgba(255, 255, 255, 0.2);
+.tetrisKeys kbd {
+  font-family: inherit;
+  font-size: inherit;
+  color: #000;
+  background: #dfdfdf;
+  border-radius: 0;
+  padding: 0 4px;
+  box-shadow: inset -1px -1px #808080, inset 1px 1px #fff;
 }
 
 /********************END TETRIS *****************/

@@ -1,25 +1,30 @@
 import React from "react"
 
+const Stat = ({label, value}) => (
+    <div>
+        <div className="tetrisLabel">{label}</div>
+        <div className="tetrisStatValue">{value}</div>
+    </div>
+)
+
 const GameStats = ({gameStats}) => {
     const {level, points, linesCompleted, linesPerLevel} = gameStats;
     const linesToLevel = linesPerLevel - linesCompleted
 
     return (
-        <ul className="tetrisGameStats">
-            <li>Level</li>
-            <li className="text-white">{level}</li>
-            <li>Lines to level</li>
-            <li className="text-white">{linesToLevel}</li>
-            <li>Points</li>
-            <li className="text-white">{points}</li>
-            <br/>
-            <li><span className="text-danger">↔</span> Left/Right</li>
-            <li><span className="text-danger">↑</span> Rotate</li>
-            <li><span className="text-danger">Space</span> Drop</li>
-            <li><span className="text-danger">P</span> Pause</li>
-            <li><span className="text-danger">Q</span> Quit</li>
-            <li><span className="text-danger">Tab</span> Refocus</li>
-        </ul>
+        <>
+            <Stat label="Score" value={points} />
+            <Stat label="Level" value={level} />
+            <Stat label="Lines to next" value={linesToLevel} />
+            <ul className="tetrisKeys">
+                <li><kbd>{"← →"}</kbd> Move</li>
+                <li><kbd>{"↑"}</kbd> Rotate</li>
+                <li><kbd>{"↓"}</kbd> Soft drop</li>
+                <li><kbd>Space</kbd> Hard drop</li>
+                <li><kbd>P</kbd> Pause</li>
+                <li><kbd>Q</kbd> Quit</li>
+            </ul>
+        </>
     )
 
 }
