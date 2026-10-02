@@ -197,3 +197,47 @@
 .os-mobile .shutDownBody .field-row label {
   padding: 6px 0;
 }
+
+.blueScreen {
+  background: #0000aa;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "Lucida Console", "Courier New", monospace;
+  font-size: clamp(13px, 2.3vw, 20px);
+  line-height: 1.45;
+  cursor: none;
+}
+
+.bsodBody {
+  width: min(42em, calc(100% - 32px));
+}
+
+.bsodBody p {
+  margin: 0 0 1.2em;
+}
+
+.bsodTitle {
+  text-align: center;
+}
+
+.bsodTitle span {
+  background: #aaaaaa;
+  color: #0000aa;
+  padding: 0 0.5em;
+}
+
+.bsodPrompt {
+  text-align: center;
+}
+
+.bsodCursor {
+  animation: dosBlinkBsod 1s steps(1) infinite;
+}
+
+@keyframes dosBlinkBsod {
+  50% {
+    opacity: 0;
+  }
+}

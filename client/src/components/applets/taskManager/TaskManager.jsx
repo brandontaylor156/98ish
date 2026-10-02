@@ -273,7 +273,12 @@ const TaskManager = ({ dispatch, windows, selfIndex }) => {
       dispatch({ type: "close_window", payload: { name: windows[proc.windowIndex].name, index: proc.windowIndex } })
       return
     }
-    let text = "The operation could not be completed.\n\nAccess is denied."
+    // ending the shell takes the whole system down (BlueScreen in Power.jsx)
+    if (proc.image === "explorer.exe") {
+      window.dispatchEvent(new CustomEvent("98ish:crash", { detail: { process: proc.image } }))
+      return
+    }
+    let text ="The operation could not be completed.\n\nAccess is denied."
     if (proc.pid === 0) text = "The operation could not be completed.\n\nThe parameter is incorrect."
     else if (proc.critical) text = "This is a critical system process. Task Manager cannot end this process."
     setDialog({ type: "error", title: "Unable to Terminate Process", text })

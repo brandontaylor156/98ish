@@ -1,0 +1,1205 @@
+/* Network Neighborhood, WinPopup, the network's message boxes, and the network games.
+   Every window's root is .netApp, which fills the window under its 25px title bar. */
+
+.netApp {
+  position: relative;
+  height: calc(100% - 25px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #c0c0c0;
+  color: #000;
+  font-family: "Pixelated MS Sans Serif", Arial, sans-serif;
+  -webkit-font-smoothing: none;
+  font-size: 11px;
+}
+
+.netApp > * {
+  flex: none;
+}
+
+.netApp p,
+.netApp ul,
+.netApp ol,
+.netApp h2 {
+  margin: 0;
+}
+
+.netApp button {
+  min-width: 0;
+}
+
+.netApp legend {
+  float: none;
+  width: auto;
+  margin: 0;
+  padding: 0 4px;
+  font-size: inherit;
+}
+
+.netWaitText {
+  margin: auto !important;
+  padding: 16px;
+  text-align: center;
+}
+
+/* ---- Network Neighborhood (and a computer's folder) ---- */
+
+.nnAddress {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 4px;
+  border-top: 1px solid #fff;
+  border-bottom: 1px solid #808080;
+}
+
+.nnAddressBox {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  height: 21px;
+  padding: 0 4px;
+  background: #fff;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+}
+
+.nnView {
+  flex: 1 1 auto !important;
+  min-height: 0;
+  overflow: auto;
+  margin: 2px;
+  padding: 8px;
+  background: #fff;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(86px, 1fr));
+  grid-auto-rows: min-content;
+  gap: 10px 4px;
+  align-content: start;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.nnView--details {
+  grid-template-columns: 1fr;
+  gap: 1px;
+}
+
+.netApp .nnItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  min-height: 0;
+  padding: 2px;
+  background: none;
+  border: 0;
+  box-shadow: none;
+  color: #000;
+  font: inherit;
+  text-align: center;
+  cursor: default;
+}
+
+.nnItem:focus {
+  outline: none;
+}
+
+.nnItem:focus-visible .nnName {
+  outline: 1px dotted #000;
+}
+
+.nnView--details .nnItem {
+  flex-direction: row;
+  justify-content: flex-start;
+  gap: 6px;
+  text-align: left;
+}
+
+.nnName {
+  padding: 0 2px;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.nnName--nowrap {
+  white-space: nowrap;
+}
+
+.nnItem.is-selected .nnName {
+  background: #000080;
+  color: #fff;
+}
+
+.nnItem.is-selected .nnIcon {
+  filter: brightness(0.7) sepia(1) hue-rotate(190deg) saturate(3);
+}
+
+.nnItem.is-hidden {
+  opacity: 0.55;
+}
+
+.nnTag {
+  color: #808080;
+}
+
+.nnComment {
+  margin-left: auto;
+  color: #404040;
+}
+
+.nnIcon {
+  flex: none;
+  image-rendering: pixelated;
+}
+
+.nnEmpty {
+  grid-column: 1 / -1;
+  padding: 12px 4px;
+  color: #404040;
+  line-height: 1.5;
+}
+
+.nnEmpty--hint {
+  margin-top: 8px;
+  border-top: 1px dotted #c0c0c0;
+}
+
+.nnPrivacy {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 6px 4px;
+  margin: 0;
+}
+
+.nnPrivacy input {
+  margin: 0;
+}
+
+.nnProps {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  line-height: 1.6;
+}
+
+.netFolderHead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border-bottom: 1px solid #808080;
+  box-shadow: 0 1px #fff;
+}
+
+.netFolderHead h2 {
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.netFolderHead p {
+  color: #404040;
+}
+
+.netActions {
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+}
+
+.netTransfers {
+  margin: 0 2px 2px;
+  padding: 4px 6px;
+  border: 1px solid #808080;
+  box-shadow: 1px 1px #fff inset;
+}
+
+.netTransfers ul {
+  list-style: none;
+  padding: 0;
+}
+
+.netTransfers li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-top: 2px;
+}
+
+.netTransferName {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.netGone {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 16px;
+  line-height: 1.5;
+}
+
+/* ---- Choose a file / write a message / pick a level ---- */
+
+.netPicker {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+}
+
+.netPickerBar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.netPickerPath {
+  flex: 1;
+  min-width: 0;
+  height: 21px;
+  line-height: 21px;
+  padding: 0 4px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  background: #fff;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+}
+
+.netPickerBar button {
+  width: 24px;
+  height: 22px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.netPickerList {
+  height: 170px;
+  overflow: auto;
+  padding: 2px;
+  background: #fff;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+}
+
+.netApp .netPickerItem {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  min-height: 0;
+  padding: 1px 2px;
+  background: none;
+  border: 0;
+  box-shadow: none;
+  font: inherit;
+  color: #000;
+  text-align: left;
+}
+
+.netPickerItem img {
+  width: 16px;
+  height: 16px;
+}
+
+.netPickerItem > span:first-of-type {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.netPickerItem.is-selected > span:first-of-type {
+  background: #000080;
+  color: #fff;
+}
+
+.netPickerOpen {
+  padding: 0 6px;
+  font-weight: bold;
+}
+
+.netPickerEmpty {
+  padding: 8px;
+  color: #808080;
+}
+
+.netPickerInfo,
+.netComposeInfo {
+  min-height: 14px;
+  color: #404040;
+}
+
+.is-error {
+  color: #c00000 !important;
+}
+
+.netCompose {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+}
+
+.netCompose textarea {
+  width: 100%;
+  resize: none;
+  font: inherit;
+}
+
+.netLevels {
+  margin: 6px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.netLevels .field-row {
+  margin: 0;
+}
+
+.netLevels small {
+  color: #404040;
+}
+
+/* ---- Message boxes: incoming file, invitation, waiting, notice ---- */
+
+.netBox {
+  height: calc(100% - 25px);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px;
+  background: #c0c0c0;
+  font-family: "Pixelated MS Sans Serif", Arial, sans-serif;
+  -webkit-font-smoothing: none;
+  font-size: 11px;
+  color: #000;
+  overflow: auto;
+}
+
+.netBoxBody {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.netBoxBody p {
+  margin: 0;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.netBoxBody small {
+  color: #404040;
+}
+
+.netBoxIcon,
+.netBoxBody > img,
+.netBoxBody > .nnIcon {
+  flex: none;
+}
+
+.netPath {
+  font-family: "Courier New", monospace;
+}
+
+.netBoxButtons {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+}
+
+.netBoxButtons button {
+  min-width: 75px;
+}
+
+.netCountdown {
+  position: absolute;
+  right: 10px;
+  color: #808080;
+}
+
+.netBox {
+  position: relative;
+}
+
+/* An hourglass, drawn */
+.netHourglass {
+  flex: none;
+  width: 22px;
+  height: 32px;
+  background:
+    linear-gradient(#000, #000) top / 100% 3px no-repeat,
+    linear-gradient(#000, #000) bottom / 100% 3px no-repeat,
+    conic-gradient(from 135deg at 50% 50%, #c8a000 0 90deg, transparent 90deg 270deg, #c8a000 270deg) 50% 6px / 14px 10px no-repeat,
+    linear-gradient(#c8a000, #c8a000) 50% 21px / 10px 6px no-repeat;
+  clip-path: polygon(0 0, 100% 0, 100% 10%, 55% 50%, 100% 90%, 100% 100%, 0 100%, 0 90%, 45% 50%, 0 10%);
+  border-left: 1px solid #000;
+  animation: netFlip 2.4s steps(1) infinite;
+  outline: 1px solid #808080;
+}
+
+@keyframes netFlip {
+  50% {
+    transform: rotate(180deg);
+  }
+}
+
+/* ---- WinPopup ---- */
+
+.netPopupTools {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 4px;
+  border-top: 1px solid #fff;
+  border-bottom: 1px solid #808080;
+}
+
+.netPopupTools button {
+  padding: 0 8px;
+}
+
+.netPopupSep {
+  width: 2px;
+  align-self: stretch;
+  margin: 2px;
+  border-left: 1px solid #808080;
+  border-right: 1px solid #fff;
+}
+
+.netPopupHead {
+  padding: 6px 8px 4px;
+  line-height: 1.4;
+}
+
+.netPopupText {
+  flex: 1 1 auto !important;
+  min-height: 0;
+  margin: 0 6px 6px;
+  padding: 6px;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: #fff;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+  font-family: "Courier New", monospace;
+  font-size: 12px;
+}
+
+.netPopupText--empty {
+  margin-top: 6px;
+  color: #808080;
+  font-family: inherit;
+  font-size: inherit;
+}
+
+/* ---- Checkers ---- */
+
+.ckPlayer {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+}
+
+.ckPlayer.is-turn {
+  background: #000080;
+  color: #fff;
+}
+
+.ckSub {
+  opacity: 0.8;
+}
+
+.ckAway {
+  margin-left: auto;
+  color: #c00000;
+}
+
+.ckDot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1px solid #000;
+}
+
+.ckDot--b {
+  background: #222;
+}
+
+.ckDot--r {
+  background: #d01010;
+}
+
+.ckArea {
+  flex: 1 1 auto !important;
+  min-height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  overflow: hidden;
+}
+
+.ckBoard {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  grid-template-rows: repeat(8, 1fr);
+  border: 4px solid;
+  border-color: #808080 #fff #fff #808080;
+  box-sizing: content-box;
+  touch-action: manipulation;
+}
+
+.netApp .ckSquare {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  box-shadow: none;
+  border-radius: 0;
+}
+
+.netApp .ckSquare.is-light {
+  background: #e8d0a0;
+}
+
+.netApp .ckSquare.is-dark {
+  background: #6b3a1e;
+}
+
+.netApp .ckSquare:disabled {
+  color: inherit;
+  text-shadow: none;
+}
+
+.netApp .ckSquare.is-last {
+  background: #8a5a2e;
+}
+
+.netApp .ckSquare.is-path {
+  background: #2e5a8a;
+}
+
+.ckSquare.is-target::after {
+  content: "";
+  position: absolute;
+  width: 34%;
+  height: 34%;
+  border-radius: 50%;
+  background: #7cfc00;
+  border: 2px solid #1f5f00;
+  pointer-events: none;
+}
+
+.ckSquare.is-movable .ckPiece {
+  box-shadow: 0 0 0 2px #ffff60, 0 2px 0 #000;
+}
+
+.ckPiece {
+  position: relative;
+  width: 76%;
+  height: 76%;
+  border-radius: 50%;
+  border: 2px solid #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 0 #000;
+  pointer-events: none;
+}
+
+.ckPiece--b {
+  background: radial-gradient(circle at 35% 30%, #666, #111 60%);
+}
+
+.ckPiece--r {
+  background: radial-gradient(circle at 35% 30%, #ff7070, #b00000 60%);
+}
+
+.ckPiece.is-selected {
+  box-shadow: 0 0 0 3px #7cfc00, 0 2px 0 #000;
+}
+
+.ckCrown {
+  width: 60%;
+}
+
+.ckGhost {
+  width: 40%;
+  height: 40%;
+  border-radius: 50%;
+  border: 2px dashed rgb(255 255 255 / 0.45);
+  pointer-events: none;
+}
+
+.ckOffer {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 6px 4px;
+  padding: 4px 6px;
+  background: #ffffe1;
+  border: 1px solid #000;
+}
+
+.ckOffer span {
+  flex: 1;
+}
+
+.ckButtons {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  padding: 4px 6px 6px;
+}
+
+.ckButtons button {
+  min-width: 90px;
+}
+
+.ckError {
+  color: #c00000;
+}
+
+.ckBanner {
+  position: absolute;
+  left: 50%;
+  top: 46%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 10px 22px;
+  background: #c0c0c0;
+  border: 2px solid;
+  border-color: #fff #000 #000 #fff;
+  box-shadow: inset -1px -1px #808080, inset 1px 1px #dfdfdf, 4px 4px 0 rgb(0 0 0 / 0.35);
+  font-size: 20px;
+  font-weight: bold;
+  color: #000080;
+  pointer-events: none;
+}
+
+.ckBanner.is-win {
+  color: #008000;
+}
+
+.ckBanner small {
+  font-size: 11px;
+  font-weight: normal;
+  color: #000;
+}
+
+/* ---- Minesweeper Race ---- */
+
+.raceRoot {
+  display: contents;
+}
+
+.racePanel {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 4px 5px;
+  border: 2px solid;
+  border-color: #808080 #fff #fff #808080;
+}
+
+.raceRacer {
+  display: grid;
+  grid-template-columns: minmax(36px, 70px) 1fr auto;
+  align-items: center;
+  gap: 5px;
+}
+
+.raceName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: bold;
+}
+
+.raceRacer.is-you .raceName {
+  color: #000080;
+}
+
+.raceTrack {
+  height: 10px;
+  min-width: 40px;
+  background: #fff;
+  box-shadow: inset 1px 1px #808080, inset -1px -1px #dfdfdf;
+  overflow: hidden;
+}
+
+.raceFill {
+  display: block;
+  height: 100%;
+  background: repeating-linear-gradient(90deg, #000080 0 7px, transparent 7px 9px);
+  transition: width 0.25s;
+}
+
+.raceRacer.is-you .raceFill {
+  background: repeating-linear-gradient(90deg, #008000 0 7px, transparent 7px 9px);
+}
+
+.raceRacer.is-dead .raceFill {
+  background: repeating-linear-gradient(90deg, #c00000 0 7px, transparent 7px 9px);
+}
+
+.raceState {
+  min-width: 46px;
+  text-align: right;
+}
+
+.raceOverlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgb(192 192 192 / 0.35);
+  z-index: 2;
+}
+
+.raceCount {
+  font-size: 48px;
+  font-weight: bold;
+  color: #c00000;
+  text-shadow: 2px 2px 0 #000;
+  font-family: Arial, sans-serif;
+}
+
+.raceResult {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  max-width: 90%;
+  padding: 10px 14px;
+  text-align: center;
+  background: #c0c0c0;
+  border: 2px solid;
+  border-color: #fff #000 #000 #fff;
+  box-shadow: inset -1px -1px #808080, inset 1px 1px #dfdfdf, 3px 3px 0 rgb(0 0 0 / 0.35);
+}
+
+.raceResult b {
+  font-size: 16px;
+  color: #000080;
+}
+
+.raceResult div {
+  display: flex;
+  gap: 6px;
+}
+
+/* ---- Hearts ---- */
+
+.htTable {
+  flex: 1 1 auto !important;
+  min-height: 0;
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(70px, 1fr) minmax(120px, 2.2fr) minmax(70px, 1fr);
+  grid-template-rows: auto 1fr auto;
+  grid-template-areas:
+    "top top top"
+    "left center right"
+    "you you you";
+  gap: 4px;
+  padding: 6px;
+  margin: 2px;
+  background: radial-gradient(ellipse at 50% 40%, #0d8a3e, #04602a 70%);
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+  color: #fff;
+  overflow: hidden;
+}
+
+.htCard {
+  --card-w: 58px;
+  width: var(--card-w);
+  height: calc(var(--card-w) * 1.4);
+  flex: none;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
+  min-height: 0;
+  display: block;
+}
+
+.netApp .htCard {
+  min-width: 0;
+}
+
+.htCardSvg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(1px 1px 0 rgb(0 0 0 / 0.35));
+}
+
+.htSeat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  text-align: center;
+}
+
+.htSeat--top {
+  grid-area: top;
+}
+
+.htSeat--left {
+  grid-area: left;
+  align-self: center;
+}
+
+.htSeat--right {
+  grid-area: right;
+  align-self: center;
+}
+
+.htSeatName {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  padding: 1px 6px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.htSeat.is-turn .htSeatName,
+.htYou.is-turn .htYouInfo b {
+  background: #ffff60;
+  color: #000;
+}
+
+.htSeatInfo {
+  color: #d8ffd8;
+}
+
+.htBadge {
+  padding: 0 3px;
+  font-size: 9px;
+  background: #c0c0c0;
+  color: #000;
+  border: 1px solid #000;
+}
+
+.htBadge--away {
+  background: #c00000;
+  color: #fff;
+}
+
+.htBacks {
+  display: flex;
+  height: 30px;
+}
+
+.htSeat--left .htBacks,
+.htSeat--right .htBacks {
+  height: auto;
+}
+
+.htBack {
+  --card-w: 22px;
+}
+
+.htBack + .htBack {
+  margin-left: -16px;
+}
+
+.htCenter {
+  grid-area: center;
+  position: relative;
+  min-height: 150px;
+}
+
+.htPlayed {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  --card-w: 54px;
+  animation: htIn 0.18s ease-out;
+}
+
+.htPlayed--bottom {
+  transform: translate(-50%, -18%);
+}
+
+.htPlayed--top {
+  transform: translate(-50%, -82%);
+}
+
+.htPlayed--left {
+  transform: translate(-112%, -50%) rotate(-6deg);
+}
+
+.htPlayed--right {
+  transform: translate(12%, -50%) rotate(6deg);
+}
+
+@keyframes htIn {
+  from {
+    opacity: 0;
+  }
+}
+
+.htBroken {
+  position: absolute;
+  right: 4px;
+  bottom: 2px;
+  color: #ff6060;
+  font-size: 16px;
+}
+
+.htYou {
+  grid-area: you;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.htYouInfo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 23px;
+}
+
+.htYouInfo b {
+  padding: 1px 6px;
+}
+
+.htPass {
+  font-weight: bold;
+}
+
+.htHand {
+  position: relative;
+  height: calc(var(--card-w) * 1.4 + 14px);
+  margin: 0 4px;
+}
+
+.htInHand {
+  position: absolute;
+  bottom: 0;
+  --card-w: inherit;
+  width: var(--card-w);
+  transition: transform 0.1s;
+}
+
+.htHand .htCard {
+  width: var(--card-w);
+  height: calc(var(--card-w) * 1.4);
+}
+
+.htInHand.is-playable:hover,
+.htInHand.is-selected {
+  transform: translateY(-12px);
+}
+
+.htInHand.is-received .htCardSvg {
+  filter: drop-shadow(0 0 3px #ffff60);
+}
+
+.htInHand.is-dim .htCardSvg {
+  filter: brightness(0.6);
+}
+
+.htLobby {
+  grid-column: 1 / -1;
+  grid-row: 1 / -1;
+  align-self: start;
+  justify-self: center;
+  width: min(360px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  background: #c0c0c0;
+  color: #000;
+  border: 2px solid;
+  border-color: #fff #000 #000 #fff;
+  box-shadow: inset -1px -1px #808080, inset 1px 1px #dfdfdf;
+}
+
+.htLobby h2 {
+  font-size: 13px;
+  font-weight: bold;
+}
+
+.htSeatsList {
+  padding: 0;
+  list-style: none;
+}
+
+.htSeatsList li {
+  display: flex;
+  gap: 8px;
+  padding: 2px 0;
+}
+
+.htSeatNo {
+  width: 44px;
+  color: #404040;
+}
+
+.htMuted {
+  color: #606060;
+}
+
+.htInviteList ul {
+  list-style: none;
+  padding: 0;
+  margin-top: 4px !important;
+  max-height: 120px;
+  overflow: auto;
+}
+
+.htInviteList li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1px 0;
+}
+
+.htError {
+  color: #c00000;
+}
+
+.htDeal {
+  align-self: center;
+  min-width: 100px;
+  font-weight: bold;
+}
+
+.htScores {
+  border-collapse: collapse;
+  margin-top: 6px;
+  width: 100%;
+  table-layout: fixed;
+}
+
+.htScores th,
+.htScores td {
+  padding: 1px 3px;
+  border: 1px solid #808080;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.htScores th:first-child {
+  width: 38px;
+}
+
+.htScores .is-you {
+  color: #000080;
+}
+
+.htMoon {
+  font-weight: bold;
+  color: #800080;
+}
+
+/* ---- Phones ---- */
+
+.os-mobile .netApp,
+.os-mobile .netBox {
+  font-size: 13px;
+}
+
+.os-mobile .netApp button,
+.os-mobile .netBox button {
+  min-height: 34px;
+}
+
+.os-mobile .netApp .nnItem,
+.os-mobile .netApp .netPickerItem {
+  min-height: 0;
+}
+
+.os-mobile .netApp .netPickerItem {
+  padding: 6px 4px;
+}
+
+.os-mobile .netApp input,
+.os-mobile .netApp textarea,
+.os-mobile .netApp select,
+.os-mobile .netApp .netCompose textarea {
+  font-size: 16px;
+}
+
+.os-mobile .netApp .ckSquare {
+  min-height: 0;
+}
+
+.os-mobile .netApp .htCard {
+  min-height: 0;
+}
+
+.os-mobile .htTable {
+  grid-template-columns: minmax(54px, 1fr) minmax(110px, 2.4fr) minmax(54px, 1fr);
+}
+
+.os-mobile .htPlayed {
+  --card-w: 46px;
+}
+
+.os-mobile .htBacks {
+  display: none;
+}
+
+.os-mobile .htSeatName {
+  font-size: 12px;
+  padding: 1px 3px;
+}
+
+.os-mobile .htSeat--left .htSeatName,
+.os-mobile .htSeat--right .htSeatName {
+  flex-direction: column;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+/* Message boxes fill a phone's screen: keep them together in the middle */
+.os-mobile .netBox {
+  justify-content: center;
+  gap: 28px;
+  padding: 20px;
+}
+
+.os-mobile .netCountdown {
+  position: static;
+}
+
+.os-mobile .nnPrivacy {
+  padding: 6px;
+}

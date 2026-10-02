@@ -1,0 +1,580 @@
+/* http://www.98ish.com/: homemade pages in the GeoCities tradition. Tiled backgrounds,
+   marquees, blinking text, and an animated under-construction sign (all CSS). */
+
+.lsRoot {
+  position: absolute;
+  inset: 2px;
+  overflow: auto;
+  padding: 14px 18px 20px;
+  font-family: "Times New Roman", Times, serif;
+  font-size: 15px;
+  line-height: 1.35;
+  color: #ffff66;
+  -webkit-font-smoothing: auto;
+  /* a tiled night sky: two layers of little stars on deep blue */
+  background-color: #000033;
+  background-image:
+    radial-gradient(1.5px 1.5px at 10px 14px, #fff 50%, transparent 51%),
+    radial-gradient(1px 1px at 34px 40px, #ffff99 50%, transparent 51%),
+    radial-gradient(1px 1px at 52px 8px, #99ccff 50%, transparent 51%),
+    radial-gradient(2px 2px at 44px 58px, #fff 50%, transparent 51%),
+    radial-gradient(1px 1px at 20px 52px, #fff 50%, transparent 51%);
+  background-size: 64px 64px;
+}
+
+.lsRoot a {
+  color: #66ffff;
+}
+
+.lsRoot a:visited {
+  color: #ff99ff;
+}
+
+.lsRoot h1,
+.lsRoot h2 {
+  font-family: "Comic Sans MS", "Comic Sans", "Chalkboard SE", cursive;
+  text-align: center;
+  margin: 10px 0 6px;
+}
+
+.lsRoot h1 {
+  font-size: 30px;
+  color: #ff66ff;
+  text-shadow: 2px 2px 0 #000080;
+}
+
+.lsRoot h2 {
+  font-size: 19px;
+  color: #66ff66;
+}
+
+.lsRoot button {
+  font-family: Arial, sans-serif;
+}
+
+.lsPage {
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.lsCenter {
+  text-align: center;
+}
+
+.lsRainbow {
+  background: linear-gradient(90deg, #ff4040, #ffa500, #ffff40, #40ff40, #40c0ff, #c040ff, #ff4040);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent !important;
+  text-shadow: none !important;
+  animation: lsRainbow 3s linear infinite;
+}
+
+@keyframes lsRainbow {
+  to {
+    background-position: 200% 0;
+  }
+}
+
+.lsBlink {
+  color: #ff3030;
+  font-weight: bold;
+  animation: lsBlink 1s steps(1) infinite;
+}
+
+@keyframes lsBlink {
+  50% {
+    visibility: hidden;
+  }
+}
+
+/* ---- marquee ---- */
+
+.lsMarquee {
+  overflow: hidden;
+  white-space: nowrap;
+  background: #000080;
+  border: 2px ridge #c0c0c0;
+  color: #ffff00;
+  font-family: "Courier New", monospace;
+  font-weight: bold;
+  padding: 3px 0;
+}
+
+.lsMarqueeTrack {
+  display: inline-block;
+  padding-left: 100%;
+  animation: lsScroll 16s linear infinite;
+}
+
+@keyframes lsScroll {
+  to {
+    transform: translateX(-100%);
+  }
+}
+
+/* ---- under construction ---- */
+
+.lsConstruction {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 12px auto;
+}
+
+.lsSign {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  font-family: Arial Black, Arial, sans-serif;
+  font-weight: 900;
+  font-size: 13px;
+  color: #000;
+  background: #ffd800;
+  border: 4px solid transparent;
+  border-image: repeating-linear-gradient(45deg, #000 0 8px, #ffd800 8px 16px) 8;
+  animation: lsStripes 0.6s linear infinite;
+  text-align: center;
+}
+
+@keyframes lsStripes {
+  50% {
+    border-image: repeating-linear-gradient(45deg, #ffd800 0 8px, #000 8px 16px) 8;
+  }
+}
+
+.lsBeacon {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #ff8c00;
+  border: 2px solid #000;
+  animation: lsBeacon 0.8s steps(1) infinite;
+}
+
+.lsBeacon + .lsSign + .lsBeacon {
+  animation-delay: 0.4s;
+}
+
+@keyframes lsBeacon {
+  50% {
+    background: #602000;
+    box-shadow: none;
+  }
+  0% {
+    box-shadow: 0 0 8px 3px #ffb000;
+  }
+}
+
+.lsDigger {
+  display: inline-flex;
+}
+
+.lsShovel {
+  transform-origin: 15px 8px;
+  animation: lsDig 0.6s steps(2) infinite;
+}
+
+@keyframes lsDig {
+  50% {
+    transform: rotate(-25deg);
+  }
+}
+
+/* ---- hit counter ---- */
+
+.lsCounter {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 8px 0;
+  flex-wrap: wrap;
+}
+
+.lsOdometer {
+  display: inline-flex;
+  gap: 1px;
+  padding: 2px;
+  background: #333;
+  border: 2px inset #999;
+}
+
+.lsOdometer span {
+  width: 14px;
+  text-align: center;
+  font-family: "Courier New", monospace;
+  font-weight: bold;
+  font-size: 16px;
+  color: #fff;
+  background: linear-gradient(#000, #333 50%, #000);
+}
+
+/* ---- guestbook form ---- */
+
+.lsForm {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 520px;
+  margin: 14px auto;
+  padding: 10px 14px;
+  background: #000066;
+  border: 3px ridge #c0c0c0;
+  color: #fff;
+}
+
+.lsForm h2 {
+  margin-top: 0;
+}
+
+.lsForm label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.lsForm input,
+.lsForm textarea {
+  font-family: Arial, sans-serif;
+  font-size: 14px;
+  padding: 3px;
+  color: #000;
+  background: #fff;
+  border: 2px inset #c0c0c0;
+}
+
+.lsForm label > input,
+.lsForm label > textarea {
+  width: 100%;
+  box-sizing: border-box;
+  height: auto;
+}
+
+.lsForm textarea {
+  resize: vertical;
+}
+
+.lsRoot .lsMoods legend {
+  background: transparent;
+  color: #fff;
+}
+
+.lsTrap {
+  position: absolute !important;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+.lsMoods {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0;
+  padding: 4px 6px 6px;
+  border: 1px solid #6666cc;
+}
+
+.lsMoods legend {
+  float: none;
+  width: auto;
+  margin: 0;
+  padding: 0 4px;
+  font-size: inherit;
+}
+
+.lsMoods label {
+  position: relative;
+  padding: 2px;
+  border: 2px solid transparent;
+  cursor: pointer;
+}
+
+.lsMoods label.is-picked {
+  border-color: #ffff00;
+  background: #3333aa;
+}
+
+.lsMoods input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.lsFormFoot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.lsNotice {
+  margin: 4px 0 0;
+  padding: 4px 6px;
+  background: #ffffcc;
+  color: #a00000;
+  font-family: Arial, sans-serif;
+  font-size: 13px;
+}
+
+.lsNotice.is-ok {
+  color: #006000;
+}
+
+/* ---- entries ---- */
+
+.lsEntries {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.lsEntry {
+  padding: 8px 10px;
+  background: rgb(0 0 80 / 0.85);
+  border: 2px outset #8080ff;
+  color: #fff;
+}
+
+.lsEntryHead {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.lsSmiley {
+  flex: none;
+}
+
+.lsEntryName {
+  color: #ffff66;
+}
+
+.lsWhen {
+  font-size: 12px;
+  color: #aaaaff;
+}
+
+.lsEntryText {
+  margin: 6px 0 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-family: "Comic Sans MS", "Comic Sans", cursive;
+  font-size: 14px;
+}
+
+.lsPager {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  margin: 12px 0;
+}
+
+/* ---- web ring ---- */
+
+.lsRing {
+  max-width: 520px;
+  margin: 22px auto 8px;
+  padding: 8px;
+  text-align: center;
+  background: #330033;
+  border: 3px double #ff66ff;
+}
+
+.lsRingTitle {
+  font-family: "Comic Sans MS", "Comic Sans", cursive;
+  color: #ff99ff;
+  font-size: 17px;
+  font-weight: bold;
+}
+
+.lsRingLinks {
+  display: flex;
+  justify-content: center;
+  gap: 18px;
+  margin: 4px 0;
+  font-weight: bold;
+}
+
+.lsRingSites {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px 12px;
+  font-size: 13px;
+}
+
+.lsRingSites .is-here {
+  color: #fff;
+  text-decoration: none;
+}
+
+.lsFooter {
+  margin-top: 12px;
+  text-align: center;
+  font-size: 12px;
+  color: #9999cc;
+}
+
+/* ---- other ring pages ---- */
+
+.lsColumns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 14px;
+}
+
+.lsTable {
+  border-collapse: collapse;
+  margin: 0 auto;
+}
+
+.lsTable th,
+.lsTable td {
+  border: 2px ridge #c0c0c0;
+  padding: 3px 8px;
+}
+
+.lsAwards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+}
+
+.lsAwards span {
+  padding: 6px 10px;
+  border: 3px double #ffd700;
+  background: #402000;
+  color: #ffd700;
+  font-weight: bold;
+  text-align: center;
+}
+
+.lsRoot--shrine {
+  background-color: #003300;
+  background-image:
+    linear-gradient(45deg, #004400 25%, transparent 25%, transparent 75%, #004400 75%),
+    linear-gradient(45deg, #004400 25%, transparent 25%, transparent 75%, #004400 75%);
+  background-size: 40px 40px;
+  background-position: 0 0, 20px 20px;
+}
+
+.lsRoot--links {
+  background-color: #200040;
+  background-image: repeating-linear-gradient(0deg, transparent 0 18px, rgb(255 255 255 / 0.06) 18px 20px), repeating-linear-gradient(90deg, transparent 0 18px, rgb(255 255 255 / 0.06) 18px 20px);
+}
+
+.lsRoot--rock {
+  color: #000;
+  background-color: #d8c8a8;
+  background-image:
+    radial-gradient(3px 2px at 12px 10px, #a89878 50%, transparent 51%),
+    radial-gradient(2px 2px at 36px 30px, #8a7a5a 50%, transparent 51%),
+    radial-gradient(4px 3px at 24px 44px, #b8a888 50%, transparent 51%);
+  background-size: 50px 50px;
+}
+
+.lsRoot--rock h1 {
+  color: #6b3a1e;
+  text-shadow: 2px 2px 0 #fff;
+}
+
+.lsRoot--rock h2 {
+  color: #2e5a2e;
+}
+
+.lsRoot--rock a {
+  color: #0000ee;
+}
+
+.lsRock {
+  position: relative;
+  width: 140px;
+  height: 90px;
+  margin: 10px auto;
+  border-radius: 48% 52% 44% 56% / 60% 58% 42% 40%;
+  background: radial-gradient(circle at 35% 30%, #b0b0b0, #707070 60%, #505050);
+  border: 2px solid #333;
+  display: flex;
+  justify-content: center;
+  gap: 22px;
+  padding-top: 26px;
+  animation: lsWobble 3s ease-in-out infinite;
+}
+
+@keyframes lsWobble {
+  50% {
+    transform: rotate(2deg);
+  }
+}
+
+.lsRockEye {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 60% 55%, #000 35%, #fff 38%);
+  border: 1px solid #000;
+}
+
+.lsLinkList {
+  max-width: 600px;
+  margin: 10px auto;
+  padding: 0;
+  list-style: none;
+}
+
+.lsLinkList li {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  padding: 4px 0;
+  color: #fff;
+}
+
+.lsBullet {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  background: radial-gradient(circle at 35% 35%, #fff, #ff00ff 50%, #600060);
+  border-radius: 50%;
+}
+
+.lsLinkUs {
+  max-width: 520px;
+  margin: 14px auto;
+  padding: 8px;
+  border: 2px dashed #66ffff;
+  text-align: center;
+  color: #fff;
+}
+
+.lsLinkUs code {
+  display: block;
+  margin-top: 4px;
+  color: #66ff66;
+}
+
+/* Phones: a little smaller, still readable */
+.os-mobile .lsRoot {
+  padding: 10px;
+  font-size: 15px;
+}
+
+.os-mobile .lsRoot h1 {
+  font-size: 24px;
+}
+
+.os-mobile .lsForm input,
+.os-mobile .lsForm textarea {
+  font-size: 16px;
+}

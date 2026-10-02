@@ -146,7 +146,7 @@ const MobileIcons = ({ programs, onOpen }) => {
           <div
             key={program.name}
             data-program={program.name}
-            className={dragging ? "mobileIcon is-dragging" : "mobileIcon"}
+            className={(dragging ? "mobileIcon is-dragging" : "mobileIcon") + (program.item?.type === "shortcut" ? " isShortcut" : "")}
             style={{
               left: PAD + cell.col * CELL_W,
               top: PAD + cell.row * CELL_H,
@@ -159,7 +159,7 @@ const MobileIcons = ({ programs, onOpen }) => {
             onContextMenu={(e) => e.preventDefault()}
           >
             <img src={program.icon} alt="" draggable="false" />
-            <label className="desktopIconLabel text-light">{program.name}</label>
+            <label className="desktopIconLabel text-light">{program.label ?? program.name}</label>
           </div>
         )
       })}

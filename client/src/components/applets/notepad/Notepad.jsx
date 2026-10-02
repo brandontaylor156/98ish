@@ -4,6 +4,8 @@ import Dialog from "../../shared/Dialog"
 import FileDialog from "./FileDialog"
 import { fs } from "../../../utils/fs"
 import { useFsVersion } from "../../../hooks/useFs"
+import { trackUnsaved } from "../../../utils/unsaved"
+import { now } from "../../../utils/clock"
 import "./Notepad.css"
 
 // Notepad, as in Windows 98: File / Edit / Search / Help, Word Wrap, Set Font, Time/Date
@@ -25,12 +27,8 @@ const loadPrefs = () => {
   }
 }
 
-// Notepads with unsaved changes, so shutting down can warn first
-const unsaved = new Set()
-export const hasUnsavedNotepads = () => unsaved.size > 0
-
 const timeDate = () => {
-  const d = new Date()
+  const d = now()
   return `${d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })} ${d.toLocaleDateString("en-US")}`
 }
 
@@ -59,12 +57,7 @@ const Notepad = ({ file: initialFile = null, onTitle, onClose, registerCloseGuar
 
   useEffect(() => onTitle?.(`${name} - Notepad`), [name])
 
-  useEffect(() => {
-    if (!dirty) return
-    const token = {}
-    unsaved.add(token)
-    return () => unsaved.delete(token)
-  }, [dirty])
+  useEffect(() => (dirty ? trackUnsaved("Notepad") : undefined), [dirty])
 
   // .LOG: put the cursor at the end, after the new time stamp
   useEffect(() => {
@@ -386,6 +379,7 @@ const Notepad = ({ file: initialFile = null, onTitle, onClose, registerCloseGuar
       {dialog?.kind === "changed" && (
         <Dialog
           title="Notepad"
+          sound="chord"
           okLabel="Yes"
           onOk={() => {
             setDialog(null)
@@ -474,7 +468,7 @@ const Notepad = ({ file: initialFile = null, onTitle, onClose, registerCloseGuar
       )}
 
       {dialog?.kind === "alert" && (
-        <Dialog title={dialog.title} onOk={() => setDialog(null)}>
+        <Dialog title={dialog.title} sound="ding" onOk={() => setDialog(null)}>
           <p className="dialogText">{dialog.text}</p>
         </Dialog>
       )}

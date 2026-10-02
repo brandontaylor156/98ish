@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <!-- Character Map: a grid of letters with one blown up -->
+  <g shape-rendering="crispEdges">
+    <rect x="3" y="7" width="40" height="36" fill="#000"/>
+    <rect x="2" y="6" width="40" height="36" fill="#fff"/>
+    <g fill="#808080">
+      <rect x="2" y="15" width="40" height="1"/><rect x="2" y="24" width="40" height="1"/><rect x="2" y="33" width="40" height="1"/>
+      <rect x="12" y="6" width="1" height="36"/><rect x="22" y="6" width="1" height="36"/><rect x="32" y="6" width="1" height="36"/>
+    </g>
+    <rect x="2.5" y="6.5" width="39" height="35" fill="none" stroke="#404040"/>
+  </g>
+  <g fill="#000080" font-family="Arial, sans-serif" font-size="7" font-weight="bold" text-anchor="middle">
+    <text x="7" y="13">a</text><text x="17" y="13">§</text><text x="27" y="13">ß</text><text x="37" y="13">@</text>
+    <text x="7" y="22">©</text><text x="37" y="22">¥</text>
+    <text x="7" y="31">£</text><text x="37" y="31">µ</text>
+    <text x="7" y="40">?</text><text x="17" y="40">¿</text><text x="27" y="40">Ø</text><text x="37" y="40">€</text>
+  </g>
+  <g shape-rendering="crispEdges">
+    <rect x="17" y="12" width="24" height="25" fill="#000"/>
+    <rect x="15.5" y="10.5" width="23" height="24" fill="#fff" stroke="#000"/>
+  </g>
+  <text x="27" y="30" font-family="Georgia, 'Times New Roman', serif" font-size="20" font-weight="bold" text-anchor="middle" fill="#000">Ä</text>
+</svg>

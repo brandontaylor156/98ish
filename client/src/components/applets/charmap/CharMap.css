@@ -1,0 +1,195 @@
+/* Character Map */
+
+.cmRoot {
+  --cell: 18px;
+  position: relative;
+  height: calc(100% - 25px);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px 6px 2px;
+  background: #c0c0c0;
+  color: #000;
+  font-family: "Pixelated MS Sans Serif", Arial, sans-serif;
+  -webkit-font-smoothing: none;
+  font-size: 11px;
+}
+
+.cmRoot button {
+  min-width: 75px;
+}
+
+.cmRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cmField {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.cmTop .cmField select {
+  width: 160px;
+}
+
+.cmClose {
+  margin-left: auto;
+}
+
+.cmCopyField {
+  flex: 1;
+}
+
+.cmCopyField input {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+}
+
+.cmGridWrap {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+.cmGrid {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(32, var(--cell));
+  grid-auto-rows: var(--cell);
+  max-height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: #fff;
+  border-top: 1px solid #000;
+  border-left: 1px solid #000;
+  outline: none;
+  font-size: 13px;
+  -webkit-font-smoothing: auto;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+  cursor: default;
+}
+
+.cmGrid:focus-visible {
+  outline: 1px dotted #000;
+  outline-offset: 2px;
+}
+
+.cmCell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-right: 1px solid #000;
+  border-bottom: 1px solid #000;
+  line-height: 1;
+  overflow: hidden;
+}
+
+.cmCell:not(.is-empty):hover {
+  background: #e8e8f8;
+}
+
+.cmCell.is-selected,
+.cmCell.is-selected:hover {
+  background: #000080;
+  color: #fff;
+}
+
+.cmMagnifier {
+  position: absolute;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  color: #000;
+  line-height: 1;
+  border: 2px solid #000;
+  box-shadow: 2px 2px 0 #808080;
+  pointer-events: none;
+}
+
+.cmStatus {
+  margin: 0 -4px;
+}
+
+.cmStatus .status-bar-field {
+  margin: 0;
+  padding: 2px 4px;
+  min-height: 18px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cmKeystroke {
+  flex: 0 0 170px;
+}
+
+/* ---- phones: bigger cells that wrap, fields stacked ---- */
+
+.os-mobile .cmRoot {
+  --cell: 40px;
+  font-size: 14px;
+  padding: 8px 8px 2px;
+  gap: 8px;
+}
+
+.os-mobile .cmTop {
+  flex-wrap: wrap;
+}
+
+.os-mobile .cmTop .cmField {
+  flex: 1 1 140px;
+}
+
+.os-mobile .cmTop .cmField select,
+.os-mobile .cmCopyField input {
+  width: auto;
+  flex: 1;
+  min-width: 0;
+  height: 34px;
+  font-size: 16px; /* no zoom-on-focus on iPhones */
+}
+
+.os-mobile .cmClose {
+  display: none; /* phones close windows from the title bar */
+}
+
+.os-mobile .cmGridWrap {
+  justify-content: stretch;
+}
+
+.os-mobile .cmGrid {
+  width: 100%;
+  grid-template-columns: repeat(auto-fill, minmax(var(--cell), 1fr));
+  grid-auto-rows: var(--cell);
+  font-size: 22px;
+}
+
+.os-mobile .cmBottom {
+  flex-wrap: wrap;
+}
+
+.os-mobile .cmCopyField {
+  flex: 1 1 100%;
+}
+
+.os-mobile .cmBottom button {
+  flex: 1;
+  min-height: 38px;
+  font-size: 14px;
+}
+
+.os-mobile .cmKeystroke {
+  flex-basis: 150px;
+}

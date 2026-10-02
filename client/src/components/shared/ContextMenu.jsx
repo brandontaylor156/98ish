@@ -8,6 +8,14 @@ const Menu = ({ items, x, y, onClose, depth = 0 }) => {
   const ref = useRef(null)
   const [pos, setPos] = useState({ x, y })
   const [open, setOpen] = useState(null) // index of the open submenu
+  // passing over other items on the way to a submenu shouldn't close it: wait a moment
+  const closing = useRef(null)
+  useEffect(() => () => clearTimeout(closing.current), [])
+  const hover = (item, i) => {
+    clearTimeout(closing.current)
+    if (item.items) setOpen(i)
+    else if (open !== null) closing.current = setTimeout(() => setOpen(null), 350)
+  }
 
   useLayoutEffect(() => {
     const el = ref.current
@@ -24,7 +32,7 @@ const Menu = ({ items, x, y, onClose, depth = 0 }) => {
         item === "-" ? (
           <li key={i} className="menuSep" role="separator" />
         ) : (
-          <li key={item.label} onMouseEnter={() => setOpen(item.items ? i : null)} style={{ position: "relative" }}>
+          <li key={item.label} onMouseEnter={() => hover(item, i)} style={{ position: "relative" }}>
             <button
               type="button"
               role="menuitem"
@@ -32,7 +40,8 @@ const Menu = ({ items, x, y, onClose, depth = 0 }) => {
               className={item.bold ? "is-default" : undefined}
               onClick={(e) => {
                 if (item.items) {
-                  setOpen(open === i ? null : i)
+                  clearTimeout(closing.current)
+                  setOpen(i)
                   return
                 }
                 onClose()

@@ -1,0 +1,340 @@
+/* Date/Time Properties */
+
+.dtRoot {
+  height: calc(100% - 25px);
+  display: flex;
+  flex-direction: column;
+  padding: 8px 8px 6px;
+  background: #c0c0c0;
+  color: #000;
+  font-family: "Pixelated MS Sans Serif", Arial, sans-serif;
+  -webkit-font-smoothing: none;
+  font-size: 11px;
+  overflow: auto;
+}
+
+.dtRoot button {
+  min-width: 0;
+}
+
+.dtTabs {
+  margin-bottom: -2px !important;
+}
+
+.dtTabs a {
+  color: #000 !important;
+}
+
+.window.dtPanel {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  height: auto;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow: auto;
+}
+
+.dtDateTime {
+  display: flex;
+  gap: 10px;
+  align-items: stretch;
+}
+
+.dtGroup {
+  border-style: solid; /* Bootstrap removes fieldset borders; 98.css draws its groove as a border image */
+  border-width: 2px;
+  margin: 0;
+  padding: 8px 8px 10px;
+  min-width: 0;
+}
+
+.dtGroup legend {
+  float: none;
+  width: auto;
+  font-size: inherit;
+  margin: 0;
+  padding: 0 3px;
+}
+
+.dtDate {
+  flex: none;
+}
+
+.dtTime {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.dtDateRow {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.dtDateRow select {
+  flex: 1;
+  min-width: 0;
+}
+
+/* spinners: a field with up/down arrows on its right */
+.dtSpin {
+  display: flex;
+  align-items: stretch;
+  background: #fff;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+  padding: 2px;
+  height: 21px;
+}
+
+.dtSpin input {
+  width: 40px;
+  min-width: 0;
+  height: auto;
+  padding: 0 2px;
+  border: 0;
+  box-shadow: none;
+  background: transparent;
+  font: inherit;
+  outline: none;
+}
+
+.dtSpinButtons {
+  display: flex;
+  flex-direction: column;
+  width: 15px;
+  flex: none;
+}
+
+.dtRoot .dtSpinButtons button {
+  flex: 1;
+  min-height: 0;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dtArrow {
+  width: 0;
+  height: 0;
+  border-left: 3px solid transparent;
+  border-right: 3px solid transparent;
+}
+
+.dtArrow--up {
+  border-bottom: 3px solid #000;
+}
+
+.dtArrow--down {
+  border-top: 3px solid #000;
+}
+
+.dtRoot .dtSpinButtons button:active .dtArrow {
+  transform: translate(1px, 1px);
+}
+
+/* the calendar */
+.dtCalendar {
+  display: grid;
+  grid-template-columns: repeat(7, 24px);
+  grid-auto-rows: 17px;
+  background: #fff;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+  padding: 3px;
+  outline: none;
+}
+
+.dtCalendar:focus-visible .dtDay.is-selected {
+  outline: 1px dotted #fff;
+  outline-offset: -3px;
+}
+
+.dtCalHead {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #808080;
+  color: #fff;
+}
+
+.dtRoot .dtDay {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  padding: 0;
+  background: none;
+  box-shadow: none;
+  border: 0;
+  color: #000;
+  font: inherit;
+  text-shadow: none;
+}
+
+.dtRoot .dtDay.is-selected {
+  background: #000080;
+  color: #fff;
+}
+
+/* the clock */
+.dtClock {
+  width: 124px;
+  height: 124px;
+  flex: none;
+}
+
+.dtTimeField {
+  width: 112px;
+}
+
+.dtTimeText {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  padding: 0 3px;
+  white-space: nowrap;
+  cursor: text;
+}
+
+.dtTimePart {
+  padding: 0 1px;
+  outline: none;
+}
+
+.dtTimePart.is-active:focus {
+  background: #000080;
+  color: #fff;
+}
+
+.dtRealTime {
+  margin-top: auto;
+}
+
+.dtZoneLine {
+  margin: 0;
+  text-align: center;
+}
+
+/* Time Zone tab */
+.dtZoneTab {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dtZoneSelect {
+  width: 100%;
+}
+
+.dtMapFrame {
+  padding: 2px;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+  line-height: 0;
+}
+
+.dtMap {
+  width: 100%;
+  aspect-ratio: 360 / 146;
+  height: auto;
+  cursor: pointer;
+}
+
+.dtMapMarker {
+  animation: dtBlink 1s steps(1) infinite;
+}
+
+@keyframes dtBlink {
+  50% {
+    opacity: 0.25;
+  }
+}
+
+.dtButtons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  padding-top: 8px;
+}
+
+.dtButtons button {
+  min-width: 75px !important;
+}
+
+/* ---- phones ---- */
+
+.os-mobile .dtRoot {
+  font-size: 13px;
+}
+
+.os-mobile .dtDateTime {
+  flex-direction: column;
+}
+
+.os-mobile .dtDate .dtCalendar {
+  grid-template-columns: repeat(7, 1fr);
+  grid-auto-rows: 36px;
+}
+
+.os-mobile .dtDateRow select,
+.os-mobile .dtZoneSelect,
+.os-mobile .dtSpin input {
+  font-size: 16px; /* no zoom-on-focus on iPhones */
+  height: 34px;
+}
+
+.os-mobile .dtSpin {
+  height: 38px;
+}
+
+.os-mobile .dtSpin input {
+  width: 64px;
+}
+
+.os-mobile .dtSpinButtons {
+  width: 28px;
+}
+
+.os-mobile .dtArrow {
+  border-left-width: 5px;
+  border-right-width: 5px;
+}
+
+.os-mobile .dtArrow--up {
+  border-bottom-width: 5px;
+}
+
+.os-mobile .dtArrow--down {
+  border-top-width: 5px;
+}
+
+.os-mobile .dtTime {
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px 16px;
+}
+
+.os-mobile .dtTimeField {
+  width: 160px;
+  font-size: 18px;
+}
+
+.os-mobile .dtTimePart {
+  padding: 2px 3px;
+}
+
+.os-mobile .dtRealTime,
+.os-mobile .dtButtons button {
+  min-height: 36px;
+}
+
+.os-mobile .dtRealTime {
+  margin-top: 0;
+  padding: 0 12px;
+}

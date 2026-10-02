@@ -8,4 +8,5 @@ export const hyperlinks = {
   IMDb: "https://www.imdb.com/",
   "Chit Chat": "https://github.com/brandontaylor156/chit-chat",
   ReDirector: "https://github.com/cmderobertis/ReDirector",
+  "98ish Guestbook": "http://www.98ish.com/guestbook",
 }

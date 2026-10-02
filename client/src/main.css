@@ -87,6 +87,32 @@ html, body, #root {
   max-width: 100%;
 }
 
+.desktopIconInner.isShortcut {
+  position: relative;
+}
+
+.desktopIconInner.isShortcut::after {
+  content: "";
+  position: absolute;
+  top: 37px;
+  left: 22px;
+  width: 11px;
+  height: 11px;
+  background: url("/assets/shortcut_arrow.svg") no-repeat;
+  pointer-events: none;
+}
+
+.mobileIcon.isShortcut::after {
+  content: "";
+  position: absolute;
+  top: 47px;
+  left: 19px;
+  width: 13px;
+  height: 13px;
+  background: url("/assets/shortcut_arrow.svg") no-repeat;
+  background-size: 13px 13px;
+}
+
 .desktopIconInner.is-selected .desktopIconLabel {
   background: #000080;
   outline: 1px dotted #ffff00;
@@ -113,6 +139,40 @@ html, body, #root {
 }
 
 
+
+/* an app's window while its code downloads */
+.appLoading {
+  height: calc(100% - 25px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: #c0c0c0;
+  color: #000;
+  font-family: "Pixelated MS Sans Serif", Arial, sans-serif;
+  font-size: 11px;
+  text-align: center;
+  padding: 12px;
+  cursor: wait;
+}
+
+.appLoadingGlass {
+  width: 14px;
+  height: 22px;
+  background:
+    linear-gradient(#000, #000) top / 100% 2px no-repeat,
+    linear-gradient(#000, #000) bottom / 100% 2px no-repeat,
+    conic-gradient(from 180deg at 50% 50%, transparent 25%, #c8a040 0 75%, transparent 0);
+  clip-path: polygon(0 0, 100% 0, 55% 50%, 100% 100%, 0 100%, 45% 50%);
+  animation: appLoadingSpin 1.2s steps(4) infinite;
+}
+
+@keyframes appLoadingSpin {
+  to {
+    transform: rotate(180deg);
+  }
+}
 
 /************ END DESKTOP *************/
 

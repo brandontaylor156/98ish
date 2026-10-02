@@ -3,6 +3,8 @@ import MenuBar from "../../shared/MenuBar"
 import Dialog from "../../shared/Dialog"
 import StartPage from "./StartPage"
 import CapturesPanel from "./CapturesPanel"
+import LocalSite from "./local/LocalSite"
+import { isLocalUrl, pageFor } from "./local/site"
 import { LINKS_BAR } from "./sites"
 import {
   ARCHIVE_ORIGIN,
@@ -109,6 +111,7 @@ const InternetExplorer = ({ initialUrl, onTitle, onNewWindow, onClose }) => {
 
   const entry = nav.entries[nav.index]
   const onStart = entry.kind === "start"
+  const onLocal = entry.kind === "local" // a page on http://www.98ish.com/, not the Archive
 
   // ---- navigation ----
 
@@ -121,6 +124,15 @@ const InternetExplorer = ({ initialUrl, onTitle, onNewWindow, onClose }) => {
       setStatus("Done")
       setAddress("about:home")
       onTitleRef.current?.("Internet Explorer")
+      return
+    }
+    if (target.kind === "local") {
+      pendingNav.current = false
+      setFrame((f) => ({ src: null, key: f.key + 1 }))
+      setLoading(false)
+      setStatus("Done")
+      setAddress(target.url)
+      onTitleRef.current?.(`${pageFor(target.url)?.title || "98ish"} - Internet Explorer`)
       return
     }
     pendingNav.current = true
@@ -146,7 +158,7 @@ const InternetExplorer = ({ initialUrl, onTitle, onNewWindow, onClose }) => {
     load(entries[next])
   }
 
-  const openUrl = (url, ts = dateToStamp(date)) => navigate({ kind: "web", url, ts })
+  const openUrl = (url, ts = dateToStamp(date)) => navigate(isLocalUrl(url) ? { kind: "local", url } : { kind: "web", url, ts })
 
   const refresh = () => load(entry)
 
@@ -243,7 +255,7 @@ const InternetExplorer = ({ initialUrl, onTitle, onNewWindow, onClose }) => {
 
   // ---- what the Archive has for this site (did it exist yet?) ----
 
-  const currentUrl = onStart ? null : shown?.url || entry.url
+  const currentUrl = onStart || onLocal ? null : shown?.url || entry.url
   const site = currentUrl ? siteKey(currentUrl) : null
   useEffect(() => {
     if (!site) return
@@ -559,6 +571,8 @@ const InternetExplorer = ({ initialUrl, onTitle, onNewWindow, onClose }) => {
               onOpen={(url) => openUrl(url)}
               onAddress={submitAddress}
             />
+          ) : onLocal ? (
+            <LocalSite key={frame.key} url={entry.url} onOpen={(url) => openUrl(url)} />
           ) : canceled ? (
             <div className="ieErrorPage">
               <h2>Action canceled</h2>
@@ -606,7 +620,7 @@ const InternetExplorer = ({ initialUrl, onTitle, onNewWindow, onClose }) => {
       <div className="status-bar ieStatus">
         <p className="status-bar-field ieStatusText">{status}</p>
         <p className="status-bar-field ieZone">
-          {shown ? `Internet Archive · ${formatStamp(shown.ts)}` : "Internet Archive"}
+          {shown ? `Internet Archive · ${formatStamp(shown.ts)}` : onLocal ? "98ish Web Ring" : "Internet Archive"}
         </p>
       </div>
 

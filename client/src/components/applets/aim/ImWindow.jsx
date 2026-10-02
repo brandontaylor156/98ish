@@ -1,6 +1,9 @@
 import React, { useEffect, useRef, useState } from "react"
 import { BOT_NAME, keyOf, useAim } from "./AimContext"
 import Dialog from "../../shared/Dialog"
+import ContextMenu from "../../shared/ContextMenu"
+import { useNet } from "../network/NetContext"
+import { RaceLevelDialog } from "../network/ComputerFolder"
 import FormatBar from "./FormatBar"
 import { TranscriptLine, textStyle } from "./MessageText"
 import { useIsTouch } from "../../../hooks/useMediaQuery"
@@ -101,6 +104,8 @@ const ImWindow = ({ buddy, focusInput }) => {
   const blocked = aim.me?.blocked.includes(key)
   const inList = aim.me?.groups.some((g) => g.buddies.some((b) => keyOf(b) === key))
   const [dialog, setDialog] = useState(null)
+  const [gamesMenu, setGamesMenu] = useState(null)
+  const net = useNet()
   const transcript = useStickToBottom([messages.length])
   const lastIncoming = [...messages].reverse().find((m) => !m.mine && !m.system)
   const status =
@@ -124,6 +129,17 @@ const ImWindow = ({ buddy, focusInput }) => {
     const result = await aim.block(screenName, !blocked)
     setDialog(result.ok ? null : { kind: "alert", title: "Block", text: result.error })
   }
+
+  // Network games, played with whoever is on the other end of this IM
+  const playGame = async (game, options) => {
+    const result = await net.invite({ screenName }, game, options)
+    if (!result.ok) setDialog({ kind: "alert", title: "Games", text: result.error })
+  }
+  const gameItems = [
+    { label: "Checkers", onClick: () => playGame("checkers") },
+    { label: "Minesweeper Race...", onClick: () => setDialog({ kind: "race" }) },
+    { label: "Hearts", onClick: () => playGame("hearts") },
+  ]
 
   const addBuddy = async () => {
     const [first, ...rest] = aim.me.groups
@@ -166,7 +182,21 @@ const ImWindow = ({ buddy, focusInput }) => {
         <button type="button" onClick={() => aim.openInfo(screenName)}>
           Get Info
         </button>
+        {net && key !== keyOf(BOT_NAME) && (
+          <button
+            type="button"
+            disabled={!presence?.online || blocked}
+            onClick={(e) => {
+              const r = e.currentTarget.getBoundingClientRect()
+              setGamesMenu({ x: r.left, y: r.bottom })
+            }}
+          >
+            Games
+          </button>
+        )}
       </div>
+
+      {gamesMenu && <ContextMenu x={gamesMenu.x} y={gamesMenu.y} items={gameItems} onClose={() => setGamesMenu(null)} />}
 
       <div className="status-bar aimStatusBar">
         <p className="status-bar-field">{blocked ? `You have blocked ${screenName}.` : status || " "}</p>
@@ -190,6 +220,16 @@ const ImWindow = ({ buddy, focusInput }) => {
             Block {screenName}? They won't be able to send you messages or see when you're online.
           </p>
         </Dialog>
+      )}
+
+      {dialog?.kind === "race" && (
+        <RaceLevelDialog
+          onPick={(level) => {
+            setDialog(null)
+            playGame("race", { level })
+          }}
+          onCancel={() => setDialog(null)}
+        />
       )}
 
       {dialog?.kind === "alert" && (

@@ -2,7 +2,7 @@ import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "re
 import MenuBar from "../../shared/MenuBar"
 import Dialog from "../../shared/Dialog"
 import { useIsTouch } from "../../../hooks/useMediaQuery"
-import { LEVELS, LIMITS, chord, clampCustom, createGame, cycleMark, elapsedSeconds, maxMinesFor, minesLeft, neighbors, reveal } from "./engine"
+import { LEVELS, LIMITS, chord, clampCustom, createGame, createSeededGame, cycleMark, elapsedSeconds, maxMinesFor, minesLeft, neighbors, reveal } from "./engine"
 import { Face, FlagIcon, Led, MineIcon } from "./graphics"
 import "./Minesweeper.css"
 
@@ -52,11 +52,15 @@ const Cell = React.memo(({ index, cell, pressed, exploded, lost }) => {
   )
 })
 
-const Minesweeper = ({ fitWindow, onClose }) => {
+// Minesweeper Race (Network Neighborhood) plays on a board fixed by a seed:
+// race = { seed, round, field, startAt, frozen, over, onProgress(game), onResign, panel, overlay }
+const raceGame = (race) => ({ ...createSeededGame(race.field, race.seed), startedAt: race.startAt })
+
+const Minesweeper = ({ fitWindow, onClose, race }) => {
   const touch = useIsTouch()
   const [settings, setSettings] = useState(() => load(SETTINGS_KEY, DEFAULT_SETTINGS))
   const [best, setBest] = useState(() => load(BEST_KEY, DEFAULT_BEST))
-  const [game, setGame] = useState(() => createGame(fieldFor(settings)))
+  const [game, setGame] = useState(() => (race ? raceGame(race) : createGame(fieldFor(settings))))
   const [now, setNow] = useState(Date.now())
   const [pressed, setPressed] = useState(null) // { mode: "reveal" | "chord", index }
   const [flagMode, setFlagMode] = useState(false)
@@ -77,6 +81,7 @@ const Minesweeper = ({ fitWindow, onClose }) => {
   }
 
   const newGame = (nextSettings = settings) => {
+    if (race) return
     update(createGame(fieldFor(nextSettings)))
     setPressed(null)
     press.current = null
@@ -89,16 +94,29 @@ const Minesweeper = ({ fitWindow, onClose }) => {
     if (patch.level || patch.custom) newGame(next)
   }
 
+  // ---- racing: a rematch deals a new board; every move is reported ----
+  const raceRound = race && `${race.seed}:${race.round}`
+  const firstRound = useRef(raceRound)
+  useEffect(() => {
+    if (!race || raceRound === firstRound.current) return
+    firstRound.current = raceRound
+    update(raceGame(race))
+    endPress()
+  }, [raceRound])
+  useEffect(() => {
+    race?.onProgress?.(game)
+  }, [game])
+
   // ---- clock ----
   useEffect(() => {
-    if (game.status !== "playing") return
+    if (game.status !== "playing" || race?.over) return
     const timer = setInterval(() => setNow(Date.now()), 250)
     return () => clearInterval(timer)
   }, [game.status])
 
   // ---- winning: a new best time asks for your name, like the original ----
   useEffect(() => {
-    if (game.status !== "won" || settings.level === "custom") return
+    if (game.status !== "won" || settings.level === "custom" || race) return
     const seconds = elapsedSeconds(game)
     if (seconds < best[settings.level].seconds) setDialog({ kind: "record", seconds, name: "Anonymous" })
   }, [game.status])
@@ -126,7 +144,7 @@ const Minesweeper = ({ fitWindow, onClose }) => {
     // room left for the grid: the panel's padding and borders take 24px each way, the
     // header 47px and the touch Dig/Flag bar 42px
     const w = area.width - 24
-    const h = area.height - 24 - 47 - (touch ? 42 : 0)
+    const h = area.height - 24 - 47 - (touch ? 42 : 0) - (race ? 50 : 0)
     // Fingers need at least 22px squares (Expert turned sideways just fits a phone's
     // width at that size); a board too big for that scrolls instead
     const sizeFor = (c, r) => Math.max(touch ? 22 : 14, Math.min(44, Math.floor(Math.min(w / c, h / r))))
@@ -173,7 +191,7 @@ const Minesweeper = ({ fitWindow, onClose }) => {
   }
 
   const onPointerDown = (event) => {
-    if (finished || press.current) return
+    if (finished || press.current || race?.frozen) return
     const index = indexAt(event)
     if (index === null) return
     event.preventDefault()
@@ -253,7 +271,21 @@ const Minesweeper = ({ fitWindow, onClose }) => {
 
   const levelLabel = settings.level === "custom" ? "Custom" : LEVELS[settings.level].label
 
-  const menus = [
+  const menus = race
+    ? [
+        {
+          label: "Game",
+          items: [
+            { label: "Resign", disabled: race.over, onClick: () => race.onResign?.() },
+            "-",
+            { label: "Marks (?)", checked: settings.marks, onClick: () => changeSettings({ marks: !settings.marks }) },
+            "-",
+            { label: "Exit", onClick: () => onClose?.() },
+          ],
+        },
+        { label: "Help", items: [{ label: "How to Play...", onClick: () => setDialog({ kind: "help" }) }] },
+      ]
+    : [
     {
       label: "Game",
       items: [
@@ -297,10 +329,11 @@ const Minesweeper = ({ fitWindow, onClose }) => {
     >
       <MenuBar menus={menus} />
       <div className="msArea" ref={areaRef}>
-        <div className="msGame" ref={gameRef} style={{ "--ms-cell": `${layout.cell}px` }}>
+        <div className="msGame" ref={gameRef} style={{ "--ms-cell": `${layout.cell}px`, ...(race && { position: "relative" }) }}>
+          {race?.panel}
           <div className="msHeader">
             <Led value={minesLeft(game)} label="Mines left" />
-            <button type="button" className="msFaceButton" aria-label="New game" onClick={() => newGame()}>
+            <button type="button" className="msFaceButton" aria-label={race ? "Face" : "New game"} onClick={() => newGame()}>
               <Face face={face} />
             </button>
             <Led value={elapsedSeconds(game, now)} label="Seconds" />
@@ -335,6 +368,7 @@ const Minesweeper = ({ fitWindow, onClose }) => {
               />
             ))}
           </div>
+          {race?.overlay}
         </div>
       </div>
 

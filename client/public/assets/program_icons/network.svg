@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48" shape-rendering="crispEdges">
+  <!-- network cable -->
+  <path d="M11 38v-2h26v2M24 23v13" fill="none" stroke="#000" stroke-width="2"/>
+  <rect x="21" y="35" width="6" height="5" fill="#808080" stroke="#000"/>
+  <!-- back computer -->
+  <g transform="translate(15 2)">
+    <rect x="0.5" y="0.5" width="18" height="15" fill="#c0c0c0" stroke="#000"/>
+    <rect x="2.5" y="2.5" width="14" height="10" fill="#008080"/>
+    <rect x="5.5" y="15.5" width="8" height="2" fill="#808080" stroke="#000"/>
+    <rect x="1.5" y="17.5" width="16" height="4" fill="#c0c0c0" stroke="#000"/>
+  </g>
+  <!-- left computer -->
+  <g transform="translate(1 15)">
+    <rect x="0.5" y="0.5" width="20" height="16" fill="#dfdfdf" stroke="#000"/>
+    <rect x="2.5" y="2.5" width="16" height="11" fill="#0000a8"/>
+    <path d="M5 6h7v1H5zM5 9h10v1H5z" fill="#55ffff"/>
+    <rect x="6.5" y="16.5" width="8" height="2" fill="#808080" stroke="#000"/>
+    <rect x="1.5" y="18.5" width="18" height="4" fill="#c0c0c0" stroke="#000"/>
+    <rect x="14" y="20" width="3" height="1" fill="#00a000"/>
+  </g>
+  <!-- right computer -->
+  <g transform="translate(26 15)">
+    <rect x="0.5" y="0.5" width="20" height="16" fill="#dfdfdf" stroke="#000"/>
+    <rect x="2.5" y="2.5" width="16" height="11" fill="#008080"/>
+    <path d="M5 5h4v4H5zM11 7h4v4h-4z" fill="#ffff55"/>
+    <rect x="6.5" y="16.5" width="8" height="2" fill="#808080" stroke="#000"/>
+    <rect x="1.5" y="18.5" width="18" height="4" fill="#c0c0c0" stroke="#000"/>
+    <rect x="14" y="20" width="3" height="1" fill="#00a000"/>
+  </g>
+  <!-- the world beyond -->
+  <circle cx="40.5" cy="41.5" r="5.5" fill="#0000c0" stroke="#000" shape-rendering="auto"/>
+  <path d="M36 40c2-1 3 1 4 0s2-2 4-1M37 44c2 0 2 1.5 4 .5s2 0 3-1" fill="none" stroke="#00d000" stroke-width="1.5" shape-rendering="auto"/>
+</svg>

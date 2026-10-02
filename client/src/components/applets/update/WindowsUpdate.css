@@ -1,0 +1,152 @@
+/* 98ish Update */
+
+.wuRoot {
+  height: calc(100% - 25px);
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  color: #000;
+  font-family: Tahoma, Verdana, Arial, sans-serif;
+  font-size: 12px;
+}
+
+.wuRoot button {
+  min-width: 0;
+}
+
+.wuBanner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: linear-gradient(90deg, #003399, #3a6ee8 60%, #9bc1ff);
+  color: #fff;
+}
+
+.wuBanner b {
+  display: block;
+  font-size: 20px;
+  font-style: italic;
+  letter-spacing: -0.5px;
+}
+
+.wuBanner span {
+  font-size: 11px;
+  opacity: 0.9;
+}
+
+.wuGlobe {
+  width: 40px;
+  height: 40px;
+  flex: none;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.7), transparent 40%),
+    radial-gradient(ellipse 30% 22% at 35% 40%, #3fae49 98%, transparent),
+    radial-gradient(ellipse 25% 30% at 68% 62%, #3fae49 98%, transparent),
+    radial-gradient(ellipse 18% 12% at 60% 22%, #3fae49 98%, transparent),
+    #2b7de9;
+  box-shadow: inset -4px -4px 8px rgba(0, 0, 0, 0.35);
+  animation: wuSpin 6s linear infinite;
+  background-size: 200% 100%, 200% 100%, 200% 100%, 200% 100%, auto;
+}
+
+@keyframes wuSpin {
+  to {
+    background-position: 0 0, -200% 0, -200% 0, -200% 0, 0 0;
+  }
+}
+
+.wuBody {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 14px 16px;
+  line-height: 1.45;
+}
+
+.wuBody p {
+  margin: 0 0 10px;
+}
+
+.wuBig {
+  font-family: "Pixelated MS Sans Serif", Arial, sans-serif;
+  font-size: 11px;
+  padding: 4px 14px !important;
+  min-height: 26px;
+}
+
+.wuBar {
+  height: 22px !important;
+  margin-bottom: 12px;
+}
+
+.wuList {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  border: 1px solid #c0c0c0;
+}
+
+.wuList li {
+  padding: 8px 8px 8px 10px;
+  border-bottom: 1px solid #e4e4e4;
+}
+
+.wuList li:last-child {
+  border-bottom: 0;
+}
+
+.wuList label {
+  display: block;
+  line-height: 1.4;
+}
+
+.wuSize {
+  color: #666;
+}
+
+.wuAbout {
+  color: #555;
+  font-size: 11px;
+}
+
+.wuButtons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.wuButtons > span {
+  flex: 1;
+  color: #555;
+}
+
+.wuRoot .status-bar {
+  background: #c0c0c0;
+  margin: 0;
+  padding: 2px;
+  font-family: "Pixelated MS Sans Serif", Arial, sans-serif;
+  font-size: 11px;
+}
+
+.wuStatusRight {
+  flex: none !important;
+}
+
+.os-mobile .wuBig {
+  min-height: 40px;
+}
+
+.os-mobile .wuButtons {
+  flex-wrap: wrap;
+}
+
+/* 98.css draws the box and tick around the label: pin them to the first line */
+.wuList input[type="checkbox"] + label::before {
+  top: 1px;
+}
+
+.wuList input[type="checkbox"] + label::after {
+  top: 4px;
+}

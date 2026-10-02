@@ -1,16 +1,23 @@
 import React, { useEffect, useRef } from "react"
+import { playSystemSound } from "../../utils/systemSounds"
 import "./shared.css"
 
 // A small 98-style dialog floating over the window it belongs to (Add Buddy, Away
 // Message, Custom Field...). Enter submits, Escape cancels. The window's content root
 // must be position: relative.
-// onNo adds a middle button ("Yes / No / Cancel", as in "Save changes?")
-const Dialog = ({ title, onOk, onNo, onCancel, okLabel = "OK", noLabel = "No", cancelLabel = "Cancel", okDisabled, children }) => {
+// onNo adds a middle button ("Yes / No / Cancel", as in "Save changes?"); sound plays a
+// system sound when it appears ("ding", "chord", "critical")
+const Dialog = ({ title, onOk, onNo, onCancel, okLabel = "OK", noLabel = "No", cancelLabel = "Cancel", okDisabled, sound, children }) => {
   const ref = useRef(null)
 
   useEffect(() => {
-    const first = ref.current?.querySelector("input, textarea, select, button")
-    first?.focus({ preventScroll: true })
+    if (sound) playSystemSound(sound)
+    // the first field (text selected, ready to type over), else the OK button: never the
+    // title bar's Close button, or Enter would cancel
+    const field = ref.current?.querySelector(".dialogBody input:not([type=checkbox]):not([type=radio]):not([type=hidden]), .dialogBody textarea, .dialogBody select")
+    const target = field || ref.current?.querySelector(".dialogBody input, .dialogButtons button")
+    target?.focus({ preventScroll: true })
+    if (field?.select && field.type !== "file") field.select()
   }, [])
 
   return (

@@ -35,6 +35,11 @@ export const DEFAULT_SETTINGS = {
   scheme: "standard",
   bootScreen: true,
   startupSound: true,
+  systemSounds: true,
+  helper: true, // Floppy, the helper
+  screensaver: "none", // an id from components/screensavers, or "none"
+  screensaverWait: 10, // minutes
+  screensaverOptions: {}, // { [id]: that screensaver's options }
 }
 
 const listeners = new Set()

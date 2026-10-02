@@ -4,11 +4,16 @@ import StartMenu from "./components/OS-specific/StartMenu"
 import Desktop from "./components/OS-specific/Desktop"
 import LiveSearch from "./components/OS-specific/LiveSearch"
 import { useIsMobile } from "./hooks/useMediaQuery"
-import MsDos from "./components/applets/dos/MsDos"
 import Dialog from "./components/shared/Dialog"
-import { hasUnsavedNotepads } from "./components/applets/notepad/Notepad"
-import { BootScreen, LogOffDialog, LogOn, SafeToTurnOff, ShutDownDialog, ShuttingDown, playStartupSound } from "./components/OS-specific/Power"
+import { hasUnsaved, unsavedPrograms } from "./utils/unsaved"
+import { playSystemSound } from "./utils/systemSounds"
+import { BlueScreen, BootScreen, LogOffDialog, LogOn, SafeToTurnOff, ShutDownDialog, ShuttingDown, playStartupSound } from "./components/OS-specific/Power"
 import { getSettings, schemeVars, useSettings, wallpaperStyle } from "./utils/settings"
+import { lazyApp } from "./components/OS-specific/LazyApp"
+import Helper from "./components/OS-specific/Helper"
+
+const MsDos = lazyApp(() => import("./components/applets/dos/MsDos"))
+import { Screensaver, optionsFor, saverById, useIdle } from "./components/screensavers"
 
 const reducer = (state, action) => {
   switch (action.type) {
@@ -139,6 +144,11 @@ function App() {
   const mobile = useIsMobile()
   const settings = useSettings()
 
+  // the screen saver, after the chosen wait with no input (only on the desktop)
+  const [saverOn, setSaverOn] = useState(false)
+  const saverId = saverById(settings.screensaver) ? settings.screensaver : null
+  useIdle(phase === "desktop" && saverId ? settings.screensaverWait : 0, () => setSaverOn(true))
+
   const closeMenu = () => {
     setResults([])
     setStartMenuVisible(false)
@@ -155,8 +165,27 @@ function App() {
 
   const restart = () => setPhase(getSettings().bootScreen ? "boot" : "desktop")
 
+  // ending explorer.exe in Task Manager crashes the whole thing
+  const [crashed, setCrashed] = useState(null)
+  useEffect(() => {
+    const crash = (e) => {
+      closeMenu()
+      setCrashed(e.detail?.process || "explorer.exe")
+      dispatch({ type: "close_all" })
+      setPhase("bsod")
+    }
+    // Windows Update's "Restart Now"
+    const restartNow = () => checkUnsaved(() => powerOff("restart"))
+    window.addEventListener("98ish:crash", crash)
+    window.addEventListener("98ish:restart", restartNow)
+    return () => {
+      window.removeEventListener("98ish:crash", crash)
+      window.removeEventListener("98ish:restart", restartNow)
+    }
+  }, [])
+
   // unsaved Notepad text? ask before throwing it away
-  const checkUnsaved = (then) => (hasUnsavedNotepads() ? setUnsavedThen(() => then) : then())
+  const checkUnsaved = (then) => (hasUnsaved() ? setUnsavedThen(() => then) : then())
 
   const chooseShutDown = (choice) => {
     setPower(null)
@@ -164,6 +193,7 @@ function App() {
   }
 
   const powerOff = (choice) => {
+    playSystemSound("exit")
     dispatch({ type: "close_all" })
     if (choice === "dos") setPhase("dos")
     else setPhase(choice === "restart" ? "restarting" : "shuttingDown")
@@ -199,6 +229,7 @@ function App() {
               )}
             </div>
           )}
+          <Helper windows={windows} mobile={mobile} />
           {power === "shutdown" && <ShutDownDialog onChoose={chooseShutDown} onCancel={() => setPower(null)} />}
           {power === "logoff" && (
             <LogOffDialog
@@ -211,6 +242,9 @@ function App() {
               }}
               onCancel={() => setPower(null)}
             />
+          )}
+          {saverOn && saverId && (
+            <Screensaver id={saverId} settings={optionsFor(saverId, settings.screensaverOptions)} onExit={() => setSaverOn(false)} />
           )}
           {unsavedThen && (
             <div className="powerDim">
@@ -225,7 +259,9 @@ function App() {
                 }}
                 onCancel={() => setUnsavedThen(null)}
               >
-                <p className="dialogText">Notepad has unsaved changes. If you continue, they'll be lost.</p>
+                <p className="dialogText">
+                  {unsavedPrograms()} {unsavedPrograms().includes(" and ") ? "have" : "has"} unsaved changes. If you continue, they'll be lost.
+                </p>
                 <p className="dialogText">Continue anyway?</p>
               </Dialog>
             </div>
@@ -238,6 +274,7 @@ function App() {
       {phase === "restarting" && <ShuttingDown onDone={restart} />}
       {phase === "off" && <SafeToTurnOff onPowerOn={restart} />}
       {phase === "dos" && <MsDos fullScreen onClose={restart} />}
+      {phase === "bsod" && <BlueScreen process={crashed} onDone={restart} />}
     </div>
   )
 }

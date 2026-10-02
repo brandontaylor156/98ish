@@ -261,3 +261,38 @@ export const LogOn = ({ onDone }) => {
     </div>
   )
 }
+
+// ---- the blue screen (end explorer.exe in Task Manager) ----
+
+export const BlueScreen = ({ process = "EXPLORER.EXE", onDone }) => {
+  useEffect(() => {
+    // not the click that caused it
+    const id = setTimeout(() => {
+      window.addEventListener("keydown", onDone)
+      window.addEventListener("pointerdown", onDone)
+    }, 400)
+    return () => {
+      clearTimeout(id)
+      window.removeEventListener("keydown", onDone)
+      window.removeEventListener("pointerdown", onDone)
+    }
+  }, [])
+  return (
+    <div className="powerScreen blueScreen" role="alert">
+      <div className="bsodBody">
+        <p className="bsodTitle">
+          <span>98ish</span>
+        </p>
+        <p>
+          A fatal exception 0E has occurred at 0098:C0FFEE98 in {process.toUpperCase()}. The shell has been terminated, and
+          there's nothing left to draw the desktop.
+        </p>
+        <p>* Press any key or tap to restart 98ish.</p>
+        <p>* Next time, maybe don't end explorer.exe. Unsaved work in open programs has been lost.</p>
+        <p className="bsodPrompt">
+          Press any key to continue <span className="bsodCursor">_</span>
+        </p>
+      </div>
+    </div>
+  )
+}

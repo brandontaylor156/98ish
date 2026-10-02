@@ -1,0 +1,483 @@
+/* Calculator */
+
+.calcRoot {
+  --k: 36px; /* key width */
+  --kh: 29px; /* key height */
+  --gap: 5px;
+  position: relative;
+  height: calc(100% - 25px);
+  display: flex;
+  flex-direction: column;
+  background: #c0c0c0;
+  color: #000;
+  font-family: "Pixelated MS Sans Serif", Arial, sans-serif;
+  -webkit-font-smoothing: none;
+  font-size: 11px;
+  outline: none;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.calcRoot.is-scientific {
+  --kh: 28px;
+  --gap: 4px;
+}
+
+.calcBody {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 6px 8px 8px;
+}
+
+/* desktop: the window fits the buttons */
+.calcRoot.is-fitted .calcBody {
+  align-self: flex-start;
+  width: max-content;
+}
+
+/* phones and maximized windows: the buttons fill the space */
+.calcRoot:not(.is-fitted) .calcBody {
+  flex: 1;
+  min-height: 0;
+}
+
+.calcDisplay {
+  height: 23px;
+  flex: none;
+  padding: 3px 5px;
+  background: #fff;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+  text-align: right;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: clip;
+  direction: rtl; /* long numbers lose their start, not their end */
+  unicode-bidi: plaintext;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.calcDisplay > * {
+  direction: ltr;
+}
+
+/* ---- keys ---- */
+
+.calcRoot .calcKey {
+  min-width: 0;
+  min-height: 0;
+  width: var(--k);
+  height: var(--kh);
+  padding: 0;
+  font: inherit;
+  white-space: nowrap;
+  touch-action: manipulation;
+}
+
+.calcKey--blue {
+  color: #0000ff;
+}
+.calcKey--red {
+  color: #ff0000;
+}
+.calcKey--navy {
+  color: #000080;
+}
+.calcKey--purple {
+  color: #800080;
+}
+
+.calcRoot .calcKey:disabled {
+  color: #808080;
+  text-shadow: 1px 1px 0 #fff;
+}
+
+/* a key typed on the keyboard lights up like a click */
+.calcRoot .calcKey.is-pressed {
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #0a0a0a, inset -2px -2px #dfdfdf, inset 2px 2px #808080;
+  padding: 2px 0 0 2px;
+}
+
+.calcTopRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.calcClears {
+  margin-left: auto;
+  display: flex;
+  gap: 5px;
+}
+
+.calcRoot .calcKey--wide {
+  width: 62px;
+}
+
+.calcIndicator {
+  width: var(--k);
+  height: 26px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080;
+}
+
+/* Standard: memory keys, a gap, then the number pad */
+.calcStdGrid {
+  display: grid;
+  grid-template-columns: calc(var(--k) + 8px) repeat(5, var(--k));
+  grid-auto-rows: var(--kh);
+  gap: 5px 5px;
+}
+
+.calcStdGrid > .calcKey:nth-child(6n + 1) {
+  width: var(--k);
+}
+
+/* Scientific */
+.calcModes {
+  display: flex;
+  gap: 6px;
+}
+
+.calcRoot .calcRadios {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  padding: 4px 8px;
+  border: none;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #808080, inset 2px 2px #fff;
+}
+
+.calcModes .calcRadios {
+  flex: 1;
+}
+
+.calcRadio {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.calcRadio label {
+  white-space: nowrap;
+}
+
+.calcSciKeys {
+  display: flex;
+  gap: 10px;
+}
+
+.calcSciBlock {
+  display: flex;
+  gap: 10px;
+}
+
+.calcCol {
+  display: grid;
+  grid-auto-rows: var(--kh);
+  gap: var(--gap);
+}
+
+.calcFnGrid {
+  display: grid;
+  grid-template-columns: repeat(3, var(--k));
+  grid-auto-rows: var(--kh);
+  gap: var(--gap);
+}
+
+.calcNumGrid {
+  display: grid;
+  grid-template-columns: repeat(6, var(--k));
+  grid-auto-rows: var(--kh);
+  gap: var(--gap);
+}
+
+/* the Statistics Box docks under the keys */
+.window.calcStats {
+  min-width: 0;
+  height: auto;
+  flex: none;
+}
+
+.calcStatsBody {
+  display: flex;
+  gap: 8px;
+  padding: 6px;
+}
+
+.calcStatsList {
+  flex: 1;
+  min-width: 0;
+  height: 74px;
+  margin: 0;
+  padding: 2px;
+  list-style: none;
+  overflow: auto;
+  background: #fff;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+}
+
+.calcStatsList button {
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  padding: 1px 3px;
+  background: none;
+  box-shadow: none !important;
+  border: 0;
+  color: #000;
+  font: inherit;
+  text-align: right;
+}
+
+.calcStatsList button.is-selected {
+  background: #000080;
+  color: #fff;
+}
+
+.calcStatsButtons {
+  display: grid;
+  grid-template-columns: repeat(2, 54px);
+  gap: 4px;
+  align-content: start;
+}
+
+.calcRoot .calcStatsButtons button {
+  min-width: 0;
+  min-height: 0;
+  height: 23px;
+  padding: 0;
+}
+
+.calcStatsCount {
+  grid-column: span 2;
+  padding-top: 3px;
+}
+
+/* the help list scrolls, so the dialog fits even the small Standard window */
+.calcHelpScroll {
+  max-height: 110px;
+  overflow: auto;
+  background: #fff;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+  padding: 2px;
+  user-select: text;
+}
+
+.calcRoot:not(.is-fitted) .calcHelpScroll {
+  max-height: 50vh;
+}
+
+.calcHelp {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.calcHelp td {
+  padding: 1px 4px;
+  vertical-align: top;
+}
+
+.calcHelp td:first-child {
+  white-space: nowrap;
+  font-weight: bold;
+}
+
+/* ---- stretched (phones, maximized) ---- */
+
+.calcRoot:not(.is-fitted) .calcKey,
+.calcRoot:not(.is-fitted) .calcStdGrid > .calcKey:nth-child(6n + 1) {
+  width: 100%;
+  height: 100%;
+}
+
+.calcRoot:not(.is-fitted) .calcStdGrid {
+  flex: 1;
+  min-height: 0;
+  grid-template-columns: repeat(6, 1fr);
+  grid-auto-rows: 1fr;
+}
+
+.calcRoot:not(.is-fitted) .calcStdGrid > .calcKey:nth-child(6n + 1) {
+  width: calc(100% - 6px);
+}
+
+.calcRoot:not(.is-fitted) .calcSciKeys {
+  flex: 1;
+  min-height: 0;
+}
+
+.calcRoot:not(.is-fitted) .calcSciKeys,
+.calcRoot:not(.is-fitted) .calcSciBlock {
+  min-height: 0;
+}
+
+.calcRoot:not(.is-fitted) .calcSciBlock:first-child {
+  flex: 4.6;
+}
+
+.calcRoot:not(.is-fitted) .calcSciBlock:last-child {
+  flex: 7.3;
+}
+
+.calcRoot:not(.is-fitted) .calcStatCol,
+.calcRoot:not(.is-fitted) .calcMemCol {
+  flex: 1;
+  grid-auto-rows: 1fr;
+}
+
+.calcRoot:not(.is-fitted) .calcFnGrid {
+  flex: 3;
+  grid-template-columns: repeat(3, 1fr);
+  grid-auto-rows: 1fr;
+}
+
+.calcRoot:not(.is-fitted) .calcNumGrid {
+  flex: 6;
+  grid-template-columns: repeat(6, 1fr);
+  grid-auto-rows: 1fr;
+}
+
+.calcRoot:not(.is-fitted) .calcRoot .calcKey--wide {
+  width: auto;
+}
+
+/* ---- phones ---- */
+
+.os-mobile .calcRoot {
+  font-size: 14px;
+}
+
+.os-mobile .calcDisplay {
+  height: 48px;
+  padding: 8px 10px;
+  font-size: 28px;
+  line-height: 32px;
+}
+
+.os-mobile .calcRoot .calcKey {
+  font-size: 16px;
+}
+
+.os-mobile .calcRoot .calcKey--wide {
+  width: auto;
+  flex: 1;
+  height: 40px;
+}
+
+.os-mobile .calcClears {
+  flex: 1;
+  gap: 6px;
+}
+
+.os-mobile .calcIndicator {
+  width: 40px;
+  height: 40px;
+}
+
+.os-mobile .calcStdGrid {
+  gap: 8px;
+}
+
+.os-mobile .calcRoot .calcRadios {
+  gap: 4px 12px;
+  flex-wrap: wrap;
+  padding: 8px 10px;
+}
+
+.os-mobile .calcRoot.is-scientific .calcTopRow,
+.os-mobile .calcRoot.is-scientific .calcClears {
+  gap: 4px;
+}
+
+.os-mobile .calcRoot.is-scientific .calcChecks {
+  gap: 10px;
+  padding: 0 8px;
+  height: 40px;
+}
+
+.os-mobile .calcRoot.is-scientific .calcIndicator {
+  width: 30px;
+  font-size: 12px;
+}
+
+.os-mobile .calcRoot.is-scientific .calcKey[data-key="back"] {
+  flex: 1.9;
+}
+
+.os-mobile .calcStats .title-bar-text {
+  font-size: 13px;
+}
+
+/* Phones in portrait stack the function keys above the number pad */
+@media (orientation: portrait) {
+  .os-mobile .calcRoot.is-scientific .calcModes {
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .os-mobile .calcRoot.is-scientific .calcModes .calcRadios {
+    flex-wrap: nowrap;
+    justify-content: space-between;
+    padding: 6px 14px 6px 10px;
+  }
+
+  .os-mobile .calcRoot.is-scientific .calcRoot,
+  .os-mobile .calcRoot.is-scientific .calcSciKeys {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .os-mobile .calcRoot.is-scientific .calcSciBlock {
+    gap: 8px;
+  }
+
+  .os-mobile .calcRoot.is-scientific .calcSciBlock:first-child {
+    flex: 5;
+  }
+
+  .os-mobile .calcRoot.is-scientific .calcSciBlock:last-child {
+    flex: 6;
+  }
+
+  .os-mobile .calcRoot.is-scientific .calcStatCol {
+    flex: 1;
+  }
+
+  .os-mobile .calcRoot.is-scientific .calcFnGrid {
+    flex: 6;
+  }
+
+  .os-mobile .calcRoot.is-scientific .calcKey {
+    font-size: 14px;
+  }
+
+  .os-mobile .calcRoot.is-scientific .calcDisplay {
+    height: 40px;
+    font-size: 22px;
+    line-height: 26px;
+  }
+}
+
+.os-mobile .calcStatsList {
+  height: 56px;
+  font-size: 14px;
+}
+
+.os-mobile .calcStatsBody {
+  padding: 4px;
+}
+
+.os-mobile .calcStatsButtons {
+  grid-template-columns: repeat(2, 60px);
+}
+
+.os-mobile .calcRoot .calcStatsButtons button {
+  height: 32px;
+}

@@ -41,12 +41,20 @@ export const FILE_TYPE = {
   dos: "dos",
   tetris: "tetris",
   minesweeper: "minesweeper",
+  solitaire: "solitaire",
+  freecell: "freecell",
   hover: "hover",
   spectra: "spectra",
   chat: "chat",
   video: "video",
   taskmanager: "taskmanager",
   ie: "ie",
+  shortcut: "shortcut",
+  paint: "paint",
+  image: "image", // a picture: its PNG is a data URL in textContent
+  media: "media",
+  music: "music",
+  hearts: "hearts",
 }
 
 export const DIRECTORY_TYPE = {
@@ -55,6 +63,7 @@ export const DIRECTORY_TYPE = {
   documents: "documents",
   bookmarks: "bookmarks",
   programs: "programs",
+  desktop: "desktop",
 }
 
 // characters that would break paths (? and * are allowed: the starting files use them)
@@ -150,6 +159,10 @@ export class File extends Item {
 
   get isText() {
     return this.#type === FILE_TYPE.text || this.#type === FILE_TYPE.note
+  }
+
+  get isImage() {
+    return this.#type === FILE_TYPE.image
   }
 
   get copy() {
@@ -420,6 +433,7 @@ const DEFAULT_ITEMS = [
   ["C:/Documents/Look at that", "file", "text"],
   ["C:/Documents/Isn't that something?", "file", "text"],
   ["C:/Documents/Sure is", "file", "text"],
+  ["C:/Desktop", "dir", "desktop"],
   ["C:/Programs", "dir", "programs"],
   ["C:/Programs/SPECTRA", "file", "spectra"],
   ["C:/Programs/Internet Explorer", "file", "ie"],
@@ -428,11 +442,28 @@ const DEFAULT_ITEMS = [
   ["C:/Programs/Hover", "file", "hover"],
   ["C:/Programs/YouTube '98", "file", "video"],
   ["C:/Programs/Notepad", "file", "notepad"],
+  ["C:/Programs/Paint", "file", "paint"],
   ["C:/Programs/Minesweeper", "file", "minesweeper"],
+  ["C:/Programs/Solitaire", "file", "solitaire"],
+  ["C:/Programs/FreeCell", "file", "freecell"],
   ["C:/Programs/98 Messenger", "file", "chat"],
   ["C:/Programs/MS-DOS Prompt", "file", "dos"],
+  ["C:/Programs/Media Player", "file", "media"],
+  // the Media Player's songs (textContent is the song id)
+  ["C:/My Music", "dir", "folder"],
+  ...[
+    ["STARTUP.MID", "startup"],
+    ["HIGHWAY.MID", "highway"],
+    ["FUSION.MID", "fusion"],
+    ["NEONPOP.MID", "neonpop"],
+    ["RAINDAY.MID", "ballad"],
+    ["8BITRUN.MID", "chiptune"],
+    ["NEBULA.MID", "ambient"],
+    ["GROOVE.MID", "funky"],
+  ].map(([name, id]) => [`C:/My Music/${name}`, "file", "music", id]),
+  ["C:/Programs/Hearts", "file", "hearts"],
   ["C:/Bookmarks", "dir", "bookmarks"],
-  ...["AOL", "Yahoo", "Tim Tang", "Ask Jeeves", "Geocities", "eBay", "IMDb", "Chit Chat", "ReDirector"].map((n) => [`C:/Bookmarks/${n}`, "file", "internet"]),
+  ...["AOL", "Yahoo", "Tim Tang", "Ask Jeeves", "Geocities", "eBay", "IMDb", "Chit Chat", "ReDirector", "98ish Guestbook"].map((n) => [`C:/Bookmarks/${n}`, "file", "internet"]),
   ["C:/Hello World", "file", "text", "Hello World!"],
   ["C:/README", "file", "note", README_TEXT],
   ["C:/Cover Letter", "file", "text"],
@@ -497,6 +528,8 @@ const load = (fsys) => {
   })
 }
 
+// true if saved; false if the browser's storage is full or unavailable (then changes
+// last for this visit only)
 const save = (fsys) => {
   try {
     localStorage.setItem(
@@ -507,8 +540,9 @@ const save = (fsys) => {
         defaults: DEFAULT_ITEMS.map((e) => e[0]),
       })
     )
+    return true
   } catch {
-    // storage full or unavailable: changes last for this visit
+    return false
   }
 }
 
@@ -523,6 +557,25 @@ onFsChange(() => {
 })
 // Don't lose the last quarter second of typing when the tab closes
 if (typeof window !== "undefined") window.addEventListener("pagehide", () => save(fs))
+
+// Save right now. False means the drive (this browser's storage) is full: big files like
+// pictures check this and undo the write, so they can tell you instead of losing it later.
+export const saveNow = () => {
+  clearTimeout(saveTimer)
+  return save(fs)
+}
+
+// Write a file's contents and save at once; on a full drive the old contents come back
+// (and a file that was just made is removed). Returns true if it was saved.
+export const writeAndSave = (file, content, { created = false } = {}) => {
+  const before = file.textContent
+  file.textContent = content
+  if (saveNow()) return true
+  if (created && file.parent) file.parent.removeItem(file.name)
+  else file.textContent = before
+  saveNow()
+  return false
+}
 
 // For tests: wipe back to the starting files
 export const resetFileSystem = () => {

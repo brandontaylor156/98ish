@@ -6,27 +6,26 @@
 
 ## Features
 
-- Draggable, resizable windows with maximized and minimized states, unlimited multitasking, and a phone layout
-  where every app fills the screen
-- A Windows 98 desktop: a startup screen and chime, a Start menu with cascading Programs / Documents / Favorites /
-  Settings submenus, Find, Run..., Log Off and Shut Down (including Restart in MS-DOS mode and "It's now safe to
-  turn off your computer"). Right-click the desktop (or long-press on a phone) to arrange icons, make a new
-  document or open Display Properties
-- Display Properties: wallpapers and patterns, or your own picture; color schemes; turn the startup screen and sound
-  on or off
-- A file system saved in your browser, so files and folders survive a reload. My Computer has cut / copy / paste,
-  rename, drag-and-drop text file import and a Recycle Bin you can restore from or empty
-- Notepad, as in Windows 98: Open / Save As dialogs, Find, Replace, Word Wrap, fonts, Time/Date (F5), the "save
-  changes?" prompt, and the .LOG trick
-- MS-DOS Prompt: DIR, CD, TYPE, COPY, MOVE, REN, DEL, MD, RD, DELTREE, TREE, EDIT, START, COLOR, `>` and `>>`
-  redirection, history and Tab completion, all working on the same files as My Computer. Type a program name
-  (TETRIS, WINMINE, SPECTRA...) to run it
-- Internet Explorer with a Wayback Machine time machine: browse the web as it was on any date
-- Games and applets: SPECTRA (a three.js tunnel flyer), Tetris, Minesweeper, Hover, YouTube '98, Task Manager
-- 98 Messenger, an AIM-style instant messenger: screen names with passwords, a Buddy List with groups, away
-  messages, profiles, typing indicators, warnings, blocking, Buddy Chat rooms, door sounds, and SmarterChild (an
-  always-online scripted buddy bot with jokes, trivia and a magic 8-ball). YouTube '98 can share videos to the 98ish
-  Lobby chat room
+- **A Windows 98 desktop:** a startup screen and chime, a Start menu with cascading submenus, Find, Run..., Log Off
+  and Shut Down (including Restart in MS-DOS mode and "It's now safe to turn off your computer"). Right-click the
+  desktop (or long-press on a phone) to arrange icons or make new folders and documents right on the desktop.
+  System sounds, screensavers (3D Pipes, Starfield, Mystify, Flying 98ish, Marquee, Beziers), Display Properties
+  (wallpapers, your own picture, color schemes) and Date/Time Properties
+- **Files that stay put:** a file system saved in your browser. My Computer has cut / copy / paste, drag and drop
+  (including to and from the desktop), shortcuts, rename, text file import, picture thumbnails and a Recycle Bin
+- **Accessories:** Notepad (Find/Replace, Word Wrap, fonts, .LOG), Paint (every classic tool, saves pictures to the
+  drive, Set As Wallpaper), Calculator (Standard and Scientific), Character Map, and an MS-DOS Prompt with DIR, CD,
+  COPY, DEL, TREE, EDIT, START, redirection, history and Tab completion
+- **Games:** Solitaire and FreeCell (the classic numbered deals), Minesweeper, Tetris, Hearts, SPECTRA (a three.js
+  tunnel flyer) and Hover
+- **Media Player** with eight original synthesized songs, played live with Web Audio
+- **Internet Explorer** with a Wayback Machine time machine: browse the web as it was on any date, plus the 98ish
+  Guestbook and web ring
+- **98 Messenger**, an AIM-style instant messenger: screen names with passwords, a Buddy List, away messages,
+  profiles, typing indicators, warnings, Buddy Chat rooms and SmarterChild, a scripted buddy bot
+- **Network Neighborhood:** see who else is on 98ish right now, send them text files or a WinPopup message, and
+  challenge them to Checkers, a Minesweeper race or Hearts (computer players fill empty seats)
+- **Extras:** 98ish Update, Floppy the helper, and whatever happens if you end explorer.exe in Task Manager
 
 ## Demos
 
@@ -37,7 +36,7 @@
 
 ```
 cp client/.env.example client/.env.local   # then fill in YOUTUBE_KEY
-npm install && npm start                   # chat server on :8000 (accounts kept in memory)
+npm install && npm start                   # chat server on :8000 (accounts kept in memory); npm test runs its tests
 cd client && npm install && npm run dev    # app on :5173
 ```
 
@@ -56,7 +55,7 @@ Environment variables:
 
 | Name | Value |
 | --- | --- |
-| `MONGODB_URI` | MongoDB connection string (e.g. a free MongoDB Atlas cluster) where 98 Messenger accounts, buddy lists and profiles are stored. Without it, accounts live in memory and vanish whenever the server restarts |
+| `MONGODB_URI` | MongoDB connection string (e.g. a free MongoDB Atlas cluster) where 98 Messenger accounts, buddy lists and profiles, and the guestbook and its hit counter, are stored. Without it they live in memory and vanish whenever the server restarts |
 
 **Keeping the chat server awake:** Render's free plan sleeps after 15 idle minutes, and the first visitor then waits
 20-50 seconds for 98 Messenger to connect. `.github/workflows/keepalive.yml` pings the server every 10 minutes from

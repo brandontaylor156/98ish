@@ -1,5 +1,6 @@
 import React from "react"
 import DateAndTime from "./DateAndTime"
+import { launch } from "../../utils/programs"
 
 const TaskBar = ({
   windows,
@@ -7,6 +8,13 @@ const TaskBar = ({
   setStartMenuVisible,
   startMenuVisible,
 }) => {
+  // the clock opens Date/Time Properties, or brings it back if it's already open
+  const openDateTime = () => {
+    const index = windows.findIndex((w) => !w.closed && w.app === "datetime")
+    if (index >= 0) dispatch({ type: "focus_window", payload: { index } })
+    else dispatch({ type: "open_window", payload: launch("Date/Time Properties") })
+  }
+
   const startBtnStyle = {
     cursor: "pointer",
     borderTop: startMenuVisible ? "3px solid #333" : "3px solid #eee",
@@ -75,7 +83,7 @@ const TaskBar = ({
           })}
       </div>
       <div className="col-auto p-0 pe-1">
-        <DateAndTime />
+        <DateAndTime onOpen={openDateTime} />
       </div>
     </div>
   )

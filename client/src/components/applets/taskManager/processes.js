@@ -30,10 +30,22 @@ export const APP_PROFILES = {
   "My Computer": { image: "explorer.exe", mem: 3516, threads: 5, handles: 96, cpu: [0.15, 2] },
   Notepad: { image: "notepad.exe", mem: 1356, threads: 1, handles: 22, cpu: [0.05, 1] },
   Minesweeper: { image: "winmine.exe", mem: 1588, threads: 1, handles: 26, cpu: [0.15, 1] },
+  Solitaire: { image: "sol.exe", mem: 1844, threads: 1, handles: 31, cpu: [0.15, 2] },
+  FreeCell: { image: "freecell.exe", mem: 1652, threads: 1, handles: 28, cpu: [0.1, 1] },
   "98 Messenger": { image: "aim.exe", mem: 5960, threads: 8, handles: 164, cpu: [0.25, 2] },
   "MS-DOS Prompt": { image: "command.com", mem: 932, threads: 1, handles: 18, cpu: [0.05, 1] },
   "Recycle Bin": { image: "explorer.exe", mem: 2980, threads: 4, handles: 71, cpu: [0.1, 1] },
+  "Windows Update": { image: "wupdmgr.exe", mem: 3204, threads: 5, handles: 88, cpu: [0.1, 4] },
   "Display Properties": { image: "rundll32.exe", mem: 1704, threads: 2, handles: 39, cpu: [0.05, 1] },
+  Calculator: { image: "calc.exe", mem: 1124, threads: 1, handles: 19, cpu: [0.05, 1] },
+  "Character Map": { image: "charmap.exe", mem: 1288, threads: 1, handles: 24, cpu: [0.05, 1] },
+  "Date/Time Properties": { image: "rundll32.exe", mem: 1536, threads: 2, handles: 33, cpu: [0.05, 1] },
+  "Media Player": { image: "mplayer.exe", mem: 6408, threads: 7, handles: 118, cpu: [0.9, 7] },
+  "Network Neighborhood": { image: "explorer.exe", mem: 3124, threads: 5, handles: 104, cpu: [0.2, 2] },
+  WinPopup: { image: "winpopup.exe", mem: 812, threads: 1, handles: 19, cpu: [0.05, 1] },
+  Checkers: { image: "checkers.exe", mem: 1844, threads: 2, handles: 34, cpu: [0.2, 2] },
+  "Minesweeper Race": { image: "winmine.exe", mem: 1712, threads: 2, handles: 31, cpu: [0.2, 2] },
+  Hearts: { image: "mshearts.exe", mem: 2380, threads: 3, handles: 47, cpu: [0.25, 3] },
 }
 
 const fallbackProfile = (name) => ({

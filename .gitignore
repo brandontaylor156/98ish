@@ -36,3 +36,6 @@ dist-ssr
 ### Firebase Patch ###
 .runtimeconfig.json
 .firebase/
+
+# Claude Code worktrees
+.claude/

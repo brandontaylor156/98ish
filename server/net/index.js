@@ -1,0 +1,319 @@
+// Network Neighborhood: every open 98ish desktop is a computer on the network. Signed-on
+// 98 Messenger users show up under their screen name, everyone else as GUEST-XXXX.
+// Computers can send each other text files (the receiver accepts or declines), WinPopup
+// messages, and invitations to games (games.js).
+//
+// A computer is identified by a secret token the browser tab keeps, so a dropped
+// connection that comes back within RESUME_GRACE_MS picks up where it left off (same name,
+// same games). Everything here lives in memory.
+
+const crypto = require("crypto")
+const { limiter } = require("./limiter")
+const { createGames } = require("./games")
+
+const RESUME_GRACE_MS = 30_000
+const MAX_FILE_BYTES = 200 * 1024
+const FILE_OFFER_MS = 2 * 60_000
+const MAX_PENDING_BYTES = 16 * 1024 * 1024 // all waiting files together
+const MAX_POPUP = 500
+const FILE_TYPES = ["text", "note"]
+const INVALID_NAME = /[\\/:"<>|\u0000-\u001F]/
+
+const TOKEN = /^[a-f0-9]{32}$/
+
+const clean = (text, max) => String(text ?? "").replace(/[\u0000-\u0008\u000B-\u001F\u007F]/g, "").slice(0, max)
+const newId = () => crypto.randomBytes(6).toString("hex")
+
+const validFileName = (name) => {
+  const value = String(name ?? "").trim()
+  return value && value.length <= 64 && !INVALID_NAME.test(value) && value !== "." && value !== ".." ? value : null
+}
+
+const attachNet = (io, { aim: initialAim = null, graceMs = RESUME_GRACE_MS, games: gameOptions = {} } = {}) => {
+  let aim = initialAim
+  const computers = new Map() // token -> computer
+  const byPid = new Map() // pid -> computer
+  const offers = new Map() // file offer id -> offer
+  let pendingBytes = 0
+
+  const fileLimit = limiter(6, 60_000)
+  const popupLimit = limiter(10, 60_000)
+  const inviteLimit = limiter(12, 60_000)
+  const helloLimit = limiter(30, 60_000)
+
+  // ---------- who is who ----------
+
+  // The 98 Messenger session signed on through this computer's socket, if any
+  const aimSessionOf = (computer) => {
+    if (!aim || !computer.socket) return null
+    const session = aim.sessions.get(computer.socket.data.key)
+    return session && session.socket === computer.socket ? session : null
+  }
+  const nameOf = (computer) => aimSessionOf(computer)?.user.screenName || computer.guestName
+
+  // Either side blocking the other in 98 Messenger keeps them apart here too
+  const blocked = (a, b) => {
+    const sa = aimSessionOf(a)
+    const sb = aimSessionOf(b)
+    return !!(sa && sb && (sa.user.blocked.includes(sb.key) || sb.user.blocked.includes(sa.key)))
+  }
+
+  const publicView = (computer) => {
+    const session = aimSessionOf(computer)
+    return {
+      id: computer.pid,
+      name: session?.user.screenName || computer.guestName,
+      user: !!session,
+      device: computer.device,
+      busy: games.busy(computer.pid),
+      since: computer.since,
+    }
+  }
+
+  const listFor = (viewer) =>
+    [...computers.values()]
+      .filter((c) => c.socket && (c.visible || c === viewer) && (c === viewer || !blocked(c, viewer)))
+      .map((c) => ({ ...publicView(c), me: c === viewer, hidden: !c.visible }))
+
+  // Everyone's list, at most a few times a second
+  let broadcastQueued = false
+  const broadcast = () => {
+    if (broadcastQueued) return
+    broadcastQueued = true
+    setTimeout(() => {
+      broadcastQueued = false
+      for (const c of computers.values()) if (c.socket) c.socket.emit("net:computers", listFor(c))
+    }, 150)
+  }
+
+  const emitTo = (computer, event, payload) => computer?.socket?.emit(event, payload)
+  const emitPid = (pid, event, payload) => emitTo(byPid.get(pid), event, payload)
+
+  const games = createGames({ emit: emitPid, ...gameOptions })
+
+  const guestName = () => {
+    const taken = new Set([...computers.values()].map((c) => c.guestName))
+    for (;;) {
+      const name = `GUEST-${crypto.randomBytes(2).toString("hex").toUpperCase()}`
+      if (!taken.has(name)) return name
+    }
+  }
+
+  const removeComputer = (computer) => {
+    if (computers.get(computer.token) !== computer) return
+    clearTimeout(computer.dropTimer)
+    computers.delete(computer.token)
+    byPid.delete(computer.pid)
+    for (const offer of [...offers.values()]) {
+      if (offer.from === computer) endOffer(offer, "canceled")
+      else if (offer.to === computer) endOffer(offer, "gone")
+    }
+    games.drop(computer.pid)
+    broadcast()
+  }
+
+  // A computer someone wants to reach: { id } from the network list, or { screenName }
+  // (from an Instant Message window)
+  const findTarget = (from, to = {}) => {
+    let target = null
+    if (typeof to.id === "string") {
+      target = byPid.get(to.id)
+      if (target && !target.visible) target = null
+    } else if (typeof to.screenName === "string") {
+      const key = to.screenName.replace(/\s+/g, "").toLowerCase()
+      target = [...computers.values()].find((c) => c.socket && aimSessionOf(c)?.key === key) || null
+    }
+    if (!target || !target.socket) return { error: "That computer isn't on the network right now." }
+    if (target === from) return { error: "That's your own computer!" }
+    if (blocked(from, target)) return { error: "That computer isn't on the network right now." }
+    return { target }
+  }
+
+  // ---------- files ----------
+
+  // status: accepted | declined | expired | canceled | gone
+  const endOffer = (offer, status) => {
+    if (!offers.has(offer.id)) return
+    clearTimeout(offer.timer)
+    offers.delete(offer.id)
+    pendingBytes -= offer.size
+    if (status !== "accepted") emitTo(offer.to, "net:fileGone", { id: offer.id })
+    if (status !== "canceled") emitTo(offer.from, "net:fileResult", { id: offer.id, status, name: offer.name, to: nameOf(offer.to) })
+  }
+
+  io.on("connection", (socket) => {
+    const current = () => {
+      const c = computers.get(socket.data.netToken)
+      return c && c.socket === socket ? c : null
+    }
+
+    // Handlers for a computer that has said hello; errors never crash the server
+    const on = (event, handler) =>
+      socket.on(event, (payload = {}, ack = () => {}) => {
+        if (typeof ack !== "function") ack = () => {}
+        const computer = current()
+        if (!computer) return ack({ ok: false, error: "Not connected to the network." })
+        try {
+          ack(handler(computer, payload && typeof payload === "object" ? payload : {}) || { ok: true })
+        } catch (error) {
+          console.error(`[net] ${event} failed`, error)
+          ack({ ok: false, error: "Something went wrong. Please try again." })
+        }
+      })
+
+    // Join (or rejoin) the network. Also sent again after signing on or off 98 Messenger,
+    // so the computer's name follows the screen name.
+    socket.on("net:hello", (payload = {}, ack = () => {}) => {
+      if (typeof ack !== "function") return
+      if (helloLimit(socket.id)) return ack({ ok: false, error: "Too many requests." })
+      let token = TOKEN.test(payload.token) ? payload.token : null
+      let computer = token && computers.get(token)
+      // Someone else is using this token (a duplicated browser tab): start fresh
+      if (computer && computer.socket && computer.socket !== socket && computer.socket.connected) {
+        computer = null
+        token = null
+      }
+      if (!computer) {
+        // A computer this socket was before (it asked to be someone new) leaves first
+        const previous = current()
+        if (previous) removeComputer(previous)
+        token = token || crypto.randomBytes(16).toString("hex")
+        computer = { token, pid: newId(), guestName: guestName(), visible: true, device: "pc", since: Date.now(), socket: null }
+        computers.set(token, computer)
+        byPid.set(computer.pid, computer)
+      }
+      const resumed = !!computer.socket || !!computer.dropTimer
+      clearTimeout(computer.dropTimer)
+      computer.dropTimer = null
+      if (computer.socket && computer.socket !== socket) computer.socket.leave("net")
+      computer.socket = socket
+      computer.visible = payload.visible !== false
+      computer.device = payload.device === "phone" ? "phone" : "pc"
+      socket.data.netToken = token
+      socket.join("net")
+      ack({ ok: true, token, me: { ...publicView(computer), hidden: !computer.visible }, computers: listFor(computer) })
+      if (resumed) games.setAway(computer.pid, false)
+      games.resync(computer.pid)
+      for (const offer of offers.values()) if (offer.to === computer) emitTo(computer, "net:fileOffer", offerView(offer))
+      broadcast()
+    })
+
+    socket.on("disconnect", () => {
+      const computer = current()
+      if (!computer) return
+      computer.socket = null
+      games.setAway(computer.pid, true)
+      computer.dropTimer = setTimeout(() => removeComputer(computer), graceMs)
+      broadcast()
+    })
+
+    on("net:visible", (computer, { visible }) => {
+      computer.visible = !!visible
+      broadcast()
+      return { ok: true, visible: computer.visible }
+    })
+
+    on("net:list", (computer) => ({ ok: true, computers: listFor(computer) }))
+
+    // ---- files ----
+
+    on("net:sendFile", (computer, { to, name, content, type }) => {
+      const found = findTarget(computer, to)
+      if (found.error) return { ok: false, error: found.error }
+      const fileName = validFileName(name)
+      if (!fileName) return { ok: false, error: "That file name isn't allowed." }
+      if (typeof content !== "string") return { ok: false, error: "Only documents can be sent." }
+      if (!FILE_TYPES.includes(type)) return { ok: false, error: "Only text documents can be sent." }
+      const size = Buffer.byteLength(content, "utf8")
+      if (size > MAX_FILE_BYTES) return { ok: false, error: `That file is too big to send. Files can be at most ${MAX_FILE_BYTES / 1024} KB.` }
+      if ([...offers.values()].filter((o) => o.to === found.target).length >= 5) return { ok: false, error: `${nameOf(found.target)} has too many files waiting. Try again later.` }
+      if (pendingBytes + size > MAX_PENDING_BYTES) return { ok: false, error: "The network is busy. Try again in a minute." }
+      if (fileLimit(computer.pid)) return { ok: false, error: "You're sending files too fast. Wait a minute and try again." }
+      const offer = { id: newId(), from: computer, to: found.target, name: fileName, content: clean(content, MAX_FILE_BYTES).replace(/\r\n?/g, "\n"), type, size }
+      offer.expiresAt = Date.now() + FILE_OFFER_MS
+      offer.timer = setTimeout(() => endOffer(offer, "expired"), FILE_OFFER_MS)
+      offers.set(offer.id, offer)
+      pendingBytes += size
+      emitTo(found.target, "net:fileOffer", offerView(offer))
+      return { ok: true, id: offer.id, to: nameOf(found.target) }
+    })
+
+    on("net:fileReply", (computer, { id, accept }) => {
+      const offer = offers.get(String(id))
+      if (!offer || offer.to !== computer) return { ok: false, error: "That file is no longer available." }
+      const file = { name: offer.name, type: offer.type, content: offer.content, from: nameOf(offer.from) }
+      endOffer(offer, accept ? "accepted" : "declined")
+      return accept ? { ok: true, file } : { ok: true }
+    })
+
+    on("net:fileCancel", (computer, { id }) => {
+      const offer = offers.get(String(id))
+      if (offer && offer.from === computer) endOffer(offer, "canceled")
+      return { ok: true }
+    })
+
+    // ---- WinPopup ----
+
+    on("net:popup", (computer, { to, text }) => {
+      const found = findTarget(computer, to)
+      if (found.error) return { ok: false, error: found.error }
+      const message = clean(text, MAX_POPUP + 1).replace(/\r\n?/g, "\n").trim()
+      if (!message) return { ok: false, error: "Type a message first." }
+      if (message.length > MAX_POPUP) return { ok: false, error: `Messages can be at most ${MAX_POPUP} characters.` }
+      if (popupLimit(computer.pid)) return { ok: false, error: "You're sending messages too fast. Slow down!" }
+      emitTo(found.target, "net:popup", { from: nameOf(computer), fromId: computer.pid, to: nameOf(found.target), text: message, time: Date.now() })
+      return { ok: true, to: nameOf(found.target) }
+    })
+
+    // ---- games ----
+
+    on("net:invite", (computer, { to, game, options, matchId }) => {
+      const found = findTarget(computer, to)
+      if (found.error) return { ok: false, error: found.error }
+      if (inviteLimit(computer.pid)) return { ok: false, error: "You're sending invitations too fast. Wait a minute." }
+      const result = games.invite({ from: computer.pid, fromName: nameOf(computer), to: found.target.pid, toName: nameOf(found.target), game, options: options || {}, matchId })
+      return result.ok ? { ...result, to: nameOf(found.target) } : result
+    })
+    on("net:inviteReply", (computer, { id, accept }) => games.replyInvite(computer.pid, String(id), !!accept))
+    on("net:inviteCancel", (computer, { id }) => games.cancelInvite(computer.pid, String(id)))
+    on("net:checkersMove", (computer, { matchId, path }) => games.checkersMove(computer.pid, String(matchId), path))
+    on("net:raceProgress", (computer, { matchId, ...progress }) => games.raceProgressUpdate(computer.pid, String(matchId), progress))
+    on("net:resign", (computer, { matchId }) => games.resign(computer.pid, String(matchId)))
+    on("net:draw", (computer, { matchId, action }) => games.draw(computer.pid, String(matchId), action))
+    on("net:rematch", (computer, { matchId }) => games.rematch(computer.pid, String(matchId)))
+    on("net:heartsCreate", (computer) => games.createTable(computer.pid, nameOf(computer)))
+    on("net:heartsStart", (computer, { matchId }) => games.startTable(computer.pid, String(matchId)))
+    on("net:heartsPass", (computer, { matchId, cards }) => games.heartsPass(computer.pid, String(matchId), cards))
+    on("net:heartsPlay", (computer, { matchId, card }) => games.heartsPlay(computer.pid, String(matchId), card))
+    on("net:leave", (computer, { matchId }) => {
+      const result = games.leave(computer.pid, String(matchId))
+      broadcast()
+      return result
+    })
+  })
+
+  const offerView = (offer) => ({ id: offer.id, from: nameOf(offer.from), fromId: offer.from.pid, name: offer.name, size: offer.size, type: offer.type, expiresAt: offer.expiresAt })
+
+  // Names change as people sign on and off 98 Messenger (even from another window), and
+  // "busy" flags as games start and end: look every few seconds
+  setInterval(() => {
+    let changed = false
+    for (const c of computers.values()) {
+      const signature = `${nameOf(c)} ${games.busy(c.pid)}`
+      if (signature !== c.signature) changed = true
+      c.signature = signature
+    }
+    if (changed) broadcast()
+  }, 3000).unref?.()
+
+  return {
+    useAim: (value) => {
+      aim = value
+      broadcast()
+    },
+    computers,
+    games,
+  }
+}
+
+module.exports = { attachNet, MAX_FILE_BYTES }

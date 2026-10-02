@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <!-- A MIDI sequence file: a page with a folded corner, a pair of eighth notes and a strip of piano keys -->
+  <path d="M9 3h21l9 9v33H9z" fill="#ffffff" stroke="#000" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M30 3v9h9" fill="#c0c0c0" stroke="#000" stroke-width="1.5" stroke-linejoin="round"/>
+  <g fill="#000080">
+    <path d="M19 14h13v4H22v14h-3z"/>
+    <path d="M29 14h3v15h-3z"/>
+    <ellipse cx="17.5" cy="32" rx="4" ry="3" transform="rotate(-20 17.5 32)"/>
+    <ellipse cx="27.5" cy="29.5" rx="4" ry="3" transform="rotate(-20 27.5 29.5)"/>
+  </g>
+  <g shape-rendering="crispEdges">
+    <rect x="12" y="37" width="24" height="6" fill="#fff" stroke="#000" stroke-width="1"/>
+    <path d="M15 37v6M18 37v6M21 37v6M24 37v6M27 37v6M30 37v6M33 37v6" stroke="#000" stroke-width="1"/>
+    <rect x="14" y="37" width="2" height="3.5" fill="#000"/>
+    <rect x="17" y="37" width="2" height="3.5" fill="#000"/>
+    <rect x="23" y="37" width="2" height="3.5" fill="#000"/>
+    <rect x="26" y="37" width="2" height="3.5" fill="#000"/>
+    <rect x="29" y="37" width="2" height="3.5" fill="#000"/>
+  </g>
+</svg>

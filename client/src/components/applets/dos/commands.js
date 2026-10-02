@@ -1,4 +1,5 @@
 import { fs, validName, FILE_TYPE } from "../../../utils/fs"
+import { now } from "../../../utils/clock"
 import { programs } from "../../../utils/programs"
 
 // The MS-DOS Prompt's command interpreter, kept apart from the screen so it can be tested
@@ -69,6 +70,10 @@ const COMMAND_LIST = [
 // Program names you can type: TETRIS, WINMINE, NOTEPAD...
 const ALIASES = {
   tetris: "Tetris",
+  sol: "Solitaire",
+  mspaint: "Paint",
+  pbrush: "Paint",
+  freecell: "FreeCell",
   winmine: "Minesweeper",
   minesweeper: "Minesweeper",
   mines: "Minesweeper",
@@ -81,7 +86,7 @@ const ALIASES = {
   taskmgr: "Task Manager",
   aim: "98 Messenger",
   messenger: "98 Messenger",
-  mplayer: "YouTube '98",
+  mplayer: "Media Player",
   mplayer2: "YouTube '98",
   youtube: "YouTube '98",
   command: "MS-DOS Prompt",
@@ -89,6 +94,10 @@ const ALIASES = {
   "desk.cpl": "Display Properties",
   control: "Display Properties",
   recycled: "Recycle Bin",
+  calc: "Calculator",
+  charmap: "Character Map",
+  timedate: "Date/Time Properties",
+  "timedate.cpl": "Date/Time Properties",
 }
 
 export const programFor = (word) => {
@@ -360,10 +369,10 @@ export const run = (input, shell) => {
       else out = [rest || "ECHO is on"]
       break
     case "date":
-      out = [`Current date is ${new Date().toLocaleDateString("en-US", { weekday: "short", year: "numeric", month: "2-digit", day: "2-digit" }).replace(",", "")}`]
+      out = [`Current date is ${now().toLocaleDateString("en-US", { weekday: "short", year: "numeric", month: "2-digit", day: "2-digit" }).replace(",", "")}`]
       break
     case "time":
-      out = [`Current time is ${new Date().toLocaleTimeString("en-US", { hour12: false })}`]
+      out = [`Current time is ${now().toLocaleTimeString("en-US", { hour12: false })}`]
       break
     case "mem":
       out = [

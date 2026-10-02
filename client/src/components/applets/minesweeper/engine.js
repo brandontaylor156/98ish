@@ -49,10 +49,12 @@ export const neighbors = (game, index) => {
   return out
 }
 
-// Lay the mines once the first cell is known, so it's always safe
-const layMines = (game, safeIndex, random) => {
+// Lay the mines once the first cell is known, so it's always safe. `safe` is that cell's
+// index, or a Set of cells to keep clear.
+const layMines = (game, safe, random) => {
   const cells = game.cells.map((cell) => ({ ...cell }))
-  const candidates = cells.map((_, i) => i).filter((i) => i !== safeIndex)
+  const clear = safe instanceof Set ? safe : new Set([safe])
+  const candidates = cells.map((_, i) => i).filter((i) => !clear.has(i))
   for (let placed = 0; placed < game.mines; placed++) {
     const pick = placed + Math.floor(random() * (candidates.length - placed))
     ;[candidates[placed], candidates[pick]] = [candidates[pick], candidates[placed]]
@@ -142,7 +144,30 @@ export const chord = (game, index) => {
 export const minesLeft = (game) => game.mines - game.flags
 
 export const elapsedSeconds = (game, now = Date.now()) => {
-  if (!game.startedAt) return 0
+  if (!game.startedAt || now < game.startedAt) return 0 // (a race's countdown)
   // The original's clock starts at 1 on the first click and stops at 999
   return Math.min(999, Math.floor(((game.endedAt ?? now) - game.startedAt) / 1000) + 1)
+}
+
+// Seeded random numbers (mulberry32): the same seed gives the same sequence on every device
+export const seededRandom = (seed) => {
+  let a = seed >>> 0
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0
+    let t = a
+    t = Math.imul(t ^ (t >>> 15), t | 1)
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61)
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
+}
+
+// A board decided entirely by `seed`, for Minesweeper Race: both players get the same
+// mines and the same opening (a blank square and its neighbors, already uncovered)
+export const createSeededGame = (field, seed) => {
+  const random = seededRandom(seed)
+  const game = createGame(field)
+  const start = Math.floor(random() * game.cells.length)
+  const around = new Set([start, ...neighbors(game, start)])
+  const safe = game.cells.length - game.mines >= around.size ? around : new Set([start])
+  return open(layMines(game, safe, random), [start])
 }

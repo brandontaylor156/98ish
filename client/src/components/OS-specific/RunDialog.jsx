@@ -1,4 +1,5 @@
-import React, { useState } from "react"
+import React, { useEffect, useState } from "react"
+import { playSystemSound } from "../../utils/systemSounds"
 import Dialog from "../shared/Dialog"
 import { run } from "../applets/dos/commands"
 import { openTarget } from "../../utils/openItem"
@@ -16,6 +17,10 @@ const RunDialog = ({ dispatch, onDone, onCancel }) => {
     }
   })
   const [error, setError] = useState(null)
+
+  useEffect(() => {
+    if (error) playSystemSound("chord")
+  }, [error])
 
   const submit = () => {
     const value = text.trim()

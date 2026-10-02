@@ -3,7 +3,7 @@ import { fs } from "../../utils/fs"
 import { useFsVersion } from "../../hooks/useFs"
 import { programs, launch, explorerWindow, notepadWindow } from "../../utils/programs"
 import { openItem } from "../../utils/openItem"
-import { iconFor } from "../applets/fileExplorer/FileExplorer"
+import { iconFor } from "../../utils/fileInfo"
 import RunDialog from "./RunDialog"
 import "./StartMenu.css"
 
@@ -64,6 +64,8 @@ const StartMenu = ({ dispatch, setResults, closeMenu, onShutDown, onLogOff, mobi
   const programItem = (p) => ({ label: p.name, icon: p.icon, onClick: () => go(launch(p.name)) })
 
   const menu = [
+    { label: "Windows Update", icon: "/assets/program_icons/update.svg", onClick: () => go(launch("Windows Update")) },
+    "-",
     {
       label: "Programs",
       key: "P",
@@ -100,6 +102,7 @@ const StartMenu = ({ dispatch, setResults, closeMenu, onShutDown, onLogOff, mobi
       icon: ICON.settings,
       items: () => [
         { label: "Display Properties", icon: "/assets/vaporwave.png", onClick: () => go(launch("Display Properties")) },
+        { label: "Date/Time Properties", icon: "/assets/program_icons/datetime.svg", onClick: () => go(launch("Date/Time Properties")) },
         { label: "Recycle Bin", icon: fs.recycleBin.content.length ? "/assets/recycle_bin_full.png" : "/assets/recycle_bin_empty.png", onClick: () => go(launch("Recycle Bin")) },
       ],
     },

@@ -3,20 +3,27 @@ import Dialog from "../../shared/Dialog"
 import { fs, validName } from "../../../utils/fs"
 import { imageMapper } from "../../../utils/imageMapper"
 import { useFsVersion } from "../../../hooks/useFs"
+import "./Notepad.css"
 
-// Windows 98-style Open / Save As dialog over the 98ish drive. Shows folders and text
-// documents. onPick(dir, name) for Save As (after confirming an overwrite), onPick(file)
-// for Open.
-const FileDialog = ({ mode, startDir, initialName = "", onPick, onCancel }) => {
+// What each kind of document is called in messages
+const NOUNS = { text: "text document", image: "picture" }
+const isTextFile = (item) => item.isText
+
+// Windows 98-style Open / Save As dialog over the 98ish drive. Shows folders and the files
+// `accept` takes (text documents unless told otherwise; `fileType` is their kind, for
+// icons and messages). onPick(dir, name) for Save As (after confirming an overwrite),
+// onPick(file) for Open.
+const FileDialog = ({ mode, startDir, initialName = "", onPick, onCancel, accept = isTextFile, typeLabel = "Text Documents", fileType = "text" }) => {
   useFsVersion()
   const [dirPath, setDirPath] = useState(() => fs.partsOf(startDir?.isDirectory ? startDir : fs.resolve("C:/Documents") || fs.resolve("C:")))
   const [name, setName] = useState(initialName)
   const [error, setError] = useState(null)
   const [confirm, setConfirm] = useState(null)
 
+  const noun = NOUNS[fileType] || "document"
   const dir = fs.resolve(dirPath) || fs.resolve("C:")
   const entries = [...dir.content]
-    .filter((item) => item.isDirectory || item.isText)
+    .filter((item) => item.isDirectory || accept(item))
     .sort((a, b) => (a.isDirectory !== b.isDirectory ? (a.isDirectory ? -1 : 1) : a.name.localeCompare(b.name)))
   const chain = dirPath.map((_, i) => dirPath.slice(0, i + 1))
 
@@ -31,12 +38,12 @@ const FileDialog = ({ mode, startDir, initialName = "", onPick, onCancel }) => {
       return
     }
     if (mode === "open") {
-      if (!target || !target.isText) return setError(`Cannot find the file '${value}'. Check the file name.`)
+      if (!target || !accept(target)) return setError(`Cannot find the file '${value}'. Check the file name.`)
       return onPick(target)
     }
     const problem = validName(value)
     if (problem) return setError(problem)
-    if (target && !target.isText) return setError(`'${value}' is a program, not a text document. Choose another name.`)
+    if (target && !accept(target)) return setError(`'${value}' is ${target.isText ? "a text document" : target.isImage ? "a picture" : "a program"}, not a ${noun}. Choose another name.`)
     if (target) return setConfirm(value)
     onPick(dir, value)
   }
@@ -59,7 +66,7 @@ const FileDialog = ({ mode, startDir, initialName = "", onPick, onCancel }) => {
           </button>
         </div>
         <ul className="npFdList" role="listbox" aria-label="Files">
-          {entries.length === 0 && <li className="npFdEmpty">No text documents here.</li>}
+          {entries.length === 0 && <li className="npFdEmpty">No {noun}s here.</li>}
           {entries.map((item) => (
             <li key={item.name} role="option" aria-selected={item.name === name}>
               <button
@@ -73,9 +80,9 @@ const FileDialog = ({ mode, startDir, initialName = "", onPick, onCancel }) => {
                   }
                   setName(item.name)
                 }}
-                onDoubleClick={() => item.isText && (mode === "open" ? onPick(item) : setConfirm(item.name))}
+                onDoubleClick={() => accept(item) && (mode === "open" ? onPick(item) : setConfirm(item.name))}
               >
-                <img src={"/assets/" + (item.isDirectory ? imageMapper.folder : imageMapper.text)} alt="" />
+                <img src={"/assets/" + (item.isDirectory ? imageMapper.folder : imageMapper[fileType] || imageMapper.text)} alt="" />
                 {item.name}
               </button>
             </li>
@@ -88,7 +95,7 @@ const FileDialog = ({ mode, startDir, initialName = "", onPick, onCancel }) => {
         <div className="npFdRow">
           <label>{mode === "open" ? "Files of type:" : "Save as type:"}</label>
           <select disabled>
-            <option>Text Documents</option>
+            <option>{typeLabel}</option>
           </select>
         </div>
         {error && <p className="dialogText npFdError">{error}</p>}

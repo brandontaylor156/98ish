@@ -242,3 +242,33 @@
 .os-mobile .rbTable td {
   padding: 8px 6px;
 }
+
+/* the little arrow on shortcuts */
+.fxItem.isShortcut {
+  position: relative;
+}
+
+.fxItem.isShortcut::after {
+  content: "";
+  position: absolute;
+  top: 25px;
+  left: calc(50% - 16px);
+  width: 11px;
+  height: 11px;
+  background: url("/assets/shortcut_arrow.svg") no-repeat;
+  pointer-events: none;
+}
+
+.fxView--list .fxItem.isShortcut::after {
+  top: 7px;
+  left: 2px;
+  width: 9px;
+  height: 9px;
+  background-size: 9px 9px;
+}
+
+/* A picture's thumbnail in Large Icons */
+.fxItem img.fxThumb {
+  background: #fff;
+  border: 1px solid #808080;
+}

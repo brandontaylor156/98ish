@@ -1,0 +1,38 @@
+/* Screensavers: full screen, and the little preview in Display Properties */
+
+.ssOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483640;
+  background: #000;
+  cursor: none;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  overflow: hidden;
+}
+
+.ssOverlay *,
+.ssPreview * {
+  cursor: inherit;
+}
+
+.ssPreview {
+  position: absolute;
+  inset: 0;
+  background: #000;
+  overflow: hidden;
+}
+
+.ssFill {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.ssCanvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}

@@ -4,8 +4,9 @@ import Dialog from "../../shared/Dialog"
 import ContextMenu from "../../shared/ContextMenu"
 import { fs } from "../../../utils/fs"
 import { useFsVersion } from "../../../hooks/useFs"
+import { playSystemSound } from "../../../utils/systemSounds"
 import { useLongPress } from "../../../hooks/useLongPress"
-import { formatSize, iconFor, typeName } from "./FileExplorer"
+import { formatSize, iconFor, typeName } from "../../../utils/fileInfo"
 import "./FileExplorer.css"
 
 const sizeOf = (item) => (item.isDirectory ? item.content.reduce((s, c) => s + sizeOf(c), 0) : new Blob([item.textContent]).size)
@@ -151,6 +152,7 @@ const RecycleBin = () => {
           cancelLabel="No"
           onOk={() => {
             fs.emptyRecycleBin()
+            playSystemSound("recycle")
             setSelected(null)
             setDialog(null)
           }}

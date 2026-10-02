@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48" shape-rendering="crispEdges">
+  <!-- Calculator: a grey desk calculator with a green readout -->
+  <rect x="9" y="3" width="31" height="43" fill="#000"/>
+  <rect x="8" y="2" width="31" height="43" fill="#c0c0c0"/>
+  <rect x="8" y="2" width="31" height="1" fill="#fff"/>
+  <rect x="8" y="2" width="1" height="43" fill="#fff"/>
+  <rect x="38" y="3" width="1" height="42" fill="#808080"/>
+  <rect x="9" y="44" width="30" height="1" fill="#808080"/>
+  <rect x="12" y="6" width="23" height="9" fill="#404040"/>
+  <rect x="13" y="7" width="22" height="8" fill="#9fd89f"/>
+  <rect x="25" y="9" width="2" height="4" fill="#1f5a1f"/>
+  <rect x="29" y="9" width="4" height="1" fill="#1f5a1f"/>
+  <rect x="32" y="9" width="1" height="4" fill="#1f5a1f"/>
+  <rect x="29" y="12" width="4" height="1" fill="#1f5a1f"/>
+  <g fill="#fff">
+    <rect x="12" y="19" width="5" height="4"/><rect x="19" y="19" width="5" height="4"/><rect x="26" y="19" width="5" height="4"/>
+    <rect x="12" y="26" width="5" height="4"/><rect x="19" y="26" width="5" height="4"/><rect x="26" y="26" width="5" height="4"/>
+    <rect x="12" y="33" width="5" height="4"/><rect x="19" y="33" width="5" height="4"/><rect x="26" y="33" width="5" height="4"/>
+    <rect x="12" y="40" width="12" height="3"/>
+  </g>
+  <g fill="#404040">
+    <rect x="13" y="23" width="5" height="1"/><rect x="20" y="23" width="5" height="1"/><rect x="27" y="23" width="5" height="1"/>
+    <rect x="13" y="30" width="5" height="1"/><rect x="20" y="30" width="5" height="1"/><rect x="27" y="30" width="5" height="1"/>
+    <rect x="13" y="37" width="5" height="1"/><rect x="20" y="37" width="5" height="1"/><rect x="27" y="37" width="5" height="1"/>
+  </g>
+  <rect x="33" y="19" width="3" height="11" fill="#d02020"/>
+  <rect x="33" y="33" width="3" height="10" fill="#d02020"/>
+  <rect x="26" y="40" width="5" height="3" fill="#fff"/>
+</svg>

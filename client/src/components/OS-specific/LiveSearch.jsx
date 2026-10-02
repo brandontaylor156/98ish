@@ -2,7 +2,7 @@ import React from "react"
 import { useOpenGesture } from "../../hooks/useMediaQuery"
 import { openItem } from "../../utils/openItem"
 import { fs } from "../../utils/fs"
-import { iconFor } from "../applets/fileExplorer/FileExplorer"
+import { iconFor } from "../../utils/fileInfo"
 
 // Search results from the Start menu's Find box. Opening one works just like opening it
 // in My Computer.

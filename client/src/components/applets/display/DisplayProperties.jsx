@@ -1,5 +1,6 @@
 import React, { useRef, useState } from "react"
 import Dialog from "../../shared/Dialog"
+import ScreenSaverTab from "./ScreenSaverTab"
 import {
   SCHEMES,
   WALLPAPERS,
@@ -15,13 +16,14 @@ import "./DisplayProperties.css"
 
 const TABS = [
   { id: "background", label: "Background" },
+  { id: "screensaver", label: "Screen Saver" },
   { id: "appearance", label: "Appearance" },
   { id: "startup", label: "Startup" },
 ]
 
-// Display Properties: wallpaper (built-in, patterns, or your own picture), color scheme,
-// and the startup screen and sound. Changes preview in the little monitor; Apply or OK
-// puts them on the desktop.
+// Display Properties: wallpaper (built-in, patterns, or your own picture), screen saver,
+// color scheme, and the startup screen and sound. Changes preview in the little monitor;
+// Apply or OK puts them on the desktop.
 const DisplayProperties = ({ onClose }) => {
   const [tab, setTab] = useState("background")
   const [draft, setDraft] = useState(getSettings)
@@ -59,6 +61,7 @@ const DisplayProperties = ({ onClose }) => {
     return { ...style, backgroundImage: `url("${image}")` }
   })()
   const scheme = schemeFor(draft.scheme)
+  const screenStyle = { ...preview, backgroundSize: draft.display === "tile" ? undefined : preview.backgroundSize === "auto" ? "40%" : preview.backgroundSize }
 
   return (
     <div className="dpRoot">
@@ -78,9 +81,9 @@ const DisplayProperties = ({ onClose }) => {
         ))}
       </menu>
       <div className="window dpPanel" role="tabpanel">
-        {tab !== "startup" && (
+        {(tab === "background" || tab === "appearance") && (
           <div className="dpMonitor" aria-hidden="true">
-            <div className="dpScreen" style={{ ...preview, backgroundSize: draft.display === "tile" ? undefined : preview.backgroundSize === "auto" ? "40%" : preview.backgroundSize }}>
+            <div className="dpScreen" style={screenStyle}>
               <div className="dpMiniWindow">
                 <div className="dpMiniTitle" style={{ background: `linear-gradient(90deg, ${scheme.title[0]}, ${scheme.title[1]})` }}>
                   Active Window
@@ -134,6 +137,8 @@ const DisplayProperties = ({ onClose }) => {
           </div>
         )}
 
+        {tab === "screensaver" && <ScreenSaverTab draft={draft} update={update} screenStyle={screenStyle} />}
+
         {tab === "appearance" && (
           <div className="dpStack">
             <label htmlFor="dp-scheme">Scheme:</label>
@@ -161,6 +166,20 @@ const DisplayProperties = ({ onClose }) => {
                 <label htmlFor="dp-sound">Play the startup sound</label>
               </div>
             </fieldset>
+            <fieldset className="dpField">
+              <legend>Sounds</legend>
+              <div className="field-row">
+                <input id="dp-system" type="checkbox" checked={draft.systemSounds} onChange={(e) => update({ systemSounds: e.target.checked })} />
+                <label htmlFor="dp-system">Play system sounds (dings, minimize, Recycle Bin...)</label>
+              </div>
+            </fieldset>
+            <fieldset className="dpField">
+              <legend>Helper</legend>
+              <div className="field-row">
+                <input id="dp-helper" type="checkbox" checked={draft.helper} onChange={(e) => update({ helper: e.target.checked })} />
+                <label htmlFor="dp-helper">Show Floppy, the helper, with tips</label>
+              </div>
+            </fieldset>
             <p className="dpHint">Browsers only allow sound after you click or tap, so the chime plays on your first click if it can't play sooner.</p>
           </div>
         )}
@@ -185,7 +204,7 @@ const DisplayProperties = ({ onClose }) => {
       </div>
 
       {error && (
-        <Dialog title="Display Properties" onOk={() => setError(null)}>
+        <Dialog title="Display Properties" sound="ding" onOk={() => setError(null)}>
           <p className="dialogText">{error}</p>
         </Dialog>
       )}

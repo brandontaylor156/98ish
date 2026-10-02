@@ -4,6 +4,8 @@ import Dialog from "../../shared/Dialog"
 import ContextMenu from "../../shared/ContextMenu"
 import { fs, uniqueName, validName } from "../../../utils/fs"
 import { imageMapper } from "../../../utils/imageMapper"
+import { formatSize, iconFor, typeName } from "../../../utils/fileInfo"
+import { DRAG_TYPE, createShortcut, desktopFolder, getClipboard, moveInto, pasteInto, setClipboard } from "../../../utils/fsActions"
 import { openItem } from "../../../utils/openItem"
 import { launch } from "../../../utils/programs"
 import { useFsVersion } from "../../../hooks/useFs"
@@ -11,31 +13,28 @@ import { useOpenGesture } from "../../../hooks/useMediaQuery"
 import { useLongPress } from "../../../hooks/useLongPress"
 import "./FileExplorer.css"
 
+export { formatSize, iconFor, typeName }
+
 // My Computer / Windows Explorer. Each window keeps its own folder and history; files
 // can be opened, renamed, deleted (to the Recycle Bin), cut/copied/pasted between
 // windows, and imported from your real computer (text files).
 
-// one clipboard for every Explorer window: { mode: "cut" | "copy", items: [Item] }
-let clipboard = null
 
 const MAX_IMPORT_BYTES = 200 * 1024
-
-export const iconFor = (item) => "/assets/" + (imageMapper[item.type] || (item.isDirectory ? imageMapper.folder : imageMapper.text))
-
-export const typeName = (item) =>
-  item.isDirectory
-    ? { drive: "Local Disk", documents: "File Folder", bookmarks: "File Folder", programs: "File Folder" }[item.type] || "File Folder"
-    : { text: "Text Document", note: "Text Document", internet: "Internet Shortcut" }[item.type] || "Application"
 
 const sortItems = (items) =>
   [...items].sort((a, b) => (a.isDirectory !== b.isDirectory ? (a.isDirectory ? -1 : 1) : a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: "base" })))
 
+// Large Icons show a picture's own image
+const thumbnailFor = (item) => (item.type === "image" && item.textContent.startsWith("data:image/") ? item.textContent : null)
+
 const sizeOf = (item) => {
+  // a picture is kept as base64 text: count the bytes of the PNG itself
+  if (item.type === "image") return Math.floor((item.textContent.length - item.textContent.indexOf(",") - 1) * 0.75)
   if (!item.isDirectory) return new Blob([item.textContent]).size
   return item.content.reduce((sum, child) => sum + sizeOf(child), 0)
 }
 
-export const formatSize = (bytes) => (bytes < 1024 ? `${bytes} bytes` : `${(bytes / 1024).toFixed(bytes < 10240 ? 1 : 0)} KB`)
 
 const FileExplorer = ({ path: initialPath = ["C:"], dispatch, onTitle }) => {
   useFsVersion() // repaint when anything changes the files
@@ -128,30 +127,26 @@ const FileExplorer = ({ path: initialPath = ["C:"], dispatch, onTitle }) => {
 
   const rename = (item) => item && canEdit && setDialog({ kind: "name", title: "Rename", text: item.name, item })
 
-  const cut = (item) => item && canEdit && (clipboard = { mode: "cut", items: [item] })
-  const copy = (item) => item && canEdit && (clipboard = { mode: "copy", items: [item] })
+  const clipboard = getClipboard()
+  const cut = (item) => item && canEdit && setClipboard({ mode: "cut", items: [item] })
+  const copy = (item) => item && canEdit && setClipboard({ mode: "copy", items: [item] })
 
   const paste = () => {
     if (!clipboard || !canEdit) return
     try {
-      for (const item of clipboard.items) {
-        if (clipboard.mode === "copy") {
-          const dupe = item.copy
-          dupe.name = uniqueName(dir, item.name)
-          dir.insertItem(dupe)
-          setSelected(dupe)
-        } else {
-          if (item.parent === dir) continue
-          for (let p = dir; p; p = p.parent) if (p === item) throw new Error("The destination folder is inside the folder you're moving.")
-          item.parent.removeItem(item.name)
-          item.name = uniqueName(dir, item.name)
-          dir.insertItem(item)
-          setSelected(item)
-        }
-      }
-      if (clipboard.mode === "cut") clipboard = null
+      const last = pasteInto(dir)
+      if (last) setSelected(last)
     } catch (error) {
       fail("Paste", error)
+    }
+  }
+
+  const shortcut = (item, where = dir) => {
+    try {
+      const made = createShortcut(item, where)
+      if (where === dir) setSelected(made)
+    } catch (error) {
+      fail("Create Shortcut", error)
     }
   }
 
@@ -190,10 +185,15 @@ const FileExplorer = ({ path: initialPath = ["C:"], dispatch, onTitle }) => {
   const itemMenu = (item) => [
     { label: item.isDirectory ? "Open" : "Open", bold: true, onClick: () => open(item) },
     ...(item.isDirectory ? [{ label: "Explore", onClick: () => dispatch({ type: "open_window", payload: launch("My Computer", { path: fs.partsOf(item) }) }) }] : []),
+    {
+      label: "Send To",
+      items: [{ label: "Desktop (create shortcut)", onClick: () => shortcut(item, desktopFolder()) }],
+    },
     "-",
     { label: "Cut", disabled: !canEdit, onClick: () => cut(item) },
     { label: "Copy", disabled: !canEdit, onClick: () => copy(item) },
     "-",
+    { label: "Create Shortcut", disabled: !canEdit, onClick: () => shortcut(item) },
     { label: "Delete", disabled: !canEdit || item.type === "drive", onClick: () => askDelete(item) },
     { label: "Rename", disabled: !canEdit || item.type === "drive", onClick: () => rename(item) },
     "-",
@@ -337,6 +337,7 @@ const FileExplorer = ({ path: initialPath = ["C:"], dispatch, onTitle }) => {
 
       <div
         className={`fxView fxView--${view}`}
+        data-folder={canEdit ? fs.displayPath(dir) : undefined}
         onClick={(e) => {
           if (!e.target.closest("[data-item]")) setSelected(null)
         }}
@@ -347,9 +348,23 @@ const FileExplorer = ({ path: initialPath = ["C:"], dispatch, onTitle }) => {
           if (item) setSelected(item)
           setMenu({ x: e.clientX, y: e.clientY, item })
         }}
-        onDragOver={(e) => canEdit && e.dataTransfer.types.includes("Files") && e.preventDefault()}
+        onDragOver={(e) => canEdit && (e.dataTransfer.types.includes("Files") || e.dataTransfer.types.includes(DRAG_TYPE)) && e.preventDefault()}
         onDrop={(e) => {
-          if (!canEdit || !e.dataTransfer.files.length) return
+          if (!canEdit) return
+          // an item dragged from another window (or the desktop) moves here
+          const from = e.dataTransfer.getData(DRAG_TYPE)
+          if (from) {
+            e.preventDefault()
+            const item = fs.resolve(from)
+            if (!item) return
+            try {
+              setSelected(moveInto(item, dir))
+            } catch (error) {
+              fail("Move", error)
+            }
+            return
+          }
+          if (!e.dataTransfer.files.length) return
           e.preventDefault()
           importFiles([...e.dataTransfer.files])
         }}
@@ -360,12 +375,21 @@ const FileExplorer = ({ path: initialPath = ["C:"], dispatch, onTitle }) => {
           <div
             key={`${item.name}-${i}`}
             data-item={i}
-            className={item === selectedItem ? "fxItem is-selected" : clipboard?.mode === "cut" && clipboard.items.includes(item) ? "fxItem is-cut" : "fxItem"}
+            className={(item === selectedItem ? "fxItem is-selected" : clipboard?.mode === "cut" && clipboard.items.includes(item) ? "fxItem is-cut" : "fxItem") + (item.type === "shortcut" ? " isShortcut" : "")}
             onClick={() => setSelected(item)}
+            draggable={canEdit && item.type !== "drive"}
+            onDragStart={(e) => {
+              e.dataTransfer.setData(DRAG_TYPE, fs.displayPath(item))
+              e.dataTransfer.effectAllowed = "move"
+            }}
             {...openGesture(() => open(item))}
             title={typeName(item)}
           >
-            <img src={iconFor(item)} alt="" draggable="false" />
+            {view === "icons" && thumbnailFor(item) ? (
+              <img className="fxThumb" src={thumbnailFor(item)} alt="" draggable="false" />
+            ) : (
+              <img src={iconFor(item)} alt="" draggable="false" />
+            )}
             <span className="fxName">{item.name}</span>
           </div>
         ))}
@@ -445,7 +469,7 @@ const FileExplorer = ({ path: initialPath = ["C:"], dispatch, onTitle }) => {
       )}
 
       {dialog?.kind === "alert" && (
-        <Dialog title={dialog.title} onOk={() => setDialog(null)}>
+        <Dialog title={dialog.title} sound="ding" onOk={() => setDialog(null)}>
           <p className="dialogText">{dialog.text}</p>
         </Dialog>
       )}

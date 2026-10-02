@@ -1,0 +1,188 @@
+/* Floppy, the helper */
+
+.helper {
+  position: fixed;
+  right: 16px;
+  bottom: calc(var(--taskbar-h) + 12px);
+  z-index: 99999990;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  pointer-events: none;
+}
+
+.helper > * {
+  pointer-events: auto;
+}
+
+.helperBubble {
+  position: relative;
+  width: min(250px, calc(100vw - 32px));
+  padding: 8px 10px;
+  background: #ffffe1;
+  color: #000;
+  border: 1px solid #000;
+  border-radius: 10px;
+  box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.35);
+  font-family: Tahoma, Verdana, Arial, sans-serif;
+  font-size: 12px;
+  line-height: 1.4;
+  animation: helperPop 0.18s ease-out;
+}
+
+.helperBubble::after {
+  content: "";
+  position: absolute;
+  right: 26px;
+  bottom: -9px;
+  width: 14px;
+  height: 14px;
+  background: #ffffe1;
+  border-right: 1px solid #000;
+  border-bottom: 1px solid #000;
+  transform: skewX(30deg) rotate(45deg);
+}
+
+.helperBubble p {
+  margin: 0 0 8px;
+}
+
+.helperButtons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.helperButtons button {
+  min-width: 0;
+  padding: 0 8px;
+  font-size: 11px;
+}
+
+@keyframes helperPop {
+  from {
+    transform: scale(0.85);
+    opacity: 0;
+  }
+}
+
+.helperFloppy {
+  min-width: 0 !important;
+  min-height: 0 !important;
+  padding: 0 !important;
+  background: none !important;
+  box-shadow: none !important;
+  border: 0;
+  cursor: pointer;
+  margin-right: 6px;
+}
+
+.helperFloppy:focus {
+  outline: none !important;
+}
+
+.helperShadow {
+  fill: rgba(0, 0, 0, 0.3);
+}
+
+.helperBody {
+  transform-origin: 32px 64px;
+  animation: helperBob 3s ease-in-out infinite;
+}
+
+.helper[data-mood="talk"] .helperBody {
+  animation: helperTalk 0.5s ease-in-out 3;
+}
+
+.helper[data-mood="wave"] .helperArm {
+  transform-origin: 60px 40px;
+  animation: helperWave 0.4s ease-in-out 5 alternate;
+}
+
+.helperArm {
+  opacity: 0;
+}
+
+.helper[data-mood="wave"] .helperArm {
+  opacity: 1;
+}
+
+.helperEyes {
+  transform-origin: 32px 43px;
+  animation: helperBlink 5s infinite;
+}
+
+.helperPupil {
+  animation: helperLook 9s ease-in-out infinite;
+}
+
+.helper[data-mood="talk"] .helperMouth {
+  animation: helperMouth 0.25s steps(2) 6;
+}
+
+@keyframes helperBob {
+  50% {
+    transform: translateY(-3px);
+  }
+}
+
+@keyframes helperTalk {
+  50% {
+    transform: translateY(-6px) rotate(-3deg);
+  }
+}
+
+@keyframes helperWave {
+  to {
+    transform: rotate(-25deg);
+  }
+}
+
+@keyframes helperBlink {
+  0%,
+  94%,
+  100% {
+    transform: scaleY(1);
+  }
+  97% {
+    transform: scaleY(0.1);
+  }
+}
+
+@keyframes helperLook {
+  0%,
+  40%,
+  100% {
+    transform: translate(0, 0);
+  }
+  50%,
+  60% {
+    transform: translate(-2.5px, -1px);
+  }
+  70%,
+  80% {
+    transform: translate(1.5px, 0.5px);
+  }
+}
+
+@keyframes helperMouth {
+  50% {
+    d: path("M26 52q6 7 12 0");
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .helperBody,
+  .helperPupil {
+    animation: none;
+  }
+}
+
+.os-mobile .helper {
+  right: 8px;
+}
+
+.os-mobile .helperButtons button {
+  min-height: 34px;
+}

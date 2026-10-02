@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <!-- Media Player: a compact disc behind a little screen showing a spectrum, and a play button -->
+  <defs>
+    <radialGradient id="disc" cx="45%" cy="40%" r="60%">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="0.55" stop-color="#c9d3e3"/>
+      <stop offset="1" stop-color="#8590a6"/>
+    </radialGradient>
+    <linearGradient id="sheen" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ff7ad9" stop-opacity="0.7"/>
+      <stop offset="0.35" stop-color="#7af0ff" stop-opacity="0.6"/>
+      <stop offset="0.7" stop-color="#fff27a" stop-opacity="0.6"/>
+      <stop offset="1" stop-color="#7a8bff" stop-opacity="0.6"/>
+    </linearGradient>
+    <linearGradient id="frame" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3a3aa8"/>
+      <stop offset="1" stop-color="#14145a"/>
+    </linearGradient>
+    <radialGradient id="btn" cx="40%" cy="35%" r="65%">
+      <stop offset="0" stop-color="#b6ffb0"/>
+      <stop offset="0.5" stop-color="#2fc23a"/>
+      <stop offset="1" stop-color="#0d6a18"/>
+    </radialGradient>
+  </defs>
+  <circle cx="31" cy="16" r="14.5" fill="url(#disc)" stroke="#4a5266" stroke-width="1"/>
+  <path d="M31 3.5 A12.5 12.5 0 0 1 43.5 16 L37 16 A6 6 0 0 0 31 10 Z" fill="url(#sheen)"/>
+  <path d="M18.5 16 A12.5 12.5 0 0 0 31 28.5 L31 22 A6 6 0 0 1 25 16 Z" fill="url(#sheen)"/>
+  <circle cx="31" cy="16" r="4" fill="#e8ecf4" stroke="#6b7488" stroke-width="1"/>
+  <circle cx="31" cy="16" r="1.6" fill="#4a5266"/>
+  <rect x="3" y="17" width="31" height="25" rx="2" fill="url(#frame)" stroke="#05052a" stroke-width="1"/>
+  <rect x="6" y="20" width="25" height="17" fill="#000"/>
+  <g shape-rendering="crispEdges">
+    <rect x="8" y="30" width="3" height="5" fill="#2ee84a"/>
+    <rect x="12" y="26" width="3" height="9" fill="#2ee84a"/>
+    <rect x="12" y="26" width="3" height="2" fill="#ffd700"/>
+    <rect x="16" y="23" width="3" height="12" fill="#2ee84a"/>
+    <rect x="16" y="23" width="3" height="3" fill="#ffd700"/>
+    <rect x="16" y="22" width="3" height="1" fill="#ff3b30"/>
+    <rect x="20" y="27" width="3" height="8" fill="#2ee84a"/>
+    <rect x="24" y="29" width="3" height="6" fill="#2ee84a"/>
+    <rect x="28" y="31" width="2" height="4" fill="#2ee84a"/>
+  </g>
+  <rect x="6" y="38.5" width="12" height="1.5" fill="#8f8fe0"/>
+  <circle cx="37" cy="37" r="9" fill="url(#btn)" stroke="#063d0c" stroke-width="1.2"/>
+  <path d="M34 32 L42 37 L34 42 Z" fill="#fff" stroke="#0a4a12" stroke-width="0.8" stroke-linejoin="round"/>
+</svg>

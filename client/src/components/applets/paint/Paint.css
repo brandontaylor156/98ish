@@ -1,0 +1,764 @@
+/* Paint */
+
+.pRoot {
+  position: relative;
+  height: calc(100% - 25px);
+  display: flex;
+  flex-direction: column;
+  background: #c0c0c0;
+  font-family: "Pixelated MS Sans Serif", Arial, sans-serif;
+  -webkit-font-smoothing: none;
+  font-size: 11px;
+  color: #000;
+  outline: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.pRoot button {
+  min-width: 0;
+}
+
+.pMain {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+/* ---- tool box ---- */
+
+.pToolbox {
+  flex: none;
+  width: 58px;
+  padding: 3px 2px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.pTools {
+  display: grid;
+  grid-template-columns: repeat(2, 25px);
+}
+
+.pRoot .pTool {
+  width: 25px;
+  height: 25px;
+  min-height: 0;
+  padding: 0 !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pRoot .pTool:focus,
+.pRoot .pOpt:focus,
+.pRoot .pSwatch:focus {
+  outline: none;
+}
+
+/* a pressed-in tool: sunken, with the dithered face of a latched 98 button */
+.pRoot .pTool.is-on {
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #0a0a0a, inset -2px -2px #dfdfdf, inset 2px 2px #808080;
+  background: repeating-conic-gradient(#fff 0 25%, #c0c0c0 0 50%) 0 0 / 2px 2px;
+}
+
+.pRoot .pTool.is-on .pToolIcon {
+  transform: translate(1px, 1px);
+}
+
+.pToolIcon {
+  display: block;
+}
+
+.pOptsBox {
+  width: 44px;
+  height: 70px;
+  padding: 3px 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080;
+}
+
+.pOpts {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pOpts--col {
+  flex-direction: column;
+  gap: 1px;
+}
+
+.pOpts--grid {
+  display: grid;
+  grid-template-columns: repeat(3, 13px);
+  gap: 1px;
+}
+
+.pRoot .pOpt {
+  min-height: 0;
+  padding: 1px !important;
+  border: 0;
+  background: none;
+  box-shadow: none !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #000;
+  line-height: 1;
+}
+
+.pRoot .pOpt.is-on {
+  background: #000080;
+  color: #fff;
+}
+
+.pRoot .pOpt--zoom {
+  width: 32px;
+  font-size: 11px;
+}
+
+.pOpts--grid .pOpt {
+  width: 13px;
+  height: 13px;
+}
+
+/* ---- the picture ---- */
+
+.pArea {
+  flex: 1;
+  min-width: 0;
+  overflow: auto;
+  background: #808080;
+  box-shadow: inset 1px 1px #404040, inset -1px -1px #fff;
+}
+
+.pCanvasWrap {
+  position: relative;
+  margin: 3px 12px 12px 3px;
+}
+
+.pLayer {
+  position: absolute;
+  inset: 0;
+  touch-action: none;
+}
+
+.pCanvas {
+  display: block;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  background: #fff;
+}
+
+.pGrid {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: linear-gradient(to right, rgba(128, 128, 128, 0.7) 1px, transparent 1px), linear-gradient(to bottom, rgba(128, 128, 128, 0.7) 1px, transparent 1px);
+}
+
+.pPiece {
+  position: absolute;
+  pointer-events: none;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+.pMarquee {
+  position: absolute;
+  pointer-events: none;
+  border: 1px dashed #000080;
+  box-sizing: border-box;
+}
+
+.pLasso {
+  position: absolute;
+  left: 0;
+  top: 0;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.pLasso polyline {
+  fill: none;
+  stroke: #000;
+  stroke-width: 1;
+  stroke-dasharray: 2 2;
+}
+
+.pEraserCursor {
+  position: absolute;
+  pointer-events: none;
+  box-sizing: border-box;
+  border: 1px solid #000;
+  background: rgba(255, 255, 255, 0.4);
+}
+
+.pRoot textarea.pTextBox {
+  position: absolute;
+  margin: 0;
+  padding: 0 !important;
+  border: 1px dashed #000080;
+  box-sizing: border-box;
+  box-shadow: none !important;
+  resize: none;
+  outline: none;
+  overflow: hidden;
+  white-space: pre-wrap;
+  -webkit-font-smoothing: auto;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+/* the size handles: right edge, bottom edge, corner */
+.pHandle {
+  position: absolute;
+  width: 5px;
+  height: 5px;
+  margin: 1px 0 0 1px;
+  background: #000080;
+  touch-action: none;
+}
+
+.pHandle::before {
+  content: "";
+  position: absolute;
+  inset: -6px;
+}
+
+.pHandle--right {
+  cursor: ew-resize;
+}
+
+.pHandle--bottom {
+  cursor: ns-resize;
+}
+
+.pHandle--corner {
+  cursor: nwse-resize;
+}
+
+.pResizeGhost {
+  position: absolute;
+  left: 0;
+  top: 0;
+  pointer-events: none;
+  box-sizing: border-box;
+  border: 1px dotted #000;
+}
+
+/* Text: the Fonts toolbar floats over the picture */
+.window.pFonts {
+  position: absolute;
+  top: 6px;
+  right: 22px;
+  z-index: 5;
+  height: auto;
+  min-width: 0;
+  width: auto;
+}
+
+.pFonts .title-bar {
+  height: 18px;
+  padding: 1px 3px;
+}
+
+.pFonts .title-bar-text {
+  font-size: 11px;
+}
+
+.pFontsBody {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px;
+}
+
+.pFontsBody select:first-child {
+  width: 120px;
+}
+
+.pRoot .pFontBtn {
+  width: 23px;
+  height: 22px;
+  min-height: 0;
+  padding: 0 !important;
+  font-family: "Times New Roman", serif;
+  font-size: 14px;
+}
+
+.pFontBtn--bold {
+  font-weight: bold;
+}
+
+.pFontBtn--italic {
+  font-style: italic;
+}
+
+.pFontBtn--underline {
+  text-decoration: underline;
+}
+
+.pRoot .pFontBtn.is-on {
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #0a0a0a, inset -2px -2px #dfdfdf, inset 2px 2px #808080;
+  background: repeating-conic-gradient(#fff 0 25%, #c0c0c0 0 50%) 0 0 / 2px 2px;
+}
+
+/* ---- color box ---- */
+
+.pColorBox {
+  flex: none;
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 4px 4px 3px;
+}
+
+.pWell {
+  position: relative;
+  flex: none;
+  width: 32px;
+  height: 32px;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+  background: repeating-conic-gradient(#fff 0 25%, #c0c0c0 0 50%) 0 0 / 2px 2px;
+}
+
+.pWellPrimary,
+.pWellSecondary {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, 0 0 0 1px #c0c0c0;
+}
+
+.pWellPrimary {
+  left: 6px;
+  top: 6px;
+}
+
+.pWellSecondary {
+  left: 13px;
+  top: 13px;
+}
+
+.pPalette {
+  display: grid;
+  grid-template-columns: repeat(14, 16px);
+  grid-auto-rows: 16px;
+}
+
+.pRoot .pSwatch {
+  width: 16px;
+  height: 16px;
+  min-height: 0;
+  padding: 0 !important;
+  border: 0;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a !important;
+}
+
+/* ---- status bar ---- */
+
+.pStatus {
+  flex: none;
+  margin: 0 1px 1px;
+}
+
+.pStatus .status-bar-field {
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pStatusHint {
+  flex: 1;
+  min-width: 0;
+}
+
+.pStatus .pStatusPos,
+.pStatus .pStatusSize {
+  flex: 0 0 76px;
+}
+
+/* ---- dialogs ---- */
+
+.pFormRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pRoot .pFormRow input[type="number"] {
+  width: 64px;
+  flex: none;
+}
+
+.pFormRow label {
+  min-width: 60px;
+}
+
+.pFormRow button {
+  min-width: 75px !important;
+}
+
+.pFieldset {
+  margin: 0;
+  padding: 4px 8px 6px;
+  border: 1px solid #808080;
+  box-shadow: 1px 1px #fff;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pFieldset legend {
+  float: none;
+  width: auto;
+  font-size: inherit;
+  padding: 0 4px;
+  margin: 0;
+}
+
+.pRoot .pFieldset input[type="radio"] {
+  width: auto;
+}
+
+.pIndent {
+  padding-left: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pAbout {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.pAbout img {
+  flex: none;
+  image-rendering: pixelated;
+}
+
+/* Edit Colors */
+.pDlgNarrow .window.dialog {
+  width: min(240px, 100%);
+}
+
+.pDlgWide .window.dialog {
+  width: min(480px, 100%);
+}
+
+.pEc {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.pEcLeft {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 206px;
+}
+
+.pEcGrid {
+  display: grid;
+  grid-template-columns: repeat(8, 22px);
+  gap: 4px;
+  margin-bottom: 4px;
+}
+
+.pRoot .pEcSwatch {
+  width: 22px;
+  height: 18px;
+  min-height: 0;
+  padding: 0 !important;
+  border: 0;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a !important;
+}
+
+.pRoot .pEcSwatch.is-selected {
+  outline: 1px dotted #000;
+  outline-offset: 1px;
+}
+
+.pRoot .pEcDefine {
+  width: 100%;
+  margin-top: 2px;
+}
+
+.pEcRight {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pEcPickers {
+  display: flex;
+  gap: 6px;
+}
+
+.pEcField {
+  position: relative;
+  width: 160px;
+  height: 120px;
+  padding: 2px;
+  box-sizing: content-box;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+  touch-action: none;
+  cursor: crosshair;
+}
+
+.pEcField canvas {
+  display: block;
+  width: 160px;
+  height: 120px;
+}
+
+.pEcCross {
+  position: absolute;
+  width: 15px;
+  height: 15px;
+  margin: -5px 0 0 -5px;
+  pointer-events: none;
+  background:
+    linear-gradient(#000 0 0) 7px 0 / 1px 5px no-repeat,
+    linear-gradient(#000 0 0) 7px 10px / 1px 5px no-repeat,
+    linear-gradient(#000 0 0) 0 7px / 5px 1px no-repeat,
+    linear-gradient(#000 0 0) 10px 7px / 5px 1px no-repeat;
+}
+
+.pEcLum {
+  position: relative;
+  width: 26px;
+  height: 124px;
+  padding-top: 2px;
+  box-sizing: border-box;
+  touch-action: none;
+  cursor: ns-resize;
+}
+
+.pEcLum canvas {
+  display: block;
+  width: 12px;
+  height: 120px;
+  box-shadow: 0 0 0 1px #808080;
+}
+
+.pEcArrow {
+  position: absolute;
+  left: 15px;
+  width: 0;
+  height: 0;
+  margin-top: -3px;
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+  border-right: 6px solid #000;
+  pointer-events: none;
+}
+
+.pEcBottom {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.pEcPreview {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  white-space: nowrap;
+}
+
+.pEcPreview span {
+  width: 56px;
+  height: 40px;
+  box-shadow: 0 0 0 1px #000;
+}
+
+.pEcNums {
+  display: grid;
+  grid-template-columns: auto auto;
+  gap: 3px 8px;
+}
+
+.pEcNum {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.pRoot .dialogBody .pEcNum input {
+  width: 48px;
+}
+
+/* View Bitmap */
+.pViewBitmap {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.pViewBitmap canvas {
+  max-width: 100%;
+  max-height: 100%;
+  image-rendering: pixelated;
+}
+
+/* ---- phones: tools in a strip across the top, colors below the picture ---- */
+
+.pRoot--mobile .pMain {
+  flex-direction: column;
+}
+
+.pRoot--mobile .pToolbox {
+  width: auto;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  border-bottom: 1px solid #808080;
+}
+
+.pRoot--mobile .pTools {
+  display: flex;
+  flex: none;
+}
+
+.pRoot--mobile .pTool {
+  width: 38px;
+  height: 38px;
+  flex: none;
+}
+
+.pRoot--mobile .pToolIcon {
+  width: 22px;
+  height: 22px;
+}
+
+.pRoot--mobile .pOptsBox {
+  width: auto;
+  height: 40px;
+  flex: none;
+  padding: 2px 4px;
+}
+
+.pRoot--mobile .pOpts--col,
+.pRoot--mobile .pOpts--grid {
+  display: flex;
+  flex-direction: row;
+  gap: 2px;
+}
+
+.pRoot--mobile .pOpt,
+.pRoot--mobile .pOpts--grid .pOpt {
+  min-width: 32px;
+  height: 34px;
+}
+
+.pRoot--mobile .pOpt--zoom {
+  font-size: 13px;
+}
+
+.pRoot--mobile .pHandle {
+  width: 9px;
+  height: 9px;
+}
+
+.pRoot--mobile .pHandle::before {
+  inset: -12px;
+}
+
+.pRoot--mobile .pCanvasWrap {
+  margin: 4px 20px 20px 4px;
+}
+
+.pRoot--mobile .pColorBox {
+  overflow-x: auto;
+  scrollbar-width: none;
+  border-top: 1px solid #fff;
+  padding: 4px;
+}
+
+.pRoot--mobile .pWell {
+  width: 56px;
+  height: 56px;
+}
+
+.pRoot--mobile .pWellPrimary,
+.pRoot--mobile .pWellSecondary {
+  width: 26px;
+  height: 26px;
+}
+
+.pRoot--mobile .pWellPrimary {
+  left: 6px;
+  top: 6px;
+}
+
+.pRoot--mobile .pWellSecondary {
+  left: 24px;
+  top: 24px;
+}
+
+/* the color a palette tap sets has a dotted ring */
+.pRoot--mobile .pWell--primary .pWellPrimary,
+.pRoot--mobile .pWell--secondary .pWellSecondary {
+  z-index: 1;
+  outline: 2px dotted #000;
+  outline-offset: 1px;
+}
+
+.pRoot--mobile .pPalette {
+  grid-template-columns: repeat(14, 30px);
+  grid-auto-rows: 28px;
+}
+
+.pRoot--mobile .pSwatch {
+  width: 30px;
+  height: 28px;
+}
+
+/* below the picture, clear of the tool strip */
+.pRoot--mobile .window.pFonts {
+  top: auto;
+  bottom: 4px;
+  left: 4px;
+  right: 4px;
+}
+
+.pRoot--mobile .pFontsBody {
+  flex-wrap: wrap;
+}
+
+.pRoot--mobile .pFontBtn {
+  width: 34px;
+  height: 32px;
+}
+
+.pRoot--mobile .pStatusHint {
+  display: none;
+}
+
+.pRoot--mobile .pStatus .pStatusPos,
+.pRoot--mobile .pStatus .pStatusSize {
+  flex: 1 1 0;
+}

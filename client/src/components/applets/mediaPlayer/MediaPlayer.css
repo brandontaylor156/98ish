@@ -1,0 +1,473 @@
+/* Media Player */
+
+.mpRoot {
+  position: relative;
+  height: calc(100% - 25px);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 0 3px 3px;
+  background: #c0c0c0;
+  font-family: "Pixelated MS Sans Serif", Arial, sans-serif;
+  -webkit-font-smoothing: none;
+  font-size: 11px;
+  color: #000;
+  outline: none;
+  user-select: none;
+  -webkit-user-select: none;
+  overflow: hidden;
+}
+
+.mpRoot button {
+  min-width: 0;
+}
+
+.mpRoot .menuBar {
+  margin: 0 -3px;
+}
+
+/* sunken 98-style well */
+.mpDisplay,
+.mpInfo,
+.mpPlaylist {
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+  padding: 2px;
+}
+
+.mpDisplay {
+  position: relative;
+  flex: 1 1 120px;
+  min-height: 80px;
+  background: #000;
+  cursor: pointer;
+}
+
+.mpCanvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.mpDisplayNote {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: #3dff7a;
+  pointer-events: none;
+  text-align: center;
+}
+
+.mpLogo {
+  font-size: 15px;
+  font-weight: bold;
+  letter-spacing: 1px;
+  color: #fff;
+  text-shadow: 2px 2px 0 #00007b;
+}
+
+.mpSeek {
+  padding: 8px 2px 4px;
+}
+
+.mpSeek input[type="range"] {
+  display: block;
+  margin: 0;
+  width: 100%;
+}
+
+.mpControls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.mpTransport {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.mpBtn {
+  width: 28px;
+  height: 24px;
+  padding: 0 !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 98.css draws button text as a shadow on transparent text; glyphs need a real color */
+.mpBtn .mpGlyph {
+  display: block;
+  pointer-events: none;
+  color: #000;
+}
+
+/* latched toggle (playing, shuffle, repeat, mute): pressed in, with the 98 dither */
+.mpBtn.is-on {
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #0a0a0a, inset -2px -2px #dfdfdf, inset 2px 2px #808080;
+  background-color: #c0c0c0;
+  background-image: repeating-conic-gradient(#fff 0% 25%, transparent 0% 50%);
+  background-size: 2px 2px;
+}
+
+.mpBtn.is-on .mpGlyph {
+  transform: translate(1px, 1px);
+}
+
+.mpBtn:disabled .mpGlyph {
+  color: #808080;
+  filter: drop-shadow(1px 1px 0 #fff);
+}
+
+.mpSep {
+  width: 2px;
+  height: 20px;
+  margin: 0 3px;
+  border-left: 1px solid #808080;
+  border-right: 1px solid #fff;
+}
+
+.mpVolume {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  flex: 0 1 140px;
+  min-width: 100px;
+}
+
+.mpVolume input[type="range"] {
+  margin: 0 4px;
+  flex: 1;
+  min-width: 50px;
+}
+
+.mpMute.is-on .mpGlyph {
+  color: #800000;
+}
+
+/* the black info panel with green/white text */
+.mpInfo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #000;
+  color: #fff;
+  padding: 5px 8px;
+  min-height: 0;
+}
+
+.mpInfo dl {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 8px;
+  row-gap: 1px;
+}
+
+.mpInfo dt {
+  font-weight: normal;
+  color: #a8a8a8;
+}
+
+.mpInfo dd {
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mpInfo .mpTitle {
+  color: #ffd84a;
+}
+
+.mpTime {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  font-family: "Courier New", monospace;
+  -webkit-font-smoothing: auto;
+}
+
+.mpElapsed {
+  font-size: 22px;
+  font-weight: bold;
+  line-height: 1;
+  color: #3dff7a;
+  text-shadow: 0 0 6px rgba(61, 255, 122, 0.55);
+}
+
+.mpTotal {
+  font-size: 11px;
+  color: #8fd8a2;
+}
+
+.mpPlaylist {
+  position: relative; /* rows' offsetTop is measured from here */
+  flex: 1 1 110px;
+  min-height: 60px;
+  overflow-y: auto;
+  background: #fff;
+}
+
+.mpRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 4px;
+  cursor: default;
+  white-space: nowrap;
+}
+
+.mpRow.is-current {
+  font-weight: bold;
+}
+
+.mpRow.is-selected {
+  background: #000080;
+  color: #fff;
+}
+
+.mpRowMark {
+  width: 14px;
+  flex: none;
+  text-align: right;
+  color: #808080;
+  font-weight: normal;
+}
+
+.mpRow.is-current .mpRowMark {
+  color: #008000;
+}
+
+.mpRow.is-selected .mpRowMark {
+  color: #fff;
+}
+
+.mpRowTitle {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mpRowFile {
+  width: 84px;
+  flex: none;
+  color: #606060;
+  font-weight: normal;
+}
+
+.mpRow.is-selected .mpRowFile {
+  color: #c8c8ff;
+}
+
+.mpRowTime {
+  width: 36px;
+  flex: none;
+  text-align: right;
+  font-weight: normal;
+}
+
+.mpStatus {
+  margin: 0;
+}
+
+.mpStatus p {
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mpStatusState {
+  flex: 1 1 auto;
+}
+
+.mpStatusSong {
+  flex: 0 1 96px !important;
+}
+
+.mpStatusTime {
+  flex: 0 0 auto !important;
+}
+
+/* Open dialog */
+.mpOpenLook {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.mpOpenFolder {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 4px;
+  background: #fff;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+}
+
+.mpOpenFolder img {
+  width: 16px;
+  height: 16px;
+}
+
+.mpOpenList {
+  list-style: none;
+  margin: 0;
+  padding: 3px;
+  height: 160px;
+  max-height: 40vh;
+  overflow-y: auto;
+  background: #fff;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+}
+
+.mpOpenList li {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 3px;
+  cursor: default;
+}
+
+.mpOpenList li img {
+  width: 16px;
+  height: 16px;
+}
+
+.mpOpenList li.is-selected {
+  background: #000080;
+  color: #fff;
+}
+
+.mpOpenName {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.mpOpenName span {
+  flex: 1;
+  padding: 3px 4px;
+  background: #fff;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+  min-height: 20px;
+}
+
+.mpAbout {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.mpAbout p + p {
+  margin-top: 6px !important;
+}
+
+/* ---- phones: full width, fingertip-sized controls ---- */
+
+.os-mobile .mpRoot {
+  font-size: 13px;
+  gap: 6px;
+  padding: 0 6px 6px;
+}
+
+.os-mobile .mpRoot .menuBar {
+  margin: 0 -6px;
+}
+
+.os-mobile .mpRoot .menuTitle > button {
+  padding: 6px 10px !important;
+}
+
+.os-mobile .mpRoot .menu button {
+  min-height: 36px;
+  font-size: 14px;
+}
+
+.os-mobile .mpDisplay {
+  flex: 0 0 26%;
+  min-height: 110px;
+}
+
+.os-mobile .mpSeek {
+  padding: 14px 4px 10px;
+}
+
+.os-mobile .mpControls {
+  gap: 8px;
+}
+
+.os-mobile .mpTransport {
+  width: 100%;
+  justify-content: space-between;
+  gap: 4px;
+}
+
+.os-mobile .mpBtn {
+  flex: 1 1 0;
+  width: auto;
+  max-width: 56px;
+  height: 46px;
+}
+
+.os-mobile .mpBtn .mpGlyph {
+  width: 24px;
+  height: 24px;
+}
+
+.os-mobile .mpSep {
+  display: none;
+}
+
+.os-mobile .mpVolume {
+  flex: 1 1 100%;
+  margin: 0;
+}
+
+.os-mobile .mpVolume .mpBtn {
+  flex: none;
+  width: 46px;
+}
+
+.os-mobile .mpInfo {
+  padding: 6px 10px;
+}
+
+.os-mobile .mpElapsed {
+  font-size: 26px;
+}
+
+.os-mobile .mpPlaylist {
+  min-height: 80px;
+}
+
+.os-mobile .mpRow {
+  min-height: 40px;
+  padding: 4px 8px;
+  gap: 8px;
+}
+
+.os-mobile .mpRowFile {
+  display: none;
+}
+
+.os-mobile .mpStatus {
+  font-size: 12px;
+}
+
+.os-mobile .mpOpenList li {
+  min-height: 36px;
+}
