@@ -1,5 +1,5 @@
 import {useState, useRef, useEffect} from "react"
-import youtube from './apis/youtube'
+import { searchVideos } from './apis/youtube'
 import SearchBar from './components/SearchBar';
 import VideoList from './components/VideoList';
 import VideoDetail from './components/VideoDetail';
@@ -12,13 +12,12 @@ const VideoPlayer = ({setShare, socket}) => {
     const executeScroll = () => topRef.current.scrollIntoView()
 
     const handleSubmit = async (termFromSearchBar) => {
-      const response = await youtube.get('/search', {
-          params: {
-              q: termFromSearchBar
-          }
-      })
-
-      setVideos(response.data.items)
+      try {
+        setVideos(await searchVideos(termFromSearchBar))
+      } catch (err) {
+        console.error(err)
+        setVideos([])
+      }
     };
 
     const handleVideoSelect = (video) => {

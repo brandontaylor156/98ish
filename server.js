@@ -9,8 +9,9 @@ const app = express()
 const cors = require('cors');
 app.use(cors());
 
-const server = app.listen(8000, () =>
-  console.log("The server is all fired up on port 8000")
+const port = process.env.PORT || 8000
+const server = app.listen(port, () =>
+  console.log(`The server is all fired up on port ${port}`)
 )
 
 // To initialize the socket, we need to

@@ -12,7 +12,9 @@ import TaskManager from "../applets/taskManager/TaskManager"
 import io from "socket.io-client"
 
 const Desktop = ({ fs, programs, windows, dispatch, closeMenu }) => {
-  const [socket] = useState(() => io("http://localhost:8000"))
+  const [socket] = useState(() =>
+    io(import.meta.env.VITE_SOCKET_URL || "http://localhost:8000")
+  )
   const [share, setShare] = useState("")
 
   return (

@@ -1,26 +1,28 @@
 {
   "name": "98ish",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Socket.io chat server for 98ish",
+  "main": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=20"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Simul8-OS/98ish.git"
+    "url": "git+https://github.com/brandontaylor156/98ish.git"
   },
   "keywords": [],
-  "author": "",
+  "author": "Brandon Taylor and Cameron De Robertis",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/Simul8-OS/98ish/issues"
+    "url": "https://github.com/brandontaylor156/98ish/issues"
   },
-  "homepage": "https://github.com/Simul8-OS/98ish#readme",
+  "homepage": "https://github.com/brandontaylor156/98ish#readme",
   "dependencies": {
-    "cors": "^2.8.5",
-    "dotenv": "^16.0.2",
-    "express": "^4.18.1",
-    "socket.io": "^4.5.2"
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
+    "socket.io": "^4.8.4"
   }
 }
