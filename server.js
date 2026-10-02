@@ -11,6 +11,7 @@ const { driveRouter } = require("./server/drive")
 const { homepageRouter } = require("./server/net/homepages")
 const { mailRouter } = require("./server/mail")
 const { attachGameChat } = require("./server/gamechat")
+const { puzzleRouter } = require("./server/puzzles")
 
 const app = express()
 app.use(cors())
@@ -21,6 +22,8 @@ app.use("/api/drive", driveRouter({ aim: () => aim }))
 const mail = mailRouter()
 const homepages = homepageRouter()
 app.use("/api/mail", mail)
+const puzzles = puzzleRouter()
+app.use("/api/puzzles", puzzles)
 app.use("/api", homepages)
 app.use("/api", guestbookRouter())
 
@@ -37,6 +40,7 @@ aim
   .then((aim) => {
     net.useAim(aim)
     mail.useAim(aim)
+    puzzles.useAim(aim)
     homepages.useAim(aim)
   })
   .catch((error) => {

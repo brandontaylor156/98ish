@@ -1,0 +1,760 @@
+/* Photo Puzzle */
+.pzApp {
+  --pz-pink: #ffd9e6;
+  --pz-rose: #e0457b;
+  --pz-ink: #4a1f35;
+  --pz-felt: #2f5d50;
+  height: calc(100% - 25px);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  font-family: "Pixelated MS Sans Serif", Arial, sans-serif;
+  font-size: 11px;
+  background: #c0c0c0;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.pzBody {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ---- home ---- */
+.pzHome,
+.pzNew,
+.pzList {
+  flex: 1;
+  overflow: auto;
+  padding: 10px;
+  background: linear-gradient(180deg, #fff6f9 0%, #ffe4ee 100%);
+  border: 2px inset #fff;
+}
+.pzHero {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.pzHero h2 {
+  margin: 0 0 2px;
+  font-size: 18px;
+  color: var(--pz-ink);
+  font-weight: bold;
+}
+.pzHero p {
+  margin: 0;
+  color: #6b3a52;
+  max-width: 420px;
+}
+.pzBigButtons {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
+}
+.pzApp button.pzBig {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-height: 78px;
+  padding: 8px 10px;
+  text-align: left;
+}
+.pzBig b {
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.pzBig small {
+  color: #555;
+}
+.pzBigIcon {
+  line-height: 0;
+}
+.pzBadge {
+  display: inline-block;
+  min-width: 16px;
+  padding: 1px 4px;
+  border-radius: 8px;
+  background: var(--pz-rose);
+  color: #fff;
+  font-size: 10px;
+  text-align: center;
+}
+.pzResume {
+  margin-top: 14px;
+}
+.pzResume h3,
+.pzListHead h3 {
+  font-size: 12px;
+  margin: 0 0 6px;
+  color: var(--pz-ink);
+  font-weight: bold;
+}
+.pzResume ul,
+.pzRows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.pzApp .pzResume button {
+  width: 100%;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  padding: 4px 8px;
+  min-height: 34px;
+}
+.pzResume button span {
+  color: #555;
+}
+
+/* ---- new puzzle ---- */
+.pzNew fieldset {
+  margin: 0 0 10px;
+  background: rgba(255, 255, 255, 0.55);
+}
+.pzNew legend {
+  float: none;
+  width: auto;
+  margin: 0;
+  padding: 0 3px;
+  font-size: 11px;
+  font-weight: bold;
+  line-height: normal;
+  color: var(--pz-ink);
+  background: transparent;
+}
+.pzModeRow .field-row {
+  margin: 0;
+}
+.pzSamples {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+.pzApp button.pzSample {
+  padding: 3px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.pzSample img {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  display: block;
+  pointer-events: none;
+}
+.pzApp button.pzSample.is-selected {
+  outline: 2px solid var(--pz-rose);
+  outline-offset: -1px;
+  background: #ffe4ee;
+}
+.pzPickRow {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+.pzChosen {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+.pzChosen img {
+  max-width: 120px;
+  max-height: 80px;
+  border: 2px inset #fff;
+}
+.pzModeRow {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 6px;
+}
+.pzChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 4px 0 6px;
+}
+.pzApp .pzChips button.is-on,
+.pzApp .pzToolbar button.is-on,
+.pzApp .pzSendPeople button.is-on {
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #0a0a0a, inset -2px -2px #dfdfdf, inset 2px 2px grey;
+  background: #ffe4ee;
+}
+.pzBest {
+  margin: 4px 0 0;
+  color: #6b3a52;
+}
+.pzNewButtons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.pzApp button.pzPrimary {
+  font-weight: bold;
+}
+
+/* ---- lists ---- */
+.pzListHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.pzListHead h3 {
+  flex: 1;
+  margin: 0;
+}
+.pzRow {
+  display: flex;
+  gap: 4px;
+  align-items: stretch;
+}
+.pzApp .pzRowMain {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-align: left;
+  padding: 4px 8px;
+  min-height: 44px;
+}
+.pzApp .pzRowMain:disabled {
+  color: inherit;
+  text-shadow: none;
+}
+.pzRowIcon {
+  line-height: 0;
+}
+.pzRowText {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.pzRowText b {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pzRow.is-new .pzRowText b::after {
+  content: " NEW";
+  color: var(--pz-rose);
+  font-size: 9px;
+}
+.pzRowStatus {
+  color: #8a2f55;
+}
+.pzApp .pzRowDelete {
+  min-width: 32px;
+  padding: 0;
+}
+.pzEmpty,
+.pzSignedOut {
+  color: #555;
+  padding: 10px 0;
+}
+.pzError {
+  color: #b00020;
+  margin: 6px 0;
+}
+
+/* ---- playing ---- */
+.pzPlay {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.pzToolbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px;
+  border-bottom: 1px solid #808080;
+  box-shadow: 0 1px #fff;
+}
+.pzApp .pzToolbar button {
+  min-width: 0;
+  padding: 0 8px;
+}
+.pzToolTitle {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: bold;
+  padding: 0 4px;
+}
+.pzPlayArea {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.pzPeekImg {
+  position: absolute;
+  inset: 30px 8px 8px;
+  width: calc(100% - 16px);
+  height: calc(100% - 38px);
+  object-fit: contain;
+  pointer-events: none;
+  z-index: 50;
+  background: rgba(0, 0, 0, 0.5);
+}
+.pzStatus {
+  display: flex;
+  gap: 14px;
+  padding: 3px 8px;
+  background: #fff4f7;
+  border-bottom: 1px solid #d7a7bb;
+  color: var(--pz-ink);
+}
+
+/* jigsaw */
+.pzJigsaw {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.pzTable {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  touch-action: none;
+  cursor: grab;
+  background-color: var(--pz-felt);
+  background-image: radial-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1px);
+  background-size: 6px 6px;
+  border: 2px inset #fff;
+}
+.pzWorld {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
+  will-change: transform;
+}
+.pzBoard {
+  position: absolute;
+  left: 0;
+  top: 0;
+  background: rgba(0, 0, 0, 0.22);
+  outline: 3px solid rgba(255, 255, 255, 0.35);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.3);
+}
+.pzGhost {
+  width: 100%;
+  height: 100%;
+  display: block;
+  opacity: 0.22;
+  pointer-events: none;
+}
+.pzFinal {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 5000;
+  display: block;
+  pointer-events: none;
+  animation: pzMelt 1.4s ease-in 0.3s both;
+}
+@keyframes pzMelt {
+  from {
+    opacity: 0;
+  }
+}
+.pzPiece {
+  position: absolute;
+  display: block;
+  pointer-events: none;
+  filter: drop-shadow(1px 2px 1px rgba(0, 0, 0, 0.35));
+}
+.pzPiece.is-placed {
+  filter: none;
+}
+.pzPiece.is-hidden {
+  visibility: hidden;
+}
+.pzPiece.is-lifted {
+  filter: drop-shadow(4px 7px 4px rgba(0, 0, 0, 0.45));
+}
+.pzPiece.is-flash {
+  animation: pzFlash 0.45s ease-out;
+}
+@keyframes pzFlash {
+  0% {
+    filter: brightness(1.6) drop-shadow(0 0 6px #fff);
+  }
+  100% {
+    filter: none;
+  }
+}
+.pzSolvedGlow {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  box-shadow: inset 0 0 60px rgba(255, 210, 230, 0.8);
+  animation: pzGlow 1.6s ease-out;
+}
+@keyframes pzGlow {
+  from {
+    box-shadow: inset 0 0 160px rgba(255, 255, 255, 1);
+  }
+}
+.pzTray {
+  flex: 0 0 auto;
+  height: 84px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  touch-action: pan-x;
+  background: #e9dfe4;
+  border-top: 2px outset #fff;
+  -webkit-overflow-scrolling: touch;
+}
+.pzTrayItem {
+  flex: 0 0 auto;
+  width: 70px;
+  height: 70px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid #c9a9b8;
+  border-radius: 4px;
+  touch-action: pan-x;
+}
+.pzTrayItem canvas {
+  pointer-events: none;
+  filter: drop-shadow(1px 1px 1px rgba(0, 0, 0, 0.35));
+}
+.pzTrayItem.is-dragging {
+  visibility: hidden;
+}
+.pzTrayEmpty {
+  color: #6b3a52;
+  padding: 0 4px;
+}
+
+/* slide */
+.pzSlide {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  outline: none;
+}
+.pzSlideBox {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(180deg, #fff0f5, #ffd9e6);
+  border: 2px inset #fff;
+}
+.pzSlideBoard {
+  position: relative;
+  background: #5a2a43;
+  box-shadow: 0 0 0 3px #fff, 0 0 0 5px #8a2f55, 4px 6px 12px rgba(0, 0, 0, 0.3);
+}
+.pzApp button.pzTile {
+  position: absolute;
+  left: 0;
+  top: 0;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background-repeat: no-repeat;
+  box-shadow: inset 1px 1px rgba(255, 255, 255, 0.55), inset -1px -1px rgba(0, 0, 0, 0.45);
+  transition: transform 0.12s ease-out;
+  cursor: default;
+  touch-action: manipulation;
+}
+.pzApp button.pzTile.is-movable {
+  cursor: pointer;
+}
+.pzApp button.pzTile.is-last {
+  animation: pzFadeIn 0.6s ease-out;
+}
+.pzSlideBoard.is-solved .pzTile {
+  box-shadow: none;
+}
+@keyframes pzFadeIn {
+  from {
+    opacity: 0;
+  }
+}
+.pzTileNum {
+  position: absolute;
+  left: 3px;
+  top: 2px;
+  padding: 0 3px;
+  background: rgba(255, 255, 255, 0.8);
+  color: #000;
+  font-size: 11px;
+}
+
+/* ---- the party ---- */
+.pzCelebrate {
+  position: absolute;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(60, 20, 40, 0.28);
+}
+.pzParty {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.pzCard {
+  position: relative;
+  width: min(330px, calc(100% - 24px));
+  animation: pzPop 0.35s cubic-bezier(0.2, 1.4, 0.4, 1);
+}
+@keyframes pzPop {
+  from {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+}
+.pzCardBody {
+  text-align: center;
+}
+.pzCardTitle {
+  font-size: 18px;
+  font-weight: bold;
+  color: var(--pz-rose);
+  margin: 4px 0;
+}
+.pzCardButtons {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 8px;
+}
+.pzHint {
+  color: #8a2f55;
+  margin: 4px 0 0;
+}
+
+/* the envelope */
+.pzEnvelope {
+  position: relative;
+  width: 240px;
+  height: 150px;
+  margin: 84px auto 6px;
+  cursor: pointer;
+  perspective: 600px;
+}
+.pzEnvBack,
+.pzEnvFront {
+  position: absolute;
+  inset: 0;
+}
+.pzEnvBack {
+  background: #f7b6cb;
+  border: 2px solid #8a2f55;
+}
+.pzEnvFront {
+  z-index: 3;
+  background: linear-gradient(to top right, #ffd0de 49.5%, transparent 50%) left bottom / 50% 100% no-repeat,
+    linear-gradient(to top left, #ffc4d6 49.5%, transparent 50%) right bottom / 50% 100% no-repeat;
+  border: 2px solid #8a2f55;
+  border-top: none;
+  pointer-events: none;
+}
+.pzEnvFlap {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 60%;
+  z-index: 4;
+  transform-origin: top;
+  background: linear-gradient(to bottom right, #ffb3c8 49.5%, transparent 50%) left top / 50% 100% no-repeat,
+    linear-gradient(to bottom left, #ffb3c8 49.5%, transparent 50%) right top / 50% 100% no-repeat;
+  transition: transform 0.6s ease-in, z-index 0s 0.3s;
+  filter: drop-shadow(0 1px 0 #8a2f55);
+}
+.pzEnvSeal {
+  position: absolute;
+  left: 50%;
+  top: 46%;
+  z-index: 5;
+  width: 28px;
+  height: 28px;
+  margin: -14px 0 0 -14px;
+  border-radius: 50%;
+  background: var(--pz-rose);
+  color: #fff;
+  font-size: 15px;
+  line-height: 28px;
+  text-align: center;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  transition: opacity 0.3s;
+  animation: pzBeat 1s ease-in-out infinite;
+}
+@keyframes pzBeat {
+  50% {
+    transform: scale(1.15);
+  }
+}
+.pzLetter {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  top: 8px;
+  bottom: 8px;
+  z-index: 2;
+  padding: 8px 10px;
+  background: #fffdf6;
+  background-image: repeating-linear-gradient(transparent 0 15px, #f3d3de 15px 16px);
+  border: 1px solid #d9b8c4;
+  text-align: left;
+  overflow: hidden;
+  transition: transform 0.8s cubic-bezier(0.3, 1.2, 0.5, 1) 0.45s, bottom 0.8s ease 0.45s;
+}
+.pzLetterFrom {
+  color: #8a2f55;
+  font-weight: bold;
+  margin-bottom: 4px;
+}
+.pzLetterText {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+  line-height: 16px;
+  color: #3a1f2c;
+}
+.pzEnvelope.is-open .pzEnvFlap {
+  transform: rotateX(180deg);
+  z-index: 1;
+}
+.pzEnvelope.is-open .pzEnvSeal {
+  opacity: 0;
+}
+.pzEnvelope.is-open .pzLetter {
+  transform: translateY(-62px);
+  bottom: -50px;
+  overflow: auto;
+  max-height: none;
+}
+
+/* ---- misc ---- */
+.pzApp button.pzToast {
+  position: absolute;
+  left: 50%;
+  bottom: 12px;
+  transform: translateX(-50%);
+  z-index: 90;
+  max-width: calc(100% - 24px);
+  padding: 6px 12px;
+  background: #fff4f7;
+  border: 1px solid #8a2f55;
+  box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.3);
+  animation: pzPop 0.3s ease-out;
+}
+.pzApp .pzCard.window,
+.pzApp .pzBusy.window {
+  height: auto;
+  min-width: 0;
+}
+.pzBusy {
+  padding: 4px;
+  min-width: 200px;
+  text-align: center;
+}
+.pzSend {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: 100%;
+}
+.pzSend input,
+.pzSend textarea {
+  width: 100%;
+  box-sizing: border-box;
+}
+.pzSendThumb {
+  max-width: 100%;
+  max-height: 110px;
+  object-fit: contain;
+  align-self: center;
+  border: 2px inset #fff;
+}
+.pzSendWhat {
+  margin: 0 0 4px;
+  text-align: center;
+  color: #555;
+}
+.pzSend textarea {
+  resize: vertical;
+  font-family: inherit;
+}
+.pzSendPeople {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+}
+.pzApp .pzSendPeople button {
+  min-width: 0;
+  padding: 0 6px;
+}
+.pzCount {
+  align-self: flex-end;
+  color: #666;
+}
+
+/* ---- phones ---- */
+.pzApp.is-mobile .pzSamples {
+  grid-template-columns: repeat(2, 1fr);
+}
+.pzApp.is-mobile button {
+  min-height: 36px;
+}
+.pzApp.is-mobile input,
+.pzApp.is-mobile textarea,
+.os-mobile .pzSend input,
+.os-mobile .pzSend textarea {
+  font-size: 16px;
+}
+.pzApp.is-mobile .pzToolbar button {
+  min-height: 34px;
+}
+.pzApp.is-mobile .pzStatus {
+  font-size: 12px;
+}
+.pzApp.is-mobile button.pzTile {
+  min-height: 0;
+}

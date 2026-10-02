@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <!-- the paper -->
+  <rect x="3" y="5" width="36" height="38" fill="#fffdf6" stroke="#000"/>
+  <path d="M5 7h32v34H5z" fill="none" stroke="#e6dccb"/>
+  <!-- two scribbles: two people drawing -->
+  <path d="M8 30c4-8 8-10 10-6s-3 8 2 8 6-12 12-14" fill="none" stroke="#2f7fd8" stroke-width="2.6" stroke-linecap="round"/>
+  <path d="M10 14c3 0 5 4 9 2" fill="none" stroke="#21a35a" stroke-width="2.4" stroke-linecap="round"/>
+  <path d="M27 12c-1.5-2.8-6-1.8-6 1.4 0 2.8 3.6 4.6 6 6.6 2.4-2 6-3.8 6-6.6 0-3.2-4.5-4.2-6-1.4z" fill="#ff5e8a" stroke="#8a2f55" stroke-width="1"/>
+  <!-- pencils -->
+  <g transform="translate(30 30) rotate(40)">
+    <rect x="0" y="-2.5" width="16" height="5" fill="#ffd23f" stroke="#000" stroke-width="0.8"/>
+    <path d="M0 -2.5L-5 0 0 2.5z" fill="#f2c9a0" stroke="#000" stroke-width="0.8"/>
+    <path d="M-5 0l1.6-0.8v1.6z" fill="#2f7fd8"/>
+    <rect x="14" y="-2.5" width="3" height="5" fill="#ff8fb3" stroke="#000" stroke-width="0.8"/>
+  </g>
+  <g transform="translate(37 42) rotate(-60)">
+    <rect x="0" y="-2.3" width="12" height="4.6" fill="#e0457b" stroke="#000" stroke-width="0.8"/>
+    <path d="M0 -2.3L-4.5 0 0 2.3z" fill="#f2c9a0" stroke="#000" stroke-width="0.8"/>
+  </g>
+</svg>

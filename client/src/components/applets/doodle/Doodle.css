@@ -1,0 +1,336 @@
+/* Doodle Together */
+.ddApp {
+  height: calc(100% - 25px);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  font-family: "Pixelated MS Sans Serif", Arial, sans-serif;
+  font-size: 11px;
+  background: #c0c0c0;
+  overflow: hidden;
+  outline: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* who's here */
+.ddPeople {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 4px;
+  flex-wrap: wrap;
+  border-bottom: 1px solid #808080;
+  box-shadow: 0 1px #fff;
+}
+.ddPerson {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 6px 1px 3px;
+  background: #fff;
+  border: 1px solid #808080;
+  border-radius: 9px;
+}
+.ddPerson i {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 0, 0, 0.4);
+}
+.ddPerson.is-away {
+  opacity: 0.5;
+}
+.ddPerson.is-invited {
+  color: #666;
+  font-style: italic;
+}
+.ddPerson.is-invited i {
+  background: #ddd;
+}
+.ddAlone {
+  color: #444;
+}
+.ddApp button.ddInvite {
+  margin-left: auto;
+  min-width: 0;
+  padding: 0 10px;
+  font-weight: bold;
+}
+
+/* the paper */
+.ddMain {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+.ddSide {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 4px;
+  width: 64px;
+}
+.ddTools {
+  display: grid;
+  grid-template-columns: repeat(2, 28px);
+  gap: 2px;
+}
+.ddApp .ddTools button {
+  min-width: 0;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.ddApp .ddTools button.is-on,
+.ddApp .ddSizes button.is-on,
+.ddApp .ddStickers button.is-on {
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #0a0a0a, inset -2px -2px #dfdfdf, inset 2px 2px grey;
+  background: #e8e8e8 repeating-conic-gradient(#fff 0 25%, transparent 0 50%) 0 0 / 2px 2px;
+}
+.ddOptions {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.ddSizes,
+.ddStickers {
+  display: grid;
+  grid-template-columns: repeat(2, 28px);
+  gap: 2px;
+  padding: 2px;
+  border: 1px inset #fff;
+}
+.ddApp .ddSizes button,
+.ddApp .ddStickers button {
+  min-width: 0;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.ddSizes span {
+  display: block;
+  border-radius: 50%;
+  border: 1px solid #555;
+}
+.ddStage {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  background-color: #808080;
+  background-image: linear-gradient(45deg, #8a8a8a 25%, transparent 25%, transparent 75%, #8a8a8a 75%), linear-gradient(45deg, #8a8a8a 25%, transparent 25%, transparent 75%, #8a8a8a 75%);
+  background-size: 16px 16px;
+  background-position: 0 0, 8px 8px;
+  border: 2px inset #fff;
+  touch-action: none;
+  cursor: crosshair;
+}
+.ddStage.tool-fill,
+.ddStage.tool-sticker {
+  cursor: pointer;
+}
+.ddPaper {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 960px;
+  height: 960px;
+  transform-origin: 0 0;
+  box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.35);
+}
+.ddLayer {
+  position: absolute;
+  inset: 0;
+  width: 960px;
+  height: 960px;
+  display: block;
+  pointer-events: none;
+}
+.ddCursor {
+  position: absolute;
+  pointer-events: none;
+  transform-origin: 0 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 2px;
+  transition: left 0.06s linear, top 0.06s linear;
+  z-index: 5;
+}
+.ddCursor span {
+  margin-top: 12px;
+  padding: 1px 5px;
+  border-radius: 7px;
+  background: var(--c);
+  color: #fff;
+  font-size: 11px;
+  white-space: nowrap;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+/* colors */
+.ddPalette {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px;
+  border-top: 1px solid #fff;
+}
+.ddCurrent {
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  border: 2px inset #fff;
+  box-shadow: inset 0 0 0 1px #000;
+}
+.ddSwatches {
+  display: grid;
+  grid-template-rows: repeat(2, 15px);
+  grid-auto-flow: column;
+  grid-auto-columns: 15px;
+  gap: 1px;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+.ddApp button.ddSwatch {
+  min-width: 0;
+  min-height: 0;
+  width: 15px;
+  height: 15px;
+  padding: 0;
+  border: none;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080;
+}
+.ddApp button.ddSwatch.is-on {
+  outline: 2px solid #000;
+  outline-offset: -2px;
+}
+.ddCustom {
+  position: relative;
+  width: 15px;
+  height: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: conic-gradient(red, yellow, lime, cyan, blue, magenta, red);
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080;
+  cursor: pointer;
+}
+.ddCustom input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+}
+.ddCustom span {
+  color: #fff;
+  font-weight: bold;
+  text-shadow: 0 0 2px #000;
+  pointer-events: none;
+}
+
+/* status */
+.ddStatus {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 4px;
+  border-top: 1px solid #808080;
+}
+.ddStatus > span:first-child {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 2px 4px;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080;
+}
+.ddStatusButtons {
+  display: flex;
+  gap: 4px;
+}
+.ddApp .ddStatusButtons button {
+  min-width: 0;
+  padding: 0 10px;
+}
+
+/* invite list */
+.ddInviteList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: min(300px, 76vw);
+  max-height: 260px;
+  overflow: auto;
+}
+.ddInviteRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 3px 4px;
+  background: #fff;
+  border: 1px solid #c0c0c0;
+}
+
+/* ---- phones: tools under the paper, big targets, palm-friendly ---- */
+.ddApp.is-mobile .ddBottom {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+  padding: 4px;
+  border-top: 1px solid #fff;
+}
+.ddApp.is-mobile .ddTools {
+  display: flex;
+  gap: 3px;
+}
+.ddApp.is-mobile .ddTools button,
+.ddApp.is-mobile .ddSizes button,
+.ddApp.is-mobile .ddStickers button {
+  width: 40px;
+  height: 40px;
+}
+.ddApp.is-mobile .ddOptions {
+  flex-direction: row;
+}
+.ddApp.is-mobile .ddSizes,
+.ddApp.is-mobile .ddStickers {
+  display: flex;
+  gap: 2px;
+}
+.ddApp.is-mobile .ddPalette {
+  padding: 4px 4px 8px;
+}
+.ddApp.is-mobile .ddSwatches {
+  grid-template-rows: repeat(2, 30px);
+  grid-auto-columns: 30px;
+  gap: 2px;
+}
+.ddApp.is-mobile button.ddSwatch,
+.ddApp.is-mobile .ddCustom {
+  width: 30px;
+  height: 30px;
+}
+.ddApp.is-mobile .ddCurrent {
+  width: 40px;
+  height: 40px;
+}
+.ddApp.is-mobile .ddPeople button,
+.ddApp.is-mobile .ddStatus button {
+  min-height: 32px;
+}
+.ddApp.is-mobile .ddStatus > span:first-child {
+  white-space: normal;
+  font-size: 11px;
+}

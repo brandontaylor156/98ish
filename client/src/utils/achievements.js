@@ -39,6 +39,8 @@ export const ACHIEVEMENTS = [
   { id: "quick-launch", title: "Launch Pad", text: "Added a program to Quick Launch.", hint: "Drag a desktop icon onto the little icons next to Start." },
   { id: "town-order", title: "Special Delivery", text: "Filled your first helicopter order in Sunny Acres.", hint: "Sunny Acres (in Games) has a farmer waiting for some Cow Feed." },
   { id: "town-mayor", title: "Mayor of Sunny Acres", text: "Grew Sunny Acres to level 10.", hint: "Keep filling orders in Sunny Acres until your town reaches level 10." },
+  { id: "puzzle-solved", title: "Piece by Piece", text: "Finished a jigsaw in Photo Puzzle.", hint: "Photo Puzzle (in Games) can cut any picture into pieces. Put one back together." },
+  { id: "doodle-pair", title: "Picasso Pair", text: "Saved a drawing made with someone in Doodle Together.", hint: "Invite someone to Doodle Together, draw something together, and save it." },
 ]
 
 export const achievementById = (id) => ACHIEVEMENTS.find((a) => a.id === id) || null

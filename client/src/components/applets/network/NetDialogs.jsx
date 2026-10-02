@@ -148,7 +148,7 @@ export const GameInvite = ({ invite, onClose }) => {
       <div className="netBoxBody">
         <img src={info?.icon} width="32" height="32" alt="" />
         <p>
-          <b>{invite.from}</b> invites you to play <b>{invite.gameName}</b>
+          <b>{invite.from}</b> invites you to {invite.game === "doodle" ? "draw together in" : "play"} <b>{invite.gameName}</b>
           {level ? ` (${level[0].toUpperCase()}${level.slice(1)})` : ""}
           {invite.game === "tetris" ? ` (${{ battle: "Battle 2P", arena: "Arena", race: "Sprint Race" }[invite.options?.mode] || "Battle 2P"})` : ""}.
           {invite.game === "hearts" && (

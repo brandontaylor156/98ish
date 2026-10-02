@@ -90,8 +90,9 @@ const attachGameChat = (io, net, { rate = RATE } = {}) => {
 
   const lobbies = () => [...rooms.values()].filter((r) => r.kind === "lobby").length
   const pidsIn = (room) => new Set([...room.members.values()].map((m) => m.pid))
-  // a match is a network game (games.js) or a Tetris Online room (tetris.js)
-  const playersOf = (id) => net.games.playersOf(id) || net.tetris?.playersOf(id) || null
+  // a match is a network game (games.js), a Tetris Online room (tetris.js) or a Doodle
+  // Together room (doodle.js)
+  const playersOf = (id) => net.games.playersOf(id) || net.tetris?.playersOf(id) || net.doodle?.playersOf(id) || null
   const isMatchPlayer = (room, pid) => (playersOf(room.id) || []).includes(pid)
   const blocked = (a, b) => a !== b && net.blockedPids(a, b)
 

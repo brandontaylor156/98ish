@@ -9,7 +9,7 @@ const hearts = require("./hearts")
 const { rules } = require("./rules")
 
 const INVITE_MS = 60_000
-const GAMES = ["checkers", "race", "hearts", "reversi", "chess", "battleship", "tetris"]
+const GAMES = ["checkers", "race", "hearts", "reversi", "chess", "battleship", "tetris", "doodle"]
 // two-player board games whose rules are shared with the browser (see rules.js)
 const BOARD_GAMES = ["reversi", "chess", "battleship"]
 const RACE_LEVELS = {
@@ -21,10 +21,13 @@ const BOT_NAMES = ["Ada", "Grace", "Alan", "Linus", "Hedy", "Dennis"]
 const DELAYS = { botPass: 500, botPlay: 750, trick: 1400, nextHand: 7000 }
 
 const newId = () => crypto.randomBytes(6).toString("hex")
-const GAME_NAMES = { checkers: "Checkers", race: "Minesweeper Race", hearts: "Hearts", reversi: "Reversi", chess: "Chess", battleship: "Battleship", tetris: "Tetris Online" }
+const GAME_NAMES = { checkers: "Checkers", race: "Minesweeper Race", hearts: "Hearts", reversi: "Reversi", chess: "Chess", battleship: "Battleship", tetris: "Tetris Online", doodle: "Doodle Together" }
 
-// tetris: Tetris Online (tetris.js), whose private rooms take invitations from here
-const createGames = ({ emit, delays = DELAYS, random = Math.random, tetris = null } = {}) => {
+// tetris: Tetris Online (tetris.js) and doodle: Doodle Together (doodle.js), whose
+// private rooms take invitations from here
+const createGames = ({ emit, delays = DELAYS, random = Math.random, tetris = null, doodle = null } = {}) => {
+  const ROOM_GAMES = { tetris, doodle }
+  const roomGame = (game) => (game === "tetris" || game === "doodle" ? ROOM_GAMES[game] : null)
   const invites = new Map() // id -> { id, game, from, fromName, to, toName, options, matchId, timer }
   const matches = new Map() // id -> match
 
@@ -238,12 +241,17 @@ const createGames = ({ emit, delays = DELAYS, random = Math.random, tetris = nul
       if (!check.ok) return check
       opts.mode = tetris.rooms.get(String(matchId)).mode
     }
-    const inv = { id: newId(), game, from, fromName, to, toName, options: opts, matchId: game === "hearts" || game === "tetris" ? String(matchId) : null, expiresAt: Date.now() + INVITE_MS }
+    if (game === "doodle") {
+      if (!doodle) return { ok: false, error: "Doodle Together isn't available." }
+      const check = doodle.canInvite(from, String(matchId))
+      if (!check.ok) return check
+    }
+    const inv = { id: newId(), game, from, fromName, to, toName, options: opts, matchId: game === "hearts" || roomGame(game) ? String(matchId) : null, expiresAt: Date.now() + INVITE_MS }
     inv.timer = setTimeout(() => endInvite(inv, "expired"), INVITE_MS)
     inv.timer.unref?.()
     invites.set(inv.id, inv)
     send(to, "net:invited", inviteView(inv))
-    if (game === "tetris") tetris.invitedTo(inv.matchId, toName)
+    if (roomGame(game)) roomGame(game).invitedTo(inv.matchId, toName)
     else if (inv.matchId) publish(matches.get(inv.matchId))
     return { ok: true, inviteId: inv.id }
   }
@@ -257,7 +265,7 @@ const createGames = ({ emit, delays = DELAYS, random = Math.random, tetris = nul
     invites.delete(inv.id)
     if (status !== "accepted") send(inv.to, "net:inviteGone", { id: inv.id })
     if (status !== "canceled") send(inv.from, "net:inviteResult", { id: inv.id, status, to: inv.toName, game: inv.game, gameName: GAME_NAMES[inv.game], error })
-    if (inv.game === "tetris") return status !== "accepted" && tetris?.inviteEnded(inv.matchId, inv.toName)
+    if (roomGame(inv.game)) return status !== "accepted" && roomGame(inv.game).inviteEnded(inv.matchId, inv.toName)
     const table = inv.matchId && matches.get(inv.matchId)
     if (table) publish(table)
   }
@@ -281,9 +289,9 @@ const createGames = ({ emit, delays = DELAYS, random = Math.random, tetris = nul
       endInvite(inv, "accepted")
       return { ok: true, matchId: table.id }
     }
-    if (inv.game === "tetris") {
-      // into the private room: the Tetris window opens and joins it
-      const result = tetris.allow(pid, inv.matchId)
+    if (roomGame(inv.game)) {
+      // into the private room: the Tetris (or Doodle Together) window opens and joins it
+      const result = roomGame(inv.game).allow(pid, inv.matchId)
       endInvite(inv, result.ok ? "accepted" : "gone")
       return result
     }

@@ -58,6 +58,8 @@ export const APP_PROFILES = {
   Downhill: { image: "ski.exe", mem: 5124, threads: 4, handles: 61, cpu: [0.95, 11] },
   "Block Ten": { image: "blockten.exe", mem: 1876, threads: 2, handles: 33, cpu: [0.15, 4] },
   "Sunny Acres": { image: "acres.exe", mem: 7480, threads: 4, handles: 88, cpu: [0.6, 9] },
+  "Photo Puzzle": { image: "puzzle.exe", mem: 4210, threads: 3, handles: 47, cpu: [0.2, 6] },
+  "Doodle Together": { image: "doodle.exe", mem: 3388, threads: 3, handles: 52, cpu: [0.3, 7] },
 }
 
 const fallbackProfile = (name) => ({

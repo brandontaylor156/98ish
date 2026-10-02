@@ -36,6 +36,8 @@ export const GAME_INFO = {
   battleship: { name: "Battleship", icon: "/assets/program_icons/battleship.svg", app: "net-battleship", width: 660, height: 500 },
   // played in the Tetris app's own window (Tetris Online), not a network game window
   tetris: { name: "Tetris Online", icon: "/assets/program_icons/tetris3-48.png", app: null },
+  // drawn in the Doodle Together window
+  doodle: { name: "Doodle Together", icon: "/assets/program_icons/doodle.svg", app: null },
 }
 
 const TOKEN_KEY = "98ish.net.token"
@@ -346,6 +348,11 @@ export const NetProvider = ({ socket, windows, dispatch: dispatchWindow, mobile,
       }
       return request("net:invite", { to, game, matchId: roomId })
     }
+    // Doodle Together: the Doodle window makes the room (bringing its drawing) and invites
+    if (game === "doodle") {
+      openDoodle(to)
+      return { ok: true }
+    }
     if (game === "hearts") {
       const table = await request("net:heartsCreate")
       if (!table.ok) return table
@@ -374,11 +381,19 @@ export const NetProvider = ({ socket, windows, dispatch: dispatchWindow, mobile,
   const replyInvite = async (inv, accept) => {
     const result = await request("net:inviteReply", { id: inv.id, accept })
     if (result.ok && result.tetrisRoom) openTetris() // it joins the room it was let into
+    if (result.ok && result.doodleRoom) openDoodle()
     return result
   }
 
   // The Tetris window (one per desktop: comes forward if it's open)
   const openTetris = () => dispatchWindow({ type: "open_window", payload: launch("Tetris") })
+
+  // The Doodle Together window (one per desktop), inviting `to` once it's ready
+  const openDoodle = (to = null) => {
+    const open = windowsRef.current.some((w) => !w.closed && w.app === "doodle")
+    if (open && to) window.dispatchEvent(new CustomEvent("98ish:doodle-invite", { detail: to }))
+    dispatchWindow({ type: "open_window", payload: launch("Doodle Together", open || !to ? {} : { inviteTo: to }) })
+  }
 
   const leave = (matchId) => {
     leftMatches.current.add(matchId)

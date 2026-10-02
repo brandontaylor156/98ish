@@ -125,6 +125,10 @@ const ALIASES = {
   town: "Sunny Acres",
   acres: "Sunny Acres",
   farm: "Sunny Acres",
+  puzzle: "Photo Puzzle",
+  jigsaw: "Photo Puzzle",
+  doodle: "Doodle Together",
+  draw: "Doodle Together",
 }
 
 export const programFor = (word) => {

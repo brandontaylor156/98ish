@@ -12,6 +12,7 @@ const { limiter } = require("./limiter")
 const { createGames } = require("./games")
 const { createTetris } = require("./tetris")
 const { createTetrisRanks } = require("./tetrisRanks")
+const { createDoodle } = require("./doodle")
 
 const RESUME_GRACE_MS = 30_000
 const MAX_FILE_BYTES = 200 * 1024 // text documents
@@ -111,7 +112,9 @@ const attachNet = (io, { aim: initialAim = null, graceMs = RESUME_GRACE_MS, game
 
   // Tetris Online (the Tetris app's multiplayer modes); invitations go through games.js
   const tetris = createTetris({ emit: emitPid, ranks: tetrisRanks || createTetrisRanks().catch(() => null) })
-  const games = createGames({ emit: emitPid, tetris, ...gameOptions })
+  // Doodle Together: shared drawing rooms
+  const doodle = createDoodle({ emit: emitPid })
+  const games = createGames({ emit: emitPid, tetris, doodle, ...gameOptions })
 
   const guestName = () => {
     const taken = new Set([...computers.values()].map((c) => c.guestName))
@@ -132,6 +135,7 @@ const attachNet = (io, { aim: initialAim = null, graceMs = RESUME_GRACE_MS, game
     }
     games.drop(computer.pid)
     tetris.drop(computer.pid)
+    doodle.drop(computer.pid)
     broadcast()
   }
 
@@ -218,6 +222,7 @@ const attachNet = (io, { aim: initialAim = null, graceMs = RESUME_GRACE_MS, game
       if (resumed) {
         games.setAway(computer.pid, false)
         tetris.setAway(computer.pid, false)
+        doodle.setAway(computer.pid, false)
       }
       games.resync(computer.pid)
       for (const offer of offers.values()) if (offer.to === computer) emitTo(computer, "net:fileOffer", offerView(offer))
@@ -230,6 +235,7 @@ const attachNet = (io, { aim: initialAim = null, graceMs = RESUME_GRACE_MS, game
       computer.socket = null
       games.setAway(computer.pid, true)
       tetris.setAway(computer.pid, true)
+      doodle.setAway(computer.pid, true)
       computer.dropTimer = setTimeout(() => removeComputer(computer), graceMs)
       broadcast()
     })
@@ -320,6 +326,8 @@ const attachNet = (io, { aim: initialAim = null, graceMs = RESUME_GRACE_MS, game
     on("net:heartsPlay", (computer, { matchId, card }) => games.heartsPlay(computer.pid, String(matchId), card))
     // ---- Tetris Online ----
     tetris.wire(socket, current, (computer) => ({ pid: computer.pid, name: nameOf(computer), key: aimSessionOf(computer)?.key || null }))
+    // ---- Doodle Together ----
+    doodle.wire(socket, current, (computer) => ({ pid: computer.pid, name: nameOf(computer) }))
 
     on("net:leave", (computer, { matchId }) => {
       const result = games.leave(computer.pid, String(matchId))
@@ -361,6 +369,7 @@ const attachNet = (io, { aim: initialAim = null, graceMs = RESUME_GRACE_MS, game
       return !!(ca && cb && blocked(ca, cb))
     },
     tetris,
+    doodle,
   }
 }
 

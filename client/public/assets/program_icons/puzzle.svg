@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#7a5bc4"/>
+      <stop offset="0.55" stop-color="#ff8fb3"/>
+      <stop offset="1" stop-color="#ffd59e"/>
+    </linearGradient>
+    <clipPath id="frame"><rect x="4" y="6" width="40" height="34"/></clipPath>
+  </defs>
+  <!-- the picture -->
+  <rect x="4" y="6" width="40" height="34" fill="url(#sky)" stroke="#000"/>
+  <g clip-path="url(#frame)">
+    <circle cx="24" cy="31" r="7" fill="#fff0b0"/>
+    <path d="M4 33q10-4 20-1t20-1v10H4z" fill="#5a3f8f"/>
+    <path d="M33 13c-1.3-2.4-5-1.5-5 1.2 0 2.4 3 3.9 5 5.6 2-1.7 5-3.2 5-5.6 0-2.7-3.7-3.6-5-1.2z" fill="#e0457b" stroke="#7a1f45" stroke-width="0.8"/>
+  </g>
+  <!-- cut lines -->
+  <path d="M24 6v9a3 3 0 1 1 0 6v19M4 23h9a3 3 0 1 0 6 0h25" fill="none" stroke="#fff" stroke-opacity="0.8" stroke-width="1"/>
+  <!-- a loose piece -->
+  <g transform="translate(26 25) rotate(12)">
+    <path d="M0 2h7a3 3 0 1 1 6 0h7v7a3 3 0 1 0 0 6v6H13a3 3 0 1 0-6 0H0V15a3 3 0 1 1 0-6z" fill="#ffb3c8" stroke="#000" stroke-width="1"/>
+    <path d="M10 8.5c-1-1.9-4-1.2-4 1 0 1.9 2.4 3.1 4 4.4 1.6-1.3 4-2.5 4-4.4 0-2.2-3-2.9-4-1z" fill="#e0457b"/>
+  </g>
+</svg>
