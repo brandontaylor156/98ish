@@ -8,8 +8,10 @@ pnpm-debug.log*
 lerna-debug.log*
 
 node_modules
+dist
 dist-ssr
 *.local
+.vercel
 
 # Editor directories and files
 .vscode/*
@@ -23,7 +25,9 @@ dist-ssr
 *.sw?
 .github
 
-.env 
+.env
+.env.*
+!.env.example
 
 ### Firebase ###
 .idea
