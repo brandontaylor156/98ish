@@ -14,6 +14,7 @@ const { createTetris } = require("./tetris")
 const { createTetrisRanks } = require("./tetrisRanks")
 const { createDoodle } = require("./doodle")
 const { createQuizLive } = require("../quiz/live")
+const { createCoop } = require("../town/coop")
 
 const RESUME_GRACE_MS = 30_000
 const MAX_FILE_BYTES = 200 * 1024 // text documents
@@ -51,7 +52,7 @@ const validFileName = (name) => {
   return value && value.length <= 64 && !INVALID_NAME.test(value) && value !== "." && value !== ".." ? value : null
 }
 
-const attachNet = (io, { aim: initialAim = null, graceMs = RESUME_GRACE_MS, games: gameOptions = {}, tetrisRanks = null, quiz: quizOptions = {} } = {}) => {
+const attachNet = (io, { aim: initialAim = null, graceMs = RESUME_GRACE_MS, games: gameOptions = {}, tetrisRanks = null, quiz: quizOptions = {}, coop: coopOptions = {} } = {}) => {
   let aim = initialAim
   const computers = new Map() // token -> computer
   const byPid = new Map() // pid -> computer
@@ -117,7 +118,17 @@ const attachNet = (io, { aim: initialAim = null, graceMs = RESUME_GRACE_MS, game
   const doodle = createDoodle({ emit: emitPid })
   // the Quiz Show's live games, invitations through games.js too
   const quiz = createQuizLive({ emit: emitPid, ...quizOptions })
-  const games = createGames({ emit: emitPid, tetris, doodle, quiz, ...gameOptions })
+  // Sunny Acres co-op towns (server/town/coop.js), invitations through games.js too
+  const coop = createCoop({
+    emit: emitPid,
+    who: (pid) => {
+      const c = byPid.get(pid)
+      return c ? { pid, name: nameOf(c), key: aimSessionOf(c)?.key || null } : null
+    },
+    service: () => require("../town").townService(),
+    ...coopOptions,
+  })
+  const games = createGames({ emit: emitPid, tetris, doodle, quiz, coop, ...gameOptions })
 
   const guestName = () => {
     const taken = new Set([...computers.values()].map((c) => c.guestName))
@@ -140,6 +151,7 @@ const attachNet = (io, { aim: initialAim = null, graceMs = RESUME_GRACE_MS, game
     tetris.drop(computer.pid)
     doodle.drop(computer.pid)
     quiz.drop(computer.pid)
+    coop.drop(computer.pid)
     broadcast()
   }
 
@@ -336,6 +348,8 @@ const attachNet = (io, { aim: initialAim = null, graceMs = RESUME_GRACE_MS, game
     doodle.wire(socket, current, (computer) => ({ pid: computer.pid, name: nameOf(computer) }))
     // ---- Quiz Show ----
     quiz.wire(socket, current, (computer) => ({ pid: computer.pid, name: nameOf(computer), key: aimSessionOf(computer)?.key || null }))
+    // ---- Sunny Acres co-op ----
+    coop.wire(socket, current, (computer) => ({ pid: computer.pid, name: nameOf(computer), key: aimSessionOf(computer)?.key || null }))
 
     on("net:leave", (computer, { matchId }) => {
       const result = games.leave(computer.pid, String(matchId))
@@ -379,6 +393,7 @@ const attachNet = (io, { aim: initialAim = null, graceMs = RESUME_GRACE_MS, game
     tetris,
     doodle,
     quiz,
+    coop,
   }
 }
 

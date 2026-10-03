@@ -529,8 +529,19 @@ const drawVisitor = (ctx, p, t, z) => {
   ctx.beginPath()
   ctx.ellipse(x, y, 8, 3.5, 0, 0, Math.PI * 2)
   ctx.fill()
+  if (p.color) {
+    // a co-op farmer: a ring in their color where they're pointing
+    ctx.save()
+    ctx.strokeStyle = p.color
+    ctx.lineWidth = 2.2
+    ctx.globalAlpha = 0.65 + 0.35 * Math.sin(t * 4)
+    ctx.beginPath()
+    ctx.ellipse(x, y, 15, 7.5, 0, 0, Math.PI * 2)
+    ctx.stroke()
+    ctx.restore()
+  }
   ctx.strokeStyle = "rgba(52,36,24,0.6)"
-  ctx.fillStyle = SHIRTS[Math.abs(h) % SHIRTS.length]
+  ctx.fillStyle = p.color || SHIRTS[Math.abs(h) % SHIRTS.length]
   ctx.beginPath()
   ctx.ellipse(x, y - 9 - hop, 6.5, 8, 0, 0, Math.PI * 2)
   ctx.fill()
@@ -555,10 +566,20 @@ const drawVisitor = (ctx, p, t, z) => {
   roundRect(ctx, -w / 2, -8, w, 15, 7)
   ctx.fill()
   ctx.stroke()
-  ctx.fillStyle = "#5a2a40"
+  ctx.fillStyle = p.color || "#5a2a40"
   ctx.textAlign = "center"
   ctx.textBaseline = "middle"
   ctx.fillText(p.name, 0, 0)
+  // what they're up to ("planting wheat"), for a few seconds
+  if (p.doing) {
+    ctx.font = "italic 9px Arial, sans-serif"
+    const dw = ctx.measureText(p.doing).width + 8
+    ctx.fillStyle = "rgba(40,30,20,0.78)"
+    roundRect(ctx, -dw / 2, -22, dw, 12, 6)
+    ctx.fill()
+    ctx.fillStyle = "#fff"
+    ctx.fillText(p.doing, 0, -16)
+  }
   ctx.restore()
 }
 

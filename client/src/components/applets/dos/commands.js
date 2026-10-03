@@ -123,6 +123,7 @@ const ALIASES = {
   battleship: "Battleship",
   ski: "Downhill",
   downhill: "Downhill",
+  pickleball: "Pickleball 98",
   blockten: "Block Ten",
   tenten: "Block Ten",
   blocks: "Block Ten",

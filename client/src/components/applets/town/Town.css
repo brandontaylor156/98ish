@@ -1429,3 +1429,314 @@
     animation: none;
   }
 }
+
+/* ---- co-op towns (Coop.jsx) ---- */
+.twCoopLive {
+  gap: 5px;
+  color: #1f6e33;
+}
+
+.twCoopLive i {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #3fbf5a;
+  box-shadow: 0 0 0 2px rgba(63, 191, 90, 0.3);
+  animation: twLivePulse 1.6s ease-in-out infinite;
+}
+
+.twCoopLive.is-off {
+  color: #8a5a20;
+}
+
+.twCoopLive.is-off i {
+  background: #f0a030;
+  box-shadow: none;
+}
+
+@keyframes twLivePulse {
+  50% {
+    box-shadow: 0 0 0 5px rgba(63, 191, 90, 0);
+  }
+}
+
+.twRoot .twCoopBanner {
+  position: absolute;
+  top: 44px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: calc(100% - 16px);
+  min-height: 30px;
+  padding: 2px 12px 2px 8px;
+  background: linear-gradient(#fff6f9, #ffdfe9);
+  border: 1px solid #b0506f;
+  border-radius: 15px;
+  box-shadow: 0 2px 0 rgba(120, 40, 70, 0.3);
+  color: #6a1f3c;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  z-index: 2;
+}
+
+.twCoopName {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.twCoopDots {
+  display: flex;
+  gap: 3px;
+}
+
+.twCoopAlone {
+  color: #9a6a7c;
+  white-space: nowrap;
+}
+
+.twDot {
+  display: inline-block;
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1px solid rgba(40, 30, 20, 0.55);
+  vertical-align: middle;
+}
+
+.twDot.is-off {
+  opacity: 0.35;
+}
+
+.twCoopTicker {
+  position: absolute;
+  left: 8px;
+  bottom: 70px;
+  max-width: min(360px, calc(100% - 16px));
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.twCoopLine {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px 3px 6px;
+  background: rgba(255, 253, 246, 0.94);
+  border: 1px solid #c9b7a6;
+  border-radius: 11px;
+  font-size: 11px;
+  color: #4a3424;
+  animation: twLineIn 0.25s ease-out;
+}
+
+@keyframes twLineIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+.twRoot .twNudge {
+  position: absolute;
+  top: 44px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: calc(100% - 16px);
+  min-height: 34px;
+  padding: 2px 14px 2px 8px;
+  background: linear-gradient(#fff6f9, #ffd2e1);
+  border: 1px solid #b0506f;
+  border-radius: 17px;
+  box-shadow: 0 2px 0 rgba(120, 40, 70, 0.3);
+  color: #6a1f3c;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  z-index: 3;
+  animation: twLineIn 0.3s ease-out;
+}
+
+.twNudge b {
+  color: #c2185b;
+  text-decoration: underline;
+}
+
+.twPanel.twCoopPick,
+.twPanel.twFarmers {
+  width: min(520px, 100%);
+}
+
+.twCoop {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.twCoopIntro {
+  margin: 0 0 2px;
+  color: #5a4636;
+  line-height: 1.4;
+}
+
+.twCoopTown,
+.twFarmer,
+.twAch {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  background: #fff;
+  border: 1px solid #e3c9d2;
+  border-radius: 8px;
+}
+
+.twCoopTown.is-couple {
+  background: linear-gradient(#fff6f9, #ffe8ef);
+  border-color: #e69ab4;
+}
+
+.twCoopStart {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.twCoopRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.twRoot .twLink {
+  padding: 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
+  min-height: 0;
+  min-width: 0;
+  color: #a3204f;
+  font: inherit;
+  font-size: 11px;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.twConfirm {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px;
+  align-items: start;
+  padding: 8px;
+  background: #fff8e8;
+  border: 1px solid #d8b878;
+  border-radius: 8px;
+}
+
+.twConfirm p {
+  margin: 4px 0 0;
+  line-height: 1.4;
+}
+
+.twConfirmBtns {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.twFarmer .twDot {
+  width: 14px;
+  height: 14px;
+}
+
+.twFarmer.is-invited {
+  background: #fafafa;
+  border-style: dashed;
+}
+
+.twMailText small.twFarmerStats {
+  color: #2f6a3a;
+}
+
+.twMailText small.twFarmerTotal {
+  color: #8a7a70;
+}
+
+.twInvite {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 8px;
+  background: #f7fbff;
+  border: 1px solid #bcd3ea;
+  border-radius: 8px;
+}
+
+.twInviteRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.twRoot .twInput {
+  flex: 1;
+  min-width: 0;
+  height: 26px;
+  padding: 2px 6px;
+  font: inherit;
+}
+
+.twMobile .twInput {
+  font-size: 16px;
+  height: 34px;
+}
+
+.twFeedList {
+  max-height: min(360px, 55vh);
+  overflow-y: auto;
+}
+
+.twFeedRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 4px;
+  border-bottom: 1px dotted #e3d4c8;
+}
+
+.twFeedRow span {
+  flex: 1;
+  min-width: 0;
+}
+
+.twFeedRow small {
+  color: #8a7a70;
+  white-space: nowrap;
+}
+
+.twAch {
+  opacity: 0.6;
+}
+
+.twAch.is-got {
+  opacity: 1;
+  background: linear-gradient(#fffbe8, #fff0c2);
+  border-color: #e0c060;
+}
+
+.twCompact .twCoopBanner {
+  font-size: 11px;
+}

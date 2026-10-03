@@ -819,4 +819,4 @@ function defaultService() {
   }))
 }
 
-module.exports = { createTown, townRouter, attachTown, memoryStore, weekStart, GIFTS_PER_DAY, MAX_REQUESTS, MAX_NOTES }
+module.exports = { createTown, townRouter, attachTown, memoryStore, weekStart, townService: () => defaultService(), GIFTS_PER_DAY, MAX_REQUESTS, MAX_NOTES }

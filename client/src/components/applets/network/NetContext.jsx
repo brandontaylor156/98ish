@@ -40,6 +40,8 @@ export const GAME_INFO = {
   doodle: { name: "Doodle Together", icon: "/assets/program_icons/doodle.svg", app: null },
   // played in the Lovebirds Quiz Show's own window too
   quiz: { name: "Lovebirds Quiz Show", icon: "/assets/program_icons/quiz.svg", app: null },
+  // farmed together in the Sunny Acres window (a co-op town)
+  town: { name: "Sunny Acres Co-op", icon: "/assets/program_icons/town.svg", app: null },
 }
 
 const TOKEN_KEY = "98ish.net.token"
@@ -366,6 +368,9 @@ export const NetProvider = ({ socket, windows, dispatch: dispatchWindow, mobile,
       }
       return request("net:invite", { to, game, matchId: roomId })
     }
+    // Sunny Acres Co-op: into the co-op town you're farming in (options.roomId, or the
+    // server knows which one you have open)
+    if (game === "town") return request("net:invite", { to, game, matchId: options.roomId })
     if (game === "hearts") {
       const table = await request("net:heartsCreate")
       if (!table.ok) return table
@@ -396,12 +401,18 @@ export const NetProvider = ({ socket, windows, dispatch: dispatchWindow, mobile,
     if (result.ok && result.tetrisRoom) openTetris() // it joins the room it was let into
     if (result.ok && result.doodleRoom) openDoodle()
     if (result.ok && result.quizRoom) openQuiz()
+    if (result.ok && result.townCoop) openTownCoop(result.townCoop)
     return result
   }
 
   // The Tetris window (one per desktop: comes forward if it's open)
   const openTetris = () => dispatchWindow({ type: "open_window", payload: launch("Tetris") })
   const openQuiz = () => dispatchWindow({ type: "open_window", payload: launch("Lovebirds Quiz Show") })
+  // Sunny Acres, into a co-op town (an open window hears about it; a new one opens there)
+  const openTownCoop = (id) => {
+    window.dispatchEvent(new CustomEvent("98ish:town-coop", { detail: id }))
+    dispatchWindow({ type: "open_window", payload: launch("Sunny Acres", { coopId: id }) })
+  }
 
   // The Doodle Together window (one per desktop), inviting `to` once it's ready
   const openDoodle = (to = null) => {

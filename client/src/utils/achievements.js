@@ -42,6 +42,7 @@ export const ACHIEVEMENTS = [
   { id: "town-neighbor", title: "Good Neighbor", text: "Filled 5 friends' help requests in Sunny Acres.", hint: "Visit a friend's Sunny Acres and help with what they need. Five times." },
   { id: "town-gift", title: "Gift Giver", text: "Sent a gift from your Sunny Acres.", hint: "Your partner's mailbox in Sunny Acres is waiting for something." },
   { id: "town-together", title: "Together We Grow", text: "Finished a weekly goal with your partner in Sunny Acres.", hint: "Sunny Acres has a goal for two. Harvest together." },
+  { id: "town-coop", title: "Neighbors in One Town", text: "Earned a co-op achievement in a shared Sunny Acres town.", hint: "Farm a co-op town in Sunny Acres with someone, at the same time." },
   { id: "puzzle-solved", title: "Piece by Piece", text: "Finished a jigsaw in Photo Puzzle.", hint: "Photo Puzzle (in Games) can cut any picture into pieces. Put one back together." },
   { id: "dollhouse-30", title: "Interior Designer", text: "Placed 30 things in Dream House.", hint: "Dream House (in Games) has a whole catalog of furniture. Fill it up!" },
   { id: "dollhouse-home", title: "Home Sweet Home", text: "Furnished every room of your Dream House.", hint: "Put at least three things in every room of Dream House, garden and attic too." },
@@ -56,6 +57,8 @@ export const ACHIEVEMENTS = [
   { id: "pet-family", title: "New Family", text: "Adopted a pet with your partner.", hint: "Our Pet (Programs > Us) has four little ones waiting for a home." },
   { id: "pet-well-fed", title: "Well Fed", text: "Kept your pet fed 7 days in a row.", hint: "A pet that eats every day for a week is a happy pet." },
   { id: "pet-bff", title: "Best Friends Forever", text: "Maxed out your pet's bond.", hint: "Look after your pet together, day after day, until the bond can't grow any more." },
+  { id: "pickleball-win", title: "Dink Responsibly", text: "Won a game of Pickleball 98.", hint: "Pickleball 98 (in Games): win a game to 11. Stay out of the kitchen!" },
+  { id: "pickleball-pro", title: "Pickleball Pro", text: "Beat the Pro opponents in Pickleball 98.", hint: "Set Pickleball 98 to Pro and win a game." },
   { id: "green-thumb", title: "Green Thumb", text: "Watered your flowers on 3 different days.", hint: "Flowers from someone special need water every day." },
 ]
 

@@ -8,6 +8,8 @@ import { clampView, drawScene, emitSmoke, expansionAt, groundObjectAt, noteAt, o
 import { createSounds } from "./audio"
 import { BarnPanel, Chip, ExpandPanel, FactoryPanel, HelpPanel, Icon, LevelPanel, OrdersPanel, ShopPanel, TrainPanel, fmtTime } from "./panels"
 import { ConflictPanel, FriendsPanel, GiftOpening, GiftPanel, HelpRequestsPanel, NotePanel } from "./Friends"
+import { CoopBanner, CoopPanel, CoopPicker, CoopTicker, FarmersPanel } from "./Coop"
+import { createCoopSession } from "./coopClient"
 import { useSocial } from "./cloud"
 import { progress, unlock } from "../../../utils/achievements"
 import { useCouple } from "../../../utils/couple"
@@ -21,10 +23,31 @@ import "./Town.css"
 // Everything saves to this browser, and timers keep running while the game is closed.
 // Signed in to 98 Messenger, the town is also kept in the cloud and friends can visit,
 // help with orders and send gifts (cloud.js, Friends.jsx, server/town).
+// A co-op town (Coop.jsx, coopClient.js, server/town/coop.js) is farmed by up to four people
+// at once: the server keeps it, and its clock is the one that counts while you're there.
 
 const SAVE_KEY = "98ish.town"
+const COOP_KEY = "98ish.town.coop" // { [account]: the co-op town to go back to after a reload }
 let devSkew = 0 // dev builds only: tests fast-forward time with window.__town.skip()
-const clockNow = () => Date.now() + devSkew
+let coopClock = null // in a co-op town: the server's clock
+const clockNow = () => (coopClock ? coopClock() : Date.now() + devSkew)
+const readCoop = (account) => {
+  try {
+    return JSON.parse(localStorage.getItem(COOP_KEY))?.[account] || null
+  } catch {
+    return null
+  }
+}
+const writeCoop = (account, id) => {
+  try {
+    const all = JSON.parse(localStorage.getItem(COOP_KEY)) || {}
+    if (id) all[account] = id
+    else delete all[account]
+    localStorage.setItem(COOP_KEY, JSON.stringify(all))
+  } catch {
+    // remembered for this visit only
+  }
+}
 
 const loadGame = (now) => {
   try {
@@ -47,13 +70,20 @@ const TUTORIAL = [
   "A farmer needs supplies! Tap Orders and deliver the first order.",
 ]
 
-const Town = ({ onClose, onTitle, mobile }) => {
+const Town = ({ onClose, onTitle, mobile, coopId = null }) => {
   const rootRef = useRef(null)
   const stageRef = useRef(null)
   const canvasRef = useRef(null)
   const game = useRef(null)
   if (!game.current) game.current = loadGame(clockNow())
-  const s = game.current
+  // a co-op town, while I'm in one: its session (coopClient.js); its view is the town on screen
+  const coopRef = useRef(null)
+  const [coopOn, setCoopOn] = useState(null) // the co-op town's id, once it's on screen
+  const coopLive = coopRef.current?.st.view ? coopRef.current : null
+  const active = () => coopRef.current?.st.view || game.current
+  const s = coopLive ? coopLive.st.view : game.current
+  // what changes the town: the game's rules, or (in a co-op town) the same rules, sent along
+  const A = coopLive ? coopLive.actions : G
   const view = useRef({ cx: isoX(12, 12), cy: isoY(12, 12), z: 1, W: 1, H: 1 })
   const fx = useRef({ t: 0, now: 0, floaters: [], puffs: [], heli: null, train: null, ghost: null, arrow: null, wild: [], wildKey: "" })
   const sounds = useRef(null)
@@ -98,7 +128,10 @@ const Town = ({ onClose, onTitle, mobile }) => {
     clearTimeout(toastTimer.current)
     toastTimer.current = setTimeout(() => setToast(null), 2600)
   }
-  const changed = () => {
+  // home: it's my own town that changed (even while I'm in a co-op town)
+  const changed = (home = false) => {
+    // a co-op town lives on the server: nothing to save here
+    if (coopRef.current && home !== true) return bump()
     dirty.current = true
     // the cloud copy needs this change (social.js compares revisions)
     game.current.rev = (game.current.rev || 0) + 1
@@ -121,9 +154,14 @@ const Town = ({ onClose, onTitle, mobile }) => {
 
   // ---- events from the rules (level ups, finished buildings, the train) ----
   const handleEvents = () => {
-    const ev = G.drainEvents(game.current)
+    const ev = G.drainEvents(active())
     if (!ev.length) return
     for (const e of ev) {
+      if (e.type === "coop-ach") {
+        say(`Co-op achievement: ${e.name}! ♥`, "levelUp")
+        unlock("town-coop")
+        continue
+      }
       if (e.type === "level") {
         // several levels at once share one card (the first card may already be showing)
         setLevels((l) => {
@@ -137,7 +175,7 @@ const Town = ({ onClose, onTitle, mobile }) => {
         play("levelUp")
         if (e.level >= 10) unlock("town-mayor")
       } else if (e.type === "built") {
-        const o = G.objById(game.current, e.id)
+        const o = G.objById(active(), e.id)
         if (o) floatAt(o, "check", typeName(o.t))
         play("built")
       } else if (e.type === "train") {
@@ -164,28 +202,28 @@ const Town = ({ onClose, onTitle, mobile }) => {
   }
 
   const harvestField = (o) =>
-    act(G.harvest(s, o.i, clockNow()), (r) => {
+    act(A.harvest(s, o.i, clockNow()), (r) => {
       floatAt(o, r.good, `+${r.n}`)
       play("harvest")
     })
   const plantField = (o, crop) =>
-    act(G.plant(s, o.i, crop, clockNow()), () => {
+    act(A.plant(s, o.i, crop, clockNow()), () => {
       const c = CROPS.find((x) => x.id === crop)
       if (c.seed) floatAt(o, "coin", `-${c.seed}`, "#ffd0c0")
       play("plant")
     })
   const feed = (o) =>
-    act(G.feedPen(s, o.i, clockNow()), () => {
+    act(A.feedPen(s, o.i, clockNow()), () => {
       play("feed")
       play(PENS[o.t].animal === "cow" ? "moo" : PENS[o.t].animal === "chicken" ? "cluck" : "baa")
     })
   const collectPen = (o) =>
-    act(G.collectPen(s, o.i, clockNow()), (r) => {
+    act(A.collectPen(s, o.i, clockNow()), (r) => {
       floatAt(o, r.good, `+${r.n}`)
       play("collect")
     })
   const collectFactory = (o, quiet) => {
-    const r = G.collectFactory(s, o.i, clockNow())
+    const r = A.collectFactory(s, o.i, clockNow())
     if (!r.ok) {
       if (!quiet) say(r.reason)
       return false
@@ -200,6 +238,8 @@ const Town = ({ onClose, onTitle, mobile }) => {
   // ---- playing together (signed in to 98 Messenger) ----
   const aim = useAim()
   const net = useNet()
+  const netRef = useRef(net)
+  netRef.current = net
   const couple = useCouple()
   const me = aim?.status === "online" ? aim.me?.screenName || null : null
   const paired = couple.status === "paired" && !!couple.partner
@@ -227,7 +267,7 @@ const Town = ({ onClose, onTitle, mobile }) => {
       }
     }
     handleEvents()
-    changed()
+    changed(true)
     save()
   }
 
@@ -284,11 +324,196 @@ const Town = ({ onClose, onTitle, mobile }) => {
       G.setPartner(s, null)
       moved = true
     }
-    if (moved) changed()
+    if (moved) changed(true)
   }
   useEffect(() => {
     if (social.status === "synced") placeSpecials()
   }, [social.status, couple.status, couple.partner])
+
+  // ---- co-op towns: farming one town together, live ----
+  const account = me ? keyOf(me) : null
+  const coopAvatars = useRef(new Map()) // pid -> the other farmers walking about: { name, color, u, v, tu, tv }
+  const [nudge, setNudge] = useState(null) // { id, by, name }: someone's farming in my co-op town
+  const coopEv = useRef({})
+  const coopCalls = useRef(null)
+  if (!coopCalls.current) coopCalls.current = new Proxy({}, { get: (_, k) => (...args) => coopEv.current[k]?.(...args) })
+  coopEv.current = {
+    update: () => bump(),
+    // turned down by the server (someone else got there first): gently
+    reject: (reason) => say(reason, "tap"),
+    // level ups, deliveries, the train... from the others, or from time passing
+    events: (ev) => {
+      const v = coopRef.current?.st.view
+      if (!v) return
+      ;(v.ev ||= []).push(...ev)
+      handleEvents()
+    },
+    // floaters over what the others just did
+    activity: (p, before) => {
+      const v = coopRef.current?.st.view
+      if (!v || !p.done?.length) return
+      if (p.a === "harvest") {
+        for (const i of p.done.slice(0, 12)) {
+          const o = G.objById(v, i)
+          if (o) floatAt(o, before?.[i]?.c || "wheat", `+${G.HARVEST_YIELD}`, p.color)
+        }
+        return
+      }
+      const o = G.objById(v, p.done[0])
+      if (o) floatAt(o, null, p.by, p.color)
+      if (p.a === "build") play("build")
+    },
+    players: (quiet = false) => {
+      const st = coopRef.current?.st
+      if (!st) return
+      const now = new Set(st.players.map((p) => p.pid))
+      for (const p of st.players) {
+        if (p.pid === st.you?.pid || coopAvatars.current.has(p.pid)) continue
+        const hall = st.view?.objs.find((o) => o.t === "townhall")
+        const [u, v] = hall ? [hall.x + 1.5, hall.y + 3.4] : [12, 12]
+        coopAvatars.current.set(p.pid, { name: p.name, color: p.color, u, v, tu: p.cursor?.u ?? u, tv: p.cursor?.v ?? v })
+        if (!quiet) say(`${p.name} came to farm! ♥`, "tap")
+      }
+      for (const [pid, a] of coopAvatars.current) {
+        if (now.has(pid)) continue
+        coopAvatars.current.delete(pid)
+        if (!quiet) say(`${a.name} went home. Bye!`, null)
+      }
+    },
+    // back on the network, but the town won't have me (no longer a member)
+    failed: (r) => {
+      if (!coopRef.current) return
+      say(r?.error || "You're not in that co-op town any more.")
+      leaveCoop()
+    },
+  }
+
+  const enterCoop = async (id, { quiet = false } = {}) => {
+    if (!id) return
+    if (!net?.socket || net.status !== "online") return quiet ? null : say("Connect to the network first (98 Messenger).")
+    if (coopRef.current?.st.id === id) return setPanel(null)
+    if (visitRef.current) goHome()
+    leaveCoop({ quiet: true })
+    const session = createCoopSession({ id, request: net.request, socket: net.socket, on: coopCalls.current })
+    coopRef.current = session
+    const r = await session.join()
+    if (coopRef.current !== session) return
+    if (!r?.ok) {
+      session.close()
+      coopRef.current = null
+      if (r?.private || /gone/.test(r?.error || "")) writeCoop(account, null)
+      if (!quiet) say(r?.error || "Couldn't get into that town.")
+      return bump()
+    }
+    coopClock = session.now
+    writeCoop(account, id)
+    setNudge(null)
+    setCoopOn(id)
+    setPanel(null)
+    setEdit(false)
+    setPlace(null)
+    setInfo(null)
+    setTray(null)
+    setLevels([])
+    fx.current.wildKey = ""
+    coopAvatars.current.clear()
+    coopEv.current.players(true)
+    centerOn(12, 12)
+    play("whistle")
+    const others = session.st.players.filter((p) => p.pid !== session.st.you?.pid)
+    say(others.length ? `${others.map((p) => p.name).join(" and ")} ${others.length > 1 ? "are" : "is"} here! Farm away ♥` : `Welcome to ${session.st.town?.name || "your co-op town"}!`, null)
+  }
+  const leaveCoop = ({ quiet = false } = {}) => {
+    const session = coopRef.current
+    if (!session) return
+    session.close()
+    coopRef.current = null
+    coopClock = null
+    coopAvatars.current.clear()
+    setCoopOn(null)
+    if (quiet) return
+    writeCoop(account, null)
+    setPanel(null)
+    setPlace(null)
+    setInfo(null)
+    setTray(null)
+    setEdit(false)
+    setLevels([])
+    fx.current.wildKey = ""
+    centerOn(12, 12)
+    say("Home sweet home!", null)
+  }
+  const quitCoop = async () => {
+    const id = coopRef.current?.st.id
+    if (!id) return
+    const r = await net.request("coop:quit", { id })
+    if (!r?.ok) return say(r?.error || "That didn't work.")
+    leaveCoop()
+  }
+  // back after a reload (or opened from an invitation): straight into the co-op town
+  const resumed = useRef(null)
+  useEffect(() => {
+    if (!account || net?.status !== "online" || coopRef.current) return
+    const want = (resumed.current !== account && (coopId || readCoop(account))) || null
+    resumed.current = account
+    if (want) enterCoop(want, { quiet: !coopId })
+  }, [account, net?.status])
+  // the network came back: join again (the town catches me up)
+  const wasOnline = useRef(false)
+  useEffect(() => {
+    const online = net?.status === "online"
+    if (online && !wasOnline.current && coopRef.current) coopRef.current.join()
+    wasOnline.current = online
+  }, [net?.status])
+  // an invitation accepted while the window is open; someone farming in my co-op town
+  const enterRef = useRef(enterCoop)
+  enterRef.current = enterCoop
+  useEffect(() => {
+    const open = (e) => enterRef.current(e.detail)
+    window.addEventListener("98ish:town-coop", open)
+    const sock = net?.socket
+    const nudged = (p) => {
+      if (!p?.id || coopRef.current?.st.id === p.id) return
+      setNudge(p)
+      play("tap")
+    }
+    sock?.on("coop:nudge", nudged)
+    return () => {
+      window.removeEventListener("98ish:town-coop", open)
+      sock?.off("coop:nudge", nudged)
+    }
+  }, [net?.socket])
+  useEffect(() => {
+    if (!nudge) return
+    const id = setTimeout(() => setNudge(null), 20_000)
+    return () => clearTimeout(id)
+  }, [nudge])
+  // where I'm pointing (the others see my little farmer walk there); on a phone, where I'm looking
+  const lastPoint = useRef({ at: 0, sent: 0 })
+  const pointAt = (sx, sy) => {
+    const session = coopRef.current
+    if (!session || session.st.status !== "live") return
+    const t = performance.now()
+    lastPoint.current.at = t
+    if (t - lastPoint.current.sent < 90) return
+    lastPoint.current.sent = t
+    const [wx, wy] = toWorld(view.current, sx, sy)
+    const [u, w] = toTile(wx, wy)
+    session.cursor(Math.max(0, Math.min(29.5, u)), Math.max(0, Math.min(29.5, w)))
+  }
+  useEffect(() => {
+    if (!coopOn) return
+    const id = setInterval(() => {
+      const session = coopRef.current
+      if (!session || performance.now() - lastPoint.current.at < 2500) return
+      const v = view.current
+      const [u, w] = toTile(v.cx, v.cy)
+      session.cursor(Math.max(0, Math.min(29.5, u)), Math.max(0, Math.min(29.5, w)))
+    }, 1000)
+    return () => clearInterval(id)
+  }, [coopOn])
+  // closing the window leaves the co-op town
+  useEffect(() => () => coopRef.current?.close(), [])
 
   const enc = encodeURIComponent
   const centerOn = (u, w) => {
@@ -298,6 +523,7 @@ const Town = ({ onClose, onTitle, mobile }) => {
     clampView(v)
   }
   const startVisit = async (name) => {
+    if (coopRef.current) return say("Go home from the co-op town first.")
     const r = await social.call("GET", `/visit/${enc(name)}`)
     if (!r.ok) return say(r.error)
     const vs = G.migrate(r.snap)
@@ -482,10 +708,10 @@ const Town = ({ onClose, onTitle, mobile }) => {
     const p = place
     if (!p) return
     if (p.id) {
-      if (!act(G.move(s, p.id, p.x, p.y, p.flip))) return
+      if (!act(A.move(s, p.id, p.x, p.y, p.flip))) return
       play("build")
     } else {
-      const r = G.build(s, p.type, p.x, p.y, clockNow())
+      const r = A.build(s, p.type, p.x, p.y, clockNow(), p.flip)
       if (!r.ok) return say(r.reason)
       if (p.flip) r.obj.f = 1
       play("build")
@@ -502,7 +728,7 @@ const Town = ({ onClose, onTitle, mobile }) => {
   const sellPlaced = () => {
     const p = place
     if (!p?.id) return
-    act(G.sellObj(s, p.id), (r) => {
+    act(A.sellObj(s, p.id), (r) => {
       play("coins")
       say(`Sold for ${r.coins} coins.`, null)
       setPlace(null)
@@ -534,7 +760,7 @@ const Town = ({ onClose, onTitle, mobile }) => {
       return setPanel({ k: "factory", id: o.i })
     }
     if (o.t === "barn") return setPanel({ k: "barn" })
-    if (o.t === "mailbox" && social.on) return openFriends("mail")
+    if (o.t === "mailbox" && social.on && !coopLive) return openFriends("mail")
     if (o.t === "helipad") return setPanel({ k: "orders" })
     if (o.t === "station") {
       if (s.level < 5) return say("The train starts coming at level 5.", "tap")
@@ -560,7 +786,7 @@ const Town = ({ onClose, onTitle, mobile }) => {
       }
       return setInfo(null)
     }
-    if (!place && !edit && social.data?.notes?.length) {
+    if (!place && !edit && !coopLive && social.data?.notes?.length) {
       const n = noteAt(social.data.notes, wx, wy)
       if (n) return setInfo({ note: n })
     }
@@ -666,6 +892,7 @@ const Town = ({ onClose, onTitle, mobile }) => {
   }
 
   const onPointerMove = (e) => {
+    if (coopRef.current) pointAt(...localPoint(e))
     if (!pointers.current.has(e.pointerId)) return
     const [sx, sy] = localPoint(e)
     pointers.current.set(e.pointerId, [sx, sy])
@@ -829,10 +1056,12 @@ const Town = ({ onClose, onTitle, mobile }) => {
       f.now = now
       // my town, or the friend's town I'm visiting (mine keeps growing meanwhile)
       const vis = visitRef.current
-      const g = vis ? vis.s : game.current
+      const co = coopRef.current?.st.view ? coopRef.current : null
+      const g = vis ? vis.s : co ? co.st.view : game.current
       if (ms - lastTick > 250) {
         lastTick = ms
-        G.tick(game.current, now)
+        // a co-op town's time is kept by the server
+        if (!co) G.tick(game.current, now)
         if (vis) {
           G.tick(vis.s, now)
           G.drainEvents(vis.s)
@@ -849,24 +1078,44 @@ const Town = ({ onClose, onTitle, mobile }) => {
         scaleAt = ms
         setSpriteScale(want)
       }
-      const key = (vis ? vis.owner : "") + g.exp.join("")
+      const key = (vis ? vis.owner : co ? `coop:${co.st.id}` : "") + g.exp.join("")
       if (key !== f.wildKey) {
         f.wildKey = key
         f.wild = wildItems(g)
       }
-      f.arrow = vis ? null : arrowFor(g, now)
+      f.arrow = vis || co ? null : arrowFor(g, now)
       // friends: their notes and hearts, the welcome sign, the mailbox flag, visitors
-      const sd = socialRef.current.data
+      const sd = co ? null : socialRef.current.data
       f.notes = vis ? vis.notes : sd?.notes || null
       f.hearts = vis ? vis.hearts : sd?.hearts || null
       f.myHearts = vis ? vis.myHearts : null
       f.noteSel = infoRef.current?.note?.id
-      f.signNames = { a: vis ? vis.owner : meRef.current, b: g.paired || null }
+      const names = co?.st.members.map((m) => m.name) || []
+      f.signNames = co ? { a: names[0] || "Our", b: names[1] || null } : { a: vis ? vis.owner : meRef.current, b: g.paired || null }
       f.mailFlag = !vis && (sd?.mailbox || []).some((m) => !m.openedAt)
       const dt = Math.min(0.1, (ms - lastMs) / 1000)
       lastMs = ms
       f.visitors = vis
         ? null
+        : co
+          ? co.st.players
+              .filter((p) => p.pid !== co.st.you?.pid)
+              .map((p) => {
+                const a = coopAvatars.current.get(p.pid)
+                if (!a) return null
+                if (p.cursor) Object.assign(a, { tu: p.cursor.u, tv: p.cursor.v })
+                const d = Math.hypot(a.tu - a.u, a.tv - a.v)
+                const step = Math.min(d, dt * Math.max(4, d * 5))
+                if (d > 0.001) {
+                  a.u += ((a.tu - a.u) / d) * step
+                  a.v += ((a.tv - a.v) / d) * step
+                }
+                a.moving = d > 0.05
+                a.color = p.color
+                a.doing = p.doing && Date.now() - (p.doingAt || 0) < 4000 ? p.doing : null
+                return a
+              })
+              .filter(Boolean)
         : [...visitors.current.values()].map((p) => {
             const d = Math.hypot(p.tu - p.u, p.tv - p.v)
             const step = Math.min(d, dt * 2.2)
@@ -889,7 +1138,11 @@ const Town = ({ onClose, onTitle, mobile }) => {
     raf = requestAnimationFrame(frame)
     if (import.meta.env.DEV) {
       window.__town = {
-        state: () => game.current,
+        state: () => active(),
+        home: () => game.current,
+        coop: () => coopRef.current,
+        enterCoop: (id) => enterRef.current(id),
+        request: (event, payload) => netRef.current?.request(event, payload),
         view: () => view.current,
         fps: () => perf.fps,
         now: clockNow,
@@ -999,7 +1252,7 @@ const Town = ({ onClose, onTitle, mobile }) => {
 
   // ---- the first delivery is an achievement ----
   const deliver = (i) =>
-    act(G.deliverOrder(s, i, clockNow()), (r) => {
+    act(A.deliverOrder(s, i, clockNow()), (r) => {
       dropRequest("order", i)
       play("delivered")
       unlock("town-order")
@@ -1018,7 +1271,7 @@ const Town = ({ onClose, onTitle, mobile }) => {
   const infoObj = info?.id !== undefined ? G.objById(info.visit ? shown : s, info.id) : null
   const sd = social.data || {}
   const unopened = (sd.mailbox || []).filter((m) => !m.openedAt).length
-  const helpProps = social.on && !visit ? { requests: sd.requests || [], onAsk: askHelp, onCancel: cancelHelp } : null
+  const helpProps = social.on && !visit && !coopLive ? { requests: sd.requests || [], onAsk: askHelp, onCancel: cancelHelp } : null
   const trayObj = tray && G.objById(s, tray.id)
   const panelObj = panel?.k === "factory" ? G.objById(s, panel.id) : null
   const level = levels[0]
@@ -1029,7 +1282,7 @@ const Town = ({ onClose, onTitle, mobile }) => {
     {
       label: "Game",
       items: [
-        { label: "New Town...", onClick: () => (visit ? say("Go home first!") : setConfirmNew(true)) },
+        { label: "New Town...", onClick: () => (visit ? say("Go home first!") : coopLive ? say("This is a co-op town: go home first to start over.") : setConfirmNew(true)) },
         "-",
         {
           label: "Sounds",
@@ -1040,7 +1293,10 @@ const Town = ({ onClose, onTitle, mobile }) => {
           },
         },
         chatItem,
-        ...(social.on ? ["-", { label: "Friends...", onClick: () => (visit ? goHome() : openFriends("visit")) }] : []),
+        ...(social.on && !coopLive ? ["-", { label: "Friends...", onClick: () => (visit ? goHome() : openFriends("visit")) }] : []),
+        ...(coopLive
+          ? ["-", { label: "Farmers...", onClick: () => setPanel({ k: "farmers" }) }, { label: "Go Home", onClick: () => leaveCoop() }]
+          : [{ label: "Co-op Town...", onClick: () => (social.on && !visit ? openFriends("coop") : setPanel({ k: "coop" })) }]),
         "-",
         { label: "Exit", onClick: () => onClose?.() },
       ],
@@ -1054,7 +1310,7 @@ const Town = ({ onClose, onTitle, mobile }) => {
   return (
     <div className={`twRoot${compact ? " twCompact" : ""}${mobile ? " twMobile" : ""}`} ref={rootRef} tabIndex={0} onKeyDown={onKeyDown}>
       <MenuBar menus={menus} />
-      <GameChat game="town" title="Sunny Acres" />
+      <GameChat game="town" title="Sunny Acres" room={coopLive ? `match:${coopLive.st.id}` : undefined} />
       <div className="twBody">
         <div className="twStage" ref={stageRef}>
           <canvas
@@ -1108,7 +1364,13 @@ const Town = ({ onClose, onTitle, mobile }) => {
                 {pop}/{cap}
               </b>
             </div>
-            {social.on && (
+            {coopLive && (
+              <div className={`twStat twCoopLive${net?.status === "online" ? "" : " is-off"}`} title={net?.status === "online" ? "Farming together, live" : "Reconnecting..."}>
+                <i aria-hidden="true" />
+                <small>{net?.status === "online" ? "Live" : "Reconnecting"}</small>
+              </div>
+            )}
+            {social.on && !coopLive && (
               <div className={`twStat twCloud is-${social.status}`} title={social.status === "synced" ? "Saved in the cloud" : social.status === "syncing" ? "Saving to the cloud..." : "The cloud can't be reached; saved on this device"}>
                 <span aria-hidden="true">☁</span>
                 <small>{social.status === "synced" ? "Saved" : social.status === "syncing" ? "Saving" : "Offline"}</small>
@@ -1116,7 +1378,14 @@ const Town = ({ onClose, onTitle, mobile }) => {
             )}
           </div>
           )}
-          {!visit && visitors.current.size > 0 && (
+          {coopLive && <CoopBanner session={coopLive} me={me} onOpen={() => setPanel({ k: "farmers" })} />}
+          {coopLive && !panel && <CoopTicker session={coopLive} now={now} />}
+          {nudge && !coopLive && !visit && (
+            <button type="button" className="twNudge" onClick={() => enterCoop(nudge.id)} data-nudge={nudge.id}>
+              <Icon id="heart" size={18} /> {nudge.by} is farming in {nudge.name}. <b>Join</b>
+            </button>
+          )}
+          {!visit && !coopLive && visitors.current.size > 0 && (
             <div className="twVisitors" role="status">
               <Icon id="friends" size={18} /> {[...visitors.current.keys()].join(", ")} {visitors.current.size > 1 ? "are" : "is"} visiting!
             </div>
@@ -1220,7 +1489,7 @@ const Town = ({ onClose, onTitle, mobile }) => {
               </div>
             </div>
           )}
-          {infoObj && !info.visit && !place && <InfoCard s={s} o={infoObj} now={now} onClose={() => setInfo(null)} onMove={() => startMove(infoObj)} onHurry={() => act(G.speedUp(s, { obj: infoObj.i }, clockNow()), () => play("coins"))} />}
+          {infoObj && !info.visit && !place && <InfoCard s={s} o={infoObj} now={now} onClose={() => setInfo(null)} onMove={() => startMove(infoObj)} onHurry={() => act(A.speedUp(s, { obj: infoObj.i }, clockNow()), () => play("coins"))} />}
 
           {/* placing or moving a building */}
           {place && (
@@ -1261,17 +1530,21 @@ const Town = ({ onClose, onTitle, mobile }) => {
               <BigButton icon="heli" label="Orders" className={s.tut === 4 ? "twPulse" : ""} onClick={() => setPanel({ k: "orders" })} badge={s.orders.filter((o, i) => G.canDeliver(s, i)).length || null} />
               {s.level >= 5 && <BigButton icon="train" label="Train" onClick={() => setPanel({ k: "train" })} badge={s.train.st === "here" ? "!" : null} />}
               <BigButton icon="move" label={edit ? "Done" : "Move"} className={edit ? "is-on" : ""} onClick={() => setEdit(!edit)} />
-              {social.on && <BigButton icon="friends" label="Friends" onClick={() => openFriends(unopened ? "mail" : "visit")} badge={unopened || null} />}
+              {coopLive ? (
+                <BigButton icon="friends" label="Farmers" onClick={() => setPanel({ k: "farmers" })} badge={coopLive.st.players.length > 1 ? coopLive.st.players.length : null} />
+              ) : (
+                social.on && <BigButton icon="friends" label="Friends" onClick={() => openFriends(unopened ? "mail" : "visit")} badge={unopened || null} />
+              )}
             </div>
           )}
           {edit && !place && <div className="twEditHint">Move mode: tap something to move it</div>}
 
-          {panel?.k === "shop" && <ShopPanel s={s} tab={shopTab} setTab={setShopTab} onBuy={startBuild} onExpand={(k) => act(G.expand(s, k, clockNow()), () => (play("build"), closePanel()))} onClose={closePanel} />}
+          {panel?.k === "shop" && <ShopPanel s={s} tab={shopTab} setTab={setShopTab} onBuy={startBuild} onExpand={(k) => act(A.expand(s, k, clockNow()), () => (play("build"), closePanel()))} onClose={closePanel} />}
           {panel?.k === "barn" && (
             <BarnPanel
               s={s}
-              onSell={(g, n) => act(G.sellGood(s, g, n), () => play("coins"))}
-              onUpgrade={() => act(G.upgradeBarn(s), () => (play("build"), say("Your Barn got bigger!", null)))}
+              onSell={(g, n) => act(A.sellGood(s, g, n), () => play("coins"))}
+              onUpgrade={() => act(A.upgradeBarn(s), () => (play("build"), say("Your Barn got bigger!", null)))}
               onClose={closePanel}
             />
           )}
@@ -1281,9 +1554,9 @@ const Town = ({ onClose, onTitle, mobile }) => {
               now={now}
               tut={s.tut === 4}
               onDeliver={deliver}
-              onSkip={(i) => act(G.skipOrder(s, i, clockNow()), () => (dropRequest("order", i), play("tap")))}
+              onSkip={(i) => act(A.skipOrder(s, i, clockNow()), () => (dropRequest("order", i), play("tap")))}
               help={helpProps}
-              onHurry={(i) => act(G.speedUp(s, { order: i }, clockNow()), () => play("coins"))}
+              onHurry={(i) => act(A.speedUp(s, { order: i }, clockNow()), () => play("coins"))}
               onClose={closePanel}
             />
           )}
@@ -1291,18 +1564,18 @@ const Town = ({ onClose, onTitle, mobile }) => {
             <TrainPanel
               s={s}
               now={now}
-              onLoad={(k) => act(G.loadCar(s, k, clockNow()), () => (dropRequest("car", k), play("collect")))}
+              onLoad={(k) => act(A.loadCar(s, k, clockNow()), () => (dropRequest("car", k), play("collect")))}
               help={helpProps}
               onSend={() => {
                 const cars = s.train.cars.length
-                act(G.sendTrain(s, clockNow()), (r) => {
+                act(A.sendTrain(s, clockNow()), (r) => {
                   fx.current.train = { out: fx.current.t, cars }
                   play("whistle")
                   if (r.bonus) say(`Train bonus: ${r.bonus.coins} coins, ${r.bonus.xp} XP and a clover!`, null)
                   closePanel()
                 })
               }}
-              onHurry={() => act(G.speedUp(s, { train: true }, clockNow()), () => play("coins"))}
+              onHurry={() => act(A.speedUp(s, { train: true }, clockNow()), () => play("coins"))}
               onClose={closePanel}
             />
           )}
@@ -1311,17 +1584,20 @@ const Town = ({ onClose, onTitle, mobile }) => {
               s={s}
               o={panelObj}
               now={now}
-              onMake={(g) => act(G.queueProduct(s, panelObj.i, g, clockNow()), () => play("queue"))}
+              onMake={(g) => act(A.queueProduct(s, panelObj.i, g, clockNow()), () => play("queue"))}
               onCollect={() => collectFactory(panelObj)}
-              onAddSlot={() => act(G.addSlot(s, panelObj.i), () => play("build"))}
-              onHurry={() => act(G.speedUp(s, { obj: panelObj.i }, clockNow()), () => play("coins"))}
+              onAddSlot={() => act(A.addSlot(s, panelObj.i), () => play("build"))}
+              onHurry={() => act(A.speedUp(s, { obj: panelObj.i }, clockNow()), () => play("coins"))}
               onClose={closePanel}
             />
           )}
-          {panel?.k === "expand" && <ExpandPanel s={s} k={panel.i} onExpand={() => act(G.expand(s, panel.i, clockNow()), () => (play("build"), closePanel()))} onClose={closePanel} />}
+          {panel?.k === "expand" && <ExpandPanel s={s} k={panel.i} onExpand={() => act(A.expand(s, panel.i, clockNow()), () => (play("build"), closePanel()))} onClose={closePanel} />}
           {panel?.k === "help" && <HelpPanel onClose={closePanel} />}
+          {panel?.k === "coop" && <CoopPanel request={net?.request || (async () => ({ ok: false, error: "Connect to the network first." }))} signedIn={!!me && net?.status === "online"} couple={couple} onEnter={enterCoop} beforeConvert={() => social.upload()} onClose={closePanel} />}
+          {panel?.k === "farmers" && coopLive && <FarmersPanel session={coopLive} net={net} me={me} onHome={() => leaveCoop()} onQuit={quitCoop} onClose={closePanel} />}
           {panel?.k === "friends" && (
             <FriendsPanel
+              coop={net?.request ? <CoopPicker request={net.request} signedIn={!!me && net.status === "online"} couple={couple} onEnter={enterCoop} beforeConvert={() => social.upload()} /> : null}
               social={social}
               s={s}
               couple={couple}

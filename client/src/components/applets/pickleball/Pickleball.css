@@ -1,0 +1,481 @@
+/* Pickleball 98: a 3D court under a menu bar, with a scoreboard and call-outs on top */
+
+.pkRoot {
+  position: relative;
+  height: calc(100% - 25px);
+  display: flex;
+  flex-direction: column;
+  background: #c0c0c0;
+  font-family: "Pixelated MS Sans Serif", Arial, sans-serif;
+  font-size: 11px;
+  overflow: hidden;
+}
+
+.pkStage {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  margin: 2px 3px 3px;
+  border: 2px solid;
+  border-color: #808080 #fff #fff #808080;
+  overflow: hidden;
+  outline: none;
+  background: #d8ecfb;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.pkRoot.is-mobile .pkStage {
+  margin: 0;
+  border: 0;
+}
+
+.pkCanvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  cursor: crosshair;
+}
+
+.pkCenter {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  z-index: 5;
+}
+
+.pkDim {
+  background: rgba(20, 30, 50, 0.35);
+}
+
+.pkLoading {
+  color: #1d3557;
+  font-size: 13px;
+}
+
+.pkPanel {
+  background: #c0c0c0;
+  border: 2px solid;
+  border-color: #fff #404040 #404040 #fff;
+  box-shadow: 1px 1px 0 #000;
+  padding: 12px 16px;
+  max-width: 320px;
+  text-align: center;
+}
+
+.pkPanel b {
+  display: block;
+  font-size: 14px;
+  margin-bottom: 6px;
+}
+
+.pkPanel p {
+  margin: 6px 0;
+}
+
+.pkWin {
+  color: #0b6b2e;
+}
+
+.pkLose {
+  color: #8a1c1c;
+}
+
+.pkFinal {
+  font-family: "Trebuchet MS", Verdana, sans-serif;
+  font-size: 30px;
+  font-weight: bold;
+  letter-spacing: 1px;
+}
+
+/* ---- title ---- */
+
+.pkTitleWrap {
+  background: linear-gradient(rgba(20, 40, 70, 0.05), rgba(20, 40, 70, 0.3));
+}
+
+.pkTitle {
+  width: min(340px, 100%);
+  height: auto;
+  max-height: 100%;
+  overflow: auto;
+}
+
+.pkLogo {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 2px;
+  margin: 4px 0 2px;
+  font-family: "Trebuchet MS", Verdana, sans-serif;
+  font-weight: bold;
+  font-size: 34px;
+  line-height: 1;
+}
+
+.pkLogo span:first-child {
+  color: #1a9fb0;
+  text-shadow: 2px 2px 0 #0e4d57;
+}
+
+.pkLogo span:nth-child(2) {
+  color: #e8604c;
+  text-shadow: 2px 2px 0 #6b2117;
+}
+
+.pkLogo small {
+  font-size: 15px;
+  margin-left: 4px;
+  color: #fff;
+  background: #2f62ad;
+  padding: 2px 4px;
+  align-self: center;
+}
+
+.pkTag {
+  text-align: center;
+  margin: 4px 0 8px;
+}
+
+.pkChoices {
+  display: flex;
+  gap: 8px;
+}
+
+.pkChoices fieldset {
+  flex: 1;
+  margin: 0;
+  padding: 4px 8px 6px;
+}
+
+.pkChoices legend {
+  font-size: 11px;
+  width: auto;
+  float: none;
+  margin: 0;
+  padding: 0 3px;
+}
+
+.pkChoices .field-row {
+  min-height: 20px;
+  margin: 2px 0 0;
+}
+
+.pkTitleButtons {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.pkTitleButtons button {
+  min-width: 80px;
+  min-height: 26px;
+}
+
+.pkPlay {
+  font-weight: bold;
+}
+
+.pkRoot.is-mobile .pkTitleButtons button,
+.pkRoot.is-mobile .pkChoices .field-row {
+  min-height: 34px;
+}
+
+/* ---- scoreboard ---- */
+
+.pkScore {
+  position: absolute;
+  left: 8px;
+  top: 8px;
+  z-index: 3;
+  min-width: 150px;
+  background: rgba(16, 28, 48, 0.82);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  padding: 4px 6px 5px;
+  pointer-events: none;
+}
+
+.pkCall {
+  font-family: "Trebuchet MS", Verdana, sans-serif;
+  font-size: 22px;
+  font-weight: bold;
+  letter-spacing: 1px;
+  color: #ffe14d;
+  text-align: center;
+  line-height: 1.1;
+}
+
+.pkTeam {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  line-height: 16px;
+}
+
+.pkTeam--0 .pkTeamName {
+  color: #8fe3ee;
+}
+
+.pkTeam--1 .pkTeamName {
+  color: #ffb3a6;
+}
+
+.pkServe {
+  width: 10px;
+  color: #e9f24b;
+}
+
+.pkTeamName {
+  flex: 1;
+}
+
+.pkPoints {
+  font-weight: bold;
+  min-width: 18px;
+  text-align: right;
+}
+
+.pkMeta {
+  margin-top: 2px;
+  color: #c8d3e3;
+  font-size: 10px;
+}
+
+/* ---- call-outs ---- */
+
+.pkCallouts {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 22%;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  pointer-events: none;
+}
+
+.pkCallout {
+  font-family: "Trebuchet MS", Verdana, sans-serif;
+  font-weight: bold;
+  font-size: 26px;
+  color: #fff;
+  text-shadow: 2px 2px 0 #1d2b44, -1px -1px 0 #1d2b44, 1px -1px 0 #1d2b44, -1px 1px 0 #1d2b44;
+  animation: pkPop 0.35s ease-out;
+}
+
+.pkCallout--call {
+  color: #ffe14d;
+  font-size: 30px;
+}
+
+.pkCallout--good {
+  color: #7dff9b;
+}
+
+.pkCallout--bad {
+  color: #ff8a7a;
+}
+
+.pkCallout--line {
+  font-size: 18px;
+  color: #c8ffd4;
+}
+
+@keyframes pkPop {
+  from {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.pkShotLabel {
+  position: absolute;
+  left: 50%;
+  bottom: 14%;
+  transform: translateX(-50%);
+  z-index: 3;
+  background: rgba(16, 28, 48, 0.7);
+  color: #fff;
+  padding: 2px 8px;
+  pointer-events: none;
+  animation: pkFade 1.2s ease-out forwards;
+}
+
+@keyframes pkFade {
+  0%,
+  60% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.pkPrompt {
+  position: absolute;
+  left: 50%;
+  bottom: 8px;
+  transform: translateX(-50%);
+  z-index: 3;
+  background: #ffffe1;
+  border: 1px solid #000;
+  padding: 3px 8px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.pkRoot.is-mobile .pkPrompt {
+  bottom: auto;
+  top: 8px;
+  left: auto;
+  right: 8px;
+  transform: none;
+  white-space: normal;
+  max-width: 45%;
+}
+
+/* ---- touch: shot buttons and the joystick ---- */
+
+.pkShot {
+  font-family: "Trebuchet MS", Verdana, sans-serif;
+  font-weight: bold;
+  font-size: 12px;
+  color: #fff;
+  background: rgba(20, 40, 70, calc(0.7 * var(--tc-opacity, 1))) !important;
+  border: 2px solid rgba(255, 255, 255, calc(0.85 * var(--tc-opacity, 1))) !important;
+  box-shadow: none !important;
+  text-shadow: 1px 1px 0 #000;
+}
+
+.pkShot--drive {
+  background: rgba(232, 96, 76, calc(0.8 * var(--tc-opacity, 1))) !important;
+}
+
+.pkShot--dink {
+  background: rgba(26, 159, 176, calc(0.8 * var(--tc-opacity, 1))) !important;
+}
+
+.pkShot--small {
+  font-size: 10px;
+}
+
+.pkShot.is-pressed {
+  transform: scale(0.92);
+  filter: brightness(1.25);
+}
+
+.pkStick {
+  position: absolute;
+  z-index: 2;
+  width: 112px;
+  height: 112px;
+  margin: -56px 0 0 -56px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.7);
+  background: rgba(20, 40, 70, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.pkStick--hint {
+  opacity: 0.35;
+}
+
+.pkKnob {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.75);
+  border: 2px solid rgba(20, 40, 70, 0.6);
+}
+
+.pkGear {
+  color: #fff;
+  background: rgba(20, 40, 70, 0.55) !important;
+}
+
+/* ---- help ---- */
+
+.window.dialog:has(.pkPrimer),
+.window.dialog:has(.pkHelp) {
+  width: min(450px, 100%);
+}
+
+.pkPrimer {
+  width: 100%;
+}
+
+.pkDiagram {
+  display: block;
+  width: 100%;
+  height: auto;
+  background: #6fae55;
+  border: 1px solid #808080;
+}
+
+.pkPrimer .dialogText {
+  margin-top: 6px;
+}
+
+.pkPrimerNav {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+}
+
+.pkCallDiagram {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 0;
+  background: #1d2b44;
+  color: #fff;
+}
+
+.pkCallDiagram div {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.pkCallDiagram b {
+  font-family: "Trebuchet MS", Verdana, sans-serif;
+  font-size: 32px;
+  color: #ffe14d;
+}
+
+.pkCallDiagram span {
+  font-size: 10px;
+}
+
+.pkCallDiagram .pkDash {
+  font-size: 28px;
+  padding-top: 2px;
+}
+
+.pkHelp {
+  max-width: 380px;
+}
+
+.pkHelp p {
+  margin: 0 0 6px;
+}

@@ -9,7 +9,7 @@ const hearts = require("./hearts")
 const { rules } = require("./rules")
 
 const INVITE_MS = 60_000
-const GAMES = ["checkers", "race", "hearts", "reversi", "chess", "battleship", "tetris", "doodle", "quiz"]
+const GAMES = ["checkers", "race", "hearts", "reversi", "chess", "battleship", "tetris", "doodle", "quiz", "town"]
 // two-player board games whose rules are shared with the browser (see rules.js)
 const BOARD_GAMES = ["reversi", "chess", "battleship"]
 const RACE_LEVELS = {
@@ -21,12 +21,13 @@ const BOT_NAMES = ["Ada", "Grace", "Alan", "Linus", "Hedy", "Dennis"]
 const DELAYS = { botPass: 500, botPlay: 750, trick: 1400, nextHand: 7000 }
 
 const newId = () => crypto.randomBytes(6).toString("hex")
-const GAME_NAMES = { checkers: "Checkers", race: "Minesweeper Race", hearts: "Hearts", reversi: "Reversi", chess: "Chess", battleship: "Battleship", tetris: "Tetris Online", doodle: "Doodle Together", quiz: "Lovebirds Quiz Show" }
+const GAME_NAMES = { checkers: "Checkers", race: "Minesweeper Race", hearts: "Hearts", reversi: "Reversi", chess: "Chess", battleship: "Battleship", tetris: "Tetris Online", doodle: "Doodle Together", quiz: "Lovebirds Quiz Show", town: "Sunny Acres Co-op" }
 
 // tetris: Tetris Online (tetris.js), doodle: Doodle Together (doodle.js) and quiz: the
 // Quiz Show's live games (server/quiz), whose private rooms take invitations from here
-const createGames = ({ emit, delays = DELAYS, random = Math.random, tetris = null, doodle = null, quiz = null } = {}) => {
-  const roomApps = { tetris, doodle, quiz }
+// town: Sunny Acres co-op towns (server/town/coop.js)
+const createGames = ({ emit, delays = DELAYS, random = Math.random, tetris = null, doodle = null, quiz = null, coop = null } = {}) => {
+  const roomApps = { tetris, doodle, quiz, town: coop }
   const invites = new Map() // id -> { id, game, from, fromName, to, toName, options, matchId, timer }
   const matches = new Map() // id -> match
 
@@ -216,7 +217,8 @@ const createGames = ({ emit, delays = DELAYS, random = Math.random, tetris = nul
 
   // ---------- invitations ----------
 
-  const invite = ({ from, fromName, to, toName, game, options = {}, matchId }) => {
+  const invite = ({ from, fromName, to, toName, game, options = {}, matchId: requestedMatch }) => {
+    let matchId = requestedMatch
     if (!GAMES.includes(game)) return { ok: false, error: "Unknown game." }
     if (from === to) return { ok: false, error: "You can't play against yourself." }
     if (BOARD_GAMES.includes(game) && !rules[game]) return { ok: false, error: "The game is still starting up. Try again in a moment." }
@@ -240,6 +242,14 @@ const createGames = ({ emit, delays = DELAYS, random = Math.random, tetris = nul
       const check = roomApp.canInvite(from, String(matchId))
       if (!check.ok) return check
       opts.mode = roomApp.rooms.get(String(matchId)).mode
+    }
+    if (game === "town") {
+      // into the co-op town the inviter is in (Sunny Acres knows which)
+      if (!roomApp) return { ok: false, error: "Sunny Acres Co-op isn't available." }
+      matchId = matchId || roomApp.roomOf(from)
+      const check = roomApp.canInvite(from, String(matchId || ""))
+      if (!check.ok) return check
+      opts.town = check.name
     }
     if (game === "doodle") {
       if (!doodle) return { ok: false, error: "Doodle Together isn't available." }

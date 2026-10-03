@@ -145,6 +145,7 @@ const ImWindow = ({ buddy, focusInput }) => {
     { label: "Tetris Battle", onClick: () => playGame("tetris") },
     { label: "Doodle Together", onClick: () => playGame("doodle") },
     { label: "Quiz Show", onClick: () => playGame("quiz") },
+    { label: "Sunny Acres Co-op", onClick: () => playGame("town") },
   ]
 
   const addBuddy = async () => {

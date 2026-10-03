@@ -27,11 +27,13 @@ const Goods = ({ goods, s }) => (
 )
 
 // ---- Friends ----
-export const FriendsPanel = ({ social, s, couple, tab, setTab, now, onVisit, onOpenGift, onGift, onShowNote, onDeleteNote, onSettings }) => {
+// coop: the co-op town picker (Coop.jsx), shown in its own tab
+export const FriendsPanel = ({ social, s, couple, tab, setTab, now, onVisit, onOpenGift, onGift, onShowNote, onDeleteNote, onSettings, coop = null }) => {
   const d = social.data || {}
   const unopened = (d.mailbox || []).filter((g) => !g.openedAt)
   const paired = couple.status === "paired"
   const tabs = [
+    ...(coop ? [["coop", "Co-op"]] : []),
     ["visit", "Visit"],
     ["mail", `Mailbox${unopened.length ? ` (${unopened.length})` : ""}`],
     ["notes", `Notes${d.notes?.length ? ` (${d.notes.length})` : ""}`],
@@ -46,6 +48,7 @@ export const FriendsPanel = ({ social, s, couple, tab, setTab, now, onVisit, onO
           </button>
         ))}
       </div>
+      {tab === "coop" && coop}
       {tab === "visit" && <VisitTab social={social} onVisit={onVisit} onSettings={onSettings} />}
       {tab === "mail" && (
         <div className="twMail">
