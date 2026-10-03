@@ -1,6 +1,7 @@
-// Pickleball 98: the players you can be (and play against). Each has a look (skin, hair,
-// hat, outfit, paddle), a playing style for when the computer plays them, and small
-// differences (speed, power, touch). Plain data; rig.js builds the 3D figure from a look.
+// Pickleball 98: the players you can be (and play against). Each has a look (body "m" or
+// "f", skin, hair, hat, outfit, paddle), a playing style for when the computer plays them,
+// and small differences (speed, power, touch). Plain data; athlete.js (or rig.js on Low)
+// builds the 3D figure from a look.
 // Everyone here is made up.
 
 export const SKIN = ["#f6d3b3", "#eab98f", "#d39a6a", "#b5784a", "#8c5734", "#5f3a22"]
@@ -13,7 +14,7 @@ export const CHARACTERS = [
     style: "allround",
     blurb: "Plays every shot. Never panics at the kitchen line.",
     stats: { speed: 1, power: 1, touch: 1.04 },
-    look: { skin: 2, hair: "ponytail", hairColor: "#2a1a10", hat: "visor", hatColor: "#ffffff", shirt: "#18a3b5", shirtStyle: "tank", trim: "#ffffff", bottom: "skirt", bottomColor: "#1d3557", shoes: "#ffffff", shoeAccent: "#18a3b5", socks: "#ffffff", paddle: "#ffd23f", paddleEdge: "#1d3557", build: 0.96 },
+    look: { body: "f", skin: 2, hair: "ponytail", hairColor: "#2a1a10", hat: "visor", hatColor: "#ffffff", shirt: "#18a3b5", shirtStyle: "tank", trim: "#ffffff", bottom: "skirt", bottomColor: "#1d3557", shoes: "#ffffff", shoeAccent: "#18a3b5", socks: "#ffffff", paddle: "#ffd23f", paddleEdge: "#1d3557", build: 0.96 },
   },
   {
     id: "dex",
@@ -22,7 +23,7 @@ export const CHARACTERS = [
     style: "banger",
     blurb: "Hits it hard and asks questions later.",
     stats: { speed: 1.02, power: 1.08, touch: 0.94 },
-    look: { skin: 5, hair: "short", hairColor: "#141010", hat: "headband", hatColor: "#ff7a1a", shirt: "#ff7a1a", shirtStyle: "tee", trim: "#2b2b2b", bottom: "shorts", bottomColor: "#2b2b2b", shoes: "#2b2b2b", shoeAccent: "#ff7a1a", socks: "#ffffff", paddle: "#2b2b2b", paddleEdge: "#ff7a1a", build: 1.08, beard: true },
+    look: { body: "m", skin: 5, hair: "short", hairColor: "#141010", hat: "headband", hatColor: "#ff7a1a", shirt: "#ff7a1a", shirtStyle: "tee", trim: "#2b2b2b", bottom: "shorts", bottomColor: "#2b2b2b", shoes: "#2b2b2b", shoeAccent: "#ff7a1a", socks: "#ffffff", paddle: "#2b2b2b", paddleEdge: "#ff7a1a", build: 1.08, beard: true },
   },
   {
     id: "lena",
@@ -31,7 +32,7 @@ export const CHARACTERS = [
     style: "dinker",
     blurb: "Will dink with you until the sun goes down.",
     stats: { speed: 0.98, power: 0.94, touch: 1.1 },
-    look: { skin: 0, hair: "bun", hairColor: "#e3c27a", hat: "cap", hatColor: "#2fb58a", shirt: "#7fe0bf", shirtStyle: "polo", trim: "#2fb58a", bottom: "skirt", bottomColor: "#ffffff", shoes: "#ffffff", shoeAccent: "#2fb58a", socks: "#ffffff", paddle: "#2fb58a", paddleEdge: "#0f3d2e", build: 0.94 },
+    look: { body: "f", skin: 0, hair: "bun", hairColor: "#e3c27a", hat: "cap", hatColor: "#2fb58a", shirt: "#7fe0bf", shirtStyle: "polo", trim: "#2fb58a", bottom: "skirt", bottomColor: "#ffffff", shoes: "#ffffff", shoeAccent: "#2fb58a", socks: "#ffffff", paddle: "#2fb58a", paddleEdge: "#0f3d2e", build: 0.94 },
   },
   {
     id: "kenji",
@@ -40,7 +41,7 @@ export const CHARACTERS = [
     style: "counter",
     blurb: "Quick hands. Your best drive comes right back.",
     stats: { speed: 1.05, power: 0.97, touch: 1.03 },
-    look: { skin: 1, hair: "spiky", hairColor: "#111111", hat: "none", hatColor: "#111111", shirt: "#23395d", shirtStyle: "tee", trim: "#e63946", bottom: "shorts", bottomColor: "#e9ecef", shoes: "#e63946", shoeAccent: "#ffffff", socks: "#23395d", paddle: "#e63946", paddleEdge: "#111111", build: 0.98, glasses: true },
+    look: { body: "m", skin: 1, hair: "spiky", hairColor: "#111111", hat: "none", hatColor: "#111111", shirt: "#23395d", shirtStyle: "tee", trim: "#e63946", bottom: "shorts", bottomColor: "#e9ecef", shoes: "#e63946", shoeAccent: "#ffffff", socks: "#23395d", paddle: "#e63946", paddleEdge: "#111111", build: 0.98, glasses: true },
   },
   {
     id: "priya",
@@ -49,7 +50,7 @@ export const CHARACTERS = [
     style: "lobber",
     blurb: "Crowd the net and you'll be chasing one over your head.",
     stats: { speed: 1, power: 1, touch: 1.05 },
-    look: { skin: 3, hair: "braid", hairColor: "#1c120c", hat: "none", hatColor: "#7b2cbf", shirt: "#9d4edd", shirtStyle: "tank", trim: "#ffd6ff", bottom: "shorts", bottomColor: "#3c096c", shoes: "#ffffff", shoeAccent: "#9d4edd", socks: "#ffffff", paddle: "#ffd6ff", paddleEdge: "#7b2cbf", build: 0.95 },
+    look: { body: "f", skin: 3, hair: "braid", hairColor: "#1c120c", hat: "none", hatColor: "#7b2cbf", shirt: "#9d4edd", shirtStyle: "tank", trim: "#ffd6ff", bottom: "shorts", bottomColor: "#3c096c", shoes: "#ffffff", shoeAccent: "#9d4edd", socks: "#ffffff", paddle: "#ffd6ff", paddleEdge: "#7b2cbf", build: 0.95 },
   },
   {
     id: "gus",
@@ -58,7 +59,7 @@ export const CHARACTERS = [
     style: "wall",
     blurb: "Seventy-one years old. Has never missed a reset.",
     stats: { speed: 0.9, power: 0.95, touch: 1.12 },
-    look: { skin: 0, hair: "bald", hairColor: "#d9d9d9", hat: "bucket", hatColor: "#c8b88a", shirt: "#f1faee", shirtStyle: "polo", trim: "#457b9d", bottom: "shorts", bottomColor: "#8a7f5c", shoes: "#ffffff", shoeAccent: "#457b9d", socks: "#ffffff", paddle: "#457b9d", paddleEdge: "#1d3557", build: 1.04, beard: true },
+    look: { body: "m", skin: 0, hair: "bald", hairColor: "#d9d9d9", hat: "bucket", hatColor: "#c8b88a", shirt: "#f1faee", shirtStyle: "polo", trim: "#457b9d", bottom: "shorts", bottomColor: "#8a7f5c", shoes: "#ffffff", shoeAccent: "#457b9d", socks: "#ffffff", paddle: "#457b9d", paddleEdge: "#1d3557", build: 1.04, beard: true },
   },
   {
     id: "rosa",
@@ -67,7 +68,7 @@ export const CHARACTERS = [
     style: "allround",
     blurb: "Club champion three years running.",
     stats: { speed: 1.03, power: 1.01, touch: 1.01 },
-    look: { skin: 2, hair: "curly", hairColor: "#3b2416", hat: "none", hatColor: "#ef476f", shirt: "#ef476f", shirtStyle: "tee", trim: "#ffffff", bottom: "skirt", bottomColor: "#2b2d42", shoes: "#ffffff", shoeAccent: "#ef476f", socks: "#ffffff", paddle: "#06d6a0", paddleEdge: "#2b2d42", build: 0.95 },
+    look: { body: "f", skin: 2, hair: "curly", hairColor: "#3b2416", hat: "none", hatColor: "#ef476f", shirt: "#ef476f", shirtStyle: "tee", trim: "#ffffff", bottom: "skirt", bottomColor: "#2b2d42", shoes: "#ffffff", shoeAccent: "#ef476f", socks: "#ffffff", paddle: "#06d6a0", paddleEdge: "#2b2d42", build: 0.95 },
   },
   {
     id: "sam",
@@ -76,7 +77,7 @@ export const CHARACTERS = [
     style: "banger",
     blurb: "Speed-ups from anywhere. Anywhere.",
     stats: { speed: 1.04, power: 1.06, touch: 0.95 },
-    look: { skin: 4, hair: "short", hairColor: "#1a1a1a", hat: "capBack", hatColor: "#d62828", shirt: "#1a1a1a", shirtStyle: "tee", trim: "#d62828", bottom: "shorts", bottomColor: "#d62828", shoes: "#d62828", shoeAccent: "#1a1a1a", socks: "#1a1a1a", paddle: "#d62828", paddleEdge: "#1a1a1a", build: 1.02 },
+    look: { body: "m", skin: 4, hair: "short", hairColor: "#1a1a1a", hat: "capBack", hatColor: "#d62828", shirt: "#1a1a1a", shirtStyle: "tee", trim: "#d62828", bottom: "shorts", bottomColor: "#d62828", shoes: "#d62828", shoeAccent: "#1a1a1a", socks: "#1a1a1a", paddle: "#d62828", paddleEdge: "#1a1a1a", build: 1.02 },
   },
   {
     id: "abby",
@@ -85,7 +86,7 @@ export const CHARACTERS = [
     style: "dinker",
     blurb: "Soft hands, sharp angles.",
     stats: { speed: 1.02, power: 0.95, touch: 1.08 },
-    look: { skin: 1, hair: "long", hairColor: "#141414", hat: "visor", hatColor: "#ffd166", shirt: "#ffd166", shirtStyle: "tank", trim: "#118ab2", bottom: "skirt", bottomColor: "#118ab2", shoes: "#ffffff", shoeAccent: "#118ab2", socks: "#ffffff", paddle: "#118ab2", paddleEdge: "#073b4c", build: 0.93 },
+    look: { body: "f", skin: 1, hair: "long", hairColor: "#141414", hat: "visor", hatColor: "#ffd166", shirt: "#ffd166", shirtStyle: "tank", trim: "#118ab2", bottom: "skirt", bottomColor: "#118ab2", shoes: "#ffffff", shoeAccent: "#118ab2", socks: "#ffffff", paddle: "#118ab2", paddleEdge: "#073b4c", build: 0.93 },
   },
   {
     id: "lou",
@@ -95,7 +96,7 @@ export const CHARACTERS = [
     blurb: "The Kitchen King. Undefeated at the Stadium.",
     stats: { speed: 1.04, power: 1.06, touch: 1.08 },
     boss: true,
-    look: { skin: 1, hair: "short", hairColor: "#5a5a5a", hat: "cap", hatColor: "#111111", shirt: "#111111", shirtStyle: "polo", trim: "#ffd700", bottom: "shorts", bottomColor: "#111111", shoes: "#111111", shoeAccent: "#ffd700", socks: "#111111", paddle: "#ffd700", paddleEdge: "#111111", build: 1.06, glasses: true },
+    look: { body: "m", skin: 1, hair: "short", hairColor: "#5a5a5a", hat: "cap", hatColor: "#111111", shirt: "#111111", shirtStyle: "polo", trim: "#ffd700", bottom: "shorts", bottomColor: "#111111", shoes: "#111111", shoeAccent: "#ffd700", socks: "#111111", paddle: "#ffd700", paddleEdge: "#111111", build: 1.06, glasses: true },
   },
 ]
 

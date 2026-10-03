@@ -638,6 +638,8 @@ export const updateAnim = (a, s, dt) => {
     wristO: armO.end,
     paddle: { grip: armP.end, axis: axisW, normal: normalW, face: add(armP.end, mul(axisW, BODY.paddleReach)) },
     hand,
+    // for the skinned athletes' motion-capture layers (athlete.js)
+    info: { speed, phase: a.gait.phase, swinging: !!(swing || s.prep || whiff), between: !!s.between, mood: mood ? { kind: mood.kind, variant: mood.variant } : null },
   }
 }
 

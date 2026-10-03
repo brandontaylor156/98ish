@@ -12,6 +12,7 @@ import { inCourt, rightSign, sideOf } from "./rules.js"
 import { createAudio } from "./audio.js"
 import { createAnim, seatedPose, setMood, situation, splitStep, updateAnim } from "./anim.js"
 import { createFigure } from "./rig.js"
+import { athletesReady, createAthlete, loadAthletes } from "./athlete.js"
 import { buildVenue, VENUES } from "./venue.js"
 import { CHARACTERS, lookFor } from "./looks.js"
 import { actionFor, bindingsFor, padEdges, readPad } from "./input.js"
@@ -21,7 +22,7 @@ const BALL_SCALE = 1.5 // drawn a little bigger than life so it reads on a phone
 const TRAIL_N = 18
 const REPLAY_S = 9 // seconds of play kept for replays
 const QUALITY = { low: { ratio: 1, shadows: false }, medium: { ratio: 1.5, shadows: true }, high: { ratio: 2, shadows: true } }
-const UMPIRE_LOOK = { skin: 1, hair: "short", hairColor: "#3a2a1e", hat: "cap", hatColor: "#ffffff", shirt: "#1d2b53", shirtStyle: "polo", trim: "#ffffff", bottom: "shorts", bottomColor: "#c9b991", shoes: "#ffffff", shoeAccent: "#1d2b53", socks: "#ffffff", build: 1.02, glasses: true }
+const UMPIRE_LOOK = { body: "m", skin: 1, hair: "short", hairColor: "#3a2a1e", hat: "cap", hatColor: "#ffffff", shirt: "#1d2b53", shirtStyle: "polo", trim: "#ffffff", bottom: "shorts", bottomColor: "#c9b991", shoes: "#ffffff", shoeAccent: "#1d2b53", socks: "#ffffff", build: 1.02, glasses: true }
 const DEFAULT_LOOKS = ["maya", "dex", "lena", "kenji"]
 
 const canvasTexture = (w, h, draw) => {
@@ -222,6 +223,7 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
   let raf = 0
   let last = 0
   let disposed = false
+  let studioHold = false // (dev: a studio still is on screen)
   let hudKey = ""
   let hudTimer = 0
   let aidVersion = -1
@@ -249,6 +251,52 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
   }
 
   // ---------- figures ----------
+  // the skinned athletes (athlete.js) once their files are in, on Medium and High; rig.js's
+  // simple figures before that, on Low, or if anything about them fails
+  let simpleOnly = false // (dev: compare with the simple figures)
+  const skinned = () => settings.quality !== "low" && athletesReady() && !simpleOnly
+  const makeFigure = (look, opts) => {
+    if (skinned()) {
+      try {
+        return createAthlete(look, opts)
+      } catch (e) {
+        devLog?.push({ t: "athlete", error: String(e?.stack || e) })
+      }
+    }
+    return createFigure(look, opts)
+  }
+  // swap every figure for the current kind (after the athletes load, or a quality change)
+  const refigure = () => {
+    const shadows = !!QUALITY[settings.quality]?.shadows
+    figures.forEach((f, i) => {
+      scene.remove(f.fig.group)
+      f.fig.dispose()
+      f.fig = makeFigure(lookOf(f.player, i), { shadows })
+      scene.add(f.fig.group)
+    })
+    if (umpire) {
+      scene.remove(umpire.group)
+      umpire.dispose()
+      umpire = null
+      placeUmpire()
+    }
+    if (showcaseFig) {
+      const visible = showcaseFig.fig.group.visible
+      scene.remove(showcaseFig.fig.group)
+      showcaseFig.fig.dispose()
+      showcaseFig.fig = makeFigure(showcaseFig.look, { shadows })
+      showcaseFig.fig.group.visible = visible
+      scene.add(showcaseFig.fig.group)
+    }
+  }
+  const wantAthletes = () => {
+    if (settings.quality === "low" || athletesReady()) return
+    loadAthletes()
+      .then(() => {
+        if (!disposed && skinned()) refigure()
+      })
+      .catch((e) => devLog?.push({ t: "athlete-load", error: String(e) }))
+  }
   const lookOf = (p, i) => {
     if (p.look && typeof p.look === "object") return p.look
     if (p.character) return lookFor(p.character, p.outfit)
@@ -267,7 +315,7 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
     clearFigures()
     const shadows = !!QUALITY[settings.quality]?.shadows
     figures = match.players.map((p, i) => {
-      const fig = createFigure(lookOf(p, i), { shadows })
+      const fig = makeFigure(lookOf(p, i), { shadows })
       scene.add(fig.group)
       const anim = createAnim(p.x, p.z, p.team === 0 ? Math.PI : 0)
       const blob = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 0.8), new THREE.MeshBasicMaterial({ map: tex.blob, transparent: true, depthWrite: false, opacity: 0.55 }))
@@ -279,11 +327,12 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
   }
   const placeUmpire = () => {
     if (!umpire) {
-      umpire = createFigure(UMPIRE_LOOK, { shadows: !!QUALITY[settings.quality]?.shadows, withPaddle: false })
+      umpire = makeFigure(UMPIRE_LOOK, { shadows: !!QUALITY[settings.quality]?.shadows, withPaddle: false })
       scene.add(umpire.group)
     }
   }
   placeUmpire()
+  wantAthletes()
 
   const resetAnims = () => {
     for (const f of figures) f.anim = createAnim(f.player.x, f.player.z, f.player.team === 0 ? Math.PI : 0)
@@ -955,7 +1004,7 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
   // ---------- the frame ----------
   const frame = (now) => {
     raf = 0
-    if (disposed) return
+    if (disposed || studioHold) return
     if (!size.width || !size.height) return
     const cpuStart = performance.now()
     const dtMs = last ? Math.min(100, now - last) : 16
@@ -1199,9 +1248,9 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
         showcaseFig.fig.dispose()
       }
       const at = { x: 0, z: HALF_L - 1 }
-      const fig = createFigure(look, { shadows: !!QUALITY[settings.quality]?.shadows })
+      const fig = makeFigure(look, { shadows: !!QUALITY[settings.quality]?.shadows })
       scene.add(fig.group)
-      showcaseFig = { fig, anim: createAnim(at.x, at.z, 0), at, t: 2.2, swing: null }
+      showcaseFig = { fig, look, anim: createAnim(at.x, at.z, 0), at, t: 2.2, swing: null }
       for (const f of figures) if (Math.hypot(f.player.x - at.x, f.player.z - at.z) < 3) f.fig.group.visible = false
       setStatus("showcase")
       start()
@@ -1231,7 +1280,8 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
         venueId = null
         setVenue(id)
         if (match) buildFigures()
-        if (umpire) umpire.setShadows(QUALITY[settings.quality].shadows)
+        refigure()
+        wantAthletes()
         scene.traverse((o) => {
           if (o.material) [].concat(o.material).forEach((mm) => (mm.needsUpdate = true))
         })
@@ -1330,6 +1380,25 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
       },
       replayNow() {
         startReplay()
+      },
+      // a still lineup of figures in one animation state, for look tests (studio.js)
+      async studio(opts) {
+        const { studioShot } = await import("./studio.js")
+        studioHold = true
+        for (const f of figures) f.fig.group.visible = false
+        if (showcaseFig) showcaseFig.fig.group.visible = false
+        return studioShot({ scene, camera, renderer, size, makeFigure, shadows: !!QUALITY[settings.quality]?.shadows }, opts)
+      },
+      get athletes() {
+        return {
+          ready: athletesReady(),
+          skinned: skinned(),
+          load: () => loadAthletes().then(() => refigure()),
+          simple(on) {
+            simpleOnly = !!on
+            refigure()
+          },
+        }
       },
     }
   }

@@ -22,7 +22,6 @@ import "./Pickleball.css"
 const PREFS_KEY = "98ish.pickleball"
 const TOUR_KEY = "98ish.pickleball.tour"
 const ICON = "/assets/program_icons/pickleball.svg"
-const isPhone = typeof window !== "undefined" && window.matchMedia?.("(pointer: coarse)").matches
 const DEFAULTS = {
   character: "maya",
   outfit: "home",
@@ -37,7 +36,9 @@ const DEFAULTS = {
   sound: true,
   voice: true,
   camera: "broadcast",
-  quality: isPhone ? "low" : "medium",
+  // Medium shows the skinned athletes; phones can drop to Low (the old figures) in Settings
+  quality: "medium",
+  athletes: 1,
   aid: true,
   assist: "light",
   timing: "normal",
@@ -67,6 +68,11 @@ const readPrefs = () => {
   const p = { ...DEFAULTS, ...load(PREFS_KEY, {}) }
   if (typeof p.assist === "boolean") p.assist = p.assist ? "light" : "off" // older saves
   if (!["broadcast", "tv", "side", "player"].includes(p.camera)) p.camera = "broadcast"
+  // saves from before the skinned athletes kept phones on Low: move them up once
+  if (!p.athletes) {
+    if (p.quality === "low") p.quality = "medium"
+    p.athletes = 1
+  }
   return p
 }
 const engineSettings = (p) => ({ sound: p.sound, voice: p.voice, camera: p.camera, aid: p.aid, assist: p.assist, quality: p.quality, cuts: p.cuts, replays: p.replays, keys: p.keys, window: TIMING[p.timing] || TIMING.normal })
@@ -870,6 +876,10 @@ const Pickleball = ({ onClose, mobile }) => {
             <br />
             <br />
             Time your shots: hold to power up, let go on the beat. Every player here is made up.
+            <br />
+            <br />
+            Character models, hairstyles and motion clips: Universal Base Characters and Universal Animation Library by
+            Quaternius (quaternius.com), CC0 public domain. Clothes, shoes, hats, paddles and swings are made in the game.
           </p>
         </Dialog>
       )}
