@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react"
 import { setSettings, useSettings } from "../../utils/settings"
+import { useTour } from "../../utils/welcome"
 import "./Helper.css"
 
 // Floppy, the 98ish helper: a floppy disk who pops up with tips when you open things.
@@ -123,18 +124,26 @@ const Helper = ({ windows, mobile }) => {
     setMood(wave ? "wave" : "talk")
   }
 
-  // hello, once per visit
+  // hello, once per visit, but not over the Welcome screen or the tour: after them
+  const touring = !!useTour()
+  const welcomeUp = windows.some((w) => !w.closed && w.app === "welcome")
+  const greeted = useRef(false)
+  const waited = useRef(false)
   useEffect(() => {
-    if (!settings.helper) return
-    const t = setTimeout(() => say(mobile ? WELCOME_PHONE : WELCOME, true), 3500)
+    if (!settings.helper || greeted.current) return
+    if (welcomeUp || touring) return void (waited.current = true)
+    const t = setTimeout(() => {
+      greeted.current = true
+      say(mobile ? WELCOME_PHONE : WELCOME, true)
+    }, waited.current ? 1500 : 3500)
     return () => clearTimeout(t)
-  }, [])
+  }, [welcomeUp, touring])
 
   // a tip for each program, the first time it's opened (not too chatty)
   useEffect(() => {
     const opened = windows.slice(known.current)
     known.current = windows.length
-    if (!settings.helper) return
+    if (!settings.helper || touring) return
     const fresh = opened.reverse().find((w) => !w.closed && TIPS[w.program || w.name] && !seen.current.has(w.program || w.name))
     if (!fresh) return
     const name = fresh.program || fresh.name
@@ -150,7 +159,7 @@ const Helper = ({ windows, mobile }) => {
     return () => clearTimeout(t)
   }, [mood, tip])
 
-  if (!settings.helper) return null
+  if (!settings.helper || touring) return null
   // on phones every window fills the screen: only appear on the bare desktop
   if (mobile && windows.some((w) => !w.closed && !w.minimized)) return null
 

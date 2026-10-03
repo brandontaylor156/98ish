@@ -107,7 +107,7 @@ const PAGES = [
           Serve <b>underhand</b>: hit the ball below your waist with an upward swing, both feet behind the baseline.
           The serve goes <b>diagonally</b> into the service court across from you and must clear the kitchen: a serve
           that lands in the kitchen or on its line is short, a fault. (A serve that clips the net and lands in is
-          played.) In Pickleball 98, hold a shot button to fill the serve meter and let go in the green.
+          played.) In Pickleball 98, hold the hit control to fill the serve meter and let go in the green.
         </p>
       </>
     ),

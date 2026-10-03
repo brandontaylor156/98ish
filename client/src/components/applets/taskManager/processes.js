@@ -44,6 +44,7 @@ export const APP_PROFILES = {
   "Display Properties": { image: "rundll32.exe", mem: 1704, threads: 2, handles: 39, cpu: [0.05, 1] },
   Calculator: { image: "calc.exe", mem: 1124, threads: 1, handles: 19, cpu: [0.05, 1] },
   "Character Map": { image: "charmap.exe", mem: 1288, threads: 1, handles: 24, cpu: [0.05, 1] },
+  "Welcome to 98ish": { image: "welcome.exe", mem: 1420, threads: 1, handles: 27, cpu: [0.05, 1] },
   "Date/Time Properties": { image: "rundll32.exe", mem: 1536, threads: 2, handles: 33, cpu: [0.05, 1] },
   "Media Player": { image: "mplayer.exe", mem: 6408, threads: 7, handles: 118, cpu: [0.9, 7] },
   "Network Neighborhood": { image: "explorer.exe", mem: 3124, threads: 5, handles: 104, cpu: [0.2, 2] },

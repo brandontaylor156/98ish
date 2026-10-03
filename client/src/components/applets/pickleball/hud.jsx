@@ -53,17 +53,17 @@ export const Callouts = ({ list }) => (
   </div>
 )
 
-// how your last shot went
+// how your last shot went: what it gave them (the label: "Unattackable dink", "Popped up!",
+// "Speed-up!"...) and how it was timed
 export const GradePop = ({ shot }) => {
   if (!shot) return null
   const g = shot.grade || ""
-  const word = { perfect: "PERFECT!", good: "GOOD", early: "EARLY", late: "LATE", "very early": "WAY EARLY", "very late": "WAY LATE", soft: "SOFT" }[g] || ""
+  const word = { perfect: "perfect", good: "good", early: "early", late: "late", "very early": "way early", "very late": "way late", soft: "soft" }[g] || ""
   return (
-    <div key={shot.id} className={`pkGrade pkGrade--${g.replace(" ", "-")}${shot.slot === 1 ? " is-p2" : ""}`}>
-      {word && <b>{word}</b>}
+    <div key={shot.id} className={`pkGrade pkGrade--${g.replace(" ", "-")} pkTone--${shot.tone || "ok"}${shot.slot === 1 ? " is-p2" : ""}`}>
+      <b>{shot.label}</b>
       <span>
-        {shot.risky ? "POWER " : ""}
-        {shot.label}
+        {word}
         {shot.speed ? ` · ${Math.round(shot.speed * MPH)} mph` : ""}
       </span>
     </div>
@@ -82,10 +82,15 @@ export const Meter = forwardRef(({ slot = 0 }, ref) => (
       </div>
       <div className="pkMeterPower">
         <i />
+        <em className="pkPaceMarks">
+          <span>soft</span>
+          <span>firm</span>
+          <span>hard</span>
+        </em>
       </div>
       <div className="pkMeterLabels">
         <span>early</span>
-        <span>let go</span>
+        <span className="pkMeterHeight" />
         <span>late</span>
       </div>
     </div>
@@ -102,17 +107,18 @@ export const Meter = forwardRef(({ slot = 0 }, ref) => (
 export const ControlsStrip = ({ keys, humans, touch, serve }) => {
   if (touch) return null
   const b = bindingsFor(keys)
-  const row = (set, who) => (
+  const row = (set, who, aim) => (
     <span className="pkStripSet" key={set}>
       {who && <b>{who}</b>}
-      <kbd>{keyName(b[set].topspin[0])}</kbd> Topspin <kbd>{keyName(b[set].slice[0])}</kbd> Slice <kbd>{keyName(b[set].soft[0])}</kbd> Soft <kbd>{keyName(b[set].lob[0])}</kbd> Lob <kbd>{keyName(b[set].power[0])}</kbd> Power
+      <kbd>{keyName(b[set].hit[0])}</kbd>
+      {set === "solo" ? " or click" : ""} hit: tap = soft, hold = hard &middot; {aim}
     </span>
   )
   return (
     <div className="pkStrip">
-      {humans >= 2 ? [row("p1", "P1"), row("p2", "P2")] : row("solo")}
+      {humans >= 2 ? [row("p1", "P1", "aim: move keys while holding"), row("p2", "P2", "aim: arrows while holding")] : row("solo", null, "aim: point at their court")}
       <span className="pkStripSet">
-        {serve ? "Hold a shot key to serve" : "Hold to power up, let go on the beat"} &middot; <kbd>C</kbd> camera &middot; <kbd>P</kbd> pause
+        {serve ? "Hold hit to serve, let go in the green" : "Let go just before the ball arrives"} &middot; <kbd>C</kbd> camera &middot; <kbd>P</kbd> pause
       </span>
     </div>
   )
@@ -121,7 +127,7 @@ export const ControlsStrip = ({ keys, humans, touch, serve }) => {
 export const ReplayBug = ({ touch }) => (
   <div className="pkReplayBug">
     <b>REPLAY</b>
-    <span>{touch ? "Tap to skip" : "Press a shot button to skip"}</span>
+    <span>{touch ? "Tap to skip" : "Press hit to skip"}</span>
   </div>
 )
 
@@ -235,9 +241,23 @@ export const OverScreen = ({ result, session, onAgain, onMenu, onNext, reward, c
                 <td>{pct(t[1].perfect, t[1].shots)}</td>
               </tr>
               <tr>
-                <th>Power shots</th>
-                <td>{t[0].power}</td>
-                <td>{t[1].power}</td>
+                <th>Unattackable dinks</th>
+                <td>{pct(t[0].goodDinks || 0, t[0].dinks || 0)}</td>
+                <td>{pct(t[1].goodDinks || 0, t[1].dinks || 0)}</td>
+              </tr>
+              <tr>
+                <th>Pop-ups</th>
+                <td>{t[0].popups || 0}</td>
+                <td>{t[1].popups || 0}</td>
+              </tr>
+              <tr>
+                <th>Speed-ups / counters</th>
+                <td>
+                  {t[0].speedups || 0} / {t[0].counters || 0}
+                </td>
+                <td>
+                  {t[1].speedups || 0} / {t[1].counters || 0}
+                </td>
               </tr>
               <tr>
                 <th>Fastest shot</th>

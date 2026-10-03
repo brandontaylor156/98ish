@@ -45,6 +45,8 @@ const DEFAULTS = {
   replays: true,
   cuts: true,
   hints: true,
+  // slow motion while a hard ball comes at you at the net: "auto" (Rookie and practice), on, off
+  focus: "auto",
   keys: {},
   best: {},
 }
@@ -75,16 +77,14 @@ const readPrefs = () => {
   }
   return p
 }
-const engineSettings = (p) => ({ sound: p.sound, voice: p.voice, camera: p.camera, aid: p.aid, assist: p.assist, quality: p.quality, cuts: p.cuts, replays: p.replays, keys: p.keys, window: TIMING[p.timing] || TIMING.normal })
+const engineSettings = (p) => ({ sound: p.sound, voice: p.voice, camera: p.camera, aid: p.aid, assist: p.assist, quality: p.quality, cuts: p.cuts, replays: p.replays, keys: p.keys, focus: p.focus || "auto", window: TIMING[p.timing] || TIMING.normal })
 
-// on-screen controls: a joystick area on the left, shot buttons on the right
+// on-screen controls: a joystick area bottom-left; everywhere else is the hit control (touch
+// their court to aim there, or drag from where you touched; hold for pace, let go to swing)
 const touchControls = () => [
   { id: "move", label: "Move (drag)", kind: "zone", mirror: true, default: { portrait: (s) => fromPx(s, { left: 0, bottom: 0, width: Math.round(s.width * 0.5), height: Math.round(s.height * 0.4) }), landscape: (s) => fromPx(s, { left: 0, bottom: 0, width: Math.round(s.width * 0.42), height: Math.round(s.height * 0.62) }) } },
-  { id: "topspin", label: "Topspin", shape: "round", className: "pkShot pkShot--topspin", default: (s) => fromPx(s, { right: 12, bottom: 70, width: 60, height: 60 }) },
-  { id: "soft", label: "Soft", shape: "round", className: "pkShot pkShot--soft", default: (s) => fromPx(s, { right: 80, bottom: 16, width: 56, height: 56 }) },
-  { id: "slice", label: "Slice", shape: "round", className: "pkShot pkShot--slice", default: (s) => fromPx(s, { right: 12, bottom: 6, width: 54, height: 54 }) },
-  { id: "lob", label: "Lob", shape: "round", className: "pkShot pkShot--lob", default: (s) => fromPx(s, { right: 84, bottom: 84, width: 46, height: 46 }) },
-  { id: "power", label: "Power", shape: "round", className: "pkShot pkShot--power", default: (s) => fromPx(s, { right: 140, bottom: 40, width: 42, height: 42 }) },
+  { id: "hit", action: "hit", label: "Hit: touch where it goes, hold for pace", kind: "zone", mirror: true, default: { portrait: (s) => fromPx(s, { right: 0, bottom: 0, width: s.width - Math.round(s.width * 0.5), height: Math.round(s.height * 0.4) }), landscape: (s) => fromPx(s, { right: 0, bottom: 0, width: s.width - Math.round(s.width * 0.42), height: s.height }) } },
+  { id: "hitTop", action: "hit", label: "Hit (aim zone)", kind: "zone", mirror: true, default: { portrait: (s) => fromPx(s, { left: 0, top: 0, width: s.width, height: s.height - Math.round(s.height * 0.4) }), landscape: (s) => fromPx(s, { left: 0, top: 0, width: Math.round(s.width * 0.42), height: s.height - Math.round(s.height * 0.62) }) } },
   { id: "pause", label: "Pause", icon: GLYPHS.pause, shape: "round", className: "pkShot pkShot--small", default: (s) => fromPx(s, { right: 8, top: 64, width: 36, height: 36 }) },
   { id: "camera", label: "Cam", shape: "round", className: "pkShot pkShot--small", default: (s) => fromPx(s, { right: 52, top: 64, width: 36, height: 36 }) },
 ]
@@ -135,7 +135,6 @@ const Pickleball = ({ onClose, mobile }) => {
   const [editing, setEditing] = useState(false)
   const [stickUi, setStickUi] = useState(null)
   const [zoneHint, setZoneHint] = useState(null)
-  const [powerOn, setPowerOn] = useState(false)
   const [toast, setToast] = useState(null)
   const touchVisible = useTouchControlsVisible()
   const controlsMenuItem = useTouchControlsMenuItem()
@@ -187,7 +186,9 @@ const Pickleball = ({ onClose, mobile }) => {
     const s = sessionRef.current
     switch (e.type) {
       case "hit":
-        if (e.mine) setShot({ id: ++uid, grade: e.grade, label: e.label, risky: e.risky, speed: e.speed, slot: e.slot })
+        if (e.mine) setShot({ id: ++uid, grade: e.grade, label: e.label, tone: e.tone, speed: e.speed, slot: e.slot })
+        // they attacked: hands up
+        else if (e.theirs && (e.tag === "speedup" || e.tag === "counter")) callout("Hands up!", "bad", 650)
         break
       case "whiff":
         callout("Swing and a miss!", "bad", 1000)
@@ -200,7 +201,7 @@ const Pickleball = ({ onClose, mobile }) => {
         break
       case "rally":
         if (e.kind === "ace") later(() => callout("ACE!", e.yours ? "good" : "bad", 1300), 300)
-        else if (e.kind === "winner" && e.shots >= 3) later(() => callout(e.last?.risky ? "POWER WINNER!" : "WINNER!", e.yours ? "good" : "bad", 1300), 300)
+        else if (e.kind === "winner" && e.shots >= 3) later(() => callout(e.last?.kind === "smash" ? "PUT AWAY!" : e.last?.kind === "speedup" || e.last?.kind === "counter" ? "TOO FAST!" : "WINNER!", e.yours ? "good" : "bad", 1300), 300)
         break
       case "point": {
         if (s?.kind === "practice" || s?.kind === "tutorial") break
@@ -222,9 +223,6 @@ const Pickleball = ({ onClose, mobile }) => {
       case "camera":
         flash(`Camera: ${{ broadcast: "Broadcast", tv: "TV high", side: "Sideline", player: "Behind you" }[e.camera]}`)
         setPrefs({ camera: e.camera })
-        break
-      case "power":
-        setPowerOn(e.on)
         break
       case "gameover":
         onGameOver(e)
@@ -318,7 +316,6 @@ const Pickleball = ({ onClose, mobile }) => {
     setCall(null)
     setDrill(null)
     setReplay(false)
-    setPowerOn(false)
   }
 
   // ---- starting matches ----
@@ -487,19 +484,30 @@ const Pickleball = ({ onClose, mobile }) => {
     }
   }
 
-  // ---- the joystick: the "move" zone of the on-screen controls ----
+  // ---- the joystick: the "move" zone of the on-screen controls (and aiming in the hit zones) ----
   const stick = useRef(null)
+  const aimTouch = useRef(null)
   useEffect(() => {
     const stage = stageRef.current
     if (!stage || !showPad) return
     const R = 48
     const down = (e) => {
+      // the hit zones: the finger aims (on their court: right there; elsewhere: drag)
+      if (!aimTouch.current && e.target.closest?.('[data-control="hit"], [data-control="hitTop"]')) {
+        aimTouch.current = e.pointerId
+        engineRef.current?.touchAim("start", e.clientX, e.clientY)
+        return
+      }
       if (stick.current || !e.target.closest?.('[data-control="move"]')) return
       const r = stage.getBoundingClientRect()
       stick.current = { id: e.pointerId, x0: e.clientX, y0: e.clientY }
       setStickUi({ x: e.clientX - r.left, y: e.clientY - r.top, kx: 0, ky: 0 })
     }
     const move = (e) => {
+      if (aimTouch.current === e.pointerId) {
+        engineRef.current?.touchAim("move", e.clientX, e.clientY)
+        return
+      }
       const s = stick.current
       if (!s || s.id !== e.pointerId) return
       let dx = e.clientX - s.x0
@@ -514,6 +522,10 @@ const Pickleball = ({ onClose, mobile }) => {
       setStickUi((u) => u && { ...u, kx: dx, ky: dy })
     }
     const up = (e) => {
+      if (aimTouch.current === e.pointerId) {
+        aimTouch.current = null
+        return
+      }
       if (!stick.current || stick.current.id !== e.pointerId) return
       stick.current = null
       engineRef.current?.setStick(0, 0)
@@ -551,11 +563,10 @@ const Pickleball = ({ onClose, mobile }) => {
     if (action === "pause") return e.online ? setDialog("menu") : togglePause()
     if (action === "camera") return e.cycleCamera()
     if (replay) return e.skipReplay()
-    e.shotDown(action)
+    if (action === "hit") e.shotDown("hit")
   }
   const padRelease = (action) => {
-    if (["move", "pause", "camera", "power"].includes(action)) return
-    engineRef.current?.shotUp(action)
+    if (action === "hit") engineRef.current?.shotUp("hit")
   }
   useEffect(() => {
     if (editing && engineRef.current?.status === "playing") engineRef.current.pause()
@@ -579,7 +590,8 @@ const Pickleball = ({ onClose, mobile }) => {
   const keyText = (s) =>
     s
       .replace("{move}", showPad ? "the stick (drag on the left)" : `${keyName(b.solo.up[0])}${keyName(b.solo.left[0])}${keyName(b.solo.down[0])}${keyName(b.solo.right[0])} or the arrows`)
-      .replace(/\{(topspin|slice|soft|lob|power)\}/g, (_, a) => (showPad ? `the ${a[0].toUpperCase() + a.slice(1)} button` : keyName(b.solo[a][0])))
+      .replace(/\{hit\}/g, showPad ? "touching the screen (anywhere off the stick)" : `${keyName(b.solo.hit[0])} or the left mouse button`)
+      .replace(/\{aim\}/g, showPad ? "your finger: touch their court where you want it (or drag)" : "the mouse: point at their court")
 
   const menus = [
     {
@@ -668,7 +680,7 @@ const Pickleball = ({ onClose, mobile }) => {
         <Meter ref={meterRefs[1]} slot={1} />
         {phase === "playing" && replay && <ReplayBug touch={showPad} />}
         {phase === "playing" && prefs.hints && !replay && session && session.kind !== "tutorial" && <ControlsStrip keys={prefs.keys} humans={hud?.humans || 1} touch={showPad} serve={serveTime} />}
-        {phase === "playing" && serveTime && showPad && <div className="pkPrompt">Your serve: hold a shot button, let go in the green</div>}
+        {phase === "playing" && serveTime && showPad && <div className="pkPrompt">Your serve: touch where it goes, hold, let go in the green</div>}
         {toast && <div key={toast.id} className="pkToast">{toast.text}</div>}
         {inGame && hud?.netWait && (
           <div className="pkCenter pkDim">
@@ -831,10 +843,16 @@ const Pickleball = ({ onClose, mobile }) => {
             <div className="pkKnob" />
           </div>
         )}
+        {showPad && phase === "playing" && !editing && !replay && (
+          <div className="pkHitHint" aria-hidden="true">
+            <b>Hit</b>
+            <span>touch their court to aim &middot; tap soft &middot; hold hard</span>
+          </div>
+        )}
         {showPad && phase !== "loading" && phase !== "error" && (
           <TouchControls
-            game="pickleball2"
-            controls={controls.map((c) => (c.id === "power" ? { ...c, className: `${c.className}${powerOn ? " is-on" : ""}` } : c))}
+            game="pickleball3"
+            controls={controls}
             onPress={padPress}
             onRelease={padRelease}
             show={phase === "playing" && !tutorialStep?.card && !(isOnline && online.phase === "over")}
@@ -875,7 +893,7 @@ const Pickleball = ({ onClose, mobile }) => {
             physics and the same USA Pickleball rules.
             <br />
             <br />
-            Time your shots: hold to power up, let go on the beat. Every player here is made up.
+            One hit control: aim at their court, tap for touch (dinks, drops, resets), hold for pace (drives, speed-ups, counters), and let go on the beat. Every player here is made up.
             <br />
             <br />
             Character models, hairstyles and motion clips: Universal Base Characters and Universal Animation Library by

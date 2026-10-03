@@ -1,27 +1,22 @@
-// Pickleball 98: controls. Key bindings for one player (solo) and for two people sharing a
-// keyboard (p1 and p2), what the keys are called on screen, and the gamepad mapping (the
-// standard layout: A topspin, X slice, B soft, Y lob, RB/RT power). Pure; the engine feeds it
-// key codes and Gamepad objects.
+// Pickleball 98: controls. One hit control (hold it for pace, let go to swing) plus moving
+// and aiming. Key bindings for one player (solo, who aims with the mouse) and for two people
+// sharing a keyboard (p1 and p2, who aim with their movement keys while holding hit), what
+// the keys are called on screen, and the gamepad mapping (left stick moves, right stick aims,
+// any face button or a trigger hits). Pure; the engine feeds it key codes and Gamepad objects.
 
-export const ACTIONS = ["up", "down", "left", "right", "topspin", "slice", "soft", "lob", "power", "auto"]
-export const SHOTS = ["topspin", "slice", "soft", "lob", "auto"]
+export const ACTIONS = ["up", "down", "left", "right", "hit"]
 export const ACTION_LABEL = {
   up: "Move up",
   down: "Move down",
   left: "Move left",
   right: "Move right",
-  topspin: "Topspin drive",
-  slice: "Slice",
-  soft: "Dink / drop",
-  lob: "Lob",
-  power: "Power shot (hold)",
-  auto: "Smart shot",
+  hit: "Hit (tap: soft, hold: hard)",
 }
 
 export const DEFAULT_KEYS = {
-  solo: { up: ["KeyW", "ArrowUp"], down: ["KeyS", "ArrowDown"], left: ["KeyA", "ArrowLeft"], right: ["KeyD", "ArrowRight"], topspin: ["KeyJ"], slice: ["KeyK"], soft: ["KeyL"], lob: ["KeyI"], power: ["ShiftLeft", "ShiftRight", "KeyU"], auto: ["Space"] },
-  p1: { up: ["KeyW"], down: ["KeyS"], left: ["KeyA"], right: ["KeyD"], topspin: ["KeyF"], slice: ["KeyG"], soft: ["KeyV"], lob: ["KeyR"], power: ["ShiftLeft"], auto: ["KeyC"] },
-  p2: { up: ["ArrowUp"], down: ["ArrowDown"], left: ["ArrowLeft"], right: ["ArrowRight"], topspin: ["KeyK", "Numpad1"], slice: ["KeyL", "Numpad2"], soft: ["Semicolon", "Numpad3"], lob: ["KeyO", "Numpad5"], power: ["ShiftRight", "Numpad0"], auto: ["Slash", "NumpadEnter"] },
+  solo: { up: ["KeyW", "ArrowUp"], down: ["KeyS", "ArrowDown"], left: ["KeyA", "ArrowLeft"], right: ["KeyD", "ArrowRight"], hit: ["Space", "KeyJ", "KeyK"] },
+  p1: { up: ["KeyW"], down: ["KeyS"], left: ["KeyA"], right: ["KeyD"], hit: ["KeyF", "KeyC"] },
+  p2: { up: ["ArrowUp"], down: ["ArrowDown"], left: ["ArrowLeft"], right: ["ArrowRight"], hit: ["KeyL", "Slash", "Numpad0"] },
 }
 
 // the bindings in use: defaults with the player's changes on top
@@ -29,7 +24,7 @@ export const bindingsFor = (custom = {}) => {
   const out = {}
   for (const set of Object.keys(DEFAULT_KEYS)) {
     out[set] = { ...DEFAULT_KEYS[set] }
-    for (const [action, codes] of Object.entries(custom[set] || {})) if (Array.isArray(codes) && ACTIONS.includes(action)) out[set][action] = codes.filter((c) => typeof c === "string").slice(0, 3)
+    for (const [action, codes] of Object.entries(custom?.[set] || {})) if (Array.isArray(codes) && ACTIONS.includes(action)) out[set][action] = codes.filter((c) => typeof c === "string").slice(0, 3)
   }
   return out
 }
@@ -69,10 +64,11 @@ export const keyName = (code) => {
 export const keysLabel = (bindings, set, action) => (bindings[set][action] || []).map(keyName).join(" / ")
 
 // ---- gamepads ----
-export const PAD = { topspin: 0, soft: 1, slice: 2, lob: 3, power: [4, 5, 6, 7], pause: 9 }
+export const PAD = { hit: [0, 1, 2, 3, 5, 7], pause: 9 }
 const DEAD = 0.22
 
-// A gamepad's state in game terms: { x, z, buttons: { topspin, slice, soft, lob, power, pause } }
+// A gamepad's state in game terms: { x, z (left stick: move), ax, az (right stick: aim),
+// buttons: { hit, pause } }
 export const readPad = (pad) => {
   if (!pad) return null
   const b = (i) => !!pad.buttons[i]?.pressed || (pad.buttons[i]?.value || 0) > 0.5
@@ -86,18 +82,20 @@ export const readPad = (pad) => {
   if (b(15)) x = 1
   if (b(12)) z = -1
   if (b(13)) z = 1
-  return {
-    x,
-    z,
-    buttons: { topspin: b(PAD.topspin), slice: b(PAD.slice), soft: b(PAD.soft), lob: b(PAD.lob), power: PAD.power.some(b), pause: b(PAD.pause) },
+  let ax = pad.axes[2] || 0
+  let az = pad.axes[3] || 0
+  if (Math.hypot(ax, az) < DEAD + 0.08) {
+    ax = 0
+    az = 0
   }
+  return { x, z, ax, az, buttons: { hit: PAD.hit.some(b), pause: b(PAD.pause) } }
 }
 
-// Edges between two readings: which shot buttons went down and up
+// Edges between two readings: which buttons went down and up
 export const padEdges = (prev, now) => {
   const down = []
   const up = []
-  for (const k of ["topspin", "slice", "soft", "lob", "pause"]) {
+  for (const k of ["hit", "pause"]) {
     const was = !!prev?.buttons[k]
     const is = !!now?.buttons[k]
     if (is && !was) down.push(k)
@@ -105,3 +103,8 @@ export const padEdges = (prev, now) => {
   }
   return { down, up }
 }
+
+// The right stick as an aim on the other court: x across (screen right = +), up the stick =
+// deeper. Returns { u, v } in -1..1 (the engine turns it into a court point), or null when
+// the stick is centered (aim where a sensible player would)
+export const stickAim = (pad) => (pad && (pad.ax || pad.az) ? { u: Math.max(-1, Math.min(1, pad.ax)), v: Math.max(-1, Math.min(1, -pad.az)) } : null)

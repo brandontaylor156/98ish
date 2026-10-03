@@ -6,6 +6,7 @@ import { openItem } from "../../utils/openItem"
 import { iconFor } from "../../utils/fileInfo"
 import RunDialog from "./RunDialog"
 import { shellAction } from "../../utils/shell"
+import { getTour, startTour } from "../../utils/welcome"
 import "./StartMenu.css"
 
 const GROUPS = ["Accessories", "Business", "Community", "Games", "Internet", "Entertainment", "System Tools", "Us", "My Projects"]
@@ -135,10 +136,19 @@ const StartMenu = ({ dispatch, setResults, closeMenu, onShutDown, onLogOff, mobi
       label: "Help",
       key: "H",
       icon: ICON.help,
-      onClick: () => {
-        const readme = fs.resolve("C:/README")
-        go(readme ? notepadWindow(readme) : explorerWindow(["C:"]))
-      },
+      items: () => [
+        { label: "Welcome to 98ish", icon: "/assets/program_icons/welcome.svg", onClick: () => go(launch("Welcome to 98ish")) },
+        { label: "Take the Tour", icon: ICON.help, onClick: () => (closeMenu(), startTour(0)) },
+        "-",
+        {
+          label: "Read Me",
+          icon: "/assets/note.png",
+          onClick: () => {
+            const readme = fs.resolve("C:/README")
+            go(readme ? notepadWindow(readme) : explorerWindow(["C:"]))
+          },
+        },
+      ],
     },
     { label: "Run...", key: "R", icon: ICON.run, onClick: () => setRun(true) },
     "-",
@@ -270,7 +280,7 @@ const StartMenu = ({ dispatch, setResults, closeMenu, onShutDown, onLogOff, mobi
   )
 
   return (
-    <div className="window startMenu" onClick={(e) => e.stopPropagation()} onMouseLeave={() => setOpen([])}>
+    <div className="window startMenu" onClick={(e) => e.stopPropagation()} onMouseLeave={() => !getTour() && setOpen([])}>
       <div className="smBanner" aria-hidden="true">
         <span>
           <b>Windows</b>98ish

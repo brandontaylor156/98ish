@@ -438,7 +438,7 @@ test("computer matches finish with a legal score and realistic shot speeds", () 
     assert.ok(Math.max(a, b) >= m.game.target && Math.abs(a - b) >= 2, `final ${a}-${b}`)
     const avg = (k) => speeds[k].reduce((s, v) => s + v, 0) / speeds[k].length
     between(avg("serve"), 12, 20, `${level} serve speed`)
-    between(avg("dink"), 3, 7, `${level} dink speed`)
+    between(avg("dink"), 3, 7.5, `${level} dink speed`) // (8-17 mph; a floated one runs faster)
     if (speeds.drive) between(avg("drive"), 15, 25, `${level} drive speed`)
     assert.ok(m.stats.shots > m.stats.rallies * 2, "real rallies happen")
   }

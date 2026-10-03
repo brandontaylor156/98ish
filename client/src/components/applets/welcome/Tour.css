@@ -1,0 +1,311 @@
+/* The guided tour: a dimmed screen with a lit-up hole, and a yellow help balloon */
+
+.tourLayer {
+  position: fixed;
+  inset: 0;
+  z-index: 100000050;
+  pointer-events: none;
+}
+
+/* the dimmed parts block clicks; the hole lets them through to what's lit up */
+.tourDim {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+}
+
+.tourDim path {
+  fill: rgba(8, 8, 32, 0.52);
+  fill-rule: nonzero;
+  pointer-events: visiblePainted;
+  transition: d 0.28s ease;
+}
+
+.tourRing {
+  position: fixed;
+  pointer-events: none;
+  border: 2px dashed #ffe36b;
+  border-radius: 4px;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6), 0 0 14px 2px rgba(255, 227, 107, 0.55);
+  transition: left 0.28s ease, top 0.28s ease, width 0.28s ease, height 0.28s ease;
+  animation: tourPulse 1.8s ease-in-out infinite;
+}
+
+@keyframes tourPulse {
+  50% {
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6), 0 0 22px 6px rgba(255, 227, 107, 0.8);
+  }
+}
+
+/* ---- the balloon ---- */
+.tourBalloon {
+  position: fixed;
+  pointer-events: auto;
+  width: 320px;
+  max-width: calc(100vw - 16px);
+  padding: 9px 12px 8px;
+  background: #ffffe1;
+  color: #111;
+  border: 1px solid #000;
+  border-radius: 9px;
+  box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.3);
+  font-family: Tahoma, Verdana, "Segoe UI", sans-serif;
+  font-size: 12px;
+  line-height: 1.45;
+  outline: none;
+  transition: left 0.28s ease, top 0.28s ease;
+  animation: tourPop 0.22s ease-out;
+}
+
+@keyframes tourPop {
+  from {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.tourBalloon--card {
+  width: 360px;
+}
+
+/* the tail, pointing at what's lit up (--tail: how far along the edge) */
+.tourBalloon[class*="tourTail--"]::before,
+.tourBalloon[class*="tourTail--"]::after {
+  content: "";
+  position: absolute;
+  width: 0;
+  height: 0;
+  border: solid transparent;
+}
+
+.tourTail--top::before {
+  top: -15px;
+  left: calc(var(--tail) - 9px);
+  border-width: 0 9px 15px;
+  border-bottom-color: #000;
+}
+.tourTail--top::after {
+  top: -13px;
+  left: calc(var(--tail) - 8px);
+  border-width: 0 8px 14px;
+  border-bottom-color: #ffffe1;
+}
+.tourTail--bottom::before {
+  bottom: -15px;
+  left: calc(var(--tail) - 9px);
+  border-width: 15px 9px 0;
+  border-top-color: #000;
+}
+.tourTail--bottom::after {
+  bottom: -13px;
+  left: calc(var(--tail) - 8px);
+  border-width: 14px 8px 0;
+  border-top-color: #ffffe1;
+}
+.tourTail--left::before {
+  left: -15px;
+  top: calc(var(--tail) - 9px);
+  border-width: 9px 15px 9px 0;
+  border-right-color: #000;
+}
+.tourTail--left::after {
+  left: -13px;
+  top: calc(var(--tail) - 8px);
+  border-width: 8px 14px 8px 0;
+  border-right-color: #ffffe1;
+}
+.tourTail--right::before {
+  right: -15px;
+  top: calc(var(--tail) - 9px);
+  border-width: 9px 0 9px 15px;
+  border-left-color: #000;
+}
+.tourTail--right::after {
+  right: -13px;
+  top: calc(var(--tail) - 8px);
+  border-width: 8px 0 8px 14px;
+  border-left-color: #ffffe1;
+}
+
+/* the hello and goodbye cards get the little computer */
+.tourArt {
+  float: left;
+  margin: 2px 10px 2px -2px;
+}
+
+.tourArt svg {
+  width: 70px;
+  height: 64px;
+}
+
+.tourFoot,
+.tourKeys {
+  clear: both;
+}
+
+.tourHead {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-right: 18px;
+  margin-bottom: 3px;
+  font-size: 13px;
+}
+
+.tourHead .welInfo {
+  flex: none;
+}
+
+.tourBalloon p {
+  margin: 0 0 8px;
+}
+
+.os-root .tourX {
+  position: absolute;
+  top: 5px;
+  right: 6px;
+  min-width: 0;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  box-shadow: none;
+  background: transparent;
+  font-size: 16px;
+  line-height: 16px;
+  color: #555;
+}
+
+.os-root .tourX:hover {
+  color: #000;
+  background: rgba(0, 0, 0, 0.07);
+}
+
+.tourFoot {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tourCount {
+  margin-right: auto;
+  color: #6a6a50;
+  font-size: 11px;
+}
+
+.tourFoot button {
+  font-family: "Pixelated MS Sans Serif", Arial, sans-serif;
+  font-size: 11px;
+}
+
+.os-root .tourFoot .tourNext {
+  font-weight: bold;
+  min-width: 80px;
+}
+
+.os-root .tourSkip {
+  display: inline;
+  min-width: 0;
+  min-height: 0;
+  margin-top: 4px;
+  padding: 0;
+  border: 0;
+  box-shadow: none;
+  background: none;
+  color: #0b4fb0;
+  text-decoration: underline;
+  font-family: Tahoma, Verdana, sans-serif;
+  font-size: 11px;
+}
+
+.tourKeys {
+  float: right;
+  margin-top: 5px;
+  color: #8a8a70;
+  font-size: 10px;
+}
+
+/* ---- phones: a sheet along the top or bottom edge ---- */
+.tourSheet {
+  left: 8px !important;
+  right: 8px;
+  width: auto;
+  max-width: none;
+  padding: 12px 14px 12px;
+  font-size: 15px;
+  border-radius: 12px;
+  transition: none;
+  animation: tourSlideUp 0.25s ease-out;
+}
+
+.tourSheet--bottom {
+  bottom: calc(var(--taskbar-h, 35px) + 8px + env(safe-area-inset-bottom));
+}
+
+.tourSheet--top {
+  top: calc(8px + env(safe-area-inset-top));
+  animation-name: tourSlideDown;
+}
+
+@keyframes tourSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes tourSlideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-16px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.tourSheet .tourHead {
+  font-size: 16px;
+}
+
+.os-root .tourSheet .tourX {
+  top: 8px;
+  right: 8px;
+  width: 32px;
+  height: 32px;
+  font-size: 22px;
+  line-height: 32px;
+}
+
+.tourSheet .tourCount {
+  font-size: 13px;
+}
+
+.os-root .tourSheet .tourFoot button {
+  min-height: 40px;
+  padding: 0 14px;
+  font-size: 13px;
+}
+
+.os-root .tourSheet .tourSkip {
+  margin-top: 10px;
+  font-size: 14px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tourBalloon,
+  .tourRing,
+  .tourDim {
+    animation: none;
+    transition: none;
+  }
+}

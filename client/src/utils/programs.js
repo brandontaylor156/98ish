@@ -69,6 +69,8 @@ export const programs = [
   // an unofficial retro tribute to Appward (appward.com): a business suite as a 1998 client
   { name: "Appward 98", app: "appward", type: "appward", icon: "/assets/program_icons/appward.svg", width: 980, height: 660, group: "Business", desktop: true, single: true },
   { name: "Our Pet", app: "pet", icon: "/assets/program_icons/pet.svg", width: 480, height: 660, group: "Us", desktop: false, single: true },
+  // the screen that greets you when 98ish starts (also Start > Help), and its guided tour
+  { name: "Welcome to 98ish", app: "welcome", icon: "/assets/program_icons/welcome.svg", width: 660, height: 480, group: "System Tools", desktop: false, single: true },
 ]
 
 // The desktop shows these (MS-DOS Prompt and Display Properties live in the Start menu)

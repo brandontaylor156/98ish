@@ -56,7 +56,7 @@
   timeline, calendars, approvals, work orders with inventory, Insights charts, a Report Builder and an App Creator
   for your own apps), all with made-up sample data saved in your browser
 - **My Projects:** Baseline Today, Job Market Radar and One Closet open as their own 98ish programs
-- **Extras:** 98ish Update, Floppy the helper, 50+ hidden achievements (My Computer > Properties), and whatever
+- **Extras:** a Welcome to 98ish screen with a guided tour (Start > Help), 98ish Update, Floppy the helper, 50+ hidden achievements (My Computer > Properties), and whatever
   happens if you end explorer.exe
 
 ## Demos

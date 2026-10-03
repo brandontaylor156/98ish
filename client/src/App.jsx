@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useReducer } from "react"
+import React, { useEffect, useRef, useState, useReducer } from "react"
 import TaskBar from "./components/OS-specific/TaskBar"
 import StartMenu from "./components/OS-specific/StartMenu"
 import Desktop from "./components/OS-specific/Desktop"
@@ -17,8 +17,10 @@ import CursorTrail from "./components/OS-specific/CursorTrail"
 import { arrangeWindows } from "./utils/windowArrange"
 import { unlock } from "./utils/achievements"
 import { programByName } from "./utils/programs"
+import { endTour, getTour, useTour, welcomeAtStartup, welcomeWindow } from "./utils/welcome"
 
 const MsDos = lazyApp(() => import("./components/applets/dos/MsDos"))
+const Tour = React.lazy(() => import("./components/applets/welcome/Tour"))
 import { Screensaver, optionsFor, saverById, useIdle } from "./components/screensavers"
 
 const reducer = (state, action) => {
@@ -248,6 +250,20 @@ function App() {
 
   const restart = () => setPhase(getSettings().bootScreen ? "boot" : "desktop")
 
+  // Welcome to 98ish, once the startup screens are done (once per visit; utils/welcome.js
+  // says when not). Leaving the desktop mid-tour ends the tour.
+  const tour = useTour()
+  const welcomeTimer = useRef(null)
+  useEffect(() => {
+    if (phase !== "desktop") {
+      clearTimeout(welcomeTimer.current)
+      if (getTour()) endTour()
+      return
+    }
+    if (!welcomeAtStartup()) return
+    welcomeTimer.current = setTimeout(() => dispatch({ type: "open_window", payload: welcomeWindow(mobile) }), 700)
+  }, [phase])
+
   // ending explorer.exe in Task Manager crashes the whole thing
   const [crashed, setCrashed] = useState(null)
   useEffect(() => {
@@ -314,6 +330,11 @@ function App() {
             </div>
           )}
           <Helper windows={windows} mobile={mobile} />
+          {tour && (
+            <React.Suspense fallback={null}>
+              <Tour windows={windows} dispatch={dispatch} setStartMenuVisible={setStartMenuVisible} mobile={mobile} />
+            </React.Suspense>
+          )}
           <GlobalMenu windows={windows} dispatch={dispatch} />
           {!mobile && settings.cursorTrail && settings.cursorTrail !== "none" && <CursorTrail kind={settings.cursorTrail} />}
           {power === "shutdown" && <ShutDownDialog onChoose={chooseShutDown} onCancel={() => setPower(null)} />}

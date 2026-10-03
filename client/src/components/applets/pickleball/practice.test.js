@@ -6,7 +6,7 @@ import { DRILLS, TUTORIAL, practiceMatch, drillById } from "./drills.js"
 import { TOUR, freshTour, nextMatch, recordResult, tourState, unlocks } from "./career.js"
 import { createMatch, step, autopilot, seeded, press, release, scenario, playerById, setMove, SWING_LEAD } from "./match.js"
 import { gradeOf, shotQuality, serveMeter } from "./shots.js"
-import { bindingsFor, rebind, actionFor, keyName, readPad, padEdges } from "./input.js"
+import { bindingsFor, rebind, actionFor, keyName, readPad, padEdges, stickAim } from "./input.js"
 import { CHARACTERS, lookFor } from "./looks.js"
 import { STEP } from "./physics.js"
 
@@ -17,7 +17,7 @@ const runDrill = (spec, seconds = 240, seed = 3) => {
   const events = []
   for (let i = 0; i < seconds / STEP && !m.practice.state.done; i++) {
     if (spec.moved) setMove(m, Math.sin(i / 300), Math.cos(i / 410), 0)
-    else if (i % 4 === 0) autopilot(m, 0, { rand, jitter: 0.05, button: spec.button, risky: spec.risky })
+    else if (i % 4 === 0) autopilot(m, 0, { rand, jitter: 0.05 })
     step(m)
     for (const e of m.events) if (e.type === "drill") events.push(e)
     m.events.length = 0
@@ -92,7 +92,7 @@ test("press and release: letting go on the beat is perfect, holding too long is 
     let grade = null
     for (let i = 0; i < 240 * 3 && !grade; i++) {
       const e = you.expect
-      if (e && !you.charge && !you.armed && e.at - m.t < 0.45) press(m, 0, "topspin")
+      if (e && !you.charge && !you.armed && e.at - m.t < 0.45) press(m, 0)
       if (you.charge && e && e.at - m.t <= lead) release(m, 0)
       step(m)
       const hit = m.events.find((x) => x.type === "hit" && x.player === "you")
@@ -106,22 +106,28 @@ test("press and release: letting go on the beat is perfect, holding too long is 
   assert.match(timeIt(0.42) || "", /early/)
 })
 
-test("controls: rebinding moves a key, never doubles one up; names and gamepads", () => {
-  const custom = rebind({}, "solo", "topspin", "KeyK")
+test("controls: one hit control; rebinding moves a key, never doubles one up; old saves are ignored; gamepads", () => {
+  const custom = rebind({}, "solo", "hit", "KeyW")
   const b = bindingsFor(custom)
-  assert.deepEqual(b.solo.topspin[0], "KeyK")
-  assert.ok(!b.solo.slice.includes("KeyK"), "slice lost K")
-  assert.deepEqual(actionFor(b, [["solo", 0]], "KeyK"), { action: "topspin", slot: 0 })
+  assert.deepEqual(b.solo.hit[0], "KeyW")
+  assert.ok(!b.solo.up.includes("KeyW"), "up lost W")
+  assert.deepEqual(actionFor(b, [["solo", 0]], "KeyW"), { action: "hit", slot: 0 })
   assert.deepEqual(actionFor(bindingsFor({}), [["p1", 0], ["p2", 1]], "ArrowUp"), { action: "up", slot: 1 })
+  // a save from the old shot buttons doesn't break anything
+  const old = bindingsFor({ solo: { topspin: ["KeyJ"], power: ["ShiftLeft"] } })
+  assert.equal(old.solo.topspin, undefined)
+  assert.deepEqual(actionFor(old, [["solo", 0]], "KeyJ"), { action: "hit", slot: 0 })
   assert.equal(keyName("KeyJ"), "J")
   assert.equal(keyName("ArrowLeft"), "←")
-  const pad = (pressed, axes = [0, 0]) => ({ axes, buttons: Array.from({ length: 16 }, (_, i) => ({ pressed: pressed.includes(i), value: pressed.includes(i) ? 1 : 0 })) })
-  const a = readPad(pad([], [0.1, 0.1]))
+  const pad = (pressed, axes = [0, 0, 0, 0]) => ({ axes, buttons: Array.from({ length: 16 }, (_, i) => ({ pressed: pressed.includes(i), value: pressed.includes(i) ? 1 : 0 })) })
+  const a = readPad(pad([], [0.1, 0.1, 0.1, 0.1]))
   assert.equal(a.x, 0, "dead zone")
-  const b2 = readPad(pad([0, 5], [0.9, 0]))
-  assert.equal(b2.buttons.topspin, true)
-  assert.equal(b2.buttons.power, true)
-  assert.deepEqual(padEdges(a, b2).down, ["topspin"])
+  assert.equal(stickAim(a), null, "a centered right stick aims by default")
+  const b2 = readPad(pad([0], [0.9, 0, 0.8, -0.9]))
+  assert.equal(b2.buttons.hit, true)
+  assert.deepEqual(padEdges(a, b2).down, ["hit"])
+  assert.ok(stickAim(b2).u > 0.7 && stickAim(b2).v > 0.8, "right stick right and up: aim right and deep")
+  assert.equal(readPad(pad([7])).buttons.hit, true, "the trigger hits too")
 })
 
 test("looks: every character has a complete look, outfits recolor", () => {

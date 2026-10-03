@@ -223,6 +223,12 @@ const STROKES = {
   smash: { back: [0.32, 0.55, -0.32], backAxis: [0.15, 0.4, -0.9], twist: 0.6, follow: [-0.32, 0.72, 0.42], followAxis: [-0.3, -0.75, 0.6], followTwist: -0.75, crouch: 0.02, overhead: true },
   serve: { back: [0.38, 0.45, -0.55], backAxis: [0.25, -0.75, -0.6], twist: 0.45, follow: [0.06, 1.38, 0.55], followAxis: [0.0, 0.9, 0.45], followTwist: -0.2, crouch: 0.05, absolute: true },
 }
+// the touch shots borrow a stroke: a reset is a block, a speed-up or counter a punch, a roll
+// a short brushed drop
+STROKES.reset = STROKES.block
+STROKES.speedup = STROKES.punch
+STROKES.counter = STROKES.punch
+STROKES.roll = STROKES.drop
 const strokeOf = (kind) => STROKES[kind] || STROKES.drive
 const A = (a, hand) => V(a[0] * hand, a[1], a[2])
 
@@ -665,7 +671,9 @@ export const situation = (m, p) => {
     if (ttc > -0.1 && ttc < 0.65 && committed) {
       const e = p.expect
       const local = (e.x - p.x) * (team === 0 ? 1 : -1)
-      const kind = p.charge || p.armed ? guessKind(p.charge?.kind || p.armed?.kind, e) : e.y > 1.35 && Math.abs(p.z) < 5 ? "smash" : Math.abs(p.z) < 3.4 ? (e.volley ? "punch" : "dink") : e.volley ? "block" : "drive"
+      // a person's swing shape from how long they've held the hit control (the pace)
+      const pace = p.armed?.pace ?? (p.charge ? Math.max(0, Math.min(1, (m.t - p.charge.start - 0.05) / 0.42)) : null)
+      const kind = pace !== null ? guessKind(pace, e, p) : e.y > 1.35 && Math.abs(p.z) < 5 ? "smash" : Math.abs(p.z) < 3.4 ? (e.volley ? "punch" : "dink") : e.volley ? "block" : "drive"
       prep = { ttc, x: e.x, y: e.y, z: e.z, kind, hand: local >= -0.05 ? "fh" : "bh", forward: !human || !!p.armed }
     }
   }
@@ -686,11 +694,9 @@ export const situation = (m, p) => {
   }
 }
 
-const guessKind = (button, e) => {
-  if (button === "lob") return "lob"
+const guessKind = (pace, e, p) => {
+  if (pace < 0.36) return e.volley ? "block" : Math.abs(p.z) < 3.4 ? "dink" : "drop"
   if (e.y > 1.3) return "smash"
-  if (button === "soft") return e.volley ? "block" : "dink"
-  if (button === "slice") return e.volley ? "block" : "slice"
   if (e.volley) return "punch"
   return "drive"
 }

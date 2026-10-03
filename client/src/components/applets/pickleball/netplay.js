@@ -5,7 +5,7 @@
 // computer players. Each person's own browser moves their own player and plays their own
 // shots (so moving and timing feel instant, whatever the lag):
 //   - guest -> host, ~30 a second (room:input, may drop): where I am, how I'm moving, whether
-//     I'm holding a shot button;
+//     I'm holding the hit control;
 //   - guest -> host, reliable (room:relay): "I hit it" with the ball my paddle sent back and
 //     the host time it happened. The host rewinds that ball to then and flies it forward.
 //     Bounces near a person whose shot may still be on its way wait a moment before the
@@ -20,13 +20,13 @@ import { applyRemoteStrike, createMatch, playerById, step } from "./match.js"
 import { isLive } from "./rules.js"
 
 export const PHASES = ["intro", "serve", "rally", "dead", "over"]
-export const SHOT_KINDS = ["dink", "drop", "drive", "slice", "lob", "block", "punch", "smash", "serve", "return", "ai", "topspin", "soft", "auto"]
+export const SHOT_KINDS = ["dink", "drop", "drive", "slice", "lob", "block", "punch", "smash", "serve", "return", "ai", "topspin", "soft", "auto", "hit", "reset", "speedup", "counter", "roll"]
 export const GRADES = ["perfect", "good", "early", "late", "very early", "very late", "soft"]
 const SNAP_MS = 33
 const INPUT_MS = 33
 
-const r3 = (v) => Math.round(v * 1000) / 1000
-const r2 = (v) => Math.round(v * 100) / 100
+const r3 = (v) => Math.round(v * 1000) / 1000 || 0 // (no -0: it reads back as 0)
+const r2 = (v) => Math.round(v * 100) / 100 || 0
 const idx = (list, v) => (v === undefined || v === null ? -1 : list.indexOf(v))
 const at = (list, i) => (i >= 0 ? list[i] : null)
 

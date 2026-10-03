@@ -55,6 +55,7 @@ const OurStory = lazyApp(() => import("../applets/couples/OurStory"))
 const Dollhouse = lazyApp(() => import("../applets/dollhouse/Dollhouse"))
 const Pet = lazyApp(() => import("../applets/pet/Pet"))
 const Appward = lazyApp(() => import("../applets/appward/Appward"))
+const Welcome = lazyApp(() => import("../applets/welcome/Welcome"))
 // Our Pet out for a walk on the desktop (couples only, its own small download)
 const PetWalker = React.lazy(() => import("../applets/pet/PetWalker"))
 // Network Neighborhood and the head-to-head games
@@ -738,6 +739,7 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
         <WebApp project={PROJECTS.find((p) => p.name === window.program)} mobile={mobile} />
       )}
       {window.app === "backup" && <Backup dispatch={dispatch} mobile={mobile} />}
+      {window.app === "welcome" && <Welcome dispatch={dispatch} mobile={mobile} onClose={() => closeWindow(window, index)} />}
       {window.app === "mail" && <Mail dispatch={dispatch} onTitle={rename(index)} mobile={mobile} />}
       {window.app === "homepage" && (
         <HomePageStudio dispatch={dispatch} onTitle={rename(index)} onClose={() => closeWindow(window, index)} mobile={mobile} />

@@ -929,19 +929,36 @@
   font-weight: bold;
 }
 
-.pkGrade--perfect b {
+/* the label is colored by what the shot gave them; the timing word under it by the timing */
+.pkTone--great b {
   color: var(--pk-gold);
-  font-size: 32px;
+  font-size: 30px;
 }
 
-.pkGrade--good b {
-  color: #9fe7ff;
+.pkTone--good b {
+  color: #7dffb0;
 }
 
-.pkGrade--early b,
-.pkGrade--late b,
-.pkGrade--very-early b,
-.pkGrade--very-late b {
+.pkTone--ok b {
+  color: #fff;
+}
+
+.pkTone--warn b {
+  color: #ffd166;
+}
+
+.pkTone--bad b {
+  color: #ff8a7a;
+}
+
+.pkGrade--perfect span {
+  color: var(--pk-gold);
+}
+
+.pkGrade--early span,
+.pkGrade--late span,
+.pkGrade--very-early span,
+.pkGrade--very-late span {
   color: #ff9c8a;
 }
 
@@ -1035,17 +1052,71 @@
   display: block;
 }
 
+/* the pace you're holding: soft (to 36%), firm, hard (from 66%) */
 .pkMeterPower {
-  height: 4px;
+  position: relative;
+  height: 6px;
   margin-top: 3px;
-  background: rgba(11, 18, 36, 0.6);
+  background: linear-gradient(90deg, rgba(124, 240, 255, 0.25) 0 36%, rgba(255, 224, 102, 0.25) 36% 66%, rgba(255, 154, 60, 0.25) 66%);
 }
 
 .pkMeterPower i {
   display: block;
   height: 100%;
   width: calc(var(--power, 0) * 100%);
-  background: linear-gradient(90deg, #ffd23f, #ff7a1a);
+  background: #7cf0ff;
+}
+
+.pkMeter[data-band="firm"] .pkMeterPower i {
+  background: #ffe066;
+}
+
+.pkMeter[data-band="hard"] .pkMeterPower i {
+  background: #ff9a3c;
+}
+
+.pkPaceMarks {
+  position: absolute;
+  inset: 6px 0 auto;
+  display: flex;
+  font-style: normal;
+  font-size: 8px;
+  font-weight: bold;
+  text-transform: uppercase;
+  text-shadow: 1px 1px 0 #000;
+  opacity: 0.7;
+}
+
+.pkPaceMarks span:nth-child(1) {
+  width: 36%;
+}
+
+.pkPaceMarks span:nth-child(2) {
+  width: 30%;
+}
+
+/* how high you'll meet it: above the net (attack it) or low (keep it soft) */
+.pkMeterLabels {
+  margin-top: 10px;
+}
+
+.pkMeterHeight::after {
+  content: "keep it low";
+  color: #9fe8ff;
+}
+
+.pkMeter[data-height="high"] .pkMeterHeight::after {
+  content: "it's up: attack";
+  color: #ff9a3c;
+}
+
+.pkMeter[data-fast="1"] .pkMeterHeight::after {
+  content: "hands!";
+  color: #ff5a4a;
+}
+
+.pkMeter[data-fast="1"] .pkMeterTrack {
+  border-color: #ff5a4a;
 }
 
 .pkMeterLabels {
@@ -1373,31 +1444,31 @@
   backdrop-filter: none;
 }
 
-.pkShot--topspin {
-  --pk-rgb: 232, 96, 76;
+/* the hit zone's hint: faint, bottom right, out of the way */
+.pkHitHint {
+  position: absolute;
+  z-index: 2;
+  right: 12px;
+  bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+  font-family: var(--pk-tv);
+  color: #fff;
+  text-shadow: 1px 1px 0 #000;
+  opacity: 0.45;
+  pointer-events: none;
 }
 
-.pkShot--slice {
-  --pk-rgb: 84, 120, 230;
+.pkHitHint b {
+  font-size: 13px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
 }
 
-.pkShot--soft {
-  --pk-rgb: 26, 179, 196;
-}
-
-.pkShot--lob {
-  --pk-rgb: 170, 110, 230;
-}
-
-.pkShot--power {
-  --pk-rgb: 200, 200, 200;
-  font-size: 10px;
-}
-
-.pkShot--power.is-on {
-  background: rgba(255, 140, 26, 0.7) !important;
-  border-color: #ff8c1a !important;
-  box-shadow: 0 0 10px #ff8c1a !important;
+.pkHitHint span {
+  font-size: 9px;
 }
 
 .pkShot--small {

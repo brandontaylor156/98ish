@@ -6,8 +6,9 @@
 
 import * as THREE from "three"
 import { BALL_R, HALF_L, HALF_W, predictPath, STEP } from "./physics.js"
-import { createMatch, advance, humanBySlot, meterFor, playerById, press as mPress, release as mRelease, resolveKind, scenario, scoreboard, setMove, step, autopilot, SWING_LEAD } from "./match.js"
-import { KIND_LABEL, planShot } from "./shots.js"
+import { createMatch, advance, handBattle, humanBySlot, meterFor, playerById, press as mPress, previewShot, release as mRelease, scenario, scoreboard, setAim, setMove, step, autopilot } from "./match.js"
+import { ATTACK_H, KIND_LABEL, paceOf, planShot } from "./shots.js"
+import { LEVELS } from "./ai.js"
 import { inCourt, rightSign, sideOf } from "./rules.js"
 import { createAudio } from "./audio.js"
 import { createAnim, seatedPose, setMood, situation, splitStep, updateAnim } from "./anim.js"
@@ -15,7 +16,7 @@ import { createFigure } from "./rig.js"
 import { athletesReady, createAthlete, loadAthletes } from "./athlete.js"
 import { buildVenue, VENUES } from "./venue.js"
 import { CHARACTERS, lookFor } from "./looks.js"
-import { actionFor, bindingsFor, padEdges, readPad } from "./input.js"
+import { actionFor, bindingsFor, padEdges, readPad, stickAim } from "./input.js"
 import { createGuest, createHost, onlineRoster } from "./netplay.js"
 
 const BALL_SCALE = 1.5 // drawn a little bigger than life so it reads on a phone
@@ -50,7 +51,7 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
   renderer.outputColorSpace = THREE.SRGBColorSpace
   renderer.toneMapping = THREE.ACESFilmicToneMapping
   renderer.shadowMap.type = THREE.PCFShadowMap
-  let settings = { sound: true, voice: true, camera: "broadcast", aid: true, assist: "light", quality: "medium", cuts: true, keys: {}, window: 0.06, ...initial }
+  let settings = { sound: true, voice: true, camera: "broadcast", aid: true, assist: "light", quality: "medium", cuts: true, keys: {}, window: 0.06, focus: "auto", ...initial }
   let bindings = bindingsFor(settings.keys)
   let maxRatio = Math.min(dpr, QUALITY[settings.quality]?.ratio || 1.5)
   let pixelRatio = maxRatio
@@ -126,6 +127,18 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
   aimRing.visible = false
   aimRing.renderOrder = 3
   scene.add(aimRing)
+  // where your shot would really land at this pace (shown when it isn't the aim: long, say)
+  const dotGeo = new THREE.CircleGeometry(0.09, 18)
+  dotGeo.rotateX(-Math.PI / 2)
+  const aimDot = new THREE.Mesh(dotGeo, new THREE.MeshBasicMaterial({ color: 0xff5a4a, transparent: true, opacity: 0.75, depthWrite: false }))
+  aimDot.visible = false
+  aimDot.renderOrder = 3
+  scene.add(aimDot)
+  // where you'll meet the ball: orange above the net (attack it), pale blue below (keep it soft)
+  const contactRing = new THREE.Mesh(new THREE.RingGeometry(0.075, 0.1, 24), new THREE.MeshBasicMaterial({ color: 0x9fe8ff, transparent: true, opacity: 0.85, depthWrite: false, depthTest: false, side: THREE.DoubleSide }))
+  contactRing.visible = false
+  contactRing.renderOrder = 6
+  scene.add(contactRing)
   const markMat = { in: new THREE.MeshBasicMaterial({ color: 0x46e07a, transparent: true, depthWrite: false }), out: new THREE.MeshBasicMaterial({ color: 0xff4d4d, transparent: true, depthWrite: false }) }
   const mark = new THREE.Mesh(ringGeo, markMat.in)
   mark.visible = false
@@ -238,9 +251,9 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
   let lastPads = []
   let humans = 1 // people on this computer (1, or 2 sharing it)
   const keys = new Set()
-  const powerHeld = [false, false]
-  const touchPower = [false, false]
-  const chargeKey = [null, null] // which action started the current swing, per slot
+  const chargeKey = [null, null] // what started the current swing (a key, "mouse", "pad", "touch"), per slot
+  let preview = null // { at, pace, shot } the aiming aid's last look at your shot
+  let touchAimState = null // a finger aiming: { mode: "abs" | "rel", x0, y0 }
   let stick = [{ x: 0, y: 0 }, { x: 0, y: 0 }]
   const perf = { frames: 0, cpuMs: 0, renderMs: 0, steps: 0 }
   const devLog = import.meta.env.DEV ? [] : null
@@ -401,28 +414,55 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
     }
   }
 
-  const shotDown = (slot, action) => {
+  // the hit control: down starts the swing (hold for pace), up lets it go. source: the key
+  // code, "mouse", "pad" or "touch" that pressed it (only the same one lets go)
+  const shotDown = (slot, source) => {
     if (!playing()) {
-      // between points, any shot button skips a replay
+      // between points, the hit control skips a replay
       if (replay) endReplay()
       return false
     }
     audio.unlock()
-    const kind = action === "auto" ? "auto" : action
-    const ok = mPress(match, slot, kind, { risky: powerHeld[slot] || touchPower[slot] })
-    if (ok) chargeKey[slot] = action
+    if (chargeKey[slot]) return false
+    const ok = mPress(match, slot)
+    if (ok) chargeKey[slot] = source
     return ok
   }
-  const shotUp = (slot, action) => {
-    if (chargeKey[slot] !== action) return false
+  const shotUp = (slot, source) => {
+    if (chargeKey[slot] !== source) return false
     chargeKey[slot] = null
     if (!match) return false
-    const ok = mRelease(match, slot, { risky: powerHeld[slot] || touchPower[slot] || undefined })
-    if (touchPower[slot]) {
-      touchPower[slot] = false
-      onEvent?.({ type: "power", on: false, slot })
-    }
-    return ok
+    return mRelease(match, slot)
+  }
+
+  // ---- aiming ----
+  // a point on the court under a screen position (the ground plane), or null
+  const ray = new THREE.Raycaster()
+  const ground = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0)
+  const hitPoint = new THREE.Vector3()
+  const courtPoint = (clientX, clientY) => {
+    const r = canvas.getBoundingClientRect()
+    if (!r.width || !r.height) return null
+    ray.setFromCamera(new THREE.Vector2(((clientX - r.left) / r.width) * 2 - 1, -((clientY - r.top) / r.height) * 2 + 1), camera)
+    return ray.ray.intersectPlane(ground, hitPoint) ? { x: hitPoint.x, z: hitPoint.z } : null
+  }
+  // on the other side of the net (with a little room past the lines: aiming at a line is
+  // your risk), or null
+  const farCourt = (pt, p) => {
+    if (!pt || !p) return null
+    const opp = -sideOf(p.team)
+    if (Math.sign(pt.z) !== opp || Math.abs(pt.x) > HALF_W + 1.2 || Math.abs(pt.z) > HALF_L + 1.5) return null
+    return { x: Math.max(-HALF_W - 0.4, Math.min(HALF_W + 0.4, pt.x)), z: opp * Math.max(0.4, Math.min(HALF_L + 0.4, Math.abs(pt.z))) }
+  }
+  const screenSign = () => (flip() ? -1 : 1)
+  // a nudge in screen terms (right, up the screen) for the hitter's own view
+  const screenNudge = (p, u, v) => ({ u: u * screenSign() * rightSign(p.team), v })
+
+  const onPointerMove = (e) => {
+    if (e.pointerType === "touch" || !playing() || humans >= 2) return
+    const p = humanBySlot(match, 0)
+    if (!p) return
+    setAim(match, farCourt(courtPoint(e.clientX, e.clientY), p), 0)
   }
 
   const onKeyDown = (e) => {
@@ -447,37 +487,44 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
     if (!hit) return
     e.preventDefault()
     const { action, slot } = hit
-    if (action === "power") {
-      powerHeld[slot] = true
-      return
-    }
     if (["up", "down", "left", "right"].includes(action)) {
       keys.add(code)
       updateMove()
       return
     }
-    if (!e.repeat) shotDown(slot, action)
+    if (!e.repeat) shotDown(slot, code)
   }
   const onKeyUp = (e) => {
     const hit = actionFor(bindings, keySets(), e.code)
     if (!hit) return
     const { action, slot } = hit
-    if (action === "power") {
-      powerHeld[slot] = false
-      return
-    }
     if (["up", "down", "left", "right"].includes(action)) {
       keys.delete(e.code)
       updateMove()
       return
     }
-    shotUp(slot, action)
+    shotUp(slot, e.code)
   }
   const onPointerDown = (e) => {
     if (e.target !== canvas) return
     container.focus({ preventScroll: true })
     audio.unlock()
-    if (replay) endReplay()
+    if (replay) return endReplay()
+    // the mouse: point at their court, click (hold for pace) to hit
+    if (e.pointerType !== "touch" && e.button === 0 && playing()) {
+      onPointerMove(e)
+      if (shotDown(0, "mouse")) {
+        try {
+          canvas.setPointerCapture(e.pointerId) // (so letting go off the canvas still swings)
+        } catch {
+          // the pointer is already gone
+        }
+      }
+    }
+  }
+  const onPointerUp = (e) => {
+    if (e.pointerType === "touch") return
+    if (e.button === 0 || e.type === "pointercancel") shotUp(0, "mouse")
   }
   const onContextMenu = (e) => e.preventDefault()
   const onBlur = (e) => {
@@ -492,7 +539,6 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
       }
       if (container.contains(a)) return
       keys.clear()
-      powerHeld[0] = powerHeld[1] = false
       updateMove()
       if (status === "playing" && mode === "local") api.pause()
     }, 0)
@@ -503,6 +549,9 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
   container.addEventListener("keydown", onKeyDown)
   container.addEventListener("keyup", onKeyUp)
   container.addEventListener("pointerdown", onPointerDown)
+  canvas.addEventListener("pointermove", onPointerMove)
+  canvas.addEventListener("pointerup", onPointerUp)
+  canvas.addEventListener("pointercancel", onPointerUp)
   container.addEventListener("contextmenu", onContextMenu)
   container.addEventListener("focusout", onBlur)
   document.addEventListener("visibilitychange", onVisibility)
@@ -519,14 +568,23 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
       const { down, up } = padEdges(prev, pad)
       lastPads[slot] = pad
       if (!pad) return
-      powerHeld[slot] = pad.buttons.power || (keys.size > 0 && powerHeld[slot])
       for (const b of down) {
         if (b === "pause") {
           if (status === "playing") api.pause()
           else if (status === "paused") api.resume()
-        } else shotDown(slot, b)
+        } else shotDown(slot, "pad")
       }
-      for (const b of up) if (b !== "pause") shotUp(slot, b)
+      for (const b of up) if (b !== "pause") shotUp(slot, "pad")
+      // the right stick aims: across their court and deeper, in screen terms
+      const p = playing() ? humanBySlot(match, slot) : null
+      const s = stickAim(pad)
+      if (p && (s || prev?.ax || prev?.az)) {
+        if (!s) setAim(match, null, slot)
+        else {
+          const opp = -sideOf(p.team)
+          setAim(match, { x: s.u * screenSign() * (HALF_W - 0.35), z: opp * (0.7 + ((s.v + 1) / 2) * (HALF_L - 1.1)) }, slot)
+        }
+      }
     })
     if (list.length) updateMove()
   }
@@ -771,19 +829,50 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
       }
     }
     if (landRing.visible) landRing.scale.setScalar(1 + Math.sin(performance.now() / 120) * 0.08)
-    // aiming: while you hold a shot button, a ring where it's going
+    // aiming: when the ball is coming to you, a ring where your shot goes (at the pace you're
+    // holding: soft until you hold longer), and a dot where it would really land if that's
+    // somewhere else (a hard ball from down low sails long). The serve: its box target.
     const c = you?.charge
-    if (settings.aid && c && status === "playing" && !replay && mode !== "demo") {
-      const inp = match.inputs[you.slot] || { x: 0, z: 0 }
-      const aim = Math.max(-1, Math.min(1, inp.x * rightSign(you.team)))
-      const depth = Math.max(-1, Math.min(1, -inp.z * sideOf(you.team)))
-      const from = you.expect ? you.expect : match.ball.p
-      const kind = c.kind === "serve" ? "serve" : resolveKind(match, you, c.kind, 0.6)
-      const plan = planShot(kind, { team: you.team, from: { x: from.x, y: from.y ?? 1, z: from.z }, aim, depth, power: 0.6, court: match.rally.court, variant: c.variant, risky: c.risky })
+    const live = settings.aid && status === "playing" && !replay && mode !== "demo" && you
+    const coming = live && you.expect && r && r.lastTeam !== you.team && !r.over
+    aimDot.visible = false
+    if (live && c?.kind === "serve") {
+      const plan = planShot("serve", { team: you.team, from: match.ball.p, aim: 0, power: 0.6, court: match.rally.court })
+      const aim = match.inputs[you.slot]?.aim
+      const want = (match.rally.court === "left" ? -1 : 1) * rightSign(1 - you.team)
+      const opp = -sideOf(you.team)
+      const t = aim ? { x: want * Math.max(0.3, Math.min(HALF_W - 0.3, aim.x * want)), z: opp * Math.max(2.6, Math.min(HALF_L - 0.3, Math.abs(aim.z))) } : plan.target
       aimRing.visible = true
-      aimRing.position.set(plan.target.x, 0.011, plan.target.z)
-      aimRing.material.color.setHex(c.risky ? 0xff9a3c : 0x7cf0ff)
+      aimRing.position.set(t.x, 0.011, t.z)
+      aimRing.material.color.setHex(0x7cf0ff)
+    } else if (coming) {
+      const pace = c ? paceOf(match.t - c.start) : you.armed?.pace ?? 0.12
+      const now = performance.now()
+      // (a solve per frame is wasteful: ten looks a second)
+      if (!preview || now - preview.at > 100 || Math.abs(preview.pace - pace) > 0.05 || preview.v !== match.version) preview = { at: now, pace, v: match.version, shot: previewShot(match, you, pace) }
+      const s = preview.shot
+      if (s) {
+        aimRing.visible = true
+        aimRing.position.set(s.target.x, 0.011, s.target.z)
+        aimRing.material.color.setHex(s.band === "soft" ? 0x7cf0ff : s.band === "firm" ? 0xffe066 : 0xff9a3c)
+        aimRing.material.opacity = c || you.armed ? 0.85 : 0.45
+        const off = Math.hypot(s.landing.x - s.target.x, s.landing.z - s.target.z)
+        if (off > 0.6) {
+          aimDot.visible = true
+          aimDot.position.set(s.landing.x, 0.012, s.landing.z)
+          aimDot.material.color.setHex(inCourt(s.landing.x, s.landing.z) ? 0xffe066 : 0xff5a4a)
+        }
+      } else aimRing.visible = false
     } else aimRing.visible = false
+    // the contact marker
+    if (coming && you.expect.at - match.t < 1.2) {
+      const e = you.expect
+      contactRing.visible = true
+      contactRing.position.set(e.x, e.y, e.z)
+      contactRing.lookAt(camera.position)
+      contactRing.material.color.setHex(e.y > ATTACK_H ? 0xff9a3c : 0x9fe8ff)
+      contactRing.scale.setScalar(handBattle(match, you) ? 1.5 : 1)
+    } else contactRing.visible = false
   }
 
   // ---------- the timing meter (drawn by the page; we move its parts) ----------
@@ -811,8 +900,11 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
         } else if (info.released === null && el.dataset.rel === "1") el.dataset.rel = ""
         el.style.setProperty("--pos", `${pos}`)
         el.style.setProperty("--zone", `${info.window / RANGE}`)
-        el.style.setProperty("--power", `${info.power ?? 0}`)
+        el.style.setProperty("--power", `${info.pace ?? 0}`)
         el.dataset.charging = info.charging ? "1" : ""
+        el.dataset.band = info.band || ""
+        el.dataset.height = info.height
+        el.dataset.fast = info.fast ? "1" : ""
       }
     }
   }
@@ -915,9 +1007,10 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
         case "hit": {
           const perfect = e.grade === "perfect"
           audio.pock(Math.min(1, e.paddle / 14), perfect)
-          const big = e.kind === "smash" || (e.risky && perfect)
-          trailColor = e.risky ? [1, 0.55, 0.2] : perfect ? [0.75, 1, 1] : [1, 0.95, 0.6]
-          burst(e.x, e.y, e.z, big ? 26 : perfect ? 12 : 6, { speed: big ? 5 : 2.5, color: e.risky ? [1, 0.6, 0.2] : [1, 0.95, 0.55], life: big ? 0.5 : 0.3 })
+          const hot = e.speed > 15
+          const big = e.kind === "smash" || (e.tone === "great" && hot)
+          trailColor = hot ? [1, 0.55, 0.2] : perfect ? [0.75, 1, 1] : [1, 0.95, 0.6]
+          burst(e.x, e.y, e.z, big ? 26 : perfect ? 12 : 6, { speed: big ? 5 : 2.5, color: hot ? [1, 0.6, 0.2] : [1, 0.95, 0.55], life: big ? 0.5 : 0.3 })
           if (big && (mode === "local" || mode === "demo")) hitStop = 0.08
           if (big) shake = 1
           // everyone on the other side gets on their toes
@@ -925,8 +1018,8 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
           if (demo) break
           const hitter = playerById(match, e.player)
           const mine = hitter?.ctrl === "human"
-          onEvent?.({ type: "hit", kind: e.kind, label: KIND_LABEL[e.kind], mine, slot: hitter?.slot, grade: e.grade, risky: e.risky, speed: e.speed, volley: e.volley, team: e.team })
-          if (e.risky || e.kind === "smash") venue.crowd?.cheer(0.25)
+          onEvent?.({ type: "hit", kind: e.kind, label: e.label || KIND_LABEL[e.kind], tone: e.tone, tag: e.tag, mine, theirs: !!you && e.team !== you.team, slot: hitter?.slot, grade: e.grade, risky: e.risky, speed: e.speed, volley: e.volley, team: e.team })
+          if (e.tone === "great") venue.crowd?.cheer(0.25)
           break
         }
         case "bounce":
@@ -1001,6 +1094,24 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
     match.events.length = 0
   }
 
+  // Focus: on an easy setting (or when asked), time slows while a hard ball is coming at you
+  // at the net, so a hand battle can be learned
+  let focus = 1
+  const focusScale = () => {
+    let want = 1
+    if (mode === "local" && match && match.phase === "rally" && !devAuto.size) {
+      const on = settings.focus === "on" || (settings.focus === "auto" && (match.o.level === "beginner" || !!match.practice))
+      if (on) {
+        for (const slot of [0, 1]) {
+          const p = humanBySlot(match, slot)
+          if (p?.expect && match.rally.lastTeam !== p.team && handBattle(match, p) && p.expect.at - match.t < 0.6) want = 0.45
+        }
+      }
+    }
+    focus += (want - focus) * (want < focus ? 0.5 : 0.15)
+    return focus
+  }
+
   // ---------- the frame ----------
   const frame = (now) => {
     raf = 0
@@ -1023,7 +1134,7 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
       } else {
         if (mode === "demo") match.autoplay = true
         if (devAuto.size && mode !== "demo") for (const slot of devAuto) autopilot(match, slot, devJitter)
-        perf.steps += advance(match, dt)
+        perf.steps += advance(match, dt * focusScale())
         if (host) host.capture(match.events)
         handleEvents()
       }
@@ -1212,17 +1323,36 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
       stick[slot] = { x, y }
       updateMove()
     },
-    // on-screen shot buttons: down and up (hold for power, let go to swing)
-    shotDown(action, slot = 0) {
-      if (action === "power") {
-        touchPower[slot] = !touchPower[slot]
-        onEvent?.({ type: "power", on: touchPower[slot], slot })
-        return true
-      }
-      return shotDown(slot, action)
+    // the on-screen hit control: down and up (hold for pace, let go to swing)
+    shotDown(action = "hit", slot = 0) {
+      return shotDown(slot, "touch")
     },
-    shotUp(action, slot = 0) {
-      return shotUp(slot, action)
+    shotUp(action = "hit", slot = 0) {
+      return shotUp(slot, "touch")
+    },
+    // a finger aiming (phase "start" | "move"): pressed on their court, the ball goes where
+    // the finger is; pressed anywhere else, dragging nudges the aim (right/left across, up
+    // the screen deeper, down shorter)
+    touchAim(phase, clientX, clientY, slot = 0) {
+      const p = playing() ? humanBySlot(match, slot) : null
+      if (!p) return
+      if (phase === "start") {
+        const at = farCourt(courtPoint(clientX, clientY), p)
+        touchAimState = { mode: at ? "abs" : "rel", x0: clientX, y0: clientY }
+        setAim(match, at, slot)
+        return
+      }
+      const t = touchAimState
+      if (!t) return
+      if (t.mode === "abs") {
+        const at = farCourt(courtPoint(clientX, clientY), p)
+        if (at) setAim(match, at, slot)
+      } else {
+        const R = 70
+        const dx = (clientX - t.x0) / R
+        const dy = -(clientY - t.y0) / R
+        setAim(match, null, slot, Math.hypot(dx, dy) > 0.12 ? screenNudge(p, dx, dy) : null)
+      }
     },
     skipReplay() {
       endReplay()
@@ -1301,6 +1431,9 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
       container.removeEventListener("keydown", onKeyDown)
       container.removeEventListener("keyup", onKeyUp)
       container.removeEventListener("pointerdown", onPointerDown)
+      canvas.removeEventListener("pointermove", onPointerMove)
+      canvas.removeEventListener("pointerup", onPointerUp)
+      canvas.removeEventListener("pointercancel", onPointerUp)
       container.removeEventListener("contextmenu", onContextMenu)
       container.removeEventListener("focusout", onBlur)
       document.removeEventListener("visibilitychange", onVisibility)
@@ -1356,11 +1489,12 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
       get camera() {
         return { x: camera.position.x, y: camera.position.y, z: camera.position.z, fov: camera.fov }
       },
-      // a stand-in plays for this computer's people with real button timing
-      autoplay(on, slot = 0, jitter, power = 0) {
+      // a stand-in plays for this computer's people with real button timing, aim and holds
+      // (deciding its shots like a computer player of `level`)
+      autoplay(on, slot = 0, jitter, level = "pro") {
         if (on) devAuto.add(slot)
         else devAuto.delete(slot)
-        if (jitter !== undefined) devJitter = { jitter, power }
+        if (jitter !== undefined) devJitter = { jitter, level: LEVELS[level] || LEVELS.pro }
       },
       scenario(kind) {
         if (!match) return

@@ -10,11 +10,15 @@
 // computer ("cpu"), a practice ball machine ("feeder"), or a person on another computer
 // ("remote": online, their own browser moves them and plays their shots; see netplay.js).
 //
-// Shots are timed the way a tennis video game times them: press a shot button as the ball
-// comes (hold it for more power), let go as it arrives. The swing takes SWING_LEAD seconds
-// to reach the ball, so the perfect moment to let go is just before it gets to you.
+// People play every shot with ONE hit control: where it goes is a target on the other court
+// (the pointer, a stick or a finger: m.inputs[slot].aim, or a sensible default), how hard is
+// how long the control is held (a quick touch is a dink, drop or reset; a long hold a drive,
+// speed-up or counter), and the swing comes when it's let go. The swing takes SWING_LEAD
+// seconds to reach the ball (less for a compact block at the net), so the moment to let go
+// is just before the ball gets there. What kind of shot it was follows from all that and
+// from where it was hit (shots.js planIntent), and so does whether it can be attacked.
 
-import { BALL_R, HALF_L, HALF_W, KITCHEN, STEP, bounceOnCourt, flightStep, len, netContact, v3 } from "./physics.js"
+import { BALL_R, HALF_L, HALF_W, KITCHEN, NET_H_CENTER, STEP, bounceOnCourt, flightStep, len, netContact, v3 } from "./physics.js"
 import {
   FOOT_R,
   courtOf,
@@ -35,8 +39,8 @@ import {
   sideOf,
   lineCall,
 } from "./rules.js"
-import { planShot, playShot, shotQuality, serveMeter, SERVE_FILL, SERVE_MAX } from "./shots.js"
-import { LEVELS, NET_LINE, REACH, afterShot, aiServe, aiShot, aiTiming, homeFor, levelFor, levelOf, planTeam } from "./ai.js"
+import { FAST_BALL, PACE_RAMP, assessBall, gauss, judgeShot, paceBand, paceOf, planIntent, planShot, playShot, shotQuality, serveMeter, SERVE_FILL, SERVE_MAX } from "./shots.js"
+import { LEVELS, NET_LINE, REACH, afterShot, aiServe, aiShot, aiTiming, autoTarget, homeFor, levelFor, levelOf, planTeam } from "./ai.js"
 
 const HAND_Y = 0.98 // the server holds the ball here
 const SERVE_CONTACT_Y = 0.52 // and strikes it down here, well below the waist
@@ -46,13 +50,17 @@ const INTRO_MAX = 4.5 // walking back into place takes no longer than this
 const DEAD_S = 1.8
 const MAX_HIT_Y = 2.3
 export const SWING_LEAD = 0.13 // s from letting go of the button to the paddle meeting the ball
+export const SWING_LEAD_FAST = 0.07 // a compact block or counter at the net gets there quicker
 const MIN_SWING = 0.05 // the quickest a swing can get there
 const LATE_MAX = 0.22 // still holding this long after the ball got there: swing anyway
 const ARM_S = 1.0 // let go early: the swing waits this long for the ball
 export const DEFAULT_WINDOW = 0.06 // the perfect timing zone, +- seconds
 const HUMAN = { speed: 4.0, reaction: 0.05, judge: 0.15, maxY: 2.15 }
-// shot buttons -> serve variants
-const SERVE_VARIANT = { topspin: "drive", slice: "slice", soft: "soft", lob: "lob", auto: "drive" }
+const NET_ZONE = 4.6 // m from the net: inside this, a fast ball at you is a hand battle
+
+// a hard ball coming at a player near the net (a speed-up or a drive): a hand battle
+export const handBattle = (m, p) => len(m.ball.v) > FAST_BALL && Math.abs(p.z) < NET_ZONE
+export const leadFor = (m, p) => (handBattle(m, p) ? SWING_LEAD_FAST : SWING_LEAD)
 
 // a small seeded random (mulberry32), so matches can be replayed in tests
 export const seeded = (seed) => {
@@ -85,7 +93,7 @@ const makePlayer = ({ id, team, ctrl = "cpu", slot = 0, seat = null, level = "in
   vx: 0,
   vz: 0,
   lane: "right",
-  charge: null, // holding a shot button: { kind, start, risky }
+  charge: null, // holding the hit control: { kind: "hit" | "serve", start }
   armed: null, // let go (or a computer player ready to hit): { kind, release, until, ... }
   swing: null, // the last swing: { t, kind, hand, y, n, speed, grade, ... }
   zoneT: null, // when the ball first came within reach on this trip
@@ -136,7 +144,9 @@ export const createMatch = (options = {}) => {
     humanLevel: HUMAN,
     window: o.window,
     paused: false,
-    inputs: [0, 1, 2, 3].map(() => ({ x: 0, z: 0 })),
+    // per input slot: the move stick (x, z), where they're aiming (a point on the other
+    // court, or null for the default) and a nudge of the default ({ u, v }: across, deeper)
+    inputs: [0, 1, 2, 3].map(() => ({ x: 0, z: 0, aim: null, nudge: null })),
     result: null,
     lastShot: null,
     skip: false,
@@ -147,7 +157,9 @@ export const createMatch = (options = {}) => {
       longest: 0,
       rallyShots: 0,
       faults: {},
-      teams: [0, 1].map(() => ({ winners: 0, errors: 0, aces: 0, perfect: 0, shots: 0, fastest: 0, power: 0 })),
+      teams: [0, 1].map(() => ({ winners: 0, errors: 0, aces: 0, perfect: 0, shots: 0, fastest: 0, power: 0, dinks: 0, goodDinks: 0, popups: 0, speedups: 0, resets: 0, counters: 0 })),
+      // how the points played out (what makes it pickleball): counted by the shot labels
+      feel: { dinks: 0, goodDinks: 0, popups: 0, speedups: 0, highSpeedups: 0, counters: 0, resets: 0, drops: 0, thirdDrops: 0, thirdDrives: 0, lobs: 0, smashes: 0, handBattles: 0, nets: 0, outs: 0, ernes: 0, atps: 0 },
     },
   }
   beginPoint(m, { snap: true })
@@ -326,154 +338,154 @@ export const canHit = (m, p, req = p.armed || p.charge, { reach = REACH, wait = 
   // let it come to the body: wait while it's still well in front and coming
   const ahead = (p.z - ball.p.z) * side
   const coming = ball.v.z * side > 1
-  if (wait && ahead > 0.4 && coming && d > 0.55) return false
+  // (a player reaching over the kitchen for a volley takes it at arm's length)
+  if (wait && !req.lunge && ahead > 0.4 && coming && d > 0.55) return false
   return true
 }
 
-// What a button means for the ball in front of you: topspin, slice, soft or lob, read
-// for where you are and how high the ball is
-export const resolveKind = (m, p, button, power = 0.5) => {
-  const r = m.rally
-  const shotNo = r.hits + 1
-  const y = m.ball.p.y
-  const dist = Math.abs(p.z)
-  const volley = r.bounces === 0
-  const high = y > 1.25 && dist < 5
-  switch (button) {
-    case "topspin":
-      if (shotNo === 2) return "return"
-      if (high) return "smash"
-      if (volley && dist < 4) return "punch"
-      return "drive"
-    case "slice":
-      if (high) return "punch"
-      if (volley && dist < 4) return "block"
-      return "slice"
-    case "soft":
-      return dist < 3.6 ? "dink" : "drop"
-    case "lob":
-      return "lob"
-    default:
-      return contextKind(m, p, power)
-  }
+// Where a person is aiming: the pointer/stick/finger target if there is one, else what a
+// sensible player would do at this pace, nudged by the stick (keyboard) or a touch drag
+export const aimFor = (m, p, pace) => {
+  const inp = m.inputs[p.slot] || {}
+  const opp = -sideOf(p.team)
+  if (inp.aim && Math.sign(inp.aim.z) === opp) return { x: clamp(inp.aim.x, -HALF_W - 0.4, HALF_W + 0.4), z: opp * clamp(Math.abs(inp.aim.z), 0.4, HALF_L + 0.4) }
+  const t = autoTarget(m, p, pace)
+  // the nudge: across (from the hitter's view) and deeper/shorter
+  const n = inp.nudge || (p.charge || p.armed ? { u: clamp(inp.x * rightSign(p.team), -1, 1), v: clamp(-inp.z * sideOf(p.team), -1, 1) } : null)
+  if (!n) return t
+  const deep = Math.abs(t.z) + n.v * (Math.abs(t.z) < 3 ? 0.9 : 2)
+  return { x: clamp(t.x + n.u * rightSign(p.team) * 1.8, -HALF_W + 0.2, HALF_W - 0.2), z: opp * clamp(deep, 0.5, HALF_L - 0.25) }
 }
 
-// "Auto" (one button, or a tap on a phone): what a sensible player would hit here
-export const contextKind = (m, p, power) => {
-  const r = m.rally
-  const shotNo = r.hits + 1
-  const y = m.ball.p.y
-  const dist = Math.abs(p.z)
-  const hard = power >= 0.55
-  if (shotNo === 2) return hard ? "drive" : "return"
-  if (y > 1.2 && dist < 5) return hard ? "smash" : "punch"
-  if (dist < 3.4) {
-    if (y < 0.95) return hard ? "drive" : "dink"
-    return hard ? "punch" : "block"
-  }
-  if (shotNo === 3) return hard ? "drive" : "drop"
-  return hard ? "drive" : r.bounces === 0 ? "block" : "drop"
+// A serve's target: the aim, kept inside the right service box (or null: the default)
+const serveTarget = (m, p) => {
+  const aim = m.inputs[p.slot]?.aim
+  if (!aim) return null
+  const opp = -sideOf(p.team)
+  const want = (m.rally.court === "left" ? -1 : 1) * rightSign(1 - p.team)
+  return { x: want * clamp(aim.x * want, 0.3, HALF_W - 0.3), z: opp * clamp(Math.abs(aim.z), KITCHEN + 0.5, HALF_L - 0.3) }
+}
+
+// The shot a person would play if they swung now at this pace (the aiming aid): its kind,
+// target and where it would really land (a hard ball from down low carries long)
+export const previewShot = (m, p, pace) => {
+  const e = p.expect
+  if (!e) return null
+  const target = aimFor(m, p, pace)
+  const from = { x: e.x, y: e.y, z: e.z }
+  const plan = planIntent({ team: p.team, from, incoming: m.ball.v, target, pace, shotNo: m.rally.hits + 1, volley: !!e.volley })
+  const res = playShot({ p: from, v: m.ball.v, w: m.ball.w }, plan)
+  return { kind: plan.kind, band: plan.band, target: plan.target, landing: res.solved.landing, long: !!res.solved.long }
 }
 
 const GRADE_DELTA = { perfect: 0, good: 1.6, early: -3, late: 3, "very early": -5.5, "very late": 5.5 }
 
-// A person's aim from their stick, read at contact: sideways aims, toward the net goes deep
-const stickAim = (m, p) => {
-  const inp = m.inputs[p.slot] || { x: 0, z: 0 }
-  return { aim: clamp(inp.x * rightSign(p.team), -1, 1), depth: clamp(-inp.z * sideOf(p.team), -1, 1) }
-}
-
 // Work out a swing at the ball as it is now: the shot, how well it's timed and the ball it
 // sends back. Doesn't change the match (except the random draws): applyStrike does that.
 // Used by this computer's players and, online, by each person's own browser (netplay.js).
+// Returns null when a computer player is beaten by a hard ball (too quick for their hands).
 export const strike = (m, p, { forced = false } = {}) => {
   const r = m.rally
   const ball = m.ball
   const serving = r.hits === 0
   const ai = isAi(m, p)
   const lv = ai ? (p.ctrl === "human" ? LEVELS.pro : p.level) : null
-  let req
-  if (serving) req = p.serving
-  else if (ai) req = m.practice?.shot?.(m, p) || aiShot(m, p)
-  else req = { ...(p.armed || p.charge) }
-  let kind = req.kind
-  if (!serving && !ai) {
-    if (req.power == null) req.power = clamp(0.3 + ((m.t - (req.start ?? m.t)) / 0.7) * 0.7, 0.3, 1)
-    kind = resolveKind(m, p, req.kind, req.power)
-  }
-  if (!serving && (kind === "auto" || !kind)) kind = contextKind(m, p, req.power ?? 0.4)
-  if (!serving && kind === "serve") kind = "drive"
-  // timing
-  let delta
-  if (serving) delta = (GRADE_DELTA[req.grade] ?? (ai ? aiTiming(lv, m.rand, m.window) / m.window : 0)) * m.window
-  else if (ai) delta = aiTiming(lv, m.rand, m.window)
-  else {
-    const rel = forced || req.release === undefined ? m.t : req.release
-    delta = rel - ((p.zoneT ?? m.t) - SWING_LEAD)
-  }
-  if (serving && req.grade === undefined && !ai) delta = 0
-  const risky = !!req.risky
-  const q = shotQuality(delta, { window: m.window, risky, kind })
-  if (serving && req.grade === "early") q.grade = "soft"
-  // how clean the contact is: the AI by its level; people by their spacing; both by timing
+  const shotNo = r.hits + 1
+  const volley = !serving && bouncesOf(m) === 0
+  const inSpeed = len(ball.v)
+  const fast = !serving && handBattle(m, p)
+  const local = (ball.p.x - p.x) * rightSign(p.team)
+  const window = m.window * (fast ? 1.2 : 1)
+  let plan
+  let q
   let offset
-  let sigma
   let face
   let touch
-  if (ai) {
-    // low balls, fast balls and hitting on the run are harder
-    const hard = 1 + Math.max(0, 0.45 - ball.p.y) * 2.5 + Math.hypot(p.vx, p.vz) * 0.12 + len(ball.v) * 0.03
-    // (a level's errors already include its timing: the grade only nudges them)
+  let pace = null
+  let intent = null
+  if (serving) {
+    // ---- the serve (its own meter) ----
+    const req = p.serving
+    let delta = (GRADE_DELTA[req.grade] ?? (ai ? aiTiming(lv, m.rand, m.window) / m.window : 0)) * m.window
+    if (req.grade === undefined && !ai) delta = 0
+    q = shotQuality(delta, { window: m.window, risky: !!req.risky, kind: "serve" })
+    if (req.grade === "early") q.grade = "soft"
+    const st = !ai ? serveTarget(m, p) : null
+    let aim = req.aim
+    let depth = req.depth
+    if (!ai && aim === undefined) {
+      const inp = m.inputs[p.slot] || { x: 0, z: 0 }
+      aim = clamp(inp.x * rightSign(p.team), -1, 1)
+      depth = clamp(-inp.z * sideOf(p.team), -1, 1)
+    }
+    const skill = ai ? 1 : p.stats.touch || 1
+    const sigma = ai ? lv.sigma * 0.35 * (1 + (q.sigma - 1) * 0.5) : (0.26 * q.sigma) / skill
+    plan = planShot("serve", { team: p.team, from: ball.p, aim: clamp((aim ?? 0) + q.aimShift, -1.2, 1.2), depth: depth ?? 0, power: clamp((req.power ?? 0.5) * (ai ? 1 : p.stats.power || 1), 0, 1), targetX: st?.x, targetZ: st?.z, court: r.court, variant: req.variant, risky: !!req.risky, sigma, rand: m.rand })
+    if (plan.mode.speed !== undefined && q.speedMul !== 1) plan.mode = { speed: plan.mode.speed * q.speedMul }
+    offset = ai ? lv.offset : 0.01
+    // (a serve is a rehearsed, unhurried swing: steadier than a rally shot)
+    face = ai ? lv.face * 0.6 : 0.008 * q.face
+    touch = ai ? lv.touch * 0.4 : 0.03 * q.touch
+  } else if (ai) {
+    // ---- a computer player ----
+    const req = m.practice?.shot?.(m, p) || aiShot(m, p, lv)
+    intent = req.intent || null
+    // a hard ball at the net: did they get their hands there in time?
+    const avail = m.lastShot ? m.t - m.lastShot.t : 1
+    let delta = aiTiming(lv, m.rand, window)
+    if (fast && avail < lv.hands) {
+      if (avail < lv.hands * 0.7 && m.rand() < 0.5) return null // beaten
+      delta = window * (2.4 + ((lv.hands - avail) / lv.hands) * 4) // late
+    }
+    pace = clamp(req.pace + gauss(m.rand) * 0.04, 0, 1)
+    q = shotQuality(delta, { window, kind: pace < 0.36 ? "dink" : "drive" })
+    // low balls, fast balls and hitting on the run are harder (a level's errors already
+    // include its timing: the grade only nudges them)
+    const hardness = 1 + Math.max(0, 0.45 - ball.p.y) * 2.5 + Math.hypot(p.vx, p.vz) * 0.12 + inSpeed * 0.02
     const nudge = (k) => 1 + (k - 1) * 0.5
+    const far = Math.abs(ball.p.z) >= 3.8
+    const absorb = fast ? 1.3 + Math.max(0, inSpeed - FAST_BALL) / 8 : 1 // softening a hard ball is hard
     offset = lv.offset * (0.5 + m.rand())
-    sigma = lv.sigma * hard * nudge(q.sigma)
-    face = lv.face * hard * nudge(q.face)
-    touch = lv.touch * hard * nudge(q.touch)
-    if (q.apexAdd) q.apexAdd *= 0.5
+    face = lv.face * hardness * nudge(q.face)
+    touch = lv.touch * hardness * nudge(q.touch)
+    const target = { ...req.target }
+    target.x += q.aimShift * rightSign(p.team) * 1.2
+    plan = planIntent({ team: p.team, from: ball.p, incoming: ball.v, target, pace, shotNo, volley, sigma: lv.sigma * hardness * nudge(q.sigma), apexSigma: (far ? lv.dropTouch : lv.softTouch) * absorb * (1 + Math.max(0, 0.45 - ball.p.y) * 1.5) * nudge(q.touch), apexAdd: q.apexAdd * 0.5, rand: m.rand })
+    if (plan.mode.speed !== undefined && q.speedMul !== 1) plan.mode = { speed: plan.mode.speed * q.speedMul }
   } else {
+    // ---- a person: their hold (pace), their aim, their timing ----
+    const req = { ...(p.armed || p.charge) }
+    const rel = forced || req.release === undefined ? m.t : req.release
+    pace = req.pace ?? paceOf(rel - (req.start ?? rel))
+    let delta = rel - ((p.zoneT ?? m.t) - leadFor(m, p))
+    if (req.auto) delta = Math.max(delta, window * 3.2) // the assist's reflex block: late
+    q = shotQuality(delta, { window, kind: pace < 0.36 ? "dink" : "drive" })
     const d = Math.hypot(ball.p.x - p.x, ball.p.z - p.z)
     const spacing = Math.abs(d - 0.55) / REACH // ideal: an arm's length away
     const skill = p.stats.touch || 1
     offset = 0.008 + spacing * 0.07
-    sigma = ((0.26 + spacing * 0.5) * q.sigma) / skill
-    face = ((0.008 + spacing * 0.02) * q.face) / skill
-    touch = ((0.05 + spacing * 0.1) * q.touch) / skill
+    face = ((0.006 + spacing * 0.02) * q.face) / skill
+    touch = ((0.03 + spacing * 0.08) * q.touch) / skill
+    const absorb = fast ? 1.3 + Math.max(0, inSpeed - FAST_BALL) / 8 : 1
+    const low = 1 + Math.max(0, 0.45 - ball.p.y) * 1.5
+    const target = req.target || aimFor(m, p, pace)
+    target.x += q.aimShift * rightSign(p.team) * 1.2
+    plan = planIntent({ team: p.team, from: ball.p, incoming: ball.v, target, pace, shotNo, volley, sigma: ((0.2 + spacing * 0.5) * q.sigma) / skill, apexSigma: (((0.05 + spacing * 0.2) * q.touch) / skill) * absorb * low, apexAdd: q.apexAdd, rand: m.rand })
+    if (plan.mode.speed !== undefined && q.speedMul !== 1) plan.mode = { speed: plan.mode.speed * q.speedMul * (p.stats.power || 1) }
   }
-  let aim = req.aim
-  let depth = req.depth
-  if (!ai && !serving && (aim === undefined || depth === undefined)) {
-    const s = stickAim(m, p)
-    aim ??= s.aim
-    depth ??= s.depth
-  }
-  if (serving && !ai && aim === undefined) ({ aim, depth } = stickAim(m, p))
-  const power = clamp((req.power ?? 0.5) * (ai ? 1 : p.stats.power || 1), 0, 1)
-  const plan = planShot(kind, {
-    team: p.team,
-    from: ball.p,
-    aim: clamp((aim ?? 0) + q.aimShift, -1.2, 1.2),
-    depth: depth ?? 0,
-    power,
-    targetX: req.targetX,
-    targetZ: req.targetZ,
-    court: r.court,
-    variant: req.variant,
-    risky,
-    sigma,
-    rand: m.rand,
-  })
-  if (plan.mode.apex !== undefined && q.apexAdd) plan.mode = { apex: plan.mode.apex + q.apexAdd }
-  if (plan.mode.speed !== undefined && q.speedMul !== 1) plan.mode = { speed: plan.mode.speed * q.speedMul }
   const res = playShot({ p: ball.p, v: ball.v, w: ball.w }, plan, { faceError: face, touch, offset, rand: m.rand })
-  const local = (ball.p.x - p.x) * rightSign(p.team)
+  const kind = serving ? "serve" : plan.kind
   return {
     player: p.id,
     t: m.t,
     kind,
+    pace,
+    intent,
     grade: q.grade,
-    risky,
+    risky: serving && !!p.serving?.risky,
     serve: serving,
-    volley: !serving && bouncesOf(m) === 0,
+    volley,
+    fast,
     contact: { x: ball.p.x, y: ball.p.y, z: ball.p.z },
     feet: { x: p.x, z: p.z },
     hand: serving ? "fh" : local >= -0.05 ? "fh" : "bh",
@@ -485,11 +497,56 @@ export const strike = (m, p, { forced = false } = {}) => {
   }
 }
 
+// count a shot in the rally stats by its label
+const countShot = (m, p, s, j, shotNo) => {
+  const f = m.stats.feel
+  const t = m.stats.teams[p.team]
+  const k = s.kind
+  if (k === "dink") {
+    f.dinks++
+    t.dinks++
+  }
+  if (j.tag === "dink") {
+    f.goodDinks++
+    t.goodDinks++
+  }
+  if (j.tag === "popup") {
+    f.popups++
+    t.popups++
+  }
+  if (k === "speedup") {
+    f.speedups++
+    t.speedups++
+    if (j.tone === "great") f.highSpeedups++
+  }
+  if (k === "counter") {
+    f.counters++
+    t.counters++
+  }
+  if (j.tag === "reset") {
+    f.resets++
+    t.resets++
+  }
+  if (k === "drop") f.drops++
+  if (shotNo === 3) {
+    if (k === "drop") f.thirdDrops++
+    else if (k === "drive") f.thirdDrives++
+  }
+  if (k === "lob") f.lobs++
+  if (k === "smash") f.smashes++
+  if (s.fast && (k === "counter" || k === "reset" || k === "punch" || k === "speedup")) f.handBattles++
+  if (j.tag === "net") f.nets++
+  if (j.tag === "out") f.outs++
+  if (j.tag === "erne") f.ernes++
+  if (j.tag === "atp") f.atps++
+}
+
 // Make a swing count: the referee, the ball, the swing animation, stats and events
 export const applyStrike = (m, p, s) => {
   const r = m.rally
   const ball = m.ball
   let result = null
+  const shotNo = r.hits + 1
   if (m.mirror) {
     // an online copy: the host's referee rules on it; keep the rally moving here meanwhile
     r.hits++
@@ -520,17 +577,24 @@ export const applyStrike = (m, p, s) => {
   p.zoneT = null
   for (const q of m.players) if (q.team === p.team) q.armed = null
   m.landing = null // where this shot lands (practice judges it)
+  // what this ball gives the other side, and what to call the shot
+  const a = assessBall(ball, p.team)
+  const opps = m.players.filter((q) => q.team !== p.team)
+  const oppsBack = opps.every((q) => Math.abs(q.z) > 4.4)
+  const erne = s.volley && Math.abs(s.feet.x) > HALF_W + 0.05 && Math.abs(s.feet.z) < KITCHEN + 0.7
+  const j = judgeShot(s.kind, a, { contactY: s.contact.y, oppsBack, erne })
+  r.dinks = s.kind === "dink" ? (r.dinks || 0) + 1 : 0
   m.stats.shots++
   m.stats.rallyShots++
   const ts = m.stats.teams[p.team]
   ts.shots++
   if (s.grade === "perfect") ts.perfect++
-  if (s.risky) ts.power++
   ts.fastest = Math.max(ts.fastest, speed)
-  m.lastShot = { kind: s.kind, by: p.id, team: p.team, speed, volley: s.volley, landing: s.landing, t: m.t, grade: s.grade, risky: s.risky }
-  if (!m.mirror) afterShot(m, p.team, s.kind, p)
+  countShot(m, p, s, j, shotNo)
+  m.lastShot = { kind: s.kind, by: p.id, team: p.team, speed, volley: s.volley, landing: s.landing, t: m.t, grade: s.grade, risky: s.risky, label: j.text, tone: j.tone, tag: j.tag, attackable: a.attackable, pace: s.pace }
+  if (!m.mirror) afterShot(m, p.team, s.kind, p, a)
   m.version++
-  emit(m, { type: "hit", player: p.id, team: p.team, kind: s.kind, speed, volley: s.volley, x: ball.p.x, y: ball.p.y, z: ball.p.z, paddle: s.paddle, grade: s.grade, risky: s.risky, hand: s.hand, human: p.ctrl !== "cpu" && p.ctrl !== "feeder" })
+  emit(m, { type: "hit", player: p.id, team: p.team, kind: s.kind, speed, volley: s.volley, x: ball.p.x, y: ball.p.y, z: ball.p.z, paddle: s.paddle, grade: s.grade, risky: s.risky, hand: s.hand, human: p.ctrl !== "cpu" && p.ctrl !== "feeder", label: j.text, tone: j.tone, tag: j.tag, fast: !!s.fast, attackH: a.attackH })
   if (result) decided(m, result)
 }
 
@@ -539,6 +603,14 @@ const hit = (m, p, opts) => {
   if (!m.mirror && m.held?.length) flushHeld(m)
   if (!isLive(m.rally)) return
   const s = strike(m, p, opts)
+  if (!s) {
+    // beaten by a hard ball: the paddle never got there
+    p.armed = null
+    p.noSwing = m.version
+    p.swing = { t: 0, kind: "block", hand: "bh", y: m.ball.p.y, whiff: true }
+    emit(m, { type: "whiff", player: p.id, beaten: true })
+    return
+  }
   m.onStrike?.(p, s) // online: tell the host
   applyStrike(m, p, s)
 }
@@ -596,14 +668,22 @@ const decided = (m, result) => {
 // move: x across the court (+ is the screen's right with the camera behind team 0), z along
 // it (+ toward team 0's baseline), each -1..1, from the keys, a stick or the touch pad
 export const setMove = (m, x, z, slot = 0) => {
-  const inp = m.inputs[slot] || (m.inputs[slot] = { x: 0, z: 0 })
+  const inp = m.inputs[slot] || (m.inputs[slot] = { x: 0, z: 0, aim: null, nudge: null })
   inp.x = x
   inp.z = z
 }
 
-// A shot button goes down: start the swing (hold for power). Between points it hurries
-// things along. kind: topspin | slice | soft | lob | auto. risky: a power shot.
-export const press = (m, slot, kind = "auto", { risky = false } = {}) => {
+// where this person is aiming: a point on the other court (world x, z), or null for the
+// default; nudge ({ u across, v deeper }, each -1..1) shifts the default instead
+export const setAim = (m, aim, slot = 0, nudge = null) => {
+  const inp = m.inputs[slot] || (m.inputs[slot] = { x: 0, z: 0, aim: null, nudge: null })
+  inp.aim = aim ? { x: aim.x, z: aim.z } : null
+  inp.nudge = nudge ? { u: clamp(nudge.u, -1, 1), v: clamp(nudge.v, -1, 1) } : null
+}
+
+// The hit control goes down: start the swing (hold it for pace). Holding it early is having
+// the paddle up and ready: let go as the ball comes. Between points it hurries things along.
+export const press = (m, slot) => {
   const p = humanBySlot(m, slot)
   if (!p || m.paused) return false
   if (m.phase === "dead" || m.phase === "intro") {
@@ -611,17 +691,18 @@ export const press = (m, slot, kind = "auto", { risky = false } = {}) => {
     return true
   }
   if (m.ball.held === p.id && m.phase === "serve") {
-    p.charge = { kind: "serve", variant: SERVE_VARIANT[kind] || "drive", start: m.t, risky }
+    p.charge = { kind: "serve", variant: "drive", start: m.t }
     return true
   }
   if (m.phase !== "rally") return false
-  if (p.swing && p.swing.t < 0.25) return false // still finishing the last one
-  p.charge = { kind, start: m.t, risky }
+  if (p.swing && p.swing.t < 0.2) return false // still finishing the last one
+  p.charge = { kind: "hit", start: m.t }
   p.armed = null
   return true
 }
 
-// The button comes up: swing. aim/depth (optional) override the stick (a phone swipe).
+// The hit control comes up: swing. opts: pace (0..1, instead of the hold), target {x, z}
+// (instead of the live aim), aim/depth (the serve's steer)
 export const release = (m, slot, opts = {}) => {
   const p = humanBySlot(m, slot)
   if (!p) return false
@@ -631,30 +712,30 @@ export const release = (m, slot, opts = {}) => {
   if (c.kind === "serve") {
     if (m.ball.held !== p.id || m.phase !== "serve") return false
     const meter = serveMeter(m.t - c.start)
-    return serve(m, { kind: "serve", variant: c.variant, power: meter.power, grade: meter.grade, risky: c.risky || meter.fill > 1, aim: opts.aim, depth: opts.depth })
+    return serve(m, { kind: "serve", variant: meter.grade === "early" ? "soft" : "drive", power: meter.power, grade: meter.grade, risky: meter.fill > 1, aim: opts.aim, depth: opts.depth })
   }
   if (m.phase !== "rally") return false
-  const held = m.t - c.start
-  const power = opts.power ?? clamp(0.3 + (held / 0.7) * 0.7, 0.3, 1)
-  p.armed = { kind: c.kind, power, risky: opts.risky ?? c.risky, release: m.t, until: m.t + ARM_S, aim: opts.aim, depth: opts.depth }
+  const pace = opts.pace ?? paceOf(m.t - c.start)
+  p.armed = { kind: "hit", pace, start: c.start, release: m.t, until: m.t + ARM_S, target: opts.target || null }
   return true
 }
 
-// A whole swing at once (a tap): { kind, power 0..1, aim -1..1, depth, risky }
-export const swing = (m, req, slot = 0) => {
+// A whole swing at once (a tap): { pace 0..1, target {x, z} } (a serve: { power, aim, depth })
+export const swing = (m, req = {}, slot = 0) => {
   const p = humanBySlot(m, slot)
   if (!p || m.paused) return false
   if (m.ball.held === p.id && m.phase === "intro") settleIntro(m)
   if (m.ball.held === p.id && m.phase === "serve") {
-    return serve(m, { kind: "serve", variant: SERVE_VARIANT[req.kind] || "drive", aim: req.aim ?? 0, depth: req.depth ?? 0, power: req.power ?? 0.5, grade: req.grade ?? "good" })
+    return serve(m, { kind: "serve", variant: "drive", aim: req.aim ?? 0, depth: req.depth ?? 0, power: req.power ?? 0.5, grade: req.grade ?? "good" })
   }
-  if (!press(m, slot, req.kind || "auto", { risky: req.risky })) return false
+  if (!press(m, slot)) return false
   if (m.phase !== "rally") return true
-  return release(m, slot, { aim: req.aim ?? 0, depth: req.depth ?? 0, power: req.power ?? 0.5, risky: req.risky })
+  return release(m, slot, { pace: req.pace ?? 0.3, target: req.target })
 }
 
-// What the timing meter shows for a person: how soon the ball gets to them (from their
-// predicted intercept), whether they're holding or have let go, and the serve meter
+// What the meter shows for a person: how soon the ball gets to them (from their predicted
+// contact), the pace they're holding, how high they'll meet it (above the net: attack it;
+// low: keep it soft), whether it's a hand battle, and the serve meter
 export const meterFor = (m, p) => {
   if (!p) return null
   if (p.charge?.kind === "serve") {
@@ -666,17 +747,31 @@ export const meterFor = (m, p) => {
   const r = m.rally
   if (!e || r.lastTeam === p.team || !isLive(r)) return null
   const ttc = e.at - m.t
-  return { mode: "rally", ttc, lead: SWING_LEAD, window: m.window, charging: !!p.charge, power: p.charge ? clamp(0.3 + ((m.t - p.charge.start) / 0.7) * 0.7, 0.3, 1) : null, released: p.armed?.release ?? null, t: m.t }
+  const pace = p.charge ? paceOf(m.t - p.charge.start) : p.armed?.pace ?? null
+  return {
+    mode: "rally",
+    ttc,
+    lead: leadFor(m, p),
+    window: m.window,
+    charging: !!p.charge,
+    pace,
+    band: pace === null ? null : paceBand(pace),
+    height: e.y > NET_H_CENTER + 0.09 ? "high" : e.y < 0.55 ? "low" : "mid",
+    fast: handBattle(m, p),
+    released: p.armed?.release ?? null,
+    t: m.t,
+  }
 }
 
-// A stand-in for a person (tests and the dev hook): runs to the ball, presses a shot button
-// as it comes and lets go on the beat, with a little human scatter in the timing. Uses only
-// what a person has: the stick and the buttons.
-export const autopilot = (m, slot = 0, { jitter = 0.03, rand = Math.random, button = null, risky = false, power = 0 } = {}) => {
+// A stand-in for a person (tests and the dev hook): runs to the ball, decides a shot the way
+// a decent player would (ai.js, at the contact it expects), aims there, presses the hit
+// control early enough to hold for that pace and lets go on the beat, with a little human
+// scatter in the timing. Uses only what a person has: the stick, the aim and the button.
+export const autopilot = (m, slot = 0, { jitter = 0.03, rand = Math.random, level = LEVELS.pro } = {}) => {
   const p = humanBySlot(m, slot)
   if (!p || m.paused) return
   if (m.phase === "serve" && m.ball.held === p.id) {
-    if (!p.charge) press(m, slot, rand() < 0.8 ? "topspin" : "soft")
+    if (!p.charge) press(m, slot)
     else if (m.t - p.charge.start >= SERVE_FILL * (0.82 + rand() * 0.12)) release(m, slot)
     return
   }
@@ -695,11 +790,17 @@ export const autopilot = (m, slot = 0, { jitter = 0.03, rand = Math.random, butt
     if (e.x * rightSign(p.team) * lane < -0.4) return
   }
   const ttc = e.at - m.t
-  if (!p.charge && !p.armed && ttc < 0.5 && ttc > 0.05) {
-    const near = Math.abs(p.z) < 3.6
-    const kind = e.y > 1.3 && near ? "topspin" : near ? (rand() < 0.75 ? "soft" : "topspin") : m.rally.hits === 2 && rand() < 0.6 ? "soft" : rand() < 0.2 ? "slice" : "topspin"
-    if (press(m, slot, button || kind, { risky: risky || rand() < power }) && p.charge) p.charge.aimAt = SWING_LEAD + (rand() * 2 - 1) * jitter
-  } else if (p.charge && ttc <= (p.charge.aimAt ?? SWING_LEAD)) release(m, slot, { aim: (rand() - 0.5) * 1.2, depth: rand() * 0.6 - 0.2 })
+  if (!p.charge && !p.armed && ttc < 0.9 && ttc > 0.02) {
+    if (p.standIn?.v !== m.version) {
+      const shot = aiShot(m, p, level, { p: { x: e.x, y: e.y, z: e.z }, v: m.ball.v }, rand)
+      p.standIn = { v: m.version, pace: shot.pace, target: shot.target, lead: leadFor(m, p) + (rand() * 2 - 1) * jitter }
+    }
+    const hold = 0.05 + p.standIn.pace * PACE_RAMP
+    if (ttc <= p.standIn.lead + hold && press(m, slot) && p.charge) {
+      p.charge.aimAt = p.standIn.lead
+      setAim(m, p.standIn.target, slot)
+    }
+  } else if (p.charge && ttc <= (p.charge.aimAt ?? SWING_LEAD)) release(m, slot)
 }
 
 // ---- stepping ----
@@ -832,7 +933,7 @@ const think = (m) => {
       // a computer partner leaves the ball to a person who is already swinging at it
       const deferring = m.players.some((q) => q.team === p.team && q !== p && (q.ctrl === "human" || q.ctrl === "remote") && (q.charge || q.armed) && Math.hypot(m.ball.p.x - q.x, m.ball.p.z - q.z) < 2.5)
       const machine = p.ctrl === "feeder" && !m.practice?.returns // a ball machine only feeds
-      if (mine && !deferring && !machine) p.armed = { kind: "ai", waitBounce: !plan.volley }
+      if (mine && !deferring && !machine && p.noSwing !== m.version) p.armed = { kind: "ai", waitBounce: !plan.volley, lunge: !!plan.lunge }
       else p.armed = null
     }
   }
@@ -956,7 +1057,10 @@ const mirrorStep = (m, dt) => {
     for (const p of m.players) {
       if (p.ctrl !== "human") continue
       const req = p.armed || p.charge
-      if (!req) continue
+      if (!req) {
+        if (autoBlock(m, p)) hit(m, p, { forced: true })
+        continue
+      }
       const ok = canHit(m, p, req)
       if (ok && p.zoneT === null) p.zoneT = m.t
       if (p.armed && ok && (p.armed.release === undefined || m.t >= p.armed.release + MIN_SWING)) hit(m, p)
@@ -966,6 +1070,20 @@ const mirrorStep = (m, dt) => {
       }
     }
   }
+}
+
+// The movement assist's reflex: a hard ball at a person at the net who didn't swing gets a
+// late, soft block (it usually floats up: better to time your own)
+const autoBlock = (m, p) => {
+  if (p.ctrl !== "human" || isAi(m, p) || assistOf(m) === "off" || !handBattle(m, p)) return false
+  if (!canHit(m, p, { kind: "hit", auto: true })) return false
+  if (p.zoneT === null) {
+    p.zoneT = m.t
+    return false
+  }
+  if (m.t - p.zoneT < 0.05) return false
+  p.charge = { kind: "hit", start: m.t, auto: true }
+  return true
 }
 
 export const step = (m, dt = STEP) => {
@@ -1017,7 +1135,13 @@ export const step = (m, dt = STEP) => {
     for (const p of m.players) {
       if (p.ctrl === "remote") continue
       const req = p.armed || p.charge
-      if (!req) continue
+      if (!req) {
+        if (autoBlock(m, p)) {
+          hit(m, p, { forced: true })
+          break
+        }
+        continue
+      }
       const ok = canHit(m, p, req)
       if (ok && p.zoneT === null) p.zoneT = m.t
       if (p.armed && ok && (p.armed.release === undefined || m.t >= p.armed.release + MIN_SWING)) {

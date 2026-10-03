@@ -288,7 +288,7 @@ export const PracticeMenu = ({ best, onTutorial, onDrill, onBack }) => (
   <Panel title="Practice" onBack={onBack} wide>
     <button type="button" className="pkBig pkTutorialBtn" onClick={onTutorial} data-action="tutorial" autoFocus>
       <b>Tutorial</b>
-      <small>New here? Learn moving, timing, every shot, the serve and the two rules that matter, one step at a time.</small>
+      <small>New here? Learn the touch control, then a point the way it's played: serve and return deep, the third-shot drop, dinking, the speed-up, hand battles and resets.</small>
     </button>
     <p className="pkLead">Drills: a ball machine feeds you, you hit, it keeps score.</p>
     <div className="pkDrills">
@@ -327,7 +327,7 @@ export const VersusMenu = ({ prefs, setPrefs, tour, onStart, onBack, onPlayers, 
             {keyName(b.p1.up[0])}
             {keyName(b.p1.left[0])}
             {keyName(b.p1.down[0])}
-            {keyName(b.p1.right[0])} move &middot; {keyName(b.p1.topspin[0])} {keyName(b.p1.slice[0])} {keyName(b.p1.soft[0])} {keyName(b.p1.lob[0])} shots &middot; {keyName(b.p1.power[0])} power
+            {keyName(b.p1.right[0])} move &middot; {keyName(b.p1.hit[0])} hit (tap soft, hold hard)
           </small>
           <small>or gamepad 1</small>
         </button>
@@ -336,7 +336,7 @@ export const VersusMenu = ({ prefs, setPrefs, tour, onStart, onBack, onPlayers, 
           <Portrait c={p2} outfit={prefs.p2.outfit} />
           <b>Player 2: {p2.nick}</b>
           <small>
-            Arrows move &middot; {keyName(b.p2.topspin[0])} {keyName(b.p2.slice[0])} {keyName(b.p2.soft[0])} {keyName(b.p2.lob[0])} shots &middot; {keyName(b.p2.power[0])} power
+            Arrows move &middot; {keyName(b.p2.hit[0])} hit (tap soft, hold hard)
           </small>
           <small>or gamepad 2</small>
         </button>
@@ -383,6 +383,10 @@ export const SettingsMenu = ({ prefs, setPrefs, onBack, onControls, showPad, onT
       <div className="pkField">
         <span>Movement assist</span>
         <Radio name="pk-assist" value={prefs.assist} options={[["off", "Off"], ["light", "Light"], ["full", "Full (runs for you)"]]} onChange={(v) => setPrefs({ assist: v })} />
+      </div>
+      <div className="pkField">
+        <span>Slow-mo on speed-ups</span>
+        <Radio name="pk-focus" value={prefs.focus || "auto"} options={[["auto", "Rookie & practice"], ["on", "Always"], ["off", "Off"]]} onChange={(v) => setPrefs({ focus: v })} />
       </div>
       <div className="pkField pkChecks">
         {[
@@ -451,17 +455,26 @@ export const ControlsMenu = ({ prefs, setPrefs, onBack, showPad }) => {
       </table>
       <div className="pkHelpText">
         <p>
-          <b>Hitting:</b> press a shot button as the ball comes and HOLD it (longer = harder), then LET GO as it reaches
-          you. The meter at the bottom shows the moment: let go when the marker is in the green. Steer with the move keys
-          as you let go (toward the net = deeper). Hold Power for a power shot: faster, closer to the lines, riskier.
+          <b>One hit control.</b> Aim with the mouse: point at their court (the ring shows where it goes). Press hit (click,
+          or {keyName(b.solo.hit[0])}) and LET GO just before the ball reaches you: the meter's marker in the green. How
+          long you held it is the pace: a quick TAP is soft (a dink at the kitchen line, a drop or a reset from farther
+          back), a long HOLD is hard (a drive, a speed-up, a counter). A soft ball aimed deep goes up high: a lob.
         </p>
         <p>
-          <b>Serving:</b> hold any shot button to fill the serve meter, let go in the green. Topspin = a deep drive serve,
-          Slice = a low skidder, Soft = a high floater.
+          <b>Read the ball.</b> The little ring on the ball turns orange when you'll meet it above the net: that one you
+          can attack. Below the net, keep it soft: a hard swing from down there sails long (a red dot shows where it would
+          land). When they speed it up at you there's no time to wind up: hold hit early (paddle up) and let go to counter,
+          or tap late to block it soft.
         </p>
         <p>
-          <b>Gamepad:</b> left stick moves, A topspin, X slice, B soft, Y lob, RB/RT power, Start pauses.
-          {showPad ? " Touch: drag on the left to move; the shot buttons work the same way (hold, let go)." : ""} C changes the camera, P pauses.
+          <b>Serving:</b> hold hit to fill the serve meter, let go in the green (early = a soft, safe serve). Point at the
+          box to aim.
+        </p>
+        <p>
+          <b>Two players on one keyboard:</b> no mouse; while holding hit, the move keys steer the aim (sideways, and toward
+          the net = deeper). <b>Gamepad:</b> left stick moves, right stick aims, any face button or trigger hits, Start
+          pauses.
+          {showPad ? " Touch: drag on the left to move; touch anywhere else to hit: on their court it aims right there, elsewhere drag to steer; hold for pace." : ""} C changes the camera, P pauses.
         </p>
       </div>
       <div className="pkRow pkRowEnd">

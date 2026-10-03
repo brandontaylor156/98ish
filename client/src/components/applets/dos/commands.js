@@ -104,6 +104,7 @@ const ALIASES = {
   msbackup: "Backup",
   calc: "Calculator",
   charmap: "Character Map",
+  welcome: "Welcome to 98ish",
   timedate: "Date/Time Properties",
   "timedate.cpl": "Date/Time Properties",
   themes: "Desktop Themes",
