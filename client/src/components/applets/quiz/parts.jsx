@@ -16,6 +16,12 @@ export const usePartner = () => {
   const couple = useCoupleHook()
   return couple?.status === "paired" && couple.partner ? couple.partner : null
 }
+// -> { partner, online, away } (partner null when not paired)
+export const usePartnerInfo = () => {
+  const couple = useCoupleHook()
+  const paired = couple?.status === "paired" && couple.partner
+  return { partner: paired ? couple.partner : null, online: !!(paired && couple.partnerOnline), away: !!(paired && couple.partnerAway) }
+}
 
 export const LETTERS = ["A", "B", "C", "D", "E", "F"]
 

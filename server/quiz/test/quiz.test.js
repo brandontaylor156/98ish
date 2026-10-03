@@ -4,7 +4,7 @@ const http = require("node:http")
 const express = require("express")
 const { quizRouter } = require("..")
 const { memoryStore } = require("../store")
-const { createQuizLive, cleanOptions } = require("../live")
+const { createQuizLive, cleanOptions, LIVE_TIMES } = require("../live")
 const { quizContent } = require("../content")
 const { createGames } = require("../../net/games")
 
@@ -71,7 +71,8 @@ test("async How Well Do You Know Me: send, take, score; answers stay hidden unti
     const id = sent.challenge.id
     assert.equal(sent.challenge.to, "Bobby")
     assert.equal(sent.challenge.status, "waiting")
-    assert.equal(aim.sessions.get("bobby").socket.events.at(-1).event, "quiz:new")
+    assert.deepEqual(aim.sessions.get("bobby").socket.events.map((e) => e.event), ["quiz:new", "couple:quiz"])
+    assert.equal(aim.sessions.get("bobby").socket.events[1].payload.count, 5)
 
     // Bobby's inbox lists it; his view of it has no answers in it yet
     const inbox = await call("GET", "/inbox", undefined, BOBBY)
@@ -93,7 +94,8 @@ test("async How Well Do You Know Me: send, take, score; answers stay hidden unti
     assert.equal(taken.challenge.result.correct, 4)
     assert.equal(taken.challenge.result.percent, 80)
     assert.deepEqual(taken.challenge.authorAnswers, [0, 1, 2, 0, 1])
-    assert.equal(aim.sessions.get("alice").socket.events.at(-1).event, "quiz:done")
+    assert.deepEqual(aim.sessions.get("alice").socket.events.slice(-2).map((e) => e.event), ["quiz:done", "couple:quiz-done"])
+    assert.equal(aim.sessions.get("alice").socket.events.at(-1).payload.correct, 4)
     // once only
     assert.equal((await call("POST", `/challenges/${id}/attempt`, { answers: [0, 1, 2, 0, 1] }, BOBBY)).status, 409)
 
@@ -278,54 +280,129 @@ test("live How Well Do You Know Me: invite, answers hidden until the reveal, sco
   assert.equal(live.start("p2", roomId).ok, false, "only the host starts")
   assert.ok(live.start("p1", roomId).ok)
   assert.ok(live.busy("p1"))
-  assert.equal(last("p1").total, 6)
-  assert.equal(last("p1").current.subject, "p1")
+  // 3 about Alice, 3 about Bobby, a lightning round of 4, and the final 2
+  assert.equal(last("p1").total, 12)
+  assert.deepEqual(last("p2").order.map((p) => p.name), ["Alice", "Bobby"])
 
-  for (let step = 0; step < 6; step++) {
-    const subject = last("p1").current.subject
-    assert.ok(live.answer("p1", roomId, { step, answer: 1 }).ok)
-    // Bobby doesn't see Alice's answer, only that she's answered
-    const bob = last("p2")
-    assert.equal(bob.phase, "question")
-    assert.equal(bob.yourAnswer, null)
-    assert.ok(bob.players.find((p) => p.id === "p1").answered)
-    assert.equal(JSON.stringify(bob).includes('"answers"'), false)
-    assert.equal(live.answer("p1", roomId, { step, answer: 2 }).ok, false, "one answer per question")
-    assert.equal(live.answer("p2", roomId, { step, answer: 99 }).ok, false)
-    live.answer("p2", roomId, { step, answer: step < 4 ? 1 : 0 })
+  // a round's title card first, on both screens at once; no answering yet
+  assert.equal(last("p1").phase, "round")
+  assert.equal(last("p1").roundCard.round, "one")
+  assert.equal(last("p1").roundCard.until, last("p2").roundCard.until)
+  assert.equal(live.answer("p1", roomId, { step: 0, answer: 0 }).ok, false)
+  clock.advance(LIVE_TIMES.roundCard)
+  assert.equal(last("p1").phase, "question")
+  assert.equal(last("p1").current.subject, "p1")
+  assert.equal(last("p1").current.timer, 20)
+
+  // who guesses right: Bobby gets every one about Alice; Alice gets one of three about
+  // Bobby; the lightning round goes Bobby, (Alice runs out of time), Bobby, miss; then the
+  // final: Bobby bets bold and is right, Alice goes all in and is wrong
+  const right = new Set([0, 1, 2, 3, 6, 8, 10])
+  for (let step = 0; step < 12; step++) {
+    const view = last("p1")
+    if (view.phase === "round") {
+      if (step === 6) assert.equal(view.roundCard.round, "lightning")
+      if (step === 10) assert.equal(view.roundCard.round, "final")
+      // a round card can be skipped
+      assert.ok(live.next("p2", roomId).ok)
+    }
+    if (step === 10) {
+      assert.equal(last("p1").phase, "bet")
+      assert.ok(live.bet("p1", roomId, { bet: "allin" }).ok)
+      assert.equal(live.bet("p1", roomId, { bet: "safe" }).ok, false, "one bet each")
+      assert.equal(last("p2").bets, null, "bets stay secret until both are in")
+      assert.ok(last("p2").players.find((p) => p.id === "p1").answered)
+      assert.equal(live.bet("p2", roomId, { bet: "x" }).ok, false)
+      assert.ok(live.bet("p2", roomId, { bet: "bold" }).ok)
+      assert.deepEqual(last("p1").bets, { p1: "allin", p2: "bold" })
+    }
+    const cur = last("p1")
+    assert.equal(cur.phase, "question", `step ${step}`)
+    assert.equal(cur.step, step)
+    const subject = cur.current.subject
+    const guesser = subject === "p1" ? "p2" : "p1"
+    assert.ok(live.answer(subject, roomId, { step, answer: 1 }).ok)
+    // the guesser doesn't see the answer, only that it's in
+    const other = last(guesser)
+    assert.equal(other.phase, "question")
+    assert.equal(other.yourAnswer, null)
+    assert.ok(other.players.find((p) => p.id === subject).answered)
+    assert.equal(JSON.stringify(other).includes('"answers"'), false)
+    assert.equal(live.answer(subject, roomId, { step, answer: 2 }).ok, false, "one answer per question")
+    assert.equal(live.answer(guesser, roomId, { step, answer: 99 }).ok, false)
+    if (step === 7) {
+      assert.equal(cur.current.timer, 8, "the lightning round is quick")
+      clock.advance(8_100)
+    } else live.answer(guesser, roomId, { step, answer: right.has(step) ? 1 : 0 })
     const reveal = last("p2").reveal
     assert.equal(reveal.subject, subject)
-    assert.equal(reveal.match, step < 4)
-    assert.equal(live.next("p2", roomId).ok, false, "a moment to enjoy the reveal")
-    clock.advance(1000)
+    assert.equal(reveal.guesser, guesser)
+    assert.equal(reveal.match, right.has(step), `step ${step}`)
+    assert.equal(reveal.showAt, last("p1").reveal.showAt, "the reveal opens on both screens at once")
+    if (step === 7) assert.equal(reveal.answers.p1, null)
+    assert.equal(live.next("p2", roomId).ok, false, "a drum roll, then a moment to enjoy the reveal")
+    clock.advance(LIVE_TIMES.drumroll + 900)
     assert.ok(live.next("p2", roomId).ok)
   }
   const done = last("p1")
   assert.equal(done.phase, "done")
-  assert.equal(done.result.percent, 67)
-  assert.equal(done.result.players.p2.guessed, 3)
-  assert.equal(done.log.length, 6)
-  assert.deepEqual(records, [{ a: "p1", b: "p2", mode: "knowme", percent: 67 }])
+  assert.equal(done.result.matches, 7)
+  assert.equal(done.result.total, 12)
+  assert.equal(done.result.percent, 58)
+  assert.equal(done.result.tier, "Sweethearts")
+  assert.equal(done.result.headline, "You two matched on 7/12: Sweethearts!")
+  // Bobby: 100 + 100 + (200 double + 50 streak) + lightning (50 + 50) x 2 + 250 bet
+  assert.equal(done.result.players.p2.points, 900)
+  // Alice: 100, then all in (300) on a miss takes it back down to 0
+  assert.equal(done.result.players.p1.points, 0)
+  assert.equal(done.result.winner, "p2")
+  assert.equal(done.result.players.p2.best, 6)
+  assert.equal(done.result.players.p2.guessed, 6)
+  assert.equal(done.log.length, 12)
+  assert.deepEqual(records, [{ a: "p1", b: "p2", mode: "knowme", percent: 58 }])
   assert.equal(live.playersOf(roomId).length, 2)
   // play again
   assert.ok(live.again("p1", roomId).ok)
   assert.equal(last("p2").phase, "lobby")
+  assert.equal(last("p2").order, null)
+})
+
+test("live show packs: questions come from the chosen pack; unknown packs fall back", async () => {
+  const { live, last, me, clock } = await liveSetup()
+  const { roomId } = live.create(me("p1", "Alice"), { mode: "knowme", options: { count: 3, pack: "flirty" } })
+  assert.equal(last("p1").options.pack, "flirty")
+  live.allow("p2", roomId)
+  live.join(me("p2", "Bobby"), roomId)
+  live.start("p1", roomId)
+  clock.advance(LIVE_TIMES.roundCard)
+  const id = last("p1").current.item
+  assert.equal(content.aboutMe.find((q) => q.id === id).cat, "flirty")
+  const other = live.create(me("p3", "Carol"), { mode: "tot", options: { pack: "../../etc", count: 999 } })
+  assert.ok(other.ok)
+  assert.deepEqual(last("p3").options, { count: 10, pack: "quick", clock: true })
 })
 
 test("live games: a timer reveals unanswered questions; leaving ends a two-player game", async () => {
   const { live, last, me, clock } = await liveSetup()
-  const { roomId } = live.create(me("p1", "Alice"), { mode: "tot", options: { count: 5, timer: 10 } })
+  const { roomId } = live.create(me("p1", "Alice"), { mode: "tot", options: { count: 6 } })
   live.allow("p2", roomId)
   live.join(me("p2", "Bobby"), roomId)
   live.start("p1", roomId)
+  clock.advance(LIVE_TIMES.roundCard)
+  assert.equal(last("p1").current.round, "warmup")
   live.answer("p1", roomId, { step: 0, answer: 0 })
-  clock.advance(10_100)
+  clock.advance(20_100)
   const r = last("p1")
   assert.equal(r.phase, "reveal")
   assert.equal(r.reveal.answers.p2, null)
   assert.equal(r.reveal.match, false)
-  clock.advance(1000)
-  live.next("p1", roomId)
+  clock.advance(LIVE_TIMES.drumroll + 1000)
+  assert.ok(live.next("p1", roomId).ok)
+  // a match scores for both, and both see the same totals
+  live.answer("p1", roomId, { step: 1, answer: 1 })
+  live.answer("p2", roomId, { step: 1, answer: 1 })
+  assert.equal(last("p1").reveal.match, true)
+  assert.deepEqual(last("p2").players.map((p) => p.score), [100, 100])
   live.leave("p2", roomId)
   assert.equal(last("p1").phase, "done")
   assert.match(last("p1").note, /Bobby left/)
@@ -385,7 +462,8 @@ test("live deep talk: everyone sees the same card; levels; no repeats until the 
 })
 
 test("live rooms: options are cleaned, reactions are rate limited, players are capped", async () => {
-  assert.deepEqual(cleanOptions("knowme", { count: 999, timer: 7 }), { count: 10, timer: 0 })
+  assert.deepEqual(cleanOptions("knowme", { count: 999, timer: 7 }, ["firstdate"]), { count: 5, pack: "firstdate", clock: true })
+  assert.deepEqual(cleanOptions("knowme", { count: 7, pack: "quirks", clock: false }, ["firstdate", "quirks"]), { count: 7, pack: "quirks", clock: false })
   assert.deepEqual(cleanOptions("trivia", { pack: "../etc" }, ["geo"]), { count: 10, timer: 20, pack: "mix" })
   const { live, sent, me } = await liveSetup()
   assert.equal(live.create(me("p1", "Alice"), { mode: "hack" }).ok, false)

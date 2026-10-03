@@ -62,7 +62,7 @@ export const createSounds = () => {
     src.start(t)
   }
 
-  const play = (fn) => () => ready() && fn()
+  const play = (fn) => (...args) => ready() && fn(...args)
 
   return {
     setEnabled: (value) => (on = value),
@@ -83,6 +83,20 @@ export const createSounds = () => {
     flip: play(() => (noise({ len: 0.12, vol: 0.1, freq: 2600 }), tone(660, { at: 0.05, len: 0.08, type: "sine", vol: 0.05, to: 990 }))),
     tick: play(() => tone(1500, { len: 0.03, type: "square", vol: 0.04 })),
     pop: play(() => tone(520, { len: 0.09, type: "sine", vol: 0.12, to: 1040 })),
+    // the show: a count-in beep (the last one higher), a long drum roll with a cymbal, the
+    // crowd cheering, a playful "wah-wah", a cash register for a winning bet, a whoosh
+    beep: play((last) => tone(last ? 1320 : 880, { len: last ? 0.3 : 0.12, type: "square", vol: 0.07 })),
+    longroll: play(() => {
+      for (let i = 0; i < 26; i++) noise({ at: i * 0.055, len: 0.06, vol: 0.04 + i * 0.004, freq: 700 + (i % 2) * 200 })
+      noise({ at: 1.45, len: 0.5, vol: 0.16, freq: 6000 })
+    }),
+    cheer: play(() => {
+      for (let i = 0; i < 14; i++) noise({ at: i * 0.05, len: 0.18, vol: 0.05, freq: 1200 + ((i * 397) % 1800) })
+      ;[72, 76, 79, 84].forEach((m, i) => tone(midi(m), { at: 0.1 + i * 0.08, len: 0.3, type: "square", vol: 0.06 }))
+    }),
+    wahwah: play(() => [67, 66, 65, 64].forEach((m, i) => tone(midi(m), { at: i * 0.28, len: i === 3 ? 0.7 : 0.26, type: "sawtooth", vol: 0.05, to: i === 3 ? midi(62) : undefined }))),
+    cash: play(() => (noise({ len: 0.06, vol: 0.12, freq: 3000 }), tone(midi(88), { at: 0.05, len: 0.12, type: "square", vol: 0.06 }), tone(midi(93), { at: 0.15, len: 0.35, type: "sine", vol: 0.1 }))),
+    whoosh: play(() => noise({ len: 0.35, vol: 0.09, freq: 1400 })),
     close: () => ctx?.close().catch(() => {}),
   }
 }

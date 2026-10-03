@@ -110,5 +110,37 @@ export const WOULD_YOU_RATHER = [
   W(40, "Have a theme song that plays when you walk in", "Have a laugh track for your jokes"),
 ]
 
-export const PAIRS = [...THIS_OR_THAT, ...WOULD_YOU_RATHER]
+// Date Night: sweet and a little flirty pairs for two
+const D = (n, a, b) => ({ id: `dn-${n}`, kind: "date", prompt: "Date night: this or that?", a, b })
+
+export const DATE_NIGHT = [
+  D(1, "Candlelit dinner", "Picnic under the stars"),
+  D(2, "Stargazing on a blanket", "Rooftop city lights"),
+  D(3, "Matching pajamas", "Matching sweaters"),
+  D(4, "Love letter", "Love song"),
+  D(5, "Forehead kisses", "Cheek kisses"),
+  D(6, "Holding hands", "Arm around the shoulder"),
+  D(7, "Cook dinner together", "Order in and cuddle"),
+  D(8, "Sunrise hike", "Sunset drive"),
+  D(9, "Surprise date", "Planned-together date"),
+  D(10, "Breakfast date", "Late-night dessert date"),
+  D(11, "Rom-com marathon", "Scary movie and hiding behind them"),
+  D(12, "Couples massage", "Bubble bath for two"),
+  D(13, "Sweet texts all day", "One long call at night"),
+  D(14, "Big spoon", "Little spoon"),
+  D(15, "Dress up fancy", "Stay in sweatpants"),
+  D(16, "Wine tasting", "Milkshake date"),
+  D(17, "Arcade date", "Museum date"),
+  D(18, "Karaoke duet", "Paint-and-sip night"),
+  D(19, "Weekend getaway", "Staycation at home"),
+  D(20, "Flowers", "Chocolates"),
+  D(21, "Kiss in the rain", "Kiss under fireworks"),
+  D(22, "Couple's costume", "Surprise each other's costume"),
+  D(23, "Matching tattoos (temporary!)", "Matching bracelets"),
+  D(24, "Inside jokes", "Pet names"),
+  D(25, "Fall asleep on the couch together", "Stay up talking until 3 a.m."),
+  D(26, "Bake cookies together", "Build a blanket fort"),
+]
+
+export const PAIRS = [...THIS_OR_THAT, ...WOULD_YOU_RATHER, ...DATE_NIGHT]
 export const pairById = (id) => PAIRS.find((p) => p.id === id) || null

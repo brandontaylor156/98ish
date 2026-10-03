@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from "react"
 import { unlock } from "../../../utils/achievements"
 import { badgesFor, dayKey, streakFrom } from "./shared/logic.js"
+import { KNOWME_PACKS, TOT_PACKS } from "./shared/show.js"
 
 // What the Quiz Show remembers in this browser: past games and scores, the days you
 // played (streaks), answers from How Well Do You Know Me (for Trivia About Us), favorite
@@ -17,6 +18,8 @@ const DEFAULTS = {
   stats: { games: 0, wins: 0, perfect: 0, triviaPerfect: 0, compat: 0, live: 0, customs: 0, sent: 0 },
   sound: true,
   seenResults: [], // finished challenge ids already counted
+  howto: {}, // { knowme: true }: "How to play" seen for a mode
+  setup: {}, // { knowme: { how, pack, count, clock } }: last choices per mode
 }
 
 const read = () => {
@@ -67,6 +70,8 @@ export const recordGame = (game) => {
     if (game.mode === "compat") stats.compat++
     if (game.live) stats.live++
     const entry = { mode: game.mode, title: game.title || null, with: game.with || null, percent: game.percent ?? null, score: game.score ?? null, total: game.total ?? null, won: !!game.won, live: !!game.live, at: Date.now() }
+    // a show: how it was played ("live", "pass", "turns"), its verdict and summary line
+    if (game.how) Object.assign(entry, { how: game.how, tier: game.tier || null, headline: game.headline || null, points: game.points ?? null })
     return { history: [entry, ...d.history].slice(0, 80), days: d.days.includes(today) ? d.days : [...d.days, today].slice(-120), stats }
   })
   checkAchievements(current())
@@ -87,6 +92,20 @@ export const seeDeepCard = (id) => {
 }
 
 export const toggleFavorite = (id) => setQuizData((d) => ({ favorites: d.favorites.includes(id) ? d.favorites.filter((f) => f !== id) : [...d.favorites, id] }))
+
+// Shows finished (How Well Do You Know Me, This or That, any way of playing): packs unlock by it
+export const showsPlayed = (d) => d.history.filter((h) => h.mode === "knowme" || h.mode === "tot").length
+
+// A finished show: into the history (and facts learned), -> the name of a pack it unlocked
+// game: { mode, how, with, summary, points, won, perfect, facts }
+export const recordShow = ({ mode, how, with: other, summary, points, won, perfect, facts = [] }) => {
+  const before = showsPlayed(current())
+  const tier = typeof summary.tier === "string" ? summary.tier : summary.tier?.name || null
+  recordGame({ mode, how, with: other, title: tier, tier, headline: summary.headline, percent: summary.percent, points, won, perfect, live: how === "live" })
+  addFacts(facts)
+  const opened = [...KNOWME_PACKS.map((p) => ({ ...p, mode: "knowme" })), ...TOT_PACKS.map((p) => ({ ...p, mode: "tot" }))].filter((p) => p.unlock === before + 1)
+  return opened.length ? opened.map((p) => `${p.name} (${p.mode === "tot" ? "This or That" : "Know Me"})`).join(" and ") : null
+}
 
 // stats plus the streak, for badges
 export const statsOf = (d) => ({ ...d.stats, deepCards: d.deepSeen.length, streak: streakFrom(d.days) })

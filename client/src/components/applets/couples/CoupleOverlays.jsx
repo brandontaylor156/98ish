@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react"
-import { NEXT_PHOTO_EVENT, coupleApi, on, openCouples, serverNow, useCouple } from "../../../utils/couple"
+import { NEXT_PHOTO_EVENT, coupleApi, getCouple, on, openCouples, serverNow, useCouple } from "../../../utils/couple"
 import { setOurPhoto, useSettings } from "../../../utils/settings"
 import { unlock } from "../../../utils/achievements"
 import { TwoHearts } from "./art"
@@ -141,6 +141,16 @@ const CoupleOverlays = () => {
         toast({ title: "Flowers!", icon: "💐", text: `${b.from} sent you flowers! They're on your desktop. Remember to water them.` })
       }),
       on("couple:watered", (p) => toast({ title: "Flowers", icon: "💧", text: `${p.by} watered the flowers you sent.` })),
+      // Lovebirds Quiz Show: your partner played their turn, or played yours
+      on("couple:quiz", (q) => {
+        if (q.from !== getCouple().partner) return
+        playLoveChime("arrive")
+        toast({ title: "Quiz Show", icon: "💘", text: `Your turn! ${q.from} played ${q.count ? `${q.count} questions of ` : ""}"${q.kindName}"`, action: { label: "Play", run: () => openCouples("Lovebirds Quiz Show", { challengeId: q.id }) } })
+      }),
+      on("couple:quiz-done", (q) => {
+        if (q.by !== getCouple().partner) return
+        toast({ title: "Quiz Show", icon: "💞", text: `${q.by} played your quiz: ${q.correct} of ${q.total} matched! The reveal is waiting.`, action: { label: "See it", run: () => openCouples("Lovebirds Quiz Show", { challengeId: q.id }) } })
+      }),
       // a toast from another couple feature on this desktop (Our Pet's reminders)
       on("couple:local-toast", (t) => toast(t)),
       on("couple:update", (p) => {

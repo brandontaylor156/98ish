@@ -205,6 +205,51 @@ test("3x3 shuffles really can be solved (breadth-first search)", () => {
   for (const seed of [1, 2, 3]) assert.ok(solve(S.shuffle(3, seed)) > 0)
 })
 
+test("the table stays put: zooming never shows past the fitted table, and Fit is exact", () => {
+  const fit = { z: 0.5, tx: 40, ty: 20 }
+  const size = { w: 400, h: 300 }
+  const area = J.visibleArea(fit, size)
+  assert.deepEqual(area, { x: -80, y: -40, w: 800, h: 600 })
+  // zoom 1 is the fitted view itself
+  const same = J.zoomedView(fit, size, 1, { x: 9999, y: 9999 })
+  assert.deepEqual([same.z, same.tx, same.ty], [0.5, 40, 20])
+  // zoomed in on the middle
+  const z2 = J.zoomedView(fit, size, 2)
+  assert.equal(z2.z, 1)
+  assert.deepEqual(z2.center, { x: 320, y: 260 })
+  // asked to look far past the edge: held at the fitted table's edge
+  const far = J.zoomedView(fit, size, 2, { x: -5000, y: 5000 })
+  const seen = J.visibleArea(far, size)
+  assert.ok(close(seen.x, area.x) && close(seen.y + seen.h, area.y + area.h), JSON.stringify(seen))
+  for (const v of [z2, far]) {
+    const a = J.visibleArea(v, size)
+    assert.ok(a.x >= area.x - 1e-9 && a.y >= area.y - 1e-9 && a.x + a.w <= area.x + area.w + 1e-9 && a.y + a.h <= area.y + area.h + 1e-9)
+  }
+})
+
+test("loose pieces are kept in sight, whole groups at a time; placed and tray pieces stay", () => {
+  const cut = J.makeJigsaw({ count: 12, width: 400, height: 300, seed: 3 })
+  const s = J.scatter(cut, { seed: 3 })
+  // two pieces joined into a group, far off to the right; one placed; one in the tray
+  s.pieces[0].x = 5000
+  s.pieces[0].y = 100
+  s.pieces[1].group = s.pieces[0].group
+  s.pieces[1].x = 5000 + cut.cellW
+  s.pieces[1].y = 100
+  Object.assign(s.pieces[2], { placed: true, x: cut.pieces[2].x, y: cut.pieces[2].y })
+  Object.assign(s.pieces[3], { tray: true, x: -9000, y: -9000 })
+  const rect = { x: -200, y: -100, w: 800, h: 500 }
+  const moved = J.keepInside(cut, s, rect)
+  assert.ok(moved.includes(s.pieces[0].group))
+  const cx = (id) => s.pieces[id].x + cut.cellW / 2
+  for (const id of [0, 1]) assert.ok(cx(id) <= rect.x + rect.w + 1e-9, `piece ${id} at ${cx(id)}`)
+  assert.equal(s.pieces[1].x - s.pieces[0].x, cut.cellW, "the group stays together")
+  assert.deepEqual([s.pieces[2].x, s.pieces[2].y], [cut.pieces[2].x, cut.pieces[2].y])
+  assert.deepEqual([s.pieces[3].x, s.pieces[3].y], [-9000, -9000])
+  // everything in sight: nothing moves
+  assert.deepEqual(J.keepInside(cut, s, rect), [])
+})
+
 test("slide moves: a tile next to the gap, or a whole row/column of them", () => {
   const t = S.solvedTiles(3) // 1 2 3 / 4 5 6 / 7 8 _
   assert.equal(S.canMove(t, 3, 0), false)

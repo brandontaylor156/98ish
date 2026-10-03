@@ -328,12 +328,17 @@
   color: var(--pz-ink);
 }
 
-/* jigsaw */
+/* jigsaw: the table never moves (no panning, no accidental zoom), only the pieces do; a
+   touch anywhere on the play area never scrolls or zooms the page */
 .pzJigsaw {
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
+  overscroll-behavior: none;
+}
+.pzJigsaw .pzStatus {
+  touch-action: none;
 }
 .pzTable {
   position: relative;
@@ -341,7 +346,9 @@
   min-height: 0;
   overflow: hidden;
   touch-action: none;
-  cursor: grab;
+  overscroll-behavior: none;
+  -webkit-touch-callout: none;
+  cursor: default;
   background-color: var(--pz-felt);
   background-image: radial-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1px);
   background-size: 6px 6px;
@@ -420,6 +427,61 @@
   from {
     box-shadow: inset 0 0 160px rgba(255, 255, 255, 1);
   }
+}
+/* zoom buttons (in the status bar) and, zoomed in, arrows at the table's edges to look around */
+.pzJigsaw .pzStatus {
+  align-items: center;
+}
+.pzZoom {
+  display: flex;
+  gap: 2px;
+  margin-left: auto;
+}
+.pzApp .pzZoom button {
+  min-width: 24px;
+  min-height: 18px;
+  padding: 0 6px;
+  font-weight: bold;
+}
+.pzLook {
+  position: absolute;
+  inset: 0;
+  z-index: 5999;
+  pointer-events: none;
+}
+.pzApp .pzLook button {
+  position: absolute;
+  min-width: 0;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  pointer-events: auto;
+  opacity: 0.85;
+}
+.pzLook .is-up {
+  top: 6px;
+  left: calc(50% - 15px);
+}
+.pzLook .is-down {
+  bottom: 6px;
+  left: calc(50% - 15px);
+}
+.pzLook .is-left {
+  left: 6px;
+  top: calc(50% - 15px);
+}
+.pzLook .is-right {
+  right: 6px;
+  top: calc(50% - 15px);
+}
+.pzJigsaw.is-mobile .pzZoom button {
+  min-width: 40px;
+  min-height: 32px;
+  font-size: 15px;
+}
+.pzJigsaw.is-mobile .pzLook button {
+  width: 40px;
+  height: 40px;
 }
 .pzTray {
   flex: 0 0 auto;

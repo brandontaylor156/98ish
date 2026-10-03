@@ -1,9 +1,27 @@
 import { useEffect, useMemo, useState } from "react"
 import { Big, Choices, Loading, Notice, PersonPicker, QuestionRunner, ResultCard, Screen, SignOnPrompt, useQuiz } from "./parts"
 import { Heart, ModeIcon } from "./art"
-import { addFacts, bumpStat, getQuizData, recordGame, setQuizData } from "./storage"
-import { challengeQuestions, KIND_NAMES, pickSome, soulmateLine } from "./shared/logic.js"
+import { Host } from "./Host"
+import { RevealView, ScoreBar, ShowResults, gainedWords, showQuestion } from "./Stage"
+import { addFacts, bumpStat, getQuizData, recordGame, recordShow, setQuizData } from "./storage"
+import { challengeQuestions, KIND_NAMES, LIMITS, pickSome, soulmateLine } from "./shared/logic.js"
+import { newScore, packPool, scoreStep, summarize } from "./shared/show.js"
 import { CompatCard } from "./Modes"
+
+// A taken-turns show, played back: [author, taker] answers, the last question for double
+// -> { steps, score, outcomes, summary }
+export const asyncShow = (c) => {
+  const mode = c.kind
+  const n = c.payload.items.length
+  const steps = c.payload.items.map((id, i) => ({ id, subject: mode === "knowme" ? 0 : null, round: mode === "knowme" ? "one" : "warmup", mult: i === n - 1 ? 2 : 1, base: 100, timer: 0, bet: false }))
+  let score = newScore()
+  const outcomes = steps.map((step, i) => {
+    const r = scoreStep(mode, score, step, [c.authorAnswers?.[i] ?? null, c.takerAnswers?.[i] ?? null])
+    score = r.score
+    return r.outcome
+  })
+  return { steps, score, outcomes, summary: summarize(mode, score, [c.from, c.to]) }
+}
 
 // Quizzes that wait for someone: answer about yourself now, they guess later. Results
 // wait in both Inboxes (server/quiz).
@@ -12,19 +30,22 @@ const MODE_ICON = { knowme: "knowme", tot: "tot", custom: "builder", compat: "co
 
 // ---------- sending How Well Do You Know Me / This or That ----------
 
-export const AsyncSend = ({ kind, preset = null, onBack, go }) => {
+// options: { pack, count } from the show setup: straight to answering (after picking who,
+// unless it's your partner)
+export const AsyncSend = ({ kind, preset = null, options = null, onBack, go }) => {
   const { aim, api, packs, sounds } = useQuiz()
   const [to, setTo] = useState(preset)
-  const [count, setCount] = useState(kind === "knowme" ? 5 : 10)
-  const [step, setStep] = useState(preset ? "setup" : "who")
-  const [items, setItems] = useState(null)
+  const [count, setCount] = useState(options?.count ? Math.min(LIMITS.maxItems, Math.max(LIMITS.minItems, options.count)) : kind === "knowme" ? 5 : 10)
+  const pool = useMemo(() => (options?.pack ? packPool(packs, kind, options.pack) : kind === "knowme" ? packs.aboutMe : packs.pairs), [])
+  const [items, setItems] = useState(() => (options && preset ? pickSome(pool, count).map((q) => q.id) : null))
+  const [step, setStep] = useState(preset ? (options ? "answer" : "setup") : "who")
   const [error, setError] = useState(null)
   const title = KIND_NAMES[kind]
 
   const questions = useMemo(() => {
     if (!items) return []
     if (kind === "knowme") return items.map((id) => packs.aboutMe.find((q) => q.id === id)).map((q) => ({ type: "choice", text: q.me, options: q.options }))
-    return items.map((id) => packs.pairs.find((p) => p.id === id)).map((p) => ({ type: "choice", text: p.kind === "tot" ? `${p.a} or ${p.b}?` : "Would you rather...", options: [p.a, p.b] }))
+    return items.map((id) => packs.pairs.find((p) => p.id === id)).map((p) => ({ type: "choice", text: p.kind === "wyr" ? "Would you rather..." : `${p.a} or ${p.b}?`, options: [p.a, p.b] }))
   }, [items])
 
   if (!aim?.token && step !== "sent") {
@@ -37,7 +58,7 @@ export const AsyncSend = ({ kind, preset = null, onBack, go }) => {
 
   const begin = () => {
     sounds.tap()
-    setItems(pickSome(kind === "knowme" ? packs.aboutMe : packs.pairs, count).map((q) => q.id))
+    setItems(pickSome(pool, count).map((q) => q.id))
     setStep("answer")
   }
 
@@ -62,7 +83,10 @@ export const AsyncSend = ({ kind, preset = null, onBack, go }) => {
           title={kind === "knowme" ? "Who should guess your answers?" : "Who's comparing picks with you?"}
           onPick={(target) => {
             setTo(target)
-            setStep("setup")
+            if (options) {
+              setItems(pickSome(pool, count).map((q) => q.id))
+              setStep("answer")
+            } else setStep("setup")
           }}
         />
       )}
@@ -96,12 +120,28 @@ export const AsyncSend = ({ kind, preset = null, onBack, go }) => {
           </div>
         </div>
       )}
-      {step === "answer" && <QuestionRunner questions={questions} onDone={send} lead={() => (kind === "knowme" ? "About you" : "Your pick")} />}
+      {step === "answer" && (
+        <>
+          <div className="qzRole is-self">
+            {kind === "knowme" ? (
+              <>
+                <b>About you!</b> Answer honestly. {to.screenName} will try to guess these later.
+              </>
+            ) : (
+              <>
+                <b>Your picks!</b> {to.screenName} picks later; matches score.
+              </>
+            )}
+          </div>
+          <QuestionRunner questions={questions} onDone={send} lead={() => (kind === "knowme" ? "About you" : "Your pick")} />
+        </>
+      )}
       {step === "sending" && <Loading text="Sending..." />}
       {step === "sent" && (
         <ResultCard title="Sent with love!" burst={1}>
+          <Host line={`Your answers are sealed! ${to.screenName} gets a notification, and when they've played, the reveal is waiting in your Inbox.`} />
           <p className="qzResultLine">
-            Your quiz is in <b>{to.screenName}</b>'s Inbox. You'll see the results in yours as soon as they've answered.
+            Your turn is done. Now it's <b>{to.screenName}</b>'s turn to {kind === "knowme" ? "guess" : "pick"}.
           </p>
           <div className="qzActions">
             <Big onClick={() => go({ id: "inbox" })}>Go to my Inbox</Big>
@@ -223,6 +263,20 @@ const remember = (c) => {
   setQuizData({ seenResults: [...d.seenResults, c.id].slice(-300) })
   const taker = !c.mine
   const other = c.mine ? c.to : c.from
+  if (c.kind === "knowme" || c.kind === "tot") {
+    const { summary, score } = asyncShow(c)
+    recordShow({
+      mode: c.kind,
+      how: "turns",
+      with: other,
+      summary: { tier: summary.tier.name, headline: summary.headline, percent: summary.percent },
+      points: score.points[taker ? 1 : 0],
+      won: summary.percent >= 55,
+      perfect: c.kind === "knowme" && taker && c.result.percent === 100,
+      facts: c.kind === "knowme" ? c.payload.items.map((qid, i) => ({ subject: c.from, qid, answer: c.authorAnswers[i] })) : [],
+    })
+    return
+  }
   recordGame({
     mode: c.kind,
     title: c.title,
@@ -240,6 +294,7 @@ export const ChallengeView = ({ challengeId, onBack, go }) => {
   const [error, setError] = useState(null)
   const [taking, setTaking] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [revealing, setRevealing] = useState(false) // just answered: play the reveals one by one
 
   useEffect(() => {
     api.get(challengeId).then((r) => (r.ok ? setC(r.challenge) : setError(r.error)))
@@ -272,7 +327,8 @@ export const ChallengeView = ({ challengeId, onBack, go }) => {
     setBusy(false)
     setTaking(false)
     if (!r.ok) return setError(r.error)
-    sounds.drumroll()
+    if (c.kind === "knowme" || c.kind === "tot") setRevealing(true)
+    else sounds.drumroll()
     setC(r.challenge)
   }
 
@@ -296,9 +352,9 @@ export const ChallengeView = ({ challengeId, onBack, go }) => {
           </p>
           <p className="qzHint">
             {c.kind === "knowme"
-              ? `${c.from} answered ${questions.length} questions about themself. How well do you know them?`
+              ? `It's your turn! ${c.from} answered ${questions.length} questions about themself. Guess what they said: every match is 100 points, and the last one counts double.`
               : c.kind === "tot"
-                ? `Pick your side of ${questions.length} pairs and see where you match.`
+                ? `It's your turn! ${c.from} picked a side of ${questions.length} pairs. Pick yours: every match scores for you both.`
                 : c.kind === "compat"
                   ? `Answer for yourself, then see your combined result.`
                   : `${questions.length} questions, written by ${c.from}.`}
@@ -347,7 +403,99 @@ export const ChallengeView = ({ challengeId, onBack, go }) => {
     )
   }
 
+  if (c.kind === "knowme" || c.kind === "tot") {
+    if (revealing) return <AsyncReveal c={c} onDone={() => setRevealing(false)} onBack={onBack} />
+    return <ShowChallengeResult c={c} onReplay={() => setRevealing(true)} onBack={onBack} go={go} />
+  }
   return <ChallengeResult c={c} questions={questions} names={names} onBack={onBack} go={go} />
+}
+
+// The reveals of a taken-turns show, one question at a time
+const AsyncReveal = ({ c, onDone, onBack }) => {
+  const { packs } = useQuiz()
+  const show = useMemo(() => asyncShow(c), [c.id])
+  const [i, setI] = useState(0)
+  const [opened, setOpened] = useState(-1)
+  const mode = c.kind
+  const me = (name, mine) => (mine ? "You" : name)
+  const names = [me(c.from, c.mine), me(c.to, !c.mine)]
+  const step = show.steps[i]
+  const o = show.outcomes[i]
+  // the running score up to this question
+  const sofar = show.outcomes.slice(0, opened === i ? i + 1 : i).reduce((s, x) => s.map((p, k) => p + x.gained[k]), [0, 0])
+  const q = showQuestion(mode, packs, step.id, { name: names[0] })
+  const cards =
+    mode === "knowme"
+      ? [
+          { label: `${names[0]} said`, answer: c.authorAnswers[i] },
+          { label: `${names[1]} guessed`, answer: c.takerAnswers[i] },
+        ]
+      : [
+          { label: `${names[0]} picked`, answer: c.authorAnswers[i] },
+          { label: `${names[1]} picked`, answer: c.takerAnswers[i] },
+        ]
+  const last = i + 1 >= show.steps.length
+  return (
+    <Screen title={c.title || c.kindName} mode={MODE_ICON[c.kind]} onBack={onBack} className="qzShow is-reveal">
+      <ScoreBar mode={mode} players={names.map((name, k) => ({ name, points: sofar[k], streak: 0, you: name === "You" }))} step={i} total={show.steps.length} />
+      <div className="qzShowBody" key={i}>
+        <RevealView
+          mode={mode}
+          step={step}
+          n={i}
+          text={q.text}
+          options={q.options}
+          cards={cards}
+          match={o.match}
+          onFire={o.onFire}
+          streak={o.streak}
+          guesserName={names[1]}
+          onOpen={setOpened}
+          gainedLine={gainedWords(mode, o.gained, names, 1)}
+          nextLabel={last ? "See the results!" : "Next reveal"}
+          onNext={() => (last ? onDone() : setI(i + 1))}
+        />
+      </div>
+    </Screen>
+  )
+}
+
+const ShowChallengeResult = ({ c, onReplay, onBack, go }) => {
+  const { packs } = useQuiz()
+  const { summary, score, outcomes } = useMemo(() => asyncShow(c), [c.id])
+  const mode = c.kind
+  const names = [c.mine ? `${c.from} (you)` : c.from, c.mine ? c.to : `${c.to} (you)`]
+  const recap = c.payload.items.map((id, i) => {
+    const q = showQuestion(mode, packs, id, { name: c.mine ? "you" : c.from })
+    const text = (a) => (a === null || a === undefined ? "(no answer)" : q.options[a])
+    return {
+      text: q.text,
+      match: outcomes[i].match,
+      answers: [
+        { label: mode === "knowme" ? `${c.mine ? "You" : c.from} said` : c.mine ? "You" : c.from, text: text(c.authorAnswers[i]) },
+        { label: mode === "knowme" ? `${c.mine ? c.to : "You"} guessed` : c.mine ? c.to : "You", text: text(c.takerAnswers[i]) },
+      ],
+    }
+  })
+  const other = c.mine ? c.to : c.from
+  return (
+    <Screen title={c.title || c.kindName} mode={MODE_ICON[c.kind]} onBack={onBack} className="qzShow is-done">
+      <ShowResults
+        mode={mode}
+        summary={{ tier: summary.tier.name, headline: summary.headline, percent: summary.percent }}
+        players={names.map((name, k) => ({ name, points: score.points[k], best: mode === "tot" ? score.teamBest : score.best[k], you: c.mine ? k === 0 : k === 1, winner: false })).filter((p, k) => mode === "tot" || k === 1)}
+        recap={recap}
+        onAgain={() => go({ id: "send", kind: c.kind, preset: { screenName: other }, options: { count: c.payload.items.length } })}
+        againLabel={mode === "knowme" && !c.mine ? `Your turn! Answer, and ${other} guesses` : `Send ${other} another round`}
+        onHome={onBack}
+        extra={
+          <button type="button" className="qzLink" onClick={onReplay}>
+            Replay the reveals
+          </button>
+        }
+      />
+    </Screen>
+  )
 }
 
 const ChallengeResult = ({ c, questions, names, onBack, go }) => {

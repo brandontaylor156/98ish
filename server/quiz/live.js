@@ -3,6 +3,12 @@
 // Trivia and Deep Talk cards (two to eight). The server keeps each room: who's in it, the
 // questions, everyone's answers (kept secret until the reveal), the clock and the scores.
 //
+// How Well Do You Know Me and This or That are shows (client/.../quiz/shared/show.js):
+// rounds with a title card, double points, a lightning round and (Know Me) a final big
+// bet. Every moment is timed here, and the screens follow: a round card for a few seconds,
+// the question (with its clock), then a reveal that both screens open at the same instant
+// (`showAt`, after a drum roll).
+//
 // Players are network computer ids (pids), plus a name and, for signed-in 98 Messenger
 // users, a key (the pair's running score is recorded for them). Like tetris.js it never
 // touches sockets except in wire(); invitations go through games.js.
@@ -16,12 +22,18 @@ const MODES = {
   trivia: { name: "Party Trivia", min: 2, max: 8 },
   deep: { name: "Deep Talk Cards", min: 2, max: 8 },
 }
+const SHOWS = ["knowme", "tot"]
+const SHOW_COUNTS = { knowme: [3, 5, 7], tot: [6, 10, 14] }
 const TIMERS = [0, 10, 15, 20, 30]
 const REACTIONS = ["heart", "laugh", "wow", "clap", "blush"]
+const BET_IDS = ["safe", "bold", "allin"]
 const TIMES = {
   invite: 60_000,
   grace: 45_000, // disconnected this long: you leave the room
-  revealMin: 800, // a reveal stays up at least this long before Next works
+  revealMin: 800, // a reveal stays up at least this long (after it opens) before Next works
+  roundCard: 3600, // a round's title card (with its 3-2-1)
+  drumroll: 1600, // everyone answered: the drum roll before the reveal opens
+  bet: 20_000, // time to place a bet (then it's "play it safe")
 }
 const MAX_ROOMS = 300
 
@@ -32,12 +44,16 @@ const clampInt = (v, lo, hi, fallback) => {
 }
 const realClock = { now: () => Date.now(), setTimeout: (fn, ms) => setTimeout(fn, ms), clearTimeout: (h) => clearTimeout(h) }
 
-// Room options, cleaned: { count, timer, pack, level }
+// Room options, cleaned. packs: the ids allowed for this mode (show packs, or trivia packs)
+//   knowme, tot: { count, pack, clock }    trivia: { count, timer, pack }    deep: { level, timer }
 const cleanOptions = (mode, input = {}, packs = []) => {
+  if (SHOWS.includes(mode)) {
+    const counts = SHOW_COUNTS[mode]
+    const n = Number(input.count)
+    return { count: counts.includes(n) ? n : counts[1], pack: packs.includes(input.pack) ? input.pack : packs[0] || "mix", clock: input.clock !== false }
+  }
   const timerDefault = mode === "trivia" ? 20 : 0
   const timer = TIMERS.includes(Number(input.timer)) ? Number(input.timer) : timerDefault
-  if (mode === "knowme") return { count: clampInt(input.count, 3, 10, 5), timer }
-  if (mode === "tot") return { count: clampInt(input.count, 5, 20, 10), timer }
   if (mode === "trivia") return { count: clampInt(input.count, 5, 15, 10), timer, pack: packs.includes(input.pack) || input.pack === "mix" ? input.pack : "mix" }
   return { level: clampInt(input.level, 1, 3, 1), timer: 0 }
 }
@@ -54,11 +70,13 @@ const createQuizLive = ({ emit, clock = realClock, random = Math.random, record 
   const roomOf = new Map() // pid -> room id
   const invited = new Map() // pid -> { roomId, at }
   const reactAt = new Map() // pid -> [times]
-  let lib = null // { logic, content } once loaded
+  let lib = null // { logic, show, content } once loaded
   const ready = quizContent().then((value) => (lib = value))
   ready.catch((error) => console.error("[quiz] couldn't load the questions", error))
 
   const send = (pid, event, payload) => pid && emit(pid, event, payload)
+  const packIds = (mode) => (SHOWS.includes(mode) ? lib.show.packsFor(mode).map((p) => p.id) : lib.content.triviaPacks.map((p) => p.id))
+  const isShow = (room) => SHOWS.includes(room.mode)
 
   // ---------- timers ----------
 
@@ -79,10 +97,14 @@ const createQuizLive = ({ emit, clock = realClock, random = Math.random, record 
 
   const active = (room) => room.players.filter((p) => !p.left)
   const playerOf = (room, pid) => room.players.find((p) => p.pid === pid && !p.left)
+  // a show's seat (0, 1, ...) for its scores; -1 if not in it
+  const seatOf = (room, pid) => (room.order || []).indexOf(pid)
 
   const view = (room, pid) => {
     const item = room.items[room.step]
     const inQuestion = room.phase === "question" || room.phase === "reveal"
+    const show = isShow(room) && room.phase !== "lobby"
+    const step = show ? room.plan[room.step] : null
     return {
       id: room.id,
       mode: room.mode,
@@ -94,25 +116,35 @@ const createQuizLive = ({ emit, clock = realClock, random = Math.random, record 
       hostName: playerOf(room, room.host)?.name || null,
       min: MODES[room.mode].min,
       max: MODES[room.mode].max,
-      players: active(room).map((p) => ({
-        id: p.pid,
-        name: p.name,
-        away: !!p.away,
-        signedIn: !!p.key,
-        answered: room.phase === "question" && Object.hasOwn(room.answers, p.pid),
-        score: room.scores[p.pid] || 0,
-      })),
+      players: active(room).map((p) => {
+        const seat = seatOf(room, p.pid)
+        return {
+          id: p.pid,
+          name: p.name,
+          away: !!p.away,
+          signedIn: !!p.key,
+          answered: (room.phase === "question" && Object.hasOwn(room.answers, p.pid)) || (room.phase === "bet" && Object.hasOwn(room.bets, p.pid)),
+          score: show && seat >= 0 ? room.score.points[seat] : room.scores[p.pid] || 0,
+          streak: show && seat >= 0 ? (room.mode === "tot" ? room.score.teamStreak : room.score.streak[seat]) : 0,
+        }
+      }),
       invited: [...room.invitedNames],
       options: room.options,
       step: room.step,
       total: room.items.length,
-      current: inQuestion && item ? { item: item.id, subject: item.subject || null } : null,
+      // the show's running order: who answered about themself (seat 0 first), and this step
+      order: show ? room.order.map((id) => ({ id, name: room.players.find((p) => p.pid === id)?.name || "?" })) : null,
+      current: inQuestion && item ? { item: item.id, subject: item.subject || null, ...(step ? { round: step.round, mult: step.mult, base: step.base, timer: step.timer, bet: step.bet } : {}) } : null,
+      card: room.mode === "deep" && room.card ? { ...room.card, drawn: room.drawn } : null,
+      // a round's title card, up until `until`
+      roundCard: room.phase === "round" ? { round: step.round, until: room.until } : null,
+      yourBet: room.bets && Object.hasOwn(room.bets, pid) ? room.bets[pid] : null,
+      bets: room.phase === "bet" || room.phase === "question" || room.phase === "reveal" ? (room.betsShown ? { ...room.bets } : null) : null,
       yourAnswer: inQuestion && Object.hasOwn(room.answers, pid) ? room.answers[pid] : null,
-      deadline: room.phase === "question" ? room.deadline : null,
+      deadline: room.phase === "question" || room.phase === "bet" ? room.deadline : null,
       now: clock.now(),
       reveal: room.phase === "reveal" ? room.log[room.step] : null,
       log: room.phase === "done" ? room.log : [],
-      card: room.mode === "deep" && room.card ? { ...room.card, drawn: room.drawn } : null,
       result: room.phase === "done" ? room.result : null,
       note: room.note,
     }
@@ -150,15 +182,21 @@ const createQuizLive = ({ emit, clock = realClock, random = Math.random, record 
       host: me.pid,
       players: [],
       invitedNames: new Set(),
-      options: cleanOptions(mode, options, lib.content.triviaPacks.map((p) => p.id)),
+      options: cleanOptions(mode, options, packIds(mode)),
       phase: "lobby",
       step: 0,
       items: [],
+      plan: [],
+      order: null,
+      score: null,
+      bets: {},
+      betsShown: false,
       answers: {},
       answeredAt: {},
       log: [],
       scores: {},
       deadline: null,
+      until: null,
       revealAt: 0,
       result: null,
       note: null,
@@ -196,26 +234,14 @@ const createQuizLive = ({ emit, clock = realClock, random = Math.random, record 
     if (room.phase !== "lobby") return { ok: false, error: "The game has already started." }
     const mode = options && MODES[options.mode] && options.mode !== room.mode ? options.mode : room.mode
     if (mode !== room.mode && active(room).length > MODES[mode].max) return { ok: false, error: "Too many players for that game." }
+    const carry = mode === room.mode ? room.options : {}
     room.mode = mode
-    room.options = cleanOptions(mode, { ...room.options, ...options }, lib.content.triviaPacks.map((p) => p.id))
+    room.options = cleanOptions(mode, { ...carry, ...options }, packIds(mode))
     publish(room)
     return { ok: true }
   }
 
   // ---------- playing ----------
-
-  const pickItems = (room) => {
-    const { content, logic } = lib
-    const { options } = room
-    if (room.mode === "knowme") {
-      const [a, b] = active(room)
-      const picked = logic.pickSome(content.aboutMe, options.count * 2, random)
-      return [...picked.slice(0, options.count).map((q) => ({ id: q.id, subject: a.pid })), ...picked.slice(options.count).map((q) => ({ id: q.id, subject: b.pid }))]
-    }
-    if (room.mode === "tot") return logic.pickSome(content.pairs, options.count, random).map((p) => ({ id: p.id }))
-    const pool = options.pack === "mix" ? content.trivia : content.triviaPacks.find((p) => p.id === options.pack).questions
-    return logic.pickSome(pool, options.count, random).map((q) => ({ id: q.id }))
-  }
 
   const lookup = (room, id) => {
     const { content } = lib
@@ -232,9 +258,37 @@ const createQuizLive = ({ emit, clock = realClock, random = Math.random, record 
     room.answeredAt = {}
     room.phase = "question"
     room.startedAt = clock.now()
-    room.deadline = room.options.timer ? clock.now() + room.options.timer * 1000 : null
-    if (room.deadline) later(room, room.options.timer * 1000 + 50, () => room.phase === "question" && reveal(room))
+    const secs = isShow(room) ? room.plan[room.step].timer : room.options.timer
+    room.deadline = secs ? clock.now() + secs * 1000 : null
+    if (room.deadline) later(room, secs * 1000 + 50, () => room.phase === "question" && reveal(room))
     publish(room)
+  }
+
+  // A show moves on to its step: a round card first when a round starts, the bets before
+  // the final, then the question
+  const enter = (room) => {
+    stopTimers(room)
+    const { show } = lib
+    if (show.startsRound(room.plan, room.step) && room.cardShown !== room.step) {
+      room.cardShown = room.step
+      room.phase = "round"
+      room.until = clock.now() + T.roundCard
+      later(room, T.roundCard, () => enter(room))
+      return publish(room)
+    }
+    if (room.plan[room.step].bet && !room.betsShown) {
+      room.phase = "bet"
+      room.deadline = clock.now() + T.bet
+      later(room, T.bet + 50, () => room.phase === "bet" && closeBets(room))
+      return publish(room)
+    }
+    begin(room)
+  }
+
+  const closeBets = (room) => {
+    for (const pid of room.order) if (!Object.hasOwn(room.bets, pid)) room.bets[pid] = "safe"
+    room.betsShown = true
+    begin(room)
   }
 
   const start = (pid, roomId) => {
@@ -256,8 +310,25 @@ const createQuizLive = ({ emit, clock = realClock, random = Math.random, record 
       draw(room, room.options.level)
       return { ok: true }
     }
-    room.items = pickItems(room)
     room.step = 0
+    if (isShow(room)) {
+      const { show, content } = lib
+      const { count, pack, clock: timed } = room.options
+      const fallback = room.mode === "tot" ? content.pairs : content.aboutMe.filter((q) => q.cat !== "flirty")
+      room.plan = show.buildShow(room.mode, { pool: show.packPool(content, room.mode, pack), fallback, count, timer: timed, random })
+      // the host answers about themself first
+      room.order = [room.host, ...active(room).filter((p) => p.pid !== room.host).map((p) => p.pid)]
+      room.items = room.plan.map((s) => ({ id: s.id, subject: s.subject === null ? undefined : room.order[s.subject] }))
+      room.score = show.newScore(room.order.length)
+      room.bets = {}
+      room.betsShown = false
+      room.cardShown = -1
+      enter(room)
+      return { ok: true }
+    }
+    const { content, logic } = lib
+    const pool = room.options.pack === "mix" ? content.trivia : content.triviaPacks.find((p) => p.id === room.options.pack).questions
+    room.items = logic.pickSome(pool, room.options.count, random).map((q) => ({ id: q.id }))
     begin(room)
     return { ok: true }
   }
@@ -276,22 +347,44 @@ const createQuizLive = ({ emit, clock = realClock, random = Math.random, record 
     return { ok: true }
   }
 
-  // Everyone has answered (or time's up): show what everyone said
+  // The final's bet: "safe", "bold" or "allin" (secret until everyone has bet)
+  const bet = (pid, roomId, { bet: id } = {}) => {
+    const room = rooms.get(roomId)
+    if (!room || !playerOf(room, pid)) return { ok: false, error: "No such game." }
+    if (room.phase !== "bet") return { ok: false, error: "No bets right now." }
+    if (!BET_IDS.includes(id)) return { ok: false, error: "That isn't a bet." }
+    if (Object.hasOwn(room.bets, pid)) return { ok: false, error: "Your bet is in." }
+    room.bets[pid] = id
+    if (room.order.every((p) => Object.hasOwn(room.bets, p) || !playerOf(room, p))) closeBets(room)
+    else publish(room)
+    return { ok: true }
+  }
+
+  // Everyone has answered (or time's up): show what everyone said. A show's reveal opens on
+  // every screen at `showAt`, after a drum roll.
   const reveal = (room) => {
     stopTimers(room)
     const item = room.items[room.step]
     const answers = Object.fromEntries(active(room).map((p) => [p.pid, Object.hasOwn(room.answers, p.pid) ? room.answers[p.pid] : null]))
     const entry = { step: room.step, item: item.id, answers, names: Object.fromEntries(active(room).map((p) => [p.pid, p.name])) }
-    if (room.mode === "knowme") {
-      const guesser = active(room).find((p) => p.pid !== item.subject)
-      entry.subject = item.subject
-      entry.truth = answers[item.subject] ?? null
-      entry.match = entry.truth !== null && guesser && answers[guesser.pid] === entry.truth
-      if (entry.match && guesser) room.scores[guesser.pid] = (room.scores[guesser.pid] || 0) + 1
-    } else if (room.mode === "tot") {
-      const picks = Object.values(answers)
-      entry.match = picks.length > 1 && picks.every((a) => a !== null && a === picks[0])
-      if (entry.match) for (const pid of Object.keys(answers)) room.scores[pid] = (room.scores[pid] || 0) + 1
+    if (isShow(room)) {
+      const step = room.plan[room.step]
+      const bySeat = room.order.map((pid) => answers[pid] ?? null)
+      const bets = room.order.map((pid) => room.bets[pid] || null)
+      const { score, outcome } = lib.show.scoreStep(room.mode, room.score, step, bySeat, bets)
+      room.score = score
+      Object.assign(entry, { round: step.round, mult: step.mult, bet: outcome.bet, match: outcome.match, streak: outcome.streak, onFire: outcome.onFire })
+      entry.gained = Object.fromEntries(room.order.map((pid, i) => [pid, outcome.gained[i]]))
+      entry.totals = Object.fromEntries(room.order.map((pid, i) => [pid, score.points[i]]))
+      if (room.mode === "knowme") {
+        entry.subject = item.subject
+        entry.guesser = room.order[outcome.guesser]
+        entry.truth = answers[item.subject] ?? null
+      }
+      entry.showAt = clock.now() + T.drumroll
+      room.revealAt = entry.showAt
+      // the old fields, for scores
+      if (entry.match && room.mode === "knowme") room.scores[entry.guesser] = (room.scores[entry.guesser] || 0) + 1
     } else {
       const q = lookup(room, item.id)
       entry.correct = q.answer
@@ -302,10 +395,10 @@ const createQuizLive = ({ emit, clock = realClock, random = Math.random, record 
         entry.points[pid] = lib.logic.triviaPoints(a === q.answer, left, total)
         room.scores[pid] = (room.scores[pid] || 0) + entry.points[pid]
       }
+      room.revealAt = clock.now()
     }
     room.log[room.step] = entry
     room.phase = "reveal"
-    room.revealAt = clock.now()
     publish(room)
   }
 
@@ -314,13 +407,28 @@ const createQuizLive = ({ emit, clock = realClock, random = Math.random, record 
     room.phase = "done"
     room.note = note
     const steps = room.log.filter(Boolean)
-    if (room.mode === "knowme") {
-      const matches = steps.filter((s) => s.match).length
-      const players = Object.fromEntries(room.players.map((p) => [p.pid, { name: p.name, guessed: steps.filter((s) => s.subject !== p.pid && s.match).length, of: steps.filter((s) => s.subject !== p.pid).length }]))
-      room.result = { percent: steps.length ? Math.round((matches / steps.length) * 100) : 0, matches, total: steps.length, players }
-    } else if (room.mode === "tot") {
-      const matches = steps.filter((s) => s.match).length
-      room.result = { percent: steps.length ? Math.round((matches / steps.length) * 100) : 0, matches, total: steps.length }
+    if (isShow(room)) {
+      const names = room.order.map((pid) => room.players.find((p) => p.pid === pid)?.name || "?")
+      const sum = lib.show.summarize(room.mode, room.score, names)
+      room.result = {
+        ...sum,
+        tier: sum.tier.name,
+        line: sum.tier.line,
+        winner: sum.winner === null ? null : room.order[sum.winner],
+        // how each player did: points, best streak and (Know Me) how many guesses landed
+        players: Object.fromEntries(
+          room.order.map((pid, i) => [
+            pid,
+            {
+              name: names[i],
+              points: room.score.points[i],
+              best: room.score.best[i],
+              guessed: steps.filter((s) => s.guesser === pid && s.match).length,
+              of: steps.filter((s) => s.guesser === pid).length,
+            },
+          ])
+        ),
+      }
     } else if (room.mode === "trivia") {
       const standings = room.players
         .map((p) => ({ id: p.pid, name: p.name, score: room.scores[p.pid] || 0, correct: steps.filter((s) => s.answers[p.pid] === s.correct).length, left: !!p.left }))
@@ -330,7 +438,7 @@ const createQuizLive = ({ emit, clock = realClock, random = Math.random, record 
     } else room.result = { drawn: room.drawn }
     // two signed-in players who finished a couple game: keep their score together
     const people = active(room)
-    if (!note && !room.recorded && (room.mode === "knowme" || room.mode === "tot") && people.length === 2 && people.every((p) => p.key) && people[0].key !== people[1].key) {
+    if (!note && !room.recorded && isShow(room) && people.length === 2 && people.every((p) => p.key) && people[0].key !== people[1].key) {
       room.recorded = true
       Promise.resolve(record({ a: people[0].key, b: people[1].key, mode: room.mode, percent: room.result.percent })).catch((error) => console.error("[quiz] couldn't save a score", error.message))
     }
@@ -341,12 +449,14 @@ const createQuizLive = ({ emit, clock = realClock, random = Math.random, record 
     const room = rooms.get(roomId)
     if (!room || !playerOf(room, pid)) return { ok: false, error: "No such game." }
     if (room.phase === "card") return draw(room, room.card?.level || room.options.level), { ok: true }
+    // a round card can be skipped
+    if (room.phase === "round") return enter(room), { ok: true }
     if (room.phase !== "reveal") return { ok: false, error: "Not yet!" }
     if (clock.now() - room.revealAt < T.revealMin) return { ok: false, error: "Not yet!" }
     if (room.step + 1 >= room.items.length) finish(room)
     else {
       room.step++
-      begin(room)
+      isShow(room) ? enter(room) : begin(room)
     }
     return { ok: true }
   }
@@ -376,6 +486,10 @@ const createQuizLive = ({ emit, clock = realClock, random = Math.random, record 
     room.round++
     room.phase = "lobby"
     room.items = []
+    room.plan = []
+    room.order = null
+    room.bets = {}
+    room.betsShown = false
     room.log = []
     room.step = 0
     room.scores = {}
@@ -414,7 +528,7 @@ const createQuizLive = ({ emit, clock = realClock, random = Math.random, record 
       return { ok: true }
     }
     if (room.host === pid) room.host = left[0].pid
-    const playing = room.phase === "question" || room.phase === "reveal"
+    const playing = ["question", "reveal", "round", "bet"].includes(room.phase)
     if (playing && left.length < MODES[room.mode].min) finish(room, `${me.name} left the game.`)
     else if (room.phase === "card" && left.length < 2) {
       room.note = `${me.name} left. You can keep drawing cards on your own.`
@@ -514,6 +628,7 @@ const createQuizLive = ({ emit, clock = realClock, random = Math.random, record 
     on("quiz:options", (me, { roomId, options }) => setOptions(me.pid, id(roomId), options && typeof options === "object" ? options : {}))
     on("quiz:start", (me, { roomId }) => start(me.pid, id(roomId)))
     on("quiz:answer", (me, { roomId, step, answer: value }) => answer(me.pid, id(roomId), { step, answer: value }))
+    on("quiz:bet", (me, { roomId, bet: value }) => bet(me.pid, id(roomId), { bet: id(value) }))
     on("quiz:next", (me, { roomId }) => next(me.pid, id(roomId)))
     on("quiz:level", (me, { roomId, level }) => setLevel(me.pid, id(roomId), level))
     on("quiz:again", (me, { roomId }) => again(me.pid, id(roomId)))
@@ -528,6 +643,7 @@ const createQuizLive = ({ emit, clock = realClock, random = Math.random, record 
     setOptions,
     start,
     answer,
+    bet,
     next,
     setLevel,
     again,
@@ -551,4 +667,4 @@ const createQuizLive = ({ emit, clock = realClock, random = Math.random, record 
   }
 }
 
-module.exports = { createQuizLive, QUIZ_MODES: MODES, cleanOptions }
+module.exports = { createQuizLive, QUIZ_MODES: MODES, cleanOptions, LIVE_TIMES: TIMES }

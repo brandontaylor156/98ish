@@ -240,6 +240,47 @@ export const moveGroup = (s, group, dx, dy) => {
   for (const p of s.pieces) if (p.group === group) (p.x += dx), (p.y += dy)
 }
 
+// The part of the table a view shows, in picture pixels. view: { z, tx, ty }; size: the
+// table's size on screen { w, h }
+export const visibleArea = (view, size) => ({ x: -view.tx / view.z, y: -view.ty / view.z, w: size.w / view.z, h: size.h / view.z })
+
+// The view zoomed in `zoom` times from the fitted view `fit`, centered on `center` (picture
+// pixels; null: the middle), never showing anything the fitted view doesn't (so the board
+// can't wander off). -> { z, tx, ty, center }
+export const zoomedView = (fit, size, zoom = 1, center = null) => {
+  const area = visibleArea(fit, size)
+  const middle = { x: area.x + area.w / 2, y: area.y + area.h / 2 }
+  if (zoom <= 1) return { ...fit, center: middle }
+  const z = fit.z * zoom
+  const halfW = size.w / z / 2
+  const halfH = size.h / z / 2
+  const c = center || middle
+  const cx = Math.min(area.x + area.w - halfW, Math.max(area.x + halfW, c.x))
+  const cy = Math.min(area.y + area.h - halfH, Math.max(area.y + halfH, c.y))
+  return { z, tx: size.w / 2 - cx * z, ty: size.h / 2 - cy * z, center: { x: cx, y: cy } }
+}
+
+// Keep loose pieces where they can be seen: every loose group is moved (whole) so its
+// pieces' centers lie inside `rect` ({ x, y, w, h }, picture pixels), or as close as it can
+// for a group bigger than that. Pieces on the board or in the tray stay. -> groups moved
+export const keepInside = (cut, s, rect) => {
+  const moved = []
+  const groups = new Set(s.pieces.filter((p) => !p.placed && !p.tray).map((p) => p.group))
+  for (const group of groups) {
+    const ids = groupMembers(s, group)
+    const xs = ids.map((id) => s.pieces[id].x + cut.cellW / 2)
+    const ys = ids.map((id) => s.pieces[id].y + cut.cellH / 2)
+    const fit = (lo, hi, min, max) => (hi - lo > max - min ? min - lo : lo < min ? min - lo : hi > max ? max - hi : 0)
+    const dx = fit(Math.min(...xs), Math.max(...xs), rect.x, rect.x + rect.w)
+    const dy = fit(Math.min(...ys), Math.max(...ys), rect.y, rect.y + rect.h)
+    if (dx || dy) {
+      moveGroup(s, group, dx, dy)
+      moved.push(group)
+    }
+  }
+  return moved
+}
+
 // Rotate a group a quarter turn clockwise around one of its pieces
 export const rotateGroup = (cut, s, id) => {
   const group = s.pieces[id].group

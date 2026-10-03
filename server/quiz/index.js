@@ -141,7 +141,12 @@ const quizRouter = ({ store: storeOrPromise, aim: initialAim = null, limits = {}
         createdAt: Date.now(),
       }
       await store.insertChallenge(challenge)
-      if (!blockedByThem) notify(name.key, "quiz:new", { id: challenge.id, from: challenge.fromName, kindName: logic.KIND_NAMES[challenge.kind] })
+      if (!blockedByThem) {
+        const notice = { id: challenge.id, from: challenge.fromName, kind: challenge.kind, kindName: logic.KIND_NAMES[challenge.kind], count: countOf(challenge) }
+        notify(name.key, "quiz:new", notice)
+        // for a couple's desktop toast ("your turn!"), even with the Quiz Show closed
+        notify(name.key, "couple:quiz", notice)
+      }
       response.json({ ok: true, challenge: summary(challenge, me, logic, content) })
     })
   )
@@ -173,7 +178,9 @@ const quizRouter = ({ store: storeOrPromise, aim: initialAim = null, limits = {}
       const done = await store.updateChallenge(id, { answers: checked.answers, result, status: "done", doneAt: Date.now() }, { status: "waiting" })
       if (!done) return bad(response, "You've already taken this quiz.", 409)
       await store.addScore(c.from, c.to, { mode: c.kind, percent: result.percent })
-      notify(c.from, "quiz:done", { id, by: c.toName, kindName: logic.KIND_NAMES[c.kind], percent: result.percent })
+      const notice = { id, by: c.toName, kind: c.kind, kindName: logic.KIND_NAMES[c.kind], percent: result.percent, correct: result.correct, total: result.total }
+      notify(c.from, "quiz:done", notice)
+      notify(c.from, "couple:quiz-done", notice)
       response.json({ ok: true, challenge: fullView(done, me, logic, content) })
     })
   )

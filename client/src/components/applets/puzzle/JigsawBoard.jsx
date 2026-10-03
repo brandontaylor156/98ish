@@ -5,14 +5,19 @@ import { formatTime } from "./image"
 // A jigsaw on a table: the board (where the picture goes) with loose pieces around it.
 // Drag pieces with the mouse or a finger; ones that fit snap together, and a group close
 // to its spot snaps onto the board. With rotation on, a click/tap (or right-click) turns a
-// piece. The view pans (drag the table) and zooms (wheel, pinch). On phones the loose
-// pieces wait in a tray under the board that scrolls sideways; drag one up onto the board.
+// piece. On phones the loose pieces wait in a tray under the board that scrolls sideways;
+// drag one up onto the board.
+//
+// The table itself never moves: it always fits the window, and only pieces move (dragging
+// the empty table, the wheel or a pinch do nothing; pieces can't be dragged off it). To get
+// a closer look there are explicit zoom buttons (+, -, Fit), with arrows to look around
+// while zoomed in.
 //
 // Pieces are positioned in the picture's own pixels ("world"); the world is scaled to the
 // screen with one CSS transform, and each piece is a small canvas drawn once.
 
-const MIN_ZOOM = 0.15
-const MAX_ZOOM = 4
+const ZOOMS = [1, 1.6, 2.4, 3.4] // times the fitted view
+const EDGE = 6 // a dragged piece's grip stays this far inside the table (screen pixels)
 
 // Each piece's picture: a canvas cut to its shape, with a soft bevel
 const drawPieces = (cut, img, q) =>
@@ -53,9 +58,8 @@ const Jigsaw = ({ picture, img, setup, seed, initial, prefs, mobile, sounds, onC
   const elements = useRef(new Map()) // piece id -> its element on the table
   const [, bump] = useReducer((n) => n + 1, 0)
   const [size, setSize] = useState(null) // the table's size in CSS pixels
-  const [view, setView] = useState(null) // { z, tx, ty }
+  const [zoom, setZoom] = useState({ at: 0, center: null }) // ZOOMS[at], looking at center
   const viewRef = useRef(null)
-  viewRef.current = view
   const [dragging, setDragging] = useState(null) // piece id while a tray piece is being dragged
   const [flash, setFlash] = useState(null) // group that just snapped
   const [now, setNow] = useState(Date.now())
@@ -99,9 +103,31 @@ const Jigsaw = ({ picture, img, setup, seed, initial, prefs, mobile, sounds, onC
     const z = Math.min(sz.w / r.w, sz.h / r.h)
     return { z, tx: (sz.w - r.w * z) / 2 - r.x * z, ty: (sz.h - r.h * z) / 2 - r.y * z }
   }
+  const fit = useMemo(() => (size ? fitView(size) : null), [size?.w, size?.h, cut])
+  const view = useMemo(() => (fit ? J.zoomedView(fit, size, ZOOMS[zoom.at], zoom.center) : null), [fit, zoom])
+  viewRef.current = view
+
+  // a smaller window (or a game from a bigger screen): loose pieces come back into sight
   useEffect(() => {
-    if (size) setView(fitView(size))
-  }, [size?.w, size?.h, cut])
+    if (!fit) return
+    const area = J.visibleArea(fit, size)
+    const inset = { x: area.x + cut.cellW * 0.3, y: area.y + cut.cellH * 0.3, w: area.w - cut.cellW * 0.6, h: area.h - cut.cellH * 0.6 }
+    const moved = J.keepInside(cut, s, inset)
+    if (moved.length) {
+      s.pieces.forEach((_, id) => applyStyle(id))
+      bump()
+      onChange?.(snapshot())
+    }
+  }, [fit])
+
+  // the zoom buttons: in, out, fit; and the arrows that look around while zoomed in
+  const zoomTo = (at) => setZoom((zm) => ({ at: Math.max(0, Math.min(ZOOMS.length - 1, at)), center: at > 0 ? viewRef.current?.center || zm.center : null }))
+  const look = (dx, dy) =>
+    setZoom((zm) => {
+      const v = viewRef.current
+      const area = J.visibleArea(v, size)
+      return { ...zm, center: { x: v.center.x + (dx * area.w) / 3, y: v.center.y + (dy * area.h) / 3 } }
+    })
 
   // piece pictures, drawn sharp enough for the fitted view
   const bitmaps = useMemo(() => {
@@ -179,11 +205,9 @@ const Jigsaw = ({ picture, img, setup, seed, initial, prefs, mobile, sounds, onC
     return near
   }
 
-  // ---- dragging, panning, zooming ----
+  // ---- dragging pieces (only pieces: the table stays put) ----
 
   const drag = useRef(null) // { pointerId, id, group, x, y, moved, fromTray }
-  const pans = useRef(new Map()) // pointerId -> { x, y } for panning/pinching
-  const pinch = useRef(null)
   const zTop = useRef(Math.max(0, ...s.pieces.map((p) => p.z)))
 
   const lift = (group) => {
@@ -200,13 +224,21 @@ const Jigsaw = ({ picture, img, setup, seed, initial, prefs, mobile, sounds, onC
     for (const m of J.groupMembers(s, group)) elements.current.get(m)?.classList.add("is-lifted")
   }
 
+  // The pointer, held inside the table: a piece dragged past the edge waits at the edge
+  // instead of disappearing off the table
+  const insideTable = (clientX, clientY) => {
+    const rect = tableRef.current.getBoundingClientRect()
+    return [Math.min(rect.right - EDGE, Math.max(rect.left + EDGE, clientX)), Math.min(rect.bottom - EDGE, Math.max(rect.top + EDGE, clientY))]
+  }
+
   const moveDrag = (e) => {
     const d = drag.current
     const v = viewRef.current
-    const dx = (e.clientX - d.x) / v.z
-    const dy = (e.clientY - d.y) / v.z
-    d.x = e.clientX
-    d.y = e.clientY
+    const [x, y] = insideTable(e.clientX, e.clientY)
+    const dx = (x - d.x) / v.z
+    const dy = (y - d.y) / v.z
+    d.x = x
+    d.y = y
     if (Math.hypot(e.clientX - d.sx, e.clientY - d.sy) > 5) d.moved = true
     J.moveGroup(s, d.group, dx, dy)
     for (const id of J.groupMembers(s, d.group)) applyStyle(id)
@@ -243,6 +275,11 @@ const Jigsaw = ({ picture, img, setup, seed, initial, prefs, mobile, sounds, onC
         setFlash(s.pieces[d.id].group)
         setTimeout(() => setFlash(null), 450)
       }
+      // dropped at the very edge: nudged all the way onto the table, in plain sight
+      if (!s.pieces[d.id].placed) {
+        const area = J.visibleArea(viewRef.current, size)
+        J.keepInside(cut, s, { x: area.x + cut.cellW * 0.5, y: area.y + cut.cellH * 0.5, w: area.w - cut.cellW, h: area.h - cut.cellH })
+      }
       J.groupMembers(s, s.pieces[d.id].group).forEach(applyStyle)
     }
     bump()
@@ -265,65 +302,42 @@ const Jigsaw = ({ picture, img, setup, seed, initial, prefs, mobile, sounds, onC
       return
     }
     if (e.pointerType === "mouse" && e.button !== 0) return
+    // one piece at a time: other fingers (and the empty table) do nothing
+    if (drag.current) return
+    const id = pieceAt(...toWorld(e.clientX, e.clientY), e.pointerType !== "mouse")
+    if (id === null) return
     tableRef.current.setPointerCapture?.(e.pointerId)
-    if (!drag.current && pans.current.size === 0) {
-      const id = pieceAt(...toWorld(e.clientX, e.clientY), e.pointerType !== "mouse")
-      if (id !== null) return startDrag(e, id)
-    }
-    // a second finger while dragging a piece: let go of the piece and pinch instead
-    if (drag.current && drag.current.pointerId !== e.pointerId) {
-      const d = drag.current
-      pans.current.set(d.pointerId, { x: d.x, y: d.y })
-      endDrag(null)
-    }
-    pans.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
-    pinch.current = null
+    startDrag(e, id)
+    ;[drag.current.x, drag.current.y] = insideTable(e.clientX, e.clientY)
   }
 
   const onPointerMove = (e) => {
-    if (drag.current?.pointerId === e.pointerId) return moveDrag(e)
-    if (!pans.current.has(e.pointerId)) return
-    const prev = pans.current.get(e.pointerId)
-    pans.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
-    const v = viewRef.current
-    if (pans.current.size === 1) {
-      setView({ ...v, tx: v.tx + e.clientX - prev.x, ty: v.ty + e.clientY - prev.y })
-      return
-    }
-    const [a, b] = [...pans.current.values()]
-    const rect = tableRef.current.getBoundingClientRect()
-    const mid = { x: (a.x + b.x) / 2 - rect.left, y: (a.y + b.y) / 2 - rect.top }
-    const dist = Math.hypot(a.x - b.x, a.y - b.y)
-    if (!pinch.current) pinch.current = { dist, mid, view: v }
-    const p = pinch.current
-    const z = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, (p.view.z * dist) / Math.max(10, p.dist)))
-    const wx = (p.mid.x - p.view.tx) / p.view.z
-    const wy = (p.mid.y - p.view.ty) / p.view.z
-    setView({ z, tx: mid.x - wx * z, ty: mid.y - wy * z })
+    if (drag.current?.pointerId === e.pointerId) moveDrag(e)
   }
 
   const onPointerUp = (e) => {
-    if (drag.current?.pointerId === e.pointerId) return endDrag(e, e.type === "pointercancel")
-    pans.current.delete(e.pointerId)
-    pinch.current = null
+    if (drag.current?.pointerId === e.pointerId) endDrag(e, e.type === "pointercancel")
   }
 
-  const onWheel = (e) => {
-    if (!view) return
-    const rect = tableRef.current.getBoundingClientRect()
-    const mx = e.clientX - rect.left
-    const my = e.clientY - rect.top
-    const z = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, view.z * Math.exp(-e.deltaY * 0.0015)))
-    const wx = (mx - view.tx) / view.z
-    const wy = (my - view.ty) / view.z
-    setView({ z, tx: mx - wx * z, ty: my - wy * z })
-  }
-  // the wheel must not scroll the page behind
+  // the wheel (and a trackpad's pinch, which arrives as a ctrl+wheel) must not scroll or
+  // zoom anything: not the table, not the page behind
   useEffect(() => {
     const el = tableRef.current
     const stop = (e) => e.preventDefault()
     el?.addEventListener("wheel", stop, { passive: false })
     return () => el?.removeEventListener("wheel", stop)
+  }, [])
+  // and on phones, a touch on the table never scrolls or zooms the page (Safari ignores
+  // touch-action for its own pinch zoom)
+  useEffect(() => {
+    const el = tableRef.current
+    const stop = (e) => e.cancelable && e.preventDefault()
+    el?.addEventListener("touchmove", stop, { passive: false })
+    el?.addEventListener("gesturestart", stop)
+    return () => {
+      el?.removeEventListener("touchmove", stop)
+      el?.removeEventListener("gesturestart", stop)
+    }
   }, [])
 
   // ---- the tray (phones) ----
@@ -415,6 +429,20 @@ const Jigsaw = ({ picture, img, setup, seed, initial, prefs, mobile, sounds, onC
           {placed}/{cut.pieces.length} placed
         </span>
         {mobile && trayCount > 0 && <span>{trayCount} in tray</span>}
+        {view && !solved && (
+          // zooming is only ever on purpose, with these (the table never pans or pinches)
+          <span className="pzZoom">
+            <button type="button" data-zoom="out" aria-label="Zoom out" title="Zoom out" disabled={zoom.at === 0} onClick={() => zoomTo(zoom.at - 1)}>
+              −
+            </button>
+            <button type="button" data-zoom="fit" title="Fit the table to the window" disabled={zoom.at === 0} onClick={() => zoomTo(0)}>
+              Fit
+            </button>
+            <button type="button" data-zoom="in" aria-label="Zoom in" title="Zoom in" disabled={zoom.at === ZOOMS.length - 1} onClick={() => zoomTo(zoom.at + 1)}>
+              +
+            </button>
+          </span>
+        )}
       </div>
       <div
         className="pzTable"
@@ -423,7 +451,6 @@ const Jigsaw = ({ picture, img, setup, seed, initial, prefs, mobile, sounds, onC
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
-        onWheel={onWheel}
         onContextMenu={(e) => e.preventDefault()}
       >
         {view && bitmaps && (
@@ -457,6 +484,20 @@ const Jigsaw = ({ picture, img, setup, seed, initial, prefs, mobile, sounds, onC
           </div>
         )}
         {solved && <div className="pzSolvedGlow" />}
+        {view && !solved && zoom.at > 0 && (
+          <div className="pzLook" onPointerDown={(e) => e.stopPropagation()}>
+            {[
+              ["up", 0, -1, "▲"],
+              ["down", 0, 1, "▼"],
+              ["left", -1, 0, "◀"],
+              ["right", 1, 0, "▶"],
+            ].map(([dir, dx, dy, glyph]) => (
+              <button key={dir} type="button" className={`is-${dir}`} data-look={dir} aria-label={`Look ${dir}`} onClick={() => look(dx, dy)}>
+                {glyph}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
       {mobile && (
         <div className="pzTray" ref={trayRef}>

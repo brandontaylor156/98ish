@@ -1,8 +1,11 @@
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { Big, Choices, HeartMeter, Loading, Notice, PersonPicker, Progress, ResultCard, Screen, TimerBar, useQuiz } from "./parts"
 import { Heart, HeartBurst } from "./art"
-import { addFacts, recordGame, seeDeepCard, toggleFavorite, useQuizData } from "./storage"
+import { Host } from "./Host"
+import { BetView, QuestionView, RevealView, RoundCard, ScoreBar, ShowResults, betWords, gainedWords, showQuestion } from "./Stage"
+import { addFacts, recordGame, recordShow, seeDeepCard, toggleFavorite, useQuizData } from "./storage"
 import { reaction, soulmateLine } from "./shared/logic.js"
+import { LENGTHS, packsFor } from "./shared/show.js"
 
 // Live games over the network (server/quiz/live.js): a room with a lobby (invite people,
 // pick the game), questions everyone answers at once, a reveal after each, and results.
@@ -74,9 +77,9 @@ export const useLive = (net) => {
     if (id) await net.request("quiz:leave", { roomId: id })
   }
 
-  const invite = async (target) => {
+  const invite = async (target, roomId = roomRef.current?.id) => {
     setError(null)
-    const result = await net.invite(target, "quiz", { roomId: roomRef.current?.id })
+    const result = await net.invite(target, "quiz", { roomId })
     if (!result.ok) setError(result.error)
     return result
   }
@@ -524,6 +527,274 @@ const DeepLive = ({ live }) => {
   )
 }
 
+// ---------- shows: How Well Do You Know Me, This or That ----------
+
+const SHOW_MODES = ["knowme", "tot"]
+
+// Waiting for the other contestant (an invitation is out), then the host starts the show
+const ShowLobby = ({ live }) => {
+  const { room } = live
+  const { sounds } = useQuiz()
+  const [picking, setPicking] = useState(false)
+  const info = LIVE_MODES[room.mode]
+  const enough = room.players.length >= room.min
+  const full = room.players.length >= room.max
+  const me = room.players.find((p) => p.id === room.you)
+  const others = room.players.filter((p) => p.id !== room.you)
+  const pack = packsFor(room.mode).find((p) => p.id === room.options.pack)
+  const length = LENGTHS[room.mode].find((l) => l.count === room.options.count)
+  useEffect(() => {
+    if (enough) sounds.pop()
+  }, [enough])
+
+  if (picking) {
+    return (
+      <Screen title="Invite someone" mode={info.icon} onBack={() => setPicking(false)}>
+        <PersonPicker
+          kind="live"
+          onPick={async (target) => {
+            const r = await live.invite(target)
+            if (r.ok) setPicking(false)
+          }}
+          onCancel={() => setPicking(false)}
+        />
+        {live.error && <Notice kind="is-error">{live.error}</Notice>}
+      </Screen>
+    )
+  }
+
+  const line = enough
+    ? room.host
+      ? "Everybody's here! Hit the big button when you're ready."
+      : `${room.hostName} is about to start the show. Get comfy!`
+    : room.invited.length
+      ? `I sent ${room.invited.join(" and ")} an invitation. It pops up on their screen!`
+      : "Who's playing with you tonight? Invite someone!"
+  return (
+    <Screen title={info.name} mode={info.icon} onBack={live.leave} className="qzShowLobby">
+      <Host line={line} size="big" />
+      <div className="qzVs">
+        <div className="qzVsSeat is-you">
+          <span className="qzPlateAvatar">
+            <Heart size={22} />
+          </span>
+          <b>{me?.name}</b>
+          <small>you{room.host ? ", host" : ""}</small>
+        </div>
+        <span className="qzVsWord">{room.mode === "knowme" ? "vs" : "&"}</span>
+        {others.length ? (
+          others.map((p) => (
+            <div key={p.id} className="qzVsSeat is-in" data-joined={p.name}>
+              <span className="qzPlateAvatar">{p.name.slice(0, 1).toUpperCase()}</span>
+              <b>{p.name}</b>
+              <small>{p.away ? "away" : "ready!"}</small>
+            </div>
+          ))
+        ) : (
+          <div className="qzVsSeat is-empty">
+            <span className="qzPlateAvatar">?</span>
+            <b>{room.invited[0] || "Empty seat"}</b>
+            <small>{room.invited.length ? "invited, waiting..." : "nobody yet"}</small>
+          </div>
+        )}
+      </div>
+      <p className="qzChips">
+        <span>{pack?.name || "Grab Bag"}</span>
+        <span>
+          {length?.name || "Classic"} ({room.mode === "knowme" ? `${room.options.count} each` : `${room.options.count} picks`})
+        </span>
+        <span>{room.options.clock ? "Ticking clock" : "No clock"}</span>
+      </p>
+      {live.error && <Notice kind="is-error">{live.error}</Notice>}
+      <div className="qzActions">
+        {room.host && (
+          <Big onClick={() => live.act("quiz:start")} disabled={!enough} data-action="start-show">
+            {enough ? "Start the show!" : "Waiting for your partner..."}
+          </Big>
+        )}
+        {!full && (
+          <Big kind="is-alt" onClick={() => setPicking(true)}>
+            {room.invited.length ? "Invite someone else" : "Invite someone"}
+          </Big>
+        )}
+        <Big kind="is-alt" onClick={live.leave}>
+          Cancel
+        </Big>
+      </div>
+    </Screen>
+  )
+}
+
+// A live show: round cards, questions, bets and reveals, all timed by the server
+const LiveShow = ({ live }) => {
+  const { room } = live
+  const { packs, home } = useQuiz()
+  const recorded = useRef(null)
+  const [unlocked, setUnlocked] = useState(null)
+  const offset = useMemo(() => room.now - Date.now(), [room])
+  const local = (t) => (t ? t - offset : null)
+  const order = room.order || room.players.map((p) => ({ id: p.id, name: p.name }))
+  const names = order.map((o) => o.name)
+  const seat = (id) => order.findIndex((o) => o.id === id)
+  const you = (id, name) => (id === room.you ? "You" : name)
+  // the new points show once the reveal opens (not during the drum roll)
+  const [openStep, setOpenStep] = useState(-1)
+  const hiding = room.phase === "reveal" && openStep !== room.step
+  const players = order.map((o) => {
+    const p = room.players.find((x) => x.id === o.id)
+    const hide = hiding ? room.reveal?.gained?.[o.id] || 0 : 0
+    return { name: you(o.id, o.name), points: (p?.score ?? 0) - hide, streak: hide ? 0 : p?.streak ?? 0, you: o.id === room.you }
+  })
+  const mode = room.mode
+
+  // remember a finished show here (once), and what you learned about each other
+  useEffect(() => {
+    if (room.phase !== "done" || !room.result) return
+    const key = `${room.id}:${room.round}`
+    if (recorded.current === key) return
+    recorded.current = key
+    const r = room.result
+    const facts = mode === "knowme" ? room.log.filter((s) => s && s.truth !== null && s.truth !== undefined).map((s) => ({ subject: s.names[s.subject], qid: s.item, answer: s.truth })) : []
+    const mine = r.players?.[room.you]
+    setUnlocked(
+      recordShow({
+        mode,
+        how: "live",
+        with: others(room).map((p) => p.name).join(", "),
+        summary: { tier: r.tier, headline: r.headline, percent: r.percent },
+        points: mine?.points ?? null,
+        won: !room.note && (mode === "tot" ? r.percent >= 55 : r.winner === room.you),
+        perfect: !room.note && mode === "knowme" && mine && mine.of > 0 && mine.guessed === mine.of,
+        facts,
+      })
+    )
+  }, [room.phase, room.id, room.round])
+
+  if (room.phase === "done") {
+    const r = room.result
+    const recap = room.log.filter(Boolean).map((s) => {
+      const q = showQuestion(mode, packs, s.item, { name: s.subject ? you(s.subject, s.names[s.subject]) : "" })
+      const text = (a) => (a === null || a === undefined ? "(no answer)" : q.options[a])
+      return {
+        text: q.text,
+        match: s.match,
+        answers:
+          mode === "knowme"
+            ? [
+                { label: `${you(s.subject, s.names[s.subject])} said`, text: text(s.answers[s.subject]) },
+                { label: `${you(s.guesser, s.names[s.guesser])} guessed`, text: text(s.answers[s.guesser]) },
+              ]
+            : Object.entries(s.answers).map(([pid, a]) => ({ label: you(pid, s.names[pid]), text: text(a) })),
+      }
+    })
+    const list = order.map((o) => ({ name: o.name, points: r.players?.[o.id]?.points ?? 0, best: mode === "tot" ? r.best : r.players?.[o.id]?.best ?? 0, you: o.id === room.you, winner: r.winner === o.id }))
+    return (
+      <Screen title={LIVE_MODES[mode].name} mode={LIVE_MODES[mode].icon} onBack={live.leave} className="qzShow is-done">
+        <ShowResults
+          mode={mode}
+          summary={{ tier: r.tier, headline: r.headline, percent: r.percent }}
+          players={list}
+          recap={recap}
+          note={room.note}
+          unlocked={unlocked}
+          onAgain={room.host && !room.note ? () => live.act("quiz:again") : null}
+          againLabel="Rematch!"
+          onHome={() => (live.leave(), home())}
+          extra={!room.host && !room.note ? <p className="qzHint">{room.hostName} can start a rematch.</p> : null}
+        />
+      </Screen>
+    )
+  }
+
+  const cur = room.current
+  const step = cur ? { round: cur.round, mult: cur.mult, base: cur.base, bet: cur.bet, timer: cur.timer } : { round: room.roundCard?.round, mult: 1 }
+  const mySeat = seat(room.you)
+  let body
+  if (room.phase === "round") {
+    body = <RoundCard mode={mode} round={room.roundCard.round} names={names} you={mySeat >= 0 ? mySeat : null} until={local(room.roundCard.until)} onSkip={() => live.act("quiz:next")} n={room.step} />
+  } else if (room.phase === "bet") {
+    const rows = order.map((o, k) => {
+      const p = room.players.find((x) => x.id === o.id)
+      const isMe = o.id === room.you
+      const other = order[1 - k]
+      return { name: o.name, you: isMe, points: p?.score ?? 0, bet: isMe ? room.yourBet : null, hidden: !isMe, decided: !!p?.answered, onText: other ? `on guessing ${other.id === room.you ? "your" : `${other.name}'s`} answer` : "" }
+    })
+    body = (
+      <BetView
+        rows={rows.sort((a, b) => (b.you ? 1 : 0) - (a.you ? 1 : 0))}
+        onBet={(k, id) => live.act("quiz:bet", { bet: id })}
+        deadline={local(room.deadline)}
+        seconds={20}
+        waiting={room.yourBet ? "Bet placed! Waiting for the other bet..." : null}
+      />
+    )
+  } else if (room.phase === "question") {
+    const aboutYou = mode === "knowme" && cur.subject === room.you
+    const subjectName = cur.subject ? names[seat(cur.subject)] : ""
+    const q = showQuestion(mode, packs, cur.item, { aboutYou, name: subjectName })
+    const role = mode === "tot" ? { kind: "pick", other: others(room).map((p) => p.name).join(" & ") } : aboutYou ? { kind: "self", other: others(room)[0]?.name } : { kind: "guess", name: subjectName }
+    const waitingFor = room.players.filter((p) => !p.answered && p.id !== room.you)
+    const myBet = room.bets?.[room.you]
+    body = (
+      <QuestionView
+        key={room.step}
+        step={{ ...step, betText: cur.bet && !aboutYou && myBet ? betWords(myBet, room.players.find((p) => p.id === room.you)?.score ?? 0) : null }}
+        role={role}
+        text={q.text}
+        options={q.options}
+        picked={room.yourAnswer}
+        onPick={(answer) => live.act("quiz:answer", { step: room.step, answer })}
+        deadline={local(room.deadline)}
+        seconds={cur.timer}
+        waiting={waitingFor.length ? `Locked in! Waiting for ${waitingFor.map((p) => p.name).join(", ")}...` : "Locked in!"}
+      />
+    )
+  } else if (room.phase === "reveal") {
+    const r = room.reveal
+    const q = showQuestion(mode, packs, r.item, { name: r.subject ? you(r.subject, r.names[r.subject]) : "" })
+    const cards =
+      mode === "knowme"
+        ? [
+            { label: `${you(r.subject, r.names[r.subject])} said`, answer: r.answers[r.subject] },
+            { label: `${you(r.guesser, r.names[r.guesser])} guessed`, answer: r.answers[r.guesser] },
+          ]
+        : order.map((o) => ({ label: `${you(o.id, o.name)} picked`, answer: r.answers[o.id] ?? null }))
+    const gained = order.map((o) => r.gained?.[o.id] || 0)
+    const g = mode === "knowme" ? seat(r.guesser) : 0
+    body = (
+      <RevealView
+        mode={mode}
+        step={{ round: r.round, mult: r.mult, bet: !!r.bet }}
+        n={room.step}
+        text={q.text}
+        options={q.options}
+        cards={cards}
+        match={r.match}
+        showAt={local(r.showAt)}
+        onOpen={setOpenStep}
+        onFire={r.onFire}
+        streak={r.streak}
+        guesserName={mode === "knowme" ? you(r.guesser, r.names[r.guesser]) : "You two"}
+        timedOut={mode === "knowme" && (r.answers[r.subject] === null || r.answers[r.guesser] === null)}
+        betWon={!!r.bet && r.match}
+        gainedLine={gainedWords(mode, gained, order.map((o) => you(o.id, o.name)), g)}
+        nextLabel={room.step + 1 >= room.total ? "See the results!" : "Next question"}
+        onNext={() => live.act("quiz:next")}
+      />
+    )
+  }
+  return (
+    <Screen title={LIVE_MODES[mode].name} mode={LIVE_MODES[mode].icon} onBack={live.leave} className={`qzShow is-${room.phase}`}>
+      <ScoreBar mode={mode} players={players} step={room.step} total={room.total} highlight={mode === "knowme" && cur?.subject ? seat(cur.subject) : null} />
+      <div className="qzShowBody" key={`${room.phase}:${room.step}`}>
+        {body}
+      </div>
+      {live.error && !/Not yet/.test(live.error) && <Notice kind="is-error">{live.error}</Notice>}
+      {mySeat < 0 && <Notice>You're watching this show.</Notice>}
+    </Screen>
+  )
+}
+
 // ---------- the room ----------
 
 export const LiveRoom = ({ live }) => {
@@ -534,7 +805,8 @@ export const LiveRoom = ({ live }) => {
   if (room) offsetRef.current = offset
   if (!packs) return <Loading />
   let body
-  if (room.phase === "lobby") body = <Lobby live={live} />
+  if (SHOW_MODES.includes(room.mode)) body = room.phase === "lobby" ? <ShowLobby live={live} /> : <LiveShow live={live} />
+  else if (room.phase === "lobby") body = <Lobby live={live} />
   else if (room.phase === "card") body = <DeepLive live={live} />
   else if (room.phase === "done") body = <Results live={live} />
   else

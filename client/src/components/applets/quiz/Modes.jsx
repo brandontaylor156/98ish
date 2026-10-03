@@ -233,7 +233,7 @@ export const AboutUs = ({ onBack, go }) => {
       <Screen title="Trivia About Us" mode="aboutus" onBack={onBack}>
         <Notice>
           <p>This quiz builds itself from your answers in <b>How Well Do You Know Me?</b> Play a couple of rounds together first, then come back to test your memory!</p>
-          <Big kind="is-small" onClick={() => go({ id: "menu", mode: "knowme" })}>
+          <Big kind="is-small" onClick={() => go({ id: "setup", mode: "knowme" })}>
             Play How Well Do You Know Me?
           </Big>
         </Notice>
@@ -290,6 +290,7 @@ export const PartyPack = ({ onBack, onLive }) => {
 // ---------- history and badges ----------
 
 const MODE_NAMES = { knowme: "How Well Do You Know Me?", tot: "This or That", trivia: "Party Trivia", compat: "Compatibility", custom: "Custom Quiz", aboutus: "Trivia About Us" }
+const HOW_NAMES = { live: "live", pass: "passed the phone", turns: "took turns" }
 const MODE_ICONS = { knowme: "knowme", tot: "tot", trivia: "party", compat: "compat", custom: "builder", aboutus: "aboutus" }
 
 export const History = ({ onBack }) => {
@@ -303,7 +304,7 @@ export const History = ({ onBack }) => {
   }, [aim?.token])
   const best = Math.max(0, ...data.history.map((h) => h.percent ?? 0))
   return (
-    <Screen title="History & Badges" mode="history" onBack={onBack}>
+    <Screen title="Past Shows & Badges" mode="history" onBack={onBack}>
       <div className="qzStats">
         <div>
           <b>{stats.games}</b>
@@ -350,18 +351,20 @@ export const History = ({ onBack }) => {
           </ul>
         </>
       )}
-      <h3 className="qzSection">Recent games</h3>
+      <h3 className="qzSection">Past shows</h3>
       {data.history.length ? (
         <ul className="qzHistory">
           {data.history.slice(0, 30).map((h, i) => (
             <li key={i}>
               <ModeIcon mode={MODE_ICONS[h.mode] || "knowme"} size={20} />
               <span>
-                <b>{h.title || MODE_NAMES[h.mode] || h.mode}</b>
+                <b>{h.headline || (typeof h.title === "string" && h.title) || MODE_NAMES[h.mode] || h.mode}</b>
                 <small>
+                  {h.headline ? `${MODE_NAMES[h.mode]} · ` : ""}
                   {h.with ? `with ${h.with} · ` : ""}
                   {new Date(h.at).toLocaleDateString()}
-                  {h.live ? " · live" : ""}
+                  {h.how ? ` · ${HOW_NAMES[h.how] || h.how}` : h.live ? " · live" : ""}
+                  {Number.isFinite(h.points) ? ` · ${h.points} pts` : ""}
                 </small>
               </span>
               {h.percent !== null && <em>{h.percent}%</em>}
