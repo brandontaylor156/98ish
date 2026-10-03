@@ -66,6 +66,10 @@ const TIPS = {
     "Play Online, then Create Room: there are presets for races, Battle Royale and Co-op, and Customize changes every rule.",
     "Stuck? Try a word with five different common letters, like CRANE or SLATE, to find out the most at once.",
   ],
+  Hexlands: [
+    "New to Hexlands? Help > How to Play walks you through it, then starts a coached game.",
+    "Settle on corners touching 6s and 8s, and spread out across all five resources. Short of something? Harbors trade 3:1 or 2:1.",
+  ],
   "Block Ten": [
     "Keep a 3x3 hole open somewhere. The big square always shows up when you have no room for it!",
     "Clear lines on moves in a row for a streak bonus. Pieces with no room left turn gray.",

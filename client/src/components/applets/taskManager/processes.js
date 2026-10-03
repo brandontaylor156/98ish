@@ -62,6 +62,7 @@ export const APP_PROFILES = {
   Downhill: { image: "ski.exe", mem: 5124, threads: 4, handles: 61, cpu: [0.95, 11] },
   "Pickleball 98": { image: "pkball98.exe", mem: 38640, threads: 9, handles: 214, cpu: [4, 22] },
   "Word Duel": { image: "wrdduel.exe", mem: 2610, threads: 3, handles: 47, cpu: [0.2, 5] },
+  Hexlands: { image: "hexlands.exe", mem: 4380, threads: 4, handles: 63, cpu: [0.4, 9] },
   "Shred 98": { image: "shred98.exe", mem: 44210, threads: 11, handles: 238, cpu: [6, 26] },
   "Last Card": { image: "lastcard.exe", mem: 3380, threads: 3, handles: 52, cpu: [0.3, 7] },
   "Block Ten": { image: "blockten.exe", mem: 1876, threads: 2, handles: 33, cpu: [0.15, 4] },

@@ -43,6 +43,7 @@ export const imageMapper = {
   blockten: "program_icons/blockten.svg",
   wordduel: "program_icons/wordduel.svg",
   lastcard: "program_icons/lastcard.svg",
+  hexlands: "program_icons/hexlands.svg",
   town: "program_icons/town.svg",
   puzzle: "program_icons/puzzle.svg",
   doodle: "program_icons/doodle.svg",

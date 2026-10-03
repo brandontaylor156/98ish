@@ -127,6 +127,8 @@ const ALIASES = {
   pickleball: "Pickleball 98",
   wordduel: "Word Duel",
   words: "Word Duel",
+  hexlands: "Hexlands",
+  hex: "Hexlands",
   shred: "Shred 98",
   shred98: "Shred 98",
   guitar: "Shred 98",

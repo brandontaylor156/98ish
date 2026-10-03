@@ -6,4 +6,5 @@ module.exports = [
   require("./wordduel"),
   require("./lastcard"),
   require("./pickleball"),
+  require("./hexlands"),
 ]

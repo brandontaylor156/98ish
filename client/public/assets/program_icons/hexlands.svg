@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <!-- Hexlands: three island hexes (forest, fields, hills) in the sea with a little red house -->
+  <rect x="1" y="1" width="30" height="30" rx="5" fill="#2a6fb3" stroke="#123c6b"/>
+  <path d="M3 9 q3 -2 6 0 t6 0" fill="none" stroke="#9cc9ef" stroke-width="1" stroke-linecap="round" opacity=".7"/>
+  <path d="M18 27 q3 -2 6 0 t6 0" fill="none" stroke="#9cc9ef" stroke-width="1" stroke-linecap="round" opacity=".7"/>
+  <polygon points="10.5,4.5 16,7.7 16,14 10.5,17.2 5,14 5,7.7" fill="#3f8a3a" stroke="#1c4a1f"/>
+  <path d="M10.5 7 l2.6 4.2 h-1.4 l2 3 h-6.4 l2 -3 h-1.4 z" fill="#1f5a28"/>
+  <polygon points="21.5,4.5 27,7.7 27,14 21.5,17.2 16,14 16,7.7" fill="#e6bd3c" stroke="#8a6410"/>
+  <path d="M18.5 13 l6 -4 M18.5 15 l6 -4 M19 10.5 l4 -2.6" stroke="#b5821b" stroke-width="1"/>
+  <polygon points="16,14 21.5,17.2 21.5,23.5 16,26.7 10.5,23.5 10.5,17.2" fill="#cf7b45" stroke="#7a3a16"/>
+  <path d="M12.5 22 h3 v1.8 h-3 z M16.5 22 h3 v1.8 h-3 z M14.5 20 h3 v1.8 h-3 z" fill="#a8442a" stroke="#6e2412" stroke-width=".5"/>
+  <path d="M13 16.5 v-3.2 l3 -2.8 l3 2.8 v3.2 z" fill="#d23b2f" stroke="#5e130c" stroke-width="1" stroke-linejoin="round"/>
+  <rect x="15.2" y="14" width="1.6" height="2.5" fill="#5e130c"/>
+</svg>
