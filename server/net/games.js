@@ -26,7 +26,9 @@ const GAME_NAMES = { checkers: "Checkers", race: "Minesweeper Race", hearts: "He
 // tetris: Tetris Online (tetris.js), doodle: Doodle Together (doodle.js) and quiz: the
 // Quiz Show's live games (server/quiz), whose private rooms take invitations from here
 // town: Sunny Acres co-op towns (server/town/coop.js)
-const createGames = ({ emit, delays = DELAYS, random = Math.random, tetris = null, doodle = null, quiz = null, coop = null } = {}) => {
+// rooms: the online room system (server/arcade/rooms.js): an invitation whose matchId is
+// one of its rooms invites into that room, whatever the game
+const createGames = ({ emit, delays = DELAYS, random = Math.random, tetris = null, doodle = null, quiz = null, coop = null, rooms = null } = {}) => {
   const roomApps = { tetris, doodle, quiz, town: coop }
   const invites = new Map() // id -> { id, game, from, fromName, to, toName, options, matchId, timer }
   const matches = new Map() // id -> match
@@ -217,7 +219,30 @@ const createGames = ({ emit, delays = DELAYS, random = Math.random, tetris = nul
 
   // ---------- invitations ----------
 
+  const isOnlineRoom = (matchId) => !!(rooms && matchId && rooms.rooms.has(String(matchId)))
+  const appOf = (inv) => (inv.online ? rooms : roomApps[inv.game] || null)
+  const gameNameOf = (inv) => (inv.online ? rooms.nameOf(inv.game) : GAME_NAMES[inv.game])
+
+  // Into a room of the online room system (the game is the room's)
+  const inviteOnline = ({ from, fromName, to, toName, matchId }) => {
+    const roomId = String(matchId)
+    if (from === to) return { ok: false, error: "You can't play against yourself." }
+    if ([...invites.values()].filter((i) => i.from === from).length >= 6) return { ok: false, error: "You have too many invitations waiting. Wait for some answers first." }
+    if ([...invites.values()].some((i) => i.from === from && i.to === to && i.matchId === roomId)) return { ok: false, error: `You already invited ${toName}.` }
+    const check = rooms.canInvite(from, roomId)
+    if (!check.ok) return check
+    const game = rooms.rooms.get(roomId).game.id
+    const inv = { id: newId(), game, online: true, from, fromName, to, toName, options: {}, matchId: roomId, expiresAt: Date.now() + INVITE_MS }
+    inv.timer = setTimeout(() => endInvite(inv, "expired"), INVITE_MS)
+    inv.timer.unref?.()
+    invites.set(inv.id, inv)
+    send(to, "net:invited", inviteView(inv))
+    rooms.invitedTo(roomId, toName)
+    return { ok: true, inviteId: inv.id }
+  }
+
   const invite = ({ from, fromName, to, toName, game, options = {}, matchId: requestedMatch }) => {
+    if (isOnlineRoom(requestedMatch)) return inviteOnline({ from, fromName, to, toName, matchId: requestedMatch })
     let matchId = requestedMatch
     if (!GAMES.includes(game)) return { ok: false, error: "Unknown game." }
     if (from === to) return { ok: false, error: "You can't play against yourself." }
@@ -266,7 +291,7 @@ const createGames = ({ emit, delays = DELAYS, random = Math.random, tetris = nul
     return { ok: true, inviteId: inv.id }
   }
 
-  const inviteView = (inv) => ({ id: inv.id, game: inv.game, gameName: GAME_NAMES[inv.game], from: inv.fromName, fromId: inv.from, options: inv.options, expiresAt: inv.expiresAt })
+  const inviteView = (inv) => ({ id: inv.id, game: inv.game, gameName: gameNameOf(inv), online: !!inv.online, from: inv.fromName, fromId: inv.from, options: inv.options, expiresAt: inv.expiresAt })
 
   // status: accepted | declined | expired | canceled | gone (the other side left)
   const endInvite = (inv, status, error) => {
@@ -274,8 +299,8 @@ const createGames = ({ emit, delays = DELAYS, random = Math.random, tetris = nul
     clearTimeout(inv.timer)
     invites.delete(inv.id)
     if (status !== "accepted") send(inv.to, "net:inviteGone", { id: inv.id })
-    if (status !== "canceled") send(inv.from, "net:inviteResult", { id: inv.id, status, to: inv.toName, game: inv.game, gameName: GAME_NAMES[inv.game], error })
-    if (roomApps[inv.game]) return status !== "accepted" && roomApps[inv.game].inviteEnded(inv.matchId, inv.toName)
+    if (status !== "canceled") send(inv.from, "net:inviteResult", { id: inv.id, status, to: inv.toName, game: inv.game, gameName: gameNameOf(inv), error })
+    if (appOf(inv)) return status !== "accepted" && appOf(inv).inviteEnded(inv.matchId, inv.toName)
     const table = inv.matchId && matches.get(inv.matchId)
     if (table) publish(table)
   }
@@ -299,9 +324,9 @@ const createGames = ({ emit, delays = DELAYS, random = Math.random, tetris = nul
       endInvite(inv, "accepted")
       return { ok: true, matchId: table.id }
     }
-    if (roomApps[inv.game]) {
-      // into the private room: the Tetris (or Quiz Show) window opens and joins it
-      const result = roomApps[inv.game].allow(pid, inv.matchId)
+    if (appOf(inv)) {
+      // into the private room: the Tetris (or Quiz Show, or online room game) window opens and joins it
+      const result = appOf(inv).allow(pid, inv.matchId)
       endInvite(inv, result.ok ? "accepted" : "gone")
       return result
     }

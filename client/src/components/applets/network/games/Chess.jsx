@@ -1,7 +1,7 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react"
 import MenuBar from "../../../shared/MenuBar"
 import GameChat, { useGameChatMenuItem } from "../../../shared/GameChat"
-import { DrawOffer, GameButtons, GameOver, PlayerBar, ResignDialog, ResultBanner, RulesDialog, waitingText } from "./GameParts"
+import { DrawOffer, GameButtons, GameOver, PlayerBar, ResignDialog, ResultBanner, RulesDialog, usePlayOnlineItem, waitingText } from "./GameParts"
 import { CHESS_LEVELS, useNetGame, useSoloChess } from "./useBoardGame"
 import { ChessPiece, PIECE_NAMES } from "./ChessPieces"
 import "./BoardGames.css"
@@ -69,6 +69,7 @@ const MoveList = ({ sans, compact }) => {
 
 const ChessBoard = ({ view, act, onClose }) => {
   const chatItem = useGameChatMenuItem("chess")
+  const onlineItem = usePlayOnlineItem("chess")
   const [sel, setSel] = useState(null)
   const [promo, setPromo] = useState(null) // { from, to } waiting for a piece choice
   const [error, setError] = useState(null)
@@ -233,6 +234,7 @@ const ChessBoard = ({ view, act, onClose }) => {
           ? [
               { label: "New Game (play White)", onClick: () => act.rematch("w") },
               { label: "New Game (play Black)", onClick: () => act.rematch("b") },
+              onlineItem,
               "-",
             ]
           : []),

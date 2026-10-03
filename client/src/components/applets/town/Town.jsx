@@ -10,6 +10,7 @@ import { BarnPanel, Chip, ExpandPanel, FactoryPanel, HelpPanel, Icon, LevelPanel
 import { ConflictPanel, FriendsPanel, GiftOpening, GiftPanel, HelpRequestsPanel, NotePanel } from "./Friends"
 import { CoopBanner, CoopPanel, CoopPicker, CoopTicker, FarmersPanel } from "./Coop"
 import { createCoopSession } from "./coopClient"
+import { GlobeIcon } from "../../shared/online/PlayOnlineButton"
 import { useSocial } from "./cloud"
 import { progress, unlock } from "../../../utils/achievements"
 import { useCouple } from "../../../utils/couple"
@@ -1296,7 +1297,10 @@ const Town = ({ onClose, onTitle, mobile, coopId = null }) => {
         ...(social.on && !coopLive ? ["-", { label: "Friends...", onClick: () => (visit ? goHome() : openFriends("visit")) }] : []),
         ...(coopLive
           ? ["-", { label: "Farmers...", onClick: () => setPanel({ k: "farmers" }) }, { label: "Go Home", onClick: () => leaveCoop() }]
-          : [{ label: "Co-op Town...", onClick: () => (social.on && !visit ? openFriends("coop") : setPanel({ k: "coop" })) }]),
+          : [
+              { label: "Co-op Town...", onClick: () => (social.on && !visit ? openFriends("coop") : setPanel({ k: "coop" })) },
+              { label: "Play Online...", onClick: () => (social.on && !visit ? openFriends("coop") : setPanel({ k: "coop" })) },
+            ]),
         "-",
         { label: "Exit", onClick: () => onClose?.() },
       ],
@@ -1534,6 +1538,12 @@ const Town = ({ onClose, onTitle, mobile, coopId = null }) => {
                 <BigButton icon="friends" label="Farmers" onClick={() => setPanel({ k: "farmers" })} badge={coopLive.st.players.length > 1 ? coopLive.st.players.length : null} />
               ) : (
                 social.on && <BigButton icon="friends" label="Friends" onClick={() => openFriends(unopened ? "mail" : "visit")} badge={unopened || null} />
+              )}
+              {!coopLive && (
+                <button type="button" className="twBtn twBig" data-btn="Co-op" title="Play online: farm a town together, live" onClick={() => (social.on ? openFriends("coop") : setPanel({ k: "coop" }))}>
+                  <GlobeIcon size={28} />
+                  <span>Co-op</span>
+                </button>
               )}
             </div>
           )}

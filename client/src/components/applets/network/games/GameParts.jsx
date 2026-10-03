@@ -1,5 +1,7 @@
 import React from "react"
 import Dialog from "../../../shared/Dialog"
+import PlayOnlineButton from "../../../shared/online/PlayOnlineButton"
+import { useNet } from "../NetContext"
 
 // Pieces shared by Reversi, Chess and Battleship: player bars, the buttons under the board,
 // the result banner and the resign box. `view.solo` games are against the computer.
@@ -17,12 +19,25 @@ export const PlayerBar = ({ active, swatch, name, you, sub, away, thinking }) =>
   </div>
 )
 
+// "Play Online..." for the Game menu: who's online, to invite (NetContext openPlayOnline)
+export const usePlayOnlineItem = (game) => {
+  const net = useNet()
+  return { label: "Play Online...", onClick: () => net?.openPlayOnline(game) }
+}
+
+// Against the computer: the way to play a person instead
+export const PlayOnlineSmall = ({ game }) => {
+  const net = useNet()
+  return <PlayOnlineButton size="small" className="bgPlayOnline" sub="Invite someone who's online now" onClick={() => net?.openPlayOnline(game)} />
+}
+
 // Draw / Resign while playing; Rematch (New Game against the computer) and Close after
 export const GameButtons = ({ view, act, onClose, onResign, canDraw }) => {
   const result = view.result
   if (!result) {
     return (
       <div className="ckButtons">
+        {view.solo && <PlayOnlineSmall game={view.game} />}
         {canDraw && (
           <button type="button" disabled={!!view.drawOffer} onClick={() => act.draw("offer")}>
             {view.drawOffer === "you" ? "Draw offered" : "Offer Draw"}
@@ -36,6 +51,7 @@ export const GameButtons = ({ view, act, onClose, onResign, canDraw }) => {
   }
   return (
     <div className="ckButtons">
+      {view.solo && <PlayOnlineSmall game={view.game} />}
       {view.solo ? (
         <button type="button" onClick={() => act.rematch()}>
           New Game

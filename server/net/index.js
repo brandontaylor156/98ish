@@ -15,6 +15,8 @@ const { createTetrisRanks } = require("./tetrisRanks")
 const { createDoodle } = require("./doodle")
 const { createQuizLive } = require("../quiz/live")
 const { createCoop } = require("../town/coop")
+const { createRooms } = require("../arcade/rooms")
+const ROOM_GAMES = require("../arcade/games")
 
 const RESUME_GRACE_MS = 30_000
 const MAX_FILE_BYTES = 200 * 1024 // text documents
@@ -52,7 +54,7 @@ const validFileName = (name) => {
   return value && value.length <= 64 && !INVALID_NAME.test(value) && value !== "." && value !== ".." ? value : null
 }
 
-const attachNet = (io, { aim: initialAim = null, graceMs = RESUME_GRACE_MS, games: gameOptions = {}, tetrisRanks = null, quiz: quizOptions = {}, coop: coopOptions = {} } = {}) => {
+const attachNet = (io, { aim: initialAim = null, graceMs = RESUME_GRACE_MS, games: gameOptions = {}, tetrisRanks = null, quiz: quizOptions = {}, coop: coopOptions = {}, rooms: roomsOptions = {} } = {}) => {
   let aim = initialAim
   const computers = new Map() // token -> computer
   const byPid = new Map() // pid -> computer
@@ -88,7 +90,7 @@ const attachNet = (io, { aim: initialAim = null, graceMs = RESUME_GRACE_MS, game
       name: session?.user.screenName || computer.guestName,
       user: !!session,
       device: computer.device,
-      busy: games.busy(computer.pid) || tetris.busy(computer.pid) || quiz.busy(computer.pid),
+      busy: games.busy(computer.pid) || tetris.busy(computer.pid) || quiz.busy(computer.pid) || rooms.busy(computer.pid),
       since: computer.since,
     }
   }
@@ -128,7 +130,20 @@ const attachNet = (io, { aim: initialAim = null, graceMs = RESUME_GRACE_MS, game
     service: () => require("../town").townService(),
     ...coopOptions,
   })
-  const games = createGames({ emit: emitPid, tetris, doodle, quiz, coop, ...gameOptions })
+  // Online rooms (server/arcade): Quick Match, join codes and seats for games built on the
+  // shared room system; invitations into them go through games.js too
+  const rooms = createRooms({
+    games: ROOM_GAMES,
+    emit: emitPid,
+    emitVolatile: (pid, event, payload) => byPid.get(pid)?.socket?.volatile.emit(event, payload),
+    blocked: (a, b) => {
+      const ca = byPid.get(a)
+      const cb = byPid.get(b)
+      return !!(ca && cb && blocked(ca, cb))
+    },
+    ...roomsOptions,
+  })
+  const games = createGames({ emit: emitPid, tetris, doodle, quiz, coop, rooms, ...gameOptions })
 
   const guestName = () => {
     const taken = new Set([...computers.values()].map((c) => c.guestName))
@@ -152,6 +167,7 @@ const attachNet = (io, { aim: initialAim = null, graceMs = RESUME_GRACE_MS, game
     doodle.drop(computer.pid)
     quiz.drop(computer.pid)
     coop.drop(computer.pid)
+    rooms.drop(computer.pid)
     broadcast()
   }
 
@@ -240,6 +256,7 @@ const attachNet = (io, { aim: initialAim = null, graceMs = RESUME_GRACE_MS, game
         tetris.setAway(computer.pid, false)
         doodle.setAway(computer.pid, false)
         quiz.setAway(computer.pid, false)
+        rooms.setAway(computer.pid, false)
       }
       games.resync(computer.pid)
       for (const offer of offers.values()) if (offer.to === computer) emitTo(computer, "net:fileOffer", offerView(offer))
@@ -254,6 +271,7 @@ const attachNet = (io, { aim: initialAim = null, graceMs = RESUME_GRACE_MS, game
       tetris.setAway(computer.pid, true)
       doodle.setAway(computer.pid, true)
       quiz.setAway(computer.pid, true)
+      rooms.setAway(computer.pid, true)
       computer.dropTimer = setTimeout(() => removeComputer(computer), graceMs)
       broadcast()
     })
@@ -350,6 +368,8 @@ const attachNet = (io, { aim: initialAim = null, graceMs = RESUME_GRACE_MS, game
     quiz.wire(socket, current, (computer) => ({ pid: computer.pid, name: nameOf(computer), key: aimSessionOf(computer)?.key || null }))
     // ---- Sunny Acres co-op ----
     coop.wire(socket, current, (computer) => ({ pid: computer.pid, name: nameOf(computer), key: aimSessionOf(computer)?.key || null }))
+    // ---- online rooms (server/arcade) ----
+    rooms.wire(socket, current, (computer) => ({ pid: computer.pid, name: nameOf(computer), key: aimSessionOf(computer)?.key || null }))
 
     on("net:leave", (computer, { matchId }) => {
       const result = games.leave(computer.pid, String(matchId))
@@ -365,7 +385,7 @@ const attachNet = (io, { aim: initialAim = null, graceMs = RESUME_GRACE_MS, game
   setInterval(() => {
     let changed = false
     for (const c of computers.values()) {
-      const signature = `${nameOf(c)} ${games.busy(c.pid) || tetris.busy(c.pid) || quiz.busy(c.pid)}`
+      const signature = `${nameOf(c)} ${games.busy(c.pid) || tetris.busy(c.pid) || quiz.busy(c.pid) || rooms.busy(c.pid)}`
       if (signature !== c.signature) changed = true
       c.signature = signature
     }
@@ -394,6 +414,7 @@ const attachNet = (io, { aim: initialAim = null, graceMs = RESUME_GRACE_MS, game
     doodle,
     quiz,
     coop,
+    rooms,
   }
 }
 

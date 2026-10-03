@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useRef, useState } from "react"
 import { useAim } from "../aim/AimContext"
 import { FILE_TYPE, fs, uniqueName } from "../../../utils/fs"
 import { launch } from "../../../utils/programs"
+import { onlineProgram, setPendingJoin } from "../../shared/online/useOnlineRoom"
 
 // The network every open 98ish desktop shares: who's on (Network Neighborhood), files
 // passed between computers, WinPopup messages and network games. Incoming things open
@@ -42,6 +43,14 @@ export const GAME_INFO = {
   quiz: { name: "Lovebirds Quiz Show", icon: "/assets/program_icons/quiz.svg", app: null },
   // farmed together in the Sunny Acres window (a co-op town)
   town: { name: "Sunny Acres Co-op", icon: "/assets/program_icons/town.svg", app: null },
+}
+
+// A game's name, icon and window: the network games above, or a game on the online room
+// system (its program has `online: "<id>"`, see components/shared/online)
+export const gameInfo = (game) => {
+  if (GAME_INFO[game]) return GAME_INFO[game]
+  const program = onlineProgram(game)
+  return program ? { name: program.name, icon: program.icon, app: null, program: program.name } : null
 }
 
 const TOKEN_KEY = "98ish.net.token"
@@ -129,6 +138,7 @@ export const NetProvider = ({ socket, windows, dispatch: dispatchWindow, mobile,
   const pendingWindows = useRef(new Set())
   const seenMatchWindows = useRef(new Set()) // match ids whose window has been open
   const leftMatches = useRef(new Set())
+  const joinLinkChecked = useRef(false)
   windowsRef.current = windows
   visibleRef.current = visible
 
@@ -226,8 +236,32 @@ export const NetProvider = ({ socket, windows, dispatch: dispatchWindow, mobile,
         setMe(result.me)
         setComputers(result.computers)
         setStatus("online")
+        followJoinLink()
       }
     )
+
+  // A shared link to an online room (https://.../?join=K7QX): open its game and join
+  const followJoinLink = async () => {
+    if (joinLinkChecked.current) return
+    joinLinkChecked.current = true
+    let code = null
+    try {
+      code = new URLSearchParams(window.location.search).get("join")
+    } catch {
+      code = null
+    }
+    if (!code) return
+    try {
+      const url = new URL(window.location.href)
+      url.searchParams.delete("join")
+      window.history.replaceState(window.history.state, "", url.toString())
+    } catch {
+      // the link stays in the address bar
+    }
+    const room = await request("room:peek", { code })
+    if (!room.ok || !onlineProgram(room.game)) return notice("Play Online", `There's no game with the code ${code.toUpperCase()} any more. Ask your friend for a new code.`, "warn")
+    openOnlineGame(room.game, { code })
+  }
 
   useEffect(() => {
     const handlers = {
@@ -258,7 +292,7 @@ export const NetProvider = ({ socket, windows, dispatch: dispatchWindow, mobile,
         openWinPopup(false)
       },
       "net:invited": (invite) => {
-        openWindow(`invite:${invite.id}`, { name: `${invite.gameName} Invitation`, program: invite.gameName, app: "net-invite", invite, icon_url: GAME_INFO[invite.game]?.icon, width: 340, height: 200 }, { focus: false })
+        openWindow(`invite:${invite.id}`, { name: `${invite.gameName} Invitation`, program: invite.gameName, app: "net-invite", invite, icon_url: gameInfo(invite.game)?.icon, width: 340, height: 200 }, { focus: false })
       },
       "net:inviteGone": ({ id }) => closeWindows((w) => w.netId === `invite:${id}`),
       "net:inviteResult": ({ id, status: result, to, gameName }) => {
@@ -402,7 +436,37 @@ export const NetProvider = ({ socket, windows, dispatch: dispatchWindow, mobile,
     if (result.ok && result.doodleRoom) openDoodle()
     if (result.ok && result.quizRoom) openQuiz()
     if (result.ok && result.townCoop) openTownCoop(result.townCoop)
+    if (result.ok && result.onlineRoom) openOnlineGame(result.onlineGame, { roomId: result.onlineRoom })
     return result
+  }
+
+  // A game on the online room system, joining a room (by its id or code) once its window is up
+  const openOnlineGame = (game, where) => {
+    const program = onlineProgram(game)
+    if (!program) return
+    setPendingJoin({ game, ...where })
+    dispatchWindow({ type: "open_window", payload: launch(program.name) })
+  }
+
+  // "Play Online..." in a game: a game on the online room system opens its own window (Play
+  // Online is front and center there); the others open a window listing who's online to invite
+  const openPlayOnline = (game, options = {}) => {
+    const program = onlineProgram(game)
+    if (program) return dispatchWindow({ type: "open_window", payload: launch(program.name) })
+    // Hearts: a new table, whose lobby lists who to invite
+    if (game === "hearts") return request("net:heartsCreate").then((r) => !r.ok && notice("Hearts", r.error, "warn"))
+    const info = GAME_INFO[game]
+    if (!info) return
+    openWindow(`online:${game}`, {
+      name: `Play ${info.name} Online`,
+      program: info.name,
+      app: "net-online",
+      game,
+      options,
+      icon_url: info.icon,
+      width: 400,
+      height: 460,
+    })
   }
 
   // The Tetris window (one per desktop: comes forward if it's open)
@@ -474,6 +538,10 @@ export const NetProvider = ({ socket, windows, dispatch: dispatchWindow, mobile,
     play: (matchId, card) => request("net:heartsPlay", { matchId, card }),
     leave,
     notice,
+    openPlayOnline,
+    openOnlineGame,
+    // any program by name (e.g. "98 Messenger" for a game that needs you signed on)
+    openProgram: (name, extra) => dispatchWindow({ type: "open_window", payload: launch(name, extra) }),
     // for apps with their own protocol (Tetris Online)
     socket,
     request,

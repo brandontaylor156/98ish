@@ -199,3 +199,9 @@
 .msResetScores {
   align-self: flex-start;
 }
+
+/* Race Online, under the board */
+.msOnline {
+  display: flex;
+  justify-content: center;
+}

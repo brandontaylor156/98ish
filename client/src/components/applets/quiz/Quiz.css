@@ -1718,3 +1718,10 @@
     animation-iteration-count: 1 !important;
   }
 }
+
+/* Play Live Online on the title screen (components/shared/online) */
+.qzOnline {
+  display: flex;
+  justify-content: center;
+  margin-top: 10px;
+}

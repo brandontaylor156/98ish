@@ -55,6 +55,7 @@ const TIPS = {
     "Drag a picture from My Computer onto someone's computer to send it to them.",
   ],
   Reversi: ["Corners can never be flipped. Grab them, and stay off the squares next to them until you can."],
+  Checkers: ["Play Online finds you an opponent, or Play the Computer starts right away. Kings move backward too!"],
   Chess: ["Drag a piece or click it, then click where it goes. Level in the menu makes the computer tougher."],
   Battleship: ["Press R (or right-click) to turn a ship while you place it. Random does it all for you."],
   "Block Ten": [

@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import MenuBar from "../../shared/MenuBar"
+import PlayOnlineButton from "../../shared/online/PlayOnlineButton"
+import { ConnectionPanel } from "../../shared/online/PlayOnline"
+import { useServerStatus } from "../../shared/online/useOnlineRoom"
 import Dialog from "../../shared/Dialog"
 import GameChat, { useGameChatMenuItem } from "../../shared/GameChat"
 import { useAim } from "../aim/AimContext"
@@ -90,6 +93,16 @@ const TitleScreen = ({ go, inboxCount }) => {
           </button>
         ))}
       </div>
+      <div className="qzOnline">
+        <PlayOnlineButton
+          label="Play Live Online"
+          sub="Answer together in real time with someone online now"
+          onClick={() => {
+            sounds.tap()
+            go({ id: "online" })
+          }}
+        />
+      </div>
       <div className="qzTitleFoot">
         <span>{aim?.status === "online" ? `Signed on as ${aim.me?.screenName}` : "Sign on to 98 Messenger to send quizzes"}</span>
         {stats.streak > 0 && (
@@ -99,6 +112,25 @@ const TitleScreen = ({ go, inboxCount }) => {
         )}
       </div>
     </div>
+  )
+}
+
+// Play Live Online: pick a live game, then invite whoever's online (Live.jsx)
+const OnlineMenu = ({ back, startLive }) => {
+  const server = useServerStatus()
+  return (
+    <Screen title="Play Live Online" mode="knowme" onBack={back}>
+      <p className="qzIntro">Play live with someone who's online right now: you both answer at the same time and reveal together. Pick a game, then invite them.</p>
+      {!server.online && <ConnectionPanel server={server} />}
+      <div className="qzMenu">
+        {Object.entries(LIVE_MODES).map(([mode, info]) => (
+          <button key={mode} type="button" className="qzMenuItem" data-live={mode} disabled={!server.online} onClick={() => startLive(mode)}>
+            <b>{info.name}</b>
+            <small>{info.players}</small>
+          </button>
+        ))}
+      </div>
+    </Screen>
   )
 }
 
@@ -216,6 +248,7 @@ const Quiz = ({ mobile, dispatch, onClose, onTitle }) => {
       label: "Game",
       items: [
         { label: "Main Menu", onClick: () => (live.room ? live.leave() : null, home()) },
+        { label: "Play Live Online...", disabled: !!live.room, onClick: () => go({ id: "online" }) },
         { label: "Inbox", onClick: () => go({ id: "inbox" }) },
         { label: "History & Badges", onClick: () => go({ id: "history" }) },
         "-",
@@ -238,6 +271,9 @@ const Quiz = ({ mobile, dispatch, onClose, onTitle }) => {
     switch (screen.id) {
       case "menu":
         body = <ModeMenu mode={screen.mode} go={go} back={back} startLive={startLive} />
+        break
+      case "online":
+        body = <OnlineMenu back={back} startLive={startLive} />
         break
       case "send":
         body = <AsyncSend key={`${screen.kind}:${screen.preset?.screenName}`} kind={screen.kind} preset={screen.preset} {...props} />

@@ -1,5 +1,8 @@
 import React, { useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from "react"
 import MenuBar from "../../shared/MenuBar"
+import PlayOnlineButton from "../../shared/online/PlayOnlineButton"
+import { ConnectionPanel } from "../../shared/online/PlayOnline"
+import { useServerStatus } from "../../shared/online/useOnlineRoom"
 import Dialog from "../../shared/Dialog"
 import GameChat, { useGameChatMenuItem } from "../../shared/GameChat"
 import { useNet } from "../network/NetContext"
@@ -765,6 +768,8 @@ const Doodle = ({ mobile, onClose, onTitle, dispatch, inviteTo }) => {
         { label: "Save to My Documents", onClick: save },
         { label: "Open in Paint", onClick: openInPaint },
         "-",
+        { label: "Draw Online with Someone...", onClick: () => setDialog({ kind: "invite" }) },
+        "-",
         { label: "Exit", onClick: onClose },
       ],
     },
@@ -792,6 +797,7 @@ const Doodle = ({ mobile, onClose, onTitle, dispatch, inviteTo }) => {
   ]
 
   const online = net?.status === "online"
+  const server = useServerStatus()
   const computers = (net?.computers || []).filter((c) => !c.me && !c.hidden)
   const inviteOptions = useMemo(() => {
     const list = []
@@ -882,9 +888,7 @@ const Doodle = ({ mobile, onClose, onTitle, dispatch, inviteTo }) => {
           {n}...
         </span>
       ))}
-      <button type="button" className="ddInvite" disabled={!online} onClick={() => setDialog({ kind: "invite" })} title={online ? "Draw together with someone" : "Not connected to the network"}>
-        {partner && !others.length ? `Invite ${partner}` : "Invite..."}
-      </button>
+      <PlayOnlineButton size="small" className="ddInvite" label={partner && !others.length ? `Invite ${partner}` : "Draw Online"} sub="Invite someone to draw with you, live" onClick={() => setDialog({ kind: "invite" })} />
     </div>
   )
 
@@ -954,7 +958,9 @@ const Doodle = ({ mobile, onClose, onTitle, dispatch, inviteTo }) => {
       {dialog?.kind === "invite" && (
         <Dialog title="Draw Together" onCancel={() => setDialog(null)} cancelLabel="Close">
           <div className="ddInviteList">
-            {inviteOptions.length === 0 && <p className="dialogText">Nobody else is on the network right now. When your partner or a buddy is online, they'll show up here.</p>}
+            <p className="dialogText">Invite someone who's online now: you'll both draw on this page at the same time.</p>
+            {!server.online && <ConnectionPanel server={server} />}
+            {server.online && inviteOptions.length === 0 && <p className="dialogText">Nobody else is on the network right now. When your partner or a buddy is online, they'll show up here.</p>}
             {inviteOptions.map((o) => (
               <div key={o.key} className="ddInviteRow">
                 <span>

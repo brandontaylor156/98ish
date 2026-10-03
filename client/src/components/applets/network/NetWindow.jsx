@@ -7,16 +7,22 @@ import Checkers from "./games/Checkers"
 import MinesweeperRace from "./games/MinesweeperRace"
 import Hearts from "./games/Hearts"
 import { lazyApp } from "../../OS-specific/LazyApp"
+import { ConnectionPanel } from "../../shared/online/PlayOnline"
+import { useServerStatus } from "../../shared/online/useOnlineRoom"
 import "./Network.css"
 
 // The board games (and their computer players) load when first opened
 const Reversi = lazyApp(() => import("./games/Reversi"))
 const Chess = lazyApp(() => import("./games/Chess"))
 const Battleship = lazyApp(() => import("./games/Battleship"))
+// Checkers from the Start menu: online rooms (Quick Match, codes, the computer)
+const CheckersOnline = lazyApp(() => import("./games/CheckersOnline"))
+const PlayOnlineWindow = lazyApp(() => import("./PlayOnlineWindow"))
 
 // Hearts from the Start menu: open a new table (its own window), then go away
 const HeartsLauncher = ({ onClose }) => {
   const net = useNet()
+  const server = useServerStatus()
   const started = useRef(false)
   useEffect(() => {
     if (started.current || net.status !== "online") return
@@ -28,7 +34,7 @@ const HeartsLauncher = ({ onClose }) => {
   }, [net.status])
   return (
     <div className="netApp">
-      <p className="netWaitText">{net.status === "offline" ? "Hearts needs the network, which isn't available right now." : "Setting up a table..."}</p>
+      {server.online ? <p className="netWaitText">Setting up a table...</p> : <ConnectionPanel server={server} onBack={onClose} />}
     </div>
   )
 }
@@ -51,7 +57,9 @@ const NetWindow = ({ window: w, dispatch, onClose, fitWindow }) => {
     case "net-popup":
       return <WinPopup onClose={onClose} />
     case "net-checkers":
-      return <Checkers matchId={w.matchId} onClose={onClose} />
+      return w.matchId ? <Checkers matchId={w.matchId} onClose={onClose} /> : <CheckersOnline onClose={onClose} />
+    case "net-online":
+      return <PlayOnlineWindow game={w.game} onClose={onClose} />
     case "net-race":
       return <MinesweeperRace matchId={w.matchId} fitWindow={fitWindow} onClose={onClose} />
     case "net-hearts":

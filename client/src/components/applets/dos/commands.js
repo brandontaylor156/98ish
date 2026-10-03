@@ -120,6 +120,7 @@ const ALIASES = {
   reversi: "Reversi",
   othello: "Reversi",
   chess: "Chess",
+  checkers: "Checkers",
   battleship: "Battleship",
   ski: "Downhill",
   downhill: "Downhill",

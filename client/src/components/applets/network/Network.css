@@ -1224,3 +1224,14 @@
   background: #000080;
   color: #fff;
 }
+
+/* Hearts lobby: Play Online's invite list (components/shared/online) */
+.htInviteList > b {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.htInviteList .olPeople li {
+  min-height: 24px;
+}

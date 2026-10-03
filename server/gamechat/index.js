@@ -91,8 +91,9 @@ const attachGameChat = (io, net, { rate = RATE } = {}) => {
   const lobbies = () => [...rooms.values()].filter((r) => r.kind === "lobby").length
   const pidsIn = (room) => new Set([...room.members.values()].map((m) => m.pid))
   // a match is a network game (games.js), a Tetris Online room (tetris.js), a Doodle
-  // Together room (doodle.js), a Quiz Show room (server/quiz) or a Sunny Acres co-op town
-  const playersOf = (id) => net.games.playersOf(id) || net.tetris?.playersOf(id) || net.doodle?.playersOf(id) || net.quiz?.playersOf(id) || net.coop?.playersOf(id) || null
+  // Together room (doodle.js), a Quiz Show room (server/quiz), a Sunny Acres co-op town or
+  // a room of the online room system (server/arcade)
+  const playersOf = (id) => net.games.playersOf(id) || net.tetris?.playersOf(id) || net.doodle?.playersOf(id) || net.quiz?.playersOf(id) || net.coop?.playersOf(id) || net.rooms?.playersOf(id) || null
   const isMatchPlayer = (room, pid) => (playersOf(room.id) || []).includes(pid)
   const blocked = (a, b) => a !== b && net.blockedPids(a, b)
 
@@ -139,6 +140,12 @@ const attachGameChat = (io, net, { rate = RATE } = {}) => {
     const result = m.result
     if (!result) return
     system(room, result.draw ? "It's a draw." : `${m.names[result.winner] || "Someone"} wins!`)
+  })
+
+  // Online rooms (server/arcade) say who won, who left and when a rematch begins
+  net.rooms?.onEvent?.((id, text) => {
+    const room = rooms.get(`match:${id}`)
+    if (room) system(room, text)
   })
 
   // Match rooms whose match is gone: tidy up now and then

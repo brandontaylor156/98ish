@@ -4,6 +4,9 @@ import GameChat, { useGameChatMenuItem } from "../../../shared/GameChat"
 import Dialog from "../../../shared/Dialog"
 import { useNet } from "../NetContext"
 import { Card, cardName } from "./Cards"
+import { OnlinePeople } from "../../../shared/online/PlayOnline"
+import { GlobeIcon } from "../../../shared/online/PlayOnlineButton"
+import "../../../shared/online/Online.css"
 
 // Hearts at a table of four. Humans join from invitations; the computer plays the empty
 // seats (and takes over for anyone who leaves). The server deals, checks every card and
@@ -31,32 +34,18 @@ const useFan = (count) => {
 
 const LobbyInvite = ({ matchId, seats, pending }) => {
   const net = useNet()
-  const [error, setError] = useState(null)
-  const atTable = new Set(seats.map((s) => s.name))
   const free = seats.filter((s) => !s.name).length - pending.length
-  const others = net.computers.filter((c) => !c.me && !atTable.has(c.name) && !pending.includes(c.name))
   return (
-    <div className="htInviteList">
-      <b>Invite people on the network</b>
-      {others.length === 0 && <p className="htMuted">Nobody else is on the network right now. Deal to play against the computer.</p>}
-      <ul>
-        {others.map((c) => (
-          <li key={c.id}>
-            <span>{c.name}</span>
-            <button
-              type="button"
-              disabled={free <= 0}
-              onClick={async () => {
-                const result = await net.inviteToTable(matchId, { id: c.id })
-                setError(result.ok ? null : result.error)
-              }}
-            >
-              Invite
-            </button>
-          </li>
-        ))}
-      </ul>
-      {error && <p className="htError">{error}</p>}
+    <div className="htInviteList" id={`ht-invite-${matchId}`}>
+      <b>
+        <GlobeIcon size={16} /> Play online: invite people who are on now
+      </b>
+      <OnlinePeople
+        onInvite={(c) => net.inviteToTable(matchId, { id: c.id })}
+        exclude={[...seats.map((s) => s.name).filter(Boolean), ...pending]}
+        disabled={free <= 0}
+        emptyText="Nobody else is online right now. Deal to play against the computer, or send a friend the link to 98ish and invite them when they show up."
+      />
     </div>
   )
 }
@@ -190,6 +179,7 @@ const Hearts = ({ matchId, onClose }) => {
       items: [
         { label: "Deal", disabled: !view.host || !(lobby || view.phase === "gameOver"), onClick: () => act(() => net.startTable(matchId)) },
         { label: "Score...", disabled: lobby, onClick: () => setDialog("scores") },
+        { label: "Play Online...", disabled: !lobby || !view.host, onClick: () => document.getElementById(`ht-invite-${matchId}`)?.scrollIntoView({ block: "center" }) },
         "-",
         { label: "Leave Table", onClick: onClose },
       ],
@@ -233,6 +223,7 @@ const Hearts = ({ matchId, onClose }) => {
         {lobby ? (
           <div className="htLobby">
             <h2>Hearts table</h2>
+            <p className="htMuted">Play with people online: invite them below. The computer plays any empty seats.</p>
             <ol className="htSeatsList">
               {view.seats.map((s, i) => (
                 <li key={i}>

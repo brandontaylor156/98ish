@@ -1,6 +1,9 @@
 import React, { useEffect, useState } from "react"
 import { Icon, Panel } from "./panels"
 import { COOP_ACHIEVEMENTS, MAX_PLAYERS } from "./coopRules"
+import { useNet } from "../network/NetContext"
+import { ConnectionPanel } from "../../shared/online/PlayOnline"
+import { useServerStatus } from "../../shared/online/useOnlineRoom"
 
 // Sunny Acres co-op windows: picking (or starting) a co-op town, and the farmers sheet
 // inside one (who's here, who did what today, invitations, the town's achievements and
@@ -23,6 +26,21 @@ export const CoopPanel = ({ onClose, ...props }) => (
     <CoopPicker {...props} />
   </Panel>
 )
+
+// Not signed on (or not connected): say exactly what to do, with the button that does it
+const CoopSignOn = () => {
+  const net = useNet()
+  const server = useServerStatus()
+  if (!server.online) return <ConnectionPanel server={server} />
+  return (
+    <div className="twEmpty">
+      <p>Co-op towns are for 98 Messenger members: sign on to farm a town together, live, with your partner or buddies.</p>
+      <button type="button" className="twBtn" onClick={() => net?.openProgram("98 Messenger")}>
+        Sign On to 98 Messenger
+      </button>
+    </div>
+  )
+}
 
 // the co-op towns I can farm in, and starting one (also a tab in the Friends window)
 export const CoopPicker = ({ request, signedIn, couple, onEnter, beforeConvert }) => {
@@ -52,7 +70,7 @@ export const CoopPicker = ({ request, signedIn, couple, onEnter, beforeConvert }
     onEnter(r.id)
   }
 
-  if (!signedIn) return <p className="twEmpty">Sign on to 98 Messenger to farm a town together, live, with your partner or buddies.</p>
+  if (!signedIn) return <CoopSignOn />
 
   const coupleTown = data?.towns.find((t) => t.id === data.coupleTown)
   const others = (data?.towns || []).filter((t) => t.id !== data?.coupleTown)

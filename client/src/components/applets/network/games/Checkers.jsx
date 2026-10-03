@@ -6,7 +6,8 @@ import GameChat, { useGameChatMenuItem } from "../../../shared/GameChat"
 
 // Checkers against another computer. The server checks every move and sends the moves
 // you may make; pick a piece, then the square(s) to move it to (each jump of a multi-jump
-// in turn).
+// in turn). The board is shared by network matches (Network Neighborhood invitations,
+// below) and online rooms (CheckersOnline.jsx: Quick Match, room codes, the computer).
 
 const rowOf = (i) => Math.floor(i / 8)
 const isJump = (path) => Math.abs(rowOf(path[1]) - rowOf(path[0])) === 2
@@ -27,9 +28,10 @@ const Crown = () => (
   </svg>
 )
 
-const Checkers = ({ matchId, onClose }) => {
-  const net = useNet()
-  const view = net.matches[matchId]
+// view: the server's view of the match; act: { move(path), draw(answer), resign(), rematch() }
+// onDone/doneLabel: the button after the game ("Close"); gameMenu: more Game menu items;
+// chatRoom: the game chat's room (null: the caller shows the chat)
+export const CheckersBoard = ({ view, act, onClose, onDone = onClose, doneLabel = "Close", chatRoom, gameMenu = [] }) => {
   const chatItem = useGameChatMenuItem("checkers")
   const [path, setPath] = useState([])
   const [sending, setSending] = useState(false)
@@ -49,14 +51,6 @@ const Checkers = ({ matchId, onClose }) => {
     return () => observer.disconnect()
   }, [!!view])
 
-  if (!view) {
-    return (
-      <div className="netApp ckRoot">
-        <p className="netWaitText">This game is over.</p>
-      </div>
-    )
-  }
-
   const you = view.you
   const them = you === "b" ? "r" : "b"
   const yourTurn = !view.result && view.turn === you
@@ -72,7 +66,7 @@ const Checkers = ({ matchId, onClose }) => {
   const send = async (move) => {
     setSending(true)
     setPath(move)
-    const result = await net.move(matchId, move)
+    const result = await act.move(move)
     setSending(false)
     if (!result.ok) {
       setError(result.error)
@@ -119,10 +113,11 @@ const Checkers = ({ matchId, onClose }) => {
     {
       label: "Game",
       items: [
-        { label: "Offer Draw", disabled: !!result || !!view.drawOffer, onClick: () => net.draw(matchId, "offer") },
+        { label: "Offer Draw", disabled: !!result || !!view.drawOffer, onClick: () => act.draw("offer") },
         { label: "Resign...", disabled: !!result, onClick: () => setDialog("resign") },
-        { label: "Rematch", disabled: !result || view.rematch.you || view.left, onClick: () => net.rematch(matchId) },
+        { label: "Rematch", disabled: !result || view.rematch.you || view.left, onClick: () => act.rematch() },
         "-",
+        ...gameMenu,
         { label: "Exit", onClick: onClose },
       ],
     },
@@ -135,7 +130,7 @@ const Checkers = ({ matchId, onClose }) => {
       <span className={`ckDot ckDot--${color}`} />
       <b>{name}</b>
       <span className="ckSub">
-        {mine ? "(you) " : ""}
+        {mine && !view.spectator ? "(you) " : ""}
         {COLOR_NAME[color]}, {view.counts[color]} {view.counts[color] === 1 ? "piece" : "pieces"}
       </span>
       {!mine && view.away && <span className="ckAway">connection lost</span>}
@@ -145,7 +140,7 @@ const Checkers = ({ matchId, onClose }) => {
   return (
     <div className="netApp ckRoot">
       <MenuBar menus={menus} />
-      <GameChat game="checkers" title="Checkers" room={`match:${matchId}`} />
+      {chatRoom !== null && <GameChat game="checkers" title="Checkers" room={chatRoom} />}
       <Player color={them} name={view.names[them]} />
       <div className="ckArea" ref={areaRef}>
         <div className="ckBoard" style={{ width: size, height: size }} role="grid" aria-label="Checkerboard">
@@ -176,10 +171,10 @@ const Checkers = ({ matchId, onClose }) => {
       {view.drawOffer === "them" && !result && (
         <div className="ckOffer">
           <span>{view.names[them]} offers a draw.</span>
-          <button type="button" onClick={() => net.draw(matchId, "accept")}>
+          <button type="button" onClick={() => act.draw("accept")}>
             Accept
           </button>
-          <button type="button" onClick={() => net.draw(matchId, "decline")}>
+          <button type="button" onClick={() => act.draw("decline")}>
             Decline
           </button>
         </div>
@@ -188,7 +183,7 @@ const Checkers = ({ matchId, onClose }) => {
       <div className="ckButtons">
         {!result ? (
           <>
-            <button type="button" disabled={!!view.drawOffer} onClick={() => net.draw(matchId, "offer")}>
+            <button type="button" disabled={!!view.drawOffer} onClick={() => act.draw("offer")}>
               {view.drawOffer === "you" ? "Draw offered" : "Offer Draw"}
             </button>
             <button type="button" onClick={() => setDialog("resign")}>
@@ -197,11 +192,11 @@ const Checkers = ({ matchId, onClose }) => {
           </>
         ) : (
           <>
-            <button type="button" disabled={view.rematch.you || view.left} onClick={() => net.rematch(matchId)}>
+            <button type="button" disabled={view.rematch.you || view.left} onClick={() => act.rematch()}>
               {view.rematch.you ? "Waiting..." : view.rematch.them ? "Accept Rematch" : "Rematch"}
             </button>
-            <button type="button" onClick={onClose}>
-              Close
+            <button type="button" onClick={onDone}>
+              {doneLabel}
             </button>
           </>
         )}
@@ -225,7 +220,7 @@ const Checkers = ({ matchId, onClose }) => {
           title="Resign"
           okLabel="Resign"
           onOk={() => {
-            net.resign(matchId)
+            act.resign()
             setDialog(null)
           }}
           onCancel={() => setDialog(null)}
@@ -246,6 +241,26 @@ const Checkers = ({ matchId, onClose }) => {
       )}
     </div>
   )
+}
+
+// A network match (from a Network Neighborhood invitation)
+const Checkers = ({ matchId, onClose }) => {
+  const net = useNet()
+  const view = net.matches[matchId]
+  if (!view) {
+    return (
+      <div className="netApp ckRoot">
+        <p className="netWaitText">This game is over.</p>
+      </div>
+    )
+  }
+  const act = {
+    move: (path) => net.move(matchId, path),
+    draw: (answer) => net.draw(matchId, answer),
+    resign: () => net.resign(matchId),
+    rematch: () => net.rematch(matchId),
+  }
+  return <CheckersBoard view={view} act={act} onClose={onClose} chatRoom={`match:${matchId}`} gameMenu={[{ label: "Play Online...", onClick: () => net.openPlayOnline("checkers") }, "-"]} />
 }
 
 export default Checkers

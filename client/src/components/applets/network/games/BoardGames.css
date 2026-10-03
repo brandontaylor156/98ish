@@ -816,3 +816,9 @@
 .os-mobile .bsNews {
   font-size: 12px;
 }
+
+/* Against the computer: the way to play someone online instead (GameParts PlayOnlineSmall) */
+.ckButtons .bgPlayOnline {
+  margin-right: auto;
+  min-width: 0;
+}

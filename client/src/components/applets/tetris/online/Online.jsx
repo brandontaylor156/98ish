@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react"
 import { useNet } from "../../network/NetContext"
+import { ConnectionPanel } from "../../../shared/online/PlayOnline"
+import { useServerStatus } from "../../../shared/online/useOnlineRoom"
 import Lobby from "./Lobby"
 import Room from "./Room"
 import Match from "./Match"
@@ -83,6 +85,7 @@ const useOnline = () => {
 
 const Online = ({ onExit, fitWindow, mobile }) => {
   const online = useOnline()
+  const server = useServerStatus()
   const { room, net } = online
   const inMatch = room && room.phase !== "waiting"
 
@@ -110,11 +113,11 @@ const Online = ({ onExit, fitWindow, mobile }) => {
     onExit()
   }
 
-  if (!net || net.status === "offline") {
+  // not connected (yet): say why, in plain words (a match in progress keeps its screen)
+  if (!net || (!server.online && !room)) {
     return (
       <div className="tetrisOnline tetrisOnline--message">
-        <p>Tetris Online needs the network, and it isn't answering right now. Check your connection and try again in a moment.</p>
-        <button type="button" onClick={onExit}>Back</button>
+        <ConnectionPanel server={server} onBack={onExit} />
       </div>
     )
   }

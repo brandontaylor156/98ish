@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react"
 import MenuBar from "../../../shared/MenuBar"
 import GameChat, { useGameChatMenuItem } from "../../../shared/GameChat"
-import { DrawOffer, GameButtons, GameOver, PlayerBar, ResignDialog, ResultBanner, RulesDialog, waitingText } from "./GameParts"
+import { DrawOffer, GameButtons, GameOver, PlayerBar, ResignDialog, ResultBanner, RulesDialog, usePlayOnlineItem, waitingText } from "./GameParts"
 import { useBoardSize, useNetGame, useSoloReversi } from "./useBoardGame"
 import "./BoardGames.css"
 
@@ -15,6 +15,7 @@ const Disc = ({ color, size = 12 }) => <span className={`rvSwatch rvSwatch--${co
 
 const ReversiBoard = ({ view, act, onClose }) => {
   const chatItem = useGameChatMenuItem("reversi")
+  const onlineItem = usePlayOnlineItem("reversi")
   const [error, setError] = useState(null)
   const [sending, setSending] = useState(false)
   const [dialog, setDialog] = useState(null)
@@ -72,6 +73,7 @@ const ReversiBoard = ({ view, act, onClose }) => {
         ? [
             { label: "New Game (play Black)", onClick: () => act.rematch("b") },
             { label: "New Game (play White)", onClick: () => act.rematch("w") },
+            onlineItem,
             "-",
             { label: "Resign...", disabled: !!result, onClick: () => setDialog("resign") },
             "-",

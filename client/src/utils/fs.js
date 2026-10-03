@@ -64,6 +64,7 @@ export const FILE_TYPE = {
   sound: "sound", // a Wave Sound: a 16-bit mono WAV data URL in textContent
   reversi: "reversi",
   chess: "chess",
+  checkers: "checkers",
   battleship: "battleship",
   ski: "ski",
   pickleball: "pickleball",
@@ -511,6 +512,7 @@ const DEFAULT_ITEMS = [
   ["C:/Programs/Hearts", "file", "hearts"],
   ["C:/Programs/Reversi", "file", "reversi"],
   ["C:/Programs/Chess", "file", "chess"],
+  ["C:/Programs/Checkers", "file", "checkers"],
   ["C:/Programs/Battleship", "file", "battleship"],
   ["C:/Programs/Downhill", "file", "ski"],
   ["C:/Programs/Pickleball", "file", "pickleball"],

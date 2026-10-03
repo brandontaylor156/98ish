@@ -2,6 +2,8 @@
 // menu group, the file type that opens it, and whether only one copy can run (single:
 // opening it again brings the open one forward, like Task Manager in Windows). Windows are
 // opened with windowFor() or the helpers below so every window payload has the same shape.
+// online: the game's id on the online room system (components/shared/online): invitations
+// and ?join= links open this program.
 
 import { PROJECTS } from "./projects"
 
@@ -41,6 +43,8 @@ export const programs = [
   // from the Start menu these play against the computer; Network Neighborhood opens network games
   { name: "Reversi", app: "net-reversi", type: "reversi", icon: "/assets/program_icons/reversi.svg", width: 420, height: 560, group: "Games", desktop: false, single: true },
   { name: "Chess", app: "net-chess", type: "chess", icon: "/assets/program_icons/chess.svg", width: 700, height: 580, group: "Games", desktop: false, single: true },
+  // online rooms (Quick Match, codes, the computer); Network Neighborhood invitations open their own match windows
+  { name: "Checkers", app: "net-checkers", type: "checkers", icon: "/assets/program_icons/checkers.svg", width: 460, height: 580, group: "Games", desktop: false, single: true, online: "checkers" },
   { name: "Battleship", app: "net-battleship", type: "battleship", icon: "/assets/program_icons/battleship.svg", width: 660, height: 500, group: "Games", desktop: false, single: true },
   // Brandon's other web apps (utils/projects.js), each in its own window
   ...PROJECTS.map((p) => ({ name: p.name, app: "webapp", icon: p.icon, width: 1000, height: 680, group: "My Projects", single: true })),

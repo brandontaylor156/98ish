@@ -3,7 +3,7 @@ import MenuBar from "../../shared/MenuBar"
 import Dialog from "../../shared/Dialog"
 import { fs } from "../../../utils/fs"
 import { openItem } from "../../../utils/openItem"
-import { GAME_INFO, formatSize, saveReceivedFile, useNet } from "./NetContext"
+import { formatSize, gameInfo, saveReceivedFile, useNet } from "./NetContext"
 import { ComposeDialog } from "./ComputerFolder"
 import { SendFileIcon } from "./icons"
 
@@ -130,7 +130,7 @@ export const GameInvite = ({ invite, onClose }) => {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
   const left = useCountdown(invite.expiresAt)
-  const info = GAME_INFO[invite.game]
+  const info = gameInfo(invite.game)
   const level = invite.options?.level
 
   const answer = async (accept) => {

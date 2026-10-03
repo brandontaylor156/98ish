@@ -1,7 +1,7 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react"
 import MenuBar from "../../../shared/MenuBar"
 import GameChat, { useGameChatMenuItem } from "../../../shared/GameChat"
-import { GameButtons, GameOver, ResignDialog, ResultBanner, RulesDialog, waitingText } from "./GameParts"
+import { GameButtons, GameOver, ResignDialog, ResultBanner, RulesDialog, usePlayOnlineItem, waitingText } from "./GameParts"
 import { useNetGame, useSoloBattleship } from "./useBoardGame"
 import { SHIPS, SIZE, cellsOf, fits, randomFleet, shipInfo } from "../rules/battleship.js"
 import "./BoardGames.css"
@@ -427,6 +427,7 @@ const shipFromCells = (cells) => {
 
 const BattleshipGame = ({ view, act, onClose }) => {
   const chatItem = useGameChatMenuItem("battleship")
+  const onlineItem = usePlayOnlineItem("battleship")
   const [dialog, setDialog] = useState(null)
   const [size, setSize] = useState({ wide: true, cell: 24, enemyCell: 24, ownCell: 24 })
   const areaRef = useRef(null)
@@ -466,7 +467,7 @@ const BattleshipGame = ({ view, act, onClose }) => {
     {
       label: "Game",
       items: [
-        ...(view.solo ? [{ label: "New Game", onClick: () => act.rematch() }, "-"] : []),
+        ...(view.solo ? [{ label: "New Game", onClick: () => act.rematch() }, onlineItem, "-"] : []),
         { label: "Resign...", disabled: !!view.result, onClick: () => setDialog("resign") },
         ...(view.solo ? [] : [{ label: "Rematch", disabled: !view.result || view.rematch.you || view.left, onClick: () => act.rematch() }]),
         "-",

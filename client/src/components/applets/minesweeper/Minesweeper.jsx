@@ -1,5 +1,7 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
 import MenuBar from "../../shared/MenuBar"
+import PlayOnlineButton from "../../shared/online/PlayOnlineButton"
+import { useNet } from "../network/NetContext"
 import GameChat, { useGameChatMenuItem } from "../../shared/GameChat"
 import Dialog from "../../shared/Dialog"
 import { useIsTouch } from "../../../hooks/useMediaQuery"
@@ -59,6 +61,7 @@ const Cell = React.memo(({ index, cell, pressed, exploded, lost }) => {
 const raceGame = (race) => ({ ...createSeededGame(race.field, race.seed), startedAt: race.startAt })
 
 const Minesweeper = ({ fitWindow, onClose, race }) => {
+  const net = useNet()
   const touch = useIsTouch()
   const chatItem = useGameChatMenuItem(race ? "race" : "minesweeper")
   const [settings, setSettings] = useState(() => load(SETTINGS_KEY, DEFAULT_SETTINGS))
@@ -148,7 +151,7 @@ const Minesweeper = ({ fitWindow, onClose, race }) => {
     // room left for the grid: the panel's padding and borders take 24px each way, the
     // header 47px and the touch Dig/Flag bar 42px
     const w = area.width - 24
-    const h = area.height - 24 - 47 - (touch ? 42 : 0) - (race ? 50 : 0)
+    const h = area.height - 24 - 47 - (touch ? 42 : 0) - (race ? 50 : 34)
     // Fingers need at least 22px squares (Expert turned sideways just fits a phone's
     // width at that size); a board too big for that scrolls instead
     const sizeFor = (c, r) => Math.max(touch ? 22 : 14, Math.min(44, Math.floor(Math.min(w / c, h / r))))
@@ -307,6 +310,8 @@ const Minesweeper = ({ fitWindow, onClose, race }) => {
         "-",
         { label: "Best Times...", onClick: () => setDialog({ kind: "best" }) },
         "-",
+        { label: "Play Online (Race)...", onClick: () => net?.openPlayOnline("race") },
+        "-",
         { label: "Exit", onClick: () => onClose?.() },
       ],
     },
@@ -376,6 +381,11 @@ const Minesweeper = ({ fitWindow, onClose, race }) => {
             ))}
           </div>
           {race?.overlay}
+          {!race && (
+            <div className="msOnline">
+              <PlayOnlineButton size="small" label="Race Online" sub="Race someone online on the same minefield" onClick={() => net?.openPlayOnline("race")} />
+            </div>
+          )}
         </div>
       </div>
 

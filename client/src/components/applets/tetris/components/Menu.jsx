@@ -1,5 +1,6 @@
 import { useTouchControlsMenuItem, useTouchControlsVisible } from '../../../shared/controls'
 import { useGameChatMenuItem } from '../../../shared/GameChat'
+import PlayOnlineButton from '../../../shared/online/PlayOnlineButton'
 import { MODES, SOLO_MODES, formatBest, formatTime } from '../utils/modes'
 
 // One tetromino color per letter
@@ -62,6 +63,11 @@ const Menu = ({ onPlay, onCustomize, onOnline, bests, result }) => {
 
             {result && <Result result={result} />}
 
+            <fieldset className="tetrisModes tetrisModes--online">
+                <legend>Multiplayer</legend>
+                <PlayOnlineButton className="tetrisModeButton tetrisOnlineButton" onClick={onOnline} label="Play Tetris Online" sub="Battle 2P, Arena, Sprint Race against people anywhere" />
+            </fieldset>
+
             <fieldset className="tetrisModes">
                 <legend>Solo</legend>
                 {SOLO_MODES.map((mode) => (
@@ -78,14 +84,6 @@ const Menu = ({ onPlay, onCustomize, onOnline, bests, result }) => {
                         <span className="tetrisModeBest">Best: {formatBest(mode, bests[mode])}</span>
                     </button>
                 ))}
-            </fieldset>
-
-            <fieldset className="tetrisModes tetrisModes--online">
-                <legend>Multiplayer</legend>
-                <button type="button" className="tetrisModeButton tetrisOnlineButton" onClick={onOnline}>
-                    <span className="tetrisModeName">Tetris Online...</span>
-                    <span className="tetrisModeBest">Battle 2P, Arena, Sprint Race</span>
-                </button>
             </fieldset>
 
             <div className="tetrisMenuControls">

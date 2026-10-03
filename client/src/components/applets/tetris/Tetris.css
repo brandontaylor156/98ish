@@ -72,6 +72,13 @@
   min-height: 44px;
 }
 
+/* Play Tetris Online (components/shared/online PlayOnlineButton): globe beside the words */
+.tetrisModeButton.olPlayButton {
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+}
+
 /* ---------- the board's extras ---------- */
 
 .tetromino__g { background: #8a8a8a; }
