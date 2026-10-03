@@ -46,6 +46,7 @@ const TIPS = {
   "System Properties": ["The Achievements tab has a hint for every secret you haven't found yet."],
   WordPad: ["Format > Paragraph indents a paragraph, and Insert > Object drops in a picture you made in Paint."],
   "Sound Recorder": ["Record yourself, then try Effects > Increase Speed. Instant chipmunk!"],
+  "Appward 98": ["Click the bell to see your notifications: each one takes you straight to the record. App Creator builds whole new apps, no code needed!"],
   Backup: ["Sign on to 98 Messenger and turn on sync, and your files follow you to any computer. Even your phone!"],
   "98ish Mail": ["Start typing a buddy's name in the To box and pick them from the list. Mail SmarterChild for a surprise!"],
   "HomePage Studio": ["Click any block in the preview to edit it. Publish, and your page shows up in the 98ish Web Ring!"],

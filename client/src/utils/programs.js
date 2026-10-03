@@ -56,6 +56,8 @@ export const programs = [
   { name: "Love Letters", app: "loveletters", icon: "/assets/program_icons/loveletters.svg", width: 720, height: 580, group: "Us", desktop: false, single: true },
   { name: "Our Story", app: "ourstory", icon: "/assets/program_icons/ourstory.svg", width: 760, height: 620, group: "Us", desktop: false, single: true },
   { name: "Dream House", app: "dollhouse", type: "dollhouse", icon: "/assets/program_icons/dollhouse.svg", width: 900, height: 640, group: "Us", desktop: false, single: true },
+  // an unofficial retro tribute to Appward (appward.com): a business suite as a 1998 client
+  { name: "Appward 98", app: "appward", type: "appward", icon: "/assets/program_icons/appward.svg", width: 980, height: 660, group: "Business", desktop: true, single: true },
   { name: "Our Pet", app: "pet", icon: "/assets/program_icons/pet.svg", width: 480, height: 660, group: "Us", desktop: false, single: true },
 ]
 

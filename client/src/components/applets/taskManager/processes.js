@@ -66,6 +66,7 @@ export const APP_PROFILES = {
   "Photo Puzzle": { image: "puzzle.exe", mem: 4210, threads: 3, handles: 47, cpu: [0.2, 6] },
   "Doodle Together": { image: "doodle.exe", mem: 3388, threads: 3, handles: 52, cpu: [0.3, 7] },
   "Lovebirds Quiz Show": { image: "lovebird.exe", mem: 2240, threads: 3, handles: 41, cpu: [0.15, 3] },
+  "Appward 98": { image: "appward.exe", mem: 8640, threads: 7, handles: 173, cpu: [0.3, 4] },
   "Dream House": { image: "dreamhse.exe", mem: 5320, threads: 3, handles: 58, cpu: [0.4, 8] },
 }
 

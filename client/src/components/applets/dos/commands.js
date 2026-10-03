@@ -138,6 +138,8 @@ const ALIASES = {
   lovebirds: "Lovebirds Quiz Show",
   quizshow: "Lovebirds Quiz Show",
   dollhouse: "Dream House",
+  appward: "Appward 98",
+  appward98: "Appward 98",
   dreamhouse: "Dream House",
   house: "Dream House",
 }

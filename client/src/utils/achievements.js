@@ -59,6 +59,8 @@ export const ACHIEVEMENTS = [
   { id: "pet-bff", title: "Best Friends Forever", text: "Maxed out your pet's bond.", hint: "Look after your pet together, day after day, until the bond can't grow any more." },
   { id: "pickleball-win", title: "Dink Responsibly", text: "Won a game of Pickleball 98.", hint: "Pickleball 98 (in Games): win a game to 11. Stay out of the kitchen!" },
   { id: "pickleball-pro", title: "Pickleball Pro", text: "Beat the Pro opponents in Pickleball 98.", hint: "Set Pickleball 98 to Pro and win a game." },
+  { id: "appward-power", title: "Power User", text: "Opened 20 different apps in Appward 98.", hint: "Appward 98 (Programs > Business) has dozens of business apps. Open twenty of them." },
+  { id: "appward-builder", title: "Builder", text: "Made your own app with Appward 98's App Creator.", hint: "Appward 98 can build a brand-new app for you. Look under Development." },
   { id: "green-thumb", title: "Green Thumb", text: "Watered your flowers on 3 different days.", hint: "Flowers from someone special need water every day." },
 ]
 

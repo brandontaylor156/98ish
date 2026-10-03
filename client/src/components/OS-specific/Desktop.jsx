@@ -48,6 +48,7 @@ const LoveLetters = lazyApp(() => import("../applets/couples/LoveLetters"))
 const OurStory = lazyApp(() => import("../applets/couples/OurStory"))
 const Dollhouse = lazyApp(() => import("../applets/dollhouse/Dollhouse"))
 const Pet = lazyApp(() => import("../applets/pet/Pet"))
+const Appward = lazyApp(() => import("../applets/appward/Appward"))
 // Our Pet out for a walk on the desktop (couples only, its own small download)
 const PetWalker = React.lazy(() => import("../applets/pet/PetWalker"))
 // Network Neighborhood and the head-to-head games
@@ -689,6 +690,7 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
       {window.app === "loveletters" && <LoveLetters view={window.view} mobile={mobile} />}
       {window.app === "ourstory" && <OurStory focus={window.focus} mobile={mobile} />}
       {window.app === "pet" && <Pet mobile={mobile} onTitle={rename(index)} />}
+      {window.app === "appward" && <Appward mobile={mobile} onTitle={rename(index)} onClose={() => closeWindow(window, index)} />}
 
       {window.app === "calc" && (
         <Calculator

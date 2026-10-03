@@ -1,0 +1,2765 @@
+/* Appward 98: 1998 enterprise software. Gray chrome, navy title strips, a teal brand. */
+
+.awRoot {
+  position: relative;
+  height: calc(100% - 25px);
+  display: flex;
+  flex-direction: column;
+  font-family: "Pixelated MS Sans Serif", Arial, sans-serif;
+  font-size: 11px;
+  background: #c0c0c0;
+  overflow: hidden;
+  color: #000;
+}
+
+/* emoji in messages and buttons need a font that has them */
+.awEmojiPop button,
+.awMsgText,
+.awPostText,
+.awPostFoot button,
+.awComposeBtns .awTool,
+.awComposeRow textarea,
+.awToast {
+  font-family: "Pixelated MS Sans Serif", Arial, "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif;
+}
+
+.awRoot p,
+.awRoot h2,
+.awRoot h3,
+.awRoot h4,
+.awRoot ul,
+.awRoot figure {
+  margin: 0;
+}
+
+.awRoot ul {
+  padding: 0;
+  list-style: none;
+}
+
+.awIcon {
+  flex: none;
+  vertical-align: -3px;
+}
+
+.awGrow {
+  flex: 1;
+}
+
+.awMuted {
+  color: #555;
+}
+
+.awSrOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+
+.awError {
+  color: #c00000;
+  margin-top: 2px;
+}
+
+.awRoot a {
+  color: #0000ee;
+}
+
+/* ---- splash ---- */
+
+.awSplash {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #008080 repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.04) 0 6px, transparent 6px 12px);
+  padding: 12px;
+}
+
+.awSplashCard {
+  width: min(460px, 100%);
+  background: #c0c0c0;
+  box-shadow: inset -1px -1px #0a0a0a, inset 1px 1px #fff, inset -2px -2px #808080, inset 2px 2px #dfdfdf, 6px 6px 0 rgba(0, 0, 0, 0.35);
+  padding: 3px;
+}
+
+.awSplashTop {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 22px 20px;
+  background: linear-gradient(135deg, #000080, #006a8a 60%, #008080);
+  color: #fff;
+}
+
+.awWordmark {
+  font: bold 30px/1 Georgia, "Times New Roman", serif;
+  letter-spacing: 0.5px;
+  text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.4);
+}
+
+.awWordmark sup {
+  font: bold 14px Arial, sans-serif;
+  color: #ffd800;
+  margin-left: 2px;
+  top: -1.1em;
+}
+
+.awSplashTag {
+  font-style: italic;
+  margin-top: 6px;
+  opacity: 0.9;
+}
+
+.awSplashBottom {
+  padding: 12px 14px 10px;
+}
+
+.awSplashStatus {
+  margin-bottom: 4px;
+}
+
+.awBlocks {
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  height: 22px;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+  background: #fff;
+}
+
+.awBlocks span {
+  flex: 1;
+}
+
+.awBlocks span.is-on {
+  background: #000080;
+}
+
+.awSplashFine {
+  margin-top: 8px;
+  color: #404040;
+}
+
+.awTribute {
+  margin-top: 6px !important;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+/* ---- sign-in and setup ---- */
+
+.awSignWrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #008080;
+  padding: 10px;
+  overflow: auto;
+}
+
+.window.awSignIn,
+.window.awWizard {
+  height: auto;
+  flex: none;
+}
+
+.awSignIn {
+  width: min(420px, 100%);
+}
+
+.awSignBanner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: linear-gradient(90deg, #000080, #008080);
+  color: #fff;
+  margin: 2px;
+}
+
+.awSignBanner .awWordmark {
+  font-size: 22px;
+}
+
+.awSignBody {
+  display: grid;
+  grid-template-columns: 40px 1fr;
+  gap: 8px 12px;
+}
+
+.awSignKey {
+  padding-top: 4px;
+}
+
+.awSignFields p {
+  margin-bottom: 8px !important;
+}
+
+.awSignBtns {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.awSignHint {
+  margin-top: 8px !important;
+  font-size: 10px;
+}
+
+.awPickRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.awPickRow > span:first-child {
+  width: 78px;
+  flex: none;
+}
+
+.awPickRow input,
+.awPickRow select {
+  flex: 1;
+  min-width: 0;
+}
+
+.awWizard {
+  width: min(560px, 100%);
+}
+
+.awWizardBody {
+  display: flex;
+  gap: 14px;
+  min-height: 280px;
+}
+
+.awWizArt {
+  width: 120px;
+  flex: none;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080;
+}
+
+.awWizardText {
+  flex: 1;
+  line-height: 1.45;
+}
+
+.awWizardText h3 {
+  font: bold 16px Arial, sans-serif;
+  margin-bottom: 10px;
+}
+
+.awWizardText p,
+.awWizardText ul {
+  margin-bottom: 8px !important;
+}
+
+.awWizardText ul {
+  list-style: disc;
+  padding-left: 18px;
+}
+
+.awWizardBtns {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  padding-top: 10px;
+  border-top: 1px solid #808080;
+  box-shadow: inset 0 1px #fff;
+  margin-top: 8px;
+}
+
+.awWizardBtns--main {
+  margin: 0 8px 8px;
+}
+
+.awWizardBtns button:nth-child(2) {
+  margin-right: 8px;
+}
+
+.awCreatorWizard {
+  width: min(470px, 82vw);
+}
+
+/* ---- shell ---- */
+
+.awShell {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  outline: none;
+  position: relative;
+}
+
+.awToolbar {
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+  padding: 2px 4px;
+  border-top: 1px solid #fff;
+  border-bottom: 1px solid #808080;
+  box-shadow: 0 1px #fff;
+}
+
+button.awTool {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-width: 52px;
+  min-height: 40px;
+  padding: 2px 4px;
+  background: none;
+  border: 0;
+  box-shadow: none;
+}
+
+button.awTool:hover,
+button.awTool.is-on {
+  box-shadow: inset -1px -1px #808080, inset 1px 1px #fff;
+}
+
+button.awTool:active,
+button.awTool.is-on {
+  box-shadow: inset 1px 1px #808080, inset -1px -1px #fff;
+}
+
+button.awToolSmall {
+  min-width: 26px;
+  min-height: 22px;
+}
+
+.awToolSep {
+  width: 2px;
+  margin: 2px 3px;
+  border-left: 1px solid #808080;
+  border-right: 1px solid #fff;
+}
+
+.awBadge {
+  display: inline-block;
+  min-width: 15px;
+  padding: 0 3px;
+  border-radius: 7px;
+  background: #c00000;
+  color: #fff;
+  font-size: 10px;
+  line-height: 14px;
+  text-align: center;
+  font-weight: bold;
+}
+
+.awToolBadge {
+  position: absolute;
+  top: 1px;
+  right: 6px;
+}
+
+.awSearch {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.awSearch input {
+  width: 200px;
+}
+
+.awBrand {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 6px;
+  font: bold 15px Georgia, serif;
+  color: #000080;
+}
+
+.awBrand sup {
+  color: #008080;
+  font: bold 9px Arial, sans-serif;
+}
+
+.awBellWrap {
+  position: relative;
+  display: flex;
+}
+
+.awBellPop {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 25;
+  width: 320px;
+  max-height: 380px;
+  display: flex;
+  flex-direction: column;
+}
+
+.awBellHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 6px;
+  background: #000080;
+  color: #fff;
+}
+
+.awBellHead .awLinkBtn {
+  color: #fff;
+}
+
+.awBellPop .awNoteList {
+  overflow: auto;
+  flex: 0 1 auto;
+  min-height: 0;
+  background: #fff;
+}
+
+.awMain {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  gap: 3px;
+  padding: 3px;
+}
+
+.awLauncher {
+  width: 200px;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+  padding: 2px;
+  min-height: 0;
+}
+
+.awLauncherHead {
+  background: linear-gradient(90deg, #000080, #1084d0);
+  color: #fff;
+  font-weight: bold;
+  padding: 3px 6px;
+}
+
+.awAppFind {
+  margin: 3px;
+}
+
+.awTree {
+  overflow: auto;
+  flex: 1;
+  padding: 2px !important;
+}
+
+.awTreeItem,
+.awTreeCat {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  min-height: 0;
+  min-width: 0;
+  padding: 2px 4px;
+  background: none;
+  border: 0;
+  box-shadow: none;
+  text-align: left;
+  white-space: nowrap;
+  font: inherit;
+  color: #000;
+}
+
+.awTreeCat {
+  font-weight: bold;
+}
+
+.awTreeItem:hover,
+.awTreeCat:hover {
+  text-decoration: underline;
+}
+
+.awTreeItem.is-on {
+  background: #000080;
+  color: #fff;
+}
+
+.awTreeItem:focus,
+.awTreeCat:focus {
+  outline: 1px dotted #000;
+  outline-offset: -1px;
+}
+
+.awTreeToggle {
+  width: 9px;
+  height: 9px;
+  flex: none;
+  border: 1px solid #808080;
+  font: 9px/7px monospace;
+  text-align: center;
+  background: #fff;
+}
+
+.awTreeApps {
+  padding-left: 18px !important;
+  border-left: 1px dotted #808080;
+  margin-left: 8px !important;
+}
+
+.awTreeCount {
+  margin-left: auto;
+  color: #808080;
+}
+
+.awWork {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.awWork[hidden] {
+  display: none;
+}
+
+.awTabs {
+  display: flex;
+  gap: 1px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  padding: 2px 2px 0;
+  flex: none;
+}
+
+.awTab {
+  display: flex;
+  align-items: center;
+  max-width: 190px;
+  flex: none;
+  background: #c0c0c0;
+  box-shadow: inset 1px 1px #fff, inset -1px 0 #0a0a0a, inset -2px 0 #808080;
+  border-radius: 3px 3px 0 0;
+  margin-top: 2px;
+}
+
+.awTab.is-on {
+  margin-top: 0;
+  padding-bottom: 2px;
+  position: relative;
+  z-index: 1;
+  margin-bottom: -2px;
+}
+
+.awTabBtn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  min-height: 0;
+  padding: 3px 4px 3px 6px;
+  background: none;
+  border: 0;
+  box-shadow: none;
+  font: inherit;
+}
+
+.awTabText {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.awTabX {
+  min-width: 0;
+  min-height: 0;
+  width: 16px;
+  height: 14px;
+  padding: 0;
+  margin-right: 3px;
+  line-height: 10px;
+  font-size: 12px;
+}
+
+.awPane {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  box-shadow: inset -1px -1px #0a0a0a, inset 1px 1px #fff, inset -2px -2px #808080, inset 2px 2px #dfdfdf;
+  padding: 4px;
+  background: #c0c0c0;
+}
+
+.awPane[hidden] {
+  display: none;
+}
+
+.awStatus {
+  flex: none;
+  margin: 0 2px 2px;
+}
+
+.awStatusMain {
+  flex: 3 !important;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.awLed {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #00d000;
+  box-shadow: inset -1px -1px #006000, 0 0 3px #00ff00;
+}
+
+.awToast {
+  position: absolute;
+  right: 12px;
+  top: 52px;
+  z-index: 40;
+  max-width: min(360px, 86%);
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 7px 10px;
+  background: #ffffe1;
+  border: 1px solid #000;
+  box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.3);
+  animation: awPop 0.18s ease-out;
+}
+
+@keyframes awPop {
+  from {
+    transform: translateY(8px);
+    opacity: 0;
+  }
+}
+
+/* ---- common bits ---- */
+
+button.awBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  padding: 2px 8px;
+  white-space: nowrap;
+}
+
+button.awBtnGo {
+  font-weight: bold;
+}
+
+button.awBtnSmall {
+  min-height: 0;
+  padding: 1px 6px;
+}
+
+button.awTiny {
+  min-width: 0;
+  min-height: 0;
+  padding: 0 4px;
+  line-height: 14px;
+}
+
+.awLinkBtn {
+  background: none !important;
+  border: 0;
+  box-shadow: none !important;
+  min-width: 0;
+  min-height: 0;
+  padding: 0 !important;
+  color: #0000ee;
+  text-decoration: underline;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.awLinkBtn:disabled {
+  color: #808080;
+  text-decoration: none;
+}
+
+.awBtnRow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 4px 0;
+}
+
+.awSeg {
+  display: inline-flex;
+}
+
+.awSeg button {
+  min-width: 0;
+  padding: 2px 10px;
+}
+
+.awSeg button.is-on {
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #0a0a0a, inset -2px -2px #dfdfdf, inset 2px 2px #808080;
+  background: repeating-conic-gradient(#c0c0c0 0 25%, #fff 0 50%) 0 0 / 2px 2px;
+  font-weight: bold;
+}
+
+.awScroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.awPad {
+  padding: 6px;
+}
+
+.awPadS {
+  padding: 6px;
+}
+
+.awEmpty {
+  padding: 30px 12px;
+  text-align: center;
+  color: #404040;
+}
+
+.awEmpty .awIcon {
+  display: block;
+  margin: 0 auto 8px;
+}
+
+.awSection {
+  margin: 0 0 8px;
+  padding: 6px 8px 8px;
+}
+
+.awSection legend {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  float: none;
+  width: auto;
+  font-size: 11px;
+  padding: 0 3px;
+  margin: 0;
+}
+
+.awSubhead {
+  font-weight: bold;
+  margin: 8px 0 3px;
+  color: #000080;
+}
+
+.awAvatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  flex: none;
+  color: #fff;
+  font-size: 8px;
+  font-weight: bold;
+  border: 1px solid #000;
+  vertical-align: middle;
+}
+
+.awAvatar--big {
+  width: 30px;
+  height: 30px;
+  font-size: 11px;
+}
+
+.awUserTag {
+  display: inline-flex;
+  gap: 3px;
+  align-items: center;
+}
+
+.awPill {
+  display: inline-block;
+  padding: 0 5px;
+  border: 1px solid #808080;
+  line-height: 13px;
+  white-space: nowrap;
+  background: #fff;
+}
+
+.awPill--good {
+  background: #c8f0c8;
+  border-color: #008000;
+}
+
+.awPill--bad {
+  background: #ffc8c8;
+  border-color: #c00000;
+}
+
+.awPill--warn {
+  background: #fff0a0;
+  border-color: #a08000;
+}
+
+.awPill--info {
+  background: #d0e0ff;
+  border-color: #000080;
+}
+
+.awChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+
+.awChip {
+  display: inline-flex;
+  align-items: stretch;
+  max-width: 100%;
+  background: #fff;
+  border: 1px solid #000080;
+  box-shadow: 1px 1px 0 #808080;
+}
+
+.awChipLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  min-height: 0;
+  padding: 1px 5px;
+  background: none !important;
+  border: 0;
+  box-shadow: none !important;
+  font: inherit;
+  color: #000080;
+  overflow: hidden;
+}
+
+.awChipLink:hover .awChipTitle {
+  text-decoration: underline;
+}
+
+.awChipNo {
+  font-weight: bold;
+  color: #000080;
+  white-space: nowrap;
+}
+
+.awChipTitle {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #000;
+}
+
+.awChipX {
+  min-width: 0;
+  min-height: 0;
+  padding: 0 4px;
+  border: 0;
+  border-left: 1px solid #c0c0c0;
+  background: #eee;
+  box-shadow: none;
+  font-size: 12px;
+}
+
+.awChipAdd {
+  min-height: 0;
+  padding: 1px 8px;
+}
+
+/* ---- lists ---- */
+
+.awList {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.awListBar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.awFilter {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.awFilter input {
+  width: 150px;
+}
+
+.awTableWrap {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  background: #fff;
+}
+
+table.awTable {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.awTable th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  text-align: left;
+  font-weight: normal;
+  padding: 2px 6px;
+  background: #c0c0c0;
+  box-shadow: inset -1px -1px #0a0a0a, inset 1px 1px #fff, inset -2px -2px #808080;
+  cursor: pointer;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.awTable td {
+  padding: 2px 6px;
+  border-bottom: 1px solid #f0f0f0;
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.awTable tbody tr {
+  cursor: default;
+}
+
+.awTable tbody tr:focus {
+  outline: 1px dotted #000;
+  outline-offset: -1px;
+}
+
+.awTable tr.highlighted td {
+  background: #000080;
+  color: #fff;
+}
+
+.awTable tr.highlighted .awPill {
+  color: #000;
+}
+
+.awColNo {
+  width: 1%;
+  white-space: nowrap;
+}
+
+.awCell--money,
+.awCell--number {
+  text-align: right;
+}
+
+.awListFoot {
+  color: #404040;
+}
+
+/* boards */
+
+.awBoard {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.awLane {
+  flex: 1 0 150px;
+  max-width: 230px;
+  display: flex;
+  flex-direction: column;
+  background: #a8a8a8;
+  box-shadow: inset 1px 1px #808080, inset -1px -1px #fff;
+  min-height: 0;
+}
+
+.awLane.is-over {
+  background: #8090c0;
+}
+
+.awLaneHead {
+  display: flex;
+  justify-content: space-between;
+  padding: 3px 6px;
+  background: #000080;
+  color: #fff;
+  font-weight: bold;
+}
+
+.awLaneCount {
+  background: #fff;
+  color: #000080;
+  padding: 0 4px;
+}
+
+.awLaneTotal {
+  padding: 2px 6px;
+  font-weight: bold;
+  background: #d0d0d0;
+}
+
+.awLaneCards {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+button.awCard {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 3px;
+  min-width: 0;
+  min-height: 0;
+  padding: 4px 6px;
+  text-align: left;
+  background: #ffffe8;
+  cursor: grab;
+}
+
+.awCardNo {
+  color: #000080;
+  font-weight: bold;
+  font-size: 10px;
+}
+
+.awCardTitle {
+  line-height: 1.3;
+}
+
+.awCardMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+  color: #404040;
+}
+
+/* ---- a record ---- */
+
+.awRecord {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.awRecHead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  background: linear-gradient(90deg, #000080, #1084d0);
+  color: #fff;
+}
+
+.awRecIcon {
+  background: #fff;
+  padding: 2px;
+  border: 1px solid #000;
+  width: 36px;
+  height: 36px;
+}
+
+.awRecKind {
+  opacity: 0.9;
+}
+
+.awDirty {
+  color: #ffd800;
+}
+
+.awRecTitle {
+  font: bold 15px Arial, sans-serif;
+  overflow-wrap: anywhere;
+}
+
+.awRecBar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px 0;
+}
+
+.awRecBody {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 2px 2px 8px;
+}
+
+.awFields {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 6px 12px;
+  margin-bottom: 8px;
+  padding: 8px 10px 10px;
+}
+
+.awFields legend {
+  float: none;
+  width: auto;
+  font-size: 11px;
+  padding: 0 3px;
+  margin: 0;
+}
+
+.awField {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.awField--wide {
+  grid-column: 1 / -1;
+}
+
+.awField input[type="text"],
+.awField input[type="number"],
+.awField input[type="date"],
+.awField input[type="time"],
+.awField select,
+.awField textarea {
+  width: 100%;
+}
+
+.awField textarea {
+  resize: vertical;
+  font-family: inherit;
+}
+
+.awField.has-error input,
+.awField.has-error select,
+.awField.has-error textarea {
+  outline: 2px solid #c00000;
+}
+
+.awCheck {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 20px;
+}
+
+
+/* 98.css places the check mark after the text; pin it inside the box */
+.awRoot input[type="checkbox"] + label::before {
+  top: 0;
+}
+
+.awRoot input[type="checkbox"]:checked + label::after {
+  top: 3px;
+}
+
+.awRefInput {
+  display: flex;
+  gap: 3px;
+}
+
+.awRefInput select {
+  flex: 1;
+  min-width: 0;
+}
+
+.awRich {
+  display: flex;
+  flex-direction: column;
+}
+
+.awRichBar {
+  display: flex;
+  gap: 2px;
+  margin-bottom: 2px;
+}
+
+.awRichBar button {
+  min-width: 26px;
+  min-height: 20px;
+  padding: 0 5px;
+}
+
+.awRichArea {
+  min-height: 120px;
+  max-height: 360px;
+  overflow: auto;
+  padding: 4px 6px;
+  background: #fff;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+  font-family: "Times New Roman", serif;
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.awRichArea ul {
+  list-style: disc !important;
+  padding-left: 20px !important;
+}
+
+.awRichArea p {
+  margin: 0 0 6px !important;
+}
+
+.awRichArea h2 {
+  font-size: 18px;
+  margin-bottom: 6px !important;
+}
+
+.awMiniTable {
+  border-collapse: collapse;
+  background: #fff;
+  margin-bottom: 4px;
+}
+
+.awMiniTable th,
+.awMiniTable td {
+  border: 1px solid #c0c0c0;
+  padding: 2px 6px;
+  text-align: left;
+}
+
+.awMiniTable th {
+  background: #e0e0e0;
+  font-weight: normal;
+}
+
+.awMiniTable tr.is-short td {
+  background: #ffe0e0;
+}
+
+.awBom input[type="number"] {
+  width: 60px;
+}
+
+.awMeta {
+  color: #404040;
+  margin-top: 4px !important;
+}
+
+.awOnHand {
+  margin: 0 0 8px !important;
+}
+
+.awLinks .awChips {
+  min-height: 22px;
+}
+
+/* ---- picker ---- */
+
+.awPicker {
+  width: min(440px, 80vw);
+}
+
+.awPickList {
+  height: 200px;
+  overflow: auto;
+  background: #fff;
+  padding: 2px !important;
+}
+
+.awPickList li {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 4px;
+  cursor: default;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.awPickList li.is-chosen {
+  background: #000080;
+  color: #fff;
+}
+
+.awConfirm {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  max-width: 380px;
+}
+
+/* ---- Gantt timeline ---- */
+
+.awGantt {
+  background: #fff;
+  border: 1px solid #808080;
+  margin-bottom: 4px;
+}
+
+.awGanttRow {
+  display: flex;
+  align-items: stretch;
+  border-bottom: 1px solid #e8e8e8;
+  min-height: 20px;
+}
+
+.awGanttHead {
+  background: #c0c0c0;
+  border-bottom: 1px solid #808080;
+}
+
+.awGanttLabel {
+  width: 190px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  border-right: 1px solid #c0c0c0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  background: none;
+  box-shadow: none;
+  border-top: 0;
+  border-left: 0;
+  border-bottom: 0;
+  min-height: 0;
+  min-width: 0;
+  text-align: left;
+  font: inherit;
+}
+
+button.awGanttLabel:hover {
+  text-decoration: underline;
+  color: #000080;
+}
+
+.awGanttProject {
+  font-weight: bold;
+}
+
+.awGanttTrack {
+  position: relative;
+  flex: 1;
+  min-width: 120px;
+  background: repeating-linear-gradient(90deg, transparent 0 calc(12.5% - 1px), #f0f0f0 calc(12.5% - 1px) 12.5%);
+}
+
+.awGanttTick {
+  position: absolute;
+  top: 3px;
+  font-size: 10px;
+  white-space: nowrap;
+  padding-left: 2px;
+  border-left: 1px solid #808080;
+}
+
+.awGanttBar {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  min-width: 4px;
+  background: #000080;
+  border: 1px solid #000;
+  box-shadow: inset 1px 1px rgba(255, 255, 255, 0.5);
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+}
+
+.awGanttBar--project {
+  background: repeating-linear-gradient(45deg, #808080 0 3px, #a0a0a0 3px 6px);
+  top: 7px;
+  bottom: 7px;
+}
+
+.awGanttBar--good {
+  background: #008000;
+}
+
+.awGanttBar--warn {
+  background: #c09000;
+}
+
+.awGanttBar--info {
+  background: #1084d0;
+}
+
+.awGanttBar--plain {
+  background: #8080c0;
+}
+
+.awGanttWho {
+  color: #fff;
+  font-size: 9px;
+  padding-left: 3px;
+}
+
+.awGanttMilestone {
+  position: absolute;
+  top: 50%;
+  width: 11px;
+  height: 11px;
+  margin: -6px 0 0 -5px;
+  background: #ffd800;
+  border: 1px solid #000;
+  transform: rotate(45deg);
+}
+
+.awGanttToday {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 0;
+  border-left: 1px dashed #c00000;
+}
+
+.awProject {
+  margin-bottom: 12px;
+}
+
+.awProjectHead {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 3px;
+  font-weight: bold;
+}
+
+.awViewWrap {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.awViewSwitch {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.awViewBody {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ---- calendar ---- */
+
+.awCal {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow: auto;
+}
+
+.awCalBar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.awCalTitle {
+  font: bold 14px Arial, sans-serif;
+  margin-left: 8px !important;
+}
+
+.awCalGrid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  background: #808080;
+  gap: 1px;
+  border: 1px solid #808080;
+}
+
+.awCalDow {
+  background: #000080;
+  color: #fff;
+  text-align: center;
+  padding: 2px;
+}
+
+.awCalDay {
+  background: #fff;
+  min-height: 70px;
+  padding: 2px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  overflow: hidden;
+}
+
+.awCalDay.is-pad {
+  background: #e0e0e0;
+}
+
+.awCalDay.is-today .awCalNum {
+  background: #c00000;
+  color: #fff;
+}
+
+.awCalDay.is-picked {
+  outline: 2px solid #000080;
+  outline-offset: -2px;
+}
+
+.awCalNum {
+  align-self: flex-start;
+  padding: 0 3px;
+  font-weight: bold;
+}
+
+.awCalItem {
+  display: block;
+  min-width: 0;
+  min-height: 0;
+  padding: 0 3px;
+  border: 0;
+  box-shadow: none;
+  font: 10px/14px inherit;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  background: #d0e0ff;
+}
+
+.awCalItem--co {
+  background: #c8f0c8;
+}
+
+.awCalItem--mtg {
+  background: #d0e0ff;
+}
+
+.awCalItem--due {
+  background: #ffe0c0;
+}
+
+.awCalItem--off {
+  background: #f0d0f0;
+}
+
+.awCalItem--evt {
+  background: #fff0a0;
+}
+
+.awCalItem--team,
+.awCalItem--me {
+  background: #e0e0e0;
+}
+
+.awCalMore {
+  font-size: 10px;
+  color: #404040;
+}
+
+.awCalDots {
+  color: #000080;
+  font-size: 14px;
+  line-height: 8px;
+}
+
+.awAgenda {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.awAgendaItem {
+  display: flex !important;
+  align-items: center;
+  gap: 4px;
+  min-height: 22px !important;
+  font-size: 11px !important;
+}
+
+/* ---- feeds ---- */
+
+.awFeed {
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 640px;
+}
+
+.awComposer {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px;
+  background: #e8e8e8;
+  box-shadow: inset 1px 1px #fff, inset -1px -1px #808080;
+}
+
+.awComposerRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.awComposer textarea {
+  resize: vertical;
+  font-family: inherit;
+}
+
+.awPost {
+  display: flex;
+  gap: 8px;
+  padding: 8px;
+  background: #fff;
+  border: 1px solid #808080;
+  box-shadow: 2px 2px 0 #808080;
+}
+
+.awPost.is-pinned {
+  background: #fffff0;
+  border-color: #a08000;
+}
+
+.awPost--shout {
+  background: #f8f4ff;
+}
+
+.awPostBody {
+  flex: 1;
+  min-width: 0;
+}
+
+.awPostHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
+.awPostTitle {
+  font: bold 13px Arial, sans-serif;
+  margin: 4px 0 2px !important;
+}
+
+.awPostText {
+  white-space: pre-wrap;
+  line-height: 1.4;
+  margin: 4px 0 !important;
+}
+
+.awPostFoot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* ---- conversations ---- */
+
+.awChat {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  gap: 4px;
+}
+
+.awChannels {
+  width: 160px;
+  flex: none;
+  overflow: auto;
+  background: #2a2a6a;
+  color: #fff;
+  padding: 4px;
+}
+
+.awChannels .awSubhead {
+  color: #a0c0ff;
+}
+
+.awChannel {
+  display: block;
+  width: 100%;
+  min-height: 0;
+  min-width: 0;
+  padding: 2px 6px;
+  background: none;
+  border: 0;
+  box-shadow: none;
+  color: #e0e0ff;
+  text-align: left;
+  font: inherit;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.awChannel:hover {
+  background: #3a3a8a;
+}
+
+.awChannel.is-on {
+  background: #1084d0;
+  color: #fff;
+  font-weight: bold;
+}
+
+.awChannelAdd {
+  color: #a0a0c0;
+}
+
+.awChatPick {
+  display: flex;
+  gap: 4px;
+}
+
+.awChatPick select {
+  flex: 1;
+  min-width: 0;
+}
+
+.awChatMain {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+  padding: 2px;
+}
+
+.awChatHead {
+  padding: 4px 8px;
+  border-bottom: 1px solid #c0c0c0;
+  font-size: 12px;
+}
+
+.awMsgs {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 4px;
+}
+
+.awMsg {
+  display: flex;
+  gap: 8px;
+  padding: 4px;
+  transition: background 0.6s;
+}
+
+.awMsg.is-mentioned {
+  background: #fffbe0;
+}
+
+.awMsg.is-flash {
+  background: #ffe680;
+  outline: 1px dotted #000;
+}
+
+.awMsgBody {
+  flex: 1;
+  min-width: 0;
+}
+
+.awMsgText {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.4;
+  margin: 1px 0 3px !important;
+}
+
+.awMention {
+  color: #0000c0;
+  font-weight: bold;
+  background: #e0e8ff;
+  padding: 0 1px;
+}
+
+.awMention.is-me {
+  background: #ffe680;
+  color: #000;
+}
+
+.awCompose {
+  position: relative;
+  border-top: 1px solid #c0c0c0;
+  padding: 4px;
+  background: #e8e8e8;
+}
+
+.awComposeRow {
+  display: flex;
+  gap: 4px;
+}
+
+.awComposeRow textarea {
+  flex: 1;
+  resize: none;
+  font-family: inherit;
+  min-width: 0;
+}
+
+.awComposeBtns {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-wrap: wrap;
+  max-width: 180px;
+}
+
+.awComposeBtns .awTool {
+  min-width: 26px;
+  min-height: 26px;
+}
+
+.awAttachRow {
+  margin-bottom: 4px;
+}
+
+.awSuggest,
+.awEmojiPop {
+  position: absolute;
+  bottom: 100%;
+  left: 4px;
+  z-index: 10;
+}
+
+.awSuggest {
+  min-width: 200px;
+  padding: 2px !important;
+}
+
+.awSuggest button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 0;
+  padding: 3px 6px;
+  border: 0;
+  box-shadow: none;
+  background: none;
+  text-align: left;
+  font: inherit;
+}
+
+.awSuggest button:hover {
+  background: #000080;
+  color: #fff;
+}
+
+.awEmojiPop {
+  display: grid;
+  grid-template-columns: repeat(5, 30px);
+  gap: 2px;
+  padding: 4px;
+  left: auto;
+  right: 4px;
+}
+
+.awEmojiPop button {
+  min-width: 0;
+  min-height: 0;
+  height: 28px;
+  padding: 0;
+  font-size: 16px;
+}
+
+/* ---- notifications, search, home ---- */
+
+.awNoteList li {
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.awNote {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  width: 100%;
+  min-height: 0;
+  padding: 5px 6px;
+  border: 0;
+  box-shadow: none;
+  background: none;
+  text-align: left;
+  font: inherit;
+  line-height: 1.35;
+}
+
+.awNote:hover {
+  background: #e0e8ff;
+}
+
+.awNote.is-unread {
+  font-weight: bold;
+  background: #fffbe0;
+}
+
+.awNoteText {
+  display: flex;
+  flex-direction: column;
+}
+
+.awNoteTime {
+  font-weight: normal;
+  font-size: 10px;
+}
+
+.awNoteList--full {
+  background: #fff;
+  border: 1px solid #808080;
+}
+
+.awResults li {
+  padding: 1px 0;
+}
+
+.awResult {
+  display: flex;
+  gap: 6px;
+  min-height: 0;
+  min-width: 0;
+  padding: 2px 4px;
+  border: 0;
+  box-shadow: none;
+  background: none;
+  text-align: left;
+  font: inherit;
+}
+
+.awResult:hover {
+  background: #000080;
+  color: #fff;
+}
+
+.awResult:hover .awChipNo {
+  color: #fff;
+}
+
+.awHome {
+  padding: 6px;
+}
+
+.awHello {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 10px 14px;
+  margin-bottom: 8px;
+  color: #fff;
+  background: linear-gradient(90deg, #000080, #008080);
+}
+
+.awHello h2 {
+  font: bold 18px Georgia, serif;
+}
+
+.awHelloTag {
+  font-style: italic;
+  color: #ffd800;
+}
+
+.awQuick {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+button.awQuickBtn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  padding: 8px 4px;
+}
+
+.awHomeCols {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 8px;
+}
+
+.awHomeList li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 0;
+}
+
+.awHomeList input[type="checkbox"] + label {
+  margin-left: 13px;
+  min-height: 13px;
+}
+
+.awDue {
+  margin-left: auto;
+  color: #404040;
+  white-space: nowrap;
+}
+
+.awDue.is-late {
+  color: #c00000;
+  font-weight: bold;
+}
+
+button.awNews {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  min-height: 0;
+  margin-bottom: 4px;
+  padding: 4px 6px;
+  text-align: left;
+  background: #fff;
+}
+
+button.awNews span {
+  color: #404040;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+/* ---- insights ---- */
+
+.awKpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+button.awKpi {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 8px 10px;
+  min-height: 0;
+  text-align: left;
+  background: #fff;
+}
+
+.awKpiValue {
+  font: bold 22px Arial, sans-serif;
+  color: #000080;
+}
+
+.awCharts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.awChart {
+  background: #fff;
+  border: 1px solid #808080;
+  padding: 6px;
+}
+
+.awChart svg {
+  display: block;
+  max-width: 560px;
+}
+
+.awChartTitle {
+  font-weight: bold;
+  margin-bottom: 4px;
+}
+
+.awChartLabel,
+.awChartValue {
+  font: 11px Arial, sans-serif;
+  fill: #000;
+}
+
+.awChartValue {
+  fill: #404040;
+}
+
+.awBarHit {
+  cursor: pointer;
+}
+
+.awBarHit:hover .awBar {
+  fill: #1084d0;
+}
+
+.awFormRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+/* ---- report builder ---- */
+
+.awReport {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  gap: 6px;
+}
+
+.awReportSide {
+  width: 250px;
+  flex: none;
+  overflow: auto;
+}
+
+.awReportSide fieldset {
+  margin-bottom: 6px;
+  padding: 4px 6px 6px;
+}
+
+.awReportSide legend {
+  float: none;
+  width: auto;
+  font-size: 11px;
+  margin: 0;
+  padding: 0 3px;
+}
+
+.awReportSide select {
+  max-width: 100%;
+}
+
+.awColumns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px 6px;
+}
+
+.awFilterRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  margin-bottom: 3px;
+}
+
+.awFilterRow select,
+.awFilterRow input {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.awFilterRow input {
+  width: 90px;
+}
+
+.awSavedReport {
+  display: flex;
+  justify-content: space-between;
+  gap: 4px;
+  padding: 1px 0;
+}
+
+.awReportOut {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
+  background: #808080;
+  padding: 6px;
+}
+
+.awReportOut > .awEmpty {
+  color: #fff;
+}
+
+.awReportOut .awBtnRow {
+  margin-top: 0;
+}
+
+.awPaper {
+  background: #fff;
+  padding: 18px 20px;
+  box-shadow: 4px 4px 0 #404040;
+  font-family: "Courier New", monospace;
+  font-size: 12px;
+  min-width: 0;
+}
+
+.awPaperTitle {
+  font: bold 16px Arial, sans-serif;
+}
+
+.awPaperSub {
+  border-bottom: 2px solid #000;
+  padding-bottom: 6px;
+  margin-bottom: 8px;
+  font-family: Arial, sans-serif;
+  font-size: 11px;
+}
+
+.awPaperTable {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.awPaperTable th {
+  text-align: left;
+  border-bottom: 1px solid #000;
+  font: bold 11px Arial, sans-serif;
+  padding: 2px 6px;
+}
+
+.awPaperTable td {
+  padding: 2px 6px;
+  border-bottom: 1px dotted #aaa;
+}
+
+.awPaperTable tbody tr:nth-child(even) td {
+  background: #eef3ff;
+}
+
+.awPaperTable tfoot td {
+  font-weight: bold;
+  border-top: 2px solid #000;
+}
+
+/* ---- app creator ---- */
+
+.awCreatorHero {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 10px;
+  background: #fff;
+  border: 1px solid #808080;
+  margin-bottom: 6px;
+}
+
+.awCreatorHero h3 {
+  font: bold 14px Arial, sans-serif;
+  margin-bottom: 2px !important;
+}
+
+.awIconPick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+}
+
+.awIconPick button {
+  min-width: 0;
+  min-height: 0;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.awIconPick button.is-on {
+  box-shadow: inset 1px 1px #0a0a0a, inset -1px -1px #fff;
+  background: #fff;
+}
+
+.awFieldDefs {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 6px 0;
+  max-height: 240px;
+  overflow: auto;
+}
+
+.awFieldDef {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  align-items: center;
+}
+
+.awFieldDef input[type="text"] {
+  width: 130px;
+}
+
+.awFieldDefBtns {
+  display: flex;
+  gap: 1px;
+}
+
+.awPreview {
+  background: #fff;
+  border: 1px solid #808080;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 260px;
+  overflow: auto;
+}
+
+.awPreviewHead {
+  font-weight: bold;
+  margin-bottom: 4px;
+}
+
+/* ---- dialogs ---- */
+
+/* Appward's dialogs size to what's in them */
+.awShell .window.dialog {
+  width: auto;
+  max-width: 100%;
+}
+
+.awTip {
+  display: flex;
+  width: min(400px, 80vw);
+  min-height: 130px;
+  background: #fff;
+  border: 1px solid #808080;
+}
+
+.awTipSide {
+  width: 64px;
+  flex: none;
+  display: flex;
+  justify-content: center;
+  padding-top: 12px;
+  background: #808080;
+}
+
+.awTipMain {
+  padding: 10px 12px;
+}
+
+.awTipMain h4 {
+  font: bold 15px "Times New Roman", serif;
+  margin-bottom: 8px !important;
+}
+
+.awTipText {
+  line-height: 1.45;
+}
+
+.awTipFoot {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.awAbout {
+  display: flex;
+  gap: 14px;
+  max-width: 400px;
+  line-height: 1.45;
+}
+
+.awAbout .awWordmark {
+  font-size: 22px;
+  color: #000080;
+  text-shadow: none;
+}
+
+.awAboutTag {
+  font-style: italic;
+  margin: 4px 0 !important;
+}
+
+.awAbout .awMuted {
+  margin-top: 6px !important;
+  font-size: 10px;
+}
+
+.awKeys kbd {
+  font: bold 11px monospace;
+  background: #f0f0f0;
+  color: #000;
+  border: 1px solid #808080;
+  padding: 0 4px;
+}
+
+.awSync {
+  width: min(330px, 76vw);
+}
+
+.awSyncArt {
+  position: relative;
+  height: 60px;
+  margin-bottom: 8px;
+}
+
+.awSyncPc,
+.awSyncServer {
+  position: absolute;
+  top: 10px;
+  width: 40px;
+  height: 36px;
+  background: #c0c0c0;
+  border: 1px solid #000;
+  box-shadow: inset 2px 2px #fff, inset -2px -2px #808080;
+}
+
+.awSyncPc {
+  left: 10px;
+}
+
+.awSyncPc::after {
+  content: "";
+  position: absolute;
+  inset: 5px 5px 10px;
+  background: #008080;
+  border: 1px solid #000;
+}
+
+.awSyncServer {
+  right: 10px;
+  width: 30px;
+  height: 46px;
+  top: 4px;
+}
+
+.awSyncServer::after {
+  content: "";
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  top: 6px;
+  height: 14px;
+  background: repeating-linear-gradient(#404040 0 2px, transparent 2px 5px);
+}
+
+.awSyncDocs i {
+  position: absolute;
+  top: 20px;
+  left: 60px;
+  width: 12px;
+  height: 15px;
+  background: #fff;
+  border: 1px solid #000;
+  animation: awFly 1.1s linear infinite;
+}
+
+.awSyncDocs i:nth-child(2) {
+  animation-delay: 0.37s;
+}
+
+.awSyncDocs i:nth-child(3) {
+  animation-delay: 0.74s;
+}
+
+.awSyncDocs.is-done i {
+  animation: none;
+  opacity: 0;
+}
+
+@keyframes awFly {
+  0% {
+    transform: translate(0, 0);
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+  }
+  50% {
+    transform: translate(90px, -14px);
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate(180px, 0);
+    opacity: 0;
+  }
+}
+
+.awProgress {
+  height: 18px;
+  margin-top: 8px;
+  padding: 2px;
+  background: #fff;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+}
+
+.awProgressFill {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: repeating-linear-gradient(90deg, #000080 0 9px, transparent 9px 11px);
+}
+
+.awProgressFill.is-run {
+  animation: awFill 2.2s steps(20) forwards;
+}
+
+.awProgressFill.is-done {
+  width: 100%;
+}
+
+@keyframes awFill {
+  to {
+    width: 100%;
+  }
+}
+
+/* ---- phones: one thing at a time ---- */
+
+.os-mobile .awRoot {
+  font-size: 13px;
+}
+
+.os-mobile .awRoot input,
+.os-mobile .awRoot select,
+.os-mobile .awRoot textarea {
+  font-size: 16px;
+}
+
+.os-mobile .awRoot button {
+  min-height: 34px;
+}
+
+.awShell.is-mobile .awToolbar {
+  overflow-x: auto;
+  flex-wrap: nowrap;
+}
+
+.awShell.is-mobile button.awTool {
+  min-width: 42px;
+  min-height: 42px;
+}
+
+.awShell.is-mobile .awSearch {
+  flex: 1;
+  min-width: 90px;
+}
+
+.awShell.is-mobile .awSearch input {
+  width: 100%;
+  min-width: 0;
+}
+
+.awShell.is-mobile .awMain {
+  padding: 0;
+}
+
+.awShell.is-mobile .awBellPop {
+  position: fixed;
+  top: 90px;
+  left: 8px;
+  right: 8px;
+  width: auto;
+}
+
+.awDrill {
+  flex: 1;
+  overflow: auto;
+  background: #fff;
+}
+
+.awDrillHead {
+  padding: 8px 10px;
+  background: linear-gradient(90deg, #000080, #008080);
+  color: #fff;
+  font-weight: bold;
+  font-size: 14px;
+}
+
+.awDrillList li {
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.awDrillList button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 46px !important;
+  padding: 4px 12px;
+  border: 0;
+  box-shadow: none;
+  background: none;
+  text-align: left;
+  font: inherit;
+}
+
+.awDrillList button:active {
+  background: #000080;
+  color: #fff;
+}
+
+.awChev {
+  margin-left: auto;
+  font-size: 18px;
+  color: #808080;
+}
+
+.awDrillList .awTreeCount {
+  margin-left: auto;
+}
+
+.awDrillList .awTreeCount + .awChev {
+  margin-left: 8px;
+}
+
+button.awDrillBack {
+  width: 100%;
+  text-align: left;
+  border: 0;
+  box-shadow: none;
+  background: #e0e0e0;
+  padding: 4px 10px;
+  color: #000080;
+}
+
+.awPhoneHead {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px;
+  background: #c0c0c0;
+}
+
+.awPhoneTitle {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: bold;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.awShell.is-mobile .awPane {
+  padding: 3px;
+}
+
+.awShell.is-mobile .awFields {
+  grid-template-columns: 1fr;
+}
+
+.awShell.is-mobile .awListBar .awFilter input {
+  width: 120px;
+}
+
+.awShell.is-mobile .awLane {
+  flex-basis: 70%;
+  max-width: none;
+}
+
+.awShell.is-mobile .awCalDay {
+  min-height: 42px;
+}
+
+.awShell.is-mobile .awReport {
+  flex-direction: column;
+  overflow: auto;
+}
+
+.awShell.is-mobile .awReportSide {
+  width: auto;
+  overflow: visible;
+}
+
+.awShell.is-mobile .awReportOut {
+  overflow: visible;
+  flex: none;
+}
+
+.awShell.is-mobile .awPaper {
+  overflow-x: auto;
+  padding: 10px;
+}
+
+.awShell.is-mobile .awChat {
+  flex-direction: column;
+}
+
+.awShell.is-mobile .awComposeBtns {
+  max-width: 96px;
+}
+
+.awShell.is-mobile .awGanttLabel {
+  width: 110px;
+}
+
+.awShell.is-mobile .awTable td {
+  max-width: 160px;
+}
+
+.awShell.is-mobile .awRecHead {
+  padding: 4px 6px;
+}
+
+.awShell.is-mobile .awChipTitle {
+  max-width: 150px;
+}
+
+.awRoot.is-mobile .awWizardBody {
+  min-height: 0;
+}
+
+.awRoot.is-mobile .awWizArt {
+  display: none;
+}
+
+.awRoot.is-mobile .awWordmark {
+  font-size: 24px;
+}
+
+.awShell.is-mobile .awToast {
+  top: auto;
+  bottom: 8px;
+  left: 8px;
+  right: 8px;
+  max-width: none;
+}
+
+/* main.css stretches every .window to fill its box; these pop-ups size to their contents */
+.window.awEmojiPop,
+.window.awSuggest,
+.window.awBellPop {
+  height: auto;
+  min-height: 0;
+  min-width: 0;
+}
+
+.os-mobile .awRoot select {
+  height: 34px;
+  line-height: normal;
+}
+
+.os-mobile .awRoot input[type="text"],
+.os-mobile .awRoot input[type="search"],
+.os-mobile .awRoot input[type="number"],
+.os-mobile .awRoot input[type="date"],
+.os-mobile .awRoot input[type="time"],
+.os-mobile .awRoot input[type="password"] {
+  min-height: 34px;
+}

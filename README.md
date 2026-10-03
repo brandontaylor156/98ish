@@ -43,8 +43,12 @@
   This or That, compatibility quizzes, deep talk cards, party trivia: 400+ original questions), Photo Puzzle
   (jigsaws from your photos with hidden messages), Doodle Together (a live shared canvas), Dream House (a dollhouse
   you can decorate together) and Sunny Acres visits, help and gifts. Couple data is private to the pair
+- **Appward 98:** an unofficial retro tribute to [Appward](https://appward.com), the business suite, as if it shipped
+  in 1998: an app launcher with dozens of linked business apps (conversations with @mentions, boards, a project
+  timeline, calendars, approvals, work orders with inventory, Insights charts, a Report Builder and an App Creator
+  for your own apps), all with made-up sample data saved in your browser
 - **My Projects:** Baseline Today, Job Market Radar and One Closet open as their own 98ish programs
-- **Extras:** 98ish Update, Floppy the helper, 22 hidden achievements (My Computer > Properties), and whatever
+- **Extras:** 98ish Update, Floppy the helper, 50+ hidden achievements (My Computer > Properties), and whatever
   happens if you end explorer.exe
 
 ## Demos
