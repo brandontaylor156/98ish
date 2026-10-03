@@ -22,6 +22,13 @@ html, body, #root {
   overscroll-behavior: none;
 }
 
+/* iPhone Safari scrolls the page anyway when its toolbars change the visible height
+   (overflow: hidden alone doesn't stop it): pin the page itself */
+html, body {
+  position: fixed;
+  inset: 0;
+}
+
 /* Pinned to the viewport and unscrollable: `clip` (unlike `hidden`) also blocks the
    scrolling browsers do when focusing an input in a window dragged near the bottom,
    which used to shift the whole desktop and lift the taskbar. */

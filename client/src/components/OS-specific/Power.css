@@ -12,7 +12,8 @@
 
 .postText {
   position: relative;
-  padding: max(16px, env(safe-area-inset-top)) 20px 20px;
+  /* the right side is kept clear for the logo, so narrow phones don't run text under it */
+  padding: max(16px, env(safe-area-inset-top)) 96px 20px 20px;
   font-family: "Lucida Console", "Courier New", monospace;
   font-size: clamp(12px, 2.1vh, 18px);
   line-height: 1.35;
