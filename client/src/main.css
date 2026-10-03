@@ -766,6 +766,84 @@ html, body {
   max-height: calc(100dvh - var(--taskbar-h));
 }
 
+/* Drop-down lists. 98.css draws the arrow button as a fixed 16x17 picture and its later
+   padding rule lets the text run under it: in any box taller than 21px (every one on a
+   phone, and several apps) the button was short and the text overlapped it. Here the
+   button is drawn with 1px gradient lines, so it always fills the box's height, and the
+   text keeps clear of it. */
+select {
+  --sel-btn: 16px;
+  padding: 1px calc(var(--sel-btn) + 6px) 1px 4px;
+  line-height: normal;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background-image:
+    url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='7' height='4'%3E%3Cpath d='M0 0h7v1H6v1H5v1H4v1H3V3H2V2H1V1H0z'/%3E%3C/svg%3E"),
+    linear-gradient(#0a0a0a, #0a0a0a),
+    linear-gradient(#0a0a0a, #0a0a0a),
+    linear-gradient(grey, grey),
+    linear-gradient(grey, grey),
+    linear-gradient(#fff, #fff),
+    linear-gradient(#fff, #fff),
+    linear-gradient(#dfdfdf, #dfdfdf),
+    linear-gradient(#dfdfdf, #dfdfdf),
+    linear-gradient(silver, silver);
+  background-size:
+    7px 4px,
+    1px calc(100% - 4px),
+    var(--sel-btn) 1px,
+    1px calc(100% - 6px),
+    calc(var(--sel-btn) - 2px) 1px,
+    1px calc(100% - 7px),
+    calc(var(--sel-btn) - 3px) 1px,
+    1px calc(100% - 5px),
+    calc(var(--sel-btn) - 1px) 1px,
+    var(--sel-btn) calc(100% - 4px);
+  background-position:
+    right 6px center,
+    right 2px top 2px,
+    right 2px bottom 2px,
+    right 3px top 3px,
+    right 3px bottom 3px,
+    right calc(var(--sel-btn)) top 3px,
+    right 4px top 3px,
+    right calc(var(--sel-btn) + 1px) top 2px,
+    right 3px top 2px,
+    right 2px top 2px;
+  background-repeat: no-repeat;
+}
+
+/* pressed: the button sinks (dark edges top-left) and the arrow moves a pixel */
+select:active {
+  background-image:
+    url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='7' height='4'%3E%3Cpath d='M0 0h7v1H6v1H5v1H4v1H3V3H2V2H1V1H0z'/%3E%3C/svg%3E"),
+    linear-gradient(grey, grey),
+    linear-gradient(grey, grey),
+    linear-gradient(silver, silver),
+    linear-gradient(silver, silver),
+    linear-gradient(grey, grey),
+    linear-gradient(grey, grey),
+    linear-gradient(grey, grey),
+    linear-gradient(grey, grey),
+    linear-gradient(silver, silver);
+  background-position:
+    right 5px top calc(50% + 1px),
+    right 2px top 2px,
+    right 2px bottom 2px,
+    right 3px top 3px,
+    right 3px bottom 3px,
+    right calc(var(--sel-btn)) top 3px,
+    right 4px top 3px,
+    right calc(var(--sel-btn) + 1px) top 2px,
+    right 3px top 2px,
+    right 2px top 2px;
+}
+
+/* the white arrow on a focused (navy) list reads badly: keep the button as it is */
+select:focus {
+  background-color: navy;
+}
+
 /* iOS zooms into any input under 16px when it takes focus */
 .os-mobile input,
 .os-mobile textarea,
@@ -774,6 +852,13 @@ html, body {
 }
 
 /* ...and 98.css's 21px-high boxes are too short for 16px text: it was cut off at the bottom */
+/* phones: a thumb-sized list box, tall enough for 16px text whatever height an app set
+   (min-height beats a smaller height) */
+.os-mobile select {
+  --sel-btn: 22px;
+  min-height: 32px;
+}
+
 .os-mobile select,
 .os-mobile input[type="text"],
 .os-mobile input[type="password"],

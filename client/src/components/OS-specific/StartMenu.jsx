@@ -1,14 +1,22 @@
 import React, { useEffect, useRef, useState } from "react"
 import { fs } from "../../utils/fs"
 import { useFsVersion } from "../../hooks/useFs"
-import { programs, launch, explorerWindow, notepadWindow } from "../../utils/programs"
+import { programs, launch, explorerWindow, notepadWindow, ieWindow } from "../../utils/programs"
 import { openItem } from "../../utils/openItem"
 import { iconFor } from "../../utils/fileInfo"
 import RunDialog from "./RunDialog"
 import { shellAction } from "../../utils/shell"
 import "./StartMenu.css"
 
-const GROUPS = ["Accessories", "Business", "Games", "Internet", "Entertainment", "System Tools", "Us", "My Projects"]
+const GROUPS = ["Accessories", "Business", "Community", "Games", "Internet", "Entertainment", "System Tools", "Us", "My Projects"]
+// a program shows in its group and in any it's `also` in (Photo Puzzle is in Us and Games)
+const inGroup = (p, group) => p.group === group || !!p.also?.includes(group)
+// the community's pages on 98ish.com, at the bottom of Programs > Community
+const COMMUNITY_PAGES = [
+  ["98ish.com Home Page", "http://www.98ish.com/"],
+  ["Guestbook", "http://www.98ish.com/guestbook"],
+  ["Members Directory (and the web ring)", "http://www.98ish.com/members"],
+]
 const ICON = {
   programs: "/assets/programs.png",
   documents: "/assets/directory_docs.png",
@@ -75,7 +83,10 @@ const StartMenu = ({ dispatch, setResults, closeMenu, onShutDown, onLogOff, mobi
         ...GROUPS.map((group) => ({
           label: group,
           icon: ICON.group,
-          items: () => programs.filter((p) => p.group === group).map(programItem),
+          items: () => [
+            ...programs.filter((p) => inGroup(p, group)).map(programItem),
+            ...(group === "Community" ? ["-", ...COMMUNITY_PAGES.map(([label, url]) => ({ label, icon: "/assets/internet_explorer.png", onClick: () => go(ieWindow(url)) }))] : []),
+          ],
         })),
         "-",
         { label: "Windows Explorer", icon: "/assets/program_icons/computer_explorer.png", onClick: () => go(explorerWindow(["C:"])) },
