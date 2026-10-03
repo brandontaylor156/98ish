@@ -1,0 +1,1683 @@
+/* Monster Duel: the duel table */
+
+.mdDuel {
+  --s: 72px;
+  --gap: calc(var(--s) * 0.06);
+  --zh: var(--s);
+  --card: calc(var(--s) * 0.64);
+  --def: 1;
+  --hand: calc(var(--s) * 0.86);
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  overflow: hidden;
+  color: #e8f3ee;
+  background:
+    radial-gradient(ellipse 70% 55% at 50% 50%, rgba(80, 180, 150, 0.16), transparent 70%),
+    repeating-linear-gradient(60deg, rgba(255, 255, 255, 0.018) 0 2px, transparent 2px 22px),
+    repeating-linear-gradient(-60deg, rgba(255, 255, 255, 0.018) 0 2px, transparent 2px 22px),
+    radial-gradient(ellipse at 50% 50%, #1d3a32 0%, #0f211c 62%, #070f0c 100%);
+  font-family: Arial, "Pixelated MS Sans Serif", sans-serif;
+  font-size: 12px;
+  touch-action: none;
+}
+.mdDuel button {
+  font-family: inherit;
+}
+
+/* ---------- side panel (wide windows) ---------- */
+
+.mdPanel {
+  flex: none;
+  width: clamp(210px, 22%, 260px);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  box-sizing: border-box;
+  background: linear-gradient(rgba(0, 0, 0, 0.45), rgba(0, 0, 0, 0.25));
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  min-height: 0;
+}
+.mdInspector .mdCard {
+  width: 100%;
+}
+.mdInspectorEmpty {
+  position: relative;
+}
+.mdInspectorEmpty .mdBack {
+  opacity: 0.35;
+}
+.mdInspectorEmpty p {
+  position: absolute;
+  inset: auto 0 40% 0;
+  text-align: center;
+  color: #cfe;
+  font-size: 12px;
+}
+.mdLog {
+  flex: 1;
+  min-height: 60px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.35);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.mdLogList {
+  height: 100%;
+  overflow-y: auto;
+  padding: 4px 6px;
+  box-sizing: border-box;
+  font-size: 11px;
+  line-height: 1.35;
+  color: #cfe6dc;
+  touch-action: pan-y;
+  user-select: text;
+}
+.mdLogList .is-turn {
+  margin-top: 4px;
+  color: var(--md-gold);
+  font-weight: bold;
+}
+.mdLogList .is-win {
+  color: #fff;
+  font-weight: bold;
+}
+.mdRespondPref {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 11px;
+  color: #cfe6dc;
+}
+.mdRespondPref select {
+  font-size: 11px;
+}
+
+/* ---------- the table ---------- */
+
+.mdTable {
+  flex: 1;
+  min-width: 0;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px;
+  gap: 4px;
+  box-sizing: border-box;
+}
+.mdTop,
+.mdBottom {
+  width: 100%;
+  max-width: calc(var(--s) * 7.6 + 160px);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 0;
+}
+.mdBottom {
+  align-items: flex-end;
+}
+.mdField {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--gap);
+}
+.mdSide {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+}
+.mdRow {
+  display: flex;
+  gap: var(--gap);
+}
+.mdZone {
+  position: relative;
+  flex: none;
+  width: var(--s);
+  height: var(--zh);
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  border-radius: calc(var(--s) * 0.08);
+  border: 1px solid rgba(160, 220, 200, 0.16);
+  background: rgba(255, 255, 255, 0.025);
+  box-shadow: inset 0 0 calc(var(--s) * 0.18) rgba(0, 0, 0, 0.45);
+  padding: 0;
+  color: inherit;
+  font: inherit;
+}
+.mdZone.is-m {
+  border-color: rgba(255, 170, 90, 0.24);
+  background: radial-gradient(circle, rgba(255, 150, 70, 0.06), transparent 70%);
+}
+.mdZone.is-s {
+  border-color: rgba(80, 220, 190, 0.22);
+  background: radial-gradient(circle, rgba(60, 200, 170, 0.05), transparent 70%);
+}
+.mdZone.is-pile {
+  background: rgba(0, 0, 0, 0.22);
+  border-style: dashed;
+}
+button.mdZone {
+  cursor: pointer;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  padding: 0 !important;
+}
+.mdZone > .mdBack,
+.mdZone > .mdMini {
+  width: var(--card);
+}
+.mdZone .mdBack.is-stack {
+  box-shadow:
+    2px 2px 0 #0d0620,
+    4px 4px 0 #1a0d33,
+    0 4px 8px rgba(0, 0, 0, 0.6);
+}
+.mdZoneLabel {
+  position: absolute;
+  bottom: 2px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: max(8px, calc(var(--s) * 0.12));
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(220, 255, 240, 0.4);
+  pointer-events: none;
+}
+.mdZone.is-pile .mdMiniStats,
+.mdZone.is-pile .mdMiniKind {
+  display: none;
+}
+.mdPileCount {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  min-width: 14px;
+  padding: 0 3px;
+  border-radius: 7px;
+  background: rgba(0, 0, 0, 0.75);
+  color: #fff;
+  font: bold max(9px, calc(var(--s) * 0.14)) / 1.3 Arial, sans-serif;
+  text-align: center;
+  z-index: 2;
+}
+
+/* a card in a zone */
+.mdSlot {
+  position: relative;
+  width: var(--card);
+  cursor: pointer;
+  z-index: 1;
+  transition: filter 0.2s;
+}
+.mdSlotCard {
+  transition: transform 0.3s ease;
+}
+.mdSlot.is-def .mdSlotCard {
+  transform: rotate(-90deg) scale(var(--def));
+}
+.mdSlotStat {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--s) * -0.04);
+  transform: translateX(-50%);
+  display: flex;
+  gap: 2px;
+  align-items: baseline;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: rgba(8, 6, 2, 0.88);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.15);
+  font: 900 max(10px, calc(var(--s) * 0.17)) / 1.15 "Arial Black", Arial, sans-serif;
+  color: #fff;
+  white-space: nowrap;
+  z-index: 3;
+  pointer-events: none;
+}
+.mdSlotStat i {
+  font-style: normal;
+  opacity: 0.55;
+  font-size: 0.82em;
+}
+.mdSlotStat span {
+  opacity: 0.4;
+  font-size: 0.8em;
+}
+.mdSlotStat.is-def b {
+  opacity: 0.55;
+  font-size: 0.82em;
+}
+.mdSlotStat.is-def i {
+  opacity: 1;
+  font-size: 1em;
+  color: #9fd1ff;
+}
+/* narrow tables: just the stat that matters in this position */
+.mdDuel.is-tall .mdSlotStat:not(.is-def) span,
+.mdDuel.is-tall .mdSlotStat:not(.is-def) i,
+.mdDuel.is-tall .mdSlotStat.is-def b,
+.mdDuel.is-tall .mdSlotStat.is-def span {
+  display: none;
+}
+.mdDuel.is-tall .mdSlotStat {
+  font-size: max(11px, calc(var(--s) * 0.24));
+}
+.mdSlotStat .is-up {
+  color: #7dff9a;
+}
+.mdSlotStat .is-down {
+  color: #ff8a8a;
+}
+.mdSlot .mdMini .mdMiniStats,
+.mdSlot .mdMini .mdMiniName,
+.mdSlot .mdMini .mdMiniKind {
+  display: none;
+}
+.mdSlot .mdMini .mdMiniArt {
+  border-radius: 3cqw;
+}
+.mdPeek {
+  position: absolute;
+  left: 4%;
+  right: 4%;
+  bottom: 6%;
+  padding: 1px 2px;
+  background: rgba(0, 0, 0, 0.7);
+  color: #ffe9a8;
+  font-size: max(7px, calc(var(--s) * 0.1));
+  line-height: 1.15;
+  text-align: center;
+  border-radius: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+}
+.mdSlot.is-def .mdPeek {
+  bottom: 30%;
+}
+.mdChainNo {
+  position: absolute;
+  top: -6px;
+  left: -6px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: #ffd34d;
+  color: #000;
+  font: bold 11px Arial;
+  box-shadow: 0 0 8px #ffd34d;
+  z-index: 4;
+}
+.mdBadge {
+  position: absolute;
+  top: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 0 3px;
+  border-radius: 3px;
+  font-size: 9px;
+  background: #a33;
+  color: #fff;
+  z-index: 4;
+}
+
+/* highlights */
+.mdSlot.is-actable,
+.mdHandCard.is-actable {
+  filter: drop-shadow(0 0 4px rgba(90, 190, 255, 0.95));
+}
+.mdSlot.is-sel,
+.mdHandCard.is-sel {
+  filter: drop-shadow(0 0 3px #fff) drop-shadow(0 0 8px #ffd34d);
+}
+.mdSlot.is-target,
+.mdHandCard.is-target {
+  animation: mdTarget 0.9s ease-in-out infinite alternate;
+  cursor: crosshair;
+}
+.mdSlot.is-picked,
+.mdHandCard.is-picked {
+  filter: drop-shadow(0 0 3px #fff) drop-shadow(0 0 9px #ff4a4a) !important;
+  animation: none;
+}
+.mdSlot.is-glow,
+.mdHandCard.is-glow {
+  animation: mdCoachGlow 1s ease-in-out infinite alternate;
+}
+.mdSlot.is-attacking {
+  filter: drop-shadow(0 0 8px #ff4a2a);
+}
+.mdSlot.is-chained {
+  filter: drop-shadow(0 0 8px #ffd34d);
+}
+@keyframes mdTarget {
+  from {
+    filter: drop-shadow(0 0 2px #ffd34d);
+  }
+  to {
+    filter: drop-shadow(0 0 10px #ffd34d) brightness(1.15);
+  }
+}
+@keyframes mdCoachGlow {
+  from {
+    filter: drop-shadow(0 0 3px #7dff9a);
+  }
+  to {
+    filter: drop-shadow(0 0 14px #7dff9a) brightness(1.15);
+  }
+}
+
+/* ---------- players ---------- */
+
+.mdPlayer {
+  position: relative;
+  flex: none;
+  width: 140px;
+  padding: 5px 8px 6px;
+  box-sizing: border-box;
+  border-radius: 6px;
+  background: linear-gradient(rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0.35));
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.mdPlayer.is-active {
+  border-color: rgba(255, 211, 77, 0.6);
+  box-shadow: 0 0 10px rgba(255, 211, 77, 0.25);
+}
+.mdPlayerName {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: bold;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.mdDot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--md-them);
+}
+.mdPlayer.is-me .mdDot {
+  background: var(--md-me);
+}
+.mdLp {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  line-height: 1;
+  margin-top: 2px;
+}
+.mdLpLabel {
+  font: bold 11px Arial;
+  color: var(--md-gold);
+}
+.mdLpNum {
+  font: 900 24px/1 "Arial Black", Arial, sans-serif;
+  color: #fff;
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.6);
+  font-variant-numeric: tabular-nums;
+}
+.mdLpBar {
+  height: 5px;
+  margin: 3px 0 2px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.12);
+  overflow: hidden;
+}
+.mdLpBar i {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #3ad16b, #a7f05a);
+  transition: width 0.7s ease;
+}
+.mdLpBar i.is-low {
+  background: linear-gradient(90deg, #e03a2a, #ff9a3a);
+}
+.mdPlayerMeta {
+  font-size: 10px;
+  color: rgba(220, 255, 240, 0.6);
+}
+.mdPlayerMeta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+}
+.mdThinking {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 10px;
+  color: #ffd27a;
+}
+.mdThinking i {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #ffd27a;
+  animation: mdDots 1s ease-in-out infinite;
+}
+.mdThinking i:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.mdThinking i:nth-child(3) {
+  animation-delay: 0.3s;
+}
+@keyframes mdDots {
+  50% {
+    opacity: 0.2;
+    transform: translateY(-2px);
+  }
+}
+.mdFloat {
+  position: absolute;
+  right: 6px;
+  top: 4px;
+  font: 900 22px "Arial Black", Arial, sans-serif;
+  pointer-events: none;
+  animation: mdFloat 1.4s ease-out forwards;
+  text-shadow:
+    0 0 6px #000,
+    0 2px 0 #000;
+  z-index: 5;
+}
+.mdFloat.is-hurt {
+  color: #ff5a4a;
+}
+.mdFloat.is-heal {
+  color: #7dff9a;
+}
+@keyframes mdFloat {
+  0% {
+    transform: translateY(6px) scale(0.6);
+    opacity: 0;
+  }
+  15% {
+    transform: translateY(0) scale(1.25);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-34px) scale(1);
+    opacity: 0;
+  }
+}
+.mdDirect {
+  position: absolute;
+  inset: auto 4px -30px 4px;
+  z-index: 6;
+  font-weight: bold;
+  background: #c62f1a !important;
+  color: #fff;
+  animation: mdTarget 0.9s ease-in-out infinite alternate;
+}
+
+/* ---------- hands ---------- */
+
+.mdHand {
+  flex: 1;
+  min-width: 0;
+  height: calc(var(--hand) * 86 / 59 + 6px);
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  padding-top: 6px;
+}
+.mdHandCard {
+  position: relative;
+  flex: none;
+  width: var(--hand);
+  margin: 0 2px;
+  cursor: pointer;
+  transition:
+    transform 0.15s ease,
+    margin 0.15s ease;
+}
+.mdHand.is-crowded .mdHandCard {
+  margin: 0 calc(var(--hand) * -0.18 + 1px);
+}
+.mdHandCard:hover,
+.mdHandCard.is-sel {
+  transform: translateY(-10%);
+  z-index: 3;
+}
+.mdHandCard.is-dragging {
+  opacity: 0.35;
+}
+.mdHandEmpty {
+  align-self: center;
+  color: rgba(220, 255, 240, 0.35);
+  font-style: italic;
+}
+.mdOppHand {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  min-width: 0;
+}
+.mdOppHand .mdBack {
+  flex: none;
+  width: calc(var(--s) * 0.34);
+  margin: 0 calc(var(--s) * -0.06);
+}
+.mdLogBtn {
+  flex: none;
+  align-self: center;
+}
+
+/* ---------- the phase bar ---------- */
+
+.mdPhaseBar {
+  width: calc(var(--s) * 7 + var(--gap) * 6);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  height: 30px;
+  margin: 2px 0;
+}
+.mdTurn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: 11px;
+  color: rgba(220, 255, 240, 0.7);
+  white-space: nowrap;
+}
+.mdWhose {
+  font-weight: bold;
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+.mdWhose.is-me {
+  background: rgba(58, 160, 255, 0.25);
+  color: #bfe2ff;
+}
+.mdWhose.is-them {
+  background: rgba(255, 90, 90, 0.2);
+  color: #ffc9c9;
+}
+.mdPhases {
+  display: flex;
+  gap: 2px;
+}
+.mdPhase {
+  min-width: 0 !important;
+  min-height: 0 !important;
+  width: 28px;
+  height: 22px;
+  padding: 0 !important;
+  font: bold 10px Arial !important;
+  background: rgba(0, 0, 0, 0.4) !important;
+  color: rgba(220, 255, 240, 0.45) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  box-shadow: none !important;
+  border-radius: 3px;
+}
+.mdPhase.is-on {
+  background: linear-gradient(#ffe27a, #d9a520) !important;
+  color: #2a1a00 !important;
+  border-color: #fff3b0 !important;
+}
+.mdPhase.is-go:not(.is-on) {
+  color: #fff !important;
+  border-color: rgba(90, 190, 255, 0.7) !important;
+  cursor: pointer;
+}
+.mdPhaseGo {
+  display: flex;
+  gap: 4px;
+}
+.mdGo {
+  min-width: 0 !important;
+  padding: 0 10px !important;
+  height: 24px;
+  font-weight: bold;
+}
+.mdGo.is-battle {
+  background: linear-gradient(#ff7a5a, #c62f1a) !important;
+  color: #fff;
+  text-shadow: 0 1px 0 #000;
+}
+.mdGo.is-end {
+  background: linear-gradient(#7ac8ff, #2b6ec4) !important;
+  color: #fff;
+  text-shadow: 0 1px 0 #000;
+}
+.mdClock {
+  font: bold 11px Arial;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.5);
+  color: #fff;
+  font-variant-numeric: tabular-nums;
+}
+.mdClock.is-low {
+  background: #c62f1a;
+  animation: mdBlink 0.5s step-end infinite alternate;
+}
+@keyframes mdBlink {
+  50% {
+    opacity: 0.6;
+  }
+}
+
+/* the chain, at the field's right */
+.mdChain {
+  position: absolute;
+  right: calc(var(--s) * -0.2);
+  top: 50%;
+  transform: translate(100%, -50%);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  z-index: 8;
+  pointer-events: none;
+}
+.mdChainLink {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 130px;
+  padding: 2px 6px 2px 2px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.75);
+  border: 1px solid rgba(255, 211, 77, 0.6);
+  font-size: 10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.mdChainLink span {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: #ffd34d;
+  color: #000;
+  font-weight: bold;
+}
+.mdChainLink.is-them {
+  border-color: rgba(255, 90, 90, 0.7);
+}
+.mdChainLink.is-negated {
+  text-decoration: line-through;
+  opacity: 0.6;
+}
+
+/* a 98-style box for popups (not .window: the desktop sizes those to fill their window) */
+.mdWin {
+  background: #c0c0c0;
+  color: #000;
+  box-shadow:
+    inset -1px -1px #0a0a0a,
+    inset 1px 1px #dfdfdf,
+    inset -2px -2px grey,
+    inset 2px 2px #fff;
+  padding: 3px;
+  box-sizing: border-box;
+}
+
+/* ---------- banners, menus, pickers ---------- */
+
+.mdBanner {
+  position: absolute;
+  top: 38%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: min(92%, 520px);
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: linear-gradient(rgba(30, 12, 50, 0.96), rgba(16, 6, 30, 0.96));
+  border: 2px solid #ffd34d;
+  box-shadow:
+    0 0 24px rgba(255, 211, 77, 0.35),
+    0 8px 24px rgba(0, 0, 0, 0.6);
+  animation: mdPop 0.25s ease-out;
+}
+.mdBannerText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.mdBannerText b {
+  font-size: 13px;
+  color: #fff;
+}
+.mdBannerText span {
+  font-size: 11px;
+  color: #d8c8ff;
+}
+.mdPass {
+  flex: none;
+  font-weight: bold;
+  min-width: 70px !important;
+  height: 28px;
+}
+.mdStatus {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 15;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 94%;
+  padding: 4px 10px;
+  border-radius: 14px;
+  background: rgba(0, 0, 0, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  font-size: 12px;
+  white-space: nowrap;
+}
+.mdStatus.is-pick {
+  border-color: #ffd34d;
+  color: #ffe9a8;
+  font-weight: bold;
+}
+.mdStatus.is-wait {
+  color: rgba(220, 255, 240, 0.7);
+  pointer-events: none;
+}
+.mdStatus button {
+  min-width: 0 !important;
+  padding: 0 8px !important;
+  height: 20px;
+  font-weight: normal;
+  color: #000;
+}
+.mdMenu {
+  position: absolute;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  min-width: 140px;
+  padding: 3px !important;
+  animation: mdPop 0.12s ease-out;
+}
+.mdMenu button {
+  text-align: left;
+  padding: 5px 10px !important;
+  min-height: 26px;
+  border: none !important;
+  box-shadow: none !important;
+  background: none !important;
+  font: 12px Arial, sans-serif;
+  color: #000;
+}
+.mdMenu button:hover,
+.mdMenu button:focus-visible {
+  background: #000080 !important;
+  color: #fff;
+}
+.mdPicker {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  background: rgba(0, 0, 0, 0.55);
+  touch-action: auto;
+}
+.mdPickerBox {
+  width: min(94%, 620px);
+  max-height: 88%;
+  display: flex;
+  flex-direction: column;
+  color: #000;
+}
+.mdPickerBody {
+  padding: 8px;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow: hidden;
+}
+.mdPickerHint {
+  margin: 0;
+}
+.mdPickerCards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+  gap: 8px;
+  overflow-y: auto;
+  padding: 4px;
+  touch-action: pan-y;
+  max-height: 60vh;
+}
+.mdPickCard {
+  display: flex !important;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 4px !important;
+  min-width: 0 !important;
+  height: auto;
+  font-size: 10px;
+}
+.mdPickCard .mdMini,
+.mdPickCard .mdBack {
+  width: 72px;
+}
+.mdPickCard span {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mdPickCard small {
+  color: #555;
+}
+.mdPickCard.is-on {
+  outline: 3px solid #ff4a4a;
+  outline-offset: -2px;
+  background: #ffe9e9 !important;
+}
+.mdPickerBtns {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+.mdCostHint {
+  position: absolute;
+  bottom: calc(var(--hand) * 86 / 59 + 46px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 16;
+  padding: 3px 8px;
+  border-radius: 8px;
+  background: #ffd34d;
+  color: #000;
+  font-weight: bold;
+}
+.mdLogPop {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  z-index: 35;
+  width: min(320px, 90%);
+  height: min(320px, 60%);
+  display: flex;
+  flex-direction: column;
+  color: #000;
+}
+.mdLogPop .mdLog {
+  flex: 1;
+  background: #10251f;
+}
+.mdHoverCard {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  width: 170px;
+  z-index: 12;
+  pointer-events: none;
+  opacity: 0.97;
+}
+.mdHoverCard .mdInspectorEmpty {
+  display: none;
+}
+.mdZoom {
+  position: absolute;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: rgba(0, 0, 0, 0.78);
+  animation: mdFade 0.15s;
+}
+.mdZoom .mdCard {
+  width: min(78vw, 300px, 60vh);
+  animation: mdPop 0.2s ease-out;
+}
+.mdZoom p {
+  margin: 0;
+  color: #ccc;
+  font-size: 11px;
+}
+.mdToast {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 70;
+  max-width: 90%;
+  padding: 6px 12px;
+  border-radius: 6px;
+  background: #fff3b0;
+  color: #000;
+  border: 1px solid #000;
+  box-shadow: 2px 2px 0 #000;
+  font-size: 12px;
+  animation: mdPop 0.2s ease-out;
+}
+.mdArrow {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 25;
+  color: #ffd34d;
+  overflow: visible;
+}
+.mdArrow path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-dasharray: 10 7;
+  filter: drop-shadow(0 0 4px rgba(0, 0, 0, 0.8));
+  animation: mdDash 0.6s linear infinite;
+}
+.mdArrow marker path {
+  stroke: none;
+  animation: none;
+  fill: currentColor;
+}
+.mdArrow.is-battle {
+  color: #ff4a2a;
+}
+@keyframes mdDash {
+  to {
+    stroke-dashoffset: -17;
+  }
+}
+.mdDragGhost {
+  position: absolute;
+  width: var(--hand);
+  transform: translate(-50%, -60%) rotate(-4deg) scale(1.08);
+  z-index: 50;
+  pointer-events: none;
+  filter: drop-shadow(0 10px 14px rgba(0, 0, 0, 0.7));
+}
+.mdDuel.is-dragging [data-drop="my-m"],
+.mdDuel.is-dragging [data-drop="my-s"] {
+  border-color: rgba(90, 190, 255, 0.7);
+  box-shadow: inset 0 0 calc(var(--s) * 0.25) rgba(90, 190, 255, 0.35);
+}
+
+/* the tutorial's coach */
+.mdCoach {
+  position: absolute;
+  left: 8px;
+  top: 8px;
+  z-index: 45;
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  max-width: min(330px, 70%);
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #fffbe0;
+  color: #000;
+  border: 2px solid #000;
+  box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.6);
+  animation: mdPop 0.25s ease-out;
+}
+.mdCoach.is-bottom {
+  top: auto;
+  bottom: calc(var(--hand) * 86 / 59 + 50px);
+}
+/* never in the way of a tap: only its button takes clicks */
+.mdCoach {
+  pointer-events: none;
+}
+.mdCoach button {
+  pointer-events: auto;
+}
+.mdDuel.is-wide .mdCoach:not(.is-right) {
+  left: calc(clamp(210px, 22%, 260px) + 10px);
+}
+.mdDuel.is-tall .mdCoach,
+.mdDuel.is-tall .mdCoach.is-bottom {
+  top: 4px;
+  bottom: auto;
+  left: 6px;
+  right: 6px;
+  max-width: none;
+  padding: 6px 8px;
+  opacity: 0.97;
+}
+.mdDuel.is-tall .mdCoachText p {
+  font-size: 12px;
+  margin-bottom: 2px;
+}
+.mdCoach.is-right {
+  left: auto;
+  right: 8px;
+}
+.mdCoachFace {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(circle at 35% 30%, #fff, #ffd34d 50%, #b8860b);
+  border: 1px solid #000;
+  font: 900 18px Georgia, serif;
+}
+.mdCoachText b {
+  display: block;
+  margin-bottom: 2px;
+  font-size: 12px;
+}
+.mdCoachText p {
+  margin: 0 0 4px;
+  font-size: 12px;
+  line-height: 1.35;
+}
+.mdCoachText button {
+  font-weight: bold;
+}
+
+/* ---------- effects ---------- */
+
+.mdFx {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 26;
+  overflow: hidden;
+}
+.mdSlot.is-lunge {
+  animation: mdLunge 0.36s ease-in-out;
+  z-index: 10;
+}
+@keyframes mdLunge {
+  0% {
+    transform: translate(0, 0) scale(1);
+  }
+  55% {
+    transform: translate(var(--lx), var(--ly)) scale(1.18);
+  }
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+}
+.mdSlot.fx-summon .mdSlotCard,
+.mdSlot.fx-fusion .mdSlotCard {
+  animation: mdSummon 0.7s ease-out;
+}
+.mdSlot.fx-fusion .mdSlotCard {
+  animation-name: mdFusion;
+}
+.mdSlot.fx-set .mdSlotCard {
+  animation: mdSet 0.35s ease-out;
+}
+.mdSlot.fx-flip .mdSlotCard {
+  animation: mdFlip 0.45s ease-out;
+}
+.mdSlot.is-def.fx-flip .mdSlotCard {
+  animation-name: mdFlipDef;
+}
+.mdSlot.fx-buff {
+  animation: mdBuff 0.8s ease-out;
+}
+.mdSlot.fx-debuff {
+  animation: mdDebuff 0.8s ease-out;
+}
+.mdHandCard.fx-draw {
+  animation: mdDraw 0.4s ease-out;
+}
+@keyframes mdSummon {
+  0% {
+    transform: scale(1.9);
+    opacity: 0;
+    filter: brightness(3) drop-shadow(0 0 20px #fff);
+  }
+  45% {
+    transform: scale(0.95);
+    opacity: 1;
+    filter: brightness(1.8) drop-shadow(0 0 16px #ffd34d);
+  }
+  100% {
+    transform: scale(1);
+    filter: none;
+  }
+}
+@keyframes mdFusion {
+  0% {
+    transform: scale(0.2) rotate(-200deg);
+    opacity: 0;
+    filter: brightness(3) drop-shadow(0 0 24px #c27aff);
+  }
+  60% {
+    transform: scale(1.15) rotate(10deg);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    filter: none;
+  }
+}
+@keyframes mdSet {
+  from {
+    transform: translateY(-40%) scale(1.2);
+    opacity: 0;
+  }
+}
+.mdSlot.is-def.fx-set .mdSlotCard {
+  animation-name: mdSetDef;
+}
+@keyframes mdSetDef {
+  from {
+    transform: rotate(-90deg) translateX(40%) scale(calc(var(--def) * 1.2));
+    opacity: 0;
+  }
+}
+@keyframes mdFlip {
+  0% {
+    transform: rotateY(90deg);
+  }
+  100% {
+    transform: rotateY(0);
+  }
+}
+@keyframes mdFlipDef {
+  0% {
+    transform: rotate(-90deg) scale(var(--def)) rotateY(90deg);
+  }
+  100% {
+    transform: rotate(-90deg) scale(var(--def)) rotateY(0);
+  }
+}
+@keyframes mdBuff {
+  30% {
+    filter: drop-shadow(0 0 12px #7dff9a) brightness(1.3);
+  }
+}
+@keyframes mdDebuff {
+  30% {
+    filter: drop-shadow(0 0 12px #ff4a4a) brightness(0.8);
+  }
+}
+@keyframes mdDraw {
+  from {
+    transform: translateY(-60%) rotate(8deg);
+    opacity: 0;
+  }
+}
+@keyframes mdPop {
+  from {
+    transform: scale(0.85);
+    opacity: 0;
+  }
+}
+.mdBanner {
+  animation-name: mdBannerPop;
+}
+@keyframes mdBannerPop {
+  from {
+    transform: translate(-50%, -50%) scale(0.85);
+    opacity: 0;
+  }
+}
+@keyframes mdFade {
+  from {
+    opacity: 0;
+  }
+}
+
+/* a destroyed card breaking apart */
+.mdGhost {
+  position: absolute;
+}
+.mdShard {
+  position: absolute;
+  inset: 0;
+  animation: mdShard 0.8s cubic-bezier(0.2, 0.6, 0.4, 1) forwards;
+}
+.mdShard .mdMini {
+  width: 100%;
+}
+.mdGhost.is-discard .mdShard,
+.mdGhost.is-tribute .mdShard,
+.mdGhost.is-fuse .mdShard {
+  animation-name: mdVanish;
+}
+.mdShard.s0 {
+  clip-path: polygon(0 0, 55% 0, 40% 35%, 0 45%);
+  --tx: -40%;
+  --ty: -35%;
+  --rot: -40deg;
+}
+.mdShard.s1 {
+  clip-path: polygon(55% 0, 100% 0, 100% 40%, 40% 35%);
+  --tx: 45%;
+  --ty: -40%;
+  --rot: 35deg;
+}
+.mdShard.s2 {
+  clip-path: polygon(0 45%, 40% 35%, 60% 60%, 0 75%);
+  --tx: -55%;
+  --ty: 5%;
+  --rot: -70deg;
+}
+.mdShard.s3 {
+  clip-path: polygon(40% 35%, 100% 40%, 100% 70%, 60% 60%);
+  --tx: 60%;
+  --ty: 10%;
+  --rot: 55deg;
+}
+.mdShard.s4 {
+  clip-path: polygon(0 75%, 60% 60%, 45% 100%, 0 100%);
+  --tx: -35%;
+  --ty: 50%;
+  --rot: -25deg;
+}
+.mdShard.s5 {
+  clip-path: polygon(60% 60%, 100% 70%, 100% 100%, 45% 100%);
+  --tx: 40%;
+  --ty: 55%;
+  --rot: 30deg;
+}
+@keyframes mdShard {
+  0% {
+    transform: none;
+    filter: brightness(2);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(var(--tx), var(--ty)) rotate(var(--rot)) scale(0.8);
+    filter: brightness(1);
+    opacity: 0;
+  }
+}
+@keyframes mdVanish {
+  to {
+    transform: translateY(-30%) scale(0.6);
+    opacity: 0;
+    filter: grayscale(1) brightness(2);
+  }
+}
+.mdImpact {
+  position: absolute;
+  width: calc(var(--s) * 1.6);
+  height: calc(var(--s) * 1.6);
+  margin: calc(var(--s) * -0.8) 0 0 calc(var(--s) * -0.8);
+  border-radius: 50%;
+  background: radial-gradient(circle, #fff 0%, #ffd34d 25%, rgba(255, 80, 30, 0.6) 50%, transparent 70%);
+  animation: mdImpact 0.45s ease-out forwards;
+}
+@keyframes mdImpact {
+  from {
+    transform: scale(0.2);
+    opacity: 1;
+  }
+  to {
+    transform: scale(1.4);
+    opacity: 0;
+  }
+}
+.mdPopup {
+  position: absolute;
+  left: 50%;
+  top: 44%;
+  width: clamp(120px, calc(var(--s) * 2.4), 230px);
+  transform: translate(-50%, -50%);
+  animation: mdActivate 1.3s ease-out forwards;
+  filter: drop-shadow(0 0 18px rgba(255, 211, 77, 0.8));
+}
+.mdPopup.is-them {
+  filter: drop-shadow(0 0 18px rgba(255, 90, 90, 0.85));
+}
+.mdPopup .mdCard {
+  width: 100%;
+}
+.mdStamp {
+  position: absolute;
+  left: 50%;
+  top: 45%;
+  transform: translate(-50%, -50%) rotate(-14deg);
+  padding: 2px 10px;
+  border: 4px solid #e01a1a;
+  color: #e01a1a;
+  background: rgba(255, 255, 255, 0.85);
+  font: 900 24px "Arial Black", Arial;
+  letter-spacing: 0.05em;
+}
+.mdLinkNo {
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: #ffd34d;
+  color: #000;
+  font: bold 12px Arial;
+}
+@keyframes mdActivate {
+  0% {
+    transform: translate(-50%, -50%) scale(0.4) rotateY(80deg);
+    opacity: 0;
+  }
+  18% {
+    transform: translate(-50%, -50%) scale(1.05) rotateY(0);
+    opacity: 1;
+  }
+  75% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, -60%) scale(0.9);
+    opacity: 0;
+  }
+}
+.mdPopup.is-coin {
+  width: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  color: #fff;
+  font: 900 20px "Arial Black", Arial;
+}
+.mdCoin {
+  width: 70px;
+  height: 70px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(circle at 35% 30%, #fff8c0, #f2c230 50%, #8a5a00);
+  border: 3px solid #6b4a00;
+  color: #6b4a00;
+  font-size: 34px;
+  animation: mdCoinSpin 0.6s ease-out;
+}
+@keyframes mdCoinSpin {
+  from {
+    transform: rotateY(1080deg);
+  }
+}
+.mdTurnBanner {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 46%;
+  text-align: center;
+  font: 900 italic clamp(22px, calc(var(--s) * 0.55), 44px) "Arial Black", Arial, sans-serif;
+  color: #ffc9c9;
+  text-shadow:
+    0 0 12px rgba(255, 60, 60, 0.9),
+    0 3px 0 #000;
+  letter-spacing: 0.04em;
+  animation: mdTurnBanner 1.3s ease-in-out forwards;
+}
+.mdTurnBanner.is-me {
+  color: #d6f0ff;
+  text-shadow:
+    0 0 12px rgba(60, 160, 255, 0.95),
+    0 3px 0 #000;
+}
+@keyframes mdTurnBanner {
+  0% {
+    transform: translateX(-60%) skewX(-12deg);
+    opacity: 0;
+  }
+  20%,
+  75% {
+    transform: none;
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(60%) skewX(12deg);
+    opacity: 0;
+  }
+}
+
+/* ---------- the result over the table ---------- */
+
+.mdOver {
+  position: absolute;
+  inset: 0;
+  z-index: 55;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0.85));
+  animation: mdFade 0.5s;
+  color: #fff;
+  text-align: center;
+  touch-action: auto;
+}
+.mdOverTitle {
+  font: 900 italic clamp(34px, 8vw, 64px) "Arial Black", Arial, sans-serif;
+  letter-spacing: 0.06em;
+  animation: mdOverIn 0.7s cubic-bezier(0.2, 1.4, 0.4, 1);
+}
+.mdOver.is-win .mdOverTitle {
+  color: #ffe27a;
+  text-shadow:
+    0 0 20px rgba(255, 200, 60, 0.9),
+    0 4px 0 #6b4a00;
+}
+.mdOver.is-lose .mdOverTitle {
+  color: #ff8a7a;
+  text-shadow:
+    0 0 20px rgba(255, 60, 60, 0.8),
+    0 4px 0 #400;
+}
+.mdOver.is-draw .mdOverTitle {
+  color: #ddd;
+}
+@keyframes mdOverIn {
+  from {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+}
+.mdOver p {
+  margin: 0;
+  color: #ddd;
+}
+.mdOverBtns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  color: #000;
+}
+.mdOverBtns button {
+  min-width: 110px;
+  height: 30px;
+  font-weight: bold;
+}
+.mdOverPacks {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: rgba(255, 211, 77, 0.15);
+  border: 1px solid #ffd34d;
+  color: #ffe9a8;
+  font-weight: bold;
+  animation: mdPop 0.4s 0.5s both;
+}
+
+/* ---------- layouts ---------- */
+
+/* a tall window or a phone held upright: player bars above the hands */
+.mdDuel.is-tall .mdTable {
+  justify-content: space-evenly;
+}
+.mdDuel.is-tall .mdTurn > :not(.mdClock) {
+  display: none;
+}
+.mdDuel.is-tall .mdPhaseBar {
+  gap: 3px;
+}
+.mdDuel.is-tall .mdGo {
+  padding: 0 7px !important;
+}
+.mdDuel.is-tall .mdPlayer.is-them {
+  padding-right: 52px;
+}
+.mdDuel.is-tall .mdTop,
+.mdDuel.is-tall .mdBottom {
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.mdDuel.is-tall .mdPlayer {
+  width: 100%;
+  display: grid;
+  grid-template-columns: auto auto 1fr auto auto;
+  align-items: center;
+  column-gap: 8px;
+  padding: 3px 8px;
+}
+.mdDuel.is-tall .mdLp {
+  margin: 0;
+}
+.mdDuel.is-tall .mdLpNum {
+  font-size: 18px;
+}
+.mdDuel.is-tall .mdLpBar {
+  margin: 0;
+}
+.mdDuel.is-tall .mdOppHand {
+  flex-basis: 100%;
+  height: calc(var(--s) * 0.5);
+}
+.mdDuel.is-tall .mdBottom {
+  flex-direction: column-reverse;
+  align-items: stretch;
+}
+.mdDuel.is-tall .mdLogBtn {
+  position: absolute;
+  right: 8px;
+  top: 8px;
+  z-index: 9;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  height: 24px;
+  padding: 0 8px !important;
+}
+.mdDuel.is-tall .mdChain {
+  right: auto;
+  left: 50%;
+  top: auto;
+  bottom: 50%;
+  transform: translate(-50%, 50%);
+}
+
+/* a phone on its side: the field in the middle, players at the left, the hand at the right */
+.mdDuel.is-flat .mdTable {
+  display: grid;
+  grid-template-columns: 124px auto minmax(0, 1fr);
+  grid-template-rows: auto auto 1fr auto auto;
+  grid-template-areas:
+    "them field hand"
+    "ohand field hand"
+    ". field hand"
+    "log field hand"
+    "me field hand";
+  align-items: start;
+  justify-items: stretch;
+  column-gap: 8px;
+  padding: 4px 6px;
+}
+.mdDuel.is-flat .mdTop,
+.mdDuel.is-flat .mdBottom {
+  display: contents;
+}
+.mdDuel.is-flat .mdPlayer.is-them {
+  grid-area: them;
+  width: auto;
+}
+.mdDuel.is-flat .mdPlayer.is-me {
+  grid-area: me;
+  width: auto;
+}
+.mdDuel.is-flat .mdOppHand {
+  grid-area: ohand;
+  height: calc(var(--s) * 0.42);
+  margin-top: 4px;
+}
+.mdDuel.is-flat .mdLogBtn {
+  grid-area: log;
+  justify-self: start;
+  margin-bottom: 4px;
+}
+.mdDuel.is-flat .mdField {
+  grid-area: field;
+  align-self: center;
+}
+.mdDuel.is-flat .mdHand {
+  grid-area: hand;
+  height: 100%;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(var(--hand), 1fr));
+  grid-auto-rows: min-content;
+  align-content: start;
+  justify-content: center;
+  gap: 4px;
+  overflow-y: auto;
+  padding: 2px;
+  touch-action: pan-y;
+}
+.mdDuel.is-flat .mdHand .mdHandCard {
+  margin: 0 !important;
+}
+.mdDuel.is-flat .mdChain {
+  right: auto;
+  left: 0;
+  transform: translate(-105%, -50%);
+}
+.mdDuel.is-flat .mdPhaseBar {
+  height: 26px;
+}
+.mdDuel.is-flat .mdTurn {
+  display: none;
+}
+.mdDuel.is-flat .mdCoach.is-bottom {
+  bottom: 8px;
+}
+
+/* touch: bigger buttons */
+.mdDuel.is-mobile .mdGo,
+.mdDuel.is-mobile .mdPass {
+  height: 30px;
+}
+.mdDuel.is-mobile .mdMenu button {
+  min-height: 34px;
+  font-size: 14px;
+}
+.mdDuel.is-mobile .mdPhase {
+  width: 26px;
+}

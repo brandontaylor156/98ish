@@ -24,10 +24,18 @@
   echo...), Calculator, Character Map and an MS-DOS Prompt
 - **Games:** Tetris (Marathon, Sprint 40L, Ultra, Survival, and Tetris Online: Battle 2P, a 2-6 player Arena
   with items and Sprint races, with Quick Match, computer players and star rankings), Sunny Acres (a farming and
-  town-building game, with live co-op: farm one town together in real time), Pickleball 98 (3D, with real
-  pickleball physics: spin, the kitchen, the two-bounce rule, side-out scoring), Block Ten (a 10x10 block puzzle), Pinball: Deep Sea Dive, Solitaire, FreeCell, Minesweeper,
-  Downhill, Reversi, Chess, Battleship, Hearts, SPECTRA and Hover. Every game has chat (a private room for a match,
-  a lobby for everyone playing it), and on phones you can move and resize the on-screen controls
+  town-building game, with live co-op: farm one town together in real time), Pickleball 98 (3D, with animated
+  athletes, real pickleball physics and rules, timing-based shots, a World Tour and online singles and doubles),
+  Shred 98 (a 3D rock rhythm game with six original songs, keyboard, gamepad or touch), Word Duel (guess the word:
+  a daily puzzle and online races, battle royale, co-op, sabotage and multi-board, with every rule adjustable),
+  Last Card (a shedding card game for 2-10 with house rules), Monster Duel (a monster card duel with 170+ original
+  cards, a deck builder and card packs), Hexlands (settle, trade and build on a hex island), Checkers, Block Ten
+  (a 10x10 block puzzle), Pinball: Deep Sea Dive, Solitaire, FreeCell, Minesweeper, Downhill, Reversi, Chess,
+  Battleship, Hearts, SPECTRA and Hover
+- **Play online:** every multiplayer game has a Play Online button: Quick Match with strangers, a private room
+  with a join code (or a ?join= link), invite someone who's online, or play the computer. Computer players fill
+  empty seats and take over if someone drops. Every game has chat (a private room for a match, a lobby for
+  everyone playing it), and on phones you can move and resize the on-screen controls
 - **Media Player** with eight original synthesized songs
 - **Internet Explorer** with a Wayback Machine time machine, plus 98ish.com: the Guestbook, the Members directory
   and the web ring
@@ -39,8 +47,8 @@
   Chess, Reversi, Battleship, Hearts or a Minesweeper race against them
 - **Us (for couples):** pair two 98 Messenger accounts, then: Love Letters (scheduled, "open when..." and countdown
   letters that stay sealed on the server until their day), Our Story (a shared photo timeline), virtual flowers
-  that wilt unless watered, Our Pet (a pet you raise together), the Lovebirds Quiz Show (How Well Do You Know Me,
-  This or That, compatibility quizzes, deep talk cards, party trivia: 400+ original questions), Photo Puzzle
+  that wilt unless watered, Our Pet (a pet you raise together), the Lovebirds Quiz Show (a game show with a host: How Well Do You
+  Know Me, This or That, deep talk cards and party trivia, live on two phones, passing one phone or taking turns), Photo Puzzle
   (jigsaws from your photos with hidden messages), Doodle Together (a live shared canvas), Dream House (a dollhouse
   you can decorate together) and Sunny Acres visits, help and gifts. Couple data is private to the pair
 - **Appward 98:** an unofficial retro tribute to [Appward](https://appward.com), the business suite, as if it shipped

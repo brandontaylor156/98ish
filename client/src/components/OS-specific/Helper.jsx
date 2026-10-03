@@ -62,6 +62,10 @@ const TIPS = {
     "Down to two cards? Press LAST CARD! before you play, or someone can catch you and you'll draw 2.",
     "Hold on to your wilds: they're worth 50 points to whoever goes out, and they get you out of a jam.",
   ],
+  "Monster Duel": [
+    "New to it? Help > Tutorial Duel walks you through a whole turn: summoning, attacking and springing a trap.",
+    "Win duels against the computer to earn card packs, then build your own deck in the Deck Builder.",
+  ],
   "Word Duel": [
     "Play Online, then Create Room: there are presets for races, Battle Royale and Co-op, and Customize changes every rule.",
     "Stuck? Try a word with five different common letters, like CRANE or SLATE, to find out the most at once.",

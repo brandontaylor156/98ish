@@ -54,6 +54,7 @@ export const programs = [
   { name: "Word Duel", app: "wordduel", type: "wordduel", icon: "/assets/program_icons/wordduel.svg", width: 560, height: 690, group: "Games", desktop: false, single: true, online: "wordduel" },
   { name: "Last Card", app: "lastcard", type: "lastcard", icon: "/assets/program_icons/lastcard.svg", width: 900, height: 680, group: "Games", desktop: false, single: true, online: "lastcard" },
   { name: "Hexlands", app: "hexlands", type: "hexlands", icon: "/assets/program_icons/hexlands.svg", width: 1000, height: 700, group: "Games", desktop: false, single: true, online: "hexlands" },
+  { name: "Monster Duel", app: "monsterduel", type: "monsterduel", icon: "/assets/program_icons/monsterduel.svg", width: 1000, height: 720, group: "Games", desktop: false, single: true, online: "monsterduel" },
   { name: "Block Ten", app: "blockten", type: "blockten", icon: "/assets/program_icons/blockten.svg", width: 440, height: 640, group: "Games", desktop: false, single: true },
   { name: "Sunny Acres", app: "town", type: "town", icon: "/assets/program_icons/town.svg", width: 860, height: 620, group: "Games", desktop: false, single: true },
   { name: "Photo Puzzle", app: "puzzle", type: "puzzle", icon: "/assets/program_icons/puzzle.svg", width: 820, height: 600, group: "Us", desktop: false, single: true },

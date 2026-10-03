@@ -1,0 +1,387 @@
+/* Monster Duel: a 98 window around a dark duel table with glossy cards */
+
+.mdRoot {
+  --md-felt: #10251f;
+  --md-felt2: #0a1714;
+  --md-line: rgba(160, 220, 200, 0.18);
+  --md-gold: #e8c45a;
+  --md-me: #3aa0ff;
+  --md-them: #ff5a5a;
+  --md-cw: 64px;
+
+  position: relative;
+  height: calc(100% - 25px);
+  display: flex;
+  flex-direction: column;
+  background: #c0c0c0;
+  font-family: "Pixelated MS Sans Serif", Arial, sans-serif;
+  font-size: 11px;
+  color: #000;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.mdBody {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.mdError {
+  color: #a00000;
+  font-weight: bold;
+}
+.mdMuted {
+  color: #555;
+}
+
+/* ---------- cards ---------- */
+
+.mdCard,
+.mdMini,
+.mdBack {
+  container-type: inline-size;
+  aspect-ratio: 59 / 86;
+  position: relative;
+  box-sizing: border-box;
+}
+.mdCard {
+  --frame: linear-gradient(160deg, #d77a3c, #a94a18);
+  font-family: Georgia, "Times New Roman", serif;
+  color: #1a1208;
+}
+.is-normal {
+  --frame: linear-gradient(160deg, #ecd08a, #c3964a 60%, #a97a32);
+}
+.is-effect {
+  --frame: linear-gradient(160deg, #e48a48, #b8561f 60%, #8f3d10);
+}
+.is-fusion {
+  --frame: linear-gradient(160deg, #a77ae0, #7044b3 60%, #4f2a8c);
+}
+.is-token {
+  --frame: linear-gradient(160deg, #c3cad3, #8a949f 60%, #6b7480);
+}
+.is-spell {
+  --frame: linear-gradient(160deg, #3cc2a6, #16846f 60%, #0d5c4c);
+}
+.is-trap {
+  --frame: linear-gradient(160deg, #d8508e, #a1245f 60%, #6e1340);
+}
+.mdCardIn {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  box-sizing: border-box;
+  gap: 1.4cqw;
+  border-radius: 3.2cqw;
+  padding: 3.4cqw;
+  background: var(--frame);
+  box-shadow:
+    inset 0 0 0 0.8cqw rgba(0, 0, 0, 0.55),
+    inset 0 0 0 1.6cqw rgba(255, 255, 255, 0.18),
+    0 1.5cqw 4cqw rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+}
+.mdCardName {
+  flex: none;
+  height: 11.5cqw;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1cqw;
+  padding: 0 1.2cqw 0 2cqw;
+  background: linear-gradient(#fbf4e2, #d9caa6);
+  border: 0.7cqw solid #3a2c14;
+  border-radius: 1cqw;
+  box-shadow: inset 0 -0.6cqw 0 rgba(0, 0, 0, 0.12);
+}
+.mdCardTitle {
+  font-weight: bold;
+  font-size: 6.6cqw;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: -0.02em;
+}
+.is-rare .mdCardTitle {
+  color: #6b1a00;
+}
+.is-super .mdCardTitle,
+.is-ultra .mdCardTitle {
+  background: linear-gradient(90deg, #3a2400, #8a5a00, #c8901a, #8a5a00, #3a2400);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: mdFoilText 4s linear infinite;
+}
+.is-ultra .mdCardArt::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, transparent 30%, rgba(255, 255, 255, 0.35) 45%, rgba(255, 220, 120, 0.25) 50%, transparent 65%);
+  background-size: 250% 100%;
+  mix-blend-mode: screen;
+  animation: mdFoil 3.5s ease-in-out infinite;
+  pointer-events: none;
+}
+.is-super .mdCardArt::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, transparent 38%, rgba(255, 255, 255, 0.22) 50%, transparent 62%);
+  background-size: 250% 100%;
+  animation: mdFoil 5s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes mdFoil {
+  0% {
+    background-position: 120% 0;
+  }
+  100% {
+    background-position: -120% 0;
+  }
+}
+@keyframes mdFoilText {
+  to {
+    background-position: -200% 0;
+  }
+}
+.mdOrb {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 9cqw;
+  height: 9cqw;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.75), var(--orb) 42%, #000 125%);
+  box-shadow: 0 0 0 0.5cqw rgba(0, 0, 0, 0.55);
+}
+.mdOrb svg {
+  width: 72%;
+  height: 72%;
+}
+.mdCardLevel {
+  flex: none;
+  height: 6.6cqw;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  padding: 0 1.5cqw;
+}
+.mdCardLevel.is-st {
+  font-weight: bold;
+  font-size: 5cqw;
+  color: #fff;
+  text-shadow: 0 0.4cqw 0.6cqw rgba(0, 0, 0, 0.7);
+}
+.mdCardLevel.is-st span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6cqw;
+}
+.mdCardLevel.is-st svg {
+  width: 5cqw;
+  height: 5cqw;
+}
+.mdStars {
+  display: flex;
+  gap: 0.3cqw;
+}
+.mdStars svg {
+  width: 6.2cqw;
+  height: 6.2cqw;
+}
+.mdCardArt {
+  flex: none;
+  position: relative;
+  aspect-ratio: 100 / 76;
+  border: 0.9cqw solid #241b0c;
+  box-shadow:
+    0 0 0 0.6cqw rgba(255, 255, 255, 0.35),
+    inset 0 0 3cqw rgba(0, 0, 0, 0.6);
+  overflow: hidden;
+  background: #000;
+}
+.mdCardArt svg,
+.mdMiniArt svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.mdCardBox {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 1.2cqw 2cqw 1cqw;
+  background: linear-gradient(#fbf5e4, #ece0c0);
+  border: 0.7cqw solid #4a3818;
+  border-radius: 0.6cqw;
+  font-size: 4.5cqw;
+  line-height: 1.17;
+}
+.is-spell .mdCardBox,
+.is-trap .mdCardBox {
+  font-size: 4.9cqw;
+}
+.mdCardType {
+  font-weight: bold;
+  font-size: 4.6cqw;
+  margin-bottom: 0.6cqw;
+}
+.mdCardText {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  white-space: pre-line;
+}
+.mdCardText.is-flavor {
+  font-style: italic;
+}
+.mdCardText.is-long {
+  font-size: 4.05cqw;
+}
+.mdCardStats {
+  display: flex;
+  justify-content: flex-end;
+  gap: 3cqw;
+  margin-top: 0.8cqw;
+  padding-top: 0.6cqw;
+  border-top: 0.45cqw solid #3a2c14;
+  font-family: Arial, sans-serif;
+  font-weight: bold;
+  font-size: 5.4cqw;
+}
+.is-up {
+  color: #0b7d2c;
+}
+.is-down {
+  color: #b20000;
+}
+
+/* the board / hand card */
+.mdMini {
+  --frame: linear-gradient(160deg, #d77a3c, #a94a18);
+}
+.mdMiniIn {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  box-sizing: border-box;
+  border-radius: 5cqw;
+  padding: 4.5cqw;
+  background: var(--frame);
+  box-shadow:
+    inset 0 0 0 1.4cqw rgba(0, 0, 0, 0.5),
+    0 2cqw 5cqw rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+}
+.mdMiniArt {
+  flex: 1;
+  min-height: 0;
+  border: 2cqw solid #20170a;
+  border-radius: 2cqw;
+  overflow: hidden;
+  background: #000;
+}
+.mdMiniName {
+  flex: none;
+  margin-top: 2cqw;
+  padding: 0 2cqw;
+  font: bold 11.5cqw/1.25 Arial, sans-serif;
+  color: #1a1208;
+  background: rgba(255, 248, 225, 0.85);
+  border-radius: 2cqw;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.mdMiniStats {
+  flex: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-top: 2cqw;
+  padding: 2cqw 4cqw;
+  border-radius: 3cqw;
+  background: rgba(10, 6, 2, 0.82);
+  color: #fff;
+  font-family: "Arial Black", Arial, sans-serif;
+  line-height: 1;
+}
+.mdMiniStats b {
+  font-size: 19cqw;
+  font-weight: 900;
+}
+.mdMiniStats i {
+  font-style: normal;
+  font-size: 13cqw;
+  opacity: 0.7;
+}
+.mdMiniStats.is-def b {
+  font-size: 13cqw;
+  opacity: 0.7;
+}
+.mdMiniStats.is-def i {
+  font-size: 19cqw;
+  opacity: 1;
+  color: #9fd1ff;
+}
+.mdMiniStats .is-up {
+  color: #7dff9a;
+}
+.mdMiniStats .is-down {
+  color: #ff8080;
+}
+.mdMiniKind {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 3cqw;
+  margin-top: 2cqw;
+  padding: 1.5cqw 3cqw;
+  border-radius: 3cqw;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font: bold 12cqw/1.1 Arial, sans-serif;
+}
+.mdMiniKind .mdOrb {
+  width: 16cqw;
+  height: 16cqw;
+}
+.mdMiniLevel {
+  position: absolute;
+  top: 6.5cqw;
+  left: 7cqw;
+  color: #ffd34d;
+  font-size: 9cqw;
+  letter-spacing: -1cqw;
+  text-shadow:
+    0 0 1cqw #000,
+    0 0 2cqw #000;
+}
+.mdBack {
+  border-radius: 6% / 4%;
+  overflow: hidden;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+}
+.mdBack svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mdRoot *,
+  .mdRoot *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

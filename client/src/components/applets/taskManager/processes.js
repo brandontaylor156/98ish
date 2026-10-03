@@ -65,6 +65,7 @@ export const APP_PROFILES = {
   Hexlands: { image: "hexlands.exe", mem: 4380, threads: 4, handles: 63, cpu: [0.4, 9] },
   "Shred 98": { image: "shred98.exe", mem: 44210, threads: 11, handles: 238, cpu: [6, 26] },
   "Last Card": { image: "lastcard.exe", mem: 3380, threads: 3, handles: 52, cpu: [0.3, 7] },
+  "Monster Duel": { image: "mduel.exe", mem: 9840, threads: 5, handles: 96, cpu: [0.4, 9] },
   "Block Ten": { image: "blockten.exe", mem: 1876, threads: 2, handles: 33, cpu: [0.15, 4] },
   "Sunny Acres": { image: "acres.exe", mem: 7480, threads: 4, handles: 88, cpu: [0.6, 9] },
   "Photo Puzzle": { image: "puzzle.exe", mem: 4210, threads: 3, handles: 47, cpu: [0.2, 6] },

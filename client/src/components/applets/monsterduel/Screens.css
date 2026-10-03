@@ -1,0 +1,1106 @@
+/* Monster Duel: the title screen, menus, opponent picker, deck builder and packs */
+
+.mdRoot .mdBody {
+  background:
+    radial-gradient(ellipse 80% 60% at 50% 35%, rgba(120, 70, 200, 0.28), transparent 70%),
+    radial-gradient(ellipse at 50% 100%, rgba(255, 120, 40, 0.18), transparent 60%),
+    linear-gradient(#140b26, #07040f);
+  color: #eee6ff;
+}
+.mdLoading {
+  margin: auto;
+  color: #cbb8ff;
+  font-size: 14px;
+}
+
+/* ---------- logo ---------- */
+
+.mdLogo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 0.86;
+  font-family: "Arial Black", Impact, Arial, sans-serif;
+  font-weight: 900;
+  font-style: italic;
+  letter-spacing: 0.04em;
+  filter: drop-shadow(0 4px 0 #2a0f00) drop-shadow(0 0 18px rgba(255, 140, 40, 0.5));
+}
+.mdLogo span {
+  background: linear-gradient(#fff6c2 10%, #ffcf4a 45%, #e8701a 70%, #a0300a);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-stroke: 1px rgba(60, 20, 0, 0.6);
+}
+.mdLogoTop {
+  font-size: clamp(30px, 7vw, 54px);
+}
+.mdLogoBottom {
+  font-size: clamp(44px, 11vw, 84px);
+  letter-spacing: 0.12em;
+}
+.mdLogo.is-small .mdLogoTop {
+  font-size: 22px;
+}
+.mdLogo.is-small .mdLogoBottom {
+  font-size: 32px;
+}
+
+/* ---------- title ---------- */
+
+.mdTitle {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 12px 12px;
+  box-sizing: border-box;
+}
+.mdTitleFan {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  opacity: 0.32;
+}
+.mdFanCard {
+  position: absolute;
+  width: 150px;
+  top: 0;
+  transform-origin: 50% 120%;
+}
+.mdFanCard.f0 {
+  left: -230px;
+  transform: rotate(-16deg);
+}
+.mdFanCard.f1 {
+  left: -75px;
+  top: -14px;
+}
+.mdFanCard.f2 {
+  left: 80px;
+  transform: rotate(16deg);
+}
+.mdTitle > *:not(.mdTitleFan) {
+  position: relative;
+}
+.mdTitle::before,
+.mdTitle::after {
+  content: "";
+  flex: 1 1 0;
+  max-height: 60px;
+}
+.mdTagline {
+  margin: -2px 0 2px;
+  font: bold italic 14px Georgia, serif;
+  color: #ffd27a;
+  letter-spacing: 0.15em;
+  text-shadow: 0 2px 4px #000;
+}
+.mdOnlineBtn {
+  width: min(100%, 440px);
+}
+.mdTitleMenu {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 8px;
+  width: min(100%, 560px);
+}
+.mdMenuBtn {
+  display: flex !important;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 8px 10px !important;
+  text-align: left;
+  min-height: 48px;
+}
+.mdMenuBtn b {
+  font-size: 13px;
+}
+.mdMenuBtn small {
+  color: #444;
+}
+.mdMenuBtn.is-main {
+  grid-column: 1 / -1;
+  align-items: center;
+  text-align: center;
+  background: linear-gradient(#ffb36a, #e0601a) !important;
+  color: #fff;
+  text-shadow: 0 1px 0 #6a2000;
+}
+.mdMenuBtn.is-main b {
+  font-size: 16px;
+}
+.mdMenuBtn.is-main small {
+  color: #ffe9cc;
+}
+.mdMenuBtn.has-packs b::after {
+  content: " \2605";
+  color: #c97a00;
+}
+.mdRecord {
+  margin: 4px 0 0;
+  color: #a99bc9;
+  font-size: 11px;
+}
+
+/* ---------- pages ---------- */
+
+.mdPage {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  box-sizing: border-box;
+  overflow-y: auto;
+}
+.mdPageHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.mdPageHead h2 {
+  margin: 0;
+  font: 900 italic 22px "Arial Black", Arial, sans-serif;
+  color: #ffd27a;
+  text-shadow: 0 2px 0 #3a1400;
+}
+.mdPageBtns {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.mdPage h3 {
+  margin: 4px 0 6px;
+  font-size: 13px;
+  color: #d9c8ff;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.mdPrimaryBtn {
+  font-weight: bold;
+}
+.mdBigBtn {
+  min-width: 180px;
+  height: 40px;
+  font: bold 16px Arial, sans-serif !important;
+  background: linear-gradient(#ffb36a, #e0601a) !important;
+  color: #fff;
+  text-shadow: 0 1px 0 #6a2000;
+}
+.mdMuted {
+  color: #a99bc9;
+}
+.mdNote {
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: #fff3b0;
+  color: #000;
+}
+
+/* ---------- rules ---------- */
+
+.mdRulesText {
+  columns: 290px;
+  column-gap: 10px;
+  user-select: text;
+}
+.mdRulesText section {
+  break-inside: avoid;
+  margin-bottom: 10px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  font-size: 12px;
+  line-height: 1.45;
+}
+.mdRulesText p,
+.mdRulesText ul,
+.mdRulesText ol {
+  margin: 0 0 6px;
+}
+.mdRulesText ul,
+.mdRulesText ol {
+  padding-left: 18px;
+}
+.mdRulesText b {
+  color: #ffe9a8;
+}
+
+/* ---------- versus ---------- */
+
+.mdVsBody {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  gap: 12px;
+}
+.mdOppGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 6px;
+}
+.mdOpp {
+  display: flex !important;
+  align-items: center;
+  gap: 8px;
+  padding: 6px !important;
+  text-align: left;
+  min-height: 56px;
+}
+.mdOpp.is-on {
+  outline: 2px solid #ff8a2a;
+  outline-offset: -2px;
+  background: #fff1dd !important;
+}
+.mdOppText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.mdOppText b {
+  font-size: 12px;
+}
+.mdOppText small {
+  font-size: 10px;
+  color: #444;
+}
+.mdBeaten {
+  color: #1a7a2a !important;
+}
+.mdLevel {
+  display: inline-block;
+  padding: 0 4px;
+  border-radius: 3px;
+  color: #fff;
+  font-weight: bold;
+}
+.mdLevel.is-easy {
+  background: #2e9e4a;
+}
+.mdLevel.is-normal {
+  background: #2b6ec4;
+}
+.mdLevel.is-hard {
+  background: #c62f1a;
+}
+.mdAvatar {
+  position: relative;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  overflow: hidden;
+  box-shadow:
+    0 0 0 2px var(--ring),
+    0 2px 4px rgba(0, 0, 0, 0.5);
+  background: #222;
+}
+.mdAvatar svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.mdAvatar b {
+  position: relative;
+  font: 900 13px "Arial Black", Arial;
+  color: #fff;
+  text-shadow:
+    0 0 3px #000,
+    0 0 6px #000;
+  align-self: end;
+  margin-bottom: 1px;
+}
+.mdQuote {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0 0;
+  font: italic 13px Georgia, serif;
+  color: #ffe9cc;
+}
+.mdQuote small {
+  margin-left: auto;
+  font: bold 11px Arial;
+  color: #ffd27a;
+  font-style: normal;
+}
+.mdDeckList {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 6px;
+}
+.mdDeckList.is-compact {
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  max-height: 300px;
+  overflow-y: auto;
+  padding: 2px;
+}
+.mdDeckChoice {
+  display: flex !important;
+  align-items: center;
+  gap: 6px;
+  padding: 4px !important;
+  text-align: left;
+  min-height: 40px;
+}
+.mdDeckChoice.is-on {
+  outline: 2px solid var(--deck, #ff8a2a);
+  outline-offset: -2px;
+  background: #fff1dd !important;
+}
+.mdDeckChoiceArt {
+  flex: none;
+  width: 44px;
+  height: 33px;
+  border: 1px solid #000;
+  overflow: hidden;
+  background: var(--deck, #333);
+}
+.mdDeckChoiceArt svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.mdDeckChoiceText {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.mdDeckChoiceText b {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.mdDeckChoiceText small {
+  color: #555;
+}
+.mdVsOpts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  margin-top: 10px;
+}
+.mdVsOpts label,
+.mdOnlineSettings label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+.mdVsGo {
+  display: flex;
+  justify-content: center;
+  padding: 6px 0;
+}
+.mdOnline {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
+}
+.mdOnline .olRoot,
+.mdOnline > * {
+  color: #000;
+}
+.mdOnlineSettings {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+}
+.mdWaitDeck {
+  margin: 30px auto;
+  font-size: 15px;
+  color: #ffe9a8;
+}
+.mdOverBar {
+  width: min(92%, 520px);
+  color: #000;
+}
+.mdTutDone {
+  position: absolute;
+  left: 50%;
+  top: 12px;
+  transform: translateX(-50%);
+  z-index: 56;
+  max-width: 90%;
+  padding: 8px 14px;
+  border-radius: 8px;
+  background: #fff3b0;
+  border: 2px solid #000;
+  color: #000;
+  box-shadow: 3px 3px 0 #000;
+  cursor: pointer;
+}
+.mdPackIcon {
+  width: 18px;
+  height: 24px;
+  border-radius: 2px;
+  background: linear-gradient(135deg, #ffcf4a, #e0601a 60%, #7a2a00);
+  box-shadow: 0 0 6px #ffcf4a;
+}
+.mdAbout {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  max-width: 300px;
+  padding: 6px;
+  background: #160b2a;
+  color: #eee;
+  border-radius: 4px;
+}
+.mdAbout p {
+  margin: 0;
+  text-align: center;
+}
+
+/* ---------- deck builder ---------- */
+
+.mdDeckMenu {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.mdDeckTiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 8px;
+}
+.mdDeckTile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px !important;
+  text-align: center;
+  min-height: 0;
+  height: auto;
+}
+button.mdDeckTile,
+.mdDeckTileMain {
+  display: flex !important;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.mdDeckTileMain {
+  width: 100%;
+  padding: 8px !important;
+  height: auto;
+}
+.mdDeckTile .mdMini {
+  width: 64px;
+}
+.mdDeckTile small {
+  color: #555;
+  font-size: 10px;
+  line-height: 1.25;
+}
+.mdDeckTile.is-new {
+  justify-content: center;
+  min-height: 120px;
+}
+.mdDeckTile.is-starter {
+  border-top: 4px solid var(--deck) !important;
+}
+.mdDeckTileX {
+  position: absolute !important;
+  top: 2px;
+  right: 2px;
+  min-width: 0 !important;
+  width: 20px;
+  height: 20px;
+  padding: 0 !important;
+  line-height: 1;
+}
+.mdBuilder.is-edit {
+  overflow: hidden;
+}
+.mdBuilderHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.mdDeckName {
+  flex: 0 1 220px;
+  min-width: 120px;
+  font-size: 13px;
+}
+.mdDeckCount {
+  font: bold 14px Arial;
+}
+.mdDeckCount.is-good {
+  color: #7dff9a;
+}
+.mdDeckCount.is-bad {
+  color: #ff9a8a;
+}
+.mdDeckCheck {
+  flex: 1;
+  min-width: 120px;
+  font-size: 11px;
+  color: #d9c8ff;
+}
+.mdBuilderBody {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  gap: 10px;
+}
+.mdCollection {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 0;
+}
+.mdFilters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 6px;
+  align-items: center;
+}
+.mdFilters input[type="search"] {
+  flex: 1 1 140px;
+  min-width: 110px;
+}
+.mdCheck {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  white-space: nowrap;
+}
+.mdGrid {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(86px, 1fr));
+  gap: 8px;
+  align-content: start;
+  padding: 4px;
+  touch-action: pan-y;
+}
+.mdGridCard {
+  position: relative;
+}
+.mdGridAdd {
+  display: block !important;
+  width: 100%;
+  min-width: 0 !important;
+  height: auto !important;
+  padding: 0 !important;
+  border: none !important;
+  box-shadow: none !important;
+  background: none !important;
+  cursor: pointer;
+  transition: transform 0.12s;
+}
+.mdGridAdd:hover {
+  transform: translateY(-3px);
+}
+.mdGridAdd:active {
+  transform: scale(0.96);
+}
+.mdGridCard.is-missing {
+  opacity: 0.35;
+  filter: grayscale(0.8);
+}
+.mdGridCard.is-in .mdGridMeta span:nth-child(2) {
+  color: #7dff9a;
+  font-weight: bold;
+}
+.mdGridMeta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  margin-top: 2px;
+  font-size: 10px;
+  color: #d9c8ff;
+}
+.mdRarity {
+  padding: 0 3px;
+  border-radius: 3px;
+  font: bold 9px Arial;
+  color: #fff;
+  background: #666;
+}
+.mdRarity.is-R {
+  background: #2b6ec4;
+}
+.mdRarity.is-SR {
+  background: linear-gradient(90deg, #8a8a8a, #e8e8e8, #8a8a8a);
+  color: #000;
+}
+.mdRarity.is-UR {
+  background: linear-gradient(90deg, #a87b0c, #ffe27a, #a87b0c);
+  color: #3a2400;
+}
+.mdNew {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  padding: 0 4px;
+  border-radius: 3px;
+  background: #e01a6a;
+  color: #fff;
+  font: bold 9px Arial;
+  box-shadow: 0 0 6px #e01a6a;
+}
+.mdLimited {
+  position: absolute;
+  top: -4px;
+  left: -4px;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: #c62f1a;
+  color: #fff;
+  font: bold 9px Arial;
+}
+.mdTiny {
+  min-width: 0 !important;
+  width: 20px;
+  height: 18px;
+  padding: 0 !important;
+  font-size: 11px;
+  line-height: 1;
+}
+.mdBuilderSide {
+  flex: none;
+  width: 230px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 0;
+}
+.mdBuilderCard {
+  flex: none;
+  min-height: 60px;
+}
+.mdBuilderCard .mdCard {
+  width: 100%;
+}
+.mdDeckPanel {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 4px 6px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  touch-action: pan-y;
+}
+.mdDeckGroup h4 {
+  display: flex;
+  justify-content: space-between;
+  margin: 6px 0 2px;
+  font-size: 11px;
+  color: #ffd27a;
+  text-transform: uppercase;
+}
+.mdDeckRow {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  padding: 1px 0;
+}
+.mdDeckRowDot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  background: #d77a3c;
+}
+.mdDeckRowDot.is-normal {
+  background: #ecd08a;
+}
+.mdDeckRowDot.is-fusion {
+  background: #a77ae0;
+}
+.mdDeckRowDot.is-spell {
+  background: #3cc2a6;
+}
+.mdDeckRowDot.is-trap {
+  background: #d8508e;
+}
+.mdDeckRowName {
+  flex: 1;
+  min-width: 0 !important;
+  padding: 0 2px !important;
+  text-align: left;
+  border: none !important;
+  box-shadow: none !important;
+  background: none !important;
+  color: #eee6ff;
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  height: auto;
+}
+.mdDeckRowN {
+  color: #a99bc9;
+}
+.mdTabs {
+  display: flex;
+  gap: 4px;
+}
+.mdTabs button {
+  flex: 1;
+}
+.mdTabs button.is-on {
+  font-weight: bold;
+  background: #fff1dd !important;
+}
+.mdBuilderFoot {
+  margin: 0;
+  font-size: 10px;
+}
+.mdZoomPage {
+  position: absolute;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: rgba(0, 0, 0, 0.8);
+}
+.mdZoomPage .mdCard {
+  width: min(80vw, 300px, 58vh);
+}
+.mdZoomPage p {
+  margin: 0;
+  color: #ccc;
+}
+.mdZoomBtns {
+  display: flex;
+  gap: 6px;
+}
+.mdZoomBtns button {
+  min-width: 80px;
+  height: 32px;
+}
+
+/* ---------- packs ---------- */
+
+.mdPacks {
+  overflow-x: hidden;
+}
+.mdPackCount {
+  font-weight: bold;
+  color: #ffd27a;
+}
+.mdPackStage {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 0;
+}
+.mdPackBtn {
+  padding: 0 !important;
+  border: none !important;
+  background: none !important;
+  box-shadow: none !important;
+  min-width: 0 !important;
+  height: auto !important;
+  cursor: pointer;
+}
+.mdPack {
+  position: relative;
+  width: 180px;
+  height: 270px;
+  border-radius: 6px 6px 4px 4px;
+  background: linear-gradient(115deg, #3a1a6a, #6b2fb0 40%, #c24a8a 70%, #ff9a3a);
+  box-shadow:
+    0 12px 26px rgba(0, 0, 0, 0.6),
+    inset 0 0 0 3px rgba(255, 255, 255, 0.25),
+    0 0 30px rgba(200, 120, 255, 0.35);
+  overflow: hidden;
+  transition: transform 0.2s;
+}
+.mdPackBtn:hover .mdPack {
+  transform: translateY(-6px) rotate(-1.5deg);
+}
+.mdPack.is-shake {
+  animation: mdShake 0.65s ease-in-out;
+}
+@keyframes mdShake {
+  0%,
+  100% {
+    transform: none;
+  }
+  15% {
+    transform: rotate(-6deg) scale(1.03);
+  }
+  30% {
+    transform: rotate(6deg) scale(1.06);
+  }
+  45% {
+    transform: rotate(-5deg) scale(1.08);
+  }
+  60% {
+    transform: rotate(5deg) scale(1.1);
+  }
+  80% {
+    transform: scale(1.18);
+    filter: brightness(2);
+  }
+}
+.mdPackTop {
+  height: 16px;
+  background: repeating-linear-gradient(90deg, #d9d9d9 0 4px, #a9a9a9 4px 8px);
+  clip-path: polygon(0 0, 100% 0, 100% 70%, 95% 100%, 90% 70%, 85% 100%, 80% 70%, 75% 100%, 70% 70%, 65% 100%, 60% 70%, 55% 100%, 50% 70%, 45% 100%, 40% 70%, 35% 100%, 30% 70%, 25% 100%, 20% 70%, 15% 100%, 10% 70%, 5% 100%, 0 70%);
+}
+.mdPackBody {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 8px;
+}
+.mdPackArt {
+  width: 150px;
+  height: 114px;
+  border: 3px solid #ffd27a;
+  border-radius: 4px;
+  overflow: hidden;
+  box-shadow: 0 0 16px rgba(255, 210, 120, 0.6);
+}
+.mdPackArt svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.mdPackLogo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font: 900 italic 22px/0.9 "Arial Black", Arial;
+  color: #ffe27a;
+  text-shadow:
+    0 2px 0 #6a2000,
+    0 0 10px rgba(255, 160, 40, 0.8);
+}
+.mdPackLogo span:last-child {
+  font-size: 32px;
+  letter-spacing: 0.1em;
+}
+.mdPackLabel {
+  padding: 1px 8px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+  font: bold 10px Arial;
+  letter-spacing: 0.15em;
+}
+.mdPackShine {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, transparent 35%, rgba(255, 255, 255, 0.35) 48%, transparent 60%);
+  background-size: 250% 100%;
+  animation: mdFoil 3s ease-in-out infinite;
+  pointer-events: none;
+}
+.mdPackHint,
+.mdNoPacks p {
+  margin: 0;
+  color: #ffe9a8;
+  text-align: center;
+  max-width: 340px;
+}
+.mdNoPacks {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+.mdNoPacks .mdPack {
+  filter: grayscale(0.7) brightness(0.6);
+}
+.mdPulls {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+  perspective: 900px;
+}
+.mdPull {
+  position: relative;
+  width: 150px;
+  padding: 0 !important;
+  border: none !important;
+  background: none !important;
+  box-shadow: none !important;
+  min-width: 0 !important;
+  height: auto !important;
+  cursor: pointer;
+  animation: mdDeal 0.5s calc(var(--i) * 0.12s) cubic-bezier(0.2, 1.2, 0.4, 1) both;
+}
+@keyframes mdDeal {
+  from {
+    transform: translateY(-140%) rotate(calc((var(--i) - 2) * 12deg)) scale(0.5);
+    opacity: 0;
+  }
+}
+.mdPullInner {
+  position: relative;
+  aspect-ratio: 59 / 86;
+  transform-style: preserve-3d;
+  transition: transform 0.55s cubic-bezier(0.3, 1.3, 0.5, 1);
+}
+.mdPull.is-shown .mdPullInner {
+  transform: rotateY(180deg);
+}
+.mdPullBack,
+.mdPullFront {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+}
+.mdPullFront {
+  transform: rotateY(180deg);
+}
+.mdPullBack:hover {
+  filter: brightness(1.2);
+}
+/* glows go on the button, not the flipping card: a filter would flatten its 3D flip */
+.mdPull.is-R.is-shown {
+  filter: drop-shadow(0 0 10px rgba(90, 160, 255, 0.85));
+}
+.mdPull.is-SR.is-shown {
+  filter: drop-shadow(0 0 14px rgba(230, 230, 255, 0.95));
+}
+.mdPull.is-UR.is-shown {
+  filter: drop-shadow(0 0 20px rgba(255, 210, 60, 1));
+  animation:
+    mdDeal 0.5s calc(var(--i) * 0.12s) cubic-bezier(0.2, 1.2, 0.4, 1) both,
+    mdUltra 1.4s 0.6s ease-in-out infinite alternate;
+}
+.mdPull.is-UR.is-shown::before {
+  content: "";
+  position: absolute;
+  inset: -40%;
+  background: conic-gradient(from 0deg, transparent, rgba(255, 220, 90, 0.35), transparent 30%, rgba(255, 140, 220, 0.3), transparent 60%, rgba(120, 220, 255, 0.3), transparent);
+  border-radius: 50%;
+  animation: mdSpin 4s linear infinite;
+  pointer-events: none;
+}
+@keyframes mdSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes mdUltra {
+  to {
+    filter: drop-shadow(0 0 30px rgba(255, 230, 120, 1)) brightness(1.08);
+  }
+}
+.mdPullTag {
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+  margin-top: 6px;
+}
+.mdPullTag .mdNew {
+  position: static;
+}
+.mdPackBtns {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.mdPackBtns button {
+  min-width: 110px;
+  height: 30px;
+}
+.mdPacks.is-mobile .mdPull {
+  width: 31%;
+  max-width: 120px;
+}
+
+/* ---------- phones and narrow windows ---------- */
+
+.mdRoot.is-mobile .mdVsBody {
+  grid-template-columns: 1fr;
+}
+.mdRoot.is-mobile .mdOppGrid {
+  grid-template-columns: 1fr 1fr;
+}
+.mdRoot.is-mobile .mdOpp {
+  min-height: 50px;
+}
+.mdRoot.is-mobile .mdOppText small:first-of-type {
+  font-size: 9px;
+}
+.mdRoot.is-mobile .mdBuilderSide {
+  width: auto;
+  flex: 1;
+}
+.mdRoot.is-mobile .mdGrid {
+  grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+}
+.mdRoot.is-mobile button {
+  min-height: 30px;
+}
+.mdRoot.is-mobile .mdTiny {
+  min-height: 0;
+  width: 26px;
+  height: 24px;
+}
+.mdRoot.is-mobile input,
+.mdRoot.is-mobile select {
+  font-size: 16px;
+}
+.mdRoot.is-mobile select {
+  height: auto;
+  min-height: 30px;
+  padding-top: 2px;
+  padding-bottom: 2px;
+}
+.mdRoot.is-mobile .mdFanCard {
+  width: 110px;
+}
+.mdRoot.is-mobile .mdFanCard.f0 {
+  left: -170px;
+}
+.mdRoot.is-mobile .mdFanCard.f1 {
+  left: -55px;
+}
+.mdRoot.is-mobile .mdFanCard.f2 {
+  left: 60px;
+}
+@media (max-width: 620px) {
+  .mdVsBody {
+    grid-template-columns: 1fr;
+  }
+}
