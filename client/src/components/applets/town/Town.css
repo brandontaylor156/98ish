@@ -897,3 +897,535 @@
   min-width: 30px;
   min-height: 26px;
 }
+
+/* ---- playing together ---- */
+.twCloud {
+  gap: 3px;
+  color: #3d6f9e;
+}
+
+.twCloud span {
+  font-size: 15px;
+  line-height: 1;
+}
+
+.twCloud small {
+  font-size: 10px;
+}
+
+.twCloud.is-offline {
+  color: #8a6a5a;
+}
+
+.twVisitTop {
+  align-items: center;
+}
+
+.twVisitBanner {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+  padding: 0 14px 0 8px;
+  background: linear-gradient(#fff1f5, #ffd9e5);
+  border: 1px solid #b0506f;
+  border-radius: 15px;
+  box-shadow: 0 2px 0 rgba(120, 40, 70, 0.3);
+  color: #6a1f3c;
+  font-size: 12px;
+  pointer-events: auto;
+}
+
+.twVisitors {
+  position: absolute;
+  top: 44px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 12px 4px 6px;
+  background: #fff1f5;
+  border: 1px solid #b0506f;
+  border-radius: 12px;
+  color: #6a1f3c;
+  font-size: 12px;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.twNoteCard q,
+.twMailText q {
+  font-style: italic;
+  color: #5a2a40;
+  overflow-wrap: anywhere;
+}
+
+.twRoot .twLike.is-on {
+  color: #c2185b;
+  font-weight: bold;
+}
+
+.twRoot .twAsk {
+  color: #b5480f;
+  font-weight: bold;
+}
+
+.twRoot .twAsked {
+  color: #c2185b;
+}
+
+.twGiftTag {
+  padding: 1px 8px;
+  border-radius: 8px;
+  background: #ffe1ea;
+  color: #a3204f;
+  font-size: 10px;
+  font-weight: bold;
+}
+
+.twFree {
+  font-weight: bold;
+  color: #2f8a2f;
+}
+
+.twPanel.twFriends,
+.twPanel.twGiftPanel {
+  width: min(520px, 100%);
+}
+
+.twMail,
+.twVisit,
+.twTogether {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.twMailRow,
+.twFriend,
+.twPerk {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  background: #fff;
+  border: 1px solid #e3c9d2;
+  border-radius: 8px;
+}
+
+.twMailRow.is-open {
+  background: #fdf8fa;
+}
+
+.twFriend.is-partner {
+  background: linear-gradient(#fff6f9, #ffe8ef);
+  border-color: #e69ab4;
+}
+
+.twMailText {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.twMailText small {
+  color: #6b5a52;
+}
+
+.twOnline {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #3fbf5a;
+  border: 1px solid #1f7a2f;
+  vertical-align: middle;
+}
+
+.twWiggle {
+  animation: twWiggle 1.6s ease-in-out infinite;
+}
+
+@keyframes twWiggle {
+  0%,
+  70%,
+  100% {
+    transform: rotate(0);
+  }
+  78% {
+    transform: rotate(-9deg);
+  }
+  86% {
+    transform: rotate(8deg);
+  }
+  94% {
+    transform: rotate(-4deg);
+  }
+}
+
+.twCheck {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  font-weight: bold;
+}
+
+.twGoal {
+  padding: 8px;
+  border-radius: 10px;
+  background: linear-gradient(#fffaf2, #fff1e0);
+  border: 1px solid #e0b98a;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.twGoal.is-done {
+  background: linear-gradient(#f4fff0, #e2f7d8);
+  border-color: #8fcf7a;
+}
+
+.twGoalHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.twGoalHead div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.twGoalHead b {
+  font-size: 12px;
+}
+
+.twGoalBar {
+  position: relative;
+  display: flex;
+  height: 20px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #f1e6dc;
+  border: 1px solid #5a4636;
+}
+
+.twGoalBar span {
+  height: 100%;
+  transition: width 0.6s;
+}
+
+.twGoalMine {
+  background: linear-gradient(#ffa3c2, #ff6f9d);
+}
+
+.twGoalTheirs {
+  background: linear-gradient(#a8d4ff, #5fa6ec);
+}
+
+.twGoalBar em {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-style: normal;
+  font-weight: bold;
+  color: #3a2a1e;
+  text-shadow: 0 1px 0 #fff;
+}
+
+.twGoalKey {
+  display: flex;
+  gap: 14px;
+}
+
+.twGoalKey i {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  vertical-align: middle;
+}
+
+.twPerk .twThumb {
+  width: 52px;
+  height: 52px;
+}
+
+.twGiftGood {
+  position: relative;
+}
+
+.twGiftGood.is-on .twGood {
+  background: #ffe1ea;
+  box-shadow: inset 0 0 0 2px #ff6f9d;
+}
+
+.twRoot .twMinus {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 20px;
+  min-height: 20px;
+  height: 20px;
+  padding: 0;
+  border-radius: 10px;
+}
+
+.twRoot .twPick {
+  cursor: pointer;
+  font-family: inherit;
+  min-width: 0;
+  min-height: 0;
+  height: auto;
+  box-shadow: none;
+}
+
+.twRoot .twPick.is-on {
+  border: 2px solid #ff6f9d;
+  background: #fff1f5;
+}
+
+.twNoteField {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-top: 8px;
+}
+
+.twNoteField input {
+  width: 100%;
+  min-height: 26px;
+  font-family: inherit;
+  font-size: 12px;
+}
+
+.twMobile .twNoteField input {
+  font-size: 16px;
+  min-height: 34px;
+}
+
+.twSuggest {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.twReq {
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+
+.twReq .twReward {
+  align-items: center;
+}
+
+.twChoices {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+/* a gift being unwrapped */
+.twGiftOpen {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  background: radial-gradient(circle, rgba(255, 230, 240, 0.92), rgba(120, 60, 90, 0.55));
+}
+
+.twGiftBox {
+  position: relative;
+  width: 120px;
+  height: 110px;
+  animation: twShake 0.9s ease-in-out;
+}
+
+.twGiftBody {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 0;
+  height: 70px;
+  background: linear-gradient(90deg, #ff8fb4 0 42%, #f6c02c 42% 58%, #ff8fb4 58%);
+  border: 2px solid #6a2a40;
+  border-radius: 4px;
+}
+
+.twGiftLid {
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  bottom: 66px;
+  height: 22px;
+  background: linear-gradient(90deg, #ffb3cb 0 42%, #f6c02c 42% 58%, #ffb3cb 58%);
+  border: 2px solid #6a2a40;
+  border-radius: 4px;
+  transition: transform 0.5s cubic-bezier(0.3, 1.6, 0.6, 1);
+  z-index: 2;
+}
+
+.twGiftLid::before,
+.twGiftLid::after {
+  content: "";
+  position: absolute;
+  top: -16px;
+  width: 26px;
+  height: 16px;
+  border: 3px solid #f6c02c;
+  border-radius: 50%;
+}
+
+.twGiftLid::before {
+  left: 30px;
+  transform: rotate(-20deg);
+}
+
+.twGiftLid::after {
+  right: 30px;
+  transform: rotate(20deg);
+}
+
+.twGiftBox.is-open .twGiftLid {
+  transform: translate(34px, -58px) rotate(22deg);
+  opacity: 0.9;
+}
+
+.twGiftItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 0 3px;
+}
+
+.twGiftItem b {
+  margin-top: -6px;
+  padding: 0 6px;
+  border-radius: 8px;
+  background: #fffaf2;
+  border: 1px solid #b0506f;
+  color: #6a1f3c;
+  font-size: 11px;
+}
+
+.twGiftInside {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 52px;
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  animation: twRise 0.7s ease-out both;
+  z-index: 1;
+}
+
+.twHearts {
+  position: absolute;
+  left: 50%;
+  top: 40%;
+  pointer-events: none;
+}
+
+.twHearts i {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  opacity: 0;
+}
+
+.twHearts i::before {
+  content: "♥";
+  color: #ff4f86;
+  font-size: 18px;
+  font-style: normal;
+}
+
+.twGiftBox.is-open .twHearts i {
+  animation: twBurst 1.2s ease-out both;
+  animation-delay: calc(var(--k) * 40ms);
+}
+
+@keyframes twBurst {
+  0% {
+    opacity: 1;
+    transform: translate(0, 0) scale(0.5);
+  }
+  100% {
+    opacity: 0;
+    transform: rotate(calc(var(--k) * 40deg)) translateY(-110px) scale(1.3);
+  }
+}
+
+@keyframes twShake {
+  0%,
+  100% {
+    transform: rotate(0);
+  }
+  20% {
+    transform: rotate(-6deg) scale(1.03);
+  }
+  40% {
+    transform: rotate(6deg);
+  }
+  60% {
+    transform: rotate(-4deg) scale(1.05);
+  }
+  80% {
+    transform: rotate(3deg);
+  }
+}
+
+@keyframes twRise {
+  from {
+    transform: translateY(40px) scale(0.6);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(-34px) scale(1);
+    opacity: 1;
+  }
+}
+
+.twGiftCard {
+  width: min(300px, calc(100% - 24px));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  padding: 10px 14px;
+  background: #fffaf2;
+  border: 1px solid #b0506f;
+  border-radius: 10px;
+  box-shadow: 0 4px 0 rgba(120, 40, 70, 0.3);
+  text-align: center;
+  color: #4a2030;
+  font-size: 12px;
+}
+
+.twGiftCard q {
+  font-style: italic;
+  overflow-wrap: anywhere;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .twGiftBox,
+  .twWiggle,
+  .twGiftInside,
+  .twGiftBox.is-open .twHearts i {
+    animation: none;
+  }
+}

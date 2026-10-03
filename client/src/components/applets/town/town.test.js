@@ -390,3 +390,74 @@ test("every recipe input exists and every crop has a sensible timer", () => {
   for (const c of CROPS) assert.ok(c.time >= 20 && c.time <= 600)
   assert.ok(Object.keys(GOODS).length >= 25)
 })
+
+// ---- playing together ----
+test("a signed-in town gets a mailbox; a couple's gets a welcome sign and the Couple's Cottage", () => {
+  const s = G.newGame(T0, 31)
+  assert.equal(G.offer(s, "lovecottage").why, "Pair up with your partner in Us to unlock it.")
+  assert.ok(G.ensureMailbox(s))
+  assert.equal(G.ensureMailbox(s), false, "only one")
+  const box = find(s, "mailbox")
+  const barn = find(s, "barn")
+  assert.ok(Math.abs(box.x - barn.x) + Math.abs(box.y - barn.y) < 8, "near the Barn")
+  assert.ok(G.setPartner(s, "Bobby"))
+  assert.equal(s.paired, "Bobby")
+  assert.ok(find(s, "welcome"))
+  assert.equal(G.offer(s, "lovecottage").why, null)
+  assert.equal(G.offer(s, "lovecottage").coins, 0)
+  assert.ok(G.build(s, "lovecottage", 5, 16, T0).ok)
+  assert.match(G.offer(s, "lovecottage").why, /already/)
+  G.setPartner(s, null)
+  assert.equal(s.paired, undefined)
+  // specials and couples' things survive a save
+  const t = G.deserialize(G.serialize(s), T0)
+  assert.ok(find(t, "mailbox") && find(t, "welcome") && find(t, "lovecottage"))
+  assert.equal(G.offer(t, "hearttree").why, "Only your partner can give you this one.")
+})
+
+test("effects from friends: help fills the order once; gifts land in the Barn and the gift shelf", () => {
+  const s = G.newGame(T0, 32)
+  const order = s.orders[0]
+  const coins = s.coins
+  const help = { id: "e1", kind: "help", req: { kind: "order", slot: 0, need: { ...order.need } }, by: "Bobby" }
+  const r = G.applyEffect(s, help, T0)
+  assert.ok(r.ok && r.filled)
+  assert.ok(s.coins >= coins + order.coins)
+  assert.equal(s.orders[0].need, undefined)
+  assert.equal(G.applyEffect(s, help, T0).ok, false, "once")
+  // a request for an order that's gone sends the goods to the Barn instead
+  const wheat = s.goods.wheat || 0
+  const late = G.applyEffect(s, { id: "e2", kind: "help", req: { kind: "order", slot: 0, need: { wheat: 3 } }, by: "Bobby" }, T0)
+  assert.equal(late.filled, false)
+  assert.equal(s.goods.wheat, wheat + 3)
+  // helping someone: goods leave, coins and XP arrive
+  s.goods.cowfeed = 2
+  const xp = s.xp
+  G.applyEffect(s, { id: "e3", kind: "helped", goods: { cowfeed: 2 }, coins: 30, xp: 5, owner: "Bobby" }, T0)
+  assert.equal(s.goods.cowfeed, undefined)
+  assert.equal(s.xp, xp + 5)
+  assert.equal(s.stats.helped, 1)
+  // gifts
+  G.applyEffect(s, { id: "e4", kind: "gift", goods: { milk: 2 }, decor: "hearttree", from: "Bobby" }, T0)
+  assert.equal(s.goods.milk, 2)
+  assert.equal(s.inv.hearttree, 1)
+  assert.ok(G.build(s, "hearttree", 5, 16, T0).ok)
+  assert.equal(s.inv.hearttree, undefined)
+  assert.equal(G.applyEffect(s, { id: "e5", kind: "nonsense" }, T0).ok, false)
+  // the list of used effects stays short
+  for (let k = 0; k < 250; k++) G.applyEffect(s, { id: `x${k}`, kind: "goal", coins: 0, xp: 0, clovers: 0 }, T0)
+  assert.equal(s.claimed.length, G.MAX_CLAIMED)
+})
+
+test("help requests read what the town needs; rewards grow with what the goods are worth", () => {
+  const s = G.newGame(T0, 33)
+  assert.deepEqual(G.requestNeed(s, "order", 0), s.orders[0].need)
+  assert.equal(G.requestNeed(s, "order", 9), null)
+  assert.equal(G.requestNeed(s, "car", 0), null, "no train yet")
+  assert.ok(G.sameNeed({ a: 1, b: 2 }, { b: 2, a: 1 }))
+  assert.equal(G.sameNeed({ a: 1 }, { a: 2 }), false)
+  assert.equal(G.sameNeed({ a: 1 }, { a: 1, b: 1 }), false)
+  const small = G.helpReward({ wheat: 1 })
+  const big = G.helpReward({ cheese: 3 })
+  assert.ok(big.coins > small.coins && big.xp > small.xp)
+})

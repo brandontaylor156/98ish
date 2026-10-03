@@ -59,12 +59,12 @@ const TABS = [
   ["decor", "Decor"],
   ["land", "Land"],
 ]
-const shopTypes = (tab) =>
+const shopTypes = (tab, s) =>
   tab === "farm" ? ["field", ...Object.keys(PENS)]
   : tab === "factory" ? Object.keys(FACTORIES).filter((t) => t !== "feedmill")
   : tab === "house" ? Object.keys(HOUSES)
   : tab === "community" ? Object.keys(COMMUNITY).filter((t) => t !== "townhall")
-  : tab === "decor" ? Object.keys(DECOR)
+  : tab === "decor" ? Object.keys(DECOR).filter((t) => !DECOR[t].giftOnly || s?.inv?.[t])
   : []
 
 const blurb = (type) => {
@@ -78,7 +78,7 @@ const blurb = (type) => {
 const ANIMALS = (type) => PENS[type].animalName
 
 export const ShopPanel = ({ s, tab, setTab, onBuy, onExpand, onClose }) => {
-  const types = shopTypes(tab)
+  const types = shopTypes(tab, s)
   return (
     <Panel title="Shop" icon="shop" onClose={onClose} className="twShop">
       <div className="twTabs" role="tablist">
@@ -105,14 +105,17 @@ export const ShopPanel = ({ s, tab, setTab, onBuy, onExpand, onClose }) => {
                   <div className="twItemInfo">{blurb(type)}</div>
                   <div className="twCost">
                     {o.coins > 0 && <Chip id="coin" n={o.coins} />}
+                    {o.coins === 0 && !!DECOR[type] && <span className="twFree">Free</span>}
                     {Object.entries(o.mats).map(([k, n]) => (
                       <Chip key={k} id={k} n={n} have={G.have(s, k)} />
                     ))}
                     {o.pop > 0 && <Chip id="people" n={o.pop} title="People needed in town" />}
                   </div>
+                  {o.gift > 0 && <div className="twGiftTag">A gift ×{o.gift}</div>}
+                  {!o.gift && DECOR[type]?.couple && <div className="twGiftTag">♥ For couples</div>}
                   {o.why && <div className="twWhy">{o.why}</div>}
                   <button type="button" className="twBtn twBuy" disabled={!!o.why} onClick={() => onBuy(type)}>
-                    Build
+                    {o.gift ? "Place" : "Build"}
                   </button>
                 </>
               )}
@@ -219,7 +222,22 @@ export const BarnPanel = ({ s, onSell, onUpgrade, onClose }) => {
 }
 
 // ---- the order board ----
-export const OrdersPanel = ({ s, now, onDeliver, onSkip, onHurry, onClose, tut }) => (
+// help: { requests, onAsk(kind, slot), onCancel(request) } when signed in (asking friends)
+const HelpAsk = ({ help, kind, slot, can }) => {
+  if (!help || can) return null
+  const req = help.requests.find((r) => r.status === "open" && r.kind === kind && r.slot === slot)
+  return req ? (
+    <button type="button" className="twBtn twAsked" title="Waiting for a friend. Tap to take it back." onClick={() => help.onCancel(req)}>
+      <Icon id="heart" size={14} /> Asked
+    </button>
+  ) : (
+    <button type="button" className="twBtn twAsk" title="Ask friends to fill this from their Barn" onClick={() => help.onAsk(kind, slot)}>
+      Help!
+    </button>
+  )
+}
+
+export const OrdersPanel = ({ s, now, onDeliver, onSkip, onHurry, onClose, tut, help }) => (
   <Panel title="Helicopter Orders" icon="heli" onClose={onClose} className="twOrders">
     <div className="twOrderGrid">
       {s.orders.map((o, i) => {
@@ -257,6 +275,7 @@ export const OrdersPanel = ({ s, now, onDeliver, onSkip, onHurry, onClose, tut }
               <button type="button" className="twBtn twGo" disabled={!can} onClick={() => onDeliver(i)}>
                 Deliver
               </button>
+              <HelpAsk help={help} kind="order" slot={i} can={can} />
               <button type="button" className="twBtn twTrash" aria-label="Skip this order" title="Skip this order" onClick={() => onSkip(i)}>
                 ✕
               </button>
@@ -269,7 +288,7 @@ export const OrdersPanel = ({ s, now, onDeliver, onSkip, onHurry, onClose, tut }
 )
 
 // ---- the train ----
-export const TrainPanel = ({ s, now, onLoad, onSend, onHurry, onClose }) => {
+export const TrainPanel = ({ s, now, onLoad, onSend, onHurry, onClose, help }) => {
   const st = s.train
   const full = st.cars.length > 0 && st.cars.every((c) => c.d)
   const bonus = G.trainBonus(s)
@@ -299,9 +318,12 @@ export const TrainPanel = ({ s, now, onLoad, onSend, onHurry, onClose }) => {
                 {c.d ? (
                   <Icon id="check" size={26} />
                 ) : (
-                  <button type="button" className="twBtn" disabled={G.have(s, c.g) < c.n} onClick={() => onLoad(k)}>
-                    Load
-                  </button>
+                  <>
+                    <button type="button" className="twBtn" disabled={G.have(s, c.g) < c.n} onClick={() => onLoad(k)}>
+                      Load
+                    </button>
+                    <HelpAsk help={help} kind="car" slot={k} can={G.have(s, c.g) >= c.n} />
+                  </>
                 )}
               </div>
             ))}

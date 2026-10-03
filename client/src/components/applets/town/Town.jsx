@@ -4,16 +4,23 @@ import Dialog from "../../shared/Dialog"
 import * as G from "./game"
 import { COMMUNITY, CROPS, HOUSES, PENS, itemName, kindOf, sizeOf, typeName, unlocksAt } from "./data"
 import { isoX, isoY, setSpriteScale, getSpriteScale } from "./art"
-import { clampView, drawScene, emitSmoke, expansionAt, groundObjectAt, objectAt, toScreen, toTile, toWorld, topOf, wildItems } from "./render"
+import { clampView, drawScene, emitSmoke, expansionAt, groundObjectAt, noteAt, objectAt, toScreen, toTile, toWorld, topOf, wildItems } from "./render"
 import { createSounds } from "./audio"
 import { BarnPanel, Chip, ExpandPanel, FactoryPanel, HelpPanel, Icon, LevelPanel, OrdersPanel, ShopPanel, TrainPanel, fmtTime } from "./panels"
-import { unlock } from "../../../utils/achievements"
+import { ConflictPanel, FriendsPanel, GiftOpening, GiftPanel, HelpRequestsPanel, NotePanel } from "./Friends"
+import { useSocial } from "./cloud"
+import { progress, unlock } from "../../../utils/achievements"
+import { useCouple } from "../../../utils/couple"
+import { keyOf, useAim } from "../aim/AimContext"
+import { useNet } from "../network/NetContext"
 import GameChat, { useGameChatMenuItem } from "../../shared/GameChat"
 import "./Town.css"
 
 // Sunny Acres: grow crops, raise animals, run factories, fill helicopter orders and the
 // train, and build a little town. Rules live in game.js, drawing in art.js / render.js.
 // Everything saves to this browser, and timers keep running while the game is closed.
+// Signed in to 98 Messenger, the town is also kept in the cloud and friends can visit,
+// help with orders and send gifts (cloud.js, Friends.jsx, server/town).
 
 const SAVE_KEY = "98ish.town"
 let devSkew = 0 // dev builds only: tests fast-forward time with window.__town.skip()
@@ -76,6 +83,13 @@ const Town = ({ onClose, onTitle, mobile }) => {
   }
   const [compact, setCompact] = useState(false)
   const toastTimer = useRef(0)
+  // playing together
+  const [visit, setVisit] = useState(null) // a friend's town: { owner, relation, s, hearts, myHearts, notes, requests }
+  const visitRef = useRef(null)
+  visitRef.current = visit
+  const [friendsTab, setFriendsTab] = useState("visit")
+  const [opening, setOpening] = useState(null) // a gift being unwrapped
+  const visitors = useRef(new Map()) // friends walking around my town: name -> { u, v, tu, tv }
 
   const play = (name) => sounds.current.play(name)
   const say = (text, sound = "error") => {
@@ -86,6 +100,8 @@ const Town = ({ onClose, onTitle, mobile }) => {
   }
   const changed = () => {
     dirty.current = true
+    // the cloud copy needs this change (social.js compares revisions)
+    game.current.rev = (game.current.rev || 0) + 1
     bump()
   }
   const save = () => {
@@ -181,6 +197,251 @@ const Town = ({ onClose, onTitle, mobile }) => {
     return true
   }
 
+  // ---- playing together (signed in to 98 Messenger) ----
+  const aim = useAim()
+  const net = useNet()
+  const couple = useCouple()
+  const me = aim?.status === "online" ? aim.me?.screenName || null : null
+  const paired = couple.status === "paired" && !!couple.partner
+
+  // changes from friends (help, gifts, the couple's goal), each used once
+  const applyEffects = (list) => {
+    const s = game.current
+    for (const e of list) {
+      const r = G.applyEffect(s, e, clockNow())
+      if (!r.ok) continue
+      const pad = s.objs.find((o) => o.t === "helipad")
+      if (e.kind === "help") {
+        if (r.filled && r.order && pad) {
+          floatAt(pad, "coin", `+${r.order.coins}`)
+          floatAt(pad, "xp", `+${r.order.xp}`, "#cfe6ff", 0.35)
+        }
+        say(r.filled ? `${e.by} filled your ${e.req.kind === "car" ? "train car" : "order"}! ♥` : `${e.by} sent goods for something you'd already done. They're in your Barn.`, "delivered")
+      } else if (e.kind === "helped") {
+        say(`You helped ${e.owner}! +${e.coins} coins, +${e.xp} XP`, "coins")
+        progress("town-neighbor", e.id, 5)
+      } else if (e.kind === "gave") unlock("town-gift")
+      else if (e.kind === "goal") {
+        say(`You and ${couple.partner || "your partner"} did it together! +${e.coins} coins ♥`, "levelUp")
+        unlock("town-together")
+      }
+    }
+    handleEvents()
+    changed()
+    save()
+  }
+
+  const onVisitor = (p) => {
+    if (!p.name) return
+    const map = visitors.current
+    if (p.leave) {
+      if (map.delete(p.name)) say(`${p.name} went home. Bye!`, null)
+    } else {
+      const cur = map.get(p.name)
+      if (!cur) {
+        const hall = game.current.objs.find((o) => o.t === "townhall")
+        const [u, v] = hall ? [hall.x + 1.5, hall.y + 3.4] : [12, 12]
+        map.set(p.name, { name: p.name, u, v, tu: p.u ?? u, tv: p.v ?? v })
+        say(`${p.name} is visiting your town! ♥`, "tap")
+      } else if (p.u !== undefined) Object.assign(cur, { tu: p.u, tv: p.v })
+    }
+    bump()
+  }
+  const onNews = (p) => {
+    if (p.type === "note") say(`${p.by} left you a note! ♥`, "tap")
+    else if (p.type === "gift") say(`${p.by} sent you a gift! Check your mailbox.`, "levelUp")
+    else if (p.type === "heart") say(`${p.by} liked something in your town ♥`, null)
+  }
+
+  const social = useSocial({
+    token: me ? aim.token : null,
+    account: me ? keyOf(me) : null,
+    socket: net?.socket,
+    getGame: () => game.current,
+    setGame: (s) => {
+      game.current = s
+      fx.current.wildKey = ""
+      setPanel(null)
+      setPlace(null)
+      setLevels([])
+      save()
+      bump()
+    },
+    applyEffects,
+    onVisitor,
+    onNews,
+    now: clockNow,
+  })
+  const socialRef = useRef(social)
+  socialRef.current = social
+
+  // the mailbox, and for couples the welcome sign with both names
+  const placeSpecials = () => {
+    const s = game.current
+    let moved = G.ensureMailbox(s)
+    if (paired && s.paired !== couple.partner) moved = G.setPartner(s, couple.partner) || true
+    else if (couple.status === "single" && s.paired) {
+      G.setPartner(s, null)
+      moved = true
+    }
+    if (moved) changed()
+  }
+  useEffect(() => {
+    if (social.status === "synced") placeSpecials()
+  }, [social.status, couple.status, couple.partner])
+
+  const enc = encodeURIComponent
+  const centerOn = (u, w) => {
+    const v = view.current
+    v.cx = isoX(u, w)
+    v.cy = isoY(u, w)
+    clampView(v)
+  }
+  const startVisit = async (name) => {
+    const r = await social.call("GET", `/visit/${enc(name)}`)
+    if (!r.ok) return say(r.error)
+    const vs = G.migrate(r.snap)
+    if (!vs) return say("That town couldn't be read.")
+    G.tick(vs, clockNow())
+    G.drainEvents(vs)
+    setVisit({ owner: r.owner, relation: r.relation, s: vs, hearts: r.hearts || {}, myHearts: r.myHearts || [], notes: r.notes || [], requests: r.requests || [] })
+    setPanel(null)
+    setEdit(false)
+    setPlace(null)
+    setInfo(null)
+    setTray(null)
+    fx.current.wildKey = ""
+    centerOn(12, 12)
+    play("whistle")
+    say(r.ownerOnline ? `${r.owner} is online! Say hi in the chat.` : `Welcome to ${r.owner}'s Sunny Acres!`, null)
+  }
+  const goHome = () => {
+    if (visit) net?.socket?.emit("town:walk", { owner: visit.owner, leave: true })
+    setVisit(null)
+    setInfo(null)
+    setPanel(null)
+    fx.current.wildKey = ""
+    centerOn(12, 12)
+    social.refresh()
+  }
+  // tell the owner where I'm looking (my little avatar walks there)
+  useEffect(() => {
+    if (!visit || !net?.socket) return
+    let last = null
+    const tell = () => {
+      const v = view.current
+      const [u, w] = toTile(v.cx, v.cy)
+      if (last && Math.hypot(u - last[0], w - last[1]) < 0.3) return
+      last = [u, w]
+      net.socket.emit("town:walk", { owner: visit.owner, u: Math.max(0, Math.min(29.5, u)), v: Math.max(0, Math.min(29.5, w)) })
+    }
+    tell()
+    const id = setInterval(tell, 800)
+    return () => clearInterval(id)
+  }, [visit?.owner, net?.socket])
+  // closing the window mid-visit says goodbye
+  useEffect(() => () => visitRef.current && net?.socket?.emit("town:walk", { owner: visitRef.current.owner, leave: true }), [])
+
+  const like = async (o) => {
+    const r = await social.call("POST", `/visit/${enc(visit.owner)}/heart`, { obj: o.i })
+    if (!r.ok) return say(r.error)
+    setVisit((v) => v && { ...v, hearts: { ...v.hearts, [o.i]: r.count }, myHearts: r.mine ? [...v.myHearts, o.i] : v.myHearts.filter((x) => x !== o.i) })
+    if (r.mine) {
+      floatAt(o, "heart", "")
+      play("collect")
+    }
+  }
+  const leaveNote = async (text) => {
+    const o = panel?.target ? G.objById(visit.s, panel.target) : null
+    let x
+    let y
+    if (o) {
+      const n = sizeOf(o.t)
+      x = o.x + n / 2 + 0.25
+      y = o.y + n + 0.35
+    } else {
+      const v = view.current
+      ;[x, y] = toTile(v.cx, v.cy)
+    }
+    const r = await social.call("POST", `/visit/${enc(visit.owner)}/notes`, { text, x: Math.max(0.5, Math.min(29.5, x)), y: Math.max(0.5, Math.min(29.5, y)) })
+    if (!r.ok) return r
+    // three signs each: the server took down my oldest
+    setVisit((v) => {
+      if (!v) return v
+      const mine = v.notes.filter((n) => n.mine)
+      const drop = mine.length >= 3 ? mine[0].id : null
+      return { ...v, notes: [...v.notes.filter((n) => n.id !== drop), r.note] }
+    })
+    setPanel(null)
+    play("build")
+    say(`Your sign is up in ${visit.owner}'s town! ♥`, null)
+    return r
+  }
+  const removeNote = async (note) => {
+    const r = visit ? await social.call("DELETE", `/visit/${enc(visit.owner)}/notes/${note.id}`) : await social.call("DELETE", `/notes/${note.id}`)
+    if (!r.ok) return say(r.error)
+    if (visit) setVisit((v) => v && { ...v, notes: v.notes.filter((n) => n.id !== note.id) })
+    else social.setData((d) => ({ ...d, notes: (d?.notes || []).filter((n) => n.id !== note.id) }))
+    setInfo(null)
+    play("tap")
+  }
+  const helpFriend = async (req) => {
+    await social.upload() // the server checks my Barn as last saved
+    const r = await social.call("POST", `/visit/${enc(visit.owner)}/help/${req.id}`)
+    if (!r.ok) {
+      if (r.status === 409 && !r.short) setVisit((v) => v && { ...v, requests: v.requests.filter((x) => x.id !== req.id) })
+      return r
+    }
+    applyEffects([r.effect])
+    setVisit((v) => v && { ...v, requests: v.requests.filter((x) => x.id !== req.id) })
+    const pad = visit.s.objs.find((o) => o.t === "helipad")
+    if (req.kind === "order" && pad) fx.current.heli = fx.current.t
+    setPanel(null)
+    return r
+  }
+  const askHelp = async (kind, slot) => {
+    await social.upload() // the server reads the order from the saved town
+    const r = await social.call("POST", "/requests", { kind, slot })
+    if (!r.ok) return say(r.error)
+    social.setData((d) => ({ ...d, requests: [...(d?.requests || []).filter((x) => x.id !== r.request.id), r.request] }))
+    say(paired ? `Asked ${couple.partner} and your friends for help!` : "Asked your friends for help!", "tap")
+  }
+  const cancelHelp = async (req) => {
+    const r = await social.call("DELETE", `/requests/${req.id}`)
+    if (!r.ok) return say(r.error)
+    social.setData((d) => ({ ...d, requests: (d?.requests || []).map((x) => (x.id === req.id ? r.request : x)) }))
+  }
+  const sendGift = async (body) => {
+    await social.upload()
+    const r = await social.call("POST", "/gifts", body)
+    if (!r.ok) return r
+    applyEffects([r.effect])
+    social.setData((d) => ({ ...d, giftsLeft: r.giftsLeft }))
+    setPanel(null)
+    say(`Your gift is on its way to ${couple.partner}! ♥`, "delivered")
+    return r
+  }
+  const openGift = async (g) => {
+    const n = Object.values(g.goods || {}).reduce((a, b) => a + b, 0)
+    if (n > G.barnFree(game.current)) return say("Make room in your Barn first!")
+    const r = await social.call("POST", `/mailbox/${g.id}/open`)
+    if (!r.ok) return say(r.error)
+    setPanel(null)
+    setOpening(r.gift)
+    play("levelUp")
+    if (r.effect) applyEffects([r.effect])
+    social.setData((d) => ({ ...d, mailbox: (d?.mailbox || []).map((x) => (x.id === g.id ? r.gift : x)) }))
+  }
+  const openFriends = (tab = "visit") => {
+    setFriendsTab(tab)
+    setPanel({ k: "friends" })
+  }
+  const showNote = (n) => {
+    setPanel(null)
+    centerOn(n.x, n.y)
+    setInfo({ note: n })
+  }
+
   // ---- placing buildings ----
   const centerTile = () => {
     const v = view.current
@@ -273,6 +534,7 @@ const Town = ({ onClose, onTitle, mobile }) => {
       return setPanel({ k: "factory", id: o.i })
     }
     if (o.t === "barn") return setPanel({ k: "barn" })
+    if (o.t === "mailbox" && social.on) return openFriends("mail")
     if (o.t === "helipad") return setPanel({ k: "orders" })
     if (o.t === "station") {
       if (s.level < 5) return say("The train starts coming at level 5.", "tap")
@@ -285,6 +547,23 @@ const Town = ({ onClose, onTitle, mobile }) => {
   const tapAt = (sx, sy) => {
     const v = view.current
     const [wx, wy] = toWorld(v, sx, sy)
+    const vis = visitRef.current
+    if (vis) {
+      // a friend's town: look, like, read their signs
+      setTray(null)
+      const n = noteAt(vis.notes, wx, wy)
+      if (n) return setInfo({ note: n })
+      const o = objectAt(vis.s, wx, wy)
+      if (o && o.t !== "field") {
+        play("tap")
+        return setInfo({ id: o.i, visit: true })
+      }
+      return setInfo(null)
+    }
+    if (!place && !edit && social.data?.notes?.length) {
+      const n = noteAt(social.data.notes, wx, wy)
+      if (n) return setInfo({ note: n })
+    }
     if (place) {
       // tapping the map moves what you're placing there
       const n = sizeOf(place.type)
@@ -364,7 +643,7 @@ const Town = ({ onClose, onTitle, mobile }) => {
         gesture.current = { kind: "ghost", off: [u - place.x, w - place.y], moved: false }
         return
       }
-    } else if (!edit) {
+    } else if (!edit && !visitRef.current) {
       const o = groundObjectAt(s, wx, wy)
       if (o && !o.b) {
         const start = (g) => {
@@ -518,6 +797,7 @@ const Town = ({ onClose, onTitle, mobile }) => {
     let lastSmoke = 0
     let scaleAt = 0
     let frames = 0
+    let lastMs = performance.now()
     let fpsAt = performance.now()
     const v = view.current
     let first = true
@@ -547,10 +827,16 @@ const Town = ({ onClose, onTitle, mobile }) => {
       const f = fx.current
       f.t = ms / 1000
       f.now = now
-      const g = game.current
+      // my town, or the friend's town I'm visiting (mine keeps growing meanwhile)
+      const vis = visitRef.current
+      const g = vis ? vis.s : game.current
       if (ms - lastTick > 250) {
         lastTick = ms
-        G.tick(g, now)
+        G.tick(game.current, now)
+        if (vis) {
+          G.tick(vis.s, now)
+          G.drainEvents(vis.s)
+        }
         handleEvents()
       }
       if (ms - lastSmoke > 420) {
@@ -563,12 +849,34 @@ const Town = ({ onClose, onTitle, mobile }) => {
         scaleAt = ms
         setSpriteScale(want)
       }
-      const key = g.exp.join("")
+      const key = (vis ? vis.owner : "") + g.exp.join("")
       if (key !== f.wildKey) {
         f.wildKey = key
         f.wild = wildItems(g)
       }
-      f.arrow = arrowFor(g, now)
+      f.arrow = vis ? null : arrowFor(g, now)
+      // friends: their notes and hearts, the welcome sign, the mailbox flag, visitors
+      const sd = socialRef.current.data
+      f.notes = vis ? vis.notes : sd?.notes || null
+      f.hearts = vis ? vis.hearts : sd?.hearts || null
+      f.myHearts = vis ? vis.myHearts : null
+      f.noteSel = infoRef.current?.note?.id
+      f.signNames = { a: vis ? vis.owner : meRef.current, b: g.paired || null }
+      f.mailFlag = !vis && (sd?.mailbox || []).some((m) => !m.openedAt)
+      const dt = Math.min(0.1, (ms - lastMs) / 1000)
+      lastMs = ms
+      f.visitors = vis
+        ? null
+        : [...visitors.current.values()].map((p) => {
+            const d = Math.hypot(p.tu - p.u, p.tv - p.v)
+            const step = Math.min(d, dt * 2.2)
+            if (d > 0.001) {
+              p.u += ((p.tu - p.u) / d) * step
+              p.v += ((p.tv - p.v) / d) * step
+            }
+            p.moving = d > 0.05
+            return p
+          })
       ctx.setTransform(dpr * v.z, 0, 0, dpr * v.z, dpr * (W / 2 - v.cx * v.z), dpr * (H / 2 - v.cy * v.z))
       drawScene(ctx, g, v, f)
       frames++
@@ -603,6 +911,11 @@ const Town = ({ onClose, onTitle, mobile }) => {
           changed()
         },
         save,
+        changed,
+        // playing together
+        social: () => socialRef.current,
+        visit: () => visitRef.current,
+        sync: () => socialRef.current.upload(),
       }
     }
     return () => {
@@ -631,6 +944,10 @@ const Town = ({ onClose, onTitle, mobile }) => {
   }
   const placeRef = useRef(null)
   placeRef.current = place
+  const infoRef = useRef(null)
+  infoRef.current = info
+  const meRef = useRef(null)
+  meRef.current = me
   const panelRef = useRef(null)
   panelRef.current = panel
   useEffect(() => {
@@ -675,9 +992,15 @@ const Town = ({ onClose, onTitle, mobile }) => {
     return () => canvas.removeEventListener("wheel", wheel)
   }, [])
 
+  const dropRequest = (kind, slot) => {
+    const req = social.data?.requests?.find((r) => r.status === "open" && r.kind === kind && r.slot === slot)
+    if (req) cancelHelp(req)
+  }
+
   // ---- the first delivery is an achievement ----
   const deliver = (i) =>
     act(G.deliverOrder(s, i, clockNow()), (r) => {
+      dropRequest("order", i)
       play("delivered")
       unlock("town-order")
       const pad = s.objs.find((o) => o.t === "helipad")
@@ -691,7 +1014,11 @@ const Town = ({ onClose, onTitle, mobile }) => {
   const prog = G.xpProgress(s)
   const pop = G.population(s)
   const cap = G.popCap(s)
-  const infoObj = info && G.objById(s, info.id)
+  const shown = visit ? visit.s : s // the town on screen
+  const infoObj = info?.id !== undefined ? G.objById(info.visit ? shown : s, info.id) : null
+  const sd = social.data || {}
+  const unopened = (sd.mailbox || []).filter((m) => !m.openedAt).length
+  const helpProps = social.on && !visit ? { requests: sd.requests || [], onAsk: askHelp, onCancel: cancelHelp } : null
   const trayObj = tray && G.objById(s, tray.id)
   const panelObj = panel?.k === "factory" ? G.objById(s, panel.id) : null
   const level = levels[0]
@@ -702,7 +1029,7 @@ const Town = ({ onClose, onTitle, mobile }) => {
     {
       label: "Game",
       items: [
-        { label: "New Town...", onClick: () => setConfirmNew(true) },
+        { label: "New Town...", onClick: () => (visit ? say("Go home first!") : setConfirmNew(true)) },
         "-",
         {
           label: "Sounds",
@@ -713,6 +1040,7 @@ const Town = ({ onClose, onTitle, mobile }) => {
           },
         },
         chatItem,
+        ...(social.on ? ["-", { label: "Friends...", onClick: () => (visit ? goHome() : openFriends("visit")) }] : []),
         "-",
         { label: "Exit", onClick: () => onClose?.() },
       ],
@@ -740,6 +1068,22 @@ const Town = ({ onClose, onTitle, mobile }) => {
           />
 
           {/* the top bar: level, coins, clovers, people */}
+          {visit ? (
+            <div className="twTop twVisitTop">
+              <div className="twStat twLevelStat" title={`${visit.owner}'s level`}>
+                <span className="twStar">
+                  <Icon id="xp" size={36} />
+                  <b>{visit.s.level}</b>
+                </span>
+              </div>
+              <div className="twVisitBanner" role="status">
+                <Icon id={visit.relation === "partner" ? "heart" : "friends"} size={20} />
+                <span>
+                  Visiting <b>{visit.owner}</b>'s Sunny Acres
+                </span>
+              </div>
+            </div>
+          ) : (
           <div className="twTop">
             <div className="twStat twLevelStat" title={`${prog.into} / ${prog.span} XP to level ${s.level + 1}`}>
               <span className="twStar">
@@ -764,9 +1108,21 @@ const Town = ({ onClose, onTitle, mobile }) => {
                 {pop}/{cap}
               </b>
             </div>
+            {social.on && (
+              <div className={`twStat twCloud is-${social.status}`} title={social.status === "synced" ? "Saved in the cloud" : social.status === "syncing" ? "Saving to the cloud..." : "The cloud can't be reached; saved on this device"}>
+                <span aria-hidden="true">☁</span>
+                <small>{social.status === "synced" ? "Saved" : social.status === "syncing" ? "Saving" : "Offline"}</small>
+              </div>
+            )}
           </div>
+          )}
+          {!visit && visitors.current.size > 0 && (
+            <div className="twVisitors" role="status">
+              <Icon id="friends" size={18} /> {[...visitors.current.keys()].join(", ")} {visitors.current.size > 1 ? "are" : "is"} visiting!
+            </div>
+          )}
 
-          {s.tut < 5 && !place && (
+          {s.tut < 5 && !place && !visit && (
             <div className="twTutor">
               <span className="twTutorFace" aria-hidden="true">
                 <Icon id="wheat" size={30} />
@@ -774,7 +1130,7 @@ const Town = ({ onClose, onTitle, mobile }) => {
               <span className="twTutorText">{TUTORIAL[s.tut]}</span>
             </div>
           )}
-          {s.tut === 5 && (
+          {s.tut === 5 && !visit && (
             <div className="twTutor">
               <span className="twTutorFace" aria-hidden="true">
                 <Icon id="check" size={30} />
@@ -829,7 +1185,42 @@ const Town = ({ onClose, onTitle, mobile }) => {
           )}
 
           {/* what you tapped */}
-          {infoObj && !place && <InfoCard s={s} o={infoObj} now={now} onClose={() => setInfo(null)} onMove={() => startMove(infoObj)} onHurry={() => act(G.speedUp(s, { obj: infoObj.i }, clockNow()), () => play("coins"))} />}
+          {info?.note && (
+            <div className="twInfo twNoteCard" role="status">
+              <Icon id="note" size={26} />
+              <span>
+                <b>{info.note.by}:</b> <q>{info.note.text}</q>
+              </span>
+              <div className="twInfoBtns">
+                {(!visit || info.note.mine) && (
+                  <button type="button" className="twBtn" onClick={() => removeNote(info.note)}>
+                    {visit ? "Take back" : "Take down"}
+                  </button>
+                )}
+                <button type="button" className="twBtn" aria-label="Close" onClick={() => setInfo(null)}>
+                  ✕
+                </button>
+              </div>
+            </div>
+          )}
+          {infoObj && info.visit && (
+            <div className="twInfo" role="status">
+              <b>{infoObj.t === "welcome" ? `${visit.owner}'s welcome sign` : typeName(infoObj.t)}</b>
+              <span>{visit.hearts[infoObj.i] ? `♥ ${visit.hearts[infoObj.i]}` : "Nobody has liked this yet."}</span>
+              <div className="twInfoBtns">
+                <button type="button" className={`twBtn twLike${visit.myHearts.includes(infoObj.i) ? " is-on" : ""}`} onClick={() => like(infoObj)}>
+                  <Icon id={visit.myHearts.includes(infoObj.i) ? "heart" : "heartOutline"} size={16} /> {visit.myHearts.includes(infoObj.i) ? "Liked" : "Like"}
+                </button>
+                <button type="button" className="twBtn" onClick={() => setPanel({ k: "note", target: infoObj.i })}>
+                  <Icon id="note" size={16} /> Note
+                </button>
+                <button type="button" className="twBtn" aria-label="Close" onClick={() => setInfo(null)}>
+                  ✕
+                </button>
+              </div>
+            </div>
+          )}
+          {infoObj && !info.visit && !place && <InfoCard s={s} o={infoObj} now={now} onClose={() => setInfo(null)} onMove={() => startMove(infoObj)} onHurry={() => act(G.speedUp(s, { obj: infoObj.i }, clockNow()), () => play("coins"))} />}
 
           {/* placing or moving a building */}
           {place && (
@@ -855,13 +1246,22 @@ const Town = ({ onClose, onTitle, mobile }) => {
           )}
 
           {/* the bottom buttons */}
-          {!place && (
+          {visit && (
+            <div className="twBottom">
+              <BigButton icon="help" label="Help" onClick={() => setPanel({ k: "helpreq" })} badge={visit.requests.length || null} />
+              <BigButton icon="note" label="Note" onClick={() => setPanel({ k: "note", target: null })} />
+              {visit.relation === "partner" && <BigButton icon="gift" label="Gift" onClick={() => setPanel({ k: "gift" })} />}
+              <BigButton icon="home" label="Home" onClick={goHome} />
+            </div>
+          )}
+          {!place && !visit && (
             <div className="twBottom">
               <BigButton icon="shop" label="Shop" onClick={() => setPanel({ k: "shop" })} />
               <BigButton icon="barn" label="Barn" onClick={() => setPanel({ k: "barn" })} badge={G.barnFree(s) <= 0 ? "!" : null} />
               <BigButton icon="heli" label="Orders" className={s.tut === 4 ? "twPulse" : ""} onClick={() => setPanel({ k: "orders" })} badge={s.orders.filter((o, i) => G.canDeliver(s, i)).length || null} />
               {s.level >= 5 && <BigButton icon="train" label="Train" onClick={() => setPanel({ k: "train" })} badge={s.train.st === "here" ? "!" : null} />}
               <BigButton icon="move" label={edit ? "Done" : "Move"} className={edit ? "is-on" : ""} onClick={() => setEdit(!edit)} />
+              {social.on && <BigButton icon="friends" label="Friends" onClick={() => openFriends(unopened ? "mail" : "visit")} badge={unopened || null} />}
             </div>
           )}
           {edit && !place && <div className="twEditHint">Move mode: tap something to move it</div>}
@@ -881,7 +1281,8 @@ const Town = ({ onClose, onTitle, mobile }) => {
               now={now}
               tut={s.tut === 4}
               onDeliver={deliver}
-              onSkip={(i) => act(G.skipOrder(s, i, clockNow()), () => play("tap"))}
+              onSkip={(i) => act(G.skipOrder(s, i, clockNow()), () => (dropRequest("order", i), play("tap")))}
+              help={helpProps}
               onHurry={(i) => act(G.speedUp(s, { order: i }, clockNow()), () => play("coins"))}
               onClose={closePanel}
             />
@@ -890,7 +1291,8 @@ const Town = ({ onClose, onTitle, mobile }) => {
             <TrainPanel
               s={s}
               now={now}
-              onLoad={(k) => act(G.loadCar(s, k, clockNow()), () => play("collect"))}
+              onLoad={(k) => act(G.loadCar(s, k, clockNow()), () => (dropRequest("car", k), play("collect")))}
+              help={helpProps}
               onSend={() => {
                 const cars = s.train.cars.length
                 act(G.sendTrain(s, clockNow()), (r) => {
@@ -918,6 +1320,33 @@ const Town = ({ onClose, onTitle, mobile }) => {
           )}
           {panel?.k === "expand" && <ExpandPanel s={s} k={panel.i} onExpand={() => act(G.expand(s, panel.i, clockNow()), () => (play("build"), closePanel()))} onClose={closePanel} />}
           {panel?.k === "help" && <HelpPanel onClose={closePanel} />}
+          {panel?.k === "friends" && (
+            <FriendsPanel
+              social={social}
+              s={s}
+              couple={couple}
+              tab={friendsTab}
+              setTab={(t) => (t ? setFriendsTab(t) : closePanel())}
+              now={now}
+              onVisit={startVisit}
+              onOpenGift={openGift}
+              onGift={() => setPanel({ k: "gift" })}
+              onShowNote={showNote}
+              onDeleteNote={removeNote}
+              onSettings={async (body) => {
+                const r = await social.call("PUT", "/settings", body)
+                if (r.ok) social.setData((d) => ({ ...d, allowBuddies: r.allowBuddies }))
+                else say(r.error)
+              }}
+            />
+          )}
+          {panel?.k === "gift" && paired && <GiftPanel s={s} partner={couple.partner} giftsLeft={sd.giftsLeft ?? 3} onSend={sendGift} onClose={closePanel} />}
+          {panel?.k === "note" && visit && (
+            <NotePanel owner={visit.owner} where={panel.target ? typeName(G.objById(visit.s, panel.target)?.t || "") : null} onSend={leaveNote} onClose={closePanel} />
+          )}
+          {panel?.k === "helpreq" && visit && <HelpRequestsPanel owner={visit.owner} requests={visit.requests} s={s} onHelp={helpFriend} onClose={closePanel} />}
+          {opening && <GiftOpening gift={opening} onDone={() => setOpening(null)} />}
+          {social.conflict && <ConflictPanel local={s} cloud={social.conflict.cloud} onPick={social.resolveConflict} />}
           {level && <LevelPanel {...level} onClose={() => setLevels((l) => l.slice(1))} />}
           {confirmNew && (
             <Dialog
@@ -925,7 +1354,10 @@ const Town = ({ onClose, onTitle, mobile }) => {
               okLabel="Start over"
               sound="chord"
               onOk={() => {
+                const rev = (game.current.rev || 0) + 1
                 game.current = G.newGame(clockNow())
+                game.current.rev = rev
+                if (social.on) placeSpecials()
                 fx.current.wildKey = ""
                 setConfirmNew(false)
                 setPanel(null)

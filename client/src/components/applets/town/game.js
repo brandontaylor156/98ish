@@ -433,6 +433,8 @@ const buildTime = (type) => {
 // the price and requirements of buying one more of something
 export const offer = (s, type) => {
   const kind = kindOf(type)
+  // a decoration someone gave you is free to place
+  if (kind === "decor" && s.inv?.[type] > 0) return { type, lvl: 1, coins: 0, mats: {}, xp: 0, pop: 0, time: 0, why: null, gift: s.inv[type] }
   let lvl = 1
   let coins = 0
   let mats = {}
@@ -474,6 +476,9 @@ export const offer = (s, type) => {
     lvl = d.lvl
     coins = d.cost
     xp = d.xp
+    if (d.giftOnly) limit = "Only your partner can give you this one."
+    else if (d.couple && !s.paired) limit = "Pair up with your partner in Us to unlock it."
+    else if (d.couple && count(s, type)) limit = "You already have one."
   } else {
     return { type, lvl: 999, coins: 0, mats: {}, xp: 0, pop: 0, why: "Not for sale." }
   }
@@ -495,6 +500,10 @@ export const build = (s, type, x, y, now = Date.now()) => {
   if (!canPlace(s, type, x, y)) return no("It doesn't fit there.")
   s.coins -= o.coins
   takeAll(s, o.mats)
+  if (o.gift) {
+    s.inv[type]--
+    if (!s.inv[type]) delete s.inv[type]
+  }
   const obj = { i: s.nextId++, t: type, x, y, ...initial(type) }
   const t = buildTime(type)
   if (t) {
@@ -624,6 +633,140 @@ export const tick = (s, now = Date.now()) => {
   s.t = now
 }
 
+// ---- playing together ----
+// Signed in, a town is saved to the cloud and friends can visit. What other players do for
+// you (fill a help request, send a gift) and the couple's weekly goal arrive from the server
+// as "effects", each with an id; applyEffect() uses each one once (s.claimed remembers them).
+
+export const MAX_CLAIMED = 200
+export const MAX_GIFT_ITEMS = 10
+export const GOAL_TARGET = 500
+export const GOAL_REWARD = { coins: 300, xp: 60, clovers: 3 }
+
+// what a helper earns for filling a request, by what the goods are worth
+export const needValue = (need) => Object.entries(need || {}).reduce((v, [id, n]) => v + (GOODS[id]?.price || 1) * n, 0)
+export const helpReward = (need) => {
+  const value = needValue(need)
+  return { coins: Math.round(value * 1.2) + 5, xp: Math.round(value / 4) + 3 }
+}
+
+// what a help request asks for: helicopter order `slot` or train car `slot`; null if there's
+// nothing there to fill
+export const requestNeed = (s, kind, slot) => {
+  if (kind === "order") {
+    const o = s.orders?.[slot]
+    return o?.need ? { ...o.need } : null
+  }
+  if (kind === "car") {
+    const c = s.train?.st === "here" ? s.train.cars?.[slot] : null
+    return c && !c.d ? { [c.g]: c.n } : null
+  }
+  return null
+}
+export const sameNeed = (a, b) => {
+  if (!a || !b) return false
+  const ka = Object.keys(a).filter((k) => a[k] > 0)
+  return ka.length === Object.keys(b).filter((k) => b[k] > 0).length && ka.every((k) => a[k] === b[k])
+}
+
+// a free spot for something near tile (cx, cy), or null
+export const freeSpotNear = (s, type, cx, cy) => {
+  const n = sizeOf(type)
+  for (let r = 0; r < 30; r++)
+    for (let dy = -r; dy <= r; dy++)
+      for (let dx = -r; dx <= r; dx++) {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue
+        const x = cx + dx - Math.floor(n / 2)
+        const y = cy + dy - Math.floor(n / 2)
+        if (canPlace(s, type, x, y)) return [x, y]
+      }
+  return null
+}
+const placeSpecial = (s, type, near) => {
+  if (s.objs.some((o) => o.t === type)) return false
+  const at = near && freeSpotNear(s, type, near.x + 1, near.y + sizeOf(near.t))
+  const spot = at || freeSpotNear(s, type, 12, 12)
+  if (!spot) return false
+  s.objs.push({ i: s.nextId++, t: type, x: spot[0], y: spot[1] })
+  return true
+}
+// signed in: a mailbox by the Barn
+export const ensureMailbox = (s) => placeSpecial(s, "mailbox", s.objs.find((o) => o.t === "barn"))
+// paired (or not any more): the partner's name for the welcome sign by the station
+export const setPartner = (s, name) => {
+  s.paired = name || null
+  if (!s.paired) delete s.paired
+  return name ? placeSpecial(s, "welcome", s.objs.find((o) => o.t === "station")) : false
+}
+
+const fillOrder = (s, slot, now) => {
+  const o = s.orders[slot]
+  s.coins += o.coins
+  for (const [k, n] of Object.entries(o.bonus || {})) give(s, k, n)
+  s.orders[slot] = { wait: now + ORDER_WAIT_DONE * SEC }
+  s.stats.orders++
+  if (s.tut === 4) s.tut = 5
+  emit(s, { type: "delivered", order: o })
+  addXp(s, o.xp, now)
+  return o
+}
+
+export const applyEffect = (s, e, now = Date.now()) => {
+  if (!e || typeof e.id !== "string") return no("That isn't something we know.")
+  s.claimed ||= []
+  if (s.claimed.includes(e.id)) return no("Already done.")
+  s.claimed.push(e.id)
+  if (s.claimed.length > MAX_CLAIMED) s.claimed.splice(0, s.claimed.length - MAX_CLAIMED)
+  const goods = (sign) => {
+    for (const [g, n] of Object.entries(e.goods || {})) {
+      if (!GOODS[g] || !(n > 0)) continue
+      addGood(s, g, sign > 0 ? n : -Math.min(n, have(s, g)))
+    }
+  }
+  const result = { kind: e.kind }
+  if (e.kind === "helped") {
+    // you filled a friend's request: the goods left your Barn, and they thank you
+    goods(-1)
+    s.coins += e.coins || 0
+    s.stats.helped = (s.stats.helped || 0) + 1
+    addXp(s, e.xp || 0, now)
+  } else if (e.kind === "help") {
+    // a friend filled your request
+    const req = e.req || {}
+    if (req.kind === "order" && sameNeed(requestNeed(s, "order", req.slot), req.need)) {
+      result.order = fillOrder(s, req.slot, now)
+      result.filled = true
+    } else if (req.kind === "car" && sameNeed(requestNeed(s, "car", req.slot), req.need)) {
+      const car = s.train.cars[req.slot]
+      addMat(s, car.m, 1)
+      car.d = 1
+      addXp(s, Math.round((GOODS[car.g].price * car.n) / 5) + 1, now)
+      result.mat = car.m
+      result.filled = true
+    } else {
+      // that order or car is gone: the goods go to the Barn instead
+      for (const [g, n] of Object.entries(req.need || {})) if (GOODS[g] && n > 0) addGood(s, g, n)
+      result.filled = false
+    }
+    s.stats.helpedBy = (s.stats.helpedBy || 0) + 1
+  } else if (e.kind === "gave") {
+    goods(-1)
+    s.coins = Math.max(0, s.coins - (e.coins || 0))
+    s.stats.gifts = (s.stats.gifts || 0) + 1
+  } else if (e.kind === "gift") {
+    goods(1)
+    if (e.decor && DECOR[e.decor]) {
+      s.inv ||= {}
+      s.inv[e.decor] = (s.inv[e.decor] || 0) + 1
+    }
+  } else if (e.kind === "goal") {
+    s.coins += e.coins || 0
+    s.clovers += e.clovers || 0
+    addXp(s, e.xp || 0, now)
+  } else return no("That isn't something we know.")
+  return ok(result)
+}
+
 // ---- saving ----
 export const serialize = (s) => {
   const { ev, ...rest } = s
@@ -641,6 +784,8 @@ export const migrate = (data) => {
   while (s.exp.length < EXPANSIONS.length) s.exp.push(0)
   s.goods = { ...(data.goods || {}) }
   s.mats = { ...(data.mats || {}) }
+  if (data.inv) s.inv = { ...data.inv }
+  if (data.claimed) s.claimed = Array.isArray(data.claimed) ? data.claimed.slice(-MAX_CLAIMED) : []
   s.stats = { ...base.stats, ...(data.stats || {}) }
   s.train = data.train && data.train.st ? data.train : base.train
   s.orders = Array.isArray(data.orders) ? data.orders : []

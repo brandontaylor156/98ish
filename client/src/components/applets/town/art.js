@@ -748,6 +748,159 @@ const site = (K, n) => {
   K.box(n * 0.45, n * 0.45, n * 0.55, n * 0.55, 0, 6, "#a7a9ad")
 }
 
+// ---- playing together ----
+// a heart centred on (x, y), about 2r wide
+export const heartPath = (ctx, x, y, r) => {
+  ctx.beginPath()
+  ctx.moveTo(x, y + r * 0.95)
+  ctx.bezierCurveTo(x - r * 1.5, y - r * 0.05, x - r * 0.95, y - r * 1.25, x, y - r * 0.45)
+  ctx.bezierCurveTo(x + r * 0.95, y - r * 1.25, x + r * 1.5, y - r * 0.05, x, y + r * 0.95)
+  ctx.closePath()
+}
+const heartAt = (ctx, x, y, r, fill = "#ff5f8f", stroke = OUT) => {
+  heartPath(ctx, x, y, r)
+  ctx.fillStyle = fill
+  ctx.fill()
+  if (stroke) {
+    ctx.strokeStyle = stroke
+    ctx.stroke()
+  }
+  ctx.fillStyle = "rgba(255,255,255,0.55)"
+  ctx.beginPath()
+  ctx.ellipse(x - r * 0.45, y - r * 0.35, r * 0.22, r * 0.14, -0.6, 0, Math.PI * 2)
+  ctx.fill()
+}
+
+// the Couple's Cottage: a pink cottage with a heart over the door and on the roof
+B.lovecottage = {
+  n: 2, up: 84,
+  draw: (K) => {
+    house("#ffe6ee", "#e8678f", 26, { chimney: true, flowers: true })(K)
+    // a heart-shaped wreath over the door, and one on the ridge
+    const c = K.ctx
+    heartAt(c, isoX(0.95, 1.7), isoY(0.95, 1.7, 23), 4.5, "#ff7aa2")
+    heartAt(c, isoX(1, 1), isoY(1, 1, 60), 7.5, "#ff4f86")
+    // a little path of heart stepping stones
+    for (const [u, k] of [[0.9, 0], [1.05, 1]]) {
+      const x = isoX(u, 2.05 + k * 0.12)
+      const y = isoY(u, 2.05 + k * 0.12)
+      heartAt(c, x, y, 2.6, "#f6d2dc", "rgba(120,60,80,0.35)")
+    }
+  },
+}
+
+// a topiary clipped into a heart, in a terracotta pot
+B.hearttree = {
+  n: 1, up: 56,
+  draw: (K) => {
+    K.box(0.36, 0.36, 0.64, 0.64, 0, 9, "#c8714a")
+    K.box(0.34, 0.34, 0.66, 0.66, 9, 11, "#b5603d")
+    K.box(0.48, 0.48, 0.52, 0.52, 11, 20, "#7a4a2a")
+    const c = K.ctx
+    const x = isoX(0.5, 0.5)
+    const y = isoY(0.5, 0.5, 36)
+    heartAt(c, x, y, 15, "#4fae4a")
+    heartAt(c, x - 2, y - 1, 11, "#62c25a", null)
+    for (const [dx, dy] of [[-7, -4], [6, -6], [1, 4], [-2, -10], [8, 2]]) {
+      c.fillStyle = "#ff8fb4"
+      c.beginPath()
+      c.arc(x + dx, y + dy, 1.8, 0, Math.PI * 2)
+      c.fill()
+    }
+  },
+}
+
+// the mailbox (gifts arrive here); the flag goes up when one is waiting
+const mailbox = (flag) => (K) => {
+  K.ground(0.3, 0.3, 0.7, 0.7, "rgba(0,0,0,0.08)", null)
+  K.box(0.47, 0.47, 0.53, 0.53, 0, 20, "#8a5a35")
+  K.box(0.3, 0.42, 0.7, 0.58, 20, 30, "#5b8ee0")
+  const c = K.ctx
+  // the rounded top
+  c.fillStyle = "#6f9fe8"
+  c.strokeStyle = OUT
+  c.beginPath()
+  const [x0, y0] = [isoX(0.3, 0.58), isoY(0.3, 0.58, 30)]
+  const [x1, y1] = [isoX(0.7, 0.58), isoY(0.7, 0.58, 30)]
+  c.moveTo(x0, y0)
+  c.quadraticCurveTo((x0 + x1) / 2, (y0 + y1) / 2 - 12, x1, y1)
+  c.lineTo(isoX(0.7, 0.42), isoY(0.7, 0.42, 30))
+  c.quadraticCurveTo((x1 + isoX(0.3, 0.42)) / 2 + 4, (y1 + isoY(0.3, 0.42, 30)) / 2 - 14, isoX(0.3, 0.42), isoY(0.3, 0.42, 30))
+  c.closePath()
+  c.fill()
+  c.stroke()
+  heartAt(c, isoX(0.5, 0.58), isoY(0.5, 0.58, 25), 3, "#ff7aa2", null)
+  // the flag on the right side
+  const fx = isoX(0.7, 0.5)
+  const fy = isoY(0.7, 0.5, 26)
+  c.strokeStyle = "#5a3a2a"
+  c.lineWidth = 1.5
+  c.beginPath()
+  c.moveTo(fx, fy)
+  c.lineTo(fx + (flag ? 1 : 9), fy - (flag ? 14 : 2))
+  c.stroke()
+  c.lineWidth = 1
+  c.fillStyle = "#e5413b"
+  c.strokeStyle = OUT
+  c.beginPath()
+  if (flag) c.rect(fx + 1, fy - 14, 7, 5)
+  else c.rect(fx + 5, fy - 3, 6, 4)
+  c.fill()
+  c.stroke()
+}
+B.mailbox = { n: 1, up: 50, draw: mailbox(false) }
+B.mailboxUp = { n: 1, up: 50, draw: mailbox(true) }
+
+// the welcome sign by the station (the names are written on live, see render.js)
+export const WELCOME_BOARD = { w: 76, h: 28, z: 30 }
+B.welcome = {
+  n: 1, up: 66,
+  draw: (K) => {
+    for (const u of [0.22, 0.78]) K.box(u - 0.04, 0.46, u + 0.04, 0.54, 0, 32, "#8a5a35")
+    const c = K.ctx
+    const x = isoX(0.5, 0.5)
+    const y = isoY(0.5, 0.5, WELCOME_BOARD.z)
+    c.fillStyle = "#9b6b43"
+    c.strokeStyle = OUT
+    roundRect(c, x - WELCOME_BOARD.w / 2 - 3, y - WELCOME_BOARD.h - 3, WELCOME_BOARD.w + 6, WELCOME_BOARD.h + 6, 5)
+    c.fill()
+    c.stroke()
+    c.fillStyle = "#fff4dc"
+    roundRect(c, x - WELCOME_BOARD.w / 2, y - WELCOME_BOARD.h, WELCOME_BOARD.w, WELCOME_BOARD.h, 3)
+    c.fill()
+    // flowers at its feet
+    for (const [u, col] of [[0.3, "#ff7aa2"], [0.5, "#ffd34d"], [0.7, "#c58cff"]]) K.circle(u, 0.62, 3, 2.6, col, null)
+  },
+}
+
+// a note a visitor left: a little card on a stake with a heart pin
+B.noteSign = {
+  n: 1, up: 40,
+  draw: (K) => {
+    K.box(0.48, 0.48, 0.52, 0.52, 0, 16, "#8a5a35")
+    const c = K.ctx
+    const x = isoX(0.5, 0.5)
+    const y = isoY(0.5, 0.5, 16)
+    c.save()
+    c.translate(x, y)
+    c.rotate(-0.06)
+    c.fillStyle = "#fffaf0"
+    c.strokeStyle = OUT
+    roundRect(c, -11, -17, 22, 16, 2)
+    c.fill()
+    c.stroke()
+    c.strokeStyle = "rgba(90,70,110,0.45)"
+    for (const ly of [-12, -8, -4]) {
+      c.beginPath()
+      c.moveTo(-7, ly)
+      c.lineTo(7, ly)
+      c.stroke()
+    }
+    heartAt(c, 0, -17, 3.2, "#ff4f86")
+    c.restore()
+  },
+}
+
 export const BUILDINGS = B
 
 // ---- crops on fields ----
@@ -1787,6 +1940,97 @@ I.move = (ctx) => {
   ctx.fill()
   ctx.stroke()
   blob(ctx, 16, 16, 5, 5, "#4a8fd6")
+}
+
+// playing together
+I.heart = (ctx) => heartAt(ctx, 16, 17, 11)
+I.heartOutline = (ctx) => heartAt(ctx, 16, 17, 11, "#fffaf0")
+I.gift = (ctx) => {
+  ctx.fillStyle = "#ff8fb4"
+  ctx.fillRect(6, 13, 20, 15)
+  ctx.strokeRect(6, 13, 20, 15)
+  ctx.fillStyle = "#ffb3cb"
+  ctx.fillRect(4, 9, 24, 5)
+  ctx.strokeRect(4, 9, 24, 5)
+  ctx.fillStyle = "#f6c02c"
+  ctx.fillRect(14, 9, 4, 19)
+  ctx.strokeRect(14, 9, 4, 19)
+  for (const s of [-1, 1]) {
+    ctx.beginPath()
+    ctx.ellipse(16 + s * 5, 6, 5, 3, s * 0.5, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.stroke()
+  }
+}
+I.friends = (ctx) => {
+  blob(ctx, 11, 12, 4.5, 4.5, "#f2c79a")
+  blob(ctx, 21, 12, 4.5, 4.5, "#e8b48a")
+  ctx.fillStyle = "#6fb4ff"
+  ctx.beginPath()
+  ctx.ellipse(11, 25, 7, 8, 0, Math.PI, 0)
+  ctx.fill()
+  ctx.stroke()
+  ctx.fillStyle = "#ff8fb4"
+  ctx.beginPath()
+  ctx.ellipse(21, 25, 7, 8, 0, Math.PI, 0)
+  ctx.fill()
+  ctx.stroke()
+  heartAt(ctx, 16, 6, 4.2, "#ff4f86")
+}
+I.note = (ctx) => {
+  ctx.fillStyle = "#fffaf0"
+  roundRect(ctx, 6, 5, 20, 22, 2)
+  ctx.fill()
+  ctx.stroke()
+  ctx.strokeStyle = "rgba(90,70,110,0.5)"
+  for (const y of [12, 16, 20]) {
+    ctx.beginPath()
+    ctx.moveTo(10, y)
+    ctx.lineTo(22, y)
+    ctx.stroke()
+  }
+  heartAt(ctx, 16, 6, 3.5, "#ff4f86")
+}
+I.home = (ctx) => {
+  ctx.fillStyle = "#f6e7c8"
+  ctx.fillRect(8, 15, 16, 13)
+  ctx.strokeRect(8, 15, 16, 13)
+  ctx.fillStyle = "#e0614f"
+  ctx.beginPath()
+  ctx.moveTo(4, 16)
+  ctx.lineTo(16, 5)
+  ctx.lineTo(28, 16)
+  ctx.closePath()
+  ctx.fill()
+  ctx.stroke()
+  ctx.fillStyle = "#8a5a35"
+  ctx.fillRect(14, 20, 5, 8)
+}
+I.help = (ctx) => {
+  blob(ctx, 16, 16, 12, 12, "#ff9a3c")
+  ctx.fillStyle = "#fff"
+  ctx.font = "bold 18px Arial, sans-serif"
+  ctx.textAlign = "center"
+  ctx.textBaseline = "middle"
+  ctx.fillText("!", 16, 17)
+}
+I.mailbox = (ctx) => {
+  ctx.fillStyle = "#8a5a35"
+  ctx.fillRect(14, 18, 4, 12)
+  ctx.fillStyle = "#5b8ee0"
+  ctx.beginPath()
+  ctx.moveTo(5, 19)
+  ctx.lineTo(5, 12)
+  ctx.quadraticCurveTo(5, 5, 13, 5)
+  ctx.lineTo(19, 5)
+  ctx.quadraticCurveTo(27, 5, 27, 12)
+  ctx.lineTo(27, 19)
+  ctx.closePath()
+  ctx.fill()
+  ctx.stroke()
+  heartAt(ctx, 13, 12, 3.5, "#ff7aa2", null)
+  ctx.fillStyle = "#e5413b"
+  ctx.fillRect(24, 2, 5, 4)
 }
 
 // draw an icon (any good, material, coin, clover, xp, people...) into a size x size box

@@ -3,7 +3,7 @@
 // points into tiles and buildings (hit testing) and runs the little animations: smoke,
 // floating "+2" rewards, wandering animals, the helicopter and the train.
 
-import { BUILDINGS, TW, TH, buildingSprite, drawAnimal, drawHelicopter, drawIcon, drawTrainCar, fieldSprite, isoX, isoY, roundRect, trainKit } from "./art.js"
+import { BUILDINGS, TW, TH, WELCOME_BOARD, buildingSprite, drawAnimal, drawHelicopter, drawIcon, drawTrainCar, fieldSprite, heartPath, isoX, isoY, roundRect, trainKit } from "./art.js"
 import { EXPANSIONS, FACTORIES, MAP_H, MAP_W, PENS, RAIL_ROW, kindOf, sizeOf } from "./data.js"
 import { canPlace, factoryJobs, fieldStage, isLand, penState } from "./game.js"
 
@@ -90,6 +90,16 @@ export const objectAt = (s, wx, wy) => {
   }
   return null
 }
+// a visitor's note sign under a point (they stand in front of buildings, so check them first)
+export const noteAt = (notes, wx, wy) => {
+  for (const n of [...(notes || [])].sort((a, b) => b.x + b.y - (a.x + a.y))) {
+    const x = isoX(n.x, n.y)
+    const y = isoY(n.x, n.y, 16)
+    if (wx > x - 14 && wx < x + 14 && wy > y - 24 && wy < y + 6) return n
+  }
+  return null
+}
+
 // what's on the ground right under a point (for swipes)
 export const groundObjectAt = (s, wx, wy) => {
   const [u, v] = toTile(wx, wy)
@@ -327,6 +337,9 @@ export const drawScene = (ctx, s, view, fx) => {
   // the train
   const train = trainCars(s, fx, t)
   for (const car of train) items.push({ d: car.u + RAIL_ROW + 0.5, car })
+  // visitors' notes, and visitors walking around
+  for (const n of fx.notes || []) items.push({ d: n.x + n.y + 0.5, note: n })
+  for (const p of fx.visitors || []) items.push({ d: p.u + p.v + 0.6, person: p })
   items.sort((a, b) => a.d - b.d)
 
   const bubbles = []
@@ -340,8 +353,25 @@ export const drawScene = (ctx, s, view, fx) => {
       drawTrainCar(trainKitFor(ctx), it.car.u, RAIL_ROW, it.car.kind)
       continue
     }
+    if (it.note) {
+      blit(ctx, buildingSprite("noteSign"), it.note.x - 0.5, it.note.y - 0.5, false, it.note.id === fx.noteSel ? 1 : 0.96)
+      continue
+    }
+    if (it.person) {
+      drawVisitor(ctx, it.person, t, z)
+      continue
+    }
     const o = it.o
-    drawObject(ctx, o, s, now, t, bubbles, bars)
+    drawObject(ctx, o, s, now, t, bubbles, bars, fx)
+  }
+  // hearts visitors gave buildings
+  if (fx.hearts) {
+    for (const o of s.objs) {
+      const n = fx.hearts[o.i]
+      if (!n || o.b) continue
+      const [x, y] = topOf(o)
+      drawHeartTag(ctx, x + 16, y + 4 + Math.sin(t * 2 + o.i) * 1.5, n, z, fx.myHearts?.includes(o.i))
+    }
   }
   // the helicopter
   drawHeli(ctx, s, fx, t)
@@ -466,9 +496,98 @@ const drawHeli = (ctx, s, fx, t) => {
   drawHelicopter(ctx, x, y, 1, t, spin)
 }
 
-const drawObject = (ctx, o, s, now, t, bubbles, bars) => {
+// a little pink heart with how many visitors liked a building
+const drawHeartTag = (ctx, x, y, n, z, mine) => {
+  const k = 1 / Math.max(0.8, Math.min(z, 1.6))
+  ctx.save()
+  ctx.translate(x, y)
+  ctx.scale(k, k)
+  heartPath(ctx, 0, 0, 9)
+  ctx.fillStyle = mine ? "#ff3f7a" : "#ff7aa2"
+  ctx.fill()
+  ctx.strokeStyle = "#fff"
+  ctx.lineWidth = 2
+  ctx.stroke()
+  ctx.font = "bold 9px Arial, sans-serif"
+  ctx.textAlign = "center"
+  ctx.textBaseline = "middle"
+  ctx.fillStyle = "#fff"
+  ctx.fillText(String(n), 0, 0)
+  ctx.restore()
+  ctx.lineWidth = 1
+}
+
+// someone visiting: a little round person with their name over their head
+const SHIRTS = ["#ff7aa2", "#6fb4ff", "#ffb347", "#8bd17c", "#c58cff", "#ff8f6b"]
+const drawVisitor = (ctx, p, t, z) => {
+  const x = isoX(p.u, p.v)
+  const y = isoY(p.u, p.v)
+  const hop = Math.abs(Math.sin(t * 6 + p.u)) * (p.moving ? 3 : 0.8)
+  let h = 0
+  for (const c of p.name) h = (h * 31 + c.charCodeAt(0)) | 0
+  ctx.fillStyle = "rgba(0,0,0,0.2)"
+  ctx.beginPath()
+  ctx.ellipse(x, y, 8, 3.5, 0, 0, Math.PI * 2)
+  ctx.fill()
+  ctx.strokeStyle = "rgba(52,36,24,0.6)"
+  ctx.fillStyle = SHIRTS[Math.abs(h) % SHIRTS.length]
+  ctx.beginPath()
+  ctx.ellipse(x, y - 9 - hop, 6.5, 8, 0, 0, Math.PI * 2)
+  ctx.fill()
+  ctx.stroke()
+  ctx.fillStyle = "#f6d0a8"
+  ctx.beginPath()
+  ctx.arc(x, y - 21 - hop, 5.5, 0, Math.PI * 2)
+  ctx.fill()
+  ctx.stroke()
+  ctx.fillStyle = "#3a2a1e"
+  ctx.fillRect(x - 2.5, y - 22 - hop, 1.4, 1.6)
+  ctx.fillRect(x + 1.2, y - 22 - hop, 1.4, 1.6)
+  // the name tag
+  const k = 1 / Math.max(0.8, Math.min(z, 1.6))
+  ctx.save()
+  ctx.translate(x, y - 34 - hop)
+  ctx.scale(k, k)
+  ctx.font = "bold 10px Arial, sans-serif"
+  const w = ctx.measureText(p.name).width + 10
+  ctx.fillStyle = "rgba(255,253,246,0.95)"
+  ctx.strokeStyle = "rgba(52,36,24,0.6)"
+  roundRect(ctx, -w / 2, -8, w, 15, 7)
+  ctx.fill()
+  ctx.stroke()
+  ctx.fillStyle = "#5a2a40"
+  ctx.textAlign = "center"
+  ctx.textBaseline = "middle"
+  ctx.fillText(p.name, 0, 0)
+  ctx.restore()
+}
+
+// the names on the welcome sign, written to fit the board
+const drawWelcomeText = (ctx, o, names) => {
+  const x = isoX(o.x + 0.5, o.y + 0.5)
+  const y = isoY(o.x + 0.5, o.y + 0.5, WELCOME_BOARD.z)
+  const lines = names?.b ? [names.a, `♥ ${names.b}`] : [names?.a ? `${names.a}'s` : "Welcome to", "Sunny Acres"]
+  ctx.textAlign = "center"
+  ctx.textBaseline = "middle"
+  lines.forEach((line, k) => {
+    let size = 11
+    ctx.font = `bold ${size}px Arial, sans-serif`
+    const w = ctx.measureText(line).width
+    if (w > WELCOME_BOARD.w - 8) size = Math.max(5, (size * (WELCOME_BOARD.w - 8)) / w)
+    ctx.font = `bold ${size}px Arial, sans-serif`
+    ctx.fillStyle = k ? "#d23f74" : "#5a3a2a"
+    ctx.fillText(line, x, y - WELCOME_BOARD.h + 8 + k * 12)
+  })
+}
+
+const drawObject = (ctx, o, s, now, t, bubbles, bars, fx = {}) => {
   const n = sizeOf(o.t)
   const kind = kindOf(o.t)
+  if (o.t === "mailbox") return blit(ctx, buildingSprite(fx.mailFlag ? "mailboxUp" : "mailbox"), o.x, o.y, o.f)
+  if (o.t === "welcome") {
+    blit(ctx, buildingSprite("welcome"), o.x, o.y)
+    return drawWelcomeText(ctx, o, fx.signNames)
+  }
   if (o.b) {
     // still being built
     blit(ctx, buildingSprite(n === 2 ? "site2" : "site3"), o.x, o.y)

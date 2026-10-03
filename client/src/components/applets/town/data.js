@@ -148,6 +148,16 @@ export const DECOR = {
   fountain: { name: "Fountain", lvl: 5, cost: 250, xp: 8, w: 2 },
   pond: { name: "Duck Pond", lvl: 7, cost: 400, xp: 12, w: 2 },
   statue: { name: "Founder Statue", lvl: 9, cost: 600, xp: 18, w: 2 },
+  // for couples (paired in Us): one Couple's Cottage each, and a topiary only a partner can give
+  lovecottage: { name: "Couple's Cottage", lvl: 1, cost: 0, xp: 10, w: 2, couple: true },
+  hearttree: { name: "Heart Topiary", lvl: 1, cost: 30, xp: 1, w: 1, giftOnly: true },
+}
+
+// things the game puts in a signed-in town by itself: the mailbox (gifts arrive there) and,
+// for couples, the welcome sign with both names on it
+export const SPECIALS = {
+  mailbox: { name: "Mailbox", w: 1 },
+  welcome: { name: "Welcome Sign", w: 1 },
 }
 
 // footprints, by object type
@@ -155,6 +165,7 @@ export const sizeOf = (type) => {
   if (type === "field") return 1
   if (HOUSES[type]) return 2
   if (DECOR[type]) return DECOR[type].w
+  if (SPECIALS[type]) return SPECIALS[type].w
   return 3 // factories, pens, community buildings, barn, helipad, station
 }
 export const kindOf = (type) =>
@@ -170,7 +181,7 @@ export const typeName = (type) =>
   : type === "barn" ? "Barn"
   : type === "helipad" ? "Helipad"
   : type === "station" ? "Train Station"
-  : (HOUSES[type] || COMMUNITY[type] || FACTORIES[type] || PENS[type] || DECOR[type])?.name || type
+  : (HOUSES[type] || COMMUNITY[type] || FACTORIES[type] || PENS[type] || DECOR[type] || SPECIALS[type])?.name || type
 
 // fields: how many a level allows, and what the next one costs
 export const maxFields = (level) => Math.min(30, 6 + 2 * (level - 1))
@@ -239,7 +250,7 @@ export const unlocksAt = (level) => {
   }
   for (const [type, h] of Object.entries(HOUSES)) if (h.lvl === level) out.push({ id: type, name: h.name })
   for (const [type, c] of Object.entries(COMMUNITY)) if (c.lvl === level) out.push({ id: type, name: c.name })
-  for (const [type, d] of Object.entries(DECOR)) if (d.lvl === level && level > 1) out.push({ id: type, name: d.name })
+  for (const [type, d] of Object.entries(DECOR)) if (d.lvl === level && level > 1 && !d.couple && !d.giftOnly) out.push({ id: type, name: d.name })
   if (level === TRAIN_LEVEL) out.push({ id: "station", name: "The Train" })
   EXPANSIONS.forEach((e) => e.lvl === level && out.push({ id: "expand", name: e.name }))
   return out
