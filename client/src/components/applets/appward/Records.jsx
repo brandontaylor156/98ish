@@ -9,13 +9,11 @@ import {
 } from "./engine.js"
 import { change } from "./store.js"
 import { Icon } from "./icons.jsx"
-import { useAw, ago, avatarColor, initials } from "./ctx.js"
+import { useAw, ago, avatarColor, initials, singular } from "./ctx.js"
 import { esc, printPage } from "./print.js"
 import { ProjectTimeline } from "./Planning.jsx"
 
 // Lists, boards and forms that every app gets from its schema.
-
-const singular = (name) => name.replace(/ies$/, "y").replace(/(ss|sh|ch|x)es$/, "$1").replace(/s$/, "")
 
 // ---- chips: a record anywhere, one click away ----
 

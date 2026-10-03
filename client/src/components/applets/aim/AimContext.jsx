@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useReducer, useRef, useS
 import { playSound } from "./sounds"
 import "./Aim.css"
 import { unlock } from "../../../utils/achievements"
+import { launch } from "../../../utils/programs"
 
 // One 98 Messenger session shared by every Messenger window: the Buddy List ("98 Messenger"),
 // Instant Message windows, chat rooms, Buddy Info and chat invitations.
@@ -32,6 +33,26 @@ const loadPrefs = () => {
     return { ...DEFAULT_PREFS, ...saved, style: { ...DEFAULT_PREFS.style, ...saved?.style } }
   } catch {
     return DEFAULT_PREFS
+  }
+}
+
+// "Remember me": { screenName, token } of this device's sign-on token (the server keeps
+// only a hash), so a phone that reloads the page or drops the connection signs on again
+const REMEMBER_KEY = "98ish.aim.remember"
+const loadRemembered = () => {
+  try {
+    const saved = JSON.parse(localStorage.getItem(REMEMBER_KEY))
+    return saved?.screenName && saved?.token ? saved : null
+  } catch {
+    return null
+  }
+}
+const saveRemembered = (saved) => {
+  try {
+    if (saved) localStorage.setItem(REMEMBER_KEY, JSON.stringify(saved))
+    else localStorage.removeItem(REMEMBER_KEY)
+  } catch {
+    // storage blocked: sign on each visit
   }
 }
 
@@ -226,30 +247,69 @@ export const AimProvider = ({ socket, windows, dispatch: dispatchWindow, onOpenV
     dispatch({ type: "signedOff", error })
   }
 
-  const signOn = (screenName, password, register) =>
+  const signOn = (screenName, password, register, remember = prefsRef.current.remember !== false) =>
     new Promise((resolve) => {
       dispatch({ type: "signingOn" })
-      socket.timeout(15_000).emit("aim:signOn", { screenName, password, register }, (timeout, result) => {
+      socket.timeout(15_000).emit("aim:signOn", { screenName, password, register, remember }, (timeout, result) => {
         if (timeout || !result?.ok) {
           const error = timeout ? "Could not connect to the 98 Messenger service. Please try again." : result.error
           dispatch({ type: "signOnFailed", error })
           return resolve(false)
         }
         tokenRef.current = result.token
-        setPrefs({ lastScreenName: result.me.screenName })
+        saveRemembered(remember && result.remember ? { screenName: result.me.screenName, token: result.remember } : null)
+        setPrefs({ lastScreenName: result.me.screenName, remember })
         dispatch({ type: "signedOn", me: result.me, online: result.online })
         sound("doorOpen")
         resolve(true)
       })
     })
 
+  // Sign on with this device's remembered token (no password); quietly gives up if the
+  // server doesn't know it any more. The Buddy List opens minimized if it isn't open.
+  const autoSignOn = () =>
+    new Promise((resolve) => {
+      const saved = loadRemembered()
+      if (!saved) return resolve(false)
+      const wasOnline = stateRef.current.status === "online"
+      if (!wasOnline) dispatch({ type: "signingOn" })
+      socket.timeout(15_000).emit("aim:signOnRemembered", saved, (timeout, result) => {
+        if (timeout || !result?.ok) {
+          if (!timeout) saveRemembered(null)
+          if (!wasOnline) dispatch({ type: "signOnFailed", error: null })
+          return resolve(false)
+        }
+        tokenRef.current = result.token
+        if (!windowsRef.current.some((w) => !w.closed && w.name === BUDDY_LIST)) {
+          dispatchWindow({ type: "open_window", payload: launch(BUDDY_LIST, { minimized: true, active: false }) })
+        }
+        dispatch({ type: "signedOn", me: result.me, online: result.online })
+        resolve(true)
+      })
+    })
+
   const signOff = () => {
     if (stateRef.current.status === "online") {
+      // signing off on purpose: this device stops signing on by itself
+      const saved = loadRemembered()
+      if (saved) socket.emit("aim:forget", { token: saved.token })
+      saveRemembered(null)
       socket.emit("aim:signOff")
       sound("doorClose")
     }
     finishSignOff(null)
   }
+
+  // once per page load, when the socket is up: a remembered device signs on by itself
+  const autoTried = useRef(false)
+  const tryAutoSignOn = () => {
+    if (autoTried.current || stateRef.current.status !== "signedOff" || !loadRemembered()) return
+    autoTried.current = true
+    autoSignOn()
+  }
+  useEffect(() => {
+    if (socket.connected) tryAutoSignOn()
+  }, [socket])
 
   // Closing the Buddy List signs you off, like the real thing
   useEffect(() => {
@@ -304,7 +364,10 @@ export const AimProvider = ({ socket, windows, dispatch: dispatchWindow, onOpenV
           height: 170,
         })
       },
-      "aim:kicked": ({ reason }) => finishSignOff(reason),
+      "aim:kicked": ({ reason }) => {
+        autoTried.current = true // no signing back on (and bumping the other place) until a reload
+        finishSignOff(reason)
+      },
       "aim:chat": (message) => dispatch({ type: "room", room: message.room, message }),
       "aim:chatMembers": ({ room, members }) => dispatch({ type: "room", room, members }),
       "aim:chatInvite": (invite) => {
@@ -319,10 +382,12 @@ export const AimProvider = ({ socket, windows, dispatch: dispatchWindow, onOpenV
       },
       connect: () => {
         dispatch({ type: "connection", connected: true })
+        if (stateRef.current.status === "signedOff") return void tryAutoSignOn()
         if (stateRef.current.status !== "online" || !tokenRef.current) return
-        socket.emit("aim:resume", { token: tokenRef.current }, (result) => {
-          if (result?.ok) dispatch({ type: "resumed", me: result.me, online: result.online })
-          else finishSignOff("Your connection to the 98 Messenger service was lost. Please sign on again.")
+        socket.emit("aim:resume", { token: tokenRef.current }, async (result) => {
+          if (result?.ok) return dispatch({ type: "resumed", me: result.me, online: result.online })
+          // away too long (a phone asleep): a remembered device just signs on again
+          if (!(await autoSignOn())) finishSignOff("Your connection to the 98 Messenger service was lost. Please sign on again.")
         })
       },
       disconnect: () => dispatch({ type: "connection", connected: false }),

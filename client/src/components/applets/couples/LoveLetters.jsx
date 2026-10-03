@@ -434,7 +434,7 @@ const LoveLetters = ({ view: initialView, mobile }) => {
         ) : list.length === 0 ? (
           <div className="llEmpty">
             <Envelope color="blush" className="llEmptyArt" />
-            <p>{tab === "inbox" ? `No letters yet. Maybe ${couple.partner} is writing one right now...` : tab === "sent" ? `You haven't sent ${couple.partner} a letter yet.` : "Tap ♡ on a letter to keep it here."}</p>
+            <p>{tab === "inbox" ? `No letters yet. Maybe ${couple.partner} is writing one right now...` : tab === "sent" ? `You haven't sent ${couple.partner} a letter yet.` : "Open a letter and press ♡ Favorite to keep it here."}</p>
             {tab !== "write" && (
               <button type="button" onClick={() => setTab("write")}>
                 Write a letter

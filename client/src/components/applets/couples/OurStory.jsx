@@ -466,7 +466,7 @@ const OurStory = ({ focus, mobile }) => {
           )}
           <div className="osMet">
             <div className="osMetLabel">How we met{story.metOn ? ` · ${dayLabel(story.metOn)}` : ""}</div>
-            <p>{story.howWeMet || "Tap Edit to write how it all began."}</p>
+            <p>{story.howWeMet || (mobile ? "Tap" : "Click") + " Edit to write how it all began."}</p>
             <button type="button" onClick={() => setHeader(true)}>
               Edit
             </button>

@@ -1603,6 +1603,20 @@
   min-height: 36px;
 }
 
+/* a phone on its side: one row of actions and a shorter room, or the bottom row and the
+   Diary/Options links fell off the screen */
+@media (max-height: 500px) {
+  .petRoot.is-mobile .petActions {
+    grid-template-columns: repeat(6, 1fr);
+  }
+  .petRoot.is-mobile .petAction {
+    min-height: 40px;
+  }
+  .petRoot.is-mobile .petStageWrap {
+    min-height: 110px;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .petCreature .petBreath,
   .petCreature .petEarL,

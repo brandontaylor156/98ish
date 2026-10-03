@@ -30,3 +30,6 @@ export const todayIso = (offset = 0) => {
 export const AVATAR_COLORS = ["#000080", "#008080", "#800080", "#808000", "#800000", "#008000", "#0000c0", "#a05000"]
 export const avatarColor = (handle) => AVATAR_COLORS[[...String(handle)].reduce((s, c) => s + c.charCodeAt(0), 0) % AVATAR_COLORS.length]
 export const initials = (name) => String(name || "?").split(/\s+/).map((w) => w[0]).join("").slice(0, 2).toUpperCase()
+
+// "Companies" -> "Company", "Deliveries" -> "Delivery", "Sales Orders" -> "Sales Order"
+export const singular = (name) => name.replace(/ies$/, "y").replace(/(ss|sh|ch|x)es$/, "$1").replace(/s$/, "")

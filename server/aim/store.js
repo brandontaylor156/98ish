@@ -20,6 +20,8 @@ const userSchema = new mongoose.Schema(
       default: () => DEFAULT_GROUPS,
     },
     blocked: { type: [String], default: [] },
+    // "Remember me" devices: hashes of their sign-on tokens, each with an expiry (ms)
+    remember: { type: [{ _id: false, hash: String, expiresAt: Number }], default: [] },
   },
   { timestamps: true }
 )
@@ -32,6 +34,7 @@ const plain = (doc) =>
     profile: doc.profile || "",
     groups: (doc.groups || []).map((g) => ({ name: g.name, buddies: [...g.buddies] })),
     blocked: [...(doc.blocked || [])],
+    remember: (doc.remember || []).map((r) => ({ hash: r.hash, expiresAt: r.expiresAt })),
     createdAt: doc.createdAt,
   }
 

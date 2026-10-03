@@ -10,6 +10,8 @@ const { createBot, BOT_NAME } = require("./bot")
 const MAX_MESSAGE = 1024
 const MAX_PROFILE = 1024
 const RESUME_GRACE_MS = 20_000 // a dropped connection stays signed on this long
+const REMEMBER_MS = 60 * 86_400_000 // "Remember me" keeps a device signed on this long after its last use
+const REMEMBERED_DEVICES = 6 // per account; the oldest is forgotten first
 const WARN_DECAY_MS = 30_000 // warning level drops 1% this often
 const IMS_PER_MINUTE = 30
 // Failed sign-ons allowed per 5 minutes, per IP and per screen name (password guessing)
@@ -18,6 +20,9 @@ const FAILED_SIGN_ONS_PER_NAME = 8
 
 const BOT_KEY = normalize(BOT_NAME)
 const BOT_SIGN_ON = new Date()
+
+// remember-me tokens are stored only as hashes
+const hashToken = (token) => crypto.createHash("sha256").update(token).digest("hex")
 
 const clean = (text, max) => String(text ?? "").replace(/[\u0000-\u0008\u000B-\u001F\u007F]/g, "").slice(0, max)
 
@@ -177,6 +182,16 @@ const attachAim = async (io, { store, bot } = {}) => {
     if (updated) session.user = updated
   }
 
+  // a new "Remember me" token for this account: returned once, stored as a hash
+  const rememberDevice = async (user) => {
+    const token = crypto.randomBytes(32).toString("hex")
+    const now = Date.now()
+    const list = [...(user.remember || []).filter((r) => r.expiresAt > now), { hash: hashToken(token), expiresAt: now + REMEMBER_MS }]
+    const updated = await store.update(user.key, { remember: list.slice(-REMEMBERED_DEVICES) })
+    if (updated) Object.assign(user, updated)
+    return token
+  }
+
   io.on("connection", (socket) => {
     const ip = String(socket.handshake.headers["x-forwarded-for"] || socket.handshake.address).split(",")[0].trim()
     const current = () => {
@@ -196,6 +211,41 @@ const attachAim = async (io, { store, bot } = {}) => {
           ack({ ok: false, error: "Something went wrong. Please try again." })
         }
       })
+
+    const startSession = (user, key, ack, remember) => {
+      // Signing on somewhere else bumps the old session, like the real service
+      const existing = sessions.get(key)
+      if (existing) {
+        if (existing.socket && existing.socket !== socket) {
+          existing.socket.emit("aim:kicked", {
+            reason:
+              "You have been disconnected from the 98 Messenger service because you signed on at a different location.",
+          })
+          existing.socket.leave("aim")
+        }
+        signOff(existing, { announce: false })
+      }
+
+      // Signing on as someone new from the same window signs the old name off
+      const previous = current()
+      if (previous) signOff(previous)
+
+      const session = {
+        key,
+        user,
+        token: crypto.randomBytes(24).toString("hex"),
+        signOnAt: new Date(),
+        away: null,
+        awayRepliedTo: new Set(),
+        idleSince: null,
+        socket: null,
+      }
+      sessions.set(key, session)
+      tokens.set(session.token, key)
+      attachSocket(session, socket)
+      ack(remember ? { ...welcome(session), remember } : welcome(session))
+      broadcastPresence(session)
+    }
 
     socket.on("aim:signOn", async (payload = {}, ack = () => {}) => {
       if (typeof ack !== "function") return
@@ -229,38 +279,8 @@ const attachAim = async (io, { store, bot } = {}) => {
           }
         }
 
-        // Signing on somewhere else bumps the old session, like the real service
-        const existing = sessions.get(key)
-        if (existing) {
-          if (existing.socket && existing.socket !== socket) {
-            existing.socket.emit("aim:kicked", {
-              reason:
-                "You have been disconnected from the 98 Messenger service because you signed on at a different location.",
-            })
-            existing.socket.leave("aim")
-          }
-          signOff(existing, { announce: false })
-        }
-
-        // Signing on as someone new from the same window signs the old name off
-        const previous = current()
-        if (previous) signOff(previous)
-
-        const session = {
-          key,
-          user,
-          token: crypto.randomBytes(24).toString("hex"),
-          signOnAt: new Date(),
-          away: null,
-          awayRepliedTo: new Set(),
-          idleSince: null,
-          socket: null,
-        }
-        sessions.set(key, session)
-        tokens.set(session.token, key)
-        attachSocket(session, socket)
-        ack(welcome(session))
-        broadcastPresence(session)
+        const remember = payload.remember ? await rememberDevice(user) : undefined
+        startSession(user, key, ack, remember)
       } catch (error) {
         console.error("[aim] sign on failed", error)
         ack({ ok: false, error: "The 98 Messenger service is temporarily unavailable. Please try again." })
@@ -276,6 +296,46 @@ const attachAim = async (io, { store, bot } = {}) => {
       if (session.socket && session.socket !== socket) session.socket.leave("aim")
       attachSocket(session, socket)
       ack(welcome(session))
+    })
+
+    // "Remember me": a device that signed on with it signs on again with its token (phones
+    // reload pages and drop connections all the time), until it signs off or it expires
+    socket.on("aim:signOnRemembered", async (payload = {}, ack = () => {}) => {
+      if (typeof ack !== "function") return
+      try {
+        const { key, error } = validate(payload.screenName)
+        const token = String(payload.token || "")
+        if (error || key === BOT_KEY || !token || token.length > 128) return ack({ ok: false })
+        if (failedByIp.over(ip) || failedByName.over(key)) return ack({ ok: false })
+        const user = await store.find(key)
+        const hash = hashToken(token)
+        const now = Date.now()
+        const found = user && (user.remember || []).find((r) => r.hash === hash && r.expiresAt > now)
+        if (!found) {
+          failedByIp(ip)
+          failedByName(key)
+          return ack({ ok: false })
+        }
+        // used: good for another full stretch
+        const remember = user.remember.filter((r) => r.expiresAt > now).map((r) => (r.hash === hash ? { ...r, expiresAt: now + REMEMBER_MS } : r))
+        startSession((await store.update(key, { remember })) || user, key, ack)
+      } catch (error) {
+        console.error("[aim] remembered sign on failed", error)
+        ack({ ok: false, error: "The 98 Messenger service is temporarily unavailable. Please try again." })
+      }
+    })
+
+    // signing off on purpose forgets this device
+    socket.on("aim:forget", async (payload = {}) => {
+      const session = current()
+      const token = String(payload?.token || "")
+      if (!session || !token || token.length > 128) return
+      const hash = hashToken(token)
+      try {
+        await persist(session, { remember: (session.user.remember || []).filter((r) => r.hash !== hash) })
+      } catch (error) {
+        console.error("[aim] forget failed", error)
+      }
     })
 
     socket.on("aim:signOff", () => {

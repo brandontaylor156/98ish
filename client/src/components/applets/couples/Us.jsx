@@ -10,7 +10,7 @@ import FlowerShop from "./FlowerShop"
 // "Us": the couple's hub. Pair up with your partner (a request they accept), then see how
 // long you've been together, whether they're on 98 Messenger, and open everything you
 // share: love letters, your story, flowers, and any other couple programs installed
-// (Couples Quiz, Photo Puzzle, Doodle Together, a shared pet).
+// (Couples Quiz, Photo Puzzle, Doodle Together, a shared pet, Dream House).
 
 // other couple programs light up here when they're installed
 const EXTRAS = [
@@ -18,6 +18,7 @@ const EXTRAS = [
   { app: "puzzle", blurb: "Piece your photos back together" },
   { app: "doodle", blurb: "Draw on the same page" },
   { app: "pet", blurb: "Raise a little one together" },
+  { app: "dollhouse", blurb: "Decorate a house together" },
 ]
 
 const Initial = ({ name, tone }) => (

@@ -210,6 +210,13 @@
   font-size: 14px;
 }
 
+/* iPhone Safari zooms the page into any field under 16px when it's tapped */
+.os-mobile .ytSearch input {
+  font-size: 16px;
+  height: auto;
+  min-height: 28px;
+}
+
 .ytSearch button {
   font-weight: bold;
   padding: 0 14px;

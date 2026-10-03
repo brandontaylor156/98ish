@@ -1364,6 +1364,11 @@ button.awGanttLabel:hover {
   background: repeating-linear-gradient(90deg, transparent 0 calc(12.5% - 1px), #f0f0f0 calc(12.5% - 1px) 12.5%);
 }
 
+/* the last date label hung past the right edge and gave the whole timeline a sideways scrollbar */
+.awGanttHead .awGanttTrack {
+  overflow: hidden;
+}
+
 .awGanttTick {
   position: absolute;
   top: 3px;
@@ -2644,6 +2649,11 @@ button.awDrillBack {
   background: #c0c0c0;
 }
 
+/* the "×" that closes a record or tool was a 24px-wide sliver */
+.awPhoneHead .awBtn {
+  min-width: 36px;
+}
+
 .awPhoneTitle {
   flex: 1;
   min-width: 0;
@@ -2711,6 +2721,8 @@ button.awDrillBack {
 
 .awShell.is-mobile .awTable td {
   max-width: 160px;
+  /* rows a finger can hit (they were about 15px tall) */
+  height: 34px;
 }
 
 .awShell.is-mobile .awRecHead {

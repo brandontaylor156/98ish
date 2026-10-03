@@ -206,6 +206,24 @@ html, body {
   font-size: initial;
 }
 
+/* A long title ("Appward 98 - [Database Manager]" on a phone) ends in "..." instead of
+   wrapping onto a second line that the 25px title bar cuts in half */
+.os-root .title-bar-text {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.os-root .title-bar-text > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.os-root .title-bar-text > img {
+  flex: none;
+}
+
 .titleBarButton {
   width: 19px;
 }
@@ -722,13 +740,30 @@ html, body {
 
 /* Title bar buttons big enough for a fingertip */
 .os-mobile .title-bar-controls button {
+  position: relative;
+  z-index: 1;
   min-width: 28px;
   height: 21px;
   margin-left: 4px;
 }
 
+/* ...and a touch area a little bigger than the drawn button (the whole title bar's height) */
+.os-mobile .title-bar-controls button::after {
+  content: "";
+  position: absolute;
+  inset: -2px -2px;
+}
+
 .os-mobile .title-bar-controls button[aria-label=Minimize] {
   background-position: bottom 4px center;
+}
+
+/* A floating popup (hooks/useFloating) is placed against the whole screen on a phone, so
+   "max-height: 100%" let a tall one (Sunny Acres' gift panel) run under the taskbar with
+   its buttons out of reach. Popups that scroll inside (flex column + scrolling body) now
+   stop at the taskbar. */
+.os-root.os-mobile [data-floating="on"] {
+  max-height: calc(100dvh - var(--taskbar-h));
 }
 
 /* iOS zooms into any input under 16px when it takes focus */

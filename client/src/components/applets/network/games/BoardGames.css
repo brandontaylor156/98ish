@@ -586,6 +586,9 @@
   gap: 6px;
   padding: 4px 6px 0;
   outline: none;
+  /* a phone on its side is too short for the grid and the tray: scroll to Ready! */
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .bsPlace.is-wide {

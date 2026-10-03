@@ -54,6 +54,8 @@
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  /* the fanned cards lean out past the right edge: no sideways scroll */
+  overflow-x: hidden;
   display: flex;
   flex-direction: column;
   align-items: center;

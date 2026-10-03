@@ -6,6 +6,7 @@ import "./Helper.css"
 // Click him for another tip. Hide him from his bubble or in Display Properties.
 
 const WELCOME = "Hi, I'm Floppy! I hold 1.44 MB of helpful tips. Click me any time for one."
+const WELCOME_PHONE = WELCOME.replace("Click", "Tap")
 
 const TIPS = {
   Notepad: [
@@ -121,7 +122,7 @@ const Helper = ({ windows, mobile }) => {
   // hello, once per visit
   useEffect(() => {
     if (!settings.helper) return
-    const t = setTimeout(() => say(WELCOME, true), 3500)
+    const t = setTimeout(() => say(mobile ? WELCOME_PHONE : WELCOME, true), 3500)
     return () => clearTimeout(t)
   }, [])
 

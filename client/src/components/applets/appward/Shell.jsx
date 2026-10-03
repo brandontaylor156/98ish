@@ -9,7 +9,7 @@ import {
 } from "./engine.js"
 import { change } from "./store.js"
 import { Icon, CATEGORY_ICONS } from "./icons.jsx"
-import { AwContext, ago, todayIso } from "./ctx.js"
+import { AwContext, ago, singular, todayIso } from "./ctx.js"
 import { PickerDialog, RecordForm, RecordList } from "./Records.jsx"
 import { CalendarView, FeedView, ProjectsView } from "./Planning.jsx"
 import { ChatView } from "./Chat.jsx"
@@ -138,7 +138,7 @@ export default function Shell({ ws, rev, mobile, user, onTitle, onSignOut, onExi
     if (t.kind === "home") return "Home"
     if (t.kind === "search") return `Search: ${t.query}`
     if (t.kind === "notifications") return "Notifications"
-    if (t.kind === "new") return `New ${app?.name.replace(/s$/, "")}`
+    if (t.kind === "new") return `New ${singular(app?.name || "")}`
     if (t.kind === "record") {
       const rec = getRecord(ws, t.app, t.id)
       return rec ? `${recordNo(app, t.id)} ${recordTitle(ws, t.app, rec)}` : recordNo(app, t.id)
@@ -623,7 +623,7 @@ export default function Shell({ ws, rev, mobile, user, onTitle, onSignOut, onExi
               Make a new:
               <select value={dialog.app} onChange={(e) => setDialog({ ...dialog, app: e.target.value })}>
                 {launcherApps(ws).filter((a) => !a.noRecords).map((a) => (
-                  <option key={a.id} value={a.id}>{a.name.replace(/s$/, "")}</option>
+                  <option key={a.id} value={a.id}>{singular(a.name)}</option>
                 ))}
               </select>
             </label>

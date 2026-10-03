@@ -1038,6 +1038,9 @@
   align-self: start;
   justify-self: center;
   width: min(360px, 100%);
+  /* scrolls when the table is short (a phone on its side), so Deal stays reachable */
+  max-height: 100%;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 8px;

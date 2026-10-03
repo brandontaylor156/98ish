@@ -137,7 +137,8 @@ button.coYes {
   left: 8px;
   right: 8px;
   width: auto;
-  top: calc(env(safe-area-inset-top) + 8px);
+  /* below the full-screen window's title bar, so its Close and Minimize stay tappable */
+  top: calc(env(safe-area-inset-top) + 32px);
   bottom: auto;
 }
 

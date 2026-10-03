@@ -215,6 +215,12 @@
   font-size: 11px;
   height: 22px;
 }
+/* 16px on phones, or iPhone zooms the page in when it's tapped */
+.hxRoot.is-mobile .hxQuick select,
+.hxRoot.is-mobile .hxField select {
+  font-size: 16px;
+  height: auto;
+}
 .hxStepper {
   display: inline-flex;
   align-items: center;

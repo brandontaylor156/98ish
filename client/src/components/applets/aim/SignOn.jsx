@@ -10,6 +10,7 @@ const SignOn = () => {
   const [screenName, setScreenName] = useState(prefs.lastScreenName)
   const [password, setPassword] = useState("")
   const [confirm, setConfirm] = useState("")
+  const [remember, setRemember] = useState(prefs.remember !== false)
   const [localError, setLocalError] = useState(null)
   const [step, setStep] = useState(0)
   const busy = status === "signingOn"
@@ -26,7 +27,7 @@ const SignOn = () => {
     if (busy) return
     if (register && password !== confirm) return setLocalError("The passwords you entered do not match.")
     setLocalError(null)
-    signOn(screenName, password, register)
+    signOn(screenName, password, register, remember)
   }
 
   const shownError = localError || error
@@ -87,6 +88,10 @@ const SignOn = () => {
               <input type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} maxLength={64} autoComplete="new-password" />
             </label>
           )}
+          <div className="field-row aimRemember">
+            <input id="aim-remember" type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
+            <label htmlFor="aim-remember">Sign me on automatically</label>
+          </div>
           {shownError && (
             <div className="aimSignOnError" role="alert">
               {shownError}
