@@ -74,11 +74,11 @@ const engineSettings = (p) => ({ sound: p.sound, voice: p.voice, camera: p.camer
 // on-screen controls: a joystick area on the left, shot buttons on the right
 const touchControls = () => [
   { id: "move", label: "Move (drag)", kind: "zone", mirror: true, default: { portrait: (s) => fromPx(s, { left: 0, bottom: 0, width: Math.round(s.width * 0.5), height: Math.round(s.height * 0.4) }), landscape: (s) => fromPx(s, { left: 0, bottom: 0, width: Math.round(s.width * 0.42), height: Math.round(s.height * 0.62) }) } },
-  { id: "topspin", label: "Topspin", shape: "round", className: "pkShot pkShot--topspin", default: (s) => fromPx(s, { right: 14, bottom: 78, width: 72, height: 72 }) },
-  { id: "soft", label: "Soft", shape: "round", className: "pkShot pkShot--soft", default: (s) => fromPx(s, { right: 94, bottom: 18, width: 66, height: 66 }) },
-  { id: "slice", label: "Slice", shape: "round", className: "pkShot pkShot--slice", default: (s) => fromPx(s, { right: 14, bottom: 6, width: 62, height: 62 }) },
-  { id: "lob", label: "Lob", shape: "round", className: "pkShot pkShot--lob", default: (s) => fromPx(s, { right: 98, bottom: 96, width: 54, height: 54 }) },
-  { id: "power", label: "Power", shape: "round", className: "pkShot pkShot--power", default: (s) => fromPx(s, { right: 160, bottom: 46, width: 48, height: 48 }) },
+  { id: "topspin", label: "Topspin", shape: "round", className: "pkShot pkShot--topspin", default: (s) => fromPx(s, { right: 12, bottom: 70, width: 60, height: 60 }) },
+  { id: "soft", label: "Soft", shape: "round", className: "pkShot pkShot--soft", default: (s) => fromPx(s, { right: 80, bottom: 16, width: 56, height: 56 }) },
+  { id: "slice", label: "Slice", shape: "round", className: "pkShot pkShot--slice", default: (s) => fromPx(s, { right: 12, bottom: 6, width: 54, height: 54 }) },
+  { id: "lob", label: "Lob", shape: "round", className: "pkShot pkShot--lob", default: (s) => fromPx(s, { right: 84, bottom: 84, width: 46, height: 46 }) },
+  { id: "power", label: "Power", shape: "round", className: "pkShot pkShot--power", default: (s) => fromPx(s, { right: 140, bottom: 40, width: 42, height: 42 }) },
   { id: "pause", label: "Pause", icon: GLYPHS.pause, shape: "round", className: "pkShot pkShot--small", default: (s) => fromPx(s, { right: 8, top: 64, width: 36, height: 36 }) },
   { id: "camera", label: "Cam", shape: "round", className: "pkShot pkShot--small", default: (s) => fromPx(s, { right: 52, top: 64, width: 36, height: 36 }) },
 ]

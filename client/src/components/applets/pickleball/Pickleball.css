@@ -1358,40 +1358,45 @@
 
 /* ---------- touch: shot buttons and the joystick ---------- */
 
+/* see-through "glass" buttons: a light tint and a colored rim, so the court shows through;
+   they fill in with color only while pressed */
 .pkShot {
+  --pk-rgb: 20, 40, 70;
   font-family: "Trebuchet MS", Verdana, sans-serif;
   font-weight: bold;
   font-size: 12px;
-  color: #fff;
-  background: rgba(20, 40, 70, calc(0.7 * var(--tc-opacity, 1))) !important;
-  border: 2px solid rgba(255, 255, 255, calc(0.85 * var(--tc-opacity, 1))) !important;
-  box-shadow: none !important;
-  text-shadow: 1px 1px 0 #000;
+  color: rgba(255, 255, 255, calc(0.95 * var(--tc-opacity, 1)));
+  background: rgba(var(--pk-rgb), calc(0.22 * var(--tc-opacity, 1))) !important;
+  border: 2px solid rgba(var(--pk-rgb), calc(0.8 * var(--tc-opacity, 1))) !important;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, calc(0.35 * var(--tc-opacity, 1))) !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+  backdrop-filter: none;
 }
 
 .pkShot--topspin {
-  background: rgba(232, 96, 76, calc(0.85 * var(--tc-opacity, 1))) !important;
+  --pk-rgb: 232, 96, 76;
 }
 
 .pkShot--slice {
-  background: rgba(64, 98, 200, calc(0.85 * var(--tc-opacity, 1))) !important;
+  --pk-rgb: 84, 120, 230;
 }
 
 .pkShot--soft {
-  background: rgba(26, 159, 176, calc(0.85 * var(--tc-opacity, 1))) !important;
+  --pk-rgb: 26, 179, 196;
 }
 
 .pkShot--lob {
-  background: rgba(150, 90, 210, calc(0.85 * var(--tc-opacity, 1))) !important;
+  --pk-rgb: 170, 110, 230;
 }
 
 .pkShot--power {
+  --pk-rgb: 200, 200, 200;
   font-size: 10px;
-  background: rgba(60, 60, 60, calc(0.7 * var(--tc-opacity, 1))) !important;
 }
 
 .pkShot--power.is-on {
-  background: rgba(255, 140, 26, 0.95) !important;
+  background: rgba(255, 140, 26, 0.7) !important;
+  border-color: #ff8c1a !important;
   box-shadow: 0 0 10px #ff8c1a !important;
 }
 
@@ -1401,7 +1406,7 @@
 
 .pkShot.is-pressed {
   transform: scale(0.92);
-  filter: brightness(1.25);
+  background: rgba(var(--pk-rgb), 0.65) !important;
 }
 
 .pkStick {
@@ -1411,8 +1416,8 @@
   height: 112px;
   margin: -56px 0 0 -56px;
   border-radius: 50%;
-  border: 2px solid rgba(255, 255, 255, 0.7);
-  background: rgba(20, 40, 70, 0.25);
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  background: rgba(20, 40, 70, 0.1);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1427,8 +1432,8 @@
   width: 46px;
   height: 46px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.75);
-  border: 2px solid rgba(20, 40, 70, 0.6);
+  background: rgba(255, 255, 255, 0.4);
+  border: 2px solid rgba(255, 255, 255, 0.55);
 }
 
 .pkGear {
