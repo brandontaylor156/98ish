@@ -504,6 +504,14 @@ const createRooms = ({ games = [], emit = () => {}, emitVolatile = null, blocked
         }, T.quickStart)
       }
     } else stopAutoStart(room)
+    // alone for a while: tell the browser when computer players may fill in (canFillBots)
+    if (humans(room).length === 1 && botsAllowed(room) && room.offerFor !== room.waitingSince) {
+      room.offerFor = room.waitingSince
+      const at = room.waitingSince + T.botOffer
+      clock.setTimeout(() => {
+        if (rooms.get(room.id) === room && room.phase === "lobby" && room.waitingSince + T.botOffer <= clock.now()) publish(room)
+      }, Math.max(0, at - clock.now()) + 50)
+    }
   }
 
   // ---------- rooms ----------

@@ -8,4 +8,5 @@ module.exports = [
   require("./pickleball"),
   require("./hexlands"),
   require("./monsterduel"),
+  require("./speedtype"),
 ]

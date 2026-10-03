@@ -41,6 +41,7 @@ export const imageMapper = {
   pickleball: "program_icons/pickleball.svg",
   shred: "program_icons/shred.svg",
   blockten: "program_icons/blockten.svg",
+  speedtype: "program_icons/speedtype.svg",
   wordduel: "program_icons/wordduel.svg",
   lastcard: "program_icons/lastcard.svg",
   hexlands: "program_icons/hexlands.svg",

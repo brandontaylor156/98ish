@@ -51,6 +51,7 @@ export const programs = [
   { name: "Pickleball 98", app: "pickleball", type: "pickleball", icon: "/assets/program_icons/pickleball.svg", width: 960, height: 660, group: "Games", desktop: false, single: true, online: "pickleball" },
   { name: "Shred 98", app: "shred", type: "shred", icon: "/assets/program_icons/shred.svg", width: 940, height: 660, group: "Games", desktop: false, single: true },
   { name: "Downhill", app: "ski", type: "ski", icon: "/assets/program_icons/ski.svg", width: 640, height: 520, group: "Games", desktop: false, single: true },
+  { name: "Speed Typist 98", app: "speedtype", type: "speedtype", icon: "/assets/program_icons/speedtype.svg", width: 720, height: 560, group: "Games", desktop: false, single: true, online: "speedtype" },
   { name: "Word Duel", app: "wordduel", type: "wordduel", icon: "/assets/program_icons/wordduel.svg", width: 560, height: 690, group: "Games", desktop: false, single: true, online: "wordduel" },
   { name: "Last Card", app: "lastcard", type: "lastcard", icon: "/assets/program_icons/lastcard.svg", width: 900, height: 680, group: "Games", desktop: false, single: true, online: "lastcard" },
   { name: "Hexlands", app: "hexlands", type: "hexlands", icon: "/assets/program_icons/hexlands.svg", width: 1000, height: 700, group: "Games", desktop: false, single: true, online: "hexlands" },

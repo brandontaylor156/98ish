@@ -61,6 +61,7 @@ export const APP_PROFILES = {
   Battleship: { image: "battle.exe", mem: 1968, threads: 2, handles: 36, cpu: [0.2, 2] },
   Downhill: { image: "ski.exe", mem: 5124, threads: 4, handles: 61, cpu: [0.95, 11] },
   "Pickleball 98": { image: "pkball98.exe", mem: 38640, threads: 9, handles: 214, cpu: [4, 22] },
+  "Speed Typist 98": { image: "sptype98.exe", mem: 2940, threads: 3, handles: 49, cpu: [0.2, 6] },
   "Word Duel": { image: "wrdduel.exe", mem: 2610, threads: 3, handles: 47, cpu: [0.2, 5] },
   Hexlands: { image: "hexlands.exe", mem: 4380, threads: 4, handles: 63, cpu: [0.4, 9] },
   "Shred 98": { image: "shred98.exe", mem: 44210, threads: 11, handles: 238, cpu: [6, 26] },

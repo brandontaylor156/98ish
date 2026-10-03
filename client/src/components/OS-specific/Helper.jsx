@@ -67,6 +67,10 @@ const TIPS = {
     "New to it? Help > Tutorial Duel walks you through a whole turn: summoning, attacking and springing a trap.",
     "Win duels against the computer to earn card packs, then build your own deck in the Deck Builder.",
   ],
+  "Speed Typist 98": [
+    "Race your ghost! Finish any race and your best run of that prompt waits for you under Race Your Ghost.",
+    "Play Online, then Create Room: Best of 3, Sudden Death, strict typing, or paste your own text for the room to race.",
+  ],
   "Word Duel": [
     "Play Online, then Create Room: there are presets for races, Battle Royale and Co-op, and Customize changes every rule.",
     "Stuck? Try a word with five different common letters, like CRANE or SLATE, to find out the most at once.",

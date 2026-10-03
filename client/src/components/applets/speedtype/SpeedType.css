@@ -1,0 +1,704 @@
+/* Speed Typist 98: a 98 window with an asphalt race track and a white typing page */
+
+.stRoot {
+  --st-car: 56px;
+  --st-navy: #000080;
+  --st-done: #7a7a7a;
+  --st-cur: #fff2a8;
+  --st-wrong: #ff9a9a;
+  position: relative;
+  height: calc(100% - 25px);
+  display: flex;
+  flex-direction: column;
+  background: #c0c0c0;
+  font-family: "Pixelated MS Sans Serif", Arial, sans-serif;
+  font-size: 11px;
+  color: #000;
+  overflow: hidden;
+  -webkit-tap-highlight-color: transparent;
+}
+.stBody {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
+}
+.stMuted {
+  color: #444;
+}
+.stError {
+  color: #a00000;
+  font-weight: bold;
+}
+.stPrimary {
+  font-weight: bold;
+}
+.stRowBtns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+}
+.stLinkBtn {
+  margin-top: 6px;
+}
+.stHideNarrow {
+}
+
+/* ---------- title ---------- */
+.stTitle {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 12px 16px;
+}
+.stLogo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  background: repeating-linear-gradient(90deg, #3a3a3a 0 24px, #444 24px 48px);
+  border: 2px solid;
+  border-color: #808080 #fff #fff #808080;
+  box-shadow: inset 1px 1px #000;
+}
+.stLogo.is-small {
+  padding: 6px 10px;
+  margin-bottom: 6px;
+}
+.stLogoCars {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.stLogoCars .stCar:nth-child(2) {
+  margin-left: 14px;
+}
+.stLogoText {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-family: "Arial Black", Arial, sans-serif;
+  font-size: 24px;
+  font-style: italic;
+  color: #fff;
+  text-shadow: 2px 2px 0 #d01818;
+  letter-spacing: 1px;
+}
+.stLogoText b {
+  color: #ffe860;
+  text-shadow: 2px 2px 0 #1858d0;
+}
+.stLogo.is-small .stLogoText {
+  font-size: 16px;
+}
+.stTagline {
+  margin: 0;
+  font-size: 12px;
+}
+.stOnlineBtn {
+  width: min(100%, 360px);
+}
+.stMenu,
+.stDrills {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  width: min(100%, 420px);
+}
+.stMenuBtn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+  gap: 2px;
+  padding: 6px 8px;
+  min-height: 44px;
+  min-width: 0;
+}
+.stMenuBtn b {
+  font-size: 12px;
+}
+.stMenuBtn small {
+  color: #333;
+  line-height: 1.25;
+  white-space: normal;
+}
+.stMenuBtn:disabled small {
+  color: #777;
+}
+
+/* ---------- setup / drills ---------- */
+.stPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  max-width: 460px;
+  width: 100%;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+.stPanel h2 {
+  margin: 0;
+  font-size: 15px;
+}
+.stPanel p {
+  margin: 0;
+}
+.stPanel fieldset {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
+}
+.stSettings {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: left;
+}
+.stSettings label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.stSettings label > span:first-child {
+  min-width: 100px;
+}
+.stSettings select {
+  flex: 1;
+  min-width: 0;
+}
+.stSettings .stCheck {
+  padding: 2px 0;
+}
+/* 98.css draws the box on the label; keep the checkmark in it */
+.stRoot input[type="checkbox"]:checked + label::after {
+  top: 3px;
+}
+.stModeText {
+  margin: -2px 0 2px 108px;
+}
+.stCustomText {
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+  font-size: 12px;
+}
+
+/* ---------- the race ---------- */
+.stRace {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  min-height: 100%;
+  box-sizing: border-box;
+}
+.stRaceHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.stCode {
+  font-weight: bold;
+  padding: 1px 6px;
+  background: var(--st-navy);
+  color: #fff;
+}
+.stRaceInfo {
+  color: #333;
+}
+.stClock {
+  margin-left: auto;
+  font-weight: bold;
+  color: #a00000;
+}
+.stPoints {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.stPoints .is-you {
+  font-weight: bold;
+}
+
+.stTrack {
+  display: flex;
+  flex-direction: column;
+  background: #3b3b3b;
+  border: 2px solid;
+  border-color: #808080 #fff #fff #808080;
+  box-shadow: inset 1px 1px #000;
+  padding: 2px 0;
+}
+.stLane {
+  display: grid;
+  grid-template-columns: 110px 1fr 84px;
+  align-items: center;
+  min-height: 40px;
+  border-bottom: 2px dashed #9a9a9a;
+  color: #fff;
+}
+.stLane:last-child {
+  border-bottom: 0;
+}
+.stLane.is-you {
+  background: rgba(255, 255, 255, 0.08);
+}
+.stLane.is-you .stLaneText {
+  font-weight: bold;
+  color: #ffe860;
+}
+.stLaneName {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 4px;
+  min-width: 0;
+}
+.stLaneText {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.stLaneText i {
+  font-style: normal;
+  color: #ffe860;
+}
+.stLaneDot {
+  flex: none;
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border: 1px solid #000;
+  margin-right: 3px;
+}
+.stRoad {
+  position: relative;
+  height: 32px;
+  margin-right: 10px;
+  border-left: 3px solid #fff;
+}
+.stFinish {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 8px;
+  background: conic-gradient(#000 25%, #fff 0 50%, #000 0 75%, #fff 0) 0 0 / 8px 8px;
+}
+.stCarWrap {
+  position: absolute;
+  top: 2px;
+  z-index: 1;
+  transition: left 0.25s linear;
+}
+.stCar.is-ghost {
+  opacity: 0.45;
+  filter: grayscale(0.6);
+}
+.stCar.is-out {
+  filter: grayscale(1);
+  opacity: 0.6;
+}
+.stPuff {
+  opacity: 0.8;
+}
+.stLaneStat {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  padding: 0 6px;
+  white-space: nowrap;
+}
+.stWpm {
+  font-weight: bold;
+}
+.stWpm small {
+  font-weight: normal;
+  opacity: 0.8;
+}
+.stPlace {
+  padding: 0 3px;
+  background: #c0c0c0;
+  color: #000;
+  border: 1px solid #000;
+}
+.stPlace.is-1 {
+  background: #ffd84a;
+}
+.stPlace.is-2 {
+  background: #dcdcdc;
+}
+.stPlace.is-3 {
+  background: #d8955a;
+}
+.stPlace.is-out {
+  background: #a00000;
+  color: #fff;
+}
+
+.stBoard {
+  position: relative;
+}
+.stPrompt {
+  position: relative;
+  max-height: 220px;
+  min-height: 96px;
+  overflow: auto;
+  padding: 10px 12px;
+  background: #fff;
+  border: 2px solid;
+  border-color: #808080 #fff #fff #808080;
+  box-shadow: inset 1px 1px #000;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 20px;
+  line-height: 1.65;
+  white-space: pre-wrap;
+  word-break: break-word;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.stPrompt.is-waiting {
+  color: #555;
+}
+.stWord.is-current {
+  background: var(--st-cur);
+  outline: 1px solid #e0c040;
+}
+.stPrompt .is-done {
+  color: var(--st-done);
+}
+.stPrompt .is-wrong {
+  background: var(--st-wrong);
+  color: #8a0000;
+  text-decoration: underline wavy #c00000;
+}
+.stPrompt .is-caret {
+  box-shadow: inset 2px 0 0 #000;
+  animation: stBlink 1s steps(1) infinite;
+}
+@keyframes stBlink {
+  50% {
+    box-shadow: inset 2px 0 0 transparent;
+  }
+}
+.stBanner {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+.stBanner span {
+  font-family: "Arial Black", Arial, sans-serif;
+  font-size: 44px;
+  padding: 2px 22px;
+  background: #c0c0c0;
+  border: 2px solid;
+  border-color: #fff #000 #000 #fff;
+  box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.35);
+}
+.stBanner .stReady {
+  font-size: 22px;
+  padding: 8px 18px;
+}
+.stBanner .stCount {
+  color: #a00000;
+  animation: stPop 0.3s ease-out;
+}
+.stBanner .stGo {
+  color: #008000;
+  animation: stPop 0.3s ease-out;
+}
+@keyframes stPop {
+  from {
+    transform: scale(1.6);
+  }
+}
+
+.stTypeRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.stInput {
+  flex: 1 1 220px;
+  min-width: 0;
+  height: 34px;
+  font-size: 20px !important;
+  font-family: Arial, Helvetica, sans-serif;
+  padding: 2px 6px;
+}
+.stInput.has-wrong {
+  background: #ffe4e4;
+}
+.stInput.is-error {
+  animation: stShake 0.18s linear;
+}
+@keyframes stShake {
+  25% {
+    transform: translateX(-3px);
+  }
+  75% {
+    transform: translateX(3px);
+  }
+}
+.stLive {
+  display: flex;
+  gap: 10px;
+  white-space: nowrap;
+  font-size: 12px;
+}
+.stLive b {
+  font-size: 15px;
+}
+.stStatus {
+  margin: 0;
+  font-weight: bold;
+}
+.stHint {
+  margin: 0;
+  color: #444;
+}
+.stHint.is-error {
+  color: #a00000;
+}
+
+/* ---------- results ---------- */
+.stAfter {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.stResults h3 {
+  margin: 2px 0 4px;
+  font-size: 13px;
+}
+.stNote {
+  margin: 0 0 4px;
+  font-weight: bold;
+}
+.stTableWrap {
+  overflow-x: auto;
+  background: #fff;
+  border: 2px solid;
+  border-color: #808080 #fff #fff #808080;
+}
+.stTable {
+  width: 100%;
+  border-collapse: collapse;
+}
+.stTable th {
+  text-align: left;
+  padding: 2px 6px;
+  background: #c0c0c0;
+  border-right: 1px solid #808080;
+  border-bottom: 1px solid #808080;
+  font-weight: normal;
+}
+.stTable td {
+  padding: 3px 6px;
+  border-bottom: 1px solid #e0e0e0;
+  white-space: nowrap;
+}
+.stTable tr.is-you td {
+  background: #e8ecff;
+}
+.stRacerName {
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.stSpark {
+  display: block;
+}
+.stSparkNone {
+  color: #777;
+}
+.stMatchWinner {
+  margin: 0;
+  font-size: 14px;
+  font-weight: bold;
+  text-align: center;
+}
+.stBest {
+  margin: 0;
+  padding: 4px 8px;
+  background: #fff8c8;
+  border: 1px solid #b09000;
+  font-weight: bold;
+  text-align: center;
+}
+.stFooter {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.stDaily ol {
+  margin: 4px 0 0;
+  padding-left: 22px;
+}
+.stDaily small {
+  color: #555;
+}
+
+/* ---------- statistics ---------- */
+.stStats {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(290px, 78vw);
+}
+/* Bootstrap's legend is huge and floats; keep the 98 one */
+.stStats legend,
+.stPanel legend,
+.stSettings legend {
+  float: none;
+  width: auto;
+  margin: 0;
+  padding: 0 2px;
+  font-size: 11px;
+  line-height: normal;
+}
+.stStats fieldset {
+  margin: 0;
+  min-width: 0;
+}
+.stStatNums,
+.stBests {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-around;
+  text-align: center;
+  gap: 6px;
+}
+.stStatNums div,
+.stBests div {
+  display: flex;
+  flex-direction: column;
+}
+.stStatNums b {
+  font-size: 16px;
+}
+.stTrend {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.stTrend > span {
+  width: 60px;
+}
+.stRecent {
+  margin: 0;
+  padding-left: 16px;
+}
+.stHow {
+  max-width: 380px;
+}
+.stHow ul {
+  padding-left: 18px;
+}
+.stOnline {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ---------- phones ---------- */
+.stRoot.is-mobile {
+  --st-car: 36px;
+  font-size: 12px;
+}
+.stRoot.is-mobile .stRace {
+  padding: 6px;
+  gap: 5px;
+}
+.stRoot.is-mobile .stLane {
+  grid-template-columns: 64px 1fr 74px;
+  min-height: 24px;
+}
+.stRoot.is-mobile .stRoad {
+  height: 20px;
+  margin-right: 6px;
+}
+.stRoot.is-mobile .stCarWrap {
+  top: 1px;
+}
+.stRoot.is-mobile .stLaneStat {
+  padding: 0 4px;
+  gap: 3px;
+}
+.stRoot.is-mobile .stWpm small {
+  display: none;
+}
+.stRoot.is-mobile .stPrompt {
+  font-size: 17px;
+  max-height: 128px;
+  min-height: 60px;
+  padding: 6px 8px;
+}
+.stRoot.is-mobile .stInput {
+  height: 36px;
+  font-size: 17px !important;
+}
+.stRoot.is-mobile .stLive {
+  width: 100%;
+  justify-content: space-between;
+}
+.stRoot.is-mobile .stMenuBtn {
+  min-height: 52px;
+}
+.stRoot.is-mobile .stLogoText {
+  font-size: 20px;
+}
+.stRoot.is-mobile .stSettings label > span:first-child {
+  min-width: 86px;
+}
+.stRoot.is-mobile .stModeText {
+  margin-left: 0;
+}
+@media (max-width: 460px) {
+  .stHideNarrow {
+    display: none;
+  }
+  .stMenu,
+  .stDrills {
+    grid-template-columns: 1fr;
+  }
+}
+/* phones on their side: the keyboard takes half the screen, so keep it tight */
+@media (max-height: 460px) {
+  .stRoot.is-mobile .stTitle {
+    padding-top: 6px;
+    gap: 6px;
+  }
+  .stRoot.is-mobile .stLogo {
+    padding: 4px 10px;
+  }
+  .stRoot.is-mobile .stPrompt {
+    max-height: 84px;
+    min-height: 44px;
+    font-size: 16px;
+  }
+  .stRoot.is-mobile .stLane {
+    min-height: 20px;
+  }
+  .stRoot.is-mobile .stRoad {
+    height: 18px;
+  }
+  .stRoot.is-mobile .stMenu {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

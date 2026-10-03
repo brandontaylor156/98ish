@@ -41,6 +41,7 @@ const Pickleball = lazyApp(() => import("../applets/pickleball/Pickleball"))
 const Shred = lazyApp(() => import("../applets/shred/Shred"))
 const BlockTen = lazyApp(() => import("../applets/blockten/BlockTen"))
 const WordDuel = lazyApp(() => import("../applets/wordduel/WordDuel"))
+const SpeedType = lazyApp(() => import("../applets/speedtype/SpeedType"))
 const LastCard = lazyApp(() => import("../applets/lastcard/LastCard"))
 const Hexlands = lazyApp(() => import("../applets/hexlands/Hexlands"))
 const MonsterDuel = lazyApp(() => import("../applets/monsterduel/MonsterDuel"))
@@ -706,6 +707,7 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
       {window.app === "shred" && <Shred mobile={mobile} onClose={() => closeWindow(window, index)} />}
       {window.app === "blockten" && <BlockTen mobile={mobile} onClose={() => closeWindow(window, index)} />}
       {window.app === "wordduel" && <WordDuel mobile={mobile} onClose={() => closeWindow(window, index)} />}
+      {window.app === "speedtype" && <SpeedType mobile={mobile} onClose={() => closeWindow(window, index)} />}
       {window.app === "lastcard" && <LastCard mobile={mobile} onClose={() => closeWindow(window, index)} />}
       {window.app === "hexlands" && <Hexlands mobile={mobile} onClose={() => closeWindow(window, index)} />}
       {window.app === "monsterduel" && <MonsterDuel mobile={mobile} onClose={() => closeWindow(window, index)} />}
