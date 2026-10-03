@@ -1,0 +1,689 @@
+/* Dream House: a 98 window with a soft pastel inside */
+
+.dhRoot {
+  position: relative;
+  height: calc(100% - 25px);
+  display: flex;
+  flex-direction: column;
+  font-family: "Pixelated MS Sans Serif", Arial, sans-serif;
+  font-size: 11px;
+  outline: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.dhRoot button {
+  min-width: 0;
+}
+
+/* ---- toolbar ---- */
+
+.dhToolbar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 3px 3px;
+  border-bottom: 1px solid #808080;
+  box-shadow: 0 1px 0 #fff;
+  flex: none;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.dhTool {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px !important;
+  min-height: 26px;
+  flex: none;
+}
+
+.dhTool.is-shared {
+  background: #ffe3ee;
+}
+
+.dhTool:disabled svg {
+  opacity: 0.4;
+}
+
+.dhSep {
+  width: 2px;
+  height: 22px;
+  margin: 0 3px;
+  border-left: 1px solid #808080;
+  border-right: 1px solid #fff;
+  flex: none;
+}
+
+.dhSync {
+  margin-left: auto;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: #ffe3ee;
+  color: #8a2f5a;
+  white-space: nowrap;
+  flex: none;
+}
+
+.dhSync.is-offline,
+.dhSync.is-error {
+  background: #fff1cc;
+  color: #7a5200;
+}
+
+/* ---- the house ---- */
+
+.dhMain {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+  gap: 3px;
+  padding: 3px;
+}
+
+.dhStageWrap {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+  padding: 2px;
+  background: #cfeaff;
+}
+
+.dhStage {
+  position: absolute;
+  inset: 2px;
+  touch-action: none;
+  cursor: grab;
+  overflow: hidden;
+}
+
+.dhStage:active {
+  cursor: grabbing;
+}
+
+.dhCanvas {
+  display: block;
+}
+
+.dhFlash {
+  position: absolute;
+  inset: 0;
+  background: #fff;
+  pointer-events: none;
+  animation: dhFlash 0.45s ease-out forwards;
+}
+
+@keyframes dhFlash {
+  from {
+    opacity: 0.95;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+.dhToast {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: calc(100% - 24px);
+  padding: 6px 12px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.95);
+  border: 2px solid #ff8fb8;
+  color: #5b4256;
+  box-shadow: 0 2px 8px rgba(91, 66, 86, 0.25);
+  pointer-events: none;
+  text-align: center;
+  animation: dhPop 0.25s ease-out;
+}
+
+@keyframes dhPop {
+  from {
+    transform: translateX(-50%) scale(0.8);
+    opacity: 0;
+  }
+}
+
+/* the bar for the selected thing (or the room) */
+.dhSelBar {
+  position: absolute;
+  left: 50%;
+  bottom: 8px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  max-width: calc(100% - 16px);
+  padding: 3px;
+  background: #c0c0c0;
+  box-shadow: inset -1px -1px #0a0a0a, inset 1px 1px #fff, inset -2px -2px #808080, inset 2px 2px #dfdfdf;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.dhSelName {
+  padding: 0 8px 0 5px;
+  font-weight: bold;
+  color: #8a2f5a;
+  white-space: nowrap;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dhAct {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  padding: 2px 6px !important;
+  min-height: 38px;
+  flex: none;
+}
+
+.dhAct span {
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.dhDanger svg {
+  filter: hue-rotate(-10deg) saturate(1.3);
+}
+
+.dhPlus {
+  font-size: 20px !important;
+  line-height: 18px;
+  font-weight: bold;
+  color: #e0457b;
+}
+
+/* ---- the catalog ---- */
+
+.dhSide {
+  width: 252px;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.dhCatalog {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.dhTabs {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 2px;
+  padding-bottom: 3px;
+  flex: none;
+}
+
+.dhTab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 1px !important;
+  min-height: 34px;
+}
+
+.dhTab img {
+  width: 28px;
+  height: 28px;
+}
+
+.dhTab .dhTabSwatch {
+  width: 22px;
+  height: 22px;
+  border: 1px solid #5b4256;
+  border-radius: 4px;
+}
+
+.dhTab.is-on {
+  background: #ffd6e5;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #0a0a0a, inset -2px -2px #dfdfdf, inset 2px 2px #808080;
+}
+
+.dhGrid,
+.dhRooms {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  background: #fff;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+  padding: 5px;
+  user-select: none;
+}
+
+.dhGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-auto-rows: min-content;
+  gap: 4px;
+  background: #fffafc;
+}
+
+.dhThing {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 3px 1px !important;
+  background: #fff !important;
+  box-shadow: none !important;
+  border: 1px dashed #f3b6cd !important;
+  border-radius: 8px;
+  cursor: grab;
+  touch-action: pan-y;
+}
+
+.dhThing:hover {
+  background: #fff0f6 !important;
+  border-style: solid !important;
+}
+
+.dhThing:focus-visible {
+  outline: 1px dotted #000;
+}
+
+.dhThing img {
+  width: 56px;
+  height: 56px;
+  pointer-events: none;
+}
+
+.dhThing span {
+  width: 100%;
+  font-size: 10px;
+  line-height: 12px;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #5b4256;
+}
+
+.dhNote {
+  grid-column: 1 / -1;
+  margin: 4px 2px;
+  color: #8a2f5a;
+  line-height: 1.4;
+}
+
+.dhRoomPick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  margin-bottom: 6px;
+}
+
+.dhRoomPick button {
+  padding: 2px 6px !important;
+}
+
+.dhRoomPick button.is-on {
+  background: #ffd6e5;
+  font-weight: bold;
+}
+
+.dhLabel {
+  margin: 6px 0 3px;
+  font-weight: bold;
+  color: #5b4256;
+}
+
+.dhSwatches {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(40px, 1fr));
+  gap: 4px;
+}
+
+.dhSwatch {
+  padding: 2px !important;
+  aspect-ratio: 1;
+  background: #fff !important;
+  box-shadow: none !important;
+  border: 1px solid #d6c7d2 !important;
+  border-radius: 6px;
+}
+
+.dhSwatch img {
+  width: 100%;
+  height: 100%;
+  border-radius: 4px;
+  display: block;
+}
+
+.dhSwatch.is-on {
+  border: 2px solid #ff5fa8 !important;
+}
+
+.dhStatus {
+  display: flex;
+  gap: 2px;
+  padding: 0 3px 2px;
+  flex: none;
+}
+
+.dhStatus span {
+  flex: 1;
+  padding: 2px 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080;
+}
+
+.dhStatus span:first-child {
+  flex: 0 0 90px;
+}
+
+.dhGhost {
+  position: fixed;
+  width: 72px;
+  height: 72px;
+  transform: translate(-50%, -50%) rotate(-4deg);
+  pointer-events: none;
+  z-index: 100000;
+  opacity: 0.9;
+  filter: drop-shadow(0 4px 4px rgba(91, 66, 86, 0.35));
+}
+
+/* ---- dialogs ---- */
+
+.dhPhoto img {
+  display: block;
+  width: 100%;
+  border: 6px solid #fff;
+  border-bottom-width: 18px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+  transform: rotate(-1.5deg);
+  margin: 4px 0 6px;
+}
+
+.dhHelp {
+  margin: 0;
+  padding-left: 16px;
+  line-height: 1.45;
+}
+
+.dhHelp li + li {
+  margin-top: 4px;
+}
+
+.dhShareArt {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.dhShareArt img {
+  width: 48px;
+  height: 48px;
+}
+
+.dhFlipX {
+  transform: scaleX(-1);
+}
+
+.dhShareChoices {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dhShareChoices button {
+  padding: 4px 8px !important;
+  min-height: 28px;
+}
+
+.dhError {
+  color: #a00;
+}
+
+.dhRoot .dialog:has(.dhDress) {
+  width: min(470px, 100%);
+}
+
+.dhRoot .dialog:has(.dhPhoto) {
+  width: min(380px, 100%);
+}
+
+.dhDress {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.dhDressPreview {
+  width: 104px;
+  height: 208px;
+  flex: none;
+  border-radius: 10px;
+  box-shadow: inset 0 0 0 2px #ffb3cf;
+}
+
+.dhDressFields {
+  flex: 1;
+  min-width: 0;
+  max-height: 300px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.dhDressFields .dhLabel:first-of-type {
+  margin-top: 8px;
+}
+
+.dhField {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dhField input {
+  flex: 1;
+}
+
+.dhLookRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.dhDot {
+  width: 22px;
+  height: 22px;
+  padding: 0 !important;
+  border-radius: 50% !important;
+  box-shadow: inset 0 0 0 1px rgba(91, 66, 86, 0.6) !important;
+}
+
+.dhDot.is-on {
+  outline: 2px solid #ff5fa8;
+  outline-offset: 1px;
+}
+
+.dhWord {
+  padding: 1px 6px !important;
+  min-height: 21px;
+}
+
+.dhWord.is-on {
+  background: #ffd6e5;
+  font-weight: bold;
+}
+
+/* ---- phones ---- */
+
+.dhMobile .dhMain {
+  padding: 0;
+}
+
+.dhMobile .dhStageWrap {
+  box-shadow: none;
+  padding: 0;
+}
+
+.dhMobile .dhStage {
+  inset: 0;
+}
+
+.dhMobile .dhTool {
+  min-height: 40px;
+  min-width: 42px;
+  justify-content: center;
+}
+
+.dhMobile .dhTool svg {
+  width: 22px;
+  height: 22px;
+}
+
+.dhMobile .dhSelBar {
+  bottom: 50px;
+}
+
+.dhMobile .dhAct {
+  min-height: 46px;
+  min-width: 48px;
+}
+
+.dhMobile .dhSync {
+  font-size: 12px;
+}
+
+.dhSheet {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  background: #c0c0c0;
+  box-shadow: inset 0 1px #fff, 0 -2px 10px rgba(91, 66, 86, 0.25);
+  border-top: 1px solid #808080;
+  border-radius: 12px 12px 0 0;
+  padding: 0 4px 4px;
+  max-height: 44px;
+  transition: max-height 0.22s ease-out;
+}
+
+.dhSheet.is-open {
+  max-height: 62%;
+  height: 62%;
+}
+
+.dhSheetHandle {
+  position: relative;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 40px;
+  flex: none;
+  background: none !important;
+  box-shadow: none !important;
+  border: 0 !important;
+  font-size: 13px !important;
+  font-weight: bold;
+  color: #8a2f5a;
+}
+
+.dhGrip {
+  position: absolute;
+  top: 4px;
+  left: 50%;
+  width: 36px;
+  height: 4px;
+  margin-left: -18px;
+  border-radius: 2px;
+  background: #8f8f8f;
+}
+
+.dhMobile .dhTabs {
+  display: flex;
+  overflow-x: auto;
+  gap: 3px;
+  scrollbar-width: none;
+}
+
+.dhMobile .dhTab {
+  min-width: 58px;
+  min-height: 52px;
+  flex: none;
+}
+
+.dhMobile .dhTab span {
+  font-size: 11px;
+}
+
+.dhMobile .dhGrid {
+  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+  gap: 6px;
+}
+
+.dhMobile .dhThing img {
+  width: 68px;
+  height: 68px;
+}
+
+.dhMobile .dhThing span {
+  font-size: 12px;
+  line-height: 15px;
+}
+
+.dhMobile .dhSwatches {
+  grid-template-columns: repeat(auto-fill, minmax(48px, 1fr));
+  gap: 6px;
+}
+
+.dhMobile .dhRoomPick button {
+  min-height: 34px;
+  padding: 4px 10px !important;
+}
+
+.dhMobile .dhDot {
+  width: 30px;
+  height: 30px;
+}
+
+.dhMobile .dhWord {
+  min-height: 32px;
+  padding: 2px 8px !important;
+}
+
+.dhMobile .dhField input {
+  font-size: 16px;
+}
+
+.dhMobile .dhDress {
+  flex-direction: column;
+  align-items: center;
+}
+
+.dhMobile .dhDressPreview {
+  width: 78px;
+  height: 156px;
+}
+
+.dhMobile .dhDressFields {
+  max-height: 34vh;
+  width: 100%;
+}
+
+.dhMobile .dhShareChoices button {
+  min-height: 40px;
+}

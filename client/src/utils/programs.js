@@ -54,6 +54,7 @@ export const programs = [
   { name: "Us", app: "us", icon: "/assets/program_icons/us.svg", width: 540, height: 540, group: "Us", desktop: "paired", single: true },
   { name: "Love Letters", app: "loveletters", icon: "/assets/program_icons/loveletters.svg", width: 720, height: 580, group: "Us", desktop: false, single: true },
   { name: "Our Story", app: "ourstory", icon: "/assets/program_icons/ourstory.svg", width: 760, height: 620, group: "Us", desktop: false, single: true },
+  { name: "Dream House", app: "dollhouse", type: "dollhouse", icon: "/assets/program_icons/dollhouse.svg", width: 900, height: 640, group: "Us", desktop: false, single: true },
 ]
 
 // The desktop shows these (MS-DOS Prompt and Display Properties live in the Start menu)

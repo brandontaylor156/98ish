@@ -135,6 +135,9 @@ const ALIASES = {
   quiz: "Lovebirds Quiz Show",
   lovebirds: "Lovebirds Quiz Show",
   quizshow: "Lovebirds Quiz Show",
+  dollhouse: "Dream House",
+  dreamhouse: "Dream House",
+  house: "Dream House",
 }
 
 export const programFor = (word) => {

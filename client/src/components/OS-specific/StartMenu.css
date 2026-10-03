@@ -141,6 +141,11 @@
   z-index: 1;
 }
 
+/* a flyout with another one open beside it mustn't clip it (Programs > Games) */
+.window.smSub:has(> .smItem.is-open > .smSub) {
+  overflow: visible;
+}
+
 .smBack {
   border-bottom: 1px solid #808080;
   font-weight: bold;

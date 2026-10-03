@@ -59,6 +59,69 @@ export const THEMES = [
     screensaver: "marquee",
     screensaverOptions: { text: "RAWR! The dinosaurs have taken over 98ish!", color: "#ffcc33", background: "#2a1a08", font: "sans" },
   },
+  {
+    id: "pastel",
+    label: "Pastel Dream",
+    blurb: "Smiling clouds, a soft rainbow and a heart balloon, with music-box chimes and a sparkly wand for a pointer.",
+    wallpaper: "pastel",
+    scheme: "cotton",
+    soundScheme: "dream",
+    iconStyle: "pastel",
+    cursor: "heartwand",
+    cursorTrail: "sparkle",
+    screensaver: "lovenotes",
+    screensaverOptions: { palette: "pink", background: "#3a2350" },
+  },
+  {
+    id: "kittycafe",
+    label: "Kitty Café",
+    blurb: "Lattes, macarons and a few very good cats. Sounds meow and purr; the pointer has little paws.",
+    wallpaper: "kittycafe",
+    scheme: "latte",
+    soundScheme: "cafe",
+    iconStyle: "cafe",
+    cursor: "paw",
+    cursorTrail: "hearts",
+    screensaver: "aquarium",
+  },
+  {
+    id: "garden",
+    label: "Flower Garden",
+    blurb: "Tulips, daisies and butterflies by a picket fence. Birds sing for every sound.",
+    wallpaper: "garden",
+    scheme: "bloom",
+    soundScheme: "garden",
+    iconStyle: "bloom",
+    cursor: "flower",
+    cursorTrail: "none",
+    screensaver: "garden",
+  },
+  {
+    id: "y2k",
+    label: "Y2K Sparkle",
+    blurb: "Chrome hearts, butterflies and glitter everywhere, with sparkly sounds and a sparkle trail.",
+    wallpaper: "y2k",
+    scheme: "glitter",
+    soundScheme: "sparkle",
+    iconStyle: "y2k",
+    cursor: "butterfly",
+    cursorTrail: "sparkle",
+    screensaver: "lovenotes",
+    screensaverOptions: { palette: "rainbow", background: "#2b1d5c" },
+  },
+  {
+    id: "starrynight",
+    label: "Starry Night",
+    blurb: "A sleepy moon over a cozy little town, fireflies and a soft lullaby. Good night!",
+    wallpaper: "starrynight",
+    scheme: "moonlit",
+    soundScheme: "lullaby",
+    iconStyle: "moonlit",
+    cursor: "moon",
+    cursorTrail: "sparkle",
+    screensaver: "garden",
+    screensaverOptions: { cycle: "night" },
+  },
 ]
 
 export const themeById = (id) => THEMES.find((t) => t.id === id) || null
@@ -80,7 +143,7 @@ export const themePatch = (theme, parts, current = {}) => {
   if (parts.colors) patch.scheme = theme.scheme
   if (parts.sounds) patch.soundScheme = theme.soundScheme
   if (parts.icons) patch.iconStyle = theme.iconStyle
-  if (parts.pointers) patch.cursor = theme.cursor
+  if (parts.pointers) Object.assign(patch, { cursor: theme.cursor, cursorTrail: theme.cursorTrail || "none" })
   if (parts.screensaver) {
     patch.screensaver = theme.screensaver
     if (theme.screensaverOptions)
@@ -91,4 +154,5 @@ export const themePatch = (theme, parts, current = {}) => {
 
 // Is this theme what's on the desktop right now? (for "Current Windows settings")
 export const matchesTheme = (theme, s) =>
-  s.wallpaper === theme.wallpaper && s.scheme === theme.scheme && s.soundScheme === theme.soundScheme && s.iconStyle === theme.iconStyle && s.cursor === theme.cursor
+  s.wallpaper === theme.wallpaper && s.scheme === theme.scheme && s.soundScheme === theme.soundScheme && s.iconStyle === theme.iconStyle && s.cursor === theme.cursor &&
+  (s.cursorTrail || "none") === (theme.cursorTrail || "none")

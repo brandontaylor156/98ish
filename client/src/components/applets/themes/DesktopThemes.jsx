@@ -149,6 +149,9 @@ const DesktopThemes = ({ onClose }) => {
             Pointer:{" "}
             {cursorUrl(look.cursor) ? <img className="dtPointer" src={cursorUrl(look.cursor)} alt={look.cursor} /> : "Standard"}
           </p>
+          {look.cursorTrail && look.cursorTrail !== "none" && (
+            <p className="dialogText">Mouse trail: {look.cursorTrail === "hearts" ? "Hearts" : "Sparkles"}</p>
+          )}
         </Dialog>
       )}
     </div>

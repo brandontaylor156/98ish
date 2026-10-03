@@ -45,6 +45,7 @@ const Quiz = lazyApp(() => import("../applets/quiz/Quiz"))
 const Us = lazyApp(() => import("../applets/couples/Us"))
 const LoveLetters = lazyApp(() => import("../applets/couples/LoveLetters"))
 const OurStory = lazyApp(() => import("../applets/couples/OurStory"))
+const Dollhouse = lazyApp(() => import("../applets/dollhouse/Dollhouse"))
 // Network Neighborhood and the head-to-head games
 const isNetWindow = (w) => w.app === "network" || !!w.app?.startsWith("net-")
 const FileExplorer = lazyApp(() => import("../applets/fileExplorer/FileExplorer"))
@@ -510,6 +511,7 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
       {window.app === "blockten" && <BlockTen mobile={mobile} onClose={() => closeWindow(window, index)} />}
       {window.app === "town" && <Town mobile={mobile} onClose={() => closeWindow(window, index)} onTitle={rename(index)} />}
       {window.app === "puzzle" && <Puzzle mobile={mobile} dispatch={dispatch} onClose={() => closeWindow(window, index)} onTitle={rename(index)} />}
+      {window.app === "dollhouse" && <Dollhouse mobile={mobile} dispatch={dispatch} onClose={() => closeWindow(window, index)} onTitle={rename(index)} />}
       {window.app === "doodle" && <Doodle mobile={mobile} dispatch={dispatch} inviteTo={window.inviteTo} onClose={() => closeWindow(window, index)} onTitle={rename(index)} />}
       {window.app === "quiz" && <Quiz mobile={mobile} dispatch={dispatch} onClose={() => closeWindow(window, index)} onTitle={rename(index)} />}
       {window.app === "us" && <Us view={window.view} mobile={mobile} />}

@@ -91,6 +91,20 @@ SOUNDS.tada = (c, out) => {
 
 const each = (list, fn) => list.forEach(fn)
 
+
+// gentle helpers for the cute schemes
+const bell = (c, out, freq, start = 0, length = 1.2, level = 0.22) => {
+  tone(c, out, { freq, start, length, level })
+  tone(c, out, { freq: freq * 2, start, length: length * 0.6, level: level * 0.3 })
+  tone(c, out, { freq: freq * 3.01, start, length: length * 0.3, level: level * 0.12 })
+}
+const meow = (c, out, { pitch = 1, start = 0, level = 0.14 } = {}) => {
+  tone(c, out, { freq: 480 * pitch, to: 820 * pitch, start, length: 0.16, type: "triangle", level, attack: 0.04 })
+  tone(c, out, { freq: 820 * pitch, to: 430 * pitch, start: start + 0.15, length: 0.34, type: "triangle", level, attack: 0.01 })
+}
+const chirp = (c, out, { start = 0, from = 2600, to = 4200, level = 0.12, length = 0.07 } = {}) => tone(c, out, { freq: from, to, start, length, level })
+const gliss = (c, out, notes, step = 0.04, level = 0.12, type = "sine") => each(notes, (f, i) => tone(c, out, { freq: f, start: i * step, length: 0.5, type, level }))
+
 const SCHEME_SOUNDS = {
   // Space: sci-fi blips, sweeps and a warp-out
   space: {
@@ -178,6 +192,110 @@ const SCHEME_SOUNDS = {
     },
     tada: (c, out) => each([261.63, 329.63, 392, 523.25], (f, i) => tone(c, out, { freq: f, start: i * 0.1, length: 0.5, type: "triangle", level: 0.25 })),
   },
+  // Pastel Dream: a little music box
+  dream: {
+    ding: (c, out) => {
+      bell(c, out, 1567.98)
+      bell(c, out, 2093, 0.12, 1, 0.12)
+    },
+    chord: (c, out) => each([1046.5, 1318.5, 1567.98], (f, i) => bell(c, out, f, i * 0.09, 1.1, 0.16)),
+    critical: (c, out) => {
+      bell(c, out, 659.25, 0, 0.9, 0.2)
+      bell(c, out, 622.25, 0.22, 1.2, 0.2)
+    },
+    minimize: (c, out) => gliss(c, out, [2093, 1760, 1396.9, 1174.7], 0.035, 0.1),
+    maximize: (c, out) => gliss(c, out, [1174.7, 1396.9, 1760, 2093], 0.035, 0.1),
+    restore: (c, out) => bell(c, out, 1760, 0, 0.5, 0.14),
+    recycle: (c, out) => each([2637, 2349.3, 2093, 1760, 1568, 1318.5], (f, i) => bell(c, out, f, i * 0.05, 0.4, 0.08)),
+    exit: (c, out) => each([1568, 1318.5, 1174.7, 1046.5, 784], (f, i) => bell(c, out, f, i * 0.28, 1.4, 0.18)),
+    tada: (c, out) => each([1046.5, 1318.5, 1568, 2093, 2637], (f, i) => bell(c, out, f, i * 0.07, 0.9, 0.14)),
+  },
+  // Kitty Café: soft meows, purrs and cup clinks
+  cafe: {
+    ding: (c, out) => {
+      tone(c, out, { freq: 2794, length: 0.5, level: 0.16 })
+      tone(c, out, { freq: 3729, start: 0.01, length: 0.3, level: 0.06 })
+    },
+    chord: (c, out) => meow(c, out),
+    critical: (c, out) => meow(c, out, { pitch: 0.7, level: 0.16 }),
+    minimize: (c, out) => tone(c, out, { freq: 900, to: 400, length: 0.16, type: "triangle", level: 0.12 }),
+    maximize: (c, out) => tone(c, out, { freq: 400, to: 900, length: 0.16, type: "triangle", level: 0.12 }),
+    restore: (c, out) => tone(c, out, { freq: 2794, length: 0.25, level: 0.1 }),
+    // a purr
+    recycle: (c, out) => {
+      for (let i = 0; i < 14; i++) noise(c, out, { start: i * 0.045, length: 0.05, level: 0.18, filter: 160, q: 2 })
+    },
+    exit: (c, out) => {
+      meow(c, out, { pitch: 0.9 })
+      each([783.99, 659.25, 523.25], (f, i) => tone(c, out, { freq: f, start: 0.6 + i * 0.22, length: 0.9, type: "triangle", level: 0.12 }))
+    },
+    tada: (c, out) => {
+      meow(c, out, { pitch: 1.25 })
+      each([1568, 2093], (f, i) => tone(c, out, { freq: f, start: 0.45 + i * 0.08, length: 0.6, level: 0.12 }))
+    },
+  },
+  // Flower Garden: birdsong
+  garden: {
+    ding: (c, out) => {
+      chirp(c, out)
+      chirp(c, out, { start: 0.1, from: 3000, to: 4600 })
+    },
+    chord: (c, out) => each([0, 0.08, 0.16, 0.3], (s, i) => chirp(c, out, { start: s, from: 2200 + i * 300, to: 3600 + i * 300 })),
+    critical: (c, out) => {
+      tone(c, out, { freq: 700, to: 520, length: 0.35, type: "triangle", level: 0.16 })
+      tone(c, out, { freq: 700, to: 520, start: 0.4, length: 0.35, type: "triangle", level: 0.16 })
+    },
+    minimize: (c, out) => chirp(c, out, { from: 4200, to: 2400, length: 0.12 }),
+    maximize: (c, out) => chirp(c, out, { from: 2400, to: 4200, length: 0.12 }),
+    restore: (c, out) => chirp(c, out, { from: 3200, to: 3800 }),
+    recycle: (c, out) => {
+      for (let i = 0; i < 6; i++) noise(c, out, { start: i * 0.07, length: 0.12, level: 0.18, filter: 3000 + i * 400, q: 1.5 })
+    },
+    exit: (c, out) => {
+      each([0, 0.12, 0.24], (s) => chirp(c, out, { start: s, from: 3400, to: 2600, length: 0.1 }))
+      each([659.25, 587.33, 523.25], (f, i) => tone(c, out, { freq: f, start: 0.5 + i * 0.3, length: 1, level: 0.15 }))
+    },
+    tada: (c, out) => {
+      each([0, 0.07, 0.14, 0.21, 0.28], (s, i) => chirp(c, out, { start: s, from: 2400 + i * 400, to: 3800 + i * 400 }))
+      tone(c, out, { freq: 1046.5, start: 0.3, length: 0.8, level: 0.14 })
+    },
+  },
+  // Y2K Sparkle: glittery glissandi
+  sparkle: {
+    ding: (c, out) => gliss(c, out, [2093, 2637, 3136, 4186], 0.03, 0.09, "triangle"),
+    chord: (c, out) => {
+      gliss(c, out, [1046.5, 1318.5, 1568, 2093, 2637, 3136], 0.035, 0.08, "triangle")
+      tone(c, out, { freq: 523.25, length: 1, level: 0.12 })
+    },
+    critical: (c, out) => gliss(c, out, [1568, 1244.5, 987.77, 783.99], 0.06, 0.1, "square"),
+    minimize: (c, out) => gliss(c, out, [3136, 2637, 2093, 1568], 0.025, 0.07, "triangle"),
+    maximize: (c, out) => gliss(c, out, [1568, 2093, 2637, 3136], 0.025, 0.07, "triangle"),
+    restore: (c, out) => gliss(c, out, [2637, 3136], 0.03, 0.08, "triangle"),
+    recycle: (c, out) => {
+      for (let i = 0; i < 10; i++) tone(c, out, { freq: 2000 + Math.random() * 3000, start: i * 0.035, length: 0.15, type: "triangle", level: 0.06 })
+    },
+    exit: (c, out) => gliss(c, out, [3136, 2637, 2093, 1568, 1318.5, 1046.5, 783.99, 523.25], 0.09, 0.08, "triangle"),
+    tada: (c, out) => {
+      gliss(c, out, [1046.5, 1318.5, 1568, 2093, 2637, 3136, 4186], 0.04, 0.08, "triangle")
+      each([523.25, 659.25, 783.99], (f) => tone(c, out, { freq: f, start: 0.28, length: 0.9, level: 0.08 }))
+    },
+  },
+  // Starry Night: a soft lullaby
+  lullaby: {
+    ding: (c, out) => {
+      tone(c, out, { freq: 783.99, length: 1.2, level: 0.22, attack: 0.03 })
+      tone(c, out, { freq: 1174.7, start: 0.02, length: 0.9, level: 0.06, attack: 0.03 })
+    },
+    chord: (c, out) => each([392, 493.88, 587.33], (f, i) => tone(c, out, { freq: f, start: i * 0.15, length: 1.4, level: 0.14, attack: 0.05 })),
+    critical: (c, out) => each([329.63, 293.66], (f, i) => tone(c, out, { freq: f, start: i * 0.35, length: 0.9, type: "triangle", level: 0.16, attack: 0.04 })),
+    minimize: (c, out) => tone(c, out, { freq: 880, to: 440, length: 0.25, level: 0.15, attack: 0.02 }),
+    maximize: (c, out) => tone(c, out, { freq: 440, to: 880, length: 0.25, level: 0.15, attack: 0.02 }),
+    restore: (c, out) => tone(c, out, { freq: 659.25, length: 0.4, level: 0.15, attack: 0.02 }),
+    recycle: (c, out) => noise(c, out, { length: 0.8, level: 0.14, filter: 900, sweepTo: 300, q: 0.7 }),
+    // a falling goodnight
+    exit: (c, out) => each([783.99, 659.25, 587.33, 523.25, 392], (f, i) => tone(c, out, { freq: f, start: i * 0.4, length: 1.5, level: 0.16, attack: 0.05 })),
+    tada: (c, out) => each([523.25, 659.25, 783.99, 1046.5], (f, i) => tone(c, out, { freq: f, start: i * 0.12, length: 1, level: 0.15, attack: 0.03 })),
+  },
 }
 
 export const SOUND_SCHEMES = [
@@ -186,6 +304,11 @@ export const SOUND_SCHEMES = [
   { id: "ocean", label: "Underwater" },
   { id: "synth", label: "Synthwave" },
   { id: "dino", label: "Dinosaurs" },
+  { id: "dream", label: "Music Box" },
+  { id: "cafe", label: "Kitty Café" },
+  { id: "garden", label: "Birdsong" },
+  { id: "sparkle", label: "Sparkle" },
+  { id: "lullaby", label: "Lullaby" },
 ]
 
 // the events, for previews (Desktop Themes)

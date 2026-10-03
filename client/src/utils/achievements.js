@@ -40,6 +40,8 @@ export const ACHIEVEMENTS = [
   { id: "town-order", title: "Special Delivery", text: "Filled your first helicopter order in Sunny Acres.", hint: "Sunny Acres (in Games) has a farmer waiting for some Cow Feed." },
   { id: "town-mayor", title: "Mayor of Sunny Acres", text: "Grew Sunny Acres to level 10.", hint: "Keep filling orders in Sunny Acres until your town reaches level 10." },
   { id: "puzzle-solved", title: "Piece by Piece", text: "Finished a jigsaw in Photo Puzzle.", hint: "Photo Puzzle (in Games) can cut any picture into pieces. Put one back together." },
+  { id: "dollhouse-30", title: "Interior Designer", text: "Placed 30 things in Dream House.", hint: "Dream House (in Games) has a whole catalog of furniture. Fill it up!" },
+  { id: "dollhouse-home", title: "Home Sweet Home", text: "Furnished every room of your Dream House.", hint: "Put at least three things in every room of Dream House, garden and attic too." },
   { id: "doodle-pair", title: "Picasso Pair", text: "Saved a drawing made with someone in Doodle Together.", hint: "Invite someone to Doodle Together, draw something together, and save it." },
   { id: "quiz-mind-reader", title: "Mind Reader", text: "Scored 100% on How Well Do You Know Me.", hint: "In the Lovebirds Quiz Show, guess every one of someone's answers." },
   { id: "quiz-deep-diver", title: "Deep Diver", text: "Talked through 20 Deep Talk cards.", hint: "Draw Deep Talk cards in the Lovebirds Quiz Show. Twenty of them." },

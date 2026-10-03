@@ -12,6 +12,7 @@ import { getSettings, schemeVars, useSettings, wallpaperStyle } from "./utils/se
 import { lazyApp } from "./components/OS-specific/LazyApp"
 import Helper from "./components/OS-specific/Helper"
 import AchievementToast from "./components/OS-specific/AchievementToast"
+import CursorTrail from "./components/OS-specific/CursorTrail"
 import { arrangeWindows } from "./utils/windowArrange"
 import { unlock } from "./utils/achievements"
 import { programByName } from "./utils/programs"
@@ -276,6 +277,7 @@ function App() {
             </div>
           )}
           <Helper windows={windows} mobile={mobile} />
+          {!mobile && settings.cursorTrail && settings.cursorTrail !== "none" && <CursorTrail kind={settings.cursorTrail} />}
           {power === "shutdown" && <ShutDownDialog onChoose={chooseShutDown} onCancel={() => setPower(null)} />}
           {power === "logoff" && (
             <LogOffDialog

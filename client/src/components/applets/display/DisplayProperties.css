@@ -219,6 +219,18 @@
   text-align: right;
 }
 
+.dialogBody textarea.ssTextarea {
+  width: 100%;
+  min-width: 0;
+  resize: vertical;
+  font-family: inherit;
+  font-size: 11px;
+}
+
+.os-mobile .dialogBody textarea.ssTextarea {
+  font-size: 16px;
+}
+
 .dialogBody input.ssColor {
   width: 56px;
   height: 22px;

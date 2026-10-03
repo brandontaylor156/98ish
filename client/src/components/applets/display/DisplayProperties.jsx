@@ -2,6 +2,7 @@ import React, { useRef, useState } from "react"
 import Dialog from "../../shared/Dialog"
 import ScreenSaverTab from "./ScreenSaverTab"
 import {
+  CURSOR_TRAILS,
   SCHEMES,
   WALLPAPERS,
   getSettings,
@@ -156,6 +157,15 @@ const DisplayProperties = ({ onClose }) => {
               ))}
             </select>
             <p className="dpHint">The scheme colors the title bars and the desktop behind patterns.</p>
+            <label htmlFor="dp-trail">Mouse trail:</label>
+            <select id="dp-trail" value={draft.cursorTrail || "none"} onChange={(e) => update({ cursorTrail: e.target.value })}>
+              {CURSOR_TRAILS.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.label}
+                </option>
+              ))}
+            </select>
+            <p className="dpHint">A little trail of sparkles or hearts follows the mouse (not on touch screens, or when your system asks for less motion).</p>
           </div>
         )}
 

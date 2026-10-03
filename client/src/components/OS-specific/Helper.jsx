@@ -62,6 +62,7 @@ const TIPS = {
   Downhill: ["Press Space in the air off a ramp to spin. Just land before the spin ends!", "Something lives up on that mountain. Keep moving after 2,000 m..."],
   "Photo Puzzle": ["Turn on Options > Edge Pieces Only to build the frame first. It's how the pros do it!", "Send a puzzle to someone special with a hidden message. They only see it once the last piece is in."],
   "Doodle Together": ["Invite your sweetheart and draw at the same time. You'll see their cursor wander around the page!", "Try Background > Fill in the Heart, then grab the paint bucket."],
+  "Dream House": ["Small things like lamps and cakes land on the table under them. Try a lamp on the nightstand, then switch to Night!", "Put your two little people next to each other and watch what happens."],
   "Sunny Acres": ["Swipe across a whole row of ripe fields to harvest them all at once!", "Your crops keep growing while Sunny Acres is closed. Come back later for a full Barn."],
 }
 

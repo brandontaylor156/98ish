@@ -4,10 +4,11 @@ import createStarfield from "./savers/starfield"
 import createMystify, { createBeziers } from "./savers/mystify"
 import createFlying from "./savers/flying"
 import createMarquee from "./savers/marquee"
+import { DEFAULT_MESSAGES, MAX_MESSAGES, MAX_MESSAGE_LENGTH } from "./savers/lovenotesText"
 
 // Each screensaver: its default options, the fields its Settings... dialog shows, and a
 // component that draws it to fill its parent ({ settings, preview }).
-// Field types: range (min, max), select (choices: [value, label]), text, color.
+// Field types: range (min, max), select (choices: [value, label]), text, textarea, color.
 
 const make = (create) => {
   const Saver = ({ settings, preview }) => <SaverCanvas create={create} settings={settings} preview={preview} />
@@ -21,6 +22,20 @@ const Pipes = (props) => (
     <LazyPipes {...props} />
   </Suspense>
 )
+
+// the cozy savers load on first use too, keeping them out of the main download
+const lazySaver = (load) => {
+  const Lazy = React.lazy(() => load().then((m) => ({ default: make(m.default) })))
+  const Saver = (props) => (
+    <Suspense fallback={<div className="ssFill" />}>
+      <Lazy {...props} />
+    </Suspense>
+  )
+  return Saver
+}
+const Aquarium = lazySaver(() => import("./savers/aquarium"))
+const Garden = lazySaver(() => import("./savers/garden"))
+const LoveNotes = lazySaver(() => import("./savers/lovenotes"))
 
 const speed = { key: "speed", label: "Speed", type: "range", min: 1, max: 10, low: "Slow", high: "Fast" }
 
@@ -83,6 +98,35 @@ export const SCREENSAVERS = [
       speed,
     ],
     Component: make(createBeziers),
+  },
+  {
+    id: "aquarium",
+    label: "Aquarium",
+    defaults: { count: 16, speed: 5 },
+    fields: [{ key: "count", label: "Number of fish", type: "range", min: 4, max: 40, low: "Few", high: "Many" }, speed],
+    Component: Aquarium,
+  },
+  {
+    id: "garden",
+    label: "Flower Garden",
+    defaults: { speed: 5, cycle: "auto" },
+    fields: [
+      speed,
+      { key: "cycle", label: "Sky", type: "select", choices: [["auto", "Day and night"], ["day", "Always day"], ["night", "Always night"]] },
+    ],
+    Component: Garden,
+  },
+  {
+    id: "lovenotes",
+    label: "Love Notes",
+    defaults: { messages: DEFAULT_MESSAGES, palette: "pink", background: "#3a2350", speed: 5 },
+    fields: [
+      { key: "messages", label: "Messages (one per line)", type: "textarea", rows: 4, maxLength: MAX_MESSAGES * (MAX_MESSAGE_LENGTH + 1) },
+      { key: "palette", label: "Hearts", type: "select", choices: [["pink", "Pink"], ["rainbow", "Rainbow"], ["red", "Red"], ["lilac", "Lilac"]] },
+      { key: "background", label: "Background color", type: "color" },
+      speed,
+    ],
+    Component: LoveNotes,
   },
 ]
 

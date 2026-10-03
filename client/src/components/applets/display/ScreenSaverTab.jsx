@@ -116,6 +116,9 @@ const SaverSettings = ({ saver, value, onOk, onCancel }) => {
               </select>
             )}
             {field.type === "text" && <input id={fid} type="text" maxLength={field.maxLength} value={v} onChange={(e) => set(field.key, e.target.value)} />}
+            {field.type === "textarea" && (
+              <textarea id={fid} className="ssTextarea" rows={field.rows || 4} maxLength={field.maxLength} value={v} onChange={(e) => set(field.key, e.target.value)} />
+            )}
             {field.type === "color" && <input id={fid} className="ssColor" type="color" value={v} onChange={(e) => set(field.key, e.target.value)} />}
           </div>
         )

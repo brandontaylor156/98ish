@@ -20,6 +20,11 @@ export const WALLPAPERS = [
   { id: "underwater", label: "Underwater", url: "/assets/themes/underwater.svg" },
   { id: "sunset", label: "Sunset Grid", url: "/assets/themes/sunset.svg" },
   { id: "dinosaurs", label: "Dinosaurs", url: "/assets/themes/dinosaurs.svg" },
+  { id: "pastel", label: "Pastel Dream", url: "/assets/themes/pastel.svg" },
+  { id: "kittycafe", label: "Kitty Café", url: "/assets/themes/kittycafe.svg" },
+  { id: "garden", label: "Flower Garden", url: "/assets/themes/garden.svg" },
+  { id: "y2k", label: "Y2K Sparkle", url: "/assets/themes/y2k.svg" },
+  { id: "starrynight", label: "Starry Night", url: "/assets/themes/starrynight.svg" },
   { id: "custom", label: "(Your picture)" },
   // photos from Our Story, taking turns while you're signed on with your partner (see utils/couple.js)
   { id: "ourphotos", label: "Our photos ♥" },
@@ -39,6 +44,11 @@ export const SCHEMES = [
   { id: "lagoon", label: "Lagoon", title: ["#004c6e", "#22a7c4"], inactive: ["#6a8088", "#a9bcc2"], desktop: "#05415a" },
   { id: "synth", label: "Synth", title: ["#a0207c", "#25b9d0"], inactive: ["#7a6a86", "#b9aec4"], desktop: "#2a0c46" },
   { id: "jurassic", label: "Jurassic", title: ["#3e5a16", "#a39a34"], inactive: ["#7a7a66", "#b8b8a2"], desktop: "#3a4719" },
+  { id: "cotton", label: "Cotton Candy", title: ["#a8558f", "#e9a3d2"], inactive: ["#a597aa", "#d6cbd8"], desktop: "#e3c3ea" },
+  { id: "latte", label: "Latte", title: ["#8a4f34", "#e09a72"], inactive: ["#a39286", "#d4c6bc"], desktop: "#f0c9b0" },
+  { id: "bloom", label: "Bloom", title: ["#3f8448", "#e584a6"], inactive: ["#8c9a88", "#c6d0c2"], desktop: "#8fcf84" },
+  { id: "glitter", label: "Glitter", title: ["#6a4ee0", "#f77cc8"], inactive: ["#9a98b4", "#d4d0e8"], desktop: "#cdb8ff" },
+  { id: "moonlit", label: "Moonlit", title: ["#252a66", "#8566c4"], inactive: ["#5f5d78", "#9e9bb8"], desktop: "#2c2552" },
 ]
 
 export const DEFAULT_SETTINGS = {
@@ -58,6 +68,7 @@ export const DEFAULT_SETTINGS = {
   theme: "standard", // the Desktop Theme last applied
   iconStyle: "none", // desktop icon effect (Desktop Themes)
   cursor: "default", // mouse pointer set (Desktop Themes)
+  cursorTrail: "none", // a little trail behind the mouse: none | sparkle | hearts
   taskbarAutoHide: false,
   taskbarClock: true,
   quickLaunch: true, // show the Quick Launch toolbar
@@ -245,6 +256,11 @@ export const ICON_STYLES = {
   sea: "sepia(0.35) hue-rotate(150deg) saturate(1.4) drop-shadow(0 0 2px #7fe9ff)",
   neon: "saturate(1.6) drop-shadow(0 0 3px #ff4fd8)",
   fossil: "sepia(0.55) saturate(1.2) drop-shadow(1px 1px 0 #2f3a10)",
+  pastel: "saturate(0.9) drop-shadow(0 0 3px #ffc6ea)",
+  cafe: "sepia(0.2) saturate(1.1) drop-shadow(1px 1px 0 #c7866a)",
+  bloom: "saturate(1.2) drop-shadow(0 0 3px #fff6a8)",
+  y2k: "saturate(1.3) drop-shadow(0 0 2px #fff) drop-shadow(0 0 4px #c9a8ff)",
+  moonlit: "brightness(1.05) drop-shadow(0 0 4px #fff1a8)",
 }
 
 // mouse pointer sets (small SVGs under /assets/themes/cursors)
@@ -253,4 +269,16 @@ export const CURSORS = {
   fish: 'url("/assets/themes/cursors/fish.svg") 1 1, default',
   neon: 'url("/assets/themes/cursors/neon.svg") 1 1, default',
   bone: 'url("/assets/themes/cursors/bone.svg") 1 1, default',
+  heartwand: 'url("/assets/themes/cursors/heartwand.svg") 1 1, default',
+  paw: 'url("/assets/themes/cursors/paw.svg") 1 1, default',
+  flower: 'url("/assets/themes/cursors/flower.svg") 1 1, default',
+  butterfly: 'url("/assets/themes/cursors/butterfly.svg") 1 1, default',
+  moon: 'url("/assets/themes/cursors/moon.svg") 1 1, default',
 }
+
+// the mouse trails (components/OS-specific/CursorTrail.jsx)
+export const CURSOR_TRAILS = [
+  { id: "none", label: "None" },
+  { id: "sparkle", label: "Sparkles" },
+  { id: "hearts", label: "Hearts" },
+]
