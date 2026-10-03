@@ -58,6 +58,10 @@ const TIPS = {
   Checkers: ["Play Online finds you an opponent, or Play the Computer starts right away. Kings move backward too!"],
   Chess: ["Drag a piece or click it, then click where it goes. Level in the menu makes the computer tougher."],
   Battleship: ["Press R (or right-click) to turn a ship while you place it. Random does it all for you."],
+  "Word Duel": [
+    "Play Online, then Create Room: there are presets for races, Battle Royale and Co-op, and Customize changes every rule.",
+    "Stuck? Try a word with five different common letters, like CRANE or SLATE, to find out the most at once.",
+  ],
   "Block Ten": [
     "Keep a 3x3 hole open somewhere. The big square always shows up when you have no room for it!",
     "Clear lines on moves in a row for a streak bonus. Pieces with no room left turn gray.",

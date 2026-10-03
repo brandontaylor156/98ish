@@ -62,6 +62,10 @@ export const ACHIEVEMENTS = [
   { id: "appward-power", title: "Power User", text: "Opened 20 different apps in Appward 98.", hint: "Appward 98 (Programs > Business) has dozens of business apps. Open twenty of them." },
   { id: "appward-builder", title: "Builder", text: "Made your own app with Appward 98's App Creator.", hint: "Appward 98 can build a brand-new app for you. Look under Development." },
   { id: "green-thumb", title: "Green Thumb", text: "Watered your flowers on 3 different days.", hint: "Flowers from someone special need water every day." },
+  { id: "wordduel-daily", title: "Word of the Day", text: "Solved the daily word in Word Duel.", hint: "Word Duel (in Games) has a new daily word every day. Solve one." },
+  { id: "wordduel-two", title: "Lucky Guess", text: "Solved a Word Duel word in two guesses.", hint: "In Word Duel, get the word on your second try (or your first!)." },
+  { id: "wordduel-absurd", title: "Cornered", text: "Beat Word Duel's Absurd mode.", hint: "Word Duel's Absurd mode changes the word to dodge you. Pin it down anyway." },
+  { id: "wordduel-online", title: "Duelist", text: "Won an online game of Word Duel.", hint: "Play Word Duel online against someone (or a room of computer players) and win." },
 ]
 
 export const achievementById = (id) => ACHIEVEMENTS.find((a) => a.id === id) || null

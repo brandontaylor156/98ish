@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48" shape-rendering="crispEdges">
+  <!-- Word Duel: two rows of letter tiles, with crossed swords -->
+  <rect x="1" y="4" width="46" height="40" fill="#0b4f55" stroke="#000"/>
+  <g stroke="#000">
+    <rect x="3" y="8" width="10" height="10" fill="#2a9d48"/>
+    <rect x="14" y="8" width="10" height="10" fill="#d9a90a"/>
+    <rect x="25" y="8" width="10" height="10" fill="#6b6f78"/>
+    <rect x="36" y="8" width="10" height="10" fill="#2a9d48"/>
+    <rect x="3" y="30" width="10" height="10" fill="#2a9d48"/>
+    <rect x="14" y="30" width="10" height="10" fill="#2a9d48"/>
+    <rect x="25" y="30" width="10" height="10" fill="#2a9d48"/>
+    <rect x="36" y="30" width="10" height="10" fill="#2a9d48"/>
+  </g>
+  <path d="M4 17V9h8M15 17V9h8M26 17V9h8M37 17V9h8M4 39v-8h8M15 39v-8h8M26 39v-8h8M37 39v-8h8" fill="none" stroke="#fff" stroke-opacity=".55"/>
+  <g fill="#fff" font-family="Arial Black, Arial, sans-serif" font-weight="900" font-size="8" text-anchor="middle">
+    <text x="8" y="16">W</text><text x="19" y="16">O</text><text x="30" y="16">R</text><text x="41" y="16">D</text>
+    <text x="8" y="38">D</text><text x="19" y="38">U</text><text x="30" y="38">E</text><text x="41" y="38">L</text>
+  </g>
+  <g shape-rendering="geometricPrecision" stroke-linecap="round">
+    <path d="M14 20l20 9" stroke="#e8e8e8" stroke-width="2.4"/>
+    <path d="M34 20l-20 9" stroke="#e8e8e8" stroke-width="2.4"/>
+    <path d="M14 20l20 9M34 20l-20 9" stroke="#7a7a7a" stroke-width=".8"/>
+    <path d="M31 25.5l2.5 5M17 25.5l-2.5 5" stroke="#ffd23f" stroke-width="2.2"/>
+  </g>
+</svg>

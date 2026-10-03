@@ -3,4 +3,5 @@
 
 module.exports = [
   require("./checkers"),
+  require("./wordduel"),
 ]

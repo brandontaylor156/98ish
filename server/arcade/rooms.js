@@ -34,9 +34,13 @@
 //    (Quick Match fills up to this many seats with computer players; default maxPlayers),
 //    tickMs (the server sends action { type: "tick" } with playerId null this often while
 //    playing), bucket(settings) (Quick Match pairs people whose bucket matches; default: all
-//    settings must match), spectate: false (no spectators), relay: true (see below),
+//    settings must match), spectate: false (no spectators; or a function of the settings),
+//    seats(settings) (how many seats a room with these settings has, minPlayers..maxPlayers;
+//    default maxPlayers: e.g. a "players" setting), relay: true (see below),
 //    onLeave(state, seat, ctx) -> state (a player left for good and there's no bot: carry
 //    on without them; default: everyone else wins, reason "left").
+//    An action (or tick) that returns the very same state object changed nothing: nobody
+//    is sent an update.
 //
 //    Timers: ctx.after(ms, action, key = "timer") makes the server call
 //    action(state, null, action, ctx) later (a turn clock, a round timer). A new timer with
@@ -192,6 +196,26 @@ const createRooms = ({ games = [], emit = () => {}, emitVolatile = null, blocked
       return { error: "Those settings aren't allowed." }
     }
   }
+  // how many seats a room has (the game's seats(settings), else its maxPlayers)
+  const capacityFor = (mod, settings) => {
+    if (typeof mod.seats !== "function") return mod.maxPlayers
+    try {
+      const n = Math.round(Number(mod.seats(settings)))
+      return Number.isFinite(n) ? Math.min(mod.maxPlayers, Math.max(mod.minPlayers, n)) : mod.maxPlayers
+    } catch {
+      return mod.maxPlayers
+    }
+  }
+  const capacity = (room) => capacityFor(room.game, room.settings)
+  const canWatch = (room) => {
+    const s = room.game.spectate
+    if (typeof s !== "function") return s !== false
+    try {
+      return s(room.settings) !== false
+    } catch {
+      return true
+    }
+  }
   const bucketOf = (mod, settings) => `${mod.id}:${mod.bucket ? String(mod.bucket(settings)) : stable(settings)}`
 
   // ---------- views ----------
@@ -250,7 +274,7 @@ const createRooms = ({ games = [], emit = () => {}, emitVolatile = null, blocked
           : null
       ),
       min: mod.minPlayers,
-      max: mod.maxPlayers,
+      max: capacity(room),
       spectators: [...room.spectators.values()],
       invited: [...room.invitedNames],
       canStart: room.phase === "lobby" && room.host === pid && !room.quick && !problem,
@@ -363,10 +387,13 @@ const createRooms = ({ games = [], emit = () => {}, emitVolatile = null, blocked
     }
     if (next == null) return { ok: false, error: "That isn't allowed." }
     if (isRefusal(next)) return { ok: false, error: next.error }
+    const changed = next !== room.state
     room.state = next
     commitTimers(room, pending)
-    checkOver(room)
-    publish(room)
+    if (changed) {
+      checkOver(room)
+      publish(room)
+    }
     scheduleBots(room)
     return { ok: true }
   }
@@ -423,7 +450,7 @@ const createRooms = ({ games = [], emit = () => {}, emitVolatile = null, blocked
       console.error(`[rooms] ${mod.id} create failed`, error)
       room.phase = "lobby"
       room.round--
-      while (room.seats.length < mod.maxPlayers) room.seats.push(null)
+      while (room.seats.length < capacity(room)) room.seats.push(null)
       publish(room)
       return { ok: false, error: "The game couldn't start. Please try again." }
     }
@@ -440,7 +467,7 @@ const createRooms = ({ games = [], emit = () => {}, emitVolatile = null, blocked
   const quickCheck = (room) => {
     if (!room.quick || room.phase !== "lobby") return
     const count = filled(room)
-    if (count >= room.game.maxPlayers) return startGame(room)
+    if (count >= capacity(room)) return startGame(room)
     if (count >= room.game.minPlayers && humans(room).length >= 2) {
       if (!room.autoStart) {
         room.startsAt = clock.now() + T.quickStart
@@ -473,7 +500,7 @@ const createRooms = ({ games = [], emit = () => {}, emitVolatile = null, blocked
       bucket: quick ? bucketOf(mod, settings) : null,
       host: null,
       phase: "lobby",
-      seats: Array(mod.maxPlayers).fill(null),
+      seats: Array(capacityFor(mod, settings)).fill(null),
       spectators: new Map(),
       state: null,
       round: 0,
@@ -525,7 +552,7 @@ const createRooms = ({ games = [], emit = () => {}, emitVolatile = null, blocked
     if (inRoom(room, me.pid)) return { ok: true, roomId: room.id, spectator: seatOf(room, me.pid) < 0 }
     if (room.banned.has(me.pid) || blockedFrom(room, me.pid)) return { ok: false, error: "You can't join that room." }
     const seat = room.phase === "lobby" && !watch ? freeSeat(room) : -1
-    if (seat < 0 && room.game.spectate === false) return { ok: false, error: room.phase === "lobby" ? "That room is full." : "That game has already started." }
+    if (seat < 0 && !canWatch(room)) return { ok: false, error: room.phase === "lobby" ? "That room is full." : "That game has already started." }
     const previous = currentRoom(me.pid)
     if (previous) moveOut(me.pid, previous)
     if (seat >= 0) {
@@ -654,7 +681,7 @@ const createRooms = ({ games = [], emit = () => {}, emitVolatile = null, blocked
       s.left = true
       room.rematch.delete(seat)
     }
-    if (room.phase === "lobby") while (room.seats.length < mod.maxPlayers) room.seats.push(null)
+    if (room.phase === "lobby") while (room.seats.length < capacity(room)) room.seats.push(null)
     if (!humans(room).length) {
       closeRoom(room, room.spectators.size ? "Everyone left." : null)
       return { ok: true }
@@ -692,7 +719,13 @@ const createRooms = ({ games = [], emit = () => {}, emitVolatile = null, blocked
     if (room.quick) return { ok: false, error: "Quick Match rooms keep their settings." }
     const cleaned = cleanSettings(room.game, raw)
     if (cleaned.error) return { ok: false, error: cleaned.error }
+    const cap = capacityFor(room.game, cleaned.settings)
+    const people = room.seats.filter(Boolean)
+    if (people.length > cap) return { ok: false, error: `There are ${people.length} players here, more than that allows. Remove someone first.` }
     room.settings = cleaned.settings
+    // more or fewer seats (the people keep their order)
+    if (room.seats.length > cap) room.seats = [...people, ...Array(cap - people.length).fill(null)]
+    while (room.seats.length < cap) room.seats.push(null)
     for (const s of room.seats) if (s && !s.bot) s.ready = false
     publish(room)
     return { ok: true }
@@ -729,7 +762,7 @@ const createRooms = ({ games = [], emit = () => {}, emitVolatile = null, blocked
     if (room.phase !== "lobby") return { ok: false, error: "The game has already started." }
     if (room.private && room.host !== pid) return { ok: false, error: "Only the host can add computer players." }
     if (room.quick && clock.now() < room.waitingSince + T.botOffer) return { ok: false, error: "Give people a few more seconds to find you." }
-    const target = room.quick ? Math.max(room.game.minPlayers, Math.min(room.game.maxPlayers, room.game.fillTo || room.game.maxPlayers)) : room.game.maxPlayers
+    const target = room.quick ? Math.max(room.game.minPlayers, Math.min(capacity(room), room.game.fillTo || capacity(room))) : capacity(room)
     while (filled(room) < target && freeSeat(room) >= 0) room.seats[freeSeat(room)] = { bot: true, name: botName(room), ready: true }
     if (room.quick) return startGame(room)
     publish(room)
@@ -779,7 +812,7 @@ const createRooms = ({ games = [], emit = () => {}, emitVolatile = null, blocked
     room.rematch = new Set()
     room.seats = room.seats.filter((s) => s && !s.left)
     for (const s of room.seats) if (!s.bot) s.ready = false
-    while (room.seats.length < room.game.maxPlayers) room.seats.push(null)
+    while (room.seats.length < capacity(room)) room.seats.push(null)
     room.waitingSince = clock.now()
     publish(room)
     return { ok: true }

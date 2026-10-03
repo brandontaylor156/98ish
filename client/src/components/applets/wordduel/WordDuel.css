@@ -1,0 +1,1098 @@
+/* Word Duel: a 98 window around a dark teal playfield with bevelled tiles */
+
+.wdRoot {
+  --wd-g: #2a9d48;
+  --wd-g-hi: #5cd27a;
+  --wd-g-lo: #145e27;
+  --wd-y: #d9a90a;
+  --wd-y-hi: #ffe066;
+  --wd-y-lo: #8a6a00;
+  --wd-b: #6b6f78;
+  --wd-b-hi: #9aa0aa;
+  --wd-b-lo: #3d4047;
+  --wd-key: #e4e4e4;
+  --wd-stage: #0b4f55;
+  --wd-stage2: #063238;
+  --wd-slot: #0d3a40;
+  --wd-text: #000;
+
+  position: relative;
+  height: calc(100% - 25px);
+  display: flex;
+  flex-direction: column;
+  background: #c0c0c0;
+  font-family: "Pixelated MS Sans Serif", Arial, sans-serif;
+  font-size: 11px;
+  color: var(--wd-text);
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Options > High Contrast Colors: orange and blue, easy to tell apart */
+.wdRoot.wd-contrast,
+.wd-contrast {
+  --wd-g: #f0701e;
+  --wd-g-hi: #ffb07a;
+  --wd-g-lo: #9a3e00;
+  --wd-y: #3d8fe0;
+  --wd-y-hi: #9ccbff;
+  --wd-y-lo: #1a4f88;
+}
+
+.wdBody {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.wdMuted {
+  color: #444;
+}
+.wdError {
+  color: #a00000;
+  font-weight: bold;
+}
+
+.wdPrimary {
+  font-weight: bold;
+}
+
+.wdRowBtns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+  align-items: center;
+}
+.wdRowBtns button {
+  min-width: 88px;
+  min-height: 26px;
+}
+
+/* ---------- the logo ---------- */
+
+.wdLogo {
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+  flex-wrap: nowrap;
+}
+.wdLogoGap {
+  width: 10px;
+}
+.wdLogoTile {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  font: 900 26px/1 "Arial Black", "Segoe UI", Arial, sans-serif;
+  color: #fff;
+  text-shadow: 1px 1px 0 rgb(0 0 0 / 0.35);
+  border: 2px solid;
+  animation: wdLogoIn 0.6s cubic-bezier(0.2, 0.8, 0.3, 1.2) backwards;
+  animation-delay: calc(var(--i) * 70ms);
+}
+.wdLogo.is-small .wdLogoTile {
+  width: 26px;
+  height: 26px;
+  font-size: 16px;
+  animation: none;
+}
+.wdLogoTile.is-g {
+  background: var(--wd-g);
+  border-color: var(--wd-g-hi) var(--wd-g-lo) var(--wd-g-lo) var(--wd-g-hi);
+}
+.wdLogoTile.is-y {
+  background: var(--wd-y);
+  border-color: var(--wd-y-hi) var(--wd-y-lo) var(--wd-y-lo) var(--wd-y-hi);
+}
+.wdLogoTile.is-b {
+  background: var(--wd-b);
+  border-color: var(--wd-b-hi) var(--wd-b-lo) var(--wd-b-lo) var(--wd-b-hi);
+}
+@keyframes wdLogoIn {
+  0% {
+    transform: rotateX(90deg) translateY(-12px);
+    opacity: 0;
+  }
+  100% {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+/* ---------- title screen ---------- */
+
+.wdTitle {
+  flex: 1;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: safe center;
+  gap: 10px;
+  padding: 18px 12px 14px;
+  background: radial-gradient(ellipse at 50% 0%, #1b7a82 0%, var(--wd-stage) 45%, var(--wd-stage2) 100%);
+}
+.wdTagline {
+  margin: 0;
+  color: #d6f3f0;
+  font-size: 12px;
+  letter-spacing: 0.5px;
+}
+.wdOnlineBtn {
+  width: min(100%, 380px);
+}
+.wdMenu {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  width: min(100%, 380px);
+}
+.wdMenuBtn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+  gap: 2px;
+  padding: 6px 8px;
+  min-height: 46px;
+  min-width: 0;
+}
+.wdMenuBtn b {
+  font-size: 12px;
+}
+.wdMenuBtn small {
+  color: #333;
+  line-height: 1.25;
+  white-space: normal;
+}
+.wdMenuBtn.is-daily {
+  grid-column: 1 / -1;
+  background: linear-gradient(#fff8d0, #f1d77b);
+}
+.wdMenuBtn.is-daily b {
+  font-size: 14px;
+}
+.wdLengths {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.wdLengths button {
+  min-width: 0;
+  padding: 2px 8px;
+}
+.wdLengths button.is-on {
+  font-weight: bold;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #0a0a0a, inset -2px -2px #dfdfdf, inset 2px 2px #808080;
+  background: #d4d4d4;
+}
+.wdTitle .wdError {
+  color: #ffd0d0;
+}
+
+/* ---------- custom game form ---------- */
+
+.wdCustom,
+.wdOnline {
+  flex: 1;
+  overflow: auto;
+  padding: 10px 12px 14px;
+}
+.wdCustom h2 {
+  margin: 0 0 4px;
+  font-size: 15px;
+}
+.wdSettings {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.wdPresets {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 4px;
+}
+.wdPreset {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+  gap: 1px;
+  padding: 4px 6px;
+  min-width: 0;
+  min-height: 42px;
+}
+.wdPreset small {
+  color: #444;
+  white-space: normal;
+  line-height: 1.2;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.wdPreset.is-on {
+  background: #000080;
+  color: #fff;
+}
+.wdPreset.is-on small {
+  color: #dde;
+}
+.wdSummary {
+  margin: 2px 0;
+  padding: 4px 6px;
+  background: #fff;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080;
+  font-weight: bold;
+}
+.wdCustomize {
+  align-self: flex-start;
+}
+.wdKnobs {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 6px 10px;
+  margin: 0;
+}
+.wdField {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.wdFieldLabel {
+  font-weight: bold;
+}
+.wdField select,
+.wdField textarea {
+  max-width: 100%;
+}
+.wdField textarea {
+  font-size: 13px;
+  resize: vertical;
+}
+.wdHint {
+  color: #555;
+}
+.wdInline {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.wdChecks {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+}
+.wdChecks label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.wdHandicaps {
+  grid-column: 1 / -1;
+}
+.wdHandicapGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  margin-top: 2px;
+}
+.wdHandicapGrid label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.wdSettings.is-disabled .wdPreset:not(.is-on) {
+  opacity: 0.7;
+}
+.wdCustom .wdRowBtns {
+  margin-top: 10px;
+  justify-content: flex-start;
+}
+
+/* ---------- the game ---------- */
+
+.wdGame {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(var(--wd-stage), var(--wd-stage2));
+  color: #e9f6f4;
+  outline: none;
+  overflow: hidden;
+}
+
+.wdTopBar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  background: rgb(0 0 0 / 0.25);
+  min-height: 24px;
+}
+.wdMode {
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.wdBadge {
+  font-size: 9px;
+  padding: 0 4px;
+  background: #b00020;
+  color: #fff;
+  border: 1px solid #ff8090;
+}
+.wdRound {
+  color: #bfe;
+}
+.wdTopRight {
+  margin-left: auto;
+  display: flex;
+  gap: 6px;
+}
+.wdClock {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 6px;
+  background: #000;
+  color: #3cff6a;
+  font: bold 13px/1.2 "Courier New", monospace;
+  border: 1px solid #5a5a5a;
+}
+.wdClockLabel {
+  font: 10px/1 Arial, sans-serif;
+  color: #9fb;
+  text-transform: uppercase;
+}
+.wdClock.is-warn {
+  color: #ff4040;
+  animation: wdBlink 1s steps(2) infinite;
+}
+@keyframes wdBlink {
+  50% {
+    opacity: 0.55;
+  }
+}
+
+.wdScores {
+  display: flex;
+  gap: 4px;
+  padding: 3px 8px 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.wdScore {
+  display: inline-flex;
+  gap: 5px;
+  padding: 1px 6px;
+  background: rgb(255 255 255 / 0.12);
+  border: 1px solid rgb(255 255 255 / 0.2);
+  white-space: nowrap;
+}
+.wdScore.is-you {
+  background: rgb(255 224 102 / 0.25);
+  border-color: var(--wd-y-hi);
+}
+.wdScore.is-out {
+  opacity: 0.45;
+  text-decoration: line-through;
+}
+
+/* everyone else, in a strip */
+.wdStrip {
+  display: flex;
+  gap: 6px;
+  padding: 5px 8px;
+  overflow-x: auto;
+  flex-shrink: 0;
+  scrollbar-width: thin;
+}
+.wdOpp {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 3px 5px 4px;
+  background: rgb(0 0 0 / 0.28);
+  border: 1px solid rgb(255 255 255 / 0.18);
+  min-width: 70px;
+}
+.wdOpp.is-solved {
+  border-color: var(--wd-g-hi);
+  background: rgb(42 157 72 / 0.25);
+}
+.wdOpp.is-done:not(.is-solved) {
+  opacity: 0.7;
+}
+.wdOpp.is-out {
+  opacity: 0.45;
+  justify-content: center;
+}
+.wdOppHead {
+  display: flex;
+  gap: 6px;
+  justify-content: space-between;
+  align-items: baseline;
+  white-space: nowrap;
+}
+.wdOppHead b {
+  max-width: 90px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.wdOppStatus {
+  font-weight: bold;
+  color: #ffe066;
+}
+.wdOppBoards {
+  display: flex;
+  gap: 3px;
+}
+.wdOppHidden {
+  color: #bcd;
+}
+.wdMini {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.wdMiniRow {
+  display: flex;
+  gap: 1px;
+}
+.wdMiniTile {
+  width: var(--mini);
+  height: var(--mini);
+  background: rgb(255 255 255 / 0.1);
+  font: bold calc(var(--mini) * 0.8) / var(--mini) Arial, sans-serif;
+  text-align: center;
+  color: #fff;
+  overflow: hidden;
+}
+.wdMiniTile.is-g {
+  background: var(--wd-g);
+}
+.wdMiniTile.is-y {
+  background: var(--wd-y);
+}
+.wdMiniTile.is-b {
+  background: var(--wd-b);
+}
+.wdMiniTile.is-x {
+  background: rgb(255 255 255 / 0.25);
+}
+
+.wdTurns {
+  display: flex;
+  gap: 4px;
+  padding: 4px 8px 0;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.wdTurn {
+  padding: 1px 8px;
+  border: 1px solid rgb(255 255 255 / 0.25);
+  background: rgb(0 0 0 / 0.2);
+  display: inline-flex;
+  gap: 5px;
+}
+.wdTurn small {
+  color: #ffe066;
+  font-weight: bold;
+}
+.wdTurn.is-now {
+  background: #ffe066;
+  color: #000;
+  border-color: #fff;
+  font-weight: bold;
+}
+.wdTurn.is-now small {
+  color: #6a4b00;
+}
+
+.wdBanner {
+  text-align: center;
+  padding: 3px 8px;
+  color: #d8f4ee;
+  font-size: 12px;
+}
+.wdBanner.is-turn {
+  color: #ffe066;
+  font-weight: bold;
+  animation: wdPulse 1.4s ease-in-out infinite;
+}
+@keyframes wdPulse {
+  50% {
+    opacity: 0.6;
+  }
+}
+
+/* the boards fill whatever space is left */
+.wdArea {
+  position: relative;
+  flex: 1;
+  min-height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  overflow: auto;
+}
+.wdBoards {
+  display: grid;
+  gap: 12px;
+  justify-content: center;
+  align-content: center;
+  margin: auto;
+}
+.wdBoard {
+  display: flex;
+  flex-direction: column;
+  perspective: 600px;
+}
+.wdBoardLabel {
+  font-size: 10px;
+  color: #bde;
+  text-align: center;
+  height: 14px;
+}
+.wdBoard.is-solved .wdBoardLabel {
+  color: var(--wd-g-hi);
+  font-weight: bold;
+}
+.wdRow {
+  display: flex;
+}
+.wdRow.is-after .wdTile {
+  opacity: 0.25;
+}
+
+.wdTile {
+  --bg: var(--wd-slot);
+  --hi: #04262a;
+  --lo: #2b6870;
+  position: relative;
+  width: var(--tile, 52px);
+  height: var(--tile, 52px);
+  display: grid;
+  place-items: center;
+  background: var(--bg);
+  border: max(2px, calc(var(--tile, 52px) * 0.05)) solid;
+  border-color: var(--hi) var(--lo) var(--lo) var(--hi);
+  box-sizing: border-box;
+  font: 900 calc(var(--tile, 52px) * 0.56) / 1 "Arial Black", "Segoe UI", Arial, sans-serif;
+  color: #fff;
+  text-shadow: 1px 1px 0 rgb(0 0 0 / 0.3);
+}
+.wdTile.is-typed {
+  --bg: #134a52;
+  --hi: #4fa3ad;
+  --lo: #021c20;
+}
+.wdTile.is-g {
+  --bg: var(--wd-g);
+  --hi: var(--wd-g-hi);
+  --lo: var(--wd-g-lo);
+}
+.wdTile.is-y {
+  --bg: var(--wd-y);
+  --hi: var(--wd-y-hi);
+  --lo: var(--wd-y-lo);
+}
+.wdTile.is-b {
+  --bg: var(--wd-b);
+  --hi: var(--wd-b-hi);
+  --lo: var(--wd-b-lo);
+}
+.wdTile.is-x {
+  --bg: repeating-linear-gradient(45deg, #2a3c40 0 4px, #1c2b2e 4px 8px);
+  --hi: #1c2b2e;
+  --lo: #3c5a60;
+}
+/* typing: a little pop */
+.wdTile.is-pop {
+  animation: wdPop 0.12s ease-out;
+}
+@keyframes wdPop {
+  0% {
+    transform: scale(0.85);
+  }
+  60% {
+    transform: scale(1.1);
+  }
+}
+/* a guess turning over: the tile shows the plain look until it's edge-on, then its color */
+.wdTile.is-flip {
+  animation: wdFlip 0.5s ease-in-out backwards;
+  animation-delay: var(--flipDelay, 0ms);
+}
+@keyframes wdFlip {
+  0% {
+    transform: rotateX(0);
+    background: #134a52;
+    border-color: #4fa3ad #021c20 #021c20 #4fa3ad;
+  }
+  49% {
+    transform: rotateX(90deg);
+    background: #134a52;
+    border-color: #4fa3ad #021c20 #021c20 #4fa3ad;
+  }
+  51% {
+    transform: rotateX(90deg);
+  }
+  100% {
+    transform: rotateX(0);
+  }
+}
+.wdTile.is-flip.is-bounce {
+  animation:
+    wdFlip 0.5s ease-in-out backwards var(--flipDelay, 0ms),
+    wdBounce 0.45s ease-out var(--bounceDelay, 1s);
+}
+@keyframes wdBounce {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  40% {
+    transform: translateY(-30%);
+  }
+  70% {
+    transform: translateY(5%);
+  }
+}
+.wdRow.is-shake {
+  animation: wdShake 0.4s;
+}
+@keyframes wdShake {
+  10%,
+  90% {
+    transform: translateX(-2px);
+  }
+  20%,
+  80% {
+    transform: translateX(4px);
+  }
+  30%,
+  50%,
+  70% {
+    transform: translateX(-7px);
+  }
+  40%,
+  60% {
+    transform: translateX(7px);
+  }
+}
+.wdRow.is-current .wdTile:not(.is-typed) {
+  --lo: #3a8690;
+}
+.wdBoard.is-idle .wdRow.is-current .wdTile {
+  --lo: #2b6870;
+}
+
+.wdTile--demo {
+  --tile: 22px;
+  display: inline-grid;
+  vertical-align: middle;
+}
+
+.wdToast {
+  position: absolute;
+  top: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #ffffe1;
+  color: #000;
+  border: 1px solid #000;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: bold;
+  box-shadow: 2px 2px 0 rgb(0 0 0 / 0.4);
+  z-index: 5;
+  white-space: nowrap;
+  animation: wdToastIn 0.15s ease-out;
+}
+@keyframes wdToastIn {
+  from {
+    transform: translate(-50%, -6px);
+    opacity: 0;
+  }
+}
+
+/* watching everyone */
+.wdWatch {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: center;
+  align-content: flex-start;
+  margin: auto;
+  padding: 4px;
+}
+.wdWatchSet {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: center;
+}
+.wdWatchBoards {
+  display: flex;
+  gap: 6px;
+}
+
+/* co-op suggestions */
+.wdVotes {
+  display: flex;
+  gap: 4px;
+  padding: 4px 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.wdVote {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 6px;
+  background: rgb(0 0 0 / 0.3);
+  border: 1px solid rgb(255 255 255 / 0.3);
+}
+.wdVoteWord {
+  font: 900 13px/1 "Arial Black", Arial, sans-serif;
+  letter-spacing: 2px;
+}
+.wdLeave {
+  align-self: center;
+}
+.wdSmallBtn {
+  min-width: 0;
+  min-height: 0;
+  padding: 1px 6px;
+  color: #000;
+}
+
+/* ---------- the keyboard ---------- */
+
+.wdBottom {
+  flex-shrink: 0;
+  background: #c0c0c0;
+  border-top: 2px solid #fff;
+  color: #000;
+}
+.wdKeyboard {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 5px 4px 6px;
+  max-width: 520px;
+  margin: 0 auto;
+}
+.wdKeyRow {
+  display: flex;
+  gap: 4px;
+  justify-content: center;
+}
+.wdKeyHalf {
+  flex: 0.5;
+}
+.wdKey {
+  flex: 1;
+  min-width: 0;
+  height: 40px;
+  padding: 0;
+  font: bold 14px/1 Arial, sans-serif;
+  background: var(--wd-key);
+  color: #111; /* 98.css draws button text as a shadow; the backspace icon needs a color */
+  text-shadow: none;
+  touch-action: manipulation;
+}
+.wdKey svg {
+  display: block;
+  margin: auto;
+}
+.wdKey--wide {
+  flex: 1.55;
+  font-size: 11px;
+}
+.wdKey.is-g {
+  background: var(--wd-g);
+  color: #fff;
+}
+.wdKey.is-y {
+  background: var(--wd-y);
+  color: #fff;
+}
+.wdKey.is-b {
+  background: var(--wd-b);
+  color: #fff;
+}
+.wdKey.is-split {
+  color: #fff;
+  text-shadow: 0 0 2px #000, 0 0 2px #000, 0 0 1px #000;
+}
+.wdKeyboard.is-disabled .wdKey {
+  opacity: 0.75;
+}
+
+/* ---------- picking a word ---------- */
+
+.wdPick {
+  margin: auto;
+  max-width: 340px;
+  text-align: center;
+  padding: 10px;
+}
+.wdPick h3 {
+  margin: 0 0 4px;
+  font-size: 15px;
+  color: #ffe066;
+}
+.wdPickForm input {
+  font: 900 22px/1.2 "Arial Black", Arial, sans-serif;
+  letter-spacing: 6px;
+  text-transform: uppercase;
+  text-align: center;
+  width: 100%;
+  max-width: 260px;
+  margin: 6px 0 8px;
+  box-sizing: border-box;
+}
+.wdPickForm button,
+.wdPickWait button {
+  color: #000;
+}
+.wdHourglass {
+  width: 22px;
+  height: 28px;
+  margin: 0 auto 6px;
+  background: linear-gradient(135deg, transparent 45%, #ffe066 45% 55%, transparent 55%), linear-gradient(225deg, transparent 45%, #ffe066 45% 55%, transparent 55%);
+  border-top: 3px solid #ddd;
+  border-bottom: 3px solid #ddd;
+  animation: wdTurnOver 1.6s ease-in-out infinite;
+}
+@keyframes wdTurnOver {
+  80%,
+  100% {
+    transform: rotate(180deg);
+  }
+}
+
+/* ---------- between rounds, the end ---------- */
+
+.wdRoundOver,
+.wdFinal {
+  padding: 8px 10px 10px;
+  text-align: center;
+  max-height: 46vh;
+  overflow: auto;
+}
+.wdSummaryBox p,
+.wdSummaryBox h3 {
+  margin: 4px 0;
+}
+.wdSummaryBox h3 {
+  font-size: 18px;
+}
+.wdAnswer {
+  font-size: 13px;
+}
+.wdWord {
+  display: inline-block;
+  padding: 1px 6px;
+  margin: 1px 0;
+  background: var(--wd-g);
+  color: #fff;
+  font: 900 13px/1.3 "Arial Black", Arial, sans-serif;
+  letter-spacing: 2px;
+  text-decoration: none;
+  border: 2px solid;
+  border-color: var(--wd-g-hi) var(--wd-g-lo) var(--wd-g-lo) var(--wd-g-hi);
+}
+a.wdWord:hover {
+  filter: brightness(1.1);
+  text-decoration: underline;
+}
+.wdWin {
+  color: #006a1c;
+  font-weight: bold;
+}
+.wdTable {
+  margin: 6px auto;
+  border-collapse: collapse;
+  background: #fff;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080;
+}
+.wdTable td {
+  padding: 2px 10px;
+  text-align: left;
+}
+.wdTable tr.is-you {
+  background: #000080;
+  color: #fff;
+}
+.wdWords {
+  line-height: 1.9;
+}
+.wdShare {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  margin: 4px 0 6px;
+}
+.wdCopied {
+  font-weight: bold;
+  color: #006a1c;
+}
+.wdFooterBtns {
+  margin-top: 4px;
+}
+.wdFinal .olResult {
+  margin-top: 4px;
+}
+
+.wdConfetti {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 8;
+}
+
+/* ---------- dialogs ---------- */
+
+.wdStats {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 250px;
+}
+.wdStatNums {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+  text-align: center;
+}
+.wdStatNums b {
+  display: block;
+  font-size: 20px;
+}
+.wdStatNums small {
+  font-size: 10px;
+}
+.wdDist {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.wdDistRow {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.wdDistRow > span:first-child {
+  width: 12px;
+  text-align: right;
+}
+.wdDistBar {
+  background: #808080;
+  color: #fff;
+  font-weight: bold;
+  text-align: right;
+  padding: 0 4px;
+  box-sizing: border-box;
+  min-width: 18px;
+}
+.wdDistBar.is-now {
+  background: var(--wd-g);
+}
+.wdDistBar.is-x {
+  background: #a00000;
+}
+.wdLinkBtn {
+  align-self: flex-start;
+}
+.wdHow p {
+  margin: 4px 0 8px;
+  max-width: 340px;
+}
+.wdHow ul {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* ---------- phones ---------- */
+
+.wdRoot.is-mobile .wdKey {
+  height: 52px;
+  font-size: 17px;
+}
+.wdRoot.is-mobile .wdKey--wide {
+  font-size: 12px;
+}
+.wdRoot.is-mobile .wdKeyRow {
+  gap: 5px;
+}
+.wdRoot.is-mobile .wdKeyboard {
+  gap: 6px;
+  padding: 6px 3px calc(8px + env(safe-area-inset-bottom));
+}
+.wdRoot.is-mobile .wdTitle {
+  padding-top: 14px;
+}
+.wdRoot.is-mobile .wdLogoTile {
+  width: 34px;
+  height: 34px;
+  font-size: 22px;
+}
+.wdRoot.is-mobile input,
+.wdRoot.is-mobile select,
+.wdRoot.is-mobile textarea {
+  font-size: 16px; /* no zooming in on a field */
+}
+.wdRoot.is-mobile .wdPickForm input {
+  font-size: 22px;
+}
+.wdRoot.is-mobile .wdKnobs {
+  grid-template-columns: 1fr;
+}
+.wdRoot.is-mobile .wdPresets {
+  grid-template-columns: 1fr 1fr;
+}
+.wdRoot.is-mobile .wdMenuBtn small {
+  font-size: 10px;
+}
+.wdRoot.is-mobile .wdRoundOver,
+.wdRoot.is-mobile .wdFinal {
+  max-height: 52vh;
+}
+.wdRoot.is-mobile button {
+  touch-action: manipulation;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wdTile.is-flip,
+  .wdTile.is-flip.is-bounce,
+  .wdTile.is-pop,
+  .wdLogoTile {
+    animation: none;
+  }
+}

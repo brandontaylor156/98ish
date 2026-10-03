@@ -61,6 +61,7 @@ export const APP_PROFILES = {
   Battleship: { image: "battle.exe", mem: 1968, threads: 2, handles: 36, cpu: [0.2, 2] },
   Downhill: { image: "ski.exe", mem: 5124, threads: 4, handles: 61, cpu: [0.95, 11] },
   "Pickleball 98": { image: "pkball98.exe", mem: 38640, threads: 9, handles: 214, cpu: [4, 22] },
+  "Word Duel": { image: "wrdduel.exe", mem: 2610, threads: 3, handles: 47, cpu: [0.2, 5] },
   "Block Ten": { image: "blockten.exe", mem: 1876, threads: 2, handles: 33, cpu: [0.15, 4] },
   "Sunny Acres": { image: "acres.exe", mem: 7480, threads: 4, handles: 88, cpu: [0.6, 9] },
   "Photo Puzzle": { image: "puzzle.exe", mem: 4210, threads: 3, handles: 47, cpu: [0.2, 6] },

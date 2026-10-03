@@ -40,6 +40,7 @@ export const imageMapper = {
   ski: "program_icons/ski.svg",
   pickleball: "program_icons/pickleball.svg",
   blockten: "program_icons/blockten.svg",
+  wordduel: "program_icons/wordduel.svg",
   town: "program_icons/town.svg",
   puzzle: "program_icons/puzzle.svg",
   doodle: "program_icons/doodle.svg",

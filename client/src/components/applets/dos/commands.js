@@ -125,6 +125,8 @@ const ALIASES = {
   ski: "Downhill",
   downhill: "Downhill",
   pickleball: "Pickleball 98",
+  wordduel: "Word Duel",
+  words: "Word Duel",
   blockten: "Block Ten",
   tenten: "Block Ten",
   blocks: "Block Ten",
