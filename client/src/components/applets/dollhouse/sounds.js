@@ -3,26 +3,20 @@
 // Quiet when system sounds are off or the volume is muted.
 
 import { getSettings, masterGain } from "../../../utils/settings"
+import { createBus } from "../../../utils/audio"
+
+// on the page's shared AudioContext, through the taskbar volume
+const bus = createBus({ gain: 0.4 })
 
 export const createSounds = () => {
   let ctx = null
   let out = null
 
   const ready = () => {
-    if (!getSettings().systemSounds) return null
-    const gain = masterGain()
-    if (!gain) return null
-    if (!ctx) {
-      try {
-        ctx = new (window.AudioContext || window.webkitAudioContext)()
-      } catch {
-        return null
-      }
-      out = ctx.createGain()
-      out.connect(ctx.destination)
-    }
-    if (ctx.state === "suspended") ctx.resume().catch(() => {})
-    out.gain.value = 0.4 * gain
+    if (!getSettings().systemSounds || !masterGain()) return null
+    const b = bus()
+    if (!b) return null
+    ;({ ctx, out } = b)
     return ctx
   }
 

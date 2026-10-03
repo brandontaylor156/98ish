@@ -5,6 +5,7 @@ import FileDialog from "../notepad/FileDialog"
 import { fs, writeAndSave } from "../../../utils/fs"
 import { useFsVersion } from "../../../hooks/useFs"
 import { trackUnsaved } from "../../../utils/unsaved"
+import { closeAudioContext, createAudioContext, masterOutput } from "../../../utils/audio"
 import * as W from "./wave"
 import "./SoundRecorder.css"
 
@@ -19,10 +20,9 @@ const onDrive = (file) => !!file && fs.partsOf(file)[0] === "C:" && fs.resolve(f
 
 const WINDOW = 1024 // samples shown in the wave display (about 1/20 s)
 
-const newContext = () => {
-  const AC = window.AudioContext || window.webkitAudioContext
-  return AC ? new AC() : null
-}
+// its own context (the microphone and playback), woken by taps like every other and closed
+// with the window; playback goes through the taskbar volume
+const newContext = () => createAudioContext()
 
 // a sound file's contents -> samples at 22,050 Hz (the browser decodes anything that
 // isn't a plain PCM .wav)
@@ -154,7 +154,8 @@ const SoundRecorder = ({ file: initialFile = null, onTitle, onClose, registerClo
         } catch {}
         rec.stream.getTracks().forEach((t) => t.stop())
       }
-      ctxRef.current?.close?.().catch?.(() => {})
+      closeAudioContext(ctxRef.current)
+      ctxRef.current = null
     }
   }, [])
 
@@ -225,7 +226,7 @@ const SoundRecorder = ({ file: initialFile = null, onTitle, onClose, registerClo
     buffer.getChannelData(0).set(data)
     const src = ctx.createBufferSource()
     src.buffer = buffer
-    src.connect(ctx.destination)
+    src.connect(masterOutput(ctx))
     src.start(0, start / W.RATE)
     const entry = { src, ctx, t0: ctx.currentTime, start }
     playRef.current = entry

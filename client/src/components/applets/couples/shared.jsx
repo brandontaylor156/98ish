@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react"
 import { coupleApi, on, openCouples, serverNow } from "../../../utils/couple"
 import { getSettings, masterGain } from "../../../utils/settings"
+import { getAudioContext, masterOutput } from "../../../utils/audio"
 import { shrinkPicture } from "../homepage/pictures"
 import FileDialog from "../notepad/FileDialog"
 import { TwoHearts } from "./art"
@@ -12,17 +13,17 @@ import "./couples.css"
 
 // ---- sound ----
 
-let audio = null
+// (on the page's shared AudioContext, through the taskbar volume)
 export const playLoveChime = (kind = "open") => {
   const settings = getSettings()
-  const volume = masterGain(settings)
-  if (!settings.systemSounds || !volume) return
+  if (!settings.systemSounds || !masterGain(settings)) return
   try {
-    audio ||= new (window.AudioContext || window.webkitAudioContext)()
-    if (audio.state === "suspended") audio.resume().catch(() => {})
+    const audio = getAudioContext()
+    if (!audio) return
+    if (audio.state !== "running") audio.resume().catch(() => {})
     const out = audio.createGain()
-    out.gain.value = 0.32 * volume
-    out.connect(audio.destination)
+    out.gain.value = 0.32
+    out.connect(masterOutput(audio))
     // a music-box arpeggio (opening) or two little notes (something arrived)
     const notes = kind === "open" ? [[659.25, 0], [830.61, 0.12], [987.77, 0.24], [1318.5, 0.38], [1661.2, 0.56]] : [[880, 0], [1318.5, 0.14]]
     for (const [freq, delay] of notes) {

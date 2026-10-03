@@ -4,8 +4,12 @@
 // Quiet when "Play system sounds" is off, when Options > Sound is off, or when muted.
 
 import { getSettings, masterGain } from "../../../utils/settings"
+import { createBus } from "../../../utils/audio"
 
 const midi = (m) => 440 * Math.pow(2, (m - 69) / 12)
+
+// on the page's shared AudioContext, through the taskbar volume
+const bus = createBus({ gain: 0.5, threshold: -14 })
 
 export const createSounds = () => {
   let ctx = null
@@ -14,25 +18,15 @@ export const createSounds = () => {
   let on = true
 
   const ready = () => {
-    if (!on || !getSettings().systemSounds) return null
-    const gain = masterGain()
-    if (!gain) return null
-    if (!ctx) {
-      try {
-        ctx = new (window.AudioContext || window.webkitAudioContext)()
-      } catch {
-        return null
-      }
-      out = ctx.createGain()
-      const comp = ctx.createDynamicsCompressor()
-      comp.threshold.value = -14
-      out.connect(comp).connect(ctx.destination)
+    if (!on || !getSettings().systemSounds || !masterGain()) return null
+    const b = bus()
+    if (!b) return null
+    ;({ ctx, out } = b)
+    if (!noise || noise.sampleRate !== ctx.sampleRate) {
       noise = ctx.createBuffer(1, ctx.sampleRate / 2, ctx.sampleRate)
       const data = noise.getChannelData(0)
       for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1
     }
-    if (ctx.state === "suspended") ctx.resume().catch(() => {})
-    out.gain.value = 0.5 * gain
     return ctx
   }
 

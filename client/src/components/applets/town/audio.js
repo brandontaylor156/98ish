@@ -4,8 +4,12 @@
 // unchecked in the game's menu; follows the system volume.
 
 import { getSettings, masterGain } from "../../../utils/settings"
+import { createBus } from "../../../utils/audio"
 
 const midi = (m) => 440 * Math.pow(2, (m - 69) / 12)
+
+// on the page's shared AudioContext, through the taskbar volume
+const bus = createBus({ gain: 0.5, threshold: -14 })
 
 export const createSounds = () => {
   let ctx = null
@@ -16,22 +20,14 @@ export const createSounds = () => {
 
   const ready = () => {
     if (!opts.sound || !getSettings().systemSounds || masterGain() <= 0) return null
-    if (!ctx) {
-      try {
-        ctx = new (window.AudioContext || window.webkitAudioContext)()
-      } catch {
-        return null
-      }
-      out = ctx.createGain()
-      const comp = ctx.createDynamicsCompressor()
-      comp.threshold.value = -14
-      out.connect(comp).connect(ctx.destination)
+    const b = bus()
+    if (!b) return null
+    ;({ ctx, out } = b)
+    if (!noiseBuf || noiseBuf.sampleRate !== ctx.sampleRate) {
       noiseBuf = ctx.createBuffer(1, ctx.sampleRate * 0.6, ctx.sampleRate)
       const d = noiseBuf.getChannelData(0)
       for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1
     }
-    out.gain.value = 0.5 * masterGain()
-    if (ctx.state === "suspended") ctx.resume().catch(() => {})
     return ctx
   }
 
@@ -175,10 +171,8 @@ export const createSounds = () => {
     },
     setEnabled: (on) => (opts.sound = on),
     enabled: () => opts.sound,
+    // the shared context stays open for everyone else
     close: () => {
-      try {
-        ctx?.close()
-      } catch {}
       ctx = null
     },
   }

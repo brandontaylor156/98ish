@@ -1,20 +1,11 @@
 import { getSettings, masterGain } from "./settings"
+import { createBus } from "./audio"
 
 // Windows' system sounds (ding, chord, minimize...), synthesized with Web Audio: no sound
-// files. Turned off with "Play system sounds" in Display Properties > Startup.
+// files. Turned off with "Play system sounds" in Display Properties > Startup. They play on
+// the page's shared AudioContext, through the taskbar volume.
 
-let ctx = null
-const audio = () => {
-  if (!ctx) {
-    try {
-      ctx = new (window.AudioContext || window.webkitAudioContext)()
-    } catch {
-      return null
-    }
-  }
-  if (ctx.state === "suspended") ctx.resume().catch(() => {})
-  return ctx
-}
+const bus = createBus({ gain: 0.6 })
 
 const tone = (c, out, { freq, to, start = 0, length = 0.3, type = "sine", level = 0.5, attack = 0.005 }) => {
   const t = c.currentTime + start
@@ -221,9 +212,9 @@ const SCHEME_SOUNDS = {
     minimize: (c, out) => tone(c, out, { freq: 900, to: 400, length: 0.16, type: "triangle", level: 0.12 }),
     maximize: (c, out) => tone(c, out, { freq: 400, to: 900, length: 0.16, type: "triangle", level: 0.12 }),
     restore: (c, out) => tone(c, out, { freq: 2794, length: 0.25, level: 0.1 }),
-    // a purr
+    // a purr (so narrow a low band keeps little of the noise, hence the high level)
     recycle: (c, out) => {
-      for (let i = 0; i < 14; i++) noise(c, out, { start: i * 0.045, length: 0.05, level: 0.18, filter: 160, q: 2 })
+      for (let i = 0; i < 14; i++) noise(c, out, { start: i * 0.045, length: 0.05, level: 1.4, filter: 160, q: 2 })
     },
     exit: (c, out) => {
       meow(c, out, { pitch: 0.9 })
@@ -325,14 +316,10 @@ export const SOUND_EVENTS = [
 
 const play = (name, scheme) => {
   const sound = SCHEME_SOUNDS[scheme]?.[name] || SOUNDS[name]
-  const gain = masterGain()
-  if (!sound || !gain) return
-  const c = audio()
-  if (!c) return
-  const out = c.createGain()
-  out.gain.value = 0.6 * gain
-  out.connect(c.destination)
-  sound(c, out)
+  if (!sound || !masterGain()) return
+  const b = bus()
+  if (!b) return
+  sound(b.ctx, b.out)
 }
 
 export const playSystemSound = (name) => {

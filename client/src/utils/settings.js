@@ -101,6 +101,12 @@ export const setSettings = (patch) => {
   listeners.forEach((fn) => fn(current))
 }
 
+// Outside React: fn(settings) on every change. Returns the unsubscribe.
+export const subscribeSettings = (fn) => {
+  listeners.add(fn)
+  return () => listeners.delete(fn)
+}
+
 export const useSettings = () => {
   const [value, setValue] = useState(current)
   useEffect(() => {

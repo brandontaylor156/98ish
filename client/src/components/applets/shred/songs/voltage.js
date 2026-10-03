@@ -48,7 +48,7 @@ const song = build({
   tracks: {
     lead: { instrument: "shredLead", gain: 0.8, pan: 0.1, reverb: 0.26, delay: 0.16 },
     rhythm: { instrument: "shredRhythm", gain: 0.6, pan: -0.36, reverb: 0.12 },
-    organ: { instrument: "organ", gain: 0.34, pan: 0.36, reverb: 0.35 },
+    organ: { instrument: "organ", gain: 0.68, pan: 0.36, reverb: 0.35 },
     bass: { instrument: "fingerBass", gain: 0.8, reverb: 0.03 },
     drums: { instrument: "drums", gain: 0.72, reverb: 0.16 },
   },

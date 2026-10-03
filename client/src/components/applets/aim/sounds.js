@@ -1,26 +1,10 @@
 // Messenger sounds synthesized with Web Audio: a door creaking open
 // when a buddy signs on, a door shutting when one signs off, and a bloop for a new IM.
+// They play on the page's shared AudioContext (utils/audio.js wakes it on the first tap or
+// key press, as phones require), through the taskbar volume.
 
-let context = null
-
-const audio = () => {
-  if (!context) {
-    const AudioContext = window.AudioContext || window.webkitAudioContext
-    if (!AudioContext) return null
-    context = new AudioContext()
-  }
-  return context
-}
-
-// iOS only lets audio start from a user gesture; resume the context on the first one
-const unlock = () => {
-  const ctx = audio()
-  if (ctx?.state === "suspended") ctx.resume()
-}
-if (typeof window !== "undefined") {
-  window.addEventListener("pointerdown", unlock, { capture: true, passive: true })
-  window.addEventListener("keydown", unlock, { capture: true, passive: true })
-}
+import { getAudioContext, masterOutput } from "../../../utils/audio"
+import { masterGain } from "../../../utils/settings"
 
 const tone = (ctx, { type = "sine", from, to = from, start = 0, duration, volume = 0.2, filter }) => {
   const t = ctx.currentTime + start
@@ -40,7 +24,7 @@ const tone = (ctx, { type = "sine", from, to = from, start = 0, duration, volume
     osc.connect(biquad)
     node = biquad
   }
-  node.connect(gain).connect(ctx.destination)
+  node.connect(gain).connect(masterOutput(ctx))
   osc.start(t)
   osc.stop(t + duration + 0.05)
 }
@@ -58,7 +42,7 @@ const thud = (ctx, start, volume) => {
   filter.frequency.value = 400
   const gain = ctx.createGain()
   gain.gain.value = volume
-  source.connect(filter).connect(gain).connect(ctx.destination)
+  source.connect(filter).connect(gain).connect(masterOutput(ctx))
   source.start(t)
 }
 
@@ -87,10 +71,11 @@ const SOUNDS = {
 }
 
 export const playSound = (name) => {
-  const ctx = audio()
-  if (!ctx || !SOUNDS[name]) return
+  if (!SOUNDS[name] || !masterGain()) return
+  const ctx = getAudioContext()
+  if (!ctx) return
   try {
-    if (ctx.state === "suspended") ctx.resume()
+    if (ctx.state !== "running") ctx.resume().catch(() => {})
     SOUNDS[name](ctx)
   } catch {
     // Audio is a nicety; never let it break messaging

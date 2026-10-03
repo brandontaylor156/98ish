@@ -4,8 +4,12 @@
 // off, when the game's sound is off, or when muted; follows the taskbar volume.
 
 import { getSettings, masterGain } from "../../../utils/settings"
+import { createBus } from "../../../utils/audio"
 
 const midi = (m) => 440 * Math.pow(2, (m - 69) / 12)
+
+// on the page's shared AudioContext, through the taskbar volume
+const bus = createBus({ gain: 0.45 })
 
 export const createSounds = () => {
   let ctx = null
@@ -13,20 +17,10 @@ export const createSounds = () => {
   let on = true
 
   const ready = () => {
-    if (!on || !getSettings().systemSounds) return null
-    const gain = masterGain()
-    if (!gain) return null
-    if (!ctx) {
-      try {
-        ctx = new (window.AudioContext || window.webkitAudioContext)()
-      } catch {
-        return null
-      }
-      out = ctx.createGain()
-      out.connect(ctx.destination)
-    }
-    if (ctx.state === "suspended") ctx.resume().catch(() => {})
-    out.gain.value = 0.45 * gain
+    if (!on || !getSettings().systemSounds || !masterGain()) return null
+    const b = bus()
+    if (!b) return null
+    ;({ ctx, out } = b)
     return ctx
   }
 
@@ -69,7 +63,7 @@ export const createSounds = () => {
     tap: play(() => tone(880, { len: 0.05, type: "sine", vol: 0.08 })),
     lock: play(() => (tone(523, { len: 0.08, type: "square", vol: 0.06 }), tone(784, { at: 0.06, len: 0.1, type: "square", vol: 0.06 }))),
     drumroll: play(() => {
-      for (let i = 0; i < 10; i++) noise({ at: i * 0.045, len: 0.05, vol: 0.05 + i * 0.008, freq: 900 })
+      for (let i = 0; i < 10; i++) noise({ at: i * 0.045, len: 0.05, vol: 0.12 + i * 0.016, freq: 900 })
     }),
     match: play(() => [72, 76, 79, 84, 88].forEach((m, i) => tone(midi(m), { at: i * 0.07, len: 0.35, type: "sine", vol: 0.16 }))),
     miss: play(() => (tone(midi(67), { len: 0.22, type: "triangle", vol: 0.14, to: midi(64) }), tone(midi(64), { at: 0.2, len: 0.35, type: "triangle", vol: 0.12, to: midi(60) }))),
@@ -87,7 +81,7 @@ export const createSounds = () => {
     // crowd cheering, a playful "wah-wah", a cash register for a winning bet, a whoosh
     beep: play((last) => tone(last ? 1320 : 880, { len: last ? 0.3 : 0.12, type: "square", vol: 0.07 })),
     longroll: play(() => {
-      for (let i = 0; i < 26; i++) noise({ at: i * 0.055, len: 0.06, vol: 0.04 + i * 0.004, freq: 700 + (i % 2) * 200 })
+      for (let i = 0; i < 26; i++) noise({ at: i * 0.055, len: 0.06, vol: 0.08 + i * 0.008, freq: 700 + (i % 2) * 200 })
       noise({ at: 1.45, len: 0.5, vol: 0.16, freq: 6000 })
     }),
     cheer: play(() => {

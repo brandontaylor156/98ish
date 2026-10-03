@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react"
 import Dialog from "../shared/Dialog"
+import { getAudioContext, masterOutput } from "../../utils/audio"
 import "./Power.css"
 
 // Starting up and shutting down: the BIOS screen and splash, the startup chime, the
@@ -7,7 +8,6 @@ import "./Power.css"
 
 // ---- the startup chime (made up on the spot with Web Audio, no sound file) ----
 
-let audio = null
 const chime = (ctx) => {
   const now = ctx.currentTime + 0.05
   const out = ctx.createGain()
@@ -19,10 +19,15 @@ const chime = (ctx) => {
   feedback.gain.value = 0.32
   const wet = ctx.createGain()
   wet.gain.value = 0.35
+  const speaker = masterOutput(ctx)
   delay.connect(feedback).connect(delay)
-  delay.connect(wet).connect(ctx.destination)
-  out.connect(ctx.destination)
+  delay.connect(wet).connect(speaker)
+  out.connect(speaker)
   out.connect(delay)
+  // once the echo has died away, unplug it (a feedback loop would otherwise run forever)
+  setTimeout(() => {
+    for (const n of [out, delay, feedback, wet]) n.disconnect()
+  }, 7000)
 
   const note = (freq, start, length, type = "sine", level = 1) => {
     const osc = ctx.createOscillator()
@@ -43,41 +48,22 @@ const chime = (ctx) => {
   note(1244.51, 1.15, 2.2, "sine", 0.3)
 }
 
-// Plays now if the browser allows sound, otherwise on the first click or key press soon
+// Plays now if the browser allows sound; otherwise the browser holds it until the first
+// click, tap or key press (utils/audio.js wakes the page's audio then), and it plays then,
+// unless that's too late to be a "startup" sound
 export const playStartupSound = () => {
-  try {
-    audio = audio || new (window.AudioContext || window.webkitAudioContext)()
-  } catch {
-    return
-  }
-  const ctx = audio
+  const ctx = getAudioContext()
+  if (!ctx) return
   if (ctx.state === "running") return chime(ctx)
-  let done = false
-  const go = () => {
-    if (done) return
-    done = true
-    cleanup()
-    ctx.resume().then(() => chime(ctx)).catch(() => {})
+  const t0 = Date.now()
+  const onState = () => {
+    if (ctx.state !== "running") return
+    ctx.removeEventListener("statechange", onState)
+    if (Date.now() - t0 < 15000) chime(ctx)
   }
-  const cleanup = () => {
-    window.removeEventListener("pointerdown", go, true)
-    window.removeEventListener("keydown", go, true)
-    clearTimeout(timer)
-  }
-  ctx.resume().then(() => {
-    if (!done && ctx.state === "running") {
-      done = true
-      cleanup()
-      chime(ctx)
-    }
-  }).catch(() => {})
-  window.addEventListener("pointerdown", go, true)
-  window.addEventListener("keydown", go, true)
-  // too late to be a "startup" sound after this
-  const timer = setTimeout(() => {
-    done = true
-    cleanup()
-  }, 15000)
+  ctx.addEventListener("statechange", onState)
+  ctx.resume().catch(() => {})
+  setTimeout(() => ctx.removeEventListener("statechange", onState), 15000)
 }
 
 // ---- boot ----

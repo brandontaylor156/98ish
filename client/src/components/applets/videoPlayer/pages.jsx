@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from "react"
+import React, { useEffect, useRef, useState } from "react"
+import { masterGain, useSettings } from "../../../utils/settings"
 import { embedUrl, formatCount, formatDate, getComments, getPopular, getVideo, searchVideos, timeAgo } from "./api"
 import { ErrorPage, LinkedText, Loading, SideRow, VideoCard, VideoRow } from "./parts"
 
@@ -155,9 +156,52 @@ const Comments = ({ id, total }) => {
   )
 }
 
+// The embedded player follows the taskbar volume and mute, through the messages YouTube's
+// embed API understands (the page can't reach into the player's own audio)
+const YT_ORIGIN = "https://www.youtube.com"
+const usePlayerVolume = (frameRef) => {
+  const settings = useSettings()
+  // `changed`: the volume was just moved, so unmute too (a fresh player is left as it
+  // started: unmuting one the browser started muted could stop it)
+  const apply = (changed = false) => {
+    const win = frameRef.current?.contentWindow
+    if (!win) return
+    const send = (func, args = []) => win.postMessage(JSON.stringify({ event: "command", func, args }), YT_ORIGIN)
+    const volume = Math.round(100 * masterGain(settings))
+    send("setVolume", [volume])
+    if (!volume) send("mute")
+    else if (changed) send("unMute")
+  }
+  const latest = useRef(apply)
+  latest.current = apply
+  useEffect(() => apply(true), [settings.volume, settings.muted])
+  // again once the player says it's ready (it only talks after we say we're listening)
+  useEffect(() => {
+    const onMessage = (e) => {
+      if (e.origin !== YT_ORIGIN || e.source !== frameRef.current?.contentWindow) return
+      let data = e.data
+      try {
+        if (typeof data === "string") data = JSON.parse(data)
+      } catch {
+        return
+      }
+      if (data?.event === "onReady" || data?.event === "initialDelivery") latest.current()
+    }
+    window.addEventListener("message", onMessage)
+    return () => window.removeEventListener("message", onMessage)
+  }, [])
+  // the iframe's onLoad
+  return () => {
+    frameRef.current?.contentWindow?.postMessage(JSON.stringify({ event: "listening", id: 1 }), YT_ORIGIN)
+    latest.current()
+  }
+}
+
 export const Watch = ({ id, navigate, setStatus, isFavorite, toggleFavorite, lastResults, onShare }) => {
   const { data, error, retry } = useLoad(() => getVideo(id), [id], setStatus)
   const [expanded, setExpanded] = useState(false)
+  const frameRef = useRef(null)
+  const onPlayerLoad = usePlayerVolume(frameRef)
 
   if (error) return <ErrorPage error={error} onRetry={retry} />
   if (!data) return <Loading />
@@ -172,7 +216,9 @@ export const Watch = ({ id, navigate, setStatus, isFavorite, toggleFavorite, las
         <h1 className="ytWatchTitle">{video.title}</h1>
         <div className="ytPlayer">
           <iframe
-            src={`${embedUrl(id)}?autoplay=1&rel=0&playsinline=1`}
+            ref={frameRef}
+            onLoad={onPlayerLoad}
+            src={`${embedUrl(id)}?autoplay=1&rel=0&playsinline=1&enablejsapi=1&origin=${encodeURIComponent(window.location.origin)}`}
             title={video.title}
             allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
             allowFullScreen

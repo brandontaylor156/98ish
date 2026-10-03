@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react"
 import { unlockAudio } from "../../../mediaPlayer/audio"
+import { masterGain, subscribeSettings } from "../../../../../utils/settings"
 
 // A homepage's background music: one of the Media Player's songs, looping, played by the
 // Media Player's own synth. Browsers only allow sound after the visitor clicks, so it
@@ -19,6 +20,9 @@ export const usePageMusic = (songId) => {
     setState("idle")
     return destroy
   }, [songId])
+
+  // the taskbar volume and mute, as they change
+  useEffect(() => subscribeSettings((s) => engineRef.current?.setVolume(0.7 * masterGain(s))), [])
 
   // Call inside a click/tap
   const play = () => {
@@ -42,7 +46,7 @@ export const usePageMusic = (songId) => {
         })
         if (!engine) return setState("stopped")
         engine.load(song)
-        engine.setVolume(0.7)
+        engine.setVolume(0.7 * masterGain())
         engineRef.current = engine
         engine.play()
         setState("playing")

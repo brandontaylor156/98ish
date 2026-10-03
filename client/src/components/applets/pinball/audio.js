@@ -2,9 +2,13 @@
 // flipper clacks, the plunger, drains and little jingles. Silent when "Play system sounds"
 // is off in Display Properties, or when Sounds is unchecked in the game's Options menu.
 
-import { getSettings } from "../../../utils/settings"
+import { getSettings, masterGain } from "../../../utils/settings"
+import { createBus } from "../../../utils/audio"
 
 const midi = (m) => 440 * Math.pow(2, (m - 69) / 12)
+
+// on the page's shared AudioContext, through the taskbar volume
+const bus = createBus({ gain: 0.55, threshold: -12 })
 
 export const createSounds = () => {
   let ctx = null
@@ -14,23 +18,15 @@ export const createSounds = () => {
   const opts = { sound: true, music: true }
 
   const ready = () => {
-    if (!opts.sound || !getSettings().systemSounds) return null
-    if (!ctx) {
-      try {
-        ctx = new (window.AudioContext || window.webkitAudioContext)()
-      } catch {
-        return null
-      }
-      out = ctx.createGain()
-      out.gain.value = 0.55
-      const comp = ctx.createDynamicsCompressor()
-      comp.threshold.value = -12
-      out.connect(comp).connect(ctx.destination)
+    if (!opts.sound || !getSettings().systemSounds || !masterGain()) return null
+    const b = bus()
+    if (!b) return null
+    ;({ ctx, out } = b)
+    if (!noiseBuf || noiseBuf.sampleRate !== ctx.sampleRate) {
       noiseBuf = ctx.createBuffer(1, ctx.sampleRate * 0.5, ctx.sampleRate)
       const d = noiseBuf.getChannelData(0)
       for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1
     }
-    if (ctx.state === "suspended") ctx.resume().catch(() => {})
     return ctx
   }
 
@@ -167,8 +163,8 @@ export const createSounds = () => {
     },
     // the first tap or key unlocks audio on phones
     unlock: () => ready(),
+    // the shared context stays open for everyone else
     close: () => {
-      ctx?.close().catch(() => {})
       ctx = null
     },
   }

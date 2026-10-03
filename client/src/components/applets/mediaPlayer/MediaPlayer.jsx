@@ -240,6 +240,8 @@ const MediaPlayer = ({ song: initialSong = null, windowIndex, onTitle, onClose }
       setUnsupported(true)
       return
     }
+    // test hook (dev server only): the sound tests compare what plays with the score
+    if (import.meta.env.DEV) window.__mediaPlayer = e
     const { prefs: p, current: song } = latest.current
     e.setVolume(gainFor(p.volume) * masterGain())
     e.setMuted(p.muted)
@@ -257,6 +259,7 @@ const MediaPlayer = ({ song: initialSong = null, windowIndex, onTitle, onClose }
       unregister()
       e.destroy()
       engineRef.current = null
+      if (import.meta.env.DEV && window.__mediaPlayer === e) delete window.__mediaPlayer
       if ("mediaSession" in navigator) {
         try {
           navigator.mediaSession.metadata = null

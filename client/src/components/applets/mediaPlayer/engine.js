@@ -1,5 +1,5 @@
 import { createSynth, INSTRUMENTS } from "./synth"
-import { compile, Scheduler, LOOKAHEAD, LOOKAHEAD_HIDDEN } from "./sequencer"
+import { compile, lowerBound, Scheduler, LOOKAHEAD, LOOKAHEAD_HIDDEN } from "./sequencer"
 import { getContext, releaseContext } from "./audio"
 
 export { unlockAudio } from "./audio"
@@ -140,10 +140,21 @@ export const renderOffline = async (song, { start = 0, seconds = 6, solo = null,
   const synth = createSynth(ctx, { bpm: song.bpm })
   for (const t of song.tracks) synth.addTrack(t)
   const { events } = compile(song)
-  for (const e of events) {
-    if (e.time >= start + seconds) break
-    if (e.time < start || (solo !== null && e.track !== solo)) continue
-    synth.play(song.tracks[e.track].instrument, e.track, e.time - start + 0.01, e.dur, e.midi, e.vel)
+  // schedule a second at a time as the render goes (like the live player), so the graph
+  // never holds the whole song's notes at once
+  let i = lowerBound(events, start)
+  const schedule = (until) => {
+    for (; i < events.length && events[i].time < Math.min(until, start + seconds); i++) {
+      const e = events[i]
+      if (solo === null || e.track === solo) synth.play(song.tracks[e.track].instrument, e.track, e.time - start + 0.01, e.dur, e.midi, e.vel)
+    }
+  }
+  schedule(start + 1.5)
+  for (let t = 1; t < seconds; t += 1) {
+    ctx.suspend(t).then(() => {
+      schedule(start + t + 1.5)
+      ctx.resume()
+    })
   }
   return ctx.startRendering()
 }

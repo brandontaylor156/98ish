@@ -246,20 +246,15 @@ export const encodeWav = (samples, rate) => {
 
 // Any sound the browser can play -> a mono 22 kHz WAV data URL (the first 30 seconds)
 export const audioToWav = async (file) => {
-  const Ctx = window.AudioContext || window.webkitAudioContext
   const OfflineCtx = window.OfflineAudioContext || window.webkitOfflineAudioContext
-  if (!Ctx || !OfflineCtx) throw new Error("can't be read by this browser")
-  const ctx = new Ctx()
-  let decoded
-  try {
-    const buffer = await file.arrayBuffer()
-    decoded = await new Promise((resolve, reject) => {
-      const fail = () => reject(new Error("isn't a sound this browser can play"))
-      ctx.decodeAudioData(buffer, resolve, fail)?.catch?.(fail) // Safari only has the callbacks
-    })
-  } finally {
-    ctx.close?.()
-  }
+  if (!OfflineCtx) throw new Error("can't be read by this browser")
+  // decoding needs no sound card: an offline context doesn't open one
+  const ctx = new OfflineCtx(1, 1, 44100)
+  const buffer = await file.arrayBuffer()
+  const decoded = await new Promise((resolve, reject) => {
+    const fail = () => reject(new Error("isn't a sound this browser can play"))
+    ctx.decodeAudioData(buffer, resolve, fail)?.catch?.(fail) // Safari only has the callbacks
+  })
   const seconds = Math.min(decoded.duration, MAX_SOUND_SECONDS)
   const frames = Math.max(1, Math.ceil(seconds * SOUND_RATE))
   const offline = new OfflineCtx(1, frames, SOUND_RATE)

@@ -5,6 +5,7 @@
 // volume (utils/settings.js).
 
 import { getSettings, masterGain } from "../../../utils/settings"
+import { getAudioContext, masterOutput } from "../../../utils/audio"
 
 export const createAudio = () => {
   let ctx = null
@@ -15,26 +16,20 @@ export const createAudio = () => {
   let crowdLevel = 0 // how big the crowd is (0 = nobody)
   let murmur = null
 
+  // on the page's shared AudioContext; this game's own gain (so closing it can cut its
+  // crowd) into the taskbar volume
   const ready = () => {
-    if (!enabled || !getSettings().systemSounds) return null
-    const gain = masterGain()
-    if (gain <= 0) return null
+    if (!enabled || !getSettings().systemSounds || masterGain() <= 0) return null
     if (!ctx) {
-      const AudioContext = window.AudioContext || window.webkitAudioContext
-      if (!AudioContext) return null
-      try {
-        ctx = new AudioContext()
-      } catch {
-        return null
-      }
+      ctx = getAudioContext()
+      if (!ctx) return null
       out = ctx.createGain()
-      out.connect(ctx.destination)
+      out.connect(masterOutput(ctx))
       noise = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 1.5), ctx.sampleRate)
       const d = noise.getChannelData(0)
       for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1
     }
-    if (ctx.state === "suspended") ctx.resume().catch(() => {})
-    out.gain.value = gain
+    if (ctx.state !== "running") ctx.resume().catch(() => {})
     return ctx
   }
 
@@ -269,8 +264,14 @@ export const createAudio = () => {
       } catch {
         // no speech here
       }
-      ctx?.close().catch(() => {})
+      // the shared context stays open; this game's sounds stop here
+      try {
+        out?.disconnect()
+      } catch {
+        // never connected
+      }
       ctx = null
+      out = null
     },
   }
   return api

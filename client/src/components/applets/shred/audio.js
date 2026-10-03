@@ -10,10 +10,12 @@
 import { createSynth } from "../mediaPlayer/synth.js"
 import { compile, lowerBound } from "../mediaPlayer/sequencer.js"
 import { createClock, clockSample, heardAt } from "./timing.js"
+import { claimPlaybackSession, closeAudioContext, createAudioContext } from "../../../utils/audio.js"
 
 const TICK_MS = 25
 const LOOKAHEAD = 0.15
 export const COUNT_IN_BEATS = 4
+const START_DELAY = 0.08 // seconds from start() to the first sound
 
 const midiToHz = (m) => 440 * Math.pow(2, (m - 69) / 12)
 
@@ -64,24 +66,98 @@ const amp = (ctx, { drive, tone, level }) => {
   const shaper = ctx.createWaveShaper()
   shaper.curve = driveCurve(18)
   shaper.oversample = "4x"
+  // clipping a lopsided wave (two saws and a square an octave down) leaves a DC offset,
+  // which would thump every time the lead is cut: a speaker doesn't pass it anyway
+  const dcBlock = biquad(ctx, "highpass", 30, 0.7)
   const scoop = biquad(ctx, "peaking", 720, 0.9, -4)
   const bite = biquad(ctx, "peaking", 2300, 1.1, 4.5)
   const cab = biquad(ctx, "lowpass", tone, 0.8)
   const cab2 = biquad(ctx, "lowpass", tone * 1.4, 0.5)
   const out = gainOf(ctx, level)
-  input.connect(lowCut).connect(pre).connect(shaper).connect(scoop).connect(bite).connect(cab).connect(cab2).connect(out)
+  input.connect(lowCut).connect(pre).connect(shaper).connect(dcBlock).connect(scoop).connect(bite).connect(cab).connect(cab2).connect(out)
   return { input, out }
 }
 
-export const createAudio = () => {
-  const AC = typeof window !== "undefined" ? window.AudioContext || window.webkitAudioContext : null
-  if (!AC) return null
-  let ctx
-  try {
-    ctx = new AC({ latencyHint: "interactive" })
-  } catch {
-    return null
+// ---------- latency ----------
+// Every sound reaches the speakers a little after it's scheduled: the band's mixer has two
+// compressors (each looks 6 ms ahead), the amps' 4x oversampling adds a few ms more, and the
+// effects have a compressor of their own. So each sound is scheduled that much early, to be
+// heard right on the chart, the game clock and the calibration clicks. Measured once per
+// sample rate by rendering a click through the same parts offline; until that's done (a
+// moment after the game opens), the usual values.
+export const DEFAULT_LATENCY = { band: 0.012, amp: 0.0044, sfx: 0.006 }
+const latencies = new Map() // sampleRate -> { band, amp, sfx }
+const measuring = new Map() // sampleRate -> Promise
+
+// seconds until the click (at `at`) comes out: the first sample above `share` of the peak
+const arrival = (buffer, at, share) => {
+  const d = buffer.getChannelData(0)
+  let peak = 0
+  for (const v of d) peak = Math.max(peak, Math.abs(v))
+  if (!peak) return null
+  for (let i = 0; i < d.length; i++) if (Math.abs(d[i]) >= peak * share) return i / buffer.sampleRate - at
+  return null
+}
+
+export const latencyFor = (sampleRate) => latencies.get(sampleRate) || DEFAULT_LATENCY
+
+export const measureLatency = (sampleRate) => {
+  if (latencies.has(sampleRate)) return Promise.resolve(latencies.get(sampleRate))
+  if (measuring.has(sampleRate)) return measuring.get(sampleRate)
+  const OAC = typeof OfflineAudioContext !== "undefined" ? OfflineAudioContext : null
+  if (!OAC) return Promise.resolve(DEFAULT_LATENCY)
+  const at = 0.02
+  const render = async (share, build) => {
+    const ctx = new OAC(1, Math.ceil(sampleRate * 0.1), sampleRate)
+    const buf = ctx.createBuffer(1, 1, sampleRate)
+    buf.getChannelData(0)[0] = 0.5
+    const click = ctx.createBufferSource()
+    click.buffer = buf
+    click.connect(build(ctx))
+    click.start(at)
+    return arrival(await ctx.startRendering(), at, share)
   }
+  const job = Promise.all([
+    // the band's mixer: compressor look-ahead is a pure delay
+    render(0.01, (ctx) => {
+      const synth = createSynth(ctx)
+      synth.addTrack({ gain: 1, reverb: 0, delay: 0 })
+      return synth.trackInput(0)
+    }),
+    // an amp: when the bulk of a click gets through the oversampling filters
+    render(0.3, (ctx) => {
+      const a = amp(ctx, { drive: 1, tone: 4600, level: 1 })
+      a.out.connect(ctx.destination)
+      return a.input
+    }),
+    render(0.01, (ctx) => {
+      const comp = ctx.createDynamicsCompressor()
+      comp.connect(ctx.destination)
+      return comp
+    }),
+  ])
+    .then(([band, ampDelay, sfx]) => {
+      const ok = (v, d) => (Number.isFinite(v) && v >= 0 && v < 0.05 ? v : d)
+      const l = { band: ok(band, DEFAULT_LATENCY.band), amp: ok(ampDelay, DEFAULT_LATENCY.amp), sfx: ok(sfx, DEFAULT_LATENCY.sfx) }
+      latencies.set(sampleRate, l)
+      return l
+    })
+    .catch(() => DEFAULT_LATENCY)
+  measuring.set(sampleRate, job)
+  return job
+}
+
+// `context`: render into an OfflineAudioContext instead (tests: renderOffline below)
+export const createAudio = ({ context = null } = {}) => {
+  const offline = !!context
+  // its own low-latency context (made by utils/audio.js, so taps and coming back from the
+  // background wake it like every other sound on the page)
+  const ctx = context || createAudioContext({ latencyHint: "interactive" })
+  if (!ctx) return null
+  const releaseSession = offline ? () => {} : claimPlaybackSession()
+  // how early each kind of sound is scheduled (see latency above)
+  let lat = latencyFor(ctx.sampleRate)
+  if (!offline) measureLatency(ctx.sampleRate).then((l) => (lat = l))
   const noise = noiseBuffer(ctx)
   const clock = createClock()
 
@@ -217,7 +293,7 @@ export const createAudio = () => {
       o.start(t)
       o.stop(stopAt)
     }
-    const voice = { oscs, vca, end: stopAt }
+    const voice = { oscs, vca, t, end: stopAt }
     oscs[0].onended = () => {
       leadVoices.delete(voice)
       otherVoices.delete(voice)
@@ -229,10 +305,11 @@ export const createAudio = () => {
     return voice
   }
 
-  const playEvent = (e, at) => {
-    if (e.track === leadTrack) leadVoices.add(string(lead.amp.input, at, e.dur, e.midi, e.vel))
-    else if (e.track === rhythmTrack) otherVoices.add(string(rhythm.amp.input, at, e.dur, e.midi, e.vel, { palm: e.vel < 0.5, bend: false, bright: 0.8 }))
-    else synth.play(song.tracks[e.track].instrument, e.track, at, e.dur, e.midi, e.vel)
+  // a note meant to be heard at context time `at`, started early by its path's latency
+  const playEvent = (e, at, now) => {
+    if (e.track === leadTrack) leadVoices.add(string(lead.amp.input, Math.max(now, at - lat.band - lat.amp), e.dur, e.midi, e.vel))
+    else if (e.track === rhythmTrack) otherVoices.add(string(rhythm.amp.input, Math.max(now, at - lat.band - lat.amp), e.dur, e.midi, e.vel, { palm: e.vel < 0.5, bend: false, bright: 0.8 }))
+    else synth.play(song.tracks[e.track].instrument, e.track, Math.max(now, at - lat.band), e.dur, e.midi, e.vel)
   }
 
   const tick = () => {
@@ -244,17 +321,27 @@ export const createAudio = () => {
     const spb = 60 / song.bpm
     while (countFrom < 0 && countFrom * spb < until) {
       const at = anchor + countFrom * spb
-      if (at >= now - 0.02 && drumTrack >= 0) synth.play("drums", drumTrack, Math.max(at, now), 0.1, 37, countFrom === -COUNT_IN_BEATS ? 0.95 : 0.8)
+      if (at >= now - 0.02 && drumTrack >= 0) synth.play("drums", drumTrack, Math.max(at - lat.band, now), 0.1, 37, countFrom === -COUNT_IN_BEATS ? 0.95 : 0.8)
       countFrom++
     }
     while (index < events.length && events[index].time < until) {
       const e = events[index++]
       const at = anchor + e.time
-      if (at >= now - 0.03) playEvent(e, Math.max(at, now))
+      if (at >= now - 0.03) playEvent(e, at, now)
     }
     if (now - anchor >= duration) {
       playing = false
       offset = duration
+      return
+    }
+    if (offline) {
+      // an OfflineAudioContext pauses at the next tick so it plays exactly like the live one
+      const q = 128 / ctx.sampleRate
+      const next = Math.ceil((now + TICK_MS / 1000) / q + 1e-6) * q
+      if (next < ctx.length / ctx.sampleRate) ctx.suspend(next).then(() => {
+        tick()
+        ctx.resume()
+      })
       return
     }
     timer = setTimeout(tick, TICK_MS)
@@ -266,7 +353,8 @@ export const createAudio = () => {
       try {
         v.vca.gain.cancelScheduledValues(now)
         v.vca.gain.setTargetAtTime(0, now, 0.015)
-        for (const o of v.oscs) o.stop(now + 0.1)
+        // a note queued but not started yet never starts; one ringing fades out
+        for (const o of v.oscs) o.stop(v.t > now ? now : now + 0.1)
       } catch {}
     }
     leadVoices.clear()
@@ -332,9 +420,12 @@ export const createAudio = () => {
     start(pos = 0) {
       if (!song) return
       halt()
+      // restarting while playing (a practice loop, a jump): the notes already queued from the
+      // old spot would ring over the new one
+      if (playing) hushAll()
       api.unlock()
       synth.open()
-      anchor = ctx.currentTime + 0.08 - pos
+      anchor = ctx.currentTime + START_DELAY - pos
       index = lowerBound(events, Math.max(0, pos))
       const spb = 60 / song.bpm
       countFrom = pos < 0 ? Math.max(-COUNT_IN_BEATS, Math.ceil(pos / spb - 1e-9)) : 0
@@ -525,8 +616,10 @@ export const createAudio = () => {
     },
 
     // ---------- calibration ----------
-    // a woodblock click at a context time (seconds)
-    clickAt(at, accent = false) {
+    // a woodblock click, heard at a context time (seconds)
+    clickAt(heard, accent = false) {
+      // early by the effects' latency, so it's heard at `heard`
+      const at = Math.max(ctx.currentTime, heard - lat.sfx)
       const o = ctx.createOscillator()
       o.type = "sine"
       o.frequency.setValueAtTime(accent ? 1900 : 1500, at)
@@ -572,8 +665,28 @@ export const createAudio = () => {
       } catch {}
       dropRigs()
       synth?.destroy()
-      ctx.close().catch(() => {})
+      closeAudioContext(ctx)
+      releaseSession()
     },
   }
   return api
+}
+
+// Render part of a song offline through the same band, guitars and mixer (for tests):
+// `seconds` from song position `start`; `only` keeps just the named tracks (e.g. ["lead"]).
+// The lead plays as if every note were hit. Resolves to an AudioBuffer whose time 0 is
+// song position `start` (the band's start delay is cut off).
+export const renderOffline = async (song, { start = 0, seconds = 8, only = null, rate = 1, sampleRate = 44100 } = {}) => {
+  await measureLatency(sampleRate)
+  const pre = START_DELAY
+  const ctx = new OfflineAudioContext(2, Math.ceil((seconds + pre) * sampleRate), sampleRate)
+  const solo = only ? { ...song, tracks: song.tracks.map((t) => (only.includes(t.name) ? t : { ...t, notes: [] })) } : song
+  const audio = createAudio({ context: ctx })
+  audio.load(solo, rate)
+  audio.start(start)
+  const full = await ctx.startRendering()
+  const cut = Math.round(pre * sampleRate)
+  const out = new AudioBuffer({ numberOfChannels: 2, length: full.length - cut, sampleRate })
+  for (let c = 0; c < 2; c++) out.copyToChannel(full.getChannelData(c).subarray(cut), c)
+  return out
 }

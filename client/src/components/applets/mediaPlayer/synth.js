@@ -593,7 +593,10 @@ export const createSynth = (ctx, { bpm = 120 } = {}) => {
   analyser.smoothingTimeConstant = 0.72
   analyser.minDecibels = -88
   analyser.maxDecibels = -16
-  bus.connect(comp).connect(trim).connect(limiter).connect(volume).connect(analyser).connect(ctx.destination)
+  // keeps DC out of the mix: the 1:1 FM electric piano and Shred 98's overdriven amps put
+  // a little offset on their notes, which eats headroom and thumps when a note is cut
+  const dcBlock = filter(ctx, "highpass", 15, 0.7)
+  bus.connect(dcBlock).connect(comp).connect(trim).connect(limiter).connect(volume).connect(analyser).connect(ctx.destination)
 
   const reverb = ctx.createConvolver()
   reverb.buffer = impulse(ctx)

@@ -1,19 +1,20 @@
 import { getSettings, masterGain } from "../../../utils/settings"
+import { getAudioContext, masterOutput } from "../../../utils/audio"
 
-// Our Pet's little noises, made on the spot with Web Audio (no sound files). Quiet when
-// system sounds are off or the speaker is muted.
+// Our Pet's little noises, made on the spot with Web Audio (no sound files), on the page's
+// shared AudioContext. Quiet when system sounds are off or the speaker is muted.
 
 let ctx = null
 const out = (level) => {
   const settings = getSettings()
-  const volume = masterGain(settings)
-  if (!settings.systemSounds || !volume) return null
+  if (!settings.systemSounds || !masterGain(settings)) return null
   try {
-    ctx ||= new (window.AudioContext || window.webkitAudioContext)()
-    if (ctx.state === "suspended") ctx.resume().catch(() => {})
+    ctx = getAudioContext()
+    if (!ctx) return null
+    if (ctx.state !== "running") ctx.resume().catch(() => {})
     const gain = ctx.createGain()
-    gain.gain.value = level * volume
-    gain.connect(ctx.destination)
+    gain.gain.value = level
+    gain.connect(masterOutput(ctx))
     return gain
   } catch {
     return null

@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from "react"
 import { launch } from "../../../utils/programs"
-import { getSettings } from "../../../utils/settings"
+import { getSettings, masterGain } from "../../../utils/settings"
+import { getAudioContext, masterOutput } from "../../../utils/audio"
 
 // What the rest of the desktop knows about 98ish Mail: how many unread messages are in
 // the Inbox (the tray envelope) and a counter that goes up whenever new mail arrives (so
@@ -30,16 +31,17 @@ export const openMail = (windows, dispatch) => {
   else dispatch({ type: "open_window", payload: launch(MAIL_PROGRAM) })
 }
 
-// A little three-note chime for new mail (synthesized, no sound file)
-let ctx = null
+// A little three-note chime for new mail (synthesized, no sound file), on the page's
+// shared AudioContext and through the taskbar volume
 export const playMailChime = () => {
-  if (!getSettings().systemSounds) return
+  if (!getSettings().systemSounds || !masterGain()) return
   try {
-    ctx ||= new (window.AudioContext || window.webkitAudioContext)()
-    if (ctx.state === "suspended") ctx.resume().catch(() => {})
+    const ctx = getAudioContext()
+    if (!ctx) return
+    if (ctx.state !== "running") ctx.resume().catch(() => {})
     const out = ctx.createGain()
     out.gain.value = 0.5
-    out.connect(ctx.destination)
+    out.connect(masterOutput(ctx))
     ;[
       [783.99, 0],
       [1046.5, 0.13],

@@ -29,6 +29,7 @@ import React, { Suspense, lazy, useEffect, useLayoutEffect, useRef, useState, us
 import { createPortal } from "react-dom"
 import { useNet } from "../applets/network/NetContext"
 import { getSettings, masterGain } from "../../utils/settings"
+import { getAudioContext, masterOutput } from "../../utils/audio"
 import { progress } from "../../utils/achievements"
 import "./gamechat/GameChat.css"
 
@@ -77,13 +78,13 @@ export const useGameChatMenuItem = (game) => {
 
 // ---------- the new-message chime ----------
 
-let audio = null
+// (on the page's shared AudioContext, through the taskbar volume)
 const chime = () => {
-  const gain = masterGain()
-  if (!getSettings().systemSounds || !gain) return
+  if (!getSettings().systemSounds || !masterGain()) return
   try {
-    audio ||= new (window.AudioContext || window.webkitAudioContext)()
-    if (audio.state === "suspended") audio.resume()
+    const audio = getAudioContext()
+    if (!audio) return
+    if (audio.state !== "running") audio.resume().catch(() => {})
     const t = audio.currentTime
     for (const [i, freq] of [880, 1318.5].entries()) {
       const osc = audio.createOscillator()
@@ -91,9 +92,9 @@ const chime = () => {
       osc.type = "sine"
       osc.frequency.value = freq
       g.gain.setValueAtTime(0.0001, t + i * 0.09)
-      g.gain.exponentialRampToValueAtTime(0.18 * gain, t + i * 0.09 + 0.01)
+      g.gain.exponentialRampToValueAtTime(0.18, t + i * 0.09 + 0.01)
       g.gain.exponentialRampToValueAtTime(0.0001, t + i * 0.09 + 0.25)
-      osc.connect(g).connect(audio.destination)
+      osc.connect(g).connect(masterOutput(audio))
       osc.start(t + i * 0.09)
       osc.stop(t + i * 0.09 + 0.3)
     }

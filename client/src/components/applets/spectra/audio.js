@@ -3,6 +3,8 @@
 // pentatonic melody, so a good run composes its own tune. Safe to call before the audio is
 // unlocked by a tap/click: until then everything is silently skipped.
 
+import { closeAudioContext, createAudioContext, holdAudioContext, masterOutput, releaseAudioContext } from "../../../utils/audio"
+
 const MINOR_PENTATONIC = [0, 3, 5, 7, 10]
 const ZONE_ROOTS = [57, 60, 53, 55, 62, 50] // A, C, F, G, D, low D (MIDI)
 const LOOKAHEAD_S = 0.12
@@ -35,19 +37,15 @@ export const createAudio = () => {
 
   const init = () => {
     if (ctx) return true
-    const AudioContext = window.AudioContext || window.webkitAudioContext
-    if (!AudioContext) return false
-    try {
-      ctx = new AudioContext()
-    } catch {
-      return false
-    }
+    // its own context, since pausing the game suspends it; out through the taskbar volume
+    ctx = createAudioContext()
+    if (!ctx) return false
     master = ctx.createGain()
     master.gain.value = muted ? 0 : 0.8
     const compressor = ctx.createDynamicsCompressor()
     compressor.threshold.value = -14
     compressor.ratio.value = 4
-    master.connect(compressor).connect(ctx.destination)
+    master.connect(compressor).connect(masterOutput(ctx))
     musicBus = ctx.createGain()
     musicBus.gain.value = 0.55
     musicBus.connect(master)
@@ -172,7 +170,7 @@ export const createAudio = () => {
     // Call from a user gesture (tap/click/key): browsers only allow audio after one
     unlock() {
       if (!init()) return
-      if (ctx.state === "suspended") ctx.resume().catch(() => {})
+      if (ctx.state !== "running") releaseAudioContext(ctx)
     },
     start() {
       if (!ctx) return
@@ -189,11 +187,12 @@ export const createAudio = () => {
     },
     pause() {
       stopTimer()
-      if (ctx && ctx.state === "running") ctx.suspend().catch(() => {})
+      // held: a tap elsewhere on the page mustn't wake it
+      holdAudioContext(ctx)
     },
     resume() {
       if (!ctx) return
-      ctx.resume().catch(() => {})
+      releaseAudioContext(ctx)
       if (running) {
         nextTime = 0
         startTimer()
@@ -276,7 +275,7 @@ export const createAudio = () => {
     dispose() {
       stopTimer()
       running = false
-      if (ctx) ctx.close().catch(() => {})
+      closeAudioContext(ctx)
       ctx = null
     },
   }
