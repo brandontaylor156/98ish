@@ -40,7 +40,8 @@
 //    seats(settings) (how many seats a room with these settings has, minPlayers..maxPlayers;
 //    default maxPlayers: e.g. a "players" setting), relay: true (see below),
 //    onLeave(state, seat, ctx) -> state (a player left for good and there's no bot: carry
-//    on without them; default: everyone else wins, reason "left").
+//    on without them; default: everyone else wins, reason "left"), quickSeats(settings) (Quick
+//    Match treats a room as full, and starts it, at this many players; default maxPlayers).
 //    An action (or tick) that returns the very same state object changed nothing: nobody
 //    is sent an update.
 //
@@ -489,10 +490,11 @@ const createRooms = ({ games = [], emit = () => {}, emitVolatile = null, blocked
   }
 
   // Quick Match: a full room starts now; one with enough players (but room for more) soon
+  const quickFull = (room) => Math.max(room.game.minPlayers, Math.min(room.game.maxPlayers, room.game.quickSeats?.(room.settings) || room.game.maxPlayers))
   const quickCheck = (room) => {
     if (!room.quick || room.phase !== "lobby") return
     const count = filled(room)
-    if (count >= capacity(room)) return startGame(room)
+    if (count >= Math.min(capacity(room), quickFull(room))) return startGame(room)
     if (count >= room.game.minPlayers && humans(room).length >= 2) {
       if (!room.autoStart) {
         room.startsAt = clock.now() + T.quickStart
@@ -608,7 +610,7 @@ const createRooms = ({ games = [], emit = () => {}, emitVolatile = null, blocked
     const bucket = bucketOf(mod, settings)
     const previous = currentRoom(me.pid)
     if (previous) moveOut(me.pid, previous)
-    let room = [...rooms.values()].find((r) => r.quick && r.bucket === bucket && r.phase === "lobby" && freeSeat(r) >= 0 && !r.banned.has(me.pid) && !blockedFrom(r, me.pid))
+    let room = [...rooms.values()].find((r) => r.quick && r.bucket === bucket && r.phase === "lobby" && freeSeat(r) >= 0 && filled(r) < quickFull(r) && !r.banned.has(me.pid) && !blockedFrom(r, me.pid))
     if (!room) {
       if (rooms.size >= maxRooms) return FULL
       room = makeRoom(mod, settings, { quick: true })

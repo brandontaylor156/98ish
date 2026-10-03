@@ -107,7 +107,7 @@ const PAGES = [
           Serve <b>underhand</b>: hit the ball below your waist with an upward swing, both feet behind the baseline.
           The serve goes <b>diagonally</b> into the service court across from you and must clear the kitchen: a serve
           that lands in the kitchen or on its line is short, a fault. (A serve that clips the net and lands in is
-          played.) In Pickleball 98, tap for a soft serve or hold Space for a hard one.
+          played.) In Pickleball 98, hold a shot button to fill the serve meter and let go in the green.
         </p>
       </>
     ),
@@ -233,42 +233,3 @@ export const RulesPrimer = ({ onClose }) => {
     </Dialog>
   )
 }
-
-export const ControlsHelp = ({ touch }) => (
-  <div className="dialogText pkHelp">
-    {touch ? (
-      <>
-        <p>
-          <b>Move:</b> drag anywhere in the lower-left area (a joystick appears under your thumb).
-        </p>
-        <p>
-          <b>Shots:</b> Dink, Drive, Drop and Lob buttons. Press a little early: with Movement Assist on, you play
-          the shot when the ball arrives. Or <b>swipe up</b> on the court to swing: a faster swipe hits harder,
-          swiping to the side aims; a tap is a soft swing.
-        </p>
-        <p>The gear button (or Options) lets you move and resize the buttons.</p>
-      </>
-    ) : (
-      <>
-        <p>
-          <b>Move:</b> W A S D or the arrow keys.
-        </p>
-        <p>
-          <b>Swing:</b> Space or the left mouse button. A tap is soft (a dink at the kitchen line, a drop from the
-          back), holding it longer (or flicking the mouse up) swings hard. Hold Shift for a hard swing.
-        </p>
-        <p>
-          <b>Pick the shot:</b> J dink, K drive, L lob, I drop (or 1-4); right-click lobs.
-        </p>
-        <p>
-          <b>Aim:</b> the mouse position across the court, or hold Left/Right as you swing.
-        </p>
-        <p>P pauses; F2 starts a new match.</p>
-      </>
-    )}
-    <p>
-      Movement Assist (Options) walks you to the ball and waits for the bounce when the rules say so; turn it off
-      to do it all yourself.
-    </p>
-  </div>
-)

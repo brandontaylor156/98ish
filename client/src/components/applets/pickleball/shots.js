@@ -24,11 +24,12 @@ import {
 } from "./physics.js"
 import { rightSign, sideOf, other } from "./rules.js"
 
-export const KINDS = ["dink", "drop", "drive", "lob", "block", "punch", "smash", "serve", "return"]
+export const KINDS = ["dink", "drop", "drive", "slice", "lob", "block", "punch", "smash", "serve", "return"]
 export const KIND_LABEL = {
   dink: "Dink",
   drop: "Drop shot",
   drive: "Drive",
+  slice: "Slice",
   lob: "Lob",
   block: "Block",
   punch: "Punch volley",
@@ -47,9 +48,10 @@ export const gauss = (rand) => {
 }
 
 // plan a shot: kind, the hitting team, the ball's position, aim (-1..1: toward the hitter's
-// left..right), power (0..1), an explicit target x/z (optional), the serve's court, and
-// how precise the hitter is (sigma in meters for the target)
-export const planShot = (kind, { team, from, aim = 0, power = 0.5, targetX, targetZ, court, sigma = 0, rand = Math.random }) => {
+// left..right), depth (-1..1: shorter..deeper), power (0..1), an explicit target x/z
+// (optional), the serve's court and variant ("drive" | "slice" | "soft" | "lob"), a power
+// shot (risky: faster, closer to the lines), and how precise the hitter is (sigma in meters)
+export const planShot = (kind, { team, from, aim = 0, depth = 0, power = 0.5, targetX, targetZ, court, variant = "drive", risky = false, sigma = 0, rand = Math.random }) => {
   const opp = sideOf(other(team)) // sign of z on the other side
   const hand = rightSign(team) // world x of the hitter's right
   const netTop = NET_H_CENTER + 0.05
@@ -65,11 +67,24 @@ export const planShot = (kind, { team, from, aim = 0, power = 0.5, targetX, targ
       const want = (court === "left" ? -1 : 1) * rightSign(other(team))
       x = want * HALF_W * 0.5 + aim * hand * 0.9
       x = want * clamp(x * want, 0.45, HALF_W - 0.4)
-      z = opp * (HALF_L - 0.75 - (1 - power) * 0.9)
+      z = opp * (HALF_L - 0.75 - (1 - power) * 0.9 - Math.max(0, -depth) * 1.2)
       mode = { speed: 13 + power * 5 }
       spin = 50 + power * 40
       brush = 2.5
       minClear = 0.25
+      if (variant === "slice") {
+        // a low, skidding serve with backspin
+        mode = { speed: 12 + power * 4 }
+        spin = -(50 + power * 30)
+        brush = -2.5
+        minClear = 0.2
+      } else if (variant === "soft" || variant === "lob") {
+        // a high, deep floater: easy to hit, hard to attack off a high bounce
+        mode = { apex: variant === "lob" ? 3.4 + power * 0.6 : 2.2 + power * 0.5 }
+        spin = 30
+        brush = 1
+        minClear = 0.4
+      }
       break
     }
     case "return":
@@ -85,6 +100,14 @@ export const planShot = (kind, { team, from, aim = 0, power = 0.5, targetX, targ
       spin = 120 + power * 50
       brush = 4.5
       minClear = 0.1
+      break
+    case "slice":
+      // backspin: slower, lower, it skids and stays down after the bounce
+      z = opp * (HALF_L - 1.7)
+      mode = { speed: 11.5 + power * 5 }
+      spin = -(70 + power * 40)
+      brush = -2.5
+      minClear = 0.12
       break
     case "smash":
       z = opp * 3.2
@@ -134,6 +157,21 @@ export const planShot = (kind, { team, from, aim = 0, power = 0.5, targetX, targ
     default:
       return planShot("drive", { team, from, aim, power, targetX, targetZ, court, sigma, rand })
   }
+  // depth: deeper or shorter than the shot's usual spot (kept on the court)
+  if (depth && kind !== "serve") {
+    const soft = kind === "dink" || kind === "block"
+    const range = soft ? 0.5 : kind === "drop" ? 0.6 : 1.1
+    const zz = Math.abs(z) + depth * range
+    z = opp * clamp(zz, soft ? 0.5 : 1.0, HALF_L - 0.35)
+  }
+  // a power shot: harder, closer to the lines, more spin. It can go out.
+  if (risky) {
+    if (mode.speed !== undefined) mode = { speed: Math.min(mode.speed * 1.2, 27) }
+    x *= 1.25
+    if (kind !== "dink" && kind !== "drop" && kind !== "block") z = opp * Math.min(HALF_L - 0.3, Math.abs(z) + 0.6)
+    spin *= 1.3
+    minClear = Math.min(minClear, 0.05)
+  }
   if (targetX !== undefined) x = targetX
   if (targetZ !== undefined) z = targetZ
   // the hitter's precision: where they actually aim
@@ -144,7 +182,63 @@ export const planShot = (kind, { team, from, aim = 0, power = 0.5, targetX, targ
     if (mode.apex !== undefined) mode = { apex: mode.apex + Math.abs(gauss(rand)) * sigma * 0.5 }
     if (mode.speed !== undefined) mode = { speed: mode.speed * (1 + gauss(rand) * sigma * 0.05) }
   }
-  return { kind, target: { x, z }, mode, spin, brush, minClear }
+  return { kind, target: { x, z }, mode, spin, brush, minClear, risky }
+}
+
+// ---- timing: how well a shot was struck ----
+// delta: seconds between when the swing started and when it should have (negative = early).
+// window: the half-width of the "perfect" zone. Returns the grade and what it does to the
+// shot: multipliers on the hitter's aim scatter, face wobble and touch error, a pull of the
+// aim (early pulls across the body, late pushes the other way), extra height on soft shots
+// (a late dink floats up: attackable), and a little pace for a perfectly timed hit.
+export const GRADES = ["perfect", "good", "early", "late", "very early", "very late"]
+export const gradeOf = (delta, window = 0.06) => {
+  const a = Math.abs(delta)
+  if (a <= window) return "perfect"
+  if (a <= window * 2.2) return "good"
+  if (a <= window * 4.5) return delta < 0 ? "early" : "late"
+  return delta < 0 ? "very early" : "very late"
+}
+export const shotQuality = (delta, { window = 0.06, risky = false, kind = "drive" } = {}) => {
+  const grade = gradeOf(delta, window)
+  const off = Math.max(0, Math.abs(delta) - window) / window // windows past perfect
+  const soft = kind === "dink" || kind === "drop" || kind === "block" || kind === "lob"
+  const q = { grade, delta, sigma: 1, face: 1, touch: 1, aimShift: 0, apexAdd: 0, speedMul: 1 }
+  if (grade === "perfect") {
+    q.sigma = risky ? 0.6 : 0.45
+    q.face = 0.5
+    q.touch = 0.5
+    q.speedMul = soft ? 1 : 1.05
+  } else if (grade === "good") {
+    q.sigma = risky ? 1.25 : 0.85
+    q.face = 0.85
+    q.touch = 0.85
+  } else {
+    const k = Math.min(4, off)
+    q.sigma = (risky ? 1.9 : 1.3) + k * 0.3
+    q.face = 1.3 + k * 0.35
+    q.touch = 1.4 + k * 0.3
+    q.speedMul = 0.93
+    // early: the paddle is still coming across (pulled); late: pushed and opened up
+    q.aimShift = clamp(-Math.sign(delta) * (0.12 + k * 0.08), -0.55, 0.55)
+    if (soft) q.apexAdd = Math.min(0.55, 0.1 + k * 0.1) * (delta > 0 ? 1 : 0.5)
+  }
+  return q
+}
+
+// The serve meter: hold to fill it (it takes SERVE_FILL seconds), let go near the top.
+// Past the top it's over-hit (fast, wild); much too long and it lets go by itself.
+export const SERVE_FILL = 0.9
+export const SERVE_MAX = 1.4 // the meter lets go at this fill
+export const serveMeter = (held) => {
+  const v = Math.max(0, held) / SERVE_FILL
+  let grade
+  if (v > 1.15) grade = "very late"
+  else if (v > 1) grade = "late"
+  else if (v >= 0.8) grade = "perfect"
+  else if (v >= 0.5) grade = "good"
+  else grade = "early" // a soft, safe serve
+  return { fill: v, power: Math.min(1, v), grade }
 }
 
 // Rotate a unit vector by small yaw (around y) and pitch (around the horizontal axis) angles

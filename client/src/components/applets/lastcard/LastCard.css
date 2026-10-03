@@ -1171,13 +1171,20 @@ button.lcSeat {
 .lcHandCard.is-playable .lcCard {
   box-shadow: inset 1px 1px 0 rgba(255, 255, 255, 0.45), 0 0 0 2px #ffe14d, 0 4px 10px rgba(0, 0, 0, 0.45);
 }
+/* hovering lifts the card's face, not the button: the button stays where it is, so a
+   pointer near its bottom edge can't fall off the card and make it bob up and down */
+.lcHandCard > .lcCard {
+  transition: transform 0.18s cubic-bezier(0.3, 1.3, 0.5, 1);
+}
 @media (hover: hover) {
   .lcHandCard.is-playable:hover {
-    transform: translateY(calc(var(--lift, 0px) - 26px)) rotate(var(--rot, 0deg)) scale(1.04);
     z-index: 50 !important;
   }
-  .lcHandCard:not(.is-playable):hover {
-    transform: translateY(calc(var(--lift, 0px) - 5px)) rotate(var(--rot, 0deg));
+  .lcHandCard.is-playable:hover > .lcCard {
+    transform: translateY(-14px) scale(1.04);
+  }
+  .lcHandCard:not(.is-playable):hover > .lcCard {
+    transform: translateY(-5px);
   }
 }
 .lcHandCard.is-dim {

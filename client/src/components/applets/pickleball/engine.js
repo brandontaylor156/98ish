@@ -1,23 +1,28 @@
-// Pickleball 98's engine: the three.js court, players and ball, the camera, input, sound,
-// and the frame loop. The game itself (physics, rules, AI) is match.js; this file only
-// draws it and feeds it your controls. three.js is loaded with this file, on first open.
+// Pickleball 98's engine: the three.js picture (venue, players, ball, effects), the TV-style
+// camera, replays, input (keyboard, gamepads, the touch pad), sound, and the frame loop for
+// local play and both ends of an online match. The game itself is match.js (+ physics,
+// rules, shots, ai); the players' movement is anim.js, drawn by rig.js; online is netplay.js.
+// three.js is loaded with this file, on first open.
 
 import * as THREE from "three"
-import { BALL_R, HALF_L, HALF_W, KITCHEN, LINE_W, NET_POST_X, netHeightAt, predictPath, STEP } from "./physics.js"
-import { createMatch, advance, playerById, scoreboard, setMove, step, swing, scenario } from "./match.js"
-import { KIND_LABEL } from "./shots.js"
-import { rightSign, sideOf } from "./rules.js"
+import { BALL_R, HALF_L, HALF_W, predictPath, STEP } from "./physics.js"
+import { createMatch, advance, humanBySlot, meterFor, playerById, press as mPress, release as mRelease, resolveKind, scenario, scoreboard, setMove, step, autopilot, SWING_LEAD } from "./match.js"
+import { KIND_LABEL, planShot } from "./shots.js"
+import { inCourt, rightSign, sideOf } from "./rules.js"
 import { createAudio } from "./audio.js"
+import { createAnim, seatedPose, setMood, situation, splitStep, updateAnim } from "./anim.js"
+import { createFigure } from "./rig.js"
+import { buildVenue, VENUES } from "./venue.js"
+import { CHARACTERS, lookFor } from "./looks.js"
+import { actionFor, bindingsFor, padEdges, readPad } from "./input.js"
+import { createGuest, createHost, onlineRoster } from "./netplay.js"
 
-const BALL_SCALE = 1.6 // drawn a little bigger than life so it reads on a phone
-const TEAM_COLORS = [
-  { shirt: 0x1a9fb0, shorts: 0x23395d, paddle: 0xffd23f, edge: 0x15223a },
-  { shirt: 0xe8604c, shorts: 0x3b2d4f, paddle: 0x54d6a0, edge: 0x1d3a2c },
-]
-const PARTNER_SHIRT = [0x45c4a8, 0xf0a13c]
-const SKIN = [0xf1c27d, 0xc68642, 0x8d5524, 0xe0ac69]
-const HAIR = [0x2b1b0e, 0x5a3825, 0xd9b26a, 0x1b1b1b]
-const TRAIL_N = 14
+const BALL_SCALE = 1.5 // drawn a little bigger than life so it reads on a phone
+const TRAIL_N = 18
+const REPLAY_S = 9 // seconds of play kept for replays
+const QUALITY = { low: { ratio: 1, shadows: false }, medium: { ratio: 1.5, shadows: true }, high: { ratio: 2, shadows: true } }
+const UMPIRE_LOOK = { skin: 1, hair: "short", hairColor: "#3a2a1e", hat: "cap", hatColor: "#ffffff", shirt: "#1d2b53", shirtStyle: "polo", trim: "#ffffff", bottom: "shorts", bottomColor: "#c9b991", shoes: "#ffffff", shoeAccent: "#1d2b53", socks: "#ffffff", build: 1.02, glasses: true }
+const DEFAULT_LOOKS = ["maya", "dex", "lena", "kenji"]
 
 const canvasTexture = (w, h, draw) => {
   const c = document.createElement("canvas")
@@ -28,432 +33,191 @@ const canvasTexture = (w, h, draw) => {
   t.colorSpace = THREE.SRGBColorSpace
   return t
 }
-
-// ---------- the world ----------
-
-const quad = (positions, x0, z0, x1, z1, y) => {
-  positions.push(x0, y, z0, x1, y, z0, x1, y, z1, x0, y, z0, x1, y, z1, x0, y, z1)
-}
-
-const buildCourt = (scene, tex) => {
-  const group = new THREE.Group()
-  // grass beyond the fence, the green apron, the blue court, a lighter blue kitchen
-  const grass = new THREE.Mesh(new THREE.CircleGeometry(170, 40), new THREE.MeshLambertMaterial({ color: 0x6fae55 }))
-  grass.rotation.x = -Math.PI / 2
-  grass.position.y = -0.02
-  group.add(grass)
-  const apron = new THREE.Mesh(new THREE.PlaneGeometry(2 * (HALF_W + 3.6), 2 * (HALF_L + 5.8)), new THREE.MeshLambertMaterial({ color: 0x3c8a5a }))
-  apron.rotation.x = -Math.PI / 2
-  apron.position.y = -0.005
-  group.add(apron)
-  const court = new THREE.Mesh(new THREE.PlaneGeometry(2 * HALF_W, 2 * HALF_L), new THREE.MeshLambertMaterial({ color: 0x2f62ad }))
-  court.rotation.x = -Math.PI / 2
-  group.add(court)
-  const kitchen = new THREE.Mesh(new THREE.PlaneGeometry(2 * HALF_W, 2 * KITCHEN), new THREE.MeshLambertMaterial({ color: 0x3b75c4 }))
-  kitchen.rotation.x = -Math.PI / 2
-  kitchen.position.y = 0.001
-  group.add(kitchen)
-
-  // the lines: 2 in wide, inside the court's outer edges (they're part of the court)
-  const L = LINE_W
-  const p = []
-  const y = 0.003
-  quad(p, -HALF_W, -HALF_L, HALF_W, -HALF_L + L, y) // baselines
-  quad(p, -HALF_W, HALF_L - L, HALF_W, HALF_L, y)
-  quad(p, -HALF_W, -HALF_L, -HALF_W + L, HALF_L, y) // sidelines
-  quad(p, HALF_W - L, -HALF_L, HALF_W, HALF_L, y)
-  quad(p, -HALF_W, -KITCHEN, HALF_W, -KITCHEN + L, y) // kitchen (NVZ) lines: the line is in the kitchen
-  quad(p, -HALF_W, KITCHEN - L, HALF_W, KITCHEN, y)
-  quad(p, -L / 2, KITCHEN, L / 2, HALF_L, y) // centerlines, kitchen line to baseline
-  quad(p, -L / 2, -HALF_L, L / 2, -KITCHEN, y)
-  quad(p, -L / 2, -HALF_L, L / 2, -HALF_L + 0.3, y + 0.0005) // baseline center marks
-  const g = new THREE.BufferGeometry()
-  g.setAttribute("position", new THREE.Float32BufferAttribute(p, 3))
-  g.computeVertexNormals()
-  const lines = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: 0xf4f7fb }))
-  group.add(lines)
-
-  // the net: posts, a sagging mesh, the white tape, the center strap
-  const postMat = new THREE.MeshLambertMaterial({ color: 0x2b2f36 })
-  for (const s of [-1, 1]) {
-    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.045, 0.98, 10), postMat)
-    post.position.set(s * NET_POST_X, 0.49, 0)
-    group.add(post)
-    const base = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.18, 0.05, 12), postMat)
-    base.position.set(s * NET_POST_X, 0.025, 0)
-    group.add(base)
-  }
-  const SEG = 32
-  const netPos = []
-  const netUv = []
-  const tapePos = []
-  const netIdx = []
-  for (let i = 0; i <= SEG; i++) {
-    const x = -NET_POST_X + (2 * NET_POST_X * i) / SEG
-    const top = netHeightAt(x)
-    netPos.push(x, 0.07, 0, x, top - 0.045, 0)
-    netUv.push(x / 0.045, 0.07 / 0.045, x / 0.045, (top - 0.045) / 0.045)
-    tapePos.push(x, top - 0.05, 0, x, top + 0.004, 0)
-    if (i < SEG) {
-      const a = i * 2
-      netIdx.push(a, a + 2, a + 1, a + 1, a + 2, a + 3)
-    }
-  }
-  const netGeo = new THREE.BufferGeometry()
-  netGeo.setAttribute("position", new THREE.Float32BufferAttribute(netPos, 3))
-  netGeo.setAttribute("uv", new THREE.Float32BufferAttribute(netUv, 2))
-  netGeo.setIndex(netIdx)
-  const net = new THREE.Mesh(netGeo, new THREE.MeshBasicMaterial({ map: tex.net, transparent: true, side: THREE.DoubleSide, depthWrite: false }))
-  net.renderOrder = 2
-  group.add(net)
-  const tapeGeo = new THREE.BufferGeometry()
-  tapeGeo.setAttribute("position", new THREE.Float32BufferAttribute(tapePos, 3))
-  tapeGeo.setIndex(netIdx)
-  const tape = new THREE.Mesh(tapeGeo, new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide }))
-  group.add(tape)
-  const strap = new THREE.Mesh(new THREE.PlaneGeometry(0.05, netHeightAt(0) - 0.05), new THREE.MeshBasicMaterial({ color: 0xf2f2f2, side: THREE.DoubleSide }))
-  strap.position.set(0, (netHeightAt(0) - 0.05) / 2 + 0.03, 0.002)
-  group.add(strap)
-
-  // the fence: chain link on posts, with a dark windscreen along the bottom
-  const FX = HALF_W + 3.6
-  const FZ = HALF_L + 5.8
-  const fenceH = 3
-  const sides = [
-    { w: 2 * FX, x: 0, z: -FZ, ry: 0 },
-    { w: 2 * FX, x: 0, z: FZ, ry: Math.PI },
-    { w: 2 * FZ, x: -FX, z: 0, ry: Math.PI / 2 },
-    { w: 2 * FZ, x: FX, z: 0, ry: -Math.PI / 2 },
-  ]
-  const fenceMat = new THREE.MeshBasicMaterial({ map: tex.fence, transparent: true, side: THREE.DoubleSide, depthWrite: false })
-  const screenMat = new THREE.MeshLambertMaterial({ color: 0x1f4a37, side: THREE.DoubleSide })
-  const railMat = new THREE.MeshLambertMaterial({ color: 0x3d4a45 })
-  for (const s of sides) {
-    const geo = new THREE.PlaneGeometry(s.w, fenceH)
-    const uv = geo.attributes.uv
-    for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * s.w * 6, uv.getY(i) * fenceH * 6)
-    const fence = new THREE.Mesh(geo, fenceMat)
-    fence.position.set(s.x, fenceH / 2, s.z)
-    fence.rotation.y = s.ry
-    fence.renderOrder = 1
-    group.add(fence)
-    const screen = new THREE.Mesh(new THREE.PlaneGeometry(s.w, 1.2), screenMat)
-    screen.position.set(s.x, 0.6, s.z)
-    screen.rotation.y = s.ry
-    group.add(screen)
-    const rail = new THREE.Mesh(new THREE.BoxGeometry(s.w, 0.05, 0.05), railMat)
-    rail.position.set(s.x, fenceH, s.z)
-    rail.rotation.y = s.ry
-    group.add(rail)
-  }
-  const postGeo = new THREE.CylinderGeometry(0.035, 0.035, fenceH, 6)
-  const posts = []
-  for (let x = -FX; x <= FX + 0.01; x += (2 * FX) / 4) posts.push([x, -FZ], [x, FZ])
-  for (let z = -FZ + (2 * FZ) / 8; z < FZ - 0.01; z += (2 * FZ) / 8) posts.push([-FX, z], [FX, z])
-  const postMesh = new THREE.InstancedMesh(postGeo, railMat, posts.length)
-  const m4 = new THREE.Matrix4()
-  posts.forEach(([x, z], i) => postMesh.setMatrixAt(i, m4.makeTranslation(x, fenceH / 2, z)))
-  group.add(postMesh)
-
-  // trees and hills beyond the fence (instanced: two draw calls for the whole forest)
-  const trees = []
-  let seed = 7
-  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647)
-  for (let i = 0; i < 70; i++) {
-    const a = rnd() * Math.PI * 2
-    const r = 22 + rnd() * 45
-    const x = Math.cos(a) * r * 0.8
-    const z = Math.sin(a) * r
-    if (Math.abs(x) < FX + 4 && Math.abs(z) < FZ + 4) continue
-    trees.push({ x, z, s: 0.8 + rnd() * 1.1 })
-  }
-  const crown = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1.6, 0), new THREE.MeshLambertMaterial({ color: 0x2f7a3c, flatShading: true }), trees.length)
-  const trunk = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.18, 0.25, 2, 5), new THREE.MeshLambertMaterial({ color: 0x6b4a2b }), trees.length)
-  const q = new THREE.Quaternion()
-  trees.forEach((t, i) => {
-    crown.setMatrixAt(i, m4.compose(new THREE.Vector3(t.x, 2.6 * t.s + 1, t.z), q.setFromEuler(new THREE.Euler(0, t.x, 0)), new THREE.Vector3(t.s, t.s * 1.25, t.s)))
-    trunk.setMatrixAt(i, m4.compose(new THREE.Vector3(t.x, t.s, t.z), q.identity(), new THREE.Vector3(t.s, t.s, t.s)))
+const blobTexture = () =>
+  canvasTexture(64, 64, (ctx, w) => {
+    const g = ctx.createRadialGradient(w / 2, w / 2, 0, w / 2, w / 2, w / 2)
+    g.addColorStop(0, "rgba(0,0,0,0.8)")
+    g.addColorStop(0.5, "rgba(0,0,0,0.4)")
+    g.addColorStop(1, "rgba(0,0,0,0)")
+    ctx.fillStyle = g
+    ctx.fillRect(0, 0, w, w)
   })
-  group.add(crown, trunk)
-  const hillMat = new THREE.MeshLambertMaterial({ color: 0x5d9a4a, flatShading: true })
-  for (const [x, z, r] of [[-60, -110, 38], [30, -125, 48], [95, -80, 34], [-110, -40, 30], [110, 20, 36], [-95, 70, 30]]) {
-    const hill = new THREE.Mesh(new THREE.IcosahedronGeometry(r, 1), hillMat)
-    hill.scale.y = 0.35
-    hill.position.set(x, -2, z)
-    group.add(hill)
-  }
-  // a few puffy clouds
-  const cloudMat = new THREE.MeshLambertMaterial({ color: 0xffffff, flatShading: true, emissive: 0x9aa6b8 })
-  const puff = new THREE.IcosahedronGeometry(1, 0)
-  for (const [x, y, z, s] of [[-40, 30, -110, 7], [35, 36, -120, 9], [80, 28, -70, 6], [-90, 34, -30, 7], [10, 40, -140, 6]]) {
-    for (let k = 0; k < 4; k++) {
-      const c = new THREE.Mesh(puff, cloudMat)
-      c.position.set(x + (k - 1.5) * s * 0.9, y + (k % 2) * s * 0.3, z)
-      c.scale.set(s, s * 0.6, s * 0.7)
-      group.add(c)
-    }
-  }
-  scene.add(group)
-  return group
-}
-
-const buildSky = (scene) => {
-  const geo = new THREE.SphereGeometry(190, 24, 12)
-  const mat = new THREE.ShaderMaterial({
-    side: THREE.BackSide,
-    depthWrite: false,
-    fog: false,
-    uniforms: { top: { value: new THREE.Color(0x3f8fe0) }, horizon: { value: new THREE.Color(0xd8ecfb) } },
-    vertexShader: "varying float vY; void main() { vY = normalize(position).y; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }",
-    fragmentShader: "uniform vec3 top; uniform vec3 horizon; varying float vY; void main() { float t = pow(clamp(vY, 0.0, 1.0), 0.55); gl_FragColor = vec4(mix(horizon, top, t), 1.0); }",
-  })
-  const sky = new THREE.Mesh(geo, mat)
-  sky.renderOrder = -1
-  scene.add(sky)
-  return sky
-}
-
-// ---------- players ----------
-
-const makePlayerMesh = (team, partner, look, tex) => {
-  const c = TEAM_COLORS[team]
-  const g = new THREE.Group()
-  const shirt = new THREE.MeshLambertMaterial({ color: partner ? PARTNER_SHIRT[team] : c.shirt, flatShading: true })
-  const shorts = new THREE.MeshLambertMaterial({ color: c.shorts, flatShading: true })
-  const skin = new THREE.MeshLambertMaterial({ color: SKIN[look % SKIN.length], flatShading: true })
-  const hair = new THREE.MeshLambertMaterial({ color: HAIR[(look + team) % HAIR.length], flatShading: true })
-  const shoe = new THREE.MeshLambertMaterial({ color: 0xf5f5f5 })
-
-  const body = new THREE.Group() // turns a little with the swing
-  g.add(body)
-  const hips = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.2, 0.2), shorts)
-  hips.position.y = 0.88
-  body.add(hips)
-  const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.19, 0.16, 0.56, 7), shirt)
-  torso.position.y = 1.2
-  body.add(torso)
-  const head = new THREE.Mesh(new THREE.IcosahedronGeometry(0.12, 1), skin)
-  head.position.y = 1.62
-  body.add(head)
-  const cap = new THREE.Mesh(new THREE.SphereGeometry(0.125, 8, 5, 0, Math.PI * 2, 0, Math.PI / 2), hair)
-  cap.position.y = 1.64
-  body.add(cap)
-  const visor = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.015, 0.1), new THREE.MeshLambertMaterial({ color: c.edge }))
-  visor.position.set(0, 1.66, 0.12)
-  body.add(visor)
-
-  const legs = []
-  for (const s of [-1, 1]) {
-    const hip = new THREE.Group()
-    hip.position.set(s * 0.1, 0.84, 0)
-    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.065, 0.05, 0.78, 6), skin)
-    leg.position.y = -0.39
-    hip.add(leg)
-    const foot = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.07, 0.24), shoe)
-    foot.position.set(0, -0.8, 0.05)
-    hip.add(foot)
-    g.add(hip)
-    legs.push(hip)
-  }
-  // the left arm just hangs and swings; the right arm holds the paddle. Arms point along
-  // -x (out to the right side) at rest: rotation.z lowers them, rotation.y swings them.
-  const armL = new THREE.Group()
-  armL.position.set(0.22, 1.42, 0)
-  const al = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.04, 0.6, 6), skin)
-  al.position.y = -0.3
-  armL.add(al)
-  body.add(armL)
-
-  const armR = new THREE.Group()
-  armR.position.set(-0.22, 1.42, 0)
-  const ar = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.04, 0.58, 6), skin)
-  ar.rotation.z = Math.PI / 2
-  ar.position.x = -0.29
-  armR.add(ar)
-  const paddle = new THREE.Group()
-  paddle.position.x = -0.58
-  const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.13, 6), new THREE.MeshLambertMaterial({ color: 0x222222 }))
-  handle.rotation.z = Math.PI / 2
-  handle.position.x = -0.06
-  paddle.add(handle)
-  // an 8 x 16 in paddle with rounded corners
-  const shape = new THREE.Shape()
-  const W = 0.1
-  const H = 0.27
-  const R = 0.05
-  shape.moveTo(-W + R, 0)
-  shape.lineTo(W - R, 0)
-  shape.quadraticCurveTo(W, 0, W, R)
-  shape.lineTo(W, H - R)
-  shape.quadraticCurveTo(W, H, W - R, H)
-  shape.lineTo(-W + R, H)
-  shape.quadraticCurveTo(-W, H, -W, H - R)
-  shape.lineTo(-W, R)
-  shape.quadraticCurveTo(-W, 0, -W + R, 0)
-  const face = new THREE.Mesh(new THREE.ExtrudeGeometry(shape, { depth: 0.014, bevelEnabled: false, curveSegments: 3 }), new THREE.MeshLambertMaterial({ color: c.paddle }))
-  face.rotation.z = Math.PI / 2 // the face extends along -x from the handle
-  face.position.set(-0.12, 0, -0.007)
-  paddle.add(face)
-  armR.add(paddle)
-  body.add(armR)
-
-  const shadow = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.9), new THREE.MeshBasicMaterial({ map: tex.blob, transparent: true, depthWrite: false, opacity: 0.45 }))
-  shadow.rotation.x = -Math.PI / 2
-  shadow.position.y = 0.006
-  g.add(shadow)
-
-  return { group: g, body, legs, armL, armR, shadow, stride: 0 }
-}
-
-// arm pose: yaw = forward/back sweep (+ is in front), drop = how far below horizontal
-const poseFor = (p, ball) => {
-  const s = p.swing
-  const lowFor = (y) => Math.asin(Math.max(-0.9, Math.min(0.95, (1.42 - y) / 0.92)))
-  if (s && !s.whiff) {
-    const t = Math.min(1, s.t / 0.32)
-    const big = s.kind === "drive" || s.kind === "smash" || s.kind === "serve" || s.kind === "return"
-    const reach = big ? 1.9 : s.kind === "dink" || s.kind === "block" ? 0.9 : 1.4
-    const drop0 = lowFor(s.y)
-    const lift = s.kind === "lob" || s.kind === "serve" || s.kind === "drop" ? -0.9 : s.kind === "smash" ? 0.6 : -0.3
-    const ease = 1 - Math.pow(1 - t, 3)
-    const yaw = s.hand === "fh" ? 0.35 + ease * reach : Math.PI - 0.35 - ease * reach
-    return { yaw, drop: drop0 + lift * ease, turn: (s.hand === "fh" ? 0.25 : -0.25) * (1 - ease) }
-  }
-  if (s?.whiff) {
-    const t = Math.min(1, s.t / 0.3)
-    return { yaw: -0.8 + t * 2.3, drop: 0.6, turn: 0 }
-  }
-  if (p.ballHeld) return { yaw: -0.9, drop: 1.1, turn: 0.15 } // waiting to serve: paddle back and low
-  if (p.armed || p.ready) {
-    // backswing, on the side the ball is coming
-    const local = (ball.p.x - p.x) * rightSign(p.team)
-    const fh = local >= -0.05
-    const drop = lowFor(Math.max(0.2, Math.min(1.8, ball.p.y)))
-    return fh ? { yaw: -0.7, drop, turn: 0.35 } : { yaw: Math.PI + 0.7, drop, turn: -0.35 }
-  }
-  return { yaw: 1.15, drop: 0.45, turn: 0 } // ready position: paddle up in front
-}
-
-// ---------- the engine ----------
 
 export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, settings: initial = {} }) => {
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: (window.devicePixelRatio || 1) < 2, powerPreference: "high-performance", stencil: false })
-  const maxPixelRatio = Math.min(window.devicePixelRatio || 1, 2)
-  let pixelRatio = maxPixelRatio
+  const dpr = window.devicePixelRatio || 1
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: dpr < 2, powerPreference: "high-performance", stencil: false })
+  renderer.outputColorSpace = THREE.SRGBColorSpace
+  renderer.toneMapping = THREE.ACESFilmicToneMapping
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap
+  let settings = { sound: true, voice: true, camera: "broadcast", aid: true, assist: "light", quality: "medium", cuts: true, keys: {}, window: 0.06, ...initial }
+  let bindings = bindingsFor(settings.keys)
+  let maxRatio = Math.min(dpr, QUALITY[settings.quality]?.ratio || 1.5)
+  let pixelRatio = maxRatio
   renderer.setPixelRatio(pixelRatio)
-  renderer.setClearColor(0xd8ecfb)
+  renderer.shadowMap.enabled = !!QUALITY[settings.quality]?.shadows
 
   const scene = new THREE.Scene()
-  scene.fog = new THREE.Fog(0xd8ecfb, 70, 185)
-  const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 400)
+  const camera = new THREE.PerspectiveCamera(46, 1, 0.1, 420)
   camera.position.set(0, 6, HALF_L + 8)
-  const camTarget = new THREE.Vector3(0, 0.6, -2)
-  const camLook = camTarget.clone()
+  const camLook = new THREE.Vector3(0, 0.6, -2)
+  const tex = { blob: blobTexture() }
 
-  scene.add(new THREE.HemisphereLight(0xdcefff, 0x4d7a3c, 1.6))
-  const sun = new THREE.DirectionalLight(0xfff3dc, 1.9)
-  sun.position.set(-8, 20, 10)
-  scene.add(sun)
+  // ---------- the venue ----------
+  let venueId = "park"
+  let venue = buildVenue(scene, { venue: venueId, quality: settings.quality })
+  renderer.toneMappingExposure = venue.def.exposure
+  const setVenue = (id) => {
+    const next = VENUES[id] ? id : "park"
+    if (next === venueId && venue) return
+    venue.dispose()
+    venueId = next
+    venue = buildVenue(scene, { venue: venueId, quality: settings.quality })
+    renderer.toneMappingExposure = venue.def.exposure
+    audio.setCrowd(settings.sound ? venue.def.crowd : 0)
+    placeUmpire()
+  }
 
-  // textures drawn on canvases (no image files)
-  const tex = {
-    blob: canvasTexture(64, 64, (ctx, w) => {
-      const g = ctx.createRadialGradient(w / 2, w / 2, 0, w / 2, w / 2, w / 2)
-      g.addColorStop(0, "rgba(0,0,0,0.85)")
-      g.addColorStop(0.55, "rgba(0,0,0,0.45)")
-      g.addColorStop(1, "rgba(0,0,0,0)")
-      ctx.fillStyle = g
-      ctx.fillRect(0, 0, w, w)
-    }),
-    net: canvasTexture(32, 32, (ctx, w) => {
-      ctx.clearRect(0, 0, w, w)
-      ctx.strokeStyle = "rgba(20,24,30,0.85)"
-      ctx.lineWidth = 3
-      ctx.strokeRect(0, 0, w, w)
-    }),
-    fence: canvasTexture(64, 64, (ctx, w) => {
-      ctx.clearRect(0, 0, w, w)
-      ctx.strokeStyle = "rgba(60,72,70,0.55)"
-      ctx.lineWidth = 4
+  // ---------- the ball, its shadow, its trail, the markers ----------
+  const ballTex = canvasTexture(128, 64, (ctx, w, h) => {
+    ctx.fillStyle = "#e6f046"
+    ctx.fillRect(0, 0, w, h)
+    ctx.fillStyle = "#a9b324"
+    for (let i = 0; i < 26; i++) {
       ctx.beginPath()
-      ctx.moveTo(0, w / 2)
-      ctx.lineTo(w / 2, 0)
-      ctx.lineTo(w, w / 2)
-      ctx.lineTo(w / 2, w)
-      ctx.closePath()
-      ctx.stroke()
-    }),
-    ball: canvasTexture(64, 32, (ctx, w, h) => {
-      ctx.fillStyle = "#e9f24b"
-      ctx.fillRect(0, 0, w, h)
-      ctx.fillStyle = "#b9c22a"
-      for (let i = 0; i < 10; i++) {
-        ctx.beginPath()
-        ctx.arc((i * 13 + 5) % w, i % 2 ? h * 0.3 : h * 0.72, 2.6, 0, Math.PI * 2)
-        ctx.fill()
-      }
-    }),
-  }
-  for (const k of ["net", "fence"]) {
-    tex[k].wrapS = tex[k].wrapT = THREE.RepeatWrapping
-    tex[k].anisotropy = 4
-  }
-
-  buildSky(scene)
-  buildCourt(scene, tex)
-
-  // ball, its shadow (crucial for judging height) and a short trail
-  const ballMesh = new THREE.Mesh(new THREE.SphereGeometry(BALL_R * BALL_SCALE, 16, 12), new THREE.MeshLambertMaterial({ map: tex.ball, emissive: 0x2c3000 }))
+      ctx.arc((i * 23 + (i % 3) * 7) % w, ((i * 37) % 5) * (h / 5) + 6, 3.2, 0, Math.PI * 2)
+      ctx.fill()
+    }
+  })
+  tex.ball = ballTex
+  const ballMesh = new THREE.Mesh(new THREE.SphereGeometry(BALL_R * BALL_SCALE, 18, 12), new THREE.MeshStandardMaterial({ map: ballTex, roughness: 0.45, emissive: 0x3a4000, emissiveIntensity: 0.6 }))
+  ballMesh.castShadow = true
   scene.add(ballMesh)
   const ballShadow = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: tex.blob, transparent: true, depthWrite: false }))
   ballShadow.rotation.x = -Math.PI / 2
-  ballShadow.position.y = 0.008
   ballShadow.renderOrder = 3
   scene.add(ballShadow)
-  const trailPos = new Float32Array(TRAIL_N * 3)
-  const trailCol = new Float32Array(TRAIL_N * 4)
+  // the trail: a ribbon that faces the camera
+  const trailPos = new Float32Array(TRAIL_N * 2 * 3)
+  const trailCol = new Float32Array(TRAIL_N * 2 * 4)
+  const trailIdx = []
+  for (let i = 0; i < TRAIL_N - 1; i++) {
+    const a = i * 2
+    trailIdx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2)
+  }
   const trailGeo = new THREE.BufferGeometry()
   trailGeo.setAttribute("position", new THREE.BufferAttribute(trailPos, 3))
   trailGeo.setAttribute("color", new THREE.BufferAttribute(trailCol, 4))
-  const trail = new THREE.Line(trailGeo, new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, depthWrite: false }))
+  trailGeo.setIndex(trailIdx)
+  const trail = new THREE.Mesh(trailGeo, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending }))
   trail.frustumCulled = false
+  trail.renderOrder = 4
   scene.add(trail)
   const trailHistory = []
+  let trailColor = [1, 0.95, 0.6]
 
-  // trajectory aid: the incoming ball's path to its bounce, and where it lands
-  const AID_N = 90
-  const aidPos = new Float32Array(AID_N * 3)
-  const aidGeo = new THREE.BufferGeometry()
-  aidGeo.setAttribute("position", new THREE.BufferAttribute(aidPos, 3))
-  const aidLine = new THREE.Line(aidGeo, new THREE.LineDashedMaterial({ color: 0xfff6a8, dashSize: 0.18, gapSize: 0.12, transparent: true, opacity: 0.85, depthWrite: false }))
-  aidLine.frustumCulled = false
-  aidLine.visible = false
-  scene.add(aidLine)
-  const ringGeo = new THREE.RingGeometry(0.16, 0.22, 24)
+  const ringGeo = new THREE.RingGeometry(0.17, 0.24, 28)
   ringGeo.rotateX(-Math.PI / 2)
   const landRing = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: 0xfff6a8, transparent: true, opacity: 0.9, depthWrite: false }))
-  landRing.position.y = 0.01
   landRing.visible = false
+  landRing.renderOrder = 3
   scene.add(landRing)
-  const aimRing = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: 0xffd23f, transparent: true, opacity: 0.55, depthWrite: false }))
-  aimRing.position.y = 0.012
+  const aimRing = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: 0x7cf0ff, transparent: true, opacity: 0.6, depthWrite: false }))
   aimRing.visible = false
+  aimRing.renderOrder = 3
   scene.add(aimRing)
-  // in/out marks where close balls landed
   const markMat = { in: new THREE.MeshBasicMaterial({ color: 0x46e07a, transparent: true, depthWrite: false }), out: new THREE.MeshBasicMaterial({ color: 0xff4d4d, transparent: true, depthWrite: false }) }
   const mark = new THREE.Mesh(ringGeo, markMat.in)
   mark.visible = false
-  mark.position.y = 0.011
+  mark.renderOrder = 3
   scene.add(mark)
   let markTimer = 0
+  // a ring under the person you play (so you can find yourself in doubles)
+  const youGeo = new THREE.RingGeometry(0.42, 0.5, 32)
+  youGeo.rotateX(-Math.PI / 2)
+  const youRings = [0x37d0e6, 0xff7a5c].map((c) => {
+    const r = new THREE.Mesh(youGeo, new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 0.55, depthWrite: false }))
+    r.renderOrder = 2
+    r.visible = false
+    scene.add(r)
+    return r
+  })
+
+  // ---------- particles: hit sparks and bounce dust ----------
+  const PN = 160
+  const pPos = new Float32Array(PN * 3)
+  const pCol = new Float32Array(PN * 3)
+  const parts = Array.from({ length: PN }, () => ({ life: 0, x: 0, y: -10, z: 0, vx: 0, vy: 0, vz: 0, g: 0, c: [1, 1, 1], max: 1 }))
+  const pGeo = new THREE.BufferGeometry()
+  pGeo.setAttribute("position", new THREE.BufferAttribute(pPos, 3))
+  pGeo.setAttribute("color", new THREE.BufferAttribute(pCol, 3))
+  const sparkTex = canvasTexture(32, 32, (ctx, w) => {
+    const g = ctx.createRadialGradient(w / 2, w / 2, 0, w / 2, w / 2, w / 2)
+    g.addColorStop(0, "rgba(255,255,255,1)")
+    g.addColorStop(0.4, "rgba(255,255,255,0.5)")
+    g.addColorStop(1, "rgba(255,255,255,0)")
+    ctx.fillStyle = g
+    ctx.fillRect(0, 0, w, w)
+  })
+  tex.spark = sparkTex
+  const pts = new THREE.Points(pGeo, new THREE.PointsMaterial({ size: 0.09, map: sparkTex, vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }))
+  pts.frustumCulled = false
+  pts.renderOrder = 5
+  scene.add(pts)
+  let pNext = 0
+  const burst = (x, y, z, n, { speed = 3, up = 1, color = [1, 0.95, 0.55], life = 0.45, gravity = 6, dir = null } = {}) => {
+    for (let i = 0; i < n; i++) {
+      const q = parts[pNext]
+      pNext = (pNext + 1) % PN
+      const a = Math.random() * Math.PI * 2
+      const e = Math.random() * 0.9
+      const s = speed * (0.4 + Math.random() * 0.8)
+      q.x = x
+      q.y = y
+      q.z = z
+      q.vx = Math.cos(a) * Math.cos(e) * s + (dir ? dir.x * speed * 0.6 : 0)
+      q.vy = Math.sin(e) * s * up + (dir ? dir.y * speed * 0.6 : 0)
+      q.vz = Math.sin(a) * Math.cos(e) * s + (dir ? dir.z * speed * 0.6 : 0)
+      q.g = gravity
+      q.c = color
+      q.life = q.max = life * (0.6 + Math.random() * 0.6)
+    }
+  }
+  const updateParticles = (dt) => {
+    for (let i = 0; i < PN; i++) {
+      const q = parts[i]
+      if (q.life > 0) {
+        q.life -= dt
+        q.vy -= q.g * dt
+        q.x += q.vx * dt
+        q.y = Math.max(0.01, q.y + q.vy * dt)
+        q.z += q.vz * dt
+      }
+      const k = q.life > 0 ? q.life / q.max : 0
+      pPos[i * 3] = q.x
+      pPos[i * 3 + 1] = k > 0 ? q.y : -50
+      pPos[i * 3 + 2] = q.z
+      pCol[i * 3] = q.c[0] * k
+      pCol[i * 3 + 1] = q.c[1] * k
+      pCol[i * 3 + 2] = q.c[2] * k
+    }
+    pGeo.attributes.position.needsUpdate = true
+    pGeo.attributes.color.needsUpdate = true
+  }
 
   // ---------- state ----------
-  let settings = { sound: true, camera: "follow", aid: true, assist: true, ...initial }
   const audio = createAudio()
   audio.setEnabled(settings.sound)
+  audio.setVoice(settings.voice)
+  audio.setCrowd(settings.sound ? venue.def.crowd : 0)
   let match = null
-  let meshes = []
-  let status = "title" // title (a demo match plays behind the menu) | playing | paused | over
+  let mode = "demo" // demo | local | host | guest | showcase
+  let host = null
+  let guest = null
+  let netWait = null // online: who we're waiting for (paused), or null
+  let figures = [] // { fig, anim, player }
+  let umpire = null
+  let showcaseFig = null
+  let status = "title" // title | playing | paused | over | showcase
   let size = { width: 0, height: 0 }
   let raf = 0
   let last = 0
@@ -461,82 +225,156 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
   let hudKey = ""
   let hudTimer = 0
   let aidVersion = -1
+  let hitStop = 0
+  let shake = 0
+  let umpireSignal = null
+  let umpireSignalT = 0
+  let cut = null // { kind, t } a TV cut between points
+  let replay = null // { frames, i, t, speed }
+  let record = [] // replay frames
+  let meterEls = [null, null]
+  let lastPads = []
+  let humans = 1 // people on this computer (1, or 2 sharing it)
   const keys = new Set()
-  const aim = { x: 0, mouse: false }
-  let charge = null // { start, kind, source }
-  let stick = { x: 0, y: 0 }
+  const powerHeld = [false, false]
+  const touchPower = [false, false]
+  const chargeKey = [null, null] // which action started the current swing, per slot
+  let stick = [{ x: 0, y: 0 }, { x: 0, y: 0 }]
   const perf = { frames: 0, cpuMs: 0, renderMs: 0, steps: 0 }
-  const devLog = import.meta.env.DEV ? [] : null // every match event, for tests
+  const devLog = import.meta.env.DEV ? [] : null
 
   const setStatus = (s) => {
     status = s
     onStatus?.(s)
   }
 
-  const buildPlayers = () => {
-    for (const m of meshes) {
-      scene.remove(m.group)
-      m.group.traverse((o) => {
-        o.geometry?.dispose()
-        o.material?.dispose()
-      })
+  // ---------- figures ----------
+  const lookOf = (p, i) => {
+    if (p.look && typeof p.look === "object") return p.look
+    if (p.character) return lookFor(p.character, p.outfit)
+    return lookFor(DEFAULT_LOOKS[i % DEFAULT_LOOKS.length])
+  }
+  const clearFigures = () => {
+    for (const f of figures) {
+      scene.remove(f.fig.group, f.blob)
+      f.fig.dispose()
+      f.blob.geometry.dispose()
+      f.blob.material.dispose()
     }
-    meshes = match.players.map((p, i) => {
-      const mesh = makePlayerMesh(p.team, p.id === "partner" || p.id === "opp2", i + (p.team ? 1 : 0), tex)
-      scene.add(mesh.group)
-      return mesh
+    figures = []
+  }
+  const buildFigures = () => {
+    clearFigures()
+    const shadows = !!QUALITY[settings.quality]?.shadows
+    figures = match.players.map((p, i) => {
+      const fig = createFigure(lookOf(p, i), { shadows })
+      scene.add(fig.group)
+      const anim = createAnim(p.x, p.z, p.team === 0 ? Math.PI : 0)
+      const blob = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 0.8), new THREE.MeshBasicMaterial({ map: tex.blob, transparent: true, depthWrite: false, opacity: 0.55 }))
+      blob.rotation.x = -Math.PI / 2
+      blob.renderOrder = 1
+      scene.add(blob)
+      return { fig, anim, player: p, blob, lastSpeed: 0 }
     })
   }
+  const placeUmpire = () => {
+    if (!umpire) {
+      umpire = createFigure(UMPIRE_LOOK, { shadows: !!QUALITY[settings.quality]?.shadows, withPaddle: false })
+      scene.add(umpire.group)
+    }
+  }
+  placeUmpire()
 
-  const startMatch = (opts, demo = false) => {
-    match = createMatch({ ...opts, assist: settings.assist })
+  const resetAnims = () => {
+    for (const f of figures) f.anim = createAnim(f.player.x, f.player.z, f.player.team === 0 ? Math.PI : 0)
+  }
+
+  // the person this screen follows (slot 0) and which end the camera is at
+  const mainHuman = () => match?.players.find((p) => p.ctrl === "human" && p.slot === 0) || null
+  const viewTeam = () => (mode === "demo" ? 0 : mainHuman()?.team ?? 0)
+
+  // ---------- starting things ----------
+  const startLocal = (opts, demo = false) => {
+    host = null
+    guest = null
+    netWait = null
+    replay = null
+    record = []
+    cut = null
+    humans = opts.humans || 1
+    setVenue(opts.venue || (demo ? "stadium" : venueId))
+    match = createMatch({ assist: settings.assist, window: settings.window, ...opts })
     match.autoplay = demo
+    mode = demo ? "demo" : "local"
     trailHistory.length = 0
-    buildPlayers()
+    buildFigures()
     hudKey = ""
     aidVersion = -1
     if (!demo) {
       audio.unlock()
       setStatus("playing")
       container.focus({ preventScroll: true })
-    }
+    } else setStatus("title")
+    if (showcaseFig) showcaseFig.fig.group.visible = false
     start()
   }
 
   // ---------- input ----------
-
-  const human = () => match?.players.find((p) => p.human)
-  const playing = () => status === "playing" && match && !match.autoplay
-
-  const aimNow = () => {
-    // direction keys at the moment of the swing beat the mouse
-    const l = keys.has("ArrowLeft") || keys.has("KeyA")
-    const r = keys.has("ArrowRight") || keys.has("KeyD")
-    if (l !== r) return l ? -0.85 : 0.85
-    if (Math.abs(stick.x) > 0.3) return Math.sign(stick.x) * Math.min(1, Math.abs(stick.x))
-    return aim.mouse ? aim.x : 0
-  }
-
-  const doSwing = (kind, power) => {
-    if (!playing()) return false
-    audio.unlock()
-    return swing(match, { kind, power, aim: aimNow() })
-  }
+  const playing = () => status === "playing" && match && mode !== "demo" && !replay
+  const keySets = () => (humans >= 2 ? [["p1", 0], ["p2", 1]] : [["solo", 0]])
+  const flip = () => viewTeam() === 1 && mode !== "demo"
 
   const updateMove = () => {
-    let x = 0
-    let z = 0
-    if (keys.has("ArrowLeft") || keys.has("KeyA")) x -= 1
-    if (keys.has("ArrowRight") || keys.has("KeyD")) x += 1
-    if (keys.has("ArrowUp") || keys.has("KeyW")) z -= 1
-    if (keys.has("ArrowDown") || keys.has("KeyS")) z += 1
-    x += stick.x
-    z -= stick.y
-    if (match) setMove(match, Math.max(-1, Math.min(1, x)), Math.max(-1, Math.min(1, z)))
+    if (!match || mode === "demo") return
+    const sets = keySets()
+    for (const [set, slot] of sets) {
+      const map = bindings[set]
+      const held = (a) => map[a].some((c) => keys.has(c))
+      let x = (held("right") ? 1 : 0) - (held("left") ? 1 : 0)
+      let z = (held("down") ? 1 : 0) - (held("up") ? 1 : 0)
+      const pad = lastPads[slot]
+      if (pad && (pad.x || pad.z)) {
+        x += pad.x
+        z += pad.z
+      }
+      x += stick[slot]?.x || 0
+      z -= stick[slot]?.y || 0
+      const l = Math.hypot(x, z)
+      if (l > 1) {
+        x /= l
+        z /= l
+      }
+      if (flip()) {
+        x = -x
+        z = -z
+      }
+      setMove(match, x, z, slot)
+    }
   }
 
-  const SHOT_KEYS = { KeyJ: ["dink", 0.3], Digit1: ["dink", 0.3], KeyK: ["drive", 0.85], Digit2: ["drive", 0.85], KeyL: ["lob", 0.5], Digit3: ["lob", 0.5], KeyI: ["drop", 0.4], Digit4: ["drop", 0.4] }
-  const MOVE_KEYS = new Set(["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "KeyA", "KeyD", "KeyW", "KeyS"])
+  const shotDown = (slot, action) => {
+    if (!playing()) {
+      // between points, any shot button skips a replay
+      if (replay) endReplay()
+      return false
+    }
+    audio.unlock()
+    const kind = action === "auto" ? "auto" : action
+    const ok = mPress(match, slot, kind, { risky: powerHeld[slot] || touchPower[slot] })
+    if (ok) chargeKey[slot] = action
+    return ok
+  }
+  const shotUp = (slot, action) => {
+    if (chargeKey[slot] !== action) return false
+    chargeKey[slot] = null
+    if (!match) return false
+    const ok = mRelease(match, slot, { risky: powerHeld[slot] || touchPower[slot] || undefined })
+    if (touchPower[slot]) {
+      touchPower[slot] = false
+      onEvent?.({ type: "power", on: false, slot })
+    }
+    return ok
+  }
 
   const onKeyDown = (e) => {
     if (e.target !== container && e.target.closest?.("input, textarea, select, button, .dialog")) return
@@ -547,125 +385,110 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
       else if (status === "paused") api.resume()
       return
     }
-    if (status === "paused" && (code === "Escape" || code === "Space")) {
+    if (status === "paused" && code === "Escape") {
       e.preventDefault()
       api.resume()
       return
     }
-    if (MOVE_KEYS.has(code)) {
-      e.preventDefault()
+    if (code === "KeyC" && humans < 2 && status === "playing" && !e.repeat && !actionFor(bindings, keySets(), code)) {
+      cycleCamera()
+      return
+    }
+    const hit = actionFor(bindings, keySets(), code)
+    if (!hit) return
+    e.preventDefault()
+    const { action, slot } = hit
+    if (action === "power") {
+      powerHeld[slot] = true
+      return
+    }
+    if (["up", "down", "left", "right"].includes(action)) {
       keys.add(code)
       updateMove()
       return
     }
-    if (code === "Space") {
-      e.preventDefault()
-      if (!e.repeat && !charge) charge = { start: performance.now(), kind: "auto", hard: e.shiftKey }
-      return
-    }
-    if (SHOT_KEYS[code] && !e.repeat) {
-      e.preventDefault()
-      const [kind, power] = SHOT_KEYS[code]
-      doSwing(kind, e.shiftKey ? Math.max(power, 0.8) : power)
-    }
+    if (!e.repeat) shotDown(slot, action)
   }
   const onKeyUp = (e) => {
-    if (MOVE_KEYS.has(e.code)) {
+    const hit = actionFor(bindings, keySets(), e.code)
+    if (!hit) return
+    const { action, slot } = hit
+    if (action === "power") {
+      powerHeld[slot] = false
+      return
+    }
+    if (["up", "down", "left", "right"].includes(action)) {
       keys.delete(e.code)
       updateMove()
+      return
     }
-    if (e.code === "Space" && charge) {
-      // a tap is soft, a held swing is hard
-      const held = performance.now() - charge.start
-      const power = charge.hard || e.shiftKey ? 0.9 : Math.min(1, held / 380)
-      charge = null
-      doSwing("auto", power)
-    }
+    shotUp(slot, action)
   }
-
-  let swipe = null
   const onPointerDown = (e) => {
     if (e.target !== canvas) return
     container.focus({ preventScroll: true })
     audio.unlock()
-    if (e.pointerType === "mouse") {
-      if (e.button === 2) {
-        doSwing("lob", 0.5)
-        return
-      }
-      if (e.button !== 0) return
-      charge = { start: performance.now(), kind: "auto", y: e.clientY, t: e.timeStamp, minY: e.clientY }
-    } else {
-      swipe = { id: e.pointerId, x: e.clientX, y: e.clientY, t: performance.now() }
-    }
-  }
-  const onPointerMove = (e) => {
-    if (e.pointerType === "mouse") {
-      const r = canvas.getBoundingClientRect()
-      aim.x = Math.max(-1, Math.min(1, ((e.clientX - r.left) / r.width - 0.5) * 2.4))
-      aim.mouse = true
-      if (charge && charge.minY !== undefined) charge.minY = Math.min(charge.minY, e.clientY)
-    }
-  }
-  const onPointerUp = (e) => {
-    if (e.pointerType === "mouse" && e.button === 0 && charge && charge.minY !== undefined) {
-      const held = performance.now() - charge.start
-      // flicking the mouse upward while holding is a hard swing
-      const flick = Math.max(0, charge.y - charge.minY)
-      const power = Math.min(1, Math.max(held / 380, flick / 90))
-      charge = null
-      doSwing("auto", power)
-      return
-    }
-    if (swipe && swipe.id === e.pointerId) {
-      const dx = e.clientX - swipe.x
-      const dy = swipe.y - e.clientY
-      const dt = performance.now() - swipe.t
-      swipe = null
-      if (dy > 35 && dt < 600) {
-        // swipe up to swing: faster is harder, sideways aims
-        const speed = Math.hypot(dx, dy) / Math.max(dt, 16)
-        const power = Math.min(1, Math.max(0.15, (speed - 0.4) / 1.6))
-        const saved = aim.mouse
-        aim.mouse = true
-        aim.x = Math.max(-1, Math.min(1, dx / 110))
-        doSwing("auto", power)
-        aim.mouse = saved
-      } else if (Math.hypot(dx, dy) < 14 && dt < 350) {
-        doSwing("auto", 0.3) // a tap is a soft swing
-      }
-    }
+    if (replay) endReplay()
   }
   const onContextMenu = (e) => e.preventDefault()
   const onBlur = (e) => {
     if (container.contains(e.relatedTarget)) return
-    keys.clear()
-    charge = null
-    updateMove()
-    if (status === "playing") api.pause()
+    // a focused overlay button that went away drops focus to the page: that's not leaving
+    setTimeout(() => {
+      if (disposed) return
+      const a = document.activeElement
+      if (!a || a === document.body) {
+        container.focus({ preventScroll: true })
+        return
+      }
+      if (container.contains(a)) return
+      keys.clear()
+      powerHeld[0] = powerHeld[1] = false
+      updateMove()
+      if (status === "playing" && mode === "local") api.pause()
+    }, 0)
   }
   const onVisibility = () => {
-    if (document.hidden && status === "playing") api.pause()
+    if (document.hidden && status === "playing" && mode === "local") api.pause()
   }
-
   container.addEventListener("keydown", onKeyDown)
   container.addEventListener("keyup", onKeyUp)
   container.addEventListener("pointerdown", onPointerDown)
-  container.addEventListener("pointermove", onPointerMove)
-  container.addEventListener("pointerup", onPointerUp)
-  container.addEventListener("pointercancel", onPointerUp)
   container.addEventListener("contextmenu", onContextMenu)
   container.addEventListener("focusout", onBlur)
   document.addEventListener("visibilitychange", onVisibility)
 
-  // ---------- sizing ----------
+  // gamepads: polled each frame
+  const pollPads = () => {
+    const list = navigator.getGamepads ? [...navigator.getGamepads()].filter(Boolean) : []
+    if (!list.length && !lastPads.length) return
+    const now = list.map(readPad)
+    const slots = humans >= 2 ? [0, 1] : [0]
+    slots.forEach((slot) => {
+      const pad = humans >= 2 ? now[slot] : now.find((p) => p) || null
+      const prev = lastPads[slot]
+      const { down, up } = padEdges(prev, pad)
+      lastPads[slot] = pad
+      if (!pad) return
+      powerHeld[slot] = pad.buttons.power || (keys.size > 0 && powerHeld[slot])
+      for (const b of down) {
+        if (b === "pause") {
+          if (status === "playing") api.pause()
+          else if (status === "paused") api.resume()
+        } else shotDown(slot, b)
+      }
+      for (const b of up) if (b !== "pause") shotUp(slot, b)
+    })
+    if (list.length) updateMove()
+  }
 
+  // ---------- sizing ----------
   const resize = () => {
     const width = container.clientWidth
     const height = container.clientHeight
     size = { width, height }
     if (!width || !height) {
-      if (status === "playing") api.pause() // minimized
+      if (status === "playing" && mode === "local") api.pause()
       return
     }
     renderer.setSize(width, height, false)
@@ -687,7 +510,7 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
     qualityClock = 0
     let next = pixelRatio
     if (avg > 21 && pixelRatio > 0.75) next = Math.max(0.75, pixelRatio - 0.25)
-    else if (avg < 15 && pixelRatio < maxPixelRatio) next = Math.min(maxPixelRatio, pixelRatio + 0.25)
+    else if (avg < 15 && pixelRatio < maxRatio) next = Math.min(maxRatio, pixelRatio + 0.25)
     if (next !== pixelRatio) {
       pixelRatio = next
       renderer.setPixelRatio(pixelRatio)
@@ -695,213 +518,432 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
     }
   }
 
-  // ---------- per-frame drawing ----------
-
+  // ---------- the camera ----------
+  const CAMERAS = ["broadcast", "tv", "side", "player"]
+  const cycleCamera = () => {
+    const next = CAMERAS[(CAMERAS.indexOf(settings.camera) + 1) % CAMERAS.length]
+    settings = { ...settings, camera: next }
+    onEvent?.({ type: "camera", camera: next })
+  }
   const tmpV = new THREE.Vector3()
+  const tmpL = new THREE.Vector3()
   let orbit = 0.6
   const updateCamera = (dt, snap) => {
-    const p = human()
     const portrait = size.height > size.width * 1.05
-    const mode = status === "title" ? "high" : settings.camera
-    let pos
-    let look
-    if (status === "title") {
-      // the demo match: a slow orbit around the court
-      orbit += dt * 0.07
-      pos = tmpV.set(Math.sin(orbit) * 6, portrait ? 12 : 7.5, Math.cos(orbit) * 11.5)
-      look = camTarget.set(0, portrait ? -2 : -0.5, 0)
-    } else if (mode === "high" || !p) {
-      pos = tmpV.set(0, portrait ? 13 : 9, HALF_L + (portrait ? 9 : 7.5))
-      look = camTarget.set(0, 0, portrait ? -1.5 : -1.2)
+    const ball = replay ? replay.ball : match?.ball.p
+    let fov = portrait ? 64 : 46
+    let k = snap ? 1 : 1 - Math.exp(-dt * 3.4)
+    if (status === "showcase" && showcaseFig) {
+      orbit += dt * 0.35
+      const c = showcaseFig.at
+      tmpV.set(c.x + Math.sin(orbit) * 0.6, portrait ? 1.0 : 1.35, c.z + (portrait ? 6.2 : 3.1))
+      tmpL.set(c.x, portrait ? -1.0 : 0.95, c.z)
+      fov = portrait ? 54 : 40
+      k = snap ? 1 : 1 - Math.exp(-dt * 4)
+    } else if (replay) {
+      // low and tight by the net post, following the ball
+      const s = replay.side
+      tmpV.set(s * (HALF_W + 1.4), 1.25, ball.z * 0.55 + s * 0.6)
+      tmpL.set(ball.x * 0.6, Math.max(0.5, ball.y * 0.7), ball.z)
+      fov = portrait ? 60 : 40
+      k = snap ? 1 : 1 - Math.exp(-dt * 6)
+    } else if (status === "title" || mode === "demo") {
+      orbit += dt * 0.06
+      tmpV.set(Math.sin(orbit) * 7, portrait ? 12 : 6.5, Math.cos(orbit) * 12.5)
+      tmpL.set(0, portrait ? -1.5 : 0, 0)
+    } else if (cut && settings.cuts) {
+      // between points: the server, close, from the side
+      const p = playerById(match, match.game.server)
+      const s = sideOf(p.team)
+      tmpV.set(p.x + (p.x >= 0 ? -1 : 1) * 2.6, 1.7, p.z - s * 3.2)
+      tmpL.set(p.x, 1.15, p.z)
+      fov = portrait ? 55 : 38
+      k = cut.t < 0.05 ? 1 : 1 - Math.exp(-dt * 2)
     } else {
-      const hz = Math.max(2.4, p.z)
-      const lift = portrait ? 1.8 : 0
-      pos = tmpV.set(p.x * 0.55, 3.4 + lift + (hz - 2.4) * 0.08, hz + 5.4 + lift * 0.9)
-      look = camTarget.set(p.x * 0.25 + match.ball.p.x * 0.15, 0.5, -3.2)
+      const p = mainHuman()
+      const s = sideOf(viewTeam())
+      const cam = humans >= 2 ? "tv" : settings.camera
+      if (cam === "tv" || !p) {
+        tmpV.set(0, portrait ? 13.5 : 9.8, s * (HALF_L + (portrait ? 10.5 : 8.8)))
+        tmpL.set(0, 0, -s * (portrait ? 1.8 : 1.4))
+        fov = portrait ? 62 : 44
+      } else if (cam === "side") {
+        tmpV.set(-(HALF_W + 9.5), portrait ? 7 : 5.2, ball.z * 0.3)
+        tmpL.set(0, 0.5, ball.z * 0.45)
+        fov = portrait ? 66 : 42
+      } else if (cam === "player") {
+        const hz = Math.max(2.4, Math.abs(p.z))
+        tmpV.set(p.x * 0.8, 2.1 + (portrait ? 1 : 0), s * (hz + 3.3 + (portrait ? 1.5 : 0)))
+        tmpL.set(p.x * 0.3 + ball.x * 0.2, 0.9, -s * 4)
+        fov = portrait ? 70 : 56
+      } else {
+        // broadcast: high behind your end, following you across
+        const hz = Math.max(3, Math.min(HALF_L + 1, Math.abs(p.z)))
+        tmpV.set(p.x * (portrait ? 0.25 : 0.45), (portrait ? 8.2 : 4.9) + (hz - 3) * 0.06, s * (hz + (portrait ? 6.8 : 6.6)))
+        tmpL.set(p.x * 0.15 + ball.x * 0.15, 0, -s * (portrait ? 3.4 : 2.2))
+        // a short, wide screen (a phone on its side) zooms in a little
+        fov = portrait ? 64 : size.height < 480 ? 40 : 47
+      }
     }
-    const fov = portrait ? (mode === "high" ? 58 : 66) : 50
     if (camera.fov !== fov) {
-      camera.fov = fov
+      camera.fov += (fov - camera.fov) * (snap || cut?.t < 0.05 ? 1 : Math.min(1, dt * 4))
       camera.updateProjectionMatrix()
     }
-    const k = snap ? 1 : 1 - Math.exp(-dt * 3.2)
-    camera.position.lerp(pos, k)
-    camLook.lerp(look, k)
+    camera.position.lerp(tmpV, k)
+    camLook.lerp(tmpL, k)
     camera.lookAt(camLook)
+    if (shake > 0) {
+      camera.position.x += (Math.random() - 0.5) * shake * 0.12
+      camera.position.y += (Math.random() - 0.5) * shake * 0.08
+      shake = Math.max(0, shake - dt * 3)
+    }
   }
 
-  const updatePlayers = (dt) => {
-    const ball = match.ball
-    match.players.forEach((p, i) => {
-      const mesh = meshes[i]
-      if (!mesh) return
-      mesh.group.position.set(p.x, 0, p.z)
-      // face the net (team 0 looks toward -z), turned a little toward the ball
-      const base = p.team === 0 ? Math.PI : 0
-      const toBall = Math.atan2(ball.p.x - p.x, ball.p.z - p.z)
-      let rel = toBall - base
-      rel = Math.atan2(Math.sin(rel), Math.cos(rel))
-      const wantY = base + Math.max(-0.7, Math.min(0.7, rel)) * 0.6
-      const cur = mesh.group.rotation.y
-      mesh.group.rotation.y = cur + Math.atan2(Math.sin(wantY - cur), Math.cos(wantY - cur)) * (1 - Math.exp(-dt * 6))
-      const speed = Math.hypot(p.vx, p.vz)
-      mesh.stride += speed * dt * 4.2
-      const swingAmp = Math.min(0.75, speed * 0.22)
-      mesh.legs[0].rotation.x = Math.sin(mesh.stride) * swingAmp
-      mesh.legs[1].rotation.x = -Math.sin(mesh.stride) * swingAmp
-      mesh.armL.rotation.x = -Math.sin(mesh.stride) * swingAmp * 0.6
-      const coming = match.rally && match.rally.lastTeam !== null && match.rally.lastTeam !== p.team && Math.hypot(ball.p.x - p.x, ball.p.z - p.z) < 3.2
-      p.ready = coming
-      p.ballHeld = ball.held === p.id
-      const pose = poseFor(p, ball)
-      const arm = mesh.armR
-      // ease toward the pose (fast, so swings snap like real ones)
-      const k = p.swing ? 1 : 1 - Math.exp(-dt * 14)
-      arm.rotation.y += (pose.yaw - arm.rotation.y) * k
-      arm.rotation.z += (pose.drop - arm.rotation.z) * k
-      mesh.body.rotation.y += (pose.turn - mesh.body.rotation.y) * (1 - Math.exp(-dt * 10))
-      // a little crouch when ready
-      mesh.body.position.y += ((p.ready || p.armed ? -0.06 : 0) - mesh.body.position.y) * (1 - Math.exp(-dt * 8))
-      mesh.shadow.scale.setScalar(1)
+  // ---------- drawing the players ----------
+  const updateFigures = (dt) => {
+    if (!match) return
+    const frameRec = []
+    for (const f of figures) {
+      const p = f.player
+      let s
+      if (replay) s = replay.frame.players[figures.indexOf(f)]
+      else {
+        s = situation(match, p)
+        s.hand = 1
+        frameRec.push({ ...s, ball: { ...s.ball }, swing: s.swing && { ...s.swing }, prep: s.prep && { ...s.prep } })
+      }
+      if (!s) continue
+      const pose = updateAnim(f.anim, s, dt)
+      f.fig.apply(pose, dt)
+      f.blob.position.set(pose.pelvis.x, 0.004, pose.pelvis.z)
+      // sneakers squeak when someone stops hard
+      const speed = Math.hypot(s.vx, s.vz)
+      if (!replay && f.lastSpeed - speed > 1.6 * dt * 60 * 0.05 && f.lastSpeed > 2.6 && Math.random() < 0.35) audio.squeak(Math.min(1, f.lastSpeed / 4))
+      f.lastSpeed = speed
+    }
+    // the rings under the people playing on this computer
+    youRings.forEach((r, slot) => {
+      const p = mode === "demo" || replay ? null : humanBySlot(match, slot)
+      r.visible = !!p && status !== "showcase"
+      if (p) {
+        const f = figures.find((x) => x.player === p)
+        const at = f ? f.anim.gait.feet : null
+        const cx = at ? (at[0].x + at[1].x) / 2 : p.x
+        const cz = at ? (at[0].z + at[1].z) / 2 : p.z
+        r.position.set(cx, 0.006, cz)
+        r.material.opacity = humans >= 2 || match.game.doubles ? 0.55 : 0.3
+      }
     })
+    // the umpire watches the ball, and signals calls
+    if (umpire) {
+      const b = replay ? replay.ball : match.ball.p
+      umpireSignalT = Math.max(0, umpireSignalT - dt)
+      umpire.apply(seatedPose(venue.umpireSeat, b, umpireSignalT > 0 ? umpireSignal : null), dt)
+    }
+    // keep frames for replays (local play only)
+    if (!replay && (mode === "local") && (match.phase === "rally" || match.phase === "dead")) {
+      record.push({ players: frameRec, ball: { ...match.ball.p }, dt })
+      let total = 0
+      for (let i = record.length - 1; i >= 0; i--) {
+        total += record[i].dt
+        if (total > REPLAY_S) {
+          record.splice(0, i)
+          break
+        }
+      }
+    }
   }
 
+  // ---------- the ball ----------
   const updateBall = () => {
-    const b = match.ball
-    ballMesh.position.set(b.p.x, Math.max(BALL_R * BALL_SCALE, b.p.y), b.p.z)
-    ballMesh.rotation.x += b.w.x * 0.004
-    ballMesh.rotation.z += b.w.z * 0.004
+    const fix = guest?.fix
+    const b = replay ? { p: replay.ball, v: { x: 0, y: 0, z: 0 }, held: null } : match.ball
+    const bx = b.p.x + (fix?.x || 0)
+    const by = b.p.y + (fix?.y || 0)
+    const bz = b.p.z + (fix?.z || 0)
+    ballMesh.position.set(bx, Math.max(BALL_R * BALL_SCALE, by), bz)
+    ballMesh.rotation.x += (b.w?.x || 0) * 0.004
+    ballMesh.rotation.z += (b.w?.z || 0) * 0.004
     // the shadow shrinks and darkens as the ball comes down
-    const h = Math.max(0, b.p.y - BALL_R)
-    const s = BALL_R * BALL_SCALE * 2.6 * (1 + h * 0.35)
-    ballShadow.position.set(b.p.x + h * 0.12, 0.008, b.p.z - h * 0.06)
+    const h = Math.max(0, by - BALL_R)
+    const s = BALL_R * BALL_SCALE * 2.8 * (1 + h * 0.3)
+    ballShadow.position.set(bx + h * 0.1, 0.007, bz - h * 0.05)
     ballShadow.scale.set(s, s, s)
-    ballShadow.material.opacity = Math.max(0.18, 0.85 - h * 0.18)
-    // the trail: the last few positions, fading out (only while it's moving fast)
-    trailHistory.unshift(b.p.x, b.p.y, b.p.z)
+    ballShadow.material.opacity = Math.max(0.15, 0.9 - h * 0.2)
+    // the trail
+    trailHistory.unshift(bx, by, bz)
     if (trailHistory.length > TRAIL_N * 3) trailHistory.length = TRAIL_N * 3
-    const fast = Math.hypot(b.v.x, b.v.y, b.v.z) > 4 && !b.held
+    const speed = replay ? 8 : Math.hypot(b.v.x, b.v.y, b.v.z)
+    const show = speed > 5 && !b.held ? Math.min(1, (speed - 5) / 8) : 0
+    const cam = camera.position
     for (let i = 0; i < TRAIL_N; i++) {
       const j = Math.min(i, trailHistory.length / 3 - 1)
-      trailPos[i * 3] = trailHistory[j * 3]
-      trailPos[i * 3 + 1] = trailHistory[j * 3 + 1]
-      trailPos[i * 3 + 2] = trailHistory[j * 3 + 2]
-      trailCol[i * 4] = 1
-      trailCol[i * 4 + 1] = 1
-      trailCol[i * 4 + 2] = 0.75
-      trailCol[i * 4 + 3] = fast ? 0.55 * (1 - i / TRAIL_N) : 0
+      const j2 = Math.min(i + 1, trailHistory.length / 3 - 1)
+      const x = trailHistory[j * 3]
+      const y = trailHistory[j * 3 + 1]
+      const z = trailHistory[j * 3 + 2]
+      // ribbon width across the view
+      const dx = trailHistory[j2 * 3] - x
+      const dy = trailHistory[j2 * 3 + 1] - y
+      const dz = trailHistory[j2 * 3 + 2] - z
+      const vx = cam.x - x
+      const vy = cam.y - y
+      const vz = cam.z - z
+      let nx = dy * vz - dz * vy
+      let ny = dz * vx - dx * vz
+      let nz = dx * vy - dy * vx
+      const nl = Math.hypot(nx, ny, nz) || 1
+      const w = BALL_R * BALL_SCALE * 0.9 * (1 - i / TRAIL_N)
+      nx = (nx / nl) * w
+      ny = (ny / nl) * w
+      nz = (nz / nl) * w
+      trailPos.set([x + nx, y + ny, z + nz, x - nx, y - ny, z - nz], i * 6)
+      const a = show * 0.75 * (1 - i / TRAIL_N)
+      for (const k of [0, 1]) trailCol.set([trailColor[0] * a, trailColor[1] * a, trailColor[2] * a, a], (i * 2 + k) * 4)
     }
     trailGeo.attributes.position.needsUpdate = true
     trailGeo.attributes.color.needsUpdate = true
   }
 
+  // where the incoming ball lands (yellow: in, red: going out) and where you're aiming
   const updateAid = () => {
     const r = match.rally
-    const you = human()
-    const show = settings.aid && status === "playing" && you && r && r.lastTeam !== null && r.lastTeam !== you.team && !r.pending && !match.ball.held
-    if (!show) {
-      aidLine.visible = false
-      landRing.visible = false
-    } else if (aidVersion !== match.version) {
+    const you = mainHuman()
+    const show = settings.aid && status === "playing" && mode !== "demo" && !replay && you && r && r.lastTeam !== null && r.lastTeam !== you.team && r.bounces === 0 && !r.pending && !r.over && !match.ball.held
+    if (!show) landRing.visible = false
+    else if (aidVersion !== match.version) {
       aidVersion = match.version
-      const path = predictPath({ p: match.ball.p, v: match.ball.v, w: match.ball.w }, { maxT: 2.5, every: 1 / 40, maxBounces: 1 })
-      let n = 0
-      let land = null
-      for (const s of path) {
-        if (n >= AID_N) break
-        aidPos[n * 3] = s.x
-        aidPos[n * 3 + 1] = s.y
-        aidPos[n * 3 + 2] = s.z
-        n++
-        if (s.bounce) {
-          land = s
-          break
-        }
+      const path = predictPath({ p: match.ball.p, v: match.ball.v, w: match.ball.w }, { maxT: 2.5, every: 1 / 30, maxBounces: 1 })
+      const land = path.find((s) => s.bounce)
+      landRing.visible = !!land && Math.sign(land.z) === sideOf(you.team)
+      if (land) {
+        landRing.position.set(land.x, 0.009, land.z)
+        landRing.material.color.setHex(inCourt(land.x, land.z) ? 0xfff6a8 : 0xff5a4a)
       }
-      aidGeo.setDrawRange(0, n)
-      aidGeo.attributes.position.needsUpdate = true
-      aidLine.computeLineDistances()
-      aidLine.visible = n > 1
-      landRing.visible = !!land && r.bounces === 0
-      if (land) landRing.position.set(land.x, 0.01, land.z)
     }
-    // where you're aiming (desktop mouse aim)
-    const showAim = settings.aid && status === "playing" && you && aim.mouse && !(match.o && match.autoplay)
-    aimRing.visible = !!showAim
-    if (showAim) {
-      const side = sideOf(1 - you.team)
-      aimRing.position.set(aim.x * rightSign(you.team) * HALF_W * 0.62, 0.012, side * (HALF_L - 1.4))
+    if (landRing.visible) landRing.scale.setScalar(1 + Math.sin(performance.now() / 120) * 0.08)
+    // aiming: while you hold a shot button, a ring where it's going
+    const c = you?.charge
+    if (settings.aid && c && status === "playing" && !replay && mode !== "demo") {
+      const inp = match.inputs[you.slot] || { x: 0, z: 0 }
+      const aim = Math.max(-1, Math.min(1, inp.x * rightSign(you.team)))
+      const depth = Math.max(-1, Math.min(1, -inp.z * sideOf(you.team)))
+      const from = you.expect ? you.expect : match.ball.p
+      const kind = c.kind === "serve" ? "serve" : resolveKind(match, you, c.kind, 0.6)
+      const plan = planShot(kind, { team: you.team, from: { x: from.x, y: from.y ?? 1, z: from.z }, aim, depth, power: 0.6, court: match.rally.court, variant: c.variant, risky: c.risky })
+      aimRing.visible = true
+      aimRing.position.set(plan.target.x, 0.011, plan.target.z)
+      aimRing.material.color.setHex(c.risky ? 0xff9a3c : 0x7cf0ff)
+    } else aimRing.visible = false
+  }
+
+  // ---------- the timing meter (drawn by the page; we move its parts) ----------
+  const updateMeters = () => {
+    for (const slot of [0, 1]) {
+      const el = meterEls[slot]
+      if (!el) continue
+      const p = match && (mode === "local" || mode === "host" || mode === "guest") && !replay && status === "playing" ? humanBySlot(match, slot) : null
+      const info = p ? meterFor(match, p) : null
+      if (!info) {
+        if (el.dataset.mode) el.dataset.mode = ""
+        continue
+      }
+      el.dataset.mode = info.mode
+      if (info.mode === "serve") {
+        el.style.setProperty("--fill", `${Math.min(1.4, info.fill) / 1.4}`)
+        el.dataset.grade = info.grade
+      } else {
+        // the marker reaches the middle when it's time to let go
+        const RANGE = 0.55
+        const pos = Math.max(0, Math.min(1, 0.5 - (info.ttc - info.lead) / RANGE / 2 + (info.released !== null ? 0 : 0)))
+        if (info.released !== null && el.dataset.rel !== "1") {
+          el.dataset.rel = "1"
+          el.style.setProperty("--rel", `${pos}`)
+        } else if (info.released === null && el.dataset.rel === "1") el.dataset.rel = ""
+        el.style.setProperty("--pos", `${pos}`)
+        el.style.setProperty("--zone", `${info.window / RANGE}`)
+        el.style.setProperty("--power", `${info.power ?? 0}`)
+        el.dataset.charging = info.charging ? "1" : ""
+      }
     }
   }
 
+  // ---------- the scoreboard ----------
+  const teamNames = () => {
+    const names = [0, 1].map((team) => match.players.filter((p) => p.team === team).map((p) => p.name))
+    return names.map((n) => n.join(" / "))
+  }
   const sendHud = (force) => {
     const sb = scoreboard(match)
-    const you = human()
+    const you = mainHuman()
     const server = playerById(match, sb.server)
-    const yourServe = !!you && match.ball.held === you.id && (match.phase === "serve" || match.phase === "intro")
-    const key = `${sb.call}|${sb.score}|${sb.serving}|${sb.server}|${yourServe}|${status}|${match.phase}`
+    const yourServe = !!you && match.ball.held === you.id && match.phase === "serve"
+    const serveSlot = humans >= 2 && server?.ctrl === "human" && match.ball.held === server.id && match.phase === "serve" ? server.slot : null
+    const key = `${sb.call}|${sb.score}|${sb.serving}|${sb.server}|${yourServe}|${serveSlot}|${status}|${match.phase}|${netWait}|${mode}`
     if (!force && key === hudKey) return
     hudKey = key
+    const names = teamNames()
+    if (venue.drawScreen) venue.drawScreen({ names, score: sb.score, call: sb.call })
     onHud?.({
       call: sb.call,
       score: sb.score,
       serving: sb.serving,
       server: server?.name,
       serverNumber: sb.serverNumber,
+      names,
+      yourTeam: you?.team ?? 0,
       doubles: match.game.doubles,
       scoring: match.game.scoring,
       target: match.game.target,
       yourServe,
+      serveSlot,
       phase: match.phase,
-      demo: match.autoplay && status === "title",
+      demo: mode === "demo",
+      mode,
+      humans,
+      netWait,
+      venue: venue.def.name,
     })
   }
 
+  // ---------- replays ----------
+  const startReplay = (side) => {
+    if (record.length < 30 || mode !== "local") return
+    // from a moment before the rally's last few shots to the end
+    const frames = record.slice(-Math.min(record.length, 60 * 6))
+    replay = { frames, i: 0, t: 0, side: side || (Math.random() < 0.5 ? 1 : -1), frame: frames[0], ball: { ...frames[0].ball } }
+    match.hold = true
+    for (const f of figures) f.anim = createAnim(frames[0].players[figures.indexOf(f)]?.x ?? f.player.x, frames[0].players[figures.indexOf(f)]?.z ?? f.player.z, f.player.team === 0 ? Math.PI : 0)
+    trailHistory.length = 0
+    trailColor = [1, 0.95, 0.6]
+    onEvent?.({ type: "replay", on: true })
+    if (venue.drawScreen) venue.drawScreen({ message: "REPLAY" })
+  }
+  function endReplay() {
+    if (!replay) return
+    replay = null
+    record = []
+    if (match) match.hold = false
+    resetAnims()
+    trailHistory.length = 0
+    hudKey = ""
+    onEvent?.({ type: "replay", on: false })
+  }
+  const stepReplay = (dt) => {
+    replay.t += dt * 0.4 // slow motion
+    let acc = 0
+    let i = replay.i
+    while (i < replay.frames.length - 1 && acc + replay.frames[i].dt <= replay.t) {
+      acc += replay.frames[i].dt
+      i++
+    }
+    if (i >= replay.frames.length - 1) {
+      endReplay()
+      return 0
+    }
+    if (i !== replay.i) {
+      replay.t -= acc
+      replay.i = i
+    }
+    replay.frame = replay.frames[i]
+    const next = replay.frames[i + 1]
+    const u = Math.min(1, replay.t / Math.max(1e-3, replay.frame.dt))
+    const a = replay.frame.ball
+    replay.ball = { x: a.x + (next.ball.x - a.x) * u, y: a.y + (next.ball.y - a.y) * u, z: a.z + (next.ball.z - a.z) * u }
+    return dt * 0.4
+  }
+
+  // ---------- events ----------
   const handleEvents = () => {
-    const you = human()
+    const you = mainHuman()
+    const demo = mode === "demo"
     for (const e of match.events) {
-      if (devLog && status !== "title") {
+      if (devLog && !demo) {
         devLog.push(e)
-        if (devLog.length > 2000) devLog.splice(0, 500)
+        if (devLog.length > 3000) devLog.splice(0, 800)
       }
       switch (e.type) {
-        case "hit":
-          audio.pock(Math.min(1, e.paddle / 14))
-          if (match.autoplay && status === "title") break
-          onEvent?.({ type: "hit", kind: e.kind, label: KIND_LABEL[e.kind], mine: e.player === you?.id, speed: e.speed, volley: e.volley })
+        case "hit": {
+          const perfect = e.grade === "perfect"
+          audio.pock(Math.min(1, e.paddle / 14), perfect)
+          const big = e.kind === "smash" || (e.risky && perfect)
+          trailColor = e.risky ? [1, 0.55, 0.2] : perfect ? [0.75, 1, 1] : [1, 0.95, 0.6]
+          burst(e.x, e.y, e.z, big ? 26 : perfect ? 12 : 6, { speed: big ? 5 : 2.5, color: e.risky ? [1, 0.6, 0.2] : [1, 0.95, 0.55], life: big ? 0.5 : 0.3 })
+          if (big && (mode === "local" || mode === "demo")) hitStop = 0.08
+          if (big) shake = 1
+          // everyone on the other side gets on their toes
+          for (const f of figures) if (f.player.team !== e.team) splitStep(f.anim)
+          if (demo) break
+          const hitter = playerById(match, e.player)
+          const mine = hitter?.ctrl === "human"
+          onEvent?.({ type: "hit", kind: e.kind, label: KIND_LABEL[e.kind], mine, slot: hitter?.slot, grade: e.grade, risky: e.risky, speed: e.speed, volley: e.volley, team: e.team })
+          if (e.risky || e.kind === "smash") venue.crowd?.cheer(0.25)
           break
+        }
         case "bounce":
           audio.bounce(Math.min(1, e.speed / 12))
-          if (e.call && status !== "title") {
-            mark.material = e.call === "In" ? markMat.in : markMat.out
-            mark.position.set(e.x, 0.011, e.z)
-            mark.visible = true
-            markTimer = 1.4
-            onEvent?.({ type: "line", call: e.call })
-          }
+          if (e.speed > 9) burst(e.x, 0.02, e.z, 5, { speed: 1, up: 0.6, color: [0.6, 0.6, 0.6], life: 0.35, gravity: 2 })
+          break
+        case "line":
+          if (demo) break
+          mark.material = e.call === "In" ? markMat.in : markMat.out
+          mark.position.set(e.x, 0.01, e.z)
+          mark.visible = true
+          markTimer = 1.6
+          onEvent?.({ type: "line", call: e.call })
+          if (e.call === "In") audio.ooh()
           break
         case "net":
         case "tape":
           audio.net()
           break
-        case "fault":
-          if (status !== "title") onEvent?.({ type: "fault", call: e.call, reason: e.reason, winner: e.winner, yours: e.winner === you?.team })
+        case "whiff":
+          if (!demo && playerById(match, e.player)?.ctrl === "human") onEvent?.({ type: "whiff", slot: playerById(match, e.player).slot })
           break
+        case "fault":
+          if (demo) break
+          umpireSignal = /out/i.test(e.call || "") ? "out" : "fault"
+          umpireSignalT = 1.3
+          audio.call(/kitchen/i.test(e.call) ? "Fault, kitchen" : e.call)
+          onEvent?.({ type: "fault", call: e.call, reason: e.reason, winner: e.winner, yours: e.winner === you?.team })
+          break
+        case "rally": {
+          if (demo) break
+          const level = Math.min(1, 0.3 + e.shots / 14 + (e.last?.risky ? 0.2 : 0) + (e.kind === "winner" ? 0.15 : 0))
+          venue.crowd?.cheer(level)
+          audio.cheer(level)
+          onEvent?.({ type: "rally", ...e, yours: e.winner === you?.team })
+          // a great point gets the replay
+          const worthy = e.shots >= 9 || (e.kind === "winner" && (e.last?.kind === "smash" || e.last?.risky || e.last?.grade === "perfect") && e.shots >= 3)
+          if (worthy && settings.replays !== false && mode === "local") setTimeout(() => !disposed && match && mode === "local" && !replay && startReplay(), 900)
+          break
+        }
         case "point":
-          if (status !== "title") {
-            audio.chime(e.winner === you?.team)
-            onEvent?.({ type: "point", ...e, yours: e.winner === you?.team })
-          }
+          if (demo) break
+          audio.chime(e.winner === you?.team)
+          for (const f of figures) setMood(f.anim, f.player.team === e.winner ? "cheer" : "sulk", Math.floor(Math.random() * 3))
+          onEvent?.({ type: "point", ...e, yours: e.winner === you?.team })
           break
         case "call":
-          if (status !== "title") onEvent?.({ type: "call", call: e.call, server: playerById(match, e.server)?.name })
+          if (demo) break
+          cut = { t: 0 }
+          audio.call(e.call)
+          onEvent?.({ type: "call", call: e.call, server: playerById(match, e.server)?.name })
+          break
+        case "ready":
+          cut = null
+          break
+        case "drill":
+          onEvent?.(e)
           break
         case "gameover":
-          if (status === "title") {
-            startMatch(demoOptions(), true)
+          if (demo) {
+            startLocal(demoOptions(), true)
             return
           }
-          onEvent?.({ type: "gameover", winner: e.winner, score: e.score, youWon: e.winner === you?.team, stats: { ...match.stats } })
+          venue.crowd?.cheer(1)
+          audio.cheer(1)
+          onEvent?.({ type: "gameover", winner: e.winner, score: e.score, youWon: e.winner === you?.team, stats: JSON.parse(JSON.stringify(match.stats)), names: teamNames() })
           setStatus("over")
           break
         default:
@@ -910,6 +952,7 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
     match.events.length = 0
   }
 
+  // ---------- the frame ----------
   const frame = (now) => {
     raf = 0
     if (disposed) return
@@ -918,16 +961,31 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
     const dtMs = last ? Math.min(100, now - last) : 16
     const snap = !last
     last = now
-    const dt = dtMs / 1000
-    if (status !== "paused" && match) {
-      perf.steps += advance(match, dt)
-      handleEvents()
+    let dt = dtMs / 1000
+    pollPads()
+    if (match && status !== "paused" && status !== "showcase") {
+      if (replay) dt = stepReplay(dt) || dt
+      else if (mode === "guest" && guest) {
+        if (devAuto.size) autopilot(match, 0, devJitter)
+        guest.tick(dtMs, now)
+        handleEvents()
+      } else if (hitStop > 0) {
+        hitStop -= dt
+      } else {
+        if (mode === "demo") match.autoplay = true
+        if (devAuto.size && mode !== "demo") for (const slot of devAuto) autopilot(match, slot, devJitter)
+        perf.steps += advance(match, dt)
+        if (host) host.capture(match.events)
+        handleEvents()
+      }
+      if (host) host.tick(dtMs)
+      if (cut) cut.t += dt
     }
     if (match) {
-      updatePlayers(status === "paused" ? 0 : dt)
+      updateFigures(status === "paused" ? 0 : dt)
       updateBall()
       updateAid()
-      updateCamera(dt, snap)
+      updateMeters()
       if (markTimer > 0) {
         markTimer -= dt
         mark.material.opacity = Math.min(1, markTimer)
@@ -939,13 +997,29 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
         sendHud(false)
       }
     }
+    if (status === "showcase" && showcaseFig) {
+      const s = { x: showcaseFig.at.x, z: showcaseFig.at.z, vx: 0, vz: 0, facing: 0, ball: { x: 0, y: 1, z: showcaseFig.at.z + 3 }, holding: false, swing: showcaseFig.swing, prep: null, charging: false, between: false, atNet: false, hand: 1 }
+      if (showcaseFig.swing) showcaseFig.swing.t += dt
+      showcaseFig.t += dt
+      if (showcaseFig.t > 3.2) {
+        showcaseFig.t = 0
+        const kinds = ["drive", "dink", "slice", "smash"]
+        const k = kinds[Math.floor(Math.random() * kinds.length)]
+        const y = k === "smash" ? 1.9 : k === "dink" ? 0.35 : 0.9
+        showcaseFig.swing = { t: 0, kind: k, hand: Math.random() < 0.6 ? "fh" : "bh", x: showcaseFig.at.x + (Math.random() < 0.5 ? 0.55 : -0.55), y, z: showcaseFig.at.z + 0.35 }
+      }
+      showcaseFig.fig.apply(updateAnim(showcaseFig.anim, s, dt), dt)
+    }
+    venue.crowd?.update(now / 1000, dt)
+    updateParticles(dt)
+    updateCamera(dt, snap)
     const renderStart = performance.now()
     renderer.render(scene, camera)
     perf.frames++
     perf.renderMs += performance.now() - renderStart
     perf.cpuMs += renderStart - cpuStart
     adaptQuality(dtMs)
-    if (status !== "paused") start()
+    if (status !== "paused" || host || guest) start()
   }
 
   function start() {
@@ -957,24 +1031,115 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
 
   const onContextLost = (e) => {
     e.preventDefault()
-    if (status === "playing") api.pause()
+    if (status === "playing" && mode === "local") api.pause()
   }
   const onContextRestored = () => start()
   canvas.addEventListener("webglcontextlost", onContextLost)
   canvas.addEventListener("webglcontextrestored", onContextRestored)
 
-  const demoOptions = () => ({ doubles: true, level: "pro", seed: (Math.random() * 1e9) | 0 })
+  const demoOptions = () => {
+    const ids = CHARACTERS.filter((c) => !c.boss).map((c) => c.id)
+    const pick = () => ids.splice(Math.floor(Math.random() * ids.length), 1)[0]
+    const who = [pick(), pick(), pick(), pick()]
+    const nick = (id) => CHARACTERS.find((c) => c.id === id).nick
+    return {
+      doubles: true,
+      level: "pro",
+      seed: (Math.random() * 1e9) | 0,
+      venue: "stadium",
+      roster: [
+        { id: "you", team: 0, ctrl: "human", slot: 0, name: nick(who[0]), character: who[0] },
+        { id: "partner", team: 0, ctrl: "cpu", level: "pro", name: nick(who[1]), character: who[1] },
+        { id: "opp1", team: 1, ctrl: "cpu", level: "pro", name: nick(who[2]), character: who[2] },
+        { id: "opp2", team: 1, ctrl: "cpu", level: "pro", name: nick(who[3]), character: who[3] },
+      ],
+    }
+  }
+  const devAuto = new Set()
+  let devJitter = {}
 
   // ---------- public API ----------
-
   const api = {
+    // a match on this computer. opts: createMatch options plus venue and humans (1 or 2)
     newMatch(opts) {
-      startMatch(opts, false)
+      startLocal(opts, false)
+    },
+    // the title screen's demo match
+    demo() {
+      startLocal(demoOptions(), true)
+    },
+    // online: role "host" | "guest"; people [{ seat, name, character, outfit }]; settings
+    // { doubles, scoring, target, venue, level }; send { snap, input, relay }
+    startOnline({ role, seat, people, settings: s, seed, send }) {
+      replay = null
+      record = []
+      cut = null
+      humans = 1
+      netWait = null
+      setVenue(s.venue || "stadium")
+      const withLooks = people.map((p) => ({ ...p, look: lookFor(p.character || DEFAULT_LOOKS[p.seat % 4], p.outfit) }))
+      const { roster, doubles } = onlineRoster(withLooks, { doubles: s.doubles, level: s.level || "intermediate" })
+      const named = roster.map((r, i) => (r.ctrl === "cpu" ? { ...r, character: CHARACTERS[(i * 3 + 2) % 9].id, look: lookFor(CHARACTERS[(i * 3 + 2) % 9].id), name: `${CHARACTERS[(i * 3 + 2) % 9].nick} (CPU)` } : r))
+      const options = { doubles, scoring: s.scoring || "sideout", target: s.target || 11, assist: settings.assist, window: settings.window }
+      if (role === "host") {
+        guest = null
+        match = createMatch({ ...options, roster: named.map((r) => (r.seat === seat ? { ...r, ctrl: "human", slot: 0 } : r)), seed })
+        host = createHost(match, send)
+        mode = "host"
+      } else {
+        host = null
+        guest = createGuest({ ...options, roster: named, me: `p${seat}`, send })
+        match = guest.m
+        mode = "guest"
+      }
+      buildFigures()
+      trailHistory.length = 0
+      hudKey = ""
+      audio.unlock()
+      setStatus("playing")
+      container.focus({ preventScroll: true })
+      start()
+    },
+    netSnap(data) {
+      guest?.onSnap(data, performance.now())
+    },
+    netInput(data, seat) {
+      host?.onInput(data, seat)
+    },
+    netRelay(data, seat) {
+      return host ? host.onRelay(data, seat) : false
+    },
+    // online, a guest: the host's final word (sent reliably, before the room stops relaying)
+    netFinal(d) {
+      if (mode !== "guest" || !match || status === "over" || !Array.isArray(d?.score)) return
+      match.game.score = [Number(d.score[0]) || 0, Number(d.score[1]) || 0]
+      match.game.winner = d.winner === 1 ? 1 : 0
+      match.phase = "over"
+      const you = mainHuman()
+      const stats = d.stats && typeof d.stats === "object" ? d.stats : JSON.parse(JSON.stringify(match.stats))
+      hudKey = ""
+      onEvent?.({ type: "gameover", winner: match.game.winner, score: match.game.score, youWon: match.game.winner === you?.team, stats, names: teamNames() })
+      setStatus("over")
+    },
+    // online: someone's connection dropped (text says who), or null when everyone's back
+    setNetWait(text) {
+      netWait = text || null
+      if (host) {
+        match.paused = !!netWait
+        host.setExtra(netWait ? { paused: 1 } : {})
+      } else if (guest && match) match.paused = !!netWait || match.paused
+      hudKey = ""
+    },
+    get online() {
+      return mode === "host" || mode === "guest"
+    },
+    // online: the room seats on a team (for the result)
+    seatsOf(team) {
+      return match ? match.players.filter((p) => p.team === team && p.seat !== null && p.seat !== undefined).map((p) => p.seat) : []
     },
     pause() {
-      if (status !== "playing") return
+      if (status !== "playing" || mode === "host" || mode === "guest") return
       keys.clear()
-      charge = null
       updateMove()
       if (match) match.paused = true
       setStatus("paused")
@@ -986,22 +1151,97 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
       container.focus({ preventScroll: true })
       start()
     },
-    // the on-screen joystick: x right, y toward the net, each -1..1
-    setStick(x, y) {
-      stick = { x, y }
+    // leave a match (back to the title's demo)
+    quit() {
+      host = null
+      guest = null
+      endReplay()
+      startLocal(demoOptions(), true)
+    },
+    // the on-screen joystick: x right, y up the screen, each -1..1
+    setStick(x, y, slot = 0) {
+      stick[slot] = { x, y }
       updateMove()
     },
-    // on-screen shot buttons
-    shot(kind, power) {
-      return doSwing(kind, power)
+    // on-screen shot buttons: down and up (hold for power, let go to swing)
+    shotDown(action, slot = 0) {
+      if (action === "power") {
+        touchPower[slot] = !touchPower[slot]
+        onEvent?.({ type: "power", on: touchPower[slot], slot })
+        return true
+      }
+      return shotDown(slot, action)
+    },
+    shotUp(action, slot = 0) {
+      return shotUp(slot, action)
+    },
+    skipReplay() {
+      endReplay()
+    },
+    cycleCamera,
+    setMeterEl(el, slot = 0) {
+      meterEls[slot] = el
+    },
+    // the character viewer: a look (or null to go back)
+    showcase(look) {
+      if (!look) {
+        if (showcaseFig) {
+          scene.remove(showcaseFig.fig.group)
+          showcaseFig.fig.dispose()
+          showcaseFig = null
+        }
+        for (const f of figures) f.fig.group.visible = true
+        if (status === "showcase") setStatus("title")
+        return
+      }
+      if (showcaseFig) {
+        scene.remove(showcaseFig.fig.group)
+        showcaseFig.fig.dispose()
+      }
+      const at = { x: 0, z: HALF_L - 1 }
+      const fig = createFigure(look, { shadows: !!QUALITY[settings.quality]?.shadows })
+      scene.add(fig.group)
+      showcaseFig = { fig, anim: createAnim(at.x, at.z, 0), at, t: 2.2, swing: null }
+      for (const f of figures) if (Math.hypot(f.player.x - at.x, f.player.z - at.z) < 3) f.fig.group.visible = false
+      setStatus("showcase")
+      start()
+    },
+    setVenue(id) {
+      setVenue(id)
+      hudKey = ""
     },
     setSettings(patch) {
+      const quality = patch.quality && patch.quality !== settings.quality
       settings = { ...settings, ...patch }
+      bindings = bindingsFor(settings.keys)
       audio.setEnabled(settings.sound)
-      if (match) match.assist = settings.assist
+      audio.setVoice(settings.voice)
+      audio.setCrowd(settings.sound ? venue.def.crowd : 0)
+      if (match) {
+        match.assist = settings.assist
+        match.window = settings.window
+      }
+      if (quality) {
+        maxRatio = Math.min(dpr, QUALITY[settings.quality].ratio)
+        pixelRatio = maxRatio
+        renderer.setPixelRatio(pixelRatio)
+        renderer.setSize(size.width, size.height, false)
+        renderer.shadowMap.enabled = QUALITY[settings.quality].shadows
+        const id = venueId
+        venueId = null
+        setVenue(id)
+        if (match) buildFigures()
+        if (umpire) umpire.setShadows(QUALITY[settings.quality].shadows)
+        scene.traverse((o) => {
+          if (o.material) [].concat(o.material).forEach((mm) => (mm.needsUpdate = true))
+        })
+      }
     },
     get status() {
       return status
+    },
+    get mode() {
+      return mode
     },
     dispose() {
       disposed = true
@@ -1011,15 +1251,16 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
       container.removeEventListener("keydown", onKeyDown)
       container.removeEventListener("keyup", onKeyUp)
       container.removeEventListener("pointerdown", onPointerDown)
-      container.removeEventListener("pointermove", onPointerMove)
-      container.removeEventListener("pointerup", onPointerUp)
-      container.removeEventListener("pointercancel", onPointerUp)
       container.removeEventListener("contextmenu", onContextMenu)
       container.removeEventListener("focusout", onBlur)
       document.removeEventListener("visibilitychange", onVisibility)
       canvas.removeEventListener("webglcontextlost", onContextLost)
       canvas.removeEventListener("webglcontextrestored", onContextRestored)
       audio.dispose()
+      clearFigures()
+      umpire?.dispose()
+      showcaseFig?.fig.dispose()
+      venue.dispose()
       scene.traverse((o) => {
         o.geometry?.dispose()
         if (o.material) [].concat(o.material).forEach((m) => m.dispose())
@@ -1033,9 +1274,10 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
   }
 
   // the demo match behind the title screen
-  startMatch(demoOptions(), true)
+  startLocal(demoOptions(), true)
 
-  // test hook (dev server only): the match, autoplay for your player, rally setups, stats
+  // test hook (dev server only): the match, autoplay with real timing for your player, rally
+  // setups, a fast-forward, stats
   if (import.meta.env.DEV) {
     window.__pickleball = {
       api,
@@ -1045,15 +1287,33 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
       get match() {
         return match
       },
+      get mode() {
+        return mode
+      },
+      get figures() {
+        return figures
+      },
+      get replay() {
+        return !!replay
+      },
       get pixelRatio() {
         return pixelRatio
       },
-      autoplay(on) {
-        if (match) match.autoplay = on
+      get info() {
+        const r = renderer.info.render
+        return { verts: figures.map((f) => f.fig.vertices), calls: r.calls, triangles: r.triangles, geometries: renderer.info.memory.geometries, textures: renderer.info.memory.textures, programs: renderer.info.programs?.length }
+      },
+      get camera() {
+        return { x: camera.position.x, y: camera.position.y, z: camera.position.z, fov: camera.fov }
+      },
+      // a stand-in plays for this computer's people with real button timing
+      autoplay(on, slot = 0, jitter, power = 0) {
+        if (on) devAuto.add(slot)
+        else devAuto.delete(slot)
+        if (jitter !== undefined) devJitter = { jitter, power }
       },
       scenario(kind) {
         if (!match) return
-        match.assist = false
         scenario(match, kind)
         match.events.length = 0
       },
@@ -1061,9 +1321,15 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
         // run the simulation ahead without drawing (tests)
         const n = Math.round(seconds / STEP)
         for (let i = 0; i < n && status === "playing"; i++) {
+          if (devAuto.size) for (const slot of devAuto) autopilot(match, slot, devJitter)
           step(match, STEP)
+          if (host) host.capture(match.events)
           if (match.events.length) handleEvents()
+          if (replay) endReplay()
         }
+      },
+      replayNow() {
+        startReplay()
       },
     }
   }
