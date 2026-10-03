@@ -1,4 +1,5 @@
 import React, { useState } from "react"
+import { useFloating } from "../../../hooks/useFloating"
 import * as G from "./game"
 import {
   BARN_MAX_UPGRADES, COMMUNITY, DECOR, EXPANSIONS, FACTORIES, GOODS, HOUSES, MATERIALS, MAX_SLOTS, PENS, TRAIN_LEVEL,
@@ -27,21 +28,26 @@ export const Chip = ({ id, n, have, title }) => (
   </span>
 )
 
-export const Panel = ({ title, icon, onClose, children, className = "" }) => (
-  <div className="twPanelWrap" onPointerDown={(e) => e.target === e.currentTarget && onClose()}>
-    <div className={`window twPanel ${className}`} role="dialog" aria-label={title}>
-      <div className="title-bar">
-        <div className="title-bar-text">
-          {icon && <Icon id={icon} size={14} />} {title}
+// drags by its title bar, even out of the window (hooks/useFloating.js); a click on the
+// town behind it closes it
+export const Panel = ({ title, icon, onClose, children, className = "" }) => {
+  const floating = useFloating({ center: true })
+  return (
+    <div className="twPanelWrap" onPointerDown={(e) => e.target === e.currentTarget && onClose()}>
+      <div ref={floating} className={`window twPanel ${className}`} role="dialog" aria-label={title}>
+        <div className="title-bar">
+          <div className="title-bar-text">
+            {icon && <Icon id={icon} size={14} />} {title}
+          </div>
+          <div className="title-bar-controls">
+            <button type="button" aria-label="Close" onClick={onClose}></button>
+          </div>
         </div>
-        <div className="title-bar-controls">
-          <button type="button" aria-label="Close" onClick={onClose}></button>
-        </div>
+        <div className="twPanelBody">{children}</div>
       </div>
-      <div className="twPanelBody">{children}</div>
     </div>
-  </div>
-)
+  )
+}
 
 const Hurry = ({ cost, clovers, onClick, label = "Hurry" }) => (
   <button type="button" className="twBtn twHurry" disabled={clovers < cost} onClick={onClick} title={`Finish now for ${cost} clover${cost > 1 ? "s" : ""}`}>

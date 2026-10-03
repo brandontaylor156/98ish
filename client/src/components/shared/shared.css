@@ -79,7 +79,9 @@
   align-items: center;
   justify-content: center;
   padding: 8px;
-  background: rgba(0, 0, 0, 0.15);
+  /* see-through: it only blocks the window the dialog belongs to (a click there flashes
+     the dialog); the dialog itself floats free of it */
+  background: transparent;
 }
 
 .dialog {
@@ -130,6 +132,43 @@
   min-width: 180px;
 }
 
+
+/* Floating popups (hooks/useFloating.js): fixed, placed by script, dragged by the title bar */
+[data-floating="on"] {
+  position: fixed !important;
+  right: auto !important;
+  bottom: auto !important;
+  margin: 0 !important;
+  transform: none !important;
+}
+
+[data-floating="on"] > .title-bar {
+  touch-action: none;
+}
+
+.os-mobile [data-floating="on"] {
+  max-width: calc(100vw - 8px);
+}
+
+/* free of the window now: sized against the screen rather than the window's content */
+.dialog[data-floating="on"] {
+  max-width: calc(100vw - 16px);
+  max-height: calc(100dvh - 16px);
+}
+
+/* clicking the window a dialog blocks flashes the dialog's title bar */
+[data-flashing] > .title-bar {
+  animation: floatingFlash 0.7s steps(1) both;
+}
+
+@keyframes floatingFlash {
+  0%, 30%, 60% {
+    filter: grayscale(1) brightness(1.3);
+  }
+  15%, 45%, 75%, 100% {
+    filter: none;
+  }
+}
 
 /* Dialog titles stay on one line, even in a small window */
 .dialog .title-bar-text {

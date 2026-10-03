@@ -16,6 +16,11 @@
   min-width: 0;
 }
 
+/* ...but not Find's Close box, which that would squash to nothing */
+.wpRoot .title-bar-controls button {
+  min-width: 16px;
+}
+
 /* toolbar and format bar */
 .wpBar {
   flex: none;

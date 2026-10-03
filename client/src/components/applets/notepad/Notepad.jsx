@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react"
 import MenuBar from "../../shared/MenuBar"
 import Dialog from "../../shared/Dialog"
 import FileDialog from "./FileDialog"
+import { useFloating } from "../../../hooks/useFloating"
 import { fs } from "../../../utils/fs"
 import { useFsVersion } from "../../../hooks/useFs"
 import { trackUnsaved } from "../../../utils/unsaved"
@@ -49,6 +50,7 @@ const Notepad = ({ file: initialFile = null, onTitle, onClose, registerCloseGuar
   const [find, setFind] = useState(null) // { mode: "find" | "replace", query, replace, matchCase, up }
   const lastFind = useRef({ query: "", matchCase: false, up: false })
   const areaRef = useRef(null)
+  const findBox = useFloating() // Find / Replace drags anywhere, like a real dialog
   const afterSave = useRef(null) // what to do once a save finishes (New, Open, Exit)
 
   const dirty = text !== saved
@@ -323,6 +325,7 @@ const Notepad = ({ file: initialFile = null, onTitle, onClose, registerCloseGuar
 
       {find && (
         <form
+          ref={findBox}
           className="window npFind"
           onSubmit={(e) => {
             e.preventDefault()

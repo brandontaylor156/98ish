@@ -3,6 +3,7 @@ import { createPortal } from "react-dom"
 import MenuBar from "../../shared/MenuBar"
 import Dialog from "../../shared/Dialog"
 import FileDialog from "../notepad/FileDialog"
+import { useFloating } from "../../../hooks/useFloating"
 import EditColors from "./EditColors"
 import { BrushSample, EraserSample, FillSample, LineSample, SelectModeSample, SpraySample, ToolIcon } from "./PaintIcons"
 import * as P from "./paintLogic"
@@ -158,6 +159,7 @@ const Paint = ({ file: initialFile = null, mobile = false, onTitle, onClose, reg
   const [size, setSize] = useState(mobile ? { w: 360, h: 360 } : { w: 480, h: 320 })
   const [sel, setSelState] = useState(null) // { x, y, w, h, polygon, piece }
   const [textBox, setTextBoxState] = useState(null) // { x, y, w, h, text }
+  const fontsBar = useFloating({ takeFocus: false }) // the Fonts toolbar drags anywhere
   const [lasso, setLasso] = useState(null) // free-form select path while drawing
   const [resize, setResize] = useState(null) // { w, h } while dragging a canvas handle
   const [status, setStatus] = useState({ pos: null, hint: null, size: null })
@@ -1426,7 +1428,7 @@ const Paint = ({ file: initialFile = null, mobile = false, onTitle, onClose, reg
           </div>
 
           {textBox && (
-            <div className="window pFonts" onPointerDown={(e) => e.stopPropagation()}>
+            <div ref={fontsBar} className="window pFonts" onPointerDown={(e) => e.stopPropagation()}>
               <div className="title-bar">
                 <div className="title-bar-text">Fonts</div>
               </div>

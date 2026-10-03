@@ -1,23 +1,28 @@
 import React, { useEffect, useState } from "react"
+import { flashOnBackdrop, useFloating } from "../../../hooks/useFloating"
 
 // The way in: splash screen, sign-in, the first-time setup wizard, plus Help's About box
 // and the Tip of the Day. Appward 98 is a fan-made tribute, and says so wherever its name
 // is shown big.
 
-// a dialog box without Dialog's OK/Cancel row, for ones with their own buttons
-export const Win = ({ title, onClose, children, className = "" }) => (
-  <div className="dialogBackdrop" onMouseDown={(e) => e.stopPropagation()} onKeyDown={(e) => e.key === "Escape" && onClose?.()}>
-    <div className={`window dialog ${className}`} role="dialog" aria-label={title}>
-      <div className="title-bar">
-        <div className="title-bar-text">{title}</div>
-        <div className="title-bar-controls">
-          <button type="button" aria-label="Close" onClick={onClose}></button>
+// a dialog box without Dialog's OK/Cancel row, for ones with their own buttons; it floats
+// and drags like Dialog (hooks/useFloating.js)
+export const Win = ({ title, onClose, children, className = "" }) => {
+  const floating = useFloating({ center: true })
+  return (
+    <div className="dialogBackdrop" onMouseDown={(e) => e.stopPropagation()} onPointerDown={flashOnBackdrop} onKeyDown={(e) => e.key === "Escape" && onClose?.()}>
+      <div ref={floating} className={`window dialog ${className}`} role="dialog" aria-label={title}>
+        <div className="title-bar">
+          <div className="title-bar-text">{title}</div>
+          <div className="title-bar-controls">
+            <button type="button" aria-label="Close" onClick={onClose}></button>
+          </div>
         </div>
+        <div className="window-body dialogBody">{children}</div>
       </div>
-      <div className="window-body dialogBody">{children}</div>
     </div>
-  </div>
-)
+  )
+}
 
 export const TRIBUTE = "Appward 98 — an unofficial retro tribute. Visit appward.com for the real thing."
 

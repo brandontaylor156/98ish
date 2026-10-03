@@ -18,6 +18,7 @@ import {
   SubmenuArrow,
   WarningIcon,
 } from "./Icons"
+import { flashOnBackdrop, useFloating } from "../../../hooks/useFloating"
 import "./TaskManager.css"
 
 const TABS = [
@@ -74,19 +75,23 @@ const Accel = ({ text, letter }) => {
   )
 }
 
-const Dialog = ({ title, onClose, children, width = 300 }) => (
-  <div className="tm-modal" onMouseDown={stop}>
-    <div className="window tm-dialog" style={{ width }} role="dialog" aria-label={title}>
-      <div className="title-bar">
-        <div className="title-bar-text">{title}</div>
-        <div className="title-bar-controls">
-          <button aria-label="Close" onClick={onClose}></button>
+// modal to Task Manager; drags anywhere like any dialog (hooks/useFloating.js)
+const Dialog = ({ title, onClose, children, width = 300 }) => {
+  const floating = useFloating({ center: true })
+  return (
+    <div className="tm-modal" onMouseDown={stop} onPointerDown={flashOnBackdrop}>
+      <div ref={floating} className="window tm-dialog" style={{ width }} role="dialog" aria-label={title}>
+        <div className="title-bar">
+          <div className="title-bar-text">{title}</div>
+          <div className="title-bar-controls">
+            <button aria-label="Close" onClick={onClose}></button>
+          </div>
         </div>
+        <div className="window-body tm-dialog-body">{children}</div>
       </div>
-      <div className="window-body tm-dialog-body">{children}</div>
     </div>
-  </div>
-)
+  )
+}
 
 const MessageBox = ({ title, icon, text, buttons, width }) => (
   <Dialog title={title} onClose={buttons[buttons.length - 1].onClick} width={width || (buttons.length > 1 ? 340 : 300)}>

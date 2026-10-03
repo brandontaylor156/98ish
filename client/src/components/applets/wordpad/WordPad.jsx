@@ -3,6 +3,7 @@ import { createPortal } from "react-dom"
 import MenuBar from "../../shared/MenuBar"
 import Dialog from "../../shared/Dialog"
 import FileDialog from "../notepad/FileDialog"
+import { useFloating } from "../../../hooks/useFloating"
 import { fs, writeAndSave } from "../../../utils/fs"
 import { useFsVersion } from "../../../hooks/useFs"
 import { trackUnsaved } from "../../../utils/unsaved"
@@ -121,6 +122,7 @@ const WordPad = ({ file: initialFile = null, mobile = false, onTitle, onClose, r
   const [printHtml, setPrintHtml] = useState(null)
   const [saveType, setSaveType] = useState("rich")
   const edRef = useRef(null)
+  const findBox = useFloating() // Find / Replace drags anywhere, like a real dialog
   const savedHtml = useRef("")
   const savedRange = useRef(null)
   const history = useRef({ undo: [], redo: [] })
@@ -1006,6 +1008,7 @@ const WordPad = ({ file: initialFile = null, mobile = false, onTitle, onClose, r
 
       {find && (
         <form
+          ref={findBox}
           className="window wpFind"
           onSubmit={(e) => {
             e.preventDefault()
