@@ -130,6 +130,8 @@ const ALIASES = {
   shred: "Shred 98",
   shred98: "Shred 98",
   guitar: "Shred 98",
+  lastcard: "Last Card",
+  cards: "Last Card",
   blockten: "Block Ten",
   tenten: "Block Ten",
   blocks: "Block Ten",

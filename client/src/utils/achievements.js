@@ -70,6 +70,10 @@ export const ACHIEVEMENTS = [
   { id: "wordduel-two", title: "Lucky Guess", text: "Solved a Word Duel word in two guesses.", hint: "In Word Duel, get the word on your second try (or your first!)." },
   { id: "wordduel-absurd", title: "Cornered", text: "Beat Word Duel's Absurd mode.", hint: "Word Duel's Absurd mode changes the word to dodge you. Pin it down anyway." },
   { id: "wordduel-online", title: "Duelist", text: "Won an online game of Word Duel.", hint: "Play Word Duel online against someone (or a room of computer players) and win." },
+  { id: "lastcard-win", title: "Empty Handed", text: "Won a game of Last Card against the computer.", hint: "Last Card (in Games): get rid of all your cards before the computer players do." },
+  { id: "lastcard-crowd", title: "Full Table", text: "Beat five or more computer players at Last Card.", hint: "Play Last Card against a big table of computer players, and win." },
+  { id: "lastcard-catch", title: "Gotcha!", text: "Caught someone who forgot to call Last Card.", hint: "When a Last Card player forgets to call on their last card, be quick." },
+  { id: "lastcard-online", title: "Card Shark", text: "Won an online game of Last Card.", hint: "Play Last Card online with other people, and win." },
 ]
 
 export const achievementById = (id) => ACHIEVEMENTS.find((a) => a.id === id) || null

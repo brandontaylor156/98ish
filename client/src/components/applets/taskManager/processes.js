@@ -63,6 +63,7 @@ export const APP_PROFILES = {
   "Pickleball 98": { image: "pkball98.exe", mem: 38640, threads: 9, handles: 214, cpu: [4, 22] },
   "Word Duel": { image: "wrdduel.exe", mem: 2610, threads: 3, handles: 47, cpu: [0.2, 5] },
   "Shred 98": { image: "shred98.exe", mem: 44210, threads: 11, handles: 238, cpu: [6, 26] },
+  "Last Card": { image: "lastcard.exe", mem: 3380, threads: 3, handles: 52, cpu: [0.3, 7] },
   "Block Ten": { image: "blockten.exe", mem: 1876, threads: 2, handles: 33, cpu: [0.15, 4] },
   "Sunny Acres": { image: "acres.exe", mem: 7480, threads: 4, handles: 88, cpu: [0.6, 9] },
   "Photo Puzzle": { image: "puzzle.exe", mem: 4210, threads: 3, handles: 47, cpu: [0.2, 6] },

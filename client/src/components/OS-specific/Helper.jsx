@@ -58,6 +58,10 @@ const TIPS = {
   Checkers: ["Play Online finds you an opponent, or Play the Computer starts right away. Kings move backward too!"],
   Chess: ["Drag a piece or click it, then click where it goes. Level in the menu makes the computer tougher."],
   Battleship: ["Press R (or right-click) to turn a ship while you place it. Random does it all for you."],
+  "Last Card": [
+    "Down to two cards? Press LAST CARD! before you play, or someone can catch you and you'll draw 2.",
+    "Hold on to your wilds: they're worth 50 points to whoever goes out, and they get you out of a jam.",
+  ],
   "Word Duel": [
     "Play Online, then Create Room: there are presets for races, Battle Royale and Co-op, and Customize changes every rule.",
     "Stuck? Try a word with five different common letters, like CRANE or SLATE, to find out the most at once.",

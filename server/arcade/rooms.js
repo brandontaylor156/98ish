@@ -30,7 +30,9 @@
 //        bot: (state, playerId, { random }) => (state.turn === playerId ? { type: "mark", cell: ... } : null),
 //      }
 //
-//    Optional fields: botDelay (ms before a computer player acts, default 700), fillTo
+//    Optional fields: botDelay (ms before a computer player acts, default 700; or a function
+//    (state, seat, action, { now }) -> ms, and then the computer player with the quickest
+//    move goes first: thinking times, catching someone a moment after a slip), fillTo
 //    (Quick Match fills up to this many seats with computer players; default maxPlayers),
 //    tickMs (the server sends action { type: "tick" } with playerId null this often while
 //    playing), bucket(settings) (Quick Match pairs people whose bucket matches; default: all
@@ -407,12 +409,35 @@ const createRooms = ({ games = [], emit = () => {}, emitVolatile = null, blocked
     }
   }
 
-  // The first computer player with something to do does it, after a moment
+  const botDelayFor = (room, seat, action) => {
+    const delay = room.game.botDelay
+    if (typeof delay !== "function") return delay ?? T.botDelay
+    try {
+      const ms = Number(delay(room.state, seat, action, { now: clock.now() }))
+      return Number.isFinite(ms) ? Math.max(0, ms) : T.botDelay
+    } catch (error) {
+      console.error(`[rooms] ${room.game.id} botDelay failed`, error)
+      return T.botDelay
+    }
+  }
+
+  // The first computer player with something to do does it, after a moment (with a
+  // botDelay function: the one with the quickest move)
   const scheduleBots = (room) => {
     clock.clearTimeout(room.botTimer)
     room.botTimer = null
     if (room.phase !== "playing" || !botsAllowed(room)) return
-    const seat = room.seats.findIndex((s, i) => s?.bot && botAction(room, i) != null)
+    const timed = typeof room.game.botDelay === "function"
+    let seat = -1
+    let wait = 0
+    for (let i = 0; i < room.seats.length; i++) {
+      if (!room.seats[i]?.bot) continue
+      const action = botAction(room, i)
+      if (action == null) continue
+      const ms = botDelayFor(room, i, action)
+      if (seat < 0 || ms < wait) [seat, wait] = [i, ms]
+      if (!timed) break
+    }
     if (seat < 0) return
     const round = room.round
     room.botTimer = clock.setTimeout(() => {
@@ -422,7 +447,7 @@ const createRooms = ({ games = [], emit = () => {}, emitVolatile = null, blocked
       if (action == null) return scheduleBots(room)
       const result = apply(room, seat, action)
       if (!result.ok) console.warn(`[rooms] ${room.game.id}: the computer player's move was refused: ${result.error}`)
-    }, room.game.botDelay ?? T.botDelay)
+    }, wait)
   }
 
   const startGame = (room) => {

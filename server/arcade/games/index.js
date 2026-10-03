@@ -4,4 +4,5 @@
 module.exports = [
   require("./checkers"),
   require("./wordduel"),
+  require("./lastcard"),
 ]
