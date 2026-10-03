@@ -8,8 +8,10 @@
 
 - **A Windows 98 desktop:** startup screen and chime, Start menu with cascading submenus, Run..., Log Off and Shut
   Down (including Restart in MS-DOS mode). A taskbar with Quick Launch, a tray (volume, network, mail), Cascade /
-  Tile, an Alt+Q window switcher and keyboard shortcuts (Ctrl+Alt+E / D / R / K). Right-click the desktop (or
-  long-press on a phone) to make files and folders right there
+  Tile, an Alt+Q window switcher and keyboard shortcuts (Ctrl+Alt+E / D / R / K). Lasso icons to move or delete
+  them together, re-grid them (icon spacing, Auto Arrange, Align to Grid), and a 98ish right-click menu everywhere
+  (desktop, title bars, text boxes, links): right-click the desktop (or long-press on a phone) to make files and
+  folders right there
 - **Make it yours:** Display Properties (wallpapers, your own picture, color schemes, screensavers), Desktop Themes
   (Space, Underwater, Vaporwave, Dinosaurs: wallpaper, colors, sounds and pointers together), system sounds and
   Date/Time Properties
@@ -22,7 +24,8 @@
   echo...), Calculator, Character Map and an MS-DOS Prompt
 - **Games:** Tetris (Marathon, Sprint 40L, Ultra, Survival, and Tetris Online: Battle 2P, a 2-6 player Arena
   with items and Sprint races, with Quick Match, computer players and star rankings), Sunny Acres (a farming and
-  town-building game), Block Ten (a 10x10 block puzzle), Pinball: Deep Sea Dive, Solitaire, FreeCell, Minesweeper,
+  town-building game, with live co-op: farm one town together in real time), Pickleball 98 (3D, with real
+  pickleball physics: spin, the kitchen, the two-bounce rule, side-out scoring), Block Ten (a 10x10 block puzzle), Pinball: Deep Sea Dive, Solitaire, FreeCell, Minesweeper,
   Downhill, Reversi, Chess, Battleship, Hearts, SPECTRA and Hover. Every game has chat (a private room for a match,
   a lobby for everyone playing it), and on phones you can move and resize the on-screen controls
 - **Media Player** with eight original synthesized songs
