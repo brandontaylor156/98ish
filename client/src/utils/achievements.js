@@ -53,6 +53,9 @@ export const ACHIEVEMENTS = [
   { id: "sealed-kiss", title: "Sealed with a Kiss", text: "Sent your first love letter.", hint: "Love Letters has stationery, envelopes and a wax seal waiting." },
   { id: "first-letter", title: "Special Delivery", text: "Opened your first love letter.", hint: "Someone could write you a letter. You'd only have to open it." },
   { id: "first-moment", title: "Our First Moment", text: "Added a moment to Our Story.", hint: "Every story needs a first page. Our Story is waiting." },
+  { id: "pet-family", title: "New Family", text: "Adopted a pet with your partner.", hint: "Our Pet (Programs > Us) has four little ones waiting for a home." },
+  { id: "pet-well-fed", title: "Well Fed", text: "Kept your pet fed 7 days in a row.", hint: "A pet that eats every day for a week is a happy pet." },
+  { id: "pet-bff", title: "Best Friends Forever", text: "Maxed out your pet's bond.", hint: "Look after your pet together, day after day, until the bond can't grow any more." },
   { id: "green-thumb", title: "Green Thumb", text: "Watered your flowers on 3 different days.", hint: "Flowers from someone special need water every day." },
 ]
 

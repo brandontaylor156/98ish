@@ -113,6 +113,7 @@ const ALIASES = {
   us: "Us",
   letters: "Love Letters",
   story: "Our Story",
+  pet: "Our Pet",
   mail: "98ish Mail",
   frontpg: "HomePage Studio",
   homepage: "HomePage Studio",

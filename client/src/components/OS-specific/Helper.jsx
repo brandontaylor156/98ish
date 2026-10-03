@@ -40,6 +40,7 @@ const TIPS = {
   "Lovebirds Quiz Show": ["Answer about yourself, then send it to someone special. Results wait in your Inbox!"],
   Us: ["Send Flowers puts a bouquet on your partner's desktop. They have to water it every day, or it wilts!"],
   "Love Letters": ["Try a countdown: seven letters, one unlocks each day. Or an \"Open when you miss me\" letter for later."],
+  "Our Pet": ["Rub your pet to cuddle it. If you both look after it on the same day, you get a family bonus!"],
   "Our Story": ["Mark a photo private with the lock and it never goes on a homepage. Press Slideshow for a little movie of you two."],
   "Desktop Themes": ["Uncheck a box to keep that part of your current look. Click Pointers, Sounds, etc... to hear a theme first."],
   "System Properties": ["The Achievements tab has a hint for every secret you haven't found yet."],

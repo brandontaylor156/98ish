@@ -957,6 +957,7 @@ module.exports = {
   coupleIdOf: (key) => defaultService().coupleIdOf(normalize(key)),
   isActiveCouple: (coupleId) => defaultService().isActiveCouple(coupleId),
   emitToCouple: (...args) => defaultService().emitToCouple(...args),
+  coupleService: () => defaultService(), // its clock (and test clock), store and pairs, for other couple features
   letterView,
   STATIONERY,
   ENVELOPES,

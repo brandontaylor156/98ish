@@ -141,6 +141,8 @@ const CoupleOverlays = () => {
         toast({ title: "Flowers!", icon: "💐", text: `${b.from} sent you flowers! They're on your desktop. Remember to water them.` })
       }),
       on("couple:watered", (p) => toast({ title: "Flowers", icon: "💧", text: `${p.by} watered the flowers you sent.` })),
+      // a toast from another couple feature on this desktop (Our Pet's reminders)
+      on("couple:local-toast", (t) => toast(t)),
       on("couple:update", (p) => {
         if (p.paired) {
           playLoveChime("open")

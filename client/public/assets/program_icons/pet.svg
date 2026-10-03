@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <!-- Our Pet: a round little bunnycat with a heart -->
+  <g transform="translate(1.5 1.5)" fill="#000">
+    <ellipse cx="16" cy="13" rx="4" ry="9" transform="rotate(-14 16 21)"/>
+    <ellipse cx="30" cy="13" rx="4" ry="9" transform="rotate(14 30 21)"/>
+    <ellipse cx="23" cy="31" rx="15" ry="12.5"/>
+  </g>
+  <ellipse cx="16" cy="13" rx="4" ry="9" transform="rotate(-14 16 21)" fill="#fff3dc" stroke="#8b6a46" stroke-width="1.2"/>
+  <ellipse cx="16" cy="13.5" rx="1.8" ry="6" transform="rotate(-14 16 21)" fill="#f4a6bc"/>
+  <ellipse cx="30" cy="13" rx="4" ry="9" transform="rotate(14 30 21)" fill="#fff3dc" stroke="#8b6a46" stroke-width="1.2"/>
+  <ellipse cx="30" cy="13.5" rx="1.8" ry="6" transform="rotate(14 30 21)" fill="#f4a6bc"/>
+  <ellipse cx="23" cy="31" rx="15" ry="12.5" fill="#fff3dc" stroke="#8b6a46" stroke-width="1.2"/>
+  <ellipse cx="23" cy="37" rx="8" ry="5" fill="#fff" opacity=".6"/>
+  <ellipse cx="13.5" cy="33" rx="2.6" ry="1.6" fill="#ff8fab" opacity=".7"/>
+  <ellipse cx="32.5" cy="33" rx="2.6" ry="1.6" fill="#ff8fab" opacity=".7"/>
+  <ellipse cx="17.5" cy="29.5" rx="1.8" ry="2.2" fill="#3b2a35"/>
+  <ellipse cx="28.5" cy="29.5" rx="1.8" ry="2.2" fill="#3b2a35"/>
+  <circle cx="17" cy="28.7" r=".7" fill="#fff"/>
+  <circle cx="28" cy="28.7" r=".7" fill="#fff"/>
+  <path d="M20.5 33q1.3 1.5 2.5 0 1.2 1.5 2.5 0" stroke="#3b2a35" stroke-width="1" fill="none" stroke-linecap="round"/>
+  <path d="M41 13c0-3-4.5-3.4-4.5 0 0 2.2 2.5 4 4.5 5.8 2-1.8 4.5-3.6 4.5-5.8 0-3.4-4.5-3-4.5 0z" fill="#e8405f" stroke="#7a1430" stroke-width=".9"/>
+</svg>

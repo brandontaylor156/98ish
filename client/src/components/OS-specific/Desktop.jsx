@@ -46,6 +46,9 @@ const Us = lazyApp(() => import("../applets/couples/Us"))
 const LoveLetters = lazyApp(() => import("../applets/couples/LoveLetters"))
 const OurStory = lazyApp(() => import("../applets/couples/OurStory"))
 const Dollhouse = lazyApp(() => import("../applets/dollhouse/Dollhouse"))
+const Pet = lazyApp(() => import("../applets/pet/Pet"))
+// Our Pet out for a walk on the desktop (couples only, its own small download)
+const PetWalker = React.lazy(() => import("../applets/pet/PetWalker"))
 // Network Neighborhood and the head-to-head games
 const isNetWindow = (w) => w.app === "network" || !!w.app?.startsWith("net-")
 const FileExplorer = lazyApp(() => import("../applets/fileExplorer/FileExplorer"))
@@ -517,6 +520,7 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
       {window.app === "us" && <Us view={window.view} mobile={mobile} />}
       {window.app === "loveletters" && <LoveLetters view={window.view} mobile={mobile} />}
       {window.app === "ourstory" && <OurStory focus={window.focus} mobile={mobile} />}
+      {window.app === "pet" && <Pet mobile={mobile} onTitle={rename(index)} />}
 
       {window.app === "calc" && (
         <Calculator
@@ -741,6 +745,11 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
     return withAim(
       <div className="mobileDesktop" onClick={() => closeMenu()} onContextMenu={onContextMenu} {...longPress}>
         <FlowerSpot mobile />
+        {paired && (
+          <React.Suspense fallback={null}>
+            <PetWalker windows={windows} mobile />
+          </React.Suspense>
+        )}
         <MobileIcons key={mobileLayout} programs={icons} onOpen={openIcon} />
         {windows.map(
           (window, index) =>
@@ -778,6 +787,11 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
       onDrop={onDrop}
     >
       <FlowerSpot />
+      {paired && (
+        <React.Suspense fallback={null}>
+          <PetWalker windows={windows} />
+        </React.Suspense>
+      )}
       {icons.map((icon) => {
         const pos = placed[icon.key]
         return (
