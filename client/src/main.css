@@ -123,6 +123,23 @@ html, body, #root {
   filter: brightness(0.65) sepia(1) hue-rotate(190deg) saturate(4);
 }
 
+/* the lasso: a dotted box dragged out on the desktop */
+.desktopLasso {
+  position: fixed;
+  z-index: 3;
+  border: 1px dotted #fff;
+  outline: 1px dotted #000;
+  outline-offset: -1px;
+  background: rgba(0, 0, 128, 0.12);
+  pointer-events: none;
+}
+
+.globalMenuLayer {
+  position: fixed;
+  inset: 0;
+  z-index: 100000001;
+}
+
 .desktopDialogLayer {
   position: fixed;
   inset: 0;

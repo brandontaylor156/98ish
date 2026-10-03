@@ -11,6 +11,7 @@ import { BlueScreen, BootScreen, LogOffDialog, LogOn, SafeToTurnOff, ShutDownDia
 import { getSettings, schemeVars, useSettings, wallpaperStyle } from "./utils/settings"
 import { lazyApp } from "./components/OS-specific/LazyApp"
 import Helper from "./components/OS-specific/Helper"
+import GlobalMenu from "./components/OS-specific/GlobalMenu"
 import AchievementToast from "./components/OS-specific/AchievementToast"
 import CursorTrail from "./components/OS-specific/CursorTrail"
 import { arrangeWindows } from "./utils/windowArrange"
@@ -277,6 +278,7 @@ function App() {
             </div>
           )}
           <Helper windows={windows} mobile={mobile} />
+          <GlobalMenu windows={windows} dispatch={dispatch} />
           {!mobile && settings.cursorTrail && settings.cursorTrail !== "none" && <CursorTrail kind={settings.cursorTrail} />}
           {power === "shutdown" && <ShutDownDialog onChoose={chooseShutDown} onCancel={() => setPower(null)} />}
           {power === "logoff" && (

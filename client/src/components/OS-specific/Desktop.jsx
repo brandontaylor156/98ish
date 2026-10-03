@@ -79,8 +79,23 @@ const Backup = lazyApp(() => import("../applets/backup/Backup"))
 const DriveSync = React.lazy(() => import("../applets/backup/DriveSync"))
 
 const ICONS_KEY = "98ish.desktopIcons"
-const CELL_W = 94
-const CELL_H = 88
+const VIEW_KEY = "98ish.desktopView"
+// icon spacing (desktop right-click > View): the grid icons line up on
+const SPACINGS = {
+  small: { w: 80, h: 78 },
+  medium: { w: 94, h: 88 },
+  large: { w: 116, h: 104 },
+}
+const DEFAULT_VIEW = { spacing: "medium", autoArrange: false, alignToGrid: false, order: null }
+const loadView = () => {
+  try {
+    return { ...DEFAULT_VIEW, ...JSON.parse(localStorage.getItem(VIEW_KEY)) }
+  } catch {
+    return { ...DEFAULT_VIEW }
+  }
+}
+const ICON_W = 88
+const ICON_H = 76
 
 // Narrowest a window may get. 98 Messenger's Buddy List and IMs are tall and narrow.
 const minWidthFor = (window) =>
@@ -115,20 +130,25 @@ const defaultOrder = () => {
 }
 
 // Columns down the left side, top to bottom
-const gridLayout = (names, viewport) => {
-  const rows = Math.max(1, Math.floor((viewport.height - viewport.taskbar - 10) / CELL_H))
-  return Object.fromEntries(names.map((name, i) => [name, { x: 6 + Math.floor(i / rows) * CELL_W, y: 6 + (i % rows) * CELL_H }]))
+const rowsFor = (viewport, cell) => Math.max(1, Math.floor((viewport.height - viewport.taskbar - 10) / cell.h))
+const cellAt = (i, rows, cell) => ({ x: 6 + Math.floor(i / rows) * cell.w, y: 6 + (i % rows) * cell.h })
+const gridLayout = (names, viewport, cell = SPACINGS.medium) => {
+  const rows = rowsFor(viewport, cell)
+  return Object.fromEntries(names.map((name, i) => [name, cellAt(i, rows, cell)]))
 }
 
 // the first grid spot (column by column) no icon is sitting on
-const freeSpot = (taken, viewport) => {
-  const rows = Math.max(1, Math.floor((viewport.height - viewport.taskbar - 10) / CELL_H))
-  const near = (p, q) => Math.abs(p.x - q.x) < CELL_W * 0.6 && Math.abs(p.y - q.y) < CELL_H * 0.6
+const freeSpot = (taken, viewport, cell = SPACINGS.medium) => {
+  const rows = rowsFor(viewport, cell)
+  const near = (p, q) => Math.abs(p.x - q.x) < cell.w * 0.6 && Math.abs(p.y - q.y) < cell.h * 0.6
   for (let i = 0; ; i++) {
-    const spot = { x: 6 + Math.floor(i / rows) * CELL_W, y: 6 + (i % rows) * CELL_H }
+    const spot = cellAt(i, rows, cell)
     if (!taken.some((p) => near(p, spot))) return spot
   }
 }
+
+// the grid cell nearest a point
+const snapToGrid = (p, cell) => ({ x: 6 + Math.max(0, Math.round((p.x - 6) / cell.w)) * cell.w, y: 6 + Math.max(0, Math.round((p.y - 6) / cell.h)) * cell.h })
 
 const loadIcons = () => {
   try {
@@ -153,7 +173,25 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
   )
   const [share, setShare] = useState("")
   const [menu, setMenu] = useState(null) // { x, y, items }
-  const [selected, setSelected] = useState(null)
+  // selected icons (a lasso or Ctrl+click picks several); `selected` is the main one
+  const [selection, setSelection] = useState(() => new Set())
+  const selected = selection.size ? [...selection].at(-1) : null
+  const setSelected = (key) => setSelection(key ? new Set([key]) : new Set())
+  const isSelected = (key) => selection.has(key)
+  const [lasso, setLasso] = useState(null) // { x0, y0, x1, y1 } while dragging one out
+  const [groupDrag, setGroupDrag] = useState(null) // { key, dx, dy } moving several icons
+  const [view, setViewState] = useState(loadView)
+  const setView = (patch) =>
+    setViewState((v) => {
+      const next = { ...v, ...patch }
+      try {
+        localStorage.setItem(VIEW_KEY, JSON.stringify(next))
+      } catch {
+        // fine: lasts for this visit
+      }
+      return next
+    })
+  const cell = SPACINGS[view.spacing] || SPACINGS.medium
   const [confirmEmpty, setConfirmEmpty] = useState(false)
   const [dialog, setDialog] = useState(null) // naming, renaming and deleting desktop files
   const [mobileLayout, setMobileLayout] = useState(0)
@@ -188,9 +226,15 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
     ...(deskDir?.isDirectory ? deskDir.content : []).map((item) => ({ key: `file:${item.name}`, name: `file:${item.name}`, label: item.name, icon: iconFor(item), item })),
   ]
 
-  // files new to the desktop get the next free spot
-  const placed = { ...positions }
-  for (const icon of icons) if (!placed[icon.key]) placed[icon.key] = freeSpot(Object.values(placed), viewport)
+  // Auto Arrange keeps every icon in the grid, in its own order (dragging one reorders);
+  // otherwise icons stay where they're put and new ones take the next free spot
+  const autoOrder = (() => {
+    const keys = icons.map((i) => i.key)
+    const kept = (view.order || []).filter((k) => keys.includes(k))
+    return [...kept, ...keys.filter((k) => !kept.includes(k))]
+  })()
+  const placed = view.autoArrange ? gridLayout(autoOrder, viewport, cell) : { ...positions }
+  if (!view.autoArrange) for (const icon of icons) if (!placed[icon.key]) placed[icon.key] = freeSpot(Object.values(placed), viewport, cell)
 
   const savePosition = (key, x, y) => {
     const next = { ...placed, [key]: { x, y } }
@@ -264,7 +308,9 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
     const files = icons
       .filter((i) => i.item)
       .sort((a, b) => (by === "type" ? a.item.type.localeCompare(b.item.type) : 0) || a.label.localeCompare(b.label))
-    const next = gridLayout([...names, ...files.map((f) => f.key)], viewport)
+    const order = [...names, ...files.map((f) => f.key)]
+    const next = gridLayout(order, viewport, cell)
+    if (view.autoArrange) setView({ order })
     setPositions(next)
     saveIcons(next)
     if (mobile) {
@@ -275,13 +321,45 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
 
   const lineUp = () => {
     const next = Object.fromEntries(
-      Object.entries(placed).map(([name, p]) => [name, { x: 6 + Math.round((p.x - 6) / CELL_W) * CELL_W, y: 6 + Math.round((p.y - 6) / CELL_H) * CELL_H }])
+      Object.entries(placed).map(([name, p]) => [name, snapToGrid(p, cell)])
     )
     setPositions(next)
     saveIcons(next)
   }
 
+  const setSpacing = (spacing) => {
+    const next = SPACINGS[spacing]
+    // keep each icon in the same grid slot, on the new grid
+    const moved = Object.fromEntries(Object.entries(placed).map(([k, p]) => [k, { x: 6 + Math.round((p.x - 6) / cell.w) * next.w, y: 6 + Math.round((p.y - 6) / cell.h) * next.h }]))
+    setView({ spacing })
+    setPositions(moved)
+    saveIcons(moved)
+  }
+
+  const toggleAutoArrange = () => {
+    if (!view.autoArrange) {
+      // start from where the icons are now, column by column
+      const order = [...icons].sort((a, b) => placed[a.key].x - placed[b.key].x || placed[a.key].y - placed[b.key].y).map((i) => i.key)
+      setView({ autoArrange: true, order })
+    } else {
+      setPositions(placed)
+      saveIcons(placed)
+      setView({ autoArrange: false })
+    }
+  }
+
   const desktopMenu = () => [
+    {
+      label: "View",
+      items: [
+        { label: "Large Icon Spacing", checked: view.spacing === "large", onClick: () => setSpacing("large") },
+        { label: "Medium Icon Spacing", checked: view.spacing === "medium", onClick: () => setSpacing("medium") },
+        { label: "Small Icon Spacing", checked: view.spacing === "small", onClick: () => setSpacing("small") },
+        "-",
+        { label: "Auto Arrange", checked: view.autoArrange, onClick: toggleAutoArrange },
+        { label: "Align to Grid", checked: view.alignToGrid, disabled: view.autoArrange, onClick: () => setView({ alignToGrid: !view.alignToGrid }) },
+      ],
+    },
     {
       label: "Arrange Icons",
       items: [
@@ -290,7 +368,7 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
         { label: "Default", onClick: () => arrange("default") },
       ],
     },
-    ...(mobile ? [] : [{ label: "Line Up Icons", onClick: lineUp }]),
+    ...(mobile ? [] : [{ label: "Line Up Icons", disabled: view.autoArrange, onClick: lineUp }, { label: "Select All", onClick: () => setSelection(new Set(icons.map((i) => i.key))) }]),
     "-",
     { label: "Refresh", onClick: () => setPositions((p) => ({ ...p })) },
     "-",
@@ -357,6 +435,17 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
   useEffect(() => {
     const onKey = (e) => {
       if (dialog || menu || e.target.closest?.("input, textarea, [contenteditable], .desktopWindow, .mobileWindow")) return
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "a" && !mobile) {
+        e.preventDefault()
+        return setSelection(new Set(icons.map((i) => i.key)))
+      }
+      if (selection.size > 1) {
+        const many = icons.filter((i) => selection.has(i.key))
+        if (e.key === "Delete" && many.some((i) => i.item)) setDialog({ kind: "deleteMany", items: many.filter((i) => i.item).map((i) => i.item) })
+        else if (e.key === "Enter") many.slice(0, 6).forEach(openIcon)
+        else return
+        return e.preventDefault()
+      }
       const icon = icons.find((i) => i.key === selected)
       if (!icon?.item) return
       if (e.key === "Delete") setDialog({ kind: "delete", item: icon.item })
@@ -396,10 +485,87 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
     { label: "Properties", onClick: () => (program.app === "explorer" ? dispatch({ type: "open_window", payload: launch("System Properties") }) : program.app === "recycle" ? openProgram(program) : dispatch({ type: "open_window", payload: launch("Display Properties") })) },
   ]
 
+  const manyMenu = (keys) => {
+    const many = icons.filter((i) => keys.has(i.key))
+    const files = many.filter((i) => i.item).map((i) => i.item)
+    return [
+      { label: `Open (${many.length})`, bold: true, onClick: () => many.slice(0, 6).forEach(openIcon) },
+      "-",
+      { label: "Cut", disabled: !files.length, onClick: () => setClipboard({ mode: "cut", items: files }) },
+      { label: "Copy", disabled: !files.length, onClick: () => setClipboard({ mode: "copy", items: files }) },
+      "-",
+      { label: files.length ? `Delete ${files.length} item${files.length === 1 ? "" : "s"}` : "Delete", disabled: !files.length, onClick: () => setDialog({ kind: "deleteMany", items: files }) },
+    ]
+  }
+
   const showMenu = (x, y, icon) => {
     closeMenu()
+    if (icon && selection.size > 1 && selection.has(icon.key)) return setMenu({ x, y, items: manyMenu(selection) })
     setSelected(icon?.key || null)
     setMenu({ x, y, items: icon ? (icon.item ? fileMenu(icon) : iconMenu(icon)) : desktopMenu() })
+  }
+
+  // ---- lasso: drag a box across the desktop to select icons ----
+  const onSurfacePointerDown = (e) => {
+    if (mobile || e.button !== 0 || e.target.closest(".desktopIcon, .desktopWindow, .contextMenu, .helper, .dialog, button, a, input")) return
+    const add = e.ctrlKey || e.metaKey || e.shiftKey
+    const before = add ? new Set(selection) : new Set()
+    const start = { x: e.clientX, y: e.clientY }
+    let moved = false
+    const pick = (box) => {
+      const next = new Set(before)
+      for (const icon of icons) {
+        const p = placed[icon.key]
+        if (p.x < box.x1 && p.x + ICON_W > box.x0 && p.y < box.y1 && p.y + ICON_H > box.y0) next.add(icon.key)
+      }
+      setSelection(next)
+    }
+    const move = (ev) => {
+      if (!moved && Math.hypot(ev.clientX - start.x, ev.clientY - start.y) < 4) return
+      moved = true
+      const box = { x0: Math.min(start.x, ev.clientX), y0: Math.min(start.y, ev.clientY), x1: Math.max(start.x, ev.clientX), y1: Math.max(start.y, ev.clientY) }
+      setLasso(box)
+      pick(box)
+    }
+    const up = () => {
+      window.removeEventListener("pointermove", move)
+      window.removeEventListener("pointerup", up)
+      window.removeEventListener("pointercancel", up)
+      setLasso(null)
+      if (moved) swallowClick.current = true
+    }
+    window.addEventListener("pointermove", move)
+    window.addEventListener("pointerup", up)
+    window.addEventListener("pointercancel", up)
+  }
+  // the click that ends a lasso mustn't clear what it just selected
+  const swallowClick = useRef(false)
+  const dragged = useRef(false)
+
+  // dropping one icon of a group moves them all (or reorders, with Auto Arrange)
+  const finishDrag = (icon, pos, data) => {
+    const dx = data.x - pos.x
+    const dy = data.y - pos.y
+    setGroupDrag(null)
+    if (view.autoArrange) {
+      const rows = rowsFor(viewport, cell)
+      const col = Math.max(0, Math.round((data.x - 6) / cell.w))
+      const row = Math.min(rows - 1, Math.max(0, Math.round((data.y - 6) / cell.h)))
+      const moving = selection.has(icon.key) ? autoOrder.filter((k) => selection.has(k)) : [icon.key]
+      const rest = autoOrder.filter((k) => !moving.includes(k))
+      const at = Math.min(rest.length, col * rows + row)
+      return setView({ order: [...rest.slice(0, at), ...moving, ...rest.slice(at)] })
+    }
+    const group = selection.has(icon.key) && selection.size > 1 ? [...selection] : [icon.key]
+    const next = { ...placed }
+    for (const key of group) {
+      const p = placed[key]
+      if (!p) continue
+      const raw = { x: Math.max(0, p.x + dx), y: Math.max(0, p.y + dy) }
+      next[key] = view.alignToGrid ? snapToGrid(raw, cell) : raw
+    }
+    setPositions(next)
+    saveIcons(next)
   }
 
   const longPress = useLongPress((x, y, { target }) => {
@@ -700,6 +866,27 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
               <p className="dialogText">Are you sure you want to send '{dialog.item.name}' to the Recycle Bin?</p>
             </Dialog>
           )}
+          {dialog.kind === "deleteMany" && (
+            <Dialog
+              title="Confirm Multiple File Delete"
+              okLabel="Yes"
+              cancelLabel="No"
+              onOk={() => {
+                for (const item of dialog.items) {
+                  try {
+                    fs.deleteItem(item)
+                  } catch {
+                    // already gone
+                  }
+                }
+                setSelected(null)
+                setDialog(null)
+              }}
+              onCancel={() => setDialog(null)}
+            >
+              <p className="dialogText">Are you sure you want to send these {dialog.items.length} items to the Recycle Bin?</p>
+            </Dialog>
+          )}
           {dialog.kind === "alert" && (
             <Dialog title="Desktop" sound="ding" onOk={() => setDialog(null)}>
               <p className="dialogText">{dialog.text}</p>
@@ -765,7 +952,7 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
                 // hand focus back to this one afterwards
                 onPointerDownCapture={() => selectActive(window, index)}
               >
-                <div className="window">
+                <div className="window" data-window-index={index}>
                   {renderTitleBar(window, index)}
                   {renderContents(window, index)}
                 </div>
@@ -780,8 +967,10 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
   return withAim(
     <div
       className="desktopSurface"
+      onPointerDown={onSurfacePointerDown}
       onClick={(e) => {
         closeMenu()
+        if (swallowClick.current) return (swallowClick.current = false)
         if (!e.target.closest(".desktopIcon")) setSelected(null)
       }}
       onContextMenu={onContextMenu}
@@ -794,28 +983,50 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
           <PetWalker windows={windows} />
         </React.Suspense>
       )}
+      {lasso && <div className="desktopLasso" style={{ left: lasso.x0, top: lasso.y0, width: lasso.x1 - lasso.x0, height: lasso.y1 - lasso.y0 }} />}
       {icons.map((icon) => {
         const pos = placed[icon.key]
+        // the other icons of a group follow the one being dragged
+        const follow = groupDrag && groupDrag.key !== icon.key && selection.has(icon.key)
+        const shown = follow ? { x: pos.x + groupDrag.dx, y: pos.y + groupDrag.dy } : pos
         return (
           <Rnd
             key={icon.key}
-            position={pos}
-            size={{ width: 88, height: 76 }}
+            position={shown}
+            size={{ width: ICON_W, height: ICON_H }}
             className="p-0 desktopIcon"
             enableResizing={false}
-            dragGrid={[15, 15]}
+            dragGrid={view.alignToGrid || view.autoArrange ? [1, 1] : [15, 15]}
             bounds="parent"
+            onDrag={(e, data) => {
+              dragged.current = true
+              if (selection.size > 1 && selection.has(icon.key)) setGroupDrag({ key: icon.key, dx: data.x - pos.x, dy: data.y - pos.y })
+            }}
             onDragStop={(e, data) => {
-              if (data.x === pos.x && data.y === pos.y) return
-              if (quickLaunchDrop(icon, e, data.node)) return
-              if (icon.item && dropFile(icon, e, data.node)) return
-              savePosition(icon.key, data.x, data.y)
+              if (data.x === pos.x && data.y === pos.y) return setGroupDrag(null)
+              if (selection.size <= 1 || !selection.has(icon.key)) {
+                if (quickLaunchDrop(icon, e, data.node)) return
+                if (icon.item && dropFile(icon, e, data.node)) return
+              }
+              finishDrag(icon, pos, data)
             }}
           >
             <div
-              className={(selected === icon.key ? "desktopIconInner is-selected" : "desktopIconInner") + (icon.item?.type === "shortcut" ? " isShortcut" : "")}
+              className={(isSelected(icon.key) ? "desktopIconInner is-selected" : "desktopIconInner") + (icon.item?.type === "shortcut" ? " isShortcut" : "")}
               data-program={icon.key}
-              onPointerDown={() => setSelected(icon.key)}
+              onPointerDown={(e) => {
+                // Ctrl+click adds or removes one; pressing a selected icon keeps the group
+                if (e.ctrlKey || e.metaKey) {
+                  const next = new Set(selection)
+                  next.has(icon.key) ? next.delete(icon.key) : next.add(icon.key)
+                  return setSelection(next)
+                }
+                dragged.current = false
+                if (!selection.has(icon.key)) setSelected(icon.key)
+              }}
+              onClick={(e) => {
+                if (!dragged.current && !(e.ctrlKey || e.metaKey) && selection.size > 1) setSelected(icon.key)
+              }}
               {...openGesture(() => openIcon(icon))}
             >
               <img src={icon.icon} draggable="false" alt="" />
@@ -872,6 +1083,7 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
                 {/* Activate on press, as on phones above */}
                 <div
                   className="window desktopWindow"
+                  data-window-index={index}
                   onPointerDownCapture={() => selectActive(window, index)}
                 >
                   {renderTitleBar(window, index)}
