@@ -34,6 +34,12 @@
   SmarterChild) and Outlook Express-style mail with attachments between screen names
 - **Network Neighborhood:** see who else is online, send files and pictures, WinPopup messages, and play Checkers,
   Chess, Reversi, Battleship, Hearts or a Minesweeper race against them
+- **Us (for couples):** pair two 98 Messenger accounts, then: Love Letters (scheduled, "open when..." and countdown
+  letters that stay sealed on the server until their day), Our Story (a shared photo timeline), virtual flowers
+  that wilt unless watered, Our Pet (a pet you raise together), the Lovebirds Quiz Show (How Well Do You Know Me,
+  This or That, compatibility quizzes, deep talk cards, party trivia: 400+ original questions), Photo Puzzle
+  (jigsaws from your photos with hidden messages), Doodle Together (a live shared canvas), Dream House (a dollhouse
+  you can decorate together) and Sunny Acres visits, help and gifts. Couple data is private to the pair
 - **My Projects:** Baseline Today, Job Market Radar and One Closet open as their own 98ish programs
 - **Extras:** 98ish Update, Floppy the helper, 22 hidden achievements (My Computer > Properties), and whatever
   happens if you end explorer.exe
@@ -66,7 +72,7 @@ Environment variables:
 
 | Name | Value |
 | --- | --- |
-| `MONGODB_URI` | MongoDB connection string (e.g. a free MongoDB Atlas cluster) where 98 Messenger accounts, buddy lists and profiles, mail, homepages, online drives, and the guestbook and its hit counters are stored. Without it they live in memory and vanish whenever the server restarts |
+| `MONGODB_URI` | MongoDB connection string (e.g. a free MongoDB Atlas cluster) where 98 Messenger accounts, buddy lists and profiles, mail, homepages, online drives, couples' letters, stories, pets and houses, quizzes, puzzles, towns, and the guestbook and its hit counters are stored. Without it they live in memory and vanish whenever the server restarts |
 
 **Keeping the chat server awake:** Render's free plan sleeps after 15 idle minutes, and the first visitor then waits
 20-50 seconds for 98 Messenger to connect. `.github/workflows/keepalive.yml` pings the server every 10 minutes from
