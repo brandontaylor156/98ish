@@ -890,10 +890,13 @@ export const createEngine = ({ canvas, container, onStatus, onHud, onEvent, onMe
       crowdTimer += dt
       if (crowdTimer > 0.5) {
         crowdTimer = 0
-        audio.setCrowd(status === "playing" ? energy : 0.2)
+        // the crowd cheers while you play and on the results screen; it's quiet when
+        // paused (including minimized), after a fail and in the menus
+        audio.setCrowd(status === "playing" ? energy : status === "results" ? 0.2 : 0)
       }
     } else {
       hwGroup.visible = false
+      audio.setCrowd(0)
       hideNotes()
     }
     boardMat.uniforms.uStar.value = starMix

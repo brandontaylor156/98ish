@@ -599,7 +599,8 @@ export const createAudio = ({ context = null } = {}) => {
     },
     // the crowd: `level` 0..1 is how into it they are
     setCrowd(level) {
-      const v = sfxOn ? Math.round((0.012 + 0.05 * Math.max(0, Math.min(1, level))) * 1000) / 1000 : 0
+      // 0 is silence (menus, paused); anything above starts from a low murmur
+      const v = sfxOn && level > 0 ? Math.round((0.012 + 0.05 * Math.min(1, level)) * 1000) / 1000 : 0
       if (v === lastCrowd) return
       lastCrowd = v
       crowdGain.gain.cancelScheduledValues(ctx.currentTime)
