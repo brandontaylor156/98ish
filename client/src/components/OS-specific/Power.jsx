@@ -206,13 +206,23 @@ export const ShuttingDown = ({ onDone }) => {
   )
 }
 
-export const SafeToTurnOff = ({ onPowerOn }) => (
-  <div className="powerScreen safeOff" onClick={onPowerOn} role="button" tabIndex={0} onKeyDown={onPowerOn}>
-    <p>It's now safe to turn off</p>
-    <p>your computer.</p>
-    <small>Click or press any key to start it again</small>
-  </div>
-)
+export const SafeToTurnOff = ({ onPowerOn }) => {
+  // any key, wherever the focus is (nothing on this screen has it at first)
+  useEffect(() => {
+    const id = setTimeout(() => window.addEventListener("keydown", onPowerOn), 300)
+    return () => {
+      clearTimeout(id)
+      window.removeEventListener("keydown", onPowerOn)
+    }
+  }, [])
+  return (
+    <div className="powerScreen safeOff" onClick={onPowerOn} role="button" tabIndex={0}>
+      <p>It's now safe to turn off</p>
+      <p>your computer.</p>
+      <small>Click or press any key to start it again</small>
+    </div>
+  )
+}
 
 // ---- log off ----
 

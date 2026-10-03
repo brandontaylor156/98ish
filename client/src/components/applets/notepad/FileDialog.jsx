@@ -1,4 +1,4 @@
-import React, { useState } from "react"
+import React, { useEffect, useRef, useState } from "react"
 import Dialog from "../../shared/Dialog"
 import { fs, validName } from "../../../utils/fs"
 import { imageMapper } from "../../../utils/imageMapper"
@@ -20,6 +20,17 @@ const FileDialog = ({ mode, startDir, initialName = "", onPick, onCancel, accept
   const [name, setName] = useState(initialName)
   const [error, setError] = useState(null)
   const [confirm, setConfirm] = useState(null)
+  const nameRef = useRef(null)
+
+  // start in File name, ready to type over, as in Windows (the dialog would otherwise focus
+  // its first field, the folder list, so typing a name changed the folder instead)
+  useEffect(() => {
+    const id = setTimeout(() => {
+      nameRef.current?.focus({ preventScroll: true })
+      nameRef.current?.select()
+    })
+    return () => clearTimeout(id)
+  }, [])
 
   const noun = NOUNS[fileType] || "document"
   const dir = fs.resolve(dirPath) || fs.resolve("C:")
@@ -91,7 +102,7 @@ const FileDialog = ({ mode, startDir, initialName = "", onPick, onCancel, accept
         </ul>
         <div className="npFdRow">
           <label htmlFor="np-name">File name:</label>
-          <input id="np-name" value={name} maxLength={64} onChange={(e) => (setName(e.target.value), setError(null))} />
+          <input id="np-name" ref={nameRef} type="text" autoComplete="off" value={name} maxLength={64} onChange={(e) => (setName(e.target.value), setError(null))} />
         </div>
         <div className="npFdRow">
           <label>{mode === "open" ? "Files of type:" : "Save as type:"}</label>

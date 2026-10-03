@@ -178,7 +178,7 @@ const TaskManager = ({ dispatch, windows, selfIndex }) => {
   const [sort, setSort] = useState({ col: null, dir: 1 })
   const [speed, setSpeed] = useState(1000)
   const [menu, setMenu] = useState(null)
-  const [options, setOptions] = useState({ onTop: true, minimizeOnUse: false, hideWhenMinimized: false })
+  const [options, setOptions] = useState({ onTop: false, minimizeOnUse: false, hideWhenMinimized: false })
   const [dialog, setDialog] = useState(null)
   const menuRef = useRef(null)
 
@@ -196,14 +196,24 @@ const TaskManager = ({ dispatch, windows, selfIndex }) => {
     return () => clearInterval(id)
   }, [speed])
 
+  // Always On Top and Hide When Minimized are kept on the window for the shell to honor
+  useEffect(() => {
+    if (selfIndex >= 0) dispatch({ type: "set_window_options", payload: { index: selfIndex, options: { onTop: options.onTop, hideWhenMinimized: options.hideWhenMinimized } } })
+  }, [options.onTop, options.hideWhenMinimized, selfIndex])
+
   // close menus on any outside press (capture so stopPropagation elsewhere can't hide it)
   useEffect(() => {
     if (!menu) return
     const onDown = (e) => {
       if (menuRef.current && !menuRef.current.contains(e.target)) setMenu(null)
     }
+    const onKey = (e) => e.key === "Escape" && setMenu(null)
     document.addEventListener("mousedown", onDown, true)
-    return () => document.removeEventListener("mousedown", onDown, true)
+    document.addEventListener("keydown", onKey)
+    return () => {
+      document.removeEventListener("mousedown", onDown, true)
+      document.removeEventListener("keydown", onKey)
+    }
   }, [menu])
 
   const apps = useMemo(
@@ -380,7 +390,7 @@ const TaskManager = ({ dispatch, windows, selfIndex }) => {
           })),
         },
         { separator: true },
-        { label: "Select Columns...", accel: "S", disabled: tab !== "processes" },
+        { label: "Select Columns...", accel: "S", disabled: true }, // the columns are fixed
       ],
     },
     {

@@ -52,7 +52,7 @@ const ChatRoom = ({ room }) => {
         />
       </div>
       <aside className="aimChatSide">
-        <div className="aimChatCount">{members.length} people here</div>
+        <div className="aimChatCount">{members.length} {members.length === 1 ? "person" : "people"} here</div>
         <ul className="tree-view aimChatMembers">
           {members.map((name) => (
             <li key={name} {...(name !== aim.me.screenName ? openGesture(() => aim.openIm(name)) : {})}>

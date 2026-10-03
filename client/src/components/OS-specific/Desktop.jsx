@@ -206,6 +206,12 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
   const [positions, setPositions] = useState(() => ({ ...gridLayout(defaultOrder(), viewport), ...loadIcons() }))
   const paired = useCouple().status === "paired"
 
+  // the browser window got smaller: pull windows back on screen (a window left past the
+  // new edge had no reachable Close button)
+  useEffect(() => {
+    if (!mobile) dispatch({ type: "fit_windows", payload: { width: viewport.width, height: viewport.height - viewport.taskbar } })
+  }, [viewport.width, viewport.height, viewport.taskbar, mobile])
+
   // logging off or shutting down unmounts the desktop: sign out of 98 Messenger
   useEffect(() => () => socket.disconnect(), [])
   // the taskbar's network icon
@@ -488,7 +494,8 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
     ...(program.app === "recycle" ? [{ label: "Empty Recycle Bin", disabled: !binFull, onClick: () => setConfirmEmpty(true) }] : []),
     ...(program.app === "explorer" ? [{ label: "Explore", onClick: () => dispatch({ type: "open_window", payload: launch("My Computer", { path: ["C:"] }) }) }] : []),
     "-",
-    { label: "Properties", onClick: () => (program.app === "explorer" ? dispatch({ type: "open_window", payload: launch("System Properties") }) : program.app === "recycle" ? openProgram(program) : dispatch({ type: "open_window", payload: launch("Display Properties") })) },
+    // (a program's Properties used to open Display Properties, which isn't about it at all)
+    { label: "Properties", onClick: () => (program.app === "explorer" ? dispatch({ type: "open_window", payload: launch("System Properties") }) : program.app === "recycle" ? openProgram(program) : setDialog({ kind: "props", program })) },
   ]
 
   const manyMenu = (keys) => {
@@ -899,6 +906,17 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
               <p className="dialogText">Are you sure you want to send these {dialog.items.length} items to the Recycle Bin?</p>
             </Dialog>
           )}
+          {dialog.kind === "props" && (
+            <Dialog title={`${dialog.program.name} Properties`} onOk={() => setDialog(null)}>
+              <div className="deskProps">
+                <img src={dialog.program.icon} alt="" width="32" height="32" />
+                <b>{dialog.program.name}</b>
+              </div>
+              <p className="dialogText">Type: Shortcut to a program</p>
+              <p className="dialogText">Start menu: {dialog.program.group ? `Programs > ${dialog.program.group}` : "(not in the Start menu)"}</p>
+              <p className="dialogText">Run: Start &gt; Run... and type "{dialog.program.name}"</p>
+            </Dialog>
+          )}
           {dialog.kind === "alert" && (
             <Dialog title="Desktop" sound="ding" onOk={() => setDialog(null)}>
               <p className="dialogText">{dialog.text}</p>
@@ -1090,7 +1108,8 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
                   })
                 }
                 className={window.minimized ? "p-0 d-none" : "p-0"}
-                style={window.active ? { zIndex: 111111 } : undefined}
+                // Task Manager can stay above everything else (Options > Always On Top)
+                style={window.onTop && !window.minimized ? { zIndex: 111112 } : window.active ? { zIndex: 111111 } : undefined}
               >
                 {/* Activate on press, as on phones above */}
                 <div

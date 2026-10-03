@@ -73,7 +73,12 @@ const Dialog = ({ title, onOk, onNo, onCancel, okLabel = "OK", noLabel = "No", c
           if (!okDisabled) onOk?.()
         }}
         onKeyDown={(e) => {
-          if (e.key === "Escape") onCancel?.()
+          // a plain message with only OK (alerts, Properties) closes on Escape too, as in
+          // Windows; one with fields to fill in never submits that way
+          if (e.key === "Escape") {
+            if (onCancel) onCancel()
+            else if (!onNo && !ref.current?.querySelector(".dialogBody input, .dialogBody textarea, .dialogBody select")) onOk?.()
+          }
           if (e.key === "Tab") trapTab(e)
         }}
       >

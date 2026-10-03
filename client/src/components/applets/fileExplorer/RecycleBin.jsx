@@ -158,7 +158,7 @@ const RecycleBin = () => {
           }}
           onCancel={() => setDialog(null)}
         >
-          <p className="dialogText">Are you sure you want to delete all of these {items.length} items? This can't be undone.</p>
+          <p className="dialogText">{items.length === 1 ? `Are you sure you want to delete '${items[0].name}'?` : `Are you sure you want to delete all of these ${items.length} items?`} This can't be undone.</p>
         </Dialog>
       )}
 

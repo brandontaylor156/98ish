@@ -264,9 +264,30 @@ html, body {
   height: 100%;
 }
 
+/* buttons share one row and get narrower as windows open, as in Windows 98 */
+.taskbarRight {
+  display: flex;
+  min-width: 0;
+  overflow: hidden;
+}
 .taskbarTab {
   width: 15%;
+  flex: 0 1 15%;
+  min-width: 28px;
   font-weight: 500;
+  /* one line: a long title ends in "..." instead of wrapping out of sight */
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.taskbarTab img {
+  flex: none;
+}
+.taskbarTabLabel {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .date-and-time {
   font-family: "Pixelated MS Sans Serif", Arial;
@@ -717,6 +738,20 @@ html, body {
   font-size: 16px;
 }
 
+/* ...and 98.css's 21px-high boxes are too short for 16px text: it was cut off at the bottom */
+.os-mobile select,
+.os-mobile input[type="text"],
+.os-mobile input[type="password"],
+.os-mobile input[type="search"],
+.os-mobile input[type="email"],
+.os-mobile input[type="url"],
+.os-mobile input[type="number"],
+.os-mobile input:not([type]) {
+  height: auto;
+  min-height: 28px;
+  line-height: normal;
+}
+
 /* Taskbar: icon-only tabs that scroll sideways, time without the date */
 .os-mobile .taskbarRight {
   display: flex;
@@ -786,4 +821,46 @@ html, body {
 /* 98.css leaves the checkmark's top to the flow, which drops it below the box */
 .tetrisMenuControls input[type="checkbox"]:checked + label::after {
   top: 3px;
+}
+
+/* 98.css only styles text boxes that say type="text": give the many that don't (New Folder's
+   name, IE's address bar, Notepad's Find...) the same sunken box instead of the browser's.
+   :where() keeps this below any app's own styling of its fields. */
+:where(input:not([type])) {
+  -webkit-appearance: none;
+  appearance: none;
+  border: none;
+  border-radius: 0;
+  background-color: #fff;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px grey, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+  box-sizing: border-box;
+  padding: 3px 4px;
+  height: 21px;
+}
+:where(input:not([type])):focus {
+  outline: none;
+}
+:where(input:not([type])):disabled,
+:where(input:not([type])):read-only {
+  background-color: silver;
+}
+
+/* ...everywhere: Bootstrap (loaded after 98.css) turns labels into inline blocks, so every
+   ticked box in every app had its tick drawn under the box */
+input[type="checkbox"]:checked + label::after {
+  top: 3px;
+}
+
+/* Greyed-out menu items (menu bars and right-click menus): shared.css paints every menu
+   button black, so a disabled item looked exactly like one that works */
+.menu button:disabled {
+  color: #808080;
+  text-shadow: 1px 1px 0 #fff;
+}
+
+/* "Undo      Ctrl+Z": a menu item's shortcut in its own column (MenuBar.jsx) */
+.menuShortcut {
+  margin-left: auto;
+  padding-left: 24px;
+  white-space: pre;
 }

@@ -1,6 +1,19 @@
 import React, { useEffect, useRef, useState } from "react"
 import "./shared.css"
 
+// "Undo Ctrl+Z": the shortcut goes in its own column on the right, as in Windows
+const SHORTCUT = /^(.*\S)\s+((?:Ctrl|Alt|Shift|Shft)\+\S+|Del|Delete|F\d{1,2})$/
+const ItemLabel = ({ label }) => {
+  const m = typeof label === "string" && label.match(SHORTCUT)
+  if (!m) return <span className="menuLabel">{label}</span>
+  return (
+    <>
+      <span className="menuLabel">{m[1]}</span>
+      <span className="menuShortcut"> {m[2]}</span>
+    </>
+  )
+}
+
 // Classic menu bar: click a title to open its menu, click an item (or away) to close.
 // menus: [{ label, items: [{ label, onClick, checked, disabled } | "-"] }]
 const MenuBar = ({ menus }) => {
@@ -12,8 +25,18 @@ const MenuBar = ({ menus }) => {
     const close = (e) => {
       if (!ref.current?.contains(e.target)) setOpen(null)
     }
+    // Escape closes it too, as in Windows (and doesn't reach the app underneath)
+    const onKey = (e) => {
+      if (e.key !== "Escape") return
+      e.stopPropagation()
+      setOpen(null)
+    }
     document.addEventListener("pointerdown", close)
-    return () => document.removeEventListener("pointerdown", close)
+    document.addEventListener("keydown", onKey, true)
+    return () => {
+      document.removeEventListener("pointerdown", close)
+      document.removeEventListener("keydown", onKey, true)
+    }
   }, [open])
 
   return (
@@ -39,7 +62,7 @@ const MenuBar = ({ menus }) => {
                       }}
                     >
                       <span className="menuCheck">{item.checked ? "✓" : ""}</span>
-                      {item.label}
+                      <ItemLabel label={item.label} />
                     </button>
                   </li>
                 )

@@ -154,6 +154,8 @@ const StartMenu = ({ dispatch, setResults, closeMenu, onShutDown, onLogOff, mobi
   // keyboard: Escape closes, underlined letters pick
   useEffect(() => {
     const onKey = (e) => {
+      // (Escape in the Find box closes the menu too; Run's box is left to its dialog)
+      if (e.key === "Escape" && e.target === searchRef.current) return closeMenu()
       if (e.target.closest?.("input, textarea")) return
       if (e.key === "Escape") return closeMenu()
       const hit = menu.find((m) => m !== "-" && m.key?.toLowerCase() === e.key.toLowerCase())

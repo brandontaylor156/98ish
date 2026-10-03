@@ -246,12 +246,17 @@
   text-align: left;
 }
 .shortcutTable th {
-  white-space: nowrap;
+  width: 38%;
   font-weight: bold;
   padding-right: 8px;
 }
-.os-mobile .shortcutTable th {
+/* 98.css keeps table cells on one line: the descriptions ran out of the dialog */
+.shortcutTable th,
+.shortcutTable td {
   white-space: normal;
+}
+.window.dialog:has(.shortcutTable) {
+  width: min(440px, 100%);
 }
 
 /* ---- Alt+Q window switcher ---- */
@@ -360,4 +365,15 @@
 }
 .os-mobile .volumePopup {
   width: 110px;
+}
+
+/* a desktop program's Properties */
+.deskProps {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #808080;
+  box-shadow: 0 1px #fff;
 }

@@ -80,6 +80,11 @@ export const FILE_TYPE = {
   quiz: "quiz",
   dollhouse: "dollhouse",
   appward: "appward",
+  calc: "calc",
+  charmap: "charmap",
+  mail: "mail",
+  homepage: "homepage",
+  winpopup: "winpopup",
 }
 
 export const DIRECTORY_TYPE = {
@@ -533,6 +538,11 @@ const DEFAULT_ITEMS = [
   ["C:/Programs/Lovebirds Quiz Show", "file", "quiz"],
   ["C:/Programs/Dream House", "file", "dollhouse"],
   ["C:/Programs/Appward 98", "file", "appward"],
+  ["C:/Programs/Calculator", "file", "calc"],
+  ["C:/Programs/Character Map", "file", "charmap"],
+  ["C:/Programs/98ish Mail", "file", "mail"],
+  ["C:/Programs/HomePage Studio", "file", "homepage"],
+  ["C:/Programs/WinPopup", "file", "winpopup"],
   ["C:/Bookmarks", "dir", "bookmarks"],
   ...["AOL", "Yahoo", "Tim Tang", "Ask Jeeves", "Geocities", "eBay", "IMDb", "Chit Chat", "ReDirector", "98ish Guestbook"].map((n) => [`C:/Bookmarks/${n}`, "file", "internet"]),
   ["C:/Hello World", "file", "text", "Hello World!"],

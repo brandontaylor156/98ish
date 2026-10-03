@@ -36,14 +36,26 @@ const reducer = (state, action) => {
             idx === open ? { ...window, minimized: false, active: true, hiddenByShell: false } : { ...window, active: false }
           )
       }
+      // cascade by the windows still open (closed ones stay in the list), and keep the new
+      // window inside the screen above the taskbar so its title bar and buttons are reachable
+      const open = state.filter((w) => !w.closed).length
+      const screenW = document.documentElement.clientWidth || 1024
+      const screenH = (globalThis.innerHeight || 768) - (document.querySelector(".taskbar")?.offsetHeight || 30)
+      const width = typeof action.payload.width === "number" ? Math.min(action.payload.width, screenW) : action.payload.width
+      const height = typeof action.payload.height === "number" ? Math.min(action.payload.height, screenH) : action.payload.height
+      // down and to the right, so each title bar behind stays readable
+      const x = action.payload.initialX ?? 10 + (open % 10) * 22
+      const y = action.payload.positionY || (open % 10) * 22
       return [
         ...state.map((window, idx) => {
           return { ...window, active: false }
         }),
         {
           ...action.payload,
-          x: action.payload.initialX ?? 10 + state.length * 10,
-          y: action.payload.positionY ?? 0,
+          width,
+          height,
+          x: Math.max(0, Math.min(x, screenW - (Number(width) || 0))),
+          y: Math.max(0, Math.min(y, screenH - (Number(height) || 0))),
         },
       ]
     }
@@ -120,6 +132,30 @@ const reducer = (state, action) => {
     case "rename_window":
       return state.map((window, idx) =>
         idx === action.payload.index ? { ...window, name: action.payload.name } : window
+      )
+
+    // the screen shrank: keep every window inside it (payload: the free screen's width, height)
+    case "fit_windows": {
+      const { width: sw, height: sh } = action.payload
+      if (!(sw > 0 && sh > 0)) return state
+      let changed = false
+      const next = state.map((window) => {
+        if (window.closed || [window.width, window.height, window.x, window.y].some((v) => typeof v !== "number")) return window
+        const width = Math.min(window.width, sw)
+        const height = Math.min(window.height, sh)
+        const x = Math.max(0, Math.min(window.x, sw - width))
+        const y = Math.max(0, Math.min(window.y, sh - height))
+        if (width === window.width && height === window.height && x === window.x && y === window.y) return window
+        changed = true
+        return { ...window, width, height, x, y }
+      })
+      return changed ? next : state
+    }
+
+    // Task Manager's Options: { onTop, hideWhenMinimized }
+    case "set_window_options":
+      return state.map((window, idx) =>
+        idx === action.payload.index ? { ...window, ...action.payload.options } : window
       )
 
     case "move_window":

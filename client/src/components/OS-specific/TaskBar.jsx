@@ -384,7 +384,7 @@ const TaskBar = ({ windows, dispatch, setStartMenuVisible, startMenuVisible }) =
         <div className="col taskbarRight p-0" {...longPress}>
           {windows.map(
             (window, index) =>
-              !window.closed && (
+              !window.closed && !(window.minimized && window.hideWhenMinimized) && (
                 <button
                   key={index}
                   data-tab={index}
@@ -437,6 +437,17 @@ const TaskBar = ({ windows, dispatch, setStartMenuVisible, startMenuVisible }) =
             >
               <SpeakerIcon muted={settings.muted} volume={settings.volume} />
             </button>
+            {/* Task Manager with Hide When Minimized waits here instead of on the taskbar */}
+            {windows.map(
+              (window, index) =>
+                !window.closed &&
+                window.minimized &&
+                window.hideWhenMinimized && (
+                  <button key={`hidden-${index}`} type="button" className="trayIcon" title={window.name} aria-label={window.name} onClick={() => dispatch({ type: "focus_window", payload: { index } })}>
+                    <img src={window.icon_url} alt="" width="16" height="16" draggable="false" />
+                  </button>
+                )
+            )}
             <MailTray windows={windows} dispatch={dispatch} />
             <CoupleTray />
             {settings.taskbarClock && <DateAndTime onOpen={openDateTime} />}
