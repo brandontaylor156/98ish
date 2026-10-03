@@ -702,5 +702,8 @@ export const createSynth = (ctx, { bpm = 120 } = {}) => {
     } catch {}
   }
 
-  return { ctx, analyser, addTrack, play, hush, open, setVolume, setTempo, reset, destroy, activeVoices: () => voices.size }
+  // a track's input node, for instruments that live outside this file (Shred 98's guitars)
+  const trackInput = (i) => tracks[i]?.input || null
+
+  return { ctx, analyser, addTrack, play, hush, open, setVolume, setTempo, reset, destroy, trackInput, activeVoices: () => voices.size }
 }

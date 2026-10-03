@@ -67,6 +67,10 @@ const TIPS = {
     "Clear lines on moves in a row for a streak bonus. Pieces with no room left turn gray.",
   ],
   "Pickleball 98": ["Serving? Stay back! The return has to bounce before your team can volley. That's the two-bounce rule.", "At the kitchen line, tap Space for a soft dink. Wait for a ball that pops up high, then hold Space to drive it."],
+  "Shred 98": [
+    "Hit every glowing star note in a phrase to charge star power, then press Shift to double your points!",
+    "Notes feel early or late? Calibrate Lag on the Shred 98 title screen lines them up with your speakers.",
+  ],
   Downhill: ["Press Space in the air off a ramp to spin. Just land before the spin ends!", "Something lives up on that mountain. Keep moving after 2,000 m..."],
   "Photo Puzzle": ["Turn on Options > Edge Pieces Only to build the frame first. It's how the pros do it!", "Send a puzzle to someone special with a hidden message. They only see it once the last piece is in."],
   "Doodle Together": ["Invite your sweetheart and draw at the same time. You'll see their cursor wander around the page!", "Try Background > Fill in the Heart, then grab the paint bucket."],

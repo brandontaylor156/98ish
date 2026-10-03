@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <defs>
+    <linearGradient id="flame" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff3a0"/>
+      <stop offset="0.45" stop-color="#ff9a1a"/>
+      <stop offset="1" stop-color="#d0200c"/>
+    </linearGradient>
+    <linearGradient id="neck" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#5a3a22"/>
+      <stop offset="1" stop-color="#2e1d10"/>
+    </linearGradient>
+  </defs>
+  <!-- the highway, in perspective -->
+  <path d="M17 6h14l12 38H5z" fill="#1a1620" stroke="#000" stroke-width="1.2"/>
+  <path d="M20 6l-7 38M24 6v38M28 6l7 38" stroke="#4a4458" stroke-width="0.8"/>
+  <path d="M10 33h28M13.5 22h21M16 13h16" stroke="#8a8498" stroke-width="0.8"/>
+  <!-- gems on the strikeline -->
+  <g stroke="#000" stroke-width="0.8">
+    <ellipse cx="9.5" cy="40.5" rx="3.6" ry="2.2" fill="#2bd94f"/>
+    <ellipse cx="16.8" cy="40.5" rx="3.6" ry="2.2" fill="#ff3341"/>
+    <ellipse cx="24" cy="40.5" rx="3.6" ry="2.2" fill="#ffd21f"/>
+    <ellipse cx="31.2" cy="40.5" rx="3.6" ry="2.2" fill="#2a8cff"/>
+    <ellipse cx="38.5" cy="40.5" rx="3.6" ry="2.2" fill="#ff8a1a"/>
+  </g>
+  <g fill="#fff" opacity="0.85">
+    <ellipse cx="9.5" cy="40" rx="1.2" ry="0.6"/>
+    <ellipse cx="16.8" cy="40" rx="1.2" ry="0.6"/>
+    <ellipse cx="24" cy="40" rx="1.2" ry="0.6"/>
+    <ellipse cx="31.2" cy="40" rx="1.2" ry="0.6"/>
+    <ellipse cx="38.5" cy="40" rx="1.2" ry="0.6"/>
+  </g>
+  <!-- a guitar slashing across, with a lightning bolt -->
+  <g transform="rotate(-38 24 22)">
+    <rect x="22.4" y="1" width="3.4" height="20" fill="url(#neck)" stroke="#000" stroke-width="0.9"/>
+    <path d="M21.5 0.5l5-1 1 4h-6.6z" fill="#222" stroke="#000" stroke-width="0.8"/>
+    <path d="M24 19c-6 0-9.5 3-9 7.5.4 3.4 3 4.2 4.6 6.4 1.4 2 2.4 3.6 4.4 3.6s3-1.6 4.4-3.6c1.6-2.2 4.2-3 4.6-6.4.5-4.5-3-7.5-9-7.5z" fill="url(#flame)" stroke="#000" stroke-width="1.1"/>
+    <rect x="20.5" y="27.5" width="7" height="1.6" fill="#222"/>
+    <circle cx="24" cy="23.8" r="1.6" fill="#1a1620"/>
+  </g>
+  <path d="M38 2l-6 9h4l-3 8 8-11h-4.5z" fill="#ffe86a" stroke="#000" stroke-width="0.9" stroke-linejoin="round"/>
+</svg>
