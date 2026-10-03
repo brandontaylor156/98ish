@@ -82,7 +82,8 @@ const Game = ({ fitWindow, mobile }) => {
     }
 
     // Joining a room from elsewhere (an accepted invitation, Network Neighborhood) brings
-    // up Tetris Online
+    // up Tetris Online. Say hello once, when Tetris opens: saying it again on every screen
+    // change made Back in Tetris Online jump straight back in while an invitation was pending.
     useEffect(() => {
         const socket = net?.socket
         if (!socket) return
@@ -95,7 +96,7 @@ const Game = ({ fitWindow, mobile }) => {
             socket.off("tetris:room", onRoom)
             socket.off("tetris:invited", onInvited)
         }
-    }, [net?.socket, screen === "online"])
+    }, [net?.socket])
 
     return (
         <div className="tetrisGame">

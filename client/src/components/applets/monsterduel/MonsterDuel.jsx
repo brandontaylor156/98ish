@@ -98,7 +98,10 @@ const LocalDuel = ({ config, data, setData, sounds, mobile, onExit, onAgain, onP
     // dev hook for browser tests: let the computer play your side too
     if (import.meta.env?.DEV) window.__mdLocal = m
     const deck = tut ? { main: TUTORIAL_YOU, extra: [], name: "Tutorial Deck" } : config.deck
-    m.act(deck.starter ? { type: "deck", starter: deck.starter } : { type: "deck", main: deck.main, extra: deck.extra || [], name: deck.name })
+    const picked = m.act(deck.starter ? { type: "deck", starter: deck.starter } : { type: "deck", main: deck.main, extra: deck.extra || [], name: deck.name })
+    // a saved deck that no longer passes the deck rules would leave the duel on "Shuffling..."
+    // forever: play a starter deck instead
+    if (picked && picked.ok === false) m.act({ type: "deck", starter: STARTERS[0].id })
     m.act({ type: "prefs", respond: tut ? "auto" : data.prefs.respond })
     return () => m.stop()
   }, [config.key])

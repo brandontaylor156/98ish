@@ -154,7 +154,8 @@ export const legalMoves = (state) => {
       for (let n = 1; n <= run; n++) {
         if (canMove(state, from, cards.length - n, to)) {
           // pointless shuffles: a whole column to an empty one
-          if (to[0] === "t" && !pile(state, to).length && n === cards.length) continue
+          // (a free cell's card to an empty column is a real move)
+          if (from[0] === "t" && to[0] === "t" && !pile(state, to).length && n === cards.length) continue
           if (to[0] === "c" && from[0] === "c") continue
           list.push({ from, index: cards.length - n, to })
         }

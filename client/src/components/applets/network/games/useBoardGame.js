@@ -150,7 +150,8 @@ export const useSoloChess = () => {
       setTimeout(
         () =>
           setSolo((s) => {
-            if (s.game !== startedOn || !move) return s
+            // (not after you resigned or took a draw while it was thinking)
+            if (s.game !== startedOn || s.resigned || s.agreed || !move) return s
             const r = chess.applyMove(s.game, move)
             return r.ok ? { ...s, game: r.state } : s
           }),

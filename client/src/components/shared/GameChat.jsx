@@ -182,7 +182,9 @@ const ChatHost = ({ game, room, mode, title, net }) => {
       if (message.system || mine || current().muted.includes(message.from)) return
       if (!openRef.current) {
         setUnread((n) => n + 1)
-        setTicker(message)
+        // the swear filter applies to the ticker too (Strict hides the message)
+        const filter = current().filter
+        if (!(message.masked && filter === "strict")) setTicker(message.masked && filter !== "off" ? { ...message, text: message.masked } : message)
       }
       if ((!openRef.current || !document.hasFocus()) && Date.now() - lastChime.current > 1500) {
         lastChime.current = Date.now()

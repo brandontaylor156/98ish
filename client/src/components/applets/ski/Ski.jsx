@@ -30,6 +30,7 @@ const Ski = ({ onClose, mobile }) => {
   const input = useRef({ turn: 0, aim: null, brake: false, jump: false, trick: false })
   const pointer = useRef(null) // { x, y } steering target on the canvas, while active
   const tiltAim = useRef(null) // a heading from tilting the phone
+  const wake = useRef(() => {}) // restarts the frame loop after a pause
   const [hud, setHud] = useState({ time: 0, distance: 0, speed: 0, style: 0, moose: false })
   const [paused, setPaused] = useState(false)
   const [over, setOver] = useState(null) // { run, scores, place }
@@ -43,10 +44,12 @@ const Ski = ({ onClose, mobile }) => {
 
   const newRun = () => {
     gameRef.current = newGame()
+    input.current = { turn: 0, aim: null, brake: false, jump: false, trick: false }
     setOver(null)
     setPaused(false)
     setRound((r) => r + 1)
     rootRef.current?.focus()
+    wake.current()
   }
 
   if (!gameRef.current) gameRef.current = newGame()
@@ -70,8 +73,9 @@ const Ski = ({ onClose, mobile }) => {
       canvas.style.height = `${r.height}px`
       // bigger pixels on big windows, so there's always about the same amount of slope
       scale = Math.max(2, Math.min(3.5, r.width / 240)) * dpr
+      // back from minimized: draw again
+      if (r.width) wake.current()
     }
-    resize()
     const observer = new ResizeObserver(resize)
     observer.observe(canvas.parentElement)
 
@@ -158,8 +162,14 @@ const Ski = ({ onClose, mobile }) => {
     }
 
     const frame = (now) => {
-      raf = requestAnimationFrame(frame)
+      raf = 0
       const g = gameRef.current
+      // minimized (the window is display:none): pause the run and stop drawing until it's back
+      if (!canvas.parentElement.clientWidth) {
+        if (!g.paused && g.state !== "over") setPause(true)
+        return
+      }
+      raf = requestAnimationFrame(frame)
       const dt = Math.min(0.05, (now - last) / 1000)
       last = now
       // steering toward the pointer (mouse or a finger held down)
@@ -189,10 +199,22 @@ const Ski = ({ onClose, mobile }) => {
         hudAt = now
         setHud({ time: g.t, distance: distanceOf(g), speed: speedKmh(g), style: Math.floor(g.style), moose: !!g.moose })
       }
+      // nothing moves while paused or after the run: idle until something wakes it
+      if (g.paused || (g.state === "over" && g.recorded)) {
+        cancelAnimationFrame(raf)
+        raf = 0
+      }
     }
-    raf = requestAnimationFrame(frame)
+    wake.current = () => {
+      if (raf) return
+      last = performance.now()
+      raf = requestAnimationFrame(frame)
+    }
+    resize()
+    wake.current()
     return () => {
       cancelAnimationFrame(raf)
+      wake.current = () => {}
       observer.disconnect()
     }
   }, [])
@@ -203,6 +225,7 @@ const Ski = ({ onClose, mobile }) => {
     if (g.state === "over") return
     g.paused = value
     setPaused(value)
+    if (!value) wake.current()
   }
   // customizing the controls pauses the run (tap to carry on after)
   useEffect(() => {
@@ -262,6 +285,8 @@ const Ski = ({ onClose, mobile }) => {
     const g = gameRef.current
     const k = e.key
     const used = () => (e.preventDefault(), e.stopPropagation())
+    // Space / Enter on a focused button (Ski Again, menus, dialogs) presses that button
+    if ((k === " " || k === "Enter") && e.target.closest?.("button, input, select, textarea")) return
     if (k === "F2") return used(), newRun()
     if (k === "p" || k === "P" || k === "F3" || k === "Pause" || (k === "Escape" && !paused)) return used(), setPause(!g.paused)
     if (g.paused) {
@@ -282,6 +307,14 @@ const Ski = ({ onClose, mobile }) => {
   }
   const onKeyUp = (e) => {
     if (e.key === "ArrowUp" || e.key === "w") input.current.brake = false
+  }
+  // Focus went to another window: pause, and let go of anything held (a held Up would
+  // otherwise brake forever, since its key-up goes elsewhere)
+  const onBlur = (e) => {
+    if (rootRef.current?.contains(e.relatedTarget)) return
+    input.current.brake = false
+    pointer.current = null
+    setPause(true)
   }
 
   // ---- mouse and touch ----
@@ -375,6 +408,7 @@ const Ski = ({ onClose, mobile }) => {
       tabIndex={0}
       onKeyDown={onKeyDown}
       onKeyUp={onKeyUp}
+      onBlur={onBlur}
       data-round={round}
     >
       <MenuBar menus={menus} />

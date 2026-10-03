@@ -24,7 +24,8 @@ export const isBatch = (a) => !!BATCH[a]
 
 const isId = (v) => Number.isInteger(v) && v > 0 && v < 1e7
 const isIdx = (v, max) => Number.isInteger(v) && v >= 0 && v < max
-const isKey = (v) => typeof v === "string" && /^[a-z0-9]{1,24}$/.test(v)
+// (never a built-in like "constructor": GOODS["constructor"] is Object, and selling it made the coins NaN)
+const isKey = (v) => typeof v === "string" && /^[a-z0-9]{1,24}$/.test(v) && !(v in Object.prototype)
 const isTile = (v) => Number.isInteger(v) && v >= -1 && v <= 31
 
 // a clean copy of an intent from the network, or null if it doesn't look right

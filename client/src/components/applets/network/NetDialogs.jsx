@@ -175,6 +175,10 @@ export const GameInvite = ({ invite, onClose }) => {
 
 export const Waiting = ({ inviteId, text, onClose }) => {
   const net = useNet()
+  // closing this window any way (its X too) takes the invitation back; once it has been
+  // answered the server has nothing left to cancel
+  const cancel = net.cancelInvite
+  useEffect(() => () => cancel(inviteId), [inviteId])
   return (
     <div className="netBox">
       <div className="netBoxBody">
@@ -184,10 +188,7 @@ export const Waiting = ({ inviteId, text, onClose }) => {
       <div className="netBoxButtons">
         <button
           type="button"
-          onClick={() => {
-            net.cancelInvite(inviteId)
-            onClose()
-          }}
+          onClick={onClose}
         >
           Cancel
         </button>

@@ -137,6 +137,11 @@ test("FreeCell win detection and no-moves detection", () => {
   })
   assert.equal(F.legalMoves(stuck).length, 0)
   assert.ok(F.legalMoves(F.dealGame(1)).length > 0)
+  // a free cell's card can always go to an empty column (it isn't a "whole column" shuffle)
+  const open = fState(["2D KS", "2C KH", "2H KD", "2S KC", "3D 9D", "3C 9C", "3H 9H", ""], {
+    cells: [cards("5D"), cards("5C"), cards("6D"), cards("6C")],
+  })
+  assert.ok(F.legalMoves(open).some((m) => m.from[0] === "c" && m.to === "t7"))
 })
 
 test("FreeCell undo is a state stack: moves never mutate", () => {

@@ -8,6 +8,8 @@
   align-items: center;
   gap: 10px;
   min-width: 0;
+  /* never squashed by a short title screen (phones on their side): the menu scrolls instead */
+  flex-shrink: 0;
   padding: 6px 14px 6px 8px !important;
   text-align: left;
   position: relative;

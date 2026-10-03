@@ -1177,6 +1177,17 @@
   display: none;
 }
 
+/* A phone on its side is too short for the 150px trick area: the player across the table
+   and half your hand were cut off */
+@media (max-height: 500px) {
+  .os-mobile .htCenter {
+    min-height: 0;
+  }
+  .os-mobile .htPlayed {
+    --card-w: 34px;
+  }
+}
+
 .os-mobile .htSeatName {
   font-size: 12px;
   padding: 1px 3px;

@@ -304,7 +304,8 @@ export const makeRules = (dict, { utc = false } = {}) => {
     const set = st.sets[i]
     const counts = {}
     for (const w of Object.values(set.votes)) counts[w] = (counts[w] || 0) + 1
-    const best = set.voteOrder.reduce((top, w) => (top === null || counts[w] > counts[top] ? w : top), null)
+    // (a word everyone has since voted away from has no votes: never play it)
+    const best = set.voteOrder.reduce((top, w) => (counts[w] && (top === null || counts[w] > counts[top]) ? w : top), null)
     if (!best) return st
     const by = Number(Object.keys(set.votes).find((seat) => set.votes[seat] === best))
     return playWord(st, i, best, by, ctx)

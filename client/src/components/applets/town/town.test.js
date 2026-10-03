@@ -461,3 +461,11 @@ test("help requests read what the town needs; rewards grow with what the goods a
   const big = G.helpReward({ cheese: 3 })
   assert.ok(big.coins > small.coins && big.xp > small.xp)
 })
+
+test("co-op intents: object built-ins aren't item names", async () => {
+  const { checkIntent } = await import("./coopRules.js")
+  assert.equal(checkIntent({ a: "sellGood", g: "constructor", n: 1 }), null)
+  assert.equal(checkIntent({ a: "plant", ids: [1], crop: "constructor" }), null)
+  assert.equal(checkIntent({ a: "build", type: "constructor", x: 1, y: 1 }), null)
+  assert.deepEqual(checkIntent({ a: "sellGood", g: "wheat", n: 2 }), { a: "sellGood", g: "wheat", n: 2 })
+})

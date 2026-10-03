@@ -303,6 +303,8 @@ const Pinball = ({ onClose, onTitle, mobile }) => {
     }
     if (e.key === "F3") {
       e.preventDefault()
+      // only a game in play pauses (after game over it froze the demo with no "Paused")
+      if (hud.mode !== "play" && !pausedRef.current) return
       return setPaused(!pausedRef.current)
     }
     const code = e.code
@@ -425,7 +427,8 @@ const Pinball = ({ onClose, onTitle, mobile }) => {
     const next = G.insertScore(scoresRef.current, entry)
     setScores(next)
     save(SCORES_KEY, next)
-    save(OPTIONS_KEY, { ...options, initials: name })
+    // (into the options state too: the next Options toggle saves them again)
+    setOptions((o) => ({ ...o, initials: name }))
     setDialog({ kind: "scores", highlight: entry.date })
   }
 

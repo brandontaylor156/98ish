@@ -168,7 +168,7 @@ const BlockTen = ({ onClose, mobile }) => {
     else sounds.over()
   }, [game.over])
 
-  // ---- Blast's clock (stops while the page is hidden or a dialog is open) ----
+  // ---- Blast's clock (stops while the page is hidden, the window is minimized or a dialog is open) ----
   useEffect(() => {
     if (game.mode !== "blast" || game.over || dialog) return
     let last = performance.now()
@@ -176,7 +176,7 @@ const BlockTen = ({ onClose, mobile }) => {
       const now = performance.now()
       const dt = (now - last) / 1000
       last = now
-      if (document.hidden) return
+      if (document.hidden || !rootRef.current?.offsetParent) return
       const before = gameRef.current.timeLeft
       setGame((g) => E.tick(g, dt))
       const after = gameRef.current.timeLeft

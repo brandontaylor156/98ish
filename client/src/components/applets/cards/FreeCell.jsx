@@ -136,7 +136,8 @@ const FreeCell = ({ onClose, onTitle }) => {
   useEffect(() => {
     if (play.status !== "playing" || auto) return
     if (F.isWon(state)) {
-      record(true)
+      // a game already counted (resigned, then carried on) isn't counted twice
+      if (!play.counted) record(true)
       unlock("freecell")
       setPlay((p) => ({ ...p, status: "won", counted: true }))
       setDialog({ kind: "won" })

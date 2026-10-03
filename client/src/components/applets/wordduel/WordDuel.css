@@ -1055,6 +1055,17 @@ a.wdWord:hover {
   gap: 6px;
   padding: 6px 3px calc(8px + env(safe-area-inset-bottom));
 }
+/* a phone on its side: shorter keys, or the keyboard leaves the board ~12px letters */
+@media (max-height: 500px) {
+  .wdRoot.is-mobile .wdKey {
+    height: 30px;
+    font-size: 14px;
+  }
+  .wdRoot.is-mobile .wdKeyboard {
+    gap: 3px;
+    padding: 3px 3px calc(4px + env(safe-area-inset-bottom));
+  }
+}
 .wdRoot.is-mobile .wdTitle {
   padding-top: 14px;
 }

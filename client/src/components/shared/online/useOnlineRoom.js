@@ -99,6 +99,7 @@ export const useOnlineRoom = (gameId) => {
   const [notice, setNotice] = useState(null) // "The host removed you from the room."
   const [busy, setBusy] = useState(null) // which button is waiting: quick | create | join | computer | ...
   const roomRef = useRef(null)
+  const leaving = useRef(null) // the room we just left, until the server confirms
   const offset = useRef(0) // server clock - our clock
   const listeners = useRef({ snap: new Set(), input: new Set(), relay: new Set() })
 
@@ -119,7 +120,10 @@ export const useOnlineRoom = (gameId) => {
     return result
   }
 
-  const join = (where, key = "join") => call("room:join", where, key)
+  const join = (where, key = "join") => {
+    leaving.current = null
+    return call("room:join", where, key)
+  }
 
   // the server's word on our room, and relayed messages
   useEffect(() => {
@@ -127,6 +131,8 @@ export const useOnlineRoom = (gameId) => {
     const handlers = {
       "room:state": (view) => {
         if (view.game !== gameId) return
+        // a state sent just before the server got our Leave: we're out already
+        if (leaving.current === view.id) return
         const current = roomRef.current
         if (current && current.id === view.id && view.rev < current.rev) return // out of order
         offset.current = view.now - Date.now()
@@ -200,7 +206,10 @@ export const useOnlineRoom = (gameId) => {
     const id = roomId()
     setRoom(null)
     setError(null)
-    if (id) await request("room:leave", { roomId: id })
+    if (!id) return
+    leaving.current = id
+    await request("room:leave", { roomId: id })
+    if (leaving.current === id) leaving.current = null
   }
 
   return {

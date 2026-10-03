@@ -60,7 +60,8 @@ const store = () => (typeof localStorage === "undefined" ? null : localStorage)
 export const load = (key, fallback, storage = store()) => {
   try {
     const raw = storage?.getItem(key)
-    return raw ? JSON.parse(raw) : fallback
+    // (a stored "null" counts as nothing saved: Shred crashed reading its keys)
+    return (raw ? JSON.parse(raw) : null) ?? fallback
   } catch {
     return fallback
   }

@@ -1,4 +1,4 @@
-import React, { useEffect, useLayoutEffect, useState } from "react"
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react"
 import MenuBar from "../../../shared/MenuBar"
 import GameChat, { useGameChatMenuItem } from "../../../shared/GameChat"
 import Dialog from "../../../shared/Dialog"
@@ -100,9 +100,18 @@ const Hearts = ({ matchId, onClose }) => {
   useEffect(() => setChosen([]), [view?.hand_no, view?.phase === "passing"])
   useEffect(() => setError(null), [view?.turn, view?.phase])
   // The score sheet between hands and at the end
+  const autoSheet = useRef(false)
   useEffect(() => {
-    if (view?.phase === "handOver" || view?.phase === "gameOver") setDialog("scores")
-    else if (dialog === "scores" && view?.phase === "passing") setDialog(null)
+    if (view?.phase === "handOver" || view?.phase === "gameOver") {
+      autoSheet.current = true
+      setDialog("scores")
+    }
+    // the next deal closes it (every fourth hand skips passing and goes straight to play);
+    // a sheet opened from the menu mid-hand stays until OK
+    else if (autoSheet.current && (view?.phase === "passing" || view?.phase === "playing")) {
+      autoSheet.current = false
+      setDialog((d) => (d === "scores" ? null : d))
+    }
   }, [view?.phase, view?.hand_no])
 
   if (!view) {

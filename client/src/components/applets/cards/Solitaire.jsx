@@ -97,6 +97,17 @@ const Solitaire = ({ onClose }) => {
   }, [dialog])
 
   // ---- the clock and time penalties ----
+  // Turning Timed on mid-game starts the penalties from now (not all the missed ones at once)
+  const wasTimed = useRef(settings.timed)
+  useEffect(() => {
+    if (settings.timed && !wasTimed.current && play.started && play.status === "playing") {
+      const due = Math.floor((Date.now() - play.started) / 10000)
+      // (Undo charges the penalties since each step: count the skipped ones as paid there too)
+      const skip = (ticks) => Math.max(ticks, due)
+      setPlay((p) => ({ ...p, ticks: skip(p.ticks), past: p.past.map((e) => ({ ...e, ticks: skip(e.ticks) })) }))
+    }
+    wasTimed.current = settings.timed
+  }, [settings.timed])
   useEffect(() => {
     if (!play.started || play.status !== "playing") return
     const tick = () => {
@@ -129,20 +140,6 @@ const Solitaire = ({ onClose }) => {
     setSelection(null)
     unlock("solitaire")
   }, [state, play.status])
-
-  // the bounce starts once the won game has been drawn
-  useEffect(() => {
-    if (play.status !== "won" || !layout) return
-    const launches = []
-    for (let rank = 13; rank >= 1; rank--) {
-      for (let f = 0; f < 4; f++) {
-        const card = state.foundations[f][rank - 1]
-        const at = layout.cards.find((c) => c.card.id === card.id)
-        launches.push({ card, x: at.x, y: at.y })
-      }
-    }
-    setWin({ launches, launched: 0 })
-  }, [play.status])
 
   // ---- auto-finish: once every card is face up, play them home ----
   useEffect(() => {
@@ -220,6 +217,24 @@ const Solitaire = ({ onClose }) => {
     ]
     return { cw, ch, cards, slots, rects, dealFrom: { x: colX(0), y: topY } }
   }, [state, size])
+
+  // the bounce starts once the won game has been drawn (a game won while minimized, by
+  // auto-finish, waits for the table to have a size again)
+  const bounced = useRef(false)
+  useEffect(() => {
+    if (play.status !== "won") bounced.current = false
+    if (play.status !== "won" || !layout || bounced.current) return
+    bounced.current = true
+    const launches = []
+    for (let rank = 13; rank >= 1; rank--) {
+      for (let f = 0; f < 4; f++) {
+        const card = state.foundations[f][rank - 1]
+        const at = layout.cards.find((c) => c.card.id === card.id)
+        launches.push({ card, x: at.x, y: at.y })
+      }
+    }
+    setWin({ launches, launched: 0 })
+  }, [play.status, !!layout])
 
   // selection and the cards already flown off in the win animation
   const shown = useMemo(() => {

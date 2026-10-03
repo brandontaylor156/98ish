@@ -122,9 +122,12 @@ const GameScreen = ({ view, act, names, serverNow = () => Date.now(), sounds, co
   // a new round or a new rush word: start typing fresh
   useEffect(() => setTyped(""), [view.round, rushKey])
 
-  // keep the keyboard focus on the game
+  // keep the keyboard focus on the game (not when someone is typing in another window)
   useEffect(() => {
-    rootRef.current?.focus({ preventScroll: true })
+    const el = rootRef.current
+    const active = document.activeElement
+    const other = active?.closest?.(".window")
+    if (el && (!other || other.contains(el))) el.focus({ preventScroll: true })
   }, [view.phase])
 
   const submit = async () => {

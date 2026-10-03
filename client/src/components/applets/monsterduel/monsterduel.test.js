@@ -106,6 +106,8 @@ test("deck rules: 30 to 60 cards, 3 copies (1 for limited cards), Fusions in the
   assert.match(validateDeck({ main: ok40.main, extra: ["D02"] }).error, /Only Fusion/)
   assert.match(validateDeck({ main: [...ok40.main.slice(0, 39), "NOPE"] }).error, /doesn't exist/)
   assert.match(validateDeck({ main: [...ok40.main.slice(0, 39), "K01"] }).error, /doesn't exist/)
+  // object built-ins aren't cards
+  for (const fake of ["constructor", "toString", "__proto__", "hasOwnProperty"]) assert.match(validateDeck({ main: [...ok40.main.slice(0, 39), fake] }).error, /doesn't exist/, fake)
   assert.match(validateDeck(null).error, /Pick a deck/)
 })
 

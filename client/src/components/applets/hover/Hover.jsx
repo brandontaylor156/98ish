@@ -157,6 +157,11 @@ const Hover = () => {
       canvas.removeEventListener("webglcontextrestored", onRestored)
       document.removeEventListener("visibilitychange", onVisibility)
       reduceMq.removeEventListener("change", onMotionPref)
+      // hand the WebGL context back now: browsers keep only ~16, and opening and closing
+      // Hover would otherwise push out the oldest one (another open game's)
+      try {
+        canvas.getContext("webgl2")?.getExtension("WEBGL_lose_context")?.loseContext()
+      } catch {}
     }
   }, [])
 

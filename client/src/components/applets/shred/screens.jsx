@@ -4,6 +4,7 @@ import { DIFFICULTIES, DIFF, chartStats, sectionsOf } from "./chart.js"
 import { bestOf, songStars, starsToUnlock, tableOf, tierUnlocked, totalStars, DEFAULT_PREFS } from "./progress.js"
 import { calibrate, CAL_RANGE } from "./timing.js"
 import { PAD } from "./pad.js"
+import { isKeyForWindow } from "../../../utils/windowKeys"
 
 // Shred 98's menus: drawn in HTML over the stage, styled like a late-90s rock game. Every
 // screen can be driven by the mouse, a touch, the keyboard (arrows, Enter, Escape) or a
@@ -329,6 +330,8 @@ export const OptionsScreen = ({ prefs, setPrefs, onBack, navRef, unlockAll, setU
   useEffect(() => {
     if (!binding) return
     const onKey = (e) => {
+      // only keys pressed in Shred's window (a letter typed in Notepad isn't a binding)
+      if (!isKeyForWindow(document.querySelector(".shOptions"), e)) return
       e.preventDefault()
       e.stopPropagation()
       if (e.code === "Escape") return setBinding(null)
@@ -511,6 +514,7 @@ export const CalibrateScreen = ({ audio, cal, setCal, onBack, navRef, touch }) =
     if (!mode) return
     const onKey = (e) => {
       if (e.repeat || e.key === "Escape") return
+      if (!isKeyForWindow(document.querySelector(".shCal"), e)) return
       e.preventDefault()
       e.stopPropagation()
       tap(e)

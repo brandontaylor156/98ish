@@ -421,7 +421,8 @@
   flex: 1 1 auto !important;
   min-height: 0;
   display: flex;
-  overflow: hidden;
+  /* a phone on its side is too short for the ship tray: scroll to Ready! rather than lose it */
+  overflow: auto;
 }
 
 .bsArea > * {
@@ -744,6 +745,9 @@
   align-items: center;
   gap: 4px;
   min-height: 0;
+  /* a phone on its side can't fit both grids and the ship lists: scroll, don't spill over
+     the status line */
+  overflow: auto;
 }
 
 .bsBattle.is-wide .bsGrids {
@@ -809,6 +813,16 @@
   min-height: 36px;
 }
 
+/* phones on their side: a tighter tray so Ready! fits beside the grid */
+@media (max-height: 500px) {
+  .os-mobile .netApp .bsTrayShip {
+    min-height: 28px;
+  }
+  .os-mobile .bsPlace.is-wide .bsTray {
+    margin-top: 0;
+  }
+}
+
 .os-mobile .chSide {
   display: none;
 }
@@ -821,4 +835,45 @@
 .ckButtons .bgPlayOnline {
   margin-right: auto;
   min-width: 0;
+}
+
+/* Phones on their side: the board takes the full height on the left, the players and the
+   buttons go in a column beside it (stacked above and below it, the board was ~100px). */
+@media (orientation: landscape) and (max-height: 500px) {
+  /* (a board between two player bars: Checkers, Reversi, Chess) */
+  .os-mobile .netApp.ckRoot:not(.bsRoot):has(> .ckArea, > .chMain) {
+    display: grid;
+    grid-template-columns: 1fr minmax(190px, 36%);
+    grid-template-rows: auto auto auto 1fr auto auto;
+  }
+  .os-mobile .ckRoot:not(.bsRoot) .chMain,
+  .os-mobile .ckRoot:not(.bsRoot) .chLeft {
+    display: contents;
+  }
+  .os-mobile .ckRoot:not(.bsRoot) > .menuBar,
+  .os-mobile .ckRoot:not(.bsRoot) > .status-bar {
+    grid-column: 1 / -1;
+  }
+  .os-mobile .ckRoot:not(.bsRoot) .ckArea {
+    grid-column: 1;
+    grid-row: 2 / 6;
+    min-height: 0;
+  }
+  .os-mobile .ckRoot:not(.bsRoot) .ckPlayer,
+  .os-mobile .ckRoot:not(.bsRoot) > :not(.menuBar, .status-bar, .ckArea, .ckButtons) {
+    grid-column: 2;
+  }
+  .os-mobile .ckRoot:not(.bsRoot) > .ckButtons {
+    grid-column: 2;
+    grid-row: 5;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+  .os-mobile .ckRoot:not(.bsRoot) > .ckButtons button {
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+  .os-mobile .ckRoot:not(.bsRoot) > .status-bar {
+    grid-row: 6;
+  }
 }

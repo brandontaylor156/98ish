@@ -118,7 +118,8 @@ const Minesweeper = ({ fitWindow, onClose, race }) => {
     if (game.status !== "playing" || race?.over) return
     const timer = setInterval(() => setNow(Date.now()), 250)
     return () => clearInterval(timer)
-  }, [game.status])
+    // (the race ending stops it too: the other player finished while my board still plays)
+  }, [game.status, !!race?.over])
 
   // ---- winning: a new best time asks for your name, like the original ----
   useEffect(() => {

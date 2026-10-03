@@ -85,6 +85,9 @@ const WinCascade = ({ launches, cw, ch, width, height, onLaunch, onDone }) => {
 
     const stop = (e) => {
       if (e.type === "keydown" && ["Shift", "Control", "Alt"].includes(e.key)) return
+      // only keys pressed in this game's window (not typing in Notepad)
+      const own = canvasRef.current?.closest(".window")
+      if (own && !own.contains(e.target) && e.target !== document.body) return
       finish()
     }
     window.addEventListener("keydown", stop)

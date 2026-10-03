@@ -98,7 +98,8 @@ export const validateDeck = (deck) => {
   if (!main) return { error: "That deck has no cards." }
   if (main.length > 200 || extra.length > 50) return { error: "That deck is too big." }
   for (const id of [...main, ...extra]) {
-    const c = typeof id === "string" ? CARD[id] : null
+    // (own keys only: "constructor" or "toString" from a modified client aren't cards)
+    const c = typeof id === "string" && Object.hasOwn(CARD, id) ? CARD[id] : null
     if (!c || c.token) return { error: "That deck has a card that doesn't exist." }
   }
   if (main.some((id) => CARD[id].extra)) return { error: "Fusion Monsters go in the Extra Deck." }

@@ -6,6 +6,7 @@ import { DiscardDialog, VictimDialog, DevDialog, EndScreen } from "./Dialogs.jsx
 import { Die, ResSvg, R } from "./art.jsx"
 import { geometry } from "./board.js"
 import { COSTS, RES, banditTiles, hasAll, legalRoads, legalSettlements, total, victimsAt } from "./logic.js"
+import { isKeyForWindow } from "../../../utils/windowKeys"
 
 // The game table, the same for games against the computer and online ones: the island,
 // the dice, the players, your hand, building, trading, the log and the end of the game.
@@ -335,7 +336,7 @@ const Table = ({ view, names: rawNames, seats, act, mobile = false, sounds, serv
   useEffect(() => {
     const onKey = (e) => {
       if (e.target.closest?.("input, textarea, select")) return
-      if (!rootRef.current?.closest(".window")?.contains(document.activeElement) && document.activeElement !== document.body) return
+      if (!isKeyForWindow(rootRef.current, e)) return
       if (e.key === "Escape") {
         setMode(null)
         setSelected(null)

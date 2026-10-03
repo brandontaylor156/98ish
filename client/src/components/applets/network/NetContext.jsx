@@ -139,6 +139,7 @@ export const NetProvider = ({ socket, windows, dispatch: dispatchWindow, mobile,
   const seenMatchWindows = useRef(new Set()) // match ids whose window has been open
   const leftMatches = useRef(new Set())
   const joinLinkChecked = useRef(false)
+  const myId = useRef(null) // this computer's id on the network, to notice a new one
   windowsRef.current = windows
   visibleRef.current = visible
 
@@ -194,9 +195,13 @@ export const NetProvider = ({ socket, windows, dispatch: dispatchWindow, mobile,
     })
   }
 
+  // Every move sends the match again: only a new match takes focus, an update must not
+  // un-minimize the table or pull the keyboard away from another window
   const openMatchWindow = (view) => {
     const info = GAME_INFO[view.game]
-    openWindow(`match:${view.id}`, {
+    const id = `match:${view.id}`
+    const focus = !windowsRef.current.some((w) => !w.closed && w.netId === id)
+    openWindow(id, {
       name: info.name,
       program: info.name,
       app: info.app,
@@ -206,7 +211,7 @@ export const NetProvider = ({ socket, windows, dispatch: dispatchWindow, mobile,
       height: info.height,
       initialX: mobile ? 0 : 160,
       positionY: 20,
-    })
+    }, { focus })
   }
 
   // One WinPopup window (it may have been started from the Start menu)
@@ -233,6 +238,15 @@ export const NetProvider = ({ socket, windows, dispatch: dispatchWindow, mobile,
       (result) => {
         if (!result?.ok) return setStatus("offline")
         session.set(TOKEN_KEY, result.token)
+        // Back after a long time offline the network gave us a new computer: our games on
+        // the old one were forfeited, and their windows would only answer "No such game."
+        if (myId.current && myId.current !== result.me.id) {
+          const open = windowsRef.current.some((w) => !w.closed && w.matchId)
+          setMatches({})
+          closeWindows((w) => !!w.matchId)
+          if (open) notice("Network Neighborhood", "You were offline too long, so your game ended.", "warn")
+        }
+        myId.current = result.me.id
         setMe(result.me)
         setComputers(result.computers)
         setStatus("online")

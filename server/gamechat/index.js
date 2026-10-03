@@ -98,7 +98,11 @@ const attachGameChat = (io, net, { rate = RATE } = {}) => {
   const blocked = (a, b) => a !== b && net.blockedPids(a, b)
 
   const deliver = (room, message) => {
+    // a match's chat is for the people in it: someone who left (or was replaced by a
+    // computer player) stops getting its messages even if their chat is still open
+    const players = room.kind === "match" ? playersOf(room.id) : null
     for (const member of room.members.values()) {
+      if (players && !players.includes(member.pid)) continue
       if (message.fromId && blocked(message.fromId, member.pid)) continue
       member.socket.emit("gchat:msg", message)
     }

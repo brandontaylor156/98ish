@@ -28,15 +28,30 @@ const MinesweeperRace = ({ matchId, fitWindow, onClose }) => {
   const [now, setNow] = useState(Date.now())
   const sent = useRef("")
 
+  // the 3-2-1 countdown (no need to re-render five times a second once the race is on)
   useEffect(() => {
-    const timer = setInterval(() => setNow(Date.now()), 200)
+    if (!view?.startAt) return
+    const tick = () => {
+      const t = Date.now()
+      setNow(t)
+      if (t >= view.startAt) clearInterval(timer)
+    }
+    const timer = setInterval(tick, 200)
+    tick()
     return () => clearInterval(timer)
-  }, [])
+  }, [view?.startAt])
 
   // a new round: report from scratch
   useEffect(() => {
     sent.current = ""
   }, [view?.round])
+  // the opening squares count as soon as the countdown ends, not at the first click
+  const lastGame = useRef(null)
+  const report = useRef(() => {})
+  const started = !!view && now >= view.startAt
+  useEffect(() => {
+    if (started && lastGame.current) report.current(lastGame.current)
+  }, [started, view?.round])
 
   if (!view) {
     return (
@@ -52,6 +67,7 @@ const MinesweeperRace = ({ matchId, fitWindow, onClose }) => {
   const result = view.result
 
   const onProgress = (game) => {
+    lastGame.current = game
     if (Date.now() < view.startAt || result) return
     const status = game.status === "won" ? "won" : game.status === "lost" ? "lost" : "playing"
     const key = `${game.revealed}:${game.flags}:${status}`
@@ -59,6 +75,7 @@ const MinesweeperRace = ({ matchId, fitWindow, onClose }) => {
     sent.current = key
     net.raceProgress(matchId, { revealed: game.revealed, flags: game.flags, status, time: Date.now() - view.startAt })
   }
+  report.current = onProgress
 
   const resultText = result
     ? result.youWon

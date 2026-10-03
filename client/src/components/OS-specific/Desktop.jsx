@@ -217,6 +217,17 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
   // the taskbar's network icon
   useEffect(() => watchSocket(socket), [])
 
+  // Switching windows without a click (Alt+Q, the taskbar, Show Desktop, minimize) leaves
+  // the keyboard focus in the old window, so games kept playing behind other windows and
+  // took the arrow keys. Take the focus out of a window that is no longer the active one:
+  // its blur handler pauses it.
+  const activeIndex = windows.findIndex((w) => w.active && !w.closed && !w.minimized)
+  useEffect(() => {
+    const el = document.activeElement
+    const owner = el?.closest?.("[data-window-index]")
+    if (owner && Number(owner.dataset.windowIndex) !== activeIndex) el.blur()
+  }, [activeIndex])
+
   // once the desktop has settled, fetch the everyday apps in the background so they
   // open instantly (the big ones still load on first use)
   useEffect(() => {

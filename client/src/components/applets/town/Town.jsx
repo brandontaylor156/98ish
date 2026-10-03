@@ -513,8 +513,14 @@ const Town = ({ onClose, onTitle, mobile, coopId = null }) => {
     }, 1000)
     return () => clearInterval(id)
   }, [coopOn])
-  // closing the window leaves the co-op town
-  useEffect(() => () => coopRef.current?.close(), [])
+  // closing the window leaves the co-op town (and its clock: the home town keeps real time)
+  useEffect(
+    () => () => {
+      coopRef.current?.close()
+      coopClock = null
+    },
+    []
+  )
 
   const enc = encodeURIComponent
   const centerOn = (u, w) => {

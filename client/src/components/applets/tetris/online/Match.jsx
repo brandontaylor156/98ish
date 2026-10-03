@@ -144,6 +144,7 @@ const Match = ({ online, onExit }) => {
   // garbage and item effects aimed at us
   useEffect(() => {
     const timers = []
+    const ends = {}
     const onGarbage = (g) => {
       if (g.roomId === roomRef.current.id) tetris.update((s) => receiveGarbage(s, g))
     }
@@ -151,7 +152,10 @@ const Match = ({ online, onExit }) => {
       if (e.roomId !== roomRef.current.id) return
       const set = e.item === "mirror" ? (on) => (tetris.setMirror(on), setMirror(on)) : setDark
       set(true)
-      timers.push(setTimeout(() => set(false), e.ms || 5000))
+      // a second hit of the same item restarts its clock (the first one's timer ended it early)
+      clearTimeout(ends[e.item])
+      ends[e.item] = setTimeout(() => set(false), e.ms || 5000)
+      timers.push(ends[e.item])
     }
     socket.on("tetris:garbage", onGarbage)
     socket.on("tetris:effect", onEffect)

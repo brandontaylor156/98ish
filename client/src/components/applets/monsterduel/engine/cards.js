@@ -500,7 +500,7 @@ export const ALL_CARDS = [...dragons, ...machines, ...casters, ...aquatic, ...in
 export const CARD = Object.fromEntries(ALL_CARDS.map((c) => [c.id, c]))
 // what can go in a deck (not tokens)
 export const POOL = ALL_CARDS.filter((c) => !c.token)
-export const cardById = (id) => CARD[id] || null
+export const cardById = (id) => (typeof id === "string" && Object.hasOwn(CARD, id) ? CARD[id] : null)
 export const RARITY_NAMES = { C: "Common", R: "Rare", SR: "Super Rare", UR: "Ultra Rare" }
 
 // the theme a card belongs to (for art and sorting)

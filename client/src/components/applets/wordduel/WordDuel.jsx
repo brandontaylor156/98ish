@@ -185,6 +185,8 @@ const useLocal = () => {
     const clean = validateSettings(settings)
     if (clean.error) return { ok: false, error: clean.error }
     const words = await loadWords(clean.length)
+    // (two quick starts: the one that finished loading first is already running)
+    ref.current?.local?.stop()
     const rules = makeRules(makeDict([words]))
     const players = Array.from({ length: clean.players }, (_, i) => (i === 0 ? { id: 0, name: "You", bot: false } : { id: i, name: BOT_NAMES[i - 1], bot: true }))
     const entry = { id: Date.now(), settings: clean, mode, players, words, local: null, view: null, result: null }

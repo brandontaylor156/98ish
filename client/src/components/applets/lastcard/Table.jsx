@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useSta
 import Card, { Pinwheel } from "./Card"
 import Avatar from "./Avatar"
 import { COLORS, COLOR_NAMES, EMOTES, PERSONAS, VALUE_NAMES, cardName, describeRules, handPoints, isWild } from "./cards"
+import { isKeyForWindow } from "../../../utils/windowKeys"
 
 // The card table, for games against the computer (local.js) and online games alike: the
 // other players around the top (or in a strip on small screens) with their card counts,
@@ -140,8 +141,10 @@ const arcPositions = (n) => {
 }
 
 const ColorPicker = ({ onPick, onCancel, card }) => {
+  const ref = useRef(null)
   useEffect(() => {
     const key = (e) => {
+      if (!isKeyForWindow(ref.current, e)) return
       const k = e.key.toLowerCase()
       const map = { 1: "r", r: "r", 2: "y", y: "y", 3: "g", g: "g", 4: "b", b: "b" }
       if (map[k]) onPick(map[k])
@@ -151,7 +154,7 @@ const ColorPicker = ({ onPick, onCancel, card }) => {
     return () => window.removeEventListener("keydown", key)
   }, [onPick, onCancel])
   return (
-    <div className="lcOverlay" onPointerDown={(e) => e.target === e.currentTarget && onCancel()}>
+    <div className="lcOverlay" ref={ref} onPointerDown={(e) => e.target === e.currentTarget && onCancel()}>
       <div className="lcPicker window" role="dialog" aria-label="Pick a color">
         <div className="title-bar">
           <div className="title-bar-text">{VALUE_NAMES[card.v]}: pick a color</div>
@@ -623,6 +626,7 @@ const Table = ({ view, seats = [], act, serverNow = () => Date.now(), sounds, mo
   useEffect(() => {
     const key = (e) => {
       if (e.target.closest?.("input, textarea, select")) return
+      if (!isKeyForWindow(rootRef.current, e)) return
       if (e.key === "d" || e.key === "D") draw()
       if ((e.key === "k" || e.key === "K") && view.canPass) send({ type: "pass" })
     }

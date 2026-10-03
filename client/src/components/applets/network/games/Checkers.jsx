@@ -53,7 +53,9 @@ export const CheckersBoard = ({ view, act, onClose, onDone = onClose, doneLabel 
 
   const you = view.you
   const them = you === "b" ? "r" : "b"
-  const yourTurn = !view.result && view.turn === you
+  // (someone watching a room never has the move)
+  const watching = !!view.spectator
+  const yourTurn = !watching && !view.result && view.turn === you
   const legal = view.legal || []
   const movable = new Set(legal.map((p) => p[0]))
   const candidates = path.length ? legal.filter((p) => startsWith(p, path)) : []
@@ -107,15 +109,17 @@ export const CheckersBoard = ({ view, act, onClose, onDone = onClose, doneLabel 
             : mustJump
               ? "Your move. You must jump!"
               : "Your move."
-          : `Waiting for ${view.names[them]}...`
+          : watching
+            ? `${view.names[view.turn]} to move.`
+            : `Waiting for ${view.names[them]}...`
 
   const menus = [
     {
       label: "Game",
       items: [
-        { label: "Offer Draw", disabled: !!result || !!view.drawOffer, onClick: () => act.draw("offer") },
-        { label: "Resign...", disabled: !!result, onClick: () => setDialog("resign") },
-        { label: "Rematch", disabled: !result || view.rematch.you || view.left, onClick: () => act.rematch() },
+        { label: "Offer Draw", disabled: watching || !!result || !!view.drawOffer, onClick: () => act.draw("offer") },
+        { label: "Resign...", disabled: watching || !!result, onClick: () => setDialog("resign") },
+        { label: "Rematch", disabled: watching || !result || view.rematch.you || view.left, onClick: () => act.rematch() },
         "-",
         ...gameMenu,
         { label: "Exit", onClick: onClose },
@@ -181,7 +185,11 @@ export const CheckersBoard = ({ view, act, onClose, onDone = onClose, doneLabel 
       )}
 
       <div className="ckButtons">
-        {!result ? (
+        {watching ? (
+          <button type="button" onClick={onDone}>
+            {doneLabel}
+          </button>
+        ) : !result ? (
           <>
             <button type="button" disabled={!!view.drawOffer} onClick={() => act.draw("offer")}>
               {view.drawOffer === "you" ? "Draw offered" : "Offer Draw"}

@@ -60,8 +60,11 @@ const TetrisWindow = ({ tetris, onGameOver, onQuit, editControls = false, stats,
 
     const focusWindow = () => windowRef.current.focus({ preventScroll: true })
 
+    // (a new Tetris Online round mounts this again: don't take the keyboard from someone
+    // typing in another window)
     useEffect(() => {
-        focusWindow()
+        const other = document.activeElement?.closest?.(".window")
+        if (!other || other.contains(windowRef.current)) focusWindow()
     }, [])
 
     // Customizing the controls pauses the game; it stays paused afterwards
