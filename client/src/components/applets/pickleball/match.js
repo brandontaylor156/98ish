@@ -46,7 +46,8 @@ const HAND_Y = 0.98 // the server holds the ball here
 const SERVE_CONTACT_Y = 0.52 // and strikes it down here, well below the waist
 export const WAIST_Y = 1.02
 const INTRO_S = 1.3 // the score call
-const INTRO_MAX = 4.5 // walking back into place takes no longer than this
+const INTRO_MAX = 5.5 // walking back into place takes no longer than this
+const WALK_BACK = 1.7 // m/s: between points players walk back into place (a brisk walk, not a jog)
 const DEAD_S = 1.8
 const MAX_HIT_Y = 2.3
 export const SWING_LEAD = 0.13 // s from letting go of the button to the paddle meeting the ball
@@ -845,7 +846,7 @@ const movePlayer = (m, p, dt) => {
     const dz = target.z - p.z
     const d = Math.hypot(dx, dz)
     if (d > 0.03) {
-      const s = Math.min(between ? lv.speed * 0.7 : speed, Math.sqrt(2 * 9 * d)) // ease into the spot
+      const s = Math.min(between ? Math.min(lv.speed * 0.7, WALK_BACK) : speed, Math.sqrt(2 * 9 * d)) // ease into the spot
       wantX = (dx / d) * s
       wantZ = (dz / d) * s
     }
@@ -861,6 +862,8 @@ const movePlayer = (m, p, dt) => {
       wantZ += (dz / d) * pull
     }
   }
+  // (presentation: where the player is heading, for the footwork's trajectory prediction)
+  p.want = { x: wantX, z: wantZ }
   // accelerate toward the wanted velocity (quick feet: about 12 m/s^2)
   const ax = wantX - p.vx
   const az = wantZ - p.vz

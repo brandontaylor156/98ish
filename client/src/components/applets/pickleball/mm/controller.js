@@ -38,8 +38,8 @@ export const MM = {
   maxGap: 0.12, // never further than this from the game's position (m)
   // (facing is the animation's: the game never needs it. The search asks for the facing
   // anim.js wants; a gentle pull only stops slow drift, never turns a body on planted feet)
-  yawPull: 0.6,
-  yawPullPlanted: 1.5,
+  yawPull: 0.3,
+  yawPullPlanted: 0.8,
   maxYawGap: 1.2, // rad
   warp: [0.8, 1.3],
 }

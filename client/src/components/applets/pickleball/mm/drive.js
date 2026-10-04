@@ -41,7 +41,7 @@ export const driveMM = (a, s, mv, dt, o) => {
   const wantY = HIP_Y - (o.crouch ?? 0)
   const drop = Math.max(0, mocapY - wantY)
   const hop = o.hopY || 0
-  const p = solveMMPose(a.mmPose, out, dt, { drop, still: speed < 0.6 && !hop, lift: hop > 0 ? [hop, hop] : [0, 0] })
+  const p = solveMMPose(a.mmPose, out, dt, { drop, still: speed < 0.6 && !hop, lift: hop > 0 ? [hop, hop] : [0, 0], stance: o.stance, stanceW: Math.max(0, Math.min(1, 1 - (speed - 0.6) / 1.4)) })
   const P = p.P
   // the hop: the whole body up
   if (hop) for (const k of Object.keys(P)) P[k] = { x: P[k].x, y: P[k].y + hop, z: P[k].z }

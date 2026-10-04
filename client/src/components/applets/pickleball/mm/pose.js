@@ -21,13 +21,33 @@ const footYaw = (q) => {
 }
 
 // o: updateMM's output; extra: { drop: m (lower the pelvis, e.g. a crouch), lift: [l, r] m
-// (raise a foot: the split step), still: standing about (settling steps allowed) }
+// (raise a foot: the split step), still: standing about (settling steps allowed), stance:
+// half the ankles' distance wanted (wider than the capture: the feet go out as they step),
+// stanceW: how much of that (0..1) }
 export const solveMMPose = (st, o, dt, extra = {}) => {
   const w = worldOf(o)
   const D = w.D
   const pelvis = { ...w.pelvis }
   const P0 = fk(D, pelvis)
-  const feet = ["l", "r"].map((s) => ({ ankle: P0[B["foot_" + s]], ball: P0[B["ball_" + s]], yaw: footYaw(D[B["foot_" + s]]) }))
+  // (a wider stance than the capture's: each foot further out along the body's side; a pinned
+  // foot only moves out with its next step)
+  const rx = -Math.cos(o.root.yaw)
+  const rz = Math.sin(o.root.yaw)
+  if (extra.stance) {
+    // half the ankles' distance across the body in the capture, vs the stance wanted
+    const aL = P0[B.foot_l]
+    const aR = P0[B.foot_r]
+    const half = Math.abs((aR.x - aL.x) * rx + (aR.z - aL.z) * rz) / 2
+    const target = Math.max(0, Math.min(0.2, extra.stance - half)) * (extra.stanceW ?? 1)
+    st.widen = (st.widen || 0) + (target - (st.widen || 0)) * (1 - Math.exp(-dt / 0.25))
+  } else st.widen = (st.widen || 0) * Math.exp(-dt / 0.25)
+  const wide = st.widen
+  const feet = ["l", "r"].map((s) => {
+    const k = (s === "l" ? -1 : 1) * wide
+    const a = P0[B["foot_" + s]]
+    const b = P0[B["ball_" + s]]
+    return { ankle: { x: a.x + rx * k, y: a.y, z: a.z + rz * k }, ball: { x: b.x + rx * k, y: b.y, z: b.z + rz * k }, yaw: footYaw(D[B["foot_" + s]]) }
+  })
   const lift = extra.lift || [0, 0]
   const down = [!!(o.contacts & 1) && lift[0] <= 0.002, !!(o.contacts & 2) && lift[1] <= 0.002]
   const fl = stepFootLock(st.lock, feet, down, dt, { still: extra.still ?? true })
@@ -61,7 +81,10 @@ export const solveMMPose = (st, o, dt, extra = {}) => {
   // legs to the pinned feet
   const knees = []
   for (const [i, s] of [[0, "l"], [1, "r"]]) {
-    const r = legIK(P[B["thigh_" + s]], P[B["calf_" + s]], fl[i].ankle, THIGH, SHIN)
+    // (the knee's direction from the capture, pushed out as far as the foot was)
+    const kn = P[B["calf_" + s]]
+    const kOut = (s === "l" ? -1 : 1) * wide
+    const r = legIK(P[B["thigh_" + s]], { x: kn.x + rx * kOut, y: kn.y, z: kn.z + rz * kOut }, fl[i].ankle, THIGH, SHIN)
     const da = { x: r.ankle.x - P[B["foot_" + s]].x, y: r.ankle.y - P[B["foot_" + s]].y, z: r.ankle.z - P[B["foot_" + s]].z }
     P[B["calf_" + s]] = r.knee
     P[B["foot_" + s]] = r.ankle

@@ -25,6 +25,10 @@ export const TAKES = [
   // BentKnees: the same moves in an athletic, knees-bent posture (rallies)
   // BentKnees,414,5116,409,7712,403,4650,456,8007,623,1533,422,2538,438,5486,401,7582
   ...S("BentKnees", { FW: [456, 2456], BW: [409, 2409], SW: [438, 3438], SR: [422, 2538], FR: [403, 2403], BR: [414, 2414], ID: [623, 1533], TR1: [401, 5401] }, ["ready"]),
+  // Rushed: brisk walking (Neutral's walks top out near 1.2 m/s; a player walking back into
+  // place between points goes about 1.5; BigSteps was looked at: exaggerated strides)
+  // Rushed,546,3059,489,3514,399,2724,343,3265,917,1413,329,1673,362,2476,428,6927
+  ...S("Rushed", { FW: [343, 3265], TR1: [428, 3428] }, ["neutral"]),
   // StartStop: runs and side runs broken by sudden stops and starts (both)
   // StartStop,427,8412,431,15946,425,7131,537,17738,815,1431,557,10291,654,9873,617,14986
   ...S("StartStop", { FR: [425, 3425], SR: [557, 3557] }, ["neutral", "ready", "stop"]),

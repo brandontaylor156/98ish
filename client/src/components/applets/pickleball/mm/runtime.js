@@ -10,7 +10,12 @@ const BASE = "/assets/pickleball/"
 let lib = null
 let loading = null
 let failed = false
-export const motionLibrary = () => lib
+let enabled = true
+export const motionLibrary = () => (enabled ? lib : null)
+// (dev and tests: switch motion matching off to compare with the procedural footwork)
+export const setEnabled = (on) => {
+  enabled = !!on
+}
 export const motionFailed = () => failed
 export const setMotionLibrary = (l) => {
   lib = l
@@ -44,6 +49,8 @@ export const loadMotion = () => {
     lib = buildLibrary(json, raw)
     lib.loadMs = performance.now() - t0
     lib.bytes = bin.byteLength
+    // (dev: tests reach the loaded database here)
+    if (import.meta.env?.DEV && typeof window !== "undefined") window.__pbMotion = { lib, setEnabled }
     return lib
   })()
   loading.catch(() => {

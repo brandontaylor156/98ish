@@ -302,7 +302,7 @@ export const updateAnim = (a, s, dt) => {
   let mmo = null
   if (mmLib) {
     const hopPrev = a.hop > 0 ? splitHeight(SPLIT.dur - a.hop) : 0
-    mmo = driveMM(a, s, mv, dt, { lib: mmLib, yaw, crouch: (a.crouch.p ?? 0) + (a.mmDown || 0), hopY: Math.max(0, hopPrev), every: a.mmEvery })
+    mmo = driveMM(a, s, mv, dt, { lib: mmLib, yaw, crouch: (a.crouch.p ?? 0) + (a.mmDown || 0), hopY: Math.max(0, hopPrev), every: a.mmEvery, stance: s.between ? READY.between.stance : R.stance })
     a.yaw = mmo.yaw
     a.turn.yaw = a.yaw
     a.turn.w = 0
@@ -933,6 +933,8 @@ export const situation = (m, p) => {
     hand,
     twoHand: !!p.twoHand,
     oppHit,
+    // the velocity the match is taking them toward (motion matching predicts the path from it)
+    want: p.want ? { x: p.want.x, z: p.want.z } : null,
   }
 }
 
