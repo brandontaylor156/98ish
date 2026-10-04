@@ -541,7 +541,7 @@ const Puzzle = ({ mobile, onClose, onTitle, dispatch, handoff = null }) => {
     <div className="pzPlay">
       <div className="pzToolbar">
         <button type="button" onClick={() => setView("home")} title="Back">
-          ◀ Back
+          ◀︎ Back
         </button>
         <span className="pzToolTitle">{game.title}</span>
         {game.setup.mode === "jigsaw" ? (

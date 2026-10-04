@@ -461,8 +461,8 @@ export const AppCreatorView = () => {
                       </select>
                       {f.type === "select" && <input type="text" value={f.options} onChange={(e) => setF(i, { options: e.target.value })} placeholder="Choices, separated by commas" aria-label={`Field ${i + 1} choices`} />}
                       <span className="awFieldDefBtns">
-                        <button type="button" className="awTiny" onClick={() => move(i, -1)} aria-label="Move up" disabled={!i}>▲</button>
-                        <button type="button" className="awTiny" onClick={() => move(i, 1)} aria-label="Move down" disabled={i === wizard.fields.length - 1}>▼</button>
+                        <button type="button" className="awTiny" onClick={() => move(i, -1)} aria-label="Move up" disabled={!i}>▲︎</button>
+                        <button type="button" className="awTiny" onClick={() => move(i, 1)} aria-label="Move down" disabled={i === wizard.fields.length - 1}>▼︎</button>
                         <button type="button" className="awTiny" onClick={() => setWizard({ ...wizard, fields: wizard.fields.filter((_, j) => j !== i) })} aria-label="Remove field" disabled={wizard.fields.length < 2}>×</button>
                       </span>
                     </div>

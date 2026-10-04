@@ -179,7 +179,7 @@ const GameChatPanel = ({ game, room, title, mode, messages, count, me, joined, e
           &#8942;
         </button>
         <button type="button" className="gchatHeadBtn" onClick={onClose} aria-label="Close chat" title="Close">
-          {dock === "sheet" ? "▼" : "×"}
+          {dock === "sheet" ? "▼︎" : "×"}
         </button>
       </div>
 

@@ -469,10 +469,10 @@ const InternetExplorer = ({ initialUrl, onTitle, onNewWindow, onClose }) => {
           onChange={(e) => setDate(e.target.value)}
         />
         <button type="button" disabled={!currentUrl || stepping} onClick={() => stepCapture(-1)} title="The copy before this one">
-          &#9664; Earlier
+          &#9664;&#xFE0E; Earlier
         </button>
         <button type="button" disabled={!currentUrl || stepping} onClick={() => stepCapture(1)} title="The copy after this one">
-          Later &#9654;
+          Later &#9654;&#xFE0E;
         </button>
         {shown && <span className="ieCaptured">Captured {formatStamp(shown.ts, true)}</span>}
       </div>

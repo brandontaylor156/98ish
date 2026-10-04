@@ -61,7 +61,7 @@ const touchControls = (lane, inLane, playing) => [
     label: "Launch",
     icon: (
       <>
-        <span>▼</span>
+        <span>▼︎</span>
         LAUNCH
       </>
     ),

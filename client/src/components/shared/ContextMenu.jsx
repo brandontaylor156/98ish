@@ -54,7 +54,7 @@ const Menu = ({ items, x, y, flipX = null, onClose, depth = 0 }) => {
             >
               <span className="menuCheck">{item.checked ? "✓" : ""}</span>
               <span className="menuLabel">{item.label}</span>
-              {item.items && <span className="menuArrow">&#9654;</span>}
+              {item.items && <span className="menuArrow">&#9654;&#xFE0E;</span>}
             </button>
             {open === i && item.items && (
               <SubMenu parentRef={ref} index={i} items={item.items} onClose={onClose} depth={depth + 1} />

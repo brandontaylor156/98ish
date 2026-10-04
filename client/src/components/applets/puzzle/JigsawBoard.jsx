@@ -487,10 +487,10 @@ const Jigsaw = ({ picture, img, setup, seed, initial, prefs, mobile, sounds, onC
         {view && !solved && zoom.at > 0 && (
           <div className="pzLook" onPointerDown={(e) => e.stopPropagation()}>
             {[
-              ["up", 0, -1, "▲"],
-              ["down", 0, 1, "▼"],
-              ["left", -1, 0, "◀"],
-              ["right", 1, 0, "▶"],
+              ["up", 0, -1, "▲︎"],
+              ["down", 0, 1, "▼︎"],
+              ["left", -1, 0, "◀︎"],
+              ["right", 1, 0, "▶︎"],
             ].map(([dir, dx, dy, glyph]) => (
               <button key={dir} type="button" className={`is-${dir}`} data-look={dir} aria-label={`Look ${dir}`} onClick={() => look(dx, dy)}>
                 {glyph}

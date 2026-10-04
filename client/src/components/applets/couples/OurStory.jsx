@@ -287,7 +287,7 @@ const Slideshow = ({ slides, start = 0, onClose }) => {
           ‹
         </button>
         <button type="button" aria-label={paused ? "Play" : "Pause"} onClick={() => setPaused(!paused)}>
-          {paused ? "▶" : "❚❚"}
+          {paused ? "▶︎" : "❚❚"}
         </button>
         <button type="button" aria-label="Next" onClick={() => go(1)}>
           ›
@@ -445,7 +445,7 @@ const OurStory = ({ focus, mobile }) => {
           </button>
         </span>
         <button type="button" disabled={!slides.length} onClick={() => setShow(0)}>
-          ▶ Slideshow
+          ▶︎ Slideshow
         </button>
         <button type="button" onClick={() => setPublish(true)} disabled={!moments.length}>
           Publish...

@@ -113,10 +113,10 @@ const Editor = ({ quiz: initial, onSaved, onBack }) => {
               </select>
               <span className="qzBuildTools">
                 <button type="button" onClick={() => move(i, -1)} disabled={i === 0} aria-label="Move up">
-                  &#9650;
+                  &#9650;&#xFE0E;
                 </button>
                 <button type="button" onClick={() => move(i, 1)} disabled={i === quiz.questions.length - 1} aria-label="Move down">
-                  &#9660;
+                  &#9660;&#xFE0E;
                 </button>
                 <button type="button" onClick={() => remove(i)} disabled={quiz.questions.length === 1} aria-label="Delete question">
                   &#10005;

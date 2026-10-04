@@ -486,7 +486,7 @@ const EditLayer = ({ controls, draft, setDraft, rects, size, zoneIds, defaults, 
           <div className="title-bar-controls">
             <button type="button" aria-label={collapsed ? "Maximize" : "Minimize"} title={collapsed ? "Show options" : "Hide options"} onClick={() => setCollapsed(!collapsed)} />
             <button type="button" className="tcPanelMove" aria-label="Move panel" title="Move this panel" onClick={() => setPanelAt(PANEL_SPOTS[(PANEL_SPOTS.indexOf(where) + 1) % 3])}>
-              {where === "bottom" ? "▲" : "▼"}
+              {where === "bottom" ? "▲︎" : "▼︎"}
             </button>
           </div>
         </div>

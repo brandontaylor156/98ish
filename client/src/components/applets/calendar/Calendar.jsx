@@ -470,10 +470,10 @@ const Calendar = ({ calendarView: initial = {}, mobile, dispatch, onClose }) => 
         {view !== "memos" && (
           <>
             <button type="button" className="calIconButton" aria-label="Previous" onClick={() => step(-1)}>
-              ◀
+              ◀︎
             </button>
             <button type="button" className="calIconButton" aria-label="Next" onClick={() => step(1)}>
-              ▶
+              ▶︎
             </button>
           </>
         )}

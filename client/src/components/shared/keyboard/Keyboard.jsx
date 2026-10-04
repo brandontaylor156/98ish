@@ -47,7 +47,7 @@ const keyLabel = (key) => {
   return key.label || key.value
 }
 
-const ARROW_GLYPH = { ArrowLeft: "◄", ArrowRight: "►", ArrowUp: "▲", ArrowDown: "▼" }
+const ARROW_GLYPH = { ArrowLeft: "◄︎", ArrowRight: "►︎", ArrowUp: "▲︎", ArrowDown: "▼︎" }
 
 // where the taskbar starts (the keyboard sits on it); 0 without one (MS-DOS mode)
 const taskbarOffset = () => {

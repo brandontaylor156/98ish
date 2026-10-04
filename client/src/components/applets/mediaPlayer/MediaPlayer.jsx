@@ -616,7 +616,7 @@ const MediaPlayer = ({ song: initialSong = null, windowIndex, onTitle, onClose }
               onPointerDown={() => setSelected(song.id)}
               {...openGesture(() => choose(song))}
             >
-              <span className="mpRowMark">{song === current ? (playing ? "\u25B6" : "\u25A0") : i + 1}</span>
+              <span className="mpRowMark">{song === current ? (playing ? "\u25B6\uFE0E" : "\u25A0") : i + 1}</span>
               <span className="mpRowTitle">{song.title}</span>
               <span className="mpRowFile">{song.file}</span>
               <span className="mpRowTime">{formatTime(durationOf(song))}</span>

@@ -179,9 +179,9 @@ export const CalendarView = ({ app }) => {
     <ViewSwitch mode={mode} setMode={setMode} modes={["month", "list"]}>
       <div className="awCal">
         <div className="awCalBar">
-          <button type="button" className="awBtn" onClick={() => shift(-1)} aria-label="Previous month">◄</button>
+          <button type="button" className="awBtn" onClick={() => shift(-1)} aria-label="Previous month">◄︎</button>
           <button type="button" className="awBtn" onClick={() => { setMonth({ y: now.getFullYear(), m: now.getMonth() }); setPicked(today) }}>Today</button>
-          <button type="button" className="awBtn" onClick={() => shift(1)} aria-label="Next month">►</button>
+          <button type="button" className="awBtn" onClick={() => shift(1)} aria-label="Next month">►︎</button>
           <h3 className="awCalTitle">{MONTHS[month.m]} {month.y}</h3>
           <span className="awGrow" />
           <button type="button" className="awBtn" onClick={() => newRecord("calendars", { date: picked })}>

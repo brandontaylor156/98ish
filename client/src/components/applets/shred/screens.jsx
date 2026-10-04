@@ -60,7 +60,7 @@ export const Panel = ({ title, children, className = "", onBack, wide }) => (
       <div className="shPanelHead">
         {onBack && (
           <button type="button" className="shBack" tabIndex={-1} onMouseDown={noFocus} onClick={onBack} aria-label="Back">
-            ◀
+            ◀︎
           </button>
         )}
         <h2>{title}</h2>

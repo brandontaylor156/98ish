@@ -140,7 +140,7 @@ const DesktopThemes = ({ onClose }) => {
             {SOUND_EVENTS.map((s) => (
               <li key={s.id}>
                 <button type="button" onClick={() => previewSound(s.id, look.soundScheme)}>
-                  {"▶"} {s.label}
+                  {"▶︎"} {s.label}
                 </button>
               </li>
             ))}

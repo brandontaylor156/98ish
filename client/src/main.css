@@ -800,7 +800,7 @@ select {
     calc(var(--sel-btn) - 1px) 1px,
     var(--sel-btn) calc(100% - 4px);
   background-position:
-    right 6px center,
+    right calc(2px + (var(--sel-btn) - 7px) / 2) center,
     right 2px top 2px,
     right 2px bottom 2px,
     right 3px top 3px,
@@ -827,7 +827,7 @@ select:active {
     linear-gradient(grey, grey),
     linear-gradient(silver, silver);
   background-position:
-    right 5px top calc(50% + 1px),
+    right calc(1px + (var(--sel-btn) - 7px) / 2) top calc(50% + 1px),
     right 2px top 2px,
     right 2px bottom 2px,
     right 3px top 3px,

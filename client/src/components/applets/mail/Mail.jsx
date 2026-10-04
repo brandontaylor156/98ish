@@ -535,7 +535,7 @@ const Mail = ({ dispatch, onTitle, mobile, handoff = null }) => {
   const headerFor = (by, label) => (
     <button type="button" className="mlColHead" onClick={() => sortBy(by)}>
       {label}
-      {sort.by === by && <span className="mlSortArrow">{sort.dir > 0 ? "▲" : "▼"}</span>}
+      {sort.by === by && <span className="mlSortArrow">{sort.dir > 0 ? "▲︎" : "▼︎"}</span>}
     </button>
   )
 

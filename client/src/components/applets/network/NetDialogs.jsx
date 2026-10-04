@@ -247,10 +247,10 @@ export const WinPopup = ({ onClose }) => {
         </button>
         <span className="netPopupSep" />
         <button type="button" disabled={current <= 0} onClick={() => setIndex(current - 1)} aria-label="Previous message">
-          &#9664;
+          &#9664;&#xFE0E;
         </button>
         <button type="button" disabled={current >= messages.length - 1} onClick={() => setIndex(current + 1)} aria-label="Next message">
-          &#9654;
+          &#9654;&#xFE0E;
         </button>
       </div>
       {message ? (

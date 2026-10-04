@@ -93,7 +93,7 @@ const Home = ({ go, inbox }) => {
             <b>{waiting[0].from}</b> sent you {waiting[0].title || waiting[0].kindName}
             {waiting.length > 1 ? ` (+${waiting.length - 1} more)` : ""}
           </span>
-          <span aria-hidden="true">&#9654;</span>
+          <span aria-hidden="true">&#9654;&#xFE0E;</span>
         </button>
       )}
       <div className="qzShows">

@@ -360,13 +360,13 @@ export const MiniMonth = ({ year, month, selected, today, busy, onPick, onMonth 
     <div className="calMini">
       <div className="calMiniHead">
         <button type="button" aria-label="Previous month" onClick={() => onMonth(-1)}>
-          ◀
+          ◀︎
         </button>
         <span>
           {MONTHS[month - 1]} {year}
         </span>
         <button type="button" aria-label="Next month" onClick={() => onMonth(1)}>
-          ▶
+          ▶︎
         </button>
       </div>
       <div className="calMiniGrid">

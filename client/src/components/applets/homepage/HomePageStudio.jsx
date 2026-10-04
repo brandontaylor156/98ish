@@ -556,10 +556,10 @@ const HomePageStudio = ({ dispatch, onTitle, onClose, mobile }) => {
             </button>
             <span className="hsBlockTools">
               <button type="button" aria-label="Move up" title="Move up" disabled={i === 0} onClick={() => move(b.id, -1)}>
-                ▲
+                ▲︎
               </button>
               <button type="button" aria-label="Move down" title="Move down" disabled={i === doc.blocks.length - 1} onClick={() => move(b.id, 1)}>
-                ▼
+                ▼︎
               </button>
               <button type="button" aria-label="Delete block" title="Delete" onClick={() => remove(b.id)}>
                 ✕

@@ -67,11 +67,11 @@ const CapturesPanel = ({ url, site, sparkline, sparkError, shownTs, date, pageKe
 
       <div className="ieCapYearNav">
         <button type="button" onClick={() => setYear(year - 1)} disabled={year <= 1996} aria-label="Previous year">
-          &#9664;
+          &#9664;&#xFE0E;
         </button>
         <b>{year}</b>
         <button type="button" onClick={() => setYear(year + 1)} disabled={year >= new Date().getFullYear()} aria-label="Next year">
-          &#9654;
+          &#9654;&#xFE0E;
         </button>
       </div>
 

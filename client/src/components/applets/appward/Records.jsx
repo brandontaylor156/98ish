@@ -189,7 +189,7 @@ export const RecordList = ({ app, initialView }) => {
                 {cols.map((c) => (
                   <th key={c.key} onClick={() => setSort((s) => ({ key: c.key, dir: s.key === c.key ? -s.dir : 1 }))} aria-sort={sort.key === c.key ? (sort.dir > 0 ? "ascending" : "descending") : undefined}>
                     {c.label}
-                    {sort.key === c.key ? (sort.dir > 0 ? " ▲" : " ▼") : ""}
+                    {sort.key === c.key ? (sort.dir > 0 ? " ▲︎" : " ▼︎") : ""}
                   </th>
                 ))}
               </tr>

@@ -319,10 +319,10 @@ const FileExplorer = ({ path: initialPath = ["C:"], dispatch, onTitle }) => {
 
       <div className="fxToolbar">
         <button type="button" disabled={nav.index === 0} onClick={() => step(-1)} title="Back">
-          &#9664; Back
+          &#9664;&#xFE0E; Back
         </button>
         <button type="button" disabled={nav.index === nav.stack.length - 1} onClick={() => step(1)} title="Forward">
-          &#9654;
+          &#9654;&#xFE0E;
         </button>
         <button type="button" disabled={!path.length} onClick={up} title="Up One Level" aria-label="Up One Level">
           <img src={"/assets/" + imageMapper.small_folder_up} alt="" /> Up

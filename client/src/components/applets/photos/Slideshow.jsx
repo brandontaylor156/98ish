@@ -108,13 +108,13 @@ const Slideshow = ({ items, start = 0, prefs, onPrefs, onExit }) => {
       <img key={`c${index}`} className={`phSlide phSlide--in phIn--${kind}`} src={item.textContent} alt={item.name} draggable={false} />
       <div className="phShowBar" onPointerDown={(e) => e.stopPropagation()}>
         <button type="button" onClick={() => go(-1)} aria-label="Previous picture">
-          ◀
+          ◀︎
         </button>
         <button type="button" onClick={() => setPlaying(!playing)} aria-label={playing ? "Pause" : "Play"}>
-          {playing ? "❚❚" : "▶"}
+          {playing ? "❚❚" : "▶︎"}
         </button>
         <button type="button" onClick={() => go(1)} aria-label="Next picture">
-          ▶▶
+          ▶︎▶︎
         </button>
         <select aria-label="Transition" value={prefs.transition} onChange={(e) => onPrefs({ transition: e.target.value })}>
           {TRANSITIONS.map((t) => (

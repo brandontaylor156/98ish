@@ -20,7 +20,7 @@ const TARGETS = [
 const Opponent = ({ p, board, mode, targeted, big }) => (
   <div className={`tetrisOpp${big ? " tetrisOpp--big" : ""}${p.alive ? "" : " is-out"}${targeted ? " is-target" : ""}`} data-player={p.id}>
     <div className="tetrisOppName" title={p.name}>
-      {targeted && <span aria-label="your target">▶ </span>}
+      {targeted && <span aria-label="your target">▶︎ </span>}
       {p.name}
     </div>
     <div className="tetrisOppBoard">

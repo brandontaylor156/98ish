@@ -31,7 +31,7 @@ export const Screen = ({ title, mode, onBack, children, footer, className = "" }
       <div className="qzHead">
         {onBack && (
           <button type="button" className="qzBack" onClick={onBack} aria-label="Back">
-            <span aria-hidden="true">&#9664;</span> Back
+            <span aria-hidden="true">&#9664;&#xFE0E;</span> Back
           </button>
         )}
         {mode && <ModeIcon mode={mode} size={24} />}
