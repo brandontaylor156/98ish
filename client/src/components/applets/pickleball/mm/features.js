@@ -22,7 +22,7 @@ export const TRAJ = [6, 12, 21] // frames ahead at 30 fps
 export const DIM = 27
 export const GROUPS = [
   { name: "trajPos", from: 0, to: 6, step: 2, w: 2.0 },
-  { name: "trajDir", from: 6, to: 12, step: 2, w: 2.0 },
+  { name: "trajDir", from: 6, to: 12, step: 2, w: 3.0 },
   { name: "footPos", from: 12, to: 18, step: 3, w: 0.75 },
   { name: "footVel", from: 18, to: 24, step: 3, w: 0.7 },
   { name: "hipVel", from: 24, to: 27, step: 3, w: 1.0 },

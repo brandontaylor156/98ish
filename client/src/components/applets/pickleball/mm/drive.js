@@ -30,18 +30,29 @@ export const driveMM = (a, s, mv, dt, o) => {
   if (!a.mm || a.mm.lib !== o.lib) {
     a.mm = createMM(o.lib, { x: s.x, z: s.z, yaw: a.yaw })
     a.mmPose = createMMPose()
+    // (players search on different frames, so four searches never land on one frame)
+    a.mm.timer = 0.02 + ((Math.abs(Math.sin(s.x * 12.9898 + s.z * 78.233)) * 43758.5453) % 1) * (o.every ?? 0.1)
   }
   const speed = Math.hypot(mv.x, mv.z)
   const want = wantOf(s, mv)
   // relaxed between points; athletic in a rally (fast runs are in both)
   const mask = s.between ? TAG.neutral : TAG.ready
-  const out = updateMM(a.mm, { x: s.x, z: s.z, vx: mv.x, vz: mv.z, want, goal: s.goal || null, maxSpeed: s.between ? 2.8 : 4.2, yaw: o.yaw, mask, every: o.every ?? 0.1 }, dt)
+  // a fast move is a run, facing the way it goes (nobody backpedals or shuffles at 3+ m/s: they
+  // turn and run, like a pro going back for a lob)
+  let yaw = o.yaw
+  const ws = Math.hypot(want.x, want.z)
+  if (ws > 2.9 && speed > 1.2) {
+    const travel = Math.atan2(want.x, want.z)
+    const off = Math.atan2(Math.sin(travel - yaw), Math.cos(travel - yaw))
+    if (Math.abs(off) > 0.9) yaw = travel
+  }
+  const out = updateMM(a.mm, { x: s.x, z: s.z, vx: mv.x, vz: mv.z, want, goal: s.goal || null, maxSpeed: Math.max(Math.hypot(want.x, want.z), speed, 0.5), yaw, mask, every: o.every ?? 0.1, tight: o.tight || 0 }, dt)
   // lower than the motion capture's own hips if anim.js wants a crouch
   const mocapY = out.hip.y
   const wantY = HIP_Y - (o.crouch ?? 0)
   const drop = Math.max(0, mocapY - wantY)
   const hop = o.hopY || 0
-  const p = solveMMPose(a.mmPose, out, dt, { drop, still: speed < 0.6 && !hop, lift: hop > 0 ? [hop, hop] : [0, 0], stance: o.stance, stanceW: Math.max(0, Math.min(1, 1 - (speed - 0.6) / 1.4)) })
+  const p = solveMMPose(a.mmPose, out, dt, { drop, still: speed < 0.6 && !hop, lift: hop > 0 ? [hop, hop] : [0, 0], stance: o.stance, stanceW: Math.max(0, Math.min(1, 1 - (speed - 0.6) / 1.4)), shift: o.shift || null, reach: o.reach || null })
   const P = p.P
   // the hop: the whole body up
   if (hop) for (const k of Object.keys(P)) P[k] = { x: P[k].x, y: P[k].y + hop, z: P[k].z }
@@ -55,7 +66,7 @@ export const driveMM = (a, s, mv, dt, o) => {
     const ball = P[B["ball_" + s2]]
     const d = sub(ball, ankle)
     const fl = p.feet[s2 === "l" ? 0 : 1]
-    return { x: ankle.x, y: ankle.y - ANKLE_Y, z: ankle.z, yaw: Math.atan2(d.x, d.z), pitch: Math.atan2(-(d.y - (0.022 - ANKLE_Y)), Math.hypot(d.x, d.z)), planted: fl.locked }
+    return { x: ankle.x, y: ankle.y - ANKLE_Y, z: ankle.z, yaw: Math.atan2(d.x, d.z), pitch: Math.atan2(-(d.y - (0.022 - ANKLE_Y)), Math.hypot(d.x, d.z)), planted: fl.locked, pin: fl.locked ? { x: (fl.which === "ankle" ? ankle : ball).x, z: (fl.which === "ankle" ? ankle : ball).z } : null }
   }
   return {
     yaw: out.root.yaw,

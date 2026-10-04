@@ -40,6 +40,7 @@ import { CROSS, READY, SPLIT, lungePlan, quickSteps, readyFor, shouldSplit, spli
 import { motionLibrary } from "./mm/runtime.js"
 import { qaxis, qmul, qrot } from "./mm/quat.js"
 import { driveMM } from "./mm/drive.js"
+import { betweenActs } from "./between.js"
 
 // ---- the skeleton (meters) ----
 export const BODY = {
@@ -285,6 +286,8 @@ export const updateAnim = (a, s, dt) => {
   // which way to face: square to the net and the ball while shuffling and backpedaling; turned
   // to run for a long, fast move (or walking between points); squared up again when a ball is
   // coming. The body turns with a top speed, never in a snap.
+  // between points and after the game: taps, glances, fidgets (between.js)
+  const bt = betweenActs(a.bt || (a.bt = {}), s, speed, a.t, dt)
   const fc = facingFor(a.face, { vx: mv.x, vz: mv.z, facing: s.facing, ball: s.ball, between: s.between, incoming: !!(swing || s.prep || s.holding || s.charging), goal: s.goal || null, x: s.x, z: s.z }, dt)
   let yaw = fc.yaw
   if (swing || s.prep) {
@@ -302,7 +305,10 @@ export const updateAnim = (a, s, dt) => {
   let mmo = null
   if (mmLib) {
     const hopPrev = a.hop > 0 ? splitHeight(SPLIT.dur - a.hop) : 0
-    mmo = driveMM(a, s, mv, dt, { lib: mmLib, yaw, crouch: (a.crouch.p ?? 0) + (a.mmDown || 0), hopY: Math.max(0, hopPrev), every: a.mmEvery, stance: s.between ? READY.between.stance : R.stance })
+    // (a stroke coming or under way: the body right at the game's position, so the paddle
+    // meets the ball where the match says)
+    const tight = swing && swing.t < 0.25 ? 1 : s.prep ? clamp(1 - (s.prep.ttc - 0.15) / 0.45, 0, 1) : 0
+    mmo = driveMM(a, s, mv, dt, { lib: mmLib, yaw, crouch: (a.crouch.p ?? 0) + (a.mmDown || 0), hopY: Math.max(0, hopPrev), every: a.mmEvery, stance: s.between ? READY.between.stance : R.stance, tight, reach: a.mmReach || null, shift: { x: (a.shift.p?.x || 0) + (a.mmLunge?.x || 0), z: (a.shift.p?.z || 0) + (a.mmLunge?.z || 0) } })
     a.yaw = mmo.yaw
     a.turn.yaw = a.yaw
     a.turn.w = 0
@@ -351,7 +357,8 @@ export const updateAnim = (a, s, dt) => {
       lunging = true
       // (down into the lunge once the front foot is down, not before: the back leg stays long)
       const ff = a.gait.feet[lp.foot]
-      const landed = !ff.step && ((ff.bx - s.x) * fr.r.x + (ff.bz - s.z) * fr.r.z) * (lp.foot ? 1 : -1) > 0.4
+      const mmFoot = mmo ? a.mmPose?.lock?.[lp.foot] : null
+      const landed = mmFoot ? !!mmFoot.reach && mmFoot.reach.t >= 1 : !ff.step && ((ff.bx - s.x) * fr.r.x + (ff.bz - s.z) * fr.r.z) * (lp.foot ? 1 : -1) > 0.4
       down = (down + lp.crouch * near) * (landed ? 1 : 0.25)
       lungeLean = lp.roll * near
       const spot = toWorld(ground, fr, V(lp.spot.x, 0, lp.spot.z))
@@ -361,6 +368,8 @@ export const updateAnim = (a, s, dt) => {
       const over = landed ? Math.max(near, 0.8) : near * 0.8
       extraT.x += lp.shift * over
       extraT.z += lp.shiftZ * over
+      // (motion matching: the hips over toward the lunging foot, next frame, in the world)
+      a.mmLungeT = { x: fr.r.x * lp.shift * over + fr.f.x * lp.shiftZ * over, z: fr.r.z * lp.shift * over + fr.f.z * lp.shiftZ * over }
     } else if (Math.abs(lc.z) > 0.55) stance = R.stance + STANCE.wide
     crouch += down
     // a drive (or lob, or the serve) from a standstill: the front foot steps toward the ball as
@@ -389,6 +398,7 @@ export const updateAnim = (a, s, dt) => {
     }
   }
   if (s.holding) crouch = 0.04
+  crouch += bt.crouch // (the returner waits low)
   if (s.charging) crouch += 0.02
   crouch += a.extraCrouch // (the stroke's own knee bend, last frame's)
   // the weight moving through the stroke (last frame's stroke)
@@ -565,6 +575,25 @@ export const updateAnim = (a, s, dt) => {
   }
   if (W.mood > 1e-3 && a.moodPose) pose = mixPose(pose, a.moodPose, smoothW(W.mood))
 
+  // ---- between points (between.js): paddle taps, glances, fidgets ----
+  if (bt.tap && !swing && !s.prep) {
+    // the paddle up and out toward the other paddle, the face square to it
+    const T = V(bt.tap.x, bt.tap.y, bt.tap.z)
+    const dirW = V(bt.tap.nx, 0, bt.tap.nz)
+    const axW = norm(add(mul(UP, 0.8), mul(dirW, 0.6)))
+    const wrist = sub(T, mul(axW, BODY.paddleReach))
+    const tapPose = { ...pose, hand: toStd(local(wrist)), axis: RH(toLocal(V(), fr, axW)), pole: V(0.6, -0.7, -0.6), coil: 0, lean: 0, crouch: 0 }
+    pose = mixPose(pose, tapPose, smoothW(bt.tap.w))
+    pose.off = mixPose({ ...pose }, { ...pose, off: V(-0.22, 0.86, 0.1) }, smoothW(bt.tap.w)).off
+  }
+  if (bt.wipe !== null && !swing && !s.prep) {
+    // the other hand brushes down the side of the shorts, twice
+    const u = bt.wipe
+    const wipeOff = V(-0.21, 0.96 - 0.22 * Math.abs(Math.sin(2 * Math.PI * u)), 0.05)
+    pose = { ...pose, off: lerpV(pose.off, wipeOff, smoothW(Math.sin(Math.PI * u) * 1.6)) }
+  }
+  if (bt.look && !swing && !s.prep) lookAt = bt.look
+
   // (tests: the point the stroke is aiming at)
   const aimAt = inp ? (inp.after ? swing : s.prep) : null
 
@@ -698,6 +727,10 @@ export const updateAnim = (a, s, dt) => {
   // ball the arm can't reach down to brings the hips down next frame)
   if (mmo) {
     a.mmDown = Math.max(0, -shift.y)
+    // (for next frame: a lunge's or a drive's step out, and the hips going over that foot)
+    a.mmReach = reach ? { foot: reach.foot, x: reach.x, z: reach.z } : null
+    const lt = lunging && a.mmLungeT ? a.mmLungeT : { x: 0, z: 0 }
+    a.mmLunge = springV(a.mmLungeS || (a.mmLungeS = {}), V(lt.x, 0, lt.z), 14, dt)
     pelvis = mmo.pelvis
     const leanS = springN(a.mmLean, clamp((pose.lean || 0) + lowLean + clamp((a.overDown || 0) * 1.4, 0, 0.35), -0.3, 0.6), fast ? 30 : 12, dt)
     const Rl = qaxis(mul(fr.r, -1), leanS)
@@ -801,6 +834,9 @@ export const updateAnim = (a, s, dt) => {
   // (and the face turns round the handle no faster than a wrist turns it)
   normalW = a.normalOut = limitTurn(a.normalOut, normalW, normalT ? Math.PI : (fast ? 30 : 10) * dt)
   normalW = norm(sub(normalW, mul(axisW, dot(normalW, axisW))), fr.f)
+  // (a paddle tap: the face turned to the other paddle; a twirl: spun round the handle)
+  if (bt.tap) normalW = norm(lerpV(normalW, norm(sub(V(bt.tap.nx, 0, bt.tap.nz), mul(axisW, bt.tap.nx * axisW.x + bt.tap.nz * axisW.z)), normalW), smoothW(bt.tap.w)), normalW)
+  if (bt.twirl) normalW = norm(qrot(qaxis(axisW, bt.twirl), normalW), normalW)
 
   // ---- the head looks at the ball: smoothly, within a neck's reach, at a top speed ----
   const headBase = add(neck, mul(spineDir, BODY.neck))
@@ -838,7 +874,7 @@ export const updateAnim = (a, s, dt) => {
     paddle: { grip: armP.end, axis: axisW, normal: normalW, face: add(armP.end, mul(axisW, BODY.paddleReach)) },
     hand,
     // for the skinned athletes' motion-capture layers (athlete.js)
-    info: { speed, phase: a.gait.phase, cycle: a.gait.cycle, moving: a.gait.moving, blend: a.gait.blend.weights, timeScale: a.gait.blend.timeScale, facing: a.face.mode || "face", swinging: !!(swing || s.prep || whiff), between: !!s.between, mood: mood ? { kind: mood.kind, variant: mood.variant } : null, stroke: so.w, style: so.style, fast, ready: (1 - W.pumpP) * (1 - smoothW(W.relax)), offGrip: so.w < 0.5 && W.relax < 0.5 && W.pumpO < 0.3 && !mood && !s.holding, fist: mood?.kind === "cheer", strokePhase: so.phase, aim: aimAt ? { x: aimAt.x, y: aimAt.y, z: aimAt.z, ttc: -inp.tRel } : null, side: so.side, two: W.two > 0.5, footwork: fc.mode, split: a.hop > 0, lunge: lunging, mm: mmo ? { v: mmo.v, contacts: mmo.contacts, locked: mmo.locked, searches: mmo.stats.searches, jumps: mmo.stats.jumps } : null },
+    info: { speed, phase: a.gait.phase, cycle: a.gait.cycle, moving: a.gait.moving, blend: a.gait.blend.weights, timeScale: a.gait.blend.timeScale, facing: a.face.mode || "face", swinging: !!(swing || s.prep || whiff), between: !!s.between, mood: mood ? { kind: mood.kind, variant: mood.variant } : null, stroke: so.w, style: so.style, fast, ready: (1 - W.pumpP) * (1 - smoothW(W.relax)), offGrip: so.w < 0.5 && W.relax < 0.5 && W.pumpO < 0.3 && !mood && !s.holding, fist: mood?.kind === "cheer", strokePhase: so.phase, aim: aimAt ? { x: aimAt.x, y: aimAt.y, z: aimAt.z, ttc: -inp.tRel } : null, side: so.side, two: W.two > 0.5, footwork: fc.mode, split: a.hop > 0, lunge: lunging, mm: mmo ? { v: mmo.v, contacts: mmo.contacts, locked: mmo.locked, searches: mmo.stats.searches, jumps: mmo.stats.jumps, gap: Math.hypot(mmo.root.x - s.x, mmo.root.z - s.z) } : null },
   }
 }
 
@@ -935,7 +971,33 @@ export const situation = (m, p) => {
     oppHit,
     // the velocity the match is taking them toward (motion matching predicts the path from it)
     want: p.want ? { x: p.want.x, z: p.want.z } : null,
+    // between points (between.js): the phase, the partner and the player across the net, the
+    // point count, who's receiving
+    id: p.id,
+    phase: m.phase,
+    phaseT: m.phaseT ?? 0,
+    point: m.stats?.rallies ?? 0,
+    mate: mateOf(m, p),
+    across: acrossOf(m, p),
+    receiving: m.phase === "serve" && !!r && p.team !== m.game?.serving && Math.abs(p.z) > 5.4,
   }
+}
+const mateOf = (m, p) => {
+  const q = m.players.find((o) => o !== p && o.team === p.team)
+  return q ? { x: q.x, z: q.z, id: q.id } : null
+}
+const acrossOf = (m, p) => {
+  let best = null
+  let bd = Infinity
+  for (const q of m.players) {
+    if (q.team === p.team) continue
+    const d = Math.hypot(q.x - p.x, q.z - p.z)
+    if (d < bd) {
+      bd = d
+      best = { x: q.x, z: q.z, id: q.id }
+    }
+  }
+  return best
 }
 
 const guessKind = (pace, e, p) => {

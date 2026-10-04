@@ -32,6 +32,9 @@ export const TAKES = [
   // StartStop: runs and side runs broken by sudden stops and starts (both)
   // StartStop,427,8412,431,15946,425,7131,537,17738,815,1431,557,10291,654,9873,617,14986
   ...S("StartStop", { FR: [425, 3425], SR: [557, 3557] }, ["neutral", "ready", "stop"]),
+  // CMU 69: walking and turning (turn in place, turn and walk off, walk backwards / sideways
+  // and turn): a player turning round to walk back to place, or toward the partner
+  ...cmuTakes(["69_06", "69_09", "69_12", "69_13", "69_15", "69_17", "69_19", "69_20", "69_24", "69_28", "69_31", "69_34", "69_36", "69_39", "69_41", "69_42", "69_48", "69_51", "69_59"], ["neutral", "ready"]),
   // CMU: fast running, cutting, starts and stops (100STYLE's runs are jogs, under 2 m/s)
   ...cmuTakes(["102_01", "102_02", "102_03", "102_04", "102_05", "102_06", "102_07", "102_08", "102_10", "102_13", "102_14", "102_16", "102_17", "102_18", "102_19", "102_30", "102_31", "102_32", "102_33"], ["neutral", "ready", "fast"]),
   ...cmuTakes(["127_03", "127_04", "127_05", "127_06", "127_09", "127_10", "127_11", "127_12", "127_13", "127_14", "127_17", "127_18", "127_19", "127_20", "128_02", "128_03", "128_05", "128_07", "143_02"], ["neutral", "ready", "fast"]),
@@ -42,6 +45,10 @@ export const TAKES = [
 // WideLegs / LegsApart (exaggerated stances), Lunge, CrossOver; CMU 102 (basketball
 // defensive slides: lower than a pickleball ready position), 127/104/16 (runs and stops),
 // 137/141/140/69 (standing, turning in place). They stay listed in EXTRA for later rounds.
+// gestures (CMU): celebrations, frustration, a high five, waves, a shrug
+export const GESTURES = [
+  ...cmuTakes(["79_69", "79_74", "79_94", "20_11", "21_11", "141_16", "141_21", "18_01"], ["gesture"]),
+]
 const cmu = (list, tags) => list.map((t) => ({ name: "cmu" + t, file: t + ".amc", ranges: [[0, 1e9]], tags: ["cmu", ...tags] }))
 export const EXTRA = [
   ...cmu(["102_22", "102_23", "102_24", "102_25", "102_26", "102_27", "102_28"], ["defense"]),

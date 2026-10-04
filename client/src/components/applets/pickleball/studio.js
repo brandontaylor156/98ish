@@ -7,6 +7,7 @@
 
 import * as THREE from "three"
 import { createAnim, setMood, splitStep, updateAnim } from "./anim.js"
+import { hash01 } from "./between.js"
 
 let lineup = [] // { fig, ball }
 
@@ -37,7 +38,7 @@ export const poseMetrics = (pose) => {
   }
 }
 
-export const STATES = ["walkback", "jog", "sprintstop", "kitchen-shuffle", "backpedal2", "lob-turn", "ready", "split", "run", "shuffle", "walk", "sprint", "backpedal", "stop", "turn", "lunge", "backswing", "drive", "drive-follow", "backhand", "backhand-follow", "dink", "volley", "overhead", "serve", "serve-follow", "celebrate", "celebrate2", "celebrate3", "frustrated", "frustrated2", "frustrated3", "idle", "shuffle-ready", "run-hit", "dink-bh", "volley-bh", "reach-bh", "lob", "ready-net", "kitchen-adjust", "crossover", "transition", "backhand-two", "dink-wide", "hands-battle"]
+export const STATES = ["tap", "net-tap", "twirl", "wipe", "receive", "walkback", "jog", "sprintstop", "kitchen-shuffle", "backpedal2", "lob-turn", "ready", "split", "run", "shuffle", "walk", "sprint", "backpedal", "stop", "turn", "lunge", "backswing", "drive", "drive-follow", "backhand", "backhand-follow", "dink", "volley", "overhead", "serve", "serve-follow", "celebrate", "celebrate2", "celebrate3", "frustrated", "frustrated2", "frustrated3", "idle", "shuffle-ready", "run-hit", "dink-bh", "volley-bh", "reach-bh", "lob", "ready-net", "kitchen-adjust", "crossover", "transition", "backhand-two", "dink-wide", "hands-battle"]
 
 // Movement tests for the footwork (motion matching vs the procedural gait): a player moved
 // by the match's own rule (accelerating at most 12 m/s^2 toward the velocity they want, or
@@ -123,7 +124,28 @@ const script = (state, x, z, { hand = 1, twoHand = false } = {}) => {
   // dx: to the paddle side (facing +z, the figure's right is -x)
   const C = (dx, y, dz) => ({ x: x - dx * hand, y, z: z + dz })
   if (MOVES[state]) return moveScript(state, x, z, base)
+  // between points (between.js): a point count whose fidget is the one wanted, and when
+  const fidget = (kind) => {
+    for (let n = 0; n < 200; n++) {
+      const pick = hash01("you", n)
+      if ((kind === "twirl" && pick < 0.45) || (kind === "wipe" && pick >= 0.45 && pick < 0.8)) return { point: n, at: 0.4 + hash01("you", n + 99) * 1.2 }
+    }
+    return { point: 0, at: 0.5 }
+  }
   switch (state) {
+    case "tap":
+      // partners tapping paddles after a point (two figures: each other's partner)
+      return { T: 1.0, at: (t) => base(t, { between: true, phase: "dead", phaseT: 0.3 + t, point: 1, id: "you", mate: { x: -x || 0.9, z, id: "mate" } }) }
+    case "net-tap":
+      // after the game, at the net, with the player across
+      return { T: 1.2, at: (t) => base(t, { between: true, phase: "over", phaseT: 0.6 + t, point: 9, id: "you", across: { x, z: z + 1.45, id: "opp" } }) }
+    case "twirl":
+    case "wipe": {
+      const f = fidget(state)
+      return { T: f.at + 0.9, at: (t) => base(t, { between: true, phase: "intro", phaseT: t, point: f.point, id: "you", mate: { x: x + 2.5, z } }) }
+    }
+    case "receive":
+      return { T: 1.2, at: (t) => base(t, { phase: "serve", receiving: true, id: "you", ball: { x: x + 1, y: 1, z: z + 12 } }) }
     case "split":
       return { T: 1.12, events: [[1.0, (a) => splitStep(a)]], at: (t) => base(t) }
     case "run":

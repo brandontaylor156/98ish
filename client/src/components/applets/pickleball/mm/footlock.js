@@ -18,17 +18,52 @@ import { decaySpring } from "./inertialize.js"
 import { twoBone } from "./quat.js"
 import { ANKLE_Y, BALL_Y } from "./skeleton.js"
 
-export const LOCK = { release: 0.3, halflife: 0.07, heelFirst: 0.015, settleAt: 0.07, settleDur: 0.26, settleLift: 0.045, maxV: 1.5 }
+export const LOCK = { release: 0.3, halflife: 0.07, heelFirst: 0.015, settleAt: 0.07, settleDur: 0.26, settleLift: 0.045, maxV: 1.5, reachDur: 0.2, reachLift: 0.06 }
 
 export const createFootLock = () => [0, 1].map(() => ({ locked: false, at: null, which: "ball", ox: 0, oz: 0, vx: 0, vz: 0, yaw: 0, dyaw: 0, settle: 0, lift: 0 }))
 
 // feet: [{ ankle, ball, yaw }] (world, from the animation); down: [bool]; dt. Returns per foot
 // { ankle, ball, yaw, locked, lift } where they should be drawn.
-export const stepFootLock = (st, feet, down, dt, { release = LOCK.release, halflife = LOCK.halflife, settleAt = LOCK.settleAt, still = true } = {}) =>
+//
+// A reach (anim.js: a lunge or a step into a drive): one foot steps out to a spot of the
+// game's choosing whatever the capture's feet are doing, in an arc, lands and stays pinned
+// there; once the reach is over it's an ordinary pinned foot again.
+export const stepFootLock = (st, feet, down, dt, { release = LOCK.release, halflife = LOCK.halflife, settleAt = LOCK.settleAt, still = true, reach = null } = {}) =>
   feet.map((f, i) => {
     const s = st[i]
     const other = st[1 - i]
     let lift = 0
+    const R = reach && reach.foot === i ? reach : null
+    if (R) {
+      if (!s.reach) {
+        s.reach = { t: 0, fx: f.ankle.x + s.ox, fz: f.ankle.z + s.oz, tx: R.x, tz: R.z }
+        s.locked = false
+        s.settle = 0
+      }
+      const r = s.reach
+      if (r.t < 1) {
+        r.tx = R.x
+        r.tz = R.z
+        r.t = Math.min(1, r.t + dt / LOCK.reachDur)
+      }
+      const u = r.t * r.t * (3 - 2 * r.t)
+      const ax = r.fx + (r.tx - r.fx) * u
+      const az = r.fz + (r.tz - r.fz) * u
+      lift = r.t < 1 ? Math.sin(Math.PI * r.t) * LOCK.reachLift : 0
+      s.ox = ax - f.ankle.x
+      s.oz = az - f.ankle.z
+      s.vx = 0
+      s.vz = 0
+      if (r.t >= 1 && !s.locked) {
+        s.locked = true
+        s.which = "ankle"
+        s.at = { x: ax, z: az }
+        s.yaw = f.yaw + s.dyaw
+      }
+      s.lastP = { x: f[s.which].x, z: f[s.which].z }
+      return { ankle: { x: ax, y: f.ankle.y + lift, z: az }, ball: { x: f.ball.x + s.ox, y: f.ball.y + lift, z: f.ball.z + s.oz }, yaw: f.yaw + s.dyaw, locked: s.locked, lift, which: s.which }
+    }
+    s.reach = null
     if (s.settle > 0) {
       // (a settling step in progress: up and over, the offset fading during it)
       s.settle = Math.max(0, s.settle - dt)
@@ -63,8 +98,9 @@ export const stepFootLock = (st, feet, down, dt, { release = LOCK.release, halfl
       }
       s.ox = ox
       s.oz = oz
-      if (!down[i] || off > release) s.locked = false // let go: the offset fades out from here
-      else if (still && off > settleAt && other.locked && other.settle <= 0) {
+      if (!down[i] || off > release * 1.6) s.locked = false // let go: the offset fades out from here
+      else if ((off > release || (still && off > settleAt)) && other.locked && other.settle <= 0) {
+        // (too far from where the capture has it: a quick step over, never a slide)
         s.locked = false
         s.settle = LOCK.settleDur
         s.lift = LOCK.settleLift + off * 0.12
@@ -86,6 +122,7 @@ export const stepFootLock = (st, feet, down, dt, { release = LOCK.release, halfl
       ball: { x: f.ball.x + s.ox, y: f.ball.y + lift, z: f.ball.z + s.oz },
       yaw: f.yaw + s.dyaw,
       locked: s.locked,
+      which: s.which,
       lift,
     }
   })
@@ -100,7 +137,12 @@ export const softReach = (d, L, soft = SOFT) => {
   if (d <= s0) return d
   return s0 + (L - s0) * (1 - Math.exp(-(d - s0) / (L - s0)))
 }
-export const legIK = (hip, kneeAnim, ankle, l1, l2) => {
+//
+// The knee bends the way the captured knee bends: its direction off the captured hip-ankle
+// line (ankleAnim), not off the new one (a pinned foot far from the captured foot would
+// otherwise swing the knee round). fwd: the body's forward, mixed in so a straight captured
+// leg still bends forward.
+export const legIK = (hip, kneeAnim, ankle, l1, l2, ankleAnim = null, fwd = null) => {
   const dx = ankle.x - hip.x
   const dy = ankle.y - hip.y
   const dz = ankle.z - hip.z
@@ -108,8 +150,13 @@ export const legIK = (hip, kneeAnim, ankle, l1, l2) => {
   const ds = softReach(d, l1 + l2)
   const k = d > 1e-6 ? ds / d : 1
   const t = { x: hip.x + dx * k, y: hip.y + dy * k, z: hip.z + dz * k }
-  const mid = { x: (hip.x + t.x) / 2, y: (hip.y + t.y) / 2, z: (hip.z + t.z) / 2 }
-  const pole = { x: kneeAnim.x - mid.x, y: kneeAnim.y - mid.y, z: kneeAnim.z - mid.z }
+  const a0 = ankleAnim || t
+  const mid = { x: (hip.x + a0.x) / 2, y: (hip.y + a0.y) / 2, z: (hip.z + a0.z) / 2 }
+  let pole = { x: kneeAnim.x - mid.x, y: kneeAnim.y - mid.y, z: kneeAnim.z - mid.z }
+  if (fwd) {
+    const pl = Math.hypot(pole.x, pole.y, pole.z) || 1
+    pole = { x: pole.x / pl + fwd.x * 0.35, y: pole.y / pl + fwd.y * 0.35, z: pole.z / pl + fwd.z * 0.35 }
+  }
   const r = twoBone(hip, t, l1, l2, pole)
   return { knee: r.mid, ankle: r.end, reached: ds >= d - 1e-4 }
 }

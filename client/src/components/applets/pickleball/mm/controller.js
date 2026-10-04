@@ -40,7 +40,9 @@ export const MM = {
   // anim.js wants; a gentle pull only stops slow drift, never turns a body on planted feet)
   yawPull: 0.3,
   yawPullPlanted: 0.8,
-  maxYawGap: 1.2, // rad
+  turnRate: 3.5, // rad/s: the fastest turn the trajectory asks for
+  turnPlanted: 1.2, // rad/s the pull may turn the body with a foot down
+  turnFree: 5, // ...and with both feet off the court
   warp: [0.8, 1.3],
 }
 
@@ -173,7 +175,10 @@ export const updateMM = (st, input, dt) => {
       const d = toRoot(r.yaw, { x: p.x - input.x + (input.x - r.x), y: 0, z: p.z - input.z + (input.z - r.z) })
       q[j * 2] = d.x
       q[j * 2 + 1] = d.z
-      const yawT = predictYaw(r.yaw, st.yawRate, input.yaw, t)
+      // (no faster than a person turns: about 200 degrees a second at most, so the query asks
+      // for a turn the capture can show)
+      const yawS = predictYaw(r.yaw, st.yawRate, input.yaw, t)
+      const yawT = r.yaw + clamp(wrap(yawS - r.yaw), -MM.turnRate * t, MM.turnRate * t)
       const dy = yawT - r.yaw
       q[6 + j * 2] = Math.sin(dy)
       q[6 + j * 2 + 1] = Math.cos(dy)
@@ -250,14 +255,19 @@ export const updateMM = (st, input, dt) => {
   // (gently while a foot is planted: the pinned foot would have to absorb the pull; firmly
   // while both feet are off the court, where a slide can't show)
   const planted = st.contacts & 3
-  const kp = 1 - Math.exp((-Math.LN2 * dt) / (planted ? MM.posPullPlanted : MM.posPull))
+  // (tight: a stroke is coming, the paddle must meet the ball where the game says, so the
+  // body goes right to the game's position; the pinned feet take up the difference)
+  st.tight = (st.tight || 0) + clamp(clamp(input.tight || 0, 0, 1) - (st.tight || 0), -dt * 4, dt * 4)
+  const tight = st.tight
+  const hl = (planted ? MM.posPullPlanted : MM.posPull) * (1 - tight) + 0.03 * tight
+  const kp = 1 - Math.exp((-Math.LN2 * dt) / hl)
   r.x += (input.x - r.x) * kp
   r.z += (input.z - r.z) * kp
   const gx = r.x - input.x
   const gz = r.z - input.z
   const gap = Math.hypot(gx, gz)
   // (a little more room at a sprint: the match accelerates harder than any person)
-  const maxGap = MM.maxGap + clamp((gameSpeed - 2.5) * 0.04, 0, 0.08)
+  const maxGap = (MM.maxGap + clamp((gameSpeed - 2.5) * 0.04, 0, 0.08)) * (1 - tight) + 0.03 * tight
   if (gap > maxGap) {
     r.x = input.x + (gx / gap) * maxGap
     r.z = input.z + (gz / gap) * maxGap
@@ -265,9 +275,9 @@ export const updateMM = (st, input, dt) => {
   const ky = 1 - Math.exp((-Math.LN2 * dt) / (planted ? MM.yawPullPlanted : MM.yawPull))
   const yawErr = wrap(input.yaw - r.yaw)
   const oldYaw = r.yaw
-  r.yaw += yawErr * ky
-  const ye = wrap(input.yaw - r.yaw)
-  if (Math.abs(ye) > MM.maxYawGap) r.yaw = input.yaw - Math.sign(ye) * MM.maxYawGap
+  // (at most so fast: a planted body only turns on its own legs, through the capture)
+  const maxTurn = (planted ? MM.turnPlanted : MM.turnFree) * dt
+  r.yaw += Math.max(-maxTurn, Math.min(maxTurn, yawErr * ky))
   r.yaw = wrap(r.yaw)
   st.yawRate = dt > 0 ? wrap(r.yaw - oldYaw + myaw * 0) / dt : 0
   // ---- the pose: the source frame plus the inertialization's decaying offsets ----

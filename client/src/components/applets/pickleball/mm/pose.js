@@ -6,7 +6,7 @@
 
 import { qrot } from "./quat.js"
 import { B, NB, fk, endOf, REST_OFFSET } from "./skeleton.js"
-import { createFootLock, legIK, stepFootLock } from "./footlock.js"
+import { createFootLock, legIK, stepFootLock, SOFT } from "./footlock.js"
 import { worldOf } from "./controller.js"
 
 const LEG = 0.86 // thigh + shin
@@ -50,23 +50,24 @@ export const solveMMPose = (st, o, dt, extra = {}) => {
   })
   const lift = extra.lift || [0, 0]
   const down = [!!(o.contacts & 1) && lift[0] <= 0.002, !!(o.contacts & 2) && lift[1] <= 0.002]
-  const fl = stepFootLock(st.lock, feet, down, dt, { still: extra.still ?? true })
+  const fl = stepFootLock(st.lock, feet, down, dt, { still: extra.still ?? true, reach: extra.reach || null })
   for (let i = 0; i < 2; i++) {
     fl[i].ankle.y += lift[i]
     fl[i].ball.y += lift[i]
   }
   // the pelvis comes down (smoothly) as far as a pinned foot needs, and for a crouch
-  const hipW = (s) => P0[B["thigh_" + s]]
+  const sh = extra.shift || { x: 0, z: 0 }
+  const hipW = (s) => ({ x: P0[B["thigh_" + s]].x + sh.x, y: P0[B["thigh_" + s]].y, z: P0[B["thigh_" + s]].z + sh.z })
   let need = 0
   for (let i = 0; i < 2; i++) {
     if (!fl[i].locked) continue // (a foot in the air just reaches as far as it can)
     const h = hipW(i ? "r" : "l")
     const a = fl[i].ankle
     const dh = Math.hypot(a.x - h.x, a.z - h.z)
-    const maxY = a.y + Math.sqrt(Math.max(0, (LEG * 0.985) ** 2 - dh * dh))
+    const maxY = a.y + Math.sqrt(Math.max(0, (LEG * SOFT) ** 2 - dh * dh))
     need = Math.max(need, h.y - maxY)
   }
-  const want = Math.max(0, need) + (extra.drop || 0)
+  const want = Math.min(0.22, Math.max(0, need)) + (extra.drop || 0)
   // (down fast, up gently: a critically damped spring with a quicker half-life going down)
   const hl = want > st.drop ? 0.05 : 0.15
   const y = (4 * Math.LN2) / hl / 2
@@ -77,6 +78,11 @@ export const solveMMPose = (st, o, dt, extra = {}) => {
   st.dropV = e * (st.dropV - j1 * y * dt)
   // (anything left over the soft IK absorbs: the foot reaches a hair short, never a snap)
   pelvis.y -= st.drop
+  // (a reach for a ball: the hips go toward it, the pinned feet stay)
+  if (extra.shift) {
+    pelvis.x += extra.shift.x
+    pelvis.z += extra.shift.z
+  }
   const P = fk(D, pelvis)
   // legs to the pinned feet
   const knees = []
@@ -84,7 +90,8 @@ export const solveMMPose = (st, o, dt, extra = {}) => {
     // (the knee's direction from the capture, pushed out as far as the foot was)
     const kn = P[B["calf_" + s]]
     const kOut = (s === "l" ? -1 : 1) * wide
-    const r = legIK(P[B["thigh_" + s]], { x: kn.x + rx * kOut, y: kn.y, z: kn.z + rz * kOut }, fl[i].ankle, THIGH, SHIN)
+    const an = P[B["foot_" + s]]
+    const r = legIK(P[B["thigh_" + s]], { x: kn.x + rx * kOut, y: kn.y, z: kn.z + rz * kOut }, fl[i].ankle, THIGH, SHIN, { x: an.x + rx * kOut, y: an.y, z: an.z + rz * kOut }, { x: Math.sin(o.root.yaw), y: 0, z: Math.cos(o.root.yaw) })
     const da = { x: r.ankle.x - P[B["foot_" + s]].x, y: r.ankle.y - P[B["foot_" + s]].y, z: r.ankle.z - P[B["foot_" + s]].z }
     P[B["calf_" + s]] = r.knee
     P[B["foot_" + s]] = r.ankle

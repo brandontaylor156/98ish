@@ -17,7 +17,7 @@ import { parseBVH, parseASF, parseAMC } from "../mm/bvh.js"
 import { MAPS, buildMap, sampleTake, extractRoot, groundTake, labelContacts } from "../mm/retarget-src.js"
 import zlib from "zlib"
 import { encodeDB, useZlib } from "../mm/db.js"
-import { TAKES, EXTRA } from "./motion-takes.mjs"
+import { TAKES, EXTRA, GESTURES } from "./motion-takes.mjs"
 
 const [srcDir, outDir] = process.argv.slice(2)
 const dumpAt = process.argv.indexOf("--dump")
@@ -32,7 +32,7 @@ useZlib(zlib)
 const FPS = 30
 const asfCache = {}
 const clips = []
-for (const t of process.argv.includes("--extra") ? EXTRA : TAKES) {
+for (const t of process.argv.includes("--extra") ? EXTRA : process.argv.includes("--gestures") ? GESTURES : TAKES) {
   if (only && !only.test(t.name)) continue
   let skel
   let names
