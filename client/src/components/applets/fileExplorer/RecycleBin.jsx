@@ -2,14 +2,14 @@ import React, { useState } from "react"
 import MenuBar from "../../shared/MenuBar"
 import Dialog from "../../shared/Dialog"
 import ContextMenu from "../../shared/ContextMenu"
-import { fs } from "../../../utils/fs"
+import { fs, itemBytes } from "../../../utils/fs"
 import { useFsVersion } from "../../../hooks/useFs"
 import { playSystemSound } from "../../../utils/systemSounds"
 import { useLongPress } from "../../../hooks/useLongPress"
 import { formatSize, iconFor, typeName } from "../../../utils/fileInfo"
 import "./FileExplorer.css"
 
-const sizeOf = (item) => (item.isDirectory ? item.content.reduce((s, c) => s + sizeOf(c), 0) : new Blob([item.textContent]).size)
+const sizeOf = itemBytes
 
 // The Recycle Bin: things deleted from My Computer, with where they came from. Restore
 // puts them back; Delete or Empty Recycle Bin removes them for good.

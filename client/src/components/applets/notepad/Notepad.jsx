@@ -3,7 +3,7 @@ import MenuBar from "../../shared/MenuBar"
 import Dialog from "../../shared/Dialog"
 import FileDialog from "./FileDialog"
 import { useFloating } from "../../../hooks/useFloating"
-import { fs } from "../../../utils/fs"
+import { fs, readContent } from "../../../utils/fs"
 import { useFsVersion } from "../../../hooks/useFs"
 import { trackUnsaved } from "../../../utils/unsaved"
 import { now } from "../../../utils/clock"
@@ -47,6 +47,10 @@ const Notepad = ({ file: initialFile = null, onTitle, onClose, registerCloseGuar
     return t.startsWith(".LOG") ? `${t}${t.endsWith("\n") ? "" : "\r\n"}${timeDate()}\r\n` : t
   })
   const [saved, setSaved] = useState(initialFile?.textContent ?? "")
+  const [loading, setLoading] = useState(false)
+  useEffect(() => {
+    if (initialFile && !initialFile.loaded) openFile(initialFile)
+  }, [])
   const [prefs, setPrefsState] = useState(loadPrefs)
   const [dialog, setDialog] = useState(null)
   const [find, setFind] = useState(null) // { mode: "find" | "replace", query, replace, matchCase, up }
@@ -148,7 +152,14 @@ const Notepad = ({ file: initialFile = null, onTitle, onClose, registerCloseGuar
       setDialog(null)
     })
 
-  const openFile = (target) => {
+  const openFile = async (target) => {
+    // a big file that isn't loaded yet: wait for it (typing stays off meanwhile)
+    if (!target.loaded) {
+      setLoading(true)
+      setDialog(null)
+      await readContent(target)
+      setLoading(false)
+    }
     const t = target.textContent
     const withLog = t.startsWith(".LOG") ? `${t}${t.endsWith("\n") ? "" : "\r\n"}${timeDate()}\r\n` : t
     setFile(target)
@@ -336,6 +347,8 @@ const Notepad = ({ file: initialFile = null, onTitle, onClose, registerCloseGuar
         autoCapitalize="off"
         autoCorrect="off"
         aria-label={`${name} - Notepad`}
+        readOnly={loading}
+        placeholder={loading ? "Loading..." : undefined}
         onChange={(e) => setText(e.target.value)}
       />
 

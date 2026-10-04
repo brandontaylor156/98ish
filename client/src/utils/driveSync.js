@@ -1,29 +1,44 @@
 import { useEffect, useState } from "react"
-import { fs, importDrive, itemsFromNodes, onFsChange, saveNow, uniqueName } from "./fs"
-import { MAX_ONLINE_BYTES, checkOnlineSnapshot, countDrive, formatBytes, mergeAchievements, onlineSnapshot, readAchievements, writeAchievements } from "./driveSnapshot"
+import { DIRECTORY_TYPE, fs, fsReady, onFsChange, peekContent, readDriveMeta, saveNow, uniqueName, writeDriveMeta } from "./fs"
+import { contentKey } from "./driveStore"
+import { mergeAchievements, readAchievements, writeAchievements } from "./driveSnapshot"
+import { DEFAULT_FOLDERS, NEVER_SYNC, baseOf, conflictName, decide, deviceName, inScope, planPush, scanLocal } from "./syncPlan"
 
-// Keeps the C: drive in sync with an online copy saved under your 98 Messenger account
-// (server/drive). While you're signed on and sync is turned on: changes go up 10 seconds
-// after you make them (and when you leave the page), and signing on brings down anything
-// newer. If the drive changed here AND online since the last sync, you choose which to keep.
+// File sync with your 98 Messenger account (server/drive/sync.js): the folders you pick
+// (My Documents, My Pictures and Desktop to start with) are kept the same on every device
+// you sign on from. Changes here go up a few seconds after you make them; changes made
+// elsewhere come down when you sign on, every minute while 98ish is open, and when you come
+// back to it. If a file changed in both places, both are kept: the other one gets the
+// file's name and this device's copy becomes "name (from iPhone)". Deletes go to the
+// Recycle Bin. The decisions are in syncPlan.js.
+//
+// Signing on gives this device a sync token of its own, so it keeps syncing after 98
+// Messenger signs it off because you signed on somewhere else. Signing off on purpose (or
+// turning sync off) forgets it.
 
-const PREFS_KEY = "98ish.drive.sync" // { enabled, accounts: { [key]: { revision, hash, achHash, savedAt } } }
-const PUSH_DELAY_MS = 10_000
-const BEACON_MAX = 60_000 // browsers send at most 64 KB as the page closes
+const PREFS_KEY = "98ish.drive.sync" // { enabled, folders, account: { key, screenName, device } }
+const PUSH_DELAY_MS = 4_000
+const POLL_MS = 60_000
+const ACH_EVERY_MS = 10 * 60_000
+const KEPT_SHOWN_MS = 10 * 60_000
+const BATCH = 100
 const SERVER = (import.meta.env?.VITE_SOCKET_URL || "http://localhost:8000").replace(/\/$/, "")
-const API = `${SERVER}/api/drive`
+const API = `${SERVER}/api/drive/sync`
+const DEVICE = typeof navigator !== "undefined" ? deviceName(navigator.userAgent) : "another computer"
 
 // ---------- remembered between visits ----------
 
 const loadPrefs = () => {
   try {
     const saved = JSON.parse(localStorage.getItem(PREFS_KEY))
-    return { enabled: !!saved?.enabled, accounts: saved?.accounts && typeof saved.accounts === "object" ? saved.accounts : {} }
+    const folders = Array.isArray(saved?.folders) ? saved.folders.filter((f) => typeof f === "string" && !NEVER_SYNC.includes(f)) : DEFAULT_FOLDERS
+    const account = saved?.account?.key ? { key: saved.account.key, screenName: saved.account.screenName || saved.account.key, device: saved.account.device || null } : null
+    return { enabled: !!saved?.enabled, folders, account }
   } catch {
-    return { enabled: false, accounts: {} }
+    return { enabled: false, folders: DEFAULT_FOLDERS, account: null }
   }
 }
-let prefs = loadPrefs()
+let prefs = typeof localStorage !== "undefined" ? loadPrefs() : { enabled: false, folders: DEFAULT_FOLDERS, account: null }
 const savePrefs = () => {
   try {
     localStorage.setItem(PREFS_KEY, JSON.stringify(prefs))
@@ -31,16 +46,20 @@ const savePrefs = () => {
     // storage full: sync still works this visit
   }
 }
-const recordFor = (key) => prefs.accounts[key] || null
-const remember = (key, record) => {
-  prefs = { ...prefs, accounts: { ...prefs.accounts, [key]: record } }
-  savePrefs()
+
+// this device's bookkeeping for an account: { seq, base: { [path]: base }, achAt }
+const stateKey = (key) => `sync:${key}`
+const loadState = async (key) => {
+  const saved = await readDriveMeta(stateKey(key))
+  return { seq: Number(saved?.seq) || 0, base: saved?.base && typeof saved.base === "object" ? saved.base : {}, achAt: Number(saved?.achAt) || 0 }
 }
+const storeState = (key, st) => writeDriveMeta(stateKey(key), { seq: st.seq, base: st.base, achAt: st.achAt })
 
 // ---------- state everyone can watch ----------
 
-let account = null // { key, screenName, token }
-let state = { phase: prefs.enabled ? "signedOut" : "off", text: "", info: null, conflict: null, busy: false }
+let session = null // { key, screenName, token } while signed on to 98 Messenger
+const initialPhase = () => (!prefs.enabled ? "off" : prefs.account?.device ? "idle" : "signedOut")
+let state = { phase: initialPhase(), text: "", lastSync: null, usage: null, quota: null, files: null, kept: 0, progress: null, busy: false, screenName: prefs.account?.screenName || null }
 const listeners = new Set()
 const set = (patch) => {
   state = { ...state, ...patch }
@@ -62,9 +81,18 @@ export const useDriveSync = () => {
 }
 
 export const isSyncEnabled = () => prefs.enabled
-export const syncAccount = () => account
+export const getSyncFolders = () => [...prefs.folders]
+export const syncAccount = () => (session ? { key: session.key, screenName: session.screenName } : prefs.account ? { key: prefs.account.key, screenName: prefs.account.screenName } : null)
 
-const time = (iso) => (iso ? new Date(iso).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : "")
+// top-level folders on C: that can sync
+export const syncableFolders = () => {
+  const drive = fs.resolve("C:")
+  const names = drive?.isDirectory ? drive.content.filter((item) => item.isDirectory && !NEVER_SYNC.includes(item.name) && item.type !== DIRECTORY_TYPE.programs).map((item) => item.name) : []
+  for (const name of prefs.folders) if (!names.includes(name)) names.push(name)
+  return names
+}
+
+const time = (ms) => (ms ? new Date(ms).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : "")
 
 // A short line for status bars
 export const statusText = (s = state) => {
@@ -74,268 +102,445 @@ export const statusText = (s = state) => {
     case "signedOut":
       return "Sign on to 98 Messenger to sync your files."
     case "syncing":
-      return "Syncing your files..."
+      return s.progress?.total ? `Syncing ${s.progress.done} of ${s.progress.total}...` : "Syncing your files..."
     case "pending":
       return "Changes will sync in a few seconds."
-    case "synced":
-      return `Synced${s.info?.savedAt ? ` at ${time(s.info.savedAt)}` : ""}.`
-    case "conflict":
-      return "Your files changed here and online. Choose which to keep."
+    case "offline":
+      return "Offline. Your changes will sync when you're connected."
+    case "idle":
+      return `${s.kept ? `Kept both copies of ${s.kept} file${s.kept === 1 ? "" : "s"} changed on two devices. ` : ""}${s.lastSync ? `Synced at ${time(s.lastSync)}.` : "Ready to sync."}`
     default:
       return s.text || "Sync isn't working right now."
   }
 }
 
-// ---------- fingerprints (did anything change since the last sync?) ----------
-
-// cyrb53: a quick 53-bit hash of a string
-export const hashText = (text) => {
-  let h1 = 0xdeadbeef
-  let h2 = 0x41c6ce57
-  for (let i = 0; i < text.length; i++) {
-    const ch = text.charCodeAt(i)
-    h1 = Math.imul(h1 ^ ch, 2654435761)
-    h2 = Math.imul(h2 ^ ch, 1597334677)
-  }
-  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909)
-  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909)
-  return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(36)
-}
-const fingerprint = (snapshot) => ({ hash: hashText(JSON.stringify(snapshot.drive)), achHash: hashText(JSON.stringify(snapshot.achievements)) })
-
 // ---------- talking to the server ----------
 
-const request = async (method, path = "", body, { keepalive = false } = {}) => {
-  const response = await fetch(API + path, {
-    method,
-    keepalive,
-    headers: { Authorization: `Bearer ${account?.token}`, ...(body ? { "Content-Type": "application/json" } : {}) },
-    body: body ? JSON.stringify(body) : undefined,
-  })
+class SyncError extends Error {
+  constructor(message, { status = 0, offline = false, full = false } = {}) {
+    super(message)
+    Object.assign(this, { status, offline, full })
+  }
+}
+
+const authToken = () => session?.token || prefs.account?.device || null
+
+const request = async (method, path, { json, text, raw = false, keepalive = false } = {}) => {
+  let response
+  try {
+    response = await fetch(API + path, {
+      method,
+      keepalive,
+      headers: {
+        Authorization: `Bearer ${authToken()}`,
+        ...(json ? { "Content-Type": "application/json" } : text !== undefined ? { "Content-Type": "text/plain;charset=utf-8" } : {}),
+      },
+      body: json ? JSON.stringify(json) : text,
+    })
+  } catch {
+    throw new SyncError("The sync server isn't answering.", { offline: true })
+  }
+  if (raw && response.ok) return response.text()
   let data = {}
   try {
     data = await response.json()
   } catch {
-    // not JSON (a proxy error page)
+    // not JSON (a proxy page while the server wakes up)
   }
-  return { status: response.status, ...data }
+  if (!response.ok || data.ok === false) {
+    if (response.status >= 500 || response.status === 0 || response.status === 502 || response.status === 503) throw new SyncError("The sync server is waking up. Sync will try again.", { status: response.status, offline: true })
+    throw new SyncError(data.error || `Sync failed (${response.status}).`, { status: response.status, full: !!data.full })
+  }
+  return data
 }
 
-// A failed request -> what the status line says
-const failure = (result) => {
-  if (result.status === 401) {
-    account = null // the session is over: stop trying until the next sign on
-    return { phase: "error", text: "Your 98 Messenger session ended. Sign on again to sync." }
-  }
-  if (result.status === 413) return { phase: "error", text: result.error || `Your files are too big for the online copy (${formatBytes(MAX_ONLINE_BYTES)} at most).` }
-  return { phase: "error", text: result.error || "The online drive isn't answering. Your files are safe here; sync will try again." }
+// tell the server to forget a device sync token (signing off, sync turned off)
+const forgetDevice = (token) => {
+  if (token) fetch(`${API}/device`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } }).catch(() => {})
 }
 
-// ---------- syncing ----------
+// ---------- applying what changed elsewhere ----------
 
-let pushTimer = null
-let running = null // the sync in progress (one at a time)
+let applying = 0 // >0 while sync writes to the drive (those changes aren't ours to send)
 
-const counts = (drive) => countDrive(drive)
-
-const applyOnline = (snapshot) => {
-  if (!importDrive(snapshot.drive)) throw new Error("The online copy doesn't fit in this browser's storage.")
-  writeAchievements(mergeAchievements(readAchievements(), snapshot.achievements))
+const itemAt = (path) => {
+  let node = fs.root
+  for (const part of path.split("/")) {
+    if (!node?.isDirectory) return null
+    node = node.getItem(part)
+  }
+  return node || null
 }
 
-// Send this computer's drive up, based on `base` (the revision we last saw)
-const push = async (base) => {
-  const key = account.key
-  const snapshot = onlineSnapshot()
-  const size = new Blob([JSON.stringify(snapshot)]).size
-  if (size > MAX_ONLINE_BYTES) {
-    return set({ phase: "error", text: `Your files take ${formatBytes(size)}, but an online copy can hold ${formatBytes(MAX_ONLINE_BYTES)}. Delete some pictures or sounds to sync again.` })
+const describeItem = (item) =>
+  item ? (item.isDirectory ? { kind: "d", type: item.type, hash: null, item } : { kind: "f", type: item.type, hash: item.contentHash, size: item.size, item }) : null
+
+// the folder a path goes in, made if missing (a file in the way is renamed)
+const folderFor = (path) => {
+  const parts = path.split("/").slice(0, -1)
+  let dir = fs.root
+  for (const part of parts) {
+    let next = dir.getItem(part)
+    if (next && !next.isDirectory) {
+      next.name = conflictName(next.name, DEVICE, (n) => dir.hasItem(n))
+      next = null
+    }
+    if (!next) next = fs.createDirectoryIn(dir, part, part === "C:" ? DIRECTORY_TYPE.drive : DIRECTORY_TYPE.folder)
+    dir = next
   }
-  const result = await request("PUT", "", { baseRevision: base, snapshot })
-  if (result.status === 409) return reconcile() // another device saved first
-  if (!result.ok) return set(failure(result))
-  remember(key, { revision: result.revision, savedAt: result.savedAt, ...fingerprint(snapshot) })
-  set({ phase: "synced", info: { revision: result.revision, savedAt: result.savedAt, size: result.size }, text: "" })
+  return dir
 }
 
-// Compare this computer, the online copy and the last sync, then do the right thing
-const reconcile = async () => {
-  const key = account.key
-  const record = recordFor(key)
-  const local = onlineSnapshot()
-  const mine = fingerprint(local)
-  const online = await request("GET")
-  if (account?.key !== key) return
-  if (!online.ok) return set(failure(online))
-  const info = { revision: online.revision, savedAt: online.savedAt, size: online.size }
-  set({ info })
+// a file's contents: from this drive if any file here has them, else downloaded
+const contentsFor = async (hash) => {
+  const twin = fs.findItem((item) => !item.isDirectory && item.contentHash === hash)
+  if (twin) return { twin }
+  const text = await request("GET", `/blob/${encodeURIComponent(hash)}`, { raw: true })
+  if (contentKey(text) !== hash) throw new SyncError("A file came down damaged. Sync will try again.")
+  return { text }
+}
 
-  if (!online.revision) return push(0) // nothing online yet
-  if (record && online.revision === record.revision) {
-    if (mine.hash !== record.hash || mine.achHash !== record.achHash) return push(record.revision)
-    return set({ phase: "synced", text: "" })
-  }
-
-  // the online copy has changes this computer hasn't seen
-  const checked = checkOnlineSnapshot(online.snapshot)
-  if (!checked.ok) return set({ phase: "error", text: checked.error })
-  const theirs = fingerprint(checked.snapshot)
-  const merged = mergeAchievements(local.achievements, checked.snapshot.achievements)
-  if (theirs.hash === mine.hash || (record && mine.hash === record.hash)) {
-    // same files, or only the online copy changed: take it
-    if (theirs.hash !== mine.hash) applyOnline(checked.snapshot)
-    else writeAchievements(merged)
-    remember(key, { revision: online.revision, savedAt: online.savedAt, hash: fingerprint(onlineSnapshot()).hash, achHash: theirs.achHash })
-    set({ phase: "synced", text: "" })
-    // achievements found here that the online copy doesn't have yet
-    if (hashText(JSON.stringify(merged)) !== theirs.achHash) return push(online.revision)
+// put an entry from the server on the drive (the decision is already "take" or "keepBoth")
+const writeEntry = async (entry) => {
+  const name = entry.path.split("/").pop()
+  let existing = itemAt(entry.path)
+  if (entry.kind === "d") {
+    if (existing?.isDirectory) return
+    if (existing) fs.deleteItem(existing)
+    fs.createDirectoryIn(folderFor(entry.path), name, entry.type)
     return
   }
-  set({
-    phase: "conflict",
-    conflict: {
-      snapshot: checked.snapshot,
-      revision: online.revision,
-      savedAt: online.savedAt,
-      size: online.size,
-      local: counts(local.drive),
-      online: counts(checked.snapshot.drive),
-      firstTime: !record,
-      deferred: false,
-    },
-  })
+  const source = await contentsFor(entry.hash)
+  existing = itemAt(entry.path) // may have changed while downloading
+  if (existing && (existing.isDirectory || existing.type !== entry.type)) {
+    fs.deleteItem(existing)
+    existing = null
+  }
+  const file = existing || fs.createFileIn(folderFor(entry.path), name, entry.type, "")
+  if (source.twin) file.copyContentFrom(source.twin)
+  else file.textContent = source.text
+  if (entry.mtime) file.mtime = entry.mtime
 }
 
-// Sync right now (signing on, the Sync Now button). Resolves when done.
-export const syncNow = () => {
-  if (!prefs.enabled || !account) return Promise.resolve()
-  if (state.phase === "conflict" && state.conflict) return Promise.resolve(set({ conflict: { ...state.conflict, deferred: false } }))
-  if (running) return running
-  clearTimeout(pushTimer)
-  set({ phase: "syncing", busy: true })
-  running = reconcile()
-    .catch((error) => set({ phase: "error", text: error.message || "Sync didn't work. It will try again." }))
-    .finally(() => {
-      running = null
-      set({ busy: false })
+// One entry from the server. -> 1 if both copies were kept, else 0
+const applyEntry = async (entry, st) => {
+  const local = describeItem(itemAt(entry.path))
+  const choice = decide(entry, local, st.base[entry.path])
+  let kept = 0
+  if (choice === "take") {
+    if (entry.deleted) {
+      // a folder goes only once it's empty (anything new in it stays, and is sent again)
+      if (!(local.item.isDirectory && local.item.content.length)) fs.deleteItem(local.item)
+    } else await writeEntry(entry)
+  } else if (choice === "keepBoth") {
+    const item = local.item
+    item.name = conflictName(item.name, DEVICE, (n) => item.parent.hasItem(n))
+    kept = 1
+    await writeEntry(entry)
+  }
+  st.base[entry.path] = baseOf(entry)
+  return kept
+}
+
+// ---------- one sync ----------
+
+let running = null
+let again = false
+let pushTimer = null
+let retryTimer = null
+let failures = 0
+
+const pull = async (st) => {
+  let kept = 0
+  for (let page = 0; page < 200; page++) {
+    const result = await request("GET", `/changes?since=${st.seq}`)
+    const wanted = result.entries.filter((e) => inScope(e.path, prefs.folders))
+    set({ usage: result.usage, quota: result.quota })
+    if (wanted.length) {
+      applying++
+      try {
+        for (let i = 0; i < wanted.length; i++) {
+          set({ progress: { done: i + 1, total: wanted.length } })
+          try {
+            kept += await applyEntry(wanted[i], st)
+          } catch (error) {
+            if (error instanceof SyncError) throw error
+            // one odd entry (a name clash, a folder that can't go) doesn't stop the rest
+            console.warn("[sync] couldn't apply", wanted[i].path, error)
+          }
+        }
+      } finally {
+        applying--
+      }
+      if (!(await saveNow({ quiet: true }))) throw new SyncError("Drive C: is full, so files from your other devices can't be saved here. Delete some files and sync again.", { full: true })
+    }
+    st.seq = result.seq
+    await storeState(session?.key || prefs.account.key, st)
+    if (!result.more) break
+  }
+  return kept
+}
+
+const push = async (st, maxFile) => {
+  const byPath = scanLocal(fs.resolve("C:"), prefs.folders)
+  const changes = planPush(byPath, st.base, prefs.folders)
+  if (!changes.length) return { conflicts: 0, skipped: 0 }
+  let skipped = 0
+  // contents the server doesn't have yet
+  const files = changes.filter((c) => c.kind === "f" && !c.deleted)
+  const tooBig = new Set(files.filter((c) => maxFile && (byPath.get(c.path)?.item.textLength || 0) > maxFile).map((c) => c.path))
+  skipped += tooBig.size
+  const hashes = [...new Set(files.filter((c) => !tooBig.has(c.path)).map((c) => c.hash))]
+  const missing = new Set()
+  for (let i = 0; i < hashes.length; i += 500) for (const h of (await request("POST", "/have", { json: { hashes: hashes.slice(i, i + 500) } })).missing) missing.add(h)
+  const uploaded = new Set()
+  const failed = new Set()
+  let done = 0
+  const toSend = files.filter((c) => missing.has(c.hash) && !tooBig.has(c.path))
+  for (const change of toSend) {
+    set({ progress: { done: ++done, total: toSend.length } })
+    if (uploaded.has(change.hash) || failed.has(change.hash)) continue
+    const item = byPath.get(change.path)?.item
+    const text = item ? await peekContent(item) : null
+    // changed again since the scan: it goes next time
+    if (text === null || contentKey(text) !== change.hash) {
+      failed.add(change.hash)
+      continue
+    }
+    const result = await request("PUT", `/blob/${encodeURIComponent(change.hash)}`, { text })
+    set({ usage: result.usage, quota: result.quota })
+    uploaded.add(change.hash)
+  }
+  const ready = changes.filter((c) => !tooBig.has(c.path) && !(c.hash && failed.has(c.hash)))
+  let conflicts = 0
+  for (let i = 0; i < ready.length; i += BATCH) {
+    const batch = ready.slice(i, i + BATCH)
+    const result = await request("POST", "/push", { json: { device: DEVICE, changes: batch.map(({ path, kind, type, hash, size, mtime, deleted, baseRev }) => ({ path, kind, type, hash, size, mtime, deleted, baseRev })) } })
+    set({ usage: result.usage, quota: result.quota })
+    for (const r of result.results) {
+      const sent = batch.find((c) => c.path === r.path)
+      if (r.ok) {
+        if (sent.deleted && !r.rev) delete st.base[r.path]
+        else st.base[r.path] = baseOf({ ...sent, rev: r.rev })
+      } else if (r.conflict) conflicts++
+      else skipped++
+    }
+    await storeState(session?.key || prefs.account.key, st)
+  }
+  return { conflicts, skipped }
+}
+
+const syncAchievements = async (st) => {
+  if (Date.now() - st.achAt < ACH_EVERY_MS) return
+  const mine = readAchievements()
+  const theirs = (await request("GET", "/achievements")).achievements
+  const merged = mergeAchievements(mine, theirs)
+  if (JSON.stringify(merged) !== JSON.stringify(mine)) writeAchievements(merged)
+  if (JSON.stringify(merged) !== JSON.stringify(mergeAchievements({}, theirs))) await request("PUT", "/achievements", { json: { achievements: merged } })
+  st.achAt = Date.now()
+}
+
+// a sync token for this device, made while signed on (kept for when the session ends)
+const ensureDevice = async () => {
+  if (!session || (prefs.account?.key === session.key && prefs.account.device)) return
+  const result = await request("POST", "/device", { json: { name: DEVICE } })
+  prefs = { ...prefs, account: { key: session.key, screenName: session.screenName, device: result.token } }
+  savePrefs()
+}
+
+const canSync = () => prefs.enabled && !!authToken() && !!(session || prefs.account)
+
+const runCycle = async () => {
+  await fsReady
+  const key = session?.key || prefs.account.key
+  set({ phase: "syncing", busy: true, progress: null, text: "" })
+  try {
+    await ensureDevice()
+    const st = await loadState(key)
+    const info = await request("GET", "/state")
+    set({ usage: info.usage, quota: info.quota, files: info.files })
+    let kept = 0
+    let skipped = 0
+    for (let round = 0; round < 3; round++) {
+      kept += await pull(st)
+      const pushed = await push(st, info.maxFile)
+      skipped = pushed.skipped
+      if (!pushed.conflicts) break
+    }
+    await syncAchievements(st)
+    await storeState(key, st)
+    failures = 0
+    const after = await request("GET", "/state")
+    // "kept both copies" stays in the status for a while (later syncs don't hide it)
+    const recent = state.kept && Date.now() - (state.keptAt || 0) < KEPT_SHOWN_MS
+    set({
+      phase: "idle",
+      lastSync: Date.now(),
+      kept: kept || (recent ? state.kept : 0),
+      keptAt: kept ? Date.now() : state.keptAt,
+      usage: after.usage,
+      quota: after.quota,
+      files: after.files,
+      text: skipped ? `${skipped} file${skipped === 1 ? " is" : "s are"} too big to sync.` : "",
     })
+  } catch (error) {
+    failures++
+    if (error.status === 401) {
+      // the device token was forgotten (or ran out): sign on again to sync
+      if (!session) {
+        prefs = { ...prefs, account: prefs.account ? { ...prefs.account, device: null } : null }
+        savePrefs()
+        set({ phase: "signedOut", text: "" })
+        return
+      }
+    }
+    set({ phase: error.offline ? "offline" : "error", text: error.message || "Sync isn't working right now." })
+    // try again later (sooner while offline), backing off
+    clearTimeout(retryTimer)
+    retryTimer = setTimeout(() => syncNow(), Math.min(10 * 60_000, (error.offline ? 15_000 : 30_000) * 2 ** Math.min(5, failures - 1)))
+  } finally {
+    set({ busy: false, progress: null })
+  }
+}
+
+// Sync right now (signing on, Sync Now, a change made a few seconds ago). Resolves when done.
+export const syncNow = () => {
+  clearTimeout(pushTimer)
+  if (!canSync()) return Promise.resolve()
+  if (running) {
+    again = true
+    return running
+  }
+  running = runCycle().finally(() => {
+    running = null
+    if (again) {
+      again = false
+      syncNow()
+    }
+  })
   return running
 }
 
-// The answer to "which copy do you want to keep?": "local" | "online" | "both" | "later"
-export const resolveConflict = async (choice) => {
-  const conflict = state.conflict
-  if (!conflict || !account) return
-  if (choice === "later") return set({ conflict: { ...conflict, deferred: true } })
-  set({ phase: "syncing", busy: true, conflict: null })
-  try {
-    if (choice === "online") {
-      applyOnline(conflict.snapshot)
-      const fp = fingerprint(onlineSnapshot())
-      remember(account.key, { revision: conflict.revision, savedAt: conflict.savedAt, hash: fp.hash, achHash: hashText(JSON.stringify(conflict.snapshot.achievements)) })
-      set({ phase: "synced", text: "" })
-      // achievements from this computer go up too
-      if (fp.achHash !== hashText(JSON.stringify(conflict.snapshot.achievements))) await push(conflict.revision)
-      return
-    }
-    if (choice === "both") {
-      // the online drive goes in C:\Online Copy, next to this computer's files
-      const drive = fs.resolve("C:")
-      const onlineC = conflict.snapshot.drive.root.find((node) => node.k === "d" && node.n === "C:")
-      const folder = fs.createDirectoryIn(drive, uniqueName(drive, "Online Copy"))
-      for (const item of itemsFromNodes(onlineC.c || [])) folder.insertItem(item)
-      if (!saveNow()) {
-        drive.removeItem(folder.name)
-        saveNow()
-        throw new Error("The online copy doesn't fit next to your files. Delete some pictures or sounds, or choose one copy.")
-      }
-      writeAchievements(mergeAchievements(readAchievements(), conflict.snapshot.achievements))
-    }
-    await push(conflict.revision) // "local" and "both": this computer's drive becomes the online copy
-  } catch (error) {
-    set({ phase: "error", text: error.message })
-  } finally {
-    set({ busy: false })
-  }
-}
+// ---------- settings ----------
 
 export const setSyncEnabled = (enabled) => {
   prefs = { ...prefs, enabled: !!enabled }
+  if (!enabled) {
+    // forget this device's sync token too (signing on again makes a new one)
+    forgetDevice(prefs.account?.device)
+    prefs = { ...prefs, account: prefs.account ? { ...prefs.account, device: null } : null }
+  }
   savePrefs()
   clearTimeout(pushTimer)
-  if (!enabled) return set({ phase: "off", text: "", conflict: null })
-  set({ phase: account ? "syncing" : "signedOut", text: "" })
+  clearTimeout(retryTimer)
+  if (!enabled) return set({ phase: "off", text: "", progress: null })
+  set({ phase: canSync() ? "syncing" : "signedOut", text: "" })
   return syncNow()
 }
 
-// Who's signed on to 98 Messenger (null when nobody): DriveSync calls this
-export const setSyncAccount = (next) => {
-  const same = next && account && next.key === account.key && next.token === account.token
-  if (same || (!next && !account)) return
-  account = next ? { key: next.key, screenName: next.screenName, token: next.token } : null
-  clearTimeout(pushTimer)
-  if (!account) return set({ phase: prefs.enabled ? "signedOut" : "off", conflict: null, info: null, text: "" })
-  if (prefs.enabled) syncNow()
-}
-
-// Online copy details (any time you're signed on, even with sync off)
-export const fetchOnlineInfo = async () => {
-  if (!account) return null
-  const result = await request("GET", "/info")
-  return result.ok ? { revision: result.revision, savedAt: result.savedAt, size: result.size } : { error: failure(result).text }
-}
-
-export const deleteOnlineCopy = async () => {
-  if (!account) return { ok: false, error: "Sign on to 98 Messenger first." }
-  const result = await request("DELETE")
-  if (!result.ok) return { ok: false, error: failure(result).text }
-  const accounts = { ...prefs.accounts }
-  delete accounts[account.key]
-  prefs = { ...prefs, enabled: false, accounts }
+export const setSyncFolders = async (folders) => {
+  const next = [...new Set(folders.filter((f) => typeof f === "string" && !NEVER_SYNC.includes(f)))]
+  const added = next.some((f) => !prefs.folders.includes(f))
+  prefs = { ...prefs, folders: next }
   savePrefs()
-  set({ phase: "off", info: { revision: 0, savedAt: null, size: 0 }, conflict: null, text: "" })
+  const key = session?.key || prefs.account?.key
+  if (key) {
+    const st = await loadState(key)
+    // forget folders no longer synced; a new one is read from the start
+    for (const path of Object.keys(st.base)) if (!inScope(path, next)) delete st.base[path]
+    if (added) st.seq = 0
+    await storeState(key, st)
+  }
+  return syncNow()
+}
+
+// ---------- who's signed on ----------
+
+// From DriveSync (98 Messenger's status): the session while signed on; null when signed
+// off. `kicked`: signed off because the account signed on somewhere else (sync carries on
+// with this device's token); otherwise it was on purpose, and this device stops syncing.
+export const setSyncSession = (next, { kicked = false } = {}) => {
+  const same = next && session && next.key === session.key && next.token === session.token
+  if (same || (!next && !session && kicked)) return
+  if (next) {
+    if (prefs.account && prefs.account.key !== next.key) {
+      // a different account on this device: the old one's token goes
+      forgetDevice(prefs.account.device)
+      prefs = { ...prefs, account: null }
+      savePrefs()
+    }
+    session = { key: next.key, screenName: next.screenName, token: next.token }
+    set({ screenName: next.screenName })
+    if (prefs.enabled) syncNow()
+    else set({ phase: "off" })
+    return
+  }
+  const was = session
+  session = null
+  if (!kicked && was) {
+    forgetDevice(prefs.account?.device)
+    prefs = { ...prefs, account: null }
+    savePrefs()
+    clearTimeout(pushTimer)
+    clearTimeout(retryTimer)
+    set({ phase: prefs.enabled ? "signedOut" : "off", text: "", usage: null, quota: null, files: null, screenName: null })
+  }
+}
+
+// Online usage (any time sync can sign in)
+export const fetchSyncInfo = async () => {
+  if (!authToken()) return null
+  try {
+    const info = await request("GET", "/state")
+    set({ usage: info.usage, quota: info.quota, files: info.files })
+    return info
+  } catch (error) {
+    return { error: error.message }
+  }
+}
+
+// Delete everything synced online (files here stay) and turn sync off
+export const deleteOnlineFiles = async () => {
+  if (!authToken()) return { ok: false, error: "Sign on to 98 Messenger first." }
+  const key = session?.key || prefs.account?.key
+  try {
+    await request("DELETE", "")
+  } catch (error) {
+    return { ok: false, error: error.message }
+  }
+  if (key) await writeDriveMeta(stateKey(key), null)
+  setSyncEnabled(false)
+  set({ usage: 0, files: 0 })
   return { ok: true }
 }
 
 // ---------- watching for changes ----------
 
-const changedSinceSync = () => {
-  const record = account && recordFor(account.key)
-  if (!record) return true
-  const fp = fingerprint(onlineSnapshot())
-  return fp.hash !== record.hash || fp.achHash !== record.achHash
-}
-
 const pushSoon = () => {
-  if (!prefs.enabled || !account || state.phase === "conflict" || running) return
+  if (!canSync() || applying) return
   clearTimeout(pushTimer)
-  set({ phase: "pending" })
-  pushTimer = setTimeout(() => {
-    if (changedSinceSync()) syncNow()
-    else set({ phase: "synced" })
-  }, PUSH_DELAY_MS)
+  if (!running && state.phase !== "offline" && state.phase !== "error") set({ phase: "pending" })
+  pushTimer = setTimeout(syncNow, PUSH_DELAY_MS)
 }
 
 onFsChange(() => {
-  if (!running) pushSoon()
+  if (!applying) pushSoon()
 })
 
-const canSendNow = () => prefs.enabled && account && state.phase !== "conflict" && !running && recordFor(account.key)
-
 if (typeof window !== "undefined") {
-  // switching tabs or apps on a phone: send now, while the page can still finish a request
+  // a device token from an earlier visit keeps syncing without signing on
+  fsReady.then(() => {
+    if (canSync()) setTimeout(syncNow, 1500)
+  })
+  setInterval(() => {
+    if (document.visibilityState === "visible" && canSync() && !running) syncNow()
+  }, POLL_MS)
   document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "hidden" && canSendNow() && changedSinceSync()) syncNow()
+    // back to 98ish: see what changed elsewhere; leaving: send what's waiting
+    if (canSync() && (document.visibilityState === "visible" || pushTimer)) syncNow()
   })
-  // closing the page: a small drive can still go up on the way out
-  window.addEventListener("pagehide", () => {
-    if (!canSendNow() || !changedSinceSync()) return
-    const snapshot = onlineSnapshot()
-    const body = { baseRevision: recordFor(account.key).revision, snapshot }
-    if (JSON.stringify(body).length > BEACON_MAX) return // it goes up next time you sign on
-    request("PUT", "", body, { keepalive: true }).catch(() => {})
-  })
+  window.addEventListener("online", () => canSync() && syncNow())
 }
 
-// for the Backup app: how big is the drive as an online copy?
-export const onlineSize = () => new Blob([JSON.stringify(onlineSnapshot())]).size
+// dev-only handle for browser tests
+if (typeof window !== "undefined" && import.meta.env?.DEV) window.__sync = { state: () => state, syncNow, prefs: () => prefs, device: DEVICE }

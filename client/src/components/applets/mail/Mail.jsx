@@ -6,6 +6,7 @@ import { useAim } from "../aim/AimContext"
 import { launch } from "../../../utils/programs"
 import { openItem } from "../../../utils/openItem"
 import { formatSize } from "../../../utils/fileInfo"
+import { readContent } from "../../../utils/fs"
 import { ATTACHABLE, ATTACHMENTS_FOLDER, MAX_MESSAGE_BYTES, byteSize, mailApi, saveAttachment } from "./api"
 import { setMailStatus, useMailStatus } from "./mailStatus"
 import "./Mail.css"
@@ -440,9 +441,10 @@ const Mail = ({ dispatch, onTitle, mobile, handoff = null }) => {
     if (folder === "drafts") loadFolder("drafts")
   }
 
-  const attach = (file) => {
+  const attach = async (file) => {
     setDialog(null)
-    const attachment = { name: file.name, type: file.type, content: file.textContent, size: byteSize(file.textContent) }
+    const content = await readContent(file)
+    const attachment = { name: file.name, type: file.type, content, size: byteSize(content) }
     if (composeSize(compose) + attachment.size > MAX_MESSAGE_BYTES) {
       return setDialog({ kind: "error", text: `"${file.name}" is too big to attach. A message and its attachments can be at most ${formatSize(MAX_MESSAGE_BYTES)}.` })
     }
@@ -455,15 +457,17 @@ const Mail = ({ dispatch, onTitle, mobile, handoff = null }) => {
   useEffect(() => {
     const file = handoff?.attach
     if (!file) return
-    if (compose) return attach(file)
-    const attachment = { name: file.name, type: file.type, content: file.textContent, size: byteSize(file.textContent) }
-    if (attachment.size > MAX_MESSAGE_BYTES) return setDialog({ kind: "error", text: `"${file.name}" is too big to attach. A message and its attachments can be at most ${formatSize(MAX_MESSAGE_BYTES)}.` })
-    startCompose({ subject: file.name, attachments: [attachment] })
+    if (compose) return void attach(file)
+    readContent(file).then((content) => {
+      const attachment = { name: file.name, type: file.type, content, size: byteSize(content) }
+      if (attachment.size > MAX_MESSAGE_BYTES) return setDialog({ kind: "error", text: `"${file.name}" is too big to attach. A message and its attachments can be at most ${formatSize(MAX_MESSAGE_BYTES)}.` })
+      startCompose({ subject: file.name, attachments: [attachment] })
+    })
   }, [handoff?.id])
 
-  const onAttachment = (attachment, action) => {
+  const onAttachment = async (attachment, action) => {
     try {
-      const file = saveAttachment(attachment)
+      const file = await saveAttachment(attachment)
       if (action === "open") {
         if (!openItem(file, dispatch)) setDialog({ kind: "error", text: `Saved "${file.name}" in ${ATTACHMENTS_FOLDER}, but 98ish doesn't know how to open it.` })
       } else setDialog({ kind: "saved", text: `"${attachment.name}" was saved as "${file.name}" in ${ATTACHMENTS_FOLDER}.` })

@@ -81,6 +81,56 @@
   color: #800000;
 }
 
+/* the taskbar tray's sync icon */
+.syncTrayWrap {
+  display: inline-flex;
+}
+
+.syncSpin {
+  animation: syncSpin 1.6s linear infinite;
+}
+
+@keyframes syncSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.syncBalloon {
+  width: 230px;
+}
+
+.syncBalloonButtons {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.syncBalloonButtons button {
+  min-width: 0;
+  padding: 0 8px;
+}
+
+.bkFolders {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 14px;
+}
+
+/* online space used: a sunken bar like Win98's disk meters */
+.bkMeter {
+  height: 12px;
+  background: #fff;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+  padding: 2px;
+}
+
+.bkMeter span {
+  display: block;
+  height: 100%;
+  background: #000080;
+}
+
 
 .bkStatus {
   flex: none;

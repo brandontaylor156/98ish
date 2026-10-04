@@ -13,10 +13,19 @@ export const iconFor = (item) => {
 }
 
 export const typeName = (item) =>
-  item.type === "image" && /^data:image\/jpe?g/i.test(item.textContent || "")
+  item.type === "image" && /^data:image\/jpe?g/i.test(item.head || "")
     ? "JPEG Image"
     : item.isDirectory
     ? { drive: "Local Disk", documents: "File Folder", bookmarks: "File Folder", programs: "File Folder" }[item.type] || "File Folder"
     : { text: "Text Document", note: "Text Document", internet: "Internet Shortcut", shortcut: "Shortcut", image: "Bitmap Image", music: "MIDI Sequence", richtext: "Rich Text Document", sound: "Wave Sound" }[item.type] || "Application"
+
+// drive-sized numbers: "512 KB", "12.4 MB", "1.2 GB"
+export const formatBytes = (bytes) => {
+  const n = Math.max(0, Number(bytes) || 0)
+  if (n < 1024) return `${n} bytes`
+  if (n < 1024 * 1024) return `${Math.round(n / 1024)} KB`
+  if (n < 1024 ** 3) return `${(n / 1024 / 1024).toFixed(n < 100 * 1024 * 1024 ? 1 : 0)} MB`
+  return `${(n / 1024 ** 3).toFixed(1)} GB`
+}
 
 export const formatSize = (bytes) => (bytes < 1024 ? `${bytes} bytes` : `${(bytes / 1024).toFixed(bytes < 10240 ? 1 : 0)} KB`)

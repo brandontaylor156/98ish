@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react"
 import MenuBar from "../../shared/MenuBar"
 import Dialog from "../../shared/Dialog"
 import FileDialog from "../notepad/FileDialog"
-import { fs, writeAndSave } from "../../../utils/fs"
+import { fs, readContent, writeAndSave } from "../../../utils/fs"
 import { useFsVersion } from "../../../hooks/useFs"
 import { trackUnsaved } from "../../../utils/unsaved"
 import { closeAudioContext, createAudioContext, masterOutput } from "../../../utils/audio"
@@ -29,7 +29,7 @@ const newContext = () => createAudioContext()
 // a sound file's contents -> samples at 22,050 Hz (the browser decodes anything that
 // isn't a plain PCM .wav)
 const decodeFile = async (file, ctx) => {
-  const text = file.textContent
+  const text = await readContent(file)
   if (!text) return new Float32Array(0)
   const bytes = W.dataUrlToBytes(text)
   if (!bytes) throw new Error(`'${file.name}' is not a valid sound file.`)
@@ -368,15 +368,15 @@ const SoundRecorder = ({ file: initialFile = null, onTitle, onClose, registerClo
     next?.()
   }
 
-  const writeTo = (dir, fileName) => {
+  const writeTo = async (dir, fileName) => {
     const url = W.samplesToDataUrl(samples.current)
     try {
       let target = dir.getItem(fileName)
       let ok
-      if (target && isSound(target)) ok = writeAndSave(target, url)
+      if (target && isSound(target)) ok = await writeAndSave(target, url)
       else {
         target = fs.createFileIn(dir, fileName, "sound", "")
-        ok = writeAndSave(target, url, { created: true })
+        ok = await writeAndSave(target, url, { created: true })
       }
       if (!ok) {
         afterSave.current = null
@@ -390,10 +390,10 @@ const SoundRecorder = ({ file: initialFile = null, onTitle, onClose, registerClo
     }
   }
 
-  const save = () => {
+  const save = async () => {
     halt()
     if (onDrive(file) && isSound(file)) {
-      if (!writeAndSave(file, W.samplesToDataUrl(samples.current))) {
+      if (!(await writeAndSave(file, W.samplesToDataUrl(samples.current)))) {
         afterSave.current = null
         return tooBig()
       }

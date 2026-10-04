@@ -10,7 +10,10 @@ import { EFFECTS, applyEffect, effectLabel } from "./effects"
 import { FRAMES, drawFrame, frameLabel } from "./frames"
 import * as sounds from "./sounds"
 import { BURST_COUNT, MAX_CLIP_SECONDS, MODES, STRIP_COUNT, TIMERS, cameraProblem, clipExtension, clockText, isAppleMobile, nextTimer, pickClipType } from "./support"
-import { MAX_SIDE, fitScale, loadImage, nextPhotoName, picturesFolder, savePicture, stripLayout, toJpeg } from "../photos/library"
+import { fitScale, loadImage, nextPhotoName, photoLimits, picturesFolder, savePicture, stripLayout, toJpeg } from "../photos/library"
+import { useDriveUsage } from "../../../hooks/useFs"
+import { previewOf } from "../../../utils/fs"
+import { formatBytes } from "../../../utils/fileInfo"
 import { itemPayload, shareOut } from "../../../utils/share"
 import "./Camera.css"
 
@@ -93,7 +96,7 @@ const EffectsIcon = () => (
   </svg>
 )
 
-const Camera = ({ mobile, dispatch, onTitle }) => {
+const Camera = ({ mobile, dispatch, onTitle, paused = false }) => {
   useFsVersion()
   const [prefs, setPrefsState] = useState(loadPrefs)
   const setPrefs = (patch) =>
@@ -111,6 +114,7 @@ const Camera = ({ mobile, dispatch, onTitle }) => {
   const [flash, setFlash] = useState(0)
   const [badge, setBadge] = useState(null) // "Shot 2 of 4", "REC 0:04"
   const [last, setLast] = useState(null) // the last photo saved (a drive file)
+  const usage = useDriveUsage() // free space on drive C:, shown in the status bar
   const [status, setStatus] = useState("Starting the camera...")
   const [clip, setClip] = useState(null) // { url, blob, mime, seconds } after recording
   const [panel, setPanel] = useState(!mobile) // the effects and frames list
@@ -123,7 +127,7 @@ const Camera = ({ mobile, dispatch, onTitle }) => {
   const cancelRef = useRef({ cancelled: false })
   const fileRef = useRef(null)
   const live = useRef({})
-  live.current = { prefs, busy }
+  live.current = { prefs, busy, paused }
   const mirrored = () => live.current.prefs.facing === "user" && live.current.prefs.mirror
   const frameNo = useRef(0)
   const restarts = useRef(0)
@@ -154,17 +158,27 @@ const Camera = ({ mobile, dispatch, onTitle }) => {
     setCamera({ state: "starting", problem: null })
     setStatus("Starting the camera...")
     const start = async () => {
-      const video = { facingMode: { ideal: prefs.facing }, width: { ideal: 1280 }, height: { ideal: 960 } }
+      const video = { facingMode: { ideal: prefs.facing }, width: { ideal: 1920 }, height: { ideal: 1440 } }
       let stream
       try {
         stream = await navigator.mediaDevices.getUserMedia({ video, audio: false })
       } catch (error) {
         // a camera that can't do what was asked: take whatever it can do. One that's still
         // being let go of (another app, the last window) often works a moment later.
-        if (!["OverconstrainedError", "NotFoundError", "NotReadableError", "AbortError", "TrackStartError"].includes(error?.name)) throw error
-        if (error.name !== "OverconstrainedError") await sleep(800)
-        if (gone) return
-        stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+        const retry = (e) => ["OverconstrainedError", "NotFoundError", "NotReadableError", "AbortError", "TrackStartError"].includes(e?.name)
+        if (!retry(error)) throw error
+        // a few tries, a little longer apart each time
+        for (let tries = 0; ; tries++) {
+          if (error.name !== "OverconstrainedError") await sleep(800 * (tries + 1))
+          if (gone) return
+          try {
+            stream = await navigator.mediaDevices.getUserMedia({ video: tries ? true : { facingMode: { ideal: prefs.facing } }, audio: false })
+            break
+          } catch (again) {
+            if (!retry(again) || tries >= 2) throw again
+            error = again
+          }
+        }
       }
       if (gone) {
         stream.getTracks().forEach((t) => t.stop())
@@ -248,6 +262,8 @@ const Camera = ({ mobile, dispatch, onTitle }) => {
       const video = videoRef.current
       const canvas = canvasRef.current
       if (!video || !canvas || video.readyState < 2 || video.videoWidth < 16 || video.videoHeight < 16) return
+      // hidden behind another window (a phone shows one at a time) or minimized: no work
+      if (live.current.paused && seen) return
       if (!seen) {
         seen = true
         setShowing(true)
@@ -286,7 +302,7 @@ const Camera = ({ mobile, dispatch, onTitle }) => {
     const sw = source.videoWidth || source.naturalWidth || source.width
     const sh = source.videoHeight || source.naturalHeight || source.height
     if (!w) {
-      const s = fitScale(sw, sh, MAX_SIDE)
+      const s = fitScale(sw, sh, photoLimits().maxSide)
       w = Math.max(1, Math.round(sw * s))
       h = Math.max(1, Math.round(sh * s))
     }
@@ -311,10 +327,10 @@ const Camera = ({ mobile, dispatch, onTitle }) => {
     return render(videoRef.current, { mirror: mirrored() })
   }
 
-  const save = (canvas, prefix = "PHOTO") => {
+  const save = async (canvas, prefix = "PHOTO") => {
     const dir = picturesFolder()
     const { data } = toJpeg(canvas)
-    const result = savePicture(
+    const result = await savePicture(
       dir,
       nextPhotoName(
         dir.content.map((i) => i.name),
@@ -356,7 +372,7 @@ const Camera = ({ mobile, dispatch, onTitle }) => {
     try {
       if (prefs.timer && !(await countdown(prefs.timer))) return
       setBusy("saving")
-      const file = save(snap())
+      const file = await save(snap())
       if (file) setStatus(`Saved ${file.name} in C:\\My Pictures`)
     } finally {
       setCount(null)
@@ -380,7 +396,7 @@ const Camera = ({ mobile, dispatch, onTitle }) => {
       setBadge("Saving...")
       await sleep(20)
       let saved = 0
-      for (const shot of shots) if (save(shot, "BURST")) saved++
+      for (const shot of shots) if (await save(shot, "BURST")) saved++
       setStatus(`Saved ${saved} burst photo${saved === 1 ? "" : "s"} in C:\\My Pictures`)
     } finally {
       setBadge(null)
@@ -424,7 +440,7 @@ const Camera = ({ mobile, dispatch, onTitle }) => {
       ctx.fillStyle = "#e0457b"
       ctx.font = `${Math.round(layout.caption.h * 0.2)}px "Courier New", monospace`
       ctx.fillText(`♥ ${date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })} ♥`, layout.width / 2, layout.caption.y + layout.caption.h * 0.72)
-      const file = save(strip, "STRIP")
+      const file = await save(strip, "STRIP")
       if (file) unlock("photo-strip")
       if (file) setStatus(`Saved the photo strip ${file.name} in C:\\My Pictures`)
     } finally {
@@ -539,7 +555,7 @@ const Camera = ({ mobile, dispatch, onTitle }) => {
     const url = URL.createObjectURL(file)
     try {
       const img = await loadImage(url)
-      const saved = save(render(img))
+      const saved = await save(render(img))
       if (saved) setStatus(`Saved ${saved.name} in C:\\My Pictures`)
     } catch {
       setDialog({ title: "Camera", text: `${file.name} couldn't be opened as a picture.${/\.hei[cf]$/i.test(file.name) ? " It's a HEIC photo, which this browser can't read." : ""}` })
@@ -717,7 +733,7 @@ const Camera = ({ mobile, dispatch, onTitle }) => {
       </div>
       <div className="camControls">
         <button type="button" className="camThumb" onClick={() => openPhotos(last)} title={last ? `Open ${last.name} in Photos` : "Open My Pictures"} aria-label={last ? `Open ${last.name} in Photos` : "Open My Pictures"}>
-          {last?.textContent ? <img src={last.textContent} alt="" /> : <span className="camThumbEmpty" />}
+          {previewOf(last) ? <img src={previewOf(last)} alt="" /> : <span className="camThumbEmpty" />}
         </button>
         <button type="button" className="camSide" onClick={() => setPrefs({ timer: nextTimer(prefs.timer) })} disabled={!!busy || prefs.mode === "strip"} title="Self-timer" aria-label={`Timer: ${prefs.timer ? `${prefs.timer} seconds` : "off"}`}>
           <TimerIcon />
@@ -749,6 +765,11 @@ const Camera = ({ mobile, dispatch, onTitle }) => {
           {effectLabel(prefs.effect)}
           {prefs.frame !== "none" ? `, ${frameLabel(prefs.frame)}` : ""}
         </p>
+        {usage?.free != null && (
+          <p className="status-bar-field camStatusFree" title={`Drive C: ${formatBytes(usage.used)} used, ${formatBytes(usage.free)} free`}>
+            {formatBytes(usage.free)} free
+          </p>
+        )}
       </div>
       <input ref={fileRef} type="file" accept="image/*" capture={mobile ? (prefs.facing === "user" ? "user" : "environment") : undefined} hidden onChange={(e) => (fromDevice(e.target.files?.[0]), (e.target.value = ""))} />
       {dialog && (

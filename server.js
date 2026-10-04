@@ -3,14 +3,15 @@
 // couples (server/couples: pairing, love letters, Our Story, flowers), and shared
 // calendars (server/calendar), and Web Push notifications (server/push).
 // Env: PORT, MONGODB_URI (accounts, guestbook and online drives; kept in memory without it),
-// VAPID_PUBLIC_KEY + VAPID_PRIVATE_KEY + VAPID_SUBJECT (push notifications; off without them).
+// VAPID_PUBLIC_KEY + VAPID_PRIVATE_KEY + VAPID_SUBJECT (push notifications; off without them),
+// DRIVE_SYNC_QUOTA_MB and DRIVE_SYNC_MAX_FILE_MB (file sync, see server/drive/sync.js).
 
 const express = require("express")
 const cors = require("cors")
 const { attachAim } = require("./server/aim")
 const { attachNet } = require("./server/net")
 const { guestbookRouter } = require("./server/net/guestbook")
-const { driveRouter } = require("./server/drive")
+const { driveRouter, syncRouter, createDriveStore } = require("./server/drive")
 const { homepageRouter } = require("./server/net/homepages")
 const { mailRouter } = require("./server/mail")
 const { attachGameChat } = require("./server/gamechat")
@@ -27,7 +28,12 @@ const app = express()
 app.use(cors())
 app.get("/", (request, response) => response.send("98ish chat server is running"))
 let aim // 98 Messenger, once started: the online drive signs in with its sessions
-app.use("/api/drive", driveRouter({ aim: () => aim }))
+// File sync per account (before /api/drive, which would claim its paths); old whole-drive
+// online copies become synced files the first time an account syncs
+const legacyDrives = createDriveStore()
+legacyDrives.catch(() => {})
+app.use("/api/drive/sync", syncRouter({ aim: () => aim, legacy: legacyDrives }))
+app.use("/api/drive", driveRouter({ aim: () => aim, store: legacyDrives }))
 // Mail and homepages first: they read bigger bodies than the guestbook's parser allows
 const mail = mailRouter()
 const homepages = homepageRouter()

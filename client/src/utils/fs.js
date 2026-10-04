@@ -1,10 +1,13 @@
 // The 98ish file system: a tree of Directories and Files under a root that holds the C:
-// drive. It's saved to this device (localStorage) and every change is announced through
-// onFsChange so open windows (My Computer, Notepad, MS-DOS Prompt) stay in sync.
-// Deleting moves items to the Recycle Bin, which remembers where they came from.
+// drive. It's saved to this device (IndexedDB, see "saving to this device" below) and every
+// change is announced through onFsChange so open windows (My Computer, Notepad, MS-DOS
+// Prompt) stay in sync. Deleting moves items to the Recycle Bin, which remembers where they
+// came from. Everything here is synchronous except reading a big file that isn't loaded
+// yet (readContent) and saving (saveNow, writeAndSave).
 
 import { unlock } from "./achievements"
-import { userKey } from "./users"
+import { DEFAULT_ID, currentUserId, onUserRemoved } from "./users"
+import { DB_NAME, INLINE_MAX, OLD_KEY, byteSize, contentKey, migrateFromLocal, openDriveDb, readMarker, readOldDrive, retireOldDrive } from "./driveStore"
 
 const listeners = new Set()
 let notifyQueued = false
@@ -164,25 +167,76 @@ export class Item {
 
 export class File extends Item {
   #type = FILE_TYPE.text
-  #textContent = ""
   #source = null
+  // The contents. A small text lives in _text. A big one (a photo, a sound, a long
+  // document) that's been saved lives in IndexedDB under _key and is read when needed:
+  // _text is null then, textContent reads from the cache (or starts loading it and
+  // returns "" for the moment: use readContent(file) to wait for it).
+  _text = ""
+  _key = null
+  _hash = null // content key of _text, worked out when asked
+  _size = null // bytes (null: work it out from _text)
+  _thumb = null // a small JPEG data URL of a big picture
+  _head = "" // the first characters of a stored text (what kind of data URL it is)
+  mtime = Date.now() // last time the contents changed (ms)
 
   constructor(name = "", type = FILE_TYPE.text, textContent = "", source = null) {
     super(name || "Untitled")
     this.#type = FILE_TYPE[type] ? type : FILE_TYPE.text
-    this.#textContent = String(textContent ?? "")
+    this._text = String(textContent ?? "")
     this.#source = source
   }
 
   get textContent() {
-    return this.#textContent
+    if (this._text !== null) return this._text
+    return cachedContent(this._key)
   }
 
   set textContent(content) {
     const value = `${content ?? ""}`
-    if (value === this.#textContent) return
-    this.#textContent = value
+    if (this._text !== null ? value === this._text : contentKey(value) === this._key) return
+    this._text = value
+    this._key = null
+    this._hash = null
+    this._size = null
+    this._thumb = null
+    this.mtime = Date.now()
+    if (this.#type === FILE_TYPE.image) queueThumb(this)
     changed()
+  }
+
+  // true when textContent can be read right now
+  get loaded() {
+    return this._text !== null || hasCached(this._key)
+  }
+
+  // the content key: the same for files with the same text (sync compares these)
+  get contentHash() {
+    if (this._text === null) return this._key
+    if (this._hash === null) this._hash = contentKey(this._text)
+    return this._hash
+  }
+
+  // bytes on the drive (a picture counts its JPEG/PNG bytes, not the base64 text)
+  get size() {
+    if (this._size === null) this._size = byteSize(this._text ?? "")
+    return this._size
+  }
+
+  // characters in the text, loaded or not (the content key ends with it)
+  get textLength() {
+    if (this._text !== null) return this._text.length
+    return parseInt(String(this._key || "").split("-").pop(), 36) || 0
+  }
+
+  // a small preview of a big picture (null for small ones: use textContent)
+  get thumb() {
+    return this._thumb
+  }
+
+  // the start of the contents, loaded or not ("data:image/jpeg;base64,...")
+  get head() {
+    return this._text !== null ? this._text.slice(0, HEAD_CHARS) : this._head
   }
 
   get source() {
@@ -201,8 +255,30 @@ export class File extends Item {
     return this.#type === FILE_TYPE.image
   }
 
+  // take another file's contents without reading them (they share the stored copy)
+  copyContentFrom(other) {
+    if (other === this || other.isDirectory) return
+    this._text = other._text
+    this._key = other._key
+    this._hash = other._hash
+    this._size = other._size
+    this._thumb = other._thumb
+    this._head = other._head
+    this.mtime = Date.now()
+    changed()
+  }
+
+  // a copy shares the stored contents (nothing is read or written until one changes)
   get copy() {
-    return new File(`${this.name} copy`, this.#type, this.#textContent, this.#source)
+    const twin = new File(`${this.name} copy`, this.#type, "", this.#source)
+    twin._text = this._text
+    twin._key = this._key
+    twin._hash = this._hash
+    twin._size = this._size
+    twin._thumb = this._thumb
+    twin._head = this._head
+    twin.mtime = this.mtime
+    return twin
   }
 }
 
@@ -584,57 +660,377 @@ const addAt = (fsys, [path, kind, type, text = ""]) => {
 }
 
 // ---------- saving to this device ----------
+//
+// The drive is kept in IndexedDB (see driveStore.js for the layout and the move from the
+// old localStorage drive). The whole folder tree, with small files inline, is loaded before
+// 98ish starts (main.jsx waits for fsReady); big contents are read when something needs
+// them and kept in a cache. Every change is saved a moment later (40 ms) in one
+// transaction. Without IndexedDB (some private windows) the drive is kept the old way,
+// in localStorage (about 5 MB), and storageInfo() says why.
 
-// each user's own drive (utils/users.js: the default user keeps "98ish.fs.v1")
-const STORAGE_KEY = userKey("98ish.fs.v1")
+const DEFAULT_PATHS = DEFAULT_ITEMS.map((e) => e[0])
+const LOCAL_CAPACITY = 5 * 1024 * 1024 // what browsers let one site keep in localStorage
+const THUMB_SIDE = 192
+const HEAD_CHARS = 48
+const SAVE_DELAY_MS = 40
 
-const serialize = (item) =>
-  item.isDirectory
-    ? { k: "d", n: item.name, t: item.type, m: item.meta, c: item.content.map(serialize) }
-    : { k: "f", n: item.name, t: item.type, x: item.textContent, m: item.meta }
+const browser = typeof window !== "undefined"
+const isPhone = browser && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent || "")
+const CACHE_CHARS = (isPhone ? 48 : 160) * 1024 * 1024 // big contents kept in memory
 
-const deserialize = (node) => {
-  const item = node.k === "d" ? new Directory(node.n, node.t) : new File(node.n, node.t, node.x)
-  if (node.m && typeof node.m === "object") item.meta = node.m
-  if (node.k === "d") for (const child of node.c || []) item.insertItem(deserialize(child))
-  return item
+let mode = "memory" // idb | local (old localStorage drive) | unavailable (can't save) | memory
+let db = null
+let storedKeys = new Set() // content keys saved in IndexedDB
+const missingKeys = new Set()
+const info = { mode: "memory", ready: false, problem: null, problemText: "", migration: null, justMigrated: false, persisted: null, lastSaveOk: true }
+const statusListeners = new Set()
+const setInfo = (patch) => {
+  Object.assign(info, patch)
+  for (const fn of statusListeners) fn({ ...info })
 }
 
-const load = (fsys) => {
-  let saved = null
+// each user's own drive (utils/users.js): the first user keeps the "98ish-drive" database;
+// others get "98ish-drive-<id>". The old localStorage drive ("98ish.fs.v1") is already per
+// user through the localStorage wrapper (utils/userStorage.js).
+const driveDbName = (id = currentUserId()) => (!id || id === DEFAULT_ID ? DB_NAME : `${DB_NAME}-${id}`)
+onUserRemoved((id) => {
   try {
-    saved = JSON.parse(localStorage.getItem(STORAGE_KEY))
+    if (typeof indexedDB !== "undefined" && id && id !== DEFAULT_ID) indexedDB.deleteDatabase(driveDbName(id))
   } catch {
-    saved = null
+    // gone already
   }
-  quietly(() => {
-    if (saved && Array.isArray(saved.root)) {
-      try {
-        for (const node of saved.root) fsys.root.insertItem(deserialize(node))
-        for (const node of saved.bin || []) fsys.recycleBin.insertItem(deserialize(node))
-        // starting files added in later versions (deleted ones stay deleted)
-        const seen = new Set(saved.defaults || [])
-        for (const entry of DEFAULT_ITEMS) if (!seen.has(entry[0])) addAt(fsys, entry)
-        return
-      } catch {
-        for (const item of fsys.root.content) fsys.root.removeItem(item.name)
-        for (const item of fsys.recycleBin.content) fsys.recycleBin.removeItem(item.name)
-      }
-    }
-    for (const entry of DEFAULT_ITEMS) addAt(fsys, entry)
+})
+
+// { mode, ready, problem: null | "noidb" | "migrate" | "unavailable" | "full", problemText,
+//   migration: { at, files, folders, chars } | null, justMigrated, persisted, lastSaveOk }
+export const storageInfo = () => ({ ...info })
+export const onStorageStatus = (fn) => {
+  statusListeners.add(fn)
+  return () => statusListeners.delete(fn)
+}
+
+export const DISK_FULL = "Drive C: is full. Delete some files you no longer need (and empty the Recycle Bin), then try again."
+
+// ---- big contents, read on demand ----
+
+const contentListeners = new Set()
+let contentQueued = false
+// Something finished loading (or a thumbnail is ready): windows showing it repaint
+export const onFsContent = (fn) => {
+  contentListeners.add(fn)
+  return () => contentListeners.delete(fn)
+}
+const contentArrived = () => {
+  if (contentQueued) return
+  contentQueued = true
+  queueMicrotask(() => {
+    contentQueued = false
+    for (const fn of contentListeners) fn()
   })
 }
 
-// true if saved; false if the browser's storage is full or unavailable (then changes
-// last for this visit only)
-const save = (fsys) => {
+const cache = new Map() // key -> { text, at }, least recently used first
+let cacheChars = 0
+const loading = new Map() // key -> Promise<string>
+
+const hasCached = (key) => !!key && cache.has(key)
+
+const keep = (key, text) => {
+  const old = cache.get(key)
+  if (old) cacheChars -= old.text.length
+  cache.delete(key)
+  cache.set(key, { text, at: Date.now() })
+  cacheChars += text.length
+  if (cacheChars <= CACHE_CHARS) return
+  // forget the least recently used ones (not anything used in the last 20 seconds, unless
+  // the cache is far over: then anything but the newest)
+  const now = Date.now()
+  const hard = cacheChars > CACHE_CHARS * 2
+  for (const [k, entry] of cache) {
+    if (cacheChars <= CACHE_CHARS || k === key) break
+    if (!hard && now - entry.at < 20_000) continue
+    cache.delete(k)
+    cacheChars -= entry.text.length
+  }
+}
+
+const loadKey = (key) => {
+  if (!key) return Promise.resolve("")
+  const entry = cache.get(key)
+  if (entry) return Promise.resolve(entry.text)
+  if (loading.has(key)) return loading.get(key)
+  const promise = (db ? db.getContent(key) : Promise.resolve(undefined)).then(
+    (text) => {
+      loading.delete(key)
+      if (typeof text !== "string") {
+        missingKeys.add(key)
+        console.warn("[fs] a file's contents are missing", key)
+        return ""
+      }
+      keep(key, text)
+      contentArrived()
+      return text
+    },
+    (error) => {
+      loading.delete(key)
+      console.warn("[fs] a file couldn't be read", error)
+      return ""
+    }
+  )
+  loading.set(key, promise)
+  return promise
+}
+
+const cachedContent = (key) => {
+  if (!key) return ""
+  const entry = cache.get(key)
+  if (entry) {
+    // most recently used goes last
+    if (Date.now() - entry.at > 1000) {
+      cache.delete(key)
+      entry.at = Date.now()
+      cache.set(key, entry)
+    }
+    return entry.text
+  }
+  if (!missingKeys.has(key)) loadKey(key)
+  return ""
+}
+
+// true when a file's contents can be read right now (a big file may still be loading)
+export const contentReady = (file) => !file || file.isDirectory || file._text !== null || hasCached(file._key)
+
+// A file's contents, waiting for them if they're not loaded yet
+export const readContent = (file) => {
+  if (!file || file.isDirectory) return Promise.resolve("")
+  if (file._text !== null) return Promise.resolve(file._text)
+  return loadKey(file._key)
+}
+
+// The contents without keeping them in memory afterwards (Backup, sync uploads)
+export const peekContent = async (file) => {
+  if (!file || file.isDirectory) return ""
+  if (file._text !== null) return file._text
+  const entry = cache.get(file._key)
+  if (entry) return entry.text
+  if (loading.has(file._key)) return loading.get(file._key)
+  const text = db ? await db.getContent(file._key).catch(() => undefined) : undefined
+  return typeof text === "string" ? text : ""
+}
+
+// Load a file (or everything in a folder) before using it
+export const ensureLoaded = async (item) => {
+  if (!item) return
+  if (item.isDirectory) {
+    for (const child of item.content) await ensureLoaded(child)
+  } else await readContent(item)
+}
+
+// ---- thumbnails of big pictures (for folder views, Photos, Camera) ----
+
+const thumbQueue = new Set()
+let thumbsRunning = false
+
+const makeThumb = (src) =>
+  new Promise((resolve) => {
+    if (typeof Image === "undefined" || !/^data:image\//.test(src)) return resolve(null)
+    const img = new Image()
+    img.onload = () => {
+      try {
+        const w = img.naturalWidth || 1
+        const h = img.naturalHeight || 1
+        const scale = Math.min(1, THUMB_SIDE / Math.max(w, h))
+        const canvas = document.createElement("canvas")
+        canvas.width = Math.max(1, Math.round(w * scale))
+        canvas.height = Math.max(1, Math.round(h * scale))
+        const ctx = canvas.getContext("2d")
+        ctx.fillStyle = "#fff"
+        ctx.fillRect(0, 0, canvas.width, canvas.height)
+        ctx.imageSmoothingQuality = "high"
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+        resolve(canvas.toDataURL("image/jpeg", 0.72))
+      } catch {
+        resolve(null)
+      }
+    }
+    img.onerror = () => resolve(null)
+    img.src = src
+  })
+
+const queueThumb = (file) => {
+  if (!browser || mode !== "idb") return
+  thumbQueue.add(file)
+  if (!thumbsRunning) setTimeout(runThumbs, 400)
+}
+
+const runThumbs = async () => {
+  if (thumbsRunning) return
+  thumbsRunning = true
   try {
-    localStorage.setItem(
-      STORAGE_KEY,
+    while (thumbQueue.size) {
+      const file = thumbQueue.values().next().value
+      thumbQueue.delete(file)
+      if (!file.isImage || file._thumb || !file.parent) continue
+      const key = file.contentHash
+      const text = await peekContent(file)
+      if (text.length <= INLINE_MAX) continue
+      const thumb = await makeThumb(text)
+      if (thumb && file.contentHash === key) {
+        file._thumb = thumb
+        contentArrived()
+        scheduleSave()
+      }
+      await new Promise((resolve) => setTimeout(resolve, 20))
+    }
+  } finally {
+    thumbsRunning = false
+  }
+}
+
+// What to show for a picture in a folder view: its thumbnail, or the picture itself when it's
+// small or already loaded. null while a big one's thumbnail is still being made (so a folder
+// of hundreds of photos never loads them all at once).
+export const previewOf = (file) => {
+  if (!file || file.isDirectory || !file.isImage) return null
+  if (file._thumb) return file._thumb
+  if (file._text !== null) return file._text || null
+  if (hasCached(file._key)) return cachedContent(file._key)
+  if (file.textLength <= INLINE_MAX || mode !== "idb") return file.textContent || null
+  queueThumb(file)
+  return null
+}
+
+// pictures saved before thumbnails existed (or moved from the old drive)
+const queueMissingThumbs = (dir) => {
+  for (const item of dir.content) {
+    if (item.isDirectory) queueMissingThumbs(item)
+    else if (item.isImage && !item._thumb && item.size > (INLINE_MAX * 3) / 4) queueThumb(item)
+  }
+}
+
+// ---- tree <-> saved nodes ----
+
+// An Item -> a saved node. In IndexedDB mode a big text becomes a content key (and is
+// added to out.puts if it isn't stored yet).
+const nodeOf = (item, out) => {
+  if (item.isDirectory) return { k: "d", n: item.name, t: item.type, m: item.meta, c: item.content.map((child) => nodeOf(child, out)) }
+  const node = { k: "f", n: item.name, t: item.type, m: item.meta, s: item.size, v: item.mtime }
+  if (item._thumb && out.thumbs) node.th = item._thumb
+  if (item._text !== null) {
+    if (!out.split || item._text.length <= INLINE_MAX) node.x = item._text
+    else {
+      const key = item.contentHash
+      node.h = key
+      node.hd = item._text.slice(0, HEAD_CHARS)
+      out.refs.add(key)
+      if (!storedKeys.has(key)) out.puts.set(key, item._text)
+      out.settle.push([item, key])
+    }
+  } else {
+    node.h = item._key
+    node.hd = item._head
+    out.refs.add(item._key)
+  }
+  return node
+}
+
+// A saved node (new or old shape) -> an Item
+const fromNode = (node) => {
+  if (node.k === "d") {
+    const dir = new Directory(node.n, node.t)
+    if (node.m && typeof node.m === "object") dir.meta = node.m
+    for (const child of node.c || []) dir.insertItem(fromNode(child))
+    return dir
+  }
+  const file = new File(node.n, node.t, typeof node.x === "string" ? node.x : "")
+  if (typeof node.x !== "string" && typeof node.h === "string" && node.h) {
+    file._text = null
+    file._key = node.h
+    file._hash = node.h
+    file._head = typeof node.hd === "string" ? node.hd : ""
+  }
+  if (Number.isFinite(node.s)) file._size = node.s
+  file.mtime = Number(node.v) || 0
+  if (typeof node.th === "string" && node.th.startsWith("data:image/")) file._thumb = node.th
+  if (node.m && typeof node.m === "object") file.meta = node.m
+  return file
+}
+
+const loadInto = (fsys, saved) =>
+  quietly(() => {
+    try {
+      for (const node of saved.root) fsys.root.insertItem(fromNode(node))
+      for (const node of saved.bin || []) fsys.recycleBin.insertItem(fromNode(node))
+      // starting files added in later versions (deleted ones stay deleted)
+      const seen = new Set(saved.defaults || [])
+      for (const entry of DEFAULT_ITEMS) if (!seen.has(entry[0])) addAt(fsys, entry)
+      return true
+    } catch (error) {
+      console.error("[fs] the saved drive couldn't be read", error)
+      for (const item of fsys.root.content) fsys.root.removeItem(item.name)
+      for (const item of fsys.recycleBin.content) fsys.recycleBin.removeItem(item.name)
+      return false
+    }
+  })
+
+const loadDefaults = (fsys) => quietly(() => DEFAULT_ITEMS.forEach((entry) => addAt(fsys, entry)))
+
+const localStore = () => {
+  try {
+    return browser ? window.localStorage : null
+  } catch {
+    return null
+  }
+}
+
+// ---- saving ----
+
+let saveTimer = null
+let saving = Promise.resolve(true)
+const testHooks = {} // dev only: { fail(puts) -> true to act like a full disk }
+
+const saveIdb = async () => {
+  const out = { split: true, thumbs: true, refs: new Set(), puts: new Map(), settle: [] }
+  const index = {
+    version: 2,
+    root: fs.root.content.map((item) => nodeOf(item, out)),
+    bin: fs.recycleBin.content.map((item) => nodeOf(item, out)),
+    defaults: DEFAULT_PATHS,
+    savedAt: Date.now(),
+  }
+  const deletes = [...storedKeys].filter((key) => !out.refs.has(key))
+  try {
+    if (testHooks.fail?.([...out.puts.values()])) throw new DOMException("The drive is full.", "QuotaExceededError")
+    await db.commit({ index, puts: [...out.puts], deletes })
+  } catch (error) {
+    console.warn("[fs] the drive couldn't be saved", error)
+    return false
+  }
+  for (const key of out.puts.keys()) storedKeys.add(key)
+  for (const key of deletes) storedKeys.delete(key)
+  // saved big texts move from the file into the cache (and can be forgotten later)
+  for (const [file, key] of out.settle) {
+    if (file._text === null || file.contentHash !== key) continue
+    const text = file._text
+    file._size = file.size
+    file._head = text.slice(0, HEAD_CHARS)
+    file._key = key
+    file._text = null
+    keep(key, text)
+  }
+  return true
+}
+
+const saveLocal = () => {
+  const out = { split: false, thumbs: false, refs: new Set(), puts: new Map(), settle: [] }
+  try {
+    localStore().setItem(
+      OLD_KEY,
       JSON.stringify({
-        root: fsys.root.content.map(serialize),
-        bin: fsys.recycleBin.content.map(serialize),
-        defaults: DEFAULT_ITEMS.map((e) => e[0]),
+        root: fs.root.content.map((item) => nodeOf(item, out)),
+        bin: fs.recycleBin.content.map((item) => nodeOf(item, out)),
+        defaults: DEFAULT_PATHS,
+        savedAt: Date.now(),
       })
     )
     return true
@@ -643,50 +1039,278 @@ const save = (fsys) => {
   }
 }
 
-export const fs = new FileSystem()
-load(fs)
-fs.openDirectory("C:")
+// quiet: the caller tells you itself (writeAndSave's callers show their own message; the
+// background save right after one of theirs fails the same way and stays quiet too)
+let quietFailAt = 0
+const doSave = async ({ quiet = false } = {}) => {
+  const ok = mode === "idb" ? await saveIdb() : mode === "local" ? saveLocal() : true
+  if (!ok && quiet) quietFailAt = Date.now()
+  if (ok && !info.lastSaveOk) setInfo({ lastSaveOk: true, ...(info.problem === "full" ? { problem: null, problemText: "" } : {}) })
+  else if (!ok && !quiet && Date.now() - quietFailAt > 3000 && info.problem !== "full") setInfo({ lastSaveOk: false, problem: "full", problemText: DISK_FULL })
+  return ok
+}
 
-let saveTimer = null
-onFsChange(() => {
+// Save right now. Resolves false if the drive is full (or this browser's storage refuses):
+// big files like pictures check this and undo the write, so they can tell you.
+export const saveNow = (options) => {
   clearTimeout(saveTimer)
-  saveTimer = setTimeout(() => save(fs), 250)
-})
-// Don't lose the last quarter second of typing when the tab closes
-if (typeof window !== "undefined") window.addEventListener("pagehide", () => save(fs))
+  saveTimer = null
+  const run = () => doSave(options)
+  saving = saving.then(run, run)
+  return saving
+}
 
-// Save right now. False means the drive (this browser's storage) is full: big files like
-// pictures check this and undo the write, so they can tell you instead of losing it later.
-export const saveNow = () => {
+// Soon after a change: IndexedDB writes started while a page closes are dropped by the
+// browser, so the window for losing one must stay tiny (a burst of changes is one save)
+const scheduleSave = () => {
   clearTimeout(saveTimer)
-  return save(fs)
+  saveTimer = setTimeout(() => saveNow(), SAVE_DELAY_MS)
 }
 
 // Write a file's contents and save at once; on a full drive the old contents come back
-// (and a file that was just made is removed). Returns true if it was saved.
-export const writeAndSave = (file, content, { created = false } = {}) => {
-  const before = file.textContent
+// (and a file that was just made is removed). Resolves true if it was saved.
+export const writeAndSave = async (file, content, { created = false } = {}) => {
+  const before = { _text: file._text, _key: file._key, _hash: file._hash, _size: file._size, _thumb: file._thumb, _head: file._head, mtime: file.mtime }
   file.textContent = content
-  if (saveNow()) return true
+  if (await saveNow({ quiet: true })) return true
   if (created && file.parent) file.parent.removeItem(file.name)
-  else file.textContent = before
-  saveNow()
+  else {
+    Object.assign(file, before)
+    changed()
+  }
+  await saveNow({ quiet: true })
   return false
 }
 
-// ---- whole-drive copies (Backup and the online drive) ----
+// ---- starting up ----
 
-// Everything on the drive and in the Recycle Bin, in the shape it's saved in
-export const exportDrive = () => ({ root: fs.root.content.map(serialize), bin: fs.recycleBin.content.map(serialize) })
+const requestPersist = async () => {
+  try {
+    const storage = navigator.storage
+    if (!storage?.persist) return setInfo({ persisted: null })
+    let persisted = storage.persisted ? await storage.persisted() : false
+    if (!persisted) persisted = await storage.persist()
+    setInfo({ persisted: !!persisted })
+  } catch {
+    setInfo({ persisted: null })
+  }
+}
+
+const start = async () => {
+  const storage = localStore()
+  const factory = browser && typeof indexedDB !== "undefined" ? indexedDB : null
+  db = factory ? await openDriveDb(factory, { name: driveDbName() }) : null
+  let index = null
+  if (db) {
+    try {
+      index = await db.getIndex()
+    } catch (error) {
+      console.warn("[fs] the drive index couldn't be read", error)
+      db = null
+    }
+  }
+  let problem = null
+  let problemText = ""
+  let migration = null
+  let justMigrated = false
+  if (db && !index) {
+    const moved = await migrateFromLocal({ db, storage })
+    if (moved.ok) {
+      index = moved.index
+      migration = { at: moved.at, files: moved.files, folders: moved.folders, chars: moved.chars }
+      justMigrated = true
+    } else if (!moved.none) {
+      // keep using the old drive this time; the next start tries again
+      problem = "migrate"
+      problemText = moved.error
+      db = null
+    }
+  }
+  if (db) {
+    mode = "idb"
+    try {
+      storedKeys = new Set(await db.contentKeys())
+    } catch {
+      storedKeys = new Set()
+    }
+    if (index && !loadInto(fs, index)) {
+      // a damaged index: show the starting files, and don't save over it
+      mode = "unavailable"
+      loadDefaults(fs)
+      setInfo({ mode, problem: "unavailable", problemText: "98ish couldn't read your files. Changes you make won't be saved. Restart 98ish to try again, or restore a backup." })
+      fs.openDirectory("C:")
+      return setInfo({ ready: true })
+    }
+    if (!index) loadDefaults(fs)
+    if (!migration) migration = (await db.getMeta("migration").catch(() => null)) || null
+    if (storage) retireOldDrive(storage, migration)
+    setInfo({ mode, problem: null, migration, justMigrated })
+    requestPersist()
+    if (!index) saveNow()
+    queueMissingThumbs(fs.root)
+  } else {
+    const marker = storage ? readMarker(storage) : null
+    if (marker && !problem) {
+      // the drive moved to IndexedDB earlier, but IndexedDB won't open now: show the old
+      // copy, and don't save over anything
+      mode = "unavailable"
+      problem = "unavailable"
+      problemText = "98ish couldn't open your files in this browser's storage right now. Changes you make won't be saved. Restart 98ish (reload the page) to try again."
+    } else {
+      mode = storage ? "local" : "memory"
+      if (!problem && browser) {
+        problem = "noidb"
+        problemText = "This browser isn't letting 98ish use its larger storage (a private window does this), so your files are kept in its small storage: about 5 MB."
+      }
+    }
+    const { drive } = readOldDrive(storage)
+    if (!(drive && loadInto(fs, drive))) loadDefaults(fs)
+    setInfo({ mode, problem, problemText, migration: marker })
+  }
+  fs.openDirectory("C:")
+  setInfo({ ready: true })
+}
+
+export const fs = new FileSystem()
+
+// Resolves once the drive is loaded (main.jsx waits for it before showing anything)
+export const fsReady = start().catch((error) => {
+  console.error("[fs] starting the drive failed", error)
+  if (!fs.root.content.length) loadDefaults(fs)
+  fs.openDirectory("C:")
+  mode = "memory"
+  setInfo({ mode, ready: true, problem: "unavailable", problemText: "98ish couldn't open your files. Changes you make won't be saved. Reload the page to try again." })
+})
+
+onFsChange(scheduleSave)
+// Leaving: save what's waiting (switching apps on a phone keeps the page alive long enough;
+// a closing page may drop it, which is why saves come so soon after changes)
+if (browser) {
+  window.addEventListener("pagehide", () => saveTimer && saveNow())
+  document.addEventListener("visibilitychange", () => document.visibilityState === "hidden" && saveTimer && saveNow())
+}
+
+// ---- small records kept with the drive (file sync's bookkeeping) ----
+
+const META_PREFIX = "98ish.drivemeta."
+
+export const readDriveMeta = async (key) => {
+  if (mode === "idb") return (await db.getMeta(key).catch(() => null)) ?? null
+  try {
+    return JSON.parse(localStore()?.getItem(META_PREFIX + key)) ?? null
+  } catch {
+    return null
+  }
+}
+
+export const writeDriveMeta = async (key, value) => {
+  if (mode === "idb") return db.putMeta(key, value).then(() => true, () => false)
+  try {
+    if (value === null) localStore()?.removeItem(META_PREFIX + key)
+    else localStore()?.setItem(META_PREFIX + key, JSON.stringify(value))
+    return true
+  } catch {
+    return false
+  }
+}
+
+// ---- how full is drive C:? ----
+
+export const itemBytes = (item) => (item.isDirectory ? item.content.reduce((sum, child) => sum + itemBytes(child), 0) : item.size)
+
+// -> { mode, used (bytes of files, Recycle Bin included), free, capacity, persisted }
+export const driveUsage = async () => {
+  const used = itemBytes(fs.root) + itemBytes(fs.recycleBin)
+  if (mode === "idb") {
+    let estimate = null
+    try {
+      estimate = await navigator.storage?.estimate?.()
+    } catch {
+      estimate = null
+    }
+    if (estimate?.quota) {
+      const free = Math.max(0, estimate.quota - (estimate.usage || 0))
+      return { mode, used, free, capacity: used + free, persisted: info.persisted }
+    }
+    return { mode, used, free: null, capacity: null, persisted: info.persisted }
+  }
+  let chars = 0
+  try {
+    const storage = localStore()
+    for (let i = 0; i < storage.length; i++) {
+      const key = storage.key(i)
+      chars += key.length + (storage.getItem(key)?.length || 0)
+    }
+  } catch {
+    // blocked
+  }
+  return { mode, used, free: Math.max(0, LOCAL_CAPACITY - chars), capacity: LOCAL_CAPACITY, persisted: false }
+}
+
+// ---- whole-drive copies (Backup, Restore) ----
+
+const exportNode = async (item) =>
+  item.isDirectory
+    ? { k: "d", n: item.name, t: item.type, m: item.meta, c: await exportNodes(item.content) }
+    : { k: "f", n: item.name, t: item.type, x: await peekContent(item), m: item.meta }
+const exportNodes = async (items) => {
+  const out = []
+  for (const item of items) out.push(await exportNode(item))
+  return out
+}
+
+// Everything on the drive and in the Recycle Bin with every file's text: { root, bin }
+// (the shape backups use)
+export const exportDrive = async () => ({ root: await exportNodes(fs.root.content), bin: await exportNodes(fs.recycleBin.content) })
+
+// The same as JSON text, handed out in pieces (one file at a time) so a big drive never
+// has to fit in one string: emit(text) is called for each piece
+export const writeDriveJson = async (emit) => {
+  const J = JSON.stringify
+  const writeItems = async (items) => {
+    emit("[")
+    let first = true
+    for (const item of items) {
+      if (!first) emit(",")
+      first = false
+      if (item.isDirectory) {
+        emit(`{"k":"d","n":${J(item.name)},"t":${J(item.type)},"m":${J(item.meta || {})},"c":`)
+        await writeItems(item.content)
+        emit("}")
+      } else {
+        emit(`{"k":"f","n":${J(item.name)},"t":${J(item.type)},"m":${J(item.meta || {})},"x":`)
+        emit(J(await peekContent(item)))
+        emit("}")
+      }
+    }
+    emit("]")
+  }
+  emit('{"root":')
+  await writeItems(fs.root.content)
+  emit(',"bin":')
+  await writeItems(fs.recycleBin.content)
+  emit("}")
+}
+
+// Counts without reading any contents: { files, folders, recycled, bytes }
+export const driveSummary = () => {
+  const counts = { files: 0, folders: 0, recycled: fs.recycleBin.content.length, bytes: itemBytes(fs.root) }
+  const walk = (dir) => {
+    for (const item of dir.content) {
+      if (item.isDirectory) {
+        if (item.type !== DIRECTORY_TYPE.drive) counts.folders++
+        walk(item)
+      } else counts.files++
+    }
+  }
+  walk(fs.root)
+  return counts
+}
 
 // Saved folders and files made back into items (not added anywhere yet); throws if one is damaged
-export const itemsFromNodes = (nodes) => nodes.map(deserialize)
+export const itemsFromNodes = (nodes) => quietly(() => nodes.map(fromNode))
 
-// Replace everything with a copy from exportDrive(). Nothing changes if it can't be read.
-export const importDrive = (drive) => {
-  const root = quietly(() => itemsFromNodes(drive.root))
-  const bin = quietly(() => itemsFromNodes(drive.bin || []))
-  if (!root.some((item) => item.isDirectory && item.name === "C:")) throw new Error("There is no drive C: in it.")
+const replaceAll = (root, bin) =>
   quietly(() => {
     for (const item of fs.root.content) fs.root.removeItem(item.name)
     for (const item of fs.recycleBin.content) fs.recycleBin.removeItem(item.name)
@@ -694,8 +1318,24 @@ export const importDrive = (drive) => {
     for (const item of bin) fs.recycleBin.insertItem(item)
     fs.openDirectory("C:")
   })
+
+// Replace everything with a copy from exportDrive(). Nothing changes if it can't be read;
+// resolves false (with everything put back) if it doesn't fit.
+export const importDrive = async (drive) => {
+  const root = itemsFromNodes(drive.root)
+  const bin = itemsFromNodes(drive.bin || [])
+  if (!root.some((item) => item.isDirectory && item.name === "C:")) throw new Error("There is no drive C: in it.")
+  const before = { root: fs.root.content, bin: fs.recycleBin.content }
+  replaceAll(root, bin)
   changed()
-  return saveNow()
+  if (await saveNow({ quiet: true })) {
+    queueMissingThumbs(fs.root)
+    return true
+  }
+  replaceAll(before.root, before.bin)
+  changed()
+  await saveNow()
+  return false
 }
 
 // For tests: wipe back to the starting files
@@ -706,4 +1346,27 @@ export const resetFileSystem = () => {
     for (const entry of DEFAULT_ITEMS) addAt(fs, entry)
   })
   changed()
+}
+
+// Dev-only handle for browser tests
+if (browser && import.meta.env?.DEV) {
+  window.__drive = {
+    fs,
+    info: storageInfo,
+    ready: fsReady,
+    saveNow,
+    writeAndSave,
+    readContent,
+    exportDrive,
+    driveUsage,
+    driveSummary,
+    storedKeys: () => [...storedKeys],
+    cacheInfo: () => ({ entries: cache.size, chars: cacheChars }),
+    forget: () => {
+      cache.clear()
+      cacheChars = 0
+    },
+    failSaves: (fn) => (testHooks.fail = fn || null),
+    find: (path) => fs.resolve(path),
+  }
 }

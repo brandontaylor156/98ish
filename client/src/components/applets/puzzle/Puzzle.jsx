@@ -4,7 +4,7 @@ import Dialog from "../../shared/Dialog"
 import FileDialog from "../notepad/FileDialog"
 import { useAim } from "../aim/AimContext"
 import { useNet } from "../network/NetContext"
-import { fs, uniqueName, writeAndSave } from "../../../utils/fs"
+import { fs, readContent, uniqueName, writeAndSave } from "../../../utils/fs"
 import { launch } from "../../../utils/programs"
 import { unlock } from "../../../utils/achievements"
 import Jigsaw from "./JigsawBoard"
@@ -155,7 +155,7 @@ const Puzzle = ({ mobile, onClose, onTitle, dispatch, handoff = null }) => {
     setDialog(null)
     setBusy("Opening the picture...")
     try {
-      const picture = await shrinkPicture(file.textContent)
+      const picture = await shrinkPicture(await readContent(file))
       setChoice({ source: { kind: "drive", id: fs.partsOf(file).join("/") }, name: file.name, picture })
     } catch (error) {
       setAlert(error.message || "That picture couldn't be opened.")
@@ -183,7 +183,7 @@ const Puzzle = ({ mobile, onClose, onTitle, dispatch, handoff = null }) => {
       try {
         const dir = photoFolder()
         const item = fs.createFileIn(dir, uniqueName(dir, base), "image", "")
-        if (writeAndSave(item, picture.data, { created: true })) source = { kind: "drive", id: fs.partsOf(item).join("/") }
+        if (await writeAndSave(item, picture.data, { created: true })) source = { kind: "drive", id: fs.partsOf(item).join("/") }
       } catch {
         // the drive is full: play it now, it just can't be resumed
       }
@@ -205,8 +205,9 @@ const Puzzle = ({ mobile, onClose, onTitle, dispatch, handoff = null }) => {
     }
     if (source.kind === "drive") {
       const file = fs.resolve(source.id.split("/"))
-      if (!file || !file.isImage || !file.textContent) throw new Error("That picture isn't on the drive anymore.")
-      return { picture: await shrinkPicture(file.textContent), name: file.name }
+      const text = file?.isImage ? await readContent(file) : ""
+      if (!text) throw new Error("That picture isn't on the drive anymore.")
+      return { picture: await shrinkPicture(text), name: file.name }
     }
     if (source.kind === "inbox") {
       const result = await api.get(source.id)

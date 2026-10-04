@@ -1,4 +1,4 @@
-import { FILE_TYPE, fs, uniqueName, writeAndSave } from "./fs"
+import { FILE_TYPE, fs, peekContent, uniqueName, writeAndSave } from "./fs"
 import { hyperlinks } from "./hyperlinks"
 import { makeZip } from "./zip"
 
@@ -41,10 +41,33 @@ ${html}
 
 const IMAGE_EXT = { "image/png": ".png", "image/jpeg": ".jpg", "image/gif": ".gif", "image/webp": ".webp", "image/bmp": ".bmp" }
 
+// Why a file can't go to your computer (null if it can). `text` may be just the start of
+// its contents (item.head), so nothing big has to be read to ask.
+const exportProblem = (item, text) => {
+  switch (item.type) {
+    case FILE_TYPE.text:
+    case FILE_TYPE.note:
+    case "richtext":
+      return null
+    case FILE_TYPE.image:
+      return text.startsWith("data:image/") ? null : "This picture is empty."
+    case "sound":
+      return text.startsWith("data:audio/") ? null : "This sound is empty."
+    case FILE_TYPE.internet:
+      return hyperlinks[item.name] || text ? null : "This shortcut doesn't point anywhere."
+    case FILE_TYPE.music:
+      return "Songs in 98ish are played by the Media Player's synthesizer, so there's no sound file to download."
+    default:
+      return "Programs and shortcuts only work inside 98ish."
+  }
+}
+
 // What a file becomes on your computer: { name, data, mime } or { error } if it can't go
-export const exportFile = (item) => {
+// (`text` is its contents: pass them for a big file that may not be loaded)
+export const exportFile = (item, text = item.textContent || "") => {
   const name = realName(item.name)
-  const text = item.textContent || ""
+  const problem = exportProblem(item, text)
+  if (problem) return { error: problem }
   switch (item.type) {
     case FILE_TYPE.text:
     case FILE_TYPE.note:
@@ -71,14 +94,14 @@ export const exportFile = (item) => {
   }
 }
 
-export const canDownload = (item) => !!item && (item.isDirectory || !exportFile(item).error)
+export const canDownload = (item) => !!item && (item.isDirectory || !exportProblem(item, item.head || ""))
 
 // A folder as a .zip: { name, data, files, skipped: [names] }
-export const exportFolder = (dir) => {
+export const exportFolder = async (dir) => {
   const entries = []
   const skipped = []
   let files = 0
-  const walk = (folder, prefix) => {
+  const walk = async (folder, prefix) => {
     const taken = new Set()
     const unique = (name) => {
       let candidate = name
@@ -91,10 +114,10 @@ export const exportFolder = (dir) => {
     if (!children.length) entries.push({ path: prefix })
     for (const item of children) {
       if (item.isDirectory) {
-        walk(item, `${prefix}${unique(realName(item.name))}/`)
+        await walk(item, `${prefix}${unique(realName(item.name))}/`)
         continue
       }
-      const out = exportFile(item)
+      const out = exportFile(item, await peekContent(item))
       if (out.error) {
         skipped.push(item.name)
         continue
@@ -104,7 +127,7 @@ export const exportFolder = (dir) => {
     }
   }
   const root = realName(dir.name === "C:" ? "C" : dir.name)
-  walk(dir, `${root}/`)
+  await walk(dir, `${root}/`)
   return { name: `${root}.zip`, data: makeZip(entries), mime: "application/zip", files, skipped }
 }
 
@@ -124,14 +147,14 @@ export const downloadBlob = (data, name, mime = "application/octet-stream") => {
 }
 
 // Download a file or folder: -> { ok, name, skipped } | { ok: false, error }
-export const downloadItem = (item) => {
+export const downloadItem = async (item) => {
   if (item.isDirectory) {
-    const zip = exportFolder(item)
+    const zip = await exportFolder(item)
     if (!zip.files && zip.skipped.length) return { ok: false, error: `There's nothing in '${item.name}' that can be downloaded: programs, shortcuts and songs only work inside 98ish.` }
     downloadBlob(zip.data, zip.name, zip.mime)
     return { ok: true, name: zip.name, skipped: zip.skipped }
   }
-  const out = exportFile(item)
+  const out = exportFile(item, await peekContent(item))
   if (out.error) return { ok: false, error: out.error }
   downloadBlob(out.data, out.name, out.mime)
   return { ok: true, name: out.name, skipped: [] }
@@ -142,7 +165,7 @@ export const downloadItem = (item) => {
 export const MAX_TEXT_BYTES = 200 * 1024
 export const MAX_MEDIA_BYTES = 25 * 1024 * 1024 // the file you pick; it's shrunk to fit
 const MAX_SIDE = 1600
-const MAX_IMAGE_CHARS = 1_500_000 // ~1.1 MB of PNG (your drive holds about 5 MB in all)
+const MAX_IMAGE_CHARS = 4_000_000 // ~3 MB of PNG
 const SOUND_RATE = 22050
 const MAX_SOUND_SECONDS = 30
 
@@ -424,7 +447,7 @@ export const uploadInto = async (dir, files) => {
       continue
     }
     const made = fs.createFileIn(dir, uniqueName(dir, converted.name), converted.type, "")
-    if (!writeAndSave(made, converted.content, { created: true })) {
+    if (!(await writeAndSave(made, converted.content, { created: true }))) {
       problems.push(`${file.name} didn't fit: drive C: is full. Delete some pictures or sounds (and empty the Recycle Bin), then try again.`)
       continue
     }

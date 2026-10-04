@@ -171,7 +171,7 @@
   box-shadow: inset -1px -1px #404040;
 }
 
-.fxSync.is-synced .fxSyncLight {
+.fxSync.is-idle .fxSyncLight {
   background: #20c020;
 }
 
@@ -180,9 +180,52 @@
   background: #e0c000;
 }
 
-.fxSync.is-error .fxSyncLight,
-.fxSync.is-conflict .fxSyncLight {
+.fxSync.is-error .fxSyncLight {
   background: #e02020;
+}
+
+/* Local Disk (C:) Properties */
+.fxDrive {
+  min-width: min(300px, 80vw);
+}
+
+.fxSpace th {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.fxSpace td {
+  padding-right: 10px;
+  white-space: nowrap;
+}
+
+.fxCapacity th,
+.fxCapacity td {
+  border-top: 1px solid #808080;
+}
+
+.fxSwatch {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border: 1px solid #000;
+}
+
+.fxSwatch.is-used {
+  background: #0000ff;
+}
+
+.fxSwatch.is-free {
+  background: #ff00ff;
+}
+
+.fxPieRow {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  margin: 8px 0 4px;
 }
 
 .fxError {

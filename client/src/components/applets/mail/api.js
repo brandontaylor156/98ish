@@ -38,10 +38,10 @@ export const byteSize = (text) => new Blob([String(text ?? "")]).size
 
 // Save an attachment into C:\Documents\Mail Attachments (made if needed) under a name
 // that isn't taken. -> the new file, or throws with a message for the user
-export const saveAttachment = (attachment) => {
+export const saveAttachment = async (attachment) => {
   const docs = fs.resolve("C:/Documents") || fs.resolve("C:")
   const dir = fs.resolve("C:/Documents/Mail Attachments") || fs.createDirectoryIn(docs, "Mail Attachments")
   const file = fs.createFileIn(dir, uniqueName(dir, attachment.name), attachment.type, "")
-  if (!writeAndSave(file, attachment.content, { created: true })) throw new Error(`There isn't enough room on the drive to save "${attachment.name}".`)
+  if (!(await writeAndSave(file, attachment.content, { created: true }))) throw new Error(`There isn't enough room on the drive to save "${attachment.name}".`)
   return file
 }

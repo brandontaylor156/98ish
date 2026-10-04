@@ -108,4 +108,6 @@ const driveRouter = ({ aim, store, maxBytes = MAX_BYTES, limits = {} } = {}) => 
   return router
 }
 
-module.exports = { driveRouter, MAX_BYTES }
+const { syncRouter } = require("./sync")
+
+module.exports = { driveRouter, syncRouter, createDriveStore, MAX_BYTES }

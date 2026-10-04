@@ -350,6 +350,10 @@
   max-width: 45%;
 }
 
+.camStatusFree {
+  flex: none !important;
+}
+
 /* ---- phones: the picture fills the screen, the effects become a row of chips ---- */
 
 .camRoot--mobile .camMain {

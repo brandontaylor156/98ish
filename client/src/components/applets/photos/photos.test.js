@@ -54,8 +54,11 @@ test("fitEncode lowers the quality, then the size, until it fits", () => {
 })
 
 test("fitScale keeps the longest side within the limit and never enlarges", () => {
-  assert.equal(M.fitScale(2560, 1920), 0.5)
-  assert.equal(M.fitScale(1920, 2560), 0.5)
+  // photos are kept up to 2048 pixels on their longest side
+  assert.equal(M.MAX_SIDE, 2048)
+  assert.equal(M.fitScale(4096, 3072), 0.5)
+  assert.equal(M.fitScale(3072, 4096), 0.5)
+  assert.equal(M.fitScale(2560, 1920, M.SMALL_DRIVE_SIDE), 0.5) // the 5 MB fallback drive
   assert.equal(M.fitScale(640, 480), 1)
   assert.equal(M.fitScale(1000, 100, 500), 0.5)
 })

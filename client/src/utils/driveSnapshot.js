@@ -1,17 +1,15 @@
-import { exportDrive, importDrive } from "./fs"
+import { importDrive, writeDriveJson } from "./fs"
 import { DEFAULT_SETTINGS, getSettings, getWallpaperImage, saveWallpaperImage, setSettings } from "./settings"
 
-// Copies of the whole C: drive: Backup files you download (drive + settings + achievements)
-// and the online copy kept with your 98 Messenger account (drive + achievements only:
-// settings like the screen saver or the phone's icon layout belong to each device).
+// Copies of the whole C: drive: Backup files you download (drive + settings + achievements).
 // Anything read back is checked first, so a damaged or hand-edited file can't break 98ish.
-// The server checks online copies with the same rules (server/drive/validate.js).
+// The server checks old-style online copies with the same rules (server/drive/validate.js);
+// files now sync one by one (driveSync.js).
 
 export const BACKUP_FORMAT = "98ish-backup"
 export const BACKUP_VERSION = 1
 export const BACKUP_EXT = ".98ish"
-export const MAX_BACKUP_BYTES = 12 * 1024 * 1024
-export const MAX_ONLINE_BYTES = 2 * 1024 * 1024
+export const MAX_BACKUP_BYTES = 512 * 1024 * 1024
 
 const ACHIEVEMENTS_KEY = "98ish.achievements"
 const PROGRESS_KEY = "98ish.achievements.progress"
@@ -138,26 +136,35 @@ export const countDrive = (drive) => {
   return counts
 }
 
-export const formatBytes = (bytes) =>
-  bytes < 1024 ? `${bytes} bytes` : bytes < 1024 * 1024 ? `${Math.round(bytes / 1024)} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`
+export { formatBytes } from "./fileInfo"
 
 // ---------- backup files ----------
 
 const pad = (n) => String(n).padStart(2, "0")
 export const backupFileName = (date = new Date()) => `98ish-backup-${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}${BACKUP_EXT}`
 
-export const createBackup = () => {
+// The backup file, built one file at a time (a big drive never has to be one string):
+// resolves a Blob of the same JSON readBackup reads
+export const createBackupBlob = async () => {
   const settings = getSettings()
   const wallpaper = settings.wallpaper === "custom" ? getWallpaperImage() : null
-  return {
-    format: BACKUP_FORMAT,
-    version: BACKUP_VERSION,
-    createdAt: new Date().toISOString(),
-    drive: exportDrive(),
-    settings,
-    wallpaper: wallpaper || null,
-    achievements: readAchievements(),
+  const J = JSON.stringify
+  const blobs = []
+  let parts = []
+  let pending = 0
+  const emit = (text) => {
+    parts.push(text)
+    pending += text.length
+    if (pending > 8_000_000) {
+      blobs.push(new Blob(parts))
+      parts = []
+      pending = 0
+    }
   }
+  emit(`{"format":${J(BACKUP_FORMAT)},"version":${BACKUP_VERSION},"createdAt":${J(new Date().toISOString())},"drive":`)
+  await writeDriveJson(emit)
+  emit(`,"settings":${J(settings)},"wallpaper":${J(wallpaper || null)},"achievements":${J(readAchievements())}}`)
+  return new Blob([...blobs, ...parts], { type: "application/json" })
 }
 
 // Text of a backup file -> { ok, backup, summary } | { ok: false, error }
@@ -199,20 +206,16 @@ export const readBackup = (text) => {
   }
 }
 
-// Replace everything with a backup. -> { ok, warning } | { ok: false, error }; on an error
-// nothing has changed. Reload the page afterwards so every window starts fresh.
-export const restoreBackup = (backup) => {
-  const before = exportDrive()
+// Replace everything with a backup. Resolves { ok, warning } | { ok: false, error }; on an
+// error nothing has changed. Reload the page afterwards so every window starts fresh.
+export const restoreBackup = async (backup) => {
   let saved
   try {
-    saved = importDrive(backup.drive)
+    saved = await importDrive(backup.drive) // puts everything back itself if it doesn't fit
   } catch (error) {
     return { ok: false, error: `This backup couldn't be restored: ${error.message}` }
   }
-  if (!saved) {
-    importDrive(before)
-    return { ok: false, error: "This backup doesn't fit in this browser's storage. Nothing was changed." }
-  }
+  if (!saved) return { ok: false, error: "This backup doesn't fit in this browser's storage. Nothing was changed." }
   let warning = null
   const settings = { ...DEFAULT_SETTINGS, ...backup.settings }
   if (settings.wallpaper === "custom" && !(backup.wallpaper && saveWallpaperImage(backup.wallpaper))) {
@@ -224,9 +227,7 @@ export const restoreBackup = (backup) => {
   return { ok: true, warning }
 }
 
-// ---------- online copies ----------
-
-export const onlineSnapshot = () => ({ drive: exportDrive(), achievements: readAchievements() })
+// ---------- online copies (the old whole-drive kind) ----------
 
 // An online copy from the server -> { ok, snapshot } | { ok: false, error }
 export const checkOnlineSnapshot = (snapshot) => {

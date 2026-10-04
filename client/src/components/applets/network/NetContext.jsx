@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useRef, useState } from "react"
 import { useAim } from "../aim/AimContext"
-import { FILE_TYPE, fs, uniqueName } from "../../../utils/fs"
+import { FILE_TYPE, fs, readContent, uniqueName } from "../../../utils/fs"
 import { launch } from "../../../utils/programs"
 import { onlineProgram, setPendingJoin } from "../../shared/online/useOnlineRoom"
 import { notify } from "../../../utils/notifications"
@@ -27,7 +27,8 @@ export const sizeLimitText = (type) => {
   const kb = SENDABLE[type]?.maxKB || MAX_FILE_KB
   return kb >= 1024 ? `${(kb / 1024).toFixed(1)} MB` : `${kb} KB`
 }
-export const fileBytes = (item) => new Blob([item.textContent]).size
+// what sending it takes (a big file that isn't loaded counts its stored length)
+export const fileBytes = (item) => (item.loaded ? new Blob([item.textContent]).size : item.textLength)
 export const RECEIVED_FOLDER = ["C:", "Documents", "Received Files"]
 export const GAME_INFO = {
   checkers: { name: "Checkers", icon: "/assets/program_icons/checkers.svg", app: "net-checkers", width: 440, height: 560 },
@@ -370,8 +371,9 @@ export const NetProvider = ({ socket, windows, dispatch: dispatchWindow, mobile,
   }
 
   const sendFile = async (computer, file) => {
-    const preview = file.type === "image" ? await thumbnail(file.textContent).catch(() => null) : null
-    const result = await request("net:sendFile", { to: { id: computer.id }, name: file.name, content: file.textContent, type: file.type, preview })
+    const content = await readContent(file)
+    const preview = file.type === "image" ? await thumbnail(content).catch(() => null) : null
+    const result = await request("net:sendFile", { to: { id: computer.id }, name: file.name, content, type: file.type, preview })
     if (result.ok) setSentFiles((s) => ({ ...s, [result.id]: { name: file.name, to: result.to, toId: computer.id, status: "waiting", at: Date.now() } }))
     return result
   }

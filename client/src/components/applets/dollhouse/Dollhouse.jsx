@@ -828,7 +828,7 @@ const Dollhouse = ({ mobile, onClose, onTitle, dispatch }) => {
 
   // ---- photo ----
 
-  const takePhoto = () => {
+  const takePhoto = async () => {
     const canvas = renderPhoto(house(), { night, t: s.t || 0 })
     let url = canvas.toDataURL("image/png")
     if (url.length > 1_400_000) url = renderPhoto(house(), { night, t: s.t || 0, scale: 0.6 }).toDataURL("image/png")
@@ -842,7 +842,7 @@ const Dollhouse = ({ mobile, onClose, onTitle, dispatch }) => {
       dir = next
     }
     const file = fs.createFileIn(dir, uniqueName(dir, sharing ? "Our Dream House" : "Dream House"), "image", "")
-    if (!writeAndSave(file, url, { created: true })) {
+    if (!(await writeAndSave(file, url, { created: true }))) {
       setDialog({ kind: "alert", text: "There isn't enough room on the drive to save this photo. Delete something and try again." })
       return
     }

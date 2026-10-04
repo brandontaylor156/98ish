@@ -4,7 +4,7 @@ import MenuBar from "../../shared/MenuBar"
 import Dialog from "../../shared/Dialog"
 import FileDialog from "../notepad/FileDialog"
 import { useFloating } from "../../../hooks/useFloating"
-import { fs, writeAndSave } from "../../../utils/fs"
+import { fs, readContent, writeAndSave } from "../../../utils/fs"
 import { useFsVersion } from "../../../hooks/useFs"
 import { trackUnsaved } from "../../../utils/unsaved"
 import { now } from "../../../utils/clock"
@@ -171,8 +171,17 @@ const WordPad = ({ file: initialFile = null, mobile = false, onTitle, onClose, r
 
   const htmlOf = (item) => (item.type === "richtext" ? sanitizeHtml(item.textContent) : textToHtml(item.textContent))
 
+  const [loading, setLoading] = useState(false)
   useLayoutEffect(() => {
-    loadHtml(initialFile ? htmlOf(initialFile) : EMPTY)
+    // a big document that isn't loaded yet opens once it is (typing stays off meanwhile)
+    if (initialFile && !initialFile.loaded) {
+      loadHtml(EMPTY)
+      setLoading(true)
+      readContent(initialFile).then(() => {
+        setLoading(false)
+        loadHtml(htmlOf(initialFile))
+      })
+    } else loadHtml(initialFile ? htmlOf(initialFile) : EMPTY)
     try {
       document.execCommand("defaultParagraphSeparator", false, "p")
     } catch {}
@@ -652,14 +661,14 @@ const WordPad = ({ file: initialFile = null, mobile = false, onTitle, onClose, r
     next?.()
   }
 
-  const writeTo = (dir, fileName, as = saveType, confirmed = false) => {
+  const writeTo = async (dir, fileName, as = saveType, confirmed = false) => {
     if (as === "text" && format === "rich" && !confirmed) return setDialog({ kind: "textOnly", dir, fileName })
     const content = contentAs(as)
     const type = as === "text" ? "text" : "richtext"
     try {
       let target = dir.getItem(fileName)
       let ok
-      if (target && isDocument(target) && (target.type === "richtext") === (as === "rich")) ok = writeAndSave(target, content)
+      if (target && isDocument(target) && (target.type === "richtext") === (as === "rich")) ok = await writeAndSave(target, content)
       else {
         if (target) {
           // replacing a document of the other kind
@@ -667,7 +676,7 @@ const WordPad = ({ file: initialFile = null, mobile = false, onTitle, onClose, r
           dir.removeItem(fileName)
         }
         target = fs.createFileIn(dir, fileName, type, "")
-        ok = writeAndSave(target, content, { created: true })
+        ok = await writeAndSave(target, content, { created: true })
       }
       if (!ok) {
         afterSave.current = null
@@ -687,9 +696,9 @@ const WordPad = ({ file: initialFile = null, mobile = false, onTitle, onClose, r
     setDialog({ kind: "saveAs" })
   }
 
-  const save = () => {
+  const save = async () => {
     if (onDrive(file) && isDocument(file)) {
-      if (!writeAndSave(file, contentAs(file.type === "richtext" ? "rich" : "text"))) {
+      if (!(await writeAndSave(file, contentAs(file.type === "richtext" ? "rich" : "text")))) {
         afterSave.current = null
         return tooBig()
       }
@@ -713,7 +722,13 @@ const WordPad = ({ file: initialFile = null, mobile = false, onTitle, onClose, r
     requestAnimationFrame(() => restoreSel())
   }
 
-  const openFile = (target) => {
+  const openFile = async (target) => {
+    if (!target.loaded) {
+      setDialog(null)
+      setLoading(true)
+      await readContent(target)
+      setLoading(false)
+    }
     setFile(target)
     setFormat(target.type === "richtext" ? "rich" : "text")
     loadHtml(htmlOf(target))
@@ -997,7 +1012,7 @@ const WordPad = ({ file: initialFile = null, mobile = false, onTitle, onClose, r
         <div
           ref={edRef}
           className="wpDoc wpPage"
-          contentEditable
+          contentEditable={!loading}
           suppressContentEditableWarning
           role="textbox"
           aria-multiline="true"
@@ -1169,9 +1184,9 @@ const WordPad = ({ file: initialFile = null, mobile = false, onTitle, onClose, r
           accept={(item) => item.isImage}
           typeLabel="Bitmap Images (*.png)"
           fileType="image"
-          onPick={(picture) => {
+          onPick={async (picture) => {
             setDialog(null)
-            insertPicture(picture.textContent)
+            insertPicture(await readContent(picture))
           }}
           onCancel={() => setDialog(null)}
         />

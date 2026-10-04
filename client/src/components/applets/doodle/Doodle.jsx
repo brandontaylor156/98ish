@@ -356,8 +356,8 @@ const Doodle = ({ mobile, onClose, onTitle, dispatch, inviteTo }) => {
       "doodle:cursor": ({ by, x, y }) => setCursors((c) => ({ ...c, [by]: x === null ? undefined : { x, y, at: Date.now() } })),
       "doodle:notice": ({ text }) => setStatus(text),
       "doodle:invited": ({ roomId }) => askToJoin(roomId),
-      "doodle:saved": ({ by }) => {
-        const file = saveToDrive(true)
+      "doodle:saved": async ({ by }) => {
+        const file = await saveToDrive(true)
         if (file) {
           setStatus(`${by} saved the drawing. A copy is in your Doodles folder too.`)
           unlock("doodle-pair")
@@ -554,7 +554,7 @@ const Doodle = ({ mobile, onClose, onTitle, dispatch, inviteTo }) => {
   }
 
   // -> the file, or null (the drive is full)
-  const saveToDrive = (quiet = false) => {
+  const saveToDrive = async (quiet = false) => {
     let dir = fs.root
     for (const part of DOODLE_FOLDER) {
       let next = dir.getItem(part)
@@ -564,7 +564,7 @@ const Doodle = ({ mobile, onClose, onTitle, dispatch, inviteTo }) => {
     const names = (roomRef.current?.members || []).filter((m) => !m.me).map((m) => m.name)
     const base = names.length ? `Doodle with ${names.join(" and ")}`.slice(0, 56) : "Doodle"
     const file = fs.createFileIn(dir, uniqueName(dir, base), "image", "")
-    if (!writeAndSave(file, pictureForSave(), { created: true })) {
+    if (!(await writeAndSave(file, pictureForSave(), { created: true }))) {
       if (!quiet) setDialog({ kind: "alert", text: "There isn't enough room on the drive to save this drawing." })
       return null
     }
@@ -573,8 +573,8 @@ const Doodle = ({ mobile, onClose, onTitle, dispatch, inviteTo }) => {
     return file
   }
 
-  const save = () => {
-    const file = saveToDrive()
+  const save = async () => {
+    const file = await saveToDrive()
     if (!file) return
     const together = inRoom() && othersHere().length > 0
     if (together) {
@@ -584,8 +584,8 @@ const Doodle = ({ mobile, onClose, onTitle, dispatch, inviteTo }) => {
     setStatus(`Saved as C:\\Documents\\Doodles\\${file.name}${together ? " (and for everyone here)" : ""}.`)
   }
 
-  const openInPaint = () => {
-    const file = saved && fs.resolve(fs.partsOf(saved)) === saved ? saved : saveToDrive()
+  const openInPaint = async () => {
+    const file = saved && fs.resolve(fs.partsOf(saved)) === saved ? saved : await saveToDrive()
     if (file) dispatch?.({ type: "open_window", payload: paintWindow(file) })
   }
 

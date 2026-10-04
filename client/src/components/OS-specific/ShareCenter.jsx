@@ -146,14 +146,14 @@ const ShareCenter = ({ dispatch }) => {
       try {
         if (entry.kind === "link") {
           if (choice === "shortcut" || choice === "both") {
-            const made = saveLink(folderAt(DESKTOP), entry.name, entry.url)
+            const made = await saveLink(folderAt(DESKTOP), entry.name, entry.url)
             lines.push(`${made.name}: shortcut on the desktop`)
           }
           if (choice === "ie" || choice === "both") opens.push(ieWindow(entry.url))
           continue
         }
         if (entry.kind === "note") {
-          const made = saveNote(folderAt(DOCUMENTS), entry.name, entry.text)
+          const made = await saveNote(folderAt(DOCUMENTS), entry.name, entry.text)
           lines.push(`${made.name}: ${pathLabel(DOCUMENTS)}`)
           opens.push(notepadWindow(made))
           continue

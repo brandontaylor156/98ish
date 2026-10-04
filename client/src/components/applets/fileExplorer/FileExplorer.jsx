@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react"
 import MenuBar from "../../shared/MenuBar"
 import Dialog from "../../shared/Dialog"
 import ContextMenu from "../../shared/ContextMenu"
-import { fs, uniqueName, validName } from "../../../utils/fs"
+import { fs, itemBytes, previewOf, uniqueName, validName } from "../../../utils/fs"
 import { imageMapper } from "../../../utils/imageMapper"
 import { formatSize, iconFor, typeName } from "../../../utils/fileInfo"
 import { DRAG_TYPE, createShortcut, desktopFolder, getClipboard, moveInto, pasteInto, setClipboard } from "../../../utils/fsActions"
@@ -11,11 +11,12 @@ import { launch, paintWindow } from "../../../utils/programs"
 import { useFsVersion } from "../../../hooks/useFs"
 import { useOpenGesture } from "../../../hooks/useMediaQuery"
 import { useLongPress } from "../../../hooks/useLongPress"
-import { UPLOAD_ACCEPT, canDownload, downloadItem } from "../../../utils/fileTransfer"
-import { itemPayload, shareOut } from "../../../utils/share"
+import { UPLOAD_ACCEPT, canDownload, downloadItem, uploadInto } from "../../../utils/fileTransfer"
+import { itemPayload, shareOut, warmItem } from "../../../utils/share"
 import { receiveFiles, savePasted, summarize } from "../../../utils/receive"
 import { fromPasteEvent, readClipboard } from "../../../utils/systemClipboard"
-import { isSyncEnabled, setSyncEnabled, statusText, useDriveSync } from "../../../utils/driveSync"
+import { isSyncEnabled, setSyncEnabled, statusText, syncNow, useDriveSync } from "../../../utils/driveSync"
+import DriveProperties from "./DriveProperties"
 import "./FileExplorer.css"
 
 export { formatSize, iconFor, typeName }
@@ -29,18 +30,18 @@ const sortItems = (items) =>
   [...items].sort((a, b) => (a.isDirectory !== b.isDirectory ? (a.isDirectory ? -1 : 1) : a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: "base" })))
 
 // Large Icons show a picture's own image
-const thumbnailFor = (item) => (item.type === "image" && item.textContent.startsWith("data:image/") ? item.textContent : null)
+// (a big picture has a small thumbnail; a small one is shown as it is)
+const thumbnailFor = (item) => {
+  const src = previewOf(item)
+  return src && src.startsWith("data:image/") ? src : null
+}
 
 // pictures from the photo library (HEIC too: it's turned into a JPEG) plus everything else
 const PICK_ACCEPT = `image/*,.heic,.heif,${UPLOAD_ACCEPT}`
 const uploadLabel = () => (window.matchMedia?.("(pointer: coarse)").matches ? "Upload from Phone..." : "Upload from Your Device...")
 
-const sizeOf = (item) => {
-  // a picture is kept as base64 text: count the bytes of the PNG itself
-  if (item.type === "image") return Math.floor((item.textContent.length - item.textContent.indexOf(",") - 1) * 0.75)
-  if (!item.isDirectory) return new Blob([item.textContent]).size
-  return item.content.reduce((sum, child) => sum + sizeOf(child), 0)
-}
+// bytes (a picture counts the bytes of the PNG or JPEG itself)
+const sizeOf = itemBytes
 
 
 const FileExplorer = ({ path: initialPath = ["C:"], dispatch, onTitle }) => {
@@ -186,6 +187,10 @@ const FileExplorer = ({ path: initialPath = ["C:"], dispatch, onTitle }) => {
   }
 
   const send = (item, mode) => shareOut(itemPayload(item), mode)
+  // (big files load lazily: the selected one starts loading so Send To has it in the tap)
+  useEffect(() => {
+    if (selectedItem) warmItem(selectedItem)
+  }, [selectedItem])
 
   const shortcut = (item, where = dir) => {
     try {
@@ -215,9 +220,9 @@ const FileExplorer = ({ path: initialPath = ["C:"], dispatch, onTitle }) => {
   }
 
   // a copy on your real computer: files as .txt / .png / .wav / .html, folders as a .zip
-  const download = (item) => {
+  const download = async (item) => {
     if (!item) return
-    const result = downloadItem(item)
+    const result = await downloadItem(item)
     if (!result.ok) return setDialog({ kind: "alert", title: "Download", text: result.error })
     if (result.skipped.length) {
       const list = result.skipped.slice(0, 8).join(", ") + (result.skipped.length > 8 ? ` and ${result.skipped.length - 8} more` : "")
@@ -343,7 +348,8 @@ const FileExplorer = ({ path: initialPath = ["C:"], dispatch, onTitle }) => {
       label: "Tools",
       items: [
         { label: "Sync my files with my 98 Messenger account", checked: isSyncEnabled(), onClick: () => setSyncEnabled(!isSyncEnabled()) },
-        { label: "Backup...", onClick: () => dispatch({ type: "open_window", payload: launch("Backup") }) },
+        { label: "Sync Now", disabled: !isSyncEnabled() || sync.busy, onClick: () => syncNow() },
+        { label: "Sync Settings and Backup...", onClick: () => dispatch({ type: "open_window", payload: launch("Backup") }) },
       ],
     },
   ]
@@ -487,7 +493,7 @@ const FileExplorer = ({ path: initialPath = ["C:"], dispatch, onTitle }) => {
         {sync.phase !== "off" && (
           <p className={`status-bar-field fxSync is-${sync.phase}`} title={statusText(sync)}>
             <span className="fxSyncLight" aria-hidden="true" />
-            {{ synced: "Synced", syncing: "Syncing...", pending: "Syncing...", signedOut: "Sync: signed off", conflict: "Sync: choose" }[sync.phase] || "Sync: error"}
+            {{ idle: "Synced", syncing: "Syncing...", pending: "Syncing...", signedOut: "Sync: signed off", offline: "Sync: offline" }[sync.phase] || "Sync: error"}
           </p>
         )}
         <p className="status-bar-field fxStatusRight">{path.length ? "Local Disk (C:)" : "My Computer"}</p>
@@ -528,7 +534,9 @@ const FileExplorer = ({ path: initialPath = ["C:"], dispatch, onTitle }) => {
         </Dialog>
       )}
 
-      {dialog?.kind === "properties" && (
+      {dialog?.kind === "properties" && dialog.item.type === "drive" && <DriveProperties item={dialog.item} onClose={() => setDialog(null)} />}
+
+      {dialog?.kind === "properties" && dialog.item.type !== "drive" && (
         <Dialog title={`${dialog.item.name} Properties`} onOk={() => setDialog(null)}>
           <div className="fxProps">
             <img src={iconFor(dialog.item)} alt="" />

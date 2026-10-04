@@ -5,6 +5,7 @@ import FileDialog from "../notepad/FileDialog"
 import { useAim } from "../aim/AimContext"
 import { ieWindow, launch } from "../../../utils/programs"
 import { formatSize } from "../../../utils/fileInfo"
+import { readContent } from "../../../utils/fs"
 import MemberPage from "../internetExplorer/local/member/MemberPage"
 import ClipArt from "../internetExplorer/local/member/ClipArt"
 import { BACKGROUNDS, BLOCK_TYPES, CLIPART, DEFAULT_SETTINGS, FONTS, MAX_PAGE_BYTES, SONGS, blockLabel, newBlock, toServer, withIds } from "../internetExplorer/local/member/schema"
@@ -471,7 +472,7 @@ const HomePageStudio = ({ dispatch, onTitle, onClose, mobile }) => {
   const pickPicture = async (file) => {
     setDialog(null)
     try {
-      const { src } = await shrinkPicture(file.textContent)
+      const { src } = await shrinkPicture(await readContent(file))
       const target = block?.type === "image" ? block : null
       if (target) updateBlock({ ...target, art: undefined, src, alt: target.alt || file.name.replace(/\.[a-z0-9]+$/i, "") })
       else {

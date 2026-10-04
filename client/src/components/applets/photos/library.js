@@ -1,14 +1,16 @@
-import { DIRECTORY_TYPE, FILE_TYPE, fs, uniqueName, writeAndSave } from "../../../utils/fs"
-import { MAX_CHARS, MAX_SIDE, fitEncode, fitScale, isHeic } from "./photoMath.js"
+import { DIRECTORY_TYPE, DISK_FULL, FILE_TYPE, fs, storageInfo, uniqueName, writeAndSave } from "../../../utils/fs"
+import { MAX_CHARS, MAX_SIDE, SMALL_DRIVE_CHARS, SMALL_DRIVE_SIDE, fitEncode, fitScale, isHeic } from "./photoMath.js"
 
 export * from "./photoMath.js"
 
 // The picture library Camera and Photos share: C:\My Pictures, photo names, squeezing
-// photos into JPEGs small enough for the drive (it lives in this browser's storage, about
-// 5 MB in all), and bringing photos in from the real device.
+// photos into JPEGs (up to 2048 pixels and about 600 KB; smaller in the 5 MB fallback drive
+// some private windows get), and bringing photos in from the real device.
 
 export const PICTURES = ["C:", "My Pictures"]
-export const DRIVE_CHARS = 5_000_000 // what browsers let one site keep
+
+// how big a photo may be on this drive: { maxSide, maxChars }
+export const photoLimits = () => (storageInfo().mode === "idb" ? { maxSide: MAX_SIDE, maxChars: MAX_CHARS } : { maxSide: SMALL_DRIVE_SIDE, maxChars: SMALL_DRIVE_CHARS })
 
 // C:\My Pictures, made again if it was deleted
 export const picturesFolder = () => {
@@ -24,7 +26,7 @@ export const picturesFolder = () => {
 // ---- fitting a picture into the drive ----
 
 // A canvas (or anything drawable: img, video, bitmap) -> { data, width, height }
-export const toJpeg = (source, { maxSide = MAX_SIDE, maxChars = MAX_CHARS, keepPng = false } = {}) => {
+export const toJpeg = (source, { maxSide = photoLimits().maxSide, maxChars = photoLimits().maxChars, keepPng = false } = {}) => {
   const w = source.naturalWidth || source.videoWidth || source.width
   const h = source.naturalHeight || source.videoHeight || source.height
   const canvas = document.createElement("canvas")
@@ -58,33 +60,20 @@ export const loadImage = (src) =>
 
 // ---- saving ----
 
-// Save a picture into a folder under a name (made unique). -> { ok, file } | { ok: false, error }
-export const savePicture = (dir, name, data) => {
+// Save a picture into a folder under a name (made unique).
+// Resolves { ok, file } | { ok: false, error }
+export const savePicture = async (dir, name, data) => {
   let file
   try {
     file = fs.createFileIn(dir, uniqueName(dir, name), FILE_TYPE.image, "")
   } catch (error) {
     return { ok: false, error: error.message }
   }
-  if (!writeAndSave(file, data, { created: true })) return { ok: false, error: DRIVE_FULL }
+  if (!(await writeAndSave(file, data, { created: true }))) return { ok: false, error: DRIVE_FULL }
   return { ok: true, file }
 }
 
-export const DRIVE_FULL = "Drive C: is full, so the picture wasn't saved. Delete some pictures (and empty the Recycle Bin) or download them to your device first."
-
-// Roughly how full this browser's storage is: { used, total, percent }
-export const driveUsage = () => {
-  let used = 0
-  try {
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i)
-      used += key.length + (localStorage.getItem(key)?.length || 0)
-    }
-  } catch {
-    // storage blocked
-  }
-  return { used, total: DRIVE_CHARS, percent: Math.min(100, Math.round((used / DRIVE_CHARS) * 100)) }
-}
+export const DRIVE_FULL = `The picture wasn't saved. ${DISK_FULL} You can also download pictures to your device first.`
 
 // ---- browsing ----
 
@@ -116,7 +105,7 @@ export const pictureFolders = () => {
 
 // A picture file from the device (file input, drop) -> { data, width, height } or throws
 // an Error with a message for the user. HEIC (iPhone) works where the browser can read it.
-export const decodeUpload = async (file, { maxSide = MAX_SIDE, maxChars = MAX_CHARS } = {}) => {
+export const decodeUpload = async (file, { maxSide = photoLimits().maxSide, maxChars = photoLimits().maxChars } = {}) => {
   const heic = isHeic(file)
   if (!heic && file.type && !file.type.startsWith("image/")) throw new Error(`${file.name} isn't a picture.`)
   if (file.size > 40 * 1024 * 1024) throw new Error(`${file.name} is too big (over 40 MB).`)

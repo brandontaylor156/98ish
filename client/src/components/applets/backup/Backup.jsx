@@ -1,16 +1,16 @@
 import React, { useEffect, useRef, useState } from "react"
 import Dialog from "../../shared/Dialog"
 import { useAim } from "../aim/AimContext"
-import { useFsVersion } from "../../../hooks/useFs"
+import { useDriveUsage, useFsVersion } from "../../../hooks/useFs"
 import { launch } from "../../../utils/programs"
 import { downloadBlob } from "../../../utils/fileTransfer"
-import { MAX_BACKUP_BYTES, MAX_ONLINE_BYTES, backupFileName, countDrive, createBackup, formatBytes, readBackup, restoreBackup } from "../../../utils/driveSnapshot"
-import { exportDrive } from "../../../utils/fs"
-import { deleteOnlineCopy, fetchOnlineInfo, isSyncEnabled, onlineSize, setSyncEnabled, statusText, syncNow, useDriveSync } from "../../../utils/driveSync"
+import { MAX_BACKUP_BYTES, backupFileName, createBackupBlob, formatBytes, readBackup, restoreBackup } from "../../../utils/driveSnapshot"
+import { driveSummary } from "../../../utils/fs"
+import { deleteOnlineFiles, fetchSyncInfo, getSyncFolders, isSyncEnabled, setSyncEnabled, setSyncFolders, statusText, syncNow, syncableFolders, useDriveSync } from "../../../utils/driveSync"
 import "./Backup.css"
 
 // Backup: save the whole C: drive (plus settings and achievements) to a file on your real
-// computer and restore it later, and keep an online copy with your 98 Messenger account.
+// computer and restore it later, and sync your folders with your 98 Messenger account.
 
 const LAST_KEY = "98ish.backup.last"
 
@@ -29,35 +29,37 @@ const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`
 
 const describe = (c) => `${plural(c.files, "file")} in ${plural(c.folders, "folder")}`
 
+// "Documents" is shown the way My Computer names it
+const folderLabel = (name) => (name === "Documents" ? "My Documents" : name)
+
 const Backup = ({ dispatch, mobile }) => {
   useFsVersion()
   const aim = useAim()
   const sync = useDriveSync()
+  const usage = useDriveUsage()
   const [enabled, setEnabled] = useState(isSyncEnabled)
+  const [folders, setFolders] = useState(getSyncFolders)
   const [last, setLast] = useState(readLast)
   const [dialog, setDialog] = useState(null)
-  const [online, setOnline] = useState(null) // { revision, savedAt, size } | { error }
+  const [busy, setBusy] = useState(null)
   const fileRef = useRef(null)
 
   const signedOn = aim?.status === "online"
-  const screenName = aim?.me?.screenName
-  const here = countDrive(exportDrive())
+  const screenName = aim?.me?.screenName || sync.screenName
+  const here = driveSummary()
+  const canReach = signedOn || (enabled && sync.phase !== "signedOut")
 
-  // what's in the online copy (refreshed after each sync)
+  // what's online (refreshed after each sync)
   useEffect(() => {
-    if (!signedOn) return setOnline(null)
-    let live = true
-    fetchOnlineInfo().then((info) => live && setOnline(info))
-    return () => {
-      live = false
-    }
-  }, [signedOn, sync.info?.revision, sync.phase === "synced"])
+    if (canReach) fetchSyncInfo()
+  }, [canReach, sync.lastSync])
 
-  const backUp = () => {
+  const backUp = async () => {
+    setBusy("Making the backup...")
     try {
-      const backup = createBackup()
+      const blob = await createBackupBlob()
       const name = backupFileName()
-      downloadBlob(JSON.stringify(backup), name, "application/json")
+      downloadBlob(blob, name, "application/json")
       const now = Date.now()
       try {
         localStorage.setItem(LAST_KEY, String(now))
@@ -65,28 +67,37 @@ const Backup = ({ dispatch, mobile }) => {
         // fine
       }
       setLast(now)
-      setDialog({ kind: "alert", title: "Backup", text: `Saved ${name} to your computer's Downloads: ${describe(countDrive(backup.drive))}.` })
+      setDialog({ kind: "alert", title: "Backup", text: `Saved ${name} (${formatBytes(blob.size)}) to your computer's Downloads: ${describe(here)}.` })
     } catch (error) {
       setDialog({ kind: "alert", title: "Backup", text: `The backup couldn't be made: ${error.message}` })
+    } finally {
+      setBusy(null)
     }
   }
 
   const pickBackup = async (file) => {
     if (!file) return
     if (file.size > MAX_BACKUP_BYTES) return setDialog({ kind: "alert", title: "Restore", text: `${file.name} is too big to be a 98ish backup.` })
+    setBusy("Reading the backup...")
     let text = ""
     try {
       text = await file.text()
     } catch {
+      setBusy(null)
       return setDialog({ kind: "alert", title: "Restore", text: `${file.name} couldn't be read.` })
     }
     const result = readBackup(text)
+    setBusy(null)
     if (!result.ok) return setDialog({ kind: "alert", title: "Restore", text: result.error })
     setDialog({ kind: "restore", name: file.name, ...result })
   }
 
-  const restore = () => {
-    const result = restoreBackup(dialog.backup)
+  const restore = async () => {
+    const backup = dialog.backup
+    setDialog(null)
+    setBusy("Restoring...")
+    const result = await restoreBackup(backup)
+    setBusy(null)
     if (!result.ok) return setDialog({ kind: "alert", title: "Restore", text: result.error })
     setDialog({ kind: "restored", warning: result.warning })
   }
@@ -96,16 +107,22 @@ const Backup = ({ dispatch, mobile }) => {
     setSyncEnabled(on)
   }
 
-  const removeOnline = async () => {
-    setDialog(null)
-    const result = await deleteOnlineCopy()
-    if (!result.ok) return setDialog({ kind: "alert", title: "Online Copy", text: result.error })
-    setEnabled(false)
-    setOnline({ revision: 0, savedAt: null, size: 0 })
+  const toggleFolder = (name, on) => {
+    const next = on ? [...folders, name] : folders.filter((f) => f !== name)
+    setFolders(next)
+    setSyncFolders(next)
   }
 
-  const size = onlineSize()
-  const phaseClass = { synced: "is-ok", error: "is-bad", conflict: "is-bad", syncing: "is-busy", pending: "is-busy" }[sync.phase] || ""
+  const removeOnline = async () => {
+    setDialog(null)
+    setBusy("Deleting the online files...")
+    const result = await deleteOnlineFiles()
+    setBusy(null)
+    if (!result.ok) return setDialog({ kind: "alert", title: "Online Files", text: result.error })
+    setEnabled(false)
+  }
+
+  const phaseClass = { idle: "is-ok", error: "is-bad", offline: "is-bad", syncing: "is-busy", pending: "is-busy" }[sync.phase] || ""
 
   return (
     <div className={mobile ? "bkRoot is-mobile" : "bkRoot"}>
@@ -113,7 +130,8 @@ const Backup = ({ dispatch, mobile }) => {
         <div className="bkIntro">
           <img src="/assets/program_icons/backup.svg" alt="" />
           <p>
-            Keep a copy of everything on drive C: ({describe(here)}), plus your settings and achievements.
+            Keep a copy of everything on drive C: ({describe(here)}, {formatBytes(here.bytes)}), plus your settings and achievements.
+            {usage?.free != null ? ` ${formatBytes(usage.free)} free.` : ""}
           </p>
         </div>
 
@@ -121,7 +139,7 @@ const Backup = ({ dispatch, mobile }) => {
           <legend>Back up to your computer</legend>
           <p>Saves one .98ish file to your real computer's Downloads folder.</p>
           <div className="bkRow">
-            <button type="button" className="bkBackUp" onClick={backUp}>
+            <button type="button" className="bkBackUp" onClick={backUp} disabled={!!busy}>
               Back Up Now
             </button>
             <span className="bkNote">{last ? `Last backup: ${when(last)}` : "No backups yet."}</span>
@@ -132,46 +150,44 @@ const Backup = ({ dispatch, mobile }) => {
           <legend>Restore from a backup</legend>
           <p>Puts back everything from a backup file. This replaces everything on C:.</p>
           <div className="bkRow">
-            <button type="button" className="bkRestore" onClick={() => fileRef.current?.click()}>
+            <button type="button" className="bkRestore" onClick={() => fileRef.current?.click()} disabled={!!busy}>
               Restore...
             </button>
           </div>
         </fieldset>
 
         <fieldset className="bkGroup">
-          <legend>Online copy with 98 Messenger</legend>
+          <legend>Sync with 98 Messenger</legend>
           <div className="field-row bkCheck">
             <input type="checkbox" id="bk-sync" checked={enabled} onChange={(e) => toggleSync(e.target.checked)} />
             <label htmlFor="bk-sync">Sync my files with my 98 Messenger account</label>
           </div>
-          <p className="bkSmall">Your files and achievements follow you to any computer you sign on from. Settings stay with each computer.</p>
-          {signedOn ? (
+          <p className="bkSmall">These folders stay the same on every computer and phone you sign on from. A file changed in two places is kept twice.</p>
+          <div className="bkFolders" role="group" aria-label="Folders to sync">
+            {syncableFolders().map((name) => (
+              <div className="field-row" key={name}>
+                <input type="checkbox" id={`bk-f-${name}`} checked={folders.includes(name)} disabled={!enabled} onChange={(e) => toggleFolder(name, e.target.checked)} />
+                <label htmlFor={`bk-f-${name}`}>{folderLabel(name)}</label>
+              </div>
+            ))}
+          </div>
+          {screenName && (signedOn || enabled) ? (
             <p className="bkSmall">
-              Signed on as <b>{screenName}</b>.{" "}
-              {online?.error
-                ? online.error
-                : online?.revision
-                  ? `Online copy saved ${when(online.savedAt)} (${formatBytes(online.size)} of ${formatBytes(MAX_ONLINE_BYTES)}).`
-                  : online
-                    ? "No online copy yet."
-                    : "Checking the online copy..."}
+              {signedOn ? "Signed on as" : "Syncing as"} <b>{screenName}</b>.{" "}
+              {sync.quota ? `Online: ${formatBytes(sync.usage || 0)} of ${formatBytes(sync.quota)}${sync.files != null ? ` (${plural(sync.files, "file")})` : ""}.` : ""}
             </p>
           ) : (
-            <p className="bkSmall">Sign on to 98 Messenger to use your online copy.</p>
+            <p className="bkSmall">Sign on to 98 Messenger to sync your files.</p>
           )}
-          {size > MAX_ONLINE_BYTES && (
-            <p className="bkSmall bkWarn">
-              Your drive takes {formatBytes(size)}; an online copy holds {formatBytes(MAX_ONLINE_BYTES)}. Delete some pictures or sounds to sync.
-            </p>
-          )}
+          {sync.quota > 0 && <div className="bkMeter" role="meter" aria-label="Online space used" aria-valuenow={Math.round(((sync.usage || 0) / sync.quota) * 100)} aria-valuemin={0} aria-valuemax={100}><span style={{ width: `${Math.min(100, ((sync.usage || 0) / sync.quota) * 100)}%` }} /></div>}
           <div className="bkRow">
-            {signedOn ? (
+            {signedOn || (enabled && sync.phase !== "signedOut") ? (
               <>
                 <button type="button" className="bkSyncNow" disabled={!enabled || sync.busy} onClick={() => syncNow()}>
-                  {sync.phase === "conflict" ? "Choose..." : "Sync Now"}
+                  Sync Now
                 </button>
-                <button type="button" disabled={!online?.revision || sync.busy} onClick={() => setDialog({ kind: "delete" })}>
-                  Delete Online Copy
+                <button type="button" disabled={sync.busy || !!busy} onClick={() => setDialog({ kind: "delete" })}>
+                  Delete Online Files
                 </button>
               </>
             ) : (
@@ -184,9 +200,9 @@ const Backup = ({ dispatch, mobile }) => {
       </div>
 
       <div className="status-bar bkStatus">
-        <p className={`status-bar-field bkStatusText ${phaseClass}`}>
+        <p className={`status-bar-field bkStatusText ${busy ? "is-busy" : phaseClass}`}>
           <span className="bkLight" aria-hidden="true" />
-          {statusText(sync)}
+          {busy || statusText(sync)}
         </p>
       </div>
 
@@ -237,9 +253,9 @@ const Backup = ({ dispatch, mobile }) => {
       )}
 
       {dialog?.kind === "delete" && (
-        <Dialog title="Delete Online Copy" okLabel="Yes" cancelLabel="No" onOk={removeOnline} onCancel={() => setDialog(null)} sound="chord">
+        <Dialog title="Delete Online Files" okLabel="Yes" cancelLabel="No" onOk={removeOnline} onCancel={() => setDialog(null)} sound="chord">
           <p className="dialogText">
-            Delete the online copy saved with {screenName}? The files on this computer stay, and sync turns off.
+            Delete the files synced with {screenName || "your account"}? The files on this {mobile ? "phone" : "computer"} stay, other devices keep theirs, and sync turns off.
           </p>
         </Dialog>
       )}

@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react"
 import { coupleApi, on, openCouples, serverNow } from "../../../utils/couple"
 import { getSettings, masterGain } from "../../../utils/settings"
 import { getAudioContext, masterOutput } from "../../../utils/audio"
+import { readContent } from "../../../utils/fs"
 import { shrinkPicture } from "../homepage/pictures"
 import FileDialog from "../notepad/FileDialog"
 import { TwoHearts } from "./art"
@@ -222,7 +223,7 @@ export const AddPhoto = ({ onPhoto, onError, disabled, label = "Add photo" }) =>
           fileType="image"
           onPick={(file) => {
             setDrive(false)
-            take(async () => file.textContent || file.source)
+            take(async () => (await readContent(file)) || file.source)
           }}
           onCancel={() => setDrive(false)}
         />

@@ -7,7 +7,7 @@ import { useFloating } from "../../../hooks/useFloating"
 import EditColors from "./EditColors"
 import { BrushSample, EraserSample, FillSample, LineSample, SelectModeSample, SpraySample, ToolIcon } from "./PaintIcons"
 import * as P from "./paintLogic"
-import { fs, writeAndSave } from "../../../utils/fs"
+import { fs, readContent, writeAndSave } from "../../../utils/fs"
 import { saveWallpaperImage, setSettings } from "../../../utils/settings"
 import { useFsVersion } from "../../../hooks/useFs"
 import { trackUnsaved } from "../../../utils/unsaved"
@@ -568,15 +568,15 @@ const Paint = ({ file: initialFile = null, mobile = false, onTitle, onClose, reg
   const tooBig = () =>
     setDialog({ kind: "alert", title: "Paint", text: "There isn't enough room on the 98ish drive to save this picture. Try making it smaller (Image > Attributes), or delete some files and try again." })
 
-  const writeTo = (dir, fileName) => {
+  const writeTo = async (dir, fileName) => {
     const url = pictureUrl()
     try {
       let target = dir.getItem(fileName)
       let ok
-      if (target && target.isImage) ok = writeAndSave(target, url)
+      if (target && target.isImage) ok = await writeAndSave(target, url)
       else {
         target = fs.createFileIn(dir, fileName, "image", "")
-        ok = writeAndSave(target, url, { created: true })
+        ok = await writeAndSave(target, url, { created: true })
       }
       if (!ok) {
         afterSave.current = null
@@ -591,9 +591,9 @@ const Paint = ({ file: initialFile = null, mobile = false, onTitle, onClose, reg
     }
   }
 
-  const save = () => {
+  const save = async () => {
     if (onDrive(file) && file.isImage) {
-      if (!writeAndSave(file, pictureUrl())) {
+      if (!(await writeAndSave(file, pictureUrl()))) {
         afterSave.current = null
         return tooBig()
       }
@@ -630,9 +630,11 @@ const Paint = ({ file: initialFile = null, mobile = false, onTitle, onClose, reg
 
   const openFile = async (target) => {
     setDialog(null)
+    let text = ""
     try {
-      if (!target.textContent) throw new Error("empty")
-      const s = await loadSurface(target.textContent)
+      text = await readContent(target)
+      if (!text) throw new Error("empty")
+      const s = await loadSurface(text)
       setSel(null)
       setTextBox(null)
       poly.current = null
@@ -642,7 +644,7 @@ const Paint = ({ file: initialFile = null, mobile = false, onTitle, onClose, reg
       resetHistory()
     } catch {
       // an empty or broken picture opens as a blank one with that name
-      if (!target.textContent) {
+      if (!text) {
         setFile(target)
         resetHistory()
         return

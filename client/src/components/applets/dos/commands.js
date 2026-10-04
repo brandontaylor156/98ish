@@ -1,4 +1,4 @@
-import { fs, validName, FILE_TYPE } from "../../../utils/fs"
+import { fs, validName, FILE_TYPE, readContent } from "../../../utils/fs"
 import { now } from "../../../utils/clock"
 import { programs } from "../../../utils/programs"
 import { unlock } from "../../../utils/achievements"
@@ -264,7 +264,7 @@ const shortNames = (items) => {
   return names
 }
 
-export const sizeOf = (item) => (item.isDirectory ? item.content.reduce((s, c) => s + sizeOf(c), 0) : new Blob([item.textContent || ""]).size)
+export const sizeOf = (item) => (item.isDirectory ? item.content.reduce((s, c) => s + sizeOf(c), 0) : item.size)
 const commas = (n) => n.toLocaleString("en-US")
 
 const stamp = (d = new Date(1998, 5, 25, 20, 1)) => {
@@ -389,8 +389,9 @@ const copyOrMove = (args, shell, move) => {
         out.push(`${dest.name} is a program; not overwritten`)
         continue
       }
-      if (dest.existing && !dest.existing.isDirectory) dest.existing.textContent = src.textContent
-      else fs.createFileIn(dest.dir, dest.name, src.type, src.textContent)
+      // the copy shares the stored contents (a big picture isn't read to copy it)
+      if (dest.existing && !dest.existing.isDirectory) dest.existing.copyContentFrom(src)
+      else fs.createFileIn(dest.dir, dest.name, src.type, "").copyContentFrom(src)
       if (sources.length > 1) out.push(src.name)
       done++
     }
@@ -518,7 +519,10 @@ export const run = (input, shell) => {
       if (!item) out = [`File not found - ${args[0]}`]
       else if (item.isDirectory) out = ["Access denied"]
       else if (!item.isText && item.type !== "internet") out = [`${item.name} is a program. Type its name to run it.`]
-      else out = (item.textContent || "").replace(/\r/g, "").split("\n")
+      else if (!item.loaded) {
+        readContent(item)
+        out = ["Reading the file from the disk... Type the command again in a moment."]
+      } else out = (item.textContent || "").replace(/\r/g, "").split("\n")
       if (item?.name === "~SECRET.TXT") unlock("hidden-file")
       break
     }
@@ -680,6 +684,10 @@ export const run = (input, shell) => {
     if (!parent?.isDirectory) return { ...result, out: ["Path not found"] }
     if (existing?.isDirectory) return { ...result, out: ["Access denied"] }
     if (existing && !existing.isText) return { ...result, out: ["Access denied"] }
+    if (existing && redirect.append && !existing.loaded) {
+      readContent(existing)
+      return { ...result, out: ["Reading the file from the disk... Type the command again in a moment."] }
+    }
     const problem = validName(parts.at(-1))
     if (problem) return { ...result, out: [problem] }
     if (existing) existing.textContent = redirect.append ? existing.textContent + text : text

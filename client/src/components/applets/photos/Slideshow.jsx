@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react"
+import { readContent } from "../../../utils/fs"
 
 // A slideshow over the Photos window (or the whole screen, where the browser allows it):
 // each picture comes in with a transition and drifts slowly while it shows. Tap or move the
@@ -38,6 +39,11 @@ const Slideshow = ({ items, start = 0, prefs, onPrefs, onExit }) => {
   }
   const goRef = useRef(go)
   goRef.current = go
+
+  // the next picture loads while this one shows
+  useEffect(() => {
+    if (count > 1) readContent(items[(index + 1) % count])
+  }, [index, count])
 
   // the next picture after the chosen time
   useEffect(() => {
@@ -104,8 +110,8 @@ const Slideshow = ({ items, start = 0, prefs, onPrefs, onExit }) => {
       role="dialog"
       aria-label="Slideshow"
     >
-      {prev !== null && items[prev] && <img key={`p${prev}-${index}`} className="phSlide phSlide--out" src={items[prev].textContent} alt="" draggable={false} />}
-      <img key={`c${index}`} className={`phSlide phSlide--in phIn--${kind}`} src={item.textContent} alt={item.name} draggable={false} />
+      {prev !== null && items[prev] && <img key={`p${prev}-${index}`} className="phSlide phSlide--out" src={items[prev].textContent || items[prev].thumb || undefined} alt="" draggable={false} />}
+      <img key={`c${index}`} className={`phSlide phSlide--in phIn--${kind}`} src={item.textContent || item.thumb || undefined} alt={item.name} draggable={false} />
       <div className="phShowBar" onPointerDown={(e) => e.stopPropagation()}>
         <button type="button" onClick={() => go(-1)} aria-label="Previous picture">
           ◀︎

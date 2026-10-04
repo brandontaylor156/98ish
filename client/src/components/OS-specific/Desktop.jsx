@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react"
 import { Rnd } from "react-rnd"
 import { desktopPrograms, ieWindow, launch, paintWindow, windowFor } from "../../utils/programs"
 import { openItem, openTarget } from "../../utils/openItem"
-import { fs, uniqueName, validName } from "../../utils/fs"
+import { fs, readContent, uniqueName, validName } from "../../utils/fs"
 import { iconFor } from "../../utils/fileInfo"
 import { DRAG_TYPE, desktopFolder, getClipboard, moveInto, pasteInto, setClipboard } from "../../utils/fsActions"
 import { useFsVersion } from "../../hooks/useFs"
@@ -105,8 +105,10 @@ const DesktopThemes = lazyApp(() => import("../applets/themes/DesktopThemes"))
 const SystemProperties = lazyApp(() => import("../applets/system/SystemProperties"))
 const WebApp = lazyApp(() => import("../applets/webapp/WebApp"))
 const Backup = lazyApp(() => import("../applets/backup/Backup"))
-// keeps C: in sync with the online copy while signed on to 98 Messenger (its own small download)
+// tells file sync who is signed on to 98 Messenger (its own small download)
 const DriveSync = React.lazy(() => import("../applets/backup/DriveSync"))
+// "drive C: is full", a private window's small drive, a move to the bigger storage that didn't work
+const StorageNotice = React.lazy(() => import("../applets/backup/StorageNotice"))
 
 const ICONS_KEY = "98ish.desktopIcons"
 const VIEW_KEY = "98ish.desktopView"
@@ -496,7 +498,12 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
     }
   }
 
-  const fileMenu = (icon) => [
+  const fileMenu = (icon) => {
+    // a big file loads lazily: start now, so Send To has it inside the tap
+    if (!icon.item.isDirectory) readContent(icon.item).catch(() => {})
+    return fileMenuItems(icon)
+  }
+  const fileMenuItems = (icon) => [
     { label: "Open", bold: true, onClick: () => openIcon(icon) },
     ...(icon.item.isDirectory ? [{ label: "Explore", onClick: () => dispatch({ type: "open_window", payload: launch("My Computer", { path: fs.partsOf(icon.item) }) }) }] : []),
     "-",
@@ -774,7 +781,7 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
       {window.app === "hexlands" && <Hexlands mobile={mobile} onClose={() => closeWindow(window, index)} />}
       {window.app === "monsterduel" && <MonsterDuel mobile={mobile} onClose={() => closeWindow(window, index)} />}
       {window.app === "town" && <Town mobile={mobile} coopId={window.coopId} onClose={() => closeWindow(window, index)} onTitle={rename(index)} />}
-      {window.app === "camera" && <Camera mobile={mobile} dispatch={dispatch} onTitle={rename(index)} onClose={() => closeWindow(window, index)} />}
+      {window.app === "camera" && <Camera mobile={mobile} dispatch={dispatch} onTitle={rename(index)} onClose={() => closeWindow(window, index)} paused={!!window.minimized || (mobile && !window.active)} />}
       {window.app === "photos" && (
         <Photos
           file={window.file}
@@ -1063,6 +1070,7 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
         {desktop}
         <React.Suspense fallback={null}>
           <DriveSync />
+          <StorageNotice />
         </React.Suspense>
         <MailNotifier socket={socket} windows={windows} dispatch={dispatch} />
         <NotifyBridge windows={windows} dispatch={dispatch} />

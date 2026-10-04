@@ -26,7 +26,7 @@ export const saveIncoming = async (dir, file) => {
   if (isPicture(file)) {
     try {
       const picture = await decodeUpload(file)
-      const result = savePicture(dir, uploadName(file.name || "Photo"), picture.data)
+      const result = await savePicture(dir, uploadName(file.name || "Photo"), picture.data)
       return result.ok ? { ok: true, file: result.file } : { ok: false, error: result.error }
     } catch (error) {
       return { ok: false, error: error.message || `${file.name} couldn't be opened as a picture.` }
@@ -39,7 +39,7 @@ export const saveIncoming = async (dir, file) => {
     return { ok: false, error: `${file.name || "That file"} ${error.message || "couldn't be read"}.` }
   }
   const made = fs.createFileIn(dir, uniqueName(dir, converted.name), converted.type, "")
-  if (!writeAndSave(made, converted.content, { created: true })) {
+  if (!(await writeAndSave(made, converted.content, { created: true }))) {
     return { ok: false, error: `${file.name} didn't fit: drive C: is full. Delete some pictures or sounds (and empty the Recycle Bin), then try again.` }
   }
   return { ok: true, file: made, note: converted.note }
@@ -63,16 +63,16 @@ export const receiveFiles = async (dir, files, onProgress) => {
 }
 
 // An Internet Shortcut to a web address
-export const saveLink = (dir, name, url) => {
+export const saveLink = async (dir, name, url) => {
   const made = fs.createFileIn(dir, uniqueName(dir, name), FILE_TYPE.internet, "")
-  if (!writeAndSave(made, url, { created: true })) throw new Error("Drive C: is full, so the shortcut wasn't saved.")
+  if (!(await writeAndSave(made, url, { created: true }))) throw new Error("Drive C: is full, so the shortcut wasn't saved.")
   return made
 }
 
 // Words into a text document
-export const saveNote = (dir, name, text) => {
+export const saveNote = async (dir, name, text) => {
   const made = fs.createFileIn(dir, uniqueName(dir, name), FILE_TYPE.text, "")
-  if (!writeAndSave(made, String(text).replace(/\r?\n/g, "\r\n"), { created: true })) throw new Error("Drive C: is full, so the text wasn't saved.")
+  if (!(await writeAndSave(made, String(text).replace(/\r?\n/g, "\r\n"), { created: true }))) throw new Error("Drive C: is full, so the text wasn't saved.")
   return made
 }
 
@@ -83,8 +83,8 @@ export const savePasted = async (dir, { images = [], text = "" }) => {
   if (!named.length) {
     const plan = planPastedText(text)
     try {
-      if (plan?.kind === "link") result.added.push(saveLink(dir, plan.name, plan.url))
-      else if (plan) result.added.push(saveNote(dir, plan.name, plan.text))
+      if (plan?.kind === "link") result.added.push(await saveLink(dir, plan.name, plan.url))
+      else if (plan) result.added.push(await saveNote(dir, plan.name, plan.text))
     } catch (error) {
       result.problems.push(error.message)
     }

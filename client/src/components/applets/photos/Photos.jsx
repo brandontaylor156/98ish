@@ -2,8 +2,8 @@ import React, { useEffect, useMemo, useRef, useState } from "react"
 import MenuBar from "../../shared/MenuBar"
 import Dialog from "../../shared/Dialog"
 import ContextMenu from "../../shared/ContextMenu"
-import { fs, validName, writeAndSave } from "../../../utils/fs"
-import { useFsVersion } from "../../../hooks/useFs"
+import { fs, previewOf, readContent, validName, writeAndSave } from "../../../utils/fs"
+import { useDriveUsage, useFsVersion } from "../../../hooks/useFs"
 import { useOpenGesture } from "../../../hooks/useMediaQuery"
 import { launch, paintWindow } from "../../../utils/programs"
 import { downloadItem } from "../../../utils/fileTransfer"
@@ -12,14 +12,14 @@ import { getSettings, saveWallpaperImage, setSettings } from "../../../utils/set
 import { trackUnsaved } from "../../../utils/unsaved"
 import { isKeyForWindow } from "../../../utils/windowKeys"
 import { unlock } from "../../../utils/achievements"
-import { formatSize } from "../../../utils/fileInfo"
+import { formatBytes, formatSize } from "../../../utils/fileInfo"
 import { useNet, canSend, describe, fileBytes, maxBytesFor, sizeLimitText } from "../network/NetContext"
 import { EFFECTS } from "../camera/effects"
 import { FRAMES } from "../camera/frames"
 import Viewer from "./Viewer"
 import Slideshow from "./Slideshow"
 import * as E from "./edits"
-import { CROP_ASPECTS, DRIVE_FULL, dataBytes, decodeUpload, driveUsage, editedName, imagesIn, initialCrop, kindOf, loadImage, pictureFolders, picturesFolder, savePicture, toJpeg, uploadName } from "./library"
+import { CROP_ASPECTS, DRIVE_FULL, decodeUpload, editedName, imagesIn, initialCrop, kindOf, loadImage, pictureFolders, picturesFolder, savePicture, toJpeg, uploadName } from "./library"
 import { adjustFilterCss } from "../camera/effects"
 import "./Photos.css"
 
@@ -128,6 +128,12 @@ const Photos = ({ file: initialFile = null, path = null, mobile, dispatch, onTit
   useEffect(() => {
     if (!current) return setMeta(null)
     let gone = false
+    // a big picture that isn't loaded yet shows "Opening..." until it is
+    if (!current.loaded) {
+      setMeta(null)
+      readContent(current)
+      return
+    }
     const src = current.textContent
     if (!src) return setMeta({ src: null, width: 1, height: 1, empty: true })
     loadImage(src)
@@ -202,7 +208,7 @@ const Photos = ({ file: initialFile = null, path = null, mobile, dispatch, onTit
   // ---- edits ----
 
   // the picture as something drawable: the working canvas, or the saved picture
-  const sourceNow = async () => working?.canvas || (await loadImage(current.textContent))
+  const sourceNow = async () => working?.canvas || (await loadImage(await readContent(current)))
 
   const commit = async (canvas) => {
     const url = await E.canvasUrl(canvas)
@@ -293,13 +299,14 @@ const Photos = ({ file: initialFile = null, path = null, mobile, dispatch, onTit
 
   // the edited picture, as what gets saved
   const encoded = () => {
-    const png = /^data:image\/png/i.test(current.textContent || "")
+    const png = /^data:image\/png/i.test(current.head || "")
     return toJpeg(working.canvas, { keepPng: png, maxSide: 4096 }).data
   }
 
-  const save = () => {
+  // resolves true when saved (or there was nothing to save)
+  const save = async () => {
     if (!working || !current) return true
-    if (!writeAndSave(current, encoded())) {
+    if (!(await writeAndSave(current, encoded()))) {
       setDialog({ kind: "alert", title: "Save", text: DRIVE_FULL })
       return false
     }
@@ -307,9 +314,9 @@ const Photos = ({ file: initialFile = null, path = null, mobile, dispatch, onTit
     return true
   }
 
-  const saveCopy = () => {
+  const saveCopy = async () => {
     if (!working || !current) return
-    const result = savePicture(current.parent, editedName(current.name), encoded())
+    const result = await savePicture(current.parent, editedName(current.name), encoded())
     if (!result.ok) return setDialog({ kind: "alert", title: "Save As Copy", text: result.error })
     resetEdits()
     setCurrent(result.file)
@@ -319,11 +326,11 @@ const Photos = ({ file: initialFile = null, path = null, mobile, dispatch, onTit
   // ---- sharing ----
 
   const target = current || selected
-  const pictureData = () => (working && current === target ? encoded() : target?.textContent)
+  const pictureData = async () => (working && current === target ? encoded() : target ? await readContent(target) : "")
 
-  const setWallpaper = () => {
+  const setWallpaper = async () => {
     if (!target) return
-    const data = pictureData()
+    const data = await pictureData()
     if (!data) return
     if (!saveWallpaperImage(data)) return setDialog({ kind: "alert", title: "Set as Wallpaper", text: "There isn't room in this browser's storage for that wallpaper. Delete some pictures and try again." })
     const display = getSettings().display
@@ -348,9 +355,9 @@ const Photos = ({ file: initialFile = null, path = null, mobile, dispatch, onTit
     setDialog({ kind: "alert", title: "Send File", text: result.ok ? `"${target.name}" is on its way. ${result.to} has 2 minutes to accept it.` : result.error })
   }
 
-  const download = () => {
+  const download = async () => {
     if (!target) return
-    const result = downloadItem(target)
+    const result = await downloadItem(target)
     if (!result.ok) setDialog({ kind: "alert", title: "Download", text: result.error })
   }
 
@@ -398,7 +405,7 @@ const Photos = ({ file: initialFile = null, path = null, mobile, dispatch, onTit
       setBusy(`Bringing in ${i + 1} of ${list.length}...`)
       try {
         const picture = await decodeUpload(list[i])
-        const result = savePicture(into, uploadName(list[i].name), picture.data)
+        const result = await savePicture(into, uploadName(list[i].name), picture.data)
         if (!result.ok) {
           problems.push(result.error)
           break
@@ -536,7 +543,7 @@ const Photos = ({ file: initialFile = null, path = null, mobile, dispatch, onTit
   // ---- the parts ----
 
   const folders = useMemo(() => pictureFolders(), [folder, items.length])
-  const usage = driveUsage()
+  const usage = useDriveUsage()
   const up = folder.parent && folder.parent !== fs.root ? folder.parent : null
 
   const browseTools = (
@@ -685,7 +692,7 @@ const Photos = ({ file: initialFile = null, path = null, mobile, dispatch, onTit
           onContextMenu={(e) => (e.preventDefault(), setSelected(item), setMenu({ x: e.clientX, y: e.clientY, items: tileMenu(item) }))}
           title={item.name}
         >
-          <span className="phThumb">{item.textContent ? <img src={item.textContent} alt="" loading="lazy" decoding="async" draggable={false} /> : null}</span>
+          <span className="phThumb">{previewOf(item) ? <img src={previewOf(item)} alt="" loading="lazy" decoding="async" draggable={false} /> : null}</span>
           <span className="phTileName">{item.name}</span>
         </button>
       ))}
@@ -736,10 +743,12 @@ const Photos = ({ file: initialFile = null, path = null, mobile, dispatch, onTit
       ? selected.name
       : `${items.length} picture${items.length === 1 ? "" : "s"}${subfolders.length ? `, ${subfolders.length} folder${subfolders.length === 1 ? "" : "s"}` : ""}`
   const statusInfo = current && shown?.src
-    ? `${shown.width} x ${shown.height}  ${tool === "crop" && cropRect ? `crop ${Math.round(cropRect.w)} x ${Math.round(cropRect.h)}` : formatSize(dataBytes(current.textContent))}`
+    ? `${shown.width} x ${shown.height}  ${tool === "crop" && cropRect ? `crop ${Math.round(cropRect.w)} x ${Math.round(cropRect.h)}` : formatSize(current.size)}`
     : selected && !selected.isDirectory
-      ? `${kindOf(selected.textContent)}, ${formatSize(dataBytes(selected.textContent))}`
-      : `Drive C: ${usage.percent}% full`
+      ? `${kindOf(selected.head)}, ${formatSize(selected.size)}`
+      : usage?.free != null
+        ? `${formatBytes(usage.free)} free on drive C:`
+        : ""
 
   return (
     <div ref={rootRef} className={`phRoot${mobile ? " phRoot--mobile" : ""}`} tabIndex={-1}>
@@ -814,7 +823,7 @@ const Photos = ({ file: initialFile = null, path = null, mobile, dispatch, onTit
           onOk={() => {
             const then = dialog.then
             setDialog(null)
-            if (save()) then()
+            save().then((ok) => ok && then())
           }}
           onNo={() => {
             const then = dialog.then

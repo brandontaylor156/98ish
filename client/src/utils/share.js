@@ -1,3 +1,4 @@
+import { contentReady, readContent } from "./fs"
 import { downloadBlob, exportFile } from "./fileTransfer"
 import { hyperlinks } from "./hyperlinks"
 import { copyText } from "./systemClipboard"
@@ -75,9 +76,19 @@ export const shareOut = (payload, mode = "apps", { title = "Send To" } = {}) => 
 
 // ---- payloads ----
 
+// Start loading a file's contents (big files load lazily) so they're there when the tap comes:
+// sharing must start inside the tap, with nothing awaited first
+export const warmItem = (item) => {
+  if (item && !item.isDirectory && !contentReady(item)) readContent(item).catch(() => {})
+}
+
 // A file or folder in the 98ish drive
 export const itemPayload = (item) => {
   if (!item) return { error: "Select a file first." }
+  if (!item.isDirectory && !contentReady(item)) {
+    warmItem(item)
+    return { error: "Getting the file ready... Try Send To again in a moment." }
+  }
   if (item.isDirectory) return { error: "Folders can't be sent to the phone. Send the files inside it, or use Download to get the whole folder as a .zip." }
   if (item.type === "internet") {
     const url = hyperlinks[item.name] || item.textContent

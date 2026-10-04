@@ -24,6 +24,18 @@ html, body, #root {
   overscroll-behavior: none;
 }
 
+/* shown by main.jsx while the drive loads (only when it takes a moment) */
+.fsLoading {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #000;
+  color: #c0c0c0;
+  font: 14px "Courier New", monospace;
+}
+
 /* iPhone Safari scrolls the page anyway when its toolbars change the visible height
    (overflow: hidden alone doesn't stop it): pin the page itself */
 html, body {
