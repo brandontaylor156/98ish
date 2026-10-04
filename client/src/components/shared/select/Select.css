@@ -51,7 +51,17 @@
 @media (pointer: coarse) {
   .selList:not(.selList--sheet) {
     --sel-row: max(32px, calc(1em + 4px));
+    touch-action: pan-y;
   }
+}
+
+/* phones: the drop-down under the field, with rows a finger can hit */
+.os-mobile .selList:not(.selList--sheet) {
+  --sel-row: max(40px, calc(1em + 12px));
+}
+
+.os-mobile .selList:not(.selList--sheet) .selRow {
+  padding: 0 10px;
 }
 
 .selRow {

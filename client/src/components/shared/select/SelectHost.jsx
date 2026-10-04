@@ -8,7 +8,8 @@ import "./Select.css"
 
 // Mounted once in App. Takes over every drop-down <select> and every date/time field in
 // 98ish, so the phone's (or the browser's) own pickers never open and a Windows 98 list or
-// calendar opens instead: under the field with a mouse, as a bottom sheet on a phone.
+// calendar opens instead: under the field with a mouse, as a bottom sheet on a phone (lists
+// drop down under the field on phones too).
 //
 // How the native picker is kept shut:
 // - touch: the tap's touchend is cancelled (passive: false). A cancelled touchend gets no
@@ -51,7 +52,9 @@ const SelectHost = () => {
     if (!kind) return
     // a text field's keyboard (the phone's or 98ish's) goes down, as for a native picker
     if (via === "touch" && isTextEntry(document.activeElement)) document.activeElement.blur()
-    const sheet = !!document.querySelector(".os-root")?.classList.contains("os-mobile")
+    // lists drop down under the field everywhere (the owner wants a real drop-down); on a
+    // phone only the date/time pickers, too wide for under a field, open as a bottom sheet
+    const sheet = kind !== "list" && !!document.querySelector(".os-root")?.classList.contains("os-mobile")
     const n = ++counter.current
     el.setAttribute("data-sel-open", "")
     el.setAttribute("aria-expanded", "true")
