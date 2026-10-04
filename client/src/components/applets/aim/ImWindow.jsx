@@ -22,6 +22,17 @@ export const useStickToBottom = (deps) => {
     const el = ref.current
     if (el && stuck.current) el.scrollTop = el.scrollHeight
   }, deps)
+  // the box getting shorter (the phone keyboard coming up, the window resized) keeps the
+  // newest line in view instead of leaving it below the fold
+  useEffect(() => {
+    const el = ref.current
+    if (!el || typeof ResizeObserver === "undefined") return
+    const ro = new ResizeObserver(() => {
+      if (stuck.current) el.scrollTop = el.scrollHeight
+    })
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
   const onScroll = () => {
     const el = ref.current
     stuck.current = el.scrollHeight - el.scrollTop - el.clientHeight < 24
@@ -214,7 +225,7 @@ const ImWindow = ({ buddy, focusInput }) => {
 
       {gamesMenu && <ContextMenu x={gamesMenu.x} y={gamesMenu.y} items={gameItems} onClose={() => setGamesMenu(null)} />}
 
-      <div className="status-bar aimStatusBar">
+      <div className="status-bar aimStatusBar" data-kb-status="keep">
         <p className="status-bar-field">{blocked ? `You have blocked ${screenName}.` : status || " "}</p>
       </div>
 

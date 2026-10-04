@@ -62,6 +62,7 @@ const SignOn = () => {
               onChange={(e) => setScreenName(e.target.value)}
               maxLength={16}
               autoComplete="username"
+              enterKeyHint="next"
               autoCapitalize="off"
               autoCorrect="off"
               spellCheck="false"
@@ -80,12 +81,13 @@ const SignOn = () => {
               onChange={(e) => setPassword(e.target.value)}
               maxLength={64}
               autoComplete={register ? "new-password" : "current-password"}
+              enterKeyHint={register ? "next" : "go"}
             />
           </label>
           {register && (
             <label className="aimField">
               <span>Confirm Password</span>
-              <input type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} maxLength={64} autoComplete="new-password" />
+              <input type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} maxLength={64} autoComplete="new-password" enterKeyHint="go" />
             </label>
           )}
           <div className="field-row aimRemember">

@@ -5,6 +5,7 @@ import Results, { resultText } from "./Results"
 import { shareOut, textPayload } from "../../../utils/share"
 import { accuracy, judge, startTyping, step, wpm } from "./typing"
 import { categoryLabel } from "./prompts/index.js"
+import { requestKeyboard } from "../../shared/keyboard/native"
 
 // One race (or a best-of-3 match) on screen, online or against the computer: the track,
 // the countdown, the prompt and the typing field, then the results. The rules' view says
@@ -181,6 +182,39 @@ const RaceScreen = ({ view, act, now: clockNow, sounds, mobile = false, online =
   const showResults = (view.phase === "between" || view.phase === "done") && lastResult
   const multi = view.rounds > 1
 
+  // On a phone the 98ish keyboard comes up by itself whenever typing is on: at the green
+  // light, and when the race comes back into view (window switched back, phone unlocked).
+  // No tap needed (the box is data-kb-auto); a keyboard put away with its X stays away.
+  const canTypeRef = useRef(canType)
+  canTypeRef.current = canType
+  const ready = () => {
+    const el = inputRef.current
+    if (!el || !canTypeRef.current || !el.getClientRects().length) return
+    if (document.activeElement !== el) el.focus({ preventScroll: true })
+    requestKeyboard(el)
+  }
+  useEffect(() => {
+    if (canType) ready()
+  }, [canType])
+  const boxShown = !!me && !showResults
+  useEffect(() => {
+    const el = inputRef.current
+    if (!el || typeof ResizeObserver === "undefined") return
+    let shown = el.getClientRects().length > 0
+    const ro = new ResizeObserver(() => {
+      const now = el.getClientRects().length > 0
+      if (now && !shown) ready()
+      shown = now
+    })
+    ro.observe(el)
+    const onVisible = () => document.visibilityState === "visible" && ready()
+    document.addEventListener("visibilitychange", onVisible)
+    return () => {
+      ro.disconnect()
+      document.removeEventListener("visibilitychange", onVisible)
+    }
+  }, [boxShown])
+
   let banner = null
   if (view.phase === "countdown" || (view.phase === "racing" && !go)) banner = secs > 3 ? <span className="stReady">Get ready...</span> : <span className="stCount" key={secs}>{secs}</span>
   else if (view.phase === "racing" && now - view.goAt < 800) banner = <span className="stGo">GO!</span>
@@ -261,6 +295,7 @@ const RaceScreen = ({ view, act, now: clockNow, sounds, mobile = false, online =
                 spellCheck={false}
                 enterKeyHint="next"
                 data-typing
+                data-kb-auto
               />
               <div className="stLive" aria-live="off">
                 <span>

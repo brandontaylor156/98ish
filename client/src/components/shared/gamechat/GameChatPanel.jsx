@@ -122,6 +122,16 @@ const GameChatPanel = ({ game, room, title, mode, messages, count, me, joined, e
     const el = logRef.current
     if (el && stick.current) el.scrollTop = el.scrollHeight
   }, [shown.length, dock])
+  // the log getting shorter (the phone keyboard coming up) keeps the newest line in view
+  useLayoutEffect(() => {
+    const el = logRef.current
+    if (!el || typeof ResizeObserver === "undefined") return
+    const ro = new ResizeObserver(() => {
+      if (stick.current) el.scrollTop = el.scrollHeight
+    })
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
 
   const send = async (payload) => {
     if (sending) return

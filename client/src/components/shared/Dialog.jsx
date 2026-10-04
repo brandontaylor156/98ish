@@ -69,6 +69,7 @@ const Dialog = ({ title, onOk, onNo, onCancel, okLabel = "OK", noLabel = "No", c
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
+        data-kb-enter={onOk && typeof okLabel === "string" ? okLabel : undefined}
         onSubmit={(e) => {
           e.preventDefault()
           if (!okDisabled) onOk?.()

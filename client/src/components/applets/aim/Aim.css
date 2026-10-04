@@ -729,3 +729,19 @@
 .os-mobile .aimChatMain {
   padding-right: 4px;
 }
+
+/* Phones while typing (the 98ish keyboard is up), as a phone's messages app: the box and
+   Send sit right on the keyboard and the conversation gets the rest. The Warn / Block row
+   steps aside; the status line ("... is typing") moves up above the box. */
+html.kb-open .os-mobile .aimImButtons {
+  display: none;
+}
+
+html.kb-open .os-mobile .aimIm .aimStatusBar {
+  order: 1;
+  margin: 0;
+}
+
+html.kb-open .os-mobile .aimIm .aimComposer {
+  order: 2;
+}

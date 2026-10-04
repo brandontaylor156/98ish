@@ -58,7 +58,7 @@ const StartPage = ({ date, query, onQuery, onDate, onOpen, onAddress }) => {
       <section className="ieStartDirectory">
         <div className="ieStartDirHead">
           <h2>{q ? `Sites matching "${query.trim()}"` : `Where to go in ${year}`}</h2>
-          <input value={query} onChange={(e) => onQuery(e.target.value)} placeholder="Search this directory" aria-label="Search this directory" />
+          <input value={query} onChange={(e) => onQuery(e.target.value)} placeholder="Search this directory" aria-label="Search this directory" enterKeyHint="search" />
         </div>
         {sections.length === 0 && <p className="ieStartEmpty">Nothing in the directory matches. Try typing the site's address above instead.</p>}
         <div className="ieStartColumns">

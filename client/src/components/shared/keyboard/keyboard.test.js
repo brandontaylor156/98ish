@@ -8,6 +8,7 @@ import assert from "node:assert/strict"
 import { charBefore, deleteBackward, deleteWordBackward, insertText, moveCaret, moveLine, wantsCapital, wantsPeriod, wordStartBefore } from "./editing.js"
 import { afterEnter, allowsShortcuts, capsMode, enterAction, enterLabel, isCredential, layoutFor, takesKeyboard } from "./fields.js"
 import { ACCENTS, alternatesFor, rowsFor } from "./layouts.js"
+import { isAuto, wantsKeyboard } from "./native.js"
 import { WORDS_AFTER, balloonFor, deleteRepeat, hitTest, keysHeight, layoutKeys, metricsFor, stripFor, stripIndex } from "./geometry.js"
 
 const field = (over = {}) => ({ tag: "input", type: "", inputMode: "", enterKeyHint: "", autocapitalize: "", autocomplete: "", pattern: "", layout: "", kb: "", editable: false, readOnly: false, disabled: false, inForm: false, ...over })
@@ -134,6 +135,20 @@ test("enterLabel: the hint, else what the field is", () => {
   assert.equal(enterLabel(field({ tag: "div", editable: true })), "Return")
   assert.equal(enterLabel(field({ layout: "dos", enterKeyHint: "go" })), "Enter")
   assert.equal(enterLabel(field()), "Enter")
+  // a single-line field in a form says Go, as on iOS (YouTube's address bar); never Done
+  // unless the app asks for it
+  assert.equal(enterLabel(field({ inForm: true })), "Go")
+  assert.equal(enterLabel(field({ inForm: true, enterKeyHint: "search" })), "Search")
+  assert.equal(enterLabel(field({ inForm: true, enterKeyHint: "next" })), "Next")
+  assert.equal(enterLabel(field({ tag: "textarea", inForm: true })), "Return")
+  assert.equal(enterLabel(field({ layout: "dos", inForm: true })), "Enter")
+  // a dialog's field says its default button
+  assert.equal(enterLabel(field({ inForm: true, submitLabel: "Add" })), "Add")
+  assert.equal(enterLabel(field({ inForm: true, submitLabel: "OK" })), "OK")
+  assert.equal(enterLabel(field({ inForm: true, submitLabel: "Send Invitation" })), "Go")
+  assert.equal(enterLabel(field({ inForm: true, submitLabel: "Add", enterKeyHint: "next" })), "Next")
+  assert.equal(enterLabel(field({ tag: "textarea", inForm: true, submitLabel: "OK" })), "Return")
+  for (const f of [field(), field({ inForm: true }), field({ type: "search" }), field({ type: "url" }), field({ tag: "textarea" })]) assert.notEqual(enterLabel(f), "Done")
 })
 
 test("enterAction and afterEnter", () => {
@@ -141,6 +156,9 @@ test("enterAction and afterEnter", () => {
   assert.equal(enterAction(field({ tag: "div", editable: true })), "paragraph")
   assert.equal(enterAction(field({ inForm: true })), "submit")
   assert.equal(enterAction(field()), "none")
+  // Next in a form moves to the next field instead of sending the form half filled in
+  assert.equal(enterAction(field({ inForm: true, enterKeyHint: "next" })), "none")
+  assert.equal(afterEnter(field({ inForm: true, enterKeyHint: "next" })), "next")
   assert.equal(afterEnter(field({ inForm: true })), "hide")
   assert.equal(afterEnter(field({ inForm: true, enterKeyHint: "send" })), "keep")
   assert.equal(afterEnter(field({ enterKeyHint: "next" })), "next")
@@ -383,4 +401,14 @@ test("Delete held: repeats after the delay, speeds up, then deletes words", () =
   let t = 0
   for (let n = 1; n < WORDS_AFTER; n++) t += deleteRepeat(n, s).wait
   assert.ok(t > 1000 && t < 1700, `words start after ${t} ms`)
+})
+
+test("a data-kb-auto field (Speed Typist's race box) wants the keyboard with no tap behind it", () => {
+  const el = (auto) => ({ closest: (sel) => (sel === "[data-kb-auto]" && auto ? {} : null) })
+  assert.equal(isAuto(el(true)), true)
+  assert.equal(isAuto(el(false)), false)
+  assert.equal(isAuto(null), false)
+  // long after any touch: an ordinary field waits for a tap, the race box doesn't
+  assert.equal(wantsKeyboard(el(false), -1), false)
+  assert.equal(wantsKeyboard(el(true), -1), true)
 })

@@ -370,3 +370,11 @@ html.kb-open .dosRoot--full {
   height: auto;
   padding-bottom: 0;
 }
+
+/* A window's status bar would sit right on top of the keyboard, where its text ("Done" in
+   YouTube '98 and the browsers) reads as part of the keyboard: phones put it away while
+   typing (as Safari folds its toolbar), and the field gets the room. data-kb-status="keep"
+   keeps one (98 Messenger's "is typing..." line, which the IM window moves above the box). */
+html.kb-open .os-mobile .mobileDesktop .status-bar:not([data-kb-status="keep"]) {
+  display: none;
+}

@@ -156,6 +156,8 @@ const VideoPlayer = () => {
           spellCheck="false"
           autoCapitalize="off"
           autoCorrect="off"
+          inputMode="url"
+          enterKeyHint="go"
         />
         <button type="submit">Go</button>
       </form>

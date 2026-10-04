@@ -9,6 +9,10 @@
 //   data-kb="off"                  this field (or everything inside) uses the phone's keyboard
 //   data-kb-layout="dos"           MS-DOS keys (Esc, Tab, Ctrl, history arrows)
 //   data-kb-keep                   tapping this doesn't put the keyboard away
+//   data-kb-auto                   the keyboard comes up without a tap (a typing game's box);
+//                                  requestKeyboard(el) (native.js) when it turns typable
+//   data-kb-status="keep"          a status bar that stays while typing (phones hide the rest)
+//   data-kb-enter="OK"             what Enter says in a dialog (Dialog.jsx sets it)
 //
 // Pieces:
 //   KeyboardHost.jsx  eager and tiny: keeps the phone's keyboard down (inputmode="none" on

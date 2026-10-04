@@ -12,8 +12,21 @@ export const noteGesture = (field) => {
   lastGesture = performance.now()
   if (field !== undefined) tapped = field
 }
+// A field marked data-kb-auto (Speed Typist's race box) always wants the keyboard when it's
+// typable and focused, touch or no touch: typing is the whole point of the screen. Our
+// keyboard is a page element, so unlike the phone's it can come up without a gesture.
+export const isAuto = (el) => !!el?.closest?.("[data-kb-auto]")
+
+// App code: "this field has focus and wants the keyboard now" (it just turned typable, so no
+// focus event came). Does nothing without the 98ish keyboard (a mouse, the phone's keyboard).
+export const KB_WANT = "98ish:kb-want"
+export const requestKeyboard = (el) => {
+  if (el && el === document.activeElement) el.dispatchEvent(new CustomEvent(KB_WANT, { bubbles: true }))
+}
+
 // should a field that just took focus get the keyboard?
 export const wantsKeyboard = (el, ms = 1000) => {
+  if (isAuto(el)) return true
   const since = performance.now() - lastGesture
   return since < ms || (!!el && el === tapped && since < 15000)
 }

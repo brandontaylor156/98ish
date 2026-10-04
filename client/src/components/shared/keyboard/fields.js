@@ -25,6 +25,8 @@ export const readField = (el) => {
     readOnly: !!el.readOnly,
     disabled: !!el.disabled,
     inForm: !!el.form || !!el.closest?.("form"),
+    // a dialog's default button ("Send", "Add", "OK"): what Enter does there
+    submitLabel: el.closest?.("[data-kb-enter]")?.getAttribute("data-kb-enter") || "",
   }
 }
 
@@ -82,6 +84,10 @@ export const enterLabel = (f) => {
   if (f.type === "search" || f.inputMode === "search") return "Search"
   if (f.type === "url" || f.inputMode === "url") return "Go"
   if (isMultiline(f)) return "Return"
+  // a dialog's field: Enter presses the default button, and says so (short names only)
+  if (f.submitLabel && f.submitLabel.length <= 8) return f.submitLabel
+  // as iOS: a single-line field in a form submits it, and its key says Go
+  if (f.inForm) return "Go"
   return "Enter"
 }
 
@@ -90,6 +96,8 @@ export const enterLabel = (f) => {
 export const enterAction = (f) => {
   if (f.tag === "textarea") return "newline"
   if (f.editable) return "paragraph"
+  // Next moves on to the next field (afterEnter) without sending the form half filled in
+  if (f.enterKeyHint === "next") return "none"
   return f.inForm ? "submit" : "none"
 }
 
