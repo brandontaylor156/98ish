@@ -22,6 +22,7 @@ import * as E from "./edits"
 import { CROP_ASPECTS, DRIVE_FULL, decodeUpload, editedName, imagesIn, initialCrop, kindOf, loadImage, pictureFolders, picturesFolder, savePicture, toJpeg, uploadName } from "./library"
 import { adjustFilterCss } from "../camera/effects"
 import "./Photos.css"
+import { helpItem } from "../../../utils/help"
 
 // Photos: the picture viewer. Browse a folder of pictures as thumbnails (C:\My Pictures to
 // start), open one to zoom (buttons, the wheel, or pinch), swipe or arrow between them,
@@ -523,7 +524,7 @@ const Photos = ({ file: initialFile = null, path = null, mobile, dispatch, onTit
       ],
     },
     { label: "Share", items: shareItems },
-    { label: "Help", items: [{ label: "About Photos", onClick: () => setDialog({ kind: "alert", title: "About Photos", text: "98ish Photos. Swipe or use the arrow keys between pictures; pinch, the mouse wheel or the + and - buttons to zoom. Edits aren't written to the drive until you Save." }) }] },
+    { label: "Help", items: [helpItem({ program: "Photos" }), "-", { label: "About Photos", onClick: () => setDialog({ kind: "alert", title: "About Photos", text: "98ish Photos. Swipe or use the arrow keys between pictures; pinch, the mouse wheel or the + and - buttons to zoom. Edits aren't written to the drive until you Save." }) }] },
   ]
 
   const tileMenu = (item) => [

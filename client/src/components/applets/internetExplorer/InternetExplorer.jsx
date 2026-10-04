@@ -27,6 +27,7 @@ import {
 } from "./wayback"
 import { getSettings } from "../../../utils/settings"
 import "./InternetExplorer.css"
+import { helpItem } from "../../../utils/help"
 
 // Internet Explorer, with a time machine: every page is shown as the Internet Archive's
 // Wayback Machine captured it closest to the date you pick.
@@ -423,7 +424,7 @@ const InternetExplorer = ({ initialUrl, onTitle, onNewWindow, onClose }) => {
     },
     {
       label: "Help",
-      items: [{ label: "About Internet Explorer", onClick: () => setDialog({ kind: "about" }) }],
+      items: [helpItem({ program: "Internet Explorer" }), "-", { label: "About Internet Explorer", onClick: () => setDialog({ kind: "about" }) }],
     },
   ]
 

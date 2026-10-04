@@ -4,6 +4,7 @@ import { SEARCH_TYPES } from "../../../utils/searchIndex"
 import { fold, scoreEntry, tokenize } from "../../../utils/searchCore"
 import { formatSize } from "../../../utils/fileInfo"
 import "./Find.css"
+import { helpItem } from "../../../utils/help"
 
 // Find: All Files, after Windows 98's (Start > Find, or "See all results" in the Start menu):
 // Named, Containing text, Look in (Name & Location), a date range (Date) and the kind and size
@@ -176,7 +177,7 @@ const Find = ({ mobile, dispatch, query: firstQuery = "", handoff, onTitle, onCl
       ],
     },
     { label: "View", items: [{ label: "All", checked: tab === "all", onClick: () => setTab("all") }, ...SEARCH_TYPES.map((t) => ({ label: t.label, checked: tab === t.id, onClick: () => setTab(t.id), disabled: !counts[t.id] }))] },
-    { label: "Help", items: [{ label: "About Find", onClick: () => setNote("Find looks through your programs, settings, files (their names and the words in them), contacts, calendar, messages, mail and photos. Only your own things: nobody else's on this device.") }] },
+    { label: "Help", items: [helpItem({ program: "Find" }), "-", { label: "About Find", onClick: () => setNote("Find looks through your programs, settings, files (their names and the words in them), contacts, calendar, messages, mail and photos. Only your own things: nobody else's on this device.") }] },
   ]
 
   return (

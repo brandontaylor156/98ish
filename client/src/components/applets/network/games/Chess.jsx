@@ -5,6 +5,7 @@ import { DrawOffer, GameButtons, GameOver, PlayerBar, ResignDialog, ResultBanner
 import { CHESS_LEVELS, useNetGame, useSoloChess } from "./useBoardGame"
 import { ChessPiece, PIECE_NAMES } from "./ChessPieces"
 import "./BoardGames.css"
+import { helpItem } from "../../../../utils/help"
 
 // Chess against another computer on the network, or against this one. Click (or drag) a
 // piece, then where it goes. Black sees the board from their side.
@@ -248,7 +249,7 @@ const ChessBoard = ({ view, act, onClose }) => {
     { label: "View", items: [{ label: "Flip Board", checked: turned, onClick: () => setTurned(!turned) }] },
     ...(view.solo ? [{ label: "Level", items: Object.entries(CHESS_LEVELS).map(([level, label]) => ({ label, checked: view.level === Number(level), onClick: () => act.setLevel(Number(level)) })) }] : []),
     { label: "Options", items: [chatItem] },
-    { label: "Help", items: [{ label: "Rules...", onClick: () => setDialog("rules") }] },
+    { label: "Help", items: [helpItem({ program: "Chess" }), "-", { label: "Rules...", onClick: () => setDialog("rules") }] },
   ]
 
   const order = Array.from({ length: 64 }, (_, i) => (flipped ? 63 - i : i))

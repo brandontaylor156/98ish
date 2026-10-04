@@ -15,6 +15,7 @@ import { createSounds } from "./audio"
 import { load, recordGame, resetStats, saveDaily, savePrefs, statsFor } from "./storage"
 import { shareOut, textPayload } from "../../../utils/share"
 import "./WordDuel.css"
+import { helpItem } from "../../../utils/help"
 
 // Word Duel: guess the hidden word. Green is the right letter in the right spot, yellow
 // is in the word somewhere else, gray isn't in it. Solo: the daily word (the same for
@@ -389,7 +390,7 @@ const WordDuel = ({ mobile = false, onClose }) => {
     },
     {
       label: "Help",
-      items: [
+      items: [helpItem({ program: "Word Duel" }), "-",
         { label: "How to Play...", onClick: () => setDialog("howto") },
         { label: "About Word Duel...", onClick: () => setDialog("about") },
       ],

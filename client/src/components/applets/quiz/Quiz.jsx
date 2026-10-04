@@ -25,6 +25,7 @@ import { PassPlay } from "./PassPlay"
 import { hostLine } from "./shared/show.js"
 import "./Quiz.css"
 import "./Show.css"
+import { helpItem } from "../../../utils/help"
 
 // Lovebirds Quiz Show: a TV game show for two (and parties of friends), hosted by Lulu the
 // lovebird. The studio's four games: How Well Do You Know Me? and This or That (shows with
@@ -299,7 +300,7 @@ const Quiz = ({ mobile, dispatch, onClose, onTitle }) => {
     },
     {
       label: "Help",
-      items: [
+      items: [helpItem({ program: "Lovebirds Quiz Show" }), "-",
         { label: "How to Play: Know Me", onClick: () => go({ id: "howto", mode: "knowme" }) },
         { label: "How to Play: This or That", onClick: () => go({ id: "howto", mode: "tot" }) },
         "-",

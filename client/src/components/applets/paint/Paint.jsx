@@ -16,6 +16,7 @@ import { safeFileName } from "../../../utils/shareRules"
 import { dataUrlBytes } from "../../../utils/fileTransfer"
 import "./Paint.css"
 import { progress, unlock } from "../../../utils/achievements"
+import { helpItem } from "../../../utils/help"
 
 // Paint, as in Windows 98: the tool box with its options, the color box, menus, undo,
 // selections you can drag, cut, copy and paste, text, the canvas resize handles, Open /
@@ -1244,7 +1245,7 @@ const Paint = ({ file: initialFile = null, mobile = false, onTitle, onClose, reg
     },
     {
       label: "Help",
-      items: [{ label: "About Paint", onClick: () => setDialog({ kind: "about" }) }],
+      items: [helpItem({ program: "Paint" }), "-", { label: "About Paint", onClick: () => setDialog({ kind: "about" }) }],
     },
   ]
 

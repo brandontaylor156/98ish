@@ -8,7 +8,9 @@
 //     for live data that only one part of 98ish has (98 Messenger's conversations)
 //
 // A result: { id, type, title, subtitle, icon, open(dispatch), score? }. Types (and their
-// order in the results): programs, settings, files, contacts, events, messages, mail, photos.
+// order in the results): programs, settings, files, contacts, events, messages, mail, photos,
+// help (98ish Help's topics register themselves with type "help" and a `body` of their words:
+// applets/help/register.js).
 // This file stays small and loads with the Start menu; the searching is in utils/search.js.
 
 export const SEARCH_TYPES = [
@@ -20,6 +22,7 @@ export const SEARCH_TYPES = [
   { id: "messages", label: "Messages", icon: "/assets/program_icons/aim2-48.png" },
   { id: "mail", label: "Mail", icon: "/assets/program_icons/mail.svg" },
   { id: "photos", label: "Photos", icon: "/assets/program_icons/photos.svg" },
+  { id: "help", label: "Help Topics", icon: "/assets/program_icons/help.svg" },
 ]
 
 const entries = new Map() // id -> entry
@@ -74,7 +77,8 @@ export const PROGRAM_KEYWORDS = {
   "Network Neighborhood": ["network", "lan", "share", "online players"],
   "Windows Update": ["updates", "update"],
   Backup: ["sync", "restore", "online drive", "msbackup"],
-  "Welcome to 98ish": ["help", "tour", "getting started", "welcome"],
+  "Welcome to 98ish": ["tour", "getting started", "welcome"],
+  "98ish Help": ["help", "help topics", "how do i", "support", "winhelp", "manual", "faq"],
   Minesweeper: ["mines", "winmine"],
   Solitaire: ["cards", "klondike", "sol"],
   FreeCell: ["cards"],

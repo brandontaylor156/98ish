@@ -9,6 +9,7 @@ import ContextMenu from "../../shared/ContextMenu"
 import { useLongPress } from "../../../hooks/useLongPress"
 import { placeCall } from "./call/CallButtons"
 import { contactByScreenName } from "../../../utils/contacts"
+import { helpItem } from "../../../utils/help"
 
 const AWAY_PRESETS = [
   "I am away from my computer right now.",
@@ -149,7 +150,7 @@ const BuddyList = () => {
     },
     {
       label: "Help",
-      items: [{ label: "About 98 Messenger...", onClick: () => setDialog({ kind: "about" }) }],
+      items: [helpItem({ program: "98 Messenger" }), "-", { label: "About 98 Messenger...", onClick: () => setDialog({ kind: "about" }) }],
     },
   ]
 

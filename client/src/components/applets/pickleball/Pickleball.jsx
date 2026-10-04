@@ -13,6 +13,7 @@ import { freshTour, nextMatch, recordResult, tourState, unlocks } from "./career
 import { TUTORIAL, practiceMatch } from "./drills.js"
 import { bindingsFor, keyName } from "./input.js"
 import "./Pickleball.css"
+import { helpItem } from "../../../utils/help"
 
 // Pickleball 98: React draws the menus and the broadcast-style overlays. The venue, the
 // players and the ball are three.js (engine.js, loaded on first open with three.js); the game
@@ -640,7 +641,7 @@ const Pickleball = ({ onClose, mobile }) => {
     },
     {
       label: "Help",
-      items: [
+      items: [helpItem({ program: "Pickleball 98" }), "-",
         { label: "Tutorial", onClick: () => startTutorial(0) },
         { label: "Rules Primer...", onClick: () => setDialog("rules") },
         { label: "Controls...", onClick: () => setDialog("controls") },

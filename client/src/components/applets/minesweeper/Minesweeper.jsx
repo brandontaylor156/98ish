@@ -9,6 +9,7 @@ import { LEVELS, LIMITS, chord, clampCustom, createGame, createSeededGame, cycle
 import { Face, FlagIcon, Led, MineIcon } from "./graphics"
 import "./Minesweeper.css"
 import { unlock } from "../../../utils/achievements"
+import { helpItem } from "../../../utils/help"
 
 const SETTINGS_KEY = "98ish.minesweeper"
 const BEST_KEY = "98ish.minesweeper.best"
@@ -292,7 +293,7 @@ const Minesweeper = ({ fitWindow, onClose, race }) => {
           ],
         },
         { label: "Options", items: [chatItem] },
-        { label: "Help", items: [{ label: "How to Play...", onClick: () => setDialog({ kind: "help" }) }] },
+        { label: "Help", items: [helpItem({ program: "Minesweeper" }), "-", { label: "How to Play...", onClick: () => setDialog({ kind: "help" }) }] },
       ]
     : [
     {
@@ -319,7 +320,7 @@ const Minesweeper = ({ fitWindow, onClose, race }) => {
     { label: "Options", items: [chatItem] },
     {
       label: "Help",
-      items: [
+      items: [helpItem({ program: "Minesweeper" }), "-",
         { label: "How to Play...", onClick: () => setDialog({ kind: "help" }) },
         { label: "About Minesweeper...", onClick: () => setDialog({ kind: "about" }) },
       ],

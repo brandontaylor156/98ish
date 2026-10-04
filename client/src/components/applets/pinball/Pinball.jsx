@@ -9,6 +9,7 @@ import { createRenderer } from "./render"
 import { createSounds } from "./audio"
 import { LANE, inShooterLane } from "./table"
 import "./Pinball.css"
+import { helpItem } from "../../../utils/help"
 
 // Pinball: Deep Sea Dive. The table's physics and rules live in physics.js / game.js; this
 // component runs the loop, draws with render.js, reads keys and touches, and shows the
@@ -405,7 +406,7 @@ const Pinball = ({ onClose, onTitle, mobile }) => {
     },
     {
       label: "Help",
-      items: [
+      items: [helpItem({ program: "Pinball" }), "-",
         { label: "How to Play...", onClick: () => setDialog({ kind: "help" }) },
         { label: "About Pinball...", onClick: () => setDialog({ kind: "about" }) },
       ],

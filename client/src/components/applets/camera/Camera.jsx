@@ -16,6 +16,7 @@ import { previewOf } from "../../../utils/fs"
 import { formatBytes } from "../../../utils/fileInfo"
 import { itemPayload, shareOut } from "../../../utils/share"
 import "./Camera.css"
+import { helpItem } from "../../../utils/help"
 
 // Camera: a live picture from the webcam or the phone's front or back camera, with retro
 // effects and frames drawn on a canvas. Takes photos (with a 3 or 10 second timer), bursts
@@ -624,7 +625,7 @@ const Camera = ({ mobile, dispatch, onTitle, paused = false }) => {
         { label: "Show Effects Panel", checked: panel, onClick: () => setPanel(!panel) },
       ],
     },
-    { label: "Help", items: [{ label: "About Camera", onClick: () => setDialog({ title: "About Camera", text: "98ish Camera. Photos are saved as JPEGs in C:\\My Pictures, where Photos can show, edit and share them. Video clips go straight to your device: they're too big for drive C:." }) }] },
+    { label: "Help", items: [helpItem({ program: "Camera" }), "-", { label: "About Camera", onClick: () => setDialog({ title: "About Camera", text: "98ish Camera. Photos are saved as JPEGs in C:\\My Pictures, where Photos can show, edit and share them. Video clips go straight to your device: they're too big for drive C:." }) }] },
   ]
 
   const shutterLabel = busy === "recording" ? "Stop" : busy === "countdown" && prefs.mode !== "strip" ? "Cancel" : prefs.mode === "video" ? "Record" : prefs.mode === "strip" ? "Start Strip" : prefs.mode === "burst" ? "Burst" : "Take Photo"

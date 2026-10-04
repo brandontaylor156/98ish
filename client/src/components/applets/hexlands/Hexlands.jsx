@@ -14,6 +14,7 @@ import { BoardDefs, CityPiece, HEX_POINTS, LogoMark, SettlementPiece, Tile } fro
 import { geometry } from "./board.js"
 import { createSounds } from "./audio.js"
 import "./Hexlands.css"
+import { helpItem } from "../../../utils/help"
 
 // Hexlands: an original settle-and-trade island game. Collect timber, clay, wool, grain and
 // ore from the tiles around your settlements, build, trade and race to 10 points. Play 1-5
@@ -273,7 +274,7 @@ const Hexlands = ({ mobile = false, onClose }) => {
     },
     {
       label: "Help",
-      items: [
+      items: [helpItem({ program: "Hexlands" }), "-",
         // mid-game, the summary (the step-by-step lesson would end the game)
         { label: "How to Play...", onClick: () => (screen === "game" || screen === "online" ? setDialog("rules") : setScreen("tutorial")) },
         { label: "Rules Summary...", onClick: () => setDialog("rules") },

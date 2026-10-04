@@ -1,0 +1,578 @@
+/* 98ish Help: Windows 98 HTML Help (toolbar, tabs on the left, the topic on the right) */
+
+.hlpRoot {
+  display: flex;
+  flex-direction: column;
+  height: calc(100% - 25px);
+  min-height: 0;
+  background: silver;
+  font-family: "Pixelated MS Sans Serif", Arial, sans-serif;
+  font-size: 11px;
+  color: #000;
+  overflow: hidden;
+}
+
+/* ---- toolbar ---- */
+.hlpToolbar {
+  display: flex;
+  align-items: stretch;
+  gap: 1px;
+  padding: 2px 3px;
+  border-bottom: 1px solid #808080;
+  box-shadow: 0 1px 0 #fff;
+  flex: none;
+}
+.hlpRoot .hlpTool {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  min-width: 50px;
+  min-height: 0;
+  padding: 2px 6px;
+  background: transparent;
+  box-shadow: none;
+  color: #000;
+  text-shadow: none;
+}
+.hlpRoot .hlpTool:not(:disabled):hover {
+  box-shadow: inset -1px -1px #808080, inset 1px 1px #fff;
+}
+.hlpRoot .hlpTool:not(:disabled):active,
+.hlpRoot .hlpTool[aria-expanded="true"] {
+  box-shadow: inset 1px 1px #808080, inset -1px -1px #fff;
+}
+.hlpRoot .hlpTool:disabled {
+  opacity: 0.45;
+  color: #000;
+}
+.hlpRoot .hlpTool:disabled svg {
+  filter: grayscale(1);
+}
+.hlpRoot .hlpTool span {
+  font-size: 11px;
+  line-height: 1.1;
+}
+.hlpOptionsWrap {
+  position: relative;
+  display: flex;
+}
+.hlpMenuCatch {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+}
+.hlpRoot .hlpMenu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 21;
+  min-width: 180px;
+  height: auto;
+  margin: 0;
+  padding: 2px;
+  list-style: none;
+}
+.hlpRoot .hlpMenu button {
+  display: block;
+  width: 100%;
+  min-height: 0;
+  padding: 3px 18px;
+  text-align: left;
+  background: transparent;
+  box-shadow: none;
+  color: #000;
+  text-shadow: none;
+}
+.hlpRoot .hlpMenu button:not(:disabled):hover,
+.hlpRoot .hlpMenu button:focus-visible {
+  background: navy;
+  color: #fff;
+}
+.hlpRoot .hlpMenu button:disabled {
+  color: #808080;
+  text-shadow: 1px 1px #fff;
+}
+.hlpMenuSep {
+  margin: 3px 1px;
+  border-top: 1px solid #808080;
+  border-bottom: 1px solid #fff;
+}
+
+/* ---- the two panes ---- */
+.hlpBody {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  gap: 4px;
+  padding: 4px;
+}
+.hlpNav {
+  display: flex;
+  flex-direction: column;
+  width: 240px;
+  flex: none;
+  min-height: 0;
+}
+.hlpRoot .hlpTabs {
+  flex: none;
+}
+.hlpRoot .hlpTabs li a {
+  margin: 4px 6px;
+  font-size: 11px;
+}
+.hlpRoot .hlpTabPanel {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  height: auto;
+  display: flex;
+  flex-direction: column;
+  padding: 6px;
+}
+.hlpPanelCol {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-height: 0;
+}
+.hlpLabel {
+  margin: 0;
+}
+.hlpPanelCol input {
+  width: 100%;
+}
+.hlpPanelButtons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  flex: none;
+}
+.hlpSearchForm {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.hlpSearchRow {
+  display: flex;
+  gap: 4px;
+}
+.hlpSearchRow input {
+  flex: 1;
+  min-width: 0;
+}
+.hlpRoot .hlpSearchRow button {
+  min-width: 0;
+  padding: 0 8px;
+  flex: none;
+}
+.hlpFound {
+  margin: 2px 0 0;
+}
+
+/* the Contents tree and the list boxes */
+.hlpTree,
+.hlpListBox {
+  flex: 1;
+  min-height: 60px;
+  margin: 0;
+  padding: 2px;
+  list-style: none;
+  overflow: auto;
+  overscroll-behavior: contain;
+  background: #fff;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+}
+.hlpNode {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding-top: 1px;
+  padding-bottom: 1px;
+  padding-right: 4px;
+  white-space: nowrap;
+  cursor: default;
+  outline: none;
+}
+.hlpNode svg {
+  flex: none;
+}
+.hlpNode span {
+  padding: 0 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.hlpNode.is-selected span {
+  background: navy;
+  color: #fff;
+}
+.hlpNode:focus-visible span {
+  outline: 1px dotted #000;
+}
+.hlpListBox li {
+  padding: 1px 4px;
+  cursor: default;
+  overflow-wrap: anywhere;
+}
+.hlpListBox li.is-selected {
+  background: navy;
+  color: #fff;
+}
+.hlpListBox li.hlpEmpty {
+  color: #555;
+  white-space: normal;
+}
+.hlpResults li {
+  display: flex;
+  flex-direction: column;
+}
+.hlpResBook {
+  font-size: 10px;
+  color: #555;
+}
+.hlpResults li.is-selected .hlpResBook,
+.hlpResults li.is-selected .hlpResSnip {
+  color: #dfe6ff;
+}
+.hlpResSnip {
+  font-size: 11px;
+  color: #333;
+}
+.hlpCurrent {
+  padding: 3px 4px;
+  background: #fff;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+  min-height: 21px;
+}
+
+/* ---- the topic ---- */
+.hlpPane {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  background: #fff;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+  outline: none;
+}
+.hlpTopic {
+  padding: 12px 16px 20px;
+  font-family: Tahoma, Verdana, "Segoe UI", Arial, sans-serif;
+  font-size: 12px;
+  line-height: 1.5;
+  max-width: 680px;
+  overflow-wrap: break-word;
+}
+.hlpTopic p {
+  margin: 0 0 8px;
+}
+.hlpTitle {
+  margin: 0 0 10px;
+  padding-bottom: 6px;
+  font-family: Tahoma, Verdana, Arial, sans-serif;
+  font-size: 16px;
+  font-weight: bold;
+  color: #000080;
+  border-bottom: 1px solid #c0c0c0;
+}
+.hlpH,
+.hlpRelated h2 {
+  margin: 14px 0 6px;
+  font-family: Tahoma, Verdana, Arial, sans-serif;
+  font-size: 13px;
+  font-weight: bold;
+  color: #000080;
+}
+.hlpSteps {
+  margin: 4px 0 10px;
+}
+.hlpStepsTitle {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin: 0 0 4px;
+  font-weight: bold;
+}
+.hlpArrow {
+  color: #000080;
+  font-size: 9px;
+}
+.hlpSteps ol,
+.hlpList {
+  margin: 0 0 8px;
+  padding-left: 24px;
+}
+.hlpSteps li,
+.hlpList li {
+  margin-bottom: 4px;
+}
+.hlpKey {
+  display: inline-block;
+  padding: 0 4px;
+  margin: 0 1px;
+  font-family: "Pixelated MS Sans Serif", Arial, sans-serif;
+  font-size: 11px;
+  line-height: 15px;
+  white-space: nowrap;
+  background: #e8e8e8;
+  border: 1px solid #808080;
+  border-bottom-width: 2px;
+  border-radius: 2px;
+  color: #000;
+}
+.hlpLink {
+  color: #0000ff;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.hlpLink:hover {
+  color: #c00000;
+}
+.hlpTopic mark {
+  background: #000080;
+  color: #fff;
+}
+
+.hlpBox {
+  display: flex;
+  gap: 8px;
+  margin: 8px 0 12px;
+  padding: 8px 10px;
+  border: 1px solid;
+}
+.hlpBox p {
+  margin: 0;
+}
+.hlpBoxIcon {
+  flex: none;
+}
+.hlpBoxLabel {
+  display: block;
+  margin-bottom: 1px;
+}
+.hlp-tip {
+  background: #fffbe0;
+  border-color: #d8c25a;
+}
+.hlp-note {
+  background: #eef3ff;
+  border-color: #9fb3e0;
+}
+.hlp-warning {
+  background: #fff0ec;
+  border-color: #d07a66;
+}
+
+.hlpDevices {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 8px;
+  margin: 6px 0 12px;
+}
+.hlpDevice {
+  padding: 6px 10px;
+  background: #f4f4f4;
+  border: 1px solid #c0c0c0;
+}
+.hlpDevice b {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 2px;
+}
+.hlpDevice p {
+  margin: 0;
+}
+
+.hlpKeys table,
+.hlpTable {
+  border-collapse: collapse;
+  margin: 2px 0 12px;
+  white-space: normal;
+  background: #fff;
+}
+.hlpKeys th,
+.hlpKeys td,
+.hlpTable th,
+.hlpTable td {
+  padding: 3px 8px;
+  border: 1px solid #c8c8c8;
+  text-align: left;
+  vertical-align: top;
+  font-size: 12px;
+  height: auto;
+}
+.hlpKeys th {
+  font-weight: normal;
+  white-space: nowrap;
+  background: #f4f4f4;
+}
+.hlpTable thead th {
+  position: static;
+  background: #e8e8f4;
+  box-shadow: none;
+  font-weight: bold;
+}
+.hlpTableWrap {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.hlpShortcut {
+  margin: 6px 0 12px;
+}
+.hlpRoot .hlpOpen {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 0 10px;
+}
+.hlpOpenArrow {
+  width: 12px;
+  height: 12px;
+  background: #fff;
+  box-shadow: inset 1px 1px #808080, inset -1px -1px #fff;
+  position: relative;
+}
+.hlpOpenArrow::after {
+  content: "";
+  position: absolute;
+  left: 3px;
+  top: 2px;
+  border: 4px solid transparent;
+  border-left: 5px solid #000080;
+}
+.hlpFig {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  margin: 4px 12px 10px 0;
+}
+.hlpFig img {
+  max-width: 100%;
+  max-height: 120px;
+  image-rendering: pixelated;
+}
+.hlpFig figcaption {
+  font-size: 11px;
+  color: #444;
+}
+
+.hlpRelated {
+  margin-top: 18px;
+  padding-top: 8px;
+  border-top: 1px solid #c0c0c0;
+}
+.hlpRelated ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.hlpRelated li::before {
+  content: "\25BA";
+  color: #000080;
+  font-size: 8px;
+  margin-right: 6px;
+  vertical-align: 1px;
+}
+.hlpRelated li {
+  margin-bottom: 3px;
+}
+
+/* the Topics Found chooser */
+.hlpDim {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.12);
+}
+.hlpRoot .hlpChooser {
+  width: min(320px, calc(100% - 24px));
+  height: auto;
+  min-width: 0;
+}
+.hlpChooser .hlpListBox {
+  max-height: 160px;
+  margin-bottom: 8px;
+}
+.hlpRoot {
+  position: relative;
+}
+
+/* ---- phones: the list, then the topic ---- */
+.hlpPhone .hlpToolbar {
+  justify-content: space-between;
+}
+.hlpPhone .hlpTool {
+  min-width: 0;
+  flex: 1;
+  padding: 3px 2px;
+}
+.hlpPhone .hlpBody {
+  padding: 3px;
+}
+.hlpPhone .hlpNav {
+  width: 100%;
+  min-width: 0;
+}
+.hlpPhone .hlpTabs li a {
+  margin: 6px 7px;
+}
+.hlpPhone .hlpNode {
+  padding-top: 7px;
+  padding-bottom: 7px;
+  font-size: 13px;
+}
+.hlpPhone .hlpNode span {
+  white-space: normal;
+}
+.hlpPhone .hlpListBox li {
+  padding: 7px 6px;
+  font-size: 13px;
+  border-bottom: 1px solid #eee;
+}
+.hlpPhone .hlpPanelCol input {
+  font-size: 16px;
+}
+.hlpPhone .hlpTopic {
+  padding: 8px 12px 24px;
+  font-size: 14px;
+}
+.hlpPhone .hlpTitle {
+  font-size: 18px;
+}
+.hlpPhone .hlpH {
+  font-size: 15px;
+}
+.hlpPhone .hlpKeys th,
+.hlpPhone .hlpKeys td,
+.hlpPhone .hlpTable td,
+.hlpPhone .hlpTable th {
+  font-size: 13px;
+}
+.hlpPhone .hlpKeys th {
+  white-space: normal;
+}
+.hlpRoot .hlpBackToList {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: block;
+  width: 100%;
+  min-height: 34px;
+  text-align: left;
+  padding: 0 10px;
+  font-size: 13px;
+}
+.hlpPhone .hlpDevices {
+  grid-template-columns: 1fr;
+}

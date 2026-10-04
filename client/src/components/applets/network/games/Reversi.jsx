@@ -4,6 +4,7 @@ import GameChat, { useGameChatMenuItem } from "../../../shared/GameChat"
 import { DrawOffer, GameButtons, GameOver, PlayerBar, ResignDialog, ResultBanner, RulesDialog, usePlayOnlineItem, waitingText } from "./GameParts"
 import { useBoardSize, useNetGame, useSoloReversi } from "./useBoardGame"
 import "./BoardGames.css"
+import { helpItem } from "../../../../utils/help"
 
 // Reversi against another computer on the network, or against this one. Place a disc so
 // it traps a line of the other color between it and one of yours: they all flip.
@@ -87,7 +88,7 @@ const ReversiBoard = ({ view, act, onClose }) => {
           ],
     },
     { label: "Options", items: [{ label: "Show Legal Moves", checked: hints, onClick: () => setHints(!hints) }, chatItem] },
-    { label: "Help", items: [{ label: "Rules...", onClick: () => setDialog("rules") }] },
+    { label: "Help", items: [helpItem({ program: "Reversi" }), "-", { label: "Rules...", onClick: () => setDialog("rules") }] },
   ]
 
   return (

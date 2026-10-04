@@ -25,7 +25,7 @@ export const STEPS = {
   startMenu: {
     title: "The Start menu",
     text: (m) =>
-      `Type in the box at the top to find any file or program. Settings changes the look, and Help brings back the Welcome screen whenever you want it. ${m ? "Tap anywhere outside the menu to close it." : ""}`.trim(),
+      `Type in the box at the top to find any file or program. Settings changes the look, and Help has Help Topics (answers to everything) and brings back the Welcome screen. ${m ? "Tap anywhere outside the menu to close it." : ""}`.trim(),
     start: true,
     target: (ctx) => ctx.all(".startMenu"),
   },

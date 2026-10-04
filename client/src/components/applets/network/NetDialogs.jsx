@@ -6,6 +6,7 @@ import { openItem } from "../../../utils/openItem"
 import { formatSize, gameInfo, saveReceivedFile, useNet } from "./NetContext"
 import { ComposeDialog } from "./ComputerFolder"
 import { SendFileIcon } from "./icons"
+import { helpItem } from "../../../utils/help"
 
 // The small windows the network pops up: an incoming file, a game invitation, waiting for
 // an answer, a notice, and WinPopup.
@@ -229,7 +230,7 @@ export const WinPopup = ({ onClose }) => {
         { label: "Exit", onClick: onClose },
       ],
     },
-    { label: "Help", items: [{ label: "About WinPopup", onClick: () => setDialog({ kind: "about" }) }] },
+    { label: "Help", items: [helpItem({ program: "WinPopup" }), "-", { label: "About WinPopup", onClick: () => setDialog({ kind: "about" }) }] },
   ]
 
   return (

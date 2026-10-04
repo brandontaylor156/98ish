@@ -11,6 +11,7 @@ import { sendToItems, textPayload } from "../../../utils/share"
 import { PASTE_BLOCKED, copyText } from "../../../utils/systemClipboard"
 import "./Notepad.css"
 import { unlock } from "../../../utils/achievements"
+import { helpItem } from "../../../utils/help"
 
 // Notepad, as in Windows 98: File / Edit / Search / Help, Word Wrap, Set Font, Time/Date
 // (F5), Find (F3) and Replace, Open/Save As over the 98ish drive, the "save changes?"
@@ -323,7 +324,7 @@ const Notepad = ({ file: initialFile = null, onTitle, onClose, registerCloseGuar
     },
     {
       label: "Help",
-      items: [{ label: "About Notepad", onClick: () => setDialog({ kind: "alert", title: "About Notepad", text: "Notepad for 98ish. Tip: start a file with .LOG and Notepad adds the time and date every time you open it." }) }],
+      items: [helpItem({ program: "Notepad" }), "-", { label: "About Notepad", onClick: () => setDialog({ kind: "alert", title: "About Notepad", text: "Notepad for 98ish. Tip: start a file with .LOG and Notepad adds the time and date every time you open it." }) }],
     },
   ]
 

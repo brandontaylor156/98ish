@@ -24,6 +24,7 @@ import { lazyApp } from "./LazyApp"
 import { PROJECTS } from "../../utils/projects"
 import { CLOSE_EVENT, quickLaunchDrop, watchSocket } from "../../utils/shell"
 import { readClipboard } from "../../utils/systemClipboard"
+import { openHelp } from "../../utils/help"
 
 // Sharing with the phone (Send To, Received Items, Upload from Phone): its own download,
 // fetched when a menu that needs it opens, so a tap can call the share sheet at once
@@ -79,6 +80,8 @@ const Camera = lazyApp(() => import("../applets/camera/Camera"))
 const Photos = lazyApp(() => import("../applets/photos/Photos"))
 const AddressBook = lazyApp(() => import("../applets/addressbook/AddressBook"))
 const Find = lazyApp(() => import("../applets/find/Find"))
+// 98ish Help (Start > Help, F1, Help > Help Topics: utils/help.js openHelp)
+const HelpViewer = lazyApp(() => import("../applets/help/HelpViewer"))
 // Our Pet out for a walk on the desktop (couples only, its own small download)
 const PetWalker = React.lazy(() => import("../applets/pet/PetWalker"))
 // Network Neighborhood and the head-to-head games
@@ -143,6 +146,9 @@ const minWidthFor = (window) =>
   : window.app === "net-race" ? 250 // room for its title and the race bars
   : window.name === "98 Messenger" || window.app?.startsWith("aim-") || window.app?.startsWith("net-") ? 220
   : 300
+
+// windows with a "?" in the title bar (Windows 98's property sheets): it opens their help topic
+const HELP_BUTTON = new Set(["Display Properties", "Date/Time Properties", "Keyboard Properties", "Passwords", "Desktop Themes", "System Properties", "Accessibility Options", "Add/Remove Programs", "Mouse", "Regional Settings", "Storage", "Internet Options", "Fonts", "Power Management", "Sounds"])
 
 // High Contrast leaves these windows' contents in their own colors (games, pictures)
 const KEEP_COLORS = new Set(["paint", "photos", "camera", "webapp", "magnifier", "pinball"])
@@ -846,6 +852,7 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
       {window.app === "addressbook" && <AddressBook mobile={mobile} dispatch={dispatch} handoff={window.handoff} onTitle={rename(index)} onClose={() => closeWindow(window, index)} />}
       {window.app === "find" && <Find mobile={mobile} dispatch={dispatch} query={window.query} handoff={window.handoff} onTitle={rename(index)} onClose={() => closeWindow(window, index)} />}
       {window.app === "welcome" && <Welcome dispatch={dispatch} mobile={mobile} onClose={() => closeWindow(window, index)} />}
+      {window.app === "help" && <HelpViewer handoff={window.handoff} mobile={mobile} dispatch={dispatch} />}
       {window.app === "mail" && <Mail dispatch={dispatch} handoff={window.handoff} onTitle={rename(index)} mobile={mobile} />}
       {window.app === "homepage" && (
         <HomePageStudio dispatch={dispatch} onTitle={rename(index)} onClose={() => closeWindow(window, index)} mobile={mobile} />
@@ -922,6 +929,10 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
           <span id={`win-title-${index}`}>{window.name}</span>
         </div>
         <div className="title-bar-controls h-100" role="group" aria-label={`${window.name} window controls`}>
+          {/* property sheets have a "?" button, as in Windows 98: help for this window */}
+          {HELP_BUTTON.has(window.program) && (
+            <button className="titleBarButton" aria-label="Help" title="Help for this window" onClick={() => openHelp({ program: window.program })}></button>
+          )}
           <button
             className="titleBarButton"
             aria-label="Minimize"

@@ -5,6 +5,7 @@ import GameChat, { useGameChatMenuItem } from "../../../shared/GameChat"
 import PlayOnline, { useOnlineRoom } from "../../../shared/online"
 import { CheckersBoard } from "./Checkers"
 import "./BoardGames.css"
+import { helpItem } from "../../../../utils/help"
 
 // Checkers from the Start menu: Play Online front and center (Quick Match, a room with a
 // code, an invitation, or the computer) on the online room system (server/arcade/games/
@@ -74,7 +75,7 @@ const CheckersOnline = ({ onClose }) => {
       ],
     },
     { label: "Options", items: [chatItem] },
-    { label: "Help", items: [{ label: "Rules...", onClick: () => setRules(true) }] },
+    { label: "Help", items: [helpItem({ program: "Checkers" }), "-", { label: "Rules...", onClick: () => setRules(true) }] },
   ]
 
   return (

@@ -10,6 +10,7 @@ import { getTour, startTour } from "../../utils/welcome"
 import { currentUserName } from "../../utils/users"
 import { useSettings } from "../../utils/settings"
 import { navigate } from "../../utils/startNav"
+import { helpHandoff } from "../../utils/help"
 import "./StartMenu.css"
 
 const GROUPS = ["Accessories", "Business", "Community", "Games", "Internet", "Entertainment", "System Tools", "Us", "My Projects"]
@@ -154,6 +155,8 @@ const StartMenu = ({ dispatch, onQuery, onSearchKey, onSearchFocus, closeMenu, o
       key: "H",
       icon: ICON.help,
       items: () => [
+        { label: "Help Topics", icon: "/assets/program_icons/help.svg", onClick: () => go(launch("98ish Help", helpHandoff())) },
+        "-",
         { label: "Welcome to 98ish", icon: "/assets/program_icons/welcome.svg", onClick: () => go(launch("Welcome to 98ish")) },
         { label: "Take the Tour", icon: ICON.help, onClick: () => (closeMenu(), startTour(0)) },
         "-",

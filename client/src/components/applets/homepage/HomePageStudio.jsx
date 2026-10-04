@@ -11,6 +11,7 @@ import ClipArt from "../internetExplorer/local/member/ClipArt"
 import { BACKGROUNDS, BLOCK_TYPES, CLIPART, DEFAULT_SETTINGS, FONTS, MAX_PAGE_BYTES, SONGS, blockLabel, newBlock, toServer, withIds } from "../internetExplorer/local/member/schema"
 import { shrinkPicture } from "./pictures"
 import "./HomePageStudio.css"
+import { helpItem } from "../../../utils/help"
 
 // HomePage Studio 98ish: build a homepage out of blocks (headings, marquees, blinking
 // text, clip art, hit counters...) with a live preview, keep a draft on this computer,
@@ -519,7 +520,7 @@ const HomePageStudio = ({ dispatch, onTitle, onClose, mobile }) => {
         { label: "Delete Block", onClick: () => remove(selected), disabled: !selected },
       ],
     },
-    { label: "Help", items: [{ label: "About HomePage Studio", onClick: () => setDialog({ kind: "about" }) }] },
+    { label: "Help", items: [helpItem({ program: "HomePage Studio" }), "-", { label: "About HomePage Studio", onClick: () => setDialog({ kind: "about" }) }] },
   ]
 
   const preview = (

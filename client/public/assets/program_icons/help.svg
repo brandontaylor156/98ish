@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" shape-rendering="crispEdges">
+  <!-- 98ish Help: a closed help book with a yellow question mark (original art) -->
+  <!-- pages -->
+  <path d="M6 25h21v3H8l-2-1z" fill="#fff" stroke="#000" stroke-width="1"/>
+  <path d="M8 26h18M8 27h18" stroke="#9a9a9a" stroke-width="0.6"/>
+  <!-- cover -->
+  <path d="M5 4h21l2 2v19H7l-2-1z" fill="#1b44a8" stroke="#000" stroke-width="1"/>
+  <path d="M6 5h19v1H6z" fill="#5c86e0"/>
+  <path d="M6 5v19" stroke="#0b2266" stroke-width="2"/>
+  <path d="M26 6v18" stroke="#0b2266" stroke-width="1"/>
+  <!-- question mark -->
+  <path d="M12 9h7v1h2v5h-2v1h-2v2h-3v-3h2v-1h2v-3h-3v2h-3v-3h1z" fill="#ffd400" stroke="#000" stroke-width="0.8"/>
+  <path d="M14 19h3v3h-3z" fill="#ffd400" stroke="#000" stroke-width="0.8"/>
+  <!-- shine -->
+  <path d="M13 10h2v1h-2z" fill="#fff6a8"/>
+</svg>

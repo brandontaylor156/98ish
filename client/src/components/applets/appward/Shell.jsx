@@ -15,6 +15,7 @@ import { CalendarView, FeedView, ProjectsView } from "./Planning.jsx"
 import { ChatView } from "./Chat.jsx"
 import { AppCreatorView, DatabaseView, InsightsView, ReportBuilderView } from "./Tools.jsx"
 import { AboutDialog, TIPS, TipDialog } from "./Splash.jsx"
+import { helpItem } from "../../../utils/help"
 
 // The workspace window: menu bar, toolbar, the App Launcher on the left, open things as
 // tabs on the right (each a list, a record, a view), notifications and a status bar.
@@ -253,7 +254,7 @@ export default function Shell({ ws, rev, mobile, user, onTitle, onSignOut, onExi
     },
     {
       label: "Help",
-      items: [
+      items: [helpItem({ program: "Appward 98" }, { f1: false }), "-",
         { label: "Tip of the Day...", onClick: () => setDialog({ kind: "tip" }) },
         { label: "Keyboard Shortcuts\tF1", onClick: () => setDialog({ kind: "keys" }) },
         "-",

@@ -24,6 +24,7 @@ import { endTour, getTour, useTour, welcomeAtStartup, welcomeWindow } from "./ut
 import { hasSecret, lockNow, useLock, watchActivity } from "./utils/lock"
 import { hasProfiles, takeLoggedOnFlag } from "./utils/users"
 import { launch } from "./utils/programs"
+import { HELP_EVENT, helpHandoff } from "./utils/help"
 import "./components/OS-specific/lock/Lock.css"
 
 const MsDos = lazyApp(() => import("./components/applets/dos/MsDos"))
@@ -295,6 +296,33 @@ function App() {
     }
     window.addEventListener("keydown", onKey, true)
     return () => window.removeEventListener("keydown", onKey, true)
+  }, [phase])
+  // 98ish Help: openHelp() from anywhere (utils/help.js), and F1 for the program in front
+  const windowsRef = useRef(windows)
+  windowsRef.current = windows
+  useEffect(() => {
+    if (phase !== "desktop") return
+    const onHelp = (e) => {
+      closeMenu()
+      dispatch({ type: "open_window", payload: launch("98ish Help", helpHandoff(e.detail)) })
+    }
+    const onKey = (e) => {
+      if (e.key !== "F1" || e.ctrlKey || e.altKey || e.metaKey || e.shiftKey) return
+      // a program that uses F1 itself (Appward's key list, Shred's frets) keeps it
+      if (e.defaultPrevented || document.documentElement.classList.contains("os-locked")) return
+      const front = windowsRef.current.find((w) => w.active && !w.closed && !w.minimized)
+      const program = front?.program || front?.name
+      if (program === "Shred 98" || program === "Appward 98") return
+      e.preventDefault()
+      // F1 in Help itself: how to use Help
+      onHelp({ detail: program === "98ish Help" ? { topic: "using-help" } : program ? { program } : {} })
+    }
+    window.addEventListener(HELP_EVENT, onHelp)
+    window.addEventListener("keydown", onKey)
+    return () => {
+      window.removeEventListener(HELP_EVENT, onHelp)
+      window.removeEventListener("keydown", onKey)
+    }
   }, [phase])
   // Log On after a restart, when there's more than one user or a password
   const logOnNext = useRef(false)

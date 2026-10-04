@@ -98,6 +98,9 @@ export const programs = [
   { name: "Our Pet", app: "pet", icon: "/assets/program_icons/pet.svg", width: 480, height: 660, group: "Us", desktop: false, single: true },
   // the screen that greets you when 98ish starts (also Start > Help), and its guided tour
   { name: "Welcome to 98ish", app: "welcome", icon: "/assets/program_icons/welcome.svg", width: 660, height: 480, group: "System Tools", desktop: false, single: true },
+  // Help and Support: every topic, Contents/Index/Search/Favorites (applets/help; Start > Help,
+  // F1, Help > Help Topics in the programs; utils/help.js openHelp())
+  { name: "98ish Help", app: "help", icon: "/assets/program_icons/help.svg", width: 760, height: 540, group: "System Tools", desktop: false, single: true },
 ]
 
 // The desktop shows these (MS-DOS Prompt and Display Properties live in the Start menu)

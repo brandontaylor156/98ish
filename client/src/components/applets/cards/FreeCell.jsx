@@ -7,6 +7,7 @@ import { DEFAULT_BACK } from "./art"
 import { load, save } from "./storage"
 import * as F from "./freecellEngine"
 import { unlock } from "../../../utils/achievements"
+import { helpItem } from "../../../utils/help"
 
 const SETTINGS_KEY = "98ish.freecell"
 const STATS_KEY = "98ish.freecell.stats"
@@ -281,7 +282,7 @@ const FreeCell = ({ onClose, onTitle }) => {
     },
     {
       label: "Help",
-      items: [
+      items: [helpItem({ program: "FreeCell" }), "-",
         { label: "How to Play...", onClick: () => setDialog({ kind: "help" }) },
         { label: "About FreeCell...", onClick: () => setDialog({ kind: "about" }) },
       ],

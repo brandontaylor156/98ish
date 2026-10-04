@@ -21,7 +21,7 @@ const HELP = {
   ECHO: "Displays messages.\n\nECHO [message]\n\nUse > to write the output to a file: ECHO hello > hello.txt",
   EDIT: "Opens a file in Notepad, creating it if it doesn't exist.\n\nEDIT [drive:][path]filename",
   EXIT: "Quits the MS-DOS Prompt.",
-  HELP: "Provides help for commands.\n\nHELP [command]",
+  HELP: "Provides help for commands, or opens 98ish Help for a program.\n\nHELP [command]\nHELP program\n\nExamples: HELP DIR   HELP TETRIS\n\nWINHELP opens 98ish Help.",
   MD: "Creates a directory.\n\nMD [drive:]path",
   MEM: "Displays the amount of used and free memory.",
   MOVE: "Moves a file or directory.\n\nMOVE source destination",
@@ -54,7 +54,7 @@ const COMMAND_LIST = [
   ["ECHO", "Displays messages."],
   ["EDIT", "Edits a text file in Notepad."],
   ["EXIT", "Quits the MS-DOS Prompt."],
-  ["HELP", "Shows help for a command: HELP DIR"],
+  ["HELP", "Shows help for a command (HELP DIR) or a program (HELP TETRIS)."],
   ["MD", "Creates a directory."],
   ["MEM", "Displays memory usage."],
   ["MOVE", "Moves files and directories."],
@@ -125,6 +125,10 @@ export const ALIASES = {
   calendar: "Calendar",
   cal: "Calendar",
   calndr: "Calendar",
+  winhelp: "98ish Help",
+  winhlp32: "98ish Help",
+  hh: "98ish Help",
+  helptopics: "98ish Help",
   wab: "Address Book",
   addrbook: "Address Book",
   addressbook: "Address Book",
@@ -464,13 +468,19 @@ export const run = (input, shell) => {
     case "help":
     case "/?":
       if (args[0] && HELP[args[0].toUpperCase()]) out = HELP[args[0].toUpperCase()].split("\n")
-      else if (args[0]) out = [`No help for ${args[0].toUpperCase()}. Type HELP for the list of commands.`]
+      else if (args[0] && programFor(args.join(" "))) {
+        // a program: its page in 98ish Help
+        const program = programFor(args.join(" ")).name
+        out = [`Opening 98ish Help for ${program}...`]
+        result.open.push({ help: { program } })
+      } else if (args[0]) out = [`No help for ${args.join(" ").toUpperCase()}. Type HELP for the list of commands, or WINHELP for 98ish Help.`]
       else
         out = [
           "For more information on a command, type HELP command-name",
           ...COMMAND_LIST.map(([c, d]) => c.padEnd(10) + d),
           "",
           "You can also type a program's name to run it: TETRIS, WINMINE, NOTEPAD, SPECTRA...",
+          "For help with Windows 98ish itself, type WINHELP.",
         ]
       break
     case "echo":

@@ -3,6 +3,7 @@ import MenuBar from "../../../shared/MenuBar"
 import Dialog from "../../../shared/Dialog"
 import { useNet } from "../NetContext"
 import GameChat, { useGameChatMenuItem } from "../../../shared/GameChat"
+import { helpItem } from "../../../../utils/help"
 
 // Checkers against another computer. The server checks every move and sends the moves
 // you may make; pick a piece, then the square(s) to move it to (each jump of a multi-jump
@@ -126,7 +127,7 @@ export const CheckersBoard = ({ view, act, onClose, onDone = onClose, doneLabel 
       ],
     },
     { label: "Options", items: [chatItem] },
-    { label: "Help", items: [{ label: "Rules...", onClick: () => setDialog("rules") }] },
+    { label: "Help", items: [helpItem({ program: "Checkers" }), "-", { label: "Rules...", onClick: () => setDialog("rules") }] },
   ]
 
   const Player = ({ color, name, mine }) => (

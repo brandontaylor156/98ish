@@ -12,6 +12,7 @@ import { setMailStatus, useMailStatus } from "./mailStatus"
 import { contactByScreenName, useContacts } from "../../../utils/contacts"
 import { displayName, mailAddressOf } from "../../../utils/contactsCore"
 import "./Mail.css"
+import { helpItem } from "../../../utils/help"
 
 // 98ish Mail, in the style of a late-90s mail program: folders, a sortable message list,
 // a preview pane, and a New Message form with attachments from the 98ish drive. Your
@@ -595,7 +596,7 @@ const Mail = ({ dispatch, onTitle, mobile, handoff = null }) => {
         { label: "Forward", onClick: forward, disabled: !current || folder === "outbox" },
       ],
     },
-    { label: "Help", items: [{ label: "About 98ish Mail", onClick: () => setDialog({ kind: "about" }) }] },
+    { label: "Help", items: [helpItem({ program: "98ish Mail" }), "-", { label: "About 98ish Mail", onClick: () => setDialog({ kind: "about" }) }] },
   ]
 
   const headerFor = (by, label) => (

@@ -20,6 +20,7 @@ import { STEPS, TUTORIAL_YOU, tutorialBot } from "./tutorial"
 import { collectionProgress, deckFor, load, recordResult, savePrefs, update } from "./storage"
 import "./MonsterDuel.css"
 import "./Screens.css"
+import { helpItem } from "../../../utils/help"
 
 // Monster Duel: a trading card duel. Summon monsters, set traps, chain spells, and bring
 // your opponent's Life Points to 0. Duel the computer (eight opponents, three levels) to
@@ -646,7 +647,7 @@ const MonsterDuel = ({ mobile = false, onClose }) => {
     },
     {
       label: "Help",
-      items: [
+      items: [helpItem({ program: "Monster Duel" }), "-",
         { label: "Rules...", onClick: () => setScreen("rules") },
         { label: "Tutorial Duel", onClick: startTutorial },
         { label: "About Monster Duel...", onClick: () => setDialog("about") },

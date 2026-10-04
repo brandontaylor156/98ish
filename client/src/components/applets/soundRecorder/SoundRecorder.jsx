@@ -10,6 +10,7 @@ import * as W from "./wave"
 import { filePayload, sendToItems } from "../../../utils/share"
 import { safeFileName } from "../../../utils/shareRules"
 import "./SoundRecorder.css"
+import { helpItem } from "../../../utils/help"
 
 // Sound Recorder, as in Windows 98: record from the microphone (up to 60 seconds), play it
 // back, add effects (louder, faster, echo, reverse), cut it before or after the playhead,
@@ -498,7 +499,7 @@ const SoundRecorder = ({ file: initialFile = null, onTitle, onClose, registerClo
     },
     {
       label: "Help",
-      items: [
+      items: [helpItem({ program: "Sound Recorder" }), "-",
         {
           label: "About Sound Recorder",
           onClick: () =>

@@ -8,6 +8,7 @@ import { describe, useNet } from "./NetContext"
 import { useFileDrop } from "./ComputerFolder"
 import { ComputerIcon, EntireNetworkIcon } from "./icons"
 import { RaceLevelDialog, useGameInvites } from "./ComputerFolder"
+import { helpItem } from "../../../utils/help"
 
 // Network Neighborhood: every computer on the 98ish network right now, like the Windows 98
 // folder of the same name. Open one to send it a file, a message, or a game invitation.
@@ -99,7 +100,7 @@ const NetworkNeighborhood = ({ onClose }) => {
     },
     {
       label: "Help",
-      items: [{ label: "About Network Neighborhood", onClick: () => setDialog({ kind: "about" }) }],
+      items: [helpItem({ program: "Network Neighborhood" }), "-", { label: "About Network Neighborhood", onClick: () => setDialog({ kind: "about" }) }],
     },
   ]
 

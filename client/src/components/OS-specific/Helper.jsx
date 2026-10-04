@@ -1,10 +1,12 @@
 import React, { useEffect, useRef, useState } from "react"
 import { setSettings, useSettings } from "../../utils/settings"
 import { useTour } from "../../utils/welcome"
+import { openHelp } from "../../utils/help"
 import "./Helper.css"
 
 // Floppy, the 98ish helper: a floppy disk who pops up with tips when you open things.
-// Click him for another tip. Hide him from his bubble or in Display Properties.
+// Click him for another tip. Hide him from his bubble or in Display Properties. A tip about a
+// program offers "Help for this program" (98ish Help at its topic).
 
 const WELCOME = "Hi, I'm Floppy! I hold 1.44 MB of helpful tips. Click me any time for one."
 const WELCOME_PHONE = WELCOME.replace("Click", "Tap")
@@ -50,6 +52,10 @@ const TIPS = {
     "Give a contact a birthday and it shows up on the Birthdays calendar in Calendar every year, with a reminder.",
     "Right-click a buddy in 98 Messenger and choose Add to Address Book. A green dot means they're on right now!",
     "On an iPhone, open a contact in the Contacts app, tap Share Contact, save it to Files, then use File > Import here.",
+  ],
+  "98ish Help": [
+    "Press F1 in any program to jump straight to its help page.",
+    "Search finds words on every help page. Index is the place for a quick keyword, like a book's index.",
   ],
   Find: ["Type in the Start menu's box to find anything: programs, settings, the words inside your documents, people and events."],
   "Media Player": ["Every song in My Music was made right here in your browser. No files, all synth!"],
@@ -129,13 +135,15 @@ const pick = (list) => list[Math.floor(Math.random() * list.length)]
 const Helper = ({ windows, mobile }) => {
   const settings = useSettings()
   const [tip, setTip] = useState(null)
+  const [tipProgram, setTipProgram] = useState(null) // the program the tip is about
   const [mood, setMood] = useState("idle") // idle | talk | wave
   const seen = useRef(new Set())
   const lastShown = useRef(0)
   const known = useRef(0)
 
-  const say = (text, wave = false) => {
+  const say = (text, wave = false, program = null) => {
     lastShown.current = Date.now()
+    setTipProgram(program)
     setTip(text)
     setMood(wave ? "wave" : "talk")
   }
@@ -165,7 +173,7 @@ const Helper = ({ windows, mobile }) => {
     const name = fresh.program || fresh.name
     seen.current.add(name)
     if (Date.now() - lastShown.current < 45000) return
-    const t = setTimeout(() => say(pick(TIPS[name])), 1200)
+    const t = setTimeout(() => say(pick(TIPS[name]), false, name), 1200)
     return () => clearTimeout(t)
   }, [windows.length])
 
@@ -181,10 +189,10 @@ const Helper = ({ windows, mobile }) => {
 
   const nextTip = () => {
     const open = windows.filter((w) => !w.closed && !w.minimized && TIPS[w.program || w.name])
-    const pool = [...GENERAL, ...open.flatMap((w) => TIPS[w.program || w.name])]
-    let text = pick(pool)
-    if (text === tip && pool.length > 1) text = pick(pool.filter((p) => p !== tip))
-    say(text)
+    const pool = [...GENERAL.map((text) => [text, null]), ...open.flatMap((w) => TIPS[w.program || w.name].map((text) => [text, w.program || w.name]))]
+    let next = pick(pool)
+    if (next[0] === tip && pool.length > 1) next = pick(pool.filter((p) => p[0] !== tip))
+    say(next[0], false, next[1])
   }
 
   return (
@@ -199,6 +207,17 @@ const Helper = ({ windows, mobile }) => {
             <button type="button" onClick={nextTip}>
               Another tip
             </button>
+            {tipProgram && tipProgram !== "98ish Help" && (
+              <button
+                type="button"
+                onClick={() => {
+                  setTip(null)
+                  openHelp({ program: tipProgram })
+                }}
+              >
+                Open help for this program
+              </button>
+            )}
             <button
               type="button"
               onClick={() => {

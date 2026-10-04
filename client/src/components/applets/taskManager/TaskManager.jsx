@@ -20,6 +20,7 @@ import {
 } from "./Icons"
 import { flashOnBackdrop, useFloating } from "../../../hooks/useFloating"
 import "./TaskManager.css"
+import { openHelp } from "../../../utils/help"
 
 const TABS = [
   { id: "applications", label: "Applications", key: "A" },
@@ -398,7 +399,7 @@ const TaskManager = ({ dispatch, windows, selfIndex }) => {
       label: "Help",
       accel: "H",
       items: [
-        { label: "Task Manager Help Topics", accel: "H", disabled: true },
+        { label: "Task Manager Help Topics", accel: "H", shortcut: "F1", onClick: () => openHelp({ program: "Task Manager" }) },
         { separator: true },
         { label: "About Task Manager", accel: "A", onClick: () => setDialog({ type: "about" }) },
       ],

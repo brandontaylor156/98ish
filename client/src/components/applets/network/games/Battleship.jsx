@@ -5,6 +5,7 @@ import { GameButtons, GameOver, ResignDialog, ResultBanner, RulesDialog, usePlay
 import { useNetGame, useSoloBattleship } from "./useBoardGame"
 import { SHIPS, SIZE, cellsOf, fits, randomFleet, shipInfo } from "../rules/battleship.js"
 import "./BoardGames.css"
+import { helpItem } from "../../../../utils/help"
 
 // Battleship against another computer on the network, or against this one. First place
 // your five ships (drag them, or tap a ship then a square; Rotate turns it), then take turns
@@ -475,7 +476,7 @@ const BattleshipGame = ({ view, act, onClose }) => {
       ],
     },
     { label: "Options", items: [chatItem] },
-    { label: "Help", items: [{ label: "Rules...", onClick: () => setDialog("rules") }] },
+    { label: "Help", items: [helpItem({ program: "Battleship" }), "-", { label: "Rules...", onClick: () => setDialog("rules") }] },
   ]
 
   return (

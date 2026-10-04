@@ -1,6 +1,7 @@
 import { fs } from "./fs"
 import { hyperlinks } from "./hyperlinks"
 import { explorerWindow, ieWindow, launch, mediaPlayerWindow, notepadWindow, photosWindow, programByType, recorderWindow, windowFor, wordpadWindow } from "./programs"
+import { helpHandoff } from "./help"
 import { latestPlayer } from "../components/applets/mediaPlayer/bus"
 import { unlockAudio } from "../components/applets/mediaPlayer/audio"
 
@@ -69,5 +70,7 @@ export const openTarget = (target, dispatch) => {
   if (target.file) return dispatch({ type: "open_window", payload: notepadWindow(target.file) }), true
   if (target.url) return dispatch({ type: "open_window", payload: ieWindow(target.url) }), true
   if (target.program) return dispatch({ type: "open_window", payload: launch(target.program) }), true
+  // 98ish Help at a topic or a program's page (the DOS prompt's HELP TETRIS)
+  if (target.help) return dispatch({ type: "open_window", payload: launch("98ish Help", helpHandoff(target.help)) }), true
   return false
 }

@@ -18,6 +18,7 @@ import { keyOf, useAim } from "../aim/AimContext"
 import { useNet } from "../network/NetContext"
 import GameChat, { useGameChatMenuItem } from "../../shared/GameChat"
 import "./Town.css"
+import { helpItem } from "../../../utils/help"
 
 // Sunny Acres: grow crops, raise animals, run factories, fill helicopter orders and the
 // train, and build a little town. Rules live in game.js, drawing in art.js / render.js.
@@ -1313,7 +1314,7 @@ const Town = ({ onClose, onTitle, mobile, coopId = null }) => {
     },
     {
       label: "Help",
-      items: [{ label: "How to Play", onClick: () => setPanel({ k: "help" }) }],
+      items: [helpItem({ program: "Sunny Acres" }), "-", { label: "How to Play", onClick: () => setPanel({ k: "help" }) }],
     },
   ]
 

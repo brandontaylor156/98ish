@@ -11,6 +11,7 @@ import { createLocalGame } from "./local"
 import { DEFAULTS, PERSONAS, describeRules, personaFor, validateSettings } from "./cards"
 import { createSounds } from "./audio"
 import "./LastCard.css"
+import { helpItem } from "../../../utils/help"
 
 // Last Card: an original take on the classic "match the color or the number" card game.
 // Get rid of your cards first; call "Last Card!" when you're down to one. Play 1-9 computer
@@ -236,7 +237,7 @@ const LastCard = ({ mobile = false, onClose }) => {
     },
     {
       label: "Help",
-      items: [
+      items: [helpItem({ program: "Last Card" }), "-",
         { label: "How to Play...", onClick: () => setDialog("howto") },
         { label: "About Last Card...", onClick: () => setDialog("about") },
       ],

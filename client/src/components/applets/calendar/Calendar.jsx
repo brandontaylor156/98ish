@@ -31,6 +31,7 @@ import CheckBox from "./CheckBox"
 import { useSettings } from "../../../utils/settings"
 import { weekStart } from "../../../utils/region"
 import "./Calendar.css"
+import { helpItem } from "../../../utils/help"
 
 // 98ish Calendar: month, week, day, agenda and memos; your calendar on this device, your
 // own calendar on 98ish, the Us calendar for couples, and group calendars shared with
@@ -440,7 +441,7 @@ const Calendar = ({ calendarView: initial = {}, mobile, dispatch, onClose }) => 
     },
     {
       label: "Help",
-      items: [{ label: "About 98ish Calendar", onClick: () => setDialog({ kind: "about" }) }],
+      items: [helpItem({ program: "Calendar" }), "-", { label: "About 98ish Calendar", onClick: () => setDialog({ kind: "about" }) }],
     },
   ]
 

@@ -12,6 +12,7 @@ import { NextGlyph, PauseGlyph, PlayGlyph, PrevGlyph, RepeatGlyph, ShuffleGlyph,
 import "./MediaPlayer.css"
 import { masterGain, useSettings } from "../../../utils/settings"
 import { unlock } from "../../../utils/achievements"
+import { helpItem } from "../../../utils/help"
 
 // Media Player, as in Windows 98: plays the MIDI songs in C:\My Music (all original tunes,
 // synthesized live, see songs/), with a spectrum analyzer or oscilloscope, a seek bar,
@@ -491,7 +492,7 @@ const MediaPlayer = ({ song: initialSong = null, windowIndex, onTitle, onClose }
     },
     {
       label: "Help",
-      items: [{ label: "About Media Player...", onClick: () => setDialog("about") }],
+      items: [helpItem({ program: "Media Player" }), "-", { label: "About Media Player...", onClick: () => setDialog("about") }],
     },
   ]
 

@@ -6,6 +6,7 @@ import { useOpenGesture } from "../../../hooks/useMediaQuery"
 import { useLongPress } from "../../../hooks/useLongPress"
 import { CPL_ITEMS, openCplItem } from "./items"
 import "./ControlPanel.css"
+import { helpItem } from "../../../utils/help"
 
 const VIEW_KEY = "98ish.cpl.view"
 const readView = () => {
@@ -50,7 +51,7 @@ const ControlPanel = ({ dispatch, mobile }) => {
   const menus = [
     { label: "File", items: [{ label: "Open", disabled: !item, onClick: () => open(item) }] },
     { label: "View", items: viewItems },
-    { label: "Help", items: [{ label: "About Control Panel", onClick: () => setAbout(true) }] },
+    { label: "Help", items: [helpItem({ program: "Control Panel" }), "-", { label: "About Control Panel", onClick: () => setAbout(true) }] },
   ]
 
   // arrow keys: left/right through the items, up/down by rows (by one in List and Details)

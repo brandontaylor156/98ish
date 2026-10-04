@@ -15,6 +15,7 @@ import { PASTE_BLOCKED, copyText } from "../../../utils/systemClipboard"
 import { safeFileName } from "../../../utils/shareRules"
 import { richTextPage } from "../../../utils/fileTransfer"
 import "./WordPad.css"
+import { helpItem } from "../../../utils/help"
 
 // WordPad, as in Windows 98: a rich text editor with a toolbar, a format bar (font, size,
 // bold/italic/underline, color, alignment, bullets), a ruler and a status bar; Font,
@@ -896,7 +897,7 @@ const WordPad = ({ file: initialFile = null, mobile = false, onTitle, onClose, r
     },
     {
       label: "Help",
-      items: [
+      items: [helpItem({ program: "WordPad" }), "-",
         {
           label: "About WordPad",
           onClick: () =>

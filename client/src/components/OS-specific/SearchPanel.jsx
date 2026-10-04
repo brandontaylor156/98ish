@@ -3,13 +3,13 @@ import { launch } from "../../utils/programs"
 import "./SearchPanel.css"
 
 // The Start menu's search results: what matches, grouped (Programs, Settings, Files, Contacts,
-// Calendar, Messages, Mail, Photos), best first. Arrow keys move through them from the search
+// Calendar, Messages, Mail, Photos, Help Topics), best first. Arrow keys move through them from the search
 // box, Enter opens one (the first if none is picked), "See all results" opens Find with a tab
 // per kind. On phones it fills the screen under the search box. The searching itself
 // (utils/search.js) loads with the first letter typed.
 
-const PER_TYPE = { programs: 4, settings: 3, files: 5, contacts: 3, events: 3, messages: 3, mail: 3, photos: 3 }
-const PER_TYPE_PHONE = { programs: 5, settings: 4, files: 6, contacts: 4, events: 4, messages: 4, mail: 4, photos: 4 }
+const PER_TYPE = { programs: 4, settings: 3, files: 5, contacts: 3, events: 3, messages: 3, mail: 3, photos: 3, help: 3 }
+const PER_TYPE_PHONE = { programs: 5, settings: 4, files: 6, contacts: 4, events: 4, messages: 4, mail: 4, photos: 4, help: 4 }
 
 let engine = null
 const loadEngine = () => (engine ??= import("../../utils/search"))

@@ -3,6 +3,7 @@ import MenuBar from "../../shared/MenuBar"
 import Dialog from "../../shared/Dialog"
 import { copyText, displayText, initialState, isEnabled, keyFor, parenDepth, pasteText, press } from "./engine"
 import "./Calculator.css"
+import { helpItem } from "../../../utils/help"
 
 // Calculator, as in Windows 98: Standard and Scientific views (View menu), memory, Hex/Dec/
 // Oct/Bin, Inv and Hyp, the Statistics Box, keyboard input and Edit > Copy/Paste. The math
@@ -284,8 +285,8 @@ const Calculator = ({ fitWindow }) => {
     { label: "View", items: viewMenu },
     {
       label: "Help",
-      items: [
-        { label: "Help Topics", onClick: () => setDialog({ kind: "help" }) },
+      items: [helpItem({ program: "Calculator" }), "-",
+        { label: "Calculator Keys...", onClick: () => setDialog({ kind: "help" }) },
         "-",
         { label: "About Calculator", onClick: () => setDialog({ title: "About Calculator", text: "Calculator for 98ish. Scientific view follows operator precedence: 2 + 3 * 4 = 14." }) },
       ],

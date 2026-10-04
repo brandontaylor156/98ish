@@ -13,6 +13,7 @@ import {
   CalibrateScreen, FailedScreen, HowToScreen, LANE_CSS, Logo, OptionsScreen, PauseScreen, ResultsScreen, SongScreen, TitleScreen, fmtScore, keyName, DIFF_LABEL,
 } from "./screens.jsx"
 import "./Shred.css"
+import { helpItem } from "../../../utils/help"
 
 // Shred 98: a rock rhythm game. React draws the menus, the HUD and the call-outs; the stage
 // and the note highway are three.js (engine.js, loaded on first open with three.js); the
@@ -408,7 +409,7 @@ const Shred = ({ onClose, mobile }) => {
     },
     {
       label: "Help",
-      items: [
+      items: [helpItem({ program: "Shred 98" }, { f1: false }), "-",
         { label: "How to Play", disabled: inSong, onClick: () => go("howto") },
         "-",
         { label: "About Shred 98...", onClick: () => setDialog("about") },

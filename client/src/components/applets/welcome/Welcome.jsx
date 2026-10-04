@@ -2,6 +2,7 @@ import React, { useState } from "react"
 import { launch, programByName, ieWindow } from "../../../utils/programs"
 import { TOUR_STEPS, setWelcome, startTour, useWelcome } from "../../../utils/welcome"
 import { shellAction } from "../../../utils/shell"
+import { openHelp } from "../../../utils/help"
 import { BannerComputer, OPTION_ICONS } from "./art"
 import { GlobeIcon } from "../../shared/online/PlayOnlineButton"
 import "./Welcome.css"
@@ -9,8 +10,20 @@ import "./Welcome.css"
 // Welcome to 98ish: the screen that greets you when 98ish starts (like Windows 98's own),
 // with a big option column on the left and what each one says on the right. Take the Tour
 // starts the guided tour (Tour.jsx). Start > Help or Programs > System Tools brings it back.
+// Each page links to its 98ish Help topic (HELP_FOR), and each program to its own.
 
 const REPO = "https://github.com/brandontaylor156/98ish"
+
+// each page's topic in 98ish Help
+const HELP_FOR = {
+  home: ["help-home", "Browse all the help topics"],
+  tour: ["welcome-tour", "More about the Welcome screen and Floppy"],
+  computer: ["what-is-98ish", "More about what's here"],
+  friends: ["online-play", "How playing online works"],
+  couples: ["us-pairing", "Step by step: pairing up"],
+  yours: ["display", "More ways to change the look"],
+  involved: ["community-pages", "More about 98ish.com"],
+}
 
 const OPTIONS = [
   { id: "tour", label: "Take the Tour" },
@@ -119,6 +132,9 @@ const Program = ({ name, blurb, online, onOpen }) => {
         </b>
         <span>{blurb}</span>
       </span>
+      <button type="button" className="welHelpBtn" onClick={() => openHelp({ program: name })} aria-label={`Help for ${name}`} title={`Help for ${name}`}>
+        ?
+      </button>
       <button type="button" onClick={() => onOpen(name)} aria-label={`Open ${name}`}>
         Open
       </button>
@@ -368,6 +384,20 @@ const Welcome = ({ dispatch, mobile, onClose }) => {
               </button>
             )}
             {content[page]}
+            {HELP_FOR[page] && (
+              <p className="welHelpLink">
+                <a
+                  href="#help"
+                  onClick={(e) => {
+                    e.preventDefault()
+                    openHelp(HELP_FOR[page][0])
+                  }}
+                >
+                  {HELP_FOR[page][1]}
+                </a>{" "}
+                in 98ish Help
+              </p>
+            )}
           </div>
         )}
       </div>

@@ -19,6 +19,7 @@ import ContactEditor from "./ContactEditor"
 import { Avatar, ContactCard, StatusDot, presenceOf } from "./ContactCard"
 import Panel from "./Panel"
 import "./AddressBook.css"
+import { helpItem } from "../../../utils/help"
 
 // The Address Book, after Windows 98's: everyone you know, with their 98 Messenger screen
 // name (and whether they're on), 98ish Mail address, phones, birthday and anniversary (they
@@ -294,7 +295,7 @@ const AddressBook = ({ mobile, dispatch, handoff, onTitle, onClose }) => {
         { label: "98ish Mail", onClick: () => dispatch({ type: "open_window", payload: launch("98ish Mail") }) },
       ],
     },
-    { label: "Help", items: [{ label: "About Address Book", onClick: () => setDialog({ kind: "about" }) }] },
+    { label: "Help", items: [helpItem({ program: "Address Book" }), "-", { label: "About Address Book", onClick: () => setDialog({ kind: "about" }) }] },
   ]
 
   const contextItems = (c) => {

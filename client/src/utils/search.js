@@ -21,6 +21,8 @@ import { getContacts } from "./contacts"
 import { displayName, addressText, mailAddressOf, dateText } from "./contactsCore"
 import { getCal, openCalendar, calendarById, zone } from "../components/applets/calendar/store"
 import { occurrences, dateIn, dateLabel } from "../components/applets/calendar/recur"
+// 98ish Help's topics add themselves to the registry (type "help")
+import "../components/applets/help/register"
 
 const DAY = 86_400_000
 const PROGRAM_FILE_TYPES = new Set(programs.map((p) => p.type).filter(Boolean))
@@ -47,18 +49,26 @@ const programList = () => {
 // ---- settings (utils/searchIndex.js) ----
 
 let settingsCache = { version: -1, list: [] }
-const settingsList = () => {
-  if (settingsCache.version === searchableVersion()) return settingsCache.list
-  const list = searchableEntries().map((e) => ({
-    ...e,
-    type: e.type || "settings",
-    subtitle: e.detail || "Settings",
-    icon: e.icon || "/assets/vaporwave.png",
-    search: prepare({ title: e.title, keywords: e.keywords || [], detail: e.detail || "" }),
-  }))
-  settingsCache = { version: searchableVersion(), list }
-  return list
+const registryLists = () => {
+  if (settingsCache.version === searchableVersion()) return settingsCache
+  const settings = []
+  const help = []
+  for (const e of searchableEntries()) {
+    const isHelp = e.type === "help"
+    const into = isHelp ? help : settings
+    into.push({
+      ...e,
+      type: isHelp ? "help" : e.type || "settings",
+      subtitle: isHelp ? e.summary || e.detail : e.detail || "Settings",
+      icon: e.icon || "/assets/vaporwave.png",
+      search: prepare({ title: e.title, keywords: e.keywords || [], detail: isHelp ? e.summary || "" : e.detail || "", body: isHelp ? e.body || "" : "" }),
+    })
+  }
+  settingsCache = { version: searchableVersion(), list: settings, help }
+  return settingsCache
 }
+const settingsList = () => registryLists().list
+const helpList = () => registryLists().help
 
 // ---- the drive ----
 
@@ -255,6 +265,7 @@ const providerList = (type) => {
 const SOURCES = {
   programs: () => [programList(), 0],
   settings: () => [settingsList(), searchableVersion()],
+  help: () => [helpList(), searchableVersion()],
   files: () => {
     const list = fileEntries()
     return [list.filter((e) => e.type !== "image" && !(PROGRAM_FILE_TYPES.has(e.type) && e.path.startsWith("C:\\Programs"))), filesVersion]
@@ -291,7 +302,8 @@ export const searchAll = (query, { types = SEARCH_TYPES.map((t) => t.id), perTyp
     if (!types.includes(t.id)) continue
     let matches = []
     try {
-      matches = q ? searchType(t.id, q) : SOURCES[t.id]()[0]
+      // (no words: everything, but not every help page)
+      matches = q ? searchType(t.id, q) : t.id === "help" ? [] : SOURCES[t.id]()[0]
     } catch (error) {
       console.error(`[search] ${t.id}`, error)
     }
@@ -307,6 +319,7 @@ export const warmUp = () => {
   if (isLocked()) return
   programList()
   settingsList()
+  helpList()
   fileEntries()
   contactList()
   eventList()
@@ -338,6 +351,9 @@ export const openResult = (result, dispatch) => {
       return true
     case "events":
       openCalendar(calendarById(result.calendarId) ? { calendarId: result.calendarId, eventId: result.eventId, key: result.key, date: result.date } : { date: result.date })
+      return true
+    case "help":
+      result.open?.(dispatch)
       return true
     case "mail":
       open(launch("98ish Mail", { handoff: { id: Date.now(), message: { folder: result.folder, id: result.messageId } } }))

@@ -14,6 +14,7 @@ import { drawScene, itemAt, renderPhoto } from "./render"
 import { createSounds } from "./sounds"
 import { houseApi, pairedWith, useCoupleInfo } from "./share"
 import "./Dollhouse.css"
+import { helpItem } from "../../../utils/help"
 
 // Dream House: a dollhouse to decorate. Pick things from the catalog (drag them in, or tap
 // to place and then drag), move, flip, stack, delete; wallpaper and floors per room; two
@@ -977,7 +978,7 @@ const Dollhouse = ({ mobile, onClose, onTitle, dispatch }) => {
         ...M.ROOMS.map((r) => ({ label: `Go to ${r.name}`, onClick: () => (setRoom(r.id), zoomToRoom(r.id)) })),
       ],
     },
-    { label: "Help", items: [{ label: "How to Decorate", onClick: () => setDialog({ kind: "help" }) }] },
+    { label: "Help", items: [helpItem({ program: "Dream House" }), "-", { label: "How to Decorate", onClick: () => setDialog({ kind: "help" }) }] },
   ]
 
   // ---- the catalog ----

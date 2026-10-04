@@ -6,6 +6,7 @@ import TouchControls, { fromPx, useTouchControlsMenuItem, useTouchControlsVisibl
 import { ANGLES, MOOSE_AT, UNIT, addScore, distanceOf, ensureCells, loadScores, newGame, objectsNear, scoreOf, speedKmh, step } from "./skiEngine"
 import { mooseSprite, objectSprites, skierSprite } from "./skiArt"
 import "./Ski.css"
+import { helpItem } from "../../../utils/help"
 
 // Downhill: ski as far as you can. Arrow keys (or point with the mouse, or touch and hold
 // on a phone) to steer, Space to jump (and to spin off the ramps), Up to slow down.
@@ -396,7 +397,7 @@ const Ski = ({ onClose, mobile }) => {
         chatItem,
       ],
     },
-    { label: "Help", items: [{ label: "How to Play...", onClick: () => setDialog({ kind: "help" }) }] },
+    { label: "Help", items: [helpItem({ program: "Downhill" }), "-", { label: "How to Play...", onClick: () => setDialog({ kind: "help" }) }] },
   ]
 
   const scores = dialog?.kind === "scores" ? loadScores() : over?.scores || []

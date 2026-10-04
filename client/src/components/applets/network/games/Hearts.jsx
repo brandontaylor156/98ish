@@ -7,6 +7,7 @@ import { Card, cardName } from "./Cards"
 import { OnlinePeople } from "../../../shared/online/PlayOnline"
 import { GlobeIcon } from "../../../shared/online/PlayOnlineButton"
 import "../../../shared/online/Online.css"
+import { helpItem } from "../../../../utils/help"
 
 // Hearts at a table of four. Humans join from invitations; the computer plays the empty
 // seats (and takes over for anyone who leaves). The server deals, checks every card and
@@ -194,7 +195,7 @@ const Hearts = ({ matchId, onClose }) => {
       ],
     },
     { label: "Options", items: [chatItem] },
-    { label: "Help", items: [{ label: "Rules...", onClick: () => setDialog("rules") }] },
+    { label: "Help", items: [helpItem({ program: "Hearts" }), "-", { label: "Rules...", onClick: () => setDialog("rules") }] },
   ]
 
   const Opponent = ({ place }) => {

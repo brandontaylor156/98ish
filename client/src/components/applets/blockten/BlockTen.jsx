@@ -7,6 +7,7 @@ import * as E from "./engine"
 import { createSounds } from "./audio"
 import { bestFor, loadData, loadGame, recordScore, saveGame, savePrefs } from "./storage"
 import "./BlockTen.css"
+import { helpItem } from "../../../utils/help"
 
 // Block Ten: drag pieces onto a 10x10 board; full rows and columns clear. Three pieces at
 // a time, no rotating. The game ends when none of the pieces left fits anywhere.
@@ -384,7 +385,7 @@ const BlockTen = ({ onClose, mobile }) => {
         ...THEMES.map((t) => ({ label: t.label, checked: theme === t.id, onClick: () => setPref({ theme: t.id }) })),
       ],
     },
-    { label: "Help", items: [{ label: "How to Play...", onClick: () => setDialog("help") }] },
+    { label: "Help", items: [helpItem({ program: "Block Ten" }), "-", { label: "How to Play...", onClick: () => setDialog("help") }] },
   ]
 
   const previewCells = new Set()

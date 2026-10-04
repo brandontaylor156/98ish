@@ -8,6 +8,7 @@ import { unlock } from "../../../utils/achievements"
 import { BACKS, DEFAULT_BACK, backUrl } from "./art"
 import { load, save } from "./storage"
 import * as K from "./klondike"
+import { helpItem } from "../../../utils/help"
 
 const SETTINGS_KEY = "98ish.solitaire"
 const BANK_KEY = "98ish.solitaire.vegas"
@@ -324,7 +325,7 @@ const Solitaire = ({ onClose }) => {
     },
     {
       label: "Help",
-      items: [
+      items: [helpItem({ program: "Solitaire" }), "-",
         { label: "How to Play...", onClick: () => setDialog({ kind: "help" }) },
         { label: "About Solitaire...", onClick: () => setDialog({ kind: "about" }) },
       ],

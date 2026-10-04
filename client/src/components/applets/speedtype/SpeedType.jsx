@@ -15,6 +15,7 @@ import { DRILLS, makeDrill } from "./drills"
 import { createSounds } from "./audio"
 import { bestGhost, load, recordRace, savePrefs } from "./storage"
 import "./SpeedType.css"
+import { helpItem } from "../../../utils/help"
 
 // Speed Typist 98: typing races. Everyone gets the same prompt; your car moves as you type
 // it right. Online (server/arcade/games/speedtype.js): Quick Match by length and category,
@@ -295,7 +296,7 @@ const SpeedType = ({ mobile = false, onClose }) => {
     },
     {
       label: "Help",
-      items: [
+      items: [helpItem({ program: "Speed Typist 98" }), "-",
         { label: "How to Play...", onClick: () => setDialog("howto") },
         { label: "About Speed Typist 98...", onClick: () => setDialog("about") },
       ],
