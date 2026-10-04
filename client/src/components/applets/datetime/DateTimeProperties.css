@@ -266,6 +266,21 @@
   min-width: 75px !important;
 }
 
+/* Calendar... and Clock... sit on the left */
+.dtButtons {
+  flex-wrap: wrap;
+}
+
+.dtButtons .dtMore + button {
+  margin-right: auto;
+}
+
+.dtButtons .dtMore,
+.dtButtons .dtMore + button {
+  min-width: 0 !important;
+  padding: 0 8px;
+}
+
 /* ---- phones ---- */
 
 .os-mobile .dtRoot {

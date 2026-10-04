@@ -84,6 +84,13 @@
 .tray .status-bar {
   margin: 0;
 }
+/* the clock's box (right-click or hold it for Calendar and Clock) */
+.trayClock {
+  display: flex;
+  align-items: center;
+  -webkit-touch-callout: none;
+  user-select: none;
+}
 .tray .status-bar-field {
   box-shadow: none;
   padding: 0 0 0 2px;

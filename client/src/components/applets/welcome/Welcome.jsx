@@ -50,6 +50,7 @@ const SHELVES = [
     items: [
       ["Us", "Pair up, send flowers, see your days together", false],
       ["Love Letters", "Letters that open on a day you choose", false],
+      ["Calendar", "Your Us calendar: date nights, trips, reminders", false],
       ["Our Story", "Your photos on one shared timeline", false],
       ["Our Pet", "A pet you raise together", false],
       ["Lovebirds Quiz Show", "How well do you know each other?", true],
@@ -63,6 +64,8 @@ const SHELVES = [
     label: "Accessories",
     intro: "The handy little programs every computer came with. Your files are saved right here in this browser.",
     items: [
+      ["Calendar", "Plan together: shared calendars and reminders", false],
+      ["Clock", "World clocks, alarms, a timer, a stopwatch", false],
       ["Notepad", "Jot something down", false],
       ["WordPad", "Letters with fonts, colors and pictures", false],
       ["Paint", "Draw, then make it your wallpaper", false],
@@ -260,6 +263,7 @@ const Welcome = ({ dispatch, mobile, onClose }) => {
             <li><b>Send flowers</b> that bloom on their desktop (they have to water them!)</li>
             <li><b>Write Love Letters</b> that stay sealed until the day you pick</li>
             <li><b>Keep Our Story</b>, a timeline of your photos, and show them as your wallpaper</li>
+            <li><b>Plan dates</b> on your shared Us calendar in Calendar, with reminders for both of you</li>
             <li><b>Raise Our Pet</b> together, and decorate a <b>Dream House</b></li>
             <li><b>Play</b> the Lovebirds Quiz Show, Photo Puzzle and Doodle Together</li>
           </ul>

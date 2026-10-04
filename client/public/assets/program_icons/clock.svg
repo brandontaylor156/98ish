@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <!-- Clock: a teal twin-bell alarm clock -->
+  <circle cx="13" cy="10" r="6" fill="#ffd84a" stroke="#000" stroke-width="1.5"/>
+  <circle cx="35" cy="10" r="6" fill="#ffd84a" stroke="#000" stroke-width="1.5"/>
+  <rect x="22" y="4" width="4" height="5" fill="#404040"/>
+  <path d="M13 41 l-5 5 M35 41 l5 5" stroke="#000" stroke-width="3" stroke-linecap="square"/>
+  <circle cx="25" cy="27" r="17" fill="#000"/>
+  <circle cx="24" cy="26" r="17" fill="#008080"/>
+  <circle cx="24" cy="26" r="13.5" fill="#fff" stroke="#004040" stroke-width="1"/>
+  <g fill="#000" shape-rendering="crispEdges">
+    <rect x="23" y="13" width="2" height="3"/><rect x="23" y="36" width="2" height="3"/>
+    <rect x="11" y="25" width="3" height="2"/><rect x="34" y="25" width="3" height="2"/>
+  </g>
+  <path d="M24 26 L24 17" stroke="#000" stroke-width="2.4" stroke-linecap="round"/>
+  <path d="M24 26 L31 30" stroke="#000" stroke-width="2.4" stroke-linecap="round"/>
+  <path d="M24 26 L18 33" stroke="#c00000" stroke-width="1"/>
+  <circle cx="24" cy="26" r="1.6" fill="#c00000"/>
+  <path d="M15 17 a12 12 0 0 1 6 -4" fill="none" stroke="#80ffff" stroke-width="2" stroke-linecap="round" opacity="0.8"/>
+</svg>

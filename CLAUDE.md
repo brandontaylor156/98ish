@@ -30,7 +30,7 @@ A Windows 98-style web desktop at https://98ish.vercel.app. The owner uses it mo
 
 ## Testing
 - **Unit tests:**
-  - Root `npm test` runs the server and arcade tests (289 passing).
+  - Root `npm test` runs the server and arcade tests (298 passing).
   - App unit tests run by FILE path: `node --test path/to/x.test.js`. A folder path fails on Windows.
 - **Browser tests:** playwright-core with system Chrome. Scripts live in the session scratchpad, which is temporary, so recreate them as needed.
   - Ports: vite on 5199 (`cd client && npx vite --port 5199 --strictPort`), chat server `COUPLES_TEST_CLOCK=1 PORT=8000 node server.js`.
@@ -58,6 +58,12 @@ Shipped and live:
   - Appward 98, Shred 98, Word Duel, Last Card, Monster Duel, Hexlands, Speed Typist 98, Checkers online.
   - The Quiz Show redesign, Photo Puzzle fixes, live co-op in Sunny Acres.
   - Pickleball 98: skinned CC0 athletes, plus a redesign based on real play (one hit control, aim and tap soft / hold hard, dinks, resets, speed-ups, hand battles).
+
+**98ish Calendar + Clock** (TimeTree-style shared calendars; not yet tried on a real phone):
+- **Client:** `applets/calendar/` (Accessories, also in Us). `store.js` holds calendars and events (server calendars plus "On this device" in localStorage, uploadable); `recur.js` is the date math (repeats expanded client-side in the event's own IANA zone, so DST is right; exceptions keyed by the occurrence's original date); `ics.js` writes .ics files (the server imports it for feeds); `CalendarBridge.jsx` (lazy, always mounted on the desktop) applies live `cal:*` notices, fires reminders (Reminder window, Snooze/Dismiss, `98ish.cal.reminders`), rings Clock alarms and the timer, and opens Calendar/Clock (`openCalendar()`, `?calendar=CODE` invite links). The taskbar clock still opens Date/Time Properties on a double-click; right-click or hold it for Calendar and Clock.
+- **Server:** `server/calendar/` at `/api/calendar` (Messenger bearer token; non-members get 404). Personal calendar per account, an "Us" calendar per paired couple (visible only while paired), group calendars with owner/member roles, invites by screen name or 8-letter code, comments, an activity feed, and a secret per-member iCalendar feed (`/api/calendar/feed/<token>.ics`) phones can subscribe to. MongoDB collections `calendars`, `calevents`, `calcomments`, `calactivity`.
+- **Reminders with 98ish closed:** no Web Push (it would need the `web-push` package and VAPID keys). Instead, "Add to my phone" downloads an event's .ics, and Calendar Properties > Phone gives a webcal link (turn off "Remove Alerts" on iPhone for alarms). In-app reminders can also show a system notification when allowed.
+- **Tests:** `node --test client/src/components/applets/calendar/recur.test.js` (and `ics.test.js`); server `server/calendar/test`; browser scripts `cal-*.mjs`.
 
 Just pushed and not yet tried on a real phone:
 - **The 98ish phone keyboard** (`shared/keyboard/`, setting under Start > Settings > Keyboard). It replaces the phone keyboard on touch devices, with a title-bar button that switches to the phone keyboard for emoji, dictation and AutoFill.
@@ -87,7 +93,6 @@ Just pushed and not yet tried on a real phone:
    - **98 Messenger calls on two real iPhones**, ideally once on Wi-Fi and once on cellular: ring, answer, hear each other (and that the ringtone stops), camera flip, mute, lock the screen / switch apps mid-call, and whether a cellular call connects without TURN (if not, set the Metered env vars above).
 2. **Recommended next features**, in this order:
    - Camera + Photos (webcam/phone camera into My Pictures, a viewer with slideshow and set-as-wallpaper).
-   - Calendar + Clock with reminders and a shared couple calendar.
    - Control Panel + accessibility (magnifier, high contrast, larger text).
    - Then: notification center, address book, a spreadsheet, a PDF viewer / print to PDF, screenshot + clipboard history, a music library, user accounts + lock screen, search everything, help center.
 3. **Known leftovers:**

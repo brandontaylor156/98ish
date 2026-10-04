@@ -1,0 +1,229 @@
+/* 98ish Calendar's Reminder and Alarm windows, and its toasts (CalendarBridge) */
+
+.cbReminder {
+  position: fixed;
+  left: calc(50% - 170px);
+  top: 18%;
+  width: 340px;
+  z-index: 100000005;
+  height: auto;
+  font-family: "Pixelated MS Sans Serif", Arial, sans-serif;
+  font-size: 11px;
+  animation: cbPop 0.18s ease-out;
+}
+
+@keyframes cbPop {
+  from {
+    transform: scale(0.94);
+    opacity: 0;
+  }
+}
+
+.cbReminder .title-bar {
+  background: linear-gradient(90deg, #000080, #1084d0);
+}
+
+.cbReminderBody {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px !important;
+}
+
+.cbReminderHead {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.cbBell {
+  flex: none;
+  animation: cbRing 0.9s ease-in-out 2;
+  transform-origin: 50% 10%;
+}
+
+@keyframes cbRing {
+  0%, 100% { transform: rotate(0); }
+  20% { transform: rotate(14deg); }
+  40% { transform: rotate(-12deg); }
+  60% { transform: rotate(8deg); }
+  80% { transform: rotate(-5deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cbBell,
+  .cbReminder {
+    animation: none;
+  }
+}
+
+.cbReminderTitle {
+  font-weight: bold;
+  font-size: 13px;
+  word-break: break-word;
+}
+
+.cbReminderWhen,
+.cbReminderWhere {
+  margin-top: 2px;
+}
+
+.cbReminderList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  background: #fff;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+  max-height: 110px;
+  overflow: auto;
+  padding: 2px;
+}
+
+.cbReminderList li {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 2px 4px;
+  cursor: default;
+}
+
+.cbReminderList li.cbSel {
+  background: #000080;
+  color: #fff;
+}
+
+.cbReminderItem {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cbReminderDue {
+  flex: none;
+}
+
+.cbReminderButtons {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.cbReminderButtons button {
+  min-width: 75px;
+}
+
+.cbDefault {
+  outline: 1px solid #000;
+  outline-offset: -1px;
+}
+
+.cbSnoozeRow {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cbSnoozeControls {
+  display: flex;
+  gap: 6px;
+}
+
+.cbSnoozeControls select {
+  flex: 1;
+}
+
+.cbAlarm {
+  top: 22%;
+}
+
+.cbToasts {
+  position: fixed;
+  right: 8px;
+  bottom: 44px;
+  z-index: 100000004;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 300px;
+}
+
+.cbToast {
+  height: auto;
+  animation: cbSlide 0.3s ease-out;
+}
+
+@keyframes cbSlide {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+}
+
+.cbToast .title-bar {
+  background: linear-gradient(90deg, #000080, #1084d0);
+}
+
+.cbToastBody {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-family: "Pixelated MS Sans Serif", Arial, sans-serif;
+  font-size: 11px;
+}
+
+.cbToastIcon {
+  font-size: 22px;
+  line-height: 1;
+}
+
+.cbToastText {
+  flex: 1;
+  min-width: 160px;
+  word-break: break-word;
+}
+
+.cbToastActions {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.cbToastActions button {
+  min-width: 0;
+  padding: 0 10px;
+}
+
+.os-mobile .cbReminder {
+  left: 8px;
+  right: 8px;
+  width: auto;
+  top: calc(env(safe-area-inset-top) + 40px);
+}
+
+.os-mobile .cbReminderBody button,
+.os-mobile .cbReminderBody select {
+  min-height: 36px;
+  font-size: 13px;
+}
+
+.os-mobile .cbReminderTitle {
+  font-size: 15px;
+}
+
+.os-mobile .cbToasts {
+  left: 8px;
+  right: 8px;
+  width: auto;
+  top: calc(env(safe-area-inset-top) + 32px);
+  bottom: auto;
+}
+
+.os-mobile .cbToast:not(:last-child) {
+  display: none;
+}
+
+.os-mobile .cbToastActions button {
+  min-height: 32px;
+}

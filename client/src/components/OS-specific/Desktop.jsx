@@ -57,6 +57,10 @@ const Dollhouse = lazyApp(() => import("../applets/dollhouse/Dollhouse"))
 const Pet = lazyApp(() => import("../applets/pet/Pet"))
 const Appward = lazyApp(() => import("../applets/appward/Appward"))
 const Welcome = lazyApp(() => import("../applets/welcome/Welcome"))
+const CalendarApp = lazyApp(() => import("../applets/calendar/Calendar"))
+const ClockApp = lazyApp(() => import("../applets/calendar/Clock"))
+// reminders, alarms and live calendar notices, whether or not Calendar is open (its own download)
+const CalendarBridge = React.lazy(() => import("../applets/calendar/CalendarBridge"))
 // Our Pet out for a walk on the desktop (couples only, its own small download)
 const PetWalker = React.lazy(() => import("../applets/pet/PetWalker"))
 // Network Neighborhood and the head-to-head games
@@ -743,6 +747,8 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
         <WebApp project={PROJECTS.find((p) => p.name === window.program)} mobile={mobile} />
       )}
       {window.app === "backup" && <Backup dispatch={dispatch} mobile={mobile} />}
+      {window.app === "calendar" && <CalendarApp calendarView={window.calendarView} mobile={mobile} dispatch={dispatch} onClose={() => closeWindow(window, index)} />}
+      {window.app === "clock" && <ClockApp clockTab={window.calendarView?.tab} mobile={mobile} />}
       {window.app === "welcome" && <Welcome dispatch={dispatch} mobile={mobile} onClose={() => closeWindow(window, index)} />}
       {window.app === "mail" && <Mail dispatch={dispatch} onTitle={rename(index)} mobile={mobile} />}
       {window.app === "homepage" && (
@@ -977,6 +983,9 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
         </React.Suspense>
         <MailNotifier socket={socket} windows={windows} dispatch={dispatch} />
         <CoupleBridge socket={socket} windows={windows} dispatch={dispatch} mobile={mobile} />
+        <React.Suspense fallback={null}>
+          <CalendarBridge socket={socket} windows={windows} dispatch={dispatch} mobile={mobile} />
+        </React.Suspense>
       </NetProvider>
     </AimProvider>
   )

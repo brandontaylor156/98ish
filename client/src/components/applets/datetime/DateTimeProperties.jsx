@@ -376,6 +376,12 @@ const DateTimeProperties = ({ onClose }) => {
       </div>
 
       <div className="dtButtons">
+        <button type="button" className="dtMore" onClick={() => window.dispatchEvent(new CustomEvent("98ish:calendar-open", { detail: { program: "Calendar" } }))}>
+          Calendar...
+        </button>
+        <button type="button" onClick={() => window.dispatchEvent(new CustomEvent("98ish:calendar-open", { detail: { program: "Clock" } }))}>
+          Clock...
+        </button>
         <button
           type="button"
           className="default"

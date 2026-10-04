@@ -106,6 +106,19 @@ const TaskBar = ({ windows, dispatch, setStartMenuVisible, startMenuVisible }) =
     else openWindow(launch("Date/Time Properties"))
   }
 
+  // Calendar and Clock (the clock's right-click or long-press menu)
+  const openProgram = (name) => {
+    const index = windows.findIndex((w) => !w.closed && w.program === name)
+    if (index >= 0) dispatch({ type: "focus_window", payload: { index } })
+    else openWindow(launch(name))
+  }
+  const clockMenu = () => [
+    { label: "Adjust Date/Time", bold: true, onClick: openDateTime },
+    "-",
+    { label: "Calendar", onClick: () => openProgram("Calendar") },
+    { label: "Clock", onClick: () => openProgram("Clock") },
+  ]
+
   const anyShown = windows.some((w) => !w.closed && !w.minimized)
   const canUndoMinimize = windows.some((w) => !w.closed && w.hiddenByShell)
   const showDesktop = () => dispatch({ type: anyShown ? "minimize_all" : "undo_minimize_all" })
@@ -326,6 +339,11 @@ const TaskBar = ({ windows, dispatch, setStartMenuVisible, startMenuVisible }) =
     setMenu({ x, y, items: tabMenu(Number(tab.dataset.tab)) })
   })
 
+  const clockPress = useLongPress((x, y) => {
+    setStartMenuVisible(false)
+    setMenu({ x, y, items: clockMenu() })
+  })
+
   // ---- rendering ----
 
   const startBtnStyle = {
@@ -450,7 +468,11 @@ const TaskBar = ({ windows, dispatch, setStartMenuVisible, startMenuVisible }) =
             )}
             <MailTray windows={windows} dispatch={dispatch} />
             <CoupleTray />
-            {settings.taskbarClock && <DateAndTime onOpen={openDateTime} />}
+            {settings.taskbarClock && (
+              <span className="trayClock" onContextMenu={(e) => showMenu(e, clockMenu())} {...clockPress}>
+                <DateAndTime onOpen={openDateTime} />
+              </span>
+            )}
           </div>
         </div>
       </div>

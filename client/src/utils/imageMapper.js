@@ -53,6 +53,8 @@ export const imageMapper = {
   dollhouse: "program_icons/dollhouse.svg",
   appward: "program_icons/appward.svg",
   calc: "program_icons/calc.svg",
+  calendar: "program_icons/calendar.svg",
+  clock: "program_icons/clock.svg",
   charmap: "program_icons/charmap.svg",
   winpopup: "program_icons/winpopup.svg",
   programs: "programs.png",

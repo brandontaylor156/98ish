@@ -1,6 +1,7 @@
 // 98ish realtime server: the 98 Messenger (AIM-style) service on Socket.io, plus Network
 // Neighborhood (file sharing, WinPopup, network games), the guestbook's HTTP API, and
-// couples (server/couples: pairing, love letters, Our Story, flowers).
+// couples (server/couples: pairing, love letters, Our Story, flowers), and shared
+// calendars (server/calendar).
 // Env: PORT, MONGODB_URI (accounts, guestbook and online drives; kept in memory without it).
 
 const express = require("express")
@@ -14,10 +15,11 @@ const { mailRouter } = require("./server/mail")
 const { attachGameChat } = require("./server/gamechat")
 const { puzzleRouter } = require("./server/puzzles")
 const { quizRouter } = require("./server/quiz")
-const { couplesRouter, attachCouples } = require("./server/couples")
+const { couplesRouter, attachCouples, coupleService } = require("./server/couples")
 const { dollhouseRouter } = require("./server/dollhouse")
 const { townRouter, attachTown } = require("./server/town")
 const { petRouter } = require("./server/pet")
+const { calendarRouter, attachCalendar } = require("./server/calendar")
 
 const app = express()
 app.use(cors())
@@ -34,6 +36,7 @@ app.use("/api/puzzles", puzzles)
 app.use("/api/quiz", quiz)
 app.use("/api/couples/pet", petRouter()) // Our Pet (before the couples router)
 app.use("/api/couples", couplesRouter())
+app.use("/api/calendar", calendarRouter())
 const dollhouse = dollhouseRouter()
 app.use("/api/dollhouse", dollhouse)
 const town = townRouter()
@@ -59,6 +62,7 @@ aim
     homepages.useAim(aim)
     quiz.useAim(aim)
     attachCouples(io, { aim })
+    attachCalendar(io, { aim, couples: coupleService })
     town.useAim(aim)
     attachTown(io)
   })

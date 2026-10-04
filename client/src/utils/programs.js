@@ -32,6 +32,9 @@ export const programs = [
   { name: "MS-DOS Prompt", app: "dos", type: "dos", icon: "/assets/dos.png", width: 640, height: 400, group: "Accessories", desktop: false },
   { name: "Windows Update", app: "update", icon: "/assets/program_icons/update.svg", width: 540, height: 440, group: null, desktop: false, single: true },
   { name: "Display Properties", app: "display", icon: "/assets/vaporwave.png", width: 420, height: 470, group: null, desktop: false, single: true },
+  // 98ish Calendar (shared calendars, reminders) and Clock (world clocks, alarms, timer, stopwatch)
+  { name: "Calendar", app: "calendar", type: "calendar", icon: "/assets/program_icons/calendar.svg", width: 900, height: 620, group: "Accessories", single: true, also: ["Us"] },
+  { name: "Clock", app: "clock", type: "clock", icon: "/assets/program_icons/clock.svg", width: 420, height: 500, group: "Accessories", desktop: false, single: true },
   { name: "Calculator", app: "calc", type: "calc", icon: "/assets/program_icons/calc.svg", width: 270, height: 272, group: "Accessories", desktop: false },
   { name: "Character Map", app: "charmap", type: "charmap", icon: "/assets/program_icons/charmap.svg", width: 610, height: 280, group: "System Tools", desktop: false, single: true },
   { name: "Backup", app: "backup", icon: "/assets/program_icons/backup.svg", width: 420, height: 460, group: "System Tools", desktop: false, single: true },

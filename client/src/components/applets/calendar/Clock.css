@@ -1,0 +1,277 @@
+/* Clock */
+
+.ckRoot {
+  height: calc(100% - 25px);
+  display: flex;
+  flex-direction: column;
+  padding: 6px 8px;
+  background: #c0c0c0;
+  color: #000;
+  font-family: "Pixelated MS Sans Serif", Arial, sans-serif;
+  -webkit-font-smoothing: none;
+  font-size: 11px;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.ckRoot button {
+  min-width: 0;
+  padding: 0 10px;
+}
+
+.window.ckPanel {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.ckPanelBody {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  margin: 8px !important;
+}
+
+.ckFooter {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 6px;
+}
+
+/* world clock */
+
+.ckCities {
+  list-style: none;
+  margin: 0 0 8px;
+  padding: 0;
+}
+
+.ckCities li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  border-bottom: 1px solid #a0a0a0;
+}
+
+.ckFace {
+  width: 48px;
+  height: 48px;
+  flex: none;
+}
+
+.ckFace .dtClock {
+  width: 48px;
+  height: 48px;
+}
+
+.ckCity {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.ckCity span {
+  color: #404040;
+}
+
+.ckDigital {
+  font-size: 16px;
+  font-weight: bold;
+  white-space: nowrap;
+}
+
+.ckHere .ckDigital {
+  color: #000080;
+}
+
+.ckRemove {
+  padding: 0 6px !important;
+}
+
+.ckAdd {
+  display: flex;
+  gap: 4px;
+}
+
+.ckAdd select {
+  flex: 1;
+  min-width: 0;
+}
+
+/* alarms */
+
+.ckAlarmList {
+  list-style: none;
+  margin: 0 0 8px;
+  padding: 0;
+}
+
+.ckAlarmList li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  border-bottom: 1px solid #a0a0a0;
+}
+
+.ckAlarmTime {
+  font-size: 22px;
+  font-weight: bold;
+  min-width: 92px;
+}
+
+.ckAlarmTime small {
+  font-size: 11px;
+}
+
+.ckAlarmInfo {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.ckOff .ckAlarmTime,
+.ckOff .ckAlarmInfo {
+  color: #808080;
+}
+
+.ckNewAlarm .calWhen input[type="text"] {
+  flex: 1;
+  min-width: 100px;
+}
+
+.ckNewAlarm > button {
+  align-self: flex-start;
+}
+
+/* timer and stopwatch */
+
+.ckTimer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.ckLcd {
+  font-family: "Courier New", monospace;
+  font-size: 46px;
+  font-weight: bold;
+  background: #0b1a0b;
+  color: #5cff5c;
+  padding: 6px 18px;
+  min-width: 220px;
+  text-align: center;
+  letter-spacing: 2px;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+  text-shadow: 0 0 6px #2aff2a;
+  font-variant-numeric: tabular-nums;
+}
+
+.ckButtons,
+.ckPresets {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.ckButtons button {
+  min-width: 80px;
+  min-height: 26px;
+}
+
+.ckSetter {
+  display: flex;
+  gap: 10px;
+}
+
+.ckNum {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.ckNum input {
+  width: 56px;
+  text-align: center;
+}
+
+.ckTimerLabel {
+  width: 220px;
+}
+
+.ckLabel {
+  margin: 0;
+  font-weight: bold;
+}
+
+.ckBar {
+  width: 240px;
+  height: 14px;
+  background: #fff;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080;
+  padding: 2px;
+  box-sizing: border-box;
+}
+
+.ckBar div {
+  height: 100%;
+  background: repeating-linear-gradient(90deg, #000080 0 8px, transparent 8px 10px);
+}
+
+.ckLaps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  width: min(300px, 100%);
+  max-height: 160px;
+  overflow: auto;
+  background: #fff;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+}
+
+.ckLaps li {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 2px 6px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* phones */
+
+.ckPhone {
+  font-size: 13px;
+}
+
+.ckPhone button {
+  min-height: 36px;
+}
+
+.ckPhone select,
+.ckPhone input {
+  min-height: 34px;
+  font-size: 16px;
+}
+
+.ckPhone .ckTabs a {
+  padding: 4px 6px;
+}
+
+.ckPhone .ckLcd {
+  font-size: 52px;
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.ckPhone .ckFace,
+.ckPhone .ckFace .dtClock {
+  width: 56px;
+  height: 56px;
+}

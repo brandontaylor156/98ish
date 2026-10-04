@@ -37,6 +37,12 @@ const TIPS = {
   Solitaire: ["Double-click a card to send it home to the top row. Win, and watch the cards bounce!"],
   FreeCell: ["Game > Select Game picks any of 32,000 numbered deals. Almost all of them can be won."],
   Pinball: ["Spell D-I-V-E in the top lanes to raise your multiplier. The flippers move the lit lanes!"],
+  Calendar: [
+    "Share a calendar: File > New Calendar, then invite people by screen name or send them the invite link. Couples get an Us calendar by themselves.",
+    "Want reminders with 98ish closed? Open an event and tap Add to my phone, or subscribe your phone to a whole calendar in its Properties > Phone.",
+    "Memos are lists with no date (gift ideas, a packing list) that everyone in the calendar can tick off.",
+  ],
+  Clock: ["Alarms and the timer keep going with the Clock closed, as long as 98ish is open.", "Add cities to World Clock to see what time it is for faraway friends."],
   Calculator: ["View > Scientific has sines, logs and binary. Very serious business."],
   "Media Player": ["Every song in My Music was made right here in your browser. No files, all synth!"],
   "Lovebirds Quiz Show": ["Answer about yourself, then send it to someone special. Results wait in your Inbox!"],
