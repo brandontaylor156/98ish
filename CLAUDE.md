@@ -11,7 +11,7 @@ A Windows 98-style web desktop at https://98ish.vercel.app. The owner uses it mo
   - The client side of the room system is `client/src/components/shared/online/`.
 - **Shared systems:**
   - **Audio** (`client/src/utils/audio.js`): one AudioContext and `createBus`, following the taskbar volume and mute.
-  - **Draggable dialogs** (`shared/Dialog.jsx` + `hooks/useFloating.js`).
+  - **Draggable dialogs** (`shared/Dialog.jsx` + `hooks/useFloating.js`). During a drag the popup follows the pointer with a CSS `translate` written once per frame, committed to left/top on pointerup/pointercancel/lostpointercapture (never stuck). Phones: the title bar takes the gesture (`touch-action: none`, non-passive touchstart/touchmove preventDefault, no callout/selection, no long-press menu), a second finger can't take over, a finger's press never focuses a text field (it raised the 98ish keyboard mid-drag), and the whole popup stays inside the safe areas, above the taskbar and above the 98ish keyboard (it refits when `html.kb-open`/`--kb-h` change; the keyboard no longer `translate`-lifts `[data-floating=on]` boxes, which used to jump back when it hid). Mouse dragging is unchanged (60 px of title bar kept off-edge). Browser tests: `drag-phone.mjs` (CDP touch), `drag-desktop.mjs`.
   - **Right-click menus** (`shared/ContextMenu.jsx`, rendered into `.os-root`) and the global right-click menu (`OS-specific/GlobalMenu.jsx`).
   - **Touch controls** (`shared/controls/`).
   - **98ish phone keyboard** (`shared/keyboard/`; design in `docs/keyboard.md`).

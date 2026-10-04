@@ -142,8 +142,12 @@
   transform: none !important;
 }
 
+/* the title bar takes the whole touch gesture: no scroll, zoom, text selection or callout */
 [data-floating="on"] > .title-bar {
   touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .os-mobile [data-floating="on"] {

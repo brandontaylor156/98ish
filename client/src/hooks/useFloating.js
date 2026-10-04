@@ -11,31 +11,66 @@ import { playSystemSound } from "../utils/systemSounds"
 // applies. A fixed box inside a desktop window is placed against the window's Rnd box
 // (its transform makes it the containing block), which also lets it escape every
 // overflow clip in the window; we measure that origin rather than assume it.
+//
+// Dragging (mouse, finger or pen): the popup follows the pointer through a CSS `translate`
+// written once per animation frame (no layout per move), and the move is committed to
+// left/top when the press ends, is cancelled (iOS taking the gesture over) or loses its
+// capture, so a drag can never be left hanging. The grab point stays under the finger.
+// On touch screens the title bar takes the whole gesture (no scrolling, zooming, text
+// callout or long-press menu), a second finger can't take the drag over, and a press on
+// the title bar doesn't put focus in a text field (that would raise the keyboard).
+// Popups keep clear of the taskbar, the phone's safe areas and the 98ish keyboard.
 
 // how much of the title bar stays on screen when dragged off an edge
 const KEEP = 60
 
-// the screen above (or below) the taskbar
+// the phone's safe areas (notch, rounded corners), read from CSS (again after turning)
+let insets = null
+const safeInsets = () => {
+  if (insets) return insets
+  const probe = document.createElement("div")
+  probe.style.cssText = "position:fixed;visibility:hidden;pointer-events:none;padding:env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left)"
+  document.body.appendChild(probe)
+  const s = getComputedStyle(probe)
+  insets = { top: parseFloat(s.paddingTop) || 0, right: parseFloat(s.paddingRight) || 0, left: parseFloat(s.paddingLeft) || 0 }
+  probe.remove()
+  return insets
+}
+if (typeof window !== "undefined") window.addEventListener("orientationchange", () => (insets = null))
+
+// the top of the 98ish phone keyboard while it is up (shared/keyboard), else null
+const keyboardTop = () => {
+  if (!document.documentElement.classList.contains("kb-open")) return null
+  const r = document.querySelector(".kb98")?.getBoundingClientRect()
+  return r?.height ? r.top : null
+}
+
+// the screen above (or below) the taskbar, clear of the safe areas and the 98ish keyboard
 const screenArea = () => {
   const width = document.documentElement.clientWidth
   const height = window.innerHeight
-  let top = 0
+  const safe = safeInsets()
+  let top = safe.top
   let bottom = height
   const bar = document.querySelector(".taskbar")?.getBoundingClientRect()
   if (bar?.height && bar.width) {
     if (bar.top > height / 2) bottom = Math.min(bottom, Math.max(bar.top, height / 2))
     else top = Math.max(top, bar.bottom)
   }
-  return { width, top, bottom }
+  const kb = keyboardTop()
+  if (kb != null) bottom = Math.min(bottom, Math.max(kb, top + 60))
+  return { left: safe.left, right: width - safe.right, top, bottom, keyboard: kb != null }
 }
 
 const between = (value, low, high) => Math.max(low, Math.min(value, high))
 
-// Title bar flash (and the default beep) when the window a modal dialog blocks is clicked
-export const flashFloating = (el) => {
+// Title bar flash (and the default beep) when the window a modal dialog blocks is clicked.
+// focus: put the keyboard back in the popup (not after a finger's tap: on a phone that
+// would raise the on-screen keyboard)
+export const flashFloating = (el, { focus = true } = {}) => {
   if (!el) return
   playSystemSound("ding")
-  setTimeout(() => el._floating?.activate()) // after the press has moved focus
+  if (focus) setTimeout(() => el._floating?.activate()) // after the press has moved focus
   el.removeAttribute("data-flashing")
   void el.offsetWidth // restart the animation
   el.setAttribute("data-flashing", "")
@@ -48,7 +83,7 @@ export const flashFloating = (el) => {
 export const flashOnBackdrop = (e) => {
   if (e.target !== e.currentTarget) return
   e.preventDefault()
-  flashFloating(e.currentTarget.querySelector("[data-floating]"))
+  flashFloating(e.currentTarget.querySelector("[data-floating]"), { focus: e.pointerType !== "touch" })
 }
 
 // Something inside the window between the popup and its window that would become the
@@ -73,7 +108,8 @@ const FOCUSABLE = "input:not(:disabled):not([type=hidden]), select:not(:disabled
 // as activating a dialog does in Windows (off for toolbars such as Paint's Fonts).
 export const attachFloating = (el, { center = false, takeFocus = true } = {}) => {
   let pos = null // the box's top-left corner on screen
-  let drag = null
+  let drag = null // { id, dx, dy, bar, base: where left/top put the box, touch }
+  let frame = 0
   let lastFocus = null
   const mobile = () => !!el.closest(".os-mobile")
   el.setAttribute("data-floating", "")
@@ -90,31 +126,43 @@ export const attachFloating = (el, { center = false, takeFocus = true } = {}) =>
   const onFocus = (e) => (lastFocus = e.target)
   el._floating = { activate }
 
-  // write left/top so the box lands at pos, whatever its containing block is
+  // write left/top so the box lands at pos, whatever its containing block is (and drop
+  // any drag translate first, so it isn't counted twice)
   const place = () => {
+    cancelAnimationFrame(frame)
+    frame = 0
+    el.style.translate = ""
     const r = el.getBoundingClientRect()
     if (!r.width && !r.height) return // hidden with its (minimized) window
     const ox = r.left - (parseFloat(el.style.left) || 0)
     const oy = r.top - (parseFloat(el.style.top) || 0)
     el.style.left = `${Math.round(pos.x - ox)}px`
     el.style.top = `${Math.round(pos.y - oy)}px`
+    if (drag) drag.base = { ...pos }
   }
 
-  // whole: keep the whole box on screen (on opening, and always on phones); otherwise
-  // just enough of the title bar to grab it again, never under the taskbar
+  // during a drag: move the drawn box to pos (once per frame, compositor only)
+  const show = () => {
+    frame = 0
+    if (drag) el.style.translate = `${pos.x - drag.base.x}px ${pos.y - drag.base.y}px`
+  }
+
+  // whole: keep the whole box on screen (on opening, always on phones, and above the
+  // 98ish keyboard); otherwise just enough of the title bar to grab it again, never under
+  // the taskbar
   const clamp = (p, whole) => {
-    const { width, top, bottom } = screenArea()
+    const { left, right, top, bottom, keyboard } = screenArea()
     const w = el.offsetWidth
     const h = el.offsetHeight
-    if (whole || mobile()) {
+    if (whole || keyboard || mobile()) {
       return {
-        x: between(p.x, 0, Math.max(0, width - w)),
+        x: between(p.x, left, Math.max(left, right - w)),
         y: between(p.y, top, Math.max(top, bottom - h)),
       }
     }
     const bar = el.querySelector(":scope > .title-bar")?.offsetHeight || 20
     return {
-      x: between(p.x, Math.min(0, KEEP - w), Math.max(0, width - KEEP)),
+      x: between(p.x, Math.min(left, left + KEEP - w), Math.max(left, right - KEEP)),
       y: between(p.y, top, Math.max(top, bottom - bar)),
     }
   }
@@ -141,30 +189,61 @@ export const attachFloating = (el, { center = false, takeFocus = true } = {}) =>
     return bar && bar.parentElement === el && !target.closest(".title-bar-controls, button, input, select, textarea, a") ? bar : null
   }
 
+  // the drag ends where it is: commit the translate to left/top
+  const end = () => {
+    if (!drag) return
+    drag = null
+    place()
+  }
+
   const onDown = (e) => {
     if (e.pointerType === "mouse" && e.button !== 0) return
     const bar = ownBar(e.target)
-    if (!bar || (!pos && !init())) return
+    if (!bar) return
+    if (drag) {
+      // a second finger on the title bar doesn't take the drag over (or make it jump)
+      if (drag.touch && drag.bar.isConnected && drag.bar.hasPointerCapture?.(drag.id)) return void e.preventDefault()
+      end()
+    }
+    if (!pos && !init()) return
     e.preventDefault() // no text selection (and no mousedown for the window to drag on)
-    setTimeout(activate) // after the press has moved focus
-    drag = { id: e.pointerId, dx: e.clientX - pos.x, dy: e.clientY - pos.y, bar }
     try {
       bar.setPointerCapture(e.pointerId)
     } catch {
-      // the pointer is already gone
+      return // the pointer is already gone
     }
+    // a finger's press doesn't focus a text field: on a phone that raises the keyboard
+    if (e.pointerType === "mouse") setTimeout(activate) // after the press has moved focus
+    drag = { id: e.pointerId, dx: e.clientX - pos.x, dy: e.clientY - pos.y, bar, base: { ...pos }, touch: e.pointerType !== "mouse" }
   }
   const onMove = (e) => {
     if (!drag || e.pointerId !== drag.id) return
     pos = clamp({ x: e.clientX - drag.dx, y: e.clientY - drag.dy }, false)
-    place()
+    if (!frame) frame = requestAnimationFrame(show)
   }
+  // up, cancel (iOS deciding the gesture is its own), or the capture lost: end in place
   const onUp = (e) => {
-    if (drag && e.pointerId === drag.id) drag = null
+    if (drag && e.pointerId === drag.id) end()
   }
   // the window's own Rnd drags by any .title-bar inside it: keep it off this one
   const shield = (e) => {
     if (e.target.closest?.(".title-bar")?.parentElement === el) e.stopPropagation()
+  }
+  // touch: the title bar takes the gesture: no page scroll or rubber-band, no double-tap
+  // zoom, no text callout (iOS can turn a gesture into a scroll despite touch-action)
+  const onTouchStart = (e) => {
+    shield(e)
+    if (e.cancelable && ownBar(e.target)) e.preventDefault()
+  }
+  const onTouchMove = (e) => {
+    if (drag && e.cancelable) e.preventDefault()
+  }
+  // a long press on the title bar is the start of a drag, not a right-click
+  const onMenu = (e) => {
+    if (drag?.touch && ownBar(e.target)) {
+      e.preventDefault()
+      e.stopPropagation()
+    }
   }
 
   el.addEventListener("focusin", onFocus)
@@ -172,10 +251,14 @@ export const attachFloating = (el, { center = false, takeFocus = true } = {}) =>
   el.addEventListener("pointermove", onMove)
   el.addEventListener("pointerup", onUp)
   el.addEventListener("pointercancel", onUp)
+  el.addEventListener("lostpointercapture", onUp)
   el.addEventListener("mousedown", shield)
-  el.addEventListener("touchstart", shield, { passive: true })
+  el.addEventListener("touchstart", onTouchStart, { passive: false })
+  el.addEventListener("touchmove", onTouchMove, { passive: false })
+  el.addEventListener("contextmenu", onMenu)
 
-  // opened while its window was minimized, grew, or the screen changed size
+  // opened while its window was minimized, grew, the screen changed size, or the 98ish
+  // keyboard came up (html.kb-open, --kb-h)
   const refit = () => {
     if (!pos) return void init()
     pos = clamp(pos, false)
@@ -184,6 +267,8 @@ export const attachFloating = (el, { center = false, takeFocus = true } = {}) =>
   const resized = new ResizeObserver(refit)
   resized.observe(el)
   window.addEventListener("resize", refit)
+  const keyboard = new MutationObserver(refit)
+  keyboard.observe(document.documentElement, { attributes: true, attributeFilter: ["class", "style"] })
 
   // the window moved, maximized or came back: the dialog stays where it is on screen,
   // as an owned window does in Windows
@@ -197,11 +282,17 @@ export const attachFloating = (el, { center = false, takeFocus = true } = {}) =>
     el.removeEventListener("pointermove", onMove)
     el.removeEventListener("pointerup", onUp)
     el.removeEventListener("pointercancel", onUp)
+    el.removeEventListener("lostpointercapture", onUp)
     el.removeEventListener("mousedown", shield)
-    el.removeEventListener("touchstart", shield)
+    el.removeEventListener("touchstart", onTouchStart)
+    el.removeEventListener("touchmove", onTouchMove)
+    el.removeEventListener("contextmenu", onMenu)
     resized.disconnect()
+    keyboard.disconnect()
     moved?.disconnect()
     window.removeEventListener("resize", refit)
+    cancelAnimationFrame(frame)
+    drag = null
     clearTimeout(el._flashTimer)
     delete el._floating
   }
