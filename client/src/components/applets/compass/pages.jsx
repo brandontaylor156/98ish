@@ -246,7 +246,9 @@ export const AboutPage = ({ session }) => (
       {session?.mode === "on" && session?.guest && <li>Sign on with your 98 Messenger screen name to see other sites live through the relay.</li>}
       <li>Cookies for relayed sites (so you can stay signed in to simple sites) are kept in the server&apos;s memory for your 98 Messenger account (a guest&apos;s only until the browsing session ends), only for the site that set them, and are gone after a day unused or when the server restarts. Tools &gt; Clear Cookies forgets them.</li>
       <li>To see a site live outside 98ish (videos, sign-ins, banks), use File &gt; Open in your browser, or the small link on a saved copy&apos;s bar.</li>
-      <li>The server has a daily data allowance (shared with everyone), and a monthly one: the 98ish server&apos;s free plan includes a fixed amount of data a month for everything (Messenger, file sync, games and Compass). When Compass has used its share, the relay rests until the 1st of the next month; sites still show straight from the site or as saved copies, and the rest of 98ish keeps working.</li>
+      <li>For answering abuse complaints, the 98ish server keeps for 7 days which sites a signed-on account opened live and how much data each sent: the site names only, never page addresses, searches or anything on the pages. Delete My Account erases it. Tools &gt; Report This Page tells the owner of this 98ish about a page that&apos;s illegal, abusive, a scam or malware.</li>
+      <li>Compass doesn&apos;t open adult sites, malware test sites, piracy sites or other web proxies (a short list on the server, plus sites the owner blocks), and isn&apos;t for getting around a school&apos;s or work network&apos;s rules.</li>
+      <li>Each account has a daily data allowance for live pages, and the server has a monthly one: the 98ish server&apos;s free plan includes a fixed amount of data a month for everything (Messenger, file sync, games and Compass). When Compass has used its share, the relay rests until the 1st of the next month; sites still show straight from the site or as saved copies, and the rest of 98ish keeps working.</li>
     </ul>
     {session && (
       <p className="cmpUsage">
@@ -255,7 +257,7 @@ export const AboutPage = ({ session }) => (
         {session.closed ? `. Resting until ${new Date(session.closed).toLocaleDateString(undefined, { month: "long", day: "numeric", timeZone: "UTC" })}.` : ""}
       </p>
     )}
-    <p>Searches go to Wikipedia while Compass relays only its list of sites (with every site open to you, Tools &gt; Compass Options picks the search engine).</p>
+    <p>Signed on, searches go to DuckDuckGo (Tools &gt; Compass Options picks another). As a guest, or once an allowance is used up, they go to Wikipedia. When an allowance is used up Compass keeps working: sites show straight from the site or as saved copies until live browsing resumes (tomorrow, or on the 1st).</p>
   </div>
 )
 

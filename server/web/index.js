@@ -13,20 +13,24 @@
 //                                       nothing of the page is relayed (Compass's way to show
 //                                       sites it doesn't relay: straight in its frame, or else
 //                                       the Internet Archive's saved copy)
-//   GET  /usage?sid=                   { used, limit }
+//   GET  /usage?sid=                   { used, limit, dayFull, resumes, ... }
+//   GET  /status                       numbers only: this month's totals, today's relayed pages
+//   POST /report                       { sid, url, note }: "Report This Page" (records.js)
 //   ANY  /r/<sid>/<tok>/<d|f>/<scheme>/<host>/<path>   a page or anything it loads
 //   ANY  /x/<sid>/<tok>/<scheme>/<host>/<path>         a script's own request (fetch, XHR): as-is
 //   POST /c/<sid>/<tok>                { url, cookie }          document.cookie = ... from a page
 //   POST /clear?sid=                   forget the account's cookies
 //
-// Env (all optional): WEB_RELAY = allowlist (default: everyone, signed on or not, only the
-// allowlist) | on (signed-on accounts browse anywhere, guests the allowlist) | 0/off (no relay:
-// Compass shows sites straight in a frame when they allow it, else the Internet Archive's copy).
+// Env (all optional): WEB_RELAY = on (the default: signed-on 98 Messenger accounts browse any
+// public site live, guests only the allowlist; other sites show them straight from the site or
+// as a saved copy) | allowlist (everyone, signed on or not, only the allowlist; also what an
+// unknown value means) | 0/off (no relay: Compass shows sites straight in a frame when they
+// allow it, else the Internet Archive's copy).
 // WEB_FRAME_CHECK=0 turns off GET /frame (Compass then shows saved copies of every site it
 // doesn't relay).
 // WEB_GUESTS=0 (people who aren't signed on can't use the relay at all; by default they may
 // browse the guest allowlist, by address, with smaller limits). WEB_GUEST_ALLOW (comma list of
-// domains replacing GUEST_ALLOW below; "none" for none). WEB_DAILY_MB (60 per account),
+// domains replacing GUEST_ALLOW below; "none" for none). WEB_DAILY_MB (25 per account),
 // WEB_GUEST_DAILY_MB (10 per guest address), WEB_GUESTS_TOTAL_DAILY_MB (40 for all guests),
 // WEB_GLOBAL_DAILY_MB (100 for the whole server: Render's Hobby workspace includes only 5 GB of
 // outbound bandwidth a month), WEB_MONTHLY_MB (1000: Compass's relay in a calendar month, UTC),
@@ -34,7 +38,8 @@
 // this much in a month, Compass closes until the 1st; see server/meter), WEB_RATE_PER_MIN (300),
 // WEB_GUEST_RATE_PER_MIN (120), WEB_MAX_MB (12 per response), WEB_REWRITE_MB (4),
 // WEB_TIMEOUT_MS (20000), WEB_CONCURRENCY (48), WEB_IDLE_MINUTES (240), WEB_BIND_IP=0 (don't
-// bind sessions to addresses), WEB_BLOCK_HOSTS (more host names never to fetch),
+// bind sessions to addresses), WEB_BLOCK_HOSTS (sites Compass never opens, on top of the small
+// built-in list in blocklist.js: malware test sites, adult, piracy, other proxies),
 // WEB_PUBLIC_URL (this server's public address, if the proxy headers are wrong), WEB_SECRET
 // (site tokens; random per start otherwise). WEB_TEST_HOSTS ("name=127.0.0.1,...") lets local
 // tests reach a test site; it is ignored on Render.
@@ -77,6 +82,13 @@
 //    through is still counted against the persisted budgets. Bodies stream; only pages and
 //    stylesheets being rewritten are held in memory (capped, and only a few at once).
 //  - Video and audio aren't relayed (Compass offers the real browser instead).
+//  - Blocked sites (blocklist.js + WEB_BLOCK_HOSTS) are refused on every hop, by the relay and
+//    the frame check, so Compass doesn't show them at all.
+//  - When a daily or monthly allowance is used up the relay refuses, and Compass shows sites
+//    straight from the site or as saved copies with a slim "live browsing resumes" bar.
+//  - LOG (records.js): per signed-on account, site and day only the byte count (no paths, no
+//    query strings, no contents), kept 7 days, for answering abuse complaints; reported pages
+//    90 days. Delete My Account erases both and the account's usage counters (eraseAccount).
 //  - GET /frame looks at ANY public site's response headers to say whether it may be framed.
 //    It is not a relay: the body is never read (the socket is destroyed after the headers),
 //    only { frameable, url, status, https, type } comes back, it goes through the same SSRF
@@ -97,6 +109,8 @@ const { fetchChecked, Refused, REDIRECTS } = require("./fetcher")
 const { checkUrlShape, parseTestHosts } = require("./guard")
 const { encodeTarget, decodeTarget, rewriteHtml, rewriteCss } = require("./rewrite")
 const { injectScript } = require("./inject")
+const { blockedSite, parseHosts } = require("./blocklist")
+const { createRecords } = require("./records")
 const { createCounters, memoryUsageStore, dayOf, monthOf, nextMonthStart } = require("../meter/counters")
 
 const MB = 1024 * 1024
@@ -126,16 +140,18 @@ const onList = (host, list) => {
   const h = String(host || "").toLowerCase().replace(/\.$/, "")
   return list.some((d) => h === d || h.endsWith("." + d))
 }
-// WEB_RELAY: "allowlist" (default: anything unknown is the safe choice), "on", or "0"/"off"
+// WEB_RELAY: "on" when unset (the default), "allowlist", or "0"/"off"; a value that isn't
+// understood (a typo) means "allowlist", the careful choice
 const relayMode = (text) => {
   const t = String(text ?? "").trim().toLowerCase()
+  if (!t) return "on"
   if (["0", "off", "false", "no"].includes(t)) return "off"
   if (["on", "1", "all", "members", "open"].includes(t)) return "on"
   return "allowlist"
 }
 
 const defaultLimits = () => ({
-  userDailyBytes: num("WEB_DAILY_MB", 60) * MB, // per signed-on account
+  userDailyBytes: num("WEB_DAILY_MB", 25) * MB, // per signed-on account (about 100 relayed pages)
   guestDailyBytes: num("WEB_GUEST_DAILY_MB", 10) * MB, // per guest address
   guestsDailyBytes: num("WEB_GUESTS_TOTAL_DAILY_MB", 40) * MB, // all guests together
   globalDailyBytes: num("WEB_GLOBAL_DAILY_MB", 100) * MB, // the whole relay in a day (Render Hobby: 5 GB/month out for everything)
@@ -144,6 +160,7 @@ const defaultLimits = () => ({
   perMinute: num("WEB_RATE_PER_MIN", 300),
   guestPerMinute: num("WEB_GUEST_RATE_PER_MIN", 120),
   checksPerMinute: 60,
+  reportsPerHour: 10,
   frameChecksPerMinute: num("WEB_FRAME_CHECKS_PER_MIN", 1200), // GET /frame for everyone together
   maxBytes: num("WEB_MAX_MB", 12) * MB, // one response
   rewriteBytes: num("WEB_REWRITE_MB", 4) * MB, // a page or stylesheet being rewritten
@@ -278,6 +295,15 @@ const frameVerdict = (headers = {}, ancestorOrigin = "https://98ish.vercel.app")
   return { frameable: true, by: null }
 }
 
+// A site's answer to the relay that is a robot check / "access denied" page rather than the
+// page (Cloudflare and other bot walls refuse a server's address): Compass then shows the site
+// straight from the site or as a saved copy, as its first-use notice promises
+const botCheck = (status, headers, text) => {
+  if (![401, 403, 429, 503].includes(status)) return false
+  if (headers["cf-mitigated"] || headers["x-amzn-waf-action"]) return true
+  return /<title>[^<]*(just a moment|attention required|access denied|are you a robot|verify you are human|captcha|security check|bot verification|request blocked|forbidden)[^<]*<\/title>/i.test(String(text).slice(0, 20000))
+}
+
 // A small page Compass replaces with its own (download, video, error...), readable on its own too
 const stubHtml = (info) => {
   const msg = JSON.stringify({ __compass: 1, type: "stub", ...info }).replace(/</g, "\\u003c")
@@ -290,8 +316,13 @@ const stubHtml = (info) => {
 
 // ---------- the service ----------
 
-const createWeb = ({ aim = () => null, limits: overrides = {}, now = () => Date.now(), resolve, allowGuests = process.env.WEB_GUESTS !== "0", mode: relayModeOption = relayMode(process.env.WEB_RELAY), enabled = true, guestAllow = parseAllow(process.env.WEB_GUEST_ALLOW), bindIp = process.env.WEB_BIND_IP !== "0", blockedHosts = [], testHosts = process.env.RENDER ? null : parseTestHosts(process.env.WEB_TEST_HOSTS), secret = process.env.WEB_SECRET || crypto.randomBytes(32).toString("hex"), counters = null, usageSecret = defaultUsageSecret(), frameCheck = process.env.WEB_FRAME_CHECK !== "0" } = {}) => {
+const createWeb = ({ aim = () => null, limits: overrides = {}, now = () => Date.now(), resolve, allowGuests = process.env.WEB_GUESTS !== "0", mode: relayModeOption = relayMode(process.env.WEB_RELAY), enabled = true, guestAllow = parseAllow(process.env.WEB_GUEST_ALLOW), bindIp = process.env.WEB_BIND_IP !== "0", blockedHosts = [], testHosts = process.env.RENDER ? null : parseTestHosts(process.env.WEB_TEST_HOSTS), secret = process.env.WEB_SECRET || crypto.randomBytes(32).toString("hex"), counters = null, usageSecret = defaultUsageSecret(), frameCheck = process.env.WEB_FRAME_CHECK !== "0", records = null, blockHosts = parseHosts(process.env.WEB_BLOCK_HOSTS) } = {}) => {
   const limits = { ...defaultLimits(), ...overrides }
+  // the 7-day log and reported pages (server.js passes the MongoDB ones; memory in tests)
+  const ownRecords = !records
+  if (!records) records = createRecords()
+  // sites Compass never opens (blocklist.js): checked on every hop like the SSRF guard
+  const denyHost = (host) => blockedSite(host, blockHosts)
   // byte budgets and monthly totals (persisted by server.js's shared counters; memory in tests)
   const ownCounters = !counters
   if (!counters) {
@@ -310,18 +341,14 @@ const createWeb = ({ aim = () => null, limits: overrides = {}, now = () => Date.
   }
   const sessions = new Map() // sid -> session
   const jars = new Map() // "u:<account>" -> { jar, at }
-  const rate = { user: limiter(limits.perMinute, 60000), guest: limiter(limits.guestPerMinute, 60000), check: limiter(limits.checksPerMinute, 60000), session: limiter(30, 60 * 60000), frame: limiter(limits.checksPerMinute, 60000), frameAll: limiter(limits.frameChecksPerMinute, 60000) }
+  const rate = { user: limiter(limits.perMinute, 60000), guest: limiter(limits.guestPerMinute, 60000), check: limiter(limits.checksPerMinute, 60000), session: limiter(30, 60 * 60000), frame: limiter(limits.checksPerMinute, 60000), frameAll: limiter(limits.frameChecksPerMinute, 60000), report: limiter(limits.reportsPerHour, 60 * 60000) }
   const gates = new Map() // sid -> gate
   const globalGate = makeGate(limits.global)
   const rewriteGate = makeGate(limits.rewrites)
   const checks = new Map() // url -> { at, result }
-  const extraBlocked = String(process.env.WEB_BLOCK_HOSTS || "")
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean)
-  const ownHosts = (request) => [request?.headers?.host, process.env.RENDER_EXTERNAL_HOSTNAME, ...OWN_SITES, ...extraBlocked, ...blockedHosts].filter(Boolean)
-  // the guard checks every hop again, the allowlist too
-  const guardFor = (request, session) => ({ blockedHosts: ownHosts(request), testHosts, ...(resolve ? { resolve } : {}), ...(session && limited(session) ? { allowHost: (host) => onList(host, guestAllow) } : {}) })
+  const ownHosts = (request) => [request?.headers?.host, process.env.RENDER_EXTERNAL_HOSTNAME, ...OWN_SITES, ...blockedHosts].filter(Boolean)
+  // the guard checks every hop again, the blocklist and the allowlist too
+  const guardFor = (request, session) => ({ blockedHosts: ownHosts(request), testHosts, denyHost, ...(resolve ? { resolve } : {}), ...(session && limited(session) ? { allowHost: (host) => onList(host, guestAllow) } : {}) })
 
   const tokFor = (sid, site) => crypto.createHmac("sha256", secret).update(`${sid}|${site}`).digest("hex").slice(0, 16)
   const sameSite = (sid, tok, url) => {
@@ -334,14 +361,19 @@ const createWeb = ({ aim = () => null, limits: overrides = {}, now = () => Date.
   const usageIdOf = (account, ipk) => (account ? `u:${account.key}` : `g:${crypto.createHmac("sha256", usageSecret).update(ipk).digest("hex").slice(0, 32)}`)
   const budgetOf = (session) => (session.guest ? limits.guestDailyBytes : limits.userDailyBytes)
   const used = (id) => counters.value("day", id, dayOf(now())) || 0
-  const charge = (session, n) => {
+  const charge = (session, n, host) => {
     if (!(n > 0)) return
     const day = dayOf(now())
     counters.add("day", session.usageId, day, n)
     counters.add("day", "relay", day, n)
     if (session.guest) counters.add("day", "guests", day, n)
     counters.add("month", "compass", monthOf(now()), n)
+    // the 7-day log: account, host, bytes, day (nothing else)
+    if (session.account) records.logBytes(session.account, host, n)
   }
+  // today's allowance (this account's, all guests', the whole relay's) is used up
+  const dayOver = (session) => used(session.usageId) >= budgetOf(session) || used("relay") >= limits.globalDailyBytes || (session.guest && used("guests") >= limits.guestsDailyBytes)
+  const tomorrow = () => new Date(Date.parse(`${dayOf(now())}T00:00:00Z`) + 24 * 3600 * 1000)
   // this month: is Compass open? (unknown totals count as closed: fail closed)
   const monthly = () => {
     const t = now()
@@ -368,8 +400,7 @@ const createWeb = ({ aim = () => null, limits: overrides = {}, now = () => Date.
     const m = monthly()
     if (!m.known) return unavailable()
     if (!m.open) return closedForMonth(m)
-    const over = used(session.usageId) >= budgetOf(session) || used("relay") >= limits.globalDailyBytes || (session.guest && used("guests") >= limits.guestsDailyBytes)
-    if (over) return new Refused(429, "Today's Compass allowance on the 98ish server is used up. It starts again tomorrow (UTC); until then, Compass shows sites straight from the site or as saved copies.", { budget: true })
+    if (dayOver(session)) return new Refused(429, "Today's Compass allowance on the 98ish server is used up. Live browsing resumes tomorrow (UTC); until then, Compass shows sites straight from the site or as saved copies.", { budget: true, reopens: tomorrow().toISOString() })
     return null
   }
 
@@ -410,6 +441,7 @@ const createWeb = ({ aim = () => null, limits: overrides = {}, now = () => Date.
     const session = {
       sid,
       key,
+      account: account?.key || null,
       usageId: usageIdOf(account, ipk),
       guest: !account,
       name: account?.user?.screenName || null,
@@ -443,6 +475,10 @@ const createWeb = ({ aim = () => null, limits: overrides = {}, now = () => Date.
 
   const describe = (s) => {
     const m = monthly()
+    const closed = m.known && !m.open
+    // today's allowance is used up (counters not read back yet count as not full: the relay
+    // checks again, failing closed, on every request)
+    const dayFull = !closed && [s.usageId, "relay", "guests"].every((id) => counters.value("day", id, dayOf(now())) !== null) && !!dayOver(s)
     return {
       sid: s.sid,
       guest: s.guest,
@@ -454,7 +490,10 @@ const createWeb = ({ aim = () => null, limits: overrides = {}, now = () => Date.
       // the only sites this session may open (null: any public site)
       allow: limited(s) ? guestAllow : null,
       // closed for the rest of the month (the allowance is used up): until when
-      closed: m.known && !m.open ? m.reopens.toISOString() : null,
+      closed: closed ? m.reopens.toISOString() : null,
+      dayFull,
+      // when live browsing comes back (closed for the month, or today's allowance used up)
+      resumes: closed ? m.reopens.toISOString() : dayFull ? tomorrow().toISOString() : null,
     }
   }
 
@@ -471,13 +510,17 @@ const createWeb = ({ aim = () => null, limits: overrides = {}, now = () => Date.
       compassCapMB: Math.round(limits.monthlyBytes / MB),
       open: on && m.open,
       reopens: m.known && !m.open ? m.reopens.toISOString() : null,
+      // today (UTC): pages relayed and the relay's bytes
+      day: dayOf(now()),
+      pagesToday: counters.value("day", "pages", dayOf(now())),
+      relayTodayMB: mb(counters.value("day", "relay", dayOf(now()))),
     }
   }
 
   // ---- is a page frameable? (headers only; the body isn't read) ----
   const check = async (s, input, request) => {
-    const shape = checkUrlShape(input, { blockedHosts: ownHosts(request), testHosts })
-    if (!shape.ok) return { ok: false, reason: shape.reason }
+    const shape = checkUrlShape(input, { blockedHosts: ownHosts(request), testHosts, denyHost })
+    if (!shape.ok) return { ok: false, reason: shape.reason, ...(shape.denied ? { blocked: true, category: shape.denied } : {}) }
     if (!allowedFor(s, shape.url.hostname)) throw notAllowed(s, shape.url)
     const href = shape.url.href
     const cached = checks.get(href)
@@ -509,9 +552,10 @@ const createWeb = ({ aim = () => null, limits: overrides = {}, now = () => Date.
   // its frame, the rest as the Internet Archive's copy. The page itself is never read or sent.
   const FRAME_CHECK_BYTES = 600 // our request and the JSON answer, roughly (the site's headers are added)
   const frame = async (input, request) => {
+    // a blocked site isn't shown at all (not even as a saved copy): say so first
+    const shape = checkUrlShape(input, { blockedHosts: ownHosts(request), testHosts, denyHost })
+    if (!shape.ok) return { ok: false, reason: shape.reason, ...(shape.denied ? { blocked: true, category: shape.denied } : {}) }
     if (!frameCheck) return { ok: false, reason: "Frame checks are turned off on this server." }
-    const shape = checkUrlShape(input, { blockedHosts: ownHosts(request), testHosts })
-    if (!shape.ok) return { ok: false, reason: shape.reason }
     // where the frame will be: the 98ish page that asks (its Origin), else 98ish itself
     let ancestor = "https://98ish.vercel.app"
     try {
@@ -578,8 +622,8 @@ const createWeb = ({ aim = () => null, limits: overrides = {}, now = () => Date.
       if (!error.status) console.error("[web] relay error", error.message)
       if (isNav) {
         const kind = error.expired ? "expired" : error.monthly ? "monthly" : error.unavailable ? "unavailable" : error.budget ? "budget" : error.blocked ? "blocked" : error.notAllowed ? (error.signOn ? "signon" : "notallowed") : error.off ? "off" : "error"
-        const title = kind === "expired" ? "Session ended" : kind === "signon" ? "Sign on to browse other sites" : kind === "monthly" ? "Compass is resting until next month" : "Compass can't show this page"
-        sendStub(response, status, { kind, url: error.url || target?.href || "", title, text: message, ...(error.reopens ? { reopens: error.reopens } : {}) })
+        const title = kind === "expired" ? "Session ended" : kind === "signon" ? "Sign on to browse other sites" : kind === "monthly" ? "Compass is resting until next month" : error.denied ? "Compass doesn't open this site" : "Compass can't show this page"
+        sendStub(response, status, { kind, url: error.url || target?.href || "", title, text: message, ...(error.reopens ? { reopens: error.reopens } : {}), ...(error.denied ? { category: error.denied } : {}) })
       } else response.status(status).set("content-security-policy", "sandbox").type("text/plain").send(message)
     }
     try {
@@ -680,6 +724,9 @@ const createWeb = ({ aim = () => null, limits: overrides = {}, now = () => Date.
         }
         // a guest's redirect off the allowlist stops here (the next hop would be refused anyway)
         if (!allowedFor(session, next.hostname)) throw notAllowed(session, next)
+        // and a hop to a blocked site
+        const denied = denyHost(next.hostname.toLowerCase().replace(/\.$/, ""))
+        if (denied) throw new Refused(403, denied.message, { blocked: true, denied: denied.category, url: next.href })
         response.status(status).set("location", prefix + encodeTarget(next) + next.hash).set("cache-control", "no-store").set("referrer-policy", "no-referrer").end()
         return
       }
@@ -702,9 +749,10 @@ const createWeb = ({ aim = () => null, limits: overrides = {}, now = () => Date.
 
       const direct = mode === "d" && url.protocol === "https:"
       const navUrl = (u) => `${relayBase(request)}/r/${sid}/${tok}/${mode}/${encodeTarget(u)}${new URL(u).hash}`
-      // Direct mode: pictures and scripts load straight from the site (no relay data), but
-      // stylesheets and fonts come through the relay: fonts need CORS, which an opaque-origin
-      // page only gets from us, and stylesheets are where the fonts are named
+      // Direct mode: pictures and scripts load straight from the site (no relay data);
+      // stylesheets and fonts are addressed through the relay (fonts need CORS, which an
+      // opaque-origin page only gets from us, and stylesheets are where the fonts are named),
+      // which then sends the browser straight to the site when it can (goDirect below)
       const viaRelay = (u, info) => STYLE_OR_FONT.test(u) || info?.tag === "import" || (info?.tag === "link" && (/\bstylesheet\b/.test(info.rel) || info.as === "font" || info.as === "style"))
       const assetUrl = (u, info) => (direct && u.startsWith("https:") && !viaRelay(u, info) ? u : navUrl(u))
       const headers = {
@@ -715,15 +763,37 @@ const createWeb = ({ aim = () => null, limits: overrides = {}, now = () => Date.
       }
       for (const name of PASS_BACK) if (upstream.headers[name] !== undefined) headers[name] = upstream.headers[name]
 
+      // Direct mode saves the server's data wherever the browser can load something itself:
+      // a font or stylesheet the page may use straight from the site goes back as a redirect
+      // to the site (a few hundred bytes instead of the file). A no-cors request (a plain
+      // <link rel=stylesheet>) always may; a CORS one (fonts, crossorigin links) only when the
+      // site allows any origin ("Access-Control-Allow-Origin: *", which an opaque-origin page
+      // needs). Measured on real sites (2026-10-04) stylesheets and fonts were most of what the
+      // relay sent per page.
+      const fetchMode = String(request.headers["sec-fetch-mode"] || "")
+      const anyOrigin = String(upstream.headers["access-control-allow-origin"] || "").trim() === "*"
+      const mayGoDirect = !raw && !isNav && direct && status === 200 && request.method === "GET" && (fetchMode !== "cors" || anyOrigin)
+      const goDirect = () => {
+        upstream.destroy()
+        charge(session, 300, url.hostname) // the redirect itself, roughly
+        response.status(302).set({ location: url.href, "cache-control": "no-store", "referrer-policy": "no-referrer" }).end()
+      }
+      const isFont = String(request.headers["sec-fetch-dest"] || "") === "font" || /^(font\/|application\/(font-|x-font-|vnd\.ms-fontobject))/.test(type)
+      if (mayGoDirect && isFont && anyOrigin) return goDirect()
+
       const rewriteHtmlPage = isNav && HTML.test(type) && request.method !== "HEAD"
       const rewriteSheet = !raw && type === "text/css" && request.method !== "HEAD"
       if (rewriteHtmlPage || rewriteSheet) {
         await rewriteGate.acquire(limits.waitMs)
         let text
+        let directSheet = false
+        let siteBlocked = false
         try {
           const buffer = await collect(decompress(upstream), limits.rewriteBytes)
           text = decodeText(buffer, upstream.headers["content-type"])
-          if (rewriteHtmlPage) {
+          if (rewriteHtmlPage && botCheck(status, upstream.headers, text)) {
+            siteBlocked = true
+          } else if (rewriteHtmlPage) {
             const cfg = {
               url: url.href,
               prefix,
@@ -739,6 +809,20 @@ const createWeb = ({ aim = () => null, limits: overrides = {}, now = () => Date.
             headers["content-type"] = "text/html; charset=utf-8"
             headers["content-security-policy"] = PAGE_SANDBOX
             headers["cache-control"] = "no-store"
+          } else if (mayGoDirect && !/@import/i.test(text)) {
+            // a stylesheet without fonts loads straight from the site; one with fonts becomes
+            // a small sheet that imports the site's own and repeats only its @font-face rules
+            // with relay addresses (later rules win, so the fonts load even when the site
+            // doesn't allow other origins to use them)
+            // (fonts inside the sheet as data: addresses need nothing from us)
+            const faces = (text.match(/@font-face\s*\{[^}]*\}/gi) || []).filter((face) => /url\(\s*["']?(?!data:)/i.test(face))
+            if (!faces.length) {
+              directSheet = true
+            } else {
+              text = `@import url("${url.href.replace(/["\\\n]/g, encodeURIComponent)}");\n${rewriteCss(faces.join("\n"), url.href, assetUrl)}`
+              headers["content-type"] = "text/css; charset=utf-8"
+              headers["content-security-policy"] = "sandbox"
+            }
           } else {
             text = rewriteCss(text, url.href, assetUrl)
             headers["content-type"] = "text/css; charset=utf-8"
@@ -753,6 +837,9 @@ const createWeb = ({ aim = () => null, limits: overrides = {}, now = () => Date.
         } finally {
           rewriteGate.release()
         }
+        if (directSheet) return goDirect()
+        // the site answered the server with a bot check: Compass shows it another way
+        if (siteBlocked) return sendStub(response, 200, { kind: "siteblocked", url: url.href, title: "This site blocks the 98ish server", text: "The site answered the 98ish server with a robot check, so Compass shows it straight from the site or as a saved copy." })
         let out = Buffer.from(text, "utf8")
         if (/\bgzip\b/.test(clientAccepts) && out.length > 1024) {
           out = await new Promise((ok, no) => zlib.gzip(out, { level: 6 }, (e, b) => (e ? no(e) : ok(b))))
@@ -760,7 +847,8 @@ const createWeb = ({ aim = () => null, limits: overrides = {}, now = () => Date.
           headers.vary = "Accept-Encoding"
         }
         headers["content-length"] = String(out.length)
-        charge(session, out.length)
+        charge(session, out.length, url.hostname)
+        if (rewriteHtmlPage) counters.add("day", "pages", dayOf(now()), 1)
         response.status(status).set(headers).end(out)
         return
       }
@@ -780,7 +868,7 @@ const createWeb = ({ aim = () => null, limits: overrides = {}, now = () => Date.
       const meter = new Transform({
         transform(chunk, encoding, done) {
           sent += chunk.length
-          charge(session, chunk.length)
+          charge(session, chunk.length, url.hostname)
           if (sent > limits.maxBytes) return done(new Refused(413, "That's too big for the relay."))
           done(null, chunk)
         },
@@ -830,7 +918,7 @@ const createWeb = ({ aim = () => null, limits: overrides = {}, now = () => Date.
       const s = createSession(request)
       // read this month's totals back first, so the session can say whether Compass is open
       const month = monthOf(now())
-      await counters.ensure([["month", "server", month], ["month", "compass", month], ["day", s.usageId, dayOf(now())]]).catch(() => {})
+      await counters.ensure([["month", "server", month], ["month", "compass", month], ["day", s.usageId, dayOf(now())], ["day", "relay", dayOf(now())], ["day", "guests", dayOf(now())]]).catch(() => {})
       response.json(describe(s))
     } catch (error) {
       send(response, error)
@@ -840,7 +928,8 @@ const createWeb = ({ aim = () => null, limits: overrides = {}, now = () => Date.
   // how much the server has sent this month and whether Compass is open (numbers only)
   router.get("/status", async (request, response) => {
     const month = monthOf(now())
-    await counters.ensure([["month", "server", month], ["month", "compass", month]]).catch(() => {})
+    const day = dayOf(now())
+    await counters.ensure([["month", "server", month], ["month", "compass", month], ["day", "pages", day], ["day", "relay", day]]).catch(() => {})
     response.set("cache-control", "no-store").json(status())
   })
 
@@ -870,7 +959,24 @@ const createWeb = ({ aim = () => null, limits: overrides = {}, now = () => Date.
     } catch (error) {
       if (error.status === 429) return send(response, error)
       if (!error.status) console.error("[web] frame check", error.message)
-      response.json({ ok: false, reason: error.status ? error.message : "The site couldn't be checked." })
+      response.json({ ok: false, reason: error.status ? error.message : "The site couldn't be checked.", ...(error.denied ? { blocked: true, category: error.denied } : {}) })
+    }
+  })
+
+  // "Report This Page" (Compass > Tools): stored for the owner (records.js), nobody is notified
+  router.post("/report", async (request, response) => {
+    try {
+      const body = JSON.parse((await readBody(request, 8 * 1024)).toString("utf8") || "{}")
+      const s = sessionFor(body.sid, request)
+      if (rate.report(s.key)) throw new Refused(429, "That's a lot of reports. Try again in an hour.")
+      const result = await records.addReport({ account: s.account, guest: s.guest, url: body.url, note: body.note })
+      if (!result.ok) throw new Refused(400, result.error)
+      response.json({ ok: true })
+    } catch (error) {
+      if (error instanceof SyntaxError) return send(response, new Refused(400, "That report couldn't be read."))
+      if (error.status) return send(response, error)
+      console.error("[web] report", error.message)
+      send(response, new Refused(503, "The report couldn't be saved right now. Try again later."))
     }
   })
 
@@ -910,11 +1016,25 @@ const createWeb = ({ aim = () => null, limits: overrides = {}, now = () => Date.
     next()
   })
 
+  // Delete My Account: the account's browsing sessions, cookie jar, usage counters, its rows in
+  // the 7-day log and its reports
+  const eraseAccount = async ({ key }) => {
+    let ended = 0
+    for (const [sid, s] of sessions) if (s.account === key) sessions.delete(sid), gates.delete(sid), ended++
+    jars.delete(`u:${key}`)
+    const counted = await counters.forget(`u:${key}`)
+    const kept = await records.eraseAccount(key)
+    return { sessions: ended, counters: counted, log: kept.log, reports: kept.reports }
+  }
+
   return {
     router,
+    eraseAccount,
     // for tests
     sessions,
     counters,
+    records,
+    jars,
     limits,
     tokFor,
     createSession,
@@ -922,6 +1042,7 @@ const createWeb = ({ aim = () => null, limits: overrides = {}, now = () => Date.
     stop: () => {
       clearInterval(sweeper)
       if (ownCounters) counters.stop()
+      if (ownRecords) records.stop()
     },
   }
 }

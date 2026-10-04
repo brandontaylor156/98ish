@@ -154,7 +154,15 @@ const createCounters = ({ store, flushMs = 5000, retryMs = 20000, idleMs = 60 * 
     timer = null
   }
 
-  return { add, value, ensure, flush, start, stop, store, cells, kind: store.kind }
+  // delete every counter of this id (Delete My Account: "u:<account>"), in memory and stored
+  const forget = async (id) => {
+    for (const [k, c] of cells) if (c.id === String(id)) cells.delete(k)
+    // a write already on its way lands first, then everything of this id goes
+    if (flushing) await flushing.catch(() => {})
+    return store.removeId ? store.removeId(String(id)) : 0
+  }
+
+  return { add, value, ensure, flush, forget, start, stop, store, cells, kind: store.kind }
 }
 
 // ---------- stores ----------
@@ -176,6 +184,11 @@ const memoryUsageStore = (data = new Map(), { fail = () => false } = {}) => ({
       doc.expiresAt = op.expiresAt
       data.set(op.k, doc)
     }
+  },
+  removeId: async (id) => {
+    let n = 0
+    for (const [k, doc] of data) if (doc.id === id) data.delete(k), n++
+    return n
   },
 })
 
@@ -219,6 +232,10 @@ const mongoUsageStore = (uri) => {
         })),
         { ordered: false }
       )
+    },
+    removeId: async (id) => {
+      const m = model || (await connect())
+      return (await m.deleteMany({ id })).deletedCount || 0
     },
   }
 }

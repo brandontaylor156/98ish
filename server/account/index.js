@@ -59,6 +59,10 @@
 //                                                  days in case the two pair again, which can't
 //                                                  happen now). The partner gets a neutral notice.
 //   gamechat    (memory)                           their lines in game chat history deleted
+//   compass     weblog, webreports, webusage       Compass's 7-day relay log (host, bytes, day),
+//               (+ memory)                         pages they reported, their daily usage
+//                                                  counters (u:<key>), their browsing sessions
+//                                                  and the relay's cookie jar for them
 //   aim         aimusers                           the account (password hash, profile, Buddy
 //                                                  List, blocks, remembered devices) deleted; their
 //                                                  name taken off everyone's Buddy List and block

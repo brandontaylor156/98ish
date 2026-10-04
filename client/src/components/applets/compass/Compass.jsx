@@ -6,7 +6,7 @@ import { ieWindow, launch } from "../../../utils/programs"
 import { fs } from "../../../utils/fs"
 import { folderAt, receiveFiles, summarize } from "../../../utils/receive"
 import { shareOut } from "../../../utils/share"
-import { SERVER, allowedFor, checkFrame, checkFrameAny, clearCookies, ensureSession, onSession, currentSession, dropSession, refreshUsage } from "./relay"
+import { SERVER, allowedFor, checkFrame, checkFrameAny, clearCookies, ensureSession, onSession, currentSession, dropSession, refreshUsage, reportPage, resumesAt } from "./relay"
 import { NEW_TAB, SEARCH_ENGINES, displayUrl, fileNameOf, hostOf, isInternal, isWeb, newestCapture, nowStamp, openInLabel, parseInput, rawUrl, relayUrl, searchTermFor, searchUrl, skipRelay, suggest } from "./urls"
 import { ARCHIVE_ORIGIN, archiveUrl, formatStamp, getSparkline, parseArchiveUrl, samePage } from "../internetExplorer/wayback"
 import * as store from "./store"
@@ -14,11 +14,15 @@ import { AboutPage, BookmarksPage, CompassLogo, DownloadsPage, Favicon, HistoryP
 import "./Compass.css"
 
 // Compass: a real web browser for 98ish, with tabs, bookmarks, history, downloads, find and
-// zoom. Sites on the relay's list come through the 98ish server (server/web), because most
-// sites refuse to be framed. Every other site shows inside Compass without the relay: straight
-// from the site when it allows frames (GET /api/web/frame looks at its headers), else the
-// Internet Archive's newest saved copy (web.archive.org/web/<time>if_/<url>), with a slim bar
-// saying so. Both load over the visitor's own connection, not through 98ish.
+// zoom. Pages come through the 98ish server (server/web), because most sites refuse to be
+// framed: any site for someone signed on to 98 Messenger (WEB_RELAY=on, the default), only the
+// relay's list (Wikipedia and friends) for guests. Every other site, and every site once a daily
+// or monthly allowance is used up, shows inside Compass without the relay: straight from the
+// site when it allows frames (GET /api/web/frame looks at its headers), else the Internet
+// Archive's newest saved copy (web.archive.org/web/<time>if_/<url>), with a slim bar saying so
+// (and "Sign on to browse this site live" / "Live browsing resumes tomorrow"). Both load over
+// the visitor's own connection, not through 98ish. Blocked sites (server/web/blocklist.js)
+// aren't shown at all.
 
 const MAX_TABS = 12
 const ZOOMS = [0.5, 0.67, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2]
@@ -42,21 +46,28 @@ const sameOrigin = (url) => {
   }
 }
 
-// Guests browse a few sites (Wikipedia and friends); anything else asks them to sign on
-const signOnStub = (url) => ({ view: "stub", stub: { kind: "signon", title: "Sign on to browse other sites", text: "Sign on with your 98 Messenger screen name to browse other sites live. Without one, Compass shows them straight from the site when it allows that, or as a saved copy.", url }, loading: false })
+// A site Compass doesn't open at all (the server's blocklist)
+const blockedStub = (url, reason) => ({ view: "stub", why: "blocked", stub: { kind: "blocked", title: "Compass doesn't open this site", text: reason || "This site is blocked on this 98ish server.", url }, loading: false })
 
-// The server has sent its monthly allowance (Render's free plan covers 5 GB a month for all of
-// 98ish): Compass rests until the 1st, everything else in 98ish keeps working
-const monthlyStub = (reopens, url) => ({
-  kind: "monthly",
-  title: "Compass is resting until next month",
-  text: `Compass has used this month's data allowance; it's back on ${reopens.toLocaleDateString(undefined, { month: "long", day: "numeric", timeZone: "UTC" })}. Messenger and the rest of 98ish keep working. Until then, Compass shows sites straight from the site or as saved copies.`,
-  url,
-})
+// the 98 Messenger account a session belongs to, as the first-use notice remembers it
+const accountOf = (session) => (session && !session.guest && session.name ? session.name.toLowerCase().replace(/\s+/g, "") : null)
+
+// Why a page shows without the relay, when that's something live browsing will fix: a slim bar
+const liveNote = (why, session) => {
+  if (why === "signon") return { text: "Sign on to browse this site live.", signOn: true }
+  if (why === "siteblocked") return { text: "This site blocks the 98ish server, so Compass can't show it live." }
+  if (why === "budget" || why === "closed" || why === "monthly") {
+    const at = resumesAt(session, why)
+    const day = at.toLocaleDateString(undefined, { month: "short", day: "numeric", timeZone: "UTC" })
+    return { text: why === "budget" ? "Today's live browsing allowance is used up. Live browsing resumes tomorrow." : `Compass has used this month's live browsing allowance. Live browsing resumes on ${day}.` }
+  }
+  return null
+}
 
 // Stubs from the relay that mean "show it without the relay" (straight from the site or a
-// saved copy) instead of a page about it
-const FALLBACK_KINDS = new Set(["notallowed", "monthly", "budget", "unavailable", "off", "error", "toobig", "media"])
+// saved copy) instead of a page about it ("signon": a guest off the allowlist, with a slim
+// sign-on bar; "siteblocked": the site answered the server with a robot check)
+const FALLBACK_KINDS = new Set(["notallowed", "signon", "monthly", "budget", "unavailable", "off", "error", "toobig", "media", "siteblocked"])
 
 // The newest saved copy of a page: -> { ts } (ts null: unknown, ask for the newest) | { none }
 const SNAPSHOT_MS = 8000
@@ -160,10 +171,11 @@ const Compass = ({ initialUrl, onTitle, onClose, onNewWindow, dispatch, mobile }
   tokenRef.current = token
 
   const phone = mobile || narrow
-  // guests, and everyone while the relay opens only its list (the default), search Wikipedia:
-  // other search engines can't be relayed and don't allow frames. Until the session says
-  // otherwise, Compass assumes the list.
-  const engine = !token || !session || (session.allow && !allowedFor(session, hostOf(SEARCH_ENGINES[prefs.engine]?.url))) ? "wikipedia" : prefs.engine
+  // guests, everyone while the relay opens only its list, and everyone once the day's or month's
+  // allowance is used up search Wikipedia: other search engines can't be shown without the
+  // relay. Signed on (WEB_RELAY=on) they use their engine (DuckDuckGo's light HTML page by
+  // default) through the relay. Until the session says otherwise, Compass assumes the list.
+  const engine = !token || !session || session.guest || session.closed || session.dayFull || (session.allow && !allowedFor(session, hostOf(SEARCH_ENGINES[prefs.engine]?.url))) ? "wikipedia" : prefs.engine
   const active = tabs.find((t) => t.id === activeId) || tabs[0]
   const entry = entryOf(active)
   const pageUrl = entry.url
@@ -202,10 +214,15 @@ const Compass = ({ initialUrl, onTitle, onClose, onNewWindow, dispatch, mobile }
     const snapshot = newestSnapshot(url) // asked at once; needed only if the site can't be framed
     if (!archiveOnly && !sameOrigin(url)) {
       const c = await checkFrameAny(url)
+      // a blocked site: not straight from the site, not as a saved copy either
+      if (c.blocked) return blockedStub(url, c.reason)
       // an http page can't go in an https 98ish (the browser blocks it), but its saved copy can
       if (c.ok && c.frameable && (c.https || window.location.protocol === "http:") && isWeb(c.url) && !sameOrigin(c.url)) return { view: "direct", src: c.url, stub: null, why, loading: true }
     }
     const snap = await snapshot
+    // a guest: neither way works, but signing on would show it live
+    if (snap.none && why === "signon")
+      return { view: "stub", why, stub: { kind: "signon", title: "Sign on to see this site", text: `${hostOf(url) || "This site"} doesn't let other pages show it, and the Internet Archive has no saved copy of this page. Sign on with your 98 Messenger screen name to browse it live.`, url, noFallback: true }, loading: false }
     if (snap.none)
       return {
         view: "stub",
@@ -229,17 +246,19 @@ const Compass = ({ initialUrl, onTitle, onClose, onNewWindow, dispatch, mobile }
       s = await ensureSession(tokenRef.current, { onSlow: () => setWaking(true) })
     } catch (error) {
       setWaking(false)
-      if (error.signOn) return signOnStub(url)
+      // guests aren't let in at all (WEB_GUESTS=0): without the relay, with a sign-on bar
+      if (error.signOn) return withoutRelay(url, "signon")
       // the relay is off, or the server can't be reached: show it without the relay
       return withoutRelay(url, error.off ? "off" : "offline")
     }
     setWaking(false)
-    // off the allowlist: in "on" mode a guest can sign on for it; otherwise it shows without the relay
-    if (!allowedFor(s, hostOf(url))) return s.guest && s.mode === "on" ? signOnStub(url) : withoutRelay(url, "notallowed")
-    const overBudget = s.limit && s.used >= s.limit
-    // the day's or month's data allowance is used up: without the relay
-    const closed = s.closed ? new Date(s.closed) : null
-    if (closed || overBudget) return withoutRelay(url, closed ? "closed" : "budget")
+    // the month's allowance is used up: without the relay for everyone (never a dead page)
+    if (s.closed) return withoutRelay(url, "closed")
+    // off the allowlist: without the relay (in "on" mode a guest gets a slim bar to sign on
+    // and see it live)
+    if (!allowedFor(s, hostOf(url))) return withoutRelay(url, s.guest && s.mode === "on" ? "signon" : "notallowed")
+    // today's allowance is used up: without the relay until tomorrow
+    if ((s.limit && s.used >= s.limit) || s.dayFull) return withoutRelay(url, "budget")
     if (p.dataSaver) {
       const c = await checkFrame(s.sid, url)
       if (c.ok && c.frameable && (c.https || window.location.protocol === "http:") && !sameOrigin(c.url)) return { view: "direct", src: c.url, stub: null, why: "dataSaver", loading: true }
@@ -269,7 +288,11 @@ const Compass = ({ initialUrl, onTitle, onClose, onNewWindow, dispatch, mobile }
       const patch = await resolveView(url, options)
       if (loadIds.current.get(id) !== loadId) return
       updateTab(id, (t) => ({ ...patch, frameKey: t.frameKey + 1 }))
-      if (patch.view === "relay" && !prefsRef.current.noticeSeen) setDialog({ kind: "firstRun" })
+      if (patch.view === "relay") {
+        // the first live page: signed on, a short notice once per account; a guest, the older one
+        const who = accountOf(currentSession())
+        if (who ? !prefsRef.current.liveNoticeFor.includes(who) : !prefsRef.current.noticeSeen) setDialog((d) => d || { kind: who ? "liveNotice" : "firstRun", who })
+      }
     },
     [resolveView, updateTab]
   )
@@ -283,9 +306,10 @@ const Compass = ({ initialUrl, onTitle, onClose, onNewWindow, dispatch, mobile }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeId])
 
-  // signing on or off changes the session: reload pages that were waiting for it
+  // signing on or off changes the session: pages that were waiting for it (a guest's saved copy
+  // or straight-from-the-site page with the sign-on bar) load again, live
   useEffect(() => {
-    for (const t of tabsRef.current) if (t.view === "stub" && (t.stub?.kind === "signon" || t.stub?.kind === "offline") && token) load(t.id, entryOf(t).url, "entry")
+    for (const t of tabsRef.current) if (token && ((t.view === "stub" && (t.stub?.kind === "signon" || t.stub?.kind === "offline")) || t.why === "signon")) load(t.id, entryOf(t).url, "entry")
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token])
 
@@ -458,6 +482,8 @@ const Compass = ({ initialUrl, onTitle, onClose, onNewWindow, dispatch, mobile }
         // the relay can't or won't bring it (off the list, the allowance, the site unreachable
         // from the server, too big, a video): show it straight from the site or as a saved copy
         if (FALLBACK_KINDS.has(info.kind)) {
+          // an allowance ran out: the session learns it, so the next pages skip the relay
+          if (info.kind === "budget" || info.kind === "monthly") refreshUsage()
           load(id, info.url, entryOf(tab).url === info.url ? "entry" : "replace", { fallback: info.kind })
           return
         }
@@ -680,6 +706,7 @@ const Compass = ({ initialUrl, onTitle, onClose, onNewWindow, dispatch, mobile }
       label: "Tools",
       items: [
         { label: "Clear Cookies (sign out of sites)", onClick: () => clearCookies().then((ok) => showToast(ok ? "Compass forgot every site's cookies." : "There's no browsing session yet.")) },
+        { label: "Report This Page...", disabled: !isPage, onClick: () => setDialog({ kind: "report", url: pageUrl }) },
         { label: "Compass Options...", onClick: () => setDialog({ kind: "options" }) },
       ],
     },
@@ -712,7 +739,7 @@ const Compass = ({ initialUrl, onTitle, onClose, onNewWindow, dispatch, mobile }
           onRetry={() => load(t.id, entryOf(t).url, "entry", t.stub.kind === "nosnapshot" ? { fallback: t.why || "archive" } : {})}
           onTimeMachine={() => timeMachine(t.stub.url)}
           onSignOn={(register) => setDialog({ kind: "signon", register })}
-          onWithoutSignOn={() => load(t.id, entryOf(t).url, "entry", { fallback: "signon" })}
+          onWithoutSignOn={t.stub.noFallback ? null : () => load(t.id, entryOf(t).url, "entry", { fallback: "signon" })}
           onSearch={(term) => load(t.id, searchUrl(term, "wikipedia"), "push")}
           onSave={() => saveToDrive({ url: t.stub.url, name: t.stub.name || fileNameOf(t.stub.url), tok: t.stub.tok })}
         />
@@ -738,16 +765,45 @@ const Compass = ({ initialUrl, onTitle, onClose, onNewWindow, dispatch, mobile }
           }}
         />
       )
-      // a saved copy: a slim bar says so, with the live site as a small second choice
+      // a saved copy: a slim bar says so, with the live site as a small second choice; a page
+      // straight from the site gets one too when signing on or tomorrow would make it live
+      const note = liveNote(t.why, session)
+      const live = note && (
+        <>
+          {" "}
+          {note.text}
+          {note.signOn && (
+            <>
+              {" "}
+              <button type="button" className="cmpLink cmpBarAction" onClick={() => setDialog({ kind: "signon" })}>
+                Sign On
+              </button>{" "}
+              <button type="button" className="cmpLink cmpBarAction" onClick={() => setDialog({ kind: "signon", register: true })}>
+                Get a Screen Name
+              </button>
+            </>
+          )}
+        </>
+      )
       body =
-        t.view === "archive" ? (
+        t.view === "direct" && note ? (
+          <div className="cmpFrameWrap">
+            <div className="cmpArchiveBar cmpLiveBar" role="note">
+              <span className="cmpNoticeIcon" aria-hidden="true">
+                i
+              </span>
+              <span className="cmpArchiveText">Straight from the site.{live}</span>
+            </div>
+            <div className="cmpFrameBox">{frame}</div>
+          </div>
+        ) : t.view === "archive" ? (
           <div className="cmpFrameWrap">
             <div className="cmpArchiveBar" role="note">
               <span className="cmpNoticeIcon" aria-hidden="true">
                 i
               </span>
               <span className="cmpArchiveText">
-                Saved copy from the Internet Archive{t.archiveTs ? `, ${formatStamp(t.archiveTs)}` : ""}. This site can&apos;t be shown live in Compass.
+                Saved copy from the Internet Archive{t.archiveTs ? `, ${formatStamp(t.archiveTs)}` : ""}.{live || " This site can't be shown live in Compass."}
               </span>
               <button type="button" className="cmpLink" onClick={() => openReal(entryOf(t).url)} title={`Open the live site in ${OPEN_IN.replace(/^Open in /, "")}`}>
                 {OPEN_IN}
@@ -945,19 +1001,13 @@ const Compass = ({ initialUrl, onTitle, onClose, onNewWindow, dispatch, mobile }
           </button>
         </div>
       )}
-      {active.view === "direct" && (active.why === "dataSaver" || (active.why === "closed" && session?.closed)) && (
+      {active.view === "direct" && active.why === "dataSaver" && (
         <div className="cmpNotice">
           <span className="cmpNoticeIcon">i</span>
-          {active.why === "closed" ? (
-            <span className="cmpNoticeText">{monthlyStub(new Date(session.closed)).text.split(". ")[0]}, so this site loads straight from the site (Compass can&apos;t find or zoom text in it).</span>
-          ) : (
-            <>
-              <span className="cmpNoticeText">Data Saver: this site loads directly, so Compass can&apos;t follow its links, find or zoom text.</span>
-              <button type="button" onClick={() => (store.setPrefs({ dataSaver: false }), reload())}>
-                Load Through 98ish
-              </button>
-            </>
-          )}
+          <span className="cmpNoticeText">Data Saver: this site loads directly, so Compass can&apos;t follow its links, find or zoom text.</span>
+          <button type="button" onClick={() => (store.setPrefs({ dataSaver: false }), reload())}>
+            Load Through 98ish
+          </button>
         </div>
       )}
 
@@ -1085,6 +1135,7 @@ const Compass = ({ initialUrl, onTitle, onClose, onNewWindow, dispatch, mobile }
             <li><button type="button" disabled={!isPage || active.view === "archive"} onClick={() => (showSavedCopy(), setSheet(null))}>Show Saved Copy (Internet Archive)</button></li>
             <li><button type="button" disabled={!isPage} onClick={() => (openReal(), setSheet(null))}>{OPEN_IN}</button></li>
             <li><button type="button" onClick={() => store.setPrefs({ dataSaver: !prefs.dataSaver })}>{prefs.dataSaver ? "\u2713 " : ""}Data Saver</button></li>
+            <li><button type="button" disabled={!isPage} onClick={() => (setDialog({ kind: "report", url: pageUrl }), setSheet(null))}>Report This Page...</button></li>
             <li><button type="button" onClick={() => (setDialog({ kind: "options" }), setSheet(null))}>Compass Options...</button></li>
             <li><button type="button" onClick={() => (refreshUsage(), load(active.id, "compass://about", "push"), setSheet(null))}>About Compass</button></li>
             <li><button type="button" onClick={() => (closeTab(active.id), setSheet(null))}>Close Tab</button></li>
@@ -1119,6 +1170,21 @@ const Compass = ({ initialUrl, onTitle, onClose, onNewWindow, dispatch, mobile }
           </p>
         </Dialog>
       )}
+
+      {dialog?.kind === "liveNotice" && (
+        <Dialog
+          title="Compass"
+          onOk={() => {
+            const seen = prefsRef.current.liveNoticeFor
+            store.setPrefs({ liveNoticeFor: [...seen.filter((w) => w !== dialog.who), dialog.who].slice(-20), noticeSeen: true })
+            setDialog(null)
+          }}
+        >
+          <p className="dialogText cmpLiveNotice">Pages you open live are fetched by the 98ish server. Don&apos;t use Compass for anything illegal or to get around a network&apos;s rules. Some sites block it; then you&apos;ll see a saved copy.</p>
+        </Dialog>
+      )}
+
+      {dialog?.kind === "report" && <ReportDialog url={dialog.url} token={token} onClose={() => setDialog(null)} onSent={() => (setDialog(null), showToast("Thanks. The page was reported to the owner of this 98ish."))} />}
 
       {dialog?.kind === "download" && (
         <Dialog
@@ -1184,6 +1250,40 @@ const Compass = ({ initialUrl, onTitle, onClose, onNewWindow, dispatch, mobile }
         />
       )}
     </div>
+  )
+}
+
+// Tools > Report This Page: the address and an optional note go to the 98ish server, where its
+// owner reads them (server/web/records.js); nobody is notified
+const ReportDialog = ({ url, token, onClose, onSent }) => {
+  const [note, setNote] = useState("")
+  const [busy, setBusy] = useState(false)
+  const [problem, setProblem] = useState(null)
+  const send = async () => {
+    if (busy) return
+    setBusy(true)
+    setProblem(null)
+    const result = await reportPage(token, url, note.trim())
+    setBusy(false)
+    if (result.ok) onSent()
+    else setProblem(result.error)
+  }
+  return (
+    <Dialog title="Report This Page" okLabel={busy ? "Sending..." : "Report"} okDisabled={busy} onOk={send} onCancel={onClose}>
+      <div className="cmpReport">
+        <p className="dialogText">Report a page that&apos;s illegal, abusive, a scam or malware. The address{token ? " and your screen name" : ""} go to the owner of this 98ish with your note.</p>
+        <p className="cmpStubUrl">{displayUrl(url)}</p>
+        <label className="cmpField cmpReportNote">
+          <span>What&apos;s wrong with it? (optional)</span>
+          <textarea value={note} onChange={(e) => setNote(e.target.value)} maxLength={1000} rows={3} />
+        </label>
+        {problem && (
+          <p className="cmpSignOnError" role="alert">
+            {problem}
+          </p>
+        )}
+      </div>
+    </Dialog>
   )
 }
 

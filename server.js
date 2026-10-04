@@ -29,6 +29,7 @@ const { calendarRouter, attachCalendar } = require("./server/calendar")
 const { defaultPush } = require("./server/push")
 const { contactsRouter } = require("./server/contacts")
 const { createWeb } = require("./server/web")
+const { defaultRecords } = require("./server/web/records")
 const { refuseOpaqueOrigins, allowSocketRequest } = require("./server/web/origins")
 const { defaultUsage } = require("./server/meter")
 
@@ -38,7 +39,9 @@ const app = express()
 const usage = defaultUsage()
 // Compass's web relay answers CORS itself (relayed pages are opaque origins), so it goes first
 let aimService = null // 98 Messenger once it's running (the relay signs people in with it)
-const web = createWeb({ aim: () => aimService, counters: usage.counters })
+// its 7-day log (account, host, bytes, day) and reported pages: MongoDB weblog / webreports
+const webRecords = defaultRecords()
+const web = createWeb({ aim: () => aimService, counters: usage.counters, records: webRecords })
 app.use("/api/web", web.router)
 // everything else refuses sandboxed (opaque-origin) callers, such as relayed pages
 app.use(refuseOpaqueOrigins)
@@ -85,7 +88,7 @@ for (const signal of ["SIGTERM", "SIGINT"]) {
   process.on(signal, async () => {
     if (stopping) return
     stopping = true
-    await usage.shutdown().catch(() => {})
+    await Promise.all([usage.shutdown().catch(() => {}), Promise.race([webRecords.flush(), new Promise((r) => setTimeout(r, 3000))]).catch(() => {})])
     process.exit(0)
   })
 }
@@ -130,6 +133,7 @@ const eraser = createAccountEraser()
   .add("town", (ctx) => townService().eraseAccount(ctx))
   .add("couples", (ctx) => coupleService().eraseAccount(ctx))
   .add("gamechat", (ctx) => gameChat.eraseAccount(ctx))
+  .add("compass", (ctx) => web.eraseAccount(ctx))
 
 aim = attachAim(io, { push, eraser })
 aim

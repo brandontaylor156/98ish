@@ -27,6 +27,7 @@ export const DEFAULT_PREFS = {
   bookmarksVersion: 0, // the starting bookmarks this person has had (migrateBookmarks)
   zoom: {}, // host -> zoom
   noticeSeen: false,
+  liveNoticeFor: [], // 98 Messenger accounts that have seen the "pages you open live" notice
   restoreTabs: true,
 }
 

@@ -437,6 +437,34 @@
   margin: 0;
   color: #c00000;
 }
+/* the slim bar's own actions (Sign On / Get a Screen Name) sit inline with its text */
+.cmpArchiveBar .cmpArchiveText .cmpBarAction {
+  display: inline;
+  font-weight: bold;
+}
+
+/* Tools > Report This Page */
+.cmpReport {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: min(320px, 76vw);
+  max-width: 420px;
+  text-align: left;
+}
+.cmpReport .cmpStubUrl {
+  margin: 0;
+  word-break: break-all;
+}
+.cmpReportNote textarea {
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+  font: inherit;
+}
+.cmpLiveNotice {
+  max-width: 360px;
+}
 .cmpPage {
   height: 100%;
   overflow: auto;
