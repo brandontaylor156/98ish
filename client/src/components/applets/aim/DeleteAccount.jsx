@@ -21,6 +21,7 @@ export const WHAT_GOES = [
   "Us: your pairing, love letters, Our Story and its photos, flowers, Our Pet and the Dream House. Your partner is told, without details, that the pairing ended.",
   "Quizzes and puzzles you sent or got, Sunny Acres towns, Tetris Online ranks, your HomePage Studio page and guestbook entries you signed while signed on.",
   "Notification settings, devices and messages waiting for you.",
+  "98 Messenger conversations saved on the server, reactions and read receipts (the people you talked to keep their copy, without your name), and pictures and voice messages you sent.",
   "Compass: the 7-day log of sites fetched live for you and pages you reported.",
 ]
 

@@ -1,5 +1,7 @@
 // 98 Messenger: an AIM-style service on Socket.io. Accounts persist through the store;
-// everything else (who's online, away messages, warnings, chat rooms) lives in memory.
+// saved conversations, reactions and read receipts are in ./history.js, pictures and voice
+// messages in ./media.js (events in ./conversations.js); everything else (who's online, away
+// messages, warnings, chat rooms) lives in memory.
 
 const crypto = require("crypto")
 const bcrypt = require("bcryptjs")
@@ -9,6 +11,8 @@ const { createBot, BOT_NAME } = require("./bot")
 const { createCalls } = require("./calls")
 const { createIce } = require("./ice")
 const { createAccountEraser } = require("../account")
+const { createHistoryStore, pairConv, roomConv, packStyle } = require("./history")
+const { bindConversations, newId, cleanThumb, mediaPreview } = require("./conversations")
 
 const MAX_MESSAGE = 1024
 const MAX_PROFILE = 1024
@@ -73,11 +77,15 @@ const limiter = (limit, windowMs) => {
 // they sign on again.
 // `eraser` (../account): the steps that delete an account's data everywhere, for
 // aim:deleteAccount; without one only the account record goes.
-const attachAim = async (io, { store, bot, ice, callRingMs, callLostMs, push = null, eraser = null } = {}) => {
+// `history` (./history.js, a store or a promise of one): saved conversations; in memory
+// without one. `media` (./media.js): pictures and voice messages in IMs; off without one.
+const attachAim = async (io, { store, bot, ice, callRingMs, callLostMs, push = null, eraser = null, history = null, media: imMedia = null } = {}) => {
   store ??= await createStore()
   bot ??= createBot()
   ice ??= createIce()
   eraser ??= createAccountEraser()
+  // (a history store that failed to connect: 98 Messenger still runs, keeping history in memory)
+  history = (await Promise.resolve(history).catch(() => null)) || (await createHistoryStore(""))
   const deletingNow = new Set() // keys being deleted right now (one try at a time)
 
   const sessions = new Map() // key -> session (signed on, possibly mid-reconnect)
@@ -115,6 +123,20 @@ const attachAim = async (io, { store, bot, ice, callRingMs, callLostMs, push = n
     signOnAt: BOT_SIGN_ON,
     bot: true,
   })
+
+  // Preferences > "Save my conversations on the server" and "Read receipts" (both on unless
+  // turned off)
+  const prefsOf = (user) => ({ saveHistory: user?.prefs?.saveHistory !== false, receipts: user?.prefs?.receipts !== false })
+
+  // a message into the saved history (./history.js), for whoever of `people` keeps theirs
+  const record = (doc, people) => {
+    const p = people.filter((x) => x.key && prefsOf(x.user).saveHistory).map((x) => x.key)
+    if (!p.length) return Promise.resolve(null)
+    return history.add({ ...doc, p: [...new Set(p)] }).catch((error) => {
+      console.error("[aim] saving a message failed", error?.message)
+      return null
+    })
+  }
 
   const blocks = (session, otherKey) => session.user.blocked.includes(otherKey)
   // Either side blocking hides them from each other, like the real service
@@ -227,6 +249,7 @@ const attachAim = async (io, { store, bot, ice, callRingMs, callLostMs, push = n
       blocked: session.user.blocked,
       warning: warningOf(session.key),
       createdAt: session.user.createdAt,
+      prefs: prefsOf(session.user),
     },
     online: onlineListFor(session),
   })
@@ -259,6 +282,8 @@ const attachAim = async (io, { store, bot, ice, callRingMs, callLostMs, push = n
     return token
   }
 
+  const conversations = { io, history, media: () => imMedia, sessions, rooms, hidden, emitTo, persist, prefsOf, botKey: BOT_KEY }
+
   io.on("connection", (socket) => {
     const ip = String(socket.handshake.headers["x-forwarded-for"] || socket.handshake.address).split(",")[0].trim()
     const current = () => {
@@ -279,6 +304,7 @@ const attachAim = async (io, { store, bot, ice, callRingMs, callLostMs, push = n
         }
       })
     calls.bind(on)
+    bindConversations(on, conversations)
 
     const startSession = (user, key, ack, remember) => {
       // Signing on somewhere else bumps the old session, like the real service
@@ -327,6 +353,12 @@ const attachAim = async (io, { store, bot, ice, callRingMs, callLostMs, push = n
           // after the sign-on reply has landed
           setTimeout(() => {
             for (const m of messages) emitTo(session.key, "aim:im", { ...m, offline: true })
+            // "Delivered" for whoever sent them (saved copies stop saying they're waiting)
+            const ids = messages.map((m) => m.id).filter(Boolean)
+            if (ids.length) history.delivered(ids).catch(() => [])
+            const bySender = new Map()
+            for (const m of messages) if (m.id) bySender.set(normalize(m.from), [...(bySender.get(normalize(m.from)) || []), m.id])
+            for (const [sender, list] of bySender) emitTo(sender, "aim:delivered", { ck: session.key, to: session.user.screenName, ids: list, at: Date.now() })
           }, 300)
         })
         .catch(() => {})
@@ -530,9 +562,12 @@ const attachAim = async (io, { store, bot, ice, callRingMs, callLostMs, push = n
       calls.dropped(session.key)
     })
 
-    on("aim:im", async (session, { to, text, style }, ack) => {
+    // { to, text, style, media?: { id } (sent with aim:mediaUpload/aim:mediaCommit), thumb?
+    // (a small preview picture, passed on live, never stored) } -> { ok, id, offline? }
+    on("aim:im", async (session, { to, text, style, media: mediaRef, thumb }, ack) => {
       const message = clean(text, MAX_MESSAGE).trim()
-      if (!message) return ack({ ok: false, error: "Message is empty." })
+      const wantsMedia = !!mediaRef?.id
+      if (!message && !wantsMedia) return ack({ ok: false, error: "Message is empty." })
       if (warningOf(session.key) >= 100) {
         return ack({ ok: false, error: "Your warning level is too high to send messages right now. Try again later." })
       }
@@ -542,12 +577,14 @@ const attachAim = async (io, { store, bot, ice, callRingMs, callLostMs, push = n
       const payloadStyle = cleanStyle(style)
 
       if (target.key === BOT_KEY) {
-        ack({ ok: true })
+        if (wantsMedia) return ack({ ok: false, error: `${BOT_NAME} can't open pictures or voice messages. Try typing!` })
+        ack({ ok: true, id: newId() })
         socket.emit("aim:typing", { from: BOT_NAME, state: "typing" })
         const reply = await bot.reply(session.key, session.user.screenName, message)
         if (sessions.get(session.key) !== session) return
         emitTo(session.key, "aim:typing", { from: BOT_NAME, state: "none" })
         emitTo(session.key, "aim:im", {
+          id: newId(),
           from: BOT_NAME,
           text: reply,
           style: { ...cleanStyle(), font: "Arial", color: "#000080" },
@@ -557,37 +594,54 @@ const attachAim = async (io, { store, bot, ice, callRingMs, callLostMs, push = n
       }
 
       const recipient = sessions.get(target.key)
-      const im = { from: session.user.screenName, text: message, style: payloadStyle, time: Date.now() }
+      const shown = recipient && !hidden(session, recipient)
+      // signed off with notifications on: it waits for them, and their phone hears about it
+      const offlineUser = shown || recipient ? null : await reachableOffline(session, target.key, "im").then((name) => name && store.find(target.key)).catch(() => null)
+      if (!shown && !offlineUser) return ack({ ok: false, error: `${target.screenName} is not currently signed on.` })
+      const toName = shown ? recipient.user.screenName : offlineUser.screenName
+
+      let media = null
+      if (wantsMedia) {
+        media = imMedia ? await imMedia.attach(session.key, String(mediaRef.id), [target.key]).catch(() => null) : null
+        if (!media) return ack({ ok: false, error: "That picture or voice message couldn't be sent. Please try again." })
+      }
+      const id = newId()
+      const time = Date.now()
+      const im = { id, from: session.user.screenName, text: message, style: payloadStyle, time, ...(media ? { media } : {}) }
+      const preview = mediaPreview(media, message)
       const imNotice = {
         title: session.user.screenName,
-        body: message,
+        body: preview,
         tag: `im-${session.key}`,
         key: `im:${session.key}`,
         app: "im",
         renotify: true,
         url: `/?open=im&with=${encodeURIComponent(session.user.screenName)}`,
       }
-      if (!recipient || hidden(session, recipient)) {
-        // signed off with notifications on: it waits for them, and their phone hears about it
-        const name = recipient ? null : await reachableOffline(session, target.key, "im").catch(() => null)
-        if (!name) return ack({ ok: false, error: `${target.screenName} is not currently signed on.` })
+      const doc = { _id: id, c: pairConv(session.key, target.key), f: session.user.screenName, fk: session.key, to: toName, t: message, s: packStyle(payloadStyle), at: time, ...(media ? { m: media } : {}) }
+
+      if (!shown) {
         await (await push.getStore()).inbox.add(target.key, im)
         pushTo(target.key, "im", imNotice)
-        return ack({ ok: true, offline: true, notice: `${name} is signed off. They'll get your message as a notification and see it when they sign on.` })
+        record({ ...doc, h: 1 }, [session, { key: target.key, user: offlineUser }])
+        return ack({ ok: true, id, time, offline: true, notice: `${toName} is signed off. They'll get your message as a notification and see it when they sign on.` })
       }
 
+      const live = { ...im, ...(media && cleanThumb(thumb) ? { thumb: cleanThumb(thumb) } : {}) }
       // a connection that blipped (a phone asleep) gets it when it comes back
-      if (recipient.socket) emitTo(recipient.key, "aim:im", im)
-      else recipient.pendingIms = [...(recipient.pendingIms || []), im].slice(-50)
+      if (recipient.socket) emitTo(recipient.key, "aim:im", live)
+      else recipient.pendingIms = [...(recipient.pendingIms || []), live].slice(-50)
       pushTo(recipient.key, "im", imNotice) // only if they're away from 98ish
+      record(doc, [session, recipient])
       const creditKey = `${recipient.key}>${session.key}`
       warnCredits.set(creditKey, (warnCredits.get(creditKey) || 0) + 1)
-      ack({ ok: true })
+      ack({ ok: true, id, time })
 
       // Away message goes back once per conversation for each time they go away
       if (recipient.away && !recipient.awayRepliedTo.has(session.key)) {
         recipient.awayRepliedTo.add(session.key)
         socket.emit("aim:im", {
+          id: newId(),
           from: recipient.user.screenName,
           text: recipient.away,
           style: cleanStyle(),
@@ -732,14 +786,13 @@ const attachAim = async (io, { store, bot, ice, callRingMs, callLostMs, push = n
       if (!rooms.get(key)?.members.has(session.key)) return ack({ ok: false, error: "You are not in that chat room." })
       if (!message) return ack({ ok: false })
       if (imLimited(session.key)) return ack({ ok: false, error: "You are sending messages too fast. Slow down!" })
-      io.to(`chat:${key}`).emit("aim:chat", {
-        room: rooms.get(key).name,
-        from: session.user.screenName,
-        text: message,
-        style: cleanStyle(style),
-        time: Date.now(),
-      })
-      ack({ ok: true })
+      const live = rooms.get(key)
+      const said = { id: newId(), room: live.name, from: session.user.screenName, text: message, style: cleanStyle(style), time: Date.now() }
+      io.to(`chat:${key}`).emit("aim:chat", said)
+      // saved for the people in the room right now (each by their own setting)
+      const members = [...live.members].map((k) => sessions.get(k)).filter(Boolean)
+      record({ _id: said.id, c: roomConv(key), f: said.from, fk: session.key, to: live.name, t: message, s: packStyle(said.style), at: said.time }, members)
+      ack({ ok: true, id: said.id })
     })
 
     on("aim:chatInvite", (session, { room, to, message }, ack) => {
@@ -767,7 +820,7 @@ const attachAim = async (io, { store, bot, ice, callRingMs, callLostMs, push = n
     return (key && sessions.get(key)) || null
   }
 
-  const aim = { store, sessions, authenticate, calls, push, eraser }
+  const aim = { store, sessions, authenticate, calls, push, eraser, history, media: imMedia }
   push?.useAim(aim)
   return aim
 }

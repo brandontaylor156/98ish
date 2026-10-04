@@ -25,6 +25,8 @@ const userSchema = new mongoose.Schema(
     // set while the account is being deleted (../account): what the deletion needs to finish
     // if it's tried again, and a sign that nobody may sign on meanwhile
     deleting: { type: Object, default: null },
+    // Preferences kept with the account: { saveHistory, receipts } (both on unless false)
+    prefs: { type: Object, default: () => ({}) },
   },
   { timestamps: true }
 )
@@ -39,6 +41,7 @@ const plain = (doc) =>
     blocked: [...(doc.blocked || [])],
     remember: (doc.remember || []).map((r) => ({ hash: r.hash, expiresAt: r.expiresAt })),
     deleting: doc.deleting || null,
+    prefs: { ...(doc.prefs || {}) },
     createdAt: doc.createdAt,
   }
 

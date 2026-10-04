@@ -1,5 +1,7 @@
-import React, { useEffect, useRef, useState } from "react"
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react"
 import { BOT_NAME, keyOf, useAim } from "./AimContext"
+import { PicturePicker, PictureViewer, ReactionPicker, VoiceBar } from "./history/ImExtras"
+import { lastStatus, newestIncoming } from "./history/historyCore"
 import Dialog from "../../shared/Dialog"
 import ContextMenu from "../../shared/ContextMenu"
 import { useNet } from "../network/NetContext"
@@ -42,8 +44,28 @@ export const useStickToBottom = (deps) => {
   return { ref, onScroll }
 }
 
-// Composer shared by IM windows and chat rooms: Enter sends, Shift+Enter is a new line
-export const Composer = ({ onSend, onTypingChange, disabled, autoFocus }) => {
+// Scrolling back: near the top, ask for older messages, and keep the line you were reading
+// where it was when they arrive above it
+export const useScrollBack = (ref, messages, onOlder) => {
+  const anchor = useRef(null)
+  const first = messages.find((m) => !m.system)?.id
+  useLayoutEffect(() => {
+    const el = ref.current
+    const a = anchor.current
+    if (el && a && a.first !== first) el.scrollTop = el.scrollHeight - a.fromBottom
+    anchor.current = null
+  }, [first])
+  return () => {
+    const el = ref.current
+    if (!el || el.scrollTop > 60 || !onOlder) return
+    anchor.current = { first, fromBottom: el.scrollHeight - el.scrollTop }
+    onOlder()
+  }
+}
+
+// Composer shared by IM windows and chat rooms: Enter sends, Shift+Enter is a new line.
+// `onAttach` adds the "+" button (Picture, Voice Message) in IM windows.
+export const Composer = ({ onSend, onTypingChange, disabled, autoFocus, onAttach }) => {
   const [format, setFormat] = useDisclosure("messenger.format", false)
   const { prefs } = useAim()
   const touch = useIsTouch()
@@ -90,6 +112,21 @@ export const Composer = ({ onSend, onTypingChange, disabled, autoFocus }) => {
         <button type="button" className={`aimFormatToggle${format ? " is-on" : ""}`} aria-expanded={format} aria-label="Text formatting" title="Font, size and color" onClick={() => setFormat(!format)}>
           Aa
         </button>
+        {onAttach && (
+          <button
+            type="button"
+            className="aimAttach"
+            aria-label="Send a picture or voice message"
+            title="Picture or voice message"
+            disabled={disabled}
+            onClick={(e) => {
+              const r = e.currentTarget.getBoundingClientRect()
+              onAttach(r.left, r.top)
+            }}
+          >
+            +
+          </button>
+        )}
         <textarea
           ref={input}
           className="aimInput"
@@ -125,9 +162,45 @@ const ImWindow = ({ buddy, focusInput }) => {
   const inList = aim.me?.groups.some((g) => g.buddies.some((b) => keyOf(b) === key))
   const [dialog, setDialog] = useState(null)
   const [gamesMenu, setGamesMenu] = useState(null)
+  const [attachMenu, setAttachMenu] = useState(null)
+  const [voice, setVoice] = useState(false)
+  const [picker, setPicker] = useState(null) // reactions: { message, x, y }
+  const [viewing, setViewing] = useState(null)
+  const touch = useIsTouch()
   const net = useNet()
-  const transcript = useStickToBottom([messages.length])
+  const isBot = key === keyOf(BOT_NAME)
+  const transcript = useStickToBottom([messages.length, messages.at(-1)?.id])
+  const scrollBack = useScrollBack(transcript.ref, messages, convo?.older !== false ? () => aim.loadOlder(key) : null)
   const lastIncoming = [...messages].reverse().find((m) => !m.mine && !m.system)
+
+  // this device's saved copy of the conversation, when the window opens
+  useEffect(() => {
+    if (aim.status === "online") aim.loadConvo(screenName)
+  }, [key, aim.status])
+
+  // "Read": this window is in front (and the page is), so the newest message from them is seen
+  const front = (aim.windows || []).some((w) => !w.closed && w.active && !w.minimized && w.aimId === `im:${key}`)
+  const [pageSeen, setPageSeen] = useState(() => document.visibilityState === "visible" && document.hasFocus())
+  useEffect(() => {
+    const check = () => setPageSeen(document.visibilityState === "visible" && document.hasFocus())
+    const events = ["focus", "blur", "visibilitychange", "pageshow"]
+    events.forEach((e) => window.addEventListener(e, check))
+    document.addEventListener("visibilitychange", check)
+    return () => {
+      events.forEach((e) => window.removeEventListener(e, check))
+      document.removeEventListener("visibilitychange", check)
+    }
+  }, [])
+  const incoming = newestIncoming(messages)
+  useEffect(() => {
+    if (front && pageSeen && incoming && !isBot) aim.markRead(key, incoming.time)
+  }, [front, pageSeen, incoming?.id])
+  const receipt = lastStatus(messages, aim.me?.prefs?.receipts === false ? null : aim.reads?.[key], { name: screenName })
+
+  const react = (message, emoji) => aim.react(key, message, emoji)
+  const openMenu = React.useCallback((message, x, y) => setPicker({ message, x, y }), [])
+  const toggleReaction = React.useCallback((message, emoji) => aim.react(key, message, emoji), [key, aim.react])
+  const meKey = keyOf(aim.me?.screenName)
   const status =
     typingText(screenName, convo?.typing) ||
     (presence?.online && presence.away ? `${screenName} is away.` : "") ||
@@ -190,18 +263,74 @@ const ImWindow = ({ buddy, focusInput }) => {
         <span className="aimImWarning">Warning Level: {presence?.warning || 0}%</span>
       </div>
 
-      <div className="aimTranscript" ref={transcript.ref} onScroll={transcript.onScroll}>
-        {messages.map((message, i) => (
-          <TranscriptLine key={i} message={message} me={aim.me.screenName} />
+      <div
+        className="aimTranscript"
+        ref={transcript.ref}
+        onScroll={() => {
+          transcript.onScroll()
+          scrollBack()
+        }}
+      >
+        {convo?.loadingOlder && <div className="aimSystem">Loading older messages...</div>}
+        {messages.map((message) => (
+          <TranscriptLine key={message.id} message={message} me={aim.me.screenName} meKey={meKey} onMenu={isBot ? undefined : openMenu} onReact={toggleReaction} getBlob={aim.getMediaBlob} onOpenPicture={setViewing} />
         ))}
+        {receipt && (
+          <div className={`aimReceipt aimReceipt--${receipt.kind}`} role="status">
+            {receipt.text}
+          </div>
+        )}
       </div>
 
-      <Composer
-        autoFocus={focusInput}
-        disabled={blocked}
-        onSend={(text) => aim.sendIm(screenName, text)}
-        onTypingChange={(state) => key !== keyOf(BOT_NAME) && aim.typing(screenName, state)}
-      />
+      {voice ? (
+        <VoiceBar
+          onClose={() => setVoice(false)}
+          onSend={(rec) => {
+            setVoice(false)
+            aim.sendMedia(screenName, { kind: "audio", blob: rec.blob, d: rec.d, wf: rec.wf })
+          }}
+        />
+      ) : (
+        <Composer
+          autoFocus={focusInput}
+          disabled={blocked}
+          onSend={(text) => aim.sendIm(screenName, text)}
+          onTypingChange={(state) => key !== keyOf(BOT_NAME) && aim.typing(screenName, state)}
+          onAttach={isBot ? undefined : (x, y) => setAttachMenu({ x, y })}
+        />
+      )}
+
+      {attachMenu && (
+        <ContextMenu
+          x={attachMenu.x}
+          y={attachMenu.y}
+          items={[
+            { label: "Picture...", onClick: () => setDialog({ kind: "picture" }) },
+            { label: "Voice Message", onClick: () => setVoice(true) },
+          ]}
+          onClose={() => setAttachMenu(null)}
+        />
+      )}
+      {dialog?.kind === "picture" && (
+        <PicturePicker
+          touch={touch}
+          onCancel={() => setDialog(null)}
+          onPick={(pic) => {
+            setDialog(null)
+            aim.sendMedia(screenName, { kind: "image", blob: pic.blob, thumb: pic.thumb, w: pic.width, h: pic.height })
+          }}
+        />
+      )}
+      {picker && (
+        <ReactionPicker
+          x={picker.x}
+          y={picker.y}
+          current={picker.message.r?.[meKey]}
+          onPick={(emoji) => react(picker.message, emoji)}
+          onClose={() => setPicker(null)}
+        />
+      )}
+      {viewing && <PictureViewer message={viewing} getBlob={aim.getMediaBlob} onClose={() => setViewing(null)} />}
 
       {/* Warn, Block, Add Buddy, Get Info, Games: under More (docs/simplicity.md) */}
       <MoreOptions id="messenger.im" label="More" lessLabel="Less" inline className="aimImMore">
@@ -217,6 +346,9 @@ const ImWindow = ({ buddy, focusInput }) => {
           </button>
           <button type="button" onClick={() => aim.openInfo(screenName)}>
             Get Info
+          </button>
+          <button type="button" onClick={() => setDialog({ kind: "clear" })} disabled={!messages.some((m) => !m.system)}>
+            Clear History
           </button>
           {net && key !== keyOf(BOT_NAME) && (
             <button
@@ -248,6 +380,22 @@ const ImWindow = ({ buddy, focusInput }) => {
             <input type="checkbox" checked={dialog.anonymous} onChange={(e) => setDialog({ ...dialog, anonymous: e.target.checked })} />
             <span>Warn anonymously</span>
           </label>
+        </Dialog>
+      )}
+
+      {dialog?.kind === "clear" && (
+        <Dialog
+          title="Clear History"
+          okLabel="Clear"
+          onOk={() => {
+            setDialog(null)
+            aim.clearHistory(key)
+          }}
+          onCancel={() => setDialog(null)}
+        >
+          <p className="dialogText">
+            Clear your conversation with {screenName}? It's deleted from this device and from your copy saved on the 98ish server, so your other devices won't show it either. {isBot ? "" : `${screenName} keeps their own copy.`}
+          </p>
         </Dialog>
       )}
 

@@ -7,6 +7,8 @@ import { getNotifications, notify } from "../../../utils/notifications"
 import { notifyLocked } from "../../../utils/lock"
 import { currentUser } from "../../../utils/users"
 import { registerSearchProvider } from "../../../utils/searchIndex"
+import { applyReaction, fromServer, isTemp, mergeMessages, previewText, roomCk, sendFailure, tempId } from "./history/historyCore"
+import * as historyDb from "./history/historyDb"
 
 // One 98 Messenger session shared by every Messenger window: the Buddy List ("98 Messenger"),
 // Instant Message windows, chat rooms, Buddy Info and chat invitations.
@@ -76,11 +78,32 @@ const initialState = {
   error: null,
   me: null,
   presence: {}, // key -> { screenName, online, away, idleSince, warning, signOnAt, bot, change, changeAt }
-  convos: {}, // key -> { screenName, messages, typing }
-  rooms: {}, // key -> { name, members, messages }
+  // ck (the other person's key) -> { screenName, messages, typing, loaded, older }
+  // (messages: history/historyCore.js; loaded: this device's saved copy is in; older: there
+  // may be more to scroll back to)
+  convos: {},
+  rooms: {}, // key -> { name, members, messages, loaded, older }
+  reads: {}, // ck -> { at, when }: the newest message they've seen ("Read 10:42 PM")
 }
 
-const append = (list, item) => [...list, item].slice(-MAX_MESSAGES)
+// a long conversation keeps this many in memory while new ones arrive (scrolling back loads
+// older ones again from the device)
+const trimTail = (list) => (list.length > MAX_MESSAGES * 3 ? list.slice(-MAX_MESSAGES * 2) : list)
+const sysId = () => `s-${Math.random().toString(36).slice(2, 10)}`
+
+// a message (or several) into one conversation's list, by id
+const withMessages = (convo, messages, { older = false } = {}) => {
+  const merged = mergeMessages(convo.messages, messages)
+  return older ? merged : trimTail(merged)
+}
+
+const updateIn = (list, id, fn) => {
+  const i = list.findIndex((m) => m.id === id)
+  if (i < 0) return list
+  const next = [...list]
+  next[i] = fn(next[i])
+  return next
+}
 
 const reducer = (state, action) => {
   switch (action.type) {
@@ -122,33 +145,67 @@ const reducer = (state, action) => {
       if (!p?.change || Date.now() - p.changeAt < DOOR_ICON_MS) return state
       return { ...state, presence: { ...state.presence, [action.key]: { ...p, change: null } } }
     }
-    case "message": {
-      const key = keyOf(action.screenName)
-      const convo = state.convos[key] || { screenName: action.screenName, messages: [], typing: "none" }
+    // messages into a two-person conversation: { ck, screenName?, messages, older?, patch? }
+    case "messages": {
+      const convo = state.convos[action.ck] || { screenName: action.screenName || action.ck, messages: [], typing: "none", older: true }
+      const incoming = action.messages || []
+      const theirs = incoming.some((m) => !m.mine && !m.system && !action.older)
       return {
         ...state,
         convos: {
           ...state.convos,
-          [key]: {
+          [action.ck]: {
             ...convo,
-            screenName: action.message.mine || action.message.system ? convo.screenName : action.screenName,
-            messages: append(convo.messages, action.message),
-            typing: action.message.mine || action.message.system ? convo.typing : "none",
+            ...(action.patch || {}),
+            screenName: theirs && action.screenName ? action.screenName : convo.screenName,
+            messages: withMessages(convo, incoming, action),
+            typing: theirs ? "none" : convo.typing,
           },
         },
       }
     }
+    // one message changes (its id once the server answers, a reaction, "Delivered")
+    case "update": {
+      const roomKey = action.ck.startsWith("#") ? action.ck.slice(1) : null
+      if (roomKey) {
+        const room = state.rooms[roomKey]
+        if (!room) return state
+        return { ...state, rooms: { ...state.rooms, [roomKey]: { ...room, messages: updateIn(room.messages, action.id, action.fn) } } }
+      }
+      const convo = state.convos[action.ck]
+      if (!convo) return state
+      return { ...state, convos: { ...state.convos, [action.ck]: { ...convo, messages: updateIn(convo.messages, action.id, action.fn) } } }
+    }
+    case "remove": {
+      const convo = state.convos[action.ck]
+      if (!convo) return state
+      return { ...state, convos: { ...state.convos, [action.ck]: { ...convo, messages: convo.messages.filter((m) => m.id !== action.id) } } }
+    }
+    // "Clear history" here or on another device: everything up to `upTo` goes
+    case "cleared": {
+      const keep = (list) => list.filter((m) => m.time > action.upTo)
+      if (action.ck.startsWith("#")) {
+        const key = action.ck.slice(1)
+        const room = state.rooms[key]
+        return room ? { ...state, rooms: { ...state.rooms, [key]: { ...room, messages: keep(room.messages), older: false } } } : state
+      }
+      const convo = state.convos[action.ck]
+      return convo ? { ...state, convos: { ...state.convos, [action.ck]: { ...convo, messages: keep(convo.messages), older: false } } } : state
+    }
+    case "reads":
+      return { ...state, reads: action.replace ? action.reads : { ...state.reads, ...action.reads } }
     case "typing": {
       const key = keyOf(action.screenName)
-      const convo = state.convos[key] || { screenName: action.screenName, messages: [], typing: "none" }
+      const convo = state.convos[key] || { screenName: action.screenName, messages: [], typing: "none", older: true }
       return { ...state, convos: { ...state.convos, [key]: { ...convo, typing: action.state } } }
     }
     case "room": {
       const key = keyOf(action.room)
-      const room = state.rooms[key] || { name: action.room, members: [], messages: [] }
-      const next = { ...room, name: action.room }
+      const room = state.rooms[key] || { name: action.room, members: [], messages: [], older: true }
+      const next = { ...room, name: action.room, ...(action.patch || {}) }
       if (action.members) next.members = action.members
-      if (action.message) next.messages = append(room.messages, action.message)
+      if (action.message) next.messages = withMessages(room, [action.message])
+      if (action.messages) next.messages = withMessages(room, action.messages, action)
       return { ...state, rooms: { ...state.rooms, [key]: next } }
     }
     case "roomLeft": {
@@ -384,25 +441,49 @@ export const AimProvider = ({ socket, windows, dispatch: dispatchWindow, onOpenV
         if (inBuddyList(presence.screenName)) sound(presence.online ? "doorOpen" : "doorClose")
         if (stateRef.current.convos[key]) {
           dispatch({
-            type: "message",
-            screenName: presence.screenName,
-            message: { system: true, text: `${presence.screenName} signed ${presence.online ? "on" : "off"} at ${time()}.`, time: Date.now() },
+            type: "messages",
+            ck: key,
+            messages: [{ id: sysId(), system: true, text: `${presence.screenName} signed ${presence.online ? "on" : "off"} at ${time()}.`, time: Date.now() }],
           })
         }
         setTimeout(() => dispatch({ type: "settleDoor", key }), DOOR_ICON_MS + 50)
       },
-      "aim:im": (message) => {
-        dispatch({ type: "message", screenName: message.from, message })
+      "aim:im": (raw) => {
+        const key = keyOf(raw.from)
+        const message = fromServer(raw, { meKey: myKey(), ck: key, conv: raw.from })
+        if (!message.id) message.id = sysId().replace("s-", "l-")
+        dispatch({ type: "messages", ck: key, screenName: raw.from, messages: [message] })
+        save([message])
         sound("imReceive")
         notifyLocked() // the lock screen says only "New message"
-        openIm(message.from, { focus: false })
+        openIm(raw.from, { focus: false })
         // the Notification Center, unless that conversation is right in front of you (and
         // you've seen it: an item still unread keeps up)
-        const key = keyOf(message.from)
         const inFront = document.visibilityState === "visible" && windowsRef.current.some((w) => !w.closed && w.active && !w.minimized && w.aimId === `im:${key}`)
         const waiting = getNotifications().some((n) => n.key === `im:${key}` && !n.read)
-        if ((!inFront || waiting) && !message.auto) {
-          notify({ app: "im", key: `im:${key}`, title: message.from, text: message.text, time: message.offline ? message.time : Date.now(), target: { kind: "im", with: message.from } })
+        if ((!inFront || waiting) && !raw.auto) {
+          notify({ app: "im", key: `im:${key}`, title: raw.from, text: previewText(raw), time: raw.offline ? raw.time : Date.now(), target: { kind: "im", with: raw.from } })
+        }
+      },
+      // someone reacted to a message (one reaction per person; null takes it away)
+      "aim:react": ({ id, ck, key, emoji }) => {
+        if (typeof id !== "string" || typeof ck !== "string") return
+        dispatch({ type: "update", ck, id, fn: (m) => applyReaction(m, key, emoji) })
+        historyDb.patchMessage(myKey(), id, (m) => (m.ck === ck ? applyReaction(m, key, emoji) : m))
+      },
+      // they've seen your messages up to `at`
+      "aim:read": ({ ck, at, when }) => {
+        if (typeof ck !== "string") return
+        const reads = { [ck]: { at, when } }
+        dispatch({ type: "reads", reads })
+        historyDb.getMeta(myKey()).then((meta) => historyDb.setMeta(myKey(), { reads: { ...meta.reads, ...reads } }))
+      },
+      // IMs held for someone signed off reached them
+      "aim:delivered": ({ ck, ids, at }) => {
+        for (const id of Array.isArray(ids) ? ids : []) {
+          const fn = (m) => ({ ...m, held: false, deliveredAt: at || Date.now() })
+          dispatch({ type: "update", ck, id, fn })
+          historyDb.patchMessage(myKey(), id, fn)
         }
       },
       "aim:typing": ({ from, state: typing }) => dispatch({ type: "typing", screenName: from, state: typing }),
@@ -427,10 +508,18 @@ export const AimProvider = ({ socket, windows, dispatch: dispatchWindow, onOpenV
         finishSignOff(reason)
       },
       // a buddy (or someone blocked) deleted their account: off the lists
-      "aim:accountGone": ({ groups, blocked }) => {
+      "aim:accountGone": ({ groups, blocked, screenName }) => {
         if (Array.isArray(groups) && Array.isArray(blocked)) dispatch({ type: "me", patch: { groups, blocked } })
+        // what this device kept with them moves to "(deleted account)": whoever takes the
+        // name next starts fresh
+        if (screenName) historyDb.renameConv(myKey(), keyOf(screenName), `~gone${Date.now().toString(36)}`, "(deleted account)")
       },
-      "aim:chat": (message) => dispatch({ type: "room", room: message.room, message }),
+      "aim:chat": (raw) => {
+        const message = raw.system ? { ...raw, id: sysId() } : fromServer(raw, { meKey: myKey(), ck: roomCk(raw.room), conv: `#${raw.room}` })
+        if (!message.id) message.id = sysId()
+        dispatch({ type: "room", room: raw.room, message })
+        if (!raw.system) save([message])
+      },
       "aim:chatMembers": ({ room, members }) => dispatch({ type: "room", room, members }),
       "aim:chatInvite": (invite) => {
         sound("imReceive")
@@ -447,7 +536,10 @@ export const AimProvider = ({ socket, windows, dispatch: dispatchWindow, onOpenV
         if (stateRef.current.status === "signedOff") return void tryAutoSignOn()
         if (stateRef.current.status !== "online" || !tokenRef.current) return
         socket.emit("aim:resume", { token: tokenRef.current }, async (result) => {
-          if (result?.ok) return dispatch({ type: "resumed", me: result.me, online: result.online })
+          if (result?.ok) {
+            dispatch({ type: "resumed", me: result.me, online: result.online })
+            return void syncHistory()
+          }
           // away too long (a phone asleep): a remembered device just signs on again
           if (!(await autoSignOn())) finishSignOff("Your connection to the 98 Messenger service was lost. Please sign on again.")
         })
@@ -476,25 +568,30 @@ export const AimProvider = ({ socket, windows, dispatch: dispatchWindow, onOpenV
     import("../../../utils/contacts").then((m) => m.setSyncSession(session)).catch(() => {})
   }, [state.status, state.me?.screenName])
 
-  // ---- search: this session's conversations (kept in memory only, never on the device) ----
+  // ---- search: the signed-on account's conversations (this device's copy) ----
   useEffect(
     () =>
       registerSearchProvider("messages", {
         icon: AIM_ICON,
-        version: () => stateRef.current.convos,
-        entries: () =>
-          Object.values(stateRef.current.convos).flatMap((convo) =>
-            convo.messages
-              .filter((m) => !m.system && m.text)
-              .map((m, i) => ({
-                id: `im:${keyOf(convo.screenName)}:${m.time}:${i}`,
+        version: () => `${searchVersion.current}:${Object.values(stateRef.current.convos).reduce((n, c) => n + c.messages.length, 0)}`,
+        entries: () => {
+          const seen = new Map(searchCache.current)
+          for (const convo of Object.values(stateRef.current.convos)) for (const m of convo.messages) if (m.id && !m.system && !isTemp(m.id)) seen.set(m.id, { ...m, conv: m.conv || convo.screenName })
+          return [...seen.values()]
+            .filter((m) => m.text && !String(m.ck || "").startsWith("~"))
+            .map((m) => {
+              const room = String(m.ck || "").startsWith("#")
+              const other = room ? m.room || String(m.conv || "").slice(1) : m.conv || m.from
+              return {
+                id: `im:${m.id}`,
                 title: String(m.text).slice(0, 120),
-                subtitle: `${m.mine ? "You" : m.from} to ${m.mine ? convo.screenName : "you"} · ${new Date(m.time).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}`,
-                detail: convo.screenName,
+                subtitle: `${m.mine ? "You" : m.from} ${room ? `in ${other}` : `to ${m.mine ? other : "you"}`} · ${new Date(m.time).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}`,
+                detail: other,
                 time: m.time,
-                open: () => openIm(convo.screenName),
-              }))
-          ),
+                open: () => (room ? joinRoom(other) : openIm(other)),
+              }
+            })
+        },
       }),
     []
   )
@@ -535,20 +632,216 @@ export const AimProvider = ({ socket, windows, dispatch: dispatchWindow, onOpenV
       )
     )
 
-  const sendIm = async (screenName, text) => {
-    const style = prefsRef.current.style
-    const message = { from: stateRef.current.me.screenName, text, style, time: Date.now(), mine: true }
-    dispatch({ type: "message", screenName, message })
-    sound("imSend")
-    const result = await request("aim:im", { to: screenName, text, style })
-    if (result.ok && keyOf(screenName) === keyOf(BOT_NAME)) unlock("smarterchild")
-    if (!result.ok) {
-      dispatch({ type: "message", screenName, message: { system: true, error: true, text: result.error, time: Date.now() } })
+  // ---- saved conversations (history/: this device in IndexedDB, the server per account) ----
+
+  const myKey = () => keyOf(stateRef.current.me?.screenName)
+  // into this device's copy (system lines and messages still on their way aren't kept)
+  const save = (messages) => {
+    const acct = myKey()
+    if (acct) historyDb.putMessages(acct, messages)
+    for (const m of messages) if (m.id && !m.system && !isTemp(m.id)) searchCache.current.set(m.id, m)
+    searchVersion.current++
+  }
+  const searchCache = useRef(new Map())
+  const searchVersion = useRef(0)
+  const systemLine = (ck, text, extra = {}) => dispatch({ type: "messages", ck, messages: [{ id: sysId(), system: true, text, time: Date.now(), ...extra }] })
+
+  // Catch up with the server: everything that changed since this device last asked (new
+  // messages, reactions, "Delivered", conversations cleared elsewhere, read receipts). A device
+  // with nothing gets the newest 50 of each conversation; older ones come when scrolling back.
+  const syncing = useRef(null)
+  const syncHistory = () => {
+    if (syncing.current) return syncing.current
+    const run = (async () => {
+      const acct = myKey()
+      if (!acct) return
+      const meta = await historyDb.getMeta(acct)
+      // a few seconds of overlap: anything saved at the same moment isn't missed
+      let since = meta.cursor ? Math.max(1, meta.cursor - 5_000_000) : 0
+      let cursor = meta.cursor || 0
+      let reads = null
+      for (let page = 0; page < 40; page++) {
+        const res = await request("aim:history", { since })
+        if (!res?.ok || myKey() !== acct) return
+        const messages = (res.messages || []).map((m) => fromServer(m, { meKey: acct }))
+        if (messages.length) {
+          await historyDb.putMessages(acct, messages)
+          save([])
+          for (const m of messages) searchCache.current.set(m.id, m)
+          const byCk = new Map()
+          for (const m of messages) byCk.set(m.ck, [...(byCk.get(m.ck) || []), m])
+          for (const [ck, list] of byCk) {
+            if (ck.startsWith("#")) {
+              if (stateRef.current.rooms[ck.slice(1)]) dispatch({ type: "room", room: stateRef.current.rooms[ck.slice(1)].name, messages: list })
+            } else if (stateRef.current.convos[ck]) dispatch({ type: "messages", ck, messages: list })
+          }
+        }
+        for (const c of res.clears || []) {
+          await historyDb.clearConv(acct, c.ck, c.upTo)
+          dispatch({ type: "cleared", ck: c.ck, upTo: c.upTo })
+        }
+        if (Array.isArray(res.reads)) reads = Object.fromEntries(res.reads.map((r) => [r.ck, { at: r.at, when: r.when }]))
+        if (res.prefs) dispatch({ type: "me", patch: { prefs: res.prefs } })
+        cursor = res.cursor || cursor
+        if (!res.more) break
+        since = res.cursor
+      }
+      if (reads) dispatch({ type: "reads", reads, replace: true })
+      await historyDb.setMeta(acct, { cursor, ...(reads ? { reads } : {}) })
+    })()
+    syncing.current = run
+    run.catch(() => {}).finally(() => (syncing.current = null))
+    return run
+  }
+
+  // An IM window opened: this device's copy of the conversation (newest 50)
+  const loadConvo = async (screenName) => {
+    const ck = keyOf(screenName)
+    const acct = myKey()
+    if (!acct || stateRef.current.convos[ck]?.loaded) return
+    const saved = await historyDb.loadLatest(acct, ck, 50)
+    dispatch({ type: "messages", ck, screenName: stateRef.current.convos[ck]?.screenName || screenName, messages: saved, older: true, patch: { loaded: true } })
+    if (!stateRef.current.reads[ck]) {
+      const meta = await historyDb.getMeta(acct)
+      if (meta.reads?.[ck]) dispatch({ type: "reads", reads: { [ck]: meta.reads[ck] } })
     }
-    // signed off with notifications on: it waits for them
-    if (result.ok && result.offline && result.notice) dispatch({ type: "message", screenName, message: { system: true, text: result.notice, time: Date.now() } })
+  }
+  const loadRoom = async (room) => {
+    const acct = myKey()
+    const key = keyOf(room)
+    if (!acct || stateRef.current.rooms[key]?.loaded) return
+    const saved = await historyDb.loadLatest(acct, `#${key}`, 50)
+    dispatch({ type: "room", room, messages: saved, older: true, patch: { loaded: true } })
+  }
+
+  // Scrolling back past the top: older messages from this device, then from the server
+  const loadOlder = async (ck) => {
+    const acct = myKey()
+    const room = ck.startsWith("#")
+    const current = room ? stateRef.current.rooms[ck.slice(1)] : stateRef.current.convos[ck]
+    if (!acct || !current || current.older === false || current.loadingOlder) return
+    const setMeta = (patch) => (room ? dispatch({ type: "room", room: current.name, patch }) : dispatch({ type: "messages", ck, messages: [], patch }))
+    setMeta({ loadingOlder: true })
+    const oldest = current.messages.find((m) => !m.system && m.id && !isTemp(m.id))?.time ?? Date.now()
+    let found = await historyDb.loadBefore(acct, ck, oldest, 50)
+    if (found.length < 50 && keyOf(ck) !== keyOf(BOT_NAME) && stateRef.current.status === "online") {
+      const before = found[0]?.time ?? oldest
+      const res = await request("aim:historyOlder", { ck, before, limit: 50 - found.length })
+      if (res?.ok && res.messages?.length) {
+        const more = res.messages.map((m) => fromServer(m, { meKey: acct }))
+        await historyDb.putMessages(acct, more)
+        found = [...more, ...found]
+      }
+    }
+    if (room) dispatch({ type: "room", room: current.name, messages: found, older: true, patch: { loadingOlder: false, older: found.length > 0 } })
+    else dispatch({ type: "messages", ck, messages: found, older: true, patch: { loadingOlder: false, older: found.length > 0 } })
+  }
+
+  // "Clear History": this conversation goes from this device and from your saved copy on the
+  // server (the other person keeps theirs)
+  const clearHistory = async (ck) => {
+    const upTo = Date.now()
+    const acct = myKey()
+    if (stateRef.current.status === "online") await request("aim:clearHistory", { ck, upTo })
+    await historyDb.clearConv(acct, ck, upTo)
+    for (const [id, m] of searchCache.current) if (m.ck === ck) searchCache.current.delete(id)
+    searchVersion.current++
+    dispatch({ type: "cleared", ck, upTo })
+  }
+
+  // "Read": the newest message from them that you've seen (sent once per message)
+  const readSent = useRef({})
+  const markRead = (ck, at) => {
+    if (!at || readSent.current[ck] >= at || ck === keyOf(BOT_NAME) || stateRef.current.me?.prefs?.receipts === false) return
+    readSent.current[ck] = at
+    socket.emit("aim:read", { ck, at })
+  }
+
+  // Preferences kept with the account: { saveHistory, receipts }
+  const setServerPrefs = async (patch) => {
+    const result = await request("aim:setPrefs", patch)
+    if (result.ok) {
+      dispatch({ type: "me", patch: { prefs: result.prefs } })
+      if (patch.receipts === false) dispatch({ type: "reads", reads: {}, replace: true })
+      if (patch.receipts === true) syncHistory()
+    }
     return result
   }
+
+  const react = async (ck, message, emoji) => {
+    const key = myKey()
+    const value = message.r?.[key] === emoji ? null : emoji
+    const fn = (m) => applyReaction(m, key, value)
+    dispatch({ type: "update", ck, id: message.id, fn })
+    historyDb.patchMessage(key, message.id, fn)
+    const result = await request("aim:react", { id: message.id, ck, emoji: value })
+    if (!result.ok) {
+      const undo = (m) => applyReaction(m, key, message.r?.[key] || null)
+      dispatch({ type: "update", ck, id: message.id, fn: undo })
+      historyDb.patchMessage(key, message.id, undo)
+    }
+    return result
+  }
+
+  // An IM: shown at once, then given the server's id (and kept) when it's sent
+  const sendIm = async (screenName, text, extra = {}) => {
+    const style = prefsRef.current.style
+    const ck = keyOf(screenName)
+    const temp = { id: tempId(), ck, conv: screenName, from: stateRef.current.me.screenName, text, style, time: Date.now(), mine: true, pending: true, ...(extra.local || {}) }
+    dispatch({ type: "messages", ck, screenName, messages: [temp] })
+    sound("imSend")
+    const result = extra.media ? await request("aim:im", { to: screenName, text, style, media: { id: extra.media.id }, thumb: extra.thumb }) : await request("aim:im", { to: screenName, text, style })
+    if (result.ok && ck === keyOf(BOT_NAME)) unlock("smarterchild")
+    if (!result.ok) {
+      dispatch({ type: "update", ck, id: temp.id, fn: (m) => ({ ...m, pending: false, failed: true }) })
+      systemLine(ck, result.error, { error: true })
+      return result
+    }
+    // the server's time: "Read" compares it with theirs (this device's clock may be off)
+    const sent = { ...temp, id: result.id || temp.id, time: result.time || temp.time, pending: false, held: !!result.offline }
+    dispatch({ type: "update", ck, id: temp.id, fn: () => sent })
+    if (result.id) save([sent])
+    // signed off with notifications on: it waits for them
+    if (result.offline && result.notice) systemLine(ck, result.notice)
+    return result
+  }
+
+  // A picture or voice message: { kind: "image" | "audio", blob, thumb?, w, h | d, wf }
+  const sendMedia = async (screenName, item) => {
+    const ck = keyOf(screenName)
+    if (ck === keyOf(BOT_NAME)) {
+      systemLine(ck, `${BOT_NAME} can't open pictures or voice messages. Try typing!`, { error: true })
+      return { ok: false }
+    }
+    const { uploadMedia } = await import("./history/mediaClient")
+    const info = item.kind === "image" ? { kind: "image", w: item.w, h: item.h } : { kind: "audio", d: Math.round(item.d * 10) / 10, wf: item.wf }
+    const localMedia = item.kind === "image" ? { k: "image", w: item.w, h: item.h, z: item.blob.size } : { k: "audio", d: info.d, wf: item.wf, z: item.blob.size }
+    const temp = { id: tempId(), ck, conv: screenName, from: stateRef.current.me.screenName, text: "", time: Date.now(), mine: true, pending: true, media: { ...localMedia, id: "" }, thumb: item.thumb, localBlob: item.blob }
+    dispatch({ type: "messages", ck, screenName, messages: [temp] })
+    const uploaded = await uploadMedia(request, item.blob, info).catch(() => ({ ok: false }))
+    if (!uploaded?.ok) {
+      dispatch({ type: "remove", ck, id: temp.id })
+      systemLine(ck, sendFailure(item.kind, uploaded), { error: true })
+      return uploaded
+    }
+    await historyDb.putMedia(myKey(), uploaded.id, item.blob)
+    dispatch({ type: "remove", ck, id: temp.id })
+    return sendIm(screenName, "", { media: { id: uploaded.id }, thumb: item.thumb, local: { media: { ...localMedia, id: uploaded.id }, thumb: item.thumb } })
+  }
+
+  // the bytes of a picture or voice message (this device's copy, else fetched once)
+  const getMediaBlob = async (media) => (await import("./history/mediaClient")).loadMedia(request, myKey(), media)
+
+  useEffect(() => {
+    if (state.status !== "online" || !state.me?.screenName) return
+    searchCache.current = new Map()
+    syncHistory()
+    // Find: what this device kept for the account
+    historyDb.allMessages(myKey(), 3000).then((list) => {
+      for (const m of list) if (!searchCache.current.has(m.id)) searchCache.current.set(m.id, m)
+      searchVersion.current++
+    })
+  }, [state.status, state.me?.screenName])
 
   const setAway = async (message) => {
     const result = await request("aim:setAway", { message: message || "" })
@@ -580,6 +873,7 @@ export const AimProvider = ({ socket, windows, dispatch: dispatchWindow, onOpenV
     const result = await request("aim:chatJoin", { room })
     if (result.ok) {
       dispatch({ type: "room", room: result.room, members: result.members })
+      loadRoom(result.room)
       openRoomWindow(result.room)
     }
     return result
@@ -635,7 +929,17 @@ export const AimProvider = ({ socket, windows, dispatch: dispatchWindow, onOpenV
     closeWindows,
     getWindows: () => windowsRef.current,
     // a grey system line in an IM conversation ("Missed call from ...")
-    addNotice: (screenName, text) => dispatch({ type: "message", screenName, message: { system: true, text, time: Date.now() } }),
+    addNotice: (screenName, text) => systemLine(keyOf(screenName), text),
+    // saved conversations, pictures and voice messages, reactions, read receipts
+    windows,
+    loadConvo,
+    loadOlder,
+    clearHistory,
+    markRead,
+    react,
+    sendMedia,
+    getMediaBlob,
+    setServerPrefs,
   }
 
   return (

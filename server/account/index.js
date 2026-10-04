@@ -14,6 +14,20 @@
 //   step        collections                       what happens
 //   push        pushsubs, pushprefs, pushinboxes   their devices, settings and held IMs deleted;
 //                                                  IMs they sent that wait for someone else deleted
+//   messages    imhistory, imclears, imreads       98 Messenger's saved conversations (server/aim/
+//                                                  history.js): their copy of every IM and room
+//                                                  message goes, their reactions and read receipts
+//                                                  go. The other person's copy stays (it's theirs,
+//                                                  like mail) without the name: sender/recipient
+//                                                  read "(deleted account)" and the conversation
+//                                                  gets a new random id, so whoever takes the name
+//                                                  later sees none of it. Room lines they wrote
+//                                                  stay for the others as "(deleted account)".
+//   im media    immedia + bucket objects m/...     pictures and voice messages they sent (server/aim/
+//                                                  media.js): deleted, unless someone they sent one
+//                                                  to can still see it: then it stays that person's
+//                                                  (no longer tied to the account) until it expires
+//                                                  (90 days). They lose access to what they got.
 //   drive       syncaccounts, syncentries,         every synced file, its contents, the device
 //               syncblobs, syncdevices, drives,    sync tokens and the old whole-drive copy deleted;
 //               + the online storage bucket        with a bucket (Vercel Blob / S3, server/drive/

@@ -248,22 +248,51 @@ const createBucket = ({ adapter, db, env = process.env, now = () => Date.now(), 
   }
 
   // Count `cost` ({ simple, adv, down }) if it fits every budget. -> { ok } | { ok: false, until, label }
-  const charge = (cost, { background = false } = {}) =>
+  // `scope` + `share`: another user of the same bucket (98 Messenger's pictures and voice
+  // messages, server/aim/media.js) may use at most `share` of each budget; its own use is
+  // also counted in fields "<scope>_<field>" of the same day documents.
+  const charge = (cost, { background = false, scope = null, share = 1 } = {}) =>
     serial(async () => {
       const until = await restingUntil()
       if (until) return { ok: false, until, label: "rest" }
       const days = await windowDays()
+      const usedIn = (field, from) => days.filter((d) => d.day >= from).reduce((s, d) => s + (Number(d[field]) || 0), 0)
       for (const rule of rules) {
         const amount = Number(cost[rule.field]) || 0
         if (!amount) continue
         const from = dayOf(now() - (rule.days - 1) * DAY)
-        const used = days.filter((d) => d.day >= from).reduce((s, d) => s + (Number(d[rule.field]) || 0), 0)
         const limit = background ? Math.floor(rule.limit * 0.7) : rule.limit
-        if (used + amount > limit) return { ok: false, until: untilFits({ ...rule, limit }, days, amount), label: rule.label }
+        if (usedIn(rule.field, from) + amount > limit) return { ok: false, until: untilFits({ ...rule, limit }, days, amount), label: rule.label }
+        if (scope) {
+          const field = `${scope}_${rule.field}`
+          const scoped = Math.floor(rule.limit * share)
+          if (usedIn(field, from) + amount > scoped) return { ok: false, until: untilFits({ ...rule, field, limit: scoped }, days, amount), label: rule.label }
+        }
       }
-      await db.usageInc(dayOf(now()), cost)
+      const inc = { ...cost }
+      if (scope) for (const [field, n] of Object.entries(cost)) inc[`${scope}_${field}`] = n
+      await db.usageInc(dayOf(now()), inc)
       return { ok: true }
     })
+
+  // Bytes other users of the bucket keep in it (98 Messenger's media), counted against
+  // totalBytes together with synced files: addStored(fn), fn() -> bytes (or a promise)
+  const others = new Set()
+  const addStored = (fn) => {
+    if (typeof fn === "function") others.add(fn)
+    return () => others.delete(fn)
+  }
+  const otherBytes = async () => {
+    let sum = 0
+    for (const fn of others) {
+      try {
+        sum += Number(await fn()) || 0
+      } catch {
+        // that user's count is unavailable right now
+      }
+    }
+    return sum
+  }
 
   // counted without asking (signing tokens, deletes, uploads already made)
   const note = (cost) => serial(() => db.usageInc(dayOf(now()), cost)).catch(() => {})
@@ -293,7 +322,7 @@ const createBucket = ({ adapter, db, env = process.env, now = () => Date.now(), 
     }
   }
 
-  return { adapter, kind: adapter.kind, totalBytes, rules, prefixFor, pathFor, charge, note, call, rest, restingUntil, status }
+  return { adapter, kind: adapter.kind, totalBytes, rules, prefixFor, pathFor, charge, note, call, rest, restingUntil, status, addStored, otherBytes }
 }
 
 module.exports = { createBucket, adapterFromEnv, vercelAdapter, s3Adapter, Resting, TYPE, dayOf }
