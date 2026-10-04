@@ -4,7 +4,11 @@ import Board from './Board'
 import GameStats, { KeyHints } from './GameStats'
 import PiecePreview from './PiecePreview'
 import TouchControls, { useTouchControlsVisible } from '../../../shared/controls'
-import { controlsFor } from './tetrisControls'
+import { useControlsStore } from '../../../shared/controls/store'
+import { controlsFor, controlsGameFor } from './tetrisControls'
+import TouchSettings from './TouchSettings'
+import { useSwipeControls } from '../hooks/useSwipeControls'
+import { hintSeen, markHintSeen, useTetrisTouchPrefs } from '../utils/touchPrefs'
 
 import { NEXT_COUNT, pendingLines, visibleCells } from '../utils/engine'
 import { ITEM_INFO } from '../utils/items'
@@ -43,7 +47,12 @@ const TetrisWindow = ({ tetris, onGameOver, onQuit, editControls = false, stats,
     const cells = useMemo(() => visibleCells(game), [game.board, game.active, game.finale])
     const touch = useTouchControlsVisible()
     const [editing, setEditing] = useState(editControls)
-    const controls = useMemo(() => controlsFor({ item: item !== undefined, pause: !online }), [item !== undefined, online])
+    // Touch: swipe gestures on the board and/or on-screen buttons (Customize controls)
+    const touchPrefs = useTetrisTouchPrefs()
+    const scheme = touch ? touchPrefs.scheme : "buttons"
+    const swipe = scheme !== "buttons"
+    const { haptics } = useControlsStore().prefs
+    const controls = useMemo(() => controlsFor({ item: item !== undefined, pause: !online, scheme }), [item !== undefined, online, scheme])
     const meter = online ? pendingLines(game) : 0
 
     useEffect(() => {
@@ -59,6 +68,21 @@ const TetrisWindow = ({ tetris, onGameOver, onQuit, editControls = false, stats,
     const layout = size ? pickLayout(size, touch) : "wide"
 
     const focusWindow = () => windowRef.current.focus({ preventScroll: true })
+
+    // The first game with swipe controls shows how they work until the first touch
+    const [swipeHint, setSwipeHint] = useState(() => swipe && !online && !editControls && !hintSeen())
+    useEffect(() => {
+        if (!swipeHint) return
+        markHintSeen()
+        const t = setTimeout(() => setSwipeHint(false), 8000)
+        return () => clearTimeout(t)
+    }, [swipeHint])
+    const onSwipeTouch = () => {
+        focusWindow()
+        setSwipeHint(false)
+    }
+
+    useSwipeControls(windowRef, { enabled: swipe && !editing, tetris, prefs: touchPrefs, haptics, onTouch: onSwipeTouch })
 
     // (a new Tetris Online round mounts this again: don't take the keyboard from someone
     // typing in another window)
@@ -133,6 +157,7 @@ const TetrisWindow = ({ tetris, onGameOver, onQuit, editControls = false, stats,
         <div
             className={layout === "wide" ? "tetrisWindow" : "tetrisWindow tetrisWindow--compact"}
             data-layout={layout}
+            data-scheme={touch ? scheme : undefined}
             tabIndex={0}
             ref={windowRef}
             onKeyDown={onKeyDown}
@@ -153,7 +178,7 @@ const TetrisWindow = ({ tetris, onGameOver, onQuit, editControls = false, stats,
                 ]} />
                 {layout === "wide" && clearLabel}
                 {/* room for the default Pause and Hold buttons */}
-                {touch && <div className="tetrisSideButtons" />}
+                {touch && <div className={scheme === "gestures" ? "tetrisSideButtons tetrisSideButtons--slim" : "tetrisSideButtons"} />}
             </aside>
             {layout !== "wide" && clearLabel}
             <div className="tetrisBoardWrap">
@@ -166,6 +191,15 @@ const TetrisWindow = ({ tetris, onGameOver, onQuit, editControls = false, stats,
                     {game.shield && <div className="tetrisShield" title="Shield: blocks the next garbage" />}
                     {dark && <div className="tetrisDark" />}
                     {overlay}
+                    {swipeHint && swipe && game.status === "playing" && (
+                        <div className="tetrisSwipeHint" aria-live="polite">
+                            <div><b>Drag</b> to move</div>
+                            <div><b>Tap</b> to rotate</div>
+                            <div><b>Drag down</b> to soft drop</div>
+                            <div><b>Flick down</b> to hard drop</div>
+                            <div><b>Swipe up</b> to hold</div>
+                        </div>
+                    )}
                     {game.status === "paused" && (
                         <div className="tetrisOverlay">
                             {focused ? (
@@ -201,15 +235,17 @@ const TetrisWindow = ({ tetris, onGameOver, onQuit, editControls = false, stats,
                 {/* room for the default Item button */}
                 {touch && item !== undefined && <div className="tetrisSideButtons tetrisSideButtons--item" />}
             </aside>
-            {touch && layout === "portrait" && <div className="tetrisPad" />}
+            {touch && layout === "portrait" && scheme !== "gestures" && <div className="tetrisPad" />}
             {touch && (
                 <TouchControls
-                    game="tetris"
+                    key={scheme}
+                    game={controlsGameFor(scheme)}
                     controls={controls}
                     onPress={onPadPress}
                     onRelease={release}
                     editing={editing}
                     onEditingChange={setEditingAndFocus}
+                    settings={<TouchSettings prefs={touchPrefs} />}
                 />
             )}
         </div>
