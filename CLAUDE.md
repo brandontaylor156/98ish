@@ -15,6 +15,11 @@ A Windows 98-style web desktop at https://98ish.vercel.app. The owner uses it mo
   - **Right-click menus** (`shared/ContextMenu.jsx`, rendered into `.os-root`) and the global right-click menu (`OS-specific/GlobalMenu.jsx`).
   - **Touch controls** (`shared/controls/`).
   - **98ish phone keyboard** (`shared/keyboard/`; design in `docs/keyboard.md`).
+  - **98 Messenger calls** (1:1 voice/video, WebRTC): signaling in `server/aim/calls.js` (relays only between the two people in a call; busy, ring timeout, block, drop handling), ICE servers in `server/aim/ice.js`, client in `applets/aim/call/` (`engine.js` holds the call and the peer connection outside React; `CallManager.jsx` rings, opens windows, shows toasts; `CallWindow.jsx`, `RingWindow.jsx`). Calls start from the IM window header, a buddy's right-click menu, and Us ("Video call [partner]").
+- **Env vars (Render), all optional:**
+  - `METERED_TURN_APP` + `METERED_TURN_API_KEY`: Metered Open Relay TURN (free account, 20 GB/month). APP is the `<app>` of `<app>.metered.live`; the server fetches credentials, so the key never reaches the browser.
+  - Or `TURN_URLS` (comma-separated `turn:`/`turns:` URLs) + `TURN_USERNAME` + `TURN_CREDENTIAL` for any other TURN server.
+  - With none set, calls are STUN-only (Google's public STUN): most Wi-Fi works; some cellular/strict NATs can't connect, and the call window then says why after about 30 seconds.
 - **Memory notes:** `C:\Users\brand\.claude\projects\C--Users-brand-98ish\memory\` has more architecture detail per area (online rooms, pickleball, phone mode, desktop shell, and others).
 
 ## Rules
@@ -25,11 +30,13 @@ A Windows 98-style web desktop at https://98ish.vercel.app. The owner uses it mo
 
 ## Testing
 - **Unit tests:**
-  - Root `npm test` runs the server and arcade tests (281 passing).
+  - Root `npm test` runs the server and arcade tests (289 passing).
   - App unit tests run by FILE path: `node --test path/to/x.test.js`. A folder path fails on Windows.
 - **Browser tests:** playwright-core with system Chrome. Scripts live in the session scratchpad, which is temporary, so recreate them as needed.
   - Ports: vite on 5199 (`cd client && npx vite --port 5199 --strictPort`), chat server `COUPLES_TEST_CLOCK=1 PORT=8000 node server.js`.
   - Set localStorage `98ish.bootScreen=off` and `98ish.helper=off`. With `98ish.helper=off`, Floppy and the Welcome window stay away.
+  - Phone-emulation tests that type into forms: set `keyboard: "phone"` in `98ish.settings`, or the 98ish keyboard covers the page's buttons.
+  - Call tests (`call-*`): launch Chrome with `--use-fake-device-for-media-stream --use-fake-ui-for-media-stream`, two contexts in one browser. `window.__call` exposes the call state (`get()`, `peer()`, `start`, `answer`, `hangUp`). Under memory pressure Chrome's fake camera sometimes isn't found by the second context; the app falls back to voice with a notice, and the tests then press Camera On.
 - **Discipline:**
   - Restart both servers after merging new code, so you don't test stale code.
   - Run each suite once, and investigate only failures that repeat.
@@ -77,10 +84,10 @@ Just pushed and not yet tried on a real phone:
 1. **Owner's real-iPhone check:**
    - The 98ish keyboard in Notepad, Messenger, Run, Speed Typist; the phone-keyboard switch; AutoFill.
    - The startup sound; the earlier "scrollbar on open" report.
+   - **98 Messenger calls on two real iPhones**, ideally once on Wi-Fi and once on cellular: ring, answer, hear each other (and that the ringtone stops), camera flip, mute, lock the screen / switch apps mid-call, and whether a cellular call connects without TURN (if not, set the Metered env vars above).
 2. **Recommended next features**, in this order:
    - Camera + Photos (webcam/phone camera into My Pictures, a viewer with slideshow and set-as-wallpaper).
    - Calendar + Clock with reminders and a shared couple calendar.
-   - Video and voice calls in 98 Messenger (WebRTC).
    - Control Panel + accessibility (magnifier, high contrast, larger text).
    - Then: notification center, address book, a spreadsheet, a PDF viewer / print to PDF, screenshot + clipboard history, a music library, user accounts + lock screen, search everything, help center.
 3. **Known leftovers:**

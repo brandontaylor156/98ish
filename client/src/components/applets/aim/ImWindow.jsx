@@ -7,6 +7,7 @@ import { RaceLevelDialog } from "../network/ComputerFolder"
 import FormatBar from "./FormatBar"
 import { TranscriptLine, textStyle } from "./MessageText"
 import { useIsTouch } from "../../../hooks/useMediaQuery"
+import { CallButtons } from "./call/CallButtons"
 
 const TYPING_PAUSE_MS = 3000
 
@@ -158,9 +159,16 @@ const ImWindow = ({ buddy, focusInput }) => {
   return (
     <div className="aimIm">
       <div className="aimImHeader">
-        <span>
+        <span className="aimImTo">
           To: <b>{screenName}</b>
         </span>
+        {key !== keyOf(BOT_NAME) && (
+          <CallButtons
+            screenName={screenName}
+            disabled={!presence?.online || blocked}
+            onError={(text) => setDialog({ kind: "alert", title: "Call", text })}
+          />
+        )}
         <span className="aimImWarning">Warning Level: {presence?.warning || 0}%</span>
       </div>
 

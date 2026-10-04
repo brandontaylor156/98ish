@@ -6,6 +6,8 @@ const bcrypt = require("bcryptjs")
 const { normalize, validate } = require("./screenNames")
 const { createStore } = require("./store")
 const { createBot, BOT_NAME } = require("./bot")
+const { createCalls } = require("./calls")
+const { createIce } = require("./ice")
 
 const MAX_MESSAGE = 1024
 const MAX_PROFILE = 1024
@@ -63,9 +65,10 @@ const limiter = (limit, windowMs) => {
   return Object.assign(hit, { over })
 }
 
-const attachAim = async (io, { store, bot } = {}) => {
+const attachAim = async (io, { store, bot, ice, callRingMs, callLostMs } = {}) => {
   store ??= await createStore()
   bot ??= createBot()
+  ice ??= createIce()
 
   const sessions = new Map() // key -> session (signed on, possibly mid-reconnect)
   const tokens = new Map() // resume token -> key
@@ -112,6 +115,9 @@ const attachAim = async (io, { store, bot } = {}) => {
     if (session?.socket) session.socket.emit(event, payload)
   }
 
+  // voice and video calls (signaling only)
+  const calls = createCalls({ sessions, hidden, emitTo, limiter, ice, botKey: BOT_KEY, ringMs: callRingMs, lostMs: callLostMs })
+
   const broadcastPresence = (subject, online = true) => {
     const payload = online ? presenceOf(subject) : { screenName: subject.user.screenName, online: false }
     for (const other of sessions.values()) {
@@ -148,6 +154,7 @@ const attachAim = async (io, { store, bot } = {}) => {
   const signOff = (session, { announce = true } = {}) => {
     if (sessions.get(session.key) !== session) return
     clearTimeout(session.dropTimer)
+    calls.endFor(session.key, "signedoff")
     for (const key of rooms.keys()) leaveRoom(session, key)
     sessions.delete(session.key)
     tokens.delete(session.token)
@@ -175,6 +182,7 @@ const attachAim = async (io, { store, bot } = {}) => {
     socket.data.key = session.key
     socket.join("aim")
     for (const [key, room] of rooms) if (room.members.has(session.key)) socket.join(`chat:${key}`)
+    calls.resumed(session)
   }
 
   const persist = async (session, patch) => {
@@ -211,6 +219,7 @@ const attachAim = async (io, { store, bot } = {}) => {
           ack({ ok: false, error: "Something went wrong. Please try again." })
         }
       })
+    calls.bind(on)
 
     const startSession = (user, key, ack, remember) => {
       // Signing on somewhere else bumps the old session, like the real service
@@ -351,6 +360,7 @@ const attachAim = async (io, { store, bot } = {}) => {
       if (!session) return
       session.socket = null
       session.dropTimer = setTimeout(() => signOff(session), RESUME_GRACE_MS)
+      calls.dropped(session.key)
     })
 
     on("aim:im", async (session, { to, text, style }, ack) => {
@@ -448,6 +458,7 @@ const attachAim = async (io, { store, bot } = {}) => {
       // Appear offline to (or reappear for) the other person
       if (other && wasHidden !== hidden(session, other)) {
         const nowHidden = hidden(session, other)
+        if (nowHidden) calls.endBetween(session.key, other.key, "blocked")
         emitTo(other.key, "aim:presence", nowHidden ? { screenName: session.user.screenName, online: false } : presenceOf(session))
         emitTo(session.key, "aim:presence", nowHidden ? { screenName: other.user.screenName, online: false } : presenceOf(other))
       }
@@ -565,7 +576,7 @@ const attachAim = async (io, { store, bot } = {}) => {
     return (key && sessions.get(key)) || null
   }
 
-  return { store, sessions, authenticate }
+  return { store, sessions, authenticate, calls }
 }
 
 module.exports = { attachAim }

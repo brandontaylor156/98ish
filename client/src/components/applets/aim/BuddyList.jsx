@@ -5,6 +5,9 @@ import Dialog from "../../shared/Dialog"
 import MenuBar from "../../shared/MenuBar"
 import { AwayNote, DoorClosed, DoorOpen, NoIcon } from "./Icons"
 import { openCouples } from "../../../utils/couple"
+import ContextMenu from "../../shared/ContextMenu"
+import { useLongPress } from "../../../hooks/useLongPress"
+import { placeCall } from "./call/CallButtons"
 
 const AWAY_PRESETS = [
   "I am away from my computer right now.",
@@ -19,7 +22,8 @@ const idleLabel = (since) => {
   return minutes >= 60 ? `${Math.floor(minutes / 60)}:${String(minutes % 60).padStart(2, "0")}` : String(minutes)
 }
 
-const BuddyRow = ({ buddy, selected, onSelect, openGesture, onOpen }) => {
+const BuddyRow = ({ buddy, selected, onSelect, openGesture, onOpen, onMenu }) => {
+  const longPress = useLongPress((x, y) => onMenu?.(x, y))
   const icon = buddy.change === "on" ? <DoorOpen /> : buddy.change === "off" ? <DoorClosed /> : buddy.away ? <AwayNote /> : <NoIcon />
   const classes = ["aimBuddy"]
   if (selected) classes.push("is-selected")
@@ -32,6 +36,17 @@ const BuddyRow = ({ buddy, selected, onSelect, openGesture, onOpen }) => {
       className={classes.join(" ")}
       onClick={onSelect}
       {...(buddy.online ? openGesture(onOpen) : {})}
+      {...(onMenu ? longPress : {})}
+      onContextMenu={
+        onMenu
+          ? (e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              onSelect()
+              onMenu(e.clientX, e.clientY)
+            }
+          : undefined
+      }
       title={buddy.away ? `${buddy.screenName} is away` : undefined}
     >
       {icon}
@@ -51,6 +66,7 @@ const BuddyList = () => {
   const [collapsed, setCollapsed] = useState({ Offline: true })
   const [selected, setSelected] = useState(null) // { group, screenName } or { group }
   const [dialog, setDialog] = useState(null)
+  const [menu, setMenu] = useState(null) // right-click on a buddy: { x, y, buddy }
 
   const selectedBuddy = selected?.screenName
   const close = () => setDialog(null)
@@ -208,6 +224,7 @@ const BuddyList = () => {
                         selected={selectedBuddy && keyOf(selectedBuddy) === keyOf(buddy.screenName) && selected.group === group.name}
                         onSelect={() => setSelected({ group: group.name, screenName: buddy.screenName })}
                         onOpen={() => aim.openIm(buddy.screenName)}
+                        onMenu={tab === "online" ? (x, y) => setMenu({ x, y, buddy }) : null}
                       />
                     ))}
                   </ul>
@@ -265,6 +282,27 @@ const BuddyList = () => {
             Delete
           </button>
         </div>
+      )}
+
+      {menu && (
+        <ContextMenu
+          x={menu.x}
+          y={menu.y}
+          onClose={() => setMenu(null)}
+          items={(() => {
+            const b = menu.buddy
+            const bot = keyOf(b.screenName) === keyOf(BOT_NAME)
+            const canCall = b.online && !bot && !me.blocked.includes(keyOf(b.screenName))
+            const callError = (text) => setDialog({ kind: "alert", title: "Call", text })
+            return [
+              { label: "Send Instant Message", bold: true, onClick: () => aim.openIm(b.screenName) },
+              { label: "Call", disabled: !canCall, onClick: () => placeCall(b.screenName, false, callError) },
+              { label: "Video Call", disabled: !canCall, onClick: () => placeCall(b.screenName, true, callError) },
+              "-",
+              { label: "Get Info", onClick: () => aim.openInfo(b.screenName) },
+            ]
+          })()}
+        />
       )}
 
       {/* ---- dialogs ---- */}

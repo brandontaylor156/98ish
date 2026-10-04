@@ -524,3 +524,51 @@ button.usSwatch.is-on {
 .usRoot.is-mobile .usPairRow {
   flex-direction: column;
 }
+
+/* "Call [partner]" (98 Messenger calls), up top while they're online */
+.usCall {
+  display: flex;
+  gap: 8px;
+}
+
+button.usCallButton {
+  all: unset;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex: 1;
+  min-height: 44px;
+  padding: 8px 14px;
+  border-radius: 22px;
+  color: #fff;
+  font-weight: bold;
+  font-size: 13px;
+  background: linear-gradient(#e2557f, #c43765);
+  box-shadow: 0 2px 6px rgba(180, 40, 90, 0.3), inset 0 1px rgba(255, 255, 255, 0.35);
+  cursor: pointer;
+  text-align: center;
+}
+
+button.usCallButton.is-voice {
+  flex: none;
+  color: #8a1f45;
+  background: #fff;
+  border: 1px solid #f2b6c7;
+}
+
+button.usCallButton:focus-visible {
+  outline: 2px dotted #8a1f45;
+  outline-offset: 2px;
+}
+
+button.usCallButton:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.usRoot.is-mobile button.usCallButton {
+  min-height: 52px;
+  font-size: 15px;
+}

@@ -80,6 +80,8 @@ const ChatRoom = lazyApp(() => import("../applets/aim/ChatRoom"))
 const BuddyInfo = lazyApp(() => import("../applets/aim/BuddyInfo"))
 const ChatInvite = lazyApp(() => import("../applets/aim/ChatInvite"))
 const AimNotice = lazyApp(() => import("../applets/aim/ChatInvite").then((m) => ({ default: m.AimNotice })))
+const CallWindow = lazyApp(() => import("../applets/aim/call/CallWindow"))
+const RingWindow = lazyApp(() => import("../applets/aim/call/RingWindow"))
 const DesktopThemes = lazyApp(() => import("../applets/themes/DesktopThemes"))
 const SystemProperties = lazyApp(() => import("../applets/system/SystemProperties"))
 const WebApp = lazyApp(() => import("../applets/webapp/WebApp"))
@@ -760,6 +762,8 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
           {window.app === "aim-notice" && (
             <AimNotice text={window.text} onClose={() => closeWindow(window, index)} />
           )}
+          {window.app === "aim-call" && <CallWindow />}
+          {window.app === "aim-ring" && <RingWindow />}
         </div>
       )}
       {window.name == "View Video" && (

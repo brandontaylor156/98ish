@@ -113,15 +113,30 @@ const setSession = (type) => {
     // not supported
   }
 }
+// a 98 Messenger call needs the microphone: "play-and-record" wins over "playback" (which
+// would cut the mic, or route the call through the ringer switch) until the call ends
+let calls = 0
+const restoreSession = () => setSession(calls ? "play-and-record" : musicPlayers ? "playback" : "auto")
 export const claimPlaybackSession = () => {
   musicPlayers++
-  setSession("playback")
+  restoreSession()
   let released = false
   return () => {
     if (released) return
     released = true
     musicPlayers = Math.max(0, musicPlayers - 1)
-    if (!musicPlayers) setSession("auto")
+    restoreSession()
+  }
+}
+export const claimCallSession = () => {
+  calls++
+  restoreSession()
+  let released = false
+  return () => {
+    if (released) return
+    released = true
+    calls = Math.max(0, calls - 1)
+    restoreSession()
   }
 }
 

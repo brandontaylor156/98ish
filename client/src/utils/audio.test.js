@@ -170,6 +170,22 @@ test("music players claim the iOS playback session while they're open", (t) => {
   assert.equal(session.type, "auto")
 })
 
+test("a 98 Messenger call holds the play-and-record session over music players", (t) => {
+  const session = globalThis.navigator?.audioSession
+  if (!session) return t.skip("no navigator here")
+  const music = A.claimPlaybackSession()
+  const call = A.claimCallSession()
+  assert.equal(session.type, "play-and-record")
+  const more = A.claimPlaybackSession()
+  assert.equal(session.type, "play-and-record", "a player opening mid-call doesn't take the mic away")
+  more()
+  call()
+  call()
+  assert.equal(session.type, "playback", "back to the music player's session")
+  music()
+  assert.equal(session.type, "auto")
+})
+
 test("no Web Audio: nothing breaks", async () => {
   const saved = window.AudioContext
   window.AudioContext = undefined

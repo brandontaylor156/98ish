@@ -6,6 +6,9 @@ import Dialog from "../../shared/Dialog"
 import { TwoHearts } from "./art"
 import { TogetherLine, togetherFor, useCoupleEvent, useNow, dateLabel } from "./shared"
 import FlowerShop from "./FlowerShop"
+import { placeCall } from "../aim/call/CallButtons"
+import { PhoneIcon, VideoIcon } from "../aim/call/CallIcons"
+import { useCall, inCall } from "../aim/call/engine"
 
 // "Us": the couple's hub. Pair up with your partner (a request they accept), then see how
 // long you've been together, whether they're on 98 Messenger, and open everything you
@@ -171,6 +174,31 @@ const Settings = ({ couple, onBack }) => {
 
 // ---- the hub ----
 
+// "Call [partner]": big and right up top whenever they're on 98 Messenger
+const CallPartner = ({ couple }) => {
+  const call = useCall()
+  const [error, setError] = useState(null)
+  if (!couple.partnerOnline) return null
+  const busy = inCall(call)
+  return (
+    <div className="usCall">
+      <button type="button" className="usCallButton" disabled={busy} onClick={() => placeCall(couple.partner, true, setError)}>
+        <VideoIcon size={22} />
+        <span>Video call {couple.partner}</span>
+      </button>
+      <button type="button" className="usCallButton is-voice" disabled={busy} onClick={() => placeCall(couple.partner, false, setError)} aria-label={`Call ${couple.partner}`}>
+        <PhoneIcon size={22} />
+        <span>Call</span>
+      </button>
+      {error && (
+        <Dialog title="Call" onOk={() => setError(null)}>
+          <p className="dialogText">{error}</p>
+        </Dialog>
+      )}
+    </div>
+  )
+}
+
 const Hub = ({ couple, onView }) => {
   const now = useNow(60_000)
   const [story, setStory] = useState(null)
@@ -205,6 +233,8 @@ const Hub = ({ couple, onView }) => {
           )}
         </div>
       </div>
+
+      <CallPartner couple={couple} />
 
       <div className="usTiles">
         <Tile icon="/assets/program_icons/loveletters.svg" title="Love Letters" blurb="Write, seal and schedule letters" badge={letters} onClick={() => openCouples("Love Letters")} />

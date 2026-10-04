@@ -1,0 +1,554 @@
+/* 98 Messenger calls: the call window (a little CRT around their video), the ringing
+   window and the call toasts */
+
+.callWin {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px;
+  min-height: 0;
+}
+
+.callStage {
+  position: relative;
+  flex: 1;
+  min-height: 120px;
+  padding: 6px;
+  background: linear-gradient(#d4d0c8, #a8a49c);
+  border: 2px solid;
+  border-color: #fff #404040 #404040 #fff;
+  border-radius: 10px;
+}
+
+/* the tube: dark glass with rounded corners, a soft vignette and faint scanlines */
+.callCrt {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: radial-gradient(ellipse at center, #1d2a33 0%, #0b1014 75%, #050607 100%);
+  border-radius: 14px / 12px;
+  box-shadow: inset 0 0 0 2px #222, inset 0 0 24px rgba(0, 0, 0, 0.9);
+}
+
+.callRemote {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  background: #000;
+}
+
+.callWin.is-voice .callRemote,
+.callRemote.is-hidden {
+  visibility: hidden;
+}
+
+.callScan {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(to bottom, rgba(255, 255, 255, 0.035) 0 1px, transparent 1px 3px),
+    radial-gradient(ellipse at center, transparent 60%, rgba(0, 0, 0, 0.35) 100%);
+  border-radius: inherit;
+}
+
+.callCard {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 12px;
+  color: #cfe8d0;
+  text-align: center;
+  text-shadow: 0 0 6px rgba(120, 255, 160, 0.35);
+}
+
+.callAvatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 72px;
+  height: 72px;
+  font-size: 40px;
+  font-weight: bold;
+  color: #fff;
+  background: #000080;
+  border: 2px solid;
+  border-color: #8080ff #000040 #000040 #8080ff;
+  border-radius: 50%;
+  text-shadow: none;
+}
+
+.callPeer {
+  font-size: 16px;
+  font-weight: bold;
+  color: #fff;
+}
+
+.callCardSub {
+  font-size: 12px;
+}
+
+.callDialup {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.callDialText {
+  font-family: "Courier New", monospace;
+  font-size: 13px;
+  color: #7cff9a;
+}
+
+.callModem {
+  display: flex;
+  gap: 6px;
+  padding: 4px 8px;
+  background: #2b2b2b;
+  border: 1px solid #555;
+  border-radius: 3px;
+}
+
+.callLed {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #3a1010;
+  box-shadow: inset 0 0 2px #000;
+}
+
+.callLed.is-on {
+  background: #ff3b3b;
+  box-shadow: 0 0 5px #ff3b3b;
+}
+
+.callLed.is-blink {
+  animation: callBlink 0.18s steps(2) infinite;
+}
+
+@keyframes callBlink {
+  50% {
+    background: #3bff6a;
+    box-shadow: 0 0 5px #3bff6a;
+  }
+}
+
+.callHud {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  color: #fff;
+  font-size: 12px;
+  background: linear-gradient(rgba(0, 0, 0, 0.55), transparent);
+  pointer-events: none;
+}
+
+.callHudName {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: bold;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.callHudRight {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+}
+
+.callTimer {
+  font-family: "Courier New", monospace;
+}
+
+.callBars {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 15px;
+  pointer-events: auto;
+}
+
+.callBars span {
+  width: 4px;
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.callBars .is-on.is-l4,
+.callBars .is-on.is-l3 {
+  background: #3bff6a;
+}
+.callBars .is-on.is-l2 {
+  background: #ffd23b;
+}
+.callBars .is-on.is-l1 {
+  background: #ff4b3b;
+}
+
+.callBanner {
+  position: absolute;
+  left: 50%;
+  top: 40%;
+  transform: translateX(-50%);
+  padding: 4px 10px;
+  color: #000;
+  background: #ffffe1;
+  border: 1px solid #000;
+}
+
+.callSelf {
+  position: absolute;
+  width: 28%;
+  max-width: 160px;
+  min-width: 72px;
+  aspect-ratio: 3 / 4;
+  border: 2px solid;
+  border-color: #fff #404040 #404040 #fff;
+  background: #000;
+  cursor: grab;
+  touch-action: none;
+  z-index: 2;
+}
+
+.callWin.is-video .callSelf {
+  aspect-ratio: 4 / 3;
+}
+
+.callSelf video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  pointer-events: none;
+}
+
+.callSelf video.is-mirrored {
+  transform: scaleX(-1);
+}
+
+.callNote {
+  flex: none;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 4px 6px;
+  font-size: 11px;
+  background: #ffffe1;
+  border: 1px solid #000;
+  text-align: left;
+}
+
+.callNote span {
+  flex: 1;
+}
+
+.callNote.is-error {
+  color: #800000;
+}
+
+.aimRoot .callTapSound {
+  justify-content: center;
+  font-weight: bold;
+  min-height: 32px;
+}
+
+.callControls {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px;
+}
+
+.aimRoot .callBtn {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-width: 58px;
+  min-height: 44px;
+  padding: 2px 6px;
+}
+
+.aimRoot .callBtn.is-active {
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #0a0a0a, inset -2px -2px #dfdfdf, inset 2px 2px grey;
+  background: repeating-conic-gradient(#c0c0c0 0 25%, #d8d8d8 0 50%) 0 0 / 2px 2px;
+}
+
+.aimRoot .callHangUp {
+  color: #fff;
+  background: #b00000;
+  text-shadow: none;
+}
+
+.aimRoot .callHangUp:active {
+  background: #900000;
+}
+
+.callStatusBar {
+  flex: none;
+  display: flex;
+}
+
+.callStatusBar .status-bar-field:first-child {
+  flex: 1;
+}
+
+.callStatusQuality {
+  flex: none;
+}
+
+.callIcon {
+  display: block;
+  flex: none;
+}
+
+/* ---- the ringing window ---- */
+
+.callRing {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px;
+}
+
+.callRingTop {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.callRingIcon {
+  animation: callShake 1.5s ease-in-out infinite;
+}
+
+@keyframes callShake {
+  0%, 40%, 100% {
+    transform: rotate(0);
+  }
+  5%, 15%, 25%, 35% {
+    transform: rotate(-12deg);
+  }
+  10%, 20%, 30% {
+    transform: rotate(12deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .callRingIcon,
+  .callToast.is-ringing .callToastIcon {
+    animation: none;
+  }
+}
+
+.callRingName {
+  font-size: 16px;
+  font-weight: bold;
+  word-break: break-all;
+}
+
+.callRingButtons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.aimRoot .callRingButtons button {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 36px;
+  padding: 0 6px;
+}
+
+.aimRoot .callAnswer,
+.callToast .callAnswer {
+  font-weight: bold;
+  color: #fff;
+  background: #007a00;
+  text-shadow: none;
+}
+
+.aimRoot .callDecline,
+.callToast .callDecline {
+  color: #fff;
+  background: #b00000;
+  text-shadow: none;
+}
+
+/* ---- toasts ---- */
+
+.callToasts {
+  position: fixed;
+  top: 8px;
+  right: 8px;
+  z-index: 200001;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 300px;
+  max-width: calc(100vw - 16px);
+}
+
+.callToast.window {
+  height: auto;
+  min-width: 0;
+  animation: callToastIn 0.25s ease-out;
+}
+
+@keyframes callToastIn {
+  from {
+    transform: translateY(-16px);
+    opacity: 0;
+  }
+}
+
+.callToastBody {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 6px;
+}
+
+.callToastRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.callToast.is-ringing .callToastIcon {
+  animation: callShake 1.5s ease-in-out infinite;
+}
+
+.callToastText {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.callToastButtons {
+  display: flex;
+  gap: 6px;
+}
+
+.callToastButtons button {
+  flex: 1;
+  min-width: 0;
+  padding: 0 6px;
+}
+
+/* ---- phones: the call fills the screen, with big buttons ---- */
+
+.os-mobile .callWin {
+  padding: 6px;
+  gap: 6px;
+}
+
+.os-mobile .callStage {
+  border-radius: 12px;
+}
+
+.os-mobile .aimRoot .callBtn {
+  min-width: 64px;
+  min-height: 60px;
+  font-size: 12px;
+}
+
+.os-mobile .callControls {
+  gap: 6px;
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+.os-mobile .callAvatar {
+  width: 96px;
+  height: 96px;
+  font-size: 52px;
+}
+
+.os-mobile .callPeer {
+  font-size: 20px;
+}
+
+.os-mobile .callNote {
+  font-size: 13px;
+}
+
+.os-mobile .callNote button {
+  min-height: 32px;
+}
+
+.os-mobile .aimRoot .callRingButtons {
+  flex-direction: column;
+}
+
+.os-mobile .aimRoot .callRingButtons button {
+  min-height: 52px;
+  font-size: 15px;
+}
+
+.os-mobile .callRingName {
+  font-size: 22px;
+}
+
+.os-mobile .callRing {
+  justify-content: center;
+  gap: 32px;
+}
+
+.os-mobile .callToasts {
+  left: 8px;
+  right: 8px;
+  width: auto;
+  top: calc(8px + env(safe-area-inset-top, 0));
+}
+
+.os-mobile .callToastButtons button {
+  min-height: 44px;
+  font-size: 14px;
+}
+
+/* buttons that start calls (IM window header, Us) */
+.callStart {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.aimImHeaderCalls {
+  display: inline-flex;
+  gap: 4px;
+  flex: none;
+}
+
+.aimRoot .aimImHeaderCalls button {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 0 6px;
+  min-height: 23px;
+}
+
+.os-mobile .aimRoot .aimImHeaderCalls button {
+  min-height: 36px;
+}

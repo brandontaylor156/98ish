@@ -394,8 +394,18 @@
 .aimImHeader {
   display: flex;
   justify-content: space-between;
-  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 8px;
   flex: none;
+}
+
+.aimImTo {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .aimImWarning {

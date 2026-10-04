@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useReducer, useRef, useState } from "react"
+import React, { createContext, useContext, useEffect, useMemo, useReducer, useRef, useState } from "react"
 import { playSound } from "./sounds"
 import "./Aim.css"
 import { unlock } from "../../../utils/achievements"
@@ -155,6 +155,10 @@ const reducer = (state, action) => {
   }
 }
 
+// Voice and video calls: their own download, loaded while signed on
+const CallManager = React.lazy(() => import("./call/CallManager"))
+const CALL_EVENTS = ["aim:callRing", "aim:callAnswered", "aim:callSignal", "aim:callMedia", "aim:callEnd", "aim:callMissed"]
+
 const AimContext = createContext(null)
 export const useAim = () => useContext(AimContext)
 
@@ -173,6 +177,19 @@ export const AimProvider = ({ socket, windows, dispatch: dispatchWindow, onOpenV
   windowsRef.current = windows
 
   useEffect(() => pendingWindows.current.clear(), [windows])
+
+  // Call events wait here until the call code has loaded (a ring right after signing on)
+  const callListener = useRef(null)
+  const callBacklog = useRef([])
+  const onCall = (fn) => {
+    callListener.current = fn
+    const backlog = callBacklog.current
+    callBacklog.current = []
+    backlog.forEach(([event, payload]) => fn(event, payload))
+    return () => {
+      if (callListener.current === fn) callListener.current = null
+    }
+  }
 
   const sound = (name) => prefsRef.current.sound && playSound(name)
 
@@ -392,6 +409,12 @@ export const AimProvider = ({ socket, windows, dispatch: dispatchWindow, onOpenV
       },
       disconnect: () => dispatch({ type: "connection", connected: false }),
     }
+    for (const event of CALL_EVENTS) {
+      handlers[event] = (payload) => {
+        if (callListener.current) callListener.current(event, payload)
+        else callBacklog.current = [...callBacklog.current, [event, payload]].slice(-20)
+      }
+    }
 
     for (const [event, handler] of Object.entries(handlers)) socket.on(event, handler)
     return () => {
@@ -523,9 +546,27 @@ export const AimProvider = ({ socket, windows, dispatch: dispatchWindow, onOpenV
     openInfo,
     openVideo: onOpenVideo,
     getToken: () => tokenRef.current, // the session token (the online drive signs in with it)
+    // for calls (call/CallManager.jsx)
+    request,
+    emit: (event, payload) => socket.emit(event, payload),
+    onCall,
+    openWindow,
+    closeWindows,
+    getWindows: () => windowsRef.current,
+    // a grey system line in an IM conversation ("Missed call from ...")
+    addNotice: (screenName, text) => dispatch({ type: "message", screenName, message: { system: true, text, time: Date.now() } }),
   }
 
-  return <AimContext.Provider value={value}>{children}</AimContext.Provider>
+  return (
+    <AimContext.Provider value={value}>
+      {children}
+      {state.status === "online" && (
+        <React.Suspense fallback={null}>
+          <CallManager />
+        </React.Suspense>
+      )}
+    </AimContext.Provider>
+  )
 }
 
 // Buddy List rows: each group's buddies with their presence, plus an Offline group
