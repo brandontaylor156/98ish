@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react"
+import { getSettings } from "../../utils/settings"
 
 // Phone desktop icons: tap to open, drag to move. Icons snap to a grid; dropping onto
 // another icon swaps the two. The arrangement is remembered on this device.
@@ -113,7 +114,7 @@ const MobileIcons = ({ programs, onOpen }) => {
     if (!g || g.id !== event.pointerId) return
     if (!g.dragging) {
       // held still: that was a long press (the desktop shows its menu), not a tap
-      if (performance.now() - g.at > 450) return
+      if (performance.now() - g.at > (getSettings().longPressMs || 500) - 50) return
       swallowNextClick()
       return onOpen(program)
     }
@@ -157,6 +158,14 @@ const MobileIcons = ({ programs, onOpen }) => {
             onPointerUp={(e) => onPointerUp(e, program)}
             onPointerCancel={onPointerCancel}
             onContextMenu={(e) => e.preventDefault()}
+            role="button"
+            tabIndex={0}
+            aria-label={program.label ?? program.name}
+            onKeyDown={(e) => {
+              if (e.key !== "Enter" && e.key !== " ") return
+              e.preventDefault()
+              onOpen(program)
+            }}
           >
             <img src={program.icon} alt="" draggable="false" />
             <label className="desktopIconLabel text-light">{program.label ?? program.name}</label>

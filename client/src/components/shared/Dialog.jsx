@@ -67,6 +67,7 @@ const Dialog = ({ title, onOk, onNo, onCancel, okLabel = "OK", noLabel = "No", c
         ref={floating}
         className="window dialog"
         role="dialog"
+        aria-modal="true"
         aria-labelledby={titleId}
         onSubmit={(e) => {
           e.preventDefault()

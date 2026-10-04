@@ -18,6 +18,7 @@ import { buildVenue, VENUES } from "./venue.js"
 import { CHARACTERS, lookFor } from "./looks.js"
 import { actionFor, bindingsFor, padEdges, readPad, stickAim } from "./input.js"
 import { createGuest, createHost, onlineRoster } from "./netplay.js"
+import { reducedMotion } from "../../../utils/settings"
 
 const BALL_SCALE = 1.5 // drawn a little bigger than life so it reads on a phone
 const TRAIL_N = 18
@@ -1012,7 +1013,7 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
           trailColor = hot ? [1, 0.55, 0.2] : perfect ? [0.75, 1, 1] : [1, 0.95, 0.6]
           burst(e.x, e.y, e.z, big ? 26 : perfect ? 12 : 6, { speed: big ? 5 : 2.5, color: hot ? [1, 0.6, 0.2] : [1, 0.95, 0.55], life: big ? 0.5 : 0.3 })
           if (big && (mode === "local" || mode === "demo")) hitStop = 0.08
-          if (big) shake = 1
+          if (big && !reducedMotion()) shake = 1
           // everyone on the other side gets on their toes
           for (const f of figures) if (f.player.team !== e.team) splitStep(f.anim)
           if (demo) break

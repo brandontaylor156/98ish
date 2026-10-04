@@ -16,6 +16,7 @@ import AchievementToast from "./components/OS-specific/AchievementToast"
 import CursorTrail from "./components/OS-specific/CursorTrail"
 import KeyboardHost from "./components/shared/keyboard/KeyboardHost"
 import SelectHost from "./components/shared/select/SelectHost"
+import A11yHost from "./components/OS-specific/A11yHost"
 import { arrangeWindows } from "./utils/windowArrange"
 import { unlock } from "./utils/achievements"
 import { programByName } from "./utils/programs"
@@ -464,6 +465,8 @@ function App() {
       <KeyboardHost />
       {/* 98-style drop-down lists and date/time pickers for every <select> and date field */}
       <SelectHost />
+      {/* Accessibility Options, Mouse and Power Management for the whole page */}
+      <A11yHost settings={settings} mobile={mobile} />
     </div>
   )
 }

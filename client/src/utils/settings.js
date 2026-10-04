@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react"
+import { migrateSettings, resolveReducedMotion } from "./a11y.js"
+import { REGION_DEFAULTS, setRegionPrefs } from "./region.js"
 
 // Desktop settings (Display Properties and the startup options), kept in this browser.
 // The custom wallpaper image lives under its own key since it's much bigger.
@@ -85,27 +87,64 @@ export const DEFAULT_SETTINGS = {
   periodShortcut: true, // double space types ". "
   keyRepeatDelay: 500, // ms before a held key repeats
   keyRepeatRate: 60, // ms between repeats
+  // Accessibility Options (Control Panel; utils/a11y.js, hooks/useA11y.js, a11y.css)
+  textSize: "normal", // normal | large | xlarge: every font size and the title bars
+  contrast: "off", // off | black | white: Windows 98's High Contrast schemes
+  reduceMotion: "system", // system (the device's setting) | on | off
+  tapTargets: "normal", // normal | large: bigger buttons and rows on touch screens
+  magZoom: 2, // Magnifier: 2-6 times
+  magFollowMouse: true,
+  magFollowFocus: true,
+  // Mouse (Control Panel)
+  doubleClickMs: 500, // two clicks closer than this open things
+  swapButtons: false, // left-handed: the right button clicks, the left one opens menus
+  longPressMs: 500, // touch screens: hold this long for the right-click menu
+  // Regional Settings (utils/region.js)
+  region: { ...REGION_DEFAULTS },
+  // Power Management: keep the screen on while 98ish is open (Wake Lock)
+  keepAwake: false,
+  // Add/Remove Programs: programs taken off the desktop / out of the Start menu
+  hiddenDesktop: [],
+  hiddenStart: [],
+  // Internet Options: Internet Explorer's home page ("" = the Start Page)
+  ieHome: "",
 }
 
 const listeners = new Set()
 
+// (migrateSettings fills in defaults and upgrades settings saved by older versions)
 const read = () => {
   try {
-    return { ...DEFAULT_SETTINGS, ...JSON.parse(localStorage.getItem(KEY)) }
+    return migrateSettings(JSON.parse(localStorage.getItem(KEY)), DEFAULT_SETTINGS)
   } catch {
     return { ...DEFAULT_SETTINGS }
   }
 }
 
 let current = read()
+setRegionPrefs(current.region)
 
 export const getSettings = () => current
+
+// Less motion: Accessibility Options' choice, else the device's Reduce Motion setting.
+// For motion drawn in code (confetti, screen shake, trails); CSS animations stop by
+// themselves (a11y.css and the PostCSS step in client/postcss-a11y.js).
+export const reducedMotion = (s = current) => {
+  let system = false
+  try {
+    system = !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
+  } catch {
+    // no window (Node)
+  }
+  return resolveReducedMotion(s.reduceMotion, system)
+}
 
 // the master volume as a gain multiplier (0 when muted)
 export const masterGain = (s = current) => (s.muted ? 0 : Math.pow(Math.max(0, Math.min(100, s.volume ?? 80)) / 100, 2))
 
 export const setSettings = (patch) => {
   current = { ...current, ...patch }
+  if (patch.region) setRegionPrefs(current.region)
   try {
     localStorage.setItem(KEY, JSON.stringify(current))
   } catch {
@@ -293,11 +332,33 @@ export const CURSORS = {
   flower: 'url("/assets/themes/cursors/flower.svg") 1 1, default',
   butterfly: 'url("/assets/themes/cursors/butterfly.svg") 1 1, default',
   moon: 'url("/assets/themes/cursors/moon.svg") 1 1, default',
+  // Mouse > Pointers: easier-to-see arrows
+  large: 'url("/assets/cursors/large.svg") 1 1, default',
+  black: 'url("/assets/cursors/black.svg") 1 1, default',
+  inverted: 'url("/assets/cursors/inverted.svg") 1 1, default',
 }
+
+// Mouse > Pointers: the pointer sets to choose from
+export const POINTER_SCHEMES = [
+  { id: "default", label: "Windows Standard" },
+  { id: "large", label: "Windows Standard (large)" },
+  { id: "black", label: "Windows Black (large)" },
+  { id: "inverted", label: "Windows Yellow (large)" },
+  { id: "rocket", label: "Deep Space" },
+  { id: "fish", label: "Underwater" },
+  { id: "neon", label: "Sunset Grid" },
+  { id: "bone", label: "Dinosaurs" },
+  { id: "heartwand", label: "Pastel Dream" },
+  { id: "paw", label: "Kitty Café" },
+  { id: "flower", label: "Flower Garden" },
+  { id: "butterfly", label: "Y2K Sparkle" },
+  { id: "moon", label: "Starry Night" },
+]
 
 // the mouse trails (components/OS-specific/CursorTrail.jsx)
 export const CURSOR_TRAILS = [
   { id: "none", label: "None" },
+  { id: "pointer", label: "Pointer trails" },
   { id: "sparkle", label: "Sparkles" },
   { id: "hearts", label: "Hearts" },
 ]

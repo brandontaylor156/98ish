@@ -28,6 +28,8 @@ import EventDetails from "./EventDetails"
 import { CalendarSettings, JoinCalendar, NewCalendar } from "./CalendarSettings"
 import Sheet from "./Sheet"
 import CheckBox from "./CheckBox"
+import { useSettings } from "../../../utils/settings"
+import { weekStart } from "../../../utils/region"
 import "./Calendar.css"
 
 // 98ish Calendar: month, week, day, agenda and memos; your calendar on this device, your
@@ -95,6 +97,8 @@ const ScopeAsk = ({ kind, mobile, onPick, onCancel, first }) => (
 
 const Calendar = ({ calendarView: initial = {}, mobile, dispatch, onClose }) => {
   const cal = useCalendar()
+  // Regional Settings: the first day of the week and 12/24-hour times
+  const { region } = useSettings()
   const zone = currentZone()
   const today = dateIn(Date.now(), zone)
   const [selected, setSelected] = useState(initial.date || today)
@@ -150,11 +154,11 @@ const Calendar = ({ calendarView: initial = {}, mobile, dispatch, onClose }) => 
   // the dates on screen
   const dates = useMemo(() => {
     if (view === "month") return monthGrid(p.y, p.m)
-    if (view === "week") return Array.from({ length: 7 }, (_, i) => addDays(selected, i - weekdayOf(selected)))
+    if (view === "week") return Array.from({ length: 7 }, (_, i) => addDays(selected, i - ((weekdayOf(selected) - weekStart() + 7) % 7)))
     if (view === "day") return [selected]
     if (view === "agenda") return Array.from({ length: 60 }, (_, i) => addDays(selected, i))
     return []
-  }, [view, selected])
+  }, [view, selected, region])
 
   const byDate = useMemo(() => {
     if (!dates.length) return new Map()

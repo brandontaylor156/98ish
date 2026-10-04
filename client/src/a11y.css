@@ -1,0 +1,232 @@
+/* Accessibility Options (Control Panel), applied through classes and variables on <html>
+   (hooks/useA11y.js). Font sizes everywhere already follow --text-scale (the PostCSS step
+   in client/postcss-a11y.js), and so do the apps' own reduced-motion rules. */
+
+/* ---------- keyboard focus: the 98 dotted rectangle, for keyboard users ---------- */
+
+.os-root :focus-visible:not(input, textarea, select, [contenteditable]) {
+  outline: 1px dotted currentColor;
+  outline-offset: -3px;
+}
+.os-root .desktopIconInner:focus-visible {
+  outline: none;
+}
+.os-root .desktopIconInner:focus-visible .desktopIconLabel {
+  outline: 1px dotted #fff;
+  outline-offset: 0;
+}
+.os-root .smItem:focus-visible,
+.os-root .smItem:focus {
+  outline: none;
+}
+/* the Start menu item the arrow keys are on */
+.os-root .smItem.is-focus:not(.is-disabled) {
+  background: #000080;
+  color: #fff;
+}
+.os-root .taskbarTab:focus-visible {
+  outline: 1px dotted #000;
+  outline-offset: -4px;
+}
+
+/* ---------- text size ---------- */
+
+html.a11y-text {
+  --taskbar-h: calc(35px + (var(--text-scale) - 1) * 16px + env(safe-area-inset-bottom));
+}
+html.a11y-text .os-root .title-bar-text {
+  font-size: calc(16px * var(--text-scale));
+}
+html.a11y-text .os-root .title-bar-text > img {
+  height: calc(100% - 2px);
+}
+html.a11y-text .os-root .title-bar-controls button {
+  min-width: calc(16px * var(--text-scale));
+  min-height: calc(14px * var(--text-scale));
+}
+html.a11y-text .os-root .titleBarButton {
+  width: calc(19px * var(--text-scale));
+}
+
+/* the taskbar's buttons and clock grow up to Large, so they still fit in it */
+html.a11y-text .os-root .taskbarTab,
+html.a11y-text .os-root .startBtn,
+html.a11y-text .os-root .date-and-time {
+  font-size: calc(16px * min(var(--text-scale), 1.25));
+}
+
+/* desktop icons keep their spacing: their names grow a little less */
+html.a11y-text .os-root .desktopIconLabel {
+  font-size: calc(1rem * min(var(--text-scale), 1.15));
+}
+html.a11y-text .os-root.os-mobile .desktopIconLabel {
+  font-size: calc(14px * min(var(--text-scale), 1.15));
+}
+
+/* ---------- less motion ---------- */
+
+html.a11y-motion-reduce *,
+html.a11y-motion-reduce *::before,
+html.a11y-motion-reduce *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  animation-delay: 0s !important;
+  transition-duration: 0.01ms !important;
+  transition-delay: 0s !important;
+  scroll-behavior: auto !important;
+}
+
+/* ---------- larger tap targets (phones) ---------- */
+
+html.a11y-big-targets .os-root .title-bar-controls button {
+  min-width: 36px;
+  height: 28px;
+}
+html.a11y-big-targets .os-root .smItem,
+html.a11y-big-targets .os-root .contextMenu button,
+html.a11y-big-targets .os-root .menu button,
+html.a11y-big-targets .os-root .selRow {
+  min-height: 44px;
+}
+html.a11y-big-targets .os-root .menuTitle > button {
+  min-height: 36px;
+  padding: 6px 10px !important;
+}
+html.a11y-big-targets .os-root .dialogButtons button,
+html.a11y-big-targets .os-root .cplButtons button,
+html.a11y-big-targets .os-root .window-body button,
+html.a11y-big-targets .os-root .dialogBody button {
+  min-height: 40px;
+  min-width: 72px;
+}
+html.a11y-big-targets .os-root .field-row {
+  min-height: 40px;
+  align-items: center;
+}
+html.a11y-big-targets .os-root .taskbarTab {
+  min-width: 44px;
+}
+html.a11y-big-targets .os-root .cplItem,
+html.a11y-big-targets .os-root .fxItem {
+  min-height: 48px;
+}
+
+/* ---------- High Contrast (Black and White) ---------- */
+
+/* Every element takes the scheme's text color over a plain background, as Windows' High
+   Contrast did; pictures, video, canvases and windows that keep their colors (games, Paint,
+   Photos: data-hc-keep on the window) are left alone. Surfaces get the window color,
+   selections the highlight. */
+html.a11y-hc body {
+  background: var(--hc-bg) !important;
+}
+html.a11y-hc .os-root {
+  background-image: none !important;
+  background-color: var(--hc-bg) !important;
+  --title-a: var(--hc-title) !important;
+  --title-b: var(--hc-title) !important;
+  --title-inactive-a: var(--hc-inactive) !important;
+  --title-inactive-b: var(--hc-inactive) !important;
+  --icon-filter: none !important;
+}
+/* (no specificity: every rule below wins over it) */
+:where(html.a11y-hc body *:not(img, svg, svg *, canvas, video, iframe, picture, object, .hc-keep, .hc-keep *, [data-hc-keep] > :not(.title-bar), [data-hc-keep] > :not(.title-bar) *)) {
+  color: var(--hc-fg) !important;
+  background-color: transparent !important;
+  text-shadow: none !important;
+  caret-color: var(--hc-fg) !important;
+}
+/* surfaces: windows, dialogs, menus, bars, fields, the keyboard and the pickers */
+html.a11y-hc :is(.window, .window-body, .dialog, .menu, .contextMenu, .startMenu, .smSub, .smList, .taskbar, .tray, .trayPopup, .switcher, .status-bar, .status-bar-field, .kb98, .kb98Cap, .kb98Alts, .kb98Preview, .selDrop, .selSheet, .selList, .lockScreen, .bootScreen, .appLoading, fieldset, .sunken-panel, .tree-view, [role="tabpanel"], [role="dialog"], [role="tooltip"], [role="listbox"], [role="menu"], table, thead, tbody, tr, th, td, input, textarea, select, option, button, .cplRoot, .cplPane):not(:where(.hc-keep, .hc-keep *, [data-hc-keep] > :not(.title-bar), [data-hc-keep] > :not(.title-bar) *)) {
+  background-color: var(--hc-bg) !important;
+}
+/* no gradients or patterns behind button text (the title bar buttons' pictures stay, and
+   so does the drop-down lists' arrow button) */
+html.a11y-hc :is(button, .kb98Cap):not(:where(.title-bar-controls button, .hc-keep *, [data-hc-keep] > :not(.title-bar) *)) {
+  background-image: none !important;
+}
+html.a11y-hc .taskbar,
+html.a11y-hc .startMenu,
+html.a11y-hc .menu,
+html.a11y-hc .contextMenu,
+html.a11y-hc .dialog,
+html.a11y-hc .kb98,
+html.a11y-hc .selDrop,
+html.a11y-hc .selSheet {
+  outline: 1px solid var(--hc-edge);
+}
+html.a11y-hc .os-root button:not(.hc-keep *),
+html.a11y-hc .os-root input:not([type="range"], [type="checkbox"], [type="radio"]),
+html.a11y-hc .os-root textarea,
+html.a11y-hc .os-root select {
+  box-shadow: inset 0 0 0 1px var(--hc-edge) !important;
+}
+html.a11y-hc .os-root button:active,
+html.a11y-hc .os-root button[aria-pressed="true"],
+html.a11y-hc .os-root .taskbarTab.is-active {
+  box-shadow: inset 0 0 0 2px var(--hc-edge) !important;
+}
+/* title bars: the scheme's colors, flat */
+html.a11y-hc .title-bar,
+html.a11y-hc .title-bar * {
+  background-color: transparent !important;
+  color: var(--hc-title-fg) !important;
+}
+html.a11y-hc .title-bar {
+  background: var(--hc-title) !important;
+}
+html.a11y-hc .title-bar.inactive {
+  background: var(--hc-inactive) !important;
+  outline: 1px solid var(--hc-edge);
+}
+html.a11y-hc .title-bar.inactive,
+html.a11y-hc .title-bar.inactive * {
+  color: var(--hc-inactive-fg) !important;
+}
+/* the title bar buttons' pictures are black: a white face keeps them visible */
+html.a11y-hc .title-bar .title-bar-controls button {
+  background-color: #ffffff !important;
+  box-shadow: inset 0 0 0 1px #000 !important;
+  color: #000 !important;
+}
+/* selections and highlighted menu items */
+html.a11y-hc :is(.smItem:hover:not(.is-disabled), .smItem.is-open, .smItem.is-focus:not(.is-disabled), .menu button:hover:not(:disabled), .menu button:focus-visible, .contextMenu button:hover:not(:disabled), .contextMenu button:focus, .menuTitle.is-open > button, .is-selected, [aria-selected="true"], .selRow.is-active, .selDay.is-active, .selMonth.is-active, .desktopIconInner.is-selected .desktopIconLabel, option:checked, .highlighted),
+html.a11y-hc :is(.smItem:hover:not(.is-disabled), .smItem.is-open, .smItem.is-focus:not(.is-disabled), .menu button:hover:not(:disabled), .menu button:focus-visible, .contextMenu button:hover:not(:disabled), .contextMenu button:focus, .menuTitle.is-open > button, .is-selected, [aria-selected="true"], .selRow.is-active, .selDay.is-active, .selMonth.is-active, .desktopIconInner.is-selected .desktopIconLabel, .highlighted) *:not(img, svg, svg *, canvas, .smSub, .smSub *) {
+  background-color: var(--hc-hi) !important;
+  color: var(--hc-hi-fg) !important;
+}
+html.a11y-hc .smItem.is-open .smSub,
+html.a11y-hc .smItem.is-open .smSub .smItem:not(:hover, .is-open, .is-focus) {
+  background-color: var(--hc-bg) !important;
+  color: var(--hc-fg) !important;
+}
+html.a11y-hc ::selection {
+  background: var(--hc-hi);
+  color: var(--hc-hi-fg);
+}
+/* links and grayed-out things */
+html.a11y-hc a:not(.hc-keep *),
+html.a11y-hc a:not(.hc-keep *) * {
+  color: var(--hc-link) !important;
+}
+html.a11y-hc :disabled:not(.hc-keep *),
+html.a11y-hc :disabled:not(.hc-keep *) *,
+html.a11y-hc .is-disabled:not(.hc-keep *),
+html.a11y-hc .is-disabled:not(.hc-keep *) *,
+html.a11y-hc ::placeholder {
+  color: var(--hc-gray) !important;
+}
+/* 98.css check boxes and option buttons are drawn on the label: keep their white box */
+html.a11y-hc input[type="checkbox"] + label::before,
+html.a11y-hc input[type="radio"] + label::before {
+  outline: 1px solid var(--hc-edge);
+}
+/* desktop icons' pictures stay as they are; their names get the scheme */
+html.a11y-hc .desktopIconLabel {
+  background-color: var(--hc-bg) !important;
+}
+/* the focus rectangle in the scheme's color */
+html.a11y-hc .os-root :focus-visible:not(input, textarea, select) {
+  outline: 2px dotted var(--hc-fg) !important;
+  outline-offset: -3px;
+}

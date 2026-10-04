@@ -1,6 +1,5 @@
 import React, { useEffect, useRef } from "react"
-
-const reducedMotion = () => !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
+import { reducedMotion } from "../../utils/settings"
 
 // Runs one screensaver's drawing code on a canvas that fills its parent.
 // create(canvas, options, { preview, reduced }) returns { resize(w, h, dpr), frame(dt), dispose() }.

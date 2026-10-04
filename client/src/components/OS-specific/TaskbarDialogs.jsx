@@ -8,7 +8,10 @@ import { setSettings } from "../../utils/settings"
 // what each shortcut does (TaskBar.jsx handles the keys)
 export const SHORTCUTS = [
   ["Alt+Q (hold Alt)", "Switch between windows. Keep pressing Q to move along, let go of Alt to pick. Alt+` works too; add Shift to go backwards."],
-  ["Ctrl+Esc, or the Windows/Command key alone", "Open the Start menu."],
+  ["Ctrl+Esc, or the Windows/Command key alone", "Open the Start menu. Then the arrow keys move, Enter opens, Esc goes back."],
+  ["Alt+F4", "Close the active window."],
+  ["Shift+F10, or the Menu key", "The right-click menu of the selected icon or item."],
+  ["Tab, then Enter", "Move between desktop icons, buttons and boxes; Enter opens."],
   ["Ctrl+Alt+E", "Open My Computer."],
   ["Ctrl+Alt+D", "Show the desktop (press again to bring the windows back)."],
   ["Ctrl+Alt+R", "Run..."],

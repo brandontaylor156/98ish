@@ -53,6 +53,7 @@ const FileExplorer = ({ path: initialPath = ["C:"], dispatch, onTitle }) => {
   const [dialog, setDialog] = useState(null)
   const [address, setAddress] = useState("")
   const [uploading, setUploading] = useState(false)
+  const [cpSelected, setCpSelected] = useState(false) // the Control Panel folder (My Computer view)
   const sync = useDriveSync()
   const rootRef = useRef(null)
   const importRef = useRef(null)
@@ -89,6 +90,8 @@ const FileExplorer = ({ path: initialPath = ["C:"], dispatch, onTitle }) => {
     setNav(({ stack, index }) => ({ stack, index: Math.min(stack.length - 1, Math.max(0, index + delta)) }))
   }
   const up = () => path.length && go(path.slice(0, -1))
+
+  const openControlPanel = () => dispatch({ type: "open_window", payload: launch("Control Panel") })
 
   const open = (item) => {
     if (!item) return
@@ -367,6 +370,7 @@ const FileExplorer = ({ path: initialPath = ["C:"], dispatch, onTitle }) => {
     if (e.key === "Delete" && selectedItem) askDelete(selectedItem)
     else if (e.key === "F2" && selectedItem) rename(selectedItem)
     else if (e.key === "Enter" && selectedItem) open(selectedItem)
+    else if (e.key === "Enter" && cpSelected && !path.length) openControlPanel()
     else if (e.key === "Backspace") up()
     else if (ctrl && e.key.toLowerCase() === "x") cut(selectedItem)
     else if (ctrl && e.key.toLowerCase() === "c") copy(selectedItem)
@@ -376,8 +380,9 @@ const FileExplorer = ({ path: initialPath = ["C:"], dispatch, onTitle }) => {
     e.preventDefault()
   }
 
-  const objectCount = `${items.length} object${items.length === 1 ? "" : "s"}`
-  const status = uploading ? "Uploading..." : selectedItem ? `${selectedItem.name} \u2014 ${typeName(selectedItem)}${selectedItem.isDirectory ? "" : `, ${formatSize(sizeOf(selectedItem))}`}` : objectCount
+  const shownCount = items.length + (path.length ? 0 : 1)
+  const objectCount = `${shownCount} object${shownCount === 1 ? "" : "s"}`
+  const status = uploading ? "Uploading..." : cpSelected && !path.length ? "Control Panel — System Folder" : selectedItem ? `${selectedItem.name} \u2014 ${typeName(selectedItem)}${selectedItem.isDirectory ? "" : `, ${formatSize(sizeOf(selectedItem))}`}` : objectCount
 
   return (
     <div className="fxRoot" ref={rootRef} tabIndex={-1} onKeyDown={onKeyDown} onPaste={onPaste}>
@@ -433,9 +438,11 @@ const FileExplorer = ({ path: initialPath = ["C:"], dispatch, onTitle }) => {
         data-folder={canEdit ? fs.displayPath(dir) : undefined}
         onClick={(e) => {
           if (!e.target.closest("[data-item]")) setSelected(null)
+          if (!e.target.closest("[data-control-panel]")) setCpSelected(false)
         }}
         onContextMenu={(e) => {
           e.preventDefault()
+          if (e.target.closest("[data-control-panel]")) return setMenu({ x: e.clientX, y: e.clientY, controlPanel: true })
           const el = e.target.closest("[data-item]")
           const item = el ? items[Number(el.dataset.item)] : null
           if (item) setSelected(item)
@@ -486,6 +493,19 @@ const FileExplorer = ({ path: initialPath = ["C:"], dispatch, onTitle }) => {
             <span className="fxName">{item.name}</span>
           </div>
         ))}
+        {/* My Computer also holds the Control Panel, as in Windows 98 */}
+        {!path.length && (
+          <div
+            data-control-panel=""
+            className={cpSelected ? "fxItem is-selected" : "fxItem"}
+            onClick={() => (setSelected(null), setCpSelected(true))}
+            {...openGesture(openControlPanel)}
+            title="System Folder"
+          >
+            <img src="/assets/program_icons/cpl/control.svg" alt="" draggable="false" />
+            <span className="fxName">Control Panel</span>
+          </div>
+        )}
       </div>
 
       <div className="status-bar fxStatus">
@@ -511,7 +531,7 @@ const FileExplorer = ({ path: initialPath = ["C:"], dispatch, onTitle }) => {
         }}
       />
 
-      {menu && <ContextMenu x={menu.x} y={menu.y} items={menu.item ? itemMenu(menu.item) : folderMenu()} onClose={() => setMenu(null)} />}
+      {menu && <ContextMenu x={menu.x} y={menu.y} items={menu.controlPanel ? [{ label: "Open", bold: true, onClick: openControlPanel }] : menu.item ? itemMenu(menu.item) : folderMenu()} onClose={() => setMenu(null)} />}
 
       {dialog?.kind === "name" && (
         <Dialog title={dialog.title} onOk={finishName} onCancel={() => setDialog(null)}>

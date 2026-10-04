@@ -11,6 +11,7 @@ import { drawShift, inputShift } from "./timing.js"
 import { createVenue } from "./venue.js"
 import { dotCanvas, flameCanvas, textureOf } from "./art.js"
 import { PAD } from "./pad.js"
+import { reducedMotion } from "../../../utils/settings"
 
 export const LANE_COLORS = [0x2bd94f, 0xff3341, 0xffd21f, 0x2a8cff, 0xff8a1a]
 const HALF_W = 2.78
@@ -449,7 +450,7 @@ export const createEngine = ({ canvas, container, onStatus, onHud, onEvent, onMe
           break
         case "starOn":
           audio.sfx("starOn")
-          if (prefs.shake !== false) shake = 1
+          if (prefs.shake !== false && !reducedMotion()) shake = 1
           flash = 1
           onEvent?.({ type: "starOn" })
           break

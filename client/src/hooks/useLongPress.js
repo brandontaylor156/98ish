@@ -1,6 +1,8 @@
 import { useRef } from "react"
+import { getSettings } from "../utils/settings"
 
-const HOLD_MS = 500
+// how long to hold: Control Panel > Mouse > Touch (settings.longPressMs)
+const holdMs = () => getSettings().longPressMs || 500
 const SLOP_PX = 10
 
 // Touch screens have no right-click: a long press stands in for it. Spread the returned
@@ -35,7 +37,7 @@ export const useLongPress = (onLongPress) => {
           window.addEventListener("click", swallow, true)
           setTimeout(() => window.removeEventListener("click", swallow, true), 600)
           onLongPress(x, y, { target })
-        }, HOLD_MS),
+        }, holdMs()),
       }
     },
     onPointerMove: (e) => {

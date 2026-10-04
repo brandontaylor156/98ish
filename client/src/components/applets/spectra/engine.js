@@ -21,6 +21,7 @@ import {
   zoneName,
 } from "./logic"
 import { createAudio } from "./audio"
+import { reducedMotion } from "../../../utils/settings"
 
 const R = 6 // tube radius
 const SHIP_R = R - 0.9 // the ship rides this far from the axis
@@ -635,7 +636,7 @@ export const createEngine = ({ canvas, container, onHud, onStatus, onEvent, best
           audio.shard(e.combo)
           break
         case "graze":
-          shake = Math.min(1, shake + 0.25)
+          if (!reducedMotion()) shake = Math.min(1, shake + 0.25)
           burst(game.distance, e.theta, SHIP_R, 10, [1, 1, 1], { speed: 14, life: 0.4, size: 0.9 })
           audio.graze()
           break

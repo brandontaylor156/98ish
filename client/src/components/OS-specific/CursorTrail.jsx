@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from "react"
+import { reducedMotion } from "../../utils/settings"
 
 // A little trail of sparkles or hearts behind the mouse (Display Properties > Appearance,
 // and some Desktop Themes). Mouse only: not on touch screens, and not at all when the
@@ -13,7 +14,7 @@ const LIFE = 0.75 // seconds
 
 export const trailAllowed = () => {
   const mq = (q) => !!window.matchMedia?.(q).matches
-  return mq("(hover: hover) and (pointer: fine)") && !mq("(prefers-reduced-motion: reduce)")
+  return mq("(hover: hover) and (pointer: fine)") && !reducedMotion()
 }
 
 const sparkle = (ctx, s) => {
@@ -36,6 +37,24 @@ const heart = (ctx, s) => {
   ctx.fill()
 }
 
+// Windows 98's pointer trails: ghost arrows where the pointer just was (Control Panel > Mouse)
+const arrow = (ctx) => {
+  ctx.beginPath()
+  ctx.moveTo(0, 0)
+  ctx.lineTo(0, 16)
+  ctx.lineTo(4, 12)
+  ctx.lineTo(7, 18)
+  ctx.lineTo(9, 17)
+  ctx.lineTo(6, 11)
+  ctx.lineTo(11, 11)
+  ctx.closePath()
+  ctx.fillStyle = "#fff"
+  ctx.fill()
+  ctx.strokeStyle = "#000"
+  ctx.lineWidth = 1
+  ctx.stroke()
+}
+
 const CursorTrail = ({ kind = "sparkle" }) => {
   const ref = useRef(null)
 
@@ -50,6 +69,7 @@ const CursorTrail = ({ kind = "sparkle" }) => {
     let lastX = -1
     let lastY = -1
     let dpr = 1
+    const life = kind === "pointer" ? 0.3 : LIFE
 
     const size = () => {
       dpr = Math.min(2, window.devicePixelRatio || 1)
@@ -66,19 +86,20 @@ const CursorTrail = ({ kind = "sparkle" }) => {
       for (let i = parts.length - 1; i >= 0; i--) {
         const p = parts[i]
         p.age += dt
-        if (p.age >= LIFE) {
+        if (p.age >= life) {
           parts.splice(i, 1)
           continue
         }
         p.x += p.vx * dt
         p.y += p.vy * dt
-        const k = 1 - p.age / LIFE
+        const k = 1 - p.age / life
         ctx.save()
         ctx.globalAlpha = k
         ctx.translate(p.x, p.y)
         ctx.rotate(p.spin * p.age)
         ctx.fillStyle = p.color
-        if (kind === "hearts") heart(ctx, p.size * (0.6 + 0.4 * k))
+        if (kind === "pointer") arrow(ctx)
+        else if (kind === "hearts") heart(ctx, p.size * (0.6 + 0.4 * k))
         else sparkle(ctx, p.size * (0.4 + 0.6 * Math.sin(k * Math.PI)))
         ctx.restore()
       }
@@ -99,7 +120,8 @@ const CursorTrail = ({ kind = "sparkle" }) => {
       lastX = e.clientX
       lastY = e.clientY
       if (parts.length >= MAX) parts.shift()
-      parts.push({
+      if (kind === "pointer") parts.push({ x: e.clientX, y: e.clientY, vx: 0, vy: 0, size: 1, spin: 0, color: "#fff", age: 0 })
+      else parts.push({
         x: e.clientX + 10 + (Math.random() - 0.5) * 8,
         y: e.clientY + 14 + (Math.random() - 0.5) * 8,
         vx: (Math.random() - 0.5) * 30,

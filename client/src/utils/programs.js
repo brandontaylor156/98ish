@@ -47,6 +47,20 @@ export const programs = [
   { name: "Keyboard Properties", app: "keyboard", icon: "/assets/program_icons/keyboard.svg", width: 420, height: 440, group: null, desktop: false, single: true },
   { name: "Desktop Themes", app: "themes", icon: "/assets/program_icons/themes.svg", width: 560, height: 500, group: null, desktop: false, single: true },
   { name: "System Properties", app: "sysprops", icon: "/assets/program_icons/computer_explorer.png", width: 420, height: 470, group: null, desktop: false, single: true },
+  // Control Panel (Start > Settings, My Computer, Run "control") and the applets it adds
+  // (applets/controlPanel/; `applet` picks one in CplApplet.jsx)
+  { name: "Control Panel", app: "control", icon: "/assets/program_icons/cpl/control.svg", width: 660, height: 470, group: null, desktop: false, single: true },
+  { name: "Accessibility Options", app: "cpl", applet: "access", icon: "/assets/program_icons/cpl/access.svg", width: 430, height: 500, group: null, desktop: false, single: true },
+  { name: "Add/Remove Programs", app: "cpl", applet: "programs", icon: "/assets/program_icons/cpl/programs.svg", width: 480, height: 520, group: null, desktop: false, single: true },
+  { name: "Mouse", app: "cpl", applet: "mouse", icon: "/assets/program_icons/cpl/mouse.svg", width: 420, height: 480, group: null, desktop: false, single: true },
+  { name: "Regional Settings", app: "cpl", applet: "regional", icon: "/assets/program_icons/cpl/regional.svg", width: 430, height: 470, group: null, desktop: false, single: true },
+  { name: "Storage", app: "cpl", applet: "storage", icon: "/assets/program_icons/cpl/storage.svg", width: 440, height: 520, group: null, desktop: false, single: true },
+  { name: "Internet Options", app: "cpl", applet: "internet", icon: "/assets/program_icons/cpl/internet.svg", width: 420, height: 460, group: null, desktop: false, single: true },
+  { name: "Fonts", app: "cpl", applet: "fonts", icon: "/assets/program_icons/cpl/fonts.svg", width: 560, height: 440, group: null, desktop: false, single: true },
+  { name: "Power Management", app: "cpl", applet: "power", icon: "/assets/program_icons/cpl/power.svg", width: 420, height: 460, group: null, desktop: false, single: true },
+  { name: "Sounds", app: "cpl", applet: "sounds", icon: "/assets/program_icons/cpl/sounds.svg", width: 420, height: 480, group: null, desktop: false, single: true },
+  // Windows 98's Magnifier: a window showing what's under the pointer, bigger
+  { name: "Magnifier", app: "magnifier", icon: "/assets/program_icons/cpl/magnifier.svg", width: 520, height: 280, group: "Accessories", desktop: false, single: true },
   { name: "98ish Mail", app: "mail", type: "mail", icon: "/assets/program_icons/mail.svg", width: 760, height: 540, group: "Internet", desktop: false, single: true, also: ["Community"] },
   { name: "HomePage Studio", app: "homepage", type: "homepage", icon: "/assets/program_icons/homepage.svg", width: 940, height: 620, group: "Internet", desktop: false, single: true, also: ["Community"] },
   // from the Start menu these play against the computer; Network Neighborhood opens network games

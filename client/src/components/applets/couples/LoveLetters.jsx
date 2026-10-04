@@ -4,6 +4,7 @@ import { unlock } from "../../../utils/achievements"
 import Dialog from "../../shared/Dialog"
 import { ENVELOPE_COLORS, Envelope, FONTS, Heart, STATIONERY, Seal } from "./art"
 import { AddPhoto, NotPaired, countdown, dateLabel, nextAnniversary, playLoveChime, useCoupleEvent, useNow } from "./shared"
+import { reducedMotion } from "../../../utils/settings"
 import "./LoveLetters.css"
 
 // Love Letters: write a letter on pretty stationery, seal it in an envelope and send it
@@ -63,7 +64,7 @@ const Opening = ({ letter, onDone }) => {
   const c = ENVELOPE_COLORS[letter.envelope] || ENVELOPE_COLORS.rose
   useEffect(() => {
     playLoveChime("open")
-    const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
+    const reduced = reducedMotion()
     const t = setTimeout(onDone, reduced ? 400 : 2700)
     return () => clearTimeout(t)
   }, [])

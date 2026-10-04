@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from "react"
+import { openOnDoubleClick } from "../utils/mouseOptions"
 
 export const useMediaQuery = (query) =>
   useSyncExternalStore(
@@ -18,8 +19,9 @@ export const useIsMobile = () =>
 // Touch is the main input (phones, tablets): there's no double-click and no right-click
 export const useIsTouch = () => useMediaQuery("(pointer: coarse)")
 
-// Props that open an item: a single tap on touch screens, a double-click with a mouse
+// Props that open an item: a single tap on touch screens, a double-click with a mouse (at
+// Control Panel > Mouse's double-click speed)
 export const useOpenGesture = () => {
   const touch = useIsTouch()
-  return (open) => (touch ? { onClick: open } : { onDoubleClick: open })
+  return (open) => (touch ? { onClick: open } : openOnDoubleClick(open))
 }

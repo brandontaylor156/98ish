@@ -25,6 +25,7 @@ import {
   stampToDate,
   todayIso,
 } from "./wayback"
+import { getSettings } from "../../../utils/settings"
 import "./InternetExplorer.css"
 
 // Internet Explorer, with a time machine: every page is shown as the Internet Archive's
@@ -33,6 +34,8 @@ import "./InternetExplorer.css"
 const DATE_KEY = "98ish.ie.date"
 const FAVORITES_KEY = "98ish.ie.favorites"
 const HISTORY_KEY = "98ish.ie.history"
+// Control Panel > Internet Options clears the History with this event
+export const HISTORY_CLEARED = "98ish:ie-history-cleared"
 const DEFAULT_DATE = "1998-12-25"
 const VIRTUAL_WIDTH = 800 // pages from the era were built for 800x600; narrow windows scale down
 const START = { kind: "start" }
@@ -191,10 +194,24 @@ const InternetExplorer = ({ initialUrl, onTitle, onNewWindow, onClose }) => {
     navigate(START)
   }
 
-  // open a bookmark this window was started with
+  // the home page (Control Panel > Internet Options), or the Start Page
+  const goHome = () => {
+    const home = getSettings().ieHome && normalizeInput(getSettings().ieHome)
+    if (home) openUrl(home)
+    else navigate(START)
+  }
+
+  // open a bookmark this window was started with, else the home page
   useEffect(() => {
     const url = initialUrl && normalizeInput(initialUrl)
     if (url) openUrl(url)
+    else if (getSettings().ieHome) goHome()
+  }, [])
+
+  useEffect(() => {
+    const onCleared = () => setHistoryLog([])
+    window.addEventListener(HISTORY_CLEARED, onCleared)
+    return () => window.removeEventListener(HISTORY_CLEARED, onCleared)
   }, [])
 
   // ---- messages from the Archive's frame ----
@@ -389,7 +406,7 @@ const InternetExplorer = ({ initialUrl, onTitle, onNewWindow, onClose }) => {
       items: [
         { label: "Back", disabled: nav.index === 0, onClick: () => go(-1) },
         { label: "Forward", disabled: nav.index === nav.entries.length - 1, onClick: () => go(1) },
-        { label: "Home Page", onClick: () => navigate(START) },
+        { label: "Home Page", onClick: () => goHome() },
         "-",
         { label: "Earlier Copy", disabled: !currentUrl, onClick: () => stepCapture(-1) },
         { label: "Later Copy", disabled: !currentUrl, onClick: () => stepCapture(1) },
@@ -419,7 +436,7 @@ const InternetExplorer = ({ initialUrl, onTitle, onNewWindow, onClose }) => {
         <ToolButton icon="forward" label="Forward" disabled={nav.index === nav.entries.length - 1} onClick={() => go(1)} />
         <ToolButton icon="stop" label="Stop" disabled={!loading} onClick={stop} />
         <ToolButton icon="refresh" label="Refresh" onClick={refresh} />
-        <ToolButton icon="home" label="Home" onClick={() => navigate(START)} />
+        <ToolButton icon="home" label="Home" onClick={() => goHome()} />
         <span className="ieToolSep" />
         <ToolButton icon="favorites" label="Favorites" active={panel === "favorites"} onClick={() => setPanel(panel === "favorites" ? null : "favorites")} />
         <ToolButton icon="history" label="History" active={panel === "history"} onClick={() => setPanel(panel === "history" ? null : "history")} />

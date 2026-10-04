@@ -1,6 +1,7 @@
 import React, { useId, useMemo, useRef, useState } from "react"
 import WorldMap from "./WorldMap"
 import { ZONES, currentZone, getClockSettings, gmtLabel, localZone, observesDst, setClockSettings, standardOffset, useClock, wallClock, zoneName } from "../../../utils/clock"
+import { weekStart, weekdayOrder } from "../../../utils/region"
 import "./DateTimeProperties.css"
 
 // Date/Time Properties, as opened from the taskbar clock: a calendar, a ticking analog clock
@@ -211,7 +212,9 @@ const TimeField = ({ time, onSet }) => {
 // ---- the calendar ----
 
 const Calendar = ({ year, month, day, onPick }) => {
-  const first = new Date(year, month, 1).getDay()
+  // the week starts on the day Regional Settings say
+  const firstDay = weekStart()
+  const first = (new Date(year, month, 1).getDay() - firstDay + 7) % 7
   const count = daysIn(year, month)
   const cells = [...Array(first).fill(null), ...Array.from({ length: count }, (_, i) => i + 1)]
   while (cells.length < 42) cells.push(null)
@@ -226,7 +229,7 @@ const Calendar = ({ year, month, day, onPick }) => {
 
   return (
     <div className="dtCalendar" role="grid" aria-label={`${MONTHS[month]} ${year}`} tabIndex={0} onKeyDown={onKeyDown}>
-      {DAYS.map((d, i) => (
+      {weekdayOrder(firstDay).map((day) => DAYS[day]).map((d, i) => (
         <div key={`h${i}`} className="dtCalHead" role="columnheader">
           {d}
         </div>

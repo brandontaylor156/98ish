@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react"
 import { SQUARES, STRIDE, computeSquares, easeInOut } from "./spirograph"
 import { create2DRenderer, createGLRenderer } from "./renderers"
+import { reducedMotion } from "../../../utils/settings"
 import "./Hover.css"
 
 /*
@@ -65,7 +66,7 @@ const Hover = () => {
       if (!canRun()) return
       const dt = last ? Math.min(now - last, 100) : 0
       last = now
-      clock += reduceMq.matches ? dt * REDUCED_SPIN : dt
+      clock += reduceMq.matches || reducedMotion() ? dt * REDUCED_SPIN : dt
       const step = dt / TRANSITION
       progress = hovered ? Math.min(1, progress + step) : Math.max(0, progress - step)
       draw()

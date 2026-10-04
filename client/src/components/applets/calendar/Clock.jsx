@@ -22,6 +22,8 @@ import {
   useClockApp,
 } from "./clockStore"
 import CheckBox from "./CheckBox"
+import { formatTime, uses24h } from "../../../utils/region"
+import { useSettings } from "../../../utils/settings"
 import "./Calendar.css"
 import "./Clock.css"
 
@@ -38,7 +40,8 @@ const TABS = [
 
 const pad = (n) => String(n).padStart(2, "0")
 const cityName = (zone) => zone.split("/").pop().replace(/_/g, " ")
-const time12 = (d) => `${d.getHours() % 12 || 12}:${pad(d.getMinutes())} ${d.getHours() < 12 ? "AM" : "PM"}`
+// (12- or 24-hour, as Regional Settings say)
+const time12 = (d) => formatTime(d.getHours(), d.getMinutes())
 const clockText = (ms, tenths = false) => {
   const total = Math.max(0, ms)
   const h = Math.floor(total / 3_600_000)
@@ -152,8 +155,8 @@ const Alarms = () => {
             <li key={a.id} className={a.on ? "" : "ckOff"}>
               <CheckBox label={`Alarm ${a.time} on`} checked={a.on} onChange={(on) => updateAlarm(a.id, { on, lastRang: on ? null : a.lastRang })} />
               <span className="ckAlarmTime">
-                {h % 12 || 12}:{pad(m)}
-                <small> {h < 12 ? "AM" : "PM"}</small>
+                {uses24h() ? `${pad(h)}:${pad(m)}` : `${h % 12 || 12}:${pad(m)}`}
+                {!uses24h() && <small> {h < 12 ? "AM" : "PM"}</small>}
               </span>
               <span className="ckAlarmInfo">
                 <b>{a.label || "Alarm"}</b>
@@ -305,6 +308,7 @@ const Stopwatch = () => {
 }
 
 const Clock = ({ mobile, clockTab }) => {
+  useSettings() // Regional Settings: 12/24-hour times
   const [tab, setTab] = useState(clockTab || "world")
   useEffect(() => {
     const onView = (e) => e.detail?.program === "Clock" && e.detail.tab && setTab(e.detail.tab)

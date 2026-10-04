@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react"
 import { Card, CardBack, MiniCard } from "./Card"
 import { CARD } from "./engine/cards"
+import { reducedMotion } from "../../../utils/settings"
 import "./Board.css"
 
 // The duel table. It draws a match view (engine/rules.js view(): the duel as one seat may
@@ -18,7 +19,7 @@ const SHORT = { draw: "DP", standby: "SP", main1: "M1", battle: "BP", main2: "M2
 const LONG = { draw: "Draw Phase", standby: "Standby Phase", main1: "Main Phase 1", battle: "Battle Phase", main2: "Main Phase 2", end: "End Phase" }
 const REASONS = { chain: "responded to a card", attack: "is attacking", summon: "summoned a monster", battle: "entered the Battle Phase", end: "is ending the turn" }
 
-const reduced = () => typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
+const reduced = () => typeof window !== "undefined" && reducedMotion()
 
 // ---------- sizes ----------
 

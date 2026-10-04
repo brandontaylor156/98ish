@@ -2,6 +2,7 @@ import React, { useEffect, useLayoutEffect, useMemo, useRef } from "react"
 import { MONTHS, WEEKDAYS_SHORT, addDays, dateIn, dateLabel, endMs, monthGrid, onDate, parseDate, shortTime, startMs, timeLabel, weekdayOf, zoneParts } from "./recur"
 import { calendarById } from "./store"
 import { colorFor } from "./util"
+import { formatHour, weekStart, weekdayOrder } from "../../../utils/region"
 
 // The Calendar's views: Month (with dots on phones), Week and Day (an hour grid), Agenda
 // (a list), Memos (notes and to-do lists with no date), and the little month in the sidebar.
@@ -55,13 +56,13 @@ const Chip = ({ occ, zone, onOpen, date }) => {
 }
 
 export const MonthView = ({ year, month, today, selected, byDate, zone, mobile, onSelect, onOpen, onNew, onSwipe }) => {
-  const days = useMemo(() => monthGrid(year, month), [year, month])
+  const days = useMemo(() => monthGrid(year, month), [year, month, weekStart()])
   const swipe = useSwipe(onSwipe)
   const max = mobile ? 3 : 4
   return (
     <div className="calMonth" {...swipe}>
       <div className="calMonthHead" aria-hidden="true">
-        {WEEKDAYS_SHORT.map((d) => (
+        {weekdayOrder().map((i) => WEEKDAYS_SHORT[i]).map((d) => (
           <div key={d}>{mobile ? d[0] : d}</div>
         ))}
       </div>
@@ -241,7 +242,7 @@ export const HourGrid = ({ dates, today, byDate, zone, mobile, onOpen, onNew, on
           <div className="calGutter calHourLabels">
             {Array.from({ length: 24 }, (_, h) => (
               <span key={h} style={{ top: h * hour }}>
-                {h === 0 ? "" : `${h % 12 || 12} ${h < 12 ? "AM" : "PM"}`}
+                {h === 0 ? "" : formatHour(h)}
               </span>
             ))}
           </div>
@@ -355,7 +356,7 @@ export const MemoView = ({ memos, onOpen, onNew }) => (
 )
 
 export const MiniMonth = ({ year, month, selected, today, busy, onPick, onMonth }) => {
-  const days = useMemo(() => monthGrid(year, month), [year, month])
+  const days = useMemo(() => monthGrid(year, month), [year, month, weekStart()])
   return (
     <div className="calMini">
       <div className="calMiniHead">
@@ -370,7 +371,7 @@ export const MiniMonth = ({ year, month, selected, today, busy, onPick, onMonth 
         </button>
       </div>
       <div className="calMiniGrid">
-        {WEEKDAYS_SHORT.map((d) => (
+        {weekdayOrder().map((i) => WEEKDAYS_SHORT[i]).map((d) => (
           <span key={d} className="calMiniDow">
             {d[0]}
           </span>

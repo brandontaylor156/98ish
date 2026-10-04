@@ -31,6 +31,7 @@ const TIPS = {
   "98 Messenger": ["Away messages are serious business. Choose yours wisely."],
   "Task Manager": ["Whatever you do, don't end explorer.exe. I'm serious. Mostly."],
   "Display Properties": ["Pick Browse... to use your own picture as the wallpaper."],
+  "Control Panel": ["Accessibility Options makes text bigger, turns on High Contrast, and opens the Magnifier."],
   Passwords: ["Set a PIN and 98ish locks itself when you leave it. Win+L or Ctrl+Alt+L locks it right away."],
   SPECTRA: ["Fly through the rings to keep your combo going!"],
   "Windows Update": ["Updates arrive at authentic 56k speeds. Please don't pick up the phone."],

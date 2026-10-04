@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from "react"
+import { reducedMotion } from "../../../utils/settings"
 
 // Confetti over the game for a win: a burst from the middle, then a few seconds of
 // pieces drifting down. Nothing under "reduce motion".
@@ -8,7 +9,7 @@ const COLORS = ["#2fa84f", "#e3b30b", "#1084d0", "#ff5e8a", "#ffffff", "#ff8a00"
 const Confetti = ({ seconds = 3.5 }) => {
   const ref = useRef(null)
   useEffect(() => {
-    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return
+    if (reducedMotion()) return
     const canvas = ref.current
     const ctx = canvas.getContext("2d")
     const dpr = Math.min(2, window.devicePixelRatio || 1)

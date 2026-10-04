@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react"
 import { Rnd } from "react-rnd"
-import { desktopPrograms, ieWindow, launch, paintWindow, windowFor } from "../../utils/programs"
+import { desktopPrograms, ieWindow, launch, paintWindow, programByName, windowFor } from "../../utils/programs"
+import { useSettings } from "../../utils/settings"
 import { openItem, openTarget } from "../../utils/openItem"
 import { fs, readContent, uniqueName, validName } from "../../utils/fs"
 import { iconFor } from "../../utils/fileInfo"
@@ -105,6 +106,10 @@ const DesktopThemes = lazyApp(() => import("../applets/themes/DesktopThemes"))
 const SystemProperties = lazyApp(() => import("../applets/system/SystemProperties"))
 const WebApp = lazyApp(() => import("../applets/webapp/WebApp"))
 const Backup = lazyApp(() => import("../applets/backup/Backup"))
+// Control Panel, its own applets (Accessibility Options, Mouse, Regional Settings...) and Magnifier
+const ControlPanel = lazyApp(() => import("../applets/controlPanel/ControlPanel"))
+const CplApplet = lazyApp(() => import("../applets/controlPanel/CplApplet"))
+const Magnifier = lazyApp(() => import("../applets/controlPanel/Magnifier"))
 // tells file sync who is signed on to 98 Messenger (its own small download)
 const DriveSync = React.lazy(() => import("../applets/backup/DriveSync"))
 // "drive C: is full", a private window's small drive, a move to the bigger storage that didn't work
@@ -136,6 +141,13 @@ const minWidthFor = (window) =>
   : window.app === "net-race" ? 250 // room for its title and the race bars
   : window.name === "98 Messenger" || window.app?.startsWith("aim-") || window.app?.startsWith("net-") ? 220
   : 300
+
+// High Contrast leaves these windows' contents in their own colors (games, pictures)
+const KEEP_COLORS = new Set(["paint", "photos", "camera", "webapp", "magnifier", "pinball"])
+const keepsColors = (window) => {
+  const p = programByName(window.program)
+  return KEEP_COLORS.has(window.app) || p?.group === "Games" || !!p?.also?.includes("Games") || !!window.app?.startsWith("net-")
+}
 
 // Screen size (and the taskbar's height) for sizing maximized windows
 const useViewport = () => {
@@ -231,6 +243,8 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
   const viewport = useViewport()
   const [positions, setPositions] = useState(() => ({ ...gridLayout(defaultOrder(), viewport), ...loadIcons() }))
   const paired = useCouple().status === "paired"
+  // Add/Remove Programs can take programs off the desktop
+  const { hiddenDesktop = [] } = useSettings()
 
   // the browser window got smaller: pull windows back on screen (a window left past the
   // new edge had no reachable Close button)
@@ -267,7 +281,7 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
   // the programs, then whatever is in C:\Desktop (files, folders, shortcuts)
   const deskDir = fs.resolve("C:/Desktop")
   const icons = [
-    ...desktopPrograms.filter((p) => p.desktop !== "paired" || paired).map((p) => ({
+    ...desktopPrograms.filter((p) => (p.desktop !== "paired" || paired) && !hiddenDesktop.includes(p.name)).map((p) => ({
       ...p,
       key: p.name,
       icon: p.app === "recycle" ? (binFull ? "/assets/recycle_bin_full.png" : "/assets/recycle_bin_empty.png") : p.icon,
@@ -748,7 +762,7 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
       {window.app === "dos" && (
         <MsDos onClose={() => closeWindow(window, index)} onOpen={(target) => openTarget(target, dispatch)} onTitle={rename(index)} />
       )}
-      {window.app === "display" && <DisplayProperties onClose={() => closeWindow(window, index)} />}
+      {window.app === "display" && <DisplayProperties tab={window.tab} onClose={() => closeWindow(window, index)} />}
       {window.app === "themes" && <DesktopThemes onClose={() => closeWindow(window, index)} />}
       {window.app === "sysprops" && <SystemProperties tab={window.tab} onClose={() => closeWindow(window, index)} />}
       {window.app === "update" && <WindowsUpdate onClose={() => closeWindow(window, index)} />}
@@ -822,6 +836,9 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
         <WebApp project={PROJECTS.find((p) => p.name === window.program)} mobile={mobile} />
       )}
       {window.app === "backup" && <Backup dispatch={dispatch} mobile={mobile} />}
+      {window.app === "control" && <ControlPanel dispatch={dispatch} mobile={mobile} />}
+      {window.app === "cpl" && <CplApplet program={window.program} tab={window.tab} dispatch={dispatch} mobile={mobile} onClose={() => closeWindow(window, index)} />}
+      {window.app === "magnifier" && <Magnifier mobile={mobile} dispatch={dispatch} onClose={() => closeWindow(window, index)} />}
       {window.app === "calendar" && <CalendarApp calendarView={window.calendarView} mobile={mobile} dispatch={dispatch} onClose={() => closeWindow(window, index)} />}
       {window.app === "clock" && <ClockApp clockTab={window.calendarView?.tab} mobile={mobile} />}
       {window.app === "welcome" && <Welcome dispatch={dispatch} mobile={mobile} onClose={() => closeWindow(window, index)} />}
@@ -888,18 +905,19 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
     return (
       <div
         className={window.active ? "title-bar" : "title-bar inactive"}
-        style={{ height: "25px" }}
+        // 25px, taller with Accessibility Options' larger text
+        style={{ height: "var(--title-h, 25px)" }}
         onDoubleClick={mobile ? undefined : toggleMaximize}
       >
         <div
           className="title-bar-text d-flex align-items-center"
           style={{ height: "100%" }}
         >
-          <img src={window.icon_url} className="h-100" draggable="false" dragstart="false" />
+          <img src={window.icon_url} className="h-100" draggable="false" dragstart="false" alt="" />
           &nbsp;
-          <span>{window.name}</span>
+          <span id={`win-title-${index}`}>{window.name}</span>
         </div>
-        <div className="title-bar-controls h-100">
+        <div className="title-bar-controls h-100" role="group" aria-label={`${window.name} window controls`}>
           <button
             className="titleBarButton"
             aria-label="Minimize"
@@ -932,6 +950,14 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
       </div>
     )
   }
+
+  // what screen readers hear for a window: its title (and High Contrast leaves games alone)
+  const windowA11y = (window, index) => ({
+    role: "dialog",
+    "aria-modal": "false",
+    "aria-labelledby": `win-title-${index}`,
+    "data-hc-keep": keepsColors(window) ? "" : undefined,
+  })
 
   const selectActive = (window, index) =>
     dispatch({
@@ -1104,7 +1130,7 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
                 // hand focus back to this one afterwards
                 onPointerDownCapture={() => selectActive(window, index)}
               >
-                <div className="window" data-window-index={index}>
+                <div className="window" data-window-index={index} {...windowA11y(window, index)}>
                   {renderTitleBar(window, index)}
                   {renderContents(window, index)}
                 </div>
@@ -1180,6 +1206,18 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
                 if (!dragged.current && !(e.ctrlKey || e.metaKey) && selection.size > 1) setSelected(icon.key)
               }}
               {...openGesture(() => openIcon(icon))}
+              // a button for keyboards and screen readers: Tab to it, Enter opens it
+              role="button"
+              tabIndex={0}
+              aria-label={icon.label ?? icon.name}
+              onFocus={(e) => e.target.matches(":focus-visible") && !selection.has(icon.key) && setSelected(icon.key)}
+              onKeyDown={(e) => {
+                if (e.key !== "Enter" && e.key !== " ") return
+                e.preventDefault()
+                e.stopPropagation()
+                if (selection.size > 1 && selection.has(icon.key)) icons.filter((i) => selection.has(i.key)).slice(0, 6).forEach(openIcon)
+                else openIcon(icon)
+              }}
             >
               <img src={icon.icon} draggable="false" alt="" />
               <label className="desktopIconLabel">{icon.label ?? icon.name}</label>
@@ -1237,6 +1275,7 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
                 <div
                   className="window desktopWindow"
                   data-window-index={index}
+                  {...windowA11y(window, index)}
                   onPointerDownCapture={() => selectActive(window, index)}
                 >
                   {renderTitleBar(window, index)}

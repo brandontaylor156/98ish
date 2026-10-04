@@ -13,6 +13,10 @@
 // occurrences(event, fromMs, toMs, viewZone) lists what shows between two instants.
 // reminderTimes(occurrence, minutes, viewZone) says when its reminders go off: minutes before
 // the start, or for all-day events minutes before 9:00 on the day (in the viewer's zone).
+//
+// Times and the first day of the week follow Regional Settings (utils/region.js).
+
+import { formatShortTime, formatTime, weekStart as firstDayOfWeek } from "../../../utils/region.js"
 
 export const DAY_MS = 86_400_000
 export const ALL_DAY_REMINDER_HOUR = 9
@@ -399,13 +403,11 @@ export const describeReminder = (minutes, allDay = false) => {
 // "9:00 AM" in a zone
 export const timeLabel = (t, zone) => {
   const p = zoneParts(t, zone)
-  const h = p.h % 12 || 12
-  return `${h}:${pad(p.mi)} ${p.h < 12 ? "AM" : "PM"}`
+  return formatTime(p.h, p.mi)
 }
 export const shortTime = (t, zone) => {
   const p = zoneParts(t, zone)
-  const h = p.h % 12 || 12
-  return `${h}${p.mi ? `:${pad(p.mi)}` : ""}${p.h < 12 ? "a" : "p"}`
+  return formatShortTime(p.h, p.mi)
 }
 export const dateLabel = (date, { weekday = true, year = false } = {}) => {
   const p = parseDate(date)
@@ -426,9 +428,9 @@ export const whenLabel = (occ, zone) => {
   return `${dateLabel(a)}, ${timeLabel(occ.start, zone)} - ${dateLabel(b)}, ${timeLabel(occ.end, zone)}`
 }
 
-// A month grid: 6 weeks of dates starting on Sunday
-export const monthGrid = (y, m) => {
+// A month grid: 6 weeks of dates, starting on the week's first day (Sunday = 0)
+export const monthGrid = (y, m, firstDay = firstDayOfWeek()) => {
   const first = dateKey(y, m, 1)
-  const start = addDays(first, -weekdayOf(first))
+  const start = addDays(first, -((weekdayOf(first) - firstDay + 7) % 7))
   return Array.from({ length: 42 }, (_, i) => addDays(start, i))
 }

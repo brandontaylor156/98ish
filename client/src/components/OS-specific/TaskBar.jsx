@@ -179,6 +179,14 @@ const TaskBar = ({ windows, dispatch, setStartMenuVisible, startMenuVisible }) =
         setSwitcher(null)
         return
       }
+      // Alt+F4: close the active window (it still asks about unsaved changes)
+      if (e.altKey && !e.ctrlKey && !e.metaKey && e.key === "F4") {
+        e.preventDefault()
+        e.stopPropagation()
+        const index = latest.current.windows.findIndex((w) => w.active && !w.closed && !w.minimized)
+        if (index >= 0) requestClose(index)
+        return
+      }
       if (e.ctrlKey && !e.altKey && !e.metaKey && e.key === "Escape") {
         e.preventDefault()
         // or the Start menu, opening right now, would see this Escape and close again
@@ -373,12 +381,22 @@ const TaskBar = ({ windows, dispatch, setStartMenuVisible, startMenuVisible }) =
       >
         <div className="col-auto p-0 ps-1 taskbarLeft">
           <div
-            className="d-flex px-2"
+            className="d-flex px-2 startButton"
             style={startBtnStyle}
+            role="button"
+            tabIndex={0}
+            aria-label="Start"
+            aria-haspopup="menu"
+            aria-expanded={startMenuVisible}
             onClick={() => setStartMenuVisible(!startMenuVisible)}
+            onKeyDown={(e) => {
+              if (e.key !== "Enter" && e.key !== " " && e.key !== "ArrowUp") return
+              e.preventDefault()
+              setStartMenuVisible(!startMenuVisible)
+            }}
             onContextMenu={(e) => e.stopPropagation()}
           >
-            <img className="img-fluid me-2" style={{ width: 24 }} src="/assets/start98.png" alt="Start Menu" />
+            <img className="img-fluid me-2" style={{ width: 24 }} src="/assets/start98.png" alt="" />
             <p className="mb-0 startBtn">Start</p>
           </div>
         </div>
@@ -414,7 +432,10 @@ const TaskBar = ({ windows, dispatch, setStartMenuVisible, startMenuVisible }) =
                       ? { boxShadow: "inset 1px 1px #0a0a0a, inset -1px -1px #fff, inset 2px 2px grey, inset -2px -2px #dfdfdf" }
                       : undefined
                   }
-                  className="taskbarTab text-start ms-1 p-0"
+                  className={"taskbarTab text-start ms-1 p-0" + (window.active && !window.minimized ? " is-active" : "")}
+                  aria-label={window.name}
+                  aria-pressed={!!window.active && !window.minimized}
+                  title={window.name}
                   onClick={() => {
                     dispatch({
                       type: "toggle_minimize_tab",
@@ -423,8 +444,8 @@ const TaskBar = ({ windows, dispatch, setStartMenuVisible, startMenuVisible }) =
                   }}
                   onContextMenu={(e) => showMenu(e, tabMenu(index))}
                 >
-                  <img src={window.icon_url} className="p-1 h-100" draggable="false" />
-                  <span className="taskbarTabLabel">&nbsp;{window.name}</span>
+                  <img src={window.icon_url} className="p-1 h-100" draggable="false" alt="" />
+                  <span className="taskbarTabLabel" aria-hidden="true">&nbsp;{window.name}</span>
                 </button>
               )
           )}

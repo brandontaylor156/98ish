@@ -8,6 +8,8 @@ import RunDialog from "./RunDialog"
 import { shellAction } from "../../utils/shell"
 import { getTour, startTour } from "../../utils/welcome"
 import { currentUserName } from "../../utils/users"
+import { useSettings } from "../../utils/settings"
+import { navigate } from "../../utils/startNav"
 import "./StartMenu.css"
 
 const GROUPS = ["Accessories", "Business", "Community", "Games", "Internet", "Entertainment", "System Tools", "Us", "My Projects"]
@@ -40,7 +42,11 @@ const StartMenu = ({ dispatch, setResults, closeMenu, onShutDown, onLogOff, onLo
   const [run, setRun] = useState(false)
   const [open, setOpen] = useState([]) // indexes of open submenus, one per level
   const [stack, setStack] = useState([]) // phones: the submenus drilled into
+  const [path, setPath] = useState([]) // the item the arrow keys are on (utils/startNav.js)
   const searchRef = useRef(null)
+  const rootRef = useRef(null)
+  // Add/Remove Programs can take programs out of the Start menu
+  const { hiddenStart = [] } = useSettings()
 
   useEffect(() => {
     setResults(query ? fs.findAllItemsByQuery(query) : [])
@@ -80,7 +86,7 @@ const StartMenu = ({ dispatch, setResults, closeMenu, onShutDown, onLogOff, onLo
           label: group,
           icon: ICON.group,
           items: () => [
-            ...programs.filter((p) => inGroup(p, group)).map(programItem),
+            ...programs.filter((p) => inGroup(p, group) && !hiddenStart.includes(p.name)).map(programItem),
             ...(group === "Community" ? ["-", ...COMMUNITY_PAGES.map(([label, url]) => ({ label, icon: "/assets/internet_explorer.png", onClick: () => go(ieWindow(url)) }))] : []),
           ],
         })),
@@ -109,6 +115,8 @@ const StartMenu = ({ dispatch, setResults, closeMenu, onShutDown, onLogOff, onLo
       key: "S",
       icon: ICON.settings,
       items: () => [
+        { label: "Control Panel", icon: "/assets/program_icons/cpl/control.svg", onClick: () => go(launch("Control Panel")) },
+        "-",
         { label: "Display Properties", icon: "/assets/vaporwave.png", onClick: () => go(launch("Display Properties")) },
         { label: "Date/Time Properties", icon: "/assets/program_icons/datetime.svg", onClick: () => go(launch("Date/Time Properties")) },
         { label: "Keyboard", icon: "/assets/program_icons/keyboard.svg", onClick: () => go(launch("Keyboard Properties")) },
@@ -179,22 +187,88 @@ const StartMenu = ({ dispatch, setResults, closeMenu, onShutDown, onLogOff, onLo
     },
   ]
 
-  // keyboard: Escape closes, underlined letters pick
+  // ---- keyboard: arrows move (utils/startNav.js), Enter runs, Escape backs out, the
+  // underlined letters pick ----
+
+  // the items of the menu `prefix` opens, for startNav (phones: the list on screen)
+  const listAt = (prefix) => {
+    let items = mobile && stack.length ? stack.at(-1).items : menu
+    for (const i of prefix) {
+      const item = items[i]
+      items = item && item !== "-" && item.items ? item.items() : []
+    }
+    return items
+  }
+  const itemsAt = (prefix) => listAt(prefix).map((item) => (item === "-" ? "-" : { label: item.label, disabled: item.disabled, sub: !!item.items }))
+  const backToStart = () => document.querySelector(".startButton")?.focus({ preventScroll: true })
+
+  const applyNav = (r) => {
+    const item = r.path.length ? listAt(r.path.slice(0, -1))[r.path.at(-1)] : null
+    if (r.close) {
+      closeMenu()
+      return backToStart()
+    }
+    if (r.activate) return item?.onClick?.()
+    if (mobile) {
+      // phones show one list at a time: going into a submenu shows it, Left/Escape go back
+      if (r.path.length > 1) {
+        const parent = listAt([])[r.path[0]]
+        setStack([...stack, { label: parent.label, items: parent.items() }])
+        return setPath([r.path[1]])
+      }
+      return setPath(r.path)
+    }
+    setPath(r.path)
+    setOpen(r.path.slice(0, -1))
+  }
+
   useEffect(() => {
     const onKey = (e) => {
-      // (Escape in the Find box closes the menu too; Run's box is left to its dialog)
-      if (e.key === "Escape" && e.target === searchRef.current) return closeMenu()
-      if (e.target.closest?.("input, textarea")) return
-      if (e.key === "Escape") return closeMenu()
-      const hit = menu.find((m) => m !== "-" && m.key?.toLowerCase() === e.key.toLowerCase())
-      if (hit) {
+      // (Escape in the Find box closes the menu too; Down goes from it into the menu; Run's
+      // box is left to its dialog)
+      if (e.key === "Escape" && e.target === searchRef.current) return closeMenu(), backToStart()
+      if (e.key === "ArrowDown" && e.target === searchRef.current) {
         e.preventDefault()
-        hit.onClick ? hit.onClick() : setOpen([menu.indexOf(hit)])
+        return applyNav(navigate([], "ArrowDown", itemsAt))
+      }
+      if (e.target.closest?.("input, textarea, .dialog")) return
+      if (e.ctrlKey || e.altKey || e.metaKey) return
+      if (mobile && stack.length && (e.key === "ArrowLeft" || e.key === "Escape")) {
+        e.preventDefault()
+        setStack(stack.slice(0, -1))
+        return setPath([])
+      }
+      if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Enter", " ", "Home", "End", "Escape"].includes(e.key)) {
+        e.preventDefault()
+        return applyNav(navigate(path, e.key, itemsAt))
+      }
+      // the underlined letters of the top menu, as before; inside a submenu, first letters
+      if (path.length <= 1 && !(mobile && stack.length)) {
+        const hit = menu.find((m) => m !== "-" && m.key?.toLowerCase() === e.key.toLowerCase())
+        if (hit) {
+          e.preventDefault()
+          const i = menu.indexOf(hit)
+          if (hit.onClick) return hit.onClick()
+          return applyNav(navigate([i], "ArrowRight", itemsAt))
+        }
+      }
+      if (e.key.length === 1) {
+        const r = navigate(path, e.key, itemsAt)
+        if (r.path.join() !== path.join()) {
+          e.preventDefault()
+          applyNav(r)
+        }
       }
     }
     window.addEventListener("keydown", onKey)
     return () => window.removeEventListener("keydown", onKey)
   })
+
+  // the highlighted item takes the focus, so screen readers say it
+  useEffect(() => {
+    if (!path.length) return
+    rootRef.current?.querySelector(`[data-path="${path.join("-")}"]`)?.focus({ preventScroll: true })
+  }, [path.join("-"), stack.length])
 
   const label = (item) => {
     if (!item.key) return item.label
@@ -219,22 +293,28 @@ const StartMenu = ({ dispatch, setResults, closeMenu, onShutDown, onLogOff, onLo
     const over = rect.bottom - floor
     if (over > 0) el.style.transform = `translateY(${-Math.min(over, rect.top)}px)`
   }
-  const renderList = (items, depth) => (
-    <ul className={depth ? "window smSub" : "smList"} role="menu" ref={depth ? fit : undefined}>
+  const renderList = (items, depth, prefix = [], title = "Start menu") => (
+    <ul className={depth ? "window smSub" : "smList"} role="menu" aria-label={title} ref={depth ? fit : undefined}>
       {items.map((item, i) => {
         if (item === "-") return <li key={i} className="smSep" role="separator" />
         const isOpen = open[depth] === i
         const sub = item.items && isOpen ? item.items() : null
+        const here = [...prefix, i]
+        const isFocus = path.length === depth + 1 && path.join("-") === here.join("-")
         return (
           <li
             key={i}
-            className={(isOpen ? "smItem is-open" : "smItem") + (item.disabled ? " is-disabled" : "") + (depth ? "" : " smTop")}
+            className={(isOpen ? "smItem is-open" : "smItem") + (isFocus ? " is-focus" : "") + (item.disabled ? " is-disabled" : "") + (depth ? "" : " smTop")}
             role="menuitem"
+            tabIndex={-1}
+            data-path={here.join("-")}
+            aria-disabled={item.disabled || undefined}
             aria-haspopup={item.items ? "menu" : undefined}
             aria-expanded={item.items ? isOpen : undefined}
             onMouseEnter={(e) => {
               if (e.nativeEvent.pointerType === "touch") return
               setOpen([...open.slice(0, depth), item.items ? i : undefined])
+              setPath(here)
             }}
             onClick={(e) => {
               e.stopPropagation()
@@ -245,8 +325,8 @@ const StartMenu = ({ dispatch, setResults, closeMenu, onShutDown, onLogOff, onLo
           >
             {item.icon ? <img src={item.icon} alt="" draggable="false" /> : <span className="smNoIcon" />}
             <span className="smLabel">{label(item)}</span>
-            {item.items && <span className="smArrow">{"\u25B8"}</span>}
-            {sub && renderList(sub, depth + 1)}
+            {item.items && <span className="smArrow" aria-hidden="true">{"\u25B8"}</span>}
+            {sub && renderList(sub, depth + 1, here, item.label)}
           </li>
         )
       })}
@@ -256,10 +336,10 @@ const StartMenu = ({ dispatch, setResults, closeMenu, onShutDown, onLogOff, onLo
   // phones: one list at a time, with Back
   const current = stack.length ? stack.at(-1) : null
   const renderMobileList = () => (
-    <ul className="smList" role="menu">
+    <ul className="smList" role="menu" aria-label={current ? current.label : "Start menu"}>
       {current && (
-        <li className="smItem smBack" role="menuitem" onClick={(e) => (e.stopPropagation(), setStack(stack.slice(0, -1)))}>
-          <span className="smArrow">{"\u25C2"}</span>
+        <li className="smItem smBack" role="menuitem" tabIndex={-1} aria-label={`Back from ${current.label}`} onClick={(e) => (e.stopPropagation(), setStack(stack.slice(0, -1)), setPath([]))}>
+          <span className="smArrow" aria-hidden="true">{"\u25C2"}</span>
           <span className="smLabel">{current.label}</span>
         </li>
       )}
@@ -268,18 +348,22 @@ const StartMenu = ({ dispatch, setResults, closeMenu, onShutDown, onLogOff, onLo
         return (
           <li
             key={i}
-            className={"smItem" + (item.disabled ? " is-disabled" : "") + (current ? "" : " smTop")}
+            className={"smItem" + (item.disabled ? " is-disabled" : "") + (current ? "" : " smTop") + (path.length === 1 && path[0] === i ? " is-focus" : "")}
             role="menuitem"
+            tabIndex={-1}
+            data-path={String(i)}
+            aria-disabled={item.disabled || undefined}
+            aria-haspopup={item.items ? "menu" : undefined}
             onClick={(e) => {
               e.stopPropagation()
               if (item.disabled) return
-              if (item.items) setStack([...stack, { label: item.label, items: item.items() }])
+              if (item.items) setStack([...stack, { label: item.label, items: item.items() }]), setPath([])
               else item.onClick?.()
             }}
           >
             {item.icon ? <img src={item.icon} alt="" draggable="false" /> : <span className="smNoIcon" />}
             <span className="smLabel">{label(item)}</span>
-            {item.items && <span className="smArrow">{"\u25B8"}</span>}
+            {item.items && <span className="smArrow" aria-hidden="true">{"\u25B8"}</span>}
           </li>
         )
       })}
@@ -287,7 +371,7 @@ const StartMenu = ({ dispatch, setResults, closeMenu, onShutDown, onLogOff, onLo
   )
 
   return (
-    <div className="window startMenu" onClick={(e) => e.stopPropagation()} onMouseLeave={() => !getTour() && setOpen([])}>
+    <div className="window startMenu" ref={rootRef} onClick={(e) => e.stopPropagation()} onMouseLeave={() => !getTour() && (setOpen([]), setPath([]))}>
       <div className="smBanner" aria-hidden="true">
         <span>
           <b>Windows</b>98ish
