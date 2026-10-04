@@ -61,7 +61,7 @@ const fetchChecked = async (input, { method = "GET", headersFor = () => ({}), bo
   let hops = 0
   for (;;) {
     const checked = await checkUrl(url, guard)
-    if (!checked.ok) throw new Refused(checked.dns ? 502 : 403, checked.reason, checked.notAllowed ? { notAllowed: true, url: url.href } : { blocked: !checked.dns })
+    if (!checked.ok) throw new Refused(checked.dns ? 502 : 403, checked.reason, checked.notAllowed ? { notAllowed: true, url: url.href } : checked.denied ? { blocked: true, denied: checked.denied, url: url.href } : { blocked: !checked.dns })
     const res = await requestOnce(checked.url, checked.addresses, { method, headers: headersFor(checked.url, method), body, timeoutMs })
     onResponse?.(res, checked.url)
     const location = res.headers.location

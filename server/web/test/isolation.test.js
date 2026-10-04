@@ -302,7 +302,7 @@ test("monthly cap: when the whole server has sent WEB_MONTHLY_TOTAL_MB, Compass 
     // scripts' requests too
     assert.equal((await t.page(s.sid, `${t.S}/sw.js`, { raw: true })).status, 503)
     const st = await (await fetch(`${t.base}/status`)).json()
-    assert.deepEqual(Object.keys(st).sort(), ["capMB", "compassCapMB", "compassMB", "mode", "month", "open", "reopens", "totalMB"])
+    assert.deepEqual(Object.keys(st).sort(), ["capMB", "compassCapMB", "compassMB", "day", "mode", "month", "open", "pagesToday", "relayTodayMB", "reopens", "totalMB"])
     assert.equal(st.open, false)
     assert.equal(st.month, "2026-10")
     assert.equal(st.totalMB, 3000)

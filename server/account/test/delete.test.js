@@ -332,6 +332,34 @@ test("game chat: alice's lines leave the history; others' stay", async () => {
   assert.deepEqual(chat.rooms.get("lobby:tetris").history.map((m) => m.from || "system"), ["Bob", "system"])
 })
 
+test("compass: alice's 7-day relay log, reports and usage counters go; bob's and the totals stay", async () => {
+  const { createWeb } = require("../../web")
+  const { createRecords, memoryRecordsStore } = require("../../web/records")
+  const { createCounters, memoryUsageStore } = require("../../meter/counters")
+  const data = new Map()
+  const counters = createCounters({ store: memoryUsageStore(data), log: {} })
+  const records = createRecords({ store: memoryRecordsStore(), log: {} })
+  const web = createWeb({ counters, records, mode: "on", secret: "s".repeat(64) })
+  try {
+    for (const who of ["alice", "bob"]) {
+      counters.add("day", `u:${who}`, "2026-10-04", 1000)
+      records.logBytes(who, "example.com", 1000)
+      await records.addReport({ account: who, url: "https://example.com/", note: "" })
+    }
+    counters.add("day", "relay", "2026-10-04", 2000)
+    await counters.flush()
+    await records.flush()
+    const first = await web.eraseAccount(ALICE)
+    assert.deepEqual(first, { sessions: 0, counters: 1, log: 1, reports: 1 })
+    assert.deepEqual(await web.eraseAccount(ALICE), { sessions: 0, counters: 0, log: 0, reports: 0 })
+    assert.deepEqual([...data.keys()].sort(), ["day|relay|2026-10-04", "day|u:bob|2026-10-04"])
+    assert.deepEqual([...records.store.log.values()].map((r) => r.account), ["bob"])
+    assert.deepEqual(records.store.reports.map((r) => r.account), ["bob"])
+  } finally {
+    web.stop()
+  }
+})
+
 // ---------- over real sockets ----------
 
 let ioClient = null

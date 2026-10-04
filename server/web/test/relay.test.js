@@ -523,9 +523,9 @@ test("guest allowlist: defaults, WEB_GUEST_ALLOW parsing, subdomain matching, WE
   assert.ok(!onList("notwikipedia.org", GUEST_ALLOW))
   assert.ok(!onList("wikipedia.org.evil.com", GUEST_ALLOW))
   assert.ok(!onList("web.archive.org", GUEST_ALLOW))
-  // the code default is the allowlist (production needs no env var); anything unknown is too
-  assert.equal(relayMode(undefined), "allowlist")
-  assert.equal(relayMode(""), "allowlist")
+  // the code default is "on" (production needs no env var); anything unknown is the allowlist
+  assert.equal(relayMode(undefined), "on")
+  assert.equal(relayMode(""), "on")
   assert.equal(relayMode("typo"), "allowlist")
   assert.equal(relayMode("on"), "on")
   assert.equal(relayMode("1"), "on")

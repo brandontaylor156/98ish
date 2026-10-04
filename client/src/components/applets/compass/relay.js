@@ -3,7 +3,7 @@
 
 export const SERVER = (import.meta.env.VITE_SOCKET_URL || "http://localhost:8000").replace(/\/$/, "")
 
-let current = null // { sid, guest, used, limit, token }
+let current = null // { sid, guest, used, limit, mode, allow, closed, dayFull, resumes, token }
 let pending = null // { token, promise }
 const listeners = new Set()
 const emit = () => listeners.forEach((fn) => fn(current))
@@ -113,4 +113,27 @@ export const clearCookies = async () => {
   } catch {
     return false
   }
+}
+
+// "Report This Page" (Tools menu): the address and a note go to the 98ish server for its owner;
+// nobody is notified. -> { ok } | { ok: false, error }
+export const reportPage = async (token, url, note) => {
+  try {
+    const s = await ensureSession(token)
+    const r = await withTimeout(fetch(`${SERVER}/api/web/report`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ sid: s.sid, url, note }) }), 20000)
+    const body = await r.json().catch(() => ({}))
+    return r.ok ? { ok: true } : { ok: false, error: body.error || "The report couldn't be sent." }
+  } catch (error) {
+    return { ok: false, error: error?.message || "The report couldn't be sent." }
+  }
+}
+
+// When live browsing comes back for a page shown without the relay because an allowance ran out
+// ("budget": today's, "closed"/"monthly": the month's) -> a Date. The session knows best; else
+// the next UTC midnight or the 1st of next month.
+export const resumesAt = (session, why) => {
+  if (session?.resumes) return new Date(session.resumes)
+  const now = new Date()
+  if (why === "budget") return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1))
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1))
 }
