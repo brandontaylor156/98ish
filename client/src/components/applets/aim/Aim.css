@@ -766,3 +766,17 @@ html.kb-open .os-mobile .aimIm .aimStatusBar {
 html.kb-open .os-mobile .aimIm .aimComposer {
   order: 2;
 }
+
+/* Preferences (My AIM > Preferences...) */
+.aimPrefs {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-width: 340px;
+}
+
+.aimPrefsHint {
+  margin: 0 0 6px 22px;
+  color: #404040;
+  font-size: 11px;
+}

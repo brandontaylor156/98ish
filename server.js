@@ -7,7 +7,8 @@
 // VAPID_PUBLIC_KEY + VAPID_PRIVATE_KEY + VAPID_SUBJECT (push notifications; off without them),
 // DRIVE_SYNC_QUOTA_MB and DRIVE_SYNC_MAX_FILE_MB (file sync, see server/drive/sync.js),
 // WEB_MONTHLY_WARN_MB (server/meter: the monthly outgoing-traffic meter).
-// BLOB_READ_WRITE_TOKEN (synced file contents in Vercel Blob; see server/drive/bucket.js).
+// BLOB_READ_WRITE_TOKEN (synced file contents and IM pictures/voice in Vercel Blob; see
+// server/drive/bucket.js and server/aim/media.js), IM_HISTORY_MAX_DOCS (server/aim/history.js).
 
 const express = require("express")
 const cors = require("cors")
@@ -24,6 +25,8 @@ const { couplesRouter, attachCouples, coupleService } = require("./server/couple
 const { dollhouseRouter } = require("./server/dollhouse")
 const { townRouter, attachTown, townService } = require("./server/town")
 const { createAccountEraser } = require("./server/account")
+const { createHistoryStore } = require("./server/aim/history")
+const { createMedia } = require("./server/aim/media")
 const { petRouter } = require("./server/pet")
 const { calendarRouter, attachCalendar } = require("./server/calendar")
 const { defaultPush } = require("./server/push")
@@ -114,9 +117,16 @@ const gameChat = attachGameChat(io, net)
 // Delete My Account: every place that keeps something for an account, in order (the full
 // list, and what happens to shared things, is at the top of server/account/index.js)
 let calendars = null
+// 98 Messenger's saved conversations (MongoDB imhistory/imclears/imreads) and the pictures and
+// voice messages sent in IMs (records in immedia, bytes in file sync's bucket and budgets)
+const imHistory = createHistoryStore()
+imHistory.catch((error) => console.error("[aim history] store failed", error))
+const imMedia = createMedia({ storage: () => sync.storage() })
 const eraser = createAccountEraser()
   .addContext((key) => coupleService().accountContext(key))
   .add("push", (ctx) => push.eraseAccount(ctx))
+  .add("messages", async (ctx) => ({ removed: await (await imHistory).eraseAccount(ctx.key) }))
+  .add("im media", (ctx) => imMedia.eraseAccount(ctx))
   .add("drive", (ctx) => sync.eraseAccount(ctx))
   .add("contacts", (ctx) => contacts.eraseAccount(ctx))
   .add("mail", (ctx) => mail.eraseAccount(ctx))
@@ -135,7 +145,7 @@ const eraser = createAccountEraser()
   .add("gamechat", (ctx) => gameChat.eraseAccount(ctx))
   .add("compass", (ctx) => web.eraseAccount(ctx))
 
-aim = attachAim(io, { push, eraser })
+aim = attachAim(io, { push, eraser, history: imHistory, media: imMedia })
 aim
   .then((aim) => {
     aimService = aim

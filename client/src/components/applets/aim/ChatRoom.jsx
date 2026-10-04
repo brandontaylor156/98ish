@@ -1,19 +1,27 @@
-import React, { useState } from "react"
+import React, { useCallback, useState } from "react"
 import { keyOf, useAim } from "./AimContext"
 import { useOpenGesture } from "../../../hooks/useMediaQuery"
 import Dialog from "../../shared/Dialog"
-import { Composer, useStickToBottom } from "./ImWindow"
+import { Composer, useScrollBack, useStickToBottom } from "./ImWindow"
 import { TranscriptLine } from "./MessageText"
+import { ReactionPicker } from "./history/ImExtras"
 
-// A Buddy Chat room: transcript, who's here, and a box to talk in
+// A Buddy Chat room: transcript (saved like IMs, for the people who were there), who's here,
+// and a box to talk in. Right-click or hold a line to react.
 const ChatRoom = ({ room }) => {
   const aim = useAim()
   const openGesture = useOpenGesture()
   const current = aim.rooms[keyOf(room)]
   const messages = current?.messages || []
   const members = current?.members || []
+  const ck = `#${keyOf(room)}`
   const [dialog, setDialog] = useState(null)
-  const transcript = useStickToBottom([messages.length])
+  const [picker, setPicker] = useState(null)
+  const transcript = useStickToBottom([messages.length, messages.at(-1)?.id])
+  const scrollBack = useScrollBack(transcript.ref, messages, current?.older !== false ? () => aim.loadOlder(ck) : null)
+  const meKey = keyOf(aim.me?.screenName)
+  const openMenu = useCallback((message, x, y) => setPicker({ message, x, y }), [])
+  const toggle = useCallback((message, emoji) => aim.react(ck, message, emoji), [ck, aim.react])
 
   if (!aim.me) return null
 
@@ -33,12 +41,24 @@ const ChatRoom = ({ room }) => {
   return (
     <div className="aimChat">
       <div className="aimChatMain">
-        <div className="aimTranscript" ref={transcript.ref} onScroll={transcript.onScroll}>
-          {messages.map((message, i) => (
+        <div
+          className="aimTranscript"
+          ref={transcript.ref}
+          onScroll={() => {
+            transcript.onScroll()
+            scrollBack()
+          }}
+        >
+          {current?.loadingOlder && <div className="aimSystem">Loading older messages...</div>}
+          {messages.map((message) => (
             <TranscriptLine
-              key={i}
-              message={message.system ? message : { ...message, mine: message.from === aim.me.screenName }}
+              key={message.id}
+              message={message.system ? message : { ...message, mine: keyOf(message.from) === meKey }}
               me={aim.me.screenName}
+              meKey={meKey}
+              onMenu={openMenu}
+              onReact={toggle}
+              getBlob={aim.getMediaBlob}
             />
           ))}
         </div>
@@ -63,7 +83,12 @@ const ChatRoom = ({ room }) => {
         <button type="button" onClick={() => setDialog({ kind: "invite", to: "", message: `Join me in ${current?.name || room}!` })}>
           Invite...
         </button>
+        <button type="button" onClick={() => setDialog({ kind: "clear" })} disabled={!messages.some((m) => !m.system)}>
+          Clear History
+        </button>
       </aside>
+
+      {picker && <ReactionPicker x={picker.x} y={picker.y} current={picker.message.r?.[meKey]} onPick={(emoji) => aim.react(ck, picker.message, emoji)} onClose={() => setPicker(null)} />}
 
       {dialog?.kind === "invite" && (
         <Dialog title="Buddy Chat Invitation" okLabel="Send" okDisabled={!dialog.to.trim()} onOk={invite} onCancel={() => setDialog(null)}>
@@ -71,6 +96,19 @@ const ChatRoom = ({ room }) => {
           <input value={dialog.to} onChange={(e) => setDialog({ ...dialog, to: e.target.value })} />
           <label className="dialogLabel">Invitation message:</label>
           <input value={dialog.message} maxLength={256} onChange={(e) => setDialog({ ...dialog, message: e.target.value })} />
+        </Dialog>
+      )}
+      {dialog?.kind === "clear" && (
+        <Dialog
+          title="Clear History"
+          okLabel="Clear"
+          onOk={() => {
+            setDialog(null)
+            aim.clearHistory(ck)
+          }}
+          onCancel={() => setDialog(null)}
+        >
+          <p className="dialogText">Clear this room's messages from this device and from your copy on the 98ish server? The others in the room keep theirs.</p>
         </Dialog>
       )}
       {dialog?.kind === "alert" && (

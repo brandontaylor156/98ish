@@ -193,6 +193,15 @@ const syncRouter = ({ aim, store, legacy, quotaBytes, totalBytes, maxFileChars, 
   storeReady.catch((error) => console.error("[drive sync] store failed", error))
   const bucketReady = storeReady.then((db) => (bucket = adapter ? createBucket({ adapter, db, now, log }) : null))
   bucketReady.catch(() => {})
+  // what the bucket holds: synced contents plus other users' (98 Messenger's media)
+  const storedTotal = async (db) => (await db.bucketTotal()) + (bucket ? await bucket.otherBytes() : 0)
+  // the same bucket and budgets for 98 Messenger's pictures and voice messages
+  // (server/aim/media.js) -> { bucket, adapter, syncedBytes() } | null without a bucket
+  router.storage = async () => {
+    const db = await storeReady
+    await bucketReady
+    return bucket ? { bucket, adapter, syncedBytes: () => db.bucketTotal() } : null
+  }
   const lock = keyedLock()
 
   const reads = limiter(limits.reads ?? 900, WINDOW_MS) // per account
@@ -292,7 +301,7 @@ const syncRouter = ({ aim, store, legacy, quotaBytes, totalBytes, maxFileChars, 
     const db = await storeReady
     await bucketReady
     if (!bucket) return json(response, 200, { ok: true, bucket: null })
-    json(response, 200, { ok: true, ...(await bucket.status(await db.bucketTotal())), waitingToMove: await db.countToMove() })
+    json(response, 200, { ok: true, ...(await bucket.status(await storedTotal(db))), waitingToMove: await db.countToMove() })
   })
 
   // ---- sign in ----
@@ -432,7 +441,7 @@ const syncRouter = ({ aim, store, legacy, quotaBytes, totalBytes, maxFileChars, 
       const { enc, mime, bytes } = bucketBytes(blob)
       const pending = await db.getBlob(account.key, hash) // a direct upload that never finished
       if (info.usage + (await db.pendingBytes(account.key, hash)) + bytes.length > quota) return { full: true, usage: info.usage }
-      if ((await db.bucketTotal()) - (pending?.size || 0) + bytes.length > bucket.totalBytes) return { serverFull: true, usage: info.usage }
+      if ((await storedTotal(db)) - (pending?.size || 0) + bytes.length > bucket.totalBytes) return { serverFull: true, usage: info.usage }
       const charged = await bucket.charge(adapter.costs.put)
       if (!charged.ok) return { until: charged.until }
       const path = bucket.pathFor(account.key, hash)
@@ -478,7 +487,7 @@ const syncRouter = ({ aim, store, legacy, quotaBytes, totalBytes, maxFileChars, 
       const resting = await bucket.restingUntil()
       if (resting) return { until: resting }
       if (info.usage + (await db.pendingBytes(account.key, hash)) + size > quota) return { full: true, usage: info.usage }
-      if ((await db.bucketTotal()) - (existing?.size || 0) + size > bucket.totalBytes) return { serverFull: true, usage: info.usage }
+      if ((await storedTotal(db)) - (existing?.size || 0) + size > bucket.totalBytes) return { serverFull: true, usage: info.usage }
       const charged = await bucket.charge(adapter.costs.put)
       if (!charged.ok) return { until: charged.until }
       const path = bucket.pathFor(account.key, hash)
@@ -675,7 +684,7 @@ const syncRouter = ({ aim, store, legacy, quotaBytes, totalBytes, maxFileChars, 
     const rec = await db.getBlob(key, hash)
     if (!rec || rec.store === "bucket" || !rec.data || rec.pending) return "skip"
     const { enc, mime, bytes } = bucketBytes(rec)
-    if ((await db.bucketTotal()) + bytes.length > bucket.totalBytes) return "stop"
+    if ((await storedTotal(db)) + bytes.length > bucket.totalBytes) return "stop"
     const verified = Number((await db.usageGet("moved"))?.verified) || 0
     const verify = verified < VERIFY_FIRST
     const cost = { adv: (adapter.costs.put.adv || 0) + (adapter.costs.head.adv || 0), simple: (adapter.costs.put.simple || 0) + (adapter.costs.head.simple || 0) + (verify ? adapter.costs.get.simple || 0 : 0), down: verify ? bytes.length : 0 }

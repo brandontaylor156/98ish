@@ -131,6 +131,7 @@ const BuddyList = () => {
         { label: "Edit Profile...", onClick: () => setDialog({ kind: "profile", text: me.profile }) },
         "-",
         { label: "Sounds", checked: aim.prefs.sound, onClick: () => aim.setPrefs({ sound: !aim.prefs.sound }) },
+        { label: "Preferences...", onClick: () => setDialog({ kind: "prefs", sound: aim.prefs.sound !== false, saveHistory: me.prefs?.saveHistory !== false, receipts: me.prefs?.receipts !== false }) },
         "-",
         { label: "Sign Off", onClick: aim.signOff },
         "-",
@@ -323,6 +324,44 @@ const BuddyList = () => {
       {dialog?.kind === "alert" && (
         <Dialog title={dialog.title} onOk={close}>
           <p className="dialogText">{dialog.text}</p>
+        </Dialog>
+      )}
+
+      {dialog?.kind === "prefs" && (
+        <Dialog
+          title="Preferences"
+          onOk={async () => {
+            const current = me.prefs || { saveHistory: true, receipts: true }
+            const patch = {}
+            if (dialog.saveHistory !== current.saveHistory) patch.saveHistory = dialog.saveHistory
+            if (dialog.receipts !== current.receipts) patch.receipts = dialog.receipts
+            aim.setPrefs({ sound: dialog.sound })
+            const result = Object.keys(patch).length ? await aim.setServerPrefs(patch) : { ok: true }
+            if (result.ok) close()
+            else setDialog({ kind: "alert", title: "Preferences", text: result.error })
+          }}
+          onCancel={close}
+        >
+          <div className="aimPrefs">
+            <label className="aimCheck">
+              <input type="checkbox" checked={dialog.sound} onChange={(e) => setDialog({ ...dialog, sound: e.target.checked })} />
+              <span>Play sounds</span>
+            </label>
+            <label className="aimCheck">
+              <input type="checkbox" checked={dialog.saveHistory} onChange={(e) => setDialog({ ...dialog, saveHistory: e.target.checked })} />
+              <span>Save my conversations on the server</span>
+            </label>
+            <p className="aimPrefsHint">
+              {dialog.saveHistory
+                ? "Your other devices (and a new phone) get your IMs and chat messages. Kept up to a year, the newest 2,000 per conversation."
+                : "Only this device keeps your conversations. Turning this off deletes your copy on the server now; the people you talk to keep theirs."}
+            </p>
+            <label className="aimCheck">
+              <input type="checkbox" checked={dialog.receipts} onChange={(e) => setDialog({ ...dialog, receipts: e.target.checked })} />
+              <span>Read receipts</span>
+            </label>
+            <p className="aimPrefsHint">Buddies see "Read" when you've seen their IM, and you see theirs. Off: neither.</p>
+          </div>
         </Dialog>
       )}
 
