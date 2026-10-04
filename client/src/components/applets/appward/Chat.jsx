@@ -235,6 +235,7 @@ export const ChatView = ({ channel: wanted, focusMsg }) => {
                 <textarea
                   ref={inputRef}
                   rows={2}
+                  enterKeyHint="send"
                   value={text}
                   onChange={(e) => setText(e.target.value)}
                   onKeyDown={(e) => {

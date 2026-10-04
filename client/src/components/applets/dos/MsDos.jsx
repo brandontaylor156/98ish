@@ -124,6 +124,7 @@ const MsDos = ({ onClose, onOpen, fullScreen = false, onTitle }) => {
     <div
       className={fullScreen ? "dosRoot dosRoot--full" : "dosRoot"}
       style={{ background: shell.color.bg, color: shell.color.fg }}
+      data-kb-keep
       onMouseUp={() => {
         // click anywhere to type, unless text is being selected for copying
         if (!window.getSelection()?.toString()) inputRef.current?.focus({ preventScroll: true })
@@ -156,6 +157,7 @@ const MsDos = ({ onClose, onOpen, fullScreen = false, onTitle }) => {
             autoComplete="off"
             spellCheck="false"
             enterKeyHint="go"
+            data-kb-layout="dos"
           />
         </div>
       </div>

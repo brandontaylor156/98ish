@@ -72,6 +72,16 @@ export const DEFAULT_SETTINGS = {
   taskbarAutoHide: false,
   taskbarClock: true,
   quickLaunch: true, // show the Quick Launch toolbar
+  // Keyboard Properties: on touch screens, type with the 98ish keyboard or the phone's own
+  // (components/shared/keyboard, docs/keyboard.md)
+  keyboard: "98ish", // 98ish | phone
+  keyClicks: true,
+  keyVibrate: true,
+  keyPreviews: true,
+  autoCaps: true,
+  periodShortcut: true, // double space types ". "
+  keyRepeatDelay: 500, // ms before a held key repeats
+  keyRepeatRate: 60, // ms between repeats
 }
 
 const listeners = new Set()

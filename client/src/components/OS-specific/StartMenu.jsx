@@ -116,6 +116,7 @@ const StartMenu = ({ dispatch, setResults, closeMenu, onShutDown, onLogOff, mobi
       items: () => [
         { label: "Display Properties", icon: "/assets/vaporwave.png", onClick: () => go(launch("Display Properties")) },
         { label: "Date/Time Properties", icon: "/assets/program_icons/datetime.svg", onClick: () => go(launch("Date/Time Properties")) },
+        { label: "Keyboard", icon: "/assets/program_icons/keyboard.svg", onClick: () => go(launch("Keyboard Properties")) },
         { label: "Desktop Themes", icon: "/assets/program_icons/themes.svg", onClick: () => go(launch("Desktop Themes")) },
         { label: "Taskbar & Start Menu...", icon: "/assets/start98.png", onClick: () => (closeMenu(), shellAction("taskbar-properties")) },
         { label: "Keyboard Shortcuts", icon: ICON.help, onClick: () => (closeMenu(), shellAction("shortcuts")) },

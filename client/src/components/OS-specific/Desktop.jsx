@@ -26,6 +26,7 @@ import { CLOSE_EVENT, quickLaunchDrop, watchSocket } from "../../utils/shell"
 const Calculator = lazyApp(() => import("../applets/calculator/Calculator"))
 const CharMap = lazyApp(() => import("../applets/charmap/CharMap"))
 const DateTimeProperties = lazyApp(() => import("../applets/datetime/DateTimeProperties"))
+const KeyboardProperties = lazyApp(() => import("../applets/keyboard/KeyboardProperties"))
 const Solitaire = lazyApp(() => import("../applets/cards/Solitaire"))
 const FreeCell = lazyApp(() => import("../applets/cards/FreeCell"))
 const Paint = lazyApp(() => import("../applets/paint/Paint"))
@@ -735,6 +736,7 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
       )}
       {window.app === "charmap" && <CharMap onClose={() => closeWindow(window, index)} />}
       {window.app === "datetime" && <DateTimeProperties onClose={() => closeWindow(window, index)} />}
+      {window.app === "keyboard" && <KeyboardProperties onClose={() => closeWindow(window, index)} />}
       {window.app === "webapp" && PROJECTS.find((p) => p.name === window.program) && (
         <WebApp project={PROJECTS.find((p) => p.name === window.program)} mobile={mobile} />
       )}

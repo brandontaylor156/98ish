@@ -14,6 +14,7 @@ import Helper from "./components/OS-specific/Helper"
 import GlobalMenu from "./components/OS-specific/GlobalMenu"
 import AchievementToast from "./components/OS-specific/AchievementToast"
 import CursorTrail from "./components/OS-specific/CursorTrail"
+import KeyboardHost from "./components/shared/keyboard/KeyboardHost"
 import { arrangeWindows } from "./utils/windowArrange"
 import { unlock } from "./utils/achievements"
 import { programByName } from "./utils/programs"
@@ -383,6 +384,8 @@ function App() {
       {phase === "dos" && <MsDos fullScreen onClose={restart} />}
       {phase === "bsod" && <BlueScreen process={crashed} onDone={restart} />}
       <AchievementToast />
+      {/* the 98ish on-screen keyboard (touch screens only) */}
+      <KeyboardHost />
     </div>
   )
 }

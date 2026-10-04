@@ -85,6 +85,7 @@ export const Composer = ({ onSend, onTypingChange, disabled, autoFocus }) => {
             }
           }}
           aria-label="Message"
+          enterKeyHint="send"
         />
         <button type="button" className="aimSend" onClick={send} disabled={disabled || !text.trim()}>
           Send
