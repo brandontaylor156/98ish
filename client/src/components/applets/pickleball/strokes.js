@@ -49,14 +49,14 @@ const MAX_HIT_Y = 2.3 // (match.js: nothing higher is hittable)
 // prep: the wind-up starts this long before contact; fwd: the forward swing; fin: the
 // follow-through; hold: held at the finish; rec: back to ready
 export const STYLES = {
-  drive: { prep: 0.55, fwd: 0.17, fin: 0.24, hold: 0.06, rec: 0.36, wind: 0.24 },
-  slice: { prep: 0.55, fwd: 0.18, fin: 0.24, hold: 0.06, rec: 0.36, wind: 0.24 },
-  lob: { prep: 0.55, fwd: 0.2, fin: 0.28, hold: 0.08, rec: 0.38, wind: 0.24 },
-  dink: { prep: 0.5, fwd: 0.24, fin: 0.24, hold: 0.06, rec: 0.38, wind: 0.22 },
-  block: { prep: 0.35, fwd: 0.08, fin: 0.13, hold: 0.06, rec: 0.3, wind: 0.14 },
-  punch: { prep: 0.4, fwd: 0.09, fin: 0.14, hold: 0.04, rec: 0.32, wind: 0.16 },
-  overhead: { prep: 0.7, fwd: 0.2, fin: 0.26, hold: 0.05, rec: 0.42, wind: 0.3 },
-  serve: { prep: 0.6, fwd: 0.26, fin: 0.3, hold: 0.08, rec: 0.42, wind: 0.24 },
+  drive: { prep: 0.6, fwd: 0.17, fin: 0.24, hold: 0.06, rec: 0.36, wind: 0.36 },
+  slice: { prep: 0.6, fwd: 0.18, fin: 0.24, hold: 0.06, rec: 0.36, wind: 0.36 },
+  lob: { prep: 0.6, fwd: 0.2, fin: 0.28, hold: 0.08, rec: 0.38, wind: 0.34 },
+  dink: { prep: 0.55, fwd: 0.24, fin: 0.24, hold: 0.06, rec: 0.38, wind: 0.26 },
+  block: { prep: 0.35, fwd: 0.08, fin: 0.13, hold: 0.06, rec: 0.3, wind: 0.18 },
+  punch: { prep: 0.42, fwd: 0.09, fin: 0.14, hold: 0.04, rec: 0.32, wind: 0.22 },
+  overhead: { prep: 0.8, fwd: 0.2, fin: 0.26, hold: 0.05, rec: 0.42, wind: 0.5 },
+  serve: { prep: 0.6, fwd: 0.26, fin: 0.3, hold: 0.08, rec: 0.42, wind: 0.3 },
 }
 export const strokeLength = (style) => {
   const S = STYLES[style] || STYLES.drive
@@ -66,8 +66,9 @@ export const strokeLength = (style) => {
 // ---- which stroke ----
 const SOFT = new Set(["dink", "drop", "reset", "block", "roll"])
 // kind: the shot (match.js / shots.js), c: the contact in the body frame (right-handed)
-export const chooseStroke = (kind, c, { volley = false } = {}) => {
+export const chooseStroke = (kind, c, { volley = false, y = c.y } = {}) => {
   if (kind === "serve") return "serve"
+  c = { ...c, y } // (by the ball's real height above the court)
   const soft = SOFT.has(kind)
   if (c.y > 1.62 && !soft) return "overhead"
   if (soft) return c.y < 0.62 ? "dink" : "block"
@@ -144,7 +145,7 @@ export const strokeKeys = (style, side, c) => {
     }
     case "overhead": {
       const top = Math.min(c.y, 2.1)
-      back = P(V(0.3, clamp(c.y - 0.42, 1.5, 1.72), -0.14), N(0.12, -0.45, -0.88), 0.9, V(-0.04, top - 0.08, 0.32), V(1, 0.05, -0.25), -0.08)
+      back = P(V(0.32, clamp(c.y - 0.55, 1.42, 1.6), -0.2), N(0.12, -0.45, -0.88), 0.9, V(-0.04, top - 0.08, 0.32), V(1, 0.05, -0.25), -0.08)
       contact = P(ch, ax, -0.05, V(-0.22, 1.3, 0.22), V(0.75, -0.25, 0.3), 0.14)
       follow = P(V(-0.24, 0.98, 0.38), N(-0.3, -0.75, 0.55), -0.72, V(-0.3, 1.0, 0.02), V(0.3, -0.45, 0.85), 0.3, 0.03)
       break
@@ -153,7 +154,7 @@ export const strokeKeys = (style, side, c) => {
       // (the other hand stays where it let the ball go: match.js handPos)
       back = P(V(0.3, 0.74, -0.38), N(0.12, -0.85, -0.5), 0.45, V(0.12, 0.96, 0.4), V(0.45, -1, -0.3), 0.12)
       contact = P(ch, ax, 0.02, V(-0.28, 1.04, 0.2), V(0.4, -1, 0.15), 0.12)
-      follow = P(V(0.2, 1.14, 0.56), N(0.22, 0.72, 0.62), -0.35, V(-0.32, 1.02, 0.06), V(0.35, -0.8, 0.5), 0.06)
+      follow = P(V(0.3, 1.2, 0.48), N(0.2, 0.88, 0.42), -0.3, V(-0.32, 1.02, 0.06), V(0.45, -0.8, 0.35), 0.06)
       break
     }
     case "lob": {
@@ -214,7 +215,22 @@ export const hermite = (p0, v0, p1, v1, T, u) => {
   return V(h00 * p0.x + h10 * T * v0.x + h01 * p1.x + h11 * T * v1.x, h00 * p0.y + h10 * T * v0.y + h01 * p1.y + h11 * T * v1.y, h00 * p0.z + h10 * T * v0.z + h01 * p1.z + h11 * T * v1.z)
 }
 // the hand's speed through contact: along the swing (back to finish), fastest there
-const contactVelocity = (from, contact, follow, S) => mul(sub(follow, from), 1.25 / (S.fwd + S.fin))
+// along the swing (between the way in and the way out), twice the forward swing's average
+// speed, so the hand speeds up all the way into the ball (fastest at contact, like a real
+// swing), then slows to the finish; capped where a curve would overshoot
+const MAX_HAND_SPEED = 16 // m/s
+export const contactVelocity = (from, contact, follow, fwdLen) => {
+  const a = sub(contact, from)
+  const b = sub(follow, contact)
+  const dir = norm(add(norm(a, V(0, 0, 1)), norm(b, V(0, 0, 1))), norm(a, V(0, 0, 1)))
+  return mul(dir, Math.min(MAX_HAND_SPEED, (2 * len(a)) / Math.max(0.04, fwdLen)))
+}
+// (out of contact: no faster than the follow-through can take without looping past its end)
+const outVelocity = (vC, contact, follow, fin) => {
+  const cap = (2 * len(sub(follow, contact))) / fin
+  const s = len(vC)
+  return s > cap ? mul(vC, cap / s) : vC
+}
 
 // From a to b round the point o (a shoulder): the direction turns and the distance changes
 // evenly, so a hand going from low in front to up behind the head swings round the shoulder
@@ -291,13 +307,13 @@ export const stepStroke = (st, inp, ready, dt) => {
         st.key = inp.key
         st.phase = "after"
         st.c = { ...inp.c }
-        const style = chooseStroke(inp.kind, inp.c, { volley: inp.volley })
+        const style = chooseStroke(inp.kind, inp.c, { volley: inp.volley, y: inp.y ?? inp.c.y })
         if (style !== st.style && style !== "serve" && st.style !== "serve") {
           st.style = style
           st.side = chooseSide(inp.c, style, st.side)
         }
       } else {
-        const style = chooseStroke(inp.kind, inp.c, { volley: inp.volley })
+        const style = chooseStroke(inp.kind, inp.c, { volley: inp.volley, y: inp.y ?? inp.c.y })
         st.key = inp.key
         st.style = style
         st.side = chooseSide(inp.c, style, 0)
@@ -308,8 +324,8 @@ export const stepStroke = (st, inp, ready, dt) => {
         st.from = st.phase === "none" ? null : was // (mid-recovery: wind up from where the arm is)
         st.cpose = inp.after ? was : null // (a swing out of nowhere: from where the arm is)
         st.phase = inp.after ? "after" : "wind"
-        if (!inp.after) {
-          // not much time: a shorter take-back
+        if (!inp.after && inp.forward) {
+          // not much time: a shorter take-back (a person holding the hit control winds right up)
           const S = STYLES[style] || STYLES.drive
           st.room = clamp((-inp.tRel - S.fwd * 0.6) / Math.max(0.05, S.prep - S.fwd * 0.6), 0, 1)
         }
@@ -359,7 +375,7 @@ export const stepStroke = (st, inp, ready, dt) => {
   } else if (st.phase === "after") {
     const t = st.t
     const C = st.cpose || K.contact
-    const vC = contactVelocity(st.fwdFrom?.hand || K.back.hand, C.hand, K.follow.hand, S)
+    const vC = outVelocity(contactVelocity(st.fwdFrom?.hand || K.back.hand, C.hand, K.follow.hand, st.fwdFrom ? st.fwdLen : S.fwd), C.hand, K.follow.hand, S.fin)
     if (t < S.fin) {
       const u = t / S.fin
       const e = 1 - (1 - u) * (1 - u) // (fast out of contact, slowing to the finish)
@@ -381,7 +397,8 @@ export const stepStroke = (st, inp, ready, dt) => {
     const goForward = inp.forward && tRel >= -S.fwd
     if (!goForward) {
       // the wind-up: as far as the time to contact says, but never faster than it can be done
-      const want = inp.forward ? smooth((tRel + S.prep) / Math.max(0.05, S.prep - S.fwd)) : 1
+      // (loaded a moment before the forward swing)
+      const want = inp.forward ? smooth((tRel + S.prep) / Math.max(0.05, S.prep - S.fwd - 0.05)) : 1
       st.wind = want >= st.wind ? Math.min(want, st.wind + dt / S.wind) : Math.max(want, st.wind - dt / 0.4)
       pose = mixPose(base, K.back, smooth(st.wind))
       // (a take-back never asks for more than the arm has: the knees bend for a low ball only
@@ -391,7 +408,9 @@ export const stepStroke = (st, inp, ready, dt) => {
       const d = sub(pose.hand, o)
       if (len(d) > ARM_REACH) {
         const h = Math.hypot(d.x, d.z)
-        pose.hand = h < ARM_REACH * 0.98 && d.y < 0 ? V(pose.hand.x, o.y - Math.sqrt(ARM_REACH * ARM_REACH - h * h), pose.hand.z) : add(o, mul(d, ARM_REACH / len(d)))
+        if (d.y >= 0) pose.hand = add(o, mul(d, ARM_REACH / len(d)))
+        else if (h < ARM_REACH) pose.hand = V(pose.hand.x, o.y - Math.sqrt(ARM_REACH * ARM_REACH - h * h), pose.hand.z)
+        else pose.hand = V(o.x + (d.x * ARM_REACH) / h, o.y, o.z + (d.z * ARM_REACH) / h)
       }
       st.phase = "wind"
     } else {
@@ -406,7 +425,7 @@ export const stepStroke = (st, inp, ready, dt) => {
       const u = clamp(Math.max(st.u, 1 - -tRel / st.fwdLen), 0, 1)
       st.u = u
       const from = st.fwdFrom
-      const vC = contactVelocity(from.hand, K.contact.hand, K.follow.hand, S)
+      const vC = contactVelocity(from.hand, K.contact.hand, K.follow.hand, st.fwdLen)
       pose = mixPose(from, K.contact, u * u)
       pose.hand = hermite(from.hand, V(), K.contact.hand, vC, st.fwdLen, u)
       // the shoulders unwind ahead of the arm

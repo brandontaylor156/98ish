@@ -175,6 +175,7 @@ export const createAnim = (x, z, yaw) => ({
   handLim: null,
   axisLim: null,
   axisOut: null,
+  normalOut: null,
   offLim: null,
   ikP: {},
   ikO: {},
@@ -387,11 +388,11 @@ export const updateAnim = (a, s, dt) => {
   // ---- a stroke (strokes.js): wind-up, the forward swing through the contact, follow-through ----
   let inp = null
   // (a new ball on its way beats the end of the last swing: quick exchanges at the net)
-  if (swing && !(s.prep && swing.t > 0.1)) inp = { key: "s" + (swing.id ?? `${swing.kind}${swing.x?.toFixed(3)}${swing.z?.toFixed(3)}`), kind: swing.kind, c: toStd(local(swing)), tRel: swing.t, after: true, forward: true }
+  if (swing && !(s.prep && swing.t > 0.1)) inp = { key: "s" + (swing.id ?? `${swing.kind}${swing.x?.toFixed(3)}${swing.z?.toFixed(3)}`), kind: swing.kind, c: toStd(local(swing)), y: swing.y, tRel: swing.t, after: true, forward: true }
   else if (whiff && !s.prep) inp = { key: "w" + whiff.kind + whiff.y.toFixed(3), kind: "block", c: V(0.32, clamp(whiff.y, 0.7, 1.5), 0.58), tRel: whiff.t, after: true, forward: true }
   else if (s.prep) {
     const p = s.prep
-    inp = { key: "p" + (p.id ?? 0), kind: p.kind, c: toStd(local(p)), tRel: -p.ttc, after: false, forward: !!p.forward && !s.charging, volley: !!p.volley }
+    inp = { key: "p" + (p.id ?? 0), kind: p.kind, c: toStd(local(p)), y: p.y, tRel: -p.ttc, after: false, forward: !!p.forward && !s.charging, volley: !!p.volley }
   }
   const so = stepStroke(a.stroke, inp, pose, dt)
   if (so.w > 0) pose = so.pose
@@ -448,17 +449,18 @@ export const updateAnim = (a, s, dt) => {
   // reaching: if the paddle hand can't get to where the stroke wants it, the whole upper
   // body goes toward it (a step in, a bend at the knees), as far as the legs allow
   const want = toWorld(ground, fr, handT)
-  const shR = toWorld(ground, fr, V(hand * BODY.shoulderHalf, 0.935 - crouchS + BODY.spine - 0.05, 0.08))
+  // (the shoulder where the posture puts it, before any reach)
+  const shR = toWorld(ground, fr, V(hand * BODY.shoulderHalf, sh + ofs.y - sft.y, 0.1 + ofs.z - sft.z))
   const gap = sub(want, shR)
-  const over = len(gap) - ARM * 0.96
+  const over = len(gap) - ARM * 0.92
   let shiftT = V()
   // (only around contact: a backswing or a ready pose never drags the body down)
   const reaching = (swing && swing.t < 0.3) || (s.prep && s.prep.forward && s.prep.ttc < 0.35)
   if (over > 0 && !s.between && reaching) {
     const d = norm(gap)
-    shiftT = V(clamp(d.x * over, -0.38, 0.38), clamp(d.y * over, -0.34, 0.04), clamp(d.z * over, -0.38, 0.38))
+    shiftT = V(clamp(d.x * over, -0.4, 0.4), clamp(d.y * over, -0.4, 0.04), clamp(d.z * over, -0.4, 0.4))
   }
-  const shift = springV(a.shift, shiftT, k >= 200 ? 30 : 14, dt)
+  const shift = springV(a.shift, shiftT, k >= 200 ? 36 : 16, dt)
   py += shift.y
   const side = sway * 1.2 + a.gait.sway
   const pelvisXZ = V(s.x + fr.r.x * side + shift.x, 0, s.z + fr.r.z * side + shift.z)
@@ -598,8 +600,11 @@ export const updateAnim = (a, s, dt) => {
   normalW = norm(sub(normalW, mul(axisW, dot(normalW, axisW))), fr.f)
   // (either face can hit: keep the side it had, so the face never swings through edge-on)
   if (a.normal.p && dot(normalW, a.normal.p) < 0) normalW = mul(normalW, -1)
-  const springNormal = springV(a.normal, normalW, normalT ? 200 : 40, dt)
+  const springNormal = springV(a.normal, normalW, normalT ? 200 : fast ? 30 : 14, dt)
   normalW = norm(sub(springNormal, mul(axisW, dot(springNormal, axisW))), fr.f)
+  // (and the face turns round the handle no faster than a wrist turns it)
+  normalW = a.normalOut = limitTurn(a.normalOut, normalW, normalT ? Math.PI : (fast ? 30 : 10) * dt)
+  normalW = norm(sub(normalW, mul(axisW, dot(normalW, axisW))), fr.f)
 
   // ---- the head looks at the ball: smoothly, within a neck's reach, at a top speed ----
   const headBase = add(neck, mul(spineDir, BODY.neck))
