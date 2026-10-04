@@ -144,8 +144,20 @@ const SCHEME_CONTROLS = {
   ],
 }
 
+// "Like the Tetris app" (the default on phones): swipes only, as in the official app, plus a
+// Hold button (kept on purpose) and Pause. Portrait uses the app-like layout (TetrisWindow
+// data-layout="app", Tetris.css): Pause at the top left beside the stats strip, Hold (and the
+// Arena's Item) in the bottom corners under the side columns. Landscape keeps the classic
+// spots beside the board.
+export const APP_SIDE = 48 // side column width in the app layout (Tetris.css, --app-side)
+SCHEME_CONTROLS.app = [
+  sideAt("pause", (size) => fromPx(size, { left: PAD, top: PAD, width: APP_SIDE, height: 32 })),
+  sideAt("hold", (size) => fromPx(size, { left: PAD, bottom: PAD, width: APP_SIDE, height: 56 })),
+  sideAt("item", (size) => fromPx(size, { right: PAD, bottom: PAD, width: APP_SIDE, height: 56 })),
+]
+
 // Where each scheme's arrangement is saved (shared/controls, per orientation)
-export const controlsGameFor = (scheme) => ({ buttons: "tetris", gestures: "tetris-swipe" })[scheme] || "tetris-gestures"
+export const controlsGameFor = (scheme) => ({ buttons: "tetris", gestures: "tetris-swipe", app: "tetris-app" })[scheme] || "tetris-gestures"
 
 // The same layout for every mode (so a player's arrangement carries over: positions are
 // saved by id). The Item button only exists in the Arena and Pause only offline (a match

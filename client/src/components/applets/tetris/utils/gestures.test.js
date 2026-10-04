@@ -48,21 +48,36 @@ const drag = (tracker, path, { id = 1, t0 = 0, ms = 400, lift = true, liftAfter 
 
 const count = (actions, a) => actions.filter((x) => x === a).length
 
-test("a tap rotates clockwise", () => {
-  const { tracker, actions } = setup()
+test("tapSides off: every tap rotates clockwise", () => {
+  const { tracker, actions } = setup({ tapSides: false })
   tracker.down({ id: 1, x: 100, y: 200, t: 0 })
   tracker.move({ id: 1, x: 103, y: 202, t: 40 })
   tracker.up({ id: 1, x: 103, y: 202, t: 90 })
   assert.deepEqual(actions, ["rotateRight"])
 })
 
-test("tap sides: left half rotates counterclockwise, right half clockwise", () => {
-  const { tracker, actions } = setup({ tapSides: true })
+test("like the app (the default): left half rotates counterclockwise, right half clockwise", () => {
+  const { tracker, actions } = setup()
   tracker.down({ id: 1, x: 60, y: 200, t: 0 })
   tracker.up({ id: 1, x: 60, y: 200, t: 80 })
   tracker.down({ id: 2, x: 200, y: 200, t: 200 })
   tracker.up({ id: 2, x: 200, y: 200, t: 280 })
   assert.deepEqual(actions, ["rotateLeft", "rotateRight"])
+})
+
+test("a tap right on the middle rotates clockwise", () => {
+  const { tracker, actions } = setup()
+  tracker.down({ id: 1, x: 120, y: 200, t: 0 })
+  tracker.up({ id: 1, x: 120, y: 200, t: 60 })
+  assert.deepEqual(actions, ["rotateRight"])
+})
+
+test("a tap that wanders a few px across the middle counts where it went down", () => {
+  const { tracker, actions } = setup()
+  tracker.down({ id: 1, x: 117, y: 200, t: 0 })
+  tracker.move({ id: 1, x: 124, y: 201, t: 30 })
+  tracker.up({ id: 1, x: 124, y: 201, t: 70 })
+  assert.deepEqual(actions, ["rotateLeft"])
 })
 
 test("a long press without moving isn't a tap", () => {

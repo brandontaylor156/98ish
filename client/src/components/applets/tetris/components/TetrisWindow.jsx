@@ -5,7 +5,7 @@ import GameStats, { KeyHints } from './GameStats'
 import PiecePreview from './PiecePreview'
 import TouchControls, { useTouchControlsVisible } from '../../../shared/controls'
 import { useControlsStore } from '../../../shared/controls/store'
-import { controlsFor, controlsGameFor } from './tetrisControls'
+import { APP_SIDE, controlsFor, controlsGameFor } from './tetrisControls'
 import TouchSettings from './TouchSettings'
 import { useSwipeControls } from '../hooks/useSwipeControls'
 import { hintSeen, markHintSeen, useTetrisTouchPrefs } from '../utils/touchPrefs'
@@ -15,12 +15,18 @@ import { ITEM_INFO } from '../utils/items'
 
 // Below this width the side panels shrink so the board keeps most of the window
 const COMPACT_WIDTH = 440
+// The Tetris app shows 3 next pieces; its layout here does too
+const APP_NEXT_COUNT = 3
 
 // "wide": roomy side panels. "compact": slim side panels, for narrow windows.
 // Touch screens add on-screen controls (shared/controls, which players can rearrange):
 // room for them is kept under the board when the window is tall ("portrait"), on either
 // side of it when wide ("landscape").
-const pickLayout = ({ width, height }, touch) => {
+// "app": the official Tetris app's portrait layout for its swipe scheme (stats strip on
+// top, Hold and a 3-piece Next beside the top of a wide board that sits a little below the
+// middle; see docs/tetris-mobile.md).
+const pickLayout = ({ width, height }, touch, scheme) => {
+    if (touch && height >= width && scheme === "app") return "app"
     if (touch) return height >= width ? "portrait" : "landscape"
     return width < COMPACT_WIDTH ? "compact" : "wide"
 }
@@ -65,7 +71,8 @@ const TetrisWindow = ({ tetris, onGameOver, onQuit, editControls = false, stats,
     const [focused, setFocused] = useState(false)
     const pausedByBlur = useRef(false)
     const size = useSize(windowRef)
-    const layout = size ? pickLayout(size, touch) : "wide"
+    const layout = size ? pickLayout(size, touch, scheme) : "wide"
+    const appLayout = layout === "app"
 
     const focusWindow = () => windowRef.current.focus({ preventScroll: true })
 
@@ -150,6 +157,12 @@ const TetrisWindow = ({ tetris, onGameOver, onQuit, editControls = false, stats,
         </div>
     )
 
+    const shownStats = stats || [
+        { label: "Score", value: game.score.toLocaleString() },
+        { label: "Level", value: game.level },
+        { label: "Lines", value: game.lines },
+    ]
+
     // Buttons in the pause overlay mustn't start a refocus of the window under them
     const keepFocus = (event) => event.stopPropagation()
 
@@ -158,6 +171,7 @@ const TetrisWindow = ({ tetris, onGameOver, onQuit, editControls = false, stats,
             className={layout === "wide" ? "tetrisWindow" : "tetrisWindow tetrisWindow--compact"}
             data-layout={layout}
             data-scheme={touch ? scheme : undefined}
+            style={appLayout ? { "--app-side": `${APP_SIDE}px` } : undefined}
             tabIndex={0}
             ref={windowRef}
             onKeyDown={onKeyDown}
@@ -166,19 +180,20 @@ const TetrisWindow = ({ tetris, onGameOver, onQuit, editControls = false, stats,
             onBlur={onBlur}
             onMouseDown={focusWindow}
         >
+            {appLayout && (
+                <div className="tetrisHead">
+                    <GameStats stats={shownStats.slice(0, 1)} />
+                </div>
+            )}
             <aside className="tetrisSide tetrisSide--left">
-                <div>
+                <div className="tetrisHoldBox">
                     <div className="tetrisLabel">Hold</div>
                     <PiecePreview type={game.hold} dimmed={game.holdUsed} />
                 </div>
-                <GameStats stats={stats || [
-                    { label: "Score", value: game.score.toLocaleString() },
-                    { label: "Level", value: game.level },
-                    { label: "Lines", value: game.lines },
-                ]} />
+                <GameStats stats={appLayout ? shownStats.slice(1) : shownStats} />
                 {layout === "wide" && clearLabel}
                 {/* room for the default Pause and Hold buttons */}
-                {touch && <div className={scheme === "gestures" ? "tetrisSideButtons tetrisSideButtons--slim" : "tetrisSideButtons"} />}
+                {touch && !appLayout && <div className={scheme === "gestures" ? "tetrisSideButtons tetrisSideButtons--slim" : "tetrisSideButtons"} />}
             </aside>
             {layout !== "wide" && clearLabel}
             <div className="tetrisBoardWrap">
@@ -194,10 +209,14 @@ const TetrisWindow = ({ tetris, onGameOver, onQuit, editControls = false, stats,
                     {swipeHint && swipe && game.status === "playing" && (
                         <div className="tetrisSwipeHint" aria-live="polite">
                             <div><b>Drag</b> to move</div>
-                            <div><b>Tap</b> to rotate</div>
-                            <div><b>Drag down</b> to soft drop</div>
-                            <div><b>Flick down</b> to hard drop</div>
-                            <div><b>Swipe up</b> to hold</div>
+                            {touchPrefs.tapSides ? (
+                                <div><b>Tap right</b> / <b>left</b> to rotate {"↻"} / {"↺"}</div>
+                            ) : (
+                                <div><b>Tap</b> to rotate</div>
+                            )}
+                            <div><b>Hold and drag down</b> to soft drop</div>
+                            <div><b>Swipe down</b> to hard drop</div>
+                            <div><b>Swipe up</b> or <b>Hold</b> to hold</div>
                         </div>
                     )}
                     {game.status === "paused" && (
@@ -219,7 +238,7 @@ const TetrisWindow = ({ tetris, onGameOver, onQuit, editControls = false, stats,
             </div>
             <aside className="tetrisSide tetrisSide--right">
                 <div className="tetrisLabel">Next</div>
-                {game.queue.slice(0, NEXT_COUNT).map((type, i) => (
+                {game.queue.slice(0, appLayout ? APP_NEXT_COUNT : NEXT_COUNT).map((type, i) => (
                     <PiecePreview key={i} type={type} small={i > 0} />
                 ))}
                 {item !== undefined && (
@@ -233,7 +252,7 @@ const TetrisWindow = ({ tetris, onGameOver, onQuit, editControls = false, stats,
                 )}
                 {!touch && !online && <KeyHints />}
                 {/* room for the default Item button */}
-                {touch && item !== undefined && <div className="tetrisSideButtons tetrisSideButtons--item" />}
+                {touch && !appLayout && item !== undefined && <div className="tetrisSideButtons tetrisSideButtons--item" />}
             </aside>
             {touch && layout === "portrait" && scheme !== "gestures" && <div className="tetrisPad" />}
             {touch && (

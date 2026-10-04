@@ -4,7 +4,8 @@ import { SENSITIVITY_RANGE } from "../utils/gestures"
 import { SCHEMES, setTouchPrefs } from "../utils/touchPrefs"
 
 // Tetris's own options at the top of the controls editor (Customize Controls panel):
-// gestures and/or buttons, how far a drag moves the piece, and what a tap rotates
+// like the Tetris app (the default), gestures and/or buttons, how far a drag moves the
+// piece, and what a tap rotates
 const TouchSettings = ({ prefs }) => {
   const id = useId()
   const swipe = prefs.scheme !== "buttons"
@@ -31,7 +32,11 @@ const TouchSettings = ({ prefs }) => {
           <div className="tcRow">
             <Check label="Tap left half to rotate left" checked={prefs.tapSides} onChange={(on) => setTouchPrefs({ tapSides: on })} />
           </div>
-          <div className="tetrisTouchHelp">Drag: move. Drag down: soft drop. Flick down: hard drop. Swipe up: hold. Tap: rotate.</div>
+          <div className="tetrisTouchHelp">
+            Drag: move. Hold and drag down: soft drop. Swipe down: hard drop. Swipe up: hold.{" "}
+            {prefs.tapSides ? "Tap the right side: rotate right; the left side: rotate left." : "Tap: rotate."}
+            {prefs.scheme === "app" && " As in the Tetris app, plus a Hold button."}
+          </div>
         </>
       )}
     </div>

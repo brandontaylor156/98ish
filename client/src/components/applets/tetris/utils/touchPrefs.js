@@ -4,25 +4,36 @@ import { SENSITIVITY_RANGE } from "./gestures"
 // How Tetris plays on a touch screen (localStorage "98ish.tetris.touch", per user through
 // the storage seam). Set in the controls editor ("Customize controls...", or Controls... in
 // the pause menu).
-//   scheme: "gestures+buttons" (default) | "gestures" | "buttons" (the classic d-pad)
+//   scheme: "app" (default: the official Tetris app's swipes plus a Hold button and Pause,
+//           in the app's portrait layout) | "gestures+buttons" (swipes plus a row of
+//           rotate/drop buttons) | "gestures" (swipes and Pause) | "buttons" (the classic d-pad)
 //   sensitivity: columns per cell of finger travel (0.5-2)
-//   tapSides: tap the left half to rotate counterclockwise, the right half clockwise
+//   tapSides: tap the left half to rotate counterclockwise, the right half clockwise (as the
+//           app does; off: every tap rotates clockwise)
+// v: 2 since the app-like default. Prefs saved before it (no v) had "gestures+buttons" and
+// tapSides off as defaults: those move to the new defaults; other choices are kept.
 
 export const TOUCH_PREFS_KEY = "98ish.tetris.touch"
 export const SCHEMES = [
+  { id: "app", label: "Like the Tetris app" },
   { id: "gestures+buttons", label: "Gestures + buttons" },
   { id: "gestures", label: "Gestures only" },
   { id: "buttons", label: "Buttons only" },
 ]
-export const DEFAULT_TOUCH_PREFS = { scheme: "gestures+buttons", sensitivity: 1, tapSides: false }
+export const DEFAULT_TOUCH_PREFS = { v: 2, scheme: "app", sensitivity: 1, tapSides: true }
 
 export const sanitizeTouchPrefs = (raw) => {
-  const p = raw && typeof raw === "object" ? raw : {}
+  const p = raw && typeof raw === "object" ? { ...raw } : {}
+  if (p.v !== 2) {
+    if (p.scheme === "gestures+buttons") p.scheme = "app"
+    if (p.tapSides === false) delete p.tapSides
+  }
   const s = Number(p.sensitivity)
   return {
+    v: 2,
     scheme: SCHEMES.some((x) => x.id === p.scheme) ? p.scheme : DEFAULT_TOUCH_PREFS.scheme,
     sensitivity: Number.isFinite(s) ? Math.min(SENSITIVITY_RANGE[1], Math.max(SENSITIVITY_RANGE[0], s)) : DEFAULT_TOUCH_PREFS.sensitivity,
-    tapSides: p.tapSides === true,
+    tapSides: typeof p.tapSides === "boolean" ? p.tapSides : DEFAULT_TOUCH_PREFS.tapSides,
   }
 }
 
@@ -79,4 +90,4 @@ export const markHintSeen = () => {
   }
 }
 
-export const useTetrisTouchPrefs =() => useSyncExternalStore(subscribe, current, current)
+export const useTetrisTouchPrefs = () => useSyncExternalStore(subscribe, current, current)
