@@ -34,7 +34,7 @@ export const ensureSession = (token, { fresh = false, onSlow } = {}) => {
   const promise = withTimeout(
     fetch(`${SERVER}/api/web/session`, { method: "POST", headers: key ? { authorization: `Bearer ${key}` } : {} }).then(async (r) => {
       const body = await r.json().catch(() => ({}))
-      if (!r.ok) throw new RelayError(body.error || "The web relay isn't available.", r.status, { signOn: r.status === 401 })
+      if (!r.ok) throw new RelayError(body.error || "The web relay isn't available.", r.status, { signOn: r.status === 401, off: !!body.off })
       return body
     }),
     65000,
@@ -54,6 +54,14 @@ export const ensureSession = (token, { fresh = false, onSlow } = {}) => {
     })
   pending = { token: key, promise }
   return promise
+}
+
+// Guests (and everyone when the server runs WEB_RELAY=allowlist) may open only these sites
+// and their subdomains; the server checks every request too, this just saves a round trip
+export const allowedFor = (session, host) => {
+  if (!session?.allow) return true
+  const h = String(host || "").toLowerCase().replace(/\.$/, "")
+  return session.allow.some((d) => h === d || h.endsWith("." + d))
 }
 
 export const dropSession = () => {

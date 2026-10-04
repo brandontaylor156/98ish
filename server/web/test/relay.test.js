@@ -3,7 +3,7 @@ const assert = require("node:assert/strict")
 const http = require("node:http")
 const zlib = require("node:zlib")
 const express = require("express")
-const { createWeb, siteOf, ipKey } = require("..")
+const { createWeb, siteOf, ipKey, parseAllow, onList, relayMode, GUEST_ALLOW } = require("..")
 
 const TOKEN = "a".repeat(48)
 const fakeAim = () => {
@@ -32,6 +32,8 @@ const startSite = () => {
         return send(302, { location: "/framable" }, "")
       case "/to-private":
         return send(302, { location: "http://127.0.0.1:1/secret" }, "")
+      case "/to-other":
+        return send(302, { location: `http://other.test:${String(req.headers.host).split(":")[1]}/framable` }, "")
       case "/to-app":
         return send(302, { location: "itms-apps://apps.apple.com/app/1" }, "")
       case "/latin1": {
@@ -63,9 +65,9 @@ const startSite = () => {
   return new Promise((resolve) => server.listen(0, "127.0.0.1", () => resolve({ server, port: server.address().port, seen })))
 }
 
-const setup = async ({ limits = {}, allowGuests = false } = {}) => {
+const setup = async ({ limits = {}, allowGuests = false, guestAllow = ["site.test"], mode = "on" } = {}) => {
   const site = await startSite()
-  const web = createWeb({ aim: () => fakeAim(), allowGuests, testHosts: { "site.test": "127.0.0.1", "other.test": "127.0.0.1" }, limits: { waitMs: 2000, ...limits }, secret: "s".repeat(64) })
+  const web = createWeb({ aim: () => fakeAim(), allowGuests, guestAllow, mode, testHosts: { "site.test": "127.0.0.1", "other.test": "127.0.0.1" }, limits: { waitMs: 2000, ...limits }, secret: "s".repeat(64) })
   const app = express()
   app.use("/api/web", web.router)
   const server = http.createServer(app)
@@ -388,4 +390,198 @@ test("site keys approximate eTLD+1", () => {
   assert.equal(siteOf("example.com"), "example.com")
   assert.equal(siteOf("news.ycombinator.com:443"), "ycombinator.com")
   assert.equal(siteOf("127.0.0.1"), "127.0.0.1")
+})
+
+// ---------- guests: the allowlist, by address ----------
+
+test("guest allowlist: defaults, WEB_GUEST_ALLOW parsing, subdomain matching, WEB_RELAY modes", () => {
+  assert.ok(GUEST_ALLOW.includes("wikipedia.org") && GUEST_ALLOW.includes("wikimedia.org"))
+  assert.ok(!GUEST_ALLOW.some((d) => /archive\.org|98ish/.test(d)))
+  assert.deepEqual(parseAllow(undefined), GUEST_ALLOW)
+  assert.deepEqual(parseAllow(""), GUEST_ALLOW)
+  assert.deepEqual(parseAllow("none"), [])
+  assert.deepEqual(parseAllow(" Example.ORG, *.wikipedia.org , .osm.org. "), ["example.org", "wikipedia.org", "osm.org"])
+  assert.ok(onList("en.wikipedia.org", GUEST_ALLOW))
+  assert.ok(onList("upload.wikimedia.org.", GUEST_ALLOW))
+  assert.ok(onList("wikipedia.org", GUEST_ALLOW))
+  assert.ok(!onList("notwikipedia.org", GUEST_ALLOW))
+  assert.ok(!onList("wikipedia.org.evil.com", GUEST_ALLOW))
+  assert.ok(!onList("web.archive.org", GUEST_ALLOW))
+  assert.equal(relayMode(undefined), "on")
+  assert.equal(relayMode("1"), "on")
+  assert.equal(relayMode("0"), "off")
+  assert.equal(relayMode("OFF"), "off")
+  assert.equal(relayMode("allowlist"), "allowlist")
+})
+
+test("guests get a session (no sign-on) that lists the sites they may open; WEB_GUESTS=0 refuses them", async () => {
+  const t = await setup({ allowGuests: true })
+  try {
+    const g = await t.session({})
+    assert.equal(g.status, 200)
+    assert.equal(g.guest, true)
+    assert.deepEqual(g.allow, ["site.test"])
+    const m = await t.session()
+    assert.equal(m.guest, false)
+    assert.equal(m.allow, null)
+  } finally {
+    t.close()
+  }
+  const n = await setup({ allowGuests: false })
+  try {
+    const g = await n.session({})
+    assert.equal(g.status, 401)
+    assert.equal(g.signOn, true)
+  } finally {
+    n.close()
+  }
+})
+
+test("guests: an allowlisted host loads; another host is refused with a sign-on prompt, before anything is fetched", async () => {
+  const t = await setup({ allowGuests: true })
+  try {
+    const { sid } = await t.session({})
+    const ok = await t.page(sid, `${t.S}/`)
+    assert.equal(ok.status, 200)
+    assert.match(await ok.text(), /<title>Home<\/title>/)
+    const before = t.site.seen.length
+    const other = `http://other.test:${t.site.port}/framable`
+    // a page: the Compass sign-on stub
+    const nav = await t.page(sid, other)
+    assert.equal(nav.status, 401)
+    const body = await nav.text()
+    assert.match(body, /"kind":"signon"/)
+    assert.match(body, /Sign on with your 98 Messenger screen name to browse other sites/)
+    // a subresource or a script's own request: refused too
+    const sub = await t.page(sid, other, { nav: false })
+    assert.equal(sub.status, 401)
+    assert.equal(sub.headers.get("content-security-policy"), "sandbox")
+    assert.equal((await t.raw(sid, other)).status, 401)
+    assert.equal((await t.raw(sid, other, { method: "POST", body: "a=1" })).status, 401)
+    assert.equal(t.site.seen.length, before, "nothing was fetched from the other host")
+    // a signed-on account may open it
+    const m = await t.session()
+    assert.equal((await t.page(m.sid, other)).status, 200)
+  } finally {
+    t.close()
+  }
+})
+
+test("guests: a redirect from an allowlisted host to another host is refused (relay and frame check)", async () => {
+  const t = await setup({ allowGuests: true })
+  try {
+    const { sid } = await t.session({})
+    const before = t.site.seen.filter((s) => s.url === "/framable").length
+    const nav = await t.page(sid, `${t.S}/to-other`)
+    assert.equal(nav.status, 401)
+    const body = await nav.text()
+    assert.match(body, /"kind":"signon"/)
+    assert.match(body, /other\.test/) // the stub names where the redirect wanted to go
+    const sub = await t.raw(sid, `${t.S}/to-other`)
+    assert.equal(sub.status, 401)
+    // the frame check follows redirects itself: each hop is checked against the allowlist
+    const check = await (await fetch(`${t.base}/check?sid=${sid}&url=${encodeURIComponent(`${t.S}/to-other`)}`)).json()
+    assert.equal(check.ok, false)
+    assert.equal(check.notAllowed, true)
+    const direct = await (await fetch(`${t.base}/check?sid=${sid}&url=${encodeURIComponent(`http://other.test:${t.site.port}/framable`)}`)).json()
+    assert.equal(direct.ok, false)
+    assert.equal(direct.signOn, true)
+    assert.equal(t.site.seen.filter((s) => s.url === "/framable").length, before, "other.test was never fetched")
+    // a member follows the same redirect
+    const m = await t.session()
+    const ok = await t.page(m.sid, `${t.S}/to-other`)
+    assert.equal(ok.status, 302)
+    assert.match(ok.headers.get("location"), /\/http\/other\.test:\d+\/framable$/)
+  } finally {
+    t.close()
+  }
+})
+
+test("guests are rate limited by address, across their sessions", async () => {
+  const t = await setup({ allowGuests: true, limits: { guestPerMinute: 3 } })
+  try {
+    const a = { "cf-connecting-ip": "203.0.113.7" }
+    const s1 = await t.session(a)
+    const s2 = await t.session(a)
+    assert.notEqual(s1.sid, s2.sid)
+    assert.equal((await t.raw(s1.sid, `${t.S}/framable`, { headers: a })).status, 200)
+    assert.equal((await t.raw(s2.sid, `${t.S}/framable`, { headers: a })).status, 200)
+    assert.equal((await t.raw(s1.sid, `${t.S}/framable`, { headers: a })).status, 200)
+    // a new session from the same address doesn't reset it
+    const s3 = await t.session(a)
+    assert.equal((await t.raw(s3.sid, `${t.S}/framable`, { headers: a })).status, 429)
+    // another address has its own allowance
+    const b = { "cf-connecting-ip": "198.51.100.20" }
+    const other = await t.session(b)
+    assert.equal((await t.raw(other.sid, `${t.S}/framable`, { headers: b })).status, 200)
+  } finally {
+    t.close()
+  }
+})
+
+test("guests: a daily byte budget per address and for all guests together", async () => {
+  const t = await setup({ allowGuests: true, limits: { guestDailyBytes: 150 * 1024, guestsDailyBytes: 300 * 1024 } })
+  try {
+    const a = { "cf-connecting-ip": "203.0.113.8" }
+    const s = await t.session(a)
+    await (await t.raw(s.sid, `${t.S}/big`, { headers: a })).arrayBuffer()
+    assert.equal((await t.raw(s.sid, `${t.S}/framable`, { headers: a })).status, 429)
+    const b = { "cf-connecting-ip": "203.0.113.9" }
+    const s2 = await t.session(b)
+    await (await t.raw(s2.sid, `${t.S}/big`, { headers: b })).arrayBuffer()
+    // 400 KB used by guests: a third guest address is over the all-guests budget
+    const c = { "cf-connecting-ip": "203.0.113.10" }
+    const s3 = await t.session(c)
+    assert.equal((await t.raw(s3.sid, `${t.S}/framable`, { headers: c })).status, 429)
+    // members aren't affected
+    const m = await t.session()
+    assert.equal((await t.raw(m.sid, `${t.S}/framable`)).status, 200)
+  } finally {
+    t.close()
+  }
+})
+
+test("WEB_RELAY=allowlist limits members too; WEB_RELAY=0 turns the relay off", async () => {
+  const t = await setup({ allowGuests: true, mode: "allowlist" })
+  try {
+    const m = await t.session()
+    assert.deepEqual(m.allow, ["site.test"])
+    assert.equal((await t.page(m.sid, `${t.S}/`)).status, 200)
+    const r = await t.page(m.sid, `http://other.test:${t.site.port}/framable`)
+    assert.equal(r.status, 403)
+    assert.match(await r.text(), /"kind":"notallowed"/)
+  } finally {
+    t.close()
+  }
+  const off = await setup({ allowGuests: true, mode: "off" })
+  try {
+    const s = await off.session()
+    assert.equal(s.status, 503)
+    assert.equal(s.off, true)
+    const r = await off.page("f".repeat(32), `${off.S}/`)
+    assert.equal(r.status, 503)
+  } finally {
+    off.close()
+  }
+})
+
+test("anything shaped like a 98ish token is never forwarded, valid or not", async () => {
+  const t = await setup()
+  try {
+    const { sid } = await t.session()
+    const echo = await (await t.raw(sid, `${t.S}/echo`, { headers: { authorization: `Bearer ${"c".repeat(48)}` } })).json()
+    assert.equal(echo.auth, null)
+  } finally {
+    t.close()
+  }
+})
+
+test("the 98ish sites themselves are never fetched", async () => {
+  const t = await setup()
+  try {
+    const { sid } = await t.session()
+    for (const url of ["https://98ish.vercel.app/", "https://nine8ish.onrender.com/api/web/session"]) assert.equal((await t.raw(sid, url)).status, 403, url)
+  } finally {
+    t.close()
+  }
 })

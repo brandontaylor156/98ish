@@ -237,7 +237,8 @@ export const AboutPage = ({ session }) => (
       <li>
         <b>Anything you type into a relayed page, passwords included, passes through the 98ish server.</b> For banking, email and other important accounts, use <b>Open in Real Browser</b>.
       </li>
-      <li>Cookies (so you can stay signed in to simple sites) are kept on the server for your 98 Messenger account, only for the site that set them, until the server restarts. Tools &gt; Clear Cookies forgets them.</li>
+      <li>Without signing on, Compass opens Wikipedia and a few other reference sites. Sign on with your 98 Messenger screen name to browse other sites.</li>
+      <li>Cookies (so you can stay signed in to simple sites) are kept in the server's memory for your 98 Messenger account (a guest's only until the browsing session ends), only for the site that set them, and are gone after a day unused or when the server restarts. Tools &gt; Clear Cookies forgets them.</li>
       <li>Videos, Google sign-in, banks and big web apps work best in your real browser. Compass offers it when a site needs it.</li>
       <li>The server has a daily data allowance (shared with everyone), so pictures load straight from the sites when they can.</li>
     </ul>
@@ -248,7 +249,7 @@ export const AboutPage = ({ session }) => (
       </p>
     )}
     <p>
-      Searches use <a href="https://duckduckgo.com/" target="_blank" rel="noopener noreferrer">DuckDuckGo</a> unless you pick another engine in Tools &gt; Compass Options.
+      Searches use <a href="https://duckduckgo.com/" target="_blank" rel="noopener noreferrer">DuckDuckGo</a> unless you pick another engine in Tools &gt; Compass Options (guests search Wikipedia).
     </p>
   </div>
 )
@@ -259,7 +260,7 @@ export const StubPage = ({ info, onReal, onRetry, onAlways, onTimeMachine, onSig
   return (
     <div className="cmpPage cmpStub">
       <div className="cmpStubIcon" aria-hidden="true">
-        {info.kind === "download" ? "\u{1F4BE}" : info.kind === "media" ? "\u{1F3AC}" : info.kind === "real" ? "\u{1F310}" : "!"}
+        {info.kind === "signon" ? <img src="/assets/program_icons/aim2-48.png" width="48" height="48" alt="" draggable="false" /> : info.kind === "download" ? "\u{1F4BE}" : info.kind === "media" ? "\u{1F3AC}" : info.kind === "real" || info.kind === "notallowed" || info.kind === "off" ? "\u{1F310}" : "!"}
       </div>
       <h1>{title}</h1>
       {info.text && <p>{info.text}</p>}
@@ -272,9 +273,14 @@ export const StubPage = ({ info, onReal, onRetry, onAlways, onTimeMachine, onSig
           </button>
         )}
         {info.kind === "signon" && onSignOn && (
-          <button type="button" className="cmpPrimary" onClick={onSignOn}>
-            Sign On to 98 Messenger
-          </button>
+          <>
+            <button type="button" className="cmpPrimary" onClick={() => onSignOn(false)}>
+              Sign On
+            </button>
+            <button type="button" onClick={() => onSignOn(true)}>
+              Get a Screen Name
+            </button>
+          </>
         )}
         {info.url && /^https?:/.test(info.url) && (
           <button type="button" className={info.kind === "signon" ? "" : "cmpPrimary"} onClick={onReal}>

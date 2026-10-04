@@ -15,9 +15,15 @@
 //   POST /c/<sid>/<tok>                { url, cookie }          document.cookie = ... from a page
 //   POST /clear?sid=                   forget the account's cookies
 //
-// Env (all optional): WEB_RELAY=0 (off), WEB_GUESTS=1 (allow people who aren't signed on, by
-// address, with smaller limits), WEB_DAILY_MB (300 per account), WEB_GUEST_DAILY_MB (40),
-// WEB_GLOBAL_DAILY_MB (2500 for the whole server), WEB_RATE_PER_MIN (300),
+// Env (all optional): WEB_RELAY = on (default: signed-on accounts browse anywhere, guests the
+// allowlist) | allowlist (everyone, signed on or not, only the allowlist) | 0/off (no relay:
+// Compass shows sites straight in a frame when they allow it, else offers the real browser).
+// WEB_GUESTS=0 (people who aren't signed on can't use the relay at all; by default they may
+// browse the guest allowlist, by address, with smaller limits). WEB_GUEST_ALLOW (comma list of
+// domains replacing GUEST_ALLOW below; "none" for none). WEB_DAILY_MB (60 per account),
+// WEB_GUEST_DAILY_MB (10 per guest address), WEB_GUESTS_TOTAL_DAILY_MB (40 for all guests),
+// WEB_GLOBAL_DAILY_MB (100 for the whole server: Render's Hobby workspace includes only 5 GB of
+// outbound bandwidth a month), WEB_RATE_PER_MIN (300),
 // WEB_GUEST_RATE_PER_MIN (120), WEB_MAX_MB (12 per response), WEB_REWRITE_MB (4),
 // WEB_TIMEOUT_MS (20000), WEB_CONCURRENCY (48), WEB_IDLE_MINUTES (240), WEB_BIND_IP=0 (don't
 // bind sessions to addresses), WEB_BLOCK_HOSTS (more host names never to fetch),
@@ -26,7 +32,9 @@
 // tests reach a test site; it is ignored on Render.
 //
 // SAFETY (it's a public server):
-//  - Only for a session made by a signed-on account (or a guest, with WEB_GUESTS=1). Sessions
+//  - Guests (no account) may only fetch hosts on the guest allowlist: checked for every relayed
+//    request, every redirect and every frame check, on the server, whatever the page asks for.
+//  - Only for a session made by a signed-on account (or a guest, see above). Sessions
 //    live in memory, end after WEB_IDLE_MINUTES idle, and are bound to the address that made
 //    them, so a session id read out of a page's address is no use from elsewhere.
 //  - SSRF: guard.js refuses private, loopback, link-local, metadata and other special
@@ -68,10 +76,40 @@ const num = (name, fallback) => {
   return Number.isFinite(v) && v > 0 ? v : fallback
 }
 
+// Sites guests may browse without signing on, with their subdomains (en.wikipedia.org,
+// upload.wikimedia.org...). Small, well-behaved, non-profit or reference sites that don't
+// relay other people's content: not archive.org (its Wayback Machine would be a way to any
+// site, and its files are big). The 98ish servers themselves are never fetched (ownHosts).
+const GUEST_ALLOW = ["wikipedia.org", "wikimedia.org", "wiktionary.org", "wikivoyage.org", "wikibooks.org", "wikiquote.org", "openstreetmap.org", "example.com"]
+const OWN_SITES = ["98ish.vercel.app", "nine8ish.onrender.com"]
+
+// WEB_GUEST_ALLOW="a.org,b.com" replaces the list; "none" empties it
+const parseAllow = (text) => {
+  const t = String(text ?? "").trim().toLowerCase()
+  if (!t) return GUEST_ALLOW
+  if (t === "none" || t === "0") return []
+  return t
+    .split(",")
+    .map((s) => s.trim().replace(/^\*?\./, "").replace(/\.$/, ""))
+    .filter(Boolean)
+}
+const onList = (host, list) => {
+  const h = String(host || "").toLowerCase().replace(/\.$/, "")
+  return list.some((d) => h === d || h.endsWith("." + d))
+}
+// WEB_RELAY: "on" (default), "allowlist", or "0"/"off"
+const relayMode = (text) => {
+  const t = String(text ?? "").trim().toLowerCase()
+  if (["0", "off", "false", "no"].includes(t)) return "off"
+  if (["allowlist", "guest", "guests", "safe"].includes(t)) return "allowlist"
+  return "on"
+}
+
 const defaultLimits = () => ({
-  userDailyBytes: num("WEB_DAILY_MB", 300) * MB, // per signed-on account
-  guestDailyBytes: num("WEB_GUEST_DAILY_MB", 40) * MB, // per guest address
-  globalDailyBytes: num("WEB_GLOBAL_DAILY_MB", 2500) * MB, // the whole server (Render free: ~100 GB/month out)
+  userDailyBytes: num("WEB_DAILY_MB", 60) * MB, // per signed-on account
+  guestDailyBytes: num("WEB_GUEST_DAILY_MB", 10) * MB, // per guest address
+  guestsDailyBytes: num("WEB_GUESTS_TOTAL_DAILY_MB", 40) * MB, // all guests together
+  globalDailyBytes: num("WEB_GLOBAL_DAILY_MB", 100) * MB, // the whole server (Render Hobby: 5 GB/month out for everything)
   perMinute: num("WEB_RATE_PER_MIN", 300),
   guestPerMinute: num("WEB_GUEST_RATE_PER_MIN", 120),
   checksPerMinute: 60,
@@ -177,11 +215,18 @@ const stubHtml = (info) => {
 
 // ---------- the service ----------
 
-const createWeb = ({ aim = () => null, limits: overrides = {}, now = () => Date.now(), resolve, allowGuests = process.env.WEB_GUESTS === "1", enabled = process.env.WEB_RELAY !== "0", bindIp = process.env.WEB_BIND_IP !== "0", blockedHosts = [], testHosts = process.env.RENDER ? null : parseTestHosts(process.env.WEB_TEST_HOSTS), secret = process.env.WEB_SECRET || crypto.randomBytes(32).toString("hex") } = {}) => {
+const createWeb = ({ aim = () => null, limits: overrides = {}, now = () => Date.now(), resolve, allowGuests = process.env.WEB_GUESTS !== "0", mode: relayModeOption = relayMode(process.env.WEB_RELAY), enabled = true, guestAllow = parseAllow(process.env.WEB_GUEST_ALLOW), bindIp = process.env.WEB_BIND_IP !== "0", blockedHosts = [], testHosts = process.env.RENDER ? null : parseTestHosts(process.env.WEB_TEST_HOSTS), secret = process.env.WEB_SECRET || crypto.randomBytes(32).toString("hex") } = {}) => {
   const limits = { ...defaultLimits(), ...overrides }
+  const mode = enabled === false ? "off" : relayModeOption
+  const on = mode !== "off"
+  // guests, and everyone in "allowlist" mode, may only fetch allowlisted hosts
+  const limited = (session) => session.guest || mode === "allowlist"
+  const allowedFor = (session, host) => !limited(session) || onList(host, guestAllow)
+  const notAllowed = (session, url) =>
+    new Refused(session.guest ? 401 : 403, session.guest ? "Sign on with your 98 Messenger screen name to browse other sites." : "The 98ish server only relays a few sites right now. Open this one in your real browser.", { notAllowed: true, signOn: session.guest, url: url?.href })
   const sessions = new Map() // sid -> session
   const jars = new Map() // "u:<account>" -> { jar, at }
-  const usage = { day: today(now()), bytes: new Map(), total: 0 }
+  const usage = { day: today(now()), bytes: new Map(), total: 0, guests: 0 }
   const rate = { user: limiter(limits.perMinute, 60000), guest: limiter(limits.guestPerMinute, 60000), check: limiter(limits.checksPerMinute, 60000), session: limiter(30, 60 * 60000) }
   const gates = new Map() // sid -> gate
   const globalGate = makeGate(limits.global)
@@ -191,8 +236,9 @@ const createWeb = ({ aim = () => null, limits: overrides = {}, now = () => Date.
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean)
-  const ownHosts = (request) => [request?.headers?.host, process.env.RENDER_EXTERNAL_HOSTNAME, ...extraBlocked, ...blockedHosts].filter(Boolean)
-  const guardFor = (request) => ({ blockedHosts: ownHosts(request), testHosts, ...(resolve ? { resolve } : {}) })
+  const ownHosts = (request) => [request?.headers?.host, process.env.RENDER_EXTERNAL_HOSTNAME, ...OWN_SITES, ...extraBlocked, ...blockedHosts].filter(Boolean)
+  // the guard checks every hop again, the allowlist too
+  const guardFor = (request, session) => ({ blockedHosts: ownHosts(request), testHosts, ...(resolve ? { resolve } : {}), ...(session && limited(session) ? { allowHost: (host) => onList(host, guestAllow) } : {}) })
 
   const tokFor = (sid, site) => crypto.createHmac("sha256", secret).update(`${sid}|${site}`).digest("hex").slice(0, 16)
   const sameSite = (sid, tok, url) => {
@@ -207,6 +253,7 @@ const createWeb = ({ aim = () => null, limits: overrides = {}, now = () => Date.
       usage.day = d
       usage.bytes.clear()
       usage.total = 0
+      usage.guests = 0
     }
   }
   const budgetOf = (session) => (session.guest ? limits.guestDailyBytes : limits.userDailyBytes)
@@ -215,8 +262,9 @@ const createWeb = ({ aim = () => null, limits: overrides = {}, now = () => Date.
     rollDay()
     usage.bytes.set(key, (usage.bytes.get(key) || 0) + n)
     usage.total += n
+    if (key.startsWith("g:")) usage.guests += n
   }
-  const overBudget = (session) => used(session.key) >= budgetOf(session) || usage.total >= limits.globalDailyBytes
+  const overBudget = (session) => used(session.key) >= budgetOf(session) || usage.total >= limits.globalDailyBytes || (session.guest && usage.guests >= limits.guestsDailyBytes)
 
   // ---- sessions ----
   const sweep = () => {
@@ -236,10 +284,10 @@ const createWeb = ({ aim = () => null, limits: overrides = {}, now = () => Date.
   }
 
   const createSession = (request) => {
-    if (!enabled) throw new Refused(503, "The web relay is turned off on this server.")
+    if (!on) throw new Refused(503, "The web relay is turned off on this server.", { off: true })
     const account = sessionFrom(aim(), request)
     const ip = clientIp(request)
-    if (!account && !allowGuests) throw new Refused(401, "Sign on to 98 Messenger to browse with Compass.")
+    if (!account && !allowGuests) throw new Refused(401, "Sign on with your 98 Messenger screen name to browse with Compass.", { signOn: true })
     const key = account ? `u:${account.key}` : `g:${ipKey(ip).key}`
     if (rate.session(key)) throw new Refused(429, "Too many new browsing sessions. Try again later.")
     sweep()
@@ -292,12 +340,16 @@ const createWeb = ({ aim = () => null, limits: overrides = {}, now = () => Date.
     used: used(s.key),
     limit: budgetOf(s),
     maxBytes: limits.maxBytes,
+    mode,
+    // the only sites this session may open (null: any public site)
+    allow: limited(s) ? guestAllow : null,
   })
 
   // ---- is a page frameable? (headers only; the body isn't read) ----
   const check = async (s, input, request) => {
     const shape = checkUrlShape(input, { blockedHosts: ownHosts(request), testHosts })
     if (!shape.ok) return { ok: false, reason: shape.reason }
+    if (!allowedFor(s, shape.url.hostname)) throw notAllowed(s, shape.url)
     const href = shape.url.href
     const cached = checks.get(href)
     if (cached && now() - cached.at < 10 * 60 * 1000) return cached.result
@@ -306,7 +358,7 @@ const createWeb = ({ aim = () => null, limits: overrides = {}, now = () => Date.
       method: "GET",
       follow: 8,
       timeoutMs: limits.timeoutMs,
-      guard: guardFor(request),
+      guard: guardFor(request, s),
       headersFor: () => ({ accept: "text/html,*/*;q=0.8", "user-agent": String(request.headers["user-agent"] || "Mozilla/5.0").slice(0, 400), "accept-language": "en-US,en;q=0.8" }),
     })
     res.destroy()
@@ -348,14 +400,17 @@ const createWeb = ({ aim = () => null, limits: overrides = {}, now = () => Date.
       const message = error.status ? error.message : "Something went wrong relaying that page."
       if (!error.status) console.error("[web] relay error", error.message)
       if (isNav) {
-        const kind = error.expired ? "expired" : error.budget ? "budget" : error.blocked ? "blocked" : "error"
-        sendStub(response, status, { kind, url: target?.href || "", title: kind === "expired" ? "Session ended" : "Compass can't show this page", text: message })
+        const kind = error.expired ? "expired" : error.budget ? "budget" : error.blocked ? "blocked" : error.notAllowed ? (session?.guest ? "signon" : "notallowed") : error.off ? "off" : "error"
+        const title = kind === "expired" ? "Session ended" : kind === "signon" ? "Sign on to browse other sites" : "Compass can't show this page"
+        sendStub(response, status, { kind, url: error.url || target?.href || "", title, text: message })
       } else response.status(status).set("content-security-policy", "sandbox").type("text/plain").send(message)
     }
     try {
-      if (!enabled) throw new Refused(503, "The web relay is turned off on this server.")
+      if (!on) throw new Refused(503, "The web relay is turned off on this server.", { off: true })
       session = sessionFor(sid, request)
       if (!target) throw new Refused(400, "That isn't a relay address.")
+      // guests: allowlisted sites only, for pages and everything they load
+      if (!allowedFor(session, target.hostname)) throw notAllowed(session, target)
       const site = siteOf(target.hostname)
       const firstParty = sameSite(sid, tok, target)
       // a page opened with the wrong site token: send it to the right one (no cookies leak:
@@ -394,14 +449,13 @@ const createWeb = ({ aim = () => null, limits: overrides = {}, now = () => Date.
 
       const clientAccepts = String(request.headers["accept-encoding"] || "")
       const encodings = ["gzip", "deflate", "br"].filter((e) => clientAccepts.includes(e))
-      const aimSession = aim()
       const headersFor = (url, method) => {
         const h = {}
         for (const [name, value] of Object.entries(request.headers)) {
           const n = name.toLowerCase()
           if (HOP_BY_HOP.has(n) || NEVER_FORWARD.test(n)) continue
-          // never hand the person's 98ish session to a site
-          if (n === "authorization" && /^Bearer [a-f0-9]{48}$/i.test(String(value)) && aimSession?.authenticate?.(String(value).slice(7))) continue
+          // never hand the person's 98ish session to a site (anything shaped like one)
+          if (n === "authorization" && /^\s*Bearer\s+[a-f0-9]{48}\s*$/i.test(String(value))) continue
           h[n] = value
         }
         h["accept-encoding"] = encodings.length ? encodings.join(", ") : "identity"
@@ -420,7 +474,7 @@ const createWeb = ({ aim = () => null, limits: overrides = {}, now = () => Date.
         body,
         headersFor,
         timeoutMs: limits.timeoutMs,
-        guard: guardFor(request),
+        guard: guardFor(request, session),
       })
       upstream.on("error", () => {})
       if (firstParty) session.jar.setAll(upstream.headers["set-cookie"], url.href)
@@ -444,6 +498,8 @@ const createWeb = ({ aim = () => null, limits: overrides = {}, now = () => Date.
           if (isNav) return sendStub(response, 200, { kind: "app", url: next.href, title: "This link opens an app", text: `The site wants to open ${next.protocol.replace(":", "")}: links, which only your real browser can do.` })
           throw new Refused(502, "The site redirected somewhere Compass can't go.")
         }
+        // a guest's redirect off the allowlist stops here (the next hop would be refused anyway)
+        if (!allowedFor(session, next.hostname)) throw notAllowed(session, next)
         response.status(status).set("location", prefix + encodeTarget(next) + next.hash).set("cache-control", "no-store").set("referrer-policy", "no-referrer").end()
         return
       }
@@ -585,7 +641,7 @@ const createWeb = ({ aim = () => null, limits: overrides = {}, now = () => Date.
   const send = (response, error) => {
     const status = error.status || 500
     if (!error.status) console.error("[web]", error)
-    response.status(status).json({ error: error.status ? error.message : "Something went wrong.", expired: !!error.expired })
+    response.status(status).json({ error: error.status ? error.message : "Something went wrong.", expired: !!error.expired, signOn: !!error.signOn, off: !!error.off })
   }
 
   router.post("/session", (request, response) => {
@@ -610,7 +666,7 @@ const createWeb = ({ aim = () => null, limits: overrides = {}, now = () => Date.
       const s = sessionFor(request.query.sid, request)
       response.json(await check(s, String(request.query.url || ""), request))
     } catch (error) {
-      if (error.status && !error.expired && error.status !== 429) return response.json({ ok: false, reason: error.message })
+      if (error.status && !error.expired && error.status !== 429) return response.json({ ok: false, reason: error.message, notAllowed: !!error.notAllowed, signOn: !!error.signOn })
       send(response, error)
     }
   })
@@ -741,4 +797,4 @@ const fileName = (url, disposition) => {
 
 const webRouter = (options) => createWeb(options)
 
-module.exports = { createWeb, webRouter, siteOf, clientIp, ipKey, charsetOf, decodeText, stubHtml, makeGate }
+module.exports = { createWeb, webRouter, GUEST_ALLOW, parseAllow, onList, relayMode, siteOf, clientIp, ipKey, charsetOf, decodeText, stubHtml, makeGate }

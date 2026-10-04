@@ -191,3 +191,15 @@ test("test hosts (WEB_TEST_HOSTS) are parsed and bypass only for those names", a
   assert.equal(checked.addresses[0].address, "127.0.0.1")
   assert.equal((await checkUrl("http://127.0.0.1:5555/", { testHosts: hosts })).ok, false)
 })
+
+test("allowHost (the guest allowlist) is checked before DNS, test hosts included", async () => {
+  let looked = 0
+  const resolve = async () => (looked++, [{ address: "93.184.215.14", family: 4 }])
+  const allowHost = (h) => h === "en.wikipedia.org"
+  assert.equal((await checkUrl("https://en.wikipedia.org/wiki/X", { resolve, allowHost })).ok, true)
+  const no = await checkUrl("https://evil.example/", { resolve, allowHost })
+  assert.equal(no.ok, false)
+  assert.equal(no.notAllowed, true)
+  assert.equal(looked, 1)
+  assert.equal((await checkUrl("http://site.test:5555/", { testHosts: { "site.test": "127.0.0.1" }, allowHost })).notAllowed, true)
+})

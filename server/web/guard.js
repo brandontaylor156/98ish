@@ -95,7 +95,9 @@ const isBlockedAddress = (address) => {
 // ---------- URLs ----------
 
 // The parts of a URL that can be decided without DNS -> { ok, url } | { ok: false, reason }
-const checkUrlShape = (input, { blockedHosts = [], testHosts = null } = {}) => {
+// allowHost(host): an extra rule for who is asking (guests: the guest allowlist), checked on
+// every hop, test hosts included
+const checkUrlShape = (input, { blockedHosts = [], testHosts = null, allowHost = null } = {}) => {
   let url
   try {
     url = input instanceof URL ? new URL(input.href) : new URL(String(input))
@@ -104,6 +106,7 @@ const checkUrlShape = (input, { blockedHosts = [], testHosts = null } = {}) => {
   }
   if (url.protocol !== "http:" && url.protocol !== "https:") return { ok: false, reason: "Only http and https addresses can be opened." }
   if (url.username || url.password) return { ok: false, reason: "Addresses with a user name or password in them can't be opened." }
+  if (allowHost && !allowHost(url.hostname.toLowerCase().replace(/\.$/, ""))) return { ok: false, reason: "Sign on with your 98 Messenger screen name to browse other sites.", notAllowed: true }
   // local test sites (WEB_TEST_HOSTS, never set in production): any port, their own address
   if (testHosts && Object.prototype.hasOwnProperty.call(testHosts, url.hostname)) return { ok: true, url, host: url.hostname, test: testHosts[url.hostname] }
   if (!ALLOWED_PORTS.has(url.port)) return { ok: false, reason: "Only the usual web ports (80, 443, 8080, 8443) can be opened." }
@@ -124,8 +127,8 @@ const checkUrlShape = (input, { blockedHosts = [], testHosts = null } = {}) => {
 const defaultResolve = (host) => dns.promises.lookup(host, { all: true, verbatim: true })
 
 // The whole check, DNS included -> { ok, url, addresses: [{ address, family }] } | { ok: false, reason }
-const checkUrl = async (input, { blockedHosts = [], resolve = defaultResolve, testHosts = null } = {}) => {
-  const shape = checkUrlShape(input, { blockedHosts, testHosts })
+const checkUrl = async (input, { blockedHosts = [], resolve = defaultResolve, testHosts = null, allowHost = null } = {}) => {
+  const shape = checkUrlShape(input, { blockedHosts, testHosts, allowHost })
   if (!shape.ok) return shape
   if (shape.test) return { ok: true, url: shape.url, addresses: [{ address: shape.test, family: net.isIP(shape.test) || 4 }] }
   if (net.isIP(shape.host)) return { ok: true, url: shape.url, addresses: [{ address: shape.host, family: net.isIP(shape.host) }] }

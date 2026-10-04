@@ -1,4 +1,4 @@
-/* Compass, the 98ish web browser: 98.css chrome around real pages. */
+/* Compass, the 98ish web browser: a 98.css frame around real pages. */
 
 .cmpRoot {
   position: relative;
@@ -368,6 +368,57 @@
   height: 100%;
   border: 0;
   background: #fff;
+}
+
+/* relay off: a note above a page that comes straight from the site */
+.cmpOffWrap {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+.cmpOffWrap .cmpFrame {
+  flex: 1;
+  min-height: 0;
+  height: auto;
+}
+.cmpOffBar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 6px;
+  background: #ffffe1;
+  border-bottom: 1px solid #808080;
+  font-size: 11px;
+}
+.cmpOffBar span {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Sign On (98 Messenger screen name) */
+.cmpSignOn {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: min(300px, 76vw);
+  text-align: left;
+}
+.cmpField {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
+}
+.cmpField input {
+  width: 100%;
+  box-sizing: border-box;
+}
+.cmpSignOn .cmpLink {
+  align-self: flex-start;
+}
+.cmpSignOnError {
+  margin: 0;
+  color: #c00000;
 }
 .cmpPage {
   height: 100%;

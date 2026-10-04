@@ -1,12 +1,12 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
 import MenuBar from "../../shared/MenuBar"
 import Dialog from "../../shared/Dialog"
-import { useAim } from "../aim/AimContext"
+import { BUDDY_LIST, useAim } from "../aim/AimContext"
 import { ieWindow, launch } from "../../../utils/programs"
 import { fs } from "../../../utils/fs"
 import { folderAt, receiveFiles, summarize } from "../../../utils/receive"
 import { shareOut } from "../../../utils/share"
-import { SERVER, checkFrame, clearCookies, ensureSession, onSession, currentSession, dropSession, refreshUsage } from "./relay"
+import { SERVER, allowedFor, checkFrame, clearCookies, ensureSession, onSession, currentSession, dropSession, refreshUsage } from "./relay"
 import { NEW_TAB, SEARCH_ENGINES, displayUrl, fileNameOf, hostOf, isInternal, isWeb, parseInput, rawUrl, realBrowserReason, relayUrl, suggest } from "./urls"
 import * as store from "./store"
 import { AboutPage, BookmarksPage, CompassLogo, DownloadsPage, Favicon, HistoryPage, NewTabPage, StubPage } from "./pages"
@@ -21,6 +21,9 @@ const MAX_TABS = 12
 const ZOOMS = [0.5, 0.67, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2]
 const RELAY_SANDBOX = "allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals"
 const DIRECT_SANDBOX = "allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals"
+
+// Guests browse a few sites (Wikipedia and friends); anything else asks them to sign on
+const signOnStub = (url) => ({ view: "stub", stub: { kind: "signon", title: "Sign on to browse other sites", text: "Sign on with your 98 Messenger screen name to browse other sites. Without one, Compass opens Wikipedia and a few other sites.", url }, loading: false })
 
 let nextId = 1
 const makeTab = (url = NEW_TAB, title = "") => ({
@@ -109,6 +112,8 @@ const Compass = ({ initialUrl, onTitle, onClose, onNewWindow, dispatch, mobile }
   tokenRef.current = token
 
   const phone = mobile || narrow
+  // guests search Wikipedia (their omnibox can't open other search engines)
+  const engine = !token || (session?.allow && !allowedFor(session, hostOf(SEARCH_ENGINES[prefs.engine]?.url))) ? "wikipedia" : prefs.engine
   const active = tabs.find((t) => t.id === activeId) || tabs[0]
   const entry = entryOf(active)
   const pageUrl = entry.url
@@ -146,10 +151,17 @@ const Compass = ({ initialUrl, onTitle, onClose, onNewWindow, dispatch, mobile }
       s = await ensureSession(tokenRef.current, { onSlow: () => setWaking(true) })
     } catch (error) {
       setWaking(false)
-      if (error.signOn) return { view: "stub", stub: { kind: "signon", title: "Sign on to browse with Compass", text: "Compass shows sites through the 98ish server, which is for people signed on to 98 Messenger. Sign on (it's free), or open this page in your real browser.", url }, loading: false }
+      if (error.signOn) return signOnStub(url)
+      // the owner turned the relay off: only sites that allow frames can show, straight from the site
+      if (error.off) {
+        if (url.startsWith("http:") && window.location.protocol === "https:") return { view: "stub", stub: { kind: "off", title: "Open this page in your real browser", text: "The 98ish server isn't relaying pages right now, and this page isn't secure (http), so Compass can't show it.", url }, loading: false }
+        return { view: "direct", src: url, stub: null, loading: true, relayOff: true }
+      }
       return { view: "stub", stub: { kind: "offline", title: "Compass can't reach the 98ish server", text: error.message, url }, loading: false }
     }
     setWaking(false)
+    if (!allowedFor(s, hostOf(url)))
+      return s.guest ? signOnStub(url) : { view: "stub", stub: { kind: "notallowed", title: "Open this page in your real browser", text: "The 98ish server only relays a few sites right now.", url }, loading: false }
     const overBudget = s.limit && s.used >= s.limit
     if (p.dataSaver || overBudget) {
       const c = await checkFrame(s.sid, url)
@@ -174,7 +186,7 @@ const Compass = ({ initialUrl, onTitle, onClose, onNewWindow, dispatch, mobile }
             entries = [...t.entries.slice(0, t.index + 1), { url, title: "", favicon: null }]
             index = entries.length - 1
           } else if (how === "replace") entries = t.entries.map((e, i) => (i === t.index ? { url, title: "", favicon: null } : e))
-          return { ...t, entries: entries.slice(-50), index: Math.min(index, 49), loading: isWeb(url), view: isInternal(url) ? "internal" : "pending", stub: null, password: false, retried: options.retried || false, zoom: store.zoomFor(url) }
+          return { ...t, entries: entries.slice(-50), index: Math.min(index, 49), loading: isWeb(url), view: isInternal(url) ? "internal" : "pending", stub: null, relayOff: false, password: false, retried: options.retried || false, zoom: store.zoomFor(url) }
         })
       )
       if (id === activeIdRef.current) setEditing(false)
@@ -218,7 +230,7 @@ const Compass = ({ initialUrl, onTitle, onClose, onNewWindow, dispatch, mobile }
     updateTab(active.id, () => ({ loading: false }))
   }
   const open = (input, { tab = "current" } = {}) => {
-    const parsed = parseInput(input, prefs.engine)
+    const parsed = parseInput(input, engine)
     if (!parsed) return
     if (tab === "new") return newTab(parsed.url)
     load(active.id, parsed.url, "push")
@@ -552,7 +564,7 @@ const Compass = ({ initialUrl, onTitle, onClose, onNewWindow, dispatch, mobile }
     if (url === "compass://bookmarks") return <BookmarksPage store={data} onOpen={openHere} onImport={importFavorites} />
     if (url === "compass://downloads") return <DownloadsPage store={data} onOpen={openHere} />
     if (url === "compass://about") return <AboutPage session={session} />
-    return <NewTabPage store={data} engine={prefs.engine} phone={phone} onOpen={openHere} onSearch={(q) => open(q)} />
+    return <NewTabPage store={data} engine={engine} phone={phone} onOpen={openHere} onSearch={(q) => open(q)} />
   }
   const renderTab = (t) => {
     const hidden = t.id !== active.id
@@ -566,7 +578,7 @@ const Compass = ({ initialUrl, onTitle, onClose, onNewWindow, dispatch, mobile }
           onRetry={() => load(t.id, entryOf(t).url, "entry", { force: t.stub.kind === "real" })}
           onAlways={() => store.alwaysReal(hostOf(t.stub.url))}
           onTimeMachine={() => timeMachine(t.stub.url)}
-          onSignOn={() => dispatch?.({ type: "open_window", payload: launch("98 Messenger") })}
+          onSignOn={(register) => setDialog({ kind: "signon", register })}
           onSave={() => saveToDrive({ url: t.stub.url, name: t.stub.name || fileNameOf(t.stub.url), tok: t.stub.tok })}
           onDataSaver={() => (store.setPrefs({ dataSaver: true }), load(t.id, entryOf(t).url, "entry"))}
         />
@@ -574,7 +586,7 @@ const Compass = ({ initialUrl, onTitle, onClose, onNewWindow, dispatch, mobile }
     else if ((t.view === "relay" || t.view === "direct") && t.src) {
       const z = t.zoom || 1
       const scaled = t.view === "direct" && z !== 1
-      body = (
+      const frame = (
         <iframe
           key={t.frameKey}
           ref={(el) => (el ? frames.current.set(t.id, el) : frames.current.get(t.id) === el && frames.current.delete(t.id))}
@@ -587,6 +599,20 @@ const Compass = ({ initialUrl, onTitle, onClose, onNewWindow, dispatch, mobile }
           style={scaled ? { width: `${100 / z}%`, height: `${100 / z}%`, transform: `scale(${z})`, transformOrigin: "0 0" } : undefined}
           onLoad={() => updateTab(t.id, () => ({ loading: false }))}
         />
+      )
+      // relay off (WEB_RELAY=0): the page comes straight from the site, if it allows frames
+      body = t.relayOff ? (
+        <div className="cmpOffWrap">
+          <div className="cmpOffBar" role="note">
+            <span>The 98ish server isn&apos;t relaying pages, so sites that refuse frames show an error here.</span>
+            <button type="button" onClick={() => openReal(entryOf(t).url)}>
+              Open in Real Browser
+            </button>
+          </div>
+          {frame}
+        </div>
+      ) : (
+        frame
       )
     } else body = <div className="cmpPage cmpPending">{waking ? "Waking up the 98ish server (it naps when nobody's around)..." : "Opening page..."}</div>
     return (
@@ -638,7 +664,7 @@ const Compass = ({ initialUrl, onTitle, onClose, onNewWindow, dispatch, mobile }
             e.currentTarget.blur()
           }
         }}
-        placeholder={`Search ${SEARCH_ENGINES[prefs.engine]?.name || "the Web"} or type an address`}
+        placeholder={`Search ${SEARCH_ENGINES[engine]?.name || "the Web"} or type an address`}
         aria-label="Address and search bar"
         spellCheck="false"
         autoCapitalize="off"
@@ -996,7 +1022,72 @@ const Compass = ({ initialUrl, onTitle, onClose, onNewWindow, dispatch, mobile }
       )}
 
       {dialog?.kind === "options" && <OptionsDialog prefs={prefs} pageUrl={pageUrl} onClose={() => setDialog(null)} />}
+
+      {dialog?.kind === "signon" && (
+        <SignOnDialog
+          register={dialog.register}
+          onClose={() => setDialog(null)}
+          onDone={() => {
+            setDialog(null)
+            // like signing on in 98 Messenger: the Buddy List opens (minimized), so you can sign off there
+            if (!aim?.getWindows?.().some((w) => !w.closed && w.name === BUDDY_LIST)) dispatch?.({ type: "open_window", payload: launch(BUDDY_LIST, { minimized: true, active: false }) })
+            showToast(`Signed on. Compass can open any site now.`)
+          }}
+        />
+      )}
     </div>
+  )
+}
+
+// "Sign on with your 98 Messenger screen name": the same account as 98 Messenger (AimContext),
+// no second sign-up. The pages waiting for it load by themselves once signed on.
+const SignOnDialog = ({ register: startRegister, onClose, onDone }) => {
+  const aim = useAim()
+  const [register, setRegister] = useState(!!startRegister)
+  const [screenName, setScreenName] = useState(aim?.prefs?.lastScreenName || "")
+  const [password, setPassword] = useState("")
+  const [confirm, setConfirm] = useState("")
+  const [problem, setProblem] = useState(null)
+  const [tried, setTried] = useState(false)
+  const busy = aim?.status === "signingOn"
+  const submit = async () => {
+    if (busy || !aim) return
+    if (!screenName.trim() || !password) return setProblem("Type your screen name and password.")
+    if (register && password !== confirm) return setProblem("The passwords you entered do not match.")
+    setProblem(null)
+    setTried(true)
+    const ok = await aim.signOn(screenName.trim(), password, register)
+    if (ok) onDone()
+  }
+  const shown = problem || (tried && !busy && aim?.error) || null
+  return (
+    <Dialog title={register ? "Get a Screen Name" : "Sign On"} okLabel={busy ? "Signing on..." : register ? "Register" : "Sign On"} okDisabled={busy} onOk={submit} onCancel={onClose}>
+      <div className="cmpSignOn">
+        <p className="dialogText">{register ? "Pick a screen name and password for 98 Messenger. It's free, and the same screen name works everywhere in 98ish." : "Sign on with your 98 Messenger screen name to browse other sites."}</p>
+        <label className="cmpField">
+          <span>Screen Name</span>
+          <input value={screenName} onChange={(e) => setScreenName(e.target.value)} maxLength={16} autoComplete="username" autoCapitalize="off" autoCorrect="off" spellCheck="false" />
+        </label>
+        <label className="cmpField">
+          <span>Password</span>
+          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} maxLength={64} autoComplete={register ? "new-password" : "current-password"} />
+        </label>
+        {register && (
+          <label className="cmpField">
+            <span>Confirm Password</span>
+            <input type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} maxLength={64} autoComplete="new-password" />
+          </label>
+        )}
+        <button type="button" className="cmpLink" onClick={() => (setRegister(!register), setProblem(null))}>
+          {register ? "I already have a screen name" : "Get a Screen Name"}
+        </button>
+        {shown && (
+          <p className="cmpSignOnError" role="alert">
+            {shown}
+          </p>
+        )}
+      </div>
+    </Dialog>
   )
 }
 
