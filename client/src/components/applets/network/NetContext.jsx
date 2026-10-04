@@ -3,6 +3,7 @@ import { useAim } from "../aim/AimContext"
 import { FILE_TYPE, fs, uniqueName } from "../../../utils/fs"
 import { launch } from "../../../utils/programs"
 import { onlineProgram, setPendingJoin } from "../../shared/online/useOnlineRoom"
+import { notify } from "../../../utils/notifications"
 
 // The network every open 98ish desktop shares: who's on (Network Neighborhood), files
 // passed between computers, WinPopup messages and network games. Incoming things open
@@ -307,6 +308,7 @@ export const NetProvider = ({ socket, windows, dispatch: dispatchWindow, mobile,
       },
       "net:invited": (invite) => {
         openWindow(`invite:${invite.id}`, { name: `${invite.gameName} Invitation`, program: invite.gameName, app: "net-invite", invite, icon_url: gameInfo(invite.game)?.icon, width: 340, height: 200 }, { focus: false })
+        notify({ app: "games", key: `invite:${invite.id}`, title: `${invite.from} invited you to play`, text: `${invite.gameName}. The invitation is open on your desktop.`, target: { kind: "invites" } })
       },
       "net:inviteGone": ({ id }) => closeWindows((w) => w.netId === `invite:${id}`),
       "net:inviteResult": ({ id, status: result, to, gameName }) => {

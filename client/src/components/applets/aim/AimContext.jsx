@@ -3,6 +3,7 @@ import { playSound } from "./sounds"
 import "./Aim.css"
 import { unlock } from "../../../utils/achievements"
 import { launch } from "../../../utils/programs"
+import { getNotifications, notify } from "../../../utils/notifications"
 
 // One 98 Messenger session shared by every Messenger window: the Buddy List ("98 Messenger"),
 // Instant Message windows, chat rooms, Buddy Info and chat invitations.
@@ -369,6 +370,14 @@ export const AimProvider = ({ socket, windows, dispatch: dispatchWindow, onOpenV
         dispatch({ type: "message", screenName: message.from, message })
         sound("imReceive")
         openIm(message.from, { focus: false })
+        // the Notification Center, unless that conversation is right in front of you (and
+        // you've seen it: an item still unread keeps up)
+        const key = keyOf(message.from)
+        const inFront = document.visibilityState === "visible" && windowsRef.current.some((w) => !w.closed && w.active && !w.minimized && w.aimId === `im:${key}`)
+        const waiting = getNotifications().some((n) => n.key === `im:${key}` && !n.read)
+        if ((!inFront || waiting) && !message.auto) {
+          notify({ app: "im", key: `im:${key}`, title: message.from, text: message.text, time: message.offline ? message.time : Date.now(), target: { kind: "im", with: message.from } })
+        }
       },
       "aim:typing": ({ from, state: typing }) => dispatch({ type: "typing", screenName: from, state: typing }),
       "aim:warned": ({ by, warning }) => {
@@ -468,6 +477,8 @@ export const AimProvider = ({ socket, windows, dispatch: dispatchWindow, onOpenV
     if (!result.ok) {
       dispatch({ type: "message", screenName, message: { system: true, error: true, text: result.error, time: Date.now() } })
     }
+    // signed off with notifications on: it waits for them
+    if (result.ok && result.offline && result.notice) dispatch({ type: "message", screenName, message: { system: true, text: result.notice, time: Date.now() } })
     return result
   }
 

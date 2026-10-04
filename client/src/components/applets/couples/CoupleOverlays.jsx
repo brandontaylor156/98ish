@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react"
 import { NEXT_PHOTO_EVENT, coupleApi, getCouple, on, openCouples, serverNow, useCouple } from "../../../utils/couple"
 import { setOurPhoto, useSettings } from "../../../utils/settings"
 import { unlock } from "../../../utils/achievements"
+import { notify } from "../../../utils/notifications"
 import { TwoHearts } from "./art"
 import { dateLabel, loadPhoto, playLoveChime } from "./shared"
 import "./CoupleOverlays.css"
@@ -119,7 +120,11 @@ const CoupleOverlays = () => {
   const [toasts, setToasts] = useState([])
   const idRef = useRef(0)
 
-  const toast = (t) => setToasts((list) => [...list.slice(-2), { ...t, id: ++idRef.current }])
+  // each toast also lands in the Notification Center (key: the same as its push, if any)
+  const toast = (t) => {
+    setToasts((list) => [...list.slice(-2), { ...t, id: ++idRef.current }])
+    notify({ app: "couples", title: t.title, text: t.text, key: t.key || null, target: t.target || { kind: "program", name: t.title === "Our Pet" ? "Our Pet" : "Us" } })
+  }
   const close = (id) => setToasts((list) => list.filter((t) => t.id !== id))
 
   // live notices -> toasts
@@ -131,25 +136,27 @@ const CoupleOverlays = () => {
         toast({
           title: "Love Letters",
           icon: "💌",
+          key: `letter:${l.id}`,
+          target: { kind: "program", name: "Love Letters" },
           text: l.locked ? `${l.from} sealed a letter for you: "${l.title}". It opens ${dateLabel(l.unlockAt)}.` : l.delivery === "openwhen" ? `${l.from} left you a letter to open when ${l.label}.` : `A new love letter from ${l.from}: "${l.title}"`,
           action: { label: l.locked ? "See it" : "Read", run: () => openCouples("Love Letters") },
         })
       }),
-      on("couple:letter-opened", (p) => toast({ title: "Love Letters", icon: "💞", text: `${p.by} just opened your letter "${p.title}".` })),
+      on("couple:letter-opened", (p) => toast({ title: "Love Letters", icon: "💞", text: `${p.by} just opened your letter "${p.title}".`, target: { kind: "program", name: "Love Letters" } })),
       on("couple:flowers", (b) => {
         playLoveChime("arrive")
-        toast({ title: "Flowers!", icon: "💐", text: `${b.from} sent you flowers! They're on your desktop. Remember to water them.` })
+        toast({ title: "Flowers!", icon: "💐", key: `flowers:${b.id}`, text: `${b.from} sent you flowers! They're on your desktop. Remember to water them.` })
       }),
       on("couple:watered", (p) => toast({ title: "Flowers", icon: "💧", text: `${p.by} watered the flowers you sent.` })),
       // Lovebirds Quiz Show: your partner played their turn, or played yours
       on("couple:quiz", (q) => {
         if (q.from !== getCouple().partner) return
         playLoveChime("arrive")
-        toast({ title: "Quiz Show", icon: "💘", text: `Your turn! ${q.from} played ${q.count ? `${q.count} questions of ` : ""}"${q.kindName}"`, action: { label: "Play", run: () => openCouples("Lovebirds Quiz Show", { challengeId: q.id }) } })
+        toast({ title: "Quiz Show", icon: "💘", key: `quiz:${q.id}:quiz:new`, target: { kind: "program", name: "Lovebirds Quiz Show", extra: { challengeId: q.id } }, text: `Your turn! ${q.from} played ${q.count ? `${q.count} questions of ` : ""}"${q.kindName}"`, action: { label: "Play", run: () => openCouples("Lovebirds Quiz Show", { challengeId: q.id }) } })
       }),
       on("couple:quiz-done", (q) => {
         if (q.by !== getCouple().partner) return
-        toast({ title: "Quiz Show", icon: "💞", text: `${q.by} played your quiz: ${q.correct} of ${q.total} matched! The reveal is waiting.`, action: { label: "See it", run: () => openCouples("Lovebirds Quiz Show", { challengeId: q.id }) } })
+        toast({ title: "Quiz Show", icon: "💞", key: `quiz:${q.id}:quiz:done`, target: { kind: "program", name: "Lovebirds Quiz Show", extra: { challengeId: q.id } }, text: `${q.by} played your quiz: ${q.correct} of ${q.total} matched! The reveal is waiting.`, action: { label: "See it", run: () => openCouples("Lovebirds Quiz Show", { challengeId: q.id }) } })
       }),
       // a toast from another couple feature on this desktop (Our Pet's reminders)
       on("couple:local-toast", (t) => toast(t)),
@@ -157,7 +164,7 @@ const CoupleOverlays = () => {
         if (p.paired) {
           playLoveChime("open")
           unlock("two-hearts")
-          toast({ title: "Us", icon: "💕", text: `${p.paired} said yes! You're paired now.`, action: { label: "Open Us", run: () => openCouples("Us") } })
+          toast({ title: "Us", icon: "💕", key: `couple-paired:${p.paired}`, text: `${p.paired} said yes! You're paired now.`, action: { label: "Open Us", run: () => openCouples("Us") } })
         }
         if (p.unpaired) toast({ title: "Us", icon: "💔", text: `${p.unpaired} unpaired. What you shared is kept for 30 days in case you pair up again.` })
         if (p.declined) toast({ title: "Us", icon: "💌", text: `${p.declined} said no to pairing, for now.` })
@@ -222,6 +229,7 @@ const CoupleOverlays = () => {
       toast({
         title: "On this day ♥",
         icon: "📷",
+        target: { kind: "program", name: "Our Story", extra: { focus: m.id } },
         text: `${years === 1 ? "One year" : `${years} years`} ago today: "${m.title}"${found.length > 1 ? ` (and ${found.length - 1} more)` : ""}`,
         action: { label: "Look back", run: () => openCouples("Our Story", { focus: m.id }) },
       })

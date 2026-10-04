@@ -80,7 +80,7 @@ export const welcomeAtStartup = () => {
   checked = true
   if (!getSettings().helper || prefs.show === false) return false
   try {
-    if (["join", "calendar"].some((k) => new URLSearchParams(window.location.search).has(k))) return false
+    if (["join", "calendar", "open"].some((k) => new URLSearchParams(window.location.search).has(k))) return false
   } catch {
     // no URL to read
   }

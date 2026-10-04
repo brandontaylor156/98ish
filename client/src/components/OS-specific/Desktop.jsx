@@ -9,6 +9,7 @@ import { useFsVersion } from "../../hooks/useFs"
 import { playSystemSound } from "../../utils/systemSounds"
 import { AimProvider } from "../applets/aim/AimContext"
 import MailNotifier from "../applets/mail/MailNotifier"
+import NotifyBridge from "./NotifyBridge"
 import CoupleBridge, { FlowerSpot } from "../applets/couples/CoupleBridge"
 import { useCouple } from "../../utils/couple"
 import { NetProvider } from "../applets/network/NetContext"
@@ -997,6 +998,7 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
           <DriveSync />
         </React.Suspense>
         <MailNotifier socket={socket} windows={windows} dispatch={dispatch} />
+        <NotifyBridge windows={windows} dispatch={dispatch} />
         <CoupleBridge socket={socket} windows={windows} dispatch={dispatch} mobile={mobile} />
         <React.Suspense fallback={null}>
           <CalendarBridge socket={socket} windows={windows} dispatch={dispatch} mobile={mobile} />

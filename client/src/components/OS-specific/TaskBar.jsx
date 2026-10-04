@@ -14,6 +14,7 @@ import { useLongPress } from "../../hooks/useLongPress"
 import { SHELL_EVENT, addQuickLaunch, entryKey, removeQuickLaunch, requestClose, resetQuickLaunch, useNetStatus, useQuickLaunch } from "../../utils/shell"
 import MailTray from "../applets/mail/MailTray"
 import CoupleTray from "../applets/couples/CoupleTray"
+import NotifyTray from "./NotifyTray"
 import "./Shell.css"
 
 // Taskbar Properties and Keyboard Shortcuts load the first time they're opened
@@ -466,6 +467,7 @@ const TaskBar = ({ windows, dispatch, setStartMenuVisible, startMenuVisible }) =
                   </button>
                 )
             )}
+            <NotifyTray />
             <MailTray windows={windows} dispatch={dispatch} />
             <CoupleTray />
             {settings.taskbarClock && (

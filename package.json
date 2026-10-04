@@ -5,7 +5,7 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test": "node --test \"server/net/test/*.test.*\" \"server/aim/test/*.test.*\" \"server/drive/test/*.test.*\" \"server/mail/test/*.test.*\" \"server/gamechat/test/*.test.*\" \"server/puzzles/test/*.test.*\" \"server/quiz/test/*.test.*\" \"server/couples/test/*.test.*\" \"server/dollhouse/test/*.test.*\" \"server/town/test/*.test.*\" \"server/pet/test/*.test.*\" \"server/arcade/test/*.test.*\" \"server/calendar/test/*.test.*\""
+    "test": "node --test \"server/net/test/*.test.*\" \"server/aim/test/*.test.*\" \"server/drive/test/*.test.*\" \"server/mail/test/*.test.*\" \"server/gamechat/test/*.test.*\" \"server/puzzles/test/*.test.*\" \"server/quiz/test/*.test.*\" \"server/couples/test/*.test.*\" \"server/dollhouse/test/*.test.*\" \"server/town/test/*.test.*\" \"server/pet/test/*.test.*\" \"server/arcade/test/*.test.*\" \"server/calendar/test/*.test.*\" \"server/push/test/*.test.*\""
   },
   "engines": {
     "node": ">=20"
@@ -26,6 +26,7 @@
     "cors": "^2.8.6",
     "express": "^5.2.1",
     "mongoose": "^9.10.3",
-    "socket.io": "^4.8.4"
+    "socket.io": "^4.8.4",
+    "web-push": "^3.6.7"
   }
 }

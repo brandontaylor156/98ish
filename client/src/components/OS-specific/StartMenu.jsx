@@ -119,6 +119,7 @@ const StartMenu = ({ dispatch, setResults, closeMenu, onShutDown, onLogOff, mobi
         { label: "Keyboard", icon: "/assets/program_icons/keyboard.svg", onClick: () => go(launch("Keyboard Properties")) },
         { label: "Desktop Themes", icon: "/assets/program_icons/themes.svg", onClick: () => go(launch("Desktop Themes")) },
         { label: "Taskbar & Start Menu...", icon: "/assets/start98.png", onClick: () => (closeMenu(), shellAction("taskbar-properties")) },
+        { label: "Notifications...", icon: "/assets/program_icons/winpopup.svg", onClick: () => (closeMenu(), shellAction("notification-settings")) },
         { label: "Keyboard Shortcuts", icon: ICON.help, onClick: () => (closeMenu(), shellAction("shortcuts")) },
         { label: "Recycle Bin", icon: fs.recycleBin.content.length ? "/assets/recycle_bin_full.png" : "/assets/recycle_bin_empty.png", onClick: () => go(launch("Recycle Bin")) },
       ],

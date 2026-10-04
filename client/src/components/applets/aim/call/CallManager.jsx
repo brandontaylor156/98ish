@@ -5,6 +5,7 @@ import { claimCallSession } from "../../../../utils/audio"
 import * as engine from "./engine"
 import { playConnected, playHangUp, playModem, startRingback, startRingtone, stopVibrate, vibrateRing } from "./callSounds"
 import { PhoneIcon, VideoIcon } from "./CallIcons"
+import { notify as notifyCenter } from "../../../../utils/notifications"
 import "./call.css"
 
 // Mounted while you're signed on to 98 Messenger: connects the call engine to the
@@ -86,6 +87,7 @@ const CallManager = () => {
         ? `${from} tried to ${payload.video ? "video " : ""}call you at ${time(payload.time)} while you were on another call.`
         : `Missed ${payload.video ? "video " : ""}call from ${from} at ${time(payload.time)}.`
       a().addNotice(from, text)
+      notifyCenter({ app: "calls", key: `missed:${keyOf(from)}:${payload.time}`, title: payload.busy ? `${from} tried to call` : `Missed ${payload.video ? "video " : ""}call`, text, time: payload.time || Date.now(), target: { kind: "im", with: from } })
       if (a().prefs.sound) playSound("imReceive")
       setMissed((list) => [...list.filter((m) => keyOf(m.from) !== keyOf(from)), { id: `${from}:${payload.time}`, from, video: !!payload.video, time: payload.time, text }].slice(-3))
     })

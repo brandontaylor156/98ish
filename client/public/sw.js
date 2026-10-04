@@ -89,3 +89,82 @@ self.addEventListener("fetch", (event) => {
     })()
   )
 })
+
+// ---- push notifications (server/push) ----
+// A push always shows a notification (iPhones insist). It's also kept in a little inbox
+// (Cache Storage) and passed to any open 98ish, so the Notification Center lists it.
+// Tapping one brings 98ish forward (or opens it) at the right place: the push's url is a
+// deep link like /?open=im&with=NAME that the app handles.
+
+const INBOX = "push-inbox-98ish" // not "98ish-...": a new deploy clears those
+const INBOX_URL = "/__push-inbox"
+
+const keepInInbox = async (data) => {
+  const cache = await caches.open(INBOX)
+  const res = await cache.match(INBOX_URL)
+  const list = res ? await res.json().catch(() => []) : []
+  list.push({ ...data, receivedAt: Date.now() })
+  await cache.put(INBOX_URL, new Response(JSON.stringify(list.slice(-50)), { headers: { "content-type": "application/json" } }))
+}
+
+const windowsOf98ish = async () => (await self.clients.matchAll({ type: "window", includeUncontrolled: true })).filter((c) => c.url.startsWith(self.location.origin))
+
+const readPush = (event) => {
+  try {
+    return event.data ? event.data.json() : {}
+  } catch {
+    return { title: "98ish", body: event.data ? event.data.text() : "" }
+  }
+}
+
+self.addEventListener("push", (event) => {
+  const data = readPush(event)
+  const options = {
+    body: data.body || "",
+    tag: data.tag || undefined,
+    renotify: !!(data.tag && data.renotify),
+    requireInteraction: !!data.requireInteraction,
+    icon: "/icons/icon-192.png",
+    badge: "/icons/favicon-32.png",
+    timestamp: data.time || Date.now(),
+    data: { url: data.url || "/", key: data.key || null, category: data.category || null },
+  }
+  event.waitUntil(
+    (async () => {
+      await self.registration.showNotification(data.title || "98ish", options)
+      await keepInInbox(data).catch(() => {})
+      try {
+        await self.navigator.setAppBadge?.()
+      } catch {
+        // no badges here
+      }
+      for (const client of await windowsOf98ish()) client.postMessage({ type: "98ish-push", data })
+    })()
+  )
+})
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close()
+  let url
+  try {
+    url = new URL(event.notification.data?.url || "/", self.location.origin)
+    if (url.origin !== self.location.origin) url = new URL("/", self.location.origin)
+  } catch {
+    url = new URL("/", self.location.origin)
+  }
+  event.waitUntil(
+    (async () => {
+      const open = await windowsOf98ish()
+      const client = open.find((c) => c.focused) || open.find((c) => c.visibilityState === "visible") || open[0]
+      if (client) {
+        client.postMessage({ type: "98ish-open", url: url.href })
+        try {
+          return await client.focus()
+        } catch {
+          return client
+        }
+      }
+      return self.clients.openWindow(url.href)
+    })()
+  )
+})

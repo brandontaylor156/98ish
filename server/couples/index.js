@@ -138,6 +138,9 @@ const createCouples = ({ store: storeOrPromise, aim: initialAim = null, now = Da
   const emitTo = (key, event, payload) => {
     const socket = aim?.sessions?.get(key)?.socket
     if (socket) socket.emit(event, payload)
+    // the notices worth a notification when they're away from 98ish (Web Push, ../push)
+    const message = aim?.push && pushNotice(event, payload)
+    if (message) aim.push.notify(key, "couples", { app: "couples", ...message }).catch(() => {})
   }
   const emitToCouple = (coupleId, event, payload, { except } = {}) => {
     const pair = pairs.get(coupleId)
@@ -287,6 +290,21 @@ const createCouples = ({ store: storeOrPromise, aim: initialAim = null, now = Da
     useAim: (value) => (aim = value),
     close: () => clearInterval(sweepTimer),
   }
+}
+
+// ---------- notifications ----------
+
+const openProgram = (name) => `/?open=program&name=${encodeURIComponent(name)}`
+// what a live notice says as a push notification (null: not worth one)
+const pushNotice = (event, p = {}) => {
+  if (event === "couple:request" && p.from) return { title: "Us", body: `${p.from} wants to pair up with you on 98ish. ♥`, tag: "couple-request", key: `couple-request:${p.from}`, url: openProgram("Us") }
+  if (event === "couple:update" && p.paired) return { title: "Us", body: `${p.paired} said yes! You're paired now. ♥`, tag: "couple-update", key: `couple-paired:${p.paired}`, url: openProgram("Us") }
+  if (event === "couple:letter" && !p.removed && p.from) {
+    const body = p.locked ? `${p.from} sealed a letter for you: "${p.title}"` : p.delivery === "openwhen" ? `${p.from} left you a letter to open when ${p.label}.` : `A new love letter from ${p.from}: "${p.title}"`
+    return { title: "Love Letters 💌", body, tag: `letter-${p.id}`, key: `letter:${p.id}`, url: openProgram("Love Letters") }
+  }
+  if (event === "couple:flowers" && p.from) return { title: "Flowers! 💐", body: `${p.from} sent you flowers. Remember to water them.`, tag: `flowers-${p.id}`, key: `flowers:${p.id}`, url: "/?open=notifications" }
+  return null
 }
 
 // ---------- views ----------

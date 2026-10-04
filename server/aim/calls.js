@@ -14,6 +14,11 @@
 //   aim:callRing { id, from, video }   aim:callAnswered { id, video }
 //   aim:callSignal { id, kind, data }  aim:callMedia { id, muted, camera, screen }
 //   aim:callEnd { id, reason }         aim:callMissed { from, video, time, busy? }
+//
+// With Web Push (options.offline, from ../push): a buddy who's signed off but has
+// notifications on still rings: they get an "is calling" notification, and if they open
+// 98ish while it's still ringing, the ring reaches them as soon as they sign on. Missed
+// calls go out as notifications too when they're away.
 
 const crypto = require("crypto")
 const { validate } = require("./screenNames")
@@ -44,20 +49,34 @@ const cleanSignal = (kind, data) => {
   return null
 }
 
-const createCalls = ({ sessions, hidden, emitTo, limiter, ice, botKey, ringMs = RING_MS, lostMs = LOST_MS }) => {
-  const calls = new Map() // id -> { id, from, to, video, state: "ringing" | "active", timer }
+const createCalls = ({ sessions, hidden, emitTo, limiter, ice, botKey, ringMs = RING_MS, lostMs = LOST_MS, offline = null }) => {
+  const calls = new Map() // id -> { id, from, fromName, to, video, state: "ringing" | "active", timer }
   const inCall = new Map() // key -> call id
+  const missedOffline = new Map() // key -> missed-call notices for someone signed off
   const callLimited = limiter(CALLS_PER_MINUTE, 60_000)
   const signalLimited = limiter(SIGNALS_PER_MINUTE, 60_000)
 
   const nameOf = (key) => sessions.get(key)?.user.screenName || key
   const otherIn = (call, key) => (call.from === key ? call.to : call.from)
+  // notifications never break calls
+  const report = (fn) => {
+    try {
+      fn()?.catch?.(() => {})
+    } catch {
+      // ignore
+    }
+  }
 
-  // A missed call reaches the callee now, or when their connection comes back
+  // A missed call reaches the callee now, or when their connection comes back (and as a
+  // notification while they're away)
   const missed = (call, extra = {}) => {
-    const notice = { from: nameOf(call.from), video: call.video, time: Date.now(), ...extra }
+    const notice = { from: call.fromName || nameOf(call.from), video: call.video, time: Date.now(), ...extra }
+    if (offline) report(() => offline.missed(call.to, notice))
     const callee = sessions.get(call.to)
-    if (!callee) return
+    if (!callee) {
+      if (offline) missedOffline.set(call.to, [...(missedOffline.get(call.to) || []), notice].slice(-10))
+      return
+    }
     if (callee.socket) callee.socket.emit("aim:callMissed", notice)
     else (callee.missedCalls ||= []).push(notice)
   }
@@ -107,28 +126,39 @@ const createCalls = ({ sessions, hidden, emitTo, limiter, ice, botKey, ringMs = 
   const resumed = (session) => {
     const call = calls.get(inCall.get(session.key))
     if (call) clearTimeout(call.lostTimer)
-    const pending = session.missedCalls || []
+    const pending = [...(missedOffline.get(session.key) || []), ...(session.missedCalls || [])]
+    missedOffline.delete(session.key)
     session.missedCalls = []
     for (const notice of pending) session.socket?.emit("aim:callMissed", notice)
+    // still ringing for someone who just signed on (they opened 98ish from the notification)
+    if (call?.state === "ringing" && call.to === session.key) session.socket?.emit("aim:callRing", { id: call.id, from: call.fromName, video: call.video })
   }
 
   const bind = (on) => {
-    on("aim:call", (session, { to, video }, ack) => {
+    on("aim:call", async (session, { to, video }, ack) => {
       const target = validate(to)
       if (target.error) return ack({ ok: false, error: "Invalid screen name." })
       if (target.key === botKey) return ack({ ok: false, error: "SmarterChild doesn't have a phone. Try sending an IM instead! :-)" })
       if (target.key === session.key) return ack({ ok: false, error: "You can't call yourself." })
       if (inCall.has(session.key)) return ack({ ok: false, error: "You're already on a call." })
       const callee = sessions.get(target.key)
+      const notOn = () => ack({ ok: false, error: `${target.screenName} is not currently signed on.` })
+      if (callee && hidden(session, callee)) return notOn()
+      let toName = callee?.user.screenName
+      let pushed = false
       // (someone on a call whose connection blipped is still busy, not offline)
-      if (!callee || hidden(session, callee) || (!callee.socket && !inCall.has(callee.key))) {
-        return ack({ ok: false, error: `${target.screenName} is not currently signed on.` })
+      if (!callee || (!callee.socket && !inCall.has(callee.key))) {
+        // signed off, but their phone can ring with a notification
+        toName = offline && !inCall.has(target.key) ? await offline.reachable(session, target.key).catch(() => null) : null
+        if (!toName) return notOn()
+        pushed = true
+        if (inCall.has(session.key)) return ack({ ok: false, error: "You're already on a call." })
       }
       if (callLimited(session.key)) return ack({ ok: false, error: "You're calling too often. Wait a minute and try again." })
-      const call = { id: crypto.randomBytes(12).toString("hex"), from: session.key, to: callee.key, video: !!video, state: "ringing" }
-      if (inCall.has(callee.key)) {
+      const call = { id: crypto.randomBytes(12).toString("hex"), from: session.key, fromName: session.user.screenName, to: target.key, video: !!video, state: "ringing" }
+      if (inCall.has(target.key)) {
         missed(call, { busy: true })
-        return ack({ ok: false, busy: true, error: `${callee.user.screenName} is on another call. Try again later.` })
+        return ack({ ok: false, busy: true, error: `${toName} is on another call. Try again later.` })
       }
       calls.set(call.id, call)
       inCall.set(call.from, call.id)
@@ -137,8 +167,9 @@ const createCalls = ({ sessions, hidden, emitTo, limiter, ice, botKey, ringMs = 
         missed(call)
         finish(call, { [call.from]: "timeout", [call.to]: "timeout" })
       }, ringMs)
-      emitTo(callee.key, "aim:callRing", { id: call.id, from: session.user.screenName, video: call.video })
-      ack({ ok: true, id: call.id, to: callee.user.screenName })
+      emitTo(target.key, "aim:callRing", { id: call.id, from: session.user.screenName, video: call.video })
+      if (offline) report(() => offline.ring(call))
+      ack({ ok: true, id: call.id, to: toName, ...(pushed ? { pushed } : {}) })
     })
 
     on("aim:callAnswer", (session, { id, video }, ack) => {

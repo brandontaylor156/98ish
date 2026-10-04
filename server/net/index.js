@@ -346,6 +346,20 @@ const attachNet = (io, { aim: initialAim = null, graceMs = RESUME_GRACE_MS, game
       if (found.error) return { ok: false, error: found.error }
       if (inviteLimit(computer.pid)) return { ok: false, error: "You're sending invitations too fast. Wait a minute." }
       const result = games.invite({ from: computer.pid, fromName: nameOf(computer), to: found.target.pid, toName: nameOf(found.target), game, options: options || {}, matchId })
+      // their 98ish in the background: a notification too (Web Push, ../push)
+      const targetSession = result.ok && aimSessionOf(found.target)
+      if (targetSession && aim?.push) {
+        aim.push
+          .notify(targetSession.key, "games", {
+            title: `${nameOf(computer)} invited you to play`,
+            body: `${result.gameName || "A game"} on 98ish. Open 98ish to accept.`,
+            tag: `invite-${computer.pid}`,
+            key: `invite:${result.inviteId}`,
+            app: "games",
+            url: "/?open=invites",
+          }, { ttl: 60_000 })
+          .catch(() => {})
+      }
       return result.ok ? { ...result, to: nameOf(found.target) } : result
     })
     on("net:inviteReply", (computer, { id, accept }) => games.replyInvite(computer.pid, String(id), !!accept))

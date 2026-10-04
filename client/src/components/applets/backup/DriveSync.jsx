@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react"
 import Dialog from "../../shared/Dialog"
 import { keyOf, useAim } from "../aim/AimContext"
 import { resolveConflict, setSyncAccount, useDriveSync } from "../../../utils/driveSync"
+import { notify } from "../../../utils/notifications"
 import "./Backup.css"
 
 // Always on the desktop (loaded in the background): tells the online drive who's signed on
@@ -72,6 +73,12 @@ const DriveSync = () => {
   useEffect(() => {
     setSyncAccount(token && screenName ? { key: keyOf(screenName), screenName, token } : null)
   }, [token, screenName])
+
+  // sync trouble goes in the Notification Center (one item, kept up to date)
+  useEffect(() => {
+    if (sync.phase === "error" && sync.text) notify({ app: "system", key: "drive-sync", title: "Online drive sync", text: sync.text, target: { kind: "program", name: "Backup" } })
+    if (sync.phase === "conflict") notify({ app: "system", key: "drive-sync", title: "Online drive sync", text: "Your files changed here and online. Choose which copy to keep.", target: { kind: "program", name: "Backup" } })
+  }, [sync.phase, sync.text])
 
   if (!sync.conflict || sync.conflict.deferred) return null
   return <ConflictDialog key={sync.conflict.revision} conflict={sync.conflict} />

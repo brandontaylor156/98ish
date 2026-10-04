@@ -248,6 +248,17 @@ const mailRouter = ({ store: storeOrPromise, aim: initialAim = null, limits = {}
   }
 
   const notify = async (store, owner, message) => {
+    // a notification too when they're away from 98ish (Web Push, ../push)
+    aim?.push
+      ?.notify(owner, "mail", {
+        title: `New mail from ${message.from}`,
+        body: message.subject || "(no subject)",
+        tag: "mail",
+        key: `mail:${message.id}`,
+        app: "mail",
+        url: "/?open=mail",
+      })
+      .catch(() => {})
     const socket = aim?.sessions.get(owner)?.socket
     if (!socket) return
     const counts = await store.counts(owner)

@@ -7,6 +7,7 @@ import { dateIn, dueReminders, whenLabel, zoneParts } from "./recur"
 import { OPEN_EVENT, VIEW_EVENT, allEvents, applyLive, calendarById, getCal, answerInvite, openCalendar, refresh, signedOn, useCalendar, zone } from "./store"
 import { dueAlarms, getClockApp, markRang, cancelTimer, useClockApp, timerLeft } from "./clockStore"
 import { playNotice, playReminder, ringAlarm } from "./sounds"
+import { notify as notifyCenter } from "../../../utils/notifications"
 import "./CalendarBridge.css"
 
 // Lives on the desktop (inside 98 Messenger's provider), whether or not Calendar is open:
@@ -248,7 +249,11 @@ const CalendarBridge = ({ socket, windows, dispatch, mobile }) => {
   windowsRef.current = windows
   const toastId = useRef(0)
 
-  const toast = (t) => setToasts((list) => [...list.slice(-2), { ...t, id: ++toastId.current }])
+  // each toast also lands in the Notification Center
+  const toast = (t) => {
+    setToasts((list) => [...list.slice(-2), { ...t, id: ++toastId.current }])
+    notifyCenter({ app: "calendar", title: t.title, text: t.text, key: t.key || null, target: t.target || { kind: "calendar" } })
+  }
   const closeToast = (id) => setToasts((list) => list.filter((t) => t.id !== id))
 
   // ---- signing on and off ----
@@ -318,7 +323,7 @@ const CalendarBridge = ({ socket, windows, dispatch, mobile }) => {
       if (event === "cal:comment" && payload.comment) {
         playNotice()
         const text = `${payload.comment.byName} on "${payload.title}": ${payload.comment.text.slice(0, 120)}`
-        toast({ title: calendar.name, icon: "💬", text, actions: [{ label: "Reply", run: () => openCalendar({ calendarId: payload.calendarId, eventId: payload.eventId, comments: true }) }] })
+        toast({ title: calendar.name, icon: "💬", text, target: { kind: "calendar", calendarId: payload.calendarId, eventId: payload.eventId }, actions: [{ label: "Reply", run: () => openCalendar({ calendarId: payload.calendarId, eventId: payload.eventId, comments: true }) }] })
         notify(`${calendar.name}: new comment`, text, `cal-comment-${payload.eventId}`)
         return
       }
@@ -329,6 +334,7 @@ const CalendarBridge = ({ socket, windows, dispatch, mobile }) => {
           title: calendar.name,
           icon: a.action === "deleted" ? "🗑️" : a.action === "completed" ? "✔️" : "📅",
           text: what,
+          target: { kind: "calendar", calendarId: payload.calendarId, eventId: payload.event?.id },
           actions: payload.event ? [{ label: "Open", run: () => openCalendar({ calendarId: payload.calendarId, eventId: payload.event.id }) }] : [],
         })
         notify(calendar.name, what, `cal-${payload.calendarId}`)
@@ -388,6 +394,10 @@ const CalendarBridge = ({ socket, windows, dispatch, mobile }) => {
     memory.lastCheck = now
     memory.open = open
     writeState(memory)
+    // the Notification Center (the same key as the server's push for that reminder)
+    for (const item of [...fresh.map(describe), ...back.map((x) => x.item)]) {
+      notifyCenter({ app: "calendar", key: `cal-rem-${item.fireKey}`, title: `Reminder: ${item.title}`, text: `${item.when}${item.calendar ? ` (${item.calendar})` : ""}`, target: { kind: "calendar", calendarId: item.calendarId, eventId: item.eventId } })
+    }
     if (fresh.length || back.length) {
       playReminder()
       const first = fresh[0] ? describe(fresh[0]) : back[0].item

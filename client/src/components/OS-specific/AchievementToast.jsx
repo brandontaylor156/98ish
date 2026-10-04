@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react"
 import { onUnlock } from "../../utils/achievements"
+import { notify } from "../../utils/notifications"
 import "./Shell.css"
 
 export const Trophy = ({ size = 32, locked = false }) => (
@@ -17,7 +18,14 @@ export const Trophy = ({ size = 32, locked = false }) => (
 const AchievementToast = () => {
   const [queue, setQueue] = useState([])
 
-  useEffect(() => onUnlock((a) => setQueue((q) => [...q, a])), [])
+  useEffect(
+    () =>
+      onUnlock((a) => {
+        setQueue((q) => [...q, a])
+        notify({ app: "achievements", global: true, key: `ach:${a.id}`, title: `Achievement: ${a.title}`, text: a.text, read: true })
+      }),
+    []
+  )
 
   const current = queue[0]
   useEffect(() => {

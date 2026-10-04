@@ -221,7 +221,15 @@ const reducer = (state, action) => {
 }
 
 // what's on screen: starting up, Windows, or one of the shut down / log off steps
-const firstPhase = () => (getSettings().bootScreen ? "boot" : "desktop")
+// (a tapped notification goes straight to the desktop: a call may still be ringing)
+const fromNotification = () => {
+  try {
+    return new URLSearchParams(window.location.search).has("open")
+  } catch {
+    return false
+  }
+}
+const firstPhase = () => (getSettings().bootScreen && !fromNotification() ? "boot" : "desktop")
 
 function App() {
   const [windows, dispatch] = useReducer(reducer, [])

@@ -73,7 +73,30 @@ const quizRouter = ({ store: storeOrPromise, aim: initialAim = null, limits = {}
   const attempts = limiter(limits.attemptsPerHour ?? 60, 60 * 60_000)
   const saves = limiter(limits.savesPerHour ?? 60, 60 * 60_000)
 
-  const notify = (key, event, payload) => aim?.sessions.get(key)?.socket?.emit(event, payload)
+  const notify = (key, event, payload) => {
+    aim?.sessions.get(key)?.socket?.emit(event, payload)
+    // a notification too when they're away from 98ish (Web Push, ../push): your partner's
+    // quizzes count as couple notices, anyone else's as games
+    if (!aim?.push || (event !== "quiz:new" && event !== "quiz:done")) return
+    const who = event === "quiz:new" ? payload.from : payload.by
+    let partner = null
+    try {
+      partner = require("../couples").partnerOf(key)
+    } catch {
+      // no couples here
+    }
+    const category = partner && partner === normalize(who) ? "couples" : "games"
+    aim.push
+      .notify(key, category, {
+        title: event === "quiz:new" ? `Your turn! ${who} sent you a quiz` : `${who} played your quiz`,
+        body: event === "quiz:new" ? `"${payload.kindName}" in the Quiz Show` : `${payload.correct} of ${payload.total} matched. The reveal is waiting!`,
+        tag: `quiz-${payload.id}`,
+        key: `quiz:${payload.id}:${event}`,
+        app: category,
+        url: `/?open=program&name=Lovebirds%20Quiz%20Show&challenge=${encodeURIComponent(payload.id)}`,
+      })
+      .catch(() => {})
+  }
 
   const router = express.Router()
 

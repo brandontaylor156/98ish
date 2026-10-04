@@ -65,7 +65,10 @@ const limiter = (limit, windowMs) => {
   return Object.assign(hit, { over })
 }
 
-const attachAim = async (io, { store, bot, ice, callRingMs, callLostMs } = {}) => {
+// Web Push (../push) is optional: `push` notifies people who are away from 98ish about IMs
+// and calls, and keeps IMs sent to someone signed off (who has notifications on) until
+// they sign on again.
+const attachAim = async (io, { store, bot, ice, callRingMs, callLostMs, push = null } = {}) => {
   store ??= await createStore()
   bot ??= createBot()
   ice ??= createIce()
@@ -115,8 +118,53 @@ const attachAim = async (io, { store, bot, ice, callRingMs, callLostMs } = {}) =
     if (session?.socket) session.socket.emit(event, payload)
   }
 
+  // someone signed off who can still be reached with a notification: their screen name, or
+  // null (not registered, blocked either way, or no notifications of this kind)
+  const reachableOffline = async (from, key, category) => {
+    if (!push?.enabled || !(await push.wouldSend(key, category))) return null
+    const user = await store.find(key)
+    if (!user || (user.blocked || []).includes(from.key) || from.user.blocked.includes(key)) return null
+    return user.screenName
+  }
+
+  const pushTo = (key, category, message, options) => {
+    if (!push?.enabled) return
+    push.notify(key, category, message, options).catch(() => {})
+  }
+
+  const callNotices = push && {
+    reachable: (from, key) => reachableOffline(from, key, "calls"),
+    ring: (call) =>
+      pushTo(
+        call.to,
+        "calls",
+        {
+          title: `${call.fromName} is calling`,
+          body: `${call.video ? "Video call" : "Voice call"} on 98 Messenger. Tap to open 98ish and answer.`,
+          tag: `call-${call.from}`,
+          key: `call:${call.id}`,
+          app: "calls",
+          requireInteraction: true,
+          renotify: true,
+          url: `/?open=call&with=${encodeURIComponent(call.fromName)}`,
+        },
+        { urgency: "high", ttl: 45_000 }
+      ),
+    missed: (key, notice) =>
+      pushTo(key, "calls", {
+        title: notice.busy ? `${notice.from} tried to call` : `Missed ${notice.video ? "video " : ""}call`,
+        body: notice.busy ? `${notice.from} called while you were on another call.` : `${notice.from} called you on 98 Messenger.`,
+        tag: `call-${normalize(notice.from)}`,
+        key: `missed:${normalize(notice.from)}:${notice.time}`,
+        app: "calls",
+        renotify: true,
+        url: `/?open=im&with=${encodeURIComponent(notice.from)}`,
+        time: notice.time,
+      }),
+  }
+
   // voice and video calls (signaling only)
-  const calls = createCalls({ sessions, hidden, emitTo, limiter, ice, botKey: BOT_KEY, ringMs: callRingMs, lostMs: callLostMs })
+  const calls = createCalls({ sessions, hidden, emitTo, limiter, ice, botKey: BOT_KEY, ringMs: callRingMs, lostMs: callLostMs, offline: callNotices })
 
   const broadcastPresence = (subject, online = true) => {
     const payload = online ? presenceOf(subject) : { screenName: subject.user.screenName, online: false }
@@ -179,10 +227,14 @@ const attachAim = async (io, { store, bot, ice, callRingMs, callLostMs } = {}) =
   const attachSocket = (session, socket) => {
     clearTimeout(session.dropTimer)
     session.socket = socket
+    session.visible = true // until the page says it's in the background (aim:visibility)
     socket.data.key = session.key
     socket.join("aim")
     for (const [key, room] of rooms) if (room.members.has(session.key)) socket.join(`chat:${key}`)
     calls.resumed(session)
+    const pending = session.pendingIms || []
+    session.pendingIms = []
+    if (pending.length) setTimeout(() => pending.forEach((m) => session.socket?.emit("aim:im", m)), 300)
   }
 
   const persist = async (session, patch) => {
@@ -254,6 +306,23 @@ const attachAim = async (io, { store, bot, ice, callRingMs, callLostMs } = {}) =
       attachSocket(session, socket)
       ack(remember ? { ...welcome(session), remember } : welcome(session))
       broadcastPresence(session)
+      deliverOffline(session)
+    }
+
+    // IMs that came while they were signed off (kept because they have notifications on)
+    const deliverOffline = (session) => {
+      if (!push) return
+      push
+        .getStore()
+        .then((s) => s.inbox.take(session.key))
+        .then((messages) => {
+          if (!messages.length) return
+          // after the sign-on reply has landed
+          setTimeout(() => {
+            for (const m of messages) emitTo(session.key, "aim:im", { ...m, offline: true })
+          }, 300)
+        })
+        .catch(() => {})
     }
 
     socket.on("aim:signOn", async (payload = {}, ack = () => {}) => {
@@ -390,11 +459,29 @@ const attachAim = async (io, { store, bot, ice, callRingMs, callLostMs } = {}) =
       }
 
       const recipient = sessions.get(target.key)
+      const im = { from: session.user.screenName, text: message, style: payloadStyle, time: Date.now() }
+      const imNotice = {
+        title: session.user.screenName,
+        body: message,
+        tag: `im-${session.key}`,
+        key: `im:${session.key}`,
+        app: "im",
+        renotify: true,
+        url: `/?open=im&with=${encodeURIComponent(session.user.screenName)}`,
+      }
       if (!recipient || hidden(session, recipient)) {
-        return ack({ ok: false, error: `${target.screenName} is not currently signed on.` })
+        // signed off with notifications on: it waits for them, and their phone hears about it
+        const name = recipient ? null : await reachableOffline(session, target.key, "im").catch(() => null)
+        if (!name) return ack({ ok: false, error: `${target.screenName} is not currently signed on.` })
+        await (await push.getStore()).inbox.add(target.key, im)
+        pushTo(target.key, "im", imNotice)
+        return ack({ ok: true, offline: true, notice: `${name} is signed off. They'll get your message as a notification and see it when they sign on.` })
       }
 
-      emitTo(recipient.key, "aim:im", { from: session.user.screenName, text: message, style: payloadStyle, time: Date.now() })
+      // a connection that blipped (a phone asleep) gets it when it comes back
+      if (recipient.socket) emitTo(recipient.key, "aim:im", im)
+      else recipient.pendingIms = [...(recipient.pendingIms || []), im].slice(-50)
+      pushTo(recipient.key, "im", imNotice) // only if they're away from 98ish
       const creditKey = `${recipient.key}>${session.key}`
       warnCredits.set(creditKey, (warnCredits.get(creditKey) || 0) + 1)
       ack({ ok: true })
@@ -427,6 +514,12 @@ const attachAim = async (io, { store, bot, ice, callRingMs, callLostMs } = {}) =
       session.awayRepliedTo = new Set()
       broadcastPresence(session)
       ack({ ok: true })
+    })
+
+    // the page went to the background (another tab, the phone locked) or came back: while
+    // it's hidden, IMs and calls also go out as notifications
+    on("aim:visibility", (session, { visible }) => {
+      session.visible = visible !== false
     })
 
     on("aim:setIdle", (session, { idle }) => {
@@ -576,7 +669,9 @@ const attachAim = async (io, { store, bot, ice, callRingMs, callLostMs } = {}) =
     return (key && sessions.get(key)) || null
   }
 
-  return { store, sessions, authenticate, calls }
+  const aim = { store, sessions, authenticate, calls, push }
+  push?.useAim(aim)
+  return aim
 }
 
 module.exports = { attachAim }

@@ -1,8 +1,9 @@
 // 98ish realtime server: the 98 Messenger (AIM-style) service on Socket.io, plus Network
 // Neighborhood (file sharing, WinPopup, network games), the guestbook's HTTP API, and
 // couples (server/couples: pairing, love letters, Our Story, flowers), and shared
-// calendars (server/calendar).
-// Env: PORT, MONGODB_URI (accounts, guestbook and online drives; kept in memory without it).
+// calendars (server/calendar), and Web Push notifications (server/push).
+// Env: PORT, MONGODB_URI (accounts, guestbook and online drives; kept in memory without it),
+// VAPID_PUBLIC_KEY + VAPID_PRIVATE_KEY + VAPID_SUBJECT (push notifications; off without them).
 
 const express = require("express")
 const cors = require("cors")
@@ -20,6 +21,7 @@ const { dollhouseRouter } = require("./server/dollhouse")
 const { townRouter, attachTown } = require("./server/town")
 const { petRouter } = require("./server/pet")
 const { calendarRouter, attachCalendar } = require("./server/calendar")
+const { defaultPush } = require("./server/push")
 
 const app = express()
 app.use(cors())
@@ -37,6 +39,8 @@ app.use("/api/quiz", quiz)
 app.use("/api/couples/pet", petRouter()) // Our Pet (before the couples router)
 app.use("/api/couples", couplesRouter())
 app.use("/api/calendar", calendarRouter())
+const push = defaultPush()
+app.use("/api/push", push.router())
 const dollhouse = dollhouseRouter()
 app.use("/api/dollhouse", dollhouse)
 const town = townRouter()
@@ -52,7 +56,7 @@ const io = require("socket.io")(server, { cors: true, maxHttpBufferSize: 2 * 102
 
 const net = attachNet(io)
 attachGameChat(io, net)
-aim = attachAim(io)
+aim = attachAim(io, { push })
 aim
   .then((aim) => {
     net.useAim(aim)
@@ -62,7 +66,8 @@ aim
     homepages.useAim(aim)
     quiz.useAim(aim)
     attachCouples(io, { aim })
-    attachCalendar(io, { aim, couples: coupleService })
+    const calendars = attachCalendar(io, { aim, couples: coupleService })
+    push.start({ calendars, couples: coupleService() })
     town.useAim(aim)
     attachTown(io)
   })

@@ -238,7 +238,7 @@ const createGames = ({ emit, delays = DELAYS, random = Math.random, tetris = nul
     invites.set(inv.id, inv)
     send(to, "net:invited", inviteView(inv))
     rooms.invitedTo(roomId, toName)
-    return { ok: true, inviteId: inv.id }
+    return { ok: true, inviteId: inv.id, gameName: gameNameOf(inv) }
   }
 
   const invite = ({ from, fromName, to, toName, game, options = {}, matchId: requestedMatch }) => {
@@ -288,7 +288,7 @@ const createGames = ({ emit, delays = DELAYS, random = Math.random, tetris = nul
     send(to, "net:invited", inviteView(inv))
     if (roomApp) roomApp.invitedTo(inv.matchId, toName)
     else if (inv.matchId) publish(matches.get(inv.matchId))
-    return { ok: true, inviteId: inv.id }
+    return { ok: true, inviteId: inv.id, gameName: gameNameOf(inv) }
   }
 
   const inviteView = (inv) => ({ id: inv.id, game: inv.game, gameName: gameNameOf(inv), online: !!inv.online, from: inv.fromName, fromId: inv.from, options: inv.options, expiresAt: inv.expiresAt })
