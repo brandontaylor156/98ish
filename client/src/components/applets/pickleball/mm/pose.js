@@ -50,7 +50,7 @@ export const solveMMPose = (st, o, dt, extra = {}) => {
   })
   const lift = extra.lift || [0, 0]
   const down = [!!(o.contacts & 1) && lift[0] <= 0.002, !!(o.contacts & 2) && lift[1] <= 0.002]
-  const fl = stepFootLock(st.lock, feet, down, dt, { still: extra.still ?? true, reach: extra.reach || null })
+  const fl = stepFootLock(st.lock, feet, down, dt, { still: extra.still ?? true, reach: extra.reach || null, release: extra.reach ? 0.3 : 0.2 })
   for (let i = 0; i < 2; i++) {
     fl[i].ankle.y += lift[i]
     fl[i].ball.y += lift[i]
@@ -67,7 +67,8 @@ export const solveMMPose = (st, o, dt, extra = {}) => {
     const maxY = a.y + Math.sqrt(Math.max(0, (LEG * SOFT) ** 2 - dh * dh))
     need = Math.max(need, h.y - maxY)
   }
-  const want = Math.min(0.22, Math.max(0, need)) + (extra.drop || 0)
+  // (a deep drop only for a lunge or a step out; otherwise a foot left far behind steps over)
+  const want = Math.min(extra.reach ? 0.22 : 0.07, Math.max(0, need)) + (extra.drop || 0)
   // (down fast, up gently: a critically damped spring with a quicker half-life going down)
   const hl = want > st.drop ? 0.05 : 0.15
   const y = (4 * Math.LN2) / hl / 2

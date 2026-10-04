@@ -309,7 +309,7 @@ export const updateAnim = (a, s, dt) => {
     // (a stroke coming or under way: the body right at the game's position, so the paddle
     // meets the ball where the match says)
     const tight = swing && swing.t < 0.25 ? 1 : s.prep ? clamp(1 - (s.prep.ttc - 0.15) / 0.45, 0, 1) : 0
-    mmo = driveMM(a, s, mv, dt, { lib: mmLib, yaw, crouch: (a.crouch.p ?? 0) + (a.mmDown || 0), hopY: Math.max(0, hopPrev), every: a.mmEvery, stance: s.between ? READY.between.stance : R.stance, tight, reach: a.mmReach || null, shift: { x: (a.shift.p?.x || 0) + (a.mmLunge?.x || 0), z: (a.shift.p?.z || 0) + (a.mmLunge?.z || 0) } })
+    mmo = driveMM(a, s, mv, dt, { lib: mmLib, yaw, crouch: a.crouch.p ?? 0, down: a.mmDown || 0, hopY: Math.max(0, hopPrev), every: a.mmEvery, stance: s.between ? READY.between.stance : R.stance, tight, reach: a.mmReach || null, shift: { x: (a.shift.p?.x || 0) + (a.mmLunge?.x || 0), z: (a.shift.p?.z || 0) + (a.mmLunge?.z || 0) } })
     a.yaw = mmo.yaw
     a.turn.yaw = a.yaw
     a.turn.w = 0
@@ -444,7 +444,8 @@ export const updateAnim = (a, s, dt) => {
   const lean0 = a.lean.p ?? 0.2
   const sft = a.shift.p ? toLocal(V(0, 0, 0), fr, a.shift.p) : V()
   // (with motion matching the posture is the captured one: where its shoulders really are)
-  const mmSh = mmo ? local(mul(add(mmo.shoulderL, mmo.shoulderR), 0.5)) : null
+  // (with last frame's extra bend at the waist, see below)
+  const mmSh = mmo ? local(add(mmo.pelvis, qrot(qaxis(mul(fr.r, -1), a.mmLean.p ?? 0), sub(mul(add(mmo.shoulderL, mmo.shoulderR), 0.5), mmo.pelvis)))) : null
   const ofs = mmo ? V(mmSh.x, mmSh.y - sh, mmSh.z - 0.1) : V(sft.x + extra.x, 0.935 - crouchS + sft.y + 0.455 * Math.cos(lean0) - sh, sft.z + extra.z + 0.455 * Math.sin(lean0) - 0.1)
   const toStd = (l) => RH(sub(l, ofs)) // a body-frame point -> the standard, right-handed pose
   let normalT = null
@@ -752,16 +753,20 @@ export const updateAnim = (a, s, dt) => {
     const lt = lunging && a.mmLungeT ? a.mmLungeT : { x: 0, z: 0 }
     a.mmLunge = springV(a.mmLungeS || (a.mmLungeS = {}), V(lt.x, 0, lt.z), 14, dt)
     pelvis = mmo.pelvis
-    const leanS = springN(a.mmLean, clamp((pose.lean || 0) + lowLean + clamp((a.overDown || 0) * 1.4, 0, 0.35), -0.3, 0.6), fast ? 30 : 12, dt)
+    // (in a rally the ready position's forward lean, pro.js READY, where the capture stands
+    // more upright: the chest over the knees, the shoulders and paddle out in front)
+    const mLean = Math.atan2(dot(mmo.spine, fr.f), mmo.spine.y)
+    const readyLean = s.between ? 0 : Math.max(0, R.lean - mLean) * (1 - clamp(running01, 0, 1)) * 0.85
+    const leanS = springN(a.mmLean, clamp((pose.lean || 0) + lowLean + clamp((a.overDown || 0) * 1.4, 0, 0.35) + readyLean, -0.3, 0.7), fast ? 30 : 12, dt)
     const Rl = qaxis(mul(fr.r, -1), leanS)
     spineDir = norm(qrot(Rl, mmo.spine))
-    const R = qmul(qaxis(spineDir, twist), Rl)
-    const rel = (p) => add(pelvis, qrot(R, sub(p, pelvis)))
+    const Rot = qmul(qaxis(spineDir, twist), Rl)
+    const rel = (p) => add(pelvis, qrot(Rot, sub(p, pelvis)))
     neck = rel(mmo.neck)
     shoulderL = rel(mmo.shoulderL)
     shoulderR = rel(mmo.shoulderR)
-    sr = norm(qrot(R, mmo.chestRight))
-    chestF = norm(qrot(R, mmo.chestForward))
+    sr = norm(qrot(Rot, mmo.chestRight))
+    chestF = norm(qrot(Rot, mmo.chestForward))
     hipL = mmo.hipL
     hipR = mmo.hipR
     pelvisRight = mmo.pelvisRight

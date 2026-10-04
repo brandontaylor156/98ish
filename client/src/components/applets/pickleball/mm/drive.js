@@ -50,7 +50,8 @@ export const driveMM = (a, s, mv, dt, o) => {
   // lower than the motion capture's own hips if anim.js wants a crouch
   const mocapY = out.hip.y
   const wantY = HIP_Y - (o.crouch ?? 0)
-  const drop = Math.max(0, mocapY - wantY)
+  // (down: a low ball the arm can't reach down to, on top of whatever the capture does)
+  const drop = Math.max(0, mocapY - wantY) + (o.down || 0)
   const hop = o.hopY || 0
   const p = solveMMPose(a.mmPose, out, dt, { drop, still: speed < 0.6 && !hop, lift: hop > 0 ? [hop, hop] : [0, 0], stance: o.stance, stanceW: Math.max(0, Math.min(1, 1 - (speed - 0.6) / 1.4)), shift: o.shift || null, reach: o.reach || null })
   const P = p.P
@@ -66,7 +67,7 @@ export const driveMM = (a, s, mv, dt, o) => {
     const ball = P[B["ball_" + s2]]
     const d = sub(ball, ankle)
     const fl = p.feet[s2 === "l" ? 0 : 1]
-    return { x: ankle.x, y: ankle.y - ANKLE_Y, z: ankle.z, yaw: Math.atan2(d.x, d.z), pitch: Math.atan2(-(d.y - (0.022 - ANKLE_Y)), Math.hypot(d.x, d.z)), planted: fl.locked, pin: fl.locked ? { x: (fl.which === "ankle" ? ankle : ball).x, z: (fl.which === "ankle" ? ankle : ball).z } : null }
+    return { x: ankle.x, y: ankle.y - ANKLE_Y, z: ankle.z, yaw: Math.atan2(d.x, d.z), pitch: Math.atan2(-(d.y - (0.022 - ANKLE_Y)), Math.hypot(d.x, d.z)), planted: fl.locked, pin: fl.locked ? { x: (fl.which === "ankle" ? ankle : ball).x, z: (fl.which === "ankle" ? ankle : ball).z, ball: fl.which !== "ankle" } : null }
   }
   return {
     yaw: out.root.yaw,

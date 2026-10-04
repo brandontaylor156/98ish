@@ -1205,6 +1205,16 @@ export const createAthlete = (look = {}, { shadows = false, withPaddle = true } 
       const ft = B["foot_" + sd]
       const rootP = worldP(th)
       const target = { x: f.x, y: f.y + ankleH, z: f.z }
+      // (a foot pinned on the ball of the foot, motion matching: this model's own ball of the
+      // foot goes exactly there, whatever its foot's length; the heel turns round it)
+      if (f.pin?.ball) {
+        const p0 = f.pitch || 0
+        const fw = { x: Math.sin(f.yaw) * Math.cos(p0), y: -Math.sin(p0), z: Math.cos(f.yaw) * Math.cos(p0) }
+        const fu = { x: Math.sin(f.yaw) * Math.sin(p0), y: Math.cos(p0), z: Math.cos(f.yaw) * Math.sin(p0) }
+        const off = qrot(aimDelta(FWD, UPV, fw, fu), scale3(sub3(rest["ball_" + sd].wp, rest["foot_" + sd].wp), s))
+        target.x = f.pin.x - off.x
+        target.z = f.pin.z - off.z
+      }
       const ankleP = { x: f.x, y: f.y + BODY.ankle, z: f.z }
       const pole = sub3(knees[sd], scale3(add3(hips[sd], ankleP), 0.5))
       const ik = solveLimb(rootP, target, L.l1, L.l2, pole, 1.06)
