@@ -1,6 +1,9 @@
 // Pinball's sound effects, synthesized with Web Audio (no sound files): bumper pings,
-// flipper clacks, the plunger, drains and little jingles. Silent when "Play system sounds"
-// is off in Display Properties, or when Sounds is unchecked in the game's Options menu.
+// flipper clacks, the plunger, the spinner's ticks, the floppy drive's seek, the Blue
+// Screen's error chord, drains and little jingles, plus a looping chiptune while multiball
+// runs. Everything goes through the page's shared context (utils/audio.js), so the
+// taskbar volume and mute apply. Silent when "Play system sounds" is off in Display
+// Properties, or when Sounds is unchecked in the game's Options menu.
 
 import { getSettings, masterGain } from "../../../utils/settings"
 import { createBus } from "../../../utils/audio"
@@ -133,7 +136,12 @@ export const createSounds = () => {
       tone(196, { at: 0.05, len: 0.7, type: "square", vol: 0.06, to: 40, filter: 500 })
     },
     gameOver: () => melody([67, 0, 64, 0, 60, 0, 55, 0, 0, 48], 0.11, "triangle", 0.18),
-    start: () => melody([60, 64, 67, 72, 67, 72, 76], 0.07, "square", 0.12),
+    // a startup chime (original): a rising chord that settles
+    start: () => {
+      if (!opts.music) return
+      ;[60, 67, 72, 76].forEach((n, i) => tone(midi(n), { at: i * 0.12, len: 1.1 - i * 0.12, type: "triangle", vol: 0.1, filter: 2400 }))
+      tone(midi(84), { at: 0.5, len: 0.7, type: "sine", vol: 0.08 })
+    },
     pull: () => noise({ len: 0.3, vol: 0.08, freq: 300, to: 120, q: 3 }),
     launch: (strength = 1) => {
       noise({ len: 0.12, vol: 0.2 + 0.3 * strength, freq: 500 + 900 * strength, q: 0.8 })
@@ -146,6 +154,72 @@ export const createSounds = () => {
     },
     tilt: () => tone(110, { len: 1.1, type: "sawtooth", vol: 0.18, filter: 700 }),
     reset: () => tone(660, { len: 0.1, type: "triangle", vol: 0.12, to: 990 }),
+    spin: () => {
+      if (throttle("spin", 35)) return
+      noise({ len: 0.02, vol: 0.16, freq: 4200, q: 3 })
+      tone(2400, { len: 0.02, type: "square", vol: 0.04 })
+    },
+    skill: () => melody([76, 79, 83, 88, 0, 88, 91], 0.06, "square", 0.14),
+    lanes: () => melody([72, 79, 84, 0, 79, 84], 0.06, "triangle", 0.16),
+    scoop: () => {
+      noise({ len: 0.16, vol: 0.32, freq: 260, q: 0.8, type: "lowpass" })
+      tone(165, { len: 0.2, type: "triangle", vol: 0.22, to: 82 })
+    },
+    // the Blue Screen: an error chord
+    lock: () => {
+      for (const n of [57, 60, 64]) tone(midi(n), { len: 0.5, type: "square", vol: 0.07, filter: 1800 })
+      tone(midi(45), { at: 0.25, len: 0.6, type: "sawtooth", vol: 0.08, filter: 900 })
+    },
+    // the floppy drive seeking: buzzy steps
+    floppy: () => {
+      for (let i = 0; i < 6; i++) tone(180 + (i % 2) * 60, { at: i * 0.07, len: 0.05, type: "square", vol: 0.08, filter: 1400 })
+      noise({ at: 0.45, len: 0.12, vol: 0.2, freq: 900, q: 2 })
+    },
+    drive: () => {
+      tone(1200, { len: 0.05, type: "square", vol: 0.08 })
+      tone(1600, { at: 0.06, len: 0.05, type: "square", vol: 0.08 })
+      noise({ len: 0.05, vol: 0.25, freq: 700, q: 1 })
+    },
+    loop: () => melody([67, 71, 74, 79, 83, 86], 0.05, "triangle", 0.15),
+    rampUp: () => noise({ len: 0.35, vol: 0.12, freq: 400, to: 1400, q: 2 }),
+    rampDown: () => noise({ len: 0.3, vol: 0.1, freq: 1200, to: 300, q: 2 }),
+    ramp: () => melody([60, 64, 67, 72, 76], 0.05, "square", 0.12),
+    kickback: () => {
+      noise({ len: 0.1, vol: 0.45, freq: 500, q: 0.8 })
+      melody([84, 79, 84, 91], 0.05, "triangle", 0.14)
+    },
+  }
+
+  // multiball music: a 16-step chiptune loop scheduled a little ahead of time
+  const BASS = [36, 0, 36, 48, 0, 36, 43, 0, 41, 0, 41, 53, 0, 43, 0, 46]
+  const LEAD = [72, 75, 79, 75, 84, 79, 75, 79, 77, 81, 84, 81, 89, 84, 82, 79]
+  const STEP_S = 0.11
+  let musicTimer = 0
+  let musicStep = 0
+  let musicAt = 0
+  const schedule = () => {
+    if (!ready() || !opts.music) return
+    if (musicAt < ctx.currentTime) musicAt = ctx.currentTime + 0.05
+    while (musicAt < ctx.currentTime + 0.3) {
+      const at = musicAt - ctx.currentTime
+      const i = musicStep % 16
+      if (BASS[i]) tone(midi(BASS[i]), { at, len: STEP_S * 1.4, type: "square", vol: 0.07, filter: 700 })
+      if (musicStep % 2 === 0 || i > 11) tone(midi(LEAD[i]), { at, len: STEP_S * 0.9, type: "square", vol: 0.04, filter: 2600 })
+      if (i % 4 === 0) noise({ at, len: 0.04, vol: 0.12, freq: 6000, q: 1 })
+      musicStep++
+      musicAt += STEP_S
+    }
+  }
+  const setMusic = (on) => {
+    if (on && !musicTimer) {
+      musicStep = 0
+      musicAt = 0
+      schedule()
+      musicTimer = setInterval(schedule, 120)
+    } else if (!on && musicTimer) {
+      clearInterval(musicTimer)
+      musicTimer = 0
+    }
   }
 
   return {
@@ -163,8 +237,10 @@ export const createSounds = () => {
     },
     // the first tap or key unlocks audio on phones
     unlock: () => ready(),
+    setMusic,
     // the shared context stays open for everyone else
     close: () => {
+      setMusic(false)
       ctx = null
     },
   }

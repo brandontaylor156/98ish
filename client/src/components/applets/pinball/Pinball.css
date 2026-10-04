@@ -1,4 +1,6 @@
-/* Pinball: the table canvas, letterboxed, beside a score panel (a bar on top on phones) */
+/* Pinball: Blue Screen. The table is a 280 x 500 pixel canvas scaled with nearest-neighbour
+   pixels; around it plain Windows 98 chrome (no gradients): a side panel with the dot-matrix
+   display on a computer, a DMD bar on top on phones. */
 
 .pbRoot {
   position: relative;
@@ -26,8 +28,8 @@
 
 .pbCompact .pbBody {
   flex-direction: column;
-  gap: 0;
-  padding: 0;
+  gap: 2px;
+  padding: 0 2px 2px;
 }
 
 .pbTable {
@@ -36,7 +38,7 @@
   min-width: 0;
   min-height: 0;
   overflow: hidden;
-  background: #03040a;
+  background: #000;
   box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
   touch-action: none;
   cursor: default;
@@ -44,160 +46,109 @@
 
 .pbCanvas {
   position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
   display: block;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  image-rendering: pixelated;
 }
 
-/* ---- the side panel ---- */
+/* not a whole number of device pixels: the canvas is blown up by whole pixels already and
+   the browser eases the last bit */
+.pbCanvas.is-smooth {
+  image-rendering: auto;
+}
+
+/* ---- the dot-matrix display ---- */
+
+.pbDmdBox {
+  display: flex;
+  justify-content: center;
+  padding: 3px;
+  background: #000;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+}
+
+.pbDmd {
+  display: block;
+  image-rendering: pixelated;
+}
+
+.pbTopBar {
+  flex: none;
+}
+
+/* ---- the side panel (a computer) ---- */
 
 .pbPanel {
   flex: none;
-  width: 188px;
+  width: 264px;
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding: 6px;
+  padding: 4px 0;
   overflow: hidden;
-  background: linear-gradient(180deg, #0a2a4a, #050f22 70%);
-  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
-  color: #9ff8ff;
 }
 
-.pbLogo {
+.pbScoreLine {
+  padding: 2px 6px;
+  background: #fff;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+  text-align: right;
+  font-size: 11px;
+}
+
+.pbGroup {
+  margin: 0;
+  padding: 4px 6px 6px;
+  border: none;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #808080, inset 2px 2px #fff;
+}
+
+.pbGroup legend {
+  padding: 0 3px;
+  font-size: 11px;
+  font-weight: normal;
+}
+
+.pbMissions {
+  margin: 0;
+  padding: 0;
+  list-style: none;
   display: flex;
   flex-direction: column;
+  gap: 1px;
+}
+
+.pbMissions li {
+  display: flex;
   align-items: center;
-  padding: 6px 0 2px;
-  font-family: "Arial Black", "Segoe UI Black", Impact, Arial, sans-serif;
-  font-style: italic;
-  line-height: 1;
-  -webkit-font-smoothing: antialiased;
+  gap: 4px;
+  padding: 1px 2px;
+  color: #808080;
 }
 
-.pbLogo span {
-  font-size: 18px;
-  color: #ffd23f;
-  text-shadow: 0 0 8px rgba(255, 210, 63, 0.7), 2px 2px 0 #00131f;
+.pbMissions li.is-done {
+  color: #000;
 }
 
-.pbLogo b {
-  font-size: 30px;
-  font-weight: normal;
-  color: #ff7a45;
-  text-shadow: 0 0 10px rgba(255, 122, 69, 0.8), 2px 2px 0 #00131f;
+.pbMissions li.is-current {
+  background: #000080;
+  color: #fff;
 }
 
-.pbLcd {
-  background: #01070d;
-  border: 1px solid #000;
-  box-shadow: inset 1px 1px #0a0a0a, 0 0 0 1px #2b6c8a;
-  padding: 4px 6px;
-  font-family: "Courier New", Consolas, monospace;
-  -webkit-font-smoothing: antialiased;
-}
-
-.pbLcdLabel {
-  font-size: 10px;
-  letter-spacing: 1px;
-  color: #3fa6c2;
-}
-
-.pbScore {
-  font-size: 22px;
-  font-weight: bold;
-  text-align: right;
-  color: #46f0ff;
-  text-shadow: 0 0 6px rgba(70, 240, 255, 0.8);
-  white-space: nowrap;
-  overflow: hidden;
+.pbTick {
+  width: 10px;
+  text-align: center;
 }
 
 .pbStats {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 4px;
-  text-align: center;
-}
-
-.pbStats > div {
   display: flex;
-  flex-direction: column;
-  background: #01070d;
-  border: 1px solid #2b6c8a;
-  padding: 2px 0;
+  justify-content: space-between;
+  padding: 0 2px;
 }
 
-.pbStats span {
-  font-size: 9px;
-  color: #3fa6c2;
-}
-
-.pbStats b {
-  font-family: "Courier New", Consolas, monospace;
-  font-size: 18px;
-  color: #ffd23f;
-  text-shadow: 0 0 5px rgba(255, 210, 63, 0.7);
-  -webkit-font-smoothing: antialiased;
-}
-
-.pbStats .pbExtra {
-  grid-column: 1 / -1;
-  flex-direction: row;
-  justify-content: center;
-  gap: 8px;
-  align-items: center;
-}
-
-.pbStats .pbExtra b {
-  color: #7dff9a;
-  font-size: 14px;
-}
-
-.pbRank {
-  font-size: 15px;
-  font-weight: bold;
-  color: #7dff9a;
-  text-shadow: 0 0 5px rgba(125, 255, 154, 0.6);
-  margin-bottom: 4px;
-}
-
-.pbMissionText {
-  font-size: 13px;
-  color: #e6fbff;
-  min-height: 32px;
-}
-
-.pbBar {
-  height: 6px;
-  margin-top: 4px;
-  background: #0b2233;
-  border: 1px solid #2b6c8a;
-}
-
-.pbBar i {
-  display: block;
-  height: 100%;
-  background: linear-gradient(90deg, #46f0ff, #7dff9a);
-  transition: width 0.2s;
-}
-
-.pbStatus {
-  min-height: 46px;
-  font-size: 13px;
-  font-weight: bold;
-  color: #ffd23f;
-  text-shadow: 0 0 5px rgba(255, 210, 63, 0.6);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-}
-
-.pbStatus.is-tilt {
-  color: #ff4040;
-  text-shadow: 0 0 6px rgba(255, 64, 64, 0.8);
+.pbExtra {
+  color: #800000;
 }
 
 .pbKeys {
@@ -205,7 +156,7 @@
   display: flex;
   flex-direction: column;
   gap: 3px;
-  color: #9fc9d8;
+  color: #000;
 }
 
 .pbKeys kbd {
@@ -217,59 +168,92 @@
   color: #000;
   background: #c0c0c0;
   border-radius: 0;
-  box-shadow: inset -1px -1px #0a0a0a, inset 1px 1px #fff;
+  box-shadow: inset -1px -1px #0a0a0a, inset 1px 1px #fff, inset -2px -2px #808080;
 }
 
-/* ---- phones: a bar on top ---- */
+/* ---- the start / game over window over the table ---- */
 
-.pbTopBar {
-  flex: none;
-  display: grid;
-  grid-template-columns: auto 1fr;
-  align-items: center;
-  column-gap: 8px;
-  padding: 4px 8px;
-  background: linear-gradient(180deg, #0a2a4a, #050f22);
-  color: #9ff8ff;
-  font-family: "Courier New", Consolas, monospace;
-  -webkit-font-smoothing: antialiased;
-}
-
-.pbTopScore {
-  font-size: 22px;
-  font-weight: bold;
-  color: #46f0ff;
-  text-shadow: 0 0 6px rgba(70, 240, 255, 0.8);
-}
-
-.pbTopInfo {
+.pbStart {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
   display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  font-size: 13px;
-  color: #ffd23f;
-  white-space: nowrap;
-  overflow: hidden;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 12%;
+  pointer-events: none;
 }
 
-.pbTopRank {
-  color: #7dff9a;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.pbStartWin {
+  pointer-events: auto;
+  width: min(250px, 86%);
+  max-height: 80%;
+  overflow: auto;
+  background: #c0c0c0;
+  box-shadow: inset -1px -1px #0a0a0a, inset 1px 1px #dfdfdf, inset -2px -2px #808080, inset 2px 2px #fff;
+  padding: 3px;
 }
 
-.pbTopMission {
-  grid-column: 1 / -1;
-  font-size: 13px;
-  color: #e6fbff;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.pbStartTitle {
+  padding: 2px 4px;
+  background: #000080;
+  color: #fff;
+  font-weight: bold;
 }
 
-/* ---- touch buttons over the table ---- */
+.pbStartWin .gameStart {
+  padding: 8px;
+}
 
-/* On-screen buttons (positioned by shared/controls TouchControls) */
+.pbLogo {
+  padding: 6px 0;
+  text-align: center;
+  font-family: "Courier New", Consolas, monospace;
+  font-weight: bold;
+  font-size: 18px;
+  letter-spacing: 2px;
+  color: #fff;
+  background: #0000aa;
+  -webkit-font-smoothing: none;
+}
+
+.pbFinal {
+  text-align: center;
+  padding: 4px 0;
+}
+
+.pbFinal b {
+  display: block;
+  font-size: 16px;
+  margin-top: 2px;
+}
+
+.pbPullHint {
+  position: absolute;
+  z-index: 2;
+  width: 40px;
+  text-align: center;
+  color: #ffff40;
+  font-weight: bold;
+  text-shadow: 1px 1px 0 #000;
+  pointer-events: none;
+  animation: pbPull 0.9s steps(2) infinite;
+}
+
+@keyframes pbPull {
+  50% {
+    transform: translateY(6px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pbPullHint {
+    animation: none;
+  }
+}
+
+/* ---- touch buttons over the table: Win98 buttons, see-through ---- */
+
 .tcButton.pbLaunch,
 .tcButton.pbNudge {
   min-width: 0;
@@ -278,46 +262,33 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-family: "Arial Black", Impact, Arial, sans-serif;
-  font-weight: normal;
-  -webkit-font-smoothing: antialiased;
-  color: #fff;
+  font-family: "Pixelated MS Sans Serif", Arial, sans-serif;
+  font-weight: bold;
+  font-size: 11px;
+  color: #000;
   text-shadow: none;
+  background: rgba(192, 192, 192, 0.8);
+  border: none;
+  border-radius: 0;
+  box-shadow: inset -1px -1px #0a0a0a, inset 1px 1px #fff, inset -2px -2px #808080, inset 2px 2px #dfdfdf;
 }
 
 .tcButton.pbLaunch {
-  flex-direction: column;
-  font-size: 10px;
-  background: rgba(255, 64, 64, 0.35);
-  border: 2px solid rgba(255, 180, 160, 0.85);
-  border-radius: 10px;
-  box-shadow: 0 0 12px rgba(255, 90, 60, 0.6);
+  gap: 4px;
+  color: #800000;
 }
 
 .tcButton.pbLaunch span {
-  font-size: 18px;
+  font-size: 13px;
   line-height: 1;
 }
 
-.tcButton.pbLaunch.is-pressed {
-  background: rgba(255, 64, 64, 0.6);
-  box-shadow: 0 0 12px rgba(255, 90, 60, 0.6);
-}
-
-.tcButton.pbNudge {
-  font-size: 11px;
-  background: rgba(70, 240, 255, 0.18);
-  border: 1px solid rgba(160, 250, 255, 0.6);
-  border-radius: 8px;
-  box-shadow: none;
-}
-
+.tcButton.pbLaunch.is-pressed,
 .tcButton.pbNudge.is-pressed {
-  background: rgba(70, 240, 255, 0.4);
-  box-shadow: none;
+  box-shadow: inset 1px 1px #0a0a0a, inset -1px -1px #fff, inset 2px 2px #808080, inset -2px -2px #dfdfdf;
 }
 
-/* ---- paused / game over ---- */
+/* ---- paused ---- */
 
 .pbOverlay {
   position: absolute;
@@ -326,39 +297,20 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 5, 15, 0.45);
 }
 
 .pbOverlayBox {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
-  padding: 12px 22px;
-  background: #01070d;
-  border: 2px solid #46f0ff;
-  box-shadow: 0 0 16px rgba(70, 240, 255, 0.5);
-  color: #e6fbff;
-  font-size: 13px;
+  gap: 4px;
+  padding: 10px 22px;
+  background: #c0c0c0;
+  box-shadow: inset -1px -1px #0a0a0a, inset 1px 1px #dfdfdf, inset -2px -2px #808080, inset 2px 2px #fff;
 }
 
 .pbOverlayBox b {
-  font-family: "Arial Black", Impact, Arial, sans-serif;
-  font-size: 22px;
-  font-weight: normal;
-  color: #ffd23f;
-  -webkit-font-smoothing: antialiased;
-}
-
-.pbOver {
-  background: transparent;
-  align-items: flex-end;
-  padding-bottom: 22%;
-}
-
-.pbOverlayBox button {
-  min-height: 28px;
-  padding: 0 16px;
+  font-size: 13px;
 }
 
 /* ---- dialogs ---- */
@@ -384,6 +336,7 @@
 .pbScores td,
 .pbControls td {
   padding: 2px 6px;
+  vertical-align: top;
 }
 
 .pbScores th {

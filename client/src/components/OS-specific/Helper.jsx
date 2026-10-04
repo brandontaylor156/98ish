@@ -49,7 +49,7 @@ const TIPS = {
   Paint: ["Right-click a color to make it the background color. File > Set As Wallpaper shows off your art."],
   Solitaire: ["Double-click a card to send it home to the top row. Win, and watch the cards bounce!"],
   FreeCell: ["Game > Select Game picks any of 32,000 numbered deals. Almost all of them can be won."],
-  Pinball: ["Spell D-I-V-E in the top lanes to raise your multiplier. The flippers move the lit lanes!"],
+  Pinball: ["Knock down 9-8-I-S-H, then shoot the Blue Screen: lock three balls for multiball!", "On a phone, drag the plunger down and let go. Each mission ranks you up from Intern to Sysadmin."],
   Calendar: [
     "Share a calendar: File > New Calendar, then invite people by screen name or send them the invite link. Couples get an Us calendar by themselves.",
     "Want reminders with 98ish closed? Open an event and tap Add to my phone, or subscribe your phone to a whole calendar in its Properties > Phone.",
