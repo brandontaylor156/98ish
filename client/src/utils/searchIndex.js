@@ -55,6 +55,11 @@ export const searchProviders = () => [...providers.entries()]
 
 // Extra words people type for programs ("calc", "pictures", "im")
 export const PROGRAM_KEYWORDS = {
+  "Boom Frenzy": ["bombs", "whack a mole", "bomb game", "reflex", "panic"],
+  "Color Match": ["colour", "colors", "brain game", "stroop", "reaction"],
+  "Echo Pads": ["memory game", "simon says", "sequence", "repeat the pattern", "colors and tones"],
+  "Zap It!": ["bop", "reflex", "gestures", "party game", "pass the phone", "shake"],
+  Tetherball: ["playground", "ball on a rope", "pole", "3D sports"],
   Calculator: ["calc", "math", "sums", "add", "numbers"],
   Photos: ["pictures", "images", "gallery", "photo viewer", "slideshow"],
   Camera: ["webcam", "selfie", "photo booth", "take a picture"],

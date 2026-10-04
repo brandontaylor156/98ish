@@ -1,0 +1,160 @@
+// Help topics: the quick games (Boom Frenzy, Color Match, Echo Pads, Zap It!, Tetherball).
+// (Format: see ../helpCore.js. No imports here: Node's tests load this file directly.)
+
+export const books = [{ id: "games-quick", title: "Quick reflex games", parent: "games" }]
+
+export const topics = [
+  {
+    id: "boom-frenzy",
+    book: "games-quick",
+    title: "Boom Frenzy",
+    summary: "Whack the bombs before their fuses burn down: 15 bombs, Panic Time, weapons, 20 stages.",
+    keywords: ["Boom Frenzy", "bombs", "whack", "Panic Time", "weapons", "Big Mallet", "Freeze Ray", "Fuse Snipper", "Sort Rush", "Endless", "stages"],
+    programs: ["Boom Frenzy"],
+    body: [
+      "Bombs pop out of nine holes with their fuses burning. Whack each one before it goes off. A bomb that goes off costs a heart; lose all your hearts and the game is over.",
+      { phone: "Tap a bomb to whack it. Swipe an **Arrow** bomb the way its arrow points, and press and hold a **Hold** bomb until its ring fills.", computer: "Click a bomb, or use the keys below. Drag across an Arrow bomb (or press its hole's key, then an arrow key)." },
+      {
+        keys: [
+          ["7 8 9 / 4 5 6 / 1 2 3", "Whack a hole (or Q W E / A S D / Z X C)"],
+          ["Arrow keys", "Swipe an Arrow bomb"],
+          ["J, K, L", "Big Mallet, Freeze Ray, Fuse Snipper"],
+          ["P or Esc", "Pause"],
+        ],
+      },
+      { h: "Scoring" },
+      {
+        list: [
+          "Whacks in a row build a multiplier: x2 at 5, x3 at 10, x4 at 20, x5 at 35. An empty hole or a blast resets it.",
+          "**Panic Time**: the sky turns red, bombs come three times as fast, and every whack scores double.",
+          "Every whack charges the weapon meter. **Big Mallet** (40) smashes everything on the field, **Freeze Ray** (25) stops every fuse for 5 seconds, **Fuse Snipper** (30) makes every bomb die to one tap for 8 seconds.",
+        ],
+      },
+      { h: "The bombs" },
+      {
+        table: {
+          head: ["Bomb", "What to do"],
+          rows: [
+            ["Black", "Tap it."],
+            ["Quick (red)", "Tap it fast: very short fuse."],
+            ["Helmet", "Tap twice."],
+            ["Arrow (green)", "Swipe the way it points."],
+            ["Skull", "Leave it alone! Whacking it costs a heart."],
+            ["Jumper", "Hit it, then hit it again in its new hole."],
+            ["Iron", "Tap three times."],
+            ["Ice", "Freezes every fuse for 3 seconds."],
+            ["Ghost", "Tap it while you can see it."],
+            ["Splitter", "Splits into two little bombs."],
+            ["Hold", "Press and hold until the ring fills."],
+            ["Heart", "A heart back (up to 5)."],
+            ["Clock", "Every fuse burns at half speed for 4 seconds."],
+            ["Chain", "If it goes off, the bombs next to it go too (2 hearts)."],
+            ["Gold", "100 points, but it sinks in about a second."],
+          ],
+        },
+      },
+      { h: "Modes" },
+      "**Stages**: 20 of them. Each one is \"whack this many bombs\" and brings in a new bomb (shown before the stage starts); stars for the hearts you have left. **Endless**: no goal, Panic Time every 30 seconds, until the hearts run out. **Sort Rush**: drag (or flick) colored bombs into the pen of their color before they go off.",
+      { tip: "Boom Frenzy is inspired by Bomb Panic, an iPhone game from 2012. Its bombs, weapons and stages here are 98ish's own." },
+      { open: "Boom Frenzy", label: "Play Boom Frenzy" },
+    ],
+    related: ["block-ten", "zap-it"],
+  },
+  {
+    id: "color-match",
+    book: "games-quick",
+    title: "Color Match",
+    summary: "Does the word's meaning match the ink color? Answer fast, build a multiplier, play online.",
+    keywords: ["Color Match", "colour", "meaning", "ink", "Yes or No", "Swatch", "multiplier", "brain game"],
+    programs: ["Color Match"],
+    body: [
+      "Two cards. The left card's word has a **meaning**; the right card's word is printed in an **ink color**. Does the left word's meaning match the right word's ink? Answer **Yes** or **No** before the clock runs out. Don't be fooled by what the right word says, or by the color of the left word!",
+      { phone: "Tap the big Yes and No buttons.", computer: "Click Yes or No, or press {{Right}} or {{J}} for Yes and {{Left}} or {{F}} for No." },
+      {
+        list: [
+          "Each right answer scores 50 times your multiplier.",
+          "Every 4 right in a row raises the multiplier by one, up to x5. A wrong answer drops it back to x1.",
+          "Games last 60 seconds; Options has 30 and 90.",
+        ],
+      },
+      { h: "Swatch" },
+      "A color name printed in a different ink, and some swatches below: tap the swatch whose color the word **names**. Keys {{1}} to {{9}} pick a swatch.",
+      { h: "Online" },
+      "**Play Online**: everyone in the room gets the very same questions, and the best score when the clock runs out wins. Quick Match finds someone (or a computer player). See [[online-play]].",
+      { open: "Color Match", label: "Play Color Match" },
+    ],
+    related: ["online-play", "echo-pads"],
+  },
+  {
+    id: "echo-pads",
+    book: "games-quick",
+    title: "Echo Pads",
+    summary: "A memory game: four pads play a tune, you repeat it, it grows. Pass the Pads online.",
+    keywords: ["Echo Pads", "memory", "sequence", "pads", "tones", "Reverse", "Rewind", "Pass the Pads", "color-blind", "symbols"],
+    programs: ["Echo Pads"],
+    body: [
+      "Four pads light up and play a tune. When it's your turn, press the pads in the same order. Get it right and the tune grows by one step; it speeds up at 5, 9 and 13 steps. You have 5 seconds for each press.",
+      {
+        list: [
+          "**Classic**: repeat it as played.",
+          "**Reverse**: repeat it backwards.",
+          "**Rewind**: forwards, then back again (red, blue, green becomes red, blue, green, blue, red).",
+          "**Speed**: Classic, starting fast.",
+        ],
+      },
+      { phone: "Tap the pads.", computer: "Click the pads, or press {{Q}} {{W}} / {{A}} {{S}} (or {{1}} to {{4}}, or the arrow keys)." },
+      { note: "Every pad has its own symbol (green triangle, red circle, yellow square, blue star), so you don't need to tell the colors apart. Options turns the symbols off." },
+      { h: "Pass the Pads (online)" },
+      "Take turns: repeat the whole tune, then add one step of your own for the next player. A slip, or the turn clock running out, and you're out. The last one left wins. The room can play the tune before each turn, or leave it all to memory.",
+      { open: "Echo Pads", label: "Play Echo Pads" },
+    ],
+    related: ["online-play", "color-match"],
+  },
+  {
+    id: "zap-it",
+    book: "games-quick",
+    title: "Zap It!",
+    summary: "Tap it, swipe it, twist it, pull it, flick it, shake it: do what it calls before the beat.",
+    keywords: ["Zap It", "tap it", "swipe it", "twist it", "pull it", "flick it", "shake it", "party", "pass the phone", "motion"],
+    programs: ["Zap It!"],
+    body: [
+      "Zap It! calls out a move (out loud, if your device has a voice, with its own sound and a big picture). Do it before the ring runs out. Every 5 right, the beat gets quicker. A wrong move, or too slow, and it's over.",
+      {
+        table: {
+          head: ["Call", "Phone", "Computer"],
+          rows: [
+            ["Tap it", "Tap the pad", "{{Space}} or click"],
+            ["Swipe it", "Swipe sideways", "{{Left}} / {{Right}}, or drag sideways"],
+            ["Twist it", "Two fingers turning, like a knob (or circle one finger)", "{{T}}, or draw a circle with the mouse"],
+            ["Pull it", "Drag down", "{{Down}}"],
+            ["Flick it", "Flick up", "{{Up}}"],
+            ["Shake it", "Shake the phone", "(not on computers)"],
+          ],
+        },
+      },
+      { note: "**Shake it** only comes up where the motion sensor works. Android phones have it at once. On an iPhone, open Options and tap **Allow motion** (iPhone asks for your OK first)." },
+      { h: "Party" },
+      "Pass the phone: every player has one go, and the most zaps wins. Pick 2 to 6 players in Options.",
+      { open: "Zap It!", label: "Play Zap It!" },
+    ],
+    related: ["boom-frenzy"],
+  },
+  {
+    id: "tetherball",
+    book: "games-quick",
+    title: "Tetherball",
+    summary: "Wind the rope all the way round the pole in your direction: against the computer or online.",
+    keywords: ["Tetherball", "pole", "rope", "ball", "playground", "wind", "3D"],
+    programs: ["Tetherball"],
+    body: [
+      "A ball hangs on a rope from the top of a pole. You hit it one way round; the other player hits it back the other way. Wind the rope all the way round the pole in your direction to win the game. First to 2 games wins the match (Options has one game, or first to 3).",
+      "You can only hit the ball on your own half (the near side). Your player runs to the ball by themselves: you choose **when** to hit, **how hard** and **how high**. The ring on the ground under your player lights up when the ball is in reach.",
+      { phone: "Swipe across the screen: faster is harder, upward is higher. A tap is a medium hit.", computer: "Press {{Space}} (hold it longer for a harder hit; hold {{Up}} or {{Down}} as well for a high or low hit), or swipe with the mouse. {{P}} pauses." },
+      { tip: "As the rope winds it gets shorter, so the ball flies round faster and lower. Near the end it's hard to stop: hit back early and hard." },
+      { h: "Online" },
+      "**Play Online** for one against one with anyone, anywhere. See [[online-play]].",
+      { open: "Tetherball", label: "Play Tetherball" },
+    ],
+    related: ["online-play", "pickleball"],
+  },
+]

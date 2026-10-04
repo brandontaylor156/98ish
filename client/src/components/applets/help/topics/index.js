@@ -7,10 +7,11 @@ import * as accessories from "./accessories.js"
 import * as internet from "./internet.js"
 import * as us from "./us.js"
 import * as games from "./games.js"
+import * as quickgames from "./quickgames.js"
 import * as settings from "./settings.js"
 import * as support from "./support.js"
 
-const FILES = [basics, accessories, internet, us, games, settings, support]
+const FILES = [basics, accessories, internet, us, games, quickgames, settings, support]
 
 export const BOOKS = FILES.flatMap((f) => f.books || [])
 export const TOPICS = FILES.flatMap((f) => f.topics || [])

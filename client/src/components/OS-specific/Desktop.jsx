@@ -56,6 +56,11 @@ const Ski = lazyApp(() => import("../applets/ski/Ski"))
 const Pickleball = lazyApp(() => import("../applets/pickleball/Pickleball"))
 const Shred = lazyApp(() => import("../applets/shred/Shred"))
 const BlockTen = lazyApp(() => import("../applets/blockten/BlockTen"))
+const BoomFrenzy = lazyApp(() => import("../applets/boomfrenzy/BoomFrenzy"))
+const ColorMatch = lazyApp(() => import("../applets/colormatch/ColorMatch"))
+const EchoPads = lazyApp(() => import("../applets/echo/EchoPads"))
+const ZapIt = lazyApp(() => import("../applets/zapit/ZapIt"))
+const Tetherball = lazyApp(() => import("../applets/tetherball/Tetherball"))
 const WordDuel = lazyApp(() => import("../applets/wordduel/WordDuel"))
 const SpeedType = lazyApp(() => import("../applets/speedtype/SpeedType"))
 const LastCard = lazyApp(() => import("../applets/lastcard/LastCard"))
@@ -809,6 +814,11 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
       {window.app === "pickleball" && <Pickleball mobile={mobile} onClose={() => closeWindow(window, index)} />}
       {window.app === "shred" && <Shred mobile={mobile} onClose={() => closeWindow(window, index)} />}
       {window.app === "blockten" && <BlockTen mobile={mobile} onClose={() => closeWindow(window, index)} />}
+      {window.app === "boomfrenzy" && <BoomFrenzy mobile={mobile} paused={!!window.minimized || !window.active} onClose={() => closeWindow(window, index)} />}
+      {window.app === "colormatch" && <ColorMatch mobile={mobile} paused={!!window.minimized || !window.active} onClose={() => closeWindow(window, index)} />}
+      {window.app === "echo" && <EchoPads mobile={mobile} paused={!!window.minimized || !window.active} onClose={() => closeWindow(window, index)} />}
+      {window.app === "zapit" && <ZapIt mobile={mobile} paused={!!window.minimized || !window.active} onClose={() => closeWindow(window, index)} />}
+      {window.app === "tetherball" && <Tetherball mobile={mobile} paused={!!window.minimized || !window.active} onClose={() => closeWindow(window, index)} />}
       {window.app === "wordduel" && <WordDuel mobile={mobile} onClose={() => closeWindow(window, index)} />}
       {window.app === "speedtype" && <SpeedType mobile={mobile} onClose={() => closeWindow(window, index)} />}
       {window.app === "lastcard" && <LastCard mobile={mobile} onClose={() => closeWindow(window, index)} />}
