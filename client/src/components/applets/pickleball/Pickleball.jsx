@@ -11,6 +11,8 @@ import { ScoreBug, CallCard, Callouts, GradePop, Meter, ControlsStrip, ReplayBug
 import { CHARACTERS, VENUE_INFO, characterById, lookFor, pickOpponents } from "./looks.js"
 import { freshTour, nextMatch, recordResult, tourState, unlocks } from "./career.js"
 import { TUTORIAL, practiceMatch } from "./drills.js"
+import { characterLook, lookForPlayer, lookPayload, validateLook, validateLooks } from "./locker.js"
+import { LockerRoom } from "./LockerRoom"
 import { bindingsFor, keyName } from "./input.js"
 import "./Pickleball.css"
 import { helpItem } from "../../../utils/help"
@@ -50,6 +52,11 @@ const DEFAULTS = {
   focus: "auto",
   keys: {},
   best: {},
+  // the Locker Room: saved looks by player, computer players' kits ("own" | "random"), kits
+  // that follow the venue
+  looks: {},
+  aiLooks: "own",
+  autoVenue: false,
 }
 const ONLINE_DEFAULTS = { format: "singles", target: 11, scoring: "sideout", venue: "stadium" }
 
@@ -71,6 +78,9 @@ const readPrefs = () => {
   const p = { ...DEFAULTS, ...load(PREFS_KEY, {}) }
   if (typeof p.assist === "boolean") p.assist = p.assist ? "light" : "off" // older saves
   if (!["broadcast", "tv", "side", "player"].includes(p.camera)) p.camera = "broadcast"
+  p.looks = validateLooks(p.looks)
+  if (!["own", "random"].includes(p.aiLooks)) p.aiLooks = "own"
+  p.autoVenue = !!p.autoVenue
   // saves from before the skinned athletes kept phones on Low: move them up once
   if (!p.athletes) {
     if (p.quality === "low") p.quality = "medium"
@@ -121,6 +131,7 @@ const Pickleball = ({ onClose, mobile }) => {
   const [phase, setPhase] = useState("loading") // loading | error | title | playing | paused | over | showcase
   const [screen, setScreen] = useState("main") // main | quick | tour | practice | versus | players | settings | controls | online
   const [playersFor, setPlayersFor] = useState("p1")
+  const [lockerFor, setLockerFor] = useState(null) // who the Locker Room opens on (and where it goes back to)
   const [prefs, setPrefsState] = useState(readPrefs)
   const [tour, setTourState] = useState(() => tourState(load(TOUR_KEY, freshTour())))
   const [session, setSession] = useState(null)
@@ -320,6 +331,8 @@ const Pickleball = ({ onClose, mobile }) => {
   }
 
   // ---- starting matches ----
+  // everyone's look for this match: saved Locker Room looks, computer players' kits, the venue
+  const dress = (roster, venue) => roster.map((r) => (r.character ? { ...r, look: lookForPlayer(prefsRef.current, { character: r.character, outfit: r.outfit, ai: r.ctrl === "cpu" }, venue) } : r))
   const startQuick = () => {
     const p = prefsRef.current
     const venues = unlocks(tour).venues
@@ -328,7 +341,7 @@ const Pickleball = ({ onClose, mobile }) => {
     const roster = rosterFor({ doubles: p.doubles, level: p.level, me: p.character, outfit: p.outfit, opponent: p.opponent, partner: p.partner })
     setSession({ kind: "quick", level: p.level })
     setScreen("main")
-    engineRef.current?.newMatch({ doubles: p.doubles, level: p.level, scoring: p.scoring, target: p.target, venue, roster, humans: 1 })
+    engineRef.current?.newMatch({ doubles: p.doubles, level: p.level, scoring: p.scoring, target: p.target, venue, roster: dress(roster, venue), humans: 1 })
   }
   const startTour = (t) => {
     const p = prefsRef.current
@@ -336,7 +349,7 @@ const Pickleball = ({ onClose, mobile }) => {
     const roster = rosterFor({ doubles: false, level: t.level, me: p.character, outfit: p.outfit, opponent: t.opponent })
     setSession({ kind: "tour", tour: t, level: t.level })
     setScreen("main")
-    engineRef.current?.newMatch({ doubles: false, level: t.level, scoring: "sideout", target: t.target, venue: t.venue, roster, humans: 1 })
+    engineRef.current?.newMatch({ doubles: false, level: t.level, scoring: "sideout", target: t.target, venue: t.venue, roster: dress(roster, t.venue), humans: 1 })
   }
   const startVersus = () => {
     const p = prefsRef.current
@@ -345,14 +358,16 @@ const Pickleball = ({ onClose, mobile }) => {
     const roster = rosterFor({ doubles: p.doubles, level: "intermediate", me: p.character, outfit: p.outfit, p2: p.p2, humans: 2 })
     setSession({ kind: "versus" })
     setScreen("main")
-    engineRef.current?.newMatch({ doubles: p.doubles, level: "intermediate", scoring: p.scoring, target: p.target, venue: venues.includes(p.venue) ? p.venue : "park", roster, humans: 2 })
+    const venue = venues.includes(p.venue) ? p.venue : "park"
+    engineRef.current?.newMatch({ doubles: p.doubles, level: "intermediate", scoring: p.scoring, target: p.target, venue, roster: dress(roster, venue), humans: 2 })
   }
   const startDrill = (d) => {
     const p = prefsRef.current
     reset()
     setSession({ kind: "practice", drill: d })
     setScreen("main")
-    engineRef.current?.newMatch({ ...practiceMatch(d, { character: p.character, outfit: p.outfit }), venue: "park", humans: 1 })
+    const pm = practiceMatch(d, { character: p.character, outfit: p.outfit })
+    engineRef.current?.newMatch({ ...pm, roster: dress(pm.roster, "park"), venue: "park", humans: 1 })
   }
   const startTutorial = (i = 0) => {
     const p = prefsRef.current
@@ -424,13 +439,15 @@ const Pickleball = ({ onClose, mobile }) => {
   useEffect(() => {
     if (!roundKey) return
     const p = prefsRef.current
-    hellos.current = new Map([[online.seat, { character: p.character, outfit: p.outfit }]])
+    // (your look for this room's venue, checked again by the server and the host)
+    const myLook = lookPayload(lookForPlayer(p, { character: p.character, outfit: p.outfit }, online.room?.settings?.venue || null))
+    hellos.current = new Map([[online.seat, { character: p.character, outfit: p.outfit, look: myLook }]])
     if (online.isHost) {
       // wait a moment for everyone's "this is me" (their player and outfit), then go
       const humans = online.room.seats.filter((s) => s && !s.bot).length
       if (humans <= 1) hostStart()
       else later(hostStart, 1600)
-    } else online.sendRelay({ type: "hello", character: p.character, outfit: p.outfit })
+    } else online.sendRelay({ type: "hello", character: p.character, outfit: p.outfit, look: myLook })
   }, [roundKey])
   // the relay: snapshots, inputs, hellos, starts and hits
   useEffect(() => {
@@ -440,7 +457,9 @@ const Pickleball = ({ onClose, mobile }) => {
       const o = onlineRef.current
       if (!d || typeof d !== "object") return
       if (d.type === "hello" && o.isHost) {
-        hellos.current.set(from, { character: CHARACTERS.some((c) => c.id === d.character) ? d.character : null, outfit: typeof d.outfit === "string" ? d.outfit : "home" })
+        const character = CHARACTERS.some((c) => c.id === d.character) ? d.character : null
+        const outfit = typeof d.outfit === "string" ? d.outfit : "home"
+        hellos.current.set(from, { character, outfit, look: d.look && typeof d.look === "object" ? lookPayload(validateLook(d.look, characterLook(character || "maya", outfit))) : null })
         const key = o.room ? `${o.room.id}:${o.room.round}` : null
         if (netStarted.current === key && netStarted.start) o.sendRelay({ type: "start", ...netStarted.start }, from) // a late (re)joiner
         else {
@@ -578,7 +597,7 @@ const Pickleball = ({ onClose, mobile }) => {
   }
 
   // the players screen shows the character in 3D
-  const preview = (id, outfit) => engineRef.current?.showcase(lookFor(id, outfit))
+  const preview = (id, outfit) => engineRef.current?.showcase(prefsRef.current.looks?.[id] ? validateLook(prefsRef.current.looks[id], characterLook(id)) : lookFor(id, outfit))
   const closePlayers = (to = playersFor === "p2" || playersFor === "p1v" ? "versus" : "main") => {
     engineRef.current?.showcase(null)
     setScreen(to)
@@ -602,6 +621,7 @@ const Pickleball = ({ onClose, mobile }) => {
         { label: "World Tour...", onClick: () => (quitToMenu(), setScreen("tour")) },
         { label: "Practice...", onClick: () => (quitToMenu(), setScreen("practice")) },
         { label: "2 Players...", onClick: () => (quitToMenu(), setScreen("versus")) },
+        { label: "Locker Room...", onClick: () => (session?.kind !== "online" && quitToMenu(), setLockerFor(null), setScreen("locker")) },
         { label: "Play Online...", onClick: () => (session?.kind !== "online" && quitToMenu(), setScreen("online")) },
         "-",
         { label: phase === "paused" ? "Resume (P)" : "Pause (P)", disabled: (phase !== "playing" && phase !== "paused") || isOnline, onClick: togglePause },
@@ -757,6 +777,19 @@ const Pickleball = ({ onClose, mobile }) => {
         {/* ---------- menus ---------- */}
         {atMenu && screen === "main" && phase === "title" && <TitleMenu onPick={(s) => (s === "rules" ? setDialog("rules") : s === "settings" ? setDialog("settings") : s === "controls" ? setDialog("controls") : (setPlayersFor("p1"), setScreen(s)))} onOnline={() => setScreen("online")} tour={tour} showPad={showPad} />}
         {atMenu && screen === "quick" && <QuickMenu prefs={prefs} setPrefs={setPrefs} tour={tour} onStart={startQuick} onBack={() => setScreen("main")} onPlayers={() => (setPlayersFor("p1q"), setScreen("players"))} />}
+        {(atMenu || phase === "showcase") && screen === "locker" && (
+          <LockerRoom
+            prefs={prefs}
+            setPrefs={setPrefs}
+            engine={() => engineRef.current}
+            initial={lockerFor?.who || prefs.character}
+            onBack={() => {
+              engineRef.current?.showcase(null)
+              setScreen(lockerFor?.back || "main")
+              setLockerFor(null)
+            }}
+          />
+        )}
         {(atMenu || phase === "showcase") && screen === "players" && (
           <PlayersMenu
             prefs={prefs}
@@ -765,6 +798,7 @@ const Pickleball = ({ onClose, mobile }) => {
             slot={playersFor === "p2" ? "p2" : "p1"}
             title={playersFor === "p2" ? "Player 2: Choose Your Player" : "Choose Your Player"}
             onPreview={preview}
+            onLocker={(who) => (setLockerFor({ who, back: "players" }), setScreen("locker"))}
             onBack={() => closePlayers(playersFor === "p1q" ? "quick" : playersFor === "p2" || playersFor === "p1v" ? "versus" : "main")}
           />
         )}

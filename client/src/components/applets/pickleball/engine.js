@@ -16,6 +16,7 @@ import { createFigure } from "./rig.js"
 import { athletesReady, createAthlete, loadAthletes } from "./athlete.js"
 import { buildVenue, VENUES } from "./venue.js"
 import { CHARACTERS, lookFor } from "./looks.js"
+import { characterLook, validateLook } from "./locker.js"
 import { actionFor, bindingsFor, padEdges, readPad, stickAim } from "./input.js"
 import { createGuest, createHost, onlineRoster } from "./netplay.js"
 import { reducedMotion } from "../../../utils/settings"
@@ -644,8 +645,9 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
     if (status === "showcase" && showcaseFig) {
       orbit += dt * 0.35
       const c = showcaseFig.at
-      tmpV.set(c.x + Math.sin(orbit) * 0.6, portrait ? 1.0 : 1.35, c.z + (portrait ? 6.2 : 3.1))
-      tmpL.set(c.x, portrait ? -1.0 : 0.95, c.z)
+      const back = showcaseFig.pose === "run" ? 1.8 : 0
+      tmpV.set(c.x + Math.sin(orbit) * 0.6, (portrait ? 1.0 : 1.35) + back * 0.3, c.z + (portrait ? 6.2 : 3.1) + back)
+      tmpL.set(c.x, portrait ? -1.0 : 0.95, c.z - back * 0.6)
       fov = portrait ? 54 : 40
       k = snap ? 1 : 1 - Math.exp(-dt * 4)
     } else if (replay) {
@@ -1159,19 +1161,41 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
       }
     }
     if (status === "showcase" && showcaseFig) {
-      const s = { x: showcaseFig.at.x, z: showcaseFig.at.z, vx: 0, vz: 0, facing: 0, ball: { x: 0, y: 1, z: showcaseFig.at.z + 3 }, holding: false, swing: showcaseFig.swing, prep: null, charging: false, between: false, atNet: false, hand: 1 }
-      if (showcaseFig.swing) showcaseFig.swing.t += dt
-      showcaseFig.t += dt
-      if (showcaseFig.t > 3.2) {
-        showcaseFig.t = 0
+      const S = showcaseFig
+      // facing S.yaw (the Locker Room turns it); "ready" swings now and then, "run" jogs a
+      // small circle round the spot, "still" just stands
+      const yaw = S.yaw || 0
+      const fx = Math.sin(yaw)
+      const fz = Math.cos(yaw)
+      const local = (dx, y, dz) => ({ x: S.at.x - fz * dx + fx * dz, y, z: S.at.z + fx * dx + fz * dz })
+      let x = S.at.x
+      let z = S.at.z
+      let vx = 0
+      let vz = 0
+      if (S.pose === "run") {
+        S.lap = (S.lap || 0) + dt * 2.6 / 1.3
+        x = S.at.x + Math.sin(S.lap) * 1.3
+        z = S.at.z + (Math.cos(S.lap) - 1) * 1.3
+        vx = Math.cos(S.lap) * 2.6
+        vz = -Math.sin(S.lap) * 2.6
+      } else if (S.lap) {
+        // (back to the spot)
+        S.lap = 0
+      }
+      const s = { x, z, vx, vz, facing: yaw, ball: local(0, 1, 3), holding: false, swing: S.pose === "ready" ? S.swing : null, prep: null, charging: false, between: S.pose === "run", atNet: false, hand: 1, goal: S.pose === "run" ? local(0, 0, 9) : null }
+      if (S.swing) S.swing.t += dt
+      S.t += dt
+      if (S.t > 3.2) {
+        S.t = 0
         const kinds = ["drive", "dink", "slice", "smash"]
         const k = kinds[Math.floor(Math.random() * kinds.length)]
         const y = k === "smash" ? 1.9 : k === "dink" ? 0.35 : 0.9
-        showcaseFig.swing = { t: 0, kind: k, hand: Math.random() < 0.6 ? "fh" : "bh", x: showcaseFig.at.x + (Math.random() < 0.5 ? 0.55 : -0.55), y, z: showcaseFig.at.z + 0.35 }
+        S.swing = { t: 0, kind: k, hand: Math.random() < 0.6 ? "fh" : "bh", ...local(Math.random() < 0.5 ? 0.55 : -0.55, y, 0.35) }
       }
-      showcaseFig.fig.apply(updateAnim(showcaseFig.anim, s, dt), dt)
+      S.fig.apply(updateAnim(S.anim, s, dt), dt)
     }
     venue.crowd?.update(now / 1000, dt)
+    venue.update?.(now / 1000, dt)
     updateParticles(dt)
     updateCamera(dt, snap)
     const renderStart = performance.now()
@@ -1238,7 +1262,8 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
       humans = 1
       netWait = null
       setVenue(s.venue || "stadium")
-      const withLooks = people.map((p) => ({ ...p, look: lookFor(p.character || DEFAULT_LOOKS[p.seat % 4], p.outfit) }))
+      // (each person's own Locker Room look, checked; or their player's kit)
+      const withLooks = people.map((p) => ({ ...p, look: p.look && typeof p.look === "object" ? validateLook(p.look, characterLook(p.character || DEFAULT_LOOKS[p.seat % 4], p.outfit)) : lookFor(p.character || DEFAULT_LOOKS[p.seat % 4], p.outfit) }))
       const { roster, doubles } = onlineRoster(withLooks, { doubles: s.doubles, level: s.level || "intermediate" })
       const named = roster.map((r, i) => (r.ctrl === "cpu" ? { ...r, character: CHARACTERS[(i * 3 + 2) % 9].id, look: lookFor(CHARACTERS[(i * 3 + 2) % 9].id), name: `${CHARACTERS[(i * 3 + 2) % 9].nick} (CPU)` } : r))
       const options = { doubles, scoring: s.scoring || "sideout", target: s.target || 11, assist: settings.assist, window: settings.window }
@@ -1374,17 +1399,26 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
         if (status === "showcase") setStatus("title")
         return
       }
-      if (showcaseFig) {
-        scene.remove(showcaseFig.fig.group)
-        showcaseFig.fig.dispose()
-      }
       const at = { x: 0, z: HALF_L - 1 }
       const fig = makeFigure(look, { shadows: !!QUALITY[settings.quality]?.shadows })
       scene.add(fig.group)
-      showcaseFig = { fig, look, anim: createAnim(at.x, at.z, 0), at, t: 2.2, swing: null }
+      // (a new look on the same viewer keeps its pose and turn: no jump)
+      const was = showcaseFig
+      if (was) {
+        scene.remove(was.fig.group)
+        was.fig.dispose()
+        showcaseFig = { ...was, fig, look }
+      } else showcaseFig = { fig, look, anim: createAnim(at.x, at.z, 0), at, t: 2.2, swing: null, yaw: 0, pose: "ready" }
       for (const f of figures) if (Math.hypot(f.player.x - at.x, f.player.z - at.z) < 3) f.fig.group.visible = false
       setStatus("showcase")
       start()
+    },
+    // the Locker Room's viewer: turn the figure (radians, added) and pick what it does
+    showcaseTurn(delta) {
+      if (showcaseFig) showcaseFig.yaw = Math.atan2(Math.sin((showcaseFig.yaw || 0) + delta), Math.cos((showcaseFig.yaw || 0) + delta))
+    },
+    showcasePose(pose) {
+      if (showcaseFig && ["ready", "run", "still"].includes(pose)) showcaseFig.pose = pose
     },
     setVenue(id) {
       setVenue(id)

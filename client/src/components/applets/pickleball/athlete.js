@@ -19,7 +19,7 @@ import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js
 import { BODY } from "./anim.js"
 import { SKIN } from "./looks.js"
 import { aimDelta, additiveMove, bendAxis, decodeMoves, frameOf, gripSide, LAYERS, layerTargets, Q, qaxis, qinv, qmul, qrot, qslerp, solveLimb, stepLayers, swingTwist, twistAngle, clipTime, norm } from "./retarget.js"
-import { buildGarment, buildSkirt, landmarks, prepareBody, radiusProfile, visibleIndex } from "./outfit.js"
+import { BUILD_SCALE, buildGarment, buildSkirt, landmarks, prepareBody, radiusProfile, reshapeBody, visibleIndex } from "./outfit.js"
 
 const BASE = "/assets/pickleball/"
 const HEAD_SCALE = 1.1 // a slightly bigger head: friendlier, and it reads at TV distance
@@ -176,7 +176,7 @@ const template = (gltf) => {
   // them cost two more skinned draws per athlete); their rest transform in its space
   const toHead = new THREE.Matrix4().copy(bones.Head.matrixWorld).invert()
   const onHead = { Eyes: toHead.clone().multiply(meshes.Eyes.matrixWorld), Brows: toHead.clone().multiply(meshes.Brows.matrixWorld) }
-  const t = { scene, rest, prepared, marks, scale, ankleH, head, maps, grip, curl, garments: {}, bones, onHead }
+  const t = { scene, rest, prepared, marks, scale, ankleH, head, maps, grip, curl, garments: {}, bones, onHead, joints, variants: {} }
   return t
 }
 const sub3 = (a, b) => ({ x: a.x - b.x, y: a.y - b.y, z: a.z - b.z })
@@ -185,43 +185,74 @@ const scale3 = (a, s) => ({ x: a.x * s, y: a.y * s, z: a.z * s })
 const dot3 = (a, b) => a.x * b.x + a.y * b.y + a.z * b.z
 const cross3 = (a, b) => ({ x: a.y * b.z - a.z * b.y, y: a.z * b.x - a.x * b.z, z: a.x * b.y - a.y * b.x })
 
+// A body in one of the builds (slim, regular, strong: outfit.js reshapeBody): its vertex
+// positions, and the garments and trimmed bodies made from it (built once, shared)
+const variantOf = (tpl, build, full) => {
+  const key = BUILD_SCALE[build] ? build : "regular"
+  if (tpl.variants[key]) return tpl.variants[key]
+  let prepared = tpl.prepared
+  let position = full.attributes.position
+  if (key !== "regular") {
+    const moved = reshapeBody(tpl.prepared, tpl.joints, tpl.marks, BUILD_SCALE[key])
+    prepared = { ...tpl.prepared, position: moved }
+    position = new THREE.BufferAttribute(moved, 3)
+  }
+  tpl.variants[key] = { key, prepared, position, garments: key === "regular" ? tpl.garments : {}, bodies: {} }
+  return tpl.variants[key]
+}
+
 // a garment's geometry for a body (built once, shared)
-const garmentArrays = (tpl, kind) => {
-  if (tpl.garments[kind]) return tpl.garments[kind]
+const garmentArrays = (tpl, kind, v) => {
+  if (v.garments[kind]) return v.garments[kind]
   let g
   if (kind === "skirt") {
-    const names = tpl.prepared.bones
-    g = buildSkirt(tpl.marks, radiusProfile(tpl.prepared, tpl.marks), { pelvis: names.indexOf("pelvis"), thigh_l: names.indexOf("thigh_l"), thigh_r: names.indexOf("thigh_r") })
-  } else g = buildGarment(kind, tpl.prepared, tpl.marks)
-  tpl.garments[kind] = g
+    const names = v.prepared.bones
+    g = buildSkirt(tpl.marks, radiusProfile(v.prepared, tpl.marks), { pelvis: names.indexOf("pelvis"), thigh_l: names.indexOf("thigh_l"), thigh_r: names.indexOf("thigh_r") })
+  } else g = buildGarment(kind, v.prepared, tpl.marks)
+  v.garments[kind] = g
   return g
 }
 
-// which garments a look wears (outfitGeometry builds them; the skirt is extra)
-const garmentKinds = (look) => [look.bottom === "skirt" ? "briefs" : "shorts", look.shirtStyle === "tank" ? "tank" : look.shirtStyle === "polo" ? "polo" : "tee", "socks", "shoes"]
+// which garments a look wears (outfitGeometry builds them, all but the shoes, which are their
+// own rigid sneakers; the skirt is extra, over its briefs). Older looks (tee/polo/tank,
+// shorts/skirt) read the same as before.
+const TOP_KINDS = ["tee", "polo", "tank", "rash", "jacket", "crop", "onepiece"]
+const BOTTOM_KINDS = ["shorts", "short", "board", "swim", "pants"]
+const SOCK_KINDS = { none: null, ankle: "anklesocks", crew: "socks", knee: "kneesocks" }
+export const garmentKinds = (look) => {
+  const top = TOP_KINDS.includes(look.shirtStyle) ? look.shirtStyle : "tee"
+  const out = []
+  if (top !== "onepiece") out.push(look.bottom === "skirt" ? "briefs" : BOTTOM_KINDS.includes(look.bottom) ? look.bottom : "shorts")
+  out.push(top)
+  const sock = Object.hasOwn(SOCK_KINDS, look.sockStyle) ? SOCK_KINDS[look.sockStyle] : "socks"
+  if (sock) out.push(sock)
+  if (look.gloves) out.push("gloves")
+  if (look.wristbands && !look.gloves) out.push("wristbands")
+  out.push("shoes")
+  return out
+}
 // the body without the skin its clothes hide: the same vertices, a shorter index (shared by
 // everyone dressed the same way)
-const bodyUnder = (tpl, full, look) => {
+const bodyUnder = (tpl, full, look, v) => {
   const key = garmentKinds(look).join("|")
-  tpl.bodies ||= {}
-  if (!tpl.bodies[key]) {
+  if (!v.bodies[key]) {
     const g = new THREE.BufferGeometry()
-    for (const [name, attr] of Object.entries(full.attributes)) g.setAttribute(name, attr)
-    g.setIndex(new THREE.BufferAttribute(visibleIndex(garmentKinds(look), tpl.prepared, tpl.marks), 1))
-    tpl.bodies[key] = g
+    for (const [name, attr] of Object.entries(full.attributes)) g.setAttribute(name, name === "position" ? v.position : attr)
+    g.setIndex(new THREE.BufferAttribute(visibleIndex(garmentKinds(look), v.prepared, tpl.marks), 1))
+    v.bodies[key] = g
   }
-  return tpl.bodies[key]
+  return v.bodies[key]
 }
 
 // Everything a look wears but its hair, as ONE skinned mesh (one draw call): the clothes
 // (kit colors, trim and accents baked into vertex colors), the sneakers (on the foot bones)
 // and any hat or glasses (on the Head bone). All in the rest pose's world space.
-const outfitGeometry = (tpl, look) => {
+const outfitGeometry = (tpl, look, v) => {
   const bones = tpl.prepared.bones
   const parts = [] // { position, normal, color, skinIndex, skinWeight, index }
   const C = (hex) => srgb(hex)
   const garment = (kind, base, trim, accent = trim) => {
-    const g = garmentArrays(tpl, kind)
+    const g = garmentArrays(tpl, kind, v)
     const n = g.position.length / 3
     const color = new Float32Array(n * 3)
     const b = C(base)
@@ -253,12 +284,21 @@ const outfitGeometry = (tpl, look) => {
   const shirt = look.shirt || "#1a9fb0"
   const trim = look.trim || "#ffffff"
   const bottom = look.bottomColor || "#23395d"
-  if (look.bottom === "skirt") {
-    garment("briefs", bottom, bottom)
-    garment("skirt", bottom, trim)
-  } else garment("shorts", bottom, bottom === trim ? shirt : trim)
-  garment(look.shirtStyle === "tank" ? "tank" : look.shirtStyle === "polo" ? "polo" : "tee", shirt, trim)
-  garment("socks", look.socks || "#ffffff", look.socks || "#ffffff")
+  const socks = look.socks || "#ffffff"
+  const kinds = garmentKinds(look)
+  for (const kind of kinds) {
+    if (kind === "shoes") continue
+    if (kind === "briefs") {
+      garment("briefs", bottom, bottom)
+      garment("skirt", bottom, trim)
+    } else if (BOTTOM_KINDS.includes(kind)) garment(kind, bottom, bottom === trim ? shirt : trim)
+    else if (TOP_KINDS.includes(kind)) garment(kind, shirt, trim)
+    // knee socks: the kit's two colors in bands round the top
+    else if (kind === "kneesocks") garment(kind, socks, trim === socks ? shirt : trim, trim === socks ? shirt : trim)
+    else if (kind === "gloves") garment(kind, look.gloveColor || "#2b2b2b", look.gloveColor || "#2b2b2b")
+    else if (kind === "wristbands") garment(kind, look.wristColor || "#ffffff", look.wristColor || "#ffffff")
+    else garment(kind, socks, socks)
+  }
   for (const side of ["l", "r"]) rigid(sneakerGeometry(tpl, side, look), "foot_" + side)
   // hats and glasses: flatten the pieces, colors from their materials
   const acc = accessories(look, tpl.head)
@@ -402,7 +442,7 @@ const paddleParts = () => {
 // the face's print (the top of the texture) and a white strip at the bottom that the other
 // parts sample, colored by their vertex colors: the whole paddle is one mesh, one material
 const PRINT = 192
-const paddleTexture = (a, b) => {
+const paddleTexture = (a, b, design = "stripe") => {
   const c = document.createElement("canvas")
   c.width = 128
   c.height = PRINT + 8
@@ -417,20 +457,49 @@ const paddleTexture = (a, b) => {
   x.fillStyle = g
   x.fillRect(0, 0, 128, PRINT)
   x.fillStyle = b
-  x.beginPath()
-  x.moveTo(0, 120)
-  x.lineTo(128, 70)
-  x.lineTo(128, 96)
-  x.lineTo(0, 146)
-  x.fill()
-  x.globalAlpha = 0.5
-  x.beginPath()
-  x.moveTo(0, 152)
-  x.lineTo(128, 102)
-  x.lineTo(128, 108)
-  x.lineTo(0, 158)
-  x.fill()
-  x.globalAlpha = 1
+  if (design === "stripe") {
+    x.beginPath()
+    x.moveTo(0, 120)
+    x.lineTo(128, 70)
+    x.lineTo(128, 96)
+    x.lineTo(0, 146)
+    x.fill()
+    x.globalAlpha = 0.5
+    x.beginPath()
+    x.moveTo(0, 152)
+    x.lineTo(128, 102)
+    x.lineTo(128, 108)
+    x.lineTo(0, 158)
+    x.fill()
+    x.globalAlpha = 1
+  } else if (design === "split") {
+    x.fillRect(0, 96, 128, PRINT - 96)
+  } else if (design === "dots") {
+    for (let r = 0; r < 6; r++) for (let k = 0; k < 4; k++) {
+      x.beginPath()
+      x.arc(16 + k * 32 + (r % 2) * 16, 70 + r * 22, 6, 0, Math.PI * 2)
+      x.fill()
+    }
+  } else if (design === "chevron") {
+    x.lineWidth = 9
+    x.strokeStyle = b
+    for (const y0 of [88, 118, 148]) {
+      x.beginPath()
+      x.moveTo(6, y0)
+      x.lineTo(64, y0 - 26)
+      x.lineTo(122, y0)
+      x.stroke()
+    }
+  } else if (design === "flame") {
+    x.beginPath()
+    x.moveTo(0, PRINT)
+    for (let k = 0; k <= 8; k++) {
+      const px = (k / 8) * 128
+      x.quadraticCurveTo(px - 8, PRINT - 70 - (k % 2) * 34, px, PRINT - 30 - ((k + 1) % 2) * 26)
+    }
+    x.lineTo(128, PRINT)
+    x.fill()
+  }
   x.fillStyle = b
   x.font = "bold 22px Arial"
   x.textAlign = "center"
@@ -445,7 +514,8 @@ const paddleTexture = (a, b) => {
 const paddleFor = (look) => {
   const a = look.paddle || "#ffd23f"
   const b = look.paddleEdge || "#15223a"
-  const key = a + b
+  const design = look.paddleDesign || "stripe"
+  const key = a + b + design
   if (assets.paddles.has(key)) return assets.paddles.get(key)
   const P = paddleParts()
   const strip = 4 / (PRINT + 8) // v of the white strip's middle
@@ -468,7 +538,7 @@ const paddleFor = (look) => {
     return g
   }
   const geo = mergeGeometries([piece(P.face, "#ffffff", true), piece(P.guard, b), piece(P.throat, b), piece(P.handle, "#1d1d22"), piece(P.cap, b)])
-  const mat = new THREE.MeshStandardMaterial({ map: paddleTexture(a, b), vertexColors: true, roughness: 0.5, metalness: 0.05 })
+  const mat = new THREE.MeshStandardMaterial({ map: paddleTexture(a, b, design), vertexColors: true, roughness: 0.5, metalness: 0.05 })
   const out = { geo, mat }
   assets.paddles.set(key, out)
   return out
@@ -488,7 +558,7 @@ const FACE_FROM_GRIP = PADDLE.neck + PADDLE.h / 2 - GRIP_AT
 // (the materials only carry colors: outfitGeometry bakes these into vertex colors)
 const accessories = (look, head) => {
   const g = new THREE.Group()
-  const mats = { hat: { color: srgb(look.hatColor || "#ffffff") }, dark: { color: srgb("#16161a") }, lens: { color: srgb("#24323c") } }
+  const mats = { hat: { color: srgb(look.hatColor || "#ffffff") }, cuff: { color: srgb(look.hatColor || "#ffffff").multiplyScalar(0.8) }, dark: { color: srgb("#16161a") }, lens: { color: srgb("#24323c") }, mirror: { color: srgb("#3a5f8a") } }
   const add = (geo, m, setup) => {
     const mesh = new THREE.Mesh(geo)
     mesh.material = m
@@ -540,6 +610,20 @@ const accessories = (look, head) => {
   } else if (hat === "visor" || hat === "headband") {
     ring(b.y - 0.012, hat === "visor" ? 0.032 : 0.038, 1.0, 0.97)
     if (hat === "visor") brim(b.y - 0.026, 0.075, Math.PI * 0.9, 0.012)
+  } else if (hat === "beanie") {
+    // a knit beanie: a snug dome down over the ears, a folded cuff, a pom-pom
+    // (the cuff's lower edge stays above the eyebrows)
+    const cuffY = Math.max(b.y - 0.022, head.eyeY + 0.068)
+    const h = top - cuffY + 0.03
+    add(new THREE.SphereGeometry(1, 24, 10, 0, Math.PI * 2, 0, Math.PI * 0.5), mats.hat, (m) => {
+      m.position.set(c.x, cuffY, b.cz)
+      m.scale.set(rx * 1.05, h, rz * 1.05)
+    })
+    add(new THREE.CylinderGeometry(1.08, 1.1, 0.04, 28, 1, true), mats.cuff, (m) => {
+      m.position.set(c.x, cuffY, b.cz)
+      m.scale.set(rx, 1, rz)
+    })
+    add(new THREE.SphereGeometry(0.028, 10, 8), mats.hat, (m) => m.position.set(c.x, cuffY + h + 0.008, b.cz))
   } else if (hat === "bucket") {
     ring(b.y + 0.012, 0.09, 1.08, 0.94)
     add(new THREE.CircleGeometry(1, 28), mats.hat, (m) => {
@@ -552,7 +636,19 @@ const accessories = (look, head) => {
       m.scale.set(rx, 1, rz)
     })
   }
-  if (look.glasses) {
+  if (look.glasses === "sport") {
+    // wraparound sport shades: a curved mirrored band across the eyes
+    const r = Math.max(rx, rz) * 1.02
+    add(new THREE.CylinderGeometry(1, 1, 0.038, 24, 1, true, -Math.PI * 0.42, Math.PI * 0.84), mats.mirror, (m) => {
+      m.position.set(c.x, head.eyeY + 0.004, b.cz)
+      m.scale.set(rx * 1.05, 1, Math.max(rz * 1.04, head.eyeZ + 0.014 - b.cz))
+    })
+    add(new THREE.CylinderGeometry(1, 1, 0.006, 24, 1, true, -Math.PI * 0.42, Math.PI * 0.84), mats.dark, (m) => {
+      m.position.set(c.x, head.eyeY + 0.025, b.cz)
+      m.scale.set(rx * 1.055, 1, Math.max(rz * 1.045, head.eyeZ + 0.016 - b.cz))
+    })
+    void r
+  } else if (look.glasses && look.glasses !== "none") {
     const z = head.eyeZ + 0.012
     for (const s of [-1, 1]) {
       add(new THREE.TorusGeometry(0.021, 0.0035, 5, 16), mats.dark, (m) => m.position.set(c.x + s * head.eyeX, head.eyeY, z))
@@ -663,6 +759,9 @@ const sneakerGeometry = (tpl, side, look) => {
 // which hairstyle model a look wears
 const HAIR = {
   short: { m: "Hair_SimpleParted", f: "Hair_SimpleParted" },
+  buzz: { m: "Hair_Buzzed", f: "Hair_Buzzed" },
+  pixie: { m: "Hair_BuzzedFemale", f: "Hair_BuzzedFemale" },
+  buns: { m: "Hair_Buns", f: "Hair_Buns" },
   spiky: { m: "Hair_Buzzed", f: "Hair_BuzzedFemale" },
   bald: { m: null, f: null },
   curly: { m: "Hair_Buzzed", f: "Hair_Buns" },
@@ -674,7 +773,7 @@ const HAIR = {
 export const bodyOf = (look) => (look.body === "f" ? "f" : "m")
 // Under a cap or a bucket hat only close-cropped hair stays inside it (the other styles'
 // fringes and buns poke through the crown); long hair still hangs out the back.
-const HATS = ["cap", "capBack", "bucket"]
+const HATS = ["cap", "capBack", "bucket", "beanie"]
 export const hairFor = (look, kind = bodyOf(look)) => {
   const name = (HAIR[look.hair || "short"] || HAIR.short)[kind]
   const hatted = HATS.includes(look.hat)
@@ -714,7 +813,9 @@ export const createAthlete = (look = {}, { shadows = false, withPaddle = true } 
   const tpl = assets[kind]
   const root = new THREE.Group()
   const holder = cloneSkinned(tpl.scene)
-  holder.scale.setScalar(tpl.scale)
+  // taller or shorter (a few percent: the legs still reach the court through the IK)
+  const height = Math.max(0.94, Math.min(1.06, Number(look.height) || 1))
+  holder.scale.setScalar(tpl.scale * height)
   root.add(holder)
   const meshes = {}
   holder.traverse((o) => {
@@ -726,7 +827,7 @@ export const createAthlete = (look = {}, { shadows = false, withPaddle = true } 
   const restLp = Object.fromEntries(skeleton.bones.map((b) => [b.name, b.position.clone()]))
   const restLq = Object.fromEntries(skeleton.bones.map((b) => [b.name, b.quaternion.clone()]))
   const rest = tpl.rest
-  const s = tpl.scale
+  const s = tpl.scale * height
 
   // materials (shared between athletes who look alike)
   const skinHex = typeof look.skin === "number" ? SKIN[look.skin] || SKIN[2] : look.skin || SKIN[2]
@@ -735,8 +836,9 @@ export const createAthlete = (look = {}, { shadows = false, withPaddle = true } 
   const browMat = shared(`brows|${kind}|${hairHex}`, () => new THREE.MeshStandardMaterial({ map: tpl.maps.brows, color: tint(hairHex, REF_HAIR), roughness: 0.9 }))
 
   // everything worn but the hair: one more skinned mesh on the same skeleton
-  body.geometry = bodyUnder(tpl, body.geometry, look)
-  const outfit = new THREE.SkinnedMesh(outfitGeometry(tpl, look), outfitMat())
+  const variant = variantOf(tpl, look.build, body.geometry)
+  body.geometry = bodyUnder(tpl, body.geometry, look, variant)
+  const outfit = new THREE.SkinnedMesh(outfitGeometry(tpl, look, variant), outfitMat())
   outfit.bind(skeleton, body.bindMatrix)
   body.parent.add(outfit)
   const parts = [body, outfit]

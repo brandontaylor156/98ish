@@ -1,7 +1,8 @@
 // Pickleball 98: the players' 3D figures. A figure is a set of simple low-poly parts
 // (pelvis, torso, head with hair and hat, upper and lower arms and legs, hands, shoes, the
-// paddle) placed every frame on the joints anim.js works out. Built from a look (looks.js):
-// skin, hair, hat, outfit, paddle colors, build. No model files.
+// paddle) placed every frame on the joints anim.js works out. Built from a look (looks.js,
+// locker.js): skin, hair, hat, the kit (long sleeves, track pants, board shorts, a one-piece,
+// socks, gloves, wristbands, glasses), paddle colors, build. No model files.
 
 import * as THREE from "three"
 import { BODY } from "./anim.js"
@@ -101,7 +102,12 @@ const lerpP = (a, b, t) => ({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t
 export const createFigure = (look = {}, { shadows = false, withPaddle = true } = {}) => {
   const G = geometries()
   const group = new THREE.Group()
-  const build = look.build || 1
+  const build = typeof look.build === "number" ? look.build : { slim: 0.94, regular: 1, strong: 1.07 }[look.build] || 1
+  const top = look.shirtStyle || "tee"
+  const longSleeves = top === "rash" || top === "jacket"
+  const bareArms = top === "tank" || top === "crop" || top === "onepiece"
+  const bottomKind = top === "onepiece" ? "onepiece" : look.bottom || "shorts"
+  const sockStyle = look.sockStyle || "crew"
   const skinColor = typeof look.skin === "number" ? SKIN[look.skin] || SKIN[2] : look.skin || SKIN[2]
   const M = {
     skin: mat(skinColor, { roughness: 0.62 }),
@@ -113,6 +119,9 @@ export const createFigure = (look = {}, { shadows = false, withPaddle = true } =
     shoe: mat(look.shoes || "#ffffff", { roughness: 0.55 }),
     accent: mat(look.shoeAccent || "#1a9fb0"),
     sock: mat(look.socks || "#ffffff"),
+    glove: mat(look.gloveColor || "#2b2b2b", { roughness: 0.8 }),
+    band: mat(look.wristColor || "#ffffff"),
+    mirror: mat("#3a5f8a", { roughness: 0.2, metalness: 0.4 }),
     sole: mat("#e9e9e9", { roughness: 0.9 }),
     paddle: mat(look.paddle || "#ffd23f", { roughness: 0.5 }),
     edge: mat(look.paddleEdge || "#15223a", { roughness: 0.5 }),
@@ -130,7 +139,7 @@ export const createFigure = (look = {}, { shadows = false, withPaddle = true } =
   // ---- body parts ----
   const pelvis = new THREE.Group()
   group.add(pelvis)
-  const shorts = add(G.pelvis, M.bottom, pelvis)
+  const shorts = add(G.pelvis, bottomKind === "onepiece" ? M.shirt : bottomKind === "pants" ? M.bottom : M.bottom, pelvis)
   shorts.scale.set(0.165 * build, 0.12, 0.115 * build)
   shorts.position.y = 0.02
   let skirtMesh = null
@@ -141,9 +150,21 @@ export const createFigure = (look = {}, { shadows = false, withPaddle = true } =
   }
   const torsoG = new THREE.Group()
   group.add(torsoG)
-  const torso = add(G.torso, M.shirt, torsoG)
-  torso.scale.set(0.17 * build, BODY.spine + 0.06, 0.115 * build)
+  const torso = add(G.torso, top === "crop" ? M.skin : M.shirt, torsoG)
+  const puff = top === "jacket" ? 1.06 : 1
+  torso.scale.set(0.17 * build * puff, BODY.spine + 0.06, 0.115 * build * puff)
   torso.position.y = -0.06
+  if (top === "crop") {
+    // a sports top: the chest and shoulders in the kit color
+    const chest = add(G.torso, M.shirt, torsoG)
+    chest.scale.set(0.175 * build, (BODY.spine + 0.06) * 0.42, 0.12 * build)
+    chest.position.y = BODY.spine * 0.5
+  }
+  if (top === "jacket") {
+    const zip = add(G.sole, M.trim, torsoG)
+    zip.scale.set(0.012, BODY.spine * 0.9, 0.01)
+    zip.position.set(0, BODY.spine * 0.48, 0.118 * build)
+  }
   // a collar / trim line at the neck and the hem
   const collar = add(G.ring, M.trim, torsoG)
   collar.scale.set(0.068, 0.068, 0.32)
@@ -190,7 +211,7 @@ export const createFigure = (look = {}, { shadows = false, withPaddle = true } =
   mouth.scale.set(0.03, 0.006, 0.01)
   mouth.position.set(0, -0.045, 0.094)
   // hair
-  const hair = look.hair || "short"
+  const hair = { buzz: "spiky", pixie: "short", buns: "bun" }[look.hair] || look.hair || "short"
   if (hair !== "bald") {
     const capMesh = add(hair === "curly" ? new THREE.IcosahedronGeometry(1, 1) : G.cap, M.hair, headG)
     capMesh.scale.set(0.105, hair === "curly" ? 0.1 : 0.118, 0.112)
@@ -253,7 +274,11 @@ export const createFigure = (look = {}, { shadows = false, withPaddle = true } =
     beard.rotation.x = Math.PI * 0.62
     beard.position.set(0, -0.025, 0.012)
   }
-  if (look.glasses) {
+  if (look.glasses === "sport") {
+    const band = add(G.sole, M.mirror, headG)
+    band.scale.set(0.2, 0.03, 0.012)
+    band.position.set(0, 0.018, 0.1)
+  } else if (look.glasses && look.glasses !== "none") {
     for (const s of [-1, 1]) {
       const lens = add(G.sole, M.dark, headG)
       lens.scale.set(0.036, 0.022, 0.006)
@@ -284,6 +309,17 @@ export const createFigure = (look = {}, { shadows = false, withPaddle = true } =
     b.scale.set(0.15, 0.008, 0.17)
     b.position.set(0, 0.05, hat === "cap" ? 0.035 : -0.035)
     b.rotation.set(hat === "cap" ? 0.12 : -0.12, hat === "cap" ? 0 : Math.PI, 0)
+  } else if (hat === "beanie") {
+    const dome = add(G.cap, M.hat, headG)
+    dome.scale.set(0.113, 0.118, 0.12)
+    dome.position.set(0, 0.0, -0.004)
+    const cuff = add(G.ring, M.hat, headG)
+    cuff.scale.set(0.108, 0.115, 0.35)
+    cuff.rotation.x = Math.PI / 2
+    cuff.position.y = 0.012
+    const pom = add(G.ball, M.hat, headG)
+    pom.scale.setScalar(0.03)
+    pom.position.set(0, 0.125, -0.01)
   } else if (hat === "bucket") {
     const crown = add(G.limb9, M.hat, headG)
     crown.scale.set(0.11, 0.09, 0.11)
@@ -297,25 +333,28 @@ export const createFigure = (look = {}, { shadows = false, withPaddle = true } =
   }
 
   // limbs: upper arm = sleeve (shirt) + skin, forearm, hands; legs = shorts + skin + socks
-  const sleeveR = look.shirtStyle === "tank" ? null : add(G.limbArm, M.shirt)
-  const sleeveL = look.shirtStyle === "tank" ? null : add(G.limbArm, M.shirt)
-  const upperR = add(G.limbArm, M.skin)
-  const upperL = add(G.limbArm, M.skin)
-  const foreR = add(G.limbArm, M.skin)
-  const foreL = add(G.limbArm, M.skin)
-  const shoulderBallR = add(G.ball, look.shirtStyle === "tank" ? M.skin : M.shirt)
-  const shoulderBallL = add(G.ball, look.shirtStyle === "tank" ? M.skin : M.shirt)
-  const elbowR = add(G.ball, M.skin)
-  const elbowL = add(G.ball, M.skin)
-  const handR = add(G.ball, M.skin)
-  const handL = add(G.ball, M.skin)
-  const bandR = add(G.limb9, M.trim)
+  const sleeveR = bareArms || longSleeves ? null : add(G.limbArm, M.shirt)
+  const sleeveL = bareArms || longSleeves ? null : add(G.limbArm, M.shirt)
+  const upperR = add(G.limbArm, longSleeves ? M.shirt : M.skin)
+  const upperL = add(G.limbArm, longSleeves ? M.shirt : M.skin)
+  const foreR = add(G.limbArm, longSleeves ? M.shirt : M.skin)
+  const foreL = add(G.limbArm, longSleeves ? M.shirt : M.skin)
+  const shoulderBallR = add(G.ball, bareArms ? M.skin : M.shirt)
+  const shoulderBallL = add(G.ball, bareArms ? M.skin : M.shirt)
+  const elbowR = add(G.ball, longSleeves ? M.shirt : M.skin)
+  const elbowL = add(G.ball, longSleeves ? M.shirt : M.skin)
+  const handR = add(G.ball, look.gloves ? M.glove : M.skin)
+  const handL = add(G.ball, look.gloves ? M.glove : M.skin)
+  const bandR = look.wristbands && !look.gloves ? add(G.limb9, M.band) : null
+  const bandL = look.wristbands && !look.gloves ? add(G.limb9, M.band) : null
+  // how far down the thigh the shorts go (and track pants cover the shins too)
+  const shortLen = { shorts: 0.48, board: 0.88, short: 0.26, swim: 0.2, pants: 1 }[bottomKind]
   const legs = [0, 1].map(() => ({
-    short: look.bottom === "skirt" ? null : add(G.limb9, M.bottom),
-    thigh: add(G.limb9, M.skin),
-    knee: add(G.ball, M.skin),
-    shin: add(G.limbShin, M.skin),
-    sock: add(G.limbShin, M.sock),
+    short: look.bottom === "skirt" || !shortLen ? null : add(G.limb9, M.bottom),
+    thigh: add(G.limb9, bottomKind === "pants" ? M.bottom : M.skin),
+    knee: add(G.ball, bottomKind === "pants" ? M.bottom : M.skin),
+    shin: add(G.limbShin, bottomKind === "pants" ? M.bottom : M.skin),
+    sock: sockStyle === "none" || bottomKind === "pants" ? null : add(G.limbShin, M.sock),
     shoe: (() => {
       const g = new THREE.Group()
       group.add(g)
@@ -398,7 +437,8 @@ export const createFigure = (look = {}, { shadows = false, withPaddle = true } =
       ball.position.set(sh.x, sh.y, sh.z)
       ball.scale.setScalar(r.arm * (sleeve ? 1.4 : 1.1))
     }
-    between(bandR, lerpP(pose.elbowP, pose.wristP, 0.82), pose.wristP, r.fore * 1.12)
+    if (bandR) between(bandR, lerpP(pose.elbowP, pose.wristP, 0.8), lerpP(pose.elbowP, pose.wristP, 0.95), r.fore * 1.15)
+    if (bandL) between(bandL, lerpP(pose.elbowO, pose.wristO, 0.8), lerpP(pose.elbowO, pose.wristO, 0.95), r.fore * 1.15)
     // legs
     const legSets = [
       [pose.hipL, pose.kneeL, pose.ankleL, pose.footL],
@@ -407,11 +447,11 @@ export const createFigure = (look = {}, { shadows = false, withPaddle = true } =
     legSets.forEach(([hip, knee, ankle, foot], i) => {
       const L = legs[i]
       between(L.thigh, hip, knee, r.thigh)
-      if (L.short) between(L.short, hip, lerpP(hip, knee, 0.48), r.thigh * 1.28)
+      if (L.short) between(L.short, hip, lerpP(hip, knee, Math.min(0.95, shortLen)), r.thigh * (bottomKind === "board" ? 1.36 : 1.28))
       L.knee.position.set(knee.x, knee.y, knee.z)
       L.knee.scale.setScalar(r.shin * 1.12)
       between(L.shin, knee, ankle, r.shin)
-      between(L.sock, lerpP(knee, ankle, 0.7), ankle, r.shin * 0.72)
+      if (L.sock) between(L.sock, lerpP(knee, ankle, sockStyle === "knee" ? 0.12 : sockStyle === "ankle" ? 0.88 : 0.7), ankle, r.shin * (sockStyle === "knee" ? 0.95 : 0.72))
       L.shoe.position.set(foot.x, foot.y, foot.z)
       L.shoe.rotation.set(foot.pitch || 0, foot.yaw, 0, "YXZ")
     })
@@ -425,7 +465,7 @@ export const createFigure = (look = {}, { shadows = false, withPaddle = true } =
   }
 
   // ---- one mesh, one draw call: every part's triangles in one buffer, moved on the CPU ----
-  const nodes = [pelvis, torsoG, neck, headG, swingy, sleeveR, sleeveL, upperR, upperL, foreR, foreL, shoulderBallR, shoulderBallL, elbowR, elbowL, handR, handL, bandR]
+  const nodes = [pelvis, torsoG, neck, headG, swingy, sleeveR, sleeveL, upperR, upperL, foreR, foreL, shoulderBallR, shoulderBallL, elbowR, elbowL, handR, handL, bandR, bandL]
   for (const L of legs) nodes.push(L.short, L.thigh, L.knee, L.shin, L.sock, L.shoe)
   if (withPaddle) nodes.push(paddle)
   const skin = bake(group, nodes.filter(Boolean), shadows)

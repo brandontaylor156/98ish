@@ -8,6 +8,12 @@
 // body's skin weights so it bends exactly like the body under it. Edges get a "trim" value
 // (a collar, sleeve and hem stripe in the kit's trim color). The skirt is its own cone,
 // weighted between the hips and the thighs.
+//
+// The Locker Room's kits (locker.js) are all made this way: tees, polos, tanks, a long-sleeve
+// rash guard, a track jacket (with a zip and sleeve stripes), a sports top, a one-piece
+// swimsuit; shorts, short shorts, board shorts, swim shorts, track pants (side stripes); no-
+// show, ankle, crew and striped knee socks; gloves and wristbands. reshapeBody makes the
+// slim and strong builds from the same body (thinner or thicker torso and limbs).
 
 // ---- the body's landmarks (rest pose, meters, y up, facing +z) ----
 // joints: name -> {x, y, z} for pelvis, thigh_l, calf_l, foot_l, upperarm_l, neck_01, Head...
@@ -22,6 +28,12 @@ export const landmarks = (joints, soleY = 0) => ({
   headY: joints.Head.y,
   cx: joints.pelvis.x,
   cz: joints.pelvis.z,
+  // the arms (the rest pose holds them straight out to the sides) and the legs
+  handX: joints.hand_l ? Math.abs(joints.hand_l.x - joints.pelvis.x) : 0.7,
+  armY: joints.upperarm_l.y,
+  armZ: joints.upperarm_l.z,
+  legX: Math.abs(joints.thigh_l.x - joints.pelvis.x),
+  legZ: joints.thigh_l.z,
 })
 
 // ---- which garment a body vertex belongs to ----
@@ -30,12 +42,29 @@ const ARM = ["upperarm", "lowerarm", "hand", "index", "middle", "ring", "pinky",
 const LEG = ["thigh", "calf"]
 const FOOT = ["foot", "ball"]
 const TORSO = ["spine", "clavicle", "pelvis", "neck"]
+const HAND = ["hand", "index", "middle", "ring", "pinky", "thumb"]
 
 // v: { x, y, z, bone (the bone with the most weight) }, m: landmarks. Returns true if a
 // garment of this kind covers the vertex.
 export const covers = (kind, v, m) => {
   const ax = Math.abs(v.x - m.cx)
   const front = v.z - m.cz
+  if (kind === "onepiece") return covers("tank", v, m) || covers("briefs", v, m)
+  if (kind === "crop") {
+    // a sports top: the chest, straps over the shoulders, hem above the waist
+    if (!covers("tank", v, m)) return false
+    return v.y > m.shoulderY - 0.25
+  }
+  if (kind === "rash" || kind === "jacket") {
+    // long sleeves: a tee's body and the whole arm down to the wrist (not the hand); a
+    // crew neck (the jacket's collar stands up from it)
+    if (startsAny(v.bone, HAND)) return false
+    if (ax < 0.09 && v.y > m.neckY - 0.01 - (front > 0.01 ? 0.025 : 0)) return false
+    if (startsAny(v.bone, ARM) || startsAny(v.bone, ["clavicle"]) || (ax > m.shoulderX - 0.03 && v.y > m.shoulderY - 0.12)) return ax < m.handX - (kind === "jacket" ? 0.005 : 0.015) && !(v.y > m.neckY + 0.04)
+    return covers("tee", v, m) || (kind === "jacket" && covers("polo", v, m))
+  }
+  if (kind === "gloves") return startsAny(v.bone, HAND) || (startsAny(v.bone, ["lowerarm"]) && ax > m.handX - 0.02)
+  if (kind === "wristbands") return startsAny(v.bone, ["lowerarm"]) && ax > m.handX - 0.085 && ax < m.handX - 0.025
   if (kind === "tank") {
     if (v.y > m.neckY + 0.04 || v.y < m.hipY + 0.01 || startsAny(v.bone, ARM)) return false
     if (!startsAny(v.bone, TORSO) && !startsAny(v.bone, LEG)) return false
@@ -60,16 +89,23 @@ export const covers = (kind, v, m) => {
     }
     return startsAny(v.bone, TORSO) || startsAny(v.bone, LEG)
   }
-  if (kind === "shorts") {
-    if (v.y > m.hipY + 0.11 || v.y < m.kneeY + 0.14) return false
-    return startsAny(v.bone, ["pelvis", "spine_01", "thigh"]) || (startsAny(v.bone, ["spine"]) && v.y < m.hipY + 0.11)
+  if (kind === "shorts" || kind === "board" || kind === "short" || kind === "swim" || kind === "pants") {
+    // how far down the leg: shorts to mid-thigh, board shorts to the knee, track pants to the
+    // ankle; short shorts and swim shorts higher up
+    const low = { shorts: m.kneeY + 0.14, board: m.kneeY + 0.015, short: m.hipY - 0.15, swim: m.hipY - 0.19, pants: m.ankleY + 0.045 }[kind]
+    if (v.y > m.hipY + 0.11 || v.y < low) return false
+    const legBones = kind === "pants" ? ["pelvis", "spine_01", "thigh", "calf"] : ["pelvis", "spine_01", "thigh"]
+    return startsAny(v.bone, legBones) || (startsAny(v.bone, ["spine"]) && v.y < m.hipY + 0.11)
   }
   if (kind === "briefs") {
     // under a skirt: snug shorts (a skort)
     if (v.y > m.hipY + 0.11 || v.y < m.hipY - 0.17) return false
     return startsAny(v.bone, ["pelvis", "spine_01", "thigh"])
   }
-  if (kind === "socks") return (startsAny(v.bone, ["calf"]) || startsAny(v.bone, FOOT)) && v.y < m.ankleY + 0.11 && v.y > m.soleY + 0.02
+  if (kind === "socks" || kind === "anklesocks" || kind === "kneesocks") {
+    const top = { socks: m.ankleY + 0.11, anklesocks: m.ankleY + 0.04, kneesocks: m.kneeY - 0.05 }[kind]
+    return (startsAny(v.bone, ["calf"]) || startsAny(v.bone, FOOT)) && v.y < top && v.y > m.soleY + 0.02
+  }
   if (kind === "shoes") return startsAny(v.bone, FOOT) || (startsAny(v.bone, ["calf"]) && v.y < m.ankleY + 0.035)
   return false
 }
@@ -77,6 +113,18 @@ export const covers = (kind, v, m) => {
 // how far out each garment sits, and how much it's smoothed
 export const GARMENTS = {
   tee: { inflate: 0.013, smooth: 8, trim: 0.018, loose: 0.012 },
+  rash: { inflate: 0.008, smooth: 8, trim: 0.012, loose: 0.006 },
+  jacket: { inflate: 0.02, smooth: 10, trim: 0.02, loose: 0.018, collar: true, zip: true, armStripe: true },
+  crop: { inflate: 0.009, smooth: 6, trim: 0.012 },
+  onepiece: { inflate: 0.007, smooth: 6, trim: 0.012 },
+  board: { inflate: 0.012, smooth: 6, trim: 0.014, flare: 0.07, legStripe: true },
+  short: { inflate: 0.01, smooth: 5, trim: 0.012, flare: 0.05 },
+  swim: { inflate: 0.008, smooth: 4, trim: 0.01 },
+  pants: { inflate: 0.013, smooth: 6, trim: 0.014, flare: 0.012, legStripe: true },
+  anklesocks: { inflate: 0.004, smooth: 2, trim: 0.008 },
+  kneesocks: { inflate: 0.005, smooth: 2, trim: 0.012, bands: true },
+  gloves: { inflate: 0.004, smooth: 2, trim: 0.008 },
+  wristbands: { inflate: 0.012, smooth: 2, trim: 0 },
   polo: { inflate: 0.013, smooth: 8, trim: 0.016, loose: 0.012, collar: true },
   tank: { inflate: 0.011, smooth: 8, trim: 0.014, loose: 0.01 },
   shorts: { inflate: 0.01, smooth: 6, trim: 0.012, flare: 0.075 },
@@ -286,8 +334,19 @@ export const buildGarment = (kind, body, m) => {
     }
     for (let i = 0; i < W; i++) trim[i] = dist[i] < spec.trim ? 1 : dist[i] < spec.trim * 1.4 ? 1 - (dist[i] - spec.trim) / (spec.trim * 0.4) : 0
   }
-  // accent: a shoe's side stripe and heel tab
+  // accent: a shoe's side stripe and heel tab; a jacket's zip and sleeve stripes; track
+  // pants' and board shorts' side stripes; knee socks' bands
   const accent = new Float32Array(W)
+  for (let i = 0; i < W; i++) {
+    const x = out[i * 3]
+    const y = out[i * 3 + 1]
+    const z = out[i * 3 + 2]
+    const ax = Math.abs(x - m.cx)
+    if (spec.zip && Math.abs(x - m.cx) < 0.013 && z > m.cz && y < m.neckY && ax < m.shoulderX - 0.05) accent[i] = 1
+    if (spec.armStripe && ax > m.shoulderX + 0.02 && Math.abs(z - m.armZ) < 0.02 && y > m.armY) accent[i] = 1
+    if (spec.legStripe && y < m.hipY - 0.03 && Math.abs(z - m.legZ) < 0.022 && ax > m.legX) accent[i] = 1
+    if (spec.bands && ((y > m.kneeY - 0.125 && y < m.kneeY - 0.095) || (y > m.kneeY - 0.185 && y < m.kneeY - 0.155))) accent[i] = 1
+  }
   if (spec.sole)
     for (let i = 0; i < W; i++) {
       const y = out[i * 3 + 1] - m.soleY
@@ -490,3 +549,85 @@ export const radiusProfile = (body, m, bins = 36) => {
     return best
   }
 }
+
+// ---- builds: a slimmer or stronger body from the same one ----
+// Each vertex moves by its bones' weights: the torso widens or narrows round the body's
+// center line (most at the chest and shoulders), arms and legs round their own bones (a
+// thicker or thinner limb); the head, hands and feet stay as they are (so hats, gloves and
+// shoes fit every build). Vertices at the same spot (UV seams) move together, so the skin
+// never opens up. k: 1 regular, under 1 slimmer, over 1 stronger.
+// body: prepareBody's result; joints: rest positions by bone name. Returns new positions.
+const LIMB_SEGMENTS = { upperarm: "lowerarm", lowerarm: "hand", thigh: "calf", calf: "foot" }
+export const reshapeBody = (body, joints, m, k) => {
+  const P = body.position
+  const n = P.length / 3
+  const out = Float32Array.from(P)
+  if (Math.abs(k - 1) < 1e-6) return out
+  const W = body.welded
+  const done = new Int32Array(W.count).fill(-1)
+  // each bone's move of a point
+  const move = (name, x, y, z) => {
+    if (startsAny(name, ["spine_02", "spine_03", "clavicle", "neck"])) {
+      const t = name.startsWith("neck") ? 0.4 : 1
+      const s = 1 + (k - 1) * t
+      return [m.cx + (x - m.cx) * s, y, m.cz + (z - m.cz) * s]
+    }
+    if (startsAny(name, ["pelvis", "spine_01"])) {
+      const s = 1 + (k - 1) * 0.6
+      return [m.cx + (x - m.cx) * s, y, m.cz + (z - m.cz) * s]
+    }
+    const base = Object.keys(LIMB_SEGMENTS).find((b) => name.startsWith(b + "_"))
+    if (base) {
+      const side = name.slice(base.length)
+      const a = joints[name]
+      const b = joints[LIMB_SEGMENTS[base] + side]
+      if (!a || !b) return [x, y, z]
+      const dx = b.x - a.x
+      const dy = b.y - a.y
+      const dz = b.z - a.z
+      const L2 = dx * dx + dy * dy + dz * dz || 1
+      const t = Math.max(0, Math.min(1, ((x - a.x) * dx + (y - a.y) * dy + (z - a.z) * dz) / L2))
+      const cx = a.x + dx * t
+      const cy = a.y + dy * t
+      const cz = a.z + dz * t
+      // (upper arms and thighs most; forearms and calves a little less)
+      const s = 1 + (k - 1) * (base === "upperarm" || base === "thigh" ? 1.1 : 0.8)
+      return [cx + (x - cx) * s, cy + (y - cy) * s, cz + (z - cz) * s]
+    }
+    return [x, y, z]
+  }
+  for (let i = 0; i < n; i++) {
+    const w = W.ids[i]
+    if (done[w] >= 0) {
+      const j = done[w]
+      out[i * 3] = out[j * 3]
+      out[i * 3 + 1] = out[j * 3 + 1]
+      out[i * 3 + 2] = out[j * 3 + 2]
+      continue
+    }
+    done[w] = i
+    const x = P[i * 3]
+    const y = P[i * 3 + 1]
+    const z = P[i * 3 + 2]
+    let nx = 0
+    let ny = 0
+    let nz = 0
+    let total = 0
+    for (let c = 0; c < 4; c++) {
+      const wt = body.skinWeight[i * 4 + c]
+      if (wt <= 0) continue
+      const [mx, my, mz] = move(body.bones[body.skinIndex[i * 4 + c]] || "", x, y, z)
+      nx += mx * wt
+      ny += my * wt
+      nz += mz * wt
+      total += wt
+    }
+    if (total > 0) {
+      out[i * 3] = nx / total
+      out[i * 3 + 1] = ny / total
+      out[i * 3 + 2] = nz / total
+    }
+  }
+  return out
+}
+export const BUILD_SCALE = { slim: 0.93, regular: 1, strong: 1.075 }

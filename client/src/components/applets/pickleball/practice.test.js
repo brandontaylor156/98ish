@@ -63,7 +63,7 @@ test("tour: eight matches, wins move you up and unlock venues and outfits; bad s
   assert.equal(s.champion, true)
   assert.equal(nextMatch(s), null)
   const u = unlocks(s)
-  assert.deepEqual(u.venues, ["park", "club", "stadium"])
+  assert.deepEqual(u.venues, ["park", "club", "stadium", "beach", "winter"])
   assert.ok(u.outfits.includes("gold") && u.outfits.includes("neon"))
   assert.deepEqual(tourState({ stage: 99, results: "x" }).stage, 8)
   assert.equal(tourState(null).stage, 0)
