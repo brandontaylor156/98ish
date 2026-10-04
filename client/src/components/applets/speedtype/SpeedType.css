@@ -102,6 +102,24 @@
 .stOnlineBtn {
   width: min(100%, 360px);
 }
+/* the launcher (docs/simplicity.md): a big Race the Computer, then More modes */
+.stMenuBtn.stMenuBtn--main {
+  grid-column: 1 / -1;
+  align-items: center;
+  text-align: center;
+  min-height: 60px;
+  outline: 1px solid #000;
+  outline-offset: -1px;
+}
+.stMenuBtn--main b {
+  font-size: 18px;
+}
+.stMore {
+  width: min(100%, 420px);
+}
+.stMore .moreOpts-body {
+  align-items: center;
+}
 .stMenu,
 .stDrills {
   display: grid;

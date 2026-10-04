@@ -1657,6 +1657,21 @@ button.lcSeat {
 .lcOnlineBtn {
   width: min(360px, 100%);
 }
+/* More options on the felt (docs/simplicity.md) */
+.lcRoot.is-mobile .lcTitle {
+  justify-content: flex-start;
+}
+.lcMore {
+  width: min(360px, 100%);
+  align-items: stretch;
+  text-align: left;
+}
+.lcMore .moreOpts-summary {
+  color: #e0f4ea;
+}
+.lcMore .moreOpts-body {
+  align-items: center;
+}
 .lcSoloBox {
   width: min(360px, 100%);
   box-sizing: border-box;
@@ -1747,6 +1762,12 @@ button.lcSeat {
 }
 .lcSetup > .lcRowBtns {
   margin-top: 10px;
+}
+/* the sticky Deal! row (shared/PrimaryBar) reaches the form's edges */
+.lcSetup > .lcSetupBar {
+  margin: 10px -14px -16px;
+  padding-left: 14px;
+  padding-right: 14px;
 }
 .lcSetup > .lcRowBtns .lcPrimary {
   min-width: 120px;

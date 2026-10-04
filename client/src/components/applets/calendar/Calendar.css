@@ -832,6 +832,26 @@
   width: 52px;
 }
 
+/* the editor's baseline: day and times (docs/simplicity.md) */
+.calBaseWhen {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.calWhen > span.calTo {
+  width: auto;
+  padding: 0 2px;
+}
+
+.calAllDayNote {
+  padding-left: 44px;
+}
+
+.calMoreOpts {
+  margin-top: 2px;
+}
+
 .calCustom {
   display: flex;
   flex-direction: column;

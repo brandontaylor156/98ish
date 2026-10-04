@@ -15,6 +15,9 @@ import { geometry } from "./board.js"
 import { createSounds } from "./audio.js"
 import "./Hexlands.css"
 import { helpItem } from "../../../utils/help"
+import MoreOptions from "../../shared/MoreOptions"
+import PrimaryBar from "../../shared/PrimaryBar"
+import { summarize } from "../../../utils/disclosure"
 
 // Hexlands: an original settle-and-trade island game. Collect timber, clay, wool, grain and
 // ore from the tiles around your settlements, build, trade and race to 10 points. Play 1-5
@@ -317,14 +320,15 @@ const Hexlands = ({ mobile = false, onClose }) => {
         <h2>Play the Computer</h2>
         <p className="hxMuted">Pick your opponents, the island and the house rules. Everything runs right here, no internet needed.</p>
         <SettingsForm settings={draft} onChange={setDraft} mode="solo" />
-        <div className="hxRow">
+        {/* Start game stays on screen however long the settings get (docs/simplicity.md) */}
+        <PrimaryBar className="hxRow hxSetupBar" align="end">
           <button type="submit" className="hxGo" data-start>
             Start game
           </button>
           <button type="button" onClick={() => setScreen("title")}>
             Back
           </button>
-        </div>
+        </PrimaryBar>
       </form>
     )
   } else {
@@ -337,46 +341,52 @@ const Hexlands = ({ mobile = false, onClose }) => {
         <TitleIsland />
         <Logo />
         <p className="hxTagline">Settle the island. Trade with your rivals. Build your way to 10 points.</p>
-        <PlayOnlineButton onClick={goOnline} sub="Quick Match, private rooms, 2 to 6 players" className="hxOnlineBtn" data-online />
+        {/* the shared launcher pattern (docs/simplicity.md): Play, Play Online, then the
+            table's settings, How to Play and Settings... under More options */}
         <div className="hxSoloBox">
           <button type="button" className="hxBigBtn" onClick={() => startSolo()} data-solo>
             <b>Play the Computer</b>
             <small>{describeSettings(s)}</small>
           </button>
-          <div className="hxQuick">
-            <span>Opponents</span>
-            <span className="hxStepper">
-              <button type="button" aria-label="Fewer opponents" disabled={opponents <= 1} onClick={() => setSolo({ players: s.players - 1 })}>
-                −
-              </button>
-              <b data-opponents>{opponents}</b>
-              <button type="button" aria-label="More opponents" disabled={opponents >= 5} onClick={() => setSolo({ players: s.players + 1 })}>
-                +
-              </button>
-            </span>
-            <select value={s.level} onChange={(e) => setSolo({ level: e.target.value })} aria-label="Difficulty">
-              <option value="easy">Easy</option>
-              <option value="normal">Normal</option>
-              <option value="hard">Hard</option>
-            </select>
-          </div>
-          <div className="hxFaces" aria-hidden="true">
-            {BOT_NAMES.slice(0, opponents).map((name) => (
-              <span key={name} title={`${name}: ${PERSONAS[personaFor(name)].text}`}>
-                {name}
-                <small>{PERSONAS[personaFor(name)].label}</small>
+        </div>
+        <PlayOnlineButton onClick={goOnline} sub="Quick Match, private rooms, 2 to 6 players" className="hxOnlineBtn" data-online />
+        <MoreOptions id="hexlands.options" className="hxMore" summary={summarize(`${opponents} opponent${opponents === 1 ? "" : "s"}`, s.level[0].toUpperCase() + s.level.slice(1))}>
+          <div className="hxSoloBox">
+            <div className="hxQuick">
+              <span>Opponents</span>
+              <span className="hxStepper">
+                <button type="button" aria-label="Fewer opponents" disabled={opponents <= 1} onClick={() => setSolo({ players: s.players - 1 })}>
+                  −
+                </button>
+                <b data-opponents>{opponents}</b>
+                <button type="button" aria-label="More opponents" disabled={opponents >= 5} onClick={() => setSolo({ players: s.players + 1 })}>
+                  +
+                </button>
               </span>
-            ))}
+              <select value={s.level} onChange={(e) => setSolo({ level: e.target.value })} aria-label="Difficulty">
+                <option value="easy">Easy</option>
+                <option value="normal">Normal</option>
+                <option value="hard">Hard</option>
+              </select>
+            </div>
+            <div className="hxFaces" aria-hidden="true">
+              {BOT_NAMES.slice(0, opponents).map((name) => (
+                <span key={name} title={`${name}: ${PERSONAS[personaFor(name)].text}`}>
+                  {name}
+                  <small>{PERSONAS[personaFor(name)].label}</small>
+                </span>
+              ))}
+            </div>
           </div>
-        </div>
-        <div className="hxRow">
-          <button type="button" onClick={() => setScreen("tutorial")} data-howto>
-            How to Play
-          </button>
-          <button type="button" onClick={() => (setDraft(data.solo), setScreen("setup"))} data-settings>
-            Settings...
-          </button>
-        </div>
+          <div className="hxRow">
+            <button type="button" onClick={() => setScreen("tutorial")} data-howto>
+              How to Play
+            </button>
+            <button type="button" onClick={() => (setDraft(data.solo), setScreen("setup"))} data-settings>
+              Settings...
+            </button>
+          </div>
+        </MoreOptions>
         {data.stats.played > 0 && (
           <p className="hxMuted">
             Won {data.stats.won} of {data.stats.played} games against the computer.

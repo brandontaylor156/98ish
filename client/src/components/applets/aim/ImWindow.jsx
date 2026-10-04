@@ -5,6 +5,8 @@ import ContextMenu from "../../shared/ContextMenu"
 import { useNet } from "../network/NetContext"
 import { RaceLevelDialog } from "../network/ComputerFolder"
 import FormatBar from "./FormatBar"
+import MoreOptions from "../../shared/MoreOptions"
+import { useDisclosure } from "../../../utils/disclosure"
 import { TranscriptLine, textStyle } from "./MessageText"
 import { useIsTouch } from "../../../hooks/useMediaQuery"
 import { CallButtons } from "./call/CallButtons"
@@ -42,6 +44,7 @@ export const useStickToBottom = (deps) => {
 
 // Composer shared by IM windows and chat rooms: Enter sends, Shift+Enter is a new line
 export const Composer = ({ onSend, onTypingChange, disabled, autoFocus }) => {
+  const [format, setFormat] = useDisclosure("messenger.format", false)
   const { prefs } = useAim()
   const touch = useIsTouch()
   const input = useRef(null)
@@ -81,8 +84,12 @@ export const Composer = ({ onSend, onTypingChange, disabled, autoFocus }) => {
 
   return (
     <div className="aimComposer">
-      <FormatBar />
+      {format && <FormatBar />}
       <div className="aimComposerRow">
+        {/* font, size, bold, color: tucked behind "Aa" (docs/simplicity.md), remembered */}
+        <button type="button" className={`aimFormatToggle${format ? " is-on" : ""}`} aria-expanded={format} aria-label="Text formatting" title="Font, size and color" onClick={() => setFormat(!format)}>
+          Aa
+        </button>
         <textarea
           ref={input}
           className="aimInput"
@@ -196,32 +203,35 @@ const ImWindow = ({ buddy, focusInput }) => {
         onTypingChange={(state) => key !== keyOf(BOT_NAME) && aim.typing(screenName, state)}
       />
 
-      <div className="aimImButtons">
-        <button type="button" onClick={() => setDialog({ kind: "warn", anonymous: false })} disabled={!presence?.online}>
-          Warn
-        </button>
-        <button type="button" onClick={() => (blocked ? toggleBlock() : setDialog({ kind: "block" }))} disabled={key === keyOf(BOT_NAME)}>
-          {blocked ? "Unblock" : "Block"}
-        </button>
-        <button type="button" onClick={addBuddy} disabled={inList}>
-          Add Buddy
-        </button>
-        <button type="button" onClick={() => aim.openInfo(screenName)}>
-          Get Info
-        </button>
-        {net && key !== keyOf(BOT_NAME) && (
-          <button
-            type="button"
-            disabled={!presence?.online || blocked}
-            onClick={(e) => {
-              const r = e.currentTarget.getBoundingClientRect()
-              setGamesMenu({ x: r.left, y: r.bottom })
-            }}
-          >
-            Games
+      {/* Warn, Block, Add Buddy, Get Info, Games: under More (docs/simplicity.md) */}
+      <MoreOptions id="messenger.im" label="More" lessLabel="Less" inline className="aimImMore">
+        <div className="aimImButtons">
+          <button type="button" onClick={() => setDialog({ kind: "warn", anonymous: false })} disabled={!presence?.online}>
+            Warn
           </button>
-        )}
-      </div>
+          <button type="button" onClick={() => (blocked ? toggleBlock() : setDialog({ kind: "block" }))} disabled={key === keyOf(BOT_NAME)}>
+            {blocked ? "Unblock" : "Block"}
+          </button>
+          <button type="button" onClick={addBuddy} disabled={inList}>
+            Add Buddy
+          </button>
+          <button type="button" onClick={() => aim.openInfo(screenName)}>
+            Get Info
+          </button>
+          {net && key !== keyOf(BOT_NAME) && (
+            <button
+              type="button"
+              disabled={!presence?.online || blocked}
+              onClick={(e) => {
+                const r = e.currentTarget.getBoundingClientRect()
+                setGamesMenu({ x: r.left, y: r.bottom })
+              }}
+            >
+              Games
+            </button>
+          )}
+        </div>
+      </MoreOptions>
 
       {gamesMenu && <ContextMenu x={gamesMenu.x} y={gamesMenu.y} items={gameItems} onClose={() => setGamesMenu(null)} />}
 

@@ -383,6 +383,27 @@
   min-height: 23px;
 }
 
+/* More »: its buttons wrap onto the actions' own row when open */
+.abCardMore {
+  display: contents;
+}
+
+.abCardMore > .moreOpts-head {
+  display: contents;
+}
+
+.abCardMore > .moreOpts-body {
+  flex-basis: 100%;
+}
+
+.abCardMore > .moreOpts-body > .abActions {
+  padding: 0;
+}
+
+.abCardMore > .moreOpts-body[hidden] {
+  display: none;
+}
+
 .abDefault {
   font-weight: bold;
 }
@@ -508,8 +529,29 @@
 }
 
 .abFieldWide,
-.abPictureRow {
+.abPictureRow,
+.abMore {
   grid-column: 1 / -1;
+}
+
+/* the Name tab's More options: the same two columns inside */
+.abMore > .moreOpts-body {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 10px;
+}
+
+.abMore > .moreOpts-body[hidden] {
+  display: none;
+}
+
+.abMore .abFav,
+.abMore .abNote {
+  grid-column: 1 / -1;
+}
+
+.abPanelPhone .abMore > .moreOpts-body {
+  grid-template-columns: 1fr;
 }
 
 .abField input,

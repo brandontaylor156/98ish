@@ -275,7 +275,28 @@ export const topics = [
       },
       { tip: "You can change how long a press and hold takes, or swap the mouse buttons, in Control Panel > Mouse. See [[mouse]]." },
     ],
-    related: ["desktop", "my-computer", "mouse", "keyboard-shortcuts"],
+    related: ["desktop", "my-computer", "mouse", "keyboard-shortcuts", "more-options"],
+  },
+  {
+    id: "more-options",
+    book: "start",
+    title: "More options » (simple screens)",
+    summary: "Programs open to the few things most people do; everything else is one tap away.",
+    keywords: ["More options", "More modes", "simple", "simpler", "advanced", "hidden settings", "where did it go", "Show all Control Panel options", "Fewer options"],
+    body: [
+      "Each program opens with just the things most people want, in big clear buttons: a title, a day and a time and **Save** for a new Calendar event; **Play** and **Play Online** for a game; the shutter and the flip button in Camera.",
+      "Nothing is gone. Everything else waits behind a **More options »** button (in games, **More modes »** and **Options »**). The gray line beside it says what's set in there right now, like \"On this device · Doesn't repeat · Reminder 15 minutes before · Auto color\", so you can tell at a glance whether you need it.",
+      { phone: "Tap **More options »** to open it and **Fewer options «** to tuck it away again. Tapping the gray line works too.", computer: "Click **More options »**, or Tab to it and press {{Enter}} or {{Space}}." },
+      "98ish remembers whether you left it open, for each program and for each person who uses this device. So if you always set reminders, open it once and it stays open.",
+      {
+        list: [
+          "The menus (File, Edit, Options...) and right-click menus still have everything, as before.",
+          "The **Control Panel** opens to the common settings; **Show all Control Panel options** lists every icon. See [[control-panel]].",
+          "The main button (Save, OK, Send, Start Game) always stays on the screen, even on a phone and even when a form is long.",
+        ],
+      },
+    ],
+    related: ["calendar", "control-panel", "phone-basics", "right-click"],
   },
   {
     id: "phone-basics",
@@ -619,7 +640,7 @@ export const topics = [
       {
         list: [
           "In My Computer, right-click (or press and hold) drive C: and choose **Properties** for a pie chart of used and free space.",
-          "Control Panel > **Storage** shows the same, plus what's using it and how much the Recycle Bin holds.",
+          "Control Panel > **Storage** shows the same, plus how much the Recycle Bin holds, and **What uses it »** shows what is using the space.",
           "Camera and Photos show the free space at the bottom.",
         ],
       },
@@ -642,7 +663,7 @@ export const topics = [
     body: [
       "File sync keeps chosen folders the same on every phone and computer where you sign on to 98 Messenger with the same screen name. Make a document on your computer, and it's on your phone too. It's also what keeps your photos safe: if a phone clears its browser storage, or you get a new phone, sign on and everything comes back.",
       "**Sync is on by default.** The first time you sign on to 98 Messenger on a device, My Documents, My Pictures and the Desktop start syncing, and 98ish tells you once. A new photo goes up a few seconds after you take it.",
-      { steps: ["Open **Backup** (Start > Programs > System Tools > Backup).", "Under **Sync with 98 Messenger**, tick or untick **Sync my files with my 98 Messenger account**.", "Choose the folders to sync. My Documents, My Pictures and Desktop are picked to start with."], title: "To turn sync off or on, or choose folders:" },
+      { steps: ["Open **Backup** (Start > Programs > System Tools > Backup).", "Under **Sync with 98 Messenger**, tick or untick **Sync my files with my 98 Messenger account**.", "Click **Sync options »** to choose the folders to sync. My Documents, My Pictures and Desktop are picked to start with."], title: "To turn sync off or on, or choose folders:" },
       "Changes go back and forth by themselves. **Sync Now** in Backup does it right away. A small icon in the taskbar tray, and the bottom of My Computer, show how it's going. Without an account, My Computer, Photos and Camera remind you that your files are only on this device.",
       { h: "Good to know" },
       {
@@ -669,7 +690,7 @@ export const topics = [
     body: [
       "Backup saves everything on your drive C: into a single **.98ish** file on your real device. Keep it somewhere safe, and you can always get your files back.",
       { steps: ["Open **Backup** (Start > Programs > System Tools).", "Click **Back Up Now**.", "The file goes to your device's Downloads folder (on iPhone, the Files app)."], title: "To back up:" },
-      { steps: ["Open Backup.", "Click **Restore...** and pick a .98ish file.", "Confirm. 98ish puts everything back and reloads."], title: "To restore:" },
+      { steps: ["Open Backup.", "Click **Restore from a backup »**, then **Restore...**, and pick a .98ish file.", "Confirm. 98ish puts everything back and reloads."], title: "To restore:" },
       { warning: "Restore replaces everything on C: with what's in the backup. Anything made since the backup is lost, so make a fresh backup first if you're not sure." },
       { tip: "A backup is also an easy way to move your files from Safari into the Home Screen app, or to a new device. [[file-sync]] does this automatically if you sign on to 98 Messenger." },
       "The same window also holds the **Sync with 98 Messenger** settings.",

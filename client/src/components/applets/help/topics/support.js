@@ -229,7 +229,7 @@ export const topics = [
           "**It's covering a button:** tap the **X** in the keyboard's title bar (Hide keyboard), then tap the button.",
           "**You need emoji, dictation, another language or password AutoFill:** those come with your phone's own keyboard: open Start > Settings > Keyboard and choose **My phone's own keyboard** (and choose the 98ish keyboard there again to come back).",
           "**You'd rather always use your phone's keyboard:** open Start > Settings > Keyboard and choose **My phone's own keyboard**.",
-          "**Key clicks or vibration bother you:** turn them off under **While typing** in Keyboard Properties.",
+          "**Key clicks or vibration bother you:** turn them off under **While typing »** in Keyboard Properties.",
         ],
       },
       { open: "Keyboard Properties", label: "Open Keyboard Properties" },
@@ -499,7 +499,7 @@ export const topics = [
           head: ["What", "How"],
           rows: [
             ["A file", "Delete it, then empty the Recycle Bin."],
-            ["Synced copies online", "Backup > Sync with 98 Messenger > Delete Online Files. The files on your devices stay; sync turns off."],
+            ["Synced copies online", "Backup > Sync with 98 Messenger > Sync options > Delete Online Files. The files on your devices stay; sync turns off."],
             ["Someone's profile on this device", "Passwords and Users > User Profiles > Remove."],
             ["Us letters, story and photos", "Unpair in Us and tick Delete our letters, story and photos now."],
             ["Your homepage", "HomePage Studio > Unpublish. Your draft stays on your device."],

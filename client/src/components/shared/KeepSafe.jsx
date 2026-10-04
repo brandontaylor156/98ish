@@ -5,6 +5,7 @@ import { storageInfo } from "../../utils/fs"
 import { isIos, isStandalone } from "../../utils/push"
 import { openTarget } from "../../utils/notifications"
 import { keepSafeAdvice, snoozed } from "../../utils/keepSafe"
+import { useDisclosure } from "../../utils/disclosure"
 import "./KeepSafe.css"
 
 // "Your files are only on this device": shown where it matters while no online copy is kept
@@ -29,10 +30,13 @@ export const useKeepSafe = () => {
 export const openSignOn = () => openTarget({ kind: "program", name: "98 Messenger" })
 export const openBackup = () => openTarget({ kind: "program", name: "Backup" })
 
-// place: where it shows ("camera", "photos"...); closable: false for Control Panel > Storage
-const KeepSafe = ({ place, closable = true, className = "" }) => {
+// place: where it shows ("camera", "photos"...); closable: false for Control Panel > Storage.
+// compact (the default where it's closable): one line with "Details »"; the full words and
+// the Sign On / Backup buttons open from there (docs/simplicity.md)
+const KeepSafe = ({ place, closable = true, compact = closable, className = "" }) => {
   const advice = useKeepSafe()
   const [closed, setClosed] = useState(() => closable && snoozed(readDismissed(), place))
+  const [open, setOpen] = useDisclosure(compact ? `keepSafe.${place}` : null, !compact)
   if (!advice || closed) return null
   const close = () => {
     try {
@@ -43,18 +47,25 @@ const KeepSafe = ({ place, closable = true, className = "" }) => {
     setClosed(true)
   }
   return (
-    <div className={`keepSafe ${className}`} role="note" data-keep-safe={place}>
-      <img src="/assets/hard_drive.png" alt="" width="24" height="24" />
-      <p>{advice.text}</p>
+    <div className={`keepSafe${open ? "" : " keepSafe--short"} ${className}`} role="note" data-keep-safe={place}>
+      <img src="/assets/hard_drive.png" alt="" width={open ? 24 : 16} height={open ? 24 : 16} />
+      <p>{open ? advice.text : `${advice.short}.`}</p>
       <div className="keepSafeButtons">
-        {advice.kind === "guest" && (
+        {open && advice.kind === "guest" && (
           <button type="button" onClick={openSignOn}>
             Sign On...
           </button>
         )}
-        <button type="button" onClick={openBackup}>
-          Backup...
-        </button>
+        {open && (
+          <button type="button" onClick={openBackup}>
+            Backup...
+          </button>
+        )}
+        {compact && (
+          <button type="button" className="keepSafeMore" aria-expanded={open} onClick={() => setOpen(!open)}>
+            {open ? "Less «" : "Keep safe »"}
+          </button>
+        )}
         {closable && (
           <button type="button" className="keepSafeClose" onClick={close} aria-label="Close this note" title="Don't show this here for a month">
             ×

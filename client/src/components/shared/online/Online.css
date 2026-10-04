@@ -166,6 +166,21 @@
   gap: 8px;
 }
 
+/* Create Room / Join with Code / Invite Someone under "Play with friends" (MoreOptions) */
+.olChoices > .olMore {
+  grid-column: 1 / -1;
+}
+
+.olMore > .moreOpts-body:not([hidden]) {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 8px;
+}
+
+.os-mobile .olMore > .moreOpts-body:not([hidden]) {
+  grid-template-columns: 1fr;
+}
+
 .olChoice {
   display: flex;
   flex-direction: column;

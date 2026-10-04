@@ -12,6 +12,9 @@ import { DEFAULTS, PERSONAS, describeRules, personaFor, validateSettings } from 
 import { createSounds } from "./audio"
 import "./LastCard.css"
 import { helpItem } from "../../../utils/help"
+import MoreOptions from "../../shared/MoreOptions"
+import PrimaryBar from "../../shared/PrimaryBar"
+import { summarize } from "../../../utils/disclosure"
 
 // Last Card: an original take on the classic "match the color or the number" card game.
 // Get rid of your cards first; call "Last Card!" when you're down to one. Play 1-9 computer
@@ -276,14 +279,15 @@ const LastCard = ({ mobile = false, onClose }) => {
         <h2>Play the Computer</h2>
         <p className="lcMuted">Pick your opponents and house rules. Everything runs right here, no internet needed.</p>
         <SettingsForm settings={rulesDraft} onChange={setRulesDraft} mode="solo" />
-        <div className="lcRowBtns">
+        {/* Deal! stays on screen however long the house rules get (docs/simplicity.md) */}
+        <PrimaryBar className="lcRowBtns lcSetupBar" align="end">
           <button type="submit" className="lcPrimary" data-start>
             Deal!
           </button>
           <button type="button" onClick={() => setScreen("title")}>
             Back
           </button>
-        </div>
+        </PrimaryBar>
       </form>
     )
   } else {
@@ -294,7 +298,8 @@ const LastCard = ({ mobile = false, onClose }) => {
       <div className="lcTitle">
         <Logo />
         <p className="lcTagline">Match the color. Match the number. Don't get caught with one card.</p>
-        <PlayOnlineButton onClick={goOnline} sub="Quick Match, private rooms, 2 to 10 players" className="lcOnlineBtn" data-online />
+        {/* the shared launcher pattern (docs/simplicity.md): Play, Play Online, then the
+            table's settings, House Rules and How to Play under More options */}
         <div className="lcSoloBox">
           <button type="button" className="lcBigBtn" onClick={() => startSolo()} data-solo>
             <b>Play the Computer</b>
@@ -302,40 +307,45 @@ const LastCard = ({ mobile = false, onClose }) => {
               {opponents} opponent{opponents === 1 ? "" : "s"} · {s.bots} · {describeRules(s)}
             </small>
           </button>
-          <div className="lcQuick">
-            <span>Opponents</span>
-            <span className="lcStepper">
-              <button type="button" aria-label="Fewer opponents" disabled={opponents <= 1} onClick={() => setSolo({ players: s.players - 1 })}>
-                −
-              </button>
-              <b data-opponents>{opponents}</b>
-              <button type="button" aria-label="More opponents" disabled={opponents >= 9} onClick={() => setSolo({ players: s.players + 1 })}>
-                +
-              </button>
-            </span>
-            <select value={s.bots} onChange={(e) => setSolo({ bots: e.target.value })} aria-label="Difficulty">
-              <option value="easy">Easy</option>
-              <option value="normal">Normal</option>
-              <option value="hard">Hard</option>
-            </select>
-          </div>
-          <div className="lcFaces" aria-hidden="true">
-            {BOT_NAMES.slice(0, opponents).map((name) => (
-              <span key={name} title={`${name}: ${PERSONAS[personaFor(name)].text}`}>
-                {name}
-                <small>{PERSONAS[personaFor(name)].label}</small>
+        </div>
+        <PlayOnlineButton onClick={goOnline} sub="Quick Match, private rooms, 2 to 10 players" className="lcOnlineBtn" data-online />
+        <MoreOptions id="lastcard.options" className="lcMore" summary={summarize(`${opponents} opponent${opponents === 1 ? "" : "s"}`, s.bots[0].toUpperCase() + s.bots.slice(1), describeRules(s))}>
+          <div className="lcSoloBox">
+            <div className="lcQuick">
+              <span>Opponents</span>
+              <span className="lcStepper">
+                <button type="button" aria-label="Fewer opponents" disabled={opponents <= 1} onClick={() => setSolo({ players: s.players - 1 })}>
+                  −
+                </button>
+                <b data-opponents>{opponents}</b>
+                <button type="button" aria-label="More opponents" disabled={opponents >= 9} onClick={() => setSolo({ players: s.players + 1 })}>
+                  +
+                </button>
               </span>
-            ))}
+              <select value={s.bots} onChange={(e) => setSolo({ bots: e.target.value })} aria-label="Difficulty">
+                <option value="easy">Easy</option>
+                <option value="normal">Normal</option>
+                <option value="hard">Hard</option>
+              </select>
+            </div>
+            <div className="lcFaces" aria-hidden="true">
+              {BOT_NAMES.slice(0, opponents).map((name) => (
+                <span key={name} title={`${name}: ${PERSONAS[personaFor(name)].text}`}>
+                  {name}
+                  <small>{PERSONAS[personaFor(name)].label}</small>
+                </span>
+              ))}
+            </div>
           </div>
-        </div>
-        <div className="lcRowBtns">
-          <button type="button" onClick={() => (setRulesDraft(data.solo), setScreen("rules"))} data-rules>
-            House Rules...
-          </button>
-          <button type="button" onClick={() => setDialog("howto")}>
-            How to Play
-          </button>
-        </div>
+          <div className="lcRowBtns">
+            <button type="button" onClick={() => (setRulesDraft(data.solo), setScreen("rules"))} data-rules>
+              House Rules...
+            </button>
+            <button type="button" onClick={() => setDialog("howto")}>
+              How to Play
+            </button>
+          </div>
+        </MoreOptions>
         {data.stats.played > 0 && (
           <p className="lcMuted">
             Won {data.stats.won} of {data.stats.played} games against the computer.

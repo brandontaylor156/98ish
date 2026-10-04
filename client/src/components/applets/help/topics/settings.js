@@ -25,7 +25,7 @@ export const topics = [
           "Open Display Properties (Start > Settings > Display Properties, or right-click the desktop and choose Properties).",
           "On the **Background** tab, pick a wallpaper from the list. The little monitor shows how it will look.",
           "To use one of your own pictures, click **Browse...** and choose a photo.",
-          "Pick **Stretch**, **Center** or **Tile** under Display, then click **OK**.",
+          "Click **OK**. (To change how it's laid out, click **More »** and pick **Stretch**, **Center** or **Tile** under Display.)",
         ],
         title: "To change the wallpaper:",
       },
@@ -54,7 +54,7 @@ export const topics = [
       "Themes include Space, Underwater, Vaporwave, Dinosaurs, Pastel Dream, Kitty Café, Flower Garden, Y2K Sparkle and Starry Night, plus Windows 98ish Standard to go back to the classic look.",
       {
         steps: [
-          "Open Start > Settings > Desktop Themes (or the Themes... button in Display Properties).",
+          "Open Start > Settings > Desktop Themes (or **More » > Themes...** on Display Properties' Background tab).",
           "Pick a theme from the **Theme** list. The preview shows the wallpaper, a window and the icons.",
           "Click **Screen Saver** or **Pointers, Sounds, etc...** to try those parts out.",
           "Untick anything under **Settings** you don't want to change (for example keep your own wallpaper by unticking Desktop wallpaper).",
@@ -78,6 +78,7 @@ export const topics = [
       "The **Control Panel** is a folder with an icon for each kind of setting. Select an icon to read what it does, and open it to change things.",
       { steps: ["Click **Start**, point to **Settings**, then click **Control Panel**.", "Open the icon you want (double-click with a mouse, tap on a phone)."], title: "To open the Control Panel:" },
       "You can also reach it from My Computer, or by typing **control** in Start > Run.",
+      "It opens to the **common settings**: Display, Sounds, Notifications, Accessibility Options, Passwords and Storage. **Show all Control Panel options** (or View > Show All Options) lists every icon below, and the Control Panel remembers your choice.",
       { h: "What's inside" },
       {
         table: {

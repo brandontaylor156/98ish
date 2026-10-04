@@ -24,6 +24,7 @@ import { CROP_ASPECTS, DRIVE_FULL, decodeUpload, editedName, imagesIn, initialCr
 import { adjustFilterCss } from "../camera/effects"
 import "./Photos.css"
 import { helpItem } from "../../../utils/help"
+import { useDisclosure } from "../../../utils/disclosure"
 
 // Photos: the picture viewer. Browse a folder of pictures as thumbnails (C:\My Pictures to
 // start), open one to zoom (buttons, the wheel, or pinch), swipe or arrow between them,
@@ -75,8 +76,8 @@ const Icon = ({ name }) => (
   </svg>
 )
 
-const Tool = ({ icon, label, onClick, disabled, on, title }) => (
-  <button type="button" className={`phTool${on ? " is-on" : ""}`} onClick={onClick} disabled={disabled} title={title || label} aria-label={title || label} aria-pressed={on || undefined}>
+const Tool = ({ icon, label, onClick, disabled, on, title, expanded }) => (
+  <button type="button" className={`phTool${on ? " is-on" : ""}`} onClick={onClick} disabled={disabled} title={title || label} aria-label={expanded === undefined ? title || label : "Edit"} aria-expanded={expanded} aria-pressed={expanded === undefined ? on || undefined : undefined}>
     <Icon name={icon} />
     <span className="phToolLabel">{label}</span>
   </button>
@@ -88,6 +89,7 @@ const Photos = ({ file: initialFile = null, path = null, mobile, dispatch, onTit
   useFsVersion()
   const net = useNet()
   const openGesture = useOpenGesture()
+  const [editOpen, setEditOpen] = useDisclosure("photos.edit", false)
   const [dir, setDir] = useState(() => (initialFile?.parent && onDrive(initialFile) ? initialFile.parent : (path && fs.resolve(path)?.isDirectory && fs.resolve(path)) || picturesFolder()))
   const [current, setCurrent] = useState(initialFile && onDrive(initialFile) && initialFile.isImage ? initialFile : null)
   const [selected, setSelected] = useState(initialFile)
@@ -548,34 +550,44 @@ const Photos = ({ file: initialFile = null, path = null, mobile, dispatch, onTit
   const usage = useDriveUsage()
   const up = folder.parent && folder.parent !== fs.root ? folder.parent : null
 
+  // Baselines (docs/simplicity.md): browsing shows Upload, Slideshow and Camera (Up inside a
+  // folder; Wallpaper and Delete once a picture is picked); a picture shows Back/Next, Share
+  // and Delete, with zoom, rotate, crop, adjust, effects and Undo behind Edit (remembered).
+  const picked = !!selected && !selected.isDirectory
   const browseTools = (
     <>
-      <Tool icon="up" label="Up" onClick={() => up && openFolder(up)} disabled={!up} title="Up one folder" />
+      {up && <Tool icon="up" label="Up" onClick={() => openFolder(up)} title="Up one folder" />}
       <Tool icon="upload" label="Upload" onClick={() => uploadRef.current?.click()} title="Upload pictures from your device" />
       <Tool icon="show" label="Slideshow" onClick={() => setSlideshow(Math.max(0, items.indexOf(selected)))} disabled={!items.length} />
       <Tool icon="camera" label="Camera" onClick={() => dispatch?.({ type: "open_window", payload: launch("Camera") })} />
-      <span className="phSep" />
-      <Tool icon="wallpaper" label="Wallpaper" onClick={setWallpaper} disabled={!selected || selected.isDirectory} title="Set as Wallpaper" />
-      <Tool icon="trash" label="Delete" onClick={askDelete} disabled={!selected || selected.isDirectory} />
+      {picked && <span className="phSep" />}
+      {picked && <Tool icon="wallpaper" label="Wallpaper" onClick={setWallpaper} title="Set as Wallpaper" />}
+      {picked && <Tool icon="trash" label="Delete" onClick={askDelete} />}
     </>
   )
 
+  const editing = editOpen || !!tool || dirty
   const viewTools = (
     <>
       <Tool icon="back" label="Pictures" onClick={() => closePhoto()} title="Back to the thumbnails (Esc)" />
       <Tool icon="prev" label="Back" onClick={() => step(-1)} disabled={items.length < 2 || !!tool} title="Previous picture" />
       <Tool icon="next" label="Next" onClick={() => step(1)} disabled={items.length < 2 || !!tool} title="Next picture" />
       <span className="phSep" />
-      <Tool icon="zoomOut" label="Out" onClick={() => controls.current?.zoomOut()} disabled={!!tool} title="Zoom out" />
-      <Tool icon="fit" label="Fit" onClick={() => controls.current?.fit()} disabled={!!tool} title="Best fit" />
-      <Tool icon="zoomIn" label="In" onClick={() => controls.current?.zoomIn()} disabled={!!tool} title="Zoom in" />
-      <span className="phSep" />
-      <Tool icon="rotL" label="Left" onClick={() => rotateBy(3)} disabled={!!tool || !!busy} title="Rotate left" />
-      <Tool icon="rotR" label="Right" onClick={() => rotateBy(1)} disabled={!!tool || !!busy} title="Rotate right" />
-      <Tool icon="crop" label="Crop" onClick={() => startTool("crop")} on={tool === "crop"} disabled={!!busy} />
-      <Tool icon="adjust" label="Adjust" onClick={() => startTool("adjust")} on={tool === "adjust"} disabled={!!busy} title="Brightness and contrast" />
-      <Tool icon="effects" label="Effects" onClick={() => startTool("effects")} on={tool === "effects"} disabled={!!busy} title="Effects and frames" />
-      <Tool icon="undo" label="Undo" onClick={undoLast} disabled={!undo.length || !!tool} />
+      <Tool icon="adjust" label={editing ? "Edit «" : "Edit »"} onClick={() => setEditOpen(!editOpen)} on={editOpen} disabled={!!tool || dirty} title={editing ? "Hide the editing tools" : "Zoom, rotate, crop, adjust, effects"} expanded={editing} />
+      {editing && (
+        <>
+          <Tool icon="zoomOut" label="Out" onClick={() => controls.current?.zoomOut()} disabled={!!tool} title="Zoom out" />
+          <Tool icon="fit" label="Fit" onClick={() => controls.current?.fit()} disabled={!!tool} title="Best fit" />
+          <Tool icon="zoomIn" label="In" onClick={() => controls.current?.zoomIn()} disabled={!!tool} title="Zoom in" />
+          <span className="phSep" />
+          <Tool icon="rotL" label="Left" onClick={() => rotateBy(3)} disabled={!!tool || !!busy} title="Rotate left" />
+          <Tool icon="rotR" label="Right" onClick={() => rotateBy(1)} disabled={!!tool || !!busy} title="Rotate right" />
+          <Tool icon="crop" label="Crop" onClick={() => startTool("crop")} on={tool === "crop"} disabled={!!busy} />
+          <Tool icon="adjust" label="Adjust" onClick={() => startTool("adjust")} on={tool === "adjust"} disabled={!!busy} title="Brightness and contrast" />
+          <Tool icon="effects" label="Effects" onClick={() => startTool("effects")} on={tool === "effects"} disabled={!!busy} title="Effects and frames" />
+          <Tool icon="undo" label="Undo" onClick={undoLast} disabled={!undo.length || !!tool} />
+        </>
+      )}
       {dirty && <Tool icon="save" label="Save" onClick={save} disabled={!!tool} title="Save (Ctrl+S)" />}
       <span className="phSep" />
       <Tool icon="show" label="Slideshow" onClick={() => askSave(() => setSlideshow(Math.max(0, index)))} />

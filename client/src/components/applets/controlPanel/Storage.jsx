@@ -7,6 +7,7 @@ import { launch } from "../../../utils/programs"
 import { currentUserId, keysOf, rawGet } from "../../../utils/users"
 import { PropSheet, bytesText } from "./Sheet"
 import KeepSafe, { useKeepSafe } from "../../shared/KeepSafe"
+import MoreOptions from "../../shared/MoreOptions"
 import { getSyncFolders, statusText, useDriveSync } from "../../../utils/driveSync"
 import { isIos, isStandalone } from "../../../utils/push"
 
@@ -153,11 +154,6 @@ const Storage = ({ dispatch, onClose }) => {
             </table>
           </div>
         )}
-        {details.length > 0 && (
-          <p className="cplHint">
-            {details.map(([k, v]) => `${NAMES[k] || k}: ${bytesText(v)}`).join(" · ")}
-          </p>
-        )}
         <p data-storage="persist">
           {persisted === true && "Kept: the browser won't clear 98ish's files when the device runs low on space."}
           {persisted === false && "Not kept yet: if the device runs low on space, the browser may clear 98ish's files."}
@@ -187,25 +183,33 @@ const Storage = ({ dispatch, onClose }) => {
           </p>
         )}
       </fieldset>
-      <fieldset>
-        <legend>What uses it (local storage)</legend>
-        <table className="cplTable">
-          <tbody>
-            {parts.mine.map(([label, size]) => (
-              <tr key={label}>
-                <td>{label}</td>
-                <td className="cplNum">{bytesText(size)}</td>
-              </tr>
-            ))}
-            {parts.others > 0 && (
-              <tr>
-                <td>Other people on this computer</td>
-                <td className="cplNum">{bytesText(parts.others)}</td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </fieldset>
+      {/* the breakdown: one tap further (docs/simplicity.md) */}
+      <MoreOptions id="storage.details" label="What uses it" lessLabel="Hide details" summary={details.length ? details.map(([k, v]) => `${NAMES[k] || k}: ${bytesText(v)}`).join(" · ") : "Desktop, settings, programs"}>
+        {details.length > 0 && (
+          <p className="cplHint">
+            {details.map(([k, v]) => `${NAMES[k] || k}: ${bytesText(v)}`).join(" · ")}
+          </p>
+        )}
+        <fieldset>
+          <legend>What uses it (local storage)</legend>
+          <table className="cplTable">
+            <tbody>
+              {parts.mine.map(([label, size]) => (
+                <tr key={label}>
+                  <td>{label}</td>
+                  <td className="cplNum">{bytesText(size)}</td>
+                </tr>
+              ))}
+              {parts.others > 0 && (
+                <tr>
+                  <td>Other people on this computer</td>
+                  <td className="cplNum">{bytesText(parts.others)}</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </fieldset>
+      </MoreOptions>
       <fieldset>
         <legend>Recycle Bin</legend>
         <div className="cplRow">

@@ -2,6 +2,8 @@ import React, { useEffect, useRef, useState } from "react"
 import MenuBar from "../../shared/MenuBar"
 import KeepSafe from "../../shared/KeepSafe"
 import Dialog from "../../shared/Dialog"
+import MoreOptions from "../../shared/MoreOptions"
+import { summarize } from "../../../utils/disclosure"
 import { useFsVersion } from "../../../hooks/useFs"
 import { photosWindow } from "../../../utils/programs"
 import { downloadBlob } from "../../../utils/fileTransfer"
@@ -717,29 +719,44 @@ const Camera = ({ mobile, dispatch, onTitle, paused = false }) => {
           </div>
         )}
       </div>
-      <div className="camModes" role="tablist" aria-label="Mode">
-        {MODES.map((m) => (
-          <button
-            key={m.id}
-            type="button"
-            role="tab"
-            aria-selected={prefs.mode === m.id}
-            className={prefs.mode === m.id ? "is-on" : ""}
-            disabled={!!busy || (m.id === "video" && !canRecord)}
-            title={m.id === "video" && !canRecord ? "This browser can't record video" : m.label}
-            onClick={() => setPrefs({ mode: m.id })}
-          >
-            {m.label}
+      {/* the baseline is the shutter and the flip; modes, the timer and effects wait under
+          More options (docs/simplicity.md), with what's chosen in its summary */}
+      <MoreOptions
+        id="camera.more"
+        className="camMore"
+        inline
+        summary={summarize(MODES.find((m) => m.id === prefs.mode)?.label, `Timer ${prefs.timer ? `${prefs.timer}s` : "off"}`, effectLabel(prefs.effect), prefs.frame !== "none" && frameLabel(prefs.frame))}
+      >
+        <div className="camModes" role="tablist" aria-label="Mode">
+          {MODES.map((m) => (
+            <button
+              key={m.id}
+              type="button"
+              role="tab"
+              aria-selected={prefs.mode === m.id}
+              className={prefs.mode === m.id ? "is-on" : ""}
+              disabled={!!busy || (m.id === "video" && !canRecord)}
+              title={m.id === "video" && !canRecord ? "This browser can't record video" : m.label}
+              onClick={() => setPrefs({ mode: m.id })}
+            >
+              {m.label}
+            </button>
+          ))}
+        </div>
+        <div className="camMoreRow">
+          <button type="button" className="camSide" onClick={() => setPrefs({ timer: nextTimer(prefs.timer) })} disabled={!!busy || prefs.mode === "strip"} title="Self-timer" aria-label={`Timer: ${prefs.timer ? `${prefs.timer} seconds` : "off"}`}>
+            <TimerIcon />
+            <span>{prefs.timer ? `${prefs.timer}s` : "Off"}</span>
           </button>
-        ))}
-      </div>
+          <button type="button" className={`camSide${panel ? " is-on" : ""}`} onClick={() => setPanel(!panel)} title="Effects and frames" aria-label="Effects and frames" aria-pressed={panel}>
+            <EffectsIcon />
+            <span>Effects</span>
+          </button>
+        </div>
+      </MoreOptions>
       <div className="camControls">
         <button type="button" className="camThumb" onClick={() => openPhotos(last)} title={last ? `Open ${last.name} in Photos` : "Open My Pictures"} aria-label={last ? `Open ${last.name} in Photos` : "Open My Pictures"}>
           {previewOf(last) ? <img src={previewOf(last)} alt="" /> : <span className="camThumbEmpty" />}
-        </button>
-        <button type="button" className="camSide" onClick={() => setPrefs({ timer: nextTimer(prefs.timer) })} disabled={!!busy || prefs.mode === "strip"} title="Self-timer" aria-label={`Timer: ${prefs.timer ? `${prefs.timer} seconds` : "off"}`}>
-          <TimerIcon />
-          <span>{prefs.timer ? `${prefs.timer}s` : "Off"}</span>
         </button>
         <button
           type="button"
@@ -755,10 +772,6 @@ const Camera = ({ mobile, dispatch, onTitle, paused = false }) => {
         <button type="button" className="camSide" onClick={switchCamera} disabled={!!busy || (cameras > 0 && cameras < 2 && !mobile)} title="Switch camera" aria-label="Switch camera">
           <SwitchIcon />
           <span>{prefs.facing === "user" ? "Front" : "Back"}</span>
-        </button>
-        <button type="button" className={`camSide${panel ? " is-on" : ""}`} onClick={() => setPanel(!panel)} title="Effects and frames" aria-label="Effects and frames" aria-pressed={panel}>
-          <EffectsIcon />
-          <span>Effects</span>
         </button>
       </div>
       {last && <KeepSafe place="camera" className="camKeepSafe" />}

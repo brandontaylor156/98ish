@@ -1,6 +1,6 @@
 import { useTouchControlsMenuItem, useTouchControlsVisible } from '../../../shared/controls'
 import { useGameChatMenuItem } from '../../../shared/GameChat'
-import PlayOnlineButton from '../../../shared/online/PlayOnlineButton'
+import GameStart from '../../../shared/GameStart'
 import { MODES, SOLO_MODES, formatBest, formatTime } from '../utils/modes'
 
 // One tetromino color per letter
@@ -47,56 +47,62 @@ const Result = ({ result }) => {
     )
 }
 
-// Title screen with the mode select, or the last game's summary when a result is passed
+// Title screen: a big Play (Marathon, or the mode just played) and Play Online, with the other
+// solo modes and the options tucked away (shared/GameStart, docs/simplicity.md). Shows the
+// last game's summary when a result is passed.
 const Menu = ({ onPlay, onCustomize, onOnline, bests, result }) => {
     const touchControls = useTouchControlsMenuItem()
     const showControls = useTouchControlsVisible()
     const chat = useGameChatMenuItem('tetris')
     const again = result?.mode
+    const main = again || "marathon"
     return (
         <div className="tetrisMenu">
-            <div className="tetrisTitle">
-                {"TETRIS".split("").map((letter, i) => (
-                    <span key={i} className={`tetrisTitleLetter tetromino${TITLE_COLORS[i]}`}>{letter}</span>
-                ))}
-            </div>
-
-            {result && <Result result={result} />}
-
-            <fieldset className="tetrisModes tetrisModes--online">
-                <legend>Multiplayer</legend>
-                <PlayOnlineButton className="tetrisModeButton tetrisOnlineButton" onClick={onOnline} label="Play Tetris Online" sub="Battle 2P, Arena, Sprint Race against people anywhere" />
-            </fieldset>
-
-            <fieldset className="tetrisModes">
-                <legend>Solo</legend>
-                {SOLO_MODES.map((mode) => (
-                    <button
-                        key={mode}
-                        type="button"
-                        className={mode === "marathon" ? "tetrisModeButton tetrisStartButton" : "tetrisModeButton"}
-                        data-mode={mode}
-                        title={MODES[mode].blurb}
-                        onClick={() => onPlay(mode)}
-                        autoFocus={again ? again === mode : mode === "marathon"}
-                    >
-                        <span className="tetrisModeName">{again === mode ? `${MODES[mode].name} again` : MODES[mode].name}</span>
-                        <span className="tetrisModeBest">Best: {formatBest(mode, bests[mode])}</span>
-                    </button>
-                ))}
-            </fieldset>
-
-            <div className="tetrisMenuControls">
-                <span>
-                    <input id="tetris-touch-controls" type="checkbox" checked={touchControls.checked} onChange={touchControls.onClick} />
-                    <label htmlFor="tetris-touch-controls">On-screen controls</label>
-                </span>
-                {showControls && <button type="button" onClick={onCustomize}>Customize controls...</button>}
-                <span>
-                    <input id="tetris-game-chat" type="checkbox" checked={chat.checked} onChange={chat.onClick} />
-                    <label htmlFor="tetris-game-chat">Game chat</label>
-                </span>
-            </div>
+            <GameStart
+                id="tetris"
+                title={
+                    <div className="tetrisTitle">
+                        {"TETRIS".split("").map((letter, i) => (
+                            <span key={i} className={`tetrisTitleLetter tetromino${TITLE_COLORS[i]}`}>{letter}</span>
+                        ))}
+                    </div>
+                }
+                play={{
+                    label: again ? `${MODES[main].name} again` : "Play",
+                    sub: `${MODES[main].name} · Best: ${formatBest(main, bests[main])}`,
+                    title: MODES[main].blurb,
+                    className: "gameStart-play tetrisStartButton",
+                    "data-mode": main,
+                    autoFocus: true,
+                    onClick: () => onPlay(main),
+                }}
+                online={{ onClick: onOnline, label: "Play Tetris Online", sub: "Battle 2P, Arena, Sprint Race against people anywhere", className: "tetrisOnlineButton" }}
+                modes={SOLO_MODES.filter((mode) => mode !== main).map((mode) => ({
+                    key: mode,
+                    label: MODES[mode].name,
+                    sub: `Best: ${formatBest(mode, bests[mode])}`,
+                    title: MODES[mode].blurb,
+                    className: "gameStart-mode tetrisModeButton",
+                    "data-mode": mode,
+                    onClick: () => onPlay(mode),
+                }))}
+                optionsSummary={`On-screen controls ${touchControls.checked ? "on" : "off"} · Game chat ${chat.checked ? "on" : "off"}`}
+                options={
+                    <div className="tetrisMenuControls">
+                        <span>
+                            <input id="tetris-touch-controls" type="checkbox" checked={touchControls.checked} onChange={touchControls.onClick} />
+                            <label htmlFor="tetris-touch-controls">On-screen controls</label>
+                        </span>
+                        {showControls && <button type="button" onClick={onCustomize}>Customize controls...</button>}
+                        <span>
+                            <input id="tetris-game-chat" type="checkbox" checked={chat.checked} onChange={chat.onClick} />
+                            <label htmlFor="tetris-game-chat">Game chat</label>
+                        </span>
+                    </div>
+                }
+            >
+                {result && <Result result={result} />}
+            </GameStart>
         </div>
     )
 }

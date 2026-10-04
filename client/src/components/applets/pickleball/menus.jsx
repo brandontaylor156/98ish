@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react"
 import { PlayOnlineButton } from "../../shared/online"
+import MoreOptions from "../../shared/MoreOptions"
 import { CHARACTERS, OUTFITS, characterById } from "./looks.js"
 import { STYLES, LEVELS } from "./ai.js"
 import { VENUE_INFO as VENUES } from "./looks.js"
@@ -70,24 +71,28 @@ export const TitleMenu = ({ onPick, onOnline, tour, showPad }) => {
         <span className="pkLogo98">98</span>
         <small>WORLD TOUR EDITION</small>
       </div>
+      {/* the shared launcher pattern (docs/simplicity.md): Play (Quick Match), Play Online,
+          then the other modes under More modes; the small row stays */}
       <div className="pkMainMenu">
-        <PlayOnlineButton onClick={onOnline} className="pkOnlineBig" sub="Quick Match, rooms with a code, invites" />
         <button type="button" className="pkBig" data-menu="quick" onClick={() => onPick("quick")} autoFocus>
           <b>Quick Match</b>
           <small>Singles or doubles against the computer</small>
         </button>
-        <button type="button" className="pkBig" data-menu="tour" onClick={() => onPick("tour")}>
-          <b>World Tour</b>
-          <small>{next ? `Next: ${next.title}` : "You're the champion!"}</small>
-        </button>
-        <button type="button" className="pkBig" data-menu="practice" onClick={() => onPick("practice")}>
-          <b>Practice &amp; Tutorial</b>
-          <small>Learn the controls, drill your shots</small>
-        </button>
-        <button type="button" className="pkBig" data-menu="versus" onClick={() => onPick("versus")}>
-          <b>2 Players</b>
-          <small>{showPad ? "Head to head on one screen (keyboard or gamepads)" : "Head to head on one keyboard or two gamepads"}</small>
-        </button>
+        <PlayOnlineButton onClick={onOnline} className="pkOnlineBig" sub="Quick Match, rooms with a code, invites" />
+        <MoreOptions id="pickleball.modes" label="More modes" lessLabel="Fewer modes" className="pkMore" summary="World Tour · Practice & Tutorial · 2 Players">
+          <button type="button" className="pkBig" data-menu="tour" onClick={() => onPick("tour")}>
+            <b>World Tour</b>
+            <small>{next ? `Next: ${next.title}` : "You're the champion!"}</small>
+          </button>
+          <button type="button" className="pkBig" data-menu="practice" onClick={() => onPick("practice")}>
+            <b>Practice &amp; Tutorial</b>
+            <small>Learn the controls, drill your shots</small>
+          </button>
+          <button type="button" className="pkBig" data-menu="versus" onClick={() => onPick("versus")}>
+            <b>2 Players</b>
+            <small>{showPad ? "Head to head on one screen (keyboard or gamepads)" : "Head to head on one keyboard or two gamepads"}</small>
+          </button>
+        </MoreOptions>
         <div className="pkSmallRow">
           <button type="button" onClick={() => onPick("players")}>
             Players
