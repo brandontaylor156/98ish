@@ -946,6 +946,11 @@ const Pickleball = ({ onClose, mobile }) => {
             system assets, CC0 public domain. Older character models and motion clips: Universal Base Characters and Universal
             Animation Library by Quaternius (quaternius.com), CC0 public domain. Clothes, shoes, hats, paddles and swings are
             made in the game.
+            <br />
+            <br />
+            Footwork and gestures are motion capture: the 100STYLE dataset by Ian Mason, Sebastian Starke and Taku Komura
+            (zenodo.org/records/8127870, CC BY 4.0; retargeted and trimmed) and the CMU Graphics Lab Motion Capture Database
+            (mocap.cs.cmu.edu; the database was created with funding from NSF EIA-0196217).
           </p>
         </Dialog>
       )}

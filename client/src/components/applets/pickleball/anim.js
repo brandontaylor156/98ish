@@ -4,6 +4,12 @@
 // draws. Node tests check that feet stay planted, legs and arms keep their lengths, and the
 // paddle meets the ball.
 //
+// - Motion matching (mm/, the skinned athletes on Medium/High once the database is in): the
+//   legs, hips and trunk are real motion capture (100STYLE, CMU) that follows the game's
+//   movement: mm/drive.js runs the controller, pins the feet, solves the legs; this file then
+//   layers the strokes, the ready position, moods and between-point acts (between.js) on top,
+//   exactly as below. The captured arms swing on runs and hang between points. Without the
+//   database (Low quality, loading, failure) everything below is procedural.
 // - Feet: locomotion.js (a blend space of walk / run / sprint / shuffle / backpedal, a step
 //   clock calibrated so stride x cadence = speed, feet locked to the court in stance, swing
 //   paths from motion capture), and which way to face (turn and run, or shuffle facing the
