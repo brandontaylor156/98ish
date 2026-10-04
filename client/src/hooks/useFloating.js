@@ -12,10 +12,14 @@ import { playSystemSound } from "../utils/systemSounds"
 // (its transform makes it the containing block), which also lets it escape every
 // overflow clip in the window; we measure that origin rather than assume it.
 //
-// Dragging (mouse, finger or pen): the popup follows the pointer through a CSS `translate`
-// written once per animation frame (no layout per move), and the move is committed to
-// left/top when the press ends, is cancelled (iOS taking the gesture over) or loses its
-// capture, so a drag can never be left hanging. The grab point stays under the finger.
+// Dragging (mouse, finger or pen): the popup follows the pointer through left/top, written
+// once per animation frame from an origin measured when the press starts (a move reads no
+// layout; browsers lay out a positioned box's move by itself). The box is always where
+// left/top put it, so letting go changes nothing: no translate to commit and nothing to
+// measure again (the old translate-then-commit release left the box somewhere other than
+// where it was drawn on iPhones).
+// The drag ends when the press ends, is cancelled (iOS taking the gesture over) or loses
+// its capture, so it can never be left hanging. The grab point stays under the finger.
 // On touch screens the title bar takes the whole gesture (no scrolling, zooming, text
 // callout or long-press menu), a second finger can't take the drag over, and a press on
 // the title bar doesn't put focus in a text field (that would raise the keyboard).
@@ -64,6 +68,43 @@ const screenArea = () => {
 
 const between = (value, low, high) => Math.max(low, Math.min(value, high))
 
+// For checking drags on a real phone: open 98ish with ?dragdebug=1 (remembered on that
+// browser; ?dragdebug=0 turns it off) and a few lines at the top of the screen tell where
+// each popup was drawn just before the finger lifted, right after, and 300 ms later, and
+// anything else that moved it
+const DEBUG_KEY = "98ish.dragDebug"
+let debugLines = null
+try {
+  const q = new URLSearchParams(location.search).get("dragdebug")
+  if (q === "0") localStorage.removeItem(DEBUG_KEY)
+  else if (q !== null) localStorage.setItem(DEBUG_KEY, "1")
+  if (localStorage.getItem(DEBUG_KEY)) debugLines = []
+} catch {
+  // no window (unit tests) or no storage
+}
+const corner = (el) => {
+  const r = el.getBoundingClientRect()
+  return `${r.left.toFixed(1)},${r.top.toFixed(1)}`
+}
+const debugLog = (line) => {
+  debugLines.push(line)
+  if (debugLines.length > 12) debugLines.shift()
+  let pre = document.getElementById("dragDebug")
+  if (!pre) {
+    pre = document.createElement("pre")
+    pre.id = "dragDebug"
+    pre.style.cssText = "position:fixed;left:0;right:0;top:env(safe-area-inset-top);z-index:2147483647;margin:0;padding:2px 4px;font:10px/1.3 monospace;background:#ffffe1e8;color:#000;pointer-events:none;white-space:pre-wrap"
+    document.body.appendChild(pre)
+  }
+  pre.textContent = debugLines.join("\n")
+}
+// a drag that just ended: drawn before the release, right after, then 300 ms later
+const debugEnd = (el, before, how) => {
+  const vv = window.visualViewport
+  const now = corner(el)
+  setTimeout(() => debugLog(`${how}: ${before} -> ${now} -> ${corner(el)} (vv ${vv ? `${vv.offsetLeft.toFixed(0)},${vv.offsetTop.toFixed(0)} x${vv.scale.toFixed(2)} h${vv.height.toFixed(0)}` : "-"} ih${innerHeight})`), 300)
+}
+
 // Title bar flash (and the default beep) when the window a modal dialog blocks is clicked.
 // focus: put the keyboard back in the popup (not after a finger's tap: on a phone that
 // would raise the on-screen keyboard)
@@ -108,7 +149,7 @@ const FOCUSABLE = "input:not(:disabled):not([type=hidden]), select:not(:disabled
 // as activating a dialog does in Windows (off for toolbars such as Paint's Fonts).
 export const attachFloating = (el, { center = false, takeFocus = true } = {}) => {
   let pos = null // the box's top-left corner on screen
-  let drag = null // { id, dx, dy, bar, base: where left/top put the box, touch }
+  let drag = null // { id, dx, dy, bar, touch, fit: the screen and box sizes for clamp }
   let frame = 0
   let lastFocus = null
   const mobile = () => !!el.closest(".os-mobile")
@@ -126,41 +167,54 @@ export const attachFloating = (el, { center = false, takeFocus = true } = {}) =>
   const onFocus = (e) => (lastFocus = e.target)
   el._floating = { activate }
 
-  // write left/top so the box lands at pos, whatever its containing block is (and drop
-  // any drag translate first, so it isn't counted twice)
+  // where left/top 0 put the box's corner on screen (its containing block's corner),
+  // measured from the box as it is drawn now; returns that box (null while it's hidden)
+  let origin = { x: 0, y: 0 }
+  const measure = () => {
+    const r = el.getBoundingClientRect()
+    if (!r.width && !r.height) return null // hidden with its (minimized) window
+    origin = { x: r.left - (parseFloat(el.style.left) || 0), y: r.top - (parseFloat(el.style.top) || 0) }
+    return r
+  }
+  // left/top for pos from the last measured origin, on whole device pixels (crisp edges)
+  const write = () => {
+    const dpr = window.devicePixelRatio || 1
+    el.style.left = `${Math.round((pos.x - origin.x) * dpr) / dpr}px`
+    el.style.top = `${Math.round((pos.y - origin.y) * dpr) / dpr}px`
+  }
+
+  // put the box at pos, whatever its containing block is (measured again: the window may
+  // have moved). A translate left by older code or a keyboard lift is dropped first.
   const place = () => {
     cancelAnimationFrame(frame)
     frame = 0
-    el.style.translate = ""
-    const r = el.getBoundingClientRect()
-    if (!r.width && !r.height) return // hidden with its (minimized) window
-    const ox = r.left - (parseFloat(el.style.left) || 0)
-    const oy = r.top - (parseFloat(el.style.top) || 0)
-    el.style.left = `${Math.round(pos.x - ox)}px`
-    el.style.top = `${Math.round(pos.y - oy)}px`
-    if (drag) drag.base = { ...pos }
+    if (el.style.translate) el.style.translate = ""
+    if (measure()) write()
   }
 
-  // during a drag: move the drawn box to pos (once per frame, compositor only)
-  const show = () => {
+  // during a drag: move the box to pos, once per frame. Only left/top change (the origin
+  // was measured when the drag started), which browsers lay out as a move of this one box.
+  const show = (last = false) => {
+    cancelAnimationFrame(frame)
     frame = 0
-    if (drag) el.style.translate = `${pos.x - drag.base.x}px ${pos.y - drag.base.y}px`
+    if (drag || last) write()
   }
+
+  // what clamp needs to know about the screen and the box (fixed for the whole of a drag,
+  // so a move reads no layout)
+  const fit = () => ({ area: screenArea(), w: el.offsetWidth, h: el.offsetHeight, bar: el.querySelector(":scope > .title-bar")?.offsetHeight || 20 })
 
   // whole: keep the whole box on screen (on opening, always on phones, and above the
   // 98ish keyboard); otherwise just enough of the title bar to grab it again, never under
   // the taskbar
-  const clamp = (p, whole) => {
-    const { left, right, top, bottom, keyboard } = screenArea()
-    const w = el.offsetWidth
-    const h = el.offsetHeight
+  const clamp = (p, whole, { area, w, h, bar } = fit()) => {
+    const { left, right, top, bottom, keyboard } = area
     if (whole || keyboard || mobile()) {
       return {
         x: between(p.x, left, Math.max(left, right - w)),
         y: between(p.y, top, Math.max(top, bottom - h)),
       }
     }
-    const bar = el.querySelector(":scope > .title-bar")?.offsetHeight || 20
     return {
       x: between(p.x, Math.min(left, left + KEEP - w), Math.max(left, right - KEEP)),
       y: between(p.y, top, Math.max(top, bottom - bar)),
@@ -189,11 +243,14 @@ export const attachFloating = (el, { center = false, takeFocus = true } = {}) =>
     return bar && bar.parentElement === el && !target.closest(".title-bar-controls, button, input, select, textarea, a") ? bar : null
   }
 
-  // the drag ends where it is: commit the translate to left/top
-  const end = () => {
+  // the drag ends where it is: the box already sits there by left/top, so nothing is
+  // measured or moved again (only a move that came after the last frame is drawn now)
+  const end = (how) => {
     if (!drag) return
+    const before = debugLines && corner(el)
     drag = null
-    place()
+    if (frame) show(true)
+    if (debugLines) debugEnd(el, before, how)
   }
 
   const onDown = (e) => {
@@ -203,7 +260,7 @@ export const attachFloating = (el, { center = false, takeFocus = true } = {}) =>
     if (drag) {
       // a second finger on the title bar doesn't take the drag over (or make it jump)
       if (drag.touch && drag.bar.isConnected && drag.bar.hasPointerCapture?.(drag.id)) return void e.preventDefault()
-      end()
+      end("new press")
     }
     if (!pos && !init()) return
     e.preventDefault() // no text selection (and no mousedown for the window to drag on)
@@ -214,16 +271,22 @@ export const attachFloating = (el, { center = false, takeFocus = true } = {}) =>
     }
     // a finger's press doesn't focus a text field: on a phone that raises the keyboard
     if (e.pointerType === "mouse") setTimeout(activate) // after the press has moved focus
-    drag = { id: e.pointerId, dx: e.clientX - pos.x, dy: e.clientY - pos.y, bar, base: { ...pos }, touch: e.pointerType !== "mouse" }
+    // start from the box as it is drawn now (and where its containing block is), not from
+    // where it was last put, so nothing that moved it since can make it jump
+    cancelAnimationFrame(frame)
+    frame = 0
+    const r = measure()
+    if (r) pos = { x: r.left, y: r.top }
+    drag = { id: e.pointerId, dx: e.clientX - pos.x, dy: e.clientY - pos.y, bar, touch: e.pointerType !== "mouse", fit: fit() }
   }
   const onMove = (e) => {
     if (!drag || e.pointerId !== drag.id) return
-    pos = clamp({ x: e.clientX - drag.dx, y: e.clientY - drag.dy }, false)
-    if (!frame) frame = requestAnimationFrame(show)
+    pos = clamp({ x: e.clientX - drag.dx, y: e.clientY - drag.dy }, false, drag.fit)
+    if (!frame) frame = requestAnimationFrame(() => show())
   }
   // up, cancel (iOS deciding the gesture is its own), or the capture lost: end in place
   const onUp = (e) => {
-    if (drag && e.pointerId === drag.id) end()
+    if (drag && e.pointerId === drag.id) end(e.type)
   }
   // the window's own Rnd drags by any .title-bar inside it: keep it off this one
   const shield = (e) => {
@@ -259,9 +322,11 @@ export const attachFloating = (el, { center = false, takeFocus = true } = {}) =>
 
   // opened while its window was minimized, grew, the screen changed size, or the 98ish
   // keyboard came up (html.kb-open, --kb-h)
-  const refit = () => {
+  const refit = (why) => {
+    if (debugLines && pos) debugLog(`refit (${why?.type || (Array.isArray(why) ? "observer" : "?")}${drag ? ", dragging" : ""}) at ${corner(el)}`)
     if (!pos) return void init()
-    pos = clamp(pos, false)
+    if (drag) drag.fit = fit()
+    pos = clamp(pos, false, drag?.fit)
     place()
   }
   const resized = new ResizeObserver(refit)
