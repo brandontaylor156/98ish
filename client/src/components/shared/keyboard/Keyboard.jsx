@@ -450,7 +450,10 @@ const Keyboard = () => {
   const release = (p, commit) => {
     stopTimers(p)
     pointers.current.delete(p.pointerId)
+    // with no finger left on the keyboard nothing can look pressed: this also clears a key
+    // whose release went missing (the keys were redrawn mid-press: Shift, auto-capitals)
     setDown((d) => {
+      if (!pointers.current.size) return {}
       const next = { ...d }
       delete next[p.id]
       return next
@@ -623,6 +626,27 @@ const Keyboard = () => {
     if (p) release(p, false)
   }
 
+  // the capture can be lost when keys are redrawn under a finger: that press is over (its
+  // pointerup may never reach us), so don't leave the key looking held down
+  const onLostCapture = (e) => {
+    const p = pointers.current.get(e.pointerId)
+    if (p) release(p, false)
+  }
+
+  // and a finger lifted anywhere on the page ends its press too
+  useEffect(() => {
+    const end = (e) => {
+      const p = pointers.current.get(e.pointerId)
+      if (p) release(p, e.type === "pointerup")
+    }
+    window.addEventListener("pointerup", end, true)
+    window.addEventListener("pointercancel", end, true)
+    return () => {
+      window.removeEventListener("pointerup", end, true)
+      window.removeEventListener("pointercancel", end, true)
+    }
+  })
+
   // a screen reader's activation (a click with no pointer before it)
   const onKeyClick = (e) => {
     if (e.detail !== 0) return
@@ -765,6 +789,7 @@ const Keyboard = () => {
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerCancel}
+      onLostPointerCapture={onLostCapture}
       onMouseDown={(e) => e.preventDefault()}
       onContextMenu={(e) => e.preventDefault()}
     >
