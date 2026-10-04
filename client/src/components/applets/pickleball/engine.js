@@ -20,6 +20,9 @@ import { characterLook, validateLook } from "./locker.js"
 import { actionFor, bindingsFor, padEdges, readPad, stickAim } from "./input.js"
 import { createGuest, createHost, onlineRoster } from "./netplay.js"
 import { reducedMotion } from "../../../utils/settings"
+import { createFrameClock } from "../../../utils/frameClock.js"
+import { createResolution } from "../../../utils/dynamicResolution.js"
+import { releaseGpu } from "../../../utils/webglLoss.js"
 
 const BALL_SCALE = 1.5 // drawn a little bigger than life so it reads on a phone
 const TRAIL_N = 18
@@ -47,10 +50,24 @@ const blobTexture = () =>
     ctx.fillRect(0, 0, w, w)
   })
 
+// darker and tighter than the blob: the shadow right where the feet meet the court
+const contactTexture = () =>
+  canvasTexture(128, 128, (ctx, w) => {
+    const g = ctx.createRadialGradient(w / 2, w / 2, 0, w / 2, w / 2, w / 2)
+    g.addColorStop(0, "rgba(0,0,0,0.8)")
+    g.addColorStop(0.35, "rgba(0,0,0,0.5)")
+    g.addColorStop(1, "rgba(0,0,0,0)")
+    ctx.fillStyle = g
+    ctx.fillRect(0, 0, w, w)
+  })
+
 export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, settings: initial = {} }) => {
   const dpr = window.devicePixelRatio || 1
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: dpr < 2, powerPreference: "high-performance", stencil: false })
+  // (anti-aliased on every screen: phones too, at the quality's pixel ratio, 1.5 on Medium)
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance", stencil: false })
   renderer.outputColorSpace = THREE.SRGBColorSpace
+  // (reading every program's info log makes each compile wait for the GPU driver: dev only)
+  renderer.debug.checkShaderErrors = !!import.meta.env.DEV
   renderer.toneMapping = THREE.ACESFilmicToneMapping
   renderer.shadowMap.type = THREE.PCFShadowMap
   let settings = { sound: true, voice: true, camera: "broadcast", aid: true, assist: "light", quality: "medium", cuts: true, keys: {}, window: 0.06, focus: "auto", ...initial }
@@ -58,13 +75,19 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
   let maxRatio = Math.min(dpr, QUALITY[settings.quality]?.ratio || 1.5)
   let pixelRatio = maxRatio
   renderer.setPixelRatio(pixelRatio)
+  // dynamic resolution: from the quality's ratio down to 1.0 while frames run slow
+  const resolution = createResolution({ max: maxRatio, min: Math.min(1, maxRatio) })
   renderer.shadowMap.enabled = !!QUALITY[settings.quality]?.shadows
 
   const scene = new THREE.Scene()
   const camera = new THREE.PerspectiveCamera(46, 1, 0.1, 420)
   camera.position.set(0, 6, HALF_L + 8)
   const camLook = new THREE.Vector3(0, 0.6, -2)
-  const tex = { blob: blobTexture() }
+  const tex = { blob: blobTexture(), contact: contactTexture() }
+  // contact shadows: one shared quad shape and material for every player
+  const contactGeo = new THREE.PlaneGeometry(0.75, 0.75)
+  contactGeo.rotateX(-Math.PI / 2)
+  const contactMat = new THREE.MeshBasicMaterial({ map: tex.contact, transparent: true, depthWrite: false, opacity: 0.7 })
 
   // ---------- the venue ----------
   let venueId = "park"
@@ -76,10 +99,14 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
     venue.dispose()
     venueId = next
     venue = buildVenue(scene, { venue: venueId, quality: settings.quality })
+    venue.setScreenCompact?.(portraitScreen())
     renderer.toneMappingExposure = venue.def.exposure
     audio.setCrowd(settings.sound ? venue.def.crowd : 0)
     placeUmpire()
+    warm()
   }
+  // a phone held upright: the score panel covers the big screen (venue.js shows a logo then)
+  const portraitScreen = () => size.height > size.width * 1.05
 
   // ---------- the ball, its shadow, its trail, the markers ----------
   const ballTex = canvasTexture(128, 64, (ctx, w, h) => {
@@ -236,7 +263,8 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
   let status = "title" // title | playing | paused | over | showcase
   let size = { width: 0, height: 0 }
   let raf = 0
-  let last = 0
+  const clock = createFrameClock() // real time between frames (see utils/frameClock.js)
+  let inFrame = false
   let disposed = false
   let studioHold = false // (dev: a studio still is on screen)
   let hudKey = ""
@@ -303,6 +331,7 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
       showcaseFig.fig.group.visible = visible
       scene.add(showcaseFig.fig.group)
     }
+    warm()
   }
   const wantAthletes = () => {
     if (settings.quality === "low" || athletesReady()) return
@@ -319,7 +348,7 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
   }
   const clearFigures = () => {
     for (const f of figures) {
-      scene.remove(f.fig.group, f.blob)
+      scene.remove(f.fig.group, f.blob, f.contact)
       f.fig.dispose()
       f.blob.geometry.dispose()
       f.blob.material.dispose()
@@ -344,8 +373,13 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
       blob.rotation.x = -Math.PI / 2
       blob.renderOrder = 1
       scene.add(blob)
-      return { fig, anim, player: p, blob, lastSpeed: 0 }
+      // and a small dark one right under the feet, so they meet the court
+      const contact = new THREE.Mesh(contactGeo, contactMat)
+      contact.renderOrder = 2
+      scene.add(contact)
+      return { fig, anim, player: p, blob, contact, lastSpeed: 0 }
     })
+    warm()
   }
   const placeUmpire = () => {
     if (!umpire) {
@@ -554,6 +588,8 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
   }
   const onVisibility = () => {
     if (document.hidden && status === "playing" && mode === "local") api.pause()
+    // (back: the time away isn't a frame)
+    if (!document.hidden) restartClock()
   }
   container.addEventListener("keydown", onKeyDown)
   container.addEventListener("keyup", onKeyUp)
@@ -565,8 +601,21 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
   container.addEventListener("focusout", onBlur)
   document.addEventListener("visibilitychange", onVisibility)
 
-  // gamepads: polled each frame
+  // gamepads: polled each frame, once one has said hello (a "gamepadconnected" event: the
+  // browser sends it at the first button press). Until then nothing is polled.
+  // (a pad this page already knows about doesn't say hello again)
+  let padSeen = false
+  try {
+    padSeen = !!navigator.getGamepads && [...navigator.getGamepads()].some(Boolean)
+  } catch {
+    // (gamepads not allowed here)
+  }
+  const onPadConnected = () => {
+    padSeen = true
+  }
+  window.addEventListener("gamepadconnected", onPadConnected)
   const pollPads = () => {
+    if (!padSeen) return
     const list = navigator.getGamepads ? [...navigator.getGamepads()].filter(Boolean) : []
     if (!list.length && !lastPads.length) return
     const now = list.map(readPad)
@@ -610,28 +659,20 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
     renderer.setSize(width, height, false)
     camera.aspect = width / height
     camera.updateProjectionMatrix()
+    venue.setScreenCompact?.(portraitScreen())
+    restartClock()
     start()
   }
   const resizeObserver = new ResizeObserver(resize)
   resizeObserver.observe(container)
 
-  let frameTimes = []
-  let qualityClock = 0
-  const adaptQuality = (dtMs) => {
-    frameTimes.push(dtMs)
-    qualityClock += dtMs
-    if (qualityClock < 2500) return
-    const avg = frameTimes.reduce((a, b) => a + b, 0) / frameTimes.length
-    frameTimes = []
-    qualityClock = 0
-    let next = pixelRatio
-    if (avg > 21 && pixelRatio > 0.75) next = Math.max(0.75, pixelRatio - 0.25)
-    else if (avg < 15 && pixelRatio < maxRatio) next = Math.min(maxRatio, pixelRatio + 0.25)
-    if (next !== pixelRatio) {
-      pixelRatio = next
-      renderer.setPixelRatio(pixelRatio)
-      renderer.setSize(size.width, size.height, false)
-    }
+  // dynamic resolution (utils/dynamicResolution.js): a step down while frames run slow, back
+  // up when there's time to spare
+  const adaptQuality = (dtMs, workMs) => {
+    if (!resolution.frame(dtMs, workMs)) return
+    pixelRatio = resolution.ratio
+    renderer.setPixelRatio(pixelRatio)
+    renderer.setSize(size.width, size.height, false)
   }
 
   // ---------- the camera ----------
@@ -719,19 +760,24 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
   // ---------- drawing the players ----------
   const updateFigures = (dt) => {
     if (!match) return
-    const frameRec = []
+    // (copies for the replay only while a rally is being kept: local play)
+    const recording = !replay && mode === "local" && (match.phase === "rally" || match.phase === "dead")
+    const frameRec = recording ? [] : null
     for (const f of figures) {
       const p = f.player
       let s
       if (replay) s = replay.frame.players[figures.indexOf(f)]
       else {
         s = situation(match, p)
-        frameRec.push({ ...s, ball: { ...s.ball }, swing: s.swing && { ...s.swing }, prep: s.prep && { ...s.prep } })
+        if (recording) frameRec.push({ ...s, ball: { ...s.ball }, swing: s.swing && { ...s.swing }, prep: s.prep && { ...s.prep } })
       }
       if (!s) continue
       const pose = updateAnim(f.anim, s, dt)
       f.fig.apply(pose, dt)
       f.blob.position.set(pose.pelvis.x, 0.004, pose.pelvis.z)
+      const feet = pose.ankleL && pose.ankleR
+      f.contact.visible = f.fig.group.visible
+      f.contact.position.set(feet ? (pose.ankleL.x + pose.ankleR.x) / 2 : pose.pelvis.x, 0.006, feet ? (pose.ankleL.z + pose.ankleR.z) / 2 : pose.pelvis.z)
       // sneakers squeak when someone stops hard
       const speed = Math.hypot(s.vx, s.vz)
       if (!replay && f.lastSpeed - speed > 1.6 * dt * 60 * 0.05 && f.lastSpeed > 2.6 && Math.random() < 0.35) audio.squeak(Math.min(1, f.lastSpeed / 4))
@@ -757,7 +803,7 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
       umpire.apply(seatedPose(venue.umpireSeat, b, umpireSignalT > 0 ? umpireSignal : null), dt)
     }
     // keep frames for replays (local play only)
-    if (!replay && (mode === "local") && (match.phase === "rally" || match.phase === "dead")) {
+    if (recording) {
       record.push({ players: frameRec, ball: { ...match.ball.p }, dt })
       let total = 0
       for (let i = record.length - 1; i >= 0; i--) {
@@ -813,9 +859,21 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
       nx = (nx / nl) * w
       ny = (ny / nl) * w
       nz = (nz / nl) * w
-      trailPos.set([x + nx, y + ny, z + nz, x - nx, y - ny, z - nz], i * 6)
+      // (written straight in: no little arrays every frame)
+      const o = i * 6
+      trailPos[o] = x + nx
+      trailPos[o + 1] = y + ny
+      trailPos[o + 2] = z + nz
+      trailPos[o + 3] = x - nx
+      trailPos[o + 4] = y - ny
+      trailPos[o + 5] = z - nz
       const a = show * 0.75 * (1 - i / TRAIL_N)
-      for (const k of [0, 1]) trailCol.set([trailColor[0] * a, trailColor[1] * a, trailColor[2] * a, a], (i * 2 + k) * 4)
+      for (let k = i * 8; k < i * 8 + 8; k += 4) {
+        trailCol[k] = trailColor[0] * a
+        trailCol[k + 1] = trailColor[1] * a
+        trailCol[k + 2] = trailColor[2] * a
+        trailCol[k + 3] = a
+      }
     }
     trailGeo.attributes.position.needsUpdate = true
     trailGeo.attributes.color.needsUpdate = true
@@ -885,6 +943,23 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
   }
 
   // ---------- the timing meter (drawn by the page; we move its parts) ----------
+  // (the page is only touched when a value changes: most frames nothing does)
+  const meterLast = new WeakMap()
+  const lastOf = (el) => {
+    let o = meterLast.get(el)
+    if (!o) meterLast.set(el, (o = {}))
+    return o
+  }
+  const setVar = (el, name, v) => {
+    const o = lastOf(el)
+    if (o[name] === v) return
+    o[name] = v
+    el.style.setProperty(name, String(v))
+  }
+  const setData = (el, key, v) => {
+    const s = v === undefined || v === null ? "" : String(v)
+    if (el.dataset[key] !== s) el.dataset[key] = s
+  }
   const updateMeters = () => {
     for (const slot of [0, 1]) {
       const el = meterEls[slot]
@@ -895,25 +970,25 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
         if (el.dataset.mode) el.dataset.mode = ""
         continue
       }
-      el.dataset.mode = info.mode
+      setData(el, "mode", info.mode)
       if (info.mode === "serve") {
-        el.style.setProperty("--fill", `${Math.min(1.4, info.fill) / 1.4}`)
-        el.dataset.grade = info.grade
+        setVar(el, "--fill", Math.min(1.4, info.fill) / 1.4)
+        setData(el, "grade", info.grade)
       } else {
         // the marker reaches the middle when it's time to let go
         const RANGE = 0.55
         const pos = Math.max(0, Math.min(1, 0.5 - (info.ttc - info.lead) / RANGE / 2 + (info.released !== null ? 0 : 0)))
         if (info.released !== null && el.dataset.rel !== "1") {
           el.dataset.rel = "1"
-          el.style.setProperty("--rel", `${pos}`)
+          setVar(el, "--rel", pos)
         } else if (info.released === null && el.dataset.rel === "1") el.dataset.rel = ""
-        el.style.setProperty("--pos", `${pos}`)
-        el.style.setProperty("--zone", `${info.window / RANGE}`)
-        el.style.setProperty("--power", `${info.pace ?? 0}`)
-        el.dataset.charging = info.charging ? "1" : ""
-        el.dataset.band = info.band || ""
-        el.dataset.height = info.height
-        el.dataset.fast = info.fast ? "1" : ""
+        setVar(el, "--pos", pos)
+        setVar(el, "--zone", info.window / RANGE)
+        setVar(el, "--power", info.pace ?? 0)
+        setData(el, "charging", info.charging ? "1" : "")
+        setData(el, "band", info.band || "")
+        setData(el, "height", info.height)
+        setData(el, "fast", info.fast ? "1" : "")
       }
     }
   }
@@ -1131,9 +1206,9 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
     if (disposed || studioHold) return
     if (!size.width || !size.height) return
     const cpuStart = performance.now()
-    const dtMs = last ? Math.min(100, now - last) : 16
-    const snap = !last
-    last = now
+    inFrame = true
+    const dtMs = clock.tick(now)
+    const snap = clock.first
     let dt = dtMs / 1000
     pollPads()
     if (match && status !== "paused" && status !== "showcase") {
@@ -1209,26 +1284,75 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
     updateParticles(dt)
     updateCamera(dt, snap)
     const renderStart = performance.now()
+    if (holdPicture()) {
+      // (shaders compiling: keep the last picture, and come back next frame)
+      if (status !== "paused" || host || guest) start()
+      inFrame = false
+      return
+    }
     renderer.render(scene, camera)
     perf.frames++
     perf.renderMs += performance.now() - renderStart
     perf.cpuMs += renderStart - cpuStart
-    adaptQuality(dtMs)
+    if (!snap) adaptQuality(dtMs, performance.now() - cpuStart)
     if (status !== "paused" || host || guest) start()
+    inFrame = false
   }
 
+  // The loop runs while anything moves. Starting it again after a stop starts the clock
+  // afresh (the stop wasn't a frame); the call at the end of each frame keeps it.
   function start() {
     if (!raf && !disposed && size.width && size.height) {
-      last = 0
+      if (!inFrame) restartClock()
       raf = requestAnimationFrame(frame)
     }
   }
+  function restartClock() {
+    clock.reset()
+    resolution.reset()
+  }
+
+  // ---------- shaders, compiled ahead ----------
+  // Whenever the scene gets new kinds of material (a venue, its lights, the athletes, a
+  // quality change), compileAsync compiles every program in the background
+  // (KHR_parallel_shader_compile) instead of the next frame stalling on them. Meanwhile the
+  // last picture stays up, except during a match (a frozen court would hide the ball: that
+  // frame waits for its shaders, as before). The first warm-up is behind "Loading the court...".
+  let warming = 0
+  function warm() {
+    if (disposed || !renderer.compileAsync) return
+    warming++
+    let done = false
+    const finish = () => {
+      if (done) return
+      done = true
+      warming--
+      if (!warming) restartClock()
+      start()
+    }
+    setTimeout(finish, 6000) // (never hold the picture longer than this)
+    try {
+      renderer.compileAsync(scene, camera).then(finish, finish)
+    } catch {
+      finish()
+    }
+  }
+  const holdPicture = () => warming > 0 && !(match && status === "playing" && mode !== "demo")
+  const whenWarm = () =>
+    new Promise((resolve) => {
+      const check = () => (warming === 0 || disposed ? resolve() : setTimeout(check, 30))
+      check()
+    })
 
   const onContextLost = (e) => {
     e.preventDefault()
     if (status === "playing" && mode === "local") api.pause()
+    releaseGpu(scene)
   }
-  const onContextRestored = () => start()
+  const onContextRestored = () => {
+    restartClock()
+    start()
+  }
   canvas.addEventListener("webglcontextlost", onContextLost)
   canvas.addEventListener("webglcontextrestored", onContextRestored)
 
@@ -1420,6 +1544,7 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
         showcaseFig = { ...was, fig, look }
       } else showcaseFig = { fig, look, anim: createAnim(at.x, at.z, 0), at, t: 2.2, swing: null, yaw: 0, pose: "ready" }
       for (const f of figures) if (Math.hypot(f.player.x - at.x, f.player.z - at.z) < 3) f.fig.group.visible = false
+      warm()
       setStatus("showcase")
       start()
     },
@@ -1447,7 +1572,8 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
       }
       if (quality) {
         maxRatio = Math.min(dpr, QUALITY[settings.quality].ratio)
-        pixelRatio = maxRatio
+        resolution.setMax(maxRatio)
+        pixelRatio = resolution.ratio
         renderer.setPixelRatio(pixelRatio)
         renderer.setSize(size.width, size.height, false)
         renderer.shadowMap.enabled = QUALITY[settings.quality].shadows
@@ -1468,6 +1594,10 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
     get mode() {
       return mode
     },
+    // resolves once the shaders being compiled are ready (the loading screen waits for it)
+    get ready() {
+      return whenWarm()
+    },
     dispose() {
       disposed = true
       if (raf) cancelAnimationFrame(raf)
@@ -1482,6 +1612,7 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
       container.removeEventListener("contextmenu", onContextMenu)
       container.removeEventListener("focusout", onBlur)
       document.removeEventListener("visibilitychange", onVisibility)
+      window.removeEventListener("gamepadconnected", onPadConnected)
       canvas.removeEventListener("webglcontextlost", onContextLost)
       canvas.removeEventListener("webglcontextrestored", onContextRestored)
       audio.dispose()
@@ -1494,6 +1625,8 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
         if (o.material) [].concat(o.material).forEach((m) => m.dispose())
       })
       Object.values(markMat).forEach((m) => m.dispose())
+      contactGeo.dispose()
+      contactMat.dispose()
       Object.values(tex).forEach((t) => t.dispose())
       renderer.dispose()
       renderer.forceContextLoss() // give the GPU context back now, not whenever GC runs

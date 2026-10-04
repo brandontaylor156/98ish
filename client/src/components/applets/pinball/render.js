@@ -778,7 +778,7 @@ export const createRenderer = (canvas) => {
 
   // Fit the table into width x height CSS pixels (letterboxed)
   const resize = (width, height, dpr) => {
-    dpr = Math.min(dpr || 1, 2.5)
+    dpr = Math.min(dpr || 1, 2) // (a 3x phone screen at 2: a 2D canvas costs by the pixel)
     canvas.width = Math.max(1, Math.round(width * dpr))
     canvas.height = Math.max(1, Math.round(height * dpr))
     const scale = Math.min(width / WIDTH, height / HEIGHT)

@@ -67,7 +67,7 @@ const Ski = ({ onClose, mobile }) => {
 
     const resize = () => {
       const r = canvas.parentElement.getBoundingClientRect()
-      const dpr = window.devicePixelRatio || 1
+      const dpr = Math.min(2, window.devicePixelRatio || 1) // (a 3x phone screen at 2: 2D canvases cost by the pixel)
       canvas.width = Math.max(1, Math.round(r.width * dpr))
       canvas.height = Math.max(1, Math.round(r.height * dpr))
       canvas.style.width = `${r.width}px`
