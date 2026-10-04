@@ -1,9 +1,10 @@
 import React, { useEffect, useId, useMemo, useRef, useState } from "react"
 import { CHARACTERS } from "./looks.js"
-import { BODIES, BOTTOMS, BUILDS, DESIGNS, GLASSES, HAIR_COLORS, HAIR_COLOR_NAMES, HAIR_STYLES, HATS, HEIGHT, KIT_COLORS, SKIN_TONES, SOCKS, THEMES, TOPS, applyTheme, characterLook, defaultStyleFor, randomLook, themeById, validateLook } from "./locker.js"
+import { BODIES, BOTTOMS, BUILDS, DESIGNS, GLASSES, HAIR_COLORS, HAIR_COLOR_NAMES, HAIR_STYLES, HATS, HEIGHT, KIT_COLORS, PLAYS, PRO_STYLES, SKIN_TONES, SOCKS, THEMES, TOPS, applyTheme, characterLook, defaultStyleFor, randomLook, themeById, validateLook } from "./locker.js"
 
 // Pickleball 98's Locker Room: dress any player (yours, or the computer's) over the 3D
-// viewer, which you can turn by dragging. Tabs: Body (skin, hair, height, build), Kit (a
+// viewer, which you can turn by dragging. Tabs: Body (skin, hair, height, build, which hand
+// plays and the pro style: one- or two-handed backhand), Kit (a
 // theme and its style, kit colors, top, bottom, socks), Gear (hat, glasses, wristbands,
 // gloves, shoes) and Paddle. Saved per user profile with the rest of the game's settings
 // (prefs.looks, the localStorage seam); online, your look goes with you.
@@ -92,7 +93,8 @@ export const LockerRoom = ({ prefs, setPrefs, engine, onBack, initial }) => {
     setDirty(true)
   }
   const surprise = () => {
-    setLook(randomLook(Math.random, look))
+    // (a surprise kit; the player still plays with the same hand and style)
+    setLook({ ...randomLook(Math.random, look), plays: look.plays, backhand: look.backhand })
     setDirty(true)
   }
   const theme = themeById(look.theme)
@@ -206,6 +208,8 @@ export const LockerRoom = ({ prefs, setPrefs, engine, onBack, initial }) => {
                     <input type="range" min={HEIGHT.min * 100} max={HEIGHT.max * 100} step="1" value={Math.round(look.height * 100)} data-field="height" onChange={(e) => set({ height: Number(e.target.value) / 100 })} aria-valuetext={`${Math.round(look.height * 100)} percent`} />
                   </label>
                   <Pick label="Build" name="build" value={look.build} options={BUILDS} onChange={(v) => set({ build: v })} />
+                  <Pick label="Plays" name="plays" value={look.plays} options={PLAYS} onChange={(v) => set({ plays: v })} />
+                  <Pick label="Pro style" name="backhand" value={look.backhand} options={PRO_STYLES} onChange={(v) => set({ backhand: v })} />
                 </>
               )}
               {tab === "kit" && (

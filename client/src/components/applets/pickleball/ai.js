@@ -248,6 +248,10 @@ export const interceptFor = (m, p, path, { speed, reaction, judge = 0.2, maxY = 
 // The level a player plays at (people get the human profile; autoplay plays like a pro)
 export const levelOf = (m, p) => (p.ctrl === "cpu" || p.ctrl === "feeder" ? p.level : m.autoplay && p.ctrl === "human" ? LEVELS.pro : m.humanLevel)
 
+// Doubles: is a ball at x (down the middle) on this player's forehand? A right-hander on the
+// left of their court and a left-hander on the right have their forehands in the middle.
+export const middleForehand = (p, x) => Math.abs(x) <= 0.6 && (p.hand || 1) === (p.lane === "right" ? -1 : 1)
+
 // Which player on a team takes the ball, and where (for computer players, the movement
 // assist, and the animation's "here it comes")
 export const planTeam = (m, team) => {
@@ -265,6 +269,8 @@ export const planTeam = (m, team) => {
     if (m.game.doubles) {
       const mine = Math.sign(plan.x * rightSign(team)) === (p.lane === "right" ? 1 : -1)
       if (!mine && Math.abs(plan.x) > 0.3) score += 0.8
+      // a ball down the middle: the player whose forehand is in the middle takes it
+      else if (middleForehand(p, plan.x)) score -= 0.15
       // a person's half is theirs: the computer partner leaves it alone
       if (p.ctrl !== "cpu" && !m.autoplay) score = mine || Math.abs(plan.x) <= 0.3 ? -100 : score + 0.5
     }
@@ -314,14 +320,15 @@ export const targetsFor = (m, p, from, rand) => {
     // their feet from up high
     attack(y, sharp = true, feet = false) {
       const q = victim()
-      const hip = sharp ? rightSign(q.team) * 0.32 : (rand() - 0.5) * 1.2
+      const hip = sharp ? rightSign(q.team) * (q.hand || 1) * 0.32 : (rand() - 0.5) * 1.2
       const back = Math.abs(q.z) > 5 ? -0.6 : y > 1.45 || feet ? -0.45 : 0.9
       return { x: cx(q.x + hip), z: opp * clamp(Math.abs(q.z) + back, 1.4, HALF_L - 0.3) }
     },
-    // a lob over whoever's closest to the net, on their backhand side
+    // a lob over whoever's closest to the net, on their backhand side (a left-hander's is on
+    // their right)
     lob() {
       const q = opps.reduce((a, b) => (Math.abs(b.z) < Math.abs(a.z) ? b : a))
-      return { x: cx(q.x - rightSign(q.team) * 0.8), z: opp * (HALF_L - 0.9 - rand() * 0.6) }
+      return { x: cx(q.x - rightSign(q.team) * (q.hand || 1) * 0.8), z: opp * (HALF_L - 0.9 - rand() * 0.6) }
     },
   }
 }

@@ -25,6 +25,13 @@
 // - Facing (facingFor): face the net and the ball while shuffling and backpedaling; turn and
 //   run for long, fast moves; walk facing where you're going between points; square up again
 //   when a ball is coming.
+// - Pro footwork (pro.js, docs/pickleball-movement.md): near the kitchen line slow moves are
+//   small quick steps (a higher cadence, so shorter strides); a fast sideways move is a
+//   crossover (hips open toward the ball, feet free to cross, shoulders kept toward the net:
+//   anim.js turns them back) instead of giant shuffles; the split step is a small hop that
+//   lands a little wider.
+
+import { CROSS, footworkFor } from "./pro.js"
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v))
 const lerp = (a, b, t) => a + (b - a) * t
@@ -71,7 +78,7 @@ export const MOVE_SPEED = 0.32 // above this they start stepping
 // crossover: the player has turned to run (travel, or a retreat side-on), so any direction
 // is a running stride with the legs free to cross. Returns the gait weights (they sum to 1),
 // the blended cadence and stride, and the clips' playback rates.
-export const blendSpace = ({ vx = 0, vz = 0, yaw = 0, crossover = false }) => {
+export const blendSpace = ({ vx = 0, vz = 0, yaw = 0, crossover = false, quick = 1 }) => {
   const fr = frame(yaw)
   const speed = Math.hypot(vx, vz)
   const fwd = vx * fr.f.x + vz * fr.f.z
@@ -128,6 +135,11 @@ export const blendSpace = ({ vx = 0, vz = 0, yaw = 0, crossover = false }) => {
   // slow, small steps: a little lower and quicker than the gait tables say
   const small = 1 - smoothstep(0.3, 1.0, speed)
   clear *= 1 - 0.45 * small
+  // quick feet (near the kitchen): the same speed in shorter, quicker, lower steps
+  if (quick > 1 && total >= 1e-6) {
+    sps *= quick
+    clear /= Math.sqrt(quick)
+  }
   const cycles = sps / 2 // cycles a second (a cycle is two steps)
   const stride = speed / Math.max(sps, 1e-6) // one step's length
   const timeScale = {}
@@ -170,12 +182,22 @@ export const facingFor = (st, s, dt) => {
   const goalD = s.goal ? Math.hypot(s.goal.x - s.x, s.goal.z - s.z) : null
   st.fast = speed > 2.6 ? (st.fast || 0) + dt : 0
   let mode = st.mode || "face"
+  // sideways and forward speed in the net's frame, and how far there is still to go sideways
+  const nf = frame(s.facing)
+  const lat = s.vx * nf.r.x + s.vz * nf.r.z
+  const fwd = s.vx * nf.f.x + s.vz * nf.f.z
+  const latGo = s.goal ? Math.abs((s.goal.x - s.x) * nf.r.x + (s.goal.z - s.z) * nf.r.z) : null
+  st.foot = footworkFor({ lat, fwd, dist: latGo, prev: st.foot || "shuffle", between: s.between })
+  if (st.foot === "cross") st.crossSide = st.crossSide || (lat >= 0 ? 1 : -1)
+  else st.crossSide = 0
   if (s.between) {
     // between points: walk where you're going, then turn to face the net
     const going = speed > 0.7 && (goalD === null || goalD > 0.9)
     mode = going ? "travel" : mode === "travel" && speed > 0.35 && (goalD === null || goalD > 0.4) ? "travel" : "face"
-  } else if (s.incoming) mode = "face"
+  } else if (s.incoming) mode = st.foot === "cross" ? "cross" : "face"
   else {
+    // (a long, fast move still turns and runs; a crossover is for the moves in between)
+    if (mode === "cross") mode = "face"
     // in a rally: turn and run only for a long, fast move sideways (or a deep retreat); a few
     // steps are shuffles and backpedals facing the net
     const far = goalD === null ? st.fast > 0.22 : goalD > 2.2
@@ -183,10 +205,12 @@ export const facingFor = (st, s, dt) => {
     const retreat = absRel >= 2.3
     if (mode === "face" && speed > 2.9 && far && (sideways || retreat)) mode = retreat ? "retreat" : "travel"
     else if (mode !== "face" && (speed < 1.9 || (goalD !== null && goalD < 1.0))) mode = "face"
+    if (mode === "face" && st.foot === "cross") mode = "cross"
   }
   st.mode = mode
   let yaw
   if (mode === "travel") yaw = runYaw
+  else if (mode === "cross") yaw = s.facing - st.crossSide * CROSS.hip // hips open toward the ball (a smaller yaw turns right)
   else if (mode === "retreat") {
     // a deep ball over the head: turn side-on (paddle side back) and run back over the shoulder
     const side = st.retreatSide || (rel >= 0 ? 1 : -1)
@@ -198,7 +222,7 @@ export const facingFor = (st, s, dt) => {
     yaw = s.facing + clamp(wrap(toBall - s.facing), -0.9, 0.9) * (s.between ? 0.2 : 0.45)
   }
   if (mode !== "retreat") st.retreatSide = 0
-  return { yaw, mode }
+  return { yaw, mode, side: mode === "cross" ? st.crossSide : 0 }
 }
 
 // Turn toward a yaw: a smooth start and stop (a critically damped spring on the angle) with
@@ -297,7 +321,7 @@ const startStep = (g, i, dur, kind) => {
 // One frame of footwork. body: { x, z, vx, vz, yaw, stance (half width standing), reach:
 // { foot, x, z } | null, minHip (the pelvis height, for how far a leg reaches) }
 export const updateGait = (g, body, dt) => {
-  const bs = blendSpace({ vx: body.vx, vz: body.vz, yaw: body.yaw, crossover: !!body.crossover })
+  const bs = blendSpace({ vx: body.vx, vz: body.vz, yaw: body.yaw, crossover: !!body.crossover, quick: body.quick || 1 })
   g.blend = bs
   const speed = bs.speed
   const fr = frame(body.yaw)
@@ -308,7 +332,7 @@ export const updateGait = (g, body, dt) => {
   const width = g.moving ? lerp(body.stance, bs.width, smoothstep(IDLE_SPEED, 0.9, speed)) : body.stance
   const hipOf = (i) => ({ x: body.x + fr.r.x * (i ? 1 : -1) * 0.095, z: body.z + fr.r.z * (i ? 1 : -1) * 0.095 })
   // the feet point where the body faces, turned out a little (and a little more when wide)
-  const footYaw = (i) => body.yaw + (i ? -1 : 1) * (FOOT.toeOut + (g.moving ? -0.06 : 0.04))
+  const footYaw = (i) => body.yaw + (i ? -1 : 1) * (FOOT.toeOut + (g.moving ? -0.06 : 0.08))
 
   // ---- start moving: the first step goes with the foot on the side you're going (a lateral
   // move) or the foot that's furthest from where it needs to be ----
@@ -342,13 +366,30 @@ export const updateGait = (g, body, dt) => {
     st.t = Math.min(1, st.t + dt / st.dur)
     let want
     if (body.reach && body.reach.foot === i) want = { x: body.reach.x, z: body.reach.z }
-    else if (st.kind === "hop" || !g.moving) want = spotFor(i, body, body.yaw, width)
+    else if (st.kind === "hop") want = spotFor(i, body, body.yaw, width + (st.wider || 0))
+    else if (!g.moving) want = spotFor(i, body, body.yaw, width)
     else {
       // land where the body will be halfway through this foot's stance
       const ahead = clamp((1 - st.t) * st.dur + (bs.duty / Math.max(bs.cycles, 0.5)) * 0.5, 0, 0.45)
       want = spotFor(i, { x: body.x + body.vx * ahead, z: body.z + body.vz * ahead }, body.yaw, width)
     }
     if (!body.crossover) want = uncross(g, i, want, body, body.yaw)
+    // (a target that jumps, say a new ball calling for a step out the other way, is followed at a
+    // foot's top speed, so the foot in the air never teleports)
+    if (!st.ws) st.ws = { x: want.x, z: want.z }
+    else {
+      const dx = want.x - st.ws.x
+      const dz = want.z - st.ws.z
+      const d = Math.hypot(dx, dz)
+      const mx = 8 * dt
+      if (d > mx) {
+        st.ws.x += (dx / d) * mx
+        st.ws.z += (dz / d) * mx
+      } else st.ws = { x: want.x, z: want.z }
+    }
+    want = st.ws
+    // (a step out to a reach spot: where it lands, so anim.js lowers the hips in time)
+    st.want = body.reach && body.reach.foot === i ? want : null
     const path = st.kind === "settle" || st.kind === "hop" ? pathAt({}, st.t) : pathAt(st.gaits || bs.gaits, st.t)
     f.yaw = st.fyaw + wrap(footYaw(i) - st.fyaw) * smoothstep(0, 0.85, st.t)
     f.pitch = lerp(st.pitch0, path.pitch, smoothstep(0, 0.25, st.t))
@@ -440,7 +481,10 @@ export const updateGait = (g, body, dt) => {
         const want = body.reach && body.reach.foot === i ? { x: body.reach.x, z: body.reach.z } : spotFor(i, body, body.yaw, width)
         const err = Math.hypot(f.bx - want.x, f.bz - want.z)
         const turn = Math.abs(wrap(f.yaw - footYaw(i)))
-        const score = Math.max(err / 0.11, turn / 0.5)
+        // (feet narrower than the stance: a small step out to a wide, athletic base)
+        const lat = (f.bx - body.x) * fr.r.x + (f.bz - body.z) * fr.r.z
+        const narrow = Math.max(0, width - 0.01 - lat * (i ? 1 : -1))
+        const score = Math.max(err / 0.11, turn / 0.5, narrow / 0.025)
         if (score > 1 && score > worst) {
           worst = score
           best = i
@@ -456,9 +500,10 @@ export const updateGait = (g, body, dt) => {
   // ---- the pelvis: up and down with the steps (walking: high over the planted leg; running:
   // low as it takes the weight), and side to side over the stance foot when walking ----
   const w = bs.weights
-  const runish = w.run + w.sprint + w.back * 0.5 + (w.shuffleL + w.shuffleR) * 0.7
+  const runish = w.run + w.sprint + w.back * 0.3 + (w.shuffleL + w.shuffleR) * 0.35
   const ampWalk = 0.016 * w.walk
-  const ampRun = Math.min(0.035, 0.012 + bs.speed * 0.006) * runish
+  // (pros run low and level: the head stays steady to track the ball)
+  const ampRun = Math.min(0.018, 0.006 + bs.speed * 0.0035) * runish
   const mid = g.cycle - bs.duty / 2
   const targetBob = g.moving ? (ampWalk - ampRun) * Math.cos(4 * Math.PI * mid) : 0
   g.bob += (targetBob - g.bob) * Math.min(1, dt * 20)
@@ -468,12 +513,13 @@ export const updateGait = (g, body, dt) => {
 }
 
 // A split step: if the feet are still, both hop a few centimeters and land a little wider
-export const hopGait = (g, body) => {
+// (dur: time in the air, h: the feet's lift, wider: each foot lands this much further out)
+export const hopGait = (g, { dur = 0.26, h = 0.035, wider = 0 } = {}) => {
   if (g.moving || g.feet.some((f) => f.step)) return false
   for (const i of [0, 1]) {
-    startStep(g, i, 0.26, "hop")
-    g.feet[i].step.h = 0.035
+    startStep(g, i, dur, "hop")
+    g.feet[i].step.h = h
+    g.feet[i].step.wider = wider
   }
-  void body
   return true
 }

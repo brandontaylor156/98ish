@@ -16,6 +16,8 @@ const LOOK_IDS = {
   hat: ["none", "cap", "capBack", "visor", "headband", "bucket", "beanie"],
   glasses: ["none", "shades", "sport"],
   paddleDesign: ["stripe", "solid", "split", "dots", "chevron", "flame"],
+  plays: ["right", "left"], // which hand holds the paddle
+  backhand: ["one", "two"], // the pro style: one- or two-handed backhand
 }
 const LOOK_STYLES = {
   classic: ["polo", "dress", "tee"],
@@ -36,7 +38,8 @@ const isObject = (v) => !!v && typeof v === "object" && !Array.isArray(v)
 // raw -> a look with only the fields that check out (or null if it isn't a look at all)
 const sanitizeLook = (raw) => {
   if (!isObject(raw)) return null
-  const out = { v: 2 }
+  // (the look's version: an older browser's look stays older, so it plays right-handed)
+  const out = { v: Number.isInteger(raw.v) && raw.v >= 1 && raw.v <= 3 ? raw.v : 3 }
   for (const [k, list] of Object.entries(LOOK_IDS)) if (typeof raw[k] === "string" && list.includes(raw[k])) out[k] = raw[k]
   if (out.theme && LOOK_STYLES[out.theme] && typeof raw.style === "string" && LOOK_STYLES[out.theme].includes(raw.style)) out.style = raw.style
   for (const k of LOOK_COLORS) if (typeof raw[k] === "string" && HEX.test(raw[k])) out[k] = raw[k].toLowerCase()

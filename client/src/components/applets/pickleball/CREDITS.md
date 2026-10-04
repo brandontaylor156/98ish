@@ -45,3 +45,7 @@ No new files were downloaded. The strokes, the ready position, the arm IK and th
 made in the game (`strokes.js`, `upper.js`, `anim.js`); the existing CC0 clips still only add
 breathing and the run's bounce (now kept off the paddle side's shoulder while it holds the
 ready position). Mixamo was not used.
+
+## Pro movement and left-handers (2026-10-04)
+
+No new files were downloaded and no motion capture was used (none of the reference players' movement is available under a usable license; Mixamo was not used). The ready position, split step, kitchen footwork, crossovers, lunges, dinks, drives, the two-handed backhand and left-handed play are procedural, from published coaching material and analyses listed with links in `docs/pickleball-movement.md` (`pro.js`, `anim.js`, `strokes.js`, `locomotion.js`). The in-game styles have made-up names; no real player is named in the game.

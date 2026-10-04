@@ -14,13 +14,17 @@
 //   colors that go together); they keep their own body, face and hair.
 // - lookForPlayer: what a player wears in a match, from the saved looks and the options
 //   (computer players' looks, outfits that follow the venue).
+// - How they play (saved with the look, so it goes online with it): "plays" (right- or
+//   left-handed) and "backhand" (the pro style: "one", a compact all-court game with a
+//   one-handed backhand, or "two", an aggressive two-hander). Looks saved before these existed
+//   (v < 3) play right-handed with one hand.
 //
 // Every kit is ordinary sportswear; beachwear is athletic swimwear (board shorts, rash guards,
 // a one-piece, a sports top with swim shorts), the same standard for everyone.
 
 import { CHARACTERS, OUTFITS, SKIN as BASE_SKIN } from "./looks.js"
 
-export const LOOK_VERSION = 2
+export const LOOK_VERSION = 3
 
 // ---- the choices ----
 export const SKIN_TONES = ["#fbe2cf", "#f6d3b3", "#eab98f", "#d39a6a", "#c98e62", "#b5784a", "#a0663e", "#8c5734", "#5f3a22", "#4a2c1a"]
@@ -89,6 +93,14 @@ export const GLASSES = [
   { id: "none", name: "None" },
   { id: "shades", name: "Sunglasses" },
   { id: "sport", name: "Sport wraparounds" },
+]
+export const PLAYS = [
+  { id: "right", name: "Right-handed" },
+  { id: "left", name: "Left-handed" },
+]
+export const PRO_STYLES = [
+  { id: "one", name: "Compact all-court (one-handed backhand)" },
+  { id: "two", name: "Aggressive two-hander (two-handed backhand)" },
 ]
 export const DESIGNS = [
   { id: "stripe", name: "Diagonal stripe" },
@@ -208,6 +220,8 @@ export const DEFAULT_LOOK = {
   paddle: "#ffd23f",
   paddleEdge: "#1d3557",
   paddleDesign: "stripe",
+  plays: "right",
+  backhand: "one",
 }
 
 // ---- checking ----
@@ -228,6 +242,8 @@ export const LOOK_IDS = {
   hat: ids(HATS),
   glasses: ids(GLASSES),
   paddleDesign: ids(DESIGNS),
+  plays: ids(PLAYS),
+  backhand: ids(PRO_STYLES),
 }
 export const LOOK_STYLES = Object.fromEntries(THEMES.map((t) => [t.id, t.styles.map((s) => s.id)]))
 export const LOOK_COLORS = ["skin", "hairColor", "shirt", "trim", "bottomColor", "socks", "shoes", "shoeAccent", "hatColor", "wristColor", "gloveColor", "paddle", "paddleEdge"]
@@ -270,6 +286,10 @@ export const validateLook = (raw, fallback = DEFAULT_LOOK) => {
   out.wristbands = typeof r.wristbands === "boolean" ? r.wristbands : fb.wristbands
   out.gloves = typeof r.gloves === "boolean" ? r.gloves : fb.gloves
   out.paddleDesign = oneOf(r.paddleDesign, DESIGNS, fb.paddleDesign)
+  // how they play: a look saved before this existed (v 1 or 2) plays right-handed, one hand
+  const old = typeof r.v === "number" && r.v < 3
+  out.plays = oneOf(r.plays, PLAYS, old ? "right" : fb.plays)
+  out.backhand = oneOf(r.backhand, PRO_STYLES, old ? "one" : fb.backhand)
   // only Body A grows a beard
   if (out.body !== "m") out.beard = false
   return out
