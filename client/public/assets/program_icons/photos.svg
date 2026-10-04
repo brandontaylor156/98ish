@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <!-- Photos: two snapshots, one tilted behind the other: hills, a sun and a blue sky -->
+  <g transform="rotate(-12 18 22)">
+    <rect x="5" y="9" width="26" height="24" fill="#fbfaf5" stroke="#000" stroke-width="1.3"/>
+    <rect x="8" y="12" width="20" height="14" fill="#f6a5c0"/>
+    <circle cx="14" cy="18" r="3" fill="#fff" opacity=".8"/>
+  </g>
+  <rect x="15" y="14" width="29" height="28" fill="#fbfaf5" stroke="#000" stroke-width="1.4"/>
+  <rect x="18" y="17" width="23" height="17" fill="#59a7ff"/>
+  <circle cx="35" cy="21.5" r="2.8" fill="#ffe24a" stroke="#c08a00" stroke-width=".8"/>
+  <path d="M18 34l6-8 4 5 4-4 9 7z" fill="#2f9a3a" stroke="#14501a" stroke-width="1" stroke-linejoin="round"/>
+  <path d="M18 17h23" stroke="#fff" stroke-width="1" opacity=".6"/>
+  <path d="M16 43h29M45 15v28" stroke="#808080" stroke-width="1.5"/>
+</svg>

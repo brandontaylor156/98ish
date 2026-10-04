@@ -7,7 +7,7 @@ import { imageMapper } from "../../../utils/imageMapper"
 import { formatSize, iconFor, typeName } from "../../../utils/fileInfo"
 import { DRAG_TYPE, createShortcut, desktopFolder, getClipboard, moveInto, pasteInto, setClipboard } from "../../../utils/fsActions"
 import { openItem } from "../../../utils/openItem"
-import { launch } from "../../../utils/programs"
+import { launch, paintWindow } from "../../../utils/programs"
 import { useFsVersion } from "../../../hooks/useFs"
 import { useOpenGesture } from "../../../hooks/useMediaQuery"
 import { useLongPress } from "../../../hooks/useLongPress"
@@ -194,6 +194,8 @@ const FileExplorer = ({ path: initialPath = ["C:"], dispatch, onTitle }) => {
 
   const itemMenu = (item) => [
     { label: item.isDirectory ? "Open" : "Open", bold: true, onClick: () => open(item) },
+    // pictures open in Photos; Edit opens them in Paint
+    ...(item.type === "image" ? [{ label: "Edit", onClick: () => dispatch({ type: "open_window", payload: paintWindow(item) }) }] : []),
     ...(item.isDirectory ? [{ label: "Explore", onClick: () => dispatch({ type: "open_window", payload: launch("My Computer", { path: fs.partsOf(item) }) }) }] : []),
     {
       label: "Send To",

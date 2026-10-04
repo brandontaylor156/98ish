@@ -61,6 +61,8 @@ const CalendarApp = lazyApp(() => import("../applets/calendar/Calendar"))
 const ClockApp = lazyApp(() => import("../applets/calendar/Clock"))
 // reminders, alarms and live calendar notices, whether or not Calendar is open (its own download)
 const CalendarBridge = React.lazy(() => import("../applets/calendar/CalendarBridge"))
+const Camera = lazyApp(() => import("../applets/camera/Camera"))
+const Photos = lazyApp(() => import("../applets/photos/Photos"))
 // Our Pet out for a walk on the desktop (couples only, its own small download)
 const PetWalker = React.lazy(() => import("../applets/pet/PetWalker"))
 // Network Neighborhood and the head-to-head games
@@ -720,7 +722,20 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
       {window.app === "hexlands" && <Hexlands mobile={mobile} onClose={() => closeWindow(window, index)} />}
       {window.app === "monsterduel" && <MonsterDuel mobile={mobile} onClose={() => closeWindow(window, index)} />}
       {window.app === "town" && <Town mobile={mobile} coopId={window.coopId} onClose={() => closeWindow(window, index)} onTitle={rename(index)} />}
-      {window.app === "puzzle" && <Puzzle mobile={mobile} dispatch={dispatch} onClose={() => closeWindow(window, index)} onTitle={rename(index)} />}
+      {window.app === "camera" && <Camera mobile={mobile} dispatch={dispatch} onTitle={rename(index)} onClose={() => closeWindow(window, index)} />}
+      {window.app === "photos" && (
+        <Photos
+          file={window.file}
+          path={window.path}
+          mobile={mobile}
+          dispatch={dispatch}
+          onTitle={rename(index)}
+          // Photos asks about unsaved edits itself before calling this
+          onClose={() => closeWindow(window, index, true)}
+          registerCloseGuard={registerFor(index)}
+        />
+      )}
+      {window.app === "puzzle" && <Puzzle mobile={mobile} dispatch={dispatch} handoff={window.handoff} onClose={() => closeWindow(window, index)} onTitle={rename(index)} />}
       {window.app === "dollhouse" && <Dollhouse mobile={mobile} dispatch={dispatch} onClose={() => closeWindow(window, index)} onTitle={rename(index)} />}
       {window.app === "doodle" && <Doodle mobile={mobile} dispatch={dispatch} inviteTo={window.inviteTo} onClose={() => closeWindow(window, index)} onTitle={rename(index)} />}
       {window.app === "quiz" && <Quiz mobile={mobile} dispatch={dispatch} onClose={() => closeWindow(window, index)} onTitle={rename(index)} />}
@@ -750,7 +765,7 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
       {window.app === "calendar" && <CalendarApp calendarView={window.calendarView} mobile={mobile} dispatch={dispatch} onClose={() => closeWindow(window, index)} />}
       {window.app === "clock" && <ClockApp clockTab={window.calendarView?.tab} mobile={mobile} />}
       {window.app === "welcome" && <Welcome dispatch={dispatch} mobile={mobile} onClose={() => closeWindow(window, index)} />}
-      {window.app === "mail" && <Mail dispatch={dispatch} onTitle={rename(index)} mobile={mobile} />}
+      {window.app === "mail" && <Mail dispatch={dispatch} handoff={window.handoff} onTitle={rename(index)} mobile={mobile} />}
       {window.app === "homepage" && (
         <HomePageStudio dispatch={dispatch} onTitle={rename(index)} onClose={() => closeWindow(window, index)} mobile={mobile} />
       )}

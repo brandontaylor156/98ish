@@ -68,6 +68,8 @@ const SHELVES = [
       ["Clock", "World clocks, alarms, a timer, a stopwatch", false],
       ["Notepad", "Jot something down", false],
       ["WordPad", "Letters with fonts, colors and pictures", false],
+      ["Camera", "Snap photos with retro effects, or a photo strip", false],
+      ["Photos", "Your pictures: slideshows, crops, wallpaper", false],
       ["Paint", "Draw, then make it your wallpaper", false],
       ["Sound Recorder", "Record your voice, play it backwards", false],
       ["Calculator", "Sums, and a scientific mode", false],

@@ -70,7 +70,7 @@ const PuzzleIcon = ({ size = 32 }) => (
   </svg>
 )
 
-const Puzzle = ({ mobile, onClose, onTitle, dispatch }) => {
+const Puzzle = ({ mobile, onClose, onTitle, dispatch, handoff = null }) => {
   const aim = useAim()
   const net = useNet()
   const token = aim?.token || null
@@ -163,6 +163,14 @@ const Puzzle = ({ mobile, onClose, onTitle, dispatch }) => {
       setBusy(null)
     }
   }
+
+  // a picture sent from Photos (Share > Use in Photo Puzzle): straight to a new puzzle
+  useEffect(() => {
+    if (!handoff?.file) return
+    setGame(null)
+    setView("new")
+    pickDriveFile(handoff.file)
+  }, [handoff?.id])
 
   const upload = async (file) => {
     if (!file) return

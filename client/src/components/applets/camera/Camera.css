@@ -1,0 +1,429 @@
+/* Camera */
+
+.camRoot {
+  position: relative;
+  height: calc(100% - 25px);
+  display: flex;
+  flex-direction: column;
+  background: #c0c0c0;
+  font-family: "Pixelated MS Sans Serif", Arial, sans-serif;
+  -webkit-font-smoothing: none;
+  font-size: 11px;
+  color: #000;
+  user-select: none;
+  -webkit-user-select: none;
+  outline: none;
+  overflow: hidden;
+}
+
+.camRoot button {
+  min-width: 0;
+}
+
+.camMain {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  gap: 4px;
+  padding: 4px 4px 0;
+}
+
+/* the live picture, sunk into the window */
+.camViewer {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  background: #000;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+  padding: 2px;
+  overflow: hidden;
+  touch-action: manipulation;
+}
+
+/* The camera's own video sits right under the canvas, the same size: browsers stop
+   feeding frames to a video that's hidden or off screen (iPhones especially) */
+.camVideo,
+.camCanvas {
+  position: absolute;
+  left: 2px;
+  top: 2px;
+  width: calc(100% - 4px);
+  height: calc(100% - 4px);
+  object-fit: contain;
+  pointer-events: none;
+}
+
+.camCanvas {
+  z-index: 1;
+  background: #000;
+}
+
+.camRoot--mobile .camVideo,
+.camRoot--mobile .camCanvas {
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.camViewer[data-state="error"] .camCanvas,
+.camViewer[data-state="starting"] .camCanvas {
+  visibility: hidden;
+}
+
+.camNote,
+.camProblem,
+.camClip,
+.camCount,
+.camBadge,
+.camFlash {
+  z-index: 2;
+}
+
+.camNote {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #c0c0c0;
+}
+
+.camProblem,
+.camClip {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(340px, calc(100% - 20px));
+  height: auto;
+  min-width: 0;
+  max-height: calc(100% - 12px);
+  overflow: auto;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.camProblem p {
+  margin: 0 0 8px;
+  line-height: 1.35;
+}
+
+.camProblemTitle {
+  font-weight: bold;
+}
+
+.camProblemButtons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.camProblemButtons button {
+  min-height: 26px;
+  padding: 0 10px;
+}
+
+.camClipVideo {
+  display: block;
+  width: 100%;
+  max-height: 40vh;
+  background: #000;
+}
+
+.camClipNote {
+  margin: 6px 0 8px;
+}
+
+/* the countdown: a big number that pops in each second */
+.camCount {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font: bold 120px/1 "Arial Black", Arial, sans-serif;
+  color: #fff;
+  text-shadow: 4px 4px 0 #000080, -2px -2px 0 #000;
+  pointer-events: none;
+  animation: camPop 1s ease-out both;
+}
+
+@keyframes camPop {
+  0% {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+  15% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.2;
+  }
+}
+
+.camBadge {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 3px 8px;
+  background: #ffffe1;
+  border: 1px solid #000;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.camBadge.is-rec {
+  background: #000;
+  color: #ff4040;
+  border-color: #ff4040;
+  font-weight: bold;
+}
+
+.camFlash {
+  position: absolute;
+  inset: 0;
+  background: #fff;
+  pointer-events: none;
+  animation: camFlash 0.45s ease-out forwards;
+}
+
+@keyframes camFlash {
+  from {
+    opacity: 0.95;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+/* the effects and frames lists */
+.camPanel {
+  flex: none;
+  width: 168px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.camGroup {
+  margin: 0;
+  padding: 4px 6px 6px;
+}
+
+.camGroup legend {
+  float: none;
+  width: auto;
+  margin: 0;
+  padding: 0 2px;
+  font-size: 11px;
+  line-height: 1.2;
+}
+
+.camChoices {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2px;
+}
+
+.camChoices button {
+  min-height: 22px;
+  padding: 0 4px;
+  text-align: left;
+}
+
+.camChoices button.is-on,
+.camModes button.is-on,
+.camSide.is-on {
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #0a0a0a, inset -2px -2px #dfdfdf, inset 2px 2px #808080;
+  background: #d8d8d8;
+  font-weight: bold;
+}
+
+.camModes {
+  flex: none;
+  display: flex;
+  justify-content: center;
+  gap: 2px;
+  padding: 4px 4px 0;
+}
+
+.camModes button {
+  flex: 1;
+  max-width: 120px;
+  min-height: 24px;
+}
+
+.camControls {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 6px 4px;
+}
+
+.camShutter {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 16px !important;
+  font-weight: bold;
+}
+
+.camShutter.is-video svg {
+  filter: hue-rotate(300deg);
+}
+
+.camShutter.is-rec {
+  color: #c00000;
+}
+
+.camSide {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 52px !important;
+  min-height: 44px;
+  padding: 2px 4px !important;
+  gap: 1px;
+}
+
+.camThumb {
+  width: 48px;
+  height: 44px;
+  padding: 2px !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.camThumb img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: cover;
+  border: 1px solid #000;
+}
+
+.camThumbEmpty {
+  width: 36px;
+  height: 30px;
+  background: linear-gradient(135deg, #808080, #c0c0c0);
+  border: 1px solid #808080;
+}
+
+.camStatus {
+  flex: none;
+  margin: 0 2px 2px;
+}
+
+.camStatus .status-bar-field {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.camStatusFx {
+  flex: none !important;
+  max-width: 45%;
+}
+
+/* ---- phones: the picture fills the screen, the effects become a row of chips ---- */
+
+.camRoot--mobile .camMain {
+  flex-direction: column;
+  padding: 0;
+  gap: 0;
+}
+
+.camRoot--mobile .camViewer {
+  box-shadow: none;
+  padding: 0;
+}
+
+.camRoot--mobile .camPanel {
+  width: auto;
+  flex-direction: column;
+  gap: 0;
+  padding: 2px 0;
+  overflow: visible;
+}
+
+.camRoot--mobile .camGroup {
+  border: none;
+  padding: 2px 4px;
+}
+
+.camRoot--mobile .camGroup legend {
+  display: none;
+}
+
+.camRoot--mobile .camChoices {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  touch-action: pan-x;
+  scrollbar-width: none;
+  padding-bottom: 2px;
+}
+
+.camRoot--mobile .camChoices::-webkit-scrollbar {
+  display: none;
+}
+
+.camRoot--mobile .camChoices button {
+  flex: none;
+  min-height: 34px;
+  padding: 0 10px;
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+.camRoot--mobile .camModes button {
+  min-height: 36px;
+  font-size: 12px;
+}
+
+.camRoot--mobile .camControls {
+  justify-content: space-between;
+  padding: 6px 8px calc(6px + env(safe-area-inset-bottom, 0px));
+}
+
+.camRoot--mobile .camShutter {
+  flex-direction: column;
+  gap: 0;
+  width: 84px;
+  min-height: 64px;
+  padding: 2px !important;
+  font-size: 11px;
+}
+
+.camRoot--mobile .camShutter svg {
+  width: 36px;
+  height: 36px;
+}
+
+.camRoot--mobile .camSide,
+.camRoot--mobile .camThumb {
+  width: 56px;
+  height: 52px;
+}
+
+.camRoot--mobile .camStatusFx {
+  display: none;
+}
+
+.camRoot--mobile .camCount {
+  font-size: 96px;
+}

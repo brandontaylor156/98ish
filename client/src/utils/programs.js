@@ -21,6 +21,9 @@ export const programs = [
   { name: "FreeCell", app: "freecell", type: "freecell", icon: "/assets/program_icons/freecell.svg", width: 640, height: 520, group: "Games", desktop: false, single: true },
   { name: "WordPad", app: "wordpad", type: "wordpad", icon: "/assets/program_icons/wordpad.svg", width: 640, height: 480, group: "Accessories", desktop: false },
   { name: "Sound Recorder", app: "recorder", type: "recorder", icon: "/assets/program_icons/recorder.svg", width: 340, height: 250, group: "Entertainment", desktop: false },
+  // the camera (webcam or phone camera) and the picture viewer; photos live in C:\My Pictures
+  { name: "Camera", app: "camera", type: "camera", icon: "/assets/program_icons/camera.svg", width: 780, height: 600, group: "Accessories", also: ["Entertainment"], single: true },
+  { name: "Photos", app: "photos", type: "photos", icon: "/assets/program_icons/photos.svg", width: 820, height: 580, group: "Accessories", also: ["Entertainment"] },
   { name: "Paint", app: "paint", type: "paint", icon: "/assets/program_icons/paint.svg", width: 700, height: 540, group: "Accessories", desktop: false },
   { name: "Pinball", app: "pinball", type: "pinball", icon: "/assets/program_icons/pinball.svg", width: 620, height: 740, group: "Games", desktop: false, single: true },
   { name: "Minesweeper", type: "minesweeper", icon: "/assets/program_icons/mine-48.png", width: 373, height: 456, group: "Games", single: true },
@@ -114,6 +117,9 @@ export const notepadWindow = (file = null) => launch("Notepad", { file })
 
 // Paint, optionally editing a picture from the file system
 export const paintWindow = (file = null) => launch("Paint", { file })
+
+// Photos, showing a picture (and its folder) or a folder of pictures (["C:", "My Pictures"])
+export const photosWindow = (file = null, path = null) => launch("Photos", { file, path })
 
 // WordPad, optionally editing a document (rich text or plain text)
 export const wordpadWindow = (file = null) => launch("WordPad", { file })

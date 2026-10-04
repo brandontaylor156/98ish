@@ -1,6 +1,6 @@
 import { fs } from "./fs"
 import { hyperlinks } from "./hyperlinks"
-import { explorerWindow, ieWindow, launch, mediaPlayerWindow, notepadWindow, paintWindow, programByType, recorderWindow, windowFor, wordpadWindow } from "./programs"
+import { explorerWindow, ieWindow, launch, mediaPlayerWindow, notepadWindow, photosWindow, programByType, recorderWindow, windowFor, wordpadWindow } from "./programs"
 import { latestPlayer } from "../components/applets/mediaPlayer/bus"
 import { unlockAudio } from "../components/applets/mediaPlayer/audio"
 
@@ -20,8 +20,9 @@ export const openItem = (item, dispatch) => {
     dispatch({ type: "open_window", payload: notepadWindow(item) })
     return true
   }
+  // pictures open in Photos (its Share > Open in Paint, or Edit in My Computer, for Paint)
   if (item.type === "image") {
-    dispatch({ type: "open_window", payload: paintWindow(item) })
+    dispatch({ type: "open_window", payload: photosWindow(item) })
     return true
   }
   if (item.type === "richtext") {

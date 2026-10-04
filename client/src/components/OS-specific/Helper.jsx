@@ -96,6 +96,8 @@ const TIPS = {
     "Notes feel early or late? Calibrate Lag on the Shred 98 title screen lines them up with your speakers.",
   ],
   Downhill: ["Press Space in the air off a ramp to spin. Just land before the spin ends!", "Something lives up on that mountain. Keep moving after 2,000 m..."],
+  Camera: ["Try Photo Strip mode: four poses, one strip, just like a mall photo booth!", "The Effects button has CRT scanlines, a VHS tape and a 216-color web-safe look. Very 1998."],
+  Photos: ["Swipe left and right to flip through your pictures, and pinch to zoom.", "Share > Set as Wallpaper puts any photo on your desktop."],
   "Photo Puzzle": ["Turn on Options > Edge Pieces Only to build the frame first. It's how the pros do it!", "Send a puzzle to someone special with a hidden message. They only see it once the last piece is in."],
   "Doodle Together": ["Invite your sweetheart and draw at the same time. You'll see their cursor wander around the page!", "Try Background > Fill in the Heart, then grab the paint bucket."],
   "Dream House": ["Small things like lamps and cakes land on the table under them. Try a lamp on the nightstand, then switch to Night!", "Put your two little people next to each other and watch what happens."],

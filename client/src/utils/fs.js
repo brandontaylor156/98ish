@@ -88,6 +88,8 @@ export const FILE_TYPE = {
   mail: "mail",
   homepage: "homepage",
   winpopup: "winpopup",
+  camera: "camera",
+  photos: "photos",
 }
 
 export const DIRECTORY_TYPE = {
@@ -549,6 +551,10 @@ const DEFAULT_ITEMS = [
   ["C:/Programs/98ish Mail", "file", "mail"],
   ["C:/Programs/HomePage Studio", "file", "homepage"],
   ["C:/Programs/WinPopup", "file", "winpopup"],
+  ["C:/Programs/Camera", "file", "camera"],
+  ["C:/Programs/Photos", "file", "photos"],
+  // Camera saves here; Photos opens here
+  ["C:/My Pictures", "dir", "folder"],
   ["C:/Bookmarks", "dir", "bookmarks"],
   ...["AOL", "Yahoo", "Tim Tang", "Ask Jeeves", "Geocities", "eBay", "IMDb", "Chit Chat", "ReDirector", "98ish Guestbook"].map((n) => [`C:/Bookmarks/${n}`, "file", "internet"]),
   ["C:/Hello World", "file", "text", "Hello World!"],

@@ -72,6 +72,8 @@ export const APP_PROFILES = {
   "Monster Duel": { image: "mduel.exe", mem: 9840, threads: 5, handles: 96, cpu: [0.4, 9] },
   "Block Ten": { image: "blockten.exe", mem: 1876, threads: 2, handles: 33, cpu: [0.15, 4] },
   "Sunny Acres": { image: "acres.exe", mem: 7480, threads: 4, handles: 88, cpu: [0.6, 9] },
+  Camera: { image: "camera98.exe", mem: 6120, threads: 5, handles: 71, cpu: [2, 14] },
+  Photos: { image: "photos.exe", mem: 3460, threads: 3, handles: 52, cpu: [0.1, 4] },
   "Photo Puzzle": { image: "puzzle.exe", mem: 4210, threads: 3, handles: 47, cpu: [0.2, 6] },
   "Doodle Together": { image: "doodle.exe", mem: 3388, threads: 3, handles: 52, cpu: [0.3, 7] },
   "Lovebirds Quiz Show": { image: "lovebird.exe", mem: 2240, threads: 3, handles: 41, cpu: [0.15, 3] },

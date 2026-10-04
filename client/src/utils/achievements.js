@@ -17,6 +17,7 @@ export const ACHIEVEMENTS = [
   { id: "notepad-log", title: "Dear Diary", text: "Found Notepad's .LOG trick.", hint: "Start a Notepad file with a certain four-character word, save it, and open it again." },
   { id: "hidden-file", title: "Spelunker", text: "Found the file nobody was supposed to find.", hint: "Something is hiding in a temporary folder deep inside C:\\." },
   { id: "recycle", title: "Taking Out the Trash", text: "Emptied the Recycle Bin.", hint: "Delete something, then make it gone for good." },
+  { id: "photo-strip", title: "Say Cheese!", text: "Made a photo strip in Camera.", hint: "Camera has a photo booth mode: four poses, one strip." },
   { id: "wallpaper", title: "Interior Decorator", text: "Put your own picture on the desktop.", hint: "Display Properties and Paint can both change the wallpaper." },
   { id: "updates", title: "Fully Patched", text: "Installed every Windows Update.", hint: "Windows Update has a few critical things for you. All of them." },
   { id: "smarterchild", title: "Robot Friend", text: "Chatted with SmarterChild.", hint: "Somebody on 98 Messenger is always online." },

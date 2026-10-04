@@ -57,6 +57,8 @@ export const imageMapper = {
   clock: "program_icons/clock.svg",
   charmap: "program_icons/charmap.svg",
   winpopup: "program_icons/winpopup.svg",
+  camera: "program_icons/camera.svg",
+  photos: "program_icons/photos.svg",
   programs: "programs.png",
   desktop: "directory_folder.png",
   README: "README.png",

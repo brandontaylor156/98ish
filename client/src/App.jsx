@@ -34,9 +34,11 @@ const reducer = (state, action) => {
       const program = !action.payload.netId && programByName(action.payload.program)
       if (program?.single && action.payload.app === program.app) {
         const open = state.findIndex((w) => !w.closed && !w.netId && w.program === program.name && w.app === program.app)
+        // a handoff (a picture for Photo Puzzle, an attachment for Mail) still reaches it
+        const handoff = action.payload.handoff ? { handoff: action.payload.handoff } : {}
         if (open >= 0)
           return state.map((window, idx) =>
-            idx === open ? { ...window, minimized: false, active: true, hiddenByShell: false } : { ...window, active: false }
+            idx === open ? { ...window, ...handoff, minimized: false, active: true, hiddenByShell: false } : { ...window, active: false }
           )
       }
       // cascade by the windows still open (closed ones stay in the list), and keep the new

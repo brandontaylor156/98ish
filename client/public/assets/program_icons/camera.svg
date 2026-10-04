@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <!-- Camera: a chunky late-90s digital camera, gray plastic, a big blue lens and a yellow flash -->
+  <path d="M5 15h9l3-5h14l3 5h9v24H5z" fill="#c8c8c8" stroke="#000" stroke-width="1.4" stroke-linejoin="round"/>
+  <path d="M6 16h8l3-5h14l3 5h8" fill="none" stroke="#fff" stroke-width="1"/>
+  <path d="M5 33h38v6H5z" fill="#9a9a9a"/>
+  <rect x="8" y="18" width="7" height="4" fill="#ffd400" stroke="#000" stroke-width="1"/>
+  <rect x="9" y="19" width="3" height="1.5" fill="#fff8b0"/>
+  <circle cx="26" cy="26" r="10" fill="#606060" stroke="#000" stroke-width="1.4"/>
+  <circle cx="26" cy="26" r="7.5" fill="#1d2f6a" stroke="#000" stroke-width="1"/>
+  <circle cx="26" cy="26" r="4.5" fill="#3557b8"/>
+  <circle cx="23.5" cy="23.5" r="2.2" fill="#c8dcff"/>
+  <circle cx="28.5" cy="28.5" r="1" fill="#8fb0ff"/>
+  <rect x="36" y="8" width="5" height="3" fill="#e00000" stroke="#000" stroke-width="1"/>
+  <circle cx="39" cy="20" r="1.5" fill="#00c000" stroke="#004000" stroke-width=".8"/>
+</svg>

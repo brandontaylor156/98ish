@@ -58,6 +58,14 @@ Shipped and live:
   - Appward 98, Shred 98, Word Duel, Last Card, Monster Duel, Hexlands, Speed Typist 98, Checkers online.
   - The Quiz Show redesign, Photo Puzzle fixes, live co-op in Sunny Acres.
   - Pickleball 98: skinned CC0 athletes, plus a redesign based on real play (one hit control, aim and tap soft / hold hard, dinks, resets, speed-ups, hand battles).
+  - The 98ish phone keyboard (stays up on stray taps; only its X, Go, or the field's window going closes it; keys never stick looking pressed).
+  - 98 Messenger voice/video calls, Calendar + Clock with shared calendars, Camera + Photos (all pushed; none tried on a real iPhone yet).
+
+**Camera + Photos** (`applets/camera/`, `applets/photos/`; Accessories, also Entertainment, on the desktop):
+- **Camera:** front/back/webcam via getUserMedia with clear permission/insecure/no-camera messages and a `capture` file-input fallback. Modes: Photo, Burst, Photo Strip, Video (clips download to the device; too big for the 98ish drive; on iPhone they record the plain camera without effects). 13 pixel effects + 9 frames. Photos save as JPEG (max 1280 px, about 175 KB) into `C:\My Pictures`.
+- **Photos:** folder grid, viewer with zoom (buttons, wheel, pinch, double-tap) and swipe that never moves the page, rotate, crop, brightness/contrast, effects/frames with Undo until Save, slideshow with transitions, Share (wallpaper, Paint, Photo Puzzle, Mail attachment, Network Neighborhood, download), rename, delete, upload (HEIC gets a message).
+- **Opening any picture now opens Photos** (not Paint); right-click > Edit opens Paint. One-copy programs brought forward now still get a `handoff` payload (App.jsx), used by Puzzle and Mail.
+- The 98ish drive is about 5 MB: roughly two dozen photos fit.
 
 **98ish Calendar + Clock** (TimeTree-style shared calendars; not yet tried on a real phone):
 - **Client:** `applets/calendar/` (Accessories, also in Us). `store.js` holds calendars and events (server calendars plus "On this device" in localStorage, uploadable); `recur.js` is the date math (repeats expanded client-side in the event's own IANA zone, so DST is right; exceptions keyed by the occurrence's original date); `ics.js` writes .ics files (the server imports it for feeds); `CalendarBridge.jsx` (lazy, always mounted on the desktop) applies live `cal:*` notices, fires reminders (Reminder window, Snooze/Dismiss, `98ish.cal.reminders`), rings Clock alarms and the timer, and opens Calendar/Clock (`openCalendar()`, `?calendar=CODE` invite links). The taskbar clock still opens Date/Time Properties on a double-click; right-click or hold it for Calendar and Clock.
@@ -90,9 +98,10 @@ Just pushed and not yet tried on a real phone:
 1. **Owner's real-iPhone check:**
    - The 98ish keyboard in Notepad, Messenger, Run, Speed Typist; the phone-keyboard switch; AutoFill.
    - The startup sound; the earlier "scrollbar on open" report.
+   - Camera (front/back switch, Safari background/resume, video clips) and Photos (pinch, swipe) on the iPhone.
+   - Calendar sharing with the girlfriend's account, reminders, and the iPhone Calendar subscription.
    - **98 Messenger calls on two real iPhones**, ideally once on Wi-Fi and once on cellular: ring, answer, hear each other (and that the ringtone stops), camera flip, mute, lock the screen / switch apps mid-call, and whether a cellular call connects without TURN (if not, set the Metered env vars above).
 2. **Recommended next features**, in this order:
-   - Camera + Photos (webcam/phone camera into My Pictures, a viewer with slideshow and set-as-wallpaper).
    - Control Panel + accessibility (magnifier, high contrast, larger text).
    - Then: notification center, address book, a spreadsheet, a PDF viewer / print to PDF, screenshot + clipboard history, a music library, user accounts + lock screen, search everything, help center.
 3. **Known leftovers:**

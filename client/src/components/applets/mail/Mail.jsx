@@ -208,7 +208,7 @@ const Preview = ({ message, loading, onAttachment, mobile, onBack }) => {
   )
 }
 
-const Mail = ({ dispatch, onTitle, mobile }) => {
+const Mail = ({ dispatch, onTitle, mobile, handoff = null }) => {
   const aim = useAim()
   const { status, token, me } = aim || {}
   const online = status === "online" && !!token
@@ -449,6 +449,17 @@ const Mail = ({ dispatch, onTitle, mobile }) => {
     if (compose.attachments.length >= 5) return setDialog({ kind: "error", text: "A message can have at most 5 attachments." })
     setCompose((c) => ({ ...c, attachments: [...c.attachments, attachment] }))
   }
+
+  // a file sent from another program (Photos' Share > Send by 98ish Mail): a new message
+  // with it attached, or added to the one being written
+  useEffect(() => {
+    const file = handoff?.attach
+    if (!file) return
+    if (compose) return attach(file)
+    const attachment = { name: file.name, type: file.type, content: file.textContent, size: byteSize(file.textContent) }
+    if (attachment.size > MAX_MESSAGE_BYTES) return setDialog({ kind: "error", text: `"${file.name}" is too big to attach. A message and its attachments can be at most ${formatSize(MAX_MESSAGE_BYTES)}.` })
+    startCompose({ subject: file.name, attachments: [attachment] })
+  }, [handoff?.id])
 
   const onAttachment = (attachment, action) => {
     try {

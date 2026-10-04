@@ -1,0 +1,658 @@
+/* Photos */
+
+.phRoot {
+  position: relative;
+  height: calc(100% - 25px);
+  display: flex;
+  flex-direction: column;
+  background: #c0c0c0;
+  font-family: "Pixelated MS Sans Serif", Arial, sans-serif;
+  -webkit-font-smoothing: none;
+  font-size: 11px;
+  color: #000;
+  outline: none;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.phRoot button {
+  min-width: 0;
+}
+
+/* the toolbar: icon over label, flat until hovered, as in Explorer */
+.phTools {
+  flex: none;
+  display: flex;
+  align-items: stretch;
+  gap: 1px;
+  padding: 2px 3px;
+  border-top: 1px solid #fff;
+  border-bottom: 1px solid #808080;
+  flex-wrap: wrap;
+}
+
+/* phones: one row that scrolls sideways */
+.phRoot--mobile .phTools {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  touch-action: pan-x;
+  scrollbar-width: none;
+}
+
+.phRoot--mobile .phTools::-webkit-scrollbar {
+  display: none;
+}
+
+.phTool {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  min-width: 44px !important;
+  min-height: 38px;
+  padding: 2px 4px !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  border: 1px solid transparent;
+}
+
+.phTool:not(:disabled):hover,
+.phTool:focus-visible {
+  box-shadow: inset -1px -1px #808080, inset 1px 1px #fff !important;
+}
+
+.phTool:not(:disabled):active,
+.phTool.is-on {
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080 !important;
+  background: #d4d4d4 !important;
+}
+
+.phTool:disabled .phIcon {
+  opacity: 0.35;
+}
+
+.phToolLabel {
+  white-space: nowrap;
+}
+
+.phSep {
+  flex: none;
+  width: 2px;
+  margin: 3px 2px;
+  border-left: 1px solid #808080;
+  border-right: 1px solid #fff;
+}
+
+.phAddress {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 4px;
+}
+
+.phAddress select {
+  flex: 1;
+  min-width: 0;
+  max-width: 420px;
+}
+
+.phBody {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  margin: 0 3px 3px;
+  display: flex;
+}
+
+/* the thumbnails, on white in a sunken box */
+.phGrid {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: #fff;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+  padding: 8px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  grid-auto-rows: max-content;
+  gap: 8px;
+  align-content: start;
+}
+
+.phTile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 3px !important;
+  min-height: 0;
+  background: transparent !important;
+  box-shadow: none !important;
+  border: 1px dotted transparent;
+  touch-action: manipulation;
+}
+
+.phThumb {
+  width: 100%;
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f0f0f0;
+  border: 1px solid #c0c0c0;
+  overflow: hidden;
+}
+
+.phThumb img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+.phTile--folder .phThumb {
+  background: #fff;
+  border-color: transparent;
+}
+
+.phTileName {
+  max-width: 100%;
+  padding: 0 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.phTile.is-selected .phThumb {
+  border: 2px solid #000080;
+}
+
+.phTile.is-selected .phTileName {
+  background: #000080;
+  color: #fff;
+}
+
+.phTile:focus-visible {
+  border-color: #000;
+  outline: none;
+}
+
+.phEmpty {
+  grid-column: 1 / -1;
+  padding: 24px 12px;
+  text-align: center;
+  color: #404040;
+}
+
+.phEmpty p {
+  margin: 0 0 6px;
+}
+
+.phEmptyButtons {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+.phEmptyButtons button {
+  min-height: 28px;
+  padding: 0 12px;
+}
+
+/* one picture */
+.phViewer {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  background: #3a3a3a;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+  padding: 2px;
+}
+
+.phStage {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  touch-action: none;
+  overscroll-behavior: none;
+  -webkit-touch-callout: none;
+  cursor: default;
+}
+
+.phStage.is-zoomed {
+  cursor: grab;
+}
+
+.phStage.is-zoomed:active {
+  cursor: grabbing;
+}
+
+.phImage {
+  position: absolute;
+  left: 0;
+  top: 0;
+  max-width: none;
+  transform-origin: 0 0;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6), 3px 3px 0 rgba(0, 0, 0, 0.35);
+}
+
+.phBroken,
+.phBusy {
+  margin: auto;
+  color: #fff;
+  padding: 12px;
+  text-align: center;
+}
+
+.phBusy {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  background: #ffffe1;
+  color: #000;
+  border: 1px solid #000;
+  padding: 6px 10px;
+}
+
+/* the crop box: everything outside it dims */
+.phCrop {
+  position: absolute;
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.55);
+  outline: 1px dashed #fff;
+  cursor: move;
+  touch-action: none;
+}
+
+.phCropGrid {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(to right, transparent 33.1%, rgba(255, 255, 255, 0.45) 33.3%, transparent 33.5%, transparent 66.5%, rgba(255, 255, 255, 0.45) 66.7%, transparent 66.9%),
+    linear-gradient(to bottom, transparent 33.1%, rgba(255, 255, 255, 0.45) 33.3%, transparent 33.5%, transparent 66.5%, rgba(255, 255, 255, 0.45) 66.7%, transparent 66.9%);
+}
+
+.phHandle {
+  position: absolute;
+  width: 28px;
+  height: 28px;
+  margin: -14px 0 0 -14px;
+  touch-action: none;
+}
+
+.phHandle::after {
+  content: "";
+  position: absolute;
+  left: 9px;
+  top: 9px;
+  width: 9px;
+  height: 9px;
+  background: #fff;
+  border: 1px solid #000;
+}
+
+.phHandle--nw { left: 0; top: 0; cursor: nwse-resize; }
+.phHandle--n { left: 50%; top: 0; cursor: ns-resize; }
+.phHandle--ne { left: 100%; top: 0; cursor: nesw-resize; }
+.phHandle--e { left: 100%; top: 50%; cursor: ew-resize; }
+.phHandle--se { left: 100%; top: 100%; cursor: nwse-resize; }
+.phHandle--s { left: 50%; top: 100%; cursor: ns-resize; }
+.phHandle--sw { left: 0; top: 100%; cursor: nesw-resize; }
+.phHandle--w { left: 0; top: 50%; cursor: ew-resize; }
+
+/* the edit panel under the picture */
+.phPanel {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+  margin: 0 3px 3px;
+  padding: 4px 6px;
+  box-shadow: inset -1px -1px #0a0a0a, inset 1px 1px #fff, inset -2px -2px #808080, inset 2px 2px #dfdfdf;
+}
+
+.phPanel button {
+  min-height: 24px;
+  padding: 0 8px;
+}
+
+.phPanel button.is-on,
+.phFxRow button.is-on {
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #0a0a0a, inset -2px -2px #dfdfdf, inset 2px 2px #808080;
+  background: #d8d8d8;
+  font-weight: bold;
+}
+
+.phPanelLabel {
+  margin-right: 2px;
+}
+
+.phPanelGrow {
+  flex: 1;
+}
+
+.phDefault {
+  outline: 1px solid #000;
+  outline-offset: -1px;
+}
+
+.phSlider {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 160px;
+  flex: 1;
+}
+
+.phSlider input {
+  width: 100%;
+  touch-action: pan-x;
+}
+
+.phFx {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.phFxRow {
+  display: flex;
+  gap: 3px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  touch-action: pan-x;
+  scrollbar-width: thin;
+  padding-bottom: 2px;
+}
+
+.phFxRow button {
+  flex: none;
+  white-space: nowrap;
+}
+
+.phFxButtons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.phStatus {
+  flex: none;
+  margin: 0 2px 2px;
+}
+
+.phStatus .status-bar-field {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.phStatusInfo {
+  flex: none !important;
+  max-width: 50%;
+}
+
+.phStatusSmall {
+  flex: none !important;
+  min-width: 40px;
+  text-align: center;
+}
+
+.phError {
+  color: #a00000;
+}
+
+.phComputers {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 8px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.phComputers button {
+  text-align: left;
+  min-height: 26px;
+}
+
+/* ---- the slideshow ---- */
+
+.phShow {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  background: #000;
+  overflow: hidden;
+  outline: none;
+  touch-action: none;
+  overscroll-behavior: none;
+}
+
+.phShow:fullscreen {
+  width: 100vw;
+  height: 100vh;
+}
+
+.phSlide {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+}
+
+.phSlide--out {
+  animation: phOut 0.9s ease forwards;
+}
+
+.phSlide--in {
+  animation: phDrift 12s linear both;
+}
+
+@keyframes phOut {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes phDrift {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(1.08);
+  }
+}
+
+.phIn--fade {
+  animation: phFadeIn 0.9s ease both, phDrift 12s linear both;
+}
+
+.phIn--slide {
+  animation: phSlideIn 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) both, phDrift 12s linear 0.7s both;
+}
+
+.phIn--zoom {
+  animation: phZoomIn 0.8s ease-out both;
+}
+
+.phIn--wipe {
+  animation: phWipeIn 0.9s ease-in-out both;
+}
+
+.phIn--iris {
+  animation: phIrisIn 0.9s ease-in-out both;
+}
+
+@keyframes phFadeIn {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes phSlideIn {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes phZoomIn {
+  from {
+    transform: scale(0.4);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes phWipeIn {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+@keyframes phIrisIn {
+  from {
+    clip-path: circle(0% at 50% 50%);
+  }
+  to {
+    clip-path: circle(75% at 50% 50%);
+  }
+}
+
+.phShowBar {
+  position: absolute;
+  left: 50%;
+  bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 4px;
+  max-width: calc(100% - 16px);
+  padding: 4px 6px;
+  background: #c0c0c0;
+  box-shadow: inset -1px -1px #0a0a0a, inset 1px 1px #fff, inset -2px -2px #808080, inset 2px 2px #dfdfdf;
+  transition: opacity 0.3s;
+}
+
+.phShowBar button {
+  min-height: 28px;
+  padding: 0 8px;
+}
+
+.phShow.is-quiet .phShowBar {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.phShow.is-quiet {
+  cursor: none;
+}
+
+.phShowCount {
+  padding: 0 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .phSlide--in,
+  .phIn--fade,
+  .phIn--slide,
+  .phIn--zoom,
+  .phIn--wipe,
+  .phIn--iris {
+    animation-duration: 0.01s;
+  }
+}
+
+/* ---- phones ---- */
+
+.phRoot--mobile .phTool {
+  min-width: 50px !important;
+  min-height: 46px;
+}
+
+.phRoot--mobile .phTool .phIcon {
+  width: 20px;
+  height: 20px;
+}
+
+.phRoot--mobile .phAddress select {
+  min-height: 30px;
+  font-size: 13px;
+}
+
+.phRoot--mobile .phGrid {
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+  padding: 4px;
+}
+
+.phRoot--mobile .phBody {
+  margin: 0;
+}
+
+.phRoot--mobile .phViewer {
+  box-shadow: none;
+  padding: 0;
+  background: #1e1e1e;
+}
+
+.phRoot--mobile .phPanel button {
+  min-height: 34px;
+  padding: 0 10px;
+}
+
+.phRoot--mobile .phFxRow {
+  scrollbar-width: none;
+}
+
+.phRoot--mobile .phFxRow button {
+  min-height: 34px;
+}
+
+.phRoot--mobile .phStatusSmall:last-child {
+  display: none;
+}
+
+.phRoot--mobile .phShowBar {
+  width: calc(100% - 16px);
+}
+
+.phRoot--mobile .phShowBar button,
+.phRoot--mobile .phShowBar select {
+  min-height: 36px;
+}
+
+.phRoot--mobile .phShowBar select {
+  max-width: 120px;
+  font-size: 13px;
+}

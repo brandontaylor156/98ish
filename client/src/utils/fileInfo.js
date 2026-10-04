@@ -13,7 +13,9 @@ export const iconFor = (item) => {
 }
 
 export const typeName = (item) =>
-  item.isDirectory
+  item.type === "image" && /^data:image\/jpe?g/i.test(item.textContent || "")
+    ? "JPEG Image"
+    : item.isDirectory
     ? { drive: "Local Disk", documents: "File Folder", bookmarks: "File Folder", programs: "File Folder" }[item.type] || "File Folder"
     : { text: "Text Document", note: "Text Document", internet: "Internet Shortcut", shortcut: "Shortcut", image: "Bitmap Image", music: "MIDI Sequence", richtext: "Rich Text Document", sound: "Wave Sound" }[item.type] || "Application"
 
