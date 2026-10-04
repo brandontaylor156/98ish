@@ -5,7 +5,7 @@ import { allowsShortcuts, capsMode, enterLabel, isCredential, isMultiline, isPas
 import { alternatesFor, rowUnits, rowsFor } from "./layouts"
 import { wantsCapital, wantsPeriod } from "./editing"
 import { focusNext, moveBy, pressKey, textBefore } from "./typing"
-import { noteGesture, switchToPhoneKeyboard, wantsKeyboard } from "./native"
+import { noteGesture, suppress, switchToPhoneKeyboard, wantsKeyboard } from "./native"
 import { haptic, keyClick } from "./feedback"
 import { BackIcon, EnterIcon, KeyboardIcon, PhoneIcon, ShiftIcon } from "./icons"
 import "./Keyboard.css"
@@ -21,11 +21,25 @@ const STEP_X = 9 // px of space-bar drag per character
 const STEP_Y = 22 // px per line
 const WORD_AFTER = 12 // Backspace repeats before it starts deleting words
 
-// tapping these never dismisses the keyboard (they act on the field or are the app's)
-const INTERACTIVE = "button, a, input, select, textarea, label, summary, [role=button], [role=menuitem], [role=menu], [role=tab], [role=option], [role=checkbox], [role=radio], [role=slider], [role=listbox], [contenteditable=true], [contenteditable=''], [data-kb-keep]"
-
 // windows and layers that fill the screen: never lifted over the keyboard
 const NO_LIFT = ".mobileWindow, .mobileDesktop, .windowLayer, .os-root"
+
+// a form field that isn't one the keyboard types into (a checkbox, a read-only or opted-out
+// box, a list): moving there puts the keyboard away
+const FORM_FIELD = "input, select, textarea, [contenteditable=true], [contenteditable='']"
+
+// still in the page and drawn (not in a closed or minimized window)
+const onScreen = (el) => el.isConnected && el.getClientRects().length > 0
+
+// a key for the field: if a tap elsewhere took focus away (the keyboard stays up), focus
+// goes back to the field first, so the key lands where the keyboard says it will
+const press = (el, ...args) => {
+  if (document.activeElement !== el && !el.contains(document.activeElement) && onScreen(el)) {
+    suppress(el) // (still no phone keyboard when it takes focus back)
+    el.focus({ preventScroll: true })
+  }
+  return pressKey(el, ...args)
+}
 
 const keyLabel = (key) => {
   if (key.kind === "page") return key.label
@@ -90,6 +104,16 @@ const Keyboard = () => {
   // what timers and listeners read (they outlive a render)
   const live = useRef({})
   live.current = { field, info, shift, autoUpper, ctrl, settings, page, home }
+  // the last tap outside the keyboard: focus leaving the field right after one (onto the
+  // desktop, the taskbar, a button) was a stray tap, and the keyboard stays up; focus leaving
+  // any other way (Go, the app blurring it, another form field) puts it away as before
+  const lastOutsideTap = useRef(null)
+  const strayTap = () => {
+    const tap = lastOutsideTap.current
+    if (!tap || performance.now() - tap.t > 700) return false
+    const now = document.activeElement
+    return !(now && now !== document.body && now.matches?.(FORM_FIELD))
+  }
 
   // ---- which field ----
 
@@ -97,7 +121,11 @@ const Keyboard = () => {
     let outTimer
     const sync = () => {
       const el = textFieldFor(document.activeElement)
-      if (el && el !== live.current.field) setDormant(!wantsKeyboard(el))
+      // a tap on the taskbar, a toolbar or a plain spot doesn't put the keyboard away: it stays
+      // on its field (still on screen) until its X is pressed or the field's window goes
+      const cur = live.current.field
+      if (!el && cur && onScreen(cur) && strayTap()) return
+      if (el && el !== cur) setDormant(!wantsKeyboard(el))
       setField(el && !el.dataset.kbNative ? el : null)
     }
     const onIn = (e) => {
@@ -115,6 +143,9 @@ const Keyboard = () => {
     // a tap on a field that already has focus but wasn't typable when it got it (read-only
     // until a race starts): no focusin comes, so the tap brings the keyboard
     const onTap = (e) => {
+      // (a tap on the keyboard or on a form field isn't a stray tap)
+      if (!rootRef.current?.contains(e.target) && !e.target.closest?.(FORM_FIELD)) lastOutsideTap.current = { t: performance.now(), target: e.target }
+      else lastOutsideTap.current = null
       const el = textFieldFor(e.target)
       if (!el || el !== document.activeElement || el.dataset.kbNative || el === live.current.field) return
       clearTimeout(outTimer)
@@ -159,10 +190,9 @@ const Keyboard = () => {
       const gone = !field.isConnected || !field.getClientRects().length
       if (gone && document.activeElement === field) field.blur()
       // (or stopped taking typing: read-only again when a race ends)
-      if (gone || document.activeElement !== field || field.readOnly || field.disabled) {
-        const now = textFieldFor(document.activeElement)
-        setField(now && !now.dataset.kbNative ? now : null)
-      }
+      const now = textFieldFor(document.activeElement)
+      if (gone || field.readOnly || field.disabled) setField(now && !now.dataset.kbNative ? now : null)
+      else if (now && now !== field && !now.dataset.kbNative) setField(now)
     }
     const observer = new MutationObserver(() => {
       if (!frame) frame = requestAnimationFrame(check)
@@ -193,33 +223,14 @@ const Keyboard = () => {
     }
   }, [field])
 
-  // a tap somewhere plain (not a control, not around the field) puts the keyboard away. iOS
-  // keeps focus in a field when you tap elsewhere; Android doesn't: this makes them agree.
+  // a tap on the field itself brings the keyboard back up (after focus from code)
   useEffect(() => {
     if (!field) return
-    let start = null
     const onDown = (e) => {
-      start = rootRef.current?.contains(e.target) ? null : { x: e.clientX, y: e.clientY, t: performance.now(), target: e.target }
-      // a tap on the field itself brings the keyboard up (after focus from code)
       if (textFieldFor(e.target) === live.current.field) setDormant(false)
     }
-    const onUp = (e) => {
-      const s = start
-      start = null
-      if (!s || Math.hypot(e.clientX - s.x, e.clientY - s.y) > 10 || performance.now() - s.t > 700) return
-      const el = live.current.field
-      if (!el || document.activeElement !== el) return
-      const target = s.target
-      if (!target?.isConnected || target === el || el.contains(target) || target.contains(el)) return
-      if (target.closest?.(INTERACTIVE) || target.closest?.(".kb98, .kb98Restore")) return
-      el.blur()
-    }
     document.addEventListener("pointerdown", onDown, true)
-    document.addEventListener("pointerup", onUp, true)
-    return () => {
-      document.removeEventListener("pointerdown", onDown, true)
-      document.removeEventListener("pointerup", onUp, true)
-    }
+    return () => document.removeEventListener("pointerdown", onDown, true)
   }, [field])
 
   // (once a hardware keyboard has typed, it stays the way to type, field after field, until
@@ -327,10 +338,10 @@ const Keyboard = () => {
     const isLetter = value.length === 1 && value.toLowerCase() !== value.toUpperCase()
     const up = sh !== "off" || au
     if (c) {
-      pressKey(el, value.toLowerCase(), { ctrl: true })
+      press(el, value.toLowerCase(), { ctrl: true })
       setCtrl(false)
     } else {
-      pressKey(el, isLetter && up && value === value.toLowerCase() ? value.toUpperCase() : value, { shift: isLetter && up })
+      press(el, isLetter && up && value === value.toLowerCase() ? value.toUpperCase() : value, { shift: isLetter && up })
     }
     lastSpace.current = 0
     if (sh === "once") setShift("off")
@@ -342,12 +353,12 @@ const Keyboard = () => {
     if (!el) return
     const now = performance.now()
     if (s.periodShortcut && allowsShortcuts(f) && now - lastSpace.current < 1500 && wantsPeriod(textBefore(el))) {
-      pressKey(el, "Backspace")
-      pressKey(el, ".")
-      pressKey(el, " ")
+      press(el, "Backspace")
+      press(el, ".")
+      press(el, " ")
       lastSpace.current = 0
     } else {
-      pressKey(el, " ")
+      press(el, " ")
       lastSpace.current = now
     }
     if (live.current.shift === "once") setShift("off")
@@ -357,7 +368,7 @@ const Keyboard = () => {
   const typeEnter = () => {
     const { field: el, shift: sh } = live.current
     if (!el) return
-    const result = pressKey(el, "Enter", { shift: sh !== "off" })
+    const result = press(el, "Enter", { shift: sh !== "off" })
     lastSpace.current = 0
     if (sh === "once") setShift("off")
     if (result.then === "next") {
@@ -369,7 +380,7 @@ const Keyboard = () => {
   const typeBack = (repeat = false, word = false) => {
     const el = live.current.field
     if (!el) return
-    pressKey(el, "Backspace", { repeat, word })
+    press(el, "Backspace", { repeat, word })
     lastSpace.current = 0
     settle()
   }
@@ -378,7 +389,7 @@ const Keyboard = () => {
     const el = live.current.field
     if (!el) return
     const c = live.current.ctrl
-    const result = pressKey(el, name, { repeat, ctrl: c })
+    const result = press(el, name, { repeat, ctrl: c })
     if (c) setCtrl(false)
     if (result.then === "next" && !focusNext(el)) el.blur()
     settle()
@@ -387,7 +398,7 @@ const Keyboard = () => {
   const typeUndo = () => {
     const el = live.current.field
     if (!el) return
-    pressKey(el, "z", { ctrl: true })
+    press(el, "z", { ctrl: true })
     settle()
   }
 

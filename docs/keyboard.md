@@ -135,9 +135,12 @@ the screen, the Start menu search, a floating window on a tablet) is lifted with
   touch behind it (an IM window popping up by itself) waits: the phone's keyboard stays down
   too, and tapping the field brings ours up.
 - Stays while focus moves between fields (no flicker).
-- Hides when: the field blurs, is removed or hidden (window closed, minimized, switched; a
-  MutationObserver watches while open), Enter dismisses (above), the X key, or a tap outside
-  on a non-interactive spot (iOS keeps focus there, so we blur ourselves, like Android).
+- Hides when: its X is pressed, the field is removed or hidden (window closed, minimized,
+  switched; a MutationObserver watches while open), the field turns read-only, or Enter
+  dismisses (above). A stray tap elsewhere (the desktop, the taskbar, a toolbar) does NOT put
+  it away (the owner asked for this): the keyboard stays on its field, and the next key puts
+  focus back into the field first (`suppress` then `focus`, so the phone keyboard stays down).
+  Focusing another text field moves the keyboard to it.
 - Physical keyboard: a real (trusted) key press while a field is focused hides the on-screen
   keyboard for the session; a small "Keyboard" button appears at the bottom right to bring it
   back.
