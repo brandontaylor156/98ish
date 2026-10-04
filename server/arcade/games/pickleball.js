@@ -7,10 +7,12 @@
 // four, and computer partners fill any empty spots (two people in doubles = each with a
 // computer partner). Three people always play doubles.
 
+const { sanitizeLook } = require("./pickleballLooks")
+
 const FORMATS = ["singles", "doubles"]
 const TARGETS = [7, 11, 15]
 const SCORING = ["sideout", "rally"]
-const VENUES = ["park", "club", "stadium"]
+const VENUES = ["park", "club", "stadium", "beach", "winter"]
 
 const defaultSettings = { format: "singles", target: 11, scoring: "sideout", venue: "stadium" }
 
@@ -47,4 +49,20 @@ module.exports = {
   bucket: (s) => `${s.format}:${s.target}:${s.scoring}`,
   // singles is full with two (start right away); doubles waits a moment for more
   quickSeats: (s) => (s.format === "singles" ? 2 : 4),
+  // what people's browsers tell each other about their players ("hello": who I am and what
+  // I'm wearing; "start": the host's line-up) goes through the look checks; the rest (hits,
+  // the final score) passes as it is
+  filterRelay: (data) => {
+    if (!data || typeof data !== "object" || Array.isArray(data)) return null
+    if (data.type === "hello") return { type: "hello", character: cleanId(data.character), outfit: cleanId(data.outfit), look: sanitizeLook(data.look) }
+    if (data.type === "start") {
+      if (!Array.isArray(data.people) || data.people.length > 4) return null
+      const people = data.people.map((p) => (p && typeof p === "object" ? { seat: Number.isInteger(p.seat) ? p.seat : null, name: typeof p.name === "string" ? p.name.slice(0, 40) : "", character: cleanId(p.character), outfit: cleanId(p.outfit), look: sanitizeLook(p.look) } : null)).filter(Boolean)
+      return { ...data, people }
+    }
+    return data
+  },
 }
+
+// a character or outfit id: short letters and digits, or nothing
+const cleanId = (v) => (typeof v === "string" && /^[a-z0-9]{1,24}$/i.test(v) ? v : null)

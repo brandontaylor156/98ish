@@ -860,7 +860,7 @@ export const createAthlete = (look = {}, { shadows = false, withPaddle = true } 
       if (w <= 1e-3) continue
       const clip = moves.clips[L.clip]
       if (!clip) continue
-      const t = clipTime(clip, name === "jog" || name === "sprint" ? { phase: layers.phase, locked: true } : { time: clock })
+      const t = clipTime(clip, L.locked ? { phase: layers.phase, locked: true, contact: L.contact || 0 } : { time: clock })
       d = qmul(d, additiveMove(moves, clip, bone, t, w))
     }
     return d
@@ -894,7 +894,7 @@ export const createAthlete = (look = {}, { shadows = false, withPaddle = true } 
     }
     lastPos = { x: pose.pelvis.x, z: pose.pelvis.z }
     const info = pose.info || {}
-    stepLayers(layers, layerTargets({ speed: info.speed ?? speedEst, swinging: info.swinging, mood: info.mood, between: info.between }), dt)
+    stepLayers(layers, layerTargets({ speed: info.speed ?? speedEst, swinging: info.swinging, mood: info.mood, between: info.between, blend: info.blend || null }), dt)
     layers.phase = info.phase ?? clock * 6
 
     // the pelvis: placed so the hip joints are where the pose's are

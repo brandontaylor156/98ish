@@ -57,7 +57,9 @@
 //    and give the game's program entry in client/src/utils/programs.js `online: "<id>"` so
 //    invitations and join links open the right window.
 //
-// Real-time games (relay: true, e.g. Pickleball): no create/action/view. The host's
+// Real-time games (relay: true, e.g. Pickleball): no create/action/view; an optional
+// filterRelay(data, { from, host }) checks reliable relay messages (returns the data to send,
+// cleaned, or null to refuse it). The host's
 // browser runs the simulation and streams snapshots (room:snap, ~20-30 a second, volatile:
 // late ones are dropped, never queued); guests send inputs (room:input) that go only to the
 // host; room:relay carries reliable messages (a point scored); the host ends the game with
@@ -879,6 +881,18 @@ const createRooms = ({ games = [], emit = () => {}, emitVolatile = null, blocked
     if (sizeOf(data) > MAX_RELAY) return { ok: false, error: "That message is too big." }
     if (actLimit(pid)) return { ok: false, error: "Too many messages. Slow down a little." }
     const from = seatOf(room, pid)
+    // the game can check what its reliable messages carry (filterRelay: data -> clean data,
+    // or null to drop it)
+    if (typeof room.game.filterRelay === "function") {
+      let clean = null
+      try {
+        clean = room.game.filterRelay(data, { from, host: room.host === pid })
+      } catch {
+        clean = null
+      }
+      if (clean === null || clean === undefined) return { ok: false, error: "That message isn't allowed." }
+      data = clean
+    }
     const payload = { roomId: room.id, from, data }
     if (room.host !== pid) send(room.host, "room:relay", payload)
     else if (Number.isInteger(to) && room.seats[to] && !room.seats[to].bot) send(room.seats[to].pid, "room:relay", payload)
