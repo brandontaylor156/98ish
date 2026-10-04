@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react"
 import { Rnd } from "react-rnd"
-import { desktopPrograms, ieWindow, launch, paintWindow, programByName, windowFor } from "../../utils/programs"
+import { compassWindow, desktopPrograms, ieWindow, launch, paintWindow, programByName, windowFor } from "../../utils/programs"
 import { useSettings } from "../../utils/settings"
 import { openItem, openTarget } from "../../utils/openItem"
 import { fs, readContent, uniqueName, validName } from "../../utils/fs"
@@ -95,6 +95,7 @@ const Tetris = lazyApp(() => import("../applets/tetris/Tetris"))
 const Hover = lazyApp(() => import("../applets/hover/Hover"))
 const Spectra = lazyApp(() => import("../applets/spectra/Spectra"))
 const InternetExplorer = lazyApp(() => import("../applets/internetExplorer/InternetExplorer"))
+const Compass = lazyApp(() => import("../applets/compass/Compass"))
 const VideoPlayer = lazyApp(() => import("../applets/videoPlayer/VideoPlayer"))
 const Minesweeper = lazyApp(() => import("../applets/minesweeper/Minesweeper"))
 const WindowsUpdate = lazyApp(() => import("../applets/update/WindowsUpdate"))
@@ -719,6 +720,16 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
           initialUrl={window.url}
           onTitle={rename(index)}
           onNewWindow={(url) => dispatch({ type: "open_window", payload: ieWindow(url) })}
+          onClose={() => closeWindow(window, index)}
+        />
+      )}
+      {window.app === "compass" && (
+        <Compass
+          initialUrl={window.url}
+          mobile={mobile}
+          dispatch={dispatch}
+          onTitle={rename(index)}
+          onNewWindow={(url) => dispatch({ type: "open_window", payload: compassWindow(url) })}
           onClose={() => closeWindow(window, index)}
         />
       )}

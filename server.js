@@ -2,7 +2,7 @@
 // Neighborhood (file sharing, WinPopup, network games), the guestbook's HTTP API, and
 // couples (server/couples: pairing, love letters, Our Story, flowers), and shared
 // calendars (server/calendar), Web Push notifications (server/push), and the Address Book's
-// online copy (server/contacts).
+// online copy (server/contacts), and Compass's web relay (server/web: WEB_* env vars, see there).
 // Env: PORT, MONGODB_URI (accounts, guestbook and online drives; kept in memory without it),
 // VAPID_PUBLIC_KEY + VAPID_PRIVATE_KEY + VAPID_SUBJECT (push notifications; off without them),
 // DRIVE_SYNC_QUOTA_MB and DRIVE_SYNC_MAX_FILE_MB (file sync, see server/drive/sync.js).
@@ -25,8 +25,13 @@ const { petRouter } = require("./server/pet")
 const { calendarRouter, attachCalendar } = require("./server/calendar")
 const { defaultPush } = require("./server/push")
 const { contactsRouter } = require("./server/contacts")
+const { createWeb } = require("./server/web")
 
 const app = express()
+// Compass's web relay answers CORS itself (relayed pages are opaque origins), so it goes first
+let aimService = null // 98 Messenger once it's running (the relay signs people in with it)
+const web = createWeb({ aim: () => aimService })
+app.use("/api/web", web.router)
 app.use(cors())
 app.get("/", (request, response) => response.send("98ish chat server is running"))
 let aim // 98 Messenger, once started: the online drive signs in with its sessions
@@ -80,6 +85,7 @@ attachGameChat(io, net)
 aim = attachAim(io, { push })
 aim
   .then((aim) => {
+    aimService = aim
     net.useAim(aim)
     mail.useAim(aim)
     puzzles.useAim(aim)

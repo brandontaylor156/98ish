@@ -11,6 +11,7 @@ export const imageMapper = {
   dos: "dos.png",
   internet: "internet_explorer.png",
   ie: "internet_explorer.png",
+  compass: "program_icons/compass.svg",
   tetris: "program_icons/tetris3-48.png",
   minesweeper: "program_icons/mine-48.png",
   solitaire: "program_icons/solitaire.svg",

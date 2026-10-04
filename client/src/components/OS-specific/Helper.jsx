@@ -30,6 +30,12 @@ const TIPS = {
   Minesweeper: ["Click both mouse buttons on a number to clear around it, if you've flagged enough mines."],
   Tetris: ["Hold a piece for later with the Hold box. Saves lives."],
   "Internet Explorer": ["Change the date in the toolbar to see websites the way they looked back then."],
+  Compass: [
+    "Compass is the real, modern Web. Type an address or just search for something in the bar at the top.",
+    "Banking or email? Tap the arrow button to open the page in your real browser: pages in Compass pass through the 98ish server.",
+    "Tap the star to bookmark a page. Your bookmarks, history and tabs are yours alone, even on a shared computer.",
+    "Want to see what a site looked like in 1998? Go > Open in Time Machine sends it to Internet Explorer.",
+  ],
   "98 Messenger": ["Away messages are serious business. Choose yours wisely."],
   "Task Manager": ["Whatever you do, don't end explorer.exe. I'm serious. Mostly."],
   "Display Properties": ["Pick Browse... to use your own picture as the wallpaper."],

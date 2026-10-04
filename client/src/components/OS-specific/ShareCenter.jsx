@@ -3,7 +3,7 @@ import Dialog from "../shared/Dialog"
 import { imageMapper } from "../../utils/imageMapper"
 import { DESKTOP, DOCUMENTS, pathLabel, planReceived } from "../../utils/shareRules"
 import { folderAt, receiveFiles, saveLink, saveNote } from "../../utils/receive"
-import { ieWindow, notepadWindow, photosWindow } from "../../utils/programs"
+import { webWindow, notepadWindow, photosWindow } from "../../utils/programs"
 import "./ShareCenter.css"
 
 // Sharing between 98ish and the phone, the desktop-wide part:
@@ -64,7 +64,7 @@ const choicesFor = (entry) => {
   if (entry.kind === "link")
     return [
       ["shortcut", "Shortcut on the desktop"],
-      ["ie", "Open in Internet Explorer"],
+      ["ie", "Open in Compass"],
       ["both", "Shortcut and open it"],
       ["skip", "Don't save"],
     ]
@@ -149,7 +149,7 @@ const ShareCenter = ({ dispatch }) => {
             const made = await saveLink(folderAt(DESKTOP), entry.name, entry.url)
             lines.push(`${made.name}: shortcut on the desktop`)
           }
-          if (choice === "ie" || choice === "both") opens.push(ieWindow(entry.url))
+          if (choice === "ie" || choice === "both") opens.push(webWindow(entry.url))
           continue
         }
         if (entry.kind === "note") {

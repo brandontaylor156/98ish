@@ -1,0 +1,818 @@
+/* Compass, the 98ish web browser: 98.css chrome around real pages. */
+
+.cmpRoot {
+  position: relative;
+  height: calc(100% - 25px);
+  display: flex;
+  flex-direction: column;
+  background: #c0c0c0;
+  color: #000;
+  font-family: "Pixelated MS Sans Serif", Arial, sans-serif;
+  -webkit-font-smoothing: none;
+  font-size: 11px;
+  min-height: 0;
+}
+.cmpRoot > * {
+  flex: none;
+}
+.cmpRoot button {
+  min-width: 0;
+}
+
+/* ---- tabs ---- */
+.cmpTabs {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  padding: 4px 4px 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+  border-bottom: 1px solid #fff;
+}
+.cmpTab {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 1 180px;
+  min-width: 60px;
+  height: 22px;
+  padding: 0 2px 0 6px;
+  background: #c0c0c0;
+  box-shadow: inset -1px 0 #0a0a0a, inset 1px 1px #fff, inset -2px 0 #808080, inset 2px 2px #dfdfdf;
+  cursor: default;
+  user-select: none;
+  position: relative;
+  top: 1px;
+}
+.cmpTab.is-active {
+  height: 25px;
+  z-index: 1;
+  background: #c0c0c0;
+  font-weight: bold;
+}
+.cmpTab:not(.is-active) {
+  color: #222;
+  background: #b4b4b4;
+}
+.cmpTab.is-dragging {
+  opacity: 0.6;
+}
+.cmpTabTitle {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cmpTabClose {
+  width: 16px;
+  height: 14px;
+  padding: 0;
+  font-size: 12px;
+  line-height: 10px;
+  flex: none;
+}
+.cmpNewTab {
+  flex: none;
+  width: 22px;
+  height: 20px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  margin-bottom: 2px;
+}
+.cmpFavicon {
+  flex: none;
+  image-rendering: auto;
+  object-fit: contain;
+}
+.cmpSpinner {
+  width: 12px;
+  height: 12px;
+  flex: none;
+  border: 2px solid #808080;
+  border-top-color: #000080;
+  border-radius: 50%;
+  animation: cmpSpin 0.8s linear infinite;
+  margin: 0 2px;
+}
+@keyframes cmpSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ---- toolbar + omnibox ---- */
+.cmpToolbar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px 4px;
+  border-bottom: 1px solid #808080;
+  box-shadow: 0 1px #fff;
+}
+.cmpTool {
+  width: 30px;
+  height: 26px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+.cmpTool svg {
+  fill: #000;
+}
+.cmpTool:disabled svg {
+  fill: #808080;
+  filter: drop-shadow(1px 1px 0 #fff);
+}
+.cmpTool.is-active {
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #0a0a0a, inset -2px -2px #dfdfdf, inset 2px 2px #808080;
+}
+.cmpRealBtn svg {
+  fill: #000080;
+}
+.cmpThrobber {
+  width: 28px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  background: #000;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080;
+  flex: none;
+  margin-left: 2px;
+}
+.cmpThrobber.is-busy svg {
+  animation: cmpSpin 1.6s linear infinite;
+}
+.cmpOmni {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  background: #fff;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+  height: 26px;
+  padding: 0 2px 0 4px;
+  margin: 0 2px;
+}
+.cmpOmni input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  box-shadow: none;
+  background: transparent;
+  height: 22px;
+  font-size: 12px;
+  padding: 0 4px;
+  outline: none;
+}
+.cmpBadge {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: none;
+  padding: 0 2px;
+}
+.cmpBadge svg {
+  fill: #444;
+}
+.cmpRelayTag {
+  font-size: 9px;
+  font-weight: bold;
+  color: #fff;
+  background: #008080;
+  padding: 0 3px;
+  line-height: 12px;
+}
+.cmpNotSecure {
+  display: inline-grid;
+  place-items: center;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #808080;
+  color: #fff;
+  font-size: 9px;
+  font-weight: bold;
+}
+.cmpStar {
+  width: 22px;
+  height: 20px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  box-shadow: none;
+  background: transparent;
+  flex: none;
+}
+.cmpStar svg {
+  fill: #fff;
+  stroke: #444;
+  stroke-width: 1;
+}
+.cmpStar.is-on svg {
+  fill: #ffd400;
+}
+.cmpSuggest {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 100%;
+  z-index: 20;
+  margin: 0;
+  padding: 2px;
+  list-style: none;
+  background: #fff;
+  border: 1px solid #000;
+  box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.35);
+}
+.cmpSuggest button {
+  width: 100%;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  text-align: left;
+  background: transparent;
+  box-shadow: none;
+  padding: 4px 6px;
+  min-height: 24px;
+}
+.cmpSuggest button:hover,
+.cmpSuggest button.is-picked {
+  background: #000080;
+  color: #fff;
+}
+.cmpSuggest b {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 50%;
+}
+.cmpSuggest small {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0.75;
+}
+.cmpSuggestKind {
+  width: 12px;
+  flex: none;
+}
+
+/* ---- bookmarks bar ---- */
+.cmpBookmarksBar {
+  display: flex;
+  gap: 2px;
+  padding: 2px 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  border-bottom: 1px solid #808080;
+}
+.cmpBookmarksBar button {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+  max-width: 160px;
+  height: 22px;
+  padding: 0 6px;
+  box-shadow: none;
+  background: transparent;
+}
+.cmpBookmarksBar button:hover {
+  box-shadow: inset -1px -1px #808080, inset 1px 1px #fff;
+}
+.cmpBookmarksBar span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---- notices + find ---- */
+.cmpNotice {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 4px 6px;
+  background: #ffffe1;
+  border-bottom: 1px solid #808080;
+}
+.cmpNotice.is-warn {
+  background: #fff4c4;
+}
+.cmpNoticeIcon {
+  display: inline-grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #000080;
+  color: #fff;
+  font-weight: bold;
+  flex: none;
+}
+.is-warn .cmpNoticeIcon {
+  background: #c00000;
+}
+.cmpNoticeText {
+  flex: 1 1 220px;
+}
+.cmpFind {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 6px;
+  border-bottom: 1px solid #808080;
+}
+.cmpFind input {
+  flex: 1;
+  min-width: 60px;
+  max-width: 260px;
+  height: 22px;
+}
+.cmpFind button {
+  width: 26px;
+  height: 22px;
+  padding: 0;
+}
+.cmpFindCount {
+  min-width: 64px;
+  color: #444;
+}
+
+/* ---- pages ---- */
+.cmpView {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  margin: 2px;
+  background: #fff;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+  padding: 2px;
+  overflow: hidden;
+}
+.cmpTabView {
+  position: absolute;
+  inset: 2px;
+  overflow: hidden;
+}
+.cmpTabView[hidden] {
+  display: none;
+}
+.cmpFrame {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: #fff;
+}
+.cmpPage {
+  height: 100%;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 16px 20px 32px;
+  font-family: Tahoma, Verdana, Arial, sans-serif;
+  -webkit-font-smoothing: auto;
+  font-size: 13px;
+  color: #000;
+  box-sizing: border-box;
+}
+.cmpPage h1 {
+  font-size: 20px;
+  margin: 0 0 8px;
+}
+.cmpPage h2 {
+  font-size: 13px;
+  margin: 18px 0 6px;
+  padding-bottom: 2px;
+  border-bottom: 1px solid #c0c0c0;
+}
+.cmpPending {
+  display: grid;
+  place-items: center;
+  color: #444;
+}
+.cmpBrand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.cmpBrand h1 {
+  margin: 0;
+  font-size: 24px;
+  color: #000080;
+}
+.cmpBrand p {
+  margin: 2px 0 0;
+  color: #444;
+}
+.cmpHome {
+  max-width: 760px;
+  margin: 0 auto;
+}
+.cmpBigSearch {
+  display: flex;
+  gap: 4px;
+}
+.cmpBigSearch input {
+  flex: 1;
+  min-width: 0;
+  height: 30px;
+  font-size: 14px;
+}
+.cmpBigSearch button {
+  height: 30px;
+}
+.cmpTiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
+  gap: 6px;
+}
+.cmpTile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 4px;
+  min-height: 72px;
+  font-size: 11px;
+}
+.cmpTile span {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cmpList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.cmpList li {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border-bottom: 1px dotted #c0c0c0;
+}
+.cmpList li > button:first-child {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  text-align: left;
+  background: transparent;
+  box-shadow: none;
+  padding: 6px 4px;
+  min-height: 32px;
+}
+.cmpList li > button:first-child:hover {
+  background: #e8e8ff;
+}
+.cmpList b {
+  font-weight: normal;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 55%;
+}
+.cmpList small {
+  color: #555;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.cmpList .cmpDay {
+  font-weight: bold;
+  padding: 10px 4px 4px;
+  border-bottom: 1px solid #808080;
+}
+.cmpTime {
+  color: #555;
+  width: 58px;
+  flex: none;
+}
+.cmpRemove,
+.cmpSmall {
+  flex: none;
+  height: 24px;
+  padding: 0 6px;
+}
+.cmpRemove {
+  width: 26px;
+}
+.cmpBarToggle {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: none;
+}
+.cmpEdit {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px 0;
+}
+.cmpEdit input {
+  flex: 1 1 140px;
+}
+.cmpPageTools {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.cmpPageTools input {
+  flex: 1;
+  max-width: 320px;
+  height: 24px;
+}
+.cmpEmpty {
+  color: #555;
+}
+.cmpUsage {
+  padding: 6px 8px;
+  background: #ffffe1;
+  border: 1px solid #808080;
+}
+.cmpStub {
+  text-align: center;
+  padding-top: 32px;
+}
+.cmpStub p {
+  max-width: 460px;
+  margin: 8px auto;
+  line-height: 1.4;
+}
+.cmpStubIcon {
+  font-size: 40px;
+  line-height: 1;
+  margin-bottom: 8px;
+}
+.cmpStubUrl {
+  color: #555;
+  word-break: break-all;
+}
+.cmpStubButtons {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 16px 0;
+}
+.cmpStubButtons button {
+  min-height: 30px;
+  padding: 0 14px;
+}
+.cmpPrimary {
+  font-weight: bold;
+  outline: 1px solid #000;
+  outline-offset: -4px;
+}
+.cmpCheck {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.cmpStubAlt {
+  font-size: 12px;
+  color: #444;
+}
+.cmpLink {
+  background: none;
+  box-shadow: none;
+  border: 0;
+  padding: 0;
+  min-height: 0;
+  color: #00e;
+  text-decoration: underline;
+  font: inherit;
+  cursor: pointer;
+}
+.cmpAbout ul {
+  padding-left: 18px;
+  line-height: 1.45;
+}
+.cmpOptions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: min(360px, 80vw);
+}
+.cmpOptions > label:not(.cmpCheck) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.cmpOptions select {
+  max-width: 220px;
+}
+.cmpOptRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 0;
+}
+
+/* ---- status bar ---- */
+.cmpStatus {
+  margin: 0 2px 2px;
+  display: flex;
+}
+.cmpStatusText {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cmpZone {
+  flex: none;
+  min-width: 150px;
+}
+
+.cmpToast {
+  position: absolute;
+  left: 50%;
+  bottom: 36px;
+  transform: translateX(-50%);
+  z-index: 30;
+  max-width: 90%;
+  padding: 6px 10px;
+  background: #ffffe1;
+  border: 1px solid #000;
+  box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.4);
+}
+
+/* ---- phone ---- */
+.cmpRoot.is-phone .cmpToolbar {
+  padding: 4px;
+}
+.cmpRoot.is-phone .cmpOmni {
+  height: 36px;
+}
+.cmpRoot.is-phone .cmpOmni input {
+  font-size: 16px; /* 16px: iOS doesn't zoom into the field */
+  height: 32px;
+}
+.cmpRoot.is-phone .cmpTool {
+  width: 40px;
+  height: 36px;
+}
+.cmpRoot.is-phone .cmpView {
+  margin: 0;
+  padding: 1px;
+}
+.cmpRoot.is-phone .cmpTabView {
+  inset: 1px;
+}
+.cmpRoot.is-phone .cmpFind input {
+  font-size: 16px;
+  height: 32px;
+}
+.cmpRoot.is-phone .cmpFind button {
+  width: 36px;
+  height: 32px;
+}
+.cmpRoot.is-phone .cmpNotice button {
+  min-height: 32px;
+}
+.cmpRoot.is-phone .cmpPage {
+  padding: 12px 12px 32px;
+  font-size: 15px;
+}
+.cmpRoot.is-phone .cmpBigSearch input {
+  font-size: 16px;
+  height: 40px;
+}
+.cmpRoot.is-phone .cmpBigSearch button {
+  height: 40px;
+}
+.cmpRoot.is-phone .cmpList li > button:first-child {
+  min-height: 44px;
+}
+.cmpRoot.is-phone .cmpTiles {
+  grid-template-columns: repeat(4, 1fr);
+}
+.cmpRoot.is-phone .cmpSuggest button {
+  min-height: 44px;
+  font-size: 14px;
+}
+.cmpPhoneBar {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  padding: 4px 4px calc(4px + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid #fff;
+  box-shadow: 0 -1px #808080;
+}
+.cmpRoot.is-phone .cmpPhoneBar .cmpTool {
+  width: 52px;
+  height: 40px;
+}
+.cmpTabCount span {
+  display: inline-grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  border: 2px solid #000;
+  font-weight: bold;
+  font-size: 12px;
+}
+.cmpSheet {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(49px + env(safe-area-inset-bottom, 0px));
+  max-height: 75%;
+  overflow: auto;
+  z-index: 25;
+  background: #c0c0c0;
+  box-shadow: inset 1px 1px #fff, inset -1px -1px #0a0a0a, 0 -2px 8px rgba(0, 0, 0, 0.35);
+  padding: 6px;
+}
+.cmpSheetHead {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.cmpSheetHead b {
+  flex: 1;
+  font-size: 13px;
+}
+.cmpSheetHead button {
+  min-height: 34px;
+}
+.cmpTabGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+.cmpTabCard {
+  position: relative;
+  background: #fff;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080;
+}
+.cmpTabCard.is-active {
+  outline: 2px solid #000080;
+}
+.cmpTabCardMain {
+  width: 100%;
+  min-height: 80px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 8px 30px 8px 8px;
+  text-align: left;
+  background: transparent;
+  box-shadow: none;
+}
+.cmpTabCardMain b,
+.cmpTabCardMain small {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cmpTabCardClose {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+}
+.cmpMenuRow {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 4px;
+  align-items: center;
+}
+.cmpMenuRow button {
+  flex: 1;
+  min-height: 40px;
+}
+.cmpZoomLabel {
+  min-width: 44px;
+  text-align: center;
+}
+.cmpMenuList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.cmpMenuList button {
+  width: 100%;
+  text-align: left;
+  min-height: 42px;
+  padding: 0 10px;
+  margin-bottom: 2px;
+}

@@ -30,6 +30,7 @@ export const APP_PROFILES = {
   Hover: { image: "hover.exe", mem: 9408, threads: 6, handles: 88, cpu: [1, 22] },
   "YouTube '98": { image: "mplayer2.exe", mem: 7752, threads: 9, handles: 141, cpu: [0.9, 12] },
   "Internet Explorer": { image: "iexplore.exe", mem: 14872, threads: 11, handles: 296, cpu: [0.8, 9] },
+  Compass: { image: "compass.exe", mem: 21760, threads: 14, handles: 342, cpu: [1, 12] },
   "View Video": { image: "iexplore.exe", mem: 11284, threads: 12, handles: 263, cpu: [0.8, 10] },
   "My Computer": { image: "explorer.exe", mem: 3516, threads: 5, handles: 96, cpu: [0.15, 2] },
   Notepad: { image: "notepad.exe", mem: 1356, threads: 1, handles: 22, cpu: [0.05, 1] },

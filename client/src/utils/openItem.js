@@ -1,6 +1,6 @@
 import { fs } from "./fs"
 import { hyperlinks } from "./hyperlinks"
-import { explorerWindow, ieWindow, launch, mediaPlayerWindow, notepadWindow, photosWindow, programByType, recorderWindow, windowFor, wordpadWindow } from "./programs"
+import { explorerWindow, ieWindow, launch, webWindow, mediaPlayerWindow, notepadWindow, photosWindow, programByType, recorderWindow, windowFor, wordpadWindow } from "./programs"
 import { helpHandoff } from "./help"
 import { latestPlayer } from "../components/applets/mediaPlayer/bus"
 import { unlockAudio } from "../components/applets/mediaPlayer/audio"
@@ -37,9 +37,10 @@ export const openItem = (item, dispatch) => {
   if (item.type === "internet") {
     const url = hyperlinks[item.name] || item.textContent
     if (!url) return false
-    // the authors' GitHub projects open in a real tab; the rest in Internet Explorer
+    // the authors' GitHub projects open in a real tab; 98ish's own pages in Internet
+    // Explorer; the rest of the Web in Compass
     if (/github\.com/.test(url)) window.open(url, "_blank", "noopener")
-    else dispatch({ type: "open_window", payload: ieWindow(url) })
+    else dispatch({ type: "open_window", payload: webWindow(url) })
     return true
   }
   if (item.type === "music") {
@@ -68,7 +69,7 @@ export const openItem = (item, dispatch) => {
 export const openTarget = (target, dispatch) => {
   if (target.item) return openItem(target.item, dispatch)
   if (target.file) return dispatch({ type: "open_window", payload: notepadWindow(target.file) }), true
-  if (target.url) return dispatch({ type: "open_window", payload: ieWindow(target.url) }), true
+  if (target.url) return dispatch({ type: "open_window", payload: webWindow(target.url) }), true
   if (target.program) return dispatch({ type: "open_window", payload: launch(target.program) }), true
   // 98ish Help at a topic or a program's page (the DOS prompt's HELP TETRIS)
   if (target.help) return dispatch({ type: "open_window", payload: launch("98ish Help", helpHandoff(target.help)) }), true

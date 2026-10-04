@@ -11,6 +11,8 @@ export const programs = [
   { name: "SPECTRA", type: "spectra", icon: "/assets/program_icons/spectra.svg", width: 860, height: 600, group: "Games", single: true },
   { name: "Tetris", type: "tetris", icon: "/assets/program_icons/tetris3-48.png", width: 600, height: 600, group: "Games", single: true },
   { name: "Internet Explorer", app: "ie", type: "ie", icon: "/assets/internet_explorer.png", width: 900, height: 640, group: "Internet" },
+  // the real Web (tabs, bookmarks, history), through the 98ish server's relay (server/web)
+  { name: "Compass", app: "compass", type: "compass", icon: "/assets/program_icons/compass.svg", width: 980, height: 680, group: "Internet" },
   { name: "Task Manager", type: "taskmanager", icon: "/assets/program_icons/taskManager-48.png", width: 430, height: 480, group: "System Tools", single: true },
   { name: "Hover", type: "hover", icon: "/assets/program_icons/hover2-48.png", width: 600, height: 600, group: "Games", single: true },
   { name: "Media Player", app: "media", type: "media", icon: "/assets/program_icons/mediaplayer.svg", width: 440, height: 560, group: "Entertainment", desktop: false, single: true },
@@ -131,6 +133,13 @@ export const launch = (name, extra) => windowFor(programByName(name), extra)
 
 // An Internet Explorer window, optionally opening a page (as of the date IE is set to)
 export const ieWindow = (url) => launch("Internet Explorer", { url })
+
+// Compass, the real web browser, optionally opening a page
+export const compassWindow = (url) => launch("Compass", url ? { url } : {})
+
+// A web link opened anywhere in 98ish: 98ish's own pages (the web ring, the guestbook) stay
+// in Internet Explorer; everything else opens in Compass
+export const webWindow = (url) => (/^https?:\/\/(www\.)?98ish\.com(\/|$)/i.test(String(url || "")) ? ieWindow(url) : compassWindow(url))
 
 // My Computer, opened at a folder: ["C:", "Documents"] (empty = the My Computer view)
 export const explorerWindow = (path = []) => launch("My Computer", { path })
