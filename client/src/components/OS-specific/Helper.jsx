@@ -113,6 +113,26 @@ const TIPS = {
     "Keep a 3x3 hole open somewhere. The big square always shows up when you have no room for it!",
     "Clear lines on moves in a row for a streak bonus. Pieces with no room left turn gray.",
   ],
+  "Boom Frenzy": [
+    "Leave the Skull bombs alone! They sink back by themselves, and whacking one costs a heart.",
+    "Save the weapon meter for Panic Time: the Big Mallet clears the whole field at double points.",
+  ],
+  "Color Match": [
+    "Ignore what the right-hand word SAYS. Only its ink color counts!",
+    "Four right in a row raises your multiplier. Slow and steady beats fast and wrong.",
+  ],
+  "Echo Pads": [
+    "Say the colors (or the symbols) under your breath as they play. It's much easier to remember a tune you've heard.",
+    "Play Online for Pass the Pads: everyone adds a step to the same tune until someone slips.",
+  ],
+  "Zap It!": [
+    "Twist it with two fingers like a knob, or just draw a circle with one finger or the mouse.",
+    "Got friends round? Try Party mode and pass the phone.",
+  ],
+  Tetherball: [
+    "Watch the ring on the ground under your player: when it lights up, the ball is in reach. Hit!",
+    "The more the rope winds, the faster the ball goes round. Hit back hard before it gets away!",
+  ],
   "Pickleball 98": ["Serving? Stay back! The return has to bounce before your team can volley. That's the two-bounce rule.", "At the kitchen line, tap Space for a soft dink. Wait for a ball that pops up high, then hold Space to drive it."],
   "Shred 98": [
     "Hit every glowing star note in a phrase to charge star power, then press Shift to double your points!",

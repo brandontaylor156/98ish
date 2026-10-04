@@ -86,6 +86,12 @@ export const programs = [
   { name: "Hexlands", app: "hexlands", type: "hexlands", icon: "/assets/program_icons/hexlands.svg", width: 1000, height: 700, group: "Games", desktop: false, single: true, online: "hexlands" },
   { name: "Monster Duel", app: "monsterduel", type: "monsterduel", icon: "/assets/program_icons/monsterduel.svg", width: 1000, height: 720, group: "Games", desktop: false, single: true, online: "monsterduel" },
   { name: "Block Ten", app: "blockten", type: "blockten", icon: "/assets/program_icons/blockten.svg", width: 440, height: 640, group: "Games", desktop: false, single: true },
+  // quick games (docs/games-new.md)
+  { name: "Boom Frenzy", app: "boomfrenzy", type: "boomfrenzy", icon: "/assets/program_icons/boomfrenzy.svg", width: 460, height: 640, group: "Games", desktop: false, single: true },
+  { name: "Color Match", app: "colormatch", type: "colormatch", icon: "/assets/program_icons/colormatch.svg", width: 560, height: 560, group: "Games", desktop: false, single: true, online: "colormatch" },
+  { name: "Echo Pads", app: "echo", type: "echo", icon: "/assets/program_icons/echo.svg", width: 480, height: 600, group: "Games", desktop: false, single: true, online: "echo" },
+  { name: "Zap It!", app: "zapit", type: "zapit", icon: "/assets/program_icons/zapit.svg", width: 460, height: 600, group: "Games", desktop: false, single: true },
+  { name: "Tetherball", app: "tetherball", type: "tetherball", icon: "/assets/program_icons/tetherball.svg", width: 820, height: 600, group: "Games", desktop: false, single: true, online: "tetherball" },
   { name: "Sunny Acres", app: "town", type: "town", icon: "/assets/program_icons/town.svg", width: 860, height: 620, group: "Games", desktop: false, single: true },
   { name: "Photo Puzzle", app: "puzzle", type: "puzzle", icon: "/assets/program_icons/puzzle.svg", width: 820, height: 600, group: "Us", desktop: false, single: true, also: ["Games"] },
   { name: "Doodle Together", app: "doodle", type: "doodle", icon: "/assets/program_icons/doodle.svg", width: 780, height: 640, group: "Us", desktop: false, single: true, also: ["Games"] },

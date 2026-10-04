@@ -1,0 +1,159 @@
+/* Tetherball: the 3D court with a wrap meter on top */
+
+.tbLogo {
+  color: #c08000;
+}
+
+.tbPlay {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.tbHud {
+  align-items: center;
+}
+
+.tbSide {
+  display: flex;
+  flex-direction: column;
+  min-width: 70px;
+  font-size: 11px;
+}
+
+.tbSide.is-p1 b {
+  color: #c01818;
+}
+
+.tbSide.is-p2 {
+  align-items: flex-end;
+  text-align: right;
+}
+
+.tbSide.is-p2 b {
+  color: #1c48c0;
+}
+
+.tbGames {
+  font-size: 12px;
+  letter-spacing: 1px;
+}
+
+.tbMeter {
+  position: relative;
+  flex: 1;
+  height: 18px;
+  background: #fff;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+  overflow: hidden;
+}
+
+.tbMeterMid {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  margin-left: -1px;
+  background: #000;
+}
+
+.tbMeterFill {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+}
+
+.tbMeterFill.is-p1 {
+  background: #e03030;
+}
+
+.tbMeterFill.is-p2 {
+  background: #3060e0;
+}
+
+.tbMeterText {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: bold;
+  text-shadow: 0 0 2px #fff, 0 0 2px #fff;
+}
+
+.tbStage {
+  background: #9ad4ff;
+}
+
+.tbCourt {
+  position: absolute;
+  inset: 0;
+  touch-action: none;
+}
+
+.tbCanvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.tbError {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  text-align: center;
+  background: #c0c0c0;
+}
+
+.tbBanner {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 3px 10px;
+  background: #ffffe1;
+  border: 1px solid #000;
+  font-size: 12px;
+  font-weight: bold;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.tbBanner.is-big {
+  top: 40%;
+  font-size: 18px;
+  padding: 6px 14px;
+  box-shadow: 3px 3px 0 #000;
+}
+
+.tbHint {
+  position: absolute;
+  bottom: calc(8px + env(safe-area-inset-bottom));
+  left: 8px;
+  right: 8px;
+  padding: 3px 6px;
+  background: rgb(0 0 0 / 0.55);
+  color: #fff;
+  font-size: 11px;
+  text-align: center;
+  pointer-events: none;
+}
+
+.tbPause {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 5;
+}
+
+.tbOnline {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}

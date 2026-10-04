@@ -131,6 +131,15 @@ A Windows 98-style web desktop at https://98ish.vercel.app. The owner uses it mo
 - **Per-frame waste:** gamepads are polled only after `gamepadconnected` (or a pad already known at start); the touch stick's knob moves by a ref, not React state; meter CSS variables and data attributes are written only on change; the ball trail writes its typed arrays directly; replay copies only while recording. Desktop: `selectActive` skips the dispatch when the tapped window is already the one active window, and the `select_active` reducer returns the same state when nothing changes (pointerdown handling 26-42 ms -> 1-5 ms in a production build).
 - **WebGL context loss:** `utils/webglLoss.js` `releaseGpu(scene)` in the `webglcontextlost` handler (Pickleball, SPECTRA) disposes GPU resources while the context is gone, so nothing is deleted against the restored context ("object does not belong to this context").
 
+## Quick games (2026-10-04; design, Bomb Panic research and sources in `docs/games-new.md`)
+- **Boom Frenzy** (`applets/boomfrenzy/`: `engine.js` whack rules, `sort.js` Sort Rush, `art.jsx` SVG bombs): after Bomb Panic (Orangenose Studios, iPhone 2012: whack-a-mole with 15 bombs, Panic Time, 3 weapons, 20 stages, Endless). Only the description survives, so the bombs' powers, weapons and stage goals are 98ish's own (marked *inferred* in the doc). Sort Rush = the colored-bomb sorting game (drag/flick into pens).
+- **Color Match** (`applets/colormatch/rules.js`, shared with `server/arcade/games/colormatch.js` like Speed Typist): meaning-vs-ink Yes/No and Swatch; questions are `questionAt(seed, i)` so the server checks every online answer; best score at time's up wins.
+- **Echo Pads** (Simon-style; `applets/echo/rules.js`, shared with `server/arcade/games/echo.js`): Classic/Reverse/Rewind/Speed, symbols on the pads for color-blind players; online Pass the Pads (turns, add a step, a slip or the turn clock knocks you out).
+- **Zap It!** (Bop It-style; `applets/zapit/gestures.js` classifies pointer traces + `shakeDetector`): spoken calls (speechSynthesis), Shake only with motion (Android at once, iPhone after the Allow motion tap), Party pass-the-phone.
+- **Tetherball** (`applets/tetherball/`: `physics.js` rope wrap, `match.js` players/AI/`remoteSwing`, `netplay.js` snapshots + guest mirror with hit prediction, `scene.js` three.js): vs computer (Easy/Medium/Hard) and online 1v1 (relay, host-authoritative, rewinds a guest's swing into its 0.45 s history).
+- Shared: `utils/gameKit.js` (rng, per-user top-10 score lists), `utils/gameSynth.js` (sounds on the shared AudioContext), `shared/quickgame/` (`useGameLoop` on the frame clock, `useAutoPause`, Paused/High Scores/How to Play, `Check`). Desktop passes these games `paused={minimized || !active}`; clicking the bare desktop doesn't deactivate a window in 98ish, so "blur" = another window, minimizing, or the tab hidden.
+- Tests: unit `boomfrenzy.test.js`, `colormatch.test.js`, `echo.test.js`, `zapit.test.js`, `tetherball.test.js`, `utils/gameKit.test.js`; server `server/arcade/test/newgames.test.js`; browser `ng-*.mjs` (see the doc). Dev hooks: `window.__boomfrenzy`, `__colormatch`, `__echo`, `__zapit`, `__tetherball`, `__tetherballOnline`.
+
 ## Rules
 - Never print the MongoDB connection string, passwords or any `.env` value.
 - Free services only. Commit and push only when asked; the owner has authorized finishing and pushing feature rounds.
@@ -173,6 +182,7 @@ Shipped and live:
   - Welcome to 98ish with a 13-stop guided tour.
 - **Apps:**
   - Appward 98, Shred 98, Word Duel, Last Card, Monster Duel, Hexlands, Speed Typist 98, Checkers online.
+  - Quick games (2026-10-04, not yet tried on a real phone): Boom Frenzy, Color Match, Echo Pads, Zap It!, Tetherball (see "Quick games").
   - The Quiz Show redesign, Photo Puzzle fixes, live co-op in Sunny Acres.
   - Pickleball 98: skinned CC0 athletes, plus a redesign based on real play (one hit control, aim and tap soft / hold hard, dinks, resets, speed-ups, hand battles).
   - The 98ish phone keyboard (stays up on stray taps; only its X, Go, or the field's window going closes it; keys never stick looking pressed).

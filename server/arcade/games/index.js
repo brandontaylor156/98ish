@@ -9,4 +9,7 @@ module.exports = [
   require("./hexlands"),
   require("./monsterduel"),
   require("./speedtype"),
+  require("./colormatch"),
+  require("./echo"),
+  require("./tetherball"),
 ]

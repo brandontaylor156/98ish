@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <!-- Echo Pads: four colored quarter pads round a gray hub, one lit, each with its symbol -->
+  <circle cx="24" cy="24" r="22" fill="#202020" stroke="#000"/>
+  <path d="M24 3 A21 21 0 0 0 3 24 H13 A11 11 0 0 1 24 13 Z" fill="#30e060" stroke="#000"/>
+  <path d="M24 3 A21 21 0 0 1 45 24 H35 A11 11 0 0 0 24 13 Z" fill="#a01010" stroke="#000"/>
+  <path d="M3 24 A21 21 0 0 0 24 45 V35 A11 11 0 0 1 13 24 Z" fill="#a89000" stroke="#000"/>
+  <path d="M45 24 A21 21 0 0 1 24 45 V35 A11 11 0 0 0 35 24 Z" fill="#103c9a" stroke="#000"/>
+  <path d="M14 10 l4 7 h-8 z" fill="#fff" stroke="#000" stroke-width=".8"/>
+  <circle cx="34" cy="14" r="3" fill="#000" fill-opacity=".45"/>
+  <rect x="11.5" y="31.5" width="5" height="5" fill="#000" fill-opacity=".45"/>
+  <path d="M34 30 l1.2 2.6 2.8 .3 -2.1 1.9 .6 2.8 -2.5 -1.4 -2.5 1.4 .6 -2.8 -2.1 -1.9 2.8 -.3 z" fill="#000" fill-opacity=".45"/>
+  <circle cx="24" cy="24" r="9" fill="#c0c0c0" stroke="#000"/>
+  <path d="M17 29 a9 9 0 0 1 0 -10" fill="none" stroke="#fff"/>
+  <text x="24" y="26.5" text-anchor="middle" font-family="Arial" font-weight="bold" font-size="6">ECHO</text>
+</svg>

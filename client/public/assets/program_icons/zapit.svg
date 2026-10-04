@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <!-- Zap It!: a chunky toy with a twist knob, a pull handle and a flick lever, and a lightning bolt -->
+  <rect x="6" y="18" width="36" height="16" rx="8" fill="#8000c0" stroke="#000"/>
+  <path d="M10 21 h28" stroke="#c070ff" stroke-width="2" stroke-linecap="round"/>
+  <circle cx="24" cy="26" r="6" fill="#ffd400" stroke="#000"/>
+  <circle cx="24" cy="26" r="2.2" fill="#fff" stroke="#000" stroke-width=".8"/>
+  <rect x="1" y="22" width="7" height="8" rx="2" fill="#20d060" stroke="#000"/>
+  <rect x="40" y="22" width="7" height="8" rx="2" fill="#ff8a00" stroke="#000"/>
+  <rect x="21" y="34" width="6" height="8" fill="#3ad0ff" stroke="#000"/>
+  <rect x="17" y="41" width="14" height="5" rx="2" fill="#3ad0ff" stroke="#000"/>
+  <path d="M27 2 L18 14 h6 l-4 9 l11 -13 h-6 z" fill="#ffe23a" stroke="#000" stroke-linejoin="round"/>
+</svg>

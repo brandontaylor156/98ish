@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <!-- Tetherball: a pole on a base, rope wound round its top, a yellow ball swinging out -->
+  <ellipse cx="20" cy="44" rx="16" ry="3" fill="#8a8a90" stroke="#000"/>
+  <rect x="17" y="40" width="7" height="3" fill="#606060" stroke="#000"/>
+  <rect x="19" y="4" width="3" height="37" fill="#d0d4d8" stroke="#000"/>
+  <path d="M19 9 l3 2 M19 12 l3 2 M19 15 l3 2" stroke="#c8b890" stroke-width="1.6"/>
+  <path d="M22 17 Q32 20 37 26" fill="none" stroke="#f0ead8" stroke-width="2"/>
+  <path d="M22 17 Q32 20 37 26" fill="none" stroke="#000" stroke-width=".6"/>
+  <circle cx="38" cy="30" r="7" fill="#ffd400" stroke="#000"/>
+  <path d="M33 27 a7 7 0 0 1 10 0" fill="none" stroke="#8a6a00"/>
+  <ellipse cx="36" cy="27" rx="2" ry="1.2" fill="#fff" opacity=".6"/>
+  <path d="M43 22 q3 3 2 8 M41 19 q5 4 4 11" fill="none" stroke="#000" stroke-width="1" stroke-linecap="round"/>
+  <circle cx="20.5" cy="4" r="2" fill="#b0b4b8" stroke="#000"/>
+</svg>
