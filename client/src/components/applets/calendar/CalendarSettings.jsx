@@ -3,6 +3,7 @@ import { COLOR_NAMES, LOCAL_ID, activity as loadActivity, colorOf, createCalenda
 import { downloadCalendar } from "./util"
 import Sheet from "./Sheet"
 import CheckBox from "./CheckBox"
+import { openCouples } from "../../../utils/couple"
 
 // Calendar Properties (people, invite code and link, labels, phone subscription, leave),
 // the Activity feed, New Calendar and Join a Calendar.
@@ -68,6 +69,22 @@ export const CalendarSettings = ({ calendarId, mobile, onClose, tab: firstTab = 
   const [confirm, setConfirm] = useState(null)
   const [labels, setLabels] = useState(() => (calendar?.labels || []).map((l) => ({ ...l })))
   if (!calendar) return null
+  // Birthdays: made from the Address Book, so there's only the reminders to choose
+  if (calendar.readOnly) {
+    return (
+      <Sheet title={`${calendar.name} Properties`} mobile={mobile} onClose={onClose} dismissable className="calSettings" footer={<button type="button" onClick={onClose}>Close</button>}>
+        <p>The birthdays and anniversaries of the people in your Address Book. Add or change them there; they show up here by themselves, every year.</p>
+        <CheckBox checked={!s.muted.includes(calendar.id)} onChange={() => toggleMuted(calendar.id)}>
+          Remind me on the day (at 9:00)
+        </CheckBox>
+        <p>
+          <button type="button" onClick={() => (onClose(), openCouples("Address Book"))}>
+            Open Address Book
+          </button>
+        </p>
+      </Sheet>
+    )
+  }
   const local = calendar.id === LOCAL_ID
   const owner = calendar.role === "owner"
   const group = calendar.kind === "group"

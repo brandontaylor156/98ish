@@ -8,6 +8,7 @@ import { openCouples } from "../../../utils/couple"
 import ContextMenu from "../../shared/ContextMenu"
 import { useLongPress } from "../../../hooks/useLongPress"
 import { placeCall } from "./call/CallButtons"
+import { contactByScreenName } from "../../../utils/contacts"
 
 const AWAY_PRESETS = [
   "I am away from my computer right now.",
@@ -294,12 +295,21 @@ const BuddyList = () => {
             const bot = keyOf(b.screenName) === keyOf(BOT_NAME)
             const canCall = b.online && !bot && !me.blocked.includes(keyOf(b.screenName))
             const callError = (text) => setDialog({ kind: "alert", title: "Call", text })
+            // the Address Book: the contact for this screen name, or a new one
+            const contact = !bot && contactByScreenName(b.screenName)
             return [
               { label: "Send Instant Message", bold: true, onClick: () => aim.openIm(b.screenName) },
               { label: "Call", disabled: !canCall, onClick: () => placeCall(b.screenName, false, callError) },
               { label: "Video Call", disabled: !canCall, onClick: () => placeCall(b.screenName, true, callError) },
               "-",
               { label: "Get Info", onClick: () => aim.openInfo(b.screenName) },
+              ...(bot
+                ? []
+                : [
+                    contact
+                      ? { label: "Open in Address Book", onClick: () => openCouples("Address Book", { handoff: { id: Date.now(), contactId: contact.id } }) }
+                      : { label: "Add to Address Book...", onClick: () => openCouples("Address Book", { handoff: { id: Date.now(), newContact: { screenName: b.screenName } } }) },
+                  ]),
             ]
           })()}
         />

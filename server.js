@@ -1,7 +1,8 @@
 // 98ish realtime server: the 98 Messenger (AIM-style) service on Socket.io, plus Network
 // Neighborhood (file sharing, WinPopup, network games), the guestbook's HTTP API, and
 // couples (server/couples: pairing, love letters, Our Story, flowers), and shared
-// calendars (server/calendar), and Web Push notifications (server/push).
+// calendars (server/calendar), Web Push notifications (server/push), and the Address Book's
+// online copy (server/contacts).
 // Env: PORT, MONGODB_URI (accounts, guestbook and online drives; kept in memory without it),
 // VAPID_PUBLIC_KEY + VAPID_PRIVATE_KEY + VAPID_SUBJECT (push notifications; off without them),
 // DRIVE_SYNC_QUOTA_MB and DRIVE_SYNC_MAX_FILE_MB (file sync, see server/drive/sync.js).
@@ -23,6 +24,7 @@ const { townRouter, attachTown } = require("./server/town")
 const { petRouter } = require("./server/pet")
 const { calendarRouter, attachCalendar } = require("./server/calendar")
 const { defaultPush } = require("./server/push")
+const { contactsRouter } = require("./server/contacts")
 
 const app = express()
 app.use(cors())
@@ -34,6 +36,7 @@ const legacyDrives = createDriveStore()
 legacyDrives.catch(() => {})
 app.use("/api/drive/sync", syncRouter({ aim: () => aim, legacy: legacyDrives }))
 app.use("/api/drive", driveRouter({ aim: () => aim, store: legacyDrives }))
+app.use("/api/contacts", contactsRouter({ aim: () => aim })) // the Address Book's online copy
 // Mail and homepages first: they read bigger bodies than the guestbook's parser allows
 const mail = mailRouter()
 const homepages = homepageRouter()

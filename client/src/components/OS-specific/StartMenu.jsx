@@ -36,7 +36,10 @@ const userName = currentUserName
 
 // The Start menu, Windows 98 style: the banner down the side, cascading submenus that
 // open on hover (or tap, and drill down on phones), Find, Run, Log Off and Shut Down.
-const StartMenu = ({ dispatch, setResults, closeMenu, onShutDown, onLogOff, onLock, mobile }) => {
+// The search box finds everything (programs, settings, files and their words, contacts,
+// events, messages, mail, photos): App shows the results (SearchPanel) beside the menu, or
+// over the whole screen on phones.
+const StartMenu = ({ dispatch, onQuery, onSearchKey, onSearchFocus, closeMenu, onShutDown, onLogOff, onLock, mobile }) => {
   useFsVersion()
   const [query, setQuery] = useState("")
   const [run, setRun] = useState(false)
@@ -49,7 +52,7 @@ const StartMenu = ({ dispatch, setResults, closeMenu, onShutDown, onLogOff, onLo
   const { hiddenStart = [] } = useSettings()
 
   useEffect(() => {
-    setResults(query ? fs.findAllItemsByQuery(query) : [])
+    onQuery?.(query)
   }, [query])
 
   const go = (payload) => {
@@ -132,11 +135,19 @@ const StartMenu = ({ dispatch, setResults, closeMenu, onShutDown, onLogOff, onLo
       label: "Find",
       key: "F",
       icon: ICON.find,
-      onClick: () => {
-        setOpen([])
-        setStack([])
-        searchRef.current?.focus()
-      },
+      items: () => [
+        { label: "Files or Folders...", icon: "/assets/program_icons/find.svg", onClick: () => go(launch("Find")) },
+        { label: "People...", icon: "/assets/program_icons/addressbook.svg", onClick: () => go(launch("Address Book", { handoff: { id: Date.now(), find: true } })) },
+        {
+          label: "Everything (search box)",
+          icon: ICON.find,
+          onClick: () => {
+            setOpen([])
+            setStack([])
+            searchRef.current?.focus()
+          },
+        },
+      ],
     },
     {
       label: "Help",
@@ -385,10 +396,30 @@ const StartMenu = ({ dispatch, setResults, closeMenu, onShutDown, onLogOff, onLo
             name="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => onSearchKey?.(e)}
+            onFocus={() => {
+              onSearchFocus?.(true)
+              // get the indexes ready while the first letter is being typed
+              import("../../utils/search").then((m) => m.warmUp()).catch(() => {})
+            }}
+            onBlur={() => onSearchFocus?.(false)}
             placeholder="Find files or programs..."
             autoComplete="off"
             aria-label="Find files or programs"
+            aria-controls="srResults"
           />
+          <button
+            type="button"
+            className="smSearchCancel"
+            onPointerDown={(e) => e.preventDefault()}
+            onClick={() => {
+              setQuery("")
+              onSearchFocus?.(false)
+              searchRef.current?.blur()
+            }}
+          >
+            Cancel
+          </button>
         </form>
         {mobile ? renderMobileList() : renderList(menu, 0)}
       </div>

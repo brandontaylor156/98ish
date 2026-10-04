@@ -9,6 +9,8 @@ import { formatSize } from "../../../utils/fileInfo"
 import { readContent } from "../../../utils/fs"
 import { ATTACHABLE, ATTACHMENTS_FOLDER, MAX_MESSAGE_BYTES, byteSize, mailApi, saveAttachment } from "./api"
 import { setMailStatus, useMailStatus } from "./mailStatus"
+import { contactByScreenName, useContacts } from "../../../utils/contacts"
+import { displayName, mailAddressOf } from "../../../utils/contactsCore"
 import "./Mail.css"
 
 // 98ish Mail, in the style of a late-90s mail program: folders, a sortable message list,
@@ -56,14 +58,31 @@ const ToolButton = ({ label, onClick, disabled, icon }) => (
   </button>
 )
 
-// To/Cc box that suggests buddies from the Buddy List for the name being typed
-const AddressField = ({ id, label, value, onChange, buddies }) => {
+// the Search box's search index: the headers of the mail last seen in each folder (not the
+// messages themselves), so Start menu search can find mail by subject and sender
+const MAIL_INDEX = "98ish.mail.index"
+const cacheHeaders = (account, folder, messages) => {
+  try {
+    const saved = JSON.parse(localStorage.getItem(MAIL_INDEX)) || {}
+    const folders = saved.account === account ? saved.folders || {} : {}
+    folders[folder] = messages.slice(0, 300).map(({ id, from, to, subject, time }) => ({ id, from, to, subject, time }))
+    localStorage.setItem(MAIL_INDEX, JSON.stringify({ account, folders }))
+  } catch {
+    // storage full or blocked: search just won't find mail
+  }
+}
+
+const squash = (s) => String(s || "").toLowerCase().replace(/\s+/g, "")
+
+// To/Cc box that suggests people for the name being typed: Address Book contacts (by name,
+// nickname or address) and buddies from the Buddy List. people: [{ value, label, words }]
+const AddressField = ({ id, label, value, onChange, people }) => {
   const [focus, setFocus] = useState(false)
   const [active, setActive] = useState(0)
   const parts = value.split(",")
-  const typing = parts.at(-1).trim().toLowerCase()
-  const already = new Set(parts.slice(0, -1).map((p) => p.trim().toLowerCase().replace(/\s+/g, "")))
-  const suggestions = typing ? buddies.filter((b) => b.toLowerCase().replace(/\s+/g, "").includes(typing.replace(/\s+/g, "")) && !already.has(b.toLowerCase().replace(/\s+/g, ""))).slice(0, 6) : []
+  const typing = squash(parts.at(-1))
+  const already = new Set(parts.slice(0, -1).map(squash))
+  const suggestions = typing ? people.filter((p) => p.words.includes(typing) && !already.has(squash(p.value))).slice(0, 6) : []
   const choose = (name) => {
     onChange([...parts.slice(0, -1).map((p) => p.trim()).filter(Boolean), name].join(", ") + ", ")
     setActive(0)
@@ -94,15 +113,15 @@ const AddressField = ({ id, label, value, onChange, buddies }) => {
               setActive((active - 1 + suggestions.length) % suggestions.length)
             } else if (e.key === "Enter" || e.key === "Tab") {
               e.preventDefault()
-              choose(suggestions[active] || suggestions[0])
+              choose((suggestions[active] || suggestions[0]).value)
             }
           }}
         />
         {focus && suggestions.length > 0 && (
           <ul className="mlSuggest" role="listbox">
-            {suggestions.map((name, i) => (
-              <li key={name} role="option" aria-selected={i === active} className={i === active ? "is-active" : undefined} onPointerDown={(e) => (e.preventDefault(), choose(name))}>
-                {name}
+            {suggestions.map((p, i) => (
+              <li key={p.value} role="option" aria-selected={i === active} className={i === active ? "is-active" : undefined} onPointerDown={(e) => (e.preventDefault(), choose(p.value))}>
+                {p.label}
               </li>
             ))}
           </ul>
@@ -112,7 +131,7 @@ const AddressField = ({ id, label, value, onChange, buddies }) => {
   )
 }
 
-const Compose = ({ draft, buddies, onSend, onSaveDraft, onCancel, onAttach, onRemoveAttachment, onChange }) => {
+const Compose = ({ draft, people, onSend, onSaveDraft, onCancel, onAttach, onRemoveAttachment, onChange }) => {
   const size = byteSize(draft.subject) + byteSize(draft.body) + draft.attachments.reduce((n, a) => n + a.size, 0)
   return (
     <div className="mlCompose">
@@ -128,8 +147,8 @@ const Compose = ({ draft, buddies, onSend, onSaveDraft, onCancel, onAttach, onRe
           <label>From:</label>
           <span className="mlFrom">{draft.from}</span>
         </div>
-        <AddressField id="ml-to" label="To:" value={draft.to} onChange={(to) => onChange({ to })} buddies={buddies} />
-        <AddressField id="ml-cc" label="Cc:" value={draft.cc} onChange={(cc) => onChange({ cc })} buddies={buddies} />
+        <AddressField id="ml-to" label="To:" value={draft.to} onChange={(to) => onChange({ to })} people={people} />
+        <AddressField id="ml-cc" label="Cc:" value={draft.cc} onChange={(cc) => onChange({ cc })} people={people} />
         <div className="mlField">
           <label htmlFor="ml-subject">Subject:</label>
           <input id="ml-subject" value={draft.subject} maxLength={120} onChange={(e) => onChange({ subject: e.target.value })} />
@@ -159,7 +178,23 @@ const Compose = ({ draft, buddies, onSend, onSaveDraft, onCancel, onAttach, onRe
   )
 }
 
-const Preview = ({ message, loading, onAttachment, mobile, onBack }) => {
+// The sender: their Address Book name if they're in it, or a button to add them
+const Sender = ({ name, me, onAdd }) => {
+  const contact = name ? contactByScreenName(name) : null
+  if (contact) return <span title="In your Address Book">{`${displayName(contact)} <${name}>`}</span>
+  return (
+    <>
+      {name}
+      {name && squash(name) !== squash(me) && onAdd && (
+        <button type="button" className="mlAddSender" onClick={() => onAdd(name)} title="Add the sender to your Address Book">
+          Add to Address Book
+        </button>
+      )}
+    </>
+  )
+}
+
+const Preview = ({ message, loading, onAttachment, mobile, onBack, me, onAddSender }) => {
   if (loading) return <div className="mlPreviewEmpty">Opening message...</div>
   if (!message) return <div className="mlPreviewEmpty">{mobile ? "" : "Select a message to read it here."}</div>
   return (
@@ -171,7 +206,7 @@ const Preview = ({ message, loading, onAttachment, mobile, onBack }) => {
           </button>
         )}
         <div>
-          <b>From:</b> {message.from}
+          <b>From:</b> <Sender name={message.from} me={me} onAdd={onAddSender} />
         </div>
         <div>
           <b>To:</b> {names(message.to) || message.draftTo || "(nobody yet)"}
@@ -232,10 +267,18 @@ const Mail = ({ dispatch, onTitle, mobile, handoff = null }) => {
   const folderRef = useRef(folder)
   folderRef.current = folder
 
-  const buddies = useMemo(() => {
-    const all = (me?.groups || []).flatMap((g) => g.buddies)
-    return [...new Map(["SmarterChild", ...all].map((b) => [b.toLowerCase().replace(/\s+/g, ""), b])).values()]
-  }, [me])
+  // who the To and Cc boxes suggest: Address Book contacts first, then buddies
+  const book = useContacts()
+  const people = useMemo(() => {
+    const out = new Map()
+    for (const c of book.contacts) {
+      const address = mailAddressOf(c)
+      if (!address || out.has(squash(address))) continue
+      out.set(squash(address), { value: address, label: `${displayName(c)} <${address}>`, words: squash(`${displayName(c)}|${c.nickname}|${c.first}${c.last}|${address}`) })
+    }
+    for (const b of ["SmarterChild", ...(me?.groups || []).flatMap((g) => g.buddies)]) if (!out.has(squash(b))) out.set(squash(b), { value: b, label: b, words: squash(b) })
+    return [...out.values()]
+  }, [me, book.contacts])
 
   const unread = counts?.inbox.unread ?? 0
   useEffect(() => {
@@ -258,6 +301,7 @@ const Mail = ({ dispatch, onTitle, mobile, handoff = null }) => {
     const r = await api.list(id)
     if (r.ok) {
       setLists((l) => ({ ...l, [id]: r.messages }))
+      if (me?.screenName) cacheHeaders(me.screenName, id, r.messages)
       setStatusText((t) => (t === CHECKING ? "" : t))
     } else setStatusText(r.error)
   }
@@ -452,6 +496,24 @@ const Mail = ({ dispatch, onTitle, mobile, handoff = null }) => {
     setCompose((c) => ({ ...c, attachments: [...c.attachments, attachment] }))
   }
 
+  // the Address Book's Send Mail (a new message to someone) and search (a message to show)
+  const wantMessage = useRef(null)
+  useEffect(() => {
+    if (handoff?.compose) startCompose({ to: handoff.compose.to ? `${handoff.compose.to}, ` : "" })
+    if (handoff?.message) {
+      wantMessage.current = handoff.message
+      setFolder(handoff.message.folder)
+    }
+  }, [handoff?.id])
+  useEffect(() => {
+    const want = wantMessage.current
+    if (!want || !online || folder !== want.folder) return
+    const header = (lists[folder] || []).find((m) => m.id === want.id)
+    if (!header) return
+    wantMessage.current = null
+    select(header)
+  }, [lists, folder, online])
+
   // a file sent from another program (Photos' Share > Send by 98ish Mail): a new message
   // with it attached, or added to the one being written
   useEffect(() => {
@@ -633,7 +695,7 @@ const Mail = ({ dispatch, onTitle, mobile, handoff = null }) => {
               </div>
             </div>
           )}
-          {showPreview && <Preview message={current} loading={loadingMessage} onAttachment={onAttachment} mobile={mobile} onBack={() => setMobileView("list")} />}
+          {showPreview && <Preview message={current} loading={loadingMessage} onAttachment={onAttachment} mobile={mobile} onBack={() => setMobileView("list")} me={me?.screenName} onAddSender={(name) => dispatch({ type: "open_window", payload: launch("Address Book", { handoff: { id: Date.now(), newContact: { screenName: name } } }) })} />}
         </div>
       </div>
       <div className="status-bar mlStatus">
@@ -652,7 +714,7 @@ const Mail = ({ dispatch, onTitle, mobile, handoff = null }) => {
       {compose && (
         <Compose
           draft={compose}
-          buddies={buddies}
+          people={people}
           onChange={(patch) => setCompose((c) => ({ ...c, ...patch }))}
           onSend={send}
           onSaveDraft={saveDraft}

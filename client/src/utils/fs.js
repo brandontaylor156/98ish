@@ -94,6 +94,9 @@ export const FILE_TYPE = {
   winpopup: "winpopup",
   camera: "camera",
   photos: "photos",
+  addressbook: "addressbook",
+  find: "find",
+  vcard: "vcard", // a contact card (.vcf): its vCard text in textContent; opens in the Address Book
 }
 
 export const DIRECTORY_TYPE = {
@@ -630,6 +633,7 @@ const DEFAULT_ITEMS = [
   ["C:/Programs/WinPopup", "file", "winpopup"],
   ["C:/Programs/Camera", "file", "camera"],
   ["C:/Programs/Photos", "file", "photos"],
+  ["C:/Programs/Address Book", "file", "addressbook"],
   // Camera saves here; Photos opens here
   ["C:/My Pictures", "dir", "folder"],
   ["C:/Bookmarks", "dir", "bookmarks"],

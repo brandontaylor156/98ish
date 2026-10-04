@@ -52,6 +52,11 @@ export const openItem = (item, dispatch) => {
     } else dispatch({ type: "open_window", payload: mediaPlayerWindow(song) })
     return true
   }
+  // a contact card (.vcf): the Address Book offers to import it
+  if (item.type === "vcard") {
+    dispatch({ type: "open_window", payload: launch("Address Book", { handoff: { id: Date.now(), importFile: item } }) })
+    return true
+  }
   const program = programByType(item.type)
   if (!program) return false
   dispatch({ type: "open_window", payload: windowFor(program) })

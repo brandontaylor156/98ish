@@ -37,6 +37,10 @@ export const programs = [
   { name: "Display Properties", app: "display", icon: "/assets/vaporwave.png", width: 420, height: 470, group: null, desktop: false, single: true },
   // 98ish Calendar (shared calendars, reminders) and Clock (world clocks, alarms, timer, stopwatch)
   { name: "Calendar", app: "calendar", type: "calendar", icon: "/assets/program_icons/calendar.svg", width: 900, height: 620, group: "Accessories", single: true, also: ["Us"] },
+  // contacts (utils/contacts.js; birthdays go on the Calendar, buddies and Mail use them) and
+  // Find (search everything: utils/search.js; Start > Find, or "See all results")
+  { name: "Address Book", app: "addressbook", type: "addressbook", icon: "/assets/program_icons/addressbook.svg", width: 780, height: 540, group: "Accessories", desktop: false, single: true, also: ["Community"] },
+  { name: "Find", app: "find", type: "find", icon: "/assets/program_icons/find.svg", width: 660, height: 500, group: null, desktop: false, single: true },
   { name: "Clock", app: "clock", type: "clock", icon: "/assets/program_icons/clock.svg", width: 420, height: 500, group: "Accessories", desktop: false, single: true },
   { name: "Calculator", app: "calc", type: "calc", icon: "/assets/program_icons/calc.svg", width: 270, height: 272, group: "Accessories", desktop: false },
   { name: "Character Map", app: "charmap", type: "charmap", icon: "/assets/program_icons/charmap.svg", width: 610, height: 280, group: "System Tools", desktop: false, single: true },

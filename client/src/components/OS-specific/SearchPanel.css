@@ -1,0 +1,186 @@
+/* Start menu search results (SearchPanel.jsx) */
+
+.window.srPanel {
+  height: auto;
+  min-width: 0;
+  width: 360px;
+  max-height: min(560px, calc(100dvh - var(--taskbar-h) - 8px));
+  overflow-y: auto;
+  padding: 2px;
+  color: #000;
+  font-family: "Pixelated MS Sans Serif", Arial, sans-serif;
+  -webkit-font-smoothing: none;
+  font-size: 11px;
+  display: flex;
+  flex-direction: column;
+}
+
+.srGroup {
+  padding-bottom: 2px;
+}
+
+.srHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 2px 0 1px;
+  padding: 2px 6px;
+  font-size: 11px;
+  font-weight: bold;
+  color: #fff;
+  background: linear-gradient(90deg, #000080, #1084d0);
+}
+
+.srCount {
+  font-weight: normal;
+  opacity: 0.9;
+}
+
+.srItem {
+  display: grid;
+  grid-template-columns: 20px 1fr;
+  column-gap: 6px;
+  align-items: center;
+  padding: 2px 6px;
+  min-height: 30px;
+  cursor: default;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.srItem > img {
+  grid-row: span 2;
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+}
+
+.srItem > img.srRound {
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.srTitle {
+  margin: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.srSub {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: #505050;
+  font-size: 10px;
+}
+
+.srItem.is-active,
+.srAll.is-active {
+  background: #000080;
+  color: #fff;
+}
+
+.srItem.is-active .srSub {
+  color: #d8d8ff;
+}
+
+.srEmpty {
+  margin: 8px;
+}
+
+.window .srAll {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 3px 2px 1px;
+  min-height: 26px;
+  text-align: left;
+  box-shadow: none;
+  border-top: 1px solid #808080;
+  background: transparent;
+  padding: 2px 6px;
+}
+
+.srAll img {
+  width: 16px;
+  height: 16px;
+}
+
+.srMs {
+  margin-left: auto;
+  color: #808080;
+}
+
+.srAll.is-active .srMs {
+  color: #d8d8ff;
+}
+
+/* phones: the search box at the top and the results fill the screen under it */
+.os-mobile .startArea.is-searching {
+  top: 0;
+  flex-direction: column;
+  background: #c0c0c0;
+  gap: 0;
+  /* the 98ish keyboard lifts the small Start menu above itself; the sheet instead ends
+     above the keyboard and stays put */
+  translate: none !important;
+}
+
+html.kb-open .os-mobile .startArea.is-searching {
+  bottom: calc(var(--taskbar-h) + var(--kb-h, 0px));
+}
+
+.os-mobile .startArea.is-searching .startMenu .smBanner,
+.os-mobile .startArea.is-searching .startMenu .smList {
+  display: none;
+}
+
+.os-mobile .startArea.is-searching .smSearch {
+  display: flex;
+  gap: 6px;
+  padding: 6px;
+}
+
+.smSearchCancel {
+  display: none;
+}
+
+.os-mobile .startArea.is-searching .smSearchCancel {
+  display: block;
+  min-width: 70px;
+  min-height: 32px;
+}
+
+.os-mobile .window.srPanel {
+  width: auto;
+  max-height: none;
+  flex: 1;
+  min-height: 0;
+}
+
+.os-mobile .srItem {
+  min-height: 48px;
+  grid-template-columns: 32px 1fr;
+  column-gap: 10px;
+  font-size: 14px;
+}
+
+.os-mobile .srItem > img {
+  width: 32px;
+  height: 32px;
+}
+
+.os-mobile .srSub {
+  font-size: 12px;
+}
+
+.os-mobile .srHead {
+  font-size: 13px;
+  padding: 4px 8px;
+}
+
+.os-mobile .window .srAll {
+  min-height: 44px;
+  font-size: 14px;
+}

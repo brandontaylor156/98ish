@@ -581,3 +581,12 @@ button.mlRemove {
 .os-mobile .mlSuggest li {
   padding: 8px;
 }
+
+/* the preview's "Add to Address Book" next to the sender */
+.mlRoot .mlAddSender {
+  margin-left: 6px;
+  min-width: 0;
+  min-height: 18px;
+  padding: 0 6px;
+  font-size: 10px;
+}

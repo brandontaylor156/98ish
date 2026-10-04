@@ -1,0 +1,834 @@
+/* Address Book */
+
+.abRoot {
+  position: relative;
+  height: calc(100% - 25px);
+  display: flex;
+  flex-direction: column;
+  font-family: "Pixelated MS Sans Serif", Arial, sans-serif;
+  -webkit-font-smoothing: none;
+  font-size: 11px;
+  background: #c0c0c0;
+  color: #000;
+  overflow: hidden;
+}
+
+.abRoot button {
+  min-width: 0;
+}
+
+.abToolbar {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 3px 4px;
+  border-bottom: 1px solid #808080;
+  box-shadow: 0 1px 0 #fff;
+}
+
+.abToolbar button {
+  padding: 0 8px;
+  min-height: 24px;
+}
+
+.abToolSep {
+  width: 2px;
+  margin: 1px 3px;
+  border-left: 1px solid #808080;
+  border-right: 1px solid #fff;
+}
+
+.abMain {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr) 250px;
+  gap: 4px;
+  padding: 4px;
+}
+
+/* folders */
+.abFolders {
+  background: #fff;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+  padding: 3px;
+  overflow: auto;
+}
+
+.abFolders ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.window .abFolders button,
+.abFolders button {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  min-height: 20px;
+  padding: 1px 3px;
+  border: none;
+  box-shadow: none;
+  background: none;
+  text-align: left;
+  font: inherit;
+}
+
+.abFolders button.is-selected {
+  background: #000080;
+  color: #fff;
+}
+
+.abFolders button:focus {
+  outline: 1px dotted #000;
+}
+
+.abFolderName {
+  flex: 1;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.abFolderCount {
+  color: #808080;
+}
+
+.abFolders button.is-selected .abFolderCount {
+  color: #d8d8ff;
+}
+
+.abFolderIcon {
+  width: 14px;
+  height: 12px;
+  flex: none;
+  background: #ffe680;
+  border: 1px solid #806000;
+  border-radius: 1px 3px 1px 1px;
+}
+
+.abFolderIcon--all {
+  background: #1c48a8;
+  border-color: #000040;
+}
+
+.abFolderIcon--favorites {
+  background: none;
+  border: none;
+  position: relative;
+}
+
+.abFolderIcon--favorites::before {
+  content: "\2605\FE0E";
+  position: absolute;
+  inset: -3px 0 0;
+  color: #d0a000;
+  font-size: 13px;
+  line-height: 14px;
+  text-align: center;
+}
+
+.abFolderIcon--buddies {
+  background: #ffd800;
+  border-color: #000;
+  border-radius: 50%;
+  width: 12px;
+}
+
+/* the find box and the list */
+.abCenter {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  gap: 3px;
+}
+
+.abFind {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.abFind label {
+  white-space: nowrap;
+}
+
+.abFind input {
+  flex: 1;
+  min-width: 0;
+}
+
+.abListPane {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+  padding: 2px;
+}
+
+.abListHead,
+.abRow {
+  display: grid;
+  grid-template-columns: minmax(120px, 1.5fr) minmax(70px, 1fr) minmax(70px, 1fr) minmax(70px, 1.2fr);
+  align-items: center;
+}
+
+.abListHead .abCell {
+  padding: 2px 4px;
+  background: #c0c0c0;
+  box-shadow: inset -1px -1px #0a0a0a, inset 1px 1px #fff, inset -2px -2px #808080, inset 2px 2px #dfdfdf;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.abRows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  flex: 1;
+  outline: none;
+}
+
+.abRows:focus-visible .abRow.is-selected {
+  outline: 1px dotted #ff0;
+  outline-offset: -1px;
+}
+
+.abRow {
+  min-height: 22px;
+  cursor: default;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.abRow.is-selected {
+  background: #000080;
+  color: #fff;
+}
+
+.abRow.is-buddy .abRowName {
+  font-style: italic;
+  color: #404040;
+}
+
+.abRow.is-buddy.is-selected .abRowName {
+  color: #fff;
+}
+
+.abCell {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  padding: 1px 4px;
+}
+
+.abCellName {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.abRowText {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.abRowName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.abRowSub {
+  color: #606060;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.abRow.is-selected .abRowSub {
+  color: #d8d8ff;
+}
+
+.abStar {
+  color: #d0a000;
+  margin-left: 4px;
+}
+
+.abTag {
+  margin-left: 6px;
+  padding: 0 3px;
+  border: 1px solid currentColor;
+  font-size: 9px;
+  font-style: normal;
+}
+
+.abEmpty {
+  padding: 12px;
+  color: #404040;
+  white-space: normal;
+}
+
+.abAvatar {
+  flex: none;
+  border-radius: 50%;
+  object-fit: cover;
+  background: #c0c0c0;
+}
+
+.abInitials {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: bold;
+  font-family: Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  line-height: 1;
+}
+
+.abDot {
+  flex: none;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  border: 1px solid #000;
+}
+
+.abDot--online {
+  background: #20c020;
+}
+
+.abDot--away {
+  background: #f0c000;
+}
+
+.abDot--offline {
+  background: #b0b0b0;
+}
+
+/* the card */
+.abSide {
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  background: #fff;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+}
+
+.abCard {
+  padding: 8px;
+}
+
+.abCardEmpty {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #606060;
+  text-align: center;
+  gap: 6px;
+}
+
+.abCardHead {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #c0c0c0;
+}
+
+.abCardName {
+  min-width: 0;
+}
+
+.abCardName h2 {
+  margin: 0 0 2px;
+  font-size: 13px;
+  font-weight: bold;
+  overflow-wrap: anywhere;
+}
+
+.abCardName p {
+  margin: 0;
+  color: #404040;
+}
+
+.abPresence {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.abActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  padding: 6px 0;
+}
+
+.abActions button {
+  padding: 0 6px;
+  min-height: 23px;
+}
+
+.abDefault {
+  font-weight: bold;
+}
+
+.abDetails {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 3px 8px;
+  margin: 2px 0 0;
+}
+
+.abDetails dt {
+  color: #606060;
+  font-weight: normal;
+  white-space: nowrap;
+}
+
+.abDetails dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.abDetails a {
+  color: #0000c0;
+}
+
+.abPre {
+  white-space: pre-wrap;
+}
+
+.abSoon {
+  color: #c02020;
+}
+
+.abNote {
+  color: #404040;
+}
+
+.abError {
+  color: #c00000;
+}
+
+.abStatus {
+  margin: 0 2px 2px;
+}
+
+.abSyncText {
+  flex: 2;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* dialogs over the window */
+.abBackdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  background: rgb(0 0 0 / 8%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+}
+
+.abPanel {
+  width: min(470px, 100%);
+  max-height: 100%;
+  height: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.abPanelBody {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 8px;
+}
+
+.abPanelBody > p:first-child {
+  margin-top: 0;
+}
+
+.abPanelFooter {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 6px 8px 8px;
+}
+
+.abPanelFooter button {
+  min-width: 75px;
+}
+
+.abTabs {
+  margin-bottom: -2px !important;
+}
+
+.abTabs a {
+  color: #000 !important;
+}
+
+.window.abTabPanel {
+  height: auto;
+  min-width: 0;
+  padding: 10px 8px;
+  min-height: 220px;
+}
+
+.abGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 10px;
+}
+
+.abField {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.abFieldWide,
+.abPictureRow {
+  grid-column: 1 / -1;
+}
+
+.abField input,
+.abField textarea,
+.abField select {
+  width: 100%;
+  min-width: 0;
+}
+
+.abNotes {
+  min-height: 170px;
+  resize: vertical;
+}
+
+.abPictureRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.abPictureButtons {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.abFav {
+  margin-left: auto;
+}
+
+.abCheck {
+  display: inline-flex;
+  align-items: center;
+}
+
+.abDateRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.abDateRow input[type="date"] {
+  width: auto;
+  flex: 1;
+  min-width: 120px;
+}
+
+.abSmall {
+  padding: 0 6px;
+  min-height: 21px;
+}
+
+.abSubhead {
+  margin: 4px 0;
+  font-size: 11px;
+}
+
+.abList {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-bottom: 8px;
+  align-items: flex-start;
+}
+
+.abListRow {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  width: 100%;
+}
+
+.abListRow select {
+  width: 90px;
+  flex: none;
+}
+
+.abListRow input {
+  flex: 1;
+  min-width: 0;
+}
+
+.abGroupChecks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin-bottom: 6px;
+}
+
+.abChoices {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: stretch;
+}
+
+.abChoices button {
+  min-height: 30px;
+  text-align: left;
+  padding: 0 10px;
+}
+
+.abSteps {
+  padding-left: 20px;
+}
+
+.abSteps li {
+  margin-bottom: 4px;
+}
+
+.abImportList {
+  list-style: none;
+  margin: 0;
+  padding: 4px;
+  max-height: 220px;
+  overflow: auto;
+  background: #fff;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+}
+
+.abImportList li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px;
+}
+
+.abPictureGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+  gap: 4px;
+}
+
+.window .abPictureChoice,
+.abPictureChoice {
+  padding: 2px;
+  min-height: 0;
+  aspect-ratio: 1;
+}
+
+.abPictureChoice img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* ---- phones ---- */
+.abPhone {
+  font-size: 14px;
+}
+
+.abPhoneBar {
+  flex: none;
+  display: flex;
+  gap: 6px;
+  padding: 6px 6px 0;
+}
+
+.abPhoneBar select {
+  flex: 1;
+  min-width: 0;
+  height: 36px;
+  font-size: 16px;
+}
+
+.abPhoneBar button {
+  min-height: 36px;
+  padding: 0 10px;
+}
+
+.abPhone .abFind {
+  padding: 6px;
+}
+
+.abPhone .abFind label {
+  display: none;
+}
+
+.abPhone .abFind input {
+  height: 36px;
+  font-size: 16px;
+}
+
+.abPhone .abListPane {
+  margin: 0 6px 4px;
+}
+
+.abPhone .abRow {
+  display: flex;
+  min-height: 52px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.abPhone .abRow .abCellName {
+  flex: 1;
+  gap: 10px;
+  padding: 4px 8px;
+}
+
+.abPhone .abRowSub {
+  font-size: 12px;
+}
+
+.abPhoneCard {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  background: #fff;
+  margin: 4px;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+.abCardPhone {
+  padding: 10px;
+}
+
+.abCardPhone .abCardName h2 {
+  font-size: 18px;
+}
+
+.abCardPhone .abActions button {
+  min-height: 40px;
+  padding: 0 12px;
+  font-size: 14px;
+}
+
+.abCardPhone .abDetails {
+  gap: 8px 12px;
+  font-size: 14px;
+}
+
+.abBack {
+  min-height: 36px;
+  margin-bottom: 8px;
+  padding: 0 10px;
+}
+
+.abBackdropPhone {
+  padding: 0;
+  align-items: stretch;
+  background: rgb(0 0 0 / 30%);
+}
+
+.abPanelPhone {
+  width: 100%;
+  max-height: 100%;
+  font-size: 14px;
+}
+
+.abPanelPhone .abPanelBody {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+.abPanelPhone .abPanelFooter {
+  padding-bottom: calc(8px + env(safe-area-inset-bottom));
+}
+
+.abPanelPhone .abPanelFooter button {
+  min-height: 40px;
+  font-size: 14px;
+}
+
+.abPanelPhone input,
+.abPanelPhone select,
+.abPanelPhone textarea {
+  font-size: 16px;
+}
+
+.abPanelPhone input:not([type="checkbox"]),
+.abPanelPhone select {
+  min-height: 34px;
+}
+
+.abPanelPhone .abGrid {
+  grid-template-columns: 1fr;
+}
+
+.abPanelPhone .abTabs {
+  display: flex;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+}
+
+.abPanelPhone .abTabs li a {
+  white-space: nowrap;
+  padding: 6px 8px;
+}
+
+.abPanelPhone .abChoices button,
+.abPanelPhone .abSmall {
+  min-height: 40px;
+}
+
+/* a narrow window on a computer: no folder column */
+.abRoot:not(.abPhone) {
+  container-type: inline-size;
+}
+
+@container (max-width: 600px) {
+  .abMain {
+    grid-template-columns: minmax(0, 1fr) 200px;
+  }
+
+  .abFolders {
+    display: none;
+  }
+
+  .abListHead,
+  .abRow {
+    grid-template-columns: minmax(110px, 1fr) minmax(70px, 1fr);
+  }
+
+  .abListHead .abCell:nth-child(n + 3),
+  .abRow .abCell:nth-child(n + 3) {
+    display: none;
+  }
+}

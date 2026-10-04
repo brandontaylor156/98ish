@@ -249,12 +249,12 @@ const Calendar = ({ year, month, day, onPick }) => {
 
 // ---- the dialog ----
 
-const DateTimeProperties = ({ onClose }) => {
+const DateTimeProperties = ({ onClose, tab: firstTab }) => {
   useClock() // re-render every second
   const id = useId()
   const saved = getClockSettings()
   const zones = useMemo(zoneOptions, [])
-  const [tab, setTab] = useState("date")
+  const [tab, setTab] = useState(firstTab === "zone" ? "zone" : "date")
   const [zone, setZone] = useState(() => currentZone(saved))
   const [autoDst, setAutoDst] = useState(saved.autoDst !== false)
   const [delta, setDelta] = useState(0) // ms added to the saved offset by edits here

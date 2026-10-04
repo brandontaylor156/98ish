@@ -69,7 +69,7 @@ const COMMAND_LIST = [
 ]
 
 // Program names you can type: TETRIS, WINMINE, NOTEPAD...
-const ALIASES = {
+export const ALIASES = {
   tetris: "Tetris",
   sol: "Solitaire",
   mspaint: "Paint",
@@ -125,6 +125,12 @@ const ALIASES = {
   calendar: "Calendar",
   cal: "Calendar",
   calndr: "Calendar",
+  wab: "Address Book",
+  addrbook: "Address Book",
+  addressbook: "Address Book",
+  contacts: "Address Book",
+  find: "Find",
+  search: "Find",
   clock: "Clock",
   alarm: "Clock",
   timer: "Clock",

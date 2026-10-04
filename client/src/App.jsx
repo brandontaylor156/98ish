@@ -2,7 +2,6 @@ import React, { useEffect, useRef, useState, useReducer } from "react"
 import TaskBar from "./components/OS-specific/TaskBar"
 import StartMenu from "./components/OS-specific/StartMenu"
 import Desktop from "./components/OS-specific/Desktop"
-import LiveSearch from "./components/OS-specific/LiveSearch"
 import { useIsMobile } from "./hooks/useMediaQuery"
 import Dialog from "./components/shared/Dialog"
 import { hasUnsaved, unsavedPrograms } from "./utils/unsaved"
@@ -31,6 +30,8 @@ const MsDos = lazyApp(() => import("./components/applets/dos/MsDos"))
 // the lock screen's dialogs load when it first shows; until then a plain cover hides everything
 const LockScreen = React.lazy(() => import("./components/OS-specific/lock/LockScreen"))
 const Tour = React.lazy(() => import("./components/applets/welcome/Tour"))
+// the Start menu's search results (search everything: utils/search.js)
+const SearchPanel = React.lazy(() => import("./components/OS-specific/SearchPanel"))
 import { Screensaver, optionsFor, saverById, useIdle } from "./components/screensavers"
 
 const reducer = (state, action) => {
@@ -244,7 +245,9 @@ const firstPhase = () => (getSettings().bootScreen && !fromNotification() && !lo
 function App() {
   const [windows, dispatch] = useReducer(reducer, [])
   const [startMenuVisible, setStartMenuVisible] = useState(false)
-  const [results, setResults] = useState([])
+  const [query, setQuery] = useState("") // typed in the Start menu's search box
+  const [searchFocus, setSearchFocus] = useState(false)
+  const searchKeys = useRef(null) // the results' arrow keys and Enter
   const [phase, setPhase] = useState(firstPhase)
   const [power, setPower] = useState(null) // "shutdown" | "logoff" dialog
   const [unsavedThen, setUnsavedThen] = useState(null) // what to do if the user says go ahead
@@ -297,7 +300,8 @@ function App() {
   const logOnNext = useRef(false)
 
   const closeMenu = () => {
-    setResults([])
+    setQuery("")
+    setSearchFocus(false)
     setStartMenuVisible(false)
   }
 
@@ -383,20 +387,24 @@ function App() {
             startMenuVisible={startMenuVisible}
             setStartMenuVisible={setStartMenuVisible}
           />
-          {/* Start menu and search results sit just above the taskbar */}
+          {/* Start menu and search results sit just above the taskbar (phones: search fills the screen) */}
           {startMenuVisible && (
-            <div className="startArea">
+            <div className={`startArea${mobile && (query.trim() || searchFocus) ? " is-searching" : ""}`}>
               <StartMenu
                 dispatch={dispatch}
-                setResults={setResults}
+                onQuery={setQuery}
+                onSearchKey={(e) => searchKeys.current?.(e)}
+                onSearchFocus={setSearchFocus}
                 closeMenu={closeMenu}
                 mobile={mobile}
                 onShutDown={() => setPower("shutdown")}
                 onLogOff={() => setPower("logoff")}
                 onLock={lockComputer}
               />
-              {results.length !== 0 && (
-                <LiveSearch results={results} dispatch={dispatch} closeMenu={closeMenu} />
+              {query.trim() !== "" && !locked && (
+                <React.Suspense fallback={null}>
+                  <SearchPanel query={query} dispatch={dispatch} closeMenu={closeMenu} keysRef={searchKeys} mobile={mobile} />
+                </React.Suspense>
               )}
             </div>
           )}

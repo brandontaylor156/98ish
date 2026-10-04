@@ -27,8 +27,8 @@ const TABS = [
 // Display Properties: wallpaper (built-in, patterns, or your own picture), screen saver,
 // color scheme, and the startup screen and sound. Changes preview in the little monitor;
 // Apply or OK puts them on the desktop.
-const DisplayProperties = ({ tab: initialTab = "background", onClose }) => {
-  const [tab, setTab] = useState(initialTab)
+const DisplayProperties = ({ onClose, tab: firstTab }) => {
+  const [tab, setTab] = useState(TABS.some((t) => t.id === firstTab) ? firstTab : "background")
   const [draft, setDraft] = useState(getSettings)
   const [image, setImage] = useState(getWallpaperImage)
   const [error, setError] = useState(null)

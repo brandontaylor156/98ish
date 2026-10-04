@@ -148,7 +148,7 @@ const Calendar = ({ calendarView: initial = {}, mobile, dispatch, onClose }) => 
   }, [])
 
   const p = parseDate(selected)
-  const writable = cal.calendars.filter((c) => !cal.hidden.includes(c.id))
+  const writable = cal.calendars.filter((c) => !cal.hidden.includes(c.id) && !c.readOnly)
   const events = visibleEvents(cal)
 
   // the dates on screen

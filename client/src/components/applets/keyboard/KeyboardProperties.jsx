@@ -35,9 +35,9 @@ const MiniKeyboard = ({ phone }) => (
   </div>
 )
 
-const KeyboardProperties = ({ onClose }) => {
+const KeyboardProperties = ({ onClose, tab: firstTab }) => {
   const touch = useIsTouch()
-  const [tab, setTab] = useState("touch")
+  const [tab, setTab] = useState(firstTab === "speed" ? "speed" : "touch")
   const [draft, setDraft] = useState(getSettings)
   const update = (patch) => setDraft((d) => ({ ...d, ...patch }))
   const keys = ["keyboard", "keyClicks", "keyVibrate", "keyPreviews", "autoCaps", "periodShortcut", "keyRepeatDelay", "keyRepeatRate"]

@@ -46,6 +46,12 @@ const TIPS = {
   ],
   Clock: ["Alarms and the timer keep going with the Clock closed, as long as 98ish is open.", "Add cities to World Clock to see what time it is for faraway friends."],
   Calculator: ["View > Scientific has sines, logs and binary. Very serious business."],
+  "Address Book": [
+    "Give a contact a birthday and it shows up on the Birthdays calendar in Calendar every year, with a reminder.",
+    "Right-click a buddy in 98 Messenger and choose Add to Address Book. A green dot means they're on right now!",
+    "On an iPhone, open a contact in the Contacts app, tap Share Contact, save it to Files, then use File > Import here.",
+  ],
+  Find: ["Type in the Start menu's box to find anything: programs, settings, the words inside your documents, people and events."],
   "Media Player": ["Every song in My Music was made right here in your browser. No files, all synth!"],
   "Lovebirds Quiz Show": ["Answer about yourself, then send it to someone special. Results wait in your Inbox!"],
   Us: ["Send Flowers puts a bouquet on your partner's desktop. They have to water it every day, or it wilts!"],

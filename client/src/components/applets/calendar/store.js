@@ -1,5 +1,7 @@
 import { useSyncExternalStore } from "react"
 import { currentZone } from "../../../utils/clock"
+import { getContacts, subscribeContacts } from "../../../utils/contacts"
+import { BIRTHDAYS_ID, birthdayEvents } from "../../../utils/contactsCore"
 
 // 98ish Calendar's data, shared by the Calendar app, the Clock app and CalendarBridge (which
 // keeps it in step with 98 Messenger and fires reminders):
@@ -7,12 +9,15 @@ import { currentZone } from "../../../utils/clock"
 //     group calendars; their events, kept up to date live (cal:* socket events)
 //   - "On this device": a calendar kept in this browser's localStorage, for anyone, signed
 //     on or not, which can be uploaded to an account later
+//   - "Birthdays": read-only, made from the Address Book's birthdays and anniversaries
+//     (utils/contacts.js), each a yearly all-day event with a reminder on the day
 // useCalendar() -> { status, me, calendars, invites, events: { [calendarId]: [event] },
 //                    hidden, muted, ... }. Every action resolves to { ok, ... } or
 //                    { ok: false, error } and never throws.
 
 export const SERVER_URL = import.meta.env.VITE_SOCKET_URL || "http://localhost:8000"
 export const LOCAL_ID = "local"
+export { BIRTHDAYS_ID }
 export const OPEN_EVENT = "98ish:calendar-open" // { program, view, date, eventId, calendarId, join }
 export const LIVE_EVENT = "98ish:calendar-live" // a comment or change arrived ({ type, ... })
 export const VIEW_EVENT = "98ish:calendar-view" // an open Calendar or Clock asked to show something
@@ -74,12 +79,28 @@ const localCalendar = () => ({
   local: true,
 })
 
+// the Address Book's birthdays (read-only: change them in the Address Book)
+const birthdaysCalendar = () => ({
+  id: BIRTHDAYS_ID,
+  kind: "birthdays",
+  name: "Birthdays",
+  color: "pink",
+  role: "viewer",
+  readOnly: true,
+  members: [{ key: "me", name: "You", role: "owner", color: "pink" }],
+  invites: [],
+  labels: [],
+  local: true,
+})
+const birthdays = () => birthdayEvents(getContacts())
+export const isReadOnly = (calendar) => !!calendar?.readOnly
+
 let state = {
   status: "signed-out", // "signed-out" | "loading" | "ready" | "error"
   me: null, // { key, name }
-  calendars: [localCalendar()],
+  calendars: [localCalendar(), birthdaysCalendar()],
   invites: [],
-  events: { [LOCAL_ID]: localData.events || [] },
+  events: { [LOCAL_ID]: localData.events || [], [BIRTHDAYS_ID]: birthdays() },
   hidden: prefs.hidden || [], // calendar ids not shown
   muted: prefs.muted || [], // calendar ids whose reminders are off
   defaultCalendar: prefs.defaultCalendar || null,
@@ -99,6 +120,7 @@ const subscribe = (fn) => {
   return () => listeners.delete(fn)
 }
 export const useCalendar = () => useSyncExternalStore(subscribe, getCal)
+subscribeContacts(() => set({ events: { ...state.events, [BIRTHDAYS_ID]: birthdays() } }))
 
 export const zone = () => currentZone()
 export const serverNow = () => Date.now() + offset
@@ -126,8 +148,8 @@ export const findEvent = (calendarId, id, s = state) => (s.events[calendarId] ||
 
 // the calendar new events go in
 export const pickDefault = (s = state) => {
-  const usable = s.calendars.filter((c) => !s.hidden.includes(c.id))
-  return calendarById(s.defaultCalendar, s) && !s.hidden.includes(s.defaultCalendar) ? s.defaultCalendar : (usable.find((c) => c.kind === "personal") || usable[0] || s.calendars[0]).id
+  const usable = s.calendars.filter((c) => !s.hidden.includes(c.id) && !c.readOnly)
+  return calendarById(s.defaultCalendar, s) && !s.hidden.includes(s.defaultCalendar) && !calendarById(s.defaultCalendar, s).readOnly ? s.defaultCalendar : (usable.find((c) => c.kind === "personal") || usable[0] || s.calendars[0]).id
 }
 
 // ---- the server ----
@@ -148,7 +170,7 @@ export const calApi = async (method, path = "", body) => {
   }
 }
 
-const withLocal = (calendars) => [...calendars, localCalendar()]
+const withLocal = (calendars) => [...calendars, localCalendar(), birthdaysCalendar()]
 
 const putEvent = (calendarId, event) => {
   const list = state.events[calendarId] || []
@@ -165,7 +187,7 @@ export const signedOn = (session) => {
   if (!session?.token) {
     token = null
     const local = state.events[LOCAL_ID]
-    set({ status: "signed-out", me: null, calendars: [localCalendar()], invites: [], events: { [LOCAL_ID]: local } })
+    set({ status: "signed-out", me: null, calendars: [localCalendar(), birthdaysCalendar()], invites: [], events: { [LOCAL_ID]: local, [BIRTHDAYS_ID]: birthdays() } })
     return
   }
   const changed = token !== session.token
@@ -185,7 +207,7 @@ export const refresh = () =>
       return list
     }
     const results = await Promise.all(list.calendars.map((c) => calApi("GET", `/calendars/${c.id}/events`)))
-    const events = { [LOCAL_ID]: state.events[LOCAL_ID] || [] }
+    const events = { [LOCAL_ID]: state.events[LOCAL_ID] || [], [BIRTHDAYS_ID]: birthdays() }
     list.calendars.forEach((c, i) => (events[c.id] = results[i].ok ? results[i].events : state.events[c.id] || []))
     set({ status: "ready", error: null, calendars: withLocal(list.calendars), invites: list.invites, events })
     return list
@@ -302,7 +324,7 @@ export const updateCalendar = async (id, patch) => {
     if (patch.color !== undefined) localData.color = patch.color
     if (patch.labels) localData.labels = Object.fromEntries(patch.labels.map((l) => [l.id, l.name]))
     saveLocal()
-    set({ calendars: state.calendars.map((c) => (c.local ? localCalendar() : c)) })
+    set({ calendars: state.calendars.map((c) => (c.id === LOCAL_ID ? localCalendar() : c)) })
     return { ok: true }
   }
   return after(await calApi("PATCH", `/calendars/${id}`, patch))

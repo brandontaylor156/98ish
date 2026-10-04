@@ -5,6 +5,7 @@ import { colorFor, downloadEvent, eventFile } from "./util"
 import { filePayload, shareOut } from "../../../utils/share"
 import Sheet from "./Sheet"
 import CheckBox from "./CheckBox"
+import { openCouples } from "../../../utils/couple"
 
 // An event (or memo) up close: when, where, who added it, its checklist and reminders, and
 // the conversation about it (shared calendars). Edit, Delete, and Add to my phone's calendar.
@@ -99,12 +100,23 @@ const EventDetails = ({ occ, calendar, zone, mobile, me, focusComments, onEdit, 
       className="calDetails"
       footer={
         <>
-          <button type="button" onClick={onEdit}>
-            Edit...
-          </button>
-          <button type="button" onClick={onDelete}>
-            Delete...
-          </button>
+          {calendar?.readOnly ? (
+            // a birthday or anniversary: it's changed in the Address Book
+            event.contactId && (
+              <button type="button" onClick={() => (onClose(), openCouples("Address Book", { handoff: { id: Date.now(), contactId: event.contactId } }))}>
+                Open in Address Book
+              </button>
+            )
+          ) : (
+            <>
+              <button type="button" onClick={onEdit}>
+                Edit...
+              </button>
+              <button type="button" onClick={onDelete}>
+                Delete...
+              </button>
+            </>
+          )}
           {!memo && (
             <button type="button" onClick={() => downloadEvent({ ...event, title: occ.title })} title="Download an .ics file your phone's calendar can add">
               Add to my phone

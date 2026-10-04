@@ -77,6 +77,8 @@ const ClockApp = lazyApp(() => import("../applets/calendar/Clock"))
 const CalendarBridge = React.lazy(() => import("../applets/calendar/CalendarBridge"))
 const Camera = lazyApp(() => import("../applets/camera/Camera"))
 const Photos = lazyApp(() => import("../applets/photos/Photos"))
+const AddressBook = lazyApp(() => import("../applets/addressbook/AddressBook"))
+const Find = lazyApp(() => import("../applets/find/Find"))
 // Our Pet out for a walk on the desktop (couples only, its own small download)
 const PetWalker = React.lazy(() => import("../applets/pet/PetWalker"))
 // Network Neighborhood and the head-to-head games
@@ -829,8 +831,8 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
         />
       )}
       {window.app === "charmap" && <CharMap onClose={() => closeWindow(window, index)} />}
-      {window.app === "datetime" && <DateTimeProperties onClose={() => closeWindow(window, index)} />}
-      {window.app === "keyboard" && <KeyboardProperties onClose={() => closeWindow(window, index)} />}
+      {window.app === "datetime" && <DateTimeProperties tab={window.tab} onClose={() => closeWindow(window, index)} />}
+      {window.app === "keyboard" && <KeyboardProperties tab={window.tab} onClose={() => closeWindow(window, index)} />}
       {window.app === "passwords" && <Passwords tab={window.tab} reason={window.reason} onClose={() => closeWindow(window, index)} />}
       {window.app === "webapp" && PROJECTS.find((p) => p.name === window.program) && (
         <WebApp project={PROJECTS.find((p) => p.name === window.program)} mobile={mobile} />
@@ -841,6 +843,8 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
       {window.app === "magnifier" && <Magnifier mobile={mobile} dispatch={dispatch} onClose={() => closeWindow(window, index)} />}
       {window.app === "calendar" && <CalendarApp calendarView={window.calendarView} mobile={mobile} dispatch={dispatch} onClose={() => closeWindow(window, index)} />}
       {window.app === "clock" && <ClockApp clockTab={window.calendarView?.tab} mobile={mobile} />}
+      {window.app === "addressbook" && <AddressBook mobile={mobile} dispatch={dispatch} handoff={window.handoff} onTitle={rename(index)} onClose={() => closeWindow(window, index)} />}
+      {window.app === "find" && <Find mobile={mobile} dispatch={dispatch} query={window.query} handoff={window.handoff} onTitle={rename(index)} onClose={() => closeWindow(window, index)} />}
       {window.app === "welcome" && <Welcome dispatch={dispatch} mobile={mobile} onClose={() => closeWindow(window, index)} />}
       {window.app === "mail" && <Mail dispatch={dispatch} handoff={window.handoff} onTitle={rename(index)} mobile={mobile} />}
       {window.app === "homepage" && (

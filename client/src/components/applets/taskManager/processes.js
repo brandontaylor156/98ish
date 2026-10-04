@@ -47,6 +47,8 @@ export const APP_PROFILES = {
   Magnifier: { image: "magnify.exe", mem: 2860, threads: 3, handles: 47, cpu: [0.4, 4] },
   Calculator: { image: "calc.exe", mem: 1124, threads: 1, handles: 19, cpu: [0.05, 1] },
   Calendar: { image: "calndr98.exe", mem: 2480, threads: 3, handles: 41, cpu: [0.05, 1.5] },
+  "Address Book": { image: "wab.exe", mem: 2216, threads: 3, handles: 46, cpu: [0.05, 1.5] },
+  Find: { image: "explorer.exe", mem: 1880, threads: 2, handles: 38, cpu: [0.05, 2] },
   Clock: { image: "clock.exe", mem: 640, threads: 2, handles: 14, cpu: [0.1, 1] },
   "Character Map": { image: "charmap.exe", mem: 1288, threads: 1, handles: 24, cpu: [0.05, 1] },
   "Welcome to 98ish": { image: "welcome.exe", mem: 1420, threads: 1, handles: 27, cpu: [0.05, 1] },

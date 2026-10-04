@@ -6,6 +6,7 @@ import { launch } from "../../../utils/programs"
 import { getNotifications, notify } from "../../../utils/notifications"
 import { notifyLocked } from "../../../utils/lock"
 import { currentUser } from "../../../utils/users"
+import { registerSearchProvider } from "../../../utils/searchIndex"
 
 // One 98 Messenger session shared by every Messenger window: the Buddy List ("98 Messenger"),
 // Instant Message windows, chat rooms, Buddy Info and chat invitations.
@@ -435,6 +436,38 @@ export const AimProvider = ({ socket, windows, dispatch: dispatchWindow, onOpenV
       for (const [event, handler] of Object.entries(handlers)) socket.off(event, handler)
     }
   }, [socket])
+
+  // ---- the Address Book syncs with this account while signed on (utils/contacts.js) ----
+  const contactsSynced = useRef(false)
+  useEffect(() => {
+    const session = state.status === "online" && tokenRef.current ? { token: tokenRef.current, screenName: state.me?.screenName } : null
+    if (!session && !contactsSynced.current) return
+    contactsSynced.current = !!session
+    import("../../../utils/contacts").then((m) => m.setSyncSession(session)).catch(() => {})
+  }, [state.status, state.me?.screenName])
+
+  // ---- search: this session's conversations (kept in memory only, never on the device) ----
+  useEffect(
+    () =>
+      registerSearchProvider("messages", {
+        icon: AIM_ICON,
+        version: () => stateRef.current.convos,
+        entries: () =>
+          Object.values(stateRef.current.convos).flatMap((convo) =>
+            convo.messages
+              .filter((m) => !m.system && m.text)
+              .map((m, i) => ({
+                id: `im:${keyOf(convo.screenName)}:${m.time}:${i}`,
+                title: String(m.text).slice(0, 120),
+                subtitle: `${m.mine ? "You" : m.from} to ${m.mine ? convo.screenName : "you"} · ${new Date(m.time).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}`,
+                detail: convo.screenName,
+                time: m.time,
+                open: () => openIm(convo.screenName),
+              }))
+          ),
+      }),
+    []
+  )
 
   // ---- idle: no input for 10 minutes ----
 

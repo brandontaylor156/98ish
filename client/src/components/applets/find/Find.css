@@ -1,0 +1,293 @@
+/* Find: All Files */
+
+.fnRoot {
+  position: relative;
+  height: calc(100% - 25px);
+  display: flex;
+  flex-direction: column;
+  font-family: "Pixelated MS Sans Serif", Arial, sans-serif;
+  -webkit-font-smoothing: none;
+  font-size: 11px;
+  background: #c0c0c0;
+  color: #000;
+  overflow: hidden;
+}
+
+.fnRoot button {
+  min-width: 0;
+}
+
+.fnTop {
+  flex: none;
+  display: flex;
+  gap: 8px;
+  padding: 6px 6px 4px;
+}
+
+.fnCriteria {
+  flex: 1;
+  min-width: 0;
+}
+
+.fnTabs {
+  margin-bottom: -2px !important;
+}
+
+.fnTabs a {
+  color: #000 !important;
+}
+
+.window.fnPanel {
+  height: auto;
+  min-width: 0;
+  padding: 10px 8px;
+  min-height: 132px;
+}
+
+.fnRows {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 6px 8px;
+  align-items: center;
+}
+
+.fnRows input,
+.fnRows select {
+  width: 100%;
+  min-width: 0;
+}
+
+.fnCheck,
+.fnRadio {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.fnDate {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.fnIndent {
+  padding-left: 22px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.fnRadio input[type="number"] {
+  width: 52px;
+}
+
+.fnHint {
+  margin: 4px 0 0;
+  color: #404040;
+}
+
+.fnSize {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.fnSize select {
+  width: auto;
+}
+
+.fnSize input {
+  width: 70px;
+}
+
+.fnButtons {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding-top: 20px;
+  width: 92px;
+  align-items: stretch;
+}
+
+.fnButtons button {
+  min-height: 23px;
+}
+
+.fnDefault {
+  font-weight: bold;
+}
+
+.fnGlass {
+  width: 40px;
+  height: 40px;
+  margin: 8px auto 0;
+}
+
+.fnGlass.is-searching {
+  animation: fnWiggle 0.6s ease-in-out infinite;
+}
+
+@keyframes fnWiggle {
+  0%,
+  100% {
+    transform: translate(0, 0) rotate(0);
+  }
+  50% {
+    transform: translate(4px, -3px) rotate(8deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fnGlass.is-searching {
+    animation: none;
+  }
+}
+
+.fnNote {
+  margin: 0 8px 4px;
+  color: #404040;
+}
+
+.fnTypeTabs {
+  flex: none;
+  padding: 0 6px !important;
+  flex-wrap: wrap;
+}
+
+.fnResults {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  margin: 0 6px 4px;
+  background: #fff;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+  padding: 2px;
+  outline: none;
+}
+
+.fnHead,
+.fnRow {
+  display: grid;
+  grid-template-columns: minmax(140px, 1.6fr) minmax(100px, 1.4fr) 64px minmax(80px, 0.9fr) 112px;
+  align-items: center;
+}
+
+.fnHead {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.fnHead span {
+  padding: 2px 4px;
+  background: #c0c0c0;
+  box-shadow: inset -1px -1px #0a0a0a, inset 1px 1px #fff, inset -2px -2px #808080, inset 2px 2px #dfdfdf;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.fnRow {
+  min-height: 20px;
+  cursor: default;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.fnRow > span {
+  padding: 1px 4px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.fnRow.is-selected {
+  background: #000080;
+  color: #fff;
+}
+
+.fnName {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.fnName img {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+  flex: none;
+}
+
+.fnName img.fnRound {
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.fnName span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fnEmpty {
+  margin: 10px;
+  color: #404040;
+}
+
+.fnStatus {
+  margin: 0 2px 2px;
+}
+
+/* phones: the criteria above, buttons in a row, results as two-line rows */
+.fnPhone {
+  font-size: 14px;
+}
+
+.fnPhone .fnTop {
+  flex-direction: column;
+}
+
+.fnPhone .fnButtons {
+  flex-direction: row;
+  width: auto;
+  padding-top: 0;
+}
+
+.fnPhone .fnButtons button {
+  flex: 1;
+  min-height: 40px;
+  font-size: 14px;
+}
+
+.fnPhone .fnGlass {
+  display: none;
+}
+
+.fnPhone input,
+.fnPhone select {
+  font-size: 16px;
+  min-height: 32px;
+}
+
+.fnPhone .fnRow {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  min-height: 48px;
+  padding: 4px 6px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.fnPhone .fnName img {
+  width: 24px;
+  height: 24px;
+}
+
+.fnPhone .fnSub {
+  font-size: 12px;
+  color: #606060;
+}
+
+.fnPhone .fnRow.is-selected .fnSub {
+  color: #d8d8ff;
+}
