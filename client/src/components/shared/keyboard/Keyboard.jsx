@@ -70,6 +70,8 @@ const taskbarOffset = () => {
 const liftTargetFor = (el) => {
   for (let node = el.parentElement; node && node !== document.body; node = node.parentElement) {
     if (node.matches(NO_LIFT)) return null
+    // a floating popup (hooks/useFloating) moves itself above the keyboard
+    if (node.matches("[data-floating=on]")) return null
     const pos = getComputedStyle(node).position
     if (pos !== "fixed" && pos !== "absolute") continue
     if (node.getBoundingClientRect().height >= window.innerHeight * 0.9) continue
