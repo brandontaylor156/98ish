@@ -140,7 +140,7 @@ const Court = ({ seat, source, onSwing, paused, onFrame }) => {
 
   return (
     <div className="tbCourt" ref={wrapRef} onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}>
-      <canvas ref={canvasRef} className="tbCanvas" />
+      <canvas ref={canvasRef} className="tbCanvas" data-touch-surface />
       {error && <div className="tbError">{error}</div>}
     </div>
   )

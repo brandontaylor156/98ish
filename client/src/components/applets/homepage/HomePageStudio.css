@@ -506,7 +506,9 @@ button.hsSwatch.is-on {
 }
 
 .hsUrl {
+  -webkit-user-select: text;
   user-select: text;
+  -webkit-touch-callout: default;
   word-break: break-all;
 }
 

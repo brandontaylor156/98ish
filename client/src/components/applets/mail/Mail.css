@@ -360,7 +360,9 @@ button.mlTool:disabled .mlToolIcon {
   font-family: "Courier New", Courier, monospace;
   font-size: 13px;
   line-height: 1.35;
+  -webkit-user-select: text;
   user-select: text;
+  -webkit-touch-callout: default;
 }
 
 .mlStatus {

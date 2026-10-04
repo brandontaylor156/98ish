@@ -191,7 +191,7 @@ const CatchGame = ({ pet, onDone, onQuit }) => {
   }
 
   return (
-    <div className="petGame" ref={box} onPointerDown={steer} onPointerMove={(e) => (e.buttons || e.pointerType === "touch" || e.pointerType === "mouse") && steer(e)} tabIndex={-1}>
+    <div className="petGame" ref={box} data-touch-surface onPointerDown={steer} onPointerMove={(e) => (e.buttons || e.pointerType === "touch" || e.pointerType === "mouse") && steer(e)} tabIndex={-1}>
       <canvas ref={canvas} className="petGameCanvas" />
       <div className="petGameTop">
         <span className="petGameScore">

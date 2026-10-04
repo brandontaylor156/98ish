@@ -428,7 +428,7 @@
   line-height: 1.35;
   overflow-wrap: anywhere;
   box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
-  user-select: text;
+  /* selectable with a mouse: data-selectable="mouse" (a held message opens reactions) */
 }
 
 .aimLine {

@@ -265,6 +265,7 @@ const ImWindow = ({ buddy, focusInput }) => {
 
       <div
         className="aimTranscript"
+        data-selectable="mouse"
         ref={transcript.ref}
         onScroll={() => {
           transcript.onScroll()
@@ -326,6 +327,7 @@ const ImWindow = ({ buddy, focusInput }) => {
           x={picker.x}
           y={picker.y}
           current={picker.message.r?.[meKey]}
+          text={picker.message.text}
           onPick={(emoji) => react(picker.message, emoji)}
           onClose={() => setPicker(null)}
         />

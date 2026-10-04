@@ -497,6 +497,7 @@ const BoomFrenzy = ({ mobile = false, paused = false, onClose }) => {
     <div
       className={`bfField${E.isPanic(g) ? " is-panic" : ""}${E.isFrozen(g) ? " is-frozen" : ""}${E.isSnip(g) ? " is-snip" : ""}`}
       style={{ width: cw * 3, height: ch * 3, "--cw": `${cw}px`, "--ch": `${ch}px`, "--s": `${cell}px` }}
+      data-touch-surface
       onPointerDown={onFieldDown}
       onPointerMove={onFieldMove}
       onPointerUp={onFieldUp}

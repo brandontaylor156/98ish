@@ -171,6 +171,7 @@ const TetrisWindow = ({ tetris, onGameOver, onQuit, editControls = false, stats,
             className={layout === "wide" ? "tetrisWindow" : "tetrisWindow tetrisWindow--compact"}
             data-layout={layout}
             data-scheme={touch ? scheme : undefined}
+            data-touch-surface={swipe && !editing && game.status === "playing" ? "" : undefined}
             style={appLayout ? { "--app-side": `${APP_SIDE}px` } : undefined}
             tabIndex={0}
             ref={windowRef}

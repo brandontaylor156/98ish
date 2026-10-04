@@ -216,7 +216,7 @@ const Block = ({ block, go, marks, onOpen, mobile }) => {
 }
 
 const TopicPage = React.forwardRef(({ topic, go, marks, onOpen, mobile }, ref) => (
-  <article className="hlpTopic" ref={ref} aria-labelledby="hlp-title">
+  <article className="hlpTopic" ref={ref} aria-labelledby="hlp-title" data-selectable>
     <h1 id="hlp-title" className="hlpTitle">
       {topic.title}
     </h1>

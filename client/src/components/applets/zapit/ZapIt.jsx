@@ -479,6 +479,7 @@ const ZapIt = ({ mobile = false, paused = false, onClose }) => {
           key={feedback?.n}
           style={{ "--zp": COLORS[cmd] }}
           data-command={cmd}
+          data-touch-surface
           onPointerDown={onDown}
           onPointerMove={onMove}
           onPointerUp={onUp}

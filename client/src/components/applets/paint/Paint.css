@@ -212,8 +212,9 @@
   overflow: hidden;
   white-space: pre-wrap;
   -webkit-font-smoothing: auto;
-  user-select: text;
   -webkit-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
 }
 
 /* the size handles: right edge, bottom edge, corner */

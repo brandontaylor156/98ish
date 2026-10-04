@@ -6,6 +6,7 @@ import ContextMenu from "../../shared/ContextMenu"
 import { fs, previewOf, readContent, validName, writeAndSave } from "../../../utils/fs"
 import { useDriveUsage, useFsVersion } from "../../../hooks/useFs"
 import { useOpenGesture } from "../../../hooks/useMediaQuery"
+import { useLongPress } from "../../../hooks/useLongPress"
 import { launch, paintWindow } from "../../../utils/programs"
 import { downloadItem } from "../../../utils/fileTransfer"
 import { itemPayload, shareOut } from "../../../utils/share"
@@ -89,6 +90,15 @@ const Photos = ({ file: initialFile = null, path = null, mobile, dispatch, onTit
   useFsVersion()
   const net = useNet()
   const openGesture = useOpenGesture()
+  // holding a tile on a touch screen opens its menu (iPhones send no contextmenu)
+  const tilePress = useLongPress((x, y, { target }) => {
+    const key = target.closest?.("[data-tile]")?.dataset.tile || ""
+    const name = key.slice(2)
+    const it = key.startsWith("d:") ? subfolders.find((d) => d.name === name) : items.find((f) => f.name === name)
+    if (!it) return
+    setSelected(it)
+    setMenu({ x, y, items: tileMenu(it) })
+  })
   const [editOpen, setEditOpen] = useDisclosure("photos.edit", false)
   const [dir, setDir] = useState(() => (initialFile?.parent && onDrive(initialFile) ? initialFile.parent : (path && fs.resolve(path)?.isDirectory && fs.resolve(path)) || picturesFolder()))
   const [current, setCurrent] = useState(initialFile && onDrive(initialFile) && initialFile.isImage ? initialFile : null)
@@ -684,8 +694,10 @@ const Photos = ({ file: initialFile = null, path = null, mobile, dispatch, onTit
           role="option"
           aria-selected={selected === d}
           className={`phTile phTile--folder${selected === d ? " is-selected" : ""}`}
+          data-tile={`d:${d.name}`}
           onClick={() => setSelected(d)}
           {...openGesture(() => openFolder(d))}
+          {...tilePress}
           onContextMenu={(e) => (e.preventDefault(), setSelected(d), setMenu({ x: e.clientX, y: e.clientY, items: tileMenu(d) }))}
         >
           <span className="phThumb">
@@ -701,8 +713,10 @@ const Photos = ({ file: initialFile = null, path = null, mobile, dispatch, onTit
           role="option"
           aria-selected={selected === item}
           className={`phTile${selected === item ? " is-selected" : ""}`}
+          data-tile={`f:${item.name}`}
           onClick={() => setSelected(item)}
           {...openGesture(() => openPhoto(item))}
+          {...tilePress}
           onContextMenu={(e) => (e.preventDefault(), setSelected(item), setMenu({ x: e.clientX, y: e.clientY, items: tileMenu(item) }))}
           title={item.name}
         >

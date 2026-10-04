@@ -254,7 +254,7 @@ const Preview = ({ message, loading, onAttachment, mobile, onBack, me, onAddSend
           ))}
         </div>
       )}
-      <div className="mlText">{message.body}</div>
+      <div className="mlText" data-selectable>{message.body}</div>
     </div>
   )
 }

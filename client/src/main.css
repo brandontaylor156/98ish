@@ -55,6 +55,54 @@ html, body {
   -webkit-tap-highlight-color: transparent;
 }
 
+/* No phone "hold" menus (text loupe, Copy/Look Up, Save Image, link previews) except where
+   people read or type. Off for everything; back on for text boxes and for areas marked
+   data-selectable (or class "selectable") and dialog paragraphs (keep READING_SELECTOR in
+   touchGuard.js in step); data-selectable="mouse" only for a mouse,
+   data-selectable="false" off again inside one. utils/touchGuard.js does the rest (touch
+   surfaces, long-press contextmenu, picture dragging). */
+body {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+input:not([type="button"], [type="submit"], [type="reset"], [type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"], [type="image"]),
+textarea,
+[contenteditable]:not([contenteditable="false"]),
+.selectable,
+[data-selectable]:not([data-selectable="false"], [data-selectable="mouse"]),
+.dialogBody p {
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  [data-selectable="mouse"] {
+    -webkit-user-select: text;
+    user-select: text;
+  }
+}
+
+/* buttons, title bars and the like stay plain controls, even inside a reading area */
+:is(button, [role="button"], [role="menuitem"], [role="tab"], label, summary, .title-bar),
+[data-selectable="false"] {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* pictures never offer Save Image or drag out as files (Photos has Save and Share menus) */
+img,
+svg,
+canvas,
+video {
+  -webkit-touch-callout: none;
+  -webkit-user-drag: none;
+}
+
 /************ DESKTOP *************/
 
 /* .desktop {
