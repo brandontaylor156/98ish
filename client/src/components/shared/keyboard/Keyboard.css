@@ -1,8 +1,7 @@
-/* The 98ish keyboard: a 98 tool window docked above the taskbar (Keyboard.jsx) */
+/* The 98ish keyboard: a 98 tool window docked above the taskbar (Keyboard.jsx). The keys are
+   placed in px by geometry.js at the iPhone's positions; this file only draws them. */
 
 .kb98 {
-  --kb-key-h: 44px;
-  --kb-gap: 5px;
   position: fixed;
   left: 0;
   right: 0;
@@ -13,7 +12,8 @@
   min-width: 0;
   min-height: 0;
   overflow: visible;
-  padding: 3px calc(3px + env(safe-area-inset-right)) 3px calc(3px + env(safe-area-inset-left));
+  /* the keys span the whole width, as on iOS (their own 3px margins clear the frame) */
+  padding: 2px env(safe-area-inset-right) 2px env(safe-area-inset-left);
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
@@ -26,65 +26,78 @@
 
 /* no taskbar under it (MS-DOS mode): clear the home indicator itself */
 .kb98.is-flush {
-  padding-bottom: calc(3px + env(safe-area-inset-bottom));
+  padding-bottom: calc(2px + env(safe-area-inset-bottom));
 }
 
-/* landscape phones: shorter keys, the screen is short */
-.kb98.is-short {
-  --kb-key-h: 33px;
-  --kb-gap: 4px;
-}
-
-/* tablets: roomier, and not wider than a comfortable reach */
-.kb98.is-wide:not(.is-short) {
-  --kb-key-h: 50px;
-  --kb-gap: 6px;
-}
-
-.kb98.is-wide:not(.is-short) .kb98Keys {
+/* tablets: not wider than a comfortable reach */
+.kb98.is-wide .kb98Keys {
   max-width: 1000px;
   margin: 0 auto;
 }
 
-/* ---- title bar ---- */
+/* ---- title bar: thin, a 98 tool window's (where iOS has its suggestions bar) ---- */
 
-.kb98Title.title-bar {
+.kb98 .kb98Title.title-bar {
   background: linear-gradient(90deg, var(--title-a, #000080), var(--title-b, #1084d0));
-  padding: 2px 2px 2px 3px;
+  height: 14px;
+  margin: 0 2px;
+  padding: 0 2px 0 3px;
 }
 
 .kb98Title .title-bar-text {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 3px;
   margin-right: 8px;
+  font-size: 11px;
+  line-height: 1;
   white-space: nowrap;
 }
 
 .kb98TitleIcon {
   flex: none;
+  width: 12px;
+  height: 12px;
 }
 
 .kb98Title .title-bar-controls {
   align-items: center;
 }
 
+/* small drawn buttons, fingertip touch areas (into the gap above the first row) */
+.kb98 .kb98Title .title-bar-controls button {
+  position: relative;
+  min-width: 22px;
+  min-height: 0;
+  height: 12px;
+  margin-left: 4px;
+  padding: 0;
+}
+
+.kb98 .kb98Title .title-bar-controls button::after {
+  content: "";
+  position: absolute;
+  inset: -4px -4px -7px -4px;
+}
+
 .kb98Title .kb98TitleText {
   width: auto;
-  min-width: 0;
-  padding: 0 6px;
-  margin-right: 2px;
+  padding: 0 6px !important;
   font-size: 11px;
   line-height: 1;
   color: transparent;
   text-shadow: 0 0 #222;
 }
 
+.kb98Title .kb98TitleEnter {
+  font-weight: bold;
+}
+
 /* the X, drawn like every window's (main.css) */
 .kb98Title .title-bar-controls button.close {
   background-position: center;
   background-repeat: no-repeat;
-  background-size: 11px 11px;
+  background-size: 9px 9px;
 }
 
 .kb98Title .kb98PhoneBtn {
@@ -93,36 +106,36 @@
   justify-content: center;
 }
 
+.kb98Title .kb98PhoneBtn .kb98PhoneIcon {
+  height: 10px;
+  width: auto;
+}
+
 .kb98PhoneIcon {
   display: block;
 }
 
-.kb98Title .title-bar-controls button:active .kb98PhoneIcon {
-  transform: translate(1px, 1px);
+/* the phone in the emoji/globe slot: twice its pixels, like iOS's big glyph there */
+.kb98Key--phone .kb98PhoneIcon {
+  width: 16px;
+  height: 22px;
 }
 
 /* ---- keys ---- */
 
 .kb98Keys {
-  padding-top: 3px;
+  position: relative;
+  width: 100%;
 }
 
-.kb98Row {
-  display: flex;
-}
-
-.kb98Pad {
-  flex: 0 1 0;
-}
-
-/* the touch area is the whole slot, gaps included; the cap is drawn inside it */
+/* the button is the key's whole touch area (to the middle of the gaps); the cap is drawn
+   inside it where the iPhone draws its key */
 .kb98 .kb98Key {
-  flex: 1 1 0;
+  position: absolute;
   min-width: 0;
   min-height: 0;
-  height: calc(var(--kb-key-h) + var(--kb-gap));
   margin: 0;
-  padding: calc(var(--kb-gap) / 2);
+  padding: 0;
   border: 0;
   background: none;
   box-shadow: none;
@@ -147,12 +160,11 @@
 }
 
 .kb98Cap {
-  position: relative;
+  position: absolute;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 4px;
-  height: 100%;
   background: #c0c0c0;
   box-shadow: inset -1px -1px #0a0a0a, inset 1px 1px #fff, inset -2px -2px #808080, inset 2px 2px #dfdfdf;
   overflow: hidden;
@@ -184,13 +196,23 @@
   box-shadow: inset 2px 2px #0a0a0a, inset -1px -1px #0a0a0a, inset -2px -2px #fff, inset 3px 3px #808080, inset -3px -3px #dfdfdf;
 }
 
+/* Go, Search, Send, Done: iOS's blue key, in the 98 highlight */
+.kb98Key--enter.is-action .kb98Cap {
+  background: #000080;
+  color: #fff;
+}
+
+.kb98Key--enter.is-action .kb98Icon {
+  color: #fff;
+}
+
 .kb98Glyph {
   font-size: 22px;
   line-height: 1;
 }
 
 .is-short .kb98Glyph {
-  font-size: 22px;
+  font-size: 20px;
 }
 
 .kb98Small {
@@ -226,16 +248,26 @@
   flex: none;
 }
 
-/* the number pad: big digits */
-.kb98.is-numpad .kb98Glyph {
-  font-size: 22px;
+/* the number pad: big digits with the letters under them */
+.kb98PadDigit {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.kb98PadSub {
+  font-size: 9px;
+  font-weight: bold;
+  letter-spacing: 2px;
+  line-height: 1;
 }
 
 /* Caps Lock's light */
 .kb98Led {
   position: absolute;
-  top: 5px;
-  right: 6px;
+  top: 4px;
+  right: 5px;
   width: 5px;
   height: 5px;
   background: #1f3d1f;
@@ -247,41 +279,66 @@
   box-shadow: 0 0 3px #7dff7d;
 }
 
-/* the space bar moving the caret: the letters fade, as on phones */
-.kb98.is-track .kb98Key:not(.kb98Key--space) .kb98Cap > * {
-  opacity: 0.18;
+/* the space bar's trackpad: every key goes blank, as on iOS */
+.kb98.is-track .kb98Cap > * {
+  visibility: hidden;
 }
 
-/* ---- the letter popping up, and the accents ---- */
+.kb98.is-track .kb98Cap {
+  background: #c0c0c0;
+}
 
-.kb98Preview {
+/* ---- the balloon over a pressed key, and the accents strip ---- */
+
+.kb98Balloon {
   position: absolute;
+  inset: 0;
   z-index: 2;
+  pointer-events: none;
+}
+
+.kb98BalloonHead,
+.kb98BalloonStem {
+  position: absolute;
+  background: #fff;
+}
+
+/* the head: a big raised white key */
+.kb98BalloonHead {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #ffffe1;
-  border: 1px solid #000;
-  font-size: 33px;
+  box-shadow: inset -1px -1px #0a0a0a, inset 1px 1px #dfdfdf, inset -2px -2px #808080, inset 2px 2px #fff, 2px 2px 0 rgba(0, 0, 0, 0.35);
+}
+
+/* the stem: the key itself, joined to the head (drawn over the head's bottom edge) */
+.kb98BalloonStem {
+  z-index: 1;
+  box-shadow: inset -1px -1px #0a0a0a, inset 1px 0 #dfdfdf, inset -2px 0 #808080, 2px 2px 0 rgba(0, 0, 0, 0.35);
+}
+
+.kb98BalloonText {
+  font-size: 34px;
   line-height: 1;
-  pointer-events: none;
+  padding-bottom: 2px;
+}
+
+.is-short .kb98BalloonText {
+  font-size: 26px;
 }
 
 .kb98Alts {
-  position: absolute;
-  z-index: 3;
   display: flex;
-  padding: 2px;
-  background: #c0c0c0;
-  box-shadow: inset -1px -1px #0a0a0a, inset 1px 1px #dfdfdf, inset -2px -2px #808080, inset 2px 2px #fff;
-  pointer-events: none;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
 }
 
 .kb98Alt {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 22px;
+  font-size: 24px;
   line-height: 1;
   white-space: nowrap;
 }

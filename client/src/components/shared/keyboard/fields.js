@@ -18,6 +18,7 @@ export const readField = (el) => {
     enterKeyHint: (attr("enterkeyhint") || "").toLowerCase(),
     autocapitalize: (attr("autocapitalize") || "").toLowerCase(),
     autocomplete: (attr("autocomplete") || "").toLowerCase(),
+    pattern: attr("pattern") || "",
     layout: el.closest?.("[data-kb-layout]")?.getAttribute("data-kb-layout") || "",
     kb: el.closest?.("[data-kb]")?.getAttribute("data-kb") || "",
     editable: tag !== "input" && tag !== "textarea" && !!el.isContentEditable,
@@ -57,12 +58,15 @@ export const isCredential = (f) =>
 export const isMultiline = (f) => f.tag === "textarea" || f.editable
 
 // { page, variant }: the page the keyboard opens on and the letters' bottom row
-//   page: "letters" | "numpad" | "dos"; variant: "text" | "email" | "url" | numpad kind
+//   page: "letters" | "numbers" | "numpad" | "dos"; variant: "text" | "email" | "url" | numpad kind
 export const layoutFor = (f) => {
   if (f.layout === "dos") return { page: "dos", variant: "dos" }
   const mode = f.inputMode
-  if (f.type === "number" || mode === "numeric" || mode === "decimal") return { page: "numpad", variant: mode === "decimal" ? "decimal" : "number" }
+  if (mode === "numeric" || mode === "decimal") return { page: "numpad", variant: mode === "decimal" ? "decimal" : "number" }
   if (f.type === "tel" || mode === "tel") return { page: "numpad", variant: "tel" }
+  // iOS gives type=number the full keyboard on its 123 page; the number pad only with a
+  // digits-only pattern ("[0-9]*", "\d*") or inputmode numeric
+  if (f.type === "number") return /^(\[0-9\]|\\d)[*+]$/.test(f.pattern || "") ? { page: "numpad", variant: "number" } : { page: "numbers", variant: "text" }
   if (f.type === "email" || mode === "email") return { page: "letters", variant: "email" }
   if (f.type === "url" || mode === "url") return { page: "letters", variant: "url" }
   return { page: "letters", variant: "text" }

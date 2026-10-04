@@ -45,8 +45,11 @@ const SHIFT_ON = [
   "...#######...",
 ]
 
-// a hollow up arrow, filled while Shift is on, as printed on PC keyboards
-export const ShiftIcon = ({ filled }) => <Pixels rows={filled ? SHIFT_ON : SHIFT} />
+// Caps Lock: the filled arrow over a bar, as iOS marks it
+const SHIFT_LOCK = [...SHIFT_ON.slice(0, 10), ".............", "...#######..."]
+
+// a hollow up arrow, filled while Shift is on, with a bar under it for Caps Lock
+export const ShiftIcon = ({ filled, lock }) => <Pixels rows={lock ? SHIFT_LOCK : filled ? SHIFT_ON : SHIFT} />
 
 // Backspace: a long arrow pointing left
 export const BackIcon = () => (

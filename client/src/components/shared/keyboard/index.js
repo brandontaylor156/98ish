@@ -13,13 +13,16 @@
 // Pieces:
 //   KeyboardHost.jsx  eager and tiny: keeps the phone's keyboard down (inputmode="none" on
 //                     the field before it focuses), lazy-loads the keyboard on touch screens
-//   Keyboard.jsx      the keyboard window: keys, pages, Shift/Caps Lock, long-press accents,
-//                     space-bar caret, making room on screen, the phone-keyboard button
+//   Keyboard.jsx      the keyboard window: keys, pages, iPhone-style touch (balloon on touch
+//                     down, type on touch up, sliding, rollover), Shift/Caps Lock, long-press
+//                     accents, space-bar trackpad, making room on screen, the phone key
 //   typing.js         a key press as a hardware keyboard does it: key events, then insertText
 //                     / delete / Enter / arrows unless the app cancelled the key
 //   fields.js         which fields, which layout, what Enter says and does (pure)
 //   editing.js        text editing on { value, start, end } (pure)
-//   layouts.js        the pages' keys and long-press alternates (pure)
+//   layouts.js        the pages' keys and long-press alternates, as the iPhone has them (pure)
+//   geometry.js       where each key is (iOS measurements), hit testing, the press balloon,
+//                     the accents strip, Delete's repeat timing (pure)
 //   native.js         inputmode bookkeeping, switching one field to the phone's keyboard
 //   feedback.js       key clicks (shared audio engine) and haptics
 // Settings (utils/settings.js, Keyboard Properties): keyboard ("98ish" | "phone"), keyClicks,

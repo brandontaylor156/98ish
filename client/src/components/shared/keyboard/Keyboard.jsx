@@ -1,8 +1,8 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
-import { useMediaQuery } from "../../../hooks/useMediaQuery"
 import { useSettings } from "../../../utils/settings"
 import { allowsShortcuts, capsMode, enterLabel, isCredential, isMultiline, isPassword, layoutFor, readField, textFieldFor } from "./fields"
-import { alternatesFor, rowUnits, rowsFor } from "./layouts"
+import { PAD_LETTERS, alternatesFor, isPad, rowsFor } from "./layouts"
+import { balloonFor, deleteRepeat, hitTest, layoutKeys, metricsFor, stripFor, stripIndex } from "./geometry"
 import { wantsCapital, wantsPeriod } from "./editing"
 import { focusNext, moveBy, pressKey, textBefore } from "./typing"
 import { noteGesture, suppress, switchToPhoneKeyboard, wantsKeyboard } from "./native"
@@ -13,13 +13,20 @@ import "./Keyboard.css"
 // The 98ish keyboard: a Windows 98 tool window docked above the taskbar that types into
 // whichever text field has focus (see docs/keyboard.md). KeyboardHost mounts it on touch
 // screens. It never takes focus: every key cancels its pointerdown, so the field keeps the
-// caret and selection.
+// caret and selection. Keys sit where the iPhone's do and behave like them (geometry.js):
+// a letter pops up in a balloon on touch down, follows the finger and types on touch up.
 
-const LONG_PRESS = 420 // ms: accents, the space bar's caret mode
+const LONG_PRESS = 500 // ms: accents
+const TRACK_HOLD = 500 // ms on the space bar: the keyboard turns into a trackpad
 const DOUBLE_TAP = 350 // ms: Shift twice = Caps Lock
-const STEP_X = 9 // px of space-bar drag per character
+const STEP_X = 9 // px of trackpad drag per character
 const STEP_Y = 22 // px per line
-const WORD_AFTER = 12 // Backspace repeats before it starts deleting words
+const OFF_KEYS = 44 // px a sliding finger may stray above / below the keys and still be on one
+
+// return keys iOS draws blue (the 98 highlight here); return, Enter and Next stay gray
+const ACTION_LABELS = new Set(["Go", "Search", "Send", "Done", "Join"])
+
+const readView = () => ({ w: window.innerWidth, h: window.innerHeight })
 
 // windows and layers that fill the screen: never lifted over the keyboard
 const NO_LIFT = ".mobileWindow, .mobileDesktop, .windowLayer, .os-root"
@@ -73,8 +80,10 @@ const liftTargetFor = (el) => {
 
 const Keyboard = () => {
   const settings = useSettings()
-  const wide = useMediaQuery("(min-width: 600px) and (orientation: landscape), (min-width: 700px)")
-  const short = useMediaQuery("(max-height: 500px)")
+  // phones get the iPhone's keyboard (portrait or landscape); tablets a roomier one
+  const [view, setView] = useState(readView)
+  const tablet = Math.min(view.w, view.h) >= 500
+  const landscape = view.w > view.h && !tablet
 
   const [field, setField] = useState(null)
   const [physical, setPhysical] = useState(false)
@@ -84,12 +93,14 @@ const Keyboard = () => {
   const [autoUpper, setAutoUpper] = useState(false)
   const [ctrl, setCtrl] = useState(false)
   const [down, setDown] = useState({}) // key id -> true, while pressed
-  const [preview, setPreview] = useState(null) // { id, text, x, y, w, h }
-  const [alts, setAlts] = useState(null) // { id, items, index, x, y, cell }
-  const [track, setTrack] = useState(false) // space bar caret mode
+  const [preview, setPreview] = useState(null) // { id, text, cap }: the balloon
+  const [alts, setAlts] = useState(null) // { id, cap, strip, index }: the accents strip
+  const [track, setTrack] = useState(false) // the space bar's trackpad
   const [bottom, setBottom] = useState(0)
+  const [kw, setKw] = useState(() => Math.max(0, window.innerWidth - 4)) // the keys' width
 
   const rootRef = useRef(null)
+  const keysRef = useRef(null)
   const pointers = useRef(new Map())
   const lastShiftTap = useRef(0)
   const lastSpace = useRef(0)
@@ -101,9 +112,13 @@ const Keyboard = () => {
   const visible = !!field && !physical && !dormant
   const upper = shift !== "off" || autoUpper
 
+  // the page's keys, placed as on an iPhone this wide
+  const m = metricsFor({ width: kw, landscape, numpad: isPad(page) })
+  const keys = useMemo(() => layoutKeys(rowsFor(page, home.variant, tablet && page !== "dos"), metricsFor({ width: kw, landscape, numpad: isPad(page) })), [page, home.variant, tablet, kw, landscape])
+
   // what timers and listeners read (they outlive a render)
   const live = useRef({})
-  live.current = { field, info, shift, autoUpper, ctrl, settings, page, home }
+  live.current = { field, info, shift, autoUpper, ctrl, settings, page, home, keys, m, landscape, kw }
   // the last tap outside the keyboard: focus leaving the field right after one (onto the
   // desktop, the taskbar, a button) was a stray tap, and the keyboard stays up; focus leaving
   // any other way (Go, the app blurring it, another form field) puts it away as before
@@ -207,7 +222,7 @@ const Keyboard = () => {
   // capitals at the start of sentences, again when the caret moves
   const recomputeCaps = () => {
     const { field: el, info: f, settings: s, page: p } = live.current
-    if (!el || !f || !s.autoCaps || p === "numpad") return setAutoUpper(false)
+    if (!el || !f || !s.autoCaps || isPad(p)) return setAutoUpper(false)
     setAutoUpper(wantsCapital(textBefore(el), capsMode(f)))
   }
   useEffect(() => {
@@ -304,6 +319,30 @@ const Keyboard = () => {
     }
   }, [visible, field])
 
+  // the screen turning (portrait / landscape keys)
+  useEffect(() => {
+    const onResize = () => setView(readView())
+    window.addEventListener("resize", onResize)
+    window.addEventListener("orientationchange", onResize)
+    return () => {
+      window.removeEventListener("resize", onResize)
+      window.removeEventListener("orientationchange", onResize)
+    }
+  }, [])
+
+  // the keys' width (the screen less the frame and the safe areas): where every key goes
+  useLayoutEffect(() => {
+    const el = keysRef.current
+    if (!el) return
+    const measure = () => {
+      if (el.clientWidth) setKw(el.clientWidth)
+    }
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [visible, physical])
+
   // field changed: drop the old lift before measuring for the new one
   useEffect(() => unlift, [field])
   useEffect(
@@ -332,7 +371,15 @@ const Keyboard = () => {
     })
   }
 
-  const typeChar = (value) => {
+  // like iOS, the 123 and #+= pages go back to the letters after a space or an apostrophe
+  // (or a character slid to from the 123 key)
+  const backToLetters = () => {
+    const { page: p, home: h } = live.current
+    if ((p === "numbers" || p === "symbols") && (h.page === "letters" || h.page === "dos")) setPage(h.page)
+  }
+
+  const typeChar = (value, slid = false) => {
+    if (slid || value === "'") backToLetters()
     const { field: el, shift: sh, autoUpper: au, ctrl: c } = live.current
     if (!el) return
     const isLetter = value.length === 1 && value.toLowerCase() !== value.toUpperCase()
@@ -361,6 +408,7 @@ const Keyboard = () => {
       press(el, " ")
       lastSpace.current = now
     }
+    backToLetters()
     if (live.current.shift === "once") setShift("off")
     settle()
   }
@@ -418,17 +466,23 @@ const Keyboard = () => {
   }
 
   // ---- pointers ----
+  // Like iOS: a touch belongs to the nearest key (geometry.js hitTest), letters pop up in a
+  // balloon on touch down and type on touch up, the finger can slide to another letter
+  // (the balloon follows; the key under the finger at the end is the one typed), Shift and
+  // the page keys act on touch down (and a slide from them to a character types it), Delete
+  // deletes on touch down and repeats, the space bar types on touch up or turns into a
+  // trackpad when held or dragged.
 
-  const keyAt = (id) => {
-    const [r, c] = id.split("-").map(Number)
-    return rows[r]?.[c]
+  // a pointer's place in the keys area, and whether it's near enough the keys to be on one
+  const localPoint = (e) => {
+    const r = keysRef.current?.getBoundingClientRect()
+    if (!r) return null
+    const x = e.clientX - r.left
+    const y = e.clientY - r.top
+    return { x, y, near: y >= -OFF_KEYS && y <= r.height + OFF_KEYS && x >= -OFF_KEYS && x <= r.width + OFF_KEYS }
   }
 
-  const keyRect = (node) => {
-    const root = rootRef.current.getBoundingClientRect()
-    const r = node.getBoundingClientRect()
-    return { x: r.left - root.left, y: r.top - root.top, w: r.width, h: r.height }
-  }
+  const keyAt = (id) => live.current.keys.find((k) => k.id === id)?.key
 
   const charFor = (key) => {
     const { shift: sh, autoUpper: au } = live.current
@@ -436,15 +490,73 @@ const Keyboard = () => {
     return up && key.value.length === 1 ? key.value.toUpperCase() : key.value
   }
 
-  const showPreview = (id, node, key) => {
+  // the balloon over a character key (not on password fields, as on iOS, or with the
+  // setting off; words like ".com" don't pop up)
+  const showPreview = (placed) => {
     const f = live.current.info
-    if (!live.current.settings.keyPreviews || (f && isPassword(f)) || key.value.length > 1) return setPreview(null)
-    setPreview({ id, text: charFor(key), ...keyRect(node) })
+    if (!live.current.settings.keyPreviews || (f && isPassword(f)) || placed.key.value.length > 1) return setPreview(null)
+    setPreview({ id: placed.id, text: charFor(placed.key), cap: placed.cap })
   }
+
+  const pressDown = (id, on = true) =>
+    setDown((d) => {
+      const next = { ...d }
+      if (on) next[id] = true
+      else delete next[id]
+      return next
+    })
 
   const stopTimers = (p) => {
     clearTimeout(p.timer)
     clearInterval(p.repeat)
+  }
+
+  // the long press on a character with alternates: the strip opens over it
+  const altsItems = (key) => {
+    const { page: pg, home: h, shift: sh, autoUpper: au } = live.current
+    if (isPad(pg)) return h.variant === "tel" && key.value === "0" ? ["+"] : []
+    return alternatesFor(key.value, (sh !== "off" || au) && key.value.length === 1)
+  }
+
+  const armLongPress = (p) => {
+    clearTimeout(p.timer)
+    const items = altsItems(p.k.key)
+    if (!items.length) return
+    p.timer = setTimeout(() => {
+      const { kw: width, landscape: land } = live.current
+      const strip = stripFor(p.k.cap, items, width, land)
+      // the key's own character (or the only choice) starts chosen, as on iOS
+      const index = strip.shown.indexOf(items[0])
+      p.mode = "alts"
+      p.alts = { id: p.k.id, cap: p.k.cap, strip, index: Math.max(0, index) }
+      setPreview(null)
+      setAlts({ ...p.alts })
+      haptic()
+    }, LONG_PRESS)
+  }
+
+  // a character press moving onto another key
+  const follow = (p, placed) => {
+    const isChar = placed?.key.kind === "char"
+    if (!isChar) {
+      // off the letters (onto Shift, space, off the keyboard): nothing is typed unless the
+      // finger comes back
+      if (!p.off) {
+        p.off = true
+        clearTimeout(p.timer)
+        pressDown(p.k.id, false)
+        setPreview((v) => (v?.id === p.k.id ? null : v))
+      }
+      return
+    }
+    if (!p.off && placed.id === p.k.id) return
+    if (!p.off) pressDown(p.k.id, false)
+    p.off = false
+    p.k = placed
+    p.id = placed.id
+    pressDown(placed.id)
+    showPreview(placed)
+    armLongPress(p)
   }
 
   const release = (p, commit) => {
@@ -458,15 +570,15 @@ const Keyboard = () => {
       delete next[p.id]
       return next
     })
-    if (p.key.kind === "space" && p.mode === "track") setTrack(false)
+    if (p.k.key.kind === "space" && p.mode === "track") setTrack(false)
     if (commit && !p.done) {
       p.done = true
-      const k = p.key
-      if (k.kind === "char") {
+      const k = p.k.key
+      if (k.kind === "char" && !p.off) {
         if (p.mode === "alts") {
           const a = p.alts
-          if (a && a.index >= 0) typeChar(a.items[a.index])
-        } else typeChar(charFor(k))
+          if (a && a.index >= 0) typeChar(a.strip.shown[a.index], p.slid)
+        } else typeChar(charFor(k), p.slid)
       } else if (k.kind === "space" && p.mode !== "track") typeSpace()
       else if (k.kind === "enter") typeEnter()
       else if (k.kind === "undo") typeUndo()
@@ -479,54 +591,49 @@ const Keyboard = () => {
     // keep focus (and the caret) in the field
     e.preventDefault()
     noteGesture()
-    const node = e.target.closest?.("[data-k]")
-    if (!node || !rootRef.current?.contains(node)) return
-    const id = node.dataset.k
-    const key = keyAt(id)
-    if (!key) return
+    if (!rootRef.current || e.target.closest?.(".kb98Title")) return
+    const pt = localPoint(e)
+    const { keys: placedKeys, m: metrics } = live.current
+    const placed = pt && hitTest(placedKeys, pt.x, pt.y, metrics)
+    if (!placed) return
+    const { key, id } = placed
+    // fast thumbs: a second key down types the first one now (rollover, as on iOS)
+    for (const other of [...pointers.current.values()]) {
+      if (other.k.key.kind === "char" && !other.mode) release(other, true)
+    }
+    const p = { pointerId: e.pointerId, id, k: placed, x0: e.clientX, y0: e.clientY, lastX: e.clientX, lastY: e.clientY, accX: 0, accY: 0, mode: null, done: false, off: false, slid: false }
+    pointers.current.set(e.pointerId, p)
+    pressDown(id)
+    keyClick(key.kind === "space" || key.kind === "enter" ? "space" : key.kind === "back" ? "back" : "key")
+    haptic()
+    // the phone slot works by its click (the phone's keyboard needs focus inside the tap)
+    if (key.kind === "phone") return
     try {
       rootRef.current.setPointerCapture(e.pointerId)
     } catch {
       // fine without
     }
-    // fast thumbs: a second key down types the first one now
-    for (const other of [...pointers.current.values()]) {
-      if (other.key.kind === "char" && !other.mode) release(other, true)
-    }
-    const p = { pointerId: e.pointerId, id, key, node, x0: e.clientX, y0: e.clientY, lastX: e.clientX, lastY: e.clientY, accX: 0, accY: 0, mode: null, done: false }
-    pointers.current.set(e.pointerId, p)
-    setDown((d) => ({ ...d, [id]: true }))
-    keyClick(key.kind === "space" || key.kind === "enter" ? "space" : key.kind === "back" ? "back" : "key")
-    haptic()
 
     const s = live.current.settings
     switch (key.kind) {
-      case "char": {
-        showPreview(id, node, key)
-        const items = alternatesFor(key.value, (live.current.shift !== "off" || live.current.autoUpper) && key.value.length === 1)
-        if (items.length) {
+      case "char":
+        showPreview(placed)
+        armLongPress(p)
+        break
+      case "back": {
+        typeBack()
+        let n = 1
+        const next = () => {
+          const step = deleteRepeat(n, { delay: s.keyRepeatDelay || 500, rate: s.keyRepeatRate || 60 })
           p.timer = setTimeout(() => {
-            const rect = keyRect(node)
-            const longest = Math.max(...items.map((item) => item.length))
-            const cell = Math.max(rect.w, 34, longest > 1 ? longest * 8 + 14 : 0)
-            const rootW = rootRef.current.offsetWidth
-            const width = cell * items.length
-            const x = Math.max(2, Math.min(rect.x + rect.w / 2 - cell / 2, rootW - width - 2))
-            p.mode = "alts"
-            p.alts = { id, items, index: 0, x, y: rect.y, cell, h: rect.h }
-            setPreview(null)
-            setAlts({ ...p.alts })
-          }, LONG_PRESS)
+            typeBack(true, step.word)
+            n++
+            next()
+          }, step.wait)
         }
+        next()
         break
       }
-      case "back":
-        typeBack()
-        p.timer = setTimeout(() => {
-          let count = 0
-          p.repeat = setInterval(() => typeBack(true, ++count > WORD_AFTER), s.keyRepeatRate || 60)
-        }, s.keyRepeatDelay || 500)
-        break
       case "key":
         typeNamed(key.value)
         if (key.value.startsWith("Arrow"))
@@ -548,7 +655,7 @@ const Keyboard = () => {
           p.mode = "track"
           setTrack(true)
           haptic()
-        }, LONG_PRESS)
+        }, TRACK_HOLD)
         break
       default:
     }
@@ -557,18 +664,19 @@ const Keyboard = () => {
   const onPointerMove = (e) => {
     const p = pointers.current.get(e.pointerId)
     if (!p) return
+    const kind = p.k.key.kind
     if (p.mode === "alts") {
+      const pt = localPoint(e)
       const a = p.alts
-      const rootLeft = rootRef.current.getBoundingClientRect().left
-      const i = Math.floor((e.clientX - rootLeft - a.x) / a.cell)
-      const index = i < 0 || i >= a.items.length ? (e.clientY - p.y0 > 40 ? -1 : Math.max(0, Math.min(a.items.length - 1, i))) : i
+      // well below the strip lets go of it: nothing is typed
+      const index = pt && pt.y - (a.cap.y + a.cap.h) > OFF_KEYS ? -1 : pt ? stripIndex(a.strip, pt.x) : a.index
       if (index !== a.index) {
         a.index = index
         setAlts({ ...a })
       }
       return
     }
-    if (p.key.kind === "space") {
+    if (kind === "space") {
       if (p.mode !== "track" && Math.abs(e.clientX - p.x0) > 12) {
         clearTimeout(p.timer)
         p.mode = "track"
@@ -595,24 +703,18 @@ const Keyboard = () => {
       p.lastY = e.clientY
       return
     }
-    // sliding onto another letter types that one instead, as phones do
-    if (p.key.kind === "char" && !p.mode) {
-      const under = document.elementFromPoint(e.clientX, e.clientY)?.closest?.("[data-k]")
-      if (under && under.dataset.k !== p.id && rootRef.current.contains(under)) {
-        const key = keyAt(under.dataset.k)
-        if (key?.kind === "char") {
-          clearTimeout(p.timer)
-          setDown((d) => {
-            const next = { ...d, [under.dataset.k]: true }
-            delete next[p.id]
-            return next
-          })
-          p.id = under.dataset.k
-          p.key = key
-          p.node = under
-          showPreview(p.id, under, key)
-        }
-      }
+    const pt = localPoint(e)
+    const { keys: placedKeys, m: metrics } = live.current
+    const under = pt && pt.near ? hitTest(placedKeys, pt.x, pt.y, metrics) : null
+    if (kind === "char" && !p.mode) return follow(p, under)
+    // from Shift or 123 / #+= / ABC onto a character: that character, on letting go (and
+    // from a page key, back to the letters after it)
+    if ((kind === "shift" || kind === "page") && under && under.id !== p.k.id && under.key.kind === "char") {
+      p.slid = kind === "page"
+      pressDown(p.k.id, false)
+      p.off = true
+      p.k = { ...p.k, key: { kind: "char", value: "" } }
+      follow(p, under)
     }
   }
 
@@ -647,11 +749,12 @@ const Keyboard = () => {
     }
   })
 
-  // a screen reader's activation (a click with no pointer before it)
+  // a screen reader's activation (a click with no pointer before it), and the phone slot
   const onKeyClick = (e) => {
-    if (e.detail !== 0) return
     const key = keyAt(e.currentTarget.dataset.k)
     if (!key) return
+    if (key.kind === "phone") return toPhoneKeyboard()
+    if (e.detail !== 0) return
     if (key.kind === "char") typeChar(charFor(key))
     else if (key.kind === "space") typeSpace()
     else if (key.kind === "enter") typeEnter()
@@ -699,9 +802,8 @@ const Keyboard = () => {
 
   // ---- drawing ----
 
-  const rows = rowsFor(page, home.variant, wide && page !== "dos")
-  const units = rowUnits(rows)
   const label = info ? enterLabel(info) : "Enter"
+  const pad = isPad(page)
 
   if (!field || (dormant && !physical)) return null
 
@@ -727,12 +829,14 @@ const Keyboard = () => {
       case "shift":
         return (
           <>
-            <ShiftIcon filled={upper} />
+            <ShiftIcon filled={upper} lock={shift === "lock"} />
             <span className={shift === "lock" ? "kb98Led is-on" : "kb98Led"} aria-hidden="true" />
           </>
         )
       case "back":
         return <BackIcon />
+      case "phone":
+        return <PhoneIcon />
       case "enter":
         return (
           <span className="kb98EnterLabel">
@@ -746,6 +850,15 @@ const Keyboard = () => {
         return ARROW_GLYPH[key.value] ? <span className="kb98Arrow">{ARROW_GLYPH[key.value]}</span> : <span className="kb98Small">{key.label}</span>
       case "char": {
         const text = charFor(key)
+        if (pad) {
+          const sub = page === "numpad" ? (home.variant === "tel" && text === "0" ? "+" : PAD_LETTERS[text]) : null
+          return (
+            <span className="kb98PadDigit">
+              <span className="kb98Glyph">{text}</span>
+              {sub && <span className="kb98PadSub">{sub}</span>}
+            </span>
+          )
+        }
         return <span className={text.length > 1 ? "kb98Small" : "kb98Glyph"}>{text}</span>
       }
       default:
@@ -763,8 +876,10 @@ const Keyboard = () => {
         return label
       case "space":
         return "Space"
+      case "phone":
+        return "Use the phone's keyboard"
       case "page":
-        return { letters: "Letters", numbers: "Numbers", symbols: "Symbols" }[key.value] || key.label
+        return { letters: "Letters", numbers: "Numbers", symbols: "Symbols", numpad: "Numbers", telsym: "Phone symbols" }[key.value] || key.label
       case "ctrl":
         return ctrl ? "Ctrl (on)" : "Ctrl"
       case "key":
@@ -776,7 +891,22 @@ const Keyboard = () => {
     }
   }
 
-  const className = ["kb98", "window", wide ? "is-wide" : "", short ? "is-short" : "", track ? "is-track" : "", bottom ? "" : "is-flush", page === "numpad" ? "is-numpad" : ""].filter(Boolean).join(" ")
+  // the balloon: the key's face grown up out of it, white, with the letter big
+  const balloon = (cap, head, body, id) => {
+    const b = balloonFor(cap, kw, landscape)
+    const h = head || b.head
+    return (
+      <div className={`kb98Balloon${head ? " kb98Balloon--alts" : ""}`} aria-hidden={head ? undefined : "true"} data-for={id}>
+        <div className="kb98BalloonStem" style={{ left: b.stem.x, top: h.y + h.h - 3, width: b.stem.w, height: b.stem.y + b.stem.h - (h.y + h.h - 3) }} />
+        <div className="kb98BalloonHead" style={{ left: h.x, top: h.y, width: h.w, height: h.h }}>
+          {body}
+        </div>
+      </div>
+    )
+  }
+
+  const className = ["kb98", "window", tablet ? "is-wide" : "", landscape ? "is-short" : "", track ? "is-track" : "", bottom ? "" : "is-flush", pad ? "is-numpad" : ""].filter(Boolean).join(" ")
+  const action = ACTION_LABELS.has(label)
 
   return (
     <div
@@ -804,50 +934,63 @@ const Keyboard = () => {
               Passwords
             </button>
           )}
-          <button type="button" className="kb98PhoneBtn" tabIndex={-1} aria-label="Use the phone's keyboard" title="Use the phone's keyboard" onClick={toPhoneKeyboard}>
-            <PhoneIcon />
-          </button>
+          {pad && (
+            <>
+              {/* the number pad has no return key (as on iOS): Safari's bar above it has Done */}
+              <button type="button" className="kb98TitleText kb98TitleEnter" tabIndex={-1} aria-label={label} onClick={typeEnter}>
+                {label}
+              </button>
+              <button type="button" className="kb98PhoneBtn" tabIndex={-1} aria-label="Use the phone's keyboard" title="Use the phone's keyboard" onClick={toPhoneKeyboard}>
+                <PhoneIcon />
+              </button>
+            </>
+          )}
           <button type="button" className="close" tabIndex={-1} aria-label="Hide keyboard" title="Hide keyboard" onClick={hide} />
         </div>
       </div>
-      <div className="kb98Keys" style={{ "--kb-units": units }}>
-        {rows.map((row, r) => {
-          const used = row.reduce((sum, key) => sum + (key.w || 1), 0)
-          const pad = (units - used) / 2
+      <div className="kb98Keys" ref={keysRef} style={{ height: rowsCount(keys) * m.pitch }}>
+        {keys.map((placed) => {
+          const { key, id, touch, cap } = placed
+          if (key.kind === "blank") return null
+          const latched = (key.kind === "shift" && upper) || (key.kind === "ctrl" && ctrl)
+          const cls = ["kb98Key", `kb98Key--${key.kind}`, down[id] ? "is-down" : "", latched ? "is-latched" : "", key.kind === "enter" && action ? "is-action" : ""].filter(Boolean).join(" ")
           return (
-            <div className="kb98Row" key={`${page}-${r}`}>
-              {pad > 0.01 && <span className="kb98Pad" style={{ flexGrow: pad }} />}
-              {row.map((key, c) => {
-                const id = `${r}-${c}`
-                const latched = (key.kind === "shift" && upper) || (key.kind === "ctrl" && ctrl)
-                const cls = ["kb98Key", `kb98Key--${key.kind}`, down[id] ? "is-down" : "", latched ? "is-latched" : ""].filter(Boolean).join(" ")
-                return (
-                  <button type="button" key={id} data-k={id} className={cls} style={{ flexGrow: key.w || 1 }} tabIndex={-1} aria-label={ariaFor(key)} onClick={onKeyClick}>
-                    <span className="kb98Cap">{keyContent(key)}</span>
-                  </button>
-                )
-              })}
-              {pad > 0.01 && <span className="kb98Pad" style={{ flexGrow: pad }} />}
-            </div>
+            <button
+              type="button"
+              key={`${page}-${id}`}
+              data-k={id}
+              className={cls}
+              style={{ left: touch.x, top: touch.y, width: touch.w, height: touch.h }}
+              tabIndex={-1}
+              aria-label={ariaFor(key)}
+              onClick={onKeyClick}
+            >
+              <span className="kb98Cap" style={{ left: Math.round(cap.x - touch.x), top: Math.round(cap.y - touch.y), width: Math.round(cap.w), height: cap.h }}>
+                {keyContent(key)}
+              </span>
+            </button>
           )
         })}
+        {preview && !alts && balloon(preview.cap, null, <span className="kb98BalloonText">{preview.text}</span>, preview.id)}
+        {alts &&
+          balloon(
+            alts.cap,
+            alts.strip,
+            <div className="kb98Alts" role="listbox" aria-label="Accents" style={{ padding: alts.strip.pad }}>
+              {alts.strip.shown.map((item, i) => (
+                <span key={item} role="option" aria-selected={i === alts.index} className={["kb98Alt", item.length > 1 ? "kb98Alt--word" : "", i === alts.index ? "is-on" : ""].filter(Boolean).join(" ")} style={{ width: alts.strip.cell }}>
+                  {item}
+                </span>
+              ))}
+            </div>,
+            alts.id
+          )}
       </div>
-      {preview && (
-        <div className="kb98Preview" aria-hidden="true" style={{ left: preview.x - 8, top: preview.y - preview.h - 10, width: preview.w + 16, height: preview.h + 6 }}>
-          {preview.text}
-        </div>
-      )}
-      {alts && (
-        <div className="kb98Alts" role="listbox" aria-label="Accents" style={{ left: alts.x, top: alts.y - alts.h - 10, height: alts.h + 4 }}>
-          {alts.items.map((item, i) => (
-            <span key={item} role="option" aria-selected={i === alts.index} className={["kb98Alt", item.length > 1 ? "kb98Alt--word" : "", i === alts.index ? "is-on" : ""].filter(Boolean).join(" ")} style={{ width: alts.cell }}>
-              {item}
-            </span>
-          ))}
-        </div>
-      )}
     </div>
   )
 }
+
+// how many rows a page's placed keys make
+const rowsCount = (keys) => (keys.length ? keys[keys.length - 1].row + 1 : 0)
 
 export default Keyboard
