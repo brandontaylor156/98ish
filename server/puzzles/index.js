@@ -110,6 +110,11 @@ const memoryStore = () => {
     },
     remove: async (id) => puzzles.delete(id),
     usage: async (bucket) => [...puzzles.values()].filter((p) => p.bucket === bucket).reduce((sum, p) => sum + p.bytes, 0),
+    removeFor: async (key) => {
+      let n = 0
+      for (const [id, p] of puzzles) if ((p.fromKey === key || p.toKey === key) && puzzles.delete(id)) n++
+      return n
+    },
   }
 }
 
@@ -148,6 +153,7 @@ const mongoStore = (connection) => {
     update: async (id, patch) => plain(await Puzzle.findByIdAndUpdate(id, { $set: patch }, { returnDocument: "after" }).lean()),
     remove: async (id) => (await Puzzle.deleteOne({ _id: id })).deletedCount > 0,
     usage: async (bucket) => (await Puzzle.aggregate([{ $match: { bucket } }, { $group: { _id: null, n: { $sum: "$bytes" } } }]))[0]?.n || 0,
+    removeFor: async (key) => (await Puzzle.deleteMany({ $or: [{ fromKey: key }, { toKey: key }] })).deletedCount || 0,
   }
 }
 
@@ -320,7 +326,10 @@ const puzzleRouter = ({ store: storeOrPromise, aim: initialAim = null, limits = 
     next(error)
   })
 
-  return Object.assign(router, { useAim: (value) => (aim = value) })
+  // Delete My Account (../account): puzzles they sent (their pictures) and got
+  const eraseAccount = async ({ key }) => ({ removed: await (await getStore()).removeFor(key) })
+
+  return Object.assign(router, { useAim: (value) => (aim = value), eraseAccount })
 }
 
 module.exports = { puzzleRouter, validatePuzzle, memoryStore, createPuzzleStore, MAX_IMAGE_CHARS, STORAGE_BYTES, MAX_MESSAGE }

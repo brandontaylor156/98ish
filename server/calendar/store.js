@@ -66,12 +66,27 @@ const memoryStore = () => {
         comments.set(eventId, list.filter((c) => c.id !== id))
         return list.length !== comments.get(eventId).length
       },
+      // every comment someone wrote in a calendar (Delete My Account)
+      removeBy: async (calendarId, key) => {
+        let n = 0
+        for (const [eventId, list] of comments) {
+          const kept = list.filter((c) => !(c.calendarId === calendarId && c.by === key))
+          n += list.length - kept.length
+          comments.set(eventId, kept)
+        }
+        return n
+      },
     },
     activity: {
       list: async (calendarId, limit = 50) => (activity.get(calendarId) || []).slice(-limit).reverse().map(copy),
       add: async (entry) => {
         activity.set(entry.calendarId, [...(activity.get(entry.calendarId) || []), copy(entry)].slice(-ACTIVITY_KEPT))
         return entry
+      },
+      removeBy: async (calendarId, key) => {
+        const list = activity.get(calendarId) || []
+        activity.set(calendarId, list.filter((a) => a.by !== key))
+        return list.length - activity.get(calendarId).length
       },
     },
   }
@@ -158,6 +173,7 @@ const mongoStore = (connection) => {
         return comment
       },
       remove: async (eventId, id) => (await Comment.deleteOne({ _id: id, eventId })).deletedCount > 0,
+      removeBy: async (calendarId, key) => (await Comment.deleteMany({ calendarId, "data.by": key })).deletedCount || 0,
     },
     activity: {
       list: async (calendarId, limit = 50) => (await Activity.find({ calendarId }).sort({ at: -1 }).limit(limit).lean()).map(data),
@@ -168,6 +184,7 @@ const mongoStore = (connection) => {
         if (old.length) await Activity.deleteMany({ _id: { $in: old.map((o) => o._id) } })
         return entry
       },
+      removeBy: async (calendarId, key) => (await Activity.deleteMany({ calendarId, "data.by": key })).deletedCount || 0,
     },
   }
 }

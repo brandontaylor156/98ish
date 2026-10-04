@@ -52,8 +52,20 @@ const memoryStore = () => {
         return list.map(({ at, ...m }) => m)
       },
     },
+    // deleting an account: its devices, settings and held IMs, and IMs it sent that are
+    // still waiting for someone (from: its screen name, any spelling)
+    eraseAccount: async (key) => {
+      let removed = 0
+      for (const [endpoint, s] of subs) if (s.key === key && subs.delete(endpoint)) removed++
+      prefs.delete(key)
+      inbox.delete(key)
+      for (const [other, list] of inbox) inbox.set(other, list.filter((m) => normalizeName(m.from) !== key))
+      return removed
+    },
   }
 }
+
+const normalizeName = (name) => String(name || "").replace(/\s+/g, "").toLowerCase()
 
 const subSchema = new mongoose.Schema(
   {
@@ -109,6 +121,11 @@ const mongoStore = (connection) => {
         if (docs.length) await Inbox.deleteMany({ _id: { $in: docs.map((d) => d._id) } })
         return docs.map((d) => d.message)
       },
+    },
+    eraseAccount: async (key) => {
+      const { nameRegex } = require("../aim/store")
+      const [subs] = await Promise.all([Sub.deleteMany({ key }), Prefs.deleteOne({ key }), Inbox.deleteMany({ key }), Inbox.deleteMany({ "message.from": nameRegex(key) })])
+      return subs.deletedCount || 0
     },
   }
 }

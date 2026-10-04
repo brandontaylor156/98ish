@@ -9,6 +9,7 @@
 const express = require("express")
 const mongoose = require("mongoose")
 const { limiter } = require("./limiter")
+const { sessionFrom } = require("../aim/auth")
 
 const PER_PAGE = 10
 const MAX_NAME = 32
@@ -94,6 +95,9 @@ const entrySchema = new mongoose.Schema(
     homepage: { type: String, default: "", maxlength: MAX_HOMEPAGE },
     message: { type: String, required: true, maxlength: MAX_MESSAGE },
     mood: { type: String, default: "smile" },
+    // the 98 Messenger account that signed it (when signed on), so Delete My Account finds it;
+    // never shown
+    owner: { type: String, default: null, index: true },
   },
   { timestamps: { createdAt: true, updatedAt: false } }
 )
@@ -129,6 +133,11 @@ const memoryStore = () => {
       counters.set(key, n)
       return n
     },
+    removeOwner: async (owner) => {
+      const before = entries.length
+      for (let i = entries.length - 1; i >= 0; i--) if (entries[i].owner === owner) entries.splice(i, 1)
+      return before - entries.length
+    },
   }
 }
 
@@ -151,6 +160,7 @@ const mongoStore = (connection) => {
       const doc = await Counter.findOneAndUpdate({ _id: key }, { $inc: { n: 1 } }, { upsert: true, returnDocument: "after" }).lean()
       return doc.n
     },
+    removeOwner: async (owner) => (await Entry.deleteMany({ owner })).deletedCount || 0,
   }
 }
 
@@ -168,7 +178,10 @@ const createGuestbookStore = async (uri = process.env.MONGODB_URI) => {
 
 const ipOf = (request) => String(request.headers["x-forwarded-for"] || request.socket.remoteAddress || "").split(",")[0].trim()
 
-const guestbookRouter = ({ store: storeOrPromise } = {}) => {
+// aim (optional, or later with useAim): a signed-on 98 Messenger session's Bearer token on a
+// new entry ties it to the account, so deleting the account deletes the entry too
+const guestbookRouter = ({ store: storeOrPromise, aim: initialAim = null } = {}) => {
+  let aim = initialAim
   let storePromise = null
   const getStore = () => (storePromise ??= Promise.resolve(storeOrPromise || createGuestbookStore()))
   getStore().catch((error) => {
@@ -223,7 +236,8 @@ const guestbookRouter = ({ store: storeOrPromise } = {}) => {
       postsPerMinute(ip)
       postsPerDay(ip)
       allPosts("all")
-      response.json({ ok: true, entry: await store.add(result.entry) })
+      const owner = sessionFrom(aim, request)?.key || null
+      response.json({ ok: true, entry: await store.add(owner ? { ...result.entry, owner } : result.entry) })
     })
   )
 
@@ -243,7 +257,10 @@ const guestbookRouter = ({ store: storeOrPromise } = {}) => {
     })
   )
 
-  return router
+  // Delete My Account (../account): entries signed while signed on as them
+  const eraseAccount = async ({ key }) => ({ removed: await (await getStore()).removeOwner(key) })
+
+  return Object.assign(router, { useAim: (value) => (aim = value), eraseAccount })
 }
 
 module.exports = { validateEntry, isProfane, LINK, normalizeHomepage, memoryStore, createGuestbookStore, guestbookRouter, MOODS, PER_PAGE, MAX_MESSAGE, MAX_NAME }

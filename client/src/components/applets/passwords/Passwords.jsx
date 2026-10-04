@@ -6,6 +6,7 @@ import { checkSecretFor, clearSecret, hasSecret, lockNow, setSecret } from "../.
 import { checkSecret } from "../../../utils/lockCrypto"
 import { USER_PICTURES, createUser, currentUserId, getUser, loadUserPicture, removeUser, updateUser } from "../../../utils/users"
 import { getSettings, setSettings, useSettings } from "../../../utils/settings"
+import { useAim } from "../aim/AimContext"
 import "./Passwords.css"
 
 // Passwords Properties (Start > Settings > Passwords and Users; also Display Properties'
@@ -212,6 +213,33 @@ const PicturePicker = ({ value, onPick }) => {
   )
 }
 
+// The 98 Messenger account itself: delete it, and everything 98ish keeps for it online
+// (aim/DeleteAccount.jsx opens in its own window)
+const AccountBox = () => {
+  const aim = useAim()
+  if (!aim) return null
+  const online = aim.status === "online"
+  return (
+    <fieldset className="pwField">
+      <legend>98 Messenger account</legend>
+      <p className="pwHint">
+        {online ? (
+          <>
+            Signed on as <b>{aim.me?.screenName}</b>. Deleting the account removes it and everything 98ish keeps for it on the server: synced files, mail, Address Book, calendars, Us, and more. It can't be undone.
+          </>
+        ) : (
+          "Sign on to 98 Messenger to delete your account and everything 98ish keeps for it on the server."
+        )}
+      </p>
+      <div className="pwButtons pwButtonsLeft">
+        <button type="button" onClick={aim.openDeleteAccount}>
+          Delete My Account...
+        </button>
+      </div>
+    </fieldset>
+  )
+}
+
 const UsersTab = () => {
   const users = useUsers()
   const meId = currentUserId()
@@ -324,6 +352,7 @@ const UsersTab = () => {
           </button>
         </div>
       </fieldset>
+      <AccountBox />
       {error && (
         <p className="pwError" role="alert">
           {error}

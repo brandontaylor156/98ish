@@ -43,6 +43,7 @@ const { sessionFrom } = require("../aim/auth")
 const { validate: validateName, normalize } = require("../aim/screenNames")
 const { BOT_NAME } = require("../aim/bot")
 const { memoryStore, createCalendarStore } = require("./store")
+const { DELETED_NAME } = require("../account")
 const v = require("./validate")
 
 const MAX_CALENDARS = 20 // that one account belongs to
@@ -177,7 +178,68 @@ const createCalendars = ({ store: storeOrPromise, aim: initialAim = null, couple
     return entry
   }
 
+  // Delete My Account (../account): their personal calendar and every couple's Us calendar go;
+  // in shared calendars they leave (the longest-standing member becomes owner; a calendar left
+  // empty goes), their events, comments and activity go, they're taken off other events'
+  // attendees, and invitations to or from them are dropped
+  const eraseAccount = async ({ key, coupleIds = [] }) => {
+    const store = await getStore()
+    let removed = 0
+    let left = 0
+    for (const cid of coupleIds) {
+      const us = await store.calendars.byCouple(cid)
+      if (us) {
+        await store.calendars.remove(us.id)
+        removed++
+      }
+    }
+    for (const calendar of await store.calendars.forMember(key)) {
+      if (calendar.kind !== "group") {
+        await store.calendars.remove(calendar.id)
+        removed++
+        continue
+      }
+      for (const event of await store.events.list(calendar.id)) {
+        if (event.createdBy === key) {
+          await store.events.remove(calendar.id, event.id)
+          continue
+        }
+        let changed = false
+        if ((event.attendees || []).includes(key)) {
+          event.attendees = event.attendees.filter((k) => k !== key)
+          changed = true
+        }
+        if (event.updatedBy === key) {
+          Object.assign(event, { updatedBy: null, updatedByName: DELETED_NAME })
+          changed = true
+        }
+        if (changed) await store.events.save(event)
+      }
+      await store.comments.removeBy(calendar.id, key)
+      await store.activity.removeBy(calendar.id, key)
+      const leaving = calendar.members.find((m) => m.key === key)
+      calendar.members = calendar.members.filter((m) => m.key !== key)
+      calendar.invites = (calendar.invites || []).filter((i) => i.key !== key && i.by !== key)
+      if (!calendar.members.length) {
+        await store.calendars.remove(calendar.id)
+        removed++
+        continue
+      }
+      if (leaving?.role === "owner" && !calendar.members.some((m) => m.role === "owner")) calendar.members.sort((a, b) => a.joinedAt - b.joinedAt)[0].role = "owner"
+      calendar.updatedAt = clock()
+      await store.calendars.save(calendar)
+      emitToMembers(calendar, "cal:calendar", { calendarId: calendar.id })
+      left++
+    }
+    for (const calendar of await store.calendars.invitedTo(key)) {
+      calendar.invites = calendar.invites.filter((i) => i.key !== key)
+      await store.calendars.save(calendar)
+    }
+    return { removed, left }
+  }
+
   return {
+    eraseAccount,
     clock,
     getStore,
     emitTo,

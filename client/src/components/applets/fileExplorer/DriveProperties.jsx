@@ -5,6 +5,7 @@ import { formatBytes } from "../../../utils/fileInfo"
 import { imageMapper } from "../../../utils/imageMapper"
 import { storageInfo } from "../../../utils/fs"
 import { statusText, useDriveSync } from "../../../utils/driveSync"
+import { isIos, isStandalone } from "../../../utils/push"
 
 // Local Disk (C:) Properties, as in Windows 98: used and free space with the tilted pie,
 // plus where this browser keeps the drive and how sync is doing.
@@ -78,7 +79,13 @@ const DriveProperties = ({ item, onClose }) => {
             {info.mode === "idb" && (
               <tr>
                 <th>Kept safe:</th>
-                <td>{info.persisted ? "Yes (the browser won't clear it to make room)" : "Not guaranteed (the browser may clear it if the device runs out of space)"}</td>
+                <td>
+                  {info.persisted
+                    ? "Yes (the browser won't clear it to make room)"
+                    : isIos() && !isStandalone()
+                      ? "Not guaranteed (Safari may clear it after about 7 days without a visit; add 98ish to your Home Screen)"
+                      : "Not guaranteed (the browser may clear it if the device runs out of space)"}
+                </td>
               </tr>
             )}
           </tbody>

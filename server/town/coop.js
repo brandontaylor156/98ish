@@ -666,6 +666,55 @@ const createCoop = ({ emit = () => {}, who = () => null, service: serviceOrGette
     return { ok: true }
   }
 
+  // ---------- Delete My Account (server/account) ----------
+
+  // They leave every co-op town they're in; the couple's town (coupleIds: every couple they
+  // were in) and a group town left with nobody are deleted. Their stats and feed lines go.
+  const eraseAccount = async ({ key, screenName = "", coupleIds = [] }) => {
+    const s = await store()
+    const ids = new Set((await indexOf(key)).ids)
+    for (const cid of coupleIds) ids.add(coupleTownId(cid))
+    const said = (text) => !!screenName && String(text || "").toLowerCase().includes(screenName.toLowerCase())
+    let left = 0
+    let removed = 0
+    for (const id of ids) {
+      const room = rooms.get(id)
+      const doc = room?.doc || (await getDoc(id))
+      if (!doc) continue
+      const gone = (doc.kind === "couple" && coupleIds.includes(doc.coupleId)) || (doc.kind === "group" && !doc.members.some((m) => m.key !== key))
+      if (gone) {
+        if (room) {
+          clearTimeout(room.saveTimer)
+          rooms.delete(id)
+          for (const pid of room.players.keys()) {
+            roomOfPid.delete(pid)
+            send(pid, "coop:gone", { id })
+          }
+        }
+        await s.remove(`coop:${id}`)
+        removed++
+        continue
+      }
+      if (room) for (const p of [...room.players.values()]) if (p.key === key) leave(p.pid, id, { quiet: true })
+      doc.members = doc.members.filter((m) => m.key !== key)
+      if (doc.stats) delete doc.stats[key]
+      doc.feed = (doc.feed || []).filter((f) => !said(f.text))
+      if (rooms.get(id)) {
+        markDirty(rooms.get(id))
+        publishPlayers(rooms.get(id))
+      } else await putDoc(doc)
+      left++
+    }
+    await s.remove(`coopu:${key}`)
+    const reg = await s.get("coopc:all")
+    if (reg && Object.values(reg.towns).some((t) => coupleIds.includes(t.coupleId))) {
+      for (const [id, t] of Object.entries(reg.towns)) if (coupleIds.includes(t.coupleId)) delete reg.towns[id]
+      reg.updatedAt = clock()
+      await s.put(reg)
+    }
+    return { left, removed }
+  }
+
   // ---------- invitations (server/net/games.js) ----------
 
   const roomOf = (pid) => roomOfPid.get(pid) || null
@@ -759,6 +808,7 @@ const createCoop = ({ emit = () => {}, who = () => null, service: serviceOrGette
     cursor,
     quit,
     sweep,
+    eraseAccount,
     // games.js room app
     rooms,
     roomOf,

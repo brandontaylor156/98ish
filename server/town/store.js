@@ -17,6 +17,8 @@ const memoryStore = () => {
     removeOlder: async (prefix, before) => {
       for (const [id, doc] of docs) if (id.startsWith(prefix) && (doc.updatedAt || 0) < before) docs.delete(id)
     },
+    // every document whose id starts with `prefix` (Delete My Account looks through towns)
+    scan: async (prefix) => [...docs.entries()].filter(([id]) => id.startsWith(prefix)).map(([, doc]) => clone(doc)),
     size: () => docs.size,
   }
 }
@@ -46,6 +48,7 @@ const mongoStore = (connection) => {
     removeOlder: async (prefix, before) => {
       await Town.deleteMany({ _id: { $regex: `^${prefix.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}` }, updatedAt: { $lt: before } })
     },
+    scan: async (prefix) => (await Town.find({ _id: { $regex: `^${prefix.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}` } }).lean()).map((row) => ({ ...row.data, _id: row._id })),
   }
 }
 

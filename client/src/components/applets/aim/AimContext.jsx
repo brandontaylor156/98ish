@@ -266,9 +266,29 @@ export const AimProvider = ({ socket, windows, dispatch: dispatchWindow, onOpenV
 
   const finishSignOff = (error) => {
     tokenRef.current = null
-    closeWindows((w) => w.app?.startsWith("aim-"))
+    // (Delete My Account's window stays: it shows how the deletion went)
+    closeWindows((w) => w.app?.startsWith("aim-") && w.app !== "aim-delete")
     dispatch({ type: "signedOff", error })
   }
+
+  // Delete My Account (server/account): the password again; the server signs this account off
+  // everywhere and deletes everything it keeps for it. -> { ok, screenName } | { ok: false,
+  // error, retry? (signed off and partly deleted: asking again finishes it) }
+  const deleteAccount = (screenName, password) =>
+    new Promise((resolve) => {
+      socket.timeout(90_000).emit("aim:deleteAccount", { screenName, password }, (timeout, result) => {
+        if (timeout) return resolve({ ok: false, retry: true, error: "The 98 Messenger service didn't answer in time. Your account may be partly deleted: choose Delete Account again to finish." })
+        if (result?.ok || result?.retry) {
+          // signed off by the server; this device stops signing on by itself
+          autoTried.current = true
+          saveRemembered(null)
+          if (stateRef.current.status !== "signedOff") finishSignOff(null)
+        }
+        resolve(result || { ok: false, error: "Something went wrong. Please try again." })
+      })
+    })
+
+  const openDeleteAccount = () => openWindow("delete-account", { name: "Delete My Account", app: "aim-delete", width: 460, height: 640, initialX: 120, positionY: 20 })
 
   const signOn = (screenName, password, register, remember = prefsRef.current.remember !== false) =>
     new Promise((resolve) => {
@@ -396,9 +416,19 @@ export const AimProvider = ({ socket, windows, dispatch: dispatchWindow, onOpenV
           height: 170,
         })
       },
-      "aim:kicked": ({ reason }) => {
+      "aim:kicked": ({ reason, deleted }) => {
         autoTried.current = true // no signing back on (and bumping the other place) until a reload
+        if (deleted) {
+          // deleted from another device: this one forgets the account too (its files stay)
+          const key = keyOf(stateRef.current.me?.screenName)
+          saveRemembered(null)
+          if (key) import("../../../utils/account").then((m) => m.forgetAccountOnDevice({ key })).catch(() => {})
+        }
         finishSignOff(reason)
+      },
+      // a buddy (or someone blocked) deleted their account: off the lists
+      "aim:accountGone": ({ groups, blocked }) => {
+        if (Array.isArray(groups) && Array.isArray(blocked)) dispatch({ type: "me", patch: { groups, blocked } })
       },
       "aim:chat": (message) => dispatch({ type: "room", room: message.room, message }),
       "aim:chatMembers": ({ room, members }) => dispatch({ type: "room", room, members }),
@@ -578,6 +608,8 @@ export const AimProvider = ({ socket, windows, dispatch: dispatchWindow, onOpenV
     setPrefs,
     signOn,
     signOff,
+    deleteAccount,
+    openDeleteAccount,
     sendIm,
     typing: (screenName, typing) => socket.emit("aim:typing", { to: screenName, state: typing }),
     setAway,

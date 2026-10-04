@@ -116,6 +116,10 @@
   background: #fff;
   box-shadow: inset -1px -1px #fff, inset 1px 1px #808080;
 }
+.aimSignOnFinish {
+  display: block;
+  margin-top: 4px;
+}
 
 .aimSignOnProgress {
   flex: 1;

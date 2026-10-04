@@ -187,6 +187,21 @@ test("pushes, pulls, revisions, conflicts and tombstones", async () => {
   }
 })
 
+test("all accounts together stop at the server's total (MongoDB's free tier is 512 MB in all)", async () => {
+  const s = await start({ quotaBytes: 10_000, totalBytes: 5000 })
+  const photo = (seed) => `data:image/jpeg;base64,${Buffer.from(Array.from({ length: 3000 }, (_, i) => (i * seed) % 256)).toString("base64")}`
+  try {
+    assert.equal((await s.upload(photo(7))).status, 200) // alice: 3000 bytes
+    const bob = await s.upload(photo(11), TOKEN_B) // 6000 in all: over the server's 5000
+    assert.equal(bob.status, 413)
+    assert.equal(bob.body.full, true)
+    assert.match(bob.body.error, /online storage is full/)
+    assert.equal((await s.call("GET", "/state", { token: TOKEN_B })).body.usage, 0)
+  } finally {
+    s.close()
+  }
+})
+
 test("quota and file size limits", async () => {
   const s = await start({ quotaBytes: 5000, maxFileChars: 6000 })
   try {

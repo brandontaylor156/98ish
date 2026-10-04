@@ -42,6 +42,9 @@ const memoryRanks = () => {
         .sort((a, b) => b.stars - a.stars || b.wins - a.wins || a.played - b.played)
         .slice(0, limit)
     },
+    async remove(key) {
+      return players.delete(key)
+    },
   }
 }
 
@@ -76,6 +79,9 @@ const mongoRanks = (connection) => {
         .limit(limit)
         .lean()
       return docs.map((d) => ({ screenName: d.screenName, ...blank(), ...d.modes[mode] }))
+    },
+    async remove(key) {
+      return (await Rank.deleteOne({ _id: key })).deletedCount > 0
     },
   }
 }

@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react"
 import MenuBar from "../../shared/MenuBar"
+import KeepSafe from "../../shared/KeepSafe"
 import Dialog from "../../shared/Dialog"
 import ContextMenu from "../../shared/ContextMenu"
 import { fs, previewOf, readContent, validName, writeAndSave } from "../../../utils/fs"
@@ -778,6 +779,7 @@ const Photos = ({ file: initialFile = null, path = null, mobile, dispatch, onTit
           </select>
         </div>
       )}
+      {!current && <KeepSafe place="photos" />}
       <div className="phBody">{current ? viewer : grid}</div>
       {current && toolPanel}
       <div className="status-bar phStatus">

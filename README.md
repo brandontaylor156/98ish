@@ -87,7 +87,13 @@ Environment variables:
 
 | Name | Value |
 | --- | --- |
-| `MONGODB_URI` | MongoDB connection string (e.g. a free MongoDB Atlas cluster) where 98 Messenger accounts, buddy lists and profiles, mail, homepages, online drives, couples' letters, stories, pets and houses, quizzes, puzzles, towns, and the guestbook and its hit counters are stored. Without it they live in memory and vanish whenever the server restarts |
+| `MONGODB_URI` | MongoDB connection string (e.g. a free MongoDB Atlas cluster) where 98 Messenger accounts, buddy lists and profiles, mail, homepages, synced files, address books, calendars, push subscriptions, couples' letters, stories, pets and houses, quizzes, puzzles, towns, Tetris ranks, and the guestbook and its hit counters are stored. Without it they live in memory and vanish whenever the server restarts |
+| `DRIVE_SYNC_QUOTA_MB`, `DRIVE_SYNC_TOTAL_MB`, `DRIVE_SYNC_MAX_FILE_MB` | File sync's online space: per account (default 100), all accounts together (default 380, so the free tier's 512 MB keeps room for everything else), and the biggest file (default 12) |
+
+**Privacy:** guests (no account) keep everything in their own browser. What the server keeps for a 98 Messenger
+account, for how long and who can see it is in 98ish Help > Privacy and your data (`client/src/components/applets/help/topics/support.js`);
+the complete list, with what **Delete My Account** (98 Messenger > My AIM) does to each store, is at the top of
+`server/account/index.js`.
 
 **Keeping the chat server awake:** Render's free plan sleeps after 15 idle minutes, and the first visitor then waits
 20-50 seconds for 98 Messenger to connect. `.github/workflows/keepalive.yml` pings the server every 10 minutes from

@@ -100,6 +100,7 @@ const memorySyncStore = () => {
       return blob.size
     },
     blobsBefore: async (key, date) => [...blobsOf(key).values()].filter((b) => b.at < date).map((b) => b.hash),
+    totalUsage: async () => [...accounts.values()].reduce((sum, a) => sum + (a.usage || 0), 0),
     addDevice: async (device) => void devices.set(device.hash, { ...device }),
     findDevice: async (hash) => devices.get(hash) || null,
     touchDevice: async (hash, patch) => devices.has(hash) && Object.assign(devices.get(hash), patch),
@@ -195,6 +196,7 @@ const mongoSyncStore = (connection) => {
       return blob.size
     },
     blobsBefore: async (key, date) => (await Blob.find({ key, at: { $lt: date } }, { hash: 1 }).lean()).map((b) => b.hash),
+    totalUsage: async () => (await Account.aggregate([{ $group: { _id: null, n: { $sum: "$usage" } } }]))[0]?.n || 0,
     addDevice: async (device) => Device.create(device),
     findDevice: async (hash) => Device.findOne({ hash }).lean(),
     touchDevice: async (hash, patch) => Device.updateOne({ hash }, { $set: patch }),

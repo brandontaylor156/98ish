@@ -155,6 +155,26 @@
   flex: none !important;
 }
 
+/* no online copy kept (shared/KeepSafe.jsx): a link that signs on or opens Backup */
+.fxKeepSafe {
+  min-width: 0;
+  overflow: hidden;
+}
+.fxKeepSafeLink {
+  all: unset;
+  cursor: pointer;
+  color: #800000;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  display: block;
+}
+.fxKeepSafeLink:hover,
+.fxKeepSafeLink:focus-visible {
+  text-decoration: underline;
+}
+
 /* the online drive's sync lamp (Tools > Sync my files) */
 .fxSync {
   flex: none !important;

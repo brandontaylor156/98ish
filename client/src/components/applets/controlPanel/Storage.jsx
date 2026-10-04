@@ -6,6 +6,9 @@ import { playSystemSound } from "../../../utils/systemSounds"
 import { launch } from "../../../utils/programs"
 import { currentUserId, keysOf, rawGet } from "../../../utils/users"
 import { PropSheet, bytesText } from "./Sheet"
+import KeepSafe, { useKeepSafe } from "../../shared/KeepSafe"
+import { getSyncFolders, statusText, useDriveSync } from "../../../utils/driveSync"
+import { isIos, isStandalone } from "../../../utils/push"
 
 // What the space in this browser holds, for the breakdown: localStorage keys by what uses
 // them (after the per-person prefix 98ish.u.<id>. is taken off)
@@ -77,6 +80,8 @@ const Storage = ({ dispatch, onClose }) => {
   const [confirm, setConfirm] = useState(false)
   const [parts] = useState(breakdown)
   const bin = fs.recycleBin.content.length
+  const sync = useDriveSync()
+  const keepSafe = useKeepSafe()
 
   const refresh = async () => {
     const api = navigator.storage
@@ -165,7 +170,22 @@ const Storage = ({ dispatch, onClose }) => {
             </button>
           </div>
         )}
+        {persisted !== true && isIos() && !isStandalone() && (
+          <p className="cplHint" data-storage="ios">
+            On iPhone and iPad, Safari clears a website's files after about 7 days without a visit. Add 98ish to your Home Screen (Share, then Add to Home Screen) and open it from there to stop that.
+          </p>
+        )}
         {note && <p className="cplHint">{note}</p>}
+      </fieldset>
+      <fieldset>
+        <legend>Keep your files safe</legend>
+        {keepSafe ? (
+          <KeepSafe place="storage" closable={false} />
+        ) : (
+          <p data-storage="online">
+            A copy is kept online too: file sync with 98 Messenger{sync.screenName ? ` (${sync.screenName})` : ""} keeps {getSyncFolders().join(", ")} on every device you sign on from. {statusText(sync)}
+          </p>
+        )}
       </fieldset>
       <fieldset>
         <legend>What uses it (local storage)</legend>

@@ -1,0 +1,39 @@
+/* "Your files are only on this device" (KeepSafe.jsx): a Windows 98 info strip */
+.keepSafe {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 4px;
+  padding: 4px 6px;
+  background: #ffffe1;
+  color: #000;
+  border: 1px solid #000;
+  font-size: 11px;
+  line-height: 1.35;
+  flex-wrap: wrap;
+}
+.keepSafe > img {
+  flex: none;
+  image-rendering: pixelated;
+}
+.keepSafe > p {
+  flex: 1 1 180px;
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.keepSafeButtons {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  margin-left: auto;
+}
+.keepSafeButtons button {
+  min-width: 0;
+  padding: 0 8px;
+}
+.keepSafeButtons .keepSafeClose {
+  min-width: 22px;
+  padding: 0;
+  font-weight: bold;
+}

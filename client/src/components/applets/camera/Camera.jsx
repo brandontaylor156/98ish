@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react"
 import MenuBar from "../../shared/MenuBar"
+import KeepSafe from "../../shared/KeepSafe"
 import Dialog from "../../shared/Dialog"
 import { useFsVersion } from "../../../hooks/useFs"
 import { photosWindow } from "../../../utils/programs"
@@ -760,6 +761,7 @@ const Camera = ({ mobile, dispatch, onTitle, paused = false }) => {
           <span>Effects</span>
         </button>
       </div>
+      {last && <KeepSafe place="camera" className="camKeepSafe" />}
       <div className="status-bar camStatus">
         <p className="status-bar-field">{status}</p>
         <p className="status-bar-field camStatusFx">

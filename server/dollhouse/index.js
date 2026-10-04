@@ -278,7 +278,19 @@ const dollhouseRouter = ({ store: storeOrPromise, aim: initialAim = null, limits
     timer.unref?.()
   }
 
-  return Object.assign(router, { useAim: (value) => (aim = value), sweep })
+  // Delete My Account (../account): the house of every couple they were in
+  const eraseAccount = async ({ key, coupleIds = [] }) => {
+    const store = await getStore()
+    let removed = 0
+    for (const doc of await store.all()) {
+      if (!coupleIds.includes(doc.id) && !doc.members.includes(key)) continue
+      if (await store.remove(doc.id)) removed++
+      for (const member of doc.members) if (member !== key) socketOf(member)?.emit("dollhouse:deleted", {})
+    }
+    return { removed }
+  }
+
+  return Object.assign(router, { useAim: (value) => (aim = value), sweep, eraseAccount })
 }
 
 module.exports = { dollhouseRouter, memoryStore, createHouseStore, MAX_BYTES, MAX_OPS, KEEP_UNPAIRED_MS }

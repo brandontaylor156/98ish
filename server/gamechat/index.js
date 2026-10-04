@@ -236,7 +236,19 @@ const attachGameChat = (io, net, { rate = RATE } = {}) => {
     })
   })
 
-  return { rooms }
+  // Delete My Account (server/account): their lines in the chat history kept for latecomers
+  const eraseAccount = async ({ screenName = "" }) => {
+    const name = screenName.replace(/\s+/g, "").toLowerCase()
+    let removed = 0
+    for (const room of rooms.values()) {
+      const kept = room.history.filter((m) => String(m.from || "").replace(/\s+/g, "").toLowerCase() !== name)
+      removed += room.history.length - kept.length
+      room.history = kept
+    }
+    return { removed }
+  }
+
+  return { rooms, eraseAccount }
 }
 
 module.exports = { attachGameChat, checkText, mask, QUICK, MAX_TEXT, HISTORY, RATE, ROOM }

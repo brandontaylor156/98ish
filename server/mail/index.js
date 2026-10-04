@@ -22,6 +22,7 @@ const { limiter } = require("../net/limiter")
 const { sessionFrom } = require("../aim/auth")
 const { validate, normalize } = require("../aim/screenNames")
 const { BOT_NAME, mailReply } = require("../aim/bot")
+const { DELETED_NAME } = require("../account")
 
 const MAX_MESSAGE_BYTES = 1024 * 1024 // subject, body and attachments together
 const MAILBOX_BYTES = 5 * 1024 * 1024
@@ -160,6 +161,26 @@ const memoryStore = () => {
       return counts
     },
     oldest: async (owner, folder) => [...box(owner).values()].filter((m) => m.folder === folder).sort((a, b) => a.time - b.time)[0] || null,
+    // Delete My Account: the whole mailbox, and the name in everyone else's copies
+    removeOwner: async (owner) => {
+      const n = box(owner).size
+      boxes.delete(owner)
+      return n
+    },
+    forgetName: async (key, replacement) => {
+      let changed = 0
+      const swap = (name) => (normalize(name) === key ? replacement : name)
+      for (const messages of boxes.values()) {
+        for (const m of messages.values()) {
+          const next = { from: swap(m.from), to: (m.to || []).map(swap), cc: (m.cc || []).map(swap) }
+          if (next.from !== m.from || next.to.some((n, i) => n !== m.to[i]) || next.cc.some((n, i) => n !== m.cc[i])) {
+            Object.assign(m, next)
+            changed++
+          }
+        }
+      }
+      return changed
+    },
   }
 }
 
@@ -206,6 +227,17 @@ const mongoStore = (connection) => {
       return counts
     },
     oldest: async (owner, folder) => plain(await Message.findOne({ owner, folder }, { body: 0, "attachments.content": 0 }).sort({ time: 1 }).lean()),
+    removeOwner: async (owner) => (await Message.deleteMany({ owner })).deletedCount || 0,
+    forgetName: async (key, replacement) => {
+      const { nameRegex } = require("../aim/store")
+      const name = nameRegex(key)
+      const [a, b, c] = await Promise.all([
+        Message.updateMany({ from: name }, { $set: { from: replacement } }),
+        Message.updateMany({ to: name }, { $set: { "to.$[n]": replacement } }, { arrayFilters: [{ n: name }] }),
+        Message.updateMany({ cc: name }, { $set: { "cc.$[n]": replacement } }, { arrayFilters: [{ n: name }] }),
+      ])
+      return (a.modifiedCount || 0) + (b.modifiedCount || 0) + (c.modifiedCount || 0)
+    },
   }
 }
 
@@ -475,7 +507,16 @@ const mailRouter = ({ store: storeOrPromise, aim: initialAim = null, limits = {}
     next(error)
   })
 
-  return Object.assign(router, { useAim: (value) => (aim = value) })
+  // Delete My Account (../account): their mailbox goes; mail they sent stays with the people
+  // who got it (it's theirs, like any e-mail) but reads "(deleted account)" where their name was
+  const eraseAccount = async ({ key }) => {
+    const store = await getStore()
+    const removed = await store.removeOwner(key)
+    const renamed = await store.forgetName(key, DELETED_NAME)
+    return { removed, renamed }
+  }
+
+  return Object.assign(router, { useAim: (value) => (aim = value), eraseAccount })
 }
 
 module.exports = { mailRouter, validateMessage, memoryStore, createMailStore, ATTACH_TYPES, MAX_MESSAGE_BYTES, MAILBOX_BYTES, FOLDERS }

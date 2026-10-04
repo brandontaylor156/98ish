@@ -8,6 +8,7 @@ const { createStore } = require("./store")
 const { createBot, BOT_NAME } = require("./bot")
 const { createCalls } = require("./calls")
 const { createIce } = require("./ice")
+const { createAccountEraser } = require("../account")
 
 const MAX_MESSAGE = 1024
 const MAX_PROFILE = 1024
@@ -22,6 +23,8 @@ const FAILED_SIGN_ONS_PER_NAME = 8
 
 const BOT_KEY = normalize(BOT_NAME)
 const BOT_SIGN_ON = new Date()
+const DELETING_TEXT = "This screen name is being deleted. To finish, choose Delete My Account again and type its password."
+const DELETED_TEXT = "This 98 Messenger account was deleted."
 
 // remember-me tokens are stored only as hashes
 const hashToken = (token) => crypto.createHash("sha256").update(token).digest("hex")
@@ -68,10 +71,14 @@ const limiter = (limit, windowMs) => {
 // Web Push (../push) is optional: `push` notifies people who are away from 98ish about IMs
 // and calls, and keeps IMs sent to someone signed off (who has notifications on) until
 // they sign on again.
-const attachAim = async (io, { store, bot, ice, callRingMs, callLostMs, push = null } = {}) => {
+// `eraser` (../account): the steps that delete an account's data everywhere, for
+// aim:deleteAccount; without one only the account record goes.
+const attachAim = async (io, { store, bot, ice, callRingMs, callLostMs, push = null, eraser = null } = {}) => {
   store ??= await createStore()
   bot ??= createBot()
   ice ??= createIce()
+  eraser ??= createAccountEraser()
+  const deletingNow = new Set() // keys being deleted right now (one try at a time)
 
   const sessions = new Map() // key -> session (signed on, possibly mid-reconnect)
   const tokens = new Map() // resume token -> key
@@ -355,6 +362,7 @@ const attachAim = async (io, { store, bot, ice, callRingMs, callLostMs, push = n
             failedByName(key)
             return ack({ ok: false, error: "Incorrect screen name or password." })
           }
+          if (user.deleting) return ack({ ok: false, deleting: true, error: DELETING_TEXT })
         }
 
         const remember = payload.remember ? await rememberDevice(user) : undefined
@@ -389,6 +397,72 @@ const attachAim = async (io, { store, bot, ice, callRingMs, callLostMs, push = n
       }
     })
 
+    // Delete My Account (../account has what goes and why). The password is asked again. It
+    // runs signed on as that account, or signed off when an earlier try stopped half way
+    // (nobody can sign on to an account being deleted). -> { ok, screenName } |
+    // { ok: false, error, retry? (some data is left: ask again to finish) }
+    socket.on("aim:deleteAccount", async (payload = {}, ack = () => {}) => {
+      if (typeof ack !== "function") return
+      let key = null
+      try {
+        const valid = validate(payload.screenName)
+        key = valid.key
+        if (failedByIp.over(ip) || (key && failedByName.over(key))) return ack({ ok: false, error: "Too many failed attempts. Please wait a few minutes." })
+        if (valid.error) return ack({ ok: false, error: valid.error })
+        const password = String(payload.password || "")
+        const user = key === BOT_KEY || password.length < 4 || password.length > 64 ? null : await store.find(key)
+        if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
+          failedByIp(ip)
+          failedByName(key)
+          return ack({ ok: false, error: "Incorrect screen name or password." })
+        }
+        const session = current()
+        if (!user.deleting && session?.key !== key) return ack({ ok: false, error: `Sign on as ${user.screenName} first, then delete the account.` })
+        if (deletingNow.has(key)) return ack({ ok: false, error: "This account is already being deleted. Please wait a moment." })
+        deletingNow.add(key)
+        try {
+          // 1. what the steps need, kept with the account for a second try; no more sign ons
+          const ctx = await eraser.context(key, user.screenName, user.deleting)
+          await store.update(key, { deleting: { at: user.deleting?.at || Date.now(), screenName: user.screenName, coupleIds: ctx.coupleIds, partners: ctx.partners }, remember: [] })
+          // 2. signed off everywhere (this window hears the answer below; others are told)
+          const live = sessions.get(key)
+          if (live) {
+            if (live.socket && live.socket !== socket) {
+              live.socket.emit("aim:kicked", { reason: DELETED_TEXT, deleted: true })
+              live.socket.leave("aim")
+            }
+            if (live.socket === socket) socket.leave("aim")
+            signOff(live)
+          }
+          // 3. everything else, step by step
+          const result = await eraser.run(ctx)
+          if (!result.ok) {
+            return ack({ ok: false, retry: true, failed: result.failed, error: "Some of your information couldn't be deleted yet. Nothing more can be done with this account; choose Delete Account again to finish." })
+          }
+          // 4. the name off everyone's lists, then the account itself: the name is free
+          await store.forgetEverywhere(key)
+          for (const other of sessions.values()) {
+            const blocked = other.user.blocked.filter((k) => k !== key)
+            const groups = other.user.groups.map((g) => ({ name: g.name, buddies: g.buddies.filter((b) => normalize(b) !== key) }))
+            const changed = blocked.length !== other.user.blocked.length || groups.some((g, i) => g.buddies.length !== other.user.groups[i].buddies.length)
+            other.user = { ...other.user, blocked, groups }
+            if (changed) emitTo(other.key, "aim:accountGone", { screenName: user.screenName, groups, blocked })
+          }
+          warnings.delete(key)
+          for (const k of warnCredits.keys()) if (k.startsWith(`${key}>`) || k.endsWith(`>${key}`)) warnCredits.delete(k)
+          bot.forget(key)
+          await store.remove(key)
+          console.log("[aim] an account was deleted")
+          ack({ ok: true, screenName: user.screenName, steps: result.done.map((d) => d.name) })
+        } finally {
+          deletingNow.delete(key)
+        }
+      } catch (error) {
+        console.error("[aim] delete account failed", error?.message)
+        ack({ ok: false, retry: true, error: "The 98 Messenger service is temporarily unavailable. Please try again." })
+      }
+    })
+
     // Reattach after a dropped connection without buddies seeing a sign off
     socket.on("aim:resume", (payload = {}, ack = () => {}) => {
       if (typeof ack !== "function") return
@@ -412,7 +486,7 @@ const attachAim = async (io, { store, bot, ice, callRingMs, callLostMs, push = n
         const user = await store.find(key)
         const hash = hashToken(token)
         const now = Date.now()
-        const found = user && (user.remember || []).find((r) => r.hash === hash && r.expiresAt > now)
+        const found = user && !user.deleting && (user.remember || []).find((r) => r.hash === hash && r.expiresAt > now)
         if (!found) {
           failedByIp(ip)
           failedByName(key)
@@ -693,7 +767,7 @@ const attachAim = async (io, { store, bot, ice, callRingMs, callLostMs, push = n
     return (key && sessions.get(key)) || null
   }
 
-  const aim = { store, sessions, authenticate, calls, push }
+  const aim = { store, sessions, authenticate, calls, push, eraser }
   push?.useAim(aim)
   return aim
 }

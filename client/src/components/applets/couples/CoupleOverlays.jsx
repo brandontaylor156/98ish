@@ -171,6 +171,10 @@ const CoupleOverlays = () => {
         if (p.unpaired) toast({ title: "Us", icon: "💔", text: `${p.unpaired} unpaired. What you shared is kept for 30 days in case you pair up again.` })
         if (p.declined) toast({ title: "Us", icon: "💌", text: `${p.declined} said no to pairing, for now.` })
       }),
+      // the person you were paired with deleted their 98 Messenger account
+      on("couple:closed", () =>
+        toast({ title: "Us", icon: "💔", key: "couple-closed", text: "The person you were paired with closed their 98 Messenger account, so your pairing has ended. What you shared in Us was deleted with it." })
+      ),
     ]
     return () => offs.forEach((off) => off())
   }, [])

@@ -71,6 +71,14 @@ const memoryStore = () => {
       return copy(score)
     },
     scoresFor: async (key) => [...scores.values()].filter((s) => s.pair.split("|").includes(key)).map(copy),
+    // Delete My Account: challenges they sent or got, their saved quizzes, scores with anyone
+    eraseAccount: async (key) => {
+      let n = 0
+      for (const [id, c] of challenges) if ((c.from === key || c.to === key) && challenges.delete(id)) n++
+      quizzes.delete(key)
+      for (const pair of scores.keys()) if (pair.split("|").includes(key)) scores.delete(pair)
+      return n
+    },
   }
 }
 
@@ -145,6 +153,10 @@ const mongoStore = (connection) => {
       return score
     },
     scoresFor: async (key) => (await Score.find({ members: key }).limit(100).lean()).map((s) => ({ ...plain(s), pair: s._id })),
+    eraseAccount: async (key) => {
+      const [challenges] = await Promise.all([Challenge.deleteMany({ $or: [{ from: key }, { to: key }] }), Quiz.deleteMany({ owner: key }), Score.deleteMany({ members: key })])
+      return challenges.deletedCount || 0
+    },
   }
 }
 

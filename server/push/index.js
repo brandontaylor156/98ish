@@ -392,10 +392,14 @@ const createPush = ({ store: storeOrPromise, webpush, vapid = {}, now = Date.now
     return r
   }
 
+  // Delete My Account (../account): its devices, settings and held IMs (and IMs it sent)
+  const eraseAccount = async ({ key }) => ({ devices: await (await getStore()).eraseAccount(key) })
+
   return {
     enabled,
     publicKey: enabled ? keys.publicKey : null,
     getStore,
+    eraseAccount,
     useAim: (value) => (aim = value),
     isAway,
     hasSubs,

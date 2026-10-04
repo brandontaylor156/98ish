@@ -259,5 +259,21 @@ export const setSyncSession = (next) => {
   syncNow()
 }
 
+// Delete My Account: the book stops syncing with that account and stays on this device as
+// local contacts (unless the person also erases this device's data); a book set aside for
+// that account goes
+export const forgetContactsAccount = (key) => {
+  setSyncSession(null)
+  try {
+    localStorage.removeItem(stashKey(key))
+  } catch {
+    // ignore
+  }
+  if (book.account !== key) return
+  book = { ...book, account: null, syncedAt: null, dirty: [] }
+  save()
+  emit()
+}
+
 // for tests and the Address Book's status bar
 export const syncState = () => ({ ...status, signedOn: !!session, account: book.account, dirty: book.dirty.length })

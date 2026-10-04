@@ -2,7 +2,10 @@
 // names, fitting a JPEG into the drive, and the viewer's zoom, pan, crop and rotation.
 
 export const MAX_SIDE = 2048 // a photo's longest side
-export const MAX_CHARS = 820_000 // about 600 KB as a data URL (the drive holds hundreds of them)
+// about 400 KB as a data URL: the drive holds hundreds of them, and file sync keeps them in
+// 98 Messenger's online storage (100 MB per account on MongoDB's free 512 MB tier: about
+// 250-300 photos each, so a couple's photos fit side by side; see server/drive/sync.js)
+export const MAX_CHARS = 560_000
 // in the small fallback drive (no IndexedDB, about 5 MB in all): the old limits
 export const SMALL_DRIVE_SIDE = 1280
 export const SMALL_DRIVE_CHARS = 240_000

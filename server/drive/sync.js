@@ -23,7 +23,13 @@
 // Every request needs "Authorization: Bearer <token>": the 98 Messenger session token (48 hex
 // characters) or a device sync token from POST /device (64 hex characters, kept as a hash).
 // Env: DRIVE_SYNC_QUOTA_MB (stored contents per account, default 100), DRIVE_SYNC_MAX_FILE_MB
-// (one file, default 12). MongoDB's free tier is 512 MB in all, so keep the quota modest.
+// (one file, default 12), DRIVE_SYNC_TOTAL_MB (all accounts together, default 380).
+// Room: MongoDB Atlas's free tier (M0) holds 512 MB in all (data and indexes, every
+// collection). Photos are kept as their binary bytes, and Camera/Photos save JPEGs of at
+// most about 400 KB (usually 250-350 KB), so 100 MB is roughly 300 photos per account: a
+// couple's two accounts use at most 200 MB. The total cap keeps file sync from filling the
+// database (mail, calendars, couples and accounts need the rest, and MongoDB refuses every
+// write once the tier is full); past it new files wait on each device with a clear message.
 
 const crypto = require("node:crypto")
 const express = require("express")
@@ -123,9 +129,10 @@ const mergeAchievements = (a = {}, b = {}) => {
   return { unlocked, progress }
 }
 
-const syncRouter = ({ aim, store, legacy, quotaBytes, maxFileChars, maxEntries = MAX_ENTRIES, limits = {}, now = () => Date.now() } = {}) => {
+const syncRouter = ({ aim, store, legacy, quotaBytes, totalBytes, maxFileChars, maxEntries = MAX_ENTRIES, limits = {}, now = () => Date.now() } = {}) => {
   const router = express.Router()
   const quota = quotaBytes ?? envMb("DRIVE_SYNC_QUOTA_MB", 100) * MB
+  const total = totalBytes ?? envMb("DRIVE_SYNC_TOTAL_MB", 380) * MB
   const maxFile = maxFileChars ?? envMb("DRIVE_SYNC_MAX_FILE_MB", 12) * MB
   const storeReady = Promise.resolve(store || createSyncStore())
   storeReady.catch((error) => console.error("[drive sync] store failed", error))
@@ -308,9 +315,13 @@ const syncRouter = ({ aim, store, legacy, quotaBytes, maxFileChars, maxEntries =
       if ((await db.hasBlobs(account.key, [hash])).has(hash)) return { ok: true, stored: false, usage: info.usage }
       const blob = { ...encodeBlob(text), at: new Date(now()) }
       if (info.usage + blob.size > quota) return { full: true, usage: info.usage }
+      if (db.totalUsage && (await db.totalUsage()) + blob.size > total) return { serverFull: true, usage: info.usage }
       await db.putBlob(account.key, hash, blob)
       return { ok: true, stored: true, usage: info.usage + blob.size }
     })
+    if (result.serverFull) {
+      return json(response, 413, { ok: false, full: true, usage: result.usage, quota, error: "98ish's online storage is full right now, so new files stay on this device for now. Your synced files are safe." })
+    }
     if (result.full) {
       return json(response, 413, { ok: false, full: true, usage: result.usage, quota, error: `Your online drive is full (${Math.round(quota / MB)} MB). Delete some files, or sync fewer folders.` })
     }
@@ -426,6 +437,19 @@ const syncRouter = ({ aim, store, legacy, quotaBytes, maxFileChars, maxEntries =
     })
     json(response, 200, { ok: true })
   })
+
+  // Delete My Account (../account): every synced file, its contents and device tokens, and the
+  // old whole-drive copy, with nothing made again (unlike DELETE / above)
+  router.eraseAccount = async ({ key }) => {
+    const db = await storeReady
+    await lock(key, async () => {
+      await db.removeAll(key)
+      const legacyStore = await (typeof legacy === "function" ? legacy() : legacy)
+      if (legacyStore) await legacyStore.remove(key)
+    })
+    uploadBytes.delete(key)
+    return { files: "deleted" }
+  }
 
   router.use((request, response) => json(response, 404, { ok: false, error: "Not found." }))
 

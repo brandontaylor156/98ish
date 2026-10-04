@@ -177,6 +177,7 @@ const Guestbook = ({ onOpen }) => {
   const [form, setForm] = useState(EMPTY_FORM)
   const [sending, setSending] = useState(false)
   const [notice, setNotice] = useState(null) // { ok, text }
+  const token = useAim()?.token
 
   const load = (n = page) => {
     setError(null)
@@ -192,7 +193,8 @@ const Guestbook = ({ onOpen }) => {
     setSending(true)
     setNotice(null)
     try {
-      const r = await fetch(`${SERVER_URL}/api/guestbook`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) })
+      // signed on: the entry is tied to the account (never shown), so Delete My Account removes it
+      const r = await fetch(`${SERVER_URL}/api/guestbook`, { method: "POST", headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) }, body: JSON.stringify(form) })
       const d = await r.json()
       if (!d.ok) setNotice({ ok: false, text: d.error })
       else {

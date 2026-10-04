@@ -7,7 +7,7 @@
 
 import { unlock } from "./achievements"
 import { DEFAULT_ID, currentUserId, onUserRemoved } from "./users"
-import { DB_NAME, INLINE_MAX, OLD_KEY, byteSize, contentKey, migrateFromLocal, openDriveDb, readMarker, readOldDrive, retireOldDrive } from "./driveStore"
+import { DB_NAME, INLINE_MAX, MIGRATED_KEY, OLD_KEY, byteSize, contentKey, migrateFromLocal, openDriveDb, readMarker, readOldDrive, retireOldDrive } from "./driveStore"
 
 const listeners = new Set()
 let notifyQueued = false
@@ -1099,6 +1099,11 @@ const requestPersist = async () => {
     setInfo({ persisted: null })
   }
 }
+// Some browsers only grant it after the person has used the page (Firefox asks; Chrome looks
+// at engagement; Safari grants it to Home Screen apps): ask once more on the first tap. The
+// answer is in storageInfo().persisted, shown in Drive C: Properties and Control Panel >
+// Storage, and the "only on this device" notes (shared/KeepSafe.jsx) mention it on iPhone.
+if (browser) window.addEventListener("pointerdown", () => info.persisted === false && requestPersist(), { once: true, passive: true })
 
 const start = async () => {
   const storage = localStore()
@@ -1340,6 +1345,41 @@ export const importDrive = async (drive) => {
   changed()
   await saveNow()
   return false
+}
+
+// Delete My Account with "also erase this device's files": stop saving, close the database
+// and delete this person's drive (IndexedDB, plus the old localStorage drive and the sync
+// bookkeeping kept beside it). The page reloads right after, onto a fresh drive.
+export const eraseThisDrive = async () => {
+  await saving.catch(() => {})
+  clearTimeout(saveTimer)
+  saveTimer = null
+  const open = db
+  mode = "memory"
+  db = null
+  try {
+    open?.close()
+  } catch {
+    // closed already
+  }
+  try {
+    const storage = localStore()
+    storage?.removeItem(OLD_KEY)
+    storage?.removeItem(MIGRATED_KEY)
+  } catch {
+    // blocked
+  }
+  if (typeof indexedDB === "undefined") return true
+  return new Promise((resolve) => {
+    try {
+      const request = indexedDB.deleteDatabase(driveDbName())
+      request.onsuccess = () => resolve(true)
+      request.onerror = () => resolve(false)
+      request.onblocked = () => setTimeout(() => resolve(false), 1500)
+    } catch {
+      resolve(false)
+    }
+  })
 }
 
 // For tests: wipe back to the starting files

@@ -133,6 +133,8 @@ const BuddyList = () => {
         { label: "Sounds", checked: aim.prefs.sound, onClick: () => aim.setPrefs({ sound: !aim.prefs.sound }) },
         "-",
         { label: "Sign Off", onClick: aim.signOff },
+        "-",
+        { label: "Delete My Account...", onClick: aim.openDeleteAccount },
       ],
     },
     {

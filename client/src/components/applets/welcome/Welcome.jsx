@@ -259,6 +259,12 @@ const Welcome = ({ dispatch, mobile, onClose }) => {
             Make up a screen name and password, then add your friends as buddies to see when they're on, chat, and invite them straight into a game.
             Tick <b>Sign me on automatically</b> and this {mobile ? "phone" : "computer"} remembers you.
           </p>
+          <p>
+            An account is optional. Without one, everything stays on this {mobile ? "phone" : "computer"}. Signed on, your photos and files also sync to your account, so they're safe and on all your devices.{" "}
+            <button type="button" className="welLinkBtn" onClick={() => openHelp("privacy-overview")}>
+              What 98ish keeps
+            </button>
+          </p>
         </Topic>
         <Topic title="Network Neighborhood" actions={openButton("Network Neighborhood")}>
           <p>Shows every computer on 98ish right now. {mobile ? "Tap" : "Double-click"} one to send a file or a WinPopup note, or to challenge them to Checkers, Chess, Reversi, Battleship or Hearts.</p>

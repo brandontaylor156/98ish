@@ -115,7 +115,8 @@ const attachNet = (io, { aim: initialAim = null, graceMs = RESUME_GRACE_MS, game
   const emitPid = (pid, event, payload) => emitTo(byPid.get(pid), event, payload)
 
   // Tetris Online (the Tetris app's multiplayer modes); invitations go through games.js
-  const tetris = createTetris({ emit: emitPid, ranks: tetrisRanks || createTetrisRanks().catch(() => null) })
+  const ranks = tetrisRanks || createTetrisRanks().catch(() => null)
+  const tetris = createTetris({ emit: emitPid, ranks })
   // Doodle Together: shared drawing rooms
   const doodle = createDoodle({ emit: emitPid })
   // the Quiz Show's live games, invitations through games.js too
@@ -429,6 +430,13 @@ const attachNet = (io, { aim: initialAim = null, graceMs = RESUME_GRACE_MS, game
     quiz,
     coop,
     rooms,
+    // Delete My Account (../account): Tetris Online ranks, and their place in co-op towns
+    eraseAccount: async (ctx) => {
+      const store = await ranks
+      const removed = store?.remove ? await store.remove(ctx.key) : false
+      const towns = await coop.eraseAccount(ctx)
+      return { ranks: !!removed, towns }
+    },
   }
 }
 

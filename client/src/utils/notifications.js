@@ -135,6 +135,12 @@ export const dismiss = (id) => {
   all = all.filter((n) => n.id !== id)
   refresh()
 }
+// Delete My Account: that account's notifications leave this device
+export const forgetNotifications = (key) => {
+  all = all.filter((n) => n.account !== key)
+  if (account === key) account = null
+  refresh()
+}
 export const clearAll = () => {
   all = all.filter((n) => !visible(n))
   refresh()

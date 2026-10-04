@@ -5,7 +5,7 @@ const STEPS = ["Connecting...", "Verifying screen name and password...", "Starti
 
 // The Sign On window: running man, screen name, password, and "Get a Screen Name"
 const SignOn = () => {
-  const { status, error, prefs, signOn } = useAim()
+  const { status, error, prefs, signOn, openDeleteAccount } = useAim()
   const [register, setRegister] = useState(false)
   const [screenName, setScreenName] = useState(prefs.lastScreenName)
   const [password, setPassword] = useState("")
@@ -95,6 +95,11 @@ const SignOn = () => {
           {shownError && (
             <div className="aimSignOnError" role="alert">
               {shownError}
+              {/^This screen name is being deleted/.test(shownError) && (
+                <button type="button" className="aimSignOnFinish" onClick={openDeleteAccount}>
+                  Finish deleting...
+                </button>
+              )}
             </div>
           )}
         </div>

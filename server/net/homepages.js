@@ -435,7 +435,10 @@ const homepageRouter = ({ store: storeOrPromise, aim: initialAim = null, limits 
     next(error)
   })
 
-  return Object.assign(router, { useAim: (value) => (aim = value) })
+  // Delete My Account (../account): their published page
+  const eraseAccount = async ({ key }) => ({ removed: !!(await (await getStore()).remove(key)) })
+
+  return Object.assign(router, { useAim: (value) => (aim = value), eraseAccount })
 }
 
 module.exports = {

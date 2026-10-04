@@ -40,6 +40,7 @@ const { sessionFrom } = require("../aim/auth")
 const { validate, normalize } = require("../aim/screenNames")
 const { checkText } = require("../gamechat")
 const { memoryStore, createTownStore } = require("./store")
+const { DELETED_NAME } = require("../account")
 const { ready, rules, checkSnapshot, summary, Invalid, fail, MAX_BYTES } = require("./snapshot")
 
 let couplesModule = null
@@ -245,7 +246,58 @@ const createTown = ({ store: storeOrPromise, aim: initialAim = null, couples = c
     for (const k of [key, partner]) emitTo(k, "town:news", { type: finished ? "goal-done" : "goal" })
   }
 
+  // Delete My Account (server/account): their town; the couple's weekly goals; in everyone
+  // else's town their hearts and signs go, and help or gifts they gave read "(deleted
+  // account)" (the goods stay: they're part of that person's game now; a gift's note goes)
+  const eraseAccount = async ({ key, coupleIds = [] }) =>
+    serial(async () => {
+      const store = await getStore()
+      await store.remove(`u:${key}`)
+      for (const cid of coupleIds) for (const goal of await store.scan(`g:${cid}:`)) await store.remove(goal._id)
+      const named = (name) => !!name && normalize(name) === key
+      let towns = 0
+      for (const doc of await store.scan("u:")) {
+        let changed = false
+        for (const [obj, keys] of Object.entries(doc.hearts || {})) {
+          if (!keys.includes(key)) continue
+          doc.hearts[obj] = keys.filter((k) => k !== key)
+          changed = true
+        }
+        const notes = (doc.notes || []).filter((n) => n.by !== key)
+        if (notes.length !== (doc.notes || []).length) {
+          doc.notes = notes
+          changed = true
+        }
+        for (const gift of doc.mailbox || []) {
+          if (gift.from !== key && !named(gift.fromName)) continue
+          Object.assign(gift, { from: null, fromName: DELETED_NAME, note: "" })
+          changed = true
+        }
+        for (const r of doc.requests || []) {
+          if (!named(r.byName)) continue
+          r.byName = DELETED_NAME
+          changed = true
+        }
+        for (const e of doc.effects || []) {
+          for (const field of ["by", "from"]) {
+            if (!named(e[field])) continue
+            e[field] = DELETED_NAME
+            changed = true
+          }
+        }
+        if (changed) {
+          await put(doc)
+          towns++
+        }
+      }
+      for (const [visitor, owner] of visits) if (visitor === key || owner === key) visits.delete(visitor)
+      return { towns }
+    })
+
+  const visits = new Map() // visitor key -> owner key, while they walk around
+
   return {
+    eraseAccount,
     couples,
     clock,
     setOffset: (ms) => (offset = ms),
@@ -266,7 +318,7 @@ const createTown = ({ store: storeOrPromise, aim: initialAim = null, couples = c
     socketOf,
     getAim: () => aim,
     useAim: (value) => (aim = value),
-    visits: new Map(), // visitor key -> owner key, while they walk around
+    visits,
   }
 }
 

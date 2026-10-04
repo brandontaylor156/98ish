@@ -4,7 +4,7 @@ import { MAX_CHARS, MAX_SIDE, SMALL_DRIVE_CHARS, SMALL_DRIVE_SIDE, fitEncode, fi
 export * from "./photoMath.js"
 
 // The picture library Camera and Photos share: C:\My Pictures, photo names, squeezing
-// photos into JPEGs (up to 2048 pixels and about 600 KB; smaller in the 5 MB fallback drive
+// photos into JPEGs (up to 2048 pixels and about 400 KB; smaller in the 5 MB fallback drive
 // some private windows get), and bringing photos in from the real device.
 
 export const PICTURES = ["C:", "My Pictures"]

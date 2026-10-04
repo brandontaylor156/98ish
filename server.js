@@ -20,7 +20,8 @@ const { puzzleRouter } = require("./server/puzzles")
 const { quizRouter } = require("./server/quiz")
 const { couplesRouter, attachCouples, coupleService } = require("./server/couples")
 const { dollhouseRouter } = require("./server/dollhouse")
-const { townRouter, attachTown } = require("./server/town")
+const { townRouter, attachTown, townService } = require("./server/town")
+const { createAccountEraser } = require("./server/account")
 const { petRouter } = require("./server/pet")
 const { calendarRouter, attachCalendar } = require("./server/calendar")
 const { defaultPush } = require("./server/push")
@@ -34,9 +35,11 @@ let aim // 98 Messenger, once started: the online drive signs in with its sessio
 // online copies become synced files the first time an account syncs
 const legacyDrives = createDriveStore()
 legacyDrives.catch(() => {})
-app.use("/api/drive/sync", syncRouter({ aim: () => aim, legacy: legacyDrives }))
+const sync = syncRouter({ aim: () => aim, legacy: legacyDrives })
+app.use("/api/drive/sync", sync)
 app.use("/api/drive", driveRouter({ aim: () => aim, store: legacyDrives }))
-app.use("/api/contacts", contactsRouter({ aim: () => aim })) // the Address Book's online copy
+const contacts = contactsRouter({ aim: () => aim })
+app.use("/api/contacts", contacts) // the Address Book's online copy
 // Mail and homepages first: they read bigger bodies than the guestbook's parser allows
 const mail = mailRouter()
 const homepages = homepageRouter()
@@ -55,7 +58,8 @@ app.use("/api/dollhouse", dollhouse)
 const town = townRouter()
 app.use("/api/town", town)
 app.use("/api", homepages)
-app.use("/api", guestbookRouter())
+const guestbook = guestbookRouter()
+app.use("/api", guestbook)
 
 const port = process.env.PORT || 8000
 const server = app.listen(port, () => console.log(`The server is all fired up on port ${port}`))
@@ -76,8 +80,32 @@ if (process.env.RENDER_EXTERNAL_URL && process.env.KEEP_AWAKE !== "0") {
 const io = require("socket.io")(server, { cors: true, maxHttpBufferSize: 2 * 1024 * 1024 })
 
 const net = attachNet(io)
-attachGameChat(io, net)
-aim = attachAim(io, { push })
+const gameChat = attachGameChat(io, net)
+
+// Delete My Account: every place that keeps something for an account, in order (the full
+// list, and what happens to shared things, is at the top of server/account/index.js)
+let calendars = null
+const eraser = createAccountEraser()
+  .addContext((key) => coupleService().accountContext(key))
+  .add("push", (ctx) => push.eraseAccount(ctx))
+  .add("drive", (ctx) => sync.eraseAccount(ctx))
+  .add("contacts", (ctx) => contacts.eraseAccount(ctx))
+  .add("mail", (ctx) => mail.eraseAccount(ctx))
+  .add("puzzles", (ctx) => puzzles.eraseAccount(ctx))
+  .add("quiz", (ctx) => quiz.eraseAccount(ctx))
+  .add("homepages", (ctx) => homepages.eraseAccount(ctx))
+  .add("guestbook", (ctx) => guestbook.eraseAccount(ctx))
+  .add("games", (ctx) => net.eraseAccount(ctx))
+  .add("calendar", (ctx) => {
+    if (!calendars) throw new Error("calendars aren't ready")
+    return calendars.eraseAccount(ctx)
+  })
+  .add("dollhouse", (ctx) => dollhouse.eraseAccount(ctx))
+  .add("town", (ctx) => townService().eraseAccount(ctx))
+  .add("couples", (ctx) => coupleService().eraseAccount(ctx))
+  .add("gamechat", (ctx) => gameChat.eraseAccount(ctx))
+
+aim = attachAim(io, { push, eraser })
 aim
   .then((aim) => {
     net.useAim(aim)
@@ -85,9 +113,10 @@ aim
     puzzles.useAim(aim)
     dollhouse.useAim(aim)
     homepages.useAim(aim)
+    guestbook.useAim(aim)
     quiz.useAim(aim)
     attachCouples(io, { aim })
-    const calendars = attachCalendar(io, { aim, couples: coupleService })
+    calendars = attachCalendar(io, { aim, couples: coupleService })
     push.start({ calendars, couples: coupleService() })
     town.useAim(aim)
     attachTown(io)

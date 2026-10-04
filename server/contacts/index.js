@@ -93,6 +93,9 @@ const contactsRouter = ({ aim, store, maxBytes = MAX_BYTES, maxContacts = MAX_CO
     json(response, 200, { ok: true, revision: 0 })
   })
 
+  // Delete My Account (../account)
+  router.eraseAccount = async ({ key }) => ({ removed: !!(await (await storeReady).remove(key)) })
+
   router.use((error, request, response, next) => {
     if (response.headersSent) return next(error)
     if (error.type === "entity.too.large") return json(response, 413, { ok: false, error: "That's too much to sync at once. Remove some pictures and try again." })

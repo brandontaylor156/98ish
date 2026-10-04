@@ -72,6 +72,8 @@ export const topics = [
       "To make a device forget you, open the Buddy List and choose My AIM > **Sign Off**. Signing off on purpose forgets this device.",
       { h: "One place at a time" },
       "You can be signed on in only one place at a time. If you sign on from your computer while your phone is signed on, the phone says it was disconnected because you signed on at a different location. That's normal: sign on again on whichever one you want to use.",
+      { h: "Deleting your account" },
+      "My AIM > **Delete My Account...** deletes the account and everything the 98ish server keeps for it, for good. See [[delete-account]].",
       { note: "The 98ish server takes a nap when nobody has used it for a while. If signing on takes a long time, wait up to a minute. See [[server-waking]]." },
       { warning: "There's no way to reset a forgotten Messenger password from here, so pick one you'll remember." },
     ],

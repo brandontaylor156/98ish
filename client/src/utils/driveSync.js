@@ -16,7 +16,11 @@ import { DEFAULT_FOLDERS, NEVER_SYNC, baseOf, conflictName, decide, deviceName, 
 // Messenger signs it off because you signed on somewhere else. Signing off on purpose (or
 // turning sync off) forgets it.
 
-const PREFS_KEY = "98ish.drive.sync" // { enabled, folders, account: { key, screenName, device } }
+// { enabled, folders, account: { key, screenName, device }, told }. Sync is ON unless the
+// person turned it off: signing on to 98 Messenger is what keeps photos and files safe (a
+// phone's browser may clear website storage), so a device that never chose starts syncing at
+// its first sign on and says so once (`told`; DriveSync.jsx shows the notice).
+const PREFS_KEY = "98ish.drive.sync"
 const PUSH_DELAY_MS = 4_000
 const POLL_MS = 60_000
 const ACH_EVERY_MS = 10 * 60_000
@@ -33,12 +37,15 @@ const loadPrefs = () => {
     const saved = JSON.parse(localStorage.getItem(PREFS_KEY))
     const folders = Array.isArray(saved?.folders) ? saved.folders.filter((f) => typeof f === "string" && !NEVER_SYNC.includes(f)) : DEFAULT_FOLDERS
     const account = saved?.account?.key ? { key: saved.account.key, screenName: saved.account.screenName || saved.account.key, device: saved.account.device || null } : null
-    return { enabled: !!saved?.enabled, folders, account }
+    // nothing saved, or saved "off" by a version from before sync was on by default (it saved
+    // "off" on every sign off, chosen or not): on, with the notice. Once told, "off" stays off.
+    if (!saved || (saved.told === undefined && !saved.enabled)) return { enabled: true, folders, account, told: false }
+    return { enabled: !!saved.enabled, folders, account, told: saved.told !== false }
   } catch {
-    return { enabled: false, folders: DEFAULT_FOLDERS, account: null }
+    return { enabled: true, folders: DEFAULT_FOLDERS, account: null, told: false }
   }
 }
-let prefs = typeof localStorage !== "undefined" ? loadPrefs() : { enabled: false, folders: DEFAULT_FOLDERS, account: null }
+let prefs = typeof localStorage !== "undefined" ? loadPrefs() : { enabled: false, folders: DEFAULT_FOLDERS, account: null, told: true }
 const savePrefs = () => {
   try {
     localStorage.setItem(PREFS_KEY, JSON.stringify(prefs))
@@ -59,6 +66,7 @@ const storeState = (key, st) => writeDriveMeta(stateKey(key), { seq: st.seq, bas
 
 let session = null // { key, screenName, token } while signed on to 98 Messenger
 const initialPhase = () => (!prefs.enabled ? "off" : prefs.account?.device ? "idle" : "signedOut")
+// turnedOn: when sync was turned on by itself at this device's first sign on (for the notice)
 let state = { phase: initialPhase(), text: "", lastSync: null, usage: null, quota: null, files: null, kept: 0, progress: null, busy: false, screenName: prefs.account?.screenName || null }
 const listeners = new Set()
 const set = (patch) => {
@@ -424,7 +432,7 @@ export const syncNow = () => {
 // ---------- settings ----------
 
 export const setSyncEnabled = (enabled) => {
-  prefs = { ...prefs, enabled: !!enabled }
+  prefs = { ...prefs, enabled: !!enabled, told: true }
   if (!enabled) {
     // forget this device's sync token too (signing on again makes a new one)
     forgetDevice(prefs.account?.device)
@@ -471,6 +479,12 @@ export const setSyncSession = (next, { kicked = false } = {}) => {
     }
     session = { key: next.key, screenName: next.screenName, token: next.token }
     set({ screenName: next.screenName })
+    if (prefs.enabled && !prefs.told) {
+      // the first sign on of a device that never chose: sync is on, and it says so once
+      prefs = { ...prefs, told: true }
+      savePrefs()
+      set({ turnedOn: Date.now() })
+    }
     if (prefs.enabled) syncNow()
     else set({ phase: "off" })
     return
@@ -512,6 +526,22 @@ export const deleteOnlineFiles = async () => {
   setSyncEnabled(false)
   set({ usage: 0, files: 0 })
   return { ok: true }
+}
+
+// Delete My Account (the server already deleted everything synced): this device forgets the
+// account, its sync token and bookkeeping. Files here stay unless the person erases them too.
+export const forgetSyncAccount = async (key) => {
+  clearTimeout(pushTimer)
+  clearTimeout(retryTimer)
+  session = null
+  prefs = { enabled: false, folders: DEFAULT_FOLDERS, account: null }
+  try {
+    localStorage.removeItem(PREFS_KEY) // a new account later starts with sync on again
+  } catch {
+    // blocked
+  }
+  if (key) await writeDriveMeta(stateKey(key), null)
+  set({ phase: "off", text: "", usage: null, quota: null, files: null, screenName: null, lastSync: null })
 }
 
 // ---------- watching for changes ----------

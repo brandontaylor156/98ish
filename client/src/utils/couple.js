@@ -81,6 +81,8 @@ const applyStatus = (result) => {
   // leaving a couple forgets its things
   if (result.coupleId !== state.coupleId) Object.assign(patch, { letters: null, bouquets: null })
   setCouple(patch)
+  // the person you were paired with deleted their 98 Messenger account (told once)
+  if (result.notice === "closed") queueMicrotask(() => emitCouple("couple:closed", {}))
   return result
 }
 

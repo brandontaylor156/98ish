@@ -126,6 +126,11 @@ const createCouples = ({ store: storeOrPromise, aim: initialAim = null, now = Da
   const sweep = async () => {
     const store = await getStore()
     for (const pair of list()) {
+      // a "your partner closed their account" notice nobody came back for
+      if (pair.status === "notice" && clock() - pair.createdAt > KEEP_AFTER_UNPAIR_MS) {
+        await drop(pair)
+        continue
+      }
       if (pair.status === "ended" && clock() - pair.endedAt > KEEP_AFTER_UNPAIR_MS) {
         await store.items.purge(pair.id)
         await drop(pair)
@@ -264,7 +269,55 @@ const createCouples = ({ store: storeOrPromise, aim: initialAim = null, now = Da
     return statusFor(session.key, session.user.screenName)
   }
 
+  // ---------- Delete My Account (../account) ----------
+
+  // the couples (any status) an account is in, and who it's paired with now
+  const accountContext = async (key) => {
+    await ready()
+    const mine = list().filter((p) => p.status !== "notice" && has(p, key))
+    return {
+      coupleIds: mine.map((p) => p.id),
+      partners: mine.filter((p) => p.status === "paired").map((p) => ({ key: other(p, key), name: p.names[other(p, key)] })),
+    }
+  }
+
+  // Every pairing they're in and everything those couples kept (letters, Our Story, photos,
+  // flowers, Our Pet) go at once: couple things are only visible to the pair while paired,
+  // so nobody could see them again. Whoever they were paired with gets a neutral notice
+  // (kept until they next look, without the deleted account's name).
+  const noticeFor = (key) => list().find((p) => p.status === "notice" && p.a === key) || null
+  const eraseAccount = async ({ key, coupleIds = [], partners = [] }) => {
+    await ready()
+    const store = await getStore()
+    const ids = new Set(coupleIds)
+    for (const p of list()) if (p.status !== "notice" && has(p, key)) ids.add(p.id)
+    const told = new Set(partners.map((p) => p.key))
+    for (const id of ids) {
+      const pair = pairs.get(id)
+      await store.items.purge(id)
+      if (!pair) continue
+      await drop(pair)
+      const them = other(pair, key)
+      if (them && !told.has(them)) emitTo(them, "couple:update", {})
+    }
+    for (const p of partners) {
+      if (p.key === key || noticeFor(p.key)) continue
+      await save({ id: newId(), a: p.key, b: "", names: {}, status: "notice", requestedBy: null, createdAt: clock(), pairedAt: null, endedAt: clock() })
+      emitTo(p.key, "couple:update", { closed: true })
+    }
+    return { removed: ids.size }
+  }
+  // the notice, once read
+  const takeNotice = async (key) => {
+    const notice = noticeFor(key)
+    if (notice) await drop(notice)
+    return notice ? "closed" : null
+  }
+
   return {
+    accountContext,
+    eraseAccount,
+    takeNotice,
     ready,
     clock,
     setOffset: (ms) => (offset = ms),
@@ -298,6 +351,7 @@ const openProgram = (name) => `/?open=program&name=${encodeURIComponent(name)}`
 // what a live notice says as a push notification (null: not worth one)
 const pushNotice = (event, p = {}) => {
   if (event === "couple:request" && p.from) return { title: "Us", body: `${p.from} wants to pair up with you on 98ish. ♥`, tag: "couple-request", key: `couple-request:${p.from}`, url: openProgram("Us") }
+  if (event === "couple:update" && p.closed) return { title: "Us", body: "The person you were paired with closed their 98 Messenger account, so your pairing has ended.", tag: "couple-update", key: `couple-closed:${Date.now()}`, url: openProgram("Us") }
   if (event === "couple:update" && p.paired) return { title: "Us", body: `${p.paired} said yes! You're paired now. ♥`, tag: "couple-update", key: `couple-paired:${p.paired}`, url: openProgram("Us") }
   if (event === "couple:letter" && !p.removed && p.from) {
     const body = p.locked ? `${p.from} sealed a letter for you: "${p.title}"` : p.delivery === "openwhen" ? `${p.from} left you a letter to open when ${p.label}.` : `A new love letter from ${p.from}: "${p.title}"`
@@ -462,7 +516,15 @@ const couplesRouter = ({ service = defaultService() } = {}) => {
 
   // ---- pairing ----
 
-  router.get("/", handle(async (request, session) => service.statusFor(session.key, session.user.screenName)))
+  router.get(
+    "/",
+    handle(async (request, session) => {
+      const status = service.statusFor(session.key, session.user.screenName)
+      // the one-time "the person you were paired with closed their account" notice
+      const notice = service.takeNotice ? await service.takeNotice(session.key) : null
+      return notice ? { ...status, notice } : status
+    })
+  )
 
   router.post(
     "/request",

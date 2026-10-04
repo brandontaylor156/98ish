@@ -625,6 +625,7 @@ export const topics = [
       },
       { h: "Keeping your files safe" },
       "If a device runs very low on space, a browser may clear a website's files to make room. Storage tells you whether 98ish's files are **Kept**. If not, tap **Keep my files on this device**.",
+      { warning: "On iPhone and iPad, Safari clears a website's files after about 7 days without a visit, unless the site is on the Home Screen. Add 98ish to your Home Screen ([[home-screen]]) and open it from there, and sign on to 98 Messenger so [[file-sync]] keeps a copy online." },
       { tip: "Browsers are much more willing to keep files for sites added to the Home Screen. See [[home-screen]]." },
       { warning: "Clearing your browser's history and website data erases everything in 98ish. Use [[file-sync]] or a [[backup]] for anything you care about." },
       { note: "In some private browsing windows, 98ish only gets a small 5 MB drive, and a notice says so." },
@@ -639,15 +640,16 @@ export const topics = [
     summary: "Keep the same files on your phone and your computer.",
     keywords: ["sync", "cloud", "online drive", "same files everywhere", "other device", "conflict", "sync now"],
     body: [
-      "File sync keeps chosen folders the same on every phone and computer where you sign on to 98 Messenger with the same screen name. Make a document on your computer, and it's on your phone too.",
-      { steps: ["Sign on to [[messenger]].", "Open **Backup** (Start > Programs > System Tools > Backup).", "Under **Sync with 98 Messenger**, tick **Sync my files with my 98 Messenger account**.", "Choose the folders to sync. My Documents, My Pictures and Desktop are picked to start with.", "Do the same on your other devices."], title: "To turn on sync:" },
-      "After that, changes go back and forth by themselves. **Sync Now** in Backup does it right away. A small icon in the taskbar tray, and the bottom of My Computer, show how it's going.",
+      "File sync keeps chosen folders the same on every phone and computer where you sign on to 98 Messenger with the same screen name. Make a document on your computer, and it's on your phone too. It's also what keeps your photos safe: if a phone clears its browser storage, or you get a new phone, sign on and everything comes back.",
+      "**Sync is on by default.** The first time you sign on to 98 Messenger on a device, My Documents, My Pictures and the Desktop start syncing, and 98ish tells you once. A new photo goes up a few seconds after you take it.",
+      { steps: ["Open **Backup** (Start > Programs > System Tools > Backup).", "Under **Sync with 98 Messenger**, tick or untick **Sync my files with my 98 Messenger account**.", "Choose the folders to sync. My Documents, My Pictures and Desktop are picked to start with."], title: "To turn sync off or on, or choose folders:" },
+      "Changes go back and forth by themselves. **Sync Now** in Backup does it right away. A small icon in the taskbar tray, and the bottom of My Computer, show how it's going. Without an account, My Computer, Photos and Camera remind you that your files are only on this device.",
       { h: "Good to know" },
       {
         list: [
           "If the same file was changed in two places, both are kept: one gets the other device's name added, like **Notes (from iPhone)**.",
           "Files you delete on one device go to the Recycle Bin on the others, so nothing vanishes by surprise.",
-          "Online space is limited. Backup shows how much you're using. Very big files may not sync.",
+          "Online space is limited: 100 MB per screen name (about 300 photos; Camera and Photos keep each photo under about 400 KB). Backup shows how much you're using. Files over 12 MB don't sync.",
           "The Programs folder and settings aren't synced, just your files.",
           "**Delete Online Files** in Backup removes the online copies (your files on this device stay).",
         ],

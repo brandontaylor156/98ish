@@ -16,6 +16,7 @@ import { itemPayload, shareOut, warmItem } from "../../../utils/share"
 import { receiveFiles, savePasted, summarize } from "../../../utils/receive"
 import { fromPasteEvent, readClipboard } from "../../../utils/systemClipboard"
 import { isSyncEnabled, setSyncEnabled, statusText, syncNow, useDriveSync } from "../../../utils/driveSync"
+import { openBackup, openSignOn, useKeepSafe } from "../../shared/KeepSafe"
 import DriveProperties from "./DriveProperties"
 import "./FileExplorer.css"
 
@@ -55,6 +56,7 @@ const FileExplorer = ({ path: initialPath = ["C:"], dispatch, onTitle }) => {
   const [uploading, setUploading] = useState(false)
   const [cpSelected, setCpSelected] = useState(false) // the Control Panel folder (My Computer view)
   const sync = useDriveSync()
+  const keepSafe = useKeepSafe() // no online copy kept: say so in the status bar
   const rootRef = useRef(null)
   const importRef = useRef(null)
   const openGesture = useOpenGesture()
@@ -510,7 +512,14 @@ const FileExplorer = ({ path: initialPath = ["C:"], dispatch, onTitle }) => {
 
       <div className="status-bar fxStatus">
         <p className="status-bar-field">{status}</p>
-        {sync.phase !== "off" && (
+        {keepSafe && (
+          <p className="status-bar-field fxKeepSafe" title={keepSafe.text}>
+            <button type="button" className="fxKeepSafeLink" onClick={keepSafe.kind === "guest" ? openSignOn : openBackup}>
+              {keepSafe.kind === "guest" ? "Only on this device: Sign on to keep files safe" : "Only on this device: Sync is off"}
+            </button>
+          </p>
+        )}
+        {sync.phase !== "off" && !(keepSafe && sync.phase === "signedOut") && (
           <p className={`status-bar-field fxSync is-${sync.phase}`} title={statusText(sync)}>
             <span className="fxSyncLight" aria-hidden="true" />
             {{ idle: "Synced", syncing: "Syncing...", pending: "Syncing...", signedOut: "Sync: signed off", offline: "Sync: offline" }[sync.phase] || "Sync: error"}

@@ -288,7 +288,10 @@ const quizRouter = ({ store: storeOrPromise, aim: initialAim = null, limits = {}
     next(error)
   })
 
-  return Object.assign(router, { useAim: (value) => (aim = value) })
+  // Delete My Account (../account): challenges with them, their saved quizzes, their scores
+  const eraseAccount = async ({ key }) => ({ challenges: await (await getStore()).eraseAccount(key) })
+
+  return Object.assign(router, { useAim: (value) => (aim = value), eraseAccount })
 }
 
 module.exports = { quizRouter, createQuizLive, pairKey, normalize }
