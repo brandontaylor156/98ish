@@ -60,6 +60,13 @@ export const qslerp = (a, b, t) => {
   return Q(a.x * k0 + b.x * k1, a.y * k0 + b.y * k1, a.z * k0 + b.z * k1, a.w * k0 + b.w * k1)
 }
 export const qangle = (a, b) => 2 * Math.acos(clamp(Math.abs(a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w), 0, 1))
+// the pop limiter for a bone: from prev toward next, turning at most maxAngle (radians)
+export const limitQuat = (prev, next, maxAngle) => {
+  if (!prev) return next
+  const ang = qangle(prev, next)
+  if (ang <= maxAngle || ang < 1e-9) return next
+  return qnorm(qslerp(prev, next, maxAngle / ang))
+}
 
 // the rotation whose columns are the (orthonormal) x, y, z axes
 export const qbasis = (x, y, z) => {
@@ -113,6 +120,10 @@ export const twistAngle = (twist, axis) => {
   return a
 }
 
+// the angle a + 2 pi k nearest ref (an angle that carries on from last frame's instead of
+// jumping from +180 to -180 degrees)
+export const unwrapNear = (a, ref = 0) => a + 2 * Math.PI * Math.round((ref - a) / (2 * Math.PI))
+
 // ---- limbs ----
 // Two bones (lengths l1, l2) from root toward target, bending toward pole. If the target is
 // out of reach, the bones stretch up to maxStretch (1.1 = 10%) to get there.
@@ -139,6 +150,15 @@ export const gripSide = (prev, d, margin = 0.35) => {
   if (prev > 0 && d < -margin) return -1
   if (prev < 0 && d > margin) return 1
   return prev
+}
+
+// The paddle has two faces, so a hand can hold a given paddle pose two ways (the palm behind
+// either face: qa for side +1, qb for -1). Holding on, the hand keeps whichever is nearer
+// where it was last frame (prev), so it never spins round the handle; with no last frame,
+// the side it had.
+export const steadyGrip = (prev, qa, qb, side) => {
+  if (!prev) return side
+  return qangle(prev, qa) <= qangle(prev, qb) ? 1 : -1
 }
 
 // ---- clip layers ----

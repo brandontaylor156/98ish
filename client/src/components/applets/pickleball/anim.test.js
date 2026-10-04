@@ -118,5 +118,5 @@ test("a whole match animates: feet on the court, no sliding, bones keep their le
   paddleMiss.sort((a, b) => a - b)
   const median = paddleMiss[Math.floor(paddleMiss.length / 2)]
   assert.ok(paddleMiss.length > 10, "saw contacts")
-  assert.ok(median < 0.25, `the paddle is at the ball at contact (median ${median?.toFixed(3)} m)`)
+  assert.ok(median < 0.08, `the paddle is at the ball at contact (median ${median?.toFixed(3)} m)`)
 })
