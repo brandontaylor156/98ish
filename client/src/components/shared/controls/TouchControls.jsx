@@ -38,7 +38,9 @@
  *   localStorage "98ish.controls" per game and per orientation on Done),
  *   gear (show the small gear button that opens edit mode), gearStyle / gearClassName
  *   (where the gear sits and how it looks),
- *   scale / alpha (the default global size and opacity for this game).
+ *   scale / alpha (the default global size and opacity for this game),
+ *   settings (the game's own options, drawn at the top of the edit panel; the exported
+ *   Check and Slider match the panel's look).
  *
  * Buttons act on pointerdown (no tap delay), capture their pointer, and several can be held
  * at once. onRelease comes once the last finger on a button lifts, and also when a held
@@ -117,6 +119,7 @@ const TouchControls = ({
   scale = 1,
   alpha = 1,
   className = "",
+  settings = null,
 }) => {
   const layerRef = useRef(null)
   const size = useAreaSize(layerRef)
@@ -302,6 +305,7 @@ const TouchControls = ({
           selected={selected}
           setSelected={setSelected}
           haptics={haptics}
+          settings={settings}
           onDone={() => finish(true)}
           onCancel={() => finish(false)}
         />
@@ -315,7 +319,7 @@ const TouchControls = ({
 const PANEL_PX = 170 // about how tall the settings panel is
 const PANEL_SPOTS = ["top", "middle", "bottom"]
 
-const EditLayer = ({ controls, draft, setDraft, rects, size, zoneIds, defaults, selected, setSelected, haptics, onDone, onCancel }) => {
+const EditLayer = ({ controls, draft, setDraft, rects, size, zoneIds, defaults, selected, setSelected, haptics, settings, onDone, onCancel }) => {
   const layerRef = useRef(null)
   const gesture = useRef({ pointers: new Map(), mode: null, id: null, start: null })
   const [panelAt, setPanelAt] = useState(null) // "top" | "middle" | "bottom"
@@ -493,6 +497,7 @@ const EditLayer = ({ controls, draft, setDraft, rects, size, zoneIds, defaults, 
         <div className="window-body tcPanelBody">
           {!collapsed && (
             <>
+              {settings}
               <div className="tcHint">
                 {sel ? (
                   <>
@@ -546,7 +551,7 @@ const EditLayer = ({ controls, draft, setDraft, rects, size, zoneIds, defaults, 
 }
 
 // 98.css draws the box on the label that follows the input
-const Check = ({ label, checked, onChange }) => {
+export const Check = ({ label, checked, onChange }) => {
   const id = useId()
   return (
     <span className="tcCheck">
@@ -556,7 +561,7 @@ const Check = ({ label, checked, onChange }) => {
   )
 }
 
-const Slider = ({ label, name, min, max, value, onChange }) => {
+export const Slider = ({ label, name, min, max, value, onChange }) => {
   const id = useId()
   return (
     <div className="tcSlider">

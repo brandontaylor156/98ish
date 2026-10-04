@@ -28,7 +28,10 @@ const TIPS = {
     "Deleted something by accident? It's waiting in the Recycle Bin.",
   ],
   Minesweeper: ["Click both mouse buttons on a number to clear around it, if you've flagged enough mines."],
-  Tetris: ["Hold a piece for later with the Hold box. Saves lives."],
+  Tetris: [
+    "Hold a piece for later with the Hold box. Saves lives.",
+    "On a phone, drag the piece with your finger, flick down to drop it and swipe up to hold. Tap to rotate!",
+  ],
   "Internet Explorer": ["Change the date in the toolbar to see websites the way they looked back then."],
   Compass: [
     "Compass is the real, modern Web. Type an address or just search for something in the bar at the top.",

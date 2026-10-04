@@ -180,6 +180,61 @@
   flex-basis: 56px;
 }
 
+/* Swipe gestures (hooks/useSwipeControls.js): the window takes every touch itself, so the
+   page never scrolls, zooms or selects under a drag */
+.tetrisWindow[data-scheme="gestures+buttons"],
+.tetrisWindow[data-scheme="gestures"] {
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Gestures + buttons: one slim, see-through row under the board (tetrisControls.jsx
+   GESTURE_ROW), so the board gets the room the d-pad had */
+.tetrisWindow[data-scheme="gestures+buttons"] .tetrisPad {
+  height: 48px;
+}
+
+/* Gestures only: just Pause (and Item) at the bottom of the side panels */
+.tetrisSideButtons--slim {
+  flex-basis: 38px;
+}
+
+.tetrisTouchSettings {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid #808080;
+  box-shadow: 0 1px #fff;
+}
+
+.tetrisTouchSettings select {
+  flex: 1;
+  min-width: 0;
+}
+
+/* First game with swipes: how they work (gone at the first touch) */
+.tetrisSwipeHint {
+  position: absolute;
+  left: 50%;
+  top: 30%;
+  transform: translateX(-50%);
+  z-index: 2;
+  pointer-events: none;
+  padding: 6px 10px;
+  background: rgba(0, 0, 0, 0.75);
+  color: #fff;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: nowrap;
+  text-align: center;
+}
+
+.tetrisTouchHelp {
+  font-size: 11px;
+  color: #404040;
+}
+
 .tcButton.tetrisItemButton {
   font-size: 11px;
 }

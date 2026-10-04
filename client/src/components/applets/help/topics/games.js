@@ -109,6 +109,7 @@ export const topics = [
           "**Reset** puts everything back where it started.",
           "**Vibrate on press** gives a little buzz on each press (Android only; iPhones don't allow it).",
           "Your layout is saved separately for portrait and landscape.",
+          "In Tetris the panel also chooses between swiping and buttons (**Play with**), with **Drag speed** and what a tap rotates (see [[tetris]]).",
         ],
       },
       { note: "On a computer with a touch screen, turn the buttons on or off with **Show Touch Controls** in the game's menu." },
@@ -122,7 +123,7 @@ export const topics = [
     book: "games-action",
     title: "Tetris",
     summary: "Fit the falling pieces together and clear lines. Four ways to play alone.",
-    keywords: ["blocks", "falling blocks", "Marathon", "Sprint 40L", "Ultra", "Survival", "hold piece", "ghost piece", "T-spin", "line clear"],
+    keywords: ["blocks", "falling blocks", "Marathon", "Sprint 40L", "Ultra", "Survival", "hold piece", "ghost piece", "T-spin", "line clear", "swipe", "drag", "flick", "gestures", "drag speed"],
     programs: ["Tetris"],
     body: [
       "Pieces made of four squares fall into the well. Move and turn them so they fit together. Fill a whole row and it disappears. If the pile reaches the top, the game is over.",
@@ -153,9 +154,33 @@ export const topics = [
         ],
       },
       {
-        phone: "Use the buttons under the well: the arrows move, the big button on the right drops the piece all the way, and the rotate button sits above the arrows. Tap the down arrow to drop one row, or hold it to fall fast. Hold and Pause are in the left panel. You can move and resize the buttons (see [[touch-controls]]).",
+        phone: "Play with your finger on the well, like the Tetris app (see the table below). A slim row of buttons under the well also rotates either way, drops one row (hold it to fall fast) and drops all the way; Hold and Pause are in the left panel.",
         computer: "Use the keys above. Hold an arrow to slide the piece along.",
       },
+      { h: "Swipe controls on a phone" },
+      {
+        table: {
+          head: ["Do this on the well", "To"],
+          rows: [
+            ["Drag left or right", "Move the piece. It follows your finger, one column for each square you slide."],
+            ["Drag down slowly", "Soft drop: one row for each square you slide."],
+            ["Flick down quickly", "Hard drop: all the way down."],
+            ["Swipe up", "Hold the piece for later."],
+            ["Tap", "Rotate clockwise."],
+          ],
+        },
+      },
+      {
+        steps: [
+          "Pause, then tap **Controls...** (or choose **Customize controls...** under **Options »** on the start screen).",
+          "In **Play with**, pick **Gestures + buttons** (the usual), **Gestures only**, or **Buttons only** (the classic arrows, with no swiping).",
+          "**Drag speed** sets how far the piece goes for each square you slide (100% follows your finger exactly).",
+          "Tick **Tap left half to rotate left** to turn counterclockwise with a tap on the left side and clockwise on the right.",
+        ],
+        title: "To change how you play:",
+      },
+      { tip: "Slide over, then drag down in one motion to soft drop where you want. A sideways slide never drops the piece by itself, even if your finger dips at the end." },
+      { note: "Swiping works the same in Tetris Online. The buttons can be moved and resized too (see [[touch-controls]])." },
       { h: "Scoring" },
       "Clearing several lines at once scores more, and four at once (a Tetris) is the best. Twisting a T-shaped piece into a tight spot (a T-spin), clearing lines several pieces in a row (a combo) and emptying the whole well (a perfect clear) earn bonuses. The faint outline at the bottom (the ghost piece) shows where your piece will land.",
       { tip: "Keep one column empty along the side, then drop the long straight piece in for a Tetris." },

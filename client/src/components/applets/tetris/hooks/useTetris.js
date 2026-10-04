@@ -142,6 +142,21 @@ export const useTetris = (mode = "marathon", { seed, running = true, onAction } 
     }
   }
 
+  // Swipe gestures: one column or one row now, with no auto-repeat (the finger is the
+  // repeat). Returns false when the piece couldn't go (a wall, the floor) or isn't playing.
+  const step = (stepped) => {
+    const action = swap(stepped)
+    if (!runningRef.current) return false
+    const before = gameRef.current.active
+    if (action === "left" || action === "right") update((state) => move(state, action === "left" ? -1 : 1))
+    else if (action === "softDrop") update(softDropStep)
+    else {
+      press(stepped)
+      return true
+    }
+    return gameRef.current.active !== before
+  }
+
   const release = (released) => {
     const action = swap(released)
     const held = input.current
@@ -186,5 +201,5 @@ export const useTetris = (mode = "marathon", { seed, running = true, onAction } 
   const pause = () => update((state) => (state.status === "playing" ? togglePause(state) : state))
   const resume = () => update((state) => (state.status === "paused" ? togglePause(state) : state))
 
-  return { game, gameRef, update, reset, press, release, onKeyDown, onKeyUp, releaseKeys, pause, resume, setMirror }
+  return { game, gameRef, update, reset, press, step, release, onKeyDown, onKeyUp, releaseKeys, pause, resume, setMirror }
 }

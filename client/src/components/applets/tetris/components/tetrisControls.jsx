@@ -99,8 +99,56 @@ export const TETRIS_CONTROLS = [
   },
 ]
 
+// With swipe gestures on the board (utils/gestures.js) the pad shrinks to one compact,
+// see-through row: soft drop and hard drop on the left, rotate left and right on the right
+// (portrait: under the board; landscape: at the screen edges). Hold, Pause and Item keep
+// their spots in the side panels. Each scheme saves its own arrangement (controlsGameFor),
+// so the classic pad's is kept for anyone who switches back.
+export const GESTURE_ROW = 48
+const SEE_THROUGH = 0.75
+
+const row = (side, offset, width) => (size) => fromPx(size, { [side]: PAD + offset, bottom: PAD, width, height: GESTURE_ROW })
+const atRow = (side, offset, width) => ({ portrait: row(side, offset, width), landscape: row(side, offset, width) })
+
+const GESTURE_BUTTONS = [
+  { id: "rotateRight", label: "Rotate", icon: GLYPHS.rotateRight, className: "tetrisPadButton", opacity: SEE_THROUGH, default: atRow("right", 0, 72) },
+  { id: "rotateLeft", label: "Rotate left", icon: GLYPHS.rotateLeft, className: "tetrisPadButton", opacity: SEE_THROUGH, default: atRow("right", 72 + PAD, 56) },
+  { id: "softDrop", label: "Soft drop", icon: GLYPHS.down, className: "tetrisPadButton", opacity: SEE_THROUGH, default: atRow("left", 0, 56) },
+  { id: "hardDrop", label: "Hard drop", icon: GLYPHS.hardDrop, className: "tetrisPadButton tetrisPad--drop", opacity: SEE_THROUGH, default: atRow("left", 56 + PAD, 56) },
+]
+
+const byId = (id) => TETRIS_CONTROLS.find((c) => c.id === id)
+// a side-panel button at `bottom` px (portrait) and the classic spot in landscape
+const sideAt = (id, portrait, landscape) => {
+  const c = byId(id)
+  return { ...c, default: { portrait, landscape: landscape || c.default.landscape } }
+}
+
+const SCHEME_CONTROLS = {
+  buttons: TETRIS_CONTROLS,
+  // the row under the board is lower than the classic pad: Hold and Pause move down with it
+  "gestures+buttons": [
+    ...GESTURE_BUTTONS,
+    sideAt("hold", (size) => fromPx(size, { left: PAD, bottom: PAD + GESTURE_ROW + PAD, width: 64, height: ROW })),
+    sideAt("pause", (size) => fromPx(size, { left: PAD, bottom: PAD + GESTURE_ROW + PAD + ROW + PAD, width: 64, height: 32 })),
+    sideAt("item", (size) => fromPx(size, { right: PAD, bottom: PAD + GESTURE_ROW + PAD, width: 64, height: ROW })),
+  ],
+  // gestures only: Pause and Item at the very bottom of the side panels
+  gestures: [
+    sideAt(
+      "pause",
+      (size) => fromPx(size, { left: PAD, bottom: PAD, width: 64, height: 32 }),
+      (size) => fromPx(size, { left: landscapeSide(size), bottom: PAD, width: 64, height: 32 })
+    ),
+    sideAt("item", (size) => fromPx(size, { right: PAD, bottom: PAD, width: 64, height: ROW })),
+  ],
+}
+
+// Where each scheme's arrangement is saved (shared/controls, per orientation)
+export const controlsGameFor = (scheme) => ({ buttons: "tetris", gestures: "tetris-swipe" })[scheme] || "tetris-gestures"
+
 // The same layout for every mode (so a player's arrangement carries over: positions are
 // saved by id). The Item button only exists in the Arena and Pause only offline (a match
 // doesn't stop), so neither shows up, even in the layout editor, where it does nothing.
-export const controlsFor = ({ item = false, pause = true } = {}) =>
-  TETRIS_CONTROLS.filter((c) => (c.id === "item" ? item : c.id === "pause" ? pause : true))
+export const controlsFor = ({ item = false, pause = true, scheme = "buttons" } = {}) =>
+  (SCHEME_CONTROLS[scheme] || TETRIS_CONTROLS).filter((c) => (c.id === "item" ? item : c.id === "pause" ? pause : true))
