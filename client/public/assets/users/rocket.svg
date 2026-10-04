@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <!-- user picture: a rocket -->
+  <rect width="48" height="48" fill="#101848"/>
+  <g shape-rendering="crispEdges">
+    <g fill="#fff"><rect x="6" y="8" width="2" height="2"/><rect x="38" y="6" width="2" height="2"/><rect x="40" y="30" width="2" height="2"/><rect x="8" y="36" width="2" height="2"/></g>
+    <rect x="20" y="8" width="8" height="4" fill="#e0e0e0"/><rect x="18" y="12" width="12" height="20" fill="#e0e0e0"/><rect x="22" y="4" width="4" height="4" fill="#d02020"/>
+    <rect x="21" y="16" width="6" height="6" fill="#40a0ff"/><rect x="22" y="17" width="2" height="2" fill="#c0e8ff"/>
+    <rect x="12" y="26" width="6" height="8" fill="#d02020"/><rect x="30" y="26" width="6" height="8" fill="#d02020"/>
+    <rect x="20" y="32" width="8" height="4" fill="#808080"/><rect x="20" y="36" width="8" height="4" fill="#ff9020"/><rect x="22" y="40" width="4" height="4" fill="#ffe040"/>
+  </g>
+</svg>

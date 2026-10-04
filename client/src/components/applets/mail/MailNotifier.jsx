@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react"
 import { useAim } from "../aim/AimContext"
 import { SERVER_URL, openMail, playMailChime, setMailStatus } from "./mailStatus"
 import { notify } from "../../../utils/notifications"
+import { notifyLocked } from "../../../utils/lock"
 import "./MailNotifier.css"
 
 // Always on the desktop while signed on to 98 Messenger: keeps the unread count fresh,
@@ -34,6 +35,7 @@ const MailNotifier = ({ socket, windows, dispatch }) => {
       playMailChime()
       setToast({ from: String(mail?.from || ""), subject: String(mail?.subject || "") })
       notify({ app: "mail", key: mail?.id ? `mail:${mail.id}` : null, title: `New mail from ${mail?.from || "someone"}`, text: mail?.subject || "(no subject)", target: { kind: "mail" } })
+      notifyLocked() // the lock screen says only "New message"
     }
     socket.on("mail:new", onMail)
     return () => socket.off("mail:new", onMail)

@@ -4,6 +4,8 @@ import "./Aim.css"
 import { unlock } from "../../../utils/achievements"
 import { launch } from "../../../utils/programs"
 import { getNotifications, notify } from "../../../utils/notifications"
+import { notifyLocked } from "../../../utils/lock"
+import { currentUser } from "../../../utils/users"
 
 // One 98 Messenger session shared by every Messenger window: the Buddy List ("98 Messenger"),
 // Instant Message windows, chat rooms, Buddy Info and chat invitations.
@@ -31,7 +33,9 @@ const DEFAULT_PREFS = {
 const loadPrefs = () => {
   try {
     const saved = JSON.parse(localStorage.getItem(PREFS_KEY))
-    return { ...DEFAULT_PREFS, ...saved, style: { ...DEFAULT_PREFS.style, ...saved?.style } }
+    // a 98ish user with a linked screen name finds it filled in at Sign On
+    const linked = currentUser()?.screenName || ""
+    return { ...DEFAULT_PREFS, ...saved, lastScreenName: saved?.lastScreenName || linked, style: { ...DEFAULT_PREFS.style, ...saved?.style } }
   } catch {
     return DEFAULT_PREFS
   }
@@ -369,6 +373,7 @@ export const AimProvider = ({ socket, windows, dispatch: dispatchWindow, onOpenV
       "aim:im": (message) => {
         dispatch({ type: "message", screenName: message.from, message })
         sound("imReceive")
+        notifyLocked() // the lock screen says only "New message"
         openIm(message.from, { focus: false })
         // the Notification Center, unless that conversation is right in front of you (and
         // you've seen it: an item still unread keeps up)

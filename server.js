@@ -51,6 +51,18 @@ app.use("/api", guestbookRouter())
 const port = process.env.PORT || 8000
 const server = app.listen(port, () => console.log(`The server is all fired up on port ${port}`))
 
+// Render's free plan puts the server to sleep after 15 minutes without a visitor (waking
+// takes 20-50 s, and scheduled reminders and pushes wait for it). On Render (which sets
+// RENDER_EXTERNAL_URL) it visits itself every 10 minutes through the public address, which
+// counts as a visit. One always-on service fits in the free plan's monthly hours.
+// KEEP_AWAKE=0 turns it off.
+if (process.env.RENDER_EXTERNAL_URL && process.env.KEEP_AWAKE !== "0") {
+  const selfUrl = process.env.RENDER_EXTERNAL_URL.replace(/\/$/, "") + "/"
+  setInterval(() => {
+    fetch(selfUrl, { headers: { "user-agent": "98ish-keep-awake" } }).catch(() => {})
+  }, 10 * 60 * 1000).unref()
+}
+
 // room for a picture or a sound sent over Network Neighborhood (1.5 MB as a data URL)
 const io = require("socket.io")(server, { cors: true, maxHttpBufferSize: 2 * 1024 * 1024 })
 

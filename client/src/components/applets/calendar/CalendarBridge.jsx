@@ -8,6 +8,7 @@ import { OPEN_EVENT, VIEW_EVENT, allEvents, applyLive, calendarById, getCal, ans
 import { dueAlarms, getClockApp, markRang, cancelTimer, useClockApp, timerLeft } from "./clockStore"
 import { playNotice, playReminder, ringAlarm } from "./sounds"
 import { notify as notifyCenter } from "../../../utils/notifications"
+import { isLocked, notifyLocked } from "../../../utils/lock"
 import "./CalendarBridge.css"
 
 // Lives on the desktop (inside 98 Messenger's provider), whether or not Calendar is open:
@@ -48,8 +49,11 @@ const writeState = (s) => {
 
 // a system notification, when 98ish isn't in front and they've been allowed
 const notify = (title, body, tag) => {
+  notifyLocked() // the lock screen says only "New message"
   try {
     if (typeof Notification === "undefined" || Notification.permission !== "granted" || document.visibilityState === "visible") return
+    // locked: no details on the phone's lock screen either
+    if (isLocked()) [title, body] = ["98ish", "New reminder"]
     const options = { body, tag, icon: "/assets/program_icons/calendar.svg" }
     if (navigator.serviceWorker?.controller) navigator.serviceWorker.ready.then((r) => r.showNotification(title, options)).catch(() => {})
     else new Notification(title, options)

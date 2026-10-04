@@ -21,7 +21,14 @@ import { unlock } from "./utils/achievements"
 import { programByName } from "./utils/programs"
 import { endTour, getTour, useTour, welcomeAtStartup, welcomeWindow } from "./utils/welcome"
 
+import { hasSecret, lockNow, useLock, watchActivity } from "./utils/lock"
+import { hasProfiles, takeLoggedOnFlag } from "./utils/users"
+import { launch } from "./utils/programs"
+import "./components/OS-specific/lock/Lock.css"
+
 const MsDos = lazyApp(() => import("./components/applets/dos/MsDos"))
+// the lock screen's dialogs load when it first shows; until then a plain cover hides everything
+const LockScreen = React.lazy(() => import("./components/OS-specific/lock/LockScreen"))
 const Tour = React.lazy(() => import("./components/applets/welcome/Tour"))
 import { Screensaver, optionsFor, saverById, useIdle } from "./components/screensavers"
 
@@ -229,7 +236,9 @@ const fromNotification = () => {
     return false
   }
 }
-const firstPhase = () => (getSettings().bootScreen && !fromNotification() ? "boot" : "desktop")
+// (not after logging on as someone else: that reloads the page, and they just logged on)
+const loggedOn = takeLoggedOnFlag()
+const firstPhase = () => (getSettings().bootScreen && !fromNotification() && !loggedOn ? "boot" : "desktop")
 
 function App() {
   const [windows, dispatch] = useReducer(reducer, [])
@@ -244,7 +253,47 @@ function App() {
   // the screen saver, after the chosen wait with no input (only on the desktop)
   const [saverOn, setSaverOn] = useState(false)
   const saverId = saverById(settings.screensaver) ? settings.screensaver : null
-  useIdle(phase === "desktop" && saverId ? settings.screensaverWait : 0, () => setSaverOn(true))
+  useIdle(phase === "desktop" && saverId ? settings.screensaverWait : 0, () => {
+    setSaverOn(true)
+    // "Password protected": the screen saver locks, and the PIN is asked when it ends
+    if (getSettings().lockOnSaver) lockNow()
+  })
+
+  // the lock screen: locked by hand (Start > Lock Computer, Win+L, Ctrl+Alt+L), after the
+  // idle wait, by the screen saver, or on opening 98ish again after being away
+  const { locked } = useLock()
+  useEffect(() => {
+    if (phase !== "desktop") return
+    return watchActivity()
+  }, [phase])
+  useEffect(() => {
+    document.documentElement.classList.toggle("os-locked", locked)
+    if (locked) {
+      closeMenu()
+      setPower(null)
+    }
+  }, [locked])
+  const lockComputer = () => {
+    closeMenu()
+    // nothing to unlock with yet: Passwords Properties, to set one
+    if (!lockNow()) dispatch({ type: "open_window", payload: launch("Passwords", { tab: "change", reason: "lock" }) })
+  }
+  useEffect(() => {
+    if (phase !== "desktop") return
+    const onKey = (e) => {
+      if (e.code !== "KeyL" || e.shiftKey) return
+      const win = e.metaKey && !e.ctrlKey && !e.altKey
+      const ctrlAlt = e.ctrlKey && e.altKey && !e.metaKey && !e.getModifierState?.("AltGraph")
+      if (!win && !ctrlAlt) return
+      e.preventDefault()
+      e.stopPropagation()
+      lockComputer()
+    }
+    window.addEventListener("keydown", onKey, true)
+    return () => window.removeEventListener("keydown", onKey, true)
+  }, [phase])
+  // Log On after a restart, when there's more than one user or a password
+  const logOnNext = useRef(false)
 
   const closeMenu = () => {
     setResults([])
@@ -260,7 +309,15 @@ function App() {
     if (phase === "desktop" && !getSettings().bootScreen && getSettings().startupSound) playStartupSound()
   }, [])
 
-  const restart = () => setPhase(getSettings().bootScreen ? "boot" : "desktop")
+  const restart = () => {
+    logOnNext.current = hasProfiles() || hasSecret()
+    setPhase(getSettings().bootScreen ? "boot" : logOnNext.current ? "logOn" : "desktop")
+  }
+  const booted = () => {
+    if (!logOnNext.current) return startedUp()
+    logOnNext.current = false
+    setPhase("logOn")
+  }
 
   // Welcome to 98ish, once the startup screens are done (once per visit; utils/welcome.js
   // says when not). Leaving the desktop mid-tour ends the tour.
@@ -335,6 +392,7 @@ function App() {
                 mobile={mobile}
                 onShutDown={() => setPower("shutdown")}
                 onLogOff={() => setPower("logoff")}
+                onLock={lockComputer}
               />
               {results.length !== 0 && (
                 <LiveSearch results={results} dispatch={dispatch} closeMenu={closeMenu} />
@@ -387,13 +445,20 @@ function App() {
           )}
         </>
       )}
-      {phase === "boot" && <BootScreen onDone={startedUp} />}
+      {phase === "boot" && <BootScreen onDone={booted} />}
       {phase === "logOn" && <LogOn onDone={startedUp} />}
       {phase === "shuttingDown" && <ShuttingDown onDone={() => setPhase("off")} />}
       {phase === "restarting" && <ShuttingDown onDone={restart} />}
       {phase === "off" && <SafeToTurnOff onPowerOn={restart} />}
       {phase === "dos" && <MsDos fullScreen onClose={restart} />}
       {phase === "bsod" && <BlueScreen process={crashed} onDone={restart} />}
+      {locked && phase !== "logOn" && (
+        <React.Suspense fallback={<div className="lockScreen" />}>
+          <LockScreen
+            onReset={() => dispatch({ type: "open_window", payload: launch("Passwords", { tab: "change", reason: "reset" }) })}
+          />
+        </React.Suspense>
+      )}
       <AchievementToast />
       {/* the 98ish on-screen keyboard (touch screens only) */}
       <KeyboardHost />

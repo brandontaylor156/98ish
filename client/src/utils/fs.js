@@ -4,6 +4,7 @@
 // Deleting moves items to the Recycle Bin, which remembers where they came from.
 
 import { unlock } from "./achievements"
+import { userKey } from "./users"
 
 const listeners = new Set()
 let notifyQueued = false
@@ -584,7 +585,8 @@ const addAt = (fsys, [path, kind, type, text = ""]) => {
 
 // ---------- saving to this device ----------
 
-const STORAGE_KEY = "98ish.fs.v1"
+// each user's own drive (utils/users.js: the default user keeps "98ish.fs.v1")
+const STORAGE_KEY = userKey("98ish.fs.v1")
 
 const serialize = (item) =>
   item.isDirectory

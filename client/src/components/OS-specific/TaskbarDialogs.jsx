@@ -13,6 +13,7 @@ export const SHORTCUTS = [
   ["Ctrl+Alt+D", "Show the desktop (press again to bring the windows back)."],
   ["Ctrl+Alt+R", "Run..."],
   ["Ctrl+Alt+K", "This list of shortcuts."],
+  ["Ctrl+Alt+L, or Windows/Command+L", "Lock 98ish (set a PIN or password in Passwords first)."],
 ]
 
 const TaskbarProperties = ({ settings, mobile, onClose }) => {

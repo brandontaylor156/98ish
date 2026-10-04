@@ -2,6 +2,8 @@ import React, { useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import Dialog from "../../shared/Dialog"
 import { SCREENSAVERS, Screensaver, ScreensaverPreview, optionsFor, saverById } from "../../screensavers"
+import { hasSecret } from "../../../utils/lock"
+import { shellAction } from "../../../utils/shell"
 
 // Display Properties > Screen Saver: pick one, how long to wait, its settings, and a
 // preview (live in the little monitor, or full screen until you move the mouse).
@@ -62,6 +64,14 @@ const ScreenSaverTab = ({ draft, update, screenStyle }) => {
             onBlur={() => setWait(String(draft.screensaverWait))}
           />
           <label htmlFor="dp-wait">minutes</label>
+        </div>
+        {/* Windows 98's screen saver password: here it locks 98ish (utils/lock.js) */}
+        <div className="ssTabRow">
+          <input id="dp-saverlock" type="checkbox" disabled={!saver} checked={!!draft.lockOnSaver && hasSecret()} onChange={(e) => (hasSecret() ? update({ lockOnSaver: e.target.checked }) : shellAction("passwords"))} />
+          <label htmlFor="dp-saverlock">Password protected</label>
+          <button type="button" onClick={() => shellAction("passwords")}>
+            Change...
+          </button>
         </div>
       </fieldset>
       <p className="dpHint">The screen saver starts when you leave 98ish alone for the wait time. Move the mouse, press a key or touch the screen to come back.</p>

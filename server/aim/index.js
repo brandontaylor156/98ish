@@ -365,6 +365,30 @@ const attachAim = async (io, { store, bot, ice, callRingMs, callLostMs, push = n
       }
     })
 
+    // 98ish's lock screen "Forgot PIN?": checks a screen name and password without signing
+    // on (no session, no buddies told). Same failed-try limits as signing on.
+    socket.on("aim:verify", async (payload = {}, ack = () => {}) => {
+      if (typeof ack !== "function") return
+      try {
+        const { screenName, key, error } = validate(payload.screenName)
+        if (failedByIp.over(ip) || (key && failedByName.over(key))) {
+          return ack({ ok: false, error: "Too many failed attempts. Please wait a few minutes." })
+        }
+        if (error) return ack({ ok: false, error })
+        const password = String(payload.password || "")
+        const user = key === BOT_KEY || password.length < 4 || password.length > 64 ? null : await store.find(key)
+        if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
+          failedByIp(ip)
+          failedByName(key)
+          return ack({ ok: false, error: "Incorrect screen name or password." })
+        }
+        ack({ ok: true, screenName: user.screenName || screenName })
+      } catch (error) {
+        console.error("[aim] verify failed", error)
+        ack({ ok: false, error: "The 98 Messenger service is temporarily unavailable. Please try again." })
+      }
+    })
+
     // Reattach after a dropped connection without buddies seeing a sign off
     socket.on("aim:resume", (payload = {}, ack = () => {}) => {
       if (typeof ack !== "function") return

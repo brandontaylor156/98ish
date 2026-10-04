@@ -3,6 +3,7 @@ import { NEXT_PHOTO_EVENT, coupleApi, getCouple, on, openCouples, serverNow, use
 import { setOurPhoto, useSettings } from "../../../utils/settings"
 import { unlock } from "../../../utils/achievements"
 import { notify } from "../../../utils/notifications"
+import { notifyLocked } from "../../../utils/lock"
 import { TwoHearts } from "./art"
 import { dateLabel, loadPhoto, playLoveChime } from "./shared"
 import "./CoupleOverlays.css"
@@ -122,6 +123,7 @@ const CoupleOverlays = () => {
 
   // each toast also lands in the Notification Center (key: the same as its push, if any)
   const toast = (t) => {
+    notifyLocked() // the lock screen says only "New message"
     setToasts((list) => [...list.slice(-2), { ...t, id: ++idRef.current }])
     notify({ app: "couples", title: t.title, text: t.text, key: t.key || null, target: t.target || { kind: "program", name: t.title === "Our Pet" ? "Our Pet" : "Us" } })
   }

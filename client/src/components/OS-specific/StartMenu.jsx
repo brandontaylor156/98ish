@@ -7,6 +7,7 @@ import { iconFor } from "../../utils/fileInfo"
 import RunDialog from "./RunDialog"
 import { shellAction } from "../../utils/shell"
 import { getTour, startTour } from "../../utils/welcome"
+import { currentUserName } from "../../utils/users"
 import "./StartMenu.css"
 
 const GROUPS = ["Accessories", "Business", "Community", "Games", "Internet", "Entertainment", "System Tools", "Us", "My Projects"]
@@ -29,17 +30,11 @@ const ICON = {
   group: "/assets/directory_folder.png",
 }
 
-const userName = () => {
-  try {
-    return localStorage.getItem("98ish.user") || "Guest"
-  } catch {
-    return "Guest"
-  }
-}
+const userName = currentUserName
 
 // The Start menu, Windows 98 style: the banner down the side, cascading submenus that
 // open on hover (or tap, and drill down on phones), Find, Run, Log Off and Shut Down.
-const StartMenu = ({ dispatch, setResults, closeMenu, onShutDown, onLogOff, mobile }) => {
+const StartMenu = ({ dispatch, setResults, closeMenu, onShutDown, onLogOff, onLock, mobile }) => {
   useFsVersion()
   const [query, setQuery] = useState("")
   const [run, setRun] = useState(false)
@@ -117,6 +112,7 @@ const StartMenu = ({ dispatch, setResults, closeMenu, onShutDown, onLogOff, mobi
         { label: "Display Properties", icon: "/assets/vaporwave.png", onClick: () => go(launch("Display Properties")) },
         { label: "Date/Time Properties", icon: "/assets/program_icons/datetime.svg", onClick: () => go(launch("Date/Time Properties")) },
         { label: "Keyboard", icon: "/assets/program_icons/keyboard.svg", onClick: () => go(launch("Keyboard Properties")) },
+        { label: "Passwords and Users", icon: "/assets/program_icons/passwords.svg", onClick: () => go(launch("Passwords")) },
         { label: "Desktop Themes", icon: "/assets/program_icons/themes.svg", onClick: () => go(launch("Desktop Themes")) },
         { label: "Taskbar & Start Menu...", icon: "/assets/start98.png", onClick: () => (closeMenu(), shellAction("taskbar-properties")) },
         { label: "Notifications...", icon: "/assets/program_icons/winpopup.svg", onClick: () => (closeMenu(), shellAction("notification-settings")) },
@@ -154,6 +150,15 @@ const StartMenu = ({ dispatch, setResults, closeMenu, onShutDown, onLogOff, mobi
     },
     { label: "Run...", key: "R", icon: ICON.run, onClick: () => setRun(true) },
     "-",
+    {
+      label: "Lock Computer...",
+      key: "k",
+      icon: "/assets/program_icons/passwords.svg",
+      onClick: () => {
+        closeMenu()
+        onLock?.()
+      },
+    },
     {
       label: `Log Off ${userName()}...`,
       key: "L",

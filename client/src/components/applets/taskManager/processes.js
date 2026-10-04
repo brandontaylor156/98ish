@@ -42,6 +42,7 @@ export const APP_PROFILES = {
   "Recycle Bin": { image: "explorer.exe", mem: 2980, threads: 4, handles: 71, cpu: [0.1, 1] },
   "Windows Update": { image: "wupdmgr.exe", mem: 3204, threads: 5, handles: 88, cpu: [0.1, 4] },
   "Display Properties": { image: "rundll32.exe", mem: 1704, threads: 2, handles: 39, cpu: [0.05, 1] },
+  Passwords: { image: "rundll32.exe", mem: 1210, threads: 2, handles: 31, cpu: [0.05, 1] },
   Calculator: { image: "calc.exe", mem: 1124, threads: 1, handles: 19, cpu: [0.05, 1] },
   Calendar: { image: "calndr98.exe", mem: 2480, threads: 3, handles: 41, cpu: [0.05, 1.5] },
   Clock: { image: "clock.exe", mem: 640, threads: 2, handles: 14, cpu: [0.1, 1] },

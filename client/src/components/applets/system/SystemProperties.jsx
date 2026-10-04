@@ -2,6 +2,7 @@ import React, { useState } from "react"
 import { VERSION } from "../dos/commands"
 import { useAchievements } from "../../../utils/achievements"
 import { Trophy } from "../../OS-specific/AchievementToast"
+import { currentUserName } from "../../../utils/users"
 import "./SystemProperties.css"
 
 const TABS = [
@@ -9,13 +10,7 @@ const TABS = [
   { id: "achievements", label: "Achievements" },
 ]
 
-const userName = () => {
-  try {
-    return localStorage.getItem("98ish.user") || "Guest"
-  } catch {
-    return "Guest"
-  }
-}
+const userName = currentUserName
 
 // a made-up but plausible product ID, the same every time for this browser
 const productId = () => {

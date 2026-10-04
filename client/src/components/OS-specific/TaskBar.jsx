@@ -136,6 +136,7 @@ const TaskBar = ({ windows, dispatch, setStartMenuVisible, startMenuVisible }) =
       else if (action === "run" || action === "properties" || action === "shortcuts") setDialog(action)
       else if (action === "taskbar-properties") setDialog("properties")
       else if (action === "themes") dispatch({ type: "open_window", payload: launch("Desktop Themes") })
+      else if (action === "passwords") dispatch({ type: "open_window", payload: launch("Passwords") })
     }
     window.addEventListener(SHELL_EVENT, onShell)
     return () => window.removeEventListener(SHELL_EVENT, onShell)

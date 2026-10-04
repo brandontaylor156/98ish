@@ -1,3 +1,5 @@
+// first: each user's localStorage keys (utils/users.js), before any module reads them
+import "./utils/userStorage"
 import React from "react"
 import ReactDOM from "react-dom/client"
 import App from "./App"

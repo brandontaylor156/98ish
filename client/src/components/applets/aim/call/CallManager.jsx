@@ -6,6 +6,7 @@ import * as engine from "./engine"
 import { playConnected, playHangUp, playModem, startRingback, startRingtone, stopVibrate, vibrateRing } from "./callSounds"
 import { PhoneIcon, VideoIcon } from "./CallIcons"
 import { notify as notifyCenter } from "../../../../utils/notifications"
+import { setCallLive, setLockCall } from "../../../../utils/lock"
 import "./call.css"
 
 // Mounted while you're signed on to 98 Messenger: connects the call engine to the
@@ -129,8 +130,22 @@ const CallManager = () => {
     if (phase === "ended" && ["outgoing", "connecting", "active"].includes(before)) playHangUp()
   }, [phase])
 
+  // the lock screen shows who's calling (Answer there waits for the unlock), and 98ish
+  // doesn't lock itself for being idle in the middle of a call
+  const peer = call.peer
+  const video = !!call.video
+  useEffect(() => {
+    if (phase !== "incoming") return setLockCall(null)
+    setLockCall({ peer, video, answer: (withVideo) => engine.answer(withVideo), decline: () => engine.decline() })
+    return () => setLockCall(null)
+  }, [phase, peer, video])
+
   // iPhone: the call holds the microphone audio session ("play-and-record")
   const live = ["outgoing", "connecting", "active"].includes(phase)
+  useEffect(() => {
+    setCallLive(live)
+    return () => setCallLive(false)
+  }, [live])
   useEffect(() => {
     if (!live) return
     return claimCallSession()

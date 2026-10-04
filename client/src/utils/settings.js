@@ -62,6 +62,9 @@ export const DEFAULT_SETTINGS = {
   screensaver: "none", // an id from components/screensavers, or "none"
   screensaverWait: 10, // minutes
   screensaverOptions: {}, // { [id]: that screensaver's options }
+  // the lock screen (utils/lock.js), when you have a password or PIN (Passwords Properties)
+  lockAfter: 5, // minutes with no input before 98ish locks (0 = never)
+  lockOnSaver: true, // Display Properties' "Password protected": the screen saver locks
   volume: 80, // the taskbar speaker: 0-100, for system sounds and Media Player
   muted: false,
   soundScheme: "classic", // system sound flavor (Desktop Themes): classic | space | ocean | synth | dino

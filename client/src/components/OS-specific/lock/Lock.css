@@ -1,0 +1,235 @@
+/* The lock screen (LockScreen.jsx), Log On's user list, the PIN pad */
+
+/* While locked nothing of the desktop is drawn: every other layer is hidden (the lock
+   screen is opaque too). Programs keep running underneath. Pictures, letters and chats
+   opened full screen into <body> (Our Story, Paint, WordPad) are hidden as well. */
+html.os-locked .os-root > :not(.lockScreen):not(.kb98):not(.kb98Restore),
+html.os-locked body > :not(#root):not(.ssOverlay):not(script) {
+  visibility: hidden !important;
+}
+
+.lockScreen {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483050; /* over full-screen programs (2147483000), under the keyboard and screen savers */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  /* plain color: the wallpaper may be a private photo */
+  background: #008080;
+  color: #fff;
+  overflow: auto;
+  padding: max(12px, env(safe-area-inset-top)) 12px max(12px, env(safe-area-inset-bottom));
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.lockClock {
+  text-align: center;
+  margin: 2vh 0 2vh;
+  text-shadow: 1px 1px 0 #004040;
+}
+
+.lockTime {
+  font-size: clamp(36px, 9vh, 72px);
+  line-height: 1;
+}
+
+.lockDate {
+  font-size: 16px;
+  margin-top: 4px;
+}
+
+.lockStack {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: min(380px, 100%);
+}
+
+.lockDialog,
+.lockCall,
+.lockNotice {
+  width: 100%;
+  color: #000;
+  /* not a desktop window's full height (main.css .window) */
+  height: auto;
+  min-height: 0;
+  min-width: 0;
+  overflow: visible;
+  flex: none;
+}
+
+.lockBody {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.lockText {
+  margin: 0;
+  line-height: 1.4;
+}
+
+.lockLabel {
+  margin-top: 2px;
+}
+
+.lockBody input[type="password"],
+.lockBody input[type="text"] {
+  width: 100%;
+}
+
+.lockError {
+  color: #a00000;
+  min-height: 1.4em;
+  margin: 0;
+}
+
+.lockButtons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+/* the PIN pad has its own OK */
+.lockBody:has(.pinPad) .lockOk {
+  display: none;
+}
+
+.lockForgot {
+  margin-right: auto;
+  order: -1;
+}
+
+.lockWarn {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.lockWarn img {
+  width: 32px;
+  height: 32px;
+}
+
+.lockList {
+  margin: 0;
+  padding-left: 18px;
+  line-height: 1.4;
+}
+
+.lockCall .callAnswer {
+  font-weight: bold;
+}
+
+/* ---- people ---- */
+
+.userBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.userPicture {
+  width: 48px;
+  height: 48px;
+  border: 2px solid;
+  border-color: #808080 #fff #fff #808080;
+  background: #fff;
+  object-fit: cover;
+  flex: none;
+}
+
+.userBadge .userName {
+  font-weight: bold;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.userBadge.is-small .userPicture {
+  width: 32px;
+  height: 32px;
+}
+
+.userBadge.is-small .userName {
+  font-weight: normal;
+}
+
+.userTiles {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 168px;
+  overflow: auto;
+  background: #fff;
+  padding: 2px;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+}
+
+.userTiles .userTile {
+  display: flex;
+  justify-content: flex-start;
+  text-align: left;
+  min-width: 0;
+  min-height: 0;
+  padding: 2px 4px;
+  background: none;
+  box-shadow: none;
+  border: 1px dotted transparent;
+}
+
+.userTiles .userTile.is-picked {
+  background: #000080;
+  color: #fff;
+}
+
+.userTiles .userTile:focus-visible {
+  border-color: #000;
+  outline: none;
+}
+
+.logOnNew {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.logOnHint {
+  font-size: 11px;
+  color: #404040;
+}
+
+/* ---- the PIN pad (touch screens) ---- */
+
+.secretField {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pinPad {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.pinPad .pinKey {
+  min-width: 0;
+  min-height: 48px;
+  font-size: 20px;
+}
+
+.pinPad .pinBack,
+.pinPad .pinOk {
+  font-size: 14px;
+}
+
+.pinPad .pinOk {
+  font-weight: bold;
+}

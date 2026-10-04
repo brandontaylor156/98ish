@@ -223,40 +223,8 @@ export const LogOffDialog = ({ onYes, onCancel }) => (
   </div>
 )
 
-const USER_KEY = "98ish.user"
-export const LogOn = ({ onDone }) => {
-  const [name, setName] = useState(() => {
-    try {
-      return localStorage.getItem(USER_KEY) || "Guest"
-    } catch {
-      return "Guest"
-    }
-  })
-  const done = () => {
-    try {
-      localStorage.setItem(USER_KEY, name.trim() || "Guest")
-    } catch {
-      // fine
-    }
-    onDone()
-  }
-  return (
-    <div className="powerScreen logOn">
-      <Dialog title="Welcome to Windows" okLabel="OK" onOk={done} onCancel={done}>
-        <div className="shutDownBody">
-          <img src="/windows_logo.png" alt="" />
-          <div className="logOnFields">
-            <p className="dialogText">Type a user name and password to log on to Windows.</p>
-            <label htmlFor="lo-name">User name:</label>
-            <input id="lo-name" type="text" autoFocus value={name} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && done()} />
-            <label htmlFor="lo-pass">Password:</label>
-            <input id="lo-pass" type="password" placeholder="(anything works)" autoComplete="off" onKeyDown={(e) => e.key === "Enter" && done()} />
-          </div>
-        </div>
-      </Dialog>
-    </div>
-  )
-}
+// Log On, with user profiles and passwords: lock/LogOn.jsx
+export { default as LogOn } from "./lock/LogOn"
 
 // ---- the blue screen (end explorer.exe in Task Manager) ----
 
