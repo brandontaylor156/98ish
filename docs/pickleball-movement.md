@@ -140,3 +140,49 @@ Skinned athletes, `pb5-rally.mjs`.
 - **No Erne or ATP animation.** The match has no such shots.
 - **Movement speed.** The split while running only dips the hips: the AI's movement, which is the physics, decides the actual speed.
 - **The guest stand-in in online tests** often lets serves double-bounce. The original code does the same, so this isn't a regression.
+
+## 7. Motion capture and motion matching (2026-10-04)
+After "the walking mechanics suck, it looks like a cheap video game", the footwork is no longer
+procedural on Medium/High: the legs, hips and trunk are real motion capture, picked frame by
+frame by motion matching (the technique of Clavet's "Motion Matching and the Road to
+Next-Gen Animation", GDC 2016, and Holden et al.'s "Learned Motion Matching", 2020), with
+inertialization (Bollo, GDC 2018). Sources and licenses: `client/.../pickleball/CREDITS.md`.
+
+- **Data.** 100STYLE (CC BY 4.0): Neutral (relaxed: between points), BentKnees (athletic: a
+  rally), Rushed (a brisk walk back), StartStop (stops). 100STYLE's "runs" are jogs under 2 m/s,
+  so CMU adds real running, cutting and stopping at 2-5 m/s (basketball subject 102, 127, 104,
+  16, 09, 35, 128, 143), turning while walking (69) and two gestures (79). 23 minutes, mirrored at
+  load: 83,580 searchable frames.
+- **Pipeline** (`tools/build-motion.mjs`, Node built-ins only): BVH and ASF/AMC parsers, a
+  canonical skeleton with the game's proportions, rest-pose alignment per bone (bone direction +
+  a twist hint), root extraction (hips projected, facing smoothed), floor fit, foot-contact
+  labels, quantized and gzipped (2.9 MB).
+- **Runtime** (`mm/`): features = the root's position and facing 0.2/0.4/0.7 s ahead + both
+  ankles' positions and velocities + the hips' velocity, normalized per group; a bounding-box
+  accelerated search every 0.1 s (High) or 0.2 s (Medium), staggered between players; a jump
+  only for a clearly better match; inertialization (half-life 0.12 s); the trajectory predicted
+  with the match's own rule (12 m/s^2 toward the velocity the player wants, easing into a goal);
+  root adaptation (the drawn body follows the animation's own root motion, pulled to the game's
+  position: never more than 12-20 cm away, 3 cm when a stroke is coming); foot locking on the
+  point that touched first, settling steps when a pinned foot falls behind, a lunge or a step-in
+  as a pinned reach; a pelvis drop for reach; soft two-bone leg IK with the captured knee
+  direction. The facing is the animation's; the search asks for the one `facingFor` picks, and a
+  fast move is always run facing forward (turn and run for a lob).
+- **On top** (anim.js): the ready position's forward lean, a wider stance (feet step out to the
+  pro stance: measured 0.47 m, knees 41 deg, trunk 21 deg at the kitchen), the crouch for low
+  balls, the split step's hop, every stroke (strokes.js) with its shoulder turn and bend at the
+  waist; the captured arms swing on runs and hang between points; moods; between-point acts.
+- **Between points and after the game** (`between.js`): partners tap paddles after each point
+  as they pass; a glance at the partner every few seconds; a paddle twirl or a wipe of the hand on
+  the shorts while waiting; the returner waits low and swaying; after the last point everyone
+  walks to the net and taps paddles with the player across (match.js `walkToNet`). The big
+  celebration and the frustrated arms-out are captured gestures (`mm/gesture.js`).
+- **Pro behaviours covered:** relaxed walk back (paddle down), walking up with the partner,
+  paddle taps, twirl, wipe on shorts, glance at partner, returner crouch, return-and-run with a
+  real deceleration, split step on every opponent contact, kitchen shuffles (side steps, no
+  crossing), turn and run for lobs, sprints and hard stops, lunges (a pinned reach with the back
+  leg long), strokes and two-handers as before, celebrations and frustration, end-of-game taps.
+  **Not yet:** a server bouncing the ball before serving (the ball is drawn by the engine),
+  a captured crossover step (the CrossOver style was looked at but not used: too stylized; fast
+  lateral moves use captured side runs or turn and run), a drop step specific to lobs (the
+  turn comes from the captured cuts).

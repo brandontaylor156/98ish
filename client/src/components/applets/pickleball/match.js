@@ -46,7 +46,8 @@ const HAND_Y = 0.98 // the server holds the ball here
 const SERVE_CONTACT_Y = 0.52 // and strikes it down here, well below the waist
 export const WAIST_Y = 1.02
 const INTRO_S = 1.3 // the score call
-const INTRO_MAX = 4.5 // walking back into place takes no longer than this
+const INTRO_MAX = 5.5 // walking back into place takes no longer than this
+const WALK_BACK = 1.7 // m/s: between points players walk back into place (a brisk walk, not a jog)
 const DEAD_S = 1.8
 const MAX_HIT_Y = 2.3
 export const SWING_LEAD = 0.13 // s from letting go of the button to the paddle meeting the ball
@@ -245,6 +246,37 @@ const holdBall = (m, p) => {
   m.ball.p = handPos(m, p)
 }
 
+// After the last point everyone walks up to the net (presentation only: anim.js taps paddles
+// with the other side there). The match's own rule: accelerating toward a walk.
+const walkToNet = (m, dt) => {
+  m.t += dt
+  m.phaseT += dt
+  for (const p of m.players) {
+    if (p.swing) p.swing.t += dt
+    let wx = 0
+    let wz = 0
+    if (p.target) {
+      const dx = p.target.x - p.x
+      const dz = p.target.z - p.z
+      const d = Math.hypot(dx, dz)
+      if (d > 0.03) {
+        const s = Math.min(WALK_BACK, Math.sqrt(2 * 9 * d))
+        wx = (dx / d) * s
+        wz = (dz / d) * s
+      }
+    }
+    p.want = { x: wx, z: wz }
+    const ex = wx - p.vx
+    const ez = wz - p.vz
+    const e = Math.hypot(ex, ez)
+    const k = e > 12 * dt ? (12 * dt) / e : 1
+    p.vx += ex * k
+    p.vz += ez * k
+    p.x += p.vx * dt
+    p.z += p.vz * dt
+  }
+}
+
 // everyone in place for the serve (the end of the walk back)
 const settleIntro = (m) => {
   for (const p of m.players) {
@@ -294,6 +326,13 @@ const finishPoint = (m) => {
   if (m.game.winner !== null) {
     m.phase = "over"
     m.phaseT = 0
+    // (everyone walks up to the net to tap paddles with the other side: presentation only,
+    // the score is final; walkToNet)
+    for (const p of m.players) {
+      p.target = { x: Math.max(-1.7, Math.min(1.7, p.x)), z: sideOf(p.team) * 0.75 }
+      p.charge = null
+      p.armed = null
+    }
     emit(m, { type: "gameover", winner: m.game.winner, score: [...m.game.score] })
     return
   }
@@ -845,7 +884,7 @@ const movePlayer = (m, p, dt) => {
     const dz = target.z - p.z
     const d = Math.hypot(dx, dz)
     if (d > 0.03) {
-      const s = Math.min(between ? lv.speed * 0.7 : speed, Math.sqrt(2 * 9 * d)) // ease into the spot
+      const s = Math.min(between ? Math.min(lv.speed * 0.7, WALK_BACK) : speed, Math.sqrt(2 * 9 * d)) // ease into the spot
       wantX = (dx / d) * s
       wantZ = (dz / d) * s
     }
@@ -861,6 +900,8 @@ const movePlayer = (m, p, dt) => {
       wantZ += (dz / d) * pull
     }
   }
+  // (presentation: where the player is heading, for the footwork's trajectory prediction)
+  p.want = { x: wantX, z: wantZ }
   // accelerate toward the wanted velocity (quick feet: about 12 m/s^2)
   const ax = wantX - p.vx
   const az = wantZ - p.vz
@@ -1092,6 +1133,7 @@ const autoBlock = (m, p) => {
 }
 
 export const step = (m, dt = STEP) => {
+  if (m.phase === "over" && !m.paused && !m.mirror) return walkToNet(m, dt)
   if (m.paused || m.phase === "over") return
   if (m.mirror) return mirrorStep(m, dt)
   m.t += dt
