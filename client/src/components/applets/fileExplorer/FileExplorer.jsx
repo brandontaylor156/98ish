@@ -431,7 +431,7 @@ const FileExplorer = ({ path: initialPath = ["C:"], dispatch, onTitle }) => {
         }}
       >
         <label htmlFor="fx-address">Address</label>
-        <input id="fx-address" value={address} onChange={(e) => setAddress(e.target.value)} spellCheck="false" autoCapitalize="off" />
+        <input id="fx-address" value={address} onChange={(e) => setAddress(e.target.value)} spellCheck="false" autoCapitalize="off" enterKeyHint="go" />
         <button type="submit">Go</button>
       </form>
 

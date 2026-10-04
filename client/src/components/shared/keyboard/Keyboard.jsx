@@ -5,7 +5,7 @@ import { PAD_LETTERS, alternatesFor, isPad, rowsFor } from "./layouts"
 import { balloonFor, deleteRepeat, hitTest, layoutKeys, metricsFor, stripFor, stripIndex } from "./geometry"
 import { wantsCapital, wantsPeriod } from "./editing"
 import { focusNext, moveBy, pressKey, textBefore } from "./typing"
-import { noteGesture, suppress, wantsKeyboard } from "./native"
+import { KB_WANT, noteGesture, suppress, wantsKeyboard } from "./native"
 import { haptic, keyClick } from "./feedback"
 import { BackIcon, EnterIcon, KeyboardIcon, ShiftIcon } from "./icons"
 import "./Keyboard.css"
@@ -169,6 +169,16 @@ const Keyboard = () => {
       setDormant(false)
       setField(el)
     }
+    // an app asking for the keyboard on its focused field (requestKeyboard: Speed Typist's
+    // race box turning typable at the green light, or coming back into view)
+    const onWant = (e) => {
+      const el = textFieldFor(e.target)
+      if (!el || el !== document.activeElement || el.dataset.kbNative) return
+      clearTimeout(outTimer)
+      suppress(el)
+      setDormant(false)
+      setField(el)
+    }
     // a real key from an iPad or Bluetooth keyboard: get out of the way
     const onKey = (e) => {
       if (!e.isTrusted || e.isComposing || ["Unidentified", "Process", "Dead"].includes(e.key)) return
@@ -179,8 +189,10 @@ const Keyboard = () => {
     document.addEventListener("focusin", onIn, true)
     document.addEventListener("focusout", onOut, true)
     document.addEventListener("keydown", onKey, true)
+    document.addEventListener(KB_WANT, onWant)
     return () => {
       clearTimeout(outTimer)
+      document.removeEventListener(KB_WANT, onWant)
       document.removeEventListener("pointerdown", onTap, true)
       document.removeEventListener("focusin", onIn, true)
       document.removeEventListener("focusout", onOut, true)

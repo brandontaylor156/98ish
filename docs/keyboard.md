@@ -95,7 +95,11 @@ Each key behaves like a hardware key:
 3. `keyup` follows.
 
 The Enter key's label comes from `enterkeyhint` (Go, Search, Send, Next, Done), else the field:
-search → Search, url → Go, multi-line → Return, else Enter. MS-DOS always says Enter.
+search → Search, url → Go, multi-line → Return; in a dialog, its default button's name when
+short (`data-kb-enter`, set by `Dialog.jsx`: Add, OK, Send, Go...); in any other form Go (as
+iOS); else Enter. MS-DOS always says Enter. Nothing says Done unless the app asks for it.
+Next (`enterkeyhint="next"`) moves to the next field without submitting the form (sign-on's
+screen name, Mail's To/Cc/Subject).
 
 ## The keyboard itself
 
@@ -192,8 +196,17 @@ view (`scrollIntoView({ block: "nearest" })`). Anything still covered (a dialog 
 the screen, the Start menu search, a floating window on a tablet) is lifted with the CSS
 `translate` property until it clears the keyboard, and dropped back when it closes.
 
+While the keyboard is up on a phone, windows' status bars are hidden (they'd sit right on the
+keyboard, where YouTube '98's "Done" read as the keyboard's own); `data-kb-status="keep"` keeps
+one (98 Messenger's IM window moves its "is typing..." line above the message box and hides
+its Warn/Block row, so the box and Send sit on the keyboard). Chat transcripts (IMs, chat
+rooms, game chat) stay scrolled to the newest line when the keyboard makes them shorter.
+
 ## Showing and hiding
 
+- A field marked `data-kb-auto` always gets it when focused and typable, touch or not (Speed
+  Typist's race box). The app calls `requestKeyboard(el)` (`native.js`) when the focused field
+  turns typable (the green light) or comes back into view (window restored, phone unlocked).
 - Opens when a text field is tapped, or focused by code within a second of a touch (Run's
   box, a dialog's first field, Notepad opening). Like iOS, a field focused by code with no
   touch behind it (an IM window popping up by itself) waits: the phone's keyboard stays down
@@ -229,6 +242,8 @@ the screen, the Start menu search, a floating window on a tablet) is lifted with
 - Set `enterKeyHint` for what Enter does ("send" for chat, "go", "search", "next"). It labels
   our key and the phone's.
 - Handle Enter in `onKeyDown` with `preventDefault()` if you take it (as with a real keyboard).
+- A typing game's box that should have the keyboard up without a tap: `data-kb-auto`, plus
+  `requestKeyboard(el)` when it turns typable while already focused.
 - A field that must use the phone keyboard: `data-kb="off"`. A key-capturing field that wants
   the DOS layout: `data-kb-layout="dos"`.
 - Don't listen for `isTrusted` keys; our keys are synthetic, like a hardware keyboard's in

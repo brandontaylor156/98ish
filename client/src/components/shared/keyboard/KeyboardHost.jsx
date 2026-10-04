@@ -2,7 +2,7 @@ import React, { Suspense, lazy, useEffect, useState } from "react"
 import { useIsTouch } from "../../../hooks/useMediaQuery"
 import { useSettings } from "../../../utils/settings"
 import { textFieldFor } from "./fields"
-import { noteGesture, restore, restoreAll, suppress } from "./native"
+import { KB_WANT, noteGesture, restore, restoreAll, suppress } from "./native"
 
 // The keyboard itself loads on the first tap into a text field
 const Keyboard = lazy(() => import("./Keyboard"))
@@ -38,6 +38,13 @@ const KeyboardHost = () => {
       suppress(el)
       setWanted(true)
     }
+    // an app asking for the keyboard on its focused field (requestKeyboard)
+    const onWant = (e) => {
+      const el = textFieldFor(e.target)
+      if (!el || el !== document.activeElement) return
+      suppress(el)
+      setWanted(true)
+    }
     const onBlur = (e) => {
       const el = textFieldFor(e.target)
       if (!el) return
@@ -53,6 +60,7 @@ const KeyboardHost = () => {
     document.addEventListener("pointerup", onUp, true)
     document.addEventListener("focusin", onFocus, true)
     document.addEventListener("focusout", onBlur, true)
+    document.addEventListener(KB_WANT, onWant)
     // a field focused before this ran
     const now = textFieldFor(document.activeElement)
     if (now) {
@@ -65,6 +73,7 @@ const KeyboardHost = () => {
       document.removeEventListener("pointerup", onUp, true)
       document.removeEventListener("focusin", onFocus, true)
       document.removeEventListener("focusout", onBlur, true)
+      document.removeEventListener(KB_WANT, onWant)
       restoreAll()
     }
   }, [active])

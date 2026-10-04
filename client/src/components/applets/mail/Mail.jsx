@@ -95,6 +95,7 @@ const AddressField = ({ id, label, value, onChange, people }) => {
         <input
           id={id}
           value={value}
+          enterKeyHint="next"
           autoComplete="off"
           autoCapitalize="off"
           spellCheck="false"
@@ -152,7 +153,7 @@ const Compose = ({ draft, people, onSend, onSaveDraft, onCancel, onAttach, onRem
         <AddressField id="ml-cc" label="Cc:" value={draft.cc} onChange={(cc) => onChange({ cc })} people={people} />
         <div className="mlField">
           <label htmlFor="ml-subject">Subject:</label>
-          <input id="ml-subject" value={draft.subject} maxLength={120} onChange={(e) => onChange({ subject: e.target.value })} />
+          <input id="ml-subject" value={draft.subject} maxLength={120} enterKeyHint="next" onChange={(e) => onChange({ subject: e.target.value })} />
         </div>
         {draft.attachments.length > 0 && (
           <div className="mlField">

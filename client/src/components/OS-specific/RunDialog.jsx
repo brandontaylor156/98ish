@@ -47,7 +47,7 @@ const RunDialog = ({ dispatch, onDone, onCancel }) => {
           <p className="dialogText">Type the name of a program, folder, document, or Internet resource, and Windows will open it for you.</p>
         </div>
         <label htmlFor="run-open">Open:</label>
-        <input id="run-open" type="text" value={text} onChange={(e) => (setText(e.target.value), setError(null))} autoComplete="off" autoCapitalize="off" autoCorrect="off" spellCheck="false" />
+        <input id="run-open" type="text" value={text} onChange={(e) => (setText(e.target.value), setError(null))} autoComplete="off" autoCapitalize="off" autoCorrect="off" spellCheck="false" enterKeyHint="go" />
         {error && <p className="dialogText runError">{error}</p>}
       </Dialog>
     </div>
