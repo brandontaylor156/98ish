@@ -56,6 +56,7 @@ export const FILE_TYPE = {
   video: "video",
   taskmanager: "taskmanager",
   ie: "ie",
+  compass: "compass",
   shortcut: "shortcut",
   paint: "paint",
   image: "image", // a picture: its PNG is a data URL in textContent
@@ -634,6 +635,7 @@ const DEFAULT_ITEMS = [
   ["C:/Programs/Camera", "file", "camera"],
   ["C:/Programs/Photos", "file", "photos"],
   ["C:/Programs/Address Book", "file", "addressbook"],
+  ["C:/Programs/Compass", "file", "compass"],
   // Camera saves here; Photos opens here
   ["C:/My Pictures", "dir", "folder"],
   ["C:/Bookmarks", "dir", "bookmarks"],

@@ -94,11 +94,12 @@ const SHELVES = [
   {
     id: "internet",
     label: "Internet & Community",
-    intro: "Talk to people, write to people, and visit the old web.",
+    intro: "Talk to people, write to people, browse the real Web, and visit the old one.",
     items: [
       ["98 Messenger", "Chat with friends, set an away message", false],
       ["98ish Mail", "Send mail (and attachments) to any screen name", false],
       ["Network Neighborhood", "See who's on right now and play them", true],
+      ["Compass", "The real, modern Web: tabs, bookmarks, search", false],
       ["Internet Explorer", "Visit websites the way they looked back then", false],
       ["HomePage Studio", "Build your own 1990s homepage", false],
       ["Media Player", "Eight songs made right here", false],
