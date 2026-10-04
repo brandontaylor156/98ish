@@ -65,9 +65,12 @@ html.a11y-text .os-root.os-mobile .desktopIconLabel {
 
 /* ---------- less motion ---------- */
 
-html.a11y-motion-reduce *,
-html.a11y-motion-reduce *::before,
-html.a11y-motion-reduce *::after {
+/* Progress indicators (the startup bar, the loading hourglass) keep moving: they say "still
+   working" and are small, not the kind of motion Reduce Motion is about. Mark one with
+   class "motion-ok". */
+html.a11y-motion-reduce *:not(.motion-ok),
+html.a11y-motion-reduce *:not(.motion-ok)::before,
+html.a11y-motion-reduce *:not(.motion-ok)::after {
   animation-duration: 0.01ms !important;
   animation-iteration-count: 1 !important;
   animation-delay: 0s !important;

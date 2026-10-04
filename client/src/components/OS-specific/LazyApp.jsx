@@ -6,7 +6,7 @@ import React, { Suspense } from "react"
 
 const Loading = () => (
   <div className="appLoading" role="status">
-    <span className="appLoadingGlass" aria-hidden="true" />
+    <span className="appLoadingGlass motion-ok" aria-hidden="true" />
     Loading...
   </div>
 )

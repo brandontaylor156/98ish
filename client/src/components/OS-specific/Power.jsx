@@ -138,7 +138,7 @@ export const BootScreen = ({ onDone }) => {
               <span className="splashNum">98ish</span>
             </div>
           </div>
-          <div className="splashBar" />
+          <div className="splashBar motion-ok" />
         </div>
       )}
     </div>

@@ -142,16 +142,6 @@ html.kb-open .os-mobile .startArea.is-searching {
   padding: 6px;
 }
 
-.smSearchCancel {
-  display: none;
-}
-
-.os-mobile .startArea.is-searching .smSearchCancel {
-  display: block;
-  min-width: 70px;
-  min-height: 32px;
-}
-
 .os-mobile .window.srPanel {
   width: auto;
   max-height: none;

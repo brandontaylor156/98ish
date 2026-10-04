@@ -411,18 +411,6 @@ const StartMenu = ({ dispatch, onQuery, onSearchKey, onSearchFocus, closeMenu, o
             aria-label="Find files or programs"
             aria-controls="srResults"
           />
-          <button
-            type="button"
-            className="smSearchCancel"
-            onPointerDown={(e) => e.preventDefault()}
-            onClick={() => {
-              setQuery("")
-              onSearchFocus?.(false)
-              searchRef.current?.blur()
-            }}
-          >
-            Cancel
-          </button>
         </form>
         {mobile ? renderMobileList() : renderList(menu, 0)}
       </div>

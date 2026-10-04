@@ -45,7 +45,7 @@ const WebApp = ({ project, mobile }) => {
         />
         {loading && (
           <div className="waLoading">
-            <span className="appLoadingGlass" aria-hidden="true" />
+            <span className="appLoadingGlass motion-ok" aria-hidden="true" />
             <p>Connecting to {project.name}...</p>
             {slow && (
               <button type="button" onClick={openOutside}>
