@@ -10,6 +10,10 @@ import { trackUnsaved } from "../../../utils/unsaved"
 import { now } from "../../../utils/clock"
 import { sanitizeHtml, textToHtml, htmlToText } from "./sanitize"
 import { ICONS } from "./WordPadIcons"
+import { sendToItems } from "../../../utils/share"
+import { PASTE_BLOCKED, copyText } from "../../../utils/systemClipboard"
+import { safeFileName } from "../../../utils/shareRules"
+import { richTextPage } from "../../../utils/fileTransfer"
 import "./WordPad.css"
 
 // WordPad, as in Windows 98: a rich text editor with a toolbar, a format bar (font, size,
@@ -516,16 +520,26 @@ const WordPad = ({ file: initialFile = null, mobile = false, onTitle, onClose, r
       const text = await navigator.clipboard.readText()
       insertText(text)
     } catch {
-      setDialog({ kind: "alert", text: "Use Ctrl+V (or long-press and Paste) to paste here: this browser doesn't let menus read the clipboard." })
+      setDialog({ kind: "alert", text: PASTE_BLOCKED })
     }
   }
 
   const clipboard = (cmd) => {
     restoreSel()
     if (cmd === "cut") record()
+    let ok = false
     try {
-      document.execCommand(cmd)
+      ok = document.execCommand(cmd)
     } catch {}
+    // the copy command refused (some browsers, outside a key press): the system
+    // clipboard still gets the words, so they paste in other apps
+    if (!ok) {
+      const words = window.getSelection()?.toString() || ""
+      if (words) {
+        copyText(words)
+        if (cmd === "cut") document.execCommand("delete")
+      }
+    }
     changed()
   }
 
@@ -746,6 +760,13 @@ const WordPad = ({ file: initialFile = null, mobile = false, onTitle, onClose, r
     }
   }, [printHtml])
 
+  // Send To: the document as a web page any phone opens; Other Apps gets its words
+  const sharePayload = () => {
+    const title = file?.name || "Document"
+    const html = sanitizeHtml(ed().innerHTML)
+    return { title, text: htmlToText(ed().innerHTML).trim(), preferText: true, files: [{ name: safeFileName(title.replace(/\.(rtf|doc|html?)$/i, ""), ".html"), data: richTextPage(title, html), mime: "text/html" }] }
+  }
+
   const openPreview = () => setPreview({ html: sanitizeHtml(ed().innerHTML), page: 0, zoom: false })
 
   // ---- keys ----
@@ -811,6 +832,8 @@ const WordPad = ({ file: initialFile = null, mobile = false, onTitle, onClose, r
         { label: "Print... Ctrl+P", onClick: () => setDialog({ kind: "print" }) },
         { label: "Print Preview", onClick: openPreview },
         { label: "Page Setup...", onClick: () => setDialog({ kind: "alert", text: "Pages are Letter size (8.5 x 11 in.) with 1 in. margins at the top and bottom and 1.25 in. at the sides. Your browser's print dialog can change the paper and margins." }) },
+        "-",
+        { label: "Send To", items: sendToItems(sharePayload, { title: "WordPad" }) },
         "-",
         { label: "Exit", onClick: () => guard(() => onClose?.()) },
       ],

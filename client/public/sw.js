@@ -50,10 +50,49 @@ self.addEventListener("activate", (event) => {
 
 const sameOrigin = (url) => url.origin === self.location.origin
 
+// ---- Share to 98ish (Web Share Target, manifest.webmanifest's share_target) ----
+// An installed 98ish on Android (Chrome) shows up in the phone's share sheet. What's
+// shared is POSTed here; it's kept in the "share-inbox" cache (not a "98ish-" one, so
+// new versions don't clear it) and the app opens at /?share-target=<id>, where the
+// Received Items dialog (OS-specific/ShareCenter.jsx) saves it into the 98ish drive.
+// iPhone Safari has no share targets: there, Upload from Phone and Paste do this job.
+const SHARE_PATH = "/share-target"
+const SHARE_INBOX = "share-inbox"
+
+const receiveShare = async (request) => {
+  const id = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`
+  try {
+    const form = await request.formData()
+    const cache = await caches.open(SHARE_INBOX)
+    const files = []
+    let n = 0
+    for (const file of form.getAll("files")) {
+      if (typeof file === "string" || !file.size) continue
+      const key = `/share-inbox/${id}/${n++}`
+      await cache.put(key, new Response(file, { headers: { "content-type": file.type || "application/octet-stream" } }))
+      files.push({ key, name: file.name || `Shared file ${n}`, type: file.type || "", size: file.size })
+    }
+    const meta = { id, at: Date.now(), title: String(form.get("title") || ""), text: String(form.get("text") || ""), url: String(form.get("url") || ""), files }
+    await cache.put(`/share-inbox/${id}/meta`, new Response(JSON.stringify(meta), { headers: { "content-type": "application/json" } }))
+  } catch {
+    return Response.redirect(`/?share-target=failed`, 303)
+  }
+  return Response.redirect(`/?share-target=${id}`, 303)
+}
+
+self.addEventListener("fetch", (event) => {
+  const url = new URL(event.request.url)
+  if (!sameOrigin(url) || url.pathname !== SHARE_PATH) return
+  if (event.request.method === "POST") event.respondWith(receiveShare(event.request))
+  // a GET share (title/text/url in the address): hand it to the app as it is
+  else event.respondWith(Response.redirect(`/?share-target=get${url.search ? `&${url.search.slice(1)}` : ""}`, 303))
+})
+
 self.addEventListener("fetch", (event) => {
   const { request } = event
   if (request.method !== "GET") return
   const url = new URL(request.url)
+  if (url.pathname === SHARE_PATH) return // answered above
   // the app's own files only: never the chat server, Wayback, YouTube or /api
   if (!sameOrigin(url) || url.pathname.startsWith("/api/") || url.pathname === "/sw-manifest.json") return
 

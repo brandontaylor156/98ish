@@ -66,4 +66,14 @@ const Results = ({ table, you, mine, title, note }) => (
   </div>
 )
 
+// What Share Result... sends: your place, speed and accuracy, and everyone's speeds
+export const resultText = (table, you) => {
+  const me = table.find((row) => row.seat === you)
+  const head = me
+    ? `Speed Typist 98: ${me.finished ? `${ordinal(me.place)} place, ` : ""}${Math.round(me.wpm)} WPM at ${Math.round(me.acc)}% accuracy`
+    : "Speed Typist 98 race results"
+  const lines = table.length > 1 ? table.map((row) => `${row.finished ? ordinal(row.place) : "DNF"}  ${row.name}${row.seat === you ? " (me)" : ""}: ${Math.round(row.wpm)} WPM`) : []
+  return [head, ...lines].join("\n")
+}
+
 export default Results

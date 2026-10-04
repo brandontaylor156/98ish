@@ -22,6 +22,17 @@ import io from "socket.io-client"
 import { lazyApp } from "./LazyApp"
 import { PROJECTS } from "../../utils/projects"
 import { CLOSE_EVENT, quickLaunchDrop, watchSocket } from "../../utils/shell"
+import { readClipboard } from "../../utils/systemClipboard"
+
+// Sharing with the phone (Send To, Received Items, Upload from Phone): its own download,
+// fetched when a menu that needs it opens, so a tap can call the share sheet at once
+const ShareCenter = React.lazy(() => import("./ShareCenter"))
+let shareModule = null
+const loadShare = () => import("../../utils/share").then((m) => (shareModule = m))
+const withShare = (fn) => () => (shareModule ? fn(shareModule) : loadShare().then(fn))
+const loadReceive = () => import("../../utils/receive")
+const UPLOAD_LABEL = () => (window.matchMedia?.("(pointer: coarse)").matches ? "Upload from Phone..." : "Upload from Your Device...")
+const PHONE_ACCEPT = "image/*,.heic,.heif,text/*,audio/*,.txt,.md,.csv,.json,.html,.htm,.rtf,.wav,.mp3,.m4a"
 
 // each app is its own download, fetched the first time it opens
 const Calculator = lazyApp(() => import("../applets/calculator/Calculator"))
@@ -408,7 +419,9 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
     "-",
     { label: "Refresh", onClick: () => setPositions((p) => ({ ...p })) },
     "-",
-    { label: "Paste", disabled: !getClipboard(), onClick: paste },
+    { label: "Paste", onClick: paste },
+    { label: "Paste from Device Clipboard", onClick: pasteFromDevice },
+    { label: UPLOAD_LABEL(), onClick: () => uploadRef.current?.click() },
     "-",
     {
       label: "New",
@@ -423,11 +436,38 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
   ]
 
   const paste = () => {
+    // nothing copied in 98ish: whatever is on the phone's/computer's clipboard
+    if (!getClipboard()) return pasteFromDevice()
     try {
       pasteInto(desktopFolder())
     } catch (error) {
       setDialog({ kind: "alert", text: error.message })
     }
+  }
+
+  const reportIncoming = (result, verb) => {
+    if (result.error) return setDialog({ kind: "alert", text: result.error })
+    if (result.added.length) setSelected(`file:${result.added.at(-1).name}`)
+    const text = result.problems.length || result.notes.length ? [result.added.length ? `${result.added.length} item${result.added.length === 1 ? " was" : "s were"} ${verb}.` : `Nothing was ${verb}.`, ...result.problems, ...result.notes].join(" ") : null
+    if (text) setDialog({ kind: "alert", text })
+  }
+
+  // the system clipboard: read inside the tap (the browser may ask first, or say no)
+  const pasteFromDevice = () => {
+    const reading = readClipboard()
+    Promise.all([reading, loadReceive()]).then(async ([clip, receive]) => {
+      if (!clip.ok) return setDialog({ kind: "alert", text: clip.message })
+      if (!clip.images.length && !String(clip.text || "").trim()) return setDialog({ kind: "alert", text: "The clipboard is empty (or holds something 98ish can't paste: pictures and text can come in)." })
+      reportIncoming(await receive.savePasted(desktopFolder(), clip), "pasted")
+    })
+  }
+
+  // Upload from Phone: photos and files picked on the device land on the desktop
+  const uploadRef = useRef(null)
+  const uploadFiles = async (files) => {
+    if (!files.length) return
+    const receive = await loadReceive()
+    reportIncoming(await receive.receiveFiles(desktopFolder(), files), "added")
   }
 
   const newOnDesktop = (kind) => {
@@ -462,6 +502,15 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
     "-",
     { label: "Cut", onClick: () => setClipboard({ mode: "cut", items: [icon.item] }) },
     { label: "Copy", onClick: () => setClipboard({ mode: "copy", items: [icon.item] }) },
+    "-",
+    {
+      label: "Send To",
+      disabled: icon.item.isDirectory,
+      items: [
+        { label: "My Phone", onClick: withShare((m) => m.shareOut(m.itemPayload(icon.item), "phone")) },
+        { label: "Other Apps...", onClick: withShare((m) => m.shareOut(m.itemPayload(icon.item), "apps")) },
+      ],
+    },
     "-",
     { label: "Delete", onClick: () => setDialog({ kind: "delete", item: icon.item }) },
     { label: "Rename", onClick: () => setDialog({ kind: "name", title: "Rename", text: icon.item.name, item: icon.item }) },
@@ -539,6 +588,7 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
     closeMenu()
     if (icon && selection.size > 1 && selection.has(icon.key)) return setMenu({ x, y, items: manyMenu(selection) })
     setSelected(icon?.key || null)
+    if (icon?.item && !shareModule) loadShare().catch(() => {})
     setMenu({ x, y, items: icon ? (icon.item ? fileMenu(icon) : iconMenu(icon)) : desktopMenu() })
   }
 
@@ -885,6 +935,21 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
   const overlays = (
     <>
       {menu && <ContextMenu x={menu.x} y={menu.y} items={menu.items} onClose={() => setMenu(null)} />}
+      <input
+        ref={uploadRef}
+        type="file"
+        accept={PHONE_ACCEPT}
+        multiple
+        hidden
+        data-testid="desktop-upload"
+        onChange={(e) => {
+          uploadFiles([...e.target.files])
+          e.target.value = ""
+        }}
+      />
+      <React.Suspense fallback={null}>
+        <ShareCenter dispatch={dispatch} />
+      </React.Suspense>
       {confirmEmpty && (
         <div className="desktopDialogLayer">
           <Dialog

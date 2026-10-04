@@ -11,6 +11,9 @@ import { fs, writeAndSave } from "../../../utils/fs"
 import { saveWallpaperImage, setSettings } from "../../../utils/settings"
 import { useFsVersion } from "../../../hooks/useFs"
 import { trackUnsaved } from "../../../utils/unsaved"
+import { filePayload, sendToItems } from "../../../utils/share"
+import { safeFileName } from "../../../utils/shareRules"
+import { dataUrlBytes } from "../../../utils/fileTransfer"
 import "./Paint.css"
 import { progress, unlock } from "../../../utils/achievements"
 
@@ -652,6 +655,13 @@ const Paint = ({ file: initialFile = null, mobile = false, onTitle, onClose, reg
     if (initialFile) openFile(initialFile)
   }, [])
 
+  // Send To: the picture as it is now (saved or not), as a PNG
+  const sharePayload = () => {
+    commitAll()
+    const title = (file?.name || "untitled").replace(/\.(png|bmp|jpe?g|gif)$/i, "")
+    return filePayload(title, { name: safeFileName(title, ".png"), data: dataUrlBytes(pictureUrl()), mime: "image/png" })
+  }
+
   const setAsWallpaper = (display) => {
     const url = pictureUrl()
     if (!saveWallpaperImage(url)) return setDialog({ kind: "alert", title: "Paint", text: "This picture is too big to use as the wallpaper. Try making it smaller (Image > Attributes)." })
@@ -1181,6 +1191,8 @@ const Paint = ({ file: initialFile = null, mobile = false, onTitle, onClose, reg
         { label: "Set As Wallpaper (Tiled)", onClick: () => setAsWallpaper("tile") },
         { label: "Set As Wallpaper (Centered)", onClick: () => setAsWallpaper("center") },
         { label: "Set As Wallpaper (Stretched)", onClick: () => setAsWallpaper("stretch") },
+        "-",
+        { label: "Send To", items: sendToItems(sharePayload, { title: "Paint" }) },
         "-",
         { label: "Exit", onClick: () => guard(() => onClose?.()) },
       ],

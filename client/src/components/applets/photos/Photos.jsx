@@ -7,6 +7,7 @@ import { useFsVersion } from "../../../hooks/useFs"
 import { useOpenGesture } from "../../../hooks/useMediaQuery"
 import { launch, paintWindow } from "../../../utils/programs"
 import { downloadItem } from "../../../utils/fileTransfer"
+import { itemPayload, shareOut } from "../../../utils/share"
 import { getSettings, saveWallpaperImage, setSettings } from "../../../utils/settings"
 import { trackUnsaved } from "../../../utils/unsaved"
 import { isKeyForWindow } from "../../../utils/windowKeys"
@@ -464,6 +465,10 @@ const Photos = ({ file: initialFile = null, path = null, mobile, dispatch, onTit
     { label: "Send by 98ish Mail...", disabled: !has, onClick: sendMail },
     { label: "Send to Network Neighborhood...", disabled: !has, onClick: sendNetwork },
     { label: "Download to Your Device", disabled: !has, onClick: download },
+    "-",
+    // the saved picture (edits not saved yet stay behind), straight from the tap for iOS
+    { label: "Send to My Phone", disabled: !has, onClick: () => shareOut(itemPayload(target), "phone", { title: "Photos" }) },
+    { label: "Send to Other Apps...", disabled: !has, onClick: () => shareOut(itemPayload(target), "apps", { title: "Photos" }) },
   ]
   const menus = [
     {

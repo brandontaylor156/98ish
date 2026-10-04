@@ -13,6 +13,7 @@ import { DEFAULTS, PRESETS, describe, presetSettings, validateSettings } from ".
 import { dayKey, dayNumber, shareText } from "./logic"
 import { createSounds } from "./audio"
 import { load, recordGame, resetStats, saveDaily, savePrefs, statsFor } from "./storage"
+import { shareOut, textPayload } from "../../../utils/share"
 import "./WordDuel.css"
 
 // Word Duel: guess the hidden word. Green is the right letter in the right spot, yellow
@@ -335,14 +336,25 @@ const WordDuel = ({ mobile = false, onClose }) => {
     if (won && g.mode === "absurd") unlock("wordduel-absurd")
   }, [g?.result])
 
-  const share = async () => {
+  const resultText = () => {
     const v = g.view
     const set = v.sets[v.mine]
     const rows = set.boards[0].rows
     const title = g.mode === "daily" ? `Word Duel #${dayNumber(today)}` : `Word Duel (${g.settings.length} letters)`
-    const ok = await copyText(shareText({ title, rows, solved: set.solved, max: set.max, contrast: prefs.contrast, hard: g.settings.hard }))
+    return { title, text: shareText({ title, rows, solved: set.solved, max: set.max, contrast: prefs.contrast, hard: g.settings.hard }) }
+  }
+
+  const copyResult = async () => {
+    const ok = await copyText(resultText().text)
     setCopied(ok ? "Copied to the clipboard!" : "Couldn't copy. Try again.")
     setTimeout(() => setCopied(false), 2200)
+  }
+
+  // the phone's share sheet (Messages, WhatsApp...), straight from the tap; where there's
+  // none, it's copied instead
+  const share = () => {
+    const { title, text } = resultText()
+    shareOut(textPayload(title, text), "apps", { title: "Word Duel" })
   }
 
   const menus = [
@@ -404,7 +416,10 @@ const WordDuel = ({ mobile = false, onClose }) => {
       g.result && solo && (g.mode === "daily" || g.mode === "practice" || g.mode === "hard") ? (
         <div className="wdShare">
           <button type="button" className="wdPrimary" onClick={share} data-share>
-            Share
+            Share...
+          </button>
+          <button type="button" onClick={copyResult} data-copy>
+            Copy
           </button>
           {copied && <span className="wdCopied">{copied}</span>}
           {g.mode === "daily" && <span className="wdMuted">Next word in {Math.ceil(msToMidnight() / 3_600_000)}h</span>}

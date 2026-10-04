@@ -1,4 +1,5 @@
 {
+  "rewrites": [{ "source": "/share-target", "destination": "/" }],
   "headers": [
     {
       "source": "/sw.js",

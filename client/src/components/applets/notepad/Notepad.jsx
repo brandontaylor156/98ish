@@ -7,6 +7,8 @@ import { fs } from "../../../utils/fs"
 import { useFsVersion } from "../../../hooks/useFs"
 import { trackUnsaved } from "../../../utils/unsaved"
 import { now } from "../../../utils/clock"
+import { sendToItems, textPayload } from "../../../utils/share"
+import { PASTE_BLOCKED, copyText } from "../../../utils/systemClipboard"
 import "./Notepad.css"
 import { unlock } from "../../../utils/achievements"
 
@@ -178,16 +180,28 @@ const Notepad = ({ file: initialFile = null, onTitle, onClose, registerCloseGuar
   }
   const command = (name) => {
     area().focus()
-    document.execCommand?.(name)
+    return document.execCommand?.(name)
+  }
+  // Cut and Copy reach the phone's/computer's clipboard too (the copy command does that;
+  // where a browser refuses it, the Clipboard API does)
+  const copyOut = (cut) => {
+    const el = area()
+    const words = el.value.slice(el.selectionStart, el.selectionEnd)
+    if (command(cut ? "cut" : "copy") || !words) return
+    copyText(words)
+    if (cut) insert("")
   }
   const paste = async () => {
     try {
       const clip = await navigator.clipboard.readText()
       insert(clip)
     } catch {
-      setDialog({ kind: "alert", title: "Notepad", text: "Use Ctrl+V (or long-press and Paste) to paste here: this browser doesn't let menus read the clipboard." })
+      setDialog({ kind: "alert", title: "Notepad", text: PASTE_BLOCKED })
     }
   }
+
+  // Send To: the words (Other Apps) or a .txt file (My Phone)
+  const sharePayload = () => textPayload(file?.name || "Untitled", text, { fileName: file?.name || "Untitled" })
 
   // ---- find / replace ----
 
@@ -266,6 +280,8 @@ const Notepad = ({ file: initialFile = null, onTitle, onClose, registerCloseGuar
         { label: "Save Ctrl+S", onClick: save },
         { label: "Save As...", onClick: () => setDialog({ kind: "saveAs" }) },
         "-",
+        { label: "Send To", items: sendToItems(sharePayload, { title: "Notepad" }) },
+        "-",
         { label: "Exit", onClick: () => guard(() => onClose?.()) },
       ],
     },
@@ -274,8 +290,8 @@ const Notepad = ({ file: initialFile = null, onTitle, onClose, registerCloseGuar
       items: [
         { label: "Undo Ctrl+Z", onClick: () => command("undo") },
         "-",
-        { label: "Cut Ctrl+X", onClick: () => command("cut") },
-        { label: "Copy Ctrl+C", onClick: () => command("copy") },
+        { label: "Cut Ctrl+X", onClick: () => copyOut(true) },
+        { label: "Copy Ctrl+C", onClick: () => copyOut(false) },
         { label: "Paste Ctrl+V", onClick: paste },
         { label: "Delete Del", onClick: () => command("delete") },
         "-",

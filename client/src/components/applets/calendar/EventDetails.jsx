@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from "react"
 import { describeReminder, describeRepeat, anchorOf, whenLabel } from "./recur"
 import { LIVE_EVENT, LOCAL_ID, addComment, colorOf, comments as loadComments, deleteComment } from "./store"
-import { colorFor, downloadEvent } from "./util"
+import { colorFor, downloadEvent, eventFile } from "./util"
+import { filePayload, shareOut } from "../../../utils/share"
 import Sheet from "./Sheet"
 import CheckBox from "./CheckBox"
 
@@ -107,6 +108,16 @@ const EventDetails = ({ occ, calendar, zone, mobile, me, focusComments, onEdit, 
           {!memo && (
             <button type="button" onClick={() => downloadEvent({ ...event, title: occ.title })} title="Download an .ics file your phone's calendar can add">
               Add to my phone
+            </button>
+          )}
+          {!memo && (
+            <button
+              type="button"
+              // the share sheet with the .ics (Messages, Mail...: tapping it adds the event)
+              onClick={() => shareOut(filePayload(occ.title, eventFile({ ...event, title: occ.title }), { text: `${occ.title}\n${whenLabel(occ, zone)}${event.location ? `\n${event.location}` : ""}` }), "apps", { title: "Share Event" })}
+              title="Send this event to someone (an .ics file any calendar can add)"
+            >
+              Share...
             </button>
           )}
           <button type="button" onClick={onClose}>

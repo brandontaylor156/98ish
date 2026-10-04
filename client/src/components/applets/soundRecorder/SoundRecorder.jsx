@@ -7,6 +7,8 @@ import { useFsVersion } from "../../../hooks/useFs"
 import { trackUnsaved } from "../../../utils/unsaved"
 import { closeAudioContext, createAudioContext, masterOutput } from "../../../utils/audio"
 import * as W from "./wave"
+import { filePayload, sendToItems } from "../../../utils/share"
+import { safeFileName } from "../../../utils/shareRules"
 import "./SoundRecorder.css"
 
 // Sound Recorder, as in Windows 98: record from the microphone (up to 60 seconds), play it
@@ -447,6 +449,13 @@ const SoundRecorder = ({ file: initialFile = null, onTitle, onClose, registerClo
 
   const effect = (fn) => !busy && !empty && edit(fn, 0)
 
+  // Send To: the sound as it is now, as a .wav
+  const sharePayload = () => {
+    halt()
+    const title = (file?.name || "Sound").replace(/\.wav$/i, "")
+    return filePayload(title, { name: safeFileName(title, ".wav"), data: W.encodeWav(samples.current), mime: "audio/wav" })
+  }
+
   const menus = [
     {
       label: "File",
@@ -457,6 +466,7 @@ const SoundRecorder = ({ file: initialFile = null, onTitle, onClose, registerClo
         { label: "Save As...", onClick: () => (halt(), setDialog({ kind: "saveAs" })), disabled: busy },
         { label: "Revert...", disabled: !dirty || !onDrive(file) || busy, onClick: () => (halt(), setDialog({ kind: "revert" })) },
         "-",
+        { label: "Send To", disabled: busy || empty, items: sendToItems(sharePayload, { title: "Sound Recorder" }) },
         { label: "Properties", onClick: () => setDialog({ kind: "properties" }) },
         "-",
         { label: "Exit", onClick: () => guard(() => onClose?.()) },

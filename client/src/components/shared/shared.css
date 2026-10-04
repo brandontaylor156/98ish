@@ -215,3 +215,28 @@
   min-height: 34px !important;
   font-size: 13px;
 }
+
+/* MenuBar submenus (File > Send To): a menu holding one mustn't clip it (every .window
+   clips) */
+.menuBar .menu.window:has(> .menuHasSub) {
+  overflow: visible;
+}
+
+.menuHasSub {
+  position: relative;
+}
+
+.menu .menuSub {
+  top: -3px;
+  left: calc(100% - 3px);
+}
+
+.menu .menuSub.is-flipped {
+  left: auto;
+  right: calc(100% - 3px);
+}
+
+.menuHasSub > button[aria-expanded="true"] {
+  background: #000080 !important;
+  color: #fff;
+}

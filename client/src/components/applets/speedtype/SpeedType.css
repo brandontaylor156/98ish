@@ -526,6 +526,10 @@
 .stSparkNone {
   color: #777;
 }
+.stShareRow {
+  display: flex;
+  justify-content: center;
+}
 .stMatchWinner {
   margin: 0;
   font-size: 14px;

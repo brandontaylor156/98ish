@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from "react"
 import Track from "./Track"
 import PromptText from "./PromptText"
-import Results from "./Results"
+import Results, { resultText } from "./Results"
+import { shareOut, textPayload } from "../../../utils/share"
 import { accuracy, judge, startTyping, step, wpm } from "./typing"
 import { categoryLabel } from "./prompts/index.js"
 
@@ -226,6 +227,13 @@ const RaceScreen = ({ view, act, now: clockNow, sounds, mobile = false, online =
           />
           {view.phase === "done" && multi && view.winner != null && (
             <p className="stMatchWinner">{view.winner === you ? "You win the match!" : `${view.racers[view.winner].name} wins the match.`}</p>
+          )}
+          {view.phase === "done" && (
+            <div className="stShareRow">
+              <button type="button" data-share-result onClick={() => shareOut(textPayload("Speed Typist 98", resultText(lastResult.table, you)), "apps", { title: "Speed Typist 98" })}>
+                Share Result...
+              </button>
+            </div>
           )}
           {view.phase === "done" && footer}
         </div>

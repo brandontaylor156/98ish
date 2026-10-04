@@ -1,11 +1,33 @@
 import { fs, uniqueName, FILE_TYPE, DIRECTORY_TYPE } from "./fs"
+import { hyperlinks } from "./hyperlinks"
+import { copyImage, copyText } from "./systemClipboard"
 
 // File operations shared by My Computer windows and the desktop: one clipboard for all
 // of them, paste, moving by drag and drop, and shortcuts.
 
 let clipboard = null // { mode: "cut" | "copy", items: [Item] }
 export const getClipboard = () => clipboard
-export const setClipboard = (value) => (clipboard = value)
+export const setClipboard = (value) => {
+  clipboard = value
+  if (value?.items?.length === 1) mirrorToSystem(value.items[0])
+  return value
+}
+
+// Copying a file also puts what's in it on the phone's/computer's own clipboard, so it
+// can be pasted into other apps: a text document's words, a shortcut's web address, a
+// picture. (Called inside the tap, which iOS needs.) Other files leave it alone.
+export const mirrorToSystem = (item) => {
+  if (!item || item.isDirectory || typeof navigator === "undefined") return
+  try {
+    if (item.type === FILE_TYPE.text || item.type === FILE_TYPE.note) copyText(item.textContent || "").catch(() => {})
+    else if (item.type === FILE_TYPE.internet) {
+      const url = hyperlinks[item.name] || item.textContent
+      if (url) copyText(url).catch(() => {})
+    } else if (item.type === FILE_TYPE.image && /^data:image\//.test(item.textContent || "")) copyImage(item.textContent).catch(() => {})
+  } catch {
+    // the system clipboard is a bonus: the 98ish one still works
+  }
+}
 
 // Pastes the clipboard into a folder; returns the last item pasted. Throws on trouble.
 export const pasteInto = (dir) => {

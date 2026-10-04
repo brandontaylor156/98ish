@@ -1,0 +1,59 @@
+/* Received Items and Send To messages (ShareCenter.jsx) */
+
+.shareLayer .dialog {
+  width: min(360px, 100%);
+}
+
+.shareList {
+  list-style: none;
+  margin: 0;
+  padding: 2px;
+  max-height: min(50vh, 320px);
+  overflow-y: auto;
+  background: #fff;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+}
+
+.shareRow {
+  display: flex;
+  gap: 6px;
+  align-items: flex-start;
+  padding: 4px;
+}
+
+.shareRow + .shareRow {
+  border-top: 1px dotted #c0c0c0;
+}
+
+.shareRow img {
+  width: 32px;
+  height: 32px;
+  flex: none;
+}
+
+.shareRowMain {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.shareName,
+.shareKind {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shareKind,
+.shareNo {
+  color: #555;
+}
+
+.shareSaved {
+  margin: 0;
+  padding-left: 18px;
+  max-height: 40vh;
+  overflow-y: auto;
+}

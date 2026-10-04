@@ -46,7 +46,13 @@ export const download = (name, text, type = "text/calendar") => {
 
 const safeName = (s) => String(s || "event").replace(/[^\w\- ]+/g, "").trim().slice(0, 40) || "event"
 
-export const downloadEvent = (event) => download(`${safeName(event.title)}.ics`, toICS([event], { name: event.title, domain: "98ish.vercel.app", byName: (e) => e.createdByName && e.createdByName !== "You" ? e.createdByName : "" }))
+// one event as an .ics file: { name, data, mime } (Add to my phone, Share...)
+export const eventFile = (event) => ({ name: `${safeName(event.title)}.ics`, data: toICS([event], { name: event.title, domain: "98ish.vercel.app", byName: (e) => e.createdByName && e.createdByName !== "You" ? e.createdByName : "" }), mime: "text/calendar" })
+
+export const downloadEvent = (event) => {
+  const file = eventFile(event)
+  download(file.name, file.data)
+}
 
 export const downloadCalendar = (calendarId) => {
   const s = getCal()

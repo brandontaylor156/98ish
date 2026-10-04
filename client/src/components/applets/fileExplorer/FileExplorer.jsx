@@ -11,7 +11,10 @@ import { launch, paintWindow } from "../../../utils/programs"
 import { useFsVersion } from "../../../hooks/useFs"
 import { useOpenGesture } from "../../../hooks/useMediaQuery"
 import { useLongPress } from "../../../hooks/useLongPress"
-import { UPLOAD_ACCEPT, canDownload, downloadItem, uploadInto } from "../../../utils/fileTransfer"
+import { UPLOAD_ACCEPT, canDownload, downloadItem } from "../../../utils/fileTransfer"
+import { itemPayload, shareOut } from "../../../utils/share"
+import { receiveFiles, savePasted, summarize } from "../../../utils/receive"
+import { fromPasteEvent, readClipboard } from "../../../utils/systemClipboard"
 import { isSyncEnabled, setSyncEnabled, statusText, useDriveSync } from "../../../utils/driveSync"
 import "./FileExplorer.css"
 
@@ -27,6 +30,10 @@ const sortItems = (items) =>
 
 // Large Icons show a picture's own image
 const thumbnailFor = (item) => (item.type === "image" && item.textContent.startsWith("data:image/") ? item.textContent : null)
+
+// pictures from the photo library (HEIC too: it's turned into a JPEG) plus everything else
+const PICK_ACCEPT = `image/*,.heic,.heif,${UPLOAD_ACCEPT}`
+const uploadLabel = () => (window.matchMedia?.("(pointer: coarse)").matches ? "Upload from Phone..." : "Upload from Your Device...")
 
 const sizeOf = (item) => {
   // a picture is kept as base64 text: count the bytes of the PNG itself
@@ -134,7 +141,9 @@ const FileExplorer = ({ path: initialPath = ["C:"], dispatch, onTitle }) => {
   const copy = (item) => item && canEdit && setClipboard({ mode: "copy", items: [item] })
 
   const paste = () => {
-    if (!clipboard || !canEdit) return
+    if (!canEdit) return
+    // nothing copied in 98ish: whatever is on the phone's/computer's own clipboard
+    if (!clipboard) return pasteFromDevice()
     try {
       const last = pasteInto(dir)
       if (last) setSelected(last)
@@ -142,6 +151,41 @@ const FileExplorer = ({ path: initialPath = ["C:"], dispatch, onTitle }) => {
       fail("Paste", error)
     }
   }
+
+  // pictures or text from outside 98ish -> files here
+  const takePasted = async (clip) => {
+    const into = dir
+    setUploading(true)
+    try {
+      const result = await savePasted(into, clip)
+      if (result.added.length) setSelected(result.added.at(-1))
+      const text = summarize(result, "pasted")
+      if (text) setDialog({ kind: "alert", title: "Paste", text })
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  // read inside the tap (the browser may ask first, or say no)
+  const pasteFromDevice = () => {
+    if (!canEdit) return
+    readClipboard().then((clip) => {
+      if (!clip.ok) return setDialog({ kind: "alert", title: "Paste", text: clip.message })
+      if (!clip.images.length && !String(clip.text || "").trim()) return setDialog({ kind: "alert", title: "Paste", text: "The clipboard is empty (or holds something 98ish can't paste: pictures and text can come in)." })
+      takePasted(clip)
+    })
+  }
+
+  // Ctrl+V or the phone's own Paste: the browser hands over the clipboard, no asking
+  const onPaste = (e) => {
+    if (!canEdit || dialog || e.target.closest("input, textarea")) return
+    const clip = fromPasteEvent(e)
+    if (!clip.images.length && !clip.text.trim()) return
+    e.preventDefault()
+    takePasted(clip)
+  }
+
+  const send = (item, mode) => shareOut(itemPayload(item), mode)
 
   const shortcut = (item, where = dir) => {
     try {
@@ -160,7 +204,7 @@ const FileExplorer = ({ path: initialPath = ["C:"], dispatch, onTitle }) => {
     const into = dir
     setUploading(true)
     try {
-      const { added, problems, notes } = await uploadInto(into, fileList)
+      const { added, problems, notes } = await receiveFiles(into, fileList)
       if (added.length) setSelected(added.at(-1))
       const text = [...problems, ...notes].join(" ")
       if (problems.length) setDialog({ kind: "alert", title: "Upload", text: `${problems.length === fileList.length ? "Nothing was uploaded. " : ""}${text}` })
@@ -199,7 +243,12 @@ const FileExplorer = ({ path: initialPath = ["C:"], dispatch, onTitle }) => {
     ...(item.isDirectory ? [{ label: "Explore", onClick: () => dispatch({ type: "open_window", payload: launch("My Computer", { path: fs.partsOf(item) }) }) }] : []),
     {
       label: "Send To",
-      items: [{ label: "Desktop (create shortcut)", onClick: () => shortcut(item, desktopFolder()) }],
+      items: [
+        { label: "Desktop (create shortcut)", onClick: () => shortcut(item, desktopFolder()) },
+        "-",
+        { label: "My Phone", disabled: item.isDirectory, onClick: () => send(item, "phone") },
+        { label: "Other Apps...", disabled: item.isDirectory, onClick: () => send(item, "apps") },
+      ],
     },
     { label: "Download to your computer", disabled: !canDownload(item), onClick: () => download(item) },
     "-",
@@ -222,7 +271,8 @@ const FileExplorer = ({ path: initialPath = ["C:"], dispatch, onTitle }) => {
       ],
     },
     "-",
-    { label: "Paste", disabled: !clipboard || !canEdit, onClick: paste },
+    { label: "Paste", disabled: !canEdit, onClick: paste },
+    { label: "Paste from Device Clipboard", disabled: !canEdit, onClick: pasteFromDevice },
     "-",
     {
       label: "New",
@@ -231,7 +281,7 @@ const FileExplorer = ({ path: initialPath = ["C:"], dispatch, onTitle }) => {
         { label: "Text Document", disabled: !canEdit, onClick: () => newItem("file") },
       ],
     },
-    { label: "Upload from your computer...", disabled: !canEdit, onClick: () => importRef.current?.click() },
+    { label: uploadLabel(), disabled: !canEdit, onClick: () => importRef.current?.click() },
     "-",
     { label: "Properties", disabled: !path.length, onClick: () => properties(null) },
   ]
@@ -243,8 +293,16 @@ const FileExplorer = ({ path: initialPath = ["C:"], dispatch, onTitle }) => {
         { label: "New Folder", disabled: !canEdit, onClick: () => newItem("folder") },
         { label: "New Text Document", disabled: !canEdit, onClick: () => newItem("file") },
         "-",
-        { label: "Upload from your computer...", disabled: !canEdit, onClick: () => importRef.current?.click() },
+        { label: uploadLabel(), disabled: !canEdit, onClick: () => importRef.current?.click() },
         { label: "Download to your computer", disabled: !canDownload(selectedItem || (canEdit ? dir : null)), onClick: () => download(selectedItem || dir) },
+        {
+          label: "Send To",
+          disabled: !selectedItem || selectedItem.isDirectory,
+          items: [
+            { label: "My Phone", onClick: () => send(selectedItem, "phone") },
+            { label: "Other Apps...", onClick: () => send(selectedItem, "apps") },
+          ],
+        },
         "-",
         { label: "Open", disabled: !selectedItem, onClick: () => open(selectedItem) },
         { label: "Delete", disabled: !selectedItem || !canEdit, onClick: () => askDelete(selectedItem) },
@@ -257,7 +315,8 @@ const FileExplorer = ({ path: initialPath = ["C:"], dispatch, onTitle }) => {
       items: [
         { label: "Cut", disabled: !selectedItem || !canEdit, onClick: () => cut(selectedItem) },
         { label: "Copy", disabled: !selectedItem || !canEdit, onClick: () => copy(selectedItem) },
-        { label: "Paste", disabled: !clipboard || !canEdit, onClick: paste },
+        { label: "Paste", disabled: !canEdit, onClick: paste },
+        { label: "Paste from Device Clipboard", disabled: !canEdit, onClick: pasteFromDevice },
       ],
     },
     {
@@ -305,7 +364,8 @@ const FileExplorer = ({ path: initialPath = ["C:"], dispatch, onTitle }) => {
     else if (e.key === "Backspace") up()
     else if (ctrl && e.key.toLowerCase() === "x") cut(selectedItem)
     else if (ctrl && e.key.toLowerCase() === "c") copy(selectedItem)
-    else if (ctrl && e.key.toLowerCase() === "v") paste()
+    // with nothing copied in 98ish, the paste event (onPaste) brings the system clipboard
+    else if (ctrl && e.key.toLowerCase() === "v" && clipboard) paste()
     else return
     e.preventDefault()
   }
@@ -314,7 +374,7 @@ const FileExplorer = ({ path: initialPath = ["C:"], dispatch, onTitle }) => {
   const status = uploading ? "Uploading..." : selectedItem ? `${selectedItem.name} \u2014 ${typeName(selectedItem)}${selectedItem.isDirectory ? "" : `, ${formatSize(sizeOf(selectedItem))}`}` : objectCount
 
   return (
-    <div className="fxRoot" ref={rootRef} tabIndex={-1} onKeyDown={onKeyDown}>
+    <div className="fxRoot" ref={rootRef} tabIndex={-1} onKeyDown={onKeyDown} onPaste={onPaste}>
       <MenuBar menus={menus} />
 
       <div className="fxToolbar">
@@ -334,8 +394,12 @@ const FileExplorer = ({ path: initialPath = ["C:"], dispatch, onTitle }) => {
         <button type="button" disabled={!selectedItem || !canEdit} onClick={() => copy(selectedItem)}>
           Copy
         </button>
-        <button type="button" disabled={!clipboard || !canEdit} onClick={paste}>
+        <button type="button" disabled={!canEdit} onClick={paste}>
           Paste
+        </button>
+        <span className="fxSep" />
+        <button type="button" disabled={!canEdit} onClick={() => importRef.current?.click()} title={uploadLabel().replace("...", "")}>
+          Upload
         </button>
         <span className="fxSep" />
         <button type="button" disabled={!selectedItem || !canEdit} onClick={() => askDelete(selectedItem)}>
@@ -432,7 +496,7 @@ const FileExplorer = ({ path: initialPath = ["C:"], dispatch, onTitle }) => {
       <input
         ref={importRef}
         type="file"
-        accept={UPLOAD_ACCEPT}
+        accept={PICK_ACCEPT}
         multiple
         className="d-none"
         onChange={(e) => {

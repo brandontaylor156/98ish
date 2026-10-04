@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react"
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react"
 import "./shared.css"
 
 // "Undo Ctrl+Z": the shortcut goes in its own column on the right, as in Windows
@@ -14,8 +14,65 @@ const ItemLabel = ({ label }) => {
   )
 }
 
+// A menu's rows. An item with `items` is a submenu ("Send To" ▸): it opens on hover or a
+// tap, to the right (or the left, if there's no room).
+const MenuItems = ({ items, close }) => {
+  const [sub, setSub] = useState(null)
+  return items.map((item, j) =>
+    item === "-" ? (
+      <li key={j} className="menuSep" role="separator" />
+    ) : (
+      <li key={item.label} className={item.items ? "menuHasSub" : undefined} onMouseEnter={() => setSub(item.items ? j : null)}>
+        <button
+          type="button"
+          disabled={item.disabled}
+          aria-haspopup={item.items ? "menu" : undefined}
+          aria-expanded={item.items ? sub === j : undefined}
+          onClick={() => {
+            // (the pointer already opened it on the way in: a click keeps it open)
+            if (item.items) return setSub(j)
+            close()
+            item.onClick()
+          }}
+        >
+          <span className="menuCheck">{item.checked ? "✓" : ""}</span>
+          <ItemLabel label={item.label} />
+          {item.items && <span className="menuArrow">&#9654;&#xFE0E;</span>}
+        </button>
+        {sub === j && item.items && <SubMenu items={item.items} close={close} />}
+      </li>
+    )
+  )
+}
+
+const SubMenu = ({ items, close }) => {
+  const ref = useRef(null)
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (!el) return
+    // the window clips what's outside it, so its edge counts (else the screen's)
+    const frame = el.closest(".desktopWindow, [data-window-index]")?.getBoundingClientRect()
+    const vw = Math.min(document.documentElement.clientWidth, frame ? frame.right : Infinity)
+    if (el.getBoundingClientRect().right <= vw - 2) return
+    el.classList.add("is-flipped")
+    // a narrow phone: no room on either side, so it drops down over its menu instead
+    const left = Math.max(0, frame ? frame.left : 0)
+    if (el.getBoundingClientRect().left < left + 2) {
+      const row = el.parentElement.getBoundingClientRect()
+      el.classList.remove("is-flipped")
+      el.style.left = `${Math.max(left + 2, Math.min(row.left + 12, vw - el.offsetWidth - 2)) - row.left}px`
+      el.style.top = `${row.height - 2}px`
+    }
+  }, [])
+  return (
+    <ul className="menu window menuSub" ref={ref} role="menu">
+      <MenuItems items={items} close={close} />
+    </ul>
+  )
+}
+
 // Classic menu bar: click a title to open its menu, click an item (or away) to close.
-// menus: [{ label, items: [{ label, onClick, checked, disabled } | "-"] }]
+// menus: [{ label, items: [{ label, onClick, checked, disabled, items } | "-"] }]
 const MenuBar = ({ menus }) => {
   const [open, setOpen] = useState(null)
   const ref = useRef(null)
@@ -48,25 +105,7 @@ const MenuBar = ({ menus }) => {
           </button>
           {open === i && (
             <ul className="menu window">
-              {menu.items.map((item, j) =>
-                item === "-" ? (
-                  <li key={j} className="menuSep" role="separator" />
-                ) : (
-                  <li key={item.label}>
-                    <button
-                      type="button"
-                      disabled={item.disabled}
-                      onClick={() => {
-                        setOpen(null)
-                        item.onClick()
-                      }}
-                    >
-                      <span className="menuCheck">{item.checked ? "✓" : ""}</span>
-                      <ItemLabel label={item.label} />
-                    </button>
-                  </li>
-                )
-              )}
+              <MenuItems items={menu.items} close={() => setOpen(null)} />
             </ul>
           )}
         </li>

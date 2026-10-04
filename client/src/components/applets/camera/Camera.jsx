@@ -11,6 +11,7 @@ import { FRAMES, drawFrame, frameLabel } from "./frames"
 import * as sounds from "./sounds"
 import { BURST_COUNT, MAX_CLIP_SECONDS, MODES, STRIP_COUNT, TIMERS, cameraProblem, clipExtension, clockText, isAppleMobile, nextTimer, pickClipType } from "./support"
 import { MAX_SIDE, fitScale, loadImage, nextPhotoName, picturesFolder, savePicture, stripLayout, toJpeg } from "../photos/library"
+import { itemPayload, shareOut } from "../../../utils/share"
 import "./Camera.css"
 
 // Camera: a live picture from the webcam or the phone's front or back camera, with retro
@@ -326,8 +327,18 @@ const Camera = ({ mobile, dispatch, onTitle }) => {
       return null
     }
     setLast(result.file)
+    setFresh(result.file)
     return result.file
   }
+
+  // after a shot, a Share button sits on the picture for a few seconds
+  const [fresh, setFresh] = useState(null)
+  useEffect(() => {
+    if (!fresh) return
+    const id = setTimeout(() => setFresh(null), 12000)
+    return () => clearTimeout(id)
+  }, [fresh])
+  const shareLast = (mode) => last?.parent && shareOut(itemPayload(last), mode, { title: "Camera" })
 
   const countdown = async (seconds) => {
     for (let n = seconds; n > 0; n--) {
@@ -566,6 +577,14 @@ const Camera = ({ mobile, dispatch, onTitle }) => {
       items: [
         { label: "Open My Pictures", onClick: () => openPhotos(null) },
         { label: "Open Last Photo", disabled: !last?.parent, onClick: () => openPhotos(last) },
+        {
+          label: "Send Last Photo To",
+          disabled: !last?.parent,
+          items: [
+            { label: "My Phone", onClick: () => shareLast("phone") },
+            { label: "Other Apps...", onClick: () => shareLast("apps") },
+          ],
+        },
         "-",
         { label: "Picture from Your Device...", onClick: () => fileRef.current?.click() },
       ],
@@ -630,6 +649,11 @@ const Camera = ({ mobile, dispatch, onTitle }) => {
           )}
           {badge && <div className={`camBadge${busy === "recording" ? " is-rec" : ""}`}>{badge}</div>}
           {flash > 0 && <div className="camFlash" key={flash} />}
+          {fresh && fresh === last && fresh.parent && !busy && (
+            <button type="button" className="camShareLast" onClick={() => (shareLast("phone"), setFresh(null))} title={`Send ${fresh.name} to your phone or another app`}>
+              Share {fresh.name}...
+            </button>
+          )}
           {clip && (
             <div className="camClip window">
               <div className="title-bar">
