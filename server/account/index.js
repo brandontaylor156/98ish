@@ -15,7 +15,13 @@
 //   push        pushsubs, pushprefs, pushinboxes   their devices, settings and held IMs deleted;
 //                                                  IMs they sent that wait for someone else deleted
 //   drive       syncaccounts, syncentries,         every synced file, its contents, the device
-//               syncblobs, syncdevices, drives     sync tokens and the old whole-drive copy deleted
+//               syncblobs, syncdevices, drives,    sync tokens and the old whole-drive copy deleted;
+//               + the online storage bucket        with a bucket (Vercel Blob / S3, server/drive/
+//                 (objects u/<HMAC of key>/...)    bucket.js) its objects are deleted first, by
+//                                                  the paths in syncblobs (an upload URL issued
+//                                                  before the deletion and used after it leaves an
+//                                                  object with no record: the weekly tidy deletes
+//                                                  it). blobusage holds only daily totals, no account
 //   contacts    addressbooks                       their Address Book deleted
 //   mail        mailmessages                       their whole mailbox (all folders) deleted; mail
 //                                                  they sent stays in the recipients' mailboxes

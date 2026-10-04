@@ -649,7 +649,7 @@ export const topics = [
         list: [
           "If the same file was changed in two places, both are kept: one gets the other device's name added, like **Notes (from iPhone)**.",
           "Files you delete on one device go to the Recycle Bin on the others, so nothing vanishes by surprise.",
-          "Online space is limited: 100 MB per screen name (about 300 photos; Camera and Photos keep each photo under about 400 KB). Backup shows how much you're using. Files over 12 MB don't sync.",
+          "Online space is limited: 300 MB per screen name (about 800 photos; Camera and Photos keep each photo under about 400 KB). Backup shows how much you're using. Files over 12 MB don't sync. If 98ish's free online storage needs a rest, sync says until when, and your files wait safely on your device.",
           "The Programs folder and settings aren't synced, just your files.",
           "**Delete Online Files** in Backup removes the online copies (your files on this device stay).",
         ],

@@ -7,6 +7,7 @@
 // VAPID_PUBLIC_KEY + VAPID_PRIVATE_KEY + VAPID_SUBJECT (push notifications; off without them),
 // DRIVE_SYNC_QUOTA_MB and DRIVE_SYNC_MAX_FILE_MB (file sync, see server/drive/sync.js),
 // WEB_MONTHLY_WARN_MB (server/meter: the monthly outgoing-traffic meter).
+// BLOB_READ_WRITE_TOKEN (synced file contents in Vercel Blob; see server/drive/bucket.js).
 
 const express = require("express")
 const cors = require("cors")

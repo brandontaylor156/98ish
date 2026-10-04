@@ -127,11 +127,15 @@ export const statusText = (s = state) => {
 // ---------- talking to the server ----------
 
 class SyncError extends Error {
-  constructor(message, { status = 0, offline = false, full = false } = {}) {
+  constructor(message, { status = 0, offline = false, full = false, resting = false } = {}) {
     super(message)
-    Object.assign(this, { status, offline, full })
+    Object.assign(this, { status, offline, full, resting })
   }
 }
+
+// the server's free online storage budget is used up for now (server/drive/bucket.js)
+const restingText = (until) =>
+  `Online storage is resting until ${new Date(until).toLocaleDateString([], { month: "short", day: "numeric" })}. Your files are safe on this device and will sync then.`
 
 const authToken = () => session?.token || prefs.account?.device || null
 
@@ -159,9 +163,102 @@ const request = async (method, path, { json, text, raw = false, keepalive = fals
   }
   if (!response.ok || data.ok === false) {
     if (response.status >= 500 || response.status === 0 || response.status === 502 || response.status === 503) throw new SyncError("The sync server is waking up. Sync will try again.", { status: response.status, offline: true })
+    if (data.resting && data.until) throw new SyncError(restingText(data.until), { status: response.status, resting: true })
     throw new SyncError(data.error || `Sync failed (${response.status}).`, { status: response.status, full: !!data.full })
   }
   return data
+}
+
+// ---------- contents straight to and from the online storage bucket ----------
+// When the server has a bucket (/state says `direct`), contents don't pass through it: a
+// device asks for a signed URL, sends the bytes there, and says it's done (/upload, PUT,
+// /commit); downloads get signed URLs (/urls). Pictures go as their bytes, other text as
+// UTF-8. Anything that doesn't work that way goes the old way (/blob), which the server
+// handles with the bucket too.
+
+let direct = false
+
+const DATA_URL = /^data:([a-z0-9.+-]+\/[a-z0-9.+-]+);base64,([A-Za-z0-9+/]*={0,2})$/i
+const bytesToBase64 = (bytes) => {
+  let text = ""
+  for (let i = 0; i < bytes.length; i += 0x8000) text += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000))
+  return btoa(text)
+}
+const base64ToBytes = (b64) => {
+  const bin = atob(b64)
+  const out = new Uint8Array(bin.length)
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i)
+  return out
+}
+const utf8 = () => new TextDecoder("utf-8", { ignoreBOM: true })
+
+// text -> { enc, mime, bytes } that come back as exactly the same text, or null
+const packContents = (text) => {
+  const match = text.length > 64 ? DATA_URL.exec(text) : null
+  if (match) {
+    try {
+      const bytes = base64ToBytes(match[2])
+      if (bytesToBase64(bytes) === match[2]) return { enc: "b64", mime: match[1], bytes }
+    } catch {
+      // not really base64: sent as text
+    }
+  }
+  const bytes = new TextEncoder().encode(text)
+  return utf8().decode(bytes) === text ? { enc: "t", mime: "", bytes } : null
+}
+const unpackContents = (buffer, enc, mime) => (enc === "b64" ? `data:${mime};base64,${bytesToBase64(new Uint8Array(buffer))}` : utf8().decode(buffer))
+
+// -> the server's answer, or null when the old way should be used
+const uploadDirect = async (hash, text) => {
+  const packed = packContents(text)
+  if (!packed) return null
+  const ticket = await request("POST", "/upload", { json: { hash, size: packed.bytes.length, enc: packed.enc, mime: packed.mime } })
+  if (!ticket.url) return ticket // the server has it already
+  let sent = null
+  try {
+    sent = await fetch(ticket.url, { method: ticket.method || "PUT", headers: ticket.headers || {}, body: new Blob([packed.bytes], { type: ticket.headers?.["x-content-type"] || ticket.headers?.["Content-Type"] || "application/octet-stream" }) })
+  } catch {
+    sent = null
+  }
+  // the bucket couldn't be reached or said no: the server takes it (and says why if it can't)
+  if (!sent?.ok) return null
+  try {
+    return await request("POST", "/commit", { json: { hash } })
+  } catch (error) {
+    if (error.offline || error.resting) throw error
+    return null
+  }
+}
+
+// signed download URLs, asked for a few at a time: hash -> { url, enc, mime, at } | { local }
+const tickets = new Map()
+let upcoming = [] // contents the current page of changes still needs
+const TICKET_MS = 2 * 60_000
+const fresh = (t) => t && Date.now() - t.at < TICKET_MS
+
+const ticketFor = async (hash) => {
+  if (fresh(tickets.get(hash))) return tickets.get(hash)
+  const group = [hash, ...upcoming.filter((h) => h !== hash && !fresh(tickets.get(h)))].slice(0, 20)
+  const result = await request("POST", "/urls", { json: { hashes: group } })
+  const at = Date.now()
+  for (const [h, t] of Object.entries(result.urls || {})) tickets.set(h, { ...t, at })
+  for (const h of result.local || []) tickets.set(h, { local: true, at })
+  return tickets.get(hash) || { local: true, at }
+}
+
+// -> the text, or null when the old way should be used
+const downloadDirect = async (hash) => {
+  const ticket = await ticketFor(hash)
+  if (!ticket.url) return null
+  tickets.delete(hash)
+  try {
+    const response = await fetch(ticket.url)
+    if (!response.ok) return null
+    const text = unpackContents(await response.arrayBuffer(), ticket.enc, ticket.mime)
+    return contentKey(text) === hash ? text : null
+  } catch {
+    return null
+  }
 }
 
 // tell the server to forget a device sync token (signing off, sync turned off)
@@ -205,6 +302,10 @@ const folderFor = (path) => {
 const contentsFor = async (hash) => {
   const twin = fs.findItem((item) => !item.isDirectory && item.contentHash === hash)
   if (twin) return { twin }
+  if (direct) {
+    const got = await downloadDirect(hash)
+    if (got !== null) return { text: got }
+  }
   const text = await request("GET", `/blob/${encodeURIComponent(hash)}`, { raw: true })
   if (contentKey(text) !== hash) throw new SyncError("A file came down damaged. Sync will try again.")
   return { text }
@@ -267,6 +368,15 @@ const pull = async (st) => {
     const wanted = result.entries.filter((e) => inScope(e.path, prefs.folders))
     set({ usage: result.usage, quota: result.quota })
     if (wanted.length) {
+      if (direct) {
+        // what this page will download (its URLs are asked for together)
+        const here = new Set()
+        fs.findItem((item) => {
+          if (!item.isDirectory && item.contentHash) here.add(item.contentHash)
+          return false
+        })
+        upcoming = [...new Set(wanted.filter((e) => e.kind === "f" && !e.deleted && e.hash && !here.has(e.hash)).map((e) => e.hash))]
+      }
       applying++
       try {
         for (let i = 0; i < wanted.length; i++) {
@@ -317,7 +427,7 @@ const push = async (st, maxFile) => {
       failed.add(change.hash)
       continue
     }
-    const result = await request("PUT", `/blob/${encodeURIComponent(change.hash)}`, { text })
+    const result = (direct && (await uploadDirect(change.hash, text))) || (await request("PUT", `/blob/${encodeURIComponent(change.hash)}`, { text }))
     set({ usage: result.usage, quota: result.quota })
     uploaded.add(change.hash)
   }
@@ -368,6 +478,7 @@ const runCycle = async () => {
     await ensureDevice()
     const st = await loadState(key)
     const info = await request("GET", "/state")
+    direct = !!info.direct
     set({ usage: info.usage, quota: info.quota, files: info.files })
     let kept = 0
     let skipped = 0

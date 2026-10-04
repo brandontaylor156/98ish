@@ -313,7 +313,7 @@ export const topics = [
         },
       },
       { h: "Where the server is" },
-      "The 98ish server runs on **Render** (a hosting company, US), and keeps what it stores in a **MongoDB Atlas** database (MongoDB's cloud service, free tier). The 98ish website itself is served by **Vercel**. Live things (who's online, chat rooms, calls, online games) are kept only in the server's memory and are gone when you sign off or the server restarts.",
+      "The 98ish server runs on **Render** (a hosting company, US), and keeps what it stores in a **MongoDB Atlas** database (MongoDB's cloud service, free tier). The contents of synced files (your photos and documents) are kept in **Vercel Blob**, Vercel's private file storage: your devices send and fetch them there with links the server signs for your account, good for a few minutes. The 98ish website itself is served by **Vercel**. Live things (who's online, chat rooms, calls, online games) are kept only in the server's memory and are gone when you sign off or the server restarts.",
       { h: "Who can see what" },
       {
         list: [
@@ -365,7 +365,7 @@ export const topics = [
     summary: "Exactly what's stored for a 98 Messenger account, for how long, and who can see it.",
     keywords: ["server", "what the server sees", "what is stored online", "messages privacy", "IP address", "security", "who can see", "how long", "MongoDB", "Render"],
     body: [
-      "Only with a 98 Messenger account (and only for the features you use). Everything is kept in the 98ish database (MongoDB Atlas) by the server on Render.",
+      "Only with a 98 Messenger account (and only for the features you use). Everything is kept in the 98ish database (MongoDB Atlas) by the server on Render, except the contents of synced files, which are kept in Vercel Blob (private file storage; the database keeps their list).",
       {
         table: {
           head: ["What", "Kept", "Who can see it"],
@@ -397,7 +397,7 @@ export const topics = [
           "Your IP address is used for a few minutes to slow down password guessing and spam; it isn't stored with your account. Render (the host) may keep its own short request logs.",
         ],
       },
-      { note: "File sync's online space is 100 MB per screen name, and the database is MongoDB's free tier (512 MB for everyone together), so 98ish keeps photos small (under about 400 KB each)." },
+      { note: "File sync's online space is 300 MB per screen name, on Vercel Blob's free plan (98ish uses at most 750 MB of it for everyone together), so 98ish keeps photos small (under about 400 KB each). When the free plan's monthly allowance is used up, sync says \"Online storage is resting until\" a date; your files stay on your device and sync then." },
     ],
     related: ["privacy-overview", "privacy-third-parties", "privacy-couples", "delete-account", "file-sync", "messenger-calls"],
   },
@@ -414,6 +414,7 @@ export const topics = [
           rows: [
             ["Vercel", "Serving the 98ish website", "Your device's IP address and the pages and files it loads, like any website host."],
             ["Render and MongoDB Atlas", "The 98ish server and its database", "What's listed in [[privacy-server]]."],
+            ["Vercel Blob", "The contents of synced files (only with file sync on)", "Your files' contents, stored privately under a scrambled name (not your screen name), and your device's IP address when it sends or fetches them."],
             ["Apple, Google or Mozilla push services", "Notifications while 98ish is closed (only if you turn them on)", "That a notification was sent to your device, when, and its size. The words are encrypted for your device; the push service can't read them."],
             ["Google's public STUN servers", "Helping two devices find each other for a call", "Your device's IP address during call setup. Your voice and video never go through it."],
             ["A TURN relay (only if the 98ish server has one set up)", "Calls on networks that block direct connections", "Your IP address and the call's encrypted audio and video passing through (it can't play them)."],
