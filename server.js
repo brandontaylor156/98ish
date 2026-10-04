@@ -5,7 +5,8 @@
 // online copy (server/contacts).
 // Env: PORT, MONGODB_URI (accounts, guestbook and online drives; kept in memory without it),
 // VAPID_PUBLIC_KEY + VAPID_PRIVATE_KEY + VAPID_SUBJECT (push notifications; off without them),
-// DRIVE_SYNC_QUOTA_MB and DRIVE_SYNC_MAX_FILE_MB (file sync, see server/drive/sync.js).
+// DRIVE_SYNC_QUOTA_MB and DRIVE_SYNC_MAX_FILE_MB (file sync, see server/drive/sync.js),
+// BLOB_READ_WRITE_TOKEN (synced file contents in Vercel Blob; see server/drive/bucket.js).
 
 const express = require("express")
 const cors = require("cors")

@@ -3,8 +3,8 @@
 
 export const MAX_SIDE = 2048 // a photo's longest side
 // about 400 KB as a data URL: the drive holds hundreds of them, and file sync keeps them in
-// 98 Messenger's online storage (100 MB per account on MongoDB's free 512 MB tier: about
-// 250-300 photos each, so a couple's photos fit side by side; see server/drive/sync.js)
+// 98 Messenger's online storage (300 MB per account in Vercel Blob's free plan, 750 MB in
+// all: about 800 photos each, so a couple's photos fit side by side; see server/drive/sync.js)
 export const MAX_CHARS = 560_000
 // in the small fallback drive (no IndexedDB, about 5 MB in all): the old limits
 export const SMALL_DRIVE_SIDE = 1280

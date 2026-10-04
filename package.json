@@ -22,6 +22,7 @@
   },
   "homepage": "https://github.com/brandontaylor156/98ish#readme",
   "dependencies": {
+    "@vercel/blob": "^2.8.0",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",
     "express": "^5.2.1",
