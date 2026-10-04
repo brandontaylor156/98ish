@@ -2,6 +2,8 @@ import React, { useEffect, useState } from "react"
 import { useNet } from "../../applets/network/NetContext"
 import { GlobeIcon } from "./PlayOnlineButton"
 import { joinLink } from "./useOnlineRoom"
+import MoreOptions from "../MoreOptions"
+import { useIsMobile } from "../../../hooks/useMediaQuery"
 import "./Online.css"
 
 // The standard "Play Online" screens for games on the online room system: the choices
@@ -119,6 +121,7 @@ const Header = ({ title, icon, children }) => (
 // The choices before you're in a room
 const Home = ({ online, title, icon, blurb, defaultSettings, renderSettings, quickSettings, computer, onBack, extra }) => {
   const [step, setStep] = useState(null) // null | create | quick | code | invite
+  const phone = useIsMobile()
   const [settings, setSettings] = useState(defaultSettings || {})
   const [code, setCode] = useState("")
   const { server, busy, error } = online
@@ -168,10 +171,13 @@ const Home = ({ online, title, icon, blurb, defaultSettings, renderSettings, qui
             disabled={off}
             onClick={() => (renderSettings && quickSettings ? setStep("quick") : online.quickMatch(settings))}
           />
-          <Choice id="create" title="Create Room" text={renderSettings ? "A private room with a code to share. You pick the settings." : "A private room with a code to share with friends."} busy={busy === "create"} disabled={off} onClick={() => (renderSettings ? setStep("create") : create(false))} />
-          <Choice id="code" title="Join with Code" text="Got a code like K7QX from a friend? Type it in." busy={busy === "join"} disabled={off} onClick={() => setStep("code")} />
-          <Choice id="invite" title="Invite Someone" text={others ? `Pick from the ${others} ${others === 1 ? "person" : "people"} online now.` : "Make a room, then invite people as they come online."} disabled={off} onClick={() => (renderSettings ? setStep("invite") : create(true))} />
           {computer && <Choice id="computer" title="Play the Computer" text="No waiting: computer players fill every other seat." busy={busy === "computer"} disabled={off} onClick={() => online.playComputer(settings)} />}
+          {/* rooms with friends one tap away (docs/simplicity.md); remembered for every game */}
+          <MoreOptions id="online.rooms" label="Play with friends" lessLabel="Hide" className="olMore" defaultOpen={!phone} summary="Create Room · Join with Code · Invite Someone">
+            <Choice id="create" title="Create Room" text={renderSettings ? "A private room with a code to share. You pick the settings." : "A private room with a code to share with friends."} busy={busy === "create"} disabled={off} onClick={() => (renderSettings ? setStep("create") : create(false))} />
+            <Choice id="code" title="Join with Code" text="Got a code like K7QX from a friend? Type it in." busy={busy === "join"} disabled={off} onClick={() => setStep("code")} />
+            <Choice id="invite" title="Invite Someone" text={others ? `Pick from the ${others} ${others === 1 ? "person" : "people"} online now.` : "Make a room, then invite people as they come online."} disabled={off} onClick={() => (renderSettings ? setStep("invite") : create(true))} />
+          </MoreOptions>
         </div>
       )}
 

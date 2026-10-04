@@ -1,0 +1,209 @@
+/* Simplicity pieces (docs/simplicity.md): MoreOptions, PrimaryBar, GameStart */
+
+/* ---- More options » ---- */
+
+.moreOpts {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.moreOpts-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+/* a Win98 "Advanced »" button */
+.moreOpts-toggle {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0 !important;
+  padding: 0 10px !important;
+  min-height: 23px;
+  white-space: nowrap;
+}
+
+.moreOpts-chevron {
+  font-weight: bold;
+}
+
+.moreOpts-summary {
+  flex: 1;
+  min-width: 0;
+  color: #404040;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: default;
+}
+
+.moreOpts-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.moreOpts-body[hidden] {
+  display: none;
+}
+
+/* phones: a full-width row, the summary under the words, easy to hit */
+.os-mobile .moreOpts:not(.moreOpts--inline) .moreOpts-head {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
+}
+
+.os-mobile .moreOpts:not(.moreOpts--inline) .moreOpts-toggle {
+  justify-content: space-between;
+  min-height: 40px;
+  font-size: 13px;
+  padding: 0 12px !important;
+}
+
+.os-mobile .moreOpts-summary {
+  white-space: normal;
+  font-size: 12px;
+  padding: 0 2px;
+}
+
+/* ---- the main action's row ---- */
+
+.primaryBar {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 6px 8px 8px;
+  background: #c0c0c0;
+  border-top: 1px solid #808080;
+  box-shadow: inset 0 1px #fff;
+}
+
+.primaryBar--end {
+  justify-content: flex-end;
+}
+
+.primaryBar--stretch > * {
+  flex: 1;
+}
+
+.primaryBar button {
+  min-width: 75px;
+}
+
+.os-mobile .primaryBar {
+  padding-bottom: calc(8px + env(safe-area-inset-bottom));
+}
+
+.os-mobile .primaryBar button {
+  min-height: 40px;
+  font-size: 13px;
+}
+
+/* ---- a game's title screen ---- */
+
+.gameStart {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  width: min(100%, 360px);
+  margin: 0 auto;
+}
+
+.gameStart-title {
+  display: flex;
+  justify-content: center;
+}
+
+.gameStart-main {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.gameStart-play {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  width: 100%;
+  min-height: 56px;
+  padding: 6px 12px !important;
+  outline: 1px solid #000;
+  outline-offset: -1px;
+}
+
+.gameStart-playLabel {
+  font-size: 18px;
+  font-weight: bold;
+}
+
+.gameStart-playSub {
+  font-size: 11px;
+  color: #404040;
+}
+
+.gameStart .olPlayButton.gameStart-online {
+  display: flex;
+  width: 100%;
+  min-height: 52px;
+}
+
+.gameStart-more,
+.gameStart-options {
+  width: 100%;
+}
+
+.gameStart-modes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 6px;
+}
+
+.gameStart-mode {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-height: 40px;
+  padding: 4px 8px !important;
+  text-align: left;
+}
+
+.gameStart-modeLabel {
+  font-weight: bold;
+  font-size: 12px;
+}
+
+.gameStart-modeSub {
+  font-size: 11px;
+  color: #404040;
+}
+
+.gameStart-optionList {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 2px 4px;
+}
+
+.os-mobile .gameStart-mode {
+  min-height: 48px;
+}
+
+.os-mobile .gameStart-play {
+  min-height: 64px;
+}

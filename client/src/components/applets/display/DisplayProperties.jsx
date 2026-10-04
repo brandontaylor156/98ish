@@ -15,6 +15,7 @@ import {
 } from "../../../utils/settings"
 import { shellAction } from "../../../utils/shell"
 import { unlock } from "../../../utils/achievements"
+import MoreOptions from "../../shared/MoreOptions"
 import "./DisplayProperties.css"
 
 const TABS = [
@@ -131,15 +132,18 @@ const DisplayProperties = ({ onClose, tab: firstTab }) => {
                   e.target.value = ""
                 }}
               />
-              <label htmlFor="dp-display">Display:</label>
-              <select id="dp-display" value={draft.display} onChange={(e) => update({ display: e.target.value })}>
-                <option value="stretch">Stretch</option>
-                <option value="center">Center</option>
-                <option value="tile">Tile</option>
-              </select>
-              <button type="button" className="dpThemes" onClick={() => shellAction("themes")}>
-                Themes...
-              </button>
+              {/* how it's laid out and Themes...: one tap further (docs/simplicity.md) */}
+              <MoreOptions id="display.background" label="More" lessLabel="Less" className="dpMore" summary={`Display: ${draft.display[0].toUpperCase()}${draft.display.slice(1)}`}>
+                <label htmlFor="dp-display">Display:</label>
+                <select id="dp-display" value={draft.display} onChange={(e) => update({ display: e.target.value })}>
+                  <option value="stretch">Stretch</option>
+                  <option value="center">Center</option>
+                  <option value="tile">Tile</option>
+                </select>
+                <button type="button" className="dpThemes" onClick={() => shellAction("themes")}>
+                  Themes...
+                </button>
+              </MoreOptions>
             </div>
           </div>
         )}

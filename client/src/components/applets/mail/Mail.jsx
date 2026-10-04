@@ -13,6 +13,8 @@ import { contactByScreenName, useContacts } from "../../../utils/contacts"
 import { displayName, mailAddressOf } from "../../../utils/contactsCore"
 import "./Mail.css"
 import { helpItem } from "../../../utils/help"
+import MoreOptions from "../../shared/MoreOptions"
+import { summarize } from "../../../utils/disclosure"
 
 // 98ish Mail, in the style of a late-90s mail program: folders, a sortable message list,
 // a preview pane, and a New Message form with attachments from the 98ish drive. Your
@@ -137,24 +139,35 @@ const Compose = ({ draft, people, onSend, onSaveDraft, onCancel, onAttach, onRem
   const size = byteSize(draft.subject) + byteSize(draft.body) + draft.attachments.reduce((n, a) => n + a.size, 0)
   return (
     <div className="mlCompose">
+      {/* the baseline (docs/simplicity.md): Send, Cancel, To, Subject, the message. From, Cc,
+          Attach and Save Draft are under More options, summarized */}
       <div className="mlComposeBar">
         <ToolButton label="Send" icon="send" onClick={onSend} disabled={!draft.to.trim()} />
-        <ToolButton label="Save" icon="save" onClick={onSaveDraft} />
-        <ToolButton label="Attach" icon="attach" onClick={onAttach} />
         <ToolButton label="Cancel" icon="cancel" onClick={onCancel} />
         <span className="mlComposeTitle">{draft.subject || "New Message"}</span>
       </div>
       <div className="mlComposeHead">
-        <div className="mlField">
-          <label>From:</label>
-          <span className="mlFrom">{draft.from}</span>
-        </div>
         <AddressField id="ml-to" label="To:" value={draft.to} onChange={(to) => onChange({ to })} people={people} />
-        <AddressField id="ml-cc" label="Cc:" value={draft.cc} onChange={(cc) => onChange({ cc })} people={people} />
         <div className="mlField">
           <label htmlFor="ml-subject">Subject:</label>
           <input id="ml-subject" value={draft.subject} maxLength={120} enterKeyHint="next" onChange={(e) => onChange({ subject: e.target.value })} />
         </div>
+        <MoreOptions
+          id="mail.compose"
+          className="mlMore"
+          forceOpen={!!draft.cc.trim()}
+          summary={summarize(draft.from && `From ${draft.from}`, draft.cc.trim() ? `Cc ${draft.cc.trim()}` : "No Cc", draft.attachments.length ? `${draft.attachments.length} attached` : "No attachments", draft.draftId && "Draft saved")}
+        >
+          <div className="mlField">
+            <label>From:</label>
+            <span className="mlFrom">{draft.from}</span>
+          </div>
+          <AddressField id="ml-cc" label="Cc:" value={draft.cc} onChange={(cc) => onChange({ cc })} people={people} />
+          <div className="mlMoreButtons">
+            <ToolButton label="Attach" icon="attach" onClick={onAttach} />
+            <ToolButton label="Save" icon="save" onClick={onSaveDraft} />
+          </div>
+        </MoreOptions>
         {draft.attachments.length > 0 && (
           <div className="mlField">
             <label>Attach:</label>
@@ -595,6 +608,10 @@ const Mail = ({ dispatch, onTitle, mobile, handoff = null }) => {
         { label: "Reply to Sender", onClick: () => reply(false), disabled: !current || folder === "outbox" },
         { label: "Reply to All", onClick: () => reply(true), disabled: !current || folder === "outbox" },
         { label: "Forward", onClick: forward, disabled: !current || folder === "outbox" },
+        "-",
+        { label: "Send", onClick: () => send(), disabled: !compose?.to?.trim() },
+        { label: "Attach File...", onClick: () => setDialog({ kind: "attach" }), disabled: !compose },
+        { label: "Save Draft", onClick: () => saveDraft(), disabled: !compose },
       ],
     },
     { label: "Help", items: [helpItem({ program: "98ish Mail" }), "-", { label: "About 98ish Mail", onClick: () => setDialog({ kind: "about" }) }] },

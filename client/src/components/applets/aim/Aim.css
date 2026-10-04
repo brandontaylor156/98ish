@@ -547,6 +547,27 @@
   padding: 0 2px !important;
 }
 
+/* More (Warn, Block, Add Buddy, Get Info, Games) and the "Aa" formatting toggle */
+.aimImMore {
+  flex: none;
+  gap: 4px;
+}
+
+.aimFormatToggle {
+  flex: none;
+  min-width: 28px !important;
+  padding: 0 4px !important;
+  font-weight: bold;
+}
+
+.aimFormatToggle.is-on {
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #0a0a0a, inset -2px -2px #dfdfdf, inset 2px 2px #808080;
+}
+
+html.kb-open .os-mobile .aimImMore {
+  display: none;
+}
+
 .aimStatusBar {
   flex: none;
   margin: 0 -4px -4px;

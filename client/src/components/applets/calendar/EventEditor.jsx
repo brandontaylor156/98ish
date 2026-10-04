@@ -4,6 +4,8 @@ import { COLOR_NAMES, LOCAL_ID, colorOf } from "./store"
 import { hhmm } from "./util"
 import Sheet from "./Sheet"
 import CheckBox from "./CheckBox"
+import MoreOptions from "../../shared/MoreOptions"
+import { summarize } from "../../../utils/disclosure"
 
 // New Event / Edit Event (and memos): a dialog on a computer, a sheet from the bottom on a
 // phone. Times are typed in the event's own time zone (where it was planned).
@@ -130,6 +132,79 @@ const EventEditor = ({ initial, calendars, zone: viewZone, mobile, isNew, scopeN
   const shared = calendar && calendar.id !== LOCAL_ID && members.length > 1
   const sameZone = zone === viewZone
 
+  // The baseline (docs/simplicity.md): title, day, times, Save. The end day joins it only for
+  // an event that already spans days; everything else is under More options, summarized.
+  const [endDayUp] = useState(() => !memo && !!endDate0 && endDate0 !== startDate0)
+  const colorName = label ? labels.find((l) => l.id === label)?.name || label : "Auto"
+  const summary = summarize(
+    calendar?.name,
+    !memo && allDay && "All day",
+    !memo && !endDayUp && endDate && startDate && endDate !== startDate && "Ends another day",
+    !memo && lockDates !== "repeat" && (repeat ? describeRepeat(repeat, startDate) : "Doesn't repeat"),
+    !memo && (reminders.length === 0 ? "No reminder" : reminders.length === 1 ? `Reminder ${describeReminder(reminders[0], allDay).replace(/ \(9:00 AM\)/, "")}` : `${reminders.length} reminders`),
+    `${colorName} color`,
+    !memo && location.trim() && `At ${location.trim()}`,
+    !memo && notes.trim() && "Notes",
+    checklist.length > 0 && `${checklist.length} checklist item${checklist.length > 1 ? "s" : ""}`,
+    !memo && todo && "To-do",
+    !memo && shared && attendees.length > 0 && `${attendees.length} going`
+  )
+  // a problem with something tucked away opens it
+  const problemInside = /repeat/i.test(problem || "")
+
+  const addItem = () => {
+    if (newItem.trim()) setChecklist([...checklist, { text: newItem.trim(), done: false }])
+    setNewItem("")
+  }
+  const notesField = (
+    <label className="calField calFieldTall">
+      <span>Notes</span>
+      <textarea value={notes} maxLength={4000} rows={3} onChange={(e) => setNotes(e.target.value)} />
+    </label>
+  )
+  const checklistGroup = (
+    <fieldset className="calGroup">
+      <legend>{memo ? "Checklist" : "Checklist (optional)"}</legend>
+      {checklist.map((item, i) => (
+        <div key={i} className="calCheckItem">
+          <CheckBox label={`Done: ${item.text}`} checked={item.done} onChange={(done) => setChecklist(checklist.map((c, j) => (j === i ? { ...c, done } : c)))} />
+          <input type="text" aria-label="Checklist item" value={item.text} maxLength={200} onChange={(e) => setChecklist(checklist.map((c, j) => (j === i ? { ...c, text: e.target.value } : c)))} />
+          <button type="button" aria-label="Remove item" onClick={() => setChecklist(checklist.filter((c, j) => j !== i))}>
+            ✕
+          </button>
+        </div>
+      ))}
+      {checklist.length < 50 && (
+        <div className="calCheckItem">
+          <input
+            type="text"
+            aria-label="New checklist item"
+            value={newItem}
+            maxLength={200}
+            placeholder="Add an item"
+            onChange={(e) => setNewItem(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault()
+                addItem()
+              }
+            }}
+          />
+          <button type="button" onClick={addItem}>
+            Add
+          </button>
+        </div>
+      )}
+    </fieldset>
+  )
+
+  const endDayField = (
+    <div className="calWhen">
+      <span>Ends</span>
+      <input type="date" aria-label="End date" value={endDate} min={startDate} onChange={(e) => setEndDate(e.target.value)} />
+    </div>
+  )
+
   return (
     <Sheet
       title={memo ? (isNew ? "New Memo" : "Edit Memo") : isNew ? "New Event" : "Edit Event"}
@@ -153,213 +228,186 @@ const EventEditor = ({ initial, calendars, zone: viewZone, mobile, isNew, scopeN
           <span>Title</span>
           <input type="text" value={title} maxLength={120} onChange={(e) => setTitle(e.target.value)} placeholder={memo ? "Gift ideas, packing list..." : "Dinner, dentist, movie night..."} autoFocus={!mobile} />
         </label>
-        <label className="calField">
-          <span>Calendar</span>
-          <select value={calendar?.id} onChange={(e) => setCalendarId(e.target.value)} disabled={!isNew && calendars.length < 2}>
-            {calendars.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-                {c.members.length > 1 ? ` (shared with ${c.members.length - 1})` : ""}
-              </option>
-            ))}
-          </select>
-        </label>
 
         {!memo && (
-          <>
-            <fieldset className="calGroup">
-              <legend>When</legend>
-              <CheckBox checked={allDay} onChange={setAllDay}>
-                All day
-              </CheckBox>
+          <div className="calBaseWhen">
+            <div className="calWhen">
+              <span>{endDayUp ? "Starts" : "Day"}</span>
+              <input type="date" aria-label="Start date" value={startDate} onChange={(e) => moveStartDate(e.target.value)} />
+            </div>
+            {allDay ? (
+              <p className="calNote calAllDayNote">All day</p>
+            ) : (
               <div className="calWhen">
-                <span>Starts</span>
-                <input type="date" aria-label="Start date" value={startDate} onChange={(e) => moveStartDate(e.target.value)} />
-                {!allDay && <input type="time" aria-label="Start time" value={startTime} step="300" onChange={(e) => moveStartTime(e.target.value)} />}
+                <span>Time</span>
+                <input type="time" aria-label="Start time" value={startTime} step="300" onChange={(e) => moveStartTime(e.target.value)} />
+                <span className="calTo">to</span>
+                <input type="time" aria-label="End time" value={endTime} step="300" onChange={(e) => setEndTime(e.target.value)} />
               </div>
-              <div className="calWhen">
-                <span>Ends</span>
-                <input type="date" aria-label="End date" value={endDate} min={startDate} onChange={(e) => setEndDate(e.target.value)} />
-                {!allDay && <input type="time" aria-label="End time" value={endTime} step="300" onChange={(e) => setEndTime(e.target.value)} />}
-              </div>
-              {!allDay && !sameZone && <p className="calNote">Times are in {zone.replace(/_/g, " ")}, where this was planned.</p>}
-            </fieldset>
+            )}
+            {endDayUp && endDayField}
+            {!allDay && !sameZone && <p className="calNote">Times are in {zone.replace(/_/g, " ")}, where this was planned.</p>}
+          </div>
+        )}
+        {memo && notesField}
+        {memo && checklistGroup}
 
-            {lockDates !== "repeat" && (
+        <MoreOptions id={memo ? "calendar.memo" : "calendar.event"} summary={summary} forceOpen={problemInside} className="calMoreOpts">
+          <label className="calField">
+            <span>Calendar</span>
+            <select value={calendar?.id} onChange={(e) => setCalendarId(e.target.value)} disabled={!isNew && calendars.length < 2}>
+              {calendars.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                  {c.members.length > 1 ? ` (shared with ${c.members.length - 1})` : ""}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          {!memo && (
+            <>
               <fieldset className="calGroup">
-                <legend>Repeat</legend>
-                <select aria-label="Repeat" value={choice} onChange={(e) => pickRepeat(e.target.value)}>
-                  {REPEATS.map(([value, label]) => (
-                    <option key={value} value={value}>
-                      {value === "weekly" && startDate ? `Every week on ${WEEKDAYS[weekdayOf(startDate)]}` : value === "monthly" && startDate ? `Every month on day ${parseDate(startDate).d}` : value === "yearly" && startDate ? `Every year on ${describeRepeat({ freq: "yearly", interval: 1 }, startDate).replace("Every year on ", "")}` : label}
-                    </option>
-                  ))}
-                </select>
-                {choice === "custom" && repeat && (
-                  <div className="calCustom">
-                    <div className="calWhen">
-                      <span>Every</span>
-                      <input type="number" aria-label="Repeat every" min="1" max="99" value={repeat.interval} onChange={(e) => setRepeat({ ...repeat, interval: Math.max(1, Math.min(99, Number(e.target.value) || 1)) })} />
-                      <select aria-label="Repeat unit" value={repeat.freq} onChange={(e) => setRepeat({ freq: e.target.value, interval: repeat.interval, ...(e.target.value === "weekly" ? { byDay: [weekdayOf(startDate)] } : {}), ...(e.target.value === "monthly" ? { monthly: "day" } : {}), ...(repeat.until ? { until: repeat.until } : {}), ...(repeat.count ? { count: repeat.count } : {}) })}>
-                        <option value="daily">day(s)</option>
-                        <option value="weekly">week(s)</option>
-                        <option value="monthly">month(s)</option>
-                        <option value="yearly">year(s)</option>
-                      </select>
-                    </div>
-                    {repeat.freq === "weekly" && (
-                      <div className="calWeekdays" role="group" aria-label="On these days">
-                        {WEEKDAYS_SHORT.map((d, i) => {
-                          const on = (repeat.byDay || []).includes(i)
-                          return (
-                            <button key={d} type="button" aria-pressed={on} className={on ? "calOn" : ""} onClick={() => setRepeat({ ...repeat, byDay: on ? (repeat.byDay.length > 1 ? repeat.byDay.filter((x) => x !== i) : repeat.byDay) : [...(repeat.byDay || []), i].sort() })}>
-                              {d.slice(0, 2)}
-                            </button>
-                          )
-                        })}
+                <legend>When</legend>
+                <CheckBox checked={allDay} onChange={setAllDay}>
+                  All day
+                </CheckBox>
+                {!endDayUp && endDayField}
+              </fieldset>
+
+              {lockDates !== "repeat" && (
+                <fieldset className="calGroup">
+                  <legend>Repeat</legend>
+                  <select aria-label="Repeat" value={choice} onChange={(e) => pickRepeat(e.target.value)}>
+                    {REPEATS.map(([value, label]) => (
+                      <option key={value} value={value}>
+                        {value === "weekly" && startDate ? `Every week on ${WEEKDAYS[weekdayOf(startDate)]}` : value === "monthly" && startDate ? `Every month on day ${parseDate(startDate).d}` : value === "yearly" && startDate ? `Every year on ${describeRepeat({ freq: "yearly", interval: 1 }, startDate).replace("Every year on ", "")}` : label}
+                      </option>
+                    ))}
+                  </select>
+                  {choice === "custom" && repeat && (
+                    <div className="calCustom">
+                      <div className="calWhen">
+                        <span>Every</span>
+                        <input type="number" aria-label="Repeat every" min="1" max="99" value={repeat.interval} onChange={(e) => setRepeat({ ...repeat, interval: Math.max(1, Math.min(99, Number(e.target.value) || 1)) })} />
+                        <select aria-label="Repeat unit" value={repeat.freq} onChange={(e) => setRepeat({ freq: e.target.value, interval: repeat.interval, ...(e.target.value === "weekly" ? { byDay: [weekdayOf(startDate)] } : {}), ...(e.target.value === "monthly" ? { monthly: "day" } : {}), ...(repeat.until ? { until: repeat.until } : {}), ...(repeat.count ? { count: repeat.count } : {}) })}>
+                          <option value="daily">day(s)</option>
+                          <option value="weekly">week(s)</option>
+                          <option value="monthly">month(s)</option>
+                          <option value="yearly">year(s)</option>
+                        </select>
                       </div>
-                    )}
-                    {repeat.freq === "monthly" && (
-                      <select aria-label="Which day of the month" value={repeat.monthly || "day"} onChange={(e) => setRepeat({ ...repeat, monthly: e.target.value })}>
-                        <option value="day">On day {parseDate(startDate)?.d}</option>
-                        {nth <= 4 && <option value="weekday">On the {ordinal} {WEEKDAYS[weekdayOf(startDate)]}</option>}
-                        <option value="lastWeekday">On the last {WEEKDAYS[weekdayOf(startDate)]}</option>
-                      </select>
-                    )}
-                    <div className="calWhen">
-                      <span>Ends</span>
-                      <select aria-label="Ends" value={ends} onChange={(e) => setEnds(e.target.value)}>
-                        <option value="never">Never</option>
-                        <option value="until">On a date</option>
-                        <option value="count">After a number of times</option>
-                      </select>
-                      {ends === "until" && <input type="date" aria-label="Last day" value={repeat.until} min={startDate} onChange={(e) => setRepeat({ ...repeat, until: e.target.value })} />}
-                      {ends === "count" && <input type="number" aria-label="Times" min="1" max="999" value={repeat.count} onChange={(e) => setRepeat({ ...repeat, count: Math.max(1, Math.min(999, Number(e.target.value) || 1)) })} />}
+                      {repeat.freq === "weekly" && (
+                        <div className="calWeekdays" role="group" aria-label="On these days">
+                          {WEEKDAYS_SHORT.map((d, i) => {
+                            const on = (repeat.byDay || []).includes(i)
+                            return (
+                              <button key={d} type="button" aria-pressed={on} className={on ? "calOn" : ""} onClick={() => setRepeat({ ...repeat, byDay: on ? (repeat.byDay.length > 1 ? repeat.byDay.filter((x) => x !== i) : repeat.byDay) : [...(repeat.byDay || []), i].sort() })}>
+                                {d.slice(0, 2)}
+                              </button>
+                            )
+                          })}
+                        </div>
+                      )}
+                      {repeat.freq === "monthly" && (
+                        <select aria-label="Which day of the month" value={repeat.monthly || "day"} onChange={(e) => setRepeat({ ...repeat, monthly: e.target.value })}>
+                          <option value="day">On day {parseDate(startDate)?.d}</option>
+                          {nth <= 4 && <option value="weekday">On the {ordinal} {WEEKDAYS[weekdayOf(startDate)]}</option>}
+                          <option value="lastWeekday">On the last {WEEKDAYS[weekdayOf(startDate)]}</option>
+                        </select>
+                      )}
+                      <div className="calWhen">
+                        <span>Ends</span>
+                        <select aria-label="Ends" value={ends} onChange={(e) => setEnds(e.target.value)}>
+                          <option value="never">Never</option>
+                          <option value="until">On a date</option>
+                          <option value="count">After a number of times</option>
+                        </select>
+                        {ends === "until" && <input type="date" aria-label="Last day" value={repeat.until} min={startDate} onChange={(e) => setRepeat({ ...repeat, until: e.target.value })} />}
+                        {ends === "count" && <input type="number" aria-label="Times" min="1" max="999" value={repeat.count} onChange={(e) => setRepeat({ ...repeat, count: Math.max(1, Math.min(999, Number(e.target.value) || 1)) })} />}
+                      </div>
+                      <p className="calNote">{describeRepeat(repeat, startDate)}</p>
                     </div>
-                    <p className="calNote">{describeRepeat(repeat, startDate)}</p>
-                  </div>
+                  )}
+                </fieldset>
+              )}
+
+              <fieldset className="calGroup">
+                <legend>Reminders</legend>
+                <ul className="calReminders">
+                  {reminders.map((m) => (
+                    <li key={m}>
+                      🔔 {describeReminder(m, allDay)}
+                      <button type="button" aria-label={`Remove reminder ${describeReminder(m, allDay)}`} onClick={() => setReminders(reminders.filter((x) => x !== m))}>
+                        ✕
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+                {reminders.length < 5 && (
+                  <select
+                    aria-label="Add a reminder"
+                    value=""
+                    onChange={(e) => {
+                      const m = Number(e.target.value)
+                      if (e.target.value !== "" && !reminders.includes(m)) setReminders([...reminders, m].sort((a, b) => a - b))
+                    }}
+                  >
+                    <option value="">Add a reminder...</option>
+                    {REMINDER_CHOICES.filter((m) => !reminders.includes(m) && (!allDay || m === 0 || m % 1440 === 0)).map((m) => (
+                      <option key={m} value={m}>
+                        {describeReminder(m, allDay)}
+                      </option>
+                    ))}
+                  </select>
                 )}
               </fieldset>
-            )}
-
-            <fieldset className="calGroup">
-              <legend>Reminders</legend>
-              <ul className="calReminders">
-                {reminders.map((m) => (
-                  <li key={m}>
-                    🔔 {describeReminder(m, allDay)}
-                    <button type="button" aria-label={`Remove reminder ${describeReminder(m, allDay)}`} onClick={() => setReminders(reminders.filter((x) => x !== m))}>
-                      ✕
-                    </button>
-                  </li>
-                ))}
-              </ul>
-              {reminders.length < 5 && (
-                <select
-                  aria-label="Add a reminder"
-                  value=""
-                  onChange={(e) => {
-                    const m = Number(e.target.value)
-                    if (e.target.value !== "" && !reminders.includes(m)) setReminders([...reminders, m].sort((a, b) => a - b))
-                  }}
-                >
-                  <option value="">Add a reminder...</option>
-                  {REMINDER_CHOICES.filter((m) => !reminders.includes(m) && (!allDay || m === 0 || m % 1440 === 0)).map((m) => (
-                    <option key={m} value={m}>
-                      {describeReminder(m, allDay)}
-                    </option>
-                  ))}
-                </select>
-              )}
-            </fieldset>
-          </>
-        )}
-
-        <fieldset className="calGroup">
-          <legend>Color</legend>
-          <div className="calSwatches" role="radiogroup" aria-label="Color">
-            <button type="button" role="radio" aria-checked={!label} className={`calSwatch calSwatchAuto${!label ? " calOn" : ""}`} title={shared ? "The color of whoever added it" : "The calendar's color"} onClick={() => setLabel("")}>
-              Auto
-            </button>
-            {labels.map((l) => (
-              <button key={l.id} type="button" role="radio" aria-checked={label === l.id} aria-label={l.name || l.color} title={l.name || l.color} className={`calSwatch${label === l.id ? " calOn" : ""}`} style={{ background: colorOf(l.color) }} onClick={() => setLabel(l.id)}>
-                {l.name ? <span className="calSwatchName">{l.name}</span> : null}
-              </button>
-            ))}
-          </div>
-        </fieldset>
-
-        {!memo && (
-          <label className="calField">
-            <span>Place</span>
-            <input type="text" value={location} maxLength={200} onChange={(e) => setLocation(e.target.value)} placeholder="Where?" />
-          </label>
-        )}
-        <label className="calField calFieldTall">
-          <span>Notes</span>
-          <textarea value={notes} maxLength={4000} rows={mobile ? 3 : 3} onChange={(e) => setNotes(e.target.value)} />
-        </label>
-
-        <fieldset className="calGroup">
-          <legend>{memo ? "Checklist" : "Checklist (optional)"}</legend>
-          {checklist.map((item, i) => (
-            <div key={i} className="calCheckItem">
-              <CheckBox label={`Done: ${item.text}`} checked={item.done} onChange={(done) => setChecklist(checklist.map((c, j) => (j === i ? { ...c, done } : c)))} />
-              <input type="text" aria-label="Checklist item" value={item.text} maxLength={200} onChange={(e) => setChecklist(checklist.map((c, j) => (j === i ? { ...c, text: e.target.value } : c)))} />
-              <button type="button" aria-label="Remove item" onClick={() => setChecklist(checklist.filter((c, j) => j !== i))}>
-                ✕
-              </button>
-            </div>
-          ))}
-          {checklist.length < 50 && (
-            <div className="calCheckItem">
-              <input
-                type="text"
-                aria-label="New checklist item"
-                value={newItem}
-                maxLength={200}
-                placeholder="Add an item"
-                onChange={(e) => setNewItem(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault()
-                    if (newItem.trim()) setChecklist([...checklist, { text: newItem.trim(), done: false }])
-                    setNewItem("")
-                  }
-                }}
-              />
-              <button
-                type="button"
-                onClick={() => {
-                  if (newItem.trim()) setChecklist([...checklist, { text: newItem.trim(), done: false }])
-                  setNewItem("")
-                }}
-              >
-                Add
-              </button>
-            </div>
+            </>
           )}
-        </fieldset>
 
-        {!memo && (
-          <CheckBox checked={todo} onChange={setTodo}>
-            It's a to-do (tick it off when it's done)
-          </CheckBox>
-        )}
-
-        {!memo && shared && (
           <fieldset className="calGroup">
-            <legend>Who's going</legend>
-            <p className="calNote">Pick people and only they get its reminders. Pick nobody and everyone does.</p>
-            <div className="calPeople">
-              {members.map((m) => (
-                <CheckBox key={m.key} className="calPerson" style={{ "--chip": colorOf(m.color) }} checked={attendees.includes(m.key)} onChange={(on) => setAttendees(on ? [...attendees, m.key] : attendees.filter((k) => k !== m.key))}>
-                  {m.name}
-                </CheckBox>
+            <legend>Color</legend>
+            <div className="calSwatches" role="radiogroup" aria-label="Color">
+              <button type="button" role="radio" aria-checked={!label} className={`calSwatch calSwatchAuto${!label ? " calOn" : ""}`} title={shared ? "The color of whoever added it" : "The calendar's color"} onClick={() => setLabel("")}>
+                Auto
+              </button>
+              {labels.map((l) => (
+                <button key={l.id} type="button" role="radio" aria-checked={label === l.id} aria-label={l.name || l.color} title={l.name || l.color} className={`calSwatch${label === l.id ? " calOn" : ""}`} style={{ background: colorOf(l.color) }} onClick={() => setLabel(l.id)}>
+                  {l.name ? <span className="calSwatchName">{l.name}</span> : null}
+                </button>
               ))}
             </div>
           </fieldset>
-        )}
+
+          {!memo && (
+            <label className="calField">
+              <span>Place</span>
+              <input type="text" value={location} maxLength={200} onChange={(e) => setLocation(e.target.value)} placeholder="Where?" />
+            </label>
+          )}
+          {!memo && notesField}
+          {!memo && checklistGroup}
+
+          {!memo && (
+            <CheckBox checked={todo} onChange={setTodo}>
+              It's a to-do (tick it off when it's done)
+            </CheckBox>
+          )}
+
+          {!memo && shared && (
+            <fieldset className="calGroup">
+              <legend>Who's going</legend>
+              <p className="calNote">Pick people and only they get its reminders. Pick nobody and everyone does.</p>
+              <div className="calPeople">
+                {members.map((m) => (
+                  <CheckBox key={m.key} className="calPerson" style={{ "--chip": colorOf(m.color) }} checked={attendees.includes(m.key)} onChange={(on) => setAttendees(on ? [...attendees, m.key] : attendees.filter((k) => k !== m.key))}>
+                    {m.name}
+                  </CheckBox>
+                ))}
+              </div>
+            </fieldset>
+          )}
+        </MoreOptions>
         {(problem || error) && <p className="calError" role="alert">{problem || error}</p>}
       </form>
     </Sheet>

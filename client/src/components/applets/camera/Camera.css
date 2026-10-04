@@ -248,6 +248,19 @@
   font-weight: bold;
 }
 
+/* More options (modes, timer, effects): a thin row over the shutter */
+.camMore {
+  flex: none;
+  padding: 4px 6px 0;
+  gap: 4px;
+}
+
+.camMoreRow {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+}
+
 .camModes {
   flex: none;
   display: flex;

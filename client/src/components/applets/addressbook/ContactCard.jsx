@@ -1,4 +1,5 @@
 import React from "react"
+import MoreOptions from "../../shared/MoreOptions"
 import { addressText, dateText, daysUntil, displayName, initials, mailAddressOf, yearsOn } from "../../../utils/contactsCore"
 
 // A contact's picture, or their initials on a color of their own
@@ -95,24 +96,9 @@ export const ContactCard = ({ contact, presence, signedOn, actions, mobile, onBa
             Call
           </button>
         )}
-        {actions.video && (
-          <button type="button" onClick={actions.video} disabled={!canTalk || presence?.state === "offline"} title="Video call over 98 Messenger">
-            Video Call
-          </button>
-        )}
         {actions.mail && (
           <button type="button" onClick={actions.mail} disabled={!mail} title={mail ? `Write to ${mail} in 98ish Mail` : "Add their screen name or 98ish Mail address first"}>
             Send Mail
-          </button>
-        )}
-        {actions.invite && (
-          <button type="button" onClick={actions.invite} disabled={!canTalk}>
-            Invite to Calendar...
-          </button>
-        )}
-        {actions.favorite && (
-          <button type="button" onClick={actions.favorite} aria-pressed={contact.favorite}>
-            {contact.favorite ? "Unfavorite" : "Favorite"}
           </button>
         )}
         {actions.edit && (
@@ -120,10 +106,32 @@ export const ContactCard = ({ contact, presence, signedOn, actions, mobile, onBa
             Properties
           </button>
         )}
-        {actions.remove && (
-          <button type="button" onClick={actions.remove}>
-            Delete
-          </button>
+        {/* the everyday actions above; the rest one tap away (docs/simplicity.md) */}
+        {(actions.video || actions.invite || actions.favorite || actions.remove) && (
+          <MoreOptions id="addressbook.card" label="More" lessLabel="Less" inline className="abCardMore">
+            <div className="abActions">
+              {actions.video && (
+                <button type="button" onClick={actions.video} disabled={!canTalk || presence?.state === "offline"} title="Video call over 98 Messenger">
+                  Video Call
+                </button>
+              )}
+              {actions.invite && (
+                <button type="button" onClick={actions.invite} disabled={!canTalk}>
+                  Invite to Calendar...
+                </button>
+              )}
+              {actions.favorite && (
+                <button type="button" onClick={actions.favorite} aria-pressed={contact.favorite}>
+                  {contact.favorite ? "Unfavorite" : "Favorite"}
+                </button>
+              )}
+              {actions.remove && (
+                <button type="button" onClick={actions.remove}>
+                  Delete
+                </button>
+              )}
+            </div>
+          </MoreOptions>
         )}
       </div>
       <dl className="abDetails">

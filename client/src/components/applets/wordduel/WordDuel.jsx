@@ -16,6 +16,9 @@ import { load, recordGame, resetStats, saveDaily, savePrefs, statsFor } from "./
 import { shareOut, textPayload } from "../../../utils/share"
 import "./WordDuel.css"
 import { helpItem } from "../../../utils/help"
+import MoreOptions from "../../shared/MoreOptions"
+import PrimaryBar from "../../shared/PrimaryBar"
+import { summarize } from "../../../utils/disclosure"
 
 // Word Duel: guess the hidden word. Green is the right letter in the right spot, yellow
 // is in the word somewhere else, gray isn't in it. Solo: the daily word (the same for
@@ -474,14 +477,15 @@ const WordDuel = ({ mobile = false, onClose }) => {
         <p className="wdMuted">Pick a preset or change any setting. Play alone or against computer players, right here (no internet needed).</p>
         <SettingsForm settings={customSettings} onChange={setCustomSettings} mode="solo" />
         {error && <p className="wdError">{error}</p>}
-        <div className="wdRowBtns">
+        {/* Start Game stays on screen however long the settings get (docs/simplicity.md) */}
+        <PrimaryBar className="wdRowBtns wdCustomBar" align="end">
           <button type="submit" className="wdPrimary" data-start>
             Start Game
           </button>
           <button type="button" onClick={() => setScreen("title")}>
             Back
           </button>
-        </div>
+        </PrimaryBar>
       </form>
     )
   } else {
@@ -490,39 +494,45 @@ const WordDuel = ({ mobile = false, onClose }) => {
       <div className="wdTitle">
         <Logo />
         <p className="wdTagline">Guess the word. Beat your friends.</p>
-        <PlayOnlineButton onClick={() => setScreen("online")} sub="Races, Battle Royale, Co-op, Sabotage..." className="wdOnlineBtn" data-online />
-        <div className="wdMenu">
+        {/* the shared launcher pattern (docs/simplicity.md): Play (the Daily Word), Play
+            Online, then the other modes, the word length and Statistics under More modes */}
+        <div className="wdMenu wdMenu--main">
           <button type="button" className="wdMenuBtn is-daily" onClick={startDaily} data-mode="daily">
             <b>Daily Word #{n}</b>
             <small>{dailyDone ? (data.daily.solved ? `Solved in ${data.daily.words.length} ✓` : "Done for today") : "Same word for everyone today"}</small>
           </button>
-          <button type="button" className="wdMenuBtn" onClick={startPractice} data-mode="practice">
-            <b>Practice</b>
-            <small>Unlimited words, {prefs.length} letters</small>
-          </button>
-          {["absurd", "rush", "quad", "hard"].map((name) => (
-            <button key={name} type="button" className="wdMenuBtn" onClick={() => startPreset(name)} data-mode={name}>
-              <b>{PRESETS[name].label}</b>
-              <small>{PRESETS[name].text}</small>
-            </button>
-          ))}
-          <button type="button" className="wdMenuBtn" onClick={() => setScreen("custom")} data-mode="custom">
-            <b>Custom Game...</b>
-            <small>Every setting, vs. the computer</small>
-          </button>
-          <button type="button" className="wdMenuBtn" onClick={() => setDialog("stats")} data-mode="stats">
-            <b>Statistics</b>
-            <small>Streaks and guess counts</small>
-          </button>
         </div>
+        <PlayOnlineButton onClick={() => setScreen("online")} sub="Races, Battle Royale, Co-op, Sabotage..." className="wdOnlineBtn" data-online />
+        <MoreOptions id="wordduel.modes" label="More modes" lessLabel="Fewer modes" className="wdMore" summary={summarize("Practice", ["absurd", "rush", "quad", "hard"].map((name) => PRESETS[name].label), "Custom", `${prefs.length} letters`)}>
+          <div className="wdMenu">
+            <button type="button" className="wdMenuBtn" onClick={startPractice} data-mode="practice">
+              <b>Practice</b>
+              <small>Unlimited words, {prefs.length} letters</small>
+            </button>
+            {["absurd", "rush", "quad", "hard"].map((name) => (
+              <button key={name} type="button" className="wdMenuBtn" onClick={() => startPreset(name)} data-mode={name}>
+                <b>{PRESETS[name].label}</b>
+                <small>{PRESETS[name].text}</small>
+              </button>
+            ))}
+            <button type="button" className="wdMenuBtn" onClick={() => setScreen("custom")} data-mode="custom">
+              <b>Custom Game...</b>
+              <small>Every setting, vs. the computer</small>
+            </button>
+            <button type="button" className="wdMenuBtn" onClick={() => setDialog("stats")} data-mode="stats">
+              <b>Statistics</b>
+              <small>Streaks and guess counts</small>
+            </button>
+          </div>
+          <div className="wdLengths" role="radiogroup" aria-label="Word length">
+            {[4, 5, 6, 7].map((k) => (
+              <button key={k} type="button" role="radio" aria-checked={prefs.length === k} className={prefs.length === k ? "is-on" : ""} onClick={() => setPref({ length: k })}>
+                {k} letters
+              </button>
+            ))}
+          </div>
+        </MoreOptions>
         {error && <p className="wdError">{error}</p>}
-        <div className="wdLengths" role="radiogroup" aria-label="Word length">
-          {[4, 5, 6, 7].map((k) => (
-            <button key={k} type="button" role="radio" aria-checked={prefs.length === k} className={prefs.length === k ? "is-on" : ""} onClick={() => setPref({ length: k })}>
-              {k} letters
-            </button>
-          ))}
-        </div>
       </div>
     )
   }

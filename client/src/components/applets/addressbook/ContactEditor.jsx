@@ -4,6 +4,8 @@ import PictureChooser from "./PictureChooser"
 import { Avatar } from "./ContactCard"
 import { EMAIL_LABELS, PHONE_LABELS, cleanDate, displayName } from "../../../utils/contactsCore"
 import { addGroup } from "../../../utils/contacts"
+import MoreOptions from "../../shared/MoreOptions"
+import { summarize } from "../../../utils/disclosure"
 
 // A contact's Properties, Windows 98 Address Book style: Name, Phone & E-mail, Home,
 // Personal (birthday, anniversary, groups) and Notes tabs. onSave(draft) gets the changed
@@ -51,7 +53,10 @@ const DateField = ({ label, value, onChange }) => {
   )
 }
 
-const ListEditor = ({ items, labels, onChange, kind, placeholder, inputMode }) => (
+// the Name tab's Phone / E-mail box is the list's first entry
+const firstOf = (items, labels, value) => (items.length ? items.map((x, i) => (i === 0 ? { ...x, value } : x)) : value ? [{ label: labels[0], value }] : [])
+
+const ListEditor =({ items, labels, onChange, kind, placeholder, inputMode }) => (
   <div className="abList">
     {items.map((item, i) => (
       <div key={i} className="abListRow">
@@ -146,34 +151,49 @@ const ContactEditor = ({ initial, isNew, groups, buddies = [], mobile, onSave, o
                   </button>
                 )}
               </div>
-              <span className="abCheck abFav">
-                <input id={`${listId}-fav`} type="checkbox" checked={draft.favorite} onChange={(e) => set({ favorite: e.target.checked })} />
-                <label htmlFor={`${listId}-fav`}>Favorite</label>
-              </span>
             </div>
+            {/* the baseline (docs/simplicity.md): name, phone, e-mail; the rest under More
+                options here and on the other tabs */}
             <Field label="First:">
               <input value={draft.first} maxLength={60} autoComplete="off" onChange={(e) => set({ first: e.target.value })} />
             </Field>
             <Field label="Last:">
               <input value={draft.last} maxLength={60} autoComplete="off" onChange={(e) => set({ last: e.target.value })} />
             </Field>
-            <Field label="Nickname:">
-              <input value={draft.nickname} maxLength={60} autoComplete="off" onChange={(e) => set({ nickname: e.target.value })} />
+            <Field label="Phone:">
+              <input type="tel" value={draft.phones[0]?.value || ""} maxLength={40} inputMode="tel" placeholder="555-0100" autoComplete="off" onChange={(e) => set({ phones: firstOf(draft.phones, PHONE_LABELS, e.target.value) })} />
             </Field>
-            <Field label="Company:">
-              <input value={draft.company} maxLength={80} autoComplete="off" onChange={(e) => set({ company: e.target.value })} />
+            <Field label="E-mail:">
+              <input type="email" value={draft.emails[0]?.value || ""} maxLength={120} inputMode="email" placeholder="name@example.com" autoComplete="off" autoCapitalize="off" spellCheck="false" onChange={(e) => set({ emails: firstOf(draft.emails, EMAIL_LABELS, e.target.value) })} />
             </Field>
-            <Field label="Screen name:">
-              <input value={draft.screenName} maxLength={32} list={`${listId}-buddies`} autoComplete="off" autoCapitalize="off" spellCheck="false" placeholder="Their 98 Messenger name" onChange={(e) => set({ screenName: e.target.value })} />
-            </Field>
-            <datalist id={`${listId}-buddies`}>
-              {buddies.map((b) => (
-                <option key={b} value={b} />
-              ))}
-            </datalist>
-            <Field label="98ish Mail:">
-              <input value={draft.mail} maxLength={120} autoComplete="off" autoCapitalize="off" spellCheck="false" placeholder={draft.screenName ? `${draft.screenName} (their screen name)` : "Their screen name"} onChange={(e) => set({ mail: e.target.value })} />
-            </Field>
+            <MoreOptions
+              id="addressbook.editor"
+              className="abMore"
+              summary={summarize(draft.nickname && `"${draft.nickname}"`, draft.company, draft.screenName ? `Messenger: ${draft.screenName}` : "No screen name", draft.mail && `Mail: ${draft.mail}`, draft.favorite && "Favorite", draft.phones.length > 1 && `${draft.phones.length} phones`, draft.emails.length > 1 && `${draft.emails.length} e-mails`)}
+            >
+              <span className="abCheck abFav">
+                <input id={`${listId}-fav`} type="checkbox" checked={draft.favorite} onChange={(e) => set({ favorite: e.target.checked })} />
+                <label htmlFor={`${listId}-fav`}>Favorite</label>
+              </span>
+              <Field label="Nickname:">
+                <input value={draft.nickname} maxLength={60} autoComplete="off" onChange={(e) => set({ nickname: e.target.value })} />
+              </Field>
+              <Field label="Company:">
+                <input value={draft.company} maxLength={80} autoComplete="off" onChange={(e) => set({ company: e.target.value })} />
+              </Field>
+              <Field label="Screen name:">
+                <input value={draft.screenName} maxLength={32} list={`${listId}-buddies`} autoComplete="off" autoCapitalize="off" spellCheck="false" placeholder="Their 98 Messenger name" onChange={(e) => set({ screenName: e.target.value })} />
+              </Field>
+              <datalist id={`${listId}-buddies`}>
+                {buddies.map((b) => (
+                  <option key={b} value={b} />
+                ))}
+              </datalist>
+              <Field label="98ish Mail:">
+                <input value={draft.mail} maxLength={120} autoComplete="off" autoCapitalize="off" spellCheck="false" placeholder={draft.screenName ? `${draft.screenName} (their screen name)` : "Their screen name"} onChange={(e) => set({ mail: e.target.value })} />
+              </Field>
+              <p className="abNote">More phone numbers and e-mail addresses, the address, birthday, groups and notes are on the other tabs.</p>
+            </MoreOptions>
           </div>
         )}
         {tab === "phone" && (

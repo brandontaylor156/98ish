@@ -16,6 +16,8 @@ import { createSounds } from "./audio"
 import { bestGhost, load, recordRace, savePrefs } from "./storage"
 import "./SpeedType.css"
 import { helpItem } from "../../../utils/help"
+import MoreOptions from "../../shared/MoreOptions"
+import { summarize } from "../../../utils/disclosure"
 
 // Speed Typist 98: typing races. Everyone gets the same prompt; your car moves as you type
 // it right. Online (server/arcade/games/speedtype.js): Quick Match by length and category,
@@ -419,29 +421,35 @@ const SpeedType = ({ mobile = false, onClose }) => {
       <div className="stTitle">
         <Logo />
         <p className="stTagline">Race anyone to the end of the sentence.</p>
-        <PlayOnlineButton onClick={goOnline} sub="Quick Match, private rooms, best of 3..." className="stOnlineBtn" data-online />
+        {/* the shared launcher pattern (docs/simplicity.md): Play, Play Online, then the
+            other modes and Statistics under More modes */}
         <div className="stMenu">
-          <button type="button" className="stMenuBtn" onClick={() => setScreen("setup")} data-mode="computer">
+          <button type="button" className="stMenuBtn stMenuBtn--main" onClick={() => setScreen("setup")} data-mode="computer">
             <b>Race the Computer</b>
             <small>1 to 4 computer racers, any speed</small>
           </button>
-          <button type="button" className="stMenuBtn" onClick={raceGhost} disabled={!ghost} data-mode="ghost">
-            <b>Race Your Ghost</b>
-            <small>{ghost ? `Your best run: ${Math.round(ghost.wpm)} WPM` : "Finish a race to make one"}</small>
-          </button>
-          <button type="button" className="stMenuBtn" onClick={raceDaily} data-mode="daily">
-            <b>Daily Prompt #{n}</b>
-            <small>{dailyBest ? `Today's best: ${Math.round(dailyBest.wpm)} WPM` : "The same prompt for everyone today"}</small>
-          </button>
-          <button type="button" className="stMenuBtn" onClick={() => setScreen("drills")} data-mode="drills">
-            <b>Practice Drills</b>
-            <small>Home row, numbers, symbols...</small>
-          </button>
-          <button type="button" className="stMenuBtn" onClick={() => setDialog("stats")} data-mode="stats">
-            <b>Statistics</b>
-            <small>{best ? `Personal best: ${Math.round(best)} WPM` : "WPM history and bests"}</small>
-          </button>
         </div>
+        <PlayOnlineButton onClick={goOnline} sub="Quick Match, private rooms, best of 3..." className="stOnlineBtn" data-online />
+        <MoreOptions id="speedtype.modes" label="More modes" lessLabel="Fewer modes" className="stMore" summary={summarize(ghost && "Race Your Ghost", `Daily Prompt #${n}`, "Practice Drills", "Statistics")}>
+          <div className="stMenu">
+            <button type="button" className="stMenuBtn" onClick={raceGhost} disabled={!ghost} data-mode="ghost">
+              <b>Race Your Ghost</b>
+              <small>{ghost ? `Your best run: ${Math.round(ghost.wpm)} WPM` : "Finish a race to make one"}</small>
+            </button>
+            <button type="button" className="stMenuBtn" onClick={raceDaily} data-mode="daily">
+              <b>Daily Prompt #{n}</b>
+              <small>{dailyBest ? `Today's best: ${Math.round(dailyBest.wpm)} WPM` : "The same prompt for everyone today"}</small>
+            </button>
+            <button type="button" className="stMenuBtn" onClick={() => setScreen("drills")} data-mode="drills">
+              <b>Practice Drills</b>
+              <small>Home row, numbers, symbols...</small>
+            </button>
+            <button type="button" className="stMenuBtn" onClick={() => setDialog("stats")} data-mode="stats">
+              <b>Statistics</b>
+              <small>{best ? `Personal best: ${Math.round(best)} WPM` : "WPM history and bests"}</small>
+            </button>
+          </div>
+        </MoreOptions>
         {error && <p className="stError">{error}</p>}
       </div>
     )

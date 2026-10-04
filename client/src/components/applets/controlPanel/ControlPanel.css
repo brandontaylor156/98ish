@@ -92,6 +92,31 @@
   padding: 6px;
   align-content: flex-start;
 }
+/* common settings first; the rest one click away (docs/simplicity.md) */
+.cplShowAll {
+  flex: 0 0 100%;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid #808080;
+  box-shadow: inset 0 1px #fff;
+}
+.cplShowAll button {
+  padding: 0 10px;
+}
+.cplShowAllNote {
+  color: #404040;
+  line-height: 1.4;
+}
+.os-mobile .cplShowAll button {
+  min-height: 40px;
+  width: 100%;
+  font-size: 13px;
+}
 .cplView--icons {
   display: flex;
   flex-wrap: wrap;

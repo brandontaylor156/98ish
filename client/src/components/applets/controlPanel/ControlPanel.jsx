@@ -4,7 +4,8 @@ import Dialog from "../../shared/Dialog"
 import ContextMenu from "../../shared/ContextMenu"
 import { useOpenGesture } from "../../../hooks/useMediaQuery"
 import { useLongPress } from "../../../hooks/useLongPress"
-import { CPL_ITEMS, openCplItem } from "./items"
+import { COMMON_IDS, CPL_ITEMS, openCplItem } from "./items"
+import { isOpen } from "../../../utils/disclosure"
 import "./ControlPanel.css"
 import { helpItem } from "../../../utils/help"
 
@@ -21,7 +22,7 @@ const readView = () => {
 // the left describing the selected item. Large Icons, List or Details; double-click (or
 // tap, or Enter) opens an item; arrow keys move around.
 const ControlPanel = ({ dispatch, mobile }) => {
-  const [view, setViewState] = useState(() => ({ mode: "icons", web: true, ...readView() }))
+  const [view, setViewState] = useState(() => ({ mode: "icons", web: true, all: isOpen("controlPanel.all"), ...readView() }))
   const [selected, setSelected] = useState(null) // an item id
   const [menu, setMenu] = useState(null)
   const [about, setAbout] = useState(false)
@@ -38,11 +39,16 @@ const ControlPanel = ({ dispatch, mobile }) => {
       return next
     })
 
-  const item = CPL_ITEMS.find((i) => i.id === selected) || null
+  // Common settings first (docs/simplicity.md); "Show all Control Panel options" lists the
+  // rest, and stays that way once chosen (View > Show All Options brings it back and forth)
+  const shown = view.all ? CPL_ITEMS : CPL_ITEMS.filter((i) => COMMON_IDS.includes(i.id))
+  const item = shown.find((i) => i.id === selected) || null
   const open = (it) => it && openCplItem(it, dispatch)
   const showWeb = view.web && !mobile
 
   const viewItems = [
+    { label: "Show All Options", checked: !!view.all, onClick: () => setView({ all: !view.all }) },
+    "-",
     { label: "Large Icons", checked: view.mode === "icons", onClick: () => setView({ mode: "icons" }) },
     { label: "List", checked: view.mode === "list", onClick: () => setView({ mode: "list" }) },
     { label: "Details", checked: view.mode === "details", onClick: () => setView({ mode: "details" }) },
@@ -56,15 +62,15 @@ const ControlPanel = ({ dispatch, mobile }) => {
 
   // arrow keys: left/right through the items, up/down by rows (by one in List and Details)
   const onKeyDown = (e) => {
-    if (e.target.closest("input, textarea, .menuBar")) return
-    const at = CPL_ITEMS.findIndex((i) => i.id === selected)
+    if (e.target.closest("input, textarea, button, .menuBar")) return
+    const at = shown.findIndex((i) => i.id === selected)
     const els = [...(listRef.current?.querySelectorAll("[data-cpl]") || [])]
     const perRow = view.mode === "icons" && els.length ? els.filter((el) => el.offsetTop === els[0].offsetTop).length || 1 : 1
     const step = { ArrowRight: 1, ArrowLeft: -1, ArrowDown: perRow, ArrowUp: -perRow, Home: -999, End: 999 }[e.key]
     if (step !== undefined) {
       e.preventDefault()
-      const next = at < 0 ? 0 : Math.max(0, Math.min(CPL_ITEMS.length - 1, at + step))
-      setSelected(CPL_ITEMS[next].id)
+      const next = at < 0 ? 0 : Math.max(0, Math.min(shown.length - 1, at + step))
+      setSelected(shown[next].id)
       els[next]?.focus({ preventScroll: false })
     } else if (e.key === "Enter" && item) {
       e.preventDefault()
@@ -79,8 +85,8 @@ const ControlPanel = ({ dispatch, mobile }) => {
   })
 
   useEffect(() => {
-    if (selected && !CPL_ITEMS.some((i) => i.id === selected)) setSelected(null)
-  }, [selected])
+    if (selected && !shown.some((i) => i.id === selected)) setSelected(null)
+  }, [selected, view.all])
 
   return (
     <div className="cplRoot" onKeyDown={onKeyDown}>
@@ -132,7 +138,7 @@ const ControlPanel = ({ dispatch, mobile }) => {
               <span>Description</span>
             </div>
           )}
-          {CPL_ITEMS.map((it) => (
+          {shown.map((it) => (
             <div
               key={it.id}
               data-cpl={it.id}
@@ -140,7 +146,7 @@ const ControlPanel = ({ dispatch, mobile }) => {
               role="option"
               aria-selected={selected === it.id}
               aria-label={it.name}
-              tabIndex={selected === it.id || (!selected && it === CPL_ITEMS[0]) ? 0 : -1}
+              tabIndex={selected === it.id || (!selected && it === shown[0]) ? 0 : -1}
               title={view.mode === "details" ? undefined : it.text}
               onClick={() => setSelected(it.id)}
               onFocus={() => setSelected(it.id)}
@@ -151,10 +157,16 @@ const ControlPanel = ({ dispatch, mobile }) => {
               {view.mode === "details" && <span className="cplDesc">{it.text}</span>}
             </div>
           ))}
+          <div className="cplShowAll">
+            <button type="button" aria-expanded={!!view.all} onClick={() => setView({ all: !view.all })}>
+              {view.all ? "Show common settings only «" : `Show all Control Panel options (${CPL_ITEMS.length}) »`}
+            </button>
+            {!view.all && <span className="cplShowAllNote">{CPL_ITEMS.filter((i) => !COMMON_IDS.includes(i.id)).map((i) => i.name).join(" · ")}</span>}
+          </div>
         </div>
       </div>
       <div className="status-bar cplStatus">
-        <p className="status-bar-field">{item ? item.text : `${CPL_ITEMS.length} object(s)`}</p>
+        <p className="status-bar-field">{item ? item.text : `${shown.length} object(s)${view.all ? "" : ` (${CPL_ITEMS.length - shown.length} more)`}`}</p>
         <p className="status-bar-field cplStatusRight">
           <img src="/assets/program_icons/computer_explorer.png" alt="" width="14" height="14" /> My Computer
         </p>

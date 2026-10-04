@@ -179,6 +179,25 @@
 .wdMenuBtn.is-daily b {
   font-size: 14px;
 }
+/* the launcher (docs/simplicity.md): a big Daily Word, then More modes on the teal */
+.wdMenu--main .wdMenuBtn.is-daily {
+  min-height: 60px;
+  align-items: center;
+  text-align: center;
+}
+.wdMenu--main .wdMenuBtn.is-daily b {
+  font-size: 18px;
+}
+.wdMore {
+  width: min(100%, 380px);
+  align-items: stretch;
+}
+.wdMore .moreOpts-summary {
+  color: #d8f0ee;
+}
+.wdMore .moreOpts-body {
+  align-items: center;
+}
 .wdLengths {
   display: flex;
   gap: 4px;
@@ -318,6 +337,12 @@
 .wdCustom .wdRowBtns {
   margin-top: 10px;
   justify-content: flex-start;
+}
+/* the sticky Start Game row (shared/PrimaryBar) reaches the form's edges */
+.wdCustom .wdCustomBar {
+  margin: 10px -12px -14px;
+  padding-left: 12px;
+  padding-right: 12px;
 }
 
 /* ---------- the game ---------- */
@@ -1067,7 +1092,8 @@ a.wdWord:hover {
   }
 }
 .wdRoot.is-mobile .wdTitle {
-  padding-top: 14px;
+  padding-top: clamp(14px, 7vh, 72px);
+  justify-content: flex-start;
 }
 .wdRoot.is-mobile .wdLogoTile {
   width: 34px;

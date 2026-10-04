@@ -9,6 +9,18 @@
   gap: 14px;
 }
 
+/* phones: the title screen starts near the top, bigger, instead of floating mid-screen */
+.os-mobile .tetrisApp .tetrisMenu {
+  justify-content: flex-start;
+  padding-top: clamp(16px, 7vh, 72px);
+}
+
+.os-mobile .tetrisApp .tetrisMenu .tetrisTitleLetter {
+  width: 48px;
+  height: 48px;
+  font-size: 30px;
+}
+
 .tetrisModes {
   margin: 0;
   padding: 6px 10px 10px;

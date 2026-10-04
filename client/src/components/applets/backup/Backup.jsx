@@ -7,6 +7,8 @@ import { downloadBlob } from "../../../utils/fileTransfer"
 import { MAX_BACKUP_BYTES, backupFileName, createBackupBlob, formatBytes, readBackup, restoreBackup } from "../../../utils/driveSnapshot"
 import { driveSummary } from "../../../utils/fs"
 import { deleteOnlineFiles, fetchSyncInfo, getSyncFolders, isSyncEnabled, setSyncEnabled, setSyncFolders, statusText, syncNow, syncableFolders, useDriveSync } from "../../../utils/driveSync"
+import MoreOptions from "../../shared/MoreOptions"
+import { summarize } from "../../../utils/disclosure"
 import "./Backup.css"
 
 // Backup: save the whole C: drive (plus settings and achievements) to a file on your real
@@ -135,6 +137,61 @@ const Backup = ({ dispatch, mobile }) => {
           </p>
         </div>
 
+        {/* the baseline (docs/simplicity.md): sync on or off with Sync Now / Sign On, and
+            Back Up Now. Which folders sync, online space, Delete Online Files and Restore
+            are under More options, summarized */}
+        <fieldset className="bkGroup">
+          <legend>Sync with 98 Messenger</legend>
+          <div className="field-row bkCheck">
+            <input type="checkbox" id="bk-sync" checked={enabled} onChange={(e) => toggleSync(e.target.checked)} />
+            <label htmlFor="bk-sync">Sync my files with my 98 Messenger account</label>
+          </div>
+          {screenName && (signedOn || enabled) ? (
+            <p className="bkSmall">
+              {signedOn ? "Signed on as" : "Syncing as"} <b>{screenName}</b>.
+            </p>
+          ) : (
+            <p className="bkSmall">Sign on to 98 Messenger to sync your files.</p>
+          )}
+          <div className="bkRow">
+            {signedOn || (enabled && sync.phase !== "signedOut") ? (
+              <button type="button" className="bkSyncNow" disabled={!enabled || sync.busy} onClick={() => syncNow()}>
+                Sync Now
+              </button>
+            ) : (
+              <button type="button" onClick={() => dispatch?.({ type: "open_window", payload: launch("98 Messenger") })}>
+                Sign On...
+              </button>
+            )}
+          </div>
+          <MoreOptions
+            id="backup.sync"
+            label="Sync options"
+            lessLabel="Hide sync options"
+            className="bkMore"
+            summary={summarize(folders.length ? folders.map(folderLabel) : "No folders", sync.quota ? `${formatBytes(sync.usage || 0)} of ${formatBytes(sync.quota)} online` : null)}
+          >
+            <p className="bkSmall">These folders stay the same on every computer and phone you sign on from. A file changed in two places is kept twice.</p>
+            <div className="bkFolders" role="group" aria-label="Folders to sync">
+              {syncableFolders().map((name) => (
+                <div className="field-row" key={name}>
+                  <input type="checkbox" id={`bk-f-${name}`} checked={folders.includes(name)} disabled={!enabled} onChange={(e) => toggleFolder(name, e.target.checked)} />
+                  <label htmlFor={`bk-f-${name}`}>{folderLabel(name)}</label>
+                </div>
+              ))}
+            </div>
+            {sync.quota ? <p className="bkSmall">Online: {formatBytes(sync.usage || 0)} of {formatBytes(sync.quota)}{sync.files != null ? ` (${plural(sync.files, "file")})` : ""}.</p> : null}
+            {sync.quota > 0 && <div className="bkMeter" role="meter" aria-label="Online space used" aria-valuenow={Math.round(((sync.usage || 0) / sync.quota) * 100)} aria-valuemin={0} aria-valuemax={100}><span style={{ width: `${Math.min(100, ((sync.usage || 0) / sync.quota) * 100)}%` }} /></div>}
+            {(signedOn || (enabled && sync.phase !== "signedOut")) && (
+              <div className="bkRow">
+                <button type="button" disabled={sync.busy || !!busy} onClick={() => setDialog({ kind: "delete" })}>
+                  Delete Online Files
+                </button>
+              </div>
+            )}
+          </MoreOptions>
+        </fieldset>
+
         <fieldset className="bkGroup">
           <legend>Back up to your computer</legend>
           <p>Saves one .98ish file to your real computer's Downloads folder.</p>
@@ -144,58 +201,14 @@ const Backup = ({ dispatch, mobile }) => {
             </button>
             <span className="bkNote">{last ? `Last backup: ${when(last)}` : "No backups yet."}</span>
           </div>
-        </fieldset>
-
-        <fieldset className="bkGroup">
-          <legend>Restore from a backup</legend>
-          <p>Puts back everything from a backup file. This replaces everything on C:.</p>
-          <div className="bkRow">
-            <button type="button" className="bkRestore" onClick={() => fileRef.current?.click()} disabled={!!busy}>
-              Restore...
-            </button>
-          </div>
-        </fieldset>
-
-        <fieldset className="bkGroup">
-          <legend>Sync with 98 Messenger</legend>
-          <div className="field-row bkCheck">
-            <input type="checkbox" id="bk-sync" checked={enabled} onChange={(e) => toggleSync(e.target.checked)} />
-            <label htmlFor="bk-sync">Sync my files with my 98 Messenger account</label>
-          </div>
-          <p className="bkSmall">These folders stay the same on every computer and phone you sign on from. A file changed in two places is kept twice.</p>
-          <div className="bkFolders" role="group" aria-label="Folders to sync">
-            {syncableFolders().map((name) => (
-              <div className="field-row" key={name}>
-                <input type="checkbox" id={`bk-f-${name}`} checked={folders.includes(name)} disabled={!enabled} onChange={(e) => toggleFolder(name, e.target.checked)} />
-                <label htmlFor={`bk-f-${name}`}>{folderLabel(name)}</label>
-              </div>
-            ))}
-          </div>
-          {screenName && (signedOn || enabled) ? (
-            <p className="bkSmall">
-              {signedOn ? "Signed on as" : "Syncing as"} <b>{screenName}</b>.{" "}
-              {sync.quota ? `Online: ${formatBytes(sync.usage || 0)} of ${formatBytes(sync.quota)}${sync.files != null ? ` (${plural(sync.files, "file")})` : ""}.` : ""}
-            </p>
-          ) : (
-            <p className="bkSmall">Sign on to 98 Messenger to sync your files.</p>
-          )}
-          {sync.quota > 0 && <div className="bkMeter" role="meter" aria-label="Online space used" aria-valuenow={Math.round(((sync.usage || 0) / sync.quota) * 100)} aria-valuemin={0} aria-valuemax={100}><span style={{ width: `${Math.min(100, ((sync.usage || 0) / sync.quota) * 100)}%` }} /></div>}
-          <div className="bkRow">
-            {signedOn || (enabled && sync.phase !== "signedOut") ? (
-              <>
-                <button type="button" className="bkSyncNow" disabled={!enabled || sync.busy} onClick={() => syncNow()}>
-                  Sync Now
-                </button>
-                <button type="button" disabled={sync.busy || !!busy} onClick={() => setDialog({ kind: "delete" })}>
-                  Delete Online Files
-                </button>
-              </>
-            ) : (
-              <button type="button" onClick={() => dispatch?.({ type: "open_window", payload: launch("98 Messenger") })}>
-                Sign On...
+          <MoreOptions id="backup.restore" label="Restore from a backup" lessLabel="Hide Restore" className="bkMore" summary="Puts back everything from a backup file">
+            <p>Puts back everything from a backup file. This replaces everything on C:.</p>
+            <div className="bkRow">
+              <button type="button" className="bkRestore" onClick={() => fileRef.current?.click()} disabled={!!busy}>
+                Restore...
               </button>
-            )}
-          </div>
+            </div>
+          </MoreOptions>
         </fieldset>
       </div>
 

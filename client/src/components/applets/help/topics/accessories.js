@@ -199,7 +199,8 @@ export const topics = [
       },
       { h: "Effects, frames and timer" },
       "The **Effects** menu changes the look live: Sepia, Black & White, CRT Monitor, Web Safe 216, Handheld, Pixelate, VHS Tape, Fisheye, Mirror, Heat Vision, Negative and Pop Art. **Frames** adds Instant Photo, Film Strip, 98ish Window, Camcorder, Hearts, Sparkles, Party Time or Gold Frame. The timer button counts down 3 or 10 seconds before the shot.",
-      { phone: "Tap the big shutter button. **Options > Switch Camera** flips between the front and back cameras.", computer: "Click the shutter button or press {{Space}} or {{Enter}}. **Options** also has Mirror Front Camera, Shutter Sound and Record Sound in Clips." },
+      { phone: "Tap the big shutter button. The button beside it (or **Options > Switch Camera**) flips between the front and back cameras.", computer: "Click the shutter button or press {{Space}} or {{Enter}}. **Options** also has Mirror Front Camera, Shutter Sound and Record Sound in Clips." },
+      "The modes, the timer button and the **Effects** button are under **More options »** above the shutter; its line says the mode, timer and effect you have now. The **Mode**, **Effects**, **Frames** and **Options** menus have them all too.",
       { h: "Where your photos go" },
       "Photos are saved as JPEGs in **C:\\My Pictures**. The status bar shows how much room is left. **File > Open Last Photo** shows it in [[photos|Photos]], and **File > Send Last Photo To** sends it to your phone or another app.",
       { note: "On an iPhone, video clips record the plain camera, without effects or frames." },
@@ -230,7 +231,7 @@ export const topics = [
       { h: "Looking at pictures" },
       { phone: "Tap a picture to open it. Swipe left or right for the next one. Pinch or double-tap to zoom.", computer: "Double-click a picture to open it. Use the arrow keys for the next one, and the mouse wheel or the + and - keys to zoom (0 fits it back on screen). Esc goes back to the thumbnails." },
       { h: "Editing" },
-      "The **Edit** menu can **Rotate Left** or **Right**, **Crop** (free, square, 4:3, 3:4 or 16:9), adjust **Brightness/Contrast**, and add **Effects and Frames** like the ones in [[camera|Camera]]. **Undo** steps back. Nothing changes on the drive until you choose **File > Save** (replace the picture) or **Save As Copy** (keep the original). **Revert** throws your changes away.",
+      "The **Edit »** button on the toolbar shows the editing buttons (zoom, rotate, crop, adjust, effects and Undo), and Photos remembers whether you left them showing. The **Edit** menu has them too: **Rotate Left** or **Right**, **Crop** (free, square, 4:3, 3:4 or 16:9), adjust **Brightness/Contrast**, and add **Effects and Frames** like the ones in [[camera|Camera]]. **Undo** steps back. Nothing changes on the drive until you choose **File > Save** (replace the picture) or **Save As Copy** (keep the original). **Revert** throws your changes away.",
       { h: "Slideshows" },
       "Choose **View > Slideshow** (or press {{F5}}) to show the pictures full screen. You can pick a transition (Fade, Slide, Zoom, Wipe, Iris or Random) and a speed. Space pauses; Esc ends it.",
       { h: "Sharing" },
@@ -262,9 +263,10 @@ export const topics = [
     body: [
       { img: "/assets/program_icons/addressbook.svg", alt: "Address Book icon" },
       "The Address Book holds a card for each person: their name and picture, 98 Messenger screen name, 98ish Mail address, phone numbers, e-mail, address, birthday, anniversary and notes.",
-      { steps: ["Open Start > Programs > Accessories > Address Book.", "Choose **File > New Contact**.", "Fill in what you know and choose OK."], title: "To add someone:" },
+      { steps: ["Open Start > Programs > Accessories > Address Book.", "Choose **File > New Contact** (**+ New** on a phone).", "Type their name, phone and e-mail, and choose OK."], title: "To add someone:" },
+      "A nickname, company, screen name, 98ish Mail address and Favorite are under **More options »** on the Name tab. More phone numbers and e-mail addresses, the home address, birthday, groups and notes are on the other tabs.",
       { h: "What a card can do" },
-      "Open a card to **Send Instant Message**, **Call** or **Video Call** them on 98 Messenger, **Send Mail**, or **Invite to Calendar**. A colored dot shows whether they're on 98 Messenger right now (green means on).",
+      "Open a card to **Send IM**, **Call** them on 98 Messenger or **Send Mail**. **More »** has **Video Call**, **Invite to Calendar**, Favorite and Delete. A colored dot shows whether they're on 98 Messenger right now (green means on).",
       {
         list: [
           "**Favorites** and **groups** (File > New Group) help sort people. Pick a folder on the left to see just those.",
@@ -295,7 +297,8 @@ export const topics = [
     body: [
       { img: "/assets/program_icons/calendar.svg", alt: "Calendar icon" },
       "Calendar keeps your plans: dates, appointments, trips and birthdays. It also has **memos**, notes with checklists that don't need a date.",
-      { steps: ["Open Start > Programs > Accessories > Calendar.", "Choose **File > New Event** (or tap a day, then the add button).", "Type a title, pick the day and time (or tick all-day), and which calendar it goes on.", "Choose a repeat if it happens again (every day, weekday, week, month, year, or Custom).", "Add a reminder, like 15 minutes or 1 day before.", "Save."], title: "To add an event:" },
+      { steps: ["Open Start > Programs > Accessories > Calendar.", "Choose **File > New Event** (or tap a day, then the add button).", "Type a title and pick the day and the time.", "Save. That's all most events need."], title: "To add an event:" },
+      "Everything else is under **More options »** at the bottom of the event, with a line that says what's set now (like \"On this device · Doesn't repeat · Reminder 15 minutes before · Auto color\"): which **calendar** it goes on, **All day**, an end on another day, a **repeat** (every day, weekday, week, month, year, or Custom), **reminders**, a **color**, the **place**, **notes**, a **checklist**, whether it's a **to-do**, and who's going. Calendar remembers whether you left More options open (see [[more-options]]).",
       { h: "Views" },
       "The **View** menu switches between **Month**, **Week**, **Day**, **List** (what's coming up) and **Memos**. **Go to Today** jumps back to now.",
       { phone: "Swipe the month or week sideways to move to the next one. Tap a day to see its events below.", computer: "Click a day to select it; double-click an empty day or hour to add an event there." },

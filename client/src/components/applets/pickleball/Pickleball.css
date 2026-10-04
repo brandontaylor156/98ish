@@ -180,6 +180,16 @@
   width: 100%;
 }
 
+/* More modes (World Tour, Practice, 2 Players) on the arena (docs/simplicity.md) */
+.pkMore .moreOpts-summary {
+  color: #e8ecff;
+  text-shadow: 1px 1px #000;
+}
+
+.pkMore .moreOpts-body {
+  gap: 6px;
+}
+
 .pkBig {
   display: flex;
   flex-direction: column;

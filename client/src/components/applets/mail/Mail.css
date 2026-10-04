@@ -423,6 +423,22 @@ button.mlTool:disabled .mlToolIcon {
   gap: 3px;
 }
 
+/* compose: From, Cc, Attach and Save Draft under More options */
+.mlMore {
+  gap: 3px;
+  margin-top: 1px;
+}
+
+.mlMore .moreOpts-body {
+  gap: 3px;
+}
+
+.mlMoreButtons {
+  display: flex;
+  gap: 4px;
+  padding-left: 58px;
+}
+
 .mlField {
   display: flex;
   align-items: center;

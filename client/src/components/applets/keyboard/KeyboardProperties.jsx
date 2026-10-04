@@ -1,6 +1,8 @@
 import React, { useState } from "react"
 import { getSettings, setSettings } from "../../../utils/settings"
 import { useIsTouch } from "../../../hooks/useMediaQuery"
+import MoreOptions from "../../shared/MoreOptions"
+import { summarize } from "../../../utils/disclosure"
 import "./KeyboardProperties.css"
 
 // Keyboard Properties (Start > Settings > Keyboard): which keyboard a touch screen types with
@@ -96,14 +98,22 @@ const KeyboardProperties = ({ onClose, tab: firstTab }) => {
                 On the 98ish keyboard, the phone button in its title bar switches one box to your phone's keyboard, for emoji, dictation, other languages and password AutoFill.
               </p>
             </fieldset>
-            <fieldset className="kpField" disabled={draft.keyboard === "phone"}>
-              <legend>While typing</legend>
-              {check("kp-clicks", "keyClicks", "Click sound on each key")}
-              {check("kp-vibrate", "keyVibrate", "Vibrate on each key (where the phone allows)")}
-              {check("kp-previews", "keyPreviews", "Show each letter as you tap it")}
-              {check("kp-caps", "autoCaps", "Capital letters to start sentences")}
-              {check("kp-period", "periodShortcut", "Double space types a period")}
-            </fieldset>
+            {/* how the 98ish keyboard feels: one tap further (docs/simplicity.md) */}
+            <MoreOptions
+              id="keyboard.typing"
+              label="While typing"
+              lessLabel="Hide typing options"
+              summary={summarize(draft.keyboard === "phone" && "For the 98ish keyboard", draft.keyClicks ? "Clicks" : "No clicks", draft.keyPreviews && "Letter previews", draft.autoCaps && "Auto capitals", draft.periodShortcut && "Double space period")}
+            >
+              <fieldset className="kpField" disabled={draft.keyboard === "phone"}>
+                <legend>While typing</legend>
+                {check("kp-clicks", "keyClicks", "Click sound on each key")}
+                {check("kp-vibrate", "keyVibrate", "Vibrate on each key (where the phone allows)")}
+                {check("kp-previews", "keyPreviews", "Show each letter as you tap it")}
+                {check("kp-caps", "autoCaps", "Capital letters to start sentences")}
+                {check("kp-period", "periodShortcut", "Double space types a period")}
+              </fieldset>
+            </MoreOptions>
             {!touch && <p className="kpHint">These are for phones and tablets. With a mouse and keyboard, nothing changes.</p>}
           </>
         )}

@@ -24,7 +24,7 @@ export const topics = [
       "On the List Setup tab you can also add, rename and delete groups, and remove buddies.",
       { h: "Sending an instant message" },
       { phone: "Tap a buddy, then tap **IM** at the bottom of the Buddy List. You can also press and hold a buddy for more choices.", computer: "Double-click a buddy, or select them and click **IM**. Right-click a buddy for more choices (Call, Video Call, Get Info, Add to Address Book)." },
-      "Type in the box at the bottom of the IM window and press Send. The buttons above the box change the font, size, bold, italic, underline and color of your text. The **Games** button invites the buddy to a game (Checkers, Chess, Hearts, Reversi, Battleship, a Minesweeper Race, Tetris Battle, Doodle Together, the Quiz Show or Sunny Acres co-op).",
+      "Type in the box at the bottom of the IM window and press Send. The **Aa** button beside the box shows the buttons that change the font, size, bold, italic, underline and color of your text. **More »** under the box has **Warn**, **Block**, **Add Buddy**, **Get Info** and **Games**; 98 Messenger remembers whether you left them showing. The **Games** button invites the buddy to a game (Checkers, Chess, Hearts, Reversi, Battleship, a Minesweeper Race, Tetris Battle, Doodle Together, the Quiz Show or Sunny Acres co-op).",
       { note: "If your buddy is signed off but has turned on notifications, your message waits for them and their phone gets a notification. Otherwise you can only message people who are signed on." },
       { h: "Away messages" },
       "Click **Away** at the bottom of the Buddy List (or My AIM > Away Message...) and pick or write a message. Anyone who IMs you gets it as an automatic reply. Click **I'm Back** (or **Back**) when you return. If you don't touch 98ish for 10 minutes, your buddies see you as idle.",
@@ -133,12 +133,20 @@ export const topics = [
       {
         steps: [
           "Click **New Mail**.",
-          "In **To**, type one or more screen names, separated by commas. People in your Address Book are suggested as you type. Add more people in **Cc** if you like.",
+          "In **To**, type one or more screen names, separated by commas. People in your Address Book are suggested as you type.",
           "Type a subject and your message. Messages are plain text.",
-          "To add a file, click **Attach** and pick a document, picture or sound from your 98ish drive.",
-          "Click **Send**. Or click **Save** to keep it in Drafts for later.",
+          "Click **Send**.",
         ],
         title: "To write a message:",
+      },
+      {
+        steps: [
+          "Click **More options »** under the subject. Its line says who it's from, the Cc and the attachments.",
+          "Add more people in **Cc** if you like.",
+          "To add a file, click **Attach** (or Message > Attach File...) and pick a document, picture or sound from your 98ish drive.",
+          "Click **Save** (or Message > Save Draft) to keep it in Drafts for later.",
+        ],
+        title: "For Cc, attachments and drafts:",
       },
       "A message and its attachments can be at most 1 MB in all. Big photos may be too large: a smaller copy from Paint or Photos will fit.",
       { h: "Reading and answering" },

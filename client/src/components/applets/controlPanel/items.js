@@ -27,7 +27,10 @@ export const CPL_ITEMS = [
   { id: "taskbar", name: "Taskbar & Start Menu", icon: icon("taskbar"), action: "taskbar-properties", text: "Changes taskbar settings, such as Auto hide, the clock and Quick Launch." },
 ]
 
-export const openCplItem = (item, dispatch) => {
+// what the Control Panel shows first (docs/simplicity.md): the settings most people want
+export const COMMON_IDS = ["display", "sounds", "notify", "access", "passwords", "storage"]
+
+export const openCplItem =(item, dispatch) => {
   if (item.program) dispatch({ type: "open_window", payload: launch(item.program) })
   else if (item.action) shellAction(item.action)
 }
