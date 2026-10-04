@@ -112,7 +112,7 @@ const vercelAdapter = ({ token, env = process.env, maxBytes, onOp = () => {} }) 
         validUntil: Date.now() + 10 * 60_000,
       })
       // the headers the SDK's own browser upload sends with a presigned URL
-      return { url: presignedUrl, method: "PUT", headers: { "x-api-version": "12", "x-vercel-blob-access": "private", "x-content-type": TYPE, "x-add-random-suffix": "0", "x-allow-overwrite": "0" } }
+      return { url: presignedUrl, method: "PUT", headers: { "x-api-version": "12", "x-vercel-blob-access": "private", "x-content-type": TYPE } }
     },
     presignGet: async (pathname) => {
       const { presignedUrl } = await blob.presignUrl(await signer(), { operation: "get", pathname, access: "private", validUntil: Date.now() + 5 * 60_000 })
