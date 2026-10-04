@@ -1348,8 +1348,9 @@ export const resetFileSystem = () => {
   changed()
 }
 
-// Dev-only handle for browser tests
-if (browser && import.meta.env?.DEV) {
+// Dev-only handle for browser tests (also in a production build made with VITE_TEST_HOOKS=1, for
+// tests that need the service worker; the real deploy never sets it)
+if (browser && (import.meta.env?.DEV || import.meta.env?.VITE_TEST_HOOKS === "1")) {
   window.__drive = {
     fs,
     info: storageInfo,
