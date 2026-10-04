@@ -371,19 +371,6 @@ test("frame check reads only the headers", async () => {
   }
 })
 
-test("CORS: relayed pages (Origin: null) may call the relay with credentials", async () => {
-  const t = await setup()
-  try {
-    const r = await fetch(`${t.base}/x/whatever`, { method: "OPTIONS", headers: { origin: "null", "access-control-request-method": "POST", "access-control-request-headers": "content-type,x-csrf" } })
-    assert.equal(r.status, 204)
-    assert.equal(r.headers.get("access-control-allow-origin"), "null")
-    assert.equal(r.headers.get("access-control-allow-credentials"), "true")
-    assert.equal(r.headers.get("access-control-allow-headers"), "content-type,x-csrf")
-  } finally {
-    t.close()
-  }
-})
-
 test("site keys approximate eTLD+1", () => {
   assert.equal(siteOf("www.bbc.co.uk"), "bbc.co.uk")
   assert.equal(siteOf("a.b.example.com"), "example.com")
@@ -407,7 +394,11 @@ test("guest allowlist: defaults, WEB_GUEST_ALLOW parsing, subdomain matching, WE
   assert.ok(!onList("notwikipedia.org", GUEST_ALLOW))
   assert.ok(!onList("wikipedia.org.evil.com", GUEST_ALLOW))
   assert.ok(!onList("web.archive.org", GUEST_ALLOW))
-  assert.equal(relayMode(undefined), "on")
+  // the code default is the allowlist (production needs no env var); anything unknown is too
+  assert.equal(relayMode(undefined), "allowlist")
+  assert.equal(relayMode(""), "allowlist")
+  assert.equal(relayMode("typo"), "allowlist")
+  assert.equal(relayMode("on"), "on")
   assert.equal(relayMode("1"), "on")
   assert.equal(relayMode("0"), "off")
   assert.equal(relayMode("OFF"), "off")

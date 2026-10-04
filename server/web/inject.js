@@ -171,16 +171,22 @@ function compassPage(CFG) {
   }
 
   // ---- requests made by scripts: through the relay, as-is ----
+  // Never with credentials: the relay keeps the site's cookies itself, and it never allows
+  // credentialed CORS (a page asking for credentials: "include" would otherwise just fail)
   var nativeFetch = W.fetch
   if (nativeFetch) {
     W.fetch = function (input, init) {
       try {
-        if (input instanceof Request) input = new Request(toRelay(input.url, true), input)
+        if (input instanceof Request) input = new Request(new Request(toRelay(input.url, true), input), { credentials: "omit" })
         else input = toRelay(input, true)
+        init = Object.assign({}, init || {}, { credentials: "omit" })
       } catch (e) {}
       return nativeFetch.call(W, input, init)
     }
   }
+  try {
+    Object.defineProperty(XMLHttpRequest.prototype, "withCredentials", { configurable: true, get: function () { return false }, set: function () {} })
+  } catch (e) {}
   var nativeOpen = XMLHttpRequest.prototype.open
   XMLHttpRequest.prototype.open = function (method, url) {
     var args = Array.prototype.slice.call(arguments)
@@ -195,8 +201,8 @@ function compassPage(CFG) {
   }
   if (W.EventSource) {
     var NativeES = W.EventSource
-    W.EventSource = function (url, opts) {
-      return new NativeES(toRelay(url, true), opts)
+    W.EventSource = function (url) {
+      return new NativeES(toRelay(url, true))
     }
     W.EventSource.prototype = NativeES.prototype
   }
@@ -275,7 +281,8 @@ function compassPage(CFG) {
   // ---- localStorage / sessionStorage stand-ins (for this page view) ----
   var memoryStorage = function () {
     var data = {}
-    return {
+    // the methods live on the prototype, so Object.keys(localStorage) lists only stored keys (none here)
+    return Object.create({
       get length() {
         return Object.keys(data).length
       },
@@ -294,7 +301,7 @@ function compassPage(CFG) {
       clear: function () {
         data = {}
       },
-    }
+    })
   }
   ;["localStorage", "sessionStorage"].forEach(function (name) {
     var ok = false

@@ -5,7 +5,8 @@
 // online copy (server/contacts), and Compass's web relay (server/web: WEB_* env vars, see there).
 // Env: PORT, MONGODB_URI (accounts, guestbook and online drives; kept in memory without it),
 // VAPID_PUBLIC_KEY + VAPID_PRIVATE_KEY + VAPID_SUBJECT (push notifications; off without them),
-// DRIVE_SYNC_QUOTA_MB and DRIVE_SYNC_MAX_FILE_MB (file sync, see server/drive/sync.js).
+// DRIVE_SYNC_QUOTA_MB and DRIVE_SYNC_MAX_FILE_MB (file sync, see server/drive/sync.js),
+// WEB_MONTHLY_WARN_MB (server/meter: the monthly outgoing-traffic meter).
 
 const express = require("express")
 const cors = require("cors")
@@ -26,12 +27,19 @@ const { calendarRouter, attachCalendar } = require("./server/calendar")
 const { defaultPush } = require("./server/push")
 const { contactsRouter } = require("./server/contacts")
 const { createWeb } = require("./server/web")
+const { refuseOpaqueOrigins, allowSocketRequest } = require("./server/web/origins")
+const { defaultUsage } = require("./server/meter")
 
 const app = express()
+// Usage counters kept in MongoDB (Compass's allowances) and the meter of everything this server
+// sends in a month (Render's free 5 GB covers all of it; Compass closes well before): server/meter
+const usage = defaultUsage()
 // Compass's web relay answers CORS itself (relayed pages are opaque origins), so it goes first
 let aimService = null // 98 Messenger once it's running (the relay signs people in with it)
-const web = createWeb({ aim: () => aimService })
+const web = createWeb({ aim: () => aimService, counters: usage.counters })
 app.use("/api/web", web.router)
+// everything else refuses sandboxed (opaque-origin) callers, such as relayed pages
+app.use(refuseOpaqueOrigins)
 app.use(cors())
 app.get("/", (request, response) => response.send("98ish chat server is running"))
 let aim // 98 Messenger, once started: the online drive signs in with its sessions
@@ -64,6 +72,18 @@ app.use("/api", guestbookRouter())
 
 const port = process.env.PORT || 8000
 const server = app.listen(port, () => console.log(`The server is all fired up on port ${port}`))
+usage.meter.attach(server) // every byte sent: HTTP, socket.io, the relay
+
+// Render stops the server with SIGTERM: save the usage counters first (3 s at most)
+let stopping = false
+for (const signal of ["SIGTERM", "SIGINT"]) {
+  process.on(signal, async () => {
+    if (stopping) return
+    stopping = true
+    await usage.shutdown().catch(() => {})
+    process.exit(0)
+  })
+}
 
 // Render's free plan puts the server to sleep after 15 minutes without a visitor (waking
 // takes 20-50 s, and scheduled reminders and pushes wait for it). On Render (which sets
@@ -78,7 +98,7 @@ if (process.env.RENDER_EXTERNAL_URL && process.env.KEEP_AWAKE !== "0") {
 }
 
 // room for a picture or a sound sent over Network Neighborhood (1.5 MB as a data URL)
-const io = require("socket.io")(server, { cors: true, maxHttpBufferSize: 2 * 1024 * 1024 })
+const io = require("socket.io")(server, { cors: true, maxHttpBufferSize: 2 * 1024 * 1024, allowRequest: allowSocketRequest })
 
 const net = attachNet(io)
 attachGameChat(io, net)

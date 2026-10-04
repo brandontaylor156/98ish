@@ -229,7 +229,7 @@ export const AboutPage = ({ session }) => (
       </div>
     </div>
     <h2>How Compass shows the real Web</h2>
-    <p>Most sites won&apos;t let other pages show them in a frame, so Compass asks the 98ish server to fetch each page and pass it on (the &quot;relay&quot;). Pages run in a locked-down frame and can&apos;t touch 98ish.</p>
+    <p>Most sites won&apos;t let other pages show them in a frame, so Compass asks the 98ish server to fetch each page and pass it on (the &quot;relay&quot;). Pages run in a locked-down frame with no address of their own: they can&apos;t read your 98ish files, settings or sign-in, can&apos;t use your 98 Messenger account and can&apos;t take over the 98ish window.</p>
     <ul>
       <li>
         <b>Pages come from the 98ish server's address.</b> To save the server's data, pictures and scripts load straight from the sites when they can, so sites can still see your address; View &gt; Relay Pictures Too sends those through the server as well.
@@ -237,19 +237,26 @@ export const AboutPage = ({ session }) => (
       <li>
         <b>Anything you type into a relayed page, passwords included, passes through the 98ish server.</b> For banking, email and other important accounts, use <b>Open in Real Browser</b>.
       </li>
-      <li>Without signing on, Compass opens Wikipedia and a few other reference sites. Sign on with your 98 Messenger screen name to browse other sites.</li>
+      {session?.mode === "on" ? (
+        <li>Without signing on, Compass opens Wikipedia and a few other reference sites. Sign on with your 98 Messenger screen name to browse other sites.</li>
+      ) : (
+        <li>
+          <b>Compass opens a few safe sites through the 98ish server</b>, for everyone, signed on or not: Wikipedia and its sister sites (Wiktionary, Wikivoyage, Wikibooks, Wikiquote, Wikimedia Commons), OpenStreetMap and example.com. Other sites open in your real browser (sites that allow it can also show directly with Data Saver).
+        </li>
+      )}
       <li>Cookies (so you can stay signed in to simple sites) are kept in the server's memory for your 98 Messenger account (a guest's only until the browsing session ends), only for the site that set them, and are gone after a day unused or when the server restarts. Tools &gt; Clear Cookies forgets them.</li>
       <li>Videos, Google sign-in, banks and big web apps work best in your real browser. Compass offers it when a site needs it.</li>
-      <li>The server has a daily data allowance (shared with everyone), so pictures load straight from the sites when they can.</li>
+      <li>The server has a daily data allowance (shared with everyone), so pictures load straight from the sites when they can. There is a monthly one too: the 98ish server&apos;s free plan includes a fixed amount of data a month for everything (Messenger, file sync, games and Compass), so when Compass or the whole server has used its share, Compass rests until the 1st of the next month and the rest of 98ish keeps working.</li>
     </ul>
     {session && (
       <p className="cmpUsage">
         Data used today: {formatBytes(session.used) || "0 KB"} of {formatBytes(session.limit)}
         {session.guest ? " (guest)" : ` (${session.name || "signed on"})`}
+        {session.closed ? `. Resting until ${new Date(session.closed).toLocaleDateString(undefined, { month: "long", day: "numeric", timeZone: "UTC" })}.` : ""}
       </p>
     )}
     <p>
-      Searches use <a href="https://duckduckgo.com/" target="_blank" rel="noopener noreferrer">DuckDuckGo</a> unless you pick another engine in Tools &gt; Compass Options (guests search Wikipedia).
+      Searches use <a href="https://duckduckgo.com/" target="_blank" rel="noopener noreferrer">DuckDuckGo</a> unless you pick another engine in Tools &gt; Compass Options (when Compass opens only the safe sites, searches go to Wikipedia).
     </p>
   </div>
 )
@@ -260,7 +267,7 @@ export const StubPage = ({ info, onReal, onRetry, onAlways, onTimeMachine, onSig
   return (
     <div className="cmpPage cmpStub">
       <div className="cmpStubIcon" aria-hidden="true">
-        {info.kind === "signon" ? <img src="/assets/program_icons/aim2-48.png" width="48" height="48" alt="" draggable="false" /> : info.kind === "download" ? "\u{1F4BE}" : info.kind === "media" ? "\u{1F3AC}" : info.kind === "real" || info.kind === "notallowed" || info.kind === "off" ? "\u{1F310}" : "!"}
+        {info.kind === "signon" ? <img src="/assets/program_icons/aim2-48.png" width="48" height="48" alt="" draggable="false" /> : info.kind === "download" ? "\u{1F4BE}" : info.kind === "media" ? "\u{1F3AC}" : info.kind === "real" || info.kind === "notallowed" || info.kind === "off" ? "\u{1F310}" : info.kind === "monthly" ? "\u{1F4C5}" : "!"}
       </div>
       <h1>{title}</h1>
       {info.text && <p>{info.text}</p>}
@@ -292,7 +299,7 @@ export const StubPage = ({ info, onReal, onRetry, onAlways, onTimeMachine, onSig
             Try in Compass Anyway
           </button>
         )}
-        {["error", "expired", "budget", "offline"].includes(info.kind) && onRetry && (
+        {["error", "expired", "budget", "offline", "unavailable"].includes(info.kind) && onRetry && (
           <button type="button" onClick={onRetry}>
             Try Again
           </button>

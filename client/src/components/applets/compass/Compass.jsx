@@ -19,11 +19,25 @@ import "./Compass.css"
 
 const MAX_TABS = 12
 const ZOOMS = [0.5, 0.67, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2]
-const RELAY_SANDBOX = "allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals"
-const DIRECT_SANDBOX = "allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals"
+// Relayed pages run in an opaque origin (no allow-same-origin; the server's CSP says the same),
+// so they can't touch 98ish's storage, tokens or window. Neither kind may navigate the 98ish
+// window, and their popups stay sandboxed (no allow-popups-to-escape-sandbox: an unsandboxed
+// popup could navigate this window through window.opener.top). Direct frames are the site's own
+// origin (never ours: the server refuses to check 98ish's own addresses).
+const RELAY_SANDBOX = "allow-scripts allow-forms allow-popups allow-modals"
+const DIRECT_SANDBOX = "allow-scripts allow-same-origin allow-forms allow-popups allow-modals"
 
 // Guests browse a few sites (Wikipedia and friends); anything else asks them to sign on
 const signOnStub = (url) => ({ view: "stub", stub: { kind: "signon", title: "Sign on to browse other sites", text: "Sign on with your 98 Messenger screen name to browse other sites. Without one, Compass opens Wikipedia and a few other sites.", url }, loading: false })
+
+// The server has sent its monthly allowance (Render's free plan covers 5 GB a month for all of
+// 98ish): Compass rests until the 1st, everything else in 98ish keeps working
+const monthlyStub = (reopens, url) => ({
+  kind: "monthly",
+  title: "Compass is resting until next month",
+  text: `Compass has used this month's data allowance; it's back on ${reopens.toLocaleDateString(undefined, { month: "long", day: "numeric", timeZone: "UTC" })}. Messenger and the rest of 98ish keep working. Until then, open pages in your real browser.`,
+  url,
+})
 
 let nextId = 1
 const makeTab = (url = NEW_TAB, title = "") => ({
@@ -160,12 +174,16 @@ const Compass = ({ initialUrl, onTitle, onClose, onNewWindow, dispatch, mobile }
       return { view: "stub", stub: { kind: "offline", title: "Compass can't reach the 98ish server", text: error.message, url }, loading: false }
     }
     setWaking(false)
+    // off the allowlist: in "on" mode a guest can sign on for it; in "allowlist" mode nobody can
     if (!allowedFor(s, hostOf(url)))
-      return s.guest ? signOnStub(url) : { view: "stub", stub: { kind: "notallowed", title: "Open this page in your real browser", text: "The 98ish server only relays a few sites right now.", url }, loading: false }
+      return s.guest && s.mode === "on" ? signOnStub(url) : { view: "stub", stub: { kind: "notallowed", title: "Open this page in your real browser", text: "Compass opens only a few sites through the 98ish server: Wikipedia and its sister sites, OpenStreetMap and example.com. Other sites open in your real browser.", url }, loading: false }
     const overBudget = s.limit && s.used >= s.limit
-    if (p.dataSaver || overBudget) {
+    // the month's data allowance is used up: only sites that allow frames, straight from the site
+    const closed = s.closed ? new Date(s.closed) : null
+    if (p.dataSaver || overBudget || closed) {
       const c = await checkFrame(s.sid, url)
       if (c.ok && c.frameable && (c.https || window.location.protocol === "http:")) return { view: "direct", src: c.url, stub: null, loading: true }
+      if (closed) return { view: "stub", stub: monthlyStub(closed, url), loading: false }
       if (overBudget) return { view: "stub", stub: { kind: "budget", title: "Today's Compass allowance is used up", text: "The 98ish server relays a limited amount each day. This site can't load directly, so open it in your real browser (the allowance starts again tomorrow).", url }, loading: false }
     }
     return { view: "relay", src: relayUrl(SERVER, s.sid, url, p.relayAll ? "f" : "d"), stub: null, loading: true }
@@ -289,6 +307,9 @@ const Compass = ({ initialUrl, onTitle, onClose, onNewWindow, dispatch, mobile }
       if (id === null) return
       const tab = tabsRef.current.find((t) => t.id === id)
       if (!tab) return
+      // a relayed page is always an opaque origin; a direct frame is never 98ish itself
+      if (tab.view === "relay" && event.origin !== "null") return
+      if (event.origin === window.location.origin) return
       const str = (v, max = 2000) => (typeof v === "string" ? v.slice(0, max) : "")
       if (d.type === "page") {
         const url = isWeb(d.url) ? str(d.url) : entryOf(tab).url
@@ -807,10 +828,16 @@ const Compass = ({ initialUrl, onTitle, onClose, onNewWindow, dispatch, mobile }
       {active.view === "direct" && (
         <div className="cmpNotice">
           <span className="cmpNoticeIcon">i</span>
-          <span className="cmpNoticeText">Data Saver: this site loads directly, so Compass can&apos;t follow its links, find or zoom text.</span>
-          <button type="button" onClick={() => (store.setPrefs({ dataSaver: false }), reload())}>
-            Load Through 98ish
-          </button>
+          {session?.closed ? (
+            <span className="cmpNoticeText">{monthlyStub(new Date(session.closed)).text.split(". ")[0]}, so this site loads directly (Compass can&apos;t follow its links, find or zoom text).</span>
+          ) : (
+            <>
+              <span className="cmpNoticeText">Data Saver: this site loads directly, so Compass can&apos;t follow its links, find or zoom text.</span>
+              <button type="button" onClick={() => (store.setPrefs({ dataSaver: false }), reload())}>
+                Load Through 98ish
+              </button>
+            </>
+          )}
         </div>
       )}
 

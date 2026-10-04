@@ -174,8 +174,8 @@ export const topics = [
     id: "compass",
     book: "internet",
     title: "Compass: browsing today's web",
-    summary: "Visit real, current websites in 98ish with tabs, bookmarks and history. Guests can open Wikipedia; sign on to browse anywhere.",
-    keywords: ["web browser", "browser", "browse", "websites", "tabs", "bookmarks", "history", "downloads", "search the web", "wikipedia", "relay", "open in real browser", "sign on to browse", "guest", "cookies"],
+    summary: "Visit Wikipedia and a few other safe sites inside 98ish, with tabs, bookmarks and history; other sites open in your real browser.",
+    keywords: ["web browser", "browser", "browse", "websites", "tabs", "bookmarks", "history", "downloads", "search the web", "wikipedia", "relay", "open in real browser", "safe sites", "allowlist", "guest", "cookies", "data allowance", "monthly allowance", "resting until"],
     programs: ["Compass"],
     body: [
       "Compass is a web browser for today's web, inside 98ish. It has tabs, an address box that also searches, bookmarks, history, downloads, find in page and zoom. (For the web as it looked years ago, use Internet Explorer: see [[internet-explorer]].)",
@@ -184,21 +184,22 @@ export const topics = [
         steps: ["Click in the address box at the top.", "Type an address (like wikipedia.org) or words to search for.", "Press Enter."],
         title: "To visit a site or search:",
       },
-      { h: "Without a screen name, and signed on" },
+      { h: "Which sites open in Compass" },
       {
         list: [
-          "**Without signing on** you can open Wikipedia and a few other reference sites (Wiktionary, Wikivoyage, Wikibooks, Wikiquote, OpenStreetMap and example.com). Searches go to Wikipedia.",
-          "To open any other site, Compass asks you to **Sign on with your 98 Messenger screen name**. Click **Sign On** (or **Get a Screen Name** if you don't have one yet), and the page opens right after. It's the same screen name as 98 Messenger; there's nothing else to sign up for. See [[messenger-accounts]].",
+          "Compass opens **a few safe sites** through the 98ish server, for everyone, signed on or not: Wikipedia and its sister sites (Wiktionary, Wikivoyage, Wikibooks, Wikiquote, Wikimedia Commons), OpenStreetMap and example.com. Searches go to Wikipedia.",
+          "**Any other site** shows a page with **Open in Real Browser**, which opens it in your phone's or computer's own browser. With **Data Saver** on (Tools > Compass Options), sites that allow being shown inside other sites open straight from the site instead.",
+          "Signing on to 98 Messenger doesn't change which sites open (the server's owner can widen it later; then Compass asks you to sign on for other sites). See [[messenger-accounts]].",
         ],
       },
       { h: "How pages reach you" },
-      "Most sites don't allow being shown inside another site, so Compass asks the 98ish server to fetch each page and pass it on (the relay). The page runs in a locked-down frame that can't touch the rest of 98ish.",
+      "Most sites don't allow being shown inside another site, so Compass asks the 98ish server to fetch each page and pass it on (the relay). The page runs in a locked-down frame with no address of its own: it can't read your 98ish files, settings or sign-in, can't use your 98 Messenger account, and can't take over the 98ish window or open pages that can.",
       { h: "Privacy" },
       {
         list: [
           "**Sites see the 98ish server's address** for the pages it fetches. Pictures and scripts usually load straight from the site, so sites can still see your address (View > Relay Pictures Too sends them through the server as well).",
           "**What you type into a relayed page, passwords included, passes through the 98ish server.** For banking, email and other important accounts, use **Open in Real Browser**.",
-          "**What the server keeps:** the cookies sites set (so you stay signed in to simple sites) are kept only in the server's memory, for your screen name and only for the site that set them. A guest's cookies go when the browsing session ends; a member's after a day unused or when the server restarts. Tools > Clear Cookies forgets them sooner. The server also counts how much data you used today. It doesn't keep the pages.",
+          "**What the server keeps:** the cookies sites set (so you stay signed in to simple sites) are kept only in the server's memory, for your screen name and only for the site that set them. A guest's cookies go when the browsing session ends; a member's after a day unused or when the server restarts. Tools > Clear Cookies forgets them sooner. The server also counts how much data you used today (for guests, under a scrambled form of their internet address, never the address itself) and how much it sent this month. It doesn't keep the pages.",
           "Your bookmarks, history and open tabs are kept on this device only.",
         ],
       },
@@ -206,6 +207,7 @@ export const topics = [
       {
         list: [
           "The server has a small daily data allowance for everyone together, and a smaller one for each person (smaller still for guests). When it runs out, Compass shows sites that allow it straight from the site, and offers your real browser for the rest. It starts again the next day.",
+          "There is also a **monthly** allowance. The 98ish server's free plan includes a fixed amount of data each month for everything (Messenger, file sync, games and Compass). So that Messenger never stops, Compass rests when it, or the whole server, has used its share: it then says \"Compass has used this month's data allowance; it's back on\" the 1st of next month. Everything else in 98ish keeps working.",
           "Too many pages too quickly means a short wait.",
           "Very big pages and files, videos and sounds, Google sign-in, banks and big web apps open in your real browser instead.",
           "The server's owner can turn the relay off. Then Compass shows only sites that allow being framed, with an **Open in Real Browser** button for the rest.",
