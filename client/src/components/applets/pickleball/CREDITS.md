@@ -38,3 +38,10 @@ sports top, one-piece swimsuit, short shorts, board shorts, swim shorts, track p
 socks, gloves, wristbands; all grown from the CC0 bodies in `outfit.js`), the slim and strong
 builds (`reshapeBody`), the beanie and sport shades, the paddle designs, and the Sandy Point
 (beach) and Frost Hollow (winter) venues.
+
+## Upper body (2026-10-04)
+
+No new files were downloaded. The strokes, the ready position, the arm IK and the head are all
+made in the game (`strokes.js`, `upper.js`, `anim.js`); the existing CC0 clips still only add
+breathing and the run's bounce (now kept off the paddle side's shoulder while it holds the
+ready position). Mixamo was not used.

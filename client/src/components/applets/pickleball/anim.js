@@ -10,9 +10,15 @@
 //   net). Planted feet never move.
 // - Legs and arms: two-bone inverse kinematics (hip-knee-ankle, shoulder-elbow-wrist).
 // - The pelvis drops when the feet are wide (a lunge) so legs always reach the court.
-// - Strokes: the paddle hand follows a backswing, the forward swing to the actual contact
-//   point, and a follow-through, in the body's own frame, per shot type (drive, slice,
-//   dink, drop, lob, volley, smash, the underhand serve).
+// - The upper body is layered over the legs, each layer with a weight that fades in and out:
+//   the ready position (paddle up in front of the chest, the other hand at its throat), the
+//   run's arm swing (off on the paddle arm while it holds ready or swings), the serve's hold,
+//   a stroke (strokes.js: which stroke for the ball, a wind-up, the forward swing reaching
+//   the predicted contact point exactly when the ball does, the follow-through, recovery)
+//   and a mood. The shoulders turn with the stroke and lead the arm; the hips lead them.
+// - Arms: two-bone IK with joint limits and elbows that turn smoothly (upper.js); the hands
+//   and paddle are kept out of the torso and thighs; a pop limiter caps how far anything
+//   moves in a frame outside a swing. The head follows the ball within a neck's limits.
 // - Moods: the ready stance (knees bent, weight shifting), the split step when the other
 //   side hits, and celebrating or sulking after a point.
 
