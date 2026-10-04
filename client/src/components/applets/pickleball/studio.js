@@ -37,7 +37,72 @@ export const poseMetrics = (pose) => {
   }
 }
 
-export const STATES = ["ready", "split", "run", "shuffle", "walk", "sprint", "backpedal", "stop", "turn", "lunge", "backswing", "drive", "drive-follow", "backhand", "backhand-follow", "dink", "volley", "overhead", "serve", "serve-follow", "celebrate", "celebrate2", "celebrate3", "frustrated", "frustrated2", "frustrated3", "idle", "shuffle-ready", "run-hit", "dink-bh", "volley-bh", "reach-bh", "lob", "ready-net", "kitchen-adjust", "crossover", "transition", "backhand-two", "dink-wide", "hands-battle"]
+export const STATES = ["walkback", "jog", "sprintstop", "kitchen-shuffle", "backpedal2", "lob-turn", "ready", "split", "run", "shuffle", "walk", "sprint", "backpedal", "stop", "turn", "lunge", "backswing", "drive", "drive-follow", "backhand", "backhand-follow", "dink", "volley", "overhead", "serve", "serve-follow", "celebrate", "celebrate2", "celebrate3", "frustrated", "frustrated2", "frustrated3", "idle", "shuffle-ready", "run-hit", "dink-bh", "volley-bh", "reach-bh", "lob", "ready-net", "kitchen-adjust", "crossover", "transition", "backhand-two", "dink-wide", "hands-battle"]
+
+// Movement tests for the footwork (motion matching vs the procedural gait): a player moved
+// by the match's own rule (accelerating at most 12 m/s^2 toward the velocity they want, or
+// easing into a goal), segment by segment: { t (s), want: [vx, vz] (the figure's right is -x)
+// or goal: [dx, dz] from the start, speed, between, atNet }
+export const MOVES = {
+  // between points: a relaxed walk back to position, then standing
+  walkback: [{ t: 0.4, want: [0, 0], between: true }, { t: 3.2, goal: [-1.4, -3.2], speed: 1.5, between: true }, { t: 1.2, want: [0, 0], between: true }],
+  // a jog forward (3 m/s) and a stop
+  jog: [{ t: 0.4, want: [0, 0] }, { t: 1.8, want: [0, 3.0] }, { t: 1.2, want: [0, 0] }],
+  // a sprint to the side (4.5 m/s) and a hard stop
+  sprintstop: [{ t: 0.4, want: [0, 0] }, { t: 1.1, want: [-4.5, 0.6] }, { t: 1.3, want: [0, 0] }],
+  // shuffles along the kitchen line, facing the net
+  "kitchen-shuffle": [{ t: 0.4, want: [0, 0], atNet: true }, { t: 0.7, want: [-2.2, 0], atNet: true }, { t: 0.4, want: [0, 0], atNet: true }, { t: 0.7, want: [2.2, 0], atNet: true }, { t: 0.6, want: [0, 0], atNet: true }],
+  // backpedal from the kitchen (2.6 m/s)
+  backpedal2: [{ t: 0.4, want: [0, 0], atNet: true }, { t: 1.2, want: [0, -2.6] }, { t: 0.8, want: [0, 0] }],
+  // a lob over the head: turn and run back (4.5 m/s), stop
+  "lob-turn": [{ t: 0.4, want: [0, 0], atNet: true }, { t: 1.5, want: [-0.8, -4.5] }, { t: 0.9, want: [0, 0] }],
+}
+export const MOVE_STATES = Object.keys(MOVES)
+const moveScript = (name, x, z, base) => {
+  const segs = MOVES[name]
+  const dt = 1 / 120
+  const frames = []
+  const g = { x, z, vx: 0, vz: 0 }
+  for (const seg of segs) {
+    const n = Math.round(seg.t / dt)
+    for (let k = 0; k < n; k++) {
+      let wx = 0
+      let wz = 0
+      if (seg.want) [wx, wz] = seg.want
+      if (seg.goal) {
+        const dx = x + seg.goal[0] - g.x
+        const dz = z + seg.goal[1] - g.z
+        const d = Math.hypot(dx, dz)
+        if (d > 0.03) {
+          const s = Math.min(seg.speed || 4, Math.sqrt(2 * 9 * d))
+          wx = (dx / d) * s
+          wz = (dz / d) * s
+        }
+      }
+      const ex = wx - g.vx
+      const ez = wz - g.vz
+      const e = Math.hypot(ex, ez)
+      if (e > 12 * dt) {
+        g.vx += (ex / e) * 12 * dt
+        g.vz += (ez / e) * 12 * dt
+      } else {
+        g.vx = wx
+        g.vz = wz
+      }
+      g.x += g.vx * dt
+      g.z += g.vz * dt
+      frames.push({ x: g.x, z: g.z, vx: g.vx, vz: g.vz, want: { x: wx, z: wz }, goal: seg.goal ? { x: x + seg.goal[0], z: z + seg.goal[1] } : null, between: !!seg.between, atNet: !!seg.atNet })
+    }
+  }
+  const T = frames.length * dt
+  return {
+    T,
+    at: (t) => {
+      const f = frames[Math.min(frames.length - 1, Math.max(0, Math.round(t / dt) - 1))]
+      return base(t, { ...f, ball: { x: f.x, y: 1, z: f.z + 6 } })
+    },
+  }
+}
 
 // a moment for a figure at (x, z) facing +z: { T, at(t) -> situation, events, contact }
 // hand: +1 right-handed, -1 left-handed (a "forehand" state is on the paddle side either way);
@@ -57,6 +122,7 @@ const script = (state, x, z, { hand = 1, twoHand = false } = {}) => {
   }
   // dx: to the paddle side (facing +z, the figure's right is -x)
   const C = (dx, y, dz) => ({ x: x - dx * hand, y, z: z + dz })
+  if (MOVES[state]) return moveScript(state, x, z, base)
   switch (state) {
     case "split":
       return { T: 1.12, events: [[1.0, (a) => splitStep(a)]], at: (t) => base(t) }
@@ -216,7 +282,7 @@ const script = (state, x, z, { hand = 1, twoHand = false } = {}) => {
 }
 
 // eye / at: [x, y, dz] a camera of your own (dz from the lineup's z), with fov
-export const studioShot = (ctx, { looks = [{}], state = "ready", cam = "close", z = -4.6, spacing, eye, at = [0, 1, 0], fov, T, follow = false } = {}) => {
+export const studioShot = (ctx, { looks = [{}], state = "ready", cam = "close", z = -4.6, spacing, eye, at = [0, 1, 0], fov, T, follow = false, mm = true } = {}) => {
   const { scene, camera, renderer, size, makeFigure, shadows } = ctx
   for (const f of lineup) {
     scene.remove(f.fig.group, f.ball)
@@ -235,6 +301,7 @@ export const studioShot = (ctx, { looks = [{}], state = "ready", cam = "close", 
     if (T !== undefined) sc.T = T
     const s0 = sc.at(0)
     const anim = createAnim(s0.x, s0.z, 0)
+    anim.useMM = mm && !!fig.skinned // (motion matching; mm: false for the old footwork)
     const dt = 1 / 60
     const events = [...(sc.events || [])]
     let pose = null

@@ -20,6 +20,7 @@ import { BODY } from "./anim.js"
 import { SKIN } from "./looks.js"
 import { aimDelta, additiveMove, bendAxis, decodeMoves, frameOf, gripSide, LAYERS, layerTargets, limitQuat, Q, steadyGrip, unwrapNear, qaxis, qinv, qmul, qrot, qslerp, solveLimb, stepLayers, swingTwist, twistAngle, clipTime, norm } from "./retarget.js"
 import { BUILD_SCALE, buildGarment, buildSkirt, landmarks, prepareBody, radiusProfile, reshapeBody, visibleIndex } from "./outfit.js"
+import { loadMotion } from "./mm/runtime.js"
 
 const BASE = "/assets/pickleball/"
 const HEAD_SCALE = 1.1 // a slightly bigger head: friendlier, and it reads at TV distance
@@ -29,6 +30,9 @@ let assets = null
 let loading = null
 export const athletesReady = () => !!assets
 export const loadAthletes = () => {
+  // (the motion-matching database comes in alongside, on its own: the athletes don't wait
+  // for it, and the procedural footwork carries on until it's in, or if it fails)
+  loadMotion().catch(() => {})
   if (loading) return loading
   loading = (async () => {
     const loader = new GLTFLoader()
@@ -1014,7 +1018,7 @@ export const createAthlete = (look = {}, { shadows = false, withPaddle = true } 
     }
     lastPos = { x: pose.pelvis.x, z: pose.pelvis.z }
     const info = pose.info || {}
-    stepLayers(layers, layerTargets({ speed: info.speed ?? speedEst, swinging: info.swinging, mood: info.mood, between: info.between, blend: info.blend || null }), dt)
+    stepLayers(layers, layerTargets({ speed: info.speed ?? speedEst, swinging: info.swinging, mood: info.mood, between: info.between, blend: info.blend || null, mm: !!info.mm }), dt)
     layers.phase = info.phase ?? clock * 6
     const ready = info.ready ?? 0
     mask["clavicle_" + paddleSide] = 1 - 0.85 * ready

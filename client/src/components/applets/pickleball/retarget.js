@@ -177,10 +177,13 @@ export const FADE = 0.25 // seconds for a crossfade
 
 // what each layer should be at for a moment: speed (m/s), swinging, the mood, and the blend
 // space's gait weights (locomotion.js; without them, from the speed alone)
-export const layerTargets = ({ speed = 0, swinging = false, mood = null, between = false, blend = null }) => {
+// (mm: the body is motion matched, mm/: its own capture already walks and breathes, so the
+// gait clips stay off and the breathing is faint)
+export const layerTargets = ({ speed = 0, swinging = false, mood = null, between = false, blend = null, mm = false }) => {
   let walk = 0
   let jog
   let sprint
+  if (mm) return { breathe: 0.25, walk: 0, jog: 0, sprint: 0, dance: mood && mood.kind === "cheer" && mood.variant === 2 && between ? 1 : 0 }
   if (blend) {
     walk = blend.walk || 0
     jog = blend.run || 0

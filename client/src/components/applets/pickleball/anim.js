@@ -37,6 +37,9 @@ import { armIK, limitStep, limitTurn, lookToward, pushOut, ramp, smoothW } from 
 import { sideOf } from "./rules.js"
 import { FAST_BALL } from "./shots.js"
 import { CROSS, READY, SPLIT, lungePlan, quickSteps, readyFor, shouldSplit, splitHeight, stepIn, weightFor } from "./pro.js"
+import { motionLibrary } from "./mm/runtime.js"
+import { qaxis, qmul, qrot } from "./mm/quat.js"
+import { driveMM } from "./mm/drive.js"
 
 // ---- the skeleton (meters) ----
 export const BODY = {
@@ -204,6 +207,7 @@ export const createAnim = (x, z, yaw) => ({
   look: {},
   extraCrouch: 0,
   moodPose: null,
+  mmLean: {}, // (motion matching: a stroke's extra bend at the waist)
 })
 
 // The split step: a little hop that lands as the other side hits (anim.js starts it itself
@@ -290,7 +294,22 @@ export const updateAnim = (a, s, dt) => {
     yaw = yaw + clamp(wrap(cy - yaw), -0.6, 0.6) * 0.35
   }
   if (a.turn.yaw === undefined) a.turn.yaw = a.yaw
-  a.yaw = turnToward(a.turn, yaw, dt, { maxRate: fc.mode === "face" ? (speed > 1.5 ? 8 : 6) : 10, k: speed > 1.5 || swing ? 16 : 11 })
+  // motion matching (mm/: the skinned athletes on Medium/High once the database is in): the
+  // legs, hips and trunk come from motion capture that follows the game's movement; the
+  // facing above is what it's asked for, and it turns as the captured body turns. (Last
+  // frame's crouch and the split step's hop go on top.) Otherwise the procedural footwork.
+  const mmLib = a.useMM ? motionLibrary() : null
+  let mmo = null
+  if (mmLib) {
+    const hopPrev = a.hop > 0 ? splitHeight(SPLIT.dur - a.hop) : 0
+    mmo = driveMM(a, s, mv, dt, { lib: mmLib, yaw, crouch: (a.crouch.p ?? 0) + (a.mmDown || 0), hopY: Math.max(0, hopPrev), every: a.mmEvery })
+    a.yaw = mmo.yaw
+    a.turn.yaw = a.yaw
+    a.turn.w = 0
+  } else {
+    if (a.mm) a.mm = null // (back to the procedural footwork: the controller starts afresh next time)
+    a.yaw = turnToward(a.turn, yaw, dt, { maxRate: fc.mode === "face" ? (speed > 1.5 ? 8 : 6) : 10, k: speed > 1.5 || swing ? 16 : 11 })
+  }
   const fr = frame(a.yaw)
   const ground = V(s.x, 0, s.z)
   // the acceleration in the body's frame (lean into it)
@@ -413,7 +432,9 @@ export const updateAnim = (a, s, dt) => {
   const sh = 1.3 // (the standard shoulders' height)
   const lean0 = a.lean.p ?? 0.2
   const sft = a.shift.p ? toLocal(V(0, 0, 0), fr, a.shift.p) : V()
-  const ofs = V(sft.x + extra.x, 0.935 - crouchS + sft.y + 0.455 * Math.cos(lean0) - sh, sft.z + extra.z + 0.455 * Math.sin(lean0) - 0.1)
+  // (with motion matching the posture is the captured one: where its shoulders really are)
+  const mmSh = mmo ? local(mul(add(mmo.shoulderL, mmo.shoulderR), 0.5)) : null
+  const ofs = mmo ? V(mmSh.x, mmSh.y - sh, mmSh.z - 0.1) : V(sft.x + extra.x, 0.935 - crouchS + sft.y + 0.455 * Math.cos(lean0) - sh, sft.z + extra.z + 0.455 * Math.sin(lean0) - 0.1)
   const toStd = (l) => RH(sub(l, ofs)) // a body-frame point -> the standard, right-handed pose
   let normalT = null
   // forward from the hips: more into a run, and into the acceleration (back on a hard stop)
@@ -431,7 +452,36 @@ export const updateAnim = (a, s, dt) => {
   const rHand = V(R.hand.x, R.hand.y, R.hand.z)
   const rOff = s.twoHand ? add(rHand, mul(rAxis, ON_HANDLE)) : add(rHand, add(mul(rAxis, 0.13), V(-0.03, -0.01, 0.03)))
   const ready = { hand: rHand, axis: rAxis, coil: 0, off: rOff, pole: V(0.6, -1, -0.2), lean: 0, crouch: 0, sh }
-  const relaxed = { hand: V(0.25, 0.84, 0.13), axis: norm(V(0.05, -0.95, 0.25)), coil: 0, off: V(-0.23, 0.82, 0.08), pole: V(0.3, -1, -0.4), lean: 0, crouch: 0, sh }
+  let relaxed = { hand: V(0.25, 0.84, 0.13), axis: norm(V(0.05, -0.95, 0.25)), coil: 0, off: V(-0.23, 0.82, 0.08), pole: V(0.3, -1, -0.4), lean: 0, crouch: 0, sh }
+  // with motion matching, the arms between points (and the swing of the free arm on a run)
+  // are the motion capture's own: its wrists, its elbows, the paddle hanging along the hand
+  let mmArms = null
+  if (mmo) {
+    const wP = hand > 0 ? mmo.wristR : mmo.wristL
+    const wO = hand > 0 ? mmo.wristL : mmo.wristR
+    const eP = hand > 0 ? mmo.elbowR : mmo.elbowL
+    const eO = hand > 0 ? mmo.elbowL : mmo.elbowR
+    const endP = hand > 0 ? mmo.handEndR : mmo.handEndL
+    // the elbows' directions in the chest's frame (standard, right-handed), for the IK poles
+    const cr = mmo.chestRight
+    const cf = mmo.chestForward
+    const cu = norm(cross(cf, cr))
+    const chestLocal = (v) => RH(V(dot(v, cr), dot(v, cu), dot(v, cf)))
+    const poleOf = (e, sh2, w) => chestLocal(sub(e, mul(add(sh2, w), 0.5)))
+    const hangDir = norm(add(norm(sub(endP, wP)), add(V(0, -0.35, 0), mul(fr.f, 0.25))))
+    mmArms = {
+      hand: toStd(local(wP)),
+      axis: RH(toLocal(V(0, 0, 0), fr, hangDir)),
+      off: toStd(local(wO)),
+      pole: poleOf(eP, hand > 0 ? mmo.shoulderR : mmo.shoulderL, wP),
+      offPole: poleOf(eO, hand > 0 ? mmo.shoulderL : mmo.shoulderR, wO),
+      coil: 0,
+      lean: 0,
+      crouch: 0,
+      sh,
+    }
+    relaxed = mmArms
+  }
   W.relax = ramp(W.relax, s.between && !mood ? 1 : 0, dt, 0.45, 0.2)
   let pose = mixPose(ready, relaxed, smoothW(W.relax))
 
@@ -450,16 +500,17 @@ export const updateAnim = (a, s, dt) => {
   const amp = 0.55 + 0.45 * clamp(pump, 0, 1)
   if (W.pumpP > 1e-3) {
     const at = lerpV(V(0.22, 0.96, 0.2), relaxed.hand, smoothW(W.relax))
-    const swingP = { ...pose, hand: add(at, V(0, Math.max(0, cphA) * 0.08 * amp, cphA * 0.22 * amp)), axis: norm(lerpV(V(0.15, 0.5, 0.85), relaxed.axis, smoothW(W.relax))), pole: V(0.35, -0.6, -1) }
+    // (motion matching: the captured arm's own swing, the paddle along the hand)
+    const swingP = mmArms ? { ...pose, hand: mmArms.hand, axis: norm(lerpV(V(0.15, 0.5, 0.85), mmArms.axis, 0.5)), pole: mmArms.pole } : { ...pose, hand: add(at, V(0, Math.max(0, cphA) * 0.08 * amp, cphA * 0.22 * amp)), axis: norm(lerpV(V(0.15, 0.5, 0.85), relaxed.axis, smoothW(W.relax))), pole: V(0.35, -0.6, -1) }
     pose = { ...mixPose(pose, swingP, smoothW(Math.min(1, W.pumpP * 1.5))), off: pose.off }
   }
   if (W.pumpO > 1e-3) {
     const at = lerpV(V(-0.21, 0.94, 0.12), relaxed.off, smoothW(W.relax))
-    const off = add(at, V(0, Math.max(0, -cphA) * (0.14 - 0.07 * W.relax) * amp, -cphA * 0.3 * amp))
+    const off = mmArms ? mmArms.off : add(at, V(0, Math.max(0, -cphA) * (0.14 - 0.07 * W.relax) * amp, -cphA * 0.3 * amp))
     pose = { ...pose, off: lerpV(pose.off, off, smoothW(Math.min(1, W.pumpO * 1.5))) }
   }
-  // the shoulders turn against the hips with the stride
-  const runTwist = cph * 0.16 * Math.min(1, pump) * Math.max(W.pumpO, W.pumpP, 0.35)
+  // the shoulders turn against the hips with the stride (the captured trunk turns by itself)
+  const runTwist = mmo ? 0 : cph * 0.16 * Math.min(1, pump) * Math.max(W.pumpO, W.pumpP, 0.35)
 
   // waiting to serve: the ball in the other hand out in front, the paddle back and low
   W.hold = ramp(W.hold, s.holding ? 1 : 0, dt, 0.25, 0.2)
@@ -523,12 +574,14 @@ export const updateAnim = (a, s, dt) => {
   const offT = add(RH(pose.off), ofs)
   const poleT = RH(pose.pole)
   // (a crossover opens the hips toward the ball; the shoulders stay turned to the net)
-  const twistT = -pose.coil * hand + runTwist + (fc.side || 0) * CROSS.chest
+  // (motion matching: only the stroke's turn goes on top of the captured trunk)
+  const twistT = mmo ? -pose.coil * hand : -pose.coil * hand + runTwist + (fc.side || 0) * CROSS.chest
   // (a ball the arm can't reach down to: bend at the hips first, then the knees)
   leanT += (pose.lean || 0) + lowLean + clamp((a.overDown || 0) * 1.4, 0, 0.35)
   // how quickly the hands may move: a swing is fast, everything else smooth
   const fast = so.fast
-  const k = so.w > 0.02 ? (fast ? 200 : 45) : 22
+  // (the captured arms swing freely: followed closely)
+  const k = so.w > 0.02 ? (fast ? 200 : 45) : mmArms ? 22 + 38 * Math.max(smoothW(W.relax), W.pumpP) : 22
 
   // ---- the pelvis: as high as the stance wants, low enough that both legs reach ----
   // (the steps' own rise and fall, from the gait)
@@ -591,7 +644,7 @@ export const updateAnim = (a, s, dt) => {
   if (a.pelvisY === undefined || dt <= 0) a.pelvisY = py
   // fast down (the legs must reach; never a drop of more than a few cm in a frame), gentler up
   a.pelvisY = py < a.pelvisY ? Math.max(py, a.pelvisY - 4.8 * dt) : a.pelvisY + (py - a.pelvisY) * (1 - Math.exp(-dt * 14))
-  const pelvis = V(pelvisXZ.x, a.pelvisY, pelvisXZ.z)
+  let pelvis = V(pelvisXZ.x, a.pelvisY, pelvisXZ.z)
 
   // ---- springs: smooth everything that isn't a hard swing ----
   // (the hips turn quicker than the shoulders: in a swing the hips lead, the shoulders
@@ -608,19 +661,20 @@ export const updateAnim = (a, s, dt) => {
   const swivel = -Math.cos(ph) * 0.12 * pump
   const pfr = frame(a.yaw + hipTwist + swivel)
   const cfr = frame(a.yaw + twist) // the shoulders turn all the way
-  const spineDir = norm(add(add(mul(UP, Math.cos(lean)), mul(fr.f, Math.sin(lean))), mul(fr.r, Math.sin(roll))))
-  const neck = add(pelvis, mul(spineDir, BODY.spine))
+  let spineDir = norm(add(add(mul(UP, Math.cos(lean)), mul(fr.f, Math.sin(lean))), mul(fr.r, Math.sin(roll))))
+  let neck = add(pelvis, mul(spineDir, BODY.spine))
   // shoulders: square to the chest's frame, perpendicular to the spine
   let sr = sub(cfr.r, mul(spineDir, dot(cfr.r, spineDir)))
   sr = norm(sr, cfr.r)
-  const shoulderR = add(sub(neck, mul(spineDir, 0.045)), mul(sr, BODY.shoulderHalf))
-  const shoulderL = add(sub(neck, mul(spineDir, 0.045)), mul(sr, -BODY.shoulderHalf))
-  const chestF = norm(cross(spineDir, sr), fr.f)
-  const hipR = add(pelvis, mul(pfr.r, BODY.hipHalf))
-  const hipL = add(pelvis, mul(pfr.r, -BODY.hipHalf))
+  let shoulderR = add(sub(neck, mul(spineDir, 0.045)), mul(sr, BODY.shoulderHalf))
+  let shoulderL = add(sub(neck, mul(spineDir, 0.045)), mul(sr, -BODY.shoulderHalf))
+  let chestF = norm(cross(spineDir, sr), fr.f)
+  let hipR = add(pelvis, mul(pfr.r, BODY.hipHalf))
+  let hipL = add(pelvis, mul(pfr.r, -BODY.hipHalf))
+  let pelvisRight = pfr.r
 
   // ---- legs ----
-  const legs = [0, 1].map((i) => {
+  let legs = [0, 1].map((i) => {
     const f = feet[i]
     const hip = i ? hipR : hipL
     let ankle = V(f.x, f.y + BODY.ankle, f.z)
@@ -639,13 +693,38 @@ export const updateAnim = (a, s, dt) => {
     return { hip, knee: ik.mid, ankle: ik.end, foot: { x: ik.end.x, y: ik.end.y - BODY.ankle, z: ik.end.z, yaw: f.yaw, pitch: f.step ? Math.sin(Math.PI * f.step.t) * -0.35 : 0, planted: !f.step } }
   })
 
+  // ---- motion matching: the captured pelvis, legs and trunk instead ----
+  // (on top: a stroke's bend at the waist and its shoulder turn, round the pelvis; a low
+  // ball the arm can't reach down to brings the hips down next frame)
+  if (mmo) {
+    a.mmDown = Math.max(0, -shift.y)
+    pelvis = mmo.pelvis
+    const leanS = springN(a.mmLean, clamp((pose.lean || 0) + lowLean + clamp((a.overDown || 0) * 1.4, 0, 0.35), -0.3, 0.6), fast ? 30 : 12, dt)
+    const Rl = qaxis(mul(fr.r, -1), leanS)
+    spineDir = norm(qrot(Rl, mmo.spine))
+    const R = qmul(qaxis(spineDir, twist), Rl)
+    const rel = (p) => add(pelvis, qrot(R, sub(p, pelvis)))
+    neck = rel(mmo.neck)
+    shoulderL = rel(mmo.shoulderL)
+    shoulderR = rel(mmo.shoulderR)
+    sr = norm(qrot(R, mmo.chestRight))
+    chestF = norm(qrot(R, mmo.chestForward))
+    hipL = mmo.hipL
+    hipR = mmo.hipR
+    pelvisRight = mmo.pelvisRight
+    legs = [
+      { hip: mmo.hipL, knee: mmo.kneeL, ankle: mmo.ankleL, foot: mmo.footL },
+      { hip: mmo.hipR, knee: mmo.kneeR, ankle: mmo.ankleR, foot: mmo.footR },
+    ]
+  } else a.mmDown = 0
+
   // ---- arms ----
   // targets are in the body frame around the ground point; the hands are springs in that
   // frame so a turn carries them along, then the pop limiter: a hand moves at most so far a
   // frame (a forward swing really is that fast; nothing else is)
   let handL = springV(a.hand, handT, k, dt)
   let axisL = norm(springV(a.axis, axisT, fast ? 200 : Math.min(k, 60), dt))
-  let offL = springV(a.off, offT, 16, dt)
+  let offL = springV(a.off, offT, mmArms ? 16 + 34 * Math.max(smoothW(W.relax), W.pumpO) : 16, dt)
   handL = a.handLim = limitStep(a.handLim, handL, (fast ? 16 : 7) * dt)
   axisL = a.axisLim = limitTurn(a.axisLim, axisL, (fast ? 40 : 12) * dt)
   offL = a.offLim = limitStep(a.offLim, offL, 6 * dt)
@@ -670,6 +749,12 @@ export const updateAnim = (a, s, dt) => {
   const poleP = chestDir(poleT)
   const offUp = clamp((offL.y - sh) / 0.3, 0, 1) // (an arm raised: the elbow goes out to the side)
   let poleO = chestDir(V(-hand * lerp(0.6, 1, offUp), lerp(-1, -0.15, offUp), lerp(lerp(-0.15, -1, W.pumpO), 0.1, offUp)))
+  // (motion matching: the free arm's elbow where the capture has it, as far as that arm is
+  // the capture's)
+  if (mmArms) {
+    const wArm = Math.max(smoothW(W.relax), smoothW(Math.min(1, W.pumpO * 1.5)))
+    if (wArm > 1e-3) poleO = norm(lerpV(poleO, chestDir(RH(mmArms.offPole)), wArm))
+  }
   if (a.moodPose?.offPole && W.mood > 0) poleO = norm(lerpV(poleO, chestDir(RH(a.moodPose.offPole)), smoothW(W.mood)))
   // the hands and the paddle stay out of the torso and the thighs (except right at contact:
   // the ball is never inside anybody)
@@ -725,7 +810,7 @@ export const updateAnim = (a, s, dt) => {
   return {
     yaw: a.yaw,
     pelvis,
-    pelvisRight: pfr.r,
+    pelvisRight,
     spine: spineDir,
     neck,
     chestRight: sr,
@@ -753,7 +838,7 @@ export const updateAnim = (a, s, dt) => {
     paddle: { grip: armP.end, axis: axisW, normal: normalW, face: add(armP.end, mul(axisW, BODY.paddleReach)) },
     hand,
     // for the skinned athletes' motion-capture layers (athlete.js)
-    info: { speed, phase: a.gait.phase, cycle: a.gait.cycle, moving: a.gait.moving, blend: a.gait.blend.weights, timeScale: a.gait.blend.timeScale, facing: a.face.mode || "face", swinging: !!(swing || s.prep || whiff), between: !!s.between, mood: mood ? { kind: mood.kind, variant: mood.variant } : null, stroke: so.w, style: so.style, fast, ready: (1 - W.pumpP) * (1 - smoothW(W.relax)), offGrip: so.w < 0.5 && W.relax < 0.5 && W.pumpO < 0.3 && !mood && !s.holding, fist: mood?.kind === "cheer", strokePhase: so.phase, aim: aimAt ? { x: aimAt.x, y: aimAt.y, z: aimAt.z, ttc: -inp.tRel } : null, side: so.side, two: W.two > 0.5, footwork: fc.mode, split: a.hop > 0, lunge: lunging },
+    info: { speed, phase: a.gait.phase, cycle: a.gait.cycle, moving: a.gait.moving, blend: a.gait.blend.weights, timeScale: a.gait.blend.timeScale, facing: a.face.mode || "face", swinging: !!(swing || s.prep || whiff), between: !!s.between, mood: mood ? { kind: mood.kind, variant: mood.variant } : null, stroke: so.w, style: so.style, fast, ready: (1 - W.pumpP) * (1 - smoothW(W.relax)), offGrip: so.w < 0.5 && W.relax < 0.5 && W.pumpO < 0.3 && !mood && !s.holding, fist: mood?.kind === "cheer", strokePhase: so.phase, aim: aimAt ? { x: aimAt.x, y: aimAt.y, z: aimAt.z, ttc: -inp.tRel } : null, side: so.side, two: W.two > 0.5, footwork: fc.mode, split: a.hop > 0, lunge: lunging, mm: mmo ? { v: mmo.v, contacts: mmo.contacts, locked: mmo.locked, searches: mmo.stats.searches, jumps: mmo.stats.jumps } : null },
   }
 }
 

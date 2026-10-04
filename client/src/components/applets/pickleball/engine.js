@@ -729,6 +729,9 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
         frameRec.push({ ...s, ball: { ...s.ball }, swing: s.swing && { ...s.swing }, prep: s.prep && { ...s.prep } })
       }
       if (!s) continue
+      // (motion matching for the skinned athletes: searched more often on High)
+      f.anim.useMM = !!f.fig.skinned
+      f.anim.mmEvery = settings.quality === "high" ? 0.1 : 0.2
       const pose = updateAnim(f.anim, s, dt)
       f.fig.apply(pose, dt)
       f.blob.position.set(pose.pelvis.x, 0.004, pose.pelvis.z)
@@ -1202,6 +1205,7 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
         const y = k === "smash" ? 1.9 : k === "dink" ? 0.35 : 0.9
         S.swing = { t: 0, kind: k, hand: Math.random() < 0.6 ? "fh" : "bh", ...local(Math.random() < 0.5 ? 0.55 : -0.55, y, 0.35) }
       }
+      S.anim.useMM = !!S.fig.skinned
       S.fig.apply(updateAnim(S.anim, s, dt), dt)
     }
     venue.crowd?.update(now / 1000, dt)
