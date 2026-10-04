@@ -1,5 +1,7 @@
 import React, { useState } from "react"
 import Dialog from "../../shared/Dialog"
+import MoreOptions from "../../shared/MoreOptions"
+import { summarize } from "../../../utils/disclosure"
 import { Screensaver, optionsFor, saverById } from "../../screensavers"
 import { CURSORS, ICON_STYLES, getSettings, schemeFor, setSettings, useSettings, wallpaperStyle } from "../../../utils/settings"
 import { SOUND_EVENTS, previewSound } from "../../../utils/systemSounds"
@@ -40,6 +42,8 @@ const DesktopThemes = ({ onClose }) => {
   }
 
   const saverId = saverById(look.screensaver) ? look.screensaver : null
+  const skipped = PARTS.filter((p) => !parts[p.id]).map((p) => p.label)
+  const partsSummary = summarize(skipped.length ? `Not using: ${skipped.join(", ")}` : `Uses all ${PARTS.length} parts`, "Previews")
 
   return (
     <div className="dtRoot">
@@ -81,7 +85,8 @@ const DesktopThemes = ({ onClose }) => {
           </div>
         </div>
 
-        <div className="dtSide">
+        {/* which parts to use and the previews: "More options »" (docs/simplicity.md) */}
+        <MoreOptions id="themes.parts" className="dtSide dtMore" summary={partsSummary}>
           <fieldset className="dtField">
             <legend>Previews</legend>
             <button type="button" disabled={!saverId} onClick={() => setExtra("saver")}>
@@ -106,7 +111,7 @@ const DesktopThemes = ({ onClose }) => {
               </div>
             ))}
           </fieldset>
-        </div>
+        </MoreOptions>
       </div>
 
       <p className="dtBlurb">{theme ? theme.blurb : "These are the settings you're using now. Pick a theme above to try a new look."}</p>

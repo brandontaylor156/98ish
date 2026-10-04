@@ -371,7 +371,7 @@ const HelpViewer = ({ handoff, mobile, dispatch }) => {
   const [view, setView] = useState(() => (handoff?.topic || handoff?.program ? "topic" : "list"))
   const [hidden, setHidden] = useState(!!prefs.hidden)
   const [highlight, setHighlight] = useState(prefs.highlight !== false)
-  const [open, setOpen] = useState(() => new Set(bookPath(BOOKS, topic)))
+  const [open, setOpen] = useState(() => new Set(current === HOME ? [] : bookPath(BOOKS, topic)))
   const [focusId, setFocusId] = useState(null)
   const [favorites, setFavorites] = useState(() => readJson(FAV_KEY, []).filter((id) => TOPIC.has(id)))
   const [favSel, setFavSel] = useState(null)
@@ -397,6 +397,8 @@ const HelpViewer = ({ handoff, mobile, dispatch }) => {
   useEffect(() => {
     paneRef.current?.scrollTo?.(0, 0)
     setOpen((was) => {
+      // the home page leaves Contents as a short list of closed books (docs/simplicity.md)
+      if (current === HOME) return was
       const need = bookPath(BOOKS, topic).filter((id) => !was.has(id))
       return need.length ? new Set([...was, ...need]) : was
     })
@@ -500,18 +502,24 @@ const HelpViewer = ({ handoff, mobile, dispatch }) => {
         <ToolIcon kind="back" />
         <span>Back</span>
       </button>
-      <button type="button" className="hlpTool" onClick={forward} disabled={history.at >= history.list.length - 1}>
-        <ToolIcon kind="forward" />
-        <span>Forward</span>
-      </button>
+      {/* the baseline toolbar (docs/simplicity.md): Forward once there's somewhere to go;
+          Print on a computer (both always in Options) */}
+      {history.at < history.list.length - 1 && (
+        <button type="button" className="hlpTool" onClick={forward}>
+          <ToolIcon kind="forward" />
+          <span>Forward</span>
+        </button>
+      )}
       <button type="button" className="hlpTool" onClick={home}>
         <ToolIcon kind="home" />
         <span>Home</span>
       </button>
-      <button type="button" className="hlpTool" onClick={() => printTopic(topicRef.current, topic.title)} disabled={mobile && view === "list"}>
-        <ToolIcon kind="print" />
-        <span>Print</span>
-      </button>
+      {!mobile && (
+        <button type="button" className="hlpTool" onClick={() => printTopic(topicRef.current, topic.title)}>
+          <ToolIcon kind="print" />
+          <span>Print</span>
+        </button>
+      )}
       <div className="hlpOptionsWrap">
         <button type="button" className="hlpTool" aria-haspopup="menu" aria-expanded={menu} onClick={() => setMenu(!menu)}>
           <ToolIcon kind="options" />

@@ -1,5 +1,7 @@
 import React, { useState } from "react"
 import { SOUND_EVENTS, SOUND_SCHEMES, previewSound } from "../../../utils/systemSounds"
+import MoreOptions from "../../shared/MoreOptions"
+import { summarize } from "../../../utils/disclosure"
 import { Check, Choice, PropSheet, sheetButtons, useDraft } from "./Sheet"
 
 // Sounds Properties: the system sounds (hear each event in the chosen scheme), whether they
@@ -21,26 +23,6 @@ const SoundsProps = ({ onClose }) => {
   return (
     <PropSheet name="Sounds Properties" tabs={[{ id: "sounds", label: "Sounds" }]} tab="sounds" onTab={() => {}} {...sheetButtons(d, onClose)}>
       <fieldset>
-        <legend>Events</legend>
-        <ul className="cplList cplSunken" role="listbox" aria-label="Events" tabIndex={0} style={{ height: 120 }} onKeyDown={onKeyDown}>
-          {SOUND_EVENTS.map((s) => (
-            <li key={s.id} role="option" aria-selected={event === s.id} className={event === s.id ? "is-selected" : ""} onClick={() => setEvent(s.id)} onDoubleClick={() => previewSound(s.id, draft.soundScheme)}>
-              <img src="/assets/program_icons/cpl/sounds.svg" alt="" />
-              {s.label}
-            </li>
-          ))}
-        </ul>
-        <div className="cplRow">
-          <span>Preview:</span>
-          <button type="button" aria-label="Play the sound" onClick={() => previewSound(event, draft.soundScheme)}>
-            {"▶︎"} Play
-          </button>
-        </div>
-        <Choice label="Scheme:" value={draft.soundScheme} options={SOUND_SCHEMES} onChange={(soundScheme) => update({ soundScheme })} />
-        <Check label="Play system sounds" checked={draft.systemSounds} onChange={(systemSounds) => update({ systemSounds })} />
-        <Check label="Play the startup sound" checked={draft.startupSound} onChange={(startupSound) => update({ startupSound })} />
-      </fieldset>
-      <fieldset>
         <legend>Volume</legend>
         <div className="cplRow">
           <span>Low</span>
@@ -48,7 +30,30 @@ const SoundsProps = ({ onClose }) => {
           <span>High</span>
         </div>
         <Check label="Mute" checked={draft.muted} onChange={(muted) => update({ muted })} />
+        <Check label="Play system sounds" checked={draft.systemSounds} onChange={(systemSounds) => update({ systemSounds })} />
       </fieldset>
+      {/* the scheme, each event's sound and the startup sound: More options (docs/simplicity.md) */}
+      <MoreOptions id="sounds.events" label="Scheme and events" lessLabel="Hide scheme and events" summary={summarize(`Scheme: ${SOUND_SCHEMES.find((s) => s.id === draft.soundScheme)?.label || draft.soundScheme}`, draft.startupSound ? "Startup sound on" : "Startup sound off")}>
+        <fieldset>
+          <legend>Events</legend>
+          <ul className="cplList cplSunken" role="listbox" aria-label="Events" tabIndex={0} style={{ height: 120 }} onKeyDown={onKeyDown}>
+            {SOUND_EVENTS.map((s) => (
+              <li key={s.id} role="option" aria-selected={event === s.id} className={event === s.id ? "is-selected" : ""} onClick={() => setEvent(s.id)} onDoubleClick={() => previewSound(s.id, draft.soundScheme)}>
+                <img src="/assets/program_icons/cpl/sounds.svg" alt="" />
+                {s.label}
+              </li>
+            ))}
+          </ul>
+          <div className="cplRow">
+            <span>Preview:</span>
+            <button type="button" aria-label="Play the sound" onClick={() => previewSound(event, draft.soundScheme)}>
+              {"▶︎"} Play
+            </button>
+          </div>
+          <Choice label="Scheme:" value={draft.soundScheme} options={SOUND_SCHEMES} onChange={(soundScheme) => update({ soundScheme })} />
+          <Check label="Play the startup sound" checked={draft.startupSound} onChange={(startupSound) => update({ startupSound })} />
+        </fieldset>
+      </MoreOptions>
     </PropSheet>
   )
 }

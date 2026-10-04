@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react"
 import MenuBar from "../../shared/MenuBar"
+import MoreOptions from "../../shared/MoreOptions"
+import { summarize } from "../../../utils/disclosure"
 import Dialog from "../../shared/Dialog"
 import FileDialog from "../notepad/FileDialog"
 import { useAim } from "../aim/AimContext"
@@ -17,6 +19,9 @@ import { helpItem } from "../../../utils/help"
 // text, clip art, hit counters...) with a live preview, keep a draft on this computer,
 // and publish it at http://www.98ish.com/~yourname for everyone to visit in Internet
 // Explorer. The page is a list of blocks, never HTML.
+
+// the blocks most pages start with sit on the toolbar; the rest under "More blocks »" (and Insert)
+const COMMON_BLOCKS = ["heading", "paragraph", "image"]
 
 const SERVER_URL = import.meta.env.VITE_SOCKET_URL || "http://localhost:8000"
 const DRAFT_KEY = "98ish.homepage.draft"
@@ -108,10 +113,44 @@ const ColorField = ({ id, value, onChange, fallback, optional = true }) => (
   </span>
 )
 
+// a block's finer settings (size, effect, alignment, colors), tucked away (docs/simplicity.md)
+const Finer = ({ summary, children }) => (
+  <MoreOptions id="homepage.block" summary={summary} className="hsMore">
+    {children}
+  </MoreOptions>
+)
+const pick = (options, value) => options.find(([v]) => v === value)?.[1]
+const colorWord = (value) => (value ? `Color ${value}` : "Default color")
+
 const ALIGN = [
   ["left", "Left"],
   ["center", "Center"],
   ["right", "Right"],
+]
+const HEADING_SIZES = [
+  ["h1", "Huge"],
+  ["h2", "Big"],
+  ["h3", "Medium"],
+]
+const EFFECTS = [
+  ["none", "None"],
+  ["rainbow", "Rainbow"],
+  ["shadow", "Drop Shadow"],
+]
+const TEXT_SIZES = [
+  ["small", "Small"],
+  ["normal", "Normal"],
+  ["big", "Big"],
+  ["huge", "Huge"],
+]
+const SPEEDS = [
+  ["slow", "Slow"],
+  ["normal", "Normal"],
+  ["fast", "Fast"],
+]
+const DIRECTIONS = [
+  ["left", "Right to left"],
+  ["right", "Left to right"],
 ]
 
 // ---------- block properties ----------
@@ -144,14 +183,16 @@ const BlockEditor = ({ block, onChange, onPickPicture, defaultText }) => {
       return (
         <>
           {text(80)}
-          <Row label="Size:" htmlFor={id("size")}>
-            <Select id={id("size")} value={block.size} onChange={(v) => set({ size: v })} options={[["h1", "Huge"], ["h2", "Big"], ["h3", "Medium"]]} />
-          </Row>
-          <Row label="Effect:" htmlFor={id("effect")}>
-            <Select id={id("effect")} value={block.effect} onChange={(v) => set({ effect: v })} options={[["none", "None"], ["rainbow", "Rainbow"], ["shadow", "Drop Shadow"]]} />
-          </Row>
-          {align}
-          {color()}
+          <Finer summary={summarize(pick(HEADING_SIZES, block.size), block.effect !== "none" && pick(EFFECTS, block.effect), pick(ALIGN, block.align || "center"), colorWord(block.color))}>
+            <Row label="Size:" htmlFor={id("size")}>
+              <Select id={id("size")} value={block.size} onChange={(v) => set({ size: v })} options={HEADING_SIZES} />
+            </Row>
+            <Row label="Effect:" htmlFor={id("effect")}>
+              <Select id={id("effect")} value={block.effect} onChange={(v) => set({ effect: v })} options={EFFECTS} />
+            </Row>
+            {align}
+            {color()}
+          </Finer>
         </>
       )
     case "paragraph":
@@ -172,33 +213,39 @@ const BlockEditor = ({ block, onChange, onPickPicture, defaultText }) => {
               ))}
             </span>
           </Row>
-          <Row label="Size:" htmlFor={id("size")}>
-            <Select id={id("size")} value={block.size} onChange={(v) => set({ size: v })} options={[["small", "Small"], ["normal", "Normal"], ["big", "Big"], ["huge", "Huge"]]} />
-          </Row>
-          {align}
-          {color()}
+          <Finer summary={summarize(pick(TEXT_SIZES, block.size), pick(ALIGN, block.align || "left"), colorWord(block.color))}>
+            <Row label="Size:" htmlFor={id("size")}>
+              <Select id={id("size")} value={block.size} onChange={(v) => set({ size: v })} options={TEXT_SIZES} />
+            </Row>
+            {align}
+            {color()}
+          </Finer>
         </>
       )
     case "marquee":
       return (
         <>
           {text(200)}
-          <Row label="Speed:" htmlFor={id("speed")}>
-            <Select id={id("speed")} value={block.speed} onChange={(v) => set({ speed: v })} options={[["slow", "Slow"], ["normal", "Normal"], ["fast", "Fast"]]} />
-          </Row>
-          <Row label="Scroll:" htmlFor={id("direction")}>
-            <Select id={id("direction")} value={block.direction} onChange={(v) => set({ direction: v })} options={[["left", "Right to left"], ["right", "Left to right"]]} />
-          </Row>
-          {color("color", "Text color:")}
-          {color("bgColor", "Background:")}
+          <Finer summary={summarize(`${pick(SPEEDS, block.speed)} speed`, pick(DIRECTIONS, block.direction), colorWord(block.color))}>
+            <Row label="Speed:" htmlFor={id("speed")}>
+              <Select id={id("speed")} value={block.speed} onChange={(v) => set({ speed: v })} options={SPEEDS} />
+            </Row>
+            <Row label="Scroll:" htmlFor={id("direction")}>
+              <Select id={id("direction")} value={block.direction} onChange={(v) => set({ direction: v })} options={DIRECTIONS} />
+            </Row>
+            {color("color", "Text color:")}
+            {color("bgColor", "Background:")}
+          </Finer>
         </>
       )
     case "blink":
       return (
         <>
           {text(100)}
-          {align}
-          {color()}
+          <Finer summary={summarize(pick(ALIGN, block.align || "center"), colorWord(block.color))}>
+            {align}
+            {color()}
+          </Finer>
         </>
       )
     case "image":
@@ -220,10 +267,12 @@ const BlockEditor = ({ block, onChange, onPickPicture, defaultText }) => {
               </button>
             </span>
           </Row>
-          <Row label="Caption:" htmlFor={id("alt")}>
-            <input id={id("alt")} maxLength={100} value={block.alt || ""} placeholder="Describe it for everyone" onChange={(e) => set({ alt: e.target.value })} />
-          </Row>
-          {align}
+          <Finer summary={summarize(block.alt ? `Caption "${block.alt}"` : "No caption", pick(ALIGN, block.align || "center"))}>
+            <Row label="Caption:" htmlFor={id("alt")}>
+              <input id={id("alt")} maxLength={100} value={block.alt || ""} placeholder="Describe it for everyone" onChange={(e) => set({ alt: e.target.value })} />
+            </Row>
+            {align}
+          </Finer>
         </>
       )
     case "divider":
@@ -295,30 +344,36 @@ const PageEditor = ({ doc, onChange }) => {
           ))}
         </div>
       </Row>
-      <Row label="Back color:" htmlFor="hs-bgcolor">
-        <ColorField id="hs-bgcolor" value={doc.bgColor} fallback="#000033" optional={false} onChange={(v) => set({ bgColor: v })} />
-      </Row>
-      <Row label="Text color:" htmlFor="hs-text">
-        <ColorField id="hs-text" value={doc.text} fallback="#ffff66" optional={false} onChange={(v) => set({ text: v })} />
-      </Row>
-      <Row label="Link color:" htmlFor="hs-link">
-        <ColorField id="hs-link" value={doc.link} fallback="#66ffff" optional={false} onChange={(v) => set({ link: v })} />
-      </Row>
-      <Row label="Font:" htmlFor="hs-font">
-        <Select id="hs-font" value={doc.font} onChange={(v) => set({ font: v })} options={FONTS.map((f) => [f.id, f.label])} />
-      </Row>
-      <Row label="Music:" htmlFor="hs-music">
-        <Select id="hs-music" value={doc.music || ""} onChange={(v) => set({ music: v })} options={[["", "(none)"], ...SONGS.map((s) => [s.id, `${s.title} (${s.file})`])]} />
-      </Row>
-      <p className="hsHint">Background music starts when a visitor clicks on your page (web browsers don't allow sound before that).</p>
-      <div className="hsCheck">
-        <input id="hs-sparkle" type="checkbox" checked={!!doc.sparkle} onChange={(e) => set({ sparkle: e.target.checked })} />
-        <label htmlFor="hs-sparkle">Sparkle trail behind the mouse</label>
-      </div>
-      <div className="hsCheck">
-        <input id="hs-badge" type="checkbox" checked={!!doc.badge} onChange={(e) => set({ badge: e.target.checked })} />
-        <label htmlFor="hs-badge">"Best viewed in 800 x 600" badge</label>
-      </div>
+      <MoreOptions
+        id="homepage.page"
+        className="hsMore"
+        summary={summarize(FONTS.find((f) => f.id === doc.font)?.label, doc.music ? `Music: ${SONGS.find((m) => m.id === doc.music)?.title || doc.music}` : "No music", doc.sparkle && "Sparkle trail", doc.badge && "800 x 600 badge")}
+      >
+        <Row label="Back color:" htmlFor="hs-bgcolor">
+          <ColorField id="hs-bgcolor" value={doc.bgColor} fallback="#000033" optional={false} onChange={(v) => set({ bgColor: v })} />
+        </Row>
+        <Row label="Text color:" htmlFor="hs-text">
+          <ColorField id="hs-text" value={doc.text} fallback="#ffff66" optional={false} onChange={(v) => set({ text: v })} />
+        </Row>
+        <Row label="Link color:" htmlFor="hs-link">
+          <ColorField id="hs-link" value={doc.link} fallback="#66ffff" optional={false} onChange={(v) => set({ link: v })} />
+        </Row>
+        <Row label="Font:" htmlFor="hs-font">
+          <Select id="hs-font" value={doc.font} onChange={(v) => set({ font: v })} options={FONTS.map((f) => [f.id, f.label])} />
+        </Row>
+        <Row label="Music:" htmlFor="hs-music">
+          <Select id="hs-music" value={doc.music || ""} onChange={(v) => set({ music: v })} options={[["", "(none)"], ...SONGS.map((s) => [s.id, `${s.title} (${s.file})`])]} />
+        </Row>
+        <p className="hsHint">Background music starts when a visitor clicks on your page (web browsers don't allow sound before that).</p>
+        <div className="hsCheck">
+          <input id="hs-sparkle" type="checkbox" checked={!!doc.sparkle} onChange={(e) => set({ sparkle: e.target.checked })} />
+          <label htmlFor="hs-sparkle">Sparkle trail behind the mouse</label>
+        </div>
+        <div className="hsCheck">
+          <input id="hs-badge" type="checkbox" checked={!!doc.badge} onChange={(e) => set({ badge: e.target.checked })} />
+          <label htmlFor="hs-badge">"Best viewed in 800 x 600" badge</label>
+        </div>
+      </MoreOptions>
     </div>
   )
 }
@@ -523,6 +578,13 @@ const HomePageStudio = ({ dispatch, onTitle, onClose, mobile }) => {
     { label: "Help", items: [helpItem({ program: "HomePage Studio" }), "-", { label: "About HomePage Studio", onClick: () => setDialog({ kind: "about" }) }] },
   ]
 
+  const insertButton = (t) => (
+    <button key={t.type} type="button" className="hsInsert" title={`Insert ${t.label}`} onClick={() => insert(t.type)}>
+      <span className={`hsBlockIcon hsBlockIcon--${t.type}`} aria-hidden="true" />
+      {t.short}
+    </button>
+  )
+
   const preview = (
     <div className="hsPreviewFrame">
       <div className="hsPreviewBar">
@@ -556,17 +618,20 @@ const HomePageStudio = ({ dispatch, onTitle, onClose, mobile }) => {
               <b>{blockLabel(b.type)}</b>
               <span className="hsBlockSummary">{summary(b)}</span>
             </button>
-            <span className="hsBlockTools">
-              <button type="button" aria-label="Move up" title="Move up" disabled={i === 0} onClick={() => move(b.id, -1)}>
-                ▲︎
-              </button>
-              <button type="button" aria-label="Move down" title="Move down" disabled={i === doc.blocks.length - 1} onClick={() => move(b.id, 1)}>
-                ▼︎
-              </button>
-              <button type="button" aria-label="Delete block" title="Delete" onClick={() => remove(b.id)}>
-                ✕
-              </button>
-            </span>
+            {/* move and delete show on the picked block (and stay in the Format menu) */}
+            {b.id === selected && (
+              <span className="hsBlockTools">
+                <button type="button" aria-label="Move up" title="Move up" disabled={i === 0} onClick={() => move(b.id, -1)}>
+                  ▲︎
+                </button>
+                <button type="button" aria-label="Move down" title="Move down" disabled={i === doc.blocks.length - 1} onClick={() => move(b.id, 1)}>
+                  ▼︎
+                </button>
+                <button type="button" aria-label="Delete block" title="Delete" onClick={() => remove(b.id)}>
+                  ✕
+                </button>
+              </span>
+            )}
           </li>
         ))}
         {doc.blocks.length === 0 && <li className="hsNone">No blocks yet. Insert one!</li>}
@@ -601,16 +666,14 @@ const HomePageStudio = ({ dispatch, onTitle, onClose, mobile }) => {
           </select>
         ) : (
           <>
-            {BLOCK_TYPES.map((t) => (
-              <button key={t.type} type="button" className="hsInsert" title={`Insert ${t.label}`} onClick={() => insert(t.type)}>
-                <span className={`hsBlockIcon hsBlockIcon--${t.type}`} aria-hidden="true" />
-                {t.short}
-              </button>
-            ))}
+            {BLOCK_TYPES.filter((t) => COMMON_BLOCKS.includes(t.type)).map(insertButton)}
             <button type="button" className="hsInsert" onClick={() => setDialog({ kind: "picture" })}>
               <span className="hsBlockIcon hsBlockIcon--photo" aria-hidden="true" />
               Picture...
             </button>
+            <MoreOptions id="homepage.insert" inline className="hsInsertMore" label="More blocks" lessLabel="Fewer blocks">
+              {BLOCK_TYPES.filter((t) => !COMMON_BLOCKS.includes(t.type)).map(insertButton)}
+            </MoreOptions>
           </>
         )}
         <span className="hsToolbarGap" />

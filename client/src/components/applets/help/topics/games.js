@@ -536,7 +536,8 @@ export const topics = [
     programs: ["Monster Duel"],
     body: [
       "Summon monsters, cast spells and set traps to bring your opponent's **Life Points** (8000 to start) down to 0. If you need to draw and your deck is empty, you lose.",
-      { tip: "New to it? Choose **Tutorial Duel** from the Game or Help menu for a guided first duel." },
+      { tip: "New to it? Choose **Tutorial (start here!)** on the title screen, or Tutorial Duel in the Game menu, for a guided first duel." },
+      "The title screen opens with **Duel the Computer** and **Play Online** (and Card Packs while some are waiting). **More modes »** has the Tutorial (once you've done it), the Deck Builder, Card Packs and the Rules.",
       { h: "A turn, in short" },
       {
         steps: [

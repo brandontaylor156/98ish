@@ -610,3 +610,14 @@
 .os-mobile .cplFont {
   width: calc(33.333% - 2px);
 }
+
+/* Add/Remove Programs: find a program in the list */
+.cplFind {
+  width: 100%;
+  margin: 0 0 4px;
+}
+
+.cplList li.cplEmpty {
+  color: #404040;
+  cursor: default;
+}

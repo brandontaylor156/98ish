@@ -48,7 +48,7 @@ export const topics = [
       { img: "/assets/program_icons/wordpad.svg", alt: "WordPad icon" },
       "WordPad is a little word processor. Use it for letters, stories and anything that should look nice: different fonts and sizes, bold and italic, colors, bullet lists, centered text and pictures.",
       { h: "Formatting text" },
-      "Select some text, then use the buttons on the format bar (font, size, bold, italic, underline, color, alignment, bullets), or choose **Format > Font** for everything at once. **Format > Paragraph** sets indents and alignment for a paragraph.",
+      "Select some text, then click **Aa** on the toolbar to show the format bar (font, size, bold, italic, underline, color, alignment, bullets; WordPad remembers whether you left it showing), or choose **Format > Font** for everything at once. **Format > Paragraph** sets indents and alignment for a paragraph.",
       { h: "Adding a picture or the date" },
       {
         list: [
@@ -60,6 +60,7 @@ export const topics = [
       "File > Save keeps your document on drive C:. When you save, you can choose Rich Text Format (keeps all the formatting) or Text Document (plain words only). **File > Print Preview** shows the pages first, and **File > Print** sends it to your printer through the browser's print window, where you can also save it as a PDF.",
       { note: "Pages are Letter size with 1-inch margins at the top and bottom. Your browser's print window can change the paper and margins." },
       "**File > Send To** sends the document to your phone or another app. **View** turns the toolbar, format bar, ruler and status bar on or off.",
+      { phone: "On a phone the toolbar keeps New, Open, Save, Print, Find, Undo and Aa. Print Preview, Cut, Copy, Paste and Date/Time are in the File, Edit and Insert menus." },
       { keys: [["Ctrl+N", "New document"], ["Ctrl+O", "Open"], ["Ctrl+S", "Save"], ["Ctrl+P", "Print"], ["Ctrl+Z / Ctrl+Y", "Undo / Redo"], ["Ctrl+B / I / U", "Bold / Italic / Underline"], ["Ctrl+L / E / R", "Align left / center / right"], ["Ctrl+F", "Find"], ["F3", "Find next"], ["Ctrl+H", "Replace"]], title: "WordPad shortcuts" },
       { open: "WordPad", label: "Open WordPad" },
     ],
@@ -381,7 +382,7 @@ export const topics = [
       {
         list: [
           "**World Clock**: add cities to see what time it is for faraway friends.",
-          "**Alarm**: set a time, a label and the days it repeats. When it rings, choose **Snooze** (9 more minutes) or stop it.",
+          "**Alarm**: set a time and click **Add alarm**. **More options »** adds a label and the days it repeats (weekdays unless you change them). When it rings, choose **Snooze** (9 more minutes) or stop it.",
           "**Timer**: pick a quick time (1 minute up to 1 hour) or set hours, minutes and seconds. You can pause it.",
           "**Stopwatch**: start, stop, take laps and reset.",
         ],
@@ -405,7 +406,7 @@ export const topics = [
     body: [
       { img: "/assets/program_icons/mediaplayer.svg", alt: "Media Player icon" },
       "Media Player plays the songs in **C:\\My Music**. Every one is an original tune, made live in your browser.",
-      "Press Play, or pick a song from the **Playlist** (View > Playlist). The **Play** menu has Stop, Previous, Next, **Shuffle**, **Repeat** and **Mute**. **View** switches the light show between the **Spectrum Analyzer** and the **Oscilloscope**.",
+      "Press Play (it turns into Pause while a song plays), Previous or Next, or pick a song from the **Playlist** (View > Playlist). **More »** beside them shows Stop, **Shuffle**, **Repeat**, Mute and the volume, and the **Play** menu has them all too. **View** switches the light show between the **Spectrum Analyzer** and the **Oscilloscope**.",
       { keys: [["Space", "Play or pause"], ["Left / Right arrow", "Back or forward 5 seconds"], ["Up / Down arrow", "Volume up or down"]], title: "Keys" },
       "The speaker by the taskbar clock sets the volume for every sound in 98ish, Media Player included.",
       { note: "On an iPhone, check the ringer switch and tap the page once if nothing plays. See [[no-sound]]." },

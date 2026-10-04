@@ -365,3 +365,10 @@
   background: #fff;
   border: 1px solid #808080;
 }
+
+/* phones: only the toolbar buttons that can be used now */
+.os-mobile .fxToolbar .fxOpt:disabled,
+.os-mobile .fxToolbar .fxIdle,
+.os-mobile .fxToolbar .fxSep {
+  display: none;
+}

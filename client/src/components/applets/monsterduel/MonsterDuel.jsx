@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import MenuBar from "../../shared/MenuBar"
 import Dialog from "../../shared/Dialog"
+import MoreOptions from "../../shared/MoreOptions"
 import GameChat, { useGameChatMenuItem } from "../../shared/GameChat"
 import PlayOnline, { OnlineResultBar, PlayOnlineButton, useOnlineRoom } from "../../shared/online"
 import { unlock } from "../../../utils/achievements"
@@ -533,6 +534,18 @@ const OnlineScreen = ({ online, data, setData, sounds, mobile, onBack }) => {
 
 const Title = ({ data, onOnline, onVs, onTutorial, onBuilder, onPacks, onRules }) => {
   const progress = collectionProgress(data)
+  const tutorial = (
+    <button type="button" className="mdMenuBtn" onClick={onTutorial} data-mode="tutorial">
+      <b>Tutorial{data.tutorialDone ? "" : " (start here!)"}</b>
+      <small>{data.tutorialDone ? "Replay the lessons" : "Learn in one guided duel"}</small>
+    </button>
+  )
+  const packs = (
+    <button type="button" className={`mdMenuBtn${data.packs ? " has-packs" : ""}`} onClick={onPacks} data-mode="packs">
+      <b>Card Packs{data.packs ? ` (${data.packs})` : ""}</b>
+      <small>{data.packs ? "Ready to open!" : "Win duels to earn packs"}</small>
+    </button>
+  )
   return (
     <div className="mdTitle">
       <div className="mdTitleFan" aria-hidden="true">
@@ -544,31 +557,38 @@ const Title = ({ data, onOnline, onVs, onTutorial, onBuilder, onPacks, onRules }
       </div>
       <Logo />
       <p className="mdTagline">Summon. Set. Strike.</p>
-      <PlayOnlineButton onClick={onOnline} sub="Quick Match, rooms with codes, best of three" className="mdOnlineBtn" data-online />
+      {/* the launcher pattern (docs/simplicity.md): Duel the Computer and Play Online; the
+          Tutorial until it's done and Card Packs while some wait stay in view; the rest under
+          "More modes »" (remembered) */}
       <div className="mdTitleMenu">
         <button type="button" className="mdMenuBtn is-main" onClick={onVs} data-mode="vs">
           <b>Duel the Computer</b>
           <small>Eight opponents, earn card packs</small>
         </button>
-        <button type="button" className="mdMenuBtn" onClick={onTutorial} data-mode="tutorial">
-          <b>Tutorial{data.tutorialDone ? "" : " (start here!)"}</b>
-          <small>{data.tutorialDone ? "Replay the lessons" : "Learn in one guided duel"}</small>
-        </button>
-        <button type="button" className="mdMenuBtn" onClick={onBuilder} data-mode="builder">
-          <b>Deck Builder</b>
-          <small>
-            {progress.have}/{progress.total} cards collected
-          </small>
-        </button>
-        <button type="button" className={`mdMenuBtn${data.packs ? " has-packs" : ""}`} onClick={onPacks} data-mode="packs">
-          <b>Card Packs{data.packs ? ` (${data.packs})` : ""}</b>
-          <small>{data.packs ? "Ready to open!" : "Win duels to earn packs"}</small>
-        </button>
-        <button type="button" className="mdMenuBtn" onClick={onRules} data-mode="rules">
-          <b>Rules</b>
-          <small>How a duel works</small>
-        </button>
       </div>
+      <PlayOnlineButton onClick={onOnline} sub="Quick Match, rooms with codes, best of three" className="mdOnlineBtn" data-online />
+      {(!data.tutorialDone || data.packs > 0) && (
+        <div className="mdTitleMenu">
+          {!data.tutorialDone && tutorial}
+          {data.packs > 0 && packs}
+        </div>
+      )}
+      <MoreOptions id="monsterduel.modes" className="mdMore" label="More modes" lessLabel="Fewer modes" summary={[data.tutorialDone && "Tutorial", "Deck Builder", !data.packs && "Card Packs", "Rules"].filter(Boolean).join(" · ")}>
+        <div className="mdTitleMenu">
+          {data.tutorialDone && tutorial}
+          <button type="button" className="mdMenuBtn" onClick={onBuilder} data-mode="builder">
+            <b>Deck Builder</b>
+            <small>
+              {progress.have}/{progress.total} cards collected
+            </small>
+          </button>
+          {!data.packs && packs}
+          <button type="button" className="mdMenuBtn" onClick={onRules} data-mode="rules">
+            <b>Rules</b>
+            <small>How a duel works</small>
+          </button>
+        </div>
+      </MoreOptions>
       <p className="mdRecord">
         Record: {data.stats.wins} won, {data.stats.losses} lost{data.stats.online ? `, ${data.stats.online} online wins` : ""}
       </p>

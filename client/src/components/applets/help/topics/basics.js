@@ -82,9 +82,9 @@ export const topics = [
           head: ["Button", "What it does"],
           rows: [
             ["Hide / Show", "Hides the list of topics to give the page more room, or brings it back."],
-            ["Back / Forward", "Goes through the pages you've already looked at."],
+            ["Back / Forward", "Goes through the pages you've already looked at (Forward shows up once you've gone back)."],
             ["Home", "Comes back to the Welcome page of Help."],
-            ["Print", "Prints the page you're reading."],
+            ["Print", "Prints the page you're reading (on a phone, it's in Options)."],
             ["Options", "More choices, like these same commands."],
           ],
         },
@@ -293,6 +293,8 @@ export const topics = [
           "The menus (File, Edit, Options...) and right-click menus still have everything, as before.",
           "The **Control Panel** opens to the common settings; **Show all Control Panel options** lists every icon. See [[control-panel]].",
           "The main button (Save, OK, Send, Start Game) always stays on the screen, even on a phone and even when a form is long.",
+          "Some toolbars show a button only when it can be used: Forward once you've gone back, Cut and Copy once something is selected, Stop while a page loads.",
+          "**Aa** shows the formatting buttons in WordPad and in an IM window.",
         ],
       },
     ],
@@ -400,7 +402,7 @@ export const topics = [
       },
       { h: "Getting notified when 98ish is closed" },
       { steps: ["Sign on to [[messenger]]. Notifications go to your screen name.", "On an iPhone, first add 98ish to your Home Screen and open it from there (see [[home-screen]]).", "Click the bell, then **Settings...** (or Start > Settings > Notifications...).", "Tap **Turn on notifications** and say **Allow** when asked.", "Tap **Send a test** to check it works."] },
-      "You can pick what to be told about: instant messages, calls, calendar reminders, Us, game invitations and mail. **Quiet hours** keep things silent overnight, and **Let calls ring through** lets calls through anyway.",
+      "Under **More options »** you can pick what to be told about: instant messages, calls, calendar reminders, Us, game invitations and mail. **Quiet hours** keep things silent overnight, and **Let calls ring through** lets calls through anyway.",
       { note: "Notifications only arrive when you're away from 98ish (it's closed, in the background, or you're signed off). While you're using it, you see them inside 98ish instead." },
       { warning: "On iPhone, notifications need iOS 16.4 or later and 98ish added to the Home Screen. In Safari itself they can't work." },
     ],
@@ -416,12 +418,12 @@ export const topics = [
     body: [
       "Type in the box at the top of the Start menu and results appear as you type, grouped by kind: programs, settings, files and folders (and the words inside your documents), contacts, calendar events, Messenger conversations, mail, photos and help pages.",
       {
-        phone: "On a phone the results fill the screen. Tap one to open it, or tap Cancel to go back.",
+        phone: "On a phone the results fill the screen. Tap one to open it.",
         computer: "Use the arrow keys to move through the results and Enter to open one. Enter with nothing picked opens the first one.",
       },
       "At the bottom, **See all results** opens the **Find** window with a tab for each kind.",
       { h: "The Find window" },
-      "Start > Find > **Files or Folders...** opens Find, like the one in Windows 98. You can search by:",
+      "Start > Find > **Files or Folders...** opens Find, like the one in Windows 98. Type part of the name in **Named** and click **Find Now**. **More options »** has the rest (it opens by itself while one of them is set), and you can search by:",
       {
         list: [
           "**Named**: part of the name.",
@@ -545,6 +547,7 @@ export const topics = [
           "**Create Shortcut** puts a shortcut to it on your desktop.",
           "**Send To > My Phone** shares it to your real phone or computer.",
           "**Back**, **Forward** and **Up One Level** move between folders.",
+          "On a phone the toolbar shows what you can use right now: Back, Up, Paste and Upload, plus Cut, Copy, Delete and Properties once something is selected.",
           "**View** switches between Large Icons and a List.",
         ],
       },

@@ -1062,12 +1062,7 @@ const Dollhouse = ({ mobile, onClose, onTitle, dispatch }) => {
         <button type="button" className="dhTool" aria-label="Undo" title="Undo (Ctrl+Z)" disabled={!s.undo.length} onClick={undo}>
           <Icon name="undo" />
         </button>
-        <button type="button" className="dhTool" aria-label="Zoom Out" title="Zoom Out" onClick={() => zoomBy(0.8)}>
-          <Icon name="minus" />
-        </button>
-        <button type="button" className="dhTool" aria-label="Zoom In" title="Zoom In" onClick={() => zoomBy(1.25)}>
-          <Icon name="plus" />
-        </button>
+        {/* zooming: pinch or the mouse wheel, and View > Zoom In / Zoom Out (docs/simplicity.md) */}
         <button type="button" className="dhTool" aria-label="Whole House" title="Whole House" onClick={fit}>
           <Icon name="fit" />
         </button>

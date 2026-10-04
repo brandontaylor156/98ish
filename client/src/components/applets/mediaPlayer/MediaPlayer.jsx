@@ -8,6 +8,8 @@ import { createEngine, unlockAudio } from "./engine"
 import { compile } from "./sequencer"
 import { SONGS, findSong } from "./songs"
 import { registerPlayer } from "./bus"
+import MoreOptions from "../../shared/MoreOptions"
+import { summarize } from "../../../utils/disclosure"
 import { NextGlyph, PauseGlyph, PlayGlyph, PrevGlyph, RepeatGlyph, ShuffleGlyph, SpeakerGlyph, StopGlyph } from "./Glyphs"
 import "./MediaPlayer.css"
 import { masterGain, useSettings } from "../../../utils/settings"
@@ -551,43 +553,58 @@ const MediaPlayer = ({ song: initialSong = null, windowIndex, onTitle, onClose }
 
       <div className="mpControls">
         <div className="mpTransport">
-          <Btn label="Play" onClick={play} on={playing}>
-            <PlayGlyph />
-          </Btn>
-          <Btn label="Pause" onClick={pause} on={status === "paused"} disabled={!playing && status !== "paused"}>
-            <PauseGlyph />
-          </Btn>
-          <Btn label="Stop" onClick={stop} disabled={status === "stopped" || status === "ready"}>
-            <StopGlyph />
-          </Btn>
-          <span className="mpSep" />
+          {/* the baseline (docs/simplicity.md): Play (Pause while playing), Previous, Next;
+              Stop, Shuffle, Repeat and the volume under More (and in the Play menu) */}
+          {playing ? (
+            <Btn label="Pause" onClick={pause} on>
+              <PauseGlyph />
+            </Btn>
+          ) : (
+            <Btn label="Play" onClick={play}>
+              <PlayGlyph />
+            </Btn>
+          )}
           <Btn label="Previous" onClick={prev}>
             <PrevGlyph />
           </Btn>
           <Btn label="Next" onClick={next}>
             <NextGlyph />
           </Btn>
-          <span className="mpSep" />
-          <Btn label="Shuffle" onClick={() => setPrefs({ shuffle: !prefs.shuffle })} on={prefs.shuffle}>
-            <ShuffleGlyph />
-          </Btn>
-          <Btn label="Repeat" onClick={() => setPrefs({ repeat: !prefs.repeat })} on={prefs.repeat}>
-            <RepeatGlyph />
-          </Btn>
         </div>
-        <div className="mpVolume">
-          <Btn label={prefs.muted ? "Unmute" : "Mute"} onClick={() => setPrefs({ muted: !prefs.muted })} on={prefs.muted} className="mpMute">
-            <SpeakerGlyph muted={prefs.muted} />
-          </Btn>
-          <input
-            type="range"
-            aria-label="Volume"
-            min={0}
-            max={100}
-            value={prefs.muted ? 0 : prefs.volume}
-            onChange={(e) => setPrefs({ volume: Number(e.target.value), muted: false })}
-          />
-        </div>
+        <MoreOptions
+          id="mediaplayer.more"
+          inline
+          className="mpMore"
+          label="More"
+          lessLabel="Less"
+          summary={summarize(prefs.shuffle && "Shuffle", prefs.repeat && "Repeat", prefs.muted ? "Muted" : `Volume ${prefs.volume}%`)}
+        >
+          <div className="mpTransport">
+            <Btn label="Stop" onClick={stop} disabled={status === "stopped" || status === "ready"}>
+              <StopGlyph />
+            </Btn>
+            <span className="mpSep" />
+            <Btn label="Shuffle" onClick={() => setPrefs({ shuffle: !prefs.shuffle })} on={prefs.shuffle}>
+              <ShuffleGlyph />
+            </Btn>
+            <Btn label="Repeat" onClick={() => setPrefs({ repeat: !prefs.repeat })} on={prefs.repeat}>
+              <RepeatGlyph />
+            </Btn>
+          </div>
+          <div className="mpVolume">
+            <Btn label={prefs.muted ? "Unmute" : "Mute"} onClick={() => setPrefs({ muted: !prefs.muted })} on={prefs.muted} className="mpMute">
+              <SpeakerGlyph muted={prefs.muted} />
+            </Btn>
+            <input
+              type="range"
+              aria-label="Volume"
+              min={0}
+              max={100}
+              value={prefs.muted ? 0 : prefs.volume}
+              onChange={(e) => setPrefs({ volume: Number(e.target.value), muted: false })}
+            />
+          </div>
+        </MoreOptions>
       </div>
 
       <div className="mpInfo">

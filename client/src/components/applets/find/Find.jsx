@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react"
 import MenuBar from "../../shared/MenuBar"
+import MoreOptions from "../../shared/MoreOptions"
+import { summarize, useDisclosure } from "../../../utils/disclosure"
 import { SEARCH_TYPES } from "../../../utils/searchIndex"
 import { fold, scoreEntry, tokenize } from "../../../utils/searchCore"
 import { formatSize } from "../../../utils/fileInfo"
@@ -68,6 +70,17 @@ const Find = ({ mobile, dispatch, query: firstQuery = "", handoff, onTitle, onCl
 
   const filesOnly = !!lookIn || !!kind || !!sizeMode
   const dated = dateMode !== "all"
+  // the baseline (docs/simplicity.md): Named and Find Now; Containing text, Look in, Date and
+  // Advanced under "More options »", which opens by itself while one of them narrows the search
+  const [moreOpen] = useDisclosure("find.criteria")
+  const narrowed = !!containing.trim() || filesOnly || dated || !subfolders
+  const criteriaSummary = summarize(
+    containing.trim() ? `Containing "${containing.trim()}"` : "Containing text",
+    `Look in: ${LOOK_IN.find(([v]) => v === lookIn)?.[1].replace(/ \(.*\)/, "") || lookIn}`,
+    dated ? "Dated" : "Any date",
+    kind ? KINDS.find(([v]) => v === kind)?.[1] : "Any type",
+    sizeMode ? `${sizeMode === "atleast" ? "At least" : "At most"} ${sizeKb} KB` : "Any size"
+  )
 
   const run = async (overrides = {}) => {
     const n = overrides.named ?? named
@@ -191,97 +204,105 @@ const Find = ({ mobile, dispatch, query: firstQuery = "", handoff, onTitle, onCl
         }}
       >
         <div className="fnCriteria">
-          <menu role="tablist" className="fnTabs">
-            {CRITERIA.map(([id, label]) => (
-              <li key={id} role="tab" aria-selected={criteria === id}>
-                <a href="#" onClick={(e) => (e.preventDefault(), setCriteria(id))}>
-                  {label}
-                </a>
-              </li>
-            ))}
-          </menu>
-          <div className="window fnPanel" role="tabpanel">
-            {criteria === "name" && (
-              <div className="fnRows">
-                <label htmlFor="fn-named">Named:</label>
-                <input id="fn-named" ref={namedRef} type="search" value={named} autoComplete="off" onChange={(e) => setNamed(e.target.value)} autoFocus={!mobile} />
-                <label htmlFor="fn-containing">Containing text:</label>
-                <input id="fn-containing" type="search" value={containing} autoComplete="off" onChange={(e) => setContaining(e.target.value)} />
-                <label htmlFor="fn-lookin">Look in:</label>
-                <select id="fn-lookin" value={lookIn} onChange={(e) => setLookIn(e.target.value)}>
-                  {LOOK_IN.map(([v, l]) => (
-                    <option key={v} value={v}>
-                      {l}
-                    </option>
-                  ))}
-                </select>
-                <span />
-                <span className="fnCheck">
-                  <input id="fn-sub" type="checkbox" checked={subfolders} disabled={!lookIn} onChange={(e) => setSubfolders(e.target.checked)} />
-                  <label htmlFor="fn-sub">Include subfolders</label>
-                </span>
-              </div>
-            )}
-            {criteria === "date" && (
-              <div className="fnDate">
-                <div className="fnRadio">
-                  <input id="fn-d-all" type="radio" name="fn-date" checked={dateMode === "all"} onChange={() => setDateMode("all")} />
-                  <label htmlFor="fn-d-all">All files</label>
-                </div>
-                <div className="fnRadio">
-                  <input id="fn-d-between" type="radio" name="fn-date" checked={dateMode === "between"} onChange={() => setDateMode("between")} />
-                  <label htmlFor="fn-d-between">Find all files changed or happening between</label>
-                </div>
-                <div className="fnIndent">
-                  <input type="date" aria-label="From" value={from} onChange={(e) => (setFrom(e.target.value), setDateMode("between"))} /> and{" "}
-                  <input type="date" aria-label="To" value={to} onChange={(e) => (setTo(e.target.value), setDateMode("between"))} />
-                </div>
-                <div className="fnRadio">
-                  <input id="fn-d-months" type="radio" name="fn-date" checked={dateMode === "months"} onChange={() => setDateMode("months")} />
-                  <label htmlFor="fn-d-months">during the previous</label>
-                  <input type="number" min="1" max="120" aria-label="Months" value={months} onChange={(e) => (setMonths(Number(e.target.value) || 1), setDateMode("months"))} /> month(s)
-                </div>
-                <div className="fnRadio">
-                  <input id="fn-d-days" type="radio" name="fn-date" checked={dateMode === "days"} onChange={() => setDateMode("days")} />
-                  <label htmlFor="fn-d-days">during the previous</label>
-                  <input type="number" min="1" max="999" aria-label="Days" value={days} onChange={(e) => (setDays(Number(e.target.value) || 1), setDateMode("days"))} /> day(s)
-                </div>
-                <p className="fnHint">Files are dated from when 98ish first saw them change; events by when they happen; mail and messages by when they were sent.</p>
-              </div>
-            )}
-            {criteria === "advanced" && (
-              <div className="fnRows">
-                <label htmlFor="fn-kind">Of type:</label>
-                <select id="fn-kind" value={kind} onChange={(e) => setKind(e.target.value)}>
-                  {KINDS.map(([v, l]) => (
-                    <option key={v} value={v}>
-                      {l}
-                    </option>
-                  ))}
-                </select>
-                <label htmlFor="fn-size">Size is:</label>
-                <span className="fnSize">
-                  <select id="fn-size" value={sizeMode} onChange={(e) => setSizeMode(e.target.value)}>
-                    <option value="">(any size)</option>
-                    <option value="atleast">At least</option>
-                    <option value="atmost">At most</option>
-                  </select>
-                  <input type="number" min="0" aria-label="Size in KB" value={sizeKb} disabled={!sizeMode} onChange={(e) => setSizeKb(Math.max(0, Number(e.target.value) || 0))} /> KB
-                </span>
-              </div>
-            )}
+          <div className="fnRows fnNamed">
+            <label htmlFor="fn-named">Named:</label>
+            <input id="fn-named" ref={namedRef} type="search" value={named} autoComplete="off" onChange={(e) => setNamed(e.target.value)} autoFocus={!mobile} />
           </div>
+          <MoreOptions id="find.criteria" className="fnMore" summary={criteriaSummary} forceOpen={narrowed}>
+            <menu role="tablist" className="fnTabs">
+              {CRITERIA.map(([id, label]) => (
+                <li key={id} role="tab" aria-selected={criteria === id}>
+                  <a href="#" onClick={(e) => (e.preventDefault(), setCriteria(id))}>
+                    {label}
+                  </a>
+                </li>
+              ))}
+            </menu>
+            <div className="window fnPanel" role="tabpanel">
+              {criteria === "name" && (
+                <div className="fnRows">
+                  <label htmlFor="fn-containing">Containing text:</label>
+                  <input id="fn-containing" type="search" value={containing} autoComplete="off" onChange={(e) => setContaining(e.target.value)} />
+                  <label htmlFor="fn-lookin">Look in:</label>
+                  <select id="fn-lookin" value={lookIn} onChange={(e) => setLookIn(e.target.value)}>
+                    {LOOK_IN.map(([v, l]) => (
+                      <option key={v} value={v}>
+                        {l}
+                      </option>
+                    ))}
+                  </select>
+                  <span />
+                  <span className="fnCheck">
+                    <input id="fn-sub" type="checkbox" checked={subfolders} disabled={!lookIn} onChange={(e) => setSubfolders(e.target.checked)} />
+                    <label htmlFor="fn-sub">Include subfolders</label>
+                  </span>
+                </div>
+              )}
+              {criteria === "date" && (
+                <div className="fnDate">
+                  <div className="fnRadio">
+                    <input id="fn-d-all" type="radio" name="fn-date" checked={dateMode === "all"} onChange={() => setDateMode("all")} />
+                    <label htmlFor="fn-d-all">All files</label>
+                  </div>
+                  <div className="fnRadio">
+                    <input id="fn-d-between" type="radio" name="fn-date" checked={dateMode === "between"} onChange={() => setDateMode("between")} />
+                    <label htmlFor="fn-d-between">Find all files changed or happening between</label>
+                  </div>
+                  <div className="fnIndent">
+                    <input type="date" aria-label="From" value={from} onChange={(e) => (setFrom(e.target.value), setDateMode("between"))} /> and{" "}
+                    <input type="date" aria-label="To" value={to} onChange={(e) => (setTo(e.target.value), setDateMode("between"))} />
+                  </div>
+                  <div className="fnRadio">
+                    <input id="fn-d-months" type="radio" name="fn-date" checked={dateMode === "months"} onChange={() => setDateMode("months")} />
+                    <label htmlFor="fn-d-months">during the previous</label>
+                    <input type="number" min="1" max="120" aria-label="Months" value={months} onChange={(e) => (setMonths(Number(e.target.value) || 1), setDateMode("months"))} /> month(s)
+                  </div>
+                  <div className="fnRadio">
+                    <input id="fn-d-days" type="radio" name="fn-date" checked={dateMode === "days"} onChange={() => setDateMode("days")} />
+                    <label htmlFor="fn-d-days">during the previous</label>
+                    <input type="number" min="1" max="999" aria-label="Days" value={days} onChange={(e) => (setDays(Number(e.target.value) || 1), setDateMode("days"))} /> day(s)
+                  </div>
+                  <p className="fnHint">Files are dated from when 98ish first saw them change; events by when they happen; mail and messages by when they were sent.</p>
+                </div>
+              )}
+              {criteria === "advanced" && (
+                <div className="fnRows">
+                  <label htmlFor="fn-kind">Of type:</label>
+                  <select id="fn-kind" value={kind} onChange={(e) => setKind(e.target.value)}>
+                    {KINDS.map(([v, l]) => (
+                      <option key={v} value={v}>
+                        {l}
+                      </option>
+                    ))}
+                  </select>
+                  <label htmlFor="fn-size">Size is:</label>
+                  <span className="fnSize">
+                    <select id="fn-size" value={sizeMode} onChange={(e) => setSizeMode(e.target.value)}>
+                      <option value="">(any size)</option>
+                      <option value="atleast">At least</option>
+                      <option value="atmost">At most</option>
+                    </select>
+                    <input type="number" min="0" aria-label="Size in KB" value={sizeKb} disabled={!sizeMode} onChange={(e) => setSizeKb(Math.max(0, Number(e.target.value) || 0))} /> KB
+                  </span>
+                </div>
+              )}
+            </div>
+          </MoreOptions>
         </div>
         <div className="fnButtons">
           <button type="submit" className="fnDefault">
             Find Now
           </button>
-          <button type="button" disabled>
-            Stop
-          </button>
-          <button type="button" onClick={newSearch}>
-            New Search
-          </button>
+          {(moreOpen || narrowed) && (
+            <>
+              <button type="button" disabled>
+                Stop
+              </button>
+              <button type="button" onClick={newSearch}>
+                New Search
+              </button>
+            </>
+          )}
           <img src="/assets/program_icons/find.svg" alt="" className={`fnGlass${searching ? " is-searching" : ""}`} draggable="false" />
         </div>
       </form>

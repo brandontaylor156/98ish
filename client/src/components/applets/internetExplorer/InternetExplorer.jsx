@@ -80,8 +80,8 @@ const GLYPHS = {
   captures: "M2 3h12v12H2zM4 1h2v3H4zM10 1h2v3h-2zM3 6v8h10V6zM5 8h2v2H5zM9 8h2v2H9zM5 11h2v2H5z",
 }
 
-const ToolButton = ({ icon, label, disabled, active, onClick }) => (
-  <button type="button" className={active ? "ieTool is-active" : "ieTool"} disabled={disabled} onClick={onClick} title={label} aria-pressed={active || undefined}>
+const ToolButton = ({ icon, label, disabled, active, onClick, className = "" }) => (
+  <button type="button" className={`ieTool${active ? " is-active" : ""} ${className}`} disabled={disabled} onClick={onClick} title={label} aria-pressed={active || undefined}>
     <Glyph d={GLYPHS[icon]} />
     <span>{label}</span>
   </button>
@@ -435,13 +435,15 @@ const InternetExplorer = ({ initialUrl, onTitle, onNewWindow, onClose }) => {
       <div className="ieToolbar">
         <ToolButton icon="back" label="Back" disabled={nav.index === 0} onClick={() => go(-1)} />
         <ToolButton icon="forward" label="Forward" disabled={nav.index === nav.entries.length - 1} onClick={() => go(1)} />
-        <ToolButton icon="stop" label="Stop" disabled={!loading} onClick={stop} />
-        <ToolButton icon="refresh" label="Refresh" onClick={refresh} />
+        {/* phones show Stop only while a page loads, in Refresh's place (docs/simplicity.md) */}
+        <ToolButton icon="stop" label="Stop" disabled={!loading} onClick={stop} className={loading ? "" : "ieTool--idle"} />
+        <ToolButton icon="refresh" label="Refresh" onClick={refresh} className={loading ? "ieTool--busy" : ""} />
         <ToolButton icon="home" label="Home" onClick={() => goHome()} />
         <span className="ieToolSep" />
         <ToolButton icon="favorites" label="Favorites" active={panel === "favorites"} onClick={() => setPanel(panel === "favorites" ? null : "favorites")} />
-        <ToolButton icon="history" label="History" active={panel === "history"} onClick={() => setPanel(panel === "history" ? null : "history")} />
-        <ToolButton icon="captures" label="Captures" active={panel === "captures"} onClick={() => setPanel(panel === "captures" ? null : "captures")} />
+        {/* History and Captures: the View menu on phones */}
+        <ToolButton icon="history" label="History" className="ieTool--extra" active={panel === "history"} onClick={() => setPanel(panel === "history" ? null : "history")} />
+        <ToolButton icon="captures" label="Captures" className="ieTool--extra" active={panel === "captures"} onClick={() => setPanel(panel === "captures" ? null : "captures")} />
         <div className={loading ? "ieThrobber is-busy" : "ieThrobber"} aria-hidden="true">
           e
         </div>
@@ -486,12 +488,17 @@ const InternetExplorer = ({ initialUrl, onTitle, onNewWindow, onClose }) => {
           value={date}
           onChange={(e) => setDate(e.target.value)}
         />
-        <button type="button" disabled={!currentUrl || stepping} onClick={() => stepCapture(-1)} title="The copy before this one">
-          &#9664;&#xFE0E; Earlier
-        </button>
-        <button type="button" disabled={!currentUrl || stepping} onClick={() => stepCapture(1)} title="The copy after this one">
-          Later &#9654;&#xFE0E;
-        </button>
+        {/* Earlier / Later step through a page's copies: shown once there is a page */}
+        {currentUrl && (
+          <>
+            <button type="button" disabled={stepping} onClick={() => stepCapture(-1)} title="The copy before this one">
+              &#9664;&#xFE0E; Earlier
+            </button>
+            <button type="button" disabled={stepping} onClick={() => stepCapture(1)} title="The copy after this one">
+              Later &#9654;&#xFE0E;
+            </button>
+          </>
+        )}
         {shown && <span className="ieCaptured">Captured {formatStamp(shown.ts, true)}</span>}
       </div>
 

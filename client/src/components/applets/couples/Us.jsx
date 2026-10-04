@@ -3,6 +3,7 @@ import { VIEW_EVENT, coupleApi, openCouples, unreadLetters, useCouple } from "..
 import { programs } from "../../../utils/programs"
 import { unlock } from "../../../utils/achievements"
 import Dialog from "../../shared/Dialog"
+import MoreOptions from "../../shared/MoreOptions"
 import { TwoHearts } from "./art"
 import { TogetherLine, togetherFor, useCoupleEvent, useNow, dateLabel } from "./shared"
 import FlowerShop from "./FlowerShop"
@@ -240,10 +241,18 @@ const Hub = ({ couple, onView }) => {
         <Tile icon="/assets/program_icons/loveletters.svg" title="Love Letters" blurb="Write, seal and schedule letters" badge={letters} onClick={() => openCouples("Love Letters")} />
         <Tile icon="/assets/program_icons/ourstory.svg" title="Our Story" blurb={story?.moments.length ? `${story.moments.length} moments so far` : "Your timeline in photos"} onClick={() => openCouples("Our Story")} />
         <Tile icon="/assets/program_icons/flowers.svg" title="Send Flowers" blurb="A bouquet for their desktop" onClick={() => onView("flowers")} />
-        {extras.map((x) => (
-          <Tile key={x.app} icon={x.program.icon} title={x.program.name} blurb={x.blurb} onClick={() => openCouples(x.program.name)} />
-        ))}
       </div>
+
+      {/* the other couple programs: "More for two »" (docs/simplicity.md) */}
+      {extras.length > 0 && (
+        <MoreOptions id="us.more" className="usMore" label="More for two" lessLabel="Less" summary={extras.map((x) => x.program.name).join(" · ")}>
+          <div className="usTiles">
+            {extras.map((x) => (
+              <Tile key={x.app} icon={x.program.icon} title={x.program.name} blurb={x.blurb} onClick={() => openCouples(x.program.name)} />
+            ))}
+          </div>
+        </MoreOptions>
+      )}
 
       <div className="usFooter">
         <button type="button" className="usLink" onClick={() => onView("settings")}>

@@ -241,6 +241,15 @@
   gap: 6px;
 }
 
+/* More games: the summary on the studio's dark floor */
+.qzMoreGames .moreOpts-summary {
+  color: #f3e6ff;
+}
+
+.qzMoreGames .moreOpts-body {
+  gap: 10px;
+}
+
 .qzMoreLabel {
   color: var(--qz-gold);
   font-weight: bold;

@@ -56,8 +56,7 @@ export const topics = [
         steps: [
           "Open Start > Settings > Desktop Themes (or **More » > Themes...** on Display Properties' Background tab).",
           "Pick a theme from the **Theme** list. The preview shows the wallpaper, a window and the icons.",
-          "Click **Screen Saver** or **Pointers, Sounds, etc...** to try those parts out.",
-          "Untick anything under **Settings** you don't want to change (for example keep your own wallpaper by unticking Desktop wallpaper).",
+          "To use only part of a theme, click **More options »**: untick anything under **Settings** you don't want to change (for example keep your own wallpaper by unticking Desktop wallpaper), and click **Screen Saver** or **Pointers, Sounds, etc...** to try those parts out.",
           "Click **OK** or **Apply**.",
         ],
         title: "To use a theme:",
@@ -119,7 +118,7 @@ export const topics = [
       "**Accessibility Options** (in the Control Panel) makes 98ish easier to read and use. Changes apply to every window.",
       { open: "Accessibility Options", label: "Open Accessibility Options" },
       { h: "Display tab" },
-      { list: ["**Text size:** Normal, Large or Extra Large. Every window, menu and title bar gets bigger writing.", "**High Contrast:** strong black or white colors that are easier to read. Games, Paint and Photos keep their own colors."] },
+      { list: ["**Text size:** Normal, Large or Extra Large. Every window, menu and title bar gets bigger writing.", "**High Contrast:** strong black or white colors that are easier to read (**More options »** picks the scheme). Games, Paint and Photos keep their own colors."] },
       { h: "Motion tab" },
       "**Reduce motion** turns off window and menu animations, the startup animation, moving wallpapers, sliding notifications, confetti and screen shake. **Use my device's setting** follows your phone or computer.",
       { h: "Magnifier tab" },
@@ -189,13 +188,12 @@ export const topics = [
     body: [
       "Every sound in 98ish (games, music, dings, ringing calls) follows one volume.",
       { steps: ["Click or tap the **speaker** in the taskbar, next to the clock.", "Drag the slider, or tick **Mute**."], title: "To change the volume:" },
-      "**Sounds** in the Control Panel has more:",
+      "**Sounds** in the Control Panel has the volume, **Mute** and **Play system sounds** up top. **Scheme and events »** has the rest:",
       {
         list: [
           "**Events:** the list of system sounds. Select one and press the play button to hear it.",
           "**Scheme:** a set of sounds that go together (98ish Default, Space, Underwater, Synthwave, Dinosaurs, Music Box, Kitty Café, Birdsong).",
-          "**Play system sounds** and **Play the startup sound** turn those on or off.",
-          "**Volume** and **Mute**, the same as the taskbar speaker.",
+          "**Play the startup sound** turns it on or off.",
         ],
       },
       { note: "No sound at all on an iPhone? See [[no-sound]]." },
@@ -216,7 +214,7 @@ export const topics = [
         list: [
           "**Start the screen saver:** Never, or after a number of minutes. Pick which screen saver in Display Properties.",
           "**Lock 98ish:** Never, or after a number of minutes with nothing typed or tapped. This needs a PIN or password first (see [[lock-screen]]).",
-          "**Keep the screen on while 98ish is open:** handy for slideshows, the Clock and long games. It uses more battery, and some browsers can't do it.",
+          "Under **More options »**: **Keep the screen on while 98ish is open** (handy for slideshows, the Clock and long games; it uses more battery, and some browsers can't do it) and **Screen Saver...** to pick which one.",
         ],
       },
       "If your device shares it, the top shows whether you're plugged in or on battery.",
@@ -249,9 +247,9 @@ export const topics = [
       "**Internet Options** holds Internet Explorer's settings.",
       {
         list: [
-          "**Home page:** type an address, or click **Use Start Page** or **Use 98ish.com**. The Home button in Internet Explorer goes there.",
+          "**Home page:** type an address (or, under **More options »**, click **Use Start Page** or **Use 98ish.com**). The Home button in Internet Explorer goes there.",
           "**Time machine:** the date Internet Explorer visits the Web as of. Pages show as the Internet Archive saved them closest to that date.",
-          "**History:** **Clear History** forgets the pages you've visited.",
+          "**History** (under **More options »**): **Clear History** forgets the pages you've visited.",
         ],
       },
       { open: "Internet Options", label: "Open Internet Options" },
@@ -271,7 +269,7 @@ export const topics = [
         steps: [
           "Open the Control Panel and then **Add/Remove Programs**.",
           "Select a program. You'll see its size and where it shows.",
-          "Untick **Show on the desktop** or **Show in the Start menu**, or click **Add/Remove** to hide it from both.",
+          "Click **Add/Remove** to hide it from both, or open **More options »** and untick **Show on the desktop** or **Show in the Start menu**.",
           "Click **OK**.",
         ],
         title: "To hide a program:",

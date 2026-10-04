@@ -124,6 +124,10 @@
   gap: 8px;
 }
 
+.dtMore .moreOpts-summary {
+  white-space: normal;
+}
+
 .dtField {
   margin: 0;
   display: flex;
@@ -193,6 +197,10 @@
 
 .os-mobile .dtSide {
   width: auto;
+}
+
+/* the parts and previews sit side by side once More options is open */
+.os-mobile .dtSide .moreOpts-body {
   flex-direction: row;
 }
 

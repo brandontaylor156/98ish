@@ -390,21 +390,23 @@ const FileExplorer = ({ path: initialPath = ["C:"], dispatch, onTitle }) => {
     <div className="fxRoot" ref={rootRef} tabIndex={-1} onKeyDown={onKeyDown} onPaste={onPaste}>
       <MenuBar menus={menus} />
 
+      {/* phones show what can be used now (docs/simplicity.md): Back, Up, Paste, Upload, and Cut,
+          Copy, Delete, Properties once something is selected (all in the menus and long-press) */}
       <div className="fxToolbar">
         <button type="button" disabled={nav.index === 0} onClick={() => step(-1)} title="Back">
           &#9664;&#xFE0E; Back
         </button>
-        <button type="button" disabled={nav.index === nav.stack.length - 1} onClick={() => step(1)} title="Forward">
+        <button type="button" className="fxOpt" disabled={nav.index === nav.stack.length - 1} onClick={() => step(1)} title="Forward">
           &#9654;&#xFE0E;
         </button>
         <button type="button" disabled={!path.length} onClick={up} title="Up One Level" aria-label="Up One Level">
           <img src={"/assets/" + imageMapper.small_folder_up} alt="" /> Up
         </button>
         <span className="fxSep" />
-        <button type="button" disabled={!selectedItem || !canEdit} onClick={() => cut(selectedItem)}>
+        <button type="button" className="fxOpt" disabled={!selectedItem || !canEdit} onClick={() => cut(selectedItem)}>
           Cut
         </button>
-        <button type="button" disabled={!selectedItem || !canEdit} onClick={() => copy(selectedItem)}>
+        <button type="button" className="fxOpt" disabled={!selectedItem || !canEdit} onClick={() => copy(selectedItem)}>
           Copy
         </button>
         <button type="button" disabled={!canEdit} onClick={paste}>
@@ -415,10 +417,10 @@ const FileExplorer = ({ path: initialPath = ["C:"], dispatch, onTitle }) => {
           Upload
         </button>
         <span className="fxSep" />
-        <button type="button" disabled={!selectedItem || !canEdit} onClick={() => askDelete(selectedItem)}>
+        <button type="button" className="fxOpt" disabled={!selectedItem || !canEdit} onClick={() => askDelete(selectedItem)}>
           Delete
         </button>
-        <button type="button" onClick={() => properties(selectedItem)}>
+        <button type="button" className={selectedItem ? "" : "fxIdle"} onClick={() => properties(selectedItem)}>
           Properties
         </button>
       </div>
