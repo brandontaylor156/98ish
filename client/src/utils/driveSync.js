@@ -37,10 +37,12 @@ const loadPrefs = () => {
     const saved = JSON.parse(localStorage.getItem(PREFS_KEY))
     const folders = Array.isArray(saved?.folders) ? saved.folders.filter((f) => typeof f === "string" && !NEVER_SYNC.includes(f)) : DEFAULT_FOLDERS
     const account = saved?.account?.key ? { key: saved.account.key, screenName: saved.account.screenName || saved.account.key, device: saved.account.device || null } : null
-    // nothing saved, or saved "off" by a version from before sync was on by default (it saved
-    // "off" on every sign off, chosen or not): on, with the notice. Once told, "off" stays off.
-    if (!saved || (saved.told === undefined && !saved.enabled)) return { enabled: true, folders, account, told: false }
-    return { enabled: !!saved.enabled, folders, account, told: saved.told !== false }
+    // nothing saved: on, with the notice. Saved "off" by a version from before sync was on by
+    // default (it saved "off" on every sign off, so it may or may not have been chosen): stays
+    // off, and the next sign on asks once (`ask`). Once told or asked, "off" stays off.
+    if (!saved) return { enabled: true, folders, account, told: false }
+    if (saved.told === undefined && !saved.enabled) return { enabled: false, folders, account, told: false, ask: true }
+    return { enabled: !!saved.enabled, folders, account, told: saved.told !== false, ask: !saved.enabled && !!saved.ask }
   } catch {
     return { enabled: true, folders: DEFAULT_FOLDERS, account: null, told: false }
   }
@@ -432,7 +434,7 @@ export const syncNow = () => {
 // ---------- settings ----------
 
 export const setSyncEnabled = (enabled) => {
-  prefs = { ...prefs, enabled: !!enabled, told: true }
+  prefs = { ...prefs, enabled: !!enabled, told: true, ask: false }
   if (!enabled) {
     // forget this device's sync token too (signing on again makes a new one)
     forgetDevice(prefs.account?.device)
@@ -462,6 +464,15 @@ export const setSyncFolders = async (folders) => {
   return syncNow()
 }
 
+// The one-time question for a device whose sync was off from before (DriveSync.jsx asks):
+// yes turns it on, no keeps it off for good (Backup can still turn it on).
+export const answerSyncAsk = (yes) => {
+  set({ askOn: null })
+  if (yes) return setSyncEnabled(true)
+  prefs = { ...prefs, told: true, ask: false }
+  savePrefs()
+}
+
 // ---------- who's signed on ----------
 
 // From DriveSync (98 Messenger's status): the session while signed on; null when signed
@@ -486,7 +497,7 @@ export const setSyncSession = (next, { kicked = false } = {}) => {
       set({ turnedOn: Date.now() })
     }
     if (prefs.enabled) syncNow()
-    else set({ phase: "off" })
+    else set({ phase: "off", askOn: prefs.ask ? Date.now() : null })
     return
   }
   const was = session

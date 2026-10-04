@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react"
 import { keyOf, useAim } from "../aim/AimContext"
-import { getSyncFolders, setSyncSession, statusText, useDriveSync } from "../../../utils/driveSync"
+import { answerSyncAsk, getSyncFolders, setSyncSession, statusText, useDriveSync } from "../../../utils/driveSync"
 import { notify } from "../../../utils/notifications"
 import { launch } from "../../../utils/programs"
 import Dialog from "../../shared/Dialog"
@@ -52,6 +52,20 @@ const DriveSync = ({ dispatch }) => {
     notify({ app: "system", key: "drive-sync-on", title: "File sync is on", text: onText, target: { kind: "program", name: "Backup" } })
   }, [sync?.turnedOn])
 
+  if (sync?.askOn && !told) {
+    return (
+      <div className="desktopDialogLayer">
+        <Dialog title="File Sync" onOk={() => answerSyncAsk(true)} okLabel="Turn On" onNo={() => answerSyncAsk(false)} noLabel="Not Now" sound="ding">
+          <div className="bkConfirm" data-sync-ask>
+            <img src="/assets/hard_drive.png" alt="" width="32" height="32" />
+            <p className="dialogText">
+              <b>Turn on file sync?</b> File sync is off on this device, so your photos and files in {folders} are only kept here. Turned on, they also save to your 98 Messenger account ({sync?.screenName || screenName || "you"}), so they're safe if this device clears its storage and come back on any device you sign on from. You can change this later in Backup.
+            </p>
+          </div>
+        </Dialog>
+      </div>
+    )
+  }
   if (!told) return null
   return (
     <div className="desktopDialogLayer">
