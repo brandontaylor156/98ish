@@ -39,6 +39,9 @@ export const TAKES = [
   ...cmuTakes(["102_01", "102_02", "102_03", "102_04", "102_05", "102_06", "102_07", "102_08", "102_10", "102_13", "102_14", "102_16", "102_17", "102_18", "102_19", "102_30", "102_31", "102_32", "102_33"], ["neutral", "ready", "fast"]),
   ...cmuTakes(["127_03", "127_04", "127_05", "127_06", "127_09", "127_10", "127_11", "127_12", "127_13", "127_14", "127_17", "127_18", "127_19", "127_20", "128_02", "128_03", "128_05", "128_07", "143_02"], ["neutral", "ready", "fast"]),
   ...cmuTakes(["104_06", "104_09", "104_53", "104_56", "16_08", "16_57", "16_35", "16_41", "16_43", "16_51", "16_53", "16_55", "09_01", "09_02", "09_03", "09_05", "35_17", "35_22"], ["neutral", "ready", "fast"]),
+  // CMU 79: gestures the game plays by name for celebrations and frustration (mm/gesture.js;
+  // never searched: their tag isn't in any search mask)
+  ...cmuTakes(["79_69", "79_74"], ["gesture"]),
 ].map((t) => (t.name.endsWith("_ID") ? { ...t, tags: [...t.tags, "idle"] } : t))
 
 // Looked at and left out for now (tools/build-motion.mjs --dump + filmstrips): 100STYLE

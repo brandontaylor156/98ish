@@ -41,6 +41,7 @@ import { motionLibrary } from "./mm/runtime.js"
 import { qaxis, qmul, qrot } from "./mm/quat.js"
 import { driveMM } from "./mm/drive.js"
 import { betweenActs } from "./between.js"
+import { gestureArms } from "./mm/gesture.js"
 
 // ---- the skeleton (meters) ----
 export const BODY = {
@@ -570,6 +571,25 @@ export const updateAnim = (a, s, dt) => {
     } else {
       mp = { hand: V(0.3, 0.82, 0.13), axis: norm(V(0.1, -1, 0.1)), off: V(-0.12, 1.62, 0.22), pole: V(0.3, -1, -0.3) } // looking up at the sky
       lookAt = add(add(ground, V(0, 4, 0)), mul(fr.f, 1))
+    }
+    // (motion matching: the big celebration and the frustrated arms-out are motion capture,
+    // mm/gesture.js: the captured arms from the player's own shoulders)
+    const gName = mmo ? (mood.kind === "cheer" && v === 2 ? "joy" : mood.kind === "sulk" && v === 2 ? "upset" : null) : null
+    const g = gName ? gestureArms(mmLib, gName, mood.t) : null
+    if (g) {
+      const cr = mmo.chestRight
+      const cf = mmo.chestForward
+      const cu = norm(cross(cf, cr))
+      // (the chest frame: x the body's left, y up, z forward)
+      const W2 = (o, v2) => add(o, add(add(mul(cr, -v2.x), mul(cu, v2.y)), mul(cf, v2.z)))
+      const sP = hand > 0 ? mmo.shoulderR : mmo.shoulderL
+      const sO = hand > 0 ? mmo.shoulderL : mmo.shoulderR
+      const aP = hand > 0 ? g.r : g.l
+      const aO = hand > 0 ? g.l : g.r
+      const wP = W2(sP, aP.wrist)
+      const wO = W2(sO, aO.wrist)
+      const chestL = (v2) => RH(V(dot(v2, cr), dot(v2, cu), dot(v2, cf)))
+      mp = { hand: toStd(local(wP)), axis: RH(toLocal(V(), fr, norm(W2(V(), aP.hand)))), off: toStd(local(wO)), pole: chestL(sub(W2(sP, aP.elbow), mul(add(sP, wP), 0.5))), offPole: chestL(sub(W2(sO, aO.elbow), mul(add(sO, wO), 0.5))) }
     }
     a.moodPose = { ...mp, coil: 0, lean: 0, crouch: 0 }
   }
