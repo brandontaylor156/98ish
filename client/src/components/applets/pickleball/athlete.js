@@ -18,7 +18,7 @@ import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js"
 import { BODY } from "./anim.js"
 import { SKIN } from "./looks.js"
-import { aimDelta, additiveMove, bendAxis, decodeMoves, frameOf, gripSide, LAYERS, layerTargets, Q, qaxis, qinv, qmul, qrot, qslerp, solveLimb, stepLayers, swingTwist, twistAngle, clipTime, norm } from "./retarget.js"
+import { aimDelta, additiveMove, bendAxis, decodeMoves, frameOf, gripSide, LAYERS, layerTargets, limitQuat, Q, steadyGrip, unwrapNear, qaxis, qinv, qmul, qrot, qslerp, solveLimb, stepLayers, swingTwist, twistAngle, clipTime, norm } from "./retarget.js"
 import { BUILD_SCALE, buildGarment, buildSkirt, landmarks, prepareBody, radiusProfile, reshapeBody, visibleIndex } from "./outfit.js"
 
 const BASE = "/assets/pickleball/"
@@ -892,19 +892,30 @@ export const createAthlete = (look = {}, { shadows = false, withPaddle = true } 
   }
   placePaddle("r")
 
-  // fingers: a fist round the grip, the other hand relaxed
-  const setFingers = () => {
-    for (const side of ["l", "r"]) {
-      const fist = side === paddleSide && withPaddle
-      for (const [name, axis] of Object.entries(tpl.curl)) {
-        if (!name.endsWith("_" + side)) continue
-        const thumb = name.startsWith("thumb")
-        const k = +name.split("_")[1]
-        const amount = fist ? (thumb ? [0.35, 0.45, 0.35][k - 1] : [1.25, 1.45, 0.9][k - 1]) : thumb ? 0.15 : [0.22, 0.38, 0.25][k - 1]
-        const q = qmul(toQ(restLq[name]), qaxis(axis, amount))
-        B[name].quaternion.set(q.x, q.y, q.z, q.w)
-      }
+  // fingers: a fist round the grip; the other hand relaxed (a soft, even curl from the
+  // knuckles, not a claw), cupped on the paddle's throat in the ready position, or a fist
+  const CURLS = {
+    grip: { thumb: [0.35, 0.45, 0.35], finger: [1.25, 1.45, 0.9] },
+    relaxed: { thumb: [0.2, 0.25, 0.15], finger: [0.42, 0.5, 0.3] },
+    cup: { thumb: [0.3, 0.35, 0.25], finger: [0.75, 0.85, 0.5] },
+    fist: { thumb: [0.55, 0.6, 0.5], finger: [1.35, 1.5, 1.0] },
+  }
+  const handShape = { l: null, r: null }
+  const setHand = (side, shape) => {
+    if (handShape[side] === shape) return
+    handShape[side] = shape
+    const c = CURLS[shape]
+    for (const [name, axis] of Object.entries(tpl.curl)) {
+      if (!name.endsWith("_" + side)) continue
+      const thumb = name.startsWith("thumb")
+      const k = +name.split("_")[1]
+      const amount = (thumb ? c.thumb : c.finger)[k - 1]
+      const q = qmul(toQ(restLq[name]), qaxis(axis, amount))
+      B[name].quaternion.set(q.x, q.y, q.z, q.w)
     }
+  }
+  const setFingers = () => {
+    for (const side of ["l", "r"]) setHand(side, side === paddleSide && withPaddle ? "grip" : "relaxed")
   }
   setFingers()
 
@@ -954,11 +965,18 @@ export const createAthlete = (look = {}, { shadows = false, withPaddle = true } 
   let lastPos = null
   let speedEst = 0
   const moves = assets.moves
+  const prevQ = {} // (the pop limiter's last rotations)
+  let lastHandQ = null // (the paddle hand's last rotation: the grip keeps to it)
+  let lastTwist = 0 // (and the forearm's share of its roll)
+  const shrugs = { l: 0, r: 0 }
 
+  // the bone mask: the run's clips don't move the paddle side's shoulder while that arm holds
+  // the ready position or swings (the arm's pose is anim.js's; a clip on top is double motion)
+  const mask = { clavicle_l: 1, clavicle_r: 1 }
   const layerMoves = (bone) => {
     let d = Q()
     for (const [name, L] of Object.entries(LAYERS)) {
-      const w = (layers[name] || 0) * L.gain * (L.bones[bone] || 0)
+      const w = (layers[name] || 0) * L.gain * (L.bones[bone] || 0) * (L.locked ? (mask[bone] ?? 1) : 1)
       if (w <= 1e-3) continue
       const clip = moves.clips[L.clip]
       if (!clip) continue
@@ -998,6 +1016,18 @@ export const createAthlete = (look = {}, { shadows = false, withPaddle = true } 
     const info = pose.info || {}
     stepLayers(layers, layerTargets({ speed: info.speed ?? speedEst, swinging: info.swinging, mood: info.mood, between: info.between, blend: info.blend || null }), dt)
     layers.phase = info.phase ?? clock * 6
+    const ready = info.ready ?? 0
+    mask["clavicle_" + paddleSide] = 1 - 0.85 * ready
+    mask["clavicle_" + (paddleSide === "r" ? "l" : "r")] = 1 - 0.6 * (info.stroke || 0)
+    // the pop limiter: the spine, neck, head and shoulders turn at most this much a frame
+    // (a stroke's quick unwinding allowed); the arms are placed exactly by the IK below
+    const maxTurn = (info.fast ? 30 : 14) * Math.max(dt, 1 / 240)
+    const settle = (bone) => {
+      const q = limitQuat(prevQ[bone.name], toQ(bone.quaternion), maxTurn)
+      bone.quaternion.set(q.x, q.y, q.z, q.w)
+      bone.updateWorldMatrix(false, false)
+      prevQ[bone.name] = q
+    }
 
     // the pelvis: placed so the hip joints are where the pose's are
     const up = norm(add3(scale3(UPV, 0.65), scale3(pose.spine, 0.35)))
@@ -1017,14 +1047,17 @@ export const createAthlete = (look = {}, { shadows = false, withPaddle = true } 
     DRIVEN_SPINE.forEach((name, i) => {
       setWorldQ(B[name], qmul(qslerp(Rp, Rc, [0.4, 0.75, 1][i]), rest[name].wq))
       addLocal(B[name], layerMoves(name))
+      settle(B[name])
     })
     // the head looks along the pose's look; the neck takes some of it
     // (the head keeps its eyes level, like a real player's, whatever the spine is doing)
     const Rh = aimDelta(FWD, UPV, pose.look, add3(scale3(UPV, 0.75), scale3(pose.spine, 0.25)))
     setWorldQ(B.neck_01, qmul(qslerp(Rc, Rh, 0.35), rest.neck_01.wq))
     addLocal(B.neck_01, layerMoves("neck_01"))
+    settle(B.neck_01)
     setWorldQ(head, qmul(Rh, rest.Head.wq))
     addLocal(head, layerMoves("Head"))
+    settle(head)
 
     // clavicles: follow the chest, shrugging up when that hand goes high
     const right = (pose.hand ?? 1) > 0
@@ -1032,16 +1065,32 @@ export const createAthlete = (look = {}, { shadows = false, withPaddle = true } 
     if (handSide !== paddleSide && withPaddle) {
       placePaddle(handSide)
       setFingers()
+      lastHandQ = null
     }
     const wristTarget = { r: right ? pose.wristP : pose.wristO, l: right ? pose.wristO : pose.wristP }
     const elbowTarget = { r: right ? pose.elbowP : pose.elbowO, l: right ? pose.elbowO : pose.elbowP }
     const shoulderPose = { r: pose.shoulderR, l: pose.shoulderL }
+    // where each elbow points: the pose's own bend (anim.js turns it smoothly, even with the arm
+    // straight), or from the pose's elbow
+    const bends = { r: right ? pose.bendP : pose.bendO, l: right ? pose.bendO : pose.bendP }
+    const bendOf = (sd) => bends[sd] || sub3(elbowTarget[sd], scale3(add3(shoulderPose[sd], wristTarget[sd]), 0.5))
     for (const sd of ["l", "r"]) {
       const c = B["clavicle_" + sd]
-      const lift = Math.max(0, Math.min(1, (wristTarget[sd].y - shoulderPose[sd].y) / 0.55)) * 0.32
+      // (smoothed: the shoulder rises with the hand, never in a jump)
+      const want = Math.max(0, Math.min(1, (wristTarget[sd].y - shoulderPose[sd].y) / 0.55)) * 0.32
+      shrugs[sd] += (want - shrugs[sd]) * Math.min(1, dt * (info.fast ? 24 : 12))
+      const lift = shrugs[sd]
       const shrug = qaxis(pose.chestForward, sd === "r" ? -lift : lift)
       setWorldQ(c, qmul(qmul(shrug, Rc), rest["clavicle_" + sd].wq))
       addLocal(c, layerMoves("clavicle_" + sd))
+      settle(c)
+    }
+    // the other hand: a fist to celebrate, cupped on the paddle's throat in the ready
+    // position, relaxed otherwise
+    if (withPaddle) {
+      const oSd = paddleSide === "r" ? "l" : "r"
+      const near = Math.hypot(pose.wristO.x - pose.wristP.x, pose.wristO.y - pose.wristP.y, pose.wristO.z - pose.wristP.z) < 0.2
+      setHand(oSd, info.fist ? "fist" : info.offGrip && near ? "cup" : "relaxed")
     }
 
     // the paddle arm: the hand goes where the paddle face lands on the pose's face point
@@ -1052,34 +1101,42 @@ export const createAthlete = (look = {}, { shadows = false, withPaddle = true } 
       const axis = norm(pose.paddle.axis)
       let nrm = sub3(pose.paddle.normal, scale3(axis, dot3(pose.paddle.normal, axis)))
       nrm = norm(nrm, FWD)
-      // the palm stays on whichever side of the paddle the forearm finds natural
+      // the grip: the paddle is two-faced, so the hand holds it whichever way keeps the hand
+      // turning smoothly from last frame (a held grip never spins round the handle); the
+      // first time, whichever side the forearm finds natural
       const la = B["lowerarm_" + pSide]
-      const natural = qrot(qmul(worldQ(la), toQ(restLq["hand_" + pSide])), g.palmLocal)
-      side = gripSide(side, dot3(natural, nrm))
-      const n2 = scale3(nrm, side)
-      const paddleQ = frameOf(axis, n2)
-      const handQ = qmul(paddleQ, qinv(g.q))
+      if (!lastHandQ) {
+        const natural = qrot(qmul(worldQ(la), toQ(restLq["hand_" + pSide])), g.palmLocal)
+        side = gripSide(side, dot3(natural, nrm))
+      }
+      const hands = [1, -1].map((sg) => qmul(frameOf(axis, scale3(nrm, sg)), qinv(g.q)))
+      side = steadyGrip(lastHandQ, hands[0], hands[1], side)
+      const handQ = side > 0 ? hands[0] : hands[1]
+      lastHandQ = handQ
       // hand position = face point - (face from grip) - (grip from hand)
       const gripW = qrot(handQ, scale3(g.p, s))
       const target = sub3(sub3(pose.paddle.face, scale3(axis, FACE_FROM_GRIP)), gripW)
-      const pole = sub3(elbowTarget[pSide], scale3(add3(shoulderPose[pSide], wristTarget[pSide]), 0.5))
+      const pole = bendOf(pSide)
       const { la: lower, hand } = solveArm(pSide, target, pole, 1.18)
       // share the hand's roll with the forearm so the wrist doesn't wring
       const lw = worldQ(lower)
       const local = qmul(qinv(lw), handQ)
       const axisL = norm(toV(restLp["hand_" + pSide]))
-      const tw = twistAngle(swingTwist(local, axisL).twist, axisL)
-      setWorldQ(lower, qmul(lw, qaxis(axisL, tw * 0.55)))
+      // (the twist taken continuously from last frame's, never round the long way, and only as
+      // far as a forearm turns)
+      lastTwist = unwrapNear(twistAngle(swingTwist(local, axisL).twist, axisL), lastTwist)
+      if (Math.abs(lastTwist) > 3 * Math.PI) lastTwist -= Math.sign(lastTwist) * 2 * Math.PI // (both clamped: no change)
+      setWorldQ(lower, qmul(lw, qaxis(axisL, Math.max(-1.6, Math.min(1.6, lastTwist * 0.55)))))
       setWorldQ(hand, handQ)
     } else {
-      const pole = sub3(elbowTarget[pSide], scale3(add3(shoulderPose[pSide], wristTarget[pSide]), 0.5))
+      const pole = bendOf(pSide)
       const { la: lower, hand } = solveArm(pSide, wristTarget[pSide], pole, 1.12)
       hand.quaternion.copy(restLq["hand_" + pSide])
       void lower
     }
     // the other arm: its hand where the pose puts it, wrist relaxed
     {
-      const pole = sub3(elbowTarget[oSide], scale3(add3(shoulderPose[oSide], wristTarget[oSide]), 0.5))
+      const pole = bendOf(oSide)
       const { hand } = solveArm(oSide, wristTarget[oSide], pole, 1.12)
       hand.quaternion.copy(restLq["hand_" + oSide])
       hand.updateWorldMatrix(false, false)
@@ -1137,8 +1194,22 @@ export const createAthlete = (look = {}, { shadows = false, withPaddle = true } 
     const balls = ["l", "r"].map((sd) => worldP(B["ball_" + sd]))
     return { face, soles, balls }
   }
+  // (tests) the upper body's bones (world rotations), and where the paddle's handle sits
+  // against the palm (it should never move: the paddle is held, not floating)
+  const UPPER = ["spine_01", "spine_02", "spine_03", "neck_01", "Head", "clavicle_l", "clavicle_r", "upperarm_l", "upperarm_r", "lowerarm_l", "lowerarm_r", "hand_l", "hand_r"]
+  const probeUpper = () => {
+    const quats = Object.fromEntries(UPPER.map((n) => [n, worldQ(B[n])]))
+    let grip = null
+    if (withPaddle) {
+      const g = tpl.grip[paddleSide]
+      const want = toV(B["hand_" + paddleSide].localToWorld(tv.set(g.p.x, g.p.y, g.p.z)))
+      const got = toV(paddleHolder.getWorldPosition(tv))
+      grip = Math.hypot(want.x - got.x, want.y - got.y, want.z - got.z)
+    }
+    return { quats, grip, hand: worldP(B["hand_" + paddleSide]) }
+  }
 
   let vertices = 0
   for (const p of [...parts, ...attach]) vertices += p.geometry.attributes.position.count
-  return { group: root, apply, setShadows, dispose, probe, blobs: [], vertices, skinned: true }
+  return { group: root, apply, setShadows, dispose, probe, probeUpper, blobs: [], vertices, skinned: true }
 }

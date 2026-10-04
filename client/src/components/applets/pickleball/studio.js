@@ -10,7 +10,7 @@ import { createAnim, setMood, splitStep, updateAnim } from "./anim.js"
 
 let lineup = [] // { fig, ball }
 
-export const STATES = ["ready", "split", "run", "shuffle", "walk", "sprint", "backpedal", "stop", "turn", "lunge", "backswing", "drive", "drive-follow", "backhand", "backhand-follow", "dink", "volley", "overhead", "serve", "serve-follow", "celebrate", "celebrate2", "celebrate3", "frustrated", "frustrated2", "frustrated3"]
+export const STATES = ["ready", "split", "run", "shuffle", "walk", "sprint", "backpedal", "stop", "turn", "lunge", "backswing", "drive", "drive-follow", "backhand", "backhand-follow", "dink", "volley", "overhead", "serve", "serve-follow", "celebrate", "celebrate2", "celebrate3", "frustrated", "frustrated2", "frustrated3", "idle", "shuffle-ready", "run-hit", "dink-bh", "volley-bh", "reach-bh", "lob"]
 
 // a moment for a figure at (x, z) facing +z: { T, at(t) -> situation, events, contact }
 const script = (state, x, z) => {
@@ -78,6 +78,37 @@ const script = (state, x, z) => {
       return stroke("serve", C(0.3, 0.52, 0.45))
     case "serve-follow":
       return stroke("serve", C(0.3, 0.52, 0.45), { follow: 0.22 })
+    case "idle":
+      // between points, standing about
+      return { T: 1.4, at: (t) => base(t, { between: true }) }
+    case "shuffle-ready":
+      // a side shuffle with a ball coming (paddle up, square to the net)
+      return { T: 1.0, at: (t) => base(t, { x: x - 1.8 * (1 - t), vx: 1.8, ball: { x: x + 1, y: 1.1, z: z + 4 } }) }
+    case "run-hit": {
+      // a run out to the right, straight into a forehand drive (contact at t = 1.0)
+      const c = C(0.7, 0.8, 0.45)
+      const T0 = 1.0
+      const px = (t) => x + 3.4 * Math.max(0, T0 - 0.08 - t) // (arrives just before contact)
+      return {
+        T: T0 + 1e-4,
+        contact: c,
+        at: (t) => {
+          const v = t < T0 - 0.08 ? -3.4 : 0
+          if (t < T0) return base(t, { x: px(t), vx: v, prep: t > T0 - 0.65 ? { ttc: T0 - t, x: c.x, y: c.y, z: c.z, kind: "drive", hand: "fh", forward: true } : null, ball: { ...c } })
+          return base(t, { x: px(t), swing: { t: t - T0, kind: "drive", hand: "fh", x: c.x, y: c.y, z: c.z }, ball: { ...c } })
+        },
+      }
+    }
+    case "dink-bh":
+      return stroke("dink", C(-0.4, 0.3, 0.5), { atNet: true, hand: "bh" })
+    case "volley-bh":
+      return stroke("block", C(-0.4, 1.05, 0.45), { atNet: true, hand: "bh" })
+    case "reach-bh": {
+      const c = C(-1.3, 0.45, 0.5)
+      return stroke("drive", c, { hand: "bh" })
+    }
+    case "lob":
+      return stroke("lob", C(0.55, 0.6, 0.4))
     case "celebrate":
     case "celebrate2":
     case "celebrate3":
