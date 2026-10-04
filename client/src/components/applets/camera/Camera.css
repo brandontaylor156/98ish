@@ -100,8 +100,9 @@
   min-width: 0;
   max-height: calc(100% - 12px);
   overflow: auto;
-  user-select: text;
   -webkit-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
 }
 
 .camProblem p {

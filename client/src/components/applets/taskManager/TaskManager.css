@@ -365,8 +365,9 @@
 .tm-msg-text {
   padding-top: 2px;
   line-height: 14px;
-  user-select: text;
   -webkit-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
 }
 
 .tm-dialog-buttons {

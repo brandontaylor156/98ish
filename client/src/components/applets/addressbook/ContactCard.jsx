@@ -134,7 +134,7 @@ export const ContactCard = ({ contact, presence, signedOn, actions, mobile, onBa
           </MoreOptions>
         )}
       </div>
-      <dl className="abDetails">
+      <dl className="abDetails" data-selectable>
         {contact.phones.map((p, i) => (
           <React.Fragment key={`p${i}`}>
             <dt>{label(p.label)}</dt>

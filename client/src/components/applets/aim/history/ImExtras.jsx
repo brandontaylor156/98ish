@@ -3,6 +3,7 @@ import { createPortal } from "react-dom"
 import Dialog from "../../../shared/Dialog"
 import { fs, readContent } from "../../../../utils/fs"
 import { REACTIONS, formatDuration, reactionCounts } from "./historyCore"
+import { copyText } from "../../../../utils/systemClipboard"
 import "./history.css"
 
 // The extras of an IM window: pictures and voice messages in the transcript, the full-screen
@@ -15,7 +16,9 @@ const mediaClient = () => import("./mediaClient")
 // ---- reactions ----
 
 // A small 98-style box of the six reactions next to where you pressed. `current`: yours.
-export const ReactionPicker = ({ x, y, current, onPick, onClose }) => {
+// `text`: the message's words. Its Copy button is how you copy a message on a phone, where
+// holding a message opens this box instead of the phone's text selection.
+export const ReactionPicker = ({ x, y, current, onPick, onClose, text }) => {
   const ref = useRef(null)
   const [pos, setPos] = useState({ left: x, top: y })
   useEffect(() => {
@@ -52,6 +55,20 @@ export const ReactionPicker = ({ x, y, current, onPick, onClose }) => {
           <span aria-hidden="true">{r.emoji}</span>
         </button>
       ))}
+      {text && (
+        <button
+          type="button"
+          role="menuitem"
+          className="imReactCopy"
+          title="Copy the message"
+          onClick={() => {
+            copyText(text)
+            onClose()
+          }}
+        >
+          Copy
+        </button>
+      )}
     </div>
   )
 }

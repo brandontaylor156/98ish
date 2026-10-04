@@ -148,9 +148,9 @@ const EventDetails = ({ occ, calendar, zone, mobile, me, focusComments, onEdit, 
         {!memo && <p className="calDetailWhen">{whenLabel(occ, zone)}</p>}
         {event.repeat && <p className="calDetailLine">⟳ {describeRepeat(event.repeat, anchorOf(event).date)}{occ.changed ? " (this one changed)" : ""}</p>}
         {!memo && !event.allDay && event.tz && event.tz !== zone && <p className="calNote">Planned in {event.tz.replace(/_/g, " ")}; shown in your time.</p>}
-        {occ.location && <p className="calDetailLine">📍 {occ.location}</p>}
+        {occ.location && <p className="calDetailLine" data-selectable>📍 {occ.location}</p>}
       </div>
-      {occ.notes && <p className="calDetailNotes">{occ.notes}</p>}
+      {occ.notes && <p className="calDetailNotes" data-selectable>{occ.notes}</p>}
       {occ.checklist?.length > 0 && (
         <ul className="calDetailChecklist">
           {occ.checklist.map((c, i) => (

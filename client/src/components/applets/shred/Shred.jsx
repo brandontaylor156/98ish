@@ -436,7 +436,7 @@ const Shred = ({ onClose, mobile }) => {
       <MenuBar menus={menus} />
       <GameChat game="shred" title="Shred 98" />
       <div className="shStage" ref={stageRef} tabIndex={0} data-phase={phase} data-lefty={prefs.lefty ? "1" : undefined}>
-        <canvas className="shCanvas" ref={canvasRef} aria-label="Shred 98 stage" />
+        <canvas className="shCanvas" ref={canvasRef} data-touch-surface aria-label="Shred 98 stage" />
 
         {phase === "loading" && <div className="shCenter shLoading">Tuning up...</div>}
         {phase === "error" && (

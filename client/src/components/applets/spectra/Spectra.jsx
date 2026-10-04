@@ -201,7 +201,7 @@ const Spectra = () => {
 
   return (
     <div className="spRoot" ref={containerRef} tabIndex={0} data-phase={phase}>
-      <canvas className="spCanvas" ref={canvasRef} />
+      <canvas className="spCanvas" ref={canvasRef} data-touch-surface />
       <GameChat game="spectra" title="SPECTRA" />
 
       {phase === "loading" && <div className="spCenter spLoading">Loading SPECTRA...</div>}

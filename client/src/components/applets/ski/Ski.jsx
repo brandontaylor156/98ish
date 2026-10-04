@@ -415,7 +415,7 @@ const Ski = ({ onClose, mobile }) => {
       <MenuBar menus={menus} />
       <GameChat game="downhill" title="Downhill" />
       <div className="skiStage">
-        <canvas ref={canvasRef} className="skiCanvas" {...pointerProps} onContextMenu={(e) => e.preventDefault()} aria-label="Ski slope" />
+        <canvas ref={canvasRef} className="skiCanvas" data-touch-surface {...pointerProps} onContextMenu={(e) => e.preventDefault()} aria-label="Ski slope" />
         {paused && !over && (
           <div className="skiOverlay" onClick={() => setPause(false)}>
             <div className="skiPanel">

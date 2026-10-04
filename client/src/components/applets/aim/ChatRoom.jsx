@@ -43,6 +43,7 @@ const ChatRoom = ({ room }) => {
       <div className="aimChatMain">
         <div
           className="aimTranscript"
+          data-selectable="mouse"
           ref={transcript.ref}
           onScroll={() => {
             transcript.onScroll()
@@ -88,7 +89,7 @@ const ChatRoom = ({ room }) => {
         </button>
       </aside>
 
-      {picker && <ReactionPicker x={picker.x} y={picker.y} current={picker.message.r?.[meKey]} onPick={(emoji) => aim.react(ck, picker.message, emoji)} onClose={() => setPicker(null)} />}
+      {picker && <ReactionPicker x={picker.x} y={picker.y} current={picker.message.r?.[meKey]} text={picker.message.text} onPick={(emoji) => aim.react(ck, picker.message, emoji)} onClose={() => setPicker(null)} />}
 
       {dialog?.kind === "invite" && (
         <Dialog title="Buddy Chat Invitation" okLabel="Send" okDisabled={!dialog.to.trim()} onOk={invite} onCancel={() => setDialog(null)}>

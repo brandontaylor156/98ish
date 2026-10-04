@@ -73,7 +73,9 @@
   line-height: 1.35;
   color: #cfe6dc;
   touch-action: pan-y;
+  -webkit-user-select: text;
   user-select: text;
+  -webkit-touch-callout: default;
 }
 .mdLogList .is-turn {
   margin-top: 4px;

@@ -71,6 +71,7 @@ export const topics = [
       { h: "Reactions" },
       { phone: "Press and hold a message, then tap one of the six reactions: ❤️ 😂 😮 😢 👍 ‼️.", computer: "Right-click a message, then click one of the six reactions: ❤️ 😂 😮 😢 👍 ‼️." },
       "Reactions show under the message with how many people chose each one. Pick the same one again (or tap it under the message) to take yours back. Works in Buddy Chat rooms too.",
+      "The same box has **Copy**, which puts the message's words on your clipboard (on a phone, holding a message opens this box instead of selecting text).",
       { h: "Read and Delivered" },
       "Under your last message, **Read 10:42 PM** means your buddy had the conversation open in front of them at that time. **Delivered** means a message that waited for them (they were signed off) reached them when they signed on.",
       "Don't want to send read receipts? Buddy List > My AIM > **Preferences...** > clear **Read receipts**. Then you don't see theirs either.",

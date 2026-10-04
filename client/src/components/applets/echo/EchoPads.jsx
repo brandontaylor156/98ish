@@ -54,7 +54,7 @@ const Symbol = ({ kind, x, y }) => {
 }
 
 const Pads = ({ lit, onPress, onRelease, enabled, symbols, center }) => (
-  <svg viewBox="0 0 200 200" className={`epPads${enabled ? " is-on" : ""}`} role="group" aria-label="Echo pads">
+  <svg viewBox="0 0 200 200" data-touch-surface className={`epPads${enabled ? " is-on" : ""}`} role="group" aria-label="Echo pads">
     <circle cx="100" cy="100" r="99" fill="#202020" />
     {R.PADS.map((p, i) => (
       <path

@@ -226,7 +226,9 @@
 .mdRulesText {
   columns: 290px;
   column-gap: 10px;
+  -webkit-user-select: text;
   user-select: text;
+  -webkit-touch-callout: default;
 }
 .mdRulesText section {
   break-inside: avoid;

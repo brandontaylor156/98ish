@@ -369,7 +369,22 @@
   width: min(240px, 72%);
 }
 
-.os-mobile .imReactPicker button {
+/* Copy, after the reactions */
+.imReactPicker button.imReactCopy {
+  width: auto;
+  padding: 0 8px !important;
+  margin-left: 2px;
+  font-family: inherit;
+  font-size: 11px;
+}
+
+.os-mobile .imReactPicker button.imReactCopy {
+  width: auto;
+  height: 42px;
+  font-size: 13px;
+}
+
+.os-mobile .imReactPicker button:not(.imReactCopy) {
   width: 44px;
   height: 42px;
   font-size: 22px;

@@ -1201,8 +1201,9 @@
   padding: 4px 6px;
   font-size: 11px;
   line-height: 1.35;
-  user-select: text;
   -webkit-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
 }
 .hxLogLine {
   display: flex;

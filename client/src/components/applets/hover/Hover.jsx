@@ -168,7 +168,7 @@ const Hover = () => {
 
   return (
     <div className="hv-body" ref={bodyRef}>
-      <canvas className="hv-canvas" ref={canvasRef} role="img" aria-label="Neon spirograph that bursts outward when you hover over it" />
+      <canvas className="hv-canvas" ref={canvasRef} data-touch-surface role="img" aria-label="Neon spirograph that bursts outward when you hover over it" />
       <p className="hv-label" aria-hidden="true">Hover here</p>
     </div>
   )
