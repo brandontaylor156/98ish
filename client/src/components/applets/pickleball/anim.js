@@ -4,9 +4,10 @@
 // draws. Node tests check that feet stay planted, legs and arms keep their lengths, and the
 // paddle meets the ball.
 //
-// - Feet: a stepping gait. Each foot stays exactly where it was put down until the body
-//   has moved far enough that it needs a new spot; then it lifts, swings to where it will
-//   be needed and lands. Running, side shuffles and turning all come out of that one rule.
+// - Feet: locomotion.js (a blend space of walk / run / sprint / shuffle / backpedal, a step
+//   clock calibrated so stride x cadence = speed, feet locked to the court in stance, swing
+//   paths from motion capture), and which way to face (turn and run, or shuffle facing the
+//   net). Planted feet never move.
 // - Legs and arms: two-bone inverse kinematics (hip-knee-ankle, shoulder-elbow-wrist).
 // - The pelvis drops when the feet are wide (a lunge) so legs always reach the court.
 // - Strokes: the paddle hand follows a backswing, the forward swing to the actual contact
@@ -14,6 +15,8 @@
 //   dink, drop, lob, volley, smash, the underhand serve).
 // - Moods: the ready stance (knees bent, weight shifting), the split step when the other
 //   side hits, and celebrating or sulking after a point.
+
+import { createGait, updateGait, facingFor, turnToward, hopGait } from "./locomotion.js"
 
 // ---- the skeleton (meters) ----
 export const BODY = {
@@ -127,86 +130,10 @@ const springN = (s, target, k, dt) => {
   return s.p
 }
 
-// ---- the gait: feet that stay put ----
+// ---- the gait: feet that stay put (locomotion.js) ----
 
 const STANCE = { idle: 0.15, ready: 0.21, wide: 0.27, run: 0.11 }
-
-const newFoot = (x, z, yaw) => ({ x, z, y: 0, yaw, step: null, last: 0 })
-
-export const createGait = (x, z, yaw) => {
-  const fr = frame(yaw)
-  return {
-    feet: [-1, 1].map((s) => newFoot(x + fr.r.x * s * STANCE.ready, z + fr.r.z * s * STANCE.ready, yaw)),
-    steps: 0,
-    phase: 0, // running phase for arm pump, 0..2pi per two steps
-    lastFoot: 1,
-  }
-}
-
-// One frame of feet. body: { x, z, vx, vz, yaw, stance (half width), reach: { foot, x, z } | null }
-// Feet that are planted never move; a stepping foot travels to a spot ahead of where the
-// body is going and lands there.
-export const updateGait = (g, body, dt) => {
-  const fr = frame(body.yaw)
-  const speed = Math.hypot(body.vx, body.vz)
-  const lead = clamp(0.2 - speed * 0.012, 0.13, 0.2)
-  const desired = [-1, 1].map((s, i) => {
-    let d = body.reach && body.reach.foot === i ? V(body.reach.x, 0, body.reach.z) : V(body.x + fr.r.x * s * body.stance + body.vx * lead, 0, body.z + fr.r.z * s * body.stance + body.vz * lead)
-    // never cross the feet: the left foot lands left of the right one (and vice versa)
-    const o = g.feet[1 - i]
-    const lat = (d.x - body.x) * fr.r.x + (d.z - body.z) * fr.r.z
-    const latO = (o.x - body.x) * fr.r.x + (o.z - body.z) * fr.r.z
-    const lim = i === 0 ? Math.min(lat, latO - 0.13) : Math.max(lat, latO + 0.13)
-    if (lim !== lat) d = V(d.x + fr.r.x * (lim - lat), 0, d.z + fr.r.z * (lim - lat))
-    return d
-  })
-  const hipFor = (i) => V(body.x + fr.r.x * (i ? 1 : -1) * BODY.hipHalf, 0, body.z + fr.r.z * (i ? 1 : -1) * BODY.hipHalf)
-  const maxReach = Math.sqrt(Math.max(0, (LEG * 0.97) ** 2 - (body.minHip ?? 0.62) ** 2)) // how far a foot can trail
-  // stepping feet: swing toward the (moving) target and land
-  for (let i = 0; i < 2; i++) {
-    const f = g.feet[i]
-    const s = f.step
-    if (!s) continue
-    s.t += dt / s.dur
-    const want = desired[i]
-    const u = smooth(s.t)
-    f.x = lerp(s.fx, want.x, u)
-    f.z = lerp(s.fz, want.z, u)
-    f.y = Math.sin(Math.PI * clamp(s.t, 0, 1)) * s.h
-    f.yaw = s.fyaw + wrap(body.yaw + (i ? -0.12 : 0.12) - s.fyaw) * u
-    if (s.t >= 1) {
-      f.x = want.x
-      f.z = want.z
-      f.y = 0
-      f.step = null
-      g.steps++
-      g.lastFoot = i
-    }
-  }
-  // which foot should step next?
-  const err = desired.map((d, i) => Math.hypot(g.feet[i].x - d.x, g.feet[i].z - d.z))
-  const turning = g.feet.map((f) => Math.abs(wrap(f.yaw - body.yaw)))
-  const threshold = speed > 0.35 ? 0.07 : 0.15
-  const stepping = g.feet.map((f) => !!f.step)
-  for (const i of [1 - g.lastFoot, g.lastFoot]) {
-    if (stepping[i]) continue
-    const other = g.feet[1 - i]
-    // a trailing foot that's about to be out of reach must go now (a running stride)
-    const hip = hipFor(i)
-    const tooFar = Math.hypot(g.feet[i].x - hip.x, g.feet[i].z - hip.z) > maxReach
-    const otherBusy = other.step && other.step.t < (speed > 2.2 ? 0.45 : 0.85)
-    if (otherBusy && !tooFar) continue
-    if (err[i] > threshold || turning[i] > 0.6 || tooFar) {
-      const dur = clamp(0.34 - speed * 0.045, 0.15, 0.34)
-      g.feet[i].step = { fx: g.feet[i].x, fz: g.feet[i].z, fyaw: g.feet[i].yaw, t: 0, dur, h: 0.05 + Math.min(0.11, speed * 0.028) }
-      stepping[i] = true
-      break
-    }
-  }
-  // the running phase: a full cycle every two steps
-  g.phase += dt * (speed > 0.3 ? Math.PI / clamp(0.34 - speed * 0.045, 0.15, 0.34) : 0)
-  return g
-}
+export { createGait, updateGait }
 
 // ---- strokes ----
 // Paddle-hand keyframes in the body frame (x right, y up, z forward), for a right-hander's
@@ -247,6 +174,9 @@ const RELAXED = { hand: V(0.27, 0.86, 0.06), axis: norm(V(0.05, -0.95, 0.2)), of
 
 export const createAnim = (x, z, yaw) => ({
   yaw,
+  turn: { yaw, w: 0 }, // the body's turn (a spring with a top speed)
+  face: {}, // facing decisions (turned to run or not)
+  vel: null, // the body's smoothed velocity and acceleration
   gait: createGait(x, z, yaw),
   hand: {},
   axis: {},
@@ -260,6 +190,7 @@ export const createAnim = (x, z, yaw) => ({
   head: {},
   pelvisY: undefined,
   hop: 0, // split step timer (s left)
+  hopNow: false,
   mood: null, // { kind, t, variant }
   swingId: null,
   t: 0,
@@ -268,10 +199,41 @@ export const createAnim = (x, z, yaw) => ({
 // After a hit by the other side: a little hop to get on the toes (the split step)
 export const splitStep = (a) => {
   a.hop = 0.32
+  a.hopNow = true
 }
 // After a point: winners celebrate, losers don't
 export const setMood = (a, kind, variant = 0) => {
   a.mood = { kind, t: 0, variant }
+}
+
+// The body's velocity and acceleration: the match's velocity, steadied with how the position
+// actually moved (an online player's updates arrive in jumps), smoothed over a few frames
+const motion = (a, s, dt) => {
+  if (!a.vel || dt <= 0) {
+    a.vel = { x: s.vx, z: s.vz, ax: 0, az: 0, px: s.x, pz: s.z }
+    return a.vel
+  }
+  const v = a.vel
+  let mx = s.vx
+  let mz = s.vz
+  const dx = s.x - v.px
+  const dz = s.z - v.pz
+  if (Math.hypot(dx, dz) < 0.5) {
+    // (a jump of half a meter is a new point's placement, not movement)
+    mx = 0.5 * s.vx + 0.5 * clamp(dx / dt, -9, 9)
+    mz = 0.5 * s.vz + 0.5 * clamp(dz / dt, -9, 9)
+  }
+  const k = 1 - Math.exp(-dt * 16)
+  const nx = v.x + (mx - v.x) * k
+  const nz = v.z + (mz - v.z) * k
+  const ka = 1 - Math.exp(-dt * 8)
+  v.ax += (clamp((nx - v.x) / dt, -30, 30) - v.ax) * ka
+  v.az += (clamp((nz - v.z) / dt, -30, 30) - v.az) * ka
+  v.x = nx
+  v.z = nz
+  v.px = s.x
+  v.pz = s.z
+  return v
 }
 
 // One frame. s (the player's situation):
@@ -281,42 +243,46 @@ export const setMood = (a, kind, variant = 0) => {
 //   prep: { ttc, x, y, z, kind, forward } a coming contact (backswing, then the forward swing)
 //   charging: holding a shot button (backswing held)
 //   between: between points (walking, relaxed); atNet: at the kitchen line
+//   goal: { x, z } where the player is heading, if known (turn and run for long moves)
 // Returns the pose: world positions of every joint and the paddle's frame.
 export const updateAnim = (a, s, dt) => {
   a.t += dt
-  const speed = Math.hypot(s.vx, s.vz)
+  const mv = motion(a, s, dt)
+  const speed = Math.hypot(mv.x, mv.z)
   const swing = s.swing && !s.swing.whiff && s.swing.t < 0.75 ? s.swing : null
   const whiff = s.swing?.whiff && s.swing.t < 0.5 ? s.swing : null
   if (a.mood) a.mood.t += dt
   if (a.mood && (a.mood.t > 2.6 || (!s.between && a.mood.t > 0.6))) a.mood = null
   if (a.hop > 0) a.hop -= dt
 
-  // which way to face: the net, turning toward the ball; running hard, toward the run
-  let yaw = s.facing
-  const toBall = Math.atan2(s.ball.x - s.x, s.ball.z - s.z)
-  let rel = wrap(toBall - s.facing)
-  yaw = s.facing + clamp(rel, -0.9, 0.9) * (s.between ? 0.2 : 0.45)
-  if (speed > 1.6) {
-    const runYaw = Math.atan2(s.vx, s.vz)
-    const back = Math.abs(wrap(runYaw - s.facing)) > 2.0 // backpedaling: keep facing the net
-    if (!back) {
-      const w = clamp((speed - 1.6) / 2, 0, 1) * (s.between ? 1 : 0.55)
-      yaw = yaw + wrap(runYaw - yaw) * w
-    }
-  }
+  // which way to face: square to the net and the ball while shuffling and backpedaling; turned
+  // to run for a long, fast move (or walking between points); squared up again when a ball is
+  // coming. The body turns with a top speed, never in a snap.
+  const fc = facingFor(a.face, { vx: mv.x, vz: mv.z, facing: s.facing, ball: s.ball, between: s.between, incoming: !!(swing || s.prep || s.holding || s.charging), goal: s.goal || null, x: s.x, z: s.z }, dt)
+  let yaw = fc.yaw
   if (swing || s.prep) {
     // open up toward the contact
     const c = swing || s.prep
     const cy = Math.atan2(c.x - s.x, c.z - s.z)
     yaw = yaw + clamp(wrap(cy - yaw), -0.6, 0.6) * 0.35
   }
-  a.yaw = a.yaw + wrap(yaw - a.yaw) * (1 - Math.exp(-dt * (speed > 2 ? 9 : 6)))
+  if (a.turn.yaw === undefined) a.turn.yaw = a.yaw
+  a.yaw = turnToward(a.turn, yaw, dt, { maxRate: fc.mode === "face" ? (speed > 1.5 ? 8 : 6) : 10, k: speed > 1.5 || swing ? 16 : 11 })
   const fr = frame(a.yaw)
   const ground = V(s.x, 0, s.z)
+  // the acceleration in the body's frame (lean into it)
+  const accF = mv.ax * fr.f.x + mv.az * fr.f.z
+  const accR = mv.ax * fr.r.x + mv.az * fr.r.z
+  const bl = a.gait.blend?.weights || { walk: 0, run: 0, sprint: 0, shuffleL: 0, shuffleR: 0, back: 0 }
+  const lateral = bl.shuffleL + bl.shuffleR + bl.back
 
   // ---- crouch, stance and the lunge ----
   let crouch = s.between ? 0.03 : s.atNet ? 0.12 : 0.09 // knees bent, ready
-  let stance = s.between ? STANCE.idle : speed > 2 ? STANCE.run : STANCE.ready
+  // shuffles and backpedals stay low; a run lifts a little; a hard stop sinks into it
+  if (!s.between) crouch += lateral * 0.04 - (bl.run + bl.sprint) * 0.02
+  const braking = speed > 0.6 ? clamp(-(mv.ax * mv.x + mv.az * mv.z) / speed / 9, 0, 1) : 0
+  crouch += braking * 0.06
+  let stance = s.between ? STANCE.idle : STANCE.ready
   let reach = null
   const c = swing || s.prep
   let lungeLean = 0
@@ -340,11 +306,15 @@ export const updateAnim = (a, s, dt) => {
   }
   if (s.holding) crouch = 0.04
   if (s.charging) crouch += 0.03
-  // split step: up on the toes, then landing lower
+  // split step: up on the toes, then landing lower (the feet hop too when they're still)
   let hopY = 0
+  if (a.hopNow) {
+    a.hopNow = false
+    hopGait(a.gait)
+  }
   if (a.hop > 0) {
     const u = 1 - a.hop / 0.32
-    hopY = u < 0.45 ? Math.sin((u / 0.45) * Math.PI) * 0.06 : -Math.sin(((u - 0.45) / 0.55) * Math.PI) * 0.05
+    hopY = u < 0.45 ? Math.sin((u / 0.45) * Math.PI) * 0.05 : -Math.sin(((u - 0.45) / 0.55) * Math.PI) * 0.045
     stance = STANCE.wide
   }
   // moods
@@ -352,12 +322,13 @@ export const updateAnim = (a, s, dt) => {
   if (mood?.kind === "sulk" && mood.variant === 1) crouch = 0.2 // hands on knees
   if (mood?.kind === "cheer" && mood.variant === 2) hopY += Math.max(0, Math.sin(mood.t * 9)) * 0.08 * (mood.t < 0.8 ? 1 : 0)
 
-  // weight shift in the ready stance
-  const sway = s.between || speed > 0.5 ? 0 : Math.sin(a.t * 1.6) * 0.025
-  const bob = s.between ? 0 : speed < 0.4 ? Math.abs(Math.sin(a.t * 4.2)) * 0.012 : 0
+  // standing still: weight shifts slowly from foot to foot; ready at the net, a light bounce
+  const still = 1 - clamp(speed / 0.5, 0, 1)
+  const sway = s.between ? Math.sin(a.t * 0.9) * 0.012 * still : Math.sin(a.t * 1.6) * 0.022 * still
+  const bob = s.between ? 0 : (0.5 - 0.5 * Math.cos(a.t * 2 * Math.PI * 1.3)) * 0.008 * still
   const crouchS = springN(a.crouch, crouch, 10, dt)
 
-  updateGait(a.gait, { x: s.x + fr.r.x * sway, z: s.z + fr.r.z * sway, vx: s.vx, vz: s.vz, yaw: a.yaw, stance, reach, minHip: 0.93 - crouchS - 0.1 }, dt)
+  updateGait(a.gait, { x: s.x, z: s.z, vx: mv.x, vz: mv.z, yaw: a.yaw, stance, reach, minHip: 0.93 - crouchS - 0.1, crossover: fc.mode !== "face" }, dt)
   const feet = a.gait.feet
 
   // ---- the paddle hand, the other hand, the torso twist ----
@@ -367,7 +338,10 @@ export const updateAnim = (a, s, dt) => {
   let offT = READY.off
   let normalT = null
   let twistT = 0
-  let leanT = (s.between ? 0.04 : 0.2) + Math.min(0.18, speed * 0.04) // forward, from the hips
+  // forward from the hips: more into a run, and into the acceleration (back on a hard stop)
+  const running = bl.run + bl.sprint + bl.walk * 0.3
+  let leanT = (s.between ? 0.04 : 0.2) + Math.min(0.16, speed * 0.04) * running + clamp(accF * 0.018, -0.14, 0.14)
+  let rollT = clamp(accR * 0.016, -0.12, 0.12) * (1 - running * 0.5)
   let k = 22
   let lookAt = s.ball
   if (s.atNet && !s.between) handT = V(0.16, 1.15, 0.42)
@@ -376,14 +350,19 @@ export const updateAnim = (a, s, dt) => {
     axisT = RELAXED.axis
     offT = RELAXED.off
   }
-  // arms pump when running
-  if (speed > 1.2 && !swing && !s.prep && !s.holding) {
-    const ph = a.gait.phase
-    const amp = Math.min(1, (speed - 1.2) / 2)
-    offT = V(-0.22, 0.98 + Math.sin(ph) * 0.06 * amp, 0.12 + Math.sin(ph) * 0.22 * amp)
-    handT = V(0.24, 0.98 - Math.sin(ph) * 0.05 * amp, 0.25 - Math.sin(ph) * 0.15 * amp)
-    axisT = norm(V(0.2, 0.6, 0.6))
-    twistT = Math.sin(ph) * 0.18 * amp
+  // arms swing against the legs when walking or running (the right arm forward as the left
+  // foot lands: the step clock's 0); in a shuffle or backpedal the paddle stays up, ready
+  const ph = a.gait.phase
+  const pump = (bl.run + bl.sprint) * clamp((speed - 1.0) / 2, 0, 1) + bl.walk * 0.45 * clamp(speed / 1.2, 0, 1)
+  if (pump > 0.02 && !swing && !s.prep && !s.holding && !mood) {
+    const cph = Math.cos(ph)
+    const amp = pump
+    // (elbows bent, hands swinging past the hips: the off hand more, the paddle hand a bit less)
+    const base = s.between ? RELAXED : { hand: V(0.23, 0.94, 0.14), off: V(-0.21, 0.95, 0.04), axis: norm(V(0.2, 0.6, 0.6)) }
+    offT = lerpV(offT, V(base.off.x, base.off.y + Math.max(0, -cph) * 0.12 * amp, base.off.z - cph * 0.32 * amp), clamp(amp * 1.5, 0, 1))
+    handT = lerpV(handT, V(base.hand.x, base.hand.y + Math.max(0, cph) * 0.08 * amp, base.hand.z + cph * 0.22 * amp), clamp(amp * 1.5, 0, 1))
+    axisT = norm(lerpV(axisT, base.axis, clamp(amp * 1.5, 0, 1)))
+    twistT = cph * 0.16 * amp
   }
 
   if (s.holding) {
@@ -501,8 +480,8 @@ export const updateAnim = (a, s, dt) => {
   }
 
   // ---- the pelvis: as high as the stance wants, low enough that both legs reach ----
-  const runBob = speed > 0.6 ? Math.abs(Math.cos(a.gait.phase)) * Math.min(0.04, speed * 0.01) : 0
-  let py = 0.935 - crouchS + bob - runBob + hopY
+  // (the steps' own rise and fall, from the gait)
+  let py = 0.935 - crouchS + bob + a.gait.bob + hopY
   // reaching: if the paddle hand can't get to where the stroke wants it, the whole upper
   // body goes toward it (a step in, a bend at the knees), as far as the legs allow
   const want = toWorld(ground, fr, handT)
@@ -516,9 +495,10 @@ export const updateAnim = (a, s, dt) => {
     const d = norm(gap)
     shiftT = V(clamp(d.x * over, -0.32, 0.32), clamp(d.y * over, -0.3, 0), clamp(d.z * over, -0.32, 0.32))
   }
-  const shift = springV(a.shift, shiftT, k >= 200 ? 200 : 16, dt)
+  const shift = springV(a.shift, shiftT, k >= 200 ? 24 : 12, dt)
   py += shift.y
-  const pelvisXZ = V(s.x + fr.r.x * sway * 1.2 + shift.x, 0, s.z + fr.r.z * sway * 1.2 + shift.z)
+  const side = sway * 1.2 + a.gait.sway
+  const pelvisXZ = V(s.x + fr.r.x * side + shift.x, 0, s.z + fr.r.z * side + shift.z)
   // ...but never so far that a planted foot comes off the court
   for (let pass = 0; pass < 2; pass++) {
     for (let i = 0; i < 2; i++) {
@@ -552,10 +532,13 @@ export const updateAnim = (a, s, dt) => {
   // ---- springs: smooth everything that isn't a hard swing ----
   const twist = springN(a.twist, twistT, swing && swing.t < 0.32 ? 30 : 12, dt)
   const lean = springN(a.lean, leanT + Math.abs(lungeLean) * 0.4, 8, dt)
-  const roll = springN(a.roll, lungeLean, 8, dt)
+  const roll = springN(a.roll, lungeLean + rollT, 8, dt)
 
   // ---- the spine ----
-  const pfr = frame(a.yaw + twist * 0.35) // the hips turn a little with the shoulders
+  // the hips turn a little with the shoulders, and swivel with the stride (the leg going
+  // forward takes its hip with it)
+  const swivel = -Math.cos(ph) * 0.12 * pump
+  const pfr = frame(a.yaw + twist * 0.35 + swivel)
   const cfr = frame(a.yaw + twist) // the shoulders turn all the way
   const spineDir = norm(add(add(mul(UP, Math.cos(lean)), mul(fr.f, Math.sin(lean))), mul(fr.r, Math.sin(roll))))
   const neck = add(pelvis, mul(spineDir, BODY.spine))
@@ -645,7 +628,7 @@ export const updateAnim = (a, s, dt) => {
     paddle: { grip: armP.end, axis: axisW, normal: normalW, face: add(armP.end, mul(axisW, BODY.paddleReach)) },
     hand,
     // for the skinned athletes' motion-capture layers (athlete.js)
-    info: { speed, phase: a.gait.phase, swinging: !!(swing || s.prep || whiff), between: !!s.between, mood: mood ? { kind: mood.kind, variant: mood.variant } : null },
+    info: { speed, phase: a.gait.phase, cycle: a.gait.cycle, moving: a.gait.moving, blend: a.gait.blend.weights, timeScale: a.gait.blend.timeScale, facing: a.face.mode || "face", swinging: !!(swing || s.prep || whiff), between: !!s.between, mood: mood ? { kind: mood.kind, variant: mood.variant } : null },
   }
 }
 
@@ -691,6 +674,8 @@ export const situation = (m, p) => {
     charging: !!p.charge,
     between,
     atNet: Math.abs(p.z) < 3.4,
+    // where they're heading (a computer player's spot, or the stand-in's intercept)
+    goal: p.target && (between || p.ctrl === "cpu") ? { x: p.target.x, z: p.target.z } : p.intercept?.stand && !p.intercept.letGo ? { x: p.intercept.stand.x, z: p.intercept.stand.z } : null,
   }
 }
 

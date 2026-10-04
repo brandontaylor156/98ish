@@ -24,15 +24,17 @@ test("gait: walking moves the feet in steps; planted feet never slide", () => {
   const g = createGait(0, 0, 0)
   let x = 0
   const dt = 1 / 60
-  let prev = g.feet.map((f) => ({ ...f, step: !!f.step }))
+  // (a planted foot's spot: where it was put down; the heel may peel up round the ball of the
+  // foot, which stays put too: locomotion.test.js checks that)
+  let prev = g.feet.map((f) => ({ x: f.bx, z: f.bz, step: !!f.step }))
   let slid = 0
   for (let i = 0; i < 240; i++) {
     x += 2.5 * dt
     updateGait(g, { x, z: 0, vx: 2.5, vz: 0, yaw: Math.PI / 2, stance: 0.12, reach: null }, dt)
     g.feet.forEach((f, k) => {
-      if (!f.step && !prev[k].step) slid = Math.max(slid, Math.hypot(f.x - prev[k].x, f.z - prev[k].z))
+      if (!f.step && !prev[k].step) slid = Math.max(slid, Math.hypot(f.bx - prev[k].x, f.bz - prev[k].z))
     })
-    prev = g.feet.map((f) => ({ ...f, step: !!f.step }))
+    prev = g.feet.map((f) => ({ x: f.bx, z: f.bz, step: !!f.step }))
   }
   assert.equal(slid, 0, "planted feet stayed put")
   assert.ok(g.steps >= 12, `took steps: ${g.steps}`)
@@ -91,7 +93,7 @@ test("a whole match animates: feet on the court, no sliding, bones keep their le
         const ankle = k ? pose.ankleR : pose.ankleL
         assert.ok((k ? pose.footR : pose.footL).y >= -1e-9, "foot not under the court")
         if (f.step) return
-        const gap = Math.hypot(ankle.x - f.x, ankle.y - BODY.ankle, ankle.z - f.z)
+        const gap = Math.hypot(ankle.x - f.x, ankle.y - BODY.ankle - f.y, ankle.z - f.z)
         worstFloat = Math.max(worstFloat, gap)
       })
       // planted feet: no sliding between frames
@@ -99,10 +101,10 @@ test("a whole match animates: feet on the court, no sliding, bones keep their le
       if (prev[i]) {
         g.feet.forEach((f, k) => {
           const was = prev[i][k]
-          if (!f.step && !was.step) worstSlide = Math.max(worstSlide, Math.hypot(f.x - was.x, f.z - was.z))
+          if (!f.step && !was.step) worstSlide = Math.max(worstSlide, Math.hypot(f.bx - was.x, f.bz - was.z))
         })
       }
-      prev[i] = g.feet.map((f) => ({ x: f.x, z: f.z, step: !!f.step }))
+      prev[i] = g.feet.map((f) => ({ x: f.bx, z: f.bz, step: !!f.step }))
       // the paddle meets the ball at contact
       if (p.swing && !p.swing.whiff && p.swing.t > 0 && p.swing.t < 1 / 60 + 1e-9) {
         const d = Math.hypot(pose.paddle.face.x - p.swing.x, pose.paddle.face.y - p.swing.y, pose.paddle.face.z - p.swing.z)

@@ -120,3 +120,41 @@ test("a private room: the relay carries snapshots, inputs and hits; the host rep
   assert.deepEqual(over.result.winnerNames, ["Bob"])
   assert.deepEqual(over.result.scores, [7, 11])
 })
+
+test("looks over the relay: only known ids, #rrggbb colors and a height in range get through", () => {
+  const { rooms, inbox } = setup()
+  const made = rooms.create(me("a"), "pickleball", { format: "doubles", venue: "beach" })
+  rooms.join(me("b"), { code: made.code })
+  rooms.ready("b", made.roomId, true)
+  assert.ok(rooms.start("a", made.roomId).ok)
+  const look = { v: 2, body: "f", skin: "#D39A6A", hair: "long", hairColor: "#2b1b0e", height: 1.4, build: "strong", theme: "beach", style: "onepiece", shirtStyle: "onepiece", bottom: "swim", shirt: "#18a3b5", trim: "red", hat: "<img src=x>", glasses: "sport", wristbands: "yes", gloves: false, paddleDesign: "flame", extra: "x".repeat(50), __proto__x: 1 }
+  assert.ok(rooms.relay("b", made.roomId, { type: "hello", character: "maya", outfit: "home", look }).ok)
+  const got = inbox.a.at(-1).payload.data
+  assert.equal(got.type, "hello")
+  assert.equal(got.character, "maya")
+  assert.equal(got.look.skin, "#d39a6a")
+  assert.equal(got.look.height, 1.06) // clamped
+  assert.equal(got.look.theme, "beach")
+  assert.equal(got.look.style, "onepiece")
+  assert.equal(got.look.shirtStyle, "onepiece")
+  assert.equal(got.look.paddleDesign, "flame")
+  assert.equal(got.look.trim, undefined) // not a color
+  assert.equal(got.look.hat, undefined) // not a hat
+  assert.equal(got.look.wristbands, undefined) // not a boolean
+  assert.equal(got.look.extra, undefined)
+  // a junk character id and a look that isn't one
+  assert.ok(rooms.relay("b", made.roomId, { type: "hello", character: "../../x", look: "pink" }).ok)
+  assert.equal(inbox.a.at(-1).payload.data.character, null)
+  assert.equal(inbox.a.at(-1).payload.data.look, null)
+  // the host's line-up: each person's look checked the same way
+  assert.ok(rooms.relay("a", made.roomId, { type: "start", seed: 5, settings: { doubles: true }, people: [{ seat: 0, name: "Al", character: "dex", look: { shirt: "#ABCDEF", hat: "beanie", gloves: true } }, { seat: 1, name: "Bo", look: { shirt: "javascript:" } }] }).ok)
+  const start = inbox.b.at(-1).payload.data
+  assert.equal(start.seed, 5)
+  assert.deepEqual(start.people[0].look, { v: 2, shirt: "#abcdef", hat: "beanie", gloves: true })
+  assert.deepEqual(start.people[1].look, { v: 2 })
+  // not a message at all
+  assert.equal(rooms.relay("b", made.roomId, ["hello"]).ok, false)
+  // hits pass as they are
+  assert.ok(rooms.relay("b", made.roomId, { type: "hit", s: { t: 2 } }).ok)
+  assert.deepEqual(inbox.a.at(-1).payload.data, { type: "hit", s: { t: 2 } })
+})

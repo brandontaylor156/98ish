@@ -39,7 +39,7 @@ export const recordResult = (state, index, won, score = [0, 0]) => {
 // what the tour has opened up (every venue is always open)
 export const unlocks = (state) => {
   const s = tourState(state)
-  const venues = ["park", "club", "stadium"]
+  const venues = ["park", "club", "stadium", "beach", "winter"]
   const outfits = ["home", "away"]
   for (let i = 0; i < s.stage; i++) {
     const r = TOUR[i].reward

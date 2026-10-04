@@ -548,6 +548,152 @@
   border: 1px solid #404040;
 }
 
+/* ---------- the Locker Room ---------- */
+
+/* (the whole stage turns the player when dragged; the panel sits over it) */
+.pkLockerTurn {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  cursor: grab;
+  touch-action: none;
+}
+
+.pkLocker .pkPanel2 {
+  width: min(380px, calc(100% - 16px));
+}
+
+.pkLockerBody {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pkLockerBody > * {
+  flex-shrink: 0;
+}
+
+.pkLockerTop {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 8px;
+}
+
+.pkLockerView {
+  display: flex;
+  gap: 2px;
+  align-items: center;
+}
+
+.pkLockerView button {
+  min-width: 26px !important;
+  padding: 0 4px !important;
+}
+
+.pkLockerField > span:first-child {
+  width: 82px;
+}
+
+.pkLockerField select,
+.pkLockerField input[type="range"] {
+  flex: 1 1 140px;
+  min-width: 0;
+}
+
+.pkLockerTabs {
+  margin: 4px 0 0;
+}
+
+.pkLockerSheet.window {
+  height: auto;
+  min-width: 0;
+}
+
+.pkLockerSheet .window-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 6px;
+}
+
+.pkSwatches {
+  margin: 0;
+  padding: 2px 6px 5px;
+  min-width: 0;
+}
+
+.pkSwatches legend,
+.pkLockerOptions legend {
+  font-size: 11px;
+  font-weight: bold;
+}
+
+.pkSwatchRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  align-items: center;
+}
+
+.pkSwatchBtn {
+  width: 18px;
+  height: 18px;
+  min-width: 18px !important;
+  min-height: 18px;
+  padding: 0 !important;
+  background: var(--c) !important;
+  box-shadow: inset -1px -1px #0a0a0a, inset 1px 1px #fff, inset -2px -2px #808080 !important;
+}
+
+.pkSwatchBtn.is-on {
+  outline: 2px solid #000080;
+  outline-offset: 1px;
+  box-shadow: inset 1px 1px #0a0a0a, inset -1px -1px #fff !important;
+}
+
+.pkSwatchOther {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: 4px;
+  font-size: 11px;
+}
+
+.pkSwatchOther input[type="color"] {
+  width: 22px;
+  height: 18px;
+  padding: 0;
+  border: 1px solid #404040;
+  background: none;
+}
+
+.pkLockerOptions {
+  margin: 0;
+  padding: 2px 8px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pkLockerHint,
+.pkLockerNote {
+  margin: 0;
+  color: #444;
+  font-size: 11px;
+}
+
+.pkRoot.is-mobile .pkLocker .pkPanel2 {
+  max-height: 62%;
+}
+
+.pkRoot.is-mobile .pkSwatchBtn {
+  width: 24px;
+  height: 24px;
+  min-width: 24px !important;
+}
+
 /* ---------- the tour ---------- */
 
 .pkLadder {

@@ -6,7 +6,7 @@ import assert from "node:assert/strict"
 import { readFileSync } from "node:fs"
 import { fileURLToPath } from "node:url"
 import { additiveMove, aimDelta, bendAxis, clipTime, decodeMoves, FADE, frameOf, gripSide, LAYERS, layerTargets, Q, qangle, qaxis, qinv, qmul, qrot, qslerp, sampleClip, solveLimb, stepLayers, swingTwist, twistAngle } from "./retarget.js"
-import { buildGarment, buildSkirt, covers, landmarks, prepareBody, skirtWeights } from "./outfit.js"
+import { BUILD_SCALE, buildGarment, buildSkirt, covers, landmarks, prepareBody, reshapeBody, skirtWeights, visibleIndex } from "./outfit.js"
 
 const near = (a, b, tol, msg) => assert.ok(Math.abs(a - b) <= tol, `${msg}: ${a} not within ${tol} of ${b}`)
 const nearV = (a, b, tol, msg) => near(Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z), 0, tol, msg)
@@ -198,4 +198,61 @@ test("clothes: a skirt flares from the waist and follows hips and thighs", () =>
   const ring = (r) => Math.hypot(s.position[r * 28 * 3] - m.cx, s.position[r * 28 * 3 + 2] - m.cz)
   assert.ok(ring(6) > ring(0) + 0.05, "flares toward the hem")
   assert.ok(s.position[6 * 28 * 3 + 1] < s.position[1], "hangs down")
+})
+
+test("Locker Room clothes: each garment covers its part of the body", () => {
+  const m = landmarks({ ...joints, hand_l: { x: 0.7, y: 1.42, z: 0 } }, 0)
+  const v = (x, y, z, bone) => ({ x, y, z, bone })
+  const thighMid = v(0.09, 0.71, 0.07, "thigh_l")
+  const aboveKnee = v(0.09, 0.53, 0.07, "thigh_l")
+  const shin = v(0.09, 0.3, 0.05, "calf_l")
+  assert.ok(covers("shorts", thighMid, m) && !covers("shorts", aboveKnee, m), "shorts: mid-thigh")
+  assert.ok(covers("board", aboveKnee, m) && !covers("board", shin, m), "board shorts: to the knee")
+  assert.ok(covers("pants", shin, m), "track pants: down the shin")
+  assert.ok(!covers("short", thighMid, m) && !covers("swim", thighMid, m), "short shorts and swim shorts stay high")
+  const chest = v(0.05, 1.3, 0.12, "spine_03")
+  const belly = v(0.05, 1.05, 0.12, "spine_01")
+  assert.ok(covers("onepiece", chest, m) && covers("onepiece", v(0.05, 0.9, 0.1, "pelvis"), m) && !covers("onepiece", thighMid, m), "one-piece: torso and hips")
+  assert.ok(covers("crop", chest, m) && !covers("crop", belly, m), "sports top: the chest, not the midriff")
+  const forearm = v(0.55, 1.42, 0.03, "lowerarm_l")
+  assert.ok(covers("rash", forearm, m) && covers("jacket", forearm, m) && !covers("tee", forearm, m), "long sleeves to the wrist")
+  assert.ok(!covers("rash", v(0.75, 1.42, 0, "hand_l"), m), "...not the hand")
+  assert.ok(covers("gloves", v(0.75, 1.42, 0, "index_01_l"), m), "gloves: the hand")
+  assert.ok(covers("wristbands", v(0.66, 1.42, 0.03, "lowerarm_l"), m) && !covers("wristbands", forearm, m), "wristbands: at the wrist")
+  assert.ok(covers("kneesocks", shin, m) && !covers("socks", shin, m), "knee socks go higher than crew socks")
+  const body = prepareBody(fakeBody())
+  for (const kind of ["board", "short", "swim", "pants", "onepiece"]) {
+    const g = buildGarment(kind, body, m)
+    assert.ok(g.position.length > 0 && g.index.length > 0, `${kind} builds`)
+  }
+  assert.ok(visibleIndex(["pants"], body, m).length < body.index.length, "skin under track pants isn't drawn")
+})
+
+test("builds: slim and strong reshape torso and limbs; seams never open", () => {
+  const body = prepareBody(fakeBody())
+  const m = landmarks(joints, 0)
+  assert.deepEqual(Array.from(reshapeBody(body, joints, m, 1)), Array.from(body.position), "regular is the body as it is")
+  const meanR = (P, bone, cx) => {
+    let s = 0
+    let n = 0
+    for (let i = 0; i < P.length / 3; i++)
+      if (body.dominant[i] === bone) {
+        s += Math.hypot(P[i * 3] - cx, P[i * 3 + 2])
+        n++
+      }
+    return s / n
+  }
+  const slim = reshapeBody(body, joints, m, BUILD_SCALE.slim)
+  const strong = reshapeBody(body, joints, m, BUILD_SCALE.strong)
+  assert.ok(meanR(strong, "thigh_l", 0.09) > meanR(body.position, "thigh_l", 0.09) * 1.04, "strong: thicker legs")
+  assert.ok(meanR(slim, "thigh_l", 0.09) < meanR(body.position, "thigh_l", 0.09) * 0.97, "slim: thinner legs")
+  assert.ok(meanR(strong, "pelvis", 0) > meanR(body.position, "pelvis", 0) && meanR(slim, "pelvis", 0) < meanR(body.position, "pelvis", 0), "torso wider / narrower")
+  // vertices that share a spot (UV seams) still share it
+  const first = new Map()
+  body.welded.ids.forEach((w, i) => {
+    const j = first.get(w)
+    if (j === undefined) first.set(w, i)
+    else for (let k = 0; k < 3; k++) assert.equal(strong[i * 3 + k], strong[j * 3 + k])
+  })
+  for (const x of strong) assert.ok(Number.isFinite(x))
 })

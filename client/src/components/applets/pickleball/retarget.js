@@ -9,8 +9,10 @@
 //   never flips back and forth), and how much of the hand's roll the forearm takes.
 // - Clip layers: the motion-captured clips (moves.json, Quaternius' CC0 animation library)
 //   play on top of the procedural pose as small additive moves (breathing, the run's bounce,
-//   a dance). Each layer fades in and out (a crossfade), and the run clips are locked to the
-//   gait's step phase so the bounce lands with the feet.
+//   a dance). Each layer fades in and out (a crossfade); the walk, jog and sprint clips take
+//   their weights from locomotion.js's blend space and are locked to its step clock (each
+//   clip's own left-foot landing lined up with the gait's), so the bounce lands with the feet
+//   at whatever cadence the player is moving.
 
 import { twoBone } from "./anim.js"
 
@@ -142,23 +144,41 @@ export const gripSide = (prev, d, margin = 0.35) => {
 // ---- clip layers ----
 // Additive layers on the procedural pose, by situation. Weights are how much of each clip's
 // motion (relative to its own first frame) is added; bones: which bones it moves, and how much.
+// locked: played on the gait's step clock; contact: where in the clip (0..1) its left foot
+// lands (measured from the clips, see locomotion.js CLIPS)
 export const LAYERS = {
   breathe: { clip: "Idle_Loop", gain: 1, bones: { spine_01: 0.6, spine_02: 0.8, spine_03: 1, neck_01: 0.6, clavicle_l: 1, clavicle_r: 1 } },
-  jog: { clip: "Jog_Fwd_Loop", gain: 0.8, bones: { pelvis: 0.5, spine_01: 0.6, spine_02: 0.7, spine_03: 0.7, neck_01: 0.4, clavicle_l: 0.8, clavicle_r: 0.8 } },
-  sprint: { clip: "Sprint_Loop", gain: 0.7, bones: { pelvis: 0.5, spine_01: 0.5, spine_02: 0.6, spine_03: 0.6, neck_01: 0.3, clavicle_l: 0.7, clavicle_r: 0.7 } },
+  walk: { clip: "Walk_Loop", gain: 0.7, locked: true, contact: 0.953, bones: { pelvis: 0.4, spine_01: 0.5, spine_02: 0.6, spine_03: 0.6, neck_01: 0.3, clavicle_l: 0.6, clavicle_r: 0.6 } },
+  jog: { clip: "Jog_Fwd_Loop", gain: 0.8, locked: true, contact: 0.016, bones: { pelvis: 0.5, spine_01: 0.6, spine_02: 0.7, spine_03: 0.7, neck_01: 0.4, clavicle_l: 0.8, clavicle_r: 0.8 } },
+  sprint: { clip: "Sprint_Loop", gain: 0.7, locked: true, contact: 0.984, bones: { pelvis: 0.5, spine_01: 0.5, spine_02: 0.6, spine_03: 0.6, neck_01: 0.3, clavicle_l: 0.7, clavicle_r: 0.7 } },
   dance: { clip: "Dance_Loop", gain: 1, bones: { pelvis: 1, spine_01: 1, spine_02: 1, spine_03: 1, neck_01: 1, Head: 0.6, clavicle_l: 0.6, clavicle_r: 0.6 } },
 }
 export const FADE = 0.25 // seconds for a crossfade
 
-// what each layer should be at for a moment: speed (m/s), swinging, the mood
-export const layerTargets = ({ speed = 0, swinging = false, mood = null, between = false }) => {
-  const run = clamp((speed - 0.8) / 1.2, 0, 1)
-  const sprint = clamp((speed - 3.2) / 1.2, 0, 1)
+// what each layer should be at for a moment: speed (m/s), swinging, the mood, and the blend
+// space's gait weights (locomotion.js; without them, from the speed alone)
+export const layerTargets = ({ speed = 0, swinging = false, mood = null, between = false, blend = null }) => {
+  let walk = 0
+  let jog
+  let sprint
+  if (blend) {
+    walk = blend.walk || 0
+    jog = blend.run || 0
+    sprint = blend.sprint || 0
+  } else {
+    const run = clamp((speed - 0.8) / 1.2, 0, 1)
+    const fast = clamp((speed - 3.2) / 1.2, 0, 1)
+    jog = run * (1 - fast)
+    sprint = run * fast
+  }
+  const moving = clamp(walk * 0.5 + jog + sprint, 0, 1)
   const dance = mood && mood.kind === "cheer" && mood.variant === 2 && between ? 1 : 0
+  const s = swinging ? 0 : 1
   return {
-    breathe: swinging ? 0.3 : 1 - run * 0.7,
-    jog: swinging ? 0 : run * (1 - sprint),
-    sprint: swinging ? 0 : run * sprint,
+    breathe: swinging ? 0.3 : 1 - moving * 0.7,
+    walk: walk * s,
+    jog: jog * s,
+    sprint: sprint * s,
     dance,
   }
 }
@@ -174,11 +194,12 @@ export const stepLayers = (weights, targets, dt, fade = FADE) => {
   return weights
 }
 
-// where in a looping clip to be: run clips follow the gait (a full cycle per two steps, so
-// each footfall in the clip lands with a footfall on the court); others play in real time
-export const clipTime = (clip, { phase = 0, time = 0, locked = false }) => {
+// where in a looping clip to be: the walk and run clips follow the gait (a full cycle per two
+// steps; contact: where the clip's own left foot lands, so each footfall in the clip lands
+// with a footfall on the court); others play in real time
+export const clipTime = (clip, { phase = 0, time = 0, locked = false, contact = 0 }) => {
   const d = clip.duration || 1
-  const u = locked ? phase / (Math.PI * 2) : time / d
+  const u = locked ? phase / (Math.PI * 2) + contact : time / d
   return (((u % 1) + 1) % 1) * d
 }
 

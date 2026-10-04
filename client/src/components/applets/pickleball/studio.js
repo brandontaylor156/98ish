@@ -10,7 +10,7 @@ import { createAnim, setMood, splitStep, updateAnim } from "./anim.js"
 
 let lineup = [] // { fig, ball }
 
-export const STATES = ["ready", "split", "run", "shuffle", "walk", "lunge", "backswing", "drive", "drive-follow", "backhand", "backhand-follow", "dink", "volley", "overhead", "serve", "serve-follow", "celebrate", "celebrate2", "celebrate3", "frustrated", "frustrated2", "frustrated3"]
+export const STATES = ["ready", "split", "run", "shuffle", "walk", "sprint", "backpedal", "stop", "turn", "lunge", "backswing", "drive", "drive-follow", "backhand", "backhand-follow", "dink", "volley", "overhead", "serve", "serve-follow", "celebrate", "celebrate2", "celebrate3", "frustrated", "frustrated2", "frustrated3"]
 
 // a moment for a figure at (x, z) facing +z: { T, at(t) -> situation, events, contact }
 const script = (state, x, z) => {
@@ -37,6 +37,21 @@ const script = (state, x, z) => {
       return { T: 1.0, at: (t) => base(t, { x: x - 1.8 * (1 - t), vx: 1.8 }) }
     case "walk":
       return { T: 1.2, at: (t) => base(t, { x: x - 1.2 * (1.2 - t), vx: 1.2, between: true }) }
+    // (filmstrips: ask for the same state at a series of times with opts.T)
+    case "sprint":
+      // toward the net from the baseline, speeding up to 4.4 m/s
+      return { T: 1.4, at: (t) => base(t, { z: z - 4.4 * Math.max(0, 1.4 - t) + 0.9, vz: 4.4 * Math.min(1, t / 0.35) }) }
+    case "backpedal":
+      return { T: 1.2, at: (t) => base(t, { z: z + 2.2 * (1.2 - t), vz: -2.2 }) }
+    case "stop": {
+      // a run to the right that plants and stops at t = 0.9
+      const v = (t) => (t < 0.9 ? 3.6 : Math.max(0, 3.6 - (t - 0.9) * 12))
+      const pos = (t) => (t < 0.9 ? -3.6 * (0.9 - t) : (3.6 * Math.min(t - 0.9, 0.3) - 6 * Math.min(t - 0.9, 0.3) ** 2))
+      return { T: 1.3, at: (t) => base(t, { x: x - pos(t), vx: -v(t), goal: { x: x, z } }) }
+    }
+    case "turn":
+      // standing, the ball moves round: small pivot steps
+      return { T: 1.6, at: (t) => base(t, { ball: { x: x - 6 * Math.sin(Math.min(1, t) * 1.2), y: 1, z: z + 6 * Math.cos(Math.min(1, t) * 1.2) }, facing: Math.min(1, t) * 0.9 }) }
     case "lunge": {
       const c = C(1.3, 0.32, 0.5)
       return { T: 0.62, contact: c, at: (t) => base(t, { prep: { ttc: Math.max(0.02, 0.64 - t), x: c.x, y: c.y, z: c.z, kind: "drive", hand: "fh", forward: true }, ball: c }) }
@@ -77,7 +92,7 @@ const script = (state, x, z) => {
 }
 
 // eye / at: [x, y, dz] a camera of your own (dz from the lineup's z), with fov
-export const studioShot = (ctx, { looks = [{}], state = "ready", cam = "close", z = -4.6, spacing, eye, at = [0, 1, 0], fov } = {}) => {
+export const studioShot = (ctx, { looks = [{}], state = "ready", cam = "close", z = -4.6, spacing, eye, at = [0, 1, 0], fov, T, follow = false } = {}) => {
   const { scene, camera, renderer, size, makeFigure, shadows } = ctx
   for (const f of lineup) {
     scene.remove(f.fig.group, f.ball)
@@ -93,6 +108,7 @@ export const studioShot = (ctx, { looks = [{}], state = "ready", cam = "close", 
     const fig = makeFigure(look, { shadows })
     scene.add(fig.group)
     const sc = script(state, x, z)
+    if (T !== undefined) sc.T = T
     const s0 = sc.at(0)
     const anim = createAnim(s0.x, s0.z, 0)
     const dt = 1 / 60
@@ -115,6 +131,7 @@ export const studioShot = (ctx, { looks = [{}], state = "ready", cam = "close", 
       poseToContact: sc.contact ? Math.hypot(pose.paddle.face.x - sc.contact.x, pose.paddle.face.y - sc.contact.y, pose.paddle.face.z - sc.contact.z) : null,
       soles: probe?.soles || null,
       planted: [pose.footL.planted, pose.footR.planted],
+      pelvis: { x: pose.pelvis.x, z: pose.pelvis.z },
     })
   })
   // the camera
@@ -142,8 +159,10 @@ export const studioShot = (ctx, { looks = [{}], state = "ready", cam = "close", 
     camera.fov = Math.max(2 * Math.atan(1.15 / d), 2 * Math.atan((wide / 2 + 0.75) / aspect / d)) * (180 / Math.PI)
   }
   if (eye) {
-    camera.position.set(eye[0], eye[1], z + eye[2])
-    camera.lookAt(at[0], at[1], z + at[2])
+    // (follow: the camera rides along with the first figure, for filmstrips)
+    const o = follow && out[0]?.pelvis ? { x: out[0].pelvis.x, z: out[0].pelvis.z - z } : { x: 0, z: 0 }
+    camera.position.set(o.x + eye[0], eye[1], z + o.z + eye[2])
+    camera.lookAt(o.x + at[0], at[1], z + o.z + at[2])
     camera.fov = fov || 40
   }
   camera.updateProjectionMatrix()

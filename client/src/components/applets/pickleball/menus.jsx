@@ -92,6 +92,9 @@ export const TitleMenu = ({ onPick, onOnline, tour, showPad }) => {
           <button type="button" onClick={() => onPick("players")}>
             Players
           </button>
+          <button type="button" data-menu="locker" onClick={() => onPick("locker")}>
+            Locker Room
+          </button>
           <button type="button" onClick={() => onPick("settings")}>
             Settings
           </button>
@@ -108,7 +111,7 @@ export const TitleMenu = ({ onPick, onOnline, tour, showPad }) => {
 }
 
 // ---------- players ----------
-export const PlayersMenu = ({ prefs, setPrefs, tour, onBack, slot = "p1", onPreview, title = "Choose Your Player" }) => {
+export const PlayersMenu = ({ prefs, setPrefs, tour, onBack, slot = "p1", onPreview, onLocker, title = "Choose Your Player" }) => {
   const mine = slot === "p2" ? prefs.p2 : { character: prefs.character, outfit: prefs.outfit }
   const [sel, setSel] = useState(mine.character)
   const [outfit, setOutfit] = useState(mine.outfit || "home")
@@ -142,6 +145,7 @@ export const PlayersMenu = ({ prefs, setPrefs, tour, onBack, slot = "p1", onPrev
           <Stat label="Speed" value={c.stats.speed} />
           <Stat label="Power" value={c.stats.power} />
           <Stat label="Touch" value={c.stats.touch} />
+          {prefs.looks?.[sel] && <p className="pkLockerNote">Wearing their Locker Room look.</p>}
           <div className="pkOutfits">
             {OUTFITS.map((o) => {
               const open = u.outfits.includes(o.id)
@@ -157,6 +161,11 @@ export const PlayersMenu = ({ prefs, setPrefs, tour, onBack, slot = "p1", onPrev
             <button type="button" className="pkPrimary" onClick={save} data-action="choose">
               Choose {c.nick}
             </button>
+            {onLocker && (
+              <button type="button" data-action="locker" onClick={() => onLocker(sel)}>
+                Locker Room...
+              </button>
+            )}
             <button type="button" onClick={onBack}>
               Cancel
             </button>

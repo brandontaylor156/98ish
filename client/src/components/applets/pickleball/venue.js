@@ -367,7 +367,7 @@ export const buildVenue = (scene, { venue = "park", quality = "medium" } = {}) =
     }
   }
 
-  if (venue === "park") {
+  if (venue === "park" || venue === "winter") {
     // chain link fence on posts, a windscreen along the bottom, trees and hills beyond
     const fenceTex = canvasTexture(64, 64, (ctx, w) => {
       ctx.clearRect(0, 0, w, w)
@@ -447,6 +447,54 @@ export const buildVenue = (scene, { venue = "park", quality = "medium" } = {}) =
       hedge.position.set(s * (FX + (s < 0 ? 5.4 : 3.6)), 0.7, 0)
       group.add(hedge)
     }
+  } else if (venue === "beach") {
+    // the beach: the sea beyond the far baseline, a rope on posts round the court, a few
+    // umbrellas and towels, palm trees (below)
+    const sea = new THREE.Mesh(keep(new THREE.PlaneGeometry(400, 160)), lambert(0x2f8fc7))
+    sea.rotation.x = -Math.PI / 2
+    sea.position.set(0, -0.02, -FZ - 95)
+    group.add(sea)
+    const surf = new THREE.Mesh(keep(new THREE.PlaneGeometry(400, 3)), lambert(0xeaf6fb))
+    surf.rotation.x = -Math.PI / 2
+    surf.position.set(0, -0.015, -FZ - 15.5)
+    group.add(surf)
+    const ropeMat = lambert(0xf2efe6)
+    const postMat = lambert(0x8a6a44)
+    const posts = []
+    for (let x = -FX; x <= FX + 0.01; x += (2 * FX) / 4) posts.push([x, -FZ], [x, FZ])
+    for (let z = -FZ + (2 * FZ) / 6; z < FZ - 0.01; z += (2 * FZ) / 6) posts.push([-FX, z], [FX, z])
+    const postMesh = new THREE.InstancedMesh(keep(new THREE.CylinderGeometry(0.05, 0.06, 1.0, 6)), postMat, posts.length)
+    const m4 = new THREE.Matrix4()
+    posts.forEach(([x, z], i) => postMesh.setMatrixAt(i, m4.makeTranslation(x, 0.5, z)))
+    group.add(postMesh)
+    for (const [w, x, z, ry] of [[2 * FX, 0, -FZ, 0], [2 * FX, 0, FZ, 0], [2 * FZ, -FX, 0, Math.PI / 2], [2 * FZ, FX, 0, Math.PI / 2]]) {
+      const rope = new THREE.Mesh(keep(new THREE.BoxGeometry(w, 0.03, 0.03)), ropeMat)
+      rope.position.set(x, 0.95, z)
+      rope.rotation.y = ry
+      group.add(rope)
+    }
+    // umbrellas and towels along the sides
+    const colors = [0xef476f, 0xffd166, 0x06d6a0, 0x118ab2, 0xff8c42]
+    let us = 3
+    const ur = () => ((us = (us * 16807) % 2147483647) / 2147483647)
+    for (let i = 0; i < 8; i++) {
+      const side = i % 2 ? 1 : -1
+      const x = side * (FX + 3 + ur() * 5)
+      const z = -FZ + 2 + ur() * (2 * FZ - 4)
+      const c = colors[i % colors.length]
+      const pole = new THREE.Mesh(keep(new THREE.CylinderGeometry(0.03, 0.03, 2.2, 5)), lambert(0xeeeeee))
+      pole.position.set(x, 1.1, z)
+      group.add(pole)
+      const top = new THREE.Mesh(keep(new THREE.ConeGeometry(1.3, 0.5, 8)), lambert(c, { flatShading: true }))
+      top.position.set(x, 2.25, z)
+      group.add(top)
+      const towel = new THREE.Mesh(keep(new THREE.PlaneGeometry(0.8, 1.7)), lambert(colors[(i + 2) % colors.length]))
+      towel.rotation.x = -Math.PI / 2
+      towel.rotation.z = ur() * 0.6 - 0.3
+      towel.position.set(x + side * 1.1, 0.0, z + 0.4)
+      group.add(towel)
+    }
+    stands("e", 2, 0.3, 0xd9c7a0)
   } else {
     // the stadium: ad boards, stands all round, light towers and a big screen
     adBoards(1.0)
@@ -493,7 +541,7 @@ export const buildVenue = (scene, { venue = "park", quality = "medium" } = {}) =
   // the big screen (Club and Stadium): a canvas we redraw with the score
   let screen = null
   let screenCanvas = null
-  if (venue !== "park") {
+  if (venue === "club" || venue === "stadium") {
     screenCanvas = document.createElement("canvas")
     screenCanvas.width = 512
     screenCanvas.height = 256
@@ -580,8 +628,40 @@ export const buildVenue = (scene, { venue = "park", quality = "medium" } = {}) =
     }
   }
 
-  // trees and hills for the outdoor venues
-  if (venue !== "stadium") {
+  // the beach's palms
+  if (venue === "beach") {
+    let ps = 5
+    const pr = () => ((ps = (ps * 16807) % 2147483647) / 2147483647)
+    const trunkMat = lambert(0x8b6b45, { flatShading: true })
+    const frondMat = lambert(0x3f8f3a, { flatShading: true, side: THREE.DoubleSide })
+    const frond = keep(new THREE.ConeGeometry(0.5, 3.2, 4, 1, true))
+    frond.translate(0, 1.6, 0)
+    for (let i = 0; i < 26; i++) {
+      const a = pr() * Math.PI * 2
+      const r = 20 + pr() * 30
+      const x = Math.cos(a) * r
+      const z = Math.sin(a) * r * 0.7 + 4
+      if (Math.abs(x) < FX + 6 && Math.abs(z) < FZ + 6) continue
+      if (z < -FZ - 13) continue // (not in the sea)
+      const h = 6 + pr() * 3
+      const lean = (pr() - 0.5) * 0.5
+      const trunk = new THREE.Mesh(keep(new THREE.CylinderGeometry(0.18, 0.3, h, 6)), trunkMat)
+      trunk.position.set(x, h / 2, z)
+      trunk.rotation.z = lean
+      group.add(trunk)
+      const topX = x - Math.sin(lean) * h * 0.5
+      const topY = Math.cos(lean) * h
+      for (let k = 0; k < 6; k++) {
+        const f = new THREE.Mesh(frond, frondMat)
+        f.position.set(topX, topY, z)
+        f.rotation.set(0, (k / 6) * Math.PI * 2, 1.9)
+        f.scale.set(1, 1, 0.25)
+        group.add(f)
+      }
+    }
+  }
+  // trees and hills for the outdoor venues (winter: snowy evergreens and white hills)
+  if (venue === "park" || venue === "club" || venue === "winter") {
     const trees = []
     let seed = 7
     const r2 = () => ((seed = (seed * 16807) % 2147483647) / 2147483647)
@@ -593,8 +673,8 @@ export const buildVenue = (scene, { venue = "park", quality = "medium" } = {}) =
       if (Math.abs(x) < FX + 9 && Math.abs(z) < FZ + 9) continue
       trees.push({ x, z, s: 0.8 + r2() * 1.1 })
     }
-    const leaf = venue === "club" ? 0x4f6b2c : 0x2f7a3c
-    const crown = new THREE.InstancedMesh(keep(new THREE.IcosahedronGeometry(1.6, 0)), lambert(leaf, { flatShading: true }), trees.length)
+    const leaf = venue === "club" ? 0x4f6b2c : venue === "winter" ? 0x2e5a45 : 0x2f7a3c
+    const crown = new THREE.InstancedMesh(keep(venue === "winter" ? new THREE.ConeGeometry(1.5, 3.6, 7) : new THREE.IcosahedronGeometry(1.6, 0)), lambert(leaf, { flatShading: true }), trees.length)
     const trunk = new THREE.InstancedMesh(keep(new THREE.CylinderGeometry(0.18, 0.25, 2, 5)), lambert(0x6b4a2b), trees.length)
     const m4 = new THREE.Matrix4()
     const q = new THREE.Quaternion()
@@ -603,13 +683,53 @@ export const buildVenue = (scene, { venue = "park", quality = "medium" } = {}) =
       trunk.setMatrixAt(i, m4.compose(new THREE.Vector3(t.x, t.s, t.z), q.identity(), new THREE.Vector3(t.s, t.s, t.s)))
     })
     group.add(crown, trunk)
-    const hillMat = lambert(venue === "club" ? 0x6a7f3c : 0x5d9a4a, { flatShading: true })
+    if (venue === "winter") {
+      // snow on the evergreens' tops
+      const caps = new THREE.InstancedMesh(keep(new THREE.ConeGeometry(0.9, 1.4, 7)), lambert(0xf4f8fc, { flatShading: true }), trees.length)
+      trees.forEach((t, i) => caps.setMatrixAt(i, m4.compose(new THREE.Vector3(t.x, 2.6 * t.s + 1 + 1.55 * t.s * 1.25, t.z), q.identity(), new THREE.Vector3(t.s, t.s * 1.25, t.s))))
+      group.add(caps)
+    }
+    const hillMat = lambert(venue === "club" ? 0x6a7f3c : venue === "winter" ? 0xe9eef4 : 0x5d9a4a, { flatShading: true })
     for (const [x, z, r] of [[-60, -110, 38], [30, -125, 48], [95, -80, 34], [-110, -40, 30], [110, 20, 36], [-95, 70, 30]]) {
       const hill = new THREE.Mesh(keep(new THREE.IcosahedronGeometry(r, 1)), hillMat)
       hill.scale.y = 0.35
       hill.position.set(x, -2, z)
       group.add(hill)
     }
+  }
+
+  // falling snow (winter): points drifting down round the court, wrapped round as they fall
+  let snow = null
+  if (V.snow) {
+    const n = quality === "low" ? 500 : 1400
+    const pos = new Float32Array(n * 3)
+    let ss = 17
+    const sr = () => ((ss = (ss * 16807) % 2147483647) / 2147483647)
+    for (let i = 0; i < n; i++) pos.set([(sr() - 0.5) * 40, sr() * 14, (sr() - 0.5) * 50], i * 3)
+    const g = keep(new THREE.BufferGeometry())
+    g.setAttribute("position", new THREE.BufferAttribute(pos, 3))
+    const flakeTex = keep(canvasTexture(16, 16, (ctx, w) => {
+      const gr = ctx.createRadialGradient(w / 2, w / 2, 0, w / 2, w / 2, w / 2)
+      gr.addColorStop(0, "rgba(255,255,255,1)")
+      gr.addColorStop(1, "rgba(255,255,255,0)")
+      ctx.fillStyle = gr
+      ctx.fillRect(0, 0, w, w)
+    }))
+    snow = new THREE.Points(g, keep(new THREE.PointsMaterial({ size: 0.09, map: flakeTex, transparent: true, depthWrite: false, color: 0xffffff })))
+    snow.frustumCulled = false
+    scene.add(snow)
+    disposables.push({ dispose: () => scene.remove(snow) })
+  }
+  const update = (t, dt) => {
+    if (!snow) return
+    const p = snow.geometry.attributes.position
+    const a = p.array
+    for (let i = 0; i < a.length; i += 3) {
+      a[i + 1] -= dt * (0.7 + ((i * 7) % 5) * 0.08)
+      a[i] += Math.sin(t * 0.7 + i) * dt * 0.15
+      if (a[i + 1] < 0) a[i + 1] += 14
+    }
+    p.needsUpdate = true
   }
 
   mergeStatic(group, keep)
@@ -664,6 +784,7 @@ export const buildVenue = (scene, { venue = "park", quality = "medium" } = {}) =
     crowd,
     umpireSeat,
     drawScreen,
+    update,
     dispose() {
       scene.remove(group)
       disposables.forEach((d) => d.dispose?.())
