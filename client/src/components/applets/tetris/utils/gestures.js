@@ -1,12 +1,16 @@
-// Swipe controls for the playfield, like the Tetris app on phones (pure: no DOM, no React,
-// so Node can unit-test it with made-up finger paths; see gestures.test.js).
+// Swipe controls for the playfield, like the official Tetris app on phones (pure: no DOM, no
+// React, so Node can unit-test it with made-up finger paths; see gestures.test.js). The app's
+// rules (PLAYSTUDIOS help center, "Tetris Controls"; docs/tetris-mobile.md): swipe left/right
+// moves, tap the right side to rotate clockwise and the left side counterclockwise, swipe
+// down hard drops, hold and drag down soft drops, swipe up holds.
 //
 //   drag sideways    the piece follows the finger, one column per cell of travel
 //                    (times the sensitivity), measured from where the finger went down
 //   drag down slowly soft drop: one row per cell of travel
 //   flick down       hard drop (needs a fast, mostly downward finger)
 //   swipe up         hold
-//   tap              rotate clockwise (or: left half counterclockwise, right half clockwise)
+//   tap              right half: rotate clockwise, left half: counterclockwise (as the app;
+//                    tapSides: false makes every tap clockwise)
 //
 // How a touch is read:
 // - Until the finger has moved SLOP px it may still be a tap. The first decisive movement
@@ -47,7 +51,7 @@ export const GESTURE = {
 export const SENSITIVITY_RANGE = [0.5, 2]
 
 export const createGestureTracker = (options) => {
-  let opts = { cellWidth: 24, cellHeight: 24, centerX: 0, sensitivity: 1, tapSides: false, ...options }
+  let opts = { cellWidth: 24, cellHeight: 24, centerX: 0, sensitivity: 1, tapSides: true, ...options }
   const C = { ...GESTURE, ...options.thresholds }
   let g = null // the touch being read
 

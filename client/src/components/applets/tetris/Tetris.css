@@ -182,10 +182,113 @@
 
 /* Swipe gestures (hooks/useSwipeControls.js): the window takes every touch itself, so the
    page never scrolls, zooms or selects under a drag */
+.tetrisWindow[data-scheme="app"],
 .tetrisWindow[data-scheme="gestures+buttons"],
 .tetrisWindow[data-scheme="gestures"] {
   touch-action: none;
   -webkit-tap-highlight-color: transparent;
+}
+
+/* "Like the Tetris app" in portrait (TetrisWindow data-layout="app"; docs/tetris-mobile.md):
+   a top strip for Pause (left) and the controls gear (right), the score centered just above
+   the board, Hold (with the other stats under it) and a 3-piece Next in slim columns beside
+   the top of the board, and the board as wide as the columns allow, sitting below the
+   middle like the app's: the free height splits 1 : 0.5 above and below it. Hold and the
+   Arena's Item buttons float in the bottom corners (tetrisControls.jsx). The window is the
+   size container here, so the board's size reads the window's content box (--app-side
+   comes from APP_SIDE). */
+.tetrisWindow[data-layout="app"] {
+  --app-top: 38px;
+  --app-score: 46px;
+  --app-gap: 5px;
+  --app-board-w: min(100cqw - 2 * var(--app-side, 48px) - 2 * var(--app-gap), (100cqh - var(--app-top) - var(--app-score)) / 2);
+  container-type: size;
+  grid-template-columns: var(--app-side, 48px) minmax(0, 1fr) var(--app-side, 48px);
+  grid-template-rows: var(--app-top) minmax(0, 1fr) var(--app-score) auto minmax(0, 0.5fr);
+  grid-template-areas:
+    ". . ."
+    ". . ."
+    ". head ."
+    "left board right"
+    ". . .";
+  column-gap: var(--app-gap);
+  row-gap: 0;
+}
+
+.tetrisWindow[data-layout="app"] .tetrisBoardWrap {
+  container-type: normal;
+}
+
+.tetrisWindow[data-layout="app"] .tetrisBoard {
+  width: var(--app-board-w);
+  height: calc(var(--app-board-w) * 2);
+}
+
+/* The mode's first stat (Score, or the Sprint/Ultra clock) big and centered above the
+   board, as the app shows its score; the others go under Hold */
+.tetrisHead {
+  grid-area: head;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  min-width: 0;
+}
+
+.tetrisHead > div {
+  width: min(100%, 170px);
+  text-align: center;
+}
+
+.tetrisHead .tetrisLabel {
+  margin-bottom: 1px;
+  font-size: 11px;
+}
+
+.tetrisHead .tetrisStatValue {
+  padding: 0 6px;
+  font-size: 20px;
+  line-height: 24px;
+  font-weight: bold;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.tetrisWindow[data-layout="app"] .tetrisSide {
+  gap: 3px;
+}
+
+.tetrisWindow[data-layout="app"] .tcButton.tetrisItemButton {
+  font-size: 10px;
+  padding: 0;
+}
+
+.tetrisWindow[data-layout="app"] .tetrisHoldBox {
+  margin-bottom: 4px;
+}
+
+.tetrisWindow[data-layout="app"] .tetrisSide .tetrisLabel {
+  font-size: 10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tetrisWindow[data-layout="app"] .tetrisSide .tetrisStatValue {
+  padding: 0 2px;
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.tetrisWindow[data-layout="app"] .tetrisPreview {
+  --tetris-preview-cell: 10px;
+  height: 38px;
+}
+
+.tetrisWindow[data-layout="app"] .tetrisPreview--small {
+  --tetris-preview-cell: 8px;
+  height: 30px;
 }
 
 /* Gestures + buttons: one slim, see-through row under the board (tetrisControls.jsx
