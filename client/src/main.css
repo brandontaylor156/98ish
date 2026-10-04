@@ -7,7 +7,9 @@
   --taskbar-h: calc(35px + env(safe-area-inset-bottom));
 }
 
-/* the wallpaper itself is on .os-root (Display Properties) */
+/* the wallpaper itself is on .os-root (Display Properties); the page behind is teal too, so
+   a gap the phone leaves (Home Screen apps, rotation) never shows white */
+html,
 body {
   background: #008080;
 }
