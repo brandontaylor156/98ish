@@ -54,7 +54,12 @@ const actions = {
         last = ym
       })
     }
-    return { years, first, last } // first/last: "YYYYMM" or null if never archived
+    // the newest capture (14 digits) and each month's HTTP status class ("2" good, "3"
+    // redirect, "4" error...), which Compass uses to open the newest good copy
+    const lastTs = /^\d{14}$/.test(String(data.last_ts || "")) ? String(data.last_ts) : null
+    const status = {}
+    for (const [year, text] of Object.entries(data.status || {})) if (/^\d{4}$/.test(year) && typeof text === "string") status[year] = text.slice(0, 12)
+    return { years, first, last, lastTs, status } // first/last: "YYYYMM" or null if never archived
   },
 
   async captures({ url, year }) {

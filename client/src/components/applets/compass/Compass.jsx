@@ -6,38 +6,70 @@ import { ieWindow, launch } from "../../../utils/programs"
 import { fs } from "../../../utils/fs"
 import { folderAt, receiveFiles, summarize } from "../../../utils/receive"
 import { shareOut } from "../../../utils/share"
-import { SERVER, allowedFor, checkFrame, clearCookies, ensureSession, onSession, currentSession, dropSession, refreshUsage } from "./relay"
-import { NEW_TAB, SEARCH_ENGINES, displayUrl, fileNameOf, hostOf, isInternal, isWeb, parseInput, rawUrl, realBrowserReason, relayUrl, suggest } from "./urls"
+import { SERVER, allowedFor, checkFrame, checkFrameAny, clearCookies, ensureSession, onSession, currentSession, dropSession, refreshUsage } from "./relay"
+import { NEW_TAB, SEARCH_ENGINES, displayUrl, fileNameOf, hostOf, isInternal, isWeb, newestCapture, nowStamp, openInLabel, parseInput, rawUrl, relayUrl, searchTermFor, searchUrl, skipRelay, suggest } from "./urls"
+import { ARCHIVE_ORIGIN, archiveUrl, formatStamp, getSparkline, parseArchiveUrl, samePage } from "../internetExplorer/wayback"
 import * as store from "./store"
 import { AboutPage, BookmarksPage, CompassLogo, DownloadsPage, Favicon, HistoryPage, NewTabPage, StubPage } from "./pages"
 import "./Compass.css"
 
 // Compass: a real web browser for 98ish, with tabs, bookmarks, history, downloads, find and
-// zoom. Pages come through the 98ish server's relay (server/web) because most sites refuse
-// to be framed; sites that allow it can load directly (Data Saver), and sites that can't
-// work relayed (sign-ins, banks, video) are offered to the real browser.
+// zoom. Sites on the relay's list come through the 98ish server (server/web), because most
+// sites refuse to be framed. Every other site shows inside Compass without the relay: straight
+// from the site when it allows frames (GET /api/web/frame looks at its headers), else the
+// Internet Archive's newest saved copy (web.archive.org/web/<time>if_/<url>), with a slim bar
+// saying so. Both load over the visitor's own connection, not through 98ish.
 
 const MAX_TABS = 12
 const ZOOMS = [0.5, 0.67, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2]
 // Relayed pages run in an opaque origin (no allow-same-origin; the server's CSP says the same),
-// so they can't touch 98ish's storage, tokens or window. Neither kind may navigate the 98ish
+// so they can't touch 98ish's storage, tokens or window. No kind may navigate the 98ish
 // window, and their popups stay sandboxed (no allow-popups-to-escape-sandbox: an unsandboxed
-// popup could navigate this window through window.opener.top). Direct frames are the site's own
-// origin (never ours: the server refuses to check 98ish's own addresses).
+// popup could navigate this window through window.opener.top). Direct frames run as the site's
+// own origin and saved copies as web.archive.org: never 98ish's (sameOrigin() below refuses
+// that), so allow-same-origin gives them only their own storage.
 const RELAY_SANDBOX = "allow-scripts allow-forms allow-popups allow-modals"
 const DIRECT_SANDBOX = "allow-scripts allow-same-origin allow-forms allow-popups allow-modals"
+const ARCHIVE_SANDBOX = "allow-scripts allow-same-origin allow-forms allow-popups"
+const OPEN_IN = openInLabel()
+
+// a page at 98ish's own origin must never go in a frame that may run scripts as itself
+const sameOrigin = (url) => {
+  try {
+    return new URL(url).origin === window.location.origin
+  } catch {
+    return true
+  }
+}
 
 // Guests browse a few sites (Wikipedia and friends); anything else asks them to sign on
-const signOnStub = (url) => ({ view: "stub", stub: { kind: "signon", title: "Sign on to browse other sites", text: "Sign on with your 98 Messenger screen name to browse other sites. Without one, Compass opens Wikipedia and a few other sites.", url }, loading: false })
+const signOnStub = (url) => ({ view: "stub", stub: { kind: "signon", title: "Sign on to browse other sites", text: "Sign on with your 98 Messenger screen name to browse other sites live. Without one, Compass shows them straight from the site when it allows that, or as a saved copy.", url }, loading: false })
 
 // The server has sent its monthly allowance (Render's free plan covers 5 GB a month for all of
 // 98ish): Compass rests until the 1st, everything else in 98ish keeps working
 const monthlyStub = (reopens, url) => ({
   kind: "monthly",
   title: "Compass is resting until next month",
-  text: `Compass has used this month's data allowance; it's back on ${reopens.toLocaleDateString(undefined, { month: "long", day: "numeric", timeZone: "UTC" })}. Messenger and the rest of 98ish keep working. Until then, open pages in your real browser.`,
+  text: `Compass has used this month's data allowance; it's back on ${reopens.toLocaleDateString(undefined, { month: "long", day: "numeric", timeZone: "UTC" })}. Messenger and the rest of 98ish keep working. Until then, Compass shows sites straight from the site or as saved copies.`,
   url,
 })
+
+// Stubs from the relay that mean "show it without the relay" (straight from the site or a
+// saved copy) instead of a page about it
+const FALLBACK_KINDS = new Set(["notallowed", "monthly", "budget", "unavailable", "off", "error", "toobig", "media"])
+
+// The newest saved copy of a page: -> { ts } (ts null: unknown, ask for the newest) | { none }
+const SNAPSHOT_MS = 8000
+const newestSnapshot = async (url) => {
+  try {
+    const key = url.replace(/^https?:\/\//i, "").slice(0, 500)
+    const spark = await Promise.race([getSparkline(key), new Promise((_, no) => setTimeout(() => no(new Error("slow")), SNAPSHOT_MS))])
+    const ts = newestCapture(spark)
+    return ts ? { ts } : { none: true }
+  } catch {
+    return { ts: null }
+  }
+}
 
 let nextId = 1
 const makeTab = (url = NEW_TAB, title = "") => ({
@@ -45,7 +77,9 @@ const makeTab = (url = NEW_TAB, title = "") => ({
   entries: [{ url, title, favicon: null }],
   index: 0,
   frameKey: 0,
-  view: "pending", // internal | relay | direct | stub | pending
+  view: "pending", // internal | relay | direct | archive | stub | pending
+  why: null, // why a page isn't relayed (notallowed, off, closed, dataSaver...)
+  archiveTs: null, // the saved copy's time (14 digits), once the Archive says
   src: null,
   stub: null,
   loading: false,
@@ -126,13 +160,20 @@ const Compass = ({ initialUrl, onTitle, onClose, onNewWindow, dispatch, mobile }
   tokenRef.current = token
 
   const phone = mobile || narrow
-  // guests search Wikipedia (their omnibox can't open other search engines)
-  const engine = !token || (session?.allow && !allowedFor(session, hostOf(SEARCH_ENGINES[prefs.engine]?.url))) ? "wikipedia" : prefs.engine
+  // guests, and everyone while the relay opens only its list (the default), search Wikipedia:
+  // other search engines can't be relayed and don't allow frames. Until the session says
+  // otherwise, Compass assumes the list.
+  const engine = !token || !session || (session.allow && !allowedFor(session, hostOf(SEARCH_ENGINES[prefs.engine]?.url))) ? "wikipedia" : prefs.engine
   const active = tabs.find((t) => t.id === activeId) || tabs[0]
   const entry = entryOf(active)
   const pageUrl = entry.url
 
   useEffect(() => onSession(setSession), [])
+  // a signed-on person's session early, so the omnibox knows which search engine it may use
+  // (and a napping server starts waking up)
+  useEffect(() => {
+    if (token && currentSession()?.token !== token) ensureSession(token).catch(() => {})
+  }, [token])
 
   // narrow windows get the phone layout too
   useLayoutEffect(() => {
@@ -154,40 +195,57 @@ const Compass = ({ initialUrl, onTitle, onClose, onNewWindow, dispatch, mobile }
   // ---- loading a page into a tab ----
 
   // what a tab shows for an address -> a patch for the tab
-  const resolveView = useCallback(async (url, { force = false } = {}) => {
+  // A site Compass doesn't relay: straight from the site if it allows frames, else the Internet
+  // Archive's newest saved copy, else a page saying neither is possible. Nothing goes through
+  // the 98ish relay (the frame check reads only the site's headers).
+  const withoutRelay = useCallback(async (url, why, { archiveOnly = false } = {}) => {
+    const snapshot = newestSnapshot(url) // asked at once; needed only if the site can't be framed
+    if (!archiveOnly && !sameOrigin(url)) {
+      const c = await checkFrameAny(url)
+      // an http page can't go in an https 98ish (the browser blocks it), but its saved copy can
+      if (c.ok && c.frameable && (c.https || window.location.protocol === "http:") && isWeb(c.url) && !sameOrigin(c.url)) return { view: "direct", src: c.url, stub: null, why, loading: true }
+    }
+    const snap = await snapshot
+    if (snap.none)
+      return {
+        view: "stub",
+        why,
+        stub: { kind: "nosnapshot", title: "This site can't be shown in Compass", text: `${hostOf(url) || "This site"} doesn't let other pages show it, and the Internet Archive has no saved copy of this page yet.`, url, term: searchTermFor(url) },
+        loading: false,
+      }
+    return { view: "archive", src: archiveUrl(url, snap.ts || nowStamp()), stub: null, why, archiveTs: snap.ts, archivePending: true, loading: true }
+  }, [])
+
+  // what a tab shows for an address -> a patch for the tab
+  const resolveView = useCallback(async (url, { fallback = null, archiveOnly = false } = {}) => {
     if (isInternal(url)) return { view: "internal", src: null, stub: null, loading: false }
     if (!isWeb(url)) return { view: "stub", stub: { kind: "error", title: "Compass can't open that", text: "Only web addresses (http and https) open in Compass.", url }, loading: false }
     const p = prefsRef.current
-    const reason = !force && realBrowserReason(url, p.alwaysReal)
-    if (reason) return { view: "stub", stub: { kind: "real", title: "This site works best in your real browser", text: reason, url, canAlways: !p.alwaysReal.includes(hostOf(url)) }, loading: false }
+    if (fallback || archiveOnly) return withoutRelay(url, fallback || "archive", { archiveOnly })
+    // sign-ins, banks, video sites: never relayed
+    if (skipRelay(url)) return withoutRelay(url, "norelay")
     let s
     try {
       s = await ensureSession(tokenRef.current, { onSlow: () => setWaking(true) })
     } catch (error) {
       setWaking(false)
       if (error.signOn) return signOnStub(url)
-      // the owner turned the relay off: only sites that allow frames can show, straight from the site
-      if (error.off) {
-        if (url.startsWith("http:") && window.location.protocol === "https:") return { view: "stub", stub: { kind: "off", title: "Open this page in your real browser", text: "The 98ish server isn't relaying pages right now, and this page isn't secure (http), so Compass can't show it.", url }, loading: false }
-        return { view: "direct", src: url, stub: null, loading: true, relayOff: true }
-      }
-      return { view: "stub", stub: { kind: "offline", title: "Compass can't reach the 98ish server", text: error.message, url }, loading: false }
+      // the relay is off, or the server can't be reached: show it without the relay
+      return withoutRelay(url, error.off ? "off" : "offline")
     }
     setWaking(false)
-    // off the allowlist: in "on" mode a guest can sign on for it; in "allowlist" mode nobody can
-    if (!allowedFor(s, hostOf(url)))
-      return s.guest && s.mode === "on" ? signOnStub(url) : { view: "stub", stub: { kind: "notallowed", title: "Open this page in your real browser", text: "Compass opens only a few sites through the 98ish server: Wikipedia and its sister sites, OpenStreetMap and example.com. Other sites open in your real browser.", url }, loading: false }
+    // off the allowlist: in "on" mode a guest can sign on for it; otherwise it shows without the relay
+    if (!allowedFor(s, hostOf(url))) return s.guest && s.mode === "on" ? signOnStub(url) : withoutRelay(url, "notallowed")
     const overBudget = s.limit && s.used >= s.limit
-    // the month's data allowance is used up: only sites that allow frames, straight from the site
+    // the day's or month's data allowance is used up: without the relay
     const closed = s.closed ? new Date(s.closed) : null
-    if (p.dataSaver || overBudget || closed) {
+    if (closed || overBudget) return withoutRelay(url, closed ? "closed" : "budget")
+    if (p.dataSaver) {
       const c = await checkFrame(s.sid, url)
-      if (c.ok && c.frameable && (c.https || window.location.protocol === "http:")) return { view: "direct", src: c.url, stub: null, loading: true }
-      if (closed) return { view: "stub", stub: monthlyStub(closed, url), loading: false }
-      if (overBudget) return { view: "stub", stub: { kind: "budget", title: "Today's Compass allowance is used up", text: "The 98ish server relays a limited amount each day. This site can't load directly, so open it in your real browser (the allowance starts again tomorrow).", url }, loading: false }
+      if (c.ok && c.frameable && (c.https || window.location.protocol === "http:") && !sameOrigin(c.url)) return { view: "direct", src: c.url, stub: null, why: "dataSaver", loading: true }
     }
     return { view: "relay", src: relayUrl(SERVER, s.sid, url, p.relayAll ? "f" : "d"), stub: null, loading: true }
-  }, [])
+  }, [withoutRelay])
 
   // open url in a tab: how = "push" (a new history entry), "replace", or "entry" (back/forward/reload)
   const load = useCallback(
@@ -204,7 +262,7 @@ const Compass = ({ initialUrl, onTitle, onClose, onNewWindow, dispatch, mobile }
             entries = [...t.entries.slice(0, t.index + 1), { url, title: "", favicon: null }]
             index = entries.length - 1
           } else if (how === "replace") entries = t.entries.map((e, i) => (i === t.index ? { url, title: "", favicon: null } : e))
-          return { ...t, entries: entries.slice(-50), index: Math.min(index, 49), loading: isWeb(url), view: isInternal(url) ? "internal" : "pending", stub: null, relayOff: false, password: false, retried: options.retried || false, zoom: store.zoomFor(url) }
+          return { ...t, entries: entries.slice(-50), index: Math.min(index, 49), loading: isWeb(url), view: isInternal(url) ? "internal" : "pending", stub: null, why: null, archiveTs: null, archivePending: false, password: false, retried: options.retried || false, zoom: store.zoomFor(url) }
         })
       )
       if (id === activeIdRef.current) setEditing(false)
@@ -241,7 +299,8 @@ const Compass = ({ initialUrl, onTitle, onClose, onNewWindow, dispatch, mobile }
   const reload = (id = active.id) => {
     const t = tabsRef.current.find((x) => x.id === id)
     if (!t) return
-    load(id, entryOf(t).url, "entry", { force: t.stub?.kind === "real" ? false : undefined })
+    // a saved copy reloads as a saved copy
+    load(id, entryOf(t).url, "entry", t.view === "archive" ? { fallback: t.why || "archive" } : {})
   }
   const stop = () => {
     frames.current.get(active.id)?.contentWindow?.postMessage({ __compass: 1, type: "stop" }, "*")
@@ -299,17 +358,60 @@ const Compass = ({ initialUrl, onTitle, onClose, onNewWindow, dispatch, mobile }
 
   // ---- messages from pages (inject.js on the server) ----
   useEffect(() => {
+    // the Internet Archive's own messages from a saved copy: { event, pageUrl, pageTitle }
+    const fromArchive = (id, raw) => {
+      let data = raw
+      if (typeof data === "string") {
+        try {
+          data = JSON.parse(data)
+        } catch {
+          return
+        }
+      }
+      if (!data || typeof data !== "object") return
+      if (data.event === "pagehide") return updateTab(id, () => ({ loading: true }))
+      if (data.event !== "playbackReady" && data.event !== "domContentLoaded") return
+      const page = parseArchiveUrl(typeof data.pageUrl === "string" ? data.pageUrl.slice(0, 2000) : "")
+      if (!page || !isWeb(page.original)) return
+      const title = typeof data.pageTitle === "string" ? data.pageTitle.trim().slice(0, 300) : ""
+      const done = data.event === "domContentLoaded"
+      setTabs((list) =>
+        list.map((t) => {
+          if (t.id !== id) return t
+          const current = entryOf(t)
+          let { entries, index } = t
+          if (samePage(current.url, page.original) || t.archivePending) {
+            // the page asked for (the Archive may have redirected it: http -> https, www...)
+            entries = entries.map((e, i) => (i === index ? { ...e, url: samePage(e.url, page.original) ? e.url : page.original, title: title || e.title } : e))
+          } else {
+            // a link followed inside the saved copy: a new history entry (the frame is already there)
+            entries = [...entries.slice(0, index + 1), { url: page.original, title, favicon: null }].slice(-50)
+            index = entries.length - 1
+          }
+          return { ...t, entries, index, archiveTs: page.ts, archivePending: false, loading: done ? false : t.loading }
+        })
+      )
+      if (done) store.addHistory({ url: page.original, title })
+    }
+
     const onMessage = (event) => {
       const d = event.data
-      if (!d || d.__compass !== 1 || typeof d.type !== "string") return
+      if (!d) return
       let id = null
       for (const [tid, el] of frames.current) if (el && el.contentWindow === event.source) id = tid
       if (id === null) return
       const tab = tabsRef.current.find((t) => t.id === id)
       if (!tab) return
-      // a relayed page is always an opaque origin; a direct frame is never 98ish itself
-      if (tab.view === "relay" && event.origin !== "null") return
       if (event.origin === window.location.origin) return
+      // a saved copy: only the Archive's own messages, from its origin
+      if (tab.view === "archive") {
+        if (event.origin === ARCHIVE_ORIGIN) fromArchive(id, d)
+        return
+      }
+      // only relayed pages talk to Compass (through inject.js), always from an opaque origin;
+      // pages straight from a site have nothing to say to it
+      if (tab.view !== "relay" || event.origin !== "null") return
+      if (d.__compass !== 1 || typeof d.type !== "string") return
       const str = (v, max = 2000) => (typeof v === "string" ? v.slice(0, max) : "")
       if (d.type === "page") {
         const url = isWeb(d.url) ? str(d.url) : entryOf(tab).url
@@ -353,6 +455,12 @@ const Compass = ({ initialUrl, onTitle, onClose, onNewWindow, dispatch, mobile }
           load(id, entryOf(tab).url, "entry", { retried: true })
           return
         }
+        // the relay can't or won't bring it (off the list, the allowance, the site unreachable
+        // from the server, too big, a video): show it straight from the site or as a saved copy
+        if (FALLBACK_KINDS.has(info.kind)) {
+          load(id, info.url, entryOf(tab).url === info.url ? "entry" : "replace", { fallback: info.kind })
+          return
+        }
         updateTab(id, () => ({ view: "stub", stub: info, loading: false }))
       }
     }
@@ -380,7 +488,7 @@ const Compass = ({ initialUrl, onTitle, onClose, onNewWindow, dispatch, mobile }
   // ---- find and zoom ----
   const post = (msg) => frames.current.get(active.id)?.contentWindow?.postMessage({ __compass: 1, ...msg }, "*")
   const openFind = () => {
-    if (active.view === "direct") return showToast("Find needs the page to come through the 98ish relay (turn off Data Saver).")
+    if (active.view === "direct" || active.view === "archive") return showToast(active.view === "archive" ? "Find works only on pages that come through the 98ish relay, not on saved copies." : "Find works only on pages that come through the 98ish relay, not on pages straight from the site.")
     setFind((f) => f || { query: "", count: 0, index: -1 })
     setSheet(null)
     setTimeout(() => findRef.current?.focus(), 30)
@@ -417,9 +525,12 @@ const Compass = ({ initialUrl, onTitle, onClose, onNewWindow, dispatch, mobile }
       showToast("Bookmarked. It's on the bookmarks bar.")
     }
   }
+  // the live site in the browser 98ish runs in (Safari on an iPhone): a small, secondary way out
   const openReal = (url = pageUrl) => {
     if (isWeb(url)) window.open(url, "_blank", "noopener,noreferrer")
   }
+  // the Internet Archive's newest copy of this page, in this tab
+  const showSavedCopy = () => isWeb(pageUrl) && load(active.id, pageUrl, "entry", { archiveOnly: true })
   const timeMachine = (url = pageUrl) => isWeb(url) && dispatch?.({ type: "open_window", payload: ieWindow(url) })
   const sharePage = () => isWeb(pageUrl) && shareOut({ title: entry.title || displayUrl(pageUrl), url: pageUrl }, "apps", { title: "Share" })
   const importFavorites = () => {
@@ -458,7 +569,7 @@ const Compass = ({ initialUrl, onTitle, onClose, onNewWindow, dispatch, mobile }
     store.addDownload({ name: name || fileNameOf(url), url, where: "device" })
     openReal(url)
   }
-  const savePage = () => isWeb(pageUrl) && saveToDrive({ url: pageUrl, name: `${(entry.title || hostOf(pageUrl)).replace(/[\\/:"<>|*?]/g, " ").slice(0, 50)}.html`, tok: active.tok })
+  const savePage = () => isWeb(pageUrl) && active.view === "relay" && saveToDrive({ url: pageUrl, name: `${(entry.title || hostOf(pageUrl)).replace(/[\\/:"<>|*?]/g, " ").slice(0, 50)}.html`, tok: active.tok })
 
   // ---- the omnibox ----
   const suggestions = useMemo(() => (editing && address && address !== pageUrl ? suggest(address, { history: data.history, bookmarks: data.bookmarks }) : []), [editing, address, pageUrl, data.history, data.bookmarks])
@@ -511,8 +622,9 @@ const Compass = ({ initialUrl, onTitle, onClose, onNewWindow, dispatch, mobile }
         { label: "New Window", onClick: () => onNewWindow?.() },
         { label: "Open Location... Ctrl+L", onClick: () => omniRef.current?.focus() },
         "-",
-        { label: "Save Page to 98ish Drive", disabled: !isPage, onClick: savePage },
+        { label: "Save Page to 98ish Drive", disabled: !isPage || active.view !== "relay", onClick: savePage },
         { label: "Share Page...", disabled: !isPage, onClick: sharePage },
+        { label: OPEN_IN, disabled: !isPage, onClick: () => openReal() },
         "-",
         { label: "Close Tab Ctrl+W", onClick: () => closeTab(active.id) },
         { label: "Close Window", onClick: () => onClose?.() },
@@ -537,6 +649,8 @@ const Compass = ({ initialUrl, onTitle, onClose, onNewWindow, dispatch, mobile }
         "-",
         { label: "Data Saver (load directly when sites allow it)", checked: prefs.dataSaver, onClick: () => store.setPrefs({ dataSaver: !prefs.dataSaver }) },
         { label: "Relay Pictures Too (more private, uses more data)", checked: prefs.relayAll, onClick: () => store.setPrefs({ relayAll: !prefs.relayAll }) },
+        "-",
+        { label: "Show Saved Copy (Internet Archive)", disabled: !isPage || active.view === "archive", onClick: showSavedCopy },
       ],
     },
     {
@@ -549,7 +663,6 @@ const Compass = ({ initialUrl, onTitle, onClose, onNewWindow, dispatch, mobile }
         { label: "History", onClick: () => load(active.id, "compass://history", "push") },
         { label: "Downloads", onClick: () => load(active.id, "compass://downloads", "push") },
         "-",
-        { label: "Open in Real Browser", disabled: !isPage, onClick: () => openReal() },
         { label: "Open in Time Machine (Internet Explorer)", disabled: !isPage, onClick: () => timeMachine() },
       ],
     },
@@ -566,7 +679,6 @@ const Compass = ({ initialUrl, onTitle, onClose, onNewWindow, dispatch, mobile }
     {
       label: "Tools",
       items: [
-        { label: `Always Open ${host || "This Site"} in Real Browser`, disabled: !isPage, onClick: () => (store.alwaysReal(host), reload()) },
         { label: "Clear Cookies (sign out of sites)", onClick: () => clearCookies().then((ok) => showToast(ok ? "Compass forgot every site's cookies." : "There's no browsing session yet.")) },
         { label: "Compass Options...", onClick: () => setDialog({ kind: "options" }) },
       ],
@@ -596,17 +708,18 @@ const Compass = ({ initialUrl, onTitle, onClose, onNewWindow, dispatch, mobile }
         <StubPage
           info={t.stub}
           onReal={() => (t.stub.kind === "download" ? saveToDevice(t.stub.url, t.stub.name) : openReal(t.stub.url))}
-          onRetry={() => load(t.id, entryOf(t).url, "entry", { force: t.stub.kind === "real" })}
-          onAlways={() => store.alwaysReal(hostOf(t.stub.url))}
+          openIn={OPEN_IN}
+          onRetry={() => load(t.id, entryOf(t).url, "entry", t.stub.kind === "nosnapshot" ? { fallback: t.why || "archive" } : {})}
           onTimeMachine={() => timeMachine(t.stub.url)}
           onSignOn={(register) => setDialog({ kind: "signon", register })}
+          onWithoutSignOn={() => load(t.id, entryOf(t).url, "entry", { fallback: "signon" })}
+          onSearch={(term) => load(t.id, searchUrl(term, "wikipedia"), "push")}
           onSave={() => saveToDrive({ url: t.stub.url, name: t.stub.name || fileNameOf(t.stub.url), tok: t.stub.tok })}
-          onDataSaver={() => (store.setPrefs({ dataSaver: true }), load(t.id, entryOf(t).url, "entry"))}
         />
       )
-    else if ((t.view === "relay" || t.view === "direct") && t.src) {
+    else if ((t.view === "relay" || t.view === "direct" || t.view === "archive") && t.src) {
       const z = t.zoom || 1
-      const scaled = t.view === "direct" && z !== 1
+      const scaled = t.view !== "relay" && z !== 1
       const frame = (
         <iframe
           key={t.frameKey}
@@ -614,27 +727,37 @@ const Compass = ({ initialUrl, onTitle, onClose, onNewWindow, dispatch, mobile }
           className="cmpFrame"
           src={t.src}
           title={entryOf(t).title || "Web page"}
-          sandbox={t.view === "relay" ? RELAY_SANDBOX : DIRECT_SANDBOX}
+          sandbox={t.view === "relay" ? RELAY_SANDBOX : t.view === "archive" ? ARCHIVE_SANDBOX : DIRECT_SANDBOX}
           referrerPolicy="no-referrer"
           allow="fullscreen; clipboard-write"
           style={scaled ? { width: `${100 / z}%`, height: `${100 / z}%`, transform: `scale(${z})`, transformOrigin: "0 0" } : undefined}
-          onLoad={() => updateTab(t.id, () => ({ loading: false }))}
+          onLoad={() => {
+            updateTab(t.id, () => ({ loading: false }))
+            // a page straight from the site says nothing, so its visit is noted here
+            if (t.view === "direct") store.addHistory({ url: entryOf(t).url, title: entryOf(t).title })
+          }}
         />
       )
-      // relay off (WEB_RELAY=0): the page comes straight from the site, if it allows frames
-      body = t.relayOff ? (
-        <div className="cmpOffWrap">
-          <div className="cmpOffBar" role="note">
-            <span>The 98ish server isn&apos;t relaying pages, so sites that refuse frames show an error here.</span>
-            <button type="button" onClick={() => openReal(entryOf(t).url)}>
-              Open in Real Browser
-            </button>
+      // a saved copy: a slim bar says so, with the live site as a small second choice
+      body =
+        t.view === "archive" ? (
+          <div className="cmpFrameWrap">
+            <div className="cmpArchiveBar" role="note">
+              <span className="cmpNoticeIcon" aria-hidden="true">
+                i
+              </span>
+              <span className="cmpArchiveText">
+                Saved copy from the Internet Archive{t.archiveTs ? `, ${formatStamp(t.archiveTs)}` : ""}. This site can&apos;t be shown live in Compass.
+              </span>
+              <button type="button" className="cmpLink" onClick={() => openReal(entryOf(t).url)} title={`Open the live site in ${OPEN_IN.replace(/^Open in /, "")}`}>
+                {OPEN_IN}
+              </button>
+            </div>
+            <div className="cmpFrameBox">{frame}</div>
           </div>
-          {frame}
-        </div>
-      ) : (
-        frame
-      )
+        ) : (
+          frame
+        )
     } else body = <div className="cmpPage cmpPending">{waking ? "Waking up the 98ish server (it naps when nobody's around)..." : "Opening page..."}</div>
     return (
       <div key={t.id} className="cmpTabView" hidden={hidden} aria-hidden={hidden || undefined}>
@@ -643,7 +766,7 @@ const Compass = ({ initialUrl, onTitle, onClose, onNewWindow, dispatch, mobile }
     )
   }
 
-  const zone = active.view === "relay" ? "Relayed by the 98ish server" : active.view === "direct" ? "Direct from the site" : isInternal(pageUrl) || pageUrl === NEW_TAB ? "Compass" : ""
+  const zone = active.view === "relay" ? "Relayed by the 98ish server" : active.view === "direct" ? "Direct from the site" : active.view === "archive" ? "Saved copy (Internet Archive)" : isInternal(pageUrl) || pageUrl === NEW_TAB ? "Compass" : ""
   const status = waking ? "Waking up the 98ish server..." : active.loading ? `Opening ${displayUrl(pageUrl)}...` : "Done"
   const passwordNotice = active.password && isPage && !prefs.passwordOk.includes(host)
   const omniShown = editing ? address : displayUrl(address)
@@ -787,12 +910,9 @@ const Compass = ({ initialUrl, onTitle, onClose, onNewWindow, dispatch, mobile }
         {phone ? (
           active.loading ? <ToolButton icon="stop" label="Stop" onClick={stop} /> : <ToolButton icon="reload" label="Reload" onClick={() => reload()} />
         ) : (
-          <>
-            <ToolButton icon="real" label="Open in Real Browser" disabled={!isPage} onClick={() => openReal()} className="cmpRealBtn" />
-            <div className={active.loading ? "cmpThrobber is-busy" : "cmpThrobber"} aria-hidden="true">
-              <CompassLogo size={22} />
-            </div>
-          </>
+          <div className={active.loading ? "cmpThrobber is-busy" : "cmpThrobber"} aria-hidden="true">
+            <CompassLogo size={22} />
+          </div>
         )}
       </div>
 
@@ -816,20 +936,20 @@ const Compass = ({ initialUrl, onTitle, onClose, onNewWindow, dispatch, mobile }
       {passwordNotice && (
         <div className="cmpNotice is-warn" role="alert">
           <span className="cmpNoticeIcon">!</span>
-          <span className="cmpNoticeText">This page asks for a password. What you type here passes through the 98ish server. For banking, email and other important accounts, use your real browser.</span>
-          <button type="button" className="cmpPrimary" onClick={() => openReal()}>
-            Open in Real Browser
+          <span className="cmpNoticeText">This page asks for a password. What you type here passes through the 98ish server. For banking, email and other important accounts, open the site in {OPEN_IN.replace(/^Open in /, "").replace(/^Your Browser$/, "your browser")} instead.</span>
+          <button type="button" onClick={() => openReal()}>
+            {OPEN_IN}
           </button>
           <button type="button" onClick={() => store.setPrefs({ passwordOk: [...prefs.passwordOk, host] })}>
             Continue Here
           </button>
         </div>
       )}
-      {active.view === "direct" && (
+      {active.view === "direct" && (active.why === "dataSaver" || (active.why === "closed" && session?.closed)) && (
         <div className="cmpNotice">
           <span className="cmpNoticeIcon">i</span>
-          {session?.closed ? (
-            <span className="cmpNoticeText">{monthlyStub(new Date(session.closed)).text.split(". ")[0]}, so this site loads directly (Compass can&apos;t follow its links, find or zoom text).</span>
+          {active.why === "closed" ? (
+            <span className="cmpNoticeText">{monthlyStub(new Date(session.closed)).text.split(". ")[0]}, so this site loads straight from the site (Compass can&apos;t find or zoom text in it).</span>
           ) : (
             <>
               <span className="cmpNoticeText">Data Saver: this site loads directly, so Compass can&apos;t follow its links, find or zoom text.</span>
@@ -895,7 +1015,7 @@ const Compass = ({ initialUrl, onTitle, onClose, onNewWindow, dispatch, mobile }
         <div className="cmpPhoneBar">
           <ToolButton icon="back" label="Back" disabled={active.index === 0} onClick={() => go(-1)} />
           <ToolButton icon="forward" label="Forward" disabled={active.index >= active.entries.length - 1} onClick={() => go(1)} />
-          <ToolButton icon="real" label="Open in Real Browser" disabled={!isPage} onClick={() => openReal()} />
+          <ToolButton icon="home" label="Home" onClick={() => load(active.id, prefs.home || NEW_TAB, "push")} />
           <button type="button" className="cmpTool cmpTabCount" onClick={() => setSheet(sheet === "tabs" ? null : "tabs")} aria-label={`Tabs (${tabs.length})`} title="Tabs">
             <span>{tabs.length}</span>
           </button>
@@ -960,9 +1080,10 @@ const Compass = ({ initialUrl, onTitle, onClose, onNewWindow, dispatch, mobile }
           </div>
           <ul className="cmpMenuList">
             <li><button type="button" onClick={() => (load(active.id, prefs.home || NEW_TAB, "push"), setSheet(null))}>Home</button></li>
-            <li><button type="button" disabled={!isPage} onClick={() => (savePage(), setSheet(null))}>Save Page to 98ish Drive</button></li>
+            <li><button type="button" disabled={!isPage || active.view !== "relay"} onClick={() => (savePage(), setSheet(null))}>Save Page to 98ish Drive</button></li>
             <li><button type="button" disabled={!isPage} onClick={() => (timeMachine(), setSheet(null))}>Open in Time Machine (Internet Explorer)</button></li>
-            <li><button type="button" disabled={!isPage} onClick={() => (store.alwaysReal(host), reload(), setSheet(null))}>Always Open {host || "This Site"} in Real Browser</button></li>
+            <li><button type="button" disabled={!isPage || active.view === "archive"} onClick={() => (showSavedCopy(), setSheet(null))}>Show Saved Copy (Internet Archive)</button></li>
+            <li><button type="button" disabled={!isPage} onClick={() => (openReal(), setSheet(null))}>{OPEN_IN}</button></li>
             <li><button type="button" onClick={() => store.setPrefs({ dataSaver: !prefs.dataSaver })}>{prefs.dataSaver ? "\u2713 " : ""}Data Saver</button></li>
             <li><button type="button" onClick={() => (setDialog({ kind: "options" }), setSheet(null))}>Compass Options...</button></li>
             <li><button type="button" onClick={() => (refreshUsage(), load(active.id, "compass://about", "push"), setSheet(null))}>About Compass</button></li>
@@ -994,7 +1115,7 @@ const Compass = ({ initialUrl, onTitle, onClose, onNewWindow, dispatch, mobile }
             &bull; What you type into pages, passwords included, passes through the 98ish server.
             <br />
             <br />
-            For banking, email and other important accounts, use <b>Open in Real Browser</b> (the arrow button).
+            For banking, email and other important accounts, use <b>{OPEN_IN}</b> ({phone ? "in the menu" : "in the File menu"}).
           </p>
         </Dialog>
       )}
@@ -1012,7 +1133,7 @@ const Compass = ({ initialUrl, onTitle, onClose, onNewWindow, dispatch, mobile }
           onCancel={() => setDialog(null)}
         >
           <p className="dialogText">
-            Save <b>{dialog.name}</b> to the 98ish drive (C:\Downloads; pictures, text, web pages and sounds), or to your device through your real browser?
+            Save <b>{dialog.name}</b> to the 98ish drive (C:\Downloads; pictures, text, web pages and sounds), or to your device?
           </p>
         </Dialog>
       )}
@@ -1156,19 +1277,6 @@ const OptionsDialog = ({ prefs, pageUrl, onClose }) => {
         <label className="cmpCheck">
           <input type="checkbox" checked={draft.relayAll} onChange={(e) => setDraft({ ...draft, relayAll: e.target.checked })} /> Relay pictures and scripts too (more private: sites see only the 98ish server; uses more of the daily allowance)
         </label>
-        {draft.alwaysReal.length > 0 && (
-          <fieldset>
-            <legend>Always open in my real browser</legend>
-            {draft.alwaysReal.map((h) => (
-              <div key={h} className="cmpOptRow">
-                <span>{h}</span>
-                <button type="button" onClick={() => setDraft({ ...draft, alwaysReal: draft.alwaysReal.filter((x) => x !== h) })}>
-                  Remove
-                </button>
-              </div>
-            ))}
-          </fieldset>
-        )}
       </div>
     </Dialog>
   )

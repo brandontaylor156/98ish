@@ -370,29 +370,46 @@
   background: #fff;
 }
 
-/* relay off: a note above a page that comes straight from the site */
-.cmpOffWrap {
+/* a saved copy from the Internet Archive: a slim info bar above the page */
+.cmpFrameWrap {
   display: flex;
   flex-direction: column;
   height: 100%;
+  overflow: hidden;
 }
-.cmpOffWrap .cmpFrame {
+.cmpFrameWrap .cmpFrameBox {
   flex: 1;
   min-height: 0;
-  height: auto;
+  overflow: hidden;
+  position: relative;
 }
-.cmpOffBar {
+.cmpFrameBox .cmpFrame {
+  position: absolute;
+  inset: 0;
+}
+.cmpArchiveBar {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 3px 6px;
+  gap: 6px;
+  padding: 2px 6px;
   background: #ffffe1;
   border-bottom: 1px solid #808080;
   font-size: 11px;
+  line-height: 1.3;
 }
-.cmpOffBar span {
+.cmpArchiveBar .cmpNoticeIcon {
+  width: 14px;
+  height: 14px;
+  font-size: 10px;
+}
+.cmpArchiveText {
   flex: 1;
   min-width: 0;
+}
+.cmpArchiveBar .cmpLink {
+  flex: none;
+  font-size: 11px;
+  white-space: nowrap;
 }
 
 /* Sign On (98 Messenger screen name) */

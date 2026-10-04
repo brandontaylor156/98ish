@@ -4,7 +4,7 @@
 // re-renders when they change (useCompass).
 
 import { useSyncExternalStore } from "react"
-import { DEFAULT_ENGINE, NEW_TAB, hostOf, isWeb } from "./urls"
+import { BOOKMARKS_VERSION, DEFAULT_BOOKMARKS, DEFAULT_ENGINE, NEW_TAB, hostOf, isWeb, migrateBookmarks } from "./urls"
 
 const KEYS = {
   bookmarks: "98ish.compass.bookmarks",
@@ -17,22 +17,14 @@ const MAX_HISTORY = 2000
 const MAX_DOWNLOADS = 100
 const MAX_BOOKMARKS = 500
 
-export const DEFAULT_BOOKMARKS = [
-  { title: "Wikipedia", url: "https://en.wikipedia.org/", bar: true },
-  { title: "DuckDuckGo", url: "https://html.duckduckgo.com/html/", bar: true },
-  { title: "Hacker News", url: "https://news.ycombinator.com/", bar: true },
-  { title: "BBC News", url: "https://www.bbc.com/news", bar: true },
-  { title: "Weather", url: "https://wttr.in/?format=v2", bar: true },
-  { title: "Old Reddit", url: "https://old.reddit.com/", bar: false },
-  { title: "Craigslist", url: "https://www.craigslist.org/", bar: false },
-]
+export { DEFAULT_BOOKMARKS }
 export const DEFAULT_PREFS = {
   engine: DEFAULT_ENGINE,
   home: NEW_TAB,
   dataSaver: false, // load sites directly when they allow framing (fewer features, no relay data)
   relayAll: false, // pictures and scripts through the relay too (for sites whose pictures don't show)
-  alwaysReal: [], // sites to open in the real browser
   passwordOk: [], // sites where the password notice was dismissed
+  bookmarksVersion: 0, // the starting bookmarks this person has had (migrateBookmarks)
   zoom: {}, // host -> zoom
   noticeSeen: false,
   restoreTabs: true,
@@ -69,6 +61,16 @@ const load = () => {
   }
   if (!Array.isArray(state.history)) state.history = []
   if (!Array.isArray(state.downloads)) state.downloads = []
+  // the first starting bookmarks (DuckDuckGo, Hacker News, BBC...) can't load without the relay:
+  // swap them for ones that work, once per person (a new person just gets the new ones)
+  if ((state.prefs.bookmarksVersion || 0) < BOOKMARKS_VERSION) {
+    if (Array.isArray(saved)) {
+      state.bookmarks = migrateBookmarks(saved, newId)
+      write(KEYS.bookmarks, state.bookmarks)
+    }
+    state.prefs = { ...state.prefs, bookmarksVersion: BOOKMARKS_VERSION }
+    write(KEYS.prefs, state.prefs)
+  }
   return state
 }
 const get = () => state || load()
@@ -146,10 +148,6 @@ export const clearDownloads = () => set({ downloads: [] })
 
 // ---- settings ----
 export const setPrefs = (patch) => set({ prefs: { ...get().prefs, ...patch } })
-export const alwaysReal = (host, on = true) => {
-  const list = get().prefs.alwaysReal.filter((h) => h !== host)
-  setPrefs({ alwaysReal: on ? [...list, host] : list })
-}
 export const zoomFor = (url) => get().prefs.zoom[hostOf(url)] || 1
 export const setZoomFor = (url, zoom) => {
   const host = hostOf(url)

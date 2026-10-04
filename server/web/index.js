@@ -9,6 +9,10 @@
 //   POST /session                      { sid, guest, limits }   Bearer token of a signed-on 98
 //                                       Messenger account, or (if guests are allowed) none
 //   GET  /check?sid=&url=              { ok, url, status, frameable, https, type }   can it be framed?
+//   GET  /frame?url=                   the same for ANY public site, no session: headers only,
+//                                       nothing of the page is relayed (Compass's way to show
+//                                       sites it doesn't relay: straight in its frame, or else
+//                                       the Internet Archive's saved copy)
 //   GET  /usage?sid=                   { used, limit }
 //   ANY  /r/<sid>/<tok>/<d|f>/<scheme>/<host>/<path>   a page or anything it loads
 //   ANY  /x/<sid>/<tok>/<scheme>/<host>/<path>         a script's own request (fetch, XHR): as-is
@@ -17,7 +21,9 @@
 //
 // Env (all optional): WEB_RELAY = allowlist (default: everyone, signed on or not, only the
 // allowlist) | on (signed-on accounts browse anywhere, guests the allowlist) | 0/off (no relay:
-// Compass shows sites straight in a frame when they allow it, else offers the real browser).
+// Compass shows sites straight in a frame when they allow it, else the Internet Archive's copy).
+// WEB_FRAME_CHECK=0 turns off GET /frame (Compass then shows saved copies of every site it
+// doesn't relay).
 // WEB_GUESTS=0 (people who aren't signed on can't use the relay at all; by default they may
 // browse the guest allowlist, by address, with smaller limits). WEB_GUEST_ALLOW (comma list of
 // domains replacing GUEST_ALLOW below; "none" for none). WEB_DAILY_MB (60 per account),
@@ -71,6 +77,11 @@
 //    through is still counted against the persisted budgets. Bodies stream; only pages and
 //    stylesheets being rewritten are held in memory (capped, and only a few at once).
 //  - Video and audio aren't relayed (Compass offers the real browser instead).
+//  - GET /frame looks at ANY public site's response headers to say whether it may be framed.
+//    It is not a relay: the body is never read (the socket is destroyed after the headers),
+//    only { frameable, url, status, https, type } comes back, it goes through the same SSRF
+//    guard (own hosts, private addresses, every redirect hop), is rate limited per address and
+//    in all, cached for 10 minutes, and its few bytes are counted in the relay's totals.
 // Sites see the 98ish server's address, and anything typed into a relayed page (passwords
 // too) passes through this server: Compass says so and suggests the real browser for logins.
 
@@ -133,6 +144,7 @@ const defaultLimits = () => ({
   perMinute: num("WEB_RATE_PER_MIN", 300),
   guestPerMinute: num("WEB_GUEST_RATE_PER_MIN", 120),
   checksPerMinute: 60,
+  frameChecksPerMinute: num("WEB_FRAME_CHECKS_PER_MIN", 1200), // GET /frame for everyone together
   maxBytes: num("WEB_MAX_MB", 12) * MB, // one response
   rewriteBytes: num("WEB_REWRITE_MB", 4) * MB, // a page or stylesheet being rewritten
   requestBytes: 5 * MB, // a form post
@@ -229,6 +241,43 @@ const makeGate = (max) => {
 
 const escapeHtml = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c])
 
+// May a page with these response headers be shown in a frame on `ancestorOrigin` (98ish)?
+// Like browsers: a CSP frame-ancestors directive wins (X-Frame-Options is then ignored), and
+// every policy must allow it; X-Frame-Options DENY/SAMEORIGIN refuse (98ish is never the site's
+// own origin), ALLOW-FROM and unknown values are ignored. -> { frameable, by: "csp"|"xfo"|null }
+const sourceMatches = (source, ancestor) => {
+  const s = String(source || "").trim().toLowerCase()
+  if (!s || !ancestor) return false
+  if (s === "*") return true
+  if (s === "https:") return ancestor.protocol === "https:"
+  if (s === "http:") return ancestor.protocol === "https:" || ancestor.protocol === "http:"
+  if (s.startsWith("'")) return false // 'none', 'self' (the site's own origin, never 98ish's)
+  const m = /^(?:(https?):\/\/)?(\*|(?:\*\.)?[a-z0-9-]+(?:\.[a-z0-9-]+)*)(?::(\d+|\*))?(?:\/.*)?$/.exec(s)
+  if (!m) return false
+  const [, scheme, host, port] = m
+  if (scheme && `${scheme}:` !== ancestor.protocol && !(scheme === "http" && ancestor.protocol === "https:")) return false
+  const h = ancestor.hostname.toLowerCase()
+  if (!(host === "*" || (host.startsWith("*.") ? h.endsWith(host.slice(1)) : h === host))) return false
+  if (port === "*") return true
+  if (port) return port === (ancestor.port || (ancestor.protocol === "https:" ? "443" : "80"))
+  return !ancestor.port
+}
+const frameVerdict = (headers = {}, ancestorOrigin = "https://98ish.vercel.app") => {
+  let ancestor = null
+  try {
+    ancestor = new URL(ancestorOrigin)
+  } catch {
+    ancestor = null
+  }
+  // several CSP headers (Node joins them with ", ") are several policies: each must allow it
+  const policies = [].concat(headers["content-security-policy"] || []).join(",").split(",")
+  const found = policies.map((p) => /(?:^|;)\s*frame-ancestors\b([^;]*)/i.exec(p)).filter(Boolean)
+  if (found.length) return { frameable: found.every((m) => m[1].trim().split(/\s+/).some((src) => sourceMatches(src, ancestor))), by: "csp" }
+  const xfo = [].concat(headers["x-frame-options"] || []).join(",").toLowerCase().split(",").map((v) => v.trim())
+  if (xfo.some((v) => v === "deny" || v === "sameorigin")) return { frameable: false, by: "xfo" }
+  return { frameable: true, by: null }
+}
+
 // A small page Compass replaces with its own (download, video, error...), readable on its own too
 const stubHtml = (info) => {
   const msg = JSON.stringify({ __compass: 1, type: "stub", ...info }).replace(/</g, "\\u003c")
@@ -241,7 +290,7 @@ const stubHtml = (info) => {
 
 // ---------- the service ----------
 
-const createWeb = ({ aim = () => null, limits: overrides = {}, now = () => Date.now(), resolve, allowGuests = process.env.WEB_GUESTS !== "0", mode: relayModeOption = relayMode(process.env.WEB_RELAY), enabled = true, guestAllow = parseAllow(process.env.WEB_GUEST_ALLOW), bindIp = process.env.WEB_BIND_IP !== "0", blockedHosts = [], testHosts = process.env.RENDER ? null : parseTestHosts(process.env.WEB_TEST_HOSTS), secret = process.env.WEB_SECRET || crypto.randomBytes(32).toString("hex"), counters = null, usageSecret = defaultUsageSecret() } = {}) => {
+const createWeb = ({ aim = () => null, limits: overrides = {}, now = () => Date.now(), resolve, allowGuests = process.env.WEB_GUESTS !== "0", mode: relayModeOption = relayMode(process.env.WEB_RELAY), enabled = true, guestAllow = parseAllow(process.env.WEB_GUEST_ALLOW), bindIp = process.env.WEB_BIND_IP !== "0", blockedHosts = [], testHosts = process.env.RENDER ? null : parseTestHosts(process.env.WEB_TEST_HOSTS), secret = process.env.WEB_SECRET || crypto.randomBytes(32).toString("hex"), counters = null, usageSecret = defaultUsageSecret(), frameCheck = process.env.WEB_FRAME_CHECK !== "0" } = {}) => {
   const limits = { ...defaultLimits(), ...overrides }
   // byte budgets and monthly totals (persisted by server.js's shared counters; memory in tests)
   const ownCounters = !counters
@@ -257,11 +306,11 @@ const createWeb = ({ aim = () => null, limits: overrides = {}, now = () => Date.
   // in "on" mode signing on opens other sites; in "allowlist" mode nothing does
   const notAllowed = (session, url) => {
     const signOn = session.guest && mode === "on"
-    return new Refused(signOn ? 401 : 403, signOn ? "Sign on with your 98 Messenger screen name to browse other sites." : "Compass opens only a few sites through the 98ish server (Wikipedia and friends). Open this one in your real browser.", { notAllowed: true, signOn, url: url?.href })
+    return new Refused(signOn ? 401 : 403, signOn ? "Sign on with your 98 Messenger screen name to browse other sites." : "Compass opens only a few sites through the 98ish server (Wikipedia and friends); it shows other sites straight from the site or as a saved copy.", { notAllowed: true, signOn, url: url?.href })
   }
   const sessions = new Map() // sid -> session
   const jars = new Map() // "u:<account>" -> { jar, at }
-  const rate = { user: limiter(limits.perMinute, 60000), guest: limiter(limits.guestPerMinute, 60000), check: limiter(limits.checksPerMinute, 60000), session: limiter(30, 60 * 60000) }
+  const rate = { user: limiter(limits.perMinute, 60000), guest: limiter(limits.guestPerMinute, 60000), check: limiter(limits.checksPerMinute, 60000), session: limiter(30, 60 * 60000), frame: limiter(limits.checksPerMinute, 60000), frameAll: limiter(limits.frameChecksPerMinute, 60000) }
   const gates = new Map() // sid -> gate
   const globalGate = makeGate(limits.global)
   const rewriteGate = makeGate(limits.rewrites)
@@ -303,8 +352,8 @@ const createWeb = ({ aim = () => null, limits: overrides = {}, now = () => Date.
     const open = known && total < limits.monthlyTotalBytes && compass < limits.monthlyBytes
     return { month, total, compass, known, open, reopens: nextMonthStart(t) }
   }
-  const unavailable = () => new Refused(503, "Compass can't check its data allowance right now (the 98ish server's database isn't answering). Try again in a few minutes, or use Open in Real Browser.", { budget: true, unavailable: true })
-  const closedForMonth = (m) => new Refused(503, `Compass has used this month's data allowance; it's back on ${monthName(m.reopens)}. Until then, use Open in Real Browser.`, { budget: true, monthly: true, reopens: m.reopens.toISOString() })
+  const unavailable = () => new Refused(503, "Compass can't check its data allowance right now (the 98ish server's database isn't answering). Try again in a few minutes.", { budget: true, unavailable: true })
+  const closedForMonth = (m) => new Refused(503, `Compass has used this month's data allowance; it's back on ${monthName(m.reopens)}. Until then, Compass shows sites straight from the site or as saved copies.`, { budget: true, monthly: true, reopens: m.reopens.toISOString() })
   // every allowance this request needs, read back from the store first; a Refused or null
   const budgetCheck = async (session) => {
     const day = dayOf(now())
@@ -320,7 +369,7 @@ const createWeb = ({ aim = () => null, limits: overrides = {}, now = () => Date.
     if (!m.known) return unavailable()
     if (!m.open) return closedForMonth(m)
     const over = used(session.usageId) >= budgetOf(session) || used("relay") >= limits.globalDailyBytes || (session.guest && used("guests") >= limits.guestsDailyBytes)
-    if (over) return new Refused(429, "Today's Compass allowance on the 98ish server is used up. It starts again tomorrow (UTC); until then, use Open in Real Browser.", { budget: true })
+    if (over) return new Refused(429, "Today's Compass allowance on the 98ish server is used up. It starts again tomorrow (UTC); until then, Compass shows sites straight from the site or as saved copies.", { budget: true })
     return null
   }
 
@@ -442,19 +491,67 @@ const createWeb = ({ aim = () => null, limits: overrides = {}, now = () => Date.
       headersFor: () => ({ accept: "text/html,*/*;q=0.8", "user-agent": String(request.headers["user-agent"] || "Mozilla/5.0").slice(0, 400), "accept-language": "en-US,en;q=0.8" }),
     })
     res.destroy()
-    const xfo = String(res.headers["x-frame-options"] || "").trim().toLowerCase()
-    const csp = [].concat(res.headers["content-security-policy"] || []).join(";")
-    const ancestors = /(?:^|;)\s*frame-ancestors([^;]*)/i.exec(csp)
-    const blockedByCsp = ancestors && !/(^|\s)(\*|https:)(\s|$)/.test(ancestors[1])
     const result = {
       ok: true,
       url: url.href,
       status: res.statusCode,
       https: url.protocol === "https:",
       type: String(res.headers["content-type"] || "").split(";")[0].trim().toLowerCase(),
-      frameable: !blockedByCsp && (!xfo || xfo === "allowall"),
+      frameable: frameVerdict(res.headers).frameable,
     }
     checks.set(href, { at: now(), result })
+    if (checks.size > 500) checks.delete(checks.keys().next().value)
+    return result
+  }
+
+  // ---- may ANY public page be framed? (GET /frame: no session, headers only) ----
+  // Compass asks this for sites it doesn't relay: framable ones load straight from the site in
+  // its frame, the rest as the Internet Archive's copy. The page itself is never read or sent.
+  const FRAME_CHECK_BYTES = 600 // our request and the JSON answer, roughly (the site's headers are added)
+  const frame = async (input, request) => {
+    if (!frameCheck) return { ok: false, reason: "Frame checks are turned off on this server." }
+    const shape = checkUrlShape(input, { blockedHosts: ownHosts(request), testHosts })
+    if (!shape.ok) return { ok: false, reason: shape.reason }
+    // where the frame will be: the 98ish page that asks (its Origin), else 98ish itself
+    let ancestor = "https://98ish.vercel.app"
+    try {
+      const o = new URL(String(request.headers.origin || ""))
+      if (o.protocol === "https:" || o.protocol === "http:") ancestor = o.origin
+    } catch {
+      // no Origin: the default
+    }
+    const key = `frame ${ancestor} ${shape.url.href}`
+    const cached = checks.get(key)
+    if (cached && now() - cached.at < 10 * 60 * 1000) return cached.result
+    if (rate.frame(`f:${ipKey(clientIp(request)).key}`) || rate.frameAll("all")) throw new Refused(429, "Slow down a little.")
+    let headerBytes = 0
+    const { res, url } = await fetchChecked(shape.url, {
+      method: "GET",
+      follow: 8,
+      timeoutMs: Math.min(limits.timeoutMs, 10000),
+      guard: guardFor(request, null),
+      headersFor: () => ({ accept: "text/html,*/*;q=0.8", "user-agent": String(request.headers["user-agent"] || "Mozilla/5.0").slice(0, 400), "accept-language": "en-US,en;q=0.8" }),
+      onResponse: (r) => (headerBytes += (r.rawHeaders || []).reduce((n, h) => n + String(h).length + 2, 0)),
+    })
+    res.destroy() // headers only: the body is never read
+    const verdict = frameVerdict(res.headers, ancestor)
+    const status = res.statusCode
+    // an error page (a bot check, "forbidden", the site down) isn't worth showing live
+    const okStatus = status < 400 || status === 404 || status === 410
+    const result = {
+      ok: true,
+      url: url.href,
+      status,
+      https: url.protocol === "https:",
+      type: String(res.headers["content-type"] || "").split(";")[0].trim().toLowerCase(),
+      frameable: verdict.frameable && okStatus,
+      by: verdict.frameable ? (okStatus ? null : "status") : verdict.by,
+    }
+    const n = FRAME_CHECK_BYTES + headerBytes
+    counters.add("day", "frames", dayOf(now()), n)
+    counters.add("day", "relay", dayOf(now()), n)
+    counters.add("month", "compass", monthOf(now()), n)
+    checks.set(key, { at: now(), result })
     if (checks.size > 500) checks.delete(checks.keys().next().value)
     return result
   }
@@ -765,6 +862,18 @@ const createWeb = ({ aim = () => null, limits: overrides = {}, now = () => Date.
     }
   })
 
+  // can this page (any public site) go straight into Compass's frame? Headers only, no session
+  router.get("/frame", async (request, response) => {
+    response.set("cache-control", "no-store")
+    try {
+      response.json(await frame(String(request.query.url || ""), request))
+    } catch (error) {
+      if (error.status === 429) return send(response, error)
+      if (!error.status) console.error("[web] frame check", error.message)
+      response.json({ ok: false, reason: error.status ? error.message : "The site couldn't be checked." })
+    }
+  })
+
   // forget this account's cookies (Compass > Clear Cookies)
   router.post("/clear", (request, response) => {
     try {
@@ -904,4 +1013,4 @@ const fileName = (url, disposition) => {
 
 const webRouter = (options) => createWeb(options)
 
-module.exports = { createWeb, webRouter, PAGE_SANDBOX, NEVER_PASS, PASS_BACK, GUEST_ALLOW, parseAllow, onList, relayMode, siteOf, clientIp, ipKey, charsetOf, decodeText, stubHtml, makeGate }
+module.exports = { createWeb, webRouter, PAGE_SANDBOX, NEVER_PASS, PASS_BACK, GUEST_ALLOW, parseAllow, onList, relayMode, siteOf, clientIp, ipKey, charsetOf, decodeText, stubHtml, makeGate, frameVerdict }

@@ -182,11 +182,18 @@ test("isolation: Compass's frames have no allow-same-origin for relayed pages an
   const src = fs.readFileSync(path.join(__dirname, "../../../client/src/components/applets/compass/Compass.jsx"), "utf8")
   const relay = /const RELAY_SANDBOX = "([^"]*)"/.exec(src)[1]
   const direct = /const DIRECT_SANDBOX = "([^"]*)"/.exec(src)[1]
+  const archive = /const ARCHIVE_SANDBOX = "([^"]*)"/.exec(src)[1]
   assert.doesNotMatch(relay, /allow-same-origin/)
-  for (const sandbox of [relay, direct]) assert.doesNotMatch(sandbox, /allow-top-navigation|allow-popups-to-escape-sandbox/)
-  // messages from relayed frames must come from an opaque origin and from the tab's own frame
-  assert.match(src, /tab\.view === "relay" && event\.origin !== "null"/)
+  for (const sandbox of [relay, direct, archive]) assert.doesNotMatch(sandbox, /allow-top-navigation|allow-popups-to-escape-sandbox/)
+  // messages: only from the tab's own frame, never from 98ish's own origin; Compass's commands
+  // only from relayed frames (an opaque origin); a saved copy's only from the Archive itself;
+  // pages straight from a site have nothing to say
   assert.match(src, /el\.contentWindow === event\.source/)
+  assert.match(src, /if \(event\.origin === window\.location\.origin\) return/)
+  assert.match(src, /if \(tab\.view !== "relay" \|\| event\.origin !== "null"\) return/)
+  assert.match(src, /if \(event\.origin === ARCHIVE_ORIGIN\) fromArchive\(id, d\)/)
+  // a page at 98ish's own origin never goes straight into a frame (allow-same-origin + scripts)
+  assert.match(src, /!sameOrigin\(c\.url\)/)
 })
 
 // ---------- budgets kept across restarts, failing closed ----------

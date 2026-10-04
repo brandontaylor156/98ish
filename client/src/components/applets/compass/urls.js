@@ -1,5 +1,5 @@
 // Compass's address rules (pure, tested in compass.test.js): what the omnibox does with what
-// you type, search engines, relay addresses, and the sites that only work in a real browser.
+// you type, search engines, relay addresses, saved copies and the starting bookmarks.
 
 export const SEARCH_ENGINES = {
   // DuckDuckGo's no-JavaScript pages are made for simple browsers and relay well
@@ -81,49 +81,48 @@ export const rawUrl = (server, sid, url, tok = "_") => {
   return `${server}/api/web/x/${sid}/${tok}/${u.protocol.slice(0, -1)}/${u.host}${u.pathname}${u.search}`
 }
 
-// Sites that break when relayed (sign-in systems, banks, video, heavy apps): Compass offers
-// the real browser for these instead of trying. Matches the host and its subdomains.
-export const REAL_BROWSER_SITES = [
-  ["accounts.google.com", "Google sign-in only works in your real browser."],
-  ["youtube.com", "YouTube videos play in your real browser."],
-  ["youtu.be", "YouTube videos play in your real browser."],
-  ["netflix.com", "Video sites play in your real browser."],
-  ["twitch.tv", "Video sites play in your real browser."],
-  ["vimeo.com", "Video sites play in your real browser."],
-  ["tiktok.com", "Video sites play in your real browser."],
-  ["paypal.com", "For your money and accounts, use your real browser."],
-  ["chase.com", "For your money and accounts, use your real browser."],
-  ["bankofamerica.com", "For your money and accounts, use your real browser."],
-  ["wellsfargo.com", "For your money and accounts, use your real browser."],
-  ["capitalone.com", "For your money and accounts, use your real browser."],
-  ["citi.com", "For your money and accounts, use your real browser."],
-  ["venmo.com", "For your money and accounts, use your real browser."],
-  ["appleid.apple.com", "Apple Account sign-in only works in your real browser."],
-  ["icloud.com", "iCloud only works in your real browser."],
-  ["login.microsoftonline.com", "Microsoft sign-in only works in your real browser."],
-  ["login.live.com", "Microsoft sign-in only works in your real browser."],
-  ["facebook.com", "Facebook needs your real browser."],
-  ["instagram.com", "Instagram needs your real browser."],
-  ["x.com", "X needs your real browser."],
-  ["twitter.com", "X needs your real browser."],
-  ["docs.google.com", "Google Docs needs your real browser."],
-  ["mail.google.com", "Gmail needs your real browser."],
-  ["drive.google.com", "Google Drive needs your real browser."],
-  ["maps.google.com", "Google Maps needs your real browser."],
-  ["spotify.com", "Spotify needs your real browser."],
+// Sites that break when relayed (sign-in systems, banks, video, heavy apps): Compass never
+// sends these through the relay; like any site it doesn't relay, they show straight from the
+// site when they allow frames, else as the Internet Archive's saved copy. Host + subdomains.
+export const NO_RELAY_SITES = [
+  "accounts.google.com",
+  "youtube.com",
+  "youtu.be",
+  "netflix.com",
+  "twitch.tv",
+  "vimeo.com",
+  "tiktok.com",
+  "paypal.com",
+  "chase.com",
+  "bankofamerica.com",
+  "wellsfargo.com",
+  "capitalone.com",
+  "citi.com",
+  "venmo.com",
+  "appleid.apple.com",
+  "icloud.com",
+  "login.microsoftonline.com",
+  "login.live.com",
+  "facebook.com",
+  "instagram.com",
+  "x.com",
+  "twitter.com",
+  "docs.google.com",
+  "mail.google.com",
+  "drive.google.com",
+  "maps.google.com",
+  "spotify.com",
 ]
 
 const matchesHost = (host, site) => host === site || host.endsWith("." + site)
 
-// -> the reason a URL should open in the real browser, or null
-export const realBrowserReason = (url, alwaysReal = []) => {
+// Should Compass keep this site off the relay?
+export const skipRelay = (url) => {
   const host = hostOf(url)
-  if (!host) return null
-  if (alwaysReal.some((site) => matchesHost(host, site))) return "You chose to always open this site in your real browser."
+  if (!host) return false
   // google.com/maps
-  if (matchesHost(host, "google.com") && /^\/maps\b/.test(safePath(url))) return "Google Maps needs your real browser."
-  const hit = REAL_BROWSER_SITES.find(([site]) => matchesHost(host, site))
-  return hit ? hit[1] : null
+  if (matchesHost(host, "google.com") && /^\/maps\b/.test(safePath(url))) return true
+  return NO_RELAY_SITES.some((site) => matchesHost(host, site))
 }
 const safePath = (url) => {
   try {
@@ -131,6 +130,97 @@ const safePath = (url) => {
   } catch {
     return ""
   }
+}
+
+// The browser 98ish itself runs in, for "Open in Safari" (a small, secondary way out)
+export const browserName = (ua = typeof navigator === "undefined" ? "" : navigator.userAgent) => {
+  const s = String(ua || "")
+  if (/CriOS\//.test(s)) return "Chrome"
+  if (/FxiOS\//.test(s)) return "Firefox"
+  if (/EdgiOS\/|Edg\//.test(s)) return "Edge"
+  if (/SamsungBrowser\//.test(s)) return "Samsung Internet"
+  if (/Firefox\//.test(s)) return "Firefox"
+  if (/Chrome\/|Chromium\//.test(s)) return "Chrome"
+  if (/(iPhone|iPad|iPod|Macintosh)/.test(s) && /Safari\//.test(s)) return "Safari"
+  return "Your Browser"
+}
+export const openInLabel = (ua) => {
+  const name = browserName(ua)
+  return name === "Your Browser" ? "Open in Your Browser" : `Open in ${name}`
+}
+
+// ---- the Internet Archive's saved copies (for sites that can't be relayed or framed) ----
+
+// The newest good capture from the Wayback Machine's sparkline (/api/wayback?action=sparkline):
+// { years: { "2026": [count per month] }, status: { "2026": "2224..." (a status class per
+// month: "2" good, "3" redirect, "4"/"5" error) }, lastTs, last } -> a 14-digit timestamp to ask
+// the Archive for (it redirects to the nearest capture), or null if the page was never saved.
+export const newestCapture = (spark) => {
+  if (!spark || !spark.years) return null
+  const years = Object.keys(spark.years).filter((y) => /^\d{4}$/.test(y)).sort().reverse()
+  const lastTs = /^\d{14}$/.test(String(spark.lastTs || "")) ? String(spark.lastTs) : null
+  let newest = null
+  for (const y of years) {
+    const counts = spark.years[y] || []
+    const status = String(spark.status?.[y] || "")
+    for (let m = Math.min(11, counts.length - 1); m >= 0; m--) {
+      if (!(counts[m] > 0)) continue
+      const ym = `${y}${String(m + 1).padStart(2, "0")}`
+      newest = newest || ym
+      if (status && status[m] && status[m] !== "2") continue
+      // the newest month with good captures: its newest capture, or the end of that month
+      if (lastTs && lastTs.startsWith(ym)) return lastTs
+      const lastDay = new Date(Date.UTC(+y, m + 1, 0)).getUTCDate()
+      return `${ym}${String(lastDay).padStart(2, "0")}235959`
+    }
+  }
+  if (lastTs) return lastTs
+  return newest ? `${newest}28000000` : null
+}
+
+// "20261003175615" now, for asking the Archive for its newest copy without a sparkline
+export const nowStamp = (date = new Date()) => date.toISOString().replace(/\D/g, "").slice(0, 14)
+
+// What to search Wikipedia for when a site can't be shown at all: "www.spacejam.com" -> "spacejam"
+export const searchTermFor = (url) => {
+  const host = hostOf(url)
+  if (!host) return ""
+  const labels = host.split(".")
+  if (labels.length === 1) return labels[0]
+  const two = labels.length > 2 && labels.at(-1).length === 2 && /^(co|com|org|net|ac|gov|edu)$/.test(labels.at(-2))
+  return labels.at(two ? -3 : -2) || host
+}
+
+// ---- bookmarks every new Compass starts with ----
+// Ones that work well with no sign-on: the relayed reference sites, a site that allows frames
+// (shown straight from the site) and a classic that looks great as the Internet Archive's copy.
+export const DEFAULT_BOOKMARKS = [
+  { title: "Wikipedia", url: "https://en.wikipedia.org/", bar: true },
+  { title: "Featured Article", url: "https://en.wikipedia.org/wiki/Wikipedia:Today%27s_featured_article", bar: true },
+  { title: "Wiktionary", url: "https://en.wiktionary.org/", bar: true },
+  { title: "Wikivoyage", url: "https://en.wikivoyage.org/", bar: true },
+  { title: "OpenStreetMap", url: "https://www.openstreetmap.org/", bar: true },
+  { title: "Space Jam (1996)", url: "https://www.spacejam.com/1996/", bar: true },
+  { title: "Cameron's World", url: "https://www.cameronsworld.net/", bar: true },
+  { title: "The First Website", url: "https://info.cern.ch/hypertext/WWW/TheProject.html", bar: false },
+  { title: "Zombo.com", url: "https://zombo.com/", bar: false },
+]
+// Compass's first bookmarks, which can't load without the relay: dropped from saved bookmarks
+// (only while unchanged), and the new ones added, once (prefs.bookmarksVersion)
+export const OLD_DEFAULT_BOOKMARKS = [
+  { title: "DuckDuckGo", url: "https://html.duckduckgo.com/html/" },
+  { title: "Hacker News", url: "https://news.ycombinator.com/" },
+  { title: "BBC News", url: "https://www.bbc.com/news" },
+  { title: "Weather", url: "https://wttr.in/?format=v2" },
+  { title: "Old Reddit", url: "https://old.reddit.com/" },
+  { title: "Craigslist", url: "https://www.craigslist.org/" },
+]
+export const BOOKMARKS_VERSION = 2
+export const migrateBookmarks = (list, makeId = () => Math.random().toString(36).slice(2, 10)) => {
+  const kept = (Array.isArray(list) ? list : []).filter((b) => !OLD_DEFAULT_BOOKMARKS.some((o) => o.url === b.url && o.title === b.title))
+  const added = DEFAULT_BOOKMARKS.filter((d) => !kept.some((b) => b.url === d.url)).map((b, i) => ({ ...b, id: makeId(), at: i }))
+  // the new defaults go first (where the old ones were), the person's own after them
+  return [...added, ...kept]
 }
 
 // 98ish's own pages (the web ring, the guestbook) belong to Internet Explorer

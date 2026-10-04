@@ -79,6 +79,17 @@ export const checkFrame = async (sid, url) => {
   }
 }
 
+// The same for ANY site, without a session (sites Compass doesn't relay): the server looks at
+// the response headers only. A slow or sleeping server counts as "can't tell" (never throws).
+export const checkFrameAny = async (url, ms = 9000) => {
+  try {
+    const r = await withTimeout(fetch(`${SERVER}/api/web/frame?url=${encodeURIComponent(url)}`), ms)
+    return await r.json()
+  } catch {
+    return { ok: false }
+  }
+}
+
 export const refreshUsage = async () => {
   if (!current) return null
   try {
