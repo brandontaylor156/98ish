@@ -15,6 +15,7 @@ import GlobalMenu from "./components/OS-specific/GlobalMenu"
 import AchievementToast from "./components/OS-specific/AchievementToast"
 import CursorTrail from "./components/OS-specific/CursorTrail"
 import KeyboardHost from "./components/shared/keyboard/KeyboardHost"
+import SelectHost from "./components/shared/select/SelectHost"
 import { arrangeWindows } from "./utils/windowArrange"
 import { unlock } from "./utils/achievements"
 import { programByName } from "./utils/programs"
@@ -388,6 +389,8 @@ function App() {
       <AchievementToast />
       {/* the 98ish on-screen keyboard (touch screens only) */}
       <KeyboardHost />
+      {/* 98-style drop-down lists and date/time pickers for every <select> and date field */}
+      <SelectHost />
     </div>
   )
 }

@@ -770,8 +770,13 @@ html, body {
    padding rule lets the text run under it: in any box taller than 21px (every one on a
    phone, and several apps) the button was short and the text overlapped it. Here the
    button is drawn with 1px gradient lines, so it always fills the box's height, and the
-   text keeps clear of it. */
-select {
+   text keeps clear of it. Date and time fields get the same button (the 98-style calendar
+   in shared/select opens from it). */
+select,
+input[type="date"],
+input[type="time"],
+input[type="datetime-local"],
+input[type="month"] {
   --sel-btn: 16px;
   padding: 1px calc(var(--sel-btn) + 6px) 1px 4px;
   line-height: normal;
@@ -813,8 +818,11 @@ select {
   background-repeat: no-repeat;
 }
 
-/* pressed: the button sinks (dark edges top-left) and the arrow moves a pixel */
-select:active {
+/* pressed: the button sinks (dark edges top-left) and the arrow moves a pixel; it stays
+   down while its 98-style list or calendar is open */
+select:active,
+select[data-sel-open],
+input[data-sel-open] {
   background-image:
     url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='7' height='4'%3E%3Cpath d='M0 0h7v1H6v1H5v1H4v1H3V3H2V2H1V1H0z'/%3E%3C/svg%3E"),
     linear-gradient(grey, grey),
@@ -839,6 +847,78 @@ select:active {
     right 2px top 2px;
 }
 
+/* Date and time fields as 98 text boxes (sunken, white, the pixel font), not the browser's
+   rounded pill with its own calendar icon */
+input[type="date"],
+input[type="time"],
+input[type="datetime-local"],
+input[type="month"] {
+  -webkit-appearance: none;
+  appearance: none;
+  border: none;
+  border-radius: 0;
+  box-sizing: border-box;
+  height: 21px;
+  min-width: 0;
+  background-color: #fff;
+  color: #000;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px grey, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+  font-family: "Pixelated MS Sans Serif", Arial, sans-serif;
+  font-size: 11px;
+  -webkit-font-smoothing: none;
+  text-align: left;
+  cursor: default;
+}
+
+input[type="date"]:focus,
+input[type="time"]:focus,
+input[type="datetime-local"]:focus,
+input[type="month"]:focus {
+  outline: none;
+}
+
+input[type="date"]:disabled,
+input[type="time"]:disabled,
+input[type="datetime-local"]:disabled,
+input[type="month"]:disabled {
+  background-color: silver;
+  color: grey;
+}
+
+input::-webkit-calendar-picker-indicator,
+input[type="date"]::-webkit-inner-spin-button,
+input[type="time"]::-webkit-inner-spin-button,
+input[type="datetime-local"]::-webkit-inner-spin-button,
+input[type="month"]::-webkit-inner-spin-button,
+input::-webkit-clear-button {
+  display: none;
+  -webkit-appearance: none;
+}
+
+input::-webkit-datetime-edit,
+input::-webkit-datetime-edit-fields-wrapper {
+  padding: 0;
+}
+
+/* the part being typed (month, day, hour...) highlighted as Windows selects text */
+input::-webkit-datetime-edit-month-field:focus,
+input::-webkit-datetime-edit-day-field:focus,
+input::-webkit-datetime-edit-year-field:focus,
+input::-webkit-datetime-edit-hour-field:focus,
+input::-webkit-datetime-edit-minute-field:focus,
+input::-webkit-datetime-edit-second-field:focus,
+input::-webkit-datetime-edit-ampm-field:focus {
+  background: navy;
+  color: #fff;
+}
+
+/* iOS centres the value and lets an empty field collapse */
+input::-webkit-date-and-time-value {
+  text-align: left;
+  margin: 0;
+  min-height: 1.2em;
+}
+
 /* the white arrow on a focused (navy) list reads badly: keep the button as it is */
 select:focus {
   background-color: navy;
@@ -854,9 +934,22 @@ select:focus {
 /* ...and 98.css's 21px-high boxes are too short for 16px text: it was cut off at the bottom */
 /* phones: a thumb-sized list box, tall enough for 16px text whatever height an app set
    (min-height beats a smaller height) */
-.os-mobile select {
+.os-mobile select,
+.os-mobile input[type="date"],
+.os-mobile input[type="time"],
+.os-mobile input[type="datetime-local"],
+.os-mobile input[type="month"] {
   --sel-btn: 22px;
   min-height: 32px;
+}
+
+.os-mobile input[type="date"],
+.os-mobile input[type="time"],
+.os-mobile input[type="datetime-local"],
+.os-mobile input[type="month"] {
+  height: auto;
+  font-size: 16px;
+  line-height: normal;
 }
 
 .os-mobile select,
