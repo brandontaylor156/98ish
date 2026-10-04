@@ -133,6 +133,9 @@ export const GARMENTS = {
   shoes: { inflate: 0.016, smooth: 4, trim: 0, sole: true },
 }
 
+// bottoms with a waistband (tucked under the top)
+const WAISTED = ["shorts", "board", "short", "swim", "pants", "briefs"]
+
 // ---- mesh helpers ----
 const key = (p, i) => `${Math.round(p[i * 3] * 2e4)},${Math.round(p[i * 3 + 1] * 2e4)},${Math.round(p[i * 3 + 2] * 2e4)}`
 
@@ -231,15 +234,91 @@ export const prepareBody = (body) => {
   return { ...body, dominant, welded: weld(body.position) }
 }
 
+// The body with its triangles cut where a garment's edge crosses them: every triangle with
+// some corners covered and some not is clipped at the edge (found by halving along each
+// crossing edge), so hems, necklines and sleeves follow the garment's real outline instead of
+// stepping along the mesh's triangles. New vertices take their skin weights from the two
+// corners they lie between. Returns a body like prepareBody's (more vertices; only the
+// covered triangles and the clipped pieces) and which vertices are covered.
+export const clipBody = (kind, body, m) => {
+  const P = body.position
+  const n = P.length / 3
+  const coversAt = (x, y, z, bone) => covers(kind, { x, y, z, bone }, m)
+  const inside = []
+  for (let i = 0; i < n; i++) inside.push(coversAt(P[i * 3], P[i * 3 + 1], P[i * 3 + 2], body.dominant[i]) ? 1 : 0)
+  const position = Array.from(P)
+  const skinIndex = Array.from(body.skinIndex)
+  const skinWeight = Array.from(body.skinWeight)
+  const dominant = body.dominant.slice()
+  const ids = Array.from(body.welded.ids)
+  let count = body.welded.count
+  const cut = new Map() // welded edge -> new vertex
+  const crossing = (a, b) => {
+    // a covered, b not: where along a -> b the garment ends
+    const wa = body.welded.ids[a]
+    const wb = body.welded.ids[b]
+    const key = wa < wb ? `${wa},${wb}` : `${wb},${wa}`
+    if (cut.has(key)) return cut.get(key)
+    let lo = 0
+    let hi = 1
+    for (let it = 0; it < 7; it++) {
+      const t = (lo + hi) / 2
+      const bone = t < 0.5 ? body.dominant[a] : body.dominant[b]
+      if (coversAt(P[a * 3] + (P[b * 3] - P[a * 3]) * t, P[a * 3 + 1] + (P[b * 3 + 1] - P[a * 3 + 1]) * t, P[a * 3 + 2] + (P[b * 3 + 2] - P[a * 3 + 2]) * t, bone)) lo = t
+      else hi = t
+    }
+    const t = lo
+    const id = position.length / 3
+    for (let k = 0; k < 3; k++) position.push(P[a * 3 + k] + (P[b * 3 + k] - P[a * 3 + k]) * t)
+    // skin weights: the two corners', blended, the strongest four kept
+    const w = new Map()
+    for (const [v, f] of [[a, 1 - t], [b, t]]) for (let k = 0; k < 4; k++) {
+      const s = body.skinWeight[v * 4 + k] * f
+      if (s > 0) w.set(body.skinIndex[v * 4 + k], (w.get(body.skinIndex[v * 4 + k]) || 0) + s)
+    }
+    const top = [...w].sort((x, y) => y[1] - x[1]).slice(0, 4)
+    const sum = top.reduce((s, x) => s + x[1], 0) || 1
+    for (let k = 0; k < 4; k++) {
+      skinIndex.push(top[k] ? top[k][0] : 0)
+      skinWeight.push(top[k] ? top[k][1] / sum : 0)
+    }
+    dominant.push(body.dominant[a])
+    inside.push(1)
+    ids.push(count++)
+    cut.set(key, id)
+    return id
+  }
+  const I = body.index
+  const index = []
+  for (let t = 0; t < I.length; t += 3) {
+    const tri = [I[t], I[t + 1], I[t + 2]]
+    const k = inside[tri[0]] + inside[tri[1]] + inside[tri[2]]
+    if (k === 3) index.push(...tri)
+    else if (k === 1 || k === 2) {
+      // rotate so the odd corner out comes first (keeping the winding)
+      const odd = k === 1 ? tri.findIndex((v) => inside[v]) : tri.findIndex((v) => !inside[v])
+      const [a, b, c] = [tri[odd], tri[(odd + 1) % 3], tri[(odd + 2) % 3]]
+      if (k === 1) index.push(a, crossing(a, b), crossing(a, c))
+      else {
+        const ab = crossing(b, a)
+        const ac = crossing(c, a)
+        index.push(ab, b, c, ab, c, ac)
+      }
+    }
+  }
+  return { ...body, position: Float32Array.from(position), skinIndex: Uint16Array.from(skinIndex), skinWeight: Float32Array.from(skinWeight), dominant, welded: { ids: Int32Array.from(ids), count }, index, inside: Uint8Array.from(inside) }
+}
+
 // Build one garment from a prepared body. Returns arrays for a skinned mesh:
 // { position, normal, skinIndex, skinWeight, trim, accent, index } (trim, accent: 0..1 per
 // vertex: how much of the trim color, and of the accent color, a shoe's stripe)
-export const buildGarment = (kind, body, m) => {
+export const buildGarment = (kind, body0, m) => {
   const spec = GARMENTS[kind]
+  // (the body cut along the garment's outline)
+  const body = clipBody(kind, body0, m)
   const P = body.position
   const n = P.length / 3
-  const inside = new Uint8Array(n)
-  for (let i = 0; i < n; i++) inside[i] = covers(kind, { x: P[i * 3], y: P[i * 3 + 1], z: P[i * 3 + 2], bone: body.dominant[i] }, m) ? 1 : 0
+  const inside = body.inside
   // the patch: triangles with every corner covered
   const I = body.index
   const tris = []
@@ -297,6 +376,8 @@ export const buildGarment = (kind, body, m) => {
     const y = orig[i * 3 + 1]
     if (spec.flare) inflate += Math.max(0, m.hipY - 0.05 - y) * spec.flare * 2.2
     if (spec.loose) inflate += Math.max(0, Math.min(1, (m.hipY + 0.2 - y) / 0.2)) * spec.loose
+    // a waistband stays snug, under any top's hem (never poking out through a fitted shirt)
+    if (WAISTED.includes(kind) && y > m.hipY + 0.03) inflate = Math.min(inflate, 0.0045)
     const nx = wn[i * 3]
     let ny = wn[i * 3 + 1]
     const nz = wn[i * 3 + 2]
@@ -310,8 +391,9 @@ export const buildGarment = (kind, body, m) => {
   }
   // trim: distance (along the patch) from its edge
   const trim = new Float32Array(W)
+  let dist = null
   if (spec.trim > 0) {
-    const dist = new Float64Array(W).fill(Infinity)
+    dist = new Float64Array(W).fill(Infinity)
     const queue = []
     for (let i = 0; i < W; i++) if (onEdge[i]) {
       dist[i] = 0
@@ -373,7 +455,7 @@ export const buildGarment = (kind, body, m) => {
       res.skinWeight[w * 4 + k] = body.skinWeight[v * 4 + k]
     }
   })
-  const tri = []
+  let tri = []
   for (let t = 0; t < wtris.length; t += 3) if (wtris[t] !== wtris[t + 1] && wtris[t + 1] !== wtris[t + 2] && wtris[t] !== wtris[t + 2]) tri.push(wtris[t], wtris[t + 1], wtris[t + 2])
   // a polo's collar: a band standing up from the neckline
   if (spec.collar) {
@@ -423,8 +505,78 @@ export const buildGarment = (kind, body, m) => {
       for (const [a, b, ta, tb] of quads) tri.push(a, b, tb, a, tb, ta)
     }
   }
+  // a crisp trim stripe: triangles across the stripe's inner edge are cut along it, with the
+  // cut's vertices doubled (the trim color on one side, the garment's on the other), so the
+  // stripe's edge runs smooth instead of zig-zagging across the triangles
+  const pairs = []
+  if (dist && !spec.sole) {
+    const n0 = res.position.length / 3
+    const T = spec.trim
+    const d = new Float64Array(n0)
+    for (let i = 0; i < n0; i++) d[i] = i < W ? Math.min(dist[i], T * 4) : 0
+    const P = Array.from(res.position)
+    const SI = Array.from(res.skinIndex)
+    const SW = Array.from(res.skinWeight)
+    const TR = Array.from(res.trim, (x, i) => (i < W ? (d[i] < T ? 1 : 0) : x))
+    const AC = Array.from(res.accent)
+    const cut = new Map()
+    const iso = (a, b) => {
+      // a and b on either side of the stripe's edge: two vertices where it crosses (near, far)
+      const key = a < b ? `${a},${b}` : `${b},${a}`
+      if (cut.has(key)) return cut.get(key)
+      const t = Math.max(0, Math.min(1, (T - d[a]) / (d[b] - d[a] || 1e-9)))
+      const make = (tr) => {
+        const id = P.length / 3
+        for (let k = 0; k < 3; k++) P.push(P[a * 3 + k] + (P[b * 3 + k] - P[a * 3 + k]) * t)
+        const w = new Map()
+        for (const [v, f] of [[a, 1 - t], [b, t]]) for (let k = 0; k < 4; k++) if (SW[v * 4 + k] > 0) w.set(SI[v * 4 + k], (w.get(SI[v * 4 + k]) || 0) + SW[v * 4 + k] * f)
+        const top = [...w].sort((x, y) => y[1] - x[1]).slice(0, 4)
+        const sum = top.reduce((q, x) => q + x[1], 0) || 1
+        for (let k = 0; k < 4; k++) {
+          SI.push(top[k] ? top[k][0] : 0)
+          SW.push(top[k] ? top[k][1] / sum : 0)
+        }
+        TR.push(tr)
+        AC.push(AC[a] + (AC[b] - AC[a]) * t)
+        return id
+      }
+      const i1 = make(1)
+      const i0 = make(0)
+      cut.set(key, [i1, i0])
+      pairs.push([i1, i0])
+      return [i1, i0]
+    }
+    const near = (i) => d[i] < T
+    const out2 = []
+    for (let t = 0; t < tri.length; t += 3) {
+      const v = [tri[t], tri[t + 1], tri[t + 2]]
+      const k = v.filter(near).length
+      if (k === 0 || k === 3) {
+        out2.push(...v)
+        continue
+      }
+      const oi = k === 1 ? v.findIndex(near) : v.findIndex((x) => !near(x))
+      const [o, p2, q] = [v[oi], v[(oi + 1) % 3], v[(oi + 2) % 3]]
+      const [op1, op0] = iso(o, p2)
+      const [oq1, oq0] = iso(o, q)
+      if (k === 1) out2.push(o, op1, oq1, op0, p2, q, op0, q, oq0)
+      else out2.push(o, op0, oq0, op1, p2, q, op1, q, oq1)
+    }
+    tri = out2
+    res.position = Float32Array.from(P)
+    res.skinIndex = Uint16Array.from(SI)
+    res.skinWeight = Float32Array.from(SW)
+    res.trim = Float32Array.from(TR)
+    res.accent = Float32Array.from(AC)
+  }
   res.index = tri.length / 3 > 0 && res.position.length / 3 > 65535 ? new Uint32Array(tri) : new Uint16Array(tri)
   res.normal = Float32Array.from(normalsOf(Float64Array.from(res.position), tri))
+  // (the doubled vertices share one normal: no shading seam along the stripe)
+  for (const [a, b] of pairs)
+    for (let k = 0; k < 3; k++) {
+      const m2 = (res.normal[a * 3 + k] + res.normal[b * 3 + k]) / 2
+      res.normal[a * 3 + k] = res.normal[b * 3 + k] = m2
+    }
   return res
 }
 

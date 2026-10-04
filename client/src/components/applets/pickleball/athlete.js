@@ -1,5 +1,7 @@
-// Pickleball 98: the skinned athletes. Real character models (Quaternius' Universal Base
-// Characters, CC0: a 65-bone humanoid skeleton, faces, eyes, hairstyles) dressed in kits
+// Pickleball 98: the skinned athletes. Real character models (MakeHuman bodies, CC0, built by
+// tools/build-mh-athletes.mjs: realistic proportions, skin texture, eyes, brows and lashes,
+// hairstyles fitted to each body; Quaternius' Universal Base Characters, CC0, if those
+// don't load; both on the same humanoid skeleton naming) dressed in kits
 // grown from the body (outfit.js), holding a modeled paddle, and posed every frame from the
 // joints anim.js works out (retarget.js does the math): the pelvis, spine, neck and head
 // turn to the pose's frames; arms and legs are solved with two-bone IK on the model's own
@@ -7,7 +9,8 @@
 // physics computed; fingers curl round the grip; small motion-captured clips (Quaternius'
 // Universal Animation Library) breathe and bounce on top.
 //
-// The assets (about 0.9 MB, in public/assets/pickleball/) load the first time Pickleball
+// The assets (about 2 MB: mh-m/mh-f/mh-hair.glb and moves.json, in public/assets/pickleball/;
+// the older Quaternius files are about 0.8 MB more, only fetched if those fail) load the first time Pickleball
 // opens. Until they're in (or if they fail, or on Low quality) rig.js's simple figures
 // stand in; createAthlete has the same interface as rig.js's createFigure.
 
@@ -23,7 +26,12 @@ import { BUILD_SCALE, buildGarment, buildSkirt, landmarks, prepareBody, radiusPr
 import { loadMotion } from "./mm/runtime.js"
 
 const BASE = "/assets/pickleball/"
-const HEAD_SCALE = 1.1 // a slightly bigger head: friendlier, and it reads at TV distance
+// the bodies: MakeHuman's (CC0, realistic proportions: tools/build-mh-athletes.mjs), or the
+// older Quaternius ones if those don't load
+const SETS = [
+  { id: "mh", m: "mh-m.glb", f: "mh-f.glb", hair: "mh-hair.glb", headScale: 1.03 },
+  { id: "q", m: "athlete-m.glb", f: "athlete-f.glb", hair: "hair.glb", headScale: 1.1 }, // (a slightly bigger head: friendlier, and it reads at TV distance)
+]
 
 // ---- loading (once) ----
 let assets = null
@@ -37,21 +45,27 @@ export const loadAthletes = () => {
   loading = (async () => {
     const loader = new GLTFLoader()
     loader.setMeshoptDecoder(MeshoptDecoder)
-    const [m, f, hair, moves] = await Promise.all([
-      loader.loadAsync(BASE + "athlete-m.glb"),
-      loader.loadAsync(BASE + "athlete-f.glb"),
-      loader.loadAsync(BASE + "hair.glb"),
-      fetch(BASE + "moves.json").then((r) => {
-        if (!r.ok) throw new Error("moves " + r.status)
-        return r.json()
-      }),
-    ])
-    const hairs = {}
-    hair.scene.traverse((o) => {
-      if (o.isMesh) hairs[o.name] = o
+    const movesP = fetch(BASE + "moves.json").then((r) => {
+      if (!r.ok) throw new Error("moves " + r.status)
+      return r.json()
     })
-    assets = { m: template(m), f: template(f), hairs, moves: decodeMoves(moves), paddles: new Map() }
-    return assets
+    let error = null
+    // (tests: window.__pbModels = "q" shows the older bodies, to compare)
+    const sets = typeof window !== "undefined" && window.__pbModels === "q" ? SETS.slice(1) : SETS
+    for (const set of sets) {
+      try {
+        const [m, f, hair, moves] = await Promise.all([loader.loadAsync(BASE + set.m), loader.loadAsync(BASE + set.f), loader.loadAsync(BASE + set.hair), movesP])
+        const hairs = {}
+        hair.scene.traverse((o) => {
+          if (o.isMesh) hairs[o.name] = o
+        })
+        assets = { set: set.id, m: template(m, set), f: template(f, set), hairs, moves: decodeMoves(moves), paddles: new Map() }
+        return assets
+      } catch (e) {
+        error = e
+      }
+    }
+    throw error
   })()
   loading.catch(() => {
     loading = null // a later open can try again
@@ -67,7 +81,7 @@ const tq2 = new THREE.Quaternion()
 const tv = new THREE.Vector3()
 
 // ---- a body, ready to clone ----
-const template = (gltf) => {
+const template = (gltf, set = SETS[0]) => {
   const scene = gltf.scene
   scene.updateMatrixWorld(true)
   const meshes = {}
@@ -137,7 +151,7 @@ const template = (gltf) => {
   head.eyeZ = eyes.boundingBox.max.z
   head.eyeX = eyes.boundingBox.max.x * 0.55
   // the materials' textures (shared by every instance)
-  const maps = { skin: body.material.map, normal: body.material.normalMap, brows: meshes.Brows.material.map, eyes: meshes.Eyes.material }
+  const maps = { skin: body.material.map, normal: body.material.normalMap || null, brows: meshes.Brows.material.map, eyes: meshes.Eyes.material, ref: srgb(body.material.userData?.refSkin || "#a87551"), hueMix: body.material.userData?.hueMix ?? 0.45, gain: body.material.userData?.skinGain ?? 0.86 }
   maps.skin.anisotropy = 4
   // the grip: where the paddle sits in each hand, in that hand bone's own space
   const grip = {}
@@ -180,7 +194,7 @@ const template = (gltf) => {
   // them cost two more skinned draws per athlete); their rest transform in its space
   const toHead = new THREE.Matrix4().copy(bones.Head.matrixWorld).invert()
   const onHead = { Eyes: toHead.clone().multiply(meshes.Eyes.matrixWorld), Brows: toHead.clone().multiply(meshes.Brows.matrixWorld) }
-  const t = { scene, rest, prepared, marks, scale, ankleH, head, maps, grip, curl, garments: {}, bones, onHead, joints, variants: {} }
+  const t = { set: set.id, headScale: set.headScale, scene, rest, prepared, marks, scale, ankleH, head, maps, grip, curl, garments: {}, bones, onHead, joints, variants: {} }
   return t
 }
 const sub3 = (a, b) => ({ x: a.x - b.x, y: a.y - b.y, z: a.z - b.z })
@@ -356,7 +370,7 @@ const outfitGeometry = (tpl, look, v) => {
 
 // ---- materials ----
 const srgb = (hex) => new THREE.Color(hex) // (three converts sRGB hex to linear)
-const REF_SKIN = srgb("#a87551") // the texture's average skin tone
+// (each body's texture has its own average skin tone: maps.ref, read from the file)
 const REF_HAIR = 0.27 // the gray hair textures' average (linear)
 const tint = (hex, ref) => {
   const c = srgb(hex)
@@ -365,23 +379,24 @@ const tint = (hex, ref) => {
 }
 // skin: the texture's shading and detail, recolored to the look's skin tone (a plain tint
 // would blow the texture's own warm tones up on pale skin)
-const REF_LUM = REF_SKIN.r * 0.2126 + REF_SKIN.g * 0.7152 + REF_SKIN.b * 0.0722
 const skinWarmth = (hex) => {
   const pale = Math.max(0, Math.min(1, (srgb(hex).getHSL({}).l - 0.45) / 0.4))
   return new THREE.Vector3(1.03 + 0.11 * pale, 0.99, 0.95 - 0.1 * pale)
 }
 const skinMaterial = (maps, hex) => {
+  const ref = maps.ref
+  const lum = ref.r * 0.2126 + ref.g * 0.7152 + ref.b * 0.0722
   const m = new THREE.MeshStandardMaterial({ map: maps.skin, normalMap: maps.normal, roughness: 0.58, metalness: 0 })
-  const uniforms = { skinTone: { value: srgb(hex).multiplyScalar(0.86) }, refHue: { value: new THREE.Vector3(REF_SKIN.r / REF_LUM, REF_SKIN.g / REF_LUM, REF_SKIN.b / REF_LUM) }, skinWarm: { value: skinWarmth(hex) } }
+  const uniforms = { skinTone: { value: srgb(hex).multiplyScalar(maps.gain) }, refHue: { value: new THREE.Vector3(ref.r / lum, ref.g / lum, ref.b / lum) }, refLum: { value: lum }, hueMix: { value: maps.hueMix }, skinWarm: { value: skinWarmth(hex) } }
   m.onBeforeCompile = (sh) => {
     Object.assign(sh.uniforms, uniforms)
-    sh.fragmentShader = sh.fragmentShader.replace("#include <common>", "#include <common>\nuniform vec3 skinTone;\nuniform vec3 refHue;\nuniform vec3 skinWarm;").replace(
+    sh.fragmentShader = sh.fragmentShader.replace("#include <common>", "#include <common>\nuniform vec3 skinTone;\nuniform vec3 refHue;\nuniform float refLum;\nuniform float hueMix;\nuniform vec3 skinWarm;").replace(
       "#include <map_fragment>",
       `#include <map_fragment>
       {
         float l = dot(diffuseColor.rgb, vec3(0.2126, 0.7152, 0.0722));
         vec3 hue = diffuseColor.rgb / max(l, 1e-4);
-        diffuseColor.rgb = skinTone * (l / ${REF_LUM.toFixed(5)}) * mix(vec3(1.0), hue / refHue, 0.45);
+        diffuseColor.rgb = skinTone * (l / refLum) * mix(vec3(1.0), hue / refHue, hueMix);
         // warmth (light under the skin), most for pale skin, which goes gray under cool lights
         diffuseColor.rgb *= skinWarm;
       }`
@@ -774,18 +789,43 @@ const HAIR = {
   braid: { m: "Hair_Long", f: "Hair_Long" },
   long: { m: "Hair_Long", f: "Hair_Long" },
 }
+// the MakeHuman bodies' hairstyles (mh-hair.glb: each fitted to both bodies, "<name>@m/f")
+const HAIR_MH = {
+  short: { m: "Hair_Short", f: "Hair_Bob" },
+  buzz: { m: "Hair_Buzz", f: "Hair_Buzz" },
+  pixie: { m: "Hair_Swept", f: "Hair_Pixie" },
+  buns: { m: "Hair_Bun", f: "Hair_Bun" },
+  spiky: { m: "Hair_Spiky", f: "Hair_Spiky" },
+  bald: { m: null, f: null },
+  curly: { m: "Hair_Afro", f: "Hair_Afro" },
+  bun: { m: "Hair_Bun", f: "Hair_Bun" },
+  ponytail: { m: "Hair_Ponytail", f: "Hair_Ponytail" },
+  braid: { m: "Hair_Braid", f: "Hair_Braid" },
+  long: { m: "Hair_Long", f: "Hair_Long" },
+}
+// styles that hang out of the back of a hat (cropped at the crown); the rest become a buzz cut
+const UNDER_HAT_MH = ["Hair_Long", "Hair_Ponytail", "Hair_Braid", "Hair_Bun"]
 export const bodyOf = (look) => (look.body === "f" ? "f" : "m")
 // Under a cap or a bucket hat only close-cropped hair stays inside it (the other styles'
 // fringes and buns poke through the crown); long hair still hangs out the back.
 const HATS = ["cap", "capBack", "bucket", "beanie"]
-export const hairFor = (look, kind = bodyOf(look)) => {
-  const name = (HAIR[look.hair || "short"] || HAIR.short)[kind]
+export const hairFor = (look, kind = bodyOf(look), set = assets?.set || "mh") => {
   const hatted = HATS.includes(look.hat)
+  if (set === "mh") {
+    const name = (HAIR_MH[look.hair || "short"] || HAIR_MH.short)[kind]
+    if (!name || !hatted) return name
+    // (a bun becomes a tail out of the back of the cap)
+    if (name === "Hair_Bun") return "Hair_Ponytail"
+    return UNDER_HAT_MH.includes(name) ? name : "Hair_Buzz"
+  }
+  const name = (HAIR[look.hair || "short"] || HAIR.short)[kind]
   if (!name || !hatted || name === "Hair_Long") return name
   // (a bun becomes a tail out of the back of the cap)
   if (kind === "f" && name === "Hair_Buns") return "Hair_Long"
   return kind === "f" ? "Hair_BuzzedFemale" : "Hair_Buzzed"
 }
+// a hairstyle's mesh for a body (the MakeHuman set fits each style to each body)
+const hairMesh = (name, kind) => (name ? assets.hairs[`${name}@${kind}`] || assets.hairs[name] || null : null)
 
 // Hair under a hat: the hairstyle without the triangles the hat's crown covers (they'd poke
 // through it). The hair's vertices are in the Head bone's space; the hat's band height is in
@@ -837,7 +877,9 @@ export const createAthlete = (look = {}, { shadows = false, withPaddle = true } 
   const skinHex = typeof look.skin === "number" ? SKIN[look.skin] || SKIN[2] : look.skin || SKIN[2]
   const hairHex = look.hairColor || "#2b1b0e"
   body.material = shared(`skin|${kind}|${skinHex}`, () => skinMaterial(tpl.maps, skinHex))
-  const browMat = shared(`brows|${kind}|${hairHex}`, () => new THREE.MeshStandardMaterial({ map: tpl.maps.brows, color: tint(hairHex, REF_HAIR), roughness: 0.9 }))
+  // (the MakeHuman brows and lashes are cut out of their texture's alpha)
+  const cutout = tpl.set === "mh"
+  const browMat = shared(`brows|${kind}|${hairHex}|${tpl.set}`, () => new THREE.MeshStandardMaterial({ map: tpl.maps.brows, color: tint(hairHex, REF_HAIR), roughness: 0.9, ...(cutout ? { alphaTest: 0.3, side: THREE.DoubleSide } : {}) }))
 
   // everything worn but the hair: one more skinned mesh on the same skeleton
   const variant = variantOf(tpl, look.build, body.geometry)
@@ -849,7 +891,7 @@ export const createAthlete = (look = {}, { shadows = false, withPaddle = true } 
 
   // the head: bigger, with eyes, brows and hair
   const head = B.Head
-  head.scale.setScalar(HEAD_SCALE)
+  head.scale.setScalar(tpl.headScale)
   const attach = []
   for (const [name, mat] of [
     ["Eyes", tpl.maps.eyes],
@@ -865,7 +907,9 @@ export const createAthlete = (look = {}, { shadows = false, withPaddle = true } 
   const hairName = hairFor(look, kind)
   const hatted = HATS.includes(look.hat)
   const wearHair = (src, crop) => {
-    const m = shared(`hair|${src.material.map.uuid}|${hairHex}`, () => new THREE.MeshStandardMaterial({ map: src.material.map, color: tint(hairHex, REF_HAIR), roughness: 0.72, side: THREE.DoubleSide }))
+    // (cards cut out of their texture's alpha: smoothed by the antialiasing where there is any)
+    const cut = src.material.alphaTest > 0 || src.material.transparent
+    const m = shared(`hair|${src.material.map.uuid}|${hairHex}`, () => new THREE.MeshStandardMaterial({ map: src.material.map, color: tint(hairHex, REF_HAIR), roughness: 0.72, side: THREE.DoubleSide, ...(cut ? { alphaTest: 0.5, alphaToCoverage: true } : {}) }))
     const h = new THREE.Mesh(crop ? croppedHair(tpl, src, kind) : src.geometry, m)
     // (the file's node transform undoes the mesh compression's quantization)
     h.position.copy(src.position)
@@ -874,8 +918,10 @@ export const createAthlete = (look = {}, { shadows = false, withPaddle = true } 
     head.add(h)
     attach.push(h)
   }
-  if (hairName && assets.hairs[hairName]) wearHair(assets.hairs[hairName], hatted)
-  if (look.beard && assets.hairs.Hair_Beard) wearHair(assets.hairs.Hair_Beard)
+  const hairSrc = hairMesh(hairName, kind)
+  if (hairSrc) wearHair(hairSrc, hatted)
+  const beard = look.beard ? hairMesh("Hair_Beard", kind) : null
+  if (beard) wearHair(beard)
 
   // the paddle in the playing hand
   let paddleSide = "r"
