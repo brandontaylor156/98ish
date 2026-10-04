@@ -2,6 +2,7 @@ import React, { useState } from "react"
 import { CONTRAST_SCHEMES, MOTION_CHOICES, TEXT_SIZES, contrastScheme, textScale } from "../../../utils/a11y"
 import { launch } from "../../../utils/programs"
 import { useMediaQuery } from "../../../hooks/useMediaQuery"
+import MoreOptions from "../../shared/MoreOptions"
 import { Check, Choice, PropSheet, Radios, sheetButtons, useDraft } from "./Sheet"
 
 const TABS = [
@@ -66,17 +67,20 @@ const Accessibility = ({ mobile, dispatch, onClose, tab: initialTab = "display" 
             <legend>High Contrast</legend>
             <p>Shows windows, menus and the taskbar in strong colors that are easier to read.</p>
             <Check label="Use High Contrast" checked={hc} onChange={(on) => update({ contrast: on ? scheme : "off" })} />
-            <Choice
-              label="Color scheme:"
-              value={scheme}
-              options={CONTRAST_SCHEMES.filter((s) => s.colors)}
-              disabled={!hc}
-              onChange={(id) => {
-                setScheme(id)
-                if (hc) update({ contrast: id })
-              }}
-            />
-            <ContrastPreview id={hc ? draft.contrast : "off"} />
+            {/* the scheme and its preview: More options (docs/simplicity.md) */}
+            <MoreOptions id="a11y.contrast" summary={`Color scheme: ${CONTRAST_SCHEMES.find((s) => s.id === scheme)?.label || scheme}`}>
+              <Choice
+                label="Color scheme:"
+                value={scheme}
+                options={CONTRAST_SCHEMES.filter((s) => s.colors)}
+                disabled={!hc}
+                onChange={(id) => {
+                  setScheme(id)
+                  if (hc) update({ contrast: id })
+                }}
+              />
+              <ContrastPreview id={hc ? draft.contrast : "off"} />
+            </MoreOptions>
           </fieldset>
         </>
       )}

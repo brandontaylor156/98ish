@@ -1,5 +1,7 @@
 import React, { useState } from "react"
 import Dialog from "../../shared/Dialog"
+import MoreOptions from "../../shared/MoreOptions"
+import { summarize } from "../../../utils/disclosure"
 import { PropSheet, useDraft } from "./Sheet"
 
 // Internet Explorer keeps these itself (applets/internetExplorer/InternetExplorer.jsx)
@@ -60,14 +62,6 @@ const InternetOptions = ({ onClose }) => {
           <label htmlFor="cpl-ie-home">Address:</label>
           <input id="cpl-ie-home" type="text" value={d.draft.ieHome} placeholder="(the Start Page)" autoCapitalize="off" autoCorrect="off" spellCheck="false" onChange={(e) => d.update({ ieHome: e.target.value })} style={{ flex: 1, minWidth: 0 }} />
         </div>
-        <div className="cplRow">
-          <button type="button" onClick={() => d.update({ ieHome: START_PAGE })}>
-            Use Start Page
-          </button>
-          <button type="button" onClick={() => d.update({ ieHome: COMMUNITY })}>
-            Use 98ish.com
-          </button>
-        </div>
       </fieldset>
       <fieldset>
         <legend>Time machine</legend>
@@ -77,15 +71,26 @@ const InternetOptions = ({ onClose }) => {
           <input id="cpl-ie-date" type="date" min="1996-01-01" value={date} onChange={(e) => setDate(e.target.value)} />
         </div>
       </fieldset>
-      <fieldset>
-        <legend>History</legend>
-        <p>The History list has links to the {visited} page{visited === 1 ? "" : "s"} you've visited, for quick access.</p>
+      {/* the home page shortcuts and History: More options (docs/simplicity.md) */}
+      <MoreOptions id="ieoptions.more" summary={summarize("Use Start Page / 98ish.com", `History: ${visited} page${visited === 1 ? "" : "s"}`)}>
         <div className="cplRow">
-          <button type="button" disabled={!visited} onClick={() => setConfirm(true)}>
-            Clear History
+          <button type="button" onClick={() => d.update({ ieHome: START_PAGE })}>
+            Use Start Page
+          </button>
+          <button type="button" onClick={() => d.update({ ieHome: COMMUNITY })}>
+            Use 98ish.com
           </button>
         </div>
-      </fieldset>
+        <fieldset>
+          <legend>History</legend>
+          <p>The History list has links to the {visited} page{visited === 1 ? "" : "s"} you've visited, for quick access.</p>
+          <div className="cplRow">
+            <button type="button" disabled={!visited} onClick={() => setConfirm(true)}>
+              Clear History
+            </button>
+          </div>
+        </fieldset>
+      </MoreOptions>
       {confirm && (
         <Dialog
           title="Internet Options"

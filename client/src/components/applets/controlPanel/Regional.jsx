@@ -1,6 +1,8 @@
 import React, { useState } from "react"
 import { LOCALES, dateOrder, formatHour, formatNumber, formatShortDate, formatTime, localeOf, uses24h, weekStart } from "../../../utils/region"
 import { WEEKDAYS } from "../calendar/recur"
+import MoreOptions from "../../shared/MoreOptions"
+import { summarize } from "../../../utils/disclosure"
 import { Choice, PropSheet, sheetButtons, useDraft } from "./Sheet"
 
 const TABS = [
@@ -21,30 +23,34 @@ const Regional = ({ onClose }) => {
   const now = new Date()
   const auto = { ...region, locale: region.locale }
 
+  // the samples: one line while closed (it is the sample), the whole table open (docs/simplicity.md)
+  const sampleLine = summarize(formatTime(now.getHours(), now.getMinutes(), region), formatShortDate(now.getFullYear(), now.getMonth() + 1, now.getDate(), region), `Week starts ${WEEKDAYS[weekStart(region)]}`)
   const samples = (
-    <fieldset>
-      <legend>Appearance samples</legend>
-      <table className="cplTable">
-        <tbody>
-          <tr>
-            <th scope="row">Time:</th>
-            <td data-sample="time">{formatTime(now.getHours(), now.getMinutes(), region)}</td>
-          </tr>
-          <tr>
-            <th scope="row">Short date:</th>
-            <td data-sample="date">{formatShortDate(now.getFullYear(), now.getMonth() + 1, now.getDate(), region)}</td>
-          </tr>
-          <tr>
-            <th scope="row">Number:</th>
-            <td data-sample="number">{formatNumber(123456789.25, region)}</td>
-          </tr>
-          <tr>
-            <th scope="row">Week starts:</th>
-            <td data-sample="week">{WEEKDAYS[weekStart(region)]}</td>
-          </tr>
-        </tbody>
-      </table>
-    </fieldset>
+    <MoreOptions id="regional.samples" label="Samples" lessLabel="Hide samples" summary={sampleLine}>
+      <fieldset>
+        <legend>Appearance samples</legend>
+        <table className="cplTable">
+          <tbody>
+            <tr>
+              <th scope="row">Time:</th>
+              <td data-sample="time">{formatTime(now.getHours(), now.getMinutes(), region)}</td>
+            </tr>
+            <tr>
+              <th scope="row">Short date:</th>
+              <td data-sample="date">{formatShortDate(now.getFullYear(), now.getMonth() + 1, now.getDate(), region)}</td>
+            </tr>
+            <tr>
+              <th scope="row">Number:</th>
+              <td data-sample="number">{formatNumber(123456789.25, region)}</td>
+            </tr>
+            <tr>
+              <th scope="row">Week starts:</th>
+              <td data-sample="week">{WEEKDAYS[weekStart(region)]}</td>
+            </tr>
+          </tbody>
+        </table>
+      </fieldset>
+    </MoreOptions>
   )
 
   return (
@@ -53,7 +59,7 @@ const Regional = ({ onClose }) => {
         <>
           <div className="cplHead">
             <img src="/assets/program_icons/cpl/regional.svg" alt="" />
-            <p>Many programs show times, dates and numbers the way your region writes them. Pick a region, then change any part on the Time and Date tabs.</p>
+            <p>Times, dates and numbers show the way your region writes them. Change any part on the Time and Date tabs.</p>
           </div>
           <Choice label="Region:" value={region.locale} options={LOCALES.map((l) => (l.id === "auto" ? { ...l, label: `Same as this device (${localeOf({ locale: "auto" })})` } : l))} onChange={(locale) => set({ locale })} />
           {samples}

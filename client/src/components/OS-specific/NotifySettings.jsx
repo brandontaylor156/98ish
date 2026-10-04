@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from "react"
+import MoreOptions from "../shared/MoreOptions"
+import { summarize } from "../../utils/disclosure"
 import Dialog from "../shared/Dialog"
 import { openCouples } from "../../utils/couple"
 import { disablePush, enablePush, getPushConfig, getPushSettings, pushOnHere, pushState, savePushSettings, sendTestPush, usePushSession } from "../../utils/push"
@@ -191,6 +193,7 @@ const NotifySettings = ({ onClose }) => {
   }
 
   const off = !token || !settings || (server && !server.enabled)
+  const kindsOff = KINDS.filter(([id]) => settings?.categories?.[id] === false).map(([, label]) => label)
   return (
     <Dialog title="Notifications" onOk={save} onCancel={onClose}>
       <div className="ncSettings">
@@ -204,6 +207,8 @@ const NotifySettings = ({ onClose }) => {
             </p>
           )}
         </fieldset>
+        {/* which kinds and quiet hours: More options (docs/simplicity.md) */}
+        <MoreOptions id="notify.settings" className="ncMore" summary={summarize(kindsOff.length ? `Not: ${kindsOff.join(", ")}` : `All ${KINDS.length} kinds`, settings?.quiet?.on ? `Quiet ${settings.quiet.from || "22:00"} to ${settings.quiet.to || "07:00"}` : "No quiet hours")}>
         <fieldset disabled={off}>
           <legend>Notify me about</legend>
           {KINDS.map(([id, label]) => (
@@ -228,6 +233,7 @@ const NotifySettings = ({ onClose }) => {
           </div>
         </fieldset>
         <p className="dialogText ncFootnote">A closed 98ish can't ring like a phone call: an incoming call shows as a notification, and tapping it opens 98ish to answer while it's still ringing.</p>
+        </MoreOptions>
       </div>
     </Dialog>
   )

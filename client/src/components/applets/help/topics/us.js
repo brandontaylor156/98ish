@@ -66,6 +66,7 @@ export const topics = [
           "Your shared **Us** calendar in Calendar, for date nights and trips. See [[calendar-sharing]].",
         ],
       },
+      "Us shows Love Letters, Our Story and Send Flowers first; the Quiz Show, Photo Puzzle, Doodle Together, Our Pet and Dream House are under **More for two »**.",
       { h: "The heart in the tray" },
       "The heart next to the clock shows a badge when there's a new letter, flowers or a pair request, with a balloon saying what's new.",
       { tip: "Display Properties has an **Our photos** wallpaper that shows your Our Story photos, taking turns while you're signed on." },
@@ -85,9 +86,8 @@ export const topics = [
       {
         steps: [
           "Open Love Letters and click the **Write** tab.",
-          "Pick the stationery, an envelope color and a handwriting style.",
           "Give it a title and write your letter. You can add a photo too.",
-          "Under **Delivery**, choose when it opens (see below).",
+          "To pick the stationery, an envelope color and a handwriting style, or when it opens (see below), click **More options »** under the letter.",
           "Send it. It's sealed with a kiss and on its way.",
         ],
         title: "To write a letter:",
@@ -190,7 +190,7 @@ export const topics = [
       },
       "Live games and taking turns need 98 Messenger. Game > **Play Live Online...** lets you invite anyone who's online, and you can also start a live game from the Games button in an IM window.",
       { h: "More fun" },
-      "There are also **Compatibility** quizzes, **Trivia About Us** (questions about the two of you), and a **Quiz Builder** to write your own quiz. Game > **Past Shows & Badges** keeps your history.",
+      "The studio opens with How Well Do You Know Me?, Play Live Online and your Inbox. **More games »** has This or That, Deep Talk Cards, Party Trivia, **Compatibility** quizzes, **Trivia About Us** (questions about the two of you), a **Quiz Builder** to write your own quiz, and Past shows. Game > **Past Shows & Badges** keeps your history.",
       { tip: "Help > How to Play shows three quick illustrated steps for each game." },
     ],
     related: ["us-together", "online-play", "game-invites"],

@@ -562,8 +562,78 @@
   height: 24px;
 }
 
+.ieStartGo select.ieStartYear {
+  flex: none;
+  width: auto;
+  height: 24px;
+}
+
+/* the baseline's six popular sites */
+.ieStartPopular {
+  padding: 10px 16px 4px;
+}
+
+.ieStartPopular h2,
+.ieStartYears h2 {
+  margin: 0 0 6px;
+  font-size: 14px;
+  color: #000080;
+}
+
+.ieStartPopular ul {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 6px 16px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.ieStartPopular li {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.ieStartPopular li button {
+  align-self: flex-start;
+  background: none !important;
+  box-shadow: none !important;
+  border: 0;
+  padding: 0 !important;
+  min-height: 0;
+  color: #0000ee;
+  text-decoration: underline;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.ieStartPopular li.is-later button {
+  color: #7a7aaa;
+}
+
+/* "More sites »": the year buttons, the directory and its search */
+.ieStartMore {
+  padding: 8px 16px;
+  font-family: "Pixelated MS Sans Serif", Arial, sans-serif;
+}
+
+.ieStartMore .moreOpts-body {
+  font-family: Verdana, Arial, sans-serif;
+}
+
+.ieStartYears {
+  padding-top: 4px;
+}
+
 .ieStartDirectory {
   padding: 12px 16px;
+}
+
+.ieStartMore .ieStartDirectory {
+  padding: 4px 0;
 }
 
 .ieStartDirHead {
@@ -650,6 +720,10 @@
 
 /* ---- phones / narrow windows ---- */
 
+/* a baseline toolbar: Stop takes Refresh's place while loading; History and Captures are in View */
+.os-mobile .ieTool--idle,
+.os-mobile .ieTool--busy,
+.os-mobile .ieTool--extra,
 .os-mobile .ieTool span,
 .os-mobile .ieLinks,
 .os-mobile .ieCaptured {

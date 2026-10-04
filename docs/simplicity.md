@@ -30,85 +30,85 @@ The owner, after using 98ish on an iPhone: "I love the flexibility of the system
 
 Every program in `programs.js` (except the My Projects web apps) was opened at iPhone size (390x844, DPR 3, touch, iPhone user agent) and at 1280x800, and its first screen counted: visible controls (buttons, fields, drop-downs, checkboxes, tabs, links) inside the window, below its title bar, and the characters of text. Board games count their board squares (Battleship, Chess, Reversi), and Paint, Calculator and Date/Time count their palettes, keys and day grids: those are the program itself, not clutter. Script: `simple-audit.mjs` (scratchpad), ranking `simple-rank.mjs`. Sorted by overwhelm (phone controls + checkboxes + text/100, plus half of the desktop's).
 
-| # | Program | Phone controls | Desktop controls | Phone text (chars) | After: phone / desktop controls |
-|---|---|---|---|---|---|
-| 1 | Battleship | 114 | 114 | 240 | (board squares) |
-| 2 | Internet Explorer | 43 | 71 | 2514 |  |
-| 3 | Chess | 72 | 72 | 140 | (board squares) |
-| 4 | Reversi | 69 | 69 | 105 | (board squares) |
-| 5 | HomePage Studio | 50 | 64 | 795 |  |
-| 6 | Date/Time Properties | 45 | 45 | 345 | (day grid) |
-| 7 | 98ish Help | 31 | 52 | 627 |  |
-| 8 | Doodle Together | 39 | 52 | 120 | (palette) |
-| 9 | Paint | 39 | 50 | 50 | (tools and palette) |
-| 10 | Add/Remove Programs | 24 | 37 | 968 |  |
-| 11 | Display Properties | 28 | 29 | 365 | **27 / 28** (text 350) |
-| 12 | Calendar | 11 | 62 | 281 | 11 / 62 (main view kept; New Event below) |
-| 13 | Calculator | 30 | 30 | 103 | (keys) |
-| 14 | Camera | 17 | 39 | 369 | **12 / 34** |
-| 15 | WordPad | 21 | 27 | 240 |  |
-| 16 | Word Duel | 16 | 16 | 613 | **6 / 6** (text 266) |
-| 17 | Media Player | 22 | 22 | 352 |  |
-| 18 | Sounds | 18 | 18 | 323 |  |
-| 19 | Dream House | 14 | 42 | 74 |  |
-| 20 | Compass | 17 | 32 | 186 | (already a baseline browser) |
-| 21 | Keyboard Properties | 12 | 12 | 491 | **8 / 8** (text 418) |
-| 22 | Clock | 10 | 10 | 1301 | (world clocks: content) |
-| 23 | Desktop Themes | 12 | 12 | 468 |  |
-| 24 | Control Panel | 20 | 20 | 291 | **10 / 10** (6 common icons) |
-| 25 | Photos | 17 | 17 | 567 | **14 / 14** (text 310) |
-| 26 | Accessibility Options | 12 | 12 | 414 |  |
-| 27 | Lovebirds Quiz Show | 13 | 13 | 671 |  |
-| 28 | Backup | 8 | 8 | 675 | **5 / 5** (text 525) |
-| 29 | My Computer | 17 | 17 | 188 |  |
-| 30 | Power Management | 8 | 8 | 663 |  |
-| 31 | Storage | 8 | 8 | 1014 | 9 / 9 (text 895: the breakdown is tucked) |
-| 32 | Character Map | 5 | 6 | 972 |  |
-| 33 | Fonts | 15 | 15 | 204 |  |
-| 34 | Monster Duel | 9 | 9 | 772 |  |
-| 35 | Pickleball 98 | 13 | 13 | 367 | **11 / 11** (text 272) |
-| 36 | YouTube '98 | 13 | 13 | 284 |  |
-| 37 | Find | 10 | 13 | 243 |  |
-| 38 | Regional Settings | 7 | 7 | 655 |  |
-| 39 | Passwords | 9 | 9 | 342 |  |
-| 40 | Last Card | 10 | 10 | 328 | **6 / 6** |
-| 41 | Hexlands | 10 | 10 | 328 | **6 / 6** |
-| 42 | Welcome to 98ish | 8 | 10 | 316 |  |
-| 43 | Mouse | 9 | 11 | 236 |  |
-| 44 | Checkers (online lobby, shared by every online game) | 8 | 8 | 514 | **6 / 9** (rooms open on a computer) |
-| 45 | Speed Typist 98 | 9 | 9 | 369 | **6 / 6** |
-| 46 | Internet Options | 9 | 9 | 364 |  |
-| 47 | Address Book | 4 | 18 | 267 | 4 / 18 (list kept; card and editor below) |
-| 48 | Tetris | 8 | 7 | 232 | **4 / 4** |
-| 49 | Task Manager | 10 | 10 | 170 |  |
-| 50 | Sound Recorder | 10 | 10 | 93 |  |
-| 51 | Shred 98 | 8 | 8 | 186 |  |
-| 52 | Hearts | 4 | 4 | 481 |  |
-| 53 | Network Neighborhood | 5 | 5 | 277 |  |
-| 54 | Sunny Acres | 7 | 7 | 177 |  |
-| 55 | WinPopup | 7 | 7 | 167 |  |
-| 56 | Appward 98 | 5 | 5 | 265 |  |
-| 57 | Photo Puzzle | 5 | 5 | 285 |  |
-| 58 | 98 Messenger (sign-on screen) | 5 | 5 | 132 | IM window below |
-| 59 | Minesweeper | 7 | 5 | 51 |  |
-| 60 | System Properties | 4 | 4 | 276 |  |
-| 61 | SPECTRA | 4 | 3 | 281 |  |
-| 62 | Pinball | 6 | 3 | 104 |  |
-| 63 | Magnifier | 2 | 3 | 234 |  |
-| 64 | Downhill | 6 | 3 | 69 |  |
-| 65 | Notepad | 5 | 5 | 41 |  |
-| 66 | Recycle Bin | 4 | 4 | 94 |  |
-| 67 | Block Ten | 3 | 3 | 43 |  |
-| 68 | Windows Update | 1 | 1 | 221 |  |
-| 69 | 98ish Mail (signed out) | 1 | 1 | 167 | New Message below |
-| 70 | Solitaire | 2 | 2 | 46 |  |
-| 71 | FreeCell | 2 | 2 | 45 |  |
-| 72 | Love Letters | 1 | 1 | 134 |  |
-| 73 | Our Story | 1 | 1 | 128 |  |
-| 74 | Our Pet | 1 | 1 | 124 |  |
-| 75 | Us | 1 | 1 | 123 |  |
-| 76 | MS-DOS Prompt | 0 | 0 | 110 |  |
-| 77 | Hover | 0 | 0 | 17 |  |
+| # | Program | Phone controls | Desktop controls | Phone text (chars) | After: phone / desktop controls | Round 2: phone / desktop |
+|---|---|---|---|---|---|---|
+| 1 | Battleship | 114 | 114 | 240 | (board squares) | 114 / 114 |
+| 2 | Internet Explorer | 43 | 71 | 2514 |  | **24 / 35** (start page: Year, address, 6 sites; More sites ») |
+| 3 | Chess | 72 | 72 | 140 | (board squares) | 72 / 72 |
+| 4 | Reversi | 69 | 69 | 105 | (board squares) | 69 / 69 |
+| 5 | HomePage Studio | 50 | 64 | 795 |  | **20 / 28** (block tools on the picked block; More blocks ») |
+| 6 | Date/Time Properties | 45 | 45 | 345 | (day grid) | 45 / 45 |
+| 7 | 98ish Help | 31 | 52 | 627 |  | **19 / 36** (closed books; Forward when usable) |
+| 8 | Doodle Together | 39 | 52 | 120 | (palette) | 39 / 52 |
+| 9 | Paint | 39 | 50 | 50 | (tools and palette) | 39 / 50 |
+| 10 | Add/Remove Programs | 24 | 37 | 968 |  | 24 / 37 (Find box; the list is content) |
+| 11 | Display Properties | 28 | 29 | 365 | **27 / 28** (text 350) | 27 / 28 |
+| 12 | Calendar | 11 | 62 | 281 | 11 / 62 (main view kept; New Event below) | 11 / 62 |
+| 13 | Calculator | 30 | 30 | 103 | (keys) | 30 / 30 |
+| 14 | Camera | 17 | 39 | 369 | **12 / 34** | 12 / 34 |
+| 15 | WordPad | 21 | 27 | 240 |  | **13 / 18** (format bar behind Aa) |
+| 16 | Word Duel | 16 | 16 | 613 | **6 / 6** (text 266) | 6 / 6 |
+| 17 | Media Player | 22 | 22 | 352 |  | **17 / 17** (More »: Stop, Shuffle, Repeat, volume; playlist is content) |
+| 18 | Sounds | 18 | 18 | 323 |  | **8 / 8** (Scheme and events ») |
+| 19 | Dream House | 14 | 42 | 74 |  | **12 / 40** (zoom buttons in View; catalog is the palette) |
+| 20 | Compass | 17 | 32 | 186 | (already a baseline browser) | 17 / 32 |
+| 21 | Keyboard Properties | 12 | 12 | 491 | **8 / 8** (text 418) | 8 / 8 |
+| 22 | Clock | 10 | 10 | 1301 | (world clocks: content) | 10 / 10 (New alarm: label and days under More) |
+| 23 | Desktop Themes | 12 | 12 | 468 |  | **5 / 5** (parts and previews under More) |
+| 24 | Control Panel | 20 | 20 | 291 | **10 / 10** (6 common icons) | 10 / 10 |
+| 25 | Photos | 17 | 17 | 567 | **14 / 14** (text 310) | 14 / 14 |
+| 26 | Accessibility Options | 12 | 12 | 414 |  | 12 / 12 (color scheme under More) |
+| 27 | Lovebirds Quiz Show | 13 | 13 | 671 |  | **7 / 7** (More games ») |
+| 28 | Backup | 8 | 8 | 675 | **5 / 5** (text 525) | 5 / 5 |
+| 29 | My Computer | 17 | 17 | 188 |  | **12 / 17** (phone: buttons once usable) |
+| 30 | Power Management | 8 | 8 | 663 |  | **7 / 7** (screen on, Screen Saver... under More) |
+| 31 | Storage | 8 | 8 | 1014 | 9 / 9 (text 895: the breakdown is tucked) | 9 / 9 |
+| 32 | Character Map | 5 | 6 | 972 |  | 5 / 6 |
+| 33 | Fonts | 15 | 15 | 204 |  | 15 / 15 |
+| 34 | Monster Duel | 9 | 9 | 772 |  | **8 / 8** (More modes »; Tutorial and Card Packs stay while new) |
+| 35 | Pickleball 98 | 13 | 13 | 367 | **11 / 11** (text 272) | 11 / 11 |
+| 36 | YouTube '98 | 13 | 13 | 284 |  | 13 / 13 |
+| 37 | Find | 10 | 13 | 243 |  | **3 / 6** (Named + Find Now; More options ») |
+| 38 | Regional Settings | 7 | 7 | 655 |  | **8 / 8** (Samples ») |
+| 39 | Passwords | 9 | 9 | 342 |  | 9 / 9 |
+| 40 | Last Card | 10 | 10 | 328 | **6 / 6** | 6 / 6 |
+| 41 | Hexlands | 10 | 10 | 328 | **6 / 6** | 6 / 6 |
+| 42 | Welcome to 98ish | 8 | 10 | 316 |  | 8 / 10 |
+| 43 | Mouse | 9 | 11 | 236 |  | 9 / 11 |
+| 44 | Checkers (online lobby, shared by every online game) | 8 | 8 | 514 | **6 / 9** (rooms open on a computer) | 6 / 9 |
+| 45 | Speed Typist 98 | 9 | 9 | 369 | **6 / 6** | 6 / 6 |
+| 46 | Internet Options | 9 | 9 | 364 |  | **7 / 7** (More options ») |
+| 47 | Address Book | 4 | 18 | 267 | 4 / 18 (list kept; card and editor below) | 4 / 18 |
+| 48 | Tetris | 8 | 7 | 232 | **4 / 4** | 4 / 4 |
+| 49 | Task Manager | 10 | 10 | 170 |  | 10 / 10 |
+| 50 | Sound Recorder | 10 | 10 | 93 |  | 10 / 10 |
+| 51 | Shred 98 | 8 | 8 | 186 |  | 8 / 8 |
+| 52 | Hearts | 4 | 4 | 481 |  | 4 / 4 |
+| 53 | Network Neighborhood | 5 | 5 | 277 |  | 5 / 5 |
+| 54 | Sunny Acres | 7 | 7 | 177 |  | 7 / 7 |
+| 55 | WinPopup | 7 | 7 | 167 |  | 7 / 7 |
+| 56 | Appward 98 | 5 | 5 | 265 |  | 5 / 5 |
+| 57 | Photo Puzzle | 5 | 5 | 285 |  | 5 / 5 |
+| 58 | 98 Messenger (sign-on screen) | 5 | 5 | 132 | IM window below | 5 / 5 |
+| 59 | Minesweeper | 7 | 5 | 51 |  | 7 / 5 |
+| 60 | System Properties | 4 | 4 | 276 |  | 4 / 4 |
+| 61 | SPECTRA | 4 | 3 | 281 |  | 4 / 3 |
+| 62 | Pinball | 6 | 3 | 104 |  | 6 / 3 |
+| 63 | Magnifier | 2 | 3 | 234 |  | 2 / 3 |
+| 64 | Downhill | 6 | 3 | 69 |  | 6 / 3 |
+| 65 | Notepad | 5 | 5 | 41 |  | 5 / 5 |
+| 66 | Recycle Bin | 4 | 4 | 94 |  | 4 / 4 |
+| 67 | Block Ten | 3 | 3 | 43 |  | 3 / 3 |
+| 68 | Windows Update | 1 | 1 | 221 |  | 1 / 1 |
+| 69 | 98ish Mail (signed out) | 1 | 1 | 167 | New Message below | 1 / 1 |
+| 70 | Solitaire | 2 | 2 | 46 |  | 2 / 2 |
+| 71 | FreeCell | 2 | 2 | 45 |  | 2 / 2 |
+| 72 | Love Letters | 1 | 1 | 134 |  | 1 / 1 (signed out here; Write: More options ») |
+| 73 | Our Story | 1 | 1 | 128 |  | 1 / 1 |
+| 74 | Our Pet | 1 | 1 | 124 |  | 1 / 1 |
+| 75 | Us | 1 | 1 | 123 |  | 1 / 1 (signed out here; paired hub: More for two ») |
+| 76 | MS-DOS Prompt | 0 | 0 | 110 |  | 0 / 0 |
+| 77 | Hover | 0 | 0 | 17 |  | 0 / 0 |
 
 The screens one tap in, where most of the overwhelm was (`simple-sub.mjs`; controls on the first screen):
 
@@ -147,17 +147,45 @@ The screens one tap in, where most of the overwhelm was (`simple-sub.mjs`; contr
 - `node --test client/src/utils/disclosure.test.js`.
 - Browser (scratchpad): `simple-calendar.mjs` (New Event: baseline, everything reachable by label, Save on screen at 390x844 closed and open, remembered across editors and reloads, keyboard), `simple-apps.mjs [phone|desktop] [filter]` (Tetris, Word Duel, Last Card, Hexlands, Speed Typist, Pickleball, Checkers lobby, Camera, Photos + KeepSafe, Control Panel, Backup, Display, Address Book, Messenger IM, Mail compose), `simple-audit.mjs`, `simple-sub.mjs`.
 - Older suites that look for a control that's now tucked away: preset `localStorage["98ish.moreOptions"] = '{"*":true}'` in their init script (a person who opened everything), or press the `.moreOpts-toggle` first. Known ones: `cal-remind` (Add a reminder), `ab-e2e` (Nickname), the Tetris suites that expect four mode buttons (`au2-r-tf-solo`, `au2-r-tetris-touch`), the Messenger suites that use `.aimFormatBar` at once (`ab-r-call-r-aim-e2e`), and phone suites that tap Create Room / Join with Code in an online lobby.
+- Round 2: `simple2-apps.mjs [phone|desktop|all] [filter]` (IE, HomePage Studio, Help, Add/Remove, WordPad, Media Player, Sounds, Themes, Power, Regional, Internet Options, Accessibility, Quiz Show, Monster Duel, Dream House, Find, Notifications, Clock, My Computer: baseline shows the main controls, the rest is hidden, More options shows every previous option by selector, remembered after a reload, the main action on screen at 390x844), `simple2-us.mjs` (pairs two accounts; Us hub and Love Letters Write), `s2-audit.mjs` (the Round 2 column). Older suites now preset `98ish.moreOptions` in their helpers (`cal-helpers`, `ab-helpers`, `help-helpers`, `au2-r-ol-helpers`, `au2-r-wd-helpers`, `au2-r-gchat-helpers`, `au2-r-tf-helpers`, `au2-r-tetris-touch`, `ab-r-call-r-aim-e2e`) and dismiss the File Sync offer after signing on; `ab-phone` dropped the removed search Cancel step; `help-e2e` expects the round-2 toolbar; `au2-r-tf-solo` finds a mode by `[data-mode]` (the last mode played is the big "again" button). `s2-noboot.mjs` is a preload that presets it for any suite.
+
+## Round 2 (2026-10-04): everything else
+
+The owner: "Continue, do it." Every program left on the list above, then a second audit of all 77 (the **Round 2** column in the table: bold where it changed) and the screens one tap in. Same shared pieces; no new ones. Two small patterns were added on top of More options:
+- **A button only while it can be used** (instead of a gray, disabled one): Help's Forward, IE's Stop (in Refresh's place on phones) and Earlier/Later (once a page is open), My Computer's Cut/Copy/Delete/Properties on phones (once something is selected), Find's Stop/New Search (with its options).
+- **Aa** for a formatting bar, as in the IM window: WordPad's Format Bar (View > Format Bar does the same; remembered as `wordpad.format`).
+
+### What moved where (round 2)
+
+- **Internet Explorer** start page: a **Year** drop-down, the address and Go, and six popular sites (Yahoo!, Google, Space Jam, GeoCities, CNN, the Guestbook). **More sites (49) »** (id `ie.directory`; opens by itself while the directory search has words, e.g. a search typed in the Address bar) = the year buttons, the directory search and the whole directory. Phones: History and Captures leave the toolbar (View menu), Stop shows only while loading in Refresh's place. Earlier/Later show once a page is open (they were disabled on the start page).
+- **HomePage Studio**: block rows show move up/down/delete only on the picked block (Format menu as before). Computer toolbar: Heading, Text, Clip Art, Picture...; **More blocks »** (`homepage.insert`) the other seven. A block's size/effect/alignment/colors: **More options »** (`homepage.block`, summary "Huge · Rainbow · Center · Default color"); Page Properties: Title and Background, **More options »** (`homepage.page`) colors, font, music, sparkle trail, badge.
+- **98ish Help**: toolbar Hide, Back, Home, Print, Options; Forward appears once you've gone back; phones leave Print to Options. Contents opens as closed books on the home page (a topic still opens its book).
+- **Add/Remove Programs**: a **Find a program** box over the list; a selected program shows **Add/Remove...**, and **More options »** (`addremove.where`, summary "On the desktop · In the Start menu") the two checkboxes. Shorter intro text.
+- **WordPad**: Aa (above). Phones' toolbar: New, Open, Save, Print, Find, Undo, Aa (Print Preview, Cut, Copy, Paste, Date/Time are in the menus).
+- **Media Player**: Play (Pause while playing), Previous, Next; **More »** (inline, `mediaplayer.more`, summary "Shuffle · Repeat · Volume 80%") Stop, Shuffle, Repeat, Mute, volume. Play menu unchanged.
+- **Sounds**: Volume, Mute, Play system sounds; **Scheme and events »** (`sounds.events`) the events list, Play, Scheme, startup sound.
+- **Desktop Themes**: Theme + preview + OK; **More options »** (`themes.parts`, summary "Uses all 8 parts · Previews" or "Not using: ...") the Previews buttons and the parts checkboxes.
+- **Power Management**: screen saver wait and lock wait; **More options »** (`power.more`) Screen Saver... and Keep the screen on.
+- **Regional Settings**: the samples table is **Samples »** (`regional.samples`); its closed line is the sample itself ("2:15 PM · 10/4/2026 · Week starts Sunday").
+- **Internet Options**: home page address and the time machine date; **More options »** (`ieoptions.more`) Use Start Page / Use 98ish.com and History (Clear History).
+- **Accessibility Options**: Text size and Use High Contrast; the color scheme and its preview under **More options »** (`a11y.contrast`).
+- **Notifications** settings: This device (turn on, test, turn off); **More options »** (`notify.settings`, summary "All 6 kinds · No quiet hours") the kinds and quiet hours.
+- **Lovebirds Quiz Show**: How Well Do You Know Me? (big), Play Live Online, Inbox (with its count) and the Your turn! banner; **More games »** (`quiz.modes`) This or That, Deep Talk Cards, Party Trivia, Compatibility, Trivia About Us, Quiz Builder, Past shows. Menus unchanged.
+- **Monster Duel**: Duel the Computer, Play Online, plus the Tutorial until it's done and Card Packs while some wait (with the star); **More modes »** (`monsterduel.modes`) Deck Builder, Rules, and the Tutorial / Card Packs otherwise.
+- **Dream House**: the Zoom In / Zoom Out toolbar buttons went to the View menu (pinch and the mouse wheel zoom too); Whole House stays. The catalog is the program's palette and stays.
+- **Find**: Named and Find Now; **More options »** (`find.criteria`, summary "Containing text · Look in: Everywhere · Any date · Any type · Any size") the three tabs, Stop and New Search. It opens by itself while anything there narrows the search.
+- **Clock**, New alarm: time and **Add alarm**; **More options »** (`clock.alarm`, summary "Weekdays · No label") the label and the days.
+- **My Computer** on phones: the toolbar shows Back, Up, Paste, Upload, and Cut/Copy/Delete/Properties once something is selected (menus and long-press as before). Computers unchanged.
+- **Us** (paired hub): Love Letters, Our Story, Send Flowers and the call buttons; **More for two »** (`us.more`) the Quiz Show, Photo Puzzle, Doodle Together, Our Pet, Dream House.
+- **Love Letters**, Write: To, the letter, Add a photo, **Seal & send** (now right under the letter); **More options »** (`loveletters.compose`, summary "Deliver now · Parchment paper · Rose envelope · Handwritten") Delivery (date, open when..., countdown) and the paper, envelope and handwriting. A delivery other than "now" keeps it open.
+
+Reviewed and kept as they are (the first screen is already the baseline, or the controls are the program): Mouse (tabs + one setting group each), Passwords (PIN or password, Set), Date/Time (the day grid), Shred 98 (a five-item arrow-key menu: Career, Practice, Calibrate Lag, Options, How to Play), SPECTRA, Pinball, Downhill, Minesweeper, Photo Puzzle, Sunny Acres, Our Pet, Appward 98 (its log-on), Sound Recorder (the transport), Task Manager, Fonts, Character Map, YouTube '98 and Compass (browsers), Welcome, Network Neighborhood, WinPopup, System Properties, Solitaire/FreeCell/Hearts, Our Story (its New moment form has five fields), the Display Screen Saver tab (Win98's three rows), Clock's other tabs. Board games, Paint, Calculator and Doodle count their boards, keys and palettes.
+
+Help topics updated: wordpad, media-player, clock, using-help, notifications, search, my-computer, internet-explorer, ie-time-machine, homepage-studio, themes, sounds, power, internet-options, add-remove, accessibility, love-letters, quiz-show, us-together, monster-duel, more-options (the two new patterns). The phone search topic no longer mentions the removed Cancel button.
 
 ## Remaining candidates (next rounds)
 
-In audit order, the ones with real clutter (not boards, keys or palettes):
-- **Internet Explorer**: the start page's text (2,500 chars) and the toolbar on phones.
-- **HomePage Studio**: 50+ controls on a phone; a baseline of "Edit my page / Publish" with the editor's panels tucked.
-- **98ish Help** on a computer: Contents/Index/Search/Favorites tabs plus the toolbar.
-- **Add/Remove Programs**: a long list with two checkboxes per program; a search box and "Show programs hidden from..." first.
-- **WordPad**: the format bar could hide behind Aa like the IM window.
-- **Media Player**: shuffle/repeat/volume could go under More; the playlist already scrolls.
-- **Sounds**, **Desktop Themes**, **Power Management**, **Regional Settings**: Win98 sheets; tuck the second group of each.
-- **Lovebirds Quiz Show** and **Monster Duel** title screens: the launcher pattern (Monster Duel's Card Packs badge should stay visible).
-- **Dream House** (42 controls on a computer), **Find** (the search options), **Clock** (fine as is).
 - **Start menu on phones**: a "frequent programs" section was considered and left out; the search box already gets people there fastest.
+- **Clock**'s world clocks: each city's ✕ could wait behind an Edit button (left: they're small and the text is the clocks themselves).
+- **Dream House**'s selection bar (Flip, Front, Back, Copy, Delete): Front/Back could go under More (left: they're the things people do with a picked piece of furniture).
+- **IE's Links bar** on a computer (8 links, Win98 look): left as it was.

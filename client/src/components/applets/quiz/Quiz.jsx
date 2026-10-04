@@ -4,6 +4,7 @@ import PlayOnlineButton from "../../shared/online/PlayOnlineButton"
 import { ConnectionPanel } from "../../shared/online/PlayOnline"
 import { useServerStatus } from "../../shared/online/useOnlineRoom"
 import Dialog from "../../shared/Dialog"
+import MoreOptions from "../../shared/MoreOptions"
 import GameChat, { useGameChatMenuItem } from "../../shared/GameChat"
 import { useAim } from "../aim/AimContext"
 import { useNet } from "../network/NetContext"
@@ -83,6 +84,27 @@ const Home = ({ go, inbox }) => {
           ? `Tonight's contestants: you and ${partner}! Pick a game.`
           : hostLine("welcome", n)
   const last = data.history.find((h) => h.headline)
+  const showCard = (s) => (
+    <button
+      key={s.id}
+      type="button"
+      className={`qzShowCard is-${s.id}${s.id === SHOWS[0].id ? " is-star" : ""}`}
+      data-tile={s.id}
+      onClick={() => {
+        sounds.tap()
+        go(s.go)
+      }}
+    >
+      <span className="qzShowIcon">
+        <ModeIcon mode={s.id} size={s.id === SHOWS[0].id ? 44 : 34} />
+      </span>
+      <span className="qzShowText">
+        <small className="qzShowTag">{s.tag}</small>
+        <b>{s.title}</b>
+        <span>{s.text}</span>
+      </span>
+    </button>
+  )
   return (
     <div className="qzHome">
       <Marquee />
@@ -97,29 +119,9 @@ const Home = ({ go, inbox }) => {
           <span aria-hidden="true">&#9654;&#xFE0E;</span>
         </button>
       )}
-      <div className="qzShows">
-        {SHOWS.map((s, i) => (
-          <button
-            key={s.id}
-            type="button"
-            className={`qzShowCard is-${s.id}${i === 0 ? " is-star" : ""}`}
-            data-tile={s.id}
-            onClick={() => {
-              sounds.tap()
-              go(s.go)
-            }}
-          >
-            <span className="qzShowIcon">
-              <ModeIcon mode={s.id} size={i === 0 ? 44 : 34} />
-            </span>
-            <span className="qzShowText">
-              <small className="qzShowTag">{s.tag}</small>
-              <b>{s.title}</b>
-              <span>{s.text}</span>
-            </span>
-          </button>
-        ))}
-      </div>
+      {/* the launcher pattern (docs/simplicity.md): the main event and Play Live Online; the other
+          games, the extras and Past shows under "More games »" (remembered) */}
+      <div className="qzShows">{SHOWS.slice(0, 1).map(showCard)}</div>
       <div className="qzOnline">
         <PlayOnlineButton
           label="Play Live Online"
@@ -130,21 +132,10 @@ const Home = ({ go, inbox }) => {
           }}
         />
       </div>
-      <div className="qzMoreRow">
-        <span className="qzMoreLabel">More fun:</span>
-        {MORE.map((m) => (
-          <button key={m.id} type="button" className="qzMore" data-tile={m.id} onClick={() => (sounds.tap(), go(m.go))}>
-            <ModeIcon mode={m.id} size={18} /> {m.title}
-          </button>
-        ))}
-      </div>
       <div className="qzHomeFoot">
         <button type="button" className="qzFootBtn" data-tile="inbox" onClick={() => go({ id: "inbox" })}>
           <ModeIcon mode="inbox" size={20} /> Inbox
           {waiting.length + results.length > 0 && <span className="qzCount">{waiting.length + results.length}</span>}
-        </button>
-        <button type="button" className="qzFootBtn" data-tile="history" onClick={() => go({ id: "history" })}>
-          <ModeIcon mode="history" size={20} /> Past shows
         </button>
         {stats.streak > 0 && (
           <span className="qzStreak">
@@ -152,6 +143,20 @@ const Home = ({ go, inbox }) => {
           </span>
         )}
       </div>
+      <MoreOptions id="quiz.modes" className="qzMoreGames" label="More games" lessLabel="Fewer games" summary={[...SHOWS.slice(1), ...MORE].map((m) => m.title).concat("Past shows").join(" · ")}>
+        <div className="qzShows">{SHOWS.slice(1).map(showCard)}</div>
+        <div className="qzMoreRow">
+          <span className="qzMoreLabel">More fun:</span>
+          {MORE.map((m) => (
+            <button key={m.id} type="button" className="qzMore" data-tile={m.id} onClick={() => (sounds.tap(), go(m.go))}>
+              <ModeIcon mode={m.id} size={18} /> {m.title}
+            </button>
+          ))}
+          <button type="button" className="qzMore" data-tile="history" onClick={() => go({ id: "history" })}>
+            <ModeIcon mode="history" size={18} /> Past shows
+          </button>
+        </div>
+      </MoreOptions>
       <p className="qzHomeNote">
         {last ? `Last show: ${last.headline}` : aim?.status === "online" ? `Signed on as ${aim.me?.screenName}` : "Tip: sign on to 98 Messenger to play live or take turns."}
       </p>

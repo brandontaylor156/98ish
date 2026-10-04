@@ -133,6 +133,38 @@
   border-right: 1px solid #fff;
 }
 
+/* More: Stop, Shuffle, Repeat and the volume */
+.mpMore {
+  flex: 1;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.mpMore .moreOpts-body {
+  flex: 1;
+  flex-direction: row;
+  align-items: center;
+}
+
+.mpMore .moreOpts-summary {
+  flex: 1;
+}
+
+.os-mobile .mpMore {
+  flex: 1 1 100%;
+}
+
+.os-mobile .mpMore .moreOpts-head {
+  width: 100%;
+}
+
+.os-mobile .mpMore .moreOpts-body {
+  flex: 1 1 100%;
+  flex-direction: column;
+  align-items: stretch;
+}
+
 .mpVolume {
   display: flex;
   align-items: center;

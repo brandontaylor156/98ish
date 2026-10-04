@@ -148,6 +148,15 @@
   content: " \2605";
   color: #c97a00;
 }
+/* More modes: Tutorial (once done), Deck Builder, Card Packs (none waiting), Rules */
+.mdMore {
+  width: min(100%, 560px);
+}
+
+.mdMore .moreOpts-summary {
+  color: #d8cff0;
+}
+
 .mdRecord {
   margin: 4px 0 0;
   color: #a99bc9;

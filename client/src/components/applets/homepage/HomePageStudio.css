@@ -43,6 +43,28 @@ button.hsInsert:active {
   flex: 1;
 }
 
+/* "More blocks »" opens in the toolbar's row */
+.hsInsertMore,
+.hsInsertMore .moreOpts-body {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+}
+
+.hsInsertMore .moreOpts-toggle {
+  margin-left: 4px;
+}
+
+/* a block's or the page's finer settings */
+.hsMore {
+  margin: 4px 0;
+}
+
+.hsMore .moreOpts-body {
+  gap: 0;
+}
+
 button.hsPublish {
   font-weight: bold;
 }

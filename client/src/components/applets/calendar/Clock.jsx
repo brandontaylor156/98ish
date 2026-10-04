@@ -22,6 +22,8 @@ import {
   useClockApp,
 } from "./clockStore"
 import CheckBox from "./CheckBox"
+import MoreOptions from "../../shared/MoreOptions"
+import { summarize } from "../../../utils/disclosure"
 import { formatTime, uses24h } from "../../../utils/region"
 import { useSettings } from "../../../utils/settings"
 import "./Calendar.css"
@@ -173,22 +175,25 @@ const Alarms = () => {
         <legend>New alarm</legend>
         <div className="calWhen">
           <input type="time" aria-label="Alarm time" value={time} onChange={(e) => setTime(e.target.value)} />
+          <button type="button" className="calPrimary" disabled={!time} onClick={() => addAlarm({ time, label: label.trim(), days })}>
+            Add alarm
+          </button>
+        </div>
+        {/* the label and the days: More options (docs/simplicity.md) */}
+        <MoreOptions id="clock.alarm" summary={summarize(days.length ? daysText(days) : "Once", label.trim() ? `"${label.trim()}"` : "No label")}>
           <input type="text" aria-label="Alarm label" value={label} maxLength={40} placeholder="Label (Wake up!)" onChange={(e) => setLabel(e.target.value)} />
-        </div>
-        <div className="calWeekdays" role="group" aria-label="Repeat on">
-          {WEEKDAYS_SHORT.map((d, i) => {
-            const on = days.includes(i)
-            return (
-              <button key={d} type="button" aria-pressed={on} className={on ? "calOn" : ""} onClick={() => setDays(on ? days.filter((x) => x !== i) : [...days, i].sort())}>
-                {d.slice(0, 2)}
-              </button>
-            )
-          })}
-        </div>
-        <p className="calNote">{days.length ? `Repeats: ${daysText(days)}` : "Rings once, then switches off."}</p>
-        <button type="button" disabled={!time} onClick={() => addAlarm({ time, label: label.trim(), days })}>
-          Add alarm
-        </button>
+          <div className="calWeekdays" role="group" aria-label="Repeat on">
+            {WEEKDAYS_SHORT.map((d, i) => {
+              const on = days.includes(i)
+              return (
+                <button key={d} type="button" aria-pressed={on} className={on ? "calOn" : ""} onClick={() => setDays(on ? days.filter((x) => x !== i) : [...days, i].sort())}>
+                  {d.slice(0, 2)}
+                </button>
+              )
+            })}
+          </div>
+          <p className="calNote">{days.length ? `Repeats: ${daysText(days)}` : "Rings once, then switches off."}</p>
+        </MoreOptions>
       </fieldset>
     </div>
   )

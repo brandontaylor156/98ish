@@ -16,6 +16,7 @@ import { safeFileName } from "../../../utils/shareRules"
 import { richTextPage } from "../../../utils/fileTransfer"
 import "./WordPad.css"
 import { helpItem } from "../../../utils/help"
+import { useDisclosure } from "../../../utils/disclosure"
 
 // WordPad, as in Windows 98: a rich text editor with a toolbar, a format bar (font, size,
 // bold/italic/underline, color, alignment, bullets), a ruler and a status bar; Font,
@@ -119,6 +120,9 @@ const WordPad = ({ file: initialFile = null, mobile = false, onTitle, onClose, r
   const [format, setFormat] = useState(initialFile && initialFile.type !== "richtext" ? "text" : "rich")
   const [dirty, setDirty] = useState(false)
   const [prefs, setPrefsState] = useState(loadPrefs)
+  // the Format Bar: behind Aa (and View > Format Bar), as in the IM window; closed until
+  // someone opens it, then remembered per user (docs/simplicity.md)
+  const [formatBar, setFormatBar] = useDisclosure("wordpad.format", false)
   const [fmt, setFmt] = useState({ font: "Arial", size: 10, bold: false, italic: false, underline: false, align: "left", bullets: false })
   const [dialog, setDialog] = useState(null)
   const [find, setFind] = useState(null)
@@ -875,7 +879,7 @@ const WordPad = ({ file: initialFile = null, mobile = false, onTitle, onClose, r
       label: "View",
       items: [
         { label: "Toolbar", checked: prefs.toolbar, onClick: () => setPrefs({ toolbar: !prefs.toolbar }) },
-        { label: "Format Bar", checked: prefs.formatBar, onClick: () => setPrefs({ formatBar: !prefs.formatBar }) },
+        { label: "Format Bar", checked: formatBar, onClick: () => setFormatBar(!formatBar) },
         { label: "Ruler", checked: prefs.ruler, onClick: () => setPrefs({ ruler: !prefs.ruler }) },
         { label: "Status Bar", checked: prefs.statusBar, onClick: () => setPrefs({ statusBar: !prefs.statusBar }) },
       ],
@@ -907,8 +911,9 @@ const WordPad = ({ file: initialFile = null, mobile = false, onTitle, onClose, r
     },
   ]
 
-  const tool = (icon, label, onClick, active) => (
-    <button type="button" className={active ? "wpTool is-active" : "wpTool"} aria-label={label} title={label} aria-pressed={active === undefined ? undefined : !!active} onMouseDown={keep} onClick={onClick}>
+  // extra: a tool phones leave to the menus (docs/simplicity.md)
+  const tool = (icon, label, onClick, active, extra = false) => (
+    <button type="button" className={`wpTool${active ? " is-active" : ""}${extra ? " wpTool--extra" : ""}`} aria-label={label} title={label} aria-pressed={active === undefined ? undefined : !!active} onMouseDown={keep} onClick={onClick}>
       {ICONS[icon] || icon}
     </button>
   )
@@ -927,20 +932,25 @@ const WordPad = ({ file: initialFile = null, mobile = false, onTitle, onClose, r
           {tool("save", "Save", save)}
           <span className="wpSep" />
           {tool("print", "Print", print)}
-          {tool("preview", "Print Preview", openPreview)}
+          {tool("preview", "Print Preview", openPreview, undefined, true)}
           <span className="wpSep" />
           {tool("find", "Find", () => openFind("find"))}
           <span className="wpSep" />
-          {tool("cut", "Cut", () => clipboard("cut"))}
-          {tool("copy", "Copy", () => clipboard("copy"))}
-          {tool("paste", "Paste", pasteMenu)}
+          {tool("cut", "Cut", () => clipboard("cut"), undefined, true)}
+          {tool("copy", "Copy", () => clipboard("copy"), undefined, true)}
+          {tool("paste", "Paste", pasteMenu, undefined, true)}
           {tool("undo", "Undo", undo)}
+          <span className="wpSep wpTool--extra" />
+          {tool("datetime", "Date/Time", () => setDialog({ kind: "date", formats: dateFormats(), pick: 0 }), undefined, true)}
           <span className="wpSep" />
-          {tool("datetime", "Date/Time", () => setDialog({ kind: "date", formats: dateFormats(), pick: 0 }))}
+          {/* Aa shows the Format Bar (font, size, B/I/U, color, alignment, bullets), as in the IM window */}
+          <button type="button" className={`wpTool wpAa${formatBar ? " is-active" : ""}`} aria-label="Format Bar" title="Format Bar" aria-expanded={formatBar} onMouseDown={keep} onClick={() => setFormatBar(!formatBar)}>
+            Aa
+          </button>
         </div>
       )}
 
-      {prefs.formatBar && (
+      {formatBar && (
         <div className="wpBar wpFormatBar" role="toolbar" aria-label="Format Bar">
           <select className="wpFontSelect" aria-label="Font" value={fmt.font} onChange={(e) => setFont(e.target.value)}>
             {fontOptions.map((f) => (

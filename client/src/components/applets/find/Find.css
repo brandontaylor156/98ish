@@ -29,6 +29,15 @@
   min-width: 0;
 }
 
+/* the baseline: Named, then "More options »" with the tabs */
+.fnNamed {
+  margin-bottom: 6px;
+}
+
+.fnMore .moreOpts-body {
+  gap: 0;
+}
+
 .fnTabs {
   margin-bottom: -2px !important;
 }
@@ -105,7 +114,7 @@
   display: flex;
   flex-direction: column;
   gap: 5px;
-  padding-top: 20px;
+  padding-top: 0;
   width: 92px;
   align-items: stretch;
 }

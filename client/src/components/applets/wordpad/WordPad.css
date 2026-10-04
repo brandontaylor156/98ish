@@ -463,6 +463,21 @@
   height: 36px;
 }
 
+/* phones: Print Preview, Cut, Copy, Paste and Date/Time are in the menus (and the phone's own
+   Cut/Copy/Paste) */
+.os-mobile .wpTool--extra {
+  display: none !important;
+}
+
+/* Aa: shows the Format Bar */
+.wpTool.wpAa {
+  width: auto;
+  padding: 0 6px !important;
+  font-weight: bold;
+  font-family: "Times New Roman", serif;
+  font-size: 13px;
+}
+
 .os-mobile .wpTool svg {
   width: 20px;
   height: 20px;

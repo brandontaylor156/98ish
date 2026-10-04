@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useState } from "react"
 import { VIEW_EVENT, coupleApi, refreshCoupleThings, serverNow, useCouple } from "../../../utils/couple"
 import { unlock } from "../../../utils/achievements"
 import Dialog from "../../shared/Dialog"
+import MoreOptions from "../../shared/MoreOptions"
+import { summarize } from "../../../utils/disclosure"
 import { ENVELOPE_COLORS, Envelope, FONTS, Heart, STATIONERY, Seal } from "./art"
 import { AddPhoto, NotPaired, countdown, dateLabel, nextAnniversary, playLoveChime, useCoupleEvent, useNow } from "./shared"
 import { reducedMotion } from "../../../utils/settings"
@@ -138,6 +140,13 @@ const LetterView = ({ letter, onBack, onFavorite, onDelete }) => (
 
 const blankPage = () => ({ title: "", text: "" })
 
+const DELIVERY = [
+  ["now", "Deliver now"],
+  ["date", "Open on a date"],
+  ["openwhen", "Open when..."],
+  ["series", "Countdown (a letter a day)"],
+]
+
 const Compose = ({ couple, onSent }) => {
   const [title, setTitle] = useState("")
   const [text, setText] = useState("")
@@ -212,113 +221,6 @@ const Compose = ({ couple, onSent }) => {
       <div className="llComposeTo">
         To: <b>{couple.partner}</b>
       </div>
-      <fieldset className="llDelivery">
-        <legend>Delivery</legend>
-        <div className="llDeliveryGrid">
-          {[
-            ["now", "Deliver now"],
-            ["date", "Open on a date"],
-            ["openwhen", "Open when..."],
-            ["series", "Countdown (a letter a day)"],
-          ].map(([id, text]) => (
-            <div className="field-row" key={id}>
-              <input id={`ll-d-${id}`} type="radio" name="ll-delivery" checked={delivery === id} onChange={() => setDelivery(id)} />
-              <label htmlFor={`ll-d-${id}`}>{text}</label>
-            </div>
-          ))}
-          {delivery === "date" && (
-            <div className="llDeliveryMore">
-              <input type="datetime-local" className="usInput" value={when} min={local(serverNow())} onChange={(e) => setWhen(e.target.value)} aria-label="Opens on" />
-              <span className="llQuick">
-                {anniversary && (
-                  <button type="button" onClick={() => setWhen(local(nextAnniversary(anniversary)))}>
-                    Our anniversary ♥
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => {
-                    const d = new Date(serverNow())
-                    d.setHours(24 + 8, 0, 0, 0)
-                    setWhen(local(d.getTime()))
-                  }}
-                >
-                  Tomorrow morning
-                </button>
-              </span>
-            </div>
-          )}
-          {delivery === "openwhen" && (
-            <div className="llDeliveryMore">
-              <div className="llChips">
-                {OPEN_WHEN.map((w) => (
-                  <button key={w} type="button" className={label === w ? "llChip is-on" : "llChip"} onClick={() => setLabel(w)}>
-                    {w}
-                  </button>
-                ))}
-              </div>
-              <label className="llWhenLabel">
-                Open when <input className="usInput" value={label} maxLength={60} onChange={(e) => setLabel(e.target.value)} />
-              </label>
-            </div>
-          )}
-          {delivery === "series" && (
-            <div className="llDeliveryMore">
-              <label>
-                Letters:{" "}
-                <select value={days} onChange={(e) => (setDays(Number(e.target.value)), setPage(Math.min(page, Number(e.target.value) - 1)))}>
-                  {Array.from({ length: 13 }, (_, i) => i + 2).map((n) => (
-                    <option key={n} value={n}>
-                      {n}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <div className="field-row">
-                <input id="ll-tomorrow" type="checkbox" checked={startTomorrow} onChange={(e) => setStartTomorrow(e.target.checked)} />
-                <label htmlFor="ll-tomorrow">First one opens tomorrow morning (otherwise today)</label>
-              </div>
-              <div className="llPages" role="tablist">
-                {Array.from({ length: days }, (_, i) => (
-                  <button key={i} type="button" role="tab" aria-selected={page === i} className={`llPage${page === i ? " is-on" : ""}${pages[i].text.trim() ? " is-done" : ""}`} onClick={() => setPage(i)}>
-                    Day {i + 1}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      </fieldset>
-
-      <div className="llLooks">
-        <div className="llLook">
-          <span>Paper</span>
-          <div className="llPapers">
-            {STATIONERY.map((s) => (
-              <button key={s.id} type="button" className={`llPaperPick llStationery-${s.id}${stationery === s.id ? " is-on" : ""}`} title={s.label} aria-label={s.label} aria-pressed={stationery === s.id} onClick={() => setStationery(s.id)} />
-            ))}
-          </div>
-        </div>
-        <div className="llLook">
-          <span>Envelope</span>
-          <div className="llPapers">
-            {Object.entries(ENVELOPE_COLORS).map(([id, c]) => (
-              <button key={id} type="button" className={`llEnvPick${envelope === id ? " is-on" : ""}`} style={{ background: c.body }} title={c.label} aria-label={`${c.label} envelope`} aria-pressed={envelope === id} onClick={() => setEnvelope(id)} />
-            ))}
-          </div>
-        </div>
-        <label className="llLook">
-          <span>Handwriting</span>
-          <select value={font} onChange={(e) => setFont(e.target.value)}>
-            {FONTS.map((f) => (
-              <option key={f.id} value={f.id}>
-                {f.label}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
-
       <div className={`llSheet llEditing llStationery-${stationery} llFont-${font}`}>
         <input className="llTitleInput" value={current.title} maxLength={80} placeholder={series ? `Day ${page + 1}` : "A letter for you"} onChange={(e) => setCurrent({ title: e.target.value })} aria-label="Title" />
         <textarea className="llTextInput" value={current.text} maxLength={5000} placeholder={series ? `What should ${couple.partner} read on day ${page + 1}?` : `Dear ${couple.partner},`} onChange={(e) => setCurrent({ text: e.target.value })} aria-label="Your letter" />
@@ -339,6 +241,112 @@ const Compose = ({ couple, onSent }) => {
           {busy ? "Sealing..." : series ? `Seal ${days} letters ♥` : "Seal & send ♥"}
         </button>
       </div>
+      {/* the baseline (docs/simplicity.md): the letter and Seal & send; delivery (a date, open
+          when..., a countdown) and the paper, envelope and handwriting under More options */}
+      <MoreOptions id="loveletters.compose" className="llMore" summary={summarize(DELIVERY.find(([id]) => id === delivery)?.[1], `${STATIONERY.find((x) => x.id === stationery)?.label || stationery} paper`, `${ENVELOPE_COLORS[envelope]?.label || envelope} envelope`, FONTS.find((f) => f.id === font)?.label)} forceOpen={delivery !== "now"}>
+        <fieldset className="llDelivery">
+          <legend>Delivery</legend>
+          <div className="llDeliveryGrid">
+            {DELIVERY.map(([id, text]) => (
+              <div className="field-row" key={id}>
+                <input id={`ll-d-${id}`} type="radio" name="ll-delivery" checked={delivery === id} onChange={() => setDelivery(id)} />
+                <label htmlFor={`ll-d-${id}`}>{text}</label>
+              </div>
+            ))}
+            {delivery === "date" && (
+              <div className="llDeliveryMore">
+                <input type="datetime-local" className="usInput" value={when} min={local(serverNow())} onChange={(e) => setWhen(e.target.value)} aria-label="Opens on" />
+                <span className="llQuick">
+                  {anniversary && (
+                    <button type="button" onClick={() => setWhen(local(nextAnniversary(anniversary)))}>
+                      Our anniversary ♥
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const d = new Date(serverNow())
+                      d.setHours(24 + 8, 0, 0, 0)
+                      setWhen(local(d.getTime()))
+                    }}
+                  >
+                    Tomorrow morning
+                  </button>
+                </span>
+              </div>
+            )}
+            {delivery === "openwhen" && (
+              <div className="llDeliveryMore">
+                <div className="llChips">
+                  {OPEN_WHEN.map((w) => (
+                    <button key={w} type="button" className={label === w ? "llChip is-on" : "llChip"} onClick={() => setLabel(w)}>
+                      {w}
+                    </button>
+                  ))}
+                </div>
+                <label className="llWhenLabel">
+                  Open when <input className="usInput" value={label} maxLength={60} onChange={(e) => setLabel(e.target.value)} />
+                </label>
+              </div>
+            )}
+            {delivery === "series" && (
+              <div className="llDeliveryMore">
+                <label>
+                  Letters:{" "}
+                  <select value={days} onChange={(e) => (setDays(Number(e.target.value)), setPage(Math.min(page, Number(e.target.value) - 1)))}>
+                    {Array.from({ length: 13 }, (_, i) => i + 2).map((n) => (
+                      <option key={n} value={n}>
+                        {n}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <div className="field-row">
+                  <input id="ll-tomorrow" type="checkbox" checked={startTomorrow} onChange={(e) => setStartTomorrow(e.target.checked)} />
+                  <label htmlFor="ll-tomorrow">First one opens tomorrow morning (otherwise today)</label>
+                </div>
+                <div className="llPages" role="tablist">
+                  {Array.from({ length: days }, (_, i) => (
+                    <button key={i} type="button" role="tab" aria-selected={page === i} className={`llPage${page === i ? " is-on" : ""}${pages[i].text.trim() ? " is-done" : ""}`} onClick={() => setPage(i)}>
+                      Day {i + 1}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </fieldset>
+
+        <div className="llLooks">
+          <div className="llLook">
+            <span>Paper</span>
+            <div className="llPapers">
+              {STATIONERY.map((s) => (
+                <button key={s.id} type="button" className={`llPaperPick llStationery-${s.id}${stationery === s.id ? " is-on" : ""}`} title={s.label} aria-label={s.label} aria-pressed={stationery === s.id} onClick={() => setStationery(s.id)} />
+              ))}
+            </div>
+          </div>
+          <div className="llLook">
+            <span>Envelope</span>
+            <div className="llPapers">
+              {Object.entries(ENVELOPE_COLORS).map(([id, c]) => (
+                <button key={id} type="button" className={`llEnvPick${envelope === id ? " is-on" : ""}`} style={{ background: c.body }} title={c.label} aria-label={`${c.label} envelope`} aria-pressed={envelope === id} onClick={() => setEnvelope(id)} />
+              ))}
+            </div>
+          </div>
+          <label className="llLook">
+            <span>Handwriting</span>
+            <select value={font} onChange={(e) => setFont(e.target.value)}>
+              {FONTS.map((f) => (
+                <option key={f.id} value={f.id}>
+                  {f.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+      </MoreOptions>
       {error && <p className="usError">{error}</p>}
     </div>
   )
