@@ -222,9 +222,9 @@ export const turnToward = (st, target, dt, { maxRate = 9, k = 14 } = {}) => {
 
 // ---- the feet ----
 export const FOOT = {
-  ball: 0.135, // ankle to the ball of the foot (along the ground): the heel peels off around it
+  ball: 0.138, // ankle to the ball of the foot (along the ground): the heel peels off around it
   heel: 0.06, // ankle to the back of the heel
-  drop: 0.05, // the ankle joint above the ball of the foot / heel contact
+  drop: 0.06, // the ankle joint above the ball of the foot / heel contact
   toeOut: 0.14, // feet turned out a little (rad)
   minGap: 0.15, // the feet never closer than this side to side (they never cross)
   reach: 0.62, // a planted foot further than this (horizontally) from its hip must step

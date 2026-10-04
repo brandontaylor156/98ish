@@ -209,7 +209,7 @@ export const topics = [
     book: "games-action",
     title: "Pickleball 98",
     summary: "3D pickleball with real rules, a World Tour, practice drills and online singles and doubles.",
-    keywords: ["pickleball", "dink", "kitchen", "serve", "World Tour", "doubles", "drive", "lob", "paddle"],
+    keywords: ["pickleball", "dink", "kitchen", "serve", "World Tour", "doubles", "drive", "lob", "paddle", "Locker Room", "outfit", "customize", "swimsuit", "beach", "winter"],
     programs: ["Pickleball 98"],
     body: [
       "Pickleball 98 is pickleball in 3D, with real rules and real ball physics. Play the computer, go on a World Tour, practice your shots, play a friend on the same keyboard, or play people online.",
@@ -247,7 +247,18 @@ export const topics = [
         phone: "Drag on the left side of the screen to move. Touch anywhere else to hit: touching their court aims right there; elsewhere, drag to steer the aim. Hold longer for more pace.",
         computer: "Move with the keys, aim with the mouse, and click (or press Space) to hit. Two players on one keyboard: Player 1 uses W A S D and F, Player 2 the arrows and L; while holding hit, your move keys steer the aim. A gamepad works too. Change any key in **Controls**.",
       },
-      { tip: "On phones the players are drawn simply to keep things smooth. Settings > Graphics can switch to Medium or High on a fast phone." },
+      { h: "The Locker Room" },
+      "Open **Locker Room** on the title screen (or Game > Locker Room..., or **Locker Room...** on the players screen) to dress any player. Drag the player to turn them around, and pick **Jogging** to see the kit move.",
+      {
+        list: [
+          "**Body:** skin, hair and hair color, a beard, height and build.",
+          "**Kit:** a theme (Classic whites, Club colors, Pro kit, Beach, Winter, Retro 80s/90s, Casual) and its style, your two kit colors, then any top, bottom and socks.",
+          "**Gear:** hats (caps, visor, headband, bucket hat, beanie), sunglasses, wristbands, gloves and shoes.",
+          "**Paddle:** a design and its colors.",
+        ],
+      },
+      "Your look is saved with your user profile and goes with you online, so other people see it. **Auto by venue** puts everyone in the venue's kit (beach kit at Sandy Point, winter kit at Frost Hollow); **Computer players: Random kits** dresses the computer's players in kits of their own.",
+      { tip: "Settings > Graphics: Medium and High show the full players with their clothes; Low draws them simply (colors and the main pieces) for slow phones." },
     ],
     related: ["online-play", "touch-controls", "game-trouble"],
   },

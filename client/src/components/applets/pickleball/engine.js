@@ -1060,7 +1060,11 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
           onEvent?.({ type: "rally", ...e, yours: e.winner === you?.team })
           // a great point gets the replay
           const worthy = e.shots >= 9 || (e.kind === "winner" && (e.last?.kind === "smash" || e.last?.risky || e.last?.grade === "perfect") && e.shots >= 3)
-          if (worthy && settings.replays !== false && mode === "local") setTimeout(() => !disposed && match && mode === "local" && !replay && startReplay(), 900)
+          // (only for this match: a replay due as the next match starts would freeze it)
+          if (worthy && settings.replays !== false && mode === "local") {
+            const forMatch = match
+            setTimeout(() => !disposed && match === forMatch && mode === "local" && !replay && forMatch.phase !== "rally" && startReplay(), 900)
+          }
           break
         }
         case "point":
@@ -1535,6 +1539,9 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
         if (!match) return
         scenario(match, kind)
         match.events.length = 0
+        // (a set-up rally: no TV cut or replay from the last point stays on screen)
+        cut = null
+        if (replay) endReplay()
       },
       fast(seconds) {
         // run the simulation ahead without drawing (tests)

@@ -441,7 +441,13 @@ const Pickleball = ({ onClose, mobile }) => {
     const p = prefsRef.current
     // (your look for this room's venue, checked again by the server and the host)
     const myLook = lookPayload(lookForPlayer(p, { character: p.character, outfit: p.outfit }, online.room?.settings?.venue || null))
-    hellos.current = new Map([[online.seat, { character: p.character, outfit: p.outfit, look: myLook }]])
+    // (a guest's hello can beat this effect here: keep this round's hellos, start fresh only for a
+    // new round)
+    if (hellos.key !== roundKey) {
+      hellos.current = new Map()
+      hellos.key = roundKey
+    }
+    hellos.current.set(online.seat, { character: p.character, outfit: p.outfit, look: myLook })
     if (online.isHost) {
       // wait a moment for everyone's "this is me" (their player and outfit), then go
       const humans = online.room.seats.filter((s) => s && !s.bot).length
@@ -457,6 +463,11 @@ const Pickleball = ({ onClose, mobile }) => {
       const o = onlineRef.current
       if (!d || typeof d !== "object") return
       if (d.type === "hello" && o.isHost) {
+        const round = o.room ? `${o.room.id}:${o.room.round}` : null
+        if (hellos.key !== round) {
+          hellos.current = new Map()
+          hellos.key = round
+        }
         const character = CHARACTERS.some((c) => c.id === d.character) ? d.character : null
         const outfit = typeof d.outfit === "string" ? d.outfit : "home"
         hellos.current.set(from, { character, outfit, look: d.look && typeof d.look === "object" ? lookPayload(validateLook(d.look, characterLook(character || "maya", outfit))) : null })

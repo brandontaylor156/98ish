@@ -1133,7 +1133,9 @@ export const createAthlete = (look = {}, { shadows = false, withPaddle = true } 
   const probe = () => {
     const face = withPaddle ? toV(paddleHolder.localToWorld(tv.set(0, FACE_FROM_GRIP, 0))) : null
     const soles = ["l", "r"].map((sd) => worldP(B["foot_" + sd]).y - tpl.ankleH * s)
-    return { face, soles }
+    // (the balls of the feet: what stays put on the court while a foot is planted)
+    const balls = ["l", "r"].map((sd) => worldP(B["ball_" + sd]))
+    return { face, soles, balls }
   }
 
   let vertices = 0
