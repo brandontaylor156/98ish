@@ -3,7 +3,8 @@ const assert = require("node:assert/strict")
 const http = require("node:http")
 const zlib = require("node:zlib")
 const express = require("express")
-const { createWeb, siteOf, ipKey, parseAllow, onList, relayMode, GUEST_ALLOW } = require("..")
+const { createWeb, siteOf, ipKey, parseAllow, onList, relayMode, GUEST_ALLOW, frameVerdict } = require("..")
+const { dayOf } = require("../../meter/counters")
 
 const TOKEN = "a".repeat(48)
 const fakeAim = () => {
@@ -24,6 +25,8 @@ const startSite = () => {
     switch (url.pathname) {
       case "/":
         return send(200, { "content-type": "text/html", "x-frame-options": "DENY", "content-security-policy": "frame-ancestors 'none'; script-src 'self'", "set-cookie": ["sid=s1; Path=/; HttpOnly", "theme=blue; Path=/"] }, '<html><head><title>Home</title></head><body><a href="/next">next</a><img src="/pic.png"></body></html>')
+      case "/forbidden":
+        return send(403, { "content-type": "text/html" }, "<title>Just a moment...</title>")
       case "/framable":
         return send(200, { "content-type": "text/html" }, "<title>ok</title>")
       case "/echo":
@@ -377,6 +380,132 @@ test("site keys approximate eTLD+1", () => {
   assert.equal(siteOf("example.com"), "example.com")
   assert.equal(siteOf("news.ycombinator.com:443"), "ycombinator.com")
   assert.equal(siteOf("127.0.0.1"), "127.0.0.1")
+})
+
+test("frameVerdict: frame-ancestors wins over X-Frame-Options, like browsers", () => {
+  const v = (headers, origin) => frameVerdict(headers, origin).frameable
+  assert.equal(v({}), true)
+  assert.equal(v({ "x-frame-options": "DENY" }), false)
+  assert.equal(v({ "x-frame-options": "sameorigin" }), false)
+  assert.equal(v({ "x-frame-options": "ALLOW-FROM https://98ish.vercel.app" }), true) // ignored by browsers
+  assert.equal(v({ "x-frame-options": "allowall" }), true)
+  assert.equal(v({ "x-frame-options": "DENY, SAMEORIGIN" }), false)
+  assert.equal(v({ "content-security-policy": "frame-ancestors 'none'" }), false)
+  assert.equal(v({ "content-security-policy": "frame-ancestors 'self'" }), false)
+  assert.equal(v({ "content-security-policy": "frame-ancestors *" }), true)
+  assert.equal(v({ "content-security-policy": "default-src 'self'; frame-ancestors https:" }), true)
+  assert.equal(v({ "content-security-policy": "frame-ancestors https:" }, "http://localhost:5366"), false)
+  assert.equal(v({ "content-security-policy": "frame-ancestors 'self' https://98ish.vercel.app" }), true)
+  assert.equal(v({ "content-security-policy": "frame-ancestors *.vercel.app" }), true)
+  assert.equal(v({ "content-security-policy": "frame-ancestors https://*.neal.fun https://neal.fun" }), false)
+  assert.equal(v({ "content-security-policy": "frame-ancestors https://98ish.vercel.app:8443" }), false)
+  assert.equal(v({ "content-security-policy": "frame-ancestors http://localhost:5366" }, "http://localhost:5366"), true)
+  // frame-ancestors present: X-Frame-Options is ignored
+  assert.equal(v({ "content-security-policy": "frame-ancestors *", "x-frame-options": "DENY" }), true)
+  // every policy must allow it
+  assert.equal(v({ "content-security-policy": ["frame-ancestors *", "frame-ancestors 'none'"] }), false)
+  assert.equal(v({ "content-security-policy": "script-src 'self'", "x-frame-options": "DENY" }), false)
+  // a CSP without frame-ancestors says nothing about frames
+  assert.equal(v({ "content-security-policy": "default-src 'self'" }), true)
+})
+
+test("GET /frame: any public site, no session, headers only; the SSRF guard still applies; counted", async () => {
+  // allowlist mode with other.test off the list (and the same with the relay off)
+  for (const mode of ["allowlist", "off"]) {
+    const t = await setup({ allowGuests: true, mode })
+    try {
+      const OTHER = `http://other.test:${t.site.port}`
+      const frame = (url, headers = {}) => fetch(`${t.base}/frame?url=${encodeURIComponent(url)}`, { headers }).then(async (r) => ({ status: r.status, headers: r.headers, ...(await r.json()) }))
+      const seenBefore = t.site.seen.length
+      const ok = await frame(`${OTHER}/framable`)
+      assert.equal(ok.ok, true, mode)
+      assert.equal(ok.frameable, true)
+      assert.equal(ok.url, `${OTHER}/framable`)
+      assert.deepEqual(Object.keys(ok).sort(), ["by", "frameable", "headers", "https", "ok", "status", "type", "url"].sort())
+      assert.equal(ok.headers.get("content-security-policy"), "sandbox")
+      // nothing of the page comes back
+      assert.ok(!JSON.stringify(ok).includes("<title>"))
+      assert.equal(t.site.seen.length, seenBefore + 1)
+      // cached: no second request to the site
+      await frame(`${OTHER}/framable`)
+      assert.equal(t.site.seen.length, seenBefore + 1)
+      assert.equal((await frame(`${OTHER}/`)).frameable, false)
+      assert.equal((await frame(`${OTHER}/`)).by, "csp")
+      const redirected = await frame(`${OTHER}/redirect`)
+      assert.equal(redirected.frameable, true)
+      assert.equal(redirected.url, `${OTHER}/framable`)
+      // a bot check / forbidden page isn't shown live; a plain 404 is
+      assert.equal((await frame(`${OTHER}/forbidden`)).frameable, false)
+      assert.equal((await frame(`${OTHER}/forbidden`)).by, "status")
+      assert.equal((await frame(`${OTHER}/missing`)).frameable, true)
+      // the guard: private addresses, redirects to them, odd ports, our own hosts
+      const before = t.site.seen.length
+      for (const url of ["http://192.168.0.1/", "http://127.0.0.1:1/", "http://localhost/", "https://98ish.vercel.app/", "https://nine8ish.onrender.com/api/web/session", "file:///etc/passwd", `http://user:pw@other.test:${t.site.port}/`]) {
+        const r = await frame(url)
+        assert.equal(r.ok, false, url)
+        assert.equal(r.frameable, undefined, url)
+      }
+      assert.equal(t.site.seen.length, before)
+      const hop = await frame(`${OTHER}/to-private`)
+      assert.equal(hop.ok, false)
+      // counted (tiny) in the relay's totals
+      const day = dayOf(Date.now())
+      await t.web.counters.ensure([["day", "frames", day], ["day", "relay", day]])
+      const n = t.web.counters.value("day", "frames", day)
+      assert.ok(n > 600 * 4 && n < 600 * 4 + 4000, String(n))
+      assert.equal(t.web.counters.value("day", "relay", day), n)
+    } finally {
+      t.close()
+    }
+  }
+})
+
+test("GET /frame: frame-ancestors are matched against the asking 98ish page; rate limited; can be turned off", async () => {
+  const t = await setup({ limits: { checksPerMinute: 3 } })
+  try {
+    const frame = (path, headers = {}) => fetch(`${t.base}/frame?url=${encodeURIComponent(t.S + path)}`, { headers }).then(async (r) => ({ status: r.status, ...(await r.json()) }))
+    for (const p of ["/framable", "/redirect", "/missing"]) assert.equal((await frame(p)).ok, true)
+    const limited = await frame("/forbidden")
+    assert.equal(limited.status, 429)
+  } finally {
+    t.close()
+  }
+  const site = await (async () => {
+    const s = http.createServer((req, res) => {
+      res.writeHead(200, { "content-type": "text/html", "content-security-policy": "frame-ancestors https://98ish.vercel.app" })
+      res.end("x")
+    })
+    await new Promise((r) => s.listen(0, "127.0.0.1", r))
+    return s
+  })()
+  const web = createWeb({ aim: () => fakeAim(), testHosts: { "pick.test": "127.0.0.1" }, secret: "s".repeat(64) })
+  const app = express()
+  app.use("/api/web", web.router)
+  const server = http.createServer(app)
+  await new Promise((r) => server.listen(0, "127.0.0.1", r))
+  try {
+    const url = `http://pick.test:${site.address().port}/`
+    const ask = (origin) => fetch(`http://127.0.0.1:${server.address().port}/api/web/frame?url=${encodeURIComponent(url)}`, { headers: origin ? { origin } : {} }).then((r) => r.json())
+    assert.equal((await ask("https://98ish.vercel.app")).frameable, true)
+    assert.equal((await ask("http://localhost:5366")).frameable, false)
+    assert.equal((await ask(null)).frameable, true) // no Origin: 98ish itself
+  } finally {
+    web.stop()
+    server.close()
+    site.close()
+  }
+  const off = createWeb({ aim: () => fakeAim(), frameCheck: false, testHosts: { "site.test": "127.0.0.1" }, secret: "s".repeat(64) })
+  const app2 = express()
+  app2.use("/api/web", off.router)
+  const server2 = http.createServer(app2)
+  await new Promise((r) => server2.listen(0, "127.0.0.1", r))
+  try {
+    const r = await fetch(`http://127.0.0.1:${server2.address().port}/api/web/frame?url=${encodeURIComponent("https://example.com/")}`).then((x) => x.json())
+    assert.equal(r.ok, false)
+  } finally {
+    off.stop()
+    server2.close()
+  }
 })
 
 // ---------- guests: the allowlist, by address ----------

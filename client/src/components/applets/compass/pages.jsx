@@ -204,7 +204,7 @@ export const DownloadsPage = ({ store, onOpen }) => (
         Clear List
       </button>
     </div>
-    {!store.downloads.length && <p className="cmpEmpty">Files you download show up here. Small files can be saved to the 98ish drive (C:\Downloads); anything else goes to your device through your real browser.</p>}
+    {!store.downloads.length && <p className="cmpEmpty">Files you download show up here. Small files can be saved to the 98ish drive (C:\Downloads); anything else goes to your device.</p>}
     <ul className="cmpList">
       {store.downloads.map((d) => (
         <li key={d.at}>
@@ -225,28 +225,28 @@ export const AboutPage = ({ session }) => (
       <CompassLogo size={48} />
       <div>
         <h1>About Compass</h1>
-        <p>Version 1.0 for 98ish</p>
+        <p>Version 1.1 for 98ish</p>
       </div>
     </div>
     <h2>How Compass shows the real Web</h2>
-    <p>Most sites won&apos;t let other pages show them in a frame, so Compass asks the 98ish server to fetch each page and pass it on (the &quot;relay&quot;). Pages run in a locked-down frame with no address of their own: they can&apos;t read your 98ish files, settings or sign-in, can&apos;t use your 98 Messenger account and can&apos;t take over the 98ish window.</p>
+    <p>Most sites won&apos;t let other pages show them in a frame, so Compass shows each site in one of three ways, always inside Compass:</p>
     <ul>
       <li>
-        <b>Pages come from the 98ish server's address.</b> To save the server's data, pictures and scripts load straight from the sites when they can, so sites can still see your address; View &gt; Relay Pictures Too sends those through the server as well.
+        <b>Through the 98ish server (the &quot;relay&quot;)</b>: {session?.mode === "on" && !session?.guest ? "any site, now that you're signed on." : "Wikipedia and its sister sites (Wiktionary, Wikivoyage, Wikibooks, Wikiquote, Wikimedia Commons), OpenStreetMap and example.com."} The server fetches the page and passes it on. Pages come from the server&apos;s address; pictures and scripts usually load straight from the sites, so they can still see yours (View &gt; Relay Pictures Too sends those through the server as well). <b>Anything you type into a relayed page, passwords included, passes through the 98ish server.</b>
       </li>
       <li>
-        <b>Anything you type into a relayed page, passwords included, passes through the 98ish server.</b> For banking, email and other important accounts, use <b>Open in Real Browser</b>.
+        <b>Straight from the site</b>, for other sites that allow being shown in a frame. The page loads from the site over your own connection (the site sees your address), not through 98ish; the 98ish server only looks at the site&apos;s headers first to see whether it allows frames.
       </li>
-      {session?.mode === "on" ? (
-        <li>Without signing on, Compass opens Wikipedia and a few other reference sites. Sign on with your 98 Messenger screen name to browse other sites.</li>
-      ) : (
-        <li>
-          <b>Compass opens a few safe sites through the 98ish server</b>, for everyone, signed on or not: Wikipedia and its sister sites (Wiktionary, Wikivoyage, Wikibooks, Wikiquote, Wikimedia Commons), OpenStreetMap and example.com. Other sites open in your real browser (sites that allow it can also show directly with Data Saver).
-        </li>
-      )}
-      <li>Cookies (so you can stay signed in to simple sites) are kept in the server's memory for your 98 Messenger account (a guest's only until the browsing session ends), only for the site that set them, and are gone after a day unused or when the server restarts. Tools &gt; Clear Cookies forgets them.</li>
-      <li>Videos, Google sign-in, banks and big web apps work best in your real browser. Compass offers it when a site needs it.</li>
-      <li>The server has a daily data allowance (shared with everyone), so pictures load straight from the sites when they can. There is a monthly one too: the 98ish server&apos;s free plan includes a fixed amount of data a month for everything (Messenger, file sync, games and Compass), so when Compass or the whole server has used its share, Compass rests until the 1st of the next month and the rest of 98ish keeps working.</li>
+      <li>
+        <b>A saved copy from the Internet Archive</b> (the Wayback Machine), for sites that don&apos;t. A slim bar above the page says so and gives its date. The copy loads from web.archive.org over your own connection (the Archive sees your address), not through 98ish. Links inside it lead to more saved pages.
+      </li>
+    </ul>
+    <p>Every page runs in a locked-down frame: it can&apos;t read your 98ish files, settings or sign-in, can&apos;t use your 98 Messenger account and can&apos;t take over the 98ish window.</p>
+    <ul>
+      {session?.mode === "on" && session?.guest && <li>Sign on with your 98 Messenger screen name to see other sites live through the relay.</li>}
+      <li>Cookies for relayed sites (so you can stay signed in to simple sites) are kept in the server&apos;s memory for your 98 Messenger account (a guest&apos;s only until the browsing session ends), only for the site that set them, and are gone after a day unused or when the server restarts. Tools &gt; Clear Cookies forgets them.</li>
+      <li>To see a site live outside 98ish (videos, sign-ins, banks), use File &gt; Open in your browser, or the small link on a saved copy&apos;s bar.</li>
+      <li>The server has a daily data allowance (shared with everyone), and a monthly one: the 98ish server&apos;s free plan includes a fixed amount of data a month for everything (Messenger, file sync, games and Compass). When Compass has used its share, the relay rests until the 1st of the next month; sites still show straight from the site or as saved copies, and the rest of 98ish keeps working.</li>
     </ul>
     {session && (
       <p className="cmpUsage">
@@ -255,19 +255,18 @@ export const AboutPage = ({ session }) => (
         {session.closed ? `. Resting until ${new Date(session.closed).toLocaleDateString(undefined, { month: "long", day: "numeric", timeZone: "UTC" })}.` : ""}
       </p>
     )}
-    <p>
-      Searches use <a href="https://duckduckgo.com/" target="_blank" rel="noopener noreferrer">DuckDuckGo</a> unless you pick another engine in Tools &gt; Compass Options (when Compass opens only the safe sites, searches go to Wikipedia).
-    </p>
+    <p>Searches go to Wikipedia while Compass relays only its list of sites (with every site open to you, Tools &gt; Compass Options picks the search engine).</p>
   </div>
 )
 
-// Instead of a site: it needs the real browser, it's a file, a video, an error...
-export const StubPage = ({ info, onReal, onRetry, onAlways, onTimeMachine, onSignOn, onSave, onDataSaver }) => {
+// Instead of a site: a file, a sign-on prompt, an error, or a site that can't be shown at all
+export const StubPage = ({ info, openIn = "Open in Your Browser", onReal, onRetry, onTimeMachine, onSignOn, onWithoutSignOn, onSearch, onSave }) => {
   const title = info.title || "Compass can't show this page"
+  const web = info.url && /^https?:/.test(info.url)
   return (
     <div className="cmpPage cmpStub">
       <div className="cmpStubIcon" aria-hidden="true">
-        {info.kind === "signon" ? <img src="/assets/program_icons/aim2-48.png" width="48" height="48" alt="" draggable="false" /> : info.kind === "download" ? "\u{1F4BE}" : info.kind === "media" ? "\u{1F3AC}" : info.kind === "real" || info.kind === "notallowed" || info.kind === "off" ? "\u{1F310}" : info.kind === "monthly" ? "\u{1F4C5}" : "!"}
+        {info.kind === "signon" ? <img src="/assets/program_icons/aim2-48.png" width="48" height="48" alt="" draggable="false" /> : info.kind === "download" ? "\u{1F4BE}" : info.kind === "media" ? "\u{1F3AC}" : info.kind === "nosnapshot" ? "\u{1F310}" : info.kind === "monthly" ? "\u{1F4C5}" : "!"}
       </div>
       <h1>{title}</h1>
       {info.text && <p>{info.text}</p>}
@@ -275,8 +274,13 @@ export const StubPage = ({ info, onReal, onRetry, onAlways, onTimeMachine, onSig
       {info.kind === "download" && info.size ? <p>Size: {formatBytes(info.size)}</p> : null}
       <div className="cmpStubButtons">
         {info.kind === "download" && !info.tooBig && onSave && (
-          <button type="button" onClick={onSave}>
+          <button type="button" className="cmpPrimary" onClick={onSave}>
             Save to 98ish Drive
+          </button>
+        )}
+        {info.kind === "download" && web && (
+          <button type="button" onClick={onReal}>
+            Save to My Device
           </button>
         )}
         {info.kind === "signon" && onSignOn && (
@@ -287,41 +291,39 @@ export const StubPage = ({ info, onReal, onRetry, onAlways, onTimeMachine, onSig
             <button type="button" onClick={() => onSignOn(true)}>
               Get a Screen Name
             </button>
+            {onWithoutSignOn && (
+              <button type="button" onClick={onWithoutSignOn}>
+                Show It Without Signing On
+              </button>
+            )}
           </>
         )}
-        {info.url && /^https?:/.test(info.url) && (
-          <button type="button" className={info.kind === "signon" ? "" : "cmpPrimary"} onClick={onReal}>
-            {info.kind === "download" ? "Save to My Device" : "Open in Real Browser"}
+        {info.kind === "nosnapshot" && info.term && onSearch && (
+          <button type="button" className="cmpPrimary" onClick={() => onSearch(info.term)}>
+            Search Wikipedia for &quot;{info.term}&quot;
           </button>
         )}
-        {info.kind === "real" && onRetry && (
-          <button type="button" onClick={onRetry}>
-            Try in Compass Anyway
-          </button>
-        )}
-        {["error", "expired", "budget", "offline", "unavailable"].includes(info.kind) && onRetry && (
+        {["error", "expired", "budget", "offline", "unavailable", "nosnapshot"].includes(info.kind) && onRetry && (
           <button type="button" onClick={onRetry}>
             Try Again
           </button>
         )}
-        {info.kind === "budget" && onDataSaver && (
-          <button type="button" onClick={onDataSaver}>
-            Use Data Saver
-          </button>
-        )}
       </div>
-      {info.kind === "real" && onAlways && info.canAlways && (
-        <label className="cmpCheck">
-          <input type="checkbox" onChange={(e) => e.target.checked && onAlways()} /> Always open {hostOf(info.url)} in my real browser
-        </label>
-      )}
-      {info.kind !== "download" && info.url && onTimeMachine && (
+      {info.kind === "nosnapshot" && <p className="cmpStubAlt">The Internet Archive saves copies of many pages over time, so a saved copy may be there later.</p>}
+      {info.kind !== "download" && web && (
         <p className="cmpStubAlt">
-          Or see an old copy in the{" "}
-          <button type="button" className="cmpLink" onClick={onTimeMachine}>
-            Internet Explorer time machine
+          {onTimeMachine && (
+            <>
+              Older copies are in the{" "}
+              <button type="button" className="cmpLink" onClick={onTimeMachine}>
+                Internet Explorer time machine
+              </button>
+              .{" "}
+            </>
+          )}
+          <button type="button" className="cmpLink" onClick={onReal}>
+            {openIn}
           </button>
-          .
         </p>
       )}
     </div>

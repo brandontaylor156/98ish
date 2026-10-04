@@ -32,7 +32,7 @@ const TIPS = {
   "Internet Explorer": ["Change the date in the toolbar to see websites the way they looked back then."],
   Compass: [
     "Compass is the real, modern Web. Type an address or just search for something in the bar at the top.",
-    "Banking or email? Tap the arrow button to open the page in your real browser: pages in Compass pass through the 98ish server.",
+    "Sites Compass can't show live appear as a saved copy from the Internet Archive, with a slim bar saying so. Open in Safari (File menu) shows the live site.",
     "Tap the star to bookmark a page. Your bookmarks, history and tabs are yours alone, even on a shared computer.",
     "Want to see what a site looked like in 1998? Go > Open in Time Machine sends it to Internet Explorer.",
   ],
