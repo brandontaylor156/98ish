@@ -127,14 +127,17 @@ const reducer = (state, action) => {
         return window
       })
 
-    case "select_active":
-      return state.map((window, idx) => {
-        if (idx === action.payload.index) {
-          if (window.minimized == true) return { ...window, active: false }
-          else if (window.minimized == false) return { ...window, active: true }
-        }
-        return { ...window, active: false }
+    case "select_active": {
+      // (unchanged windows keep their objects, and nothing changed keeps the state: no re-render)
+      let changed = false
+      const next = state.map((window, idx) => {
+        const active = idx === action.payload.index && window.minimized == false
+        if (window.active === active) return window
+        changed = true
+        return { ...window, active }
       })
+      return changed ? next : state
+    }
 
     // Bring an open window to the front, restoring it if minimized
     case "focus_window":

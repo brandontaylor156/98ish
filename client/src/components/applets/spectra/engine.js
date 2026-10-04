@@ -22,6 +22,9 @@ import {
 } from "./logic"
 import { createAudio } from "./audio"
 import { reducedMotion } from "../../../utils/settings"
+import { createFrameClock, substeps } from "../../../utils/frameClock.js"
+import { createResolution } from "../../../utils/dynamicResolution.js"
+import { releaseGpu } from "../../../utils/webglLoss.js"
 
 const R = 6 // tube radius
 const SHIP_R = R - 0.9 // the ship rides this far from the axis
@@ -34,6 +37,7 @@ const MAX_SHARDS = 420
 const MAX_PARTICLES = 900
 const TRAIL_POINTS = 28
 const DRAG_TURN = TAU * 0.75 // a full-width drag turns this far
+const MAX_STEP = 1 / 30 // the longest single logic step (logic.step clamps at 50 ms)
 
 // Cosine palettes (Inigo Quilez): color(t) = a + b * cos(2pi (c t + d)), one per zone
 const LOOKS = [
@@ -404,12 +408,14 @@ const buildShipGeometry = () => {
 export const createEngine = ({ canvas, container, onHud, onStatus, onEvent, best = 0, muted = false }) => {
   const renderer = new THREE.WebGLRenderer({
     canvas,
-    antialias: window.devicePixelRatio < 2,
+    antialias: true,
     powerPreference: "high-performance",
     alpha: false,
     stencil: false,
   })
-  const maxPixelRatio = Math.min(window.devicePixelRatio || 1, 2)
+  // (with anti-aliasing on, a phone's 3x screen is drawn at 1.5: sharper than 2 without it, and cheaper)
+  const dpr = window.devicePixelRatio || 1
+  const maxPixelRatio = Math.min(dpr, dpr >= 2 ? 1.5 : 2)
   let pixelRatio = maxPixelRatio
   renderer.setPixelRatio(pixelRatio)
 
@@ -567,7 +573,8 @@ export const createEngine = ({ canvas, container, onHud, onStatus, onEvent, best
   let fov = 72
   let visualTime = 0
   let raf = 0
-  let last = 0
+  const clock = createFrameClock()
+  let inFrame = false
   let disposed = false
   let size = { width: 0, height: 0 }
   let hudTimer = 0
@@ -757,6 +764,7 @@ export const createEngine = ({ canvas, container, onHud, onStatus, onEvent, best
   }
   const onVisibility = () => {
     if (document.hidden && status === "playing") api.pause()
+    if (!document.hidden) restartClock()
   }
 
   container.addEventListener("keydown", onKeyDown)
@@ -784,33 +792,18 @@ export const createEngine = ({ canvas, container, onHud, onStatus, onEvent, best
     camera.fov = width < height ? 84 : 72
     fov = camera.fov
     camera.updateProjectionMatrix()
+    restartClock()
     start()
   }
   const resizeObserver = new ResizeObserver(resize)
   resizeObserver.observe(container)
 
-  let frameTimes = []
-  let qualityClock = 0
-  let fastStreak = 0
-  const adaptQuality = (dtMs) => {
-    frameTimes.push(dtMs)
-    qualityClock += dtMs
-    if (qualityClock < 2000) return
-    const avg = frameTimes.reduce((a, b) => a + b, 0) / frameTimes.length
-    frameTimes = []
-    qualityClock = 0
-    if (avg > 20 && pixelRatio > 0.6) {
-      pixelRatio = Math.max(0.6, pixelRatio - 0.25)
-      fastStreak = 0
-    } else if (avg < 15 && pixelRatio < maxPixelRatio) {
-      if (++fastStreak >= 3) {
-        pixelRatio = Math.min(maxPixelRatio, pixelRatio + 0.25)
-        fastStreak = 0
-      }
-    } else {
-      fastStreak = 0
-      return
-    }
+  // dynamic resolution (utils/dynamicResolution.js): down a step while frames run slow (to
+  // 1.0 at the lowest), back up when there's time to spare
+  const resolution = createResolution({ max: maxPixelRatio, min: Math.min(1, maxPixelRatio) })
+  const adaptQuality = (dtMs, workMs) => {
+    if (!resolution.frame(dtMs, workMs)) return
+    pixelRatio = resolution.ratio
     renderer.setPixelRatio(pixelRatio)
     renderer.setSize(size.width, size.height, false)
     pMaterial.uniforms.uPixelRatio.value = pixelRatio
@@ -1005,21 +998,26 @@ export const createEngine = ({ canvas, container, onHud, onStatus, onEvent, best
     if (disposed) return
     const cpuStart = performance.now()
     if (!size.width || !size.height) return // minimized: stop until resized
-    const dtMs = last ? Math.min(100, now - last) : 16
-    last = now
+    inFrame = true
+    const dtMs = clock.tick(now)
     let dt = dtMs / 1000
+    // logic.step takes at most 50 ms at a time: a slow frame runs as equal shorter steps, so
+    // the tube moves at real speed down to 10 fps
+    const n = substeps(dt, MAX_STEP)
 
     if (status === "playing") {
-      const input = { steer: steerFromKeys(), turn: dragTurn, overdrive: overdriveRequested }
+      const steer = steerFromKeys()
+      for (let i = 0; i < n && status === "playing"; i++) {
+        step(game, dt / n, { steer, turn: i === 0 ? dragTurn : 0, overdrive: i === 0 && overdriveRequested })
+        handleEvents()
+      }
       dragTurn = 0
       overdriveRequested = false
-      step(game, dt, input)
       maxMultiplier = Math.max(maxMultiplier, game.multiplier)
       audio.setDifficulty(difficulty(game.distance))
       audio.setIntensity((game.multiplier - 1) / 7 + (game.overdrive > 0 ? 0.4 : 0))
-      handleEvents()
     } else if (status === "title") {
-      step(game, dt, autopilot())
+      for (let i = 0; i < n; i++) step(game, dt / n, autopilot())
       game.score = 0
       if (game.status !== "playing") game = createGame(Math.floor(Math.random() * 1e9)) // (never happens: the bot is fair)
     } else if (status === "crashing") {
@@ -1055,7 +1053,7 @@ export const createEngine = ({ canvas, container, onHud, onStatus, onEvent, best
     perf.frames++
     perf.renderMs += performance.now() - renderStart
     perf.cpuMs += renderStart - cpuStart
-    adaptQuality(dtMs)
+    if (!clock.first) adaptQuality(dtMs, performance.now() - cpuStart)
 
     hudTimer += dtMs
     if (status === "playing" && hudTimer > 80) {
@@ -1073,20 +1071,31 @@ export const createEngine = ({ canvas, container, onHud, onStatus, onEvent, best
     }
 
     if (status !== "paused") start()
+    inFrame = false
   }
 
+  // The loop runs until paused. Starting it again after a stop starts the clock afresh (the
+  // stop wasn't a frame); the call at the end of each frame keeps it (utils/frameClock.js).
   function start() {
     if (!raf && !disposed && size.width && size.height) {
-      last = 0
+      if (!inFrame) restartClock()
       raf = requestAnimationFrame(frame)
     }
+  }
+  function restartClock() {
+    clock.reset()
+    resolution.reset()
   }
 
   const onContextLost = (e) => {
     e.preventDefault()
     if (status === "playing") api.pause()
+    releaseGpu(scene)
   }
-  const onContextRestored = () => start()
+  const onContextRestored = () => {
+    restartClock()
+    start()
+  }
   canvas.addEventListener("webglcontextlost", onContextLost)
   canvas.addEventListener("webglcontextrestored", onContextRestored)
 

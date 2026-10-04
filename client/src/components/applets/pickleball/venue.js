@@ -90,7 +90,34 @@ const mergeStatic = (group, keep) => {
   }
 }
 
-export const buildVenue = (scene, { venue = "park", quality = "medium" } = {}) => {
+// The sun's shadow camera fitted around a box (|x| <= hx, |z| <= hz, 0 <= y <= h: the court,
+// its run-off where players go, the umpire's chair, everyone's height) as the light sees it,
+// so the map's texels all land where shadows can fall
+const fitShadow = (light, hx, hz, h) => {
+  const cam = light.shadow.camera
+  cam.position.copy(light.position)
+  cam.lookAt(light.target.position)
+  cam.updateMatrixWorld(true)
+  const inv = cam.matrixWorld.clone().invert()
+  const v = new THREE.Vector3()
+  const lo = new THREE.Vector3(Infinity, Infinity, Infinity)
+  const hi = new THREE.Vector3(-Infinity, -Infinity, -Infinity)
+  for (const x of [-hx, hx]) for (const y of [0, h]) for (const z of [-hz, hz]) {
+    v.set(x, y, z).applyMatrix4(inv)
+    lo.min(v)
+    hi.max(v)
+  }
+  const pad = 0.3
+  cam.left = lo.x - pad
+  cam.right = hi.x + pad
+  cam.bottom = lo.y - pad
+  cam.top = hi.y + pad
+  cam.near = Math.max(0.5, -hi.z - 2)
+  cam.far = -lo.z + 2
+  cam.updateProjectionMatrix()
+}
+
+export const buildVenue = (scene,{ venue = "park", quality = "medium" } = {}) => {
   const V = VENUES[venue] || VENUES.park
   const group = new THREE.Group()
   const disposables = []
@@ -110,7 +137,9 @@ export const buildVenue = (scene, { venue = "park", quality = "medium" } = {}) =
       fog: false,
       uniforms: { top: { value: new THREE.Color(V.sky[0]) }, horizon: { value: new THREE.Color(V.sky[1]) } },
       vertexShader: "varying float vY; void main() { vY = normalize(position).y; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }",
-      fragmentShader: "uniform vec3 top; uniform vec3 horizon; varying float vY; void main() { float t = pow(clamp(vY, 0.0, 1.0), 0.5); gl_FragColor = vec4(mix(horizon, top, t), 1.0); }",
+      // (the uniforms are linear colors: colorspace_fragment turns them into the screen's sRGB,
+      // as built-in materials do, so the sky shows the colors VENUE_INFO asks for)
+      fragmentShader: "uniform vec3 top; uniform vec3 horizon; varying float vY; void main() { float t = pow(clamp(vY, 0.0, 1.0), 0.5); gl_FragColor = vec4(mix(horizon, top, t), 1.0);\n#include <colorspace_fragment>\n}",
     })
   )
   const sky = new THREE.Mesh(keep(new THREE.SphereGeometry(190, 24, 12)), skyMat)
@@ -142,21 +171,17 @@ export const buildVenue = (scene, { venue = "park", quality = "medium" } = {}) =
   sun.target.position.set(0, 0, 0)
   group.add(sun, sun.target)
   if (shadows) {
+    // Medium and High: a 2048 map over a box fitted to where players can be (Low has no
+    // shadow map: the blobs under the players are its shadows)
     sun.castShadow = true
-    const size = quality === "high" ? 2048 : 1024
-    sun.shadow.mapSize.set(size, size)
-    const cam = sun.shadow.camera
-    cam.left = -HALF_W - 4
-    cam.right = HALF_W + 4
-    cam.top = HALF_L + 5
-    cam.bottom = -HALF_L - 5
-    cam.near = 1
-    cam.far = 70
+    sun.shadow.mapSize.set(2048, 2048)
+    sun.shadow.radius = 3 // softer PCF edge
     sun.shadow.bias = -0.0006
     sun.shadow.normalBias = 0.02
     // aim the shadow box along the light
     const d = new THREE.Vector3(...V.sun.pos).normalize().multiplyScalar(30)
     sun.position.copy(d)
+    fitShadow(sun, HALF_W + 2.2, HALF_L + 3.4, 2.6)
   }
   if (V.night) {
     // a little fill from each end, so faces aren't black
@@ -737,7 +762,21 @@ export const buildVenue = (scene, { venue = "park", quality = "medium" } = {}) =
   scene.fog = new THREE.Fog(V.fog[0], V.fog[1], V.fog[2])
 
   // the big screen's picture: the score (and a message like "REPLAY")
-  const drawScreen = ({ names = ["", ""], score = [0, 0], call = "", message = "" } = {}) => {
+  // the biggest bold type (from `size` down to `min`) that fits `width`; fillText's maxWidth
+  // squeezes anything still too long
+  const fit = (ctx, text, size, min, width) => {
+    while (size > min) {
+      ctx.font = `bold ${size}px Arial, sans-serif`
+      if (ctx.measureText(text).width <= width) return
+      size -= 2
+    }
+    ctx.font = `bold ${min}px Arial, sans-serif`
+  }
+  let lastScreen = {}
+  // compact: the picture is behind the score panel (a phone held upright), so the screen goes
+  // dark instead of showing a second, half-hidden copy of the score through it
+  const drawScreen = ({ names = ["", ""], score = [0, 0], call = "", message = "", compact = lastScreen.compact } = {}) => {
+    lastScreen = { names, score, call, message, compact }
     if (!screenCanvas) return
     const ctx = screenCanvas.getContext("2d")
     const w = screenCanvas.width
@@ -750,30 +789,39 @@ export const buildVenue = (scene, { venue = "park", quality = "medium" } = {}) =
     ctx.fillStyle = "#ffd23f"
     ctx.fillRect(0, 0, w, 10)
     ctx.textBaseline = "middle"
-    if (message) {
+    if (message && !compact) {
       ctx.fillStyle = "#ffffff"
-      ctx.font = "bold 80px Arial, sans-serif"
       ctx.textAlign = "center"
-      ctx.fillText(message, w / 2, h / 2)
+      fit(ctx, message, 80, 30, w - 40)
+      ctx.fillText(message, w / 2, h / 2, w - 40)
+    } else if (compact) {
+      // (no text: anything written here shows through the score panel)
     } else {
-      ctx.font = "bold 40px Arial, sans-serif"
+      // names on the left, scores right-aligned in a column wide enough for two digits
+      const nameW = w - 26 - 30 - 92 - 14
       for (let i = 0; i < 2; i++) {
         const yy = 70 + i * 80
+        const name = String(names[i]).slice(0, 32).toUpperCase()
         ctx.textAlign = "left"
         ctx.fillStyle = i ? "#ff8a7a" : "#7fe3ef"
-        ctx.fillText(String(names[i]).slice(0, 18).toUpperCase(), 26, yy)
+        fit(ctx, name, 40, 22, nameW)
+        ctx.fillText(name, 26, yy, nameW)
         ctx.textAlign = "right"
         ctx.fillStyle = "#ffffff"
         ctx.font = "bold 64px Arial, sans-serif"
-        ctx.fillText(String(score[i]), w - 30, yy)
-        ctx.font = "bold 40px Arial, sans-serif"
+        ctx.fillText(String(score[i]), w - 30, yy, 92)
       }
       ctx.textAlign = "center"
       ctx.fillStyle = "#ffd23f"
-      ctx.font = "bold 30px Arial, sans-serif"
-      ctx.fillText(call, w / 2, h - 28)
+      fit(ctx, call, 30, 18, w - 40)
+      ctx.fillText(call, w / 2, h - 28, w - 40)
     }
     screen.material.map.needsUpdate = true
+  }
+  // (a phone turned: redraw the same picture, compact or not)
+  const setScreenCompact = (compact) => {
+    if (!!compact === !!lastScreen.compact) return
+    drawScreen({ ...lastScreen, compact: !!compact })
   }
   drawScreen()
 
@@ -784,6 +832,7 @@ export const buildVenue = (scene, { venue = "park", quality = "medium" } = {}) =
     crowd,
     umpireSeat,
     drawScreen,
+    setScreenCompact,
     update,
     dispose() {
       scene.remove(group)

@@ -148,9 +148,12 @@ const starShape = () => {
 }
 
 export const createEngine = ({ canvas, container, onStatus, onHud, onEvent, onMenu, prefs: initialPrefs, calibration: initialCal }) => {
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: (window.devicePixelRatio || 1) < 2, powerPreference: "high-performance", stencil: false })
+  // anti-aliased everywhere; a phone's 2x/3x screen is drawn at 1.5 (with AA that's sharper
+  // than 2 without, and cheaper)
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance", stencil: false })
   renderer.autoClear = false
-  const maxPixelRatio = Math.min(window.devicePixelRatio || 1, 2)
+  const dpr = window.devicePixelRatio || 1
+  const maxPixelRatio = Math.min(dpr, dpr >= 2 ? 1.5 : 2)
   let pixelRatio = maxPixelRatio
   renderer.setPixelRatio(pixelRatio)
   const audio = createAudio()

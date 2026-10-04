@@ -987,11 +987,15 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
     "data-hc-keep": keepsColors(window) ? "" : undefined,
   })
 
-  const selectActive = (window, index) =>
+  // (every tap inside a window lands here first: when it's already the one active window
+  // there's nothing to do, and a dispatch would re-render the whole desktop mid-tap)
+  const selectActive = (window, index) => {
+    if (window.active && !window.minimized && windows.every((w, i) => i === index || !w.active)) return
     dispatch({
       type: "select_active",
       payload: { name: window.name, active: window.active, index },
     })
+  }
 
   const overlays = (
     <>

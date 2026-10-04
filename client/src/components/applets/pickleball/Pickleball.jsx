@@ -277,6 +277,7 @@ const Pickleball = ({ onClose, mobile }) => {
   useEffect(() => {
     let cancelled = false
     let engine = null
+    let warm = false // ("Loading the court..." stays up while the shaders compile)
     import("./engine")
       .then(({ createEngine }) => {
         if (cancelled) return
@@ -285,7 +286,7 @@ const Pickleball = ({ onClose, mobile }) => {
             canvas: canvasRef.current,
             container: stageRef.current,
             settings: engineSettings(prefsRef.current),
-            onStatus: (st) => setPhase(st),
+            onStatus: (st) => warm && setPhase(st),
             onHud: setHud,
             onEvent: (e) => eventRef.current(e),
           })
@@ -296,12 +297,16 @@ const Pickleball = ({ onClose, mobile }) => {
         }
         engineRef.current = engine
         meterRefs.forEach((r, i) => r.current && engine.setMeterEl(r.current, i))
-        setPhase("title")
         if (pendingStart.current) {
           const p = pendingStart.current
           pendingStart.current = null
           engine.startOnline(p)
         }
+        engine.ready.then(() => {
+          if (cancelled) return
+          warm = true
+          setPhase(engine.status)
+        })
       })
       .catch((error) => {
         console.error(error)
@@ -517,6 +522,7 @@ const Pickleball = ({ onClose, mobile }) => {
 
   // ---- the joystick: the "move" zone of the on-screen controls (and aiming in the hit zones) ----
   const stick = useRef(null)
+  const knobRef = useRef(null)
   const aimTouch = useRef(null)
   useEffect(() => {
     const stage = stageRef.current
@@ -532,7 +538,7 @@ const Pickleball = ({ onClose, mobile }) => {
       if (stick.current || !e.target.closest?.('[data-control="move"]')) return
       const r = stage.getBoundingClientRect()
       stick.current = { id: e.pointerId, x0: e.clientX, y0: e.clientY }
-      setStickUi({ x: e.clientX - r.left, y: e.clientY - r.top, kx: 0, ky: 0 })
+      setStickUi({ x: e.clientX - r.left, y: e.clientY - r.top })
     }
     const move = (e) => {
       if (aimTouch.current === e.pointerId) {
@@ -550,7 +556,8 @@ const Pickleball = ({ onClose, mobile }) => {
       }
       const live = d > 6
       engineRef.current?.setStick(live ? dx / R : 0, live ? -dy / R : 0)
-      setStickUi((u) => u && { ...u, kx: dx, ky: dy })
+      // (the knob moves straight in the page: a React render per finger move cost frames)
+      if (knobRef.current) knobRef.current.style.transform = `translate(${dx}px, ${dy}px)`
     }
     const up = (e) => {
       if (aimTouch.current === e.pointerId) {
@@ -881,7 +888,7 @@ const Pickleball = ({ onClose, mobile }) => {
 
         {showPad && stickUi && (
           <div className="pkStick" style={{ left: stickUi.x, top: stickUi.y }} aria-hidden="true">
-            <div className="pkKnob" style={{ transform: `translate(${stickUi.kx}px, ${stickUi.ky}px)` }} />
+            <div className="pkKnob" ref={knobRef} />
           </div>
         )}
         {showPad && !stickUi && zoneHint && phase === "playing" && !editing && (
