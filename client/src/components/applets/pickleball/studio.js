@@ -10,11 +10,40 @@ import { createAnim, setMood, splitStep, updateAnim } from "./anim.js"
 
 let lineup = [] // { fig, ball }
 
-export const STATES = ["ready", "split", "run", "shuffle", "walk", "sprint", "backpedal", "stop", "turn", "lunge", "backswing", "drive", "drive-follow", "backhand", "backhand-follow", "dink", "volley", "overhead", "serve", "serve-follow", "celebrate", "celebrate2", "celebrate3", "frustrated", "frustrated2", "frustrated3", "idle", "shuffle-ready", "run-hit", "dink-bh", "volley-bh", "reach-bh", "lob"]
+// numbers to compare with the pro spec (docs/pickleball-movement.md): stance width (ankle to
+// ankle, m), knee flexion (degrees from straight), pelvis height, the trunk's forward lean
+// (degrees), the paddle face's height and how far in front of the chest it is, the elbow in
+// front of the torso, the head's height
+const ang3 = (a, b, c) => {
+  const u = { x: a.x - b.x, y: a.y - b.y, z: a.z - b.z }
+  const v = { x: c.x - b.x, y: c.y - b.y, z: c.z - b.z }
+  const d = (u.x * v.x + u.y * v.y + u.z * v.z) / (Math.hypot(u.x, u.y, u.z) * Math.hypot(v.x, v.y, v.z) || 1)
+  return (Math.acos(Math.max(-1, Math.min(1, d))) * 180) / Math.PI
+}
+export const poseMetrics = (pose) => {
+  const f = { x: Math.sin(pose.yaw), z: Math.cos(pose.yaw) }
+  const fwd = (q) => (q.x - pose.pelvis.x) * f.x + (q.z - pose.pelvis.z) * f.z
+  const r2 = (v) => Math.round(v * 100) / 100
+  return {
+    stance: r2(Math.hypot(pose.ankleL.x - pose.ankleR.x, pose.ankleL.z - pose.ankleR.z)),
+    kneeL: Math.round(180 - ang3(pose.hipL, pose.kneeL, pose.ankleL)),
+    kneeR: Math.round(180 - ang3(pose.hipR, pose.kneeR, pose.ankleR)),
+    pelvisY: r2(pose.pelvis.y),
+    trunk: Math.round((Math.acos(Math.max(-1, Math.min(1, pose.spine.y))) * 180) / Math.PI),
+    faceY: r2(pose.paddle.face.y),
+    faceFwd: r2(fwd(pose.paddle.face) - fwd(pose.neck)),
+    elbowFwd: r2(fwd(pose.elbowP) - fwd(pose.paddleShoulder)),
+    headY: r2(pose.head.y),
+  }
+}
+
+export const STATES = ["ready", "split", "run", "shuffle", "walk", "sprint", "backpedal", "stop", "turn", "lunge", "backswing", "drive", "drive-follow", "backhand", "backhand-follow", "dink", "volley", "overhead", "serve", "serve-follow", "celebrate", "celebrate2", "celebrate3", "frustrated", "frustrated2", "frustrated3", "idle", "shuffle-ready", "run-hit", "dink-bh", "volley-bh", "reach-bh", "lob", "ready-net", "kitchen-adjust", "crossover", "transition", "backhand-two", "dink-wide", "hands-battle"]
 
 // a moment for a figure at (x, z) facing +z: { T, at(t) -> situation, events, contact }
-const script = (state, x, z) => {
-  const base = (t, extra = {}) => ({ x, z, vx: 0, vz: 0, facing: 0, ball: { x, y: 1, z: z + 6 }, holding: false, swing: null, prep: null, charging: false, between: false, atNet: false, hand: 1, ...extra })
+// hand: +1 right-handed, -1 left-handed (a "forehand" state is on the paddle side either way);
+// twoHand: a two-handed backhand
+const script = (state, x, z, { hand = 1, twoHand = false } = {}) => {
+  const base = (t, extra = {}) => ({ x, z, vx: 0, vz: 0, facing: 0, ball: { x, y: 1, z: z + 6 }, holding: false, swing: null, prep: null, charging: false, between: false, atNet: false, hand, twoHand, ...extra })
   const stroke = (kind, c, { follow = 0, atNet = false, hand = "fh" } = {}) => {
     const T0 = 0.7
     return {
@@ -26,8 +55,8 @@ const script = (state, x, z) => {
       },
     }
   }
-  // dx: to the figure's right (facing +z, its right is -x)
-  const C = (dx, y, dz) => ({ x: x - dx, y, z: z + dz })
+  // dx: to the paddle side (facing +z, the figure's right is -x)
+  const C = (dx, y, dz) => ({ x: x - dx * hand, y, z: z + dz })
   switch (state) {
     case "split":
       return { T: 1.12, events: [[1.0, (a) => splitStep(a)]], at: (t) => base(t) }
@@ -109,6 +138,70 @@ const script = (state, x, z) => {
     }
     case "lob":
       return stroke("lob", C(0.55, 0.6, 0.4))
+    case "ready-net":
+      // at the kitchen line, the ball on the other side
+      return { T: 1.4, at: (t) => base(t, { atNet: true, z: z + 0, ball: { x: x + 0.4, y: 0.9, z: z + 4.5 } }) }
+    case "kitchen-adjust": {
+      // small adjustment steps along the kitchen line: 0.5 m one way, a pause, back
+      const px = (t) => x - 0.5 * Math.sin(Math.min(1, t / 0.9) * Math.PI)
+      const vx = (t) => -0.5 * Math.cos(Math.min(1, t / 0.9) * Math.PI) * (Math.PI / 0.9) * (t < 0.9 ? 1 : 0)
+      return { T: 1.0, at: (t) => base(t, { atNet: true, x: px(t), vx: vx(t), ball: { x: x - 0.8, y: 0.9, z: z + 4 } }) }
+    }
+    case "crossover": {
+      // a wide ball at the kitchen: a crossover step and a run of 2.4 m to the paddle side,
+      // then the stop and the hit (contact at t = 0.95)
+      const c = C(0.55, 0.55, 0.45)
+      const T0 = 0.95
+      const dist = 2.4
+      const px = (t) => x - hand * dist * Math.min(1, t / (T0 - 0.1)) ** 1.4 + hand * dist
+      const vx = (t) => (t < T0 - 0.1 ? -hand * dist * 1.4 * (t / (T0 - 0.1)) ** 0.4 / (T0 - 0.1) : 0)
+      return {
+        T: T0 + 1e-4,
+        contact: c,
+        at: (t) => {
+          if (t < T0) return base(t, { atNet: true, x: px(t), vx: vx(t), goal: { x, z }, prep: t > 0.3 ? { ttc: T0 - t, x: c.x, y: c.y, z: c.z, kind: "dink", hand: "fh", forward: true, volley: false } : null, ball: { ...c } })
+          return base(t, { atNet: true, x, swing: { t: t - T0, kind: "dink", hand: "fh", x: c.x, y: c.y, z: c.z }, ball: { ...c } })
+        },
+      }
+    }
+    case "transition": {
+      // after a third-shot drop: forward from the baseline (2.4 m/s), a split step as the other
+      // side hits (t = 0.75), then a low reset out in front (contact at t = 1.35)
+      const c = C(0.35, 0.42, 0.5)
+      const zz = (t) => z - 2.4 * Math.max(0, 0.75 - t)
+      return {
+        T: 1.35 + 1e-4,
+        contact: c,
+        events: [[0.75, (a) => splitStep(a)]],
+        at: (t) => {
+          const v = t < 0.75 ? 2.4 : 0
+          if (t < 1.35) return base(t, { z: zz(t), vz: v, prep: t > 0.8 ? { ttc: 1.35 - t, x: c.x, y: c.y, z: c.z, kind: "reset", hand: "fh", forward: true } : null, ball: t > 0.75 ? { ...c } : { x, y: 1.2, z: z + 6 } })
+          return base(t, { swing: { t: t - 1.35, kind: "reset", hand: "fh", x: c.x, y: c.y, z: c.z }, ball: { ...c } })
+        },
+      }
+    }
+    case "backhand-two":
+      return stroke("drive", C(-0.6, 0.85, 0.4), { hand: "bh" })
+    case "dink-wide":
+      // a low dink far out on the paddle side: the lunge
+      return stroke("dink", C(1.15, 0.22, 0.55), { atNet: true })
+    case "hands-battle": {
+      // two fast balls at the chest at the net: a forehand punch (t = 0.3), then a backhand
+      // counter (t = 0.72)
+      const c1 = C(0.32, 1.15, 0.5)
+      const c2 = C(-0.22, 1.05, 0.5)
+      return {
+        T: 0.72 + 1e-4,
+        contact: c2,
+        at: (t) => {
+          const atNet = true
+          if (t < 0.3) return base(t, { atNet, prep: { ttc: 0.3 - t, x: c1.x, y: c1.y, z: c1.z, kind: "punch", hand: "fh", forward: true, volley: true, id: 1 }, ball: { ...c1 } })
+          if (t < 0.42) return base(t, { atNet, swing: { t: t - 0.3, kind: "punch", hand: "fh", x: c1.x, y: c1.y, z: c1.z, id: 1 }, ball: { ...c1 } })
+          if (t < 0.72) return base(t, { atNet, swing: { t: t - 0.3, kind: "punch", hand: "fh", x: c1.x, y: c1.y, z: c1.z, id: 1 }, prep: { ttc: 0.72 - t, x: c2.x, y: c2.y, z: c2.z, kind: "counter", hand: "bh", forward: true, volley: true, id: 2 }, ball: { ...c2 } })
+          return base(t, { atNet, swing: { t: t - 0.72, kind: "counter", hand: "bh", x: c2.x, y: c2.y, z: c2.z, id: 2 }, ball: { ...c2 } })
+        },
+      }
+    }
     case "celebrate":
     case "celebrate2":
     case "celebrate3":
@@ -138,7 +231,7 @@ export const studioShot = (ctx, { looks = [{}], state = "ready", cam = "close", 
     const x = (i - (n - 1) / 2) * gap
     const fig = makeFigure(look, { shadows })
     scene.add(fig.group)
-    const sc = script(state, x, z)
+    const sc = script(state, x, z, { hand: look.plays === "left" ? -1 : 1, twoHand: look.backhand === "two" })
     if (T !== undefined) sc.T = T
     const s0 = sc.at(0)
     const anim = createAnim(s0.x, s0.z, 0)
@@ -163,6 +256,7 @@ export const studioShot = (ctx, { looks = [{}], state = "ready", cam = "close", 
       soles: probe?.soles || null,
       planted: [pose.footL.planted, pose.footR.planted],
       pelvis: { x: pose.pelvis.x, z: pose.pelvis.z },
+      metrics: poseMetrics(pose),
     })
   })
   // the camera

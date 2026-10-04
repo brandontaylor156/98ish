@@ -1,7 +1,8 @@
 // Pickleball 98: the players you can be (and play against). Each has a look (body "m" or
-// "f", skin, hair, hat, outfit, paddle), a playing style for when the computer plays them,
-// and small differences (speed, power, touch). Plain data; athlete.js (or rig.js on Low)
-// builds the 3D figure from a look.
+// "f", skin, hair, hat, outfit, paddle; and how they hold it: plays "left" for a left-hander,
+// backhand "two" for a two-handed backhand), a playing style for when the computer plays
+// them, and small differences (speed, power, touch). Plain data; athlete.js (or rig.js on
+// Low) builds the 3D figure from a look. One player in ten is left-handed, like real life.
 // Everyone here is made up.
 
 export const SKIN = ["#f6d3b3", "#eab98f", "#d39a6a", "#b5784a", "#8c5734", "#5f3a22"]
@@ -41,7 +42,7 @@ export const CHARACTERS = [
     style: "counter",
     blurb: "Quick hands. Your best drive comes right back.",
     stats: { speed: 1.05, power: 0.97, touch: 1.03 },
-    look: { body: "m", skin: 1, hair: "spiky", hairColor: "#111111", hat: "none", hatColor: "#111111", shirt: "#23395d", shirtStyle: "tee", trim: "#e63946", bottom: "shorts", bottomColor: "#e9ecef", shoes: "#e63946", shoeAccent: "#ffffff", socks: "#23395d", paddle: "#e63946", paddleEdge: "#111111", build: 0.98, glasses: true },
+    look: { body: "m", skin: 1, hair: "spiky", hairColor: "#111111", hat: "none", hatColor: "#111111", shirt: "#23395d", shirtStyle: "tee", trim: "#e63946", bottom: "shorts", bottomColor: "#e9ecef", shoes: "#e63946", shoeAccent: "#ffffff", socks: "#23395d", paddle: "#e63946", paddleEdge: "#111111", build: 0.98, glasses: true, plays: "left" },
   },
   {
     id: "priya",
@@ -68,7 +69,7 @@ export const CHARACTERS = [
     style: "allround",
     blurb: "Club champion three years running.",
     stats: { speed: 1.03, power: 1.01, touch: 1.01 },
-    look: { body: "f", skin: 2, hair: "curly", hairColor: "#3b2416", hat: "none", hatColor: "#ef476f", shirt: "#ef476f", shirtStyle: "tee", trim: "#ffffff", bottom: "skirt", bottomColor: "#2b2d42", shoes: "#ffffff", shoeAccent: "#ef476f", socks: "#ffffff", paddle: "#06d6a0", paddleEdge: "#2b2d42", build: 0.95 },
+    look: { body: "f", skin: 2, hair: "curly", hairColor: "#3b2416", hat: "none", hatColor: "#ef476f", shirt: "#ef476f", shirtStyle: "tee", trim: "#ffffff", bottom: "skirt", bottomColor: "#2b2d42", shoes: "#ffffff", shoeAccent: "#ef476f", socks: "#ffffff", paddle: "#06d6a0", paddleEdge: "#2b2d42", build: 0.95, backhand: "two" },
   },
   {
     id: "sam",
@@ -77,7 +78,7 @@ export const CHARACTERS = [
     style: "banger",
     blurb: "Speed-ups from anywhere. Anywhere.",
     stats: { speed: 1.04, power: 1.06, touch: 0.95 },
-    look: { body: "m", skin: 4, hair: "short", hairColor: "#1a1a1a", hat: "capBack", hatColor: "#d62828", shirt: "#1a1a1a", shirtStyle: "tee", trim: "#d62828", bottom: "shorts", bottomColor: "#d62828", shoes: "#d62828", shoeAccent: "#1a1a1a", socks: "#1a1a1a", paddle: "#d62828", paddleEdge: "#1a1a1a", build: 1.02 },
+    look: { body: "m", skin: 4, hair: "short", hairColor: "#1a1a1a", hat: "capBack", hatColor: "#d62828", shirt: "#1a1a1a", shirtStyle: "tee", trim: "#d62828", bottom: "shorts", bottomColor: "#d62828", shoes: "#d62828", shoeAccent: "#1a1a1a", socks: "#1a1a1a", paddle: "#d62828", paddleEdge: "#1a1a1a", build: 1.02, backhand: "two" },
   },
   {
     id: "abby",

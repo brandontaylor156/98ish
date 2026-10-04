@@ -278,7 +278,7 @@ export const topics = [
       "Open **Locker Room** on the title screen (or Game > Locker Room..., or **Locker Room...** on the players screen) to dress any player. Drag the player to turn them around, and pick **Jogging** to see the kit move.",
       {
         list: [
-          "**Body:** skin, hair and hair color, a beard, height and build.",
+          "**Body:** skin, hair and hair color, a beard, height and build; **Plays** (right- or left-handed) and **Pro style** (a compact all-court game with a one-handed backhand, or an aggressive two-hander with a two-handed backhand).",
           "**Kit:** a theme (Classic whites, Club colors, Pro kit, Beach, Winter, Retro 80s/90s, Casual) and its style, your two kit colors, then any top, bottom and socks.",
           "**Gear:** hats (caps, visor, headband, bucket hat, beanie), sunglasses, wristbands, gloves and shoes.",
           "**Paddle:** a design and its colors.",

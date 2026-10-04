@@ -21,11 +21,22 @@
 //   moves in a frame outside a swing. The head follows the ball within a neck's limits.
 // - Moods: the ready stance (knees bent, weight shifting), the split step when the other
 //   side hits, and celebrating or sulking after a point.
+// - Pro movement (pro.js, docs/pickleball-movement.md): an athletic ready position (wider
+//   feet, knees bent about 40 degrees, hips back, chest over the knees, the paddle out in
+//   front between the waist and the chest, tip toward the backhand side); a split step that
+//   lands as the other side hits; small quick steps at the kitchen line, a crossover for a
+//   wide ball, a lunge (front knee bent, back leg long) for a low wide one; stepping into
+//   drives with the weight going forward; two-handed backhands for two-handed players.
+// - Handedness: s.hand (+1 right, -1 left). Everything is worked out for a right-hander and
+//   mirrored, so a left-hander's forehand is on their left, the two-handed backhand on their
+//   right, the serve, the arm swing while running and the celebrations all from the left hand.
 
 import { createGait, updateGait, facingFor, turnToward, hopGait } from "./locomotion.js"
-import { createStroke, mixPose, predictContact, stepStroke } from "./strokes.js"
+import { ON_HANDLE, createStroke, mixPose, predictContact, stepStroke } from "./strokes.js"
 import { armIK, limitStep, limitTurn, lookToward, pushOut, ramp, smoothW } from "./upper.js"
 import { sideOf } from "./rules.js"
+import { FAST_BALL } from "./shots.js"
+import { CROSS, READY, SPLIT, lungePlan, quickSteps, readyFor, shouldSplit, splitHeight, stepIn, weightFor } from "./pro.js"
 
 // ---- the skeleton (meters) ----
 export const BODY = {
@@ -141,13 +152,15 @@ const springN = (s, target, k, dt) => {
 
 // ---- the gait: feet that stay put (locomotion.js) ----
 
-const STANCE = { idle: 0.15, ready: 0.21, wide: 0.27, run: 0.11 }
+const STANCE = { idle: READY.between.stance, wide: 0.04 } // (wide: added to the ready stance)
 export { createGait, updateGait }
 
 // ---- strokes: strokes.js (which stroke, when, and the arm's path through the contact) ----
 // how much lower a stroke gets (knees), by the shot
 const SERVE_Y = 0.52 // the serve's contact height (match.js SERVE_CONTACT_Y)
-const CROUCH = { drive: 0.04, return: 0.04, slice: 0.03, dink: 0.1, drop: 0.07, block: 0.06, reset: 0.06, punch: 0.04, speedup: 0.04, counter: 0.04, roll: 0.07, lob: 0.07, smash: 0.02, serve: 0.05 }
+// (pros get low from the knees AND a hinge at the hips, not a deep squat: these are small)
+const CROUCH = { drive: 0.03, return: 0.03, slice: 0.02, dink: 0.05, drop: 0.04, block: 0.03, reset: 0.05, punch: 0.02, speedup: 0.02, counter: 0.02, roll: 0.04, lob: 0.04, smash: 0.01, serve: 0.03 }
+const MAX_CROUCH = 0.24 // (outside lunges: lower than this, the trunk bends instead)
 
 // ---- the whole body ----
 
@@ -171,12 +184,15 @@ export const createAnim = (x, z, yaw) => ({
   pelvisY: undefined,
   hop: 0, // split step timer (s left)
   hopNow: false,
+  splitAt: -9, // when the last split step started (a.t)
+  extra: {}, // the hips: back in the ready position, over to a lunging foot, the weight shift
+  weightT: 0,
   mood: null, // { kind, t, variant }
   swingId: null,
   t: 0,
   // the upper body: layer weights, the stroke, the pop limiter's last targets, the elbows'
   // bends, the head
-  w: { relax: 0, pumpP: 0, pumpO: 0, hold: 0, mood: 0 },
+  w: { relax: 0, pumpP: 0, pumpO: 0, hold: 0, mood: 0, two: 0 },
   stroke: createStroke(),
   handLim: null,
   axisLim: null,
@@ -190,10 +206,15 @@ export const createAnim = (x, z, yaw) => ({
   moodPose: null,
 })
 
-// After a hit by the other side: a little hop to get on the toes (the split step)
-export const splitStep = (a) => {
-  a.hop = 0.32
+// The split step: a little hop that lands as the other side hits (anim.js starts it itself
+// from s.oppHit; the engine also calls it at the other side's hit, as a fallback, which does
+// nothing if one has just been done)
+export const splitStep = (a, { fallback = false } = {}) => {
+  if (fallback && (a.t - (a.splitAt ?? -9) < SPLIT.again || (a.vel && Math.hypot(a.vel.x, a.vel.z) > 2.2))) return false
+  a.splitAt = a.t
+  a.hop = SPLIT.dur
   a.hopNow = true
+  return true
 }
 // After a point: winners celebrate, losers don't
 export const setMood = (a, kind, variant = 0) => {
@@ -238,6 +259,8 @@ const motion = (a, s, dt) => {
 //   charging: holding a shot button (backswing held)
 //   between: between points (walking, relaxed); atNet: at the kitchen line
 //   goal: { x, z } where the player is heading, if known (turn and run for long moves)
+//   hand: +1 right-handed, -1 left-handed; twoHand: a two-handed backhand player
+//   oppHit: seconds until the other side hits (the split step lands then), or null
 // Returns the pose: world positions of every joint and the paddle's frame.
 export const updateAnim = (a, s, dt) => {
   a.t += dt
@@ -247,7 +270,13 @@ export const updateAnim = (a, s, dt) => {
   const whiff = s.swing?.whiff && s.swing.t < 0.5 ? s.swing : null
   if (a.mood) a.mood.t += dt
   if (a.mood && (a.mood.t > 2.6 || (!s.between && a.mood.t > 0.6))) a.mood = null
+  // the split step: off the court just before the other side hits, landing as they do
+  // (not mid-sprint: a player running hard to a ball just keeps running)
+  if (!s.between && shouldSplit(s.oppHit, a.t - (a.splitAt ?? -9)) && Math.hypot(s.vx, s.vz) < 2.2) splitStep(a)
   if (a.hop > 0) a.hop -= dt
+  const hand = s.hand ?? 1 // +1: holds the paddle in the right hand
+  const proStyle = s.twoHand ? "twohand" : "allcourt"
+  const R = readyFor(proStyle, !!s.atNet)
 
   // which way to face: square to the net and the ball while shuffling and backpedaling; turned
   // to run for a long, fast move (or walking between points); squared up again when a ball is
@@ -271,47 +300,89 @@ export const updateAnim = (a, s, dt) => {
   const lateral = bl.shuffleL + bl.shuffleR + bl.back
 
   // ---- crouch, stance and the lunge ----
-  let crouch = s.between ? 0.03 : s.atNet ? 0.12 : 0.09 // knees bent, ready
+  // the ready position: knees bent and hips back (pro.js READY); a little lower at the kitchen
+  let crouch = s.between ? READY.between.crouch : R.crouch
   // shuffles and backpedals stay low; a run lifts a little; a hard stop sinks into it
-  if (!s.between) crouch += lateral * 0.04 - (bl.run + bl.sprint) * 0.02
+  // (pros run low: a lower pelvis also keeps the head level, the legs never at full stretch)
+  if (!s.between) crouch += lateral * clamp(speed / 2.5, 0.6, 1.6) * 0.04 + (bl.run + bl.sprint) * 0.035
   const braking = speed > 0.6 ? clamp(-(mv.ax * mv.x + mv.az * mv.z) / speed / 9, 0, 1) : 0
-  crouch += braking * 0.06
-  let stance = s.between ? STANCE.idle : STANCE.ready
+  crouch += braking * 0.05
+  let stance = s.between ? STANCE.idle : R.stance
   let reach = null
   const c = swing || s.prep
   let lungeLean = 0
   let lowLean = 0
+  // the hips (body frame): back in the ready position, over a lunging foot, forward with the
+  // weight through a drive
+  const running01 = clamp(bl.run + bl.sprint + bl.walk * 0.5, 0, 1)
+  const extraT = V(0, 0, s.between ? 0 : -R.back * (1 - running01))
+  let lunging = false
   if (c && !s.between) {
-    crouch += CROUCH[c.kind] ?? 0.04
     const lc = toLocal(ground, fr, V(c.x, 0, c.z))
-    const near = swing ? 1 : clamp(1 - (s.prep.ttc - 0.05) / (c.y < 0.6 ? 0.45 : 0.3), 0, 1) // (down early for a low ball)
-    // low balls: get down to them (knees, and a bend at the waist)
-    if (c.y < 0.6) crouch += (0.6 - c.y) * 0.55
-    lowLean = clamp((0.65 - c.y) * 0.6, 0, 0.36) * Math.max(near, 0.4)
-    // wide balls: step out with the near foot and lean in
-    const wide = Math.abs(lc.x) - 0.62
-    if (wide > 0 && near > 0) {
-      crouch += Math.min(0.22, wide * 0.4) * near
-      lungeLean = Math.sign(lc.x) * Math.min(0.35, wide * 0.6) * near
-      const foot = lc.x > 0 ? 1 : 0
-      const spot = toWorld(ground, fr, V(clamp(lc.x * 0.72, -0.5, 0.5), 0, clamp(lc.z * 0.6 - 0.1, -0.35, 0.45)))
-      reach = { foot, x: spot.x, z: spot.z }
-      stance = STANCE.wide
-    } else if (Math.abs(lc.z) > 0.55) stance = STANCE.wide
+    // (down early for a low ball; back up through the follow-through)
+    const near = swing ? clamp(1 - (swing.t - 0.12) / 0.4, 0, 1) : clamp(1 - (s.prep.ttc - 0.05) / (c.y < 0.6 ? 0.5 : 0.3), 0, 1)
+    // the stroke's knee bend, and low balls: get down to them as they arrive (knees, and a
+    // hinge at the hips; the arm reaches the rest)
+    let down = ((CROUCH[c.kind] ?? 0.03) + Math.max(0, 0.6 - c.y) * 0.3) * smooth(Math.max(near, swing ? 0 : 0.25))
+    lowLean = clamp((0.75 - c.y) * 1.1, 0, 0.5) * near
+    // wide or far, and low: the lunge (pro.js): the near foot steps out, that knee bends, the
+    // back leg stays long, the hips go over toward the front foot
+    const lp = near > 0 ? lungePlan(lc, c.y) : null
+    if (lp) {
+      lunging = true
+      // (down into the lunge once the front foot is down, not before: the back leg stays long)
+      const ff = a.gait.feet[lp.foot]
+      const landed = !ff.step && ((ff.bx - s.x) * fr.r.x + (ff.bz - s.z) * fr.r.z) * (lp.foot ? 1 : -1) > 0.4
+      down = (down + lp.crouch * near) * (landed ? 1 : 0.25)
+      lungeLean = lp.roll * near
+      const spot = toWorld(ground, fr, V(lp.spot.x, 0, lp.spot.z))
+      reach = { foot: lp.foot, x: spot.x, z: spot.z }
+      stance = R.stance + STANCE.wide
+      // (the hips go over toward the front foot as it lands)
+      const over = landed ? Math.max(near, 0.8) : near * 0.8
+      extraT.x += lp.shift * over
+      extraT.z += lp.shiftZ * over
+    } else if (Math.abs(lc.z) > 0.55) stance = R.stance + STANCE.wide
+    crouch += down
+    // a drive (or lob, or the serve) from a standstill: the front foot steps toward the ball as
+    // the weight goes forward (pro.js stepIn; worked out right-handed, mirrored)
+    const st0 = a.stroke
+    const soon = swing ? swing.t < 0.35 : s.prep.ttc < 0.42
+    if (!lp && soon && st0.style && st0.phase !== "none") {
+      const si = stepIn(st0.style, st0.side, V(lc.x * hand, 0, lc.z), speed)
+      if (si) {
+        const spot = toWorld(ground, fr, V(si.spot.x * hand, 0, si.spot.z))
+        reach = { foot: hand > 0 ? si.foot : 1 - si.foot, x: spot.x, z: spot.z }
+      }
+    }
+  }
+  if (!lunging) crouch = Math.min(crouch, MAX_CROUCH)
+  // (a step out never further than a leg reaches with the hips at a sensible height, measured
+  // from where the hips are going)
+  if (reach) {
+    const sd = reach.foot ? 1 : -1
+    const hx = s.x + fr.r.x * (sd * BODY.hipHalf + extraT.x) + fr.f.x * extraT.z
+    const hz = s.z + fr.r.z * (sd * BODY.hipHalf + extraT.x) + fr.f.z * extraT.z
+    const d = Math.hypot(reach.x - hx, reach.z - hz)
+    if (d > 0.6) {
+      reach.x = hx + ((reach.x - hx) * 0.6) / d
+      reach.z = hz + ((reach.z - hz) * 0.6) / d
+    }
   }
   if (s.holding) crouch = 0.04
-  if (s.charging) crouch += 0.03
+  if (s.charging) crouch += 0.02
   crouch += a.extraCrouch // (the stroke's own knee bend, last frame's)
-  // split step: up on the toes, then landing lower (the feet hop too when they're still)
+  // the weight moving through the stroke (last frame's stroke)
+  extraT.z += a.weightT
+  // split step: off the toes, landing (as the other side hits) a little wider and lower
   let hopY = 0
   if (a.hopNow) {
     a.hopNow = false
-    hopGait(a.gait)
+    hopGait(a.gait, { dur: SPLIT.lead, h: 0.025, wider: SPLIT.wider })
   }
   if (a.hop > 0) {
-    const u = 1 - a.hop / 0.32
-    hopY = u < 0.45 ? Math.sin((u / 0.45) * Math.PI) * 0.05 : -Math.sin(((u - 0.45) / 0.55) * Math.PI) * 0.045
-    stance = STANCE.wide
+    hopY = splitHeight(SPLIT.dur - a.hop)
+    stance = R.stance + SPLIT.wider
   }
   // moods
   const mood = a.mood && s.between ? a.mood : null
@@ -324,8 +395,9 @@ export const updateAnim = (a, s, dt) => {
   const bob = s.between ? 0 : (0.5 - 0.5 * Math.cos(a.t * 2 * Math.PI * 1.3)) * 0.008 * still
   const crouchS = springN(a.crouch, crouch, 10, dt)
 
-  updateGait(a.gait, { x: s.x, z: s.z, vx: mv.x, vz: mv.z, yaw: a.yaw, stance, reach, minHip: 0.93 - crouchS - 0.1, crossover: fc.mode !== "face" }, dt)
+  updateGait(a.gait, { x: s.x, z: s.z, vx: mv.x, vz: mv.z, yaw: a.yaw, stance, reach, minHip: 0.93 - crouchS - 0.1, crossover: fc.mode !== "face", quick: quickSteps(speed, !!s.atNet && !s.between) }, dt)
   const feet = a.gait.feet
+  const extra = springV(a.extra, extraT, 24, dt)
 
   // ---- the upper body: layers ----
   // Worked out for a right-hander in the body frame (x right, y up, z forward) and mirrored
@@ -335,26 +407,30 @@ export const updateAnim = (a, s, dt) => {
   // Poses are made for a standard posture (shoulders 1.3 m up and 0.1 m ahead of the feet)
   // and moved with the real one (ofs: a deep crouch, a bend at the waist, a reach), so the
   // hands keep their place relative to the shoulders; the contact point stays where it is.
-  const hand = s.hand ?? 1 // +1: holds the paddle in the right hand
   const RH = (l) => V(l.x * hand, l.y, l.z) // body frame <-> right-handed (its own inverse)
   const local = (p) => toLocal(ground, fr, V(p.x, p.y, p.z))
   const W = a.w
   const sh = 1.3 // (the standard shoulders' height)
   const lean0 = a.lean.p ?? 0.2
   const sft = a.shift.p ? toLocal(V(0, 0, 0), fr, a.shift.p) : V()
-  const ofs = V(sft.x, 0.935 - crouchS + sft.y + 0.455 * Math.cos(lean0) - sh, sft.z + 0.455 * Math.sin(lean0) - 0.1)
+  const ofs = V(sft.x + extra.x, 0.935 - crouchS + sft.y + 0.455 * Math.cos(lean0) - sh, sft.z + extra.z + 0.455 * Math.sin(lean0) - 0.1)
   const toStd = (l) => RH(sub(l, ofs)) // a body-frame point -> the standard, right-handed pose
   let normalT = null
   // forward from the hips: more into a run, and into the acceleration (back on a hard stop)
   const running = bl.run + bl.sprint + bl.walk * 0.3
-  let leanT = (s.between ? 0.04 : 0.2) + Math.min(0.16, speed * 0.04) * running + clamp(accF * 0.018, -0.14, 0.14)
+  // (ready: the chest over the knees, the back about parallel to the shins; running: more upright)
+  let leanT = (s.between ? READY.between.lean : lerp(R.lean, 0.2, clamp(running, 0, 1))) + Math.min(0.16, speed * 0.04) * running + clamp(accF * 0.018, -0.14, 0.14)
   const rollT = clamp(accR * 0.016, -0.12, 0.12) * (1 - running * 0.5)
   let lookAt = s.ball
 
   // the ready position: the paddle up in front of the chest, elbows bent, the other hand by
   // the paddle's throat (a little higher at the kitchen line); between points, relaxed
-  const net = s.atNet && !s.between ? 1 : 0
-  const ready = { hand: V(0.15, 1.09 + net * 0.05, 0.48), axis: norm(V(0.14, 0.62 + net * 0.1, 0.72)), coil: 0, off: V(0.07, 1.1 + net * 0.05, 0.52), pole: V(0.6, -1, -0.15), lean: 0, crouch: 0, sh }
+  // (pro.js READY: out in front between the waist and the chest, tip toward the backhand
+  // side; a two-handed player's other hand on the handle, a one-handed player's at the throat)
+  const rAxis = norm(V(R.tip.x, R.tip.y, R.tip.z))
+  const rHand = V(R.hand.x, R.hand.y, R.hand.z)
+  const rOff = s.twoHand ? add(rHand, mul(rAxis, ON_HANDLE)) : add(rHand, add(mul(rAxis, 0.13), V(-0.03, -0.01, 0.03)))
+  const ready = { hand: rHand, axis: rAxis, coil: 0, off: rOff, pole: V(0.6, -1, -0.2), lean: 0, crouch: 0, sh }
   const relaxed = { hand: V(0.25, 0.84, 0.13), axis: norm(V(0.05, -0.95, 0.25)), coil: 0, off: V(-0.23, 0.82, 0.08), pole: V(0.3, -1, -0.4), lean: 0, crouch: 0, sh }
   W.relax = ramp(W.relax, s.between && !mood ? 1 : 0, dt, 0.45, 0.2)
   let pose = mixPose(ready, relaxed, smoothW(W.relax))
@@ -365,20 +441,21 @@ export const updateAnim = (a, s, dt) => {
   // (shuffles, backpedals, a ball on the way) or swings
   const ph = a.gait.phase
   const cph = Math.cos(ph)
+  const cphA = cph * hand // (the paddle arm forward as the opposite foot lands)
   const pump = (bl.run + bl.sprint) * clamp((speed - 1.0) / 2, 0, 1) + bl.walk * 0.45 * clamp(speed / 1.2, 0, 1)
   const incoming = !!(s.prep || swing || whiff || s.holding || s.charging)
-  const holdReady = s.between ? 0 : incoming || fc.mode === "face" ? 1 : 0.55
+  const holdReady = s.between ? 0 : incoming || fc.mode === "face" || fc.mode === "cross" ? 1 : 0.55
   W.pumpP = ramp(W.pumpP, pump * (1 - holdReady), dt, 0.3, 0.12)
   W.pumpO = ramp(W.pumpO, s.holding ? 0 : pump * (fc.mode === "face" && !s.between ? 0.3 : 1), dt, 0.25, 0.2)
   const amp = 0.55 + 0.45 * clamp(pump, 0, 1)
   if (W.pumpP > 1e-3) {
     const at = lerpV(V(0.22, 0.96, 0.2), relaxed.hand, smoothW(W.relax))
-    const swingP = { ...pose, hand: add(at, V(0, Math.max(0, cph) * 0.08 * amp, cph * 0.22 * amp)), axis: norm(lerpV(V(0.15, 0.5, 0.85), relaxed.axis, smoothW(W.relax))), pole: V(0.35, -0.6, -1) }
+    const swingP = { ...pose, hand: add(at, V(0, Math.max(0, cphA) * 0.08 * amp, cphA * 0.22 * amp)), axis: norm(lerpV(V(0.15, 0.5, 0.85), relaxed.axis, smoothW(W.relax))), pole: V(0.35, -0.6, -1) }
     pose = { ...mixPose(pose, swingP, smoothW(Math.min(1, W.pumpP * 1.5))), off: pose.off }
   }
   if (W.pumpO > 1e-3) {
     const at = lerpV(V(-0.21, 0.94, 0.12), relaxed.off, smoothW(W.relax))
-    const off = add(at, V(0, Math.max(0, -cph) * (0.14 - 0.07 * W.relax) * amp, -cph * 0.3 * amp))
+    const off = add(at, V(0, Math.max(0, -cphA) * (0.14 - 0.07 * W.relax) * amp, -cphA * 0.3 * amp))
     pose = { ...pose, off: lerpV(pose.off, off, smoothW(Math.min(1, W.pumpO * 1.5))) }
   }
   // the shoulders turn against the hips with the stride
@@ -394,13 +471,15 @@ export const updateAnim = (a, s, dt) => {
   // ---- a stroke (strokes.js): wind-up, the forward swing through the contact, follow-through ----
   let inp = null
   // (a new ball on its way beats the end of the last swing: quick exchanges at the net)
-  if (swing && !(s.prep && swing.t > 0.1)) inp = { key: "s" + (swing.id ?? `${swing.kind}${swing.x?.toFixed(3)}${swing.z?.toFixed(3)}`), kind: swing.kind, c: toStd(local(swing)), y: swing.y, tRel: swing.t, after: true, forward: true }
+  if (swing && !(s.prep && swing.t > 0.1)) inp = { key: "s" + (swing.id ?? `${swing.kind}${swing.x?.toFixed(3)}${swing.z?.toFixed(3)}`), kind: swing.kind, c: toStd(local(swing)), y: swing.y, tRel: swing.t, after: true, forward: true, two: !!s.twoHand, fast: !!swing.fast }
   else if (whiff && !s.prep) inp = { key: "w" + whiff.kind + whiff.y.toFixed(3), kind: "block", c: V(0.32, clamp(whiff.y, 0.7, 1.5), 0.58), tRel: whiff.t, after: true, forward: true }
   else if (s.prep) {
     const p = s.prep
-    inp = { key: "p" + (p.id ?? 0), kind: p.kind, c: toStd(local(p)), y: p.y, tRel: -p.ttc, after: false, forward: !!p.forward && !s.charging, volley: !!p.volley }
+    inp = { key: "p" + (p.id ?? 0), kind: p.kind, c: toStd(local(p)), y: p.y, tRel: -p.ttc, after: false, forward: !!p.forward && !s.charging, volley: !!p.volley, two: !!s.twoHand, fast: !!p.fast }
   }
   const so = stepStroke(a.stroke, inp, pose, dt)
+  // the weight through the stroke (pro.js WEIGHT; used next frame by the hips)
+  a.weightT = so.w > 0 ? weightFor(so.style, so.phase, so.u) * so.w : 0
   if (so.w > 0) pose = so.pose
   // eyes on the contact point until just after the hit, then on the ball
   if (so.phase !== "none" && inp && !inp.after && s.prep) lookAt = V(s.prep.x, s.prep.y, s.prep.z)
@@ -443,8 +522,10 @@ export const updateAnim = (a, s, dt) => {
   const axisT = RH(pose.axis)
   const offT = add(RH(pose.off), ofs)
   const poleT = RH(pose.pole)
-  const twistT = -pose.coil * hand + runTwist
-  leanT += (pose.lean || 0) + lowLean
+  // (a crossover opens the hips toward the ball; the shoulders stay turned to the net)
+  const twistT = -pose.coil * hand + runTwist + (fc.side || 0) * CROSS.chest
+  // (a ball the arm can't reach down to: bend at the hips first, then the knees)
+  leanT += (pose.lean || 0) + lowLean + clamp((a.overDown || 0) * 1.4, 0, 0.35)
   // how quickly the hands may move: a swing is fast, everything else smooth
   const fast = so.fast
   const k = so.w > 0.02 ? (fast ? 200 : 45) : 22
@@ -462,14 +543,16 @@ export const updateAnim = (a, s, dt) => {
   let shiftT = V()
   // (only around contact: a backswing or a ready pose never drags the body down)
   const reaching = (swing && swing.t < 0.3) || (s.prep && s.prep.forward && s.prep.ttc < 0.35)
+  const downNow = over > 0 && !s.between && reaching && gap.y < 0 ? over * clamp(-gap.y / len(gap), 0, 1) : 0
+  a.overDown = (a.overDown || 0) + (downNow - (a.overDown || 0)) * (1 - Math.exp(-dt * (downNow > (a.overDown || 0) ? 20 : 8)))
   if (over > 0 && !s.between && reaching) {
     const d = norm(gap)
-    shiftT = V(clamp(d.x * over, -0.4, 0.4), clamp(d.y * over, -0.4, 0.04), clamp(d.z * over, -0.4, 0.4))
+    shiftT = V(clamp(d.x * over, -0.4, 0.4), clamp(d.y * over, -0.3, 0.04), clamp(d.z * over, -0.4, 0.4))
   }
   const shift = springV(a.shift, shiftT, k >= 200 ? 36 : 16, dt)
   py += shift.y
   const side = sway * 1.2 + a.gait.sway
-  const pelvisXZ = V(s.x + fr.r.x * side + shift.x, 0, s.z + fr.r.z * side + shift.z)
+  const pelvisXZ = V(s.x + fr.r.x * (side + extra.x) + fr.f.x * extra.z + shift.x, 0, s.z + fr.r.z * (side + extra.x) + fr.f.z * extra.z + shift.z)
   // ...but never so far that a planted foot comes off the court
   for (let pass = 0; pass < 2; pass++) {
     for (let i = 0; i < 2; i++) {
@@ -493,11 +576,21 @@ export const updateAnim = (a, s, dt) => {
     const ay = f.y + BODY.ankle
     const maxY = ay + Math.sqrt(Math.max(0.01, (LEG * 0.985) ** 2 - h * h))
     if (!f.step && py > maxY) py = maxY // hips can't float above a planted foot
+    else if (f.step?.want) {
+      // a long step (a lunge): the hips come down while the foot travels, not all at once
+      // when it lands
+      // (measured from where the hips are heading: they move over toward that foot)
+      const hx = hip.x + fr.r.x * (extraT.x - extra.x) + fr.f.x * (extraT.z - extra.z)
+      const hz = hip.z + fr.r.z * (extraT.x - extra.x) + fr.f.z * (extraT.z - extra.z)
+      const hw = Math.hypot(f.step.want.x - hx, f.step.want.z - hz)
+      const landY = BODY.ankle + Math.sqrt(Math.max(0.01, (LEG * 0.985) ** 2 - hw * hw))
+      if (hw < LEG * 0.95) py = Math.min(py, landY + (1 - f.step.t) * 0.2)
+    }
   }
   py = Math.max(py, 0.55)
   if (a.pelvisY === undefined || dt <= 0) a.pelvisY = py
-  // fast down (the legs must reach), gentler up
-  a.pelvisY = py < a.pelvisY ? py : a.pelvisY + (py - a.pelvisY) * (1 - Math.exp(-dt * 14))
+  // fast down (the legs must reach; never a drop of more than a few cm in a frame), gentler up
+  a.pelvisY = py < a.pelvisY ? Math.max(py, a.pelvisY - 4.8 * dt) : a.pelvisY + (py - a.pelvisY) * (1 - Math.exp(-dt * 14))
   const pelvis = V(pelvisXZ.x, a.pelvisY, pelvisXZ.z)
 
   // ---- springs: smooth everything that isn't a hard swing ----
@@ -505,7 +598,8 @@ export const updateAnim = (a, s, dt) => {
   // follow, then the arm)
   const twist = springN(a.twist, twistT, fast ? 40 : 14, dt)
   const hipTwist = springN(a.hipTwist, twistT * 0.4, fast ? 70 : 18, dt)
-  const lean = springN(a.lean, leanT + Math.abs(lungeLean) * 0.4, 8, dt)
+  // (never folded more than about 52 degrees at the hips)
+  const lean = springN(a.lean, Math.min(0.92, leanT + Math.abs(lungeLean) * 0.4), 12, dt)
   const roll = springN(a.roll, lungeLean + rollT, 8, dt)
 
   // ---- the spine ----
@@ -540,7 +634,7 @@ export const updateAnim = (a, s, dt) => {
       if (h > hMax) ankle = V(hip.x + (hx / h) * hMax, ankle.y, hip.z + (hz / h) * hMax)
     }
     const ff = frame(f.yaw)
-    const pole = add(norm(add(ff.f, mul(ff.r, i ? 0.25 : -0.25))), V(0, 0.05, 0)) // knees bend forward, a bit out
+    const pole = add(norm(add(ff.f, mul(ff.r, i ? 0.32 : -0.32))), V(0, 0.05, 0)) // knees bend forward and out, over the toes
     const ik = twoBone(hip, ankle, BODY.thigh, BODY.shin, pole)
     return { hip, knee: ik.mid, ankle: ik.end, foot: { x: ik.end.x, y: ik.end.y - BODY.ankle, z: ik.end.z, yaw: f.yaw, pitch: f.step ? Math.sin(Math.PI * f.step.t) * -0.35 : 0, planted: !f.step } }
   })
@@ -555,6 +649,17 @@ export const updateAnim = (a, s, dt) => {
   handL = a.handLim = limitStep(a.handLim, handL, (fast ? 16 : 7) * dt)
   axisL = a.axisLim = limitTurn(a.axisLim, axisL, (fast ? 40 : 12) * dt)
   offL = a.offLim = limitStep(a.offLim, offL, 6 * dt)
+  // a two-handed backhand (and a two-handed player's ready position): the other hand rides on
+  // the handle, exactly, however fast the swing
+  const readyW = (1 - W.pumpP) * (1 - smoothW(W.relax)) * (1 - smoothW(W.hold)) * (1 - smoothW(W.mood))
+  const twoT = so.two ? so.w : s.twoHand && !s.between ? readyW * (1 - so.w) : 0
+  W.two = ramp(W.two, twoT, dt, 0.12, 0.12)
+  if (W.two > 1e-3) {
+    const grip = add(handL, mul(axisL, ON_HANDLE))
+    offL = lerpV(offL, grip, smoothW(W.two))
+    a.offLim = { ...offL }
+    a.off.p = { ...offL }
+  }
   const paddleSide = hand > 0 ? shoulderR : shoulderL
   const otherSide = hand > 0 ? shoulderL : shoulderR
   let handW = toWorld(ground, fr, handL)
@@ -648,8 +753,28 @@ export const updateAnim = (a, s, dt) => {
     paddle: { grip: armP.end, axis: axisW, normal: normalW, face: add(armP.end, mul(axisW, BODY.paddleReach)) },
     hand,
     // for the skinned athletes' motion-capture layers (athlete.js)
-    info: { speed, phase: a.gait.phase, cycle: a.gait.cycle, moving: a.gait.moving, blend: a.gait.blend.weights, timeScale: a.gait.blend.timeScale, facing: a.face.mode || "face", swinging: !!(swing || s.prep || whiff), between: !!s.between, mood: mood ? { kind: mood.kind, variant: mood.variant } : null, stroke: so.w, style: so.style, fast, ready: (1 - W.pumpP) * (1 - smoothW(W.relax)), offGrip: so.w < 0.5 && W.relax < 0.5 && W.pumpO < 0.3 && !mood && !s.holding, fist: mood?.kind === "cheer", strokePhase: so.phase, aim: aimAt ? { x: aimAt.x, y: aimAt.y, z: aimAt.z, ttc: -inp.tRel } : null },
+    info: { speed, phase: a.gait.phase, cycle: a.gait.cycle, moving: a.gait.moving, blend: a.gait.blend.weights, timeScale: a.gait.blend.timeScale, facing: a.face.mode || "face", swinging: !!(swing || s.prep || whiff), between: !!s.between, mood: mood ? { kind: mood.kind, variant: mood.variant } : null, stroke: so.w, style: so.style, fast, ready: (1 - W.pumpP) * (1 - smoothW(W.relax)), offGrip: so.w < 0.5 && W.relax < 0.5 && W.pumpO < 0.3 && !mood && !s.holding, fist: mood?.kind === "cheer", strokePhase: so.phase, aim: aimAt ? { x: aimAt.x, y: aimAt.y, z: aimAt.z, ttc: -inp.tRel } : null, side: so.side, two: W.two > 0.5, footwork: fc.mode, split: a.hop > 0, lunge: lunging },
   }
+}
+
+// When player q will hit the ball (seconds from now), or null if not known: the serve as the
+// dropped ball reaches the contact height, or the contact they expect
+const SERVE_HIT = (ball) => {
+  const vy = -ball.v.y
+  const drop = Math.max(0, ball.p.y - SERVE_Y)
+  return (Math.sqrt(Math.max(0, vy * vy + 2 * 9.81 * drop)) - vy) / 9.81
+}
+export const hitClock = (m, q) => {
+  const r = m.rally
+  if (!r || m.phase !== "rally" && m.phase !== "serve") return null
+  if (q.serving && r.hits === 0) return m.ball.held === q.id ? null : SERVE_HIT(m.ball)
+  if (r.lastTeam === q.team || !q.expect || m.ball.held) return null
+  // (their own predicted contact, from their situation this frame or the last: the AI hits
+  // the first moment it can, not at its planned instant)
+  const age = m.t - (q.animPrepT ?? -9)
+  if (age >= 0 && age < 0.05 && q.animPrepTtc !== null && q.animPrepTtc !== undefined) return q.animPrepTtc - age
+  const t = q.expect.at - m.t
+  return t > -0.1 && t < 1.5 ? t : null
 }
 
 // What a player is doing, read from the match, for updateAnim. me: the match player; m: the
@@ -658,6 +783,7 @@ export const situation = (m, p) => {
   const ball = m.ball
   const r = m.rally
   const team = p.team
+  const hand = p.hand === -1 ? -1 : 1
   const facing = team === 0 ? Math.PI : 0
   const between = m.phase === "dead" || m.phase === "intro" || m.phase === "over"
   const holding = ball.held === p.id
@@ -665,9 +791,7 @@ export const situation = (m, p) => {
   const swing = p.swing && !p.swing.whiff && p.swing.t < 0.75 ? p.swing : p.swing?.whiff ? p.swing : null
   // the serve: once the ball is let go, the swing meets it as it drops to the contact height
   if (!holding && p.serving && r && r.hits === 0) {
-    const vy = -ball.v.y
-    const drop = Math.max(0, ball.p.y - SERVE_Y)
-    const ttc = (Math.sqrt(Math.max(0, vy * vy + 2 * 9.81 * drop)) - vy) / 9.81
+    const ttc = SERVE_HIT(ball)
     prep = { ttc: Math.max(0, ttc), x: ball.p.x, y: SERVE_Y, z: ball.p.z, kind: "serve", hand: "fh", forward: true, id: "serve" }
   } else if (!between && p.expect && r && r.lastTeam !== team && (!swing || swing.t > 0.1)) {
     const human = p.ctrl === "human" || p.ctrl === "remote"
@@ -686,14 +810,26 @@ export const situation = (m, p) => {
       }
     }
     if (ttc > -0.1 && ttc < 0.65 && committed) {
-      const local = (e.x - p.x) * (team === 0 ? 1 : -1)
+      const local = (e.x - p.x) * (team === 0 ? 1 : -1) * hand
       // a person's swing shape from how long they've held the hit control (the pace)
       const pace = p.armed?.pace ?? (p.charge ? Math.max(0, Math.min(1, (m.t - p.charge.start - 0.05) / 0.42)) : null)
       const kind = pace !== null ? guessKind(pace, e, p) : e.y > 1.35 && Math.abs(p.z) < 5 ? "smash" : Math.abs(p.z) < 3.4 ? (e.volley ? "punch" : "dink") : e.volley ? "block" : "drive"
-      prep = { ttc, x: e.x, y: e.y, z: e.z, kind, hand: local >= -0.05 ? "fh" : "bh", forward: !human || !!p.armed, volley: !!e.volley, id: r.hits }
+      // (a hand battle: a fast ball at someone near the net, match.js handBattle)
+      const fast = Math.hypot(ball.v.x, ball.v.y, ball.v.z) > FAST_BALL && Math.abs(p.z) < 4.6
+      prep = { ttc, x: e.x, y: e.y, z: e.z, kind, hand: local >= -0.05 ? "fh" : "bh", forward: !human || !!p.armed, volley: !!e.volley, id: r.hits, fast }
     }
   }
   if (p.charge?.kind === "serve") prep = null
+  // (remembered for the other side's split steps: hitClock; presentation only)
+  p.animPrepT = m.t
+  p.animPrepTtc = prep && prep.kind !== "serve" && prep.forward ? prep.ttc : null
+  // the other side's next hit (the split step lands on it)
+  let oppHit = null
+  if (!between) for (const q of m.players) {
+    if (q.team === team) continue
+    const t = hitClock(m, q)
+    if (t !== null && (oppHit === null || t < oppHit)) oppHit = t
+  }
   return {
     x: p.x,
     z: p.z,
@@ -709,6 +845,9 @@ export const situation = (m, p) => {
     atNet: Math.abs(p.z) < 3.4,
     // where they're heading (a computer player's spot, or the stand-in's intercept)
     goal: p.target && (between || p.ctrl === "cpu") ? { x: p.target.x, z: p.target.z } : p.intercept?.stand && !p.intercept.letGo ? { x: p.intercept.stand.x, z: p.intercept.stand.z } : null,
+    hand,
+    twoHand: !!p.twoHand,
+    oppHit,
   }
 }
 

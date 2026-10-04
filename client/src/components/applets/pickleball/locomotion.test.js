@@ -163,23 +163,36 @@ test("a split step hops both feet when they're still, and lands them wider", () 
 test("facing: shuffle facing the net for short moves; turn and run for long fast ones; square up for the ball", () => {
   const base = { facing: 0, ball: { x: 0, y: 1, z: 6 }, between: false, incoming: false, x: 0, z: 0 }
   const dt = 1 / 60
-  // a short move sideways: face the net
+  // a short move sideways: face the net (shuffles)
   let st = {}
-  for (let i = 0; i < 30; i++) facingFor(st, { ...base, vx: -2.5, vz: 0, goal: { x: -1.5, z: 0 } }, dt)
+  for (let i = 0; i < 30; i++) facingFor(st, { ...base, vx: -1.6, vz: 0, goal: { x: -1.5, z: 0 } }, dt)
   assert.equal(st.mode, "face")
+  // a quicker one: a crossover (hips open toward the move, a yaw to the right is smaller)
+  st = {}
+  let fx
+  for (let i = 0; i < 30; i++) fx = facingFor(st, { ...base, vx: -2.5, vz: 0, goal: { x: -1.5, z: 0 } }, dt)
+  assert.equal(fx.mode, "cross")
+  assert.ok(fx.yaw < -0.5 && fx.yaw > -1, `hips open about 43 degrees toward the move (${fx.yaw})`)
+  // ...and with the ball coming it stays a crossover (shoulders kept square by anim.js)
+  assert.equal(facingFor(st, { ...base, vx: -2.5, vz: 0, goal: { x: -1.5, z: 0 }, incoming: true }, dt).mode, "cross")
+  // slowing down for the ball: back to facing the net
+  for (let i = 0; i < 5; i++) fx = facingFor(st, { ...base, vx: -1.0, vz: 0, goal: { x: -1.5, z: 0 }, incoming: true }, dt)
+  assert.equal(fx.mode, "face")
   // a long fast move sideways: turned to run
   st = {}
   let f
   for (let i = 0; i < 30; i++) f = facingFor(st, { ...base, vx: -3.6, vz: 0, goal: { x: -5, z: 0 } }, dt)
   assert.equal(f.mode, "travel")
   near(f.yaw, -Math.PI / 2, 1e-9, "faces the run")
-  // ...then the ball comes: square up again
+  // ...then the ball comes: square up again (still moving fast: a crossover, chest to the net)
   f = facingFor(st, { ...base, vx: -3.6, vz: 0, goal: { x: -5, z: 0 }, incoming: true }, dt)
+  assert.equal(f.mode, "cross")
+  f = facingFor(st, { ...base, vx: -0.8, vz: 0, goal: { x: -5, z: 0 }, incoming: true }, dt)
   assert.equal(f.mode, "face")
-  // without a goal (a person playing), only a sustained fast run turns them
+  // without a goal (a person playing), only a sustained fast run turns them (a crossover first)
   st = {}
   f = facingFor(st, { ...base, vx: -3.5, vz: 0 }, dt)
-  assert.equal(f.mode, "face")
+  assert.equal(f.mode, "cross")
   for (let i = 0; i < 20; i++) f = facingFor(st, { ...base, vx: -3.5, vz: 0 }, dt)
   assert.equal(f.mode, "travel")
   // a deep lob over the head: turned side-on, running back

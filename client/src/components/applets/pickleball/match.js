@@ -76,7 +76,7 @@ export const seeded = (seed) => {
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v))
 
-const makePlayer = ({ id, team, ctrl = "cpu", slot = 0, seat = null, level = "intermediate", style = "allround", name, look = null, character = null, stats = null }) => ({
+const makePlayer = ({ id, team, ctrl = "cpu", slot = 0, seat = null, level = "intermediate", style = "allround", name, look = null, character = null, stats = null, hand = null }) => ({
   id,
   team,
   seat, // online: their seat in the room
@@ -86,7 +86,12 @@ const makePlayer = ({ id, team, ctrl = "cpu", slot = 0, seat = null, level = "in
   human: ctrl === "human" || ctrl === "remote",
   level: levelFor(level, style),
   name: name || id,
-  look, // what they look like (looks.js); the match doesn't use it
+  look, // what they look like (looks.js, locker.js)
+  // which hand holds the paddle (+1 right, -1 left: the look's "plays"), and a two-handed
+  // backhand (the look's pro style). Forehand and backhand sides, where the server holds the
+  // ball and where the computer aims at them follow the hand.
+  hand: hand === -1 || hand === 1 ? hand : look?.plays === "left" ? -1 : 1,
+  twoHand: look?.backhand === "two",
   stats: stats || { speed: 1, power: 1, touch: 1 }, // small differences between characters
   x: 0,
   z: sideOf(team) * HALF_L,
@@ -235,7 +240,7 @@ export const beginPoint = (m, { snap = false } = {}) => {
 }
 
 // The server's hand: in front, on their paddle side, about waist high
-export const handPos = (m, p) => v3(p.x + rightSign(p.team) * 0.18, HAND_Y, p.z - sideOf(p.team) * 0.42)
+export const handPos = (m, p) => v3(p.x + rightSign(p.team) * (p.hand || 1) * 0.18, HAND_Y, p.z - sideOf(p.team) * 0.42)
 const holdBall = (m, p) => {
   m.ball.p = handPos(m, p)
 }
@@ -394,7 +399,7 @@ export const strike = (m, p, { forced = false } = {}) => {
   const volley = !serving && bouncesOf(m) === 0
   const inSpeed = len(ball.v)
   const fast = !serving && handBattle(m, p)
-  const local = (ball.p.x - p.x) * rightSign(p.team)
+  const local = (ball.p.x - p.x) * rightSign(p.team) * (p.hand || 1) // (+: the forehand side)
   const window = m.window * (fast ? 1.2 : 1)
   let plan
   let q
@@ -570,7 +575,7 @@ export const applyStrike = (m, p, s) => {
   ball.rolling = false
   ball.rest = false
   const speed = len(ball.v)
-  p.swing = { t: Math.max(0, m.t - s.t), kind: s.kind, hand: s.hand, y: s.contact.y, x: s.contact.x, z: s.contact.z, n: s.n, speed: s.paddle, grade: s.grade, risky: s.risky, id: (p.swingSeq = (p.swingSeq || 0) + 1) }
+  p.swing = { t: Math.max(0, m.t - s.t), kind: s.kind, hand: s.hand, y: s.contact.y, x: s.contact.x, z: s.contact.z, n: s.n, speed: s.paddle, grade: s.grade, risky: s.risky, fast: !!s.fast, id: (p.swingSeq = (p.swingSeq || 0) + 1) }
   p.armed = null
   p.charge = null
   p.serving = null

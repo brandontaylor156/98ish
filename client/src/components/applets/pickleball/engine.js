@@ -330,7 +330,14 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
     clearFigures()
     const shadows = !!QUALITY[settings.quality]?.shadows
     figures = match.players.map((p, i) => {
-      const fig = makeFigure(lookOf(p, i), { shadows })
+      const look = lookOf(p, i)
+      // (a player without a look of their own plays with their figure's hand and style; every
+      // browser in an online match works this out the same way)
+      if (!(p.look && typeof p.look === "object")) {
+        p.hand = look.plays === "left" ? -1 : 1
+        p.twoHand = look.backhand === "two"
+      }
+      const fig = makeFigure(look, { shadows })
       scene.add(fig.group)
       const anim = createAnim(p.x, p.z, p.team === 0 ? Math.PI : 0)
       const blob = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 0.8), new THREE.MeshBasicMaterial({ map: tex.blob, transparent: true, depthWrite: false, opacity: 0.55 }))
@@ -719,7 +726,6 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
       if (replay) s = replay.frame.players[figures.indexOf(f)]
       else {
         s = situation(match, p)
-        s.hand = 1
         frameRec.push({ ...s, ball: { ...s.ball }, swing: s.swing && { ...s.swing }, prep: s.prep && { ...s.prep } })
       }
       if (!s) continue
@@ -1017,7 +1023,7 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
           if (big && (mode === "local" || mode === "demo")) hitStop = 0.08
           if (big && !reducedMotion()) shake = 1
           // everyone on the other side gets on their toes
-          for (const f of figures) if (f.player.team !== e.team) splitStep(f.anim)
+          for (const f of figures) if (f.player.team !== e.team) splitStep(f.anim, { fallback: true })
           if (demo) break
           const hitter = playerById(match, e.player)
           const mine = hitter?.ctrl === "human"
@@ -1186,7 +1192,7 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
         // (back to the spot)
         S.lap = 0
       }
-      const s = { x, z, vx, vz, facing: yaw, ball: local(0, 1, 3), holding: false, swing: S.pose === "ready" ? S.swing : null, prep: null, charging: false, between: S.pose === "run", atNet: false, hand: 1, goal: S.pose === "run" ? local(0, 0, 9) : null }
+      const s = { x, z, vx, vz, facing: yaw, ball: local(0, 1, 3), holding: false, swing: S.pose === "ready" ? S.swing : null, prep: null, charging: false, between: S.pose === "run", atNet: false, hand: S.look?.plays === "left" ? -1 : 1, twoHand: S.look?.backhand === "two", goal: S.pose === "run" ? local(0, 0, 9) : null }
       if (S.swing) S.swing.t += dt
       S.t += dt
       if (S.t > 3.2) {

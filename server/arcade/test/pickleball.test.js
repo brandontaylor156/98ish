@@ -150,8 +150,13 @@ test("looks over the relay: only known ids, #rrggbb colors and a height in range
   assert.ok(rooms.relay("a", made.roomId, { type: "start", seed: 5, settings: { doubles: true }, people: [{ seat: 0, name: "Al", character: "dex", look: { shirt: "#ABCDEF", hat: "beanie", gloves: true } }, { seat: 1, name: "Bo", look: { shirt: "javascript:" } }] }).ok)
   const start = inbox.b.at(-1).payload.data
   assert.equal(start.seed, 5)
-  assert.deepEqual(start.people[0].look, { v: 2, shirt: "#abcdef", hat: "beanie", gloves: true })
-  assert.deepEqual(start.people[1].look, { v: 2 })
+  assert.deepEqual(start.people[0].look, { v: 3, shirt: "#abcdef", hat: "beanie", gloves: true })
+  assert.deepEqual(start.people[1].look, { v: 3 })
+  // which hand plays and the pro style: known ids only; an older browser's look keeps its version
+  assert.ok(rooms.relay("b", made.roomId, { type: "hello", character: "kenji", look: { v: 3, plays: "left", backhand: "two" } }).ok)
+  assert.deepEqual(inbox.a.at(-1).payload.data.look, { v: 3, plays: "left", backhand: "two" })
+  assert.ok(rooms.relay("b", made.roomId, { type: "hello", character: "kenji", look: { v: 2, plays: "both", backhand: 2 } }).ok)
+  assert.deepEqual(inbox.a.at(-1).payload.data.look, { v: 2 })
   // not a message at all
   assert.equal(rooms.relay("b", made.roomId, ["hello"]).ok, false)
   // hits pass as they are
