@@ -1,603 +1,19 @@
-// Draws the Deep Sea Dive table on a canvas: everything that never changes (the ocean,
-// walls, artwork) is painted once into an offscreen layer at the current size; each frame
-// adds the lamps, bumpers, targets, flippers, plunger and balls on top.
+// Draws Blue Screen each frame into a 280 x 500 pixel buffer: the base layer from art.js,
+// then lit lamps (palette-swapped sprites), bumpers, keycap targets, the spinner, the
+// flippers (rasterized pixel by pixel, no anti-aliasing), the plunger, the balls (with a
+// shadow and two marks that roll with them), the taskbar apron, the ramp's plastic, balls
+// riding the ramp, and score popups. The canvas is the buffer's size; CSS scales it up with
+// nearest-neighbour pixels (image-rendering: pixelated), at a whole number of device pixels
+// when that still fills the space.
 
-import { BALL_R, flipperTip } from "./physics.js"
-import {
-  BUMPERS,
-  CHEST,
-  DOME,
-  GUIDES,
-  HEIGHT,
-  INLANES,
-  LANE,
-  LANE_BOTTOM,
-  LANE_GUIDES,
-  LANE_TOP,
-  MID,
-  OUTLANES,
-  POSTS,
-  ROLLOVERS,
-  SEPARATORS,
-  SLINGS,
-  TARGETS,
-  WIDTH,
-} from "./table.js"
+import { flipperTip } from "./physics.js"
+import { BUMPERS, LANE, MONITOR, SPINNER, TARGETS, rampHeight } from "./table.js"
+import { currentMission } from "./game.js"
+import { H, K, W, buildArt, ICONS } from "./art.js"
+import { C, FONTS, blit, blitRaw, line, pset, rampAt, rect, shape, text } from "./pixel.js"
 
-const NEON = "#46f0ff"
-const PINK = "#ff5fd2"
-const GOLD = "#ffd23f"
-const CORAL = "#ff7a45"
-const LIME = "#7dff9a"
-const RED = "#ff4040"
-const FONT = '"Arial Black", "Segoe UI Black", Impact, Arial, sans-serif'
-
-// a seeded random, so the artwork is the same every time
-const seeded = (seed) => () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646
-
-// rounded rectangles where the browser has them (older Safari gets square corners)
-const roundRect = (ctx, x, y, w, h, r) => (ctx.roundRect ? ctx.roundRect(x, y, w, h, r) : ctx.rect(x, y, w, h))
-
-const makeCanvas = (w, h) => {
-  const c = document.createElement("canvas")
-  c.width = Math.max(1, Math.round(w))
-  c.height = Math.max(1, Math.round(h))
-  return c
-}
-
-// The playfield's outline: the dome over the top and straight sides
-const playfieldPath = (ctx) => {
-  ctx.beginPath()
-  ctx.moveTo(20, HEIGHT)
-  ctx.lineTo(20, DOME.cy)
-  ctx.arc(DOME.cx, DOME.cy, DOME.r, Math.PI, Math.PI * 2)
-  ctx.lineTo(LANE.right, HEIGHT)
-  ctx.closePath()
-}
-
-const neonLine = (ctx, draw, color = NEON, width = 3) => {
-  ctx.save()
-  ctx.lineCap = "round"
-  ctx.lineJoin = "round"
-  ctx.strokeStyle = "rgba(0,0,0,0.55)"
-  ctx.lineWidth = width + 5
-  draw()
-  ctx.stroke()
-  ctx.shadowColor = color
-  ctx.shadowBlur = 12
-  ctx.strokeStyle = color
-  ctx.lineWidth = width
-  draw()
-  ctx.stroke()
-  ctx.shadowBlur = 0
-  ctx.strokeStyle = "rgba(255,255,255,0.75)"
-  ctx.lineWidth = Math.max(1, width / 3)
-  draw()
-  ctx.stroke()
-  ctx.restore()
-}
-
-const glowText = (ctx, text, x, y, size, color, { align = "center", blur = 14, stroke = "#00131f", italic = false, maxWidth } = {}) => {
-  ctx.save()
-  ctx.font = `${italic ? "italic " : ""}${size}px ${FONT}`
-  ctx.textAlign = align
-  ctx.textBaseline = "middle"
-  ctx.lineJoin = "round"
-  ctx.strokeStyle = stroke
-  ctx.lineWidth = size * 0.22
-  ctx.strokeText(text, x, y, maxWidth)
-  ctx.shadowColor = color
-  ctx.shadowBlur = blur
-  ctx.fillStyle = color
-  ctx.fillText(text, x, y, maxWidth)
-  ctx.restore()
-}
-
-const drawSubmarine = (ctx, x, y) => {
-  ctx.save()
-  ctx.translate(x, y)
-  // headlight beam toward the treasure
-  const beam = ctx.createLinearGradient(60, 0, 190, -10)
-  beam.addColorStop(0, "rgba(255,240,170,0.28)")
-  beam.addColorStop(1, "rgba(255,240,170,0)")
-  ctx.fillStyle = beam
-  ctx.beginPath()
-  ctx.moveTo(62, -4)
-  ctx.lineTo(190, -48)
-  ctx.lineTo(196, 30)
-  ctx.closePath()
-  ctx.fill()
-  // hull
-  const hull = ctx.createLinearGradient(0, -28, 0, 28)
-  hull.addColorStop(0, "#ffb347")
-  hull.addColorStop(0.5, "#f07a1a")
-  hull.addColorStop(1, "#7a2e05")
-  ctx.fillStyle = hull
-  ctx.strokeStyle = "#2a0d00"
-  ctx.lineWidth = 2.5
-  ctx.beginPath()
-  ctx.ellipse(0, 0, 66, 25, 0, 0, Math.PI * 2)
-  ctx.fill()
-  ctx.stroke()
-  // tower and periscope
-  ctx.beginPath()
-  ctx.moveTo(-22, -20)
-  ctx.lineTo(-16, -42)
-  ctx.lineTo(16, -42)
-  ctx.lineTo(24, -20)
-  ctx.closePath()
-  ctx.fill()
-  ctx.stroke()
-  ctx.lineWidth = 4
-  ctx.strokeStyle = "#c95f12"
-  ctx.beginPath()
-  ctx.moveTo(4, -42)
-  ctx.lineTo(4, -58)
-  ctx.lineTo(16, -58)
-  ctx.stroke()
-  // stripes
-  ctx.strokeStyle = "rgba(42,13,0,0.55)"
-  ctx.lineWidth = 2
-  for (const sx of [-44, 46]) {
-    ctx.beginPath()
-    ctx.moveTo(sx, -21 + Math.abs(sx) * 0.1)
-    ctx.lineTo(sx, 21 - Math.abs(sx) * 0.1)
-    ctx.stroke()
-  }
-  // portholes
-  for (const px of [-26, 0, 26]) {
-    ctx.fillStyle = "#2a0d00"
-    ctx.beginPath()
-    ctx.arc(px, 2, 8.5, 0, Math.PI * 2)
-    ctx.fill()
-    const glass = ctx.createRadialGradient(px - 2, 0, 1, px, 2, 7)
-    glass.addColorStop(0, "#fffbe0")
-    glass.addColorStop(0.5, "#9ff8ff")
-    glass.addColorStop(1, "#1a7fa0")
-    ctx.fillStyle = glass
-    ctx.beginPath()
-    ctx.arc(px, 2, 6.5, 0, Math.PI * 2)
-    ctx.fill()
-  }
-  // propeller
-  ctx.fillStyle = "#c9c9c9"
-  ctx.strokeStyle = "#333"
-  ctx.lineWidth = 1.5
-  ctx.beginPath()
-  ctx.ellipse(-72, -9, 5, 11, 0.3, 0, Math.PI * 2)
-  ctx.fill()
-  ctx.stroke()
-  ctx.beginPath()
-  ctx.ellipse(-72, 9, 5, 11, -0.3, 0, Math.PI * 2)
-  ctx.fill()
-  ctx.stroke()
-  // highlight
-  ctx.strokeStyle = "rgba(255,255,255,0.45)"
-  ctx.lineWidth = 3
-  ctx.beginPath()
-  ctx.ellipse(0, -2, 56, 17, 0, Math.PI * 1.15, Math.PI * 1.75)
-  ctx.stroke()
-  ctx.restore()
-}
-
-const drawKelp = (ctx, x, y, height, lean, rand) => {
-  ctx.save()
-  ctx.strokeStyle = "rgba(30,170,120,0.45)"
-  ctx.fillStyle = "rgba(30,170,120,0.35)"
-  ctx.lineWidth = 4
-  ctx.lineCap = "round"
-  ctx.beginPath()
-  ctx.moveTo(x, y)
-  const steps = 8
-  let px = x
-  let py = y
-  for (let i = 1; i <= steps; i++) {
-    const t = i / steps
-    const nx = x + Math.sin(t * 5 + lean) * 9 + lean * t * 14
-    const ny = y - height * t
-    ctx.quadraticCurveTo(px + (rand() - 0.5) * 10, (py + ny) / 2, nx, ny)
-    px = nx
-    py = ny
-  }
-  ctx.stroke()
-  for (let i = 1; i < steps; i++) {
-    const t = i / steps
-    const lx = x + Math.sin(t * 5 + lean) * 9 + lean * t * 14
-    const ly = y - height * t
-    const side = i % 2 ? 1 : -1
-    ctx.beginPath()
-    ctx.ellipse(lx + side * 8, ly, 9, 3.5, side * 0.6, 0, Math.PI * 2)
-    ctx.fill()
-  }
-  ctx.restore()
-}
-
-const drawCoral = (ctx, x, y, size, color, rand) => {
-  ctx.save()
-  ctx.strokeStyle = color
-  ctx.lineCap = "round"
-  const branch = (bx, by, angle, len, width, depth) => {
-    const ex = bx + Math.cos(angle) * len
-    const ey = by + Math.sin(angle) * len
-    ctx.lineWidth = width
-    ctx.beginPath()
-    ctx.moveTo(bx, by)
-    ctx.lineTo(ex, ey)
-    ctx.stroke()
-    if (depth > 0) {
-      branch(ex, ey, angle - 0.45 - rand() * 0.2, len * 0.72, width * 0.7, depth - 1)
-      branch(ex, ey, angle + 0.45 + rand() * 0.2, len * 0.72, width * 0.7, depth - 1)
-    }
-  }
-  branch(x, y, -Math.PI / 2, size, size * 0.28, 3)
-  ctx.restore()
-}
-
-const drawClamShape = (ctx, x, y, w, h) => {
-  ctx.beginPath()
-  ctx.moveTo(x, y + h / 2)
-  ctx.quadraticCurveTo(x - w * 0.2, y + h * 0.1, x + w * 0.5, y)
-  ctx.quadraticCurveTo(x + w * 1.2, y + h * 0.1, x + w, y + h / 2)
-  ctx.closePath()
-}
-
-// Everything that never moves, painted in table units
-const paintStatic = (ctx) => {
-  const rand = seeded(1998)
-
-  // the cabinet around the glass
-  const cab = ctx.createLinearGradient(0, 0, WIDTH, HEIGHT)
-  cab.addColorStop(0, "#151a33")
-  cab.addColorStop(1, "#05060f")
-  ctx.fillStyle = cab
-  ctx.fillRect(0, 0, WIDTH, HEIGHT)
-
-  ctx.save()
-  playfieldPath(ctx)
-  ctx.clip()
-
-  // the ocean, darker as it goes down
-  const sea = ctx.createLinearGradient(0, 0, 0, HEIGHT)
-  sea.addColorStop(0, "#0d5a8c")
-  sea.addColorStop(0.35, "#073a66")
-  sea.addColorStop(0.75, "#04223f")
-  sea.addColorStop(1, "#020f22")
-  ctx.fillStyle = sea
-  ctx.fillRect(0, 0, WIDTH, HEIGHT)
-
-  // sunbeams from the surface
-  for (let i = 0; i < 7; i++) {
-    const x = 40 + i * 75 + rand() * 30
-    const spread = 30 + rand() * 50
-    const g = ctx.createLinearGradient(0, 0, 0, 750)
-    g.addColorStop(0, `rgba(170,240,255,${0.1 + rand() * 0.06})`)
-    g.addColorStop(1, "rgba(170,240,255,0)")
-    ctx.fillStyle = g
-    ctx.beginPath()
-    ctx.moveTo(x - 10, 0)
-    ctx.lineTo(x + 14, 0)
-    ctx.lineTo(x + spread + 40, 750)
-    ctx.lineTo(x + spread - 40, 750)
-    ctx.closePath()
-    ctx.fill()
-  }
-
-  // caustic ripples near the top
-  ctx.strokeStyle = "rgba(190,250,255,0.07)"
-  ctx.lineWidth = 2
-  for (let i = 0; i < 40; i++) {
-    const x = rand() * WIDTH
-    const y = 30 + rand() * 260
-    ctx.beginPath()
-    ctx.ellipse(x, y, 10 + rand() * 18, 3 + rand() * 5, rand() * 0.5, 0, Math.PI * 2)
-    ctx.stroke()
-  }
-
-  // the sea floor: sand, rocks, kelp and coral
-  const sand = ctx.createLinearGradient(0, 860, 0, HEIGHT)
-  sand.addColorStop(0, "rgba(70,90,110,0)")
-  sand.addColorStop(1, "rgba(120,110,80,0.55)")
-  ctx.fillStyle = sand
-  ctx.beginPath()
-  ctx.moveTo(0, HEIGHT)
-  ctx.lineTo(0, 900)
-  ctx.quadraticCurveTo(120, 860, 262, 930)
-  ctx.quadraticCurveTo(400, 880, 560, 900)
-  ctx.lineTo(560, HEIGHT)
-  ctx.closePath()
-  ctx.fill()
-  drawKelp(ctx, 40, 360, 160, 0.3, rand)
-  drawKelp(ctx, 62, 680, 150, -0.2, rand)
-  drawKelp(ctx, 470, 690, 170, 0.4, rand)
-  drawKelp(ctx, 492, 400, 110, -0.5, rand)
-  drawCoral(ctx, 120, 990, 46, "rgba(255,110,140,0.45)", rand)
-  drawCoral(ctx, 410, 995, 40, "rgba(255,160,70,0.45)", rand)
-  drawCoral(ctx, 40, 1000, 30, "rgba(200,120,255,0.4)", rand)
-  drawCoral(ctx, 480, 1000, 34, "rgba(255,110,140,0.4)", rand)
-
-  // drifting bubbles (still ones; a few more rise each frame)
-  ctx.strokeStyle = "rgba(200,250,255,0.25)"
-  ctx.lineWidth = 1.2
-  for (let i = 0; i < 46; i++) {
-    ctx.beginPath()
-    ctx.arc(30 + rand() * 470, 60 + rand() * 860, 1.5 + rand() * 4, 0, Math.PI * 2)
-    ctx.stroke()
-  }
-
-  // the top lanes' strip
-  ctx.fillStyle = "rgba(0,10,25,0.35)"
-  ctx.fillRect(LANE_GUIDES[0], LANE_TOP - 6, LANE_GUIDES[4] - LANE_GUIDES[0], LANE_BOTTOM - LANE_TOP + 14)
-
-  // the submarine and the logo in the middle
-  drawSubmarine(ctx, 245, 470)
-  glowText(ctx, "DEEP SEA", MID, 588, 40, GOLD, { italic: true, blur: 18 })
-  glowText(ctx, "DIVE", MID, 632, 52, CORAL, { italic: true, blur: 20 })
-  // the depth gauge's lamp sockets (one per rank)
-  for (let i = 0; i < 8; i++) {
-    ctx.fillStyle = "rgba(0,0,0,0.45)"
-    ctx.beginPath()
-    ctx.arc(rankLamp(i).x, rankLamp(i).y, 6, 0, Math.PI * 2)
-    ctx.fill()
-  }
-
-  // inserts: the multiplier arrows, the chest's lock lamps, shoot again
-  for (let i = 0; i < 4; i++) {
-    const { x, y } = multLamp(i)
-    insertShape(ctx, x, y, 17, "rgba(255,210,63,0.12)", "rgba(255,210,63,0.35)")
-    ctx.fillStyle = "rgba(255,230,160,0.35)"
-    ctx.font = `14px ${FONT}`
-    ctx.textAlign = "center"
-    ctx.textBaseline = "middle"
-    ctx.fillText(`${i + 2}x`, x, y + 1)
-  }
-  for (let i = 0; i < 3; i++) {
-    const { x, y } = lockLamp(i)
-    insertShape(ctx, x, y, 8, "rgba(255,95,210,0.15)", "rgba(255,95,210,0.4)")
-  }
-  insertPill(ctx, MID, 965, 96, 22, "rgba(125,255,154,0.12)", "rgba(125,255,154,0.35)")
-  ctx.fillStyle = "rgba(200,255,210,0.35)"
-  ctx.font = `11px ${FONT}`
-  ctx.fillText("SHOOT AGAIN", MID, 966)
-  insertPill(ctx, MID, 935, 60, 18, "rgba(70,240,255,0.12)", "rgba(70,240,255,0.35)")
-  ctx.fillStyle = "rgba(200,250,255,0.35)"
-  ctx.font = `10px ${FONT}`
-  ctx.fillText("SAVE", MID, 936)
-  for (const p of [...INLANES, ...OUTLANES]) insertShape(ctx, p.x, p.y + 26, 6, "rgba(70,240,255,0.12)", "rgba(70,240,255,0.35)")
-  for (const t of TARGETS) insertShape(ctx, 62, (t.y0 + t.y1) / 2, 6, "rgba(255,210,63,0.12)", "rgba(255,210,63,0.35)")
-
-  // the treasure chest behind its hole
-  drawChest(ctx, CHEST.x + 22, CHEST.y - 36)
-  ctx.restore()
-
-  // ---- walls (drawn over the clip so their glow shows at the edges) ----
-  neonLine(ctx, () => playfieldPath(ctx), NEON, 4)
-  // the shooter lane
-  ctx.fillStyle = "rgba(0,8,20,0.55)"
-  ctx.fillRect(LANE.left, LANE.top, LANE.right - LANE.left, HEIGHT - LANE.top)
-  for (let i = 0; i < 4; i++) {
-    const y = 760 - i * 80
-    ctx.fillStyle = "rgba(255,210,63,0.18)"
-    ctx.beginPath()
-    ctx.moveTo((LANE.left + LANE.right) / 2, y - 14)
-    ctx.lineTo(LANE.right - 6, y + 6)
-    ctx.lineTo(LANE.left + 6, y + 6)
-    ctx.closePath()
-    ctx.fill()
-  }
-  neonLine(
-    ctx,
-    () => {
-      ctx.beginPath()
-      ctx.moveTo(LANE.left, HEIGHT)
-      ctx.lineTo(LANE.left, LANE.top)
-    },
-    NEON,
-    4
-  )
-  // the one-way gate
-  ctx.save()
-  ctx.strokeStyle = "rgba(200,240,255,0.55)"
-  ctx.lineWidth = 2
-  ctx.setLineDash([4, 3])
-  ctx.beginPath()
-  ctx.moveTo(LANE.right - 2, 306)
-  ctx.lineTo(LANE.left, LANE.top)
-  ctx.stroke()
-  ctx.restore()
-
-  for (const x of LANE_GUIDES) {
-    neonLine(
-      ctx,
-      () => {
-        ctx.beginPath()
-        ctx.moveTo(x, LANE_TOP)
-        ctx.lineTo(x, LANE_BOTTOM)
-      },
-      "#9ff8ff",
-      6
-    )
-  }
-  for (const s of SEPARATORS) {
-    neonLine(
-      ctx,
-      () => {
-        ctx.beginPath()
-        ctx.moveTo(s.x, s.y0)
-        ctx.lineTo(s.x, s.y1)
-      },
-      NEON,
-      5
-    )
-  }
-  for (const [ax, ay, bx, by] of GUIDES) {
-    neonLine(
-      ctx,
-      () => {
-        ctx.beginPath()
-        ctx.moveTo(ax, ay)
-        ctx.lineTo(bx, by)
-      },
-      NEON,
-      5
-    )
-  }
-  // slingshot bodies
-  for (const s of SLINGS) {
-    const [[ax, ay], [bx, by], [cx, cy]] = s
-    const g = ctx.createLinearGradient(ax, ay, cx, cy)
-    g.addColorStop(0, "#1b6f8f")
-    g.addColorStop(1, "#0b2e4d")
-    ctx.save()
-    ctx.fillStyle = g
-    ctx.strokeStyle = "rgba(255,255,255,0.85)"
-    ctx.lineWidth = 9
-    ctx.lineJoin = "round"
-    ctx.beginPath()
-    ctx.moveTo(ax, ay)
-    ctx.lineTo(bx, by)
-    ctx.lineTo(cx, cy)
-    ctx.closePath()
-    ctx.stroke()
-    ctx.fill()
-    // a little fish on each
-    const fx = (ax + bx + cx) / 3
-    const fy = (ay + by + cy) / 3 + 4
-    const dir = ax < MID ? 1 : -1
-    ctx.fillStyle = "rgba(255,210,63,0.75)"
-    ctx.beginPath()
-    ctx.ellipse(fx, fy, 9, 5, 0, 0, Math.PI * 2)
-    ctx.fill()
-    ctx.beginPath()
-    ctx.moveTo(fx - dir * 7, fy)
-    ctx.lineTo(fx - dir * 14, fy - 5)
-    ctx.lineTo(fx - dir * 14, fy + 5)
-    ctx.closePath()
-    ctx.fill()
-    ctx.restore()
-  }
-  for (const p of [...POSTS, ...SEPARATORS.map((s) => ({ x: s.x, y: s.y0, r: 5 }))]) {
-    ctx.save()
-    ctx.shadowColor = PINK
-    ctx.shadowBlur = 10
-    ctx.fillStyle = "#ffe0f4"
-    ctx.beginPath()
-    ctx.arc(p.x, p.y, p.r + 1, 0, Math.PI * 2)
-    ctx.fill()
-    ctx.shadowBlur = 0
-    ctx.fillStyle = PINK
-    ctx.beginPath()
-    ctx.arc(p.x, p.y, p.r * 0.5, 0, Math.PI * 2)
-    ctx.fill()
-    ctx.restore()
-  }
-  // the clam targets' backing rail
-  ctx.fillStyle = "rgba(0,0,0,0.5)"
-  ctx.fillRect(20, TARGETS[0].y0 - 6, 10, TARGETS[2].y1 - TARGETS[0].y0 + 12)
-
-  // the chest hole
-  const hole = ctx.createRadialGradient(CHEST.x, CHEST.y, 2, CHEST.x, CHEST.y, CHEST.r + 4)
-  hole.addColorStop(0, "#000")
-  hole.addColorStop(0.75, "#05080f")
-  hole.addColorStop(1, "#c8a14a")
-  ctx.fillStyle = hole
-  ctx.beginPath()
-  ctx.arc(CHEST.x, CHEST.y, CHEST.r + 4, 0, Math.PI * 2)
-  ctx.fill()
-
-  // the apron at the very bottom
-  ctx.fillStyle = "#0b0f22"
-  ctx.fillRect(0, 990, WIDTH, 10)
-}
-
-const rankLamp = (i) => ({ x: MID - 70 + i * 20, y: 668 })
-const multLamp = (i) => ({ x: MID - 66 + i * 44, y: 728 + Math.abs(i - 1.5) * -8 })
-const lockLamp = (i) => ({ x: CHEST.x - 34 + i * 20, y: CHEST.y + 34 })
-
-const insertShape = (ctx, x, y, r, fill, stroke) => {
-  ctx.fillStyle = fill
-  ctx.strokeStyle = stroke
-  ctx.lineWidth = 1.5
-  ctx.beginPath()
-  ctx.arc(x, y, r, 0, Math.PI * 2)
-  ctx.fill()
-  ctx.stroke()
-}
-
-const insertPill = (ctx, x, y, w, h, fill, stroke) => {
-  ctx.fillStyle = fill
-  ctx.strokeStyle = stroke
-  ctx.lineWidth = 1.5
-  ctx.beginPath()
-  roundRect(ctx, x - w / 2, y - h / 2, w, h, h / 2)
-  ctx.fill()
-  ctx.stroke()
-}
-
-const drawChest = (ctx, x, y) => {
-  ctx.save()
-  ctx.translate(x, y)
-  ctx.rotate(0.12)
-  ctx.fillStyle = "#6b3b12"
-  ctx.strokeStyle = "#2a1404"
-  ctx.lineWidth = 2
-  ctx.beginPath()
-  roundRect(ctx, -20, -6, 40, 22, 3)
-  ctx.fill()
-  ctx.stroke()
-  ctx.fillStyle = "#8a4d18"
-  ctx.beginPath()
-  ctx.moveTo(-20, -6)
-  ctx.quadraticCurveTo(0, -24, 20, -6)
-  ctx.closePath()
-  ctx.fill()
-  ctx.stroke()
-  ctx.fillStyle = GOLD
-  ctx.fillRect(-21, -2, 42, 3)
-  ctx.fillRect(-3, -6, 6, 12)
-  ctx.fillStyle = "rgba(255,230,120,0.8)"
-  for (let i = 0; i < 5; i++) {
-    ctx.beginPath()
-    ctx.arc(-12 + i * 6, -9 + (i % 2) * 2, 2.2, 0, Math.PI * 2)
-    ctx.fill()
-  }
-  ctx.restore()
-}
-
-// Soft glow sprites (one per color), drawn with additive blending for lit lamps
-const glowCache = new Map()
-const glowSprite = (color) => {
-  if (glowCache.has(color)) return glowCache.get(color)
-  const c = makeCanvas(64, 64)
-  const g = c.getContext("2d")
-  const grad = g.createRadialGradient(32, 32, 0, 32, 32, 32)
-  grad.addColorStop(0, color)
-  grad.addColorStop(0.25, color)
-  grad.addColorStop(1, "rgba(0,0,0,0)")
-  g.fillStyle = grad
-  g.globalAlpha = 0.9
-  g.fillRect(0, 0, 64, 64)
-  glowCache.set(color, c)
-  return c
-}
-
-const glow = (ctx, x, y, size, color, alpha = 1) => {
-  ctx.globalAlpha = alpha
-  ctx.drawImage(glowSprite(color), x - size / 2, y - size / 2, size, size)
-  ctx.globalAlpha = 1
-}
-
-const lamp = (ctx, x, y, r, color, on) => {
-  if (!on) return
-  ctx.globalCompositeOperation = "lighter"
-  glow(ctx, x, y, r * 5, color, 0.55 * on)
-  ctx.globalCompositeOperation = "source-over"
-  ctx.globalAlpha = Math.min(1, on)
-  ctx.fillStyle = color
-  ctx.beginPath()
-  ctx.arc(x, y, r, 0, Math.PI * 2)
-  ctx.fill()
-  ctx.globalAlpha = 1
-}
+const p = (u) => u * K
+const LIGHT = [-0.6, -0.8]
 
 // how lit a recently hit thing still is (1 just hit, fading to 0)
 const recent = (g, name, seconds = 0.25) => {
@@ -606,371 +22,306 @@ const recent = (g, name, seconds = 0.25) => {
   const age = g.time - t
   return age < 0 || age > seconds ? 0 : 1 - age / seconds
 }
+const blink = (now, hz = 3) => Math.floor(now * hz * 2) % 2 === 0
 
-const blink = (now, hz = 3) => (Math.floor(now * hz * 2) % 2 ? 1 : 0.25)
-
-const drawBumper = (ctx, b, lit, now, i) => {
-  const { x, y, r } = b
-  // skirt ring
-  ctx.save()
-  ctx.strokeStyle = lit ? "#fff" : "rgba(255,170,235,0.55)"
-  ctx.lineWidth = 3
-  ctx.beginPath()
-  ctx.arc(x, y, r + 3, 0, Math.PI * 2)
-  ctx.stroke()
-  if (lit) {
-    ctx.globalCompositeOperation = "lighter"
-    glow(ctx, x, y, r * 5, PINK, lit)
-    ctx.globalCompositeOperation = "source-over"
-  }
-  // tentacles (wiggling)
-  ctx.strokeStyle = `rgba(255,140,225,${0.35 + lit * 0.5})`
-  ctx.lineWidth = 2
-  for (let k = 0; k < 5; k++) {
-    const tx = x - r * 0.6 + k * r * 0.3
-    ctx.beginPath()
-    ctx.moveTo(tx, y + r * 0.45)
-    ctx.quadraticCurveTo(tx + Math.sin(now * 3 + k + i) * 5, y + r * 0.9, tx + Math.sin(now * 2.4 + k * 2 + i) * 4, y + r + 6)
-    ctx.stroke()
-  }
-  // the bell
-  const bell = ctx.createRadialGradient(x - r * 0.3, y - r * 0.4, 2, x, y, r)
-  bell.addColorStop(0, lit ? "#ffffff" : "#ffd6f5")
-  bell.addColorStop(0.45, lit ? "#ff9be6" : "#e04fb8")
-  bell.addColorStop(1, lit ? "#c02a96" : "#5a0f4a")
-  ctx.fillStyle = bell
-  ctx.beginPath()
-  ctx.arc(x, y + 2, r, Math.PI, 0)
-  // frilly bottom edge
-  for (let k = 6; k >= 0; k--) {
-    const fx = x - r + (k / 6) * r * 2
-    ctx.quadraticCurveTo(fx + r / 6, y + 2 + r * 0.55, fx, y + 2 + r * 0.3)
-  }
-  ctx.closePath()
-  ctx.fill()
-  ctx.strokeStyle = lit ? "#fff" : "rgba(255,200,240,0.8)"
-  ctx.lineWidth = 1.5
-  ctx.stroke()
-  // spots
-  ctx.fillStyle = "rgba(255,255,255,0.55)"
-  ctx.beginPath()
-  ctx.ellipse(x - r * 0.35, y - r * 0.4, r * 0.18, r * 0.11, -0.6, 0, Math.PI * 2)
-  ctx.fill()
-  ctx.restore()
-}
-
-const drawFlipper = (ctx, f, lit) => {
-  const tip = flipperTip(f)
-  const ang = f.angle
-  const nx = -Math.sin(ang)
-  const ny = Math.cos(ang)
-  ctx.save()
-  ctx.beginPath()
-  // the tapered outline: base circle, tip circle and the tangent lines between
-  ctx.moveTo(f.x + nx * f.r0, f.y + ny * f.r0)
-  ctx.lineTo(tip.x + nx * f.r1, tip.y + ny * f.r1)
-  ctx.arc(tip.x, tip.y, f.r1, ang + Math.PI / 2, ang - Math.PI / 2, true)
-  ctx.lineTo(f.x - nx * f.r0, f.y - ny * f.r0)
-  ctx.arc(f.x, f.y, f.r0, ang - Math.PI / 2, ang + Math.PI / 2, true)
-  ctx.closePath()
-  const grad = ctx.createLinearGradient(f.x - nx * f.r0, f.y - ny * f.r0, f.x + nx * f.r0, f.y + ny * f.r0)
-  grad.addColorStop(0, "#ffd0a8")
-  grad.addColorStop(0.5, CORAL)
-  grad.addColorStop(1, "#8a2a06")
-  ctx.shadowColor = CORAL
-  ctx.shadowBlur = lit ? 16 : 6
-  ctx.fillStyle = grad
-  ctx.fill()
-  ctx.shadowBlur = 0
-  ctx.lineWidth = 2.5
-  ctx.strokeStyle = "#fff4e8"
-  ctx.stroke()
-  // pivot bolt
-  ctx.fillStyle = "#2a1004"
-  ctx.beginPath()
-  ctx.arc(f.x, f.y, 3.5, 0, Math.PI * 2)
-  ctx.fill()
-  ctx.restore()
-}
-
-const drawBall = (ctx, b) => {
-  const speed = Math.hypot(b.vx, b.vy)
-  // a short motion trail when it's quick
-  if (speed > 900) {
-    for (let k = 1; k <= 3; k++) {
-      ctx.globalAlpha = 0.12 * (4 - k) * Math.min(1, (speed - 900) / 1500)
-      ctx.fillStyle = "#bff6ff"
-      ctx.beginPath()
-      ctx.arc(b.x - b.vx * 0.006 * k, b.y - b.vy * 0.006 * k, BALL_R * (1 - k * 0.12), 0, Math.PI * 2)
-      ctx.fill()
+// Which lamps are lit right now
+export const lampStates = (g, now) => {
+  const on = {}
+  if (g.mode === "attract" || g.mode === "over") {
+    // the attract show: a chase up the table and a sweep across it
+    return (l, i) => {
+      const k = Math.floor(now * 9) % 12
+      const band = Math.floor(((l.y0 ?? 0) / H) * 12)
+      return (11 - band + k) % 12 < 2 || (Math.floor(now * 2) % 6 === 0 && blink(now, 4)) || (i * 7 + Math.floor(now * 3)) % 23 === 0
     }
-    ctx.globalAlpha = 1
   }
-  ctx.fillStyle = "rgba(0,0,0,0.35)"
-  ctx.beginPath()
-  ctx.ellipse(b.x + 3, b.y + 4, BALL_R, BALL_R * 0.85, 0, 0, Math.PI * 2)
-  ctx.fill()
-  const g = ctx.createRadialGradient(b.x - 4, b.y - 4, 1, b.x, b.y, BALL_R)
-  g.addColorStop(0, "#ffffff")
-  g.addColorStop(0.35, "#d7e3ea")
-  g.addColorStop(0.8, "#6f8593")
-  g.addColorStop(1, "#2c3a44")
-  ctx.fillStyle = g
-  ctx.beginPath()
-  ctx.arc(b.x, b.y, BALL_R, 0, Math.PI * 2)
-  ctx.fill()
-  // the ocean's reflection
-  ctx.strokeStyle = "rgba(70,240,255,0.5)"
-  ctx.lineWidth = 1.2
-  ctx.beginPath()
-  ctx.arc(b.x, b.y, BALL_R - 1.5, 0.3, 1.6)
-  ctx.stroke()
+  const m = currentMission(g)
+  const shot = (s) => m.shot === s && blink(now, 2.5)
+  g.lanes.forEach((lit, i) => (on["lane" + i] = lit || recent(g, "lane" + i, 0.4) > 0 || (g.skillLane === i && blink(now, 6)) || (m.shot === "lanes" && !lit && blink(now, 1.5))))
+  g.targets.forEach((down, i) => (on["target" + i] = down || recent(g, "bank", 1.2) > 0))
+  on.bankArrow = shot("bank") || (!g.lockLit && !g.multiball && g.targets.some(Boolean) && blink(now, 1.5))
+  for (let i = 0; i < 3; i++) on["lock" + i] = g.multiball ? blink(now, 4) : i < g.locks || (g.lockLit && i === g.locks && blink(now, 3))
+  on.lockArrow = g.lockLit ? blink(now, 4) : g.multiball ? blink(now, 2) : shot("scoop")
+  on.rampArrow = g.multiball ? blink(now, 4) : shot("ramp") || recent(g, "ramp", 0.6) > 0
+  on.jackpot = g.multiball && blink(now, 3)
+  on.orbitL = shot("orbits") || shot("orbitL") || recent(g, "orbit0", 0.4) > 0
+  on.orbitR = shot("orbits") || recent(g, "orbit1", 0.4) > 0
+  on.spinner = recent(g, "spinner", 0.12) > 0 || shot("orbitL")
+  on.floppyArrow = g.extraLit ? blink(now, 4) : shot("floppy")
+  on.extraBall = g.extraLit
+  on.driveArrow = shot("drive")
+  on.drive = recent(g, "drive", 0.8) > 0
+  for (let i = 0; i < 2; i++) {
+    on["inlane" + i] = recent(g, "inlane" + i, 0.6) > 0
+    on["outlane" + i] = recent(g, "outlane" + i, 0.8) > 0
+  }
+  on.kickback = g.kickback && !g.tilted ? true : recent(g, "kickback", 1) > 0 && blink(now, 6)
+  for (const n of [2, 3, 4, 5, 6]) on["bonus" + n] = g.bonusX >= n
+  const saveLeft = g.ballSaveUntil - g.time
+  on.save = !g.tilted && (g.ballSavePending || saveLeft > 0) && (saveLeft > 2 || g.ballSavePending || blink(now, 5))
+  on.shootAgain = g.extraBalls > 0
+  for (let i = 0; i < 8; i++) on["rank" + i] = i < g.rank + 1 && (i < g.rank || g.rank >= 7 || blink(now, 1))
+  if (recent(g, "mission", 1.5) > 0) for (let i = 0; i < 8; i++) on["rank" + i] = blink(now, 6)
+  return (l) => !!on[l.id]
 }
 
-const drawPlunger = (ctx, g) => {
-  const p = g.world.plunger
-  const cx = (LANE.left + LANE.right) / 2
-  const top = p.y
-  ctx.save()
+// ---- dynamic shapes ----
+const drawFlipper = (s, f) => {
+  const x = p(f.x)
+  const y = p(f.y)
+  const len = p(f.length)
+  const r0 = p(f.r0)
+  const r1 = p(f.r1)
+  const tip = flipperTip(f)
+  const cos = Math.cos(f.angle)
+  const sin = Math.sin(f.angle)
+  const ramp = [C.g4, C.g6, C.g7, C.white]
+  shape(s, Math.min(x, p(tip.x)) - r0 - 1, Math.min(y, p(tip.y)) - r0 - 1, Math.max(x, p(tip.x)) + r0 + 1, Math.max(y, p(tip.y)) + r0 + 1, (px, py) => {
+    const qx = px + 0.5 - x
+    const qy = py + 0.5 - y
+    const t = Math.max(0, Math.min(1, (qx * cos + qy * sin) / len))
+    const nx = qx - cos * len * t
+    const ny = qy - sin * len * t
+    const d = Math.hypot(nx, ny)
+    const rr = r0 + (r1 - r0) * t
+    if (d > rr) return 0
+    if (d > rr - 1) return C.ink
+    if (d > rr - 2) return C.red // the rubber ring
+    const lit = 0.55 - 0.45 * ((nx * LIGHT[0] + ny * LIGHT[1]) / (d || 1)) * -1
+    return rampAt(ramp, lit, px, py)
+  })
+  pset(s, Math.floor(x), Math.floor(y), C.g3)
+  pset(s, Math.floor(x) + 1, Math.floor(y), C.g2)
+}
+
+const drawPlunger = (s, g) => {
+  const pl = g.world.plunger
+  const cx = Math.round(p((LANE.left + LANE.right) / 2))
+  const top = Math.round(p(pl.y))
+  const bottom = H - 1
   // the spring
-  ctx.strokeStyle = "#9aa7b5"
-  ctx.lineWidth = 2
-  ctx.beginPath()
-  const coils = 9
-  const bottom = HEIGHT - 4
-  for (let i = 0; i <= coils * 2; i++) {
-    const y = top + 12 + ((bottom - top - 12) * i) / (coils * 2)
-    const x = cx + (i % 2 ? 9 : -9)
-    if (i) ctx.lineTo(x, y)
-    else ctx.moveTo(x, y)
+  for (let yy = top + 5; yy < bottom; yy += 2) {
+    const w = 5
+    line(s, cx - w, yy, cx + w, yy + 1, (yy >> 1) & 1 ? C.g5 : C.g4)
   }
-  ctx.stroke()
-  // the rod and its tip
-  ctx.fillStyle = "#c8d3dd"
-  ctx.fillRect(cx - 3, top, 6, bottom - top)
-  const tip = ctx.createLinearGradient(LANE.left, 0, LANE.right, 0)
-  tip.addColorStop(0, "#8b1d1d")
-  tip.addColorStop(0.5, "#ff6a4d")
-  tip.addColorStop(1, "#8b1d1d")
-  ctx.fillStyle = tip
-  ctx.beginPath()
-  roundRect(ctx, LANE.left + 3, top, LANE.right - LANE.left - 6, 12, 3)
-  ctx.fill()
-  ctx.restore()
-  // the pull meter beside the lane
+  rect(s, cx - 1, top + 4, 3, bottom - top, C.g6)
+  rect(s, cx - 1, top + 4, 1, bottom - top, C.white)
+  // the knob
+  rect(s, cx - 7, top, 15, 5, C.red)
+  rect(s, cx - 7, top, 15, 1, C.red3)
+  rect(s, cx - 7, top + 4, 15, 1, C.red0)
+  pset(s, cx - 7, top, C.ink)
+  pset(s, cx + 7, top, C.ink)
+  // the pull meter on the cabinet beside the lane
   if (g.pull > 0) {
-    const h = 120 * g.pull
-    const grad = ctx.createLinearGradient(0, 940, 0, 820)
-    grad.addColorStop(0, LIME)
-    grad.addColorStop(1, RED)
-    ctx.fillStyle = grad
-    ctx.fillRect(LANE.right + 6, 940 - h, 8, h)
-    ctx.strokeStyle = "rgba(255,255,255,0.5)"
-    ctx.strokeRect(LANE.right + 6, 820, 8, 120)
+    const hgt = Math.round(70 * g.pull)
+    for (let i = 0; i < hgt; i++) rect(s, W - 6, H - 30 - i, 4, 1, i > 52 ? C.red3 : i > 30 ? C.amber : C.lime)
   }
+}
+
+const drawSpinner = (s, sp, hit) => {
+  const y = Math.round(p(SPINNER.ay))
+  const x0 = Math.round(p(SPINNER.ax)) + 2
+  const x1 = Math.round(p(SPINNER.bx)) - 2
+  line(s, x0 - 2, y, x1 + 2, y, C.g5) // the wire
+  const c = Math.cos(sp.angle)
+  const h = Math.max(1, Math.round(Math.abs(c) * 6))
+  const front = c >= 0
+  const top = y - (h >> 1)
+  rect(s, x0, top, x1 - x0 + 1, h, front ? (hit ? C.yellow : C.amber) : C.g6)
+  rect(s, x0, top, x1 - x0 + 1, 1, front ? C.cream : C.white)
+  rect(s, x0, top + h - 1, x1 - x0 + 1, 1, C.ink)
+  rect(s, x0, top, 1, h, C.ink)
+  rect(s, x1, top, 1, h, C.ink)
+  if (front && h >= 5) blit(s, ICONS.hourglass, (x0 + x1) / 2 - 2, y - 2)
+}
+
+const drawBallAt = (s, spr, x, y, marks, shadow) => {
+  const r = spr.w / 2
+  const ix = Math.round(x - r)
+  const iy = Math.round(y - r)
+  // a dithered shadow down and to the right
+  if (shadow) {
+    for (let j = 0; j < spr.h; j++) for (let i = 0; i < spr.w; i++) if (spr.raw[j * spr.w + i] && ((i + j + ix + iy) & 1) === 0) pset(s, ix + i + shadow, iy + j + shadow + 1, C.ink)
+  }
+  blitRaw(s, spr, ix, iy)
+  if (marks) {
+    for (const m of marks) {
+      if (m[2] < 0.25) continue
+      const mx = Math.round(x - 0.5 + m[0] * r * 0.62)
+      const my = Math.round(y - 0.5 + m[1] * r * 0.62)
+      pset(s, mx, my, m[2] > 0.7 ? C.g2 : C.g3)
+    }
+  }
+}
+
+// rotate a point on the ball about axis (ax, ay, 0) by angle
+const roll = (m, ax, ay, ang) => {
+  const c = Math.cos(ang)
+  const sn = Math.sin(ang)
+  const [x, y, z] = m
+  const dot = ax * x + ay * y
+  // Rodrigues: v c + (k x v) s + k (k.v)(1 - c), k = (ax, ay, 0)
+  const kx = ay * z
+  const ky = -ax * z
+  const kz = ax * y - ay * x
+  m[0] = x * c + kx * sn + ax * dot * (1 - c)
+  m[1] = y * c + ky * sn + ay * dot * (1 - c)
+  m[2] = z * c + kz * sn
+}
+
+// The frame drawer (no DOM: Node's tests and screenshots use it too): draw(fb, g, now)
+// paints game g into the pixel surface fb with the art from buildArt()
+export const createDrawer = (art = buildArt()) => {
+  const spin = new WeakMap() // ball -> { marks, x, y }
+
+  const rolling = (b) => {
+    let st = spin.get(b)
+    if (!st) {
+      st = { marks: [[0.6, 0, 0.8], [-0.6, 0, -0.8], [0, 0.7, 0.71]], x: b.x, y: b.y }
+      spin.set(b, st)
+    }
+    const dx = b.x - st.x
+    const dy = b.y - st.y
+    const d = Math.hypot(dx, dy)
+    if (d > 0.01 && d < 200) {
+      // rolling without slipping: the axis is z x direction, the angle distance / radius
+      const ax = -dy / d
+      const ay = dx / d
+      for (const m of st.marks) roll(m, ax, ay, d / 11)
+    }
+    st.x = b.x
+    st.y = b.y
+    return st.marks
+  }
+
+  const draw = (fb, g, now) => {
+    fb.buf.set(art.base.buf)
+    const lit = lampStates(g, now)
+    art.lamps.forEach((l, i) => {
+      if (lit(l, i)) blitRaw(fb, l.on, l.x0, l.y0)
+    })
+
+    // the Blue Screen's monitor shows what's going on
+    const mx = Math.round(p((MONITOR.x0 + MONITOR.x1) / 2))
+    const my = Math.round(p(MONITOR.y0)) + 11
+    const live = g.mode === "play"
+    if (live && g.scoopBall && blink(now, 4)) text(fb, "ERROR", mx + 0.5, my, C.white, { font: FONTS.small, align: "center" })
+    else if (live && g.multiball) text(fb, "UPDATE", mx + 0.5, my, blink(now, 3) ? C.yellow : C.white, { font: FONTS.small, align: "center" })
+    else if (live && g.lockLit) text(fb, "LOCK", mx + 0.5, my, blink(now, 3) ? C.white : C.cyan, { font: FONTS.small, align: "center" })
+
+    // bumpers
+    BUMPERS.forEach((b, i) => {
+      const spr = art.bumper[recent(g, "bumper" + i, 0.16) > 0 || (g.mode !== "play" && blink(now + i * 0.3, 1)) ? 1 : 0]
+      blitRaw(fb, spr, Math.round(p(b.x) - spr.w / 2), Math.round(p(b.y) - spr.h / 2))
+    })
+
+    // keycap drop targets (gone when down)
+    TARGETS.forEach((t, i) => {
+      if (g.targets[i]) return
+      const spr = art.keycaps[i][recent(g, "target" + i, 0.2) > 0 ? 1 : 0]
+      blitRaw(fb, spr, Math.round(p(t.x) - spr.w / 2), Math.round(p(t.y) - spr.h + 2))
+    })
+
+    for (const sp of g.world.spinners) drawSpinner(fb, sp, recent(g, "spinner", 0.1) > 0)
+    drawPlunger(fb, g)
+    for (const f of g.world.flippers) drawFlipper(fb, f)
+
+    // balls on the playfield (and the captive Hard Drive ball)
+    const up = []
+    for (const b of g.world.balls) {
+      if (b.layer === 1) {
+        up.push(b)
+        continue
+      }
+      drawBallAt(fb, art.ball, p(b.x), p(b.y), rolling(b), b.held ? 0 : 1)
+    }
+
+    blitRaw(fb, art.apron, art.apron.x, art.apron.y)
+    // the tray clock: which ball this is
+    if (live) text(fb, `BALL ${g.ballNumber}`, 222, 475, C.ink, { font: FONTS.small, align: "center" })
+    else text(fb, g.mode === "over" ? "GAME OVER" : "INSERT", 222, 475, C.ink, { font: FONTS.small, align: "center" })
+
+    blitRaw(fb, art.ramp, art.ramp.x, art.ramp.y)
+    // balls on the ramp: bigger (nearer the glass), with a shadow that grows with height
+    for (const b of up) {
+      const hgt = rampHeight(b.x, b.y)
+      drawBallAt(fb, hgt > 0.35 ? art.ballBig : art.ball, p(b.x), p(b.y) - hgt * 3, rolling(b), 1 + Math.round(hgt * 3))
+    }
+
+    // score popups: pixel text rising and blinking out
+    for (const pop of g.popups) {
+      const age = g.time - pop.t
+      if (age > 0.8 && blink(now, 8)) continue
+      text(fb, pop.text, p(pop.x), p(pop.y) - 10 - age * 14, C.yellow, { font: FONTS.small, align: "center", outline: C.ink })
+    }
+    if (g.tilted && blink(now, 2)) text(fb, "TILT", W / 2, H / 2 - 20, C.red3, { scale: 3, align: "center", outline: C.ink })
+
+  }
+  return { draw, art }
 }
 
 export const createRenderer = (canvas) => {
-  const ctx = canvas.getContext("2d")
-  let layer = null
-  let view = { scale: 1, x: 0, y: 0, dpr: 1, width: 0, height: 0 }
-  const bubbles = Array.from({ length: 14 }, (_, i) => ({ x: 40 + ((i * 97) % 460), y: (i * 173) % 1000, r: 2 + (i % 4), speed: 25 + (i % 5) * 9 }))
-
-  // Fit the table into width x height CSS pixels (letterboxed)
-  const resize = (width, height, dpr) => {
-    dpr = Math.min(dpr || 1, 2) // (a 3x phone screen at 2: a 2D canvas costs by the pixel)
-    canvas.width = Math.max(1, Math.round(width * dpr))
-    canvas.height = Math.max(1, Math.round(height * dpr))
-    const scale = Math.min(width / WIDTH, height / HEIGHT)
-    view = { scale, x: (width - WIDTH * scale) / 2, y: (height - HEIGHT * scale) / 2, dpr, width, height }
-    layer = makeCanvas(WIDTH * scale * dpr, HEIGHT * scale * dpr)
-    const l = layer.getContext("2d")
-    l.scale(scale * dpr, scale * dpr)
-    paintStatic(l)
-  }
-
-  // CSS pixel (relative to the canvas) -> table units
-  const toTable = (x, y) => ({ x: (x - view.x) / view.scale, y: (y - view.y) / view.scale })
-
+  // the 280 x 500 picture; shown 1:1 in the canvas when CSS can scale it by whole device
+  // pixels, else blown up n times here (nearest neighbour) and eased the last bit by CSS
+  const low = document.createElement("canvas")
+  low.width = W
+  low.height = H
+  const lctx = low.getContext("2d", { alpha: false })
+  const img = lctx.createImageData(W, H)
+  let ctx = canvas.getContext("2d", { alpha: false })
+  let n = 1
+  const fb = { w: W, h: H, buf: new Uint32Array(img.data.buffer) }
+  const drawer = createDrawer()
+  const art = drawer.art
   const draw = (g, now) => {
-    if (!layer) return
-    const { dpr, scale } = view
-    ctx.setTransform(1, 0, 0, 1, 0, 0)
-    ctx.fillStyle = "#03040a"
-    ctx.fillRect(0, 0, canvas.width, canvas.height)
-
-    // a nudge shakes the table for a moment
-    const shakeAge = g.time - g.shake.t
-    const shakeK = shakeAge >= 0 && shakeAge < 0.25 ? 1 - shakeAge / 0.25 : 0
-    const sx = g.shake.x * shakeK * scale
-    const sy = g.shake.y * shakeK * scale
-    ctx.drawImage(layer, Math.round((view.x + sx) * dpr), Math.round((view.y + sy) * dpr))
-    ctx.setTransform(scale * dpr, 0, 0, scale * dpr, (view.x + sx) * dpr, (view.y + sy) * dpr)
-
-    // rising bubbles
-    ctx.strokeStyle = "rgba(210,250,255,0.4)"
-    ctx.lineWidth = 1.3
-    for (const b of bubbles) {
-      const y = 960 - ((now * b.speed + b.y) % 900)
-      const x = b.x + Math.sin(now * 1.5 + b.y) * 6
-      ctx.beginPath()
-      ctx.arc(x, y, b.r, 0, Math.PI * 2)
-      ctx.stroke()
-    }
-
-    const playing = g.mode === "play"
-
-    // D-I-V-E lanes
-    ROLLOVERS.forEach((r, i) => {
-      const hit = recent(g, "lane" + i, 0.4)
-      const done = recent(g, "dive", 1.2)
-      const on = g.dive[i] ? 1 : done ? blink(now, 6) : hit
-      lamp(ctx, r.x, r.y - 2, 13, GOLD, on)
-      ctx.font = `18px ${FONT}`
-      ctx.textAlign = "center"
-      ctx.textBaseline = "middle"
-      ctx.fillStyle = on ? "#3a2400" : "rgba(255,210,63,0.45)"
-      ctx.fillText(r.letter, r.x, r.y - 1)
-      // the rollover wire
-      ctx.strokeStyle = "rgba(220,230,240,0.6)"
-      ctx.lineWidth = 1.5
-      ctx.beginPath()
-      ctx.moveTo(r.x, r.y + 12)
-      ctx.lineTo(r.x, r.y + 20)
-      ctx.stroke()
-    })
-
-    // clam drop targets
-    TARGETS.forEach((t, i) => {
-      const down = g.targets[i]
-      const ty = t.y0
-      const h = t.y1 - t.y0
-      if (down) {
-        ctx.fillStyle = "rgba(0,0,0,0.65)"
-        ctx.fillRect(t.x - 4, ty, 6, h)
-      } else {
-        ctx.save()
-        const hit = recent(g, "target" + i)
-        drawClamShape(ctx, t.x - 4, ty, 14, h)
-        ctx.fillStyle = hit ? "#fff" : "#f2e6d0"
-        ctx.fill()
-        ctx.strokeStyle = "#7a5a3a"
-        ctx.lineWidth = 1.5
-        ctx.stroke()
-        ctx.strokeStyle = "rgba(122,90,58,0.6)"
-        for (let k = 1; k < 4; k++) {
-          ctx.beginPath()
-          ctx.moveTo(t.x - 4, ty + h / 2)
-          ctx.lineTo(t.x + 9, ty + (h * k) / 4)
-          ctx.stroke()
-        }
-        ctx.restore()
-      }
-      lamp(ctx, 62, ty + h / 2, 5, GOLD, down ? 1 : 0)
-    })
-    if (recent(g, "bank", 1)) {
-      ctx.globalCompositeOperation = "lighter"
-      glow(ctx, 40, 440, 180, GOLD, recent(g, "bank", 1))
-      ctx.globalCompositeOperation = "source-over"
-    }
-
-    // chest lamps
-    for (let i = 0; i < 3; i++) {
-      const { x, y } = lockLamp(i)
-      const on = g.multiball ? blink(now, 4) : i < g.chestLocks ? 1 : 0
-      lamp(ctx, x, y, 6, PINK, on)
-    }
-    const chestHit = recent(g, "chest", 0.8)
-    if (chestHit || g.chestBall) {
-      ctx.globalCompositeOperation = "lighter"
-      glow(ctx, CHEST.x, CHEST.y, 90, GOLD, Math.max(chestHit, 0.5))
-      ctx.globalCompositeOperation = "source-over"
-    }
-
-    // multiplier, ranks, shoot again, ball save
-    for (let i = 0; i < 4; i++) {
-      const { x, y } = multLamp(i)
-      if (g.multiplier >= i + 2) {
-        lamp(ctx, x, y, 15, GOLD, 0.9)
-        ctx.fillStyle = "#3a2400"
-        ctx.font = `14px ${FONT}`
-        ctx.textAlign = "center"
-        ctx.textBaseline = "middle"
-        ctx.fillText(`${i + 2}x`, x, y + 1)
-      }
-    }
-    for (let i = 0; i < 8; i++) {
-      const { x, y } = rankLamp(i)
-      const on = i < g.rank ? 1 : i === g.rank && playing ? 0.25 + 0.2 * Math.sin(now * 4) : 0
-      lamp(ctx, x, y, 5, LIME, on)
-    }
-    if (g.extraBalls > 0) {
-      lamp(ctx, MID - 56, 965, 5, LIME, 1)
-      lamp(ctx, MID + 56, 965, 5, LIME, 1)
-      ctx.fillStyle = LIME
-      ctx.font = `11px ${FONT}`
-      ctx.textAlign = "center"
-      ctx.fillText("SHOOT AGAIN", MID, 966)
-    }
-    const saveLeft = g.ballSaveUntil - g.time
-    if (playing && (saveLeft > 0 || g.ballSavePending) && !g.tilted) {
-      const on = saveLeft > 0 && saveLeft < 2 ? blink(now, 5) : 1
-      ctx.globalAlpha = on
-      ctx.fillStyle = NEON
-      ctx.font = `10px ${FONT}`
-      ctx.textAlign = "center"
-      ctx.fillText("SAVE", MID, 936)
-      ctx.globalAlpha = 1
-      lamp(ctx, MID - 34, 935, 4, NEON, on)
-      lamp(ctx, MID + 34, 935, 4, NEON, on)
-    }
-    INLANES.forEach((p, i) => lamp(ctx, p.x, p.y + 26, 5, NEON, recent(g, "inlane" + i, 0.6)))
-    OUTLANES.forEach((p, i) => lamp(ctx, p.x, p.y + 26, 5, RED, recent(g, "outlane" + i, 0.8)))
-
-    // slingshot kicks light the rubber
-    SLINGS.forEach((s, i) => {
-      const on = recent(g, "sling" + i, 0.15)
-      if (!on) return
-      const [[ax, ay], , [cx, cy]] = s
-      ctx.save()
-      ctx.strokeStyle = `rgba(255,255,255,${on})`
-      ctx.shadowColor = NEON
-      ctx.shadowBlur = 16
-      ctx.lineWidth = 6
-      ctx.beginPath()
-      ctx.moveTo(ax, ay)
-      ctx.lineTo(cx, cy)
-      ctx.stroke()
-      ctx.restore()
-    })
-
-    BUMPERS.forEach((b, i) => drawBumper(ctx, b, recent(g, "bumper" + i, 0.18), now, i))
-
-    drawPlunger(ctx, g)
-    for (const f of g.world.flippers) drawFlipper(ctx, f, f.pressed)
-    for (const b of g.world.balls) drawBall(ctx, b)
-
-    // the message banner
-    const m = g.message
-    if (m && (m.big || !playing)) {
-      const big = m.text.length < 14
-      const size = big ? 44 : 22
-      ctx.save()
-      ctx.globalAlpha = 0.75
-      ctx.fillStyle = "#000814"
-      const y = 520
-      ctx.fillRect(40, y - size, 450, size * 2)
-      ctx.globalAlpha = 1
-      ctx.strokeStyle = m.text === "TILT" ? RED : GOLD
-      ctx.lineWidth = 2
-      ctx.strokeRect(40, y - size, 450, size * 2)
-      ctx.restore()
-      const color = m.text === "TILT" || m.text === "DANGER" ? RED : m.text === "GAME OVER" ? CORAL : GOLD
-      glowText(ctx, m.text, MID, 520, size, color, { blur: 18, maxWidth: 420 })
-    }
-    ctx.setTransform(1, 0, 0, 1, 0, 0)
+    drawer.draw(fb, g, now)
+    present()
   }
 
-  return { resize, draw, toTable, get view() { return view } }
+  const present = () => {
+    if (n === 1) ctx.putImageData(img, 0, 0)
+    else {
+      lctx.putImageData(img, 0, 0)
+      ctx.drawImage(low, 0, 0, W * n, H * n)
+    }
+  }
+
+  // fit into cssW x cssH CSS pixels -> the layout for the canvas's CSS box
+  const resize = (cssW, cssH, dpr = 1) => {
+    const fit = fitTable(cssW, cssH, dpr)
+    // below 2 device pixels per table pixel, draw at 2x and let the browser shrink it a
+    // little (sharper than stretching 1x); above, the largest whole multiple that fits
+    const v = fit.scale * dpr
+    n = fit.whole ? 1 : v < 2 ? 2 : Math.floor(v)
+    canvas.width = W * n
+    canvas.height = H * n
+    ctx = canvas.getContext("2d", { alpha: false })
+    ctx.imageSmoothingEnabled = false
+    return { ...fit, smooth: !fit.whole, prescale: n }
+  }
+
+  // the screen shake (whole table pixels), none with Reduce Motion
+  const shakeOffset = (g, reduced) => {
+    if (reduced) return [0, 0]
+    const age = g.time - g.shake.t
+    if (age < 0 || age > 0.25) return [0, 0]
+    const k = 1 - age / 0.25
+    const wob = Math.cos(age * 60)
+    return [Math.round(g.shake.x * k * wob * 0.5), Math.round(g.shake.y * k * wob * 0.5)]
+  }
+
+  return { draw, resize, shakeOffset, width: W, height: H, art, fb }
 }
 
+// Fit the W x H picture into an area of cssW x cssH CSS pixels: a whole number of device
+// pixels per table pixel when that fills at least 88% of the space, else the largest
+// fractional fit (still nearest-neighbour)
+export const fitTable = (cssW, cssH, dpr = 1) => {
+  const fit = Math.min(cssW / W, cssH / H)
+  const whole = Math.floor(fit * dpr) / dpr
+  const scale = whole >= fit * 0.88 && whole > 0 ? whole : fit
+  const w = W * scale
+  const h = H * scale
+  return { scale, width: w, height: h, left: Math.floor((cssW - w) / 2), top: Math.floor((cssH - h) / 2), whole: scale === whole }
+}

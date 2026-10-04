@@ -52,7 +52,7 @@ const SHELVES = [
       ["Block Ten", "Fit the blocks, clear the lines", false],
       ["Solitaire", "The one everyone's boss caught them playing", false],
       ["Minesweeper", "Don't click the mines. Race someone online", true],
-      ["Pinball", "Deep Sea Dive, with real flippers", false],
+      ["Pinball", "Blue Screen: a 90s PC pinball table", false],
     ],
     more: "There's more in Start > Programs > Games: Chess, Checkers, Hearts, Battleship, Downhill, FreeCell...",
   },

@@ -2,22 +2,30 @@ import React, { useEffect, useMemo, useRef, useState } from "react"
 import MenuBar from "../../shared/MenuBar"
 import GameChat, { useGameChatMenuItem } from "../../shared/GameChat"
 import Dialog from "../../shared/Dialog"
+import GameStart from "../../shared/GameStart"
+import { Check } from "../../shared/quickgame"
 import TouchControls, { fromPx, useTouchControlsMenuItem, useTouchControlsVisible } from "../../shared/controls"
 import { useIsTouch } from "../../../hooks/useMediaQuery"
+import { createFrameClock } from "../../../utils/frameClock"
+import { reducedMotion } from "../../../utils/settings"
 import * as G from "./game"
 import { createRenderer } from "./render"
+import { createDmd, dmdContent } from "./dmd"
 import { createSounds } from "./audio"
 import { LANE, inShooterLane } from "./table"
+import { K } from "./art"
 import "./Pinball.css"
 import { helpItem } from "../../../utils/help"
 
-// Pinball: Deep Sea Dive. The table's physics and rules live in physics.js / game.js; this
-// component runs the loop, draws with render.js, reads keys and touches, and shows the
-// score panel, menus and high scores.
+// Pinball: Blue Screen. An original 90s-style PC pinball table themed on 98ish itself.
+// physics.js moves the ball, table.js lays out the table, game.js has the rules, art.js +
+// render.js draw it as pixel art, dmd.js runs the dot-matrix display, audio.js the
+// sounds. This component runs the loop (fixed physics steps on the shared frame clock),
+// reads keys, touches, the mouse and gamepads, and shows the menus and dialogs.
 
 const OPTIONS_KEY = "98ish.pinball"
-const SCORES_KEY = "98ish.pinball.scores"
-const TITLE = "Pinball: Deep Sea Dive"
+const SCORES_KEY = "98ish.pinball.scores" // per user (the storage seam); Deep Sea Dive's scores carry over
+const TITLE = "Pinball: Blue Screen"
 
 const load = (key, fallback) => {
   try {
@@ -35,66 +43,59 @@ const save = (key, value) => {
   }
 }
 
-const LEFT_KEYS = ["KeyZ", "ShiftLeft"]
-const RIGHT_KEYS = ["Slash", "ShiftRight", "NumpadDivide"]
+const LEFT_KEYS = ["KeyZ", "ShiftLeft", "ArrowLeft"]
+const RIGHT_KEYS = ["Slash", "ShiftRight", "NumpadDivide", "ArrowRight"]
 const PLUNGER_KEYS = ["Space", "Enter", "NumpadEnter", "ArrowDown"]
 const NUDGE_KEYS = { KeyX: "left", Period: "right", ArrowUp: "up" }
 
 const CONTROLS = [
-  ["Left flipper", "Z or Left Shift"],
-  ["Right flipper", "/ or Right Shift"],
-  ["Plunger", "Hold Space (or Enter), let go"],
+  ["Left flippers", "Z, Left Shift or Left arrow"],
+  ["Right flipper", "/, Right Shift or Right arrow"],
+  ["Plunger", "Hold Space (or Down), let go"],
   ["Nudge the table", "X (left), . (right), Up arrow"],
   ["New game", "F2"],
   ["Pause / resume", "F3"],
+  ["Gamepad", "Bumpers/triggers flip, A launches, B/X/Y nudge, Start = new game"],
 ]
 
 const fmt = (n) => n.toLocaleString("en-US")
 
-// On-screen controls (shared/controls, players can move and resize them). The flippers are
-// two big invisible zones, the left and right halves of the table by default. LAUNCH sits
-// over the shooter lane (lane = where the table is drawn, from the renderer).
-const touchControls = (lane, inLane, playing) => [
-  { id: "flipLeft", action: "left", label: "Left flipper", kind: "zone", mirror: false, hidden: !playing, default: { x: 0, y: 0, w: 50, h: 100 } },
-  { id: "flipRight", action: "right", label: "Right flipper", kind: "zone", mirror: false, hidden: !playing, default: { x: 50, y: 0, w: 50, h: 100 } },
+// On-screen buttons (shared/controls: players can move and resize them). The flippers are
+// the left and right halves of the table itself; the plunger can also be dragged down.
+const touchControls = (inLane, playing) => [
   {
     id: "launch",
     label: "Launch",
     icon: (
       <>
         <span>▼︎</span>
-        LAUNCH
+        HOLD
       </>
     ),
     className: "pbLaunch",
     hidden: !inLane,
-    default: (size) =>
-      lane
-        ? fromPx(size, { left: Math.min(lane.left, size.width - lane.width - 4), top: lane.top, width: lane.width, height: 64 })
-        : fromPx(size, { right: 40, bottom: 80, width: 54, height: 64 }),
+    default: (size) => fromPx(size, { right: 40, bottom: 4, width: 76, height: 30 }),
   },
-  { id: "nudge", label: "Nudge", icon: "NUDGE", className: "pbNudge", hidden: !playing, default: (size) => fromPx(size, { left: 6, top: 6, width: 66, height: 34 }) },
+  { id: "nudge", label: "Nudge", icon: "NUDGE", className: "pbNudge", hidden: !playing, default: (size) => fromPx(size, { left: 6, top: 6, width: 62, height: 30 }) },
 ]
 
-const hudOf = (g) => {
-  const mission = G.currentMission(g)
-  const ball = g.world.balls[0]
-  return {
-    mode: g.mode,
-    score: g.score,
-    ball: g.ballNumber,
-    multiplier: g.multiplier,
-    extraBalls: g.extraBalls,
-    rank: G.rankName(g.rank),
-    mission: mission.text,
-    progress: g.missionProgress,
-    goal: G.missionGoal(g),
-    message: g.message?.text || "",
-    inLane: g.mode === "play" && g.world.balls.length === 1 && !!ball && inShooterLane(ball) && ball.y > 800,
-    tilted: g.tilted,
-    multiball: g.multiball,
-  }
+const ballInLane = (g) => {
+  if (g.mode !== "play") return false
+  const plays = g.world.balls.filter((b) => b.kind === "play")
+  return plays.length === 1 && inShooterLane(plays[0]) && plays[0].y > 800
 }
+
+const hudOf = (g) => ({
+  mode: g.mode,
+  score: g.score,
+  inLane: ballInLane(g),
+  multiball: g.multiball,
+  rank: g.rank,
+  missionsDone: g.missionsDone,
+  progress: g.missionProgress,
+  ball: g.ballNumber,
+  extraBalls: g.extraBalls,
+})
 const sameHud = (a, b) => Object.keys(a).every((k) => a[k] === b[k])
 
 const Pinball = ({ onClose, onTitle, mobile }) => {
@@ -103,32 +104,33 @@ const Pinball = ({ onClose, onTitle, mobile }) => {
   const rootRef = useRef(null)
   const wrapRef = useRef(null)
   const canvasRef = useRef(null)
+  const dmdRef = useRef(null)
   const gameRef = useRef(null)
-  if (!gameRef.current) {
-    gameRef.current = G.createGame()
-    G.startGame(gameRef.current)
-  }
+  if (!gameRef.current) gameRef.current = G.createGame() // starts in attract mode
   const soundsRef = useRef(null)
   if (!soundsRef.current) soundsRef.current = createSounds()
-  const input = useRef({ keys: new Set(), pointers: new Map(), zones: new Set(), plungerTouch: false, nudges: [] })
+  const input = useRef({ keys: new Set(), pointers: new Map(), pad: new Set(), plungerTouch: false, pull: undefined, drag: null, nudges: [] })
   const pausedRef = useRef(false)
-  const loopRef = useRef({ start: () => {}, redraw: () => {} })
+  const loopRef = useRef({ start: () => {}, redraw: () => {}, resize: () => {} })
+  const layoutRef = useRef({ scale: 1, left: 0, top: 0 })
   const [paused, setPausedState] = useState(false)
   const [hud, setHud] = useState(() => hudOf(gameRef.current))
   const [options, setOptions] = useState(() => ({ sound: true, music: true, ...load(OPTIONS_KEY, {}) }))
-  const [scores, setScores] = useState(() => load(SCORES_KEY, []))
+  const [scores, setScores] = useState(() => G.migrateScores(load(SCORES_KEY, [])))
   const scoresRef = useRef(scores)
   scoresRef.current = scores
   const [dialog, setDialog] = useState(null)
   const dialogRef = useRef(dialog)
   dialogRef.current = dialog
   const [width, setWidth] = useState(600)
-  const [laneButton, setLaneButton] = useState(null) // where the touch plunger sits
+  const [layout, setLayout] = useState(null)
 
-  const compact = mobile || width < 470
+  const compact = mobile || width < 520
+  const compactRef = useRef(compact)
+  compactRef.current = compact
   const touchVisible = useTouchControlsVisible()
   const controlsMenuItem = useTouchControlsMenuItem()
-  const showPad = compact || touchVisible // on-screen LAUNCH, NUDGE and flipper zones
+  const showPad = touch || touchVisible
   const [editing, setEditing] = useState(false)
 
   useEffect(() => {
@@ -141,14 +143,21 @@ const Pinball = ({ onClose, onTitle, mobile }) => {
     save(OPTIONS_KEY, options)
   }, [options])
 
+  const clearInput = () => {
+    const i = input.current
+    i.keys.clear()
+    i.pointers.clear()
+    i.pad.clear()
+    i.plungerTouch = false
+    i.pull = undefined
+    i.drag = null
+  }
+
   const setPaused = (value) => {
     if (pausedRef.current === value) return
     pausedRef.current = value
     setPausedState(value)
-    input.current.keys.clear()
-    input.current.pointers.clear()
-    input.current.zones.clear()
-    input.current.plungerTouch = false
+    clearInput()
     if (!value) loopRef.current.start()
     else loopRef.current.redraw()
   }
@@ -170,39 +179,103 @@ const Pinball = ({ onClose, onTitle, mobile }) => {
     const wrap = wrapRef.current
     const renderer = createRenderer(canvas)
     const sounds = soundsRef.current
+    const clock = createFrameClock()
     let raf = 0
-    let last = 0
-    let animTime = 0
     let size = { w: 0, h: 0 }
     let hudClock = 0
     let lastMode = gameRef.current.mode
     let disposed = false
-    const perf = { frames: 0, updateMs: 0, drawMs: 0 }
+    let dmd = null
+    let dmdRows = 0
+    let shake = [0, 0]
+    let padsKnown = false
+    const perf = { frames: 0, updateMs: 0, drawMs: 0, intervals: [], substeps: 0 }
+    let lastFrame = 0
 
     const held = (keys) => keys.some((k) => input.current.keys.has(k))
     const touching = (side) => [...input.current.pointers.values()].includes(side)
 
+    // gamepads: polled only once one has been seen
+    const readPads = () => {
+      const pad = input.current.pad
+      pad.clear()
+      if (!padsKnown || !navigator.getGamepads) return
+      for (const gp of navigator.getGamepads()) {
+        if (!gp) continue
+        const b = (i) => gp.buttons[i]?.pressed
+        if (b(4) || b(6) || b(14)) pad.add("left")
+        if (b(5) || b(7) || b(15)) pad.add("right")
+        if (b(0) || b(13)) pad.add("plunger")
+        for (const [i, dir] of [[1, "right"], [2, "left"], [3, "up"]]) {
+          if (b(i) && !gp["was" + i]) input.current.nudges.push(dir)
+          gp["was" + i] = b(i)
+        }
+        if (b(9) && !pad.start) {
+          pad.start = true
+          if (gameRef.current.mode !== "play") newGame()
+        } else if (!b(9)) pad.start = false
+      }
+    }
+    const onPad = () => {
+      padsKnown = true
+    }
+    window.addEventListener("gamepadconnected", onPad)
+    if (navigator.getGamepads?.().some(Boolean)) padsKnown = true
+
+    const renderDmd = (g) => {
+      const rows = compactRef.current ? 16 : 32
+      const el = dmdRef.current
+      if (!el) return
+      if (!dmd || dmdRows !== rows || dmd.canvas !== el) {
+        const cssW = el.parentElement?.clientWidth || 200
+        const dpr = Math.min(3, window.devicePixelRatio || 1)
+        const pitch = Math.max(1, Math.floor((cssW * dpr) / 128))
+        dmd = createDmd(el, rows, pitch)
+        dmd.canvas = el
+        dmdRows = rows
+        el.style.width = `${(128 * pitch) / dpr}px`
+        el.style.height = `${(rows * pitch) / dpr}px`
+      }
+      dmd.render(dmdContent(g, g.time, { rows, scores: scoresRef.current, prompt: touch ? "TAP PLAY" : "PRESS F2" }))
+    }
+
+    const applyShake = (g) => {
+      const next = renderer.shakeOffset(g, reducedMotion())
+      if (next[0] === shake[0] && next[1] === shake[1]) return
+      shake = next
+      const s = layoutRef.current.scale
+      canvas.style.transform = next[0] || next[1] ? `translate(${next[0] * s}px, ${next[1] * s}px)` : ""
+    }
+
     const frame = (now) => {
       raf = 0
       if (disposed || !size.w || !size.h) return
-      const dt = last ? Math.min(0.1, (now - last) / 1000) : 1 / 60
-      last = now
+      if (lastFrame) perf.intervals.push(now - lastFrame)
+      if (perf.intervals.length > 600) perf.intervals.shift()
+      lastFrame = now
+      const dt = clock.tick(now) / 1000
       const g = gameRef.current
       const t0 = performance.now()
       if (!pausedRef.current) {
+        readPads()
         const i = input.current
+        const sub0 = g.world.substeps
         G.update(g, dt, {
-          left: held(LEFT_KEYS) || touching("left") || i.zones.has("left"),
-          right: held(RIGHT_KEYS) || touching("right") || i.zones.has("right"),
-          plunger: held(PLUNGER_KEYS) || i.plungerTouch,
+          left: held(LEFT_KEYS) || touching("left") || i.pad.has("left"),
+          right: held(RIGHT_KEYS) || touching("right") || i.pad.has("right"),
+          plunger: held(PLUNGER_KEYS) || i.plungerTouch || i.pad.has("plunger"),
+          pull: i.pull,
           nudges: i.nudges.splice(0),
         })
+        perf.substeps += g.world.substeps - sub0
         for (const cue of g.sfx) sounds.play(cue)
         g.sfx.length = 0
-        animTime += dt
+        sounds.setMusic(g.multiball && g.mode === "play")
       }
       const t1 = performance.now()
-      renderer.draw(g, animTime)
+      renderer.draw(g, g.time)
+      applyShake(g)
+      renderDmd(g)
       perf.frames++
       perf.updateMs += t1 - t0
       perf.drawMs += performance.now() - t1
@@ -215,19 +288,24 @@ const Pinball = ({ onClose, onTitle, mobile }) => {
       }
       if (g.mode !== lastMode) {
         lastMode = g.mode
-        if (g.mode === "over" && G.qualifies(scoresRef.current, g.score)) {
-          setDialog({ kind: "initials", score: g.score, name: load(OPTIONS_KEY, {}).initials || "" })
+        if (g.mode === "over") {
+          sounds.setMusic(false)
+          if (G.qualifies(scoresRef.current, g.score)) setDialog({ kind: "initials", score: g.score, name: load(OPTIONS_KEY, {}).initials || "" })
         }
       }
       if (!pausedRef.current) raf = requestAnimationFrame(frame)
     }
     const start = () => {
       if (raf || disposed || !size.w) return
-      last = 0
+      clock.reset()
+      lastFrame = 0
       raf = requestAnimationFrame(frame)
     }
     const redraw = () => {
-      if (size.w) renderer.draw(gameRef.current, animTime)
+      if (!size.w) return
+      sounds.setMusic(false)
+      renderer.draw(gameRef.current, gameRef.current.time)
+      renderDmd(gameRef.current)
     }
     loopRef.current = { start, redraw }
 
@@ -243,13 +321,15 @@ const Pinball = ({ onClose, onTitle, mobile }) => {
         raf = 0
         return
       }
-      renderer.resize(w, h, window.devicePixelRatio || 1)
-      const v = renderer.view
-      setLaneButton({
-        left: v.x + LANE.left * v.scale - 18,
-        width: (LANE.right - LANE.left) * v.scale + 36,
-        top: v.y + 820 * v.scale,
-      })
+      const fit = renderer.resize(w, h, Math.min(3, window.devicePixelRatio || 1))
+      layoutRef.current = fit
+      canvas.style.width = `${fit.width}px`
+      canvas.style.height = `${fit.height}px`
+      canvas.style.left = `${fit.left}px`
+      canvas.style.top = `${fit.top}px`
+      canvas.classList.toggle("is-smooth", fit.smooth)
+      setLayout({ ...fit })
+      dmd = null
       redraw()
       if (!pausedRef.current) start()
     }
@@ -279,6 +359,9 @@ const Pinball = ({ onClose, onTitle, mobile }) => {
         game: () => gameRef.current,
         perf,
         paused: () => pausedRef.current,
+        layout: () => layoutRef.current,
+        input: input.current,
+        newGame,
         G,
       }
     }
@@ -289,6 +372,7 @@ const Pinball = ({ onClose, onTitle, mobile }) => {
       observer.disconnect()
       document.removeEventListener("visibilitychange", onVisibility)
       window.removeEventListener("devicemotion", onMotion)
+      window.removeEventListener("gamepadconnected", onPad)
       sounds.close()
       if (import.meta.env.DEV) delete window.__pinball
     }
@@ -304,13 +388,12 @@ const Pinball = ({ onClose, onTitle, mobile }) => {
     }
     if (e.key === "F3") {
       e.preventDefault()
-      // only a game in play pauses (after game over it froze the demo with no "Paused")
-      if (hud.mode !== "play" && !pausedRef.current) return
+      if (gameRef.current.mode !== "play" && !pausedRef.current) return
       return setPaused(!pausedRef.current)
     }
     const code = e.code
     const game = LEFT_KEYS.includes(code) || RIGHT_KEYS.includes(code) || PLUNGER_KEYS.includes(code) || NUDGE_KEYS[code]
-    if (!game) return
+    if (!game || gameRef.current.mode !== "play") return
     e.preventDefault()
     if (pausedRef.current) return
     if (NUDGE_KEYS[code]) {
@@ -324,14 +407,17 @@ const Pinball = ({ onClose, onTitle, mobile }) => {
   }
   const onBlur = (e) => {
     if (rootRef.current?.contains(e.relatedTarget)) return
-    input.current.keys.clear()
-    input.current.pointers.clear()
-    input.current.zones.clear()
-    input.current.plungerTouch = false
+    clearInput()
     if (gameRef.current.mode === "play") setPaused(true)
   }
 
-  // ---- touches and clicks: the left half works the left flipper, the right half the right ----
+  // ---- touches and clicks: the left half works the left flippers, the right half the
+  // right one; with the ball in the shooter lane, drag the plunger down and let go ----
+  const tablePoint = (e) => {
+    const rect = wrapRef.current.getBoundingClientRect()
+    const l = layoutRef.current
+    return { x: (e.clientX - rect.left - l.left) / l.scale / K, y: (e.clientY - rect.top - l.top) / l.scale / K, rect }
+  }
   const onPointerDown = (e) => {
     if (e.pointerType === "mouse" && e.button !== 0) return
     soundsRef.current.unlock()
@@ -339,35 +425,47 @@ const Pinball = ({ onClose, onTitle, mobile }) => {
       setPaused(false)
       return
     }
-    // with on-screen controls the flipper zones take the touches
-    if (gameRef.current.mode !== "play" || showPad) return
-    const rect = wrapRef.current.getBoundingClientRect()
-    const side = e.clientX - rect.left < rect.width / 2 ? "left" : "right"
-    input.current.pointers.set(e.pointerId, side)
+    const g = gameRef.current
+    if (g.mode !== "play") return
+    const pt = tablePoint(e)
+    const i = input.current
+    if (ballInLane(g) && pt.x > LANE.left - 120 && pt.y > 560 && !i.drag) {
+      i.drag = { id: e.pointerId, y0: e.clientY, span: Math.max(60, 120 * layoutRef.current.scale * K * 2) }
+      i.pull = 0
+    } else {
+      i.pointers.set(e.pointerId, pt.x < (LANE.left + 20) / 2 ? "left" : "right")
+    }
     try {
       e.currentTarget.setPointerCapture(e.pointerId)
     } catch {
       // the pointer is already gone
     }
   }
+  const onPointerMove = (e) => {
+    const i = input.current
+    if (i.drag && i.drag.id === e.pointerId) i.pull = Math.max(0, Math.min(1, (e.clientY - i.drag.y0) / i.drag.span))
+  }
   const onPointerUp = (e) => {
-    input.current.pointers.delete(e.pointerId)
+    const i = input.current
+    if (i.drag && i.drag.id === e.pointerId) {
+      i.drag = null
+      i.pull = undefined
+    }
+    i.pointers.delete(e.pointerId)
   }
 
-  // on-screen controls
+  // on-screen buttons
   const padPress = (action) => {
     soundsRef.current.unlock()
     if (pausedRef.current) return setPaused(false)
-    if (action === "left" || action === "right") input.current.zones.add(action)
-    else if (action === "launch") input.current.plungerTouch = true
+    if (action === "launch") input.current.plungerTouch = true
     else if (action === "nudge") input.current.nudges.push("up")
   }
   const padRelease = (action) => {
-    if (action === "left" || action === "right") input.current.zones.delete(action)
-    else if (action === "launch") input.current.plungerTouch = false
+    if (action === "launch") input.current.plungerTouch = false
   }
   const playing = hud.mode === "play" && !paused
-  const controls = useMemo(() => touchControls(laneButton, hud.inLane, playing), [laneButton, hud.inLane, playing])
+  const controls = useMemo(() => touchControls(hud.inLane, playing), [hud.inLane, playing])
 
   // customizing the controls pauses the game (it stays paused after: tap to resume)
   useEffect(() => {
@@ -406,8 +504,11 @@ const Pinball = ({ onClose, onTitle, mobile }) => {
     },
     {
       label: "Help",
-      items: [helpItem({ program: "Pinball" }), "-",
+      items: [
+        helpItem({ program: "Pinball" }),
+        "-",
         { label: "How to Play...", onClick: () => setDialog({ kind: "help" }) },
+        { label: "Missions...", onClick: () => setDialog({ kind: "missions" }) },
         { label: "About Pinball...", onClick: () => setDialog({ kind: "about" }) },
       ],
     },
@@ -428,19 +529,52 @@ const Pinball = ({ onClose, onTitle, mobile }) => {
     const next = G.insertScore(scoresRef.current, entry)
     setScores(next)
     save(SCORES_KEY, next)
-    // (into the options state too: the next Options toggle saves them again)
     setOptions((o) => ({ ...o, initials: name }))
     setDialog({ kind: "scores", highlight: entry.date })
   }
 
-  const hint = hud.mode !== "play"
-    ? compact ? "Tap New Game to play" : "Press F2 for a new game"
-    : hud.inLane
-      ? touchVisible ? "Hold LAUNCH, then let go" : "Hold Space, then let go"
-      : ""
-  const status = hud.message || hint
+  const rankNow = G.rankName(hud.rank)
+  const missionRows = G.MISSIONS.map((m, i) => {
+    const done = i < hud.missionsDone % G.MISSIONS.length
+    const current = i === hud.missionsDone % G.MISSIONS.length
+    return { ...m, done, current, rank: G.RANKS[i] }
+  })
 
-  const missionLine = `${hud.mission} ${Math.min(hud.progress, hud.goal)}/${hud.goal}`
+  const startScreen = hud.mode !== "play" && !dialog && (
+    <div className="pbStart" onPointerDown={(e) => e.stopPropagation()}>
+      <div className="pbStartWin">
+        <div className="pbStartTitle">{hud.mode === "over" ? "Game Over" : "Pinball"}</div>
+        <GameStart
+          id="pinball"
+          title={hud.mode === "over" ? <div className="pbFinal">Final score <b>{fmt(hud.score)}</b></div> : <div className="pbLogo">BLUE SCREEN</div>}
+          play={{
+            label: hud.mode === "over" ? "Play Again" : "Play",
+            sub: "3 balls - missions from Intern to Sysadmin",
+            onClick: () => {
+              soundsRef.current.unlock()
+              newGame()
+            },
+          }}
+          modes={[
+            { key: "scores", label: "High Scores", sub: scores[0] ? `Best: ${scores[0].name} ${fmt(scores[0].score)}` : "No scores yet", onClick: () => setDialog({ kind: "scores" }) },
+            { key: "how", label: "How to Play", sub: "Flippers, plunger, missions", onClick: () => setDialog({ kind: "help" }) },
+          ]}
+          moreLabel="More"
+          options={
+            <>
+              <Check id="pbSound" checked={options.sound} onChange={() => setOptions((o) => ({ ...o, sound: !o.sound }))}>
+                Sounds
+              </Check>
+              <Check id="pbMusic" checked={options.music} onChange={() => setOptions((o) => ({ ...o, music: !o.music }))}>
+                Music
+              </Check>
+            </>
+          }
+          optionsSummary={[options.sound ? "Sounds on" : "Sounds off", options.music ? "Music on" : "Music off"].join(" · ")}
+        />
+      </div>
+    </div>
+  )
 
   return (
     <div
@@ -452,26 +586,23 @@ const Pinball = ({ onClose, onTitle, mobile }) => {
       onBlur={onBlur}
       onContextMenu={(e) => e.preventDefault()}
       data-paused={paused ? "1" : "0"}
+      data-mode={hud.mode}
     >
       <MenuBar menus={menus} />
       <GameChat game="pinball" title="Pinball" />
       <div className="pbBody">
         {compact && (
           <div className="pbTopBar">
-            <div className="pbTopScore">{fmt(hud.score)}</div>
-            <div className="pbTopInfo">
-              <span>Ball {hud.ball}</span>
-              {hud.multiplier > 1 && <span>{hud.multiplier}x</span>}
-              {hud.extraBalls > 0 && <span>+{hud.extraBalls}</span>}
-              <span className="pbTopRank">{hud.rank}</span>
+            <div className="pbDmdBox">
+              <canvas ref={dmdRef} className="pbDmd" data-testid="pb-dmd" />
             </div>
-            <div className="pbTopMission">{status || missionLine}</div>
           </div>
         )}
         <div
           className="pbTable"
           ref={wrapRef}
           onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
           onPointerCancel={onPointerUp}
           onLostPointerCapture={onPointerUp}
@@ -488,6 +619,16 @@ const Pinball = ({ onClose, onTitle, mobile }) => {
               onEditingChange={setEditingAndFocus}
             />
           )}
+          {hud.inLane && playing && touch && layout && (
+            <div
+              className="pbPullHint"
+              style={{ left: layout.left + (LANE.left - 70) * K * layout.scale, top: layout.top + 820 * K * layout.scale }}
+              aria-hidden="true"
+            >
+              PULL
+              <br />▼︎
+            </div>
+          )}
           {paused && hud.mode === "play" && (
             <div className="pbOverlay">
               <div className="pbOverlayBox">
@@ -496,69 +637,33 @@ const Pinball = ({ onClose, onTitle, mobile }) => {
               </div>
             </div>
           )}
-          {hud.mode === "over" && !dialog && (
-            <div className="pbOverlay pbOver" onPointerDown={(e) => e.stopPropagation()}>
-              <div className="pbOverlayBox">
-                <span>Final score</span>
-                <b>{fmt(hud.score)}</b>
-                <button
-                  type="button"
-                  onClick={() => {
-                    keepFocus()
-                    newGame()
-                  }}
-                >
-                  New Game
-                </button>
-                <button type="button" onClick={() => setDialog({ kind: "scores" })}>
-                  High Scores
-                </button>
-              </div>
-            </div>
-          )}
+          {startScreen}
         </div>
         {!compact && (
           <div className="pbPanel">
-            <div className="pbLogo">
-              <span>DEEP SEA</span>
-              <b>DIVE</b>
+            <div className="pbDmdBox">
+              <canvas ref={dmdRef} className="pbDmd" data-testid="pb-dmd" />
             </div>
-            <div className="pbLcd">
-              <div className="pbLcdLabel">SCORE</div>
-              <div className="pbScore" data-testid="pb-score">
-                {fmt(hud.score)}
-              </div>
+            <div className="pbScoreLine" data-testid="pb-score">
+              {fmt(hud.score)}
             </div>
+            <fieldset className="pbGroup">
+              <legend>Missions - {rankNow}</legend>
+              <ol className="pbMissions">
+                {missionRows.map((m) => (
+                  <li key={m.id} className={m.done ? "is-done" : m.current ? "is-current" : ""}>
+                    <span className="pbTick">{m.done ? "✓︎" : m.current ? "▶︎" : ""}</span>
+                    {m.name}
+                  </li>
+                ))}
+              </ol>
+            </fieldset>
             <div className="pbStats">
-              <div>
-                <span>BALL</span>
-                <b>{hud.ball}</b>
-              </div>
-              <div>
-                <span>PLAYER</span>
-                <b>1</b>
-              </div>
-              <div>
-                <span>BONUS</span>
-                <b>{hud.multiplier}x</b>
-              </div>
-              {hud.extraBalls > 0 && (
-                <div className="pbExtra">
-                  <span>EXTRA BALL</span>
-                  <b>{hud.extraBalls}</b>
-                </div>
-              )}
+              <span>
+                Ball <b>{hud.mode === "play" ? hud.ball : "-"}</b> of 3
+              </span>
+              {hud.extraBalls > 0 && <span className="pbExtra">+{hud.extraBalls} extra</span>}
             </div>
-            <div className="pbLcd pbMission">
-              <div className="pbLcdLabel">RANK</div>
-              <div className="pbRank">{hud.rank}</div>
-              <div className="pbLcdLabel">MISSION</div>
-              <div className="pbMissionText">{missionLine}</div>
-              <div className="pbBar">
-                <i style={{ width: `${(100 * Math.min(hud.progress, hud.goal)) / hud.goal}%` }} />
-              </div>
-            </div>
-            <div className={`pbLcd pbStatus${hud.tilted ? " is-tilt" : ""}`}>{status || " "}</div>
             <div className="pbKeys">
               <div>
                 <kbd>Z</kbd> <kbd>/</kbd> flippers
@@ -567,7 +672,7 @@ const Pinball = ({ onClose, onTitle, mobile }) => {
                 <kbd>Space</kbd> plunger
               </div>
               <div>
-                <kbd>X</kbd> <kbd>.</kbd> <kbd>↑</kbd> nudge
+                <kbd>X</kbd> <kbd>.</kbd> <kbd>↑︎</kbd> nudge
               </div>
             </div>
           </div>
@@ -577,7 +682,7 @@ const Pinball = ({ onClose, onTitle, mobile }) => {
       {dialog?.kind === "initials" && (
         <Dialog title="New High Score!" okLabel="OK" onOk={saveInitials} onCancel={closeDialog}>
           <p className="dialogText">
-            You scored <b>{fmt(dialog.score)}</b>, one of the five best dives!
+            You scored <b>{fmt(dialog.score)}</b>, one of the ten best!
             <br />
             Enter your initials:
           </p>
@@ -643,9 +748,9 @@ const Pinball = ({ onClose, onTitle, mobile }) => {
             </tbody>
           </table>
           <p className="dialogText">
-            On a touch screen: hold the left or right half of the table for that flipper (both at once works), hold
-            LAUNCH to pull the plunger, and tap NUDGE (or give the phone a shake) to bump the table. Options &gt;
-            Customize Touch Controls (or the gear) moves and resizes them.
+            On a touch screen: hold the left or right half of the table for those flippers (both at once works). With the ball in the
+            shooter lane, drag the plunger down and let go (or hold the HOLD button). Tap NUDGE, or give the phone a shake, to bump the
+            table. Options &gt; Customize Touch Controls moves and resizes the buttons.
           </p>
         </Dialog>
       )}
@@ -653,13 +758,34 @@ const Pinball = ({ onClose, onTitle, mobile }) => {
       {dialog?.kind === "help" && (
         <Dialog title="How to Play" onOk={closeDialog}>
           <p className="dialogText">
-            Pull the plunger back and let go to launch. Keep the ball out of the drain with the flippers: you have 3 balls.
+            Pull the plunger back and let go to launch. Keep the ball out of the drain with the flippers: you have 3 balls. The left
+            button also works the little flipper on the upper left.
             <br />
             <br />
-            <b>Missions</b> rank you up from Snorkeler to Leviathan, and some ranks earn an extra ball. Roll through
-            <b> D-I-V-E</b> up top to raise the multiplier (the flippers move the lit lanes). Knock down the <b>clams</b>, and
-            sink the <b>treasure chest</b> three times for multiball. Nudge the table to save a ball, but too much is a TILT.
+            Complete <b>missions</b> (shown on the display) to climb from Intern to Sysadmin. Knock down <b>9-8-I-S-H</b> to light the
+            lock, then shoot the <b>Blue Screen</b>: three locked balls start multiball, and the <b>My Computer</b> ramp scores jackpots.
+            Roll through <b>M-S-G</b> up top to raise the bonus (the flippers move the lit lanes). The <b>Floppy drive</b> relights
+            <b> Restore</b>, which kicks a ball back from the left outlane once. Nudge to save a ball, but too much is a TILT.
           </p>
+        </Dialog>
+      )}
+
+      {dialog?.kind === "missions" && (
+        <Dialog title="Missions" onOk={closeDialog}>
+          <table className="pbControls">
+            <tbody>
+              {G.MISSIONS.map((m, i) => (
+                <tr key={m.id}>
+                  <td>
+                    <b>{m.name}</b>
+                  </td>
+                  <td>{m.text}</td>
+                  <td>{G.RANKS[Math.min(i + 1, G.RANKS.length - 1)]}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p className="dialogText">Ranks 3 and 6 light an extra ball at the Floppy drive. After Sysadmin, the missions go round again and ask for more.</p>
         </Dialog>
       )}
 
@@ -668,7 +794,7 @@ const Pinball = ({ onClose, onTitle, mobile }) => {
           <p className="dialogText">
             <b>{TITLE}</b> for 98ish.
             <br />
-            An original table with its own physics, drawn and played right here in your browser. All synth, no samples.
+            An original table in the spirit of 1990s PC pinball: hand-made pixel art, its own physics, all sounds synthesized right here.
           </p>
         </Dialog>
       )}

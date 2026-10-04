@@ -27,7 +27,7 @@ export const programs = [
   { name: "Camera", app: "camera", type: "camera", icon: "/assets/program_icons/camera.svg", width: 780, height: 600, group: "Accessories", also: ["Entertainment"], single: true },
   { name: "Photos", app: "photos", type: "photos", icon: "/assets/program_icons/photos.svg", width: 820, height: 580, group: "Accessories", also: ["Entertainment"] },
   { name: "Paint", app: "paint", type: "paint", icon: "/assets/program_icons/paint.svg", width: 700, height: 540, group: "Accessories", desktop: false },
-  { name: "Pinball", app: "pinball", type: "pinball", icon: "/assets/program_icons/pinball.svg", width: 620, height: 740, group: "Games", desktop: false, single: true },
+  { name: "Pinball", app: "pinball", type: "pinball", icon: "/assets/program_icons/pinball.svg", width: 700, height: 760, group: "Games", desktop: false, single: true },
   { name: "Minesweeper", type: "minesweeper", icon: "/assets/program_icons/mine-48.png", width: 373, height: 456, group: "Games", single: true },
   { name: "98 Messenger", type: "chat", icon: "/assets/program_icons/aim2-48.png", width: 260, height: 520, group: "Internet", single: true, also: ["Community"] },
   { name: "Network Neighborhood", app: "network", icon: "/assets/program_icons/network.svg", width: 560, height: 420, group: "Community", single: true },
