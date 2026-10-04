@@ -219,7 +219,7 @@ export const topics = [
     id: "keyboard-trouble",
     book: "trouble",
     title: "Keyboard problems on a phone",
-    summary: "Hide the 98ish keyboard, switch to your phone's own keyboard for emoji, dictation or AutoFill, or turn it off.",
+    summary: "Hide the 98ish keyboard, or use your phone's own keyboard instead (for emoji, dictation or AutoFill).",
     keywords: ["keyboard", "on-screen keyboard", "emoji", "dictation", "AutoFill", "keyboard covers buttons", "phone keyboard"],
     body: [
       "On touch screens, 98ish types with its own **98ish keyboard**, a Windows 98-style keyboard that sits above the taskbar. It stays up while you tap around, so it doesn't jump up and down.",
@@ -227,7 +227,7 @@ export const topics = [
       {
         list: [
           "**It's covering a button:** tap the **X** in the keyboard's title bar (Hide keyboard), then tap the button.",
-          "**You need emoji, dictation, another language or password AutoFill:** tap the **phone button** in the keyboard's title bar. That box switches to your phone's own keyboard. On a password box, the **Passwords** button does the same for AutoFill.",
+          "**You need emoji, dictation, another language or password AutoFill:** those come with your phone's own keyboard: open Start > Settings > Keyboard and choose **My phone's own keyboard** (and choose the 98ish keyboard there again to come back).",
           "**You'd rather always use your phone's keyboard:** open Start > Settings > Keyboard and choose **My phone's own keyboard**.",
           "**Key clicks or vibration bother you:** turn them off under **While typing** in Keyboard Properties.",
         ],

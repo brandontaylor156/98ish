@@ -350,7 +350,7 @@ export const topics = [
         ],
       },
       { h: "Using your phone's own keyboard" },
-      "Need emoji, dictation, another language, or your saved passwords? Tap the **phone** button in the keyboard's title bar: that box switches to your phone's keyboard. On sign-in boxes the button is called **Passwords**, for AutoFill.",
+      "Need emoji, dictation, another language, or your saved passwords? Those come with your phone's own keyboard, which you can choose instead in Start > Settings > Keyboard.",
       "To always use your phone's keyboard, go to Start > Settings > Keyboard and choose **My phone's own keyboard**.",
       { h: "Hiding it" },
       "Tap the **X** in the keyboard's title bar to hide it. Tapping somewhere else on the screen doesn't close it, so it doesn't vanish while you're busy. If you type on a real keyboard (like a Bluetooth one), it hides by itself, and a small Keyboard button brings it back.",

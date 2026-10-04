@@ -11,7 +11,7 @@ Code: `client/src/components/shared/keyboard/` (guide at the top of `index.js`).
    no per-app work: a new app's `<input>` just works.
 2. The field stays a real, focused field: native caret, selection handles, copy/paste callout,
    undo, maxlength, form submission, React state. We never fake a text box.
-3. The phone keyboard is always one tap away (emoji, dictation, other languages, password
+3. (Changed 2026-10-04: no in-keyboard switch any more; Settings > Keyboard chooses.) The phone keyboard was one tap away (emoji, dictation, other languages, password
    managers), per field, and as a setting.
 4. Physical keyboards (iPad, Bluetooth) keep working and hide the on-screen one.
 5. Desktop (mouse) browsers are completely unaffected: no attributes changed, no code loaded.
@@ -138,7 +138,7 @@ on a Home Screen app) = 303pt against iOS's 291 without suggestions / 336 with t
 - 123: `1234567890` / `-/:;()$&@"` / #+= `. , ? ! '` Delete / ABC, slot, space, return.
 - #+=: `[]{}#%^*+=` / `_\|~<>€£¥•` / 123 `. , ? ! '` Delete / ABC, slot, space, return.
 - Email: `@` and `.` beside the space bar. URL: `.` `/` `.com` and no space bar.
-- The emoji/globe slot holds the **phone** key: this field switches to the phone's own
+- (Removed 2026-10-04; the space bar takes the slot.) The emoji/globe slot held the **phone** key: this field switches to the phone's own
   keyboard (emoji, dictation, other languages). It works by its click, inside the tap.
 - Number pad (3 columns, digits with their letters under them as on iOS): numeric has an
   empty corner, decimal a `.`, tel a `+*#` key (a page with `+ * # ( - ) , ; /`; hold 0 for +).

@@ -163,7 +163,7 @@ Shipped and live:
 **Lock screen + user profiles** (not yet tried on a real iPhone): unit tests `node --test client/src/utils/lock.test.js`, server `server/aim/test/verify.test.js`, browser scripts `lock-*.mjs` (e2e, phone, idle with `page.clock`, users, forgot). Check on the iPhone: the PIN pad, the 98ish keyboard on the password box, PBKDF2 speed (~0.5 s), locking after Safari reloads the page.
 
 Just pushed and not yet tried on a real phone:
-- **The 98ish phone keyboard** (`shared/keyboard/`, setting under Start > Settings > Keyboard). It replaces the phone keyboard on touch devices, with a title-bar button that switches to the phone keyboard for emoji, dictation and AutoFill.
+- **The 98ish phone keyboard** (`shared/keyboard/`, setting under Start > Settings > Keyboard). It replaces the phone keyboard on touch devices. There's NO in-keyboard switch to the phone keyboard (the owner removed it: once switched there was no way back); the setting chooses. Was: a title-bar button that switched to the phone keyboard for emoji, dictation and AutoFill.
 - Also: a fix so Speed Typist's race box brings the keyboard up after the countdown, and vibration now only on Android.
 
 ## Open issue: renderer crash in headless Chrome (keyboard + Speed Typist race)
@@ -185,7 +185,7 @@ Just pushed and not yet tried on a real phone:
 
 ## What's next
 1. **Owner's real-iPhone check:**
-   - The 98ish keyboard in Notepad, Messenger, Run, Speed Typist; the phone-keyboard switch; AutoFill.
+   - The 98ish keyboard in Notepad, Messenger, Run, Speed Typist; the X (a 98-proportioned 15x13 button with a wide touch area).
    - The startup sound; the earlier "scrollbar on open" report.
    - Camera (front/back switch, Safari background/resume, video clips) and Photos (pinch, swipe) on the iPhone.
    - The drive's move to IndexedDB on the iPhone (every photo still there; Properties shows "Kept safe: Yes" when added to the home screen), and file sync between the phone and a computer (a photo each way, a conflict, a delete).

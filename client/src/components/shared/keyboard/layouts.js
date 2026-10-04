@@ -1,12 +1,12 @@
 // The keyboard's pages and keys, as the iPhone's English keyboard has them. A key is
 // { kind, value, label, w } where w is its width: a number of letter slots (a tenth of the
 // keyboard), or "shift" (Shift, Delete, #+=), "wide" (. , ? ! ' on the 123 page), "sys"
-// (123, ABC, the emoji/globe slot), "ret" (return), "third" (number pad), "fill" (the rest:
-// space). geometry.js turns them into places. Kinds:
+// (123, ABC), "ret" (return), "third" (number pad), "fill" (the rest: space). geometry.js
+// turns them into places. There's no emoji/globe key: switching to the phone's own keyboard
+// left no way back, so the space bar takes that slot. Kinds:
 //   char   types `value` (letters follow Shift)      shift, back, enter, space
 //   page   switches to the page in `value`            ctrl (MS-DOS: the next key is Ctrl+key)
 //   key    a named key with no text (Escape, Tab, ArrowUp...): only its key events
-//   phone  the emoji/globe slot: switches this field to the phone's own keyboard
 //   blank  an empty cell (the number pad's corner)
 
 const chars = (s, w) => [...s].map((c) => ({ kind: "char", value: c, ...(w ? { w } : {}) }))
@@ -14,7 +14,6 @@ const k = (kind, value, label, w = 1) => ({ kind, value, label, w })
 
 const LETTER_ROWS = ["qwertyuiop", "asdfghjkl", "zxcvbnm"]
 
-const PHONE = k("phone", "phone", "phone", "sys")
 const SPACE = k("space", " ", "space", "fill")
 const ENTER = k("enter", "Enter", null, "ret")
 
@@ -23,10 +22,10 @@ const ENTER = k("enter", "Enter", null, "ret")
 const bottomRow = (variant, tablet, left = k("page", "numbers", "123", "sys")) => {
   const space = tablet ? [k("key", "ArrowLeft", "Left", 1), SPACE, k("key", "ArrowRight", "Right", 1)] : [SPACE]
   // iOS's URL keyboard has no space bar: . / .com
-  if (variant === "url") return [left, PHONE, k("char", ".", ".", 1.4), k("char", "/", "/", 1.4), k("char", ".com", ".com", "fill"), ENTER]
-  if (variant === "email") return [left, PHONE, ...space, k("char", "@"), k("char", "."), ENTER]
-  if (variant === "dos") return [left, PHONE, ...space, k("char", "/"), ENTER]
-  return [left, PHONE, ...space, ENTER]
+  if (variant === "url") return [left, k("char", ".", ".", 1.4), k("char", "/", "/", 1.4), k("char", ".com", ".com", "fill"), ENTER]
+  if (variant === "email") return [left, ...space, k("char", "@"), k("char", "."), ENTER]
+  if (variant === "dos") return [left, ...space, k("char", "/"), ENTER]
+  return [left, ...space, ENTER]
 }
 
 const letters = (variant, tablet) => [
@@ -36,7 +35,7 @@ const letters = (variant, tablet) => [
   bottomRow(variant, tablet),
 ]
 
-// 123 and #+= share the third row's shape and the bottom row (ABC, the slot, space, return)
+// 123 and #+= share the third row's shape and the bottom row (ABC, space, return)
 const numbers = (tablet) => [
   chars("1234567890"),
   chars("-/:;()$&@\""),

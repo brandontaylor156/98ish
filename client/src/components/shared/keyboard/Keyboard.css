@@ -93,32 +93,19 @@
   font-weight: bold;
 }
 
-/* the X, drawn like every window's (main.css) */
-.kb98Title .title-bar-controls button.close {
+/* the X, drawn like every window's (main.css) in a 98 tool window's button shape (not
+   stretched); its touch area reaches well past it */
+.kb98 .kb98Title .title-bar-controls button.close {
+  min-width: 0;
+  width: 15px;
+  height: 13px;
   background-position: center;
   background-repeat: no-repeat;
-  background-size: 9px 9px;
+  background-size: 8px 7px;
 }
 
-.kb98Title .kb98PhoneBtn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.kb98Title .kb98PhoneBtn .kb98PhoneIcon {
-  height: 10px;
-  width: auto;
-}
-
-.kb98PhoneIcon {
-  display: block;
-}
-
-/* the phone in the emoji/globe slot: twice its pixels, like iOS's big glyph there */
-.kb98Key--phone .kb98PhoneIcon {
-  width: 16px;
-  height: 22px;
+.kb98 .kb98Title .title-bar-controls button.close::after {
+  inset: -4px -6px -8px -16px;
 }
 
 /* ---- keys ---- */

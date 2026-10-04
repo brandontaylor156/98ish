@@ -182,19 +182,20 @@ test("pages have the iPhone's keys", () => {
   assert.equal(values(letters[0]), "q w e r t y u i o p")
   assert.equal(values(letters[1]), "a s d f g h j k l")
   assert.equal(values(letters[2]), "Shift z x c v b n m Backspace")
-  assert.deepEqual(letters[3].map((key) => key.kind), ["page", "phone", "space", "enter"])
+  assert.deepEqual(letters[3].map((key) => key.kind), ["page", "space", "enter"])
   const numbers = rowsFor("numbers")
   assert.equal(values(numbers[0]), "1 2 3 4 5 6 7 8 9 0")
   assert.equal(values(numbers[1]), "- / : ; ( ) $ & @ \"")
   assert.equal(values(numbers[2]), "symbols . , ? ! ' Backspace")
-  assert.deepEqual(numbers[3].map((key) => key.label || key.kind), ["ABC", "phone", "space", "enter"])
+  assert.deepEqual(numbers[3].map((key) => key.label || key.kind), ["ABC", "space", "enter"])
   const symbols = rowsFor("symbols")
   assert.equal(values(symbols[0]), "[ ] { } # % ^ * + =")
   assert.equal(values(symbols[1]), "_ \\ | ~ < > € £ ¥ •")
   assert.equal(values(symbols[2]), "numbers . , ? ! ' Backspace")
-  // email: @ and . beside the space bar; url: . / .com and no space bar (as iOS)
-  assert.deepEqual(rowsFor("letters", "email")[3].map((key) => key.value), ["numbers", "phone", " ", "@", ".", "Enter"])
-  assert.deepEqual(rowsFor("letters", "url")[3].map((key) => key.value), ["numbers", "phone", ".", "/", ".com", "Enter"])
+  // no emoji/globe slot (it switched to the phone's keyboard, with no way back): the space bar
+  // takes it. email: @ and . beside the space bar; url: . / .com and no space bar (as iOS)
+  assert.deepEqual(rowsFor("letters", "email")[3].map((key) => key.value), ["numbers", " ", "@", ".", "Enter"])
+  assert.deepEqual(rowsFor("letters", "url")[3].map((key) => key.value), ["numbers", ".", "/", ".com", "Enter"])
   // phones have no arrow keys (tablets do)
   assert.ok(!flat(rowsFor("letters", "text")).some((key) => key.value === "ArrowLeft"))
   assert.ok(flat(rowsFor("letters", "text", true)).some((key) => key.value === "ArrowLeft"))
@@ -245,7 +246,7 @@ const capOf = (keys, value) => keys.find((k) => k.key.value === value || k.key.l
 //   430 (Pro Max): letter 37; rows 56 apart, keys 45 tall
 const IOS_REF = {
   375: { q: [3, 31.5], w: [40.5, 31.5], p: [340.5, 31.5], a: [21.75, 31.5], shift: [3, 42.75], z: [59.25, 31.5], Backspace: [329.25, 42.75], 123: [3, 40.13], ret: [284.25, 87.75], rows: [6, 60, 114, 168], keyH: 42 },
-  390: { q: [3, 33], w: [42, 33], p: [354, 33], a: [22.5, 33], l: [334.5, 33], shift: [3, 44.7], z: [61.5, 33], m: [295.5, 33], Backspace: [342.3, 44.7], 123: [3, 41.97], phone: [50.97, 41.97], space: [98.94, 190.56], ret: [295.5, 91.5], rows: [6, 60, 114, 168], keyH: 42 },
+  390: { q: [3, 33], w: [42, 33], p: [354, 33], a: [22.5, 33], l: [334.5, 33], shift: [3, 44.7], z: [61.5, 33], m: [295.5, 33], Backspace: [342.3, 44.7], 123: [3, 41.97], space: [50.97, 238.53], ret: [295.5, 91.5], rows: [6, 60, 114, 168], keyH: 42 },
   393: { q: [3, 33.3], p: [356.7, 33.3], a: [22.65, 33.3], shift: [3, 45.09], ret: [297.75, 92.25], rows: [6, 60, 114, 168], keyH: 42 },
   402: { q: [3, 34.2], p: [364.8, 34.2], a: [23.1, 34.2], shift: [3, 46.26], ret: [304.5, 94.5], rows: [6, 60, 114, 168], keyH: 42 },
   430: { q: [3, 37], p: [390, 37], a: [24.5, 37], shift: [3, 49.9], ret: [325.5, 101.5], rows: [5.5, 61.5, 117.5, 173.5], keyH: 45 },
@@ -257,7 +258,7 @@ test("letter keys sit where the iPhone's do (375, 390, 393, 402, 430 wide)", () 
     for (const [name, spot] of Object.entries(ref)) {
       if (name === "rows" || name === "keyH") continue
       const [x, w] = spot
-      const cap = name === "ret" ? keys.find((k) => k.key.kind === "enter").cap : name === "phone" ? keys.find((k) => k.key.kind === "phone").cap : name === "space" ? keys.find((k) => k.key.kind === "space").cap : name === "shift" ? keys.find((k) => k.key.kind === "shift").cap : capOf(keys, name)
+      const cap = name === "ret" ? keys.find((k) => k.key.kind === "enter").cap : name === "space" ? keys.find((k) => k.key.kind === "space").cap : name === "shift" ? keys.find((k) => k.key.kind === "shift").cap : capOf(keys, name)
       near(cap.x, x, `${width} ${name} x`)
       near(cap.w, w, `${width} ${name} width`)
       assert.equal(cap.h, ref.keyH, `${width} ${name} height`)

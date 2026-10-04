@@ -1,13 +1,13 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
 import { useSettings } from "../../../utils/settings"
-import { allowsShortcuts, capsMode, enterLabel, isCredential, isMultiline, isPassword, layoutFor, readField, textFieldFor } from "./fields"
+import { allowsShortcuts, capsMode, enterLabel, isMultiline, isPassword, layoutFor, readField, textFieldFor } from "./fields"
 import { PAD_LETTERS, alternatesFor, isPad, rowsFor } from "./layouts"
 import { balloonFor, deleteRepeat, hitTest, layoutKeys, metricsFor, stripFor, stripIndex } from "./geometry"
 import { wantsCapital, wantsPeriod } from "./editing"
 import { focusNext, moveBy, pressKey, textBefore } from "./typing"
-import { noteGesture, suppress, switchToPhoneKeyboard, wantsKeyboard } from "./native"
+import { noteGesture, suppress, wantsKeyboard } from "./native"
 import { haptic, keyClick } from "./feedback"
-import { BackIcon, EnterIcon, KeyboardIcon, PhoneIcon, ShiftIcon } from "./icons"
+import { BackIcon, EnterIcon, KeyboardIcon, ShiftIcon } from "./icons"
 import "./Keyboard.css"
 
 // The 98ish keyboard: a Windows 98 tool window docked above the taskbar that types into
@@ -608,8 +608,6 @@ const Keyboard = () => {
     pressDown(id)
     keyClick(key.kind === "space" || key.kind === "enter" ? "space" : key.kind === "back" ? "back" : "key")
     haptic()
-    // the phone slot works by its click (the phone's keyboard needs focus inside the tap)
-    if (key.kind === "phone") return
     try {
       rootRef.current.setPointerCapture(e.pointerId)
     } catch {
@@ -751,11 +749,10 @@ const Keyboard = () => {
     }
   })
 
-  // a screen reader's activation (a click with no pointer before it), and the phone slot
+  // a screen reader's activation (a click with no pointer before it)
   const onKeyClick = (e) => {
     const key = keyAt(e.currentTarget.dataset.k)
     if (!key) return
-    if (key.kind === "phone") return toPhoneKeyboard()
     if (e.detail !== 0) return
     if (key.kind === "char") typeChar(charFor(key))
     else if (key.kind === "space") typeSpace()
@@ -788,13 +785,6 @@ const Keyboard = () => {
   }, [visible])
 
   // ---- the title bar's buttons ----
-
-  const toPhoneKeyboard = () => {
-    const el = live.current.field
-    if (!el) return
-    setField(null)
-    switchToPhoneKeyboard(el)
-  }
 
   const hide = () => {
     const el = live.current.field
@@ -837,8 +827,6 @@ const Keyboard = () => {
         )
       case "back":
         return <BackIcon />
-      case "phone":
-        return <PhoneIcon />
       case "enter":
         return (
           <span className="kb98EnterLabel">
@@ -878,8 +866,6 @@ const Keyboard = () => {
         return label
       case "space":
         return "Space"
-      case "phone":
-        return "Use the phone's keyboard"
       case "page":
         return { letters: "Letters", numbers: "Numbers", symbols: "Symbols", numpad: "Numbers", telsym: "Phone symbols" }[key.value] || key.label
       case "ctrl":
@@ -931,19 +917,11 @@ const Keyboard = () => {
           Keyboard
         </div>
         <div className="title-bar-controls">
-          {isCredential(info) && (
-            <button type="button" className="kb98TitleText" tabIndex={-1} aria-label="Passwords: use the phone's keyboard for AutoFill" onClick={toPhoneKeyboard}>
-              Passwords
-            </button>
-          )}
           {pad && (
             <>
               {/* the number pad has no return key (as on iOS): Safari's bar above it has Done */}
               <button type="button" className="kb98TitleText kb98TitleEnter" tabIndex={-1} aria-label={label} onClick={typeEnter}>
                 {label}
-              </button>
-              <button type="button" className="kb98PhoneBtn" tabIndex={-1} aria-label="Use the phone's keyboard" title="Use the phone's keyboard" onClick={toPhoneKeyboard}>
-                <PhoneIcon />
               </button>
             </>
           )}
