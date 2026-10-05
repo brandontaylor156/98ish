@@ -6,11 +6,16 @@ import TouchControls, { GLYPHS, fromPx, useTouchControlsMenuItem, useTouchContro
 import PlayOnline, { OnlineResultBar, useOnlineRoom } from "../../shared/online"
 import { unlock } from "../../../utils/achievements"
 import { RulesPrimer } from "./RulesPrimer"
-import { TitleMenu, QuickMenu, PlayersMenu, TourMenu, PracticeMenu, VersusMenu, SettingsMenu, ControlsMenu, LEVEL_NAMES, TIMING } from "./menus"
-import { ScoreBug, Banner, HintLine, shotBanner, Meter, ReplayBug, DrillPanel, TutorialPanel, OverScreen } from "./hud"
+import { TitleMenu, QuickMenu, PlayersMenu, TourMenu, VersusMenu, SettingsMenu, ControlsMenu, LEVEL_NAMES, TIMING } from "./menus"
+import { ScoreBug, Banner, HintLine, shotBanner, Meter, ReplayBug, TutorialPanel, OverScreen } from "./hud"
 import { clearBanners, emptyBanners, nextBannerAt, pushBanner, tickBanners } from "./banner.js"
 import { layoutKey, touchControlsFor, touchPrefs } from "./touchplay.js"
 import { SchemeChooser } from "./SchemeChooser"
+import { PracticeHub, FirstTimeOffer } from "./practice/PracticeHub"
+import { PracticeHud } from "./practice/PracticeHud"
+import { machineSpec, trainMatch } from "./practice/session.js"
+import { DRILLS, drillById, drillStars } from "./practice/drillbook.js"
+import { LESSONS, lessonById, nextLesson } from "./practice/lessons.js"
 import { CHARACTERS, VENUE_INFO, characterById, lookFor, pickOpponents } from "./looks.js"
 import { freshTour, nextMatch, recordResult, tourState, unlocks } from "./career.js"
 import { TUTORIAL, practiceMatch } from "./drills.js"
@@ -161,7 +166,20 @@ const Pickleball = ({ onClose, mobile }) => {
   const [result, setResult] = useState(null)
   const [reward, setReward] = useState(null)
   const [replay, setReplay] = useState(false)
-  const [drill, setDrill] = useState(null) // { made, attempts, total, done, results }
+  const [drill, setDrill] = useState(null) // the tutorial's progress: { made, attempts, total, done, results }
+  // practice sessions (practice/): the session's latest report, the lesson tip card, the hub
+  // screen to go back to, and whether this is the first time Pickleball 98 has been opened
+  const [train, setTrain] = useState(null) // { snap, result, cue }
+  const [trainIntro, setTrainIntro] = useState(false)
+  const [hubView, setHubView] = useState("hub")
+  const [firstTime] = useState(() => {
+    try {
+      return localStorage.getItem(PREFS_KEY) === null
+    } catch {
+      return false
+    }
+  })
+  const layerRef = useRef(null)
   const [dialog, setDialog] = useState(null)
   const [editing, setEditing] = useState(false)
   const [stickUi, setStickUi] = useState(null)
@@ -213,9 +231,12 @@ const Pickleball = ({ onClose, mobile }) => {
   // ---- engine events ----
   const onEngineEvent = (e) => {
     const s = sessionRef.current
+    // practice: the session's labels say it all (no IN/OUT, WINNER or score callouts)
+    if (s?.kind === "train" && (e.type === "line" || e.type === "rally" || e.type === "point" || e.type === "call")) return
     switch (e.type) {
       case "hit":
-        if (e.mine) say(shotBanner(e))
+        // (a practice drill labels each shot itself)
+        if (e.mine) !(s?.kind === "train" && !s.plan?.spec?.play) && say(shotBanner(e))
         // they attacked: hands up
         else if (e.theirs && (e.tag === "speedup" || e.tag === "counter")) callout("Hands up!", "bad", 650, "line")
         break
@@ -248,6 +269,10 @@ const Pickleball = ({ onClose, mobile }) => {
         setReplay(e.on)
         break
       case "drill":
+        if (e.train) {
+          setTrain((t) => ({ snap: e.snap, result: e.result ? { ...e.result, id: e.id } : t?.result || null, cue: e.cue ? e.id : t?.cue || null }))
+          break
+        }
         setDrill((d) => ({ ...e, results: [...(d?.results || []), ...(e.ok === null ? [] : [e.ok])] }))
         break
       case "camera":
@@ -382,13 +407,56 @@ const Pickleball = ({ onClose, mobile }) => {
     const venue = venues.includes(p.venue) ? p.venue : "park"
     engineRef.current?.newMatch({ doubles: p.doubles, level: "intermediate", scoring: p.scoring, target: p.target, venue, roster: dress(roster, venue), humans: 2 })
   }
-  const startDrill = (d) => {
+  // practice (practice/): the ball machine, a drill or a lesson. A lesson opens on its tip
+  // card (the court waits, paused) unless intro is false (Again)
+  const planFor = (p) => {
+    if (p.kind === "machine") return { ...p, title: "Ball Machine", spec: machineSpec(p.settings) }
+    if (p.kind === "drill") {
+      const d = drillById(p.id) || DRILLS[0]
+      return { kind: "drill", id: d.id, title: d.name, drill: d, spec: { id: d.id, ...d.spec } }
+    }
+    const l = lessonById(p.id) || LESSONS[0]
+    return { kind: "lesson", id: l.id, title: l.title, lesson: l, index: LESSONS.indexOf(l), count: LESSONS.length, spec: { id: l.id, ...l.spec } }
+  }
+  const putLayer = () => {
+    const e = engineRef.current
+    if (!e?.setLayer) return
+    if (layerRef.current) return e.setLayer(layerRef.current)
+    import("./practice/layer.js").then(({ createLayer }) => {
+      if (engineRef.current !== e || layerRef.current) return
+      layerRef.current = createLayer()
+      e.setLayer(layerRef.current)
+    })
+  }
+  const startTrain = (p0, { intro = true } = {}) => {
     const p = prefsRef.current
+    const plan = planFor(p0)
     reset()
-    setSession({ kind: "practice", drill: d })
+    setTrain(null)
+    const card = !!plan.lesson && intro
+    setTrainIntro(card)
+    setSession({ kind: "train", plan })
     setScreen("main")
-    const pm = practiceMatch(d, { character: p.character, outfit: p.outfit })
-    engineRef.current?.newMatch({ ...pm, roster: dress(pm.roster, "park"), venue: "park", humans: 1 })
+    setHubView(plan.kind === "machine" ? "machine" : plan.kind === "drill" ? "drills" : "lessons")
+    const tm = trainMatch(plan.spec, { character: p.character, outfit: p.outfit })
+    engineRef.current?.newMatch({ ...tm, roster: dress(tm.roster, "park"), venue: "park", humans: 1 })
+    putLayer()
+    if (card) engineRef.current?.pause()
+  }
+  const startTask = () => {
+    setTrainIntro(false)
+    engineRef.current?.resume()
+  }
+  const trainNext = () => {
+    const plan = sessionRef.current?.plan
+    if (plan?.lesson) {
+      const n = nextLesson(plan.lesson.id)
+      return n ? startTrain({ kind: "lesson", id: n.id }) : null
+    }
+    if (plan?.drill) {
+      const i = DRILLS.indexOf(plan.drill)
+      return i >= 0 && i + 1 < DRILLS.length ? startTrain({ kind: "drill", id: DRILLS[i + 1].id }) : null
+    }
   }
   const startTutorial = (i = 0) => {
     const p = prefsRef.current
@@ -406,13 +474,17 @@ const Pickleball = ({ onClose, mobile }) => {
     if (s.kind === "quick") startQuick()
     else if (s.kind === "tour") startTour(s.tour)
     else if (s.kind === "versus") startVersus()
-    else if (s.kind === "practice") startDrill(s.drill)
+    else if (s.kind === "train") startTrain(s.plan, { intro: false })
   }
   const quitToMenu = () => {
     if (sessionRef.current?.kind === "online") onlineRef.current.leave()
+    // (out of a practice session: back to the practice screen it came from)
+    const back = sessionRef.current?.kind === "train" ? "practice" : "main"
     reset()
     setSession(null)
-    setScreen("main")
+    setTrain(null)
+    setTrainIntro(false)
+    setScreen(back)
     engineRef.current?.quit()
   }
   const togglePause = () => {
@@ -440,13 +512,23 @@ const Pickleball = ({ onClose, mobile }) => {
     go()
   }
 
-  // drill bests
+  // practice progress: lessons done, a drill's best stars
   useEffect(() => {
-    if (!drill?.done || session?.kind !== "practice") return
-    const id = session.drill.id
-    const best = prefsRef.current.best || {}
-    if (!(best[id] >= drill.made)) setPrefs({ best: { ...best, [id]: drill.made } })
-  }, [drill?.done])
+    const s = sessionRef.current
+    if (!train?.snap?.done || s?.kind !== "train") return
+    const { plan } = s
+    const p = prefsRef.current
+    if (plan.lesson && train.snap.made >= plan.spec.need) setPrefs({ lessons: { ...(p.lessons || {}), [plan.lesson.id]: true } })
+    if (plan.drill) {
+      const n = drillStars(plan.drill, train.snap)
+      const best = p.drillStars || {}
+      if (!(best[plan.drill.id] >= n)) setPrefs({ drillStars: { ...best, [plan.drill.id]: n } })
+    }
+  }, [train?.snap?.done])
+  // anyone who has started something has been welcomed (the first-time offer goes away)
+  useEffect(() => {
+    if (session && !prefsRef.current.welcomed) setPrefs({ welcomed: true })
+  }, [session])
 
   // ---- online ----
   const onlinePlaying = online.room && (online.phase === "playing" || online.phase === "over")
@@ -696,7 +778,7 @@ const Pickleball = ({ onClose, mobile }) => {
       items: [
         { label: "Quick Match (F2)", onClick: startQuick },
         { label: "World Tour...", onClick: () => (quitToMenu(), setScreen("tour")) },
-        { label: "Practice...", onClick: () => (quitToMenu(), setScreen("practice")) },
+        { label: "Practice...", onClick: () => (quitToMenu(), setHubView("hub"), setScreen("practice")) },
         { label: "2 Players...", onClick: () => (quitToMenu(), setScreen("versus")) },
         { label: "Locker Room...", onClick: () => (session?.kind !== "online" && quitToMenu(), setLockerFor(null), setScreen("locker")) },
         { label: "Play Online...", onClick: () => (session?.kind !== "online" && quitToMenu(), setScreen("online")) },
@@ -743,7 +825,8 @@ const Pickleball = ({ onClose, mobile }) => {
     {
       label: "Help",
       items: [helpItem({ program: "Pickleball 98" }), "-",
-        { label: "Tutorial", onClick: () => startTutorial(0) },
+        { label: "Learn to Play (Lessons)...", onClick: () => (quitToMenu(), setHubView("lessons"), setScreen("practice")) },
+        { label: "Controls Tutorial", onClick: () => startTutorial(0) },
         { label: "Rules Primer...", onClick: () => setDialog("rules") },
         { label: "Controls...", onClick: () => setDialog("controls") },
         "-",
@@ -789,12 +872,13 @@ const Pickleball = ({ onClose, mobile }) => {
         )}
 
         {/* ---------- in a match ---------- */}
-        {inGame && hud && !tutorialStep?.card && session?.kind !== "practice" && session?.kind !== "tutorial" && <ScoreBug hud={hud} online={onlineText} />}
+        {inGame && hud && !tutorialStep?.card && session?.kind !== "practice" && session?.kind !== "tutorial" && session?.kind !== "train" && <ScoreBug hud={hud} online={onlineText} />}
+        {/* (the one banner slot; a practice drill labels each shot itself: practice/PracticeHud.jsx) */}
         {inGame && <Banner banner={banners.current} />}
         <Meter ref={meterRefs[0]} slot={0} />
         <Meter ref={meterRefs[1]} slot={1} />
         {phase === "playing" && replay && <ReplayBug touch={showPad} />}
-        {phase === "playing" && prefs.hints && (prefs.hintPoints || 0) < 3 && !replay && session && session.kind !== "tutorial" && session.kind !== "practice" && <HintLine text={hintText} />}
+        {phase === "playing" && prefs.hints && (prefs.hintPoints || 0) < 3 && !replay && session && session.kind !== "tutorial" && session.kind !== "practice" && session.kind !== "train" && <HintLine text={hintText} />}
         {toast && <div key={toast.id} className="pkToast">{toast.text}</div>}
         {inGame && hud?.netWait && (
           <div className="pkCenter pkDim">
@@ -805,7 +889,19 @@ const Pickleball = ({ onClose, mobile }) => {
             </div>
           </div>
         )}
-        {inGame && session?.kind === "practice" && <DrillPanel drill={session.drill} progress={drill} onQuit={() => (quitToMenu(), setScreen("practice"))} onRetry={() => startDrill(session.drill)} />}
+        {inGame && session?.kind === "train" && (
+          <PracticeHud
+            plan={session.plan}
+            train={train}
+            intro={trainIntro}
+            touch={showPad}
+            onStartTask={startTask}
+            onPause={togglePause}
+            onAgain={again}
+            onNext={(session.plan.lesson && nextLesson(session.plan.lesson.id)) || (session.plan.drill && DRILLS.indexOf(session.plan.drill) + 1 < DRILLS.length) ? trainNext : null}
+            onDone={quitToMenu}
+          />
+        )}
         {tutorialStep && (
           <TutorialPanel
             step={tutorialStep}
@@ -818,7 +914,7 @@ const Pickleball = ({ onClose, mobile }) => {
           />
         )}
 
-        {phase === "paused" && !editing && !dialog && !tutorialStep?.card && (
+        {phase === "paused" && !editing && !dialog && !tutorialStep?.card && !(session?.kind === "train" && trainIntro) && (
           // (a tap outside the panel resumes, but only a tap that started there: the press on
           // Pause that brought this up mustn't let go on it and resume at once)
           <div className="pkCenter pkDim" onPointerDown={(e) => (dimPress.current = e.target === e.currentTarget)} onClick={(e) => dimPress.current && e.target === e.currentTarget && engineRef.current?.resume()}>
@@ -875,7 +971,15 @@ const Pickleball = ({ onClose, mobile }) => {
         {isOnline && online.phase === "over" && !result && <OnlineResultBar online={online} />}
 
         {/* ---------- menus ---------- */}
-        {atMenu && screen === "main" && phase === "title" && <TitleMenu onPick={(s) => (s === "rules" ? setDialog("rules") : s === "settings" ? setDialog("settings") : s === "controls" ? setDialog("controls") : (setPlayersFor("p1"), setScreen(s)))} onOnline={() => setScreen("online")} tour={tour} showPad={showPad} />}
+        {atMenu && screen === "main" && phase === "title" && (
+          <TitleMenu
+            onPick={(s) => (s === "rules" ? setDialog("rules") : s === "settings" ? setDialog("settings") : s === "controls" ? setDialog("controls") : (setPlayersFor("p1"), s === "practice" && setHubView("hub"), setScreen(s)))}
+            onOnline={() => setScreen("online")}
+            tour={tour}
+            showPad={showPad}
+            offer={firstTime && !prefs.welcomed && !prefs.tutorialDone ? <FirstTimeOffer onLesson={() => withScheme(() => startTrain({ kind: "lesson", id: "basics" }))} onPlay={() => withScheme(startQuick)} /> : null}
+          />
+        )}
         {atMenu && screen === "quick" && <QuickMenu prefs={prefs} setPrefs={setPrefs} tour={tour} onStart={() => withScheme(startQuick)} onBack={() => setScreen("main")} onPlayers={() => (setPlayersFor("p1q"), setScreen("players"))} />}
         {(atMenu || phase === "showcase") && screen === "locker" && (
           <LockerRoom
@@ -903,7 +1007,7 @@ const Pickleball = ({ onClose, mobile }) => {
           />
         )}
         {atMenu && screen === "tour" && <TourMenu tour={tour} onPlay={(t) => withScheme(() => startTour(t))} onBack={() => setScreen("main")} onReset={() => setTour(freshTour())} />}
-        {atMenu && screen === "practice" && <PracticeMenu best={prefs.best} onTutorial={() => withScheme(() => startTutorial(0))} onDrill={(d) => withScheme(() => startDrill(d))} onBack={() => setScreen("main")} />}
+        {atMenu && screen === "practice" && <PracticeHub key={hubView} initialView={hubView} prefs={prefs} setPrefs={setPrefs} onStart={(x) => withScheme(() => startTrain(x))} onTutorial={() => withScheme(() => startTutorial(0))} onBack={() => (setHubView("hub"), setScreen("main"))} />}
         {atMenu && screen === "versus" && <VersusMenu prefs={prefs} setPrefs={setPrefs} tour={tour} showPad={showPad} onStart={startVersus} onBack={() => setScreen("main")} onPlayers={(who) => (setPlayersFor(who === "p2" ? "p2" : "p1v"), setScreen("players"))} />}
         {screen === "online" && !onlinePlaying && phase !== "loading" && (
           <div className="pkOnline">
