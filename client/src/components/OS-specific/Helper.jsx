@@ -55,6 +55,10 @@ const TIPS = {
     "Want reminders with 98ish closed? Open an event and tap Add to my phone, or subscribe your phone to a whole calendar in its Properties > Phone.",
     "Memos are lists with no date (gift ideas, a packing list) that everyone in the calendar can tick off.",
   ],
+  Weather: [
+    "Add your sweetheart's city too (Places > Add Place...), then flip between them with the drop-down.",
+    "View > Show in Taskbar puts the temperature by the clock. View > Show on Desktop adds a little forecast panel.",
+  ],
   Clock: ["Alarms and the timer keep going with the Clock closed, as long as 98ish is open.", "Add cities to World Clock to see what time it is for faraway friends."],
   Calculator: ["View > Scientific has sines, logs and binary. Very serious business."],
   "Address Book": [

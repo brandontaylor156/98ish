@@ -158,15 +158,15 @@ export const topics = [
     id: "regional",
     book: "settings",
     title: "Time and date formats (Regional Settings)",
-    summary: "Choose 12- or 24-hour time, the date order and the first day of the week.",
-    keywords: ["regional settings", "24-hour clock", "12-hour clock", "date format", "first day of week", "Monday", "region", "locale"],
+    summary: "Choose 12- or 24-hour time, the date order, the first day of the week, and °F or °C.",
+    keywords: ["regional settings", "24-hour clock", "12-hour clock", "date format", "first day of week", "Monday", "region", "locale", "fahrenheit", "celsius", "temperature units"],
     programs: ["Regional Settings"],
     body: [
       "**Regional Settings** decides how 98ish writes times and dates. The taskbar clock, Calendar and Clock all follow it.",
       {
         steps: [
           "Open the Control Panel and then **Regional Settings**.",
-          "On the **Regional Settings** tab, pick your region (or keep **Same as this device**).",
+          "On the **Regional Settings** tab, pick your region (or keep **Same as this device**), and under **Temperature** choose °F or °C for [[weather|Weather]].",
           "On the **Time** tab, choose **12-hour (7:05 PM)** or **24-hour (19:05)**.",
           "On the **Date** tab, choose the first day of the week (Sunday, Monday or Saturday) and the short date order.",
           "Click **OK**.",

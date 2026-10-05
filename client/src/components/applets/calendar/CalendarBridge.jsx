@@ -7,7 +7,8 @@ import { dateIn, dueReminders, whenLabel, zoneParts } from "./recur"
 import { OPEN_EVENT, VIEW_EVENT, allEvents, applyLive, calendarById, getCal, answerInvite, openCalendar, refresh, signedOn, useCalendar, zone } from "./store"
 import { dueAlarms, getClockApp, markRang, cancelTimer, useClockApp, timerLeft } from "./clockStore"
 import { playNotice, playReminder, ringAlarm } from "./sounds"
-import { notify as notifyCenter } from "../../../utils/notifications"
+import { interrupts, notify as notifyCenter } from "../../../utils/notifications"
+import { useDnd } from "../../../utils/dnd"
 import { isLocked, notifyLocked } from "../../../utils/lock"
 import "./CalendarBridge.css"
 
@@ -48,7 +49,10 @@ const writeState = (s) => {
 }
 
 // a system notification, when 98ish isn't in front and they've been allowed
-const notify = (title, body, tag) => {
+// (kind: "calendar" for reminders, which Do Not Disturb can let through; anything else
+// about calendars waits in the Notification Center while it's on)
+const notify = (title, body, tag, kind = "calendar-activity") => {
+  if (!interrupts(kind)) return
   notifyLocked() // the lock screen says only "New message"
   try {
     if (typeof Notification === "undefined" || Notification.permission !== "granted" || document.visibilityState === "visible") return
@@ -255,10 +259,20 @@ const CalendarBridge = ({ socket, windows, dispatch, mobile }) => {
   const toastId = useRef(0)
 
   // each toast also lands in the Notification Center
+  // (Do Not Disturb: only the Notification Center)
   const toast = (t) => {
-    setToasts((list) => [...list.slice(-2), { ...t, id: ++toastId.current }])
     notifyCenter({ app: "calendar", title: t.title, text: t.text, key: t.key || null, target: t.target || { kind: "calendar" } })
+    if (interrupts("calendar-activity")) setToasts((list) => [...list.slice(-2), { ...t, id: ++toastId.current }])
   }
+  const notice = () => interrupts("calendar-activity") && playNotice()
+
+  // reminders that came during Do Not Disturb (when it kept them back) show once it's over
+  const dndOn = useDnd().active
+  useEffect(() => {
+    if (dndOn) return
+    const open = readState().open || []
+    if (open.length) setItems(open)
+  }, [dndOn])
   const closeToast = (id) => setToasts((list) => list.filter((t) => t.id !== id))
 
   // ---- signing on and off ----
@@ -306,7 +320,7 @@ const CalendarBridge = ({ socket, windows, dispatch, mobile }) => {
       const muted = s.muted.includes(payload?.calendarId)
       const a = payload?.activity
       if (event === "cal:invite") {
-        playNotice()
+        notice()
         toast({
           title: "Calendar invitation",
           icon: "📅",
@@ -326,7 +340,7 @@ const CalendarBridge = ({ socket, windows, dispatch, mobile }) => {
       }
       if (muted || !calendar || !a) return
       if (event === "cal:comment" && payload.comment) {
-        playNotice()
+        notice()
         const text = `${payload.comment.byName} on "${payload.title}": ${payload.comment.text.slice(0, 120)}`
         toast({ title: calendar.name, icon: "💬", text, target: { kind: "calendar", calendarId: payload.calendarId, eventId: payload.eventId }, actions: [{ label: "Reply", run: () => openCalendar({ calendarId: payload.calendarId, eventId: payload.eventId, comments: true }) }] })
         notify(`${calendar.name}: new comment`, text, `cal-comment-${payload.eventId}`)
@@ -334,7 +348,7 @@ const CalendarBridge = ({ socket, windows, dispatch, mobile }) => {
       }
       if (event === "cal:event" || (event === "cal:calendar" && a.action === "joined")) {
         const what = a.action === "joined" ? `${a.byName} joined "${calendar.name}".` : `${a.byName} ${ACTIONS[a.action] || "changed"} "${a.title}"${a.when && a.action !== "deleted" ? ` · ${a.when}` : ""}`
-        playNotice()
+        notice()
         toast({
           title: calendar.name,
           icon: a.action === "deleted" ? "🗑️" : a.action === "completed" ? "✔️" : "📅",
@@ -409,10 +423,11 @@ const CalendarBridge = ({ socket, windows, dispatch, mobile }) => {
         target: item.task ? { kind: "program", name: "Tasks", extra: { handoff: { id: Date.now(), calendarId: item.calendarId, eventId: item.eventId } } } : { kind: "calendar", calendarId: item.calendarId, eventId: item.eventId },
       })
     }
-    if (fresh.length || back.length) {
+    // (Do Not Disturb, unless it lets reminders through: they wait in the list until it's over)
+    if ((fresh.length || back.length) && interrupts("calendar")) {
       playReminder()
       const first = fresh[0] ? describe(fresh[0]) : back[0].item
-      notify(`Reminder: ${first.title}`, first.when, `cal-rem-${first.fireKey}`)
+      notify(`Reminder: ${first.title}`, first.when, `cal-rem-${first.fireKey}`, "calendar")
       setItems(open)
     }
   }

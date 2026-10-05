@@ -1,5 +1,5 @@
 import React, { useState } from "react"
-import { LOCALES, dateOrder, formatHour, formatNumber, formatShortDate, formatTime, localeOf, uses24h, weekStart } from "../../../utils/region"
+import { LOCALES, dateOrder, formatHour, formatNumber, formatShortDate, formatTime, localeOf, tempUnit, uses24h, weekStart } from "../../../utils/region"
 import { WEEKDAYS } from "../calendar/recur"
 import MoreOptions from "../../shared/MoreOptions"
 import { summarize } from "../../../utils/disclosure"
@@ -62,6 +62,16 @@ const Regional = ({ onClose }) => {
             <p>Times, dates and numbers show the way your region writes them. Change any part on the Time and Date tabs.</p>
           </div>
           <Choice label="Region:" value={region.locale} options={LOCALES.map((l) => (l.id === "auto" ? { ...l, label: `Same as this device (${localeOf({ locale: "auto" })})` } : l))} onChange={(locale) => set({ locale })} />
+          <Choice
+            label="Temperature:"
+            value={region.temp || "auto"}
+            options={[
+              { id: "auto", label: `As the region does (${tempUnit({ ...auto, temp: "auto" }) === "F" ? "°F" : "°C"})` },
+              { id: "F", label: "Fahrenheit (°F)" },
+              { id: "C", label: "Celsius (°C)" },
+            ]}
+            onChange={(temp) => set({ temp })}
+          />
           {samples}
         </>
       )}

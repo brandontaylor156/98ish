@@ -3,7 +3,7 @@ import { playSound } from "./sounds"
 import "./Aim.css"
 import { unlock } from "../../../utils/achievements"
 import { launch } from "../../../utils/programs"
-import { getNotifications, notify } from "../../../utils/notifications"
+import { getNotifications, interrupts, notify } from "../../../utils/notifications"
 import { notifyLocked } from "../../../utils/lock"
 import { currentUser } from "../../../utils/users"
 import { registerSearchProvider } from "../../../utils/searchIndex"
@@ -438,7 +438,8 @@ export const AimProvider = ({ socket, windows, dispatch: dispatchWindow, onOpenV
         const wasOnline = !!stateRef.current.presence[key]?.online
         dispatch({ type: "presence", presence })
         if (presence.online === wasOnline) return
-        if (inBuddyList(presence.screenName)) sound(presence.online ? "doorOpen" : "doorClose")
+        // (Do Not Disturb: the doors stay quiet)
+        if (inBuddyList(presence.screenName) && interrupts("im")) sound(presence.online ? "doorOpen" : "doorClose")
         if (stateRef.current.convos[key]) {
           dispatch({
             type: "messages",
@@ -454,14 +455,19 @@ export const AimProvider = ({ socket, windows, dispatch: dispatchWindow, onOpenV
         if (!message.id) message.id = sysId().replace("s-", "l-")
         dispatch({ type: "messages", ck: key, screenName: raw.from, messages: [message] })
         save([message])
-        sound("imReceive")
-        notifyLocked() // the lock screen says only "New message"
-        openIm(raw.from, { focus: false })
+        // Do Not Disturb: no sound and no window popping up (unless it's open already); the
+        // Notification Center still gets it below
+        const quiet = !interrupts("im", raw.from)
+        if (!quiet) {
+          sound("imReceive")
+          notifyLocked() // the lock screen says only "New message"
+        }
+        if (!quiet || windowsRef.current.some((w) => !w.closed && w.aimId === `im:${key}`)) openIm(raw.from, { focus: false })
         // the Notification Center, unless that conversation is right in front of you (and
         // you've seen it: an item still unread keeps up)
         const inFront = document.visibilityState === "visible" && windowsRef.current.some((w) => !w.closed && w.active && !w.minimized && w.aimId === `im:${key}`)
         const waiting = getNotifications().some((n) => n.key === `im:${key}` && !n.read)
-        if ((!inFront || waiting) && !raw.auto) {
+        if ((!inFront || waiting || quiet) && !raw.auto) {
           notify({ app: "im", key: `im:${key}`, title: raw.from, text: previewText(raw), time: raw.offline ? raw.time : Date.now(), target: { kind: "im", with: raw.from } })
         }
       },

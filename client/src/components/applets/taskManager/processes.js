@@ -53,6 +53,7 @@ export const APP_PROFILES = {
   Tasks: { image: "tasks98.exe", mem: 1580, threads: 2, handles: 31, cpu: [0.05, 1] },
   Find: { image: "explorer.exe", mem: 1880, threads: 2, handles: 38, cpu: [0.05, 2] },
   "98ish Help": { image: "hh.exe", mem: 1712, threads: 2, handles: 33, cpu: [0.05, 1.5] },
+  Weather: { image: "weather.exe", mem: 1180, threads: 3, handles: 22, cpu: [0.05, 1] },
   Clock: { image: "clock.exe", mem: 640, threads: 2, handles: 14, cpu: [0.1, 1] },
   "Character Map": { image: "charmap.exe", mem: 1288, threads: 1, handles: 24, cpu: [0.05, 1] },
   "Welcome to 98ish": { image: "welcome.exe", mem: 1420, threads: 1, handles: 27, cpu: [0.05, 1] },

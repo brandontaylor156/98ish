@@ -19,6 +19,10 @@
 // notifications on still rings: they get an "is calling" notification, and if they open
 // 98ish while it's still ringing, the ring reaches them as soon as they sign on. Missed
 // calls go out as notifications too when they're away.
+//
+// Do Not Disturb (options.allowed, from ../push): someone with it on only rings for the
+// callers they let through (favorites or everyone); anyone else gets "has Do Not Disturb
+// on" and the call lands in their missed calls (quietly, with dnd: true).
 
 const crypto = require("crypto")
 const { validate } = require("./screenNames")
@@ -49,7 +53,7 @@ const cleanSignal = (kind, data) => {
   return null
 }
 
-const createCalls = ({ sessions, hidden, emitTo, limiter, ice, botKey, ringMs = RING_MS, lostMs = LOST_MS, offline = null }) => {
+const createCalls = ({ sessions, hidden, emitTo, limiter, ice, botKey, ringMs = RING_MS, lostMs = LOST_MS, offline = null, allowed = null }) => {
   const calls = new Map() // id -> { id, from, fromName, to, video, state: "ringing" | "active", timer }
   const inCall = new Map() // key -> call id
   const missedOffline = new Map() // key -> missed-call notices for someone signed off
@@ -160,6 +164,12 @@ const createCalls = ({ sessions, hidden, emitTo, limiter, ice, botKey, ringMs = 
         missed(call, { busy: true })
         return ack({ ok: false, busy: true, error: `${toName} is on another call. Try again later.` })
       }
+      // Do Not Disturb: not for this caller (ask once more after the wait: a call may have started)
+      if (allowed && !(await Promise.resolve(allowed(target.key, session.key)).catch(() => true))) {
+        missed(call, { dnd: true })
+        return ack({ ok: false, dnd: true, error: `${toName} has Do Not Disturb on. They'll see that you called.` })
+      }
+      if (inCall.has(session.key) || inCall.has(target.key)) return ack({ ok: false, error: inCall.has(session.key) ? "You're already on a call." : `${toName} is on another call. Try again later.` })
       calls.set(call.id, call)
       inCall.set(call.from, call.id)
       inCall.set(call.to, call.id)

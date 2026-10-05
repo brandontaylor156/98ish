@@ -5,7 +5,8 @@ import { openCouples } from "../../utils/couple"
 import { launch } from "../../utils/programs"
 import { shellAction } from "../../utils/shell"
 import { OPEN_TARGET_EVENT, applySeen, fromPush, markReadWhere, notify, onSeen, openTarget, setNotifyAccount, targetFromParams } from "../../utils/notifications"
-import { closeShownNotifications, getSeen, putSeen, resubscribeIfNeeded, setPushSession, takePushInbox } from "../../utils/push"
+import { closeShownNotifications, getSeen, putSeen, resubscribeIfNeeded, setPushSession, takeHeld, takePushInbox } from "../../utils/push"
+import { setDndFavorites, setDndSession, syncDnd, useDnd } from "../../utils/dnd"
 
 // Connects the Notification Center and push notifications to the desktop (mounted inside
 // the 98 Messenger provider, always):
@@ -23,6 +24,12 @@ const SIGN_ON_WAIT_MS = 20_000
 const importInbox = async () => {
   for (const data of await takePushInbox()) notify(fromPush(data))
 }
+// pushes Do Not Disturb held back on the server: into the list, quietly
+const importHeld = async (token) => {
+  const r = await takeHeld(token)
+  if (r.ok) for (const data of r.held || []) notify(fromPush(data))
+}
+export const DND_AWAY = "Do Not Disturb is on. I'll see your message later."
 
 const NotifyBridge = ({ windows, dispatch }) => {
   const aim = useAim()
@@ -47,7 +54,43 @@ const NotifyBridge = ({ windows, dispatch }) => {
     onSeen((at) => putSeen(aimRef.current.token, at))
     getSeen(token).then((r) => r.ok && applySeen(r.seenAt))
     resubscribeIfNeeded(token, account)
+    importHeld(token)
   }, [account, aim?.token])
+
+  // ---- Do Not Disturb: synced with the account, favorites from the Address Book ----
+  useEffect(() => {
+    setDndSession(account ? aimRef.current.token : null)
+    if (!account) return
+    // (the Address Book's store loads on its own, after sign-on: it isn't in the first download)
+    let live = true
+    let off = null
+    import("../../utils/contacts").then(({ getContacts, subscribeContacts }) => {
+      if (!live) return
+      const favorites = () => setDndFavorites(getContacts().filter((c) => c.favorite && c.screenName).map((c) => keyOf(c.screenName)))
+      favorites()
+      off = subscribeContacts(favorites)
+    })
+    return () => {
+      live = false
+      off?.()
+    }
+  }, [account, aim?.token])
+
+  // "Set my status to Away while Do Not Disturb is on" (and back when it ends, if it was us)
+  const dnd = useDnd()
+  const awayByDnd = useRef(false)
+  useEffect(() => {
+    if (!online) return
+    const a = aimRef.current
+    const want = dnd.active && dnd.state.away
+    if (want && !a.me?.away) {
+      awayByDnd.current = true
+      a.setAway?.(DND_AWAY)
+    } else if (!want && awayByDnd.current) {
+      awayByDnd.current = false
+      if (a.me?.away === DND_AWAY) a.setAway?.("")
+    }
+  }, [online, dnd.active, dnd.state.away])
 
   // ---- background or not (the server pushes IMs and calls while hidden) ----
   useEffect(() => {
@@ -150,6 +193,11 @@ const NotifyBridge = ({ windows, dispatch }) => {
       if (document.visibilityState !== "visible") return
       importInbox()
       closeShownNotifications()
+      // another device may have turned Do Not Disturb on or off; held pushes come in
+      if (aimRef.current?.status === "online") {
+        syncDnd()
+        importHeld(aimRef.current.token)
+      }
     }
     onVisible()
     document.addEventListener("visibilitychange", onVisible)

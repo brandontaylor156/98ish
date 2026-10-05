@@ -3,7 +3,7 @@
 // the server shares, reads it too); settings.js hands over the saved choice with
 // setRegionPrefs. "auto" means: what the browser's language does.
 
-export const REGION_DEFAULTS = { locale: "auto", time: "auto", firstDay: "auto", dateOrder: "auto" }
+export const REGION_DEFAULTS = { locale: "auto", time: "auto", firstDay: "auto", dateOrder: "auto", temp: "auto" }
 
 export const LOCALES = [
   { id: "auto", label: "Same as this device" },
@@ -121,3 +121,12 @@ export const formatNumber = (n, p = prefs, options) => {
     return String(n)
   }
 }
+
+// temperatures in °F or °C ("auto": °F where the region uses it: the US and a few others)
+const FAHRENHEIT_REGIONS = new Set(["US", "PR", "GU", "VI", "AS", "MP", "UM", "LR", "BS", "BZ", "KY", "PW", "FM", "MH"])
+export const localeUsesFahrenheit = (locale) => {
+  const id = safeLocale(locale)
+  const region = (id.split("-").find((part, i) => i > 0 && /^[A-Z]{2}$/.test(part)) || (id === "en" ? "US" : "")).toUpperCase()
+  return FAHRENHEIT_REGIONS.has(region)
+}
+export const tempUnit = (p = prefs) => (p.temp === "F" || p.temp === "C" ? p.temp : localeUsesFahrenheit(localeOf(p)) ? "F" : "C")

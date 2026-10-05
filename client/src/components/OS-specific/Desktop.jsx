@@ -12,6 +12,7 @@ import { AimProvider } from "../applets/aim/AimContext"
 import MailNotifier from "../applets/mail/MailNotifier"
 import NotifyBridge from "./NotifyBridge"
 import CoupleBridge, { FlowerSpot } from "../applets/couples/CoupleBridge"
+import { useWeatherPrefs } from "../../utils/weatherPrefs"
 import { useCouple } from "../../utils/couple"
 import { NetProvider } from "../applets/network/NetContext"
 import ContextMenu from "../shared/ContextMenu"
@@ -79,6 +80,7 @@ const Appward = lazyApp(() => import("../applets/appward/Appward"))
 const Welcome = lazyApp(() => import("../applets/welcome/Welcome"))
 const CalendarApp = lazyApp(() => import("../applets/calendar/Calendar"))
 const ClockApp = lazyApp(() => import("../applets/calendar/Clock"))
+const WeatherApp = lazyApp(() => import("../applets/weather/Weather"))
 // reminders, alarms and live calendar notices, whether or not Calendar is open (its own download)
 const CalendarBridge = React.lazy(() => import("../applets/calendar/CalendarBridge"))
 const Camera = lazyApp(() => import("../applets/camera/Camera"))
@@ -94,6 +96,17 @@ const Find = lazyApp(() => import("../applets/find/Find"))
 const HelpViewer = lazyApp(() => import("../applets/help/HelpViewer"))
 // Our Pet out for a walk on the desktop (couples only, its own small download)
 const PetWalker = React.lazy(() => import("../applets/pet/PetWalker"))
+// Weather on the desktop (Weather's View > Show on Desktop), loaded only when it's on
+const WeatherWidget = React.lazy(() => import("../applets/weather/WeatherWidget"))
+const WeatherSpot = ({ mobile, dispatch }) => {
+  const weather = useWeatherPrefs()
+  if (!weather.widget) return null
+  return (
+    <React.Suspense fallback={null}>
+      <WeatherWidget mobile={mobile} dispatch={dispatch} />
+    </React.Suspense>
+  )
+}
 // Network Neighborhood and the head-to-head games
 const isNetWindow = (w) => w.app === "network" || !!w.app?.startsWith("net-")
 const FileExplorer = lazyApp(() => import("../applets/fileExplorer/FileExplorer"))
@@ -876,6 +889,7 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
       {window.app === "magnifier" && <Magnifier mobile={mobile} dispatch={dispatch} onClose={() => closeWindow(window, index)} />}
       {window.app === "calendar" && <CalendarApp calendarView={window.calendarView} mobile={mobile} dispatch={dispatch} onClose={() => closeWindow(window, index)} />}
       {window.app === "clock" && <ClockApp clockTab={window.calendarView?.tab} mobile={mobile} />}
+      {window.app === "weather" && <WeatherApp mobile={mobile} />}
       {window.app === "addressbook" && <AddressBook mobile={mobile} dispatch={dispatch} handoff={window.handoff} onTitle={rename(index)} onClose={() => closeWindow(window, index)} />}
       {window.app === "notes" && <Notes mobile={mobile} dispatch={dispatch} handoff={window.handoff} onTitle={rename(index)} onClose={() => closeWindow(window, index)} />}
       {window.app === "tasks" && <Tasks mobile={mobile} dispatch={dispatch} handoff={window.handoff} onTitle={rename(index)} onClose={() => closeWindow(window, index)} />}
@@ -1162,6 +1176,7 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
     return withAim(
       <div className="mobileDesktop" onClick={() => closeMenu()} onContextMenu={onContextMenu} {...longPress}>
         <FlowerSpot mobile />
+        <WeatherSpot mobile dispatch={dispatch} />
         {paired && (
           <React.Suspense fallback={null}>
             <PetWalker windows={windows} mobile />
@@ -1209,6 +1224,7 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
       onDrop={onDrop}
     >
       <FlowerSpot />
+      <WeatherSpot dispatch={dispatch} />
       {paired && (
         <React.Suspense fallback={null}>
           <PetWalker windows={windows} />

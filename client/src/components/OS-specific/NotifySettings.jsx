@@ -5,6 +5,9 @@ import Dialog from "../shared/Dialog"
 import { openCouples } from "../../utils/couple"
 import { disablePush, enablePush, getPushConfig, getPushSettings, pushOnHere, pushState, savePushSettings, sendTestPush, usePushSession } from "../../utils/push"
 import { BellIcon } from "./NotifyTray"
+import { MoonIcon } from "./DndTray"
+import { useDnd } from "../../utils/dnd"
+import { shellAction } from "../../utils/shell"
 
 // Notification settings (the bell's Settings..., Start > Settings > Notifications):
 //   - turning push notifications on for this device: one tap (the browser asks), or on an
@@ -87,6 +90,7 @@ const InstallGuide = () => (
 const NotifySettings = ({ onClose }) => {
   const session = usePushSession()
   const token = session?.token
+  const dnd = useDnd()
   const [state, setState] = useState(pushState)
   const [server, setServer] = useState(null) // { enabled }
   const [onHere, setOnHere] = useState(false)
@@ -208,6 +212,15 @@ const NotifySettings = ({ onClose }) => {
             </p>
           )}
         </fieldset>
+        <div className="ncDndLink">
+          <MoonIcon on={dnd.active} />
+          <span>
+            Do Not Disturb is <b>{dnd.active ? "on" : "off"}</b>.
+          </span>
+          <button type="button" onClick={() => (onClose(), shellAction("dnd-settings"))}>
+            Do Not Disturb...
+          </button>
+        </div>
         {/* which kinds and quiet hours: More options (docs/simplicity.md) */}
         <MoreOptions id="notify.settings" className="ncMore" summary={summarize(kindsOff.length ? `Not: ${kindsOff.join(", ")}` : `All ${KINDS.length} kinds`, settings?.quiet?.on ? `Quiet ${settings.quiet.from || "22:00"} to ${settings.quiet.to || "07:00"}` : "No quiet hours")}>
         <fieldset disabled={off}>

@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react"
 import { useAim } from "../aim/AimContext"
 import { SERVER_URL, openMail, playMailChime, setMailStatus } from "./mailStatus"
-import { notify } from "../../../utils/notifications"
+import { interrupts, notify } from "../../../utils/notifications"
 import { notifyLocked } from "../../../utils/lock"
 import "./MailNotifier.css"
 
@@ -32,9 +32,10 @@ const MailNotifier = ({ socket, windows, dispatch }) => {
   useEffect(() => {
     const onMail = (mail) => {
       setMailStatus({ unread: Number(mail?.unread) || 0, arrived: Date.now() })
+      notify({ app: "mail", key: mail?.id ? `mail:${mail.id}` : null, title: `New mail from ${mail?.from || "someone"}`, text: mail?.subject || "(no subject)", target: { kind: "mail" } })
+      if (!interrupts("mail")) return // Do Not Disturb: just the Notification Center
       playMailChime()
       setToast({ from: String(mail?.from || ""), subject: String(mail?.subject || "") })
-      notify({ app: "mail", key: mail?.id ? `mail:${mail.id}` : null, title: `New mail from ${mail?.from || "someone"}`, text: mail?.subject || "(no subject)", target: { kind: "mail" } })
       notifyLocked() // the lock screen says only "New message"
     }
     socket.on("mail:new", onMail)

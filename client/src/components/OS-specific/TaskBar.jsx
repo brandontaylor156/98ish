@@ -16,7 +16,12 @@ import MailTray from "../applets/mail/MailTray"
 import CoupleTray from "../applets/couples/CoupleTray"
 import NotifyTray from "./NotifyTray"
 import SyncTray from "../applets/backup/SyncTray"
+import DndTray from "./DndTray"
+import { useWeatherPrefs } from "../../utils/weatherPrefs"
 import "./Shell.css"
+
+// the weather in the tray (Weather's View > Show in Taskbar): loaded only when it's on
+const WeatherTray = React.lazy(() => import("../applets/weather/WeatherTray"))
 
 // Taskbar Properties and Keyboard Shortcuts load the first time they're opened
 const TaskbarDialog = React.lazy(() => import("./TaskbarDialogs"))
@@ -78,6 +83,7 @@ const freeScreen = () => ({
 const TaskBar = ({ windows, dispatch, setStartMenuVisible, startMenuVisible }) => {
   const settings = useSettings()
   const mobile = useIsMobile()
+  const weather = useWeatherPrefs()
   const online = useNetStatus()
   const quick = useQuickLaunch()
   const [menu, setMenu] = useState(null) // { x, y, items }
@@ -491,6 +497,12 @@ const TaskBar = ({ windows, dispatch, setStartMenuVisible, startMenuVisible }) =
                 )
             )}
             <SyncTray dispatch={dispatch} />
+            {weather.tray && weather.places.length > 0 && (
+              <Suspense fallback={null}>
+                <WeatherTray mobile={mobile} dispatch={dispatch} />
+              </Suspense>
+            )}
+            <DndTray mobile={mobile} />
             <NotifyTray />
             <MailTray windows={windows} dispatch={dispatch} />
             <CoupleTray />

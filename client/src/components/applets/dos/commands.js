@@ -144,6 +144,8 @@ export const ALIASES = {
   contacts: "Address Book",
   find: "Find",
   search: "Find",
+  weather: "Weather",
+  forecast: "Weather",
   clock: "Clock",
   alarm: "Clock",
   timer: "Clock",

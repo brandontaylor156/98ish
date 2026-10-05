@@ -5,7 +5,7 @@ import { claimCallSession } from "../../../../utils/audio"
 import * as engine from "./engine"
 import { playConnected, playHangUp, playModem, startRingback, startRingtone, stopVibrate, vibrateRing } from "./callSounds"
 import { PhoneIcon, VideoIcon } from "./CallIcons"
-import { notify as notifyCenter } from "../../../../utils/notifications"
+import { interrupts, notify as notifyCenter } from "../../../../utils/notifications"
 import { setCallLive, setLockCall } from "../../../../utils/lock"
 import "./call.css"
 
@@ -89,6 +89,8 @@ const CallManager = () => {
         : `Missed ${payload.video ? "video " : ""}call from ${from} at ${time(payload.time)}.`
       a().addNotice(from, text)
       notifyCenter({ app: "calls", key: `missed:${keyOf(from)}:${payload.time}`, title: payload.busy ? `${from} tried to call` : `Missed ${payload.video ? "video " : ""}call`, text, time: payload.time || Date.now(), target: { kind: "im", with: from } })
+      // Do Not Disturb (the server kept the call from ringing): only the Notification Center
+      if (payload.dnd || !interrupts("calls", from)) return
       if (a().prefs.sound) playSound("imReceive")
       setMissed((list) => [...list.filter((m) => keyOf(m.from) !== keyOf(from)), { id: `${from}:${payload.time}`, from, video: !!payload.video, time: payload.time, text }].slice(-3))
     })
@@ -98,11 +100,24 @@ const CallManager = () => {
     }
   }, [])
 
-  // ---- sounds follow the phase ----
+  // ---- Do Not Disturb ----
+  // The server doesn't ring someone with it on (only the callers they let through); if this
+  // device turned it on before the server heard, the call is declined here, quietly
   const phase = call.phase
+  const blocked = phase === "incoming" && !interrupts("calls", call.peer)
+  useEffect(() => {
+    if (!blocked) return
+    const { peer: from, video: withVideo } = engine.getCall()
+    engine.decline()
+    const at = Date.now()
+    aimRef.current.addNotice(from, `Missed ${withVideo ? "video " : ""}call from ${from} at ${time(at)} (Do Not Disturb).`)
+    notifyCenter({ app: "calls", key: `missed:${keyOf(from)}:${at}`, title: `Missed ${withVideo ? "video " : ""}call`, text: `${from} called while Do Not Disturb was on.`, time: at, target: { kind: "im", with: from } })
+  }, [blocked])
+
+  // ---- sounds follow the phase ----
   const ringingOut = phase === "outgoing" && !!call.id
   useEffect(() => {
-    if (phase !== "incoming") return
+    if (phase !== "incoming" || blocked) return
     const stop = startRingtone()
     vibrateRing()
     const buzz = setInterval(vibrateRing, 3000)
@@ -135,7 +150,7 @@ const CallManager = () => {
   const peer = call.peer
   const video = !!call.video
   useEffect(() => {
-    if (phase !== "incoming") return setLockCall(null)
+    if (phase !== "incoming" || blocked) return setLockCall(null)
     setLockCall({ peer, video, answer: (withVideo) => engine.answer(withVideo), decline: () => engine.decline() })
     return () => setLockCall(null)
   }, [phase, peer, video])
@@ -177,6 +192,7 @@ const CallManager = () => {
       aimRef.current.closeWindows((w) => w.app === "aim-ring")
       return
     }
+    if (blocked) return
     const visible = aimRef.current.getWindows().some((w) => !w.closed && !w.minimized && w.name === BUDDY_LIST)
     if (visible) {
       aimRef.current.openWindow(`ring:${call.id}`, {

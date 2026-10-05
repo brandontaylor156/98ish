@@ -2,6 +2,10 @@ import React, { Suspense, useEffect, useMemo, useRef, useState } from "react"
 import { SHELL_EVENT } from "../../utils/shell"
 import { appInfo, clearAll, dismiss, markAllRead, openNotification, timeAgo, unreadCount, useNotifications } from "../../utils/notifications"
 import { pushState } from "../../utils/push"
+import { useDnd } from "../../utils/dnd"
+import ContextMenu from "../shared/ContextMenu"
+import { MoonIcon, dndMenu, dndUntilText } from "./DndTray"
+import { shellAction } from "../../utils/shell"
 import "./Notify.css"
 
 // The taskbar's bell: how many notifications are unread, and the Notification Center
@@ -10,7 +14,19 @@ import "./Notify.css"
 
 const NotifySettings = React.lazy(() => import("./NotifySettings"))
 
-export const BellIcon = ({ ringing = false }) => (
+// the bell, with a little moon on it while Do Not Disturb is on
+export const BellIcon = ({ ringing = false, dnd = false }) =>
+  dnd ? (
+    <span className="bellWrap bellDnd" aria-hidden="true">
+      <BellPicture />
+      <span className="bellMoon">
+        <MoonIcon on size={11} />
+      </span>
+    </span>
+  ) : (
+    <BellPicture ringing={ringing} />
+  )
+const BellPicture = ({ ringing = false }) => (
   <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" className={ringing ? "bellIcon is-ringing" : "bellIcon"}>
     <path d="M8 1.5c-.6 0-1 .4-1 1v.4C5 3.4 4 5 4 7v3l-1.5 2h11L12 10V7c0-2-1-3.6-3-4.1v-.4c0-.6-.4-1-1-1z" fill="#ffd700" stroke="#000" strokeWidth="1" strokeLinejoin="round" />
     <path d="M5.5 6.5q.3-1.8 2-2.3" fill="none" stroke="#fff" strokeWidth="1" />
@@ -43,10 +59,12 @@ const Row = ({ item, onOpen }) => {
 
 const Panel = ({ list, onClose, onSettings }) => {
   const ref = useRef(null)
+  const dnd = useDnd()
+  const [dndMenuAt, setDndMenuAt] = useState(null)
   // a press anywhere else (but the bell) or Escape closes it
   useEffect(() => {
     const onDown = (e) => {
-      if (!ref.current?.contains(e.target) && !e.target.closest?.(".notifyBell")) onClose()
+      if (!ref.current?.contains(e.target) && !e.target.closest?.(".notifyBell, .contextMenu, .ctxMenu, [role=menu]")) onClose()
     }
     const onKey = (e) => e.key === "Escape" && onClose()
     document.addEventListener("pointerdown", onDown, true)
@@ -92,6 +110,27 @@ const Panel = ({ list, onClose, onSettings }) => {
           Settings...
         </button>
       </div>
+      {/* Do Not Disturb: the switch, with how long */}
+      <button
+        type="button"
+        className={`ncDnd${dnd.active ? " is-on" : ""}`}
+        aria-pressed={dnd.active}
+        aria-haspopup="menu"
+        data-dnd={dnd.active ? "on" : "off"}
+        onClick={(e) => {
+          const box = e.currentTarget.getBoundingClientRect()
+          setDndMenuAt({ x: box.left + 8, y: box.bottom })
+        }}
+      >
+        <MoonIcon on={dnd.active} />
+        <span>
+          Do Not Disturb: <b>{dnd.active ? dndUntilText(dnd).replace(/^On until you turn it off$/, "On") : "Off"}</b>
+        </span>
+        <span className="ncDndArrow" aria-hidden="true">
+          ▾
+        </span>
+      </button>
+      {dndMenuAt && <ContextMenu x={dndMenuAt.x} y={dndMenuAt.y} items={dndMenu(dnd, () => (onClose(), shellAction("dnd-settings")))} onClose={() => setDndMenuAt(null)} />}
       <div className="ncList" role="list">
         {!list.length && (
           <div className="ncEmpty">
@@ -127,6 +166,7 @@ const Panel = ({ list, onClose, onSettings }) => {
 
 const NotifyTray = () => {
   const list = useNotifications()
+  const dnd = useDnd()
   const [open, setOpen] = useState(false)
   const [settings, setSettingsOpen] = useState(false)
   const unread = unreadCount(list)
@@ -150,13 +190,14 @@ const NotifyTray = () => {
       <button
         type="button"
         className="trayIcon notifyBell"
-        title={unread ? `${unread} new notification${unread === 1 ? "" : "s"}` : "Notifications"}
-        aria-label={unread ? `Notifications, ${unread} new` : "Notifications"}
+        title={`${unread ? `${unread} new notification${unread === 1 ? "" : "s"}` : "Notifications"}${dnd.active ? " (Do Not Disturb is on)" : ""}`}
+        aria-label={`${unread ? `Notifications, ${unread} new` : "Notifications"}${dnd.active ? ", Do Not Disturb on" : ""}`}
+        data-dnd={dnd.active ? "on" : "off"}
         aria-expanded={open}
         data-unread={unread}
         onClick={() => setOpen(!open)}
       >
-        <BellIcon ringing={unread > 0} />
+        <BellIcon ringing={unread > 0 && !dnd.active} dnd={dnd.active} />
         {unread > 0 && <span className="notifyCount">{unread > 99 ? "99+" : unread}</span>}
       </button>
       {open && (

@@ -1,6 +1,7 @@
 import React, { useState } from "react"
 import Dialog from "../shared/Dialog"
 import { setSettings } from "../../utils/settings"
+import { getWeatherPrefs, setWeatherPrefs } from "../../utils/weatherPrefs"
 
 // The taskbar's dialogs, fetched the first time one opens: Taskbar Properties and
 // Keyboard Shortcuts.
@@ -24,13 +25,20 @@ const TaskbarProperties = ({ settings, mobile, onClose }) => {
     taskbarAutoHide: settings.taskbarAutoHide,
     taskbarClock: settings.taskbarClock,
     quickLaunch: settings.quickLaunch,
+    weatherTray: getWeatherPrefs().tray,
   })
+  // (the weather is Weather's own setting)
+  const apply = () => {
+    const { weatherTray, ...rest } = draft
+    setSettings(rest)
+    setWeatherPrefs({ tray: weatherTray })
+  }
   const toggle = (key) => (e) => setDraft((d) => ({ ...d, [key]: e.target.checked }))
   return (
     <Dialog
       title="Taskbar Properties"
-      onOk={() => (setSettings(draft), onClose())}
-      onNo={() => setSettings(draft)}
+      onOk={() => (apply(), onClose())}
+      onNo={apply}
       noLabel="Apply"
       onCancel={onClose}
     >
@@ -42,6 +50,7 @@ const TaskbarProperties = ({ settings, mobile, onClose }) => {
           <span className="tbPreviewStart">Start</span>
           {draft.quickLaunch && <span className="tbPreviewQuick" />}
           <span className="tbPreviewTab" />
+          {draft.weatherTray && <span className="tbPreviewClock">72°</span>}
           {draft.taskbarClock && <span className="tbPreviewClock">12:45</span>}
         </div>
       </div>
@@ -52,6 +61,10 @@ const TaskbarProperties = ({ settings, mobile, onClose }) => {
       <div className="field-row">
         <input id="tb-clock" type="checkbox" checked={draft.taskbarClock} onChange={toggle("taskbarClock")} />
         <label htmlFor="tb-clock">Show clock</label>
+      </div>
+      <div className="field-row">
+        <input id="tb-weather" type="checkbox" checked={draft.weatherTray} onChange={toggle("weatherTray")} />
+        <label htmlFor="tb-weather">Show weather (choose the place in Weather)</label>
       </div>
       <div className="field-row">
         <input id="tb-quick" type="checkbox" checked={draft.quickLaunch} disabled={mobile} onChange={toggle("quickLaunch")} />

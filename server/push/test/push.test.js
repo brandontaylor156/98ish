@@ -463,6 +463,135 @@ test("calls: quiet hours with calls muted means not reachable; a hidden tab stil
   }
 })
 
+// ---------- Do Not Disturb ----------
+
+test("Do Not Disturb: pushes are held (not sent), favorites' calls and reminders get through, held ones are handed over once", async () => {
+  const p = makePush() // noon in Chicago
+  const aim = fakeAim()
+  p.service.useAim(aim)
+  aim.sessions.delete("alice") // away
+  const store = await p.service.getStore()
+  await store.subs.save({ key: "alice", endpoint: "https://push.example.com/1", p256dh: "k1", auth: "a1", device: "phone" })
+  const msg = (title) => ({ title, body: "hi", tag: title })
+
+  // on by hand, until turned off; favorites may call
+  await store.prefs.set("alice", { tz: "America/Chicago", dnd: { on: true, until: null, calls: "favorites", favorites: ["Sweet Pea"], reminders: true, updatedAt: p.now() } })
+  assert.equal((await p.service.notify("alice", "im", msg("IM"))).skipped, "dnd")
+  assert.equal((await p.service.notify("alice", "mail", msg("Mail"))).skipped, "dnd")
+  assert.equal((await p.service.notify("alice", "calls", { ...msg("Stranger is calling"), requireInteraction: true }, { from: "stranger" })).skipped, "dnd")
+  assert.equal((await p.service.notify("alice", "calls", { ...msg("Sweet Pea is calling"), requireInteraction: true }, { from: "sweetpea" })).sent, 1)
+  assert.equal((await p.service.notify("alice", "calendar", msg("Reminder"))).sent, 1)
+  // a test notification ("system") always goes
+  assert.equal((await p.service.notify("alice", "system", msg("Test"))).sent, 1)
+  assert.deepEqual(p.webpush.sent.map((s) => s.data.title), ["Sweet Pea is calling", "Reminder", "Test"])
+  assert.equal(await p.service.callAllowed("alice", "sweetpea"), true)
+  assert.equal(await p.service.callAllowed("alice", "stranger"), false)
+  assert.equal(await p.service.callAllowed("bobby", "stranger"), true) // no DND at all
+
+  // reminders held too when they're not let through; calls from no one
+  await store.prefs.set("alice", { dnd: { on: true, calls: "none", favorites: ["sweetpea"], reminders: false, updatedAt: p.now() } })
+  assert.equal((await p.service.notify("alice", "calendar", msg("Reminder 2"))).skipped, "dnd")
+  assert.equal(await p.service.callAllowed("alice", "sweetpea"), false)
+
+  // the held ones (not the ring): handed over once, through the API
+  const r = serveRouter(p)
+  try {
+    const held = await r.call("POST", "/held", {}, r.aim.ALICE)
+    assert.deepEqual(held.held.map((m) => m.title), ["IM", "Mail", "Reminder 2"])
+    assert.equal(held.held[0].category, "im")
+    assert.deepEqual((await r.call("POST", "/held", {}, r.aim.ALICE)).held, [])
+    assert.equal((await r.call("POST", "/held", {})).status, 401)
+  } finally {
+    r.close()
+  }
+})
+
+test("Do Not Disturb: its schedule follows the account's time zone, across midnight and weekdays", async () => {
+  const p = makePush()
+  const aim = fakeAim()
+  p.service.useAim(aim)
+  aim.sessions.delete("alice")
+  const store = await p.service.getStore()
+  await store.subs.save({ key: "alice", endpoint: "https://push.example.com/1", p256dh: "k1", auth: "a1", device: "phone" })
+  const schedule = { on: true, from: "22:00", to: "07:00", days: [1, 2, 3, 4, 5] }
+  await store.prefs.set("alice", { tz: "America/Chicago", dnd: { schedule, updatedAt: 1 } })
+  const im = { title: "IM", body: "hi" }
+  // Friday 2026-10-02 23:30 in Chicago (04:30 UTC Saturday): Friday night counts
+  p.setTime(Date.parse("2026-10-03T04:30:00Z"))
+  assert.equal((await p.service.notify("alice", "im", im)).skipped, "dnd")
+  // Saturday 06:59 there: still Friday's night
+  p.setTime(Date.parse("2026-10-03T11:59:00Z"))
+  assert.equal((await p.service.notify("alice", "im", im)).skipped, "dnd")
+  // Saturday 07:00: over
+  p.setTime(Date.parse("2026-10-03T12:00:00Z"))
+  assert.equal((await p.service.notify("alice", "im", im)).sent, 1)
+  // Saturday 23:30 (not a weekday night)
+  p.setTime(Date.parse("2026-10-04T04:30:00Z"))
+  assert.equal((await p.service.notify("alice", "im", im)).sent, 1)
+  // Monday 23:30: quiet; turned off by hand, the schedule rests until 07:00
+  p.setTime(Date.parse("2026-10-06T04:30:00Z"))
+  assert.equal((await p.service.notify("alice", "im", im)).skipped, "dnd")
+  await store.prefs.set("alice", { dnd: { schedule, skip: Date.parse("2026-10-06T12:00:00Z"), updatedAt: 2 } })
+  assert.equal((await p.service.notify("alice", "im", im)).sent, 1)
+})
+
+test("Do Not Disturb: the API keeps the newest change and needs a session", async () => {
+  const p = makePush()
+  const r = serveRouter(p)
+  try {
+    assert.equal((await r.call("GET", "/dnd")).status, 401)
+    const fresh = await r.call("GET", "/dnd", undefined, r.aim.ALICE)
+    assert.equal(fresh.dnd.on, false)
+    const put = await r.call("PUT", "/dnd", { dnd: { on: true, calls: "everyone", favorites: ["Sweet Pea"], updatedAt: p.now() }, tz: "Europe/Paris" }, r.aim.ALICE)
+    assert.equal(put.ok, true)
+    assert.equal(put.dnd.on, true)
+    assert.deepEqual(put.dnd.favorites, ["sweetpea"])
+    // an older change from another device loses
+    const stale = await r.call("PUT", "/dnd", { dnd: { on: false, updatedAt: p.now() - 60_000 } }, r.aim.ALICE)
+    assert.equal(stale.dnd.on, true)
+    assert.equal((await r.call("GET", "/dnd", undefined, r.aim.ALICE)).dnd.calls, "everyone")
+    assert.equal((await p.service.settingsFor("alice")).tz, "Europe/Paris")
+    // per account
+    assert.equal((await r.call("GET", "/dnd", undefined, r.aim.BOBBY)).dnd.on, false)
+    const newer = await r.call("PUT", "/dnd", { dnd: { on: false, updatedAt: p.now() + 1000 } }, r.aim.ALICE)
+    assert.equal(newer.dnd.on, false)
+  } finally {
+    r.close()
+  }
+})
+
+test("calls: Do Not Disturb lets favorites ring, others land in missed calls with a message", { skip }, async () => {
+  const { user, close, p } = await socketSetup({ callRingMs: 2000 })
+  try {
+    const rosie = await user("Rosie")
+    const theo = await user("Theo")
+    const mira = await user("Mira")
+    const store = await p.service.getStore()
+    await store.prefs.set("theo", { dnd: { on: true, calls: "favorites", favorites: ["Rosie"], updatedAt: Date.now() } })
+    // Mira isn't a favorite: no ring, a missed call (marked dnd) for Theo
+    const no = await mira.ask("aim:call", { to: "theo" })
+    assert.equal(no.ok, false)
+    assert.equal(no.dnd, true)
+    assert.match(no.error, /Theo has Do Not Disturb on/)
+    await until(() => theo.got("aim:callMissed").length === 1)
+    assert.equal(theo.got("aim:callMissed")[0].from, "Mira")
+    assert.equal(theo.got("aim:callMissed")[0].dnd, true)
+    assert.equal(theo.got("aim:callRing").length, 0)
+    // Rosie is: it rings
+    const yes = await rosie.ask("aim:call", { to: "theo" })
+    assert.equal(yes.ok, true, yes.error)
+    await until(() => theo.got("aim:callRing").length === 1)
+    await rosie.ask("aim:callHangUp", { id: yes.id })
+    // DND off: anyone rings
+    await store.prefs.set("theo", { dnd: { on: false, updatedAt: Date.now() } })
+    const later = await mira.ask("aim:call", { to: "theo" })
+    assert.equal(later.ok, true, later.error)
+    await mira.ask("aim:callHangUp", { id: later.id })
+  } finally {
+    close()
+  }
+})
+
 test("game invitations push when the invited tab is in the background", { skip }, async () => {
   const { user, subscribe, sent, close, aim } = await socketSetup()
   try {

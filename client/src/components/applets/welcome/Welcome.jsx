@@ -79,6 +79,7 @@ const SHELVES = [
     items: [
       ["Calendar", "Plan together: shared calendars and reminders", false],
       ["Clock", "World clocks, alarms, a timer, a stopwatch", false],
+      ["Weather", "Today, the next 24 hours and 7 days, for your places", false],
       ["Address Book", "Everyone you know: screen names, phones, birthdays", false],
       ["Notepad", "Jot something down", false],
       ["WordPad", "Letters with fonts, colors and pictures", false],
