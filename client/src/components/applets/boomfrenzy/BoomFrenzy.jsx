@@ -520,7 +520,7 @@ const BoomFrenzy = ({ mobile = false, paused = false, onClose }) => {
 
   // ---- the play screen: the picture + hit boxes + panels ----
   const fieldBoxes = g && L && g.mode !== "sort" && (
-    <Hit x={L.field.x} y={L.field.y} w={L.field.w} h={L.field.h} className={`bfField${E.isPanic(g) ? " is-panic" : ""}`} onPointerDown={onFieldDown} onPointerMove={onFieldMove} onPointerUp={onFieldUp} onPointerCancel={onFieldUp}>
+    <Hit x={L.field.x} y={L.field.y} w={L.field.w} h={L.field.h} data-touch-surface className={`bfField${E.isPanic(g) ? " is-panic" : ""}`} onPointerDown={onFieldDown} onPointerMove={onFieldMove} onPointerUp={onFieldUp} onPointerCancel={onFieldUp}>
       {g.holes.map((b, i) => {
         const h = L.holes[i]
         return <Hit key={i} x={h.x - L.field.x} y={h.y - L.field.y} w={h.w} h={h.h} className="bfHole" data-hole={i} data-bomb={b ? b.type : ""} aria-label={b ? `Hole ${i + 1}: ${E.BOMBS[b.type].name}` : `Hole ${i + 1}: empty`} />
@@ -567,7 +567,7 @@ const BoomFrenzy = ({ mobile = false, paused = false, onClose }) => {
   const mult = g ? (g.mode === "sort" ? S.multFor(g.combo) : E.multFor(g.combo)) : 1
   const play = g && (
     <div className="bfBody">
-      <RetroStage screen={scr} data-touch-surface className={`qgStage bfStage${g.mode !== "sort" && E.isPanic(g) ? " is-panic" : ""}`}>
+      <RetroStage screen={scr} className={`qgStage bfStage${g.mode !== "sort" && E.isPanic(g) ? " is-panic" : ""}`}>
         {L && (
           <>
             {fieldBoxes}
