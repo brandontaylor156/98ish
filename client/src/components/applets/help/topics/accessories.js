@@ -287,6 +287,88 @@ export const topics = [
     related: ["messenger", "mail", "calendar", "search", "messenger-calls"],
   },
 
+  // ---- Notes ----
+  {
+    id: "notes",
+    book: "accessories",
+    title: "Notes (sticky notes)",
+    summary: "Jot sticky notes with checklists, pin them to the desktop, and find them from the Start menu.",
+    keywords: ["sticky notes", "stickies", "post-it", "notes", "checklist", "lists", "grocery list", "pin to desktop", "recycle bin for notes", "note colors"],
+    programs: ["Notes"],
+    body: [
+      { img: "/assets/program_icons/notes.svg", alt: "Notes icon" },
+      "Notes are little sticky notes: a title, some words, and a checklist if you want one. They save as you type.",
+      { steps: ["Open Start > Programs > Accessories > Notes (or the Notes icon on the desktop).", "Choose **New note**.", "Type a title and your words. Choose **+ Add a checklist** for a list you can tick off."], title: "To write a note:" },
+      { h: "Checklists" },
+      {
+        list: [
+          "Tick an item's box when it's done. Press {{Enter}} in an item to add the next one; {{Backspace}} in an empty item removes it.",
+          "Drag the dotted grip on the left of an item to move it (with a mouse or a finger). From the keyboard: {{Alt+Up}} and {{Alt+Down}}.",
+          "**More options »** under the note has **Move checked to bottom**, **Uncheck all** and **Remove checked**, the note's **color**, **Pin to desktop**, **Share** and **Delete**.",
+        ],
+      },
+      { h: "On the desktop" },
+      "Right-click a note (or touch and hold it) and choose **Pin to Desktop**. On a computer it becomes a sticky note on your wallpaper: drag it by its top strip, resize it from a corner, type in it and tick its list right there. Double-click the strip to open it in Notes; the × unpins it.",
+      { phone: "On a phone, pinned notes wait in the small **Notes** button in the bottom corner of the desktop. Tap it to see them, and tap one to open it." },
+      { h: "Finding and sorting" },
+      "Type in the search box at the top of Notes, or in the Start menu's search box (notes show under **Notes**). **View > Sort By** sorts by the date changed, pinned first, or color.",
+      { h: "Deleting" },
+      "Deleted notes go to **View > Recycle Bin** for 30 days, where **Restore** brings them back. After 30 days (or **Delete Now**, or **Empty Recycle Bin**) they're gone for good.",
+      { h: "Where notes are kept" },
+      "Without an account, notes are kept **only on this device** (Notes says so). Sign on to 98 Messenger and they're saved with your screen name too, so they follow you to your other devices and you can share them (see [[notes-sharing]]). Notes made while signed off go up the next time you sign on.",
+      { tip: "Pinned notes are pinned on this device only, so your phone and your computer can each pin different notes." },
+      { open: "Notes", label: "Open Notes" },
+    ],
+    related: ["notes-sharing", "tasks", "notepad", "search"],
+  },
+  {
+    id: "notes-sharing",
+    book: "accessories",
+    title: "Sharing a note with a buddy",
+    summary: "Make a grocery list or date ideas you both edit, live.",
+    keywords: ["shared note", "share a note", "shared list", "grocery list together", "date ideas", "our notes", "stop sharing", "leave a note"],
+    body: [
+      "A shared note belongs to everyone in it: you all see the same note and can change it, and changes show up for everyone right away. You need to be signed on to [[messenger|98 Messenger]].",
+      { steps: ["Open the note and choose **Share...** at the top.", "Type your buddy's screen name (your buddies are suggested) and choose **Share**.", "They get a notification, and the note appears in their Notes, marked **Shared with** you."], title: "To share a note:" },
+      {
+        list: [
+          "Each checklist item is kept on its own, so if you tick \"milk\" while your partner adds \"eggs\", both changes stay. If two people change the very same thing, the newest change wins.",
+          "**View > Shared Notes** shows only shared notes.",
+          "Couples: **Us > Our Notes** (or View > Us in Notes) lists the notes you share with your partner, and a new note there is shared with them right away.",
+          "When a buddy changes a shared note, the Notification Center says so (and your phone too, with notifications on: see [[notifications]]).",
+        ],
+      },
+      { h: "Stopping" },
+      "The person who shared a note can **Remove** someone or **Stop sharing** in the Share window. Anyone else can **Leave**. Whoever is taken out keeps their own copy of the note. Deleting a shared note just takes you out of it (your copy goes to the Recycle Bin); the others keep it.",
+      { open: "Notes", label: "Open Notes" },
+    ],
+    related: ["notes", "us-pairing", "messenger", "notifications"],
+  },
+
+  // ---- Tasks ----
+  {
+    id: "tasks",
+    book: "accessories",
+    title: "Tasks (to-do list)",
+    summary: "A to-do list with due dates, priorities, reminders and repeats, shown in Calendar too.",
+    keywords: ["tasks", "to-do", "todo list", "chores", "due date", "priority", "task reminders", "repeating tasks", "outlook tasks", "someday"],
+    programs: ["Tasks"],
+    body: [
+      { img: "/assets/program_icons/tasks.svg", alt: "Tasks icon" },
+      "Tasks opens to **Today**: what's due today, and anything overdue (in red).",
+      { steps: ["Open Start > Programs > Accessories > Tasks.", "Type in the **Add a task** box and press {{Enter}}. It's due today (from the Upcoming tab, tomorrow; from Someday, no date)."], title: "To add a task:" },
+      "**More options »** under the box has the rest: a due **date** and **time**, **priority** (High shows a red !), a **reminder**, a **repeat** (every day, weekday, week, month or year), which **list** it goes on, who it's **for**, and **notes**.",
+      { h: "The tabs" },
+      { table: { head: ["Tab", "Shows"], rows: [["Today", "Due today or overdue"], ["Upcoming", "Due after today"], ["Someday", "No due date, plus Calendar's memo lists"], ["Done", "What you've ticked lately"]] } },
+      "Tick a task's box when it's done. A repeating task then shows its next time. Click a task to change it; right-click it (or touch and hold) for **Due Tomorrow**, **Priority** and **Show in Calendar**.",
+      { h: "Tasks and Calendar" },
+      "A task is a **to-do in Calendar**, so it shows on the calendar on its due day, and a Calendar event marked To-do shows here. The **list** is the calendar it's in: **On this device**, **My Calendar**, the couple's **Us** calendar, or a shared group calendar, where everyone in it sees the task and can tick it off.",
+      { note: "Reminders work like Calendar's: a Reminder window while 98ish is open, and on your phone with notifications on (for lists on 98ish, not \"On this device\"). See [[calendar]] and [[notifications]]." },
+      { open: "Tasks", label: "Open Tasks" },
+    ],
+    related: ["calendar", "calendar-sharing", "notes", "notifications"],
+  },
+
   // ---- Calendar ----
   {
     id: "calendar",

@@ -241,6 +241,7 @@ const Hub = ({ couple, onView }) => {
         <Tile icon="/assets/program_icons/loveletters.svg" title="Love Letters" blurb="Write, seal and schedule letters" badge={letters} onClick={() => openCouples("Love Letters")} />
         <Tile icon="/assets/program_icons/ourstory.svg" title="Our Story" blurb={story?.moments.length ? `${story.moments.length} moments so far` : "Your timeline in photos"} onClick={() => openCouples("Our Story")} />
         <Tile icon="/assets/program_icons/flowers.svg" title="Send Flowers" blurb="A bouquet for their desktop" onClick={() => onView("flowers")} />
+        <Tile icon="/assets/program_icons/notes.svg" title="Our Notes" blurb="Lists you both edit: groceries, date ideas" onClick={() => openCouples("Notes", { handoff: { id: Date.now(), filter: "us" } })} />
       </div>
 
       {/* the other couple programs: "More for two »" (docs/simplicity.md) */}

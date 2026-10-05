@@ -62,6 +62,15 @@ const TIPS = {
     "Right-click a buddy in 98 Messenger and choose Add to Address Book. A green dot means they're on right now!",
     "On an iPhone, open a contact in the Contacts app, tap Share Contact, save it to Files, then use File > Import here.",
   ],
+  Notes: [
+    "Pin a note to the desktop (hold or right-click it) and it sticks to your wallpaper. On a phone, pinned notes wait in the Notes panel in the corner.",
+    "Share a grocery list with a buddy: open the note and choose Share... You both tick things off, live!",
+    "Deleted notes wait in View > Recycle Bin for 30 days, in case you change your mind.",
+  ],
+  Tasks: [
+    "Type a task and press Enter: it's due today. More options has a due time, a reminder, and a repeat for chores.",
+    "Tasks are to-dos in Calendar, so they show up there too. Put one in a shared calendar and everyone in it sees it.",
+  ],
   "98ish Help": [
     "Press F1 in any program to jump straight to its help page.",
     "Search finds words on every help page. Index is the place for a quick keyword, like a book's index.",

@@ -84,6 +84,11 @@ const CalendarBridge = React.lazy(() => import("../applets/calendar/CalendarBrid
 const Camera = lazyApp(() => import("../applets/camera/Camera"))
 const Photos = lazyApp(() => import("../applets/photos/Photos"))
 const AddressBook = lazyApp(() => import("../applets/addressbook/AddressBook"))
+const Notes = lazyApp(() => import("../applets/notes/Notes"))
+const Tasks = lazyApp(() => import("../applets/tasks/Tasks"))
+// notes pinned to the desktop (a phone: the Notes panel) and live shared-note changes
+const DeskNotes = React.lazy(() => import("../applets/notes/DeskNotes"))
+const NotesBridge = React.lazy(() => import("../applets/notes/NotesBridge"))
 const Find = lazyApp(() => import("../applets/find/Find"))
 // 98ish Help (Start > Help, F1, Help > Help Topics: utils/help.js openHelp)
 const HelpViewer = lazyApp(() => import("../applets/help/HelpViewer"))
@@ -872,6 +877,8 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
       {window.app === "calendar" && <CalendarApp calendarView={window.calendarView} mobile={mobile} dispatch={dispatch} onClose={() => closeWindow(window, index)} />}
       {window.app === "clock" && <ClockApp clockTab={window.calendarView?.tab} mobile={mobile} />}
       {window.app === "addressbook" && <AddressBook mobile={mobile} dispatch={dispatch} handoff={window.handoff} onTitle={rename(index)} onClose={() => closeWindow(window, index)} />}
+      {window.app === "notes" && <Notes mobile={mobile} dispatch={dispatch} handoff={window.handoff} onTitle={rename(index)} onClose={() => closeWindow(window, index)} />}
+      {window.app === "tasks" && <Tasks mobile={mobile} dispatch={dispatch} handoff={window.handoff} onTitle={rename(index)} onClose={() => closeWindow(window, index)} />}
       {window.app === "find" && <Find mobile={mobile} dispatch={dispatch} query={window.query} handoff={window.handoff} onTitle={rename(index)} onClose={() => closeWindow(window, index)} />}
       {window.app === "welcome" && <Welcome dispatch={dispatch} mobile={mobile} onClose={() => closeWindow(window, index)} />}
       {window.app === "help" && <HelpViewer handoff={window.handoff} mobile={mobile} dispatch={dispatch} />}
@@ -1145,6 +1152,7 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
         <CoupleBridge socket={socket} windows={windows} dispatch={dispatch} mobile={mobile} />
         <React.Suspense fallback={null}>
           <CalendarBridge socket={socket} windows={windows} dispatch={dispatch} mobile={mobile} />
+          <NotesBridge socket={socket} />
         </React.Suspense>
       </NetProvider>
     </AimProvider>
@@ -1160,6 +1168,9 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
           </React.Suspense>
         )}
         <MobileIcons key={mobileLayout} programs={icons} onOpen={openIcon} />
+        <React.Suspense fallback={null}>
+          <DeskNotes dispatch={dispatch} mobile />
+        </React.Suspense>
         {windows.map(
           (window, index) =>
             !window.closed && (
@@ -1203,6 +1214,10 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
           <PetWalker windows={windows} />
         </React.Suspense>
       )}
+      {/* sticky notes pinned to the desktop: on the wallpaper, under icons and windows */}
+      <React.Suspense fallback={null}>
+        <DeskNotes dispatch={dispatch} />
+      </React.Suspense>
       {lasso && <div className="desktopLasso" style={{ left: lasso.x0, top: lasso.y0, width: lasso.x1 - lasso.x0, height: lasso.y1 - lasso.y0 }} />}
       {icons.map((icon) => {
         const pos = placed[icon.key]

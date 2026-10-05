@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48" shape-rendering="crispEdges">
+  <!-- Notes: two sticky notes, a pink one behind and a yellow one in front with a folded
+       corner, ruled lines and a ticked checklist -->
+  <rect x="17" y="4" width="27" height="27" fill="#000"/>
+  <rect x="16" y="3" width="27" height="27" fill="#ffb8dc"/>
+  <rect x="16" y="3" width="27" height="4" fill="#e889b8"/>
+  <rect x="5" y="14" width="32" height="31" fill="#000"/>
+  <rect x="4" y="13" width="32" height="31" fill="#fff36b"/>
+  <rect x="4" y="13" width="32" height="5" fill="#e6d24a"/>
+  <rect x="4" y="13" width="32" height="1" fill="#fffab0"/>
+  <!-- folded corner -->
+  <path d="M28 44h8v-8z" fill="#c8b43a"/>
+  <rect x="28" y="36" width="8" height="1" fill="#a08c20"/>
+  <rect x="28" y="36" width="1" height="8" fill="#a08c20"/>
+  <rect x="29" y="37" width="7" height="7" fill="#fff36b"/>
+  <path d="M29 44h7v-7z" fill="#d8c440"/>
+  <!-- checklist -->
+  <g fill="#fff">
+    <rect x="8" y="21" width="5" height="5"/><rect x="8" y="29" width="5" height="5"/><rect x="8" y="37" width="5" height="5"/>
+  </g>
+  <g fill="none" stroke="#000" stroke-width="1">
+    <rect x="8.5" y="21.5" width="4" height="4"/><rect x="8.5" y="29.5" width="4" height="4"/><rect x="8.5" y="37.5" width="4" height="4"/>
+  </g>
+  <g fill="#c00000">
+    <rect x="9" y="23" width="1" height="1"/><rect x="10" y="24" width="1" height="1"/><rect x="11" y="23" width="1" height="1"/><rect x="12" y="22" width="1" height="1"/>
+    <rect x="9" y="31" width="1" height="1"/><rect x="10" y="32" width="1" height="1"/><rect x="11" y="31" width="1" height="1"/><rect x="12" y="30" width="1" height="1"/>
+  </g>
+  <g fill="#000080">
+    <rect x="15" y="23" width="15" height="1"/><rect x="15" y="31" width="12" height="1"/><rect x="15" y="39" width="10" height="1"/>
+  </g>
+</svg>

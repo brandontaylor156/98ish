@@ -566,6 +566,8 @@ export const AimProvider = ({ socket, windows, dispatch: dispatchWindow, onOpenV
     if (!session && !contactsSynced.current) return
     contactsSynced.current = !!session
     import("../../../utils/contacts").then((m) => m.setSyncSession(session)).catch(() => {})
+    // Notes too (utils/notes.js; shared notes and live changes need the account)
+    import("../../../utils/notes").then((m) => m.setSyncSession(session)).catch(() => {})
   }, [state.status, state.me?.screenName])
 
   // ---- search: the signed-on account's conversations (this device's copy) ----

@@ -1,0 +1,675 @@
+/* Notes: a 98 window around sticky-note paper (yellow by default, like the classic
+   Sticky Notes). Desktop stickies and the phone's Notes panel are at the end. */
+
+.ntRoot {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: calc(100% - 25px);
+  min-height: 0;
+  background: #c0c0c0;
+  font-size: 12px;
+  color: #000;
+  overflow: hidden;
+}
+.ntRoot.is-phone {
+  font-size: 15px;
+}
+.ntRoot button {
+  min-width: 0;
+}
+
+.ntMain {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+}
+
+.ntListPane {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  width: 300px;
+  flex: 0 0 300px;
+}
+.is-phone .ntListPane {
+  width: auto;
+  flex: 1;
+  padding: 6px;
+}
+
+.ntTop {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 6px;
+}
+.ntNew {
+  font-weight: bold;
+  min-height: 30px;
+  padding: 0 10px;
+  white-space: nowrap;
+}
+.ntNew span {
+  font-size: 16px;
+  margin-right: 2px;
+}
+.is-phone .ntNew,
+.is-phone .ntMoreBtn {
+  min-height: 40px;
+}
+.ntSearch {
+  flex: 1;
+  min-width: 0;
+  height: 24px;
+}
+.is-phone .ntSearch {
+  height: 36px;
+  font-size: 16px;
+}
+
+.ntHeading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: bold;
+  margin: 2px 2px 6px;
+}
+.ntLink {
+  background: none !important;
+  border: none !important;
+  box-shadow: none !important;
+  color: #0000ee;
+  text-decoration: underline;
+  padding: 0 2px !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  cursor: pointer;
+  font: inherit;
+}
+
+.ntKeepSafe {
+  background: #ffffe1;
+  border: 1px solid #000;
+  padding: 6px 8px;
+  margin-bottom: 6px;
+  line-height: 1.35;
+}
+
+.ntError {
+  color: #a00000;
+  margin: 4px 0;
+}
+
+.ntCards {
+  list-style: none;
+  margin: 0;
+  padding: 4px;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(128px, 1fr));
+  gap: 8px;
+  align-content: start;
+  background: #fff;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px grey, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+}
+.is-phone .ntCards {
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+}
+.ntCards > li {
+  display: flex;
+}
+
+/* a sticky note in the list: paper with a folded corner shadow */
+.ntCard {
+  all: unset;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-height: 104px;
+  max-height: 180px;
+  overflow: hidden;
+  padding: 6px 7px 5px;
+  border: 1px solid;
+  border-top-width: 6px;
+  box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.35);
+  cursor: pointer;
+  color: #000;
+  text-align: left;
+  font-family: inherit;
+  font-size: inherit;
+}
+.ntCard:focus-visible {
+  outline: 1px dotted #000;
+  outline-offset: 1px;
+}
+.ntCard.is-selected {
+  outline: 2px solid #000080;
+  outline-offset: 1px;
+}
+.ntCardTitle {
+  font-weight: bold;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-bottom: 3px;
+}
+.ntCardText {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+.ntCardLine,
+.ntCardItem {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ntCardItem.is-done {
+  text-decoration: line-through;
+  color: #555;
+}
+.ntCardBox {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border: 1px solid #000;
+  background: #fff;
+  font-size: 8px;
+  line-height: 9px;
+  text-align: center;
+  margin-right: 4px;
+  vertical-align: -1px;
+}
+.ntCardMore {
+  color: #555;
+}
+.ntCardFoot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  margin-top: 4px;
+  align-items: center;
+}
+.ntCardProg {
+  margin-left: auto;
+  color: #404040;
+  font-size: 11px;
+}
+
+.ntBadge {
+  display: inline-block;
+  background: #000080;
+  color: #fff;
+  font-size: 10px;
+  padding: 0 4px;
+  line-height: 15px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ntBadge--pin {
+  background: #808000;
+}
+
+.ntEmpty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 16px;
+  background: #fff;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px grey, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+}
+.ntEmptyTrash {
+  margin-top: 6px;
+  align-self: flex-start;
+}
+
+.ntNoNote {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #404040;
+  background: #fff;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px grey, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+}
+
+/* ---- the open note ---- */
+
+.ntEditor {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
+  background: #c0c0c0;
+}
+.ntEditor.is-phone {
+  padding: 6px;
+}
+.ntSheetBar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+  padding: 3px 4px;
+  background: var(--nt-edge);
+  border: 1px solid #000;
+  border-bottom: none;
+}
+.ntSheetSpacer {
+  flex: 1;
+}
+.ntBack,
+.ntBarBtn {
+  min-height: 24px;
+}
+.is-phone .ntBack,
+.is-phone .ntBarBtn {
+  min-height: 38px;
+}
+.ntSheet {
+  background: var(--nt-paper);
+  border: 1px solid #000;
+  padding: 8px 10px 10px;
+  box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.ntTitle,
+.ntBody,
+.ntItemInput {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  font-family: inherit;
+  color: #000;
+  width: 100%;
+  box-sizing: border-box;
+}
+.ntTitle {
+  font-weight: bold;
+  font-size: 15px;
+  height: auto;
+  padding: 2px 0;
+  border-bottom: 1px dotted rgba(0, 0, 0, 0.35) !important;
+}
+.ntBody {
+  resize: none;
+  font-size: 13px;
+  line-height: 1.4;
+  min-height: 80px;
+  padding: 2px 0;
+}
+.is-phone .ntTitle {
+  font-size: 18px;
+}
+.is-phone .ntBody,
+.is-phone .ntItemInput {
+  font-size: 16px;
+}
+.ntTitle:focus,
+.ntBody:focus,
+.ntItemInput:focus {
+  outline: 1px dotted rgba(0, 0, 0, 0.6);
+}
+
+.ntChecklist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+.ntItem {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 24px;
+  position: relative;
+  transition: transform 0.12s;
+}
+.is-phone .ntItem {
+  min-height: 40px;
+}
+.ntItem.is-dragging {
+  transition: none;
+  z-index: 2;
+  background: rgba(255, 255, 255, 0.6);
+  box-shadow: 1px 1px 0 rgba(0, 0, 0, 0.4);
+}
+.ntItem.is-done .ntItemInput,
+.ntItem.is-done .ntItemText {
+  text-decoration: line-through;
+  color: #555;
+}
+.ntGrip {
+  cursor: grab;
+  padding: 4px 3px;
+  touch-action: none;
+  display: inline-flex;
+}
+.is-phone .ntGrip {
+  padding: 10px 8px;
+}
+.ntTickWrap {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+}
+.ntTickWrap input[type="checkbox"] + label.ntTickLabel {
+  margin-left: 0;
+  padding-left: 19px;
+  display: inline-block;
+  min-height: 13px;
+}
+.ntTickWrap input[type="checkbox"] + label.ntTickLabel:empty {
+  padding-left: 0;
+  width: 13px;
+  height: 13px;
+}
+.ntTickWrap input[type="checkbox"] + label.ntTickLabel::before {
+  left: 0;
+  top: 0;
+}
+.ntTickWrap input[type="checkbox"]:checked + label.ntTickLabel::after {
+  left: 3px;
+  top: 3px;
+}
+/* phones: a bigger place to tap */
+.is-phone .ntTickWrap input[type="checkbox"] + label.ntTickLabel:empty {
+  width: 32px;
+  height: 32px;
+}
+.is-phone .ntTickWrap input[type="checkbox"] + label.ntTickLabel:empty::before {
+  left: 9px;
+  top: 9px;
+}
+.is-phone .ntTickWrap input[type="checkbox"]:checked + label.ntTickLabel:empty::after {
+  left: 12px;
+  top: 12px;
+}
+.ntItemInput {
+  flex: 1;
+  min-width: 0;
+  height: auto;
+  padding: 2px 0;
+}
+.ntItemDel {
+  min-width: 22px !important;
+  min-height: 20px;
+  padding: 0 !important;
+  opacity: 0.6;
+}
+.ntItem:hover .ntItemDel,
+.ntItemDel:focus {
+  opacity: 1;
+}
+.is-phone .ntItemDel {
+  min-width: 36px !important;
+  min-height: 34px;
+  opacity: 1;
+}
+.ntAddRow {
+  margin-top: 2px;
+}
+.ntAddItem {
+  all: unset;
+  cursor: pointer;
+  color: #303030;
+  padding: 3px 2px;
+}
+.is-phone .ntAddItem {
+  padding: 10px 2px;
+}
+.ntAddItem:hover,
+.ntAddItem:focus-visible {
+  text-decoration: underline;
+}
+
+.ntMore {
+  margin-top: 8px;
+}
+.ntMoreRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin: 6px 0;
+}
+.is-phone .ntMoreRow button {
+  min-height: 40px;
+}
+.ntMoreLabel {
+  min-width: 40px;
+}
+.ntSwatches {
+  display: flex;
+  gap: 4px;
+}
+.ntSwatch {
+  min-width: 0 !important;
+  width: 22px;
+  height: 22px;
+  padding: 0 !important;
+  border: 2px solid !important;
+  box-shadow: none !important;
+}
+.is-phone .ntSwatch {
+  width: 34px;
+  height: 34px;
+}
+.ntSwatch.is-on {
+  outline: 2px solid #000;
+  outline-offset: 1px;
+}
+
+.ntTrashBar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  padding: 6px;
+  background: #ffffe1;
+  border: 1px solid #000;
+  border-bottom: none;
+}
+
+.ntWhere {
+  margin: 6px 2px 0;
+  color: #404040;
+  font-size: 11px;
+}
+
+.ntStatus {
+  flex: 0 0 auto;
+}
+
+/* ---- Share dialog ---- */
+.ntShare {
+  max-width: 360px;
+}
+.ntShareRow {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin: 6px 0;
+}
+.ntShareRow input {
+  flex: 1;
+  min-width: 120px;
+}
+.ntPeople {
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  background: #fff;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px grey, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+  max-height: 120px;
+  overflow: auto;
+}
+.ntPeople li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 6px;
+  padding: 2px;
+}
+.ntHint {
+  color: #404040;
+  font-size: 11px;
+  margin: 4px 0 0;
+}
+
+/* ---- sticky notes on the desktop (DeskNotes.jsx) ---- */
+
+.deskNote {
+  display: flex;
+  flex-direction: column;
+  background: var(--nt-paper);
+  border: 1px solid var(--nt-edge);
+  box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.35);
+  color: #000;
+  font-size: 12px;
+}
+.deskNoteBar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 18px;
+  flex: 0 0 18px;
+  background: var(--nt-edge);
+  cursor: move;
+  padding: 0 2px;
+  touch-action: none;
+}
+.deskNoteTitle {
+  flex: 1;
+  min-width: 0;
+  font-weight: bold;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+}
+.deskNoteBtn {
+  min-width: 16px !important;
+  width: 16px;
+  height: 14px;
+  min-height: 0 !important;
+  padding: 0 !important;
+  font-size: 10px;
+  line-height: 10px;
+}
+.deskNoteBody {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 4px 6px 6px;
+}
+.deskNoteText {
+  width: 100%;
+  box-sizing: border-box;
+  resize: none;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  font-family: inherit;
+  font-size: 12px;
+  line-height: 1.35;
+  min-height: 40px;
+  padding: 0;
+}
+.deskNote .ntChecklist.is-compact .ntItem {
+  min-height: 18px;
+}
+.deskNote .ntItemText {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* phones: pinned notes in a small "Notes" panel on the desktop */
+.deskNotesPanel {
+  position: fixed;
+  left: 8px;
+  bottom: calc(var(--taskbar-h, 40px) + 8px);
+  z-index: 1;
+  max-width: min(300px, calc(100vw - 140px));
+  font-size: 14px;
+}
+.deskNotesPill {
+  min-height: 36px;
+  padding: 0 10px;
+  font-weight: bold;
+  background: #fff7a1 !important;
+}
+.deskNotesSheet {
+  position: fixed;
+  left: 8px;
+  right: 8px;
+  bottom: calc(var(--taskbar-h, 40px) + 52px);
+  max-height: 55vh;
+  overflow: auto;
+  background: #c0c0c0;
+  box-shadow: inset -1px -1px #0a0a0a, inset 1px 1px #fff, inset -2px -2px grey, inset 2px 2px #dfdfdf, 3px 3px 0 rgba(0, 0, 0, 0.35);
+  padding: 6px;
+}
+.deskNotesHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: bold;
+  margin-bottom: 6px;
+}
+.deskNotesHead button {
+  min-height: 36px;
+}
+.deskNotesList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.deskNotesItem {
+  all: unset;
+  box-sizing: border-box;
+  display: block;
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid;
+  border-left-width: 6px;
+  cursor: pointer;
+  color: #000;
+}
+.deskNotesItem b {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.deskNotesItem span {
+  display: block;
+  color: #333;
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

@@ -77,6 +77,7 @@ const describe = (due) => {
     calendar: calendar?.name || "",
     eventId: due.occ.id,
     key: due.occ.key,
+    task: !!due.occ.event?.todo, // a task (Tasks): its reminder opens Tasks
   }
 }
 
@@ -400,7 +401,13 @@ const CalendarBridge = ({ socket, windows, dispatch, mobile }) => {
     writeState(memory)
     // the Notification Center (the same key as the server's push for that reminder)
     for (const item of [...fresh.map(describe), ...back.map((x) => x.item)]) {
-      notifyCenter({ app: "calendar", key: `cal-rem-${item.fireKey}`, title: `Reminder: ${item.title}`, text: `${item.when}${item.calendar ? ` (${item.calendar})` : ""}`, target: { kind: "calendar", calendarId: item.calendarId, eventId: item.eventId } })
+      notifyCenter({
+        app: "calendar",
+        key: `cal-rem-${item.fireKey}`,
+        title: `${item.task ? "Task" : "Reminder"}: ${item.title}`,
+        text: `${item.when}${item.calendar ? ` (${item.calendar})` : ""}`,
+        target: item.task ? { kind: "program", name: "Tasks", extra: { handoff: { id: Date.now(), calendarId: item.calendarId, eventId: item.eventId } } } : { kind: "calendar", calendarId: item.calendarId, eventId: item.eventId },
+      })
     }
     if (fresh.length || back.length) {
       playReminder()
@@ -445,6 +452,7 @@ const CalendarBridge = ({ socket, windows, dispatch, mobile }) => {
     })
   const openItem = (item) => {
     dismiss(item)
+    if (item.task) return dispatch({ type: "open_window", payload: launch("Tasks", { handoff: { id: Date.now(), calendarId: item.calendarId, eventId: item.eventId } }) })
     openCalendar({ calendarId: item.calendarId, eventId: item.eventId, date: item.allDay ? item.start : dateIn(item.start, zone()) })
   }
 
