@@ -104,6 +104,7 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
     venue.setScreenCompact?.(portraitScreen())
     renderer.toneMappingExposure = venue.def.exposure
     audio.setCrowd(settings.sound ? venue.def.crowd : 0)
+    audio.setRoom(venueId)
     placeUmpire()
     warm()
   }
@@ -154,50 +155,16 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
   landRing.visible = false
   landRing.renderOrder = 3
   scene.add(landRing)
-  const aimRing = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: 0x7cf0ff, transparent: true, opacity: 0.6, depthWrite: false }))
-  aimRing.visible = false
-  aimRing.renderOrder = 3
-  scene.add(aimRing)
-  // where your shot would really land at this pace (shown when it isn't the aim: long, say)
-  const dotGeo = new THREE.CircleGeometry(0.09, 18)
-  dotGeo.rotateX(-Math.PI / 2)
-  const aimDot = new THREE.Mesh(dotGeo, new THREE.MeshBasicMaterial({ color: 0xff5a4a, transparent: true, opacity: 0.75, depthWrite: false }))
-  aimDot.visible = false
-  aimDot.renderOrder = 3
-  scene.add(aimDot)
   // where you'll meet the ball: orange above the net (attack it), pale blue below (keep it soft)
   const contactRing = new THREE.Mesh(new THREE.RingGeometry(0.075, 0.1, 24), new THREE.MeshBasicMaterial({ color: 0x9fe8ff, transparent: true, opacity: 0.85, depthWrite: false, depthTest: false, side: THREE.DoubleSide }))
   contactRing.visible = false
   contactRing.renderOrder = 6
   scene.add(contactRing)
-  // the aim made clear: a dashed arc from where you'll meet the ball to where your shot goes,
-  // over the net (its height says soft / firm / hard), plus a dot in the middle of the ring
-  const ARC_N = 24
-  const arcPos = new Float32Array(ARC_N * 3)
-  const arcGeo = new THREE.BufferGeometry()
-  arcGeo.setAttribute("position", new THREE.BufferAttribute(arcPos, 3))
-  const aimArc = new THREE.Line(arcGeo, new THREE.LineDashedMaterial({ color: 0x7cf0ff, dashSize: 0.22, gapSize: 0.14, transparent: true, opacity: 0.85, depthWrite: false }))
-  aimArc.frustumCulled = false
-  aimArc.visible = false
-  aimArc.renderOrder = 6
-  scene.add(aimArc)
-  const aimPip = new THREE.Mesh(new THREE.CircleGeometry(0.06, 16).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x7cf0ff, transparent: true, opacity: 0.9, depthWrite: false }))
+  // the aim (Classic, mouse, keys): a small target dot on their court
+  const aimPip = new THREE.Mesh(new THREE.CircleGeometry(0.085, 20).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x7cf0ff, transparent: true, opacity: 0.9, depthWrite: false }))
   aimPip.visible = false
   aimPip.renderOrder = 3
   scene.add(aimPip)
-  const drawArc = (from, to, apex) => {
-    for (let i = 0; i < ARC_N; i++) {
-      const u = i / (ARC_N - 1)
-      // a parabola through from (u 0) and to (u 1) peaking at `apex` (over the net)
-      const base = from.y + (to.y - from.y) * u
-      const lift = Math.max(0, apex - Math.max(from.y, to.y) * 0.5) * 4 * u * (1 - u)
-      arcPos[i * 3] = from.x + (to.x - from.x) * u
-      arcPos[i * 3 + 1] = base + lift
-      arcPos[i * 3 + 2] = from.z + (to.z - from.z) * u
-    }
-    arcGeo.attributes.position.needsUpdate = true
-    aimArc.computeLineDistances()
-  }
 
   // the swing trail: the paddle head's path through a swing of this screen's own players,
   // a ribbon that fades in about 0.3 s (Settings: Swing trail)
@@ -342,6 +309,7 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
   audio.setEnabled(settings.sound)
   audio.setVoice(settings.voice)
   audio.setCrowd(settings.sound ? venue.def.crowd : 0)
+  audio.setRoom(venueId)
   let match = null
   let mode = "demo" // demo | local | host | guest | showcase
   let host = null
@@ -384,6 +352,7 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
   let preview = null // { at, pace, shot } the aiming aid's last look at your shot
   let touchAimState = null // a finger aiming: { mode: "abs" | "rel", x0, y0 }
   let swipeLive = null // Swipe controls: a finger down on the hit side { pace, slot, serve }
+  let swiping = false // the last hit came from a swipe (no aim dot on the court then)
   let stick = [{ x: 0, y: 0 }, { x: 0, y: 0 }]
   const perf = { frames: 0, cpuMs: 0, renderMs: 0, steps: 0 }
   const devLog = import.meta.env.DEV ? [] : null
@@ -478,7 +447,7 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
       const contact = new THREE.Mesh(contactGeo, contactMat)
       contact.renderOrder = 2
       scene.add(contact)
-      return { fig, anim, player: p, blob, contact, lastSpeed: 0 }
+      return { fig, anim, player: p, blob, contact, lastSpeed: 0, design: look.paddleDesign }
     })
     warm()
   }
@@ -561,6 +530,7 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
   // the hit control: down starts the swing (hold for pace), up lets it go. source: the key
   // code, "mouse", "pad" or "touch" that pressed it (only the same one lets go)
   const shotDown = (slot, source) => {
+    swiping = source === "swipe"
     if (!playing()) {
       // between points, the hit control skips a replay
       if (replay) endReplay()
@@ -915,6 +885,7 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
     return w ? { x: w.x, y: w.y, z: w.z } : null
   }
   let clockNow = 0 // seconds, for the swing trails' fading
+  let lastTapSound = -1
   const updateFigures = (dt) => {
     if (!match) return
     clockNow += dt
@@ -942,6 +913,16 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
       // the server's free hand (where the ball sits): the skinned body's own hand bone, or
       // the simple figure's wrist
       f.hand = s.holding ? freeHand(f, pose) : null
+      // partners' paddles touching between points (between.js's tap, at its middle: one
+      // sound for the pair)
+      const tp = !replay && f.anim.bt?.tap
+      if (tp && !tp.done && tp.t > 0.38 && f.tapHeard !== tp.key) {
+        f.tapHeard = tp.key
+        if (clockNow - lastTapSound > 0.25) {
+          lastTapSound = clockNow
+          audio.paddleTap(hear(p.x, 1.1, p.z, p.id))
+        }
+      }
       // this screen's own players: the swing trail
       if (p.ctrl === "human" && (p.slot === 0 || p.slot === 1)) {
         const swinging = settings.trail !== false && !!(s.swing && !s.swing.whiff && s.swing.t < 0.32) && status === "playing"
@@ -1092,63 +1073,39 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
       }
     }
     if (landRing.visible) landRing.scale.setScalar(1 + Math.sin(performance.now() / 120) * 0.08)
-    // aiming: when the ball is coming to you, a ring where your shot goes (at the pace you're
-    // holding: soft until you hold longer), and a dot where it would really land if that's
-    // somewhere else (a hard ball from down low sails long). The serve: its box target.
+    // aiming (Classic, mouse, keys): a small target dot where your shot goes, colored by the
+    // pace you're holding (soft / firm / hard). No ball path (the owner: "I hate the little
+    // thing that shows the path of my ball"). Swipe shows nothing on the court: the finger's
+    // own trail on the screen is the feedback (SwipeTrail.jsx).
     const c = you?.charge
     const live = settings.aid && status === "playing" && !replay && mode !== "demo" && you
     const coming = live && you.expect && r && r.lastTeam !== you.team && !r.over
-    aimDot.visible = false
-    aimArc.visible = false
-    const swipeServing = live && swipeLive && match.ball.held === you.id && match.phase === "serve"
-    if (live && (c?.kind === "serve" || swipeServing)) {
+    aimPip.visible = false
+    if (live && c?.kind === "serve") {
       const plan = planShot("serve", { team: you.team, from: match.ball.p, aim: 0, power: 0.6, court: match.rally.court })
       const aim = match.inputs[you.slot]?.aim
       const want = (match.rally.court === "left" ? -1 : 1) * rightSign(1 - you.team)
       const opp = -sideOf(you.team)
       const t = aim ? { x: want * Math.max(0.3, Math.min(HALF_W - 0.3, aim.x * want)), z: opp * Math.max(2.6, Math.min(HALF_L - 0.3, Math.abs(aim.z))) } : plan.target
-      aimRing.visible = true
-      aimRing.position.set(t.x, 0.011, t.z)
-      aimRing.material.color.setHex(0x7cf0ff)
-      aimArc.visible = true
-      aimArc.material.color.setHex(0x7cf0ff)
-      drawArc(ballView || match.ball.p, { x: t.x, y: 0.02, z: t.z }, 1.6)
+      aimPip.visible = true
+      aimPip.position.set(t.x, 0.012, t.z)
+      aimPip.material.color.setHex(0x7cf0ff)
+      aimPip.material.opacity = 0.9
     } else if (coming) {
-      // (Swipe: the pace your finger is swiping at right now)
-      const pace = swipeLive?.pace ?? (c ? paceOf(match.t - c.start) : you.armed?.pace ?? 0.12)
+      const pace = c ? paceOf(match.t - c.start) : you.armed?.pace ?? 0.12
       const now = performance.now()
       // (a solve per frame is wasteful: ten looks a second)
       if (!preview || now - preview.at > 100 || Math.abs(preview.pace - pace) > 0.05 || preview.v !== match.version) preview = { at: now, pace, v: match.version, shot: previewShot(match, you, pace) }
       const s = preview.shot
       if (s) {
-        aimRing.visible = true
-        aimRing.position.set(s.target.x, 0.011, s.target.z)
-        aimRing.material.color.setHex(s.band === "soft" ? 0x7cf0ff : s.band === "firm" ? 0xffe066 : 0xff9a3c)
-        aimRing.material.opacity = c || you.armed || swipeLive ? 0.85 : 0.45
-        // the arc: from where you'll meet it, over the net, to the target; high and loopy
-        // when soft, flat when hard
-        const e = you.expect
-        const col = s.band === "soft" ? 0x7cf0ff : s.band === "firm" ? 0xffe066 : 0xff9a3c
-        aimArc.visible = !!(c || you.armed || swipeLive || touchAimState)
-        if (aimArc.visible) {
-          aimArc.material.color.setHex(col)
-          drawArc(e, { x: s.target.x, y: 0.02, z: s.target.z }, s.band === "soft" ? (s.kind === "lob" ? 4.2 : 1.45) : s.band === "firm" ? 1.25 : 1.05)
-        }
-        const off = Math.hypot(s.landing.x - s.target.x, s.landing.z - s.target.z)
-        if (off > 0.6) {
-          aimDot.visible = true
-          aimDot.position.set(s.landing.x, 0.012, s.landing.z)
-          aimDot.material.color.setHex(inCourt(s.landing.x, s.landing.z) ? 0xffe066 : 0xff5a4a)
-        }
-      } else aimRing.visible = false
-    } else aimRing.visible = false
-    aimPip.visible = aimRing.visible
-    if (aimPip.visible) {
-      aimPip.position.set(aimRing.position.x, 0.012, aimRing.position.z)
-      aimPip.material.color.copy(aimRing.material.color)
-      // (it breathes while you're about to hit)
-      aimRing.scale.setScalar(c || swipeLive ? 1.35 + Math.sin(performance.now() / 110) * 0.08 : 1.15)
+        aimPip.visible = true
+        aimPip.position.set(s.target.x, 0.012, s.target.z)
+        aimPip.material.color.setHex(s.band === "soft" ? 0x7cf0ff : s.band === "firm" ? 0xffe066 : 0xff9a3c)
+        aimPip.material.opacity = c || you.armed || touchAimState ? 0.9 : 0.45
+      }
     }
+    if (swiping || settings.swipeAim) aimPip.visible = false
+    if (aimPip.visible) aimPip.scale.setScalar(c ? 1.25 + Math.sin(performance.now() / 110) * 0.1 : 1)
     // the contact marker
     if (coming && you.expect.at - match.t < 1.2) {
       const e = you.expect
@@ -1297,6 +1254,22 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
   }
 
   // ---------- events ----------
+  // where a sound is heard from: your player's head (the camera when nobody here plays), and
+  // its side of the screen; `id` the player whose paddle it is
+  const camRight = new THREE.Vector3()
+  const hear = (x, y, z, id) => {
+    const me = mode === "demo" ? null : mainHuman()
+    const lx = me ? me.x : camera.position.x
+    const ly = me ? 1.6 : camera.position.y
+    const lz = me ? me.z : camera.position.z
+    const dx = x - lx
+    const dz = z - lz
+    const dist = Math.hypot(dx, (y ?? 0.5) - ly, dz)
+    camRight.setFromMatrixColumn(camera.matrixWorld, 0)
+    const flat = Math.hypot(dx, dz) || 1
+    const side = (dx * camRight.x + dz * camRight.z) / Math.max(flat, 2.5)
+    return { dist, side, design: id !== undefined ? figures.find((f) => f.player.id === id)?.design : undefined }
+  }
   const handleEvents = () => {
     const you = mainHuman()
     const demo = mode === "demo"
@@ -1308,7 +1281,7 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
       switch (e.type) {
         case "hit": {
           const perfect = e.grade === "perfect"
-          audio.pock(Math.min(1, e.paddle / 14), perfect)
+          audio.hit(e, hear(e.x, e.y, e.z, e.player))
           const hot = e.speed > 15
           const big = e.kind === "smash" || (e.tone === "great" && hot)
           trailColor = hot ? [1, 0.55, 0.2] : perfect ? [0.75, 1, 1] : [1, 0.95, 0.6]
@@ -1325,7 +1298,7 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
           break
         }
         case "bounce":
-          audio.bounce(Math.min(1, e.speed / 12))
+          audio.bounce(Math.min(1, e.speed / 12), hear(e.x, 0, e.z))
           if (e.speed > 9) burst(e.x, 0.02, e.z, 5, { speed: 1, up: 0.6, color: [0.6, 0.6, 0.6], life: 0.35, gravity: 2 })
           break
         case "line":
@@ -1339,7 +1312,10 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
           break
         case "net":
         case "tape":
-          audio.net()
+          audio.net(e.type === "tape", hear(e.x, e.y, 0), Math.min(1, (e.speed || 4) / 8))
+          break
+        case "fence":
+          audio.fence(Math.min(1, e.speed / 14), hear(e.x, e.y, e.z))
           break
         case "whiff":
           if (!demo && playerById(match, e.player)?.ctrl === "human") onEvent?.({ type: "whiff", slot: playerById(match, e.player).slot })
@@ -1751,6 +1727,7 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
         if (!p) return false
         const serve = match.ball.held === p.id && match.phase === "serve"
         swipeLive = { pace: null, slot, serve }
+        swiping = true
         // (the rally: the paddle comes up now; a swing still finishing waits)
         if (!serve && !chargeKey[slot] && mPress(match, slot)) chargeKey[slot] = "swipe"
         return true
@@ -1970,8 +1947,9 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
           hand: holder?.hand || null,
           phase: ballView?.phase ?? match?.phase,
           trails: swingTrails.map((t) => ({ shown: t.shown, visible: t.mesh.visible })),
-          arc: aimArc.visible,
-          aim: aimRing.visible ? { x: aimRing.position.x, z: aimRing.position.z } : null,
+          arc: false, // (the ball-path arc is gone: pb11)
+          aim: aimPip.visible ? { x: aimPip.position.x, z: aimPip.position.z } : null,
+          sounds: audio.recent,
           cut: !!cutShot,
           camBlocked,
           blocker: blocker(cam, at, bodies)?.id || null,
@@ -2002,6 +1980,11 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
           if (match.events.length) handleEvents()
           if (replay) endReplay()
         }
+      },
+      // (pb11 tests) play one ball sound: "hit" | "bounce" | "net" | "fence" | "paddleTap"
+      playSound(type, ...args) {
+        audio.unlock()
+        return audio[type]?.(...args)
       },
       replayNow() {
         startReplay()

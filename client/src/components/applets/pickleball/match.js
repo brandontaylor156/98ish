@@ -1054,6 +1054,9 @@ const stepBall = (m, dt) => {
   const fx = HALF_W + 3.4
   const fz = HALF_L + 5.4
   if (Math.abs(ball.p.x) > fx || Math.abs(ball.p.z) > fz) {
+    // (the sound of it: only a ball still flying out, not one rolling along the fence)
+    const outward = (Math.abs(ball.p.x) > fx && ball.v.x * ball.p.x > 0) || (Math.abs(ball.p.z) > fz && ball.v.z * ball.p.z > 0)
+    if (outward && len(ball.v) > 1.5) emit(m, { type: "fence", x: ball.p.x, y: ball.p.y, z: ball.p.z, speed: len(ball.v) })
     if (!m.mirror && isLive(r) && r.lastTeam !== null && !m.held?.length && !graceFor(m)) {
       // it never touched the court: out
       const res = refDead(r, r.lastTeam, "Out")
