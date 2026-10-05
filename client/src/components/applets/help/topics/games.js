@@ -236,7 +236,7 @@ export const topics = [
     book: "games-action",
     title: "Pickleball 98",
     summary: "3D pickleball with real rules, a World Tour, practice drills and online singles and doubles.",
-    keywords: ["pickleball", "dink", "kitchen", "serve", "World Tour", "doubles", "drive", "lob", "paddle", "Locker Room", "outfit", "customize", "swimsuit", "beach", "winter"],
+    keywords: ["pickleball", "dink", "kitchen", "serve", "World Tour", "doubles", "drive", "lob", "paddle", "Locker Room", "outfit", "customize", "swimsuit", "beach", "winter", "swipe", "move pad", "left-handed", "camera", "swing trail"],
     programs: ["Pickleball 98"],
     body: [
       "Pickleball 98 is pickleball in 3D, with real rules and real ball physics. Play the computer, go on a World Tour, practice your shots, play a friend on the same keyboard, or play people online.",
@@ -261,6 +261,9 @@ export const topics = [
         ],
       },
       "The little ring on the ball turns orange when you'll meet it above the net: that one you can attack. Below the net, keep it soft. To **serve**, hold hit to fill the serve meter and let go in the green.",
+      "While you get ready to hit, a dashed arc shows your shot: from where you'll meet the ball, over the net, to the ring where it lands (blue soft, yellow firm, orange hard). Your paddle leaves a short trail through each swing (Settings > Swing trail turns it off).",
+      { h: "On screen" },
+      "During a match the screen keeps just the score, Pause, one hint line for your first few points, and the controls. What the umpire and the crowd say comes up one line at a time in the middle and goes away by itself. The camera (Broadcast, TV high, Sideline, Behind you) is in the pause menu (or press C); Broadcast, high behind you, is the clearest. TV cuts to the server between points are optional (Settings).",
       { h: "Controls" },
       {
         keys: [
@@ -272,7 +275,7 @@ export const topics = [
         ],
       },
       {
-        phone: "Drag on the left side of the screen to move. Touch anywhere else to hit: touching their court aims right there; elsewhere, drag to steer the aim. Hold longer for more pace.",
+        phone: "You always move your player yourself: drag on the move pad (bottom left, or bottom right: Pause > Settings > Move pad). Nothing moves your player for you. The first time you play you pick how you hit, and you can switch any time in Pause > Settings > Touch controls. **Swipe:** put a finger down anywhere off the pad and swipe up toward where the ball should go, letting go as the ball comes: the direction is where across their court, the length how deep, the speed the pace (a quick flick is hard, a slow swipe soft, a slow long swipe a lob); a tap is a soft touch shot (a dink). To serve, swipe the same way. **Classic:** touch their court to aim (elsewhere, drag to steer), hold for pace and let go as the ball comes.",
         computer: "Move with the keys, aim with the mouse, and click (or press Space) to hit. Two players on one keyboard: Player 1 uses W A S D and F, Player 2 the arrows and L; while holding hit, your move keys steer the aim. A gamepad works too. Change any key in **Controls**.",
       },
       { h: "The Locker Room" },

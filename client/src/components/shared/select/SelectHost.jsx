@@ -59,7 +59,7 @@ const SelectHost = () => {
     el.setAttribute("data-sel-open", "")
     el.setAttribute("aria-expanded", "true")
     el.setAttribute("aria-controls", `sel-popup-${n}`)
-    const next = { el, kind, via, sheet, rect: el.getBoundingClientRect(), n }
+    const next = { el, kind, via, sheet, rect: el.getBoundingClientRect(), n, size: { w: window.innerWidth, h: window.innerHeight } }
     live.current = next
     setOpen(next)
   }, [])
@@ -174,15 +174,25 @@ const SelectHost = () => {
       if (cur && e.target === cur.el && !cur.el.__selWriting) close(false)
     }
 
+    // Only a scroll that moves the field closes the list, as natively: the page, or a box the
+    // field is inside. (A game's own overlays and live panels scroll themselves all the time:
+    // a list over a game could shut as it opened.)
     const onScroll = (e) => {
       const cur = live.current
       if (!cur || cur.sheet || inPopup(e.target)) return
-      // (the field's own scroller moving it is a reason to close, as natively)
-      close(false)
+      const t = e.target
+      const moves = t === document || t === document.documentElement || t === document.body || (t?.nodeType === 1 && t.contains(cur.el))
+      if (moves) close(false)
     }
+    // A real change of the screen's size (turning the phone) closes it; iOS also sends
+    // resize events for its toolbars and the home bar settling, which don't move the field
     const onResize = () => {
       const cur = live.current
-      if (cur && !cur.sheet) close(false)
+      if (!cur || cur.sheet) return
+      const w = window.innerWidth
+      const h = window.innerHeight
+      if (!cur.size) cur.size = { w, h }
+      if (Math.abs(w - cur.size.w) > 40 || Math.abs(h - cur.size.h) > 120) close(false)
     }
     const onBlurWindow = () => {
       const cur = live.current

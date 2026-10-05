@@ -7,7 +7,10 @@ import PlayOnline, { OnlineResultBar, useOnlineRoom } from "../../shared/online"
 import { unlock } from "../../../utils/achievements"
 import { RulesPrimer } from "./RulesPrimer"
 import { TitleMenu, QuickMenu, PlayersMenu, TourMenu, PracticeMenu, VersusMenu, SettingsMenu, ControlsMenu, LEVEL_NAMES, TIMING } from "./menus"
-import { ScoreBug, CallCard, Callouts, GradePop, Meter, ControlsStrip, ReplayBug, DrillPanel, TutorialPanel, OverScreen } from "./hud"
+import { ScoreBug, Banner, HintLine, shotBanner, Meter, ReplayBug, DrillPanel, TutorialPanel, OverScreen } from "./hud"
+import { clearBanners, emptyBanners, nextBannerAt, pushBanner, tickBanners } from "./banner.js"
+import { layoutKey, touchControlsFor, touchPrefs } from "./touchplay.js"
+import { SchemeChooser } from "./SchemeChooser"
 import { CHARACTERS, VENUE_INFO, characterById, lookFor, pickOpponents } from "./looks.js"
 import { freshTour, nextMatch, recordResult, tourState, unlocks } from "./career.js"
 import { TUTORIAL, practiceMatch } from "./drills.js"
@@ -15,6 +18,7 @@ import { characterLook, lookForPlayer, lookPayload, validateLook, validateLooks 
 import { LockerRoom } from "./LockerRoom"
 import { bindingsFor, keyName } from "./input.js"
 import "./Pickleball.css"
+import "./Overlay.css"
 import { helpItem } from "../../../utils/help"
 
 // Pickleball 98: React draws the menus and the broadcast-style overlays. The venue, the
@@ -39,14 +43,24 @@ const DEFAULTS = {
   sound: true,
   voice: true,
   camera: "broadcast",
+  // touch screens: how you hit ("classic" | "swipe"; null: asked the first time you play) and
+  // which side the move pad is on. Nothing ever moves your player for you.
+  scheme: null,
+  padSide: "left",
+  // the paddle's path drawn through each of your swings
+  trail: true,
+  // the one hint line shows for your first few points
+  hintPoints: 0,
   // Medium shows the skinned athletes; phones can drop to Low (the old figures) in Settings
   quality: "medium",
   athletes: 1,
   aid: true,
-  assist: "light",
+  // (the reflex block and the rules guard only: never moves you; not a setting any more)
+  assist: "reflex",
   timing: "normal",
   replays: true,
-  cuts: true,
+  // TV camera cuts to the server between points (optional; off unless you turn it on)
+  cuts: false,
   hints: true,
   // slow motion while a hard ball comes at you at the net: "auto" (Rookie and practice), on, off
   focus: "auto",
@@ -78,6 +92,17 @@ const readPrefs = () => {
   const p = { ...DEFAULTS, ...load(PREFS_KEY, {}) }
   if (typeof p.assist === "boolean") p.assist = p.assist ? "light" : "off" // older saves
   if (!["broadcast", "tv", "side", "player"].includes(p.camera)) p.camera = "broadcast"
+  // once (pb7): back to the clean broadcast view, TV cuts off (the owner's phone showed the
+  // old cut and the "behind you" view filling the screen with a body)
+  if (!(p.v >= 7)) {
+    p.camera = "broadcast"
+    p.cuts = false
+    p.v = 7
+  }
+  p.assist = "reflex"
+  Object.assign(p, touchPrefs(p))
+  p.trail = p.trail !== false
+  p.hintPoints = Number(p.hintPoints) || 0
   p.looks = validateLooks(p.looks)
   if (!["own", "random"].includes(p.aiLooks)) p.aiLooks = "own"
   p.autoVenue = !!p.autoVenue
@@ -88,17 +113,12 @@ const readPrefs = () => {
   }
   return p
 }
-const engineSettings = (p) => ({ sound: p.sound, voice: p.voice, camera: p.camera, aid: p.aid, assist: p.assist, quality: p.quality, cuts: p.cuts, replays: p.replays, keys: p.keys, focus: p.focus || "auto", window: TIMING[p.timing] || TIMING.normal })
+const engineSettings = (p) => ({ sound: p.sound, voice: p.voice, camera: p.camera, aid: p.aid, trail: p.trail, assist: p.assist, quality: p.quality, cuts: p.cuts, replays: p.replays, keys: p.keys, focus: p.focus || "auto", window: TIMING[p.timing] || TIMING.normal })
 
-// on-screen controls: a joystick area bottom-left; everywhere else is the hit control (touch
-// their court to aim there, or drag from where you touched; hold for pace, let go to swing)
-const touchControls = () => [
-  { id: "move", label: "Move (drag)", kind: "zone", mirror: true, default: { portrait: (s) => fromPx(s, { left: 0, bottom: 0, width: Math.round(s.width * 0.5), height: Math.round(s.height * 0.4) }), landscape: (s) => fromPx(s, { left: 0, bottom: 0, width: Math.round(s.width * 0.42), height: Math.round(s.height * 0.62) }) } },
-  { id: "hit", action: "hit", label: "Hit: touch where it goes, hold for pace", kind: "zone", mirror: true, default: { portrait: (s) => fromPx(s, { right: 0, bottom: 0, width: s.width - Math.round(s.width * 0.5), height: Math.round(s.height * 0.4) }), landscape: (s) => fromPx(s, { right: 0, bottom: 0, width: s.width - Math.round(s.width * 0.42), height: s.height }) } },
-  { id: "hitTop", action: "hit", label: "Hit (aim zone)", kind: "zone", mirror: true, default: { portrait: (s) => fromPx(s, { left: 0, top: 0, width: s.width, height: s.height - Math.round(s.height * 0.4) }), landscape: (s) => fromPx(s, { left: 0, top: 0, width: Math.round(s.width * 0.42), height: s.height - Math.round(s.height * 0.62) }) } },
-  { id: "pause", label: "Pause", icon: GLYPHS.pause, shape: "round", className: "pkShot pkShot--small", default: (s) => fromPx(s, { right: 8, top: 64, width: 36, height: 36 }) },
-  { id: "camera", label: "Cam", shape: "round", className: "pkShot pkShot--small", default: (s) => fromPx(s, { right: 52, top: 64, width: 36, height: 36 }) },
-]
+// on-screen controls (touchplay.js): the move pad bottom-left or bottom-right, the hit area
+// everywhere else, and Pause. Camera and the controls' gear are in the pause menu.
+const CAMERA_NAMES = { broadcast: "Broadcast", tv: "TV high", side: "Sideline", player: "Behind you" }
+const TONE = { good: "good", bad: "bad", call: "warn", info: "ok" }
 
 let uid = 0
 
@@ -136,9 +156,8 @@ const Pickleball = ({ onClose, mobile }) => {
   const [tour, setTourState] = useState(() => tourState(load(TOUR_KEY, freshTour())))
   const [session, setSession] = useState(null)
   const [hud, setHud] = useState(null)
-  const [callouts, setCallouts] = useState([])
-  const [call, setCall] = useState(null)
-  const [shot, setShot] = useState(null)
+  const [banners, setBanners] = useState(emptyBanners)
+  const [chooser, setChooser] = useState(null) // "How do you want to play?": { go } (what starts after)
   const [result, setResult] = useState(null)
   const [reward, setReward] = useState(null)
   const [replay, setReplay] = useState(false)
@@ -170,11 +189,9 @@ const Pickleball = ({ onClose, mobile }) => {
     }, ms)
     timers.current.add(id)
   }
-  const callout = (text, kind = "info", ms = 1500) => {
-    const id = ++uid
-    setCallouts((list) => [...list.slice(-2), { id, text, kind }])
-    later(() => setCallouts((list) => list.filter((c) => c.id !== id)), ms)
-  }
+  // everything the overlay says goes through the one banner slot (banner.js)
+  const say = (item) => setBanners((b) => pushBanner(b, item, performance.now()))
+  const callout = (text, tone = "info", ms, kind = "play") => say({ kind, text, tone: TONE[tone] || "ok", ms })
   const flash = (text) => {
     const id = ++uid
     setToast({ id, text })
@@ -198,15 +215,15 @@ const Pickleball = ({ onClose, mobile }) => {
     const s = sessionRef.current
     switch (e.type) {
       case "hit":
-        if (e.mine) setShot({ id: ++uid, grade: e.grade, label: e.label, tone: e.tone, speed: e.speed, slot: e.slot })
+        if (e.mine) say(shotBanner(e))
         // they attacked: hands up
-        else if (e.theirs && (e.tag === "speedup" || e.tag === "counter")) callout("Hands up!", "bad", 650)
+        else if (e.theirs && (e.tag === "speedup" || e.tag === "counter")) callout("Hands up!", "bad", 650, "line")
         break
       case "whiff":
         callout("Swing and a miss!", "bad", 1000)
         break
       case "line":
-        callout(e.call === "In" ? "IN!" : "OUT!", e.call === "In" ? "good" : "bad", 900)
+        callout(e.call === "In" ? "IN!" : "OUT!", e.call === "In" ? "good" : "bad", 900, "line")
         break
       case "fault":
         callout(e.call.replace(/!$/, "").toUpperCase() + "!", "call", 1500)
@@ -217,14 +234,15 @@ const Pickleball = ({ onClose, mobile }) => {
         break
       case "point": {
         if (s?.kind === "practice" || s?.kind === "tutorial") break
+        // (the hint line is for your first few points only)
+        if ((prefsRef.current.hintPoints || 0) < 3) setPrefs({ hintPoints: (prefsRef.current.hintPoints || 0) + 1 })
         const what = e.outcome === "side-out" ? "Side out" : e.outcome === "second-server" ? "Second server" : null
         if (what) later(() => callout(what, "info", 1200), 900)
         break
       }
       case "call":
         if (s?.kind === "practice" || s?.kind === "tutorial") break
-        setCall({ id: ++uid, text: e.call, server: e.server })
-        later(() => setCall(null), 1800)
+        say({ kind: "call", over: e.server ? `${e.server} to serve` : null, text: e.call, tone: "call" })
         break
       case "replay":
         setReplay(e.on)
@@ -233,7 +251,7 @@ const Pickleball = ({ onClose, mobile }) => {
         setDrill((d) => ({ ...e, results: [...(d?.results || []), ...(e.ok === null ? [] : [e.ok])] }))
         break
       case "camera":
-        flash(`Camera: ${{ broadcast: "Broadcast", tv: "TV high", side: "Sideline", player: "Behind you" }[e.camera]}`)
+        flash(`Camera: ${CAMERA_NAMES[e.camera]}`)
         setPrefs({ camera: e.camera })
         break
       case "gameover":
@@ -328,9 +346,7 @@ const Pickleball = ({ onClose, mobile }) => {
   const reset = () => {
     setResult(null)
     setReward(null)
-    setCallouts([])
-    setShot(null)
-    setCall(null)
+    setBanners(clearBanners)
     setDrill(null)
     setReplay(false)
   }
@@ -404,6 +420,24 @@ const Pickleball = ({ onClose, mobile }) => {
     if (!e) return
     if (e.status === "playing") e.pause()
     else if (e.status === "paused") e.resume()
+  }
+
+  // the banner slot's clock: the next change, then look again
+  useEffect(() => {
+    const at = nextBannerAt(banners)
+    if (at === null) return
+    const id = setTimeout(() => setBanners((b) => tickBanners(b, performance.now())), Math.max(16, at - performance.now() + 5))
+    return () => clearTimeout(id)
+  }, [banners])
+  // a replay or a pause clears what was being said
+  useEffect(() => {
+    if (replay || phase !== "playing") setBanners((b) => (b.current || b.queue.length ? clearBanners(b) : b))
+  }, [replay, phase])
+
+  // touch screens: how you hit is asked once, before the first match
+  const withScheme = (go) => {
+    if (showPad && !prefsRef.current.scheme) return setChooser({ go })
+    go()
   }
 
   // drill bests
@@ -515,8 +549,8 @@ const Pickleball = ({ onClose, mobile }) => {
   const onKeyDown = (e) => {
     if (e.key === "F2") {
       e.preventDefault()
-      if (session && session.kind !== "online") again()
-      else startQuick()
+      if (session && session.kind !== "online") withScheme(again)
+      else withScheme(startQuick)
     }
   }
 
@@ -524,13 +558,21 @@ const Pickleball = ({ onClose, mobile }) => {
   const stick = useRef(null)
   const knobRef = useRef(null)
   const aimTouch = useRef(null)
+  const swipeTouch = useRef(null) // Swipe: { id, pts: [{ x, y, t }] }
+  const schemeRef = useRef(prefs.scheme)
+  schemeRef.current = prefs.scheme || "swipe"
   useEffect(() => {
     const stage = stageRef.current
     if (!stage || !showPad) return
     const R = 48
     const down = (e) => {
       // the hit zones: the finger aims (on their court: right there; elsewhere: drag)
-      if (!aimTouch.current && e.target.closest?.('[data-control="hit"], [data-control="hitTop"]')) {
+      if (!aimTouch.current && !swipeTouch.current && e.target.closest?.('[data-control="hit"], [data-control="hitTop"]')) {
+        if (schemeRef.current === "swipe") {
+          swipeTouch.current = { id: e.pointerId, pts: [{ x: e.clientX, y: e.clientY, t: performance.now() }] }
+          engineRef.current?.swipe("start", swipeTouch.current.pts)
+          return
+        }
         aimTouch.current = e.pointerId
         engineRef.current?.touchAim("start", e.clientX, e.clientY)
         return
@@ -541,6 +583,13 @@ const Pickleball = ({ onClose, mobile }) => {
       setStickUi({ x: e.clientX - r.left, y: e.clientY - r.top })
     }
     const move = (e) => {
+      const sw = swipeTouch.current
+      if (sw && sw.id === e.pointerId) {
+        sw.pts.push({ x: e.clientX, y: e.clientY, t: performance.now() })
+        if (sw.pts.length > 64) sw.pts.splice(1, 1)
+        engineRef.current?.swipe("move", sw.pts)
+        return
+      }
       if (aimTouch.current === e.pointerId) {
         engineRef.current?.touchAim("move", e.clientX, e.clientY)
         return
@@ -560,8 +609,16 @@ const Pickleball = ({ onClose, mobile }) => {
       if (knobRef.current) knobRef.current.style.transform = `translate(${dx}px, ${dy}px)`
     }
     const up = (e) => {
+      const sw = swipeTouch.current
+      if (sw && sw.id === e.pointerId) {
+        swipeTouch.current = null
+        sw.pts.push({ x: e.clientX, y: e.clientY, t: performance.now() })
+        engineRef.current?.swipe(e.type === "pointercancel" ? "cancel" : "end", sw.pts)
+        return
+      }
       if (aimTouch.current === e.pointerId) {
         aimTouch.current = null
+        engineRef.current?.touchAim("end")
         return
       }
       if (!stick.current || stick.current.id !== e.pointerId) return
@@ -594,17 +651,19 @@ const Pickleball = ({ onClose, mobile }) => {
     }
   }, [showPad])
 
-  const controls = useMemo(() => touchControls(), [])
+  const padSide = prefs.padSide
+  const scheme = prefs.scheme || "swipe"
+  const controls = useMemo(() => touchControlsFor(padSide, fromPx, scheme).map((c) => (c.id === "pause" ? { ...c, icon: GLYPHS.pause } : c)), [padSide, scheme])
   const padPress = (action) => {
     const e = engineRef.current
     if (!e || action === "move") return
     if (action === "pause") return e.online ? setDialog("menu") : togglePause()
-    if (action === "camera") return e.cycleCamera()
     if (replay) return e.skipReplay()
-    if (action === "hit") e.shotDown("hit")
+    // (Swipe: the stage's own listeners read the finger's path)
+    if (action === "hit" && schemeRef.current !== "swipe") e.shotDown("hit")
   }
   const padRelease = (action) => {
-    if (action === "hit") engineRef.current?.shotUp("hit")
+    if (action === "hit" && schemeRef.current !== "swipe") engineRef.current?.shotUp("hit")
   }
   useEffect(() => {
     if (editing && engineRef.current?.status === "playing") engineRef.current.pause()
@@ -627,9 +686,9 @@ const Pickleball = ({ onClose, mobile }) => {
   const b = bindingsFor(prefs.keys)
   const keyText = (s) =>
     s
-      .replace("{move}", showPad ? "the stick (drag on the left)" : `${keyName(b.solo.up[0])}${keyName(b.solo.left[0])}${keyName(b.solo.down[0])}${keyName(b.solo.right[0])} or the arrows`)
-      .replace(/\{hit\}/g, showPad ? "touching the screen (anywhere off the stick)" : `${keyName(b.solo.hit[0])} or the left mouse button`)
-      .replace(/\{aim\}/g, showPad ? "your finger: touch their court where you want it (or drag)" : "the mouse: point at their court")
+      .replace("{move}", showPad ? `the pad (drag on the ${padSide})` : `${keyName(b.solo.up[0])}${keyName(b.solo.left[0])}${keyName(b.solo.down[0])}${keyName(b.solo.right[0])} or the arrows`)
+      .replace(/\{hit\}/g, showPad ? (scheme === "swipe" ? "swiping up (anywhere off the pad; a tap is soft)" : "touching the screen (anywhere off the pad)") : `${keyName(b.solo.hit[0])} or the left mouse button`)
+      .replace(/\{aim\}/g, showPad ? (scheme === "swipe" ? "the swipe: its direction is where, its length how deep" : "your finger: touch their court where you want it (or drag)") : "the mouse: point at their court")
 
   const menus = [
     {
@@ -654,6 +713,7 @@ const Pickleball = ({ onClose, mobile }) => {
         { label: "Sound", checked: prefs.sound, onClick: () => setPrefs({ sound: !prefs.sound }) },
         { label: "Umpire Voice", checked: prefs.voice, onClick: () => setPrefs({ voice: !prefs.voice }) },
         { label: "Shot Guides", checked: prefs.aid, onClick: () => setPrefs({ aid: !prefs.aid }) },
+        { label: "Swing Trail", checked: prefs.trail, onClick: () => setPrefs({ trail: !prefs.trail }) },
         { label: "Instant Replays", checked: prefs.replays, onClick: () => setPrefs({ replays: !prefs.replays }) },
         "-",
         ...[
@@ -671,6 +731,9 @@ const Pickleball = ({ onClose, mobile }) => {
         "-",
         { label: "Settings...", onClick: () => setDialog("settings") },
         { label: "Controls...", onClick: () => setDialog("controls") },
+        { label: "Touch: Classic (aim + hold)", checked: showPad && scheme === "classic", disabled: !showPad, onClick: () => setPrefs({ scheme: "classic" }) },
+        { label: "Touch: Swipe", checked: showPad && scheme === "swipe", disabled: !showPad, onClick: () => setPrefs({ scheme: "swipe" }) },
+        { label: "Move Pad on the Right", checked: padSide === "right", disabled: !showPad, onClick: () => setPrefs({ padSide: padSide === "right" ? "left" : "right" }) },
         controlsMenuItem,
         { label: "Customize Touch Controls...", disabled: !showPad, onClick: () => setEditing(true) },
         "-",
@@ -690,8 +753,23 @@ const Pickleball = ({ onClose, mobile }) => {
   ]
 
   const tutorialStep = session?.kind === "tutorial" ? TUTORIAL[session.step] : null
+  const cycleCam = () => engineRef.current?.cycleCamera()
+  const dimPress = useRef(false)
   const onlineText = isOnline && online.room ? `${online.room.code ? `Room ${online.room.code} · ` : ""}online` : null
   const serveTime = !!hud?.yourServe || (hud?.serveSlot !== null && hud?.serveSlot !== undefined)
+  const hintText = showPad
+    ? scheme === "swipe"
+      ? serveTime
+        ? "Your serve: swipe up toward their box (faster = harder)"
+        : "Move with the pad · swipe up toward the target as the ball comes · tap = dink"
+      : serveTime
+        ? "Your serve: touch where it goes, hold, let go in the green"
+        : "Move with the pad · touch their court to aim · tap soft, hold hard"
+    : (hud?.humans || 1) >= 2
+      ? "Hold hit for pace, let go as the ball comes · move keys steer the aim · P pause"
+      : serveTime
+        ? `Hold ${keyName(b.solo.hit[0])} (or click) to serve, let go in the green`
+        : `Point at their court · ${keyName(b.solo.hit[0])} or click: tap soft, hold hard · C camera · P pause`
 
   return (
     <div className={`pkRoot${mobile ? " is-mobile" : ""}`} onKeyDown={onKeyDown}>
@@ -712,14 +790,11 @@ const Pickleball = ({ onClose, mobile }) => {
 
         {/* ---------- in a match ---------- */}
         {inGame && hud && !tutorialStep?.card && session?.kind !== "practice" && session?.kind !== "tutorial" && <ScoreBug hud={hud} online={onlineText} />}
-        {inGame && <CallCard call={call} />}
-        {inGame && <Callouts list={callouts} />}
-        {phase === "playing" && <GradePop shot={shot} />}
+        {inGame && <Banner banner={banners.current} />}
         <Meter ref={meterRefs[0]} slot={0} />
         <Meter ref={meterRefs[1]} slot={1} />
         {phase === "playing" && replay && <ReplayBug touch={showPad} />}
-        {phase === "playing" && prefs.hints && !replay && session && session.kind !== "tutorial" && <ControlsStrip keys={prefs.keys} humans={hud?.humans || 1} touch={showPad} serve={serveTime} />}
-        {phase === "playing" && serveTime && showPad && <div className="pkPrompt">Your serve: touch where it goes, hold, let go in the green</div>}
+        {phase === "playing" && prefs.hints && (prefs.hintPoints || 0) < 3 && !replay && session && session.kind !== "tutorial" && session.kind !== "practice" && <HintLine text={hintText} />}
         {toast && <div key={toast.id} className="pkToast">{toast.text}</div>}
         {inGame && hud?.netWait && (
           <div className="pkCenter pkDim">
@@ -744,7 +819,9 @@ const Pickleball = ({ onClose, mobile }) => {
         )}
 
         {phase === "paused" && !editing && !dialog && !tutorialStep?.card && (
-          <div className="pkCenter pkDim" onClick={() => engineRef.current?.resume()}>
+          // (a tap outside the panel resumes, but only a tap that started there: the press on
+          // Pause that brought this up mustn't let go on it and resume at once)
+          <div className="pkCenter pkDim" onPointerDown={(e) => (dimPress.current = e.target === e.currentTarget)} onClick={(e) => dimPress.current && e.target === e.currentTarget && engineRef.current?.resume()}>
             <div className="pkPanel pkPause" onClick={(e) => e.stopPropagation()}>
               <b>Paused</b>
               <div className="pkPauseMenu">
@@ -756,12 +833,17 @@ const Pickleball = ({ onClose, mobile }) => {
                     Restart
                   </button>
                 )}
+                <button type="button" onClick={cycleCam} data-action="camera">
+                  Camera: {CAMERA_NAMES[prefs.camera] || "Broadcast"}
+                </button>
                 <button type="button" onClick={() => setDialog("settings")}>
                   Settings
                 </button>
-                <button type="button" onClick={() => setDialog("controls")}>
-                  Controls
-                </button>
+                {!showPad && (
+                  <button type="button" onClick={() => setDialog("controls")}>
+                    Controls
+                  </button>
+                )}
                 {showPad && (
                   <button type="button" onClick={() => setEditing(true)}>
                     Move Touch Buttons
@@ -794,7 +876,7 @@ const Pickleball = ({ onClose, mobile }) => {
 
         {/* ---------- menus ---------- */}
         {atMenu && screen === "main" && phase === "title" && <TitleMenu onPick={(s) => (s === "rules" ? setDialog("rules") : s === "settings" ? setDialog("settings") : s === "controls" ? setDialog("controls") : (setPlayersFor("p1"), setScreen(s)))} onOnline={() => setScreen("online")} tour={tour} showPad={showPad} />}
-        {atMenu && screen === "quick" && <QuickMenu prefs={prefs} setPrefs={setPrefs} tour={tour} onStart={startQuick} onBack={() => setScreen("main")} onPlayers={() => (setPlayersFor("p1q"), setScreen("players"))} />}
+        {atMenu && screen === "quick" && <QuickMenu prefs={prefs} setPrefs={setPrefs} tour={tour} onStart={() => withScheme(startQuick)} onBack={() => setScreen("main")} onPlayers={() => (setPlayersFor("p1q"), setScreen("players"))} />}
         {(atMenu || phase === "showcase") && screen === "locker" && (
           <LockerRoom
             prefs={prefs}
@@ -820,8 +902,8 @@ const Pickleball = ({ onClose, mobile }) => {
             onBack={() => closePlayers(playersFor === "p1q" ? "quick" : playersFor === "p2" || playersFor === "p1v" ? "versus" : "main")}
           />
         )}
-        {atMenu && screen === "tour" && <TourMenu tour={tour} onPlay={startTour} onBack={() => setScreen("main")} onReset={() => setTour(freshTour())} />}
-        {atMenu && screen === "practice" && <PracticeMenu best={prefs.best} onTutorial={() => startTutorial(0)} onDrill={startDrill} onBack={() => setScreen("main")} />}
+        {atMenu && screen === "tour" && <TourMenu tour={tour} onPlay={(t) => withScheme(() => startTour(t))} onBack={() => setScreen("main")} onReset={() => setTour(freshTour())} />}
+        {atMenu && screen === "practice" && <PracticeMenu best={prefs.best} onTutorial={() => withScheme(() => startTutorial(0))} onDrill={(d) => withScheme(() => startDrill(d))} onBack={() => setScreen("main")} />}
         {atMenu && screen === "versus" && <VersusMenu prefs={prefs} setPrefs={setPrefs} tour={tour} showPad={showPad} onStart={startVersus} onBack={() => setScreen("main")} onPlayers={(who) => (setPlayersFor(who === "p2" ? "p2" : "p1v"), setScreen("players"))} />}
         {screen === "online" && !onlinePlaying && phase !== "loading" && (
           <div className="pkOnline">
@@ -896,31 +978,39 @@ const Pickleball = ({ onClose, mobile }) => {
             <div className="pkKnob" />
           </div>
         )}
-        {showPad && phase === "playing" && !editing && !replay && (
-          <div className="pkHitHint" aria-hidden="true">
-            <b>Hit</b>
-            <span>touch their court to aim &middot; tap soft &middot; hold hard</span>
-          </div>
-        )}
         {showPad && phase !== "loading" && phase !== "error" && (
           <TouchControls
-            game="pickleball3"
+            key={layoutKey(padSide)}
+            game={layoutKey(padSide)}
+            gear={false}
             controls={controls}
             onPress={padPress}
             onRelease={padRelease}
             show={phase === "playing" && !tutorialStep?.card && !(isOnline && online.phase === "over")}
             editing={editing}
             onEditingChange={setEditingAndFocus}
-            gearStyle={{ right: 96, top: 64, width: 36, height: 36 }}
-            gearClassName="pkGear"
           />
         )}
       </div>
 
+      {chooser && (
+        <SchemeChooser
+          padSide={padSide}
+          current={prefs.scheme}
+          onPadSide={(v) => setPrefs({ padSide: v })}
+          onCancel={chooser.go ? null : () => setChooser(null)}
+          onPick={(v) => {
+            setPrefs({ scheme: v })
+            const go = chooser.go
+            setChooser(null)
+            go?.()
+          }}
+        />
+      )}
       {dialog === "rules" && <RulesPrimer onClose={() => setDialog(null)} />}
       {dialog === "settings" && (
         <div className="pkDialogLayer">
-          <SettingsMenu prefs={prefs} setPrefs={setPrefs} showPad={showPad} onBack={() => setDialog(null)} onControls={() => setDialog("controls")} onTouchEdit={() => (setDialog(null), setEditing(true))} />
+          <SettingsMenu prefs={prefs} setPrefs={setPrefs} showPad={showPad} onChooseScheme={() => (setDialog(null), setChooser({ go: null }))} onBack={() => setDialog(null)} onControls={() => setDialog("controls")} onTouchEdit={() => (setDialog(null), setEditing(true))} />
         </div>
       )}
       {dialog === "controls" && (
@@ -932,6 +1022,9 @@ const Pickleball = ({ onClose, mobile }) => {
         <Dialog title="Pickleball 98" onOk={() => setDialog(null)}>
           <p className="dialogText">Online matches don't pause. Leave the match?</p>
           <div className="pkRow pkRowCenter">
+            <button type="button" onClick={cycleCam}>
+              Camera: {CAMERA_NAMES[prefs.camera] || "Broadcast"}
+            </button>
             <button type="button" onClick={() => (setDialog(null), quitToMenu())}>
               Leave Match
             </button>
