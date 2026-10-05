@@ -44,6 +44,13 @@ const FOOT = ["foot", "ball"]
 const TORSO = ["spine", "clavicle", "pelvis", "neck"]
 const HAND = ["hand", "index", "middle", "ring", "pinky", "thumb"]
 
+// how far round to the front a point is (0 at the sides of the neck, 1 in front), smoothly: a
+// neckline that dips in front without a step at the sides
+const frontness = (front) => {
+  const t = Math.max(0, Math.min(1, (front + 0.01) / 0.06))
+  return t * t * (3 - 2 * t)
+}
+
 // v: { x, y, z, bone (the bone with the most weight) }, m: landmarks. Returns true if a
 // garment of this kind covers the vertex.
 export const covers = (kind, v, m) => {
@@ -59,25 +66,34 @@ export const covers = (kind, v, m) => {
     // long sleeves: a tee's body and the whole arm down to the wrist (not the hand); a
     // crew neck (the jacket's collar stands up from it)
     if (startsAny(v.bone, HAND)) return false
-    if (ax < 0.09 && v.y > m.neckY - 0.01 - (front > 0.01 ? 0.025 : 0)) return false
+    if (ax < 0.09 && v.y > m.neckY - 0.01 - 0.025 * frontness(front)) return false
     if (startsAny(v.bone, ARM) || startsAny(v.bone, ["clavicle"]) || (ax > m.shoulderX - 0.03 && v.y > m.shoulderY - 0.12)) return ax < m.handX - (kind === "jacket" ? 0.005 : 0.015) && !(v.y > m.neckY + 0.04)
     return covers("tee", v, m) || (kind === "jacket" && covers("polo", v, m))
   }
   if (kind === "gloves") return startsAny(v.bone, HAND) || (startsAny(v.bone, ["lowerarm"]) && ax > m.handX - 0.02)
   if (kind === "wristbands") return startsAny(v.bone, ["lowerarm"]) && ax > m.handX - 0.085 && ax < m.handX - 0.025
   if (kind === "tank") {
-    if (v.y > m.neckY + 0.04 || v.y < m.hipY + 0.01 || startsAny(v.bone, ARM)) return false
-    if (!startsAny(v.bone, TORSO) && !startsAny(v.bone, LEG)) return false
-    // above the armpits only the straps; a scoop in front
+    if (v.y > m.neckY + 0.04 || v.y < m.hipY + 0.01) return false
+    // (the armholes by where they are, not by which bone moves the skin: that border runs
+    // zig-zag over the triangles round the shoulder, and so did the cut)
+    if (ax > m.shoulderX * 0.92 || startsAny(v.bone, HAND) || startsAny(v.bone, ["lowerarm"])) return false
+    if (!startsAny(v.bone, TORSO) && !startsAny(v.bone, LEG) && !startsAny(v.bone, ["upperarm"])) return false
+    // above the armpits only the straps; a scoop in front. (The outlines are curves across
+    // the front, x and y only: an edge where the chest's surface crosses some depth followed
+    // every bump of the muscles under it, a ragged, frilly neckline.)
     const armpit = m.shoulderY - 0.11
     const strap = Math.abs(ax - m.shoulderX * 0.52) < 0.03
-    if (v.y > armpit) return strap || (front > 0.03 && v.y < m.shoulderY - 0.035 && ax < m.shoulderX * 0.95)
+    if (v.y > armpit) {
+      const k = Math.min(1, ax / (m.shoulderX * 0.52))
+      const scoop = m.shoulderY - 0.035 - 0.055 * (1 - k * k)
+      return strap || (front > -0.01 && v.y < scoop && ax < m.shoulderX * 0.6)
+    }
     return true
   }
   if (kind === "tee" || kind === "polo") {
     // the neckline (round, lower in front) round the neck; the shoulders are covered up to
     // their tops
-    const neckline = m.neckY - 0.01 - (front > 0.01 ? (kind === "tee" ? 0.045 : 0.02) : 0)
+    const neckline = m.neckY - 0.01 - (kind === "tee" ? 0.045 : 0.02) * frontness(front)
     if (ax < 0.09 && v.y > neckline) return false
     if (v.y > m.neckY + 0.04) return false
     if (v.y < m.hipY + 0.01) return false
@@ -112,22 +128,22 @@ export const covers = (kind, v, m) => {
 
 // how far out each garment sits, and how much it's smoothed
 export const GARMENTS = {
-  tee: { inflate: 0.013, smooth: 8, trim: 0.018, loose: 0.012 },
-  rash: { inflate: 0.008, smooth: 8, trim: 0.012, loose: 0.006 },
-  jacket: { inflate: 0.02, smooth: 10, trim: 0.02, loose: 0.018, collar: true, zip: true, armStripe: true },
-  crop: { inflate: 0.009, smooth: 6, trim: 0.012 },
-  onepiece: { inflate: 0.007, smooth: 6, trim: 0.012 },
-  board: { inflate: 0.012, smooth: 6, trim: 0.014, flare: 0.07, legStripe: true },
-  short: { inflate: 0.01, smooth: 5, trim: 0.012, flare: 0.05 },
+  tee: { inflate: 0.013, smooth: 16, trim: 0.018, loose: 0.016 },
+  rash: { inflate: 0.008, smooth: 11, trim: 0.012, loose: 0.006 },
+  jacket: { inflate: 0.02, smooth: 16, trim: 0.02, loose: 0.018, collar: true, zip: true, armStripe: true },
+  crop: { inflate: 0.009, smooth: 11, trim: 0.012 },
+  onepiece: { inflate: 0.007, smooth: 10, trim: 0.012 },
+  board: { inflate: 0.012, smooth: 6, trim: 0.014, flare: 0.04, legStripe: true },
+  short: { inflate: 0.01, smooth: 5, trim: 0.012, flare: 0.025 },
   swim: { inflate: 0.008, smooth: 4, trim: 0.01 },
   pants: { inflate: 0.013, smooth: 6, trim: 0.014, flare: 0.012, legStripe: true },
   anklesocks: { inflate: 0.004, smooth: 2, trim: 0.008 },
   kneesocks: { inflate: 0.005, smooth: 2, trim: 0.012, bands: true },
   gloves: { inflate: 0.004, smooth: 2, trim: 0.008 },
   wristbands: { inflate: 0.012, smooth: 2, trim: 0 },
-  polo: { inflate: 0.013, smooth: 8, trim: 0.016, loose: 0.012, collar: true },
-  tank: { inflate: 0.011, smooth: 8, trim: 0.014, loose: 0.01 },
-  shorts: { inflate: 0.01, smooth: 6, trim: 0.012, flare: 0.075 },
+  polo: { inflate: 0.013, smooth: 16, trim: 0.016, loose: 0.016, collar: true },
+  tank: { inflate: 0.011, smooth: 14, trim: 0.014, loose: 0.012 },
+  shorts: { inflate: 0.01, smooth: 6, trim: 0.012, flare: 0.035 },
   briefs: { inflate: 0.007, smooth: 4, trim: 0 },
   socks: { inflate: 0.004, smooth: 2, trim: 0.01 },
   shoes: { inflate: 0.016, smooth: 4, trim: 0, sole: true },
@@ -135,6 +151,46 @@ export const GARMENTS = {
 
 // bottoms with a waistband (tucked under the top)
 const WAISTED = ["shorts", "board", "short", "swim", "pants", "briefs"]
+// tops drape (drape below): taut over what sticks out, bridging what dips in
+const DRAPED = ["tee", "polo", "tank", "rash", "jacket", "crop", "onepiece"]
+
+// Cloth over the body: the patch relaxed step by step (each vertex toward its neighbors'
+// middle; the edge only along itself), but never closer to the skin than gap(i) along the
+// body's normal there: what relaxes inward is held out by the body. So a shirt lies taut over
+// the shoulders and the chest and bridges the hollows (between the abs, along the spine, under
+// the chest) instead of being painted on every muscle. orig: the body's patch (welded),
+// bn: its normals. Returns the cloth's positions.
+export const drape = (orig, nbrs, boundaryNbrs, bn, gap, steps) => {
+  const n = orig.length / 3
+  const s = new Float64Array(orig.length)
+  const g = new Float64Array(n)
+  for (let i = 0; i < n; i++) {
+    g[i] = gap(i)
+    for (let k = 0; k < 3; k++) s[i * 3 + k] = orig[i * 3 + k] + bn[i * 3 + k] * g[i]
+  }
+  const t = new Float64Array(orig.length)
+  for (let it = 0; it < steps; it++) {
+    for (let i = 0; i < n; i++) {
+      // (the edge stays where the garment's outline cut it: a hem or a strap with a clean line)
+      const list = boundaryNbrs[i] ? null : nbrs[i]
+      if (!list || !list.length) {
+        for (let k = 0; k < 3; k++) t[i * 3 + k] = s[i * 3 + k]
+        continue
+      }
+      for (let k = 0; k < 3; k++) {
+        let a = 0
+        for (const j of list) a += s[j * 3 + k]
+        t[i * 3 + k] = s[i * 3 + k] + 0.6 * (a / list.length - s[i * 3 + k])
+      }
+    }
+    for (let i = 0; i < n; i++) {
+      const d = (t[i * 3] - orig[i * 3]) * bn[i * 3] + (t[i * 3 + 1] - orig[i * 3 + 1]) * bn[i * 3 + 1] + (t[i * 3 + 2] - orig[i * 3 + 2]) * bn[i * 3 + 2]
+      const push = d < g[i] ? g[i] - d : 0
+      for (let k = 0; k < 3; k++) s[i * 3 + k] = t[i * 3 + k] + bn[i * 3 + k] * push
+    }
+  }
+  return s
+}
 
 // ---- mesh helpers ----
 const key = (p, i) => `${Math.round(p[i * 3] * 2e4)},${Math.round(p[i * 3 + 1] * 2e4)},${Math.round(p[i * 3 + 2] * 2e4)}`
@@ -366,28 +422,43 @@ export const buildGarment = (kind, body0, m) => {
     ;(boundaryNbrs[a] ||= []).push(b)
     ;(boundaryNbrs[b] ||= []).push(a)
   }
-  taubin(wpos, nbrs, boundaryNbrs, spec.smooth)
-  const wn = normalsOf(wpos, wtris)
-  // push out: at least `inflate` from the smoothed surface, and never closer than 5 mm to
-  // the body's own vertex there (so the skin can't poke through)
-  const out = new Float64Array(W * 3)
-  for (let i = 0; i < W; i++) {
+  // how far out from the skin the cloth sits here
+  const gapOf = (i) => {
     let inflate = spec.inflate
     const y = orig[i * 3 + 1]
     if (spec.flare) inflate += Math.max(0, m.hipY - 0.05 - y) * spec.flare * 2.2
     if (spec.loose) inflate += Math.max(0, Math.min(1, (m.hipY + 0.2 - y) / 0.2)) * spec.loose
     // a waistband stays snug, under any top's hem (never poking out through a fitted shirt)
     if (WAISTED.includes(kind) && y > m.hipY + 0.03) inflate = Math.min(inflate, 0.0045)
-    const nx = wn[i * 3]
-    let ny = wn[i * 3 + 1]
-    const nz = wn[i * 3 + 2]
-    const d = (orig[i * 3] - wpos[i * 3]) * nx + (orig[i * 3 + 1] - wpos[i * 3 + 1]) * ny + (orig[i * 3 + 2] - wpos[i * 3 + 2]) * nz
-    const push = Math.max(inflate, d + 0.005)
-    // shoes: soles stay flat on the court (no pushing down)
-    if (spec.sole && ny < 0) ny = 0
-    out[i * 3] = wpos[i * 3] + nx * push
-    out[i * 3 + 1] = Math.max(spec.sole ? m.soleY : -Infinity, wpos[i * 3 + 1] + ny * push)
-    out[i * 3 + 2] = wpos[i * 3 + 2] + nz * push
+    return inflate
+  }
+  let out
+  if (DRAPED.includes(kind)) {
+    // (held off a lightly smoothed body: the cloth doesn't tent over small points like the
+    // nipples, only over the body's real shape)
+    const under = Float64Array.from(orig)
+    taubin(under, nbrs, boundaryNbrs, 14)
+    out = drape(under, nbrs, boundaryNbrs, normalsOf(under, wtris), gapOf, spec.smooth * 2)
+  }
+  else {
+    taubin(wpos, nbrs, boundaryNbrs, spec.smooth)
+    const wn = normalsOf(wpos, wtris)
+    // push out: at least `inflate` from the smoothed surface, and never closer than 5 mm to
+    // the body's own vertex there (so the skin can't poke through)
+    out = new Float64Array(W * 3)
+    for (let i = 0; i < W; i++) {
+      const inflate = gapOf(i)
+      const nx = wn[i * 3]
+      let ny = wn[i * 3 + 1]
+      const nz = wn[i * 3 + 2]
+      const d = (orig[i * 3] - wpos[i * 3]) * nx + (orig[i * 3 + 1] - wpos[i * 3 + 1]) * ny + (orig[i * 3 + 2] - wpos[i * 3 + 2]) * nz
+      const push = Math.max(inflate, d + 0.005)
+      // shoes: soles stay flat on the court (no pushing down)
+      if (spec.sole && ny < 0) ny = 0
+      out[i * 3] = wpos[i * 3] + nx * push
+      out[i * 3 + 1] = Math.max(spec.sole ? m.soleY : -Infinity, wpos[i * 3 + 1] + ny * push)
+      out[i * 3 + 2] = wpos[i * 3 + 2] + nz * push
+    }
   }
   // trim: distance (along the patch) from its edge
   const trim = new Float32Array(W)
@@ -413,6 +484,37 @@ export const buildGarment = (kind, body0, m) => {
           }
         }
       }
+    }
+    // (near the edge, the straight distance to the edge's segments: the distance along the
+    // mesh's edges zig-zags over irregular triangles, and so did the stripe's inner edge)
+    const segs = []
+    for (const [k2, c] of edgeCount) {
+      if (c !== 1) continue
+      const [a, b] = k2.split(",").map(Number)
+      segs.push(a, b)
+    }
+    const reach = spec.trim * 3
+    for (let i = 0; i < W; i++) {
+      if (!(dist[i] < reach)) continue
+      let best = dist[i]
+      const px = out[i * 3]
+      const py = out[i * 3 + 1]
+      const pz = out[i * 3 + 2]
+      for (let s = 0; s < segs.length; s += 2) {
+        const a = segs[s]
+        const b = segs[s + 1]
+        const ax = out[a * 3]
+        const ay = out[a * 3 + 1]
+        const az = out[a * 3 + 2]
+        const ex = out[b * 3] - ax
+        const ey = out[b * 3 + 1] - ay
+        const ez = out[b * 3 + 2] - az
+        if (Math.abs(px - ax) > reach + Math.abs(ex) || Math.abs(py - ay) > reach + Math.abs(ey)) continue
+        const t = Math.max(0, Math.min(1, ((px - ax) * ex + (py - ay) * ey + (pz - az) * ez) / (ex * ex + ey * ey + ez * ez || 1)))
+        const d = Math.hypot(px - ax - ex * t, py - ay - ey * t, pz - az - ez * t)
+        if (d < best) best = d
+      }
+      dist[i] = best
     }
     for (let i = 0; i < W; i++) trim[i] = dist[i] < spec.trim ? 1 : dist[i] < spec.trim * 1.4 ? 1 - (dist[i] - spec.trim) / (spec.trim * 0.4) : 0
   }
@@ -577,7 +679,57 @@ export const buildGarment = (kind, body0, m) => {
       const m2 = (res.normal[a * 3 + k] + res.normal[b * 3 + k]) / 2
       res.normal[a * 3 + k] = res.normal[b * 3 + k] = m2
     }
+  res.shade = creases(res.position, res.normal, tri, spec.sole ? 0 : 1)
   return res
+}
+
+// How much light a garment's folds and creases keep out (1: none, down to 0.62): where the
+// cloth dips in between its neighbors (the armpits, the waistband, the crotch, the backs of
+// the knees, the seams of a collar) it's darker, like the soft occlusion of real fabric; a
+// vertex whose neighbors sit "above" it along its normal is in a crease.
+export const creases = (position, normal, tri, strength = 1) => {
+  const n = position.length / 3
+  const sum = new Float64Array(n * 3)
+  const len = new Float64Array(n)
+  const cnt = new Uint16Array(n)
+  for (let t = 0; t < tri.length; t += 3)
+    for (let e = 0; e < 3; e++) {
+      const a = tri[t + e]
+      const b = tri[t + ((e + 1) % 3)]
+      for (const [p, q] of [[a, b], [b, a]]) {
+        sum[p * 3] += position[q * 3]
+        sum[p * 3 + 1] += position[q * 3 + 1]
+        sum[p * 3 + 2] += position[q * 3 + 2]
+        len[p] += Math.hypot(position[q * 3] - position[p * 3], position[q * 3 + 1] - position[p * 3 + 1], position[q * 3 + 2] - position[p * 3 + 2])
+        cnt[p]++
+      }
+    }
+  const out = new Float32Array(n).fill(1)
+  if (!strength) return out
+  const raw = new Float32Array(n)
+  for (let i = 0; i < n; i++) {
+    if (!cnt[i]) continue
+    const k = 1 / cnt[i]
+    const dx = sum[i * 3] * k - position[i * 3]
+    const dy = sum[i * 3 + 1] * k - position[i * 3 + 1]
+    const dz = sum[i * 3 + 2] * k - position[i * 3 + 2]
+    const c = (dx * normal[i * 3] + dy * normal[i * 3 + 1] + dz * normal[i * 3 + 2]) / (len[i] * k || 1)
+    raw[i] = c
+  }
+  // (a little blur over the neighbors: soft, not speckled)
+  const nb = new Float64Array(n)
+  for (let t = 0; t < tri.length; t += 3)
+    for (let e = 0; e < 3; e++) {
+      const a = tri[t + e]
+      const b = tri[t + ((e + 1) % 3)]
+      nb[a] += raw[b]
+      nb[b] += raw[a]
+    }
+  for (let i = 0; i < n; i++) {
+    const c = cnt[i] ? (raw[i] + nb[i] / cnt[i]) / 2 : 0
+    out[i] = 1 - Math.max(0, Math.min(0.38, (c - 0.02) * 1.1 * strength))
+  }
+  return out
 }
 
 // The body's triangles that the garments hide (no need to draw skin under a shirt): those
@@ -639,13 +791,19 @@ export const skirtWeights = (angle, t) => {
   return { pelvis: p / s, thigh_l: l / s, thigh_r: r / s }
 }
 
-export const buildSkirt = (m, bodyRadius, bones, { segments = 28, rings = 6, length = 0.3, flare = 0.11 } = {}) => {
+// A tennis skirt: snug at the waist, flaring out over the hips, with knife pleats that open
+// toward the hem (a sawtooth round the hem, deeper further down), so it reads as cloth, not a
+// cone. sway: how much each vertex swings with the athlete's spring (0 at the waistband, 1 at
+// the hem; athlete.js); shade: the pleats' folds, darker in each pleat's inner edge.
+export const buildSkirt = (m, bodyRadius, bones, { segments = 48, rings = 7, length = 0.31, flare = 0.13, pleats = 16, depth = 0.016 } = {}) => {
   const topY = m.hipY + 0.085
   const nv = segments * (rings + 1)
   const position = new Float32Array(nv * 3)
   const skinIndex = new Uint16Array(nv * 4)
   const skinWeight = new Float32Array(nv * 4)
   const trim = new Float32Array(nv)
+  const sway = new Float32Array(nv)
+  const shadeP = new Float32Array(nv)
   const r0 = []
   for (let s = 0; s < segments; s++) r0.push(bodyRadius((s / segments) * Math.PI * 2, topY) + 0.012)
   for (let r = 0; r <= rings; r++) {
@@ -654,9 +812,11 @@ export const buildSkirt = (m, bodyRadius, bones, { segments = 28, rings = 6, len
     for (let s = 0; s < segments; s++) {
       const a = (s / segments) * Math.PI * 2
       const i = r * segments + s
-      // the body under this ring (hips/thighs), plus the flare
+      // the body under this ring (hips/thighs), plus the flare, plus the pleat
       const under = bodyRadius(a, y) + 0.015
-      const rad = Math.max(under, r0[s] + flare * Math.pow(t, 0.8))
+      const saw = ((s * pleats) / segments) % 1 // 0..1 across each pleat
+      const pleat = depth * Math.pow(t, 0.9) * (saw - 0.5)
+      const rad = Math.max(under, r0[s] + flare * Math.pow(t, 0.8) + pleat)
       position[i * 3] = m.cx + Math.cos(a) * rad
       position[i * 3 + 1] = y
       position[i * 3 + 2] = m.cz + Math.sin(a) * rad
@@ -664,6 +824,8 @@ export const buildSkirt = (m, bodyRadius, bones, { segments = 28, rings = 6, len
       skinIndex.set([bones.pelvis, bones.thigh_l, bones.thigh_r, 0], i * 4)
       skinWeight.set([w.pelvis, w.thigh_l, w.thigh_r, 0], i * 4)
       trim[i] = r === rings ? 1 : r === 0 ? 0.6 : 0
+      sway[i] = Math.pow(t, 1.4)
+      shadeP[i] = 1 - 0.22 * Math.pow(t, 0.7) * (saw < 0.2 ? 1 - saw / 0.2 : 0)
     }
   }
   const tri = []
@@ -677,7 +839,7 @@ export const buildSkirt = (m, bodyRadius, bones, { segments = 28, rings = 6, len
     }
   const index = new Uint16Array(tri)
   const normal = Float32Array.from(normalsOf(Float64Array.from(position), index))
-  return { position, normal, skinIndex, skinWeight, trim, accent: new Float32Array(nv), index }
+  return { position, normal, skinIndex, skinWeight, trim, accent: new Float32Array(nv), index, sway, shade: shadeP }
 }
 
 // how far the body's surface is from its center line, by angle (0 = +x, then +z) and height

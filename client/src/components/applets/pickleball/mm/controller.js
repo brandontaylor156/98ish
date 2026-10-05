@@ -23,6 +23,8 @@ import { DIM, contactsOf, normalizeQuery, rootDelta, virtualPose, toRoot } from 
 import { search } from "./search.js"
 import { angVel, applyInert, createInert, decay, transition } from "./inertialize.js"
 import { NB } from "./skeleton.js"
+import { TAG } from "./library.js"
+const TAG_IDLE = TAG.idle
 
 const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a))
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v))
@@ -146,6 +148,20 @@ const nextFrame = (st, v) => {
   return f + 1 < c.start + c.n ? v + 1 : v
 }
 const atEnd = (st) => nextFrame(st, st.v) === st.v
+// standing still in an idle clip the search allows, facing about the way wanted, with some of
+// the clip left
+export const isIdling = (st, input, want) => {
+  const { lib } = st
+  const tag = lib.tags[st.v] ?? 0
+  if (!(tag & TAG_IDLE) || !(tag & (input.mask ?? 0xffffffff))) return false
+  if (Math.hypot(want.x, want.z) > 0.15 || Math.hypot(input.vx, input.vz) > 0.25 || input.goal) return false
+  if (Math.abs(wrap(input.yaw - st.root.yaw)) > 0.35) return false
+  // (a second of the clip left, at least)
+  const { db } = lib
+  const f = st.v >= db.N ? st.v - db.N : st.v
+  const c = db.clips[db.clipOf[f]]
+  return c.start + c.n - f > db.fps
+}
 
 // input: x, z (the game's position), vx, vz, want: { x, z } (the velocity the player wants),
 //   goal (or null), yaw (the facing anim.js picked), mask (tags to search), every (s between
@@ -161,7 +177,12 @@ export const updateMM = (st, input, dt) => {
   // ---- search ----
   st.timer -= dt
   const changed = st.lastWant && (Math.hypot(want.x - st.lastWant.x, want.z - st.lastWant.z) > 1.2 || Math.abs(wrap(input.yaw - st.lastWant.yaw)) > 0.6)
-  if (st.timer <= 0 || changed || atEnd(st) || !st.prev) {
+  // standing still in a captured idle: let it play (its sway, its weight shifts) instead of
+  // searching again and again for the one best standing frame, which jumped back every half
+  // second and looked frozen; a search again once the idle runs out, or the player moves or
+  // turns
+  const idling = !!st.prev && isIdling(st, input, want)
+  if ((st.timer <= 0 && !idling) || changed || atEnd(st) || !st.prev) {
     st.timer = input.every ?? MM.every
     st.lastWant = { x: want.x, z: want.z, yaw: input.yaw }
     // the query: this frame's pose features, the wanted trajectory

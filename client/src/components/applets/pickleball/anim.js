@@ -48,6 +48,7 @@ import { qaxis, qmul, qrot } from "./mm/quat.js"
 import { driveMM } from "./mm/drive.js"
 import { betweenActs } from "./between.js"
 import { gestureArms } from "./mm/gesture.js"
+import { createIdle, stepIdle } from "./idle.js"
 
 // ---- the skeleton (meters) ----
 export const BODY = {
@@ -216,6 +217,8 @@ export const createAnim = (x, z, yaw) => ({
   extraCrouch: 0,
   moodPose: null,
   mmLean: {}, // (motion matching: a stroke's extra bend at the waist)
+  idle: null, // (idle.js: weight shifts, the ready bounce, breathing)
+  lifeW: {},
 })
 
 // The split step: a little hop that lands as the other side hits (anim.js starts it itself
@@ -429,6 +432,10 @@ export const updateAnim = (a, s, dt) => {
   const still = 1 - clamp(speed / 0.5, 0, 1)
   const sway = s.between ? Math.sin(a.t * 0.9) * 0.012 * still : Math.sin(a.t * 1.6) * 0.022 * still
   const bob = s.between ? 0 : (0.5 - 0.5 * Math.cos(a.t * 2 * Math.PI * 1.3)) * 0.008 * still
+  // (motion matching: idle.js's weight shifts, bounce and breathing, below)
+  const idleQuiet = !swing && !s.prep && !whiff && !s.holding && !s.charging && !(a.hop > 0) && !mood && !bt.tap ? 1 : 0
+  const life = stepIdle(a.idle || (a.idle = createIdle(1 + Math.abs(s.x * 3.1 + s.z * 7.7))), { between: !!s.between, still: idleQuiet * still, run: clamp((speed - 1.5) / 3, 0, 1) }, dt)
+  let idleMove = null
   const crouchS = springN(a.crouch, crouch, 10, dt)
 
   updateGait(a.gait, { x: s.x, z: s.z, vx: mv.x, vz: mv.z, yaw: a.yaw, stance, reach, minHip: 0.93 - crouchS - 0.1, crossover: fc.mode !== "face", quick: quickSteps(speed, !!s.atNet && !s.between) }, dt)
@@ -487,10 +494,13 @@ export const updateAnim = (a, s, dt) => {
     const chestLocal = (v) => RH(V(dot(v, cr), dot(v, cu), dot(v, cf)))
     const poleOf = (e, sh2, w) => chestLocal(sub(e, mul(add(sh2, w), 0.5)))
     const hangDir = norm(add(norm(sub(endP, wP)), add(V(0, -0.35, 0), mul(fr.f, 0.25))))
+    // (standing about, the hands come up and forward a little: elbows softly bent, the way
+    // an athlete stands, not the capture's straight hanging arms; less on the move)
+    const soft = V(0, 0.07 * still, 0.09 * still)
     mmArms = {
-      hand: toStd(local(wP)),
+      hand: add(toStd(local(wP)), soft),
       axis: RH(toLocal(V(0, 0, 0), fr, hangDir)),
-      off: toStd(local(wO)),
+      off: add(toStd(local(wO)), soft),
       pole: poleOf(eP, hand > 0 ? mmo.shoulderR : mmo.shoulderL, wP),
       offPole: poleOf(eO, hand > 0 ? mmo.shoulderL : mmo.shoulderR, wO),
       coil: 0,
@@ -780,6 +790,25 @@ export const updateAnim = (a, s, dt) => {
       { hip: mmo.hipL, knee: mmo.kneeL, ankle: mmo.ankleL, foot: mmo.footL },
       { hip: mmo.hipR, knee: mmo.kneeR, ankle: mmo.ankleR, foot: mmo.footR },
     ]
+    // standing like an athlete (idle.js): the captured body never freezes. Between points the
+    // weight goes over one leg, then the other (the hips over the standing leg, the other hip
+    // dropping); ready in a rally, a light bounce and small shifts. The pinned feet stay put
+    // (the legs bend to them); the upper body and the hands ride along.
+    const lw = springN(a.lifeW, idleQuiet * (1 - clamp(speed / 0.45, 0, 1)), 4, dt)
+    if (lw > 1e-3 && life) {
+      idleMove = add(mul(fr.r, life.shift * lw), V(0, life.bob * lw - Math.abs(life.shift) * 0.25 * lw, 0))
+      const tilt = qaxis(fr.f, -life.roll * lw)
+      const mv2 = (p) => add(add(pelvis, qrot(tilt, sub(p, pelvis))), idleMove)
+      hipL = mv2(hipL)
+      hipR = mv2(hipR)
+      pelvisRight = norm(qrot(tilt, pelvisRight))
+      // (the chest leans back over the hips a little: the spine stays about upright)
+      neck = add(neck, idleMove)
+      shoulderL = add(shoulderL, idleMove)
+      shoulderR = add(shoulderR, idleMove)
+      pelvis = add(pelvis, idleMove)
+      legs = legs.map((l, i) => ({ ...l, hip: i ? hipR : hipL }))
+    }
   } else a.mmDown = 0
 
   // ---- arms ----
@@ -807,6 +836,10 @@ export const updateAnim = (a, s, dt) => {
   const otherSide = hand > 0 ? shoulderL : shoulderR
   let handW = toWorld(ground, fr, handL)
   let offW = toWorld(ground, fr, offL)
+  if (idleMove) {
+    handW = add(handW, idleMove)
+    offW = add(offW, idleMove)
+  }
   let axisW = norm(dirToWorld(fr, axisL))
   // the elbows point where the stroke says (in the chest's frame, so they turn with it)
   const chestDir = (l) => norm(add(add(mul(sr, l.x), mul(UP, l.y)), mul(chestF, l.z)))
@@ -905,7 +938,7 @@ export const updateAnim = (a, s, dt) => {
     paddle: { grip: armP.end, axis: axisW, normal: normalW, face: add(armP.end, mul(axisW, BODY.paddleReach)) },
     hand,
     // for the skinned athletes' motion-capture layers (athlete.js)
-    info: { speed, phase: a.gait.phase, cycle: a.gait.cycle, moving: a.gait.moving, blend: a.gait.blend.weights, timeScale: a.gait.blend.timeScale, facing: a.face.mode || "face", swinging: !!(swing || s.prep || whiff), between: !!s.between, mood: mood ? { kind: mood.kind, variant: mood.variant } : null, stroke: so.w, style: so.style, fast, ready: (1 - W.pumpP) * (1 - smoothW(W.relax)), offGrip: so.w < 0.5 && W.relax < 0.5 && W.pumpO < 0.3 && !mood && !s.holding, fist: mood?.kind === "cheer", strokePhase: so.phase, aim: aimAt ? { x: aimAt.x, y: aimAt.y, z: aimAt.z, ttc: -inp.tRel } : null, side: so.side, two: W.two > 0.5, footwork: fc.mode, split: a.hop > 0, lunge: lunging, mm: mmo ? { v: mmo.v, contacts: mmo.contacts, locked: mmo.locked, searches: mmo.stats.searches, jumps: mmo.stats.jumps, gap: Math.hypot(mmo.root.x - s.x, mmo.root.z - s.z) } : null },
+    info: { breath: life.breath, breathDepth: life.depth, speed, phase: a.gait.phase, cycle: a.gait.cycle, moving: a.gait.moving, blend: a.gait.blend.weights, timeScale: a.gait.blend.timeScale, facing: a.face.mode || "face", swinging: !!(swing || s.prep || whiff), between: !!s.between, mood: mood ? { kind: mood.kind, variant: mood.variant } : null, stroke: so.w, style: so.style, fast, ready: (1 - W.pumpP) * (1 - smoothW(W.relax)), offGrip: so.w < 0.5 && W.relax < 0.5 && W.pumpO < 0.3 && !mood && !s.holding, fist: mood?.kind === "cheer", strokePhase: so.phase, aim: aimAt ? { x: aimAt.x, y: aimAt.y, z: aimAt.z, ttc: -inp.tRel } : null, side: so.side, two: W.two > 0.5, footwork: fc.mode, split: a.hop > 0, lunge: lunging, mm: mmo ? { v: mmo.v, contacts: mmo.contacts, locked: mmo.locked, searches: mmo.stats.searches, jumps: mmo.stats.jumps, gap: Math.hypot(mmo.root.x - s.x, mmo.root.z - s.z) } : null },
   }
 }
 

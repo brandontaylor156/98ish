@@ -8,7 +8,7 @@ import { buildFeatures, normalize, searchable } from "./features.js"
 import { buildIndex } from "./search.js"
 
 // the tags the game searches by (a bit each)
-export const TAG = { neutral: 1, ready: 2, cross: 4, lunge: 8, stop: 16, idle: 32, fast: 64, gesture: 128 }
+export const TAG = { neutral: 1, ready: 2, cross: 4, lunge: 8, stop: 16, idle: 32, fast: 64, gesture: 128, restIdle: 256, readyIdle: 512 }
 
 export const tagMaskOf = (tags) => {
   let m = 0
@@ -28,7 +28,9 @@ export const buildLibrary = (json, raw) => {
   ok.set(ok1, N)
   const tags = new Uint32Array(2 * N)
   for (const c of db.clips) {
-    const m = tagMaskOf(c.tags) || 1
+    let m = tagMaskOf(c.tags) || 1
+    // (standing still: the relaxed idles between points, the athletic ones in a rally)
+    if (m & TAG.idle) m |= (m & TAG.neutral ? TAG.restIdle : 0) | (m & TAG.ready ? TAG.readyIdle : 0)
     for (let i = 0; i < c.n; i++) {
       tags[c.start + i] = m
       tags[N + c.start + i] = m

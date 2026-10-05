@@ -114,3 +114,34 @@ players alike.
 Everything the players load: `mh-m.glb`, `mh-f.glb`, `mh-hair.glb` (1.9 MB) + `motion.bin`
 (2.9 MB) + `moves.json` (0.06 MB) = about 4.9 MB, fetched in the background the first time
 Pickleball opens.
+
+## Athletic bodies (2026-10-04)
+
+After "they look like a tube of toothpaste": realistic athletic anatomy, still MakeHuman and
+still **CC0 1.0** throughout (licenses checked 2026-10-04: `LICENSE.ASSETS.md` in MPFB2, "Creative
+Commons CC0 1.0 Universal"; every target and proxy file's header: "This asset was explicitly
+released as CC0 in september 2020"). Nothing new from anyone else.
+
+| Source | Where | What we use |
+| --- | --- | --- |
+| MakeHuman muscle topology proxies | the system assets zip above (`proxymeshes/male_muscle_13290`, `female_muscle_13442`; "Topology optimized for male muscled characters. Edgeloops are designed to include neck details, shoulders, pectoral, biceps and quadriceps") | the bodies' mesh (instead of `male_generic`/`female_generic`) |
+| MPFB2 local modifier targets | https://github.com/makehumancommunity/mpfb2 `src/mpfb/data/targets/` (`torso`, `stomach`, `buttocks`, `hip`, `neck`, `head`, `arms`, `legs`) | an athlete's build: the V taper, shoulder width, lats, chest, waist, glutes, delts, arm and leg muscle, knees, calves, a shorter, thicker neck, a leaner face (weights in `tools/build-mh-athletes.mjs` `LOCALS`) |
+| MPFB2 expression units | the same repository, `targets/expression/units/caucasian/` | the faces' morph targets: blink, smile, effort, shout (eye closure and slit, mouth corner puller, compression, open, brows down / inner up, nose elevation) |
+
+Made in the builder (no third-party art): the muscle-definition normal map (baked from a more
+muscular, sharpened copy of the same body), the sharper eye texture (MakeHuman's brown eye
+recolored, a limbal ring and a catchlight added). Made in the game: the drape of the tops, the
+pleated skirt and the crease shading, the springs that swing a skirt, a ponytail or long hair,
+the breathing, weight shifts and ready bounce (`idle.js`), the blinks and expressions, the skin
+and cloth lighting.
+
+| File | Size | Contents |
+| --- | --- | --- |
+| `mh-m.glb` | 471 KB | the male body (Medium and phones: 13.3k triangles), the muscle normal map (1024 WebP), skin 1024 JPEG, four expression morphs on the face and brows/lashes |
+| `mh-f.glb` | 439 KB | the female body (13.5k triangles), the same |
+| `mh-m-hi.glb` | 814 KB | the male body with every triangle (26.6k) and a 2048 skin, for High only |
+| `mh-f-hi.glb` | 778 KB | the female body (27.0k triangles), the same |
+| `mh-hair.glb` | 1240 KB | the hairstyles, fitted to the new heads |
+
+Medium (and every phone) loads about 5.1 MB in all (bodies 0.9 + hair 1.2 + motion 2.9 +
+moves 0.06); High adds the detailed bodies (1.6 MB) after the game is up: about 6.7 MB.

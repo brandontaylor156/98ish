@@ -9,7 +9,11 @@
 // physics computed; fingers curl round the grip; small motion-captured clips (Quaternius'
 // Universal Animation Library) breathe and bounce on top.
 //
-// The assets (about 2 MB: mh-m/mh-f/mh-hair.glb and moves.json, in public/assets/pickleball/;
+// Athletic since 2026-10-04: muscle-topology bodies with a muscle normal map, wrapped (soft,
+// warm) skin light and a rim, faces that blink and react (morph targets), tops that drape, a
+// pleated skirt and hair that swing on springs, breathing (CREDITS.md, CLAUDE.md).
+// The assets (about 2.2 MB: mh-m/mh-f/mh-hair.glb and moves.json, in public/assets/pickleball/;
+// mh-*-hi.glb only on High;
 // the older Quaternius files are about 0.8 MB more, only fetched if those fail) load the first time Pickleball
 // opens. Until they're in (or if they fail, or on Low quality) rig.js's simple figures
 // stand in; createAthlete has the same interface as rig.js's createFigure.
@@ -24,18 +28,33 @@ import { SKIN } from "./looks.js"
 import { aimDelta, additiveMove, bendAxis, decodeMoves, frameOf, gripSide, LAYERS, layerTargets, limitQuat, Q, steadyGrip, unwrapNear, qaxis, qinv, qmul, qrot, qslerp, solveLimb, stepLayers, swingTwist, twistAngle, clipTime, norm } from "./retarget.js"
 import { BUILD_SCALE, buildGarment, buildSkirt, landmarks, prepareBody, radiusProfile, reshapeBody, visibleIndex } from "./outfit.js"
 import { loadMotion } from "./mm/runtime.js"
+import { hash01 } from "./between.js"
 
 const BASE = "/assets/pickleball/"
 // the bodies: MakeHuman's (CC0, realistic proportions: tools/build-mh-athletes.mjs), or the
 // older Quaternius ones if those don't load
+// (athletic MakeHuman bodies, 2026-10-04: muscle topology, a muscle normal map, facial
+// expressions as morph targets; mh-*-hi.glb has every triangle, for High, loaded only then)
 const SETS = [
-  { id: "mh", m: "mh-m.glb", f: "mh-f.glb", hair: "mh-hair.glb", headScale: 1.03 },
+  { id: "mh", m: "mh-m.glb", f: "mh-f.glb", hair: "mh-hair.glb", hi: { m: "mh-m-hi.glb", f: "mh-f-hi.glb" }, headScale: 1.02 },
   { id: "q", m: "athlete-m.glb", f: "athlete-f.glb", hair: "hair.glb", headScale: 1.1 }, // (a slightly bigger head: friendlier, and it reads at TV distance)
 ]
+// (dev, the A/B test of the looks: window.__pbStyle = "toon" loads the stylized bodies,
+// built with STYLE=toon, never shipped)
+const styled = (file) => (typeof window !== "undefined" && window.__pbStyle === "toon" ? file.replace(".glb", "-toon.glb") : file)
 
 // ---- loading (once) ----
 let assets = null
 let loading = null
+let loadingHi = null
+let gltfLoader = null
+const loaderOf = () => {
+  if (!gltfLoader) {
+    gltfLoader = new GLTFLoader()
+    gltfLoader.setMeshoptDecoder(MeshoptDecoder)
+  }
+  return gltfLoader
+}
 export const athletesReady = () => !!assets
 export const loadAthletes = () => {
   // (the motion-matching database comes in alongside, on its own: the athletes don't wait
@@ -43,8 +62,7 @@ export const loadAthletes = () => {
   loadMotion().catch(() => {})
   if (loading) return loading
   loading = (async () => {
-    const loader = new GLTFLoader()
-    loader.setMeshoptDecoder(MeshoptDecoder)
+    const loader = loaderOf()
     const movesP = fetch(BASE + "moves.json").then((r) => {
       if (!r.ok) throw new Error("moves " + r.status)
       return r.json()
@@ -54,12 +72,13 @@ export const loadAthletes = () => {
     const sets = typeof window !== "undefined" && window.__pbModels === "q" ? SETS.slice(1) : SETS
     for (const set of sets) {
       try {
-        const [m, f, hair, moves] = await Promise.all([loader.loadAsync(BASE + set.m), loader.loadAsync(BASE + set.f), loader.loadAsync(BASE + set.hair), movesP])
+        const file = set.id === "mh" ? styled : (x) => x
+        const [m, f, hair, moves] = await Promise.all([loader.loadAsync(BASE + file(set.m)), loader.loadAsync(BASE + file(set.f)), loader.loadAsync(BASE + (set.id === "mh" && typeof window !== "undefined" && window.__pbStyle === "toon" ? "mh-hair-toon.glb" : set.hair)), movesP])
         const hairs = {}
         hair.scene.traverse((o) => {
           if (o.isMesh) hairs[o.name] = o
         })
-        assets = { set: set.id, m: template(m, set), f: template(f, set), hairs, moves: decodeMoves(moves), paddles: new Map() }
+        assets = { set: set.id, setInfo: set, m: template(m, set), f: template(f, set), hi: null, hairs, moves: decodeMoves(moves), paddles: new Map() }
         return assets
       } catch (e) {
         error = e
@@ -71,6 +90,24 @@ export const loadAthletes = () => {
     loading = null // a later open can try again
   })
   return loading
+}
+// the High bodies (every triangle, a 2048 skin): fetched the first time an athlete is made on
+// High; until they're in (or if they fail) the Medium bodies stand in, and athletes made
+// before swap themselves over (createAthlete)
+const hiWaiters = new Set()
+const loadHi = () => {
+  if (loadingHi || !assets?.setInfo?.hi) return loadingHi
+  const set = assets.setInfo
+  loadingHi = Promise.all([loaderOf().loadAsync(BASE + styled(set.hi.m)), loaderOf().loadAsync(BASE + styled(set.hi.f))])
+    .then(([m, f]) => {
+      assets.hi = { m: template(m, set), f: template(f, set) }
+      for (const fn of hiWaiters) fn()
+      hiWaiters.clear()
+    })
+    .catch(() => {
+      hiWaiters.clear()
+    })
+  return loadingHi
 }
 
 // ---- three <-> retarget.js ----
@@ -151,8 +188,16 @@ const template = (gltf, set = SETS[0]) => {
   head.eyeZ = eyes.boundingBox.max.z
   head.eyeX = eyes.boundingBox.max.x * 0.55
   // the materials' textures (shared by every instance)
-  const maps = { skin: body.material.map, normal: body.material.normalMap || null, brows: meshes.Brows.material.map, eyes: meshes.Eyes.material, ref: srgb(body.material.userData?.refSkin || "#a87551"), hueMix: body.material.userData?.hueMix ?? 0.45, gain: body.material.userData?.skinGain ?? 0.86 }
+  const ud = body.material.userData || {}
+  // (the glTF normal map: three's loader flips its y; keep that, at the strength wanted)
+  const maps = { skin: body.material.map, normal: body.material.normalMap || null, normalScale: body.material.normalScale ? body.material.normalScale.clone().multiplyScalar(0.85) : null, brows: meshes.Brows.material.map, eyes: meshes.Eyes.material, ref: srgb(ud.refSkin || "#a87551"), hueMix: ud.hueMix ?? 0.45, gain: ud.skinGain ?? 0.86 }
   maps.skin.anisotropy = 4
+  if (maps.normal) maps.normal.anisotropy = 4
+  // the eyes: wet and bright (a little light of their own so the whites never go gray)
+  maps.eyes.roughness = 0.12
+  maps.eyes.emissive = new THREE.Color(1, 1, 1)
+  maps.eyes.emissiveMap = maps.eyes.map
+  maps.eyes.emissiveIntensity = 0.12
   // the grip: where the paddle sits in each hand, in that hand bone's own space
   const grip = {}
   for (const side of ["l", "r"]) {
@@ -194,7 +239,9 @@ const template = (gltf, set = SETS[0]) => {
   // them cost two more skinned draws per athlete); their rest transform in its space
   const toHead = new THREE.Matrix4().copy(bones.Head.matrixWorld).invert()
   const onHead = { Eyes: toHead.clone().multiply(meshes.Eyes.matrixWorld), Brows: toHead.clone().multiply(meshes.Brows.matrixWorld) }
-  const t = { set: set.id, headScale: set.headScale, scene, rest, prepared, marks, scale, ankleH, head, maps, grip, curl, garments: {}, bones, onHead, joints, variants: {} }
+  // the facial expressions (morph targets on the face and the brows/lashes, if the file has them)
+  const faces = { body: body.morphTargetDictionary || null, brows: meshes.Brows.morphTargetDictionary || null }
+  const t = { set: set.id, headScale: ud.headScale ?? set.headScale, scene, rest, prepared, marks, scale, ankleH, head, maps, grip, curl, garments: {}, bones, onHead, joints, variants: {}, faces }
   return t
 }
 const sub3 = (a, b) => ({ x: a.x - b.x, y: a.y - b.y, z: a.z - b.z })
@@ -256,6 +303,9 @@ const bodyUnder = (tpl, full, look, v) => {
   if (!v.bodies[key]) {
     const g = new THREE.BufferGeometry()
     for (const [name, attr] of Object.entries(full.attributes)) g.setAttribute(name, name === "position" ? v.position : attr)
+    // (the face's expressions: offsets, the same for every build)
+    g.morphAttributes = full.morphAttributes
+    g.morphTargetsRelative = full.morphTargetsRelative
     g.setIndex(new THREE.BufferAttribute(visibleIndex(garmentKinds(look), v.prepared, tpl.marks), 1))
     v.bodies[key] = g
   }
@@ -282,8 +332,10 @@ const outfitGeometry = (tpl, look, v) => {
       color[i * 3] = (b.r + (t.r - b.r) * u) * (1 - v) + a.r * v
       color[i * 3 + 1] = (b.g + (t.g - b.g) * u) * (1 - v) + a.g * v
       color[i * 3 + 2] = (b.b + (t.b - b.b) * u) * (1 - v) + a.b * v
+      // (the cloth's folds and creases, baked: outfit.js shade)
+      if (g.shade) for (let k = 0; k < 3; k++) color[i * 3 + k] *= g.shade[i]
     }
-    parts.push({ position: g.position, normal: g.normal, color, skinIndex: g.skinIndex, skinWeight: g.skinWeight, index: g.index })
+    parts.push({ position: g.position, normal: g.normal, color, skinIndex: g.skinIndex, skinWeight: g.skinWeight, index: g.index, sway: g.sway || null })
   }
   // a rigid piece (a three.js geometry in rest world space) on one bone
   const rigid = (geo, bone) => {
@@ -344,9 +396,11 @@ const outfitGeometry = (tpl, look, v) => {
   const color = new Float32Array(nv * 3)
   const skinIndex = new Uint16Array(nv * 4)
   const skinWeight = new Float32Array(nv * 4)
+  const sway = new Float32Array(nv)
   const index = nv > 65535 ? new Uint32Array(ni) : new Uint16Array(ni)
   let ov = 0
   let oi = 0
+  let swings = false
   for (const p of parts) {
     const n = p.position.length / 3
     position.set(p.position, ov * 3)
@@ -354,6 +408,10 @@ const outfitGeometry = (tpl, look, v) => {
     color.set(p.color, ov * 3)
     skinIndex.set(p.skinIndex, ov * 4)
     skinWeight.set(p.skinWeight, ov * 4)
+    if (p.sway) {
+      sway.set(p.sway, ov)
+      swings = true
+    }
     for (let i = 0; i < p.index.length; i++) index[oi + i] = p.index[i] + ov
     ov += n
     oi += p.index.length
@@ -364,7 +422,9 @@ const outfitGeometry = (tpl, look, v) => {
   geo.setAttribute("color", new THREE.BufferAttribute(color, 3))
   geo.setAttribute("skinIndex", new THREE.BufferAttribute(skinIndex, 4))
   geo.setAttribute("skinWeight", new THREE.BufferAttribute(skinWeight, 4))
+  geo.setAttribute("pkSwayW", new THREE.BufferAttribute(sway, 1))
   geo.setIndex(new THREE.BufferAttribute(index, 1))
+  geo.userData.swings = swings
   return geo
 }
 
@@ -383,13 +443,28 @@ const skinWarmth = (hex) => {
   const pale = Math.max(0, Math.min(1, (srgb(hex).getHSL({}).l - 0.45) / 0.4))
   return new THREE.Vector3(1.03 + 0.11 * pale, 0.99, 0.95 - 0.1 * pale)
 }
+// The athletes' lighting (skin, clothes, hair): three's standard material with two changes.
+// Wrapped diffuse light: the light reaches a little past the terminator, more in red than in
+// blue for skin (light scattered under the skin: soft, warm shadow edges instead of a plastic
+// cut-off); and a rim: a faint glow of the surface's own color at the silhouette, so a player
+// reads against the court from the broadcast camera. Shadows still darken it all (the wrap
+// is applied to the shadowed light).
+const LIGHTS_CHUNK = THREE.ShaderChunk.lights_physical_pars_fragment.replace("vec3 irradiance = dotNL * directLight.color;", "vec3 irradiance = dotNL * directLight.color;\n\tvec3 irradianceD = irradiance;\n\t#ifdef PK_WRAP\n\t\tirradianceD = saturate( ( vec3( dot( geometryNormal, directLight.direction ) ) + PK_WRAP ) / ( 1.0 + PK_WRAP ) ) * directLight.color;\n\t#endif").replace("reflectedLight.directDiffuse += irradiance * BRDF_Lambert( material.diffuseContribution )", "reflectedLight.directDiffuse += irradianceD * BRDF_Lambert( material.diffuseContribution )")
+const athleteLight = (sh, { rim = 0.2 } = {}) => {
+  sh.fragmentShader = sh.fragmentShader
+    .replace("#include <lights_physical_pars_fragment>", LIGHTS_CHUNK)
+    .replace("#include <emissivemap_fragment>", `#include <emissivemap_fragment>\n\t{\n\t\tfloat pkRim = 1.0 - saturate( dot( normal, normalize( vViewPosition ) ) );\n\t\ttotalEmissiveRadiance += diffuseColor.rgb * ( ${rim.toFixed(3)} * pkRim * pkRim * pkRim );\n\t}`)
+}
 const skinMaterial = (maps, hex) => {
   const ref = maps.ref
   const lum = ref.r * 0.2126 + ref.g * 0.7152 + ref.b * 0.0722
-  const m = new THREE.MeshStandardMaterial({ map: maps.skin, normalMap: maps.normal, roughness: 0.58, metalness: 0 })
+  const m = new THREE.MeshStandardMaterial({ map: maps.skin, normalMap: maps.normal, roughness: 0.55, metalness: 0 })
+  if (maps.normal && maps.normalScale) m.normalScale.copy(maps.normalScale)
+  m.defines = { PK_WRAP: "vec3(0.5, 0.3, 0.24)" }
   const uniforms = { skinTone: { value: srgb(hex).multiplyScalar(maps.gain) }, refHue: { value: new THREE.Vector3(ref.r / lum, ref.g / lum, ref.b / lum) }, refLum: { value: lum }, hueMix: { value: maps.hueMix }, skinWarm: { value: skinWarmth(hex) } }
   m.onBeforeCompile = (sh) => {
     Object.assign(sh.uniforms, uniforms)
+    athleteLight(sh, { rim: 0.22 })
     sh.fragmentShader = sh.fragmentShader.replace("#include <common>", "#include <common>\nuniform vec3 skinTone;\nuniform vec3 refHue;\nuniform float refLum;\nuniform float hueMix;\nuniform vec3 skinWarm;").replace(
       "#include <map_fragment>",
       `#include <map_fragment>
@@ -415,8 +490,31 @@ const shared = (key, make) => {
   if (!sharedMats.has(key)) sharedMats.set(key, make())
   return sharedMats.get(key)
 }
+// Clothes and hair: the athletes' lighting (softly wrapped, a rim), and, for what swings (a
+// skirt's hem, a ponytail, long hair), a sway: the vertex moves by the athlete's own spring
+// offset (uniform pkSway, in the mesh's space) times its weight (attribute pkSwayW: 0 at the
+// waistband or the scalp, 1 at the hem or the tips), plus a flare out from a center (pkFlare:
+// xyz the center, w how far). Materials with a sway are one per athlete (their own uniforms);
+// they share the shader program.
+const swayUniforms = () => ({ pkSway: { value: new THREE.Vector3() }, pkFlare: { value: new THREE.Vector4(0, 0, 0, 0) } }) // (w 0: a Vector4 starts with w = 1)
+const athleteMaterial = (params, { wrap = "vec3(0.3)", rim = 0.12, key = "pk-cloth", sway = null } = {}) => {
+  const m = new THREE.MeshStandardMaterial(params)
+  m.defines = { PK_WRAP: wrap }
+  m.onBeforeCompile = (sh) => {
+    athleteLight(sh, { rim })
+    if (!sway) return
+    sh.uniforms.pkSway = sway.pkSway
+    sh.uniforms.pkFlare = sway.pkFlare
+    sh.vertexShader = sh.vertexShader
+      .replace("#include <common>", "#include <common>\nattribute float pkSwayW;\nuniform vec3 pkSway;\nuniform vec4 pkFlare;")
+      .replace("#include <skinning_vertex>", "#include <skinning_vertex>\n\t{\n\t\tvec3 pkOut = vec3( transformed.x - pkFlare.x, 0.0, transformed.z - pkFlare.z );\n\t\ttransformed += ( pkSway + pkOut / max( length( pkOut ), 1e-4 ) * pkFlare.w ) * pkSwayW;\n\t}")
+  }
+  m.customProgramCacheKey = () => key + (sway ? "-sway" : "")
+  if (sway) m.userData.sway = sway
+  return m
+}
 let outfitMaterial = null
-const outfitMat = () => (outfitMaterial ||= new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.78, metalness: 0, side: THREE.DoubleSide }))
+const outfitMat = () => (outfitMaterial ||= athleteMaterial({ vertexColors: true, roughness: 0.8, metalness: 0, side: THREE.DoubleSide }, { wrap: "vec3(0.32, 0.3, 0.3)", rim: 0.1 }))
 
 // ---- the paddle: a rounded face with an edge guard and a printed design, a wrapped grip ----
 const PADDLE = { w: 0.19, h: 0.27, neck: 0.075, handle: 0.135 }
@@ -690,8 +788,8 @@ const sneakerGeometry = (tpl, side, look) => {
   const foot = tpl.rest["foot_" + side].wp
   const ball = tpl.rest["ball_" + side].wp
   const cx = foot.x
-  const heelZ = foot.z - 0.078
-  const toeZ = ball.z + 0.092
+  const heelZ = foot.z - 0.072
+  const toeZ = ball.z + 0.082
   const L = toeZ - heelZ
   const mz = (heelZ + toeZ) / 2
   const sole0 = tpl.marks.soleY
@@ -702,7 +800,7 @@ const sneakerGeometry = (tpl, side, look) => {
     const a = (i / N) * Math.PI * 2
     const z = mz + (Math.cos(a) * L) / 2
     const u = (z - heelZ) / L // 0 heel .. 1 toe
-    const half = 0.039 + 0.018 * Math.sin(Math.min(1, u * 1.25) * Math.PI * 0.62)
+    const half = (0.039 + 0.018 * Math.sin(Math.min(1, u * 1.25) * Math.PI * 0.62)) * 0.9 // (trimmer: the old width read clownish next to the athletic ankles)
     const sx = Math.sign(Math.sin(a)) * Math.pow(Math.abs(Math.sin(a)), 0.8)
     outline.push({ x: cx + sx * half * (side === "l" ? 1 : 1), z, u })
   }
@@ -850,11 +948,34 @@ const croppedHair = (tpl, src, kind) => {
   return out
 }
 
+// How much each hair vertex swings (attribute pkSwayW, made once per geometry): nothing on the
+// scalp; more the lower it hangs below the eyes and the further it sticks out behind the skull
+// (a ponytail, a braid, long hair). Returns whether the style swings at all.
+const hairSwayWeights = (tpl, src, geo) => {
+  if (geo.userData.swings !== undefined) return geo.userData.swings
+  src.updateMatrix()
+  const M = new THREE.Matrix4().multiplyMatrices(tpl.bones.Head.matrixWorld, src.matrix)
+  const P = geo.attributes.position
+  const w = new Float32Array(P.count)
+  const below = tpl.head.eyeY - 0.03
+  const behind = tpl.head.band.cz - tpl.head.band.rz * 0.75
+  let most = 0
+  for (let i = 0; i < P.count; i++) {
+    tv.fromBufferAttribute(P, i).applyMatrix4(M)
+    const d = Math.max(0, below - tv.y) + Math.max(0, behind - tv.z) * 0.8
+    w[i] = Math.pow(Math.min(1, d / 0.24), 1.3)
+    most = Math.max(most, w[i])
+  }
+  geo.setAttribute("pkSwayW", new THREE.BufferAttribute(w, 1))
+  geo.userData.swings = most > 0.25
+  return geo.userData.swings
+}
+
 // ---- an athlete ----
 const DRIVEN_SPINE = ["spine_01", "spine_02", "spine_03"]
-export const createAthlete = (look = {}, { shadows = false, withPaddle = true } = {}) => {
+const buildAthlete = (look = {}, { shadows = false, withPaddle = true } = {}, detail = "medium") => {
   const kind = bodyOf(look)
-  const tpl = assets[kind]
+  const tpl = (detail === "high" && assets.hi?.[kind]) || assets[kind]
   const root = new THREE.Group()
   const holder = cloneSkinned(tpl.scene)
   // taller or shorter (a few percent: the legs still reach the court through the IK)
@@ -884,7 +1005,11 @@ export const createAthlete = (look = {}, { shadows = false, withPaddle = true } 
   // everything worn but the hair: one more skinned mesh on the same skeleton
   const variant = variantOf(tpl, look.build, body.geometry)
   body.geometry = bodyUnder(tpl, body.geometry, look, variant)
-  const outfit = new THREE.SkinnedMesh(outfitGeometry(tpl, look, variant), outfitMat())
+  body.updateMorphTargets()
+  const outfitGeo = outfitGeometry(tpl, look, variant)
+  // (a skirt swings: this athlete's own material, for its spring's uniforms)
+  const skirtSway = outfitGeo.userData.swings ? swayUniforms() : null
+  const outfit = new THREE.SkinnedMesh(outfitGeo, skirtSway ? athleteMaterial({ vertexColors: true, roughness: 0.8, metalness: 0, side: THREE.DoubleSide }, { wrap: "vec3(0.32, 0.3, 0.3)", rim: 0.1, sway: skirtSway }) : outfitMat())
   outfit.bind(skeleton, body.bindMatrix)
   body.parent.add(outfit)
   const parts = [body, outfit]
@@ -906,19 +1031,34 @@ export const createAthlete = (look = {}, { shadows = false, withPaddle = true } 
   }
   const hairName = hairFor(look, kind)
   const hatted = HATS.includes(look.hat)
-  const wearHair = (src, crop) => {
+  let hairSway = null // (the uniforms of a hairstyle that swings: a ponytail, a braid, long hair)
+  let hairMeshW = null
+  const wearHair = (src, crop, { cap = false } = {}) => {
     // (cards cut out of their texture's alpha: smoothed by the antialiasing where there is any)
     const cut = src.material.alphaTest > 0 || src.material.transparent
-    const m = shared(`hair|${src.material.map.uuid}|${hairHex}`, () => new THREE.MeshStandardMaterial({ map: src.material.map, color: tint(hairHex, REF_HAIR), roughness: 0.72, side: THREE.DoubleSide, ...(cut ? { alphaTest: 0.5, alphaToCoverage: true } : {}) }))
-    const h = new THREE.Mesh(crop ? croppedHair(tpl, src, kind) : src.geometry, m)
+    const geo = crop ? croppedHair(tpl, src, kind) : src.geometry
+    const swings = !cap && hairSwayWeights(tpl, src, geo)
+    let m
+    if (cap) {
+      // under the hair: the scalp in the hair's color, so the strands read thick, not see-through
+      m = shared(`haircap|${hairHex}`, () => athleteMaterial({ color: tint(hairHex, REF_HAIR).multiplyScalar(0.2), roughness: 0.9, metalness: 0 }, { wrap: "vec3(0.2)", rim: 0.05, key: "pk-hair" }))
+    } else if (swings) {
+      hairSway = swayUniforms()
+      m = athleteMaterial({ map: src.material.map, color: tint(hairHex, REF_HAIR), roughness: 0.66, side: THREE.DoubleSide, ...(cut ? { alphaTest: 0.42, alphaToCoverage: true } : {}) }, { wrap: "vec3(0.35)", rim: 0.16, key: "pk-hair", sway: hairSway })
+    } else m = shared(`hair|${src.material.map.uuid}|${hairHex}`, () => athleteMaterial({ map: src.material.map, color: tint(hairHex, REF_HAIR), roughness: 0.66, side: THREE.DoubleSide, ...(cut ? { alphaTest: 0.42, alphaToCoverage: true } : {}) }, { wrap: "vec3(0.35)", rim: 0.16, key: "pk-hair" }))
+    const h = new THREE.Mesh(geo, m)
     // (the file's node transform undoes the mesh compression's quantization)
     h.position.copy(src.position)
     h.quaternion.copy(src.quaternion)
     h.scale.copy(src.scale)
     head.add(h)
     attach.push(h)
+    if (swings) hairMeshW = h
   }
   const hairSrc = hairMesh(hairName, kind)
+  // (the cap under any hairstyle but the buzz cut itself; not under a hat)
+  const capSrc = hairSrc && tpl.set === "mh" && !hatted && hairName !== "Hair_Buzz" ? hairMesh("Hair_Buzz", kind) : null
+  if (capSrc) wearHair(capSrc, false, { cap: true })
   if (hairSrc) wearHair(hairSrc, hatted)
   const beard = look.beard ? hairMesh("Hair_Beard", kind) : null
   if (beard) wearHair(beard)
@@ -1094,8 +1234,11 @@ export const createAthlete = (look = {}, { shadows = false, withPaddle = true } 
     addLocal(pel, layerMoves("pelvis"))
     // the spine turns from the hips' frame to the chest's
     const Rc = aimDelta(UPV, FWD, pose.spine, pose.chestForward)
+    // breathing (idle.js): the chest opens and lifts a little on each breath, more after a run
+    const breath = (info.breath ?? Math.sin(clock * 1.6)) * (info.breathDepth ?? 0.45)
+    const Rb = qaxis(pose.chestRight || { x: 1, y: 0, z: 0 }, -0.022 * breath)
     DRIVEN_SPINE.forEach((name, i) => {
-      setWorldQ(B[name], qmul(qslerp(Rp, Rc, [0.4, 0.75, 1][i]), rest[name].wq))
+      setWorldQ(B[name], qmul(i ? qmul(Rb, qslerp(Rp, Rc, [0.4, 0.75, 1][i])) : qslerp(Rp, Rc, [0.4, 0.75, 1][i]), rest[name].wq))
       addLocal(B[name], layerMoves(name))
       settle(B[name])
     })
@@ -1129,7 +1272,10 @@ export const createAthlete = (look = {}, { shadows = false, withPaddle = true } 
       // (smoothed: the shoulder rises with the hand, never in a jump)
       const want = Math.max(0, Math.min(1, (wristTarget[sd].y - shoulderPose[sd].y) / 0.55)) * 0.32
       shrugs[sd] += (want - shrugs[sd]) * Math.min(1, dt * (info.fast ? 24 : 12))
-      const lift = shrugs[sd]
+      // (relaxed shoulders: down from the rest pose's level ones while that arm hangs; up a
+      // touch with each breath)
+      const hang = 1 - Math.max(0, Math.min(1, (wristTarget[sd].y - shoulderPose[sd].y + 0.35) / 0.35))
+      const lift = shrugs[sd] - 0.12 * hang + 0.03 * breath
       const shrug = qaxis(pose.chestForward, sd === "r" ? -lift : lift)
       setWorldQ(c, qmul(qmul(shrug, Rc), rest["clavicle_" + sd].wq))
       addLocal(c, layerMoves("clavicle_" + sd))
@@ -1232,6 +1378,99 @@ export const createAthlete = (look = {}, { shadows = false, withPaddle = true } 
       setWorldQ(ft, qmul(aimDelta(FWD, UPV, fwd, fup), rest["foot_" + sd].wq))
     }
     root.updateMatrixWorld(true)
+    updateFace(info, dt)
+    updateSway(dt)
+  }
+
+  // ---- the face: blinks, focus, effort, a smile, a shout (morph targets) ----
+  const faceMeshes = [body, attach.find((m) => m.morphTargetDictionary && m !== body)].filter((m) => m?.morphTargetDictionary)
+  const faceW = { blink: 0, smile: 0, effort: 0, shout: 0 }
+  let blinkIn = 1.5 + hash01(look.name || skinHex + hairHex) * 3
+  let blinkT = -1
+  let faceSeed = hash01((look.name || "") + kind) * 1000
+  const updateFace = (info, dt) => {
+    if (!faceMeshes.length) return
+    // a blink every 2 to 6 seconds (sometimes two), quick to close, a little slower to open
+    blinkIn -= dt
+    if (blinkIn <= 0 && blinkT < 0) {
+      blinkT = 0
+      faceSeed = (faceSeed * 9301 + 49297) % 233280
+      const r = faceSeed / 233280
+      blinkIn = r < 0.15 ? 0.32 : 2 + r * 4
+    }
+    let blink = 0
+    if (blinkT >= 0) {
+      blinkT += dt
+      blink = blinkT < 0.06 ? blinkT / 0.06 : blinkT < 0.1 ? 1 : Math.max(0, 1 - (blinkT - 0.1) / 0.1)
+      if (blinkT > 0.2) blinkT = -1
+    }
+    // what the face is doing: celebrating (a smile; a shout with both arms up), sulking (a
+    // frown), working (effort through a hard swing; focus while the ball comes)
+    const mood = info.mood
+    const cheer = mood?.kind === "cheer"
+    const sulk = mood?.kind === "sulk"
+    const swingW = info.stroke || 0
+    const want = {
+      smile: cheer ? (mood.variant === 2 ? 0.35 : 0.85) : info.between && !mood ? 0.12 : 0,
+      shout: cheer ? (mood.variant === 2 ? 0.75 : mood.variant === 0 ? 0.45 : 0) : 0,
+      effort: sulk ? 0.45 : swingW > 0.2 ? (info.fast ? 0.75 : 0.4) * swingW : info.swinging || (info.ready || 0) > 0.5 ? 0.18 : 0,
+    }
+    for (const k of ["smile", "shout", "effort"]) faceW[k] += (want[k] - faceW[k]) * Math.min(1, dt * (k === "effort" && want[k] > faceW[k] ? 14 : 6))
+    // (relaxed upper lids rest a little over the iris: wide-open eyes stare)
+    faceW.blink = Math.max(blink, 0.16 + faceW.effort * 0.15)
+    for (const m of faceMeshes) {
+      const dict = m.morphTargetDictionary
+      for (const k of Object.keys(faceW)) if (dict[k] !== undefined) m.morphTargetInfluences[dict[k]] = faceW[k]
+    }
+  }
+
+  // ---- what swings: the skirt's hem, a ponytail or long hair (critically damped springs
+  // driven by how their anchor accelerates: the hips, a point behind the head) ----
+  const springs = []
+  const addSpring = (u, anchor, mesh, { hz, damp, max, flare = null, gain = 1 }) => springs.push({ u, anchor, mesh, hz, damp, max, flare, gain, p: null, v: null, x: new THREE.Vector3(), xv: new THREE.Vector3() })
+  const tmpA = new THREE.Vector3()
+  const tmpB = new THREE.Vector3()
+  const tmpM = new THREE.Matrix4()
+  const tmpM3 = new THREE.Matrix3()
+  if (skirtSway) addSpring(skirtSway, () => B.pelvis.localToWorld(tmpA.set(0, -0.18 / s, 0)), outfit, { hz: 2.6, damp: 0.45, max: 0.06, flare: () => B.pelvis.getWorldPosition(tmpA), gain: 0.55 })
+  if (hairSway && hairMeshW) addSpring(hairSway, () => head.localToWorld(tmpA.set(0, -0.02 / s, -0.1 / s)), hairMeshW, { hz: 1.7, damp: 0.3, max: 0.1, gain: 0.8 })
+  const updateSway = (dt) => {
+    if (!springs.length || dt <= 0 || (typeof window !== "undefined" && window.__pbNoSway)) return
+    const h = Math.min(dt, 1 / 30)
+    for (const sp of springs) {
+      const a = sp.anchor().clone()
+      if (!sp.p || dt > 0.2 || a.distanceTo(sp.p) > 1) {
+        // (a new start, or a teleport between points: no swing)
+        sp.p = a.clone()
+        sp.v = new THREE.Vector3()
+        sp.x.set(0, 0, 0)
+        sp.xv.set(0, 0, 0)
+      }
+      const v = a.clone().sub(sp.p).divideScalar(dt)
+      const acc = v.clone().sub(sp.v).divideScalar(dt).clampLength(0, 60)
+      sp.p.copy(a)
+      sp.v.copy(v)
+      // x'' = -w^2 x - 2 zeta w x' - acc (the tips lag behind what the anchor does)
+      const w = 2 * Math.PI * sp.hz
+      const f = sp.x.clone().multiplyScalar(-w * w).addScaledVector(sp.xv, -2 * sp.damp * w).addScaledVector(acc, -sp.gain)
+      sp.xv.addScaledVector(f, h)
+      sp.x.addScaledVector(sp.xv, h)
+      sp.x.y = Math.min(sp.x.y, 0.02) // (never up through the head or the waist)
+      if (sp.x.length() > sp.max) {
+        sp.x.setLength(sp.max)
+        sp.xv.multiplyScalar(0.5)
+      }
+      // into the mesh's own space (a direction: its world matrix's rotation and scale undone)
+      tmpM.copy(sp.mesh.matrixWorld).invert()
+      tmpM3.setFromMatrix4(tmpM)
+      sp.u.pkSway.value.copy(sp.x).applyMatrix3(tmpM3)
+      if (sp.flare) {
+        // (a skirt flares out with speed, a twirl or a jump)
+        const c = sp.mesh.worldToLocal(tmpB.copy(sp.flare()))
+        const sideways = Math.hypot(v.x, v.z)
+        sp.u.pkFlare.value.set(c.x, c.y, c.z, Math.min(0.035, sideways * 0.006 + Math.abs(v.y) * 0.02) / s)
+      }
+    }
   }
 
   const setShadows = (on) => {
@@ -1271,5 +1510,63 @@ export const createAthlete = (look = {}, { shadows = false, withPaddle = true } 
 
   let vertices = 0
   for (const p of [...parts, ...attach]) vertices += p.geometry.attributes.position.count
-  return { group: root, apply, setShadows, dispose, probe, probeUpper, blobs: [], vertices, skinned: true }
+  // (tests) the face's expression weights and the springs' offsets
+  const probeLife = () => ({ face: { ...faceW }, sway: springs.map((sp) => sp.x.length()) })
+  const disposeOwn = () => {
+    // (the materials made for this athlete alone: a swinging skirt's, swinging hair's)
+    if (skirtSway) outfit.material.dispose()
+    if (hairMeshW) hairMeshW.material.dispose()
+  }
+  return { group: root, apply, setShadows, dispose: () => (dispose(), disposeOwn()), probe, probeUpper, probeLife, blobs: [], vertices, skinned: true, detail: tpl === assets.hi?.[kind] ? "high" : "medium" }
+}
+
+// An athlete (rig.js createFigure's interface). On High, the detailed bodies: if they aren't
+// in yet the Medium ones stand in and the athlete swaps itself over, in place, when they
+// arrive (the same group, posed from the next frame on).
+export const createAthlete = (look = {}, opts = {}) => {
+  const detail = opts.detail === "high" && assets.setInfo?.hi ? "high" : "medium"
+  let inner = buildAthlete(look, opts, detail)
+  if (detail !== "high" || inner.detail === "high") return inner
+  const group = new THREE.Group()
+  group.add(inner.group)
+  let disposed = false
+  let shadowsOn = !!opts.shadows
+  let lastPose = null // (posed again on the new body: a seated umpire is posed only once)
+  const fig = {
+    group,
+    apply: (pose, dt) => {
+      lastPose = pose
+      inner.apply(pose, dt)
+    },
+    setShadows: (on) => {
+      shadowsOn = on
+      inner.setShadows(on)
+    },
+    dispose: () => {
+      disposed = true
+      inner.dispose()
+    },
+    probe: () => inner.probe(),
+    probeUpper: () => inner.probeUpper(),
+    probeLife: () => inner.probeLife(),
+    blobs: [],
+    get vertices() {
+      return inner.vertices
+    },
+    get detail() {
+      return inner.detail
+    },
+    skinned: true,
+  }
+  hiWaiters.add(() => {
+    if (disposed || !assets.hi) return
+    const next = buildAthlete(look, { ...opts, shadows: shadowsOn }, "high")
+    group.remove(inner.group)
+    inner.dispose()
+    inner = next
+    group.add(inner.group)
+    if (lastPose) inner.apply(lastPose, 1 / 60)
+  })
+  loadHi()
+  return fig
 }
