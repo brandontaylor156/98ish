@@ -5,7 +5,6 @@ import { CHARACTERS, OUTFITS, characterById } from "./looks.js"
 import { STYLES, LEVELS } from "./ai.js"
 import { VENUE_INFO as VENUES } from "./looks.js"
 import { TOUR, nextMatch, unlocks } from "./career.js"
-import { DRILLS } from "./drills.js"
 import { ACTIONS, ACTION_LABEL, bindingsFor, keyName, rebind } from "./input.js"
 
 // Pickleball 98's menus: the title screen, Quick Match, players, the World Tour, practice,
@@ -61,7 +60,7 @@ const Portrait = ({ c, outfit }) => {
 }
 
 // ---------- the title screen ----------
-export const TitleMenu = ({ onPick, onOnline, tour, showPad }) => {
+export const TitleMenu = ({ onPick, onOnline, tour, showPad, offer = null }) => {
   const next = nextMatch(tour)
   return (
     <div className="pkTitle2">
@@ -71,22 +70,24 @@ export const TitleMenu = ({ onPick, onOnline, tour, showPad }) => {
         <span className="pkLogo98">98</span>
         <small>WORLD TOUR EDITION</small>
       </div>
-      {/* the shared launcher pattern (docs/simplicity.md): Play (Quick Match), Play Online,
-          then the other modes under More modes; the small row stays */}
+      {/* the shared launcher pattern (docs/simplicity.md): Play (Quick Match), then Practice
+          (where the game teaches itself), Play Online, then the other modes under More
+          modes; the small row stays. offer: the first-time "New to pickleball?" card */}
       <div className="pkMainMenu">
+        {offer}
         <button type="button" className="pkBig" data-menu="quick" onClick={() => onPick("quick")} autoFocus>
           <b>Quick Match</b>
           <small>Singles or doubles against the computer</small>
         </button>
+        <button type="button" className="pkBig" data-menu="practice" onClick={() => onPick("practice")}>
+          <b>Practice</b>
+          <small>Lessons with a coach, a ball machine, drills</small>
+        </button>
         <PlayOnlineButton onClick={onOnline} className="pkOnlineBig" sub="Quick Match, rooms with a code, invites" />
-        <MoreOptions id="pickleball.modes" label="More modes" lessLabel="Fewer modes" className="pkMore" summary="World Tour · Practice & Tutorial · 2 Players">
+        <MoreOptions id="pickleball.modes" label="More modes" lessLabel="Fewer modes" className="pkMore" summary="World Tour · 2 Players">
           <button type="button" className="pkBig" data-menu="tour" onClick={() => onPick("tour")}>
             <b>World Tour</b>
             <small>{next ? `Next: ${next.title}` : "You're the champion!"}</small>
-          </button>
-          <button type="button" className="pkBig" data-menu="practice" onClick={() => onPick("practice")}>
-            <b>Practice &amp; Tutorial</b>
-            <small>Learn the controls, drill your shots</small>
           </button>
           <button type="button" className="pkBig" data-menu="versus" onClick={() => onPick("versus")}>
             <b>2 Players</b>
@@ -297,34 +298,7 @@ export const TourMenu = ({ tour, onPlay, onBack, onReset }) => {
   )
 }
 
-// ---------- practice ----------
-export const PracticeMenu = ({ best, onTutorial, onDrill, onBack }) => (
-  <Panel title="Practice" onBack={onBack} wide>
-    <button type="button" className="pkBig pkTutorialBtn" onClick={onTutorial} data-action="tutorial" autoFocus>
-      <b>Tutorial</b>
-      <small>New here? Learn the touch control, then a point the way it's played: serve and return deep, the third-shot drop, dinking, the speed-up, hand battles and resets.</small>
-    </button>
-    <p className="pkLead">Drills: a ball machine feeds you, you hit, it keeps score.</p>
-    <div className="pkDrills">
-      {DRILLS.map((d) => (
-        <button type="button" key={d.id} className="pkDrill" onClick={() => onDrill(d)} data-drill={d.id}>
-          <b>{d.name}</b>
-          <small>{d.goal}</small>
-          {best?.[d.id] !== undefined && (
-            <span className={`pkBest${best[d.id] >= d.pass ? " is-pass" : ""}`}>
-              Best: {best[d.id]}/{d.total}
-            </span>
-          )}
-        </button>
-      ))}
-    </div>
-    <div className="pkRow pkRowEnd">
-      <button type="button" onClick={onBack}>
-        Back
-      </button>
-    </div>
-  </Panel>
-)
+// (practice: lessons, the ball machine and drills are in practice/PracticeHub.jsx)
 
 // ---------- two players ----------
 export const VersusMenu = ({ prefs, setPrefs, tour, onStart, onBack, onPlayers, showPad }) => {
