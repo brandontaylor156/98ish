@@ -1083,7 +1083,9 @@ export const boneLengths = (pose) => ({
 
 // The umpire, sitting in the chair: seat { x, y, z, yaw }, looking at the ball. signal: "out"
 // (an arm straight out to the side) or "fault" (an arm up), or null.
-export const seatedPose = (seat, lookAt, signal = null) => {
+// (My Park's benches and bleachers: opts.drop / opts.ahead put the feet on the ground in front
+// of a low seat; opts.clap (a clock, s) claps the hands in front of the chest)
+export const seatedPose = (seat, lookAt, signal = null, { drop = 0.72, ahead = 0.36, clap = null } = {}) => {
   const fr = frame(seat.yaw)
   const o = V(seat.x, 0, seat.z)
   const pelvis = V(seat.x, seat.y + 0.1, seat.z)
@@ -1096,13 +1098,20 @@ export const seatedPose = (seat, lookAt, signal = null) => {
   const hipL = add(pelvis, mul(sr, -BODY.hipHalf))
   // feet on the chair's footrest, knees forward
   const legs = [hipL, hipR].map((hip, i) => {
-    const foot = toWorld(o, fr, V((i ? 1 : -1) * 0.14, seat.y - 0.72, 0.36))
+    const foot = toWorld(o, fr, V((i ? 1 : -1) * 0.14, seat.y - drop, ahead))
     const ik = twoBone(hip, V(foot.x, foot.y + BODY.ankle, foot.z), BODY.thigh, BODY.shin, fr.f)
     return { knee: ik.mid, ankle: ik.end, foot: { x: ik.end.x, y: ik.end.y - BODY.ankle, z: ik.end.z, yaw: seat.yaw, pitch: 0, planted: true } }
   })
   const rest = (side) => toWorld(o, fr, V(side * 0.16, seat.y + 0.2, 0.3))
   let handR = rest(1)
-  const handL = rest(-1)
+  let handL = rest(-1)
+  if (clap !== null) {
+    // hands meeting in front of the chest, about two and a half claps a second
+    const gap = 0.025 + 0.085 * (0.5 + 0.5 * Math.cos(clap * Math.PI * 5))
+    const front = add(add(neck, mul(spine, -0.16)), mul(fr.f, 0.3))
+    handR = add(front, mul(sr, gap))
+    handL = add(front, mul(sr, -gap))
+  }
   if (signal === "out") handR = add(shoulderR, mul(sr, ARM * 0.98))
   if (signal === "fault") handR = add(shoulderR, V(0, ARM * 0.98, 0))
   const pole = (side) => norm(add(V(0, -1, 0), mul(sr, side * 0.5)))

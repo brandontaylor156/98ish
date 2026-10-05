@@ -321,7 +321,12 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
   // HOOK (practice): extra things on court for a practice session, from practice/layer.js
   // ({ group, update(match, dt, figures), dispose() }); set with api.setLayer
   let layer = null
-  let status = "title" // title | playing | paused | over | showcase
+  // HOOK (My Park, park/world.js): a world of its own drawn instead of the match ({ scene,
+  // camera, exposure, frame(dt), resize(w, h), key(code, down), setStick(x, y), drag(dx),
+  // clearKeys(), refigure(), suspended }); set with api.setWorld
+  let world = null
+  let worldDrag = null
+  let status = "title" // title | playing | paused | over | showcase | world
   let size = { width: 0, height: 0 }
   let raf = 0
   const clock = createFrameClock() // real time between frames (see utils/frameClock.js)
@@ -387,6 +392,7 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
       f.handBones = null
       scene.add(f.fig.group)
     })
+    world?.refigure()
     if (umpire) {
       scene.remove(umpire.group)
       umpire.dispose()
@@ -573,6 +579,11 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
   const screenNudge = (p, u, v) => ({ u: u * screenSign() * rightSign(p.team), v })
 
   const onPointerMove = (e) => {
+    if (worldDrag && e.pointerId === worldDrag.id && world) {
+      world.drag(e.clientX - worldDrag.x)
+      worldDrag.x = e.clientX
+      return
+    }
     if (e.pointerType === "touch" || !playing() || humans >= 2) return
     const p = humanBySlot(match, 0)
     if (!p) return
@@ -582,6 +593,12 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
   const onKeyDown = (e) => {
     if (e.target !== container && e.target.closest?.("input, textarea, select, button, .dialog")) return
     const code = e.code
+    if (world && status === "world") {
+      if (e.repeat) return e.preventDefault()
+      if (world.key(code, true) !== false || ["Space", "Enter"].includes(code)) e.preventDefault()
+      if ((code === "Escape" || code === "KeyP") && world.mode === "walk") onEvent?.({ type: "worldMenu" })
+      return
+    }
     if (code === "KeyP" || (code === "Escape" && status === "playing")) {
       e.preventDefault()
       if (status === "playing") api.pause()
@@ -609,6 +626,10 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
     if (!e.repeat) shotDown(slot, code)
   }
   const onKeyUp = (e) => {
+    if (world && status === "world") {
+      world.key(e.code, false)
+      return
+    }
     const hit = actionFor(bindings, keySets(), e.code)
     if (!hit) return
     const { action, slot } = hit
@@ -623,6 +644,11 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
     if (e.target !== canvas) return
     container.focus({ preventScroll: true })
     audio.unlock()
+    // My Park: a drag on the picture turns the camera round you
+    if (world && status === "world") {
+      worldDrag = { id: e.pointerId, x: e.clientX }
+      return
+    }
     if (replay) return endReplay()
     // the mouse: point at their court, click (hold for pace) to hit
     if (e.pointerType !== "touch" && e.button === 0 && playing()) {
@@ -637,6 +663,7 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
     }
   }
   const onPointerUp = (e) => {
+    if (worldDrag && e.pointerId === worldDrag.id) worldDrag = null
     if (e.pointerType === "touch") return
     if (e.button === 0 || e.type === "pointercancel") shotUp(0, "mouse")
   }
@@ -653,6 +680,7 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
       }
       if (container.contains(a)) return
       keys.clear()
+      world?.clearKeys?.()
       updateMove()
       if (status === "playing" && mode === "local") api.pause()
     }, 0)
@@ -728,6 +756,7 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
       return
     }
     renderer.setSize(width, height, false)
+    world?.resize(width, height)
     camera.aspect = width / height
     camera.updateProjectionMatrix()
     venue.setScreenCompact?.(portraitScreen())
@@ -1404,6 +1433,27 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
     const dtMs = clock.tick(now)
     const snap = clock.first
     let dt = dtMs / 1000
+    // My Park: its world instead of the match (the match, if any, waits)
+    if (world && status === "world") {
+      const workStart = performance.now()
+      world.frame(dt)
+      perf.worldMs = (perf.worldMs || 0) + (performance.now() - workStart)
+      renderer.toneMappingExposure = world.exposure ?? 1
+      const renderStart = performance.now()
+      if (holdPicture()) {
+        start()
+        inFrame = false
+        return
+      }
+      renderer.render(world.scene, world.camera)
+      perf.frames++
+      perf.renderMs += performance.now() - renderStart
+      perf.cpuMs += renderStart - cpuStart
+      if (!snap) adaptQuality(dtMs, performance.now() - cpuStart)
+      start()
+      inFrame = false
+      return
+    }
     pollPads()
     if (match && status !== "paused" && status !== "showcase") {
       if (replay) dt = stepReplay(dt) || dt
@@ -1529,7 +1579,9 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
     }
     setTimeout(finish, 6000) // (never hold the picture longer than this)
     try {
-      renderer.compileAsync(scene, camera).then(finish, finish)
+      // (My Park: its own scene)
+      if (world) renderer.compileAsync(world.scene, world.camera).then(finish, finish)
+      else renderer.compileAsync(scene, camera).then(finish, finish)
     } catch {
       finish()
     }
@@ -1677,8 +1729,39 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
     },
     // the on-screen joystick: x right, y up the screen, each -1..1
     setStick(x, y, slot = 0) {
+      if (world && status === "world") return world.setStick(x, y)
       stick[slot] = { x, y }
       updateMove()
+    },
+    // HOOK (My Park): draw a world (park/world.js) instead of the match, or null to stop.
+    // The world keeps its own state; setting it again carries on where it was.
+    setWorld(next) {
+      if (world === next) return
+      world?.clearKeys?.()
+      world = next || null
+      worldDrag = null
+      if (world) {
+        world.resize(size.width || 1, size.height || 1)
+        if (showcaseFig) showcaseFig.fig.group.visible = false
+        keys.clear()
+        stick = [{ x: 0, y: 0 }, { x: 0, y: 0 }]
+        setStatus("world")
+        audio.unlock()
+        audio.setCrowd(0)
+        wantAthletes()
+        container.focus({ preventScroll: true })
+        warm()
+      } else {
+        renderer.toneMappingExposure = venue.def.exposure
+        audio.setCrowd(settings.sound ? venue.def.crowd : 0)
+        if (status === "world") setStatus(match && mode !== "demo" ? (match.phase === "over" ? "over" : "playing") : "title")
+      }
+      restartClock()
+      start()
+    },
+    // what a world needs from the engine: figures (athletes or the simple ones), sounds
+    worldContext() {
+      return { makeFigure: (look, opts) => makeFigure(look, opts), quality: settings.quality, audio }
     },
     // the on-screen hit control: down and up (hold for pace, let go to swing)
     shotDown(action = "hit", slot = 0) {
@@ -1885,6 +1968,8 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
       umpire?.dispose()
       showcaseFig?.fig.dispose()
       layer?.dispose()
+      world?.dispose()
+      world = null
       venue.dispose()
       scene.traverse((o) => {
         o.geometry?.dispose()
@@ -1916,6 +2001,10 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
       },
       get mode() {
         return mode
+      },
+      // (My Park) the world on screen, if any
+      get world() {
+        return world
       },
       get figures() {
         return figures

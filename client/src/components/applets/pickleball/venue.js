@@ -57,7 +57,7 @@ const adTexture = () =>
 
 // Fewer draw calls: plain meshes that share a material (and the same kind of geometry) are
 // merged into one, with their transforms baked in. The venue never moves.
-const mergeStatic = (group, keep) => {
+export const mergeStatic = (group, keep) => {
   group.updateMatrixWorld(true)
   const buckets = new Map()
   const all = []

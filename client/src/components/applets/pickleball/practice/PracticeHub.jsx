@@ -79,13 +79,14 @@ export const Stars = ({ n, of = 3 }) => (
 )
 
 // ---------- the hub ----------
-export const PracticeHub = ({ prefs, setPrefs, onStart, onTutorial, onBack, initialView = "hub" }) => {
+// backOut: the sub-screens' close goes straight back out (opened from My Park's ball-machine court)
+export const PracticeHub = ({ prefs, setPrefs, onStart, onTutorial, onBack, initialView = "hub", backOut = false }) => {
   const [view, setView] = useState(initialView) // hub | machine | drills | lessons
   const lessonsDone = prefs.lessons || {}
   const doneN = LESSONS.filter((l) => lessonsDone[l.id]).length
   const stars = prefs.drillStars || {}
   const starN = DRILLS.reduce((s, d) => s + (stars[d.id] || 0), 0)
-  if (view === "machine") return <MachinePanel prefs={prefs} setPrefs={setPrefs} onStart={onStart} onBack={() => setView("hub")} />
+  if (view === "machine") return <MachinePanel prefs={prefs} setPrefs={setPrefs} onStart={onStart} onBack={() => (backOut ? onBack() : setView("hub"))} />
   if (view === "drills") return <DrillsPanel stars={stars} onStart={onStart} onBack={() => setView("hub")} />
   if (view === "lessons") return <LessonsPanel done={lessonsDone} onStart={onStart} onBack={() => setView("hub")} />
   return (

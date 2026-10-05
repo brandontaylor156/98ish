@@ -235,8 +235,8 @@ export const topics = [
     id: "pickleball",
     book: "games-action",
     title: "Pickleball 98",
-    summary: "3D pickleball with real rules, lessons, a ball machine, drills, a World Tour and online singles and doubles.",
-    keywords: ["pickleball", "dink", "kitchen", "serve", "World Tour", "doubles", "drive", "lob", "paddle", "Locker Room", "outfit", "customize", "swimsuit", "beach", "winter", "practice", "ball machine", "drill", "lesson", "coach", "third shot drop", "reset", "split step", "two-bounce rule", "how to play", "swipe", "move pad", "left-handed", "camera", "swing trail", "swipe trail", "sound", "pop"],
+    summary: "3D pickleball with real rules, lessons, a ball machine, drills, a walk-around park with open play, a World Tour and online singles and doubles.",
+    keywords: ["pickleball", "My Park", "park", "open play", "call next", "paddle stacking", "spectate", "watch", "park rep", "dink", "kitchen", "serve", "World Tour", "doubles", "drive", "lob", "paddle", "Locker Room", "outfit", "customize", "swimsuit", "beach", "winter", "practice", "ball machine", "drill", "lesson", "coach", "third shot drop", "reset", "split step", "two-bounce rule", "how to play", "swipe", "move pad", "left-handed", "camera", "swing trail", "swipe trail", "sound", "pop"],
     programs: ["Pickleball 98"],
     body: [
       "Pickleball 98 is pickleball in 3D, with real rules and real ball physics. Play the computer, learn the game in Practice, go on a World Tour, play a friend on the same keyboard, or play people online.",
@@ -245,6 +245,7 @@ export const topics = [
         list: [
           "**Quick Match:** singles or doubles against the computer (Rookie, Club, Pro or Legend).",
           "**Practice:** lessons with a coach, a ball machine and drills (below).",
+          "**My Park:** walk round a public park where games are going on, watch from the bleachers, and put your paddle in a rack to play next (below).",
           "**World Tour:** eight matches from the Park Open to the Center Court Masters. Win to unlock new outfits.",
           "**2 Players:** head to head on one keyboard or two gamepads.",
           "**Play Online:** Quick Match, rooms with a code, and invites. See [[online-play]].",
@@ -260,6 +261,19 @@ export const topics = [
           "After every shot a one-word label shows what it was (Drop, Dink, Drive, Pop-up, Out, Net...). Make the same mistake twice and a tip says what to change.",
         ],
       },
+      { h: "My Park" },
+      "**My Park** (on the title screen, after Practice) is a public park with four courts, each with a real game of doubles going on between the park's regulars: Court 1 is for Rookies, Courts 2 and 3 for Club players, Court 4 for Pros. The regulars walk between the courts, sit on the benches and bleachers, chat, clap a great point, and put their paddles in the racks to play next. The time of day follows your clock: at night the court lights come on.",
+      {
+        list: [
+          "**Walk** with the move pad (or the arrow keys / W A S D; Shift runs). Push the pad a little to walk, further to jog, all the way to sprint. Only you move yourself. Drag on the picture (or Q and E) to look around.",
+          "**One button** shows what you can do where you stand: **Watch** by a court's bleachers, **Call next** at its paddle rack, **Sit** at a bench, **Locker Room** at the pro shop, **Ball Machine** at the practice court.",
+          "**Watch:** you sit on the bleachers and the view moves to the court; **Cam** changes the angle (sideline, baseline, high) and **Leave** walks on. Only that court's score shows.",
+          "**Call next:** your paddle goes in the rack. When the game on that court ends and it's your turn, you're on court for a game of doubles to 11 with the regulars, with your usual controls. Then it's back to the park. Tap the rack again to take your paddle back.",
+          "**Park rep:** every game counts: a win more, a streak and the harder courts more still. Your level (Newcomer, Regular, Local, Court Boss, Park Legend) and record show on your nameplate for other people.",
+          "**The menu** (top left) lists the courts with their scores (Watch any of them), has short things to say and cheers, the Locker Room, and Leave My Park.",
+        ],
+      },
+      "Online, other 98ish people in the same park walk around with you, with their names over them, and can call next on the same court: then you play each other (computer players fill the other spots). A park holds 16 people; more open another one.",
       { h: "How a good player plays" },
       {
         steps: [
