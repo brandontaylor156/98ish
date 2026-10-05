@@ -1146,8 +1146,8 @@ const Pickleball = ({ onClose, mobile }) => {
             One hit control: aim at their court, tap for touch (dinks, drops, resets), hold for pace (drives, speed-ups, counters), and let go on the beat. Every player here is made up.
             <br />
             <br />
-            Character models, eyes, brows and hairstyles: MakeHuman (makehumancommunity.org) base mesh, targets, proxies and
-            system assets, CC0 public domain. Older character models and motion clips: Universal Base Characters and Universal
+            Character models, eyes, brows and hairstyles: MakeHuman (makehumancommunity.org) base mesh, body and facial
+            expression targets, muscle proxies and system assets (MakeHuman and MPFB2), CC0 public domain. Older character models and motion clips: Universal Base Characters and Universal
             Animation Library by Quaternius (quaternius.com), CC0 public domain. Clothes, shoes, hats, paddles and swings are
             made in the game.
             <br />

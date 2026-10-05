@@ -51,7 +51,7 @@ export const READY = {
     allcourt: { crouch: 0.05, lean: 0.34, back: 0.05, stance: 0.24, hand: { x: 0.08, y: 1.0, z: 0.37 }, tip: { x: -0.25, y: 0.6, z: 0.76 } },
     twohand: { crouch: 0.055, lean: 0.33, back: 0.05, stance: 0.26, hand: { x: 0.06, y: 1.06, z: 0.37 }, tip: { x: -0.22, y: 0.66, z: 0.72 } },
   },
-  between: { crouch: 0.03, lean: 0.06, back: 0, stance: 0.15 },
+  between: { crouch: 0.004, lean: 0.05, back: 0, stance: 0.115 },
 }
 export const readyFor = (style, atNet) => READY[atNet ? "net" : "base"][style === "twohand" ? "twohand" : "allcourt"]
 

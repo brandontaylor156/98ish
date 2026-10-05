@@ -401,7 +401,7 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
   const makeFigure = (look, opts) => {
     if (skinned()) {
       try {
-        return createAthlete(look, opts)
+        return createAthlete(look, { ...opts, detail: settings.quality }) // (High: the detailed bodies)
       } catch (e) {
         devLog?.push({ t: "athlete", error: String(e?.stack || e) })
       }

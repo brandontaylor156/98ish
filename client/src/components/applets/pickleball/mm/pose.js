@@ -12,6 +12,10 @@ import { worldOf } from "./controller.js"
 const LEG = 0.86 // thigh + shin
 const THIGH = 0.43
 const SHIN = 0.43
+// (how far a pinned leg may reach before the pelvis comes down: just short of straight; the
+// soft IK takes up the rest. It was the soft IK's own start, 0.975 of the leg, which kept every
+// standing player's knees bent about 30 degrees: half sitting)
+const NEED_REACH = 0.993
 
 export const createMMPose = () => ({ lock: createFootLock(), drop: 0, dropV: 0 })
 
@@ -64,7 +68,7 @@ export const solveMMPose = (st, o, dt, extra = {}) => {
     const h = hipW(i ? "r" : "l")
     const a = fl[i].ankle
     const dh = Math.hypot(a.x - h.x, a.z - h.z)
-    const maxY = a.y + Math.sqrt(Math.max(0, (LEG * SOFT) ** 2 - dh * dh))
+    const maxY = a.y + Math.sqrt(Math.max(0, (LEG * NEED_REACH) ** 2 - dh * dh))
     need = Math.max(need, h.y - maxY)
   }
   // (a deep drop only for a lunge or a step out; otherwise a foot left far behind steps over)

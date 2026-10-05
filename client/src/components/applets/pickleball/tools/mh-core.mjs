@@ -195,3 +195,166 @@ export const boneFrame = (dir, hint) => {
   const z = cross(x, y)
   return { x, y, z }
 }
+
+// ---- detail: normal maps and expressions (the athletic bodies, 2026-10-04) ----
+// per-vertex smooth normals of a polygon mesh (faces: [{ v: [..] }], fanned), pos Float64Array
+export const vertexNormals = (pos, faces) => {
+  const acc = new Float64Array(pos.length)
+  for (const f of faces)
+    for (let j = 1; j + 1 < f.v.length; j++) {
+      const [a, b, c] = [f.v[0], f.v[j], f.v[j + 1]]
+      const u = [pos[b * 3] - pos[a * 3], pos[b * 3 + 1] - pos[a * 3 + 1], pos[b * 3 + 2] - pos[a * 3 + 2]]
+      const w = [pos[c * 3] - pos[a * 3], pos[c * 3 + 1] - pos[a * 3 + 1], pos[c * 3 + 2] - pos[a * 3 + 2]]
+      const n = cross(u, w)
+      for (const v of [a, b, c]) for (let k = 0; k < 3; k++) acc[v * 3 + k] += n[k]
+    }
+  for (let i = 0; i < acc.length; i += 3) {
+    const l = Math.hypot(acc[i], acc[i + 1], acc[i + 2]) || 1
+    acc[i] /= l
+    acc[i + 1] /= l
+    acc[i + 2] /= l
+  }
+  return acc
+}
+
+// neighbor lists of a polygon mesh's vertices (along its edges)
+export const neighbors = (n, faces) => {
+  const out = Array.from({ length: n }, () => new Set())
+  for (const f of faces)
+    for (let j = 0; j < f.v.length; j++) {
+      const a = f.v[j]
+      const b = f.v[(j + 1) % f.v.length]
+      if (a === b) continue
+      out[a].add(b)
+      out[b].add(a)
+    }
+  return out.map((s) => [...s])
+}
+
+// Unsharp mask on a surface: the shape's own relief (muscles, bones under the skin) pushed out
+// k times further from its smoothed copy (umbrella smoothing, `iterations` passes). weight(i)
+// scales it per vertex (0 keeps the vertex). Returns new positions.
+export const highpass = (pos, nbrs, { k = 1, iterations = 6, weight = () => 1 } = {}) => {
+  const n = pos.length / 3
+  let s = Float64Array.from(pos)
+  const t = new Float64Array(pos.length)
+  for (let it = 0; it < iterations; it++) {
+    for (let i = 0; i < n; i++) {
+      const L = nbrs[i]
+      if (!L.length) {
+        for (let c = 0; c < 3; c++) t[i * 3 + c] = s[i * 3 + c]
+        continue
+      }
+      for (let c = 0; c < 3; c++) {
+        let m = 0
+        for (const j of L) m += s[j * 3 + c]
+        t[i * 3 + c] = s[i * 3 + c] * 0.5 + (m / L.length) * 0.5
+      }
+    }
+    s = Float64Array.from(t)
+  }
+  const out = new Float64Array(pos.length)
+  for (let i = 0; i < n; i++) {
+    const w = k * weight(i)
+    for (let c = 0; c < 3; c++) out[i * 3 + c] = pos[i * 3 + c] + (pos[i * 3 + c] - s[i * 3 + c]) * w
+  }
+  return out
+}
+
+// Rasterize triangles in UV space (uv in 0..1, v down like glTF/image rows): calls
+// fn(tri, b0, b1, b2, x, y) for every texel whose center lies inside (barycentrics b0..b2).
+// tris: [[i0, i1, i2], ...] indices into uv (2 numbers per corner).
+export const rasterUV = (size, tris, uv, fn) => {
+  tris.forEach((t, ti) => {
+    const ax = uv[t[0] * 2] * size
+    const ay = uv[t[0] * 2 + 1] * size
+    const bx = uv[t[1] * 2] * size
+    const by = uv[t[1] * 2 + 1] * size
+    const cx = uv[t[2] * 2] * size
+    const cy = uv[t[2] * 2 + 1] * size
+    const den = (by - cy) * (ax - cx) + (cx - bx) * (ay - cy)
+    if (Math.abs(den) < 1e-12) return
+    const x0 = Math.max(0, Math.floor(Math.min(ax, bx, cx)))
+    const x1 = Math.min(size - 1, Math.ceil(Math.max(ax, bx, cx)))
+    const y0 = Math.max(0, Math.floor(Math.min(ay, by, cy)))
+    const y1 = Math.min(size - 1, Math.ceil(Math.max(ay, by, cy)))
+    for (let y = y0; y <= y1; y++)
+      for (let x = x0; x <= x1; x++) {
+        const px = x + 0.5
+        const py = y + 0.5
+        const b0 = ((by - cy) * (px - cx) + (cx - bx) * (py - cy)) / den
+        const b1 = ((cy - ay) * (px - cx) + (ax - cx) * (py - cy)) / den
+        const b2 = 1 - b0 - b1
+        if (b0 < -1e-6 || b1 < -1e-6 || b2 < -1e-6) continue
+        fn(ti, b0, b1, b2, x, y)
+      }
+  })
+}
+
+const sub3a = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]]
+// A triangle's tangent (along +u) and bitangent (along +v) from its corners' positions and UVs
+export const triTangents = (p0, p1, p2, t0, t1, t2) => {
+  const e1 = sub3a(p1, p0)
+  const e2 = sub3a(p2, p0)
+  const du1 = t1[0] - t0[0]
+  const dv1 = t1[1] - t0[1]
+  const du2 = t2[0] - t0[0]
+  const dv2 = t2[1] - t0[1]
+  const r = du1 * dv2 - du2 * dv1
+  if (Math.abs(r) < 1e-14) return null
+  const T = [(e1[0] * dv2 - e2[0] * dv1) / r, (e1[1] * dv2 - e2[1] * dv1) / r, (e1[2] * dv2 - e2[2] * dv1) / r]
+  const B = [(e2[0] * du1 - e1[0] * du2) / r, (e2[1] * du1 - e1[1] * du2) / r, (e2[2] * du1 - e1[2] * du2) / r]
+  return { T, B }
+}
+
+// A detail normal d in the tangent space of a surface normal n with tangent T, bitangent B (+v,
+// image down): RGB 0..255 for a glTF normal texture (+x along u, +y "up" in the image = -v,
+// +z out). three's GLTFLoader flips y back (normalScale.y = -1) when it reads one.
+export const encodeTangentNormal = (d, n, T, B) => {
+  const t = norm(sub3a(T, n.map((x) => x * dot(T, n))))
+  let b = sub3a(B, n.map((x) => x * dot(B, n)))
+  b = norm(sub3a(b, t.map((x) => x * dot(b, t))))
+  const x = dot(d, t)
+  const y = -dot(d, b)
+  const z = Math.max(0, dot(d, n))
+  const l = Math.hypot(x, y, z) || 1
+  return [Math.round(((x / l) * 0.5 + 0.5) * 255), Math.round(((y / l) * 0.5 + 0.5) * 255), Math.round(((z / l) * 0.5 + 0.5) * 255)]
+}
+
+// Fill texels nobody wrote (mask 0) from written neighbors, `passes` times (so filtering and
+// mipmaps near UV seams don't pull in the empty background). img: bytes, ch channels a texel.
+export const dilate = (img, mask, size, ch, passes = 4) => {
+  for (let p = 0; p < passes; p++) {
+    const add = []
+    for (let y = 0; y < size; y++)
+      for (let x = 0; x < size; x++) {
+        if (mask[y * size + x]) continue
+        const sum = new Array(ch).fill(0)
+        let n = 0
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          const xx = x + dx
+          const yy = y + dy
+          if (xx < 0 || yy < 0 || xx >= size || yy >= size || !mask[yy * size + xx]) continue
+          for (let c = 0; c < ch; c++) sum[c] += img[(yy * size + xx) * ch + c]
+          n++
+        }
+        if (n) add.push([y * size + x, sum.map((s) => Math.round(s / n))])
+      }
+    for (const [i, v] of add) {
+      for (let c = 0; c < ch; c++) img[i * ch + c] = v[c]
+      mask[i] = 1
+    }
+  }
+}
+
+// A facial expression's move of fitted vertices: fit(pos + targets) - fit(pos), in meters.
+// targets: [[parsed target, weight], ...]; unit: MakeHuman's decimeters -> meters
+export const expressionDelta = (fit, pos, targets, unit = 0.1) => {
+  const moved = Float64Array.from(pos)
+  for (const [t, w] of targets) applyTarget(moved, t, w)
+  const a = fitVerts(fit, pos)
+  const b = fitVerts(fit, moved)
+  const out = new Float32Array(a.length)
+  for (let i = 0; i < a.length; i++) out[i] = (b[i] - a[i]) * unit
+  return out
+}

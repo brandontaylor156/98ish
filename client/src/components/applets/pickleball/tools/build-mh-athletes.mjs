@@ -33,13 +33,27 @@
 //     scalp and jaw.
 //
 // The builder's math is pure and tested: mh-core.mjs (mhcore.test.js).
+//
+// Athletic bodies (2026-10-04, after "they look like a tube of toothpaste"): MakeHuman's
+// muscle topology proxies (male_muscle_13290, female_muscle_13442: edge loops round the neck,
+// shoulders, pecs, biceps and quads) and its local modifiers on top of the macro ones (MPFB2
+// src/mpfb/data/targets/<dir>/<name>.target.gz, saved flattened as <dir>__<name>.target.gz:
+// the V taper, shoulder width, lats, pecs, waist, glutes, delts, arm and leg muscle, calves,
+// a shorter, thicker neck, a leaner face); a tangent-space normal map baked from a more
+// muscular, sharpened copy of the same body (muscle definition the triangles can't carry);
+// facial expressions as morph targets (MakeHuman's expression units, also CC0: blink, smile,
+// effort, shout) on the face and the brows/lashes; a sharper eye texture with a catchlight;
+// two levels of detail: <name>.glb (about half the triangles, Medium and phones) and
+// <name>-hi.glb (every triangle, High). STYLE=toon builds the stylized variant of the A/B test
+// (bigger head, eyes and hands, smoothed skin), never shipped.
+//   (also needs: expression/units/caucasian/*.target.gz, flattened the same way)
 
 import { createRequire } from "module"
 import { pathToFileURL } from "url"
 import fs from "fs"
 import path from "path"
 import zlib from "zlib"
-import { applyTarget, boneFrame, fitVerts, macroTargets, parseFitting, parseObj, parseTarget, qFromTo, rotateAbout, transferWeights } from "./mh-core.mjs"
+import { applyTarget, boneFrame, dilate, encodeTangentNormal, expressionDelta, fitVerts, highpass, macroTargets, neighbors, parseFitting, parseObj, parseTarget, qFromTo, rasterUV, rotateAbout, transferWeights, triTangents, vertexNormals } from "./mh-core.mjs"
 
 const req = createRequire(path.join(process.env.TOOLS || ".", "package.json"))
 const load = (name) => import(pathToFileURL(req.resolve(name)).href)
@@ -62,11 +76,72 @@ const A = (f) => path.join(src, "assets", f)
 const read = (f) => fs.readFileSync(f, "utf8")
 
 // ---- the bodies ----
+const STYLE = process.env.STYLE === "toon" ? "toon" : "real"
+const both = (name, w) => [["arms/l-" + name, w], ["arms/r-" + name, w]]
+const legs = (name, w) => [["legs/l-" + name, w], ["legs/r-" + name, w]]
+// the local modifiers (MakeHuman's own sliders, -1..1 as decr/incr targets): an athlete's build
+const LOCALS = {
+  m: [
+    ["torso/torso-vshape-incr", 0.55],
+    ["torso/measure-shoulder-dist-incr", 0.3],
+    ["torso/torso-muscle-dorsi-incr", 0.4],
+    ["torso/torso-muscle-pectoral-incr", 0.35],
+    ["torso/measure-waist-circ-decr", 0.35],
+    ["stomach/stomach-pregnant-decr", 0.5],
+    ["stomach/stomach-tone-incr", 0.6],
+    ["buttocks/buttocks-volume-incr", 0.35],
+    ["neck/measure-neck-height-decr", 0.45],
+    ["neck/measure-neck-circ-incr", 0.45],
+    ["head/head-fat-decr", 0.3],
+    ["head/head-square", 0.25],
+    ...both("upperarm-shoulder-muscle-incr", 0.6),
+    ...both("upperarm-muscle-incr", 0.5),
+    ...both("lowerarm-muscle-incr", 0.6),
+    ...legs("upperleg-muscle-incr", 0.38),
+    ...legs("lowerleg-muscle-incr", 0.5),
+    ["legs/measure-knee-circ-decr", 0.3],
+    ["legs/measure-calf-circ-incr", 0.3],
+  ],
+  f: [
+    ["torso/torso-vshape-incr", 0.2],
+    ["torso/measure-waist-circ-decr", 0.45],
+    ["torso/measure-hips-circ-incr", 0.12],
+    ["stomach/stomach-pregnant-decr", 0.5],
+    ["stomach/stomach-tone-incr", 0.5],
+    ["buttocks/buttocks-volume-incr", 0.45],
+    ["neck/measure-neck-height-decr", 0.3],
+    ["neck/measure-neck-circ-incr", 0.15],
+    ["head/head-fat-decr", 0.25],
+    ["head/head-oval", 0.2],
+    ...both("upperarm-shoulder-muscle-incr", 0.25),
+    ...both("upperarm-muscle-incr", 0.25),
+    ...both("lowerarm-muscle-incr", 0.3),
+    ...legs("upperleg-muscle-incr", 0.2),
+    ["legs/measure-thigh-circ-decr", 0.15],
+    ["legs/measure-knee-circ-decr", 0.35],
+    ...legs("lowerleg-muscle-incr", 0.3),
+    ["legs/measure-calf-circ-incr", 0.15],
+  ],
+}
+// the stylized variant (A/B only): a bigger head, bigger eyes and hands, a shorter neck
+const TOON = [["head/head-scale-horiz-incr", 0.45], ["head/head-scale-vert-incr", 0.45], ["head/head-scale-depth-incr", 0.4], ["eyes/l-eye-scale-incr", 0.7], ["eyes/r-eye-scale-incr", 0.7], ["hands/l-hand-scale-incr", 0.3], ["hands/r-hand-scale-incr", 0.3], ["neck/measure-neck-height-decr", 0.3], ["head/head-round", 0.3]]
 const BODIES = {
-  m: { out: "mh-m.glb", gender: 1, muscle: 0.68, weight: 0.46, proportions: 0.85, height: 0.55, proxy: "male_generic", skin: "young_lightskinned_male_diffuse.png", brows: "eyebrow002" },
-  f: { out: "mh-f.glb", gender: 0, muscle: 0.62, weight: 0.44, proportions: 0.85, height: 0.5, proxy: "female_generic", skin: "young_lightskinned_female_diffuse.png", brows: "eyebrow005" },
+  m: { out: "mh-m", gender: 1, muscle: 0.8, weight: 0.42, proportions: 1, height: 0.55, proxy: "male_muscle_13290", skin: "young_lightskinned_male_diffuse.png", brows: "eyebrow002", locals: LOCALS.m },
+  f: { out: "mh-f", gender: 0, muscle: 0.7, weight: 0.42, proportions: 1, height: 0.5, proxy: "female_muscle_13442", skin: "young_lightskinned_female_diffuse.png", brows: "eyebrow005", locals: LOCALS.f },
+}
+if (STYLE === "toon") for (const B of Object.values(BODIES)) B.locals = [...B.locals, ...TOON]
+// muscle definition for the normal map: how much more muscular the detail body is
+const DETAIL = { m: { muscle: 0.25, weight: -0.12, locals: 1.4, sharpen: 1.1 }, f: { muscle: 0.15, weight: -0.08, locals: 1.2, sharpen: 0.75 } }
+// the facial expressions (morph targets, MakeHuman's expression units)
+const U = "expression/units/caucasian/"
+const EXPRESSIONS = {
+  blink: [[U + "eye-left-closure", 1], [U + "eye-right-closure", 1]],
+  smile: [[U + "mouth-corner-puller", 0.8], [U + "mouth-upward-retraction", 0.25], [U + "eye-left-slit", 0.3], [U + "eye-right-slit", 0.3]],
+  effort: [[U + "mouth-compression", 0.6], [U + "eyebrows-left-down", 0.8], [U + "eyebrows-right-down", 0.8], [U + "eye-left-slit", 0.45], [U + "eye-right-slit", 0.45], [U + "nose-left-elevation", 0.35], [U + "nose-right-elevation", 0.35]],
+  shout: [[U + "mouth-open", 0.8], [U + "mouth-corner-puller", 0.25], [U + "eyebrows-left-inner-up", 0.35], [U + "eyebrows-right-inner-up", 0.35], [U + "eye-left-opened-up", 0.3], [U + "eye-right-opened-up", 0.3]],
 }
 const UNIT = 0.1 // MakeHuman's decimeters -> meters
+const HAIR_FILE = STYLE === "toon" ? "mh-hair-toon.glb" : "mh-hair.glb"
 
 const base = parseObj(read(path.join(src, "base.obj")))
 const groups = new Map()
@@ -86,7 +161,7 @@ for (const [bone, list] of Object.entries(JSON.parse(read(path.join(src, "weight
 const targetCache = new Map()
 const target = (name) => {
   if (!targetCache.has(name)) {
-    const f = path.join(src, "targets", name.replace("/", "__") + ".target.gz")
+    const f = path.join(src, "targets", name.replace(/\//g, "__") + ".target.gz")
     targetCache.set(name, parseTarget(zlib.gunzipSync(fs.readFileSync(f)).toString("utf8")))
   }
   return targetCache.get(name)
@@ -215,9 +290,15 @@ const strands = async (size, { sparse = false, seed = 1 } = {}) => {
 // ---- one body ----
 const built = {}
 for (const [kind, B] of Object.entries(BODIES)) {
-  // morph
+  // morph: the macro modifiers, then the athlete's local ones
   const pos = Float64Array.from(base.v)
   for (const t of macroTargets(B)) applyTarget(pos, target(t.file), t.w)
+  for (const [name, w] of B.locals) applyTarget(pos, target(name), w)
+  // the detail body (normal map only): more muscle, a little leaner, the locals stronger
+  const dpos = Float64Array.from(base.v)
+  const DT = DETAIL[kind]
+  for (const t of macroTargets({ ...B, muscle: Math.min(1, B.muscle + DT.muscle), weight: Math.max(0, B.weight + DT.weight) })) applyTarget(dpos, target(t.file), t.w)
+  for (const [name, w] of B.locals) applyTarget(dpos, target(name), w * (/head|neck|eyes|hands/.test(name) ? 1 : DT.locals))
   // joints (MakeHuman space: decimeters)
   const joints = {}
   for (const [b, spec] of Object.entries(rig)) joints[b] = { head: jointAt(pos, spec.head), tail: jointAt(pos, spec.tail), parent: spec.parent }
@@ -256,16 +337,21 @@ for (const [kind, B] of Object.entries(BODIES)) {
     const q3 = qFromTo(sub(ankle, hip), [0, -1, 0])
     addMove([`thigh_${sd}`, `calf_${sd}`, `foot_${sd}`, `ball_${sd}`], q3, hip)
   }
-  const posed = new Float64Array(ppos.length)
-  for (let i = 0; i < ppos.length / 3; i++) {
-    const v = [ppos[i * 3], ppos[i * 3 + 1], ppos[i * 3 + 2]]
-    const o = [0, 0, 0]
-    for (const [b, w] of pw[i]) {
-      const m = moveOf(b, v)
-      for (let k = 0; k < 3; k++) o[k] += m[k] * w
+  const poseVerts = (src) => {
+    const out = new Float64Array(src.length)
+    for (let i = 0; i < src.length / 3; i++) {
+      const v = [src[i * 3], src[i * 3 + 1], src[i * 3 + 2]]
+      const o = [0, 0, 0]
+      for (const [b, w] of pw[i]) {
+        const m = moveOf(b, v)
+        for (let k = 0; k < 3; k++) o[k] += m[k] * w
+      }
+      for (let k = 0; k < 3; k++) out[i * 3 + k] = pw[i].length ? o[k] : v[k]
     }
-    for (let k = 0; k < 3; k++) posed[i * 3 + k] = pw[i].length ? o[k] : v[k]
+    return out
   }
+  const posed = poseVerts(ppos)
+  const dposed = poseVerts(fitVerts(fit, dpos))
   for (const [b, j] of Object.entries(joints)) {
     j.head = moveOf(b, j.head)
     j.tail = moveOf(b, j.tail)
@@ -275,9 +361,10 @@ for (const [kind, B] of Object.entries(BODIES)) {
   for (let i = 1; i < posed.length; i += 3) minY = Math.min(minY, posed[i])
   const toM = (v) => [v[0] * UNIT, (v[1] - minY) * UNIT, v[2] * UNIT]
   const mpos = new Float64Array(posed.length)
+  const dmpos = new Float64Array(posed.length)
   for (let i = 0; i < posed.length; i += 3) {
-    const m = toM([posed[i], posed[i + 1], posed[i + 2]])
-    mpos.set(m, i)
+    mpos.set(toM([posed[i], posed[i + 1], posed[i + 2]]), i)
+    dmpos.set(toM([dposed[i], dposed[i + 1], dposed[i + 2]]), i)
   }
   for (const j of Object.values(joints)) {
     j.head = toM(j.head)
@@ -345,7 +432,16 @@ for (const [kind, B] of Object.entries(BODIES)) {
   }
   console.log(kind, "face vertices on the head alone:", rigid)
   console.log(kind, "eyes", eye.map((x) => x.toFixed(3)).join(","), "mouth", mouth.map((x) => x.toFixed(3)).join(","), "skull z", zMin.toFixed(3), zMax.toFixed(3))
-  built[kind] = { B, pos, mpos, pobj, pw, bones, byName, joints, fromBase, face }
+  // the facial expressions: each one's move of the body's (proxy) vertices, meters (the face
+  // is on the Head bone alone and untouched by the rest pose's turns, so the move is as fitted)
+  const expr = {}
+  for (const [name, list] of Object.entries(EXPRESSIONS)) {
+    expr[name] = expressionDelta(fit, pos, list.map(([t, w]) => [target(t), w]), UNIT)
+    let moved = 0
+    for (let i = 0; i < expr[name].length; i += 3) if (Math.hypot(expr[name][i], expr[name][i + 1], expr[name][i + 2]) > 2e-4) moved++
+    console.log(kind, "expression", name, moved, "vertices")
+  }
+  built[kind] = { kind, B, pos, mpos, dmpos, pobj, pw, bones, byName, joints, fromBase, face, expr }
   console.log(kind, "proxy", ppos.length / 3, "verts", pobj.faces.length, "faces; height", (Math.max(...Array.from(mpos).filter((_, i) => i % 3 === 1))).toFixed(3), "m")
 }
 
@@ -391,9 +487,155 @@ const compress = async (doc, positions = false) => {
   doc.createExtension(EXTMeshoptCompression).setRequired(true).setEncoderOptions({ method: EXTMeshoptCompression.EncoderMethod.QUANTIZE })
 }
 
+// ---- the muscle-definition normal map: the detail body's normals (sharpened) in the tangent
+// space of the shipped body's, rasterized over the UV layout ----
+const bakeNormals = (K, size) => {
+  const faces = K.pobj.faces
+  const n0 = vertexNormals(K.mpos, faces)
+  const nb = neighbors(K.mpos.length / 3, faces)
+  const region = (i) => {
+    const b = K.pw[i][0]?.[0] || ""
+    if (b === "head") return 0.15
+    if (/hand|thumb|index|middle|ring|pinky|foot|ball/.test(b)) return 0.35
+    return 1
+  }
+  const detail = highpass(K.dmpos, nb, { k: DETAIL[K.kind].sharpen, iterations: 5, weight: region })
+  // (the head keeps its own shape: the detail body only adds muscle below it)
+  for (let i = 0; i < detail.length / 3; i++)
+    if (region(i) < 0.2) for (let k = 0; k < 3; k++) detail[i * 3 + k] = K.mpos[i * 3 + k]
+  const nd = vertexNormals(detail, faces)
+  const uv = []
+  const cv = []
+  const tris = []
+  for (const f of faces) {
+    const ids = f.v.map((v, j) => {
+      cv.push(v)
+      const t = f.t[j]
+      uv.push(t < 0 ? 0 : K.pobj.vt[t * 2], t < 0 ? 0 : 1 - K.pobj.vt[t * 2 + 1])
+      return cv.length - 1
+    })
+    for (let j = 1; j + 1 < ids.length; j++) tris.push([ids[0], ids[j], ids[j + 1]])
+  }
+  const P = (v) => [K.mpos[v * 3], K.mpos[v * 3 + 1], K.mpos[v * 3 + 2]]
+  const N = (arr, v) => [arr[v * 3], arr[v * 3 + 1], arr[v * 3 + 2]]
+  const frames = tris.map((t) => triTangents(P(cv[t[0]]), P(cv[t[1]]), P(cv[t[2]]), [uv[t[0] * 2], uv[t[0] * 2 + 1]], [uv[t[1] * 2], uv[t[1] * 2 + 1]], [uv[t[2] * 2], uv[t[2] * 2 + 1]]))
+  const img = Buffer.alloc(size * size * 3)
+  const mask = new Uint8Array(size * size)
+  rasterUV(size, tris, uv, (ti, b0, b1, b2, x, y) => {
+    const fr = frames[ti]
+    if (!fr) return
+    const t = tris[ti]
+    const mix = (arr) => {
+      const a = N(arr, cv[t[0]])
+      const b = N(arr, cv[t[1]])
+      const c = N(arr, cv[t[2]])
+      const v = [a[0] * b0 + b[0] * b1 + c[0] * b2, a[1] * b0 + b[1] * b1 + c[1] * b2, a[2] * b0 + b[2] * b1 + c[2] * b2]
+      const l = Math.hypot(...v) || 1
+      return v.map((q) => q / l)
+    }
+    const rgb = encodeTangentNormal(mix(nd), mix(n0), fr.T, fr.B)
+    img.set(rgb, (y * size + x) * 3)
+    mask[y * size + x] = 1
+  })
+  dilate(img, mask, size, 3, 8)
+  for (let i = 0; i < size * size; i++) if (!mask[i]) img.set([128, 128, 255], i * 3)
+  return sharp(img, { raw: { width: size, height: size, channels: 3 } }).webp({ quality: 90, effort: 6 }).toBuffer()
+}
+
+// ---- the eyes' texture: MakeHuman's brown eye, the iris deepened with a dark limbal ring and
+// a bigger pupil, the whites cleaned up, and a catchlight (eyes that read alive at a distance) ----
+const eyeTexture = async (size) => {
+  const { data, info } = await sharp(A("brown_eye.png")).resize(size, size).flatten({ background: "#ffffff" }).raw().toBuffer({ resolveWithObject: true })
+  const ch = info.channels
+  // the two irises: the saturated reddish pixels, one on each side of the diagonal
+  const groups = [{ x: 0, y: 0, n: 0 }, { x: 0, y: 0, n: 0 }]
+  for (let y = 0; y < size; y++)
+    for (let x = 0; x < size; x++) {
+      const o = (y * size + x) * ch
+      const [r, g, b] = [data[o], data[o + 1], data[o + 2]]
+      if (!(r > g * 1.35 && r > b * 1.5 && r < 200)) continue
+      const G = groups[x > y ? 0 : 1]
+      G.x += x
+      G.y += y
+      G.n++
+    }
+  const irises = groups.filter((G) => G.n).map((G) => ({ x: G.x / G.n, y: G.y / G.n, r: Math.sqrt(G.n / Math.PI) }))
+  for (let y = 0; y < size; y++)
+    for (let x = 0; x < size; x++) {
+      const o = (y * size + x) * ch
+      let [r, g, b] = [data[o], data[o + 1], data[o + 2]]
+      const lum = (0.3 * r + 0.59 * g + 0.11 * b) / 255
+      let hit = null
+      for (const I of irises) {
+        const d = Math.hypot(x - I.x, y - I.y) / I.r
+        if (d < 1.12) hit = { d, I, dx: (x - I.x) / I.r, dy: (y - I.y) / I.r }
+      }
+      if (!hit) {
+        // the white of the eye: less red, a touch brighter
+        r = r * 0.6 + 236 * 0.4
+        g = g * 0.6 + 232 * 0.4
+        b = b * 0.6 + 228 * 0.4
+      } else {
+        const { d } = hit
+        // the iris: deep brown fibers with a warmer ring round the pupil
+        const fiber = 0.55 + 0.9 * lum
+        const warm = Math.max(0, 1 - Math.abs(d - 0.5) / 0.25)
+        let c = [70 * fiber + 40 * warm, 42 * fiber + 22 * warm, 24 * fiber + 6 * warm]
+        // the limbal ring, then blended into the white beyond the iris
+        if (d > 0.82) {
+          const k = Math.min(1, (d - 0.82) / 0.18)
+          c = c.map((q) => q * (1 - 0.65 * k))
+        }
+        if (d > 1.0) {
+          const k = Math.min(1, (d - 1.0) / 0.12)
+          c = c.map((q, i) => q * (1 - k) + [236, 232, 228][i] * k)
+        }
+        // the pupil
+        if (d < 0.42) {
+          const k = Math.min(1, (0.42 - d) / 0.05)
+          c = c.map((q) => q * (1 - k) + 10 * k)
+        }
+        // the catchlight: a soft highlight up and to one side
+        const cl = Math.hypot(hit.dx + 0.32, hit.dy + 0.32)
+        if (cl < 0.2) {
+          const k = Math.min(1, (0.2 - cl) / 0.07)
+          c = c.map((q) => q * (1 - k) + 250 * k)
+        }
+        ;[r, g, b] = c
+      }
+      data[o] = Math.max(0, Math.min(255, Math.round(r)))
+      data[o + 1] = Math.max(0, Math.min(255, Math.round(g)))
+      data[o + 2] = Math.max(0, Math.min(255, Math.round(b)))
+    }
+  return sharp(data, { raw: { width: size, height: size, channels: ch } }).removeAlpha().jpeg({ quality: 90 }).toBuffer()
+}
+
+// ---- simplify (Medium): about half the triangles; the face's moving parts (expressions) and
+// the UV seams kept exactly ----
+const simplifyMesh = (mesh, ratio, error, locked) => {
+  const n = mesh.position.length / 3
+  const lock = new Uint8Array(n)
+  for (let i = 0; i < n; i++) lock[i] = locked(i) ? 1 : 0
+  const [out] = MeshoptSimplifier.simplifyWithAttributes(Uint32Array.from(mesh.index), Float32Array.from(mesh.position), 3, Float32Array.from(mesh.normal), 3, [0.5, 0.5, 0.5], lock, Math.floor((mesh.index.length * ratio) / 3) * 3, error, ["LockBorder"])
+  const map = new Int32Array(n).fill(-1)
+  const keep = []
+  for (const v of out) if (map[v] < 0) map[v] = keep.push(v) - 1
+  const pick = (arr, k) => {
+    const o = new arr.constructor(keep.length * k)
+    keep.forEach((v, i) => {
+      for (let c = 0; c < k; c++) o[i * k + c] = arr[v * k + c]
+    })
+    return o
+  }
+  return { position: pick(mesh.position, 3), normal: pick(mesh.normal, 3), uv: pick(mesh.uv, 2), index: Uint32Array.from(out, (v) => map[v]), src: keep.map((v) => mesh.src[v]) }
+}
+
 const skinHex = {}
-for (const [kind, K] of Object.entries(built)) {
-  const { B, pos, mpos, pobj, pw, bones, byName, fromBase } = K
+const bodyCache = {}
+const writeBody = async (kind, K, lod) => {
+  const { B, pos, mpos, pobj, pw, bones, fromBase, expr } = K
+  const hi = lod === "hi"
+  const file = `${B.out}${hi ? "-hi" : ""}${STYLE === "toon" ? "-toon" : ""}.glb`
   const doc = new Document()
   const buffer = doc.createBuffer()
   const scene = doc.createScene("athlete")
@@ -418,7 +660,8 @@ for (const [kind, K] of Object.entries(built)) {
   for (const n of jointList) skin.addJoint(nodes[n])
 
   const acc = (type, array) => doc.createAccessor().setType(type).setArray(array).setBuffer(buffer)
-  const skinned = (name, mesh, weightsOf, mat) => {
+  // a skinned mesh; morphs: { name: Float32Array (3 per vertex) } become morph targets
+  const skinned = (name, mesh, weightsOf, mat, morphs = null) => {
     const n = mesh.position.length / 3
     const J = new Uint16Array(n * 4)
     const W = new Float32Array(n * 4)
@@ -438,15 +681,48 @@ for (const [kind, K] of Object.entries(built)) {
       .setAttribute("WEIGHTS_0", acc("VEC4", W))
       .setIndices(acc("SCALAR", mesh.position.length / 3 > 65535 ? mesh.index : Uint16Array.from(mesh.index)))
       .setMaterial(mat)
-    const node = doc.createNode(name).setMesh(doc.createMesh(name).addPrimitive(prim)).setSkin(skin)
+    const m = doc.createMesh(name).addPrimitive(prim)
+    if (morphs) {
+      const names = Object.keys(morphs)
+      for (const t of names) prim.addTarget(doc.createPrimitiveTarget(t).setAttribute("POSITION", acc("VEC3", morphs[t])))
+      m.setWeights(names.map(() => 0)).setExtras({ targetNames: names })
+    }
+    const node = doc.createNode(name).setMesh(m).setSkin(skin)
     scene.addChild(node)
     return node
   }
+  // a morph per expression for a mesh whose vertices came from fitted vertices (src)
+  const morphsFor = (mesh, deltas) => {
+    const out = {}
+    for (const [name, d] of Object.entries(deltas)) {
+      const a = new Float32Array(mesh.position.length)
+      mesh.src.forEach((v, i) => {
+        a[i * 3] = d[v * 3]
+        a[i * 3 + 1] = d[v * 3 + 1]
+        a[i * 3 + 2] = d[v * 3 + 2]
+      })
+      out[name] = a
+    }
+    return out
+  }
 
   // the body
-  const body = buildMesh(pobj, mpos)
-  const skinJpg = await jpeg(A(B.skin), 1024, 86)
-  {
+  let body = buildMesh(pobj, mpos)
+  if (!hi) {
+    const moving = (v) => Object.values(expr).some((d) => Math.hypot(d[v * 3], d[v * 3 + 1], d[v * 3 + 2]) > 3e-4)
+    body = simplifyMesh(body, Number(process.env.RATIO || 0.5), Number(process.env.ERR || 0.0012), (i) => moving(body.src[i]))
+  }
+  const cache = (bodyCache[kind] ||= {})
+  const texSize = hi ? 2048 : 1024
+  cache["skin" + texSize] ||= await (async () => {
+    let s = sharp(A(B.skin)).resize(texSize, texSize)
+    if (STYLE === "toon") s = s.median(5).blur(1.2)
+    return s.jpeg({ quality: hi ? 84 : 86, mozjpeg: true }).toBuffer()
+  })()
+  const skinJpg = cache["skin" + texSize]
+  cache.normal ||= await bakeNormals(K, 1024)
+  cache.eye ||= await eyeTexture(256)
+  if (!skinHex[kind]) {
     // the skin's average where the body actually samples it (the texture's empty space is a
     // darker, redder fill), in linear light like the shader sees it
     const { data, info } = await sharp(skinJpg).raw().toBuffer({ resolveWithObject: true })
@@ -463,16 +739,14 @@ for (const [kind, K] of Object.entries(built)) {
   const bodyMat = doc
     .createMaterial("Body")
     .setBaseColorTexture(doc.createTexture("skin").setImage(skinJpg).setMimeType("image/jpeg"))
+    .setNormalTexture(doc.createTexture("muscle").setImage(cache.normal).setMimeType("image/webp"))
     .setRoughnessFactor(0.6)
     .setMetallicFactor(0)
-    .setExtras({ refSkin: skinHex[kind], hueMix: 0.45, skinGain: 0.86 })
-  skinned("Body", body, (i) => pw[body.src[i]], bodyMat)
-
-  // about half the body's triangles (UV seams and the face kept by the error bound)
-  await doc.transform(weld(), simplify({ simplifier: MeshoptSimplifier, ratio: Number(process.env.RATIO || 0.5), error: Number(process.env.ERR || 0.0012), lockBorder: true }))
+    .setExtras({ refSkin: skinHex[kind], hueMix: 0.45, skinGain: 0.86, headScale: STYLE === "toon" ? 1.08 : 1.02, style: STYLE, lod })
+  skinned("Body", body, (i) => pw[body.src[i]], bodyMat, morphsFor(body, expr))
 
   // the eyes (two low-poly spheres) and the brows + lashes (one atlas), all on the Head bone
-  const head = (i) => [["head", 1]]
+  const head = () => [["head", 1]]
   {
     const fit = parseFitting(read(A("low-poly.mhclo")))
     const obj = parseObj(read(A("low-poly.obj")))
@@ -480,11 +754,11 @@ for (const [kind, K] of Object.entries(built)) {
     const m = new Float64Array(p.length)
     for (let i = 0; i < p.length; i += 3) m.set(fromBase([p[i], p[i + 1], p[i + 2]]), i)
     const mesh = buildMesh(obj, m)
-    const eyeImg = await sharp(A("brown_eye.png")).resize(256, 256).flatten({ background: "#ffffff" }).jpeg({ quality: 88 }).toBuffer()
-    skinned("Eyes", mesh, head, doc.createMaterial("Eyes").setBaseColorTexture(doc.createTexture("eye").setImage(eyeImg).setMimeType("image/jpeg")).setRoughnessFactor(0.25).setMetallicFactor(0))
+    skinned("Eyes", mesh, head, doc.createMaterial("Eyes").setBaseColorTexture(doc.createTexture("eye").setImage(cache.eye).setMimeType("image/jpeg")).setRoughnessFactor(0.15).setMetallicFactor(0))
   }
   {
     const parts = []
+    const deltas = []
     for (const [name, u0] of [[B.brows, 0], ["eyelashes01", 0.5]]) {
       const fit = parseFitting(read(A(name + ".mhclo")))
       const obj = parseObj(read(A(name + ".obj")))
@@ -494,8 +768,18 @@ for (const [kind, K] of Object.entries(built)) {
       const mesh = buildMesh(obj, m)
       for (let i = 0; i < mesh.uv.length; i += 2) mesh.uv[i] = u0 + mesh.uv[i] * 0.5
       parts.push(mesh)
+      const d = {}
+      for (const [e, list] of Object.entries(EXPRESSIONS)) d[e] = expressionDelta(fit, pos, list.map(([t, w]) => [target(t), w]), UNIT)
+      deltas.push(morphsFor(mesh, d))
     }
     const merged = mergeMeshes(parts)
+    const morphs = {}
+    for (const e of Object.keys(EXPRESSIONS)) {
+      const a = new Float32Array(merged.position.length)
+      a.set(deltas[0][e], 0)
+      a.set(deltas[1][e], deltas[0][e].length)
+      morphs[e] = a
+    }
     // the atlas: brows gray (tinted with the hair color at run time), lashes near black
     const S = 256
     const brow = await grayAlpha(A(B.brows + ".png"), S, 0.27)
@@ -506,17 +790,19 @@ for (const [kind, K] of Object.entries(built)) {
       lash.data.copy(atlas, y * S * 2 * 4 + S * 4, y * S * 4, (y + 1) * S * 4)
     }
     const img = await sharp(atlas, { raw: { width: S * 2, height: S, channels: 4 } }).png({ compressionLevel: 9 }).toBuffer()
-    skinned("Brows", merged, head, doc.createMaterial("Brows").setBaseColorTexture(doc.createTexture("brows").setImage(img).setMimeType("image/png")).setAlphaMode("MASK").setAlphaCutoff(0.35).setDoubleSided(true).setRoughnessFactor(0.9).setMetallicFactor(0))
+    skinned("Brows", merged, head, doc.createMaterial("Brows").setBaseColorTexture(doc.createTexture("brows").setImage(img).setMimeType("image/png")).setAlphaMode("MASK").setAlphaCutoff(0.35).setDoubleSided(true).setRoughnessFactor(0.9).setMetallicFactor(0), morphs)
   }
 
+  doc.createExtension(EXTTextureWebP).setRequired(true)
   await compress(doc)
-  await io.write(path.join(outDir, B.out), doc)
+  await io.write(path.join(outDir, file), doc)
   const tris = doc
     .getRoot()
     .listMeshes()
     .map((m) => `${m.getName()} ${m.listPrimitives()[0].getIndices().getCount() / 3}t`)
-  console.log(B.out, fs.statSync(path.join(outDir, B.out)).size, "bytes", tris.join(", "), "skin", skinHex[kind])
+  console.log(file, fs.statSync(path.join(outDir, file)).size, "bytes", tris.join(", "), "skin", skinHex[kind])
 }
+for (const [kind, K] of Object.entries(built)) for (const lod of process.env.LODS ? process.env.LODS.split(",") : ["med", "hi"]) await writeBody(kind, K, lod)
 
 // ---- hair: every style fitted to each body, in that body's Head bone space ----
 function mergeMeshes(parts) {
@@ -702,6 +988,6 @@ const HAIRS = {
   }
   doc.createExtension(EXTTextureWebP).setRequired(true)
   await compress(doc, true)
-  await io.write(path.join(outDir, "mh-hair.glb"), doc)
-  console.log("mh-hair.glb", fs.statSync(path.join(outDir, "mh-hair.glb")).size)
+  await io.write(path.join(outDir, HAIR_FILE), doc)
+  console.log(HAIR_FILE, fs.statSync(path.join(outDir, HAIR_FILE)).size)
 }

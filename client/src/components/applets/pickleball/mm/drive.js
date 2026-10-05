@@ -12,6 +12,8 @@ import { B, ANKLE_Y, HIP_Y } from "./skeleton.js"
 import { TAG } from "./library.js"
 import { qrot } from "./quat.js"
 
+// the captures' standing hip height (Neutral idles, retargeted; measured)
+const STAND_HIP = 0.955
 const sub = (a, b) => ({ x: a.x - b.x, y: a.y - b.y, z: a.z - b.z })
 const len = (a) => Math.hypot(a.x, a.y, a.z)
 const norm = (a) => {
@@ -36,7 +38,10 @@ export const driveMM = (a, s, mv, dt, o) => {
   const speed = Math.hypot(mv.x, mv.z)
   const want = wantOf(s, mv)
   // relaxed between points; athletic in a rally (fast runs are in both)
-  const mask = s.between ? TAG.neutral : TAG.ready
+  // (standing still: only the captured idles, which sway and shift their weight; the best
+  // single standing frame of a run looked frozen)
+  const standing = Math.hypot(want.x, want.z) < 0.15 && speed < 0.25 && !s.goal && !s.prep && !s.swing
+  const mask = standing ? (s.between ? TAG.restIdle : TAG.readyIdle) : s.between ? TAG.neutral : TAG.ready
   // a fast move is a run, facing the way it goes (nobody backpedals or shuffles at 3+ m/s: they
   // turn and run, like a pro going back for a lob)
   let yaw = o.yaw
@@ -49,7 +54,10 @@ export const driveMM = (a, s, mv, dt, o) => {
   const out = updateMM(a.mm, { x: s.x, z: s.z, vx: mv.x, vz: mv.z, want, goal: s.goal || null, maxSpeed: Math.max(Math.hypot(want.x, want.z), speed, 0.5), yaw, mask, every: o.every ?? 0.1, tight: o.tight || 0 }, dt)
   // lower than the motion capture's own hips if anim.js wants a crouch
   const mocapY = out.hip.y
-  const wantY = HIP_Y - (o.crouch ?? 0)
+  // (between points the crouch is measured from how high the captures really stand, not the
+  // skeleton's straight-legged rest: their standing hips are about 2 cm higher after the
+  // retarget, so a 3 cm crouch was a 5 cm one)
+  const wantY = (s.between ? Math.max(HIP_Y, STAND_HIP) : HIP_Y) - (o.crouch ?? 0)
   // (down: a low ball the arm can't reach down to, on top of whatever the capture does)
   const drop = Math.max(0, mocapY - wantY) + (o.down || 0)
   const hop = o.hopY || 0
