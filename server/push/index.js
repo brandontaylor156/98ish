@@ -22,6 +22,14 @@
 //   GET  /api/push/settings      { settings, devices }        PUT { categories?, quiet?, callsInQuiet?, tz?, mutedCalendars? }
 //   POST /api/push/test          a test notification to this account's devices
 //   GET  /api/push/seen          { seenAt }   PUT { seenAt }  (Notification Center read state)
+//   GET  /api/push/dnd           { dnd }      PUT { dnd, tz }  (Do Not Disturb; the newest change wins)
+//   POST /api/push/held          { held: [message] }: pushes held back by Do Not Disturb (and forgets them)
+//
+// Do Not Disturb (rules shared with the client: client/src/utils/dndCore.js): while it's on
+// (by hand or by its schedule, in the account's time zone) a push isn't sent but held, and
+// the client puts held ones in the Notification Center next time it's open. Calls from
+// favorites (or everyone) still ring and calendar reminders can still come through, as the
+// person chose; aim:call asks callAllowed() before ringing at all.
 
 const path = require("path")
 const { pathToFileURL } = require("url")
@@ -110,6 +118,10 @@ const cleanText = (text, max) => String(text ?? "").replace(/[\u0000-\u0008\u000
 // recurrences and reminder times are shared with the client (an ES module)
 let recurModule = null
 const loadRecur = () => (recurModule ??= import(pathToFileURL(path.join(__dirname, "../../client/src/components/applets/calendar/recur.js")).href))
+let dndModule = null
+const loadDnd = () => (dndModule ??= import(pathToFileURL(path.join(__dirname, "../../client/src/utils/dndCore.js")).href))
+const MAX_HELD = 50
+const HELD_DAYS = 7
 
 const createPush = ({ store: storeOrPromise, webpush, vapid = {}, now = Date.now, log = console } = {}) => {
   const keys = {
@@ -151,16 +163,51 @@ const createPush = ({ store: storeOrPromise, webpush, vapid = {}, now = Date.now
 
   // message: { title, body, tag, url, icon, key, requireInteraction, ... } (all go to the
   // service worker); returns { sent, removed, skipped? }
-  const notify = async (key, category, message, { ifAway = true, urgency = "normal", ttl = 4 * HOUR } = {}) => {
+  // Do Not Disturb: { active, state } for an account right now
+  const dndFor = async (key) => {
+    const dnd = await loadDnd()
+    const saved = await (await getStore()).prefs.get(key)
+    const state = dnd.cleanDnd(saved.dnd)
+    const tz = validZone(saved.tz) ? saved.tz : "UTC"
+    return { dnd, state, tz, active: dnd.dndActive(state, now(), tz) }
+  }
+
+  // may `fromKey` ring `key` right now? (Do Not Disturb's "Allow calls from")
+  const callAllowed = async (key, fromKey) => {
+    try {
+      const { dnd, state, tz, active } = await dndFor(key)
+      return !active || dnd.dndAllows(state, { kind: "calls", from: fromKey }, now(), tz)
+    } catch {
+      return true
+    }
+  }
+
+  // a push Do Not Disturb kept back: the Notification Center gets it later
+  const hold = async (store, key, payload) => {
+    const saved = await store.prefs.get(key)
+    const cutoff = now() - HELD_DAYS * 24 * HOUR
+    const held = [...(Array.isArray(saved.held) ? saved.held : []).filter((m) => (m.time || 0) > cutoff), payload].slice(-MAX_HELD)
+    await store.prefs.set(key, { held })
+  }
+
+  const notify = async (key, category, message, { ifAway = true, urgency = "normal", ttl = 4 * HOUR, from = null } = {}) => {
     try {
       if (!enabled) return { sent: 0, skipped: "disabled" }
       if (ifAway && !isAway(key)) return { sent: 0, skipped: "active" }
       const store = await getStore()
       const settings = await settingsFor(key)
       if (CATEGORIES.includes(category) && settings.categories[category] === false) return { sent: 0, skipped: "off" }
-      if (category !== "system" && inQuietHours(settings, now()) && !(category === "calls" && settings.callsInQuiet)) return { sent: 0, skipped: "quiet" }
       const subs = await store.subs.forKey(key)
       if (!subs.length) return { sent: 0, skipped: "none" }
+      if (category !== "system") {
+        const { dnd, state, tz, active } = await dndFor(key)
+        if (active && !dnd.dndAllows(state, { kind: category, from }, now(), tz)) {
+          // a ringing call is over by the time anyone would look: only its missed call counts
+          if (!message.requireInteraction) await hold(store, key, { ...message, title: cleanText(message.title, 120), body: cleanText(message.body, 300), category, time: message.time || now() })
+          return { sent: 0, skipped: "dnd" }
+        }
+      }
+      if (category !== "system" && inQuietHours(settings, now()) && !(category === "calls" && settings.callsInQuiet)) return { sent: 0, skipped: "quiet" }
       const payload = JSON.stringify({
         ...message,
         title: cleanText(message.title, 120),
@@ -389,6 +436,36 @@ const createPush = ({ store: storeOrPromise, webpush, vapid = {}, now = Date.now
         response.json({ ok: true, seenAt })
       })
     )
+    r.get(
+      "/dnd",
+      handle(async (request, response, store, key) => {
+        const dnd = await loadDnd()
+        response.json({ ok: true, dnd: dnd.cleanDnd((await store.prefs.get(key)).dnd) })
+      })
+    )
+    r.put(
+      "/dnd",
+      handle(async (request, response, store, key) => {
+        const dnd = await loadDnd()
+        const incoming = dnd.cleanDnd(request.body?.dnd)
+        if (!incoming.updatedAt || incoming.updatedAt > now() + 5 * MINUTE) incoming.updatedAt = now()
+        const saved = await store.prefs.get(key)
+        const current = dnd.cleanDnd(saved.dnd)
+        // the newest change wins (two devices changing it at once)
+        const next = incoming.updatedAt >= current.updatedAt ? incoming : current
+        await store.prefs.set(key, { dnd: next, ...(validZone(request.body?.tz) ? { tz: request.body.tz } : {}) })
+        response.json({ ok: true, dnd: next })
+      })
+    )
+    r.post(
+      "/held",
+      handle(async (request, response, store, key) => {
+        const saved = await store.prefs.get(key)
+        const held = Array.isArray(saved.held) ? saved.held : []
+        if (held.length) await store.prefs.set(key, { held: [] })
+        response.json({ ok: true, held })
+      })
+    )
     return r
   }
 
@@ -405,6 +482,8 @@ const createPush = ({ store: storeOrPromise, webpush, vapid = {}, now = Date.now
     hasSubs,
     wouldSend,
     settingsFor,
+    dndFor,
+    callAllowed,
     notify,
     checkReminders,
     checkPets,

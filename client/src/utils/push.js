@@ -17,6 +17,7 @@ export const setPushSession = (value) => {
   session = value
   sessionListeners.forEach((fn) => fn())
 }
+export const getPushSession = () => session
 export const usePushSession = () =>
   useSyncExternalStore(
     (fn) => (sessionListeners.add(fn), () => sessionListeners.delete(fn)),
@@ -189,6 +190,8 @@ export const savePushSettings = (token, patch) => api("PUT", "/settings", token,
 export const sendTestPush = (token) => api("POST", "/test", token)
 export const getSeen = (token) => api("GET", "/seen", token)
 export const putSeen = (token, seenAt) => api("PUT", "/seen", token, { seenAt })
+// pushes Do Not Disturb held back (the server forgets them once taken)
+export const takeHeld = (token) => (token ? api("POST", "/held", token, {}) : Promise.resolve({ ok: false }))
 
 // pushes that arrived while 98ish was closed (the service worker keeps them for us)
 export const INBOX_CACHE = "push-inbox-98ish"

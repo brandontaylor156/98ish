@@ -61,6 +61,7 @@ export const imageMapper = {
   calc: "program_icons/calc.svg",
   calendar: "program_icons/calendar.svg",
   clock: "program_icons/clock.svg",
+  weather: "program_icons/weather.svg",
   charmap: "program_icons/charmap.svg",
   winpopup: "program_icons/winpopup.svg",
   camera: "program_icons/camera.svg",

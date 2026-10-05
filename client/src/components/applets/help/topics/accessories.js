@@ -395,6 +395,38 @@ export const topics = [
     related: ["calendar", "date-time", "regional"],
   },
 
+  // ---- Weather ----
+  {
+    id: "weather",
+    book: "accessories",
+    title: "Weather",
+    summary: "The weather now, the next 24 hours and 7 days for your places, in the taskbar and on the desktop too.",
+    keywords: ["weather", "forecast", "temperature", "rain", "snow", "humidity", "wind", "uv index", "sunrise", "sunset", "fahrenheit", "celsius", "my location", "places", "open-meteo"],
+    programs: ["Weather"],
+    body: [
+      { img: "/assets/program_icons/weather.svg", alt: "Weather icon" },
+      "Weather shows what it's like outside right now (the temperature, what it feels like, wind, humidity, the UV index, the chance of rain, sunrise and sunset), then the next 24 hours and the next 7 days.",
+      { steps: ["Open Start > Programs > Accessories > **Weather**.", "Type your city or town and click **Search**.", "Choose it from the list."], title: "To see your weather:" },
+      "Or click **Use My Location**: your browser asks first, and 98ish keeps only the place's position rounded to about a kilometer, never where you are exactly.",
+      { h: "More than one place" },
+      "Add as many places as you like with the **+** button (or Places > Add Place...): your city and your sweetheart's, where your family lives, where you're going on vacation. Switch between them with the drop-down at the top. **Places > Remove** takes one away.",
+      { h: "Degrees F or C" },
+      "The **°F** and **°C** buttons switch the units (so do View > Fahrenheit and View > Celsius). The choice is saved in [[regional|Regional Settings]], which also picks the starting unit for your region: °F in the United States, °C almost everywhere else. Wind is in miles per hour with °F and kilometers per hour with °C. Times follow your 12- or 24-hour choice.",
+      { h: "In the taskbar and on the desktop" },
+      {
+        list: [
+          "**View > Show in Taskbar** puts the weather icon and the temperature next to the clock (on a phone, just the icon). Click it to open Weather; right-click it to refresh or hide it. Taskbar Properties has the same switch (**Show weather**).",
+          "**View > Show on Desktop** adds a small weather panel to your desktop with today and the next three days. Drag it by its title bar; its **X** takes it away.",
+        ],
+      },
+      { h: "Offline and up to date" },
+      "Weather keeps each forecast for 30 minutes before fetching a new one, and refreshes by itself while it's open. Press {{F5}} (or File > Refresh) to get the newest one now. With no Internet connection you still see the last forecast, and the status bar says when it's from.",
+      { note: "Forecasts come from **Open-Meteo.com**, a free weather service with open data (CC BY 4.0). Your browser asks it directly; 98ish doesn't send your places anywhere else. Severe weather alerts aren't included, since there's no free source for them everywhere: check your local weather service for warnings." },
+      { open: "Weather", label: "Open Weather" },
+    ],
+    related: ["regional", "clock", "calendar", "taskbar"],
+  },
+
   // ---- Media Player ----
   {
     id: "media-player",

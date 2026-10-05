@@ -1,5 +1,120 @@
 /* The Notification Center: the taskbar's bell, its panel, and Notification settings */
 
+/* ---- Do Not Disturb (DndTray.jsx, DndSettings.jsx) ---- */
+.bellDnd {
+  display: inline-flex;
+}
+.moonIcon {
+  display: block;
+  image-rendering: pixelated;
+}
+.ncDnd {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 4px 4px;
+  padding: 3px 8px;
+  text-align: left;
+  min-height: 26px;
+}
+.ncDnd > span:nth-child(2) {
+  flex: 1;
+  min-width: 0;
+}
+.ncDnd.is-on {
+  background: #000080;
+  color: #fff;
+}
+.ncDndArrow {
+  font-size: 9px;
+}
+.ncDndLink {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 6px 0;
+}
+.ncDndLink > span {
+  flex: 1;
+}
+.dndSettings {
+  width: 100%;
+  min-width: 0;
+  max-height: calc(100vh - 160px);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.dndSettings fieldset {
+  margin: 0 0 4px;
+  padding: 6px 8px 8px;
+  border: none;
+  min-width: 0;
+  box-shadow: inset -1px -1px #fff, inset -2px 1px #808080, inset 1px -2px #808080, inset 2px 2px #fff;
+}
+.dndSettings .dialogText {
+  overflow-wrap: anywhere;
+}
+.dndHead {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+.dndHead .dialogText {
+  margin: 0;
+}
+.dndTimes {
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 6px;
+}
+.dndTimes input {
+  flex: 1;
+  min-width: 0;
+  width: 80px;
+}
+.dndDays {
+  display: flex;
+  gap: 2px;
+  margin: 6px 0 2px;
+}
+.dndDays button {
+  min-width: 0;
+  width: 30px;
+  padding: 0;
+}
+.dndDays button[aria-pressed="true"] {
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #0a0a0a, inset -2px -2px #dfdfdf, inset 2px 2px grey;
+  background: repeating-conic-gradient(#c0c0c0 0 25%, #fff 0 50%) 0 0 / 2px 2px;
+  font-weight: bold;
+}
+.dndCalls {
+  flex-wrap: wrap;
+}
+.dndCalls select {
+  flex: 1;
+  min-width: 0;
+  max-width: 100%;
+}
+.bellWrap {
+  position: relative;
+  display: inline-flex;
+}
+.bellMoon {
+  position: absolute;
+  left: -4px;
+  bottom: -3px;
+  display: inline-flex;
+}
+.dndHint {
+  margin: 2px 0;
+  color: #404040;
+  font-size: 10px;
+}
+
 .notifyBell {
   position: relative;
 }
@@ -253,7 +368,8 @@
   box-shadow: inset -1px -1px #fff, inset -2px 1px #808080, inset 1px -2px #808080, inset 2px 2px #fff;
 }
 /* undo Bootstrap's big floating legends */
-.ncSettings legend {
+.ncSettings legend,
+.dndSettings legend {
   float: none;
   width: auto;
   margin: 0;

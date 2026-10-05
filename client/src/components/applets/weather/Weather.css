@@ -1,0 +1,507 @@
+/* 98ish Weather */
+
+.wxRoot {
+  position: relative;
+  height: calc(100% - 25px);
+  display: flex;
+  flex-direction: column;
+  background: #c0c0c0;
+  color: #000;
+  font-family: "Pixelated MS Sans Serif", Arial, sans-serif;
+  -webkit-font-smoothing: none;
+  font-size: 11px;
+  box-sizing: border-box;
+  overflow: hidden;
+  outline: none;
+}
+
+.wxIcon {
+  display: block;
+  flex: none;
+  image-rendering: pixelated;
+}
+
+/* the place picker row */
+.wxBar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  border-bottom: 1px solid #808080;
+  box-shadow: 0 1px 0 #fff;
+}
+
+.wxPlace {
+  flex: 1;
+  min-width: 0;
+  max-width: 360px;
+}
+
+.wxNoPlace {
+  flex: 1;
+  color: #404040;
+}
+
+.wxRoot .wxAddBtn {
+  min-width: 26px;
+  padding: 0 6px;
+  font-weight: bold;
+}
+
+.wxUnits {
+  display: inline-flex;
+  margin-left: auto;
+}
+
+.wxUnits button {
+  min-width: 34px;
+  padding: 0 6px;
+}
+
+.wxUnits button[aria-pressed="true"] {
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #0a0a0a, inset -2px -2px #dfdfdf, inset 2px 2px grey;
+  background: repeating-conic-gradient(#c0c0c0 0 25%, #fff 0 50%) 0 0 / 2px 2px;
+  font-weight: bold;
+}
+
+/* everything that scrolls */
+.wxBody {
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.wxEmpty {
+  margin: auto;
+  max-width: 320px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  text-align: center;
+  font-size: 12px;
+}
+
+/* now: a sky-blue panel, sunken like the 98 boxes */
+.wxNow {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 14px;
+  background: linear-gradient(#1e5fbf, #6fa7e8);
+  color: #fff;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px grey, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+}
+
+.wxNowMain {
+  min-width: 0;
+  text-shadow: 1px 1px 0 #0a246a;
+}
+
+.wxPlaceName {
+  font-size: 13px;
+  font-weight: bold;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wxTemp {
+  font-size: 44px;
+  line-height: 1;
+  font-weight: bold;
+  font-family: Arial, sans-serif;
+  letter-spacing: -1px;
+}
+
+.wxUnit {
+  font-size: 18px;
+  vertical-align: top;
+  margin-left: 2px;
+}
+
+.wxCond {
+  font-size: 13px;
+  margin-top: 2px;
+}
+
+.wxHiLo {
+  margin-top: 3px;
+  opacity: 0.95;
+}
+
+/* the details grid */
+.wxDetails {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 2px 8px;
+  margin: 0;
+  padding: 6px 8px;
+  background: #fff;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px grey, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+}
+
+.wxDetails > div {
+  display: flex;
+  flex-direction: column;
+  padding: 2px 0;
+  min-width: 0;
+}
+
+.wxDetails dt {
+  color: #404040;
+}
+
+.wxDetails dd {
+  margin: 0;
+  font-weight: bold;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wxGroup {
+  margin: 0;
+  padding: 4px 6px 6px;
+  min-width: 0;
+}
+
+/* undo Bootstrap's big floating legends */
+.wxGroup legend {
+  float: none;
+  width: auto;
+  margin: 0;
+  padding: 0 3px;
+  font-size: inherit;
+  line-height: inherit;
+  font-weight: bold;
+}
+
+/* the next 24 hours: scrolls sideways inside its box only */
+.wxHours {
+  list-style: none;
+  margin: 0;
+  padding: 2px 0 4px;
+  display: flex;
+  gap: 2px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  touch-action: pan-x pan-y;
+  scrollbar-width: thin;
+}
+
+.wxHour {
+  flex: none;
+  width: 48px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 3px 0;
+}
+
+.wxHour:first-child {
+  background: #dfe8f7;
+  outline: 1px dotted #000080;
+  outline-offset: -1px;
+}
+
+.wxHourTime {
+  white-space: nowrap;
+}
+
+.wxHourTemp {
+  font-weight: bold;
+}
+
+.wxPop {
+  color: #0040c0;
+  min-height: 13px;
+  white-space: nowrap;
+}
+
+/* 7 days */
+.wxDays {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.wxDay {
+  display: grid;
+  grid-template-columns: 44px 34px minmax(0, 1fr) auto 72px;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 2px;
+  border-bottom: 1px solid #a0a0a0;
+}
+
+.wxDay:last-child {
+  border-bottom: 0;
+}
+
+.wxDayName {
+  font-weight: bold;
+}
+
+.wxDayCond {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wxDayTemps {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.wxDayTemps span {
+  color: #505050;
+  margin-left: 4px;
+}
+
+/* status bar */
+.wxStatus {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 4px;
+  border-top: 1px solid #fff;
+  min-height: 20px;
+}
+
+.wxStatusText {
+  flex: 1;
+  min-width: 0;
+  padding: 1px 4px;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px grey;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wxStatusText[data-error]:not([data-error=""]) {
+  color: #800000;
+}
+
+.wxCredit {
+  flex: none;
+  color: #000080;
+  white-space: nowrap;
+  font-size: 10px;
+}
+
+/* Add a Place */
+.wxAdd {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+}
+
+.wxAddRow input {
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+}
+
+.wxResults {
+  list-style: none;
+  margin: 0;
+  padding: 2px;
+  max-height: 160px;
+  overflow-y: auto;
+  background: #fff;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px grey, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+}
+
+.wxResults button {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+  padding: 3px 6px;
+  background: #fff;
+  box-shadow: none;
+  border: 0;
+  min-height: 0;
+}
+
+.wxResults button:hover,
+.wxResults button:focus {
+  background: #000080;
+  color: #fff;
+  outline: none;
+}
+
+.wxResults button span {
+  font-size: 10px;
+}
+
+.wxMessage {
+  margin: 0;
+}
+
+.wxRoot .wxHere {
+  align-self: flex-start;
+  padding: 0 10px;
+}
+
+.wxPrivacy {
+  margin: 0;
+  color: #404040;
+  font-size: 10px;
+}
+
+.wxAbout {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  max-width: 340px;
+}
+
+/* phones */
+.wxRoot.is-mobile .wxBody {
+  padding: 6px;
+}
+
+.wxRoot.is-mobile .wxNow {
+  padding: 8px 10px;
+  gap: 10px;
+}
+
+.wxRoot.is-mobile .wxTemp {
+  font-size: 40px;
+}
+
+.wxRoot.is-mobile .wxDetails {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.wxRoot.is-mobile .wxDay {
+  grid-template-columns: 42px 34px minmax(0, 1fr) 64px;
+}
+
+.wxRoot.is-mobile .wxDay .wxPop {
+  display: none;
+}
+
+.wxRoot.is-mobile .wxCredit {
+  font-size: 9px;
+}
+
+.wxRoot.is-mobile .wxUnits button,
+.wxRoot.is-mobile .wxAddBtn {
+  min-height: 30px;
+}
+
+@media (max-width: 420px) {
+  .wxDay {
+    grid-template-columns: 42px 34px minmax(0, 1fr) 64px;
+  }
+  .wxDay .wxPop {
+    display: none;
+  }
+}
+
+/* ---- the taskbar tray ---- */
+.wxTray {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  width: auto !important;
+  padding: 0 3px !important;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.wxTray .wxIcon {
+  width: 16px;
+  height: 16px;
+}
+
+/* ---- the desktop panel ---- */
+.wxWidget,
+.wxWidget.window {
+  position: absolute;
+  right: 28px;
+  top: 16px;
+  width: 168px;
+  min-width: 0;
+  height: auto;
+  z-index: 0;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  font-family: "Pixelated MS Sans Serif", Arial, sans-serif;
+  font-size: 11px;
+  cursor: grab;
+}
+
+.wxWidget.is-mobile {
+  position: relative;
+  right: auto;
+  top: auto;
+  width: auto;
+  margin: 6px 8px 0 auto;
+  max-width: 220px;
+  cursor: default;
+}
+
+.wxWidget .title-bar {
+  padding: 2px 2px 2px 4px;
+}
+
+.wxWidgetBody {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px !important;
+  margin: 0 !important;
+  background: linear-gradient(#1e5fbf, #6fa7e8);
+  color: #fff;
+  text-shadow: 1px 1px 0 #0a246a;
+  cursor: pointer;
+}
+
+.wxWidgetTemp {
+  font-size: 22px;
+  font-weight: bold;
+  font-family: Arial, sans-serif;
+  line-height: 1;
+}
+
+.wxWidgetText {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.wxWidgetText span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wxWidgetDays {
+  display: flex;
+  justify-content: space-between;
+  padding: 2px 4px 3px;
+  background: #fff;
+}
+
+.wxWidgetDays > span {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: 10px;
+}

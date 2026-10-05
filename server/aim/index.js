@@ -177,7 +177,7 @@ const attachAim = async (io, { store, bot, ice, callRingMs, callLostMs, push = n
           renotify: true,
           url: `/?open=call&with=${encodeURIComponent(call.fromName)}`,
         },
-        { urgency: "high", ttl: 45_000 }
+        { urgency: "high", ttl: 45_000, from: call.from }
       ),
     missed: (key, notice) =>
       pushTo(key, "calls", {
@@ -193,7 +193,7 @@ const attachAim = async (io, { store, bot, ice, callRingMs, callLostMs, push = n
   }
 
   // voice and video calls (signaling only)
-  const calls = createCalls({ sessions, hidden, emitTo, limiter, ice, botKey: BOT_KEY, ringMs: callRingMs, lostMs: callLostMs, offline: callNotices })
+  const calls = createCalls({ sessions, hidden, emitTo, limiter, ice, botKey: BOT_KEY, ringMs: callRingMs, lostMs: callLostMs, offline: callNotices, allowed: push?.callAllowed ? (to, from) => push.callAllowed(to, from) : null })
 
   const broadcastPresence = (subject, online = true) => {
     const payload = online ? presenceOf(subject) : { screenName: subject.user.screenName, online: false }

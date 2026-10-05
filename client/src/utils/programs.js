@@ -43,6 +43,8 @@ export const programs = [
   // Find (search everything: utils/search.js; Start > Find, or "See all results")
   { name: "Address Book", app: "addressbook", type: "addressbook", icon: "/assets/program_icons/addressbook.svg", width: 780, height: 540, group: "Accessories", desktop: false, single: true, also: ["Community"] },
   { name: "Find", app: "find", type: "find", icon: "/assets/program_icons/find.svg", width: 660, height: 500, group: null, desktop: false, single: true },
+  // 98ish Weather (Open-Meteo forecasts; utils/weatherPrefs.js, applets/weather/)
+  { name: "Weather", app: "weather", type: "weather", icon: "/assets/program_icons/weather.svg", width: 520, height: 600, group: "Accessories", desktop: false, single: true },
   { name: "Clock", app: "clock", type: "clock", icon: "/assets/program_icons/clock.svg", width: 420, height: 500, group: "Accessories", desktop: false, single: true },
   { name: "Calculator", app: "calc", type: "calc", icon: "/assets/program_icons/calc.svg", width: 270, height: 272, group: "Accessories", desktop: false },
   { name: "Character Map", app: "charmap", type: "charmap", icon: "/assets/program_icons/charmap.svg", width: 610, height: 280, group: "System Tools", desktop: false, single: true },

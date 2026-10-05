@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from "react"
+import { dndAllowsNow } from "./dnd.js"
 
 // The Notification Center: everything that popped up (IMs, missed calls, invitations,
 // reminders, couple notices, mail, achievements, system messages), kept in this browser so
@@ -12,6 +13,10 @@ import { useSyncExternalStore } from "react"
 //          { kind: "im", with } | { kind: "call", with } | { kind: "mail" }
 //          | { kind: "calendar", calendarId?, eventId? } | { kind: "program", name, extra? }
 //          | { kind: "invites" } | { kind: "notifications" }
+//
+// Do Not Disturb (utils/dnd.js): notify() still collects everything, silently. Whatever pops
+// up or makes a sound first asks interrupts(app, from): false while it's on (calls from
+// people let through and, if chosen, calendar reminders still interrupt).
 
 const KEY = "98ish.notifications"
 const MAX = 100
@@ -29,6 +34,9 @@ export const APPS = {
   system: { name: "98ish", icon: "/assets/start98.png" },
 }
 export const appInfo = (app) => APPS[app] || APPS.system
+
+// may a toast, a sound or a ring of this kind interrupt right now? (Do Not Disturb)
+export const interrupts = (app = "system", from) => dndAllowsNow(app, from)
 
 const load = () => {
   try {
