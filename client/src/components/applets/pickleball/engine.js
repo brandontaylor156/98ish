@@ -260,6 +260,9 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
   let figures = [] // { fig, anim, player }
   let umpire = null
   let showcaseFig = null
+  // HOOK (practice): extra things on court for a practice session, from practice/layer.js
+  // ({ group, update(match, dt, figures), dispose() }); set with api.setLayer
+  let layer = null
   let status = "title" // title | playing | paused | over | showcase
   let size = { width: 0, height: 0 }
   let raf = 0
@@ -1234,6 +1237,7 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
     }
     if (match) {
       updateFigures(status === "paused" ? 0 : dt)
+      layer?.update(mode === "demo" ? null : match, status === "paused" ? 0 : dt, figures)
       updateBall()
       updateAid()
       updateMeters()
@@ -1518,6 +1522,21 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
         setAim(match, null, slot, Math.hypot(dx, dy) > 0.12 ? screenNudge(p, dx, dy) : null)
       }
     },
+    // HOOK (practice): put a practice layer on court (practice/layer.js), or null to take it
+    // off; the engine calls layer.update(match, dt, figures) every frame (match is null
+    // during the title's demo) and disposes the old one
+    setLayer(next) {
+      if (layer === next) return
+      if (layer) {
+        scene.remove(layer.group)
+        layer.dispose()
+      }
+      layer = next || null
+      if (layer) {
+        scene.add(layer.group)
+        warm()
+      }
+    },
     skipReplay() {
       endReplay()
     },
@@ -1623,6 +1642,7 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
       clearFigures()
       umpire?.dispose()
       showcaseFig?.fig.dispose()
+      layer?.dispose()
       venue.dispose()
       scene.traverse((o) => {
         o.geometry?.dispose()
