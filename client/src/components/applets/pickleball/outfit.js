@@ -892,8 +892,9 @@ export const reshapeBody = (body, joints, m, k) => {
     }
     const base = Object.keys(LIMB_SEGMENTS).find((b) => name.startsWith(b + "_"))
     if (base) {
-      const side = name.slice(base.length)
-      const a = joints[name]
+      // (a twist bone, lowerarm_twist_01_l: its limb's own joints)
+      const side = name.slice(-2)
+      const a = joints[base + side]
       const b = joints[LIMB_SEGMENTS[base] + side]
       if (!a || !b) return [x, y, z]
       const dx = b.x - a.x

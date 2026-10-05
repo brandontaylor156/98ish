@@ -304,7 +304,7 @@ const script = (state, x, z, { hand = 1, twoHand = false } = {}) => {
 }
 
 // eye / at: [x, y, dz] a camera of your own (dz from the lineup's z), with fov
-export const studioShot = (ctx, { looks = [{}], state = "ready", cam = "close", z = -4.6, spacing, eye, at = [0, 1, 0], fov, T, follow = false, mm = true } = {}) => {
+export const studioShot = (ctx, { looks = [{}], state = "ready", cam = "close", z = -4.6, spacing, eye, at = [0, 1, 0], fov, T, follow = false, mm = true, noPaddle = false, focus = null } = {}) => {
   const { scene, camera, renderer, size, makeFigure, shadows } = ctx
   for (const f of lineup) {
     scene.remove(f.fig.group, f.ball)
@@ -319,6 +319,7 @@ export const studioShot = (ctx, { looks = [{}], state = "ready", cam = "close", 
     const x = (i - (n - 1) / 2) * gap
     const fig = makeFigure(look, { shadows })
     scene.add(fig.group)
+    if (noPaddle && fig.debug?.paddle) fig.debug.paddle.visible = false
     const sc = script(state, x, z, { hand: look.plays === "left" ? -1 : 1, twoHand: look.backhand === "two" })
     if (T !== undefined) sc.T = T
     const s0 = sc.at(0)
@@ -346,6 +347,8 @@ export const studioShot = (ctx, { looks = [{}], state = "ready", cam = "close", 
       planted: [pose.footL.planted, pose.footR.planted],
       pelvis: { x: pose.pelvis.x, z: pose.pelvis.z },
       metrics: poseMetrics(pose),
+      arms: fig.probeArms ? fig.probeArms() : null,
+      info: pose.info ? { phase: pose.info.phase, stroke: pose.info.stroke, ready: pose.info.ready, between: pose.info.between, footL: pose.footL, footR: pose.footR, yaw: pose.yaw } : null,
     })
   })
   // the camera
@@ -372,7 +375,15 @@ export const studioShot = (ctx, { looks = [{}], state = "ready", cam = "close", 
     camera.lookAt(0, 0.95, z)
     camera.fov = Math.max(2 * Math.atan(1.15 / d), 2 * Math.atan((wide / 2 + 0.75) / aspect / d)) * (180 / Math.PI)
   }
-  if (eye) {
+  if (eye && focus && out[0]?.arms) {
+    // (focus: "hand_l" / "hand_r" / "elbow_l"...: the camera looks at that joint from eye's offset)
+    const [what, sd] = focus.split("_")
+    const a = out[0].arms[sd]
+    const p = what === "elbow" ? a.elbowP : what === "shoulder" ? a.shoulder : a.wrist
+    camera.position.set(p.x + eye[0], p.y + eye[1], p.z + eye[2])
+    camera.lookAt(p.x, p.y, p.z)
+    camera.fov = fov || 30
+  } else if (eye) {
     // (follow: the camera rides along with the first figure, for filmstrips)
     const o = follow && out[0]?.pelvis ? { x: out[0].pelvis.x, z: out[0].pelvis.z - z } : { x: 0, z: 0 }
     camera.position.set(o.x + eye[0], eye[1], z + o.z + eye[2])
