@@ -800,7 +800,7 @@ export const createWorld = ({ makeFigure, quality = "medium", phone = false, me:
     // the closest in view get the real athletes
     // (watching a court: its four players first, whatever the budget; walking: you always)
     const watched = me.mode === "watch" ? courts[me.watching] : null
-    const ranked = list.filter((b) => b.inView && (b.dist < FULL_DIST || (watched && b.court === watched))).sort((a, c) => (watched ? (c.court === watched) - (a.court === watched) : 0) || a.dist - c.dist)
+    const ranked = list.filter((b) => (b.inView && b.dist < FULL_DIST) || (watched && b.court === watched)).sort((a, c) => (watched ? (c.court === watched) - (a.court === watched) : 0) || a.dist - c.dist)
     const fullSet = new Set(ranked.slice(0, Math.max(dev.budget ?? budget, watched && dev.budget === null ? 4 : 0)))
     if (me.mode !== "watch" || meBody.inView) fullSet.add(meBody)
     let fullIndex = 0
@@ -1054,9 +1054,13 @@ export const createWorld = ({ makeFigure, quality = "medium", phone = false, me:
       const ix = input.x + (kx / kl) * 0.85
       const iy = input.y + (ky / kl) * 0.85
       stepWalker(me.walker, { x: ix, y: iy, sprint: input.sprint || keys.has("ShiftLeft") || keys.has("ShiftRight") }, follow.yaw, dt)
-      const near = []
-      for (const b of bodies.values()) if (!b.isMe && !b.hidden && b.mode === "walk" && !b.seat && Math.abs(b.x - me.walker.x) < 1 && Math.abs(b.z - me.walker.z) < 1) near.push(b)
-      keepApart(me.walker, near)
+      // you can't walk through people, but nothing moves you while you aren't moving (the
+      // owner's rule): standing still, the others steer around you instead
+      if (Math.hypot(ix, iy) > 0.02) {
+        const near = []
+        for (const b of bodies.values()) if (!b.isMe && !b.hidden && b.mode === "walk" && !b.seat && Math.abs(b.x - me.walker.x) < 1 && Math.abs(b.z - me.walker.z) < 1) near.push(b)
+        keepApart(me.walker, near)
+      }
       meBody.x = me.walker.x
       meBody.z = me.walker.z
       meBody.vx = me.walker.vx
