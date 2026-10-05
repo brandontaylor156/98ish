@@ -145,3 +145,16 @@ and cloth lighting.
 
 Medium (and every phone) loads about 5.1 MB in all (bodies 0.9 + hair 1.2 + motion 2.9 +
 moves 0.06); High adds the detailed bodies (1.6 MB) after the game is up: about 6.7 MB.
+
+## The ball sounds (pb11, 2026-10-04)
+
+No audio files are shipped: the paddle hit, bounce, net, fence and paddle-tap sounds are
+synthesized in the browser (`pbsound.js`). Their mix was fitted to an analysis of one CC0
+field recording, used only as a measurement reference (nothing from it is in the game or
+the repository):
+
+| Recording | Source | License | Used for |
+| --- | --- | --- | --- |
+| "PickleBall.m4a" by fkunze (two outdoor games, Minnesota) | https://freesound.org/people/fkunze/sounds/547092/ | CC0 1.0 (https://creativecommons.org/publicdomain/zero/1.0/) | average spectra and decay times of paddle hits and bounces (`DESIGN.md`, "The sound") |
+
+License checked on the Freesound page on 2026-10-04.

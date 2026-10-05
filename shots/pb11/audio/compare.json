@@ -1,0 +1,280 @@
+{
+ "research": {
+  "paddleModeHz": "980-1477 (Bacon et al. 2025), ~1250 (JASA 2024), 1000-1200 (POMA 2024)",
+  "onsetMs": "1-2",
+  "tailMs": "10-20",
+  "recordingHitPeakHz": 1289,
+  "recordingHitDecay20Ms": 10,
+  "recordingLowPeakHz": 750
+ },
+ "sounds": {
+  "hit-dink": {
+   "new": {
+    "peakF": 1236,
+    "aPeakF": 1236,
+    "centroid": 1303,
+    "under750": 0.41,
+    "over2k": 0.16,
+    "peak": 0.142,
+    "attackMs": 0.5,
+    "decay20Ms": 2,
+    "decay40Ms": 12.5
+   },
+   "old": {
+    "peakF": 1178,
+    "aPeakF": 1178,
+    "centroid": 1168,
+    "under750": 0,
+    "over2k": 0,
+    "peak": 0.174,
+    "attackMs": 1,
+    "decay20Ms": 33,
+    "decay40Ms": 67
+   }
+  },
+  "hit-drive": {
+   "new": {
+    "peakF": 1230,
+    "aPeakF": 1230,
+    "centroid": 1588,
+    "under750": 0.09,
+    "over2k": 0.15,
+    "peak": 0.398,
+    "attackMs": 0,
+    "decay20Ms": 5,
+    "decay40Ms": 17.5
+   },
+   "old": {
+    "peakF": 1330,
+    "aPeakF": 1330,
+    "centroid": 1314,
+    "under750": 0,
+    "over2k": 0,
+    "peak": 0.316,
+    "attackMs": 0.5,
+    "decay20Ms": 36.5,
+    "decay40Ms": 73
+   }
+  },
+  "hit-volley": {
+   "new": {
+    "peakF": 1230,
+    "aPeakF": 1230,
+    "centroid": 1719,
+    "under750": 0.17,
+    "over2k": 0.21,
+    "peak": 0.28,
+    "attackMs": 0,
+    "decay20Ms": 5,
+    "decay40Ms": 15.5
+   },
+   "old": {
+    "peakF": 1266,
+    "aPeakF": 1266,
+    "centroid": 1252,
+    "under750": 0,
+    "over2k": 0,
+    "peak": 0.251,
+    "attackMs": 0.5,
+    "decay20Ms": 36,
+    "decay40Ms": 70
+   }
+  },
+  "hit-smash": {
+   "new": {
+    "peakF": 1230,
+    "aPeakF": 1230,
+    "centroid": 1542,
+    "under750": 0.02,
+    "over2k": 0.11,
+    "peak": 0.835,
+    "attackMs": 0,
+    "decay20Ms": 4,
+    "decay40Ms": 16.5
+   },
+   "old": {
+    "peakF": 1535,
+    "aPeakF": 1535,
+    "centroid": 1541,
+    "under750": 0,
+    "over2k": 0,
+    "peak": 0.413,
+    "attackMs": 0.5,
+    "decay20Ms": 37.5,
+    "decay40Ms": 75.5
+   }
+  },
+  "hit-lob": {
+   "new": {
+    "peakF": 1230,
+    "aPeakF": 1230,
+    "centroid": 1312,
+    "under750": 0.3,
+    "over2k": 0.12,
+    "peak": 0.208,
+    "attackMs": 3,
+    "decay20Ms": 5,
+    "decay40Ms": 14.5
+   },
+   "old": {
+    "peakF": 1225,
+    "aPeakF": 1225,
+    "centroid": 1214,
+    "under750": 0,
+    "over2k": 0,
+    "peak": 0.224,
+    "attackMs": 0.5,
+    "decay20Ms": 35,
+    "decay40Ms": 68.5
+   }
+  },
+  "hit-mishit": {
+   "new": {
+    "peakF": 1102,
+    "aPeakF": 1102,
+    "centroid": 1454,
+    "under750": 0.36,
+    "over2k": 0.19,
+    "peak": 0.332,
+    "attackMs": 0,
+    "decay20Ms": 3,
+    "decay40Ms": 14
+   },
+   "old": {
+    "peakF": 1307,
+    "aPeakF": 1307,
+    "centroid": 1294,
+    "under750": 0,
+    "over2k": 0,
+    "peak": 0.314,
+    "attackMs": 0.5,
+    "decay20Ms": 34.5,
+    "decay40Ms": 71
+   }
+  },
+  "bounce": {
+   "new": {
+    "peakF": 697,
+    "aPeakF": 697,
+    "centroid": 1185,
+    "under750": 0.62,
+    "over2k": 0.12,
+    "peak": 0.108,
+    "attackMs": 0.5,
+    "decay20Ms": 6.5,
+    "decay40Ms": 15
+   },
+   "old": {
+    "peakF": 451,
+    "aPeakF": 451,
+    "centroid": 457,
+    "under750": 1,
+    "over2k": 0,
+    "peak": 0.134,
+    "attackMs": 1,
+    "decay20Ms": 21,
+    "decay40Ms": 41.5
+   }
+  },
+  "bounce-hard": {
+   "new": {
+    "peakF": 697,
+    "aPeakF": 697,
+    "centroid": 1184,
+    "under750": 0.62,
+    "over2k": 0.12,
+    "peak": 0.174,
+    "attackMs": 0.5,
+    "decay20Ms": 7.5,
+    "decay40Ms": 16.5
+   },
+   "old": {
+    "peakF": 451,
+    "aPeakF": 457,
+    "centroid": 462,
+    "under750": 0.99,
+    "over2k": 0,
+    "peak": 0.176,
+    "attackMs": 0.5,
+    "decay20Ms": 21,
+    "decay40Ms": 38.5
+   }
+  },
+  "net": {
+   "new": {
+    "peakF": 164,
+    "aPeakF": 656,
+    "centroid": 922,
+    "under750": 0.68,
+    "over2k": 0.14,
+    "peak": 0.185,
+    "attackMs": 4,
+    "decay20Ms": 37,
+    "decay40Ms": 107
+   },
+   "old": {
+    "peakF": 205,
+    "aPeakF": 867,
+    "centroid": 823,
+    "under750": 0.48,
+    "over2k": 0.02,
+    "peak": 0.133,
+    "attackMs": 36.5,
+    "decay20Ms": 9.5,
+    "decay40Ms": 53
+   }
+  },
+  "tape": {
+   "new": {
+    "peakF": 164,
+    "aPeakF": 656,
+    "centroid": 927,
+    "under750": 0.66,
+    "over2k": 0.13,
+    "peak": 0.279,
+    "attackMs": 0.5,
+    "decay20Ms": 24.5,
+    "decay40Ms": 103
+   },
+   "old": {
+    "peakF": 369,
+    "aPeakF": 680,
+    "centroid": 830,
+    "under750": 0.59,
+    "over2k": 0.02,
+    "peak": 0.138,
+    "attackMs": 10,
+    "decay20Ms": 1.5,
+    "decay40Ms": 40.5
+   }
+  },
+  "fence": {
+   "new": {
+    "peakF": 2818,
+    "aPeakF": 2818,
+    "centroid": 2681,
+    "under750": 0.15,
+    "over2k": 0.79,
+    "peak": 0.357,
+    "attackMs": 0.5,
+    "decay20Ms": 48.5,
+    "decay40Ms": 209
+   },
+   "old": null
+  },
+  "paddle-tap": {
+   "new": {
+    "peakF": 1178,
+    "aPeakF": 1178,
+    "centroid": 984,
+    "under750": 0.22,
+    "over2k": 0,
+    "peak": 0.063,
+    "attackMs": 0.5,
+    "decay20Ms": 3.5,
+    "decay40Ms": 11.5
+   },
+   "old": null
+  }
+ }
+}

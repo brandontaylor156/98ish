@@ -9,7 +9,10 @@ import { RulesPrimer } from "./RulesPrimer"
 import { TitleMenu, QuickMenu, PlayersMenu, TourMenu, VersusMenu, SettingsMenu, ControlsMenu, LEVEL_NAMES, TIMING } from "./menus"
 import { ScoreBug, Banner, HintLine, shotBanner, Meter, ReplayBug, TutorialPanel, OverScreen } from "./hud"
 import { clearBanners, emptyBanners, nextBannerAt, pushBanner, tickBanners } from "./banner.js"
-import { layoutKey, touchControlsFor, touchPrefs } from "./touchplay.js"
+import { layoutKey, readSwipe, touchControlsFor, touchPrefs } from "./touchplay.js"
+import { createTrailCanvas } from "./trailcanvas.js"
+import { SHOT_COLORS, bandOf, swipeLook } from "./swipetrail.js"
+import { paceOf } from "./shots.js"
 import { SchemeChooser } from "./SchemeChooser"
 import { PracticeHub, FirstTimeOffer } from "./practice/PracticeHub"
 import { PracticeHud } from "./practice/PracticeHud"
@@ -54,6 +57,8 @@ const DEFAULTS = {
   padSide: "left",
   // the paddle's path drawn through each of your swings
   trail: true,
+  // touch: your finger's swipe drawn on the screen (Classic: a ripple where you touch)
+  swipeTrail: true,
   // the one hint line shows for your first few points
   hintPoints: 0,
   // Medium shows the skinned athletes; phones can drop to Low (the old figures) in Settings
@@ -107,6 +112,7 @@ const readPrefs = () => {
   p.assist = "reflex"
   Object.assign(p, touchPrefs(p))
   p.trail = p.trail !== false
+  p.swipeTrail = p.swipeTrail !== false
   p.hintPoints = Number(p.hintPoints) || 0
   p.looks = validateLooks(p.looks)
   if (!["own", "random"].includes(p.aiLooks)) p.aiLooks = "own"
@@ -235,12 +241,14 @@ const Pickleball = ({ onClose, mobile }) => {
     if (s?.kind === "train" && (e.type === "line" || e.type === "rally" || e.type === "point" || e.type === "call")) return
     switch (e.type) {
       case "hit":
+        if (e.mine && e.slot === 0) trailApi.current?.resolve(e.kind)
         // (a practice drill labels each shot itself)
         if (e.mine) !(s?.kind === "train" && !s.plan?.spec?.play) && say(shotBanner(e))
         // they attacked: hands up
         else if (e.theirs && (e.tag === "speedup" || e.tag === "counter")) callout("Hands up!", "bad", 650, "line")
         break
       case "whiff":
+        if (e.slot === 0) trailApi.current?.resolve(null, true)
         callout("Swing and a miss!", "bad", 1000)
         break
       case "line":
@@ -641,6 +649,9 @@ const Pickleball = ({ onClose, mobile }) => {
   const knobRef = useRef(null)
   const aimTouch = useRef(null)
   const swipeTouch = useRef(null) // Swipe: { id, pts: [{ x, y, t }] }
+  const trailRef = useRef(null) // the swipe trail's canvas (swipetrail.js)
+  const trailApi = useRef(null)
+  const classicDown = useRef(0) // Classic: when the finger went down (for the release ripple's pace)
   const schemeRef = useRef(prefs.scheme)
   schemeRef.current = prefs.scheme || "swipe"
   useEffect(() => {
@@ -652,9 +663,12 @@ const Pickleball = ({ onClose, mobile }) => {
       if (!aimTouch.current && !swipeTouch.current && e.target.closest?.('[data-control="hit"], [data-control="hitTop"]')) {
         if (schemeRef.current === "swipe") {
           swipeTouch.current = { id: e.pointerId, pts: [{ x: e.clientX, y: e.clientY, t: performance.now() }] }
+          trailApi.current?.start(swipeTouch.current.pts[0])
           engineRef.current?.swipe("start", swipeTouch.current.pts)
           return
         }
+        classicDown.current = performance.now()
+        trailApi.current?.ripple(e.clientX, e.clientY)
         aimTouch.current = e.pointerId
         engineRef.current?.touchAim("start", e.clientX, e.clientY)
         return
@@ -669,6 +683,14 @@ const Pickleball = ({ onClose, mobile }) => {
       if (sw && sw.id === e.pointerId) {
         sw.pts.push({ x: e.clientX, y: e.clientY, t: performance.now() })
         if (sw.pts.length > 64) sw.pts.splice(1, 1)
+        // the trail: every coalesced point (a fast flick between frames still draws its
+        // curve), tinted by the pace swiped so far
+        if (trailApi.current) {
+          const r = stage.getBoundingClientRect()
+          const tint = swipeLook(readSwipe(sw.pts, { width: r.width, height: r.height })).color
+          const evs = e.getCoalescedEvents?.() || []
+          for (const c of evs.length ? evs : [e]) trailApi.current.move({ x: c.clientX, y: c.clientY, t: performance.now() }, tint)
+        }
         engineRef.current?.swipe("move", sw.pts)
         return
       }
@@ -694,12 +716,20 @@ const Pickleball = ({ onClose, mobile }) => {
       const sw = swipeTouch.current
       if (sw && sw.id === e.pointerId) {
         swipeTouch.current = null
-        sw.pts.push({ x: e.clientX, y: e.clientY, t: performance.now() })
+        const last = { x: e.clientX, y: e.clientY, t: performance.now() }
+        sw.pts.push(last)
+        if (e.type === "pointercancel") trailApi.current?.cancel()
+        else {
+          const r = stage.getBoundingClientRect()
+          trailApi.current?.end(last, readSwipe(sw.pts, { width: r.width, height: r.height }))
+        }
         engineRef.current?.swipe(e.type === "pointercancel" ? "cancel" : "end", sw.pts)
         return
       }
       if (aimTouch.current === e.pointerId) {
         aimTouch.current = null
+        // (the release: a bigger ripple in the color of the pace you held)
+        if (e.type !== "pointercancel") trailApi.current?.ripple(e.clientX, e.clientY, SHOT_COLORS[bandOf(paceOf((performance.now() - classicDown.current) / 1000))], true)
         engineRef.current?.touchAim("end")
         return
       }
@@ -732,6 +762,24 @@ const Pickleball = ({ onClose, mobile }) => {
       stage.removeEventListener("pointercancel", up, true)
     }
   }, [showPad])
+
+  // the swipe trail's canvas (touch screens only)
+  useEffect(() => {
+    if (!showPad || !trailRef.current) return
+    const t = createTrailCanvas(trailRef.current)
+    trailApi.current = t
+    trailRef.current.__trail = t // (tests)
+    return () => {
+      t.dispose()
+      if (trailApi.current === t) trailApi.current = null
+    }
+  }, [showPad])
+  useEffect(() => trailApi.current?.setEnabled(prefs.swipeTrail !== false), [prefs.swipeTrail, showPad])
+  // Swipe on a touch screen: no aim dot on the court (the trail is the feedback)
+  const swipeAim = showPad && (prefs.scheme || "swipe") === "swipe"
+  useEffect(() => {
+    engineRef.current?.setSettings({ swipeAim })
+  }, [swipeAim, phase])
 
   const padSide = prefs.padSide
   const scheme = prefs.scheme || "swipe"
@@ -796,6 +844,7 @@ const Pickleball = ({ onClose, mobile }) => {
         { label: "Umpire Voice", checked: prefs.voice, onClick: () => setPrefs({ voice: !prefs.voice }) },
         { label: "Shot Guides", checked: prefs.aid, onClick: () => setPrefs({ aid: !prefs.aid }) },
         { label: "Swing Trail", checked: prefs.trail, onClick: () => setPrefs({ trail: !prefs.trail }) },
+        { label: "Show Swipe Trail", checked: prefs.swipeTrail, disabled: !showPad, onClick: () => setPrefs({ swipeTrail: !prefs.swipeTrail }) },
         { label: "Instant Replays", checked: prefs.replays, onClick: () => setPrefs({ replays: !prefs.replays }) },
         "-",
         ...[
@@ -860,6 +909,7 @@ const Pickleball = ({ onClose, mobile }) => {
       <GameChat game="pickleball" title="Pickleball 98" room={online.chatRoom} />
       <div className="pkStage" ref={stageRef} tabIndex={0} data-phase={phase} data-screen={screen}>
         <canvas className="pkCanvas" ref={canvasRef} aria-label="Pickleball court" />
+        {showPad && <canvas className="pkSwipeTrail" ref={trailRef} aria-hidden="true" />}
 
         {phase === "loading" && <div className="pkCenter pkLoading">Loading the court...</div>}
         {phase === "error" && (

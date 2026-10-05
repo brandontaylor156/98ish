@@ -393,7 +393,8 @@ export const SettingsMenu = ({ prefs, setPrefs, onBack, onControls, showPad, onT
         {[
           ["sound", "Sound"],
           ["voice", "Umpire voice"],
-          ["aid", "Shot guides (landing spot, aim ring and arc)"],
+          ["aid", "Shot guides (where the ball lands, your aim dot)"],
+          ["swipeTrail", "Show swipe trail (touch: your finger's path; Classic: a ripple)"],
           ["trail", "Swing trail (your paddle's path)"],
           ["replays", "Instant replays"],
           ["cuts", "TV camera cuts to the server between points"],

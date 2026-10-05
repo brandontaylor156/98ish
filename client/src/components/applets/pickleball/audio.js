@@ -1,11 +1,17 @@
-// Pickleball 98's sounds, synthesized (no audio files): the hollow "pock" of a paddle on a
-// plastic ball, the softer tick of a bounce, the net, sneaker squeaks, a crowd (a murmur,
-// applause, cheers and an "ooh"), little chimes, and the umpire's voice (the browser's own
-// speech synthesis, when it has one). Follows the system sound setting and the taskbar
-// volume (utils/settings.js).
+// Pickleball 98's sounds, synthesized (no audio files). The ball: a paddle hit, a bounce,
+// the net, the fence and paddle taps are modal syntheses fitted to real pickleball (pbsound.js
+// has the research and the numbers), rendered into AudioBuffers (a few variations each,
+// cached) and played with the distance's level and high cut, a pan and a little room. Then
+// sneaker squeaks, a crowd (a murmur, applause, cheers and an "ooh"), little chimes, and the
+// umpire's voice (the browser's own speech synthesis, when it has one). Follows the system
+// sound setting and the taskbar volume (utils/settings.js).
 
 import { getSettings, masterGain } from "../../../utils/settings"
 import { getAudioContext, masterOutput } from "../../../utils/audio"
+import { contactOf, distanceMix, hashKey, renderVoice, rng, roomFor, shotFamily, strengthOf, voiceFor } from "./pbsound.js"
+
+const VARIANTS = 4 // renders kept per sound (each a little different)
+const BANK_MAX = 160 // sounds kept (the oldest go first)
 
 export const createAudio = () => {
   let ctx = null
@@ -15,6 +21,10 @@ export const createAudio = () => {
   let voice = true
   let crowdLevel = 0 // how big the crowd is (0 = nobody)
   let murmur = null
+  let room = null // { conv, wet }
+  let roomVenue = "park"
+  const bank = new Map() // voice key -> [AudioBuffer]
+  const recent = [] // the last ball sounds played (tests and the dev hook)
 
   // on the page's shared AudioContext; this game's own gain (so closing it can cut its
   // crowd) into the taskbar volume
@@ -28,38 +38,95 @@ export const createAudio = () => {
       noise = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 1.5), ctx.sampleRate)
       const d = noise.getChannelData(0)
       for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1
+      makeRoom()
     }
     if (ctx.state !== "running") ctx.resume().catch(() => {})
     return ctx
   }
 
-  // a burst of filtered noise plus a falling tone: the hollow plastic "pock"
-  const knock = ({ freq, q, tone, toneEnd, decay, level }) => {
+  // the court's surroundings: a short stereo impulse response (early reflections off the
+  // court and the fence, then a quick tail; the stadium's stands ring longer)
+  const makeRoom = () => {
+    if (!ctx) return
+    try {
+      room?.conv.disconnect()
+      room?.wet.disconnect()
+    } catch {
+      // never connected
+    }
+    const def = roomFor(roomVenue)
+    const sr = ctx.sampleRate
+    const n = Math.max(1, Math.round(sr * def.len))
+    const ir = ctx.createBuffer(2, n, sr)
+    const r = rng(hashKey(roomVenue))
+    for (let ch = 0; ch < 2; ch++) {
+      const d = ir.getChannelData(ch)
+      for (let k = 0; k < 6; k++) {
+        const at = Math.round(sr * (0.004 + r() * 0.03 + k * 0.006))
+        if (at < n) d[at] += (r() < 0.5 ? -1 : 1) * (0.5 - k * 0.06)
+      }
+      for (let i = 0; i < n; i++) d[i] += (r() * 2 - 1) * 0.25 * Math.exp((-6.9 * i) / n)
+    }
+    const conv = ctx.createConvolver()
+    conv.normalize = true
+    conv.buffer = ir
+    const wet = ctx.createGain()
+    wet.gain.value = def.wet
+    conv.connect(wet).connect(out)
+    room = { conv, wet }
+  }
+
+  // a cached render of a sound (`variant` picks one of a few)
+  const bufferFor = (v, variant) => {
+    let list = bank.get(v.key)
+    if (!list) {
+      list = []
+      bank.set(v.key, list)
+      if (bank.size > BANK_MAX) bank.delete(bank.keys().next().value)
+    }
+    if (!list[variant]) {
+      const r = rng(hashKey(v.key) + variant * 7919)
+      const samples = renderVoice(v.make(r), ctx.sampleRate, r)
+      const b = ctx.createBuffer(1, samples.length, ctx.sampleRate)
+      b.getChannelData(0).set(samples)
+      list[variant] = b
+    }
+    return list[variant]
+  }
+
+  // play a ball sound now. where: { dist (m from the listener), side (-1 left .. 1 right) }
+  const playVoice = (type, opts, where = {}) => {
     const c = ready()
-    if (!c) return
-    const t = c.currentTime + 0.002
+    if (!c) return null
+    const v = voiceFor(type, opts)
+    const buf = bufferFor(v, Math.floor(Math.random() * VARIANTS))
+    const mix = distanceMix(where)
     const src = c.createBufferSource()
-    src.buffer = noise
-    const band = c.createBiquadFilter()
-    band.type = "bandpass"
-    band.frequency.value = freq
-    band.Q.value = q
-    const ng = c.createGain()
-    ng.gain.setValueAtTime(level, t)
-    ng.gain.exponentialRampToValueAtTime(0.001, t + decay * 0.6)
-    src.connect(band).connect(ng).connect(out)
-    src.start(t, Math.random() * 1.2)
-    src.stop(t + decay)
-    const osc = c.createOscillator()
-    osc.type = "sine"
-    osc.frequency.setValueAtTime(tone, t)
-    osc.frequency.exponentialRampToValueAtTime(toneEnd, t + decay)
-    const og = c.createGain()
-    og.gain.setValueAtTime(level * 0.55, t)
-    og.gain.exponentialRampToValueAtTime(0.001, t + decay)
-    osc.connect(og).connect(out)
-    osc.start(t)
-    osc.stop(t + decay + 0.02)
+    src.buffer = buf
+    // (each one a hair different in pitch, as real ones are)
+    src.playbackRate.value = 1 + (Math.random() - 0.5) * 0.024
+    const g = c.createGain()
+    g.gain.value = mix.gain * (0.94 + Math.random() * 0.12)
+    let node = src
+    if (mix.cutoff < 14000) {
+      const lp = c.createBiquadFilter()
+      lp.type = "lowpass"
+      lp.frequency.value = mix.cutoff
+      lp.Q.value = 0.5
+      node = node.connect(lp)
+    }
+    node = node.connect(g)
+    if (c.createStereoPanner && mix.pan) {
+      const p = c.createStereoPanner()
+      p.pan.value = mix.pan
+      node = node.connect(p)
+    }
+    node.connect(out)
+    if (room) node.connect(room.conv)
+    src.start(c.currentTime)
+    recent.push({ type, key: v.key, t: c.currentTime, gain: +g.gain.value.toFixed(3), cutoff: mix.cutoff, pan: +mix.pan.toFixed(2) })
+    if (recent.length > 40) recent.shift()
+    return v.key
   }
 
   // shaped noise: a cheer, applause, the murmur
@@ -130,18 +197,44 @@ export const createAudio = () => {
     setVoice(on) {
       voice = on
     },
-    // a paddle hit; strength 0..1 (a dink is a soft tick, a drive a sharp crack); a perfect
-    // hit rings a little brighter
+    // the court's surroundings (a venue id): how much room the ball sounds get
+    setRoom(venue) {
+      if (venue === roomVenue) return
+      roomVenue = venue
+      if (ctx) makeRoom()
+    },
+    // a paddle hit: the "hit" event ({ kind, paddle, speed, volley, grade }) and where it was
+    // heard ({ dist, side, design: the hitter's paddle, from the Locker Room })
+    hit(e = {}, where = {}) {
+      return playVoice("hit", { s: strengthOf(e), family: shotFamily(e.kind, e.volley), contact: contactOf(e.grade), design: where.design }, where)
+    },
+    // (older callers: strength 0..1, a perfect hit)
     pock(strength = 0.5, perfect = false) {
-      const s = Math.max(0.1, Math.min(1, strength))
-      knock({ freq: 1150 + s * 500 + (perfect ? 250 : 0), q: perfect ? 9 : 6, tone: 1250 + s * 300 + (perfect ? 200 : 0), toneEnd: 700, decay: 0.07 + s * 0.03, level: 0.25 + s * 0.45 })
+      return playVoice("hit", { s: strength, family: "drive", contact: perfect ? "sweet" : "normal" })
     },
-    bounce(strength = 0.5) {
-      const s = Math.max(0.05, Math.min(1, strength))
-      knock({ freq: 700 + s * 300, q: 4, tone: 520, toneEnd: 300, decay: 0.05, level: 0.1 + s * 0.25 })
+    bounce(strength = 0.5, where = {}) {
+      return playVoice("bounce", { s: strength }, where)
     },
-    net() {
-      noiseBurst({ dur: 0.22, attack: 0.005, freq: 900, type: "lowpass", level: 0.3 })
+    // into the net, or off the tape (the cord)
+    net(tape = false, where = {}, strength = 0.5) {
+      return playVoice("net", { s: strength, tape: !!tape }, where)
+    },
+    // off the chain-link fence
+    fence(strength = 0.5, where = {}) {
+      return playVoice("fence", { s: strength }, where)
+    },
+    // partners' paddles touching between points
+    paddleTap(where = {}) {
+      return playVoice("tap", { design: where.design }, where)
+    },
+    // (tests) the last ball sounds, and how many renders are cached
+    get recent() {
+      return recent.slice()
+    },
+    get banked() {
+      let n = 0
+      for (const l of bank.values()) n += l.filter(Boolean).length
+      return n
     },
     // a sneaker on a hard court
     squeak(strength = 0.5) {
@@ -272,6 +365,8 @@ export const createAudio = () => {
       }
       ctx = null
       out = null
+      room = null
+      bank.clear()
     },
   }
   return api
