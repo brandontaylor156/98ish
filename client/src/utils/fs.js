@@ -101,6 +101,8 @@ export const FILE_TYPE = {
   camera: "camera",
   photos: "photos",
   addressbook: "addressbook",
+  notes: "notes",
+  tasks: "tasks",
   find: "find",
   vcard: "vcard", // a contact card (.vcf): its vCard text in textContent; opens in the Address Book
 }
@@ -645,6 +647,8 @@ const DEFAULT_ITEMS = [
   ["C:/Programs/Camera", "file", "camera"],
   ["C:/Programs/Photos", "file", "photos"],
   ["C:/Programs/Address Book", "file", "addressbook"],
+  ["C:/Programs/Notes", "file", "notes"],
+  ["C:/Programs/Tasks", "file", "tasks"],
   ["C:/Programs/Compass", "file", "compass"],
   // Camera saves here; Photos opens here
   ["C:/My Pictures", "dir", "folder"],

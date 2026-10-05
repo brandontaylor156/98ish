@@ -1,8 +1,8 @@
 // 98ish realtime server: the 98 Messenger (AIM-style) service on Socket.io, plus Network
 // Neighborhood (file sharing, WinPopup, network games), the guestbook's HTTP API, and
 // couples (server/couples: pairing, love letters, Our Story, flowers), and shared
-// calendars (server/calendar), Web Push notifications (server/push), and the Address Book's
-// online copy (server/contacts), and Compass's web relay (server/web: WEB_* env vars, see there).
+// calendars (server/calendar), Web Push notifications (server/push), the Address Book's
+// online copy (server/contacts), Notes (server/notes), and Compass's web relay (server/web: WEB_* env vars, see there).
 // Env: PORT, MONGODB_URI (accounts, guestbook and online drives; kept in memory without it),
 // VAPID_PUBLIC_KEY + VAPID_PRIVATE_KEY + VAPID_SUBJECT (push notifications; off without them),
 // DRIVE_SYNC_QUOTA_MB and DRIVE_SYNC_MAX_FILE_MB (file sync, see server/drive/sync.js),
@@ -31,6 +31,7 @@ const { petRouter } = require("./server/pet")
 const { calendarRouter, attachCalendar } = require("./server/calendar")
 const { defaultPush } = require("./server/push")
 const { contactsRouter } = require("./server/contacts")
+const { notesService } = require("./server/notes")
 const { createWeb } = require("./server/web")
 const { defaultRecords } = require("./server/web/records")
 const { refuseOpaqueOrigins, allowSocketRequest } = require("./server/web/origins")
@@ -73,6 +74,9 @@ app.use("/api/couples", couplesRouter())
 app.use("/api/calendar", calendarRouter())
 const push = defaultPush()
 app.use("/api/push", push.router())
+// Notes (sticky notes, shared with buddies); Tasks are to-do events in Calendar
+const notes = notesService({ aim: () => aim, push })
+app.use("/api/notes", notes.router())
 const dollhouse = dollhouseRouter()
 app.use("/api/dollhouse", dollhouse)
 const town = townRouter()
@@ -129,6 +133,7 @@ const eraser = createAccountEraser()
   .add("im media", (ctx) => imMedia.eraseAccount(ctx))
   .add("drive", (ctx) => sync.eraseAccount(ctx))
   .add("contacts", (ctx) => contacts.eraseAccount(ctx))
+  .add("notes", (ctx) => notes.eraseAccount(ctx))
   .add("mail", (ctx) => mail.eraseAccount(ctx))
   .add("puzzles", (ctx) => puzzles.eraseAccount(ctx))
   .add("quiz", (ctx) => quiz.eraseAccount(ctx))

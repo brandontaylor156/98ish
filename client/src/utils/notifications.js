@@ -26,6 +26,8 @@ export const APPS = {
   mail: { name: "98ish Mail", icon: "/assets/program_icons/mail.svg" },
   games: { name: "Games", icon: "/assets/games.png" },
   achievements: { name: "Achievements", icon: "/assets/program_icons/welcome.svg" },
+  notes: { name: "Notes", icon: "/assets/program_icons/notes.svg" },
+  tasks: { name: "Tasks", icon: "/assets/program_icons/tasks.svg" },
   system: { name: "98ish", icon: "/assets/start98.png" },
 }
 export const appInfo = (app) => APPS[app] || APPS.system
@@ -195,6 +197,12 @@ export const targetFromParams = (params) => {
   if (open === "im" || open === "call") return name("with") ? { kind: open, with: name("with") } : null
   if (open === "mail" || open === "invites" || open === "notifications") return { kind: open }
   if (open === "calendar") return { kind: "calendar", calendarId: name("cal") || undefined, eventId: name("event") || undefined }
-  if (open === "program" && name("name")) return { kind: "program", name: name("name"), extra: params.get("challenge") ? { challengeId: name("challenge") } : {} }
+  if (open === "program" && name("name")) {
+    const extra = params.get("challenge") ? { challengeId: name("challenge") } : {}
+    // a note (Notes) or a task (Tasks: a Calendar to-do event) to show
+    if (params.get("note")) extra.handoff = { id: Date.now(), note: name("note") }
+    else if (params.get("event")) extra.handoff = { id: Date.now(), calendarId: name("cal"), eventId: name("event") }
+    return { kind: "program", name: name("name"), extra }
+  }
   return null
 }

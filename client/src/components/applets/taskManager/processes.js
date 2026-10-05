@@ -49,6 +49,8 @@ export const APP_PROFILES = {
   Calculator: { image: "calc.exe", mem: 1124, threads: 1, handles: 19, cpu: [0.05, 1] },
   Calendar: { image: "calndr98.exe", mem: 2480, threads: 3, handles: 41, cpu: [0.05, 1.5] },
   "Address Book": { image: "wab.exe", mem: 2216, threads: 3, handles: 46, cpu: [0.05, 1.5] },
+  Notes: { image: "stikynot.exe", mem: 1340, threads: 2, handles: 29, cpu: [0.05, 1] },
+  Tasks: { image: "tasks98.exe", mem: 1580, threads: 2, handles: 31, cpu: [0.05, 1] },
   Find: { image: "explorer.exe", mem: 1880, threads: 2, handles: 38, cpu: [0.05, 2] },
   "98ish Help": { image: "hh.exe", mem: 1712, threads: 2, handles: 33, cpu: [0.05, 1.5] },
   Clock: { image: "clock.exe", mem: 640, threads: 2, handles: 14, cpu: [0.1, 1] },

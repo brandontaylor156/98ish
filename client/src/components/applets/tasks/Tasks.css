@@ -1,0 +1,231 @@
+/* Tasks: an Outlook 98-style list in a 98 window */
+
+.tkRoot {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: calc(100% - 25px);
+  background: #c0c0c0;
+  color: #000;
+  font-size: 12px;
+  overflow: hidden;
+}
+.tkRoot.is-phone {
+  font-size: 15px;
+}
+.tkRoot button {
+  min-width: 0;
+}
+
+.tkTabs {
+  display: flex;
+  gap: 0;
+  padding: 4px 6px 0;
+  flex: 0 0 auto;
+}
+.tkTab {
+  border-radius: 0;
+  min-height: 24px;
+  padding: 0 12px;
+  margin-right: -1px;
+  box-shadow: inset -1px 0 #0a0a0a, inset 1px 1px #dfdfdf, inset -2px 0 grey, inset 2px 2px #fff !important;
+}
+.tkTab.is-on {
+  font-weight: bold;
+  position: relative;
+  top: 1px;
+  background: #c0c0c0;
+  padding-bottom: 2px;
+}
+.is-phone .tkTab {
+  flex: 1;
+  min-height: 40px;
+  padding: 0 4px;
+}
+
+.tkBody {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 8px;
+  box-shadow: inset -1px -1px #0a0a0a, inset 1px 1px #fff, inset -2px -2px grey, inset 2px 2px #dfdfdf;
+  margin: 0 6px 6px;
+  overflow: auto;
+}
+
+.tkAdd {
+  margin-bottom: 8px;
+}
+.tkAddRow {
+  display: flex;
+  gap: 6px;
+}
+.tkAddInput {
+  flex: 1;
+  min-width: 0;
+  height: 32px !important;
+  font-size: 15px !important;
+  padding: 0 8px !important;
+}
+.tkAddBtn {
+  min-height: 32px;
+  padding: 0 12px;
+  font-weight: bold;
+}
+.is-phone .tkAddInput,
+.is-phone .tkAddBtn {
+  height: 44px !important;
+  min-height: 44px;
+  font-size: 16px !important;
+}
+.tkMore {
+  margin-top: 4px;
+}
+
+.tkFields {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 6px 10px;
+  margin-top: 6px;
+}
+.tkField {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.tkField > span {
+  width: 58px;
+  flex: 0 0 58px;
+}
+.tkField select,
+.tkField input {
+  flex: 1;
+  min-width: 0;
+}
+.tkField--wide {
+  grid-column: 1 / -1;
+  align-items: flex-start;
+}
+.tkField textarea {
+  flex: 1;
+  resize: vertical;
+}
+.is-phone .tkField select,
+.is-phone .tkField input {
+  min-height: 36px;
+  font-size: 16px;
+}
+
+.tkRows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  background: #fff;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px grey, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+  padding: 2px;
+}
+.tkRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 6px;
+  border-bottom: 1px solid #e0e0e0;
+}
+.is-phone .tkRow {
+  padding: 6px 8px;
+}
+.tkRow.is-overdue .tkDue {
+  color: #c00000;
+  font-weight: bold;
+}
+.tkRowMain {
+  all: unset;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  cursor: pointer;
+  padding: 2px 0;
+}
+.tkRowMain:focus-visible {
+  outline: 1px dotted #000;
+}
+.tkTitle {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tkRow.is-done .tkTitle {
+  text-decoration: line-through;
+  color: #606060;
+}
+.tkMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  color: #505050;
+  font-size: 11px;
+}
+.is-phone .tkMeta {
+  font-size: 13px;
+}
+.tkList {
+  background: #e8e8e8;
+  padding: 0 4px;
+}
+.tkPri {
+  display: inline-block;
+  width: 12px;
+  text-align: center;
+  font-weight: bold;
+  margin-right: 3px;
+}
+.tkPri--high {
+  color: #c00000;
+}
+.tkPri--low {
+  color: #0040a0;
+}
+.tkListIcon {
+  width: 17px;
+  text-align: center;
+}
+.tkSubs {
+  list-style: none;
+  margin: 0 0 2px 24px;
+  padding: 0;
+  flex-basis: 100%;
+}
+.tkSubDone {
+  text-decoration: line-through;
+  color: #606060;
+}
+.ntTickWrap label::before {
+  background: #fff;
+}
+
+.tkEmpty {
+  padding: 18px 10px;
+  text-align: center;
+  color: #404040;
+  background: #fff;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px grey, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+}
+.tkError {
+  color: #a00000;
+  margin: 4px 0;
+}
+.tkHint {
+  color: #404040;
+  margin: 4px 0;
+}
+.tkDialog {
+  max-width: 440px;
+}
+.tkDialogRow {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}

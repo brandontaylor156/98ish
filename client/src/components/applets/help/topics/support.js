@@ -306,8 +306,8 @@ export const topics = [
         table: {
           head: ["Where", "What", "How long"],
           rows: [
-            ["This device (your browser)", "Your files and photos, settings, scores and saves, lock PIN (scrambled), contacts, notifications. See [[privacy-device]].", "Until you delete them, remove the user, or clear the website's data. Safari on iPhone may clear it after 7 days without a visit unless 98ish is on the Home Screen."],
-            ["The 98ish server (with an account)", "Your account, synced files, mail, Address Book, server calendars, Us things, games and homepage. See [[privacy-server]].", "Until you delete them or [[delete-account|delete your account]]. A few things expire sooner (listed there)."],
+            ["This device (your browser)", "Your files and photos, settings, scores and saves, lock PIN (scrambled), contacts, notes, notifications. See [[privacy-device]].", "Until you delete them, remove the user, or clear the website's data. Safari on iPhone may clear it after 7 days without a visit unless 98ish is on the Home Screen."],
+            ["The 98ish server (with an account)", "Your account, synced files, mail, Address Book, notes, server calendars and tasks, Us things, games and homepage. See [[privacy-server]].", "Until you delete them or [[delete-account|delete your account]]. A few things expire sooner (listed there)."],
             ["Other services", "Push notifications, call setup, YouTube and the Internet Archive. See [[privacy-third-parties]].", "Their own rules."],
           ],
         },
@@ -317,7 +317,8 @@ export const topics = [
       { h: "Who can see what" },
       {
         list: [
-          "**Only you**: your files (also the synced copies), Address Book, mail (each person has their own copy), your personal calendar, notification settings.",
+          "**Only you**: your files (also the synced copies), Address Book, notes you haven't shared, mail (each person has their own copy), your personal calendar and its tasks, notification settings.",
+          "**People you share a note with**: that note, and the screen names of everyone in it.",
           "**Your partner** (in Us, while paired): letters, Our Story and its photos, flowers, Our Pet, Dream House, the Us calendar, your Sunny Acres town, couple quizzes.",
           "**Calendar members**: a shared calendar's events, comments and activity, and your screen name in it. Anyone with a calendar's secret subscription link can read that calendar.",
           "**Signed-on 98 Messenger users**: your screen name, profile text, member-since date, and whether you're online, away or idle (people you block don't see you online).",
@@ -343,7 +344,7 @@ export const topics = [
           head: ["Kept in", "What"],
           rows: [
             ["IndexedDB (database \"98ish-drive\")", "Drive C: and the Recycle Bin: files, photos, documents, recordings, and file sync's bookkeeping. Each extra user profile has its own database (\"98ish-drive-\" plus an id)."],
-            ["localStorage (keys starting \"98ish.\")", "Settings, desktop, scores and game saves, Address Book contacts, notifications, \"On this device\" calendars, reminders, Internet Explorer history and favorites, drafts, and 98 Messenger's \"Sign me on automatically\" key. Each extra user profile's keys start \"98ish.u.\" plus an id."],
+            ["localStorage (keys starting \"98ish.\")", "Settings, desktop, scores and game saves, Address Book contacts, notes (and which are pinned to this desktop), notifications, \"On this device\" calendars, reminders, Internet Explorer history and favorites, drafts, and 98 Messenger's \"Sign me on automatically\" key. Each extra user profile's keys start \"98ish.u.\" plus an id."],
             ["The user list (shared by the device)", "User names, pictures, linked screen names, and each user's lock PIN or password, stored only as a salted, scrambled copy (PBKDF2)."],
             ["Service worker caches", "A copy of the 98ish app for offline use, things shared to 98ish from other apps (Android), and notifications that arrived while 98ish was closed."],
           ],
@@ -379,7 +380,8 @@ export const topics = [
             ["Synced files (My Documents, My Pictures, Desktop by default) and device sync keys", "Until you delete them (deleted files are remembered as deleted); device keys 60 days after last use", "You"],
             ["98ish Mail: your own copy of every message, with attachments", "Until you delete it; 5 MB per mailbox (oldest Deleted Items go first when full)", "You; the people you send to get their own copy"],
             ["Address Book (when signed on)", "Until you delete contacts (deleted ones are remembered 180 days so other devices hear about it)", "You"],
-            ["Calendars on the server: events, comments, activity, invitations", "Until deleted; each calendar's activity keeps the newest 200 lines", "The calendar's members"],
+            ["Notes (when signed on): their words, checklists, colors, and who they're shared with. Which notes are pinned to a desktop stays on that device", "Until you delete them (out of the Recycle Bin: deleted notes are remembered as deleted for 180 days so other devices hear about it). At most 2,000 notes, 20 KB each, 3 MB in all", "You; a shared note: everyone in it"],
+            ["Calendars on the server: events, tasks (to-dos), comments, activity, invitations", "Until deleted; each calendar's activity keeps the newest 200 lines", "The calendar's members"],
             ["Us: pairing, letters, Our Story, photos, flowers, Our Pet, Dream House, Us calendar", "While paired; after unpairing, 30 days, then deleted", "You two only"],
             ["Quizzes and Photo Puzzles sent or received", "Quizzes 90 days; puzzles until either of you deletes them", "The two people in it"],
             ["Sunny Acres towns, notes and hearts, co-op towns", "Until deleted; couple goals about 5 weeks", "You, your partner, buddies you allow, co-op members"],
@@ -475,7 +477,8 @@ export const topics = [
           "Synced files and their online contents, and the old online drive copy.",
           "Your mail, every folder. Mail you sent stays in the recipients' mailboxes (it's theirs, like any e-mail), but shows **(deleted account)** instead of your name.",
           "Your Address Book's online copy.",
-          "Your personal calendar and the Us calendar. In shared calendars you leave, and your events, comments and activity go; the longest-standing member becomes the owner.",
+          "Your notes. Notes you shared stay with the others in them, without your name; a note someone shared with you stays theirs.",
+          "Your personal calendar and the Us calendar (and the tasks in them). In shared calendars you leave, and your events, comments and activity go; the longest-standing member becomes the owner.",
           "Everything in Us for every pairing you were in, plus Dream House and the couple's Sunny Acres goals and co-op town.",
           "Quizzes and puzzles you sent or got, your Sunny Acres town (and your notes and hearts in friends' towns), Tetris Online ranks, your homepage, and guestbook entries you signed while signed on.",
           "Notification settings and devices, and messages waiting for you or sent by you to someone signed off.",
@@ -509,6 +512,8 @@ export const topics = [
             ["Your homepage", "HomePage Studio > Unpublish. Your draft stays on your device."],
             ["Mail", "Delete it, then empty Deleted Items in 98ish Mail."],
             ["A contact", "Delete it in the Address Book (it's deleted on your other devices too)."],
+            ["A note", "Delete it in Notes, then Delete Now in View > Recycle Bin (or wait 30 days). A shared note: deleting takes you out of it; the others keep it."],
+            ["A task", "Right-click it in Tasks (or touch and hold) > Delete. It's deleted from Calendar too."],
             ["A 98 Messenger conversation", "In the IM window: More » > Clear History (this device, your other devices and your copy on the server; the other person keeps theirs)."],
             ["All your conversations on the server", "Buddy List > My AIM > Preferences... > clear Save my conversations on the server. Your devices keep theirs."],
             ["Your 98 Messenger account and everything on the server", "My AIM > Delete My Account... (see [[delete-account]])."],

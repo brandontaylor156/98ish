@@ -11,7 +11,8 @@
 //     subscriptions, and (ifAway, the default) they have no 98ish in front of them: signed
 //     off, the connection gone, or the tab hidden (the client reports aim:visibility)
 //   - a subscription the push service says is gone (404/410) is forgotten
-// Categories: im, calls (incoming and missed), calendar, couples, mail, games.
+// Categories: im, calls (incoming and missed), calendar (and Tasks), couples, mail, games,
+// notes (a buddy shared or changed a shared note: server/notes).
 // It also runs two schedules: calendar reminders for accounts with push (from the server
 // calendars; the in-app reminders cover 98ish while it's open) and Our Pet asking for care.
 //
@@ -30,7 +31,7 @@ const { limiter } = require("../net/limiter")
 const { sessionFrom } = require("../aim/auth")
 const { memoryStore, createPushStore } = require("./store")
 
-const CATEGORIES = ["im", "calls", "calendar", "couples", "mail", "games"]
+const CATEGORIES = ["im", "calls", "calendar", "couples", "mail", "games", "notes"]
 const MINUTE = 60_000
 const HOUR = 60 * MINUTE
 const REMINDER_EVERY_MS = MINUTE
@@ -223,13 +224,15 @@ const createPush = ({ store: storeOrPromise, webpush, vapid = {}, now = Date.now
         const occKey = `${d.occ.id}|${d.occ.key}`
         if (seen.has(occKey) || seen.size >= 5) continue
         seen.add(occKey)
+        // a task (a to-do event) opens Tasks; anything else opens Calendar
+        const task = !!d.occ.event?.todo
         const result = await notify(key, "calendar", {
-          title: `Reminder: ${d.occ.title || "(untitled)"}`,
+          title: `${task ? "Task" : "Reminder"}: ${d.occ.title || "(untitled)"}`,
           body: `${recur.whenLabel(d.occ, settings.tz)}${d.occ.location ? ` · ${d.occ.location}` : ""} (${d.occ.calendarName})`,
           tag: `cal-rem-${d.fireKey}`,
           key: `cal-rem-${d.fireKey}`,
           app: "calendar",
-          url: `/?open=calendar&cal=${encodeURIComponent(d.occ.calendarId)}&event=${encodeURIComponent(d.occ.id)}`,
+          url: task ? `/?open=program&name=Tasks&cal=${encodeURIComponent(d.occ.calendarId)}&event=${encodeURIComponent(d.occ.id)}` : `/?open=calendar&cal=${encodeURIComponent(d.occ.calendarId)}&event=${encodeURIComponent(d.occ.id)}`,
           time: d.at,
         })
         count += result.sent

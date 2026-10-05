@@ -8,7 +8,8 @@
 //     for live data that only one part of 98ish has (98 Messenger's conversations)
 //
 // A result: { id, type, title, subtitle, icon, open(dispatch), score? }. Types (and their
-// order in the results): programs, settings, files, contacts, events, messages, mail, photos,
+// order in the results): programs, settings, files, contacts, events, tasks, notes (a provider:
+// utils/notes.js), messages, mail, photos,
 // help (98ish Help's topics register themselves with type "help" and a `body` of their words:
 // applets/help/register.js).
 // This file stays small and loads with the Start menu; the searching is in utils/search.js.
@@ -19,6 +20,8 @@ export const SEARCH_TYPES = [
   { id: "files", label: "Files and Folders", icon: "/assets/directory_folder.png" },
   { id: "contacts", label: "Contacts", icon: "/assets/program_icons/addressbook.svg" },
   { id: "events", label: "Calendar", icon: "/assets/program_icons/calendar.svg" },
+  { id: "tasks", label: "Tasks", icon: "/assets/program_icons/tasks.svg" },
+  { id: "notes", label: "Notes", icon: "/assets/program_icons/notes.svg" },
   { id: "messages", label: "Messages", icon: "/assets/program_icons/aim2-48.png" },
   { id: "mail", label: "Mail", icon: "/assets/program_icons/mail.svg" },
   { id: "photos", label: "Photos", icon: "/assets/program_icons/photos.svg" },
@@ -71,6 +74,8 @@ export const PROGRAM_KEYWORDS = {
   "Address Book": ["contacts", "people", "phone numbers", "addresses", "birthdays", "wab", "vcard"],
   Calendar: ["events", "schedule", "agenda", "appointments", "reminders", "dates"],
   Clock: ["alarm", "timer", "stopwatch", "world clock", "time"],
+  Notes: ["sticky notes", "stickies", "post-it", "notes", "lists", "checklist", "grocery list", "shopping list", "memo", "jot"],
+  Tasks: ["to-do", "todo", "to do list", "tasks", "reminders", "outlook", "due", "chores"],
   "My Computer": ["files", "explorer", "drive", "folders", "c:"],
   Compass: ["browser", "web browser", "web", "internet", "www", "websites", "surf", "browse", "tabs", "bookmarks", "favorites", "history", "downloads", "wikipedia", "search the web", "url"],
   "Internet Explorer": ["ie", "wayback", "time machine", "old web", "internet", "geocities"],

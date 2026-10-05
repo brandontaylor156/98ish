@@ -19,6 +19,7 @@ const KINDS = [
   ["couples", "Us: letters, flowers, Our Pet, quiz turns"],
   ["mail", "98ish Mail"],
   ["games", "Game invitations"],
+  ["notes", "Shared notes: a buddy shares or changes one"],
 ]
 
 // ---- the Add to Home Screen guide (original drawings) ----

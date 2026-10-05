@@ -42,6 +42,10 @@ export const programs = [
   // contacts (utils/contacts.js; birthdays go on the Calendar, buddies and Mail use them) and
   // Find (search everything: utils/search.js; Start > Find, or "See all results")
   { name: "Address Book", app: "addressbook", type: "addressbook", icon: "/assets/program_icons/addressbook.svg", width: 780, height: 540, group: "Accessories", desktop: false, single: true, also: ["Community"] },
+  // sticky notes with checklists, shared with buddies (utils/notes.js, server/notes), and an
+  // Outlook-style task list whose tasks are Calendar to-do events (applets/tasks/tasksCore.js)
+  { name: "Notes", app: "notes", type: "notes", icon: "/assets/program_icons/notes.svg", width: 760, height: 520, group: "Accessories", single: true, also: ["Us"] },
+  { name: "Tasks", app: "tasks", type: "tasks", icon: "/assets/program_icons/tasks.svg", width: 520, height: 560, group: "Accessories", single: true },
   { name: "Find", app: "find", type: "find", icon: "/assets/program_icons/find.svg", width: 660, height: 500, group: null, desktop: false, single: true },
   { name: "Clock", app: "clock", type: "clock", icon: "/assets/program_icons/clock.svg", width: 420, height: 500, group: "Accessories", desktop: false, single: true },
   { name: "Calculator", app: "calc", type: "calc", icon: "/assets/program_icons/calc.svg", width: 270, height: 272, group: "Accessories", desktop: false },

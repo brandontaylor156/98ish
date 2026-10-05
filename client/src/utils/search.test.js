@@ -70,7 +70,7 @@ test("the settings registry: anyone can add, results know their order", () => {
   assert.ok(searchProviders().some(([id]) => id === "messages"))
   off()
   assert.ok(!searchProviders().some(([id]) => id === "messages"))
-  assert.deepEqual(SEARCH_TYPES.map((t) => t.id), ["programs", "settings", "files", "contacts", "events", "messages", "mail", "photos", "help"])
+  assert.deepEqual(SEARCH_TYPES.map((t) => t.id), ["programs", "settings", "files", "contacts", "events", "tasks", "notes", "messages", "mail", "photos", "help"])
 })
 
 // a little drive: { name, path, type, text } items, changed by the tests

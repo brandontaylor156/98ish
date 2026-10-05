@@ -66,6 +66,8 @@ export const imageMapper = {
   camera: "program_icons/camera.svg",
   photos: "program_icons/photos.svg",
   addressbook: "program_icons/addressbook.svg",
+  notes: "program_icons/notes.svg",
+  tasks: "program_icons/tasks.svg",
   find: "program_icons/find.svg",
   vcard: "vcard_file.svg",
   programs: "programs.png",

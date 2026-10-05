@@ -1,6 +1,6 @@
 // Search everything (Start menu search and Find): programs, settings, files (names and the
-// words in text documents), contacts, calendar events, 98 Messenger conversations, mail and
-// photos. Loaded on the first search (it brings the calendar and contacts with it).
+// words in text documents), contacts, calendar events, tasks, notes, 98 Messenger
+// conversations, mail and photos. Loaded on the first search (it brings the calendar and contacts with it).
 //
 // searchAll(query, { types, perType, limit }) -> { groups: [{ type, label, icon, results,
 //   total }], ms }. Everything is indexed in memory once and only what changed is indexed
@@ -23,6 +23,9 @@ import { getCal, openCalendar, calendarById, zone } from "../components/applets/
 import { occurrences, dateIn, dateLabel } from "../components/applets/calendar/recur"
 // 98ish Help's topics add themselves to the registry (type "help")
 import "../components/applets/help/register"
+// Notes add themselves as a search provider (type "notes"); tasks are Calendar to-do events
+import "./notes"
+import { taskRows, dueLabel, taskSearchText } from "../components/applets/tasks/tasksCore"
 
 const DAY = 86_400_000
 const PROGRAM_FILE_TYPES = new Set(programs.map((p) => p.type).filter(Boolean))
@@ -171,6 +174,7 @@ const eventList = () => {
   const list = []
   for (const calendar of cal.calendars) {
     for (const event of cal.events[calendar.id] || []) {
+      if (event.todo) continue // tasks: their own group (tasksList)
       if (event.kind === "memo") {
         list.push({ id: `memo:${calendar.id}:${event.id}`, type: "events", title: event.title || "(Memo)", subtitle: `Memo · ${calendar.name}`, icon: "/assets/program_icons/calendar.svg", calendarId: calendar.id, eventId: event.id, time: event.updatedAt || null, search: prepare({ title: event.title, detail: calendar.name, body: [event.notes, ...(event.checklist || []).map((c) => c.text)].join(" ") }) })
         continue
@@ -198,6 +202,32 @@ const eventList = () => {
     }
   }
   eventsCache = { source: cal.events, day, list }
+  return list
+}
+
+// ---- tasks: Calendar's to-do events (applets/tasks) ----
+
+let tasksCache = { source: null, day: null, list: [] }
+const tasksList = () => {
+  const cal = getCal()
+  const now = Date.now()
+  const day = Math.floor(now / DAY)
+  if (tasksCache.source === cal.events && tasksCache.day === day) return tasksCache.list
+  const z = zone()
+  const list = taskRows(cal.calendars, cal.events, { now, zone: z })
+    .filter((r) => r.event.todo)
+    .map((r) => ({
+      id: `task:${r.rowKey}`,
+      type: "tasks",
+      title: r.title,
+      subtitle: [r.done ? "Done" : dueLabel(r, { now, zone: z }) || "Someday", r.calendarName].filter(Boolean).join(" · "),
+      icon: "/assets/program_icons/tasks.svg",
+      calendarId: r.calendarId,
+      eventId: r.id,
+      time: Number.isFinite(r.sortTime) ? r.sortTime : r.doneAt,
+      search: prepare({ title: r.title, keywords: ["task", "to-do"], detail: r.calendarName, body: taskSearchText(r) }),
+    }))
+  tasksCache = { source: cal.events, day, list }
   return list
 }
 
@@ -273,6 +303,8 @@ const SOURCES = {
   photos: () => [fileEntries().filter((e) => e.type === "image"), filesVersion],
   contacts: () => [contactList(), getContacts()],
   events: () => [eventList(), getCal().events],
+  tasks: () => [tasksList(), getCal().events],
+  notes: () => [providerList("notes"), null],
   messages: () => [providerList("messages"), null],
   mail: () => [mailList(), mailCache.raw],
 }
@@ -323,6 +355,7 @@ export const warmUp = () => {
   fileEntries()
   contactList()
   eventList()
+  tasksList()
 }
 
 // ---- opening ----
@@ -354,6 +387,12 @@ export const openResult = (result, dispatch) => {
       return true
     case "help":
       result.open?.(dispatch)
+      return true
+    case "notes":
+      open(launch("Notes", { handoff: { id: Date.now(), note: result.noteId } }))
+      return true
+    case "tasks":
+      open(launch("Tasks", { handoff: { id: Date.now(), calendarId: result.calendarId, eventId: result.eventId } }))
       return true
     case "mail":
       open(launch("98ish Mail", { handoff: { id: Date.now(), message: { folder: result.folder, id: result.messageId } } }))

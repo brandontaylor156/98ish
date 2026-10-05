@@ -12,6 +12,7 @@ const MAX_TIME = Date.UTC(2100, 0, 1)
 const DAY = 86_400_000
 const MAX_EXCEPTIONS = 400
 const MAX_CHECKLIST = 50
+const PRIORITIES = ["high", "low"]
 
 const validZone = (zone) => {
   if (typeof zone !== "string" || !zone || zone.length > 64) return false
@@ -117,6 +118,8 @@ const event = (input, { memberKeys = [] } = {}) => {
     checklist: checklist(input.checklist),
     todo: input.todo === true,
     done: input.done === true,
+    // a task's priority (Tasks: to-do events): "high", "low" or "" (normal)
+    priority: input.todo === true && PRIORITIES.includes(input.priority) ? input.priority : "",
     attendees: attendees(input.attendees, memberKeys),
   }
   if (kind === "memo") return { ...out, allDay: false, start: null, end: null, tz: null, repeat: null, exceptions: {}, reminders: [] }

@@ -37,6 +37,11 @@
 //                                                  object with no record: the weekly tidy deletes
 //                                                  it). blobusage holds only daily totals, no account
 //   contacts    addressbooks                       their Address Book deleted
+//   notes       notes                              their own notes (and tombstones) deleted; in
+//                                                  notes shared with others they leave: the
+//                                                  others keep the note (ownership passes on)
+//                                                  and the name is taken off it. Tasks are
+//                                                  Calendar to-do events (see calendar)
 //   mail        mailmessages                       their whole mailbox (all folders) deleted; mail
 //                                                  they sent stays in the recipients' mailboxes
 //                                                  (it's theirs, like any e-mail) but no longer
