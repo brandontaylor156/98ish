@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from "react"
 import Dialog from "../Dialog"
 import { createFrameClock } from "../../../utils/frameClock"
 import { fmtNum } from "../../../utils/gameKit"
+import { PixelScores, PixelText } from "../retro"
 import "./QuickGame.css"
 
 // Shared pieces for the quick games (Boom Frenzy, Color Match, Echo Pads, Zap It!, Tetherball):
@@ -77,31 +78,24 @@ export const PausedPanel = ({ onResume, onQuit, children }) => (
   </div>
 )
 
+// the tables are drawn in the games' pixel font (an arcade "hall of fame"); the words stay in
+// the page for screen readers
 export const ScoresDialog = ({ title, tables, onClose, unit = "" }) => (
   <Dialog title={title} onOk={onClose}>
     <div className="qgScores">
       {tables.map((t) => (
-        <div key={t.label}>
-          <b>{t.label}</b>
+        <div key={t.label} className="qgScoreTable">
           {t.rows?.length ? (
-            <table>
-              <tbody>
-                {t.rows.slice(0, 5).map((s, i) => (
-                  <tr key={i}>
-                    <td>{i + 1}.</td>
-                    <td className="qgScoreCol">
-                      {fmtNum(s.score)}
-                      {unit}
-                    </td>
-                    <td>{s.note || ""}</td>
-                    <td>{new Date(s.date).toLocaleDateString()}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <PixelScores title={t.label.toUpperCase()} rows={t.rows} unit={unit} />
           ) : (
-            <p>No games yet.</p>
+            <>
+              <PixelText text={t.label.toUpperCase()} color="#000080" />
+              <PixelText text="No games yet." color="#404040" />
+            </>
           )}
+          <span className="rtSr">
+            {t.label}: {t.rows?.length ? t.rows.slice(0, 5).map((s, i) => `${i + 1}. ${fmtNum(s.score)}${unit} ${s.note || ""} ${new Date(s.date).toLocaleDateString()}`).join("; ") : "No games yet."}
+          </span>
         </div>
       ))}
     </div>

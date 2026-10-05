@@ -1,146 +1,238 @@
-// Tetherball's 3D picture (three.js, loaded with the game). Why 3D rather than a 2.5D canvas:
-// the whole game is the rope winding round the pole, which only reads properly with depth
-// (the helix climbing down the pole, the ball swinging out toward you and away), and the scene
-// is tiny (a pole, a rope, a ball, two simple figures, a ground disc: a few thousand
-// triangles), so it costs less than one Pickleball venue. Antialiasing on, the pixel ratio
-// capped at 1.5 (with AA that's sharper than 2 without, and cheaper), dynamic resolution
-// below that, the frame clock from utils/frameClock.js (the caller passes real dt).
+// Tetherball's 3D picture (three.js), in the style of a 1997 console / early Direct3D game:
+// rendered at a low resolution (a couple of hundred pixels tall) and blown up by whole pixels,
+// no anti-aliasing, flat-shaded low-poly shapes, small pixel-art textures with nearest
+// filtering, vertices snapped to the pixel grid (the slight PS1 "wobble"), every colour
+// quantized to a 15-bit-style palette with 4x4 Bayer dithering (so the sky's gradient bands and
+// dithers), screen-door transparency for shadows, fog, and billboard sprites for the trees and
+// the playground. Why 3D at all: the game is the rope winding round the pole, which needs depth.
 //
 //   const view = createScene(canvas, { seat })   seat: which player the camera stands behind
+//   view.resize(lowW, lowH)                      the LOW resolution (utils/retro fitPixels)
 //   view.draw(match-like { ball, players, phase, server }, dt)
-//   view.resize(w, h); view.dispose()
+//   view.dispose()
 
 import * as THREE from "three"
 import { BALL_R, POLE_H, POLE_R, PITCH, azimuth, freeLength, tieHeight } from "./physics.js"
-import { createResolution } from "../../../utils/dynamicResolution"
 import { releaseGpu } from "../../../utils/webglLoss"
 import { REACH, inReach } from "./match.js"
+import { TEXTURES } from "./pixels.js"
 
 const SHIRTS = [0xd02020, 0x2050d0]
+const SKY_TOP = new THREE.Color(0x1c4cb8)
+const SKY_HORIZON = new THREE.Color(0xb8dcfc)
 
-const makeFigure = (color) => {
+// ---- the retro shader patch, shared by every material ----
+const BAYER = "const float BAYER4[16] = float[16](0.0, 8.0, 2.0, 10.0, 12.0, 4.0, 14.0, 6.0, 3.0, 11.0, 1.0, 9.0, 15.0, 7.0, 13.0, 5.0);\nfloat bayer4(vec2 f) { int x = int(mod(f.x, 4.0)); int y = int(mod(f.y, 4.0)); return (BAYER4[x + y * 4] + 0.5) / 16.0; }\n"
+export const retroUniforms = () => ({ uSnap: { value: new THREE.Vector2(320, 240) }, uLevels: { value: 24 } })
+// door: screen-door transparency at the material's opacity (no blending, like the old consoles)
+export const retroize = (mat, U, { door = false, snap = true } = {}) => {
+  mat.onBeforeCompile = (sh) => {
+    sh.uniforms.uSnap = U.uSnap
+    sh.uniforms.uLevels = U.uLevels
+    if (snap) {
+      sh.vertexShader = sh.vertexShader.replace("#include <common>", "#include <common>\nuniform vec2 uSnap;").replace(
+        "#include <project_vertex>",
+        "#include <project_vertex>\n{ vec4 p = gl_Position; if (p.w > 0.0) { vec2 s = uSnap * 0.5; p.xy = floor(p.xy / p.w * s + 0.5) / s * p.w; gl_Position = p; } }",
+      )
+    }
+    sh.fragmentShader = sh.fragmentShader.replace("#include <common>", `#include <common>\nuniform float uLevels;\n${BAYER}`)
+    if (door) sh.fragmentShader = sh.fragmentShader.replace("#include <opaque_fragment>", "#include <opaque_fragment>\nif (gl_FragColor.a < bayer4(gl_FragCoord.xy)) discard;\ngl_FragColor.a = 1.0;")
+    // the last thing a fragment does: quantize every channel with an ordered dither
+    sh.fragmentShader = sh.fragmentShader.replace(/}\s*$/, "{ float d = bayer4(gl_FragCoord.xy) - 0.5; gl_FragColor.rgb = clamp(floor(gl_FragColor.rgb * uLevels + 0.5 + d) / uLevels, 0.0, 1.0); }\n}")
+  }
+  mat.customProgramCacheKey = () => `retro${door ? "d" : ""}${snap ? "s" : ""}`
+  // (a door material stays "transparent" so three.js keeps its alpha; the shader then either
+  // discards a pixel or draws it solid)
+  if (door) mat.depthWrite = false
+  return mat
+}
+
+const pixelTexture = (name, repeat = 1) => {
+  const t = TEXTURES[name]
+  const tex = new THREE.DataTexture(t.rgba, t.w, t.h, THREE.RGBAFormat)
+  tex.magFilter = THREE.NearestFilter
+  tex.minFilter = THREE.NearestFilter
+  tex.generateMipmaps = false
+  tex.colorSpace = THREE.SRGBColorSpace
+  if (repeat !== 1) {
+    tex.wrapS = THREE.RepeatWrapping
+    tex.wrapT = THREE.RepeatWrapping
+    tex.repeat.set(repeat, repeat)
+  }
+  tex.needsUpdate = true
+  return tex
+}
+
+// ---- a low-poly kid: boxes, a pixel face, arms and legs on pivots ----
+const makeFigure = (color, U, tex) => {
   const g = new THREE.Group()
-  const skin = new THREE.MeshLambertMaterial({ color: 0xe8b890 })
-  const shirt = new THREE.MeshLambertMaterial({ color })
-  const pants = new THREE.MeshLambertMaterial({ color: 0x303848 })
-  const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.2, 0.45, 4, 10), shirt)
-  body.position.y = 1.15
-  g.add(body)
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.15, 14, 10), skin)
-  head.position.y = 1.72
+  const lam = (opts) => retroize(new THREE.MeshLambertMaterial({ flatShading: true, ...opts }), U)
+  const shirt = lam({ color })
+  const pants = lam({ color: 0x303848 })
+  const skin = lam({ map: tex.skin })
+  const shoes = lam({ color: 0x1c1c20 })
+  const torso = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.56, 0.26), shirt)
+  torso.position.y = 1.2
+  g.add(torso)
+  // the head: the face texture on its front (+z, toward the pole), hair on top and back
+  const hair = lam({ map: tex.hair })
+  const head = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.32, 0.3), [skin, skin, hair, skin, lam({ map: tex.face }), hair])
+  head.position.y = 1.66
   g.add(head)
-  const hair = new THREE.Mesh(new THREE.SphereGeometry(0.155, 14, 10, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshLambertMaterial({ color: 0x3a2412 }))
-  hair.position.y = 1.74
-  g.add(hair)
   const legs = []
   for (const side of [-1, 1]) {
-    const leg = new THREE.Mesh(new THREE.CapsuleGeometry(0.08, 0.6, 4, 8), pants)
-    leg.position.set(side * 0.1, 0.42, 0)
-    g.add(leg)
-    legs.push(leg)
+    const hip = new THREE.Group()
+    hip.position.set(side * 0.11, 0.9, 0)
+    const leg = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.78, 0.18), pants)
+    leg.position.y = -0.39
+    hip.add(leg)
+    const shoe = new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.1, 0.26), shoes)
+    shoe.position.set(0, -0.84, 0.04)
+    hip.add(shoe)
+    g.add(hip)
+    legs.push(hip)
   }
-  // arms hang from shoulder pivots so a swing turns them
   const arms = []
   for (const side of [-1, 1]) {
     const pivot = new THREE.Group()
-    pivot.position.set(side * 0.27, 1.45, 0)
-    const arm = new THREE.Mesh(new THREE.CapsuleGeometry(0.065, 0.5, 4, 8), shirt)
-    arm.position.y = -0.3
+    pivot.position.set(side * 0.29, 1.44, 0)
+    const arm = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.52, 0.13), shirt)
+    arm.position.y = -0.26
     pivot.add(arm)
-    const hand = new THREE.Mesh(new THREE.SphereGeometry(0.075, 10, 8), skin)
-    hand.position.y = -0.62
+    const hand = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.13, 0.12), skin)
+    hand.position.y = -0.58
     pivot.add(hand)
     g.add(pivot)
     arms.push(pivot)
   }
-  // the reach ring on the ground: glows when the ball can be hit
-  const ring = new THREE.Mesh(new THREE.RingGeometry(REACH - 0.06, REACH, 40), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.18, depthWrite: false }))
+  // the reach ring on the ground (screen-door): bright when the ball can be hit
+  const ringMat = retroize(new THREE.MeshBasicMaterial({ color: 0xffffff, opacity: 0.25, transparent: true }), U, { door: true, snap: false })
+  const ring = new THREE.Mesh(new THREE.RingGeometry(REACH - 0.07, REACH, 16), ringMat)
   ring.rotation.x = -Math.PI / 2
   ring.position.y = 0.02
+  ring.renderOrder = -1
   g.add(ring)
-  return { g, arms, legs, ring, body }
+  return { g, arms, legs, ring, body: torso }
+}
+
+const billboard = (tex, w, h, x, y, z) => {
+  const mat = new THREE.SpriteMaterial({ map: tex, alphaTest: 0.5, fog: true })
+  const s = new THREE.Sprite(mat)
+  s.scale.set(w, h, 1)
+  s.position.set(x, y, z)
+  return s
 }
 
 export const createScene = (canvas, { seat = 0 } = {}) => {
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" })
-  const maxRatio = Math.min(1.5, window.devicePixelRatio || 1)
-  const res = createResolution({ max: maxRatio, min: 1 })
-  renderer.setPixelRatio(res.ratio)
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: "high-performance" })
+  renderer.setPixelRatio(1)
   renderer.outputColorSpace = THREE.SRGBColorSpace
+  const U = retroUniforms()
   const scene = new THREE.Scene()
-  scene.background = new THREE.Color(0x9ad4ff)
-  scene.fog = new THREE.Fog(0x9ad4ff, 18, 40)
-  const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 80)
+  scene.background = SKY_HORIZON.clone()
+  scene.fog = new THREE.Fog(SKY_HORIZON.getHex(), 16, 46)
+  const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 90)
+  const tex = { skin: pixelTexture("skin"), hair: pixelTexture("hair"), face: pixelTexture("face") }
 
-  scene.add(new THREE.HemisphereLight(0xffffff, 0x6a8a4a, 1.6))
-  const sun = new THREE.DirectionalLight(0xffffff, 1.6)
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x5a7a3a, 1.7))
+  const sun = new THREE.DirectionalLight(0xffffff, 1.7)
   sun.position.set(4, 9, 5)
   scene.add(sun)
 
-  // the ground: grass, an asphalt circle with a line between the halves
-  const grass = new THREE.Mesh(new THREE.CircleGeometry(40, 32), new THREE.MeshLambertMaterial({ color: 0x5aa040 }))
-  grass.rotation.x = -Math.PI / 2
-  scene.add(grass)
-  const court = new THREE.Mesh(new THREE.CircleGeometry(3.4, 48), new THREE.MeshLambertMaterial({ color: 0x8a8a90 }))
-  court.rotation.x = -Math.PI / 2
-  court.position.y = 0.005
-  scene.add(court)
-  const paint = new THREE.MeshBasicMaterial({ color: 0xf4f4f4 })
-  const edge = new THREE.Mesh(new THREE.RingGeometry(3.25, 3.35, 64), paint)
-  edge.rotation.x = -Math.PI / 2
-  edge.position.y = 0.01
-  scene.add(edge)
-  const line = new THREE.Mesh(new THREE.PlaneGeometry(6.6, 0.08), paint)
-  line.rotation.x = -Math.PI / 2
-  line.position.y = 0.011
-  scene.add(line)
-  // a few trees round the playground
-  const trunkMat = new THREE.MeshLambertMaterial({ color: 0x7a5030 })
-  const leafMat = new THREE.MeshLambertMaterial({ color: 0x3a8030 })
-  for (let k = 0; k < 9; k++) {
-    const a = (k / 9) * Math.PI * 2 + 0.3
-    const r = 11 + (k % 3) * 3
-    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.2, 1.6, 8), trunkMat)
-    trunk.position.set(Math.cos(a) * r, 0.8, Math.sin(a) * r)
-    const leaves = new THREE.Mesh(new THREE.IcosahedronGeometry(1.1, 0), leafMat)
-    leaves.position.set(trunk.position.x, 2.2, trunk.position.z)
-    scene.add(trunk, leaves)
+  // the sky: a dome with a vertex-coloured gradient (dithered into bands by the shader)
+  const domeGeo = new THREE.SphereGeometry(70, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2)
+  const cols = []
+  const pos = domeGeo.attributes.position
+  for (let i = 0; i < pos.count; i++) {
+    const t = Math.max(0, Math.min(1, pos.getY(i) / 45))
+    const c = SKY_HORIZON.clone().lerp(SKY_TOP, Math.pow(t, 0.7))
+    cols.push(c.r, c.g, c.b)
+  }
+  domeGeo.setAttribute("color", new THREE.Float32BufferAttribute(cols, 3))
+  const dome = new THREE.Mesh(domeGeo, retroize(new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide, fog: false }), U, { snap: false }))
+  scene.add(dome)
+  // clouds, the school, the playground (pixel-art billboards)
+  const cloudTex = pixelTexture("cloud")
+  for (const [a, r, y] of [[0.4, 40, 14], [1.9, 44, 17], [3.3, 38, 12], [4.4, 42, 16], [5.6, 40, 13]]) scene.add(billboard(cloudTex, 9, 3.4, Math.cos(a) * r, y, Math.sin(a) * r))
+  const school = billboard(pixelTexture("school"), 18, 9, 3, 4.4, -28)
+  scene.add(school)
+  scene.add(billboard(pixelTexture("school"), 18, 9, -4, 4.4, 30))
+  scene.add(billboard(pixelTexture("slide"), 4.2, 3.2, -8, 1.6, 7))
+  scene.add(billboard(pixelTexture("swings"), 4.6, 3.4, 9, 1.7, 9))
+  scene.add(billboard(pixelTexture("slide"), 4.2, 3.2, 9, 1.6, -8))
+  scene.add(billboard(pixelTexture("swings"), 4.6, 3.4, -9, 1.7, -10))
+  const treeTex = pixelTexture("tree")
+  for (let k = 0; k < 12; k++) {
+    const a = (k / 12) * Math.PI * 2 + 0.3
+    const r = 13 + (k % 3) * 4
+    scene.add(billboard(treeTex, 3, 4, Math.cos(a) * r, 2, Math.sin(a) * r))
   }
 
-  // the pole
-  const pole = new THREE.Mesh(new THREE.CylinderGeometry(POLE_R, POLE_R, POLE_H, 16), new THREE.MeshLambertMaterial({ color: 0xd0d4d8 }))
+  // the ground: textured grass, an asphalt circle with a painted edge and a line. Flat layers
+  // drawn in order without depth (no z-fighting at this precision) and not snapped (big
+  // triangles reaching past the camera would tear)
+  const lam = (opts) => retroize(new THREE.MeshLambertMaterial({ flatShading: true, ...opts }), U)
+  const layer = (mesh, order) => {
+    mesh.rotation.x = -Math.PI / 2
+    mesh.renderOrder = order
+    mesh.material.depthWrite = false
+    scene.add(mesh)
+    return mesh
+  }
+  const groundMat = (opts) => retroize(new THREE.MeshLambertMaterial({ flatShading: true, ...opts }), U, { snap: false })
+  layer(new THREE.Mesh(new THREE.CircleGeometry(48, 16), groundMat({ map: pixelTexture("grass", 48) })), -4)
+  layer(new THREE.Mesh(new THREE.CircleGeometry(3.4, 20), groundMat({ map: pixelTexture("asphalt", 3) })), -3)
+  const paint = () => retroize(new THREE.MeshBasicMaterial({ color: 0xf4f4f4 }), U, { snap: false })
+  layer(new THREE.Mesh(new THREE.RingGeometry(3.24, 3.38, 20), paint()), -2)
+  layer(new THREE.Mesh(new THREE.PlaneGeometry(6.6, 0.09), paint()), -2)
+
+  // the pole: a six-sided post with a knob and a concrete foot
+  const pole = new THREE.Mesh(new THREE.CylinderGeometry(POLE_R, POLE_R, POLE_H, 6), lam({ color: 0xc8ccd0 }))
   pole.position.y = POLE_H / 2
   scene.add(pole)
-  const cap = new THREE.Mesh(new THREE.SphereGeometry(POLE_R * 1.3, 12, 8), new THREE.MeshLambertMaterial({ color: 0xb0b4b8 }))
+  const cap = new THREE.Mesh(new THREE.SphereGeometry(POLE_R * 1.5, 6, 4), lam({ color: 0xe04020 }))
   cap.position.y = POLE_H
   scene.add(cap)
-  const base = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.35, 0.12, 20), new THREE.MeshLambertMaterial({ color: 0x606060 }))
-  base.position.y = 0.06
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.36, 0.14, 8), lam({ color: 0x707070 }))
+  base.position.y = 0.07
   scene.add(base)
 
-  // the ball, its shadow, the rope
-  const ball = new THREE.Mesh(new THREE.SphereGeometry(BALL_R, 24, 16), new THREE.MeshLambertMaterial({ color: 0xffd400 }))
-  const seam = new THREE.Mesh(new THREE.TorusGeometry(BALL_R * 1.001, 0.006, 6, 32), new THREE.MeshBasicMaterial({ color: 0x8a6a00 }))
-  ball.add(seam)
+  // the ball (a low-poly sphere with panels), its screen-door shadow, the rope (a 1-pixel line)
+  const ball = new THREE.Mesh(new THREE.SphereGeometry(BALL_R, 8, 6), lam({ map: pixelTexture("ball") }))
   scene.add(ball)
-  const shadow = new THREE.Mesh(new THREE.CircleGeometry(BALL_R * 1.2, 20), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.3, depthWrite: false }))
+  const shadowMat = retroize(new THREE.MeshBasicMaterial({ color: 0x000000, opacity: 0.5, transparent: true }), U, { door: true, snap: false })
+  const shadow = new THREE.Mesh(new THREE.CircleGeometry(BALL_R * 1.3, 8), shadowMat)
   shadow.rotation.x = -Math.PI / 2
   shadow.position.y = 0.015
+  shadow.renderOrder = -1
   scene.add(shadow)
-  const ropeMat = new THREE.MeshLambertMaterial({ color: 0xf0ead8 })
-  let rope = null
+  const MAX_PTS = 160
+  const ropeArr = new Float32Array(MAX_PTS * 3)
+  const ropeGeo = new THREE.BufferGeometry()
+  ropeGeo.setAttribute("position", new THREE.BufferAttribute(ropeArr, 3))
+  const rope = new THREE.Line(ropeGeo, retroize(new THREE.LineBasicMaterial({ color: 0xf4ecd4 }), U))
+  rope.frustumCulled = false
+  scene.add(rope)
 
-  const figures = [makeFigure(SHIRTS[0]), makeFigure(SHIRTS[1])]
+  const figures = [makeFigure(SHIRTS[0], U, tex), makeFigure(SHIRTS[1], U, tex)]
   figures.forEach((f) => scene.add(f.g))
+  // player shadows (screen-door blobs)
+  const blobs = figures.map(() => {
+    const m = new THREE.Mesh(new THREE.CircleGeometry(0.32, 8), shadowMat)
+    m.rotation.x = -Math.PI / 2
+    m.position.y = 0.014
+    m.renderOrder = -1
+    scene.add(m)
+    return m
+  })
 
-  let width = 1
-  let height = 1
+  let width = 160
+  let height = 240
   let lost = false
   const onLost = (e) => {
     e.preventDefault()
     lost = true
     releaseGpu(scene)
-    rope = null
   }
   const onRestored = () => (lost = false)
   canvas.addEventListener("webglcontextlost", onLost)
@@ -152,7 +244,6 @@ export const createScene = (canvas, { seat = 0 } = {}) => {
     camera.fov = portrait ? 66 : 48
     camera.aspect = width / height
     const side = seat === 0 ? 1 : -1
-    // (an upright phone looks a little down, so the court fills the screen rather than the sky)
     camera.position.set(0.6 * side, portrait ? 3.6 : 2.9, (portrait ? 7.4 : 6.6) * side)
     camera.lookAt(0, portrait ? 0.8 : 1.5, 0)
     camera.updateProjectionMatrix()
@@ -160,32 +251,39 @@ export const createScene = (canvas, { seat = 0 } = {}) => {
 
   // the rope's path: a helix down the pole for the wrapped part, then straight to the ball
   const ropePoints = (b) => {
-    const pts = []
+    let n = 0
+    const put = (x, y, z) => {
+      if (n >= MAX_PTS) return
+      ropeArr[n * 3] = x
+      ropeArr[n * 3 + 1] = y
+      ropeArr[n * 3 + 2] = z
+      n++
+    }
     const W = Math.abs(b.theta)
     const sign = Math.sign(b.theta) || 1
     const az = azimuth(b)
     const r = POLE_R + 0.012
-    const n = Math.max(2, Math.ceil(W / 0.3))
-    for (let k = 0; k <= n; k++) {
-      const s = (k / n) * W
+    const steps = Math.min(MAX_PTS - 12, Math.max(2, Math.ceil(W / 0.35)))
+    for (let k = 0; k <= steps; k++) {
+      const s = (k / steps) * W
       const a = az - sign * (W - s)
-      pts.push(new THREE.Vector3(Math.cos(a) * r, POLE_H - (s / (2 * Math.PI)) * PITCH, Math.sin(a) * r))
+      put(Math.cos(a) * r, POLE_H - (s / (2 * Math.PI)) * PITCH, Math.sin(a) * r)
     }
     const ty = tieHeight(b)
     const h = Math.hypot(b.x, b.z) || 1
     const ex = (b.x / h) * POLE_R
     const ez = (b.z / h) * POLE_R
-    // straight (or sagging when slack) from the pole to the ball
     const d = Math.hypot(b.x - ex, b.y - ty, b.z - ez)
     const slack = Math.max(0, freeLength(b) - d)
     for (let k = 1; k <= 8; k++) {
       const t = k / 8
-      pts.push(new THREE.Vector3(ex + (b.x - ex) * t, ty + (b.y - ty) * t - Math.sin(Math.PI * t) * slack * 0.5, ez + (b.z - ez) * t))
+      put(ex + (b.x - ex) * t, ty + (b.y - ty) * t - Math.sin(Math.PI * t) * slack * 0.5, ez + (b.z - ez) * t)
     }
-    return pts
+    ropeGeo.attributes.position.needsUpdate = true
+    ropeGeo.setDrawRange(0, n)
   }
 
-  const draw = (m, dt = 1 / 60, { workMs = 0, now = performance.now() } = {}) => {
+  const draw = (m, dt = 1 / 60, { now = performance.now() } = {}) => {
     if (lost || !m?.ball) return
     const b = m.ball
     ball.position.set(b.x, b.y, b.z)
@@ -193,16 +291,12 @@ export const createScene = (canvas, { seat = 0 } = {}) => {
     shadow.position.set(b.x, 0.015, b.z)
     const sc = Math.max(0.5, 1.4 - b.y * 0.25)
     shadow.scale.set(sc, sc, sc)
-    if (rope) {
-      rope.geometry.dispose()
-      scene.remove(rope)
-    }
-    rope = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(ropePoints(b)), 96, 0.012, 5, false), ropeMat)
-    scene.add(rope)
+    ropePoints(b)
 
     m.players.forEach((p, i) => {
       const f = figures[i]
       f.g.position.set(p.x, 0, p.z)
+      blobs[i].position.set(p.x, 0.014, p.z)
       // face the pole
       f.g.rotation.y = Math.atan2(-p.x, -p.z)
       // the swing: the arm on the side the ball goes comes round
@@ -212,29 +306,25 @@ export const createScene = (canvas, { seat = 0 } = {}) => {
       f.arms[hitArm].rotation.x = -swingT * 2.2
       f.arms[hitArm].rotation.z = (hitArm ? -1 : 1) * swingT * 0.6
       f.arms[1 - hitArm].rotation.x = Math.sin(now / 300 + i) * 0.08
-      // a little hop when the ball is high and close
       const close = inReach(m, p)
-      f.ring.material.opacity = close ? 0.55 : 0.12
-      f.ring.material.color.setHex(close ? 0xffff60 : 0xffffff)
+      f.ring.material.opacity = close ? 0.7 : 0.2
+      f.ring.material.color.setHex(close ? 0xffff40 : 0xffffff)
       const run = Math.hypot(p.vx || 0, p.vz || 0)
       f.legs[0].rotation.x = Math.sin(now / 90) * Math.min(0.6, run * 0.15)
       f.legs[1].rotation.x = -f.legs[0].rotation.x
     })
-
-    if (res.frame((dt || 1 / 60) * 1000, workMs)) {
-      renderer.setPixelRatio(res.ratio)
-      renderer.setSize(width, height, false)
-    }
     renderer.render(scene, camera)
   }
 
   return {
     renderer,
     draw,
+    // the low resolution the game draws at (the canvas is blown up by CSS, whole pixels each)
     resize: (w, h) => {
-      width = Math.max(1, w)
-      height = Math.max(1, h)
+      width = Math.max(1, Math.round(w))
+      height = Math.max(1, Math.round(h))
       renderer.setSize(width, height, false)
+      U.uSnap.value.set(width, height)
       placeCamera()
     },
     setSeat: (s) => {

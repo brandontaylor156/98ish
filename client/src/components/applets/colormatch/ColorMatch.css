@@ -1,9 +1,4 @@
-/* Color Match: two white cards, big Yes/No; swatch tiles */
-
-.cmLogo {
-  font-size: 30px;
-  text-shadow: 2px 2px 0 #000;
-}
+/* Color Match: the board is one pixel canvas (pixels.js); these are the boxes over it */
 
 .cmPlay {
   flex: 1;
@@ -12,252 +7,19 @@
   flex-direction: column;
 }
 
-.cmHud {
-  flex-wrap: wrap;
-  align-items: center;
-}
-
-.cmMult {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  min-width: 52px;
-}
-
-.cmMult b {
-  font-size: 18px;
-  color: #a00000;
-}
-
-.cmPips {
-  display: flex;
-  gap: 2px;
-}
-
-.cmPips i {
-  width: 8px;
-  height: 8px;
-  background: #808080;
-  box-shadow: inset 1px 1px #404040;
-}
-
-.cmPips i.is-on {
-  background: #ffd000;
-}
-
-.cmTime {
-  margin-left: auto;
-}
-
-.cmTime.is-low .qgNum {
-  animation: cmBlink 0.5s steps(2) infinite;
-}
-
-@keyframes cmBlink {
-  50% {
-    opacity: 0.3;
-  }
-}
-
-.cmTimeBar {
-  flex-basis: 100%;
-  height: 6px;
-  background: #808080;
-}
-
-.cmTimeBar div {
-  height: 100%;
-  background: #000080;
-}
-
 .cmStage {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #008080;
-  padding: 10px;
-}
-
-.cmCountdown {
-  font-size: 96px;
-  font-weight: bold;
-  color: #fff;
-  text-shadow: 4px 4px 0 #000;
-  animation: cmPop 0.25s ease-out;
-}
-
-@keyframes cmPop {
-  from {
-    transform: scale(1.6);
-    opacity: 0;
-  }
+  background: #24104c;
 }
 
 .cmBoard {
-  position: relative;
-  width: min(100%, 560px);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-}
-
-.cmQ {
-  color: #fff;
-  font-size: 12px;
-  text-align: center;
-  text-shadow: 1px 1px 0 #000;
-}
-
-.cmCards {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-  width: 100%;
-}
-
-.cmCardCol {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 3px;
-}
-
-.cmCardLabel {
-  color: #fff;
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-}
-
-.cmCard {
-  width: 100%;
-  min-height: 110px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #fff;
-  box-shadow: inset -1px -1px #0a0a0a, inset 1px 1px #fff, inset -2px -2px #808080, inset 2px 2px #dfdfdf, 3px 3px 0 rgb(0 0 0 / 0.35);
-}
-
-.cmWord {
-  font-family: Arial, Helvetica, sans-serif;
-  font-size: clamp(24px, 7vw, 40px);
-  font-weight: 900;
-  letter-spacing: 1px;
-}
-
-.cmAnswers {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-  width: 100%;
-}
-
-.cmAnswers button {
-  display: flex !important;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  min-height: 72px;
-}
-
-.cmBig {
-  font-size: 22px;
-  font-weight: bold;
-}
-
-.cmYes .cmBig {
-  color: #007000;
-}
-
-.cmNo .cmBig {
-  color: #b00000;
-}
-
-.cmAnswers small {
-  color: #404040;
-}
-
-.cmFlash {
   position: absolute;
-  inset: -6px;
+  inset: 0;
   pointer-events: none;
-  border: 6px solid;
-  animation: cmFlash 0.35s ease-out forwards;
 }
 
-.cmFlash.is-right {
-  border-color: #20e040;
-}
-
-.cmFlash.is-wrong {
-  border-color: #ff2020;
-  background: rgb(255 0 0 / 0.15);
-}
-
-@keyframes cmFlash {
-  to {
-    opacity: 0;
-  }
-}
-
-.cmPrompt {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  width: 100%;
-}
-
-.cmWordCard {
-  min-height: 84px;
-  max-width: 320px;
-}
-
-.cmTiles {
-  display: grid;
-  gap: 8px;
-  width: min(100%, 340px);
-}
-
-.cmTile {
-  position: relative;
-  aspect-ratio: 1;
-  min-width: 0 !important;
-  border: none;
-  box-shadow: inset -2px -2px rgb(0 0 0 / 0.45), inset 2px 2px rgb(255 255 255 / 0.5), 2px 2px 0 #000 !important;
-}
-
-.cmTile:active {
-  transform: translate(1px, 1px);
-}
-
-.cmTileKey {
-  position: absolute;
-  left: 4px;
-  top: 2px;
-  font-size: 11px;
-  color: #fff;
-  text-shadow: 1px 1px 0 #000;
-}
-
-.cmPause {
-  position: absolute;
-  top: 6px;
-  right: 6px;
-}
-
-.cmStandings {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 12px;
-  padding: 2px 6px;
-  border-bottom: 1px solid #808080;
-}
-
-.cmStandings .is-you {
-  color: #000080;
+.cmBoard > button {
+  pointer-events: auto;
+  cursor: pointer;
 }
 
 .cmOnline {
@@ -272,13 +34,22 @@
   gap: 6px;
 }
 
-.qgRoot.is-mobile .cmAnswers button {
-  min-height: 88px;
+.cmBanner {
+  margin-bottom: 4px;
+}
+
+.cmNewBest {
+  animation: cmBlink 0.5s steps(2) infinite;
+}
+
+@keyframes cmBlink {
+  50% {
+    visibility: hidden;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .cmCountdown,
-  .cmTime.is-low .qgNum {
+  .cmNewBest {
     animation: none;
   }
 }
