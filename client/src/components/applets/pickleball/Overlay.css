@@ -81,7 +81,7 @@
   }
 }
 
-/* the one hint line: bottom middle on a computer, under the score on a phone */
+/* the one hint line: bottom middle */
 .pkHint {
   position: absolute;
   z-index: 3;
@@ -99,9 +99,9 @@
   pointer-events: none;
 }
 
+/* (a phone: at the bottom, under the meter's way; it lets touches through to the pad) */
 .pkRoot.is-mobile .pkHint {
-  bottom: auto;
-  top: 112px;
+  bottom: 6px;
   font-size: 12px;
 }
 

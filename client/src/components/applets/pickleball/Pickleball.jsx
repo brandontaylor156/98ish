@@ -760,11 +760,11 @@ const Pickleball = ({ onClose, mobile }) => {
   const hintText = showPad
     ? scheme === "swipe"
       ? serveTime
-        ? "Your serve: swipe up toward their box (faster = harder)"
-        : "Move with the pad · swipe up toward the target as the ball comes · tap = dink"
+        ? "Your serve: swipe up toward their box"
+        : "Swipe up toward the target · tap = dink"
       : serveTime
         ? "Your serve: touch where it goes, hold, let go in the green"
-        : "Move with the pad · touch their court to aim · tap soft, hold hard"
+        : "Touch their court to aim · tap soft, hold hard"
     : (hud?.humans || 1) >= 2
       ? "Hold hit for pace, let go as the ball comes · move keys steer the aim · P pause"
       : serveTime

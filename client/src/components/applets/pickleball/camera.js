@@ -54,14 +54,15 @@ export const clearShot = (cam, look, bodies, opts = {}) => {
   return { ...c, moved: Math.hypot(c.x - cam.x, c.y - cam.y, c.z - cam.z) }
 }
 
-// The TV shot of the server before a serve: from outside the court on the server's own side,
+// The TV shot of the server before a serve: from beside the court on the server's own side,
 // a little toward the net, at about head height, looking at their chest. `server` { x, z, team }.
 export const serverShot = (server, { portrait = false } = {}) => {
   const side = sideOf(server.team)
   const sx = server.x >= 0 ? 1 : -1
   return {
-    cam: { x: sx * (HALF_W + (portrait ? 4.4 : 3.4)), y: portrait ? 2.6 : 2.2, z: server.z - side * (portrait ? 3.2 : 2.6) },
-    look: { x: server.x * 0.7, y: 1.05, z: server.z - side * 0.4 },
-    fov: portrait ? 50 : 34,
+    // (inside the venues' fences, which stand 3.6 m outside the sidelines)
+    cam: { x: sx * (HALF_W + 2.6), y: portrait ? 3.0 : 2.3, z: server.z - side * (portrait ? 3.8 : 3.0) },
+    look: { x: server.x * 0.7, y: portrait ? 0.9 : 1.05, z: server.z - side * 0.4 },
+    fov: portrait ? 56 : 36,
   }
 }
