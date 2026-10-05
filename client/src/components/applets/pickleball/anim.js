@@ -522,9 +522,14 @@ export const updateAnim = (a, s, dt) => {
   const cphA = cph * hand // (the paddle arm forward as the opposite foot lands)
   const pump = (bl.run + bl.sprint) * clamp((speed - 1.0) / 2, 0, 1) + bl.walk * 0.45 * clamp(speed / 1.2, 0, 1)
   const incoming = !!(s.prep || swing || whiff || s.holding || s.charging)
-  const holdReady = s.between ? 0 : incoming || fc.mode === "face" || fc.mode === "cross" ? 1 : 0.55
+  // (running hard the arms pump, the paddle arm too, the paddle kept up in front; shuffling or
+  // with a ball on the way the paddle arm holds ready and the other arm swings less: a player's
+  // arms never stop moving with the legs, though; docs/pickleball-arms.md)
+  const fastRun = clamp((speed - 1.8) / 1.2, 0, 1)
+  const facing = fc.mode === "face" || fc.mode === "cross"
+  const holdReady = s.between ? 0 : incoming ? 1 : facing ? 1 - 0.45 * fastRun : 0.45
   W.pumpP = ramp(W.pumpP, pump * (1 - holdReady), dt, 0.3, 0.12)
-  W.pumpO = ramp(W.pumpO, s.holding ? 0 : pump * (fc.mode === "face" && !s.between ? 0.3 : 1), dt, 0.25, 0.2)
+  W.pumpO = ramp(W.pumpO, s.holding ? 0 : pump * (s.between ? 1 : incoming ? 0.35 : facing ? 0.55 + 0.45 * fastRun : 1), dt, 0.25, 0.2)
   const amp = 0.55 + 0.45 * clamp(pump, 0, 1)
   if (W.pumpP > 1e-3) {
     const at = lerpV(V(0.22, 0.96, 0.2), relaxed.hand, smoothW(W.relax))
@@ -840,6 +845,19 @@ export const updateAnim = (a, s, dt) => {
     handW = add(handW, idleMove)
     offW = add(offW, idleMove)
   }
+  // the arms have weight: they lag a little behind what the body does (a start, a stop, a
+  // turn) and swing back on a soft spring; standing about, the hands are never quite still
+  // (a slow drift of a centimeter or so). Not in a stroke, not with two hands on the handle.
+  {
+    const lagT = V(clamp(-mv.ax * 0.0055, -0.05, 0.05), 0, clamp(-mv.az * 0.0055, -0.05, 0.05))
+    const lag = springV(a.armLag || (a.armLag = {}), lagT, 7, dt)
+    const free = 1 - smoothW(Math.min(1, so.w * 2))
+    const drift = still * (s.between ? 1 : 0.35)
+    const dO = V(Math.sin(a.t * 0.71 + 1.3) * 0.009, Math.sin(a.t * 1.13) * 0.006, Math.sin(a.t * 0.93 + 0.4) * 0.011)
+    const dP = V(Math.sin(a.t * 0.83 + 2.1) * 0.007, Math.sin(a.t * 1.29 + 0.7) * 0.005, Math.sin(a.t * 0.61 + 2.9) * 0.009)
+    offW = add(offW, mul(add(lag, mul(dO, drift)), free * (1 - W.two)))
+    handW = add(handW, mul(add(mul(lag, 0.5), mul(dP, drift)), free * (1 - W.two)))
+  }
   let axisW = norm(dirToWorld(fr, axisL))
   // the elbows point where the stroke says (in the chest's frame, so they turn with it)
   const chestDir = (l) => norm(add(add(mul(sr, l.x), mul(UP, l.y)), mul(chestF, l.z)))
@@ -938,7 +956,7 @@ export const updateAnim = (a, s, dt) => {
     paddle: { grip: armP.end, axis: axisW, normal: normalW, face: add(armP.end, mul(axisW, BODY.paddleReach)) },
     hand,
     // for the skinned athletes' motion-capture layers (athlete.js)
-    info: { breath: life.breath, breathDepth: life.depth, speed, phase: a.gait.phase, cycle: a.gait.cycle, moving: a.gait.moving, blend: a.gait.blend.weights, timeScale: a.gait.blend.timeScale, facing: a.face.mode || "face", swinging: !!(swing || s.prep || whiff), between: !!s.between, mood: mood ? { kind: mood.kind, variant: mood.variant } : null, stroke: so.w, style: so.style, fast, ready: (1 - W.pumpP) * (1 - smoothW(W.relax)), offGrip: so.w < 0.5 && W.relax < 0.5 && W.pumpO < 0.3 && !mood && !s.holding, fist: mood?.kind === "cheer", strokePhase: so.phase, aim: aimAt ? { x: aimAt.x, y: aimAt.y, z: aimAt.z, ttc: -inp.tRel } : null, side: so.side, two: W.two > 0.5, footwork: fc.mode, split: a.hop > 0, lunge: lunging, mm: mmo ? { v: mmo.v, contacts: mmo.contacts, locked: mmo.locked, searches: mmo.stats.searches, jumps: mmo.stats.jumps, gap: Math.hypot(mmo.root.x - s.x, mmo.root.z - s.z) } : null },
+    info: { breath: life.breath, breathDepth: life.depth, speed, phase: a.gait.phase, cycle: a.gait.cycle, moving: a.gait.moving, blend: a.gait.blend.weights, timeScale: a.gait.blend.timeScale, facing: a.face.mode || "face", swinging: !!(swing || s.prep || whiff), between: !!s.between, mood: mood ? { kind: mood.kind, variant: mood.variant } : null, stroke: so.w, style: so.style, fast, ready: (1 - W.pumpP) * (1 - smoothW(W.relax)), offGrip: so.w < 0.5 && W.relax < 0.5 && W.pumpO < 0.3 && !mood && !s.holding, fist: mood?.kind === "cheer", strokePhase: so.phase, tRel: inp ? inp.tRel : null, tap: !!(bt.tap || bt.twirl), aim: aimAt ? { x: aimAt.x, y: aimAt.y, z: aimAt.z, ttc: -inp.tRel } : null, side: so.side, two: W.two > 0.5, footwork: fc.mode, split: a.hop > 0, lunge: lunging, mm: mmo ? { v: mmo.v, contacts: mmo.contacts, locked: mmo.locked, searches: mmo.stats.searches, jumps: mmo.stats.jumps, gap: Math.hypot(mmo.root.x - s.x, mmo.root.z - s.z) } : null },
   }
 }
 

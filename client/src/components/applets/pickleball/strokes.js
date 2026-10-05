@@ -149,9 +149,14 @@ export const strokeKeys = (style, side, c, opts = {}) => {
       // a pendulum from the shoulder out in front: a short take-back, the face open, lifting
       // through toward the target; the knees do the bending
       // (a short take-back, about a forearm's length; a short lift toward the target that stops)
-      back = P(add(ch, V(0.015 * s, 0.03, -0.1)), norm(add(ax, V(0, 0.04, -0.28))), 0.14 * s, V(-0.3 * s, 0.98, 0.34), V(0.45 * s, -1, -0.2), 0.03, 0.02)
-      contact = P(ch, ax, 0.03 * s, V(-0.32 * s, 0.98, 0.36), V(0.4 * s, -1, 0.1), 0.05, 0.03)
-      follow = P(add(ch, V(-0.03 * s, 0.1, 0.18)), N(0.18 * s, -0.25, 0.95), -0.05 * s, V(-0.32 * s, 0.98, 0.34), V(0.35 * s, -1, 0.3), 0.04, 0.02)
+      // (the other arm out to its side and a little forward for balance, at about the waist,
+      // the elbow soft: never hanging down to the court)
+      // (on a backhand the paddle crosses in front, so the other arm stays out on its own side,
+      // a little back: never across the paddle arm)
+      const offD = s > 0 ? V(-0.38, 1.1, 0.28) : V(-0.44, 1.06, -0.02)
+      back = P(add(ch, V(0.015 * s, 0.03, -0.1)), norm(add(ax, V(0, 0.04, -0.28))), 0.14 * s, add(offD, V(0.02, 0, 0)), V(0.45 * s, -1, -0.2), 0.03, 0.02)
+      contact = P(ch, ax, 0.03 * s, offD, V(0.4 * s, -1, 0.1), 0.05, 0.03)
+      follow = P(add(ch, V(-0.03 * s, 0.1, 0.18)), N(0.18 * s, -0.25, 0.95), -0.05 * s, add(offD, V(0, 0, -0.02)), V(0.35 * s, -1, 0.3), 0.04, 0.02)
       break
     }
     case "block": {
@@ -215,7 +220,9 @@ export const strokeKeys = (style, side, c, opts = {}) => {
       if (s > 0) {
         back = P(V(0.44, yAt(c, 0.04, 0.72, 1.12), -0.12), N(0.45, 0.42, -0.79), 0.72, V(-0.02, 1.14, 0.42), V(0.45, -1, -0.4), 0.04)
         contact = P(ch, ax, -0.1, V(-0.2, 1.1, 0.3), V(0.5, -1, 0.1), 0.1)
-        follow = P(V(-0.14, 1.3, 0.42), N(-0.28, 0.86, 0.1), -0.72, V(-0.3, 1.04, 0.08), V(0.2, -0.45, 1), 0.07)
+        // (the finish by the other shoulder: the hand up by it, the paddle's head over it, the
+        // elbow out in front at about chest height; not the paddle in front of the face)
+        follow = P(V(-0.2, 1.34, 0.26), N(-0.38, 0.8, -0.45), -0.78, V(-0.32, 1.04, 0.04), V(0.25, -0.5, 1), 0.07)
       } else if (two) {
         // two hands: both on the handle, a C-shaped loop low to high, the chest turning through
         // to face the net, finishing high over the paddle shoulder

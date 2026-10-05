@@ -43,13 +43,15 @@ export const handOf = (look) => (look && look.plays === "left" ? -1 : 1)
 // the ankles (m); hand: the paddle hand (wrist) for the standard posture (shoulders 1.3 m up and
 // 0.1 m ahead of the feet; anim.js moves it with the real one); tip: the paddle's direction
 export const READY = {
+  // (the hand a forearm's length in front of the body with the elbows bent about 90 degrees
+  // and in front of the ribs, the paddle's head up toward 11 o'clock: docs/pickleball-arms.md)
   net: {
-    allcourt: { crouch: 0.068, lean: 0.42, back: 0.07, stance: 0.25, hand: { x: 0.07, y: 1.02, z: 0.38 }, tip: { x: -0.32, y: 0.62, z: 0.72 } },
-    twohand: { crouch: 0.075, lean: 0.4, back: 0.07, stance: 0.28, hand: { x: 0.05, y: 1.1, z: 0.38 }, tip: { x: -0.28, y: 0.7, z: 0.66 } },
+    allcourt: { crouch: 0.068, lean: 0.42, back: 0.07, stance: 0.25, hand: { x: 0.08, y: 1.04, z: 0.34 }, tip: { x: -0.3, y: 0.72, z: 0.62 } },
+    twohand: { crouch: 0.075, lean: 0.4, back: 0.07, stance: 0.28, hand: { x: 0.06, y: 1.09, z: 0.34 }, tip: { x: -0.26, y: 0.76, z: 0.58 } },
   },
   base: {
-    allcourt: { crouch: 0.05, lean: 0.34, back: 0.05, stance: 0.24, hand: { x: 0.08, y: 1.0, z: 0.37 }, tip: { x: -0.25, y: 0.6, z: 0.76 } },
-    twohand: { crouch: 0.055, lean: 0.33, back: 0.05, stance: 0.26, hand: { x: 0.06, y: 1.06, z: 0.37 }, tip: { x: -0.22, y: 0.66, z: 0.72 } },
+    allcourt: { crouch: 0.05, lean: 0.34, back: 0.05, stance: 0.24, hand: { x: 0.09, y: 1.02, z: 0.34 }, tip: { x: -0.24, y: 0.7, z: 0.67 } },
+    twohand: { crouch: 0.055, lean: 0.33, back: 0.05, stance: 0.26, hand: { x: 0.07, y: 1.07, z: 0.34 }, tip: { x: -0.22, y: 0.74, z: 0.63 } },
   },
   between: { crouch: 0.004, lean: 0.05, back: 0, stance: 0.115 },
 }
