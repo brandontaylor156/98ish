@@ -255,3 +255,28 @@ the relay messages (`filterRelay`).
   through CDP incl. a two-finger twist, landscape; online smoke tests for Color Match, Echo Pads
   and Tetherball between a desktop and a phone), helpers in `ng-helpers.mjs`. Screenshots in
   `shots/newgames/`.
+
+## The retro redraw (2026-10-04)
+
+The owner's verdict on the first version: "none of those new games look retro". All five were
+redrawn as mid/late-90s games with the retro kit (`utils/retro/`, `shared/retro/`; rules in
+CLAUDE.md "Retro art"). Rules, controls, online play, scores and achievements are unchanged;
+the games' hit areas are invisible elements over the pixel picture, with the same data
+attributes as before.
+
+| Game | Look | Logical screen (phone) |
+| --- | --- | --- |
+| Boom Frenzy | 256-colour desert: dithered sky (red in Panic Time), mesas, cacti, dug holes; procedural pixel bombs (dithered spheres, eyes that worry, per-type dressing), a burning pixel fuse with a flickering spark, wooden mallet with squash, 8-frame explosions, icy palette remap when frozen, Sort Rush yard with fenced pens and walking bombs | ~192 x 377 |
+| Color Match | edutainment: scrolling patterned backdrop, index cards with ruled lines, words in a chunky pixel font in ink colours, coloured bevel YES/NO buttons, LED clock, Professor Hoot the owl who cheers streaks | ~230 x 450 |
+| Echo Pads | an original electronic toy on a wooden desk: charcoal case, dark pads that light with a glow, silver hub with logo and red LED window, pixel symbols that stay visible unlit | ~230 x 450 |
+| Zap It! | the ZAP-TRON, an original black-plastic handheld: dome ringed with timer LEDs, slider, knob, lever, T-handle and speaker that move per call, the call on a green LCD, beat lights | ~192 x 377 |
+| Tetherball | PS1-era 3D: low resolution blown up, vertex snapping, dithered 15-bit-style colour, flat-shaded box kids with pixel faces, chunky textures, billboard trees/school/slide/swings, screen-door shadows, pixel HUD | ~164 x 323 |
+
+Title screens have an animated pixel banner (attract loop); game-over panels show the score in
+LED digits and a pixel high-score table. Sounds use chip voices (pulse/triangle/noise).
+
+Tests: `node --test client/src/utils/retro/retro.test.js` (palette, dither, bitmap, sprites,
+font, LED, explosions, fit, chip maths, every palette within 256). Browser (scratchpad,
+vite 5385 + server 8385): `rt-boom.mjs`, `rt-colormatch.mjs`, `rt-echo.mjs`, `rt-zapit.mjs`,
+`rt-tether.mjs` (the `ng-*` suites with retro selectors), `rt-perf.mjs` (4x CPU throttle),
+`rt-compare.mjs` (before/after sheets in `shots/retro/`). Node previews: `retro/*-preview.mjs`.

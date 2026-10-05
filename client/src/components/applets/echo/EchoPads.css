@@ -1,9 +1,4 @@
-/* Echo Pads: a ring of four pads around a gray hub */
-
-.epLogo {
-  width: 96px;
-  height: 96px;
-}
+/* Echo Pads: the toy is one pixel canvas (pixels.js); these are the boxes over it */
 
 .epPlay {
   flex: 1;
@@ -12,138 +7,12 @@
   flex-direction: column;
 }
 
-.epStatus {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 2px 6px;
-  font-size: 12px;
-  font-weight: bold;
-  text-align: center;
-}
-
-/* online: the status line under the players, not stretching */
-.epPlay > .epStatus {
-  flex: none;
-  padding: 6px;
-  border-bottom: 1px solid #808080;
-}
-
-.epClock {
-  font-weight: normal;
-  color: #800000;
-}
-
-.epWait {
-  height: 5px;
-  background: #808080;
-}
-
-.epWait div {
-  height: 100%;
-  background: #000080;
-}
-
 .epStage {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 10px;
-  background: #008080;
-}
-
-.epPads {
-  width: min(100%, 100vh, 460px);
-  max-height: 100%;
-  aspect-ratio: 1;
-  touch-action: none;
-}
-
-.epPad {
-  stroke: #000;
-  stroke-width: 2;
-  transition: filter 0.06s;
-  filter: brightness(0.62) saturate(0.85);
+  background: #4a260e;
 }
 
 .epPads.is-on .epPad {
   cursor: pointer;
-}
-
-.epPad.is-lit {
-  filter: brightness(1.35) saturate(1.2) drop-shadow(0 0 6px #fff);
-}
-
-.epPad-green {
-  fill: #18b040;
-}
-
-.epPad-red {
-  fill: #e02020;
-}
-
-.epPad-yellow {
-  fill: #f0d000;
-}
-
-.epPad-blue {
-  fill: #1c5ae0;
-}
-
-.epSymbols g {
-  fill: rgb(0 0 0 / 0.45);
-  stroke: rgb(255 255 255 / 0.6);
-  stroke-width: 1.5;
-}
-
-.epSymbols g.is-lit {
-  fill: #fff;
-  stroke: #000;
-}
-
-.epHubTitle {
-  font: bold 14px Arial, sans-serif;
-  fill: #000;
-}
-
-.epHubText {
-  font: bold 13px "Courier New", monospace;
-  fill: #800000;
-}
-
-.epPlayers {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 10px;
-  padding: 3px 6px;
-  border-bottom: 1px solid #808080;
-}
-
-.epPlayers .is-out {
-  text-decoration: line-through;
-  color: #808080;
-}
-
-.epPlayers .is-turn {
-  font-weight: bold;
-  color: #000080;
-}
-
-.epPlayers .is-turn::before {
-  content: "▶ ";
-}
-
-.epPlayers .is-you::after {
-  content: " (you)";
-  font-weight: normal;
-  color: #404040;
-}
-
-.epOverBar {
-  width: min(100%, 420px);
 }
 
 .epOnline {
@@ -158,11 +27,22 @@
   gap: 6px;
 }
 
-.qgOverlay.is-low {
-  align-items: flex-end;
-  background: rgb(0 0 0 / 0.2);
+.epBanner {
+  margin-bottom: 4px;
 }
 
-.qgOverlay.is-low .qgPanel {
-  align-self: flex-end;
+.epNewBest {
+  animation: epBlink 0.5s steps(2) infinite;
+}
+
+@keyframes epBlink {
+  50% {
+    visibility: hidden;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .epNewBest {
+    animation: none;
+  }
 }

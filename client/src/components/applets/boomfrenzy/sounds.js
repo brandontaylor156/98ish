@@ -1,50 +1,58 @@
-// Boom Frenzy's sounds, synthesized (utils/gameSynth.js: the shared AudioContext, the taskbar
-// volume and mute): a pop when a bomb comes up, a wooden thunk per whack (higher with the
-// combo), a noisy boom, a siren for Panic Time.
+// Boom Frenzy's sounds: 8-bit, on the chip voices of utils/gameSynth.js (pulse waves, a
+// triangle, shift-register noise, all stepped 60 times a second; the shared AudioContext, the
+// taskbar volume and mute). A blip when a bomb pops up, a crunchy whack (higher with the
+// combo), a rumbling noise-channel explosion, a siren for Panic Time, a coin for Gold.
 
-import { createSynth, midi } from "../../../utils/gameSynth"
+import { createSynth } from "../../../utils/gameSynth"
 
 export const createSounds = () => {
-  const s = createSynth({ gain: 0.55 })
+  const s = createSynth({ gain: 0.6 })
   return {
     setEnabled: s.setEnabled,
-    pop: () => s.play(({ tone }) => tone(520, { len: 0.07, to: 780, type: "sine", vol: 0.08 })),
+    pop: () => s.play(({ pulse }) => pulse(330, { len: 0.06, to: 880, duty: 0.5, vol: 0.06 })),
     whack: (combo = 0) =>
-      s.play(({ tone, noise }) => {
-        noise({ len: 0.06, vol: 0.35, freq: 900, type: "bandpass", q: 1.2 })
-        tone(170, { len: 0.1, type: "square", vol: 0.12, to: 80 })
-        tone(midi(72 + Math.min(12, Math.floor(combo / 3))), { at: 0.03, len: 0.12, type: "triangle", vol: 0.13 })
+      s.play(({ pulse, chipNoise }) => {
+        chipNoise({ len: 0.07, vol: 0.32, pitch: 0.72, curve: 1.5 })
+        pulse(260, { len: 0.08, to: 70, duty: 0.5, vol: 0.14 })
+        pulse(523 * Math.pow(2, Math.min(12, Math.floor(combo / 3)) / 12), { at: 0.035, len: 0.1, duty: 0.125, vol: 0.09 })
       }),
-    hit: () => s.play(({ tone, noise }) => (noise({ len: 0.05, vol: 0.3, freq: 2500, type: "highpass" }), tone(900, { len: 0.05, type: "square", vol: 0.06 }))),
-    boom: () =>
-      s.play(({ noise, tone }) => {
-        noise({ len: 0.7, vol: 0.7, freq: 1800, to: 80 })
-        tone(90, { len: 0.5, type: "sine", vol: 0.4, to: 35 })
+    hit: () => s.play(({ pulse, chipNoise }) => (chipNoise({ len: 0.05, vol: 0.22, pitch: 0.95, short: true }), pulse(1046, { len: 0.05, duty: 0.25, vol: 0.06 }))),
+    boom: (chained = false) =>
+      s.play(({ chipNoise, tri }) => {
+        chipNoise({ len: chained ? 0.5 : 0.8, vol: 0.55, pitch: 0.62, toPitch: 0.08, curve: 1.2 })
+        tri(98, { len: 0.45, to: 32, vol: 0.4, curve: 0.8 })
       }),
-    hurt: () => s.play(({ tone }) => (tone(330, { len: 0.18, type: "sawtooth", vol: 0.1, to: 160 }), tone(250, { at: 0.12, len: 0.2, type: "sawtooth", vol: 0.08, to: 120 }))),
-    miss: () => s.play(({ tone }) => tone(200, { len: 0.06, type: "triangle", vol: 0.08 })),
-    nudge: () => s.play(({ tone }) => (tone(700, { len: 0.05, type: "square", vol: 0.05 }), tone(700, { at: 0.08, len: 0.05, type: "square", vol: 0.05 }))),
-    jump: () => s.play(({ tone }) => tone(300, { len: 0.18, type: "sine", vol: 0.15, to: 900 })),
-    split: () => s.play(({ tone }) => (tone(600, { len: 0.1, type: "square", vol: 0.07 }), tone(400, { at: 0.06, len: 0.1, type: "square", vol: 0.07 }))),
-    freeze: () => s.play(({ tone }) => [0, 1, 2, 3].forEach((i) => tone(midi(88 + i * 3), { at: i * 0.05, len: 0.2, type: "sine", vol: 0.07 }))),
-    heart: () => s.play(({ tone }) => [72, 76, 79].forEach((m, i) => tone(midi(m), { at: i * 0.07, len: 0.2, type: "triangle", vol: 0.12 }))),
-    slow: () => s.play(({ tone }) => tone(600, { len: 0.5, type: "sine", vol: 0.1, to: 200 })),
-    gold: () => s.play(({ tone }) => [84, 88, 91, 96].forEach((m, i) => tone(midi(m), { at: i * 0.05, len: 0.18, type: "square", vol: 0.06 }))),
+    hurt: () => s.play(({ pulse }) => (pulse(392, { len: 0.12, to: 196, duty: 0.5, vol: 0.1 }), pulse(330, { at: 0.12, len: 0.18, to: 147, duty: 0.5, vol: 0.09 }))),
+    miss: () => s.play(({ pulse }) => pulse(165, { len: 0.06, duty: 0.125, vol: 0.07 })),
+    nudge: () => s.play(({ pulse }) => (pulse(880, { len: 0.04, duty: 0.25, vol: 0.05 }), pulse(880, { at: 0.08, len: 0.04, duty: 0.25, vol: 0.05 }))),
+    jump: () => s.play(({ pulse }) => pulse(262, { len: 0.16, to: 1046, duty: 0.25, vol: 0.09 })),
+    split: () => s.play(({ pulse }) => (pulse(988, { len: 0.08, to: 494, duty: 0.25, vol: 0.07 }), pulse(784, { at: 0.07, len: 0.08, to: 392, duty: 0.25, vol: 0.07 }))),
+    freeze: () => s.play(({ arp }) => arp([88, 91, 95, 100], { len: 0.45, duty: 0.125, vol: 0.08, step: 2 })),
+    heart: () => s.play(({ jingle }) => jingle([[72, 1], [76, 1], [79, 1], [84, 2]], { frames: 4, duty: 0.25, vol: 0.09 })),
+    slow: () => s.play(({ pulse }) => pulse(659, { len: 0.5, to: 165, duty: 0.5, vol: 0.08, vib: 0.02 })),
+    // the classic two-note coin
+    gold: () => s.play(({ jingle }) => jingle([[83, 1], [88, 5]], { frames: 4, duty: 0.5, vol: 0.08, gap: 1 })),
     panic: () =>
-      s.play(({ tone }) => {
+      s.play(({ pulse }) => {
         for (let i = 0; i < 3; i++) {
-          tone(600, { at: i * 0.5, len: 0.25, type: "sawtooth", vol: 0.08, to: 1100 })
-          tone(1100, { at: i * 0.5 + 0.25, len: 0.25, type: "sawtooth", vol: 0.08, to: 600 })
+          pulse(587, { at: i * 0.5, len: 0.25, to: 1175, duty: 0.25, vol: 0.07, curve: 0.3 })
+          pulse(1175, { at: i * 0.5 + 0.25, len: 0.25, to: 587, duty: 0.25, vol: 0.07, curve: 0.3 })
         }
       }),
     weapon: (w) =>
-      s.play(({ tone, noise }) => {
-        if (w === "mallet") (noise({ len: 0.4, vol: 0.6, freq: 600, to: 60 }), tone(120, { len: 0.3, type: "square", vol: 0.2, to: 40 }))
-        else if (w === "freeze") [0, 1, 2, 3, 4].forEach((i) => tone(midi(84 + i * 4), { at: i * 0.04, len: 0.3, type: "sine", vol: 0.07 }))
-        else (tone(1200, { len: 0.06, type: "square", vol: 0.07 }), tone(1500, { at: 0.08, len: 0.06, type: "square", vol: 0.07 }))
+      s.play(({ pulse, chipNoise, tri, arp }) => {
+        if (w === "mallet") {
+          chipNoise({ len: 0.5, vol: 0.55, pitch: 0.5, toPitch: 0.05 })
+          tri(130, { len: 0.35, to: 33, vol: 0.4 })
+        } else if (w === "freeze") arp([84, 88, 91, 96, 100], { len: 0.5, duty: 0.125, vol: 0.08 })
+        else (pulse(1319, { len: 0.05, duty: 0.25, vol: 0.07 }), pulse(1568, { at: 0.08, len: 0.05, duty: 0.25, vol: 0.07 }), pulse(2093, { at: 0.16, len: 0.06, duty: 0.25, vol: 0.06 }))
       }),
-    sort: (combo = 0) => s.play(({ tone }) => tone(midi(67 + Math.min(14, combo)), { len: 0.12, type: "triangle", vol: 0.14 })),
-    won: () => s.play(({ tone }) => [60, 64, 67, 72, 76, 79, 84].forEach((m, i) => tone(midi(m), { at: i * 0.08, len: i === 6 ? 0.5 : 0.12, type: "square", vol: 0.08 }))),
-    lost: () => s.play(({ tone }) => [67, 63, 60, 55].forEach((m, i) => tone(midi(m), { at: i * 0.18, len: 0.3, type: "triangle", vol: 0.16 }))),
+    sort: (combo = 0) => s.play(({ pulse }) => pulse(392 * Math.pow(2, Math.min(14, combo) / 12), { len: 0.1, duty: 0.25, vol: 0.09 })),
+    won: () =>
+      s.play(({ jingle }) => {
+        jingle([[60, 1], [64, 1], [67, 1], [72, 2], [67, 1], [72, 4]], { frames: 6, duty: 0.5, vol: 0.08 })
+        jingle([[48, 3], [55, 3], [48, 4]], { frames: 6, voice: "tri", vol: 0.16 })
+      }),
+    lost: () => s.play(({ jingle }) => jingle([[67, 2], [63, 2], [60, 2], [55, 6]], { frames: 6, voice: "tri", vol: 0.2, gap: 0.95 })),
   }
 }

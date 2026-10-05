@@ -3,113 +3,102 @@ import MenuBar from "../../shared/MenuBar"
 import GameChat, { useGameChatMenuItem } from "../../shared/GameChat"
 import GameStart from "../../shared/GameStart"
 import PlayOnline, { OnlineResultBar, useOnlineRoom } from "../../shared/online"
-import { Check, HowToDialog, PausedPanel, QuickGameRoot, ScoresDialog, TitleScreen, useAutoPause, useGameLoop } from "../../shared/quickgame"
+import { Check, HowToDialog, QuickGameRoot, ScoresDialog, TitleScreen, useAutoPause, useGameLoop } from "../../shared/quickgame"
+import { Hit, PixelButton, PixelLed, PixelP, PixelScores, RetroBanner, RetroPanel, RetroPaused, RetroStage, useRetroScreen } from "../../shared/retro"
 import { unlock } from "../../../utils/achievements"
 import { helpItem } from "../../../utils/help"
+import { reducedMotion } from "../../../utils/settings"
 import { createScores } from "../../../utils/gameKit"
-import { createSynth } from "../../../utils/gameSynth"
+import { createSounds } from "./sounds"
 import * as R from "./rules"
+import { drawBanner, drawToy, layout, minSize, padAt, pal } from "./pixels"
 import "./EchoPads.css"
 
 // Echo Pads: a Simon-style memory game. Four pads light up and sing a sequence; repeat it.
 // Every round adds a step. Classic, Reverse, Rewind (forwards then back) and Speed; online
 // "Pass the Pads": take turns repeating the shared sequence and adding a step; a slip and
 // you're out (server/arcade/games/echo.js; rules in rules.js, shared with the server).
-// Each pad has a symbol (triangle, circle, square, star) for color-blind players.
+// Each pad has a symbol (triangle, circle, square, star) for color-blind players. The toy is
+// a 256-colour pixel picture (pixels.js) with the pads' hit boxes laid over it.
 
 const ICON = "/assets/program_icons/echo.svg"
 const store = createScores("98ish.echo", { defaults: { sound: true, symbols: true, mode: "classic" } })
 const INPUT_MS = 5000 // to make each press in a solo game
 const KEYMAP = { q: 0, w: 1, a: 2, s: 3, 1: 0, 2: 1, 3: 2, 4: 3, ArrowUp: 0, ArrowRight: 1, ArrowLeft: 2, ArrowDown: 3 }
 
-// the pads: four quarters of a ring around a hub, drawn in SVG
-const ARC = (i) => {
-  // quarters: 0 top-left, 1 top-right, 2 bottom-left, 3 bottom-right
-  const start = [180, 270, 90, 0][i] + 3
-  const end = start + 84
-  const R1 = 96
-  const R0 = 42
-  const p = (r, a) => [100 + r * Math.cos((a * Math.PI) / 180), 100 + r * Math.sin((a * Math.PI) / 180)]
-  const [a, b] = [p(R1, start), p(R1, end)]
-  const [c, d] = [p(R0, end), p(R0, start)]
-  return `M${a} A${R1} ${R1} 0 0 1 ${b} L${c} A${R0} ${R0} 0 0 0 ${d} Z`
-}
-const SYMBOL_AT = [
-  [62, 62],
-  [138, 62],
-  [62, 138],
-  [138, 138],
-]
-const Symbol = ({ kind, x, y }) => {
-  const s = 13
-  if (kind === "triangle") return <path d={`M${x} ${y - s} L${x + s} ${y + s * 0.8} L${x - s} ${y + s * 0.8} Z`} />
-  if (kind === "circle") return <circle cx={x} cy={y} r={s * 0.9} />
-  if (kind === "square") return <rect x={x - s * 0.8} y={y - s * 0.8} width={s * 1.6} height={s * 1.6} />
-  const pts = Array.from({ length: 10 }, (_, k) => {
-    const r = k % 2 ? s * 0.45 : s
-    const a = -Math.PI / 2 + (k * Math.PI) / 5
-    return `${x + r * Math.cos(a)},${y + r * Math.sin(a)}`
-  }).join(" ")
-  return <polygon points={pts} />
-}
-
-const Pads = ({ lit, onPress, onRelease, enabled, symbols, center }) => (
-  <svg viewBox="0 0 200 200" className={`epPads${enabled ? " is-on" : ""}`} role="group" aria-label="Echo pads">
-    <circle cx="100" cy="100" r="99" fill="#202020" />
-    {R.PADS.map((p, i) => (
-      <path
-        key={p.id}
-        d={ARC(i)}
-        className={`epPad epPad-${p.id}${lit === i ? " is-lit" : ""}`}
-        data-pad={i}
-        role="button"
-        aria-label={`${p.name} (${p.symbol})`}
-        onPointerDown={(e) => {
-          if (!enabled) return
-          e.preventDefault()
-          e.currentTarget.setPointerCapture?.(e.pointerId)
-          onPress(i)
-        }}
-        onPointerUp={() => enabled && onRelease?.(i)}
-        onPointerCancel={() => enabled && onRelease?.(i)}
-      />
-    ))}
-    {symbols && (
-      <g className="epSymbols" pointerEvents="none">
-        {R.PADS.map((p, i) => (
-          <g key={p.id} className={lit === i ? "is-lit" : ""}>
-            <Symbol kind={p.symbol} x={SYMBOL_AT[i][0]} y={SYMBOL_AT[i][1]} />
-          </g>
-        ))}
-      </g>
-    )}
-    <circle cx="100" cy="100" r="38" fill="#c0c0c0" stroke="#000" strokeWidth="2" />
-    <text x="100" y="96" textAnchor="middle" className="epHubTitle">
-      ECHO
-    </text>
-    <text x="100" y="114" textAnchor="middle" className="epHubText">
-      {center}
-    </text>
-  </svg>
-)
-
-const createSounds = () => {
-  const s = createSynth({ gain: 0.5 })
-  let stop = null
-  return {
-    setEnabled: s.setEnabled,
-    padOn: (i) => {
-      stop?.()
-      stop = s.hold(R.PADS[i].freq, { type: "triangle", vol: 0.24 })
+// ---- the toy: the picture, the pads' hit boxes, panels on top ----
+// live() gives what changes every frame (the press clock, a blinking pad); animate: the toy
+// paints itself every frame, so React renders only when something changes
+const Toy = ({ online = false, lit, pressed, enabled, symbols, center, status, steps = 0, best = 0, wait = null, players, over, live, animate = false, onPress, onRelease, onPause, srPlayers, children }) => {
+  const state = { lit, pressed, symbols, center, status, steps, best, wait, players, over }
+  const stateRef = useRef(state)
+  stateRef.current = state
+  const liveRef = useRef(live)
+  liveRef.current = live
+  const pauseDown = useRef(false)
+  const Lref = useRef(null)
+  const scr = useRetroScreen({
+    layout: (w, h) => minSize(w, h, online),
+    palette: pal,
+    render: (b, fit) => {
+      const L = Lref.current
+      if (!L || L.W !== fit.w || L.H !== fit.h) return
+      drawToy(b, L, { ...stateRef.current, ...(liveRef.current?.() || {}), pressed: pauseDown.current ? "pause" : stateRef.current.pressed, t: performance.now() / 1000, reduced: reducedMotion() })
     },
-    padOff: () => {
-      stop?.()
-      stop = null
-    },
-    blip: (i, ms) => s.play(({ tone }) => (tone(R.PADS[i].freq, { len: ms / 1000, type: "triangle", vol: 0.24, attack: 0.01 }), tone(R.PADS[i].freq * 2, { len: ms / 1000, type: "sine", vol: 0.05 }))),
-    wrong: () => s.play(({ tone }) => (tone(90, { len: 0.8, type: "sawtooth", vol: 0.16 }), tone(94, { len: 0.8, type: "square", vol: 0.08 }))),
-    round: () => s.play(({ tone }) => [523, 659, 784].forEach((f, i) => tone(f, { at: i * 0.06, len: 0.1, type: "square", vol: 0.05 }))),
+  })
+  const L = useMemo(() => (scr.fit ? layout(scr.fit.w, scr.fit.h, { online }) : null), [scr.fit, online])
+  Lref.current = L
+  useEffect(() => scr.paint())
+  useGameLoop(() => scr.paint(), animate)
+  const down = (i) => (e) => {
+    if (!enabled) return
+    e.preventDefault()
+    const p = scr.point(e)
+    if (padAt(Lref.current, p.x, p.y) < 0) return
+    e.currentTarget.setPointerCapture?.(e.pointerId)
+    onPress(i)
   }
+  const up = (i) => () => enabled && onRelease?.(i)
+  const litNow = typeof pressed === "number" ? pressed : lit
+  return (
+    <RetroStage screen={scr} className="qgStage epStage">
+      {L && (
+        <>
+          <Hit x={L.toy.x} y={L.toy.y} w={L.toy.w} h={L.toy.h} className={`epPads${enabled ? " is-on" : ""}`} role="group" aria-label="Echo pads" data-symbols={symbols ? "on" : "off"}>
+            {R.PADS.map((p, i) => (
+              <Hit
+                key={p.id}
+                x={(i % 2) * L.toy.R}
+                y={Math.floor(i / 2) * L.toy.R}
+                w={L.toy.R}
+                h={L.toy.R}
+                className={`epPad epPad-${p.id}${litNow === i ? " is-lit" : ""}`}
+                data-pad={i}
+                role="button"
+                aria-label={`${p.name} (${p.symbol})`}
+                onPointerDown={down(i)}
+                onPointerUp={up(i)}
+                onPointerCancel={up(i)}
+              />
+            ))}
+          </Hit>
+          {onPause && <Hit as="button" {...L.pause} className="qgPauseBtn" aria-label="Pause" title="Pause (P)" onClick={onPause} onPointerDown={() => ((pauseDown.current = true), scr.paint())} onPointerUp={() => ((pauseDown.current = false), scr.paint())} onPointerLeave={() => ((pauseDown.current = false), scr.paint())} />}
+          <div className="rtSr" aria-live="polite">
+            <span className="epStatus" data-status>
+              {status}
+            </span>{" "}
+            {!online && (
+              <span data-steps={steps}>
+                {steps} steps, best {best}
+              </span>
+            )}
+          </div>
+          {srPlayers}
+        </>
+      )}
+      {children}
+    </RetroStage>
+  )
 }
 
 // ---- online: Pass the Pads ----
@@ -167,8 +156,8 @@ const OnlineGame = ({ online, sounds, symbols, onBack, onRecord }) => {
                 </select>
               </label>
               <Check id="ep-opt1" disabled={disabled} checked={s.replay !== false} onChange={(e) => set({ ...s, replay: e.target.checked })}>
-              Play the sequence before each turn
-            </Check>
+                Play the sequence before each turn
+              </Check>
             </div>
           )}
         />
@@ -208,41 +197,44 @@ const OnlineGame = ({ online, sounds, symbols, onBack, onRecord }) => {
             ? "Add a step: press any pad!"
             : `Your turn: repeat ${want} step${want === 1 ? "" : "s"} (${view.pos} done)`
           : `${turnName}'s turn${view.phase === "add" ? ": adding a step" : ""}`
+  const players = room.seats.map((s, i) => (s ? { name: s.name, out: !view.alive[i], turn: view.turn === i && room.phase === "playing", you: i === you, bot: s.bot } : null)).filter(Boolean)
+  const srPlayers = (
+    <div className="epPlayers rtSr">
+      {room.seats.map((s, i) =>
+        s ? (
+          <span key={i} className={`${view.alive[i] ? "" : "is-out"}${view.turn === i && room.phase === "playing" ? " is-turn" : ""}${i === you ? " is-you" : ""}`}>
+            {s.name}
+            {s.bot ? " (computer)" : ""}{" "}
+          </span>
+        ) : null,
+      )}
+    </div>
+  )
   return (
     <div className="epPlay">
-      <div className="epPlayers">
-        {room.seats.map((s, i) =>
-          s ? (
-            <span key={i} className={`${view.alive[i] ? "" : "is-out"}${view.turn === i && room.phase === "playing" ? " is-turn" : ""}${i === you ? " is-you" : ""}`}>
-              {s.name}
-              {s.bot ? " (computer)" : ""}
-            </span>
-          ) : null,
-        )}
-      </div>
-      <div className="epStatus" data-status>
-        {status}
-        {mine && <span className="epClock"> · {left.toFixed(1)} s</span>}
-      </div>
-      <div className="qgStage epStage">
-        <Pads
-          lit={lit}
-          enabled={mine}
-          symbols={symbols}
-          center={`${view.seq.length}`}
-          onPress={(i) => {
-            sounds.blip(i, 220)
-            setFlashPad(i)
-            setTimeout(() => setFlashPad(null), 200)
-            online.act({ type: "press", pad: i })
-          }}
-        />
+      <Toy
+        online
+        lit={lit}
+        enabled={mine}
+        symbols={symbols}
+        center={`${view.seq.length}`}
+        status={`${status}${mine ? ` · ${left.toFixed(1)} s` : ""}`}
+        wait={mine ? Math.min(1, left / (R.FIRST_MS / 1000)) : null}
+        players={players}
+        srPlayers={srPlayers}
+        onPress={(i) => {
+          sounds.blip(i, 220)
+          setFlashPad(i)
+          setTimeout(() => setFlashPad(null), 200)
+          online.act({ type: "press", pad: i })
+        }}
+      >
         {room.phase === "over" && (
-          <div className="epOverBar">
+          <RetroPanel title="Game over" low className="epOverBar">
             <OnlineResultBar online={online} text={`${view.seq.length} steps`} />
-          </div>
+          </RetroPanel>
         )}
-      </div>
+      </Toy>
     </div>
   )
 }
@@ -281,15 +273,17 @@ const EchoPads = ({ mobile = false, paused = false, onClose }) => {
 
   const record = ({ mode, steps, won, online: wasOnline }) => {
     let best = false
+    let place = -1
     if (!wasOnline) {
       const rec = store.record(mode, { score: steps, note: `${steps} steps` })
       setData(rec.data)
       best = rec.best
+      place = rec.place
     }
     if (steps >= 10) unlock("echo-10")
     if (steps >= 20) unlock("echo-20")
     if (wasOnline && won) unlock("echo-online")
-    setLast({ mode, steps, best, online: wasOnline, won })
+    setLast({ mode, steps, best, place, online: wasOnline, won })
   }
 
   const start = (mode = prefs.mode) => {
@@ -325,9 +319,12 @@ const EchoPads = ({ mobile = false, paused = false, onClose }) => {
     }
   })
 
+  // the loop: the playback and the press clock; React renders only when the lit pad or the
+  // phase changes (the toy paints the press clock and a blinking missed pad itself)
+  const sig = useRef("")
   useGameLoop((dt) => {
     const game = gameRef.current
-    if (!game || game.over) return
+    if (!game || game.over || !running) return
     const s = game.s
     if (s.phase === "show") {
       game.t += dt * 1000
@@ -349,7 +346,11 @@ const EchoPads = ({ mobile = false, paused = false, onClose }) => {
       game.wait -= dt * 1000
       if (game.wait <= 0) return lose(game, R.expectedFor(s.seq, s.mode)[s.pos])
     }
-    redraw()
+    const now = `${game.lit}|${game.s.phase}|${game.s.pos}|${game.s.seq.length}`
+    if (now !== sig.current) {
+      sig.current = now
+      redraw()
+    }
   }, running)
 
   const press = (i) => {
@@ -440,15 +441,7 @@ const EchoPads = ({ mobile = false, paused = false, onClose }) => {
     <TitleScreen>
       <GameStart
         id="echo"
-        title={
-          <div className="qgLogo">
-            <div className="epLogo">
-              <Pads lit={null} enabled={false} symbols={prefs.symbols} center="" />
-            </div>
-            <div className="qgLogoText">Echo Pads</div>
-            <div className="qgTagline">Watch. Listen. Repeat.</div>
-          </div>
-        }
+        title={<RetroBanner className="epBanner" palette={pal} minW={220} minH={92} aspect={2.4} paused={paused} label="Echo Pads: watch, listen, repeat" draw={(b, t) => drawBanner(b, t, { reduced: reducedMotion(), symbols: prefs.symbols })} />}
         play={{
           label: last && !last.online ? `${R.MODE_NAMES[prefs.mode]} again` : "Play",
           sub: `${R.MODE_NAMES[prefs.mode]} · Best: ${best(prefs.mode)} steps`,
@@ -489,59 +482,54 @@ const EchoPads = ({ mobile = false, paused = false, onClose }) => {
   else if (screen === "play" && g) {
     const s = g.s
     const want = R.expectedFor(s.seq, s.mode)
-    const lit = pressed ?? g.lit
-    const center = g.over ? "X" : s.phase === "show" ? "..." : `${s.pos}/${want.length}`
+    const center = g.over ? "X" : s.phase === "show" ? "---" : `${s.pos}/${want.length}`
+    const status = g.over ? "Missed!" : s.phase === "show" ? "Watch and listen..." : s.mode === "reverse" ? "Your turn: backwards!" : s.mode === "rewind" ? (s.pos < s.seq.length ? "Your turn: forwards..." : "...and back again!") : "Your turn!"
+    // after a slip, the pad it should have been blinks (drawn by the toy, every frame)
+    const live = () => {
+      const game = gameRef.current
+      if (!game) return {}
+      if (game.over) return { lit: game.over.wanted != null && (reducedMotion() || Math.floor(performance.now() / 300) % 2) ? game.over.wanted : null }
+      return { wait: game.s.phase === "input" ? Math.max(0, game.wait) / INPUT_MS : null }
+    }
     body = (
       <div className="epPlay">
-        <div className="qgHud">
-          <div className="qgCounter">
-            <span className="qgLabel">Steps</span>
-            <span className="qgNum" data-steps={s.seq.length}>
-              {s.seq.length}
-            </span>
-          </div>
-          <div className="epStatus" data-status>
-            {g.over ? "Missed!" : s.phase === "show" ? "Watch and listen..." : s.mode === "reverse" ? "Your turn: backwards!" : s.mode === "rewind" ? (s.pos < s.seq.length ? "Your turn: forwards..." : "...and back again!") : "Your turn!"}
-          </div>
-          <div className="qgCounter">
-            <span className="qgLabel">Best</span>
-            <span className="qgNum">{best(s.mode)}</span>
-          </div>
-          <button type="button" className="qgPauseBtn" onClick={() => (sounds.padOff(), setHold(true))} aria-label="Pause" title="Pause (P)">
-            ||
-          </button>
-        </div>
-        {s.phase === "input" && !g.over && (
-          <div className="epWait">
-            <div style={{ width: `${(Math.max(0, g.wait) / INPUT_MS) * 100}%` }} />
-          </div>
-        )}
-        <div className="qgStage epStage">
-          <Pads lit={lit} enabled={running && s.phase === "input"} symbols={prefs.symbols} center={center} onPress={press} onRelease={release} />
-          {hold && !g.over && <PausedPanel onResume={() => (setHold(false), rootRef.current?.focus({ preventScroll: true }))} onQuit={toTitle} />}
+        <Toy
+          lit={g.over ? g.over.wanted ?? null : g.lit}
+          pressed={pressed}
+          enabled={running && s.phase === "input"}
+          symbols={prefs.symbols}
+          center={center}
+          status={status}
+          steps={s.seq.length}
+          best={best(s.mode)}
+          over={!!g.over}
+          live={live}
+          animate={!hold && !dialog}
+          onPress={press}
+          onRelease={release}
+          onPause={() => (sounds.padOff(), setHold(true))}
+        >
+          {hold && !g.over && <RetroPaused onResume={() => (setHold(false), rootRef.current?.focus({ preventScroll: true }))} onQuit={toTitle} />}
           {g.over && (
-            <div className="qgOverlay is-low" data-over>
-              <div className="qgPanel window">
-                <div className="title-bar">
-                  <div className="title-bar-text">Game over</div>
-                </div>
-                <div className="window-body qgPanelBody">
-                  <p>{g.over.wanted != null ? `It was ${R.PADS[g.over.wanted].name} (${R.PADS[g.over.wanted].symbol}).` : "Out of time!"}</p>
-                  <p className="qgFinal">{g.over.steps} steps</p>
-                  {last?.best && <p className="qgNewBest">New best!</p>}
-                  <div className="qgPanelButtons">
-                    <button type="button" className="qgBig" autoFocus onClick={() => start(s.mode)} data-again>
-                      Play Again
-                    </button>
-                    <button type="button" onClick={toTitle}>
-                      Title Screen
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <RetroPanel
+              title="Game over"
+              low
+              data-over
+              buttons={
+                <>
+                  <PixelButton label="Play Again" big autoFocus data-again onClick={() => start(s.mode)} />
+                  <PixelButton label="Title Screen" onClick={toTitle} />
+                </>
+              }
+            >
+              <PixelP text={g.over.wanted != null ? `It was ${R.PADS[g.over.wanted].name} (${R.PADS[g.over.wanted].symbol}).` : "Out of time!"} />
+              <PixelLed text={String(g.over.steps)} />
+              <p className="qgFinal rtSr">{g.over.steps} steps</p>
+              {last?.best && <PixelP className="qgNewBest epNewBest" text="NEW BEST!" color="#c00000" />}
+              <PixelScores rows={data.scores[s.mode] || []} mark={last?.place ?? -1} unit=" steps" max={3} />
+            </RetroPanel>
           )}
-        </div>
+        </Toy>
       </div>
     )
   }

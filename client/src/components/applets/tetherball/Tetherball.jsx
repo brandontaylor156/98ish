@@ -3,15 +3,18 @@ import MenuBar from "../../shared/MenuBar"
 import GameChat, { useGameChatMenuItem } from "../../shared/GameChat"
 import GameStart from "../../shared/GameStart"
 import PlayOnline, { OnlineResultBar, useOnlineRoom } from "../../shared/online"
-import { Check, HowToDialog, PausedPanel, QuickGameRoot, ScoresDialog, TitleScreen, useAutoPause, useGameLoop } from "../../shared/quickgame"
+import { Check, HowToDialog, QuickGameRoot, ScoresDialog, TitleScreen, useAutoPause, useGameLoop } from "../../shared/quickgame"
+import { PixelButton, PixelText, RetroBanner, RetroPanel, RetroPaused, RetroStage, Sr, Hit, useRetroScreen } from "../../shared/retro"
 import { unlock } from "../../../utils/achievements"
 import { helpItem } from "../../../utils/help"
+import { reducedMotion } from "../../../utils/settings"
 import { createScores } from "../../../utils/gameKit"
 import { createSynth, midi } from "../../../utils/gameSynth"
 import * as M from "./match"
 import { MAX_WRAPS, wraps } from "./physics"
 import { createMirror, pack, SNAP_MS } from "./netplay"
 import { createScene } from "./scene"
+import { drawBanner, drawHud, layout as hudLayout, minSize, pal } from "./pixels"
 import "./Tetherball.css"
 
 // Tetherball: a ball on a rope round a pole. You hit it one way round, the other player the
@@ -28,16 +31,21 @@ const ICON = "/assets/program_icons/tetherball.svg"
 const store = createScores("98ish.tetherball", { defaults: { sound: true, level: "medium", target: 2 } })
 const LEVEL_IDS = ["easy", "medium", "hard"]
 
+// 8-bit sounds (the chip voices in utils/gameSynth.js)
 const createSounds = () => {
   const s = createSynth({ gain: 0.6 })
   return {
     setEnabled: s.setEnabled,
-    hit: (power = 0.6) => s.play(({ tone, noise }) => (noise({ len: 0.09, vol: 0.4 + power * 0.3, freq: 700 + power * 600, type: "bandpass", q: 1.4 }), tone(140 + power * 60, { len: 0.12, type: "sine", vol: 0.35, to: 70 }))),
-    pole: () => s.play(({ tone }) => (tone(820, { len: 0.5, type: "sine", vol: 0.12 }), tone(1235, { len: 0.35, type: "sine", vol: 0.06 }))),
-    whiff: () => s.play(({ noise }) => noise({ len: 0.18, vol: 0.12, freq: 300, to: 2000, type: "bandpass", q: 1.5 })),
-    game: (won) => s.play(({ tone }) => (won ? [67, 72, 76, 79] : [67, 64, 60]).forEach((m, i) => tone(midi(m), { at: i * 0.1, len: 0.2, type: "square", vol: 0.08 }))),
-    match: (won) => s.play(({ tone }) => (won ? [60, 64, 67, 72, 76, 79, 84] : [72, 67, 63, 60]).forEach((m, i) => tone(midi(m), { at: i * 0.1, len: 0.22, type: "triangle", vol: 0.14 }))),
-    rope: () => s.play(({ noise }) => noise({ len: 0.05, vol: 0.08, freq: 3000, type: "highpass" })),
+    hit: (power = 0.6) => s.play(({ chipNoise, tri }) => (chipNoise({ len: 0.08, vol: 0.3 + power * 0.25, pitch: 0.55 + power * 0.25 }), tri(150 + power * 60, { len: 0.12, to: 60, vol: 0.35 }))),
+    pole: () => s.play(({ pulse }) => (pulse(831, { len: 0.45, duty: 0.125, vol: 0.07, curve: 0.6 }), pulse(1245, { len: 0.3, duty: 0.25, vol: 0.04 }))),
+    whiff: () => s.play(({ chipNoise }) => chipNoise({ len: 0.16, vol: 0.12, pitch: 0.3, toPitch: 0.8 })),
+    game: (won) => s.play(({ jingle }) => jingle(won ? [[67, 1], [72, 1], [76, 1], [79, 3]] : [[67, 2], [64, 2], [60, 4]], { frames: 6, duty: 0.5, vol: 0.08 })),
+    match: (won) =>
+      s.play(({ jingle }) => {
+        jingle(won ? [[60, 1], [64, 1], [67, 1], [72, 2], [76, 1], [79, 1], [84, 5]] : [[72, 2], [67, 2], [63, 2], [60, 6]], { frames: 6, duty: 0.5, vol: 0.08 })
+        jingle(won ? [[48, 3], [55, 3], [48, 6]] : [[48, 6], [43, 6]], { frames: 6, voice: "tri", vol: 0.15 })
+      }),
+    rope: () => s.play(({ chipNoise }) => chipNoise({ len: 0.05, vol: 0.06, pitch: 0.95, short: true })),
   }
 }
 
@@ -50,46 +58,63 @@ export const swipeToHit = (dx, dy, ms) => {
   return { power, loft }
 }
 
-// ---- the court: the 3D view plus the controls ----
-const Court = ({ seat, source, onSwing, paused, onFrame }) => {
-  const canvasRef = useRef(null)
-  const wrapRef = useRef(null)
+// ---- the court: the low-resolution 3D view, the pixel HUD over it, the controls ----
+// hud(m) -> what the HUD shows (pixels.js drawHud); children: panels over the court
+const Court = ({ seat, onSwing, paused, onFrame, hud, onPause, status, children }) => {
   const viewRef = useRef(null)
+  const glRef = useRef(null)
   const ptr = useRef(null)
   const key = useRef(null)
+  const lastM = useRef(null)
+  const pauseDown = useRef(false)
+  const hudRef = useRef(hud)
+  hudRef.current = hud
   const [error, setError] = useState(null)
+  const Lref = useRef(null)
+  const scr = useRetroScreen({
+    layout: minSize,
+    palette: pal,
+    transparent: true,
+    render: (b, fit) => {
+      const L = Lref.current
+      if (!L || L.W !== fit.w || L.H !== fit.h) return b.data.fill(0)
+      drawHud(b, L, { ...hudRef.current(lastM.current), pressed: pauseDown.current ? "pause" : null, noPause: !onPause })
+    },
+  })
+  const L = useMemo(() => (scr.fit ? hudLayout(scr.fit.w, scr.fit.h) : null), [scr.fit])
+  Lref.current = L
   useLayoutEffect(() => {
     let view
     try {
-      view = createScene(canvasRef.current, { seat })
+      view = createScene(glRef.current, { seat })
     } catch {
       setError("This device can't draw 3D (WebGL) right now.")
       return
     }
     viewRef.current = view
-    const fit = () => {
-      const r = wrapRef.current.getBoundingClientRect()
-      view.resize(r.width, r.height)
-    }
-    fit()
-    const ro = new ResizeObserver(fit)
-    ro.observe(wrapRef.current)
     return () => {
-      ro.disconnect()
       view.dispose()
       viewRef.current = null
     }
   }, [seat])
+  // the 3D view draws at the same low resolution as the HUD
+  useLayoutEffect(() => {
+    if (scr.fit && viewRef.current) viewRef.current.resize(scr.fit.w, scr.fit.h)
+  }, [scr.fit, seat])
+  useEffect(() => scr.paint())
 
   useGameLoop((dt, now) => {
-    const t0 = performance.now()
     const m = onFrame(dt, now)
-    if (m) viewRef.current?.draw(m, dt, { workMs: performance.now() - t0, now })
+    if (m) {
+      lastM.current = m
+      viewRef.current?.draw(m, dt, { now })
+    }
+    scr.paint()
   }, !paused)
 
   // swipes and taps
   const onDown = (e) => {
-    if (paused) return
+    if (paused || e.target.closest?.("button")) return
     e.preventDefault()
     e.currentTarget.setPointerCapture?.(e.pointerId)
     ptr.current = { id: e.pointerId, x: e.clientX, y: e.clientY, t: performance.now(), done: false }
@@ -113,7 +138,7 @@ const Court = ({ seat, source, onSwing, paused, onFrame }) => {
   // Space: hold for power, Up/Down for high/low
   useEffect(() => {
     const down = (e) => {
-      if (!wrapRef.current?.closest(".qgRoot")?.contains(document.activeElement) && document.activeElement !== document.body) return
+      if (!glRef.current?.closest(".qgRoot")?.contains(document.activeElement) && document.activeElement !== document.body) return
       if (e.key === " " && !e.repeat && !paused) {
         e.preventDefault()
         key.current = { t: performance.now(), up: false, down: false }
@@ -139,39 +164,49 @@ const Court = ({ seat, source, onSwing, paused, onFrame }) => {
   })
 
   return (
-    <div className="tbCourt" ref={wrapRef} onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}>
-      <canvas ref={canvasRef} className="tbCanvas" />
-      {error && <div className="tbError">{error}</div>}
-    </div>
+    <RetroStage screen={scr} className="qgStage tbStage tbCourt" onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}>
+      <canvas ref={glRef} className="tbCanvas" aria-hidden="true" />
+      {L && onPause && (
+        <Hit
+          as="button"
+          {...L.pause}
+          className="qgPauseBtn tbPause"
+          aria-label="Pause"
+          title="Pause (P)"
+          onPointerDown={() => ((pauseDown.current = true), scr.paint())}
+          onPointerUp={() => ((pauseDown.current = false), scr.paint())}
+          onPointerLeave={() => ((pauseDown.current = false), scr.paint())}
+          onClick={onPause}
+        />
+      )}
+      <div className="rtSr" aria-live="polite">
+        {status}
+      </div>
+      {error && (
+        <RetroPanel title="Tetherball">
+          <PixelText text={error} wrap={140} />
+          <Sr>{error}</Sr>
+        </RetroPanel>
+      )}
+      {children}
+    </RetroStage>
   )
 }
 
-const WrapMeter = ({ ball, names, games, target }) => {
-  const w = ball ? wraps(ball) : 0
-  const f = Math.max(-1, Math.min(1, w / MAX_WRAPS))
-  return (
-    <div className="qgHud tbHud">
-      <div className="tbSide is-p1">
-        <b>{names[0]}</b>
-        <span className="tbGames">{"●".repeat(games[0])}{"○".repeat(Math.max(0, target - games[0]))}</span>
-      </div>
-      <div className="tbMeter" title="How far round the rope is">
-        <div className="tbMeterMid" />
-        <div className={`tbMeterFill ${f >= 0 ? "is-p1" : "is-p2"}`} style={f >= 0 ? { left: "50%", width: `${f * 50}%` } : { right: "50%", width: `${-f * 50}%` }} />
-        <span className="tbMeterText">{Math.abs(w).toFixed(1)} turns</span>
-      </div>
-      <div className="tbSide is-p2">
-        <b>{names[1]}</b>
-        <span className="tbGames">{"●".repeat(games[1])}{"○".repeat(Math.max(0, target - games[1]))}</span>
-      </div>
-    </div>
-  )
-}
+// what React shows (panels, the screen-reader line) changes only with these; the HUD canvas and
+// the 3D view read the match every frame
+const matchSig = (m) => `${m.phase}|${m.games}|${m.server}|${m.gameWinner}|${m.rally === 0}|${m.winner}`
 
-const Banner = ({ m, seat, names }) => {
-  if (m.phase === "serve") return <div className="tbBanner">{m.server === seat ? "Your serve: swipe or tap!" : `${names[m.server]} serves...`}</div>
-  if (m.phase === "point" && m.gameWinner != null) return <div className="tbBanner is-big">{m.gameWinner === seat ? "You win the game!" : `${names[m.gameWinner]} wins the game`}</div>
-  return null
+// what the HUD shows for a match (or a guest's mirror)
+const hudFor = (m, { seat, names, target, ball, hint }) => {
+  if (!m) return { names, games: [0, 0], target }
+  const b = ball || m.ball
+  const w = b ? wraps(b) : 0
+  let banner = null
+  let big = null
+  if (m.phase === "serve") banner = m.server === seat ? "Your serve: swipe or tap!" : `${names[m.server]} serves...`
+  if (m.phase === "point" && m.gameWinner != null) big = m.gameWinner === seat ? "You win the game!" : `${names[m.gameWinner]} wins the game`
+  return { wraps: w / MAX_WRAPS, turns: w, names, games: m.games, target, banner, big, bigWin: m.gameWinner === seat, hint }
 }
 
 // ---- online ----
@@ -184,6 +219,7 @@ const OnlineMatch = ({ online, sounds, onBack, onRecord }) => {
   const recent = useRef([])
   const lastSnap = useRef(0)
   const [, setTick] = useState(0)
+  const sigRef = useRef("")
   const [final, setFinal] = useState(null)
   const playing = room?.phase === "playing"
   const names = room ? [room.seats[0]?.name || "Host", room.seats[1]?.name || "Guest"] : ["", ""]
@@ -245,12 +281,20 @@ const OnlineMatch = ({ online, sounds, onBack, onRecord }) => {
         online.finish({ winners: [m.winner], reason: `${m.games[m.winner]}-${m.games[1 - m.winner]}`, scores: m.games })
         onRecord({ won: m.winner === seat, games: m.games, online: true })
       }
-      setTick((t) => (t + 1) % 1e9)
+      const sg = matchSig(m)
+      if (sg !== sigRef.current) {
+        sigRef.current = sg
+        setTick((t) => (t + 1) % 1e9)
+      }
       return m
     }
     m.step(dt)
     handleEvents(m.takeEvents())
-    setTick((t) => (t + 1) % 1e9)
+    const sg = matchSig(m.view)
+    if (sg !== sigRef.current) {
+      sigRef.current = sg
+      setTick((t) => (t + 1) % 1e9)
+    }
     const v = m.view
     if (!v.ball) return null
     return { ...v, ball: m.shown(), players: v.players }
@@ -311,25 +355,19 @@ const OnlineMatch = ({ online, sounds, onBack, onRecord }) => {
   }
   const m = matchRef.current
   const v = m ? (host ? m : m.view) : null
+  const status = v ? hudFor(v, { seat, names, target }) : null
   return (
     <div className="tbPlay">
-      {v && <WrapMeter ball={host ? v.ball : m.shown()} names={names} games={v.games} target={target} />}
-      <div className="qgStage tbStage">
-        {playing && <Court seat={seat} source={m} onSwing={onSwing} paused={false} onFrame={onFrame} />}
-        {v && playing && <Banner m={{ ...v, gameWinner: v.gameWinner ?? null }} seat={seat} names={names} />}
-        {room.phase === "over" && (
-          <div className="qgOverlay">
-            <div className="qgPanel window">
-              <div className="title-bar">
-                <div className="title-bar-text">Match over</div>
-              </div>
-              <div className="window-body qgPanelBody">
-                <OnlineResultBar online={online} />
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
+      {playing ? (
+        <Court seat={seat} onSwing={onSwing} paused={false} onFrame={onFrame} status={status?.banner || status?.big || ""} hud={() => (v ? hudFor(v, { seat, names, target, ball: host ? v.ball : m.shown() }) : { names, games: [0, 0], target })} />
+      ) : (
+        <div className="qgStage tbStage tbIdle" />
+      )}
+      {room.phase === "over" && (
+        <RetroPanel title="Match over" data-online-over>
+          <OnlineResultBar online={online} />
+        </RetroPanel>
+      )}
     </div>
   )
 }
@@ -393,6 +431,7 @@ const Tetherball = ({ mobile = false, paused = false, onClose }) => {
 
   useAutoPause(paused, () => matchRef.current && matchRef.current.phase !== "over" && screen === "play" && setHold(true))
 
+  const soloSig = useRef("")
   const onFrame = (dt) => {
     const match = matchRef.current
     if (!match) return null
@@ -410,7 +449,11 @@ const Tetherball = ({ mobile = false, paused = false, onClose }) => {
           setOver(res)
         }
       }
-      setTick((t) => (t + 1) % 1e9)
+      const sg = matchSig(match)
+      if (sg !== soloSig.current) {
+        soloSig.current = sg
+        setTick((t) => (t + 1) % 1e9)
+      }
     }
     return match
   }
@@ -458,13 +501,7 @@ const Tetherball = ({ mobile = false, paused = false, onClose }) => {
     <TitleScreen>
       <GameStart
         id="tetherball"
-        title={
-          <div className="qgLogo">
-            <img src={ICON} alt="" />
-            <div className="qgLogoText tbLogo">Tetherball</div>
-            <div className="qgTagline">Wind it all the way round!</div>
-          </div>
-        }
+        title={<RetroBanner className="tbBanner" palette={pal} minW={220} minH={92} aspect={2.4} paused={paused} label="Tetherball: wind it all the way round" draw={(b, t) => drawBanner(b, t, { reduced: reducedMotion() })} />}
         play={{ label: last && !last.online ? "Play again" : "Play", sub: `Against the computer · ${M.LEVELS[prefs.level].name} · ${prefs.target === 1 ? "one game" : `first to ${prefs.target}`}`, onClick: () => start(), autoFocus: true, "data-play": true }}
         online={{ onClick: () => setScreen("online"), sub: "One against one, anywhere" }}
         modes={LEVEL_IDS.filter((l) => l !== prefs.level).map((l) => ({ key: l, label: M.LEVELS[l].name, sub: `Won ${wins[l] || 0} of ${played[l] || 0}`, onClick: () => start(l), "data-level": l }))}
@@ -495,44 +532,35 @@ const Tetherball = ({ mobile = false, paused = false, onClose }) => {
     </TitleScreen>
   )
 
-  const names = ["You", `Computer (${M.LEVELS[prefs.level].name})`]
+  const names = ["You", "CPU"]
   let body = title
   if (screen === "online") body = <OnlineMatch online={online} sounds={sounds} onBack={() => setScreen("title")} onRecord={record} />
   else if (screen === "play" && m) {
+    const hint = m.phase === "play" && m.rally === 0 && !hold ? (mobile ? "Swipe across when the ball comes to you (faster = harder, upward = higher), or tap" : "Space when the ball comes round (hold for harder; Up/Down for high/low), or swipe with the mouse") : null
+    const st = hudFor(m, { seat: 0, names, target: m.target })
     body = (
       <div className="tbPlay">
-        <WrapMeter ball={m.ball} names={["You", "Computer"]} games={m.games} target={m.target} />
-        <div className="qgStage tbStage">
-          <Court seat={0} source={m} onSwing={onSwing} paused={false} onFrame={onFrame} />
-          <Banner m={m} seat={0} names={names} />
-          {m.phase === "play" && m.rally === 0 && !hold && <div className="tbHint">{mobile ? "Swipe across when the ball comes to you (faster = harder, upward = higher), or tap" : "Space when the ball comes round (hold for harder; Up/Down for high/low), or swipe with the mouse"}</div>}
-          <button type="button" className="qgPauseBtn tbPause" onClick={() => setHold(true)} aria-label="Pause" title="Pause (P)">
-            ||
-          </button>
-          {hold && !over && <PausedPanel onResume={() => (setHold(false), rootRef.current?.focus({ preventScroll: true }))} onQuit={toTitle} />}
+        <Court seat={0} onSwing={onSwing} paused={false} onFrame={onFrame} onPause={() => setHold(true)} status={[st.banner, st.big, hint].filter(Boolean).join(". ")} hud={(mm) => hudFor(mm || m, { seat: 0, names, target: m.target, hint })}>
+          {hold && !over && <RetroPaused onResume={() => (setHold(false), rootRef.current?.focus({ preventScroll: true }))} onQuit={toTitle} />}
           {over && (
-            <div className="qgOverlay" data-over={over.won ? "won" : "lost"}>
-              <div className="qgPanel window">
-                <div className="title-bar">
-                  <div className="title-bar-text">{over.won ? "You win!" : "The computer wins"}</div>
-                </div>
-                <div className="window-body qgPanelBody">
-                  <p className="qgFinal">
-                    {over.games[0]} - {over.games[1]}
-                  </p>
-                  <div className="qgPanelButtons">
-                    <button type="button" className="qgBig" autoFocus onClick={() => start(prefs.level)} data-again>
-                      Play Again
-                    </button>
-                    <button type="button" onClick={toTitle}>
-                      Title Screen
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <RetroPanel
+              title={over.won ? "You win!" : "The computer wins"}
+              data-over={over.won ? "won" : "lost"}
+              buttons={
+                <>
+                  <PixelButton label="Play Again" big autoFocus data-again onClick={() => start(prefs.level)} />
+                  <PixelButton label="Title Screen" onClick={toTitle} />
+                </>
+              }
+            >
+              <PixelText text={`${over.games[0]} - ${over.games[1]}`} scale={3} color="#000080" />
+              <p className="qgFinal rtSr">
+                {over.games[0]} - {over.games[1]}
+              </p>
+              <PixelText text={`${M.LEVELS[over.level]?.name || ""} · won ${wins[over.level] || 0} of ${played[over.level] || 0}`} color="#404040" />
+            </RetroPanel>
           )}
-        </div>
+        </Court>
       </div>
     )
   }

@@ -3,115 +3,112 @@ import MenuBar from "../../shared/MenuBar"
 import GameChat, { useGameChatMenuItem } from "../../shared/GameChat"
 import GameStart from "../../shared/GameStart"
 import PlayOnline, { OnlineResultBar, useOnlineRoom } from "../../shared/online"
-import { Check, HowToDialog, PausedPanel, QuickGameRoot, ScoresDialog, TitleScreen, useAutoPause, useGameLoop } from "../../shared/quickgame"
+import { Check, HowToDialog, QuickGameRoot, ScoresDialog, TitleScreen, useAutoPause, useGameLoop } from "../../shared/quickgame"
+import { Hit, PixelButton, PixelLed, PixelP, PixelScores, RetroBanner, RetroPanel, RetroPaused, RetroStage, useRetroScreen } from "../../shared/retro"
 import { unlock } from "../../../utils/achievements"
 import { helpItem } from "../../../utils/help"
-import { createScores, fmtNum, fmtTime } from "../../../utils/gameKit"
+import { reducedMotion } from "../../../utils/settings"
+import { createScores, fmtNum } from "../../../utils/gameKit"
 import * as R from "./rules"
+import { drawBanner, drawBoard, layout, minSize, pal } from "./pixels"
 import { createSounds } from "./sounds"
 import "./ColorMatch.css"
 
 // Color Match: does the left word's MEANING match the right word's INK? Yes or No, against the
 // clock, with a streak multiplier. Swatch mode: tap the swatch the word names. Online: the same
 // questions for everyone (one seed), best score wins (server/arcade/games/colormatch.js; the
-// rules are in rules.js, shared with the server).
+// rules are in rules.js, shared with the server). The board is a 256-colour pixel picture
+// (pixels.js) with invisible buttons laid over it.
 
 const ICON = "/assets/program_icons/colormatch.svg"
 const store = createScores("98ish.colormatch", { defaults: { sound: true, seconds: 60, mode: "classic" } })
-const HEX = Object.fromEntries(R.COLORS.map((c) => [c.id, c.hex]))
 const NAME = Object.fromEntries(R.COLORS.map((c) => [c.id, c.name]))
 const MODE_LABEL = { classic: "Classic", swatch: "Swatch" }
 const keyOf = (mode, seconds) => `${mode}${seconds}`
 
-// ---- the board: one question at a time (solo and online) ----
-const Board = ({ mode, seed, run, onAnswer, flash, mobile }) => {
-  const q = R.questionAt(seed, run.i, mode)
-  if (mode === "swatch") {
-    const cols = q.tiles.length === 4 ? 2 : 3
-    return (
-      <div className="cmBoard is-swatch" data-q={run.i}>
-        <div className="cmPrompt">
-          <span className="cmQ">Tap the color this word says:</span>
-          <div className="cmCard cmWordCard">
-            <span className="cmWord" style={{ color: HEX[q.ink] }} data-word={q.word} data-ink={q.ink}>
-              {NAME[q.word]}
-            </span>
-          </div>
-        </div>
-        <div className="cmTiles" style={{ gridTemplateColumns: `repeat(${cols}, 1fr)` }}>
-          {q.tiles.map((c, i) => (
-            <button key={`${run.i}-${i}`} type="button" className="cmTile" data-tile={i} data-color={c} style={{ background: HEX[c] }} onClick={() => onAnswer(i)} aria-label={c}>
-              {!mobile && <span className="cmTileKey">{i + 1}</span>}
-            </button>
-          ))}
-        </div>
-        {flash && <div className={`cmFlash ${flash.right ? "is-right" : "is-wrong"}`} key={flash.n} />}
-      </div>
-    )
-  }
-  return (
-    <div className="cmBoard" data-q={run.i}>
-      <span className="cmQ">Does the MEANING on the left match the INK COLOR on the right?</span>
-      <div className="cmCards">
-        <div className="cmCardCol">
-          <span className="cmCardLabel">meaning</span>
-          <div className="cmCard">
-            <span className="cmWord" style={{ color: HEX[q.left.ink] }} data-left={q.left.word}>
-              {NAME[q.left.word]}
-            </span>
-          </div>
-        </div>
-        <div className="cmCardCol">
-          <span className="cmCardLabel">ink color</span>
-          <div className="cmCard">
-            <span className="cmWord" style={{ color: HEX[q.right.ink] }} data-right-ink={q.right.ink}>
-              {NAME[q.right.word]}
-            </span>
-          </div>
-        </div>
-      </div>
-      <div className="cmAnswers">
-        <button type="button" className="cmNo" onClick={() => onAnswer(false)} data-answer="no">
-          <span className="cmBig">✗ No</span>
-          {!mobile && <small>Left arrow / F</small>}
-        </button>
-        <button type="button" className="cmYes" onClick={() => onAnswer(true)} data-answer="yes">
-          <span className="cmBig">✓ Yes</span>
-          {!mobile && <small>Right arrow / J</small>}
-        </button>
-      </div>
-      {flash && <div className={`cmFlash ${flash.right ? "is-right" : "is-wrong"}`} key={flash.n} />}
-    </div>
-  )
-}
-
-const Meter = ({ run, left, total }) => {
+// ---- the play field: the pixel board, the buttons over it, panels on top ----
+// standings: [{ name, score, bot, you }] online; onPause: solo only. live() gives the clock
+// every frame (the board paints itself; React renders only when the second changes)
+const Field = ({ mode, seed, run, left, total, countdown, flash, standings, onAnswer, onPause, hidden, mobile, live, animate = false, children }) => {
+  const showBoard = countdown <= 0 && !hidden
+  const q = showBoard ? R.questionAt(seed, run.i, mode) : null
+  const tiles = mode === "swatch" ? R.tilesFor(run.i) : 0
+  const pressed = useRef(null)
+  const state = { mode, q, run, left, total, countdown, flash, standings, paused: hidden, keys: !mobile, onPause: onPause ? true : false }
+  const stateRef = useRef(state)
+  stateRef.current = state
+  const liveRef = useRef(live)
+  liveRef.current = live
+  const Lref = useRef(null)
+  const scr = useRetroScreen({
+    layout: minSize,
+    palette: pal,
+    render: (b, fit) => {
+      const L = Lref.current
+      if (!L || L.W !== fit.w || L.H !== fit.h) return
+      const now = performance.now()
+      drawBoard(b, L, { ...stateRef.current, ...(liveRef.current?.() || {}), t: now / 1000, now, pressed: pressed.current, reduced: reducedMotion() })
+    },
+  })
+  const L = useMemo(() => (scr.fit ? layout(scr.fit.w, scr.fit.h, { mode, tiles, online: !!standings }) : null), [scr.fit, mode, tiles, !!standings])
+  Lref.current = L
+  useEffect(() => scr.paint())
+  useGameLoop(() => scr.paint(), animate)
+  const press = (id) => ({
+    onPointerDown: () => ((pressed.current = id), scr.paint()),
+    onPointerUp: () => ((pressed.current = null), scr.paint()),
+    onPointerLeave: () => ((pressed.current = null), scr.paint()),
+    onPointerCancel: () => ((pressed.current = null), scr.paint()),
+  })
   const mult = R.multFor(run.streak)
-  const pips = mult >= R.MAX_MULT ? 4 : run.streak % 4
   return (
-    <div className="qgHud cmHud">
-      <div className="qgCounter">
-        <span className="qgLabel">Score</span>
-        <span className="qgNum" data-score={run.score}>
-          {fmtNum(run.score)}
-        </span>
-      </div>
-      <div className="cmMult" data-mult={mult}>
-        <b>x{mult}</b>
-        <span className="cmPips">
-          {[0, 1, 2, 3].map((k) => (
-            <i key={k} className={k < pips ? "is-on" : ""} />
-          ))}
-        </span>
-      </div>
-      <div className={`qgCounter cmTime${left <= 5 ? " is-low" : ""}`}>
-        <span className="qgLabel">Time</span>
-        <span className="qgNum">{fmtTime(left)}</span>
-      </div>
-      <div className="cmTimeBar">
-        <div style={{ width: `${Math.max(0, Math.min(1, left / total)) * 100}%` }} />
-      </div>
-    </div>
+    <RetroStage screen={scr} className="qgStage cmStage">
+      {L && (
+        <>
+          {showBoard && q && (
+            <div className={`cmBoard${mode === "swatch" ? " is-swatch" : ""}`} data-q={run.i}>
+              {mode === "swatch" ? (
+                <>
+                  <span className="rtSr" data-word={q.word} data-ink={q.ink}>
+                    The word says {NAME[q.word]}, printed in {q.ink}.
+                  </span>
+                  {q.tiles.map((c, i) =>
+                    L.tiles[i] ? <Hit key={`${run.i}-${i}`} as="button" {...L.tiles[i]} className="cmTile" data-tile={i} data-color={c} aria-label={`${c} (${i + 1})`} onClick={() => onAnswer(i)} {...press(`tile${i}`)} /> : null,
+                  )}
+                </>
+              ) : (
+                <>
+                  <span className="rtSr" data-left={q.left.word}>
+                    Meaning: {NAME[q.left.word]}.
+                  </span>
+                  <span className="rtSr" data-right-ink={q.right.ink}>
+                    Ink: the word {NAME[q.right.word]} printed in {q.right.ink}.
+                  </span>
+                  <Hit as="button" {...L.answers.no} className="cmNo" data-answer="no" aria-label="No" onClick={() => onAnswer(false)} {...press("no")} />
+                  <Hit as="button" {...L.answers.yes} className="cmYes" data-answer="yes" aria-label="Yes" onClick={() => onAnswer(true)} {...press("yes")} />
+                </>
+              )}
+            </div>
+          )}
+          {onPause && countdown <= 0 && !hidden && <Hit as="button" {...L.pause} className="qgPauseBtn cmPause" onClick={onPause} aria-label="Pause" title="Pause (P)" {...press("pause")} />}
+          <div className="rtSr" aria-live="polite">
+            {countdown > 0 && <span data-countdown>{Math.ceil(countdown)}</span>}
+            <span data-score={run.score}>Score {run.score}</span> <span className="cmMult" data-mult={mult}>times {mult}</span> <span>{Math.ceil(left)} seconds left</span>
+          </div>
+          {standings && (
+            <div className="cmStandings rtSr">
+              {standings.map((p) => (
+                <span key={p.seat} className={p.you ? "is-you" : ""}>
+                  {p.name}
+                  {p.bot ? " (computer)" : ""}: <b>{fmtNum(p.score)}</b>{" "}
+                </span>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+      {children}
+    </RetroStage>
   )
 }
 
@@ -151,10 +148,11 @@ const OnlineGame = ({ online, sounds, mobile, paused, onBack, onRecord }) => {
     if (!playing || you == null) return
     const r = R.answer(run, view.seed, view.mode, choice)
     setLocal(r.run)
-    setFlash({ right: r.right, n: r.run.i })
+    const level = r.right && R.multFor(r.run.streak) > r.mult
+    setFlash({ right: r.right, n: r.run.i, at: performance.now(), level })
     if (r.right) {
       sounds.right(r.mult)
-      if (R.multFor(r.run.streak) > r.mult) sounds.level()
+      if (level) sounds.level()
     } else sounds.wrong()
     online.act({ type: "answer", i: run.i, choice })
   }
@@ -210,38 +208,20 @@ const OnlineGame = ({ online, sounds, mobile, paused, onBack, onRecord }) => {
     )
   }
   const left = Math.max(0, (view.endsAt - now) / 1000)
-  const countdown = now < view.goAt ? Math.ceil((view.goAt - now) / 1000) : 0
-  const standings = view.players.map((p, i) => ({ ...p, seat: i, score: i === you ? run.score : p.score })).sort((a, b) => b.score - a.score)
+  const countdown = now < view.goAt ? (view.goAt - now) / 1000 : 0
+  const standings = view.players.map((p, i) => ({ ...p, seat: i, you: i === you, score: i === you ? run.score : p.score })).sort((a, b) => b.score - a.score)
   return (
     <div className="cmPlay">
-      <Meter run={run} left={left} total={view.seconds} />
-      <div className="cmStandings">
-        {standings.map((p) => (
-          <span key={p.seat} className={p.seat === you ? "is-you" : ""}>
-            {p.name}
-            {p.bot ? " (computer)" : ""}: <b>{fmtNum(p.score)}</b>
-          </span>
-        ))}
-      </div>
-      <div className="qgStage cmStage">
-        {countdown > 0 ? <div className="cmCountdown">{countdown}</div> : room.phase === "playing" ? <Board mode={view.mode} seed={view.seed} run={run} onAnswer={answer} flash={flash} mobile={mobile} /> : null}
+      <Field mode={view.mode} seed={view.seed} run={run} left={left} total={view.seconds} countdown={countdown} flash={flash} standings={standings} onAnswer={answer} hidden={room.phase !== "playing"} mobile={mobile}>
         {room.phase === "over" && (
-          <div className="qgOverlay">
-            <div className="qgPanel window">
-              <div className="title-bar">
-                <div className="title-bar-text">Time's up!</div>
-              </div>
-              <div className="window-body qgPanelBody">
-                <p className="qgFinal">{fmtNum(run.score)}</p>
-                <p>
-                  {run.right} right · {run.wrong} wrong · best streak {run.best}
-                </p>
-                <OnlineResultBar online={online} />
-              </div>
-            </div>
-          </div>
+          <RetroPanel title="Time's up!" data-online-over wide>
+            <PixelLed text={String(run.score)} />
+            <p className="qgFinal rtSr">{fmtNum(run.score)}</p>
+            <PixelP text={`${run.right} right · ${run.wrong} wrong · best streak ${run.best}`} />
+            <OnlineResultBar online={online} />
+          </RetroPanel>
         )}
-      </div>
+      </Field>
     </div>
   )
 }
@@ -308,31 +288,40 @@ const ColorMatch = ({ mobile = false, paused = false, onClose }) => {
 
   const running = screen === "play" && game && !game.over && !hold && !dialog
   useAutoPause(paused, () => gameRef.current && !gameRef.current.over && setHold(true))
+  // the clock: React hears about it once a second (the board paints the rest from live())
   useGameLoop((dt) => {
     const g = gameRef.current
     if (!g || g.over) return
     if (g.countdown > 0) {
-      const c = g.countdown - dt
-      if (Math.ceil(c) !== Math.ceil(g.countdown)) sounds.count(Math.max(0, Math.ceil(c)))
-      return update({ ...g, countdown: Math.max(0, c) })
+      const c = Math.max(0, g.countdown - dt)
+      const next = { ...g, countdown: c }
+      if (Math.ceil(c) !== Math.ceil(g.countdown)) {
+        sounds.count(Math.ceil(c))
+        return update(next)
+      }
+      gameRef.current = next
+      return
     }
     const left = g.left - dt
     if (left <= 5 && Math.ceil(left) !== Math.ceil(g.left) && left > 0) sounds.tick()
     if (left <= 0) {
       const rec = record({ mode: g.mode, seconds: g.seconds, run: g.run })
-      return update({ ...g, left: 0, over: true, best: rec.best })
+      return update({ ...g, left: 0, over: true, best: rec.best, place: rec.place })
     }
-    update({ ...g, left })
+    const next = { ...g, left }
+    if (Math.ceil(left) !== Math.ceil(g.left)) update(next)
+    else gameRef.current = next
   }, running)
 
   const answer = (choice) => {
     const g = gameRef.current
     if (!g || g.over || hold || g.countdown > 0) return
     const r = R.answer(g.run, g.seed, g.mode, choice)
-    setFlash({ right: r.right, n: r.run.i })
+    const level = r.right && R.multFor(r.run.streak) > r.mult
+    setFlash({ right: r.right, n: r.run.i, at: performance.now(), level })
     if (r.right) {
       sounds.right(r.mult)
-      if (R.multFor(r.run.streak) > r.mult) sounds.level()
+      if (level) sounds.level()
     } else sounds.wrong()
     update({ ...g, run: r.run })
   }
@@ -383,18 +372,7 @@ const ColorMatch = ({ mobile = false, paused = false, onClose }) => {
     <TitleScreen>
       <GameStart
         id="colormatch"
-        title={
-          <div className="qgLogo">
-            <div className="qgLogoText cmLogo">
-              <span style={{ color: HEX.red }}>C</span>
-              <span style={{ color: HEX.blue }}>O</span>
-              <span style={{ color: HEX.green }}>L</span>
-              <span style={{ color: HEX.yellow }}>O</span>
-              <span style={{ color: HEX.purple }}>R</span> <span style={{ color: HEX.orange }}>MATCH</span>
-            </div>
-            <div className="qgTagline">Read the word. Trust the ink. Beat the clock.</div>
-          </div>
-        }
+        title={<RetroBanner className="cmBanner" palette={pal} minW={220} minH={92} aspect={2.4} paused={paused} label="Color Match: read the word, trust the ink" draw={(b, t) => drawBanner(b, t, { reduced: reducedMotion() })} />}
         play={{
           label: last && !last.online ? `${MODE_LABEL[prefs.mode]} again` : "Play",
           sub: `${MODE_LABEL[prefs.mode]} · ${prefs.seconds} seconds · Best: ${fmtNum(store.best(data, keyOf(prefs.mode, prefs.seconds)))}`,
@@ -443,46 +421,42 @@ const ColorMatch = ({ mobile = false, paused = false, onClose }) => {
   else if (screen === "play" && game) {
     body = (
       <div className="cmPlay">
-        <Meter run={game.run} left={game.left} total={game.seconds} />
-        <div className="qgStage cmStage">
-          {hold && !game.over ? null : game.countdown > 0 ? (
-            <div className="cmCountdown" data-countdown>
-              {Math.ceil(game.countdown)}
-            </div>
-          ) : (
-            !game.over && <Board mode={game.mode} seed={game.seed} run={game.run} onAnswer={answer} flash={flash} mobile={mobile} />
-          )}
-          {!game.over && game.countdown <= 0 && (
-            <button type="button" className="qgPauseBtn cmPause" onClick={() => setHold(true)} aria-label="Pause" title="Pause (P)">
-              ||
-            </button>
-          )}
-          {hold && !game.over && <PausedPanel onResume={() => (setHold(false), rootRef.current?.focus({ preventScroll: true }))} onQuit={toTitle} />}
+        <Field
+          mode={game.mode}
+          seed={game.seed}
+          run={game.run}
+          left={game.left}
+          total={game.seconds}
+          countdown={game.countdown}
+          flash={flash}
+          onAnswer={answer}
+          onPause={() => setHold(true)}
+          hidden={(hold && !game.over) || game.over}
+          mobile={mobile}
+          live={() => (gameRef.current ? { left: gameRef.current.left, countdown: gameRef.current.countdown } : {})}
+          animate={!hold && !dialog}
+        >
+          {hold && !game.over && <RetroPaused onResume={() => (setHold(false), rootRef.current?.focus({ preventScroll: true }))} onQuit={toTitle} />}
           {game.over && (
-            <div className="qgOverlay" data-over>
-              <div className="qgPanel window">
-                <div className="title-bar">
-                  <div className="title-bar-text">Time's up!</div>
-                </div>
-                <div className="window-body qgPanelBody">
-                  <p className="qgFinal">{fmtNum(game.run.score)}</p>
-                  <p>
-                    {game.run.right} right · {game.run.wrong} wrong · {R.accuracy(game.run)}% · best streak {game.run.best}
-                  </p>
-                  {game.best && <p className="qgNewBest">New best score!</p>}
-                  <div className="qgPanelButtons">
-                    <button type="button" className="qgBig" autoFocus onClick={() => start(game.mode, game.seconds)} data-again>
-                      Play Again
-                    </button>
-                    <button type="button" onClick={toTitle}>
-                      Title Screen
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <RetroPanel
+              title="Time's up!"
+              data-over
+              wide
+              buttons={
+                <>
+                  <PixelButton label="Play Again" big autoFocus data-again onClick={() => start(game.mode, game.seconds)} />
+                  <PixelButton label="Title Screen" onClick={toTitle} />
+                </>
+              }
+            >
+              <PixelLed text={String(game.run.score)} />
+              <p className="qgFinal rtSr">{fmtNum(game.run.score)}</p>
+              <PixelP text={`${game.run.right} right · ${game.run.wrong} wrong · ${R.accuracy(game.run)}% · best streak ${game.run.best}`} />
+              {game.best && <PixelP className="qgNewBest cmNewBest" text="NEW BEST SCORE!" color="#c00000" />}
+              <PixelScores rows={data.scores[keyOf(game.mode, game.seconds)] || []} mark={game.place ?? -1} />
+            </RetroPanel>
           )}
-        </div>
+        </Field>
       </div>
     )
   }
