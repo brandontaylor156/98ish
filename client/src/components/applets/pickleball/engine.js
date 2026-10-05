@@ -6,7 +6,9 @@
 
 import * as THREE from "three"
 import { BALL_R, HALF_L, HALF_W, predictPath, STEP } from "./physics.js"
-import { createMatch, advance, handBattle, humanBySlot, meterFor, playerById, press as mPress, previewShot, release as mRelease, scenario, scoreboard, setAim, setMove, step, autopilot } from "./match.js"
+import { createMatch, advance, handBattle, humanBySlot, meterFor, playerById, press as mPress, previewShot, release as mRelease, scenario, scoreboard, serve as mServe, setAim, setMove, step, autopilot } from "./match.js"
+import { clearShot, blocker, serverShot } from "./camera.js"
+import { readSwipe, swipeServe, swipeTarget } from "./touchplay.js"
 import { ATTACK_H, KIND_LABEL, paceOf, planShot } from "./shots.js"
 import { LEVELS } from "./ai.js"
 import { inCourt, rightSign, sideOf } from "./rules.js"
@@ -70,7 +72,7 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
   renderer.debug.checkShaderErrors = !!import.meta.env.DEV
   renderer.toneMapping = THREE.ACESFilmicToneMapping
   renderer.shadowMap.type = THREE.PCFShadowMap
-  let settings = { sound: true, voice: true, camera: "broadcast", aid: true, assist: "light", quality: "medium", cuts: true, keys: {}, window: 0.06, focus: "auto", ...initial }
+  let settings = { sound: true, voice: true, camera: "broadcast", aid: true, trail: true, assist: "reflex", quality: "medium", cuts: true, keys: {}, window: 0.06, focus: "auto", ...initial }
   let bindings = bindingsFor(settings.keys)
   let maxRatio = Math.min(dpr, QUALITY[settings.quality]?.ratio || 1.5)
   let pixelRatio = maxRatio
@@ -168,6 +170,94 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
   contactRing.visible = false
   contactRing.renderOrder = 6
   scene.add(contactRing)
+  // the aim made clear: a dashed arc from where you'll meet the ball to where your shot goes,
+  // over the net (its height says soft / firm / hard), plus a dot in the middle of the ring
+  const ARC_N = 24
+  const arcPos = new Float32Array(ARC_N * 3)
+  const arcGeo = new THREE.BufferGeometry()
+  arcGeo.setAttribute("position", new THREE.BufferAttribute(arcPos, 3))
+  const aimArc = new THREE.Line(arcGeo, new THREE.LineDashedMaterial({ color: 0x7cf0ff, dashSize: 0.22, gapSize: 0.14, transparent: true, opacity: 0.85, depthWrite: false }))
+  aimArc.frustumCulled = false
+  aimArc.visible = false
+  aimArc.renderOrder = 6
+  scene.add(aimArc)
+  const aimPip = new THREE.Mesh(new THREE.CircleGeometry(0.06, 16).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x7cf0ff, transparent: true, opacity: 0.9, depthWrite: false }))
+  aimPip.visible = false
+  aimPip.renderOrder = 3
+  scene.add(aimPip)
+  const drawArc = (from, to, apex) => {
+    for (let i = 0; i < ARC_N; i++) {
+      const u = i / (ARC_N - 1)
+      // a parabola through from (u 0) and to (u 1) peaking at `apex` (over the net)
+      const base = from.y + (to.y - from.y) * u
+      const lift = Math.max(0, apex - Math.max(from.y, to.y) * 0.5) * 4 * u * (1 - u)
+      arcPos[i * 3] = from.x + (to.x - from.x) * u
+      arcPos[i * 3 + 1] = base + lift
+      arcPos[i * 3 + 2] = from.z + (to.z - from.z) * u
+    }
+    arcGeo.attributes.position.needsUpdate = true
+    aimArc.computeLineDistances()
+  }
+
+  // the swing trail: the paddle head's path through a swing of this screen's own players,
+  // a ribbon that fades in about 0.3 s (Settings: Swing trail)
+  const SWING_N = 28
+  const SWING_LIFE = 0.3
+  const swingTrails = [0, 1].map(() => {
+    const pos = new Float32Array(SWING_N * 2 * 3)
+    const col = new Float32Array(SWING_N * 2 * 4)
+    const idx = []
+    for (let i = 0; i < SWING_N - 1; i++) {
+      const a = i * 2
+      idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2)
+    }
+    const geo = new THREE.BufferGeometry()
+    geo.setAttribute("position", new THREE.BufferAttribute(pos, 3))
+    geo.setAttribute("color", new THREE.BufferAttribute(col, 4))
+    geo.setIndex(idx)
+    const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending }))
+    mesh.frustumCulled = false
+    mesh.renderOrder = 5
+    mesh.visible = false
+    scene.add(mesh)
+    return { mesh, pos, col, geo, pts: [], shown: 0 }
+  })
+  const updateSwingTrail = (tr, pose, swinging, now) => {
+    if (swinging && pose?.paddle) {
+      const g = pose.paddle.grip
+      const f = pose.paddle.face
+      // the paddle's head: from a little above the handle to the face's far edge
+      const ax = f.x - g.x
+      const ay = f.y - g.y
+      const az = f.z - g.z
+      tr.pts.unshift({ t: now, a: { x: g.x + ax * 0.45, y: g.y + ay * 0.45, z: g.z + az * 0.45 }, b: { x: f.x + ax * 0.35, y: f.y + ay * 0.35, z: f.z + az * 0.35 } })
+      if (tr.pts.length > SWING_N) tr.pts.length = SWING_N
+    }
+    while (tr.pts.length && now - tr.pts[tr.pts.length - 1].t > SWING_LIFE) tr.pts.pop()
+    tr.shown = tr.pts.length
+    tr.mesh.visible = tr.pts.length > 2
+    if (!tr.mesh.visible) return
+    for (let i = 0; i < SWING_N; i++) {
+      const q = tr.pts[Math.min(i, tr.pts.length - 1)]
+      const o = i * 6
+      tr.pos[o] = q.a.x
+      tr.pos[o + 1] = q.a.y
+      tr.pos[o + 2] = q.a.z
+      tr.pos[o + 3] = q.b.x
+      tr.pos[o + 4] = q.b.y
+      tr.pos[o + 5] = q.b.z
+      const k = i < tr.pts.length ? Math.max(0, 1 - (now - q.t) / SWING_LIFE) : 0
+      const al = 0.55 * k * k
+      for (let c = i * 8; c < i * 8 + 8; c += 4) {
+        tr.col[c] = 0.75 * al
+        tr.col[c + 1] = 0.95 * al
+        tr.col[c + 2] = 1 * al
+        tr.col[c + 3] = al
+      }
+    }
+    tr.geo.attributes.position.needsUpdate = true
+    tr.geo.attributes.color.needsUpdate = true
+  }
   const markMat = { in: new THREE.MeshBasicMaterial({ color: 0x46e07a, transparent: true, depthWrite: false }), out: new THREE.MeshBasicMaterial({ color: 0xff4d4d, transparent: true, depthWrite: false }) }
   const mark = new THREE.Mesh(ringGeo, markMat.in)
   mark.visible = false
@@ -278,6 +368,12 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
   let umpireSignal = null
   let umpireSignalT = 0
   let cut = null // { kind, t } a TV cut between points
+  let cutShot = null // the cut's framing, worked out once when it starts
+  let snapCam = false // the next camera move is a cut, not a pan
+  let tossFix = null // the drawn ball's offset from the match's ball just after a toss
+  let ballView = null // (tests) where the ball is drawn and whether it's out of sight
+  let lastDt = 0
+  let camBlocked = 0 // (tests) frames the camera had to be moved off a body
   let replay = null // { frames, i, t, speed }
   let record = [] // replay frames
   let meterEls = [null, null]
@@ -287,6 +383,7 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
   const chargeKey = [null, null] // what started the current swing (a key, "mouse", "pad", "touch"), per slot
   let preview = null // { at, pace, shot } the aiming aid's last look at your shot
   let touchAimState = null // a finger aiming: { mode: "abs" | "rel", x0, y0 }
+  let swipeLive = null // Swipe controls: a finger down on the hit side { pace, slot, serve }
   let stick = [{ x: 0, y: 0 }, { x: 0, y: 0 }]
   const perf = { frames: 0, cpuMs: 0, renderMs: 0, steps: 0 }
   const devLog = import.meta.env.DEV ? [] : null
@@ -318,6 +415,7 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
       scene.remove(f.fig.group)
       f.fig.dispose()
       f.fig = makeFigure(lookOf(f.player, i), { shadows })
+      f.handBones = null
       scene.add(f.fig.group)
     })
     if (umpire) {
@@ -712,15 +810,25 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
       orbit += dt * 0.06
       tmpV.set(Math.sin(orbit) * 7, portrait ? 12 : 6.5, Math.cos(orbit) * 12.5)
       tmpL.set(0, portrait ? -1.5 : 0, 0)
-    } else if (cut && settings.cuts) {
-      // between points: the server, close, from the side
+    } else if (cut && settings.cuts && playerById(match, match.game.server)) {
+      // between points (optional: Settings > TV camera cuts): the server, a 3/4 shot from
+      // outside the court on their own side (camera.js serverShot), framed on the spot they
+      // walk to; the cut in and the cut back are cuts, never a fly-through
       const p = playerById(match, match.game.server)
-      const s = sideOf(p.team)
-      tmpV.set(p.x + (p.x >= 0 ? -1 : 1) * 2.6, 1.7, p.z - s * 3.2)
-      tmpL.set(p.x, 1.15, p.z)
-      fov = portrait ? 55 : 38
-      k = cut.t < 0.05 ? 1 : 1 - Math.exp(-dt * 2)
+      const at = p.spot || p
+      if (!cutShot) {
+        cutShot = serverShot({ x: at.x, z: at.z, team: p.team }, { portrait })
+        snapCam = true
+      }
+      tmpV.set(cutShot.cam.x, cutShot.cam.y, cutShot.cam.z)
+      tmpL.set(p.x * 0.7, 1.05, p.z - sideOf(p.team) * 0.4)
+      fov = cutShot.fov
+      k = 1 - Math.exp(-dt * 3)
     } else {
+      if (cutShot) {
+        cutShot = null
+        snapCam = true
+      }
       const p = mainHuman()
       const s = sideOf(viewTeam())
       const cam = humans >= 2 ? "tv" : settings.camera
@@ -733,10 +841,12 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
         tmpL.set(0, 0.5, ball.z * 0.45)
         fov = portrait ? 66 : 42
       } else if (cam === "player") {
+        // behind you, over your head (your back never fills the screen: clearShot below
+        // lifts it if you're in the way)
         const hz = Math.max(2.4, Math.abs(p.z))
-        tmpV.set(p.x * 0.8, 2.1 + (portrait ? 1 : 0), s * (hz + 3.3 + (portrait ? 1.5 : 0)))
-        tmpL.set(p.x * 0.3 + ball.x * 0.2, 0.9, -s * 4)
-        fov = portrait ? 70 : 56
+        tmpV.set(p.x * 0.8, 3.1 + (portrait ? 1.3 : 0), s * (hz + 4.4 + (portrait ? 1.8 : 0)))
+        tmpL.set(p.x * 0.3 + ball.x * 0.2, 0.6, -s * 4.5)
+        fov = portrait ? 66 : 52
       } else {
         // broadcast: high behind your end, following you across
         const hz = Math.max(3, Math.min(HALF_L + 1, Math.abs(p.z)))
@@ -746,8 +856,26 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
         fov = portrait ? 64 : size.height < 480 ? 40 : 47
       }
     }
+    // no body in front of the lens (camera.js): every in-match view, replays and cuts too
+    if (match && status !== "showcase" && status !== "title" && mode !== "demo") {
+      const bodies = figures.map((f, i) => {
+        const q = replay ? replay.frame.players[i] : f.player
+        return { x: q?.x ?? f.player.x, z: q?.z ?? f.player.z }
+      })
+      if (umpire && venue.umpireSeat) bodies.push({ x: venue.umpireSeat.x, z: venue.umpireSeat.z, h: 2.6 })
+      const c = clearShot(tmpV, tmpL, bodies)
+      if (c.moved > 0.01) {
+        camBlocked++
+        tmpV.set(c.x, c.y, c.z)
+      }
+    }
+    if (snapCam) {
+      snap = true
+      snapCam = false
+      k = 1
+    }
     if (camera.fov !== fov) {
-      camera.fov += (fov - camera.fov) * (snap || cut?.t < 0.05 ? 1 : Math.min(1, dt * 4))
+      camera.fov += (fov - camera.fov) * (snap ? 1 : Math.min(1, dt * 4))
       camera.updateProjectionMatrix()
     }
     camera.position.lerp(tmpV, k)
@@ -761,8 +889,35 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
   }
 
   // ---------- drawing the players ----------
+  // the hand that holds the ball for a serve: the one without the paddle. A skinned athlete's
+  // own hand bone (found by name: athlete.js keeps the 65 bone names; a left-hander holds
+  // the paddle in hand_l), its palm a few cm past the bone along the forearm; the simple
+  // figures: the pose's free wrist.
+  const handV = new THREE.Vector3()
+  const foreV = new THREE.Vector3()
+  const freeHand = (f, pose) => {
+    const lefty = f.player.hand === -1
+    if (f.fig.skinned) {
+      const bones = f.handBones || (f.handBones = { l: f.fig.group.getObjectByName("hand_l"), r: f.fig.group.getObjectByName("hand_r"), fl: f.fig.group.getObjectByName("lowerarm_l"), fr: f.fig.group.getObjectByName("lowerarm_r") })
+      const h = lefty ? bones.r : bones.l
+      const fa = lefty ? bones.fr : bones.fl
+      if (h) {
+        h.getWorldPosition(handV)
+        if (fa) {
+          fa.getWorldPosition(foreV)
+          const d = handV.distanceTo(foreV) || 1
+          handV.addScaledVector(foreV.sub(handV).negate(), 0.07 / d)
+        }
+        return { x: handV.x, y: handV.y, z: handV.z }
+      }
+    }
+    const w = pose.wristO
+    return w ? { x: w.x, y: w.y, z: w.z } : null
+  }
+  let clockNow = 0 // seconds, for the swing trails' fading
   const updateFigures = (dt) => {
     if (!match) return
+    clockNow += dt
     // (copies for the replay only while a rally is being kept: local play)
     const recording = !replay && mode === "local" && (match.phase === "rally" || match.phase === "dead")
     const frameRec = recording ? [] : null
@@ -775,11 +930,23 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
         if (recording) frameRec.push({ ...s, ball: { ...s.ball }, swing: s.swing && { ...s.swing }, prep: s.prep && { ...s.prep } })
       }
       if (!s) continue
+      // the ball is in the server's hand only while they stand ready to serve; walking back
+      // between points it's in their pocket (the arms swing free, nothing held at the hip)
+      if (s.holding && !replay && match.phase !== "serve") s = { ...s, holding: false }
       // (motion matching for the skinned athletes: searched more often on High)
       f.anim.useMM = !!f.fig.skinned
       f.anim.mmEvery = settings.quality === "high" ? 0.1 : 0.2
       const pose = updateAnim(f.anim, s, dt)
       f.fig.apply(pose, dt)
+      f.pose = pose
+      // the server's free hand (where the ball sits): the skinned body's own hand bone, or
+      // the simple figure's wrist
+      f.hand = s.holding ? freeHand(f, pose) : null
+      // this screen's own players: the swing trail
+      if (p.ctrl === "human" && (p.slot === 0 || p.slot === 1)) {
+        const swinging = settings.trail !== false && !!(s.swing && !s.swing.whiff && s.swing.t < 0.32) && status === "playing"
+        updateSwingTrail(swingTrails[p.slot], pose, swinging, clockNow)
+      }
       f.blob.position.set(pose.pelvis.x, 0.004, pose.pelvis.z)
       const feet = pose.ankleL && pose.ankleR
       f.contact.visible = f.fig.group.visible
@@ -826,9 +993,32 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
   const updateBall = () => {
     const fix = guest?.fix
     const b = replay ? { p: replay.ball, v: { x: 0, y: 0, z: 0 }, held: null } : match.ball
-    const bx = b.p.x + (fix?.x || 0)
-    const by = b.p.y + (fix?.y || 0)
-    const bz = b.p.z + (fix?.z || 0)
+    let bx = b.p.x + (fix?.x || 0)
+    let by = b.p.y + (fix?.y || 0)
+    let bz = b.p.z + (fix?.z || 0)
+    // a held ball: in the server's free hand while they're ready to serve, out of sight
+    // (pocketed) while they walk back; just after the toss it eases from the hand onto its
+    // real path (the match drops it from a set point near the hand)
+    let hidden = false
+    if (b.held && !replay) {
+      const f = figures.find((x) => x.player.id === b.held)
+      if (match.phase === "serve" && f?.hand) {
+        bx = f.hand.x
+        by = f.hand.y
+        bz = f.hand.z
+        tossFix = { x: bx - b.p.x, y: by - b.p.y, z: bz - b.p.z, t: 0, ball: b.held }
+      } else hidden = true
+    } else if (tossFix && !replay && match.rally?.hits === 0) {
+      tossFix.t += lastDt
+      const k = Math.max(0, 1 - tossFix.t / 0.15)
+      bx += tossFix.x * k
+      by += tossFix.y * k
+      bz += tossFix.z * k
+      if (k <= 0) tossFix = null
+    } else tossFix = null
+    ballMesh.visible = !hidden
+    ballShadow.visible = !hidden
+    ballView = { hidden, x: bx, y: by, z: bz, held: b.held || null, phase: match.phase }
     ballMesh.position.set(bx, Math.max(BALL_R * BALL_SCALE, by), bz)
     ballMesh.rotation.x += (b.w?.x || 0) * 0.004
     ballMesh.rotation.z += (b.w?.z || 0) * 0.004
@@ -909,7 +1099,9 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
     const live = settings.aid && status === "playing" && !replay && mode !== "demo" && you
     const coming = live && you.expect && r && r.lastTeam !== you.team && !r.over
     aimDot.visible = false
-    if (live && c?.kind === "serve") {
+    aimArc.visible = false
+    const swipeServing = live && swipeLive && match.ball.held === you.id && match.phase === "serve"
+    if (live && (c?.kind === "serve" || swipeServing)) {
       const plan = planShot("serve", { team: you.team, from: match.ball.p, aim: 0, power: 0.6, court: match.rally.court })
       const aim = match.inputs[you.slot]?.aim
       const want = (match.rally.court === "left" ? -1 : 1) * rightSign(1 - you.team)
@@ -918,8 +1110,12 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
       aimRing.visible = true
       aimRing.position.set(t.x, 0.011, t.z)
       aimRing.material.color.setHex(0x7cf0ff)
+      aimArc.visible = true
+      aimArc.material.color.setHex(0x7cf0ff)
+      drawArc(ballView || match.ball.p, { x: t.x, y: 0.02, z: t.z }, 1.6)
     } else if (coming) {
-      const pace = c ? paceOf(match.t - c.start) : you.armed?.pace ?? 0.12
+      // (Swipe: the pace your finger is swiping at right now)
+      const pace = swipeLive?.pace ?? (c ? paceOf(match.t - c.start) : you.armed?.pace ?? 0.12)
       const now = performance.now()
       // (a solve per frame is wasteful: ten looks a second)
       if (!preview || now - preview.at > 100 || Math.abs(preview.pace - pace) > 0.05 || preview.v !== match.version) preview = { at: now, pace, v: match.version, shot: previewShot(match, you, pace) }
@@ -928,7 +1124,16 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
         aimRing.visible = true
         aimRing.position.set(s.target.x, 0.011, s.target.z)
         aimRing.material.color.setHex(s.band === "soft" ? 0x7cf0ff : s.band === "firm" ? 0xffe066 : 0xff9a3c)
-        aimRing.material.opacity = c || you.armed ? 0.85 : 0.45
+        aimRing.material.opacity = c || you.armed || swipeLive ? 0.85 : 0.45
+        // the arc: from where you'll meet it, over the net, to the target; high and loopy
+        // when soft, flat when hard
+        const e = you.expect
+        const col = s.band === "soft" ? 0x7cf0ff : s.band === "firm" ? 0xffe066 : 0xff9a3c
+        aimArc.visible = !!(c || you.armed || swipeLive || touchAimState)
+        if (aimArc.visible) {
+          aimArc.material.color.setHex(col)
+          drawArc(e, { x: s.target.x, y: 0.02, z: s.target.z }, s.band === "soft" ? (s.kind === "lob" ? 4.2 : 1.45) : s.band === "firm" ? 1.25 : 1.05)
+        }
         const off = Math.hypot(s.landing.x - s.target.x, s.landing.z - s.target.z)
         if (off > 0.6) {
           aimDot.visible = true
@@ -937,6 +1142,13 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
         }
       } else aimRing.visible = false
     } else aimRing.visible = false
+    aimPip.visible = aimRing.visible
+    if (aimPip.visible) {
+      aimPip.position.set(aimRing.position.x, 0.012, aimRing.position.z)
+      aimPip.material.color.copy(aimRing.material.color)
+      // (it breathes while you're about to hit)
+      aimRing.scale.setScalar(c || swipeLive ? 1.35 + Math.sin(performance.now() / 110) * 0.08 : 1.15)
+    }
     // the contact marker
     if (coming && you.expect.at - match.t < 1.2) {
       const e = you.expect
@@ -990,7 +1202,7 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
         } else if (info.released === null && el.dataset.rel === "1") el.dataset.rel = ""
         setVar(el, "--pos", pos)
         setVar(el, "--zone", info.window / RANGE)
-        setVar(el, "--power", info.pace ?? 0)
+        setVar(el, "--power", swipeLive && swipeLive.slot === slot ? swipeLive.pace ?? 0 : info.pace ?? 0)
         setData(el, "charging", info.charging ? "1" : "")
         setData(el, "band", info.band || "")
         setData(el, "height", info.height)
@@ -1235,6 +1447,7 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
       if (host) host.tick(dtMs)
       if (cut) cut.t += dt
     }
+    lastDt = status === "paused" ? 0 : dt
     if (match) {
       updateFigures(status === "paused" ? 0 : dt)
       layer?.update(mode === "demo" ? null : match, status === "paused" ? 0 : dt, figures)
@@ -1511,6 +1724,10 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
         return
       }
       const t = touchAimState
+      if (phase === "end") {
+        touchAimState = null
+        return
+      }
       if (!t) return
       if (t.mode === "abs") {
         const at = farCourt(courtPoint(clientX, clientY), p)
@@ -1521,6 +1738,54 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
         const dy = -(clientY - t.y0) / R
         setAim(match, null, slot, Math.hypot(dx, dy) > 0.12 ? screenNudge(p, dx, dy) : null)
       }
+    },
+    // Swipe controls (touchplay.js): a finger goes down on the hit side (the paddle comes
+    // up), moves (the aim follows the swipe so far), and lifts: that's the swing, with the
+    // swipe's direction, length and speed. `points` [{ x, y, t }] in screen px and ms.
+    swipe(phase, points, slot = 0) {
+      const p = match ? humanBySlot(match, slot) : null
+      if (phase === "start") {
+        swipeLive = null
+        if (!playing()) return shotDown(slot, "swipe") // (between points: skip; a replay: end it)
+        audio.unlock()
+        if (!p) return false
+        const serve = match.ball.held === p.id && match.phase === "serve"
+        swipeLive = { pace: null, slot, serve }
+        // (the rally: the paddle comes up now; a swing still finishing waits)
+        if (!serve && !chargeKey[slot] && mPress(match, slot)) chargeKey[slot] = "swipe"
+        return true
+      }
+      if (!swipeLive || swipeLive.slot !== slot || !p || !match) return false
+      const sw = readSwipe(points, size)
+      const target = sw.tap ? null : swipeTarget(sw, { team: p.team, flip: flip() })
+      if (phase === "move") {
+        swipeLive.pace = sw.tap ? null : sw.pace
+        if (target) setAim(match, target, slot)
+        return true
+      }
+      // the end: swing
+      const live = swipeLive
+      swipeLive = null
+      if (phase === "cancel" || !playing()) {
+        if (chargeKey[slot] === "swipe") chargeKey[slot] = null
+        if (p.charge) p.charge = null
+        return false
+      }
+      setAim(match, target, slot)
+      if (live.serve) {
+        if (match.ball.held !== p.id || match.phase !== "serve") return false
+        const sv = swipeServe(sw)
+        return mServe(match, { kind: "serve", variant: sv.grade === "early" ? "soft" : "drive", power: sv.power, grade: sv.grade, risky: !!sv.risky })
+      }
+      if (chargeKey[slot] !== "swipe") {
+        // (the finger went down before the rally was on, or mid-swing: the paddle comes up now)
+        if (chargeKey[slot] || !mPress(match, slot)) return false
+      }
+      chargeKey[slot] = null
+      const ok = mRelease(match, slot, { pace: sw.pace, target })
+      // (the shot has its target now; the live aim goes back to the default)
+      setAim(match, null, slot)
+      return ok
     },
     // HOOK (practice): put a practice layer on court (practice/layer.js), or null to take it
     // off; the engine calls layer.update(match, dt, figures) every frame (match is null
@@ -1690,6 +1955,27 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
       },
       get camera() {
         return { x: camera.position.x, y: camera.position.y, z: camera.position.z, fov: camera.fov }
+      },
+      // (pb7 tests) what's drawn: the ball (hidden? in whose hand, and where that hand is),
+      // the swing trails, the aim arc, the camera's view (a body in front of the lens?)
+      get view() {
+        const holder = ballView?.held ? figures.find((f) => f.player.id === ballView.held) : null
+        const look = new THREE.Vector3()
+        camera.getWorldDirection(look)
+        const cam = { x: camera.position.x, y: camera.position.y, z: camera.position.z }
+        const at = { x: cam.x + look.x * 10, y: cam.y + look.y * 10, z: cam.z + look.z * 10 }
+        const bodies = figures.map((f) => ({ x: f.player.x, z: f.player.z, id: f.player.id }))
+        return {
+          ball: ballView && { ...ballView, visible: ballMesh.visible },
+          hand: holder?.hand || null,
+          phase: ballView?.phase ?? match?.phase,
+          trails: swingTrails.map((t) => ({ shown: t.shown, visible: t.mesh.visible })),
+          arc: aimArc.visible,
+          aim: aimRing.visible ? { x: aimRing.position.x, z: aimRing.position.z } : null,
+          cut: !!cutShot,
+          camBlocked,
+          blocker: blocker(cam, at, bodies)?.id || null,
+        }
       },
       // a stand-in plays for this computer's people with real button timing, aim and holds
       // (deciding its shots like a computer player of `level`)

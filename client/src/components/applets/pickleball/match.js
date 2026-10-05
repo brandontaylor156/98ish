@@ -178,8 +178,10 @@ const emit = (m, e) => m.events.push({ id: ++m.eventSeq, t: m.t, ...e })
 // bounces since the last hit, counting any the referee is still holding (online)
 export const bouncesOf = (m) => m.rally.bounces + (m.held?.length || 0)
 const isAi = (m, p) => p.ctrl === "cpu" || p.ctrl === "feeder" || (m.autoplay && p.ctrl === "human")
-// the movement assist: "off", "light" (fine positioning while you swing) or "full" (runs to
-// the ball for you). Booleans from older settings mean light/off.
+// the movement assist: "off", "reflex" (never moves you: only the rules guard and the
+// reflex block of a hard ball at the net), "light" (also fine positioning while you swing) or
+// "full" (runs to the ball for you). Booleans from older settings mean light/off. The game
+// itself uses "reflex": the owner wants a player moved only by their own hand.
 const assistOf = (m) => (m.assist === true ? "light" : m.assist === false ? "off" : m.assist || "off")
 
 // ---- points ----
@@ -890,7 +892,7 @@ const movePlayer = (m, p, dt) => {
     }
   }
   // the light assist: while you swing, small steps put you the right distance from the ball
-  if (!ai && !between && assist !== "off" && (p.charge || p.armed) && p.intercept?.stand && !p.intercept.letGo) {
+  if (!ai && !between && (assist === "light" || assist === "full") && (p.charge || p.armed) && p.intercept?.stand && !p.intercept.letGo) {
     const dx = p.intercept.stand.x - p.x
     const dz = p.intercept.stand.z - p.z
     const d = Math.hypot(dx, dz)

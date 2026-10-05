@@ -80,3 +80,45 @@ listed at the end.
   kitchen, third-shot drop by level, middle coverage, Erne rules, pro 2019 vs 2022.
 - Scientific American, "Pickleball physics explained" (reaction time at the net).
 - pickleballsplay.com (the transition zone); Spintip (partner movement).
+
+## Touch controls: Classic and Swipe (pb7, 2026-10-04)
+
+What the popular phone racket games do (checked 2026-10-04):
+
+- **Tennis Clash** (Wildlife): swipe to hit when the ball comes; the faster the swipe, the
+  harder the shot; the farther, the deeper; a lob is a short swipe then hold and release
+  (a bar sets the height). Movement there is a tap on the court. (gamezebo.com Tennis Clash
+  guide; en.androidguias.com/tennis-clash-tricks)
+- **Virtua Tennis Challenge** (SEGA): gesture swipes for topspin, slice, lob and drop, plus
+  virtual pad schemes; reviewers found the swipe scheme unreliable (two-finger slice read as
+  topspin) and preferred the virtual pad. (Wikipedia; gamezebo.com review)
+- **Wii Sports tennis**: the player only times the swing; movement is automatic. (StrategyWiki)
+- Pickleball games on the App Store/Play (Pickleball 3D, Pickleball Stars, Pocket Pickleball)
+  advertise "simple swipe controls" and "intuitive" controls without detail; a Pickleball 3D
+  review complains the movement felt wrong. (apps.apple.com, play.google.com)
+
+The owner ruled out automatic movement ("I do NOT want auto assisted moving"), so both
+schemes keep the move pad (left or right) and differ only in how you hit:
+
+- **Classic:** touch their court to aim, hold for pace, let go as the ball comes.
+- **Swipe** (Tennis Clash's idea without its auto-movement): finger down anywhere off the pad
+  (the paddle comes up), swipe up toward the target, lift as the ball comes: angle = across,
+  length = depth, speed = pace; a tap is a soft touch shot; a slow long swipe is a lob (soft
+  aimed deep, which the shot model already plays as a lob). `touchplay.js`.
+
+Playtest (Node, `pb7-playtest.mjs` in the session scratchpad; 40 singles games to 11 vs Club,
+same seeds, same manual-movement model: 0.28 s reaction, a stand spot off by N(0, 0.3 m),
+release timing N(0, 70 ms); Classic: pace from a held interval with Weber noise
+N(0, 0.2 x hold + 25 ms) and pressing early enough, tap-aim N(0, 0.5 m) x N(0, 0.9 m); Swipe:
+pace N(0, 0.14) around the intended pace, angle/length aim about N(0, 0.45 m) x N(0, 0.7 m)):
+
+| scheme | shots/rally | points won | your errors/shot |
+|---|---|---|---|
+| Classic | 4.03 | 31.1% | 0.138 |
+| Swipe | 4.66 | 36.6% | 0.085 |
+
+Against Rookie: 3.42 vs 3.86 shots/rally, 50.8% vs 62.2% points. With Classic's aim error set
+equal to Swipe's, Classic still trailed (4.17 shots/rally, 0.118 errors/shot); changing the
+Weber fraction (0.12) or Swipe's pace noise (0.22) moved little. Honest limits: these numbers
+come from assumed human noise, not from people; they say Swipe is at least not worse and
+likely easier because pace needs no early press. Swipe is marked recommended; both stay.

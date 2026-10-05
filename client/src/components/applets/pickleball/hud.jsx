@@ -34,6 +34,38 @@ export const ScoreBug = ({ hud, online }) => {
   )
 }
 
+// The one banner slot (banner.js): whatever the broadcast says right now, one thing at a
+// time: the score call ("Side out" / "GUS TO SERVE" / 0-1-1), a fault or a point's outcome, a
+// line call, or your last shot ("Unattackable dink · good · 22 mph"). Its lifetime is kept by
+// the game, so it goes away even with animations off.
+export const Banner = ({ banner }) => {
+  if (!banner) return null
+  return (
+    <div key={banner.id} className={`pkBanner pkBanner--${banner.kind} pkTone--${banner.tone || "ok"}${banner.p2 ? " is-p2" : ""}`} role="status" aria-live="polite" data-testid="banner" data-kind={banner.kind} data-id={banner.id}>
+      {banner.over && <small>{banner.over}</small>}
+      <b>{banner.text}</b>
+      {banner.sub && <span>{banner.sub}</span>}
+    </div>
+  )
+}
+
+// a shot's banner: what it gave them, then how it was timed and how fast
+export const shotBanner = (shot) => {
+  const g = shot.grade || ""
+  const word = { perfect: "perfect", good: "good", early: "early", late: "late", "very early": "way early", "very late": "way late", soft: "soft" }[g] || ""
+  const sub = [word, shot.speed ? `${Math.round(shot.speed * MPH)} mph` : ""].filter(Boolean).join(" · ")
+  return { kind: "shot", text: shot.label, sub, tone: shot.tone || "ok", p2: shot.slot === 1 }
+}
+
+// The one hint line: what to do right now, in a few words; it goes away for good after
+// your first few points (Settings: Show controls on screen brings it back)
+export const HintLine = ({ text }) =>
+  text ? (
+    <div className="pkHint" aria-hidden="true">
+      {text}
+    </div>
+  ) : null
+
 // the umpire's call before each serve, lower third
 export const CallCard = ({ call }) =>
   call ? (

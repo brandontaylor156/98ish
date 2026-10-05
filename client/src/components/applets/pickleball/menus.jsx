@@ -353,9 +353,26 @@ export const VersusMenu = ({ prefs, setPrefs, tour, onStart, onBack, onPlayers, 
 }
 
 // ---------- settings ----------
-export const SettingsMenu = ({ prefs, setPrefs, onBack, onControls, showPad, onTouchEdit }) => (
+export const SettingsMenu = ({ prefs, setPrefs, onBack, onControls, showPad, onTouchEdit, onChooseScheme }) => (
   <Panel title="Settings" onBack={onBack} wide>
     <div className="pkForm">
+      {showPad && (
+        <>
+          <div className="pkField" data-field="scheme">
+            <span>Touch controls</span>
+            <Radio name="pk-scheme" value={prefs.scheme || "swipe"} options={[["swipe", "Swipe (recommended)"], ["classic", "Classic (aim + hold)"]]} onChange={(v) => setPrefs({ scheme: v })} />
+            {onChooseScheme && (
+              <button type="button" className="pkLinkBtn" onClick={onChooseScheme}>
+                Show me...
+              </button>
+            )}
+          </div>
+          <div className="pkField" data-field="padSide">
+            <span>Move pad</span>
+            <Radio name="pk-pad" value={prefs.padSide || "left"} options={[["left", "Left"], ["right", "Right"]]} onChange={(v) => setPrefs({ padSide: v })} />
+          </div>
+        </>
+      )}
       <div className="pkField">
         <span>Graphics</span>
         <Radio name="pk-quality" value={prefs.quality} options={[["low", "Low"], ["medium", "Medium"], ["high", "High"]]} onChange={(v) => setPrefs({ quality: v })} />
@@ -369,10 +386,6 @@ export const SettingsMenu = ({ prefs, setPrefs, onBack, onControls, showPad, onT
         <Radio name="pk-timing" value={prefs.timing} options={[["relaxed", "Relaxed"], ["normal", "Normal"], ["strict", "Strict"]]} onChange={(v) => setPrefs({ timing: v })} />
       </div>
       <div className="pkField">
-        <span>Movement assist</span>
-        <Radio name="pk-assist" value={prefs.assist} options={[["off", "Off"], ["light", "Light"], ["full", "Full (runs for you)"]]} onChange={(v) => setPrefs({ assist: v })} />
-      </div>
-      <div className="pkField">
         <span>Slow-mo on speed-ups</span>
         <Radio name="pk-focus" value={prefs.focus || "auto"} options={[["auto", "Rookie & practice"], ["on", "Always"], ["off", "Off"]]} onChange={(v) => setPrefs({ focus: v })} />
       </div>
@@ -380,9 +393,10 @@ export const SettingsMenu = ({ prefs, setPrefs, onBack, onControls, showPad, onT
         {[
           ["sound", "Sound"],
           ["voice", "Umpire voice"],
-          ["aid", "Shot guides (landing spot, aim ring)"],
+          ["aid", "Shot guides (landing spot, aim ring and arc)"],
+          ["trail", "Swing trail (your paddle's path)"],
           ["replays", "Instant replays"],
-          ["cuts", "TV camera cuts between points"],
+          ["cuts", "TV camera cuts to the server between points"],
           ["hints", "Show controls on screen"],
         ].map(([k, l]) => (
           <label key={k}>
