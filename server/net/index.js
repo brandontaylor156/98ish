@@ -17,6 +17,7 @@ const { createQuizLive } = require("../quiz/live")
 const { createCoop } = require("../town/coop")
 const { createRooms } = require("../arcade/rooms")
 const ROOM_GAMES = require("../arcade/games")
+const { createPark } = require("../park")
 
 const RESUME_GRACE_MS = 30_000
 const MAX_FILE_BYTES = 200 * 1024 // text documents
@@ -54,7 +55,7 @@ const validFileName = (name) => {
   return value && value.length <= 64 && !INVALID_NAME.test(value) && value !== "." && value !== ".." ? value : null
 }
 
-const attachNet = (io, { aim: initialAim = null, graceMs = RESUME_GRACE_MS, games: gameOptions = {}, tetrisRanks = null, quiz: quizOptions = {}, coop: coopOptions = {}, rooms: roomsOptions = {} } = {}) => {
+const attachNet = (io, { aim: initialAim = null, graceMs = RESUME_GRACE_MS, games: gameOptions = {}, tetrisRanks = null, quiz: quizOptions = {}, coop: coopOptions = {}, rooms: roomsOptions = {}, park: parkOptions = {} } = {}) => {
   let aim = initialAim
   const computers = new Map() // token -> computer
   const byPid = new Map() // pid -> computer
@@ -145,6 +146,14 @@ const attachNet = (io, { aim: initialAim = null, graceMs = RESUME_GRACE_MS, game
     ...roomsOptions,
   })
   const games = createGames({ emit: emitPid, tetris, doodle, quiz, coop, rooms, ...gameOptions })
+  // My Park (Pickleball 98's walk-around park): who is where, the paddle racks, handing a court's
+  // people into a Pickleball room (server/park)
+  const park = createPark({
+    emit: emitPid,
+    emitVolatile: (pid, event, payload) => byPid.get(pid)?.socket?.volatile.emit(event, payload),
+    rooms,
+    ...parkOptions,
+  })
 
   const guestName = () => {
     const taken = new Set([...computers.values()].map((c) => c.guestName))
@@ -169,6 +178,7 @@ const attachNet = (io, { aim: initialAim = null, graceMs = RESUME_GRACE_MS, game
     quiz.drop(computer.pid)
     coop.drop(computer.pid)
     rooms.drop(computer.pid)
+    park.drop(computer.pid)
     broadcast()
   }
 
@@ -385,6 +395,8 @@ const attachNet = (io, { aim: initialAim = null, graceMs = RESUME_GRACE_MS, game
     coop.wire(socket, current, (computer) => ({ pid: computer.pid, name: nameOf(computer), key: aimSessionOf(computer)?.key || null }))
     // ---- online rooms (server/arcade) ----
     rooms.wire(socket, current, (computer) => ({ pid: computer.pid, name: nameOf(computer), key: aimSessionOf(computer)?.key || null }))
+    // ---- My Park (server/park) ----
+    park.wire(socket, current, (computer) => ({ pid: computer.pid, name: nameOf(computer), key: aimSessionOf(computer)?.key || null }))
 
     on("net:leave", (computer, { matchId }) => {
       const result = games.leave(computer.pid, String(matchId))
@@ -430,6 +442,7 @@ const attachNet = (io, { aim: initialAim = null, graceMs = RESUME_GRACE_MS, game
     quiz,
     coop,
     rooms,
+    park,
     // Delete My Account (../account): Tetris Online ranks, and their place in co-op towns
     eraseAccount: async (ctx) => {
       const store = await ranks

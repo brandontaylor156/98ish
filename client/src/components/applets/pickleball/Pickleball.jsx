@@ -25,6 +25,10 @@ import { bindingsFor, keyName } from "./input.js"
 import "./Pickleball.css"
 import "./Overlay.css"
 import { helpItem } from "../../../utils/help"
+import { ParkHud, ParkIntro, ParkMenu, ParkResult, ParkTurn } from "./park/ParkHud"
+import { usePark } from "./park/usePark"
+import { recordGame, validRep } from "./park/rep.js"
+import { COURTS as PARK_COURTS, LEVEL_NAMES as PARK_LEVELS } from "./park/layout.js"
 
 // Pickleball 98: React draws the menus and the broadcast-style overlays. The venue, the
 // players and the ball are three.js (engine.js, loaded on first open with three.js); the game
@@ -199,6 +203,20 @@ const Pickleball = ({ onClose, mobile }) => {
   const pendingStart = useRef(null)
   const hellos = useRef(new Map())
   const netStarted = useRef(null)
+  // My Park (park/): the world (kept while you're in the park, also through a game or the
+  // Locker Room), what its HUD shows, and the cards over it
+  const parkRef = useRef(null)
+  const parkLabelsRef = useRef(null)
+  const parkGameRef = useRef(null) // { court, kind: "solo" | "room" | "machine" | "locker", level }
+  const parkEventRef = useRef(null)
+  const [parkWorld, setParkWorld] = useState(null)
+  const [parkHud, setParkHud] = useState(null)
+  const [parkUi, setParkUi] = useState({ menu: false, intro: false, turn: null, result: null })
+  const myParkInfo = () => {
+    const p = prefsRef.current
+    return { name: online.me?.name || characterById(p.character).nick, look: lookForPlayer(p, { character: p.character, outfit: p.outfit }, "park"), rep: validRep(p.parkRep) }
+  }
+  const parkNet = usePark({ world: parkWorld, active: !!parkWorld, me: parkWorld ? myParkInfo() : null })
 
   const later = (fn, ms) => {
     const id = setTimeout(() => {
@@ -282,6 +300,9 @@ const Pickleball = ({ onClose, mobile }) => {
       case "gameover":
         onGameOver(e)
         break
+      case "worldMenu":
+        parkEventRef.current?.(e)
+        break
       default:
     }
   }
@@ -292,6 +313,23 @@ const Pickleball = ({ onClose, mobile }) => {
     const s = sessionRef.current
     setResult(e)
     setReward(null)
+    // a game in My Park: your park rep, then back to the park
+    const pg = parkGameRef.current
+    if (pg && (pg.kind === "solo" || pg.kind === "room") && !pg.done) {
+      pg.done = true
+      const rep = recordGame(prefsRef.current.parkRep, !!e.youWon, { level: pg.level })
+      const { earned, ...kept } = rep
+      setPrefs({ parkRep: kept })
+      if (e.youWon) unlock("pickleball-win")
+      if (s?.kind === "online" && onlineRef.current.isHost) {
+        onlineRef.current.sendRelay({ type: "final", winner: e.winner, score: e.score, stats: e.stats })
+        onlineRef.current.finish({ winners: engineRef.current?.seatsOf(e.winner) || [], reason: `${e.score[e.winner]}-${e.score[1 - e.winner]}`, scores: e.score })
+      }
+      const mine = e.youWon ? e.score[e.winner] : e.score[1 - e.winner]
+      const theirs = e.youWon ? e.score[1 - e.winner] : e.score[e.winner]
+      setParkUi((u) => ({ ...u, result: { won: !!e.youWon, score: [mine, theirs], earned, rep: kept } }))
+      return
+    }
     if (s?.kind === "online") {
       const o = onlineRef.current
       const eng = engineRef.current
@@ -476,7 +514,135 @@ const Pickleball = ({ onClose, mobile }) => {
     else if (s.kind === "versus") startVersus()
     else if (s.kind === "train") startTrain(s.plan, { intro: false })
   }
+  // ---- My Park (park/) ----
+  const startPark = async () => {
+    const e = engineRef.current
+    if (!e) return
+    reset()
+    setSession({ kind: "park" })
+    setScreen("park")
+    setParkUi({ menu: false, intro: !prefsRef.current.parkIntro, turn: null, result: null })
+    let w = parkRef.current
+    if (!w) {
+      try {
+        const { createWorld } = await import("./park/world.js")
+        if (engineRef.current !== e) return
+        w = createWorld({ ...e.worldContext(), phone: !!mobile, me: myParkInfo(), labelsEl: parkLabelsRef.current, onHud: setParkHud, onEvent: (ev) => parkEventRef.current?.(ev) })
+      } catch (error) {
+        console.error(error)
+        setScreen("main")
+        setSession(null)
+        return
+      }
+      parkRef.current = w
+      setParkWorld(w)
+    }
+    w.resume()
+    e.setWorld(w)
+  }
+  // back to the park after a game, the Locker Room or the ball machine
+  const backToPark = ({ court = null } = {}) => {
+    const w = parkRef.current
+    const e = engineRef.current
+    if (!w || !e) return
+    parkGameRef.current = null
+    reset()
+    setTrain(null)
+    setTrainIntro(false)
+    e.showcase(null)
+    setSession({ kind: "park" })
+    setScreen("park")
+    setParkUi({ menu: false, intro: false, turn: null, result: null })
+    w.setMe(myParkInfo())
+    w.resume({ court })
+    e.setWorld(w)
+  }
+  const leavePark = () => {
+    const w = parkRef.current
+    parkRef.current = null
+    parkGameRef.current = null
+    setParkWorld(null)
+    setParkHud(null)
+    setParkUi({ menu: false, intro: false, turn: null, result: null })
+    engineRef.current?.setWorld(null)
+    w?.dispose()
+    reset()
+    setSession(null)
+    setScreen("main")
+    engineRef.current?.quit()
+  }
+  // your turn on a court: a solo game here against the park's players (an online room game
+  // starts by itself: the server seats everyone)
+  const startParkGame = (t) => {
+    const e = engineRef.current
+    const w = parkRef.current
+    if (!e || !w) return
+    setParkUi((u) => ({ ...u, turn: null }))
+    const p = prefsRef.current
+    const level = t.level || "intermediate"
+    const me0 = myParkInfo()
+    const roster = t.lineup.map((x) => (x.me ? { id: "you", team: x.team, ctrl: "human", slot: 0, name: me0.name, character: p.character, outfit: p.outfit, look: me0.look } : { id: x.id, team: x.team, ctrl: "cpu", level, name: x.name, look: x.look }))
+    parkGameRef.current = { court: t.court, kind: "solo", level }
+    reset()
+    setSession({ kind: "parkgame", level, court: t.court })
+    w.suspend()
+    e.setWorld(null)
+    e.newMatch({ doubles: true, level, scoring: "sideout", target: 11, venue: "park", roster, humans: 1 })
+  }
+  parkEventRef.current = (ev) => {
+    const w = parkRef.current
+    const e = engineRef.current
+    if (!w || !e) return
+    if (ev.type === "turn") {
+      if (ev.kind === "room") {
+        // (the room's own state starts the game: startOnlineEngine)
+        parkGameRef.current = { court: ev.court, kind: "room", level: ev.level }
+        return
+      }
+      setParkUi((u) => ({ ...u, menu: false, turn: { ...ev, name: PARK_COURTS[ev.court]?.name || "court", levelName: PARK_LEVELS[ev.level] || "Club" } }))
+    } else if (ev.type === "locker") {
+      parkGameRef.current = { kind: "locker" }
+      w.suspend()
+      e.setWorld(null)
+      setLockerFor({ who: prefsRef.current.character, back: "park" })
+      setScreen("locker")
+    } else if (ev.type === "machine") {
+      parkGameRef.current = { kind: "machine" }
+      w.suspend()
+      e.setWorld(null)
+      setSession(null)
+      setHubView("machine")
+      setScreen("practice")
+    } else if (ev.type === "worldMenu") setParkUi((u) => ({ ...u, menu: !u.menu }))
+  }
+  // the score of your park game, for everyone in the park (their court boards)
+  // (a room game: the host tells the park)
+  const parkScore = (session?.kind === "parkgame" || (session?.kind === "online" && parkGameRef.current?.kind === "room" && online.isHost)) && hud?.score ? hud.score.join("-") : null
+  useEffect(() => {
+    if (!parkScore || !parkNet.joined || !parkNet.request) return
+    const g = parkGameRef.current
+    if (g?.court !== undefined && g?.court !== null) parkNet.request("park:score", { court: g.court, score: hud.score })
+  }, [parkScore])
+  // the engine's "Escape" in the park (no React key handler sees it first)
+  useEffect(() => () => parkRef.current?.dispose(), [])
+
   const quitToMenu = () => {
+    const pg = parkGameRef.current
+    // (in My Park: out of a game, the ball machine or the Locker Room goes back to the park)
+    if (sessionRef.current?.kind === "parkgame" || (pg && pg.kind === "room" && sessionRef.current?.kind === "online")) {
+      if (sessionRef.current?.kind === "online") onlineRef.current.leave()
+      return backToPark({ court: pg?.court ?? null })
+    }
+    if (sessionRef.current?.kind === "park") return leavePark()
+    if (pg?.kind === "machine" && sessionRef.current?.kind === "train") {
+      reset()
+      setSession(null)
+      setTrain(null)
+      setTrainIntro(false)
+      setScreen("practice")
+      engineRef.current?.quit()
+      return
+    }
     if (sessionRef.current?.kind === "online") onlineRef.current.leave()
     // (out of a practice session: back to the practice screen it came from)
     const back = sessionRef.current?.kind === "train" ? "practice" : "main"
@@ -539,6 +705,13 @@ const Pickleball = ({ onClose, mobile }) => {
     const e = engineRef.current
     reset()
     setSession({ kind: "online" })
+    // (a game called from My Park: the park waits while you play)
+    if (parkRef.current && !parkRef.current.suspended) {
+      parkRef.current.suspend()
+      setParkUi((u) => ({ ...u, menu: false, turn: null }))
+    }
+    if (parkRef.current && !parkGameRef.current) parkGameRef.current = { court: null, kind: "room", level: "intermediate" }
+    e?.setWorld(null)
     if (e) e.startOnline(opts)
     else pendingStart.current = opts
   }
@@ -622,6 +795,11 @@ const Pickleball = ({ onClose, mobile }) => {
   useEffect(() => {
     if (session?.kind === "online" && (!online.room || online.phase === "lobby")) {
       netStarted.current = null
+      // (a park game: back to the park, unless the result is still up)
+      if (parkRef.current && parkGameRef.current?.kind === "room") {
+        if (!parkUi.result) backToPark({ court: parkGameRef.current.court })
+        return
+      }
       reset()
       setSession(null)
       engineRef.current?.quit()
@@ -779,6 +957,7 @@ const Pickleball = ({ onClose, mobile }) => {
         { label: "Quick Match (F2)", onClick: startQuick },
         { label: "World Tour...", onClick: () => (quitToMenu(), setScreen("tour")) },
         { label: "Practice...", onClick: () => (quitToMenu(), setHubView("hub"), setScreen("practice")) },
+        { label: "My Park...", onClick: () => (session?.kind !== "park" && quitToMenu(), startPark()) },
         { label: "2 Players...", onClick: () => (quitToMenu(), setScreen("versus")) },
         { label: "Locker Room...", onClick: () => (session?.kind !== "online" && quitToMenu(), setLockerFor(null), setScreen("locker")) },
         { label: "Play Online...", onClick: () => (session?.kind !== "online" && quitToMenu(), setScreen("online")) },
@@ -953,7 +1132,7 @@ const Pickleball = ({ onClose, mobile }) => {
           </div>
         )}
 
-        {phase === "over" && result && !isOnline && (
+        {phase === "over" && result && !isOnline && !parkUi.result && session?.kind !== "parkgame" && (
           <OverScreen
             result={result}
             session={session}
@@ -963,17 +1142,55 @@ const Pickleball = ({ onClose, mobile }) => {
             onMenu={quitToMenu}
           />
         )}
-        {isOnline && online.phase === "over" && result && (
+        {isOnline && online.phase === "over" && result && !parkUi.result && (
           <OverScreen result={result} session={{ kind: "online" }}>
             <OnlineResultBar online={online} />
           </OverScreen>
         )}
         {isOnline && online.phase === "over" && !result && <OnlineResultBar online={online} />}
 
+        {/* ---------- My Park ---------- */}
+        {screen === "park" && <div className="pkParkLabels" ref={parkLabelsRef} aria-hidden="true" style={{ display: phase === "world" ? "" : "none" }} />}
+        {screen === "park" && phase === "world" && parkWorld && !parkUi.menu && !parkUi.turn && (
+          <ParkHud
+            hud={parkHud}
+            showPad={showPad}
+            padSide={padSide}
+            onAction={() => parkRef.current?.action()}
+            onCam={() => parkRef.current?.cycleCam()}
+            onMenu={() => setParkUi((u) => ({ ...u, menu: true }))}
+          />
+        )}
+        {screen === "park" && phase === "world" && parkUi.intro && <ParkIntro showPad={showPad} onDone={() => (setPrefs({ parkIntro: true }), setParkUi((u) => ({ ...u, intro: false })))} />}
+        {screen === "park" && parkUi.turn && !parkUi.menu && <ParkTurn key={parkUi.turn.court} turn={parkUi.turn} onGo={() => withScheme(() => startParkGame(parkUi.turn))} />}
+        {screen === "park" && phase === "world" && parkUi.menu && (
+          <ParkMenu
+            courts={parkRef.current?.courts || []}
+            rep={validRep(prefs.parkRep)}
+            online={parkHud?.online}
+            onResume={() => (setParkUi((u) => ({ ...u, menu: false })), stageRef.current?.focus({ preventScroll: true }))}
+            onWatch={(id) => (parkRef.current?.watch(id), setParkUi((u) => ({ ...u, menu: false })))}
+            onSay={(i) => (parkRef.current?.say(i), setParkUi((u) => ({ ...u, menu: false })))}
+            onEmote={(id) => (parkRef.current?.emote(id), setParkUi((u) => ({ ...u, menu: false })))}
+            onLocker={() => (setParkUi((u) => ({ ...u, menu: false })), parkEventRef.current?.({ type: "locker" }))}
+            onLeave={leavePark}
+          />
+        )}
+        {parkUi.result && (phase === "over" || online.phase === "over") && (
+          <ParkResult
+            result={parkUi.result}
+            onBack={() => {
+              const pg = parkGameRef.current
+              if (sessionRef.current?.kind === "online") onlineRef.current.leave()
+              backToPark({ court: pg?.court ?? null })
+            }}
+          />
+        )}
+
         {/* ---------- menus ---------- */}
         {atMenu && screen === "main" && phase === "title" && (
           <TitleMenu
-            onPick={(s) => (s === "rules" ? setDialog("rules") : s === "settings" ? setDialog("settings") : s === "controls" ? setDialog("controls") : (setPlayersFor("p1"), s === "practice" && setHubView("hub"), setScreen(s)))}
+            onPick={(s) => (s === "park" ? startPark() : s === "rules" ? setDialog("rules") : s === "settings" ? setDialog("settings") : s === "controls" ? setDialog("controls") : (setPlayersFor("p1"), s === "practice" && setHubView("hub"), setScreen(s)))}
             onOnline={() => setScreen("online")}
             tour={tour}
             showPad={showPad}
@@ -989,6 +1206,10 @@ const Pickleball = ({ onClose, mobile }) => {
             initial={lockerFor?.who || prefs.character}
             onBack={() => {
               engineRef.current?.showcase(null)
+              if (lockerFor?.back === "park") {
+                setLockerFor(null)
+                return backToPark()
+              }
               setScreen(lockerFor?.back || "main")
               setLockerFor(null)
             }}
@@ -1007,7 +1228,7 @@ const Pickleball = ({ onClose, mobile }) => {
           />
         )}
         {atMenu && screen === "tour" && <TourMenu tour={tour} onPlay={(t) => withScheme(() => startTour(t))} onBack={() => setScreen("main")} onReset={() => setTour(freshTour())} />}
-        {atMenu && screen === "practice" && <PracticeHub key={hubView} initialView={hubView} prefs={prefs} setPrefs={setPrefs} onStart={(x) => withScheme(() => startTrain(x))} onTutorial={() => withScheme(() => startTutorial(0))} onBack={() => (setHubView("hub"), setScreen("main"))} />}
+        {atMenu && screen === "practice" && <PracticeHub key={hubView} initialView={hubView} prefs={prefs} setPrefs={setPrefs} onStart={(x) => withScheme(() => startTrain(x))} onTutorial={() => withScheme(() => startTutorial(0))} onBack={() => (parkGameRef.current?.kind === "machine" ? backToPark() : (setHubView("hub"), setScreen("main")))} backOut={parkGameRef.current?.kind === "machine"} />}
         {atMenu && screen === "versus" && <VersusMenu prefs={prefs} setPrefs={setPrefs} tour={tour} showPad={showPad} onStart={startVersus} onBack={() => setScreen("main")} onPlayers={(who) => (setPlayersFor(who === "p2" ? "p2" : "p1v"), setScreen("players"))} />}
         {screen === "online" && !onlinePlaying && phase !== "loading" && (
           <div className="pkOnline">
@@ -1077,7 +1298,7 @@ const Pickleball = ({ onClose, mobile }) => {
             <div className="pkKnob" ref={knobRef} />
           </div>
         )}
-        {showPad && !stickUi && zoneHint && phase === "playing" && !editing && (
+        {showPad && !stickUi && zoneHint && (phase === "playing" || (phase === "world" && parkHud?.mode === "walk")) && !editing && (
           <div className="pkStick pkStick--hint" style={{ left: zoneHint.x, top: zoneHint.y }} aria-hidden="true">
             <div className="pkKnob" />
           </div>

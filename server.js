@@ -115,7 +115,8 @@ if (process.env.RENDER_EXTERNAL_URL && process.env.KEEP_AWAKE !== "0") {
 // room for a picture or a sound sent over Network Neighborhood (1.5 MB as a data URL)
 const io = require("socket.io")(server, { cors: true, maxHttpBufferSize: 2 * 1024 * 1024, allowRequest: allowSocketRequest })
 
-const net = attachNet(io)
+// (My Park sends positions less often when the month's traffic runs high: server/park)
+const net = attachNet(io, { park: { meterTotal: () => usage.meter.total(), capBytes: (Number(process.env.WEB_MONTHLY_TOTAL_MB) || 3000) * 1024 * 1024 } })
 const gameChat = attachGameChat(io, net)
 
 // Delete My Account: every place that keeps something for an account, in order (the full
