@@ -6,6 +6,8 @@
 // skyline, mountains). Everything static: build.js merges it.
 
 import * as THREE from "three"
+import { addProps, propMaterials } from "./props.js"
+import { roomRect } from "./propkit.js"
 
 const canvasTexture = (w, h, draw) => {
   const c = document.createElement("canvas")
@@ -355,7 +357,8 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
     return roofMats.get(color)
   }
   // a wall ring (quads from y0 to y1) facing outward (or inward), uv in 3 m tiles
-  const wallRing = (p, y0, y1, { inward = false, gap = null, offset = 0 } = {}) => {
+  const wallRing = (p, y0, y1, { inward = false, gap = null, gaps = null, offset = 0 } = {}) => {
+    const cuts = gaps || (gap ? [gap] : [])
     const pos = []
     const uvs = []
     const ccw = signedArea(p) > 0 // (x east, z south: positive area runs clockwise seen from above)
@@ -370,8 +373,11 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
       const nx = ((b[1] - a[1]) / len) * (ccw ? 1 : -1)
       const nz = (-(b[0] - a[0]) / len) * (ccw ? 1 : -1)
       const o = inward ? -offset : offset
-      const cutAt = doorCut({ x: a[0], z: a[1] }, { x: (b[0] - a[0]) / len, z: (b[1] - a[1]) / len }, len, gap)
-      const runs = cutAt ? [[0, cutAt[0]], [cutAt[1], len]] : [[0, len]]
+      let runs = [[0, len]]
+      for (const g of cuts) {
+        const cutAt = doorCut({ x: a[0], z: a[1] }, { x: (b[0] - a[0]) / len, z: (b[1] - a[1]) / len }, len, g)
+        if (cutAt) runs = runs.flatMap(([s0, e0]) => [[s0, Math.min(e0, cutAt[0])], [Math.max(s0, cutAt[1]), e0]]).filter(([s0, e0]) => e0 - s0 > 0.02)
+      }
       for (const [s, e] of runs) {
         if (e - s < 0.05) continue
         const ax = a[0] + ((b[0] - a[0]) * s) / len + nx * o
@@ -407,6 +413,16 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
     g.translate(0, y, 0)
     return keep(g)
   }
+  // the doors (venuegen: every room's and open building's) that sit on a polygon's walls
+  const doorsOn = (poly) =>
+    (S.doors || []).filter((d) =>
+      poly.some((q, i) => {
+        const b = poly[(i + 1) % poly.length]
+        const L2 = (b[0] - q[0]) ** 2 + (b[1] - q[1]) ** 2 || 1
+        const t = Math.max(0, Math.min(1, ((d.x - q[0]) * (b[0] - q[0]) + (d.z - q[1]) * (b[1] - q[1])) / L2))
+        return Math.hypot(q[0] + (b[0] - q[0]) * t - d.x, q[1] + (b[1] - q[1]) * t - d.z) < 0.5
+      })
+    )
   // the same, facing down (a ceiling)
   const flatDown = (p, y) => {
     const shape = new THREE.Shape(p.map(([x, z]) => new THREE.Vector2(x, z)))
@@ -547,7 +563,7 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
     const wallMat = b.windows === "none" ? plainMatFor(color) : wallMatFor(color, ribs)
     const y0 = b.y0 || 0
     // (a hall's outside walls are drawn with its inside, cut for the door)
-    if (!b.hall) group.add(new THREE.Mesh(wallRing(b.p, y0, b.h), wallMat))
+    if (!b.hall) group.add(new THREE.Mesh(wallRing(b.p, y0, b.h, b.doors ? { gaps: doorsOn(b.p) } : {}), wallMat))
     const roofColor = hex(b.r, ROOFS[kind] ?? ROOFS.yes)
     const roofMat = roofMatFor(roofColor)
     if (b.hall && cutaway) continue
@@ -587,6 +603,140 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
     hvac.forEach((u, i) => units.setMatrixAt(i, m4.compose(v1.set(u.x, u.y, u.z), q.setFromEuler(e1.set(0, -u.ry, 0)), v2.set(u.sx, u.sy, u.sz))))
     group.add(units)
   }
+
+  // ---------- the room kit: rooms (lobbies, gyms, locker rooms ...), their doors and props ----------
+  // Each room is its own zone (a group merged on its own, drawn only when you're in it or near
+  // one of its doors: cull()). Doors are gaps in every wall they sit on.
+  const propMats = propMaterials(keep)
+  const zones = []
+  const signMats = new Map()
+  const signMat = (g) => {
+    if (!signMats.has(g)) {
+      const tex = keep(
+        canvasTexture(64, 64, (ctx, w) => {
+          ctx.fillStyle = g === "f" ? "#b0306a" : g === "m" ? "#2f5fb0" : "#3a7a4a"
+          ctx.fillRect(0, 0, w, w)
+          ctx.fillStyle = "#ffffff"
+          ctx.beginPath()
+          ctx.arc(32, 15, 7, 0, Math.PI * 2)
+          ctx.fill()
+          if (g === "f") {
+            ctx.beginPath()
+            ctx.moveTo(32, 23)
+            ctx.lineTo(46, 46)
+            ctx.lineTo(18, 46)
+            ctx.closePath()
+            ctx.fill()
+          } else ctx.fillRect(24, 24, 16, 22)
+          ctx.fillRect(25, 46, 5, 12)
+          ctx.fillRect(34, 46, 5, 12)
+        })
+      )
+      signMats.set(g, keep(new THREE.MeshBasicMaterial({ map: tex })))
+    }
+    return signMats.get(g)
+  }
+  const frameMat = lambert(0x2e3236)
+  const leafMats = new Map()
+  const leafMat = (c) => {
+    if (!leafMats.has(c)) leafMats.set(c, lambert(hex(c, 0x8a6a4a)))
+    return leafMats.get(c)
+  }
+  const glassMat = keep(new THREE.MeshLambertMaterial({ color: 0xcfe6ef, transparent: true, opacity: 0.3, depthWrite: false, side: THREE.DoubleSide }))
+  const fixtureMat = keep(new THREE.MeshBasicMaterial({ color: 0xfffbf0 }))
+  // the doorway at d on the polygon's nearest edge: its frame, and a leaf by kind
+  const drawDoor = (g, d, poly, h) => {
+    let best = null
+    poly.forEach((q, i) => {
+      const a = q
+      const b = poly[(i + 1) % poly.length]
+      const L = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1
+      const t = Math.max(0, Math.min(1, ((d.x - a[0]) * (b[0] - a[0]) + (d.z - a[1]) * (b[1] - a[1])) / (L * L)))
+      const px = a[0] + (b[0] - a[0]) * t
+      const pz = a[1] + (b[1] - a[1]) * t
+      const dd = Math.hypot(px - d.x, pz - d.z)
+      if (!best || dd < best.dd) best = { dd, ux: (b[0] - a[0]) / L, uz: (b[1] - a[1]) / L }
+    })
+    if (!best || best.dd > 0.6) return
+    const ry = -Math.atan2(best.uz, best.ux)
+    const w = d.w || 1.8
+    const top = Math.min(2.4, h - 0.1)
+    const at = (s, y, n = 0) => [d.x + best.ux * s - best.uz * n, y, d.z + best.uz * s + best.ux * n]
+    const piece = (geo, mat, s, y, n = 0, extraRy = 0) => {
+      const m = new THREE.Mesh(keep(geo), mat)
+      const [x, yy, z] = at(s, y, n)
+      m.position.set(x, yy, z)
+      m.rotation.y = ry + extraRy
+      g.add(m)
+      return m
+    }
+    if (d.kind === "closed") {
+      piece(new THREE.BoxGeometry(w, top, 0.06), leafMat(d.color || "#8a6a4a"), 0, top / 2)
+      return
+    }
+    if (d.kind === "open") return
+    for (const s of [-1, 1]) piece(new THREE.BoxGeometry(0.1, top, 0.3), frameMat, (s * (w + 0.1)) / 2, top / 2)
+    piece(new THREE.BoxGeometry(w + 0.3, 0.12, 0.3), frameMat, 0, top + 0.06)
+    if (d.kind === "glass" || d.kind === "double" || d.kind === "sauna") {
+      // glass leaves slid / swung aside, a glass transom over the door
+      for (const s of d.kind === "sauna" ? [1] : [-1, 1]) piece(new THREE.BoxGeometry(w / 2, top - 0.05, 0.03), glassMat, s * (w * 0.75), top / 2, 0.06)
+      if (h > top + 0.4) piece(new THREE.BoxGeometry(w, Math.min(1.2, h - top - 0.2), 0.03), glassMat, 0, top + 0.12 + Math.min(1.2, h - top - 0.2) / 2)
+    } else if (d.kind === "rollup") {
+      piece(new THREE.BoxGeometry(w, 0.5, 0.35), leafMat("#c9ccd0"), 0, top - 0.25)
+    } else {
+      // a wooden leaf swung open against the wall, inside
+      const leaf = new THREE.Mesh(keep(new THREE.BoxGeometry(Math.min(1.0, w - 0.1), top - 0.05, 0.05).translate(Math.min(1.0, w - 0.1) / 2, 0, 0)), leafMat(d.color || "#8a6a4a"))
+      const [x, , z] = at(-w / 2 + 0.05, 0)
+      leaf.position.set(x, top / 2, z)
+      leaf.rotation.y = ry - Math.PI / 2
+      g.add(leaf)
+    }
+    if (d.kind === "restroom" || d.sign) {
+      for (const n of [0.17, -0.17]) piece(new THREE.PlaneGeometry(0.3, 0.3), signMat(d.gender || "u"), 0, 1.6 + (top > 2.3 ? 0 : 0), n, n > 0 ? 0 : Math.PI)
+    }
+  }
+  for (const r of S.rooms || []) {
+    const g = new THREE.Group()
+    const H = r.h || 3.2
+    const gaps = doorsOn(r.p).map((d) => ({ x: d.x, z: d.z, w: d.w || 1.8 }))
+    g.add(new THREE.Mesh(flat(r.p, 0.015), std(hex(r.floor, 0xc9bda8), { roughness: 0.6 })))
+    const wh = r.wainscot ? 1.1 : 0
+    // (indoors the walls get the room's own light: some emissive, so a white wall reads white)
+    const lit = (c) => lambert(c, { emissive: new THREE.Color(c).multiplyScalar(0.28) })
+    if (wh) g.add(new THREE.Mesh(wallRing(r.p, 0, wh, { inward: true, gaps, offset: 0.12 }), lit(hex(r.wainscot, 0x8a8a8a))))
+    g.add(new THREE.Mesh(wallRing(r.p, wh, H, { inward: true, gaps, offset: 0.12 }), lit(hex(r.wall, 0xece6da))))
+    // a free-standing room (not inside a building or hall) has its own outside and roof
+    if (r.shell) {
+      g.add(new THREE.Mesh(wallRing(r.p, 0, H + 0.4, { gaps, offset: 0.02 }), plainMatFor(hex(r.outside, 0xefece5))))
+      g.add(new THREE.Mesh(flat(r.p, H + 0.4), roofMatFor(hex(r.roof, 0xd9d6cf))))
+    }
+    const cc = new THREE.Color(hex(r.ceiling, 0xf2f0ea))
+    g.add(new THREE.Mesh(flatDown(r.p, H - 0.02), lambert(cc.getHex(), { emissive: cc.clone().multiplyScalar(0.3) })))
+    // ceiling light panels every few metres
+    const R = roomRect(r.p)
+    if (R) {
+      const strip = r.type === "gym" || r.type === "hall" || r.type === "corridor"
+      for (let u = R.u0 + 1.6; u < R.u1 - 1; u += strip ? 4 : 2.6)
+        for (let w = R.w0 + 1.4; w < R.w1 - 1; w += 2.6) {
+          const x = u * R.ux - w * R.uz
+          const z = u * R.uz + w * R.ux
+          if (!pointInPoly(x, z, r.p)) continue
+          const f = new THREE.Mesh(keep(new THREE.BoxGeometry(strip ? 2.4 : 0.6, 0.04, strip ? 0.25 : 0.6)), fixtureMat)
+          f.position.set(x, H - 0.05, z)
+          f.rotation.y = -Math.atan2(R.uz, R.ux)
+          g.add(f)
+        }
+    }
+    for (const d of doorsOn(r.p)) drawDoor(g, d, r.p, H)
+    for (const d of (r.doors || []).filter((d) => d.kind === "closed")) drawDoor(g, d, r.p, H)
+    addProps(g, r.props || [], propMats, keep)
+    zones.push({ group: g, poly: r.p, doors: doorsOn(r.p), h: H, id: r.id, type: r.type })
+  }
+  // the venue's own props (outdoors): with everything else
+  addProps(group, S.props || [], propMats, keep)
+  // the doors of buildings you can walk into (their frames and leaves, outside the rooms)
+  const roomDoors = zones.flatMap((z) => z.doors)
+  for (const b of S.buildings) if (b.doors) for (const d of doorsOn(b.p)) if (!roomDoors.includes(d)) drawDoor(group, d, b.p, b.h)
 
   // ---------- the halls: inside ----------
   const lightRows = []
@@ -1010,9 +1160,11 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
     const a = ((x.deg || 0) * Math.PI) / 180
     const ry = -a
     if (x.type === "tower") {
+      // (base: it rises from a roof, so nothing stands at the ground floor)
       const w = x.w || 5
-      const t = new THREE.Mesh(keep(new THREE.BoxGeometry(w, x.h || 14, w)), lambert(hex(x.color, 0xf1ece2)))
-      t.position.set(x.x, (x.h || 14) / 2, x.z)
+      const b0 = x.base || 0
+      const t = new THREE.Mesh(keep(new THREE.BoxGeometry(w, (x.h || 14) - b0, w)), lambert(hex(x.color, 0xf1ece2)))
+      t.position.set(x.x, b0 + ((x.h || 14) - b0) / 2, x.z)
       group.add(t)
       const cap = new THREE.Mesh(keep(new THREE.ConeGeometry(w * 0.78, w * 0.7, 4).rotateY(Math.PI / 4)), lambert(hex(x.roof, 0xb5583a)))
       cap.position.set(x.x, (x.h || 14) + w * 0.35, x.z)
@@ -1209,6 +1361,15 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
   return {
     groundMat,
     courtGroup: (c) => groups.get(c) || null,
+    // the rooms' zones (build.js merges each and adds them after the venue's own merge)
+    zones,
+    // draw a room only when you or the camera are in it, or near one of its doors
+    cull: (cam, me) => {
+      for (const z of zones) {
+        const inside = pointInPoly(me.x, me.z, z.poly) || pointInPoly(cam.x, cam.z, z.poly)
+        z.group.visible = inside || z.doors.some((d) => Math.hypot(d.x - cam.x, d.z - cam.z) < 16 || Math.hypot(d.x - me.x, d.z - me.z) < 16)
+      }
+    },
     setDayLook: (d) => {
       if (hallLampMat) hallLampMat.color.setHex(0xfff8e8)
     },

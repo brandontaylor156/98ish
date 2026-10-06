@@ -197,6 +197,27 @@ const buildOne = (v) => {
     ].map(([i, j]) => [cx + u[0] * i * (o.w / 2) + w[0] * j * (o.d / 2), cz + u[1] * i * (o.w / 2) + w[1] * j * (o.d / 2)])
   }
   const polyOfO = (o) => (o.rect ? rectPoly(o.rect) : (o.poly || []).map((q) => P(q)))
+  // (the courts' middle becomes (0, 0) further down: these shift when they're used, sh())
+  // a door: a point on a wall, its width and kind (propkit.js)
+  const doorOf = (d) => {
+    const q = sh(P(d))
+    return { x: r1(q[0]), z: r1(q[1]), w: d.w || 1.8, kind: d.kind || "glass", ...(d.gender ? { gender: d.gender } : {}), ...(d.color ? { color: d.color } : {}), ...(d.sign ? { sign: 1 } : {}) }
+  }
+  // a prop: its type and params; face = the compass bearing its front looks toward; line: a row
+  // of them from -> to every N metres
+  const yawOfFace = (o) => (o.face !== undefined ? Math.round(Math.atan2(Math.sin((o.face * Math.PI) / 180), -Math.cos((o.face * Math.PI) / 180)) * 1000) / 1000 : o.a || 0)
+  const propsOf = (o) => {
+    const { en, ll, xz, face, line, ...rest } = o
+    if (line) {
+      const a = sh(P(line.from))
+      const b = sh(P(line.to))
+      const L = Math.hypot(b[0] - a[0], b[1] - a[1])
+      const n = Math.max(1, Math.floor(L / (line.every || 3)) + 1)
+      return Array.from({ length: n }, (_, k) => ({ ...rest, x: r1(a[0] + ((b[0] - a[0]) * k) / Math.max(1, n - 1)), z: r1(a[1] + ((b[1] - a[1]) * k) / Math.max(1, n - 1)), a: yawOfFace(o) }))
+    }
+    const q = sh(P(o))
+    return [{ ...rest, x: r1(q[0]), z: r1(q[1]), a: yawOfFace(o) }]
+  }
   const els = raw.elements
   const polyOf = (e) => (e.g ? dropClosing(e.g.map(proj.xz)) : null)
   const oc = ov.courts || {}
@@ -338,6 +359,7 @@ const buildOne = (v) => {
         styleBuilding(b, rule)
       }
       if (ob.style?.[e.id]) styleBuilding(b, ob.style[e.id])
+      if (ob.doors?.[e.id]) b.doors = ob.doors[e.id].map(doorOf)
       if (hallIds.has(String(e.id))) {
         b.hall = 1
         b.hallK = hallIds.get(String(e.id))
@@ -409,6 +431,7 @@ const buildOne = (v) => {
     const b = { p: pr(pts), h: add.h || 5.5, k: add.kind || "yes" }
     styleBuilding(b, add)
     if (add.y0) b.y0 = add.y0
+    if (add.doors) b.doors = add.doors.map(doorOf)
     if (add.hall) b.hall = 1
     buildings.push(b)
   }
@@ -502,6 +525,16 @@ const buildOne = (v) => {
     lamps,
   }
   if (halls.length) spec.halls = halls
+  // the room kit: rooms (propkit.js furnishes them by type), and the venue's own props
+  if (ov.rooms?.length)
+    spec.rooms = ov.rooms.map((r, k) => {
+      const out = { id: r.id || `room${k}`, type: r.type || "hall", p: pr(polyOfO(r).map(sh)) }
+      for (const key of ["name", "h", "floor", "wall", "ceiling", "wainscot", "furnish", "gender", "accent", "sofa", "chairs", "proshop", "shell", "outside", "roof", "benches"]) if (r[key] !== undefined) out[key] = r[key]
+      if (r.doors) out.doors = r.doors.map(doorOf)
+      if (r.props) out.props = r.props.flatMap(propsOf)
+      return out
+    })
+  if (ov.props?.length) spec.props = ov.props.flatMap(propsOf)
   if (ov.spawn) {
     const p = sh(P(ov.spawn))
     spec.spawn = { x: r1(p[0]), z: r1(p[1]), deg: ov.spawn.deg ?? null }

@@ -65,7 +65,8 @@ export const buildPark = (scene, { quality = "medium", layout = RIVERSIDE_LAYOUT
   )
   // (a big venue: a bigger sky)
   const span = Math.max(BOUNDS.x1 - BOUNDS.x0, BOUNDS.z1 - BOUNDS.z0)
-  const skyR = Math.max(190, span * 0.9 + 120)
+  // (it follows the camera, followSky(), so it stays inside the camera's far plane)
+  const skyR = S ? 330 : Math.max(190, span * 0.9 + 120)
   const sky = new THREE.Mesh(keep(new THREE.SphereGeometry(skyR, 24, 12)), skyMat)
   sky.position.set((BOUNDS.x0 + BOUNDS.x1) / 2, 0, (BOUNDS.z0 + BOUNDS.z1) / 2)
   sky.renderOrder = -1
@@ -687,6 +688,11 @@ export const buildPark = (scene, { quality = "medium", layout = RIVERSIDE_LAYOUT
   mergeStatic(group, keep)
   // (added after the merge: switched on and off by the time of day)
   group.add(pools)
+  // (the rooms: each merged on its own, shown and hidden by cull())
+  for (const z of scenery?.zones || []) {
+    mergeStatic(z.group, keep)
+    group.add(z.group)
+  }
   // nothing here moves: its matrices are worked out once (what's added later to a court's
   // group, the players and the ball, still updates itself)
   group.traverse((o) => {
@@ -761,6 +767,18 @@ export const buildPark = (scene, { quality = "medium", layout = RIVERSIDE_LAYOUT
     setBoard,
     setDayLook,
     update: scenery?.update || null,
+    cull: scenery?.cull || null,
+    // (a real venue: the sky dome centred on the camera)
+    followSky: S
+      ? (p) => {
+          sky.position.set(p.x, 0, p.z)
+          stars.position.copy(sky.position)
+          sky.updateMatrix()
+          stars.updateMatrix()
+          sky.updateMatrixWorld(true)
+          stars.updateMatrixWorld(true)
+        }
+      : null,
     dispose() {
       scene.remove(group)
       scene.fog = null

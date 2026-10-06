@@ -41,7 +41,8 @@ test("venue specs: court counts, indoor, sizes, the picker's list", () => {
     assert.equal(s.courts.filter((c) => c.s === "t").length, e.tennis, `${id} tennis`)
     assert.equal(!!s.indoor, e.indoor, `${id} indoor`)
     const kb = JSON.stringify(s).length / 1024
-    assert.ok(kb < 16, `${id} spec ${kb.toFixed(1)} KB`)
+    // (lazy-loaded, gzip about a quarter: the fidelity data, trees and rooms, makes it bigger)
+    assert.ok(kb < 48, `${id} spec ${kb.toFixed(1)} KB`)
     if (e.indoor) assert.ok(s.halls?.length >= 1, `${id} has a hall`)
   }
   // angles straight from the data: Newport's grid is turned (bearing 166 -> 76 deg), Wolf + Bear's runs east-west

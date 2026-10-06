@@ -57,6 +57,23 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
   const venue = layout
   // (indoors: cameras stay under the lowest hall roof)
   const halls = layout.spec.scene?.halls || []
+  const rooms = layout.spec.scene?.rooms || []
+  const inPoly = (x, z, poly) => {
+    let inside = false
+    for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+      const [xi, zi] = poly[i]
+      const [xj, zj] = poly[j]
+      if (zi > z !== zj > z && x < ((xj - xi) * (z - zi)) / (zj - zi) + xi) inside = !inside
+    }
+    return inside
+  }
+  // the ceiling over a spot (a room's or a hall's), for the cameras: null outdoors
+  const roofAt = (x, z) => {
+    for (const r of rooms) if (inPoly(x, z, r.p)) return (r.h || 3.2) - 0.35
+    for (const h of halls) if (inPoly(x, z, h.p)) return (h.h || 9) - 0.6
+    return null
+  }
+  const roomAt = (x, z) => rooms.find((r) => inPoly(x, z, r.p)) || null
   const roofY = halls.length ? Math.min(...halls.map((h) => h.h || 9)) - 0.6 : null
   const rand = seeded(seed)
   const scene = new THREE.Scene()
@@ -990,9 +1007,25 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
     const bodiesNear = []
     for (const b of bodies.values()) if (!b.isMe && !b.hidden && b.mode === "walk" && Math.abs(b.x - me.walker.x) < 8 && Math.abs(b.z - me.walker.z) < 8) bodiesNear.push({ x: b.x, z: b.z, h: b.seat ? b.seat.y + 1.0 : 1.95, r: 0.36 })
     const w = me.mode === "sit" && me.seat ? { x: me.seat.x, z: me.seat.z, yaw: me.seat.yaw, speed: 0 } : me.walker
-    stepFollow(follow, w, dt, { portrait: por, bodies: bodiesNear, roofY })
+    // (a room: the ceiling over you, and a closer camera)
+    const inRoom = roomAt(w.x, w.z)
+    stepFollow(follow, w, dt, { portrait: por, bodies: bodiesNear, roofY: inRoom ? roofAt(w.x, w.z) : roofY, tight: !!inRoom })
+    // (in a room, the lens stays in that room: not out through its doorway)
+    if (inRoom && !inPoly(follow.pos.x, follow.pos.z, inRoom.p)) {
+      let lo = 0
+      let hi = 1
+      for (let k = 0; k < 10; k++) {
+        const t = (lo + hi) / 2
+        if (inPoly(w.x + (follow.pos.x - w.x) * t, w.z + (follow.pos.z - w.z) * t, inRoom.p)) lo = t
+        else hi = t
+      }
+      const t = lo * 0.92
+      follow.pos = { x: w.x + (follow.pos.x - w.x) * t, y: Math.max(1.7, follow.pos.y), z: w.z + (follow.pos.z - w.z) * t }
+    }
     camera.position.set(follow.pos.x, follow.pos.y, follow.pos.z)
     lookAt.set(follow.look.x, follow.look.y, follow.look.z)
+    park.cull?.(follow.pos, w)
+    park.followSky?.(follow.pos)
     const fov = por ? 62 : 55
     if (Math.abs(camera.fov - fov) > 0.05) {
       camera.fov += (fov - camera.fov) * Math.min(1, dt * 3)

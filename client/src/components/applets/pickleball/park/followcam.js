@@ -55,11 +55,12 @@ const placeAt = (w, yaw, dist, height, maxY, occ) => {
 // (portrait phones: further back and higher, a taller view). roofY: indoors, the highest the
 // lens may go. prefer: the side (-1, 0, 1) it swung to last time, tried first so it doesn't
 // flip-flop. occ: the occlusion test (the active layout's segmentHit3 by default).
-export const followTarget = (w, camYaw, { portrait = false, bodies = [], roofY = null, prefer = 0, occ = null } = {}) => {
+// tight: in a room (a lobby, a locker room): closer and lower, so the camera stays inside
+export const followTarget = (w, camYaw, { portrait = false, bodies = [], roofY = null, prefer = 0, occ = null, tight = false } = {}) => {
   const hit3 = occ || ((a, b) => segmentHit3(a, b, PAD))
-  const dist = FOLLOW.dist + (portrait ? 1.6 : 0)
+  const dist = tight ? 2.7 + (portrait ? 0.8 : 0) : FOLLOW.dist + (portrait ? 1.6 : 0)
   const maxY = roofY ?? Infinity
-  const height = Math.min(maxY, FOLLOW.height + (portrait ? 0.9 : 0))
+  const height = Math.min(maxY, tight ? 2.0 + (portrait ? 0.3 : 0) : FOLLOW.height + (portrait ? 0.9 : 0))
   let best = null
   const tryOff = (off) => {
     const p = placeAt(w, camYaw + off, dist, height, maxY, hit3)
