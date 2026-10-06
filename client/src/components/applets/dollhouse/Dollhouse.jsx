@@ -218,9 +218,12 @@ const Dollhouse = ({ mobile, onClose, onTitle, dispatch }) => {
     const prefs = { tag: M.newTag(), night: false, mode: "local", hint: true, ...(readJson(PREFS_KEY) || {}) }
     if (!/^[a-z0-9]{1,12}$/.test(prefs.tag)) prefs.tag = M.newTag()
     const savedShared = readJson(SHARED_KEY)
+    const savedHouse = M.deserialize(readJson(HOUSE_KEY))
     st.current = {
       prefs,
-      local: M.deserialize(readJson(HOUSE_KEY)) || M.starterHouse(prefs.tag),
+      // the very first visit shows the furnished starter house behind a "Starter or empty?" choice
+      firstVisit: !savedHouse,
+      local: savedHouse || M.starterHouse(prefs.tag),
       shared: (savedShared && M.deserialize(savedShared.data)) || null,
       pending: Array.isArray(savedShared?.pending) ? savedShared.pending.slice(0, 500) : [],
       sharedId: savedShared?.coupleId || null,
@@ -247,7 +250,7 @@ const Dollhouse = ({ mobile, onClose, onTitle, dispatch }) => {
   const [night, setNightState] = useState(!!s.prefs.night)
   const [cat, setCat] = useState("furniture")
   const [sheet, setSheet] = useState(false) // phones: the catalog sheet is open
-  const [dialog, setDialog] = useState(null)
+  const [dialog, setDialog] = useState(() => (st.current?.firstVisit ? { kind: "first" } : null))
   const [toast, setToast] = useState(null)
   const [ghost, setGhost] = useState(null) // { kind, x, y } dragging from the catalog
   const [flash, setFlash] = useState(false)
@@ -1208,6 +1211,11 @@ const Dollhouse = ({ mobile, onClose, onTitle, dispatch }) => {
           <p className="dialogText">
             Saved as C:\Documents\Dream House\{dialog.file.name}
           </p>
+        </Dialog>
+      )}
+      {dialog?.kind === "first" && (
+        <Dialog title="Welcome to Dream House" okLabel="Starter House" noLabel="Empty House" onOk={() => ((s.firstVisit = false), setDialog(null), saveNow())} onNo={() => ((s.firstVisit = false), newHouse(false))} onCancel={() => ((s.firstVisit = false), setDialog(null), saveNow())}>
+          <p className="dialogText">Start with a furnished house to play with, or an empty one to decorate from scratch? (House &gt; New House... switches later.)</p>
         </Dialog>
       )}
       {dialog?.kind === "new" && (

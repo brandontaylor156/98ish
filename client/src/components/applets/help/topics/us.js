@@ -253,6 +253,7 @@ export const topics = [
     body: [
       "Dream House is a dollhouse to decorate. Fill the rooms with furniture from the catalog, change wallpaper and floors, and dress up the little people who live there. It's saved on this device, or shared with your partner.",
       { open: "Dream House", label: "Open Dream House" },
+      "The first time you open it, choose the furnished **Starter House** or an **Empty House** to decorate from scratch. House > **New House...** lets you switch later.",
       { phone: "Tap **Catalog** and tap something to put it in the room you're looking at, then drag it where you like. Pinch to zoom; double-tap a room to zoom right in.", computer: "Drag things from the catalog into any room, or click one to drop it in the selected room. Scroll to zoom, drag an empty spot to look around, and double-click a room to zoom in." },
       {
         list: [
