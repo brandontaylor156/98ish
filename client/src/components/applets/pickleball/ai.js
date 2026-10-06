@@ -13,6 +13,9 @@
 //   Pro: patient, resets hard balls into the kitchen, attacks only balls that are up;
 //   Legend: all of that with better hands.
 // A style (banger, dinker...) leans a level's habits one way. Both are plain data.
+// A Twin Clone (twin/clone/profile.js cloneLevel) is a level object measured from a real
+// person's games; it may carry stanceNet/stanceBack (where they stand), crossDink, deepZ and
+// serveDepth, read below with the old numbers as defaults (levels without them play as before).
 
 import { HALF_L, HALF_W, KITCHEN, NET_H_CENTER, len, predictPath } from "./physics.js"
 import { FOOT_R, inKitchen, rightSign, sideOf } from "./rules.js"
@@ -183,7 +186,10 @@ export const homeFor = (m, p) => {
   const servingTeam = r.serving === p.team
   if (servingTeam && r.hits < 3) depth = BASE_LINE // the two-bounce rule keeps them back
   else if (!servingTeam && r.hits < 2) depth = p.id === r.receiver ? BASE_LINE : NET_LINE
-  else depth = m.teamDepth[p.team] === "net" ? NET_LINE : m.teamDepth[p.team] === "mid" ? 4.3 : BASE_LINE - 0.1
+  else {
+    const lv = p.level || {}
+    depth = m.teamDepth[p.team] === "net" ? lv.stanceNet ?? NET_LINE : m.teamDepth[p.team] === "mid" ? 4.3 : lv.stanceBack ?? BASE_LINE - 0.1
+  }
   const ballX = m.ball.p.x
   let x
   if (m.game.doubles) {
@@ -304,7 +310,7 @@ export const targetsFor = (m, p, from, rand) => {
   const victim = () => opps.reduce((a, b) => (Math.abs(b.x - hitX) < Math.abs(a.x - hitX) ? b : a))
   return {
     // dinks: mostly cross-court (more court, the low middle of the net), sometimes middle
-    dink(cross = rand() < 0.65) {
+    dink(cross = rand() < (p.level?.crossDink ?? 0.65)) {
       const x = cross ? -Math.sign(hitX || 0.01) * (0.8 + rand() * 1.4) : middle() * 0.4 + (rand() - 0.5) * 0.8
       return { x: cx(x), z: opp * (1.3 + rand() * 0.6) }
     },
@@ -314,7 +320,11 @@ export const targetsFor = (m, p, from, rand) => {
     },
     // deep: returns and drives from the back
     deep() {
-      return { x: cx(middle() + (rand() - 0.5) * 1.6), z: opp * (HALF_L - 0.9 - rand() * 1.2) }
+      // (the across draw comes first, as it always has: seeded matches stay the same)
+      const x = cx(middle() + (rand() - 0.5) * 1.6)
+      const want = p.level?.deepZ
+      const z = want ? clamp(want + (rand() - 0.5) * 1.0, 3.6, HALF_L - 0.3) : HALF_L - 0.9 - rand() * 1.2
+      return { x, z: opp * z }
     },
     // a speed-up or put-away: at a player's paddle-side hip (it lands behind them), or at
     // their feet from up high
@@ -459,5 +469,10 @@ export const aiServe = (m, p) => {
   const lv = p.level
   const v = m.rand()
   const variant = v < 0.1 ? "slice" : v > 0.95 ? "soft" : "drive"
+  // a clone serves as deep as they really do (where their serves were returned from)
+  if (lv.serveDepth) {
+    const deep = clamp((lv.serveDepth - 4.5) / 2.6, 0, 1)
+    return { kind: "serve", variant, aim: (m.rand() - 0.5) * 1.2, power: clamp(0.18 + deep * 0.62 + (m.rand() - 0.5) * 0.2, 0.15, 0.95) }
+  }
   return { kind: "serve", variant, aim: (m.rand() - 0.5) * 1.2, power: 0.25 + m.rand() * 0.55 * (lv.bang > 0.2 ? 1.2 : 1) }
 }
