@@ -114,6 +114,14 @@ const TIPS = {
     "Race your ghost! Finish any race and your best run of that prompt waits for you under Race Your Ghost.",
     "Play Online, then Create Room: Best of 3, Sudden Death, strict typing, or paste your own text for the room to race.",
   ],
+  "Chess Puzzles": [
+    "Your opponent moves first, then find the best reply. Stuck? Hint shows the piece, then the square.",
+    "More options has Puzzle Streak, Puzzle Rush and themes like Mate in 2 or Fork.",
+  ],
+  Imposter: [
+    "Pass the phone around: each player peeks at their card, then you take turns giving clues.",
+    "More options has presets like Chaos (maybe no imposter at all!) and every house rule.",
+  ],
   "Word Duel": [
     "Play Online, then Create Room: there are presets for races, Battle Royale and Co-op, and Customize changes every rule.",
     "Stuck? Try a word with five different common letters, like CRANE or SLATE, to find out the most at once.",

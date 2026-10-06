@@ -167,7 +167,7 @@ const createRooms = ({ games = [], emit = () => {}, emitVolatile = null, blocked
   const register = (mod) => {
     if (!mod || !GAME_ID.test(mod.id || "")) throw new Error(`[rooms] a game needs an id like "uno": ${mod?.id}`)
     if (!mod.relay && (typeof mod.create !== "function" || typeof mod.action !== "function")) throw new Error(`[rooms] ${mod.id} needs create() and action() (or relay: true)`)
-    if (!(mod.minPlayers >= 1 && mod.maxPlayers >= mod.minPlayers && mod.maxPlayers <= 12)) throw new Error(`[rooms] ${mod.id}: bad minPlayers/maxPlayers`)
+    if (!(mod.minPlayers >= 1 && mod.maxPlayers >= mod.minPlayers && mod.maxPlayers <= 20)) throw new Error(`[rooms] ${mod.id}: bad minPlayers/maxPlayers`)
     registry.set(mod.id, mod)
   }
   games.forEach(register)

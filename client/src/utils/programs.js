@@ -88,6 +88,8 @@ export const programs = [
   { name: "Downhill", app: "ski", type: "ski", icon: "/assets/program_icons/ski.svg", width: 640, height: 520, group: "Games", desktop: false, single: true },
   { name: "Speed Typist 98", app: "speedtype", type: "speedtype", icon: "/assets/program_icons/speedtype.svg", width: 720, height: 560, group: "Games", desktop: false, single: true, online: "speedtype" },
   { name: "Word Duel", app: "wordduel", type: "wordduel", icon: "/assets/program_icons/wordduel.svg", width: 560, height: 690, group: "Games", desktop: false, single: true, online: "wordduel" },
+  { name: "Chess Puzzles", app: "chesspuzzles", type: "chesspuzzles", icon: "/assets/program_icons/chesspuzzles.svg", width: 560, height: 700, group: "Games", desktop: false, single: true },
+  { name: "Imposter", app: "imposter", type: "imposter", icon: "/assets/program_icons/imposter.svg", width: 620, height: 700, group: "Games", desktop: false, single: true, online: "imposter" },
   { name: "Last Card", app: "lastcard", type: "lastcard", icon: "/assets/program_icons/lastcard.svg", width: 900, height: 680, group: "Games", desktop: false, single: true, online: "lastcard" },
   { name: "Hexlands", app: "hexlands", type: "hexlands", icon: "/assets/program_icons/hexlands.svg", width: 1000, height: 700, group: "Games", desktop: false, single: true, online: "hexlands" },
   { name: "Monster Duel", app: "monsterduel", type: "monsterduel", icon: "/assets/program_icons/monsterduel.svg", width: 1000, height: 720, group: "Games", desktop: false, single: true, online: "monsterduel" },
