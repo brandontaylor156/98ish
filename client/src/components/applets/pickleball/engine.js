@@ -7,7 +7,7 @@
 import * as THREE from "three"
 import { BALL_R, HALF_L, HALF_W, predictPath, STEP } from "./physics.js"
 import { createMatch, advance, handBattle, humanBySlot, meterFor, playerById, press as mPress, previewShot, release as mRelease, scenario, scoreboard, serve as mServe, setAim, setMove, step, autopilot } from "./match.js"
-import { clearShot, blocker, serverShot } from "./camera.js"
+import { clearShot, blocker, easeClear, serverShot } from "./camera.js"
 import { readSwipe, swipeServe, swipeTarget } from "./touchplay.js"
 import { ATTACK_H, KIND_LABEL, paceOf, planShot } from "./shots.js"
 import { LEVELS } from "./ai.js"
@@ -358,6 +358,7 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
   let ballView = null // (tests) where the ball is drawn and whether it's out of sight
   let lastDt = 0
   let camBlocked = 0 // (tests) frames the camera had to be moved off a body
+  let camEaseBlocked = 0 // (tests) frames the eased camera position had to be moved off a body
   let replay = null // { frames, i, t, speed }
   let record = [] // replay frames
   let meterEls = [null, null]
@@ -872,11 +873,12 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
       }
     }
     // no body in front of the lens (camera.js): every in-match view, replays and cuts too
+    let lensBodies = null
     if (match && status !== "showcase" && status !== "title" && mode !== "demo") {
-      const bodies = figures.map((f, i) => {
+      const bodies = (lensBodies = figures.map((f, i) => {
         const q = replay ? replay.frame.players[i] : f.player
         return { x: q?.x ?? f.player.x, z: q?.z ?? f.player.z }
-      })
+      }))
       if (umpire && venue.umpireSeat) bodies.push({ x: venue.umpireSeat.x, z: venue.umpireSeat.z, h: 2.6 })
       const c = clearShot(tmpV, tmpL, bodies)
       if (c.moved > 0.01) {
@@ -893,8 +895,13 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
       camera.fov += (fov - camera.fov) * (snap ? 1 : Math.min(1, dt * 4))
       camera.updateProjectionMatrix()
     }
-    camera.position.lerp(tmpV, k)
     camLook.lerp(tmpL, k)
+    if (lensBodies) {
+      // (the eased position cleared too: a clear target can still be reached through a player)
+      const c = easeClear(camera.position, tmpV, k, camLook, lensBodies)
+      if (c.moved > 0.01) camEaseBlocked++
+      camera.position.set(c.x, c.y, c.z)
+    } else camera.position.lerp(tmpV, k)
     camera.lookAt(camLook)
     if (shake > 0) {
       camera.position.x += (Math.random() - 0.5) * shake * 0.12
@@ -2273,6 +2280,7 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
           sounds: audio.recent,
           cut: !!cutShot,
           camBlocked,
+          camEaseBlocked,
           blocker: blocker(cam, at, bodies)?.id || null,
         }
       },

@@ -56,7 +56,8 @@ const MIN_SWING = 0.05 // the quickest a swing can get there
 const LATE_MAX = 0.22 // still holding this long after the ball got there: swing anyway
 const ARM_S = 1.0 // let go early: the swing waits this long for the ball
 export const DEFAULT_WINDOW = 0.06 // the perfect timing zone, +- seconds
-const HUMAN = { speed: 4.0, reaction: 0.05, judge: 0.15, maxY: 2.15 }
+// maxY: the highest ball you can play (2.4: an overhead jumps up to it, pro.js overheadLift)
+const HUMAN = { speed: 4.0, reaction: 0.05, judge: 0.15, maxY: 2.4 }
 const NET_ZONE = 4.6 // m from the net: inside this, a fast ball at you is a hand battle
 
 // a hard ball coming at a player near the net (a speed-up or a drive): a hand battle
@@ -491,7 +492,9 @@ export const strike = (m, p, { forced = false } = {}) => {
     const hardness = 1 + Math.max(0, 0.45 - ball.p.y) * 2.5 + Math.hypot(p.vx, p.vz) * 0.12 + inSpeed * 0.02
     const nudge = (k) => 1 + (k - 1) * 0.5
     const far = Math.abs(ball.p.z) >= 3.8
-    const absorb = fast ? 1.3 + Math.max(0, inSpeed - FAST_BALL) / 8 : 1 // softening a hard ball is hard
+    // softening a hard ball is hard: a reset off a real speed-up floats or dumps more often
+    // (tuned 2026-10-06 against simulated rally lengths: Pro/Legend points ran ~14-19 shots)
+    const absorb = fast ? 1.45 + Math.max(0, inSpeed - FAST_BALL) / 5 : 1
     offset = lv.offset * (0.5 + m.rand())
     face = lv.face * hardness * nudge(q.face)
     touch = lv.touch * hardness * nudge(q.touch)
