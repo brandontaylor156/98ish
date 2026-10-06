@@ -2,7 +2,9 @@ name: Venue Finder index
 
 # Rebuilds Pickleball 98's Venue Finder index (every pickleball venue in OpenStreetMap) once a
 # month and commits it when it changed. Data © OpenStreetMap contributors, ODbL 1.0.
-# The build asks the public Overpass API one tile at a time, 10 s apart (tools/venues/world/build-index.mjs).
+# tools/venues/world/build-index.mjs asks public Overpass instances one tile at a time (at least
+# 10 s apart; a busy instance rests and the next is asked) and leaves the index as it was when
+# more than 3% of tiles fail. ZIP search uses the US Census ZCTA Gazetteer (public domain).
 
 on:
   schedule:
@@ -15,14 +17,18 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 240
+    timeout-minutes: 350
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: ZIP codes (Census Gazetteer)
+        run: |
+          curl -sfL -A "98ish-venue-index/1.0" -o "$RUNNER_TEMP/zcta.zip" "https://www2.census.gov/geo/docs/maps-data/data/gazetteer/2024_Gazetteer/2024_Gaz_zcta_national.zip"
+          unzip -o -q "$RUNNER_TEMP/zcta.zip" -d "$RUNNER_TEMP/zcta"
       - name: Build the index
-        run: node tools/venues/world/build-index.mjs --region world --tile 10 --cache "$RUNNER_TEMP/osm"
+        run: node tools/venues/world/build-index.mjs --region us,canada,australia,uk,spain,world --cache "$RUNNER_TEMP/osm" --zips "$(ls $RUNNER_TEMP/zcta/*.txt | head -1)"
       - name: Commit when it changed
         run: |
           git config user.name "venue-index-bot"

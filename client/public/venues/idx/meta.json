@@ -1,7 +1,14 @@
 {
  "v": 1,
+ "zips": 33791,
  "partial": true,
  "covered": [
+  [
+   24,
+   -125,
+   29,
+   -115
+  ],
   [
    -60,
    -120,
@@ -219,7 +226,7 @@
  "venues": 716,
  "courts": 2620,
  "shards": 6,
- "osm_base": "2026-10-06T12:00:28Z",
+ "osm_base": "2026-07-15T15:22:01Z",
  "attribution": "Venue data © OpenStreetMap contributors (ODbL)",
  "license": "ODbL 1.0 (https://opendatacommons.org/licenses/odbl/1-0/)"
 }

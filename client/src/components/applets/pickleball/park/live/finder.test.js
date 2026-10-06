@@ -218,3 +218,28 @@ test("the Overpass side: a bounded query and the compact form", () => {
   assert.equal(c[1].g.length, 2)
   assert.equal(c[2].g.length, 3)
 })
+
+test("index build: a combined answer splits into features, towns and places; towns keep coordinates", () => {
+  const els = [
+    { type: "way", id: 1, center: { lat: 1, lon: 1 }, tags: { leisure: "pitch", sport: "tennis;pickleball" } },
+    { type: "node", id: 2, lat: 1, lon: 1, tags: { leisure: "pitch", pickleball: "yes" } },
+    { type: "node", id: 3, lat: 33.7, lon: -117.9, tags: { place: "town", name: "Fountain Valley" } },
+    { type: "way", id: 4, center: { lat: 1, lon: 1 }, tags: { leisure: "park", name: "Mile Square Park" } },
+    { type: "way", id: 5, center: { lat: 1, lon: 1 }, tags: { place: "neighbourhood", name: "Not a node" } },
+  ]
+  assert.deepEqual(els.map(F.indexKind), ["features", "features", "towns", "places", "places"])
+  // a village counts as a town for the nearest-town name, and a city reaches further
+  const townOf = F.townIndex([
+    { name: "Smallville", lat: 34.0, lon: -118.0, pop: 800 },
+    { name: "Big City", lat: 34.05, lon: -118.0, pop: 100000 },
+  ])
+  assert.equal(townOf(34.001, -118.0)?.name, "Smallville")
+  assert.equal(townOf(34.03, -118.0)?.name, "Big City")
+  assert.equal(townOf(36, -118.0), null)
+})
+
+test("ZIP search: a US ZIP code (with or without +4) is recognized, nothing else is", () => {
+  assert.equal(F.zipOf("92708"), "92708")
+  assert.equal(F.zipOf(" 92708-1234 "), "92708")
+  for (const q of ["9270", "927081", "Fountain Valley", "92708 courts", "", null]) assert.equal(F.zipOf(q), null)
+})
