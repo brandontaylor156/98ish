@@ -46,7 +46,7 @@ export const buildCourtVenue = (scene, { layout, courtId = null, quality = "medi
   chair.position.set(UX, 0, 0)
   scene.add(chair)
   const base = VENUES.park
-  const def = { ...base, id: `park:${layout.id}`, name: `${layout.name} · ${c.name}`, crowd: 0, exposure: d.exposure ?? 1 }
+  const def = { ...base, id: `park:${layout.id}`, name: `${layout.name} · ${c.name}`, crowd: 0, exposure: d.exposure ?? 1, toneMapping: park.toneMapping }
   return {
     group: holder,
     def,

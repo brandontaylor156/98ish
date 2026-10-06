@@ -1208,6 +1208,8 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
     get exposure() {
       return exposure
     },
+    // the tone curve the engine draws the park with (build.js: Neutral at real venues)
+    toneMapping: park.toneMapping,
     frame,
     resize(width, height) {
       size = { width: Math.max(1, width), height: Math.max(1, height) }
@@ -1446,8 +1448,86 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
     },
   }
   // (tests: the park, also while it waits behind a game)
-  if (import.meta.env?.DEV) window.__park = world
+  if (import.meta.env?.DEV) {
+    window.__park = world
+    devHooks(world, { scene, park, exposure: () => exposure })
+  }
   return world
+}
+
+// DEV only (tools/venues/compare.mjs): pictures of the venue for comparing with references.
+// devShot({ w, h, ortho: { x0, x1, z0, z1 } }) is a top-down picture of that box (north up);
+// devShot({ w, h, cam: { x, y, z, heading, pitch, fov } }) a photo from there (heading: compass
+// degrees, pitch: degrees up). It draws with its own renderer set like the game's (color space,
+// tone curve, exposure), people hidden unless people: true. devSwatches(list) lays flat color
+// cards on the ground ({ x, z, hex, size, kind: "std" | "lambert", up }) to test the colors.
+const devHooks = (world, { scene, park, exposure }) => {
+  let r = null
+  const swatches = []
+  world.devShot = ({ w = 800, h = 600, ortho = null, cam = null, people = false, fog = !ortho } = {}) => {
+    if (!r) {
+      r = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true })
+      r.outputColorSpace = THREE.SRGBColorSpace
+    }
+    r.toneMapping = world.toneMapping ?? THREE.ACESFilmicToneMapping
+    r.toneMappingExposure = exposure()
+    r.setPixelRatio(1)
+    r.setSize(w, h, false)
+    let c
+    if (ortho && ortho.y0 !== undefined) {
+      // a front view looking north at the box x0..x1, y0..y1 (from south of z)
+      const hw = (ortho.x1 - ortho.x0) / 2
+      const hh = (ortho.y1 - ortho.y0) / 2
+      c = new THREE.OrthographicCamera(-hw, hw, hh, -hh, 1, 2000)
+      c.position.set((ortho.x0 + ortho.x1) / 2, (ortho.y0 + ortho.y1) / 2, (ortho.z ?? 0) + 600)
+      c.lookAt(c.position.x, c.position.y, -1e6)
+    } else if (ortho) {
+      const cx = (ortho.x0 + ortho.x1) / 2
+      const cz = (ortho.z0 + ortho.z1) / 2
+      const hw = (ortho.x1 - ortho.x0) / 2
+      const hd = (ortho.z1 - ortho.z0) / 2
+      c = new THREE.OrthographicCamera(-hw, hw, hd, -hd, 1, 2000)
+      c.position.set(cx, 900, cz)
+      c.up.set(0, 0, -1)
+      c.lookAt(cx, 0, cz)
+    } else {
+      const k = cam || {}
+      c = new THREE.PerspectiveCamera(k.fov || 55, w / h, 0.1, 1500)
+      const hd = ((k.heading || 0) * Math.PI) / 180
+      const pt = ((k.pitch || 0) * Math.PI) / 180
+      c.position.set(k.x || 0, k.y ?? 1.7, k.z || 0)
+      c.lookAt(c.position.x + Math.sin(hd) * Math.cos(pt), c.position.y + Math.sin(pt), c.position.z - Math.cos(hd) * Math.cos(pt))
+    }
+    c.updateMatrixWorld(true)
+    const hidden = []
+    if (!people) for (const o of scene.children) if (o !== park.group && !o.isLight && o.visible && !swatches.includes(o)) (o.visible = false), hidden.push(o)
+    const f = scene.fog
+    if (!fog) scene.fog = null
+    r.render(scene, c)
+    scene.fog = f
+    for (const o of hidden) o.visible = true
+    return r.domElement.toDataURL("image/png")
+  }
+  world.devSwatches = (list = []) => {
+    for (const s of swatches.splice(0)) {
+      scene.remove(s)
+      s.geometry.dispose()
+      s.material.dispose()
+    }
+    for (const s of list) {
+      const M = s.kind === "lambert" ? THREE.MeshLambertMaterial : THREE.MeshStandardMaterial
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(s.size || 2, s.size || 2), new M({ color: new THREE.Color(s.hex), ...(s.kind === "lambert" ? {} : { roughness: s.roughness ?? 0.85 }) }))
+      if (s.up) m.position.set(s.x, s.y ?? (s.size || 2) / 2 + 0.05, s.z)
+      else {
+        m.rotation.x = -Math.PI / 2
+        m.position.set(s.x, s.y ?? 0.05, s.z)
+      }
+      if (s.facing !== undefined) m.rotation.y = s.facing
+      scene.add(m)
+      swatches.push(m)
+    }
+    return swatches.length
+  }
 }
 
 export { INTERACTABLES }

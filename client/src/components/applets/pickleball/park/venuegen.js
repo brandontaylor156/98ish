@@ -766,6 +766,7 @@ export const generateVenue = (spec, opts = {}) => {
       lit: !!spec.lit,
       colors,
       backdrop: spec.backdrop || {},
+      light: spec.light || null,
       palettes: spec.palettes || [],
       fence: spec.fence || {},
       courts: courts.map((c) => ({ x: c.x, z: c.z, rot: c.rot, s: c.s, pb: c.pb, pl: c.pl, col: c.col, L: c.L, W: c.W, live: layoutCourts.find((lc) => lc.src === c.i)?.id ?? null, machine: machine?.c === c, num: c.num || null, lit: c.lit })),

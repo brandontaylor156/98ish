@@ -96,7 +96,12 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
   // (a venue can also be { key, build(scene, { quality }), room }: a court in My Park at a real venue)
   let venueCustom = null
   let venue = buildVenue(scene, { venue: venueId, quality: settings.quality })
-  renderer.toneMappingExposure = venue.def.exposure
+  // a venue's tone curve (a real venue in My Park: Neutral, so its paint shows as painted)
+  const venueTone = () => {
+    renderer.toneMapping = venue.def.toneMapping ?? THREE.ACESFilmicToneMapping
+    renderer.toneMappingExposure = venue.def.exposure
+  }
+  venueTone()
   const setVenue = (id) => {
     const custom = id && typeof id === "object" && id.build ? id : null
     const next = custom ? custom.key : VENUES[id] ? id : "park"
@@ -106,7 +111,7 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
     venueCustom = custom
     venue = custom ? custom.build(scene, { quality: settings.quality }) : buildVenue(scene, { venue: venueId, quality: settings.quality })
     venue.setScreenCompact?.(portraitScreen())
-    renderer.toneMappingExposure = venue.def.exposure
+    venueTone()
     audio.setCrowd(settings.sound ? venue.def.crowd : 0)
     audio.setRoom(custom ? custom.room || "park" : venueId)
     placeUmpire()
@@ -1442,6 +1447,7 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
       const workStart = performance.now()
       world.frame(dt)
       perf.worldMs = (perf.worldMs || 0) + (performance.now() - workStart)
+      renderer.toneMapping = world.toneMapping ?? THREE.ACESFilmicToneMapping
       renderer.toneMappingExposure = world.exposure ?? 1
       const renderStart = performance.now()
       if (holdPicture()) {
@@ -1756,7 +1762,7 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
         container.focus({ preventScroll: true })
         warm()
       } else {
-        renderer.toneMappingExposure = venue.def.exposure
+        venueTone()
         audio.setCrowd(settings.sound ? venue.def.crowd : 0)
         if (status === "world") setStatus(match && mode !== "demo" ? (match.phase === "over" ? "over" : "playing") : "title")
       }
