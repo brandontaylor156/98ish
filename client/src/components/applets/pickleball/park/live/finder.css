@@ -1,0 +1,41 @@
+/* Venue Finder (FinderPanel.jsx): the search bar over My Park's venue list */
+.pkFinderBar {
+  display: flex;
+  gap: 4px;
+  margin: 6px 0 2px;
+}
+.pkFinderBar input {
+  flex: 1;
+  min-width: 0;
+}
+.pkFinderBar button {
+  min-width: 0 !important;
+  padding: 0 8px !important;
+  white-space: nowrap;
+}
+.pkFinderH {
+  margin: 8px 0 2px;
+  font-size: 12px;
+}
+.pkFinderNote,
+.pkFinderError {
+  margin: 4px 0;
+  font-size: 11px;
+}
+.pkFinderError {
+  color: #a00000;
+}
+.pkFinderFilters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  padding: 2px 0 4px;
+}
+.pkFinderFilters label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.pkFinderMore {
+  margin: 2px 0;
+}

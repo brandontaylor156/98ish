@@ -120,7 +120,12 @@ const realClock = {
   clearInterval: (h) => clearInterval(h),
 }
 
-const createPark = ({ emit = () => {}, emitVolatile = null, rooms = null, clock = realClock, meterTotal = () => null, capBytes = 3000 * MB, cap = CAP } = {}) => {
+// liveVenues (server/venues): any venue Venue Finder built from OpenStreetMap ({ info(id) ->
+// { courts, bounds } | null }); maxLiveParks: how many of those can have a park open at once
+const createPark = ({ emit = () => {}, emitVolatile = null, rooms = null, clock = realClock, meterTotal = () => null, capBytes = 3000 * MB, cap = CAP, liveVenues = null, maxLiveParks = 60 } = {}) => {
+  const liveInfo = (id) => (liveVenues && typeof id === "string" && !Object.prototype.hasOwnProperty.call(VENUES, id) ? liveVenues.info(id) : null)
+  const vOf = (id) => (liveInfo(id) ? id : venueOf(id))
+  const vInfo = (id) => liveInfo(id) || venueInfo(id)
   const volatile = emitVolatile || emit
   const instances = new Map() // n -> instance
   const where = new Map() // pid -> instance n
@@ -194,8 +199,8 @@ const createPark = ({ emit = () => {}, emitVolatile = null, rooms = null, clock 
   }
 
   const makeInstance = (venue = "riverside") => {
-    const info = venueInfo(venue)
-    const inst = { n: nextN++, venue: venueOf(venue), bounds: info.bounds, people: new Map(), nums: 0, courts: Array.from({ length: info.courts }, () => ({ queue: [], game: null })), timer: null }
+    const info = vInfo(venue)
+    const inst = { n: nextN++, venue: vOf(venue), bounds: info.bounds, people: new Map(), nums: 0, courts: Array.from({ length: info.courts }, () => ({ queue: [], game: null })), timer: null }
     instances.set(inst.n, inst)
     restartBatch(inst)
     return inst
@@ -211,7 +216,10 @@ const createPark = ({ emit = () => {}, emitVolatile = null, rooms = null, clock 
     if (joinLimit(me.pid)) return { ok: false, error: "Slow down a little and try again in a minute." }
     const was = where.get(me.pid)
     if (was !== undefined) leave(me.pid)
-    const v = venueOf(venue)
+    const v = vOf(venue)
+    // (a live venue with no park open yet: only while there's room for one more)
+    if (liveInfo(v) && ![...instances.values()].some((i) => i.venue === v) && new Set([...instances.values()].filter((i) => liveInfo(i.venue)).map((i) => i.venue)).size >= maxLiveParks)
+      return { ok: false, error: "Too many courts are open right now. Try one of the featured venues, or try again soon." }
     const pick = pickInstance([...instances.values()].filter((i) => i.venue === v).map((i) => ({ n: i.n, size: size(i) })), cap)
     const inst = pick ? instances.get(pick.n) : makeInstance(v)
     const p = { pid: me.pid, me, name: String(me.name || "Guest").slice(0, 40), key: me.key || null, num: ++inst.nums, look: sanitizeLook(look), rep: cleanRep(rep), pos: null, dirty: false, playing: null }
