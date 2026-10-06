@@ -17,6 +17,7 @@ export const imageMapper = {
   solitaire: "program_icons/solitaire.svg",
   freecell: "program_icons/freecell.svg",
   pinball: "program_icons/pinball.svg",
+  critterpinball: "program_icons/critterpinball.svg",
   hover: "program_icons/hover2-48.png",
   spectra: "program_icons/spectra.svg",
   video: "program_icons/video-48.png",

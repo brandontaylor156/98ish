@@ -38,6 +38,7 @@ export const APP_PROFILES = {
   Solitaire: { image: "sol.exe", mem: 1844, threads: 1, handles: 31, cpu: [0.15, 2] },
   FreeCell: { image: "freecell.exe", mem: 1652, threads: 1, handles: 28, cpu: [0.1, 1] },
   Pinball: { image: "pinball.exe", mem: 6840, threads: 3, handles: 74, cpu: [3, 18] },
+  "Critter Catch Pinball": { image: "critters.exe", mem: 7420, threads: 3, handles: 79, cpu: [3, 19] },
   "98 Messenger": { image: "aim.exe", mem: 5960, threads: 8, handles: 164, cpu: [0.25, 2] },
   "MS-DOS Prompt": { image: "command.com", mem: 932, threads: 1, handles: 18, cpu: [0.05, 1] },
   "Recycle Bin": { image: "explorer.exe", mem: 2980, threads: 4, handles: 71, cpu: [0.1, 1] },

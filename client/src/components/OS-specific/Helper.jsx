@@ -49,6 +49,10 @@ const TIPS = {
   Paint: ["Right-click a color to make it the background color. File > Set As Wallpaper shows off your art."],
   Solitaire: ["Double-click a card to send it home to the top row. Win, and watch the cards bounce!"],
   FreeCell: ["Game > Select Game picks any of 32,000 numbered deals. Almost all of them can be won."],
+  "Critter Catch Pinball": [
+    "Light C-A-T-C-H with the ramp and orbit loops, then sink the Den to meet a wild critter!",
+    "Knock down E-V-O, then sink the Den to evolve one of your catches. The Critter Dex keeps every critter you've caught.",
+  ],
   Pinball: ["Knock down 9-8-I-S-H, then shoot the Blue Screen: lock three balls for multiball!", "On a phone, drag the plunger down and let go. Each mission ranks you up from Intern to Sysadmin."],
   Calendar: [
     "Share a calendar: File > New Calendar, then invite people by screen name or send them the invite link. Couples get an Us calendar by themselves.",

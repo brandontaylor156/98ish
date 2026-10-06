@@ -70,8 +70,10 @@ export const dmdContent = (g, now, { rows = 32, scores = [], prompt = "PRESS F2"
   ]
 }
 
-// pitch: device pixels per dot (1 = solid LCD pixels, 2 = 2x2 dots, 3+ = dots with a gap)
-export const createDmd = (canvas, rows = 32, pitch = PITCH) => {
+// pitch: device pixels per dot (1 = solid LCD pixels, 2 = 2x2 dots, 3+ = dots with a gap);
+// colors: palette names { back, off, on, hot } (default orange plasma; Critter Catch uses
+// a green handheld LCD)
+export const createDmd = (canvas, rows = 32, pitch = PITCH, colors = {}) => {
   const w = DMD_COLS * pitch
   const h = rows * pitch
   canvas.width = w
@@ -81,10 +83,10 @@ export const createDmd = (canvas, rows = 32, pitch = PITCH) => {
   const buf = new Uint32Array(img.data.buffer)
   const dots = new Uint8Array(DMD_COLS * rows)
   const lit = pitch >= 3 ? pitch - 1 : pitch
-  const off = PAL32[C.dmd1]
-  const on = PAL32[C.dmd]
-  const hot = PAL32[C.dmd4]
-  const back = PAL32[C.dmd0]
+  const off = PAL32[C[colors.off || "dmd1"]]
+  const on = PAL32[C[colors.on || "dmd"]]
+  const hot = PAL32[C[colors.hot || "dmd4"]]
+  const back = PAL32[C[colors.back || "dmd0"]]
   let lastKey = ""
 
   const render = (lines) => {

@@ -49,6 +49,7 @@ const Paint = lazyApp(() => import("../applets/paint/Paint"))
 const WordPad = lazyApp(() => import("../applets/wordpad/WordPad"))
 const SoundRecorder = lazyApp(() => import("../applets/soundRecorder/SoundRecorder"))
 const Pinball = lazyApp(() => import("../applets/pinball/Pinball"))
+const CritterPinball = lazyApp(() => import("../applets/critterpinball/CritterPinball"))
 const MediaPlayer = lazyApp(() => import("../applets/mediaPlayer/MediaPlayer"))
 const NetWindow = lazyApp(() => import("../applets/network/NetWindow"))
 const Mail = lazyApp(() => import("../applets/mail/Mail"))
@@ -831,6 +832,7 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
       {window.app === "solitaire" && <Solitaire onClose={() => closeWindow(window, index)} />}
       {window.app === "freecell" && <FreeCell onClose={() => closeWindow(window, index)} onTitle={rename(index)} />}
       {window.app === "pinball" && <Pinball mobile={mobile} onClose={() => closeWindow(window, index)} onTitle={rename(index)} />}
+      {window.app === "critterpinball" && <CritterPinball mobile={mobile} onClose={() => closeWindow(window, index)} onTitle={rename(index)} />}
       {window.app === "ski" && <Ski mobile={mobile} onClose={() => closeWindow(window, index)} />}
       {window.app === "pickleball" && <Pickleball mobile={mobile} onClose={() => closeWindow(window, index)} />}
       {window.app === "shred" && <Shred mobile={mobile} onClose={() => closeWindow(window, index)} />}

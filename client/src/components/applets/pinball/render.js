@@ -66,7 +66,7 @@ export const lampStates = (g, now) => {
 }
 
 // ---- dynamic shapes ----
-const drawFlipper = (s, f) => {
+export const drawFlipper = (s, f) => {
   const x = p(f.x)
   const y = p(f.y)
   const len = p(f.length)
@@ -94,7 +94,7 @@ const drawFlipper = (s, f) => {
   pset(s, Math.floor(x) + 1, Math.floor(y), C.g2)
 }
 
-const drawPlunger = (s, g) => {
+export const drawPlunger = (s, g) => {
   const pl = g.world.plunger
   const cx = Math.round(p((LANE.left + LANE.right) / 2))
   const top = Math.round(p(pl.y))
@@ -136,7 +136,7 @@ const drawSpinner = (s, sp, hit) => {
   if (front && h >= 5) blit(s, ICONS.hourglass, (x0 + x1) / 2 - 2, y - 2)
 }
 
-const drawBallAt = (s, spr, x, y, marks, shadow) => {
+export const drawBallAt = (s, spr, x, y, marks, shadow) => {
   const r = spr.w / 2
   const ix = Math.round(x - r)
   const iy = Math.round(y - r)
@@ -156,7 +156,7 @@ const drawBallAt = (s, spr, x, y, marks, shadow) => {
 }
 
 // rotate a point on the ball about axis (ax, ay, 0) by angle
-const roll = (m, ax, ay, ang) => {
+export const roll = (m, ax, ay, ang) => {
   const c = Math.cos(ang)
   const sn = Math.sin(ang)
   const [x, y, z] = m

@@ -63,6 +63,7 @@ export const PROGRAM_KEYWORDS = {
   "Echo Pads": ["memory game", "simon says", "sequence", "repeat the pattern", "colors and tones"],
   "Zap It!": ["bop", "reflex", "gestures", "party game", "pass the phone", "shake"],
   Tetherball: ["playground", "ball on a rope", "pole", "3D sports"],
+  "Critter Catch Pinball": ["pinball", "catch monsters", "creatures", "evolve", "collect them all", "dex", "pocket monsters"],
   Calculator: ["calc", "math", "sums", "add", "numbers"],
   Photos: ["pictures", "images", "gallery", "photo viewer", "slideshow"],
   Camera: ["webcam", "selfie", "photo booth", "take a picture"],

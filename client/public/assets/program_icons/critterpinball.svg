@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="48" height="48" shape-rendering="crispEdges">
+  <!-- Critter Catch Pinball: a green pixel-art table with a little yellow critter on its LCD screen, flippers and a ball -->
+  <path d="M7 1h10v1h2v1h1v2h1v18H3V5h1V3h1V2h2z" fill="#101018"/>
+  <path d="M7 2h10v1h2v2h1v17H4V5h1V3h2z" fill="#006000"/>
+  <path d="M8 3h8v1h2v1H6V4h2z" fill="#98b830"/>
+  <rect x="7" y="6" width="10" height="8" fill="#c0c0c0"/>
+  <rect x="8" y="7" width="8" height="6" fill="#c4d890"/>
+  <rect x="7" y="6" width="10" height="1" fill="#000080"/>
+  <path d="M10 8h1v1h2V8h1v4h-4z" fill="#101018"/>
+  <rect x="11" y="9" width="2" height="2" fill="#ffff40"/>
+  <rect x="10" y="9" width="1" height="2" fill="#ffff40"/>
+  <rect x="13" y="9" width="1" height="2" fill="#ffff40"/>
+  <rect x="11" y="9" width="1" height="1" fill="#101018"/>
+  <rect x="13" y="9" width="1" height="1" fill="#101018"/>
+  <rect x="5" y="4" width="2" height="2" fill="#c00000"/>
+  <rect x="17" y="4" width="2" height="2" fill="#c00000"/>
+  <rect x="5" y="4" width="1" height="1" fill="#ffffff"/>
+  <rect x="17" y="4" width="1" height="1" fill="#ffffff"/>
+  <rect x="15" y="15" width="3" height="3" fill="#5555ff"/>
+  <rect x="15" y="15" width="1" height="1" fill="#ffffff"/>
+  <path d="M6 18h2v1h2v1h1v1H9v-1H7v-1H6z" fill="#ffffff"/>
+  <path d="M18 18h-2v1h-2v1h-1v1h2v-1h2v-1h1z" fill="#ffffff"/>
+  <rect x="4" y="21" width="16" height="1" fill="#c0c0c0"/>
+  <rect x="11" y="21" width="2" height="1" fill="#101018"/>
+</svg>
