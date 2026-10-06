@@ -16,7 +16,8 @@ const read = () => {
   }
 }
 
-let state = { alarms: [], timer: null, cities: ["America/New_York", "Europe/London", "Asia/Tokyo"], stopwatch: null, ...read() }
+// World Clock starts with just your own zone (Clock.jsx always shows it first); you add cities
+let state = { alarms: [], timer: null, cities: [], stopwatch: null, ...read() }
 const listeners = new Set()
 
 export const getClockApp = () => state
