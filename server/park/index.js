@@ -33,6 +33,8 @@
 //   park:fx    { emote } | { line }      a quick emote or one of the canned lines
 //   park:call  { court }   park:uncall {}   (the rack)
 //   park:up    { court }   park:score { court, score }   park:done { court }
+//   park:counts {}  -> { ok, counts: { venue: people } }   how many are in each real venue's parks
+//                  (numbers only, for the venue picker's badges; Riverside and empty ones left out)
 // Server -> client: park:m (positions), park:person (someone joined / changed), park:gone
 // { num }, park:fx { num, emote | line }, park:courts [court], park:go { court, kind,
 // roomId? }, park:rate { rate }.
@@ -209,6 +211,13 @@ const createPark = ({ emit = () => {}, emitVolatile = null, rooms = null, clock 
     if (inst.timer) clock.clearInterval(inst.timer)
     inst.timer = null
     instances.delete(inst.n)
+  }
+
+  // how many people are in each venue's parks (the venue picker's "3 playing here" badges)
+  const counts = () => {
+    const out = {}
+    for (const inst of instances.values()) if (inst.venue !== "riverside" && inst.people.size) out[inst.venue] = (out[inst.venue] || 0) + inst.people.size
+    return { ok: true, counts: out }
   }
 
   // ---------- joining and leaving ----------
@@ -427,6 +436,7 @@ const createPark = ({ emit = () => {}, emitVolatile = null, rooms = null, clock 
       })
     on("park:join", (me, p) => join(me, p))
     on("park:leave", (me) => leave(me.pid))
+    on("park:counts", () => counts())
     on("park:look", (me, p) => setLook(me.pid, p.look))
     on("park:rep", (me, p) => setRep(me.pid, p.rep))
     on("park:fx", (me, p) => fx(me.pid, p))
@@ -449,6 +459,7 @@ const createPark = ({ emit = () => {}, emitVolatile = null, rooms = null, clock 
 
   return {
     wire,
+    counts,
     join,
     leave,
     drop,

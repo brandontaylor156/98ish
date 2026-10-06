@@ -23,6 +23,7 @@ import { blocker } from "../camera.js"
 import { advance, beginPoint, createMatch, scoreboard, seeded } from "../match.js"
 import { buildPark } from "./build.js"
 import { createMannequins } from "./mannequin.js"
+import { spotFor } from "./presence.js"
 import { ACTIVE, ALL_SEATS, COURTS, INTERACTABLES, LEVEL_NAMES, RIVERSIDE_LAYOUT, SPAWN, WAYPOINTS, dirToWorld, nearestAction, poseToWorld, resolve, seatApproach, setLayout, toLocal, toWorld, yawToWorld } from "./layout.js"
 import { callNext, leaveQueue, nextLineup, ordered, positionOf } from "./queue.js"
 import { LINES, createRegular, goTo, speak, think, tickRegular } from "./regulars.js"
@@ -975,7 +976,7 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
       const remote = b.remote
       const speaking = !!(b.say && clock < b.say.until)
       // (your own name only shows while you say something: the rep is in the menu)
-      const near = b.isMe ? false : remote ? b.dist < 26 : speaking ? b.dist < 18 : b.dist < 6.5 && b.mode === "walk"
+      const near = b.isMe ? false : remote ? b.dist < 26 : b.real ? b.dist < 45 : speaking ? b.dist < 18 : b.dist < 6.5 && b.mode === "walk"
       if (!near && !speaking) continue
       cand.push(b)
     }
@@ -983,8 +984,8 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
     for (const b of cand.slice(0, 12)) {
       const top = (b.seat ? b.seat.y + 1.25 : 2.12) + (b.y || 0)
       const speaking = b.say && clock < b.say.until ? b.say.text : ""
-      const sub = b.isMe ? (me.rep ? repLine(me.rep) : "") : b.remote ? b.repText || "" : ""
-      setLabel(i++, b.x, top, b.z, b.isMe ? me.name : b.name || "", b.dist < 14 || b.isMe ? sub : "", speaking, b.isMe ? "me" : b.remote ? "person" : "regular")
+      const sub = b.isMe ? (me.rep ? repLine(me.rep) : "") : b.remote ? b.repText || "" : b.real ? b.realSub || "" : ""
+      setLabel(i++, b.x, top, b.z, b.isMe ? me.name : b.real ? `${b.name} · here for real` : b.name || "", b.dist < 14 || b.isMe || b.real ? sub : "", speaking, b.isMe ? "me" : b.remote ? "person" : b.real ? "real" : "regular")
     }
     for (; i < labels.length; i++) hideLabel(i)
   }
@@ -1043,6 +1044,41 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
       camera.updateProjectionMatrix()
     }
     camera.lookAt(lookAt)
+  }
+
+  // ---------- Live Venue Presence: friends who are at this venue for real (presence.js) ----------
+  // Shown, not driven: they stand beside the court the server says they're at (court-level,
+  // never their exact spot), labelled "here for real"; somewhere else at the venue: by the
+  // entrance. list: [{ key, name, area, look? }]
+  const realCourts = layout.rawCourts || []
+  const setReal = (list = []) => {
+    const keep = new Set()
+    const slots = new Map()
+    for (const f of list) {
+      if (!f?.key) continue
+      const key = `real:${f.key}`
+      keep.add(key)
+      const slot = slots.get(f.area) || 0
+      slots.set(f.area, slot + 1)
+      const spot = spotFor(realCourts, f.area, slot) || { x: SPAWN.x + Math.sin(SPAWN.yaw) * 2.5 + Math.cos(SPAWN.yaw) * slot * 1.3, z: SPAWN.z + Math.cos(SPAWN.yaw) * 2.5 - Math.sin(SPAWN.yaw) * slot * 1.3 }
+      const p = resolve(spot.x, spot.z, 0.35)
+      const m = /^c(\d+)$/.exec(f.area || "")
+      const court = m ? realCourts[Number(m[1])] : null
+      let b = bodies.get(key)
+      if (!b) b = makeBody(key, f.look || null, f.name, { real: true })
+      b.name = f.name
+      b.realSub = court ? `here for real · Court ${court.n ?? Number(m[1]) + 1}` : "here for real"
+      if (Math.hypot(b.x - p.x, b.z - p.z) > 0.5) {
+        b.x = p.x
+        b.z = p.z
+        b.yaw = court ? Math.atan2(court.x - p.x, court.z - p.z) : SPAWN.yaw
+        b.anim = null
+      }
+      b.speed = 0
+      b.vx = 0
+      b.vz = 0
+    }
+    for (const b of [...bodies.values()]) if (b.real && !keep.has(b.key)) removeBody(b)
   }
 
   // ---------- online ----------
@@ -1362,6 +1398,8 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
     get mode() {
       return me.mode
     },
+    // ---- Live Venue Presence: friends here for real ([{ key, name, area, look? }]) ----
+    setReal,
     // ---- online (the page's socket: usePark) ----
     setNet(n) {
       net = n
@@ -1435,6 +1473,7 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
         courts: courts.map((c) => ({ id: c.def.id, state: c.state, phase: c.match.phase, score: scoreboard(c.match).score, on: c.on.map((e) => e.id), queue: c.queue.map((e) => e.id), human: c.human })),
         regulars: regulars.map((r) => ({ id: r.id, state: r.state, x: r.x, z: r.z, seated: r.seated, court: r.court })),
         remotes: [...remotes.values()].map((r) => ({ num: r.num, name: r.name, x: r.body.x, y: r.body.y || 0, z: r.body.z, hidden: r.body.hidden })),
+        real: [...bodies.values()].filter((b) => b.real).map((b) => ({ key: b.key, name: b.name, sub: b.realSub, x: b.x, z: b.z })),
         full,
         mannequins: manns,
         budget,

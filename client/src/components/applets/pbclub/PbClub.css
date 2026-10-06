@@ -579,3 +579,15 @@
 .pbRoot.is-mobile .pbOpts {
   grid-template-columns: 1fr;
 }
+
+/* Live Venue Presence: physically at the session's court right now */
+.pbHereLive {
+  color: #a01010;
+  font-weight: bold;
+}
+.pbCheckIn {
+  margin: 6px 0;
+  padding: 4px 6px;
+  background: #ffffe1;
+  border: 1px solid #000;
+}

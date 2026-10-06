@@ -261,6 +261,8 @@ export const topics = [
       },
       { h: "Places and alerts" },
       "Under More options, **Add a Place...** names a spot (Home, Work, the courts) from where you are or the middle of the map, with a size. Then tap a buddy, press **Notify Me...**, pick the place, and choose arrives, leaves, or both. You'll get a notification (and a push if you're away from 98ish; Do Not Disturb holds it).",
+      { h: "At the courts" },
+      "If you're at one of the seven real pickleball venues in Pickleball 98 (Los Cab, Newport Beach, Wolf + Bear, Whittier Narrows, Paseo Club, Sinaloa, California SMASH), the buddies you share with see you there in **My Park**, \"here for real\" beside the court you're on, and the venue list says **1 friend here now**. They see the court, not your spot on it. With approximate location on you only show as **nearby**.",
       { h: "Privacy" },
       {
         list: [

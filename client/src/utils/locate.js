@@ -10,6 +10,8 @@ import * as core from "../components/applets/locator/locateCore.js"
 //
 //   setLocateSession({ token, screenName } | null)   from AimContext (signing on/off)
 //   useLocate() -> { status, error, me, friends, geo, here, alerts }
+//     (friends[].venue / me.venue: Live Venue Presence, the real Pickleball 98 venue they're at:
+//     { id, area } | { id, nearby } | null; see applets/pickleball/park/presence.js)
 //   shareWith(name, choice), stopSharing(name), stopAll(), setPaused(b), setCoarse(b),
 //   askToSee(name), answerAsk(from, accept, choice), savePlaces(list), setWatch(who, place, on),
 //   locateMe() -> { ok, pos }  (this device only; nothing is sent)
@@ -137,7 +139,8 @@ const sendIfDue = async (pos) => {
   const out = state.me?.coarse ? core.coarsen(pos) : pos
   lastSent = { lat: pos.lat, lon: pos.lon, at: now }
   const result = await api("/update", out)
-  if (result.ok) set({ sentAt: now })
+  // (venue: the real Pickleball 98 venue the server says I'm at, if any: Live Venue Presence)
+  if (result.ok) set({ sentAt: now, me: state.me ? { ...state.me, venue: result.venue ?? null } : state.me })
   else lastSent = null
 }
 
@@ -214,13 +217,13 @@ const upsertFriend = (key, patch) => {
   const list = state.friends.some((f) => f.key === key) ? state.friends.map((f) => (f.key === key ? { ...f, ...patch } : f)) : [...state.friends, { key, ...patch }]
   set({ friends: list.sort((a, b) => String(a.name).localeCompare(String(b.name))) })
 }
-export const onPos = ({ key, name, pos, paused }) => {
+export const onPos = ({ key, name, pos, paused, venue }) => {
   if (!key) return
-  upsertFriend(key, { name, pos, ...(paused !== undefined ? { paused } : pos ? { paused: false } : {}) })
+  upsertFriend(key, { name, pos, venue: pos ? venue ?? null : null, ...(paused !== undefined ? { paused } : pos ? { paused: false } : {}) })
 }
 export const onGone = ({ key, reason }) => {
   if (!key) return
-  if (reason === "paused") upsertFriend(key, { pos: null, paused: true })
+  if (reason === "paused") upsertFriend(key, { pos: null, venue: null, paused: true })
   else set({ friends: state.friends.filter((f) => f.key !== key) })
 }
 export const onShared = ({ key, name, until, pos }) => {

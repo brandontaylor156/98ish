@@ -53,6 +53,25 @@
   color: #9ff3ff;
 }
 
+/* Live Venue Presence: a friend who's at this venue for real (a pin, a warm colour) */
+.pkParkLabel[data-kind="real"] .pkParkLabelIn > b {
+  color: #ffd27a;
+}
+.pkParkLabel[data-kind="real"] .pkParkLabelIn > b::before {
+  content: "";
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 4px;
+  border-radius: 50% 50% 50% 0;
+  background: #e8463c;
+  transform: rotate(-45deg);
+  vertical-align: 1px;
+}
+.pkParkLabel[data-kind="real"] .pkParkLabelIn > small {
+  color: #ffe9b8;
+}
+
 .pkParkLabel[data-kind="me"] .pkParkLabelIn > b {
   color: #ffe58a;
 }
@@ -369,4 +388,54 @@
   margin: 6px 0 0;
   font-size: 11px;
   color: #333;
+}
+
+/* Live Venue Presence: the "here for real" strip at the top of My Park */
+.pkRealBar {
+  position: absolute;
+  top: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: calc(100% - 120px);
+  padding: 3px 6px;
+  background: #c0c0c0;
+  color: #000;
+  box-shadow: inset -1px -1px #0a0a0a, inset 1px 1px #fff, inset -2px -2px grey, inset 2px 2px #dfdfdf;
+  font-size: 11px;
+}
+.pkRealBar .pkRealText {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pkRealBar button {
+  min-width: 0;
+  padding: 0 6px;
+  white-space: nowrap;
+}
+.pkRealPin {
+  flex: none;
+  width: 9px;
+  height: 9px;
+  border-radius: 50% 50% 50% 0;
+  background: #e8463c;
+  transform: rotate(-45deg);
+}
+.pkRoot.is-mobile .pkRealBar {
+  top: 8px;
+  left: 62px;
+  right: 8px;
+  transform: none;
+  max-width: none;
+  flex-wrap: wrap;
+  font-size: 13px;
+}
+.pkRoot.is-mobile .pkRealBar button {
+  min-height: 30px;
 }

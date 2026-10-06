@@ -320,7 +320,7 @@ export const topics = [
           "**Only you**: your files (also the synced copies), Address Book, notes you haven't shared, mail (each person has their own copy), your personal calendar and its tasks, notification settings.",
           "**People you share a note with**: that note, and the screen names of everyone in it.",
           "**Friends who come over** (Come Over): your pointer, which window you're in (its title, except for private programs), and your desktop's wallpaper, icons and window titles, live while you're together; shared notes, pictures and folders go to everyone in them.",
-          "**Buddies you share your location with** (Buddy Locator): your latest position and when it was sent, until the share ends or you pause.",
+          "**Buddies you share your location with** (Buddy Locator): your latest position and when it was sent, until the share ends or you pause; and when you're at one of Pickleball 98's real venues, which venue and which court (worked out on the server from that same position, kept in memory only, never stored).",
           "**Your pickleball group** (Pickleball 98's Real Games): a session's details, RSVPs, running-late notes and chat go to everyone invited to it; a match you log goes to everyone who played in it; your rating and record show on the ladder of people you've played or planned with.",
           "**Your partner** (in Us, while paired): letters, Our Story and its photos, flowers, Our Pet, Dream House, the Us calendar, your Sunny Acres town, couple quizzes.",
           "**Calendar members**: a shared calendar's events, comments and activity, and your screen name in it. Anyone with a calendar's secret subscription link can read that calendar.",

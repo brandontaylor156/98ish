@@ -39,3 +39,19 @@
 .pkFinderMore {
   margin: 2px 0;
 }
+
+/* Live Venue Presence: "2 friends here now · 3 playing in 98ish" */
+.pkParkVenueHere {
+  color: #a01010;
+  font-weight: bold;
+}
+.pkParkVenueHere::before {
+  content: "";
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: 4px;
+  border-radius: 50% 50% 50% 0;
+  background: #e8463c;
+  transform: rotate(-45deg);
+}

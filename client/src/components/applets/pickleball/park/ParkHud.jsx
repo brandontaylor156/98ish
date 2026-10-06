@@ -209,3 +209,39 @@ export const ParkMenu = ({ courts = [], rep, online, venueName = "My Park", onRe
     </div>
   )
 }
+
+// ---------- Live Venue Presence: friends who are at this venue for real ----------
+// A strip at the top of the park: who's here (by court) or nearby, with Say hi (an IM) and
+// Plan a game (a Real Games session here). here/nearby: [{ key, name, area }]; courtName(area)
+export const RealFriendsBar = ({ here = [], nearby = [], venueName = "", courtName = () => "", canIm = false, onHi, onPlan }) => {
+  const [sent, setSent] = useState({})
+  if (!here.length && !nearby.length) return null
+  const first = here[0] || nearby[0]
+  const isHere = !!here.length
+  const more = (isHere ? here.length : nearby.length) - 1
+  const where = isHere ? courtName(first.area) : ""
+  const hi = async () => {
+    const r = await onHi?.(first)
+    setSent((s) => ({ ...s, [first.key]: r?.ok === false ? "error" : "sent" }))
+  }
+  return (
+    <div className="pkRealBar" data-real-bar>
+      <span className="pkRealPin" aria-hidden="true" />
+      <span className="pkRealText">
+        <b>{first.name}</b>
+        {more > 0 ? ` and ${more} more` : ""} {isHere ? `${more > 0 ? "are" : "is"} here for real` : `${more > 0 ? "are" : "is"} near ${venueName}`}
+        {where ? ` · ${where}` : ""}
+      </span>
+      {canIm && (
+        <button type="button" onClick={hi} disabled={!!sent[first.key]} data-real-hi>
+          {sent[first.key] === "sent" ? "Sent" : sent[first.key] === "error" ? "Couldn't send" : "Say hi"}
+        </button>
+      )}
+      {isHere && onPlan && (
+        <button type="button" onClick={() => onPlan(first)} data-real-plan>
+          Plan a game
+        </button>
+      )}
+    </div>
+  )
+}
