@@ -5,6 +5,7 @@
 
 import { useSyncExternalStore } from "react"
 import { throttle } from "../components/applets/hangout/hangoutCore"
+import { createVoiceSession } from "./voice/session.js"
 
 const EMPTY = { id: null, state: null, cursors: {}, desks: {}, invites: [], gifts: [], docs: [], error: null, ended: null, view: null, acts: [], stats: { sent: 0, got: 0, since: 0 } }
 let snap = EMPTY
@@ -88,6 +89,7 @@ export const decline = (id) => {
 
 export const leave = async () => {
   if (!snap.id) return
+  stopVoice()
   sendPresence.cancel()
   await ask("hg:leave", {})
   set({ ...EMPTY, invites: snap.invites })
@@ -97,9 +99,11 @@ export const leave = async () => {
 const rawPresence = (p) => fire("hg:p", p)
 export const sendPresence = throttle(rawPresence)
 let lastFocus = undefined
+let myCursor = null // where your own pointer is (voice pans friends relative to it)
 export const presence = (x, y, { tap = false, focus } = {}) => {
   if (!snap.id) return
   const p = { x: Math.round(x * 1000) / 1000, y: Math.round(y * 1000) / 1000 }
+  myCursor = { x: p.x, y: p.y }
   if (tap) p.t = 1
   const f = focus ? JSON.stringify(focus) : null
   if (focus !== undefined && f !== lastFocus) {
@@ -131,7 +135,7 @@ export const watching = () => snap.state?.people?.find((p) => p.key === meKey())
 
 // ---- events from the server (AimContext forwards these) ----
 
-export const HANGOUT_EVENTS = ["hg:invite", "hg:state", "hg:p", "hg:desk", "hg:act", "hg:view", "hg:gift", "hg:doc", "hg:end"]
+export const HANGOUT_EVENTS = ["hg:invite", "hg:state", "hg:p", "hg:desk", "hg:act", "hg:view", "hg:gift", "hg:doc", "hg:end", "hg:vc", "hg:sig"]
 const listenersFor = new Map() // event -> Set(fn): the desktop layer reacts to some at once
 export const onHangoutEvent = (event, fn) => {
   if (!listenersFor.has(event)) listenersFor.set(event, new Set())
@@ -180,6 +184,7 @@ export const handleHangoutEvent = (event, payload) => {
       set({ docs: [...snap.docs.filter((d) => d.id !== payload.id), payload] })
       break
     case "hg:end":
+      stopVoice()
       set({ ...EMPTY, invites: snap.invites, ended: payload })
       break
     default:
@@ -187,5 +192,54 @@ export const handleHangoutEvent = (event, payload) => {
   listenersFor.get(event)?.forEach((fn) => fn(payload))
 }
 
+// ---- voice (utils/voice): talk while you hang out; a friend's voice comes from where their
+// pointer is (left or right of yours), or plainly with Spatial Sound off ----
+let voice = null // { id, session }
+let voiceState = { status: "off", peers: {}, on: [], spatial: true }
+const voiceListeners = new Set()
+const voiceSet = (s) => {
+  voiceState = { ...voiceState, ...s }
+  voiceListeners.forEach((fn) => fn())
+}
+const voiceFor = () => {
+  if (!snap.id) return null
+  if (voice?.id === snap.id) return voice.session
+  voice?.session.stop()
+  const space = {
+    get me() {
+      return meKey()
+    },
+    mode: "pan",
+    join: (on) => ask("hg:vc", { on }),
+    send: (to, kind, data) => ask("hg:sig", { to, kind, data }),
+    listen: (onList, onSignal) => {
+      const a = onHangoutEvent("hg:vc", (d) => onList(d?.on || []))
+      const b = onHangoutEvent("hg:sig", (d) => d && onSignal(d.from, d.kind, d.data))
+      return () => (a(), b())
+    },
+    place: () => (voiceState.spatial ? { mine: myCursor, people: snap.cursors } : { mine: null, people: {} }),
+  }
+  const session = createVoiceSession({ space })
+  session.subscribe((s) => voiceSet(s))
+  voice = { id: snap.id, session }
+  return session
+}
+export const voiceSession = () => voiceFor()
+export const toggleVoice = () => {
+  const s = voiceFor()
+  if (!s) return
+  if (s.state.status === "off" || s.state.status === "error") s.start()
+  else s.stop()
+}
+export const setSpatialVoice = (b) => voiceSet({ spatial: !!b })
+function stopVoice() {
+  voice?.session.stop()
+  voice = null
+  voiceSet({ status: "off", peers: {}, on: [], talking: false })
+}
+const subscribeVoice = (fn) => (voiceListeners.add(fn), () => voiceListeners.delete(fn))
+const voiceSnapshot = () => voiceState
+export const useHangoutVoice = () => useSyncExternalStore(subscribeVoice, voiceSnapshot, voiceSnapshot)
+
 // dev/test hooks
-if (typeof window !== "undefined" && import.meta.env?.DEV) window.__hangout = { getSnapshot, invite, join, leave, presence, give, follow, allowTouch, publishDesk, act }
+if (typeof window !== "undefined" && import.meta.env?.DEV) window.__hangout = { getSnapshot, invite, join, leave, presence, give, follow, allowTouch, publishDesk, act, toggleVoice, voiceSession, voice: () => voiceState }

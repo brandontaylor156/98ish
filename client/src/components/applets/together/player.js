@@ -7,7 +7,7 @@
 //   player.load(videoId, startSeconds, play)  player.play()  player.pause()  player.seek(s)
 //   player.time()  player.duration()  player.state() ("unstarted" | "playing" | "paused" |
 //   "buffering" | "ended" | "cued")  player.title()  player.videoId()  player.setRate(r)
-//   player.destroy()
+//   player.volume() / player.setVolume(0..100)   player.destroy()
 
 const STATES = { "-1": "unstarted", 0: "ended", 1: "playing", 2: "paused", 3: "buffering", 5: "cued" }
 
@@ -98,6 +98,8 @@ const youTubePlayer = async (host, { onState, onError, onReady }) => {
     title: () => safe(() => player.getVideoData()?.title || "", ""),
     videoId: () => currentId,
     setRate: (r) => safe(() => player.setPlaybackRate(r)),
+    volume: () => safe(() => player.getVolume(), 100),
+    setVolume: (v) => safe(() => player.setVolume(Math.max(0, Math.min(100, Math.round(v))))),
     destroy: () => {
       try {
         player?.destroy()
@@ -118,6 +120,7 @@ const stubPlayer = async (host, { onState, onReady }) => {
   let base = 0
   let since = null // playing since (ms) or null
   let rate = 1
+  let vol = 100
   let state = "unstarted"
   const DURATION = 300
   const time = () => Math.min(DURATION, since === null ? base : base + ((Date.now() - since) / 1000) * rate)
@@ -169,6 +172,10 @@ const stubPlayer = async (host, { onState, onReady }) => {
       base = time()
       if (since !== null) since = Date.now()
       rate = r
+    },
+    volume: () => vol,
+    setVolume: (v) => {
+      vol = Math.max(0, Math.min(100, Math.round(v)))
     },
     destroy: () => {
       clearInterval(timer)

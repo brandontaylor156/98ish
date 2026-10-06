@@ -1,7 +1,7 @@
 import React, { useState } from "react"
 import ContextMenu from "../../shared/ContextMenu"
 import { openTarget } from "../../../utils/notifications"
-import { useHangout, leave, follow, allowTouch, meKey } from "../../../utils/hangout"
+import { useHangout, leave, follow, allowTouch, meKey, useHangoutVoice, toggleVoice, voiceSession, setSpatialVoice } from "../../../utils/hangout"
 import { DRAG_TYPE } from "../../../utils/fsActions"
 import { initials } from "./hangoutCore"
 import { handFile } from "./HangoutLayer"
@@ -12,6 +12,7 @@ import { handFile } from "./HangoutLayer"
 // Visit and the rest.
 const HangoutTray = ({ mobile }) => {
   const hg = useHangout()
+  const vc = useHangoutVoice()
   const [menu, setMenu] = useState(null)
   if (!hg.id) return null
   const me = meKey()
@@ -35,6 +36,10 @@ const HangoutTray = ({ mobile }) => {
           "-",
         ]
       : []),
+    { label: "Voice Chat", checked: vc.status !== "off" && vc.status !== "error", onClick: () => toggleVoice() },
+    ...(vc.status === "on" ? [{ label: "Mute Me", checked: !!vc.muted, onClick: () => voiceSession()?.setMuted(!vc.muted) }] : []),
+    { label: "Spatial Sound (voices from their pointers)", checked: vc.spatial !== false, onClick: () => setSpatialVoice(vc.spatial === false) },
+    "-",
     { label: "Let Friends Touch My Desktop", checked: !!mine?.touch, onClick: () => allowTouch(!mine?.touch) },
     { label: "Open Come Over", onClick: () => openTarget({ kind: "program", name: "Come Over" }) },
     "-",
@@ -61,10 +66,22 @@ const HangoutTray = ({ mobile }) => {
               handFile(p.key, path)
             }}
             data-tray-person={p.key}
+            data-talking={vc.peers?.[p.key]?.talking || (p.key === me && vc.talking) ? "1" : undefined}
           >
             {initials(p.name)}
           </button>
         ))}
+        <button
+          type="button"
+          className={`hgMic${vc.status === "on" || vc.status === "paused" ? " is-on" : ""}${vc.muted ? " is-muted" : ""}`}
+          onClick={() => (vc.status === "on" ? voiceSession()?.setMuted(!vc.muted) : toggleVoice())}
+          onContextMenu={(e) => (e.preventDefault(), toggleVoice())}
+          title={vc.error || (vc.status === "on" ? (vc.muted ? "Voice on, you're muted. Click to unmute (right-click: voice off)." : "Voice on. Click to mute yourself (right-click: voice off).") : "Talk with your friends here")}
+          aria-pressed={vc.status === "on"}
+          data-hg-mic
+        >
+          {vc.status === "starting" ? "…" : vc.muted ? "🔇" : "🎙"}
+        </button>
         <button type="button" className="hgStop" onClick={() => leave()} title={followers.length ? "Someone is following your view. Stop sharing and leave." : "Stop sharing and leave"} data-hg-stop>
           {mobile ? "■" : "Stop"}
         </button>

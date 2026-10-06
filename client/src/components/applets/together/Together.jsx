@@ -262,6 +262,21 @@ const SessionView = ({ aim, mobile }) => {
     }
   }, [snap.id, hasStage])
 
+  // voice chat: the video dips while someone talks (togetherStore's duck), back after
+  const voice = store.useTogetherVoice()
+  const baseVol = useRef(null)
+  useEffect(() => {
+    const p = player.current
+    if (!p?.setVolume) return
+    if (voice.duck >= 0.999) {
+      if (baseVol.current !== null) p.setVolume(baseVol.current)
+      baseVol.current = null
+      return
+    }
+    if (baseVol.current === null) baseVol.current = p.volume?.() ?? 100
+    p.setVolume(baseVol.current * voice.duck)
+  }, [voice.duck])
+
   // steer this player toward the shared state: on every change and once a second
   const apply = () => {
     const p = player.current
@@ -378,6 +393,21 @@ const SessionView = ({ aim, mobile }) => {
           {where}
         </span>
         <span className="tgHost">{isHost ? "You're the host" : `Host: ${state.host}`}</span>
+        <button
+          type="button"
+          className={`tgVoice${voice.status === "on" || voice.status === "paused" ? " is-on" : ""}${voice.muted ? " is-muted" : ""}`}
+          onClick={() => (voice.status === "on" ? store.voiceSession()?.setMuted(!voice.muted) : store.toggleVoice())}
+          title={voice.error || (voice.status === "on" ? (voice.muted ? "You're muted. Click to unmute." : "Voice on. Click to mute yourself.") : "Talk while you watch")}
+          aria-pressed={voice.status === "on"}
+          data-tg-voice
+        >
+          {voice.status === "starting" ? "…" : voice.status === "on" || voice.status === "paused" ? (voice.muted ? "🔇 Muted" : "🎙 On") : "🎙 Voice"}
+        </button>
+        {(voice.status === "on" || voice.status === "paused") && (
+          <button type="button" className="tgVoiceOff" onClick={() => store.toggleVoice()} aria-label="Turn voice off" data-tg-voice-off>
+            ✕
+          </button>
+        )}
         <button type="button" className="tgLeave" onClick={() => store.leave()}>
           Leave
         </button>
@@ -402,6 +432,11 @@ const SessionView = ({ aim, mobile }) => {
         </div>
       </div>
 
+      {voice.status === "on" && Object.entries(voice.peers || {}).some(([, v]) => v.talking) && (
+        <div className="tgTalking" data-tg-talking>
+          🎙 {state.people.filter((x) => voice.peers?.[x.key]?.talking).map((x) => x.name).join(", ")} talking
+        </div>
+      )}
       <div className="tgNow" title={item?.title}>
         {item ? (
           <>

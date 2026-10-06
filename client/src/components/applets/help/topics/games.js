@@ -413,7 +413,7 @@ export const topics = [
       "Your look is saved with your user profile and goes with you online, so other people see it. **Auto by venue** puts everyone in the venue's kit (beach kit at Sandy Point, winter kit at Frost Hollow); **Computer players: Random kits** dresses the computer's players in kits of their own.",
       { tip: "Settings > Graphics: Medium and High show the full players with their clothes; Low draws them simply (colors and the main pieces) for slow phones." },
     ],
-    related: ["online-play", "touch-controls", "game-trouble"],
+    related: ["online-play", "touch-controls", "game-trouble", "voice-chat"],
   },
   {
     id: "shred",

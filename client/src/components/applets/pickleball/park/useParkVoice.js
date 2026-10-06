@@ -35,6 +35,7 @@ export const useParkVoice = ({ world, joined, park }) => {
     }
     const session = createVoiceSession({ space })
     sessionRef.current = session
+    if (import.meta.env?.DEV) window.__parkVoice = session
     const off = session.subscribe((s) => {
       setState(s)
       world.setVoiceTalk(Object.entries(s.peers).filter(([, p]) => p.talking).map(([id]) => Number(id)))

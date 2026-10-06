@@ -390,3 +390,20 @@
   width: 20px;
   height: 20px;
 }
+
+/* voice chat (utils/voice): the mic in the strip, and a green ring on whoever is talking */
+.hgMic {
+  min-width: 26px;
+  padding: 0 4px;
+  font-size: 13px;
+}
+.hgMic.is-on {
+  box-shadow: inset -1px -1px #0a0a0a, inset 1px 1px #fff, 0 0 0 2px #2ecc40;
+}
+.hgMic.is-muted {
+  box-shadow: inset -1px -1px #0a0a0a, inset 1px 1px #fff, 0 0 0 2px #a00000;
+}
+.hgTrayDot[data-talking] {
+  outline: 2px solid #2ecc40;
+  outline-offset: 1px;
+}
