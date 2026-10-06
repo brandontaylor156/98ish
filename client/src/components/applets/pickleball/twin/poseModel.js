@@ -4,8 +4,10 @@
 // browser after that. Nothing about the video leaves the device: frames go in, landmarks
 // come out. WebGPU/WebGL when the browser has it ("GPU"), else the CPU (WebAssembly).
 //
-// Shared by the worker (poseWorker.js) and the main thread (the fallback when a worker can't
-// run it): createLandmarker(), detect(bitmap, ms).
+// The model finds people at roughly a quarter of its input's height or bigger, so the reader
+// shows it close crops: one around each tracked player ("roi": one pose, still images) and a
+// few court tiles to find players ("scan"). Shared by the worker (poseWorker.js) and the main
+// thread (the fallback when a worker can't run it).
 
 export const TASKS_VERSION = "1.0.1"
 export const CDN = `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${TASKS_VERSION}`
@@ -15,17 +17,20 @@ export const MODELS = {
 }
 export const MODEL_MB = { lite: 5.8, full: 9.4 }
 
-export const createLandmarker = async ({ model = "lite", players = 4, gpu = true, canvas = undefined } = {}) => {
-  const vision = await import(/* @vite-ignore */ `${CDN}/vision_bundle.mjs`)
-  const fileset = await vision.FilesetResolver.forVisionTasks(`${CDN}/wasm`)
+let visionP = null
+const vision = () => (visionP ||= import(/* @vite-ignore */ `${CDN}/vision_bundle.mjs`).then(async (v) => ({ v, fileset: await v.FilesetResolver.forVisionTasks(`${CDN}/wasm`) })))
+
+// mode: "IMAGE" (each picture on its own) | "VIDEO" (tracks between frames); poses: how many
+export const createLandmarker = async ({ model = "lite", poses = 1, mode = "IMAGE", gpu = true, canvas = undefined } = {}) => {
+  const { v, fileset } = await vision()
   const make = (delegate) =>
-    vision.PoseLandmarker.createFromOptions(fileset, {
+    v.PoseLandmarker.createFromOptions(fileset, {
       baseOptions: { modelAssetPath: MODELS[model] || MODELS.lite, delegate },
-      runningMode: "VIDEO",
-      numPoses: Math.max(2, Math.min(6, players + 2)), // (a couple of spares: people walking past)
-      minPoseDetectionConfidence: 0.35,
-      minPosePresenceConfidence: 0.35,
-      minTrackingConfidence: 0.35,
+      runningMode: mode,
+      numPoses: Math.max(1, Math.min(8, poses)),
+      minPoseDetectionConfidence: 0.3,
+      minPosePresenceConfidence: 0.3,
+      minTrackingConfidence: 0.3,
       ...(canvas ? { canvas } : {}),
     })
   let lm
@@ -40,11 +45,14 @@ export const createLandmarker = async ({ model = "lite", players = 4, gpu = true
   let lastMs = -1
   return {
     delegate,
-    // bitmap: ImageBitmap/canvas (w x h px); ms: the frame's time (must increase)
+    // image: ImageBitmap/canvas (w x h px); ms: the frame's time (VIDEO mode: must increase)
     detect(image, ms, w, h) {
-      const t = ms <= lastMs ? lastMs + 1 : ms
-      lastMs = t
-      const r = lm.detectForVideo(image, t)
+      let r
+      if (mode === "VIDEO") {
+        const t = ms <= lastMs ? lastMs + 1 : ms
+        lastMs = t
+        r = lm.detectForVideo(image, t)
+      } else r = lm.detect(image)
       return (r.landmarks || []).map((pts, i) => ({
         lm: pts.map((p) => ({ x: p.x * w, y: p.y * h, v: p.visibility ?? 1 })),
         world: r.worldLandmarks?.[i]?.map((p) => ({ x: p.x, y: p.y, z: p.z })) || null,

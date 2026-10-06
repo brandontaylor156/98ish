@@ -149,6 +149,18 @@ test("end to end (synthetic fence-cam rally): positions within 0.5 m, hits withi
   // stats exist and make sense
   assert.ok(result.stats.players.every((s) => s.distance > 1 && s.kitchenPct >= 0 && s.kitchenPct <= 1))
   assert.equal(result.stats.longest, script.hits.length)
+  // sound 0.4 s late (a recorder's start-up): the offset is found and the hits still line up
+  const late = soundtrack(script, { bounces: [2.3, 3.9, 6.6] })
+  const shifted = new Float32Array(late.samples.length)
+  const k = Math.round(0.4 * late.rate)
+  shifted.set(late.samples.subarray(0, late.samples.length - k), k)
+  const an3 = createAnalyzer({ taps: cornerTaps(cam), players: 4 })
+  for (const f of frames) an3.push(f.t, f.people)
+  const r3 = an3.finish({ audio: { samples: shifted, rate: late.rate } })
+  assert.ok(Math.abs(r3.soundOffset + 0.4) < 0.05, `offset ${r3.soundOffset}`)
+  const f3 = r3.rallies.flatMap((r) => r.hits)
+  assert.equal(f3.length, script.hits.length)
+  script.hits.forEach((h, i) => assert.ok(Math.abs(f3[i].t - h.t) < 0.15, `late sound: hit ${i} ${f3[i].t} vs ${h.t}`))
   // without sound: swing peaks alone still find most hits
   const an2 = createAnalyzer({ taps: cornerTaps(cam), players: 4 })
   for (const f of frames) an2.push(f.t, f.people)
@@ -156,6 +168,40 @@ test("end to end (synthetic fence-cam rally): positions within 0.5 m, hits withi
   const n2 = silent.rallies.flatMap((r) => r.hits)
   const matched = script.hits.filter((h) => n2.some((q) => Math.abs(q.t - h.t) < 0.2 && q.team === h.team)).length
   assert.ok(matched >= script.hits.length - 1, `silent: ${matched}/${script.hits.length}`)
+})
+
+test("far region: the far half enlarged, mapped back, duplicates merged", async () => {
+  const { courtRegion, farRegion, fromCrop, mergePeople } = await import("./core/regions.js")
+  const cam = makeCamera({ width: 640, height: 360 })
+  const cal = calibrate(cornerTaps(cam))
+  // the court crop holds every corner and a far player's head, and less than the whole frame
+  const c = courtRegion(cal.Hinv, 640, 360)
+  for (const t of cornerTaps(cam)) {
+    const inside = t.x >= c.x - 1 && t.x <= c.x + c.w + 1 && t.y >= c.y - 1 && t.y <= c.y + c.h + 1
+    const offFrame = t.x < 0 || t.x > 640 || t.y < 0 || t.y > 360
+    assert.ok(inside || offFrame, `corner ${t.id} in the court crop`)
+  }
+  const head = cam.project({ x: 0, y: 1.9, z: -HALF_L - 1 })
+  assert.ok(head.y >= c.y, "a far player's head is in the crop")
+  assert.ok(c.w * c.h < 640 * 360, "the crop leaves out the stands")
+  const r = farRegion(cal.Hinv, 640, 360)
+  assert.ok(r, "a fence camera's far players are small: a far region is used")
+  // the far baseline's corners are inside it, and it reaches up a player's height above them
+  const fl = cam.project({ x: -HALF_W, y: 0, z: -HALF_L })
+  const fh = cam.project({ x: 0, y: 2.0, z: -HALF_L })
+  assert.ok(fl.x >= r.x && fl.x <= r.x + r.w && fl.y >= r.y && fl.y <= r.y + r.h)
+  assert.ok(fh.y >= r.y, "head room above the far baseline")
+  // a camera close above the far court needs no extra region
+  const close = makeCamera({ pos: { x: 0, y: 14, z: 0.5 }, look: { x: 0, y: 0, z: -0.5 }, width: 640, height: 360, fov: 70 })
+  assert.equal(farRegion(calibrate(cornerTaps(close)).Hinv, 640, 360, { minPxPerM: 15 }), null)
+  // crop coordinates -> frame coordinates
+  const back = fromCrop([{ lm: [{ x: 256, y: 50, v: 1 }] }], { x: 100, y: 20, w: 200, h: 80 }, 512, 205)
+  assert.ok(Math.abs(back[0].lm[0].x - 200) < 1e-9 && Math.abs(back[0].lm[0].y - (20 + (50 / 205) * 80)) < 1e-9)
+  // the same person in both lists: one kept (the more visible)
+  const mk = (x, v) => ({ x, lm: [{ x: 0, y: 0, v }] })
+  const merged = mergePeople([mk(1, 0.5), mk(5, 0.9)], [mk(1.2, 0.9), mk(-3, 0.9)], (p) => [p.x, 0])
+  assert.equal(merged.length, 3)
+  assert.equal(merged.find((p) => Math.abs(p.x - 1.2) < 1e-9 || Math.abs(p.x - 1) < 1e-9).lm[0].v, 0.9)
 })
 
 test("replay frames and the share file round-trip", () => {

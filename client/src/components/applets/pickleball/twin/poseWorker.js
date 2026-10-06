@@ -1,23 +1,42 @@
 // Twin Replay: the pose model in a Worker, so reading a long video never freezes the page.
-// Messages in: { type: "init", model, players } | { type: "frame", id, bitmap, ms, w, h }
+// One model per job ("roi": a crop round one player; "scan": court tiles to find players).
+// Messages in: { type: "init", model, gpu, specs: [{ key, mode, poses }] } | { type: "frame", id, key, bitmap, ms, w, h }
 // Messages out: { type: "ready", delegate } | { type: "people", id, people } | { type: "error", message }
 
 import { createLandmarker } from "./poseModel.js"
 
-let model = null
+// MediaPipe's WebAssembly loader calls importScripts(), which a module worker doesn't allow:
+// a synchronous stand-in that fetches the script and runs it in the worker's global scope
+self.importScripts = (...urls) => {
+  for (const url of urls) {
+    const x = new XMLHttpRequest()
+    x.open("GET", String(url), false)
+    x.send()
+    if (x.status && x.status >= 400) throw new Error(`couldn't load ${url}`)
+    ;(0, eval)(x.responseText)
+  }
+}
+
+const models = new Map()
 self.onmessage = async (e) => {
   const d = e.data || {}
   try {
     if (d.type === "init") {
-      model = await createLandmarker({ model: d.model, players: d.players, gpu: d.gpu !== false, canvas: typeof OffscreenCanvas !== "undefined" ? new OffscreenCanvas(1, 1) : undefined })
-      self.postMessage({ type: "ready", delegate: model.delegate })
+      let delegate = null
+      for (const spec of d.specs || [{ key: "near" }]) {
+        const m = await createLandmarker({ model: d.model, poses: spec.poses, mode: spec.mode, gpu: d.gpu !== false, canvas: typeof OffscreenCanvas !== "undefined" ? new OffscreenCanvas(1, 1) : undefined })
+        models.set(spec.key, m)
+        delegate = m.delegate
+      }
+      self.postMessage({ type: "ready", delegate })
     } else if (d.type === "frame") {
-      const people = model ? model.detect(d.bitmap, d.ms, d.w, d.h) : []
+      const m = models.get(d.key || "near")
+      const people = m ? m.detect(d.bitmap, d.ms, d.w, d.h) : []
       d.bitmap?.close?.()
       self.postMessage({ type: "people", id: d.id, people })
     } else if (d.type === "close") {
-      model?.close()
-      model = null
+      for (const m of models.values()) m.close()
+      models.clear()
     }
   } catch (err) {
     d.bitmap?.close?.()

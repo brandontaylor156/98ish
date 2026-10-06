@@ -14,6 +14,9 @@ import { applyH, HALF_L, HALF_W } from "./homography.js"
 // MediaPipe Pose's 33 landmarks (the ones used here)
 export const LM = { nose: 0, lShoulder: 11, rShoulder: 12, lElbow: 13, rElbow: 14, lWrist: 15, rWrist: 16, lHip: 23, rHip: 24, lKnee: 25, rKnee: 26, lAnkle: 27, rAnkle: 28, lHeel: 29, rHeel: 30, lToe: 31, rToe: 32 }
 export const MARGIN = 2.6 // m outside the lines a player can still be (deep returns, wide balls)
+const BIRTH_SIDE = 1.1 // a new track starts no further than this outside the sidelines...
+const BIRTH_END = 2.2 // ...or behind the baselines
+const LOST_S = 3 // s unseen before a track may take over someone new
 
 // ---------- the Hungarian method (rectangular cost matrices, minimizing) ----------
 // cost[i][j]: rows = tracks, cols = detections. Returns assign[i] = j or -1.
@@ -185,10 +188,13 @@ export const createTracker = ({ players = 4, H }) => {
       if (Math.abs(x) > HALF_W + MARGIN || Math.abs(z) > HALF_L + MARGIN + 1.5) continue
       dets.push({ x, z, person })
     }
-    // start the tracks from the first frames that see enough people: nearest first
+    // start the tracks from people standing where players stand (not the umpire's chair or a
+    // bench by the fence)
+    const birthOk = (d) => Math.abs(d.x) < HALF_W + BIRTH_SIDE && Math.abs(d.z) < HALF_L + BIRTH_END
     if (tracks.length < players) {
       for (const d of dets) {
         if (tracks.length >= players) break
+        if (!birthOk(d)) continue
         if (tracks.some((tr) => Math.hypot(tr.x - d.x, tr.z - d.z) < 0.8)) continue
         tracks.push(newTrack(tracks.length, d, t))
       }
@@ -206,14 +212,32 @@ export const createTracker = ({ players = 4, H }) => {
       })
     })
     const assign = hungarian(cost)
+    const used = new Set()
     tracks.forEach((tr, i) => {
       const j = assign[i]
       if (j < 0 || cost[i][j] > MAX_JUMP + 1.5 + Math.max(0, t - tr.lastT) * 6) {
         tr.missed++
         return
       }
+      used.add(j)
       addSample(tr, dets[j], t)
     })
+    // a track lost for a while takes over an unclaimed person on its side of the net (the
+    // same player, found again after being hidden or out of the picture)
+    for (let j = 0; j < dets.length; j++) {
+      if (used.has(j) || !birthOk(dets[j])) continue
+      const d = dets[j]
+      if (tracks.some((tr) => Math.hypot(tr.x - d.x, tr.z - d.z) < 0.8)) continue
+      const stale = tracks.filter((tr) => t - tr.lastT > LOST_S && Math.sign(tr.z || 1) === Math.sign(d.z || 1)).sort((a, b) => a.lastT - b.lastT)[0]
+      if (!stale) continue
+      stale.fx = oneEuro()
+      stale.fz = oneEuro()
+      stale.vx = 0
+      stale.vz = 0
+      stale.lastT = t
+      addSample(stale, d, t)
+      used.add(j)
+    }
     return tracks
   }
   const newTrack = (id, d, t) => {

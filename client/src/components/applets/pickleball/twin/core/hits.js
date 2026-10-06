@@ -86,16 +86,51 @@ const peakNear = (series, t, before = 0.28, after = 0.18) => {
   return best
 }
 
+// The sound and the picture can be out of step (a recorder's start-up, Bluetooth audio): try
+// shifts of the pops within +-0.6 s and keep the one where pops best meet someone's swing
+// peak. Returns the shift in seconds (added to the pop times), 0 unless clearly better.
+export const soundOffset = (seriesList, onsets, { range = 0.6, step = 0.02 } = {}) => {
+  if (onsets.length < 3) return 0
+  const score = (d) => {
+    let s = 0
+    for (const o of onsets) {
+      let best = 0
+      for (const series of seriesList) {
+        const pk = peakNear(series, o.t + d, 0.08, 0.08)
+        if (pk && pk.smooth > best) best = pk.smooth
+      }
+      s += Math.min(best, 8)
+    }
+    return s
+  }
+  const ds = []
+  for (let d = -range; d <= range + 1e-9; d += step) ds.push(Math.round(d * 1000) / 1000)
+  const ss = ds.map(score)
+  const base = score(0)
+  let at = 0
+  for (let i = 1; i < ss.length; i++) if (ss[i] > ss[at]) at = i
+  if (!(ss[at] > base * 1.15)) return 0
+  // (the middle of the best plateau: several shifts can tie when frames are sparse)
+  let lo = at
+  let hi = at
+  while (lo > 0 && ss[lo - 1] >= ss[at] * 0.98) lo--
+  while (hi < ss.length - 1 && ss[hi + 1] >= ss[at] * 0.98) hi++
+  return ds[(lo + hi) >> 1]
+}
+
 // ---------- fusion ----------
 // tracks: [{ id, team, samples }]; onsets: [{ t, strength, bright }] (may be empty).
 // Returns hits: [{ t, player (track id), team, speed, hand, source: "sound" | "swing" }]
-export const findHits = (tracks, onsets = [], { minSwing = 2.4 } = {}) => {
+export const findHits = (tracks, onsets = [], { minSwing = 1.4, offset = null } = {}) => {
   const series = new Map(tracks.map((tr) => [tr.id, swingSeries(tr.samples)]))
   const hits = []
   let lastTeam = null
   let lastT = -99
   if (onsets.length >= 2) {
-    for (const o of onsets) {
+    const shift = offset ?? soundOffset([...series.values()], onsets)
+    hits.soundOffset = shift
+    for (const raw of onsets) {
+      const o = shift ? { ...raw, t: raw.t + shift } : raw
       if (o.t - lastT > RALLY_GAP) lastTeam = null
       let best = null
       for (const tr of tracks) {
@@ -105,7 +140,10 @@ export const findHits = (tracks, onsets = [], { minSwing = 2.4 } = {}) => {
         const score = pk.smooth
         if (!best || score > best.score) best = { tr, pk, score }
       }
-      if (!best || best.score < minSwing) continue // a bounce, a shout, the next court
+      // a bounce, a shout, the next court: dropped, unless the pop is loud and bright and
+      // someone on the right team moved their arm at all (a soft serve, a small far player)
+      const strong = (o.strength || 0) >= 12 && (o.bright || 0) >= 0.2
+      if (!best || best.score < (strong ? 0.5 : minSwing)) continue
       if (o.t - lastT < 0.3) continue
       hits.push({ t: o.t, player: best.tr.id, team: best.tr.team, speed: best.score, hand: best.pk.hand, source: "sound", sample: best.pk.sample })
       lastTeam = best.tr.team

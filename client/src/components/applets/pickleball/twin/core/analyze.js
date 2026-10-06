@@ -49,6 +49,7 @@ export const createAnalyzer = ({ taps, players = 4 }) => {
         frames,
         calibration: { taps, rms: cal.rms },
         onsets: found.length,
+        soundOffset: hits.soundOffset || 0,
         players: tracks.map((tr) => ({
           id: tr.id,
           team: tr.team,

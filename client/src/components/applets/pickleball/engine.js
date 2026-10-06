@@ -1375,7 +1375,7 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
       tmpV.set(s.x * 0.85, 2.3, s.z + back * 3.6)
       tmpL.set((s.x + ball.x) / 2, 0.9, (s.z + ball.z) / 2 - back * 1.5)
     } else if (c === "fence") {
-      tmpV.set(0.3, 3.1, HALF_L + 4.2)
+      tmpV.set(0.3, 3.4, HALF_L + 5.5)
       tmpL.set(0, 0, -1)
     } else {
       tmpV.set(0, portrait ? 9.5 : 6.2, HALF_L + (portrait ? 11 : 8.5))
