@@ -294,3 +294,25 @@ test("room kit: every room with a door you can open is reachable on foot from th
   }
   setLayout(get("loscab").L)
 })
+
+test("parking lots: stalls in bays with driving aisles, inside the lot, along its long side", async () => {
+  const { lotStalls } = await import("./scenery.js")
+  // a 60 x 40 m lot turned 30 degrees
+  const r = (30 * Math.PI) / 180
+  const rot = ([x, z]) => [x * Math.cos(r) - z * Math.sin(r), x * Math.sin(r) + z * Math.cos(r)]
+  const lot = [[0, 0], [60, 0], [60, 40], [0, 40]].map(rot)
+  const { stalls, stripes } = lotStalls(lot)
+  assert.ok(stalls.length > 60 && stalls.length < 200, `${stalls.length} stalls`)
+  assert.equal(stripes.length, stalls.length * 2)
+  // back in lot coordinates: rows at distinct depths, with 7 m aisles between bays (not a
+  // car every 6 m from edge to edge)
+  const back = ([x, z]) => [x * Math.cos(-r) - z * Math.sin(-r), x * Math.sin(-r) + z * Math.cos(-r)]
+  const rows = [...new Set(stalls.map((s) => Math.round(back([s.x, s.z])[1] * 10) / 10))].sort((a, b) => a - b)
+  const gaps = rows.slice(1).map((w, i) => w - rows[i])
+  assert.ok(gaps.some((g) => g > 12), `an aisle between bays: ${gaps}`)
+  assert.ok(gaps.every((g) => g > 5), `stall rows don't overlap: ${gaps}`)
+  for (const s of stalls) {
+    const [u, w] = back([s.x, s.z])
+    assert.ok(u > 0 && u < 60 && w > 0 && w < 40)
+  }
+})

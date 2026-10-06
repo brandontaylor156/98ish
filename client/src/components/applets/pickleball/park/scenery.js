@@ -41,6 +41,47 @@ const pointInPoly = (x, z, poly) => {
   }
   return inside
 }
+// A parking lot's stalls, as lots are laid out: along the lot's longest side, bays of two
+// stall rows back to back (5.4 m deep, 2.7 m wide) then a 7 m driving aisle. Returns the
+// stalls { x, z, yaw (a car's long side across the row) } and the stripes between them.
+const STALL_W = 2.7
+const STALL_D = 5.4
+const AISLE = 7
+export const lotStalls = (p) => {
+  let best = null
+  for (let i = 0; i < p.length; i++) {
+    const a = p[i]
+    const b = p[(i + 1) % p.length]
+    const L = Math.hypot(b[0] - a[0], b[1] - a[1])
+    if (L > 0.1 && (!best || L > best.L)) best = { L, ux: (b[0] - a[0]) / L, uz: (b[1] - a[1]) / L }
+  }
+  if (!best) return { stalls: [], stripes: [] }
+  const { ux, uz } = best
+  const us = p.map(([x, z]) => x * ux + z * uz)
+  const ws = p.map(([x, z]) => -x * uz + z * ux)
+  const [u0, u1, w0, w1] = [Math.min(...us), Math.max(...us), Math.min(...ws), Math.max(...ws)]
+  const at = (u, w) => [u * ux - w * uz, u * uz + w * ux]
+  const yaw = Math.atan2(-uz, ux)
+  const inside = (u, w) => pointInPoly(...at(u, w), p)
+  const stalls = []
+  const stripes = []
+  // the first row backs onto the edge and faces an aisle; then pairs back to back: row,
+  // aisle, row, row, aisle, row, row, aisle...
+  for (let w = w0 + 0.3, k = 0; w + STALL_D <= w1 + 0.01; k++) {
+    for (let u = u0 + 0.6; u + STALL_W <= u1 - 0.3; u += STALL_W) {
+      const cu = u + STALL_W / 2
+      const cw = w + STALL_D / 2
+      // the whole stall inside the lot (its four corners)
+      if (!inside(u + 0.2, w + 0.2) || !inside(u + STALL_W - 0.2, w + 0.2) || !inside(u + 0.2, w + STALL_D - 0.2) || !inside(u + STALL_W - 0.2, w + STALL_D - 0.2)) continue
+      const [x, z] = at(cu, cw)
+      stalls.push({ x, z, yaw })
+      stripes.push([...at(u, w), ...at(u, w + STALL_D)], [...at(u + STALL_W, w), ...at(u + STALL_W, w + STALL_D)])
+    }
+    w += STALL_D + (k % 2 === 0 ? AISLE : 0)
+  }
+  return { stalls, stripes }
+}
+
 // the stretch of the edge a -> b (length L, unit u) within w/2 of a door at (dx, dz): [s, e] or null
 const doorCut = (a, u, L, door) => {
   if (!door) return null
@@ -159,21 +200,18 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
           ctx.stroke()
         }
         if (k === "parking") {
-          // stall stripes: short white dashes in rows across the lot
+          // stall stripes, from the same stall plan the cars park in (lotStalls)
           ctx.save()
           poly(a.p)
           ctx.clip()
           ctx.strokeStyle = "rgba(240,240,235,0.75)"
           ctx.lineWidth = Math.max(1, 0.12 * PX)
-          const xs = a.p.map((p) => p[0])
-          const zs = a.p.map((p) => p[1])
-          for (let z = Math.min(...zs); z < Math.max(...zs); z += 12)
-            for (let x = Math.min(...xs); x < Math.max(...xs); x += 2.7) {
-              ctx.beginPath()
-              ctx.moveTo(X(x), Z(z))
-              ctx.lineTo(X(x), Z(z + 5))
-              ctx.stroke()
-            }
+          for (const [x0, z0, x1, z1] of lotStalls(a.p).stripes) {
+            ctx.beginPath()
+            ctx.moveTo(X(x0), Z(z0))
+            ctx.lineTo(X(x1), Z(z1))
+            ctx.stroke()
+          }
           ctx.restore()
         }
       }
@@ -1657,17 +1695,17 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
 
   // ---------- cars in the lots ----------
   const cars = []
+  // in the stalls (lotStalls), about half full on a weekday (a lot's `full` sets it); the
+  // stalls by where you arrive stay free; cars sit a little off-centre in their stall
   for (const a of S.areas) {
     if (a.k !== "parking" || cars.length > 420) continue
     const spawn = L.SPAWN || { x: 1e9, z: 1e9 }
-    const xs = a.p.map((p) => p[0])
-    const zs = a.p.map((p) => p[1])
-    for (let z = Math.min(...zs) + 2.6; z < Math.max(...zs) - 2; z += 6)
-      for (let x = Math.min(...xs) + 1.4; x < Math.max(...xs) - 1; x += 2.7) {
-        const near = Math.hypot(x - spawn.x, z - spawn.z) < 9
-        if (near || rand() > (a.full ?? 0.62) || !pointInPoly(x, z, a.p) || cars.length > 420) continue
-        cars.push({ x, z, yaw: (rand() < 0.5 ? 0 : Math.PI) + (rand() - 0.5) * 0.06, c: rand() })
-      }
+    for (const s of lotStalls(a.p).stalls) {
+      if (cars.length > 420) break
+      if (Math.hypot(s.x - spawn.x, s.z - spawn.z) < 12 || rand() > (a.full ?? 0.5)) continue
+      const j = (rand() - 0.5) * 0.3
+      cars.push({ x: s.x + j * Math.cos(s.yaw), z: s.z - j * Math.sin(s.yaw), yaw: s.yaw + (rand() < 0.5 ? 0 : Math.PI) + (rand() - 0.5) * 0.06, c: rand() })
+    }
   }
   if (cars.length) {
     const body = new THREE.InstancedMesh(keep(new THREE.BoxGeometry(1.8, 0.75, 4.3).translate(0, 0.55, 0)), lambert(0xffffff), cars.length)
