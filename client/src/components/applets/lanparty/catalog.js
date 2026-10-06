@@ -142,7 +142,10 @@ export const launchLine = (game, { mode = "play", nodes = 2, deathmatch = false,
   return `${game.lan.setup} -nodes ${n}${deathmatch ? " -deathmatch" : ""} -skill ${sk}`
 }
 
-// The whole dosbox.conf js-dos gets for one launch (it replaces the bundle's own)
+// LAUNCH.BAT, which the bundle's autoexec calls (tools/lanparty/build_bundles.py)
+export const launchBat = (game, opts = {}) => `@echo off\r\ncls\r\n${launchLine(game, opts)}\r\n`
+
+// The whole dosbox.conf for one launch (what the bundle's config amounts to with LAUNCH.BAT)
 export const dosboxConf = (game, opts = {}) => `${BASE_CONF}[autoexec]\necho off\nmount c .\nc:\ncls\n${launchLine(game, opts)}\n`
 
 // ---------------- what a file on the drive opens with ----------------

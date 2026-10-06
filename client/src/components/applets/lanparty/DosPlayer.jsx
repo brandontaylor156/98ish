@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react"
 import TouchControls, { useTouchControlsVisible } from "../../shared/controls"
-import { CDN, KEY, PEER_SERVER, dosboxConf } from "./catalog"
+import { CDN, KEY, PEER_SERVER, launchBat } from "./catalog"
 import { loadJsDos } from "./engines"
 import { driveSaves } from "./saves"
 
@@ -29,10 +29,13 @@ const DosPlayer = ({ game, mode = "play", opts = {}, peer = null, onNet, onError
         player.current = Dos(el, {
           url: game.url,
           pathPrefix: `${CDN.jsdos}emulators/`,
-          dosboxConf: dosboxConf(game, { mode, ...opts }),
+          // this launch's command (alone / host / join): the bundle's autoexec calls LAUNCH.BAT
+          initFs: [{ path: "LAUNCH.BAT", contents: new TextEncoder().encode(launchBat(game, { mode, ...opts })) }],
           autoStart: true,
           countDownStart: 0,
           thinSidebar: true,
+          // DOSBox runs in a Web Worker so the page (and the 98ish desktop around it) stays responsive
+          workerThread: true,
           theme: "dark",
           mouseCapture: false,
           fsChanges: driveSaves({ onError: (m) => onError?.(m) }),

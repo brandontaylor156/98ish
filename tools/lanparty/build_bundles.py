@@ -7,8 +7,9 @@ Each release is a DEICE installer: two split parts of a PKLITE self-extractor wh
 is a plain ZIP. We join the parts, find the ZIP and copy its files as they are, so the
 bundle holds exactly what the shareware installer would put on the disk (the readmes and
 order forms included, as the shareware terms ask: "please distribute" / "freely
-distribute", unmodified). The [autoexec] here only mounts the drive: LAN Party 98 passes
-its own `dosboxConf` per launch (play alone, host or join a LAN game).
+distribute", unmodified). The [autoexec] mounts the drive and calls LAUNCH.BAT, which isn't in the
+bundle: LAN Party 98 writes it per launch (play alone, host or join a LAN game) through
+js-dos's initFs, so the game files stay exactly as released.
 """
 import io
 import os
@@ -59,6 +60,7 @@ ipx=true
 echo off
 mount c .
 c:
+if exist LAUNCH.BAT call LAUNCH.BAT
 """
 
 README = "LAN Party 98 bundle: the unmodified shareware release from the /idgames archive ({src}).\r\n"

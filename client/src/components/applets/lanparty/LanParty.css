@@ -162,7 +162,8 @@
   touch-action: none;
 }
 .lpDosScreen,
-.lpDosHost {
+.lpDosHost,
+.lpFlashHost {
   position: absolute;
   inset: 0;
 }
@@ -178,6 +179,8 @@
 .lpKeyGlyph {
   font-weight: bold;
   font-size: 12px;
+  color: #fff;
+  text-shadow: 1px 1px 0 #000;
 }
 .lpRuffle {
   display: block;
