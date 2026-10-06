@@ -25,4 +25,5 @@ Feature 1 of research round 2: a photoreal 3D head of you (a LAM Gaussian-splat 
 
 ## Tests
 - `node --test client/src/utils/head/headCore.test.js`: packets round-trip, clamping, seq wrap, rate gate, MediaPipe mapping and matrix angles, face -> voice -> idle fallback, head file checks, chunking out of order with duplicates, forged sizes refused.
-- Browser: scratchpad `be/` scripts (two Chrome clients with fake camera/mic in a call; see the final report of the session for numbers).
+- Browser: scratchpad `be/be.mjs` (two Chrome contexts with fake camera/mic; Ann on desktop sets the sample head and calls Ben on a 390x844 phone): all 18 checks pass. Measured 2026-10-06: preview ready in ~4-6 s; the 3.9 MB head crossed the call's data channel in 17.9 s (two tabs on one machine); ~20-25 face packets/s arrived and changed over time (fake camera has no face, so voice and idle drove it); Ben's page at 16.7 fps unthrottled / 1.6 fps at 4x CPU in headless software GL (no GPU here; a real phone draws splats on its GPU: measure there); 3D Me Off and hang-up clear the remote head; no page errors.
+- Dev note: the renderer is fetched as text and imported from a `blob:` URL, because Vite's dev server refuses to serve a public/ file as a module.

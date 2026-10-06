@@ -9,7 +9,23 @@ import "./HeadView.css"
 //   bytes: the avatar zip (Uint8Array); frame(): { weights: Float32Array(52), yaw, pitch, roll, talking }
 //   onState("loading" | "ready" | "error", message?)
 let rendererMod = null
-const loadRenderer = () => (rendererMod ||= import(/* @vite-ignore */ "/vendor/lam/lam-renderer.js"))
+// Fetched as text and imported from a blob: URL (Vite's dev server refuses to serve a
+// public/ file as a module; the same path works in the built site). Cached by the browser.
+const RENDERER_URL = "/vendor/lam/lam-renderer.js"
+const loadRenderer = () =>
+  (rendererMod ||= fetch(RENDERER_URL)
+    .then((r) => {
+      if (!r.ok) throw new Error("The 3D head renderer couldn't be downloaded.")
+      return r.text()
+    })
+    .then((src) => {
+      const url = URL.createObjectURL(new Blob([src], { type: "text/javascript" }))
+      return import(/* @vite-ignore */ url).finally(() => URL.revokeObjectURL(url))
+    })
+    .catch((e) => {
+      rendererMod = null
+      throw e
+    }))
 
 export default function HeadView({ bytes, frame, className = "", label = "3D head", onState }) {
   const box = useRef(null)
