@@ -1,0 +1,244 @@
+/* Live Broadcast (twin/live): Go Live (the filming phone) and watching. Builds on TwinReplay.css. */
+
+/* while a live screen is up, the match's own overlays stay hidden (as for Twin Replay) */
+.pkStage[data-screen="live"] > :not(.pkCanvas):not(.pkTwin),
+.pkStage[data-screen="watch"] > :not(.pkCanvas):not(.pkTwin) {
+  display: none !important;
+}
+
+.pkLive[data-view="camera"],
+.pkLive[data-view="live"] {
+  background: #000;
+}
+.pkLiveWatch[data-view="watch"],
+.pkLiveWatch[data-view="ended"] {
+  background: transparent;
+  pointer-events: none;
+}
+.pkLiveWatch > * {
+  pointer-events: auto;
+}
+
+/* the camera fills the screen under everything while filming */
+.pkLiveCam {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #000;
+}
+.pkLive[data-view="camera"] .pkLiveCam {
+  opacity: 0;
+  pointer-events: none;
+}
+.pkLiveCal {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.pkLiveNames {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin: 6px 0;
+}
+.pkLiveNames label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.pkLiveNames input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.pkLiveHud {
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 0;
+}
+.pkLiveTop {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.pkLiveBadge {
+  background: #c00;
+  color: #fff;
+  font-weight: bold;
+  padding: 2px 6px;
+  border: 1px solid #fff;
+  white-space: nowrap;
+  animation: pkLivePulse 1.6s ease-in-out infinite;
+}
+.pkLiveBadge.is-over {
+  background: #555;
+  animation: none;
+}
+@keyframes pkLivePulse {
+  50% {
+    opacity: 0.65;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pkLiveBadge {
+    animation: none;
+  }
+}
+.pkLiveViewers {
+  margin-left: auto;
+  white-space: nowrap;
+}
+.pkLiveMid {
+  flex: 1;
+  position: relative;
+  min-height: 0;
+}
+.pkLiveDots {
+  position: absolute;
+  right: 8px;
+  top: 8px;
+  border: 2px solid #fff;
+  image-rendering: pixelated;
+}
+.pkLiveBar,
+.pkLiveEnded {
+  height: auto; /* (not main.css's .window height: 100%) */
+}
+.pkLiveBar {
+  margin: 8px;
+  padding: 8px;
+  max-width: none;
+}
+@media (orientation: landscape) and (max-height: 500px) {
+  /* a phone on its side: the controls in a column on the left, the camera beside them */
+  .pkLiveBar {
+    align-self: flex-start;
+    width: min(330px, 45vw);
+  }
+}
+.pkLiveScore {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.pkLiveScore b {
+  font-size: 22px;
+  font-family: "Courier New", monospace;
+}
+.pkLiveScore button {
+  flex: 1;
+  min-height: 40px;
+}
+.pkLiveStats {
+  margin: 4px 0;
+}
+
+/* reactions float up the screen */
+.pkLiveReacts {
+  position: absolute;
+  left: 12px;
+  bottom: 10px;
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 4px;
+  pointer-events: none;
+}
+.pkLiveReactsWatch {
+  bottom: 120px;
+}
+.pkLiveReact {
+  font-size: 28px;
+  animation: pkLiveFloat 2.6s ease-out forwards;
+}
+@keyframes pkLiveFloat {
+  0% {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-160px);
+    opacity: 0;
+  }
+}
+
+/* watching: the score bug over the 3D game */
+.pkLiveBug {
+  align-self: center;
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(0, 0, 40, 0.85);
+  color: #fff;
+  border: 2px solid #ffd400;
+  padding: 3px 8px;
+  max-width: calc(100% - 16px);
+}
+.pkLiveBug b {
+  font-family: "Courier New", monospace;
+  font-size: 18px;
+  color: #ffd400;
+}
+.pkLiveBug span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 34vw;
+  font-size: 12px;
+}
+.pkLiveWatchBar {
+  margin-top: auto;
+}
+.pkLiveWatchBar .is-on {
+  font-weight: bold;
+  box-shadow: inset 1px 1px #0a0a0a, inset -1px -1px #fff;
+}
+.pkLiveNow {
+  color: #c00;
+  font-weight: bold;
+  padding: 0 6px;
+}
+.pkLiveReactRow {
+  margin-left: auto;
+  display: flex;
+  gap: 2px;
+}
+.pkLiveReactRow button {
+  min-width: 36px;
+  font-size: 16px;
+  padding: 0;
+}
+.pkLiveEnded {
+  max-width: 320px;
+}
+
+/* (the screens scroll inside the game's window: a phone on its side is only ~390 px tall) */
+.pkLive .pkTwinHome {
+  flex: 1;
+  min-height: 0;
+}
+.pkLive .pkTwinHome > * {
+  flex-shrink: 0;
+}
+@media (orientation: landscape) and (max-height: 500px) {
+  .pkLiveNames {
+    grid-template-columns: repeat(4, 1fr);
+  }
+  .pkLive .pkTwinHero p {
+    margin: 2px 0;
+  }
+}

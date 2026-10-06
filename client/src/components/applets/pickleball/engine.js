@@ -1303,10 +1303,12 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
 
   // ---------- Twin Replay (twin/): a real game's tracked frames, played on these figures ----------
   // frames: [{ t, dt, players: [situation], ball, events?: [{ type: "hit" | "bounce", ... }] }]
-  const startTwin = ({ frames, venue: v = "stadium", roster }) => {
+  // live (Live Broadcast): frames keep arriving (twinAppend); the end of the frames is "now",
+  // where the replay waits instead of ending
+  const startTwin = ({ frames, venue: v = "stadium", roster, live = false }) => {
     if (!frames?.length) return false
     startLocal({ doubles: frames[0].players.length > 2, venue: v, humans: 1, roster, level: "pro", seed: 1 }, false)
-    replay = { external: true, frames, i: 0, t: 0, side: 1, frame: frames[0], ball: { ...frames[0].ball }, speed: 1, paused: false, cam: "broadcast", follow: 0, cut: true, ended: false }
+    replay = { external: true, live: !!live, frames: [...frames], i: 0, t: 0, side: 1, frame: frames[0], ball: { ...frames[0].ball }, speed: 1, paused: false, cam: "broadcast", follow: 0, cut: true, ended: false }
     match.hold = true
     placeTwin(0)
     onEvent?.({ type: "replay", on: true, twin: true })
@@ -1344,7 +1346,9 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
     if (i >= R.frames.length - 1) {
       i = R.frames.length - 1
       R.t = 0
-      if (!R.ended) {
+      // (live: caught up with the stream; wait here for the next frames)
+      if (R.live) R.waiting = true
+      else if (!R.ended) {
         R.ended = true
         R.paused = true
         onEvent?.({ type: "twinEnd" })
@@ -2010,7 +2014,22 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
     twinState() {
       if (!replay?.external) return null
       const fr = replay.frames
-      return { t: fr[replay.i].t - fr[0].t + replay.t, duration: fr[fr.length - 1].t - fr[0].t, paused: replay.paused, speed: replay.speed, cam: replay.cam, follow: replay.follow, ended: replay.ended }
+      return { t: fr[replay.i].t - fr[0].t + replay.t, duration: fr[fr.length - 1].t - fr[0].t, paused: replay.paused, speed: replay.speed, cam: replay.cam, follow: replay.follow, ended: replay.ended, live: !!replay.live, behind: fr[fr.length - 1].t - fr[replay.i].t, at: fr[replay.i].t }
+    },
+    // HOOK (Live Broadcast, twin/live/LiveWatch.jsx): more frames of a live replay (in order,
+    // continuing the last one); keeps the newest `keep` seconds (rewind uses them)
+    twinAppend(frames, { keep = 75 } = {}) {
+      if (!replay?.external || !replay.live || !frames?.length) return
+      const fr = replay.frames
+      fr.push(...frames)
+      const max = Math.round(keep * 30)
+      if (fr.length > max) {
+        const cut = fr.length - max
+        fr.splice(0, cut)
+        replay.i = Math.max(0, replay.i - cut)
+        replay.frame = fr[replay.i]
+      }
+      replay.waiting = false
     },
     stopTwin() {
       if (replay?.external) endReplay(true)

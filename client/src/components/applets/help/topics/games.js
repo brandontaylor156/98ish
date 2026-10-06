@@ -268,7 +268,7 @@ export const topics = [
     book: "games-action",
     title: "Pickleball 98",
     summary: "3D pickleball with real rules, lessons, a ball machine, drills, a walk-around park with open play, a World Tour and online singles and doubles.",
-    keywords: ["pickleball", "My Park", "park", "venue", "real venues", "Los Cab", "Newport Beach", "Wolf + Bear", "Whittier Narrows", "iPickle", "Paseo Club", "Sinaloa", "California SMASH", "indoor", "favorites", "OpenStreetMap", "open play", "call next", "paddle stacking", "spectate", "watch", "park rep", "dink", "kitchen", "serve", "World Tour", "doubles", "drive", "lob", "paddle", "Locker Room", "outfit", "customize", "swimsuit", "beach", "winter", "practice", "ball machine", "drill", "lesson", "coach", "third shot drop", "reset", "split step", "two-bounce rule", "how to play", "swipe", "move pad", "left-handed", "camera", "swing trail", "swipe trail", "sound", "pop", "Twin Replay", "Twin Clones", "clone", "play my friend", "film a game", "video", "replay my game", "real game", "stats", "heat map", "shot mix", "pose"],
+    keywords: ["pickleball", "My Park", "park", "venue", "real venues", "Los Cab", "Newport Beach", "Wolf + Bear", "Whittier Narrows", "iPickle", "Paseo Club", "Sinaloa", "California SMASH", "indoor", "favorites", "OpenStreetMap", "open play", "call next", "paddle stacking", "spectate", "watch", "park rep", "dink", "kitchen", "serve", "World Tour", "doubles", "drive", "lob", "paddle", "Locker Room", "outfit", "customize", "swimsuit", "beach", "winter", "practice", "ball machine", "drill", "lesson", "coach", "third shot drop", "reset", "split step", "two-bounce rule", "how to play", "swipe", "move pad", "left-handed", "camera", "swing trail", "swipe trail", "sound", "pop", "Twin Replay", "Twin Clones", "clone", "play my friend", "film a game", "video", "replay my game", "real game", "stats", "heat map", "shot mix", "pose", "Go Live", "live", "broadcast", "watch live", "stream", "live game"],
     programs: ["Pickleball 98"],
     body: [
       "Pickleball 98 is pickleball in 3D, with real rules and real ball physics. Play the computer, learn the game in Practice, go on a World Tour, play a friend on the same keyboard, or play people online.",
@@ -343,6 +343,17 @@ export const topics = [
           "**Play** a clone: on the **Play** screen pick it under **Against** (or as your **Partner** in doubles; clones are at the top as \"Clone: name\"), or in **Twin Replay > More options » > Your clones**. **Rematch against the clones** (a game's More options) puts you back in that game's matchup at the same venue and court, everyone else played by their clone.",
           "**Sharing:** only your own clone (made with This is me) can be sent: **Share...** in Your clones makes a small file (a few KB: counts of what you did, no video); your friend opens it with **Open a friend's clone...**. A clone you made from your video of someone else is labeled \"Built from your video\" and stays on this device; to play their clone together, they make and share their own.",
           "Honest limits: a clone copies tendencies the video can show (positions, shot kinds, timing); it can't copy touch or spin exactly, and the video can't tell a winner from an error, so how often their shots end rallies only nudges the clone's accuracy.",
+        ],
+      },
+      { h: "Go Live: friends watch your real game in 3D" },
+      "**Real Games > Go Live** (or Game > Go Live...) streams a real game as you play it: your buddies watch it live in Pickleball 98, the athletes moving where you all move, at your venue and court.",
+      {
+        list: [
+          "Pick the venue and court and type the players' names (near side = by the phone). **Point the camera**: put the phone on the back fence, on its side, the whole court in the picture; tap the four corners like in Twin Replay, then **Go live**. Your buddies get a notice (and a push) saying you're live; **Share the link** sends it to anyone else.",
+          "While live, the phone reads the players and listens for the paddle; the little court in the corner shows who it's following. Tap **Point: near / Point: far** after each rally to keep the score (side-out, with the full call) for everyone watching.",
+          "**Watching**: tap the notice (or Real Games > a buddy \"is live\", or the LIVE strip in My Park at that venue). The game plays about a second behind real time, with Broadcast, Side, Top and Follow cameras, the score, reactions, how many are watching, and **⟲ 10 s** to see the last moment again (**Go live** catches up). In **My Park** at the same venue the real players are on that court as you walk by.",
+          "**End broadcast** stops it; the game is kept in your **Twin Replay** games (positions and hits, no video), and viewers can keep a copy too.",
+          "Only where everyone is, the hits and the score leave the phone: never the picture or the sound. A slower phone streams a little less smoothly (the players are carried along between readings); a phone's graphics chip reads several pictures a second.",
         ],
       },
       { h: "How a good player plays" },

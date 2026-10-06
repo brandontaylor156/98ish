@@ -1922,3 +1922,23 @@
     animation: none;
   }
 }
+
+/* My Park: a buddy live on a court here (Live Broadcast) */
+.pkParkLive {
+  height: auto; /* (not main.css's .window height: 100%) */
+  min-height: 0;
+  position: absolute;
+  top: 44px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  max-width: calc(100% - 16px);
+  white-space: nowrap;
+}
+.pkParkLive b {
+  color: #c00;
+}

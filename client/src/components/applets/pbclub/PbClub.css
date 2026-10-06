@@ -591,3 +591,16 @@
   background: #ffffe1;
   border: 1px solid #000;
 }
+
+/* Live Broadcast card (Play tab): buddies live now + Go Live */
+.pbLiveCard {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+.pbLiveCard button {
+  text-align: left;
+  min-height: 34px;
+  white-space: normal;
+}

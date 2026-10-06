@@ -65,6 +65,12 @@
 .pkTwinHero p {
   margin: 6px 0;
 }
+/* (main.css gives every .window height: 100%: a panel taller than a short screen, a phone on
+   its side, was cut off instead of scrolling) */
+.pkTwinHome > .window {
+  height: auto;
+  flex-shrink: 0;
+}
 .pkTwinList {
   list-style: none;
   margin: 6px 0 0;
@@ -123,8 +129,13 @@
   margin: 8px 0;
 }
 .pkTwinCalView {
-  width: 100%;
+  width: auto;
+  max-width: 100%;
+  /* (a phone on its side, as it sits on a fence: the whole picture stays on screen, every
+     corner tappable) */
+  max-height: calc(100vh - 150px);
   height: auto;
+  margin: 0 auto;
   display: block;
   touch-action: none;
   background: #000;
