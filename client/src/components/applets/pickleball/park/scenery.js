@@ -802,13 +802,94 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
     g.computeVertexNormals()
     return { geo: keep(g), top }
   }
+  // A footprint that isn't a rectangle (an L, a T, a long building with jogs: most real
+  // clubhouses and shops) can't take a roof over its smallest rectangle: that drew one big
+  // hip over everything (Paseo's north building was a red slab across the lot). This roof
+  // follows the outline instead, as mission-style buildings are built: a sloped tile band
+  // along every wall, rising inward to a flat top. Returns { geo, top } like slopedRoof.
+  const rectish = (p) => {
+    if (p.length <= 4) return true
+    const { u0, u1, w0, w1 } = rectOf(p)
+    return Math.abs(signedArea(p)) / ((u1 - u0) * (w1 - w0) || 1) > 0.9
+  }
+  const outlineRoof = (p, h, { band = 4, rise: riseO } = {}) => {
+    const n = p.length
+    const A = Math.abs(signedArea(p))
+    let per = 0
+    for (let i = 0; i < n; i++) per += Math.hypot(p[(i + 1) % n][0] - p[i][0], p[(i + 1) % n][1] - p[i][1])
+    // keep the band well inside the building's width (2A/perimeter: a thin building's width)
+    const bd = Math.max(0.8, Math.min(band, (0.35 * 2 * A) / (per || 1)))
+    const rise = riseO ?? Math.min(2.4, bd * 0.55)
+    // each wall's inward normal (tested against the polygon, so either winding works)
+    const lines = []
+    for (let i = 0; i < n; i++) {
+      const a = p[i]
+      const b2 = p[(i + 1) % n]
+      const L = Math.hypot(b2[0] - a[0], b2[1] - a[1]) || 1
+      let nx = -(b2[1] - a[1]) / L
+      let nz = (b2[0] - a[0]) / L
+      const mx = (a[0] + b2[0]) / 2
+      const mz = (a[1] + b2[1]) / 2
+      if (!pointInPoly(mx + nx * 0.2, mz + nz * 0.2, p)) (nx = -nx), (nz = -nz)
+      lines.push({ a: [a[0] + nx * bd, a[1] + nz * bd], d: [(b2[0] - a[0]) / L, (b2[1] - a[1]) / L], nx, nz })
+    }
+    // the inner outline: neighbouring offset walls meet (a sharp corner is clamped)
+    const q = p.map((v, i) => {
+      const l0 = lines[(i - 1 + n) % n]
+      const l1 = lines[i]
+      const den = l0.d[0] * l1.d[1] - l0.d[1] * l1.d[0]
+      let x
+      let z
+      if (Math.abs(den) < 1e-6) {
+        x = v[0] + l1.nx * bd
+        z = v[1] + l1.nz * bd
+      } else {
+        const t = ((l1.a[0] - l0.a[0]) * l1.d[1] - (l1.a[1] - l0.a[1]) * l1.d[0]) / den
+        x = l0.a[0] + l0.d[0] * t
+        z = l0.a[1] + l0.d[1] * t
+      }
+      const dx = x - v[0]
+      const dz = z - v[1]
+      const m = Math.hypot(dx, dz)
+      if (m > bd * 2.5) {
+        x = v[0] + (dx / m) * bd * 2.5
+        z = v[1] + (dz / m) * bd * 2.5
+      }
+      return [x, z]
+    })
+    const pos = []
+    const uv = []
+    const tri = (P1, P2, P3, e) => {
+      pos.push(...P1, ...P2, ...P3)
+      for (const Q of [P1, P2, P3]) uv.push((Q[0] * e[0] + Q[2] * e[1]) / 0.5, (Q[1] - h) / 0.17)
+    }
+    for (let i = 0; i < n; i++) {
+      const j = (i + 1) % n
+      const e = lines[i].d
+      const o0 = [p[i][0], h, p[i][1]]
+      const o1 = [p[j][0], h, p[j][1]]
+      const i0 = [q[i][0], h + rise, q[i][1]]
+      const i1 = [q[j][0], h + rise, q[j][1]]
+      tri(o0, o1, i1, e)
+      tri(o0, i1, i0, e)
+    }
+    const g = new THREE.BufferGeometry()
+    g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3))
+    g.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2))
+    g.computeVertexNormals()
+    return { geo: keep(g), top: q.map(([x, z]) => [x, h + rise, z]) }
+  }
   const plainMats = new Map()
   const plainMatFor = (color) => {
     if (!plainMats.has(color)) plainMats.set(color, lambert(color, { side: THREE.DoubleSide }))
     return plainMats.get(color)
   }
   const hvac = []
-  for (const b of S.buildings) {
+  // S.roofs: roof-only parts over a building drawn with roofStyle "none" (a clubhouse's wings
+  // at their own heights). A part's walls run from y0 (default: its own height, so none) up
+  // to h; parts are drawn, never walked into (collision stays with the building)
+  const roofParts = (S.roofs || []).map((r) => ({ ...r, y0: r.y0 ?? r.h, roofOnly: true }))
+  for (const b of [...S.buildings, ...roofParts]) {
     if (b.p.length < 3) continue
     const kind = b.k || "yes"
     const color = hex(b.c, WALLS[kind] ?? WALLS.yes)
@@ -816,13 +897,15 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
     const wallMat = b.windows === "none" ? plainMatFor(color) : wallMatFor(color, b.windows === "mission" ? "mission" : ribs)
     const y0 = b.y0 || 0
     // (a hall's outside walls are drawn with its inside, cut for the door)
-    if (!b.hall) group.add(new THREE.Mesh(wallRing(b.p, y0, b.h, b.doors ? { gaps: doorsOn(b.p) } : {}), wallMat))
+    if (!b.hall && b.h - y0 > 0.05) group.add(new THREE.Mesh(wallRing(b.p, y0, b.h, b.doors && !b.roofOnly ? { gaps: doorsOn(b.p) } : {}), wallMat))
     const roofColor = hex(b.r, ROOFS[kind] ?? ROOFS.yes)
     const roofMat = roofMatFor(roofColor)
     if (b.hall && cutaway) continue
     const style = b.hall ? "flat" : b.rs || "flat"
+    // (roofStyle "none": the walls only; the venue's `roofs` draw this building's roof in parts)
+    if (style === "none") continue
     if (style === "gable" || style === "hip" || style === "mansard") {
-      const r = slopedRoof(b.p, b.h, style, { rise: b.rise, band: b.band })
+      const r = rectish(b.p) ? slopedRoof(b.p, b.h, style, { rise: b.rise, band: b.band }) : outlineRoof(b.p, b.h, { band: b.band, rise: b.rise })
       group.add(new THREE.Mesh(r.geo, b.tile === false ? roofMat : tileMatFor(roofColor)))
       if (r.top) {
         const t = r.top.map((q2) => [q2[0], q2[2]])

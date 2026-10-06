@@ -1034,6 +1034,8 @@ export const generateVenue = (spec, opts = {}) => {
       banks: banks.map((b) => ({ ...b.box, s: b.s })),
       fences,
       buildings: spec.buildings || [],
+      // roof-only parts over a building drawn without its own roof (scenery.js; never solid)
+      roofs: spec.roofs || [],
       areas: spec.areas || [],
       roads: spec.roads || [],
       trees,
