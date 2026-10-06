@@ -1,0 +1,29 @@
+/* Be Yourself: a 3D head (shared/head/HeadView.jsx) */
+.headView {
+  position: relative;
+  overflow: hidden;
+  background: #008080;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px grey, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+}
+.headViewTurn,
+.headViewBox {
+  position: absolute;
+  inset: 0;
+}
+.headViewTurn {
+  transform-origin: 50% 55%;
+  will-change: transform;
+}
+.headViewBox canvas {
+  width: 100% !important;
+  height: 100% !important;
+  display: block;
+}
+.headViewNote {
+  position: absolute;
+  inset: auto 0 6px;
+  text-align: center;
+  color: #fff;
+  font-size: 11px;
+  text-shadow: 1px 1px #000;
+}

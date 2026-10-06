@@ -552,3 +552,31 @@
 .os-mobile .aimRoot .aimImHeaderCalls button {
   min-height: 36px;
 }
+
+/* Be Yourself: the friend's 3D head over the call screen (ThreeDMe.jsx) */
+.callRemoteHead {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
+.callRemoteHead .headView {
+  width: 100%;
+  height: 100%;
+  box-shadow: none;
+}
+.callHeadNote {
+  position: absolute;
+  inset: auto 0 34px;
+  z-index: 2;
+  text-align: center;
+  color: #fff;
+  font-size: 12px;
+  text-shadow: 1px 1px #000;
+}
+.callBtn3d {
+  display: inline-block;
+  font-weight: bold;
+  font-size: 13px;
+  line-height: 20px;
+  height: 20px;
+}

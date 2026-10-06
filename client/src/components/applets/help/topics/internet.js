@@ -234,6 +234,21 @@ export const topics = [
     related: ["buddy-locator", "watch-together", "notepad", "paint"],
   },
   {
+    id: "be-yourself",
+    book: "internet",
+    title: "Your 3D head in calls (Be Yourself)",
+    summary: "Make a 3D head of yourself and, in a 98 Messenger call, your friend sees it move with your face instead of video.",
+    keywords: ["3D head", "3D Me", "avatar", "be yourself", "selfie", "face", "animoji", "memoji", "LAM", "head file"],
+    body: [
+      "**Make your head:** Start > Settings > Passwords and Users > **3D Head**. **Import a head file...** takes a LAM avatar (.zip, made with the free LAM tools from Alibaba's research team), and **Use the sample head** tries the idea with an example head. **From a selfie...** builds one from a photo on a free online service once it's switched on (the public LAM page only makes videos, so it isn't yet). **Try it with my face** moves your head with your camera, right there.",
+      "**In a call:** tap **3D Me**. Your head goes to your friend once (a few seconds), then only numbers follow: how much you blink, smile, open your mouth and turn your head, about 1 KB a second, so it works on a weak connection. With your camera off, your voice moves its mouth. Tap **3D Me Off** to stop.",
+      { phone: "One 3D head shows at a time. On older phones the head can be slow: turn 3D Me off and use voice or video." },
+      { note: "Your head is a file on your Drive C: (C:\\My Head), synced like your other files, and only you can make or replace it. Your camera picture never leaves your phone: it's read on your device into those numbers. Your friend's 98ish keeps your head only for that call. Deleting your account deletes it with your other files." },
+      { open: "Passwords", label: "Open Passwords and Users" },
+    ],
+    related: ["messenger-calls", "voice-chat", "privacy-device"],
+  },
+  {
     id: "voice-chat",
     book: "internet",
     title: "Voice chat (hear friends where they are)",

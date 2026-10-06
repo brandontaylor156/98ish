@@ -28,7 +28,7 @@ const swManifest = () => ({
     // brain, the AI worker and its 27 MB WebAssembly runtime, only for people who opt in; and
     // LAN Party 98's game bundles and disk images under /emu/, loaded when a game starts; and
     // Spark, the 2.6 MB splat renderer, only for people who add a photoreal backdrop: not precached)
-    const onDemand = (f) => f.startsWith('/venues/idx/') || f.startsWith('/emu/') || f.endsWith('.wasm') || /\/brain\.worker-[^/]+\.js$/.test(f) || /\/spark\.module-[^/]+\.js$/.test(f)
+    const onDemand = (f) => f.startsWith('/venues/idx/') || f.startsWith('/emu/') || f.startsWith('/vendor/lam/') || f.endsWith('.wasm') || /\/brain\.worker-[^/]+\.js$/.test(f) || /\/spark\.module-[^/]+\.js$/.test(f)
     const all = [...new Set([...files, ...walk('public')])].filter((f) => !skip.has(f) && !f.endsWith('.map') && !onDemand(f))
     this.emitFile({
       type: 'asset',

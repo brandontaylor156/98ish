@@ -41,6 +41,7 @@ const quietly = (fn) => {
 export const FILE_TYPE = {
   text: "text",
   splat: "splat", // a Gaussian-splat capture (Pickleball 98 venue backdrops): the file's bytes as a data URL in textContent
+  head3d: "head3d", // Be Yourself: your 3D head (a LAM avatar zip), the bytes as a data URL in textContent (C:\My Head)
   executable: "executable",
   note: "note",
   notepad: "notepad",
