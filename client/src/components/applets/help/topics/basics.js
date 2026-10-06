@@ -848,7 +848,7 @@ export const topics = [
       "Right-click (or press and hold) **My Computer** on the desktop and choose **Properties** to see System Properties.",
       {
         list: [
-          "**General**: the version of Windows 98ish, who it's registered to, and the very impressive (pretend) computer it runs on.",
+          "**General**: the version of Windows 98ish, who it's registered to, and the real device it runs on: processor cores, about how much memory, the graphics chip, the screen, your browser and system, how much space 98ish uses, and the connection. Whatever your browser keeps private says \"not reported by this browser\". It's read on your device and never sent anywhere.",
           "**Achievements**: little secrets hidden all over 98ish. Found ones show what you did and when; the rest show a hint.",
         ],
       },
