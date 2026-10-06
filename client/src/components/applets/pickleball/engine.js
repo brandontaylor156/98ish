@@ -1721,6 +1721,8 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
       return
     }
     renderer.render(scene, camera)
+    // (Reels: a highlight film copies the picture now, before the browser clears it)
+    if (rendered) rendered(canvas, replay?.external ? replayClock() : null)
     perf.frames++
     perf.renderMs += performance.now() - renderStart
     perf.cpuMs += renderStart - cpuStart
@@ -1748,6 +1750,12 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
   // (KHR_parallel_shader_compile) instead of the next frame stalling on them. Meanwhile the
   // last picture stays up, except during a match (a frozen court would hide the ball: that
   // frame waits for its shaders, as before). The first warm-up is behind "Loading the court...".
+  // HOOK target (Reels, twin/reels/): called right after each match frame is drawn
+  let rendered = null
+  const replayClock = () => {
+    const fr = replay?.frames
+    return fr?.length ? fr[replay.i].t - fr[0].t + replay.t : null
+  }
   let warming = 0
   function warm() {
     if (disposed || !renderer.compileAsync) return
@@ -2092,6 +2100,11 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
       mark.scale.setScalar(1.6)
       mark.visible = true
       markTimer = 1e9
+    },
+    // HOOK (Reels, twin/reels/render.js): fn(canvas, replaySeconds) after every frame drawn
+    // (copy the picture inside the call: the WebGL canvas is cleared once it's shown); null stops
+    onRendered(fn) {
+      rendered = typeof fn === "function" ? fn : null
     },
     // jump to a time (seconds from the first frame)
     twinSeek(seconds) {
