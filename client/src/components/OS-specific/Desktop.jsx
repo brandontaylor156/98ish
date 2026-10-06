@@ -829,7 +829,7 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
       {window.app === "sysprops" && <SystemProperties tab={window.tab} onClose={() => closeWindow(window, index)} />}
       {window.app === "update" && <WindowsUpdate onClose={() => closeWindow(window, index)} />}
       {window.app === "media" && (
-        <MediaPlayer song={window.song} windowIndex={index} onTitle={rename(index)} onClose={() => closeWindow(window, index)} />
+        <MediaPlayer file={window.file} dispatch={dispatch} windowIndex={index} onTitle={rename(index)} onClose={() => closeWindow(window, index)} />
       )}
       {window.name == "Minesweeper" && (
         <Minesweeper

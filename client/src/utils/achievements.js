@@ -22,7 +22,7 @@ export const ACHIEVEMENTS = [
   { id: "updates", title: "Fully Patched", text: "Brought 98ish up to date with 98ish Update.", hint: "98ish Update knows when there's a newer version." },
   { id: "smarterchild", title: "Robot Friend", text: "Chatted with SmarterChild.", hint: "Somebody on 98 Messenger is always online." },
   { id: "guestbook", title: "Sign Here", text: "Signed the 98ish guestbook.", hint: "A homepage on the Web Ring would love to hear from you." },
-  { id: "full-song", title: "Encore", text: "Listened to a whole song in Media Player.", hint: "Play something in My Music all the way to the end." },
+  { id: "full-song", title: "Encore", text: "Listened to a whole song in Media Player.", hint: "Play a song or recording in Media Player all the way to the end." },
   { id: "paint-tools", title: "Renaissance Pixel", text: "Used every tool in Paint.", hint: "Paint has sixteen tools. Try them all." },
   { id: "solitaire", title: "Bouncing Cards", text: "Won a game of Solitaire.", hint: "Get all four suits home in Solitaire." },
   { id: "freecell", title: "Free at Last", text: "Won a game of FreeCell.", hint: "Almost every FreeCell deal can be won." },

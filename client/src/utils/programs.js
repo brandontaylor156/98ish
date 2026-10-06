@@ -196,5 +196,5 @@ export const wordpadWindow = (file = null) => launch("WordPad", { file })
 // Sound Recorder, optionally opening a Wave Sound
 export const recorderWindow = (file = null) => launch("Sound Recorder", { file })
 
-// Media Player, optionally playing a song (its id or file name, like "HIGHWAY.MID")
-export const mediaPlayerWindow = (song = null) => launch("Media Player", { song })
+// Media Player, optionally playing a file on the drive (its path, "C:/My Music/Song.mp3")
+export const mediaPlayerWindow = (file = null) => launch("Media Player", { file })
