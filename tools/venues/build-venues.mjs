@@ -253,7 +253,7 @@ const buildOne = (v) => {
     const p = P(add)
     const paint = {}
     for (const k of ["court", "kitchen", "surround", "alley", "lines", "clay", "art"]) if (add[k] !== undefined) paint[k] = add[k]
-    courts.push({ id: add.id || `add${courts.length}`, x: p[0], z: p[1], a: degOf(add), s: add.sport || "pickleball", pb: add.pb || 0, pbLayout: add.pbLayout, lit: add.lit ? 1 : 0, paint: Object.keys(paint).length ? paint : null })
+    courts.push({ id: add.id || `add${courts.length}`, x: p[0], z: p[1], a: degOf(add), s: add.sport || "pickleball", pb: add.pb || 0, pbLayout: add.pbLayout, lit: add.lit ? 1 : 0, paint: Object.keys(paint).length ? paint : null, num: add.num || null })
   }
   for (const g of oc.grid || []) {
     const p0 = P(g)
@@ -464,7 +464,10 @@ const buildOne = (v) => {
     if (h.extra) hall.extra = h.extra
     for (const b of buildings) if (b.hallK === k) b.h = hall.h
     if (h.doorW) hall.doorW = h.doorW
-    for (const key of ["padH", "beams", "ducts", "slats", "living", "murals", "lightsStyle", "outside"]) if (h[key] !== undefined) hall[key] = h[key]
+    // more doors: to the street, to the next hall (a door on a shared wall opens both)
+    if (h.doors) hall.doors = h.doors.map(doorOf)
+    if (h.doorKind) hall.doorKind = h.doorKind
+    for (const key of ["padH", "beams", "ducts", "slats", "living", "murals", "lightsStyle", "outside", "wallTex", "padTex", "ceilingStyle", "lightsColor", "trusses", "name"]) if (h[key] !== undefined) hall[key] = h[key]
     // a row of steel columns: from / to in any of the point forms
     if (h.columns) hall.columns = { from: pr([sh(P(h.columns.from))])[0], to: pr([sh(P(h.columns.to))])[0], n: h.columns.n || 4 }
     return hall
@@ -492,6 +495,7 @@ const buildOne = (v) => {
       const o = { x: r1(c.x), z: r1(c.z), a: normDeg(c.a), s: c.s[0] }
       if (c.pb) o.pb = c.pb
       if (c.pbLayout) o.pl = c.pbLayout
+      if (c.num) o.n = c.num
       if (c.lit) o.lit = 1
       if (c.paint) {
         const key = JSON.stringify(c.paint)
@@ -529,12 +533,27 @@ const buildOne = (v) => {
   if (ov.rooms?.length)
     spec.rooms = ov.rooms.map((r, k) => {
       const out = { id: r.id || `room${k}`, type: r.type || "hall", p: pr(polyOfO(r).map(sh)) }
-      for (const key of ["name", "h", "floor", "wall", "ceiling", "wainscot", "furnish", "gender", "accent", "sofa", "chairs", "proshop", "shell", "outside", "roof", "benches"]) if (r[key] !== undefined) out[key] = r[key]
+      for (const key of ["name", "h", "floor", "wall", "ceiling", "wainscot", "furnish", "gender", "accent", "sofa", "chairs", "proshop", "shell", "outside", "roof", "benches", "partition", "top", "floorStyle", "ceilingStyle", "wallTex", "art", "trim", "level", "y"]) if (r[key] !== undefined) out[key] = r[key]
       if (r.doors) out.doors = r.doors.map(doorOf)
       if (r.props) out.props = r.props.flatMap(propsOf)
       return out
     })
   if (ov.props?.length) spec.props = ov.props.flatMap(propsOf)
+  // floors above the ground: decks (a rooftop terrace, a mezzanine: a polygon at a height) and
+  // the stairs up to them (from the bottom step's middle to the top's, rising y0 -> y1)
+  if (ov.decks?.length)
+    spec.decks = ov.decks.map((d) => {
+      const out = { y: d.y, p: pr(polyOfO(d).map(sh)) }
+      for (const key of ["name", "rail", "railColor", "slab", "color"]) if (d[key] !== undefined) out[key] = d[key]
+      if (d.openings) out.openings = d.openings.map((o) => [...sh(P(o)).map(r1), o.w || 1.6])
+      return out
+    })
+  if (ov.stairs?.length)
+    spec.stairs = ov.stairs.map((s) => {
+      const a = sh(P(s.from))
+      const b = sh(P(s.to))
+      return { a: [r1(a[0]), r1(a[1])], b: [r1(b[0]), r1(b[1])], w: s.w || 1.6, y0: s.y0 || 0, y1: s.y1, ...(s.color ? { color: s.color } : {}), ...(s.rail ? { rail: s.rail } : {}) }
+    })
   if (ov.spawn) {
     const p = sh(P(ov.spawn))
     spec.spawn = { x: r1(p[0]), z: r1(p[1]), deg: ov.spawn.deg ?? null }

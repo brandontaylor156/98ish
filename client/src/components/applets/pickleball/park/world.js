@@ -27,9 +27,10 @@ import { ACTIVE, ALL_SEATS, COURTS, INTERACTABLES, LEVEL_NAMES, RIVERSIDE_LAYOUT
 import { callNext, leaveQueue, nextLineup, ordered, positionOf } from "./queue.js"
 import { LINES, createRegular, goTo, speak, think, tickRegular } from "./regulars.js"
 import { createWalker, keepApart, stepWalker } from "./walker.js"
+import { liftPose } from "./lift.js"
 import { angleName, createFollow, spectatorShot, stepFollow, turnFollow, SPECTATE_ANGLES } from "./followcam.js"
 import { dayLook, hourOf } from "./sky.js"
-import { ACTS, createClock, createTrack, observeClock, packPos, pushSample, sampleTrack, serverTime, shouldSend, unpackPos } from "./interp.js"
+import { ACTS, createClock, createTrack, observeClock, packPos, pushSample, sampleTrack, serverTime, shouldSend, unpackPos, UP_BIT } from "./interp.js"
 import { repLevel, repLine } from "./rep.js"
 import { CHAT_LINES, EMOTE_MOOD } from "./lines.js"
 
@@ -68,12 +69,14 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
     return inside
   }
   // the ceiling over a spot (a room's or a hall's), for the cameras: null outdoors
-  const roofAt = (x, z) => {
-    for (const r of rooms) if (inPoly(x, z, r.p)) return (r.h || 3.2) - 0.35
-    for (const h of halls) if (inPoly(x, z, h.p)) return (h.h || 9) - 0.6
+  // (y: the floor you're on: a room upstairs counts only up there, the ground floor's only below)
+  const onFloor = (r, y) => Math.abs((r.y || 0) - (y || 0)) < 1.2
+  const roofAt = (x, z, y = 0) => {
+    for (const r of rooms) if (onFloor(r, y) && inPoly(x, z, r.p)) return (r.y || 0) + (r.h || 3.2) - 0.35
+    for (const h of halls) if (y < 1.2 && inPoly(x, z, h.p)) return (h.h || 9) - 0.6
     return null
   }
-  const roomAt = (x, z) => rooms.find((r) => inPoly(x, z, r.p)) || null
+  const roomAt = (x, z, y = 0) => rooms.find((r) => onFloor(r, y) && inPoly(x, z, r.p)) || null
   const roofY = halls.length ? Math.min(...halls.map((h) => h.h || 9)) - 0.6 : null
   const rand = seeded(seed)
   const scene = new THREE.Scene()
@@ -436,6 +439,8 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
   const actionFor = () => {
     if (me.mode === "watch") return { kind: "leave", label: "Leave" }
     if (me.mode === "sit") return { kind: "stand", label: "Stand up" }
+    // (up on a terrace: the courts' racks and benches are down below)
+    if ((me.walker.y || 0) > 1.2) return null
     const it = nearestAction(me.walker.x, me.walker.z)
     if (!it) return null
     if (it.kind === "rack") {
@@ -869,7 +874,7 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
         courtWorld(b)
       }
       b.dist = Math.hypot(b.x - cx, b.z - cz)
-      sphere.center.set(b.x, 0.9, b.z)
+      sphere.center.set(b.x, 0.9 + (b.y || 0), b.z)
       b.inView = b.dist < MANN_DIST && frustum.intersectsSphere(sphere)
       list.push(b)
     }
@@ -907,10 +912,10 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
       } else {
         b.phase += dt * (b.speed > 0.1 ? 2.2 + b.speed * 1.1 : 0)
         const swing = b.p?.swing && !b.p.swing.whiff && b.p.swing.t < 0.4 ? 1 - b.p.swing.t / 0.4 : 0
-        mann.add({ x: b.x, z: b.z, yaw: b.yaw, speed: b.speed, phase: b.phase, seat: b.seat ? b.seat.y : null, swing, look: b.look })
+        mann.add({ x: b.x, y: b.y || 0, z: b.z, yaw: b.yaw, speed: b.speed, phase: b.phase, seat: b.seat ? b.seat.y : null, swing, look: b.look })
       }
       if (nb < 96 && b.dist < 40) {
-        bm4.makeTranslation(b.x, 0.012, b.z)
+        bm4.makeTranslation(b.x, 0.012 + (b.y || 0), b.z)
         blobs.setMatrixAt(nb++, bm4)
       }
     }
@@ -955,7 +960,8 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
     if (b.mood && clock - b.mood.at < 0.2 && !b.anim.mood) setMood(b.anim, b.mood.kind, b.mood.variant)
     b.anim.useMM = !!b.fig.skinned
     b.anim.mmEvery = quality === "high" ? 0.1 : 0.2
-    b.fig.apply(updateAnim(b.anim, walkSituation(b, step), step), step)
+    // (up a stair or on a terrace: the walk animated at ground level, then raised)
+    b.fig.apply(liftPose(updateAnim(b.anim, walkSituation(b, step), step), b.y || 0), step)
   }
 
   // ---------- labels ----------
@@ -973,7 +979,7 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
     }
     cand.sort((a, c) => a.dist - c.dist)
     for (const b of cand.slice(0, 12)) {
-      const top = b.seat ? b.seat.y + 1.25 : 2.12
+      const top = (b.seat ? b.seat.y + 1.25 : 2.12) + (b.y || 0)
       const speaking = b.say && clock < b.say.until ? b.say.text : ""
       const sub = b.isMe ? (me.rep ? repLine(me.rep) : "") : b.remote ? b.repText || "" : ""
       setLabel(i++, b.x, top, b.z, b.isMe ? me.name : b.name || "", b.dist < 14 || b.isMe ? sub : "", speaking, b.isMe ? "me" : b.remote ? "person" : "regular")
@@ -1007,10 +1013,10 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
     }
     const bodiesNear = []
     for (const b of bodies.values()) if (!b.isMe && !b.hidden && b.mode === "walk" && Math.abs(b.x - me.walker.x) < 8 && Math.abs(b.z - me.walker.z) < 8) bodiesNear.push({ x: b.x, z: b.z, h: b.seat ? b.seat.y + 1.0 : 1.95, r: 0.36 })
-    const w = me.mode === "sit" && me.seat ? { x: me.seat.x, z: me.seat.z, yaw: me.seat.yaw, speed: 0 } : me.walker
-    // (a room: the ceiling over you, and a closer camera)
-    const inRoom = roomAt(w.x, w.z)
-    stepFollow(follow, w, dt, { portrait: por, bodies: bodiesNear, roofY: inRoom ? roofAt(w.x, w.z) : roofY, tight: !!inRoom })
+    const w = me.mode === "sit" && me.seat ? { x: me.seat.x, z: me.seat.z, yaw: me.seat.yaw, speed: 0, y: 0 } : me.walker
+    // (a room: the ceiling over you, and a closer camera; up on a terrace: no roof over you)
+    const inRoom = roomAt(w.x, w.z, w.y || 0)
+    stepFollow(follow, w, dt, { portrait: por, bodies: bodiesNear, roofY: inRoom ? roofAt(w.x, w.z, w.y || 0) : (w.y || 0) > 1.2 ? null : roofY, tight: !!inRoom })
     // (in a room, the lens stays in that room: not out through its doorway)
     if (inRoom && !inPoly(follow.pos.x, follow.pos.z, inRoom.p)) {
       let lo = 0
@@ -1021,7 +1027,7 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
         else hi = t
       }
       const t = lo * 0.92
-      follow.pos = { x: w.x + (follow.pos.x - w.x) * t, y: Math.max(1.7, follow.pos.y), z: w.z + (follow.pos.z - w.z) * t }
+      follow.pos = { x: w.x + (follow.pos.x - w.x) * t, y: Math.max((w.y || 0) + 1.7, follow.pos.y), z: w.z + (follow.pos.z - w.z) * t }
     }
     camera.position.set(follow.pos.x, follow.pos.y, follow.pos.z)
     lookAt.set(follow.look.x, follow.look.y, follow.look.z)
@@ -1075,15 +1081,20 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
       const b = r.body
       if (!s) continue
       if (b.mode === "court") continue
-      b.hidden = s.act === ACTS.play
+      // (act's top bit: they're up off the ground, on stairs or a terrace: the height from the
+      // venue's floors where they are)
+      const up = (s.act & UP_BIT) !== 0
+      const act = s.act & ~UP_BIT
+      b.hidden = act === ACTS.play
       b.x = s.x
       b.z = s.z
+      b.y = up ? venue.levelAt(s.x, s.z) : 0
       b.vx = s.vx
       b.vz = s.vz
       b.speed = s.speed
       b.yaw = s.yaw
-      if (s.act === ACTS.sitLow || s.act === ACTS.sitHigh) {
-        if (!b.seat || Math.hypot(b.seat.x - s.x, b.seat.z - s.z) > 0.3) b.seat = { x: s.x, z: s.z, y: s.act === ACTS.sitHigh ? 0.85 : 0.45, yaw: s.yaw, court: courtOfSeat(s.x, s.z) }
+      if (act === ACTS.sitLow || act === ACTS.sitHigh) {
+        if (!b.seat || Math.hypot(b.seat.x - s.x, b.seat.z - s.z) > 0.3) b.seat = { x: s.x, z: s.z, y: act === ACTS.sitHigh ? 0.85 : 0.45, yaw: s.yaw, court: courtOfSeat(s.x, s.z) }
       } else b.seat = null
     }
   }
@@ -1092,7 +1103,7 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
     for (const s of ALL_SEATS) if (Math.hypot(s.x - x, s.z - z) < 0.3) best = s.court ?? null
     return best
   }
-  const myAct = () => (me.mode === "walk" ? (me.walker.speed > 0.05 ? ACTS.move : ACTS.stand) : me.seat ? (me.seat.y > 0.6 ? ACTS.sitHigh : ACTS.sitLow) : ACTS.stand)
+  const myAct = () => (me.mode === "walk" ? (me.walker.speed > 0.05 ? ACTS.move : ACTS.stand) | ((me.walker.y || 0) > 0.3 ? UP_BIT : 0) : me.seat ? (me.seat.y > 0.6 ? ACTS.sitHigh : ACTS.sitLow) : ACTS.stand)
   const sendPos = () => {
     if (!net) return
     const now = performance.now()
@@ -1153,10 +1164,12 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
       // owner's rule): standing still, the others steer around you instead
       if (Math.hypot(ix, iy) > 0.02) {
         const near = []
-        for (const b of bodies.values()) if (!b.isMe && !b.hidden && b.mode === "walk" && !b.seat && Math.abs(b.x - me.walker.x) < 1 && Math.abs(b.z - me.walker.z) < 1) near.push(b)
+        // (only people on your floor: not the ones under the terrace you're on)
+        for (const b of bodies.values()) if (!b.isMe && !b.hidden && b.mode === "walk" && !b.seat && Math.abs(b.x - me.walker.x) < 1 && Math.abs(b.z - me.walker.z) < 1 && Math.abs((b.y || 0) - (me.walker.y || 0)) < 1) near.push(b)
         keepApart(me.walker, near)
       }
       meBody.x = me.walker.x
+      meBody.y = me.walker.y || 0
       meBody.z = me.walker.z
       meBody.vx = me.walker.vx
       meBody.vz = me.walker.vz
@@ -1165,6 +1178,7 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
       meBody.seat = null
     } else if (me.seat) {
       meBody.x = me.seat.x
+      meBody.y = 0
       meBody.z = me.seat.z
       meBody.yaw = me.seat.yaw
       meBody.speed = 0
@@ -1381,7 +1395,7 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
           const p = unpackPos(row.slice(1))
           if (!r || !p) continue
           pushSample(r.track, d.t, p)
-          if (r.body.hidden && p.act !== ACTS.play) r.body.hidden = false
+          if (r.body.hidden && (p.act & ~UP_BIT) !== ACTS.play) r.body.hidden = false
         }
       } else if (type === "park:person" && d) addRemote(d)
       else if (type === "park:gone" && d) {
@@ -1411,12 +1425,12 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
       let manns = mann.count
       for (const b of bodies.values()) if (b.fig?.group.parent) full++
       return {
-        me: { x: me.walker.x, z: me.walker.z, yaw: me.walker.yaw, speed: me.walker.speed, gait: me.walker.gait, mode: me.mode, seat: me.seat?.id || null, watching: me.watching, queued: me.queued },
+        me: { x: me.walker.x, y: me.walker.y || 0, z: me.walker.z, yaw: me.walker.yaw, speed: me.walker.speed, gait: me.walker.gait, mode: me.mode, seat: me.seat?.id || null, watching: me.watching, queued: me.queued },
         camera: { x: camera.position.x, y: camera.position.y, z: camera.position.z, fov: camera.fov, yaw: follow.yaw },
         action,
         courts: courts.map((c) => ({ id: c.def.id, state: c.state, phase: c.match.phase, score: scoreboard(c.match).score, on: c.on.map((e) => e.id), queue: c.queue.map((e) => e.id), human: c.human })),
         regulars: regulars.map((r) => ({ id: r.id, state: r.state, x: r.x, z: r.z, seated: r.seated, court: r.court })),
-        remotes: [...remotes.values()].map((r) => ({ num: r.num, name: r.name, x: r.body.x, z: r.body.z, hidden: r.body.hidden })),
+        remotes: [...remotes.values()].map((r) => ({ num: r.num, name: r.name, x: r.body.x, y: r.body.y || 0, z: r.body.z, hidden: r.body.hidden })),
         full,
         mannequins: manns,
         budget,
@@ -1436,10 +1450,12 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
       for (const b of bodies.values()) if (!b.hidden && !(b.isMe && me.mode !== "watch")) list.push({ x: b.x, z: b.z, h: b.seat ? b.seat.y + 1.0 : 1.95, id: b.key })
       return blocker(cam, at, list, { near: 1.0, ahead: 2.2 })?.id || null
     },
-    teleport(x, z, yaw = me.walker.yaw) {
-      const p = resolve(x, z, 0.35)
+    // (y: a floor above the ground, a rooftop terrace: tests; else the floor you're on)
+    teleport(x, z, yaw = me.walker.yaw, y = me.walker.y || 0) {
+      const p = resolve(x, z, 0.35, y)
       me.walker.x = p.x
       me.walker.z = p.z
+      me.walker.y = venue.heightAt(p.x, p.z, y) ?? 0
       me.walker.yaw = yaw
       follow.yaw = yaw
       follow.pos = null

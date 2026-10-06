@@ -118,16 +118,95 @@ const T = {
   massagebed: () => ({ solid: [box(0.75, 0.12, 1.95, 0, 0.6, 0, "#f4efe6"), box(0.7, 0.05, 1.85, 0, 0.55, 0, "#8a6a4a"), ...legs4(0.65, 1.8, 0.55, "#8a6a4a", 0.06)] }),
   pingpong: (c) => ({ solid: [box(1.53, 0.04, 2.74, 0, 0.72, 0, c || "#1f2f6a"), box(1.53, 0.005, 0.03, 0, 0.765, 0, "#f4f4f2"), box(0.02, 0.005, 2.74, 0, 0.765, 0, "#f4f4f2"), box(1.7, 0.15, 0.02, 0, 0.765, 0, "#1d1f22"), ...legs4(1.4, 2.5, 0.72, "#2b2f36", 0.05)] }),
   startblock: () => ({ solid: [box(0.5, 0.12, 0.55, 0, 0.62, 0, "#f4f4f2"), box(0.1, 0.62, 0.4, 0, 0, -0.05, "#d5dadf")] }),
+  // irregular stone pavers on a strip (a spectator walkway): stones in greys and tans, grout between
+  flagstone: (c) => {
+    const parts = [box(4, 0.008, 3, 0, 0, 0, "#4a4b46")]
+    const r = seeded(7)
+    const tones = c ? [c] : ["#8a8a80", "#7d7c72", "#9a948a", "#6f716b", "#a39b8c", "#858378"]
+    for (let x = -1.85; x < 1.9; x += 0.62)
+      for (let z = -1.35; z < 1.4; z += 0.5) {
+        const w = 0.42 + r() * 0.16
+        const d = 0.32 + r() * 0.14
+        parts.push(paint(new THREE.BoxGeometry(w, 0.02, d), tones[Math.floor(r() * tones.length)], x + (r() - 0.5) * 0.12, 0.01, z + (r() - 0.5) * 0.1, (r() - 0.5) * 0.5))
+      }
+    return { solid: parts }
+  },
+  // a decorative tree with white blossoms in a planter (an indoor prop)
+  blossomtree: (c) => ({
+    solid: [
+      box(0.9, 0.5, 0.9, 0, 0, 0, "#2b2b2b"),
+      cyl(0.06, 0.09, 1.9, 0, 0.5, 0, "#4a3a2c", 6),
+      ...[[0, 2.5, 0, 0.75], [0.45, 2.2, 0.2, 0.5], [-0.4, 2.3, -0.25, 0.55], [0.1, 2.85, -0.3, 0.45], [-0.2, 2.15, 0.4, 0.45]].map(([x, y, z, s]) => paint(new THREE.IcosahedronGeometry(s, 0), c || "#f4f1ec", x, y, z)),
+    ],
+  }),
+  cooler: (c) => ({ solid: [box(0.62, 0.38, 0.42, 0, 0, 0, c || "#2f6fb8"), box(0.64, 0.07, 0.44, 0, 0.38, 0, "#f4f4f2"), box(0.3, 0.03, 0.05, 0, 0.47, 0, "#2b2f36")] }),
+  // a drinks fridge: dark case, glass door lit green, shelves of cans
+  fridge: (c) => ({
+    solid: [box(0.8, 2.0, 0.7, 0, 0, 0, c || "#1d1f22"), box(0.66, 1.6, 0.02, 0, 0.25, 0.35, "#7dffa8"), ...[0.45, 0.85, 1.25, 1.6].flatMap((y) => [box(0.62, 0.02, 0.5, 0, y, 0.05, "#e9f7ee"), ...[-0.22, -0.07, 0.08, 0.23].map((x, k) => cyl(0.035, 0.035, 0.14, x, y + 0.02, 0.2, ["#e2442f", "#2f6fb8", "#f2c21a", "#f4f4f2"][k], 6))]), box(0.7, 0.18, 0.02, 0, 1.8, 0.36, "#2fb86b")],
+    glass: [box(0.66, 1.6, 0.02, 0, 0.25, 0.37, "#c8ffe0")],
+  }),
+  foldchair: (c) => ({ solid: [box(0.42, 0.03, 0.4, 0, 0.45, 0.02, c || "#d9d9d6"), box(0.42, 0.3, 0.03, 0, 0.55, -0.2, c || "#d9d9d6"), ...[-1, 1].map((i) => paint(new THREE.BoxGeometry(0.025, 0.95, 0.025), "#9aa0a6", i * 0.2, 0.45, 0, 0, 0.35)), ...[-1, 1].map((i) => paint(new THREE.BoxGeometry(0.025, 0.6, 0.025), "#9aa0a6", i * 0.2, 0.28, 0.05, 0, -0.45))] }),
+  // a championship banner hanging on the wall (our own: a trophy shape, stars, stripes; no text)
+  banner: (c) => ({ solid: [box(1.1, 2.0, 0.02, 0, 0.2, 0, c || "#a83a2c"), box(1.2, 0.05, 0.04, 0, 2.2, 0, "#2b2f36"), box(0.5, 0.35, 0.025, 0, 1.4, 0, "#f2c21a"), box(0.12, 0.25, 0.025, 0, 1.12, 0, "#f2c21a"), box(0.3, 0.07, 0.025, 0, 1.03, 0, "#f2c21a"), ...[-0.3, 0, 0.3].map((x) => box(0.1, 0.1, 0.025, x, 0.6, 0, "#f4f4f2")), box(1.1, 0.06, 0.025, 0, 0.4, 0, "#f4f4f2"), paint(new THREE.ConeGeometry(0.55, 0.2, 3).rotateZ(Math.PI), c || "#a83a2c", 0, 0.12, 0)] }),
+  // a court-number card: white, black seven-segment digits (n), our own sign
+  numcard: (c, n) => ({ solid: [box(0.6, 0.6, 0.02, 0, 0, 0, c || "#f4f4f2"), ...digitParts(String(n ?? "")).map(([w, h, x, y]) => box(w, h, 0.02, x, y, 0.012, "#151515"))] }),
+  exitsign: () => ({ solid: [box(0.42, 0.2, 0.08, 0, 0, 0, "#f4f4f2"), box(0.34, 0.12, 0.01, 0, 0.04, 0.045, "#2fd36b")] }),
+  extinguisher: () => ({ solid: [box(0.3, 0.3, 0.02, 0, 0.55, -0.08, "#d23a2a"), cyl(0.08, 0.08, 0.45, 0, 0.05, 0, "#d23a2a", 10), cyl(0.03, 0.04, 0.1, 0, 0.5, 0, "#2b2f36", 6)] }),
+  // framed art: a dark frame round blocks of color (abstract, our own)
+  wallart: (c) => {
+    const r = seeded((c || "art").length * 131 + 17)
+    const pal = c ? [c, "#f4f1e6", "#2b2f36"] : [["#e8602a", "#2a96cc", "#f2c21a", "#f4f1e6"], ["#6f9a45", "#2b4f7a", "#d9c7a3", "#f4f1e6"], ["#b8323a", "#1f2858", "#e9e2cf", "#7fc0d0"]][Math.floor(r() * 3)]
+    const parts = [box(1.2, 0.9, 0.04, 0, 0, 0, "#2b2722"), box(1.08, 0.78, 0.01, 0, 0.06, 0.022, pal[3] || "#f4f1e6")]
+    for (let k = 0; k < 4; k++) parts.push(box(0.2 + r() * 0.45, 0.15 + r() * 0.35, 0.01, (r() - 0.5) * 0.6, 0.15 + r() * 0.45, 0.03, pal[k % 3]))
+    return { solid: parts }
+  },
+  signpanel: (c) => ({ solid: [box(1.8, 0.5, 0.05, 0, 0, 0, c || "#1f2858"), box(1.6, 0.06, 0.01, 0, 0.12, 0.03, "#f4f4f2"), box(1.0, 0.06, 0.01, -0.3, 0.3, 0.03, "#f4f4f2"), paint(new THREE.CircleGeometry(0.14, 12), "#f2c21a", 0.6, 0.3, 0.031)] }),
+  // a pendant light: cord and a shade (hangs from its y)
+  pendant: (c) => ({ solid: [cyl(0.008, 0.008, 0.5, 0, 0.2, 0, "#1d1f22", 4), paint(new THREE.ConeGeometry(0.22, 0.2, 12, 1, true), c || "#1d1f22", 0, 0.1, 0), disc(0.18, 0, 0.0, 0, "#fff6d8", 12)] }),
+  // black netting curtain hanging from a rail (dividers at the ends of indoor courts)
+  curtain: () => ({ solid: [box(3, 0.06, 0.06, 0, 3.95, 0, "#1d1f22")], glass: [box(3, 3.9, 0.02, 0, 0.02, 0, "#0e0f10")] }),
+  // a waist-high black rail with cables between posts
+  railing: (c) => ({ solid: [box(2, 0.05, 0.05, 0, 0.98, 0, c || "#151515"), ...[-0.98, 0, 0.98].map((x) => box(0.05, 1.0, 0.05, x, 0, 0, c || "#151515")), ...[0.3, 0.55, 0.8].map((y) => box(2, 0.012, 0.012, 0, y, 0, "#5a5f66"))] }),
+  bagpile: () => ({ solid: [box(0.45, 0.3, 0.3, -0.2, 0, 0, "#2b2f36"), box(0.35, 0.25, 0.25, 0.22, 0, 0.05, "#7a3fb8"), cyl(0.04, 0.04, 0.22, 0.05, 0.3, -0.05, "#2f6fb8", 6)] }),
+  // a check-in counter (lighter top, a screen, the club color along the front)
+  checkin: (c) => ({ solid: [box(2.4, 1.05, 0.7, 0, 0, 0, c || "#2b2f36"), box(2.5, 0.05, 0.85, 0, 1.05, 0.05, "#e8e2d4"), box(2.3, 0.18, 0.02, 0, 0.75, 0.36, "#f2c21a"), box(0.45, 0.32, 0.04, -0.5, 1.1, -0.15, "#1d1f22"), box(0.25, 0.2, 0.15, 0.6, 1.1, -0.05, "#3a3e44")] }),
+  cafetable: (c) => ({ solid: [cyl(0.35, 0.35, 0.03, 0, 0.73, 0, c || "#e8e2d4", 12), cyl(0.03, 0.03, 0.73, 0, 0, 0, "#2b2f36", 6), cyl(0.22, 0.22, 0.02, 0, 0, 0, "#2b2f36", 10)] }),
+  umbrellastand: () => ({ solid: [cyl(0.15, 0.18, 0.55, 0, 0, 0, "#2b2f36", 8)] }),
+  towels: (c) => ({ solid: [box(1.0, 1.6, 0.42, 0, 0, 0, "#e8e2d4"), ...[0.35, 0.75, 1.15].flatMap((y) => [box(0.92, 0.03, 0.38, 0, y, 0, "#cfc8b8"), ...[-0.3, 0, 0.3].map((x) => box(0.26, 0.2, 0.3, x, y + 0.03, 0, c || "#f4f4f2"))])] }),
+  scale: () => ({ solid: [box(0.4, 0.06, 0.4, 0, 0, 0, "#3a3e44"), box(0.05, 1.1, 0.05, 0, 0.06, -0.15, "#9aa0a6"), box(0.3, 0.2, 0.06, 0, 1.0, -0.15, "#e8e8e6")] }),
+}
+
+// seven-segment digits (a court card's number): parts [w, h, x, y] for a string of digits
+const SEG = { 0: "abcdef", 1: "bc", 2: "abdeg", 3: "abcdg", 4: "bcfg", 5: "acdfg", 6: "acdefg", 7: "abc", 8: "abcdefg", 9: "abcdfg" }
+const digitParts = (s) => {
+  const n = s.length
+  if (!n) return []
+  const dw = Math.min(0.2, 0.44 / n)
+  const dh = 0.34
+  const t = 0.035
+  const out = []
+  for (let k = 0; k < n; k++) {
+    const segs = SEG[s[k]] || ""
+    const cx = (k - (n - 1) / 2) * (dw + 0.06)
+    const y0 = 0.13
+    const L = { a: [dw, t, cx, y0 + dh - t], g: [dw, t, cx, y0 + dh / 2 - t / 2], d: [dw, t, cx, y0], b: [t, dh / 2, cx + dw / 2 - t / 2, y0 + dh / 2], c: [t, dh / 2, cx + dw / 2 - t / 2, y0], f: [t, dh / 2, cx - dw / 2 + t / 2, y0 + dh / 2], e: [t, dh / 2, cx - dw / 2 + t / 2, y0] }
+    for (const sg of segs) out.push(L[sg])
+  }
+  return out
+}
+function seeded(seed) {
+  let s = seed >>> 0 || 1
+  return () => ((s = (s * 16807) % 2147483647) / 2147483647)
 }
 
 const cache = new Map()
 // the template geometries of a type in a color: { solid, glass } (BufferGeometry or null)
-const template = (t, c, keep) => {
-  const key = `${t}|${c || ""}`
+const template = (t, c, keep, n = null) => {
+  const key = `${t}|${c || ""}|${n ?? ""}`
   if (!cache.has(key)) {
     const make = T[t]
     if (!make) return null
-    const p = make(c || null)
+    const p = make(c || null, n)
     const merge = (list) => (list && list.length ? mergeGeometries(list, false) : null)
     const tpl = { solid: merge(p.solid), glass: merge(p.glass) }
     for (const g of [...(p.solid || []), ...(p.glass || [])]) g.dispose()
@@ -147,12 +226,12 @@ export const propMaterials = (keep) => ({
 export const addProps = (group, props, mats, keep) => {
   let n = 0
   for (const pr of props) {
-    const tpl = template(pr.t, pr.c, keep)
+    const tpl = template(pr.t, pr.c, keep, pr.n ?? null)
     if (!tpl) continue
     const base = PROPS[pr.t] || {}
     const sx = (pr.s || 1) * (pr.w && base.w ? pr.w / base.w : 1)
     const sy = (pr.s || 1) * (pr.h && base.h ? pr.h / base.h : 1)
-    const sz = pr.s || 1
+    const sz = (pr.s || 1) * (pr.d && base.d ? pr.d / base.d : 1)
     for (const [geo, mat] of [
       [tpl.solid, mats.solid],
       [tpl.glass, mats.glass],
