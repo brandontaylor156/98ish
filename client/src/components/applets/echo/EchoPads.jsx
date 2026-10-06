@@ -58,7 +58,10 @@ const Toy = ({ online = false, lit, pressed, enabled, symbols, center, status, s
     e.currentTarget.setPointerCapture?.(e.pointerId)
     onPress(i)
   }
-  const up = (i) => () => enabled && onRelease?.(i)
+  // a release always counts, even when the press turned the pads off (the last press of a
+  // round starts the next playback): else that pad stayed lit over the whole playback, hiding
+  // it, and its tone kept sounding
+  const up = (i) => () => onRelease?.(i)
   const litNow = typeof pressed === "number" ? pressed : lit
   return (
     <RetroStage screen={scr} data-touch-surface className="qgStage epStage">
@@ -79,6 +82,7 @@ const Toy = ({ online = false, lit, pressed, enabled, symbols, center, status, s
                 onPointerDown={down(i)}
                 onPointerUp={up(i)}
                 onPointerCancel={up(i)}
+                onLostPointerCapture={up(i)}
               />
             ))}
           </Hit>
@@ -252,6 +256,8 @@ const EchoPads = ({ mobile = false, paused = false, onClose }) => {
   const [dialog, setDialog] = useState(null)
   const [last, setLast] = useState(null)
   const [pressed, setPressed] = useState(null)
+  const pressedRef = useRef(null)
+  pressedRef.current = pressed
   const rootRef = useRef(null)
   const online = useOnlineRoom("echo")
   const g = gameRef.current
@@ -327,6 +333,8 @@ const EchoPads = ({ mobile = false, paused = false, onClose }) => {
     if (!game || game.over || !running) return
     const s = game.s
     if (s.phase === "show") {
+      // (a pad still held from the last round lets go as the playback starts)
+      if (game.t < 0 && game.t + dt * 1000 >= 0 && pressedRef.current !== null) release()
       game.t += dt * 1000
       const step = R.stepMs(s.seq.length, s.mode)
       const period = step * (1 + R.GAP_RATIO)

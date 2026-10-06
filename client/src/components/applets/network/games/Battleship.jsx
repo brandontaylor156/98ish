@@ -4,11 +4,14 @@ import GameChat, { useGameChatMenuItem } from "../../../shared/GameChat"
 import { GameButtons, GameOver, ResignDialog, ResultBanner, RulesDialog, usePlayOnlineItem, waitingText } from "./GameParts"
 import { useNetGame, useSoloBattleship } from "./useBoardGame"
 import { SHIPS, SIZE, cellsOf, fits, randomFleet, shipInfo } from "../rules/battleship.js"
+import { allPlaced, firstSpot, onGridCells, shipAt, shipOn, takenBy, turnShip } from "./bsPlacement.js"
+import MoreOptions from "../../../shared/MoreOptions"
 import "./BoardGames.css"
 import { helpItem } from "../../../../utils/help"
 
 // Battleship against another computer on the network, or against this one. First place
-// your five ships (drag them, or tap a ship then a square; Rotate turns it), then take turns
+// your five ships (drag them from the dock onto the grid, or tap one to drop it in; drag a
+// placed ship to move it, tap it to turn it; Random places them all), then take turns
 // firing at the other grid. Over the network the other fleet stays on their computer's side
 // of the server until the game is over.
 
@@ -39,7 +42,7 @@ const Grid = ({ cell, label, hulls, shots, sunkCells, ghost, onCell, onCellDown,
         onContextMenu={(e) => {
           if (!onContext) return
           e.preventDefault()
-          onContext()
+          onContext(e)
         }}
       >
         <span className="bsCorner" />
@@ -69,7 +72,7 @@ const Grid = ({ cell, label, hulls, shots, sunkCells, ghost, onCell, onCellDown,
                   data-cell={i}
                   data-name={cellName(i)}
                   aria-label={`${cellName(i)}${hull ? ` ${nameOf(hull.id)}` : ""}${shot ? (shot.hit ? " hit" : " miss") : ""}`}
-                  onClick={() => onCell?.(i)}
+                  onClick={(e) => onCell?.(i, e)}
                   onPointerDown={(e) => onCellDown?.(e, i)}
                 >
                   {shot && <span className="bsMark" />}
@@ -102,107 +105,104 @@ const FleetList = ({ sunk, title }) => (
 
 const Placement = ({ view, act, size }) => {
   const [fleet, setFleet] = useState({}) // id -> ship
-  const [selected, setSelected] = useState(SHIPS[0].id)
-  const [dir, setDir] = useState("h")
-  const [hover, setHover] = useState(null) // cell under the pointer
-  const [grab, setGrab] = useState(0) // which part of the ship is held
+  const [drag, setDrag] = useState(null) // the ship being dragged: { id, k, dir, hover, x, y }
+  const [flash, setFlash] = useState(null) // squares shown red for a moment (a turn with no room)
   const [error, setError] = useState(null)
   const [sending, setSending] = useState(false)
-  const [pendingDrop, setPendingDrop] = useState(null) // a ship dropped by dragging
-  const dragRef = useRef(null)
-  const suppressClick = useRef(false)
+  const [lastId, setLastId] = useState(null) // the ship the R key turns
+  const press = useRef(null) // a press on a ship: { id, k, dir, from, cell, x, y, moved }
+  const live = useRef({ fleet })
+  live.current.fleet = fleet
   const gridRef = useRef(null)
-  const placedAll = SHIPS.every((s) => fleet[s.id])
+  const rootRef = useRef(null)
+  const placedAll = allPlaced(fleet)
   const sent = view.placed.you
 
-  const others = (id) => new Set(Object.values(fleet).filter((s) => s.id !== id).flatMap(cellsOf))
-  const shipAtAnchor = (id, cell, d = dir, k = grab) => {
-    const row = Math.floor(cell / SIZE) - (d === "v" ? k : 0)
-    const col = (cell % SIZE) - (d === "h" ? k : 0)
-    return { id, row, col, dir: d }
-  }
-  const ghostShip = selected && hover !== null ? shipAtAnchor(selected, hover) : null
-  const ghostOk = ghostShip ? fits(ghostShip, others(selected)) : false
-  // the squares of the ship being placed that are on the grid (red if it doesn't fit)
-  const ghostCells = (ship) => {
-    const out = new Set()
-    for (let k = 0; k < shipInfo(ship.id).length; k++) {
-      const r = ship.row + (ship.dir === "v" ? k : 0)
-      const c = ship.col + (ship.dir === "h" ? k : 0)
-      if (r >= 0 && r < SIZE && c >= 0 && c < SIZE) out.add(r * SIZE + c)
-    }
-    return out
-  }
-  const ghost = ghostShip && { ok: ghostOk, cells: ghostCells(ghostShip) }
-
-  const nextUnplaced = (after) => SHIPS.find((s) => !after[s.id])?.id || null
-
-  const put = (ship) => {
-    if (!fits(ship, others(ship.id))) return setError(`The ${nameOf(ship.id)} doesn't fit there.`)
-    const next = { ...fleet, [ship.id]: ship }
-    setFleet(next)
-    setSelected(nextUnplaced(next))
-    setGrab(0)
-    setError(null)
-  }
-
-  const pickUp = (id) => {
-    const ship = fleet[id]
-    const next = { ...fleet }
-    delete next[id]
-    setFleet(next)
-    setSelected(id)
-    if (ship) setDir(ship.dir)
-  }
-
-  const clickCell = (cell) => {
-    if (suppressClick.current) return (suppressClick.current = false)
-    if (sent) return
-    const here = Object.values(fleet).find((s) => cellsOf(s).includes(cell))
-    if (selected) return put(shipAtAnchor(selected, cell, dir, grab))
-    if (here) {
-      setGrab(cellsOf(here).indexOf(cell))
-      pickUp(here.id)
-      setHover(cell)
-    }
-  }
-
-  const rotate = () => {
-    setDir((d) => (d === "h" ? "v" : "h"))
-    setError(null)
-  }
-
-  // Dragging from the tray or a placed ship
-  const startDrag = (e, id, k, origin) => {
-    if (sent || (e.button !== undefined && e.button !== 0)) return
-    dragRef.current = { id, k, origin, x: e.clientX, y: e.clientY, moved: false }
-  }
   useEffect(() => {
-    const cellUnder = (x, y) => {
-      const el = document.elementFromPoint(x, y)?.closest?.("[data-cell]")
-      return el && gridRef.current?.contains(el) ? Number(el.dataset.cell) : null
+    if (!flash) return
+    const t = setTimeout(() => setFlash(null), 600)
+    return () => clearTimeout(t)
+  }, [flash])
+
+  const place = (ship) => {
+    setFleet((f) => ({ ...f, [ship.id]: ship }))
+    setLastId(ship.id)
+    setError(null)
+  }
+
+  // tap a placed ship: it turns around the square you tapped
+  const turn = (id, cell) => {
+    const f = live.current.fleet
+    const next = turnShip(f, id, cell ?? cellsOf(f[id])[0])
+    setLastId(id)
+    if (next) return place(next)
+    setError(`No room to turn the ${nameOf(id)} there.`)
+    const n = shipInfo(id).length
+    setFlash(onGridCells(shipAt(id, cell ?? cellsOf(f[id])[0], f[id].dir === "h" ? "v" : "h", Math.floor(n / 2))))
+  }
+
+  // tap a ship in the dock: it goes on the grid at the first open spot, to drag from there
+  const drop = (id) => {
+    const spot = firstSpot(live.current.fleet, id)
+    if (spot) place(spot)
+    else setError(`There's no room left for the ${nameOf(id)}. Move a ship or press Random.`)
+  }
+
+  const cellUnder = (x, y) => {
+    const el = document.elementFromPoint(x, y)?.closest?.("[data-cell]")
+    return el && gridRef.current?.contains(el) ? Number(el.dataset.cell) : null
+  }
+  const local = (x, y) => {
+    const r = rootRef.current?.getBoundingClientRect()
+    return r ? { x: x - r.left + rootRef.current.scrollLeft, y: y - r.top + rootRef.current.scrollTop } : { x: 0, y: 0 }
+  }
+
+  // Press on a ship (on the grid or in the dock). Moving more than a few pixels drags it;
+  // letting go without moving is a tap.
+  const onShipDown = (e, id, k, from, cell = null) => {
+    if (sent || (e.pointerType === "mouse" && e.button !== 0)) return
+    e.preventDefault()
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId)
+    } catch {
+      // the pointer is already gone
     }
+    const ship = live.current.fleet[id]
+    press.current = { id, k, dir: from === "grid" ? ship.dir : "h", from: from === "grid" ? ship : null, cell, x: e.clientX, y: e.clientY, pointerId: e.pointerId, moved: false }
+  }
+
+  useEffect(() => {
     const move = (e) => {
-      const d = dragRef.current
-      if (!d) return
-      if (!d.moved && Math.hypot(e.clientX - d.x, e.clientY - d.y) < 6) return
-      if (!d.moved) {
-        d.moved = true
-        if (d.origin === "grid") pickUp(d.id)
-        else setSelected(d.id)
-        setGrab(d.k)
+      const p = press.current
+      if (!p || e.pointerId !== p.pointerId) return
+      if (!p.moved && Math.hypot(e.clientX - p.x, e.clientY - p.y) < 6) return
+      if (!p.moved) {
+        p.moved = true
+        // the ship leaves its square while it's carried (so it can land overlapping itself)
+        if (p.from) setFleet((f) => {
+          const next = { ...f }
+          delete next[p.id]
+          return next
+        })
+        setError(null)
       }
-      setHover(cellUnder(e.clientX, e.clientY))
+      setDrag({ id: p.id, k: p.k, dir: p.dir, hover: cellUnder(e.clientX, e.clientY), ...local(e.clientX, e.clientY) })
     }
     const up = (e) => {
-      const d = dragRef.current
-      dragRef.current = null
-      if (!d?.moved) return
-      suppressClick.current = true
-      setTimeout(() => (suppressClick.current = false), 60)
-      const cell = cellUnder(e.clientX, e.clientY)
-      if (cell !== null) setHover(cell)
-      if (cell !== null) setPendingDrop({ id: d.id, cell, k: d.k })
+      const p = press.current
+      if (!p || e.pointerId !== p.pointerId) return
+      press.current = null
+      if (!p.moved) {
+        if (e.type === "pointercancel") return
+        return p.from ? turn(p.id, p.cell) : drop(p.id)
+      }
+      setDrag(null)
+      const cell = e.type === "pointercancel" ? null : cellUnder(e.clientX, e.clientY)
+      const ship = cell !== null ? shipAt(p.id, cell, p.dir, p.k) : null
+      if (ship && fits(ship, takenBy(live.current.fleet, p.id))) return place(ship)
+      // no good: back where it came from (or to the dock)
+      if (p.from) place(p.from)
+      if (cell !== null) setError(`The ${nameOf(p.id)} doesn't fit there.`)
     }
     window.addEventListener("pointermove", move)
     window.addEventListener("pointerup", up)
@@ -212,13 +212,7 @@ const Placement = ({ view, act, size }) => {
       window.removeEventListener("pointerup", up)
       window.removeEventListener("pointercancel", up)
     }
-  })
-  // a drop is placed on the next render, once the picked-up ship is out of the fleet
-  useEffect(() => {
-    if (!pendingDrop) return
-    setPendingDrop(null)
-    put(shipAtAnchor(pendingDrop.id, pendingDrop.cell, dir, pendingDrop.k))
-  }, [pendingDrop])
+  }, [sent])
 
   const ready = async () => {
     setSending(true)
@@ -230,27 +224,34 @@ const Placement = ({ view, act, size }) => {
   const random = () => {
     const f = randomFleet()
     setFleet(Object.fromEntries(f.map((s) => [s.id, s])))
-    setSelected(null)
     setError(null)
   }
 
+  const dragShip = drag && drag.hover !== null ? shipAt(drag.id, drag.hover, drag.dir, drag.k) : null
+  const ghost = dragShip
+    ? { ok: fits(dragShip, takenBy(fleet, drag.id)), cells: onGridCells(dragShip) }
+    : flash
+      ? { ok: false, cells: flash }
+      : null
   const hulls = hullMap(Object.values(fleet))
+  const docked = SHIPS.filter((s) => !fleet[s.id] && drag?.id !== s.id)
   const status = sent
     ? view.placed.them
       ? "Both fleets are ready!"
       : `Your fleet is ready. Waiting for ${view.names.them} to place their ships...`
-    : selected
-      ? `Place your ${nameOf(selected)} (${shipInfo(selected).length} squares, ${dir === "h" ? "across" : "down"}). Rotate turns it.`
+    : drag
+      ? `Drop the ${nameOf(drag.id)} on your grid.`
       : placedAll
-        ? "All ships placed. Press Ready when you're happy with them."
-        : "Pick a ship to place."
+        ? "All set! Drag a ship to move it, tap it to turn it, then press Ready."
+        : "Drag each ship onto your grid (or tap it). Tap a ship on the grid to turn it."
 
   return (
     <div
-      className={size.wide ? "bsPlace is-wide" : "bsPlace"}
+      ref={rootRef}
+      className={`${size.wide ? "bsPlace is-wide" : "bsPlace"}${drag ? " is-dragging" : ""}`}
       tabIndex={-1}
       onKeyDown={(e) => {
-        if (e.key === "r" || e.key === "R") rotate()
+        if ((e.key === "r" || e.key === "R") && lastId && fleet[lastId]) turn(lastId)
       }}
     >
       <Grid
@@ -260,62 +261,76 @@ const Placement = ({ view, act, size }) => {
         ghost={sent ? null : ghost}
         gridRef={gridRef}
         testId="own"
-        onCell={clickCell}
-        onCellDown={(e, cell) => {
-          const here = Object.values(fleet).find((s) => cellsOf(s).includes(cell))
-          if (here && !selected) startDrag(e, here.id, cellsOf(here).indexOf(cell), "grid")
+        onCell={(cell, e) => {
+          // a key press on a square (Enter / Space) turns the ship there; pointers use onCellDown
+          const here = shipOn(fleet, cell)
+          if (!sent && here && e?.detail === 0) turn(here.id, cell)
         }}
-        onContext={rotate}
+        onCellDown={(e, cell) => {
+          const here = shipOn(fleet, cell)
+          if (here) onShipDown(e, here.id, cellsOf(here).indexOf(cell), "grid", cell)
+        }}
+        onContext={(e) => {
+          const cell = Number(e.target.closest?.("[data-cell]")?.dataset.cell)
+          const here = Number.isInteger(cell) ? shipOn(fleet, cell) : null
+          if (!sent && here) turn(here.id, cell)
+        }}
         className="bsOwn bsPlacing"
       />
       <div className="bsTray">
         {!sent && (
           <>
-            <div className="bsTrayShips" role="listbox" aria-label="Ships">
-              {SHIPS.map((s) => (
-                <button
-                  type="button"
-                  key={s.id}
-                  role="option"
-                  aria-selected={selected === s.id}
-                  data-ship={s.id}
-                  className={["bsTrayShip", selected === s.id && "is-selected", fleet[s.id] && "is-placed"].filter(Boolean).join(" ")}
-                  onClick={() => {
-                    if (suppressClick.current) return
-                    if (fleet[s.id]) pickUp(s.id)
-                    else setSelected(selected === s.id ? null : s.id)
-                    setGrab(0)
-                  }}
-                  onPointerDown={(e) => startDrag(e, s.id, 0, "tray")}
-                >
-                  <span className="bsTrayHull" aria-hidden="true">
-                    {Array.from({ length: s.length }, (_, k) => (
-                      <i key={k} />
-                    ))}
-                  </span>
-                  <span>{s.name}</span>
-                  {fleet[s.id] && <span className="bsTrayAt">{cellName(cellsOf(fleet[s.id])[0])}</span>}
-                </button>
-              ))}
+            <div className="bsDock" aria-label="Ships to place">
+              {docked.length ? (
+                docked.map((s) => (
+                  <button
+                    type="button"
+                    key={s.id}
+                    data-ship={s.id}
+                    className="bsTrayShip"
+                    title={`Drag the ${s.name} onto your grid, or tap it`}
+                    onPointerDown={(e) => onShipDown(e, s.id, Math.floor(s.length / 2), "dock")}
+                    onClick={(e) => e.detail === 0 && drop(s.id)}
+                  >
+                    <span className="bsTrayHull" aria-hidden="true">
+                      {Array.from({ length: s.length }, (_, k) => (
+                        <i key={k} />
+                      ))}
+                    </span>
+                    <span>{s.name}</span>
+                  </button>
+                ))
+              ) : (
+                <div className="bsDockDone">All five ships are on your grid.</div>
+              )}
             </div>
             <div className="bsTrayButtons">
-              <button type="button" onClick={rotate} aria-label="Rotate">
-                Rotate ({dir === "h" ? "across" : "down"})
-              </button>
-              <button type="button" onClick={random}>
+              <button type="button" className="bsRandom" onClick={random}>
                 Random
               </button>
-              <button type="button" onClick={() => (setFleet({}), setSelected(SHIPS[0].id))}>
-                Clear
+              <button type="button" className="bsReady" disabled={!placedAll || sending} onClick={ready}>
+                Ready!
               </button>
             </div>
-            <button type="button" className="bsReady" disabled={!placedAll || sending} onClick={ready}>
-              Ready!
-            </button>
+            <MoreOptions id="battleship.place" inline>
+              <div className="bsTrayButtons">
+                <button type="button" disabled={!Object.keys(fleet).length} onClick={() => (setFleet({}), setError(null))}>
+                  Clear the grid
+                </button>
+              </div>
+              <p className="bsTip">Turn a ship: tap it, right-click it, or press R.</p>
+            </MoreOptions>
           </>
         )}
         {sent && <div className="bsWaitBox">{view.solo ? "Ready!" : <><div className="netHourglass" aria-hidden="true" /> Waiting for {view.names.them}...</>}</div>}
       </div>
+      {drag && drag.hover === null && (
+        <div className="bsDragShip" aria-hidden="true" style={{ left: drag.x, top: drag.y, "--bs-cell": `${size.cell}px`, "--bs-k": drag.k, flexDirection: drag.dir === "v" ? "column" : "row" }}>
+          {Array.from({ length: shipInfo(drag.id).length }, (_, k) => (
+            <i key={k} />
+          ))}
+        </div>
+      )}
       <div className="status-bar bsStatus">
         <p className={error ? "status-bar-field ckError" : "status-bar-field"} role="status">
           {error || status}
@@ -493,8 +508,9 @@ const BattleshipGame = ({ view, act, onClose }) => {
       {dialog === "resign" && <ResignDialog them={them} onResign={() => (act.resign(), setDialog(null))} onCancel={() => setDialog(null)} />}
       {dialog === "rules" && (
         <RulesDialog title="Battleship Rules" onOk={() => setDialog(null)}>
-          Place your five ships on your grid: drag them, or pick one and tap a square. Rotate (or the R key, or a
-          right-click) turns it. Ships can touch but not overlap.
+          Place your five ships on your grid: drag each one from the dock onto the grid (or tap it to drop it in).
+          Drag a placed ship to move it, and tap it to turn it (or right-click it, or press R). Random places the
+          whole fleet for you. Ships can touch but not overlap.
           <br />
           <br />
           Then take turns firing at the other grid, one shot each. A white dot is a miss, red is a hit. Sink all five ships

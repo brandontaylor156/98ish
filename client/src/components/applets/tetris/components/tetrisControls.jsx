@@ -146,13 +146,22 @@ const SCHEME_CONTROLS = {
 
 // "Like the Tetris app" (the default on phones): swipes only, as in the official app, plus a
 // Hold button (kept on purpose) and Pause. Portrait uses the app-like layout (TetrisWindow
-// data-layout="app", Tetris.css): Pause at the top left beside the stats strip, Hold (and the
-// Arena's Item) in the bottom corners under the side columns. Landscape keeps the classic
-// spots beside the board.
+// data-layout="app", Tetris.css): Pause at the top left beside the stats strip, Hold in the
+// left column about halfway up the board, where the thumb of the hand holding the phone
+// rests (the owner found reaching down to the bottom corner awkward), and the Arena's Item
+// in the bottom right corner. Landscape keeps the classic spots beside the board.
 export const APP_SIDE = 48 // side column width in the app layout (Tetris.css, --app-side)
+// the board's middle in the app layout: it fills about 24-89% of the area's height (the free
+// height splits 1 : 0.5 above and below it; docs/tetris-mobile.md "Measured")
+export const APP_HOLD_CENTER = 0.57
+const APP_HOLD_H = 64
 SCHEME_CONTROLS.app = [
   sideAt("pause", (size) => fromPx(size, { left: PAD, top: PAD, width: APP_SIDE, height: 32 })),
-  sideAt("hold", (size) => fromPx(size, { left: PAD, bottom: PAD, width: APP_SIDE, height: 56 })),
+  {
+    ...sideAt("hold", (size) => fromPx(size, { left: PAD, top: Math.round(size.height * APP_HOLD_CENTER - APP_HOLD_H / 2), width: APP_SIDE, height: APP_HOLD_H })),
+    // the bottom corner it used to start in: saved layouts that never moved it come up too
+    retired: { portrait: [(size) => fromPx(size, { left: PAD, bottom: PAD, width: APP_SIDE, height: 56 })] },
+  },
   sideAt("item", (size) => fromPx(size, { right: PAD, bottom: PAD, width: APP_SIDE, height: 56 })),
 ]
 

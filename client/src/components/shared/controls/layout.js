@@ -113,14 +113,33 @@ export const defaultLayout = (controls, size, orientation, { scale = 1, alpha = 
   alpha,
 })
 
+// Former default rects of each control for one orientation (a control's `retired`:
+// { portrait: [rect | (size) => rect], landscape: [...] }), so a moved default reaches
+// players who saved a layout without moving that button
+export const retiredRects = (controls, size, orientation) => {
+  const out = {}
+  for (const c of controls) {
+    const list = c.retired?.[orientation]
+    if (list?.length) out[c.id] = list.map((d) => (typeof d === "function" ? d(size) : d))
+  }
+  return out
+}
+
+const sameRect = (a, b, tol = 0.6) => ["x", "y", "w", "h"].every((k) => Math.abs((a?.[k] ?? NaN) - b[k]) <= tol)
+
 // The layout to use: saved values over the defaults (controls added to a game after the
-// player saved a layout get their default spot; removed ones are dropped)
-export const mergeLayout = (defaults, saved) => {
+// player saved a layout get their default spot; removed ones are dropped; a saved rect that
+// is still a former default (`retired`, from retiredRects) takes the new default)
+export const mergeLayout = (defaults, saved, retired = {}) => {
   if (!saved) return defaults
   const pick = (key) =>
     Object.fromEntries(Object.keys(defaults.rects).map((id) => [id, saved[key]?.[id] ?? defaults[key][id]]))
+  const rects = pick("rects")
+  for (const [id, olds] of Object.entries(retired)) {
+    if (rects[id] && saved.rects?.[id] && olds.some((o) => sameRect(saved.rects[id], o))) rects[id] = defaults.rects[id]
+  }
   return {
-    rects: pick("rects"),
+    rects,
     opacity: pick("opacity"),
     enabled: pick("enabled"),
     scale: clamp(Number(saved.scale) || defaults.scale, ...SCALE_RANGE),
