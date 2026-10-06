@@ -78,19 +78,46 @@ export const PROPS = {
   massagebed: { w: 0.8, d: 2.0, h: 0.75, solid: true },
   startblock: { w: 0.5, d: 0.6, h: 0.75, solid: true },
   pingpong: { w: 1.53, d: 2.74, h: 0.92, solid: true },
+  // (indoor clubs: sound stages, lounges, the details round the courts)
+  flagstone: { w: 4, d: 3, h: 0.02 },
+  blossomtree: { w: 1.8, d: 1.8, h: 3.0, r: 0.35, solid: true },
+  cooler: { w: 0.62, d: 0.42, h: 0.45, solid: true },
+  fridge: { w: 0.8, d: 0.72, h: 2.0, solid: true, wall: true },
+  foldchair: { w: 0.45, d: 0.5, h: 0.85 },
+  banner: { w: 1.1, d: 0.03, h: 2.2, wall: true },
+  numcard: { w: 0.6, d: 0.03, h: 0.6, wall: true },
+  exitsign: { w: 0.42, d: 0.1, h: 0.2, wall: true },
+  extinguisher: { w: 0.22, d: 0.2, h: 0.62, wall: true },
+  wallart: { w: 1.2, d: 0.04, h: 0.9, wall: true },
+  signpanel: { w: 1.8, d: 0.05, h: 0.5, wall: true },
+  pendant: { w: 0.5, d: 0.5, h: 0.7 },
+  curtain: { w: 3, d: 0.05, h: 4.0, solid: true },
+  railing: { w: 2, d: 0.06, h: 1.0, solid: true },
+  bagpile: { w: 0.9, d: 0.4, h: 0.35 },
+  checkin: { w: 2.4, d: 0.8, h: 1.1, solid: true },
+  cafetable: { w: 0.7, d: 0.7, h: 0.76, r: 0.35, solid: true },
+  umbrellastand: { w: 0.4, d: 0.4, h: 0.6 },
+  towels: { w: 1.0, d: 0.45, h: 1.6, solid: true, wall: true },
+  scale: { w: 0.4, d: 0.4, h: 1.2 },
 }
 
 // a prop's solid footprint -> a layout box { cx, cz, hx, hz, ux, uz, h } or a circle { x, z, r }, or null
 export const propSolid = (pr) => {
   const T = PROPS[pr.t]
-  // (up on a mezzanine or a roof: nothing to bump into on the floor)
-  if (!T || pr.solid === false || (!T.solid && !pr.solid) || (pr.y || 0) > 2.2) return null
-  if (T.r) return { x: pr.x, z: pr.z, r: T.r * (pr.s || 1) }
+  if (!T || pr.solid === false || (!T.solid && !pr.solid)) return null
+  const y = pr.y || 0
+  // (hung on a wall over your head: nothing to bump into)
+  if (y > 0.3 && T.wall && !pr.floor) return null
   const w = (pr.w ?? T.w) * (pr.s || 1)
   const d = (pr.d ?? T.d) * (pr.s || 1)
   const a = pr.a || 0
+  const h = (pr.h ?? T.h) * (pr.s || 1)
+  // (up on a mezzanine or a roof terrace: solid at its own height, a box from its floor up, so
+  // the people on that floor bump into it and those below walk under; layout.js heights)
+  if (y > 0.3) return { cx: pr.x, cz: pr.z, hx: (T.r ? T.r : w / 2) + 0.05, hz: (T.r ? T.r : d / 2) + 0.05, ux: Math.cos(a), uz: -Math.sin(a), y0: y, h: y + h, kind: "prop" }
+  if (T.r) return { x: pr.x, z: pr.z, r: T.r * (pr.s || 1) }
   // (the prop's x axis in the world: (cos a, -sin a); a box's u axis is its long side)
-  return { cx: pr.x, cz: pr.z, hx: w / 2 + 0.05, hz: d / 2 + 0.05, ux: Math.cos(a), uz: -Math.sin(a), h: (pr.h ?? T.h) * (pr.s || 1), kind: "prop" }
+  return { cx: pr.x, cz: pr.z, hx: w / 2 + 0.05, hz: d / 2 + 0.05, ux: Math.cos(a), uz: -Math.sin(a), h, kind: "prop" }
 }
 
 // ---------- rooms ----------
@@ -394,6 +421,43 @@ export const furnishRoom = (room) => {
     if (room.benches !== false) row("bench", other[0], { from: 0.2, to: 0.8, every: 5 })
     if (d0) put("fountain", cu, w0 + 0.3, 0, 1)
   }
+  // the walls: framed art and the club's signs on walls with nothing against them (hung over
+  // the furniture: they don't take floor room), exit signs over the doors
+  if (room.art !== false && ["lobby", "lounge", "cafe", "bar", "corridor", "hall", "proshop", "spa", "office", "kids"].includes(type) && R.L > 3 && R.W > 2.4) {
+    const nb = boxes.length
+    const palette = room.artColors || null
+    for (const s of other) row("wallart", s, { from: 0.15, to: 0.85, every: 3.4, extra: { y: 1.35, ...(palette ? { c: palette } : {}) } })
+    boxes.length = nb
+  }
+  if (["gym", "studio", "locker", "corridor", "hall", "basketball", "racquet"].includes(type) && d0) {
+    const inU = entry === "u0" ? 1 : entry === "u1" ? -1 : 0
+    const inW = entry === "w0" ? 1 : entry === "w1" ? -1 : 0
+    out.push({ t: "exitsign", ...W(d0.u + inU * 0.25, d0.w + inW * 0.25), a: yawOf(inU, inW), y: Math.min(2.55, (room.h || ROOM_LOOK[type]?.h || 3) - 0.35) })
+  }
   for (const pr of room.props || []) out.push(pr)
   return out
+}
+
+// a room's floor and ceiling finish by type (scenery.js draws them): "wood" planks, "tile"
+// (large porcelain), "rubber" (gym), "carpet", "stone", "slats" (sauna wood); ceilings "grid"
+// (acoustic tiles in a T-bar grid), "panel", or plain
+export const FINISH = {
+  lobby: { floor: "tile", ceiling: "grid" },
+  proshop: { floor: "wood", ceiling: "grid" },
+  cafe: { floor: "wood" },
+  bar: { floor: "wood" },
+  lounge: { floor: "carpet" },
+  gym: { floor: "rubber", ceiling: "panel" },
+  studio: { floor: "wood", ceiling: "panel" },
+  racquet: { floor: "wood" },
+  basketball: { floor: "wood", ceiling: "panel" },
+  locker: { floor: "tile", ceiling: "grid" },
+  restroom: { floor: "tile", ceiling: "grid" },
+  sauna: { floor: "slats", ceiling: "slats" },
+  steam: { floor: "tile", ceiling: "tile" },
+  kids: { floor: "carpet", ceiling: "grid" },
+  office: { floor: "carpet", ceiling: "grid" },
+  spa: { floor: "stone", ceiling: "grid" },
+  hall: { floor: "tile", ceiling: "grid" },
+  corridor: { floor: "tile", ceiling: "grid" },
 }

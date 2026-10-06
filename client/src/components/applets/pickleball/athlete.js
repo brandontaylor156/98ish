@@ -1302,7 +1302,8 @@ const buildAthlete = (look = {}, { shadows = false, withPaddle = true } = {}, de
 
   const apply = (pose, dt = 1 / 60) => {
     clock += dt
-    root.position.set(pose.pelvis.x, 0, pose.pelvis.z)
+    // (pose.lift: up on a stair or a rooftop terrace, park/lift.js; its points are raised too)
+    root.position.set(pose.pelvis.x, pose.lift || 0, pose.pelvis.z)
     root.updateMatrixWorld(true)
     // how fast the body's going (the pose doesn't say), for the clip layers
     if (lastPos && dt > 0) {

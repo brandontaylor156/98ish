@@ -139,7 +139,7 @@ export const generateVenue = (spec, opts = {}) => {
     const a = c.a * DEG
     const u = { x: Math.cos(a), z: Math.sin(a) }
     const sz = SIZES[c.s] || SIZES.p
-    return { i, x: c.x, z: c.z, a, u, w: { x: -u.z, z: u.x }, s: c.s, pb: c.pb || 0, pl: c.pl || null, col: c.col ?? null, lit: !!c.lit, L: sz.L, W: sz.W, rot: Math.atan2(u.x, u.z) }
+    return { i, x: c.x, z: c.z, a, u, w: { x: -u.z, z: u.x }, s: c.s, pb: c.pb || 0, pl: c.pl || null, col: c.col ?? null, lit: !!c.lit, L: sz.L, W: sz.W, rot: Math.atan2(u.x, u.z), n: c.n || null }
   })
 
   // ---------- banks ----------
@@ -196,7 +196,22 @@ export const generateVenue = (spec, opts = {}) => {
     const near = (A, B) => {
       if (A.s !== B.s || Math.abs(A.box.ux * B.box.uz - A.box.uz * B.box.ux) > Math.sin(8 * DEG)) return false
       const grow = (b) => ({ ...b, hx: b.hx + 1.25, hz: b.hz + 1.25 })
-      return boxesOverlap(grow(A.box), grow(B.box))
+      if (!boxesOverlap(grow(A.box), grow(B.box))) return false
+      // (only when together they still make a rectangle: side by side with the same ends, or
+      // end to end with the same sides; an L of courts keeps two fences, or its box would
+      // swallow the walk, the lawn, the building in its corner)
+      const u = { x: A.box.ux, z: A.box.uz }
+      const w = { x: -u.z, z: u.x }
+      const ext = (b, ax) => {
+        const ps = corners(b).map((p) => dot(p, ax))
+        return [Math.min(...ps), Math.max(...ps)]
+      }
+      const same = (ax) => {
+        const [a0, a1] = ext(A.box, ax)
+        const [b0, b1] = ext(B.box, ax)
+        return Math.abs(a0 - b0) < 3 && Math.abs(a1 - b1) < 3
+      }
+      return same(u) || same(w)
     }
     for (let merged = true; merged; ) {
       merged = false
@@ -292,24 +307,31 @@ export const generateVenue = (spec, opts = {}) => {
   // (a door is a gap in every wall it sits on: a room's, a building's; "closed" doors aren't)
   const roomSpecs = (spec.rooms || []).filter((r) => r.p && r.p.length > 2)
   const openBuildings = (spec.buildings || []).filter((b) => b.doors && b.doors.length)
-  const allDoors = [...roomSpecs.flatMap((r) => r.doors || []), ...openBuildings.flatMap((b) => b.doors)].filter((d) => d.kind !== "closed").map((d) => ({ ...d, w: d.w || 1.8, kind: d.kind || "open" }))
+  // (halls can have more doors than their main one: to the street, to the next hall; each cuts
+  // every wall it sits on, both halls' where they share one)
+  // (a room upstairs, r.y: its doors are at its floor and cut only walls on that floor)
+  const allDoors = [...roomSpecs.flatMap((r) => (r.doors || []).map((d) => (r.y ? { ...d, y: r.y } : d))), ...openBuildings.flatMap((b) => b.doors), ...hallSpecs.flatMap((h) => h.doors || [])].filter((d) => d.kind !== "closed").map((d) => ({ ...d, w: d.w || 1.8, kind: d.kind || "open" }))
+  const doorHosts = [...roomSpecs.map((r) => r.p), ...openBuildings.map((b) => b.p), ...hallSpecs.map((h) => h.p)]
+  const hostY = new Map(roomSpecs.map((r) => [r.p, r.y || 0]))
   const segDist = (p, a, b) => {
     const ab = sub(b, a)
     const t = Math.max(0, Math.min(1, dot(sub(p, a), ab) / (dot(ab, ab) || 1)))
     return len(sub(p, add(a, ab, t)))
   }
-  const gapsOn = (poly) => allDoors.filter((d) => poly.some((q, i) => segDist(d, { x: q[0], z: q[1] }, { x: poly[(i + 1) % poly.length][0], z: poly[(i + 1) % poly.length][1] }) < 0.5))
+  const gapsOn = (poly, y = hostY.get(poly) || 0) => allDoors.filter((d) => Math.abs((d.y || 0) - y) < 0.5 && poly.some((q, i) => segDist(d, { x: q[0], z: q[1] }, { x: poly[(i + 1) % poly.length][0], z: poly[(i + 1) % poly.length][1] }) < 0.5))
   const rooms = roomSpecs.map((r) => {
     const look = ROOM_LOOK[r.type] || ROOM_LOOK.hall
     const room = { ...look, ...r, h: r.h || look.h }
-    extraBoxes.push(...wallBoxesGaps(r.p, room.h, "room", gapsOn(r.p)))
-    // (furnished round every door on its walls: its own and its neighbours')
-    room.props = furnishRoom({ ...room, doors: [...gapsOn(r.p), ...(r.doors || []).filter((d) => d.kind === "closed")] })
+    const ry = r.y || 0
+    extraBoxes.push(...wallBoxesGaps(r.p, room.h, "room", gapsOn(r.p)).map((b) => (ry ? { ...b, y0: ry, h: ry + b.h } : b)))
+    // (furnished round every door on its walls: its own and its neighbours'; upstairs, the
+    // furniture stands on the room's floor)
+    room.props = furnishRoom({ ...room, doors: [...gapsOn(r.p), ...(r.doors || []).filter((d) => d.kind === "closed")] }).map((pr) => (ry ? { ...pr, y: (pr.y || 0) + ry, floor: true } : pr))
     return room
   })
   // over each doorway: overhead (people walk under, cameras don't pass)
   for (const d of allDoors) {
-    const host = [...roomSpecs.map((r) => r.p), ...openBuildings.map((b) => b.p)].find((poly) => gapsOn(poly).includes(d))
+    const host = doorHosts.find((poly) => gapsOn(poly).includes(d))
     if (!host) continue
     let best = null
     host.forEach((q, i) => {
@@ -318,8 +340,42 @@ export const generateVenue = (spec, opts = {}) => {
       const dd = segDist(d, a, b)
       if (!best || dd < best.dd) best = { dd, u: { x: (b.x - a.x) / (len(sub(b, a)) || 1), z: (b.z - a.z) / (len(sub(b, a)) || 1) } }
     })
-    if (d.kind !== "open") extraBoxes.push({ cx: d.x, cz: d.z, hx: d.w / 2 + 0.2, hz: 0.2, ux: best.u.x, uz: best.u.z, h: 12, y0: 2.4, kind: "lintel" })
+    if (d.kind !== "open") extraBoxes.push({ cx: d.x, cz: d.z, hx: d.w / 2 + 0.2, hz: 0.2, ux: best.u.x, uz: best.u.z, h: (d.y || 0) + 12, y0: (d.y || 0) + 2.4, kind: "lintel" })
   }
+  // ---------- floors above the ground: decks (a rooftop terrace, a mezzanine) and stairs ----------
+  // (layout.js: a body's height decides what's solid for it; the walker climbs the stairs)
+  const stairs = (spec.stairs || []).map((s) => {
+    const a = { x: s.a[0], z: s.a[1] }
+    const b = { x: s.b[0], z: s.b[1] }
+    const L = len(sub(b, a)) || 1
+    const u = { x: (b.x - a.x) / L, z: (b.z - a.z) / L }
+    const n = { x: -u.z, z: u.x }
+    const w = s.w || 1.6
+    const y0 = s.y0 || 0
+    const y1 = s.y1
+    const mid = add(a, u, L / 2)
+    // the sides (stringers and rails: you can't step off, nobody walks through them below)
+    for (const sg of [-1, 1]) extraBoxes.push({ cx: round(mid.x + n.x * sg * (w / 2 + 0.08)), cz: round(mid.z + n.z * sg * (w / 2 + 0.08)), hx: round(L / 2), hz: 0.08, ux: u.x, uz: u.z, h: y1 + 1.0, kind: "stairs" })
+    // under the high end: solid for the people on the ground (low enough for those on the steps)
+    const under = add(a, u, L * 0.675)
+    extraBoxes.push({ cx: round(under.x), cz: round(under.z), hx: round(L * 0.325), hz: round(w / 2), ux: u.x, uz: u.z, h: round(y0 + (y1 - y0) * 0.35), kind: "stairs" })
+    return { a, b, w, y0, y1, color: s.color || null, rail: s.rail || null }
+  })
+  const decks = (spec.decks || []).map((d) => {
+    const p = d.p
+    if (d.rail !== false) {
+      // a railing round the edge, open where stairs arrive (and where it says)
+      const openings = [...stairs.filter((s) => Math.abs(s.y1 - d.y) < 0.3).map((s) => ({ x: s.b.x, z: s.b.z, w: s.w + 0.5 })), ...(d.openings || []).map((o) => ({ x: o[0], z: o[1], w: o[2] || 1.6 }))]
+      for (const bx of wallBoxesGaps(p, 1.05, "rail", openings)) extraBoxes.push({ ...bx, hz: 0.06, y0: d.y, h: d.y + 1.05 })
+    }
+    if (d.slab) {
+      // the floor itself, seen from below (a mezzanine over a bar): solid for cameras only
+      const xs = p.map((q) => q[0])
+      const zs = p.map((q) => q[1])
+      extraBoxes.push({ cx: round((Math.min(...xs) + Math.max(...xs)) / 2), cz: round((Math.min(...zs) + Math.max(...zs)) / 2), hx: round((Math.max(...xs) - Math.min(...xs)) / 2), hz: round((Math.max(...zs) - Math.min(...zs)) / 2), ux: 1, uz: 0, y0: round(d.y - 0.3), h: d.y, kind: "deck" })
+    }
+    return { y: d.y, p, name: d.name || null, rail: d.rail !== false, railColor: d.railColor || null, slab: !!d.slab, color: d.color || null, openings: d.openings || [] }
+  })
   // props: the rooms' furniture and the venue's own (outdoors), solid ones bumped into
   const venueProps = (spec.props || []).filter((pr) => pr && pr.t)
   const propCircles = []
@@ -339,6 +395,8 @@ export const generateVenue = (spec, opts = {}) => {
   }
   for (const r of roomSpecs) for (const [x, z] of r.p) grow(x, z)
   for (const b of openBuildings) for (const [x, z] of b.p) grow(x, z)
+  for (const s of stairs) for (const q of [s.a, s.b]) grow(q.x, q.z)
+  for (const d of decks) for (const [x, z] of d.p) grow(x, z)
   if (spec.spawn) grow(spec.spawn.x, spec.spawn.z)
   for (const pr of venueProps) grow(pr.x, pr.z)
   // the halls: their walls, each with a door
@@ -392,7 +450,8 @@ export const generateVenue = (spec, opts = {}) => {
   // ---------- numbering every pickleball court, reading order ----------
   const pbCourts = courts.filter((c) => c.s === "p")
   const order = pbCourts.slice().sort((a, b) => a.bank - b.bank || Math.round(a.z / 4) - Math.round(b.z / 4) || a.x - b.x)
-  order.forEach((c, k) => (c.num = k + 1))
+  // (a venue's own numbers win: the cards on the real walls)
+  order.forEach((c, k) => (c.num = c.n || k + 1))
 
   // ---------- a court's gate side ----------
   // the open sides of a court in its bank: -> [{ out (unit), dist (center to the fence) }]
@@ -698,7 +757,8 @@ export const generateVenue = (spec, opts = {}) => {
     let k = seats.filter((s) => String(s.id).startsWith("stool")).length
     let n = 0
     for (const pr of [...rooms.flatMap((r) => r.props), ...venueProps]) {
-      if (n >= 60 || (pr.t !== "stool" && pr.t !== "chair")) continue
+      // (the regulars stay on the ground floor: seats upstairs are only furniture)
+      if (n >= 60 || (pr.t !== "stool" && pr.t !== "chair") || (pr.y || 0) > 0.5) continue
       const dir = { x: Math.sin(pr.a || 0), z: Math.cos(pr.a || 0) }
       const ap = add({ x: pr.x, z: pr.z }, dir, -0.75)
       if (!walkable(ap, 0.34) || nearTree(ap, 0.75) || lights.some((l) => Math.hypot(l.x - ap.x, l.z - ap.z) < 0.6) || placed.some((b) => inBox(b, ap, 0.35) || inBox(b, pr, 0.2))) continue
@@ -711,7 +771,32 @@ export const generateVenue = (spec, opts = {}) => {
   const bounds = { x0: round(bounds0.x0), x1: round(bounds0.x1), z0: round(bounds0.z0), z1: round(bounds0.z1) }
   const allBoxes = [...bankBoxes, ...extraBoxes]
   const lightCircles = lights.map((l) => ({ x: l.x, z: l.z, r: 0.15 }))
-  const solidFinal = (p, pad) => allBoxes.some((b) => !b.y0 && inBox(b, p, pad)) || placed.some((b) => inBox(b, p, pad)) || [...treeCircles, ...extraCircles, ...lightCircles, ...propCircles].some((t) => Math.hypot(t.x - p.x, t.z - p.z) < t.r + pad)
+  // (a grid of what's solid on the ground, so testing thousands of spots stays quick)
+  const SG = 6
+  const solidGrid = new Map()
+  const sgKey = (i, j) => i * 100003 + j
+  const sgAdd = (o, x0, x1, z0, z1) => {
+    for (let i = Math.floor(x0 / SG) - 1; i <= Math.floor(x1 / SG) + 1; i++)
+      for (let j = Math.floor(z0 / SG) - 1; j <= Math.floor(z1 / SG) + 1; j++) {
+        const k = sgKey(i, j)
+        if (!solidGrid.has(k)) solidGrid.set(k, [])
+        solidGrid.get(k).push(o)
+      }
+  }
+  for (const b of [...allBoxes, ...placed]) {
+    if (b.y0) continue
+    const r = Math.hypot(b.hx, b.hz)
+    sgAdd({ b }, b.cx - r, b.cx + r, b.cz - r, b.cz + r)
+  }
+  for (const c of [...treeCircles, ...extraCircles, ...lightCircles, ...propCircles]) sgAdd({ c }, c.x - c.r, c.x + c.r, c.z - c.r, c.z + c.r)
+  const solidFinal = (p, pad) => {
+    const list = solidGrid.get(sgKey(Math.floor(p.x / SG), Math.floor(p.z / SG)))
+    if (!list) return false
+    for (const o of list) {
+      if (o.b ? inBox(o.b, p, pad) : Math.hypot(o.c.x - p.x, o.c.z - p.z) < o.c.r + pad) return true
+    }
+    return false
+  }
   const STEP = indoor ? 2 : 5
   const NAV_PAD = indoor ? 0.4 : 0.6
   const nav = []
@@ -730,8 +815,37 @@ export const generateVenue = (spec, opts = {}) => {
       if (!solidFinal(p, 0.3)) nav.push({ x: round(p.x), z: round(p.z) })
     }
   }
+  // the aisles the coarse grid misses: nodes along every bank's edges (indoors the courts stand
+  // two metres apart; outdoors the walks between pens, past a building's corner, beside a
+  // staircase), and along buildings' and stairs' walls
+  {
+    const edgeNodes = (bk, offs, spacing, pad) => {
+      const u = { x: bk.ux, z: bk.uz }
+      const w = { x: -bk.uz, z: bk.ux }
+      for (const [n, half, t, tHalf] of [
+        [u, bk.hx, w, bk.hz],
+        [{ x: -u.x, z: -u.z }, bk.hx, w, bk.hz],
+        [w, bk.hz, u, bk.hx],
+        [{ x: -w.x, z: -w.z }, bk.hz, u, bk.hx],
+      ]) {
+        for (const off of offs) {
+          const steps = Math.max(1, Math.round((2 * (tHalf + off)) / spacing))
+          for (let k = 0; k <= steps; k++) {
+            const s = -(tHalf + off) + (2 * (tHalf + off) * k) / steps
+            const p = add(add({ x: bk.cx, z: bk.cz }, n, half + off), t, s)
+            const q = { x: round(p.x), z: round(p.z) }
+            if (inBounds(q) && !solidFinal(q, pad) && !insideBuilding(q)) nav.push(q)
+          }
+        }
+      }
+    }
+    for (const bk of bankBoxes) edgeNodes(bk, indoor ? [0.6, 0.9] : [1.0, 1.8], indoor ? 2 : 3, indoor ? 0.34 : 0.45)
+    if (!indoor) for (const bx of extraBoxes) if (!bx.y0 && (bx.kind === "building" || bx.kind === "stairs" || bx.kind === "room" || bx.kind === "wall") && Math.max(bx.hx, bx.hz) > 1.2) edgeNodes(bx, [0.9], 3, 0.45)
+  }
   // inside the rooms (a finer grid) and through every doorway, both sides
   for (const r of rooms) {
+    // (the walking graph is the ground floor's: the regulars don't go upstairs)
+    if ((r.y || 0) > 0.5) continue
     // (small rooms every 1.25 m; big halls coarser, up to 4 m)
     const xs = r.p.map((q) => q[0])
     const zs = r.p.map((q) => q[1])
@@ -743,7 +857,8 @@ export const generateVenue = (spec, opts = {}) => {
       }
   }
   for (const d of allDoors) {
-    const host = [...roomSpecs.map((r) => r.p), ...openBuildings.map((b) => b.p)].find((poly) => gapsOn(poly).includes(d))
+    if ((d.y || 0) > 0.5) continue
+    const host = doorHosts.find((poly) => gapsOn(poly).includes(d))
     if (!host) continue
     let best = null
     host.forEach((q, i) => {
@@ -764,6 +879,19 @@ export const generateVenue = (spec, opts = {}) => {
     const inward = sub(c, d)
     const L = len(inward) || 1
     for (const k of [-2.5, 2.5]) nav.push({ x: round(d.x + (inward.x / L) * k), z: round(d.z + (inward.z / L) * k) })
+  }
+  // (one node per 0.8 m: the edge nodes, the grid and the rooms' nodes overlap)
+  {
+    const seen = new Set()
+    const kept = []
+    for (const p of nav) {
+      const k = `${Math.round(p.x / 0.8)},${Math.round(p.z / 0.8)}`
+      if (seen.has(k)) continue
+      seen.add(k)
+      kept.push(p)
+    }
+    nav.length = 0
+    nav.push(...kept)
   }
   // spots the regulars wander to: spread out, mostly near the live courts and the bar
   const waypoints = []
@@ -887,6 +1015,9 @@ export const generateVenue = (spec, opts = {}) => {
     waypoints,
     nav,
     navLink: STEP * 1.5 + 0.1,
+    // floors above the ground (layout.js heightAt): rooftop terraces, mezzanines, their stairs
+    decks: decks.map((d) => ({ y: d.y, p: d.p })),
+    stairs: stairs.map((s) => ({ a: s.a, b: s.b, w: s.w, y0: s.y0, y1: s.y1 })),
     scene: {
       kind: "venue",
       id: spec.id,
@@ -908,9 +1039,11 @@ export const generateVenue = (spec, opts = {}) => {
       trees,
       lamps: spec.lamps || [],
       halls,
-      rooms: rooms.map((r) => ({ ...r, doors: (r.doors || []).map((d) => ({ x: d.x, z: d.z, w: d.w || 1.8, kind: d.kind || "open" })) })),
+      rooms: rooms.map((r) => ({ ...r, doors: (r.doors || []).map((d) => ({ x: d.x, z: d.z, w: d.w || 1.8, kind: d.kind || "open", ...(r.y ? { y: r.y } : {}) })) })),
       props: venueProps,
       doors: allDoors,
+      decks,
+      stairs,
       bar,
       extras: spec.extras || null,
     },

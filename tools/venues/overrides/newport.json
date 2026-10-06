@@ -1,49 +1,1925 @@
 {
-  "name": "The Tennis & Pickleball Club at Newport Beach",
-  "short": "Newport Beach Club",
-  "city": "Newport Beach, CA",
-  "access": "members",
-  "note": "Private members' club: 44 pickleball courts in two-court pods, 12 tennis courts (one red clay), all lit.",
-  "lit": true,
-  "anchor": [33.61096, -117.87988],
-  "crop": 60,
-  "courts": {
-    "paint": [
-      { "en": [62.7, 68.8], "r": 3, "court": "#a9cfe0", "kitchen": "#c6e1ec" },
-      { "en": [54.6, 66.0], "r": 3, "court": "#a9cfe0", "kitchen": "#c6e1ec" },
-      { "en": [66.9, 50.7], "r": 3, "court": "#a9cfe0", "kitchen": "#c6e1ec" },
-      { "en": [58.9, 48.9], "r": 3, "court": "#a9cfe0", "kitchen": "#c6e1ec" },
-      { "en": [80.3, 72.7], "r": 3, "court": "#e9a47c", "kitchen": "#f1bf9f" },
-      { "en": [72.2, 69.9], "r": 3, "court": "#e9a47c", "kitchen": "#f1bf9f" },
-      { "en": [84.5, 54.6], "r": 3, "court": "#e9a47c", "kitchen": "#f1bf9f" },
-      { "en": [76.6, 52.8], "r": 3, "court": "#e9a47c", "kitchen": "#f1bf9f" },
-      { "en": [-31.3, -54.4], "r": 4, "sport": "tennis", "court": "#b5634a", "surround": "#b5634a", "clay": true }
-    ]
-  },
-  "colors": { "court": "#3d5f9e", "kitchen": "#4d70b0", "surround": "#5e9a4e", "tennis": "#3d5f9e", "tennisSurround": "#5e9a4e", "lines": "#f7f7f4", "windscreen": "#24382c", "fence": "#24382c", "ground": "#86a866", "far": "#7fa35e" },
-  "fence": { "lightEvery": 12, "poleH": 10 },
-  "buildings": {
-    "add": [
-      { "rect": { "en": [-10, 33], "w": 17, "d": 23, "bearing": 166 }, "h": 7, "kind": "clubhouse", "color": "#efe6d2", "roof": "#4f7a5e", "roofStyle": "gable" },
-      { "rect": { "en": [-7, 8], "w": 18, "d": 14, "bearing": 166 }, "h": 6.5, "kind": "clubhouse", "color": "#f4f2ec", "roof": "#f4f2ec" },
-      { "rect": { "en": [-35, 30], "w": 20, "d": 24, "bearing": 166 }, "h": 5.5, "kind": "commercial", "color": "#e3ddd0", "roof": "#2a3550" },
-      { "rect": { "en": [-11, -36], "w": 11, "d": 7, "bearing": 166 }, "h": 3.6, "kind": "clubhouse", "color": "#efe6d2", "roof": "#4f7a5e", "roofStyle": "gable" }
-    ]
-  },
-  "areas": { "add": [{ "kind": "lawn", "rect": { "en": [6, -33], "w": 26, "d": 27, "bearing": 166 } }] },
-  "extras": [
-    { "type": "terrace", "en": [-7, 8], "w": 18, "d": 14, "bearing": 166, "h": 6.5 },
-    { "type": "umbrellas", "en": [-7, 8], "n": 6, "r": 5, "y": 6.5, "color": "#f4f2ec" },
-    { "type": "sail", "en": [-5, -3], "w": 12, "d": 10, "color": "#2f6fb8" },
-    { "type": "golf", "en": [-150, 120], "w": 160, "d": 120 },
-    { "type": "ocean", "deg": 135, "dist": 520 }
+ "name": "The Tennis & Pickleball Club at Newport Beach",
+ "short": "Newport Beach Club",
+ "city": "Newport Beach, CA",
+ "access": "members",
+ "note": "Private members' club: 44 pickleball courts in big pens (royal blue with cyan kitchens on green, pale-blue and salmon feature pods), 12 tennis courts with the only red clay court in Orange County, a green-roofed clubhouse with its lounge and bar, a rooftop terrace bar up the stairs, the social lawn with its outdoor bar, all lit; the golf course all round. Rooms inside the buildings are a reconstruction (docs/pickleball-venues.md).",
+ "lit": true,
+ "_anchor": "the reference pack's aerial anchor (the courts' middle): en points are metres east, north of it",
+ "anchor": [
+  33.6109,
+  -117.88
+ ],
+ "crop": 60,
+ "spawn": {
+  "en": [
+   26.0,
+   -50.0
   ],
-  "trees": {
-    "default": "palm",
-    "rows": [
-      { "from": { "en": [-20, -90] }, "to": { "en": [100, -90] }, "every": 10, "kind": "palm", "s": 1.1 },
-      { "from": { "en": [130, -60] }, "to": { "en": [130, 90] }, "every": 12, "kind": "broadleaf" }
+  "deg": 340
+ },
+ "light": {
+  "sun": 1.0
+ },
+ "courts": {
+  "byId": {
+   "1415923068": {
+    "court": "#8ec5e8",
+    "kitchen": "#c6e1ec",
+    "surround": "#b8d3df"
+   },
+   "1415923067": {
+    "court": "#8ec5e8",
+    "kitchen": "#c6e1ec",
+    "surround": "#b8d3df"
+   },
+   "1415923070": {
+    "court": "#8ec5e8",
+    "kitchen": "#c6e1ec",
+    "surround": "#b8d3df"
+   },
+   "1415923069": {
+    "court": "#8ec5e8",
+    "kitchen": "#c6e1ec",
+    "surround": "#b8d3df"
+   },
+   "1415923063": {
+    "court": "#e39b84",
+    "kitchen": "#f1bf9f",
+    "surround": "#e8b29c"
+   },
+   "1415923064": {
+    "court": "#e39b84",
+    "kitchen": "#f1bf9f",
+    "surround": "#e8b29c"
+   },
+   "1415923065": {
+    "court": "#e39b84",
+    "kitchen": "#f1bf9f",
+    "surround": "#e8b29c"
+   },
+   "1415923066": {
+    "court": "#e39b84",
+    "kitchen": "#f1bf9f",
+    "surround": "#e8b29c"
+   },
+   "1415923087": {
+    "court": "#2b3033",
+    "kitchen": "#2b3033",
+    "surround": "#5d6b70"
+   },
+   "1415923089": {
+    "court": "#b8583e",
+    "surround": "#b8583e",
+    "alley": "#b8583e",
+    "clay": true,
+    "lines": "#f2f2f0"
+   }
+  }
+ },
+ "colors": {
+  "court": "#2e5aa6",
+  "kitchen": "#21b7dc",
+  "surround": "#3f8f5a",
+  "tennis": "#3a6fb0",
+  "tennisSurround": "#3f8f5a",
+  "lines": "#f4f4f2",
+  "windscreen": "#1f3a5a",
+  "fence": "#1d1f20",
+  "ground": "#86a866",
+  "far": "#7fa35e"
+ },
+ "fence": {
+  "lightEvery": 12,
+  "poleH": 10,
+  "join": {
+   "t": {
+    "u": 9,
+    "w": 8.5
+   }
+  }
+ },
+ "buildings": {
+  "drop": [
+   1550655719
+  ],
+  "add": [
+   {
+    "poly": [
+     {
+      "en": [
+       -5.45,
+       29.23
+      ]
+     },
+     {
+      "en": [
+       11.05,
+       33.34
+      ]
+     },
+     {
+      "en": [
+       6.45,
+       51.77
+      ]
+     },
+     {
+      "en": [
+       -10.05,
+       47.66
+      ]
+     }
+    ],
+    "h": 7,
+    "kind": "clubhouse",
+    "color": "#efe9dc",
+    "roof": "#3e6b4f",
+    "roofStyle": "hip",
+    "tile": false,
+    "windows": "none",
+    "doors": [
+     {
+      "en": [
+       -2.54,
+       29.95
+      ],
+      "w": 2.0,
+      "kind": "double"
+     },
+     {
+      "en": [
+       5.71,
+       32.01
+      ],
+      "w": 3.0,
+      "kind": "double"
+     }
     ]
+   },
+   {
+    "poly": [
+     {
+      "en": [
+       -2.87,
+       8.49
+      ]
+     },
+     {
+      "en": [
+       12.65,
+       12.36
+      ]
+     },
+     {
+      "en": [
+       9.87,
+       23.51
+      ]
+     },
+     {
+      "en": [
+       -5.65,
+       19.64
+      ]
+     }
+    ],
+    "h": 6.5,
+    "kind": "clubhouse",
+    "color": "#f4f2ec",
+    "roof": "#e8e6e0",
+    "windows": "none",
+    "doors": [
+     {
+      "en": [
+       -1.77,
+       20.61
+      ],
+      "w": 1.2,
+      "kind": "restroom",
+      "gender": "m"
+     },
+     {
+      "en": [
+       5.99,
+       22.55
+      ],
+      "w": 1.2,
+      "kind": "restroom",
+      "gender": "f"
+     }
+    ]
+   },
+   {
+    "poly": [
+     {
+      "en": [
+       -3.51,
+       -37.17
+      ]
+     },
+     {
+      "en": [
+       7.17,
+       -34.51
+      ]
+     },
+     {
+      "en": [
+       4.51,
+       -23.83
+      ]
+     },
+     {
+      "en": [
+       -6.17,
+       -26.49
+      ]
+     }
+    ],
+    "h": 4.0,
+    "kind": "clubhouse",
+    "color": "#f4f4f2",
+    "roof": "#7f8a90",
+    "roofStyle": "hip",
+    "tile": false,
+    "windows": "none",
+    "doors": [
+     {
+      "en": [
+       5.17,
+       -26.5
+      ],
+      "w": 1.1,
+      "kind": "restroom",
+      "gender": "m"
+     },
+     {
+      "en": [
+       6.5,
+       -31.84
+      ],
+      "w": 1.1,
+      "kind": "restroom",
+      "gender": "f"
+     }
+    ]
+   },
+   {
+    "poly": [
+     {
+      "en": [
+       25.68,
+       -47.53
+      ]
+     },
+     {
+      "en": [
+       30.53,
+       -46.32
+      ]
+     },
+     {
+      "en": [
+       29.32,
+       -41.47
+      ]
+     },
+     {
+      "en": [
+       24.47,
+       -42.68
+      ]
+     }
+    ],
+    "h": 3.2,
+    "kind": "clubhouse",
+    "color": "#f4f4f2",
+    "roof": "#e8e6e0",
+    "windows": "ribs"
+   }
+  ]
+ },
+ "rooms": [
+  {
+   "id": "chLobby",
+   "type": "lobby",
+   "name": "Lobby and front desk",
+   "poly": [
+    {
+     "en": [
+      -5.45,
+      29.23
+     ]
+    },
+    {
+     "en": [
+      0.37,
+      30.68
+     ]
+    },
+    {
+     "en": [
+      -1.44,
+      37.95
+     ]
+    },
+    {
+     "en": [
+      -7.26,
+      36.5
+     ]
+    }
+   ],
+   "wall": "#efe9dc",
+   "floor": "#7a4e31",
+   "floorStyle": "wood",
+   "accent": "#3e6b4f",
+   "sofa": "#e8dcc4",
+   "doors": [
+    {
+     "en": [
+      -2.54,
+      29.95
+     ],
+     "w": 2.0,
+     "kind": "double"
+    },
+    {
+     "en": [
+      -0.47,
+      34.07
+     ],
+     "w": 2.4,
+     "kind": "open"
+    },
+    {
+     "en": [
+      -4.35,
+      37.23
+     ],
+     "w": 2.0,
+     "kind": "open"
+    }
+   ]
   },
-  "backdrop": { "palms": 30, "trees": 30, "skyline": true, "skylineTint": "#d9b48f" }
+  {
+   "id": "chLounge",
+   "type": "bar",
+   "name": "Clubhouse lounge, bar and dining",
+   "poly": [
+    {
+     "en": [
+      0.37,
+      30.68
+     ]
+    },
+    {
+     "en": [
+      11.05,
+      33.34
+     ]
+    },
+    {
+     "en": [
+      7.78,
+      46.44
+     ]
+    },
+    {
+     "en": [
+      -2.89,
+      43.78
+     ]
+    }
+   ],
+   "wall": "#efe9dc",
+   "floor": "#7a4e31",
+   "floorStyle": "wood",
+   "ceiling": "#f4f0e6",
+   "wainscot": "#a8703f",
+   "h": 4.4,
+   "accent": "#1d1f22",
+   "chairs": "#1d1f22",
+   "doors": [
+    {
+     "en": [
+      5.71,
+      32.01
+     ],
+     "w": 3.0,
+     "kind": "double"
+    },
+    {
+     "en": [
+      2.44,
+      45.11
+     ],
+     "w": 1.6,
+     "kind": "open"
+    }
+   ],
+   "furnish": false,
+   "props": [
+    {
+     "t": "backbar",
+     "en": [
+      0.6,
+      44.23
+     ],
+     "face": 166.0
+    },
+    {
+     "t": "backbar",
+     "en": [
+      3.51,
+      44.96
+     ],
+     "face": 166.0
+    },
+    {
+     "t": "counter",
+     "en": [
+      0.99,
+      42.68
+     ],
+     "face": 166.0,
+     "c": "#a8703f"
+    },
+    {
+     "t": "counter",
+     "en": [
+      3.9,
+      43.41
+     ],
+     "face": 166.0,
+     "c": "#a8703f"
+    },
+    {
+     "t": "stool",
+     "line": {
+      "from": {
+       "en": [
+        0.02,
+        41.62
+       ]
+      },
+      "to": {
+       "en": [
+        5.26,
+        42.92
+       ]
+      }
+     },
+     "face": 346.0,
+     "c": "#1d1f22"
+    },
+    {
+     "t": "tv",
+     "en": [
+      6.36,
+      45.93
+     ],
+     "face": 166.0,
+     "y": 1.2
+    },
+    {
+     "t": "tablesq",
+     "line": {
+      "from": {
+       "en": [
+        0.26,
+        37.35
+       ]
+      },
+      "to": {
+       "en": [
+        6.08,
+        38.8
+       ]
+      }
+     },
+     "c": "#8a5a33"
+    },
+    {
+     "t": "chair",
+     "line": {
+      "from": {
+       "en": [
+        0.06,
+        38.12
+       ]
+      },
+      "to": {
+       "en": [
+        5.88,
+        39.57
+       ]
+      }
+     },
+     "face": 166.0,
+     "c": "#1d1f22"
+    },
+    {
+     "t": "chair",
+     "line": {
+      "from": {
+       "en": [
+        0.45,
+        36.57
+       ]
+      },
+      "to": {
+       "en": [
+        6.27,
+        38.02
+       ]
+      }
+     },
+     "face": 346.0,
+     "c": "#1d1f22"
+    },
+    {
+     "t": "table",
+     "en": [
+      2.19,
+      33.71
+     ],
+     "c": "#23231f"
+    },
+    {
+     "t": "chair",
+     "en": [
+      1.47,
+      33.53
+     ],
+     "face": 76.0,
+     "c": "#1d1f22"
+    },
+    {
+     "t": "chair",
+     "en": [
+      2.92,
+      33.89
+     ],
+     "face": 256.0,
+     "c": "#1d1f22"
+    },
+    {
+     "t": "table",
+     "en": [
+      4.91,
+      34.39
+     ],
+     "c": "#23231f"
+    },
+    {
+     "t": "chair",
+     "en": [
+      4.18,
+      34.2
+     ],
+     "face": 76.0,
+     "c": "#1d1f22"
+    },
+    {
+     "t": "chair",
+     "en": [
+      5.64,
+      34.57
+     ],
+     "face": 256.0,
+     "c": "#1d1f22"
+    },
+    {
+     "t": "table",
+     "en": [
+      7.63,
+      35.06
+     ],
+     "c": "#23231f"
+    },
+    {
+     "t": "chair",
+     "en": [
+      6.9,
+      34.88
+     ],
+     "face": 76.0,
+     "c": "#1d1f22"
+    },
+    {
+     "t": "chair",
+     "en": [
+      8.35,
+      35.24
+     ],
+     "face": 256.0,
+     "c": "#1d1f22"
+    },
+    {
+     "t": "wallart",
+     "en": [
+      9.57,
+      38.64
+     ],
+     "face": 256.0,
+     "y": 1.6
+    },
+    {
+     "t": "plant",
+     "en": [
+      10.44,
+      33.7
+     ]
+    }
+   ]
+  },
+  {
+   "id": "chProshop",
+   "type": "proshop",
+   "name": "Pro shop",
+   "poly": [
+    {
+     "en": [
+      -7.26,
+      36.5
+     ]
+    },
+    {
+     "en": [
+      -1.44,
+      37.95
+     ]
+    },
+    {
+     "en": [
+      -2.89,
+      43.78
+     ]
+    },
+    {
+     "en": [
+      -8.72,
+      42.32
+     ]
+    }
+   ],
+   "wall": "#f4f0e6",
+   "floor": "#7a4e31",
+   "floorStyle": "wood",
+   "accent": "#3e6b4f",
+   "doors": [
+    {
+     "en": [
+      -5.8,
+      43.05
+     ],
+     "w": 1.6,
+     "kind": "open"
+    }
+   ]
+  },
+  {
+   "id": "chHall",
+   "type": "corridor",
+   "name": "Hallway",
+   "poly": [
+    {
+     "en": [
+      -8.72,
+      42.32
+     ]
+    },
+    {
+     "en": [
+      7.78,
+      46.44
+     ]
+    },
+    {
+     "en": [
+      7.3,
+      48.38
+     ]
+    },
+    {
+     "en": [
+      -9.2,
+      44.27
+     ]
+    }
+   ],
+   "wall": "#efe9dc",
+   "floor": "#c9bda8",
+   "benches": false
+  },
+  {
+   "id": "chMen",
+   "type": "restroom",
+   "name": "Men's restroom",
+   "gender": "m",
+   "poly": [
+    {
+     "en": [
+      -9.2,
+      44.27
+     ]
+    },
+    {
+     "en": [
+      -5.32,
+      45.23
+     ]
+    },
+    {
+     "en": [
+      -6.16,
+      48.63
+     ]
+    },
+    {
+     "en": [
+      -10.05,
+      47.66
+     ]
+    }
+   ],
+   "doors": [
+    {
+     "en": [
+      -7.26,
+      44.75
+     ],
+     "w": 1.0,
+     "kind": "restroom",
+     "gender": "m"
+    }
+   ]
+  },
+  {
+   "id": "chWomen",
+   "type": "restroom",
+   "name": "Women's restroom",
+   "gender": "f",
+   "poly": [
+    {
+     "en": [
+      -5.32,
+      45.23
+     ]
+    },
+    {
+     "en": [
+      -1.44,
+      46.2
+     ]
+    },
+    {
+     "en": [
+      -2.28,
+      49.6
+     ]
+    },
+    {
+     "en": [
+      -6.16,
+      48.63
+     ]
+    }
+   ],
+   "doors": [
+    {
+     "en": [
+      -3.38,
+      45.72
+     ],
+     "w": 1.0,
+     "kind": "restroom",
+     "gender": "f"
+    }
+   ]
+  },
+  {
+   "id": "chOffices",
+   "type": "office",
+   "name": "Executive offices",
+   "poly": [
+    {
+     "en": [
+      -1.44,
+      46.2
+     ]
+    },
+    {
+     "en": [
+      7.3,
+      48.38
+     ]
+    },
+    {
+     "en": [
+      6.45,
+      51.77
+     ]
+    },
+    {
+     "en": [
+      -2.28,
+      49.6
+     ]
+    }
+   ],
+   "doors": [
+    {
+     "en": [
+      2.93,
+      47.29
+     ],
+     "w": 1.0,
+     "kind": "closed",
+     "color": "#5a3a26"
+    }
+   ]
+  },
+  {
+   "id": "tbMen",
+   "type": "locker",
+   "name": "Men's locker room",
+   "gender": "m",
+   "poly": [
+    {
+     "en": [
+      -2.87,
+      8.49
+     ]
+    },
+    {
+     "en": [
+      4.89,
+      10.42
+     ]
+    },
+    {
+     "en": [
+      2.11,
+      21.58
+     ]
+    },
+    {
+     "en": [
+      -5.65,
+      19.64
+     ]
+    }
+   ],
+   "accent": "#3e6b4f",
+   "doors": [
+    {
+     "en": [
+      -1.77,
+      20.61
+     ],
+     "w": 1.2,
+     "kind": "restroom",
+     "gender": "m"
+    }
+   ]
+  },
+  {
+   "id": "tbWomen",
+   "type": "locker",
+   "name": "Women's locker room",
+   "gender": "f",
+   "poly": [
+    {
+     "en": [
+      4.89,
+      10.42
+     ]
+    },
+    {
+     "en": [
+      12.65,
+      12.36
+     ]
+    },
+    {
+     "en": [
+      9.87,
+      23.51
+     ]
+    },
+    {
+     "en": [
+      2.11,
+      21.58
+     ]
+    }
+   ],
+   "accent": "#3e6b4f",
+   "doors": [
+    {
+     "en": [
+      5.99,
+      22.55
+     ],
+     "w": 1.2,
+     "kind": "restroom",
+     "gender": "f"
+    }
+   ]
+  },
+  {
+   "id": "rcMen",
+   "type": "restroom",
+   "name": "Men's restroom (courtside)",
+   "gender": "m",
+   "poly": [
+    {
+     "en": [
+      -4.84,
+      -31.83
+     ]
+    },
+    {
+     "en": [
+      5.84,
+      -29.17
+     ]
+    },
+    {
+     "en": [
+      4.51,
+      -23.83
+     ]
+    },
+    {
+     "en": [
+      -6.17,
+      -26.49
+     ]
+    }
+   ],
+   "doors": [
+    {
+     "en": [
+      5.17,
+      -26.5
+     ],
+     "w": 1.1,
+     "kind": "restroom",
+     "gender": "m"
+    }
+   ]
+  },
+  {
+   "id": "rcWomen",
+   "type": "restroom",
+   "name": "Women's restroom (courtside)",
+   "gender": "f",
+   "poly": [
+    {
+     "en": [
+      -3.51,
+      -37.17
+     ]
+    },
+    {
+     "en": [
+      7.17,
+      -34.51
+     ]
+    },
+    {
+     "en": [
+      5.84,
+      -29.17
+     ]
+    },
+    {
+     "en": [
+      -4.84,
+      -31.83
+     ]
+    }
+   ],
+   "doors": [
+    {
+     "en": [
+      6.5,
+      -31.84
+     ],
+     "w": 1.1,
+     "kind": "restroom",
+     "gender": "f"
+    }
+   ]
+  }
+ ],
+ "decks": [
+  {
+   "name": "Rooftop terrace bar",
+   "y": 6.5,
+   "poly": [
+    {
+     "en": [
+      -2.87,
+      8.49
+     ]
+    },
+    {
+     "en": [
+      12.65,
+      12.36
+     ]
+    },
+    {
+     "en": [
+      9.87,
+      23.51
+     ]
+    },
+    {
+     "en": [
+      -5.65,
+      19.64
+     ]
+    }
+   ],
+   "railColor": "#f2f2ee",
+   "openings": [
+    {
+     "en": [
+      10.17,
+      22.3
+     ],
+     "w": 2.4
+    }
+   ]
+  },
+  {
+   "name": "Terrace stair landing",
+   "y": 6.5,
+   "poly": [
+    {
+     "en": [
+      10.46,
+      21.14
+     ]
+    },
+    {
+     "en": [
+      12.21,
+      21.57
+     ]
+    },
+    {
+     "en": [
+      11.62,
+      23.95
+     ]
+    },
+    {
+     "en": [
+      9.87,
+      23.51
+     ]
+    }
+   ],
+   "slab": true,
+   "color": "#cfc8b8",
+   "railColor": "#f2f2ee",
+   "openings": [
+    {
+     "en": [
+      10.17,
+      22.3
+     ],
+     "w": 2.4
+    }
+   ]
+  }
+ ],
+ "stairs": [
+  {
+   "from": {
+    "en": [
+     13.73,
+     11.75
+    ]
+   },
+   "to": {
+    "en": [
+     11.34,
+     21.36
+    ]
+   },
+   "w": 1.6,
+   "y0": 0,
+   "y1": 6.5,
+   "color": "#cfc8b8",
+   "rail": "#3e6b4f"
+  }
+ ],
+ "props": [
+  {
+   "t": "backbar",
+   "en": [
+    0.73,
+    20.93
+   ],
+   "face": 166.0,
+   "y": 6.5
+  },
+  {
+   "t": "backbar",
+   "en": [
+    3.64,
+    21.65
+   ],
+   "face": 166.0,
+   "y": 6.5
+  },
+  {
+   "t": "counter",
+   "en": [
+    1.1,
+    19.42
+   ],
+   "face": 166.0,
+   "c": "#efe9dc",
+   "y": 6.5
+  },
+  {
+   "t": "counter",
+   "en": [
+    4.01,
+    20.15
+   ],
+   "face": 166.0,
+   "c": "#efe9dc",
+   "y": 6.5
+  },
+  {
+   "t": "stool",
+   "line": {
+    "from": {
+     "en": [
+      0.13,
+      18.35
+     ]
+    },
+    "to": {
+     "en": [
+      5.37,
+      19.66
+     ]
+    }
+   },
+   "face": 346.0,
+   "c": "#3e6b4f",
+   "y": 6.5
+  },
+  {
+   "t": "sofa",
+   "en": [
+    -1.84,
+    12.61
+   ],
+   "face": 76.0,
+   "c": "#e8dcc4",
+   "y": 6.5
+  },
+  {
+   "t": "sofa",
+   "en": [
+    -2.56,
+    15.52
+   ],
+   "face": 76.0,
+   "c": "#e8dcc4",
+   "y": 6.5
+  },
+  {
+   "t": "coffeetable",
+   "en": [
+    -0.84,
+    14.4
+   ],
+   "face": 346.0,
+   "y": 6.5
+  },
+  {
+   "t": "umbrella",
+   "en": [
+    5.08,
+    13.82
+   ],
+   "c": "#f4f2ec",
+   "y": 6.5
+  },
+  {
+   "t": "umbrella",
+   "en": [
+    8.96,
+    14.78
+   ],
+   "c": "#f4f2ec",
+   "y": 6.5
+  },
+  {
+   "t": "cafetable",
+   "en": [
+    5.08,
+    13.82
+   ],
+   "c": "#f4f2ec",
+   "y": 6.5
+  },
+  {
+   "t": "cafetable",
+   "en": [
+    8.96,
+    14.78
+   ],
+   "c": "#f4f2ec",
+   "y": 6.5
+  },
+  {
+   "t": "chair",
+   "en": [
+    4.3,
+    13.62
+   ],
+   "face": 76.0,
+   "c": "#a8703f",
+   "y": 6.5
+  },
+  {
+   "t": "chair",
+   "en": [
+    5.85,
+    14.01
+   ],
+   "face": 256.0,
+   "c": "#a8703f",
+   "y": 6.5
+  },
+  {
+   "t": "chair",
+   "en": [
+    8.18,
+    14.59
+   ],
+   "face": 76.0,
+   "c": "#a8703f",
+   "y": 6.5
+  },
+  {
+   "t": "chair",
+   "en": [
+    9.73,
+    14.98
+   ],
+   "face": 256.0,
+   "c": "#a8703f",
+   "y": 6.5
+  },
+  {
+   "t": "planter",
+   "en": [
+    7.58,
+    22.38
+   ],
+   "face": 166.0,
+   "y": 6.5
+  },
+  {
+   "t": "planter",
+   "en": [
+    -3.09,
+    19.71
+   ],
+   "face": 166.0,
+   "y": 6.5
+  },
+  {
+   "t": "backbar",
+   "en": [
+    10.8,
+    -15.53
+   ],
+   "face": 166.0,
+   "c": "#a8703f"
+  },
+  {
+   "t": "backbar",
+   "en": [
+    13.71,
+    -14.8
+   ],
+   "face": 166.0,
+   "c": "#a8703f"
+  },
+  {
+   "t": "counter",
+   "en": [
+    11.19,
+    -17.08
+   ],
+   "face": 166.0,
+   "c": "#f2f2ee"
+  },
+  {
+   "t": "counter",
+   "en": [
+    14.1,
+    -16.36
+   ],
+   "face": 166.0,
+   "c": "#f2f2ee"
+  },
+  {
+   "t": "stool",
+   "line": {
+    "from": {
+     "en": [
+      10.12,
+      -18.17
+     ]
+    },
+    "to": {
+     "en": [
+      15.55,
+      -16.82
+     ]
+    }
+   },
+   "face": 346.0,
+   "c": "#1d1f22"
+  },
+  {
+   "t": "sofa",
+   "en": [
+    10.45,
+    -24.48
+   ],
+   "face": 76.0,
+   "c": "#efe6d2"
+  },
+  {
+   "t": "sofa",
+   "en": [
+    11.18,
+    -27.39
+   ],
+   "face": 76.0,
+   "c": "#efe6d2"
+  },
+  {
+   "t": "coffeetable",
+   "en": [
+    12.27,
+    -25.57
+   ],
+   "face": 346.0,
+   "c": "#a8703f"
+  },
+  {
+   "t": "armchair",
+   "en": [
+    13.82,
+    -25.18
+   ],
+   "face": 256.0,
+   "c": "#efe6d2"
+  },
+  {
+   "t": "picnic",
+   "en": [
+    22.82,
+    -34.79
+   ],
+   "face": 76.0
+  },
+  {
+   "t": "picnic",
+   "en": [
+    23.78,
+    -38.68
+   ],
+   "face": 76.0
+  },
+  {
+   "t": "planter",
+   "en": [
+    10.98,
+    -33.62
+   ],
+   "face": 76.0,
+   "c": "#e9e6df"
+  },
+  {
+   "t": "planter",
+   "en": [
+    11.95,
+    -37.5
+   ],
+   "face": 76.0,
+   "c": "#e9e6df"
+  },
+  {
+   "t": "umbrella",
+   "en": [
+    17.0,
+    -21.82
+   ],
+   "c": "#2f6b3a"
+  },
+  {
+   "t": "cafetable",
+   "en": [
+    17.0,
+    -21.82
+   ],
+   "c": "#f4f4f2"
+  },
+  {
+   "t": "chair",
+   "en": [
+    16.23,
+    -22.01
+   ],
+   "face": 76.0,
+   "c": "#a8703f"
+  },
+  {
+   "t": "chair",
+   "en": [
+    17.78,
+    -21.62
+   ],
+   "face": 256.0,
+   "c": "#a8703f"
+  },
+  {
+   "t": "umbrella",
+   "en": [
+    21.37,
+    -24.85
+   ],
+   "c": "#2f6b3a"
+  },
+  {
+   "t": "cafetable",
+   "en": [
+    21.37,
+    -24.85
+   ],
+   "c": "#f4f4f2"
+  },
+  {
+   "t": "chair",
+   "en": [
+    20.59,
+    -25.04
+   ],
+   "face": 76.0,
+   "c": "#a8703f"
+  },
+  {
+   "t": "chair",
+   "en": [
+    22.14,
+    -24.66
+   ],
+   "face": 256.0,
+   "c": "#a8703f"
+  },
+  {
+   "t": "umbrella",
+   "en": [
+    18.94,
+    -29.58
+   ],
+   "c": "#2f6b3a"
+  },
+  {
+   "t": "cafetable",
+   "en": [
+    18.94,
+    -29.58
+   ],
+   "c": "#f4f4f2"
+  },
+  {
+   "t": "chair",
+   "en": [
+    18.16,
+    -29.77
+   ],
+   "face": 76.0,
+   "c": "#a8703f"
+  },
+  {
+   "t": "chair",
+   "en": [
+    19.72,
+    -29.38
+   ],
+   "face": 256.0,
+   "c": "#a8703f"
+  },
+  {
+   "t": "waitboard",
+   "en": [
+    24.0,
+    9.0
+   ],
+   "face": 80,
+   "c": "#1f3a5a"
+  },
+  {
+   "t": "waitboard",
+   "en": [
+    46.0,
+    28.0
+   ],
+   "face": 166,
+   "c": "#1f3a5a"
+  },
+  {
+   "t": "fountain",
+   "en": [
+    -4.07,
+    12.05
+   ],
+   "face": 256.0
+  },
+  {
+   "t": "filler",
+   "en": [
+    -4.6,
+    14.19
+   ],
+   "face": 256.0
+  },
+  {
+   "t": "bench",
+   "en": [
+    18.0,
+    6.0
+   ],
+   "face": 76,
+   "c": "#9aa0a6"
+  },
+  {
+   "t": "bench",
+   "en": [
+    30.0,
+    -2.0
+   ],
+   "face": 346,
+   "c": "#9aa0a6"
+  },
+  {
+   "t": "bin",
+   "en": [
+    20.0,
+    4.0
+   ]
+  },
+  {
+   "t": "recycle",
+   "en": [
+    21.0,
+    4.0
+   ]
+  },
+  {
+   "t": "vending",
+   "en": [
+    6.27,
+    -29.06
+   ],
+   "face": 76.0,
+   "c": "#2f6fb8"
+  },
+  {
+   "t": "table",
+   "en": [
+    -2.78,
+    26.8
+   ],
+   "c": "#23231f"
+  },
+  {
+   "t": "chair",
+   "en": [
+    -3.51,
+    26.62
+   ],
+   "face": 76.0,
+   "c": "#3e6b4f"
+  },
+  {
+   "t": "chair",
+   "en": [
+    -2.06,
+    26.98
+   ],
+   "face": 256.0,
+   "c": "#3e6b4f"
+  },
+  {
+   "t": "table",
+   "en": [
+    1.29,
+    27.81
+   ],
+   "c": "#23231f"
+  },
+  {
+   "t": "chair",
+   "en": [
+    0.56,
+    27.63
+   ],
+   "face": 76.0,
+   "c": "#3e6b4f"
+  },
+  {
+   "t": "chair",
+   "en": [
+    2.02,
+    28.0
+   ],
+   "face": 256.0,
+   "c": "#3e6b4f"
+  },
+  {
+   "t": "table",
+   "en": [
+    5.37,
+    28.83
+   ],
+   "c": "#23231f"
+  },
+  {
+   "t": "chair",
+   "en": [
+    4.64,
+    28.65
+   ],
+   "face": 76.0,
+   "c": "#3e6b4f"
+  },
+  {
+   "t": "chair",
+   "en": [
+    6.1,
+    29.01
+   ],
+   "face": 256.0,
+   "c": "#3e6b4f"
+  },
+  {
+   "t": "table",
+   "en": [
+    9.44,
+    29.85
+   ],
+   "c": "#23231f"
+  },
+  {
+   "t": "chair",
+   "en": [
+    8.72,
+    29.67
+   ],
+   "face": 76.0,
+   "c": "#3e6b4f"
+  },
+  {
+   "t": "chair",
+   "en": [
+    10.17,
+    30.03
+   ],
+   "face": 256.0,
+   "c": "#3e6b4f"
+  }
+ ],
+ "areas": {
+  "add": [
+   {
+    "kind": "turf",
+    "poly": [
+     {
+      "en": [
+       4.4,
+       -15.6
+      ]
+     },
+     {
+      "en": [
+       25.0,
+       -10.0
+      ]
+     },
+     {
+      "en": [
+       30.0,
+       -42.4
+      ]
+     },
+     {
+      "en": [
+       9.0,
+       -45.0
+      ]
+     }
+    ],
+    "color": "#5f8a3a"
+   },
+   {
+    "kind": "parking",
+    "poly": [
+     {
+      "en": [
+       -8.0,
+       -50.0
+      ]
+     },
+     {
+      "en": [
+       110.0,
+       -40.0
+      ]
+     },
+     {
+      "en": [
+       106.0,
+       -96.0
+      ]
+     },
+     {
+      "en": [
+       -4.0,
+       -100.0
+      ]
+     }
+    ]
+   },
+   {
+    "kind": "deck",
+    "poly": [
+     {
+      "en": [
+       -4.0,
+       23.4
+      ]
+     },
+     {
+      "en": [
+       12.5,
+       27.52
+      ]
+     },
+     {
+      "en": [
+       11.05,
+       33.34
+      ]
+     },
+     {
+      "en": [
+       -5.45,
+       29.23
+      ]
+     }
+    ],
+    "color": "#cfc8b8"
+   },
+   {
+    "kind": "concrete",
+    "poly": [
+     {
+      "en": [
+       -2.69,
+       5.7
+      ]
+     },
+     {
+      "en": [
+       15.74,
+       10.29
+      ]
+     },
+     {
+      "en": [
+       15.08,
+       12.96
+      ]
+     },
+     {
+      "en": [
+       -3.36,
+       8.36
+      ]
+     }
+    ],
+    "color": "#c9c3b6"
+   }
+  ]
+ },
+ "extras": [
+  {
+   "type": "tower",
+   "en": [
+    0.5,
+    40.5
+   ],
+   "w": 2.2,
+   "h": 10.2,
+   "base": 7.6,
+   "color": "#f4f2ec",
+   "roof": "#3e6b4f"
+  },
+  {
+   "type": "awnings",
+   "en": [
+    3.06,
+    30.21
+   ],
+   "w": 17,
+   "bearing": 76,
+   "color": "#2f5a3f"
+  },
+  {
+   "type": "sail",
+   "en": [
+    7.0,
+    3.8
+   ],
+   "w": 7,
+   "d": 8,
+   "color": "#1f2a6a"
+  },
+  {
+   "type": "stands",
+   "en": [
+    7.0,
+    -10.0
+   ],
+   "w": 12,
+   "rows": 4,
+   "color": "#5a8a4a",
+   "face": "n"
+  },
+  {
+   "type": "solar",
+   "en": [
+    -23.8,
+    40.5
+   ],
+   "w": 20,
+   "d": 16,
+   "h": 6.2,
+   "bearing": 76
+  },
+  {
+   "type": "awnings",
+   "en": [
+    27.5,
+    -41.6
+   ],
+   "w": 4.2,
+   "color": "#a8703f"
+  },
+  {
+   "type": "golf",
+   "en": [
+    -150,
+    120
+   ],
+   "w": 200,
+   "d": 150
+  },
+  {
+   "type": "ocean",
+   "deg": 135,
+   "dist": 520
+  }
+ ],
+ "trees": {
+  "default": "palm"
+ },
+ "backdrop": {
+  "palms": 30,
+  "trees": 30,
+  "skyline": true,
+  "skylineTint": "#d9b48f"
+ }
 }
