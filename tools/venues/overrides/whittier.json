@@ -1,484 +1,1378 @@
 {
-  "name": "iPickle Whittier Narrows",
-  "short": "Whittier Narrows",
-  "city": "South El Monte, CA",
-  "access": "public",
-  "note": "LA County's biggest pickleball center: 16 dedicated courts in four 2x2 pods, plus pickleball lines on the tennis courts.",
-  "lit": true,
-  "anchor": [
-    34.0439,
-    -118.0576
+ "name": "iPickle Whittier Narrows",
+ "short": "Whittier Narrows",
+ "city": "South El Monte, CA",
+ "access": "public",
+ "note": "LA County's biggest pickleball center: 16 dedicated courts in four chamfered pens of four, the tennis rows north, the clubhouse with its snack window and fire-pit lounge.",
+ "lit": true,
+ "_anchor": "the reference pack's aerial anchor: en points are meters east/north of it",
+ "anchor": [
+  34.0437,
+  -118.0574
+ ],
+ "crop": 75,
+ "spawn": {
+  "en": [
+   40,
+   -66
   ],
-  "crop": 70,
-  "courts": {
-    "osm": false,
-    "add": [
-      {
-        "id": "TE1",
-        "sport": "tennis",
-        "en": [
-          -41,
-          38
-        ],
-        "bearing": 0,
-        "pb": 2,
-        "pbLayout": "pair"
-      },
-      {
-        "id": "TE2",
-        "sport": "tennis",
-        "en": [
-          -22,
-          38
-        ],
-        "bearing": 0,
-        "pb": 2,
-        "pbLayout": "pair"
-      },
-      {
-        "id": "TE3",
-        "sport": "tennis",
-        "en": [
-          -4,
-          38
-        ],
-        "bearing": 0,
-        "pb": 2,
-        "pbLayout": "pair"
-      },
-      {
-        "id": "TE4",
-        "sport": "tennis",
-        "en": [
-          14,
-          38
-        ],
-        "bearing": 0,
-        "pb": 2,
-        "pbLayout": "pair"
-      },
-      {
-        "id": "TE5",
-        "sport": "tennis",
-        "en": [
-          32,
-          38
-        ],
-        "bearing": 0,
-        "pb": 2,
-        "pbLayout": "pair"
-      },
-      {
-        "id": "TE6",
-        "sport": "tennis",
-        "en": [
-          50.5,
-          38
-        ],
-        "bearing": 0,
-        "pb": 2,
-        "pbLayout": "pair"
-      },
-      {
-        "id": "TE7",
-        "sport": "tennis",
-        "en": [
-          -41,
-          -1
-        ],
-        "bearing": 0
-      },
-      {
-        "id": "TE8",
-        "sport": "tennis",
-        "en": [
-          -22,
-          -1
-        ],
-        "bearing": 0
-      },
-      {
-        "id": "TE9",
-        "sport": "tennis",
-        "en": [
-          -4,
-          -1
-        ],
-        "bearing": 0
-      },
-      {
-        "id": "TE10",
-        "sport": "tennis",
-        "en": [
-          14,
-          -1
-        ],
-        "bearing": 0
-      },
-      {
-        "id": "TE11",
-        "sport": "tennis",
-        "en": [
-          32,
-          -1
-        ],
-        "bearing": 0
-      },
-      {
-        "id": "TE12",
-        "sport": "tennis",
-        "en": [
-          50.5,
-          -1
-        ],
-        "bearing": 0
-      },
-      {
-        "id": "PB1",
-        "en": [
-          -44.8,
-          -31.4
-        ],
-        "bearing": 0
-      },
-      {
-        "id": "PB2",
-        "en": [
-          -37.2,
-          -31.4
-        ],
-        "bearing": 0
-      },
-      {
-        "id": "PB3",
-        "en": [
-          -44.8,
-          -48.6
-        ],
-        "bearing": 0
-      },
-      {
-        "id": "PB4",
-        "en": [
-          -37.2,
-          -48.6
-        ],
-        "bearing": 0
-      },
-      {
-        "id": "PB5",
-        "en": [
-          -25.8,
-          -31.4
-        ],
-        "bearing": 0
-      },
-      {
-        "id": "PB6",
-        "en": [
-          -18.2,
-          -31.4
-        ],
-        "bearing": 0
-      },
-      {
-        "id": "PB7",
-        "en": [
-          -25.8,
-          -48.6
-        ],
-        "bearing": 0
-      },
-      {
-        "id": "PB8",
-        "en": [
-          -18.2,
-          -48.6
-        ],
-        "bearing": 0
-      },
-      {
-        "id": "PB9",
-        "en": [
-          -7.8,
-          -31.4
-        ],
-        "bearing": 0
-      },
-      {
-        "id": "PB10",
-        "en": [
-          -0.2,
-          -31.4
-        ],
-        "bearing": 0
-      },
-      {
-        "id": "PB11",
-        "en": [
-          -7.8,
-          -48.6
-        ],
-        "bearing": 0
-      },
-      {
-        "id": "PB12",
-        "en": [
-          -0.2,
-          -48.6
-        ],
-        "bearing": 0
-      },
-      {
-        "id": "PB13",
-        "en": [
-          10.2,
-          -31.4
-        ],
-        "bearing": 0
-      },
-      {
-        "id": "PB14",
-        "en": [
-          17.8,
-          -31.4
-        ],
-        "bearing": 0
-      },
-      {
-        "id": "PB15",
-        "en": [
-          10.2,
-          -48.6
-        ],
-        "bearing": 0
-      },
-      {
-        "id": "PB16",
-        "en": [
-          17.8,
-          -48.6
-        ],
-        "bearing": 0
-      }
-    ]
-  },
-  "colors": {
-    "court": "#3a6596",
-    "kitchen": "#9fb3bb",
-    "surround": "#4f7d52",
-    "tennis": "#2c4f8c",
-    "tennisSurround": "#4f7d52",
-    "lines": "#f5f5f2",
-    "pbLines": "#c9d6e2",
-    "windscreen": "#1f3a2a",
-    "fence": "#8f9496",
-    "ground": "#7d9450",
-    "far": "#8a9a5e"
-  },
-  "fence": {
-    "join": {
-      "p": {
-        "u": 5,
-        "w": 3.0
-      }
-    },
-    "lightEvery": 18.3,
-    "poleH": 9
-  },
-  "buildings": {
-    "rules": [
-      {
-        "en": [
-          31,
-          -41
-        ],
-        "r": 12,
-        "color": "#d8d4cc",
-        "roof": "#5f625c",
-        "kind": "clubhouse",
-        "h": 4.2
-      }
-    ]
-  },
-  "areas": {
-    "add": [
-      {
-        "kind": "paved",
-        "rect": {
-          "en": [
-            5,
-            19
-          ],
-          "w": 110,
-          "d": 4,
-          "deg": 0
-        }
-      },
-      {
-        "kind": "paved",
-        "rect": {
-          "en": [
-            5,
-            -18
-          ],
-          "w": 110,
-          "d": 6,
-          "deg": 0
-        }
-      },
-      {
-        "kind": "paved",
-        "rect": {
-          "en": [
-            36,
-            -22
-          ],
-          "w": 18,
-          "d": 12,
-          "deg": 0
-        }
-      },
-      {
-        "kind": "lawn",
-        "rect": {
-          "en": [
-            52,
-            -55
-          ],
-          "w": 26,
-          "d": 30,
-          "deg": 0
-        }
-      }
-    ]
-  },
-  "extras": [
-    {
-      "type": "canopy",
-      "en": [
-        22,
-        -31
-      ],
-      "w": 3,
-      "color": "#ffffff"
-    },
-    {
-      "type": "canopy",
-      "en": [
-        22,
-        -35
-      ],
-      "w": 3,
-      "color": "#b9a3d9"
-    },
-    {
-      "type": "canopy",
-      "en": [
-        22,
-        -39
-      ],
-      "w": 3,
-      "color": "#ffffff"
-    },
-    {
-      "type": "canopy",
-      "en": [
-        22,
-        -43
-      ],
-      "w": 3,
-      "color": "#b9a3d9"
-    },
-    {
-      "type": "umbrellas",
-      "en": [
-        36,
-        -22
-      ],
-      "n": 4,
-      "r": 4,
-      "color": "#2f6fb8"
-    },
-    {
-      "type": "gazebo",
-      "en": [
-        50,
-        -72
-      ],
-      "w": 6
-    }
-  ],
-  "trees": {
-    "default": "broadleaf",
-    "rows": [
-      {
-        "from": {
-          "en": [
-            68,
-            60
-          ]
-        },
-        "to": {
-          "en": [
-            68,
-            -70
-          ]
-        },
-        "every": 7,
-        "kind": "broadleaf",
-        "s": 1.3
-      },
-      {
-        "from": {
-          "en": [
-            -70,
-            60
-          ]
-        },
-        "to": {
-          "en": [
-            -70,
-            -70
-          ]
-        },
-        "every": 11,
-        "kind": "eucalyptus",
-        "s": 1.2
-      }
+  "deg": 330
+ },
+ "light": {
+  "sun": 1.0
+ },
+ "courts": {
+  "osm": false,
+  "add": [
+   {
+    "id": "T1",
+    "sport": "tennis",
+    "en": [
+     -59.14,
+     60.41
     ],
-    "add": [
-      {
-        "en": [
-          40,
-          -64
-        ],
-        "kind": "conifer",
-        "s": 1.4
-      },
-      {
-        "en": [
-          58,
-          -78
-        ],
-        "kind": "conifer",
-        "s": 1.5
-      },
-      {
-        "en": [
-          30,
-          -80
-        ],
-        "kind": "broadleaf",
-        "s": 1.3
-      }
-    ]
+    "bearing": 0,
+    "court": "#2c4f8f",
+    "alley": "#2c4f8f",
+    "surround": "#4f7f5c"
+   },
+   {
+    "id": "T2",
+    "sport": "tennis",
+    "en": [
+     -40.89,
+     60.41
+    ],
+    "bearing": 0,
+    "court": "#2c4f8f",
+    "alley": "#2c4f8f",
+    "surround": "#4f7f5c"
+   },
+   {
+    "id": "T3",
+    "sport": "tennis",
+    "en": [
+     -22.77,
+     60.49
+    ],
+    "bearing": 0,
+    "court": "#2c4f8f",
+    "alley": "#2c4f8f",
+    "surround": "#4f7f5c"
+   },
+   {
+    "id": "T4",
+    "sport": "tennis",
+    "en": [
+     -4.31,
+     60.61
+    ],
+    "bearing": 0,
+    "court": "#2c4f8f",
+    "alley": "#2c4f8f",
+    "surround": "#4f7f5c"
+   },
+   {
+    "id": "T5",
+    "sport": "tennis",
+    "en": [
+     13.93,
+     60.61
+    ],
+    "bearing": 0,
+    "court": "#2c4f8f",
+    "alley": "#2c4f8f",
+    "surround": "#4f7f5c"
+   },
+   {
+    "id": "T6",
+    "sport": "tennis",
+    "en": [
+     32.05,
+     60.7
+    ],
+    "bearing": 0,
+    "court": "#2c4f8f",
+    "alley": "#2c4f8f",
+    "surround": "#4f7f5c"
+   },
+   {
+    "id": "T7",
+    "sport": "tennis",
+    "en": [
+     -59.07,
+     21.12
+    ],
+    "bearing": 0,
+    "court": "#2c4f8f",
+    "alley": "#2c4f8f",
+    "surround": "#4f7f5c",
+    "pb": 2,
+    "pbLayout": "pair"
+   },
+   {
+    "id": "T8",
+    "sport": "tennis",
+    "en": [
+     -40.83,
+     21.12
+    ],
+    "bearing": 0,
+    "court": "#2c4f8f",
+    "alley": "#2c4f8f",
+    "surround": "#4f7f5c",
+    "pb": 2,
+    "pbLayout": "pair"
+   },
+   {
+    "id": "T9",
+    "sport": "tennis",
+    "en": [
+     -22.71,
+     21.2
+    ],
+    "bearing": 0,
+    "court": "#2c4f8f",
+    "alley": "#2c4f8f",
+    "surround": "#4f7f5c"
+   },
+   {
+    "id": "T10",
+    "sport": "tennis",
+    "en": [
+     -4.23,
+     21.36
+    ],
+    "bearing": 0,
+    "court": "#2c4f8f",
+    "alley": "#2c4f8f",
+    "surround": "#4f7f5c"
+   },
+   {
+    "id": "T11",
+    "sport": "tennis",
+    "en": [
+     14.01,
+     21.36
+    ],
+    "bearing": 0,
+    "court": "#2c4f8f",
+    "alley": "#2c4f8f",
+    "surround": "#4f7f5c"
+   },
+   {
+    "id": "T12",
+    "sport": "tennis",
+    "en": [
+     32.13,
+     21.44
+    ],
+    "bearing": 0,
+    "court": "#2c4f8f",
+    "alley": "#2c4f8f",
+    "surround": "#4f7f5c"
+   },
+   {
+    "id": "PB1",
+    "en": [
+     -62.99,
+     -9.98
+    ],
+    "bearing": 0,
+    "court": "#2f5d97",
+    "kitchen": "#a7b4b8",
+    "surround": "#5f8f6c"
+   },
+   {
+    "id": "PB2",
+    "en": [
+     -54.99,
+     -9.98
+    ],
+    "bearing": 0,
+    "court": "#2f5d97",
+    "kitchen": "#a7b4b8",
+    "surround": "#5f8f6c"
+   },
+   {
+    "id": "PB3",
+    "en": [
+     -62.99,
+     -25.98
+    ],
+    "bearing": 0,
+    "court": "#2f5d97",
+    "kitchen": "#a7b4b8",
+    "surround": "#5f8f6c"
+   },
+   {
+    "id": "PB4",
+    "en": [
+     -54.99,
+     -25.98
+    ],
+    "bearing": 0,
+    "court": "#2f5d97",
+    "kitchen": "#a7b4b8",
+    "surround": "#5f8f6c"
+   },
+   {
+    "id": "PB5",
+    "en": [
+     -44.75,
+     -9.98
+    ],
+    "bearing": 0,
+    "court": "#2f5d97",
+    "kitchen": "#a7b4b8",
+    "surround": "#5f8f6c"
+   },
+   {
+    "id": "PB6",
+    "en": [
+     -36.75,
+     -9.98
+    ],
+    "bearing": 0,
+    "court": "#2f5d97",
+    "kitchen": "#a7b4b8",
+    "surround": "#5f8f6c"
+   },
+   {
+    "id": "PB7",
+    "en": [
+     -44.75,
+     -25.98
+    ],
+    "bearing": 0,
+    "court": "#2f5d97",
+    "kitchen": "#a7b4b8",
+    "surround": "#5f8f6c"
+   },
+   {
+    "id": "PB8",
+    "en": [
+     -36.75,
+     -25.98
+    ],
+    "bearing": 0,
+    "court": "#2f5d97",
+    "kitchen": "#a7b4b8",
+    "surround": "#5f8f6c"
+   },
+   {
+    "id": "PB9",
+    "en": [
+     -26.63,
+     -9.9
+    ],
+    "bearing": 0,
+    "court": "#2f5d97",
+    "kitchen": "#a7b4b8",
+    "surround": "#5f8f6c"
+   },
+   {
+    "id": "PB10",
+    "en": [
+     -18.63,
+     -9.9
+    ],
+    "bearing": 0,
+    "court": "#2f5d97",
+    "kitchen": "#a7b4b8",
+    "surround": "#5f8f6c"
+   },
+   {
+    "id": "PB11",
+    "en": [
+     -26.63,
+     -25.9
+    ],
+    "bearing": 0,
+    "court": "#2f5d97",
+    "kitchen": "#a7b4b8",
+    "surround": "#5f8f6c"
+   },
+   {
+    "id": "PB12",
+    "en": [
+     -18.63,
+     -25.9
+    ],
+    "bearing": 0,
+    "court": "#2f5d97",
+    "kitchen": "#a7b4b8",
+    "surround": "#5f8f6c"
+   },
+   {
+    "id": "PB13",
+    "en": [
+     -8.33,
+     -9.94
+    ],
+    "bearing": 0,
+    "court": "#2f5d97",
+    "kitchen": "#a7b4b8",
+    "surround": "#5f8f6c"
+   },
+   {
+    "id": "PB14",
+    "en": [
+     -0.33,
+     -9.94
+    ],
+    "bearing": 0,
+    "court": "#2f5d97",
+    "kitchen": "#a7b4b8",
+    "surround": "#5f8f6c"
+   },
+   {
+    "id": "PB15",
+    "en": [
+     -8.33,
+     -25.94
+    ],
+    "bearing": 0,
+    "court": "#2f5d97",
+    "kitchen": "#a7b4b8",
+    "surround": "#5f8f6c"
+   },
+   {
+    "id": "PB16",
+    "en": [
+     -0.33,
+     -25.94
+    ],
+    "bearing": 0,
+    "court": "#2f5d97",
+    "kitchen": "#a7b4b8",
+    "surround": "#5f8f6c"
+   }
+  ]
+ },
+ "colors": {
+  "court": "#2f5d97",
+  "kitchen": "#a7b4b8",
+  "surround": "#5f8f6c",
+  "tennis": "#2c4f8f",
+  "tennisSurround": "#4f7f5c",
+  "lines": "#f5f5f2",
+  "pbLines": "#c9d6e2",
+  "windscreen": "#2c3430",
+  "fence": "#2b2f2e",
+  "ground": "#b89a6e",
+  "far": "#a8916a"
+ },
+ "fence": {
+  "join": {
+   "p": {
+    "u": 5,
+    "w": 3.0
+   }
   },
-  "backdrop": {
-    "hills": "#a08e62",
-    "mountains": "#8f97a6",
-    "mountainsDeg": -90,
-    "trees": 40,
-    "treeKind": "eucalyptus"
+  "lightEvery": 18.3,
+  "poleH": 9,
+  "doubleHeads": true,
+  "screen": true
+ },
+ "buildings": {
+  "add": [
+   {
+    "poly": [
+     {
+      "en": [
+       59.5,
+       98
+      ]
+     },
+     {
+      "en": [
+       64.5,
+       98
+      ]
+     },
+     {
+      "en": [
+       64.5,
+       -15
+      ]
+     },
+     {
+      "en": [
+       59.5,
+       -15
+      ]
+     }
+    ],
+    "h": 5,
+    "kind": "industrial",
+    "color": "#d9d6cc",
+    "roof": "#efefea",
+    "roofStyle": "flat",
+    "parapet": 0.5
+   },
+   {
+    "poly": [
+     {
+      "en": [
+       60,
+       -10
+      ]
+     },
+     {
+      "en": [
+       92,
+       -10
+      ]
+     },
+     {
+      "en": [
+       92,
+       -48
+      ]
+     },
+     {
+      "en": [
+       60,
+       -48
+      ]
+     }
+    ],
+    "h": 7,
+    "kind": "industrial",
+    "color": "#d9d6cc",
+    "roof": "#f2f2ee",
+    "roofStyle": "flat",
+    "parapet": 0.6,
+    "hvac": true
+   },
+   {
+    "poly": [
+     {
+      "en": [
+       10.0,
+       -5.0
+      ]
+     },
+     {
+      "en": [
+       19.5,
+       -5.0
+      ]
+     },
+     {
+      "en": [
+       19.5,
+       -24.0
+      ]
+     },
+     {
+      "en": [
+       10.0,
+       -24.0
+      ]
+     }
+    ],
+    "h": 4.6,
+    "kind": "clubhouse",
+    "color": "#cbb994",
+    "roof": "#4a443e",
+    "roofStyle": "hip",
+    "tile": false,
+    "windows": "none",
+    "doors": [
+     {
+      "en": [
+       10.0,
+       -9.0
+      ],
+      "w": 1.8,
+      "kind": "glass"
+     },
+     {
+      "en": [
+       10.0,
+       -15.8
+      ],
+      "w": 1.1,
+      "kind": "restroom",
+      "gender": "m"
+     },
+     {
+      "en": [
+       10.0,
+       -21.2
+      ],
+      "w": 1.1,
+      "kind": "restroom",
+      "gender": "f"
+     },
+     {
+      "en": [
+       19.5,
+       -18.5
+      ],
+      "w": 2.4,
+      "kind": "open"
+     },
+     {
+      "en": [
+       14.75,
+       -5.0
+      ],
+      "w": 1.8,
+      "kind": "glass"
+     }
+    ]
+   }
+  ],
+  "drop": [
+   470737225
+  ],
+  "style": {
+   "470737386": {
+    "roofStyle": "hip",
+    "roof": "#6a4a36",
+    "color": "#cbb994",
+    "tile": false
+   }
+  },
+  "doors": {
+   "470737386": [
+    {
+     "en": [
+      28.4,
+      -42.9
+     ],
+     "w": 1.1,
+     "kind": "restroom",
+     "gender": "m"
+    },
+    {
+     "en": [
+      28.4,
+      -52.8
+     ],
+     "w": 1.1,
+     "kind": "restroom",
+     "gender": "f"
+    }
+   ]
   }
+ },
+ "rooms": [
+  {
+   "id": "wnShop",
+   "type": "proshop",
+   "name": "Pro shop and front desk",
+   "poly": [
+    {
+     "en": [
+      10.0,
+      -5.0
+     ]
+    },
+    {
+     "en": [
+      19.5,
+      -5.0
+     ]
+    },
+    {
+     "en": [
+      19.5,
+      -13
+     ]
+    },
+    {
+     "en": [
+      10.0,
+      -13
+     ]
+    }
+   ],
+   "wall": "#efe6d2",
+   "floor": "#8a7a62",
+   "accent": "#1f5fa8",
+   "h": 3.2,
+   "doors": [
+    {
+     "en": [
+      10.0,
+      -9.0
+     ],
+     "w": 1.8,
+     "kind": "glass"
+    },
+    {
+     "en": [
+      14.75,
+      -5.0
+     ],
+     "w": 1.8,
+     "kind": "glass"
+    },
+    {
+     "en": [
+      16.75,
+      -13
+     ],
+     "w": 1.2,
+     "kind": "open"
+    }
+   ]
+  },
+  {
+   "id": "wnMen",
+   "type": "restroom",
+   "name": "Men's restroom",
+   "gender": "m",
+   "poly": [
+    {
+     "en": [
+      10.0,
+      -13
+     ]
+    },
+    {
+     "en": [
+      14,
+      -13
+     ]
+    },
+    {
+     "en": [
+      14,
+      -18.5
+     ]
+    },
+    {
+     "en": [
+      10.0,
+      -18.5
+     ]
+    }
+   ],
+   "wall": "#e8e4dc",
+   "floor": "#9a9a94",
+   "h": 3.0,
+   "doors": [
+    {
+     "en": [
+      10.0,
+      -15.8
+     ],
+     "w": 1.1,
+     "kind": "restroom",
+     "gender": "m"
+    }
+   ]
+  },
+  {
+   "id": "wnWomen",
+   "type": "restroom",
+   "name": "Women's restroom",
+   "gender": "f",
+   "poly": [
+    {
+     "en": [
+      10.0,
+      -18.5
+     ]
+    },
+    {
+     "en": [
+      14,
+      -18.5
+     ]
+    },
+    {
+     "en": [
+      14,
+      -24.0
+     ]
+    },
+    {
+     "en": [
+      10.0,
+      -24.0
+     ]
+    }
+   ],
+   "wall": "#e8e4dc",
+   "floor": "#9a9a94",
+   "h": 3.0,
+   "doors": [
+    {
+     "en": [
+      10.0,
+      -21.2
+     ],
+     "w": 1.1,
+     "kind": "restroom",
+     "gender": "f"
+    }
+   ]
+  },
+  {
+   "id": "wnSnack",
+   "type": "cafe",
+   "name": "Snack bar",
+   "poly": [
+    {
+     "en": [
+      14,
+      -13
+     ]
+    },
+    {
+     "en": [
+      19.5,
+      -13
+     ]
+    },
+    {
+     "en": [
+      19.5,
+      -24.0
+     ]
+    },
+    {
+     "en": [
+      14,
+      -24.0
+     ]
+    }
+   ],
+   "wall": "#efe6d2",
+   "floor": "#7d7568",
+   "accent": "#c8452f",
+   "h": 3.2,
+   "doors": [
+    {
+     "en": [
+      16.75,
+      -13
+     ],
+     "w": 1.2,
+     "kind": "open"
+    },
+    {
+     "en": [
+      19.5,
+      -18.5
+     ],
+     "w": 2.4,
+     "kind": "open"
+    }
+   ]
+  }
+ ],
+ "props": [
+  {
+   "t": "sofa",
+   "en": [
+    7.6,
+    -7.5
+   ],
+   "face": 270,
+   "c": "#6f6f6a"
+  },
+  {
+   "t": "sofa",
+   "en": [
+    7.6,
+    -11.0
+   ],
+   "face": 270,
+   "c": "#6f6f6a"
+  },
+  {
+   "t": "coffeetable",
+   "en": [
+    6.6,
+    -9.2
+   ],
+   "face": 0
+  },
+  {
+   "t": "bleacher",
+   "en": [
+    7.6,
+    -25.6
+   ],
+   "face": 270
+  },
+  {
+   "t": "tv",
+   "en": [
+    9.6,
+    -13.6
+   ],
+   "face": 270,
+   "y": 1.4
+  },
+  {
+   "t": "waitboard",
+   "en": [
+    5.9,
+    -4.2
+   ],
+   "face": 90
+  },
+  {
+   "t": "waitboard",
+   "en": [
+    5.9,
+    -27.5
+   ],
+   "face": 90
+  },
+  {
+   "t": "fountain",
+   "en": [
+    9.6,
+    -2.6
+   ],
+   "face": 270
+  },
+  {
+   "t": "bin",
+   "en": [
+    9.6,
+    -25.4
+   ],
+   "face": 270
+  },
+  {
+   "t": "firepit",
+   "en": [
+    25.5,
+    -8.5
+   ]
+  },
+  {
+   "t": "sofa",
+   "en": [
+    25.5,
+    -6.2
+   ],
+   "face": 180,
+   "c": "#8b8b86"
+  },
+  {
+   "t": "sofa",
+   "en": [
+    25.5,
+    -10.8
+   ],
+   "face": 0,
+   "c": "#8b8b86"
+  },
+  {
+   "t": "armchair",
+   "en": [
+    23.0,
+    -8.5
+   ],
+   "face": 90,
+   "c": "#8b8b86"
+  },
+  {
+   "t": "armchair",
+   "en": [
+    28.0,
+    -8.5
+   ],
+   "face": 270,
+   "c": "#8b8b86"
+  },
+  {
+   "t": "cafetable",
+   "en": [
+    22.5,
+    -17.5
+   ]
+  },
+  {
+   "t": "umbrella",
+   "en": [
+    22.5,
+    -17.5
+   ],
+   "c": "#c8b48a"
+  },
+  {
+   "t": "cafetable",
+   "en": [
+    22.5,
+    -21.5
+   ]
+  },
+  {
+   "t": "umbrella",
+   "en": [
+    22.5,
+    -21.5
+   ],
+   "c": "#c8b48a"
+  },
+  {
+   "t": "chair",
+   "en": [
+    21.6,
+    -17.5
+   ],
+   "face": 90,
+   "c": "#4a4a46"
+  },
+  {
+   "t": "chair",
+   "en": [
+    23.4,
+    -17.5
+   ],
+   "face": 270,
+   "c": "#4a4a46"
+  },
+  {
+   "t": "chair",
+   "en": [
+    21.6,
+    -21.5
+   ],
+   "face": 90,
+   "c": "#4a4a46"
+  },
+  {
+   "t": "chair",
+   "en": [
+    23.4,
+    -21.5
+   ],
+   "face": 270,
+   "c": "#4a4a46"
+  },
+  {
+   "t": "signpanel",
+   "en": [
+    20.2,
+    -15.0
+   ],
+   "face": 90
+  },
+  {
+   "t": "bench",
+   "en": [
+    12.5,
+    -40.0
+   ],
+   "face": 90,
+   "c": "#3f6b3a"
+  },
+  {
+   "t": "bench",
+   "en": [
+    12.5,
+    -48.0
+   ],
+   "face": 90,
+   "c": "#3f6b3a"
+  },
+  {
+   "t": "bin",
+   "en": [
+    12.5,
+    -44.0
+   ],
+   "face": 90
+  }
+ ],
+ "areas": {
+  "drop": [
+   "parking"
+  ],
+  "add": [
+   {
+    "kind": "paved",
+    "rect": {
+     "en": [
+      7.6,
+      -14.5
+     ],
+     "w": 4.6,
+     "d": 25,
+     "deg": 0
+    }
+   },
+   {
+    "kind": "turf",
+    "rect": {
+     "en": [
+      25.5,
+      -8.5
+     ],
+     "w": 10,
+     "d": 9,
+     "deg": 0
+    }
+   },
+   {
+    "kind": "paved",
+    "rect": {
+     "en": [
+      10.5,
+      -45.0
+     ],
+     "w": 3,
+     "d": 30,
+     "deg": 0
+    }
+   },
+   {
+    "kind": "paved",
+    "rect": {
+     "en": [
+      17.5,
+      -41.5
+     ],
+     "w": 2.4,
+     "d": 14,
+     "deg": 300
+    }
+   },
+   {
+    "kind": "paved",
+    "rect": {
+     "en": [
+      -30,
+      1.5
+     ],
+     "w": 78,
+     "d": 3.2,
+     "deg": 0
+    }
+   },
+   {
+    "kind": "lawn",
+    "rect": {
+     "en": [
+      32,
+      -32
+     ],
+     "w": 44,
+     "d": 52,
+     "deg": 0
+    }
+   },
+   {
+    "kind": "lawn",
+    "rect": {
+     "en": [
+      -30,
+      -48
+     ],
+     "w": 70,
+     "d": 22,
+     "deg": 0
+    }
+   },
+   {
+    "kind": "parking",
+    "rect": {
+     "en": [
+      28,
+      -64.5
+     ],
+     "w": 62,
+     "d": 5.5,
+     "deg": 0
+    }
+   },
+   {
+    "kind": "paved",
+    "rect": {
+     "en": [
+      50,
+      -70
+     ],
+     "w": 150,
+     "d": 6,
+     "deg": 0,
+     "color": "#55585a"
+    }
+   },
+   {
+    "kind": "parking",
+    "rect": {
+     "en": [
+      55,
+      -77.5
+     ],
+     "w": 70,
+     "d": 5,
+     "deg": 0
+    }
+   },
+   {
+    "kind": "parking",
+    "rect": {
+     "en": [
+      55,
+      -93
+     ],
+     "w": 70,
+     "d": 5,
+     "deg": 0
+    }
+   },
+   {
+    "kind": "paved",
+    "poly": [
+     {
+      "en": [
+       64.5,
+       -5
+      ]
+     },
+     {
+      "en": [
+       88,
+       -5
+      ]
+     },
+     {
+      "en": [
+       88,
+       66
+      ]
+     },
+     {
+      "en": [
+       64.5,
+       66
+      ]
+     }
+    ],
+    "color": "#3a3c3e"
+   }
+  ]
+ },
+ "extras": [
+  {
+   "type": "canopy",
+   "en": [
+    7.6,
+    -5.5
+   ],
+   "w": 3.6,
+   "color": "#f4f4f2"
+  },
+  {
+   "type": "canopy",
+   "en": [
+    7.6,
+    -9.5
+   ],
+   "w": 3.6,
+   "color": "#b9a3d9"
+  },
+  {
+   "type": "canopy",
+   "en": [
+    7.6,
+    -13.5
+   ],
+   "w": 3.6,
+   "color": "#f4f4f2"
+  },
+  {
+   "type": "canopy",
+   "en": [
+    7.6,
+    -17.5
+   ],
+   "w": 3.6,
+   "color": "#b9a3d9"
+  },
+  {
+   "type": "canopy",
+   "en": [
+    7.6,
+    -21.5
+   ],
+   "w": 3.6,
+   "color": "#f4f4f2"
+  }
+ ],
+ "trees": {
+  "default": "broadleaf",
+  "clear": [
+   {
+    "poly": [
+     {
+      "en": [
+       5.5,
+       -1
+      ]
+     },
+     {
+      "en": [
+       52,
+       -1
+      ]
+     },
+     {
+      "en": [
+       52,
+       -58
+      ]
+     },
+     {
+      "en": [
+       5.5,
+       -58
+      ]
+     }
+    ]
+   },
+   {
+    "poly": [
+     {
+      "en": [
+       -70,
+       -37
+      ]
+     },
+     {
+      "en": [
+       5.5,
+       -37
+      ]
+     },
+     {
+      "en": [
+       5.5,
+       -58
+      ]
+     },
+     {
+      "en": [
+       -70,
+       -58
+      ]
+     }
+    ]
+   },
+   {
+    "poly": [
+     {
+      "en": [
+       58,
+       100
+      ]
+     },
+     {
+      "en": [
+       130,
+       100
+      ]
+     },
+     {
+      "en": [
+       130,
+       -55
+      ]
+     },
+     {
+      "en": [
+       58,
+       -55
+      ]
+     }
+    ]
+   }
+  ],
+  "after": [
+   {
+    "en": [
+     21.5,
+     -14
+    ],
+    "kind": "broadleaf",
+    "s": 1.4
+   },
+   {
+    "en": [
+     8.5,
+     -46
+    ],
+    "kind": "broadleaf",
+    "s": 1.3
+   },
+   {
+    "en": [
+     -40,
+     -50
+    ],
+    "kind": "broadleaf",
+    "s": 1.4
+   },
+   {
+    "en": [
+     -12,
+     -52
+    ],
+    "kind": "broadleaf",
+    "s": 1.2
+   },
+   {
+    "en": [
+     44,
+     -30
+    ],
+    "kind": "broadleaf",
+    "s": 1.1
+   },
+   {
+    "en": [
+     52,
+     10
+    ],
+    "kind": "broadleaf",
+    "s": 1.5
+   },
+   {
+    "en": [
+     53,
+     30
+    ],
+    "kind": "broadleaf",
+    "s": 1.5
+   },
+   {
+    "en": [
+     54,
+     -20
+    ],
+    "kind": "broadleaf",
+    "s": 1.4
+   },
+   {
+    "en": [
+     55,
+     -40
+    ],
+    "kind": "broadleaf",
+    "s": 1.4
+   }
+  ]
+ },
+ "backdrop": {
+  "hills": "#a08e62",
+  "mountains": "#8f97a6",
+  "mountainsDeg": -90,
+  "trees": 30,
+  "treeKind": "eucalyptus"
+ }
 }

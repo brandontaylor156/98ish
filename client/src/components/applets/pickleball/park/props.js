@@ -139,6 +139,8 @@ const T = {
       ...[[0, 2.5, 0, 0.75], [0.45, 2.2, 0.2, 0.5], [-0.4, 2.3, -0.25, 0.55], [0.1, 2.85, -0.3, 0.45], [-0.2, 2.15, 0.4, 0.45]].map(([x, y, z, s]) => paint(new THREE.IcosahedronGeometry(s, 0), c || "#f4f1ec", x, y, z)),
     ],
   }),
+  // a square concrete fire pit with its glow (Whittier Narrows' turf lounge)
+  firepit: (c) => ({ solid: [box(1.4, 0.4, 1.4, 0, 0, 0, c || "#9a958c"), box(1.0, 0.04, 1.0, 0, 0.4, 0, "#2b2522"), box(0.7, 0.06, 0.7, 0, 0.43, 0, "#e8762c")] }),
   cooler: (c) => ({ solid: [box(0.62, 0.38, 0.42, 0, 0, 0, c || "#2f6fb8"), box(0.64, 0.07, 0.44, 0, 0.38, 0, "#f4f4f2"), box(0.3, 0.03, 0.05, 0, 0.47, 0, "#2b2f36")] }),
   // a drinks fridge: dark case, glass door lit green, shelves of cans
   fridge: (c) => ({

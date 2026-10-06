@@ -502,7 +502,8 @@ console.log(`report: ${path.join(OUT, "report.json")}`)
 // every traced court against the nearest built court of the same kind
 function courtErrors(lay, aerial) {
   const [ax, az] = toXZ(aerial.anchor.lat, aerial.anchor.lon)
-  const refCourts = (lay.courts || lay).map((c) => {
+  // (a traced slab that holds several courts, e.g. Whittier's pens of four, isn't a court itself)
+  const refCourts = (lay.courts || lay).filter((c) => !/slab/.test(c.type || "")).map((c) => {
     let x, z
     if (c.xz) [x, z] = c.xz
     else if (c.ll) [x, z] = toXZ(c.ll[0], c.ll[1])
