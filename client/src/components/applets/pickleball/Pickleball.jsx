@@ -46,6 +46,9 @@ import { recordGame, validRep } from "./park/rep.js"
 import { COURTS as PARK_COURTS, LEVEL_NAMES as PARK_LEVELS } from "./park/layout.js"
 // Twin Replay: film a real game, watch it here (twin/; loaded when opened)
 const TwinReplay = React.lazy(() => import("./twin/TwinReplay.jsx"))
+// Live Broadcast (twin/live/): go live from the fence, or watch a friend's game live in 3D
+const GoLive = React.lazy(() => import("./twin/live/GoLive.jsx"))
+const LiveWatch = React.lazy(() => import("./twin/live/LiveWatch.jsx"))
 
 // Pickleball 98: React draws the menus and the broadcast-style overlays. The venue, the
 // players and the ball are three.js (engine.js, loaded on first open with three.js); the game
@@ -193,6 +196,7 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
   const [screen, setScreen] = useState("main") // main | quick | tour | practice | versus | players | settings | controls | online | club
   const [twinBack, setTwinBack] = useState("main") // where Twin Replay goes back to (Real Games opens it too)
   const [clubHandoff, setClubHandoff] = useState(null) // a Real Games session/match to show (a notification or deep link)
+  const [watchFor, setWatchFor] = useState(null) // { id, code } a live game to watch (Live Broadcast)
   const [playersFor, setPlayersFor] = useState("p1")
   const [lockerFor, setLockerFor] = useState(null) // who the Locker Room opens on (and where it goes back to)
   const [prefs, setPrefsState] = useState(readPrefs)
@@ -1125,6 +1129,12 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
   const atMenu = !inGame && phase !== "loading" && phase !== "error"
   // a notification or deep link into Real Games (a session invite, a match to confirm): open it unless a game is on
   useEffect(() => {
+    // "Brandon is live at Los Cab": watch it (unless a game is on here)
+    if (handoff?.id && handoff.live) {
+      setWatchFor({ id: handoff.live, code: handoff.code || null })
+      if (!inGame) setScreen("watch")
+      return
+    }
     if (!handoff?.id || !(handoff.session || handoff.match || handoff.venue)) return
     setClubHandoff(handoff)
     if (!inGame) setScreen("club")
@@ -1150,6 +1160,7 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
         { label: "Locker Room...", onClick: () => (session?.kind !== "online" && quitToMenu(), setLockerFor(null), setScreen("locker")) },
         { label: "Play Online...", onClick: () => (session?.kind !== "online" && quitToMenu(), setScreen("online")) },
         { label: "Twin Replay (film a real game)...", onClick: () => (session?.kind !== "online" && quitToMenu(), setScreen("twin")) },
+        { label: "Go Live (friends watch in 3D)...", onClick: () => (session?.kind !== "online" && quitToMenu(), setScreen("live")) },
         "-",
         { label: phase === "paused" ? "Resume (P)" : "Pause (P)", disabled: (phase !== "playing" && phase !== "paused") || isOnline, onClick: togglePause },
         { label: "Quit to Main Menu", disabled: !session, onClick: quitToMenu },
@@ -1439,6 +1450,18 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
           </React.Suspense>
         )}
 
+        {/* ---------- Live Broadcast (twin/live/): go live, or watch a friend's game ---------- */}
+        {screen === "live" && phase !== "loading" && phase !== "error" && (
+          <React.Suspense fallback={<div className="pkCenter pkDim"><div className="pkPanel window">Opening Go Live...</div></div>}>
+            <GoLive onExit={() => setScreen("club")} onOpenTwin={() => (setTwinBack("club"), setScreen("twin"))} />
+          </React.Suspense>
+        )}
+        {screen === "watch" && watchFor && phase !== "loading" && phase !== "error" && (
+          <React.Suspense fallback={<div className="pkCenter pkDim"><div className="pkPanel window">Joining the game...</div></div>}>
+            <LiveWatch key={watchFor.id || watchFor.code} getEngine={getEngine} id={watchFor.id} code={watchFor.code} onExit={() => (setWatchFor(null), setScreen("club"))} />
+          </React.Suspense>
+        )}
+
         {/* ---------- menus ---------- */}
         {atMenu && screen === "main" && phase === "title" && (
           <TitleMenu
@@ -1452,7 +1475,7 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
         {atMenu && screen === "club" && (
           <div className="pkClubHost" data-screen="club">
             <React.Suspense fallback={<div className="pkCenter pkDim"><div className="pkPanel window">Loading Real Games...</div></div>}>
-              <RealGames embedded mobile={mobile} handoff={clubHandoff} onClose={() => setScreen("main")} onTwin={() => (setTwinBack("club"), setScreen("twin"))} />
+              <RealGames embedded mobile={mobile} handoff={clubHandoff} onClose={() => setScreen("main")} onTwin={() => (setTwinBack("club"), setScreen("twin"))} onLive={() => setScreen("live")} onWatch={(id) => (setWatchFor({ id, code: null }), setScreen("watch"))} />
             </React.Suspense>
           </div>
         )}

@@ -11,6 +11,45 @@ import Matches from "./Matches"
 import Ladder from "./Ladder"
 import { SessionEditor, SessionList, SessionView } from "./Sessions"
 import "./PbClub.css"
+import { useNet } from "../network/NetContext"
+
+// Live Broadcast (Pickleball 98's twin/live): "Go Live" from the fence, and your buddies'
+// games that are live right now (server/broadcast bc:list, refreshed and on bc:live)
+const LiveCard = ({ onLive, onWatch }) => {
+  const net = useNet()
+  const [live, setLive] = useState([])
+  const online = net?.status === "online"
+  useEffect(() => {
+    if (!online || !net?.socket) return
+    let alive = true
+    const load = () => net.request("bc:list", {}).then((r) => alive && r?.ok && setLive(r.live || []))
+    load()
+    const id = setInterval(load, 20000)
+    const onNew = () => load()
+    net.socket.on("bc:live", onNew)
+    net.socket.on("bc:end", onNew)
+    return () => {
+      alive = false
+      clearInterval(id)
+      net.socket.off("bc:live", onNew)
+      net.socket.off("bc:end", onNew)
+    }
+  }, [online, net?.socket])
+  return (
+    <div className="pbLiveCard" data-live-card>
+      {live.map((b) => (
+        <button key={b.id} type="button" onClick={() => onWatch(b.id)} data-watch={b.id}>
+          <b>● {b.host} is live</b> {b.title} · {b.viewers} watching
+        </button>
+      ))}
+      {onLive && (
+        <button type="button" onClick={onLive} data-action="go-live">
+          <b>Go Live</b> · your friends watch your game in 3D, live
+        </button>
+      )}
+    </div>
+  )
+}
 
 // Real Games, inside Pickleball 98 (Pickleball.jsx renders it with `embedded`): real-life pickleball with your group. Play (sessions: who's in, the
 // courts' rotation, the real courts you play at), Score (the courtside scorekeeper), Matches
@@ -111,7 +150,7 @@ const CourtsList = ({ onPlan, onMeet, canMeet, canPlan }) => (
   </ul>
 )
 
-const PbClub = ({ mobile, handoff, onClose, embedded = false, onTwin = null }) => {
+const PbClub = ({ mobile, handoff, onClose, embedded = false, onTwin = null, onLive = null, onWatch = null }) => {
   const aim = useAim()
   const state = club.useClub()
   const [tab, setTab] = useState("play")
@@ -211,6 +250,7 @@ const PbClub = ({ mobile, handoff, onClose, embedded = false, onTwin = null }) =
     body = (
       <>
         {signedOff}
+        {embedded && onWatch && <LiveCard onLive={onLive} onWatch={onWatch} />}
         {online && <SessionList state={state} onOpen={setOpen} onNew={() => setEditing({})} />}
         {state.error && <p className="pbError">{state.error}</p>}
         <h4 className="pbH">Your courts</h4>

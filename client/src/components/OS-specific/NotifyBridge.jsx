@@ -165,7 +165,7 @@ const NotifyBridge = ({ windows, dispatch }) => {
       const url = new URL(window.location.href)
       const target = targetFromParams(url.searchParams)
       if (url.searchParams.has("open")) {
-        for (const k of ["open", "with", "cal", "event", "name", "challenge", "note", "pbsession", "pbmatch", "hangout"]) url.searchParams.delete(k)
+        for (const k of ["open", "with", "cal", "event", "name", "challenge", "note", "pbsession", "pbmatch", "hangout", "live", "code"]) url.searchParams.delete(k)
         window.history.replaceState(window.history.state, "", url.toString())
       }
       // after the desktop (and its lazy helpers) have come up

@@ -18,8 +18,17 @@ const PbClubBridge = ({ socket }) => {
         notify({ app: "pbclub", key: `pb-m-${p.id}`, title: `${p.by} logged a match with you`, text: "Confirm the score so it counts.", target: { kind: "program", name: "Pickleball 98", extra: { handoff: { id: Date.now(), match: p.id } } } })
       }
     }
+    // Live Broadcast: a buddy went live (server/broadcast bc:live)
+    const onLive = (b) => {
+      if (!b?.id) return
+      notify({ app: "pbclub", key: `bc-${b.id}`, title: `${b.host} is live${b.court ? ` on court ${b.court}` : ""}`, text: `${b.title}. Watch it live in 3D.`, target: { kind: "program", name: "Pickleball 98", extra: { handoff: { id: Date.now(), live: b.id } } } })
+    }
     socket.on("pb:changed", onChanged)
-    return () => socket.off("pb:changed", onChanged)
+    socket.on("bc:live", onLive)
+    return () => {
+      socket.off("pb:changed", onChanged)
+      socket.off("bc:live", onLive)
+    }
   }, [socket])
   return null
 }

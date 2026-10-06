@@ -221,6 +221,8 @@ export const targetFromParams = (params) => {
     else if (/^[0-9a-f]{16}$/.test(params.get("pbmatch") || "")) extra.handoff = { id: Date.now(), match: name("pbmatch") }
     // a Come Over invitation (a hangout to join)
     else if (/^[0-9a-f]{16}$/.test(params.get("hangout") || "")) extra.handoff = { id: Date.now(), hangout: name("hangout") }
+    // Live Broadcast: a friend's game to watch live (Pickleball 98); code = the share link's
+    else if (/^[0-9a-f]{12}$/.test(params.get("live") || "")) extra.handoff = { id: Date.now(), live: name("live"), code: /^[0-9a-f]{10}$/.test(params.get("code") || "") ? name("code") : null }
     // a Watch Together invitation to join
     else if (/^[0-9a-f]{20}$/.test(params.get("together") || "")) extra.handoff = { id: Date.now(), together: name("together") }
     return { kind: "program", name: name("name"), extra }
