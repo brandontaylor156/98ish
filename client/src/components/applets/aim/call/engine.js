@@ -9,6 +9,8 @@
 
 import { useSyncExternalStore } from "react"
 import { getSettings, subscribeSettings } from "../../../../utils/settings"
+// Be Yourself: the 3D head's own P2P data channels ride this connection (utils/head/callLink.js)
+import { attachHeadChannels, detachHeadChannels } from "../../../../utils/head/callLink"
 
 const CONNECT_TIMEOUT_MS = 30_000 // answered but no media path: give up and say why
 const DISCONNECTED_RESTART_MS = 6_000 // "disconnected" this long: try an ICE restart
@@ -184,6 +186,7 @@ const createPeer = async () => {
   set({ turn })
   const peer = new RTCPeerConnection({ iceServers })
   pc = peer
+  attachHeadChannels(peer)
   const remote = new MediaStream()
   set({ remoteStream: remote })
 
@@ -550,6 +553,7 @@ const cleanup = ({ reason, error = null }) => {
     }
   }
   pc = null
+  detachHeadChannels()
   pendingIce = []
   pendingOffer = null
   restarted = false

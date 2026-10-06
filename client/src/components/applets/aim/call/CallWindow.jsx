@@ -4,6 +4,7 @@ import * as engine from "./engine"
 import { callClock } from "./CallManager"
 import { FlipIcon, MicIcon, PhoneIcon, PipIcon, ScreenIcon, VideoIcon } from "./CallIcons"
 import "./call.css"
+import { RemoteHead, useThreeDMe } from "./ThreeDMe"
 
 // The call window: their video big in a little CRT, yours small (drag it anywhere), and
 // the controls. It only shows the call; the call itself lives in engine.js, so minimizing
@@ -135,6 +136,7 @@ const CallWindow = () => {
     }
   })
   const [pip, setPip] = useState(false)
+  const me3d = useThreeDMe(call)
 
   const remoteVideo = call.remote.camera || call.remote.screen
   const hasRemoteVideoTrack = !!call.remoteStream?.getVideoTracks().length
@@ -228,6 +230,7 @@ const CallWindow = () => {
               {call.phase === "ended" && <div className="callCardSub">{call.error ? "Couldn't connect" : endedText(call)}</div>}
             </div>
           )}
+          {call.phase === "active" && <RemoteHead peer={call.peer} />}
           <div className="callScan" aria-hidden="true" />
           {call.phase === "active" && (
             <div className="callHud">
@@ -260,6 +263,14 @@ const CallWindow = () => {
         <div className="callNote" role="status">
           <span>{call.notice}</span>
           <button type="button" onClick={engine.clearNotice}>
+            OK
+          </button>
+        </div>
+      )}
+      {me3d.note && live && (
+        <div className="callNote" role="status">
+          <span>{me3d.note}</span>
+          <button type="button" onClick={me3d.clearNote}>
             OK
           </button>
         </div>
@@ -302,6 +313,12 @@ const CallWindow = () => {
             <button type="button" className={`callBtn${call.screen ? " is-active" : ""}`} aria-pressed={call.screen} onClick={engine.toggleScreen}>
               <ScreenIcon size={20} />
               <span>{call.screen ? "Stop Sharing" : "Share Screen"}</span>
+            </button>
+          )}
+          {call.phase === "active" && (
+            <button type="button" className={`callBtn${me3d.on ? " is-active" : ""}`} aria-pressed={me3d.on} onClick={me3d.toggle} data-call-3d title="Your 3D head moves with your face (Passwords and Users > 3D Head)">
+              <span className="callBtn3d" aria-hidden="true">3D</span>
+              <span>{me3d.on ? "3D Me Off" : "3D Me"}</span>
             </button>
           )}
           {showRemote && pipSupported && (

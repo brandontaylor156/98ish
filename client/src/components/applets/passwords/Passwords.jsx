@@ -7,6 +7,7 @@ import { checkSecret } from "../../../utils/lockCrypto"
 import { USER_PICTURES, createUser, currentUserId, getUser, loadUserPicture, removeUser, updateUser } from "../../../utils/users"
 import { getSettings, setSettings, useSettings } from "../../../utils/settings"
 import { useAim } from "../aim/AimContext"
+import HeadTab from "./HeadTab"
 import "./Passwords.css"
 
 // Passwords Properties (Start > Settings > Passwords and Users; also Display Properties'
@@ -15,11 +16,13 @@ import "./Passwords.css"
 //   Lock              lock after N idle minutes, lock with the screen saver, lock now
 //   User Profiles     everyone on this device: add, rename, picture, a linked 98 Messenger
 //                     screen name (for "Forgot PIN?"), remove
+//   3D Head           Be Yourself: your 3D head for calls (HeadTab.jsx)
 
 const TABS = [
   ["change", "Change Passwords"],
   ["lock", "Lock"],
   ["users", "User Profiles"],
+  ["head", "3D Head"],
 ]
 const WAITS = [0, 1, 2, 5, 10, 15, 30, 60]
 const wordFor = (kind) => (kind === "pin" ? "PIN" : "password")
@@ -414,6 +417,7 @@ const Passwords = ({ tab: firstTab = "change", reason, onClose }) => {
         {tab === "change" && <ChangeTab reason={reason} />}
         {tab === "lock" && <LockTab />}
         {tab === "users" && <UsersTab />}
+        {tab === "head" && <HeadTab />}
       </div>
       <div className="pwButtons">
         <button type="button" onClick={onClose}>

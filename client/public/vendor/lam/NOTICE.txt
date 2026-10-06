@@ -1,0 +1,9 @@
+Be Yourself (98ish) third-party files in this folder
+
+lam-renderer.js
+  gaussian-splat-renderer-for-lam 0.0.9-alpha.2 (npm), by the LAM authors (aigc3d/LAM_WebRender, MIT),
+  built on GaussianSplats3D by Mark Kellogg (MIT, see LICENSE.txt).
+  98ish change: options.zipName (search "98ish patch").
+
+sample-head.zip
+  The example avatar (asset/arkit/p2-1.zip) from https://github.com/aigc3d/LAM_WebRender (MIT License).
