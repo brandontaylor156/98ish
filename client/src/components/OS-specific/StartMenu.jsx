@@ -122,6 +122,8 @@ const StartMenu = ({ dispatch, onQuery, onSearchKey, onSearchFocus, closeMenu, o
         { label: "Control Panel", icon: "/assets/program_icons/cpl/control.svg", onClick: () => go(launch("Control Panel")) },
         "-",
         { label: "Display Properties", icon: "/assets/vaporwave.png", onClick: () => go(launch("Display Properties")) },
+        // Floppy's on/off lives on Display Properties' Startup tab; the tray icon that brings him back is desktop-only, so phones get here
+        { label: "Floppy, the Helper...", icon: "/assets/program_icons/help.svg", onClick: () => go(launch("Display Properties", { tab: "startup" })) },
         { label: "Date/Time Properties", icon: "/assets/program_icons/datetime.svg", onClick: () => go(launch("Date/Time Properties")) },
         { label: "Keyboard", icon: "/assets/program_icons/keyboard.svg", onClick: () => go(launch("Keyboard Properties")) },
         { label: "Passwords and Users", icon: "/assets/program_icons/passwords.svg", onClick: () => go(launch("Passwords")) },

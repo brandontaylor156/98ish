@@ -487,7 +487,7 @@ export const topics = [
       "If you leave partway, Welcome offers to continue where you stopped. Start it from Start > Help > Take the Tour.",
       { h: "Floppy the helper" },
       "Floppy is the little floppy disk who pops up with tips the first time you open a program. Click him for another tip. His bubble can also open the help page for the program you're using.",
-      "**Hide Floppy** in his bubble sends him to rest. To bring him back, click the small floppy in the taskbar tray, or use Display Properties > Startup.",
+      "**Hide Floppy** in his bubble sends him to rest. To bring him back, click the small floppy in the taskbar tray (computers), or on any device open **Start > Settings > Floppy, the Helper...** and check Show Floppy. Tap Floppy to open his bubble, where the **Ask Floppy...** box takes requests.",
       { open: "Welcome to 98ish", label: "Open Welcome to 98ish" },
     ],
     related: ["what-is-98ish", "help-home", "display", "ask-floppy"],
