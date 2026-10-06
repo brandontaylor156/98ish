@@ -19,6 +19,7 @@ import { HALF_L, HALF_W } from "../core/homography.js"
 import { call as scoreCall, newGame as newScore, rally as scoreRally } from "../../../pbclub/scoring.js"
 import { snapshot, startLive } from "./liveReader.js"
 import { createStream } from "./stream.js"
+import "../TwinReplay.css"
 import "./Live.css"
 
 const DOTS = ["#3c8cff", "#29c46b", "#ff8a2a", "#e84fd0"]
@@ -36,7 +37,11 @@ export default function GoLive({ onExit, onOpenTwin = null }) {
   const [names, setNames] = useState(() => [myName || "Me", "", "", ""])
   const [notify, setNotify] = useState(true)
   const [error, setError] = useState(null)
-  const [status, setStatus] = useState("")
+  const [status, setStatusState] = useState("")
+  const setStatus = (s) => {
+    statusRef.current = s
+    setStatusState(s)
+  }
   const [taps, setTaps] = useState(null)
   const [cast, setCast] = useState(null) // { id, code }
   const [viewers, setViewers] = useState(0)
@@ -50,6 +55,7 @@ export default function GoLive({ onExit, onOpenTwin = null }) {
   const ownRef = useRef(null) // our own copy of what we send (saved as a Twin Replay game)
   const dotsRef = useRef(null)
   const wakeRef = useRef(null)
+  const statusRef = useRef("")
   const online = net?.status === "online"
   const real = venueChoices().find((v) => v.id === venue)?.real
 
@@ -106,6 +112,8 @@ export default function GoLive({ onExit, onOpenTwin = null }) {
     const r = await net.request("bc:start", { title: title.trim() || `${myName || "A"} game at ${venueName}`, venue, court, venueName, courtName, players: list, notify })
     if (!r?.ok) return setError(r?.error || "Couldn't go live.")
     setCast({ id: r.id, code: r.code })
+    // (dev: what the browser tests read)
+    if (import.meta.env?.DEV) window.__goLive = { id: r.id, code: r.code, own: () => ownRef.current, stats: () => liveRef.current?.stats() || null, sent: [] }
     const own = createStream({ players: list, keep: Infinity })
     ownRef.current = own
     const rosterEvent = { k: "roster", t: 0, players: list }
@@ -124,15 +132,20 @@ export default function GoLive({ onExit, onOpenTwin = null }) {
       taps: t,
       players: p,
       onStatus: setStatus,
-      onTick: (bytes) => {
+      onTick: (bytes, { t }) => {
         own.addTick(bytes)
+        if (import.meta.env?.DEV) (window.__goLive.sent ||= []).push([Date.now(), Math.round(t * 1000) / 1000, bytes.length])
         if (net.socket?.connected) net.socket.volatile.emit("bc:tick", bytes)
       },
       onHit: (e) => {
         own.addEvent(e)
         net.request("bc:ev", e)
       },
-      onFrame: ({ tracks, slots }) => drawDots(tracks, slots),
+      onFrame: ({ tracks, slots }) => {
+        // (the reader's start-up words go once it's reading)
+        if (statusRef.current) setStatus("")
+        drawDots(tracks, slots)
+      },
     })
     setStatus("")
   }

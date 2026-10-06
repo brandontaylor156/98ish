@@ -56,6 +56,20 @@ export const decodeTick = (bytes) => {
   return { t: v.getUint32(2, true) / 1000, players }
 }
 
+// the server's late-join answer: ticks back to back in one buffer -> each tick's bytes
+export const splitTicks = (bytes) => {
+  const u8 = bytes instanceof Uint8Array ? bytes : bytes instanceof ArrayBuffer ? new Uint8Array(bytes) : ArrayBuffer.isView(bytes) ? new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength) : null
+  const out = []
+  if (!u8) return out
+  for (let off = 0; off + 6 <= u8.length; ) {
+    const len = tickBytes(u8[off + 1])
+    if (u8[off] !== TICK_VERSION || u8[off + 1] > MAX_PLAYERS || off + len > u8.length) break
+    out.push(u8.subarray(off, off + len))
+    off += len
+  }
+  return out
+}
+
 const KINDS = new Set(["hit", "score", "roster"])
 const str = (v, n) => String(v ?? "").slice(0, n)
 // an event as it may be relayed and kept (shared by the server and the viewers): null if bad

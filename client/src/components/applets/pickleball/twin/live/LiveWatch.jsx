@@ -9,6 +9,8 @@ import { CHARACTERS } from "../../looks.js"
 import { courtsOf, twinVenue, venueChoices } from "../venues.js"
 import { newId, putGame } from "../store.js"
 import { createCursor, createStream } from "./stream.js"
+import { splitTicks } from "./packet.js"
+import "../TwinReplay.css"
 import "./Live.css"
 
 const CAMS = [
@@ -35,6 +37,7 @@ export default function LiveWatch({ getEngine, id, code = null, onExit }) {
   const streamRef = useRef(null)
   const cursorRef = useRef(createCursor())
   const startedRef = useRef(false)
+  const rewoundRef = useRef(false) // the viewer chose to watch from behind (10 s back)
   const socket = net?.socket
 
   // join: the last minute comes with it (late joiners see the game right away)
@@ -44,7 +47,10 @@ export default function LiveWatch({ getEngine, id, code = null, onExit }) {
       return
     }
     let live = true
-    const onTick = (bytes) => streamRef.current?.addTick(bytes)
+    const onTick = (bytes) => {
+      const t = streamRef.current?.addTick(bytes)
+      if (import.meta.env?.DEV && t !== null && t !== undefined) (window.__liveArrivals ||= []).push([Date.now(), t, bytes.byteLength ?? bytes.length ?? 0])
+    }
     const onEv = (e) => {
       const r = streamRef.current?.addEvent(e)
       if (r?.k === "score") setScore(streamRef.current.score)
@@ -55,7 +61,7 @@ export default function LiveWatch({ getEngine, id, code = null, onExit }) {
       setReactions((r) => [...r.slice(-8), { id: rid, e: d.e, name: d.name }])
       setTimeout(() => setReactions((r) => r.filter((x) => x.id !== rid)), 2600)
     }
-    const onEnd = (d) => d?.id === id && setEnded(true)
+    const onEnd = (d) => d?.id === id && setEnded(d.reason || "ended")
     socket.on("bc:t", onTick)
     socket.on("bc:ev", onEv)
     socket.on("bc:info", onInfo)
@@ -66,7 +72,7 @@ export default function LiveWatch({ getEngine, id, code = null, onExit }) {
       if (!r?.ok) return setError(r?.error || "That game isn't live anymore.")
       const s = createStream({ players: r.info.players })
       for (const e of r.events || []) s.addEvent(e)
-      for (const b of r.ring || []) s.addTick(b)
+      for (const b of r.ring ? splitTicks(r.ring) : []) s.addTick(b)
       streamRef.current = s
       setScore(s.score || r.info.score || null)
       setViewers(r.viewers || 1)
@@ -108,7 +114,12 @@ export default function LiveWatch({ getEngine, id, code = null, onExit }) {
         e.playTwin({ frames, venue, roster: rosterFor(s.players), live: true })
         setWaiting(false)
       } else if (frames.length) e.twinAppend(frames)
-      setSt(e.twinState())
+      const now = e.twinState()
+      // live means live: a slow phone (or a tab that slept) that fell behind catches up,
+      // unless the viewer went back on purpose
+      if (now && !rewoundRef.current && now.behind > 2.5) e.twinSeek(now.duration - 0.3)
+      if (now && rewoundRef.current && now.behind < 1) rewoundRef.current = false
+      setSt(now)
     }, 150)
     if (typeof window !== "undefined" && import.meta.env?.DEV) window.__liveWatch = { stream: () => streamRef.current, cursor: cursorRef.current, state: () => getEngine()?.twinState() }
     return () => {
@@ -129,11 +140,15 @@ export default function LiveWatch({ getEngine, id, code = null, onExit }) {
   const ctl = (patch) => getEngine()?.twinControl(patch)
   const rewind = () => {
     const s = getEngine()?.twinState()
-    if (s) getEngine().twinSeek(Math.max(0, s.t - 10))
+    if (!s) return
+    rewoundRef.current = true
+    getEngine().twinSeek(Math.max(0, s.t - 10))
   }
   const goLive = () => {
     const s = getEngine()?.twinState()
-    if (s) getEngine().twinSeek(s.duration)
+    if (!s) return
+    rewoundRef.current = false
+    getEngine().twinSeek(s.duration)
   }
   const react = (e) => net.request("bc:react", { e })
   const save = async () => {
@@ -163,7 +178,7 @@ export default function LiveWatch({ getEngine, id, code = null, onExit }) {
           {ended ? "ENDED" : "● LIVE"}
         </span>
         <b className="pkTwinTitle">
-          {info ? `${info.host}${venueName ? ` · ${venueName}` : ""}${info.court ? ` · Court ${info.court}` : ""}` : "Joining..."}
+          {info ? `${info.host}${venueName ? ` · ${venueName}` : ""}${info.courtName ? ` · ${info.courtName}` : ""}` : "Joining..."}
         </b>
         <span className="pkLiveViewers" data-viewers={viewers}>
           👁 {viewers}
@@ -201,7 +216,7 @@ export default function LiveWatch({ getEngine, id, code = null, onExit }) {
       {ended && (
         <div className="pkCenter">
           <div className="pkPanel window pkLiveEnded">
-            <b>The broadcast is over.</b>
+            <b data-end-reason={ended}>{ended === "left" ? "The filming phone lost its connection." : ended === "time" ? "The broadcast reached its 3-hour limit." : "The broadcast is over."}</b>
             {saved ? <p>Kept in Twin Replay as "{saved.title}".</p> : <p>Keep this game? It goes to your Twin Replay games (just where everyone moved, no video).</p>}
             <div className="pkTwinButtons">
               {!saved && streamRef.current?.newest > 5 && (

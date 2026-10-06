@@ -122,10 +122,14 @@ export const startLive = async ({ video, stream, taps, players = 4, onTick, onHi
   const slots = createSlots({ players })
   let stopped = false
   let n = 0
-  let lastTick = -1
+  let lastScan = -99
+  let lastFrameT = -99
+  let scanAt = 0
   let lastPoll = 0
   let heardUntil = 0
   let poseMs = 0
+  let peopleSeen = 0
+  const recent = []
   let loopMs = 0
   let ticks = 0
   let bytes = 0
@@ -142,11 +146,18 @@ export const startLive = async ({ video, stream, taps, players = 4, onTick, onHi
     const bmp = await createImageBitmap(cut.c)
     return fromCrop(await pose.detect(bmp, t * 1000, cut.c.width, cut.c.height, key), box, cut.c.width, cut.c.height)
   }
+  // ticks go out 10 a second whatever the model's pace: between its readings each player is
+  // carried on along their velocity for up to 0.3 s (a slow phone still streams smoothly)
   const sendTick = (t) => {
     const byslot = []
     for (const tr of analyzer.tracks()) {
       const s = slots.slotOf(tr)
-      if (s !== null && s < players) byslot[s] = { x: tr.x, z: tr.z, vx: tr.vx, vz: tr.vz, seen: t - tr.lastT < 1 }
+      const age = Math.max(0, t - tr.lastT)
+      const ahead = Math.min(age, 0.3)
+      // "seen": found in one of the last pictures read (on a slow phone a picture takes a while
+      // to read, so how old its capture is says nothing)
+      const seen = tr.lastT >= lastFrameT - 1 && t - lastFrameT < 6
+      if (s !== null && s < players) byslot[s] = { x: tr.x + tr.vx * ahead, z: tr.z + tr.vz * ahead, vx: seen ? tr.vx : 0, vz: seen ? tr.vz : 0, seen }
     }
     const list = Array.from({ length: players }, (_, i) => byslot[i] || { x: 0, z: 0, seen: false })
     const pkt = encodeTick(t * 1000, list)
@@ -180,13 +191,25 @@ export const startLive = async ({ video, stream, taps, players = 4, onTick, onHi
         const box = playerBox(Hinv, tr.x + tr.vx * dt, tr.z + tr.vz * dt, W, H)
         if (box) people = mergePeople(people, await read(box, roiCut, "roi", t), footAt)
       }
-      // finding players: every few frames (fewer when the phone is slow) or when one is missing
-      const every = loopMs / Math.max(1, n) > 160 ? 12 : 6
-      if (n % every === 0 || live.length < players) for (const tile of tiles) people = mergePeople(people, await read(tile, scanCut, "scan", t), footAt)
+      // finding players: a few court tiles at a time, round the court (all of them only while
+      // nobody's found yet): every frame while someone's missing, else every second or so
+      const missing = live.length < players
+      if (!live.length || (missing && t - lastScan > 0.4) || t - lastScan > 1.2) {
+        lastScan = t
+        const take = live.length ? Math.min(tiles.length, 3) : tiles.length
+        for (let k = 0; k < take; k++) {
+          const tile = tiles[scanAt++ % tiles.length]
+          people = mergePeople(people, await read(tile, scanCut, "scan", t), footAt)
+        }
+      }
       poseMs += performance.now() - p0
       for (const p of people) p.color = torsoColor(p.lm, sample)
       analyzer.push(t, people)
+      lastFrameT = t
       n++
+      peopleSeen += people.length
+      if (recent.length >= 12) recent.shift()
+      recent.push([+t.toFixed(1), people.length, live.length, analyzer.tracks().map((tr) => +(t - tr.lastT).toFixed(1)).join('/')])
       // (old landmarks dropped: an hour of them would fill the phone's memory)
       for (const tr of analyzer.tracks()) {
         tr.lmCut ??= 0
@@ -220,10 +243,6 @@ export const startLive = async ({ video, stream, taps, players = 4, onTick, onHi
           onHit?.({ k: "hit", t: Math.round(h.t * 1000), p: slot, h: Math.round(h.height * 100), s: h.side, src: h.source })
         }
       }
-      if (t - lastTick >= 1 / TICK_HZ - 0.005) {
-        lastTick = t
-        sendTick(t)
-      }
       onFrame?.({ t, tracks: analyzer.tracks(), slots: slots.map, W, H })
       const spent = performance.now() - l0
       loopMs += spent
@@ -233,14 +252,16 @@ export const startLive = async ({ video, stream, taps, players = 4, onTick, onHi
     }
   }
   const running = loop().catch((e) => onStatus?.(`Stopped: ${e.message}`))
+  const ticker = setInterval(() => !stopped && n > 0 && sendTick(clock()), 1000 / TICK_HZ)
   return {
     clock,
     async stop() {
       stopped = true
+      clearInterval(ticker)
       await running
       pose?.close()
       mic?.close()
     },
-    stats: () => ({ frames: n, fps: n / Math.max(0.001, clock()), poseMsPerFrame: poseMs / Math.max(1, n), loopMsPerFrame: loopMs / Math.max(1, n), ticks, bytes, hits: hitsSent, mic: !!mic?.ok, where: pose?.where, delegate: pose?.delegate }),
+    stats: () => ({ people: +(peopleSeen / Math.max(1, n)).toFixed(2), recent, tracks: analyzer.tracks().length, seen: analyzer.tracks().filter((tr) => tr.lastT >= lastFrameT - 1).length, frames: n, fps: n / Math.max(0.001, clock()), poseMsPerFrame: poseMs / Math.max(1, n), loopMsPerFrame: loopMs / Math.max(1, n), ticks, bytes, hits: hitsSent, mic: !!mic?.ok, where: pose?.where, delegate: pose?.delegate }),
   }
 }

@@ -16,7 +16,7 @@
 //   bc:tick   <bytes>                     (host, no ack; ~10 a second)
 //   bc:ev     { k: "hit" | "score" | "roster", ... }   (host)
 //   bc:stop   {}
-//   bc:watch  { id } | { code }  -> { ok, info, ring: [<bytes>], events, viewers }
+//   bc:watch  { id } | { code }  -> { ok, info, ring: <bytes: the ticks back to back>, events, viewers }
 //   bc:unwatch {}
 //   bc:react  { e }                (a reaction, a few allowed emoji, rate limited)
 //   bc:list   {}  -> { ok, live: [info] }   the broadcasts you may watch (your buddies')
@@ -110,7 +110,7 @@ const createBroadcasts = ({ emit = () => {}, emitVolatile = null, aim = () => nu
     return buddiesOf(b.host.key).has(me.key)
   }
 
-  const info = (b) => ({ id: b.id, title: b.title, venue: b.venue, court: b.court, host: b.host.name, players: b.players, startedAt: b.startedAt, viewers: b.viewers.size, score: b.score })
+  const info = (b) => ({ id: b.id, title: b.title, venue: b.venue, court: b.court, courtName: b.courtName, host: b.host.name, players: b.players, startedAt: b.startedAt, viewers: b.viewers.size, score: b.score })
   const toViewers = (b, event, payload, { volatile = false, host = false } = {}) => {
     const send = volatile ? relay : emit
     for (const pid of b.viewers) {
@@ -152,6 +152,7 @@ const createBroadcasts = ({ emit = () => {}, emitVolatile = null, aim = () => nu
       title: str(p.title, 60) || "Live game",
       venue: str(p.venue, 40) || null,
       court: p.court === null || p.court === undefined ? null : str(p.court, 40),
+      courtName: str(p.courtName, 24) || null,
       players: cleanPlayers(p.players),
       startedAt: now(),
       viewers: new Set(),
@@ -247,8 +248,10 @@ const createBroadcasts = ({ emit = () => {}, emitVolatile = null, aim = () => nu
       watching.set(me.pid, b.id)
     }
     trim(b)
-    const ring = b.ring.map((r) => r.buf)
-    for (const r of ring) totals.bytesOut += r.length
+    // the last minute as ONE buffer (ticks back to back; each says its own length): ~600
+    // separate attachments made the answer crawl
+    const ring = Buffer.concat(b.ring.map((r) => r.buf))
+    totals.bytesOut += ring.length
     viewerCount(b)
     const events = [...(b.roster ? [b.roster] : []), ...b.events.map((x) => x.e), ...(b.score ? [{ k: "score", t: 0, ...b.score }] : [])]
     return { ok: true, info: info(b), ring, events, viewers: b.viewers.size, now: now() - b.startedAt }

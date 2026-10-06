@@ -1,7 +1,7 @@
 // node --test client/src/components/applets/pickleball/twin/live/live.test.js
 import { test } from "node:test"
 import assert from "node:assert/strict"
-import { cleanEvent, decodeTick, encodeTick, tickBytes } from "./packet.js"
+import { cleanEvent, decodeTick, encodeTick, splitTicks, tickBytes } from "./packet.js"
 import { createCursor, createStream, DELAY } from "./stream.js"
 import { createLiveHits, createSlots } from "./liveHits.js"
 import { createAnalyzer } from "../core/analyze.js"
@@ -32,6 +32,12 @@ test("packets: a tick round-trips within a centimetre; bad bytes and events are 
   // far off the court: clamped, never wrapped
   assert.equal(decodeTick(encodeTick(0, [{ x: 999, z: -999 }])).players[0].x, 32)
   for (const bad of [new Uint8Array(3), new Uint8Array([2, 0, 0, 0, 0, 0]), new Uint8Array([1, 5, 0, 0, 0, 0]), bytes.slice(0, 20), null, "x"]) assert.equal(decodeTick(bad), null)
+  // the late-join answer: ticks back to back in one buffer (of any player counts) split again
+  const joined = Buffer.concat([encodeTick(1, players), encodeTick(2, players.slice(0, 2)), encodeTick(3, players)])
+  const parts = splitTicks(joined)
+  assert.deepEqual(parts.map((p) => decodeTick(p).t), [0.001, 0.002, 0.003])
+  assert.equal(splitTicks(joined.subarray(0, 40)).length, 1) // (a cut-off tail is dropped)
+  assert.deepEqual(splitTicks(null), [])
   assert.deepEqual(cleanEvent({ k: "hit", t: 1500.4, p: 2, h: 87, s: "bh", src: "sound" }), { k: "hit", t: 1500, p: 2, h: 87, s: "bh", src: "sound" })
   assert.equal(cleanEvent({ k: "hit", p: 9 }), null)
   assert.equal(cleanEvent({ k: "rm -rf" }), null)

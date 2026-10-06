@@ -69,8 +69,10 @@ test("a broadcast: buddies are told, ticks relay to viewers, late joiners get th
   // Kim (a buddy) watches: about the last 60 s come with it, plus the score and the hit
   const w = bc.watch(me("p2", "kim", "Kim"), { id: r.id })
   assert.ok(w.ok, w.error)
-  assert.ok(w.ring.length >= 590 && w.ring.length <= 610, `ring ${w.ring.length}`)
-  assert.equal(w.ring.at(-1).readUInt32LE(2), 89900)
+  assert.equal(w.ring.length % 34, 0)
+  const n = w.ring.length / 34
+  assert.ok(n >= 590 && n <= 610, `ring ${n}`)
+  assert.equal(w.ring.readUInt32LE(w.ring.length - 34 + 2), 89900)
   assert.ok(w.events.some((e) => e.k === "hit") && w.events.some((e) => e.k === "score" && e.a === 3))
   assert.equal(w.info.title, "Saturday doubles")
   // new ticks reach Kim

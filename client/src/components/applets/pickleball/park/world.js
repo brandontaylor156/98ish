@@ -1092,7 +1092,41 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
       b.vx = 0
       b.vz = 0
     }
-    for (const b of [...bodies.values()]) if (b.real && !keep.has(b.key)) removeBody(b)
+    for (const b of [...bodies.values()]) if (b.real && b.key.startsWith("real:") && !keep.has(b.key)) removeBody(b)
+  }
+
+  // ---------- Live Broadcast: a real game being played live on one of this venue's courts ----------
+  // (twin/live/useLiveCourt.js feeds it ~20 times a second) courtId: the court; players:
+  // [{ slot, name, x, z, vx, vz }] in the court's own frame (Twin Replay's: x across, z along,
+  // team 0 at +z). They walk where the real players are, labelled "here for real · live".
+  const setLive = (courtId, players = [], { title = "" } = {}) => {
+    const court = courtId === null || courtId === undefined ? null : (layout.COURTS || []).find((c) => String(c.id) === String(courtId)) || null
+    const keep = new Set()
+    if (court) {
+      for (const pl of players) {
+        const key = `live:${pl.slot}`
+        keep.add(key)
+        const w = toWorld(court, pl.x, pl.z)
+        const v = dirToWorld(court, pl.vx || 0, pl.vz || 0)
+        let b = bodies.get(key)
+        if (!b) {
+          b = makeBody(key, pl.look || null, pl.name, { real: true })
+          b.x = w.x
+          b.z = w.z
+        }
+        b.name = pl.name
+        b.realSub = title ? `live · ${title}` : `live · ${court.name}`
+        b.x = w.x
+        b.z = w.z
+        b.vx = v.x
+        b.vz = v.z
+        b.speed = Math.hypot(v.x, v.z)
+        // (facing the net, turned toward where they're running when they run)
+        const net = toWorld(court, pl.x, 0)
+        b.yaw = b.speed > 0.8 ? Math.atan2(v.x, v.z) : Math.atan2(net.x - w.x, net.z - w.z)
+      }
+    }
+    for (const b of [...bodies.values()]) if (b.key.startsWith("live:") && !keep.has(b.key)) removeBody(b)
   }
 
   // ---------- online ----------
@@ -1414,6 +1448,7 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
     },
     // ---- Live Venue Presence: friends here for real ([{ key, name, area, look? }]) ----
     setReal,
+    setLive,
     // ---- online (the page's socket: usePark) ----
     setNet(n) {
       net = n

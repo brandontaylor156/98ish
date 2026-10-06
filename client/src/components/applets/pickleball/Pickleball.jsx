@@ -35,6 +35,7 @@ import { cloneLevel } from "./twin/clone/profile.js"
 const RealGames = React.lazy(() => import("../pbclub/PbClub"))
 import { ParkHud, ParkIntro, ParkMenu, ParkResult, ParkTurn, RealFriendsBar } from "./park/ParkHud"
 import { badgeText, friendsAt } from "./park/presence.js"
+import { useLiveCourt } from "./twin/live/useLiveCourt.js"
 import { useLocate } from "../../../utils/locate"
 import { useAim } from "../aim/AimContext"
 // Venue Finder: any pickleball venue on Earth (park/live/)
@@ -265,6 +266,8 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
   useEffect(() => {
     parkWorld?.setReal?.(realHere.here.map((f) => ({ key: f.key, name: f.name, area: f.venue.area })))
   }, [parkWorld, realHere])
+  // Live Broadcast (twin/live): a buddy live on a court here is on that court in My Park
+  const liveCourt = useLiveCourt({ world: parkWorld, venue: parkVenueId })
   const [parkCounts, setParkCounts] = useState({}) // people in each real venue's online parks (the picker's badges)
 
   const later = (fn, ms) => {
@@ -1362,6 +1365,16 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
             onCam={() => parkRef.current?.cycleCam()}
             onMenu={() => setParkUi((u) => ({ ...u, menu: true }))}
           />
+        )}
+        {screen === "park" && phase === "world" && parkWorld && liveCourt && !parkUi.menu && !parkUi.turn && !parkUi.intro && (
+          <div className="pkPanel window pkParkLive" data-park-live>
+            <span>
+              <b>● LIVE</b> {liveCourt.host}'s game{liveCourt.courtName ? ` on ${liveCourt.courtName}` : ""}
+            </span>
+            <button type="button" onClick={() => (leavePark(), setWatchFor({ id: liveCourt.id, code: null }), setScreen("watch"))} data-action="park-watch-live">
+              Watch
+            </button>
+          </div>
         )}
         {screen === "park" && phase === "world" && parkWorld && !parkUi.menu && !parkUi.turn && !parkUi.intro && (
           <RealFriendsBar
