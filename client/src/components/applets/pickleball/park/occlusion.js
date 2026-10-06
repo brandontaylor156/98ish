@@ -1,6 +1,6 @@
 // Baked ambient occlusion for a real venue (docs/venue-realism.md, round 3).
 //
-// Round 2's screen-space pass (ao.js, GTAO) brightened the whole frame and barely darkened
+// Round 2's screen-space pass (GTAO, removed) brightened the whole frame and barely darkened
 // anything, so this replaces it with occlusion worked out once when the venue loads, from its
 // own geometry: every solid thing (walls, windscreens, stands, benches, cars, trunks, posts) is
 // drawn into a top-down height map of the venue, and each ground cell looks out in 8

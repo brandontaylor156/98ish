@@ -9,7 +9,7 @@ import * as THREE from "three"
 import { addProps, propMaterials } from "./props.js"
 import { FINISH, roomRect } from "./propkit.js"
 import { surfaced } from "./surfaces.js"
-import { buildCars, buildDecals, buildGlow, buildTrees, canvasTex, normalFor, windscreenTex, planDecals, setDetailEnv, skyEnvironment, windowMaps } from "./detail.js"
+import { buildCars, buildDecals, buildGlow, buildLotDetail, buildTrees, buildTufts, canvasTex, normalFor, windscreenTex, planDecals, setDetailEnv, skyEnvironment, windowMaps } from "./detail.js"
 import { dimEnvironment, loadHDRI, swapEnvironment } from "./environment.js"
 
 const canvasTexture = (w, h, draw) => {
@@ -60,7 +60,7 @@ export const lotStalls = (p) => {
     const L = Math.hypot(b[0] - a[0], b[1] - a[1])
     if (L > 0.1 && (!best || L > best.L)) best = { L, ux: (b[0] - a[0]) / L, uz: (b[1] - a[1]) / L }
   }
-  if (!best) return { stalls: [], stripes: [] }
+  if (!best) return { stalls: [], stripes: [], stops: [] }
   const { ux, uz } = best
   const us = p.map(([x, z]) => x * ux + z * uz)
   const ws = p.map(([x, z]) => -x * uz + z * ux)
@@ -70,6 +70,7 @@ export const lotStalls = (p) => {
   const inside = (u, w) => pointInPoly(...at(u, w), p)
   const stalls = []
   const stripes = []
+  const stops = [] // concrete wheel stops at each stall's back end: [x, z, yaw]
   // the first row backs onto the edge and faces an aisle; then pairs back to back: row,
   // aisle, row, row, aisle, row, row, aisle...
   for (let w = w0 + 0.3, k = 0; w + STALL_D <= w1 + 0.01; k++) {
@@ -80,11 +81,13 @@ export const lotStalls = (p) => {
       if (!inside(u + 0.2, w + 0.2) || !inside(u + STALL_W - 0.2, w + 0.2) || !inside(u + 0.2, w + STALL_D - 0.2) || !inside(u + STALL_W - 0.2, w + STALL_D - 0.2)) continue
       const [x, z] = at(cu, cw)
       stalls.push({ x, z, yaw })
+      // (rows alternate: an even row backs onto the low side, an odd one onto the high side)
+      stops.push([...at(cu, k % 2 === 0 ? w + 0.7 : w + STALL_D - 0.7), yaw])
       stripes.push([...at(u, w), ...at(u, w + STALL_D)], [...at(u + STALL_W, w), ...at(u + STALL_W, w + STALL_D)])
     }
     w += STALL_D + (k % 2 === 0 ? AISLE : 0)
   }
-  return { stalls, stripes }
+  return { stalls, stripes, stops }
 }
 
 // the stretch of the edge a -> b (length L, unit u) within w/2 of a door at (dx, dz): [s, e] or null
@@ -379,6 +382,8 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
   // ---------- low fences, nets, walls, hedges ----------
   // (the low dividers between paired courts: dark, not the windscreens' color)
   const screenMat = surfaced(lambert(hex(S.fence?.dividerColor, 0x1d2420), { side: THREE.DoubleSide, ...(detail ? { map: keep(windscreenTex()) } : {}) }), "fabric")
+  // (the weave repeats along the screen, a panel every 2.5 m, instead of one stretched across it)
+  if (screenMat.map) screenMat.map.wrapS = THREE.RepeatWrapping
   const wallMat = lambert(0xc9c2b4)
   const hedgeMat = lambert(0x3f6b34, { flatShading: true })
   const netTex = keep(
@@ -402,7 +407,10 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
     const mx = (x0 + x1) / 2
     const mz = (z0 + z1) / 2
     if (f.k === "screen") {
-      const s = new THREE.Mesh(keep(new THREE.PlaneGeometry(len, f.h)), screenMat)
+      const sg = keep(new THREE.PlaneGeometry(len, f.h))
+      const suv = sg.attributes.uv
+      for (let i = 0; i < suv.count; i++) suv.setX(i, suv.getX(i) * Math.max(1, Math.round(len / 2.5)))
+      const s = new THREE.Mesh(sg, screenMat)
       s.position.set(mx, f.h / 2, mz)
       s.rotation.y = ry
       group.add(s)
@@ -1590,7 +1598,48 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
       }
     }
     const trussMat = lambert(hex(h.beams, 0x3a3d42))
-    if (h.trusses === "grid") {
+    if (h.trusses === "grid" && detail) {
+      // round 3: real box-girder trusses (sound stages): four tube chords, a zigzag web on both
+      // faces and cross ties, every 6 m both ways; tubes as one instanced draw
+      const members = []
+      const at = (along, c, m) => (along ? { x: axis.x * m + perp.x * c, z: axis.z * m + perp.z * c } : { x: axis.x * c + perp.x * m, z: axis.z * c + perp.z * m })
+      const pt = (along, c, m, side, y) => {
+        const p = at(along, c + side, m)
+        return new THREE.Vector3(p.x, y, p.z)
+      }
+      const TOP = H - 0.3
+      const BOT = H - 1.1
+      const HW = 0.3
+      const girder = (from, to, c, along) => {
+        for (const side of [-HW, HW]) {
+          members.push([pt(along, c, from, side, TOP), pt(along, c, to, side, TOP), 0.05])
+          members.push([pt(along, c, from, side, BOT), pt(along, c, to, side, BOT), 0.05])
+          let up = true
+          for (let k = from; k < to - 0.05; k += 1.0) {
+            const k1 = Math.min(to, k + 1.0)
+            members.push([pt(along, c, k, side, up ? BOT : TOP), pt(along, c, k1, side, up ? TOP : BOT), 0.022])
+            up = !up
+          }
+        }
+        for (let k = from; k <= to; k += 2.0) {
+          members.push([pt(along, c, k, -HW, TOP), pt(along, c, k, HW, TOP), 0.02])
+          members.push([pt(along, c, k, -HW, BOT), pt(along, c, k, HW, BOT), 0.02])
+        }
+      }
+      for (let a = u0 + 3; a < u1 - 1; a += 6) girder(w0 + 0.3, w1 - 0.3, a, false)
+      for (let c = w0 + 3; c < w1 - 1; c += 6) girder(u0 + 0.3, u1 - 0.3, c, true)
+      const tube = keep(new THREE.CylinderGeometry(1, 1, 1, 6, 1, true))
+      const inst = new THREE.InstancedMesh(tube, surfaced(lambert(hex(h.beams, 0x3a3d42), { side: THREE.DoubleSide }), "metal"), members.length)
+      const up = new THREE.Vector3(0, 1, 0)
+      const dir = new THREE.Vector3()
+      members.forEach(([p0, p1, r], i) => {
+        dir.subVectors(p1, p0)
+        const len = dir.length()
+        inst.setMatrixAt(i, m4.compose(v1.addVectors(p0, p1).multiplyScalar(0.5), q.setFromUnitVectors(up, dir.normalize()), v2.set(r, len, r)))
+      })
+      inst.userData.noCast = true
+      group.add(inst)
+    } else if (h.trusses === "grid") {
       // an open-web truss grid (sound stages): top and bottom chords with a web, every 6 m
       // both ways, and the hangers for the lamps
       const web = []
@@ -1837,6 +1886,28 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
     // a soft shadow under every car
     plan.under = cars.map((c) => ({ x: c.x, z: c.z, y: 0.008, w: 2.3, l: 4.9, yaw: c.yaw }))
     buildDecals(group, plan, { keep })
+    // round 3: crisp painted stall lines (a little worn), concrete wheel stops, curbs round the
+    // lots, and weeds along the foot of the fences and the curbs (outdoors)
+    const plans = lots.map((p) => lotStalls(p))
+    const edges = lots.flatMap((p) => p.map((a, i) => [a, p[(i + 1) % p.length]]))
+    buildLotDetail(group, { stripes: plans.flatMap((x) => x.stripes), stops: plans.flatMap((x) => x.stops), edges }, { keep, rand })
+    if (!S.indoor) {
+      const tufts = []
+      const along = ([x0, z0], [x1, z1], every, off) => {
+        const len = Math.hypot(x1 - x0, z1 - z0)
+        if (len < 0.5) return
+        const nx = -(z1 - z0) / len
+        const nz = (x1 - x0) / len
+        for (let d = rand() * every; d < len; d += every * (0.6 + rand() * 0.8)) {
+          const side = rand() < 0.5 ? -1 : 1
+          const o = off * (0.4 + rand() * 0.8) * side
+          tufts.push({ x: x0 + ((x1 - x0) * d) / len + nx * o, z: z0 + ((z1 - z0) * d) / len + nz * o, s: 0.6 + rand() * 0.8, r: rand() * Math.PI })
+        }
+      }
+      for (const f of S.fences) if (f.k === "chain" && tufts.length < 5000) along(f.a, f.b, 0.9, 0.18)
+      for (const [a, b] of edges) if (tufts.length < 6500) along(a, b, 1.3, 0.25)
+      buildTufts(group, tufts, { keep })
+    }
   }
 
   // ---------- street lamps (OSM) ----------

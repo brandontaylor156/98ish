@@ -31,18 +31,41 @@ const paint = (g, color, x, y, z, ry = 0, rx = 0, rz = 0) => {
 const box = (w, h, d, x, y0, z, color, ry = 0) => paint(new THREE.BoxGeometry(w, h, d), color, x, y0 + h / 2, z, ry)
 const cyl = (rt, rb, h, x, y0, z, color, seg = 8) => paint(new THREE.CylinderGeometry(rt, rb, h, seg), color, x, y0 + h / 2, z)
 const disc = (r, x, y, z, color, seg = 16) => paint(new THREE.CircleGeometry(r, seg).rotateX(-Math.PI / 2), color, x, y, z)
+// round 3 detail: a canopy with folds (every other rib's edge pulled in and up, as fabric
+// hangs between ribs), and a valance round its edge
+const canopy = (r, h) => {
+  const g = new THREE.ConeGeometry(r, h, 16)
+  const pos = g.attributes.position
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i)
+    const z = pos.getZ(i)
+    const y = pos.getY(i)
+    if (Math.abs(Math.hypot(x, z) - r) > 1e-3 || y > -h / 2 + 1e-3) continue
+    const k = Math.round(Math.atan2(z, x) / ((Math.PI * 2) / 16))
+    if (k % 2) pos.setXYZ(i, x * 0.93, y + 0.07, z * 0.93)
+  }
+  g.computeVertexNormals()
+  return g
+}
 const legs4 = (w, d, h, color, t = 0.04, inset = 0.04) => [-1, 1].flatMap((i) => [-1, 1].map((j) => box(t, h, t, i * (w / 2 - inset), 0, j * (d / 2 - inset), color)))
 
 // type -> (c: the prop's own color or null) -> { solid: [parts], glass: [parts] }
 const T = {
-  bench: (c) => ({ solid: [box(1.8, 0.06, 0.42, 0, 0.42, 0, c || "#8a5a33"), box(1.8, 0.32, 0.05, 0, 0.5, -0.2, c || "#8a5a33"), ...[-0.8, 0.8].map((x) => box(0.06, 0.42, 0.42, x, 0, 0, "#33373c"))] }),
+  // (round 3: three seat slats and two back slats with gaps, on cast side frames with an arm)
+  bench: (c) => ({
+    solid: [
+      ...[-0.14, 0, 0.14].map((z) => box(1.8, 0.05, 0.11, 0, 0.42, z, c || "#8a5a33")),
+      ...[0.58, 0.74].map((y) => box(1.8, 0.1, 0.035, 0, y, -0.21, c || "#8a5a33")),
+      ...[-0.82, 0.82].flatMap((x) => [box(0.05, 0.42, 0.05, x, 0, 0.16, "#2f3338"), box(0.05, 0.84, 0.05, x, 0, -0.2, "#2f3338"), box(0.05, 0.04, 0.42, x, 0.4, 0, "#2f3338"), box(0.05, 0.04, 0.34, x, 0.62, -0.03, "#2f3338")]),
+    ],
+  }),
   picnic: (c) => ({ solid: [box(1.8, 0.05, 0.75, 0, 0.72, 0, c || "#7a5434"), ...[-0.6, 0.6].map((z) => box(1.8, 0.05, 0.28, 0, 0.42, z, c || "#7a5434")), ...[-0.7, 0.7].map((x) => box(0.06, 0.72, 1.3, x, 0, 0, "#3a3f45"))] }),
   chair: (c) => ({ solid: [box(0.45, 0.05, 0.45, 0, 0.44, 0, c || "#3d4652"), box(0.45, 0.45, 0.05, 0, 0.47, -0.2, c || "#3d4652"), ...legs4(0.42, 0.42, 0.44, "#2b2f36", 0.03)] }),
   stool: (c) => ({ solid: [cyl(0.2, 0.2, 0.07, 0, 0.71, 0, c || "#b23a2e", 12), cyl(0.03, 0.03, 0.71, 0, 0, 0, "#2b2f36", 6), cyl(0.22, 0.22, 0.03, 0, 0, 0, "#2b2f36", 12), paint(new THREE.TorusGeometry(0.17, 0.015, 4, 10).rotateX(Math.PI / 2), "#2b2f36", 0, 0.3, 0)] }),
   table: (c) => ({ solid: [cyl(0.45, 0.45, 0.04, 0, 0.72, 0, c || "#3a3330", 14), cyl(0.04, 0.04, 0.72, 0, 0, 0, "#2b2f36", 6), cyl(0.25, 0.25, 0.03, 0, 0, 0, "#2b2f36", 10)] }),
   tablesq: (c) => ({ solid: [box(1, 0.05, 1, 0, 0.71, 0, c || "#d8d2c4"), ...legs4(0.95, 0.95, 0.71, "#2b2f36", 0.05)] }),
   lounger: (c) => ({ solid: [box(0.65, 0.08, 1.4, 0, 0.3, 0.2, c || "#f2f2ee"), paint(new THREE.BoxGeometry(0.65, 0.08, 0.6), c || "#f2f2ee", 0, 0.5, -0.65, 0, 0.6), ...legs4(0.6, 1.8, 0.3, "#9aa0a8", 0.04)] }),
-  umbrella: (c) => ({ solid: [cyl(0.03, 0.03, 2.4, 0, 0, 0, "#dcdcdc", 6), paint(new THREE.ConeGeometry(1.3, 0.45, 8), c || "#f4f2ec", 0, 2.35, 0), cyl(0.2, 0.25, 0.1, 0, 0, 0, "#555", 8)] }),
+  umbrella: (c) => ({ solid: [cyl(0.03, 0.03, 2.4, 0, 0, 0, "#dcdcdc", 6), paint(canopy(1.3, 0.45), c || "#f4f2ec", 0, 2.35, 0), paint(new THREE.CylinderGeometry(1.24, 1.24, 0.12, 16, 1, true), c || "#f4f2ec", 0, 2.1, 0), cyl(0.05, 0.05, 0.12, 0, 2.55, 0, "#dcdcdc", 6), cyl(0.2, 0.25, 0.1, 0, 0, 0, "#555", 8)] }),
   tent: (c) => ({ solid: [paint(new THREE.ConeGeometry(2.1, 0.7, 4).rotateY(Math.PI / 4), c || "#f6f6f2", 0, 2.75, 0), box(3, 0.2, 3, 0, 2.3, 0, c || "#f6f6f2"), ...[-1, 1].flatMap((i) => [-1, 1].map((j) => box(0.05, 2.4, 0.05, i * 1.45, 0, j * 1.45, "#c8ccd0")))] }),
   cabana: (c) => ({ solid: [box(3.2, 0.12, 3.2, 0, 2.6, 0, c || "#8a3f2a"), ...[-1, 1].flatMap((i) => [-1, 1].map((j) => box(0.14, 2.6, 0.14, i * 1.45, 0, j * 1.45, c || "#8a3f2a"))), box(0.04, 2.3, 3, -1.45, 0.2, 0, "#f6f3ea")] }),
   fountain: () => ({ solid: [box(0.42, 0.85, 0.35, 0, 0, -0.03, "#b9bfc5"), box(0.48, 0.12, 0.42, 0, 0.85, 0, "#d5dadf"), cyl(0.12, 0.1, 0.05, 0, 0.97, 0.03, "#8e959c", 10)] }),
@@ -62,7 +85,13 @@ const T = {
   courtsign: (c) => ({ solid: [cyl(0.04, 0.04, 2.2, 0, 0, 0, "#2b2f36", 6), box(0.5, 0.5, 0.03, 0, 1.6, 0.03, c || "#f4f4f2"), box(0.3, 0.3, 0.035, 0, 1.7, 0.035, "#1f3a6e")] }),
   scoreboard: () => ({ solid: [cyl(0.04, 0.04, 1.5, -0.35, 0, 0, "#2b2f36", 6), cyl(0.04, 0.04, 1.5, 0.35, 0, 0, "#2b2f36", 6), box(0.9, 0.45, 0.06, 0, 1.0, 0, "#1d1f22"), box(0.32, 0.3, 0.07, -0.2, 1.07, 0, "#f4f4f2"), box(0.32, 0.3, 0.07, 0.2, 1.07, 0, "#f4f4f2")] }),
   machine: () => ({ solid: [box(0.55, 0.5, 0.5, 0, 0.05, 0, "#2b2b2b"), cyl(0.3, 0.22, 0.35, 0, 0.55, 0, "#3a6fd6", 12), box(0.06, 0.06, 0.35, 0, 0.35, 0.3, "#111")] }),
-  bleacher: (c) => ({ solid: [0, 1, 2].flatMap((k) => [box(4.5, 0.05, 0.3, 0, 0.42 + k * 0.42, 0.6 - k * 0.6, c || "#b9c0c8"), box(4.5, 0.03, 0.25, 0, 0.2 + k * 0.42, 0.8 - k * 0.6, c || "#b9c0c8")]).concat([-2.1, 0, 2.1].map((x) => box(0.06, 1.3, 1.8, x, 0, 0, "#3a3f47"))) }),
+  // (round 3: each seat two aluminum planks with a gap, a foot plank, end frames and a back rail)
+  bleacher: (c) => ({
+    solid: [0, 1, 2]
+      .flatMap((k) => [box(4.5, 0.045, 0.14, 0, 0.42 + k * 0.42, 0.67 - k * 0.6, c || "#b9c0c8"), box(4.5, 0.045, 0.14, 0, 0.42 + k * 0.42, 0.52 - k * 0.6, c || "#b9c0c8"), box(4.5, 0.03, 0.24, 0, 0.2 + k * 0.42, 0.82 - k * 0.6, c || "#a9b0b8")])
+      .concat([-2.1, 0, 2.1].map((x) => box(0.06, 1.3, 1.8, x, 0, 0, "#3a3f47")))
+      .concat([-2.2, 2.2].map((x) => box(0.04, 0.9, 0.04, x, 1.3, -0.82, "#9aa2aa")), [box(4.44, 0.04, 0.04, 0, 2.18, -0.82, "#9aa2aa")]),
+  }),
   spa: (c) => ({ solid: [cyl(1.6, 1.6, 0.5, 0, 0, 0, c || "#e6e0d2", 20), disc(1.35, 0, 0.51, 0, "#5ed1e8", 20), paint(new THREE.TorusGeometry(1.48, 0.12, 4, 20).rotateX(Math.PI / 2), "#d8d1c2", 0, 0.52, 0)] }),
   treadmill: () => ({ solid: [box(0.75, 0.2, 1.8, 0, 0, 0.1, "#2a2d31"), box(0.55, 0.02, 1.5, 0, 0.2, 0.15, "#111316"), ...[-1, 1].map((i) => box(0.05, 1.2, 0.08, i * 0.33, 0.2, -0.7, "#3a3e44")), box(0.75, 0.3, 0.2, 0, 1.15, -0.72, "#1f2226"), box(0.45, 0.22, 0.03, 0, 1.25, -0.6, "#3fa9f5")] }),
   bike: () => ({ solid: [box(0.12, 0.08, 1.1, 0, 0, 0, "#2a2d31"), box(0.1, 0.8, 0.1, 0, 0.05, 0.3, "#3a3e44"), box(0.28, 0.08, 0.3, 0, 0.85, 0.35, "#111316"), box(0.1, 1.0, 0.1, 0, 0.05, -0.35, "#3a3e44"), box(0.5, 0.06, 0.12, 0, 1.05, -0.4, "#1f2226"), cyl(0.22, 0.22, 0.08, 0, 0.18, -0.2, "#c62f2f", 12)] }),

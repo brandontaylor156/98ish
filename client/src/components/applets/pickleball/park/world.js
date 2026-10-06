@@ -23,7 +23,7 @@ import { blocker } from "../camera.js"
 import { setSurfacesOn } from "./surfaces.js"
 import { advance, beginPoint, createMatch, scoreboard, seeded } from "../match.js"
 import { buildPark } from "./build.js"
-import { createAO } from "./ao.js"
+import { createPost } from "./post.js"
 import { aoUniforms, lastAO, setBakedAOOn } from "./occlusion.js"
 import { createMannequins } from "./mannequin.js"
 import { spotFor } from "./presence.js"
@@ -1345,18 +1345,18 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
   updateRacks()
   park.setBoard([{ name: me.name, text: me.rep ? repLine(me.rep) : "Newcomer · 0-0", you: true }])
 
-  // (ambient occlusion, ao.js: an experiment, off unless localStorage 98ish.park.ao = "1" on
-  // High: in tests it brightened the whole picture through its output pass, which moves the
-  // venues' photo-matched colors, and its darkening barely showed; docs/venue-realism.md)
-  let aoFlag = false
+  // post-processing on High at a real venue (post.js: bloom on the lights, FXAA, a mild
+  // vignette; colors through one tone curve). Off with localStorage 98ish.park.post = "0".
+  // (Ambient occlusion is baked into the surfaces instead: occlusion.js.)
+  let postFlag = true
   try {
-    aoFlag = typeof localStorage !== "undefined" && localStorage.getItem("98ish.park.ao") === "1"
+    postFlag = typeof localStorage === "undefined" || localStorage.getItem("98ish.park.post") !== "0"
   } catch {}
-  const ao = aoFlag && quality === "high" && layout.id && layout.id !== "riverside" ? createAO(scene) : null
+  const post = postFlag && quality === "high" && layout.id && layout.id !== "riverside" ? createPost(scene) : null
   const world = {
     scene,
     camera,
-    ...(ao ? { render: (renderer) => ao.render(renderer, camera), aoOn: true } : {}),
+    ...(post ? { render: (renderer) => post.render(renderer, camera), postOn: true } : {}),
     // which venue this is (layout.js / venuegen.js): online, friends at the same venue meet
     venue: layout.id || "riverside",
     layout,
@@ -1610,7 +1610,7 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
     },
     dispose() {
       if (disposed) return
-      ao?.dispose()
+      post?.dispose()
       disposed = true
       for (const b of bodies.values()) dropFig(b)
       bodies.clear()
@@ -1646,7 +1646,7 @@ const devHooks = (world, { scene, park, exposure }) => {
   world.devAOInfo = () => ({ on: aoUniforms.surfAOOn.value, size: [aoUniforms.surfAOTex.value.image?.width, aoUniforms.surfAOTex.value.image?.height], ...lastAO })
   world.devPark = park
   let r = null
-  let devAO = null
+  let devPost = null
   const swatches = []
   world.devShot = ({ w = 800, h = 600, ortho = null, cam = null, people = false, fog = !ortho } = {}) => {
     if (!r) {
@@ -1701,7 +1701,7 @@ const devHooks = (world, { scene, park, exposure }) => {
       park.followSky?.({ x: c.position.x + d.x * Math.min(t, 35), y: 0, z: c.position.z + d.z * Math.min(t, 35) })
     }
     if (park.sun?.castShadow) park.sun.shadow.needsUpdate = true // (its own shadow map: the game's renderer may have used the flag)
-    if (world.aoOn) (devAO ??= createAO(scene)).render(r, c)
+    if (world.postOn && !ortho && world.devPostShots !== false) (devPost ??= createPost(scene)).render(r, c)
     else r.render(scene, c)
     world.devRenderer = r
     scene.fog = f
