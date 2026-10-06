@@ -1,4 +1,4 @@
-import React, { Suspense } from "react"
+import React, { Suspense, useEffect, useState } from "react"
 import SaverCanvas from "./SaverCanvas"
 import createStarfield from "./savers/starfield"
 import createMystify, { createBeziers } from "./savers/mystify"
@@ -35,7 +35,30 @@ const lazySaver = (load) => {
 }
 const Aquarium = lazySaver(() => import("./savers/aquarium"))
 const Garden = lazySaver(() => import("./savers/garden"))
-const LoveNotes = lazySaver(() => import("./savers/lovenotes"))
+const LoveNotesCanvas = lazySaver(() => import("./savers/lovenotes"))
+// Love Notes: with the default lines (you haven't typed your own) and a partner in Us, it
+// floats lines from your partner's love letters instead (savers/partnerNotes.js); it waits
+// a moment for them so the saver isn't built twice, and keeps the defaults if they can't come
+const LoveNotes = ({ settings, preview }) => {
+  const own = String(settings?.messages ?? "").trim() && String(settings.messages).trim() !== DEFAULT_MESSAGES
+  const [lines, setLines] = useState(own ? "" : null)
+  useEffect(() => {
+    if (own) return
+    let live = true
+    const give = (value) => live && setLines((cur) => (cur === null ? value : cur))
+    const timer = setTimeout(() => give(""), 3000)
+    import("./savers/partnerNotes")
+      .then((m) => m.loadPartnerLines())
+      .then((got) => give(got?.length ? got.join("\n") : ""))
+      .catch(() => give(""))
+    return () => {
+      live = false
+      clearTimeout(timer)
+    }
+  }, [own])
+  if (lines === null) return <div className="ssFill" />
+  return <LoveNotesCanvas settings={lines ? { ...settings, messages: lines } : settings} preview={preview} />
+}
 
 const speed = { key: "speed", label: "Speed", type: "range", min: 1, max: 10, low: "Slow", high: "Fast" }
 
@@ -121,7 +144,7 @@ export const SCREENSAVERS = [
     label: "Love Notes",
     defaults: { messages: DEFAULT_MESSAGES, palette: "pink", background: "#3a2350", speed: 5 },
     fields: [
-      { key: "messages", label: "Messages (one per line)", type: "textarea", rows: 4, maxLength: MAX_MESSAGES * (MAX_MESSAGE_LENGTH + 1) },
+      { key: "messages", label: "Messages (one per line; leave the defaults to show your partner's love letters)", type: "textarea", rows: 4, maxLength: MAX_MESSAGES * (MAX_MESSAGE_LENGTH + 1) },
       { key: "palette", label: "Hearts", type: "select", choices: [["pink", "Pink"], ["rainbow", "Rainbow"], ["red", "Red"], ["lilac", "Lilac"]] },
       { key: "background", label: "Background color", type: "color" },
       speed,
