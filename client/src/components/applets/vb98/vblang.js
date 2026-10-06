@@ -817,13 +817,20 @@ const compileProgram = (program, controls) => {
     return err(`Variable not defined: "${e.raw}" (Dim it first, or check the spelling)`, e.line)
   }
 
+  // a method's argument: a control's bare name passes the control itself
+  // (Sprite1.Touching(Sprite2)); anything else is a value
+  function methodArg(a, scope) {
+    if (a.k === "name" && ctl.has(a.name) && !lookupVar(a.name, scope)) return `R.c(${js(a.name)})`
+    return expr(a, scope)
+  }
+
   // f(args): a built-in, a procedure, an array element, Shared("k"), or obj.method(args)
   function applyRef(e, scope, asStatement) {
     const t = e.target
     const argJs = e.args.map((a) => expr(a, scope))
     if (t.k === "member") {
       // Shared.Get("k") style isn't needed; obj.method(args) or a property with an index (List1.List(i))
-      return `R.call(${objRef(t.obj, scope)}, ${js(t.name)}, [${argJs.join(", ")}])`
+      return `R.call(${objRef(t.obj, scope)}, ${js(t.name)}, [${e.args.map((a) => methodArg(a, scope)).join(", ")}])`
     }
     if (t.k === "name") {
       const name = t.name
@@ -1005,7 +1012,7 @@ const compileProgram = (program, controls) => {
   function callStatement(e, bare, scope) {
     const t = e.target
     const allArgs = [...e.args, ...bare]
-    if (t.k === "member") return `R.call(${objRef(t.obj, scope)}, ${js(t.name)}, [${allArgs.map((a) => expr(a, scope)).join(", ")}])`
+    if (t.k === "member") return `R.call(${objRef(t.obj, scope)}, ${js(t.name)}, [${allArgs.map((a) => methodArg(a, scope)).join(", ")}])`
     if (t.k === "name") {
       const name = t.name
       if (procs.has(name)) return applyRef({ ...e, args: allArgs }, scope, true)

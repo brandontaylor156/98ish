@@ -3,6 +3,9 @@ import test from "node:test"
 import assert from "node:assert/strict"
 import { compile, tokenize } from "./vblang.js"
 import { makeRuntime, SLICE_MS } from "./vbruntime.js"
+import { TEMPLATES, templateById } from "./templates.js"
+import { validateProject, blankProject, MAX_BYTES } from "./vbfile.js"
+import { newControl, nextName, codeObjects, procStub } from "./controls.js"
 
 // a pretend form: controls are { __control, type, name, props }
 const fakeHost = (controls = {}, extra = {}) => {
@@ -238,4 +241,103 @@ End Sub`,
   assert.match(p.log.errors[0].message, /Subscript out of range/)
   await p.run("good")
   assert.equal(p.ctls.label1.props.caption, 2.5)
+})
+
+test("every template validates and its code compiles", () => {
+  for (const t of TEMPLATES) {
+    const p = t.make()
+    const v = validateProject(JSON.stringify(p))
+    assert.equal(v.ok, true, `${t.id}: ${v.error}`)
+    const c = compile(p.code, { controls: p.controls.map((x) => x.name) })
+    assert.equal(c.ok, true, `${t.id}: line ${c.error?.line}: ${c.error?.message}`)
+  }
+})
+
+test(".vb98 validation: rejects junk, duplicates, unknown types and oversized programs; clamps values", () => {
+  assert.equal(validateProject("nope").ok, false)
+  assert.equal(validateProject({ kind: "other" }).ok, false)
+  const p = blankProject()
+  p.controls = [newControl("Label", []), newControl("Label", [])]
+  p.controls[1].name = p.controls[0].name
+  assert.match(validateProject(p).error, /Two controls/)
+  p.controls = [{ type: "Rocket", name: "R1" }]
+  assert.match(validateProject(p).error, /Unknown control/)
+  p.controls = [{ ...newControl("Label", []), name: "1bad" }]
+  assert.match(validateProject(p).error, /valid control name/)
+  p.controls = [{ ...newControl("PictureBox", []), picture: "data:image/png;base64," + "A".repeat(MAX_BYTES) }]
+  assert.equal(validateProject(p).ok, false)
+  const ok = validateProject({ ...blankProject(), form: { caption: "X", width: 99999, height: -5, backColor: "javascript:alert(1)" } })
+  assert.equal(ok.ok, true)
+  assert.equal(ok.project.form.width, 1200)
+  assert.equal(ok.project.form.height, 80)
+  assert.equal(ok.project.form.backColor, "#c0c0c0")
+})
+
+test("controls: names, the Code window's lists and event stubs", () => {
+  const list = [newControl("CommandButton", [])]
+  assert.equal(list[0].name, "Command1")
+  assert.equal(nextName("CommandButton", list), "Command2")
+  const objs = codeObjects(list)
+  assert.deepEqual(
+    objs.map((o) => o.object),
+    ["Form", "Command1", "Shared"]
+  )
+  assert.equal(compile(procStub("Form", "KeyDown"), { controls: [] }).ok, true)
+})
+
+test("two players play Tic-Tac-Toe over Shared state", async () => {
+  const t = templateById("tictactoe").make()
+  const store = new Map()
+  const players = []
+  const mk = (name) => {
+    const controls = Object.fromEntries(t.controls.map((c) => [c.name, { ...c }]))
+    const p = load(t.code, controls, {
+      host: {
+        me: { name },
+        friends: ["Ann", "Bob"],
+        shared: {
+          get: (k) => store.get(k) ?? "",
+          set: (k, v) => {
+            store.set(k, v)
+            // everyone hears about it, as the server relays it
+            for (const other of players) other.pending.push(k)
+          },
+          keys: () => [...store.keys()],
+        },
+      },
+    })
+    p.pending = []
+    players.push(p)
+    return p
+  }
+  const ann = mk("Ann")
+  const bob = mk("Bob")
+  const flush = async () => {
+    for (const p of players) {
+      const keys = p.pending.splice(0)
+      for (const k of keys) await p.run("shared_changed", k)
+    }
+  }
+  await ann.run("form_load")
+  await bob.run("form_load")
+  await flush()
+  // Ann takes X in the corner, Bob plays, Ann plays out of turn (refused), then wins the top row
+  for (const [who, cell] of [
+    [ann, 1],
+    [bob, 5],
+    [ann, 2],
+    [ann, 3],
+    [bob, 9],
+    [ann, 3],
+  ]) {
+    await who.run(`cell${cell}_click`)
+    await flush()
+  }
+  assert.equal(store.get("X"), "Ann")
+  assert.equal(store.get("O"), "Bob")
+  assert.equal(store.get("board"), "XXX.O...O")
+  assert.equal(bob.ctls.label1.props.caption, "X (Ann) wins!")
+  assert.equal(ann.ctls.cell2.props.caption, "X")
+  assert.equal(bob.ctls.cell5.props.caption, "O")
+  assert.deepEqual([...ann.log.errors, ...bob.log.errors], [])
 })
