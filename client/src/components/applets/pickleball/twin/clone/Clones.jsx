@@ -86,9 +86,11 @@ export const CloneDialog = ({ game, playerId, onClose, onSaved }) => {
             </label>
           </>
         )}
-        <label className="pkCloneCheck">
-          <input type="checkbox" checked={me} onChange={(e) => setMe(e.target.checked)} data-field="cloneMe" /> This is me (I can share my clone with friends)
-        </label>
+        {/* 98.css draws a checkbox for "input + label" (the input itself is hidden) */}
+        <div className="pkCloneCheck">
+          <input id="pk-clone-me" type="checkbox" checked={me} onChange={(e) => setMe(e.target.checked)} data-field="cloneMe" />
+          <label htmlFor="pk-clone-me">This is me (I can share my clone with friends)</label>
+        </div>
         {!me && <p className="pkMuted">A clone of someone else stays on this device, labeled "Built from your video". To play their clone together, they make and share their own.</p>}
         {error && <p className="pkTwinError">{error}</p>}
       </div>
