@@ -300,3 +300,73 @@
 .pkParkEmote {
   font-style: italic;
 }
+
+/* the venue picker */
+.pkParkVenues {
+  max-width: 380px;
+  width: 100%;
+  max-height: calc(100% - 16px);
+  overflow-y: auto;
+  text-align: left;
+}
+
+.pkParkVenuesX {
+  min-width: 0 !important;
+  padding: 0 8px !important;
+}
+
+.pkParkVenueList {
+  list-style: none;
+  margin: 6px 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pkParkVenueList li {
+  display: flex;
+  gap: 4px;
+  align-items: stretch;
+}
+
+.pkParkVenueGo {
+  flex: 1;
+  display: flex !important;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+  padding: 5px 8px !important;
+  min-height: 44px;
+}
+
+.pkParkVenueList li.is-current .pkParkVenueGo b::after {
+  content: "  (last time)";
+  font-weight: normal;
+  font-size: 11px;
+}
+
+.pkParkVenueGo small {
+  color: #333;
+  font-size: 11px;
+}
+
+.pkParkVenueLoading {
+  color: #0a246a !important;
+}
+
+.pkParkVenueStar {
+  min-width: 44px !important;
+  font-size: 18px;
+  padding: 0 !important;
+}
+
+.pkParkVenueStar.is-on {
+  color: #b8860b;
+}
+
+.pkParkCredit {
+  margin: 6px 0 0;
+  font-size: 11px;
+  color: #333;
+}

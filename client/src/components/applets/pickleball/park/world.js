@@ -23,7 +23,7 @@ import { blocker } from "../camera.js"
 import { advance, beginPoint, createMatch, scoreboard, seeded } from "../match.js"
 import { buildPark } from "./build.js"
 import { createMannequins } from "./mannequin.js"
-import { ALL_SEATS, COURTS, INTERACTABLES, LEVEL_NAMES, SPAWN, nearestAction, poseToWorld, resolve, seatApproach, toLocal, toWorld, yawToWorld } from "./layout.js"
+import { ACTIVE, ALL_SEATS, COURTS, INTERACTABLES, LEVEL_NAMES, RIVERSIDE_LAYOUT, SPAWN, WAYPOINTS, dirToWorld, nearestAction, poseToWorld, resolve, seatApproach, setLayout, toLocal, toWorld, yawToWorld } from "./layout.js"
 import { callNext, leaveQueue, nextLineup, ordered, positionOf } from "./queue.js"
 import { LINES, createRegular, goTo, speak, think, tickRegular } from "./regulars.js"
 import { createWalker, keepApart, stepWalker } from "./walker.js"
@@ -51,11 +51,17 @@ const blobTexture = () => {
   return new THREE.CanvasTexture(c)
 }
 
-export const createWorld = ({ makeFigure, quality = "medium", phone = false, me: meInfo = {}, onHud, onEvent, labelsEl = null, audio = null, seed = (Math.random() * 1e9) | 0, hour = null } = {}) => {
+export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "medium", phone = false, me: meInfo = {}, onHud, onEvent, labelsEl = null, audio = null, seed = (Math.random() * 1e9) | 0, hour = null } = {}) => {
+  // (the venue: layout.js's named exports follow the active layout)
+  setLayout(layout)
+  const venue = layout
+  // (indoors: cameras stay under the lowest hall roof)
+  const halls = layout.spec.scene?.halls || []
+  const roofY = halls.length ? Math.min(...halls.map((h) => h.h || 9)) - 0.6 : null
   const rand = seeded(seed)
   const scene = new THREE.Scene()
   const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 400)
-  const park = buildPark(scene, { quality })
+  const park = buildPark(scene, { quality, layout })
   const mann = createMannequins(scene)
   let size = { width: 1, height: 1 }
   const portrait = () => size.height > size.width * 1.05
@@ -160,7 +166,9 @@ export const createWorld = ({ makeFigure, quality = "medium", phone = false, me:
       const c = COURTS[courtId]
       const i = courts[courtId].queue.findIndex((e) => e.id === r.id)
       const k = i < 0 ? courts[courtId].queue.length : i
-      return resolve(c.rack.x + ((k % 4) - 1.5) * 0.75, c.rack.z - c.side * (1.0 + Math.floor(k / 4) * 0.7), 0.3)
+      const along = ((k % 4) - 1.5) * 0.75
+      const back = 1.0 + Math.floor(k / 4) * 0.7
+      return resolve(c.rack.x + c.rackAlong.x * along + c.out.x * back, c.rack.z + c.rackAlong.z * along + c.out.z * back, 0.3)
     },
   })
 
@@ -235,7 +243,8 @@ export const createWorld = ({ makeFigure, quality = "medium", phone = false, me:
     }
     // and the rest about the park
     for (let k = 0; k < REGULARS_OFF; k++) {
-      const spot = k < 3 ? resolve(COURTS[k].rack.x, COURTS[k].rack.z - COURTS[k].side * 1.2, 0.3) : resolve(-20 + rand() * 42, (rand() - 0.5) * 2.2, 0.3)
+      const wp = WAYPOINTS.length ? WAYPOINTS[Math.floor(rand() * WAYPOINTS.length)] : SPAWN
+      const spot = k < 3 && COURTS[k] ? resolve(COURTS[k].rack.x + COURTS[k].out.x * 1.2, COURTS[k].rack.z + COURTS[k].out.z * 1.2, 0.3) : venue.kind === "riverside" ? resolve(-20 + rand() * 42, (rand() - 0.5) * 2.2, 0.3) : resolve(wp.x + (rand() - 0.5) * 3, wp.z + (rand() - 0.5) * 3, 0.3)
       const r = createRegular(ri++, rand, spot)
       r.idle = 40 + rand() * 80
       regulars.push(r)
@@ -243,6 +252,52 @@ export const createWorld = ({ makeFigure, quality = "medium", phone = false, me:
       r.body.x = r.x
       r.body.z = r.z
       r.t = rand() * 3
+    }
+  }
+
+  // ---------- a real venue's other courts: a doubles game on about half of them ----------
+  // Cheap figures only (the mannequin crowd): four in ready stances, shuffling a little and
+  // swinging now and then; drawn when near and in view. They don't play a real match.
+  const LOOKS = ["#2f6fd6", "#e63946", "#ffd23f", "#2a9d8f", "#f4a261", "#6a4c93", "#ffffff", "#1d3557"]
+  const SKINS = ["#f1c7a5", "#d39a6a", "#a0663d", "#6b4226", "#e8b98f"]
+  const ambient = (layout.spec.scene?.courts || [])
+    .filter((c) => c.s === "p" && (c.live === null || c.live === undefined) && !c.machine)
+    .filter((c, i) => ((i * 2654435761) >>> 0) % 100 < 55)
+    .map((c, i) => {
+      const s = Math.sin(c.rot)
+      const co = Math.cos(c.rot)
+      const at = (lx, lz) => ({ x: c.x + lx * co + lz * s, z: c.z - lx * s + lz * co })
+      const spots = [
+        [-1.5, -5.6, 0],
+        [1.5, -3.2, 0],
+        [-1.4, 4.8, Math.PI],
+        [1.6, 5.8, Math.PI],
+      ]
+      return {
+        x: c.x,
+        z: c.z,
+        people: spots.map(([lx, lz, yaw], k) => ({ ...at(lx, lz), yaw: yaw + c.rot, phase: (i * 4 + k) * 1.7, look: { shirt: LOOKS[(i * 3 + k) % LOOKS.length], skin: SKINS[(i + k * 2) % SKINS.length], bottomColor: k % 2 ? "#1d3557" : "#2b2b2b", hairColor: k % 3 ? "#2b1b0e" : "#8a5a2b", paddle: LOOKS[(i + k) % LOOKS.length] } })),
+      }
+    })
+  const ambSphere = new THREE.Sphere(new THREE.Vector3(), 9)
+  const drawAmbient = () => {
+    if (!ambient.length) return
+    const cx = camera.position.x
+    const cz = camera.position.z
+    let courtsDrawn = 0
+    for (const a of ambient) {
+      if (courtsDrawn >= 10) break
+      if (Math.hypot(a.x - cx, a.z - cz) > 60) continue
+      ambSphere.center.set(a.x, 1, a.z)
+      if (!frustum.intersectsSphere(ambSphere)) continue
+      courtsDrawn++
+      for (const p of a.people) {
+        const t = clock + p.phase
+        // (a shuffle and a swing every few seconds)
+        const sway = Math.sin(t * 1.3)
+        const swing = Math.max(0, Math.sin(t * 0.9) - 0.85) * 6
+        mann.add({ x: p.x + Math.cos(p.yaw) * sway * 0.25, z: p.z - Math.sin(p.yaw) * sway * 0.25, yaw: p.yaw, speed: Math.abs(sway) * 0.8, phase: t * 3, seat: null, swing: Math.min(1, swing), look: p.look })
+      }
     }
   }
 
@@ -611,8 +666,10 @@ export const createWorld = ({ makeFigure, quality = "medium", phone = false, me:
       const b = bodyOfEntry(e)
       if (b) setMode(b, "walk")
       const r = e.reg
-      r.x = c.def.outside.x + (rand() - 0.5) * 2
-      r.z = c.def.outside.z - c.def.side * rand()
+      const along = (rand() - 0.5) * 2
+      const back = rand()
+      r.x = c.def.outside.x + c.def.rackAlong.x * along + c.def.out.x * back
+      r.z = c.def.outside.z + c.def.rackAlong.z * along + c.def.out.z * back
       r.state = "wander"
       r.court = null
       r.idle = 0
@@ -683,7 +740,7 @@ export const createWorld = ({ makeFigure, quality = "medium", phone = false, me:
           setMode(b, "walk")
           r.x = c.def.outside.x
           r.z = c.def.outside.z
-          r.yaw = c.def.side > 0 ? Math.PI : 0
+          r.yaw = c.def.outYaw
           r.state = "wander"
           r.court = null
           r.idle = 0
@@ -773,11 +830,12 @@ export const createWorld = ({ makeFigure, quality = "medium", phone = false, me:
     b.x = w.x
     b.z = w.z
     const v = { x: b.p.vx, z: b.p.vz }
-    b.vx = v.z
-    b.vz = -v.x
+    const wv = dirToWorld(b.court.def, v.x, v.z)
+    b.vx = wv.x
+    b.vz = wv.z
     b.speed = Math.hypot(v.x, v.z)
     const localYaw = b.anim ? b.anim.yaw : b.speed > 0.6 ? Math.atan2(v.x, v.z) : b.p.team === 0 ? Math.PI : 0
-    b.yaw = yawToWorld(localYaw)
+    b.yaw = yawToWorld(localYaw, b.court.def)
   }
   const drawBodies = (dt) => {
     camera.updateMatrixWorld()
@@ -838,6 +896,7 @@ export const createWorld = ({ makeFigure, quality = "medium", phone = false, me:
         blobs.setMatrixAt(nb++, bm4)
       }
     }
+    drawAmbient()
     mann.end()
     blobs.count = nb
     blobs.instanceMatrix.needsUpdate = true
@@ -913,7 +972,9 @@ export const createWorld = ({ makeFigure, quality = "medium", phone = false, me:
       const c = courts[me.watching]
       const bodiesNear = []
       for (const b of bodies.values()) if (b.court === c || (b.seat && b.seat.court === c.def.id)) bodiesNear.push({ x: b.x, z: b.z, h: b.seat ? b.seat.y + 1.0 : 1.95 })
-      const shot = spectatorShot(c.def, me.angle, bodiesNear, { portrait: por })
+      // (a real venue: nothing solid between the court and the lens)
+      const isClear = venue.kind === "riverside" ? null : (cam) => venue.segmentHit({ x: c.def.x, z: c.def.z }, cam, Math.min(cam.y - 0.3, 3.2)) === null
+      const shot = spectatorShot(c.def, me.angle, bodiesNear, { portrait: por, maxY: roofY, isClear })
       const k = 1 - Math.exp(-dt * 3)
       tv.set(shot.cam.x, shot.cam.y, shot.cam.z)
       camera.position.lerp(tv, k)
@@ -1141,6 +1202,9 @@ export const createWorld = ({ makeFigure, quality = "medium", phone = false, me:
   const world = {
     scene,
     camera,
+    // which venue this is (layout.js / venuegen.js): online, friends at the same venue meet
+    venue: layout.id || "riverside",
+    layout,
     get exposure() {
       return exposure
     },
@@ -1222,7 +1286,7 @@ export const createWorld = ({ makeFigure, quality = "medium", phone = false, me:
         me.walker.x = c.def.outside.x
         me.walker.z = c.def.outside.z
         me.walker.vx = me.walker.vz = 0
-        me.walker.yaw = c.def.side > 0 ? Math.PI : 0
+        me.walker.yaw = c.def.outYaw
         me.mode = "walk"
         me.seat = null
         follow.yaw = me.walker.yaw
@@ -1236,6 +1300,10 @@ export const createWorld = ({ makeFigure, quality = "medium", phone = false, me:
     },
     get suspended() {
       return suspended
+    },
+    // (the hour the park shows: a game on one of its courts uses the same light)
+    get hour() {
+      return hourOverride ?? hourOf()
     },
     get mode() {
       return me.mode

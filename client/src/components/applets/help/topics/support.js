@@ -345,7 +345,7 @@ export const topics = [
           rows: [
             ["IndexedDB (database \"98ish-drive\")", "Drive C: and the Recycle Bin: files, photos, documents, recordings, and file sync's bookkeeping. Each extra user profile has its own database (\"98ish-drive-\" plus an id)."],
             ["IndexedDB (database \"98ish-music\")", "Music 98's album art (small pictures from your songs). The songs themselves are files in Drive C: (C:\\My Music); their names, artists and playlists are in localStorage \"98ish.music\"."],
-            ["localStorage (keys starting \"98ish.\")", "Settings, desktop, scores and game saves (and Casino 98's play chips), Address Book contacts, notes (and which are pinned to this desktop), notifications, \"On this device\" calendars, reminders, Internet Explorer history and favorites, drafts, and 98 Messenger's \"Sign me on automatically\" key. Each extra user profile's keys start \"98ish.u.\" plus an id."],
+            ["localStorage (keys starting \"98ish.\")", "Settings, desktop, scores and game saves (and Casino 98's play chips, and Pickleball 98's last My Park venue and favorite venues), Address Book contacts, notes (and which are pinned to this desktop), notifications, \"On this device\" calendars, reminders, Internet Explorer history and favorites, drafts, and 98 Messenger's \"Sign me on automatically\" key. Each extra user profile's keys start \"98ish.u.\" plus an id."],
             ["The user list (shared by the device)", "User names, pictures, linked screen names, and each user's lock PIN or password, stored only as a salted, scrambled copy (PBKDF2)."],
             ["Service worker caches", "A copy of the 98ish app for offline use, things shared to 98ish from other apps (Android), and notifications that arrived while 98ish was closed."],
           ],
@@ -437,6 +437,7 @@ export const topics = [
         },
       },
       "Chess Puzzles' puzzles come from the Lichess puzzle database (public domain) and are built into 98ish: solving them never contacts Lichess, and your puzzle rating and history stay on this device.",
+      "Pickleball 98's real venues in My Park are built from OpenStreetMap data (© OpenStreetMap contributors, ODbL) that ships inside 98ish: choosing a venue never contacts OpenStreetMap or any map service, and 98ish never asks where you are. Online, the 98ish server only learns which venue you picked (so friends at the same venue meet) and your position inside it, as with Riverside Park.",
       "98ish has no ads, analytics or tracking scripts, and sells nothing to anyone.",
     ],
     related: ["privacy-overview", "privacy-server", "push-setup", "messenger-calls"],

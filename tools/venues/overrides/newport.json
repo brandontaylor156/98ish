@@ -1,0 +1,49 @@
+{
+  "name": "The Tennis & Pickleball Club at Newport Beach",
+  "short": "Newport Beach Club",
+  "city": "Newport Beach, CA",
+  "access": "members",
+  "note": "Private members' club: 44 pickleball courts in two-court pods, 12 tennis courts (one red clay), all lit.",
+  "lit": true,
+  "anchor": [33.61096, -117.87988],
+  "crop": 60,
+  "courts": {
+    "paint": [
+      { "en": [62.7, 68.8], "r": 3, "court": "#a9cfe0", "kitchen": "#c6e1ec" },
+      { "en": [54.6, 66.0], "r": 3, "court": "#a9cfe0", "kitchen": "#c6e1ec" },
+      { "en": [66.9, 50.7], "r": 3, "court": "#a9cfe0", "kitchen": "#c6e1ec" },
+      { "en": [58.9, 48.9], "r": 3, "court": "#a9cfe0", "kitchen": "#c6e1ec" },
+      { "en": [80.3, 72.7], "r": 3, "court": "#e9a47c", "kitchen": "#f1bf9f" },
+      { "en": [72.2, 69.9], "r": 3, "court": "#e9a47c", "kitchen": "#f1bf9f" },
+      { "en": [84.5, 54.6], "r": 3, "court": "#e9a47c", "kitchen": "#f1bf9f" },
+      { "en": [76.6, 52.8], "r": 3, "court": "#e9a47c", "kitchen": "#f1bf9f" },
+      { "en": [-31.3, -54.4], "r": 4, "sport": "tennis", "court": "#b5634a", "surround": "#b5634a", "clay": true }
+    ]
+  },
+  "colors": { "court": "#3d5f9e", "kitchen": "#4d70b0", "surround": "#5e9a4e", "tennis": "#3d5f9e", "tennisSurround": "#5e9a4e", "lines": "#f7f7f4", "windscreen": "#24382c", "fence": "#24382c", "ground": "#86a866", "far": "#7fa35e" },
+  "fence": { "lightEvery": 12, "poleH": 10 },
+  "buildings": {
+    "add": [
+      { "rect": { "en": [-10, 33], "w": 17, "d": 23, "bearing": 166 }, "h": 7, "kind": "clubhouse", "color": "#efe6d2", "roof": "#4f7a5e", "roofStyle": "gable" },
+      { "rect": { "en": [-7, 8], "w": 18, "d": 14, "bearing": 166 }, "h": 6.5, "kind": "clubhouse", "color": "#f4f2ec", "roof": "#f4f2ec" },
+      { "rect": { "en": [-35, 30], "w": 20, "d": 24, "bearing": 166 }, "h": 5.5, "kind": "commercial", "color": "#e3ddd0", "roof": "#2a3550" },
+      { "rect": { "en": [-11, -36], "w": 11, "d": 7, "bearing": 166 }, "h": 3.6, "kind": "clubhouse", "color": "#efe6d2", "roof": "#4f7a5e", "roofStyle": "gable" }
+    ]
+  },
+  "areas": { "add": [{ "kind": "lawn", "rect": { "en": [6, -33], "w": 26, "d": 27, "bearing": 166 } }] },
+  "extras": [
+    { "type": "terrace", "en": [-7, 8], "w": 18, "d": 14, "bearing": 166, "h": 6.5 },
+    { "type": "umbrellas", "en": [-7, 8], "n": 6, "r": 5, "y": 6.5, "color": "#f4f2ec" },
+    { "type": "sail", "en": [-5, -3], "w": 12, "d": 10, "color": "#2f6fb8" },
+    { "type": "golf", "en": [-150, 120], "w": 160, "d": 120 },
+    { "type": "ocean", "deg": 135, "dist": 520 }
+  ],
+  "trees": {
+    "default": "palm",
+    "rows": [
+      { "from": { "en": [-20, -90] }, "to": { "en": [100, -90] }, "every": 10, "kind": "palm", "s": 1.1 },
+      { "from": { "en": [130, -60] }, "to": { "en": [130, 90] }, "every": 12, "kind": "broadleaf" }
+    ]
+  },
+  "backdrop": { "palms": 30, "trees": 30, "skyline": true, "skylineTint": "#d9b48f" }
+}

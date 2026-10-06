@@ -4,6 +4,7 @@
 import test from "node:test"
 import assert from "node:assert/strict"
 import { createRequire } from "node:module"
+import { readFileSync } from "node:fs"
 import * as L from "./layout.js"
 import { MAX_STACK, callNext, gamesUntil, leaveQueue, nextLineup, ordered, positionOf } from "./queue.js"
 import { createRegular, moveRegular, think, tickRegular, startChat, goTo } from "./regulars.js"
@@ -92,13 +93,38 @@ test("layout: a court's frame and the world's; poses turned into the world", () 
   const pose = { yaw: 0, pelvis: { x: 1, y: 1, z: 2 }, spine: { x: 0, y: 1, z: 0 }, chestForward: { x: 0, y: 0, z: 1 }, footL: { x: 1, y: 0, z: 2, yaw: 0, pitch: 0.1, pin: { x: 1.1, z: 2.1, ball: true } }, paddle: { grip: { x: 0, y: 1, z: 0 }, face: { x: 0, y: 1.3, z: 0 }, axis: { x: 1, y: 0, z: 0 }, normal: { x: 0, y: 0, z: 1 } }, hand: 1, info: { speed: 2 } }
   const w = L.poseToWorld(pose, c)
   assert.deepEqual([w.pelvis.x, w.pelvis.y, w.pelvis.z], [c.x + 2, 1, c.z - 1])
-  assert.deepEqual([w.chestForward.x, w.chestForward.z], [1, -0]) // a direction: turned, not moved
+  assert.deepEqual([w.chestForward.x, w.chestForward.z + 0], [1, 0]) // a direction: turned, not moved
   assert.equal(w.yaw, Math.PI / 2)
   assert.equal(w.footL.yaw, Math.PI / 2)
   assert.deepEqual([w.footL.pin.x, w.footL.pin.z, w.footL.pin.ball], [c.x + 2.1, c.z - 1.1, true])
   assert.deepEqual([w.paddle.axis.x, w.paddle.axis.z], [0, -1])
   assert.equal(w.hand, 1)
   assert.equal(w.info, pose.info)
+})
+
+test("layout: makeLayout(RIVERSIDE) is the hand-made Riverside Park (parity with the old constants)", () => {
+  const F = JSON.parse(readFileSync(new URL("./riverside.fixture.json", import.meta.url), "utf8"))
+  const R = L.RIVERSIDE_LAYOUT
+  const near = (a, b, what, eps = 1e-9) => {
+    if (typeof a === "number" && typeof b === "number") return assert.ok(Math.abs(a - b) < eps || Math.abs(Math.abs(a - b) - 2 * Math.PI) < eps, `${what}: ${a} vs ${b}`)
+    if (a && typeof a === "object") for (const k of Object.keys(b)) near(a[k], b[k], `${what}.${k}`, eps)
+    else assert.equal(a, b, what)
+  }
+  // (the old fields; the new layout adds more of its own)
+  for (const k of ["COURTS", "ALL_SEATS", "INTERACTABLES", "NAV", "WAYPOINTS", "TREES", "LIGHTS", "BENCHES", "SPAWN", "BOOTH", "BOARD", "FOUNTAIN", "BOUNDS", "CIRCLES"]) near(R[k], F[k], k)
+  near(R.BOXES.map((b) => ({ x0: b.x0, x1: b.x1, z0: b.z0, z1: b.z1, h: b.h, kind: b.kind, court: b.court })), F.BOXES, "BOXES")
+  near({ x: R.MACHINE_COURT.x, z: R.MACHINE_COURT.z, gate: R.MACHINE_COURT.gate }, { x: F.MACHINE_COURT.x, z: F.MACHINE_COURT.z, gate: F.MACHINE_COURT.gate }, "machine")
+  near(R.ALL_SEATS.map(R.seatApproach), F.approaches, "approaches")
+  for (const [x, z, rx, rz] of F.resolves) near(R.resolve(x, z, 0.35), { x: rx, z: rz }, `resolve ${x},${z}`, 1e-4)
+  for (const t of F.routes) near(R.route(t.a, t.b), t.path, `route`, 1e-4)
+  for (const [ax, az, bx, bz, h] of F.hits) {
+    const got = R.segmentHit({ x: ax, z: az }, { x: bx, z: bz }, 1.5, 0.45)
+    if (h === null) assert.equal(got, null)
+    else near(got, h, "segmentHit", 1e-4)
+  }
+  R.COURTS.forEach((c, i) => near({ w: L.toWorld(c, 1.3, -2.1), l: L.toLocal(c, c.x + 2, c.z - 1), y: L.yawToWorld(0.4, c) }, F.frames[i], `frame ${i}`))
+  const pose = { yaw: 0.3, root: { x: 1, y: 1, z: 2, yaw: 0.2 }, look: { x: 0.5, y: 0, z: 0.8 }, footL: { x: 0.2, y: 0, z: 1.5, pin: { x: 0.1, y: 0, z: 1.4 } }, info: { a: 1 } }
+  near(L.poseToWorld(pose, R.COURTS[2]), F.pose, "pose")
 })
 
 // ---------- the racks ----------

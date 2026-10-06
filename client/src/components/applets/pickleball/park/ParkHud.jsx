@@ -112,14 +112,52 @@ export const ParkResult = ({ result, onBack }) => (
   </div>
 )
 
+// where to play: Riverside Park and the real venues (your favorites first). One tap goes.
+export const RIVERSIDE_ENTRY = { id: "riverside", name: "Riverside Park", short: "Riverside Park", city: "98ish", indoor: false, access: "public", courts: 4, live: 4 }
+export const ParkVenues = ({ list = [], current = "riverside", favs = [], loading = null, onPick, onFav, onClose }) => {
+  const all = [RIVERSIDE_ENTRY, ...list]
+  const fav = new Set(favs)
+  const sorted = [...all.filter((v) => fav.has(v.id)), ...all.filter((v) => !fav.has(v.id))]
+  return (
+    <div className="pkCenter pkDim" onClick={(e) => e.target === e.currentTarget && onClose?.()}>
+      <div className="pkPanel pkParkVenues window" data-park="venues">
+        <div className="pkParkMenuHead">
+          <b>My Park: where to?</b>
+          <button type="button" className="pkParkVenuesX" onClick={onClose} aria-label="Close" data-park="venues-close">
+            ×
+          </button>
+        </div>
+        <ul className="pkParkVenueList">
+          {sorted.map((v) => (
+            <li key={v.id} className={v.id === current ? "is-current" : ""}>
+              <button type="button" className="pkParkVenueGo" onClick={() => onPick(v.id)} disabled={!!loading} data-venue={v.id}>
+                <b>{v.short || v.name}</b>
+                <small>
+                  {v.city} · {v.courts} courts · {v.indoor ? "indoor" : "outdoor"}
+                  {v.access === "members" ? " · members' club" : ""}
+                </small>
+                {loading === v.id && <small className="pkParkVenueLoading">Loading...</small>}
+              </button>
+              <button type="button" className={`pkParkVenueStar${fav.has(v.id) ? " is-on" : ""}`} onClick={() => onFav(v.id)} aria-label={fav.has(v.id) ? `Unstar ${v.short}` : `Star ${v.short}`} aria-pressed={fav.has(v.id)} data-star={v.id}>
+                {fav.has(v.id) ? "★" : "☆"}
+              </button>
+            </li>
+          ))}
+        </ul>
+        <p className="pkParkCredit">Real venues: map data © OpenStreetMap contributors (ODbL), drawn in 98ish style. No location needed.</p>
+      </div>
+    </div>
+  )
+}
+
 // the menu: resume, the courts (watch any of them), say something, the Locker Room, leave
-export const ParkMenu = ({ courts = [], rep, online, onResume, onWatch, onSay, onEmote, onLocker, onLeave }) => {
+export const ParkMenu = ({ courts = [], rep, online, venueName = "My Park", onResume, onWatch, onSay, onEmote, onLocker, onVenues, onLeave }) => {
   const lv = repLevel(rep?.points || 0)
   return (
     <div className="pkCenter pkDim" onClick={(e) => e.target === e.currentTarget && onResume()}>
       <div className="pkPanel pkParkMenu window" data-park="menu-sheet">
         <div className="pkParkMenuHead">
-          <b>My Park</b>
+          <b>{venueName}</b>
           <small>{online ? `Park ${online.park} · ${online.people} here` : "Just you and the regulars"}</small>
         </div>
         <p className="pkParkRep">
@@ -158,6 +196,11 @@ export const ParkMenu = ({ courts = [], rep, online, onResume, onWatch, onSay, o
           <button type="button" onClick={onLocker}>
             Locker Room
           </button>
+          {onVenues && (
+            <button type="button" onClick={onVenues} data-park="venues-open">
+              Change venue...
+            </button>
+          )}
           <button type="button" onClick={onLeave} data-park="leave">
             Leave My Park
           </button>

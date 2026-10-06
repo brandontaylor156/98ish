@@ -1,0 +1,55 @@
+{
+  "name": "California SMASH Pickleball & Social Club",
+  "short": "California SMASH",
+  "city": "El Segundo, CA",
+  "access": "public",
+  "indoor": true,
+  "note": "Social club: nine padded courts, a raised orange-steel lounge walkway and a full bar overlooking play.",
+  "anchor": [33.92722, -118.38807],
+  "crop": 50,
+  "courts": {
+    "osm": false,
+    "add": [
+      { "id": "N1", "en": [-30.8, 8.0], "bearing": 0, "court": "#1f9ad6", "kitchen": "#2f5590" },
+      { "id": "N2", "en": [-22.3, 8.0], "bearing": 0, "court": "#2f5590", "kitchen": "#1f9ad6" },
+      { "id": "N3", "en": [-13.8, 8.0], "bearing": 0, "court": "#1f9ad6", "kitchen": "#2f5590" },
+      { "id": "N4", "en": [-5.3, 8.0], "bearing": 0, "court": "#2f5590", "kitchen": "#1f9ad6" },
+      { "id": "N5", "en": [3.2, 8.0], "bearing": 0, "court": "#1f9ad6", "kitchen": "#2f5590" },
+      { "id": "N6", "en": [11.7, 8.0], "bearing": 0, "court": "#2f5590", "kitchen": "#1f9ad6" },
+      { "id": "S1", "en": [-26.0, -11.5], "bearing": 90, "court": "#1f9ad6", "kitchen": "#f39a1e" },
+      { "id": "S2", "en": [-8.5, -11.5], "bearing": 90, "court": "#f39a1e", "kitchen": "#e8861a" },
+      { "id": "S3", "en": [9.0, -11.5], "bearing": 90, "court": "#1f9ad6", "kitchen": "#2f5590" }
+    ]
+  },
+  "halls": [
+    {
+      "building": 424946012,
+      "height": 8,
+      "door": { "en": [35, -8] },
+      "wall": "#c9a26b",
+      "pads": "#22337a",
+      "padH": 1.5,
+      "ceiling": "#f1f0ec",
+      "floor": "#d8b98c",
+      "beams": "#2a46b8",
+      "ducts": "#2f5ab8",
+      "lightsStyle": "strip",
+      "outside": "#e9e6df",
+      "roof": "#f2f2ee",
+      "bar": { "en": [27.5, 2], "bearing": 0, "len": 16, "depth": 3, "tables": 8, "stools": 12, "tv": 4, "color": "#f2f0ea" }
+    }
+  ],
+  "extras": [
+    { "type": "spine", "en": [-9.5, -3.5], "deg": 0, "w": 50, "d": 5, "h": 1.0, "color": "#c8a273", "frames": "#f08a1c" },
+    { "type": "mural", "en": [-34.8, 8], "deg": 90, "w": 26, "h": 3.5, "y": 3.5, "style": "sunset", "face": "e" },
+    { "type": "mural", "en": [-34.8, -11.5], "deg": 90, "w": 8, "h": 2.6, "y": 3.2, "style": "wave", "face": "e" },
+    { "type": "mural", "en": [-9, 16.8], "deg": 0, "w": 36, "h": 2.2, "y": 4.6, "style": "gradient", "face": "s" },
+    { "type": "living", "en": [16, 16.6], "deg": 0, "w": 6, "h": 3, "y": 1.6, "face": "s" }
+  ],
+  "colors": { "court": "#1f9ad6", "kitchen": "#2f5590", "surround": "#d8b98c", "lines": "#ffffff", "ground": "#8a8a84", "far": "#9a9a90" },
+  "fence": { "dividers": "net", "netColor": "#151515", "netTop": "#f2c21a" },
+  "trees": {
+    "rows": [{ "from": { "en": [39, -16] }, "to": { "en": [39, 16] }, "every": 6, "kind": "palm", "s": 1.1 }]
+  },
+  "backdrop": { "skyline": true, "palms": 14, "viaduct": { "from": [60, -40], "to": [170, 60], "h": 9 } }
+}

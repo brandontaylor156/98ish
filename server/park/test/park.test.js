@@ -254,3 +254,31 @@ test("bytes per minute: a park of four people walking", () => {
   console.log(`[park] ~${Math.round(perPerson / 1024)} KB a minute sent to each of 4 walking people`)
   park.stop()
 })
+
+test("venues: each real venue has its own parks, its own courts and bounds; unknown venues are Riverside", () => {
+  const { VENUES, venueOf } = require("..")
+  const { park, me, got } = setup()
+  assert.ok(VENUES.loscab && VENUES.smash && VENUES.riverside, "the venue table (tools/venues/build-venues.mjs)")
+  const a = park.join(me(1), { venue: "loscab" })
+  const b = park.join(me(2), { venue: "loscab" })
+  const c = park.join(me(3), { venue: "smash" })
+  const d = park.join(me(4), { venue: "nowhere" })
+  assert.equal(a.venue, "loscab")
+  assert.equal(a.park, b.park, "friends at the same venue meet")
+  assert.notEqual(c.park, a.park, "a different venue, a different park")
+  assert.equal(d.venue, "riverside")
+  assert.equal(venueOf({}), "riverside")
+  assert.equal(a.courts.length, VENUES.loscab.courts)
+  assert.equal(c.courts.length, VENUES.smash.courts)
+  // only the people at that venue hear about each other
+  assert.equal(got("pid1", "park:person").length, 1)
+  assert.equal(got("pid3", "park:person").length, 0)
+  // positions are clamped to that venue's own (bigger) bounds, not Riverside's
+  const x = Math.round((VENUES.loscab.bounds.x1 - 1) * 20)
+  assert.ok(park.pos("pid1", [x, 0, 0, 0, 0]) !== false)
+  const inst = park.instances.get(a.park)
+  assert.equal(inst.people.get("pid1").pos[0], x)
+  // a court number past that venue's courts is refused
+  assert.equal(park.call("pid3", { court: VENUES.smash.courts })?.ok, false)
+  park.stop()
+})

@@ -20,8 +20,13 @@
 // seated, readied and started, and park:go tells each of them. The court is busy until the
 // game ends (park:done, the room finishing or closing, or everyone leaving).
 //
+// Venues: My Park can be Riverside Park or one of the real venues (client park/venues/, built
+// by tools/venues/build-venues.mjs, which also writes venues.json here: each venue's number of
+// courts with live games and its walkable bounds). Each venue has its own parks, so friends
+// who pick the same venue meet there. An unknown venue is Riverside.
+//
 // Socket events (client -> server, with an ack unless noted):
-//   park:join  { look, rep }      -> { ok, park, you, people: [person], courts, rate, lines }
+//   park:join  { look, rep, venue }  -> { ok, park, venue, you, people: [person], courts, rate, lines }
 //   park:leave {}
 //   park:pos   [x, z, yaw, speed, act]   (no ack)
 //   park:look  { look }  park:rep { rep }
@@ -36,8 +41,11 @@
 const { sanitizeLook } = require("../arcade/games/pickleballLooks")
 
 const CAP = 16
+const VENUES = require("./venues.json")
 const COURTS = 4
-const BOUNDS = { x0: -30.5, x1: 47.5, z0: -15.5, z1: 15.5 } // (park/layout.js BOUNDS)
+const BOUNDS = { x0: -30.5, x1: 47.5, z0: -15.5, z1: 15.5 } // (park/layout.js BOUNDS: Riverside)
+const venueOf = (id) => (typeof id === "string" && Object.prototype.hasOwnProperty.call(VENUES, id) ? id : "riverside")
+const venueInfo = (id) => VENUES[venueOf(id)] || { courts: COURTS, bounds: BOUNDS }
 const BATCH_MS = { normal: 160, low: 400, min: 1000 }
 // the canned lines (park/lines.js CHAT_LINES has the words; this many of them)
 const LINE_COUNT = 8
@@ -67,10 +75,10 @@ const windowLimiter = (limit, windowMs, now) => {
 const int = (v, lo, hi) => (Number.isInteger(v) ? Math.max(lo, Math.min(hi, v)) : null)
 
 // a position from a browser, checked and clamped to the park: -> [5 ints] or null
-const cleanPos = (a) => {
+const cleanPos = (a, bounds = BOUNDS) => {
   if (!Array.isArray(a) || a.length !== 5) return null
-  const x = int(a[0], Math.round(BOUNDS.x0 * 20), Math.round(BOUNDS.x1 * 20))
-  const z = int(a[1], Math.round(BOUNDS.z0 * 20), Math.round(BOUNDS.z1 * 20))
+  const x = int(a[0], Math.round(bounds.x0 * 20), Math.round(bounds.x1 * 20))
+  const z = int(a[1], Math.round(bounds.z0 * 20), Math.round(bounds.z1 * 20))
   const yaw = int(a[2], 0, 255)
   const speed = int(a[3], 0, 90)
   const act = int(a[4], 0, ACT_MAX)
@@ -185,8 +193,9 @@ const createPark = ({ emit = () => {}, emitVolatile = null, rooms = null, clock 
     inst.timer = clock.setInterval(() => flush(inst), BATCH_MS[rate] || BATCH_MS.normal)
   }
 
-  const makeInstance = () => {
-    const inst = { n: nextN++, people: new Map(), nums: 0, courts: Array.from({ length: COURTS }, () => ({ queue: [], game: null })), timer: null }
+  const makeInstance = (venue = "riverside") => {
+    const info = venueInfo(venue)
+    const inst = { n: nextN++, venue: venueOf(venue), bounds: info.bounds, people: new Map(), nums: 0, courts: Array.from({ length: info.courts }, () => ({ queue: [], game: null })), timer: null }
     instances.set(inst.n, inst)
     restartBatch(inst)
     return inst
@@ -198,17 +207,18 @@ const createPark = ({ emit = () => {}, emitVolatile = null, rooms = null, clock 
   }
 
   // ---------- joining and leaving ----------
-  const join = (me, { look, rep } = {}) => {
+  const join = (me, { look, rep, venue } = {}) => {
     if (joinLimit(me.pid)) return { ok: false, error: "Slow down a little and try again in a minute." }
     const was = where.get(me.pid)
     if (was !== undefined) leave(me.pid)
-    const pick = pickInstance([...instances.values()].map((i) => ({ n: i.n, size: size(i) })), cap)
-    const inst = pick ? instances.get(pick.n) : makeInstance()
+    const v = venueOf(venue)
+    const pick = pickInstance([...instances.values()].filter((i) => i.venue === v).map((i) => ({ n: i.n, size: size(i) })), cap)
+    const inst = pick ? instances.get(pick.n) : makeInstance(v)
     const p = { pid: me.pid, me, name: String(me.name || "Guest").slice(0, 40), key: me.key || null, num: ++inst.nums, look: sanitizeLook(look), rep: cleanRep(rep), pos: null, dirty: false, playing: null }
     inst.people.set(me.pid, p)
     where.set(me.pid, inst.n)
     toAll(inst, "park:person", personView(p), me.pid)
-    return { ok: true, park: inst.n, you: p.num, people: [...inst.people.values()].filter((q) => q.pid !== me.pid).map(personView), courts: courtsView(inst), rate: currentRate(), cap }
+    return { ok: true, park: inst.n, venue: inst.venue, you: p.num, people: [...inst.people.values()].filter((q) => q.pid !== me.pid).map(personView), courts: courtsView(inst), rate: currentRate(), cap }
   }
   const instanceOf = (pid) => {
     const n = where.get(pid)
@@ -242,7 +252,7 @@ const createPark = ({ emit = () => {}, emitVolatile = null, rooms = null, clock 
   const pos = (pid, data) => {
     const inst = instanceOf(pid)
     if (!inst || posLimit(pid)) return false
-    const clean = cleanPos(data)
+    const clean = cleanPos(data, inst.bounds)
     if (!clean) return false
     const p = inst.people.get(pid)
     p.pos = clean
@@ -277,7 +287,7 @@ const createPark = ({ emit = () => {}, emitVolatile = null, rooms = null, clock 
   }
 
   // ---------- the racks ----------
-  const courtOf = (inst, court) => (Number.isInteger(court) && court >= 0 && court < COURTS ? inst.courts[court] : null)
+  const courtOf = (inst, court) => (Number.isInteger(court) && court >= 0 && court < inst.courts.length ? inst.courts[court] : null)
   const call = (pid, court) => {
     const inst = instanceOf(pid)
     if (!inst) return { ok: false, error: "You're not in the park." }
@@ -465,4 +475,4 @@ const createPark = ({ emit = () => {}, emitVolatile = null, rooms = null, clock 
   }
 }
 
-module.exports = { createPark, pickInstance, cleanPos, cleanRep, rateFor, CAP, LINE_COUNT, EMOTES, BATCH_MS, BOUNDS }
+module.exports = { createPark, pickInstance, cleanPos, cleanRep, rateFor, venueOf, CAP, LINE_COUNT, EMOTES, BATCH_MS, BOUNDS, VENUES }
