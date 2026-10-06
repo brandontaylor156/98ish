@@ -54,8 +54,8 @@ test("venue specs: court counts, indoor, sizes, the picker's list", () => {
   assert.equal(wb.filter((c) => c.n <= 2 && Math.abs(Math.abs(c.a) - 90) < 1).length, 2, "Wolf + Bear second hall north-south")
   assert.deepEqual(wb.map((c) => c.n).sort((a, b) => a - b), Array.from({ length: 14 }, (_, k) => k + 1), "Wolf + Bear numbers 1-14")
   assert.ok(spec("smash").courts.filter((c) => Math.abs(Math.abs(c.a) - 90) < 1).length === 6, "SMASH: six north-south courts")
-  // Whittier: pickleball lines on six tennis courts (12 dual-use)
-  assert.equal(spec("whittier").courts.reduce((n, c) => n + (c.pb || 0), 0), 12)
+  // Whittier: pickleball lines on two tennis courts (the club lists 16 permanent + 4 shared-use)
+  assert.equal(spec("whittier").courts.reduce((n, c) => n + (c.pb || 0), 0), 4)
 })
 
 test("venuegen: courts don't overlap, live courts have gates you can reach from where you arrive", () => {

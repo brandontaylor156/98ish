@@ -409,11 +409,12 @@ const buildOne = (v) => {
     const c = clipPoly(pts, box)
     if (c.length > 2 && Math.abs(area(c)) > 15) areas.push({ k, p: pr(simplify(c, 0.4, true)) })
   }
+  // areas.drop: OSM's areas of those kinds go (the ones added below stay)
+  if (ov.areas?.drop) for (const k of ov.areas.drop) for (let i = areas.length - 1; i >= 0; i--) if (areas[i].k === k) areas.splice(i, 1)
   for (const a of ov.areas?.add || []) {
     const pts = polyOfO(a).map(sh)
     if (pts.length > 2) areas.push({ k: a.kind || "paved", p: pr(pts), ...(a.color ? { c: a.color } : {}), ...(a.lanes ? { lanes: a.lanes } : {}), ...(a.coping ? { coping: a.coping } : {}) })
   }
-  if (ov.areas?.drop) for (const k of ov.areas.drop) for (let i = areas.length - 1; i >= 0; i--) if (areas[i].k === k) areas.splice(i, 1)
   // trees from overrides
   for (const tr of ov.trees?.add || []) {
     const p = sh(P(tr))
@@ -425,6 +426,21 @@ const buildOne = (v) => {
     const L = Math.hypot(b[0] - a[0], b[1] - a[1])
     const every = row.every || 8
     for (let d = 0; d <= L + 0.01; d += every) trees.push([r1(a[0] + ((b[0] - a[0]) * d) / L), r1(a[1] + ((b[1] - a[1]) * d) / L), row.s ?? 1, row.kind || "palm"])
+  }
+  // trees.clear: areas (rect/poly) where no tree stands (a reference pack's tree finder can
+  // read open lawn as canopy); trees added by hand after it still count
+  for (const area of ov.trees?.clear || []) {
+    const q = polyOfO(area).map(sh)
+    const inside = ([x, z]) => {
+      let o = false
+      for (let i = 0, j = q.length - 1; i < q.length; j = i++) if (q[i][1] > z !== q[j][1] > z && x < ((q[j][0] - q[i][0]) * (z - q[i][1])) / (q[j][1] - q[i][1]) + q[i][0]) o = !o
+      return o
+    }
+    for (let i = trees.length - 1; i >= 0; i--) if (inside(trees[i]) && !trees[i].keep) trees.splice(i, 1)
+  }
+  for (const tr of ov.trees?.after || []) {
+    const p = sh(P(tr))
+    trees.push([r1(p[0]), r1(p[1]), tr.s ?? 1, tr.kind || "palm"])
   }
   for (const add of ob.add || []) {
     const pts = polyOfO(add).map(sh)

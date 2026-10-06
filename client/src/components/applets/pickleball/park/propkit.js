@@ -82,6 +82,7 @@ export const PROPS = {
   flagstone: { w: 4, d: 3, h: 0.02 },
   blossomtree: { w: 1.8, d: 1.8, h: 3.0, r: 0.35, solid: true },
   cooler: { w: 0.62, d: 0.42, h: 0.45, solid: true },
+  firepit: { w: 1.4, d: 1.4, h: 0.45, solid: true },
   fridge: { w: 0.8, d: 0.72, h: 2.0, solid: true, wall: true },
   foldchair: { w: 0.45, d: 0.5, h: 0.85 },
   banner: { w: 1.1, d: 0.03, h: 2.2, wall: true },
