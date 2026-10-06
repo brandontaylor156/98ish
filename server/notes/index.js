@@ -127,6 +127,10 @@ const createNotes = ({ aim, store, push = null, now = Date.now, limits = {} } = 
       }
     }
     const since0 = Number.isFinite(Number(since)) ? Math.max(0, Number(since)) : 0
+    // "now" for the device's next sync is read after this request's own saves (their
+    // changedAt is later than t0): reading it before sent a busy server's fresh saves back
+    // on the next sync (the root npm test caught it under load)
+    const t1 = now()
     const changed = await s.changedFor(account.key, since0)
     const out = []
     const gone = []
@@ -136,7 +140,7 @@ const createNotes = ({ aim, store, push = null, now = Date.now, limits = {} } = 
       // tombstones nobody needs any more
       if (doc.purged && t0 - doc.changedAt > core.TOMBSTONE_MS && doc.members.length <= 1) await s.remove(doc.id)
     }
-    return { now: t0, notes: out, gone, rejected }
+    return { now: t1, notes: out, gone, rejected }
   }
 
   const saveOne = async (core, s, account, incoming) => {
