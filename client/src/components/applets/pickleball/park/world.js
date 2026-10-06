@@ -17,6 +17,8 @@
 // Talks to the page through onHud (what the HUD shows, a few times a second, only when it
 // changes) and onEvent ({ type: "turn" | "locker" | "machine" | "say" ... }).
 
+import { createSplatLayer } from "./splat/layer.js"
+import { getBackdrop, readBytes } from "./splat/store.js"
 import * as THREE from "three"
 import { createAnim, setMood, situation, updateAnim, seatedPose } from "../anim.js"
 import { blocker } from "../camera.js"
@@ -56,7 +58,7 @@ const blobTexture = () => {
   return new THREE.CanvasTexture(c)
 }
 
-export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "medium", phone = false, me: meInfo = {}, onHud, onEvent, labelsEl = null, audio = null, seed = (Math.random() * 1e9) | 0, hour = null } = {}) => {
+export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "medium", phone = false, renderer = null, me: meInfo = {}, onHud, onEvent, labelsEl = null, audio = null, seed = (Math.random() * 1e9) | 0, hour = null } = {}) => {
   // (the venue: layout.js's named exports follow the active layout)
   setLayout(layout)
   const venue = layout
@@ -1353,10 +1355,21 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
     postFlag = typeof localStorage === "undefined" || localStorage.getItem("98ish.park.post") !== "0"
   } catch {}
   // (not on phones: the full-screen passes halved the frame rate in phone emulation; desktop High only)
+  // a photoreal splat backdrop for this venue (park/splat/): loaded from drive C: if you made one
+  const splat = createSplatLayer({ scene, renderer, quality, phone })
+  if (renderer && quality !== "low")
+    getBackdrop(layout.id || "riverside")
+      .then(async (b) => {
+        if (!b || disposed) return
+        const bytes = await readBytes(b.file)
+        if (!disposed) await splat.show(bytes, b.format, b.transform, b.splats || 0)
+      })
+      .catch((e) => console.warn("[park] splat backdrop", e))
   const post = postFlag && !phone && quality === "high" && layout.id && layout.id !== "riverside" ? createPost(scene) : null
   const world = {
     scene,
     camera,
+    splat,
     ...(post ? { render: (renderer) => post.render(renderer, camera), postOn: true } : {}),
     // which venue this is (layout.js / venuegen.js): online, friends at the same venue meet
     venue: layout.id || "riverside",
@@ -1612,6 +1625,7 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
     dispose() {
       if (disposed) return
       post?.dispose()
+      splat.dispose()
       disposed = true
       for (const b of bodies.values()) dropFig(b)
       bodies.clear()

@@ -1944,7 +1944,7 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
     },
     // what a world needs from the engine: figures (athletes or the simple ones), sounds
     worldContext() {
-      return { makeFigure: (look, opts) => makeFigure(look, opts), quality: settings.quality, audio }
+      return { makeFigure: (look, opts) => makeFigure(look, opts), quality: settings.quality, audio, renderer }
     },
     // the on-screen hit control: down and up (hold for pace, let go to swing)
     shotDown(action = "hit", slot = 0) {
