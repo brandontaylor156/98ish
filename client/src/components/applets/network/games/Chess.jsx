@@ -6,6 +6,7 @@ import { CHESS_LEVELS, useNetGame, useSoloChess } from "./useBoardGame"
 import { ChessPiece, PIECE_NAMES } from "./ChessPieces"
 import "./BoardGames.css"
 import { helpItem } from "../../../../utils/help"
+import { useNet } from "../NetContext"
 
 // Chess against another computer on the network, or against this one. Click (or drag) a
 // piece, then where it goes. Black sees the board from their side.
@@ -71,6 +72,7 @@ const MoveList = ({ sans, compact }) => {
 const ChessBoard = ({ view, act, onClose }) => {
   const chatItem = useGameChatMenuItem("chess")
   const onlineItem = usePlayOnlineItem("chess")
+  const net = useNet()
   const [sel, setSel] = useState(null)
   const [promo, setPromo] = useState(null) // { from, to } waiting for a piece choice
   const [error, setError] = useState(null)
@@ -239,6 +241,8 @@ const ChessBoard = ({ view, act, onClose }) => {
               "-",
             ]
           : []),
+        { label: "Puzzles...", onClick: () => net?.openProgram("Chess Puzzles") },
+        "-",
         { label: "Offer Draw", disabled: !!result || !!view.drawOffer, onClick: () => act.draw("offer") },
         { label: "Resign...", disabled: !!result, onClick: () => setDialog("resign") },
         ...(view.solo ? [] : [{ label: "Rematch", disabled: !result || view.rematch.you || view.left, onClick: () => act.rematch() }]),

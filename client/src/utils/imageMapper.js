@@ -49,6 +49,8 @@ export const imageMapper = {
   tetherball: "program_icons/tetherball.svg",
   speedtype: "program_icons/speedtype.svg",
   wordduel: "program_icons/wordduel.svg",
+  chesspuzzles: "program_icons/chesspuzzles.svg",
+  imposter: "program_icons/imposter.svg",
   lastcard: "program_icons/lastcard.svg",
   hexlands: "program_icons/hexlands.svg",
   monsterduel: "program_icons/monsterduel.svg",

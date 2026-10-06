@@ -104,7 +104,7 @@ Shipped recently (details in the docs): Delete My Account + privacy guide; file 
 - `accounts-privacy.md`: Delete My Account flow and rules, privacy help topics. Read when adding anything stored per account.
 - `env-vars.md`: every optional server env var with defaults, plus production config. Read before changing server limits or deploy settings.
 - `testing.md`: full testing notes (push and call test setups, per-area suites). Read before writing browser tests.
-- `games.md`: game performance rules (frame clock, dynamic resolution, AA, shaders, context loss), the five quick games, the retro art kit, Pinball: Blue Screen. Read before building or tuning a game.
+- `games.md`: game performance rules (frame clock, dynamic resolution, AA, shaders, context loss), the five quick games, the retro art kit, Pinball: Blue Screen, Chess Puzzles (Lichess CC0 data, rating, Rush/Streak) and Imposter (party word game, pass-and-play + online). Read before building or tuning a game.
 - `games-new.md`: design and research for the quick games (Bomb Panic sources). Read when extending them.
 - `pickleball-log.md`: Pickleball 98 feature notes (footwork, upper body, pro movement, mocap/MakeHuman, Practice, phone round, swipe trail + sounds, athletes, My Park, arms) with measurements, tests and leftovers. Read before any Pickleball work.
 - `pickleball-movement.md`, `pickleball-arms.md`, `pickleball-practice.md`: research and specs behind movement, arms and Practice. Read with the matching log section.

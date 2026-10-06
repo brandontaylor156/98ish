@@ -400,7 +400,7 @@ export const topics = [
         list: [
           "**Instant messages** pass through the server to your buddy, and **chat rooms** to the people in them. They're saved only as the table above says (turn **Save my conversations on the server** off in My AIM > Preferences... to keep them on your devices only). Pictures and voice messages go straight from your device to Vercel Blob; the server never carries them, and push notifications only say \"📷 Picture\" or \"🎤 Voice message\".",
           "**Calls** go directly between the two devices. The server only passes the setup messages (who's calling, connection details); it never carries your voice or video.",
-          "**Online games, game chat and Network Neighborhood** (files and WinPopup messages sent between computers) go through the server live. Game chat keeps the last 50 lines of a room in memory for people who join later.",
+          "**Online games, game chat and Network Neighborhood** (files and WinPopup messages sent between computers) go through the server live. Game chat keeps the last 50 lines of a room in memory for people who join later. In Imposter the server holds the secret word, who the imposters are, the clues and the votes only while the room is open.",
           "Who's online, away messages and warning levels.",
           "Your IP address is used for a few minutes to slow down password guessing and spam; it isn't stored with your account. Render (the host) may keep its own short request logs.",
         ],
@@ -432,6 +432,7 @@ export const topics = [
           ],
         },
       },
+      "Chess Puzzles' puzzles come from the Lichess puzzle database (public domain) and are built into 98ish: solving them never contacts Lichess, and your puzzle rating and history stay on this device.",
       "98ish has no ads, analytics or tracking scripts, and sells nothing to anyone.",
     ],
     related: ["privacy-overview", "privacy-server", "push-setup", "messenger-calls"],
