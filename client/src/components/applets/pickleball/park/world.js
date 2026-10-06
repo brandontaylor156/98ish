@@ -1362,7 +1362,7 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
       .then(async (b) => {
         if (!b || disposed) return
         const bytes = await readBytes(b.file)
-        if (!disposed) await splat.show(bytes, b.format, b.transform)
+        if (!disposed) await splat.show(bytes, b.format, b.transform, b.splats || 0)
       })
       .catch((e) => console.warn("[park] splat backdrop", e))
   const post = postFlag && !phone && quality === "high" && layout.id && layout.id !== "riverside" ? createPost(scene) : null

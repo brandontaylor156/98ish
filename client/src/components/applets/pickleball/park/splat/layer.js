@@ -21,7 +21,8 @@ export const createSplatLayer = ({ scene, renderer, quality = "medium", phone = 
   const ensure = async () => {
     if (!spark) spark = await import("@sparkjsdev/spark")
     if (!sparkRenderer && renderer) {
-      sparkRenderer = new spark.SparkRenderer({ renderer, lodSplatCount: budget, enableLod: true })
+      // (maxPixelRadius: a splat right in front of the camera never grows into a screen-filling blur)
+      sparkRenderer = new spark.SparkRenderer({ renderer, lodSplatCount: budget, enableLod: true, maxPixelRadius: phone ? 48 : 96 })
       sparkRenderer.name = "splatRenderer"
       scene.add(sparkRenderer)
     }
@@ -43,8 +44,9 @@ export const createSplatLayer = ({ scene, renderer, quality = "medium", phone = 
 
   return {
     info,
-    // bytes: Uint8Array of a .ply/.spz/.splat/.ksplat/.sog; transform: { s, q, t } or null (as is)
-    async show(bytes, format, transform = null) {
+    // bytes: Uint8Array of a .ply/.spz/.splat/.ksplat/.sog; transform: { s, q, t } or null (as is);
+    // count: how many splats the file holds, when known (Spark's level-of-detail tree doesn't say)
+    async show(bytes, format, transform = null, count = 0) {
       if (!budget) {
         info.error = "Splat backdrops are off on Graphics: Low."
         return false
@@ -66,7 +68,7 @@ export const createSplatLayer = ({ scene, renderer, quality = "medium", phone = 
         placeMesh(transform)
         scene.add(mesh)
         info.shown = true
-        info.splats = mesh.packedSplats?.numSplats || 0
+        info.splats = count || (format === "splat" ? Math.floor(bytes.length / 32) : 0) || mesh.packedSplats?.numSplats || 0
         info.error = null
         return true
       } catch (error) {

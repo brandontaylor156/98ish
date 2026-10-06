@@ -33,13 +33,21 @@ export default function SplatPanel({ world, venueName, onClose, phone }) {
     for (const c of courts) (x += c.x), (z += c.z)
     return [x / courts.length, z / courts.length]
   }
+  // the demo starts outside the venue: past its farthest court and building
+  const reach = (c) => {
+    let r = 30
+    for (const k of courts) r = Math.max(r, Math.hypot(k.x - c[0], k.z - c[1]) + 12)
+    // every collision box (pens, buildings, bleachers...): its center plus its half-size
+    for (const b of layout?.BOXES || []) if (Number.isFinite(b.cx)) r = Math.max(r, Math.hypot(b.cx - c[0], b.cz - c[1]) + Math.hypot(b.hx || 0, b.hz || 0))
+    return r + 20
+  }
 
   const useBytes = async (bytes, format, meta) => {
     const size = checkSize(bytes)
     if (!size.ok) throw new Error(size.error)
     const saved = await saveBackdrop(venue, bytes, { format, ...meta })
     if (!saved.ok) throw new Error(saved.error)
-    const shown = await world.splat.show(bytes, format, meta.transform || null)
+    const shown = await world.splat.show(bytes, format, meta.transform || null, meta.splats || 0)
     if (!shown) throw new Error(world.splat.info.error || "That splat couldn't be drawn.")
     await refresh()
   }
@@ -65,7 +73,9 @@ export default function SplatPanel({ world, venueName, onClose, phone }) {
   })
 
   const demo = run("Making the demo backdrop...", async () => {
-    const bytes = synthBackdrop({ count: phone ? 300000 : 600000, center: center() })
+    const c = center()
+    const inner = reach(c)
+    const bytes = synthBackdrop({ count: phone ? 300000 : 600000, center: c, inner, outer: inner + 95 })
     await useBytes(bytes, "splat", { source: "demo", title: "Demo hills and trees", splats: bytes.length / 32 })
   })
 
