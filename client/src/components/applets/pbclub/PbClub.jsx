@@ -111,7 +111,7 @@ const CourtsList = ({ onPlan, onMeet, canMeet, canPlan }) => (
   </ul>
 )
 
-const PbClub = ({ mobile, handoff, onClose, embedded = false, onTwin = null }) => {
+const PbClub = ({ mobile, handoff, onClose, embedded = false, onTwin = null, onCoach = null }) => {
   const aim = useAim()
   const state = club.useClub()
   const [tab, setTab] = useState("play")
@@ -229,6 +229,11 @@ const PbClub = ({ mobile, handoff, onClose, embedded = false, onTwin = null }) =
             « Back
           </button>
           <b>Real Games</b>
+          {onCoach && (
+            <button type="button" onClick={onCoach} data-club-coach title="Your personal coach, from your filmed games">
+              Coach
+            </button>
+          )}
           {onTwin && (
             <button type="button" onClick={onTwin} data-club-twin title="Film a real game and watch it back in 3D">
               Film a Game

@@ -982,6 +982,7 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
       if (!replay && f.lastSpeed - speed > 1.6 * dt * 60 * 0.05 && f.lastSpeed > 2.6 && Math.random() < 0.35) audio.squeak(Math.min(1, f.lastSpeed / 4))
       f.lastSpeed = speed
     }
+    updateGhost(dt)
     // the rings under the people playing on this computer
     youRings.forEach((r, slot) => {
       const p = mode === "demo" || replay ? null : humanBySlot(match, slot)
@@ -1268,6 +1269,7 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
     if (!replay) return
     // (a Twin Replay only ends when its screen says so: taps on the picture don't skip it)
     if (replay.external && !force) return
+    dropGhost()
     replay = null
     record = []
     if (match) match.hold = false
@@ -1302,6 +1304,50 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
   }
 
   // ---------- Twin Replay (twin/): a real game's tracked frames, played on these figures ----------
+  // the Coach's ghost (twin/coach/ghost.js): a see-through athlete following its own
+  // situations, one per replay frame, beside the real player
+  let ghost = null // { fig, anim, situations, mats }
+  const dropGhost = () => {
+    if (!ghost) return
+    scene.remove(ghost.fig.group)
+    ghost.mats.forEach((m) => m.dispose())
+    ghost.fig.dispose()
+    ghost = null
+  }
+  const setGhost = ({ situations, look } = {}) => {
+    dropGhost()
+    if (!replay?.external || !situations?.length) return false
+    const fig = makeFigure(look || lookFor(DEFAULT_LOOKS[0]), { shadows: false })
+    const mats = []
+    fig.group.traverse((o) => {
+      if (!o.material) return
+      const one = (m) => {
+        const c = m.clone()
+        c.transparent = true
+        c.opacity = 0.38
+        c.depthWrite = false
+        if (c.emissive) c.emissive.setRGB(0.08, 0.32, 0.42)
+        mats.push(c)
+        return c
+      }
+      o.material = Array.isArray(o.material) ? o.material.map(one) : one(o.material)
+      o.castShadow = false
+      o.renderOrder = 3
+    })
+    scene.add(fig.group)
+    const s0 = situations[replay.i] || situations.find(Boolean)
+    ghost = { fig, situations, mats, anim: createAnim(s0?.x || 0, s0?.z || 0, s0?.facing ?? Math.PI) }
+    return true
+  }
+  const updateGhost = (dt) => {
+    if (!ghost || !replay?.external) return
+    const s = ghost.situations[replay.i]
+    ghost.fig.group.visible = !!s
+    if (!s) return
+    ghost.anim.useMM = !!ghost.fig.skinned
+    ghost.anim.mmEvery = 0.2
+    ghost.fig.apply(updateAnim(ghost.anim, s, dt), dt)
+  }
   // frames: [{ t, dt, players: [situation], ball, events?: [{ type: "hit" | "bounce", ... }] }]
   const startTwin = ({ frames, venue: v = "stadium", roster }) => {
     if (!frames?.length) return false
@@ -1324,6 +1370,10 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
     }
     trailHistory.length = 0
     replay.cut = true
+    if (ghost) {
+      const g = ghost.situations[replay.i]
+      if (g) ghost.anim = createAnim(g.x, g.z, g.facing ?? Math.PI)
+    }
   }
   function stepTwin(dt) {
     const R = replay
@@ -2014,6 +2064,12 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
     },
     stopTwin() {
       if (replay?.external) endReplay(true)
+    },
+    // HOOK (Coach, twin/coach/): a see-through ghost beside the real player in a Twin Replay.
+    // { situations: [situation per replay frame], look } shows it; null hides it
+    twinGhost(opts) {
+      if (!opts) return dropGhost(), false
+      return setGhost(opts)
     },
     skipReplay() {
       endReplay()

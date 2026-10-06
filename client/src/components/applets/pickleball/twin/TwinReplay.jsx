@@ -12,6 +12,7 @@ import { Calibrate } from "./Calibrate"
 import { Recorder } from "./Recorder"
 import { TwinPlayer } from "./TwinPlayer"
 import { CloneDialog, ClonesPanel, useClones } from "./clone/Clones"
+const CoachPanel = React.lazy(() => import("./coach/CoachPanel"))
 import { readGame, grabFrame, READ_FPS } from "./reader.js"
 import { deleteGame, getGame, getVideo, listGames, newId, putGame, putVideo } from "./store.js"
 import { fromTwin, MAX_TWIN_BYTES, toTwin } from "./core/twinfile.js"
@@ -37,8 +38,10 @@ const readTwinFile = async (file) => {
   return fromTwin(JSON.parse(text))
 }
 
-export default function TwinReplay({ getEngine, onExit, onPlayClones = null }) {
-  const [view, setView] = useState("home")
+export default function TwinReplay({ getEngine, onExit, onPlayClones = null, initialView = null, onDrill = null }) {
+  const [view, setView] = useState(initialView === "coach" ? "coach" : "home")
+  const [coachFocus, setCoachFocus] = useState(null) // { key, player }: Coach me on this game
+  const [moment, setMoment] = useState(null) // a Coach moment being watched
   const [games, setGames] = useState([])
   const [game, setGame] = useState(null) // the open game (with analysis)
   const [blob, setBlob] = useState(null) // its video, if there is one
@@ -170,6 +173,27 @@ export default function TwinReplay({ getEngine, onExit, onPlayClones = null }) {
   }
   const canRematch = !!(onPlayClones && game?.analysis && game.analysis.players.some((p) => cloneOf(p.id) && p.team !== (game.analysis.players.find((q) => cloneOf(q.id)?.origin === "self")?.team ?? 0)))
 
+  // Coach > Watch: open that game on the moment (with the ghost)
+  const watch = async (key, m) => {
+    if (key === "demo") {
+      const { demoGame } = await import("./demo.js")
+      setGame(game?.demo ? game : demoGame())
+      setBlob(null)
+    } else {
+      const g = await getGame(key)
+      if (!g?.analysis) return
+      setGame(g)
+      setBlob((await getVideo(key).catch(() => null)) || null)
+    }
+    setMoment({ ...m, key: Date.now() })
+    setView("game")
+  }
+  const coachOn = (playerId) => {
+    setCoachFocus({ key: game.demo ? "demo" : game.id, player: playerId })
+    setMoment(null)
+    setView("coach")
+  }
+
   const demo = async () => {
     const { demoGame } = await import("./demo.js")
     setGame(demoGame())
@@ -202,6 +226,9 @@ export default function TwinReplay({ getEngine, onExit, onPlayClones = null }) {
                 </button>
                 <button type="button" onClick={() => twinRef.current?.click()}>
                   Open a replay file...
+                </button>
+                <button type="button" onClick={() => (setCoachFocus(null), setView("coach"))} data-action="twin-coach">
+                  Coach
                 </button>
                 <button type="button" onClick={() => setView("clones")} data-action="twin-clones">
                   Your clones{clones.length ? ` (${clones.length})` : ""}
@@ -282,13 +309,22 @@ export default function TwinReplay({ getEngine, onExit, onPlayClones = null }) {
           getEngine={getEngine}
           game={game}
           video={blob}
-          onBack={() => (refresh(), setView("home"))}
+          onBack={() => (refresh(), setMoment(null), setView("home"))}
           onChange={changeGame}
           onShare={share}
           onDelete={game.demo ? null : async () => (await deleteGame(game.id), refresh(), setView("home"))}
           onClone={setCloneFor}
           onRematch={canRematch ? rematch : null}
+          moment={moment}
+          onCoach={coachOn}
+          onBackToCoach={moment ? () => (setMoment(null), setView("coach")) : null}
         />
+      )}
+
+      {view === "coach" && (
+        <React.Suspense fallback={<div className="pkCenter"><div className="pkPanel window">Opening Coach...</div></div>}>
+          <CoachPanel focus={coachFocus} demo={game?.demo ? game : null} onWatch={watch} onDrill={onDrill} onBack={() => (initialView === "coach" && !coachFocus ? onExit() : setView(game?.analysis && coachFocus ? "game" : "home"))} />
+        </React.Suspense>
       )}
 
       {view === "clones" && <ClonesPanel onBack={() => setView("home")} onPlay={(id) => onPlayClones?.({ doubles: false, partner: null, opponents: [id], venue: null, court: null })} />}

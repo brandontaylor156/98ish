@@ -192,6 +192,7 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
   const [phase, setPhase] = useState("loading") // loading | error | title | playing | paused | over | showcase
   const [screen, setScreen] = useState("main") // main | quick | tour | practice | versus | players | settings | controls | online | club
   const [twinBack, setTwinBack] = useState("main") // where Twin Replay goes back to (Real Games opens it too)
+  const [twinView, setTwinView] = useState(null) // Twin Replay opening straight on Coach
   const [clubHandoff, setClubHandoff] = useState(null) // a Real Games session/match to show (a notification or deep link)
   const [playersFor, setPlayersFor] = useState("p1")
   const [lockerFor, setLockerFor] = useState(null) // who the Locker Room opens on (and where it goes back to)
@@ -514,7 +515,8 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
     if (p.kind === "machine") return { ...p, title: "Ball Machine", spec: machineSpec(p.settings) }
     if (p.kind === "drill") {
       const d = drillById(p.id) || DRILLS[0]
-      return { kind: "drill", id: d.id, title: d.name, drill: d, spec: { id: d.id, ...d.spec } }
+      // (a Coach plan can ask for more balls)
+      return { kind: "drill", id: d.id, title: d.name, drill: d, spec: { id: d.id, ...d.spec, ...(p.balls ? { balls: p.balls } : {}) } }
     }
     const l = lessonById(p.id) || LESSONS[0]
     return { kind: "lesson", id: l.id, title: l.title, lesson: l, index: LESSONS.indexOf(l), count: LESSONS.length, spec: { id: l.id, ...l.spec } }
@@ -1435,7 +1437,7 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
         {/* ---------- Twin Replay (twin/): a real game, filmed, replayed here ---------- */}
         {screen === "twin" && phase !== "loading" && phase !== "error" && (
           <React.Suspense fallback={<div className="pkCenter pkDim"><div className="pkPanel window">Opening Twin Replay...</div></div>}>
-            <TwinReplay getEngine={getEngine} onExit={() => (setScreen(twinBack), setTwinBack("main"))} onPlayClones={(spec) => withScheme(() => startClones(spec))} />
+            <TwinReplay key={twinView || "twin"} getEngine={getEngine} initialView={twinView} onExit={() => (setScreen(twinBack), setTwinBack("main"), setTwinView(null))} onPlayClones={(spec) => withScheme(() => startClones(spec))} onDrill={(it) => (setTwinView(null), setTwinBack("main"), withScheme(() => startTrain(it.kind === "machine" ? { kind: "machine", settings: it.settings } : { kind: "drill", id: it.drill, balls: it.balls })))} />
           </React.Suspense>
         )}
 
@@ -1452,7 +1454,7 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
         {atMenu && screen === "club" && (
           <div className="pkClubHost" data-screen="club">
             <React.Suspense fallback={<div className="pkCenter pkDim"><div className="pkPanel window">Loading Real Games...</div></div>}>
-              <RealGames embedded mobile={mobile} handoff={clubHandoff} onClose={() => setScreen("main")} onTwin={() => (setTwinBack("club"), setScreen("twin"))} />
+              <RealGames embedded mobile={mobile} handoff={clubHandoff} onClose={() => setScreen("main")} onTwin={() => (setTwinBack("club"), setTwinView(null), setScreen("twin"))} onCoach={() => (setTwinBack("club"), setTwinView("coach"), setScreen("twin"))} />
             </React.Suspense>
           </div>
         )}

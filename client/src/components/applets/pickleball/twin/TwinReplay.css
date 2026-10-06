@@ -456,3 +456,30 @@
   align-items: center;
   gap: 6px;
 }
+
+/* a Coach moment being watched (TwinPlayer's moment prop) */
+.pkTwinMoment {
+  position: absolute;
+  top: 44px;
+  left: 6px;
+  right: 6px;
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  padding: 6px 8px;
+  background: #ffffe1;
+  color: #000;
+  border: 1px solid #000;
+  text-align: left;
+  font-size: 12px;
+}
+.pkTwinMoment span {
+  flex: 1 1 60%;
+  min-width: 0;
+}
+.pkTwinMoment small {
+  flex-basis: 100%;
+  color: #00507a;
+}
