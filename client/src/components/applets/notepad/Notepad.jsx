@@ -12,6 +12,11 @@ import { PASTE_BLOCKED, copyText } from "../../../utils/systemClipboard"
 import "./Notepad.css"
 import { unlock } from "../../../utils/achievements"
 import { helpItem } from "../../../utils/help"
+import { useHangout, shareDoc, meKey } from "../../../utils/hangout"
+import { createShared, openShared } from "../../../utils/ydoc"
+import { useSharedText } from "../hangout/sharedText"
+import RemoteCarets from "../hangout/RemoteCarets"
+import { listNames } from "../hangout/hangoutCore"
 
 // Notepad, as in Windows 98: File / Edit / Search / Help, Word Wrap, Set Font, Time/Date
 // (F5), Find (F3) and Replace, Open/Save As over the 98ish drive, the "save changes?"
@@ -40,7 +45,7 @@ const timeDate = () => {
 // still on the drive (not deleted, not in the Recycle Bin)?
 const onDrive = (file) => !!file && fs.partsOf(file)[0] === "C:" && fs.resolve(fs.partsOf(file)) === file
 
-const Notepad = ({ file: initialFile = null, onTitle, onClose, registerCloseGuard }) => {
+const Notepad = ({ file: initialFile = null, handoff = null, onTitle, onClose, registerCloseGuard }) => {
   useFsVersion()
   const [file, setFile] = useState(initialFile)
   const [text, setText] = useState(() => {
@@ -60,8 +65,44 @@ const Notepad = ({ file: initialFile = null, onTitle, onClose, registerCloseGuar
   const findBox = useFloating() // Find / Replace drags anywhere, like a real dialog
   const afterSave = useRef(null) // what to do once a save finishes (New, Open, Exit)
 
-  const dirty = text !== saved
-  const name = file ? file.name : "Untitled"
+  // Come Over: a shared text everyone in the hangout edits at once (utils/ydoc.js)
+  const hangout = useHangout()
+  const [sharedId, setSharedId] = useState(handoff?.shared || null)
+  const [sharedTitle, setSharedTitle] = useState(handoff?.title || "")
+  const [handle, setHandle] = useState(null)
+  useEffect(() => {
+    if (handoff?.shared && handoff.shared !== sharedId) {
+      setSharedId(handoff.shared)
+      setSharedTitle(handoff.title || "")
+    }
+  }, [handoff?.id])
+  useEffect(() => {
+    if (!sharedId) return setHandle(null)
+    const h = openShared(sharedId)
+    setHandle(h)
+    return () => h.close()
+  }, [sharedId])
+  const seedRef = useRef("")
+  const shared = useSharedText({ handle, areaRef, text, setText, seed: seedRef.current })
+  const people = hangout.state?.people || []
+  const colorOf = (key) => people.find((p) => p.key === key)?.color || "#d00000"
+  const shareHere = async () => {
+    const names = people.filter((p) => p.key !== meKey()).map((p) => p.name)
+    const title = file ? file.name : "Shared note"
+    seedRef.current = text
+    const res = await createShared("text", title, names)
+    if (!res.ok) return setDialog({ kind: "alert", title: "Notepad", text: res.error || "Couldn't share it." })
+    await shareDoc(res.id)
+    setSharedTitle(title)
+    setSharedId(res.id)
+  }
+  const stopSharing = () => {
+    setSharedId(null)
+    setSaved("")
+  }
+
+  const dirty = !sharedId && text !== saved
+  const name = sharedId ? `${sharedTitle || "Shared note"} (shared)` : file ? file.name : "Untitled"
   const textRef = useRef({ dirty, name })
   textRef.current = { dirty, name }
 
@@ -274,6 +315,8 @@ const Notepad = ({ file: initialFile = null, onTitle, onClose, registerCloseGuar
   const onKeyDown = (e) => {
     const ctrl = e.ctrlKey || e.metaKey
     const key = e.key.toLowerCase()
+    // in a shared text, Undo/Redo are yours only (not your friends' typing)
+    if (sharedId && ctrl && (key === "z" || key === "y")) return e.preventDefault(), key === "y" || e.shiftKey ? shared.redo() : shared.undo()
     if (e.key === "F5") return e.preventDefault(), insert(timeDate())
     if (e.key === "F3") return e.preventDefault(), findNext()
     if (ctrl && key === "s") return e.preventDefault(), save()
@@ -293,6 +336,9 @@ const Notepad = ({ file: initialFile = null, onTitle, onClose, registerCloseGuar
         { label: "Save As...", onClick: () => setDialog({ kind: "saveAs" }) },
         "-",
         { label: "Send To", items: sendToItems(sharePayload, { title: "Notepad" }) },
+        sharedId
+          ? { label: "Stop Sharing (keep a copy)", onClick: stopSharing }
+          : { label: "Share with Friends Here...", disabled: !hangout.id || people.length < 2, onClick: shareHere },
         "-",
         { label: "Exit", onClick: () => guard(() => onClose?.()) },
       ],
@@ -300,7 +346,8 @@ const Notepad = ({ file: initialFile = null, onTitle, onClose, registerCloseGuar
     {
       label: "Edit",
       items: [
-        { label: "Undo Ctrl+Z", onClick: () => command("undo") },
+        { label: "Undo Ctrl+Z", onClick: () => (sharedId ? shared.undo() : command("undo")) },
+        ...(sharedId ? [{ label: "Redo Ctrl+Y", onClick: () => shared.redo() }] : []),
         "-",
         { label: "Cut Ctrl+X", onClick: () => copyOut(true) },
         { label: "Copy Ctrl+C", onClick: () => copyOut(false) },
@@ -350,8 +397,23 @@ const Notepad = ({ file: initialFile = null, onTitle, onClose, registerCloseGuar
         aria-label={`${name} - Notepad`}
         readOnly={loading}
         placeholder={loading ? "Loading..." : undefined}
-        onChange={(e) => setText(e.target.value)}
+        onChange={(e) => (sharedId ? shared.change(e.target.value) : setText(e.target.value))}
+        data-shared={sharedId || undefined}
       />
+      {sharedId && <RemoteCarets areaRef={areaRef} text={text} carets={shared.carets} colorOf={colorOf} />}
+      {sharedId && (
+        <div className="npShared" data-shared-status={shared.status}>
+          {shared.status === "live"
+            ? `Shared with ${listNames((handle?.meta?.members || []).filter((m) => m.key !== meKey()).map((m) => m.name)) || "friends"} · everyone's typing shows as it happens`
+            : shared.status === "offline"
+              ? "Offline: your changes join the others' when you're back"
+              : shared.status === "full"
+                ? "This shared note is full"
+                : shared.status === "gone"
+                  ? "This shared note was deleted"
+                  : "Connecting..."}
+        </div>
+      )}
 
       {find && (
         <form

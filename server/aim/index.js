@@ -10,6 +10,9 @@ const { createStore } = require("./store")
 const { createBot, BOT_NAME } = require("./bot")
 const { createCalls } = require("./calls")
 const { createTogether } = require("./together")
+const { createHangout } = require("./hangout")
+const { createYdocs } = require("./ydocs")
+const { createYdocStore } = require("./ydocStore")
 const { createIce } = require("./ice")
 const { createAccountEraser } = require("../account")
 const { createHistoryStore, pairConv, roomConv, packStyle } = require("./history")
@@ -80,8 +83,13 @@ const limiter = (limit, windowMs) => {
 // aim:deleteAccount; without one only the account record goes.
 // `history` (./history.js, a store or a promise of one): saved conversations; in memory
 // without one. `media` (./media.js): pictures and voice messages in IMs; off without one.
-const attachAim = async (io, { store, bot, ice, callRingMs, callLostMs, push = null, eraser = null, history = null, media: imMedia = null } = {}) => {
+const attachAim = async (io, { store, bot, ice, callRingMs, callLostMs, push = null, eraser = null, history = null, media: imMedia = null, ydocStore = null, hangoutLostMs } = {}) => {
   store ??= await createStore()
+  // Come Over's shared documents (a store that failed to connect: they're kept in memory)
+  ydocStore ??= await createYdocStore().catch((error) => {
+    console.error("[come over] store failed, using memory", error?.message)
+    return require("./ydocStore").memoryStore()
+  })
   bot ??= createBot()
   ice ??= createIce()
   eraser ??= createAccountEraser()
@@ -199,6 +207,11 @@ const attachAim = async (io, { store, bot, ice, callRingMs, callLostMs, push = n
   // Watch & Listen Together (a shared YouTube player; control state only, in memory)
   const together = createTogether({ sessions, hidden, emitTo, limiter, rooms, botKey: BOT_KEY, pushTo: push ? pushTo : null })
 
+  // Come Over: the multiplayer desktop (presence in memory; shared documents in ydocStore)
+  const ydocs = createYdocs({ store: ydocStore, sessions, hidden, emitTo, limiter, findUser: (key) => store.find(key) })
+  const hangout = createHangout({ sessions, hidden, emitTo, limiter, pushTo: push ? pushTo : null, ydocs, ...(hangoutLostMs ? { lostMs: hangoutLostMs } : {}) })
+  eraser.add("shared documents", (ctx) => ydocs.eraseAccount(ctx))
+
   const broadcastPresence = (subject, online = true) => {
     const payload = online ? presenceOf(subject) : { screenName: subject.user.screenName, online: false }
     for (const other of sessions.values()) {
@@ -238,6 +251,8 @@ const attachAim = async (io, { store, bot, ice, callRingMs, callLostMs, push = n
     clearTimeout(session.dropTimer)
     calls.endFor(session.key, "signedoff")
     together.leaveAll(session.key)
+    hangout.leave(session.key, "signedoff")
+    ydocs.dropped(session.key)
     for (const key of rooms.keys()) leaveRoom(session, key)
     sessions.delete(session.key)
     tokens.delete(session.token)
@@ -269,6 +284,7 @@ const attachAim = async (io, { store, bot, ice, callRingMs, callLostMs, push = n
     for (const [key, room] of rooms) if (room.members.has(session.key)) socket.join(`chat:${key}`)
     calls.resumed(session)
     together.resumed(session)
+    hangout.resumed(session)
     const pending = session.pendingIms || []
     session.pendingIms = []
     if (pending.length) setTimeout(() => pending.forEach((m) => session.socket?.emit("aim:im", m)), 300)
@@ -312,6 +328,8 @@ const attachAim = async (io, { store, bot, ice, callRingMs, callLostMs, push = n
       })
     calls.bind(on)
     together.bind(on)
+    hangout.bind(on)
+    ydocs.bind(on)
     bindConversations(on, conversations)
 
     const startSession = (user, key, ack, remember) => {
@@ -569,6 +587,8 @@ const attachAim = async (io, { store, bot, ice, callRingMs, callLostMs, push = n
       session.dropTimer = setTimeout(() => signOff(session), RESUME_GRACE_MS)
       calls.dropped(session.key)
       together.dropped(session.key)
+      hangout.dropped(session.key)
+      ydocs.dropped(session.key)
     })
 
     // { to, text, style, media?: { id } (sent with aim:mediaUpload/aim:mediaCommit), thumb?
@@ -714,6 +734,7 @@ const attachAim = async (io, { store, bot, ice, callRingMs, callLostMs, push = n
         const nowHidden = hidden(session, other)
         if (nowHidden) calls.endBetween(session.key, other.key, "blocked")
         if (nowHidden) together.blocked(session.key, other.key)
+        if (nowHidden) hangout.blocked(session.key, other.key)
         emitTo(other.key, "aim:presence", nowHidden ? { screenName: session.user.screenName, online: false } : presenceOf(session))
         emitTo(session.key, "aim:presence", nowHidden ? { screenName: other.user.screenName, online: false } : presenceOf(other))
       }
@@ -830,7 +851,7 @@ const attachAim = async (io, { store, bot, ice, callRingMs, callLostMs, push = n
     return (key && sessions.get(key)) || null
   }
 
-  const aim = { store, sessions, authenticate, calls, together, push, eraser, history, media: imMedia }
+  const aim = { store, sessions, authenticate, calls, together, hangout, ydocs, push, eraser, history, media: imMedia }
   push?.useAim(aim)
   return aim
 }

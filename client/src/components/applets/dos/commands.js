@@ -104,6 +104,8 @@ export const ALIASES = {
   music98: "Music 98",
   wmplayer: "Music 98",
   locator: "Buddy Locator",
+  comeover: "Come Over",
+  hangout: "Come Over",
   pbclub: "Pickleball 98",
   pickleclub: "Pickleball 98",
   scorekeeper: "Pickleball 98",

@@ -33,6 +33,7 @@ export const APPS = {
   achievements: { name: "Achievements", icon: "/assets/program_icons/welcome.svg" },
   notes: { name: "Notes", icon: "/assets/program_icons/notes.svg" },
   locator: { name: "Buddy Locator", icon: "/assets/program_icons/locator.svg" },
+  hangout: { name: "Come Over", icon: "/assets/program_icons/hangout.svg" },
   pbclub: { name: "Pickleball 98", icon: "/assets/program_icons/pickleball.svg" },
   tasks: { name: "Tasks", icon: "/assets/program_icons/tasks.svg" },
   photos: { name: "Photos", icon: "/assets/program_icons/photos.svg" },
@@ -218,6 +219,8 @@ export const targetFromParams = (params) => {
     // Pickleball 98's Real Games: a play session or a match to confirm
     else if (/^[0-9a-f]{16}$/.test(params.get("pbsession") || "")) extra.handoff = { id: Date.now(), session: name("pbsession") }
     else if (/^[0-9a-f]{16}$/.test(params.get("pbmatch") || "")) extra.handoff = { id: Date.now(), match: name("pbmatch") }
+    // a Come Over invitation (a hangout to join)
+    else if (/^[0-9a-f]{16}$/.test(params.get("hangout") || "")) extra.handoff = { id: Date.now(), hangout: name("hangout") }
     // a Watch Together invitation to join
     else if (/^[0-9a-f]{20}$/.test(params.get("together") || "")) extra.handoff = { id: Date.now(), together: name("together") }
     return { kind: "program", name: name("name"), extra }

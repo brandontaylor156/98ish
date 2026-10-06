@@ -103,6 +103,14 @@
 //                                                  not linked to them) so the other players'
 //                                                  records and ratings stay; matches with no other
 //                                                  account, and unconfirmed ones they logged, deleted
+//   shared documents  shareddocs                   Come Over (server/aim/ydocs.js): shared Notepad
+//                                                  texts, Paint pictures and Shared with Friends
+//                                                  folders only they're in deleted; in shared ones
+//                                                  they leave (the next member becomes owner). What
+//                                                  they typed or drew stays part of the shared
+//                                                  document, as in any shared document. Hangouts
+//                                                  (cursors, desktops, follow, handed files) are
+//                                                  memory only and end when they sign off
 //   aim         aimusers                           the account (password hash, profile, Buddy
 //                                                  List, blocks, remembered devices) deleted; their
 //                                                  name taken off everyone's Buddy List and block
@@ -110,7 +118,7 @@
 //                                                  them dropped. The screen name is free again.
 //
 // Kept only in memory and gone when they sign off (nothing to delete): who's online, away
-// messages, chat rooms, calls, Network Neighborhood computers and file offers, live games.
+// messages, chat rooms, calls, Come Over hangouts, Network Neighborhood computers and file offers, live games.
 // Rate-limit counters keyed by the account forget themselves within their window (an hour at
 // most). Copies on someone else's device (an IM they received, a contact card they made, a
 // calendar they exported) are theirs and out of reach.

@@ -18,6 +18,7 @@ import NotifyTray from "./NotifyTray"
 import SyncTray from "../applets/backup/SyncTray"
 import DndTray from "./DndTray"
 import LocatorTray from "../applets/locator/LocatorTray"
+import HangoutTray from "../applets/hangout/HangoutTray"
 import { useWeatherPrefs } from "../../utils/weatherPrefs"
 import "./Shell.css"
 
@@ -503,6 +504,7 @@ const TaskBar = ({ windows, dispatch, setStartMenuVisible, startMenuVisible }) =
                 <WeatherTray mobile={mobile} dispatch={dispatch} />
               </Suspense>
             )}
+            <HangoutTray mobile={mobile} />
             <LocatorTray />
             <DndTray mobile={mobile} />
             <NotifyTray />

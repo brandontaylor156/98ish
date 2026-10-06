@@ -100,6 +100,9 @@ const DeskNotes = React.lazy(() => import("../applets/notes/DeskNotes"))
 const NotesBridge = React.lazy(() => import("../applets/notes/NotesBridge"))
 const PhotosBridge = React.lazy(() => import("../applets/photos/PhotosBridge"))
 const LocatorBridge = React.lazy(() => import("../applets/locator/LocatorBridge"))
+// Come Over (the multiplayer desktop): its window, and the layer with friends' cursors
+const Hangout = lazyApp(() => import("../applets/hangout/Hangout"))
+const HangoutLayer = React.lazy(() => import("../applets/hangout/HangoutLayer"))
 const PbClubBridge = React.lazy(() => import("../applets/pbclub/PbClubBridge"))
 const Find = lazyApp(() => import("../applets/find/Find"))
 // 98ish Help (Start > Help, F1, Help > Help Topics: utils/help.js openHelp)
@@ -772,6 +775,7 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
       {window.app === "notepad" && (
         <Notepad
           file={window.file}
+          handoff={window.handoff}
           onTitle={rename(index)}
           // Notepad's own Exit has already asked about saving
           onClose={() => closeWindow(window, index, true)}
@@ -781,6 +785,7 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
       {window.app === "paint" && (
         <Paint
           file={window.file}
+          handoff={window.handoff}
           mobile={mobile}
           onTitle={rename(index)}
           // Paint's own Exit has already asked about saving
@@ -855,6 +860,7 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
       {window.app === "imposter" && <Imposter mobile={mobile} onClose={() => closeWindow(window, index)} />}
       {window.app === "musiclib" && <Music mobile={mobile} handoff={window.handoff} onClose={() => closeWindow(window, index)} />}
       {window.app === "locator" && <Locator mobile={mobile} dispatch={dispatch} onClose={() => closeWindow(window, index)} />}
+      {window.app === "hangout" && <Hangout mobile={mobile} handoff={window.handoff} dispatch={dispatch} onClose={() => closeWindow(window, index)} />}
       {window.app === "together" && <Together mobile={mobile} dispatch={dispatch} handoff={window.handoff} onClose={() => closeWindow(window, index)} />}
       {window.app === "hexlands" && <Hexlands mobile={mobile} onClose={() => closeWindow(window, index)} />}
       {window.app === "monsterduel" && <MonsterDuel mobile={mobile} onClose={() => closeWindow(window, index)} />}
@@ -1187,6 +1193,7 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
           <NotesBridge socket={socket} />
           <PhotosBridge socket={socket} />
           <LocatorBridge socket={socket} />
+          <HangoutLayer windows={windows} dispatch={dispatch} mobile={mobile} />
           <PbClubBridge socket={socket} />
         </React.Suspense>
       </NetProvider>
@@ -1213,6 +1220,7 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
               <div
                 key={index}
                 className={window.minimized ? "mobileWindow d-none" : "mobileWindow"}
+                data-window-index={index}
                 style={window.active ? { zIndex: 2 } : undefined}
                 // Activate on press (capture phase, so no app can swallow it), not on
                 // click: a click that opens another window (a buddy, a link) must not

@@ -17,6 +17,10 @@ import { dataUrlBytes } from "../../../utils/fileTransfer"
 import "./Paint.css"
 import { progress, unlock } from "../../../utils/achievements"
 import { helpItem } from "../../../utils/help"
+import { useHangout, shareDoc, meKey } from "../../../utils/hangout"
+import { createShared, openShared } from "../../../utils/ydoc"
+import { useSharedPaint } from "../hangout/sharedPaint"
+import { listNames } from "../hangout/hangoutCore"
 
 // Paint, as in Windows 98: the tool box with its options, the color box, menus, undo,
 // selections you can drag, cut, copy and paste, text, the canvas resize handles, Open /
@@ -144,7 +148,7 @@ const wrapText = (ctx, text, width) => {
   return out
 }
 
-const Paint = ({ file: initialFile = null, mobile = false, onTitle, onClose, registerCloseGuard }) => {
+const Paint = ({ file: initialFile = null, handoff = null, mobile = false, onTitle, onClose, registerCloseGuard }) => {
   useFsVersion()
   const prefs = useRef(loadPrefs()).current
 
@@ -197,8 +201,26 @@ const Paint = ({ file: initialFile = null, mobile = false, onTitle, onClose, reg
   const pasteKey = useRef(null)
   const resizeRef = useRef(null)
 
-  const dirty = stateId.current !== savedId
-  const name = file ? file.name : "untitled"
+  // Come Over: a picture everyone in the hangout draws on at once (hangout/sharedPaint.js)
+  const hangout = useHangout()
+  const [sharedId, setSharedId] = useState(handoff?.shared || null)
+  const [sharedTitle, setSharedTitle] = useState(handoff?.title || "")
+  const [handle, setHandle] = useState(null)
+  useEffect(() => {
+    if (handoff?.shared && handoff.shared !== sharedId) {
+      setSharedId(handoff.shared)
+      setSharedTitle(handoff.title || "")
+    }
+  }, [handoff?.id])
+  useEffect(() => {
+    if (!sharedId) return setHandle(null)
+    const h = openShared(sharedId)
+    setHandle(h)
+    return () => h.close()
+  }, [sharedId])
+
+  const dirty = !sharedId && stateId.current !== savedId
+  const name = sharedId ? `${sharedTitle || "Shared picture"} (shared)` : file ? file.name : "untitled"
   const live = useRef({})
   live.current = { dirty, name }
 
@@ -269,6 +291,19 @@ const Paint = ({ file: initialFile = null, mobile = false, onTitle, onClose, reg
   }
   useLayoutEffect(show, [size.w, size.h])
 
+  const sharedPaint = useSharedPaint({ handle, img, show, replaceImage, me: meKey(), busy: () => !!(drag.current || poly.current || curve.current || textBoxRef.current || selRef.current?.piece) })
+  const hangoutPeople = hangout.state?.people || []
+  const shareHere = async () => {
+    commitAll()
+    const names = hangoutPeople.filter((p) => p.key !== meKey()).map((p) => p.name)
+    const title = file ? file.name : "Shared picture"
+    const res = await createShared("paint", title, names)
+    if (!res.ok) return setDialog({ kind: "alert", title: "Paint", text: res.error || "Couldn't share it." })
+    await shareDoc(res.id)
+    setSharedTitle(title)
+    setSharedId(res.id)
+  }
+
   // the floating selection's own little canvas
   useEffect(() => {
     const canvas = pieceRef.current
@@ -302,6 +337,8 @@ const Paint = ({ file: initialFile = null, mobile = false, onTitle, onClose, reg
   const undo = () => {
     if (finishText(false)) return
     if (cancelInProgress()) return
+    // a shared picture: undo your own last change (friends' strokes stay)
+    if (sharedId) return sharedPaint.undo()
     const entry = undoStack.current.pop()
     if (!entry) return
     redoStack.current.push({ s: img.current, id: stateId.current })
@@ -313,6 +350,7 @@ const Paint = ({ file: initialFile = null, mobile = false, onTitle, onClose, reg
 
   const redo = () => {
     commitAll()
+    if (sharedId) return sharedPaint.redo()
     const entry = redoStack.current.pop()
     if (!entry) return
     undoStack.current.push({ s: img.current, id: stateId.current })
@@ -1196,6 +1234,9 @@ const Paint = ({ file: initialFile = null, mobile = false, onTitle, onClose, reg
         { label: "Set As Wallpaper (Stretched)", onClick: () => setAsWallpaper("stretch") },
         "-",
         { label: "Send To", items: sendToItems(sharePayload, { title: "Paint" }) },
+        sharedId
+          ? { label: "Stop Sharing (keep a copy)", onClick: () => setSharedId(null) }
+          : { label: "Share with Friends Here...", disabled: !hangout.id || hangoutPeople.length < 2, onClick: shareHere },
         "-",
         { label: "Exit", onClick: () => guard(() => onClose?.()) },
       ],
@@ -1203,8 +1244,8 @@ const Paint = ({ file: initialFile = null, mobile = false, onTitle, onClose, reg
     {
       label: "Edit",
       items: [
-        { label: "Undo Ctrl+Z", disabled: !undoStack.current.length && !textBox && !poly.current && !curve.current, onClick: undo },
-        { label: "Repeat Ctrl+Y", disabled: !redoStack.current.length, onClick: redo },
+        { label: "Undo Ctrl+Z", disabled: !sharedId && !undoStack.current.length && !textBox && !poly.current && !curve.current, onClick: undo },
+        { label: "Repeat Ctrl+Y", disabled: !sharedId && !redoStack.current.length, onClick: redo },
         "-",
         { label: "Cut Ctrl+X", disabled: !hasSel, onClick: cut },
         { label: "Copy Ctrl+C", disabled: !hasSel, onClick: copy },
@@ -1525,7 +1566,17 @@ const Paint = ({ file: initialFile = null, mobile = false, onTitle, onClose, reg
 
       {view.statusbar && (
         <div className="status-bar pStatus">
-          <p className="status-bar-field pStatusHint">{statusHint}</p>
+          <p className="status-bar-field pStatusHint" data-shared-status={sharedId ? sharedPaint.status : undefined}>
+            {sharedId
+              ? sharedPaint.status === "live"
+                ? `Shared with ${listNames((handle?.meta?.members || []).filter((m) => m.key !== meKey()).map((m) => m.name)) || "friends"}`
+                : sharedPaint.status === "offline"
+                  ? "Offline: your strokes join when you're back"
+                  : sharedPaint.status === "full"
+                    ? "This shared picture is full"
+                    : "Connecting..."
+              : statusHint}
+          </p>
           <p className="status-bar-field pStatusPos">{status.pos ? `${status.pos[0]},${status.pos[1]}` : ""}</p>
           <p className="status-bar-field pStatusSize">{sizeText}</p>
         </div>

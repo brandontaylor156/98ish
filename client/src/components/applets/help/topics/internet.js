@@ -194,6 +194,43 @@ export const topics = [
     related: ["messenger", "messenger-calls", "privacy-third-parties"],
   },
   {
+    id: "come-over",
+    book: "internet",
+    title: "Come Over (doing things together)",
+    summary: "Have up to three friends over on your 98ish: see each other's pointers and desktops, follow someone's view, hand each other files, and type or draw on the same thing at once.",
+    keywords: ["come over", "hangout", "together", "multiplayer", "shared desktop", "cursor", "pointer", "visit", "follow", "co-edit", "collaborate", "shared note", "shared picture", "shared folder", "Shared with Friends", "hand a file", "screen share", "stop sharing"],
+    programs: ["Come Over"],
+    body: [
+      { img: "/assets/program_icons/hangout.svg", alt: "Come Over icon" },
+      "**Come Over** puts your friends on your computer with you, not in a chat window. Up to 4 people at a time.",
+      {
+        steps: [
+          "Sign on to 98 Messenger (your buddies need to be signed on too).",
+          "Open Start > Programs > Internet > **Come Over** and press **Invite** next to a buddy.",
+          "They get an invitation on their 98ish (a notification if they're away; Do Not Disturb holds it) and press **Join**.",
+        ],
+      },
+      "While you're together:",
+      {
+        list: [
+          "**Pointers**: everyone's pointer shows on everyone's screen in their color, with their name and the window they're using. On a phone, your taps show as a ripple.",
+          "**Visit**: Come Over > Visit shows a friend's desktop as they see it: their wallpaper, icons and windows. It's look-only unless they tick **Let friends here open and switch windows on my desktop** (More options, or the tray menu); then tapping an icon opens it on their screen.",
+          "**Follow**: press Follow next to someone and your screen opens what they're looking at and scrolls with them. A bar at the top says who you follow; **Stop** ends it.",
+          "**Work on the same thing**: in Notepad or Paint, **File > Share with Friends Here**. Everyone types or draws at once and sees each other's typing (with colored carets) and strokes as they happen. **Undo** undoes only your own changes. Changes made while offline join the others' when you're back. Come Over > Shared lists everything shared.",
+          "**Shared with Friends folder**: Come Over > Shared > Make a shared folder. Anyone in it adds files (from Drive C:, by dragging from My Computer, or from your device), up to 1 MB each and 6 MB in all.",
+          "**Hand a file**: drag a file from My Computer onto a friend's dot on the taskbar (or onto their pointer's name). It lands on their desktop.",
+        ],
+      },
+      { h: "Privacy" },
+      "**Private programs never show** to visitors or followers, on your device and again on the server: 98 Messenger, Mail, Notes, Tasks, Passwords, Photos, Camera, Address Book, Buddy Locator, Backup, Control Panel and the lock screen show as a grey \"Private window\" with no title, and a follower sees \"busy\".",
+      "The red **Stop** on the taskbar (and **Stop Sharing and Leave** in its menu) leaves at once: your pointer, desktop and view stop going out.",
+      { note: "Pointers, desktops and follow are passed along live and never saved. Shared notes, pictures and folders are kept on the 98ish server for the people in them (see [[privacy-server]]); what you typed or drew stays part of a shared one, as in any shared document. Deleting your account deletes the ones only you were in and takes you out of the others." },
+      { phone: "On a phone, the cursors show where friends tap. iPhone web apps stop sending when 98ish is in the background; you're shown as away until you come back (30 seconds), then you leave the hangout." },
+      { open: "Come Over", label: "Open Come Over" },
+    ],
+    related: ["buddy-locator", "watch-together", "notepad", "paint"],
+  },
+  {
     id: "buddy-locator",
     book: "internet",
     title: "Buddy Locator",

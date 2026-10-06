@@ -212,3 +212,44 @@
   flex-direction: row;
   flex-wrap: wrap;
 }
+
+/* Come Over: a shared note's status strip, and friends' carets (hangout/RemoteCarets.jsx) */
+.npShared {
+  flex: none;
+  padding: 2px 6px;
+  border-top: 1px solid grey;
+  background: #ffffe1;
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.rcBox {
+  position: absolute;
+  overflow: hidden;
+  pointer-events: none;
+  color: transparent;
+  z-index: 2;
+}
+.rcInner {
+  position: relative;
+}
+.rcCaret {
+  position: relative;
+  display: inline-block;
+  width: 0;
+  height: 1.15em;
+  margin-right: -2px;
+  border-left: 2px solid;
+  vertical-align: text-bottom;
+}
+.rcName {
+  position: absolute;
+  bottom: 100%;
+  left: -2px;
+  padding: 0 3px;
+  color: #fff;
+  font: 10px "Pixelated MS Sans Serif", Arial, sans-serif;
+  white-space: nowrap;
+  line-height: 13px;
+}
