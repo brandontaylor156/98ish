@@ -10,8 +10,10 @@
 //   2. color: how ball-like it is (yellow/green/orange, bright, saturated),
 //   3. blobs: small connected spots (not a player's shirt), scored by motion x color.
 // Many candidates per frame are fine: the flight fit (flight.js) keeps the ones that agree
-// with physics. An optional learned scorer (model.js, a small ONNX heatmap net) can replace
-// steps 1-2 when it's loaded.
+// with physics. A learned scorer (scorer.js: a tiny CNN, also shipped as ONNX) re-ranks the
+// candidates when its weights have loaded.
+
+import { rescore } from "./scorer.js"
 
 // The region worth looking at: the court, and the air above it up to `airM` meters (the ball's
 // highest lobs), from the camera (flight.js cameraFromHomography). Returns { x0, y0, x1, y1 }.
@@ -142,7 +144,8 @@ export const sameFrame = (a, b) => {
 
 // A rolling three-frame window: push(t, rgba) -> candidates for the PREVIOUS frame (the one
 // that now has both neighbors), or null while it fills.
-export const createBallFinder = ({ W, H, region, exclude = () => [], opts = {} }) => {
+// scorer: the learned candidate scorer (scorer.js prepare()), optional
+export const createBallFinder = ({ W, H, region, exclude = () => [], opts = {}, scorer = null }) => {
   let a = null
   let b = null
   return {
@@ -160,7 +163,8 @@ export const createBallFinder = ({ W, H, region, exclude = () => [], opts = {} }
         b = frame
         return null
       }
-      const found = detectBall(a.px, b.px, frame.px, W, H, region, { ...opts, exclude: exclude(b.t) })
+      let found = detectBall(a.px, b.px, frame.px, W, H, region, { ...opts, exclude: exclude(b.t) })
+      if (scorer && found.length) found = rescore(scorer, a.px, b.px, frame.px, W, H, found)
       const out = { t: b.t, cands: found }
       a = b
       b = frame

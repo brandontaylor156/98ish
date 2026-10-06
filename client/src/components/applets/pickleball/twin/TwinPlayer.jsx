@@ -127,7 +127,7 @@ export const TwinPlayer = ({ getEngine, game, video, onBack, onChange, onShare, 
     const e = getEngine()
     e?.twinControl({ paused: true })
     // (from just before the bounce: the ball comes down onto its mark)
-    e?.twinSeek(Math.max(0, c.bounce.t - window_.from - 0.05))
+    e?.twinSeek(Math.max(0, c.bounce.t - window_.from))
     e?.twinChallenge({ x: c.bounce.x, z: c.bounce.z, verdict: c.call.close ? "in" : c.call.verdict })
     setChallenge(k)
   }
@@ -177,7 +177,7 @@ export const TwinPlayer = ({ getEngine, game, video, onBack, onChange, onShare, 
           )}
           {challenge !== null && calls[challenge] && (
             <div className={`pkTwinChallenge ${calls[challenge].call.close ? "is-close" : calls[challenge].call.verdict === "in" ? "is-in" : "is-out"}`} data-challenge={calls[challenge].call.close ? "close" : calls[challenge].call.verdict}>
-              <small>{KIND_LABEL[calls[challenge].h.kind]} by {nameOf(calls[challenge].h.player)} · the {calls[challenge].call.line === "net" ? "court" : calls[challenge].call.line}</small>
+              <small>{KIND_LABEL[calls[challenge].h.kind]} by {nameOf(calls[challenge].h.player)}{Math.abs(calls[challenge].call.margin) <= 0.3 ? ` · the ${calls[challenge].call.line}` : ""}</small>
               <b>{callText(calls[challenge].call)}</b>
               <div className="pkTwinButtons">
                 {calls.length > 1 && (

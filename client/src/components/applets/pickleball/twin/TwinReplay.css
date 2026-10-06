@@ -27,6 +27,7 @@
 .pkTwin[data-view="game"] .pkTwinStats,
 .pkTwin[data-view="game"] .pkTwinPip,
 .pkTwin[data-view="game"] .pkTwinMoment,
+.pkTwin[data-view="game"] .pkTwinChallenge,
 .pkTwin[data-view="game"] .pkCenter {
   pointer-events: auto;
 }

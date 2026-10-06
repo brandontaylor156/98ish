@@ -12,6 +12,7 @@ import { createLandmarker, MODEL_MB } from "./poseModel.js"
 import { cameraFromHomography } from "./ball/flight.js"
 import { createBallFinder, searchRegion } from "./ball/detect.js"
 import { analyzeBall } from "./ball/realball.js"
+import { loadScorer } from "./ball/scorer.js"
 
 export const READ_FPS = 15
 export const READ_WIDTH = 640
@@ -276,10 +277,12 @@ export const readGame = async (blob, { taps, players = 4, fps = READ_FPS, width 
     // Real Ball (ball/): the ball's spots in every frame read, fitted to flights at the end
     const ballCam = ball ? cameraFromHomography(analyzer.calibration.H, W, H) : null
     const spots = []
+    const scorer = ballCam ? await loadScorer() : null
     const finder = ballCam
       ? createBallFinder({
           W,
           H,
+          scorer,
           region: searchRegion(ballCam, W, H),
           // (players' bodies: a shirt or a shoe moving isn't the ball; their hands stay in)
           exclude: () =>

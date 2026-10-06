@@ -140,6 +140,42 @@ export const simulate = (P0, V0, T, { spin = 0, dt = SIM_DT, maxBounces = 2 } = 
   return { pts, bounces, at }
 }
 
+// The launch velocity that carries the ball from P0 to P1 in T seconds with the game's physics
+// (Newton on the 3 velocity components; V0 a starting guess, e.g. ballpath's arc). For the
+// demo's camera and for tests. Returns { V0, miss (m) }.
+export const aimFlight = (P0, P1, T, V0, { iters = 14 } = {}) => {
+  let v = [V0.x, V0.y, V0.z]
+  const end = (vv) => {
+    const e = simulate(P0, { x: vv[0], y: vv[1], z: vv[2] }, T, { dt: 1 / 240 }).at(T)
+    return [e.x - P1.x, e.y - P1.y, e.z - P1.z]
+  }
+  let r = end(v)
+  for (let it = 0; it < iters && Math.hypot(...r) > 0.005; it++) {
+    const J = [0, 1, 2].map((j) => {
+      const q = v.slice()
+      q[j] += 0.01
+      const rq = end(q)
+      return rq.map((x, i) => (x - r[i]) / 0.01)
+    })
+    // J[j][i] = d r_i / d v_j  ->  solve (J^T) d = -r
+    const A = [0, 1, 2].map((i) => [J[0][i], J[1][i], J[2][i]])
+    const d = solveSym(A, r.map((x) => -x))
+    if (!d) break
+    let step = 1
+    for (let k = 0; k < 6; k++) {
+      const q = v.map((x, i) => x + d[i] * step)
+      const rq = end(q)
+      if (Math.hypot(...rq) < Math.hypot(...r)) {
+        v = q
+        r = rq
+        break
+      }
+      step *= 0.5
+    }
+  }
+  return { V0: { x: v[0], y: v[1], z: v[2] }, miss: Math.hypot(...r) }
+}
+
 // the ball at time t on a measured flight segment { t0, t1, flight: { P0, V0, spin } }
 // (the simulation is cached on the segment)
 const flightCache = new WeakMap()
@@ -436,11 +472,14 @@ export const callBounce = (bounce, { kind = "rally", toTeam, serverX = 0 } = {})
 }
 
 // what to say: "OUT by 4 cm", "IN by 2 cm", "Too close: call stands"
+// (a ball nowhere near a line is just "IN"; stored calls carry `verdict`, fresh ones `inside`)
 export const callText = (call) => {
   if (!call) return ""
   if (call.close) return "Too close: call stands"
+  const inside = call.inside ?? call.verdict === "in"
   const cm = Math.max(1, Math.round(Math.abs(call.margin) * 100))
-  return `${call.inside ? "IN" : "OUT"} by ${cm} cm`
+  if (inside && cm > 30) return "IN"
+  return `${inside ? "IN" : "OUT"} by ${cm} cm`
 }
 
 // the bounce's uncertainty: the fit's pixel error at that spot, in meters, shrinking with the
