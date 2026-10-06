@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "98.css": "^0.1.21",
+    "blockly": "^13.3.0",
     "bootstrap": "^5.3.8",
     "maplibre-gl": "^5.24.0",
     "react": "^19.3.0",

@@ -111,7 +111,14 @@
 //                                                  document, as in any shared document. Hangouts
 //                                                  (cursors, desktops, follow, handed files) are
 //                                                  memory only and end when they sign off
-//   aim         aimusers                           the account (password hash, profile, Buddy
+//   vb98 programs  vbapps                          Visual Basic 98 programs sent in a message
+//                                                  (server/aim/vbapps.js): they leave every shared
+//                                                  program (the next person becomes owner); one
+//                                                  nobody else is in is deleted. Shared values they
+//                                                  set stay part of the program for the others
+//                                                  (a vote, a board). Programs nobody changes for
+//                                                  30 days are deleted anyway (TTL)
+//   aim         aimusers                          the account (password hash, profile, Buddy
 //                                                  List, blocks, remembered devices) deleted; their
 //                                                  name taken off everyone's Buddy List and block
 //                                                  list; warnings and SmarterChild's memory of

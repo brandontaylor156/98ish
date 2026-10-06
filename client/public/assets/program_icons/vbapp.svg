@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48" shape-rendering="crispEdges">
+  <!-- a Visual Basic 98 program (.vb98): a small running form with a button, and a gold spark -->
+  <rect x="7" y="9" width="34" height="28" fill="#c0c0c0" stroke="#000" stroke-width="1.4"/>
+  <rect x="8" y="10" width="32" height="5" fill="#000080"/>
+  <rect x="9" y="11" width="10" height="3" fill="#fff" opacity="0.85"/>
+  <rect x="12" y="19" width="24" height="5" fill="#fff" stroke="#404040" stroke-width="0.9"/>
+  <rect x="17" y="27" width="14" height="7" fill="#c0c0c0" stroke="#000" stroke-width="1"/>
+  <rect x="18" y="28" width="12" height="1" fill="#fff"/>
+  <rect x="21" y="30" width="6" height="2" fill="#000"/>
+  <path d="M38 30 L40 35 L45 36 L41 39 L42 44 L38 41 L34 44 L35 39 L31 36 L36 35 Z" fill="#ffd700" stroke="#000" stroke-width="0.9"/>
+</svg>

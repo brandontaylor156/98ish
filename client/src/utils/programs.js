@@ -23,6 +23,8 @@ export const programs = [
   // opt-in location sharing with buddies on a map (applets/locator, server/locate)
   // the multiplayer desktop: friends over on your 98ish (applets/hangout, server/aim/hangout.js + ydocs.js)
   { name: "Come Over", app: "hangout", type: "hangout", icon: "/assets/program_icons/hangout.svg", width: 520, height: 560, group: "Internet", also: ["Us"], desktop: false, single: true },
+  // make your own programs and send them in 98 Messenger (applets/vb98, server/aim/vbapps.js)
+  { name: "Visual Basic 98", app: "vb98", type: "vb98", icon: "/assets/program_icons/vb98.svg", width: 780, height: 580, group: "Accessories", also: ["Games"], desktop: false },
   { name: "Buddy Locator", app: "locator", type: "locator", icon: "/assets/program_icons/locator.svg", width: 780, height: 580, group: "Internet", also: ["Us"], desktop: false, single: true },
   { name: "YouTube '98", type: "video", icon: "/assets/program_icons/video-48.png", width: 820, height: 620, group: "Internet", single: true },
   { name: "My Computer", app: "explorer", icon: "/assets/program_icons/computer_explorer.png", width: 640, height: 440, group: null },

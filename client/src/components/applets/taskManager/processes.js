@@ -31,6 +31,7 @@ export const APP_PROFILES = {
   "YouTube '98": { image: "mplayer2.exe", mem: 7752, threads: 9, handles: 141, cpu: [0.9, 12] },
   "Music 98": { image: "wmplayer.exe", mem: 9216, threads: 11, handles: 188, cpu: [0.6, 6] },
   "Come Over": { image: "comeover.exe", mem: 9216, threads: 9, handles: 162, cpu: [0.5, 9] },
+  "Visual Basic 98": { image: "vb6.exe", mem: 14336, threads: 8, handles: 176, cpu: [0.4, 12] },
   "Buddy Locator": { image: "locator.exe", mem: 18432, threads: 12, handles: 214, cpu: [0.7, 14] },
   "Watch Together": { image: "together.exe", mem: 8340, threads: 10, handles: 152, cpu: [0.8, 10] },
   "Internet Explorer": { image: "iexplore.exe", mem: 14872, threads: 11, handles: 296, cpu: [0.8, 9] },

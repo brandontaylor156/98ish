@@ -11,6 +11,7 @@ import { applyReaction, fromServer, isTemp, mergeMessages, previewText, roomCk, 
 import * as historyDb from "./history/historyDb"
 import { attachTogether, handleTogetherEvent, TOGETHER_EVENTS } from "../together/togetherStore"
 import { attachHangout, handleHangoutEvent, HANGOUT_EVENTS } from "../../../utils/hangout"
+import { attachVbApps, handleVbEvent, VBAPP_EVENTS } from "../../../utils/vbapps"
 import { attachYdocs, handleYdocEvent, YDOC_EVENTS } from "../../../utils/ydoc"
 
 // One 98 Messenger session shared by every Messenger window: the Buddy List ("98 Messenger"),
@@ -551,6 +552,31 @@ export const AimProvider = ({ socket, windows, dispatch: dispatchWindow, onOpenV
           target: { kind: "program", name: "Watch Together", extra: { handoff: { id: Date.now(), together: invite.id } } },
         })
       },
+      // Visual Basic 98: a buddy sent a program (in an IM, a chat room or Come Over)
+      "vb:invite": (invite) => {
+        if (!invite?.id) return
+        const action = { kind: "vb98", id: invite.id, label: "Open" }
+        const text = `${invite.from} sent a program: ${invite.title || "a program"}.`
+        const quiet = !interrupts("im", invite.from)
+        const open = () => dispatchWindow({ type: "open_window", payload: launch("Visual Basic 98", { name: invite.title || "Program", handoff: { id: Date.now(), vbapp: invite.id } }) })
+        if (invite.room) dispatch({ type: "room", room: invite.room, message: { id: sysId(), system: true, text, time: Date.now(), action } })
+        else if (invite.hangout) {
+          // everyone in Come Over gets the same program open on their desktop
+          if (!quiet) open()
+        } else {
+          const key = keyOf(invite.from)
+          dispatch({ type: "messages", ck: key, screenName: invite.from, messages: [{ id: sysId(), system: true, text, time: Date.now(), action }] })
+          if (!quiet || windowsRef.current.some((w) => !w.closed && w.aimId === `im:${key}`)) openIm(invite.from, { focus: false })
+        }
+        if (!quiet) sound("imReceive")
+        notify({
+          app: "im",
+          key: `vb:${invite.id}`,
+          title: invite.room ? `${invite.from} in ${invite.room}` : invite.from,
+          text: `Sent you a program: ${invite.title || "a program"}. Tap to open it.`,
+          target: { kind: "program", name: "Visual Basic 98", extra: { name: invite.title || "Program", handoff: { id: Date.now(), vbapp: invite.id } } },
+        })
+      },
       "aim:chatInvite": (invite) => {
         sound("imReceive")
         openWindow(`invite:${keyOf(invite.room)}:${keyOf(invite.from)}`, {
@@ -577,6 +603,7 @@ export const AimProvider = ({ socket, windows, dispatch: dispatchWindow, onOpenV
       disconnect: () => dispatch({ type: "connection", connected: false }),
     }
     for (const event of TOGETHER_EVENTS) handlers[event] = (payload) => handleTogetherEvent(event, payload)
+    for (const event of VBAPP_EVENTS) handlers[event] = (payload) => handleVbEvent(event, payload)
     // Come Over: hangouts and shared documents (utils/hangout.js, utils/ydoc.js)
     for (const event of HANGOUT_EVENTS) handlers[event] = (payload) => handleHangoutEvent(event, payload)
     for (const event of YDOC_EVENTS) handlers[event] = (payload) => handleYdocEvent(event, payload)
@@ -943,15 +970,21 @@ export const AimProvider = ({ socket, windows, dispatch: dispatchWindow, onOpenV
     const comeOver = state.status === "online" ? { request, emit: (event, payload) => socket.emit(event, payload), meKey: myKey } : null
     attachHangout(comeOver)
     attachYdocs(comeOver)
+    // Visual Basic 98's programs in a message
+    attachVbApps(state.status === "online" ? { request, meName: () => stateRef.current.me?.screenName || "" } : null)
   }, [state.status])
 
   // Watch Together's window: { with } / { room } (start from an IM or a chat room), { together }
   // (join), { video, title } (from YouTube '98)
   const openTogether = (handoff = {}) => dispatchWindow({ type: "open_window", payload: launch("Watch Together", { handoff: { id: Date.now(), ...handoff } }) })
 
+  // a program someone sent (Visual Basic 98)
+  const openVbApp = (id, title) => dispatchWindow({ type: "open_window", payload: launch("Visual Basic 98", { name: title || "Program", handoff: { id: Date.now(), vbapp: id } }) })
+
   const value = {
     ...state,
     openTogether,
+    openVbApp,
     // signs 98ish Mail and HomePage Studio requests (null when signed off)
     token: state.status === "online" ? tokenRef.current : null,
     prefs,
