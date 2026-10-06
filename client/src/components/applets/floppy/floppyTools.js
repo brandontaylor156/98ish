@@ -170,7 +170,7 @@ export const ask = async (text, { history = [], dispatch, onToken } = {}) => {
     const pages = await findHelp(intent?.help || text, { useVectors: brain })
     if (intent?.help || pages.length) {
       if (!pages.length) return { reply: "I looked, but I couldn't find a help page about that." }
-      return { reply: `This help page should answer it: "${pages[0].title}". ${pages[0].summary}`, help: pages }
+      return { reply: `This help page should answer it: "${pages[0].title}". ${pages[0].summary}`, help: pages.slice(0, 2) }
     }
     return { reply: brain ? CANT : `${CANT} Or give me a brain (More options) and I'll understand much more.` }
   }
