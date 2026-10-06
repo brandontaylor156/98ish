@@ -4,6 +4,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react"
 import MoreOptions from "../../../shared/MoreOptions"
+import { Select } from "../../../shared/select/Combo"
 import { CHARACTERS } from "../looks.js"
 import { withPaths } from "./core/analyze.js"
 import { buildFrames } from "./core/replay.js"
@@ -23,7 +24,7 @@ const clock = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStar
 
 const rosterFor = (players) => players.map((p, k) => ({ id: `p${p.id}`, team: p.team, ctrl: "cpu", level: "pro", name: p.name, character: CHARACTERS.filter((c) => !c.boss)[(k * 3 + 1) % CHARACTERS.filter((c) => !c.boss).length].id }))
 
-export const TwinPlayer = ({ getEngine, game, video, onBack, onChange, onShare, onDelete }) => {
+export const TwinPlayer = ({ getEngine, game, video, onBack, onChange, onShare, onDelete, onClone = null, onRematch = null }) => {
   const analysis = useMemo(() => withPaths(game.analysis), [game.analysis])
   const rallies = analysis.rallies
   const [tab, setTab] = useState("replay")
@@ -151,13 +152,13 @@ export const TwinPlayer = ({ getEngine, game, video, onBack, onChange, onShare, 
                   {st?.speed === 1 || !st ? "1x" : st.speed === 0.5 ? "½x" : "¼x"}
                 </button>
                 {st?.cam === "follow" && (
-                  <select data-native-select value={st.follow} onChange={(e) => ctl({ follow: Number(e.target.value) })} aria-label="Follow which player">
+                  <Select value={st.follow} onChange={(e) => ctl({ follow: Number(e.target.value) })} aria-label="Follow which player">
                     {analysis.players.map((p, i) => (
                       <option key={p.id} value={i}>
                         {p.name}
                       </option>
                     ))}
-                  </select>
+                  </Select>
                 )}
                 <span className="pkMuted">{st ? `${clock(st.t)} / ${clock(st.duration)}` : ""}</span>
               </div>
@@ -173,30 +174,35 @@ export const TwinPlayer = ({ getEngine, game, video, onBack, onChange, onShare, 
                   </label>
                   <label>
                     Where{" "}
-                    <select value={game.venue || "stadium"} onChange={(e) => onChange({ venue: e.target.value, court: null })} aria-label="Venue">
+                    <Select value={game.venue || "stadium"} onChange={(e) => onChange({ venue: e.target.value, court: null })} aria-label="Venue">
                       {venueChoices().map((v) => (
                         <option key={v.id} value={v.id}>
                           {v.real ? `${v.short} (real)` : v.short}
                         </option>
                       ))}
-                    </select>
+                    </Select>
                   </label>
                   {courts.length > 0 && (
                     <label>
                       Court{" "}
-                      <select value={game.court ?? courts[0].id} onChange={(e) => onChange({ court: isNaN(Number(e.target.value)) ? e.target.value : Number(e.target.value) })} aria-label="Court">
+                      <Select value={game.court ?? courts[0].id} onChange={(e) => onChange({ court: isNaN(Number(e.target.value)) ? e.target.value : Number(e.target.value) })} aria-label="Court">
                         {courts.map((c) => (
                           <option key={c.id} value={c.id}>
                             {c.name}
                           </option>
                         ))}
-                      </select>
+                      </Select>
                     </label>
                   )}
                   <div className="pkTwinButtons">
                     <button type="button" onClick={onShare}>
                       Send to a friend...
                     </button>
+                    {onRematch && (
+                      <button type="button" onClick={onRematch} data-action="twin-rematch">
+                        Rematch against the clones
+                      </button>
+                    )}
                     {onDelete && (
                       <button type="button" onClick={onDelete}>
                         Delete this game
@@ -210,7 +216,7 @@ export const TwinPlayer = ({ getEngine, game, video, onBack, onChange, onShare, 
         </>
       )}
 
-      {tab === "stats" && <TwinStats analysis={analysis} onRally={(i) => (setRi(i), setTab("replay"))} />}
+      {tab === "stats" && <TwinStats analysis={analysis} onRally={(i) => (setRi(i), setTab("replay"))} onClone={onClone} />}
     </div>
   )
 }
@@ -250,7 +256,7 @@ const Heat = ({ heat, team }) => {
   return <canvas ref={ref} className="pkTwinHeat" aria-label="Where they stood (the net at the top)" />
 }
 
-export const TwinStats = ({ analysis, onRally }) => {
+export const TwinStats = ({ analysis, onRally, onClone = null }) => {
   const s = analysis.stats
   const name = (id) => analysis.players.find((p) => p.id === id)?.name || `Player ${id + 1}`
   const color = (id) => analysis.players.find((p) => p.id === id)?.color || "#888"
@@ -324,6 +330,13 @@ export const TwinStats = ({ analysis, onRally }) => {
                 </div>
               ))}
             </div>
+            {onClone && (
+              <div className="pkTwinButtons">
+                <button type="button" onClick={() => onClone(p.id)} data-action="make-clone" data-player={p.id}>
+                  Make a Clone of {name(p.id)}...
+                </button>
+              </div>
+            )}
             {Object.keys(p.third).length > 0 && (
               <p className="pkMuted">
                 Third shots:{" "}

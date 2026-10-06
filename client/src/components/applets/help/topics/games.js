@@ -267,7 +267,7 @@ export const topics = [
     book: "games-action",
     title: "Pickleball 98",
     summary: "3D pickleball with real rules, lessons, a ball machine, drills, a walk-around park with open play, a World Tour and online singles and doubles.",
-    keywords: ["pickleball", "My Park", "park", "venue", "real venues", "Los Cab", "Newport Beach", "Wolf + Bear", "Whittier Narrows", "iPickle", "Paseo Club", "Sinaloa", "California SMASH", "indoor", "favorites", "OpenStreetMap", "open play", "call next", "paddle stacking", "spectate", "watch", "park rep", "dink", "kitchen", "serve", "World Tour", "doubles", "drive", "lob", "paddle", "Locker Room", "outfit", "customize", "swimsuit", "beach", "winter", "practice", "ball machine", "drill", "lesson", "coach", "third shot drop", "reset", "split step", "two-bounce rule", "how to play", "swipe", "move pad", "left-handed", "camera", "swing trail", "swipe trail", "sound", "pop", "Twin Replay", "film a game", "video", "replay my game", "real game", "stats", "heat map", "shot mix", "pose"],
+    keywords: ["pickleball", "My Park", "park", "venue", "real venues", "Los Cab", "Newport Beach", "Wolf + Bear", "Whittier Narrows", "iPickle", "Paseo Club", "Sinaloa", "California SMASH", "indoor", "favorites", "OpenStreetMap", "open play", "call next", "paddle stacking", "spectate", "watch", "park rep", "dink", "kitchen", "serve", "World Tour", "doubles", "drive", "lob", "paddle", "Locker Room", "outfit", "customize", "swimsuit", "beach", "winter", "practice", "ball machine", "drill", "lesson", "coach", "third shot drop", "reset", "split step", "two-bounce rule", "how to play", "swipe", "move pad", "left-handed", "camera", "swing trail", "swipe trail", "sound", "pop", "Twin Replay", "Twin Clones", "clone", "play my friend", "film a game", "video", "replay my game", "real game", "stats", "heat map", "shot mix", "pose"],
     programs: ["Pickleball 98"],
     body: [
       "Pickleball 98 is pickleball in 3D, with real rules and real ball physics. Play the computer, learn the game in Practice, go on a World Tour, play a friend on the same keyboard, or play people online.",
@@ -328,6 +328,16 @@ export const topics = [
           "**Stats:** rally lengths and highlights (tap one to watch it), and for each player where they stood (a heat map of their half), time at the kitchen line, meters covered, their shot mix (serve, return, drive, drop, dink, volley, overhead, lob), third-shot choices, and how often they hit a rally's last shot.",
           "**Send to a friend** makes a small replay file (no video: just everyone's positions and the hits); they open it in **Twin Replay > More options » > Open a replay file...**. **Try the demo rally** (under More options) shows what it does without filming anything.",
           "Honest limits: the shot kinds are a good guess, not a referee; the ball's path is rebuilt between the hits (following the real ball in phone video isn't reliable yet); points and errors aren't judged. People walking through, or a player hidden behind another, can confuse it for a moment.",
+        ],
+      },
+      { h: "Twin Clones: play your friends" },
+      "A **clone** is a computer player that plays like a real person, learned from their Twin Replay games: where they stand (do they rush the kitchen line or stay back?), how fast they move and react, their third shot (drop or drive), what they do at the kitchen line (dink or speed it up), resets, lobs, where their dinks and drives go, how deep their serve is.",
+      {
+        list: [
+          "Open a game in Twin Replay, go to **Stats** and press **Make a Clone of...** under a player. Tick **This is me** for yourself. Make more clones from more games, or pick **Add to** an existing clone: the meter goes from \"A first guess\" to \"Plays just like them\". With little film a clone plays close to the level it starts from (Rookie, Club, Pro, Legend) and moves toward the real person as it sees more.",
+          "**Play** a clone: on the **Play** screen pick it under **Against** (or as your **Partner** in doubles; clones are at the top as \"Clone: name\"), or in **Twin Replay > More options » > Your clones**. **Rematch against the clones** (a game's More options) puts you back in that game's matchup at the same venue and court, everyone else played by their clone.",
+          "**Sharing:** only your own clone (made with This is me) can be sent: **Share...** in Your clones makes a small file (a few KB: counts of what you did, no video); your friend opens it with **Open a friend's clone...**. A clone you made from your video of someone else is labeled \"Built from your video\" and stays on this device; to play their clone together, they make and share their own.",
+          "Honest limits: a clone copies tendencies the video can show (positions, shot kinds, timing); it can't copy touch or spin exactly, and the video can't tell a winner from an error, so how often their shots end rallies only nudges the clone's accuracy.",
         ],
       },
       { h: "How a good player plays" },

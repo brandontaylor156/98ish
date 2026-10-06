@@ -29,6 +29,8 @@ import { bindingsFor, keyName } from "./input.js"
 import "./Pickleball.css"
 import "./Overlay.css"
 import { helpItem } from "../../../utils/help"
+import { getClone } from "./twin/clone/store.js"
+import { cloneLevel } from "./twin/clone/profile.js"
 // Real Games (the pickleball you play in real life: sessions, scorekeeper, matches, ladder; applets/pbclub, server/pbclub)
 const RealGames = React.lazy(() => import("../pbclub/PbClub"))
 import { ParkHud, ParkIntro, ParkMenu, ParkResult, ParkTurn, ParkVenues } from "./park/ParkHud"
@@ -144,22 +146,34 @@ const TONE = { good: "good", bad: "bad", call: "warn", info: "ok" }
 let uid = 0
 
 // the line-up for a match against the computer
-const rosterFor = ({ doubles, level, me, outfit, opponent, partner, p2, humans = 1 }) => {
+const rosterFor = ({ doubles, level, me, outfit, opponent, opponent2 = null, partner, p2, humans = 1 }) => {
   const rand = Math.random
   const exclude = [me, p2?.character].filter(Boolean)
-  const pick = (id) => (id && id !== "random" ? characterById(id) : pickOpponents(rand, exclude, 1)[0])
-  const cpu = (c, team, id) => {
+  const pick = (id) => (id && id !== "random" && !String(id).startsWith("clone:") ? characterById(id) : pickOpponents(rand, exclude, 1)[0])
+  // a Twin Clone (twin/clone/): "clone:<id>" plays with the level measured from that person
+  const cloneEntry = (id, team, rid) => {
+    const prof = getClone(String(id).slice(6))
+    if (!prof) return null
+    const c = prof.character ? characterById(prof.character) : pick(null)
+    exclude.push(c.id)
+    return { id: rid, team, ctrl: "cpu", level: cloneLevel(prof), name: prof.name, character: c.id, hand: prof.hand, clone: prof.id }
+  }
+  const cpu = (c, team, id, want = null) => {
+    if (want && String(want).startsWith("clone:")) {
+      const e = cloneEntry(want, team, id)
+      if (e) return e
+    }
     exclude.push(c.id)
     return { id, team, ctrl: "cpu", level, style: c.style, name: c.nick, character: c.id }
   }
   const meC = characterById(me)
   const roster = [{ id: "you", team: 0, ctrl: "human", slot: 0, name: humans > 1 ? `P1 ${meC.nick}` : meC.nick, character: me, outfit, stats: meC.stats }]
-  if (doubles) roster.push(cpu(pick(partner), 0, "partner"))
+  if (doubles) roster.push(cpu(pick(partner), 0, "partner", partner))
   if (humans > 1) {
     const c = characterById(p2.character)
     roster.push({ id: "opp1", team: 1, ctrl: "human", slot: 1, name: `P2 ${c.nick}`, character: c.id, outfit: p2.outfit, stats: c.stats })
-  } else roster.push(cpu(pick(opponent), 1, "opp1"))
-  if (doubles) roster.push(cpu(pick(null), 1, "opp2"))
+  } else roster.push(cpu(pick(opponent), 1, "opp1", opponent))
+  if (doubles) roster.push(cpu(pick(opponent2), 1, "opp2", opponent2))
   return roster
 }
 
@@ -443,6 +457,22 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
     setScreen("main")
     engineRef.current?.newMatch({ doubles: p.doubles, level: p.level, scoring: p.scoring, target: p.target, venue, roster: dress(roster, venue), humans: 1 })
   }
+  // a match against Twin Clones (Twin Replay's clones list or Rematch): spec { doubles,
+  // partner, opponents: [clone ids | null], venue, court } at that game's venue and court
+  const startClones = async (spec) => {
+    const p = prefsRef.current
+    const ids = (spec.opponents || []).map((id) => (id ? `clone:${id}` : null))
+    const roster = rosterFor({ doubles: !!spec.doubles, level: p.level, me: p.character, outfit: p.outfit, opponent: ids[0], opponent2: ids[1] || null, partner: spec.partner ? `clone:${spec.partner}` : null })
+    let venue = "park"
+    if (spec.venue) {
+      const { twinVenue } = await import("./twin/venues.js")
+      venue = await twinVenue(spec.venue, spec.court).catch(() => "park")
+    }
+    reset()
+    setSession({ kind: "clones", spec, level: p.level })
+    setScreen("main")
+    engineRef.current?.newMatch({ doubles: !!spec.doubles, level: p.level, scoring: p.scoring, target: p.target, venue, roster: dress(roster, typeof venue === "string" ? venue : "park"), humans: 1 })
+  }
   const startTour = (t) => {
     const p = prefsRef.current
     reset()
@@ -526,6 +556,7 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
     const s = sessionRef.current
     if (!s) return
     if (s.kind === "quick") startQuick()
+    else if (s.kind === "clones") startClones(s.spec)
     else if (s.kind === "tour") startTour(s.tour)
     else if (s.kind === "versus") startVersus()
     else if (s.kind === "train") startTrain(s.plan, { intro: false })
@@ -1319,7 +1350,7 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
         {/* ---------- Twin Replay (twin/): a real game, filmed, replayed here ---------- */}
         {screen === "twin" && phase !== "loading" && phase !== "error" && (
           <React.Suspense fallback={<div className="pkCenter pkDim"><div className="pkPanel window">Opening Twin Replay...</div></div>}>
-            <TwinReplay getEngine={getEngine} onExit={() => (setScreen(twinBack), setTwinBack("main"))} />
+            <TwinReplay getEngine={getEngine} onExit={() => (setScreen(twinBack), setTwinBack("main"))} onPlayClones={(spec) => withScheme(() => startClones(spec))} />
           </React.Suspense>
         )}
 
