@@ -439,7 +439,7 @@ function App() {
               )}
             </div>
           )}
-          <Helper windows={windows} mobile={mobile} />
+          <Helper windows={windows} mobile={mobile} dispatch={dispatch} />
           {tour && (
             <React.Suspense fallback={null}>
               <Tour windows={windows} dispatch={dispatch} setStartMenuVisible={setStartMenuVisible} mobile={mobile} />
