@@ -34,6 +34,7 @@ import { cloneLevel } from "./twin/clone/profile.js"
 // Real Games (the pickleball you play in real life: sessions, scorekeeper, matches, ladder; applets/pbclub, server/pbclub)
 const RealGames = React.lazy(() => import("../pbclub/PbClub"))
 import ParkLoading from "./park/ParkLoading"
+const SplatPanel = React.lazy(() => import("./park/splat/SplatPanel"))
 // let the browser paint (the loading screen) before a step that blocks the page
 const nextPaint = () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))
 import { ParkHud, ParkIntro, ParkMenu, ParkResult, ParkTurn, RealFriendsBar, VoiceChip } from "./park/ParkHud"
@@ -1444,6 +1445,11 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
           />
         )}
         {screen === "park" && phase === "world" && parkUi.intro && <ParkIntro showPad={showPad} onDone={() => (setPrefs({ parkIntro: true }), setParkUi((u) => ({ ...u, intro: false })))} />}
+        {screen === "park" && parkUi.backdrop && parkWorld && (
+          <React.Suspense fallback={null}>
+            <SplatPanel world={parkWorld} phone={!!mobile} venueName={parkWorld?.layout?.name || "My Park"} onClose={() => (setParkUi((u) => ({ ...u, backdrop: false })), stageRef.current?.focus({ preventScroll: true }))} />
+          </React.Suspense>
+        )}
         {screen === "park" && parkUi.turn && !parkUi.menu && <ParkTurn key={parkUi.turn.court} turn={parkUi.turn} onGo={() => withScheme(() => startParkGame(parkUi.turn))} />}
         {screen === "park" && phase === "world" && parkUi.menu && (
           <ParkMenu
@@ -1458,6 +1464,7 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
             venueName={parkWorld?.layout?.name || "My Park"}
             onVenues={() => (setParkUi((u) => ({ ...u, menu: false })), setParkPick(true))}
             onLeave={leavePark}
+            onBackdrop={prefs.quality === "low" ? null : () => setParkUi((u) => ({ ...u, menu: false, backdrop: true }))}
             voice={{ ...parkVoice, names: parkWorld?.voicePlace?.().names || {} }}
           />
         )}

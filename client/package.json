@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@gradio/client": "^2.7.1",
     "@huggingface/transformers": "^4.3.1",
     "@sparkjsdev/spark": "^2.3.1",
     "98.css": "^0.1.21",

@@ -1,5 +1,47 @@
 /* Pickleball 98: a 3D venue under a menu bar; 98-style menus and a TV broadcast HUD on top */
 
+/* ---------- photoreal splat backdrops (park/splat/SplatPanel.jsx) ---------- */
+.pkSplatPanel {
+  width: min(380px, calc(100% - 24px));
+}
+.pkSplatPanel .window-body {
+  display: grid;
+  gap: 8px;
+}
+.pkSplatPanel p {
+  margin: 0;
+}
+.pkSplatButtons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.pkSplatButtons button {
+  flex: 1 1 140px;
+  min-height: 32px;
+}
+.pkSplatBusy {
+  padding: 4px 6px;
+  background: #ffffe1;
+  border: 1px solid #000;
+}
+.pkSplatError {
+  color: #a00000;
+}
+.pkSplatHint {
+  color: #444;
+  font-size: 11px;
+}
+.pkSplatMap {
+  width: 100%;
+  max-width: 320px;
+  aspect-ratio: 1;
+  justify-self: center;
+  cursor: crosshair;
+  touch-action: manipulation;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px grey;
+}
+
 .pkRoot {
   position: relative;
   height: calc(100% - 25px);
