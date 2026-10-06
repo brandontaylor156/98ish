@@ -117,11 +117,18 @@ const playStyle = (profile, seconds = 220, seed = 21) => {
 }
 
 test("clones play like their people: the rusher lives at the line and drops; the baseliner stays back and drives", () => {
-  const rusher = playStyle(fit(RUSHER, 60))
-  const baseliner = playStyle(fit(BASELINER, 60))
+  // three seeded matches each, added up (a match has only a handful of third shots)
+  const many = (profile) => {
+    const runs = [21, 22, 23].map((seed) => playStyle(profile, 300, seed))
+    const sum = (k) => runs.reduce((a, r) => a + r[k], 0)
+    const w = (k, n) => runs.reduce((a, r) => a + r[k] * r[n], 0) / Math.max(1, sum(n))
+    return { net: runs.reduce((a, r) => a + r.net, 0) / runs.length, drop: w("drop", "thirds"), fast: w("fast", "lineShots"), thirds: sum("thirds"), lineShots: sum("lineShots") }
+  }
+  const rusher = many(fit(RUSHER, 60))
+  const baseliner = many(fit(BASELINER, 60))
   console.log("rusher", rusher, "baseliner", baseliner)
   assert.ok(rusher.net > baseliner.net + 0.2, `time at the line: rusher ${rusher.net.toFixed(2)} vs baseliner ${baseliner.net.toFixed(2)}`)
-  assert.ok(rusher.thirds >= 5 && baseliner.thirds >= 5, "enough third shots seen")
+  assert.ok(rusher.thirds >= 10 && baseliner.thirds >= 10, `enough third shots seen (${rusher.thirds}, ${baseliner.thirds})`)
   assert.ok(rusher.drop > baseliner.drop + 0.25, `third-shot drops: ${rusher.drop.toFixed(2)} vs ${baseliner.drop.toFixed(2)}`)
 })
 
