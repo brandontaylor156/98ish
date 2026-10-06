@@ -10,6 +10,8 @@ import { registerSearchProvider } from "../../../utils/searchIndex"
 import { applyReaction, fromServer, isTemp, mergeMessages, previewText, roomCk, sendFailure, tempId } from "./history/historyCore"
 import * as historyDb from "./history/historyDb"
 import { attachTogether, handleTogetherEvent, TOGETHER_EVENTS } from "../together/togetherStore"
+import { attachHangout, handleHangoutEvent, HANGOUT_EVENTS } from "../../../utils/hangout"
+import { attachYdocs, handleYdocEvent, YDOC_EVENTS } from "../../../utils/ydoc"
 
 // One 98 Messenger session shared by every Messenger window: the Buddy List ("98 Messenger"),
 // Instant Message windows, chat rooms, Buddy Info and chat invitations.
@@ -575,6 +577,9 @@ export const AimProvider = ({ socket, windows, dispatch: dispatchWindow, onOpenV
       disconnect: () => dispatch({ type: "connection", connected: false }),
     }
     for (const event of TOGETHER_EVENTS) handlers[event] = (payload) => handleTogetherEvent(event, payload)
+    // Come Over: hangouts and shared documents (utils/hangout.js, utils/ydoc.js)
+    for (const event of HANGOUT_EVENTS) handlers[event] = (payload) => handleHangoutEvent(event, payload)
+    for (const event of YDOC_EVENTS) handlers[event] = (payload) => handleYdocEvent(event, payload)
     for (const event of CALL_EVENTS) {
       handlers[event] = (payload) => {
         if (callListener.current) callListener.current(event, payload)
@@ -934,6 +939,10 @@ export const AimProvider = ({ socket, windows, dispatch: dispatchWindow, onOpenV
   // Watch Together uses this session's socket while signed on
   useEffect(() => {
     attachTogether(state.status === "online" ? { request, meKey: myKey } : null)
+    // Come Over sends cursors without waiting for an answer (emit), everything else as requests
+    const comeOver = state.status === "online" ? { request, emit: (event, payload) => socket.emit(event, payload), meKey: myKey } : null
+    attachHangout(comeOver)
+    attachYdocs(comeOver)
   }, [state.status])
 
   // Watch Together's window: { with } / { room } (start from an IM or a chat room), { together }

@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48" shape-rendering="crispEdges">
+  <!-- Come Over: a 98 monitor with two friends' arrow pointers on its screen (red and blue) -->
+  <rect x="5" y="5" width="38" height="29" fill="#c0c0c0" stroke="#000" stroke-width="1.5"/>
+  <rect x="9" y="9" width="30" height="21" fill="#008080" stroke="#404040" stroke-width="1"/>
+  <rect x="12" y="12" width="12" height="9" fill="#fff" stroke="#000" stroke-width="1"/>
+  <rect x="12" y="12" width="12" height="2" fill="#000080"/>
+  <path d="M17 15 L17 25 L19.5 22.5 L21.5 26.5 L23 25.8 L21 21.8 L24.5 21.8 Z" fill="#d00000" stroke="#000" stroke-width="0.8"/>
+  <path d="M28 13 L28 23 L30.5 20.5 L32.5 24.5 L34 23.8 L32 19.8 L35.5 19.8 Z" fill="#0050d0" stroke="#000" stroke-width="0.8"/>
+  <rect x="18" y="34" width="12" height="4" fill="#a0a0a0" stroke="#000" stroke-width="1"/>
+  <rect x="12" y="38" width="24" height="4" fill="#c0c0c0" stroke="#000" stroke-width="1.5"/>
+</svg>
