@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react"
 import Combo from "../../shared/select/Combo"
+import { listClones } from "./twin/clone/store.js"
 import { CHARACTERS, OUTFITS, characterById } from "./looks.js"
 import { STYLES, LEVELS } from "./ai.js"
 import { VENUE_INFO as VENUES } from "./looks.js"
@@ -176,7 +177,9 @@ const venueOptions = (tour) => {
 // ---------- Quick Match ----------
 export const QuickMenu = ({ prefs, setPrefs, tour, onStart, onBack, onPlayers, onOnline, onTour, onVersus }) => {
   const me = characterById(prefs.character)
-  const pickers = [["random", "Random"], ...CHARACTERS.filter((c) => !c.boss && c.id !== prefs.character).map((c) => [c.id, c.nick])]
+  // your Twin Clones (Twin Replay > Your clones) play like the real people they're built from
+  const clones = listClones().map((c) => [`clone:${c.id}`, `Clone: ${c.name}`])
+  const pickers = [["random", "Random"], ...clones, ...CHARACTERS.filter((c) => !c.boss && c.id !== prefs.character).map((c) => [c.id, c.nick])]
   return (
     <Panel title="Quick Match" onBack={onBack} wide>
       <div className="pkForm">

@@ -85,7 +85,8 @@ const makePlayer = ({ id, team, ctrl = "cpu", slot = 0, seat = null, level = "in
   ctrl, // human | cpu | remote | feeder
   slot, // a person's input slot (keyboard/gamepad/touch) on this computer
   human: ctrl === "human" || ctrl === "remote",
-  level: levelFor(level, style),
+  // a level name (+ style), or a ready level object (a Twin Clone: twin/clone/profile.js)
+  level: level && typeof level === "object" ? level : levelFor(level, style),
   name: name || id,
   look, // what they look like (looks.js, locker.js)
   // which hand holds the paddle (+1 right, -1 left: the look's "plays"), and a two-handed

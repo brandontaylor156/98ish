@@ -11,6 +11,7 @@ import { filePayload, shareOut } from "../../../../utils/share"
 import { Calibrate } from "./Calibrate"
 import { Recorder } from "./Recorder"
 import { TwinPlayer } from "./TwinPlayer"
+import { CloneDialog, ClonesPanel, useClones } from "./clone/Clones"
 import { readGame, grabFrame, READ_FPS } from "./reader.js"
 import { deleteGame, getGame, getVideo, listGames, newId, putGame, putVideo } from "./store.js"
 import { fromTwin, MAX_TWIN_BYTES, toTwin } from "./core/twinfile.js"
@@ -36,7 +37,7 @@ const readTwinFile = async (file) => {
   return fromTwin(JSON.parse(text))
 }
 
-export default function TwinReplay({ getEngine, onExit }) {
+export default function TwinReplay({ getEngine, onExit, onPlayClones = null }) {
   const [view, setView] = useState("home")
   const [games, setGames] = useState([])
   const [game, setGame] = useState(null) // the open game (with analysis)
@@ -46,6 +47,8 @@ export default function TwinReplay({ getEngine, onExit }) {
   const [error, setError] = useState(null)
   const [paused, setPaused] = useState(false)
   const [live, setLive] = useState(null) // tracked dots while reading
+  const [cloneFor, setCloneFor] = useState(null) // a player in the open game to make a clone of
+  const clones = useClones()
   const control = useRef({ paused: false, cancelled: false })
   const fileRef = useRef(null)
   const twinRef = useRef(null)
@@ -154,6 +157,19 @@ export default function TwinReplay({ getEngine, onExit }) {
     }
   }
 
+  // Rematch: you in your own place (your clone's player in this game, else the near side's
+  // first player), the others as their clones (anyone without one: a computer player)
+  const gameKey = game ? (game.demo ? `demo:${game.id || "rally"}` : game.id) : null
+  const cloneOf = (playerId) => clones.find((c) => (c.sources || []).some((s) => s.game === gameKey && s.player === playerId)) || null
+  const rematch = () => {
+    const ps = game.analysis.players
+    const meP = ps.find((p) => cloneOf(p.id)?.origin === "self") || ps.find((p) => p.team === 0)
+    const mate = ps.find((p) => p.team === meP.team && p.id !== meP.id)
+    const opps = ps.filter((p) => p.team !== meP.team)
+    onPlayClones?.({ doubles: ps.length > 2, partner: mate ? cloneOf(mate.id)?.id || null : null, opponents: opps.map((p) => cloneOf(p.id)?.id || null), venue: game.venue || null, court: game.court ?? null })
+  }
+  const canRematch = !!(onPlayClones && game?.analysis && game.analysis.players.some((p) => cloneOf(p.id) && p.team !== (game.analysis.players.find((q) => cloneOf(q.id)?.origin === "self")?.team ?? 0)))
+
   const demo = async () => {
     const { demoGame } = await import("./demo.js")
     setGame(demoGame())
@@ -186,6 +202,9 @@ export default function TwinReplay({ getEngine, onExit }) {
                 </button>
                 <button type="button" onClick={() => twinRef.current?.click()}>
                   Open a replay file...
+                </button>
+                <button type="button" onClick={() => setView("clones")} data-action="twin-clones">
+                  Your clones{clones.length ? ` (${clones.length})` : ""}
                 </button>
               </div>
               <p className="pkMuted">
@@ -267,8 +286,13 @@ export default function TwinReplay({ getEngine, onExit }) {
           onChange={changeGame}
           onShare={share}
           onDelete={game.demo ? null : async () => (await deleteGame(game.id), refresh(), setView("home"))}
+          onClone={setCloneFor}
+          onRematch={canRematch ? rematch : null}
         />
       )}
+
+      {view === "clones" && <ClonesPanel onBack={() => setView("home")} onPlay={(id) => onPlayClones?.({ doubles: false, partner: null, opponents: [id], venue: null, court: null })} />}
+      {cloneFor !== null && game?.analysis && <CloneDialog game={game} playerId={cloneFor} onClose={() => setCloneFor(null)} />}
     </div>
   )
 }
