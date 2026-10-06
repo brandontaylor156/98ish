@@ -113,11 +113,24 @@ export const loadBrain = async (windows) => {
   return state
 }
 
-export const generate = (messages, { onToken, max = 160 } = {}) => {
+// A device too slow for the model (an old phone's CPU, a busy computer) mustn't hang Floppy:
+// past the time limit the brain is let go and the answer is "too slow"
+export const GENERATE_LIMIT_MS = 45_000
+export const generate = (messages, { onToken, max = 160, limitMs = GENERATE_LIMIT_MS } = {}) => {
   const id = ++seq
   const spec = state.model || MODELS.wasm
   return new Promise((resolve, reject) => {
-    pending.set(id, { resolve, reject, onToken })
+    const timer = setTimeout(() => {
+      if (!pending.has(id)) return
+      pending.delete(id)
+      unloadBrain()
+      reject(new Error("slow"))
+    }, limitMs)
+    pending.set(id, {
+      resolve: (v) => (clearTimeout(timer), resolve(v)),
+      reject: (e) => (clearTimeout(timer), reject(e)),
+      onToken,
+    })
     start().postMessage({ type: "generate", id, messages, max, template: spec.template || {} })
   })
 }
