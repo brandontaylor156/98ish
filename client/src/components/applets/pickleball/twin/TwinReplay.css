@@ -26,6 +26,7 @@
 .pkTwin[data-view="game"] .pkTwinBar,
 .pkTwin[data-view="game"] .pkTwinStats,
 .pkTwin[data-view="game"] .pkTwinPip,
+.pkTwin[data-view="game"] .pkTwinMoment,
 .pkTwin[data-view="game"] .pkCenter {
   pointer-events: auto;
 }
@@ -61,6 +62,11 @@
   width: 100%;
   margin: 0 auto;
   box-sizing: border-box;
+}
+/* (a scrolling column: the cards keep their height instead of squeezing each other) */
+.pkTwinHome > *,
+.pkTwinScroll > * {
+  flex: none;
 }
 .pkTwinHero p {
   margin: 6px 0;

@@ -2060,7 +2060,7 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
     twinState() {
       if (!replay?.external) return null
       const fr = replay.frames
-      return { t: fr[replay.i].t - fr[0].t + replay.t, duration: fr[fr.length - 1].t - fr[0].t, paused: replay.paused, speed: replay.speed, cam: replay.cam, follow: replay.follow, ended: replay.ended }
+      return { t: fr[replay.i].t - fr[0].t + replay.t, duration: fr[fr.length - 1].t - fr[0].t, paused: replay.paused, speed: replay.speed, cam: replay.cam, follow: replay.follow, ended: replay.ended, ghost: !!ghost }
     },
     stopTwin() {
       if (replay?.external) endReplay(true)

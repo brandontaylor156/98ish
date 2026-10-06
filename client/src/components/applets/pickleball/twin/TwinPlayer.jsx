@@ -61,7 +61,9 @@ export const TwinPlayer = ({ getEngine, game, video, onBack, onChange, onShare, 
       // a Coach moment: slow, following the player, from just before it, with the ghost
       if (moment && ri === momentRally) {
         const idx = Math.max(0, analysis.players.findIndex((p) => p.id === moment.player))
-        e?.twinControl({ cam: "follow", follow: idx, speed: 0.5 })
+        // (runs to the line read best from the side; positions on the court from above)
+        const cam = moment.ghost === "kitchen" ? "side" : moment.ghost === "recover" || moment.ghost === "spacing" ? "top" : "broadcast"
+        e?.twinControl({ cam, follow: idx, speed: 0.5 })
         e?.twinSeek(Math.max(0, moment.t - window_.from - 1.5))
         if (moment.ghost) e?.twinGhost({ situations: ghostSituations(frames, idx, analysis, moment), look: lookFor(roster[idx].character) })
       }
@@ -130,7 +132,7 @@ export const TwinPlayer = ({ getEngine, game, video, onBack, onChange, onShare, 
         <>
           {url && showVideo && <video ref={videoRef} className="pkTwinPip" src={url} muted playsInline aria-label="Your video" />}
           {moment && ri === momentRally && (
-            <div className="pkTwinMoment" data-coach-moment>
+            <div className="pkTwinMoment" data-coach-moment data-ghost={st?.ghost ? "on" : "off"}>
               <b>{moment.title || "Coach"}</b>
               <span>{moment.note}</span>
               {moment.ghost && <small>The see-through player is the Pro way.</small>}

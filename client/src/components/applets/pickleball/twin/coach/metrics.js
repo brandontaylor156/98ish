@@ -484,7 +484,8 @@ export const summarize = (m, obs, target = "pro") => {
     gap,
     explain: m.explain,
     detail: m.detail ? m.detail(obs) : "",
-    moments: bad.slice(0, 5).map((o) => ({ game: o.game, t: o.t, note: o.note, ghost: o.ghost || null, player: o.player })),
+    // (moments from different points: at least 4 s apart)
+    moments: bad.filter((o, i) => !bad.slice(0, i).some((p) => p.game === o.game && Math.abs(p.t - o.t) < 4)).slice(0, 5).map((o) => ({ game: o.game, t: o.t, note: o.note, ghost: o.ghost || null, player: o.player })),
     worstKind: m.worstKind ? m.worstKind(obs) : undefined,
   }
 }

@@ -27,12 +27,12 @@ const Ruler = ({ pos, target }) => {
   const x = (p) => 6 + ((Math.max(-1, Math.min(3, p)) + 1) / 4) * 188
   const ti = LEVEL_IDS.indexOf(target)
   return (
-    <svg className="pkCoachRuler" viewBox="0 0 200 22" aria-hidden="true">
-      <rect x="6" y="8" width="188" height="6" className="pkCoachRulerBar" />
+    <svg className="pkCchRuler" viewBox="0 0 200 22" aria-hidden="true">
+      <rect x="6" y="8" width="188" height="6" className="pkCchRulerBar" />
       {LEVEL_IDS.map((id, i) => (
-        <line key={id} x1={x(i)} x2={x(i)} y1="5" y2="17" className={i === ti ? "pkCoachTick is-target" : "pkCoachTick"} />
+        <line key={id} x1={x(i)} x2={x(i)} y1="5" y2="17" className={i === ti ? "pkCchTick is-target" : "pkCchTick"} />
       ))}
-      {pos !== null && <circle cx={x(pos)} cy="11" r="4.5" className="pkCoachMark" />}
+      {pos !== null && <circle cx={x(pos)} cy="11" r="4.5" className="pkCchMark" />}
     </svg>
   )
 }
@@ -48,17 +48,17 @@ const Spark = ({ series, band, better }) => {
   const Y = (v) => 34 - ((v - lo) / span) * 28
   const pts = series.map((s, i) => `${X(i).toFixed(1)},${Y(s.v).toFixed(1)}`).join(" ")
   return (
-    <svg className="pkCoachSpark" viewBox="0 0 120 40" aria-hidden="true">
-      <line x1="4" x2="116" y1={Y(band)} y2={Y(band)} className="pkCoachBand" />
-      <polyline points={pts} className="pkCoachLine" />
-      <circle cx={X(series.length - 1)} cy={Y(series.at(-1).v)} r="2.6" className={`pkCoachEnd ${trendOf(series, better) > 0 ? "is-up" : trendOf(series, better) < 0 ? "is-down" : ""}`} />
+    <svg className="pkCchSpark" viewBox="0 0 120 40" aria-hidden="true">
+      <line x1="4" x2="116" y1={Y(band)} y2={Y(band)} className="pkCchBand" />
+      <polyline points={pts} className="pkCchLine" />
+      <circle cx={X(series.length - 1)} cy={Y(series.at(-1).v)} r="2.6" className={`pkCchEnd ${trendOf(series, better) > 0 ? "is-up" : trendOf(series, better) < 0 ? "is-down" : ""}`} />
     </svg>
   )
 }
 
 const MePickers = ({ games, me, setMe }) =>
   games.map((g) => (
-    <label key={g.key} className="pkCoachMe">
+    <label key={g.key} className="pkCchMe">
       <span>
         {g.title} <small className="pkMuted">{when(g.created)}</small>
       </span>
@@ -144,8 +144,8 @@ export default function CoachPanel({ focus = null, demo = null, onWatch, onDrill
   const unnamed = (games || []).filter((g) => coach.me[g.key] === undefined)
 
   return (
-    <div className="pkCoach" data-coach-tab={tab}>
-      <div className="pkCoachTop">
+    <div className="pkCch" data-coach-tab={tab}>
+      <div className="pkCchTop">
         <button type="button" onClick={onBack}>
           ‹ Back
         </button>
@@ -163,18 +163,18 @@ export default function CoachPanel({ focus = null, demo = null, onWatch, onDrill
         </div>
       </div>
 
-      <div className="pkCoachScroll">
+      <div className="pkCchScroll">
         {games === null && <p className="pkMuted">Looking at your games...</p>}
 
         {games && !games.length && (
-          <div className="pkPanel window pkCoachCard">
+          <div className="pkPanel window pkCchCard">
             <b>Film a game first</b>
             <p>Coach learns your game from Twin Replay: film a real game (Real Games &gt; Film a Game), then come back here. Or open Twin Replay's demo rally to see how it works.</p>
           </div>
         )}
 
         {games && games.length > 0 && !mine.length && tab === "game" && (
-          <div className="pkPanel window pkCoachCard">
+          <div className="pkPanel window pkCchCard">
             <b>Which player are you?</b>
             <p className="pkMuted">Pick yourself in a game and Coach reads your part of it.</p>
             <MePickers games={games} me={coach.me} setMe={setMe} />
@@ -183,30 +183,30 @@ export default function CoachPanel({ focus = null, demo = null, onWatch, onDrill
 
         {tab === "game" && diag && (
           <>
-            <div className="pkPanel window pkCoachCard pkCoachLevel" data-coach-level>
+            <div className="pkPanel window pkCchCard pkCchLevel" data-coach-level>
               <div>
                 <small className="pkMuted">From {mine.length === 1 ? "1 game" : `${mine.length} games`}</small>
                 <b>{diag.level.label}</b>
                 {diag.level.pos !== null && <Ruler pos={diag.level.pos} target={target} />}
               </div>
-              {streak > 0 && <span className="pkCoachStreak">{streak} week{streak > 1 ? "s" : ""} in a row</span>}
+              {streak > 0 && <span className="pkCchStreak">{streak} week{streak > 1 ? "s" : ""} in a row</span>}
             </div>
-            <ul className="pkCoachList">
+            <ul className="pkCchList">
               {diag.metrics.map((m) => {
                 const [label, cls] = VERDICT[m.verdict]
                 const isOpen = open === m.id
                 return (
-                  <li key={m.id} className={`pkCoachRow is-${cls}`} data-metric={m.id} data-verdict={m.verdict}>
-                    <button type="button" className="pkCoachRowHead" onClick={() => setOpen(isOpen ? null : m.id)} aria-expanded={isOpen}>
-                      <span className={`pkCoachChip is-${cls}`}>{label}</span>
-                      <span className="pkCoachName">{m.label}</span>
-                      <span className="pkCoachVal">
+                  <li key={m.id} className={`pkCchRow is-${cls}`} data-metric={m.id} data-verdict={m.verdict}>
+                    <button type="button" className="pkCchRowHead" onClick={() => setOpen(isOpen ? null : m.id)} aria-expanded={isOpen}>
+                      <span className={`pkCchChip is-${cls}`}>{label}</span>
+                      <span className="pkCchName">{m.label}</span>
+                      <span className="pkCchVal">
                         {formatValue(m)}
                         {m.pos !== null && <small className="pkMuted"> · {LEVEL_LABEL[target]}: {m.better === "high" ? "≥" : "≤"} {formatValue(m, m.band)}</small>}
                       </span>
                     </button>
                     {isOpen && (
-                      <div className="pkCoachRowBody">
+                      <div className="pkCchRowBody">
                         {m.pos !== null && <Ruler pos={m.pos} target={target} />}
                         <p>{m.explain}</p>
                         {m.detail && <p className="pkMuted">{m.detail}</p>}
@@ -232,10 +232,10 @@ export default function CoachPanel({ focus = null, demo = null, onWatch, onDrill
         )}
 
         {tab === "plan" && (
-          <div className="pkCoachPlan">
+          <div className="pkCchPlan">
             {!diag && <p className="pkMuted">Pick yourself in a filmed game first (Your game).</p>}
             {diag && (!plan || !plan.items.length) && (
-              <div className="pkPanel window pkCoachCard">
+              <div className="pkPanel window pkCchCard">
                 <b>Your practice week</b>
                 <p>Coach picks your three biggest fixable weaknesses and builds three short practice sessions from Pickleball 98's drills.</p>
                 <div className="pkTwinButtons">
@@ -248,18 +248,18 @@ export default function CoachPanel({ focus = null, demo = null, onWatch, onDrill
             )}
             {plan?.items?.length > 0 && (
               <>
-                <div className="pkPanel window pkCoachCard">
+                <div className="pkPanel window pkCchCard">
                   <b>This week: {plan.weaknesses.map((w) => w.label.toLowerCase()).join(", ")}</b>
-                  <ol className="pkCoachCues">
+                  <ol className="pkCchCues">
                     {plan.cues.map((c, i) => (
                       <li key={i}>{c}</li>
                     ))}
                   </ol>
                 </div>
                 {[1, 2, 3].map((day) => (
-                  <div key={day} className="pkPanel window pkCoachCard" data-plan-day={day}>
+                  <div key={day} className="pkPanel window pkCchCard" data-plan-day={day}>
                     <b>Session {day}</b>
-                    <ul className="pkCoachItems">
+                    <ul className="pkCchItems">
                       {plan.items
                         .filter((it) => it.day === day)
                         .map((it) => (
@@ -292,21 +292,21 @@ export default function CoachPanel({ focus = null, demo = null, onWatch, onDrill
         )}
 
         {tab === "progress" && (
-          <div className="pkCoachProgress">
+          <div className="pkCchProgress">
             {coach.history.length < 2 && <p className="pkMuted">Film another game to see how you're changing. Each game you're in adds a point to these charts.</p>}
             {coach.history.length >= 1 && (
-              <ul className="pkCoachList">
+              <ul className="pkCchList">
                 {(diag?.metrics || [])
                   .map((m) => ({ m, s: seriesOf(coach.history, m.id) }))
                   .filter(({ s }) => s.length >= 1)
                   .map(({ m, s }) => {
                     const t = trendOf(s, m.better)
                     return (
-                      <li key={m.id} className="pkCoachRow" data-progress={m.id}>
-                        <div className="pkCoachRowHead is-static">
-                          <span className="pkCoachName">{m.label}</span>
+                      <li key={m.id} className="pkCchRow" data-progress={m.id}>
+                        <div className="pkCchRowHead is-static">
+                          <span className="pkCchName">{m.label}</span>
                           <Spark series={s} band={metricById(m.id).bands[target]} better={m.better} />
-                          <span className="pkCoachVal">
+                          <span className="pkCchVal">
                             {formatValue(m, s.at(-1).v)} <small className="pkMuted">{t > 0 ? "better" : t < 0 ? "worse" : s.length > 1 ? "steady" : when(s[0].at)}</small>
                           </span>
                         </div>
@@ -320,7 +320,7 @@ export default function CoachPanel({ focus = null, demo = null, onWatch, onDrill
 
         {games && games.length > 0 && (
           <MoreOptions id="pickleball.coach" label="More options">
-            <div className="pkCoachMore">
+            <div className="pkCchMore">
               <label>
                 Target level{" "}
                 <Select value={target} onChange={(e) => setTarget(e.target.value)} aria-label="Target level">

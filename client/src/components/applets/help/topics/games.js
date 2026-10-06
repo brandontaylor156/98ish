@@ -345,6 +345,17 @@ export const topics = [
           "Honest limits: a clone copies tendencies the video can show (positions, shot kinds, timing); it can't copy touch or spin exactly, and the video can't tell a winner from an error, so how often their shots end rallies only nudges the clone's accuracy.",
         ],
       },
+      { h: "Coach: what your film says about your game" },
+      "**Coach** (Real Games > **Coach**, or a Twin Replay game's **Stats > Coach ... on this game**) reads your part of your filmed games and compares 13 habits with what Rookie, Club, Pro and Legend players do: getting to the kitchen line after the return (or your team's third shot), a split step right as they hit, paddle up at the line, getting back to your spot, speed around the court, third shots that work, dinks kept in play, speeding up only high balls, resets from mid-court, serve and return depth, how often your shot ends the point, and spacing with your partner.",
+      {
+        list: [
+          "**Your game**: each habit with your number, the target level's number and a verdict (On target, Close, Work on it, Need more film), plus a level estimate with an honest range. Tap a habit for what it means and **Watch** buttons: the replay jumps to a real moment from your film, slowed down, with a **see-through player doing it the Pro way** beside you (for movement habits).",
+          "**Plan**: **Make my plan** picks your three biggest fixable weaknesses and builds three short practice sessions from Pickleball 98's drills (sized to how big the gap is), with three cues to remember. **Start** opens the drill. The cues also show on your Real Games sessions.",
+          "**Progress**: each game you're in adds a point to a small chart per habit, with the target line; it says better, worse or steady. Coach also counts the weeks in a row you filmed or practiced.",
+          "Pick yourself in each game (Coach asks; More options lists them) and your target level (More options). More games make it surer: each habit says how many times it was seen.",
+          "Honest limits: it's only as good as Twin Replay's reading of the video; the ball isn't tracked (shot kinds come from where people stood and moved), and a winner and an error look the same. \"Paddle up\" needs games read after this update.",
+        ],
+      },
       { h: "How a good player plays" },
       {
         steps: [
