@@ -19,7 +19,7 @@ export const layout = (W, H) => {
 
 const FONT = '"Pixelated MS Sans Serif", "MS Sans Serif", Tahoma, Arial, sans-serif'
 
-const panel = (g, r, { title = null, fill = "#c0c0c0" } = {}) => {
+const panel = (g, r, { title = null, fill = "#c0c0c0", titleH = null } = {}) => {
   g.fillStyle = fill
   g.fillRect(r.x, r.y, r.w, r.h)
   // 98 bevel
@@ -30,7 +30,7 @@ const panel = (g, r, { title = null, fill = "#c0c0c0" } = {}) => {
   g.fillRect(r.x, r.y + r.h - 2, r.w, 2)
   g.fillRect(r.x + r.w - 2, r.y, 2, r.h)
   if (title) {
-    const th = Math.max(14, Math.round(r.h * 0.32))
+    const th = titleH || Math.max(14, Math.round(r.h * 0.32))
     const grad = g.createLinearGradient(r.x, 0, r.x + r.w, 0)
     grad.addColorStop(0, "#000080")
     grad.addColorStop(1, "#1084d0")
@@ -93,7 +93,7 @@ export const drawCard = (g, W, H, L, { title, lines = [] }) => {
   g.fillStyle = "#008080"
   g.fillRect(0, 0, W, H)
   const r = { x: Math.round(W * 0.12), y: Math.round(H * 0.2), w: Math.round(W * 0.76), h: Math.round(H * 0.6) }
-  const off = panel(g, r, { title: "Pickleball 98 · Instant Replay" })
+  const off = panel(g, r, { title: "Pickleball 98 · Instant Replay", titleH: Math.max(16, Math.round(H * 0.055)) })
   g.fillStyle = "#000"
   g.textAlign = "center"
   g.textBaseline = "middle"

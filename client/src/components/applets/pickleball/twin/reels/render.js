@@ -190,7 +190,7 @@ export const renderReel = async ({ timeline, analysis, game, video = null, engin
   try {
     for (const seg of timeline.segments) {
       check()
-      if (seg.kind === "title") await card(seg, { title, lines: [`${timeline.moments.length} highlights`, new Date(game?.created || Date.now()).toLocaleDateString()] })
+      if (seg.kind === "title") await card(seg, { title, lines: [`${timeline.moments.length} highlight${timeline.moments.length === 1 ? "" : "s"}`, new Date(game?.created || Date.now()).toLocaleDateString()] })
       else if (seg.kind === "end") await card(seg, { title: "That's the game", lines: endLines(analysis) })
       else if (seg.kind === "footage") await footage(seg)
       else if (seg.kind === "cutin") {
