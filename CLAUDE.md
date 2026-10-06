@@ -111,5 +111,6 @@ Shipped recently (details in the docs): 2026-10-05: Casino 98 (Hold'em with onli
 - `pickleball-log.md`: Pickleball 98 feature notes (footwork, upper body, pro movement, mocap/MakeHuman, Practice, phone round, swipe trail + sounds, athletes, My Park, arms) with measurements, tests and leftovers. Read before any Pickleball work.
 - `pickleball-venues.md`: strategy for real-world venues from OpenStreetMap (data licenses, measured coverage, venue index, generator, multiplayer, phases, open questions). Read before building Venue Finder.
 - `pickleball-movement.md`, `pickleball-arms.md`, `pickleball-practice.md`: research and specs behind movement, arms and Practice. Read with the matching log section.
+- `find-friends.md`: Buddy Locator (opt-in location sharing with buddies: privacy design, `server/locate` API and caps, geofence alerts, MapLibre + OpenFreeMap map, iPhone limits, tests). Read before touching location sharing or the map.
 - `casino.md`: Casino 98 (Hold'em vs computer + online, Blackjack, Roulette, Slots, Video Poker, Craps, Baccarat), the shared chip bank, rules modules and tests. Read before touching `applets/casino/` or `server/arcade/games/holdem.js`.
 - `history.md`: past dated close-outs and status snapshots (2026-10-03/04) and the original iPhone checklist. Read for background on when and why something shipped.

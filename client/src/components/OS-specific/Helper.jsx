@@ -41,6 +41,7 @@ const TIPS = {
   ],
   "98 Messenger": ["Away messages are serious business. Choose yours wisely."],
   "Music 98": ["Tap Add Songs... to bring in MP3s from your phone. Album art and track names come right out of the files!", "Each song's ... button has Play Next, Add to Queue and Add to Playlist."],
+  "Buddy Locator": ["Share My Location picks one buddy and how long: an hour, the rest of the day, or until you stop. Nobody else sees a thing.", "Name a place like Home or the courts, pick a buddy, and press Notify Me... to hear when they get there."],
   "Watch Together": ["Pick a buddy, paste a YouTube link, and you'll both watch at the same moment. Tap an emoji to react!", "Start it right from an IM window: the Watch button is next to Call."],
   "Task Manager": ["Whatever you do, don't end explorer.exe. I'm serious. Mostly."],
   "Display Properties": ["Pick Browse... to use your own picture as the wallpaper."],

@@ -194,6 +194,51 @@ export const topics = [
     related: ["messenger", "messenger-calls", "privacy-third-parties"],
   },
   {
+    id: "buddy-locator",
+    book: "internet",
+    title: "Buddy Locator",
+    summary: "Share where you are with the buddies you pick, see the buddies who share with you on a map, and hear when one arrives somewhere.",
+    keywords: ["find my friends", "location", "share location", "where is", "map", "find friends", "meet up", "arrive", "leave", "geofence", "places", "directions", "approximate location", "stop sharing"],
+    programs: ["Buddy Locator"],
+    body: [
+      { img: "/assets/program_icons/locator.svg", alt: "Buddy Locator icon" },
+      "Buddy Locator shows a map of the buddies who share their location with you, and lets you share yours. **Nothing is shared until you choose to**, and only with the buddies you pick.",
+      {
+        steps: [
+          "Sign on to 98 Messenger.",
+          "Open Start > Programs > Internet > **Buddy Locator** and press **Share My Location...**.",
+          "Pick a buddy from your Buddy List and how long: **For 1 hour**, **Until the end of the day**, or **Indefinitely**.",
+          "Press **Share** (allow location when your phone asks).",
+        ],
+        title: "To share your location:",
+      },
+      "While you share, a small blue **location arrow** sits in the taskbar tray. Tap it to see who can see you, **Pause Sharing**, or **Stop Sharing Everywhere**.",
+      { h: "Seeing your buddies" },
+      {
+        list: [
+          "Buddies who share with you appear on the map and in the list, with how long ago their location came in and how far away they are.",
+          "Tap a buddy for **Message**, **Call**, **Directions** (opens Apple Maps or Google Maps) and **Notify Me...**.",
+          "To see someone who isn't sharing, open **More options** and use **Ask to see a buddy**. They get a request and choose.",
+          "When someone asks to see you, a yellow bar shows **Share 1 Hour**, **Always** or **Not Now**.",
+        ],
+      },
+      { h: "Places and alerts" },
+      "Under More options, **Add a Place...** names a spot (Home, Work, the courts) from where you are or the middle of the map, with a size. Then tap a buddy, press **Notify Me...**, pick the place, and choose arrives, leaves, or both. You'll get a notification (and a push if you're away from 98ish; Do Not Disturb holds it).",
+      { h: "Privacy" },
+      {
+        list: [
+          "Only the buddies you share with see your location, and only until the share ends. Blocking someone hides you from them at once.",
+          "The 98ish server keeps only your **latest** position, never a history, and forgets it when you pause, stop, or the share runs out.",
+          "**Approximate location** (More options) rounds your position to about 1 km on your device before it's sent, so nobody, not even the server, sees the exact spot. Arrive/leave alerts about you can't work then.",
+        ],
+      },
+      { phone: "iPhone web apps can't send your location from the background: Buddy Locator updates while 98ish is open on screen. When you come back, it picks up again (if it asks, tap **Resume**).", computer: "Your location updates while 98ish is open in this browser." },
+      { note: "The map comes from OpenFreeMap (map data © OpenMapTiles and OpenStreetMap contributors). It loads only the map pictures; your position and your buddies' never go there." },
+      { open: "Buddy Locator", label: "Open Buddy Locator" },
+    ],
+    related: ["messenger", "privacy-server", "privacy-third-parties", "do-not-disturb"],
+  },
+  {
     id: "mail",
     book: "internet",
     title: "98ish Mail",

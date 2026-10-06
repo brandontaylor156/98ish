@@ -597,6 +597,8 @@ export const AimProvider = ({ socket, windows, dispatch: dispatchWindow, onOpenV
     import("../../../utils/contacts").then((m) => m.setSyncSession(session)).catch(() => {})
     // Notes too (utils/notes.js; shared notes and live changes need the account)
     import("../../../utils/notes").then((m) => m.setSyncSession(session)).catch(() => {})
+    // Buddy Locator (utils/locate.js: who shares with whom, live positions)
+    import("../../../utils/locate").then((m) => m.setLocateSession(session)).catch(() => {})
   }, [state.status, state.me?.screenName])
 
   // ---- search: the signed-on account's conversations (this device's copy) ----
