@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <!-- Baccarat: a nine and a king side by side over PLAYER / BANKER spots -->
+  <rect x="2" y="30" width="44" height="15" rx="7" fill="#0b6b3a" stroke="#5a3214" stroke-width="1.5"/>
+  <rect x="5" y="33" width="17" height="9" rx="4" fill="none" stroke="#9cf" stroke-width="1.2"/>
+  <rect x="26" y="33" width="17" height="9" rx="4" fill="none" stroke="#f99" stroke-width="1.2"/>
+  <g font-family="Arial, sans-serif" font-weight="bold" font-size="4" text-anchor="middle">
+    <text x="13.5" y="39.3" fill="#9cf">PLAYER</text>
+    <text x="34.5" y="39.3" fill="#f99">BANKER</text>
+  </g>
+  <rect x="8" y="4" width="16" height="23" rx="2" fill="#fff" stroke="#000" stroke-width="1.2"/>
+  <text x="16" y="19.5" font-family="Arial Black, Arial, sans-serif" font-weight="900" font-size="12" text-anchor="middle" fill="#d40000">9</text>
+  <rect x="25" y="4" width="16" height="23" rx="2" fill="#fff" stroke="#000" stroke-width="1.2"/>
+  <text x="33" y="19.5" font-family="Arial Black, Arial, sans-serif" font-weight="900" font-size="12" text-anchor="middle">K</text>
+</svg>

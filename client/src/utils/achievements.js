@@ -109,6 +109,12 @@ export const ACHIEVEMENTS = [
   { id: "lastcard-crowd", title: "Full Table", text: "Beat five or more computer players at Last Card.", hint: "Play Last Card against a big table of computer players, and win." },
   { id: "lastcard-catch", title: "Gotcha!", text: "Caught someone who forgot to call Last Card.", hint: "When a Last Card player forgets to call on their last card, be quick." },
   { id: "lastcard-online", title: "Card Shark", text: "Won an online game of Last Card.", hint: "Play Last Card online with other people, and win." },
+  { id: "casino-blackjack", title: "Twenty-One!", text: "Was dealt a blackjack.", hint: "Casino 98 > Blackjack: an ace and a ten-card on your first two cards." },
+  { id: "casino-holdem", title: "Last One Standing", text: "Won a whole Texas Hold'em table against the computer.", hint: "Casino 98 > Texas Hold'em: take every chip at the table." },
+  { id: "casino-holdem-online", title: "Poker Face", text: "Won an online Texas Hold'em table against real people.", hint: "Play Texas Hold'em online with friends, and be the last one with chips." },
+  { id: "casino-royal", title: "Royalty", text: "Hit a royal flush in Video Poker.", hint: "Casino 98 > Video Poker: A K Q J 10, all one suit. Good luck!" },
+  { id: "casino-jackpot", title: "Jackpot!", text: "Lined up three 98 Wilds in Slots.", hint: "Casino 98 > Slots: three Wilds on a line you played." },
+  { id: "casino-highroller", title: "High Roller", text: "Had 10,000 chips in the casino bank.", hint: "Grow your Casino 98 chips to 10,000." },
 ]
 
 export const achievementById = (id) => ACHIEVEMENTS.find((a) => a.id === id) || null

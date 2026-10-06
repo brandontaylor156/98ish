@@ -344,7 +344,7 @@ export const topics = [
           head: ["Kept in", "What"],
           rows: [
             ["IndexedDB (database \"98ish-drive\")", "Drive C: and the Recycle Bin: files, photos, documents, recordings, and file sync's bookkeeping. Each extra user profile has its own database (\"98ish-drive-\" plus an id)."],
-            ["localStorage (keys starting \"98ish.\")", "Settings, desktop, scores and game saves, Address Book contacts, notes (and which are pinned to this desktop), notifications, \"On this device\" calendars, reminders, Internet Explorer history and favorites, drafts, and 98 Messenger's \"Sign me on automatically\" key. Each extra user profile's keys start \"98ish.u.\" plus an id."],
+            ["localStorage (keys starting \"98ish.\")", "Settings, desktop, scores and game saves (and Casino 98's play chips), Address Book contacts, notes (and which are pinned to this desktop), notifications, \"On this device\" calendars, reminders, Internet Explorer history and favorites, drafts, and 98 Messenger's \"Sign me on automatically\" key. Each extra user profile's keys start \"98ish.u.\" plus an id."],
             ["The user list (shared by the device)", "User names, pictures, linked screen names, and each user's lock PIN or password, stored only as a salted, scrambled copy (PBKDF2)."],
             ["Service worker caches", "A copy of the 98ish app for offline use, things shared to 98ish from other apps (Android), and notifications that arrived while 98ish was closed."],
           ],

@@ -13,4 +13,5 @@ module.exports = [
   require("./echo"),
   require("./tetherball"),
   require("./imposter"),
+  require("./holdem"),
 ]

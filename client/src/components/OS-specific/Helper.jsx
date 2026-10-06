@@ -106,6 +106,23 @@ const TIPS = {
     "Down to two cards? Press LAST CARD! before you play, or someone can catch you and you'll draw 2.",
     "Hold on to your wilds: they're worth 50 points to whoever goes out, and they get you out of a jam.",
   ],
+  "Casino 98": [
+    "Every casino game bets from the same chips. Run out? The house gives you a free refill.",
+    "Want the best odds in the house? Blackjack with the basic-strategy hint, or Craps with full odds behind the Pass Line.",
+  ],
+  "Texas Hold'em": [
+    "Position matters: the later you act, the more you know. Play more hands near the dealer button.",
+    "Play Online, then Create Room and send the code: friends join, computer players fill the empty seats.",
+  ],
+  Blackjack: [
+    "Always split aces and eights; never split tens or fives.",
+    "Not sure? More options > Show the basic-strategy hint tells you the best play for every hand.",
+  ],
+  Roulette: ["Want split, corner or street bets? More options > Bet type, then tap a number.", "The European wheel (one zero) gives the house half the edge of the American one."],
+  Slots: ["The 98 Wild stands in for any symbol. Three Wilds on a line is the jackpot.", "Every line you play is its own chance to win: five lines, five chances."],
+  "Video Poker": ["Always bet 5 coins: the royal flush pays 4,000 instead of 1,250.", "Never hold a kicker with a pair. Hold the pair alone and draw three."],
+  Craps: ["The Odds bet behind the Pass Line pays true odds: the only bet in the casino with no house edge.", "Don't Pass, Come, Field and Place bets are under More options."],
+  Baccarat: ["The Banker bet wins a little more often than the Player bet, even after the 5% commission.", "The Tie pays 8 to 1, but it only comes up about one hand in ten."],
   "Monster Duel": [
     "New to it? Help > Tutorial Duel walks you through a whole turn: summoning, attacking and springing a trap.",
     "Win duels against the computer to earn card packs, then build your own deck in the Deck Builder.",
