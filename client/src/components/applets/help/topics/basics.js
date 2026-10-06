@@ -812,12 +812,12 @@ export const topics = [
       {
         list: [
           "**Applications**: your open windows. Pick one and choose **Switch To** or **End Task**. **New Task...** opens a program by name.",
-          "**Processes**: the programs behind the scenes, with **End Process**.",
-          "**Performance**: busy-ness graphs, just like 1998.",
+          "**Processes**: 98ish itself (**98ish.exe**, this browser tab) and one line per open window, with its status. CPU and memory are measured for 98ish as a whole, since a web page can't measure each window. **View > Select Columns...** picks the columns. **End Process** closes a window.",
+          "**Performance**: real numbers: how busy 98ish keeps your device (CPU Usage), its memory where your browser reports it (Chrome and Edge do; Safari and Firefox don't), frames per second, the round trip to the 98ish server, your device's processors and memory, and how much space 98ish uses.",
         ],
       },
       "The **Options** menu has **Always On Top** and **Hide When Minimized** (Task Manager then waits in the tray by the clock).",
-      { warning: "Ending **explorer.exe** brings down the whole desktop, with a blue screen. Nothing is lost: 98ish just restarts." },
+      { warning: "Ending **98ish.exe** brings down the whole desktop, with a blue screen. Your saved files are kept: 98ish just restarts." },
       { open: "Task Manager", label: "Open Task Manager" },
     ],
     related: ["windows", "game-trouble", "ms-dos"],
