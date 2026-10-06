@@ -20,6 +20,7 @@
 import * as THREE from "three"
 import { createAnim, setMood, situation, updateAnim, seatedPose } from "../anim.js"
 import { blocker } from "../camera.js"
+import { setSurfacesOn } from "./surfaces.js"
 import { advance, beginPoint, createMatch, scoreboard, seeded } from "../match.js"
 import { buildPark } from "./build.js"
 import { createMannequins } from "./mannequin.js"
@@ -1568,6 +1569,8 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
 // tone curve, exposure), people hidden unless people: true. devSwatches(list) lays flat color
 // cards on the ground ({ x, z, hex, size, kind: "std" | "lambert", up }) to test the colors.
 const devHooks = (world, { scene, park, exposure }) => {
+  world.devSurfaces = (on) => (setSurfacesOn(on), park.setRealism?.(on))
+  world.devPark = park
   let r = null
   const swatches = []
   world.devShot = ({ w = 800, h = 600, ortho = null, cam = null, people = false, fog = !ortho } = {}) => {
@@ -1613,7 +1616,18 @@ const devHooks = (world, { scene, park, exposure }) => {
     if (!people) for (const o of scene.children) if (o !== park.group && !o.isLight && o.visible && !swatches.includes(o)) (o.visible = false), hidden.push(o)
     const f = scene.fog
     if (!fog) scene.fog = null
+    // sun shadows like the game's (the box centred where this camera looks)
+    r.shadowMap.enabled = !ortho
+    r.shadowMap.type = THREE.PCFSoftShadowMap
+    if (!ortho) {
+      const d = new THREE.Vector3()
+      c.getWorldDirection(d)
+      const t = Math.max(0, -c.position.y / Math.min(-0.15, d.y))
+      park.followSky?.({ x: c.position.x + d.x * Math.min(t, 35), y: 0, z: c.position.z + d.z * Math.min(t, 35) })
+    }
+    if (park.sun?.castShadow) park.sun.shadow.needsUpdate = true // (its own shadow map: the game's renderer may have used the flag)
     r.render(scene, c)
+    world.devRenderer = r
     scene.fog = f
     for (const o of hidden) o.visible = true
     return r.domElement.toDataURL("image/png")

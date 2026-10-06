@@ -308,6 +308,7 @@ export const topics = [
       "Online, other 98ish people in the same park walk around with you, with their names over them, and can call next on the same court: then you play each other (computer players fill the other spots). A park holds 16 people; more open another one.",
       { h: "Real venues" },
       "**My Park** first asks **where to?**: Riverside Park, or one of seven real Southern California venues: Los Cab Sports Village (Fountain Valley), The Tennis & Pickleball Club at Newport Beach, Wolf + Bear Indoor Pickleball (Van Nuys), iPickle Whittier Narrows (South El Monte), The Paseo Club (Valencia), Sinaloa Middle School (Simi Valley) and California SMASH (El Segundo). Tap one to go; **☆** stars your favorites so they're first. **Change venue...** is in the park's menu.",
+      "The real venues have real surfaces (court grain, asphalt, grass, stucco, tile roofs, wood and tile floors) and sun shadows that follow the time of day. On an older phone, **Options > Graphics: Low** goes back to the simpler flat look and runs faster (it applies the next time you open a venue).",
       {
         list: [
           "Each venue is built from the real map: every court where it really is and turned the way it's turned, its banks of fences, the clubhouse and other buildings round it, parking lots, trees and palms, and for the indoor clubs the hall itself (walls, a door, the lights, and at SMASH the raised lounge and the bar). Court colors and the look come from what the clubs look like; the drawing is 98ish's own.",
