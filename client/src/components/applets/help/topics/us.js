@@ -203,7 +203,7 @@ export const topics = [
     keywords: ["jigsaw", "puzzle", "slide puzzle", "secret message", "photo", "pieces"],
     programs: ["Photo Puzzle"],
     body: [
-      "Photo Puzzle turns a picture into a jigsaw (12, 24, 48 or 96 pieces) or a slide puzzle (3x3, 4x4 or 5x5). Use a built-in picture, one from your 98ish drive, or a photo from your phone or computer.",
+      "Photo Puzzle turns a picture into a jigsaw (12, 24, 48 or 96 pieces) or a slide puzzle (3x3, 4x4 or 5x5). Your newest photos on the 98ish drive come first; you can also pick any picture with From My Computer..., upload a photo from your phone or computer, or use one of the built-in sample pictures.",
       { open: "Photo Puzzle", label: "Open Photo Puzzle" },
       { h: "Playing" },
       { phone: "Drag pieces up from the tray under the board. Pieces that fit snap together, and a group near its spot snaps onto the board.", computer: "Drag pieces onto the board. Pieces that fit snap together, and a group near its spot snaps onto the board." },

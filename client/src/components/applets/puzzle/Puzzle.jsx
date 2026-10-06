@@ -11,6 +11,7 @@ import Jigsaw from "./JigsawBoard"
 import SlidePuzzle from "./SlidePuzzle"
 import Celebrate from "./Celebrate"
 import { SAMPLES, samplePicture } from "./art"
+import { drivePhotos } from "../photos/library"
 import { MAX_CHARS, formatTime, loadImage, shrinkPicture } from "./image"
 import { puzzleApi } from "./api"
 import { useRecipients } from "./partner"
@@ -150,6 +151,26 @@ const Puzzle = ({ mobile, onClose, onTitle, dispatch, handoff = null }) => {
   // ---- choosing a picture ----
 
   const pickSample = (sample) => setChoice({ source: { kind: "sample", id: sample.id }, name: sample.name, picture: { data: samplePicture(sample.id), width: 960, height: 720 } })
+
+  // your newest pictures on drive C: lead the picture choice (the drawn samples come after)
+  const [recent, setRecent] = useState([])
+  useEffect(() => {
+    let live = true
+    const newest = drivePhotos()
+      .sort((a, b) => (b.time || 0) - (a.time || 0))
+      .slice(0, 8)
+      .map(({ file }) => ({ file, src: file._thumb || null }))
+    setRecent(newest)
+    newest.forEach(({ file, src }, i) => {
+      if (src) return
+      readContent(file)
+        .then((data) => live && data && setRecent((list) => list.map((x, j) => (j === i ? { ...x, src: data } : x))))
+        .catch(() => {})
+    })
+    return () => {
+      live = false
+    }
+  }, [])
 
   const pickDriveFile = async (file) => {
     setDialog(null)
@@ -399,10 +420,31 @@ const Puzzle = ({ mobile, onClose, onTitle, dispatch, handoff = null }) => {
   )
 
   const best = choice ? bestFor(puzzleKey(choice.source, setup)) : null
+  const myPhotos = recent
   const newPuzzle = (
     <div className="pzNew">
       <fieldset>
         <legend>1. Choose a picture</legend>
+        {myPhotos.length > 0 && (
+          <>
+            <div className="pzGroupLabel">Your photos</div>
+            <div className="pzSamples" data-my-photos>
+              {myPhotos.map(({ file, src }) => (
+                <button
+                  type="button"
+                  key={fs.partsOf(file).join("/")}
+                  className={`pzSample${choice?.source.kind === "drive" && choice.source.id === fs.partsOf(file).join("/") ? " is-selected" : ""}`}
+                  onClick={() => pickDriveFile(file)}
+                  title={file.name}
+                >
+                  {src ? <img src={src} alt="" /> : <span className="pzThumbWait" />}
+                  <span>{file.name}</span>
+                </button>
+              ))}
+            </div>
+            <div className="pzGroupLabel">Sample pictures</div>
+          </>
+        )}
         <div className="pzSamples">
           {SAMPLES.map((sample) => (
             <button
