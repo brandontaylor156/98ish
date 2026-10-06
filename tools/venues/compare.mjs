@@ -236,6 +236,9 @@ try {
   }
   let topUrl = null
   if (aerial && (modes.includes("topdown") || modes.includes("color"))) topUrl = await page.evaluate(({ box, TW, TH }) => window.__park.devShot({ w: TW, h: TH, ortho: box }), { box, TW, TH })
+  // (indoors the colors are read from under the ceiling)
+  const hallH = spec.halls?.length ? Math.min(...spec.halls.map((h) => h.h || 9)) : null
+  const floorUrl = aerial && hallH && modes.includes("color") ? await page.evaluate(({ box, TW, TH, y }) => window.__park.devShot({ w: TW, h: TH, ortho: { ...box, y } }), { box, TW, TH, y: hallH - 1.7 }) : topUrl
   if (aerial && modes.includes("topdown")) {
     const ref = dataUrl(path.join(REFS, "aerial.jpg"))
     const out = await page.evaluate(({ ref, topUrl, TW, TH }) => __cmp.compose(ref, topUrl, TW, TH), { ref, topUrl, TW, TH })
@@ -249,36 +252,57 @@ try {
     console.log(`topdown: ${files.side}`)
   }
 
-  // ---------- colors of labeled regions ----------
+  // ---------- colors: every court's surfaces, and any labeled regions ----------
+  // Each court's service area, kitchen, surround (and a tennis court's alleys) sampled in the
+  // top-down render against the court's paint (the spec's palette: the reference pack's albedo
+  // via ingest-refs.mjs); colors.json "regions" ({ label, hex, en | ll | xz | px }) add more.
   const colors = readJson("colors.json")
-  if (aerial && colors && modes.includes("color")) {
-    const regions = (colors.regions || colors).filter((r) => r.hex && (r.en || r.ll || r.xz || r.px))
-    const pts = regions.map((r) => {
+  if (aerial && modes.includes("color")) {
+    const pts = []
+    const P = (x, z) => ({ px: ((x - box.x0) / (box.x1 - box.x0)) * TW, py: ((z - box.z0) / (box.z1 - box.z0)) * TH })
+    spec.courts.forEach((c, i) => {
+      const paint = { court: spec.colors?.court, kitchen: spec.colors?.kitchen, surround: spec.colors?.surround, ...(c.s === "t" ? { court: spec.colors?.tennis || spec.colors?.court, surround: spec.colors?.tennisSurround || spec.colors?.surround } : {}), ...(c.col !== undefined ? spec.palettes[c.col] : {}) }
+      const a = (c.a * Math.PI) / 180
+      const u = [Math.cos(a), Math.sin(a)]
+      const w = [-Math.sin(a), Math.cos(a)]
+      const at = (al, ac) => P(c.x + u[0] * al + w[0] * ac, c.z + u[1] * al + w[1] * ac)
+      const add = (label, hex, q) => hex && hex[0] === "#" && pts.push({ label: `${c.s}${i} ${label}`, hex, ...q, r: 2 })
+      if (c.s === "p") {
+        add("service", paint.court, at(4.4, 1.5))
+        add("kitchen", paint.kitchen || paint.court, at(1.1, 1.5))
+        add("surround", paint.surround, at(0, 4.35))
+      } else if (c.s === "t" && !c.pb) {
+        add("court", paint.court, at(3.2, 2.0))
+        if (paint.alley) add("alley", paint.alley, at(6, 4.8))
+        add("surround", paint.surround, at(14.2, 0))
+      }
+    })
+    for (const r of colors?.regions || []) {
       let x, z
       if (r.xz) [x, z] = r.xz
       else if (r.ll) [x, z] = toXZ(r.ll[0], r.ll[1])
       else if (r.en) {
         const [ax, az] = toXZ(aerial.anchor.lat, aerial.anchor.lon)
         ;[x, z] = [ax + r.en[0], az - r.en[1]]
-      } else if (r.px) {
-        const k = TW / aerial.size_px[0]
-        return { ...r, px: r.px[0] * k, py: r.px[1] * k }
-      }
-      return { ...r, px: ((x - box.x0) / (box.x1 - box.x0)) * TW, py: ((z - box.z0) / (box.z1 - box.z0)) * TH }
-    })
-    const ref = dataUrl(path.join(REFS, "aerial.jpg"))
-    const rows = await page.evaluate(async ({ pts, topUrl, ref, TW, TH }) => {
-      const P = await __cmp.pixels(topUrl)
-      const A = await __cmp.pixels(ref, TW, TH)
+      } else continue
+      pts.push({ ...r, ...P(x, z) })
+    }
+    const rows = await page.evaluate(async ({ pts, topUrl, TW }) => {
+      const R = await __cmp.pixels(topUrl)
       return pts.map((p) => {
-        const got = __cmp.sample(P.data, TW, p.px, p.py, p.r || 3)
-        const aer = __cmp.sample(A.data, TW, p.px, p.py, p.r || 3)
-        return { label: p.label || p.name, ref: p.hex, got: __cmp.hex(got), aerial: __cmp.hex(aer), dE: +__cmp.dE(__cmp.rgb(p.hex), got).toFixed(1) }
+        const got = __cmp.sample(R.data, TW, p.px, p.py, p.r || 3)
+        return { label: p.label, ref: p.hex, got: __cmp.hex(got), dE: +__cmp.dE(__cmp.rgb(p.hex), got).toFixed(1) }
       })
-    }, { pts, topUrl, ref, TW, TH })
-    report.modes.color = { rows, mean: +(rows.reduce((a, b) => a + b.dE, 0) / Math.max(1, rows.length)).toFixed(1), over12: rows.filter((r) => r.dE > 12).length }
-    console.log(`color: mean dE ${report.modes.color.mean}, over 12: ${report.modes.color.over12}/${rows.length}`)
-    for (const r of rows) console.log(`  ${(r.label || "").padEnd(28)} ref ${r.ref} got ${r.got} (aerial ${r.aerial}) dE ${r.dE}`)
+    }, { pts, topUrl: floorUrl, TW })
+    if (floorUrl !== topUrl) savePng("topdown-floor.png", floorUrl)
+    const by = {}
+    for (const r of rows) {
+      const k = r.label.split(" ").slice(1).join(" ")
+      ;(by[k] = by[k] || []).push(r.dE)
+    }
+    report.modes.color = { rows, mean: +(rows.reduce((a2, b2) => a2 + b2.dE, 0) / Math.max(1, rows.length)).toFixed(1), over12: rows.filter((r) => r.dE > 12).length, bySurface: Object.fromEntries(Object.entries(by).map(([k, v]) => [k, +(v.reduce((a2, b2) => a2 + b2, 0) / v.length).toFixed(1)])) }
+    console.log(`color: ${rows.length} samples, mean dE ${report.modes.color.mean}, over 12: ${report.modes.color.over12}; by surface ${JSON.stringify(report.modes.color.bySurface)}`)
+    for (const r of rows.filter((q) => q.dE > 12).slice(0, 12)) console.log(`  ${r.label.padEnd(18)} ref ${r.ref} got ${r.got} dE ${r.dE}`)
   }
 
   // ---------- photos from their poses ----------
@@ -287,12 +311,23 @@ try {
     const list = photos.photos || photos
     const res = []
     for (const p of list) {
-      const file = path.join(REFS, "photos", p.file)
+      const file = /^photos[\/]/.test(p.file) ? path.join(REFS, p.file) : path.join(REFS, "photos", p.file)
       if (!fs.existsSync(file)) continue
       const im = await page.evaluate((src) => __cmp.img(src).then((i) => ({ w: i.width, h: i.height })), dataUrl(file))
       const W = 640
       const Hh = Math.round((W * im.h) / im.w)
       let x, z
+      // (the reference pack's form: pose { x, y (metres east, north of the aerial's anchor), h,
+      // yaw (compass), pitch, hfov })
+      if (p.pose && aerial) {
+        const [ax, az] = toXZ(aerial.anchor.lat, aerial.anchor.lon)
+        p.en = [p.pose.x, p.pose.y]
+        p.height = p.pose.h
+        p.heading = p.pose.yaw
+        p.pitch = p.pose.pitch
+        if (p.pose.hfov) p.vfov = (2 * Math.atan(Math.tan((p.pose.hfov * Math.PI) / 360) * (Hh / W)) * 180) / Math.PI
+        p.fov = p.vfov
+      }
       if (p.xz) [x, z] = p.xz
       else if (p.ll) [x, z] = toXZ(p.ll[0], p.ll[1])
       else if (p.en && aerial) {

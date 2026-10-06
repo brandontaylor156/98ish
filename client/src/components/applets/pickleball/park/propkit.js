@@ -77,6 +77,7 @@ export const PROPS = {
   hoop: { w: 1.9, d: 1.4, h: 3.9, solid: true, wall: true },
   massagebed: { w: 0.8, d: 2.0, h: 0.75, solid: true },
   startblock: { w: 0.5, d: 0.6, h: 0.75, solid: true },
+  pingpong: { w: 1.53, d: 2.74, h: 0.92, solid: true },
 }
 
 // a prop's solid footprint -> a layout box { cx, cz, hx, hz, ux, uz, h } or a circle { x, z, r }, or null
@@ -172,8 +173,11 @@ export const furnishRoom = (room) => {
   const doors = (room.doors || []).map((d) => ({ u: d.x * ux + d.z * uz, w: -d.x * uz + d.z * ux }))
   const out = []
   const boxes = []
-  // (an aisle from every door to the middle of the room stays clear: 0.9 m each side)
+  // (an aisle from every door to the middle of the room stays clear: 0.9 m each side, less
+  // in a small room)
   const mid = { u: (u0 + u1) / 2, w: (w0 + w1) / 2 }
+  const aisle = Math.min(0.9, Math.min(R.L, R.W) * 0.12)
+  const doorClear = Math.min(1.0, Math.min(R.L, R.W) * 0.2)
   const offAisle = (u, w, hu, hw) =>
     doors.every((d) => {
       const du = mid.u - d.u
@@ -182,9 +186,9 @@ export const furnishRoom = (room) => {
       const t = Math.max(0, Math.min(1, ((u - d.u) * du + (w - d.w) * dw) / L2))
       const pu = d.u + du * t - u
       const pw = d.w + dw * t - w
-      return Math.abs(pu) > hu + 0.9 || Math.abs(pw) > hw + 0.9
+      return Math.abs(pu) > hu + aisle || Math.abs(pw) > hw + aisle
     })
-  const clearOf = (u, w, hu, hw) => offAisle(u, w, hu, hw) && doors.every((d) => Math.abs(d.u - u) > hu + 1.0 || Math.abs(d.w - w) > hw + 1.0) && boxes.every((b) => Math.abs(b.u - u) > b.hu + hu || Math.abs(b.w - w) > b.hw + hw)
+  const clearOf = (u, w, hu, hw) => offAisle(u, w, hu, hw) && doors.every((d) => Math.abs(d.u - u) > hu + doorClear || Math.abs(d.w - w) > hw + doorClear) && boxes.every((b) => Math.abs(b.u - u) > b.hu + hu || Math.abs(b.w - w) > b.hw + hw)
   // put a prop at local (u, w) facing (du, dw) if it fits; its size along u/w for the overlap test
   const put = (t, u, w, du, dw, extra = {}) => {
     const T = PROPS[t]

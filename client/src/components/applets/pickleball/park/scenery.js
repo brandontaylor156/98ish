@@ -345,10 +345,27 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
     })
   )
   ribsTex.wrapS = ribsTex.wrapT = THREE.RepeatWrapping
+  // stucco with one tall dark-framed window every 3 m (mission style, the clubs' white buildings)
+  const missionTex = keep(
+    canvasTexture(64, 64, (ctx, w) => {
+      ctx.fillStyle = "#ffffff"
+      ctx.fillRect(0, 0, w, w)
+      ctx.fillStyle = "#2e3a36"
+      ctx.fillRect(24, 14, 16, 28)
+      ctx.fillStyle = "rgba(120,150,160,0.9)"
+      ctx.fillRect(26, 16, 12, 24)
+      ctx.fillStyle = "#2e3a36"
+      ctx.fillRect(31, 16, 2, 24)
+      ctx.fillRect(26, 27, 12, 2)
+      ctx.fillStyle = "rgba(0,0,0,0.06)"
+      ctx.fillRect(0, 60, w, 4)
+    })
+  )
+  missionTex.wrapS = missionTex.wrapT = THREE.RepeatWrapping
   const wallMats = new Map()
   const wallMatFor = (color, ribs) => {
     const key = `${color}|${ribs}`
-    if (!wallMats.has(key)) wallMats.set(key, lambert(color, { map: ribs ? ribsTex : windowsTex, side: THREE.DoubleSide }))
+    if (!wallMats.has(key)) wallMats.set(key, lambert(color, { map: ribs === "mission" ? missionTex : ribs ? ribsTex : windowsTex, side: THREE.DoubleSide }))
     return wallMats.get(key)
   }
   const roofMats = new Map()
@@ -357,7 +374,7 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
     return roofMats.get(color)
   }
   // a wall ring (quads from y0 to y1) facing outward (or inward), uv in 3 m tiles
-  const wallRing = (p, y0, y1, { inward = false, gap = null, gaps = null, offset = 0 } = {}) => {
+  const wallRing = (p, y0, y1, { inward = false, gap = null, gaps = null, offset = 0, edge = null } = {}) => {
     const cuts = gaps || (gap ? [gap] : [])
     const pos = []
     const uvs = []
@@ -367,7 +384,10 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
       const a = p[i]
       const b = p[(i + 1) % p.length]
       const len = Math.hypot(b[0] - a[0], b[1] - a[1])
-      if (len < 0.05) continue
+      if (len < 0.05 || (edge && !edge(a, b))) {
+        u += len
+        continue
+      }
       // outward normal
       // (positive area in x, z: the edge's right-hand side, (dz, -dx), is outside)
       const nx = ((b[1] - a[1]) / len) * (ccw ? 1 : -1)
@@ -560,7 +580,7 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
     const kind = b.k || "yes"
     const color = hex(b.c, WALLS[kind] ?? WALLS.yes)
     const ribs = b.windows === "ribs" || (!b.windows && (kind === "industrial" || kind === "warehouse" || kind === "hall" || kind === "garage" || !!b.hall))
-    const wallMat = b.windows === "none" ? plainMatFor(color) : wallMatFor(color, ribs)
+    const wallMat = b.windows === "none" ? plainMatFor(color) : wallMatFor(color, b.windows === "mission" ? "mission" : ribs)
     const y0 = b.y0 || 0
     // (a hall's outside walls are drawn with its inside, cut for the door)
     if (!b.hall) group.add(new THREE.Mesh(wallRing(b.p, y0, b.h, b.doors ? { gaps: doorsOn(b.p) } : {}), wallMat))
@@ -705,6 +725,25 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
     const lit = (c) => lambert(c, { emissive: new THREE.Color(c).multiplyScalar(0.28) })
     if (wh) g.add(new THREE.Mesh(wallRing(r.p, 0, wh, { inward: true, gaps, offset: 0.12 }), lit(hex(r.wainscot, 0x8a8a8a))))
     g.add(new THREE.Mesh(wallRing(r.p, wh, H, { inward: true, gaps, offset: 0.12 }), lit(hex(r.wall, 0xece6da))))
+    // inside a hall or a building: the partition's other side and a top (seen from the courts),
+    // except along the building's own walls
+    if (!r.shell) {
+      const outer = [...S.buildings.map((b) => b.p), ...(S.halls || []).map((h2) => h2.p)]
+      const onOuter = (a, b) => {
+        const mx = (a[0] + b[0]) / 2
+        const mz = (a[1] + b[1]) / 2
+        return outer.some((poly) =>
+          poly.some((q, i) => {
+            const e = poly[(i + 1) % poly.length]
+            const L2 = (e[0] - q[0]) ** 2 + (e[1] - q[1]) ** 2 || 1
+            const t = Math.max(0, Math.min(1, ((mx - q[0]) * (e[0] - q[0]) + (mz - q[1]) * (e[1] - q[1])) / L2))
+            return Math.hypot(q[0] + (e[0] - q[0]) * t - mx, q[1] + (e[1] - q[1]) * t - mz) < 0.35
+          })
+        )
+      }
+      g.add(new THREE.Mesh(wallRing(r.p, 0, H, { gaps, offset: 0.02, edge: (a, b) => !onOuter(a, b) }), plainMatFor(hex(r.partition, 0xe9e6df))))
+      g.add(new THREE.Mesh(flat(r.p, H + 0.01), roofMatFor(hex(r.top, 0xcfcac0))))
+    }
     // a free-standing room (not inside a building or hall) has its own outside and roof
     if (r.shell) {
       g.add(new THREE.Mesh(wallRing(r.p, 0, H + 0.4, { gaps, offset: 0.02 }), plainMatFor(hex(r.outside, 0xefece5))))
@@ -748,12 +787,13 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
     group.add(floor)
     // the inside of the walls: pale above, padding below; the ceiling, facing down
     const gap = h.doorAt ? { x: h.doorAt.x, z: h.doorAt.z, w: h.doorAt.w } : null
+    const hallGaps = [...(gap ? [gap] : []), ...doorsOn(p).map((d) => ({ x: d.x, z: d.z, w: d.w || 1.8 }))]
     const padH = h.padH || 2.2
     // (one-sided: from outside, in a cutaway, you see through them)
-    group.add(new THREE.Mesh(wallRing(p, 0, padH, { inward: true, gap: cutaway ? null : gap, offset: 0.12 }), lambert(hex(h.pads, 0x1d2f5a))))
-    group.add(new THREE.Mesh(wallRing(p, padH, H, { inward: true, gap: cutaway ? null : gap, offset: 0.12 }), lambert(hex(h.wall, 0xd9d4c8))))
-    // (the outside walls: cut for the door too)
-    if (!cutaway) group.add(new THREE.Mesh(wallRing(p, 0, H, { gap, offset: 0.02 }), lambert(hex(h.outside, WALLS.hall), { map: ribsTex })))
+    group.add(new THREE.Mesh(wallRing(p, 0, padH, { inward: true, gaps: cutaway ? null : hallGaps, offset: 0.12 }), lambert(hex(h.pads, 0x1d2f5a))))
+    group.add(new THREE.Mesh(wallRing(p, padH, H, { inward: true, gaps: cutaway ? null : hallGaps, offset: 0.12 }), lambert(hex(h.wall, 0xd9d4c8))))
+    // (the outside walls: cut for the doors too)
+    if (!cutaway) group.add(new THREE.Mesh(wallRing(p, 0, H, { gaps: hallGaps, offset: 0.02 }), lambert(hex(h.outside, WALLS.hall), { map: ribsTex })))
     // (over the door: the wall closes again above 3.2 m)
     if (gap && !cutaway) {
       const a = p[h.doorAt.i]
@@ -1367,7 +1407,7 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
     cull: (cam, me) => {
       for (const z of zones) {
         const inside = pointInPoly(me.x, me.z, z.poly) || pointInPoly(cam.x, cam.z, z.poly)
-        z.group.visible = inside || z.doors.some((d) => Math.hypot(d.x - cam.x, d.z - cam.z) < 16 || Math.hypot(d.x - me.x, d.z - me.z) < 16)
+        z.group.visible = inside || z.doors.some((d) => Math.hypot(d.x - cam.x, d.z - cam.z) < 9 || Math.hypot(d.x - me.x, d.z - me.z) < 9)
       }
     },
     setDayLook: (d) => {

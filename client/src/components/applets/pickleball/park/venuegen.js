@@ -345,7 +345,7 @@ export const generateVenue = (spec, opts = {}) => {
   const halls = hallSpecs.map((h, k) => {
     const door = nearestOnPoly(h.p, h.door ? { x: h.door[0], z: h.door[1] } : k === 0 ? entry : hallDoor(h))
     const out = { ...h, doorAt: { i: door.i, t: door.t, w: h.doorW || 3.2, x: door.x, z: door.z } }
-    extraBoxes.push(...wallBoxes(h.p, h.h || 9, "wall", out.doorAt))
+    extraBoxes.push(...wallBoxesGaps(h.p, h.h || 9, "wall", [out.doorAt, ...gapsOn(h.p)]))
     // the wall over the door: overhead (people walk under it; cameras can't pass through it)
     {
       const a = { x: h.p[door.i][0], z: h.p[door.i][1] }
@@ -564,6 +564,8 @@ export const generateVenue = (spec, opts = {}) => {
       }
     return best
   })() : (() => {
+    // (an arrival the spec gives, outdoors at an indoor venue too: as it is, if there's room)
+    if (spec.spawn && walkable(entry, 0.5)) return entry
     // walk from the entrance toward the first live court's gate until there's room
     const target = gate0
     const d = sub(target, entry)
@@ -688,6 +690,20 @@ export const generateVenue = (spec, opts = {}) => {
         const ap = add(q, u, sgn * 0.65)
         seats.push({ id: `t${k}${sgn > 0 ? "a" : "b"}`, x: round(q.x), y: 0.45, z: round(q.z), yaw: Math.atan2(-u.x * sgn, -u.z * sgn), approach: { x: round(ap.x), z: round(ap.z) } })
       }
+    }
+  }
+
+  // the room kit's stools and chairs (and the venue's own): seats the regulars use
+  {
+    let k = seats.filter((s) => String(s.id).startsWith("stool")).length
+    let n = 0
+    for (const pr of [...rooms.flatMap((r) => r.props), ...venueProps]) {
+      if (n >= 60 || (pr.t !== "stool" && pr.t !== "chair")) continue
+      const dir = { x: Math.sin(pr.a || 0), z: Math.cos(pr.a || 0) }
+      const ap = add({ x: pr.x, z: pr.z }, dir, -0.75)
+      if (!walkable(ap, 0.34) || nearTree(ap, 0.75) || lights.some((l) => Math.hypot(l.x - ap.x, l.z - ap.z) < 0.6) || placed.some((b) => inBox(b, ap, 0.35) || inBox(b, pr, 0.2))) continue
+      seats.push({ id: pr.t === "stool" ? `stool${k++}` : `chair${n}`, x: round(pr.x), y: pr.t === "stool" ? 0.75 : 0.47, z: round(pr.z), yaw: Math.atan2(dir.x, dir.z), approach: { x: round(ap.x), z: round(ap.z) } })
+      n++
     }
   }
 
@@ -865,7 +881,7 @@ export const generateVenue = (spec, opts = {}) => {
     trees: trees.filter((t) => inBounds(t, -2)).map((t) => ({ x: t.x, z: t.z, s: t.s, r: t.kind === "palm" ? 0.28 : 0.35, kind: t.kind })),
     lights,
     seats,
-    circles: extraCircles,
+    circles: [...extraCircles, ...propCircles],
     penBoxes: false,
     boxes: allBoxes,
     waypoints,

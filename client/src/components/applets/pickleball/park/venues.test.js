@@ -195,3 +195,37 @@ test("follow camera at the venues: never behind a wall, a building or a fence, n
   assert.ok(Math.hypot(t.cam.x - p.x, t.cam.z - p.z) >= 1.3, "not right on top of you")
   setLayout(get("loscab").L)
 })
+
+test("room kit: every room with a door you can open is reachable on foot from the arrival (Los Cab, SMASH)", () => {
+  const inPoly = (x, z, p) => {
+    let inside = false
+    for (let i = 0, j = p.length - 1; i < p.length; j = i++) {
+      const [xi, zi] = p[i]
+      const [xj, zj] = p[j]
+      if (zi > z !== zj > z && x < ((xj - xi) * (z - zi)) / (zj - zi) + xi) inside = !inside
+    }
+    return inside
+  }
+  for (const id of ["loscab", "smash"]) {
+    const { g, L } = get(id)
+    setLayout(L)
+    const rooms = g.layoutSpec.scene.rooms || []
+    assert.ok(rooms.length >= 6, `${id}: rooms`)
+    // (not the ones behind a closed door: the office, the kitchen)
+    for (const r of rooms.filter((q) => !(q.doors || []).some((d) => d.kind === "closed"))) {
+      const spots = g.layoutSpec.nav.filter((n) => inPoly(n.x, n.z, r.p))
+      assert.ok(spots.length, `${id}: ${r.id} has room to walk`)
+      const c = r.p.reduce((s, q) => [s[0] + q[0] / r.p.length, s[1] + q[1] / r.p.length], [0, 0])
+      const to = spots.sort((a, b) => Math.hypot(a.x - c[0], a.z - c[1]) - Math.hypot(b.x - c[0], b.z - c[1]))[0]
+      let at = L.SPAWN
+      for (const p of L.route(L.SPAWN, to)) {
+        assert.equal(L.segmentHit(at, p, 0), null, `${id}: on the way to ${r.id}`)
+        at = p
+      }
+      assert.ok(Math.hypot(at.x - to.x, at.z - to.z) < 2.5, `${id}: reached ${r.id}`)
+    }
+    assert.ok(rooms.every((r) => Array.isArray(r.props)), `${id}: room props`)
+    assert.ok((g.layoutSpec.scene.doors || []).length >= 6, `${id}: doors`)
+  }
+  setLayout(get("loscab").L)
+})

@@ -70,6 +70,8 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
   renderer.outputColorSpace = THREE.SRGBColorSpace
   // (reading every program's info log makes each compile wait for the GPU driver: dev only)
   renderer.debug.checkShaderErrors = !!import.meta.env.DEV
+  // (tests: draw calls and triangles, renderer.info)
+  if (import.meta.env?.DEV) window.__pbRenderer = renderer
   renderer.toneMapping = THREE.ACESFilmicToneMapping
   renderer.shadowMap.type = THREE.PCFShadowMap
   let settings = { sound: true, voice: true, camera: "broadcast", aid: true, trail: true, assist: "reflex", quality: "medium", cuts: true, keys: {}, window: 0.06, focus: "auto", ...initial }

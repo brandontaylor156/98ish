@@ -505,7 +505,9 @@ export const makeLayout = (spec) => {
   const INTERACTABLES = [
     ...COURTS.map((c) => {
       // (no bleachers: watch from just outside the gate)
-      const at = c.bleacher ? { x: c.bleacher.x + c.out.x * 1.0, z: c.bleacher.z + c.out.z * 1.0 } : { x: c.outside.x - c.rackAlong.x * 1.6 + c.out.x * 0.6, z: c.outside.z - c.rackAlong.z * 1.6 + c.out.z * 0.6 }
+      const at0 = c.bleacher ? { x: c.bleacher.x + c.out.x * 1.0, z: c.bleacher.z + c.out.z * 1.0 } : { x: c.outside.x - c.rackAlong.x * 1.6 + c.out.x * 0.6, z: c.outside.z - c.rackAlong.z * 1.6 + c.out.z * 0.6 }
+      // (a wall or a room in the way: the nearest open spot)
+      const at = blocked(at0.x, at0.z, 0.3) ? resolve(at0.x, at0.z, 0.45) : at0
       return { id: `watch${c.id}`, kind: "watch", court: c.id, x: at.x, z: at.z, r: c.bleacher ? 4.2 : 2.6, label: "Watch" }
     }),
     ...COURTS.map((c) => ({ id: `rack${c.id}`, kind: "rack", court: c.id, x: c.rack.x + c.out.x * 0.6, z: c.rack.z + c.out.z * 0.6, r: 1.9, label: "Call next" })),

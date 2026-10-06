@@ -1519,8 +1519,9 @@ const devHooks = (world, { scene, park, exposure }) => {
       const cz = (ortho.z0 + ortho.z1) / 2
       const hw = (ortho.x1 - ortho.x0) / 2
       const hd = (ortho.z1 - ortho.z0) / 2
-      c = new THREE.OrthographicCamera(-hw, hw, hd, -hd, 1, 2000)
-      c.position.set(cx, 900, cz)
+      // (ortho.y: from under a hall's ceiling, so an indoor venue's floor shows)
+      c = new THREE.OrthographicCamera(-hw, hw, hd, -hd, ortho.y ? 0.05 : 1, 2000)
+      c.position.set(cx, ortho.y || 900, cz)
       c.up.set(0, 0, -1)
       c.lookAt(cx, 0, cz)
     } else {
@@ -1529,6 +1530,8 @@ const devHooks = (world, { scene, park, exposure }) => {
       const hd = ((k.heading || 0) * Math.PI) / 180
       const pt = ((k.pitch || 0) * Math.PI) / 180
       c.position.set(k.x || 0, k.y ?? 1.7, k.z || 0)
+      // (looking straight down: "up" on the picture is the heading)
+      if (Math.abs(k.pitch || 0) > 85) c.up.set(Math.sin(hd), 0, -Math.cos(hd))
       c.lookAt(c.position.x + Math.sin(hd) * Math.cos(pt), c.position.y + Math.sin(pt), c.position.z - Math.cos(hd) * Math.cos(pt))
     }
     c.updateMatrixWorld(true)
