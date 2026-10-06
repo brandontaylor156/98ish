@@ -77,7 +77,8 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
   const roofY = halls.length ? Math.min(...halls.map((h) => h.h || 9)) - 0.6 : null
   const rand = seeded(seed)
   const scene = new THREE.Scene()
-  const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 400)
+  // (near 0.15: depth precision for the court paint layers far away on phones)
+  const camera = new THREE.PerspectiveCamera(55, 1, 0.15, 400)
   const park = buildPark(scene, { quality, layout })
   const mann = createMannequins(scene)
   let size = { width: 1, height: 1 }
@@ -1533,6 +1534,7 @@ const devHooks = (world, { scene, park, exposure }) => {
       // (looking straight down: "up" on the picture is the heading)
       if (Math.abs(k.pitch || 0) > 85) c.up.set(Math.sin(hd), 0, -Math.cos(hd))
       c.lookAt(c.position.x + Math.sin(hd) * Math.cos(pt), c.position.y + Math.sin(pt), c.position.z - Math.cos(hd) * Math.cos(pt))
+      if (k.roll) c.rotateZ((-k.roll * Math.PI) / 180)
     }
     c.updateMatrixWorld(true)
     const hidden = []

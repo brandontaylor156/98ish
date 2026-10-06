@@ -243,7 +243,7 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
   const tennisSurroundMat = std(hex(C.tennisSurround ?? C.surround, 0x3c8a5a), { roughness: 0.9 })
   for (const b of S.banks) {
     const m = new THREE.Mesh(keep(new THREE.PlaneGeometry(2 * b.hx, 2 * b.hz).rotateX(-Math.PI / 2)), b.s === "t" ? tennisSurroundMat : b.s === "b" ? kit.mats.asphalt : surroundMat)
-    m.position.set(b.cx, 0.004, b.cz)
+    m.position.set(b.cx, 0.002, b.cz)
     m.rotation.y = yawFor(b.ux, b.uz)
     group.add(m)
   }
@@ -257,12 +257,12 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
       const w = c.W + (c.s === "t" ? 6.4 : 2.6)
       const l = c.L + (c.s === "t" ? 11 : 4.8)
       const pad = new THREE.Mesh(keep(new THREE.PlaneGeometry(w, l).rotateX(-Math.PI / 2)), pm.surround)
-      pad.position.set(c.x, 0.005, c.z)
+      pad.position.set(c.x, 0.004, c.z)
       pad.rotation.y = c.rot
       group.add(pad)
     }
     const g = c.s === "t" ? kit.tennis(c.x, c.z, c.rot, { pb: c.pb, layout: c.pl, runoff: false, paint }) : c.s === "b" ? kit.basketball(c.x, c.z, c.rot) : kit.pickleball(c.x, c.z, c.rot, { runoff: false, paint })
-    g.position.y = 0.006
+    g.position.y = 0.008
     g.updateMatrixWorld(true)
     group.add(g)
     groups.set(c, g)
@@ -594,6 +594,18 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
       if (r.top) {
         const t = r.top.map((q2) => [q2[0], q2[2]])
         group.add(new THREE.Mesh(flat(t, r.top[0][1]), roofMatFor(hex(b.top, 0xe6e3dc))))
+        if (b.hvac) {
+          const xs = t.map((q2) => q2[0])
+          const zs = t.map((q2) => q2[1])
+          const n = Math.min(24, Math.round(Math.abs(signedArea(t)) / 120))
+          for (let k = 0, tries = 0; k < n && tries < n * 10; tries++) {
+            const x = Math.min(...xs) + rand() * (Math.max(...xs) - Math.min(...xs))
+            const z = Math.min(...zs) + rand() * (Math.max(...zs) - Math.min(...zs))
+            if (!pointInPoly(x, z, t) || !pointInPoly(x + 1.5, z + 1.5, t) || !pointInPoly(x - 1.5, z - 1.5, t)) continue
+            hvac.push({ x, z, y: r.top[0][1], sx: 1.2 + rand() * 1.8, sz: 1.0 + rand() * 1.2, sy: 0.6 + rand() * 0.7, ry: 0 })
+            k++
+          }
+        }
       }
     } else {
       group.add(new THREE.Mesh(flat(b.p, b.h), b.hall ? lambert(hex(b.r, ROOFS.hall)) : roofMat))
@@ -1030,7 +1042,7 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
     const ptrunk = new THREE.InstancedMesh(keep(new THREE.CylinderGeometry(0.16, 0.24, 1, 6).translate(0, 0.5, 0)), lambert(0x8b7355), P.length)
     const frondGeo = keep(new THREE.BoxGeometry(2.4, 0.05, 0.5).translate(1.2, 0, 0))
     const fronds = new THREE.InstancedMesh(frondGeo, lambert(0x3f7f3a, { flatShading: true }), P.length * 6)
-    const tip = new THREE.InstancedMesh(keep(new THREE.SphereGeometry(0.45, 6, 5)), lambert(0x4b6b30), P.length)
+    const tip = new THREE.InstancedMesh(keep(new THREE.SphereGeometry(0.45, 5, 3)), lambert(0x4b6b30), P.length)
     P.forEach((t, i) => {
       const h = (7 + rand() * 6) * t.s
       ptrunk.setMatrixAt(i, m4.compose(v1.set(t.x, 0, t.z), q.identity(), v2.set(t.s, h, t.s)))
@@ -1056,19 +1068,22 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
   // ---------- cars in the lots ----------
   const cars = []
   for (const a of S.areas) {
-    if (a.k !== "parking" || cars.length > 700) continue
+    if (a.k !== "parking" || cars.length > 420) continue
+    const spawn = L.SPAWN || { x: 1e9, z: 1e9 }
     const xs = a.p.map((p) => p[0])
     const zs = a.p.map((p) => p[1])
     for (let z = Math.min(...zs) + 2.6; z < Math.max(...zs) - 2; z += 6)
       for (let x = Math.min(...xs) + 1.4; x < Math.max(...xs) - 1; x += 2.7) {
-        if (rand() > (a.full ?? 0.7) || !pointInPoly(x, z, a.p) || cars.length > 700) continue
+        const near = Math.hypot(x - spawn.x, z - spawn.z) < 9
+        if (near || rand() > (a.full ?? 0.62) || !pointInPoly(x, z, a.p) || cars.length > 420) continue
         cars.push({ x, z, yaw: (rand() < 0.5 ? 0 : Math.PI) + (rand() - 0.5) * 0.06, c: rand() })
       }
   }
   if (cars.length) {
     const body = new THREE.InstancedMesh(keep(new THREE.BoxGeometry(1.8, 0.75, 4.3).translate(0, 0.55, 0)), lambert(0xffffff), cars.length)
     const cab = new THREE.InstancedMesh(keep(new THREE.BoxGeometry(1.6, 0.6, 2.2).translate(0, 1.2, -0.2)), lambert(0x2a3540), cars.length)
-    const palette = [0xf2f2f2, 0x1d1f22, 0x8a9096, 0xb8bcc0, 0x7a1e1e, 0x1e3a6b, 0x3d5a40, 0xc9b38a, 0xe8e8e2, 0x444a52]
+    // (white, black, grey, silver most of all; a few blues, reds and others)
+    const palette = [0xf2f2f2, 0xf2f2f2, 0xecebe6, 0xf6f6f4, 0x1d1f22, 0x1d1f22, 0x26282c, 0x5f646a, 0x6e7378, 0x8a9096, 0xb8bcc0, 0xc8ccd0, 0xaeb3b8, 0x1e3a6b, 0x2c5aa0, 0x8a1e22, 0xb0302a, 0x3d5a40, 0xc9b38a, 0x5a3a2a]
     const cc = new THREE.Color()
     cars.forEach((c, i) => {
       m4.compose(v1.set(c.x, 0, c.z), q.setFromEuler(e1.set(0, c.yaw, 0)), v2.set(1, 1, 1))

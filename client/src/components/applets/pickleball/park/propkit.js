@@ -83,7 +83,8 @@ export const PROPS = {
 // a prop's solid footprint -> a layout box { cx, cz, hx, hz, ux, uz, h } or a circle { x, z, r }, or null
 export const propSolid = (pr) => {
   const T = PROPS[pr.t]
-  if (!T || pr.solid === false || (!T.solid && !pr.solid)) return null
+  // (up on a mezzanine or a roof: nothing to bump into on the floor)
+  if (!T || pr.solid === false || (!T.solid && !pr.solid) || (pr.y || 0) > 2.2) return null
   if (T.r) return { x: pr.x, z: pr.z, r: T.r * (pr.s || 1) }
   const w = (pr.w ?? T.w) * (pr.s || 1)
   const d = (pr.d ?? T.d) * (pr.s || 1)

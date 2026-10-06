@@ -72,7 +72,7 @@ if (Object.keys(byId).length) out.courts = { byId }
 const style = {}
 for (const b of segment?.buildings_osm || []) {
   const cls = b.roof_class || ""
-  if (/tile/.test(cls)) style[b.osm_id] = { roofStyle: pal?.roofs?.tileStyle || "hip", tile: true, roof: opt("tile") || pal?.roofs?.tile || colors.roofs?.tile || b.roof_hex_raw, ...(pal?.roofs?.band ? { band: pal.roofs.band, top: pal.roofs.flat } : {}) }
+  if (/tile/.test(cls)) style[b.osm_id] = { roofStyle: pal?.roofs?.tileStyle || "hip", tile: true, roof: opt("tile") || pal?.roofs?.tile || colors.roofs?.tile || b.roof_hex_raw, ...(pal?.roofs?.band ? { band: pal.roofs.band, top: pal.roofs.flat } : {}), ...(b.area_m2 > 700 ? { hvac: true } : {}) }
   else if (/flat light/.test(cls)) style[b.osm_id] = { roofStyle: "flat", roof: opt("flat") || pal?.roofs?.flat || colors.roofs?.flat || b.roof_hex_raw, parapet: 0.7, ...(b.area_m2 > 700 ? { hvac: true } : {}) }
 }
 if (Object.keys(style).length) out.buildings = { style }

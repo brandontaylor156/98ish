@@ -9,8 +9,14 @@
 //            writes side-by-side, 50% overlay and edge overlay PNGs, and (with layout.json) the
 //            error of every court: centre distance (m) and angle (deg) to the traced court
 //   photo    every pose in refs/<venue>/photos.json rendered at the photo's aspect, side by side
-//   color    every labeled region in refs/<venue>/colors.json sampled in the top-down render
-//            (flat things) against the reference color: Delta E per region
+//   color    every court's surfaces (and labeled regions in colors.json) sampled in the
+//            top-down render against the intended paint: Delta E per sample and per surface
+//   solve    camera poses from correspondences: refs/<venue>/points.json lists, per photo,
+//            pixels of known points ({ uv: [u, v], court: <osm id or spec index>, c: [i, j]
+//            (i along the court's length, j across, each -1 or 1: a corner) } or
+//            { uv, en: [e, n], h }); a Levenberg-Marquardt fit of position, heading, pitch,
+//            roll and field of view from the pack's guess -> refs/<venue>/poses.json, which
+//            photo mode prefers
 //
 // Needs vite (dev build: the window.__park hooks) on --base (default http://localhost:5210)
 // and Chrome; playwright-core from PLAYWRIGHT_CORE (a path to its index.mjs) or node_modules.
@@ -51,6 +57,145 @@ const M = 111320
 const [lat0, lon0] = spec.origin
 const K = Math.cos((lat0 * Math.PI) / 180)
 const toXZ = (la, lo) => [(lo - lon0) * M * K, -(la - lat0) * M]
+
+// ---------- pose solving (pure): pinhole camera, principal point at the centre ----------
+// p = [x, y, z, heading, pitch, roll, vfov] (metres, degrees); a world point -> pixel
+const project = (p, P, W, H) => {
+  const [cx, cy, cz, hd, pt, rl, fov] = p
+  const h = (hd * Math.PI) / 180
+  const t = (pt * Math.PI) / 180
+  const r0 = (rl * Math.PI) / 180
+  const f = [Math.sin(h) * Math.cos(t), Math.sin(t), -Math.cos(h) * Math.cos(t)]
+  let r = [Math.cos(h), 0, Math.sin(h)]
+  let u = [r[1] * f[2] - r[2] * f[1], r[2] * f[0] - r[0] * f[2], r[0] * f[1] - r[1] * f[0]]
+  // (roll: turn right and up round the view axis)
+  const c = Math.cos(r0)
+  const s2 = Math.sin(r0)
+  ;[r, u] = [r.map((v, i) => v * c + u[i] * s2), u.map((v, i) => v * c - r[i] * s2)]
+  const d = [P[0] - cx, P[1] - cy, P[2] - cz]
+  const xc = d[0] * r[0] + d[1] * r[1] + d[2] * r[2]
+  const yc = d[0] * u[0] + d[1] * u[1] + d[2] * u[2]
+  const zc = d[0] * f[0] + d[1] * f[1] + d[2] * f[2]
+  const fp = H / 2 / Math.tan((fov * Math.PI) / 360)
+  return zc <= 0.05 ? [1e6, 1e6] : [W / 2 + (fp * xc) / zc, H / 2 - (fp * yc) / zc]
+}
+// (fixed: indices held at their start values; a flat scene seen from straight above can't
+// tell the field of view from the height, or roll from heading)
+const solvePose = (p0, pts, W, H, fixed = []) => {
+  let p = p0.slice()
+  const err = (q) => pts.reduce((s, o) => {
+    const [u, v] = project(q, o.P, W, H)
+    return s + (u - o.uv[0]) ** 2 + (v - o.uv[1]) ** 2
+  }, 0)
+  let lam = 1e-2
+  let e = err(p)
+  for (let it = 0; it < 400; it++) {
+    // numeric Jacobian of the residuals
+    const res = (q) => pts.flatMap((o) => {
+      const [u, v] = project(q, o.P, W, H)
+      return [u - o.uv[0], v - o.uv[1]]
+    })
+    const r = res(p)
+    const steps = [0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05]
+    const J = steps.map((h, k) => {
+      if (fixed.includes(k)) return r.map(() => 0)
+      const q = p.slice()
+      q[k] += h
+      return res(q).map((v, i) => (v - r[i]) / h)
+    })
+    // (J^T J + lam diag) dp = -J^T r
+    const n = p.length
+    const A = Array.from({ length: n }, (_, i) => Array.from({ length: n }, (_, j) => J[i].reduce((s, v, m) => s + v * J[j][m], 0)))
+    const g = Array.from({ length: n }, (_, i) => J[i].reduce((s, v, m) => s + v * r[m], 0))
+    for (let i = 0; i < n; i++) A[i][i] = A[i][i] * (1 + lam) + (fixed.includes(i) ? 1 : 0)
+    // solve (Gaussian elimination)
+    const M = A.map((row, i) => [...row, -g[i]])
+    for (let i = 0; i < n; i++) {
+      let piv = i
+      for (let k = i + 1; k < n; k++) if (Math.abs(M[k][i]) > Math.abs(M[piv][i])) piv = k
+      ;[M[i], M[piv]] = [M[piv], M[i]]
+      if (Math.abs(M[i][i]) < 1e-12) continue
+      for (let k = i + 1; k < n; k++) {
+        const fct = M[k][i] / M[i][i]
+        for (let j = i; j <= n; j++) M[k][j] -= fct * M[i][j]
+      }
+    }
+    const dp = Array(n).fill(0)
+    for (let i = n - 1; i >= 0; i--) {
+      if (Math.abs(M[i][i]) < 1e-12) continue
+      dp[i] = (M[i][n] - M[i].slice(i + 1, n).reduce((s, v, j) => s + v * dp[i + 1 + j], 0)) / M[i][i]
+    }
+    const q = p.map((v, i) => v + dp[i])
+    q[6] = Math.max(15, Math.min(110, q[6]))
+    const eq = err(q)
+    if (eq < e) {
+      p = q
+      e = eq
+      lam = Math.max(1e-7, lam / 3)
+      if (dp.every((v) => Math.abs(v) < 1e-5)) break
+    } else lam *= 4
+  }
+  return { p, rms: Math.sqrt(e / Math.max(1, pts.length)) }
+}
+if (modes.includes("solve")) {
+  const pointsFile = readJson("points.json") || {}
+  const photosList = (readJson("photos.json")?.photos || readJson("photos.json") || [])
+  const anchor = readJson("aerial.json").anchor
+  const [ax, az] = toXZ(anchor.lat, anchor.lon)
+  const poses = readJson("poses.json") || {}
+  for (const [file, list] of Object.entries(pointsFile)) {
+    const ph = photosList.find((q) => q.file === file || q.file.endsWith("/" + file))
+    const img = path.join(REFS, ph?.file || file)
+    // the photo's size (JPEG SOF0/2 marker)
+    const buf = fs.readFileSync(img)
+    let W = 0
+    let H = 0
+    for (let i = 2; i < buf.length - 9; i++)
+      if (buf[i] === 0xff && (buf[i + 1] === 0xc0 || buf[i + 1] === 0xc2)) {
+        H = buf.readUInt16BE(i + 5)
+        W = buf.readUInt16BE(i + 7)
+        break
+      }
+    const pts = list.map((o) => {
+      if (o.court !== undefined || o.courtAt) {
+        // (courtAt: the court nearest a point east, north of the anchor)
+        const near = o.courtAt ? spec.courts.slice().sort((p1, p2) => Math.hypot(p1.x - (ax + o.courtAt[0]), p1.z - (az - o.courtAt[1])) - Math.hypot(p2.x - (ax + o.courtAt[0]), p2.z - (az - o.courtAt[1])))[0] : null
+        const c = near || (typeof o.court === "number" && o.court < spec.courts.length ? spec.courts[o.court] : null)
+        const cc = c || null
+        if (!cc) throw new Error(`court ${o.court}?`)
+        const L = cc.s === "t" ? 23.77 : 13.41
+        const Wd = cc.s === "t" ? 10.97 : 6.1
+        const a2 = (cc.a * Math.PI) / 180
+        const ux = Math.cos(a2)
+        const uz = Math.sin(a2)
+        return { uv: o.uv, P: [cc.x + ux * o.c[0] * (L / 2) - uz * o.c[1] * (Wd / 2), o.h || 0, cc.z + uz * o.c[0] * (L / 2) + ux * o.c[1] * (Wd / 2)] }
+      }
+      return { uv: o.uv, P: [ax + o.en[0], o.h || 0, az - o.en[1]] }
+    })
+    const g = ph?.pose || {}
+    const hf = g.hfov || 70
+    const vf = (2 * Math.atan(Math.tan((hf * Math.PI) / 360) * (H / W)) * 180) / Math.PI
+    const p0 = [ax + (g.x || 0), g.h || 10, az - (g.y || 0), g.yaw || 0, g.pitch || -20, 0, vf]
+    // (near straight down: roll and the field of view held; oblique: roll held first, then all
+    // free if there are enough points)
+    const nadir = (g.pitch ?? -20) < -75
+    const fixed = nadir ? [5, 6] : [5]
+    let best = null
+    for (const dh of [0, -40, 40, 90, -90, 180]) {
+      const s3 = solvePose([p0[0], p0[1], p0[2], p0[3] + dh, p0[4], 0, p0[6]], pts, W, H, fixed)
+      if (!best || s3.rms < best.rms) best = s3
+    }
+    if (!nadir && pts.length >= 10) {
+      const s4 = solvePose(best.p, pts, W, H, [])
+      if (s4.rms < best.rms * 0.8 && s4.p[6] > 20) best = s4
+    }
+    const [x, y, z, heading, pitch, roll, vfov] = best.p
+    poses[file] = { xz: [+x.toFixed(2), +z.toFixed(2)], y: +y.toFixed(2), heading: +heading.toFixed(2), pitch: +pitch.toFixed(2), roll: +roll.toFixed(2), vfov: +vfov.toFixed(2), rmsPx: +best.rms.toFixed(1), n: pts.length, size: [W, H] }
+    console.log(`solve ${file}: ${pts.length} points, rms ${best.rms.toFixed(1)} px, at (${x.toFixed(1)}, ${y.toFixed(1)}, ${z.toFixed(1)}) heading ${heading.toFixed(1)} pitch ${pitch.toFixed(1)} roll ${roll.toFixed(1)} vfov ${vfov.toFixed(1)}`)
+  }
+  fs.writeFileSync(path.join(REFS, "poses.json"), JSON.stringify(poses, null, 1))
+  if (modes.length === 1) process.exit(0)
+}
 
 const pw = await import(process.env.PLAYWRIGHT_CORE ? pathToFileURL(process.env.PLAYWRIGHT_CORE).href : "playwright-core")
 const browser = await pw.chromium.launch({ channel: "chrome", headless: true })
@@ -317,8 +462,11 @@ try {
       const W = 640
       const Hh = Math.round((W * im.h) / im.w)
       let x, z
+      const solved = (readJson("poses.json") || {})[p.file] || (readJson("poses.json") || {})[path.basename(p.file)]
+      if (solved) Object.assign(p, { xz: solved.xz, height: solved.y, heading: solved.heading, pitch: solved.pitch, roll: solved.roll, vfov: solved.vfov, fov: solved.vfov, pose: null })
       // (the reference pack's form: pose { x, y (metres east, north of the aerial's anchor), h,
       // yaw (compass), pitch, hfov })
+      if (p.pose && (p.pose.x === null || p.pose.x === undefined)) continue
       if (p.pose && aerial) {
         const [ax, az] = toXZ(aerial.anchor.lat, aerial.anchor.lon)
         p.en = [p.pose.x, p.pose.y]
@@ -334,7 +482,7 @@ try {
         const [ax, az] = toXZ(aerial.anchor.lat, aerial.anchor.lon)
         ;[x, z] = [ax + p.en[0], az - p.en[1]]
       } else continue
-      const cam = { x, z, y: p.height ?? p.y ?? 1.7, heading: p.heading ?? p.yaw ?? 0, pitch: p.pitch ?? 0, fov: p.vfov ?? p.fov ?? 55 }
+      const cam = { x, z, y: p.height ?? p.y ?? 1.7, heading: p.heading ?? p.yaw ?? 0, pitch: p.pitch ?? 0, roll: p.roll || 0, fov: p.vfov ?? p.fov ?? 55 }
       const url = await page.evaluate(({ W, Hh, cam }) => window.__park.devShot({ w: W, h: Hh, cam }), { W, Hh, cam })
       const out = await page.evaluate(({ ref, url, W, Hh }) => __cmp.compose(ref, url, W, Hh, { overlay: false, edges: false }), { ref: dataUrl(file), url, W, Hh })
       const name = `photo-${path.basename(p.file).replace(/\.\w+$/, "")}.png`

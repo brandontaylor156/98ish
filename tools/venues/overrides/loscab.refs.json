@@ -278,14 +278,16 @@
     "tile": true,
     "roof": "#8a4a38",
     "band": 4.2,
-    "top": "#d9d6cf"
+    "top": "#d9d6cf",
+    "hvac": true
    },
    "1081282174": {
     "roofStyle": "mansard",
     "tile": true,
     "roof": "#8a4a38",
     "band": 4.2,
-    "top": "#d9d6cf"
+    "top": "#d9d6cf",
+    "hvac": true
    },
    "1081282175": {
     "roofStyle": "flat",
@@ -327,7 +329,8 @@
     "tile": true,
     "roof": "#8a4a38",
     "band": 4.2,
-    "top": "#d9d6cf"
+    "top": "#d9d6cf",
+    "hvac": true
    },
    "1167115277": {
     "roofStyle": "flat",
@@ -345,7 +348,8 @@
     "tile": true,
     "roof": "#8a4a38",
     "band": 4.2,
-    "top": "#d9d6cf"
+    "top": "#d9d6cf",
+    "hvac": true
    },
    "1167115282": {
     "roofStyle": "mansard",
@@ -359,14 +363,16 @@
     "tile": true,
     "roof": "#8a4a38",
     "band": 4.2,
-    "top": "#d9d6cf"
+    "top": "#d9d6cf",
+    "hvac": true
    },
    "1167115284": {
     "roofStyle": "mansard",
     "tile": true,
     "roof": "#8a4a38",
     "band": 4.2,
-    "top": "#d9d6cf"
+    "top": "#d9d6cf",
+    "hvac": true
    },
    "1167115285": {
     "roofStyle": "flat",
@@ -379,21 +385,24 @@
     "tile": true,
     "roof": "#8a4a38",
     "band": 4.2,
-    "top": "#d9d6cf"
+    "top": "#d9d6cf",
+    "hvac": true
    },
    "1167115287": {
     "roofStyle": "mansard",
     "tile": true,
     "roof": "#8a4a38",
     "band": 4.2,
-    "top": "#d9d6cf"
+    "top": "#d9d6cf",
+    "hvac": true
    },
    "1167115291": {
     "roofStyle": "mansard",
     "tile": true,
     "roof": "#8a4a38",
     "band": 4.2,
-    "top": "#d9d6cf"
+    "top": "#d9d6cf",
+    "hvac": true
    },
    "1167115292": {
     "roofStyle": "flat",

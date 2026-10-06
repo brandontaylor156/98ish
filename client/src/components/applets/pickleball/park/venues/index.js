@@ -11,7 +11,7 @@ export const VENUE_LIST = [
     "courts": 54,
     "tennis": 13,
     "live": 6,
-    "kb": 36
+    "kb": 36.1
   },
   {
     "id": "newport",
@@ -83,7 +83,7 @@ export const VENUE_LIST = [
     "courts": 9,
     "tennis": 0,
     "live": 6,
-    "kb": 12.7
+    "kb": 13.5
   }
 ]
 export const loadVenueSpec = (id) => {
