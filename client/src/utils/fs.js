@@ -71,6 +71,7 @@ export const FILE_TYPE = {
   song: "song", // a song for Music 98: the original MP3/M4A/... as a data URL in textContent
   musiclib: "musiclib",
   together: "together",
+  locator: "locator",
   reversi: "reversi",
   chess: "chess",
   checkers: "checkers",
@@ -606,6 +607,7 @@ const DEFAULT_ITEMS = [
   ["C:/Programs/YouTube '98", "file", "video"],
   ["C:/Programs/Music 98", "file", "musiclib"],
   ["C:/Programs/Watch Together", "file", "together"],
+  ["C:/Programs/Buddy Locator", "file", "locator"],
   ["C:/Programs/Notepad", "file", "notepad"],
   ["C:/Programs/Paint", "file", "paint"],
   ["C:/Programs/WordPad", "file", "wordpad"],

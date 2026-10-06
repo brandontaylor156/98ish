@@ -1,0 +1,431 @@
+/* Buddy Locator */
+.loc {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  height: calc(100% - 25px); /* under the title bar */
+  padding: 4px;
+  box-sizing: border-box;
+  background: #c0c0c0;
+  font-size: 12px;
+  overflow: hidden;
+}
+
+.locHint {
+  color: #404040;
+  font-size: 11px;
+}
+
+.locError {
+  color: #a00000;
+  margin: 0;
+}
+
+.locNote {
+  padding: 2px 6px;
+  background: #ffffe1;
+  border: 1px solid #000;
+}
+
+.locBar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.locPrimary {
+  font-weight: bold;
+}
+
+.locShareBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.locStatus {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #404040;
+}
+
+.locStatus.is-on {
+  color: #0040a0;
+  font-weight: bold;
+}
+
+.locUpdates {
+  margin-top: -2px;
+}
+
+.locBanner {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 4px 6px;
+  background: #ffffe1;
+  border: 1px solid #000;
+}
+
+.locBanner > span:first-child {
+  flex: 1;
+  min-width: 140px;
+}
+
+.locButtons {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.locMain {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  gap: 4px;
+}
+
+.locMapPane {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+}
+
+.locMapWrap {
+  position: relative;
+  flex: 1;
+  min-height: 200px;
+  background: #e8e4d8;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+  padding: 2px;
+  box-sizing: border-box;
+}
+
+.locMap,
+.locMap.maplibregl-map {
+  /* (MapLibre's own .maplibregl-map would make it position: relative with no height) */
+  position: absolute;
+  inset: 2px;
+}
+
+.locMapNote {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  max-width: 80%;
+  padding: 6px 10px;
+  background: #ffffe1;
+  border: 1px solid #000;
+  text-align: center;
+}
+
+.locMapNote.is-error {
+  color: #a00000;
+}
+
+.locMapTools {
+  position: absolute;
+  left: 8px;
+  top: 8px;
+  display: flex;
+  gap: 4px;
+  z-index: 2;
+}
+
+.locMapTools button {
+  min-width: 0;
+  padding: 0 8px;
+}
+
+.locSide {
+  flex: 0 0 230px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 0;
+  overflow: auto;
+}
+
+.locListHead {
+  font-weight: bold;
+}
+
+.locList {
+  margin: 0;
+  padding: 2px;
+  list-style: none;
+  background: #fff;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+  min-height: 60px;
+}
+
+.locEmpty {
+  padding: 6px;
+  color: #404040;
+}
+
+.locRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px;
+  cursor: pointer;
+}
+
+.locRow.is-selected {
+  background: #000080;
+  color: #fff;
+}
+
+.locRow.is-selected .locHint {
+  color: #dcdcff;
+}
+
+.locFace {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  color: #fff;
+  font-weight: bold;
+  border: 1px solid #000;
+  box-shadow: inset 1px 1px rgba(255, 255, 255, 0.5);
+}
+
+.locRowText {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.locRowText > * {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.locCard {
+  padding: 6px;
+  border: 1px solid #808080;
+  background: #dfdfdf;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.locCardHead {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  align-items: baseline;
+}
+
+.locCardButtons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+}
+
+.locCardButtons button {
+  min-width: 0;
+}
+
+.locSection {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0 0 6px;
+}
+
+.locShareRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.locStopAll {
+  align-self: flex-start;
+}
+
+/* popups over the app */
+.locLayer {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.15);
+}
+
+.window.locPopup {
+  height: auto;
+  min-width: 0;
+  width: 300px;
+  max-width: calc(100% - 16px);
+  max-height: calc(100% - 16px);
+  overflow: auto;
+}
+
+.locPopupBody {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.locPopupBody p {
+  margin: 0;
+}
+
+.locChoices {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.locHero {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 8px;
+  background: #fff;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+}
+
+.locSignedOff {
+  gap: 8px;
+}
+
+/* the map's pins: a 98 square with initials and a name tag */
+.locPin {
+  all: unset;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  touch-callout: none;
+}
+
+.locPinFace {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  color: #fff;
+  font: bold 11px/1 "Pixelated MS Sans Serif", Arial, sans-serif;
+  border: 2px solid #fff;
+  outline: 1px solid #000;
+  box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.45);
+}
+
+.locPin.is-me .locPinFace {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 3px solid #fff;
+}
+
+.locPinName {
+  margin-top: 2px;
+  padding: 0 3px;
+  background: #ffffe1;
+  border: 1px solid #000;
+  font: 11px/14px "Pixelated MS Sans Serif", Arial, sans-serif;
+  color: #000;
+  white-space: nowrap;
+}
+
+.locPin.is-selected .locPinName {
+  background: #000080;
+  color: #fff;
+}
+
+.locPin.is-stale .locPinFace {
+  filter: grayscale(0.7);
+}
+
+/* MapLibre's own controls in 98 clothes */
+.locMap .maplibregl-ctrl-group {
+  border-radius: 0;
+  background: #c0c0c0;
+  box-shadow: inset -1px -1px #0a0a0a, inset 1px 1px #fff, inset -2px -2px #808080, inset 2px 2px #dfdfdf;
+}
+
+.locMap .maplibregl-ctrl-attrib {
+  font-size: 10px;
+}
+
+/* the tray arrow */
+.locTray.is-attention .locArrow {
+  animation: locBlink 1s steps(2) infinite;
+}
+
+@keyframes locBlink {
+  50% {
+    opacity: 0.2;
+  }
+}
+
+/* a buddy started sharing, asked, arrived or left */
+.window.locToast {
+  height: auto;
+  min-width: 0;
+  position: fixed;
+  right: 8px;
+  bottom: 44px;
+  z-index: 200000;
+  width: 290px;
+  max-width: calc(100vw - 16px);
+}
+
+.locToastBody {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px;
+}
+
+.locToastText {
+  flex: 1;
+  min-width: 0;
+}
+
+/* phones: the map on top, the list under it */
+.loc.is-mobile .locMain {
+  flex-direction: column;
+}
+
+.loc.is-mobile .locMapPane {
+  flex: 0 0 46%;
+  min-height: 220px;
+}
+
+.loc.is-mobile .locSide {
+  flex: 1;
+}
+
+.loc.is-mobile .locRow {
+  padding: 8px 4px;
+}
+
+.loc.is-mobile .locCardButtons button,
+.loc.is-mobile .locMapTools button {
+  min-height: 32px;
+}

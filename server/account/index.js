@@ -89,6 +89,12 @@
 //               (+ memory)                         pages they reported, their daily usage
 //                                                  counters (u:<key>), their browsing sessions
 //                                                  and the relay's cookie jar for them
+//   locations   locations                          Buddy Locator (server/locate): their record (who
+//                                                  they share with, their latest position, places,
+//                                                  alerts, asks) deleted; the people who could see
+//                                                  them are told; they're taken out of everyone
+//                                                  else's record (shares with them, their asks,
+//                                                  alerts about them). No position history exists
 //   aim         aimusers                           the account (password hash, profile, Buddy
 //                                                  List, blocks, remembered devices) deleted; their
 //                                                  name taken off everyone's Buddy List and block

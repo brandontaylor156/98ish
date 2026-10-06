@@ -32,6 +32,7 @@ export const APPS = {
   games: { name: "Games", icon: "/assets/games.png" },
   achievements: { name: "Achievements", icon: "/assets/program_icons/welcome.svg" },
   notes: { name: "Notes", icon: "/assets/program_icons/notes.svg" },
+  locator: { name: "Buddy Locator", icon: "/assets/program_icons/locator.svg" },
   tasks: { name: "Tasks", icon: "/assets/program_icons/tasks.svg" },
   photos: { name: "Photos", icon: "/assets/program_icons/photos.svg" },
   system: { name: "98ish", icon: "/assets/start98.png" },

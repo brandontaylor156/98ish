@@ -24,6 +24,7 @@ const KINDS = [
   ["games", "Game invitations"],
   ["notes", "Shared notes: a buddy shares or changes one"],
   ["albums", "Shared albums: new photos, comments, likes"],
+  ["places", "Buddy Locator: a buddy shares, asks, arrives or leaves"],
 ]
 
 // ---- the Add to Home Screen guide (original drawings) ----

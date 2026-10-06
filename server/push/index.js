@@ -39,7 +39,7 @@ const { limiter } = require("../net/limiter")
 const { sessionFrom } = require("../aim/auth")
 const { memoryStore, createPushStore } = require("./store")
 
-const CATEGORIES = ["im", "calls", "calendar", "couples", "mail", "games", "notes", "albums"]
+const CATEGORIES = ["im", "calls", "calendar", "couples", "mail", "games", "notes", "albums", "places"]
 const MINUTE = 60_000
 const HOUR = 60 * MINUTE
 const REMINDER_EVERY_MS = MINUTE

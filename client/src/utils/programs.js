@@ -20,6 +20,8 @@ export const programs = [
   { name: "Music 98", app: "musiclib", type: "musiclib", icon: "/assets/program_icons/music98.svg", width: 520, height: 640, group: "Entertainment", desktop: false, single: true },
   // a YouTube video in sync with an IM buddy or a chat room (applets/together, server/aim/together.js)
   { name: "Watch Together", app: "together", type: "together", icon: "/assets/program_icons/together.svg", width: 520, height: 680, group: "Internet", also: ["Entertainment", "Us"], desktop: false, single: true },
+  // opt-in location sharing with buddies on a map (applets/locator, server/locate)
+  { name: "Buddy Locator", app: "locator", type: "locator", icon: "/assets/program_icons/locator.svg", width: 780, height: 580, group: "Internet", also: ["Us"], desktop: false, single: true },
   { name: "YouTube '98", type: "video", icon: "/assets/program_icons/video-48.png", width: 820, height: 620, group: "Internet", single: true },
   { name: "My Computer", app: "explorer", icon: "/assets/program_icons/computer_explorer.png", width: 640, height: 440, group: null },
   { name: "Notepad", app: "notepad", type: "notepad", icon: "/assets/note.png", width: 520, height: 420, group: "Accessories" },
