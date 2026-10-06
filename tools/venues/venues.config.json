@@ -1,0 +1,12 @@
+{
+  "_": "Real venues for Pickleball 98's My Park: where to fetch OpenStreetMap data around each one (fetch-osm.mjs) and how to turn it into a venue spec (build-venues.mjs + overrides/<id>.json). Coordinates are the venue's anchor (OSM); radius in meters.",
+  "venues": [
+    { "id": "loscab", "lat": 33.7140, "lon": -117.9240, "radius": 260 },
+    { "id": "newport", "lat": 33.6097, "lon": -117.8816, "radius": 280 },
+    { "id": "wolfbear", "lat": 34.1813, "lon": -118.4582, "radius": 180 },
+    { "id": "whittier", "lat": 34.0400, "lon": -118.0520, "radius": 820 },
+    { "id": "paseo", "lat": 34.4377, "lon": -118.5620, "radius": 230 },
+    { "id": "sinaloa", "lat": 34.2654, "lon": -118.7846, "radius": 280 },
+    { "id": "smash", "lat": 33.9272, "lon": -118.3881, "radius": 180 }
+  ]
+}
