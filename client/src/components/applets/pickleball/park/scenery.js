@@ -232,7 +232,8 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
   }
 
   // ---------- low fences, nets, walls, hedges ----------
-  const screenMat = lambert(hex(C.windscreen, 0x1f4a37), { side: THREE.DoubleSide })
+  // (the low dividers between paired courts: dark, not the windscreens' color)
+  const screenMat = lambert(hex(S.fence?.dividerColor, 0x1d2420), { side: THREE.DoubleSide })
   const wallMat = lambert(0xc9c2b4)
   const hedgeMat = lambert(0x3f6b34, { flatShading: true })
   const netTex = keep(
@@ -330,8 +331,9 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
       const len = Math.hypot(b[0] - a[0], b[1] - a[1])
       if (len < 0.05) continue
       // outward normal
-      const nx = ((b[1] - a[1]) / len) * (ccw ? -1 : 1)
-      const nz = (-(b[0] - a[0]) / len) * (ccw ? -1 : 1)
+      // (positive area in x, z: the edge's right-hand side, (dz, -dx), is outside)
+      const nx = ((b[1] - a[1]) / len) * (ccw ? 1 : -1)
+      const nz = (-(b[0] - a[0]) / len) * (ccw ? 1 : -1)
       const o = inward ? -offset : offset
       const cutAt = doorCut({ x: a[0], z: a[1] }, { x: (b[0] - a[0]) / len, z: (b[1] - a[1]) / len }, len, gap)
       const runs = cutAt ? [[0, cutAt[0]], [cutAt[1], len]] : [[0, len]]

@@ -122,10 +122,10 @@
           -32
         ]
       },
-      "wall": "#1e1d1c",
-      "pads": "#1e1d1c",
+      "wall": "#2c2a28",
+      "pads": "#222120",
       "padH": 2.2,
-      "ceiling": "#2a2724",
+      "ceiling": "#3a3632",
       "floor": "#5f8fae",
       "beams": "#2b2b2b",
       "ducts": "#b9bcc0",
@@ -166,7 +166,7 @@
       "wall": "#f2f2ef",
       "pads": "#4a4a4a",
       "padH": 3,
-      "ceiling": "#2a2724",
+      "ceiling": "#3a3632",
       "floor": "#5f8fae",
       "beams": "#2b2b2b",
       "outside": "#c9c1b3",
@@ -189,9 +189,9 @@
           -20
         ]
       },
-      "wall": "#1e1d1c",
-      "pads": "#1e1d1c",
-      "ceiling": "#2a2724",
+      "wall": "#2c2a28",
+      "pads": "#222120",
+      "ceiling": "#3a3632",
       "floor": "#3a3d42",
       "outside": "#c9c1b3",
       "roof": "#bdb8ae"

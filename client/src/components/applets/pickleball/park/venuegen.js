@@ -230,9 +230,10 @@ export const generateVenue = (spec, opts = {}) => {
   let entry
   if (spec.spawn) entry = { x: spec.spawn.x, z: spec.spawn.z }
   else if (hallPoly) {
+    // (well inside the door, so the camera behind you stays inside too)
     const c = centroid(hallPoly)
     const d = hallDoor(hallSpecs[0])
-    entry = add(d, sub(c, d), 3.5 / (len(sub(c, d)) || 1))
+    entry = add(d, sub(c, d), Math.min(7, len(sub(c, d)) * 0.6) / (len(sub(c, d)) || 1))
   } else if (parkingAreas.length) {
     // the parking lot nearest the courts
     const near = parkingAreas.map((a) => centroid(a.p)).sort((p, q) => len(p) - len(q))[0]
@@ -267,6 +268,13 @@ export const generateVenue = (spec, opts = {}) => {
     const door = nearestOnPoly(h.p, h.door ? { x: h.door[0], z: h.door[1] } : k === 0 ? entry : hallDoor(h))
     const out = { ...h, doorAt: { i: door.i, t: door.t, w: h.doorW || 3.2, x: door.x, z: door.z } }
     extraBoxes.push(...wallBoxes(h.p, h.h || 9, "wall", out.doorAt))
+    // the wall over the door: overhead (people walk under it; cameras can't pass through it)
+    {
+      const a = { x: h.p[door.i][0], z: h.p[door.i][1] }
+      const b = { x: h.p[(door.i + 1) % h.p.length][0], z: h.p[(door.i + 1) % h.p.length][1] }
+      const L = len(sub(b, a)) || 1
+      extraBoxes.push({ cx: door.x, cz: door.z, hx: out.doorAt.w / 2 + 0.3, hz: 0.25, ux: (b.x - a.x) / L, uz: (b.z - a.z) / L, h: h.h || 9, y0: 3.0, kind: "lintel" })
+    }
     return out
   })
   const hall = halls[0] || null
@@ -298,7 +306,7 @@ export const generateVenue = (spec, opts = {}) => {
   }
   // a court shouldn't be inside a building (bad data): those buildings are dropped
   const bankBoxes = banks.map((b) => ({ ...b.box, h: indoor ? 1.2 : spec.fence?.height || 3, kind: "pen", bank: b.i }))
-  const solidAt = (p, pad = 0.4) => bankBoxes.some((b) => inBox(b, p, pad)) || extraBoxes.some((b) => inBox(b, p, pad))
+  const solidAt = (p, pad = 0.4) => bankBoxes.some((b) => inBox(b, p, pad)) || extraBoxes.some((b) => !b.y0 && inBox(b, p, pad))
   const insideBuilding = (p) => (spec.buildings || []).some((b) => !b.hall && pointInPoly(p, b.p))
 
   // ---------- numbering every pickleball court, reading order ----------
@@ -342,7 +350,7 @@ export const generateVenue = (spec, opts = {}) => {
 
   // furniture placed so far (racks, bleachers), as boxes, to keep things apart
   const placed = []
-  const free = (b) => !placed.some((p) => boxesOverlap(p, b)) && !extraBoxes.some((p) => boxesOverlap(p, b)) && !bankBoxes.some((p) => boxesOverlap(p, b))
+  const free = (b) => !placed.some((p) => boxesOverlap(p, b)) && !extraBoxes.some((p) => !p.y0 && boxesOverlap(p, b)) && !bankBoxes.some((p) => boxesOverlap(p, b))
   const bounds0 = { x0: allBanksBox.cx - allBanksBox.hx - 24, x1: allBanksBox.cx + allBanksBox.hx + 24, z0: allBanksBox.cz - allBanksBox.hz - 24, z1: allBanksBox.cz + allBanksBox.hz + 24 }
   for (const h of halls) {
     // (indoors: the halls, plus a strip of parking round them)
@@ -456,10 +464,12 @@ export const generateVenue = (spec, opts = {}) => {
   const spawnAt = hallPoly && !spec.spawn ? (() => {
     let best = entry
     let bestD = Infinity
-    for (let dx = -6; dx <= 6; dx += 0.5)
-      for (let dz = -6; dz <= 6; dz += 0.5) {
+    for (let dx = -12; dx <= 12; dx += 0.5)
+      for (let dz = -12; dz <= 12; dz += 0.5) {
         const p = { x: entry.x + dx, z: entry.z + dz }
-        if (!walkable(p, 1.0) || !pointInPoly(p, hallPoly)) continue
+        if (!walkable(p, 0.6) || !pointInPoly(p, hallPoly)) continue
+        // (not in the doorway: the camera behind you would be outside)
+        if (Math.hypot(p.x - halls[0].doorAt.x, p.z - halls[0].doorAt.z) < 4.5) continue
         const d = Math.hypot(dx, dz)
         if (d < bestD) {
           bestD = d
@@ -599,7 +609,7 @@ export const generateVenue = (spec, opts = {}) => {
   const bounds = { x0: round(bounds0.x0), x1: round(bounds0.x1), z0: round(bounds0.z0), z1: round(bounds0.z1) }
   const allBoxes = [...bankBoxes, ...extraBoxes]
   const lightCircles = lights.map((l) => ({ x: l.x, z: l.z, r: 0.15 }))
-  const solidFinal = (p, pad) => allBoxes.some((b) => inBox(b, p, pad)) || placed.some((b) => inBox(b, p, pad)) || [...treeCircles, ...extraCircles, ...lightCircles].some((t) => Math.hypot(t.x - p.x, t.z - p.z) < t.r + pad)
+  const solidFinal = (p, pad) => allBoxes.some((b) => !b.y0 && inBox(b, p, pad)) || placed.some((b) => inBox(b, p, pad)) || [...treeCircles, ...extraCircles, ...lightCircles].some((t) => Math.hypot(t.x - p.x, t.z - p.z) < t.r + pad)
   const STEP = indoor ? 2 : 5
   const NAV_PAD = indoor ? 0.4 : 0.6
   const nav = []

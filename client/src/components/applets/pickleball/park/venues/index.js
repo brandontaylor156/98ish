@@ -34,7 +34,7 @@ export const VENUE_LIST = [
     "access": "public",
     "courts": 12,
     "tennis": 0,
-    "live": 6,
+    "live": 4,
     "kb": 7.1
   },
   {

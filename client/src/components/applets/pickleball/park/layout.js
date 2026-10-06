@@ -358,6 +358,7 @@ export const makeLayout = (spec) => {
   const resolve = (x, z, r = 0.35) => {
     for (let pass = 0; pass < 2; pass++) {
       for (const b of boxesNear(x, z)) {
+        if (b.y0) continue // (overhead: a door's lintel; people walk under it)
         const dx = x - b.cx
         const dz = z - b.cz
         const lx = dx * b.ux + dz * b.uz
@@ -384,7 +385,7 @@ export const makeLayout = (spec) => {
           const toW = (ax, az) => ({ x: b.cx + ax * b.ux - az * b.uz, z: b.cz + ax * b.uz + az * b.ux })
           const free = (ax, az) => {
             const p = toW(ax, az)
-            return !boxesNear(p.x, p.z).some((o) => o !== b && inBoxPadded(o, p.x, p.z, r))
+            return !boxesNear(p.x, p.z).some((o) => o !== b && !o.y0 && inBoxPadded(o, p.x, p.z, r))
           }
           const out = outs.find(([ox, oz]) => free(lx + ox, lz + oz)) || outs[0]
           nx = lx + out[0]
@@ -436,7 +437,7 @@ export const makeLayout = (spec) => {
   const segmentHit = (a, b, h = 0, pad = 0) => {
     let best = null
     for (const box of segBoxes(a, b)) {
-      if (box.h <= h) continue
+      if (box.h <= h || (box.y0 && h === 0)) continue
       const ax = a.x - box.cx
       const az = a.z - box.cz
       const bx = b.x - box.cx
@@ -547,9 +548,25 @@ export const makeLayout = (spec) => {
           })
         })()
   // (nodes a spot can see: the nearest few that are in the clear)
+  // (a big graph: the nodes in the cells round the spot, nearest first)
+  const NAV_CELL = 6
+  const navCells = new Map()
+  if (NAV.length > 60)
+    NAV.forEach((q, i) => {
+      const k = cellKey(Math.floor(q.x / NAV_CELL), Math.floor(q.z / NAV_CELL))
+      if (!navCells.has(k)) navCells.set(k, [])
+      navCells.get(k).push(i)
+    })
   const visible = (p) => {
     if (NAV.length <= 60) return NAV.map((q, i) => (open(p, q) ? i : -1)).filter((i) => i >= 0)
-    const near = NAV.map((q, i) => [i, Math.hypot(q.x - p.x, q.z - p.z)]).sort((a, b) => a[1] - b[1]).slice(0, 14)
+    const ci = Math.floor(p.x / NAV_CELL)
+    const cj = Math.floor(p.z / NAV_CELL)
+    let cand = []
+    for (let r = 1; r <= 4 && cand.length < 14; r++) {
+      cand = []
+      for (let i = ci - r; i <= ci + r; i++) for (let j = cj - r; j <= cj + r; j++) for (const k of navCells.get(cellKey(i, j)) || []) cand.push(k)
+    }
+    const near = cand.map((i) => [i, Math.hypot(NAV[i].x - p.x, NAV[i].z - p.z)]).sort((a, b) => a[1] - b[1]).slice(0, 14)
     return near.filter(([i]) => open(p, NAV[i])).map(([i]) => i)
   }
   // (a big graph, a real venue's: a binary heap; Riverside's small one: a plain scan)
