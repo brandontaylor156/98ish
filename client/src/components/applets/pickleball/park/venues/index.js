@@ -23,7 +23,7 @@ export const VENUE_LIST = [
     "courts": 44,
     "tennis": 12,
     "live": 6,
-    "kb": 11.1
+    "kb": 28.1
   },
   {
     "id": "wolfbear",

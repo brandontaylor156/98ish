@@ -6,7 +6,7 @@
 // The pad pushed a little: a walk; most of the way: a jog; all the way (or Shift) and held:
 // a sprint.
 
-import { resolve } from "./layout.js"
+import { heightAt, resolve } from "./layout.js"
 
 export const SPEEDS = { walk: 1.45, jog: 3.1, run: 4.3, sprint: 6.2 }
 export const ACCEL = 7 // m/s^2 speeding up
@@ -16,7 +16,8 @@ export const RADIUS = 0.35
 
 const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a))
 
-export const createWalker = (x, z, yaw = 0) => ({ x, z, yaw, vx: 0, vz: 0, speed: 0, full: 0, gait: "stand" })
+// (y: the height of what you stand on: the ground, a stair, a rooftop terrace)
+export const createWalker = (x, z, yaw = 0, y = 0) => ({ x, z, y, yaw, vx: 0, vz: 0, speed: 0, full: 0, gait: "stand" })
 
 // how fast the push asks for: magnitude 0..1 -> m/s
 export const speedFor = (mag, { sprint = false, full = 0 } = {}) => {
@@ -69,7 +70,13 @@ export const stepWalker = (w, input, camYaw, dt) => {
   }
   const nx = w.x + w.vx * dt
   const nz = w.z + w.vz * dt
-  const p = resolve(nx, nz, RADIUS)
+  const y = w.y || 0
+  let p = resolve(nx, nz, RADIUS, y)
+  // (up the stairs, along a deck; off a deck's edge where there's no railing: nothing to
+  // stand on, so you stay put)
+  const h = heightAt(p.x, p.z, y)
+  if (h === null) p = { x: w.x, z: w.z }
+  else w.y = h
   // (sliding along a fence: what the fence took away is gone from the speed too)
   if (dt > 0) {
     const ax = (p.x - w.x) / dt
@@ -95,9 +102,12 @@ export const keepApart = (w, others, r = 0.55) => {
     const d = Math.hypot(dx, dz)
     if (d >= r || d < 1e-6) continue
     const push = r - d
-    const p = resolve(w.x + (dx / d) * push, w.z + (dz / d) * push, RADIUS)
+    const p = resolve(w.x + (dx / d) * push, w.z + (dz / d) * push, RADIUS, w.y || 0)
+    const h = heightAt(p.x, p.z, w.y || 0)
+    if (h === null) continue
     w.x = p.x
     w.z = p.z
+    w.y = h
   }
   return w
 }

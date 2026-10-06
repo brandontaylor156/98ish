@@ -28,11 +28,15 @@ const PAD = 0.12 // (the near plane: a lens 0.1 m from a wall still clips it)
 
 // one try at a camera yaw: as far back as `dist` allows, pulled in to the first solid thing,
 // or over a low one (a fence) when the roof allows -> { cam, d } or null
-const placeAt = (w, yaw, dist, height, maxY, occ) => {
+const placeAt = (w, yaw, dist, height, maxY, occ, minDist = FOLLOW.minDist, shoulder = 0) => {
   const fx = Math.sin(yaw)
   const fz = Math.cos(yaw)
-  const head = { x: w.x, y: HEAD_Y, z: w.z }
-  let cam = { x: w.x - fx * dist, y: height, z: w.z - fz * dist }
+  // (over the shoulder: the lens a little to the right of straight behind, so you don't hide
+  // the room in front of you)
+  const sx = -Math.cos(yaw) * shoulder
+  const sz = Math.sin(yaw) * shoulder
+  const head = { x: w.x, y: (w.y || 0) + HEAD_Y, z: w.z }
+  let cam = { x: w.x - fx * dist + sx, y: height, z: w.z - fz * dist + sz }
   let hit = occ(head, cam)
   if (!hit) return { cam, d: dist }
   // a fence (not a wall): up over its top, if there's room under the roof
@@ -44,8 +48,9 @@ const placeAt = (w, yaw, dist, height, maxY, occ) => {
   let d = dist
   for (let i = 0; i < 4 && hit; i++) {
     d = d * hit.t - GAP
-    if (d < FOLLOW.minDist) return null
-    cam = { x: w.x - fx * d, y: Math.min(maxY, height + Math.min(1.6, (dist - d) * 0.45)), z: w.z - fz * d }
+    if (d < minDist) return null
+    const k = d / dist
+    cam = { x: w.x - fx * d + sx * k, y: Math.min(maxY, height + Math.min(1.6, (dist - d) * 0.45)), z: w.z - fz * d + sz * k }
     hit = occ(head, cam)
   }
   return hit ? null : { cam, d }
@@ -58,12 +63,17 @@ const placeAt = (w, yaw, dist, height, maxY, occ) => {
 // tight: in a room (a lobby, a locker room): closer and lower, so the camera stays inside
 export const followTarget = (w, camYaw, { portrait = false, bodies = [], roofY = null, prefer = 0, occ = null, tight = false } = {}) => {
   const hit3 = occ || ((a, b) => segmentHit3(a, b, PAD))
-  const dist = tight ? 2.7 + (portrait ? 0.8 : 0) : FOLLOW.dist + (portrait ? 1.6 : 0)
+  // (a room: closer, lower, over the shoulder, looking further ahead into the room)
+  const dist = tight ? 2.3 + (portrait ? 0.6 : 0) : FOLLOW.dist + (portrait ? 1.6 : 0)
+  const minDist = tight ? 0.95 : FOLLOW.minDist
+  const shoulder = tight ? 0.42 : 0
   const maxY = roofY ?? Infinity
-  const height = Math.min(maxY, tight ? 2.0 + (portrait ? 0.3 : 0) : FOLLOW.height + (portrait ? 0.9 : 0))
+  // (heights from the floor you're on: the ground, a stair, a rooftop terrace)
+  const floor = w.y || 0
+  const height = Math.min(maxY, floor + (tight ? 1.85 + (portrait ? 0.25 : 0) : FOLLOW.height + (portrait ? 0.9 : 0)))
   let best = null
   const tryOff = (off) => {
-    const p = placeAt(w, camYaw + off, dist, height, maxY, hit3)
+    const p = placeAt(w, camYaw + off, dist, height, maxY, hit3, minDist, shoulder)
     if (!p) return
     // (score: as far back as it can, the least turned)
     const score = p.d - Math.abs(off) * 2.2
@@ -86,20 +96,21 @@ export const followTarget = (w, camYaw, { portrait = false, bodies = [], roofY =
   } else {
     // nowhere: look down from just above your head
     cam = { x: w.x - Math.sin(camYaw) * 0.2, y: Math.min(maxY, height + 2.2), z: w.z - Math.cos(camYaw) * 0.2 }
-    if (hit3({ x: w.x, y: HEAD_Y, z: w.z }, cam)) cam = { x: w.x, y: Math.min(maxY, height + 2.2), z: w.z }
+    if (hit3({ x: w.x, y: floor + HEAD_Y, z: w.z }, cam)) cam = { x: w.x, y: Math.min(maxY, height + 2.2), z: w.z }
   }
   const yaw = camYaw + off
-  const look = { x: w.x + Math.sin(yaw) * FOLLOW.ahead, y: FOLLOW.lookUp, z: w.z + Math.cos(yaw) * FOLLOW.ahead }
+  const ahead = tight ? 3.2 : FOLLOW.ahead
+  const look = { x: w.x + Math.sin(yaw) * ahead, y: floor + (tight ? 1.35 : FOLLOW.lookUp), z: w.z + Math.cos(yaw) * ahead }
   const pulled = best ? dist - best.d : dist
   // nobody else in front of the lens (unless stepping round them would put it in a wall)
   const c = clearShot(cam, look, bodies, { near: 1.1, ahead: 2.4, max: 10 })
   const cleared = { x: c.x, y: Math.min(maxY, c.y), z: c.z }
-  const ok = c.moved < 1e-6 || !hit3({ x: w.x, y: HEAD_Y, z: w.z }, cleared)
+  const ok = c.moved < 1e-6 || !hit3({ x: w.x, y: floor + HEAD_Y, z: w.z }, cleared)
   return { cam: ok ? cleared : cam, look, pulled, cleared: ok ? c.moved : 0, off, open: !!best }
 }
 
 // is the lens at `pos` hidden from the walker's head by something solid?
-export const lensBlocked = (w, pos) => !!segmentHit3({ x: w.x, y: HEAD_Y, z: w.z }, pos, PAD)
+export const lensBlocked = (w, pos) => !!segmentHit3({ x: w.x, y: (w.y || 0) + HEAD_Y, z: w.z }, pos, PAD)
 
 // one frame of the follow camera: swing round behind a walker who's walking away from the
 // camera, ease toward the target. drag: the camera turned by hand (a finger or mouse drag)

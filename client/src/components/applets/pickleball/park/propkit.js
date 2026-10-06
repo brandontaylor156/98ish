@@ -104,14 +104,20 @@ export const PROPS = {
 // a prop's solid footprint -> a layout box { cx, cz, hx, hz, ux, uz, h } or a circle { x, z, r }, or null
 export const propSolid = (pr) => {
   const T = PROPS[pr.t]
-  // (up on a mezzanine or a roof: nothing to bump into on the floor)
-  if (!T || pr.solid === false || (!T.solid && !pr.solid) || (pr.y || 0) > 2.2) return null
-  if (T.r) return { x: pr.x, z: pr.z, r: T.r * (pr.s || 1) }
+  if (!T || pr.solid === false || (!T.solid && !pr.solid)) return null
+  const y = pr.y || 0
+  // (hung on a wall over your head: nothing to bump into)
+  if (y > 0.3 && T.wall && !pr.floor) return null
   const w = (pr.w ?? T.w) * (pr.s || 1)
   const d = (pr.d ?? T.d) * (pr.s || 1)
   const a = pr.a || 0
+  const h = (pr.h ?? T.h) * (pr.s || 1)
+  // (up on a mezzanine or a roof terrace: solid at its own height, a box from its floor up, so
+  // the people on that floor bump into it and those below walk under; layout.js heights)
+  if (y > 0.3) return { cx: pr.x, cz: pr.z, hx: (T.r ? T.r : w / 2) + 0.05, hz: (T.r ? T.r : d / 2) + 0.05, ux: Math.cos(a), uz: -Math.sin(a), y0: y, h: y + h, kind: "prop" }
+  if (T.r) return { x: pr.x, z: pr.z, r: T.r * (pr.s || 1) }
   // (the prop's x axis in the world: (cos a, -sin a); a box's u axis is its long side)
-  return { cx: pr.x, cz: pr.z, hx: w / 2 + 0.05, hz: d / 2 + 0.05, ux: Math.cos(a), uz: -Math.sin(a), h: (pr.h ?? T.h) * (pr.s || 1), kind: "prop" }
+  return { cx: pr.x, cz: pr.z, hx: w / 2 + 0.05, hz: d / 2 + 0.05, ux: Math.cos(a), uz: -Math.sin(a), h, kind: "prop" }
 }
 
 // ---------- rooms ----------

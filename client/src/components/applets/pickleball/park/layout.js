@@ -354,11 +354,70 @@ export const makeLayout = (spec) => {
     return lx > -o.hx - r && lx < o.hx + r && lz > -o.hz - r && lz < o.hz + r
   }
 
-  // pushes a circle (x, z, radius r) out of everything solid and inside the park
-  const resolve = (x, z, r = 0.35) => {
+  // ---------- floors above the ground: decks and stairs ----------
+  // A deck is a walkable floor at a height (a rooftop terrace, a mezzanine): { y, p (polygon) };
+  // stairs are a ramp from a (bottom middle) at y0 to b (top middle) at y1, w wide. Someone's
+  // height decides what's solid for them: a box blocks a body at height y only where they
+  // overlap (a lintel is over your head, a terrace's railing is above the people below, a
+  // building's walls are under the people on its roof).
+  const DECKS = spec.decks || []
+  const STAIRS = (spec.stairs || []).map((s) => {
+    const dx = s.b.x - s.a.x
+    const dz = s.b.z - s.a.z
+    const L = Math.hypot(dx, dz) || 1
+    return { ...s, L, ux: dx / L, uz: dz / L }
+  })
+  const hasLevels = DECKS.length > 0 || STAIRS.length > 0
+  const inPolyXZ = (x, z, poly) => {
+    let inside = false
+    for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+      const [xi, zi] = poly[i]
+      const [xj, zj] = poly[j]
+      if (zi > z !== zj > z && x < ((xj - xi) * (z - zi)) / (zj - zi) + xi) inside = !inside
+    }
+    return inside
+  }
+  const blocksAt = (b, y) => (b.y0 || 0) < y + 1.7 && b.h > y + 0.35
+  // a stair's height at (x, z): -> { h } or null when not on it
+  const onStair = (s, x, z) => {
+    const px = x - s.a.x
+    const pz = z - s.a.z
+    const t = (px * s.ux + pz * s.uz) / s.L
+    if (t < -0.02 || t > 1.02 || Math.abs(-px * s.uz + pz * s.ux) > s.w / 2 + 0.05) return null
+    return s.y0 + (s.y1 - s.y0) * Math.max(0, Math.min(1, t))
+  }
+  // what someone at height y stands on at (x, z): a stair's step, a deck, the ground; null:
+  // nothing (the edge of a deck: they stay where they were)
+  const heightAt = (x, z, y = 0) => {
+    if (!hasLevels) return 0
+    for (const s of STAIRS) {
+      const h = onStair(s, x, z)
+      if (h !== null && Math.abs(h - y) < 0.9) return h
+    }
+    if (y > 0.5) {
+      for (const d of DECKS) if (Math.abs(d.y - y) < 0.9 && inPolyXZ(x, z, d.p)) return d.y
+      return null
+    }
+    return 0
+  }
+  // someone else's height when all we know is that they're up off the ground (online: one
+  // bit): the stairs they're on, else the highest deck over that spot
+  const levelAt = (x, z) => {
+    for (const s of STAIRS) {
+      const h = onStair(s, x, z)
+      if (h !== null && h > 0.3) return h
+    }
+    let best = 0
+    for (const d of DECKS) if (d.y > best && inPolyXZ(x, z, d.p)) best = d.y
+    return best
+  }
+
+  // pushes a circle (x, z, radius r) out of everything solid and inside the park (for a body
+  // standing at height y: the boxes that reach its height)
+  const resolve = (x, z, r = 0.35, y = 0) => {
     for (let pass = 0; pass < 2; pass++) {
       for (const b of boxesNear(x, z)) {
-        if (b.y0) continue // (overhead: a door's lintel; people walk under it)
+        if (!blocksAt(b, y)) continue // (overhead: a door's lintel, a deck's railing; underfoot: a roof's walls)
         const dx = x - b.cx
         const dz = z - b.cz
         const lx = dx * b.ux + dz * b.uz
@@ -385,7 +444,7 @@ export const makeLayout = (spec) => {
           const toW = (ax, az) => ({ x: b.cx + ax * b.ux - az * b.uz, z: b.cz + ax * b.uz + az * b.ux })
           const free = (ax, az) => {
             const p = toW(ax, az)
-            return !boxesNear(p.x, p.z).some((o) => o !== b && !o.y0 && inBoxPadded(o, p.x, p.z, r))
+            return !boxesNear(p.x, p.z).some((o) => o !== b && blocksAt(o, y) && inBoxPadded(o, p.x, p.z, r))
           }
           const out = outs.find(([ox, oz]) => free(lx + ox, lz + oz)) || outs[0]
           nx = lx + out[0]
@@ -394,7 +453,8 @@ export const makeLayout = (spec) => {
         x = b.cx + nx * b.ux - nz * b.uz
         z = b.cz + nx * b.uz + nz * b.ux
       }
-      for (const c of circlesNear(x, z)) {
+      // (trunks, poles: on the ground and a little way up the stairs)
+      for (const c of y < 1.5 ? circlesNear(x, z) : []) {
         const dx = x - c.x
         const dz = z - c.z
         const d = Math.hypot(dx, dz)
@@ -411,8 +471,8 @@ export const makeLayout = (spec) => {
     }
     return { x, z }
   }
-  const blocked = (x, z, r = 0.3) => {
-    const p = resolve(x, z, r)
+  const blocked = (x, z, r = 0.3, y = 0) => {
+    const p = resolve(x, z, r, y)
     return Math.hypot(p.x - x, p.z - z) > 1e-3
   }
 
@@ -420,6 +480,9 @@ export const makeLayout = (spec) => {
   // h: the fraction along it (0..1), or null. (The follow camera stays on this side of fences.)
   const segBoxes = (a, b) => {
     if (!many) return BOXES
+    // (a short one: the cells round its middle hold every box it can touch, as each box is
+    // listed in the cells round its own)
+    if (Math.abs(b.x - a.x) < CELL * 0.9 && Math.abs(b.z - a.z) < CELL * 0.9) return boxesNear((a.x + b.x) / 2, (a.z + b.z) / 2)
     const seen = new Set()
     const out = []
     const n = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.z - a.z) / (CELL / 2)))
@@ -561,13 +624,22 @@ export const makeLayout = (spec) => {
             if (!cells.has(k)) cells.set(k, [])
             cells.get(k).push(i)
           })
+          // (the nearest 16 in reach are tried: a dense graph needn't link everything to
+          // everything, and each try is a walk test)
           return NAV.map((a, i) => {
-            const out = []
+            const cand = []
             const ci = Math.floor(a.x / link)
             const cj = Math.floor(a.z / link)
             for (let di = -1; di <= 1; di++)
               for (let dj = -1; dj <= 1; dj++)
-                for (const j of cells.get((ci + di) * 100003 + (cj + dj)) || []) if (j !== i && Math.hypot(a.x - NAV[j].x, a.z - NAV[j].z) < link && open(a, NAV[j])) out.push(j)
+                for (const j of cells.get((ci + di) * 100003 + (cj + dj)) || []) {
+                  if (j === i) continue
+                  const d = Math.hypot(a.x - NAV[j].x, a.z - NAV[j].z)
+                  if (d < link) cand.push([j, d])
+                }
+            cand.sort((p, q) => p[1] - q[1])
+            const out = []
+            for (const [j] of cand.slice(0, 16)) if (open(a, NAV[j])) out.push(j)
             return out
           })
         })()
@@ -722,6 +794,10 @@ export const makeLayout = (spec) => {
     nearestAction,
     chatSpots,
     route,
+    DECKS,
+    STAIRS,
+    heightAt,
+    levelAt,
   }
 }
 
@@ -755,8 +831,10 @@ export const bleacherSeats = (c) => ACTIVE.bleacherSeats(c)
 export const benchSeats = (b) => ACTIVE.benchSeats(b)
 export const seatApproach = (seat) => ACTIVE.seatApproach(seat)
 export const courtById = (id) => ACTIVE.courtById(id)
-export const resolve = (x, z, r) => ACTIVE.resolve(x, z, r)
-export const blocked = (x, z, r) => ACTIVE.blocked(x, z, r)
+export const resolve = (x, z, r, y) => ACTIVE.resolve(x, z, r, y)
+export const blocked = (x, z, r, y) => ACTIVE.blocked(x, z, r, y)
+export const heightAt = (x, z, y) => ACTIVE.heightAt(x, z, y)
+export const levelAt = (x, z) => ACTIVE.levelAt(x, z)
 export const segmentHit = (a, b, h, pad) => ACTIVE.segmentHit(a, b, h, pad)
 export const segmentHit3 = (a, b, pad) => ACTIVE.segmentHit3(a, b, pad)
 export const nearestAction = (x, z, list) => ACTIVE.nearestAction(x, z, list)

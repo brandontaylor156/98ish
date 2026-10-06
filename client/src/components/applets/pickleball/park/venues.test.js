@@ -205,6 +205,62 @@ test("follow camera at the venues: never behind a wall, a building or a fence, n
   setLayout(get("loscab").L)
 })
 
+test("floors above the ground: up Newport's stairs to the rooftop terrace bar, its railing, the people below", async () => {
+  const { stepWalker, createWalker } = await import("./walker.js")
+  const { liftPose } = await import("./lift.js")
+  const { UP_BIT, packPos, unpackPos } = await import("./interp.js")
+  const { L } = get("newport")
+  setLayout(L)
+  assert.ok(L.DECKS.length >= 1 && L.STAIRS.length >= 1, "a deck and stairs")
+  const s = L.STAIRS[0]
+  const deck = L.DECKS.find((d) => Math.abs(d.y - s.y1) < 0.1)
+  assert.ok(deck, "the stairs arrive at a deck")
+  // the bottom step is on the ground, the top at the deck
+  assert.equal(L.heightAt(s.a.x, s.a.z, 0), s.y0)
+  assert.ok(Math.abs(L.heightAt(s.b.x, s.b.z, s.y1) - s.y1) < 1e-9)
+  // someone on the ground right under the top of the stairs stays on the ground
+  assert.equal(L.heightAt(s.b.x - s.ux * 0.5, s.b.z - s.uz * 0.5, 0), 0)
+  // walk up: start a step before the bottom, push forward along the stairs (camera behind)
+  const w = createWalker(s.a.x - s.ux * 1.2, s.a.z - s.uz * 1.2, Math.atan2(s.ux, s.uz))
+  const camYaw = Math.atan2(s.ux, s.uz)
+  for (let k = 0; k < 400 && (w.y || 0) < s.y1 - 0.01; k++) stepWalker(w, { x: 0, y: 1 }, camYaw, 1 / 30)
+  assert.ok(Math.abs(w.y - s.y1) < 0.01, `climbed to ${w.y}`)
+  // and on along the deck: still up there, not falling through
+  for (let k = 0; k < 60; k++) stepWalker(w, { x: 0, y: 1 }, camYaw, 1 / 30)
+  assert.ok(Math.abs(w.y - deck.y) < 0.01, "on the terrace")
+  // walking at the railing for a while: never over the edge (always on the deck)
+  for (let k = 0; k < 300; k++) {
+    stepWalker(w, { x: 1, y: 0.2 }, camYaw + (k > 150 ? Math.PI : 0), 1 / 30)
+    assert.ok(Math.abs(w.y - deck.y) < 0.01, "still on the terrace")
+  }
+  // a terrace's railing doesn't block the people on the ground below it; the stairs' sides do
+  const rail = L.BOXES.find((b) => b.kind === "rail")
+  assert.ok(rail && rail.y0 >= deck.y - 1e-9)
+  assert.ok(L.blocked(rail.cx, rail.cz, 0.3, deck.y), "the railing up on the terrace")
+  assert.ok(!L.BOXES.filter((b) => b.kind === "rail").some((b) => b.y0 < 1.7), "railings are all up on their deck")
+  const side = L.BOXES.find((b) => b.kind === "stairs" && b.hz < 0.1)
+  assert.ok(L.blocked(side.cx, side.cz, 0.3, 0), "the stairs' side from the ground")
+  // the follow camera up there: over the terrace, the lens clear from your head
+  const st = createFollow(camYaw)
+  for (let f = 0; f < 8; f++) stepFollow(st, { x: w.x, z: w.z, y: w.y, yaw: camYaw, speed: 0 }, 1 / 30, { portrait: true })
+  assert.ok(st.pos.y > deck.y + 1, "the camera is up with you")
+  assert.equal(L.segmentHit3({ x: w.x, y: w.y + 1.55, z: w.z }, st.pos), null)
+  // online: one bit says "up"; the others find the height from where you are
+  const p = unpackPos(packPos({ x: w.x, z: w.z, yaw: 0, speed: 0, act: 1 | UP_BIT }))
+  assert.ok(p.act & UP_BIT)
+  assert.ok(Math.abs(L.levelAt(p.x, p.z) - deck.y) < 0.3)
+  // a pose raised onto the terrace: its points up, its directions untouched
+  const pose = { pelvis: { x: 1, y: 0.95, z: 2 }, spine: { x: 0, y: 1, z: 0 }, footL: { x: 1, y: 0, z: 2, yaw: 0 }, paddle: { grip: { x: 0, y: 1, z: 0 }, axis: { x: 0, y: 0, z: 1 } } }
+  const up = liftPose(pose, 6.5)
+  assert.equal(up.pelvis.y, 7.45)
+  assert.equal(up.footL.y, 6.5)
+  assert.equal(up.paddle.grip.y, 7.5)
+  assert.deepEqual(up.spine, pose.spine)
+  assert.deepEqual(up.paddle.axis, pose.paddle.axis)
+  assert.equal(up.lift, 6.5)
+  setLayout(get("loscab").L)
+})
+
 test("room kit: every room with a door you can open is reachable on foot from the arrival (Los Cab, SMASH)", () => {
   const inPoly = (x, z, p) => {
     let inside = false

@@ -539,6 +539,21 @@ const buildOne = (v) => {
       return out
     })
   if (ov.props?.length) spec.props = ov.props.flatMap(propsOf)
+  // floors above the ground: decks (a rooftop terrace, a mezzanine: a polygon at a height) and
+  // the stairs up to them (from the bottom step's middle to the top's, rising y0 -> y1)
+  if (ov.decks?.length)
+    spec.decks = ov.decks.map((d) => {
+      const out = { y: d.y, p: pr(polyOfO(d).map(sh)) }
+      for (const key of ["name", "rail", "railColor", "slab", "color"]) if (d[key] !== undefined) out[key] = d[key]
+      if (d.openings) out.openings = d.openings.map((o) => [...sh(P(o)).map(r1), o.w || 1.6])
+      return out
+    })
+  if (ov.stairs?.length)
+    spec.stairs = ov.stairs.map((s) => {
+      const a = sh(P(s.from))
+      const b = sh(P(s.to))
+      return { a: [r1(a[0]), r1(a[1])], b: [r1(b[0]), r1(b[1])], w: s.w || 1.6, y0: s.y0 || 0, y1: s.y1, ...(s.color ? { color: s.color } : {}), ...(s.rail ? { rail: s.rail } : {}) }
+    })
   if (ov.spawn) {
     const p = sh(P(ov.spawn))
     spec.spawn = { x: r1(p[0]), z: r1(p[1]), deg: ov.spawn.deg ?? null }

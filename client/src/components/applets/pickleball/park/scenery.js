@@ -605,8 +605,10 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
     return keep(g)
   }
   // the doors (venuegen: every room's and open building's) that sit on a polygon's walls
-  const doorsOn = (poly) =>
+  // (a door upstairs, d.y, only opens the walls on its floor)
+  const doorsOn = (poly, y = 0) =>
     (S.doors || []).filter((d) =>
+      Math.abs((d.y || 0) - y) < 0.5 &&
       poly.some((q, i) => {
         const b = poly[(i + 1) % poly.length]
         const L2 = (b[0] - q[0]) ** 2 + (b[1] - q[1]) ** 2 || 1
@@ -913,7 +915,7 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
   for (const r of S.rooms || []) {
     const g = new THREE.Group()
     const H = r.h || 3.2
-    const gaps = doorsOn(r.p).map((d) => ({ x: d.x, z: d.z, w: d.w || 1.8 }))
+    const gaps = doorsOn(r.p, r.y || 0).map((d) => ({ x: d.x, z: d.z, w: d.w || 1.8 }))
     // the finishes (FINISH by type; "plain" turns one off): wood, tile, rubber, carpet, stone
     const fin = FINISH[r.type] || {}
     const floorKind = r.floorStyle === "plain" ? null : r.floorStyle || fin.floor
@@ -985,10 +987,104 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
           g.add(f)
         }
     }
-    for (const d of doorsOn(r.p)) drawDoor(g, d, r.p, H, r.wall || "#ece6da")
+    for (const d of doorsOn(r.p, r.y || 0)) drawDoor(g, d, r.p, H, r.wall || "#ece6da")
     for (const d of (r.doors || []).filter((d) => d.kind === "closed")) drawDoor(g, d, r.p, H, r.wall || "#ece6da")
-    addProps(g, r.props || [], propMats, keep)
-    zones.push({ group: g, poly: r.p, doors: doorsOn(r.p), h: H, id: r.id, type: r.type })
+    // (a room upstairs: the whole room lifted to its floor; its furniture's heights are the
+    // venue's, so they come back down by as much inside the lifted group)
+    const ry = r.y || 0
+    g.position.y = ry
+    addProps(g, ry ? (r.props || []).map((pr) => ({ ...pr, y: (pr.y || 0) - ry })) : r.props || [], propMats, keep)
+    zones.push({ group: g, poly: r.p, doors: doorsOn(r.p, ry), h: H, y: ry, id: r.id, type: r.type })
+  }
+  // ---------- floors above the ground: decks (railings, a slab under a mezzanine) and stairs ----------
+  const railMats = new Map()
+  const railMatFor = (c) => {
+    if (!railMats.has(c)) railMats.set(c, lambert(hex(c, 0xf2f2ee)))
+    return railMats.get(c)
+  }
+  for (const d of S.decks || []) {
+    if (d.slab) {
+      const slab = new THREE.Mesh(flat(d.p, d.y), std(hex(d.color, 0xb78a52), { roughness: 0.6 }))
+      group.add(slab)
+      const under = new THREE.Mesh(flatDown(d.p, d.y - 0.28), lambert(0x2c2a2e))
+      group.add(under)
+      group.add(new THREE.Mesh(wallRing(d.p, d.y - 0.3, d.y + 0.02, {}), plainMatFor(hex(d.railColor, 0x3a3e44))))
+    }
+    if (!d.rail) continue
+    // posts every 1.6 m and a top rail, open where the stairs arrive
+    const mat = railMatFor(d.railColor || "#f2f2ee")
+    const openings = [...(S.stairs || []).filter((s) => Math.abs(s.y1 - d.y) < 0.3).map((s) => ({ x: s.b.x, z: s.b.z, w: s.w + 0.5 })), ...(d.openings || []).map((o) => ({ x: o[0], z: o[1], w: o[2] || 1.6 }))]
+    for (let i = 0; i < d.p.length; i++) {
+      const a = d.p[i]
+      const b = d.p[(i + 1) % d.p.length]
+      const L = Math.hypot(b[0] - a[0], b[1] - a[1])
+      if (L < 0.2) continue
+      const u = { x: (b[0] - a[0]) / L, z: (b[1] - a[1]) / L }
+      let runs = [[0, L]]
+      for (const o of openings) {
+        const cut = doorCut({ x: a[0], z: a[1] }, u, L, o)
+        if (cut) runs = runs.flatMap(([s0, e0]) => [[s0, Math.min(e0, cut[0])], [Math.max(s0, cut[1]), e0]]).filter(([s0, e0]) => e0 - s0 > 0.05)
+      }
+      for (const [s0, e0] of runs) {
+        const m = (s0 + e0) / 2
+        const top = new THREE.Mesh(keep(new THREE.BoxGeometry(e0 - s0, 0.06, 0.06)), mat)
+        top.position.set(a[0] + u.x * m, d.y + 1.05, a[1] + u.z * m)
+        top.rotation.y = -Math.atan2(u.z, u.x)
+        group.add(top)
+        // glass infill between the posts (a terrace's see-through railing)
+        const glass = new THREE.Mesh(keep(new THREE.PlaneGeometry(e0 - s0, 0.9)), glassMat)
+        glass.position.set(a[0] + u.x * m, d.y + 0.55, a[1] + u.z * m)
+        glass.rotation.y = -Math.atan2(u.z, u.x)
+        glass.renderOrder = 1
+        group.add(glass)
+        for (let s = s0; s <= e0 + 1e-6; s += Math.max(0.4, (e0 - s0) / Math.max(1, Math.round((e0 - s0) / 1.6)))) {
+          const post = new THREE.Mesh(keep(new THREE.BoxGeometry(0.06, 1.05, 0.06)), mat)
+          post.position.set(a[0] + u.x * s, d.y + 0.525, a[1] + u.z * s)
+          group.add(post)
+        }
+      }
+    }
+  }
+  for (const s of S.stairs || []) {
+    // steps (0.18 m risers), a stringer each side, a handrail
+    const dx = s.b.x - s.a.x
+    const dz = s.b.z - s.a.z
+    const L = Math.hypot(dx, dz) || 1
+    const ux = dx / L
+    const uz = dz / L
+    const rise = s.y1 - s.y0
+    const n = Math.max(2, Math.round(rise / 0.18))
+    const ry = -Math.atan2(uz, ux)
+    const stepMat = std(hex(s.color, 0xcfc8b8), { roughness: 0.7 })
+    for (let k = 0; k < n; k++) {
+      const t = (k + 0.5) / n
+      const hTop = s.y0 + (rise * (k + 1)) / n
+      const step = new THREE.Mesh(keep(new THREE.BoxGeometry(L / n + 0.02, Math.max(0.08, hTop - (s.y0 + (rise * k) / n) + 0.04), s.w)), stepMat)
+      step.position.set(s.a.x + ux * L * t, hTop - (hTop - (s.y0 + (rise * k) / n)) / 2, s.a.z + uz * L * t)
+      step.rotation.y = ry
+      group.add(step)
+    }
+    const railMat = railMatFor(s.rail || "#2b2f36")
+    for (const sg of [-1, 1]) {
+      const nx = -uz * sg * (s.w / 2 + 0.08)
+      const nz = ux * sg * (s.w / 2 + 0.08)
+      // the stringer: a slanted plate from the bottom to the top
+      const len = Math.hypot(L, rise)
+      const pitch = Math.atan2(rise, L)
+      const str = new THREE.Mesh(keep(new THREE.BoxGeometry(len, 0.3, 0.06)), railMat)
+      str.position.set(s.a.x + ux * L * 0.5 + nx, s.y0 + rise * 0.5, s.a.z + uz * L * 0.5 + nz)
+      str.rotation.set(0, ry, pitch, "YXZ")
+      group.add(str)
+      const hand = new THREE.Mesh(keep(new THREE.BoxGeometry(len, 0.05, 0.05)), railMat)
+      hand.position.set(s.a.x + ux * L * 0.5 + nx, s.y0 + rise * 0.5 + 0.95, s.a.z + uz * L * 0.5 + nz)
+      hand.rotation.set(0, ry, pitch, "YXZ")
+      group.add(hand)
+      for (const t of [0.02, 0.5, 0.98]) {
+        const post = new THREE.Mesh(keep(new THREE.BoxGeometry(0.05, 0.95, 0.05)), railMat)
+        post.position.set(s.a.x + ux * L * t + nx, s.y0 + rise * t + 0.475, s.a.z + uz * L * t + nz)
+        group.add(post)
+      }
+    }
   }
   // the venue's own props (outdoors): with everything else
   addProps(group, S.props || [], propMats, keep)
@@ -1729,14 +1825,20 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
         group.add(sofa)
       }
     } else if (x.type === "solar") {
+      // a solar canopy (h: how high its panels are; a court underneath needs ~6 m)
+      const sh = x.h || 3.6
       const panel = new THREE.Mesh(keep(new THREE.BoxGeometry(x.w || 30, 0.15, x.d || 20)), lambert(0x23304a))
-      panel.position.set(x.x, 3.6, x.z)
-      panel.rotation.set(0.12, ry, 0)
+      panel.position.set(x.x, sh, x.z)
+      panel.rotation.set(0.12, ry, 0, "YXZ")
       group.add(panel)
+      const c = Math.cos(ry)
+      const sn = Math.sin(ry)
       for (let i = -1; i <= 1; i++)
         for (let j = -1; j <= 1; j += 2) {
-          const post = new THREE.Mesh(keep(new THREE.CylinderGeometry(0.12, 0.12, 3.4, 6)), lambert(0x9aa0a8))
-          post.position.set(x.x + (i * (x.w || 30)) / 3, 1.7, x.z + (j * (x.d || 20)) / 3)
+          const post = new THREE.Mesh(keep(new THREE.CylinderGeometry(0.12, 0.12, sh - 0.2, 6)), lambert(0x9aa0a8))
+          const ox = (i * (x.w || 30)) / 2.2
+          const oz = (j * (x.d || 20)) / 2.1
+          post.position.set(x.x + ox * c + oz * sn, (sh - 0.2) / 2, x.z - ox * sn + oz * c)
           group.add(post)
         }
     } else if (x.type === "golf") {
