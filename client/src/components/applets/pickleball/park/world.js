@@ -24,6 +24,7 @@ import { setSurfacesOn } from "./surfaces.js"
 import { advance, beginPoint, createMatch, scoreboard, seeded } from "../match.js"
 import { buildPark } from "./build.js"
 import { createAO } from "./ao.js"
+import { aoUniforms, lastAO, setBakedAOOn } from "./occlusion.js"
 import { createMannequins } from "./mannequin.js"
 import { spotFor } from "./presence.js"
 import { ACTIVE, ALL_SEATS, COURTS, INTERACTABLES, LEVEL_NAMES, RIVERSIDE_LAYOUT, SPAWN, WAYPOINTS, dirToWorld, nearestAction, poseToWorld, resolve, seatApproach, setLayout, toLocal, toWorld, yawToWorld } from "./layout.js"
@@ -1640,6 +1641,9 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
 // cards on the ground ({ x, z, hex, size, kind: "std" | "lambert", up }) to test the colors.
 const devHooks = (world, { scene, park, exposure }) => {
   world.devSurfaces = (on) => (setSurfacesOn(on), park.setRealism?.(on))
+  // baked ground occlusion on/off (occlusion.js), and how its bake went
+  world.devAO = (on) => setBakedAOOn(on)
+  world.devAOInfo = () => ({ on: aoUniforms.surfAOOn.value, size: [aoUniforms.surfAOTex.value.image?.width, aoUniforms.surfAOTex.value.image?.height], ...lastAO })
   world.devPark = park
   let r = null
   let devAO = null

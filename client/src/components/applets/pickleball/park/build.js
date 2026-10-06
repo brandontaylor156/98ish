@@ -14,6 +14,7 @@ import { LEVEL_NAMES, PATH_W, PEN, RIVERSIDE_LAYOUT, SEAT_ROWS } from "./layout.
 import { createCourtKit } from "./courtkit.js"
 import { buildScenery } from "./scenery.js"
 import { applySurfaces, surfaced } from "./surfaces.js"
+import { bakeVenueAO, clearBakedAO, setBakedAOOn } from "./occlusion.js"
 import { chainLink, windscreenTex } from "./detail.js"
 
 const canvasTexture = (w, h, draw) => {
@@ -780,6 +781,9 @@ export const buildPark = (scene, { quality = "medium", layout = RIVERSIDE_LAYOUT
   })
   group.updateMatrixWorld(true)
   scene.add(group)
+  // baked ground occlusion (occlusion.js; a real venue on Medium/High): worked out once from the
+  // venue's own solid geometry, a few ms a frame until it's done
+  const cancelAO = shadows ? bakeVenueAO(group, BOUNDS) : null
   // (a real venue: thinner haze, so its far courts keep their colors)
   scene.fog = S ? new THREE.Fog(0xd8ecfb, Math.max(110, span * 0.7), Math.max(260, skyR + 60)) : new THREE.Fog(0xd8ecfb, Math.max(60, span * 0.45), Math.max(170, skyR - 10))
 
@@ -863,6 +867,7 @@ export const buildPark = (scene, { quality = "medium", layout = RIVERSIDE_LAYOUT
     // the realistic look on or off (shadows and their light); the next setDayLook applies the light
     setRealism: (on) => {
       realism = shadows && !!on
+      setBakedAOOn(realism)
       sun.castShadow = realism
       sun.shadow.needsUpdate = true
     },
@@ -892,6 +897,8 @@ export const buildPark = (scene, { quality = "medium", layout = RIVERSIDE_LAYOUT
         }
       : null,
     dispose() {
+      cancelAO?.()
+      if (shadows) clearBakedAO()
       scene.remove(group)
       scene.fog = null
       disposables.forEach((d) => d.dispose?.())

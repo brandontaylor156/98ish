@@ -12,6 +12,7 @@
 // they arrive a neutral 1x1 stands in, so nothing waits on them.
 
 import * as THREE from "three"
+import { aoUniforms } from "./occlusion.js"
 
 const BASE = "/assets/venue-tex/"
 // kind: tiles per meter (scale), how much the detail changes the paint (strength), how much
@@ -105,7 +106,7 @@ const patch = (material, kind) => {
   const prev = material.onBeforeCompile
   material.onBeforeCompile = (shader, renderer) => {
     prev?.call(material, shader, renderer)
-    Object.assign(shader.uniforms, uniforms, { surfOn })
+    Object.assign(shader.uniforms, uniforms, { surfOn }, aoUniforms)
     shader.vertexShader = shader.vertexShader
       .replace("#include <common>", "#include <common>\nvarying vec3 vSurfW;\nvarying vec3 vSurfN;")
       .replace(
@@ -146,7 +147,7 @@ const patch = (material, kind) => {
   float surfAOK = ${(k.ao ?? 0.4).toFixed(2)};
   float surfGrime = ${(k.grime ?? 0).toFixed(2)};`
     shader.fragmentShader = shader.fragmentShader
-      .replace("#include <common>", `#include <common>\n${decl}\nuniform float surfOn;\n${common}`)
+      .replace("#include <common>", `#include <common>\n${decl}\nuniform float surfOn;\nuniform sampler2D surfAOTex;\nuniform vec4 surfAOBox;\nuniform float surfAOOn;\n${common}`)
       .replace(
         "#include <map_fragment>",
         `#include <map_fragment>
@@ -157,7 +158,26 @@ const patch = (material, kind) => {
   surfK *= surfFar; surfNK *= surfFar;
   diffuseColor.rgb *= mix(1.0, surfD.r * 2.0, surfK) * mix(1.0, surfD.a, surfAOK * surfFar);
   // grime where a wall meets the ground
-  if (surfGrime > 0.0 && abs(vSurfN.y) < 0.5) diffuseColor.rgb *= 1.0 - surfGrime * (1.0 - smoothstep(0.0, 0.8, vSurfW.y));`
+  if (surfGrime > 0.0 && abs(vSurfN.y) < 0.5) diffuseColor.rgb *= 1.0 - surfGrime * (1.0 - smoothstep(0.0, 0.8, vSurfW.y));
+  // baked ground occlusion (occlusion.js): floors near the ground, and walls near their foot
+  // (sampled a little out from the wall, where the corner's shade is)
+  float surfAO = 1.0;
+  if (surfAOOn > 0.5 && surfAOBox.z > 0.0 && vSurfW.y < 2.0) {
+    bool surfUp = vSurfN.y > 0.6;
+    vec2 surfAP = vSurfW.xz + (surfUp ? vec2(0.0) : normalize(vSurfN.xz + 1e-5) * 0.35);
+    vec2 surfAUV = (surfAP - surfAOBox.xy) * surfAOBox.zw;
+    if (surfAUV.x > 0.0 && surfAUV.y > 0.0 && surfAUV.x < 1.0 && surfAUV.y < 1.0) {
+      float surfAW = surfUp ? 1.0 - smoothstep(0.5, 1.4, vSurfW.y) : (1.0 - smoothstep(0.0, 1.8, vSurfW.y)) * step(abs(vSurfN.y), 0.6);
+      surfAO = mix(1.0, texture2D(surfAOTex, surfAUV).r, surfAW * surfOn);
+    }
+  }`
+      )
+      .replace(
+        "#include <aomap_fragment>",
+        `#include <aomap_fragment>
+  // (the sky's light is what a corner, a car or a bench blocks; the sun has its shadow map)
+  reflectedLight.indirectDiffuse *= surfAO;
+  reflectedLight.directDiffuse *= mix(1.0, surfAO, 0.15);`
       )
       .replace(
         "#include <normal_fragment_maps>",
