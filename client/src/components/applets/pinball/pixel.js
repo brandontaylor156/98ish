@@ -62,6 +62,27 @@ const HEX = {
   dmd2: "8a3a00",
   dmd: "ff7000",
   dmd4: "ffb060",
+  // added for Critter Catch Pinball (appended, so the indices above never move)
+  pur0: "200838",
+  pur1: "502878",
+  pur: "8050c0",
+  pur3: "b898f0",
+  brn0: "301808",
+  brn1: "603818",
+  brn: "986030",
+  brn3: "d0a070",
+  peach: "f8c8a0",
+  fire: "ff5820",
+  ice: "d8f4ff",
+  olive: "687818",
+  moss: "98b830",
+  gb0: "0f380f",
+  gb1: "306230",
+  gb2: "8bac0f",
+  gb3: "c4d890",
+  sand0: "806838",
+  sand: "d8c078",
+  sand3: "f0e0a8",
 }
 
 export const NAMES = Object.keys(HEX)

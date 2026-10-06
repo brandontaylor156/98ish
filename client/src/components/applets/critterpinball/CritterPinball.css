@@ -1,0 +1,229 @@
+/* Critter Catch Pinball: Blue Screen's window chrome (../pinball/Pinball.css) with a green
+   handheld LCD instead of the orange display, a table picker on the start screen, and the
+   Critter Dex. Plain Windows 98 controls, no gradients. */
+
+.cpLcdBox {
+  background: #c4d890;
+}
+
+.cpLogo {
+  background: #306230;
+  color: #c4d890;
+  font-size: 16px;
+  letter-spacing: 1px;
+}
+
+.cpTables {
+  display: flex;
+  gap: 4px;
+  margin: 6px 0 2px;
+}
+
+.cpTableBtn {
+  flex: 1;
+  min-height: 30px;
+  padding: 2px 4px;
+  font: inherit;
+  background: #c0c0c0;
+  color: #000;
+  border: none;
+  box-shadow: inset -1px -1px #0a0a0a, inset 1px 1px #fff, inset -2px -2px #808080, inset 2px 2px #dfdfdf;
+}
+
+.cpTableBtn[aria-pressed="true"] {
+  font-weight: bold;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #0a0a0a, inset -2px -2px #dfdfdf, inset 2px 2px #808080;
+  background: #dfdfdf;
+}
+
+.cpTable-ember[aria-pressed="true"] {
+  color: #800000;
+}
+
+.cpTable-tide[aria-pressed="true"] {
+  color: #000080;
+}
+
+.cpPanelLine {
+  padding: 1px 2px;
+}
+
+.cpStatus {
+  margin-top: 2px;
+  padding: 2px 4px;
+  background: #fff;
+  box-shadow: inset 1px 1px #808080, inset -1px -1px #dfdfdf;
+  min-height: 14px;
+}
+
+.cpSprite {
+  display: block;
+  image-rendering: pixelated;
+  flex: none;
+}
+
+.cpDexOpen {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 2px;
+  font: inherit;
+  text-align: left;
+  background: none;
+  border: none;
+  color: #000;
+  cursor: pointer;
+}
+
+/* ---- the Dex ---- */
+
+.cpDex {
+  width: min(420px, calc(100vw - 100px));
+  box-sizing: border-box;
+  max-height: min(62vh, 520px);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cpDexTop {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 4px;
+}
+
+.cpDexFilters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+}
+
+.cpDexFilter {
+  min-height: 24px;
+  padding: 0 6px;
+  font: inherit;
+  background: #c0c0c0;
+  color: #000;
+  border: none;
+  box-shadow: inset -1px -1px #0a0a0a, inset 1px 1px #fff, inset -2px -2px #808080, inset 2px 2px #dfdfdf;
+}
+
+.cpDexFilter[aria-pressed="true"] {
+  background: #dfdfdf;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #0a0a0a, inset -2px -2px #dfdfdf, inset 2px 2px #808080;
+}
+
+.cpDexPage {
+  display: flex;
+  gap: 8px;
+  padding: 6px;
+  background: #c4d890;
+  color: #0f380f;
+  box-shadow: inset 1px 1px #808080, inset -1px -1px #fff;
+}
+
+.cpDexInfo {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cpDexName {
+  font-weight: bold;
+}
+
+.cpDexTypes {
+  display: flex;
+  gap: 3px;
+}
+
+.cpType {
+  padding: 0 4px;
+  color: #fff;
+  text-shadow: 1px 1px #000;
+  box-shadow: inset 1px 1px rgba(255, 255, 255, 0.5), inset -1px -1px rgba(0, 0, 0, 0.5);
+}
+
+.cpDexDesc {
+  margin: 2px 0;
+}
+
+.cpDexGrid {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+  gap: 3px;
+  padding: 3px;
+  background: #fff;
+  box-shadow: inset 1px 1px #808080, inset -1px -1px #dfdfdf;
+}
+
+.cpDexCell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  box-sizing: border-box;
+  min-width: 0;
+  height: auto;
+  min-height: 86px;
+  padding: 2px 1px;
+  justify-content: flex-start;
+  overflow: visible;
+  font: inherit;
+  font-size: 10px;
+  color: #808080;
+  background: #f0f0f0;
+  border: 1px dotted #c0c0c0;
+}
+
+.cpDexCell.is-seen {
+  color: #404040;
+}
+
+.cpDexCell.is-caught {
+  color: #000;
+  background: #eef6e0;
+}
+
+.cpDexCell.is-open {
+  border: 1px solid #000080;
+  background: #dde4ff;
+}
+
+.cpDexNo {
+  align-self: flex-start;
+  padding-left: 2px;
+}
+
+.cpDexUnknown {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  color: #c0c0c0;
+}
+
+.cpDexCellName {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cpHelp p {
+  margin: 0 0 6px;
+}
+
+.cpHelp {
+  max-height: 60vh;
+  overflow-y: auto;
+}

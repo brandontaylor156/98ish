@@ -425,7 +425,56 @@ export const topics = [
       },
       "Game > **High Scores** keeps your ten best games, with your initials (each person on the computer has their own).",
     ],
-    related: ["touch-controls"],
+    related: ["touch-controls", "critterpinball"],
+  },
+  {
+    id: "critterpinball",
+    book: "games-action",
+    title: "Critter Catch Pinball",
+    summary: "Pinball where you catch critters: reveal them, hit them, evolve them, travel the map and fill your Critter Dex.",
+    keywords: ["pinball", "critters", "catch", "monsters", "creatures", "evolve", "evolution", "dex", "collection", "bonus stage", "boss", "Sparkit", "Ember", "Tide", "map"],
+    programs: ["Critter Catch Pinball"],
+    body: [
+      "A pinball game about catching critters, in the spirit of the critter-catching pinball games of the late 90s, with 98ish's own 47 critters. Pick the **Ember** table (meadows, forests, a volcano) or the **Tide** table (beaches, reefs, a glacier): each has its own critters and areas. You have 3 balls.",
+      { h: "Controls" },
+      {
+        keys: [
+          ["Z, Left Shift or Left arrow", "Left flipper"],
+          ["/, Right Shift or Right arrow", "Right flipper"],
+          ["Space or Down (hold, let go)", "Plunger"],
+          ["Both flippers, or Space", "Pick the critter to evolve"],
+          ["X, . or Up arrow", "Nudge the table"],
+          ["F2 / F3", "New game / pause"],
+        ],
+      },
+      {
+        phone: "Hold the left or right half of the table for that flipper. With the ball in the shooter lane, **drag the plunger down** and let go (or hold **HOLD**). Tap **NUDGE** or shake the phone to bump the table.",
+        computer: "Use the keys above, or click the halves of the table. A gamepad works too: bumpers or triggers flip, A launches.",
+      },
+      { h: "Catching critters" },
+      {
+        list: [
+          "The **ramp** lights two letters of **C-A-T-C-H**, an **orbit loop** (up one side, down the other) lights one.",
+          "With CATCH lit, sink the **Den**. A mystery critter from the area you're in shows on the screen in the middle of the table.",
+          "Hit the **bumpers** to reveal it tile by tile. Then it comes out: hit it 3 times (4 for rare ones) before the timer runs out, and it's yours.",
+          "Rarer critters live in the far areas. A better ball makes them likelier.",
+        ],
+      },
+      { h: "Evolving, the map and bonus stages" },
+      {
+        list: [
+          "Knock down **E-V-O** to light Evolution at the Den. Sink it, pick one of this game's catches with the flippers (both flippers to choose), hit the 3 flashing shots for items, then sink the Den again.",
+          "3 ramp shots light **MAP** at the **Cave**: sink it to travel to another area. After 3 moves in a game, the far areas open.",
+          "Every 3 catches or evolutions light **BONUS** at the Cave: **Burrow Bash**, **Phantom Hall** or **Tidal Titan**. Beat the boss before time runs out to catch it. Losing the ball in a bonus stage doesn't cost you a ball.",
+          "The top lanes upgrade the ball: Super (2x points), Hyper (3x), Master (5x). Hyper and Master hits count double on critters. An upgrade wears off after a minute.",
+          "Spin the spinner to charge **Sparkit**: it kicks a ball back from the outlane it's standing at (each flipper moves it to its side).",
+          "Catching or evolving 5 and 10 critters in a game gives an extra ball.",
+        ],
+      },
+      { h: "The Critter Dex" },
+      "Game > **Critter Dex** (or Critter Dex on the start screen) shows every critter you've seen and caught on both tables: caught ones in color with their Dex page, seen ones as a shadow. It and the high scores (one list per table) are kept in this browser, for each person on the computer separately.",
+    ],
+    related: ["pinball", "touch-controls"],
   },
   {
     id: "downhill",

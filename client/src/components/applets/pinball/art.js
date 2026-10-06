@@ -106,7 +106,7 @@ export const ICONS = {
 }
 
 // ---- lamps: inserts in the playfield, drawn dark in the base layer and stamped lit ----
-const LAMP_COLORS = {
+export const LAMP_COLORS = {
   red: { off: [C.red0, C.red1], on: [C.red, C.red3, C.pink] },
   yellow: { off: [C.yellow0, C.yellow1], on: [C.amber, C.yellow, C.cream] },
   green: { off: [C.green0, C.green1], on: [C.green, C.lime, C.mint] },
@@ -115,10 +115,11 @@ const LAMP_COLORS = {
   mag: { off: [C.mag0, C.mag1], on: [C.mag, C.pinkhi, C.white] },
   orange: { off: [C.red0, C.brown], on: [C.orange, C.amber, C.cream] },
   white: { off: [C.g1, C.g3], on: [C.g6, C.g7, C.white] },
+  purple: { off: [C.pur0, C.pur1], on: [C.pur, C.pur3, C.white] },
 }
 
 // an arrow pointing at angle a (radians, 0 = right, -PI/2 = up), w long and h wide
-const arrowPts = (x, y, a, w, h) => {
+export const arrowPts = (x, y, a, w, h) => {
   const c = Math.cos(a)
   const s = Math.sin(a)
   const pt = (u, v) => [x + u * c - v * s, y + u * s + v * c]
@@ -153,7 +154,7 @@ export const LAMPS = [
 export const RANK_WIN = { x: 86, y: 266, w: 90, h: 88 }
 for (let i = 0; i < 8; i++) LAMPS.push({ id: "rank" + i, kind: "circle", x: RANK_WIN.x + 8, y: RANK_WIN.y + 17 + i * 9, r: 3, color: "green" })
 
-const lampShape = (l) => {
+export const lampShape = (l) => {
   if (l.kind === "circle") return { x0: l.x - l.r - 1, y0: l.y - l.r - 1, x1: l.x + l.r + 1, y1: l.y + l.r + 1, inside: (x, y) => Math.hypot(x - l.x, y - l.y) <= l.r, edge: (x, y) => Math.hypot(x - l.x, y - l.y) > l.r - 1 }
   if (l.kind === "rect") {
     const x0 = Math.round(l.x - l.w / 2)
@@ -175,7 +176,7 @@ const lampShape = (l) => {
 }
 
 // paints a lamp (lit or not) onto a surface
-const paintLamp = (s, l, lit) => {
+export const paintLamp = (s, l, lit) => {
   const sh = lampShape(l)
   const cols = LAMP_COLORS[l.color]
   const ramp = lit ? cols.on : cols.off
@@ -204,12 +205,12 @@ const paintLamp = (s, l, lit) => {
 
 // ---- shaded rails, posts and rubbers ----
 const LIGHT = [-0.6, -0.8]
-const METAL = [C.g2, C.g4, C.g6, C.g7, C.white]
-const RUBBER = [C.g5, C.g7, C.white]
+export const METAL = [C.g2, C.g4, C.g6, C.g7, C.white]
+export const RUBBER = [C.g5, C.g7, C.white]
 const BEIGE = [C.beige0, C.beige1, C.beige, C.beige3]
 
 // a thick line a-b (px) of radius r, lit from the top-left, outlined in ink
-const capsule = (s, ax, ay, bx, by, r, ramp = METAL, outline = C.ink) => {
+export const capsule = (s, ax, ay, bx, by, r, ramp = METAL, outline = C.ink) => {
   const dx = bx - ax
   const dy = by - ay
   const l2 = dx * dx + dy * dy || 1
@@ -227,7 +228,7 @@ const capsule = (s, ax, ay, bx, by, r, ramp = METAL, outline = C.ink) => {
   })
 }
 
-const post = (s, x, y, r, ramp = RUBBER) =>
+export const post = (s, x, y, r, ramp = RUBBER) =>
   shape(s, x - r - 1, y - r - 1, x + r + 1, y + r + 1, (px, py) => {
     const nx = px + 0.5 - x
     const ny = py + 0.5 - y
@@ -274,7 +275,7 @@ const paintFloor = (s) => {
 }
 
 // a Win98 window decal: title bar and gray body
-const windowDecal = (s, x, y, w, h, title) => {
+export const windowDecal = (s, x, y, w, h, title) => {
   rect(s, x + 2, y + 2, w, h, C.teal0) // shadow on the playfield
   bevel(s, x, y, w, h, true, C.g6)
   rect(s, x + 3, y + 3, w - 6, 9, C.navy)
@@ -496,7 +497,7 @@ const paintRamp = (s) => {
 // ---- sprites made by code ----
 
 // a chrome ball, r px; light from the top-left, a dark outline, a highlight
-const ballSprite = (r) => {
+export const ballSprite = (r) => {
   const size = Math.ceil(r * 2)
   const s = surface(size, size)
   const c = size / 2
