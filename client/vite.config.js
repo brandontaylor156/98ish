@@ -19,7 +19,8 @@ const swManifest = () => ({
         return statSync(full).isDirectory() ? walk(full) : ['/' + relative('public', full).replace(/[\\/]+/g, '/')]
       })
     const skip = new Set(['/sw.js', '/sw-manifest.json'])
-    const all = [...new Set([...files, ...walk('public')])].filter((f) => !skip.has(f) && !f.endsWith('.map'))
+    // (Venue Finder's index, megabytes of shards, loads only when someone searches: not precached)
+    const all = [...new Set([...files, ...walk('public')])].filter((f) => !skip.has(f) && !f.endsWith('.map') && !f.startsWith('/venues/idx/'))
     this.emitFile({
       type: 'asset',
       fileName: 'sw-manifest.json',

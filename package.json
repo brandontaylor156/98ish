@@ -5,7 +5,7 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test": "node --test \"server/web/test/*.test.*\" \"server/net/test/*.test.*\" \"server/aim/test/*.test.*\" \"server/drive/test/*.test.*\" \"server/mail/test/*.test.*\" \"server/gamechat/test/*.test.*\" \"server/puzzles/test/*.test.*\" \"server/quiz/test/*.test.*\" \"server/couples/test/*.test.*\" \"server/dollhouse/test/*.test.*\" \"server/town/test/*.test.*\" \"server/pet/test/*.test.*\" \"server/arcade/test/*.test.*\" \"server/calendar/test/*.test.*\" \"server/push/test/*.test.*\" \"server/contacts/test/*.test.*\" \"server/notes/test/*.test.*\" \"server/albums/test/*.test.*\" \"server/meter/test/*.test.*\" \"server/account/test/*.test.*\" \"server/park/test/*.test.*\" \"server/locate/test/*.test.*\" \"server/pbclub/test/*.test.*\""
+    "test": "node --test \"server/web/test/*.test.*\" \"server/net/test/*.test.*\" \"server/aim/test/*.test.*\" \"server/drive/test/*.test.*\" \"server/mail/test/*.test.*\" \"server/gamechat/test/*.test.*\" \"server/puzzles/test/*.test.*\" \"server/quiz/test/*.test.*\" \"server/couples/test/*.test.*\" \"server/dollhouse/test/*.test.*\" \"server/town/test/*.test.*\" \"server/pet/test/*.test.*\" \"server/arcade/test/*.test.*\" \"server/calendar/test/*.test.*\" \"server/push/test/*.test.*\" \"server/contacts/test/*.test.*\" \"server/notes/test/*.test.*\" \"server/albums/test/*.test.*\" \"server/meter/test/*.test.*\" \"server/account/test/*.test.*\" \"server/park/test/*.test.*\" \"server/venues/test/*.test.*\" \"server/locate/test/*.test.*\" \"server/pbclub/test/*.test.*\""
   },
   "engines": {
     "node": ">=20"

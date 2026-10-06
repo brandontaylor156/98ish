@@ -33,6 +33,7 @@ const { calendarRouter, attachCalendar } = require("./server/calendar")
 const { defaultPush } = require("./server/push")
 const { contactsRouter } = require("./server/contacts")
 const { notesService } = require("./server/notes")
+const { venuesService } = require("./server/venues")
 const { albumsService } = require("./server/albums")
 const { locateService } = require("./server/locate")
 const { clubService } = require("./server/pbclub")
@@ -81,6 +82,10 @@ app.use("/api/push", push.router())
 // Notes (sticky notes, shared with buddies); Tasks are to-do events in Calendar
 const notes = notesService({ aim: () => aim, push })
 app.use("/api/notes", notes.router())
+// Pickleball 98's Venue Finder: any pickleball venue on Earth, built from OpenStreetMap (public map
+// data, cached; nothing per account)
+const venues = venuesService()
+app.use("/api/venues", venues.router())
 // Shared Albums in Photos (records in MongoDB, photos in file sync's bucket and budgets)
 const albums = albumsService({ aim: () => aim, push, storage: () => sync.storage() })
 app.use("/api/albums", albums.router())
@@ -131,7 +136,7 @@ if (process.env.RENDER_EXTERNAL_URL && process.env.KEEP_AWAKE !== "0") {
 const io = require("socket.io")(server, { cors: true, maxHttpBufferSize: 2 * 1024 * 1024, allowRequest: allowSocketRequest })
 
 // (My Park sends positions less often when the month's traffic runs high: server/park)
-const net = attachNet(io, { park: { meterTotal: () => usage.meter.total(), capBytes: (Number(process.env.WEB_MONTHLY_TOTAL_MB) || 3000) * 1024 * 1024 } })
+const net = attachNet(io, { park: { meterTotal: () => usage.meter.total(), capBytes: (Number(process.env.WEB_MONTHLY_TOTAL_MB) || 3000) * 1024 * 1024, liveVenues: venues.liveVenues } })
 const gameChat = attachGameChat(io, net)
 
 // Delete My Account: every place that keeps something for an account, in order (the full

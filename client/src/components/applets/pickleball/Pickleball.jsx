@@ -33,7 +33,10 @@ import { getClone } from "./twin/clone/store.js"
 import { cloneLevel } from "./twin/clone/profile.js"
 // Real Games (the pickleball you play in real life: sessions, scorekeeper, matches, ladder; applets/pbclub, server/pbclub)
 const RealGames = React.lazy(() => import("../pbclub/PbClub"))
-import { ParkHud, ParkIntro, ParkMenu, ParkResult, ParkTurn, ParkVenues } from "./park/ParkHud"
+import { ParkHud, ParkIntro, ParkMenu, ParkResult, ParkTurn } from "./park/ParkHud"
+// Venue Finder: any pickleball venue on Earth (park/live/)
+import { FinderPanel } from "./park/live/FinderPanel"
+import { isLiveId } from "./park/live/liveVenue.js"
 import { VENUE_LIST } from "./park/venues/index.js"
 import { usePark } from "./park/usePark"
 import { recordGame, validRep } from "./park/rep.js"
@@ -566,6 +569,12 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
   const loadParkLayout = async (id) => {
     const L = await import("./park/layout.js")
     if (!id || id === "riverside") return L.RIVERSIDE_LAYOUT
+    // a Venue Finder venue: built by the server from OpenStreetMap (or the device's copy)
+    if (isLiveId(id)) {
+      const [{ fetchLiveSpec }, { venueLayoutSpec }] = await Promise.all([import("./park/live/liveVenue.js"), import("./park/venuegen.js")])
+      const { spec } = await fetchLiveSpec(id, prefsRef.current.parkPlaces?.[id]?.shard)
+      return L.makeLayout(venueLayoutSpec(spec))
+    }
     const [{ loadVenueSpec }, { venueLayoutSpec }] = await Promise.all([import("./park/venues/index.js"), import("./park/venuegen.js")])
     const spec = await loadVenueSpec(id)
     return spec ? L.makeLayout(venueLayoutSpec(spec)) : L.RIVERSIDE_LAYOUT
@@ -583,6 +592,16 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
   }
   const [parkPick, setParkPick] = useState(false)
   const [parkLoading, setParkLoading] = useState(null)
+  const [parkErr, setParkErr] = useState(null) // Venue Finder couldn't build a venue: why
+  // a Venue Finder venue you picked or starred: kept (small) so it shows without the index
+  const keepPlace = (id, place) => {
+    if (!place) return
+    const cur = prefsRef.current.parkPlaces || {}
+    const { id: _id, km, score, why, near, ...rest } = place
+    const next = { ...cur, [id]: { ...rest, id, short: place.title, at: Date.now() } }
+    const keys = Object.keys(next).sort((a, b) => (next[b].at || 0) - (next[a].at || 0)).slice(0, 30)
+    setPrefs({ parkPlaces: Object.fromEntries(keys.map((k) => [k, next[k]])) })
+  }
   const pickPark = () => {
     if (session?.kind !== "park") quitToMenu()
     setParkPick(true)
@@ -616,6 +635,11 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
         setParkLoading(null)
         setScreen("main")
         setSession(null)
+        // (a Venue Finder venue that couldn't be built: say why, back to the list)
+        if (isLiveId(venueId)) {
+          setParkErr(error?.message || "That venue couldn't be built right now.")
+          setParkPick(true)
+        }
         return
       }
       parkRef.current = w
@@ -1328,24 +1352,29 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
         )}
 
         {parkPick && (
-          <ParkVenues
+          <FinderPanel
             list={VENUE_LIST}
+            places={prefs.parkPlaces || {}}
             current={prefs.parkVenue || "riverside"}
             favs={Array.isArray(prefs.parkFavs) ? prefs.parkFavs : []}
             loading={parkLoading}
-            onPick={(id) => {
+            error={parkErr}
+            onPick={(id, place) => {
+              keepPlace(id, place)
+              setParkErr(null)
               setPrefs({ parkVenue: id })
               setParkPick(false)
               startPark(id)
             }}
-            onFav={(id) => {
+            onFav={(id, place) => {
+              keepPlace(id, place)
               const f = Array.isArray(prefsRef.current.parkFavs) ? prefsRef.current.parkFavs : []
               setPrefs({ parkFavs: f.includes(id) ? f.filter((x) => x !== id) : [...f, id].slice(0, 20) })
             }}
-            onClose={() => setParkPick(false)}
+            onClose={() => (setParkPick(false), setParkErr(null))}
           />
         )}
-        {parkLoading && screen === "park" && !parkPick && <div className="pkCenter pkDim" data-park="loading"><div className="pkPanel window">Walking over to {VENUE_LIST.find((v) => v.id === parkLoading)?.short || "the park"}...</div></div>}
+        {parkLoading && screen === "park" && !parkPick && <div className="pkCenter pkDim" data-park="loading"><div className="pkPanel window">{isLiveId(parkLoading) ? "Building " : "Walking over to "}{VENUE_LIST.find((v) => v.id === parkLoading)?.short || prefs.parkPlaces?.[parkLoading]?.short || "the park"}...</div></div>}
 
         {/* ---------- Twin Replay (twin/): a real game, filmed, replayed here ---------- */}
         {screen === "twin" && phase !== "loading" && phase !== "error" && (
