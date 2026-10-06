@@ -10,6 +10,7 @@ import { addProps, propMaterials } from "./props.js"
 import { FINISH, roomRect } from "./propkit.js"
 import { surfaced } from "./surfaces.js"
 import { buildCars, buildDecals, buildGlow, buildTrees, canvasTex, normalFor, windscreenTex, planDecals, setDetailEnv, skyEnvironment, windowMaps } from "./detail.js"
+import { dimEnvironment, loadHDRI, swapEnvironment } from "./environment.js"
 
 const canvasTexture = (w, h, draw) => {
   const c = document.createElement("canvas")
@@ -2197,6 +2198,20 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
     }
   }
 
+  // round 3 (environment.js): the drawn sky gives way to a real HDRI on everything that reflects
+  // it, once the file has loaded (the drawn one stands in until then)
+  let envMats = []
+  let envDay = 1
+  let gone = false
+  if (detail && env && typeof document !== "undefined") {
+    loadHDRI(!!S.indoor).then((hdr) => {
+      if (!hdr || gone) return
+      envMats = swapEnvironment(group, env, hdr)
+      setDetailEnv(hdr)
+      dimEnvironment(envMats, envDay)
+    })
+  }
+
   return {
     groundMat,
     courtGroup: (c) => groups.get(c) || null,
@@ -2211,6 +2226,11 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
     },
     setDayLook: (d) => {
       if (hallLampMat) hallLampMat.color.setHex(0xfff8e8)
+      envDay = S.indoor ? 1 : Math.max(0.12, Math.min(1, (d.sun?.intensity ?? 2.6) / 2.6))
+      dimEnvironment(envMats, envDay)
+    },
+    dispose: () => {
+      gone = true
     },
   }
 }

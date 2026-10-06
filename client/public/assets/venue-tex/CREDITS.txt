@@ -12,3 +12,7 @@ Surface textures derived from ambientCG materials (CC0 1.0, https://ambientcg.co
   tile.webp  <- Tiles107  https://ambientcg.com/view?id=Tiles107
   fabric.webp  <- Fabric030  https://ambientcg.com/view?id=Fabric030
 acrylic.webp is generated (tools/venues/textures/build-textures.py).
+
+Environment light (HDRI) from Poly Haven (CC0 1.0, https://polyhaven.com):
+  hdri/park_parking_1k.hdr  <- Park Parking  https://polyhaven.com/a/park_parking  (outdoor venues)
+  hdri/empty_warehouse_01_1k.hdr  <- Empty Warehouse 01  https://polyhaven.com/a/empty_warehouse_01  (indoor halls)

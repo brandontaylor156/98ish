@@ -13,7 +13,7 @@ import { mergeStatic } from "../venue.js"
 import { LEVEL_NAMES, PATH_W, PEN, RIVERSIDE_LAYOUT, SEAT_ROWS } from "./layout.js"
 import { createCourtKit } from "./courtkit.js"
 import { buildScenery } from "./scenery.js"
-import { applySurfaces, surfaced } from "./surfaces.js"
+import { applySurfaces, surfaced, surfSky } from "./surfaces.js"
 import { bakeVenueAO, clearBakedAO, setBakedAOOn } from "./occlusion.js"
 import { chainLink, windscreenTex } from "./detail.js"
 
@@ -824,6 +824,7 @@ export const buildPark = (scene, { quality = "medium", layout = RIVERSIDE_LAYOUT
     }
     sun.updateMatrix()
     sun.updateMatrixWorld(true)
+    surfSky.value.copy(hemi.color).multiplyScalar(hemi.intensity * (S.indoor ? 0.4 : 0.55))
   }
 
   // ---- the time of day (sky.js dayLook) ----
@@ -898,6 +899,7 @@ export const buildPark = (scene, { quality = "medium", layout = RIVERSIDE_LAYOUT
       : null,
     dispose() {
       cancelAO?.()
+      scenery?.dispose?.()
       if (shadows) clearBakedAO()
       scene.remove(group)
       scene.fog = null
