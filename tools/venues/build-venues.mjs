@@ -549,12 +549,21 @@ const buildOne = (v) => {
   if (ov.rooms?.length)
     spec.rooms = ov.rooms.map((r, k) => {
       const out = { id: r.id || `room${k}`, type: r.type || "hall", p: pr(polyOfO(r).map(sh)) }
-      for (const key of ["name", "h", "floor", "wall", "ceiling", "wainscot", "furnish", "gender", "accent", "sofa", "chairs", "proshop", "shell", "outside", "roof", "benches", "partition", "top", "floorStyle", "ceilingStyle", "wallTex", "art", "trim", "level", "y"]) if (r[key] !== undefined) out[key] = r[key]
+      for (const key of ["name", "h", "floor", "wall", "ceiling", "wainscot", "furnish", "gender", "accent", "sofa", "chairs", "proshop", "shell", "outside", "roof", "benches", "partition", "top", "floorStyle", "ceilingStyle", "wallTex", "art", "trim", "level", "y", "open"]) if (r[key] !== undefined) out[key] = r[key]
       if (r.doors) out.doors = r.doors.map(doorOf)
       if (r.props) out.props = r.props.flatMap(propsOf)
       return out
     })
   if (ov.props?.length) spec.props = ov.props.flatMap(propsOf)
+  // roof-only parts (drawn, not walked into) over a building whose roofStyle is "none": a
+  // clubhouse's wings at their own heights; y0 starts a short wall under a raised part
+  if (ov.roofs?.length)
+    spec.roofs = ov.roofs.map((r) => {
+      const out = { p: pr(polyOfO(r).map(sh)), h: r.h }
+      styleBuilding(out, r)
+      if (r.y0 !== undefined) out.y0 = r.y0
+      return out
+    })
   // floors above the ground: decks (a rooftop terrace, a mezzanine: a polygon at a height) and
   // the stairs up to them (from the bottom step's middle to the top's, rising y0 -> y1)
   if (ov.decks?.length)

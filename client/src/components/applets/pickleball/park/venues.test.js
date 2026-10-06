@@ -294,3 +294,47 @@ test("room kit: every room with a door you can open is reachable on foot from th
   }
   setLayout(get("loscab").L)
 })
+
+test("parking lots: stalls in bays with driving aisles, inside the lot, along its long side", async () => {
+  const { lotStalls } = await import("./scenery.js")
+  // a 60 x 40 m lot turned 30 degrees
+  const r = (30 * Math.PI) / 180
+  const rot = ([x, z]) => [x * Math.cos(r) - z * Math.sin(r), x * Math.sin(r) + z * Math.cos(r)]
+  const lot = [[0, 0], [60, 0], [60, 40], [0, 40]].map(rot)
+  const { stalls, stripes } = lotStalls(lot)
+  assert.ok(stalls.length > 60 && stalls.length < 200, `${stalls.length} stalls`)
+  assert.equal(stripes.length, stalls.length * 2)
+  // back in lot coordinates: rows at distinct depths, with 7 m aisles between bays (not a
+  // car every 6 m from edge to edge)
+  const back = ([x, z]) => [x * Math.cos(-r) - z * Math.sin(-r), x * Math.sin(-r) + z * Math.cos(-r)]
+  const rows = [...new Set(stalls.map((s) => Math.round(back([s.x, s.z])[1] * 10) / 10))].sort((a, b) => a - b)
+  const gaps = rows.slice(1).map((w, i) => w - rows[i])
+  assert.ok(gaps.some((g) => g > 12), `an aisle between bays: ${gaps}`)
+  assert.ok(gaps.every((g) => g > 5), `stall rows don't overlap: ${gaps}`)
+  for (const s of stalls) {
+    const [u, w] = back([s.x, s.z])
+    assert.ok(u > 0 && u < 60 && w > 0 && w < 40)
+  }
+})
+
+test("every venue's stairs climb to a deck you can walk on (Newport's terrace, SMASH's mezzanine, Los Cab's ballroom deck)", async () => {
+  const { stepWalker, createWalker } = await import("./walker.js")
+  const withStairs = IDS.filter((id) => get(id).L.STAIRS?.length)
+  for (const want of ["newport", "smash", "loscab"]) assert.ok(withStairs.includes(want), `${want} has stairs`)
+  for (const id of withStairs) {
+    const { L } = get(id)
+    setLayout(L)
+    for (const s of L.STAIRS) {
+      const deck = L.DECKS.find((d) => Math.abs(d.y - s.y1) < 0.1)
+      assert.ok(deck, `${id}: the stairs arrive at a deck`)
+      const yaw = Math.atan2(s.ux, s.uz)
+      const w = createWalker(s.a.x - s.ux * 1.2, s.a.z - s.uz * 1.2, yaw)
+      for (let k = 0; k < 500 && (w.y || 0) < s.y1 - 0.01; k++) stepWalker(w, { x: 0, y: 1 }, yaw, 1 / 30)
+      assert.ok(Math.abs(w.y - s.y1) < 0.01, `${id}: climbed to ${w.y} of ${s.y1}`)
+      // on along the top: still up there
+      for (let k = 0; k < 45; k++) stepWalker(w, { x: 0, y: 1 }, yaw, 1 / 30)
+      assert.ok(Math.abs(w.y - s.y1) < 0.01, `${id}: on the deck (${w.y})`)
+    }
+  }
+  setLayout(get("loscab").L)
+})

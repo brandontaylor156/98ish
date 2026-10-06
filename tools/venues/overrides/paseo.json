@@ -120,11 +120,11 @@
       ]
      }
     ],
-    "h": 9,
+    "h": 7.5,
     "kind": "clubhouse",
     "color": "#e4d8bd",
     "roof": "#9a4a32",
-    "roofStyle": "hip",
+    "roofStyle": "none",
     "tile": true,
     "windows": "mission",
     "doors": [
@@ -177,7 +177,7 @@
     "kind": "clubhouse",
     "color": "#e4d8bd",
     "roof": "#9a4a32",
-    "roofStyle": "hip",
+    "roofStyle": "none",
     "tile": true,
     "windows": "mission",
     "doors": [
@@ -254,7 +254,7 @@
     "kind": "clubhouse",
     "color": "#e4d8bd",
     "roof": "#9a4a32",
-    "roofStyle": "hip",
+    "roofStyle": "none",
     "tile": true,
     "windows": "mission",
     "doors": [
@@ -1914,5 +1914,327 @@
   "hillsHeight": 1.8,
   "trees": 34,
   "treeKind": "broadleaf"
- }
+ },
+ "roofs": [
+  {
+   "poly": [
+    {
+     "en": [
+      6,
+      32
+     ]
+    },
+    {
+     "en": [
+      22,
+      32
+     ]
+    },
+    {
+     "en": [
+      22,
+      62
+     ]
+    },
+    {
+     "en": [
+      6,
+      62
+     ]
+    }
+   ],
+   "h": 9.5,
+   "kind": "clubhouse",
+   "color": "#e4d8bd",
+   "roof": "#9a4a32",
+   "roofStyle": "hip",
+   "tile": true,
+   "windows": "mission",
+   "y0": 7.5
+  },
+  {
+   "poly": [
+    {
+     "en": [
+      -3.5,
+      32
+     ]
+    },
+    {
+     "en": [
+      6,
+      32
+     ]
+    },
+    {
+     "en": [
+      6,
+      41
+     ]
+    },
+    {
+     "en": [
+      -3.5,
+      41
+     ]
+    }
+   ],
+   "h": 7.5,
+   "kind": "clubhouse",
+   "color": "#e4d8bd",
+   "roof": "#9a4a32",
+   "roofStyle": "hip",
+   "tile": true,
+   "windows": "mission"
+  },
+  {
+   "poly": [
+    {
+     "en": [
+      -3.5,
+      41
+     ]
+    },
+    {
+     "en": [
+      6,
+      41
+     ]
+    },
+    {
+     "en": [
+      6,
+      55
+     ]
+    },
+    {
+     "en": [
+      -3.5,
+      55
+     ]
+    }
+   ],
+   "h": 7.5,
+   "kind": "clubhouse",
+   "color": "#e4d8bd",
+   "roof": "#9a4a32",
+   "roofStyle": "hip",
+   "tile": true,
+   "windows": "mission",
+   "rise": 2.6
+  },
+  {
+   "poly": [
+    {
+     "en": [
+      -3.5,
+      55
+     ]
+    },
+    {
+     "en": [
+      6,
+      55
+     ]
+    },
+    {
+     "en": [
+      6,
+      62
+     ]
+    },
+    {
+     "en": [
+      -3.5,
+      62
+     ]
+    }
+   ],
+   "h": 7.5,
+   "kind": "clubhouse",
+   "color": "#e4d8bd",
+   "roof": "#9a4a32",
+   "roofStyle": "hip",
+   "tile": true,
+   "windows": "mission"
+  },
+  {
+   "poly": [
+    {
+     "en": [
+      9,
+      9
+     ]
+    },
+    {
+     "en": [
+      17,
+      9
+     ]
+    },
+    {
+     "en": [
+      17,
+      32
+     ]
+    },
+    {
+     "en": [
+      9,
+      32
+     ]
+    }
+   ],
+   "h": 7,
+   "kind": "clubhouse",
+   "color": "#e4d8bd",
+   "roof": "#9a4a32",
+   "roofStyle": "hip",
+   "tile": true,
+   "windows": "mission"
+  },
+  {
+   "poly": [
+    {
+     "en": [
+      21,
+      9
+     ]
+    },
+    {
+     "en": [
+      25,
+      9
+     ]
+    },
+    {
+     "en": [
+      25,
+      32
+     ]
+    },
+    {
+     "en": [
+      21,
+      32
+     ]
+    }
+   ],
+   "h": 7,
+   "kind": "clubhouse",
+   "color": "#e4d8bd",
+   "roof": "#9a4a32",
+   "roofStyle": "hip",
+   "tile": true,
+   "windows": "mission"
+  },
+  {
+   "poly": [
+    {
+     "en": [
+      17,
+      9
+     ]
+    },
+    {
+     "en": [
+      21,
+      9
+     ]
+    },
+    {
+     "en": [
+      21,
+      32
+     ]
+    },
+    {
+     "en": [
+      17,
+      32
+     ]
+    }
+   ],
+   "h": 7,
+   "kind": "clubhouse",
+   "color": "#e4d8bd",
+   "roof": "#d8cfbf",
+   "roofStyle": "flat",
+   "tile": false,
+   "windows": "mission",
+   "parapet": 0.4
+  },
+  {
+   "poly": [
+    {
+     "en": [
+      12,
+      68
+     ]
+    },
+    {
+     "en": [
+      26,
+      68
+     ]
+    },
+    {
+     "en": [
+      26,
+      91
+     ]
+    },
+    {
+     "en": [
+      12,
+      91
+     ]
+    }
+   ],
+   "h": 8,
+   "kind": "clubhouse",
+   "color": "#e4d8bd",
+   "roof": "#9a4a32",
+   "roofStyle": "hip",
+   "tile": true,
+   "windows": "mission"
+  },
+  {
+   "poly": [
+    {
+     "en": [
+      26,
+      68
+     ]
+    },
+    {
+     "en": [
+      40,
+      68
+     ]
+    },
+    {
+     "en": [
+      40,
+      91
+     ]
+    },
+    {
+     "en": [
+      26,
+      91
+     ]
+    }
+   ],
+   "h": 9,
+   "kind": "clubhouse",
+   "color": "#e4d8bd",
+   "roof": "#9a4a32",
+   "roofStyle": "hip",
+   "tile": true,
+   "windows": "mission",
+   "y0": 8,
+   "hvac": 3
+  }
+ ]
 }

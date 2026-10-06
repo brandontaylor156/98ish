@@ -41,6 +41,47 @@ const pointInPoly = (x, z, poly) => {
   }
   return inside
 }
+// A parking lot's stalls, as lots are laid out: along the lot's longest side, bays of two
+// stall rows back to back (5.4 m deep, 2.7 m wide) then a 7 m driving aisle. Returns the
+// stalls { x, z, yaw (a car's long side across the row) } and the stripes between them.
+const STALL_W = 2.7
+const STALL_D = 5.4
+const AISLE = 7
+export const lotStalls = (p) => {
+  let best = null
+  for (let i = 0; i < p.length; i++) {
+    const a = p[i]
+    const b = p[(i + 1) % p.length]
+    const L = Math.hypot(b[0] - a[0], b[1] - a[1])
+    if (L > 0.1 && (!best || L > best.L)) best = { L, ux: (b[0] - a[0]) / L, uz: (b[1] - a[1]) / L }
+  }
+  if (!best) return { stalls: [], stripes: [] }
+  const { ux, uz } = best
+  const us = p.map(([x, z]) => x * ux + z * uz)
+  const ws = p.map(([x, z]) => -x * uz + z * ux)
+  const [u0, u1, w0, w1] = [Math.min(...us), Math.max(...us), Math.min(...ws), Math.max(...ws)]
+  const at = (u, w) => [u * ux - w * uz, u * uz + w * ux]
+  const yaw = Math.atan2(-uz, ux)
+  const inside = (u, w) => pointInPoly(...at(u, w), p)
+  const stalls = []
+  const stripes = []
+  // the first row backs onto the edge and faces an aisle; then pairs back to back: row,
+  // aisle, row, row, aisle, row, row, aisle...
+  for (let w = w0 + 0.3, k = 0; w + STALL_D <= w1 + 0.01; k++) {
+    for (let u = u0 + 0.6; u + STALL_W <= u1 - 0.3; u += STALL_W) {
+      const cu = u + STALL_W / 2
+      const cw = w + STALL_D / 2
+      // the whole stall inside the lot (its four corners)
+      if (!inside(u + 0.2, w + 0.2) || !inside(u + STALL_W - 0.2, w + 0.2) || !inside(u + 0.2, w + STALL_D - 0.2) || !inside(u + STALL_W - 0.2, w + STALL_D - 0.2)) continue
+      const [x, z] = at(cu, cw)
+      stalls.push({ x, z, yaw })
+      stripes.push([...at(u, w), ...at(u, w + STALL_D)], [...at(u + STALL_W, w), ...at(u + STALL_W, w + STALL_D)])
+    }
+    w += STALL_D + (k % 2 === 0 ? AISLE : 0)
+  }
+  return { stalls, stripes }
+}
+
 // the stretch of the edge a -> b (length L, unit u) within w/2 of a door at (dx, dz): [s, e] or null
 const doorCut = (a, u, L, door) => {
   if (!door) return null
@@ -159,21 +200,18 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
           ctx.stroke()
         }
         if (k === "parking") {
-          // stall stripes: short white dashes in rows across the lot
+          // stall stripes, from the same stall plan the cars park in (lotStalls)
           ctx.save()
           poly(a.p)
           ctx.clip()
           ctx.strokeStyle = "rgba(240,240,235,0.75)"
           ctx.lineWidth = Math.max(1, 0.12 * PX)
-          const xs = a.p.map((p) => p[0])
-          const zs = a.p.map((p) => p[1])
-          for (let z = Math.min(...zs); z < Math.max(...zs); z += 12)
-            for (let x = Math.min(...xs); x < Math.max(...xs); x += 2.7) {
-              ctx.beginPath()
-              ctx.moveTo(X(x), Z(z))
-              ctx.lineTo(X(x), Z(z + 5))
-              ctx.stroke()
-            }
+          for (const [x0, z0, x1, z1] of lotStalls(a.p).stripes) {
+            ctx.beginPath()
+            ctx.moveTo(X(x0), Z(z0))
+            ctx.lineTo(X(x1), Z(z1))
+            ctx.stroke()
+          }
           ctx.restore()
         }
       }
@@ -802,13 +840,94 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
     g.computeVertexNormals()
     return { geo: keep(g), top }
   }
+  // A footprint that isn't a rectangle (an L, a T, a long building with jogs: most real
+  // clubhouses and shops) can't take a roof over its smallest rectangle: that drew one big
+  // hip over everything (Paseo's north building was a red slab across the lot). This roof
+  // follows the outline instead, as mission-style buildings are built: a sloped tile band
+  // along every wall, rising inward to a flat top. Returns { geo, top } like slopedRoof.
+  const rectish = (p) => {
+    if (p.length <= 4) return true
+    const { u0, u1, w0, w1 } = rectOf(p)
+    return Math.abs(signedArea(p)) / ((u1 - u0) * (w1 - w0) || 1) > 0.9
+  }
+  const outlineRoof = (p, h, { band = 4, rise: riseO } = {}) => {
+    const n = p.length
+    const A = Math.abs(signedArea(p))
+    let per = 0
+    for (let i = 0; i < n; i++) per += Math.hypot(p[(i + 1) % n][0] - p[i][0], p[(i + 1) % n][1] - p[i][1])
+    // keep the band well inside the building's width (2A/perimeter: a thin building's width)
+    const bd = Math.max(0.8, Math.min(band, (0.35 * 2 * A) / (per || 1)))
+    const rise = riseO ?? Math.min(2.4, bd * 0.55)
+    // each wall's inward normal (tested against the polygon, so either winding works)
+    const lines = []
+    for (let i = 0; i < n; i++) {
+      const a = p[i]
+      const b2 = p[(i + 1) % n]
+      const L = Math.hypot(b2[0] - a[0], b2[1] - a[1]) || 1
+      let nx = -(b2[1] - a[1]) / L
+      let nz = (b2[0] - a[0]) / L
+      const mx = (a[0] + b2[0]) / 2
+      const mz = (a[1] + b2[1]) / 2
+      if (!pointInPoly(mx + nx * 0.2, mz + nz * 0.2, p)) (nx = -nx), (nz = -nz)
+      lines.push({ a: [a[0] + nx * bd, a[1] + nz * bd], d: [(b2[0] - a[0]) / L, (b2[1] - a[1]) / L], nx, nz })
+    }
+    // the inner outline: neighbouring offset walls meet (a sharp corner is clamped)
+    const q = p.map((v, i) => {
+      const l0 = lines[(i - 1 + n) % n]
+      const l1 = lines[i]
+      const den = l0.d[0] * l1.d[1] - l0.d[1] * l1.d[0]
+      let x
+      let z
+      if (Math.abs(den) < 1e-6) {
+        x = v[0] + l1.nx * bd
+        z = v[1] + l1.nz * bd
+      } else {
+        const t = ((l1.a[0] - l0.a[0]) * l1.d[1] - (l1.a[1] - l0.a[1]) * l1.d[0]) / den
+        x = l0.a[0] + l0.d[0] * t
+        z = l0.a[1] + l0.d[1] * t
+      }
+      const dx = x - v[0]
+      const dz = z - v[1]
+      const m = Math.hypot(dx, dz)
+      if (m > bd * 2.5) {
+        x = v[0] + (dx / m) * bd * 2.5
+        z = v[1] + (dz / m) * bd * 2.5
+      }
+      return [x, z]
+    })
+    const pos = []
+    const uv = []
+    const tri = (P1, P2, P3, e) => {
+      pos.push(...P1, ...P2, ...P3)
+      for (const Q of [P1, P2, P3]) uv.push((Q[0] * e[0] + Q[2] * e[1]) / 0.5, (Q[1] - h) / 0.17)
+    }
+    for (let i = 0; i < n; i++) {
+      const j = (i + 1) % n
+      const e = lines[i].d
+      const o0 = [p[i][0], h, p[i][1]]
+      const o1 = [p[j][0], h, p[j][1]]
+      const i0 = [q[i][0], h + rise, q[i][1]]
+      const i1 = [q[j][0], h + rise, q[j][1]]
+      tri(o0, o1, i1, e)
+      tri(o0, i1, i0, e)
+    }
+    const g = new THREE.BufferGeometry()
+    g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3))
+    g.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2))
+    g.computeVertexNormals()
+    return { geo: keep(g), top: q.map(([x, z]) => [x, h + rise, z]) }
+  }
   const plainMats = new Map()
   const plainMatFor = (color) => {
     if (!plainMats.has(color)) plainMats.set(color, lambert(color, { side: THREE.DoubleSide }))
     return plainMats.get(color)
   }
   const hvac = []
-  for (const b of S.buildings) {
+  // S.roofs: roof-only parts over a building drawn with roofStyle "none" (a clubhouse's wings
+  // at their own heights). A part's walls run from y0 (default: its own height, so none) up
+  // to h; parts are drawn, never walked into (collision stays with the building)
+  const roofParts = (S.roofs || []).map((r) => ({ ...r, y0: r.y0 ?? r.h, roofOnly: true }))
+  for (const b of [...S.buildings, ...roofParts]) {
     if (b.p.length < 3) continue
     const kind = b.k || "yes"
     const color = hex(b.c, WALLS[kind] ?? WALLS.yes)
@@ -816,13 +935,27 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
     const wallMat = b.windows === "none" ? plainMatFor(color) : wallMatFor(color, b.windows === "mission" ? "mission" : ribs)
     const y0 = b.y0 || 0
     // (a hall's outside walls are drawn with its inside, cut for the door)
-    if (!b.hall) group.add(new THREE.Mesh(wallRing(b.p, y0, b.h, b.doors ? { gaps: doorsOn(b.p) } : {}), wallMat))
+    // (doors upstairs, a room on a second floor opening onto a balcony: the wall is cut at
+    // that floor only, door-high, solid above; the ground floor's doors cut as before)
+    const upDoors = b.doors && !b.roofOnly ? [...new Set((S.doors || []).filter((d) => (d.y || 0) > 0.5).map((d) => d.y))].filter((y) => doorsOn(b.p, y).length) : []
+    if (!b.hall && b.h - y0 > 0.05 && !upDoors.length) group.add(new THREE.Mesh(wallRing(b.p, y0, b.h, b.doors && !b.roofOnly ? { gaps: doorsOn(b.p) } : {}), wallMat))
+    else if (!b.hall && b.h - y0 > 0.05) {
+      const floors = [...upDoors].sort((a, c) => a - c)
+      group.add(new THREE.Mesh(wallRing(b.p, y0, floors[0], { gaps: doorsOn(b.p) }), wallMat))
+      floors.forEach((fy, k) => {
+        const top = Math.min(fy + 2.7, floors[k + 1] ?? b.h, b.h)
+        group.add(new THREE.Mesh(wallRing(b.p, fy, top, { gaps: doorsOn(b.p, fy) }), wallMat))
+        if ((floors[k + 1] ?? b.h) - top > 0.05) group.add(new THREE.Mesh(wallRing(b.p, top, floors[k + 1] ?? b.h), wallMat))
+      })
+    }
     const roofColor = hex(b.r, ROOFS[kind] ?? ROOFS.yes)
     const roofMat = roofMatFor(roofColor)
     if (b.hall && cutaway) continue
     const style = b.hall ? "flat" : b.rs || "flat"
+    // (roofStyle "none": the walls only; the venue's `roofs` draw this building's roof in parts)
+    if (style === "none") continue
     if (style === "gable" || style === "hip" || style === "mansard") {
-      const r = slopedRoof(b.p, b.h, style, { rise: b.rise, band: b.band })
+      const r = rectish(b.p) ? slopedRoof(b.p, b.h, style, { rise: b.rise, band: b.band }) : outlineRoof(b.p, b.h, { band: b.band, rise: b.rise })
       group.add(new THREE.Mesh(r.geo, b.tile === false ? roofMat : tileMatFor(roofColor)))
       if (r.top) {
         const t = r.top.map((q2) => [q2[0], q2[2]])
@@ -1008,7 +1141,8 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
         )
       }
       g.add(new THREE.Mesh(wallRing(r.p, 0, H, { gaps, offset: 0.02, edge: (a, b) => !onOuter(a, b) }), plainMatFor(hex(r.partition, 0xe9e6df))))
-      g.add(new THREE.Mesh(flat(r.p, H + 0.01), roofMatFor(hex(r.top, 0xcfcac0))))
+      // (an `open` room has no top or ceiling: it's open to the hall above, under a mezzanine)
+      if (!r.open) g.add(new THREE.Mesh(flat(r.p, H + 0.01), roofMatFor(hex(r.top, 0xcfcac0))))
     }
     // a free-standing room (not inside a building or hall) has its own outside and roof
     if (r.shell) {
@@ -1018,10 +1152,10 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
     const cc = new THREE.Color(hex(r.ceiling, 0xf2f0ea))
     const ceilKind = r.ceilingStyle === "plain" ? null : r.ceilingStyle || fin.ceiling
     const cmap = floorTexFor(ceilKind)
-    g.add(new THREE.Mesh(flatDown(r.p, H - 0.02), lambert(cc.getHex(), { emissive: cc.clone().multiplyScalar(0.3), ...(cmap ? { map: cmap } : {}) })))
+    if (!r.open) g.add(new THREE.Mesh(flatDown(r.p, H - 0.02), lambert(cc.getHex(), { emissive: cc.clone().multiplyScalar(0.3), ...(cmap ? { map: cmap } : {}) })))
     // ceiling lights every few metres: panels in a grid ceiling, strips in gyms and halls,
-    // pendants over a cafe's, bar's or lounge's tables
-    const R = roomRect(r.p)
+    // pendants over a cafe's, bar's or lounge's tables (none in an open room: the hall lights it)
+    const R = r.open ? null : roomRect(r.p)
     if (R) {
       const strip = r.type === "gym" || r.type === "hall" || r.type === "corridor" || r.type === "studio"
       const hang = r.type === "cafe" || r.type === "bar" || r.type === "lounge"
@@ -1574,17 +1708,17 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
 
   // ---------- cars in the lots ----------
   const cars = []
+  // in the stalls (lotStalls), about half full on a weekday (a lot's `full` sets it); the
+  // stalls by where you arrive stay free; cars sit a little off-centre in their stall
   for (const a of S.areas) {
     if (a.k !== "parking" || cars.length > 420) continue
     const spawn = L.SPAWN || { x: 1e9, z: 1e9 }
-    const xs = a.p.map((p) => p[0])
-    const zs = a.p.map((p) => p[1])
-    for (let z = Math.min(...zs) + 2.6; z < Math.max(...zs) - 2; z += 6)
-      for (let x = Math.min(...xs) + 1.4; x < Math.max(...xs) - 1; x += 2.7) {
-        const near = Math.hypot(x - spawn.x, z - spawn.z) < 9
-        if (near || rand() > (a.full ?? 0.62) || !pointInPoly(x, z, a.p) || cars.length > 420) continue
-        cars.push({ x, z, yaw: (rand() < 0.5 ? 0 : Math.PI) + (rand() - 0.5) * 0.06, c: rand() })
-      }
+    for (const s of lotStalls(a.p).stalls) {
+      if (cars.length > 420) break
+      if (Math.hypot(s.x - spawn.x, s.z - spawn.z) < 12 || rand() > (a.full ?? 0.5)) continue
+      const j = (rand() - 0.5) * 0.3
+      cars.push({ x: s.x + j * Math.cos(s.yaw), z: s.z - j * Math.sin(s.yaw), yaw: s.yaw + (rand() < 0.5 ? 0 : Math.PI) + (rand() - 0.5) * 0.06, c: rand() })
+    }
   }
   if (cars.length) {
     const body = new THREE.InstancedMesh(keep(new THREE.BoxGeometry(1.8, 0.75, 4.3).translate(0, 0.55, 0)), lambert(0xffffff), cars.length)
