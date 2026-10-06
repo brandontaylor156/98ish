@@ -220,7 +220,8 @@ export const makeLayout = (spec) => {
     const tg = Math.sign(g) || 1
     const ba = tangent.x > 1e-9 || (Math.abs(tangent.x) <= 1e-9 && tangent.z > 0) ? tangent : { x: -tangent.x, z: -tangent.z } // (the bleachers' seats run along +x or +z)
     const bleacherLen = c.bleacher ?? 7
-    const bleacher = bleacherLen > 0 ? { x: fence.x + out.x * 0.95, z: fence.z + out.z * 0.95, len: bleacherLen, yaw: yawAlong(-out.x, -out.z), ax: ba.x, az: ba.z } : null
+    const shift = c.bleacherShift || 0
+    const bleacher = bleacherLen > 0 ? { x: fence.x + out.x * 0.95 + tangent.x * shift, z: fence.z + out.z * 0.95 + tangent.z * shift, len: bleacherLen, yaw: yawAlong(-out.x, -out.z), ax: ba.x, az: ba.z } : null
     return {
       id: c.id ?? i,
       name: c.name || `Court ${i + 1}`,
@@ -280,6 +281,8 @@ export const makeLayout = (spec) => {
   // where someone stands to take a seat: a bench from the front; a bleacher from behind (the
   // path side), stepping up onto it
   const seatApproach = (seat) => {
+    // (a seat that says where you step up to it: bar stools, chairs at a table)
+    if (seat.approach) return seat.approach
     if (seat.court !== undefined && seat.court !== null) {
       const c = courtOf(seat.court)
       const b = c.bleacher
@@ -522,12 +525,62 @@ export const makeLayout = (spec) => {
   const NAV = spec.nav || []
   const open = (a, b) => segmentHit(a, b, 0) === null
   const link = spec.navLink || 16
-  const NAV_EDGES = NAV.map((a, i) => NAV.map((b, j) => (i !== j && Math.hypot(a.x - b.x, a.z - b.z) < link && open(a, b) ? j : -1)).filter((j) => j >= 0))
+  const NAV_EDGES =
+    NAV.length <= 60
+      ? NAV.map((a, i) => NAV.map((b, j) => (i !== j && Math.hypot(a.x - b.x, a.z - b.z) < link && open(a, b) ? j : -1)).filter((j) => j >= 0))
+      : (() => {
+          const cells = new Map()
+          const key = (x, z) => Math.floor(x / link) * 100003 + Math.floor(z / link)
+          NAV.forEach((p, i) => {
+            const k = key(p.x, p.z)
+            if (!cells.has(k)) cells.set(k, [])
+            cells.get(k).push(i)
+          })
+          return NAV.map((a, i) => {
+            const out = []
+            const ci = Math.floor(a.x / link)
+            const cj = Math.floor(a.z / link)
+            for (let di = -1; di <= 1; di++)
+              for (let dj = -1; dj <= 1; dj++)
+                for (const j of cells.get((ci + di) * 100003 + (cj + dj)) || []) if (j !== i && Math.hypot(a.x - NAV[j].x, a.z - NAV[j].z) < link && open(a, NAV[j])) out.push(j)
+            return out
+          })
+        })()
   // (nodes a spot can see: the nearest few that are in the clear)
   const visible = (p) => {
     if (NAV.length <= 60) return NAV.map((q, i) => (open(p, q) ? i : -1)).filter((i) => i >= 0)
     const near = NAV.map((q, i) => [i, Math.hypot(q.x - p.x, q.z - p.z)]).sort((a, b) => a[1] - b[1]).slice(0, 14)
     return near.filter(([i]) => open(p, NAV[i])).map(([i]) => i)
+  }
+  // (a big graph, a real venue's: a binary heap; Riverside's small one: a plain scan)
+  const heapPush = (h, d, i) => {
+    h.push([d, i])
+    let k = h.length - 1
+    while (k > 0) {
+      const p = (k - 1) >> 1
+      if (h[p][0] <= h[k][0]) break
+      ;[h[p], h[k]] = [h[k], h[p]]
+      k = p
+    }
+  }
+  const heapPop = (h) => {
+    const top = h[0]
+    const last = h.pop()
+    if (h.length) {
+      h[0] = last
+      let k = 0
+      for (;;) {
+        const l = 2 * k + 1
+        const r = l + 1
+        let m = k
+        if (l < h.length && h[l][0] < h[m][0]) m = l
+        if (r < h.length && h[r][0] < h[m][0]) m = r
+        if (m === k) break
+        ;[h[m], h[k]] = [h[k], h[m]]
+        k = m
+      }
+    }
+    return top
   }
   const route = (from, to) => {
     if (open(from, to)) return [{ x: to.x, z: to.z }]
@@ -539,19 +592,36 @@ export const makeLayout = (spec) => {
     const prev = Array(n).fill(-1)
     const done = Array(n).fill(false)
     for (const s of starts) dist[s] = Math.hypot(NAV[s].x - from.x, NAV[s].z - from.z)
-    for (;;) {
-      let u = -1
-      for (let i = 0; i < n; i++) if (!done[i] && dist[i] < Infinity && (u < 0 || dist[i] < dist[u])) u = i
-      if (u < 0) break
-      done[u] = true
-      for (const v of NAV_EDGES[u]) {
-        const d = dist[u] + Math.hypot(NAV[u].x - NAV[v].x, NAV[u].z - NAV[v].z)
-        if (d < dist[v]) {
-          dist[v] = d
-          prev[v] = u
+    if (n > 60) {
+      const h = []
+      for (const s of starts) heapPush(h, dist[s], s)
+      while (h.length) {
+        const [du, u] = heapPop(h)
+        if (done[u] || du > dist[u]) continue
+        done[u] = true
+        for (const v of NAV_EDGES[u]) {
+          const d = du + Math.hypot(NAV[u].x - NAV[v].x, NAV[u].z - NAV[v].z)
+          if (d < dist[v]) {
+            dist[v] = d
+            prev[v] = u
+            heapPush(h, d, v)
+          }
         }
       }
-    }
+    } else
+      for (;;) {
+        let u = -1
+        for (let i = 0; i < n; i++) if (!done[i] && dist[i] < Infinity && (u < 0 || dist[i] < dist[u])) u = i
+        if (u < 0) break
+        done[u] = true
+        for (const v of NAV_EDGES[u]) {
+          const d = dist[u] + Math.hypot(NAV[u].x - NAV[v].x, NAV[u].z - NAV[v].z)
+          if (d < dist[v]) {
+            dist[v] = d
+            prev[v] = u
+          }
+        }
+      }
     let best = -1
     let bestD = Infinity
     for (const e of ends) {

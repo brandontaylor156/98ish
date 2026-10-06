@@ -150,7 +150,9 @@ export const think = (r, ctx) => {
     r.court = c.id
     r.t = 15 + rand() * 30
     const along = (rand() - 0.5) * 6
-    goTo(r, resolve(c.bleacher.x + along, c.bleacher.z - c.side * 1.05, 0.3))
+    // (behind the bleachers; a court without any: by its gate, outside the fence)
+    const b = c.bleacher
+    goTo(r, b ? resolve(b.x + b.ax * along + c.out.x * 1.05, b.z + b.az * along + c.out.z * 1.05, 0.3) : resolve(c.outside.x + c.rackAlong.x * along * 0.5 + c.out.x * 1.2, c.outside.z + c.rackAlong.z * along * 0.5 + c.out.z * 1.2, 0.3))
     r.face = { x: c.x, z: c.z }
     return null
   }

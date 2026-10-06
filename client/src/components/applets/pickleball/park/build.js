@@ -1,14 +1,17 @@
-// My Park: the park's picture (three.js), built once from layout.js. Everything that never
-// moves is merged into a handful of meshes (venue.js mergeStatic) or instanced (fence posts,
-// trees, light poles, paddles in the racks, the ball machine's balls); the "lighting" under
-// trees and round the courts is painted into the ground texture, so the park needs no shadow
-// map. Night (sky.js) turns the court lights on: glowing lamps and a pool of light on each
-// court.
+// My Park: the park's picture (three.js), built once from a layout (layout.js: Riverside Park
+// or a real venue from venuegen.js). Everything that never moves is merged into a handful of
+// meshes (venue.js mergeStatic) or instanced (fence posts, trees, light poles, paddles in the
+// racks, the ball machine's balls); the "lighting" under trees and round the courts is
+// painted into the ground texture, so the park needs no shadow map. Night (sky.js) turns the
+// court lights on: glowing lamps and a pool of light on each court. A real venue's own
+// scenery (its other courts, fences, buildings, parking, an indoor hall) is scenery.js.
 
 import * as THREE from "three"
-import { HALF_L, HALF_W, KITCHEN, LINE_W, NET_POST_X, netHeightAt } from "../physics.js"
+import { HALF_L } from "../physics.js"
 import { mergeStatic } from "../venue.js"
-import { BENCHES, BOARD, BOOTH, BOUNDS, COURTS, FOUNTAIN, LEVEL_NAMES, LIGHTS, MACHINE_COURT, PATH_W, PEN, SEAT_ROWS, TREES } from "./layout.js"
+import { LEVEL_NAMES, PATH_W, PEN, RIVERSIDE_LAYOUT, SEAT_ROWS } from "./layout.js"
+import { createCourtKit } from "./courtkit.js"
+import { buildScenery } from "./scenery.js"
 
 const canvasTexture = (w, h, draw) => {
   const c = document.createElement("canvas")
@@ -19,9 +22,6 @@ const canvasTexture = (w, h, draw) => {
   t.colorSpace = THREE.SRGBColorSpace
   return t
 }
-const quad = (positions, x0, z0, x1, z1, y) => {
-  positions.push(x0, y, z0, x1, y, z1, x1, y, z0, x0, y, z0, x0, y, z1, x1, y, z1)
-}
 // the biggest bold type (size down to min) that fits width
 const fit = (ctx, text, size, min, width) => {
   while (size > min) {
@@ -31,8 +31,14 @@ const fit = (ctx, text, size, min, width) => {
   }
   ctx.font = `bold ${min}px Arial, sans-serif`
 }
+// a box's y rotation that lays its length (local x) along the direction (ax, az)
+const yawFor = (ax, az) => Math.atan2(-az, ax)
 
-export const buildPark = (scene, { quality = "medium" } = {}) => {
+export const buildPark = (scene, { quality = "medium", layout = RIVERSIDE_LAYOUT } = {}) => {
+  const L = layout
+  const { BENCHES, BOARD, BOOTH, BOUNDS, COURTS, FOUNTAIN, LIGHTS, MACHINE_COURT, TREES } = L
+  const S = L.spec.scene || null // a real venue's scenery (venuegen.js)
+  const riverside = !S
   const group = new THREE.Group()
   const disposables = []
   const keep = (x) => {
@@ -57,7 +63,11 @@ export const buildPark = (scene, { quality = "medium" } = {}) => {
       fragmentShader: "uniform vec3 top; uniform vec3 horizon; varying float vY; void main() { float t = pow(clamp(vY, 0.0, 1.0), 0.5); gl_FragColor = vec4(mix(horizon, top, t), 1.0);\n#include <colorspace_fragment>\n}",
     })
   )
-  const sky = new THREE.Mesh(keep(new THREE.SphereGeometry(190, 24, 12)), skyMat)
+  // (a big venue: a bigger sky)
+  const span = Math.max(BOUNDS.x1 - BOUNDS.x0, BOUNDS.z1 - BOUNDS.z0)
+  const skyR = Math.max(190, span * 0.9 + 120)
+  const sky = new THREE.Mesh(keep(new THREE.SphereGeometry(skyR, 24, 12)), skyMat)
+  sky.position.set((BOUNDS.x0 + BOUNDS.x1) / 2, 0, (BOUNDS.z0 + BOUNDS.z1) / 2)
   sky.renderOrder = -1
   sky.frustumCulled = false
   group.add(sky)
@@ -67,11 +77,12 @@ export const buildPark = (scene, { quality = "medium" } = {}) => {
   for (let i = 0; i < 400; i++) {
     const a = srnd() * Math.PI * 2
     const e = 0.15 + srnd() * 1.2
-    starPos.set([Math.cos(a) * Math.cos(e) * 180, Math.sin(e) * 180, Math.sin(a) * Math.cos(e) * 180], i * 3)
+    starPos.set([Math.cos(a) * Math.cos(e) * skyR * 0.95, Math.sin(e) * skyR * 0.95, Math.sin(a) * Math.cos(e) * skyR * 0.95], i * 3)
   }
   const starGeo = keep(new THREE.BufferGeometry())
   starGeo.setAttribute("position", new THREE.BufferAttribute(starPos, 3))
   const stars = new THREE.Points(starGeo, keep(new THREE.PointsMaterial({ color: 0xffffff, size: 0.9, sizeAttenuation: false, fog: false })))
+  stars.position.copy(sky.position)
   stars.renderOrder = -1
   stars.visible = false
   group.add(stars)
@@ -84,189 +95,115 @@ export const buildPark = (scene, { quality = "medium" } = {}) => {
   sun.target.position.set(8, 0, 0)
   group.add(hemi, sun, sun.target)
 
-  // ---- the ground: grass, paths and plazas, with shade painted in ----
-  const GX0 = BOUNDS.x0 - 14
-  const GX1 = BOUNDS.x1 + 14
-  const GZ0 = BOUNDS.z0 - 14
-  const GZ1 = BOUNDS.z1 + 14
-  const GW = GX1 - GX0
-  const GD = GZ1 - GZ0
-  const PX = 10 // texture pixels per meter
-  const groundTex = canvasTexture(Math.round(GW * PX), Math.round(GD * PX), (ctx, w, h) => {
-    const X = (x) => (x - GX0) * PX
-    const Z = (z) => (z - GZ0) * PX
-    ctx.fillStyle = "#6fae55"
-    ctx.fillRect(0, 0, w, h)
-    let s = 11
-    const rnd = () => ((s = (s * 16807) % 2147483647) / 2147483647)
-    // grass: mottled
-    for (let i = 0; i < 9000; i++) {
-      const v = rnd()
-      ctx.fillStyle = v < 0.5 ? `rgba(40,90,30,${0.05 + rnd() * 0.08})` : `rgba(170,210,120,${0.04 + rnd() * 0.07})`
-      const r = 2 + rnd() * 10
-      ctx.beginPath()
-      ctx.arc(rnd() * w, rnd() * h, r, 0, Math.PI * 2)
-      ctx.fill()
-    }
-    // the paths and plazas (pale concrete)
-    ctx.fillStyle = "#cfc8b8"
-    ctx.fillRect(X(BOUNDS.x0 + 0.5), Z(-PATH_W / 2), X(MACHINE_COURT.x - PEN.hx) - X(BOUNDS.x0 + 0.5), PATH_W * PX)
-    ctx.fillRect(X(-31), Z(-4), X(-22.3) - X(-31), 8 * PX) // the west plaza
-    ctx.fillRect(X(-2.1), Z(-15), 4.2 * PX, 30 * PX) // the walk between the pens
-    // the strips under the bleachers and racks
-    for (const c of COURTS) {
-      const z0 = Math.min(c.fenceZ, c.fenceZ - c.side * 1.6)
-      ctx.fillRect(X(c.x - PEN.hx - 0.3), Z(z0), (2 * PEN.hx + 0.6) * PX, 1.6 * PX)
-    }
-    ctx.beginPath()
-    ctx.arc(X(FOUNTAIN.x), Z(FOUNTAIN.z), 3.2 * PX, 0, Math.PI * 2)
-    ctx.fill()
-    // concrete: a little grain
-    for (let i = 0; i < 4000; i++) {
-      ctx.fillStyle = `rgba(0,0,0,${rnd() * 0.04})`
-      ctx.fillRect(rnd() * w, rnd() * h, 2, 2)
-    }
-    // the pens' concrete pads (dark green-grey), each a shade darker at the edges
-    for (const c of [...COURTS, MACHINE_COURT]) {
-      ctx.fillStyle = "#4a6b5a"
-      ctx.fillRect(X(c.x - PEN.hx), Z(c.z - PEN.hz), 2 * PEN.hx * PX, 2 * PEN.hz * PX)
-    }
-    // shade: under the trees, along the pens' windscreens, under benches and bleachers
-    const shade = (x, z, r, a) => {
-      const g = ctx.createRadialGradient(X(x), Z(z), 0, X(x), Z(z), r * PX)
-      g.addColorStop(0, `rgba(10,30,10,${a})`)
-      g.addColorStop(1, "rgba(10,30,10,0)")
-      ctx.fillStyle = g
-      ctx.beginPath()
-      ctx.arc(X(x), Z(z), r * PX, 0, Math.PI * 2)
-      ctx.fill()
-    }
-    for (const t of TREES) shade(t.x + 0.6, t.z + 0.5, 2.6 * t.s, 0.38)
-    for (const b of BENCHES) shade(b.x, b.z, 1.1, 0.3)
-    for (const c of COURTS) {
-      ctx.fillStyle = "rgba(10,25,15,0.18)"
-      ctx.fillRect(X(c.bleacher.x - c.bleacher.len / 2), Z(c.bleacher.z - 0.7), c.bleacher.len * PX, 1.4 * PX)
-    }
-    shade(BOOTH.x + 0.8, BOOTH.z + 0.6, 4, 0.35)
-  })
-  keep(groundTex)
-  groundTex.anisotropy = 4
-  const groundMat = lambert(0xffffff, { map: groundTex })
-  const ground = new THREE.Mesh(keep(new THREE.PlaneGeometry(GW, GD)), groundMat)
-  ground.rotation.x = -Math.PI / 2
-  ground.position.set((GX0 + GX1) / 2, 0, (GZ0 + GZ1) / 2)
-  ground.renderOrder = -0.5 // (kept out of mergeStatic: it carries its own big texture)
-  group.add(ground)
-  // grass beyond, to the horizon
-  const far = new THREE.Mesh(keep(new THREE.CircleGeometry(175, 36)), lambert(0x5f9e48))
-  far.rotation.x = -Math.PI / 2
-  far.position.y = -0.04
-  group.add(far)
-
-  // ---- the courts ----
-  const grain = keep(
-    canvasTexture(256, 256, (ctx, w, h) => {
-      ctx.fillStyle = "#ffffff"
-      ctx.fillRect(0, 0, w, h)
-      for (let i = 0; i < 3000; i++) {
-        const v = Math.random() * 0.08 - 0.04
-        ctx.fillStyle = v > 0 ? `rgba(255,255,255,${v})` : `rgba(0,0,0,${-v})`
-        ctx.fillRect(Math.random() * w, Math.random() * h, 2, 2)
-      }
-    })
-  )
-  grain.wrapS = grain.wrapT = THREE.RepeatWrapping
-  grain.repeat.set(3, 6)
-  const courtMat = std(0x2f62ad, { map: grain, roughness: 0.8 })
-  const kitchenMat = std(0x3b75c4, { map: grain, roughness: 0.8 })
-  const runoffMat = std(0x3c8a5a, { roughness: 0.9 })
-  const lineMat = std(0xf4f7fb, { roughness: 0.7 })
-  const postMat = std(0x2b2f36, { roughness: 0.5, metalness: 0.3 })
-  const netTex = keep(
-    canvasTexture(32, 32, (ctx, w) => {
-      ctx.clearRect(0, 0, w, w)
-      ctx.strokeStyle = "rgba(20,24,30,0.85)"
-      ctx.lineWidth = 3
-      ctx.strokeRect(0, 0, w, w)
-    })
-  )
-  netTex.wrapS = netTex.wrapT = THREE.RepeatWrapping
-  const netMat = keep(new THREE.MeshBasicMaterial({ map: netTex, transparent: true, side: THREE.DoubleSide, depthWrite: false }))
-  const tapeMat = keep(new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide }))
-  // shared court pieces, in a court's own frame (net along x)
-  const courtGeo = keep(new THREE.PlaneGeometry(2 * HALF_W, 2 * HALF_L).rotateX(-Math.PI / 2))
-  const kitchenGeo = keep(new THREE.PlaneGeometry(2 * HALF_W, 2 * KITCHEN).rotateX(-Math.PI / 2).translate(0, 0.001, 0))
-  const runoffGeo = keep(new THREE.PlaneGeometry(2 * PEN.hz, 2 * PEN.hx).rotateX(-Math.PI / 2).translate(0, -0.002, 0))
-  const lp = []
-  const L = LINE_W
-  const y = 0.003
-  quad(lp, -HALF_W, -HALF_L, HALF_W, -HALF_L + L, y)
-  quad(lp, -HALF_W, HALF_L - L, HALF_W, HALF_L, y)
-  quad(lp, -HALF_W, -HALF_L, -HALF_W + L, HALF_L, y)
-  quad(lp, HALF_W - L, -HALF_L, HALF_W, HALF_L, y)
-  quad(lp, -HALF_W, -KITCHEN, HALF_W, -KITCHEN + L, y)
-  quad(lp, -HALF_W, KITCHEN - L, HALF_W, KITCHEN, y)
-  quad(lp, -L / 2, KITCHEN, L / 2, HALF_L, y)
-  quad(lp, -L / 2, -HALF_L, L / 2, -KITCHEN, y)
-  const linesGeo = keep(new THREE.BufferGeometry())
-  linesGeo.setAttribute("position", new THREE.Float32BufferAttribute(lp, 3))
-  linesGeo.computeVertexNormals()
-  const SEG = 24
-  const netPos = []
-  const netUv = []
-  const tapePos = []
-  const netIdx = []
-  for (let i = 0; i <= SEG; i++) {
-    const x = -NET_POST_X + (2 * NET_POST_X * i) / SEG
-    const top = netHeightAt(x)
-    netPos.push(x, 0.07, 0, x, top - 0.045, 0)
-    netUv.push(x / 0.045, 0.07 / 0.045, x / 0.045, (top - 0.045) / 0.045)
-    tapePos.push(x, top - 0.05, 0, x, top + 0.004, 0)
-    if (i < SEG) {
-      const a = i * 2
-      netIdx.push(a, a + 2, a + 1, a + 1, a + 2, a + 3)
-    }
-  }
-  const netGeo = keep(new THREE.BufferGeometry())
-  netGeo.setAttribute("position", new THREE.Float32BufferAttribute(netPos, 3))
-  netGeo.setAttribute("uv", new THREE.Float32BufferAttribute(netUv, 2))
-  netGeo.setIndex(netIdx)
-  const tapeGeo = keep(new THREE.BufferGeometry())
-  tapeGeo.setAttribute("position", new THREE.Float32BufferAttribute(tapePos, 3))
-  tapeGeo.setIndex(netIdx)
-  const postGeo = keep(new THREE.CylinderGeometry(0.04, 0.045, 0.98, 8).translate(0, 0.49, 0))
-
-  // a court group per court (the matches' figures and balls go in these: a court's frame)
+  // ---- the courts (a group per live court: the matches' figures and balls go in these) ----
+  const kit = createCourtKit({ keep, std, colors: S ? hexColors(S.colors) : {} })
   const courtGroups = []
-  const addCourt = (c) => {
-    const g = new THREE.Group()
-    g.position.set(c.x, 0, c.z)
-    g.rotation.y = Math.PI / 2
-    g.updateMatrixWorld(true)
-    const add = (geo, mat, order = 0) => {
-      const m = new THREE.Mesh(geo, mat)
-      m.renderOrder = order
-      g.add(m)
-      return m
-    }
-    add(runoffGeo, runoffMat)
-    add(courtGeo, courtMat)
-    add(kitchenGeo, kitchenMat)
-    add(linesGeo, lineMat)
-    add(netGeo, netMat, 2)
-    add(tapeGeo, tapeMat)
-    for (const s of [-1, 1]) add(postGeo, postMat).position.x = s * NET_POST_X
-    group.add(g)
-    return g
-  }
-  for (const c of COURTS) courtGroups[c.id] = addCourt(c)
-  const machineGroup = addCourt(MACHINE_COURT)
+  let machineGroup = null
+  let groundMat = null
+  let scenery = null
 
-  // ---- the pens: chain-link on posts, a windscreen, a gate onto the path ----
+  if (riverside) {
+    // ---- the ground: grass, paths and plazas, with shade painted in ----
+    const GX0 = BOUNDS.x0 - 14
+    const GX1 = BOUNDS.x1 + 14
+    const GZ0 = BOUNDS.z0 - 14
+    const GZ1 = BOUNDS.z1 + 14
+    const GW = GX1 - GX0
+    const GD = GZ1 - GZ0
+    const PX = 10 // texture pixels per meter
+    const groundTex = canvasTexture(Math.round(GW * PX), Math.round(GD * PX), (ctx, w, h) => {
+      const X = (x) => (x - GX0) * PX
+      const Z = (z) => (z - GZ0) * PX
+      ctx.fillStyle = "#6fae55"
+      ctx.fillRect(0, 0, w, h)
+      let s = 11
+      const rnd = () => ((s = (s * 16807) % 2147483647) / 2147483647)
+      // grass: mottled
+      for (let i = 0; i < 9000; i++) {
+        const v = rnd()
+        ctx.fillStyle = v < 0.5 ? `rgba(40,90,30,${0.05 + rnd() * 0.08})` : `rgba(170,210,120,${0.04 + rnd() * 0.07})`
+        const r = 2 + rnd() * 10
+        ctx.beginPath()
+        ctx.arc(rnd() * w, rnd() * h, r, 0, Math.PI * 2)
+        ctx.fill()
+      }
+      // the paths and plazas (pale concrete)
+      ctx.fillStyle = "#cfc8b8"
+      ctx.fillRect(X(BOUNDS.x0 + 0.5), Z(-PATH_W / 2), X(MACHINE_COURT.x - PEN.hx) - X(BOUNDS.x0 + 0.5), PATH_W * PX)
+      ctx.fillRect(X(-31), Z(-4), X(-22.3) - X(-31), 8 * PX) // the west plaza
+      ctx.fillRect(X(-2.1), Z(-15), 4.2 * PX, 30 * PX) // the walk between the pens
+      // the strips under the bleachers and racks
+      for (const c of COURTS) {
+        const z0 = Math.min(c.fenceZ, c.fenceZ - c.side * 1.6)
+        ctx.fillRect(X(c.x - PEN.hx - 0.3), Z(z0), (2 * PEN.hx + 0.6) * PX, 1.6 * PX)
+      }
+      ctx.beginPath()
+      ctx.arc(X(FOUNTAIN.x), Z(FOUNTAIN.z), 3.2 * PX, 0, Math.PI * 2)
+      ctx.fill()
+      // concrete: a little grain
+      for (let i = 0; i < 4000; i++) {
+        ctx.fillStyle = `rgba(0,0,0,${rnd() * 0.04})`
+        ctx.fillRect(rnd() * w, rnd() * h, 2, 2)
+      }
+      // the pens' concrete pads (dark green-grey)
+      for (const c of [...COURTS, MACHINE_COURT]) {
+        ctx.fillStyle = "#4a6b5a"
+        ctx.fillRect(X(c.x - PEN.hx), Z(c.z - PEN.hz), 2 * PEN.hx * PX, 2 * PEN.hz * PX)
+      }
+      // shade: under the trees, along the pens' windscreens, under benches and bleachers
+      const shade = (x, z, r, a) => {
+        const g = ctx.createRadialGradient(X(x), Z(z), 0, X(x), Z(z), r * PX)
+        g.addColorStop(0, `rgba(10,30,10,${a})`)
+        g.addColorStop(1, "rgba(10,30,10,0)")
+        ctx.fillStyle = g
+        ctx.beginPath()
+        ctx.arc(X(x), Z(z), r * PX, 0, Math.PI * 2)
+        ctx.fill()
+      }
+      for (const t of TREES) shade(t.x + 0.6, t.z + 0.5, 2.6 * t.s, 0.38)
+      for (const b of BENCHES) shade(b.x, b.z, 1.1, 0.3)
+      for (const c of COURTS) {
+        ctx.fillStyle = "rgba(10,25,15,0.18)"
+        ctx.fillRect(X(c.bleacher.x - c.bleacher.len / 2), Z(c.bleacher.z - 0.7), c.bleacher.len * PX, 1.4 * PX)
+      }
+      shade(BOOTH.x + 0.8, BOOTH.z + 0.6, 4, 0.35)
+    })
+    keep(groundTex)
+    groundTex.anisotropy = 4
+    groundMat = lambert(0xffffff, { map: groundTex })
+    const ground = new THREE.Mesh(keep(new THREE.PlaneGeometry(GW, GD)), groundMat)
+    ground.rotation.x = -Math.PI / 2
+    ground.position.set((GX0 + GX1) / 2, 0, (GZ0 + GZ1) / 2)
+    ground.renderOrder = -0.5 // (kept out of mergeStatic: it carries its own big texture)
+    group.add(ground)
+    // grass beyond, to the horizon
+    const far = new THREE.Mesh(keep(new THREE.CircleGeometry(175, 36)), lambert(0x5f9e48))
+    far.rotation.x = -Math.PI / 2
+    far.position.y = -0.04
+    group.add(far)
+    for (const c of COURTS) {
+      courtGroups[c.id] = kit.pickleball(c.x, c.z, c.rot)
+      group.add(courtGroups[c.id])
+    }
+    machineGroup = kit.pickleball(MACHINE_COURT.x, MACHINE_COURT.z, MACHINE_COURT.rot)
+    group.add(machineGroup)
+  } else {
+    // a real venue: its ground, every court, fences, buildings, parking, the hall (scenery.js)
+    scenery = buildScenery({ group, keep, lambert, std, kit, layout: L, scene: S, quality })
+    groundMat = scenery.groundMat
+    for (const c of S.courts) {
+      if (c.live !== null && c.live !== undefined) courtGroups[c.live] = scenery.courtGroup(c)
+      if (c.machine) machineGroup = scenery.courtGroup(c)
+    }
+  }
+
+  // ---- the pens (Riverside): chain-link on posts, a windscreen, a gate onto the path ----
   const fenceTex = keep(
     canvasTexture(64, 64, (ctx, w) => {
       ctx.clearRect(0, 0, w, w)
-      ctx.strokeStyle = "rgba(60,72,70,0.55)"
+      // (a venue's own fence color: dark green-black coated, or galvanized grey)
+      const fc = S?.colors?.fence ? parseInt(S.colors.fence.slice(1), 16) : null
+      ctx.strokeStyle = fc === null ? "rgba(60,72,70,0.55)" : `rgba(${(fc >> 16) & 255},${(fc >> 8) & 255},${fc & 255},0.6)`
       ctx.lineWidth = 4
       ctx.beginPath()
       ctx.moveTo(0, w / 2)
@@ -279,86 +216,113 @@ export const buildPark = (scene, { quality = "medium" } = {}) => {
   )
   fenceTex.wrapS = fenceTex.wrapT = THREE.RepeatWrapping
   const fenceMat = keep(new THREE.MeshBasicMaterial({ map: fenceTex, transparent: true, side: THREE.DoubleSide, depthWrite: false }))
-  const screenMat = lambert(0x1f4a37, { side: THREE.DoubleSide })
-  const railMat = lambert(0x3d4a45)
+  const screenMat = lambert(S?.colors?.windscreen ? new THREE.Color(S.colors.windscreen).getHex() : 0x1f4a37, { side: THREE.DoubleSide })
+  const railMat = lambert(S?.colors?.fence ? parseInt(S.colors.fence.slice(1), 16) : 0x3d4a45)
   const gateMat = lambert(0x24302c)
   const fencePosts = []
-  const fenceSide = (x0, z0, x1, z1, { gate = null } = {}) => {
-    // a straight run of fence from (x0, z0) to (x1, z1), with an opening for a gate (the
+  const fenceSide = (x0, z0, x1, z1, { gates = [], h = PEN.h, screen = true } = {}) => {
+    // a straight run of fence from (x0, z0) to (x1, z1), with openings for gates (the
     // windscreen stops there)
     const len = Math.hypot(x1 - x0, z1 - z0)
+    if (len < 0.05) return
     const ry = -Math.atan2(z1 - z0, x1 - x0)
-    const geo = keep(new THREE.PlaneGeometry(len, PEN.h))
+    const geo = keep(new THREE.PlaneGeometry(len, h))
     const uv = geo.attributes.uv
-    for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * len * 6, uv.getY(i) * PEN.h * 6)
+    for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * len * 6, uv.getY(i) * h * 6)
     const f = new THREE.Mesh(geo, fenceMat)
-    f.position.set((x0 + x1) / 2, PEN.h / 2, (z0 + z1) / 2)
+    f.position.set((x0 + x1) / 2, h / 2, (z0 + z1) / 2)
     f.rotation.y = ry
     f.renderOrder = 1
     group.add(f)
-    const runs = gate ? [[0, gate.at - gate.w / 2], [gate.at + gate.w / 2, len]] : [[0, len]]
-    for (const [a, b] of runs) {
-      if (b - a < 0.05) continue
-      const s = new THREE.Mesh(keep(new THREE.PlaneGeometry(b - a, 1.15)), screenMat)
-      const mid = (a + b) / 2 / len
-      s.position.set(x0 + (x1 - x0) * mid, 0.575, z0 + (z1 - z0) * mid)
-      s.rotation.y = ry
-      group.add(s)
+    if (screen) {
+      const cuts = gates.slice().sort((a, b) => a.at - b.at)
+      let from = 0
+      const runs = []
+      for (const g of cuts) {
+        runs.push([from, g.at - g.w / 2])
+        from = g.at + g.w / 2
+      }
+      runs.push([from, len])
+      for (const [a, b] of runs) {
+        if (b - a < 0.05) continue
+        const s = new THREE.Mesh(keep(new THREE.PlaneGeometry(b - a, Math.min(1.15, h))), screenMat)
+        const mid = (a + b) / 2 / len
+        s.position.set(x0 + (x1 - x0) * mid, Math.min(1.15, h) / 2, z0 + (z1 - z0) * mid)
+        s.rotation.y = ry
+        group.add(s)
+      }
     }
     const rail = new THREE.Mesh(keep(new THREE.BoxGeometry(len, 0.05, 0.05)), railMat)
-    rail.position.set((x0 + x1) / 2, PEN.h, (z0 + z1) / 2)
+    rail.position.set((x0 + x1) / 2, h, (z0 + z1) / 2)
     rail.rotation.y = ry
     group.add(rail)
     const n = Math.max(1, Math.round(len / 3.3))
-    for (let i = 0; i <= n; i++) fencePosts.push([x0 + ((x1 - x0) * i) / n, z0 + ((z1 - z0) * i) / n])
-    if (gate) {
+    for (let i = 0; i <= n; i++) fencePosts.push([x0 + ((x1 - x0) * i) / n, z0 + ((z1 - z0) * i) / n, h])
+    for (const gate of gates) {
       // the gate: a frame and a closed door panel (darker), a little proud of the fence
       for (const d of [-gate.w / 2, gate.w / 2]) {
         const k = (gate.at + d) / len
-        const p = new THREE.Mesh(keep(new THREE.BoxGeometry(0.07, PEN.h + 0.05, 0.07)), gateMat)
-        p.position.set(x0 + (x1 - x0) * k, (PEN.h + 0.05) / 2, z0 + (z1 - z0) * k)
+        const p = new THREE.Mesh(keep(new THREE.BoxGeometry(0.07, h + 0.05, 0.07)), gateMat)
+        p.position.set(x0 + (x1 - x0) * k, (h + 0.05) / 2, z0 + (z1 - z0) * k)
         group.add(p)
       }
       const k = gate.at / len
       const top = new THREE.Mesh(keep(new THREE.BoxGeometry(gate.w, 0.07, 0.07)), gateMat)
-      top.position.set(x0 + (x1 - x0) * k, 2.2, z0 + (z1 - z0) * k)
+      top.position.set(x0 + (x1 - x0) * k, Math.min(2.2, h - 0.1), z0 + (z1 - z0) * k)
       top.rotation.y = ry
       group.add(top)
     }
   }
-  const pen = (c, gateOn) => {
-    const x0 = c.x - PEN.hx
-    const x1 = c.x + PEN.hx
-    const z0 = c.z - PEN.hz
-    const z1 = c.z + PEN.hz
-    fenceSide(x0, z0, x1, z0, gateOn === "n" ? { gate: { at: c.gate.x - x0, w: 1.4 } } : {})
-    fenceSide(x0, z1, x1, z1, gateOn === "s" ? { gate: { at: c.gate.x - x0, w: 1.4 } } : {})
-    fenceSide(x0, z0, x0, z1, gateOn === "w" ? { gate: { at: PEN.hz, w: 1.4 } } : {})
-    fenceSide(x1, z0, x1, z1)
+  if (riverside) {
+    const pen = (c, gateOn) => {
+      const x0 = c.x - PEN.hx
+      const x1 = c.x + PEN.hx
+      const z0 = c.z - PEN.hz
+      const z1 = c.z + PEN.hz
+      fenceSide(x0, z0, x1, z0, gateOn === "n" ? { gates: [{ at: c.gate.x - x0, w: 1.4 }] } : {})
+      fenceSide(x0, z1, x1, z1, gateOn === "s" ? { gates: [{ at: c.gate.x - x0, w: 1.4 }] } : {})
+      fenceSide(x0, z0, x0, z1, gateOn === "w" ? { gates: [{ at: PEN.hz, w: 1.4 }] } : {})
+      fenceSide(x1, z0, x1, z1)
+    }
+    for (const c of COURTS) pen(c, c.side < 0 ? "s" : "n")
+    pen(MACHINE_COURT, "w")
+  } else {
+    for (const f of S.fences) {
+      if (f.k !== "chain") continue
+      fenceSide(f.a[0], f.a[1], f.b[0], f.b[1], { gates: (f.gates || []).map((at) => ({ at, w: 1.4 })), h: f.h })
+    }
   }
-  for (const c of COURTS) pen(c, c.side < 0 ? "s" : "n")
-  pen(MACHINE_COURT, "w")
-  const fencePostMesh = new THREE.InstancedMesh(keep(new THREE.CylinderGeometry(0.035, 0.035, PEN.h, 5)), railMat, fencePosts.length)
-  fencePosts.forEach(([x, z], i) => fencePostMesh.setMatrixAt(i, m4.makeTranslation(x, PEN.h / 2, z)))
-  group.add(fencePostMesh)
+  if (fencePosts.length) {
+    const fencePostMesh = new THREE.InstancedMesh(keep(new THREE.CylinderGeometry(0.035, 0.035, 1, 5)), railMat, fencePosts.length)
+    fencePosts.forEach(([x, z, h], i) => fencePostMesh.setMatrixAt(i, m4.compose(v1.set(x, h / 2, z), q.identity(), v2.set(1, h, 1))))
+    group.add(fencePostMesh)
+  }
 
   // ---- bleachers: aluminum planks on dark frames ----
   const plankMat = std(0xb9c0c8, { roughness: 0.45, metalness: 0.5 })
   const frameMat = lambert(0x3a3f47)
   for (const c of COURTS) {
     const b = c.bleacher
+    if (!b) continue
+    const ry = yawFor(b.ax, b.az)
+    const nIn = { x: -c.out.x, z: -c.out.z }
     SEAT_ROWS.forEach((row) => {
       const seat = new THREE.Mesh(keep(new THREE.BoxGeometry(b.len, 0.05, 0.36)), plankMat)
-      seat.position.set(b.x, row.y - 0.03, b.z + c.side * row.off)
+      seat.position.set(b.x + nIn.x * row.off, row.y - 0.03, b.z + nIn.z * row.off)
+      seat.rotation.y = ry
       group.add(seat)
       // a footboard in front of each row
       const foot = new THREE.Mesh(keep(new THREE.BoxGeometry(b.len, 0.04, 0.3)), plankMat)
-      foot.position.set(b.x, row.y - 0.42, b.z + c.side * (row.off + 0.33))
+      foot.position.set(b.x + nIn.x * (row.off + 0.33), row.y - 0.42, b.z + nIn.z * (row.off + 0.33))
+      foot.rotation.y = ry
       if (row.y - 0.42 > 0.05) group.add(foot)
     })
-    for (let i = 0; i < 4; i++) {
+    const nFr = b.len > 5 ? 4 : 2
+    for (let i = 0; i < nFr; i++) {
       const fr = new THREE.Mesh(keep(new THREE.BoxGeometry(0.06, 0.9, 1.0)), frameMat)
-      fr.position.set(b.x - b.len / 2 + 0.2 + (i * (b.len - 0.4)) / 3, 0.43, b.z)
+      const a = -b.len / 2 + 0.2 + (i * (b.len - 0.4)) / (nFr - 1)
+      fr.position.set(b.x + b.ax * a, 0.43, b.z + b.az * a)
+      fr.rotation.y = ry
       group.add(fr)
     }
   }
@@ -391,27 +355,37 @@ export const buildPark = (scene, { quality = "medium" } = {}) => {
     group.add(post)
     const board = new THREE.Mesh(keep(new THREE.BoxGeometry(1.5, 0.5, 0.06)), woodMat)
     board.position.set(c.rack.x, 0.95, c.rack.z)
+    board.rotation.y = yawFor(c.rackAlong.x, c.rackAlong.z)
     group.add(board)
   }
   const paddleGeo = keep(new THREE.BoxGeometry(0.19, 0.27, 0.02).translate(0, 0.14, 0))
   const handleGeo = keep(new THREE.CylinderGeometry(0.014, 0.014, 0.13, 5).translate(0, -0.06, 0))
-  const rackPaddles = new THREE.InstancedMesh(paddleGeo, lambert(0xffffff), COURTS.length * RACK_N)
-  const rackHandles = new THREE.InstancedMesh(handleGeo, lambert(0x222222), COURTS.length * RACK_N)
+  const rackPaddles = new THREE.InstancedMesh(paddleGeo, lambert(0xffffff), Math.max(1, COURTS.length) * RACK_N)
+  const rackHandles = new THREE.InstancedMesh(handleGeo, lambert(0x222222), Math.max(1, COURTS.length) * RACK_N)
   rackPaddles.count = 0
   rackHandles.count = 0
   rackPaddles.frustumCulled = false
   rackHandles.frustumCulled = false
   group.add(rackPaddles, rackHandles)
   const tmpColor = new THREE.Color()
+  const qYaw = new THREE.Quaternion()
+  const qTilt = new THREE.Quaternion()
+  const yAxis = new THREE.Vector3(0, 1, 0)
   // racks: [[{ color } ...] per court], the next up first
   const setRacks = (racks) => {
     let n = 0
     COURTS.forEach((c, ci) => {
       const list = (racks[ci] || []).slice(0, RACK_N)
+      const ry = yawFor(c.rackAlong.x, c.rackAlong.z)
+      qYaw.setFromAxisAngle(yAxis, ry)
+      // (leaning back toward the fence: the rack's local z, turned, against the court's out)
+      const lz = { x: Math.sin(ry), z: Math.cos(ry) }
+      const lean = 0.12 * (c.out.x * lz.x + c.out.z * lz.z)
       list.forEach((p, i) => {
-        const x = c.rack.x - 0.62 + i * 0.18
-        q.setFromEuler(new THREE.Euler(-0.12 * c.side, 0, 0.08 * ((i % 2) - 0.5)))
-        m4.compose(v1.set(x, 1.12, c.rack.z - c.side * 0.05), q, v2.set(1, 1, 1))
+        const a = -0.62 + i * 0.18
+        qTilt.setFromEuler(new THREE.Euler(lean, 0, 0.08 * ((i % 2) - 0.5)))
+        q.copy(qYaw).multiply(qTilt)
+        m4.compose(v1.set(c.rack.x + c.rackAlong.x * a + c.out.x * 0.05, 1.12, c.rack.z + c.rackAlong.z * a + c.out.z * 0.05), q, v2.set(1, 1, 1))
         rackPaddles.setMatrixAt(n, m4)
         rackHandles.setMatrixAt(n, m4)
         rackPaddles.setColorAt(n, tmpColor.set(p.color || "#ffd23f"))
@@ -425,7 +399,7 @@ export const buildPark = (scene, { quality = "medium" } = {}) => {
     if (rackPaddles.instanceColor) rackPaddles.instanceColor.needsUpdate = true
   }
 
-  // ---- each court's scoreboard: by the net post on the bleachers' side ----
+  // ---- each court's scoreboard: outside its fence, at the far end from the gate ----
   const boards = COURTS.map((c) => {
     const canvas = document.createElement("canvas")
     canvas.width = 256
@@ -434,16 +408,20 @@ export const buildPark = (scene, { quality = "medium" } = {}) => {
     tex.colorSpace = THREE.SRGBColorSpace
     const mat = keep(new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide }))
     const m = new THREE.Mesh(keep(new THREE.PlaneGeometry(1.6, 0.8)), mat)
-    // outside the fence, facing the path, at eye height above the bleachers' back row
-    // (at the pen's far end from the gate: seen from the path, out of the sideline view)
-    const bx = c.x + Math.sign(c.x) * (PEN.hx - 1.3)
-    m.position.set(bx, 2.5, c.fenceZ - c.side * 0.12)
-    m.rotation.y = c.side > 0 ? Math.PI : 0
+    const tangent = { x: c.out.z, z: -c.out.x }
+    const alongOut = Math.abs(c.out.x * c.u.x + c.out.z * c.u.z) > 0.7
+    const halfAlong = alongOut ? c.hz : c.hx
+    const sg = -(Math.sign(c.gate.x - c.fence.x) * Math.sign(tangent.x) || Math.sign(c.gate.z - c.fence.z) * Math.sign(tangent.z) || 1)
+    const off = sg * (alongOut ? Math.min(3, halfAlong - 1.3) : halfAlong - 1.3)
+    const bx = c.fence.x + tangent.x * off + c.out.x * 0.12
+    const bz = c.fence.z + tangent.z * off + c.out.z * 0.12
+    m.position.set(bx, 2.5, bz)
+    m.rotation.y = Math.atan2(c.out.x || 0, c.out.z)
     m.renderOrder = 0.5 // (own texture: not merged)
     group.add(m)
     for (const d of [-0.7, 0.7]) {
       const p = new THREE.Mesh(keep(new THREE.BoxGeometry(0.05, 2.5, 0.05)), frameMat)
-      p.position.set(bx + d, 1.25, c.fenceZ - c.side * 0.12)
+      p.position.set(bx + tangent.x * d, 1.25, bz + tangent.z * d)
       group.add(p)
     }
     return { canvas, tex, last: "" }
@@ -494,21 +472,24 @@ export const buildPark = (scene, { quality = "medium" } = {}) => {
   repCanvas.height = 320
   const repTex = keep(new THREE.CanvasTexture(repCanvas))
   repTex.colorSpace = THREE.SRGBColorSpace
-  const repBoard = new THREE.Mesh(keep(new THREE.PlaneGeometry(BOARD.w, BOARD.h)), keep(new THREE.MeshBasicMaterial({ map: repTex })))
-  repBoard.position.set(BOARD.x + 0.06, 1.9, BOARD.z)
-  repBoard.rotation.y = BOARD.yaw
-  repBoard.renderOrder = 0.5
-  group.add(repBoard)
-  const boardBack = new THREE.Mesh(keep(new THREE.BoxGeometry(0.1, BOARD.h + 0.2, BOARD.w + 0.2)), woodMat)
-  boardBack.position.set(BOARD.x, 1.9, BOARD.z)
-  group.add(boardBack)
-  for (const d of [-1, 1]) {
-    const p = new THREE.Mesh(keep(new THREE.BoxGeometry(0.1, 1.0, 0.1)), frameMat)
-    p.position.set(BOARD.x, 0.5, BOARD.z + d * (BOARD.w / 2 - 0.2))
-    group.add(p)
+  if (BOARD) {
+    const repBoard = new THREE.Mesh(keep(new THREE.PlaneGeometry(BOARD.w, BOARD.h)), keep(new THREE.MeshBasicMaterial({ map: repTex })))
+    repBoard.position.set(BOARD.x + 0.06, 1.9, BOARD.z)
+    repBoard.rotation.y = BOARD.yaw
+    repBoard.renderOrder = 0.5
+    group.add(repBoard)
+    const boardBack = new THREE.Mesh(keep(new THREE.BoxGeometry(0.1, BOARD.h + 0.2, BOARD.w + 0.2)), woodMat)
+    boardBack.position.set(BOARD.x, 1.9, BOARD.z)
+    group.add(boardBack)
+    for (const d of [-1, 1]) {
+      const p = new THREE.Mesh(keep(new THREE.BoxGeometry(0.1, 1.0, 0.1)), frameMat)
+      p.position.set(BOARD.x, 0.5, BOARD.z + d * (BOARD.w / 2 - 0.2))
+      group.add(p)
+    }
   }
   // lines: [{ name, text, you }]
   const setBoard = (rows = []) => {
+    if (!BOARD) return
     const ctx = repCanvas.getContext("2d")
     ctx.fillStyle = "#13261c"
     ctx.fillRect(0, 0, 512, 320)
@@ -535,109 +516,141 @@ export const buildPark = (scene, { quality = "medium" } = {}) => {
     repTex.needsUpdate = true
   }
 
-  // ---- the pro shop (the Locker Room): a booth with a striped awning ----
-  const booth = new THREE.Mesh(keep(new THREE.BoxGeometry(BOOTH.hx * 2, 2.6, BOOTH.hz * 2)), lambert(0xe9dcc4))
-  booth.position.set(BOOTH.x, 1.3, BOOTH.z)
-  group.add(booth)
-  const awningTex = keep(
-    canvasTexture(128, 16, (ctx, w, h) => {
-      for (let i = 0; i < 8; i++) {
-        ctx.fillStyle = i % 2 ? "#ffffff" : "#e63946"
-        ctx.fillRect((i * w) / 8, 0, w / 8, h)
+  // ---- the pro shop (the Locker Room): a booth with a striped awning (indoors: a front desk) ----
+  if (BOOTH) {
+    // built facing +x, then turned to face BOOTH.face
+    const bg = new THREE.Group()
+    const desk = BOOTH.style === "desk"
+    if (desk) {
+      const counter = new THREE.Mesh(keep(new THREE.BoxGeometry(BOOTH.hx * 2, 1.05, BOOTH.hz * 2)), lambert(0x2b2f36))
+      counter.position.set(0, 0.525, 0)
+      bg.add(counter)
+      const top = new THREE.Mesh(keep(new THREE.BoxGeometry(BOOTH.hx * 2 + 0.1, 0.05, BOOTH.hz * 2 + 0.1)), lambert(0xd9cbb0))
+      top.position.set(0, 1.08, 0)
+      bg.add(top)
+    } else {
+      const booth = new THREE.Mesh(keep(new THREE.BoxGeometry(BOOTH.hx * 2, 2.6, BOOTH.hz * 2)), lambert(0xe9dcc4))
+      booth.position.set(0, 1.3, 0)
+      bg.add(booth)
+      const awningTex = keep(
+        canvasTexture(128, 16, (ctx, w, h) => {
+          for (let i = 0; i < 8; i++) {
+            ctx.fillStyle = i % 2 ? "#ffffff" : "#e63946"
+            ctx.fillRect((i * w) / 8, 0, w / 8, h)
+          }
+        })
+      )
+      const awning = new THREE.Mesh(keep(new THREE.BoxGeometry(1.2, 0.06, BOOTH.hz * 2 + 0.4)), keep(new THREE.MeshLambertMaterial({ map: awningTex })))
+      awning.position.set(BOOTH.hx + 0.5, 2.55, 0)
+      awning.rotation.z = -0.25
+      awning.renderOrder = 0.5
+      bg.add(awning)
+      const roof = new THREE.Mesh(keep(new THREE.BoxGeometry(BOOTH.hx * 2 + 0.3, 0.2, BOOTH.hz * 2 + 0.3)), lambert(0x8c3b2f))
+      roof.position.set(0, 2.7, 0)
+      bg.add(roof)
+      const counter = new THREE.Mesh(keep(new THREE.BoxGeometry(0.4, 1.0, Math.min(2.2, BOOTH.hz * 2 - 0.2))), lambert(0x8a5a33))
+      counter.position.set(BOOTH.hx + 0.2, 0.5, 0)
+      bg.add(counter)
+    }
+    const signTex = keep(
+      canvasTexture(512, 128, (ctx, w) => {
+        ctx.fillStyle = "#1d3557"
+        ctx.fillRect(0, 0, w, 128)
+        ctx.fillStyle = "#ffd23f"
+        ctx.textAlign = "center"
+        ctx.textBaseline = "middle"
+        ctx.font = "bold 54px Arial, sans-serif"
+        ctx.fillText(desk ? "FRONT DESK" : "PRO SHOP", w / 2, 46)
+        ctx.fillStyle = "#ffffff"
+        ctx.font = "bold 34px Arial, sans-serif"
+        ctx.fillText("LOCKER ROOM", w / 2, 98)
+      })
+    )
+    const sign = new THREE.Mesh(keep(new THREE.PlaneGeometry(Math.min(2.6, BOOTH.hz * 2 - 0.2), 0.65)), keep(new THREE.MeshBasicMaterial({ map: signTex })))
+    sign.position.set(BOOTH.hx + 0.02, desk ? 1.75 : 2.05, 0)
+    sign.rotation.y = Math.PI / 2
+    sign.renderOrder = 0.5
+    bg.add(sign)
+    if (desk) {
+      for (const d of [-1, 1]) {
+        const p = new THREE.Mesh(keep(new THREE.BoxGeometry(0.05, 0.7, 0.05)), frameMat)
+        p.position.set(BOOTH.hx, 1.4, d * (Math.min(2.6, BOOTH.hz * 2 - 0.2) / 2 - 0.05))
+        bg.add(p)
       }
-    })
-  )
-  const awning = new THREE.Mesh(keep(new THREE.BoxGeometry(1.2, 0.06, BOOTH.hz * 2 + 0.4)), keep(new THREE.MeshLambertMaterial({ map: awningTex })))
-  awning.position.set(BOOTH.x + BOOTH.hx + 0.5, 2.55, BOOTH.z)
-  awning.rotation.z = -0.25
-  awning.renderOrder = 0.5
-  group.add(awning)
-  const roof = new THREE.Mesh(keep(new THREE.BoxGeometry(BOOTH.hx * 2 + 0.3, 0.2, BOOTH.hz * 2 + 0.3)), lambert(0x8c3b2f))
-  roof.position.set(BOOTH.x, 2.7, BOOTH.z)
-  group.add(roof)
-  const signTex = keep(
-    canvasTexture(512, 128, (ctx, w, h) => {
-      ctx.fillStyle = "#1d3557"
-      ctx.fillRect(0, 0, w, h)
-      ctx.fillStyle = "#ffd23f"
-      ctx.textAlign = "center"
-      ctx.textBaseline = "middle"
-      ctx.font = "bold 54px Arial, sans-serif"
-      ctx.fillText("PRO SHOP", w / 2, 46)
-      ctx.fillStyle = "#ffffff"
-      ctx.font = "bold 34px Arial, sans-serif"
-      ctx.fillText("LOCKER ROOM", w / 2, 98)
-    })
-  )
-  const sign = new THREE.Mesh(keep(new THREE.PlaneGeometry(2.6, 0.65)), keep(new THREE.MeshBasicMaterial({ map: signTex })))
-  sign.position.set(BOOTH.x + BOOTH.hx + 0.02, 2.05, BOOTH.z)
-  sign.rotation.y = Math.PI / 2
-  sign.renderOrder = 0.5
-  group.add(sign)
-  // a counter and a window
-  const counter = new THREE.Mesh(keep(new THREE.BoxGeometry(0.4, 1.0, 2.2)), lambert(0x8a5a33))
-  counter.position.set(BOOTH.x + BOOTH.hx + 0.2, 0.5, BOOTH.z)
-  group.add(counter)
+    }
+    bg.position.set(BOOTH.x, 0, BOOTH.z)
+    bg.rotation.y = yawFor(BOOTH.face.x, BOOTH.face.z)
+    group.add(bg)
+  }
 
   // ---- the fountain ----
-  const stone = lambert(0xbab2a2)
-  const basin = new THREE.Mesh(keep(new THREE.CylinderGeometry(FOUNTAIN.r, FOUNTAIN.r + 0.08, 0.5, 18)), stone)
-  basin.position.set(FOUNTAIN.x, 0.25, FOUNTAIN.z)
-  group.add(basin)
-  const water = new THREE.Mesh(keep(new THREE.CircleGeometry(FOUNTAIN.r - 0.08, 18).rotateX(-Math.PI / 2)), keep(new THREE.MeshLambertMaterial({ color: 0x4aa8d8, emissive: 0x0a3a5a })))
-  water.position.set(FOUNTAIN.x, 0.48, FOUNTAIN.z)
-  group.add(water)
-  const column = new THREE.Mesh(keep(new THREE.CylinderGeometry(0.12, 0.16, 0.9, 10)), stone)
-  column.position.set(FOUNTAIN.x, 0.9, FOUNTAIN.z)
-  group.add(column)
-  const bowl = new THREE.Mesh(keep(new THREE.CylinderGeometry(0.42, 0.18, 0.16, 14)), stone)
-  bowl.position.set(FOUNTAIN.x, 1.38, FOUNTAIN.z)
-  group.add(bowl)
+  if (FOUNTAIN) {
+    const stone = lambert(0xbab2a2)
+    const basin = new THREE.Mesh(keep(new THREE.CylinderGeometry(FOUNTAIN.r, FOUNTAIN.r + 0.08, 0.5, 18)), stone)
+    basin.position.set(FOUNTAIN.x, 0.25, FOUNTAIN.z)
+    group.add(basin)
+    const water = new THREE.Mesh(keep(new THREE.CircleGeometry(FOUNTAIN.r - 0.08, 18).rotateX(-Math.PI / 2)), keep(new THREE.MeshLambertMaterial({ color: 0x4aa8d8, emissive: 0x0a3a5a })))
+    water.position.set(FOUNTAIN.x, 0.48, FOUNTAIN.z)
+    group.add(water)
+    const column = new THREE.Mesh(keep(new THREE.CylinderGeometry(0.12, 0.16, 0.9, 10)), stone)
+    column.position.set(FOUNTAIN.x, 0.9, FOUNTAIN.z)
+    group.add(column)
+    const bowl = new THREE.Mesh(keep(new THREE.CylinderGeometry(0.42, 0.18, 0.16, 14)), stone)
+    bowl.position.set(FOUNTAIN.x, 1.38, FOUNTAIN.z)
+    group.add(bowl)
+  }
 
   // ---- the ball machine and its balls ----
-  const machine = new THREE.Group()
-  const mBody = new THREE.Mesh(keep(new THREE.BoxGeometry(0.6, 0.55, 0.5)), lambert(0x2b2b2b))
-  mBody.position.y = 0.45
-  machine.add(mBody)
-  const hopper = new THREE.Mesh(keep(new THREE.CylinderGeometry(0.32, 0.22, 0.35, 10)), lambert(0x3a6fd6))
-  hopper.position.y = 0.9
-  machine.add(hopper)
-  const tube = new THREE.Mesh(keep(new THREE.CylinderGeometry(0.05, 0.05, 0.4, 8)), lambert(0x111111))
-  tube.rotation.x = Math.PI / 2.5
-  tube.position.set(0, 0.6, 0.3)
-  machine.add(tube)
-  machine.position.set(0, 0, -HALF_L + 0.6)
-  machineGroup.add(machine)
-  const balls = new THREE.InstancedMesh(keep(new THREE.SphereGeometry(0.04, 6, 4)), lambert(0xe6f046), 26)
-  let bs = 19
-  const brnd = () => ((bs = (bs * 16807) % 2147483647) / 2147483647)
-  for (let i = 0; i < 26; i++) balls.setMatrixAt(i, m4.makeTranslation((brnd() - 0.5) * 2 * HALF_W, 0.04, 1 + brnd() * (HALF_L - 1)))
-  machineGroup.add(balls)
-
-  // ---- trees, light poles ----
-  const crown = new THREE.InstancedMesh(keep(new THREE.IcosahedronGeometry(1.6, 0)), lambert(0x2f7a3c, { flatShading: true }), TREES.length)
-  const trunk = new THREE.InstancedMesh(keep(new THREE.CylinderGeometry(0.18, 0.25, 2, 5)), lambert(0x6b4a2b), TREES.length)
-  TREES.forEach((t, i) => {
-    crown.setMatrixAt(i, m4.compose(v1.set(t.x, 2.6 * t.s + 1, t.z), q.setFromEuler(new THREE.Euler(0, t.x, 0)), v2.set(t.s, t.s * 1.25, t.s)))
-    trunk.setMatrixAt(i, m4.compose(v1.set(t.x, t.s, t.z), q.identity(), v2.set(t.s, t.s, t.s)))
-  })
-  group.add(crown, trunk)
-  const hillMat = lambert(0x5d9a4a, { flatShading: true })
-  for (const [x, z, r] of [[-60, -110, 38], [30, -125, 48], [95, -80, 34], [-110, -40, 30], [120, 30, 36], [-95, 70, 30], [40, 110, 40]]) {
-    const hill = new THREE.Mesh(keep(new THREE.IcosahedronGeometry(r, 1)), hillMat)
-    hill.scale.y = 0.35
-    hill.position.set(x, -2, z)
-    group.add(hill)
+  if (machineGroup) {
+    const machine = new THREE.Group()
+    const mBody = new THREE.Mesh(keep(new THREE.BoxGeometry(0.6, 0.55, 0.5)), lambert(0x2b2b2b))
+    mBody.position.y = 0.45
+    machine.add(mBody)
+    const hopper = new THREE.Mesh(keep(new THREE.CylinderGeometry(0.32, 0.22, 0.35, 10)), lambert(0x3a6fd6))
+    hopper.position.y = 0.9
+    machine.add(hopper)
+    const tube = new THREE.Mesh(keep(new THREE.CylinderGeometry(0.05, 0.05, 0.4, 8)), lambert(0x111111))
+    tube.rotation.x = Math.PI / 2.5
+    tube.position.set(0, 0.6, 0.3)
+    machine.add(tube)
+    machine.position.set(0, 0, -HALF_L + 0.6)
+    machineGroup.add(machine)
+    const balls = new THREE.InstancedMesh(keep(new THREE.SphereGeometry(0.04, 6, 4)), lambert(0xe6f046), 26)
+    let bs = 19
+    const brnd = () => ((bs = (bs * 16807) % 2147483647) / 2147483647)
+    for (let i = 0; i < 26; i++) balls.setMatrixAt(i, m4.makeTranslation((brnd() - 0.5) * 2 * 3.05, 0.04, 1 + brnd() * (HALF_L - 1)))
+    machineGroup.add(balls)
   }
-  const POLE_H = 7.5
-  const poles = new THREE.InstancedMesh(keep(new THREE.CylinderGeometry(0.07, 0.1, POLE_H, 6)), frameMat, LIGHTS.length)
+
+  // ---- trees (Riverside's; a venue's are scenery.js's), light poles ----
+  if (riverside) {
+    const crown = new THREE.InstancedMesh(keep(new THREE.IcosahedronGeometry(1.6, 0)), lambert(0x2f7a3c, { flatShading: true }), TREES.length)
+    const trunk = new THREE.InstancedMesh(keep(new THREE.CylinderGeometry(0.18, 0.25, 2, 5)), lambert(0x6b4a2b), TREES.length)
+    TREES.forEach((t, i) => {
+      crown.setMatrixAt(i, m4.compose(v1.set(t.x, 2.6 * t.s + 1, t.z), q.setFromEuler(new THREE.Euler(0, t.x, 0)), v2.set(t.s, t.s * 1.25, t.s)))
+      trunk.setMatrixAt(i, m4.compose(v1.set(t.x, t.s, t.z), q.identity(), v2.set(t.s, t.s, t.s)))
+    })
+    group.add(crown, trunk)
+    const hillMat = lambert(0x5d9a4a, { flatShading: true })
+    for (const [x, z, r] of [[-60, -110, 38], [30, -125, 48], [95, -80, 34], [-110, -40, 30], [120, 30, 36], [-95, 70, 30], [40, 110, 40]]) {
+      const hill = new THREE.Mesh(keep(new THREE.IcosahedronGeometry(r, 1)), hillMat)
+      hill.scale.y = 0.35
+      hill.position.set(x, -2, z)
+      group.add(hill)
+    }
+  }
+  const POLE_H = S?.fence?.poleH || 7.5
+  const double = !!S?.fence?.doubleHeads
   const lampMat = keep(new THREE.MeshBasicMaterial({ color: 0x9aa0a8 }))
-  const lamps = new THREE.InstancedMesh(keep(new THREE.BoxGeometry(0.5, 0.18, 0.35)), lampMat, LIGHTS.length)
-  LIGHTS.forEach((l, i) => {
-    poles.setMatrixAt(i, m4.makeTranslation(l.x, POLE_H / 2, l.z))
-    lamps.setMatrixAt(i, m4.makeTranslation(l.x, POLE_H, l.z))
-  })
-  group.add(poles, lamps)
+  if (LIGHTS.length) {
+    const poles = new THREE.InstancedMesh(keep(new THREE.CylinderGeometry(0.07, 0.1, 7.5, 6)), frameMat, LIGHTS.length)
+    const lamps = new THREE.InstancedMesh(keep(new THREE.BoxGeometry(double ? 1.2 : 0.5, 0.18, 0.35)), lampMat, LIGHTS.length)
+    LIGHTS.forEach((l, i) => {
+      poles.setMatrixAt(i, m4.compose(v1.set(l.x, POLE_H / 2, l.z), q.identity(), v2.set(1, POLE_H / 7.5, 1)))
+      lamps.setMatrixAt(i, m4.makeTranslation(l.x, POLE_H, l.z))
+    })
+    group.add(poles, lamps)
+  }
   // at night: a pool of light on each court (additive, a soft gradient)
   const poolTex = keep(
     canvasTexture(128, 128, (ctx, w) => {
@@ -651,11 +664,21 @@ export const buildPark = (scene, { quality = "medium" } = {}) => {
   )
   const poolMat = keep(new THREE.MeshBasicMaterial({ map: poolTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }))
   const pools = new THREE.Group()
-  for (const c of [...COURTS, MACHINE_COURT]) {
-    const p = new THREE.Mesh(keep(new THREE.PlaneGeometry(2 * PEN.hx + 6, 2 * PEN.hz + 6).rotateX(-Math.PI / 2)), poolMat)
-    p.position.set(c.x, 0.012, c.z)
-    p.renderOrder = 2
-    pools.add(p)
+  if (riverside) {
+    for (const c of [...COURTS, MACHINE_COURT]) {
+      const p = new THREE.Mesh(keep(new THREE.PlaneGeometry(2 * PEN.hx + 6, 2 * PEN.hz + 6).rotateX(-Math.PI / 2)), poolMat)
+      p.position.set(c.x, 0.012, c.z)
+      p.renderOrder = 2
+      pools.add(p)
+    }
+  } else if (S.lit && !S.indoor) {
+    for (const b of S.banks) {
+      const p = new THREE.Mesh(keep(new THREE.PlaneGeometry(2 * b.hx + 6, 2 * b.hz + 6).rotateX(-Math.PI / 2)), poolMat)
+      p.position.set(b.cx, 0.012, b.cz)
+      p.rotation.y = yawFor(b.ux, b.uz)
+      p.renderOrder = 2
+      pools.add(p)
+    }
   }
   pools.visible = false
 
@@ -670,7 +693,7 @@ export const buildPark = (scene, { quality = "medium" } = {}) => {
   })
   group.updateMatrixWorld(true)
   scene.add(group)
-  scene.fog = new THREE.Fog(0xd8ecfb, 60, 170)
+  scene.fog = new THREE.Fog(0xd8ecfb, Math.max(60, span * 0.45), Math.max(170, skyR - 10))
 
   // ---- the time of day (sky.js dayLook) ----
   const setDayLook = (d) => {
@@ -684,9 +707,17 @@ export const buildPark = (scene, { quality = "medium" } = {}) => {
     hemi.groundColor.setHex(d.hemi[1])
     hemi.intensity = d.hemi[2]
     scene.fog.color.setHex(d.fog)
-    groundMat.color.setScalar(d.ground)
+    groundMat?.color.setScalar(d.ground)
     pools.visible = !!d.lights
     lampMat.color.setHex(d.lights ? 0xfff6d8 : 0x9aa0a8)
+    // (indoors: the hall's own lights, whatever the time)
+    if (S?.indoor) {
+      hemi.intensity = Math.max(hemi.intensity, 1.5)
+      hemi.color.setHex(0xf2f0ea)
+      hemi.groundColor.setHex(0x8a8478)
+      sun.intensity = Math.max(sun.intensity, 1.2)
+    }
+    scenery?.setDayLook?.(d)
   }
 
   return {
@@ -699,6 +730,7 @@ export const buildPark = (scene, { quality = "medium" } = {}) => {
     setRacks,
     setBoard,
     setDayLook,
+    update: scenery?.update || null,
     dispose() {
       scene.remove(group)
       scene.fog = null
@@ -707,4 +739,11 @@ export const buildPark = (scene, { quality = "medium" } = {}) => {
       rackHandles.dispose?.()
     },
   }
+}
+
+// "#rrggbb" colors -> numbers (for the court kit)
+const hexColors = (c = {}) => {
+  const out = {}
+  for (const [k, v] of Object.entries(c)) if (typeof v === "string" && v[0] === "#") out[k] = parseInt(v.slice(1), 16)
+  return out
 }

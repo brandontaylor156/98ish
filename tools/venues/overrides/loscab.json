@@ -1,0 +1,41 @@
+{
+  "name": "Los Cab Sports Village",
+  "short": "Los Cab",
+  "city": "Fountain Valley, CA",
+  "access": "members",
+  "note": "Pickleball mega-hub: two long rows of courts, a forest of LED poles, a mission-style clubhouse.",
+  "lit": true,
+  "anchor": [33.714, -117.924],
+  "crop": 70,
+  "courts": {
+    "pbNear": [
+      { "en": [-158.9, 90.1], "r": 5, "pb": 4 },
+      { "en": [-141.8, 90.4], "r": 5, "pb": 4 },
+      { "en": [-124.2, 90.4], "r": 5, "pb": 4 },
+      { "en": [-61.8, 91.1], "r": 5, "pb": 4 }
+    ]
+  },
+  "colors": { "court": "#2f6fb8", "kitchen": "#9fd0e6", "surround": "#3f7a4f", "tennis": "#2f4c80", "tennisSurround": "#5f7a5a", "lines": "#f5f5f2", "windscreen": "#1f3a6e", "fence": "#1c2a22", "ground": "#8aa36a", "far": "#97a77a" },
+  "fence": { "lightEvery": 9, "poleH": 11, "doubleHeads": true },
+  "buildings": {
+    "rules": [
+      { "en": [20, 0], "r": 140, "color": "#ece6da", "roof": "#c4bfb4" },
+      { "en": [-130, 10], "r": 60, "color": "#f1ece2", "roof": "#b5583a", "roofStyle": "gable", "kind": "clubhouse" },
+      { "en": [-92, -57], "r": 20, "color": "#f1ece2", "roof": "#b5583a", "roofStyle": "gable" },
+      { "en": [-85, -35], "r": 20, "color": "#f1ece2", "roof": "#b5583a", "roofStyle": "gable" }
+    ]
+  },
+  "extras": [
+    { "type": "tower", "en": [-160, 22], "w": 5.5, "h": 15, "color": "#f1ece2", "roof": "#b5583a" },
+    { "type": "awnings", "en": [-150, -2], "deg": 90, "w": 30, "color": "#7a1f2a" },
+    { "type": "stands", "en": [-96, 79], "deg": 0, "w": 22, "rows": 5, "color": "#9aa3ad" }
+  ],
+  "trees": {
+    "default": "palm",
+    "rows": [
+      { "from": { "en": [-185, 60] }, "to": { "en": [-185, -60] }, "every": 9, "kind": "palm", "s": 1.1 },
+      { "from": { "en": [-30, 108] }, "to": { "en": [130, 108] }, "every": 14, "kind": "palm" }
+    ]
+  },
+  "backdrop": { "palms": 26, "skyline": true, "trees": 20 }
+}

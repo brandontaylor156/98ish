@@ -1,0 +1,34 @@
+{
+  "name": "The Paseo Club",
+  "short": "Paseo Club",
+  "city": "Valencia, CA",
+  "access": "members",
+  "note": "Family club: navy courts with light-blue kitchens, tile roofs, a stucco amphitheatre with redwood cabanas.",
+  "lit": true,
+  "anchor": [34.4377, -118.562],
+  "crop": 60,
+  "courts": {
+    "dropNear": [
+      { "en": [-25.8, -134.9], "r": 4, "sport": "tennis" },
+      { "en": [-12.6, -175.2], "r": 5, "sport": "tennis" },
+      { "en": [9.3, -168.6], "r": 4, "sport": "tennis" }
+    ]
+  },
+  "colors": { "court": "#3f6fa3", "kitchen": "#6fb5dd", "surround": "#4f8a55", "tennis": "#2c4a86", "tennisSurround": "#4f8a55", "lines": "#f6f6f3", "windscreen": "#1b1f1d", "fence": "#1b1f1d", "ground": "#93a46e", "far": "#a39a6c" },
+  "fence": { "join": { "t": { "u": 10, "w": 8.5 } }, "lightEvery": 14, "poleH": 9 },
+  "buildings": {
+    "rules": [{ "en": [10, 60], "r": 140, "color": "#d9c7a6", "roof": "#b15a3c", "roofStyle": "gable" }]
+  },
+  "areas": { "add": [{ "kind": "lawn", "rect": { "en": [-35, -165], "w": 30, "d": 16, "deg": 0 } }] },
+  "extras": [
+    { "type": "stands", "en": [31, -54.5], "deg": 90, "w": 20, "rows": 4, "color": "#e3cf9f", "face": "w" },
+    { "type": "cabana", "en": [36, -48], "w": 4, "d": 3, "color": "#8a3f2a" },
+    { "type": "cabana", "en": [36, -61], "w": 4, "d": 3, "color": "#8a3f2a" },
+    { "type": "gazebo", "en": [-35, -165], "w": 8, "color": "#8a3f2a" }
+  ],
+  "trees": {
+    "default": "broadleaf",
+    "rows": [{ "from": { "en": [45, -30] }, "to": { "en": [45, -200] }, "every": 12, "kind": "conifer", "s": 1.2 }]
+  },
+  "backdrop": { "hills": "#b49a68", "hillsHeight": 1.8, "trees": 34, "treeKind": "broadleaf" }
+}

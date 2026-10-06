@@ -1,0 +1,361 @@
+{
+  "name": "Wolf + Bear Indoor Pickleball",
+  "short": "Wolf + Bear",
+  "city": "Van Nuys, CA",
+  "access": "public",
+  "indoor": true,
+  "note": "Indoor courts in converted film sound stages: black acoustic walls, grey courts on steel-blue surrounds. The court grid is from the stage plans (spaced a little for walking room); the private practice court's room is a guess.",
+  "anchor": [
+    34.1813,
+    -118.4582
+  ],
+  "crop": 50,
+  "courts": {
+    "osm": false,
+    "add": [
+      {
+        "id": "C1",
+        "en": [
+          13.8,
+          -25.7
+        ],
+        "bearing": 90
+      },
+      {
+        "id": "C2",
+        "en": [
+          29.2,
+          -25.7
+        ],
+        "bearing": 90
+      },
+      {
+        "id": "C3",
+        "en": [
+          13.8,
+          -33.7
+        ],
+        "bearing": 90
+      },
+      {
+        "id": "C4",
+        "en": [
+          29.2,
+          -33.7
+        ],
+        "bearing": 90
+      },
+      {
+        "id": "C5",
+        "en": [
+          13.8,
+          -41.7
+        ],
+        "bearing": 90
+      },
+      {
+        "id": "C6",
+        "en": [
+          29.2,
+          -41.7
+        ],
+        "bearing": 90
+      },
+      {
+        "id": "C7",
+        "en": [
+          13.8,
+          -49.7
+        ],
+        "bearing": 90
+      },
+      {
+        "id": "C8",
+        "en": [
+          29.2,
+          -49.7
+        ],
+        "bearing": 90
+      },
+      {
+        "id": "C9",
+        "en": [
+          13.8,
+          -57.7
+        ],
+        "bearing": 90
+      },
+      {
+        "id": "C10",
+        "en": [
+          29.2,
+          -57.7
+        ],
+        "bearing": 90
+      },
+      {
+        "id": "C11",
+        "en": [
+          -5.0,
+          -30.0
+        ],
+        "bearing": 90,
+        "surround": "#7fc0d0"
+      },
+      {
+        "id": "M24",
+        "en": [
+          -31.0,
+          -27.0
+        ],
+        "bearing": 90
+      }
+    ]
+  },
+  "halls": [
+    {
+      "building": 432068622,
+      "height": 10,
+      "door": {
+        "en": [
+          38.4,
+          -32
+        ]
+      },
+      "wall": "#1e1d1c",
+      "pads": "#1e1d1c",
+      "padH": 2.2,
+      "ceiling": "#2a2724",
+      "floor": "#5f8fae",
+      "beams": "#2b2b2b",
+      "ducts": "#b9bcc0",
+      "outside": "#c9c1b3",
+      "columns": {
+        "from": {
+          "en": [
+            21.5,
+            -20
+          ]
+        },
+        "to": {
+          "en": [
+            21.5,
+            -61
+          ]
+        },
+        "n": 4
+      }
+    },
+    {
+      "rect": {
+        "en": [
+          -5.2,
+          -40.5
+        ],
+        "w": 19.6,
+        "d": 45,
+        "deg": 0
+      },
+      "height": 9,
+      "door": {
+        "en": [
+          -5.2,
+          -18
+        ]
+      },
+      "wall": "#f2f2ef",
+      "pads": "#4a4a4a",
+      "padH": 3,
+      "ceiling": "#2a2724",
+      "floor": "#5f8fae",
+      "beams": "#2b2b2b",
+      "outside": "#c9c1b3",
+      "roof": "#e8e6e0"
+    },
+    {
+      "rect": {
+        "en": [
+          -31,
+          -27
+        ],
+        "w": 22,
+        "d": 14,
+        "deg": 0
+      },
+      "height": 6,
+      "door": {
+        "en": [
+          -31,
+          -20
+        ]
+      },
+      "wall": "#1e1d1c",
+      "pads": "#1e1d1c",
+      "ceiling": "#2a2724",
+      "floor": "#3a3d42",
+      "outside": "#c9c1b3",
+      "roof": "#bdb8ae"
+    }
+  ],
+  "buildings": {
+    "drop": [
+      432068618
+    ],
+    "add": [
+      {
+        "poly": [
+          {
+            "en": [
+              -69,
+              -20
+            ]
+          },
+          {
+            "en": [
+              -42,
+              -20
+            ]
+          },
+          {
+            "en": [
+              -42,
+              -34
+            ]
+          },
+          {
+            "en": [
+              -20,
+              -34
+            ]
+          },
+          {
+            "en": [
+              -20,
+              -20
+            ]
+          },
+          {
+            "en": [
+              -15.4,
+              -20
+            ]
+          },
+          {
+            "en": [
+              -15.4,
+              -63
+            ]
+          },
+          {
+            "en": [
+              -69,
+              -63
+            ]
+          }
+        ],
+        "h": 7,
+        "kind": "industrial",
+        "color": "#c9c1b3",
+        "roof": "#bdb8ae"
+      }
+    ]
+  },
+  "areas": {
+    "add": [
+      {
+        "kind": "parking",
+        "rect": {
+          "en": [
+            47,
+            -40
+          ],
+          "w": 16,
+          "d": 40,
+          "deg": 90
+        }
+      }
+    ]
+  },
+  "extras": [
+    {
+      "type": "mural",
+      "en": [
+        21.5,
+        -17.7
+      ],
+      "deg": 0,
+      "w": 30,
+      "h": 3.2,
+      "y": 1.2,
+      "style": "graffiti",
+      "face": "n"
+    },
+    {
+      "type": "banner",
+      "en": [
+        -5.2,
+        -62.6
+      ],
+      "deg": 0,
+      "w": 2.2,
+      "h": 4,
+      "y": 3,
+      "style": "emblem",
+      "face": "n"
+    }
+  ],
+  "colors": {
+    "court": "#b9b2a8",
+    "kitchen": "#b3aca2",
+    "surround": "#5f8fae",
+    "lines": "#f4f4f2",
+    "ground": "#8a8a84",
+    "far": "#9a9a90"
+  },
+  "fence": {
+    "dividers": "net",
+    "netColor": "#151515"
+  },
+  "trees": {
+    "rows": [
+      {
+        "from": {
+          "en": [
+            -60,
+            -12
+          ]
+        },
+        "to": {
+          "en": [
+            60,
+            -12
+          ]
+        },
+        "every": 10,
+        "kind": "broadleaf"
+      },
+      {
+        "from": {
+          "en": [
+            -70,
+            -105
+          ]
+        },
+        "to": {
+          "en": [
+            70,
+            -105
+          ]
+        },
+        "every": 8,
+        "kind": "broadleaf"
+      }
+    ]
+  },
+  "backdrop": {
+    "skyline": true,
+    "hills": "#9a8f78",
+    "mountains": "#8f8c88",
+    "mountainsDeg": -90
+  }
+}

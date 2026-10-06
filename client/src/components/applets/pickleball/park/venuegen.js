@@ -1,0 +1,786 @@
+// My Park: a real venue's spec (tools/venues/build-venues.mjs: OpenStreetMap + our corrections)
+// -> a layout spec for layout.js makeLayout, plus the scenery build.js draws. Pure (no
+// three.js); Node-tested.
+//
+// What it works out:
+// - banks: courts side by side or back to back (same direction, small gaps) share one fenced
+//   enclosure; that box is what you walk round (collision), drawn as chain-link with gates;
+// - the courts with live games (up to spec.live, 6 by default; the nearest the entrance),
+//   each with a gate on an open side of its bank (a sideline at the end of a row, else a
+//   baseline), a paddle rack beside it and bleachers where there's room; every pickleball
+//   court gets a number ("Court 7"), in reading order;
+// - a ball-machine court (the next court along), the pro shop by the entrance, benches,
+//   light poles (lit venues), trees, buildings (their walls are solid), an indoor hall with
+//   walls, a door and a bar, a walking graph and spots for the regulars to wander to.
+
+import { HALF_L, HALF_W } from "../physics.js"
+import { makeLayout } from "./layout.js"
+
+const DEG = Math.PI / 180
+const SIZES = { p: { L: 2 * HALF_L, W: 2 * HALF_W }, t: { L: 23.77, W: 10.97 }, b: { L: 28, W: 15 } }
+// runoff (behind the baselines) and side room at a bank's edge, by sport
+const ROOM = { p: { u: 3.0, w: 1.8 }, t: { u: 6.0, w: 3.5 }, b: { u: 2.0, w: 2.0 } }
+// two courts are in the same bank when the gaps between them are under these (m)
+const JOIN = { p: { u: 7.0, w: 3.8 }, t: { u: 13.5, w: 8.5 }, b: { u: 6, w: 6 } }
+const LEVELS = ["beginner", "intermediate", "intermediate", "pro", "intermediate", "legend", "beginner", "pro"]
+
+const dot = (a, b) => a.x * b.x + a.z * b.z
+const sub = (a, b) => ({ x: a.x - b.x, z: a.z - b.z })
+const add = (a, b, k = 1) => ({ x: a.x + b.x * k, z: a.z + b.z * k })
+const len = (a) => Math.hypot(a.x, a.z)
+const round = (v) => Math.round(v * 100) / 100
+
+// the oriented box round some points, in axes u / w
+const boxAround = (pts, u) => {
+  const w = { x: -u.z, z: u.x }
+  let u0 = Infinity
+  let u1 = -Infinity
+  let w0 = Infinity
+  let w1 = -Infinity
+  for (const p of pts) {
+    const a = dot(p, u)
+    const b = dot(p, w)
+    u0 = Math.min(u0, a)
+    u1 = Math.max(u1, a)
+    w0 = Math.min(w0, b)
+    w1 = Math.max(w1, b)
+  }
+  const cu = (u0 + u1) / 2
+  const cw = (w0 + w1) / 2
+  return { cx: cu * u.x + cw * w.x, cz: cu * u.z + cw * w.z, hx: (u1 - u0) / 2, hz: (w1 - w0) / 2, ux: u.x, uz: u.z }
+}
+const inBox = (b, p, pad = 0) => {
+  const dx = p.x - b.cx
+  const dz = p.z - b.cz
+  const lx = dx * b.ux + dz * b.uz
+  const lz = -dx * b.uz + dz * b.ux
+  return Math.abs(lx) < b.hx + pad && Math.abs(lz) < b.hz + pad
+}
+const corners = (b) => {
+  const u = { x: b.ux, z: b.uz }
+  const w = { x: -b.uz, z: b.ux }
+  return [
+    [-1, -1],
+    [1, -1],
+    [1, 1],
+    [-1, 1],
+  ].map(([a, c]) => ({ x: b.cx + u.x * a * b.hx + w.x * c * b.hz, z: b.cz + u.z * a * b.hx + w.z * c * b.hz }))
+}
+const boxesOverlap = (a, b) => {
+  // separating axes (both boxes' axes)
+  for (const ax of [
+    { x: a.ux, z: a.uz },
+    { x: -a.uz, z: a.ux },
+    { x: b.ux, z: b.uz },
+    { x: -b.uz, z: b.ux },
+  ]) {
+    const pa = corners(a).map((p) => dot(p, ax))
+    const pb = corners(b).map((p) => dot(p, ax))
+    if (Math.max(...pa) < Math.min(...pb) || Math.max(...pb) < Math.min(...pa)) return false
+  }
+  return true
+}
+const pointInPoly = (p, poly) => {
+  let inside = false
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const [xi, zi] = poly[i]
+    const [xj, zj] = poly[j]
+    if (zi > p.z !== zj > p.z && p.x < ((xj - xi) * (p.z - zi)) / (zj - zi) + xi) inside = !inside
+  }
+  return inside
+}
+const centroid = (poly) => ({ x: poly.reduce((s, p) => s + p[0], 0) / poly.length, z: poly.reduce((s, p) => s + p[1], 0) / poly.length })
+// nearest point on a polygon's edges to p -> { x, z, i (edge), t }
+const nearestOnPoly = (poly, p) => {
+  let best = null
+  for (let i = 0; i < poly.length; i++) {
+    const a = { x: poly[i][0], z: poly[i][1] }
+    const b = { x: poly[(i + 1) % poly.length][0], z: poly[(i + 1) % poly.length][1] }
+    const ab = sub(b, a)
+    const L2 = dot(ab, ab) || 1
+    const t = Math.max(0, Math.min(1, dot(sub(p, a), ab) / L2))
+    const q = add(a, ab, t)
+    const d = len(sub(p, q))
+    if (!best || d < best.d) best = { ...q, d, i, t }
+  }
+  return best
+}
+// the stretch of the edge a -> b (length L, unit u) within w/2 of a door at (dx, dz): [s, e] or null
+const doorCut = (a, u, L, door) => {
+  if (!door) return null
+  const fx = a.x - door.x
+  const fz = a.z - door.z
+  const b = fx * u.x + fz * u.z
+  const c = fx * fx + fz * fz - (door.w / 2) ** 2
+  const disc = b * b - c
+  if (disc <= 0) return null
+  const s = Math.max(0, -b - Math.sqrt(disc))
+  const e = Math.min(L, -b + Math.sqrt(disc))
+  return e > s ? [s, e] : null
+}
+const seeded = (seed) => {
+  let s = seed >>> 0 || 1
+  return () => ((s = (s * 16807) % 2147483647) / 2147483647)
+}
+
+export const generateVenue = (spec, opts = {}) => {
+  const maxLive = opts.maxLive ?? spec.live ?? 6
+  const rand = seeded(spec.id.split("").reduce((h, c) => (h * 31 + c.charCodeAt(0)) | 0, 7))
+  const indoor = !!spec.indoor
+  const colors = { court: "#2f62ad", kitchen: "#3b75c4", surround: "#3c8a5a", lines: "#f4f7fb", ground: "#7a9a5a", tennis: "#2f62ad", tennisSurround: "#3c8a5a", ...(spec.colors || {}) }
+
+  // ---------- courts ----------
+  const courts = spec.courts.map((c, i) => {
+    const a = c.a * DEG
+    const u = { x: Math.cos(a), z: Math.sin(a) }
+    const sz = SIZES[c.s] || SIZES.p
+    return { i, x: c.x, z: c.z, a, u, w: { x: -u.z, z: u.x }, s: c.s, pb: c.pb || 0, pl: c.pl || null, col: c.col ?? null, lit: !!c.lit, L: sz.L, W: sz.W, rot: Math.atan2(u.x, u.z) }
+  })
+
+  // ---------- banks ----------
+  const parent = courts.map((_, i) => i)
+  const find = (i) => (parent[i] === i ? i : (parent[i] = find(parent[i])))
+  const join = { ...JOIN, ...(spec.fence?.join || {}) }
+  for (let i = 0; i < courts.length; i++)
+    for (let j = i + 1; j < courts.length; j++) {
+      const a = courts[i]
+      const b = courts[j]
+      if (a.s !== b.s && !(spec.fence?.mixed ?? false)) continue
+      // (indoors every court is its own: people walk the aisles between them)
+      if (indoor || spec.fence?.perCourt) continue
+      const da = Math.abs(Math.sin(a.a - b.a))
+      if (da > Math.sin(8 * DEG)) continue
+      const d = sub(b, a)
+      const gu = Math.abs(dot(d, a.u)) - (a.L + b.L) / 2
+      const gw = Math.abs(dot(d, a.w)) - (a.W + b.W) / 2
+      const J = join[a.s] || JOIN.p
+      // (overlapping one way and close the other)
+      if ((gu < J.u && gw < -0.5) || (gw < J.w && gu < -0.5) || (gu < J.u && gw < J.w && gu < 0.5)) parent[find(i)] = find(j)
+    }
+  const groups = new Map()
+  courts.forEach((c, i) => {
+    const r = find(i)
+    if (!groups.has(r)) groups.set(r, [])
+    groups.get(r).push(c)
+  })
+  const banks = [...groups.values()].map((list, bi) => {
+    const c0 = list[0]
+    const room = { ...(indoor ? { u: 0.3, w: 0.25 } : ROOM[c0.s] || ROOM.p), ...(spec.fence?.room?.[c0.s] || {}) }
+    const pts = []
+    for (const c of list) {
+      // (a court turned half round has the same box)
+      const su = dot(c.u, c0.u) >= 0 ? 1 : -1
+      const u = { x: c0.u.x, z: c0.u.z }
+      const w = c0.w
+      for (const [a, b] of [
+        [-1, -1],
+        [1, -1],
+        [1, 1],
+        [-1, 1],
+      ])
+        pts.push({ x: c.x + u.x * a * (c.L / 2 + room.u) + w.x * b * (c.W / 2 + room.w), z: c.z + u.z * a * (c.L / 2 + room.u) + w.z * b * (c.W / 2 + room.w) })
+      c.bank = bi
+      c.flip = su
+    }
+    const box = boxAround(pts, c0.u)
+    return { i: bi, s: c0.s, courts: list, box, room, gates: [] }
+  })
+
+  // pens that (nearly) touch share their fence: one bank (outdoors; indoor courts stand apart)
+  if (!indoor && !spec.fence?.perCourt) {
+    const near = (A, B) => {
+      if (A.s !== B.s || Math.abs(A.box.ux * B.box.uz - A.box.uz * B.box.ux) > Math.sin(8 * DEG)) return false
+      const grow = (b) => ({ ...b, hx: b.hx + 1.25, hz: b.hz + 1.25 })
+      return boxesOverlap(grow(A.box), grow(B.box))
+    }
+    for (let merged = true; merged; ) {
+      merged = false
+      outer: for (let i = 0; i < banks.length; i++)
+        for (let j = i + 1; j < banks.length; j++) {
+          if (!near(banks[i], banks[j])) continue
+          const A = banks[i]
+          const B = banks[j]
+          A.box = boxAround([...corners(A.box), ...corners(B.box)], { x: A.box.ux, z: A.box.uz })
+          A.courts.push(...B.courts)
+          banks.splice(j, 1)
+          merged = true
+          break outer
+        }
+    }
+    banks.forEach((b, i) => {
+      b.i = i
+      for (const c of b.courts) c.bank = i
+    })
+  }
+
+  // ---------- the entrance (spawn) ----------
+  const allBanksBox = boxAround(banks.flatMap((b) => corners(b.box)), { x: 1, z: 0 })
+  const parkingAreas = (spec.areas || []).filter((a) => a.k === "parking")
+  // indoor halls (one or more buildings with courts inside); the first is where you arrive
+  const hallSpecs = spec.halls || (spec.hall ? [spec.hall] : [])
+  const hallPoly = hallSpecs.length ? hallSpecs[0].p : null
+  const hallDoor = (h) => {
+    const c = centroid(h.p)
+    return h.door ? { x: h.door[0], z: h.door[1] } : nearestOnPoly(h.p, parkingAreas.length ? centroid(parkingAreas[0].p) : { x: c.x, z: c.z + 1000 })
+  }
+  let entry
+  if (spec.spawn) entry = { x: spec.spawn.x, z: spec.spawn.z }
+  else if (hallPoly) {
+    const c = centroid(hallPoly)
+    const d = hallDoor(hallSpecs[0])
+    entry = add(d, sub(c, d), 3.5 / (len(sub(c, d)) || 1))
+  } else if (parkingAreas.length) {
+    // the parking lot nearest the courts
+    const near = parkingAreas.map((a) => centroid(a.p)).sort((p, q) => len(p) - len(q))[0]
+    entry = near
+  } else entry = { x: 0, z: allBanksBox.cz + allBanksBox.hz + 12 }
+  // (from the lot, walk up to the courts: the spot just outside the nearest bank)
+  const nearestBank = banks.slice().sort((a, b) => len(sub({ x: a.box.cx, z: a.box.cz }, entry)) - len(sub({ x: b.box.cx, z: b.box.cz }, entry)))[0]
+
+  // ---------- solid things that aren't courts (buildings, the hall's walls) ----------
+  const extraBoxes = []
+  const wallBoxes = (poly, h, kind, gap = null) => {
+    const out = []
+    for (let i = 0; i < poly.length; i++) {
+      const a = { x: poly[i][0], z: poly[i][1] }
+      const b = { x: poly[(i + 1) % poly.length][0], z: poly[(i + 1) % poly.length][1] }
+      const ab = sub(b, a)
+      const L = len(ab)
+      if (L < 0.2) continue
+      const u = { x: ab.x / L, z: ab.z / L }
+      const cutAt = doorCut(a, u, L, gap)
+      const runs = cutAt ? [[0, cutAt[0]], [cutAt[1], L]] : [[0, L]]
+      for (const [s, e] of runs) {
+        if (e - s < 0.1) continue
+        const m = add(a, u, (s + e) / 2)
+        out.push({ cx: round(m.x), cz: round(m.z), hx: round((e - s) / 2 + 0.15), hz: 0.18, ux: u.x, uz: u.z, h, kind })
+      }
+    }
+    return out
+  }
+  // the halls: their walls, each with a door
+  const halls = hallSpecs.map((h, k) => {
+    const door = nearestOnPoly(h.p, h.door ? { x: h.door[0], z: h.door[1] } : k === 0 ? entry : hallDoor(h))
+    const out = { ...h, doorAt: { i: door.i, t: door.t, w: h.doorW || 3.2, x: door.x, z: door.z } }
+    extraBoxes.push(...wallBoxes(h.p, h.h || 9, "wall", out.doorAt))
+    return out
+  })
+  const hall = halls[0] || null
+  // buildings near the courts: solid walls (the hall is done above)
+  const reach = { x0: allBanksBox.cx - allBanksBox.hx - 40, x1: allBanksBox.cx + allBanksBox.hx + 40, z0: allBanksBox.cz - allBanksBox.hz - 40, z1: allBanksBox.cz + allBanksBox.hz + 40 }
+  for (const b of spec.buildings || []) {
+    if (b.hall) continue
+    if (!b.p.some(([x, z]) => x > reach.x0 && x < reach.x1 && z > reach.z0 && z < reach.z1)) continue
+    extraBoxes.push(...wallBoxes(b.p, b.h, "building"))
+  }
+  // solid extras: stands, a tower, a raised lounge, columns (circles)
+  const extraCircles = []
+  for (const x of spec.extras || []) {
+    const a = (x.deg || 0) * DEG
+    const u = { x: Math.cos(a), z: Math.sin(a) }
+    if (x.type === "stands") extraBoxes.push({ cx: x.x, cz: x.z, hx: (x.w || 10) / 2, hz: ((x.rows || 4) * 0.8) / 2 + 0.2, ux: u.x, uz: u.z, h: (x.rows || 4) * 0.45 + 0.4, kind: "stands" })
+    else if (x.type === "tower") extraBoxes.push({ cx: x.x, cz: x.z, hx: (x.w || 5) / 2, hz: (x.w || 5) / 2, ux: 1, uz: 0, h: x.h || 14, kind: "tower" })
+    else if (x.type === "spine") extraBoxes.push({ cx: x.x, cz: x.z, hx: (x.w || 20) / 2, hz: (x.d || 5) / 2, ux: u.x, uz: u.z, h: (x.h || 1) + 1.1, kind: "spine" })
+    else if (x.type === "gazebo") extraCircles.push({ x: x.x, z: x.z, r: 0.25 })
+  }
+  for (const h of hallSpecs) {
+    if (!h.columns) continue
+    const c = h.columns
+    const n = c.n || 4
+    for (let k = 0; k < n; k++) {
+      const t = n > 1 ? k / (n - 1) : 0.5
+      extraCircles.push({ x: c.from[0] + (c.to[0] - c.from[0]) * t, z: c.from[1] + (c.to[1] - c.from[1]) * t, r: 0.25 })
+    }
+  }
+  // a court shouldn't be inside a building (bad data): those buildings are dropped
+  const bankBoxes = banks.map((b) => ({ ...b.box, h: indoor ? 1.2 : spec.fence?.height || 3, kind: "pen", bank: b.i }))
+  const solidAt = (p, pad = 0.4) => bankBoxes.some((b) => inBox(b, p, pad)) || extraBoxes.some((b) => inBox(b, p, pad))
+  const insideBuilding = (p) => (spec.buildings || []).some((b) => !b.hall && pointInPoly(p, b.p))
+
+  // ---------- numbering every pickleball court, reading order ----------
+  const pbCourts = courts.filter((c) => c.s === "p")
+  const order = pbCourts.slice().sort((a, b) => a.bank - b.bank || Math.round(a.z / 4) - Math.round(b.z / 4) || a.x - b.x)
+  order.forEach((c, k) => (c.num = k + 1))
+
+  // ---------- a court's gate side ----------
+  // the open sides of a court in its bank: -> [{ out (unit), dist (center to the fence) }]
+  const openSides = (c) => {
+    const bank = banks[c.bank]
+    const B = bank.box
+    const bu = { x: B.ux, z: B.uz }
+    const bw = { x: -B.uz, z: B.ux }
+    const rel = sub(c, { x: B.cx, z: B.cz })
+    const cu = dot(rel, bu)
+    const cw = dot(rel, bw)
+    const sides = []
+    for (const [axis, sign] of [
+      ["u", 1],
+      ["u", -1],
+      ["w", 1],
+      ["w", -1],
+    ]) {
+      const dir = axis === "u" ? bu : bw
+      const out = { x: dir.x * sign, z: dir.z * sign }
+      const dist = axis === "u" ? B.hx - sign * cu : B.hz - sign * cw
+      // anyone else in the bank between this court and that fence?
+      const blockedBy = bank.courts.some((o) => {
+        if (o === c) return false
+        const d = sub(o, c)
+        const along = dot(d, out)
+        const across = Math.abs(dot(d, axis === "u" ? bw : bu))
+        const halfAcross = axis === "u" ? (c.W + o.W) / 2 : (c.L + o.L) / 2
+        return along > 0.5 && across < halfAcross - 0.3
+      })
+      if (!blockedBy) sides.push({ axis, out, dist, sideline: axis === "w" })
+    }
+    return sides
+  }
+
+  // furniture placed so far (racks, bleachers), as boxes, to keep things apart
+  const placed = []
+  const free = (b) => !placed.some((p) => boxesOverlap(p, b)) && !extraBoxes.some((p) => boxesOverlap(p, b)) && !bankBoxes.some((p) => boxesOverlap(p, b))
+  const bounds0 = { x0: allBanksBox.cx - allBanksBox.hx - 24, x1: allBanksBox.cx + allBanksBox.hx + 24, z0: allBanksBox.cz - allBanksBox.hz - 24, z1: allBanksBox.cz + allBanksBox.hz + 24 }
+  for (const h of halls) {
+    // (indoors: the halls, plus a strip of parking round them)
+    for (const [x, z] of h.p) {
+      bounds0.x0 = Math.min(bounds0.x0, x - 18)
+      bounds0.x1 = Math.max(bounds0.x1, x + 18)
+      bounds0.z0 = Math.min(bounds0.z0, z - 18)
+      bounds0.z1 = Math.max(bounds0.z1, z + 18)
+    }
+  }
+  const inBounds = (p, pad = 1) => p.x > bounds0.x0 + pad && p.x < bounds0.x1 - pad && p.z > bounds0.z0 + pad && p.z < bounds0.z1 - pad
+  const insideHall = (p) => halls.some((h) => pointInPoly(p, h.p))
+  const walkable = (p, pad = 0.45) => inBounds(p) && !solidAt(p, pad) && !insideBuilding(p)
+
+  // a court's live-game setup on the side `side`: gate, rack, bleachers -> a layout court or null
+  const setupCourt = (c, side, toward) => {
+    const out = side.out
+    const tangent = { x: out.z, z: -out.x }
+    const fence = add(c, out, side.dist)
+    const alongU = side.axis === "u" ? Math.abs(dot(out, c.u)) > 0.7 : Math.abs(dot(out, c.u)) > 0.7
+    // which way along the fence is toward the entrance
+    const sign = Math.sign(dot(sub(toward, fence), tangent)) || 1
+    let g
+    let bleacher
+    let shift = 0
+    if (!alongU) {
+      // sideline: like Riverside, the gate near the end toward the entrance, bleachers in the middle
+      const halfAlong = c.L / 2 + banks[c.bank].room.u
+      g = sign * Math.max(1, halfAlong - 2.4)
+      bleacher = Math.min(7, 2 * (halfAlong - 3.3))
+    } else {
+      // baseline: the gate just off the middle, the rack beside it, a short stand on the other side
+      g = sign * 1.0
+      bleacher = 3.2
+      shift = -sign * 1.95
+    }
+    const gate = add(fence, tangent, g)
+    const outside = add(gate, out, 1.0)
+    const rack = add(add(gate, tangent, sign * 1.5), out, 0.55)
+    const rackBox = { cx: rack.x, cz: rack.z, hx: 0.85, hz: 0.35, ux: tangent.x, uz: tangent.z }
+    // the spots people stand: outside the gate, at the rack, behind the stand
+    const spots = indoor ? [outside, add(rack, out, 0.6)] : [outside, add(rack, out, 0.6), add(rack, out, 1.3)]
+    if (!spots.every((p) => walkable(p, indoor ? 0.3 : 0.4))) return null
+    if (!free(rackBox)) return null
+    let bl = 0
+    let bBox = null
+    for (const L of indoor ? [bleacher, 2.4] : [bleacher, 5, 3.2]) {
+      if (L < 2.2) continue
+      const center = add(add(fence, out, 0.95), tangent, shift)
+      const box = { cx: center.x, cz: center.z, hx: L / 2 + 0.1, hz: 0.6, ux: tangent.x, uz: tangent.z }
+      const behind = [add(center, out, 1.0), add(add(center, out, 1.0), tangent, L / 2 - 0.3), add(add(center, out, 1.0), tangent, -L / 2 + 0.3)]
+      if (free(box) && behind.every((p) => walkable(p, 0.35))) {
+        bl = L
+        bBox = box
+        break
+      }
+    }
+    placed.push(rackBox)
+    if (bBox) placed.push(bBox)
+    // (the court's half sizes as layout.js wants them: the fence distance on the gate side)
+    const hx = alongU ? side.dist : c.L / 2 + banks[c.bank].room.u
+    const viewSide = !alongU ? out : (() => {
+      // the camera watches from the more open sideline
+      const sides = openSides(c).filter((s) => s.sideline)
+      return sides.length ? sides[0].out : c.w
+    })()
+    const hz = !alongU ? side.dist : c.W / 2 + banks[c.bank].room.w
+    return { rot: c.rot, hx, hz, out, gate: g, bleacher: bl, bleacherShift: shift, view: viewSide, baseE: 1 }
+  }
+
+  // ---------- which courts have live games ----------
+  const toward = entry
+  const byNear = pbCourts.slice().sort((a, b) => len(sub(a, entry)) - len(sub(b, entry)))
+  const wantIds = spec.liveCourts ? new Set(spec.liveCourts) : null
+  const live = []
+  const tried = new Set()
+  const trySetup = (c) => {
+    const sides = openSides(c).sort((a, b) => (b.sideline ? 1 : 0) - (a.sideline ? 1 : 0) || len(sub(add(c, a.out, a.dist), toward)) - len(sub(add(c, b.out, b.dist), toward)))
+    for (const side of sides) {
+      const s = setupCourt(c, side, toward)
+      if (s) return s
+    }
+    return null
+  }
+  const exclude = new Set(opts.exclude || [])
+  for (const c of wantIds ? order.filter((c) => wantIds.has(c.num)) : byNear) {
+    if (live.length >= maxLive) break
+    if (exclude.has(c.i)) continue
+    tried.add(c)
+    // (keep live courts' gates apart)
+    const s = trySetup(c)
+    if (!s) continue
+    live.push({ c, s })
+  }
+  // a ball-machine court: the next one along that works
+  let machine = null
+  for (const c of byNear) {
+    if (live.some((l) => l.c === c) || exclude.has(c.i)) continue
+    const s = trySetup(c)
+    if (s) {
+      machine = { c, s }
+      break
+    }
+  }
+  live.sort((a, b) => a.c.num - b.c.num)
+  const layoutCourts = live.map(({ c, s }, k) => ({ id: k, name: `Court ${c.num}`, num: c.num, level: LEVELS[k % LEVELS.length], x: c.x, z: c.z, ...s, src: c.i }))
+  for (const { c } of live) c.live = true
+
+  // ---------- the pro shop / front desk ----------
+  const gate0 = layoutCourts[0] ? add({ x: layoutCourts[0].x, z: layoutCourts[0].z }, layoutCourts[0].out, (Math.abs(dot(layoutCourts[0].out, { x: Math.sin(layoutCourts[0].rot), z: Math.cos(layoutCourts[0].rot) })) > 0.7 ? layoutCourts[0].hx : layoutCourts[0].hz) + 5) : entry
+  const spawnAt = hallPoly && !spec.spawn ? (() => {
+    let best = entry
+    let bestD = Infinity
+    for (let dx = -6; dx <= 6; dx += 0.5)
+      for (let dz = -6; dz <= 6; dz += 0.5) {
+        const p = { x: entry.x + dx, z: entry.z + dz }
+        if (!walkable(p, 1.0) || !pointInPoly(p, hallPoly)) continue
+        const d = Math.hypot(dx, dz)
+        if (d < bestD) {
+          bestD = d
+          best = p
+        }
+      }
+    return best
+  })() : (() => {
+    // walk from the entrance toward the first live court's gate until there's room
+    const target = gate0
+    const d = sub(target, entry)
+    const L = len(d) || 1
+    for (let k = 0; k <= 1; k += 0.05) {
+      const p = add(entry, d, k)
+      if (walkable(p, 1.2) && (!hallPoly || insideHall(p))) return p
+    }
+    return target
+  })()
+  const faceCourts = sub(gate0, spawnAt)
+  const spawnYaw = spec.spawn?.deg !== null && spec.spawn?.deg !== undefined ? Math.atan2(Math.cos(spec.spawn.deg * DEG), Math.sin(spec.spawn.deg * DEG)) : Math.atan2(faceCourts.x, faceCourts.z)
+  let booth = null
+  {
+    const fwd = { x: Math.sin(spawnYaw), z: Math.cos(spawnYaw) }
+    const right = { x: fwd.z, z: -fwd.x }
+    for (const [a, b] of [
+      [4.5, 1.5],
+      [-4.5, 1.5],
+      [5.5, -1],
+      [-5.5, -1],
+      [3.5, 4],
+      [-3.5, 4],
+      [7, 3],
+      [-7, 3],
+    ]) {
+      const center = add(add(spawnAt, right, a), fwd, b)
+      // (facing the spawn: its counter toward where you arrive)
+      const face0 = sub(spawnAt, center)
+      const fl = len(face0) || 1
+      const face = { x: face0.x / fl, z: face0.z / fl }
+      const box = { cx: center.x, cz: center.z, hx: indoor ? 0.6 : 1.6, hz: indoor ? 1.6 : 1.4, ux: face.x, uz: face.z }
+      const front = add(center, face, box.hx + 0.9)
+      if (free({ ...box, hx: box.hx + 0.3, hz: box.hz + 0.3 }) && corners(box).every((p) => walkable(p, 0.1)) && walkable(front, 0.4)) {
+        booth = { x: round(center.x), z: round(center.z), hx: box.hx, hz: box.hz, h: indoor ? 1.1 : 3.0, face, style: indoor ? "desk" : "kiosk" }
+        placed.push(box)
+        break
+      }
+    }
+  }
+
+  // ---------- benches along the banks ----------
+  const benches = []
+  if (!indoor) {
+    for (const bank of banks) {
+      const B = bank.box
+      const u = { x: B.ux, z: B.uz }
+      const w = { x: -B.uz, z: B.ux }
+      for (const [dir, half, alongDir, alongHalf] of [
+        [w, B.hz, u, B.hx],
+        [{ x: -w.x, z: -w.z }, B.hz, u, B.hx],
+        [u, B.hx, w, B.hz],
+        [{ x: -u.x, z: -u.z }, B.hx, w, B.hz],
+      ]) {
+        for (let s = -alongHalf + 6; s <= alongHalf - 6 && benches.length < 14; s += 16) {
+          const p = add(add({ x: B.cx, z: B.cz }, dir, half + 1.6), alongDir, s)
+          const yaw = Math.atan2(-dir.x, -dir.z)
+          const box = { cx: p.x, cz: p.z, hx: 0.9, hz: 0.45, ux: Math.cos(yaw), uz: -Math.sin(yaw) }
+          const front = add(p, { x: Math.sin(yaw), z: Math.cos(yaw) }, 0.9)
+          if (!free(box) || !walkable(p, 0.6) || !walkable(front, 0.4) || rand() < 0.25) continue
+          placed.push(box)
+          benches.push({ id: `b${benches.length}`, x: round(p.x), z: round(p.z), yaw })
+        }
+      }
+    }
+  }
+
+  // ---------- light poles (outdoors, when the courts are lit) ----------
+  const lights = []
+  const every = spec.fence?.lightEvery || 18
+  if (!indoor && spec.lit) {
+    for (const bank of banks) {
+      const B = bank.box
+      const u = { x: B.ux, z: B.uz }
+      const w = { x: -B.uz, z: B.ux }
+      const nU = Math.max(1, Math.round((2 * B.hx) / every))
+      for (const sw of [-1, 1])
+        for (let k = 0; k <= nU; k++) {
+          const p = add(add({ x: B.cx, z: B.cz }, u, -B.hx + (2 * B.hx * k) / nU), w, sw * (B.hz + 0.35))
+          if (placed.some((b) => inBox(b, p, 0.3))) continue
+          if (lights.length < 140) lights.push({ x: round(p.x), z: round(p.z) })
+        }
+    }
+  }
+
+  // ---------- trees: solid if they're in the walkable part ----------
+  const trees = (spec.trees || [])
+    .map(([x, z, s, kind]) => ({ x, z, s: s || 1, kind: kind || "broadleaf" }))
+    .filter((t) => !bankBoxes.some((b) => inBox(b, t, 0.3)) && !insideBuilding(t) && !insideHall(t))
+  const treeCircles = trees.filter((t) => inBounds(t, -2)).map((t) => ({ x: t.x, z: t.z, r: t.kind === "palm" ? 0.28 : 0.35 }))
+
+  // ---------- the bar (indoors) ----------
+  const seats = []
+  let bar = null
+  const barHall = halls.find((h) => h.bar)
+  if (barHall) {
+    const b = barHall.bar
+    const a = (b.deg || 0) * DEG
+    const u = { x: Math.cos(a), z: Math.sin(a) }
+    const w = { x: -u.z, z: u.x }
+    bar = { ...b, u, w }
+    // the counter (solid), stools along its front (seats), tables beyond
+    extraBoxes.push({ cx: b.x, cz: b.z, hx: b.len / 2, hz: 0.45, ux: u.x, uz: u.z, h: 1.1, kind: "bar" })
+    const nStools = Math.max(2, Math.min(14, b.stools || 8))
+    for (let k = 0; k < nStools; k++) {
+      const along = -b.len / 2 + 0.6 + (k * (b.len - 1.2)) / Math.max(1, nStools - 1)
+      const p = add(add({ x: b.x, z: b.z }, u, along), w, 0.85)
+      const ap = add(p, w, 0.75)
+      seats.push({ id: `stool${k}`, x: round(p.x), y: 0.75, z: round(p.z), yaw: Math.atan2(-w.x, -w.z), approach: { x: round(ap.x), z: round(ap.z) } })
+    }
+    bar.tableSpots = []
+    const nT = Math.max(0, Math.min(10, b.tables ?? 6))
+    for (let k = 0; k < nT; k++) {
+      const along = -b.len / 2 + 1 + ((k % 5) * (b.len - 2)) / 4
+      const p = add(add({ x: b.x, z: b.z }, u, along), w, 3.0 + Math.floor(k / 5) * 2.4)
+      if (!walkable(p, 0.9)) continue
+      extraBoxes.push({ cx: p.x, cz: p.z, hx: 0.45, hz: 0.45, ux: u.x, uz: u.z, h: 0.75, kind: "table" })
+      bar.tableSpots.push({ x: round(p.x), z: round(p.z) })
+      // two chairs a table
+      for (const sgn of [-1, 1]) {
+        const q = add(p, u, sgn * 0.8)
+        const ap = add(q, u, sgn * 0.65)
+        seats.push({ id: `t${k}${sgn > 0 ? "a" : "b"}`, x: round(q.x), y: 0.45, z: round(q.z), yaw: Math.atan2(-u.x * sgn, -u.z * sgn), approach: { x: round(ap.x), z: round(ap.z) } })
+      }
+    }
+  }
+
+  // ---------- the walkable area and a graph to get round it ----------
+  const bounds = { x0: round(bounds0.x0), x1: round(bounds0.x1), z0: round(bounds0.z0), z1: round(bounds0.z1) }
+  const allBoxes = [...bankBoxes, ...extraBoxes]
+  const lightCircles = lights.map((l) => ({ x: l.x, z: l.z, r: 0.15 }))
+  const solidFinal = (p, pad) => allBoxes.some((b) => inBox(b, p, pad)) || placed.some((b) => inBox(b, p, pad)) || [...treeCircles, ...extraCircles, ...lightCircles].some((t) => Math.hypot(t.x - p.x, t.z - p.z) < t.r + pad)
+  const STEP = indoor ? 2 : 5
+  const NAV_PAD = indoor ? 0.4 : 0.6
+  const nav = []
+  for (let x = bounds.x0 + STEP / 2; x < bounds.x1; x += STEP)
+    for (let z = bounds.z0 + STEP / 2; z < bounds.z1; z += STEP) {
+      const p = { x: round(x), z: round(z) }
+      if (solidFinal(p, NAV_PAD) || insideBuilding(p)) continue
+      nav.push(p)
+    }
+  // nodes by the gates and outside them (so every court is reachable)
+  for (const lc of layoutCourts) {
+    const fenceDist = Math.abs(dot(lc.out, { x: Math.sin(lc.rot), z: Math.cos(lc.rot) })) > 0.7 ? lc.hx : lc.hz
+    const tan = { x: lc.out.z, z: -lc.out.x }
+    for (const [o, t] of [[1.0, 0], [1.0, 2], [1.0, -2], [2.2, 0]]) {
+      const p = add(add({ x: lc.x, z: lc.z }, lc.out, fenceDist + o), tan, lc.gate + t)
+      if (!solidFinal(p, 0.3)) nav.push({ x: round(p.x), z: round(p.z) })
+    }
+  }
+  for (const h of halls) {
+    // through each door
+    const d = h.doorAt
+    const c = centroid(h.p)
+    const inward = sub(c, d)
+    const L = len(inward) || 1
+    for (const k of [-2.5, 2.5]) nav.push({ x: round(d.x + (inward.x / L) * k), z: round(d.z + (inward.z / L) * k) })
+  }
+  // spots the regulars wander to: spread out, mostly near the live courts and the bar
+  const waypoints = []
+  const near = nav.filter((p) => layoutCourts.some((c) => Math.hypot(c.x - p.x, c.z - p.z) < 32) || (bar && Math.hypot(bar.x - p.x, bar.z - p.z) < 10))
+  const pool = near.length > 10 ? near : nav
+  for (let k = 0; k < Math.min(24, pool.length); k++) {
+    // farthest-point sampling from the ones picked so far
+    let best = null
+    let bestD = -1
+    for (let t = 0; t < 40; t++) {
+      const p = pool[Math.floor(rand() * pool.length)]
+      const d = waypoints.length ? Math.min(...waypoints.map((q) => Math.hypot(q.x - p.x, q.z - p.z))) : 1
+      if (d > bestD) {
+        bestD = d
+        best = p
+      }
+    }
+    waypoints.push(best)
+  }
+
+  // ---------- fences to draw ----------
+  // each bank's perimeter (gates left open), dividers between courts; OSM fences that aren't
+  // a bank's own (more than 4 m from every bank)
+  const fenceH = spec.fence?.height || 3
+  const style = indoor ? "none" : spec.fence?.style || "chainlink"
+  const gatesOn = new Map() // bank -> [{ x, z }]
+  for (const lc of [...layoutCourts, ...(machine ? [{ ...machine.s, x: machine.c.x, z: machine.c.z, bankOf: machine.c.bank }] : [])]) {
+    const bank = lc.bankOf ?? courts[lc.src]?.bank
+    const fenceDist = Math.abs(dot(lc.out, { x: Math.sin(lc.rot), z: Math.cos(lc.rot) })) > 0.7 ? lc.hx : lc.hz
+    const g = add(add({ x: lc.x, z: lc.z }, lc.out, fenceDist), { x: lc.out.z, z: -lc.out.x }, lc.gate)
+    if (!gatesOn.has(bank)) gatesOn.set(bank, [])
+    gatesOn.get(bank).push(g)
+  }
+  const fences = []
+  if (style !== "none") {
+    banks.forEach((bank) => {
+      const cs = corners(bank.box)
+      const gs = gatesOn.get(bank.i) || []
+      for (let k = 0; k < 4; k++) {
+        const a = cs[k]
+        const b = cs[(k + 1) % 4]
+        const ab = sub(b, a)
+        const L = len(ab)
+        const gates = gs
+          .map((g) => {
+            const t = dot(sub(g, a), ab) / (L * L)
+            const off = Math.abs((g.x - a.x) * ab.z - (g.z - a.z) * ab.x) / L
+            return off < 0.2 && t > 0 && t < 1 ? t * L : null
+          })
+          .filter((t) => t !== null)
+        fences.push({ a: [round(a.x), round(a.z)], b: [round(b.x), round(b.z)], h: fenceH, k: "chain", gates })
+      }
+      // dividers between neighbouring courts (tennis: full fences; pickleball: low windscreens)
+      const div = spec.fence?.dividers ?? (bank.s === "t" ? "fence" : "low")
+      if (div === "none") return
+      const list = bank.courts
+      for (let i = 0; i < list.length; i++)
+        for (let j = i + 1; j < list.length; j++) {
+          const A = list[i]
+          const Bc = list[j]
+          const d = sub(Bc, A)
+          const along = dot(d, A.u)
+          const across = dot(d, A.w)
+          // side by side (sharing a sideline gap)
+          if (Math.abs(along) < 1 && Math.abs(across) < A.W + bank.room.w * 2 + 3.9) {
+            const m = add(A, d, 0.5)
+            const half = A.L / 2 + bank.room.u * (div === "fence" ? 1 : 0.4)
+            fences.push({ a: [round(m.x - A.u.x * half), round(m.z - A.u.z * half)], b: [round(m.x + A.u.x * half), round(m.z + A.u.z * half)], h: div === "fence" ? fenceH : 0.9, k: div === "fence" ? "chain" : "screen", gates: [] })
+          }
+        }
+    })
+  } else if (indoor) {
+    // nets between indoor courts (side by side), and a low barrier behind each baseline row
+    banks.forEach((bank) => {
+      const list = bank.courts
+      for (let i = 0; i < list.length; i++)
+        for (let j = i + 1; j < list.length; j++) {
+          const A = list[i]
+          const Bc = list[j]
+          const d = sub(Bc, A)
+          if (Math.abs(dot(d, A.u)) < 1 && Math.abs(dot(d, A.w)) < A.W + 5.5) {
+            const m = add(A, d, 0.5)
+            const half = A.L / 2 + 2.4
+            fences.push({ a: [round(m.x - A.u.x * half), round(m.z - A.u.z * half)], b: [round(m.x + A.u.x * half), round(m.z + A.u.z * half)], h: 1.0, k: "net", gates: [] })
+          } else if (Math.abs(dot(d, A.w)) < 1 && Math.abs(dot(d, A.u)) < A.L + 7) {
+            // end to end: a divider across, between the baselines
+            const m = add(A, d, 0.5)
+            const half = A.W / 2 + 1.2
+            fences.push({ a: [round(m.x - A.w.x * half), round(m.z - A.w.z * half)], b: [round(m.x + A.w.x * half), round(m.z + A.w.z * half)], h: 1.0, k: "net", gates: [] })
+          }
+        }
+    })
+  }
+  for (const f of spec.fences || []) {
+    const pts = f.p.map(([x, z]) => ({ x, z }))
+    const nearBank = pts.some((p) => banks.some((b) => inBox(b.box, p, 4)))
+    if (nearBank) continue
+    for (let k = 0; k < pts.length - 1; k++) fences.push({ a: [pts[k].x, pts[k].z], b: [pts[k + 1].x, pts[k + 1].z], h: f.h || (f.k === "wall" || f.k === "retaining_wall" ? 1.6 : f.k === "hedge" ? 1.4 : 2), k: f.k === "hedge" ? "hedge" : f.k === "wall" || f.k === "retaining_wall" ? "wall" : "chain", gates: [] })
+  }
+
+  // ---------- the layout spec (layout.js makeLayout) and the scenery (build.js) ----------
+  const layoutSpec = {
+    id: spec.id,
+    name: spec.name,
+    kind: "venue",
+    indoor,
+    bounds,
+    courts: layoutCourts,
+    machine: machine ? { x: machine.c.x, z: machine.c.z, ...machine.s } : null,
+    booth,
+    spawn: { x: round(spawnAt.x), z: round(spawnAt.z), yaw: spawnYaw },
+    fountain: null,
+    board: null,
+    benches,
+    trees: trees.filter((t) => inBounds(t, -2)).map((t) => ({ x: t.x, z: t.z, s: t.s, r: t.kind === "palm" ? 0.28 : 0.35, kind: t.kind })),
+    lights,
+    seats,
+    circles: extraCircles,
+    penBoxes: false,
+    boxes: allBoxes,
+    waypoints,
+    nav,
+    navLink: STEP * 1.5 + 0.1,
+    scene: {
+      kind: "venue",
+      id: spec.id,
+      name: spec.name,
+      indoor,
+      lit: !!spec.lit,
+      colors,
+      backdrop: spec.backdrop || {},
+      palettes: spec.palettes || [],
+      fence: spec.fence || {},
+      courts: courts.map((c) => ({ x: c.x, z: c.z, rot: c.rot, s: c.s, pb: c.pb, pl: c.pl, col: c.col, L: c.L, W: c.W, live: layoutCourts.find((lc) => lc.src === c.i)?.id ?? null, machine: machine?.c === c, num: c.num || null, lit: c.lit })),
+      banks: banks.map((b) => ({ ...b.box, s: b.s })),
+      fences,
+      buildings: spec.buildings || [],
+      areas: spec.areas || [],
+      roads: spec.roads || [],
+      trees,
+      lamps: spec.lamps || [],
+      halls,
+      bar,
+      extras: spec.extras || null,
+    },
+  }
+  // every live court must be reachable on foot from the entrance (and the ball machine):
+  // the ones that aren't are swapped for others
+  if (!opts.noCheck) {
+    const L = makeLayout(layoutSpec)
+    const reach = (to) => {
+      let at = L.SPAWN
+      for (const p of L.route(L.SPAWN, to)) {
+        if (L.segmentHit(at, p, 0) !== null) return false
+        at = p
+      }
+      return true
+    }
+    const bad = [...L.COURTS.filter((c) => !reach(c.outside)).map((c) => layoutCourts[L.COURTS.indexOf(c)].src), ...(L.MACHINE_COURT && !reach({ x: L.MACHINE_COURT.gate.x + L.MACHINE_COURT.out.x, z: L.MACHINE_COURT.gate.z + L.MACHINE_COURT.out.z }) ? [machine.c.i] : [])]
+    if (bad.length && (opts.tries || 0) < 16) return generateVenue(spec, { ...opts, exclude: [...exclude, ...bad], tries: (opts.tries || 0) + 1 })
+  }
+  return { layoutSpec, info: { banks: banks.length, live: layoutCourts.length, courts: courts.length, pickleball: pbCourts.length } }
+}

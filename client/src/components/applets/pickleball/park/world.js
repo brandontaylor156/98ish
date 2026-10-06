@@ -23,7 +23,7 @@ import { blocker } from "../camera.js"
 import { advance, beginPoint, createMatch, scoreboard, seeded } from "../match.js"
 import { buildPark } from "./build.js"
 import { createMannequins } from "./mannequin.js"
-import { ALL_SEATS, COURTS, INTERACTABLES, LEVEL_NAMES, SPAWN, nearestAction, poseToWorld, resolve, seatApproach, toLocal, toWorld, yawToWorld } from "./layout.js"
+import { ACTIVE, ALL_SEATS, COURTS, INTERACTABLES, LEVEL_NAMES, RIVERSIDE_LAYOUT, SPAWN, WAYPOINTS, dirToWorld, nearestAction, poseToWorld, resolve, seatApproach, setLayout, toLocal, toWorld, yawToWorld } from "./layout.js"
 import { callNext, leaveQueue, nextLineup, ordered, positionOf } from "./queue.js"
 import { LINES, createRegular, goTo, speak, think, tickRegular } from "./regulars.js"
 import { createWalker, keepApart, stepWalker } from "./walker.js"
@@ -51,11 +51,14 @@ const blobTexture = () => {
   return new THREE.CanvasTexture(c)
 }
 
-export const createWorld = ({ makeFigure, quality = "medium", phone = false, me: meInfo = {}, onHud, onEvent, labelsEl = null, audio = null, seed = (Math.random() * 1e9) | 0, hour = null } = {}) => {
+export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "medium", phone = false, me: meInfo = {}, onHud, onEvent, labelsEl = null, audio = null, seed = (Math.random() * 1e9) | 0, hour = null } = {}) => {
+  // (the venue: layout.js's named exports follow the active layout)
+  setLayout(layout)
+  const venue = layout
   const rand = seeded(seed)
   const scene = new THREE.Scene()
   const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 400)
-  const park = buildPark(scene, { quality })
+  const park = buildPark(scene, { quality, layout })
   const mann = createMannequins(scene)
   let size = { width: 1, height: 1 }
   const portrait = () => size.height > size.width * 1.05
@@ -160,7 +163,9 @@ export const createWorld = ({ makeFigure, quality = "medium", phone = false, me:
       const c = COURTS[courtId]
       const i = courts[courtId].queue.findIndex((e) => e.id === r.id)
       const k = i < 0 ? courts[courtId].queue.length : i
-      return resolve(c.rack.x + ((k % 4) - 1.5) * 0.75, c.rack.z - c.side * (1.0 + Math.floor(k / 4) * 0.7), 0.3)
+      const along = ((k % 4) - 1.5) * 0.75
+      const back = 1.0 + Math.floor(k / 4) * 0.7
+      return resolve(c.rack.x + c.rackAlong.x * along + c.out.x * back, c.rack.z + c.rackAlong.z * along + c.out.z * back, 0.3)
     },
   })
 
@@ -235,7 +240,8 @@ export const createWorld = ({ makeFigure, quality = "medium", phone = false, me:
     }
     // and the rest about the park
     for (let k = 0; k < REGULARS_OFF; k++) {
-      const spot = k < 3 ? resolve(COURTS[k].rack.x, COURTS[k].rack.z - COURTS[k].side * 1.2, 0.3) : resolve(-20 + rand() * 42, (rand() - 0.5) * 2.2, 0.3)
+      const wp = WAYPOINTS.length ? WAYPOINTS[Math.floor(rand() * WAYPOINTS.length)] : SPAWN
+      const spot = k < 3 && COURTS[k] ? resolve(COURTS[k].rack.x + COURTS[k].out.x * 1.2, COURTS[k].rack.z + COURTS[k].out.z * 1.2, 0.3) : venue.kind === "riverside" ? resolve(-20 + rand() * 42, (rand() - 0.5) * 2.2, 0.3) : resolve(wp.x + (rand() - 0.5) * 3, wp.z + (rand() - 0.5) * 3, 0.3)
       const r = createRegular(ri++, rand, spot)
       r.idle = 40 + rand() * 80
       regulars.push(r)
@@ -611,8 +617,10 @@ export const createWorld = ({ makeFigure, quality = "medium", phone = false, me:
       const b = bodyOfEntry(e)
       if (b) setMode(b, "walk")
       const r = e.reg
-      r.x = c.def.outside.x + (rand() - 0.5) * 2
-      r.z = c.def.outside.z - c.def.side * rand()
+      const along = (rand() - 0.5) * 2
+      const back = rand()
+      r.x = c.def.outside.x + c.def.rackAlong.x * along + c.def.out.x * back
+      r.z = c.def.outside.z + c.def.rackAlong.z * along + c.def.out.z * back
       r.state = "wander"
       r.court = null
       r.idle = 0
@@ -683,7 +691,7 @@ export const createWorld = ({ makeFigure, quality = "medium", phone = false, me:
           setMode(b, "walk")
           r.x = c.def.outside.x
           r.z = c.def.outside.z
-          r.yaw = c.def.side > 0 ? Math.PI : 0
+          r.yaw = c.def.outYaw
           r.state = "wander"
           r.court = null
           r.idle = 0
@@ -773,11 +781,12 @@ export const createWorld = ({ makeFigure, quality = "medium", phone = false, me:
     b.x = w.x
     b.z = w.z
     const v = { x: b.p.vx, z: b.p.vz }
-    b.vx = v.z
-    b.vz = -v.x
+    const wv = dirToWorld(b.court.def, v.x, v.z)
+    b.vx = wv.x
+    b.vz = wv.z
     b.speed = Math.hypot(v.x, v.z)
     const localYaw = b.anim ? b.anim.yaw : b.speed > 0.6 ? Math.atan2(v.x, v.z) : b.p.team === 0 ? Math.PI : 0
-    b.yaw = yawToWorld(localYaw)
+    b.yaw = yawToWorld(localYaw, b.court.def)
   }
   const drawBodies = (dt) => {
     camera.updateMatrixWorld()
@@ -1222,7 +1231,7 @@ export const createWorld = ({ makeFigure, quality = "medium", phone = false, me:
         me.walker.x = c.def.outside.x
         me.walker.z = c.def.outside.z
         me.walker.vx = me.walker.vz = 0
-        me.walker.yaw = c.def.side > 0 ? Math.PI : 0
+        me.walker.yaw = c.def.outYaw
         me.mode = "walk"
         me.seat = null
         follow.yaw = me.walker.yaw
