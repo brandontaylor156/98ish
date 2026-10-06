@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@huggingface/transformers": "^4.3.1",
+    "@sparkjsdev/spark": "^2.3.1",
     "98.css": "^0.1.21",
     "blockly": "^13.3.0",
     "bootstrap": "^5.3.8",

@@ -40,6 +40,7 @@ const quietly = (fn) => {
 
 export const FILE_TYPE = {
   text: "text",
+  splat: "splat", // a Gaussian-splat capture (Pickleball 98 venue backdrops): the file's bytes as a data URL in textContent
   executable: "executable",
   note: "note",
   notepad: "notepad",
