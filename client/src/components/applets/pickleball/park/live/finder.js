@@ -278,6 +278,14 @@ export const matchScore = (q, name) => {
   if (a.split(" ").every((w) => words.some((x) => x.startsWith(w)))) return 2
   return b.includes(a) ? 1 : 0
 }
+// which part of a combined index answer an OSM element is (build-index.mjs asks for all three
+// in one query): "features" (tagged pickleball), "towns" (place nodes) or "places" (names nearby)
+export const indexKind = (e) => {
+  const t = e?.tags || {}
+  if (/pickleball/.test(t.sport || "") || (t.pickleball === "yes" && /^(pitch|court)$/.test(t.leisure || ""))) return "features"
+  if (t.place && e.type === "node") return "towns"
+  return "places"
+}
 // a US ZIP code ("92708" or "92708-1234") -> "92708", else null
 export const zipOf = (q) => String(q || "").trim().match(/^(\d{5})(?:-\d{4})?$/)?.[1] || null
 // search.json -> the best towns and named venues for a query

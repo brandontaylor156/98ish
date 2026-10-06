@@ -211,12 +211,7 @@ const askAll = async (name, only = null) => {
 
 // every cached answer of one kind, whatever region or tile size asked it: the combined
 // "all-" answers (split by their tags) and the older one-kind files ("features-", ...)
-const kindOf = (e) => {
-  const t = e.tags || {}
-  if (/pickleball/.test(t.sport || "") || (t.pickleball === "yes" && /^(pitch|court)$/.test(t.leisure || ""))) return "features"
-  if (t.place && e.type === "node") return "towns"
-  return "places"
-}
+const kindOf = F.indexKind
 let cacheFiles = null
 const cachedAll = (name) => {
   const out = { elements: [], osm3s: null }
