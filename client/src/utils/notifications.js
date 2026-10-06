@@ -223,6 +223,8 @@ export const targetFromParams = (params) => {
     else if (/^[0-9a-f]{16}$/.test(params.get("hangout") || "")) extra.handoff = { id: Date.now(), hangout: name("hangout") }
     // Live Broadcast: a friend's game to watch live (Pickleball 98); code = the share link's
     else if (/^[0-9a-f]{12}$/.test(params.get("live") || "")) extra.handoff = { id: Date.now(), live: name("live"), code: /^[0-9a-f]{10}$/.test(params.get("code") || "") ? name("code") : null }
+    // a Visual Basic 98 program someone sent
+    else if (/^[0-9a-f]{18}$/.test(params.get("vbapp") || "")) extra.handoff = { id: Date.now(), vbapp: name("vbapp") }
     // a Watch Together invitation to join
     else if (/^[0-9a-f]{20}$/.test(params.get("together") || "")) extra.handoff = { id: Date.now(), together: name("together") }
     return { kind: "program", name: name("name"), extra }

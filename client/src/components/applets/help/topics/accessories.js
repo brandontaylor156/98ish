@@ -585,6 +585,37 @@ export const topics = [
     ],
     related: ["sound-recorder", "no-sound", "sounds"],
   },
+  // ---- Visual Basic 98 ----
+  {
+    id: "visual-basic-98",
+    book: "accessories",
+    title: "Visual Basic 98",
+    summary: "Make your own programs and games (draw a form, add code or blocks) and send them to friends in 98 Messenger.",
+    keywords: ["visual basic", "vb", "vb6", "vb98", "programming", "code", "coding", "make a program", "make a game", "app builder", "blocks", "blockly", "form", "toolbox", "properties", "button", "label", "timer", "sprite", "poll", "quiz", "tic-tac-toe", "send a program", "shared", ".vb98"],
+    programs: ["Visual Basic 98"],
+    body: [
+      { img: "/assets/program_icons/vb98.svg", alt: "Visual Basic 98 icon" },
+      "Visual Basic 98 makes **your own programs**: draw a window (the **form**), put buttons, labels, text boxes and pictures on it, tell them what to do, and press **Run**. Start with **Templates...**: Hello, Poll, Quiz, Tic-Tac-Toe, Reaction Time, Magic 8-Ball, Soundboard, Countdown and Star Jumper (a tiny platform game).",
+      {
+        list: [
+          "**Form** tab: tap a tool in the **Toolbox** to add it (or drag it onto the form). Drag a control to move it, its blue corner to size it. The **Properties** (on a phone, its own tab) change its words, colors and size.",
+          "**Code** tab: pick a control and an event (Click, Change, Timer...) and type what happens, like **Label1.Caption = \"Hi!\"**. Mistakes are pointed out as you type, with the line.",
+          "**Blocks** tab: snap blocks together instead of typing (When Command1 Click, set Label1.Caption to...). The blocks write the code for you.",
+          "**Run** (F5) opens your program in its own window. **■ End** stops it.",
+          "**File > Save** keeps it in C:\\Documents as a .vb98 file; double-click one to run it. **Make Desktop Icon** puts it on your desktop.",
+        ],
+      },
+      { h: "Send it to friends" },
+      "**Send...** puts your program in a 98 Messenger conversation (a buddy, a chat room you're in, or everyone in **Come Over**). They tap **Open** and it runs on their 98ish. Programs can keep **Shared** values that everyone sees change: votes in a poll, a Tic-Tac-Toe board, best times. **File > Shared with Me** lists programs friends sent you.",
+      { h: "The language" },
+      "A friendly slice of Visual Basic 6: **Dim**, **If...Then...Else**, **For...Next**, **Do...Loop**, **Select Case**, **Sub** and **Function**, **&** to join text. Handy extras: **MsgBox**, **InputBox**, **Random(1, 6)**, **Wait 500**, **Sound.Play \"tada\"**, **Me.Name**, **Friends**, **Shared(\"score\") = 3**, and **Sub Shared_Changed(Key As String)** that runs when anyone changes a Shared value. Sprites move with **Sprite1.Move 10, 0** and bump with **Sprite1.Touching(Sprite2)**.",
+      { note: "Programs run boxed in: they can't open your files, read your messages, use the internet or change anything else on 98ish. One that gets stuck in an endless loop is stopped after a couple of seconds." },
+      { h: "Limits" },
+      "A program can be up to 256 KB (pictures are shrunk to fit). Shared values: 64 KB per shared program and 200 changes a day per person. A shared program nobody uses for 30 days is deleted.",
+      { open: "Visual Basic 98", label: "Open Visual Basic 98" },
+    ],
+    related: ["messenger", "come-over"],
+  },
   // ---- Music 98 ----
   {
     id: "music-98",

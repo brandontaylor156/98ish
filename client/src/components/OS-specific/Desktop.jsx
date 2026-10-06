@@ -102,6 +102,7 @@ const PhotosBridge = React.lazy(() => import("../applets/photos/PhotosBridge"))
 const LocatorBridge = React.lazy(() => import("../applets/locator/LocatorBridge"))
 // Come Over (the multiplayer desktop): its window, and the layer with friends' cursors
 const Hangout = lazyApp(() => import("../applets/hangout/Hangout"))
+const VB98 = lazyApp(() => import("../applets/vb98/VB98"))
 const HangoutLayer = React.lazy(() => import("../applets/hangout/HangoutLayer"))
 const PbClubBridge = React.lazy(() => import("../applets/pbclub/PbClubBridge"))
 const Find = lazyApp(() => import("../applets/find/Find"))
@@ -861,6 +862,7 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
       {window.app === "musiclib" && <Music mobile={mobile} handoff={window.handoff} onClose={() => closeWindow(window, index)} />}
       {window.app === "locator" && <Locator mobile={mobile} dispatch={dispatch} onClose={() => closeWindow(window, index)} />}
       {window.app === "hangout" && <Hangout mobile={mobile} handoff={window.handoff} dispatch={dispatch} onClose={() => closeWindow(window, index)} />}
+      {window.app === "vb98" && <VB98 mobile={mobile} handoff={window.handoff} dispatch={dispatch} onTitle={rename(index)} onClose={() => closeWindow(window, index)} />}
       {window.app === "together" && <Together mobile={mobile} dispatch={dispatch} handoff={window.handoff} onClose={() => closeWindow(window, index)} />}
       {window.app === "hexlands" && <Hexlands mobile={mobile} onClose={() => closeWindow(window, index)} />}
       {window.app === "monsterduel" && <MonsterDuel mobile={mobile} onClose={() => closeWindow(window, index)} />}

@@ -6,6 +6,75 @@ import { makeRuntime, SLICE_MS } from "./vbruntime.js"
 import { TEMPLATES, templateById } from "./templates.js"
 import { validateProject, blankProject, MAX_BYTES } from "./vbfile.js"
 import { newControl, nextName, codeObjects, procStub } from "./controls.js"
+import { generateVB, eventsFor } from "./vbblocks.js"
+import { checkSandboxMessage, sharedBytes } from "./bridge.js"
+
+test("blocks: Blockly's saved JSON becomes VB that compiles and runs; same-event blocks merge", async () => {
+  const num = (n) => ({ block: { type: "math_number", fields: { NUM: n } } })
+  const text = (t) => ({ block: { type: "text", fields: { TEXT: t } } })
+  const state = {
+    variables: [{ id: "v1", name: "clicks" }],
+    blocks: {
+      blocks: [
+        {
+          type: "vb_event",
+          fields: { OBJECT: "Command1", EVENT: "Click" },
+          inputs: {
+            DO: {
+              block: {
+                type: "math_change",
+                fields: { VAR: { id: "v1" } },
+                inputs: { DELTA: num(1) },
+                next: {
+                  block: {
+                    type: "controls_repeat_ext",
+                    inputs: { TIMES: num(2), DO: { block: { type: "vb_list_add", fields: { LIST: "List1" }, inputs: { ITEM: text("hi") } } } },
+                    next: {
+                      block: {
+                        type: "controls_if",
+                        inputs: {
+                          IF0: { block: { type: "logic_compare", fields: { OP: "GTE" }, inputs: { A: { block: { type: "variables_get", fields: { VAR: { id: "v1" } } } }, B: num(2) } } },
+                          DO0: { block: { type: "vb_set_prop", fields: { CONTROL: "Label1", PROP: "Caption" }, inputs: { VALUE: { block: { type: "text_join", extraState: { itemCount: 2 }, inputs: { ADD0: text("Clicks: "), ADD1: { block: { type: "variables_get", fields: { VAR: { id: "v1" } } } } } } } } } },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+        // a second block for the same event adds to it
+        { type: "vb_event", fields: { OBJECT: "Command1", EVENT: "Click" }, inputs: { DO: { block: { type: "vb_shared_set", inputs: { KEY: text("last"), VALUE: { block: { type: "vb_me_name" } } } } } } },
+        // loose blocks outside an event are ignored
+        { type: "vb_msgbox", inputs: { TEXT: text("never") } },
+      ],
+    },
+  }
+  const code = generateVB(state)
+  assert.match(code, /^Dim clicks/m)
+  assert.equal(code.match(/Sub Command1_Click/g).length, 1)
+  const p = load(code, { Label1: { caption: "" }, List1: { type: "ListBox", list: [] }, Command1: { type: "CommandButton" } })
+  await p.run("command1_click")
+  await p.run("command1_click")
+  assert.deepEqual(p.log.errors, [])
+  assert.equal(p.ctls.label1.props.caption, "Clicks: 2")
+  assert.equal(p.ctls.list1.props.list.length, 4)
+  assert.equal(p.shared.get("last"), "Brandon")
+  assert.deepEqual(p.log.msgs, [])
+  assert.deepEqual(eventsFor("Form", []), ["Load", "Click", "KeyDown"])
+})
+
+test("the sandbox can only say a few things to 98ish", () => {
+  assert.deepEqual(checkSandboxMessage({ t: "set", k: "score", v: 3 }), { t: "set", k: "score", v: 3 })
+  assert.deepEqual(checkSandboxMessage({ t: "sound", name: "tada" }), { t: "sound", name: "tada" })
+  assert.deepEqual(checkSandboxMessage({ t: "end", extra: "ignored" }), { t: "end" })
+  for (const bad of [null, "set", [], { t: "open", program: "Notepad" }, { t: "set", k: "a<b>", v: 1 }, { t: "set", k: "x", v: { o: 1 } }, { t: "set", k: "x", v: "y".repeat(9000) }, { t: "set", k: "x", v: Infinity }, { t: "sound", name: "../../x" }, { t: "fetch", url: "https://evil" }]) assert.equal(checkSandboxMessage(bad), null, JSON.stringify(bad)?.slice(0, 40))
+  const err = checkSandboxMessage({ t: "error", message: "x".repeat(900), line: 4.6, fatal: 1 })
+  assert.equal(err.message.length, 300)
+  assert.equal(err.line, 5)
+  assert.equal(sharedBytes({ ab: "cd" }), 2 + 4)
+})
 
 // a pretend form: controls are { __control, type, name, props }
 const fakeHost = (controls = {}, extra = {}) => {

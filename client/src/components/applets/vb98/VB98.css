@@ -1,0 +1,555 @@
+/* Visual Basic 98: the designer (Toolbox, Form, Properties, Code, Blocks) and the runner */
+
+.vbRoot,
+.vbRunner {
+  height: calc(100% - 25px);
+  display: flex;
+  flex-direction: column;
+  background: #c0c0c0;
+  font-family: "Pixelated MS Sans Serif", Arial, sans-serif;
+  font-size: 11px;
+  color: #000;
+  text-align: left;
+  outline: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+.vbRoot input,
+.vbRoot textarea,
+.vbRoot [data-selectable] {
+  user-select: text;
+  -webkit-user-select: text;
+}
+.vbCenter {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 16px;
+  text-align: center;
+}
+
+.vbToolbar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 4px;
+}
+.vbToolbar button {
+  min-width: 0;
+  padding: 0 10px;
+  min-height: 24px;
+}
+.vbRun {
+  font-weight: bold;
+}
+.vbProjName {
+  margin-left: auto;
+  color: #404040;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 40%;
+}
+.vbTabs {
+  flex: none;
+  margin: 0 4px;
+}
+.vbBody {
+  flex: 1;
+  min-height: 0;
+  margin: 0 4px 4px;
+  display: flex;
+  flex-direction: column;
+  padding: 4px;
+}
+
+/* ---- the Form tab: Toolbox | Form | Properties ---- */
+.vbFormTab {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) 224px;
+  gap: 4px;
+}
+.vbToolbox {
+  display: grid;
+  grid-template-columns: repeat(2, 30px);
+  grid-auto-rows: 30px;
+  gap: 2px;
+  align-content: start;
+  padding: 2px;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px grey;
+}
+.vbToolbox.is-row {
+  display: flex;
+  overflow-x: auto;
+  gap: 3px;
+  padding: 3px;
+  grid-column: 1 / -1;
+}
+.vbTool {
+  min-width: 0 !important;
+  width: 30px;
+  height: 30px;
+  padding: 0 !important;
+  display: grid;
+  place-items: center;
+  touch-action: none;
+}
+.vbToolbox.is-row .vbTool {
+  flex: none;
+  width: 38px;
+  height: 38px;
+}
+.vbToolIcon {
+  font-size: 14px;
+  line-height: 1;
+  pointer-events: none;
+}
+.vbFormArea {
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  background: #808080;
+  padding: 10px;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #0a0a0a;
+}
+.vbFormFrame {
+  padding: 3px;
+  display: inline-block;
+}
+.vbFormFrame .title-bar {
+  margin-bottom: 0;
+}
+.vbSurfaceWrap {
+  position: relative;
+  overflow: hidden;
+}
+.vbSurface {
+  position: relative;
+  transform-origin: 0 0;
+  background-image: radial-gradient(#00000055 1px, transparent 1px);
+  background-size: 8px 8px;
+  touch-action: none;
+  overflow: hidden;
+}
+.vbCtl {
+  position: absolute;
+  cursor: move;
+  touch-action: none;
+}
+.vbCtl.is-hidden {
+  opacity: 0.5;
+}
+.vbCtl.is-sel {
+  outline: 1px dashed #000080;
+  outline-offset: 1px;
+}
+.vbHandle {
+  position: absolute;
+  right: -5px;
+  bottom: -5px;
+  width: 9px;
+  height: 9px;
+  background: #000080;
+  cursor: nwse-resize;
+  touch-action: none;
+}
+.vbFormHandle {
+  right: 0;
+  bottom: 0;
+  background: #404040;
+}
+.is-mobile .vbHandle {
+  width: 16px;
+  height: 16px;
+  right: -8px;
+  bottom: -8px;
+}
+.is-mobile .vbFormHandle {
+  right: 0;
+  bottom: 0;
+}
+
+/* control previews (close to the running program's look) */
+.vbPv {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  pointer-events: none;
+  font-family: Tahoma, "MS Sans Serif", Arial, sans-serif;
+  font-size: 11px;
+}
+.vbPvLabel {
+  white-space: pre-wrap;
+  padding: 1px;
+}
+.vbPvButton {
+  display: grid;
+  place-items: center;
+  background: #c0c0c0;
+  box-shadow: inset -1px -1px #0a0a0a, inset 1px 1px #fff, inset -2px -2px grey, inset 2px 2px #dfdfdf;
+  white-space: nowrap;
+}
+.vbPvText,
+.vbPvList,
+.vbPvCombo {
+  background: #fff;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px grey, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+  padding: 3px 4px;
+  white-space: nowrap;
+}
+.vbPvCombo {
+  display: flex;
+  align-items: center;
+  padding-right: 2px;
+}
+.vbPvCombo span {
+  flex: 1;
+}
+.vbPvCombo i {
+  width: 14px;
+  height: 80%;
+  background: #c0c0c0;
+  box-shadow: inset -1px -1px #0a0a0a, inset 1px 1px #fff;
+}
+.vbPvCheck {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.vbPvBox {
+  width: 13px;
+  height: 13px;
+  flex: none;
+  background: #fff;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px grey, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+}
+.vbPvBox.round {
+  border-radius: 50%;
+}
+.vbPvBox.on {
+  background: radial-gradient(#000 30%, #fff 34%);
+}
+.vbPvPic {
+  display: grid;
+  place-items: center;
+}
+.vbPvPic img {
+  max-width: 100%;
+  max-height: 100%;
+}
+.vbEmoji {
+  line-height: 1;
+}
+.vbPvHidden {
+  display: grid;
+  place-items: center;
+  background: #c0c0c0;
+  box-shadow: inset -1px -1px #0a0a0a, inset 1px 1px #fff;
+  font-size: 16px;
+}
+
+/* ---- Properties ---- */
+.vbProps {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.vbPropRows {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  background: #fff;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px grey, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+  padding: 2px;
+}
+.vbPropRow {
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr);
+  align-items: center;
+  border-bottom: 1px solid #e0e0e0;
+  min-height: 22px;
+}
+.vbPropRow.is-tall {
+  align-items: start;
+}
+.vbPropRow > label {
+  padding: 2px 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.vbPropEdit {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 2px;
+}
+.vbPropEdit input[type="text"],
+.vbPropEdit input[type="number"],
+.vbPropEdit textarea {
+  width: 100%;
+  min-width: 0;
+}
+.vbColor {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  width: 100%;
+}
+.vbColor input[type="color"] {
+  flex: none;
+  width: 26px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+}
+.vbFileBtn {
+  flex: none;
+  padding: 2px 6px;
+  background: #c0c0c0;
+  box-shadow: inset -1px -1px #0a0a0a, inset 1px 1px #fff, inset -2px -2px grey, inset 2px 2px #dfdfdf;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.vbDelete {
+  align-self: flex-start;
+}
+
+/* ---- Code ---- */
+.vbCode {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.vbCodeBar {
+  display: flex;
+  gap: 6px;
+}
+.vbCodeBar .selCombo {
+  flex: 1;
+  min-width: 0;
+}
+.vbCodeText {
+  flex: 1;
+  min-height: 120px;
+  width: 100%;
+  font-family: "Courier New", Consolas, monospace;
+  font-size: 13px;
+  line-height: 15px;
+  white-space: pre;
+  overflow: auto;
+  resize: none;
+  tab-size: 2;
+}
+.vbCodeStatus {
+  padding: 2px 4px;
+  min-height: 18px;
+  color: #006000;
+}
+.vbCodeStatus.bad {
+  color: #a00000;
+}
+.vbLink {
+  background: none !important;
+  box-shadow: none !important;
+  border: 0;
+  padding: 0 !important;
+  min-width: 0 !important;
+  color: inherit;
+  text-decoration: underline;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+.vbNote {
+  margin: 0;
+  color: #404040;
+}
+.vbError {
+  color: #a00000;
+}
+
+/* ---- Blocks ---- */
+.vbBlocks {
+  flex: 1;
+  min-height: 240px;
+  position: relative;
+  touch-action: none;
+}
+.vbBlocksAsk p {
+  max-width: 320px;
+}
+
+/* ---- dialogs ---- */
+.vbPickList {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: min(320px, 50vh);
+  overflow-y: auto;
+  background: #fff;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px grey, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+  padding: 3px;
+  min-width: min(300px, 80vw);
+}
+.vbPickList > button {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0 6px;
+  text-align: left;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 4px 6px !important;
+  min-height: 0;
+}
+.vbPickList > button small {
+  grid-column: 1 / -1;
+  color: #404040;
+}
+.vbPickList > button.is-on {
+  background: #000080 !important;
+  color: #fff;
+}
+.vbPickList > button.is-on small {
+  color: #dfdfdf;
+}
+.vbBadge {
+  font-size: 10px;
+  padding: 0 4px;
+  background: #008080;
+  color: #fff;
+  align-self: center;
+}
+.vbSharedRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px;
+  border-bottom: 1px solid #e0e0e0;
+}
+.vbSharedRow > span {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.vbSharedRow small {
+  color: #404040;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.vbField {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+/* ---- the runner ---- */
+.vbRunBar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 4px;
+}
+.vbRunBar button {
+  min-width: 0;
+  padding: 0 8px;
+}
+.vbRunWho {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #404040;
+}
+.vbRunErrs {
+  color: #a00000;
+}
+.vbRunWrap {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  overflow: auto;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 4px;
+}
+.vbRunBox {
+  position: relative;
+  flex: none;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px grey;
+}
+.vbRunFrame {
+  border: 0;
+  display: block;
+  transform-origin: 0 0;
+  background: transparent;
+}
+.vbRunEnded {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  color: #404040;
+}
+.vbRunStalled,
+.vbRunNotice {
+  position: absolute;
+  left: 50%;
+  top: 12px;
+  transform: translateX(-50%);
+  z-index: 5;
+  background: #ffffe1;
+  border: 1px solid #000;
+  padding: 8px 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: calc(100% - 24px);
+}
+.vbRunStalled p {
+  margin: 0;
+}
+.vbRunError {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+/* phones: one thing at a time (Form / Code / Blocks / Properties tabs) */
+.is-mobile .vbFormTab {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+}
+.is-mobile .vbToolbar button {
+  min-height: 34px;
+}
+.is-mobile .vbCodeText {
+  font-size: 16px;
+  line-height: 19px;
+}
+.is-mobile .vbPropRow {
+  grid-template-columns: 90px minmax(0, 1fr);
+  min-height: 36px;
+}
+.is-mobile .vbProps {
+  flex: 1;
+}

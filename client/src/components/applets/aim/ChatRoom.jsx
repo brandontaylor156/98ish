@@ -23,7 +23,7 @@ const ChatRoom = ({ room }) => {
   const openMenu = useCallback((message, x, y) => setPicker({ message, x, y }), [])
   const toggle = useCallback((message, emoji) => aim.react(ck, message, emoji), [ck, aim.react])
   // "Join" on a Watch Together invitation
-  const onAction = useCallback((action) => action.kind === "together" && aim.openTogether({ together: action.id }), [aim.openTogether])
+  const onAction = useCallback((action) => (action.kind === "together" ? aim.openTogether({ together: action.id }) : action.kind === "vb98" && aim.openVbApp(action.id)), [aim.openTogether, aim.openVbApp])
 
   if (!aim.me) return null
 

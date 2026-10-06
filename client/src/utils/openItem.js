@@ -59,6 +59,11 @@ export const openItem = (item, dispatch) => {
     } else dispatch({ type: "open_window", payload: mediaPlayerWindow(song) })
     return true
   }
+  // a Visual Basic 98 program (.vb98): run it
+  if (item.type === "vbapp") {
+    dispatch({ type: "open_window", payload: launch("Visual Basic 98", { name: item.name.replace(/\.vb98$/i, ""), handoff: { id: Date.now(), run: fs.partsOf(item).join("/") } }) })
+    return true
+  }
   // a contact card (.vcf): the Address Book offers to import it
   if (item.type === "vcard") {
     dispatch({ type: "open_window", payload: launch("Address Book", { handoff: { id: Date.now(), importFile: item } }) })
