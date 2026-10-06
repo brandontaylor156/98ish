@@ -200,6 +200,8 @@ const ImWindow = ({ buddy, focusInput }) => {
   const react = (message, emoji) => aim.react(key, message, emoji)
   const openMenu = React.useCallback((message, x, y) => setPicker({ message, x, y }), [])
   const toggleReaction = React.useCallback((message, emoji) => aim.react(key, message, emoji), [key, aim.react])
+  // "Join" on a Watch Together invitation
+  const onAction = React.useCallback((action) => action.kind === "together" && aim.openTogether({ together: action.id }), [aim.openTogether])
   const meKey = keyOf(aim.me?.screenName)
   const status =
     typingText(screenName, convo?.typing) ||
@@ -260,6 +262,17 @@ const ImWindow = ({ buddy, focusInput }) => {
             onError={(text) => setDialog({ kind: "alert", title: "Call", text })}
           />
         )}
+        {key !== keyOf(BOT_NAME) && (
+          <button type="button" className="callStart aimWatch" disabled={blocked} onClick={() => aim.openTogether({ with: screenName, start: true })} title={`Watch YouTube together with ${screenName}`}>
+            <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true">
+              <rect x="1" y="3" width="14" height="10" fill="#000080" stroke="#000" />
+              <rect x="2.5" y="4.5" width="11" height="7" fill="#7fd0ff" />
+              <path d="M7 6.2 L10.2 8 L7 9.8 Z" fill="#fff" />
+              <path d="M5 1 L8 3 L11 1" stroke="#000" fill="none" />
+            </svg>
+            <span>Watch</span>
+          </button>
+        )}
         <span className="aimImWarning">Warning Level: {presence?.warning || 0}%</span>
       </div>
 
@@ -274,7 +287,7 @@ const ImWindow = ({ buddy, focusInput }) => {
       >
         {convo?.loadingOlder && <div className="aimSystem">Loading older messages...</div>}
         {messages.map((message) => (
-          <TranscriptLine key={message.id} message={message} me={aim.me.screenName} meKey={meKey} onMenu={isBot ? undefined : openMenu} onReact={toggleReaction} getBlob={aim.getMediaBlob} onOpenPicture={setViewing} />
+          <TranscriptLine key={message.id} message={message} me={aim.me.screenName} meKey={meKey} onMenu={isBot ? undefined : openMenu} onReact={toggleReaction} getBlob={aim.getMediaBlob} onOpenPicture={setViewing} onAction={onAction} />
         ))}
         {receipt && (
           <div className={`aimReceipt aimReceipt--${receipt.kind}`} role="status">

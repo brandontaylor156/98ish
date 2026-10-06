@@ -210,6 +210,8 @@ export const targetFromParams = (params) => {
     // a note (Notes) or a task (Tasks: a Calendar to-do event) to show
     if (params.get("note")) extra.handoff = { id: Date.now(), note: name("note") }
     else if (params.get("event")) extra.handoff = { id: Date.now(), calendarId: name("cal"), eventId: name("event") }
+    // a Watch Together invitation to join
+    else if (/^[0-9a-f]{20}$/.test(params.get("together") || "")) extra.handoff = { id: Date.now(), together: name("together") }
     return { kind: "program", name: name("name"), extra }
   }
   return null

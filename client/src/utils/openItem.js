@@ -30,6 +30,11 @@ export const openItem = (item, dispatch) => {
     dispatch({ type: "open_window", payload: wordpadWindow(item) })
     return true
   }
+  // a song file: Music 98 plays it (and the rest of its folder after it)
+  if (item.type === "song") {
+    dispatch({ type: "open_window", payload: launch("Music 98", { handoff: { id: Date.now(), play: item.path } }) })
+    return true
+  }
   if (item.type === "sound") {
     dispatch({ type: "open_window", payload: recorderWindow(item) })
     return true

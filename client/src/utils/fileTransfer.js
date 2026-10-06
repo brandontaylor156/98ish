@@ -53,6 +53,8 @@ const exportProblem = (item, text) => {
       return text.startsWith("data:image/") ? null : "This picture is empty."
     case "sound":
       return text.startsWith("data:audio/") ? null : "This sound is empty."
+    case "song":
+      return text.startsWith("data:") ? null : "This song is empty."
     case FILE_TYPE.internet:
       return hyperlinks[item.name] || text ? null : "This shortcut doesn't point anywhere."
     case FILE_TYPE.music:
@@ -82,6 +84,12 @@ export const exportFile = (item, text = item.textContent || "") => {
     case "sound":
       if (!text.startsWith("data:audio/")) return { error: "This sound is empty." }
       return { name: withExt(name, ".wav"), data: dataUrlBytes(text), mime: "audio/wav" }
+    // a Music 98 song: the original file, as it came in (its name keeps its extension)
+    case "song": {
+      if (!text.startsWith("data:")) return { error: "This song is empty." }
+      const mime = text.slice(5, text.indexOf(";")) || "audio/mpeg"
+      return { name: /\.[a-z0-9]{2,5}$/i.test(name) ? name : withExt(name, SONG_EXT[mime] || ".mp3"), data: dataUrlBytes(text), mime }
+    }
     case FILE_TYPE.internet: {
       const url = hyperlinks[item.name] || text
       if (!url) return { error: "This shortcut doesn't point anywhere." }
@@ -171,11 +179,12 @@ const MAX_SOUND_SECONDS = 30
 
 const TEXT_EXT = /\.(txt|text|md|markdown|log|csv|tsv|json|js|mjs|ts|jsx|css|ini|cfg|conf|xml|yml|yaml|bat|cmd|sh|py|c|h|cpp|java|sql|srt|nfo|diz)$/i
 const IMAGE_EXT_RE = /\.(png|jpe?g|gif|webp|bmp)$/i
-const SOUND_EXT = /\.(wav|mp3|ogg|oga|m4a|aac|opus|weba)$/i
+const SOUND_EXT = /\.(wav|mp3|ogg|oga|m4a|aac|opus|weba|flac)$/i
+const SONG_EXT = { "audio/mpeg": ".mp3", "audio/mp4": ".m4a", "audio/aac": ".aac", "audio/wav": ".wav", "audio/ogg": ".ogg", "audio/flac": ".flac", "audio/webm": ".weba" }
 const RICH_EXT = /\.(html?|rtf)$/i
 
 // File picker filter: everything that can come in
-export const UPLOAD_ACCEPT = "text/*,image/png,image/jpeg,image/gif,image/webp,image/bmp,audio/*,.txt,.md,.log,.csv,.json,.ini,.xml,.html,.htm,.rtf,.wav,.mp3,.ogg,.m4a"
+export const UPLOAD_ACCEPT = "text/*,image/png,image/jpeg,image/gif,image/webp,image/bmp,audio/*,.txt,.md,.log,.csv,.json,.ini,.xml,.html,.htm,.rtf,.wav,.mp3,.ogg,.m4a,.aac,.flac,.opus"
 
 // -> "text" | "image" | "sound" | "richtext" | null
 export const uploadKind = (file) => {

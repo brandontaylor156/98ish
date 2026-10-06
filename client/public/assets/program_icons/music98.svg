@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <!-- Music 98: a blue-steel player face (WMP 7 style) with an eighth note and a round play button -->
+  <defs>
+    <linearGradient id="face" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#8da0cc"/>
+      <stop offset="0.5" stop-color="#3c4c7c"/>
+      <stop offset="1" stop-color="#1d2747"/>
+    </linearGradient>
+    <radialGradient id="play" cx="38%" cy="32%" r="70%">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="0.35" stop-color="#b8f0b0"/>
+      <stop offset="1" stop-color="#2f8a2a"/>
+    </radialGradient>
+    <radialGradient id="chrome" cx="40%" cy="30%" r="70%">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="0.5" stop-color="#c9d3e8"/>
+      <stop offset="1" stop-color="#7f8fb4"/>
+    </radialGradient>
+  </defs>
+  <path d="M6 6 Q6 3 9 3 H39 Q44 3 44 8 V34 Q44 44 34 44 H9 Q6 44 6 41 Z" fill="url(#face)" stroke="#0d1530" stroke-width="1.5"/>
+  <rect x="10" y="7" width="30" height="20" rx="2" fill="#0a0f22" stroke="#8da0cc" stroke-width="1"/>
+  <g fill="#7af0ff">
+    <path d="M22 10h12v3.5H25V22h-3z"/>
+    <path d="M31 10h3v10h-3z"/>
+    <ellipse cx="20.5" cy="22.5" rx="3.6" ry="2.6" transform="rotate(-20 20.5 22.5)"/>
+    <ellipse cx="29.5" cy="20.5" rx="3.6" ry="2.6" transform="rotate(-20 29.5 20.5)"/>
+  </g>
+  <circle cx="14" cy="36" r="4" fill="url(#chrome)" stroke="#0d1530"/>
+  <circle cx="34" cy="36" r="4" fill="url(#chrome)" stroke="#0d1530"/>
+  <circle cx="24" cy="35.5" r="6.5" fill="url(#play)" stroke="#0d1530"/>
+  <path d="M22 32.3 L27.5 35.5 L22 38.7 Z" fill="#0d3a0a"/>
+</svg>

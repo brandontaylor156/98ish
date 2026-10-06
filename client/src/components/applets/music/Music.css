@@ -1,0 +1,463 @@
+/* Music 98: a Windows Media Player 7-style skin inside a Windows 98 window */
+.mu {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: #c0c0c0;
+  font-size: 12px;
+  overflow: hidden;
+}
+
+/* Now Playing: WMP 7's brushed blue-steel panel */
+.muNow {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 10px;
+  background: linear-gradient(180deg, #5d6f9a 0%, #2c3a63 55%, #1d2747 100%);
+  color: #fff;
+  border-bottom: 1px solid #0d1530;
+}
+
+.muNowArt {
+  flex: none;
+  box-shadow: 0 0 0 1px #0d1530, 0 0 0 2px #8da0cc;
+}
+
+.muNowText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.muNowTitle {
+  font-weight: bold;
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-shadow: 0 1px 1px #000;
+}
+
+.muNowSub {
+  color: #c9d6f2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.muErr {
+  color: #ffd060;
+}
+
+.muViz {
+  width: 100%;
+  max-width: 260px;
+  height: 36px;
+  background: #0a0f22;
+  border: 1px solid #0d1530;
+  margin-top: 2px;
+}
+
+.muArt {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  object-fit: cover;
+  background: #e0e6f2;
+}
+
+.muSeekRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px 0;
+  background: #1d2747;
+  color: #c9d6f2;
+}
+
+.muSeek {
+  flex: 1;
+  min-width: 0;
+}
+
+.muTime {
+  font-variant-numeric: tabular-nums;
+  font-size: 11px;
+  min-width: 34px;
+  text-align: center;
+}
+
+.muTransport {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px 8px;
+  background: #1d2747;
+  border-bottom: 2px solid #0d1530;
+}
+
+/* WMP 7's round chrome buttons */
+.muTransport button {
+  width: 34px;
+  height: 34px;
+  min-width: 0;
+  padding: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #ffffff 0%, #c9d3e8 35%, #7f8fb4 100%);
+  box-shadow: 0 0 0 1px #0d1530, inset 0 -2px 3px rgba(0, 0, 0, 0.35);
+  color: #1d2747;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.muTransport button:active:not(:disabled) {
+  background: radial-gradient(circle at 50% 60%, #ffffff 0%, #a9b6d6 45%, #63739a 100%);
+}
+
+.muTransport button:disabled {
+  opacity: 0.5;
+}
+
+.muTransport .muPlay {
+  width: 46px;
+  height: 46px;
+  font-size: 18px;
+  font-weight: bold;
+  background: radial-gradient(circle at 35% 30%, #ffffff 0%, #b8f0b0 30%, #3f9a3a 100%);
+}
+
+.muTransport .muToggle {
+  width: 30px;
+  height: 30px;
+  font-size: 13px;
+  opacity: 0.75;
+}
+
+.muTransport .muToggle.is-on {
+  opacity: 1;
+  background: radial-gradient(circle at 35% 30%, #ffffff 0%, #ffe9a0 35%, #d29b1f 100%);
+}
+
+.muBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  padding: 4px 4px 0;
+}
+
+.muTabs {
+  display: flex;
+  gap: 0;
+}
+
+.muTabs button {
+  min-width: 0;
+  padding: 2px 8px;
+  border-bottom: none;
+}
+
+.muTabs button.is-on {
+  font-weight: bold;
+  background: #fff;
+}
+
+.muTools {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  flex: 1;
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+.muTools input {
+  min-width: 0;
+  width: 120px;
+}
+
+.muPrimary {
+  font-weight: bold;
+}
+
+.muBusy {
+  padding: 2px 6px;
+  background: #ffffe1;
+  border: 1px solid #000;
+  margin: 2px 4px;
+}
+
+.muBody {
+  flex: 1;
+  overflow: auto;
+  margin: 4px;
+  background: #fff;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+  padding: 2px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.muList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.muRow {
+  display: flex;
+  align-items: stretch;
+  border-bottom: 1px dotted #d0d0d0;
+}
+
+.muRow.is-now .muTitle {
+  font-weight: bold;
+  color: #000080;
+}
+
+.muRow.is-past {
+  opacity: 0.6;
+}
+
+.muRow.is-pending .muSub::after {
+  content: " · reading...";
+  color: #808080;
+}
+
+.muRowMain {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+  min-height: 34px;
+  padding: 2px 6px;
+  text-align: left;
+  background: transparent;
+  box-shadow: none;
+}
+
+.muRowMain:hover,
+.muRowMain:focus-visible {
+  background: #000080;
+  color: #fff;
+}
+
+.muRowMain:hover .muSub,
+.muRowMain:focus-visible .muSub,
+.muRowMain:hover .muTitle,
+.muRowMain:focus-visible .muTitle {
+  color: #fff;
+}
+
+.muRowText {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.muTitle {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.muSub {
+  color: #606060;
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.muNum {
+  width: 18px;
+  text-align: right;
+  color: #808080;
+  font-variant-numeric: tabular-nums;
+}
+
+.muDur {
+  color: #606060;
+  font-variant-numeric: tabular-nums;
+  font-size: 11px;
+}
+
+.muMore {
+  min-width: 34px;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+  font-weight: bold;
+}
+
+.muGrid {
+  list-style: none;
+  margin: 0;
+  padding: 4px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 8px;
+}
+
+.muGrid button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  width: 100%;
+  padding: 4px;
+  background: transparent;
+  box-shadow: none;
+  min-width: 0;
+}
+
+.muGrid .muTitle,
+.muGrid .muSub {
+  max-width: 100%;
+  text-align: center;
+}
+
+.muHead {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px;
+  border-bottom: 1px solid #c0c0c0;
+}
+
+.muHeadText {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 120px;
+}
+
+.muHeadText small {
+  color: #606060;
+}
+
+.muBack {
+  min-width: 0;
+  padding: 0 8px;
+}
+
+.muAlbumTop {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 4px;
+}
+
+.muAlbumTop .muHead {
+  flex: 1;
+  border-bottom: none;
+}
+
+.muEmpty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 20px 16px;
+  gap: 4px;
+}
+
+.muEmpty p {
+  margin: 2px 0;
+  max-width: 360px;
+}
+
+.muHint {
+  color: #606060;
+  padding: 6px;
+  margin: 0;
+}
+
+.muCheck {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin: 4px 0;
+}
+
+.muEq {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  margin: 2px 0 6px;
+}
+
+.muEq label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.muEq input {
+  width: 100%;
+}
+
+.mu .moreOpts {
+  margin: 0 4px 4px;
+}
+
+.mu--phone {
+  font-size: 14px;
+}
+
+.mu--phone .muTransport button {
+  width: 42px;
+  height: 42px;
+}
+
+.mu--phone .muTransport .muPlay {
+  width: 54px;
+  height: 54px;
+}
+
+.mu--phone .muRowMain {
+  min-height: 44px;
+}
+
+.mu--phone .muTabs button {
+  padding: 4px 7px;
+  min-height: 32px;
+}
+
+.mu--phone .muTools input {
+  width: auto;
+  flex: 1;
+  min-width: 80px;
+}
+
+.muTransport .muToggle {
+  font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
+  text-shadow: none;
+}
+
+.muRowMain:hover .muDur,
+.muRowMain:focus-visible .muDur {
+  color: #fff;
+}
+
+/* phones: the tabs get their own row, then search + Add Songs... */
+.mu--phone .muBar {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.mu--phone .muTabs {
+  overflow-x: auto;
+}
+
+.mu--phone .muTabs button {
+  flex: 1 0 auto;
+}

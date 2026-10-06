@@ -16,6 +16,10 @@ export const programs = [
   { name: "Task Manager", type: "taskmanager", icon: "/assets/program_icons/taskManager-48.png", width: 430, height: 480, group: "System Tools", single: true },
   { name: "Hover", type: "hover", icon: "/assets/program_icons/hover2-48.png", width: 600, height: 600, group: "Games", single: true },
   { name: "Media Player", app: "media", type: "media", icon: "/assets/program_icons/mediaplayer.svg", width: 440, height: 560, group: "Entertainment", desktop: false, single: true },
+  // your own songs (C:\My Music), Windows Media Player 7 style (applets/music)
+  { name: "Music 98", app: "musiclib", type: "musiclib", icon: "/assets/program_icons/music98.svg", width: 520, height: 640, group: "Entertainment", desktop: false, single: true },
+  // a YouTube video in sync with an IM buddy or a chat room (applets/together, server/aim/together.js)
+  { name: "Watch Together", app: "together", type: "together", icon: "/assets/program_icons/together.svg", width: 520, height: 680, group: "Internet", also: ["Entertainment", "Us"], desktop: false, single: true },
   { name: "YouTube '98", type: "video", icon: "/assets/program_icons/video-48.png", width: 820, height: 620, group: "Internet", single: true },
   { name: "My Computer", app: "explorer", icon: "/assets/program_icons/computer_explorer.png", width: 640, height: 440, group: null },
   { name: "Notepad", app: "notepad", type: "notepad", icon: "/assets/note.png", width: 520, height: 420, group: "Accessories" },

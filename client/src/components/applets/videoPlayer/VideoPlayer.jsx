@@ -219,6 +219,15 @@ const VideoPlayer = () => {
             <>
               <button
                 type="button"
+                onClick={() => {
+                  aim.openTogether({ video: share.video.id, title: share.video.title })
+                  setShare(null)
+                }}
+              >
+                Watch Together...
+              </button>{" "}
+              <button
+                type="button"
                 onClick={async () => {
                   const result = await aim.shareVideo(watchUrl(share.video.id))
                   setShare({ ...share, note: result.ok ? "Posted to the 98ish Lobby chat room!" : result.error })

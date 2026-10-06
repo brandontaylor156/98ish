@@ -51,6 +51,8 @@ const SoundRecorder = lazyApp(() => import("../applets/soundRecorder/SoundRecord
 const Pinball = lazyApp(() => import("../applets/pinball/Pinball"))
 const CritterPinball = lazyApp(() => import("../applets/critterpinball/CritterPinball"))
 const MediaPlayer = lazyApp(() => import("../applets/mediaPlayer/MediaPlayer"))
+const Music = lazyApp(() => import("../applets/music/Music"))
+const Together = lazyApp(() => import("../applets/together/Together"))
 const NetWindow = lazyApp(() => import("../applets/network/NetWindow"))
 const Mail = lazyApp(() => import("../applets/mail/Mail"))
 const HomePageStudio = lazyApp(() => import("../applets/homepage/HomePageStudio"))
@@ -847,6 +849,8 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
       {window.app === "lastcard" && <LastCard mobile={mobile} onClose={() => closeWindow(window, index)} />}
       {window.app === "chesspuzzles" && <ChessPuzzles mobile={mobile} onClose={() => closeWindow(window, index)} />}
       {window.app === "imposter" && <Imposter mobile={mobile} onClose={() => closeWindow(window, index)} />}
+      {window.app === "musiclib" && <Music mobile={mobile} handoff={window.handoff} onClose={() => closeWindow(window, index)} />}
+      {window.app === "together" && <Together mobile={mobile} dispatch={dispatch} handoff={window.handoff} onClose={() => closeWindow(window, index)} />}
       {window.app === "hexlands" && <Hexlands mobile={mobile} onClose={() => closeWindow(window, index)} />}
       {window.app === "monsterduel" && <MonsterDuel mobile={mobile} onClose={() => closeWindow(window, index)} />}
       {window.app === "casino" && <Casino program={window.program} mobile={mobile} onClose={() => closeWindow(window, index)} onTitle={rename(index)} />}

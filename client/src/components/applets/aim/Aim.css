@@ -462,6 +462,44 @@
   color: #c00000;
 }
 
+/* "Join" on a Watch Together invitation line */
+.aimSystemAction {
+  font-style: normal;
+  min-width: 0;
+  min-height: 20px;
+  padding: 0 8px;
+  margin-left: 4px;
+}
+
+.os-mobile .aimSystemAction {
+  min-height: 32px;
+}
+
+/* the Watch Together button beside Call / Video Call */
+.aimRoot .aimWatch {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 0 6px;
+  min-height: 23px;
+  flex: none;
+}
+
+.os-mobile .aimRoot .aimWatch {
+  min-height: 36px;
+}
+
+/* phones: Call / Video Call / Watch show just their icons, so the buddy's name fits
+   (the buttons' titles still name them) */
+.os-mobile .aimImHeader .callStart > span:last-child:not(:first-child) {
+  display: none;
+}
+
+.os-mobile .aimImHeader .callStart {
+  min-width: 40px;
+  justify-content: center;
+}
+
 .aimComposer {
   display: flex;
   flex-direction: column;

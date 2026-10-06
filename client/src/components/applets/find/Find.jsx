@@ -29,6 +29,7 @@ const KINDS = [
   ["image", "Picture"],
   ["sound", "Wave Sound"],
   ["music", "MIDI Sequence"],
+  ["song", "Song"],
   ["vcard", "vCard File"],
   ["internet", "Internet Shortcut"],
 ]
