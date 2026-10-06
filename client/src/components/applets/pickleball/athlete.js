@@ -562,9 +562,7 @@ const swayUniforms = () => ({ pkSway: { value: new THREE.Vector3() }, pkFlare: {
 // over it), bent into the lighting normal with screen-space derivatives (three's bump-map
 // math, inlined), fading out as the stitches get smaller than a pixel (no shimmer at the
 // broadcast camera). A soft sheen at grazing angles reads as cloth rather than plastic.
-const KNIT_VERT = ["#include <common>
-varying vec3 vPkRest;", "#include <begin_vertex>
-	vPkRest = position;"]
+const KNIT_VERT = ["#include <common>\nvarying vec3 vPkRest;", "#include <begin_vertex>\n\tvPkRest = position;"]
 const KNIT_FRAG = `
 	{
 		// a jersey knit: rows of little V's (about 2.5 mm), with a slower thread-to-thread wobble
@@ -573,7 +571,11 @@ const KNIT_FRAG = `
 		float v = abs(fract(q.y + abs(fract(across) - 0.5)) - 0.5);
 		float h = v * 2.0 + 0.25 * sin(across * 0.37 + q.y * 0.21);
 		float fade = 1.0 - smoothstep(0.35, 1.2, length(fwidth(q.xy)));
-		vec2 dHdxy = vec2(dFdx(h), dFdy(h)) * (0.0016 * fade);
+		// soft folds and wrinkles (a few cm across, more across the body than down it): what
+		// reads as cloth from the broadcast camera, where the knit itself is under a pixel
+		vec3 w = vPkRest * vec3(21.0, 13.0, 21.0);
+		float folds = sin(w.x * 1.7 + sin(w.y * 1.3) * 1.9) * sin(w.y * 2.3 + w.z * 1.1) + 0.5 * sin(w.z * 3.1 - w.y * 0.7 + sin(w.x * 2.2));
+		vec2 dHdxy = vec2(dFdx(h), dFdy(h)) * (0.0016 * fade) + vec2(dFdx(folds), dFdy(folds)) * 0.018;
 		vec3 vSigmaX = dFdx(-vViewPosition);
 		vec3 vSigmaY = dFdy(-vViewPosition);
 		vec3 R1 = cross(vSigmaY, normal);
@@ -597,8 +599,7 @@ const athleteMaterial = (params, { wrap = "vec3(0.3)", rim = 0.12, key = "pk-clo
     if (knit) {
       sh.vertexShader = sh.vertexShader.replace("#include <common>", KNIT_VERT[0]).replace("#include <begin_vertex>", KNIT_VERT[1])
       sh.fragmentShader = sh.fragmentShader
-        .replace("#include <common>", "#include <common>
-varying vec3 vPkRest;")
+        .replace("#include <common>", "#include <common>\nvarying vec3 vPkRest;")
         .replace("#include <normal_fragment_maps>", "#include <normal_fragment_maps>" + KNIT_FRAG)
         .replace("#include <emissivemap_fragment>", SHEEN_FRAG)
     }
