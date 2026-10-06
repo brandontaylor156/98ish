@@ -439,3 +439,7 @@
 .pkRoot.is-mobile .pkRealBar button {
   min-height: 30px;
 }
+.pkRoot.is-mobile .pkRealBar .pkRealText {
+  flex-basis: calc(100% - 20px);
+  white-space: normal;
+}

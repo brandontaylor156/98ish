@@ -87,18 +87,24 @@ export const presenceStep = (venues, prev, pos) => {
 
 export const samePresence = (a, b) => (!a && !b) || (!!a && !!b && a.id === b.id && (a.area || null) === (b.area || null) && !!a.nearby === !!b.nearby)
 
-// where to stand them in My Park: beside "their" court, on the long side, a step apart from
-// the next friend there (slot); "site" (somewhere else at the venue): null = the entrance
+// where to stand them in My Park: beside "their" court, a step apart from the next friend there
+// (slot 0-3 one long side, 4-7 the other, 8-15 past the baselines: the world tries them in
+// turn for a walkable spot); "site" (somewhere else at the venue): null = the entrance
 export const spotFor = (courts, area, slot = 0) => {
   const m = /^c(\d+)$/.exec(area || "")
   const c = m ? courts?.[Number(m[1])] : null
   if (!c) return null
   const a = ((c.a || 0) * Math.PI) / 180
   // the court's length runs along angle a; its side is across it
-  const half = c.s === "t" ? 9.5 : 5.2
-  const along = (slot % 4) * 1.4 - 2.1
-  const side = slot >= 4 ? -1 : 1
-  return { x: c.x + Math.cos(a) * along - Math.sin(a) * half * side, z: c.z + Math.sin(a) * along + Math.cos(a) * half * side }
+  const u = { x: Math.cos(a), z: Math.sin(a) } // along the court
+  const w = { x: -u.z, z: u.x } // across it
+  const step = (slot % 4) * 1.4 - 2.1
+  const group = Math.floor(slot / 4) % 4
+  // 0, 1: beside the court, either long side; 2, 3: past either baseline
+  const across = c.s === "t" ? 9.5 : 5.2
+  const past = c.s === "t" ? 14 : 8.5
+  const off = group < 2 ? { a: step, w: across * (group ? -1 : 1) } : { a: past * (group === 3 ? -1 : 1), w: step }
+  return { x: c.x + u.x * off.a + w.x * off.w, z: c.z + u.z * off.a + w.z * off.w }
 }
 
 export const friendsAt = (friends, venueId) => {

@@ -1352,10 +1352,10 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
             onMenu={() => setParkUi((u) => ({ ...u, menu: true }))}
           />
         )}
-        {screen === "park" && phase === "world" && parkWorld && !parkUi.menu && !parkUi.turn && (
+        {screen === "park" && phase === "world" && parkWorld && !parkUi.menu && !parkUi.turn && !parkUi.intro && (
           <RealFriendsBar
-            here={realHere.here}
-            nearby={realHere.nearby}
+            here={realHere.here.map((f) => ({ key: f.key, name: f.name, area: f.venue.area }))}
+            nearby={realHere.nearby.map((f) => ({ key: f.key, name: f.name, area: null }))}
             venueName={VENUE_LIST.find((v) => v.id === parkVenueId)?.short || "here"}
             courtName={(area) => {
               const m = /^c(\d+)$/.exec(area || "")

@@ -1060,14 +1060,27 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
       keep.add(key)
       const slot = slots.get(f.area) || 0
       slots.set(f.area, slot + 1)
-      const spot = spotFor(realCourts, f.area, slot) || { x: SPAWN.x + Math.sin(SPAWN.yaw) * 2.5 + Math.cos(SPAWN.yaw) * slot * 1.3, z: SPAWN.z + Math.cos(SPAWN.yaw) * 2.5 - Math.sin(SPAWN.yaw) * slot * 1.3 }
-      const p = resolve(spot.x, spot.z, 0.35)
+      // beside their court: whichever side (or the slot past it) the walkable check moves least
+      let p = null
+      let best = Infinity
+      for (const k of [slot, slot + 4, slot + 8, slot + 12]) {
+        const spot = spotFor(realCourts, f.area, k)
+        if (!spot) break
+        const q = resolve(spot.x, spot.z, 0.35)
+        const d = Math.hypot(q.x - spot.x, q.z - spot.z)
+        if (d < best) {
+          best = d
+          p = q
+        }
+        if (d < 0.6) break
+      }
+      if (!p) p = resolve(SPAWN.x + Math.sin(SPAWN.yaw) * 2.5 + Math.cos(SPAWN.yaw) * slot * 1.3, SPAWN.z + Math.cos(SPAWN.yaw) * 2.5 - Math.sin(SPAWN.yaw) * slot * 1.3, 0.35)
       const m = /^c(\d+)$/.exec(f.area || "")
       const court = m ? realCourts[Number(m[1])] : null
       let b = bodies.get(key)
       if (!b) b = makeBody(key, f.look || null, f.name, { real: true })
       b.name = f.name
-      b.realSub = court ? `here for real · Court ${court.n ?? Number(m[1]) + 1}` : "here for real"
+      b.realSub = court ? `Court ${court.n ?? Number(m[1]) + 1}` : `at ${layout.spec?.short || layout.name || "the venue"}`
       if (Math.hypot(b.x - p.x, b.z - p.z) > 0.5) {
         b.x = p.x
         b.z = p.z

@@ -196,6 +196,9 @@ Estimate: roughly **8-10k US venues** in OSM, comparable to Places2Play's "10,00
 5. Who approves edit suggestions: you (an admin list), or automatic after 2 matching suggestions?
 6. US first, or worldwide from day one (the index grows to roughly 500 KB gzip for the world)?
 
+## Live Venue Presence (2026-10-06)
+Friends who share their location (Buddy Locator) and are physically at one of the seven real venues appear there in My Park, "here for real", beside the court they're on; the picker shows "N friends here now" (+ "N playing in 98ish", `park:counts`); Real Games sessions show who's arrived and offer Check in. Court-level only, decided on the server from the position Buddy Locator already keeps, nothing stored. Full notes, tests and limits: `docs/find-friends.md` "Live Venue Presence".
+
 ## Sources
 - Overpass API and its usage policy: https://wiki.openstreetmap.org/wiki/Overpass_API
 - ODbL Produced Work vs Derivative Database: https://osmfoundation.org/wiki/Licence/Attribution_Guidelines, https://wiki.openstreetmap.org/wiki/Open_Data_License/Use_Cases
