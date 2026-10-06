@@ -282,3 +282,14 @@ test("venues: each real venue has its own parks, its own courts and bounds; unkn
   assert.equal(park.call("pid3", { court: VENUES.smash.courts })?.ok, false)
   park.stop()
 })
+
+test("park:counts: how many are in each real venue's parks (numbers only; Riverside and empty ones left out)", () => {
+  const { park, me } = setup()
+  park.join(me(1), { venue: "loscab" })
+  park.join(me(2), { venue: "loscab" })
+  park.join(me(3), { venue: "smash" })
+  park.join(me(4), {})
+  assert.deepStrictEqual(park.counts(), { ok: true, counts: { loscab: 2, smash: 1 } })
+  park.leave("pid3")
+  assert.deepStrictEqual(park.counts().counts, { loscab: 2 })
+})

@@ -11,7 +11,8 @@ import "./finder.css"
 // sent anywhere). Filters live under More options.
 //
 // onPick(id, place): place is the index row for a Venue Finder venue (null for featured ones),
-// kept in prefs so starred venues show without loading the index.
+// kept in prefs so starred venues show without loading the index. badges: { venueId: text }
+// (Live Venue Presence: "2 friends here now · 3 playing in 98ish").
 
 const describe = (v) => {
   const n = v.courts !== undefined && v.title !== undefined ? courtCount(v) : v.courts
@@ -23,11 +24,16 @@ const describe = (v) => {
   return bits.filter(Boolean).join(" · ")
 }
 
-const Row = ({ v, current, fav, loading, onPick, onFav }) => (
+const Row = ({ v, current, fav, loading, onPick, onFav, badge = "" }) => (
   <li className={v.id === current ? "is-current" : ""}>
     <button type="button" className="pkParkVenueGo" onClick={() => onPick(v)} disabled={!!loading} data-venue={v.id}>
       <b>{v.short || v.title || v.name}</b>
       <small>{describe(v)}</small>
+      {badge && (
+        <small className="pkParkVenueHere" data-here={v.id}>
+          {badge}
+        </small>
+      )}
       {loading === v.id && <small className="pkParkVenueLoading">{v.title ? "Building it from the map..." : "Loading..."}</small>}
     </button>
     <button type="button" className={`pkParkVenueStar${fav ? " is-on" : ""}`} onClick={() => onFav(v)} aria-label={fav ? `Unstar ${v.short || v.title}` : `Star ${v.short || v.title}`} aria-pressed={fav} data-star={v.id}>
@@ -36,7 +42,7 @@ const Row = ({ v, current, fav, loading, onPick, onFav }) => (
   </li>
 )
 
-export const FinderPanel = ({ list = [], places = {}, current = "riverside", favs = [], loading = null, error = null, onPick, onFav, onClose }) => {
+export const FinderPanel = ({ list = [], places = {}, current = "riverside", favs = [], loading = null, error = null, onPick, onFav, onClose, badges = {} }) => {
   const [q, setQ] = useState("")
   const [results, setResults] = useState(null) // null: nothing asked yet
   const [busy, setBusy] = useState(false)
@@ -114,7 +120,7 @@ export const FinderPanel = ({ list = [], places = {}, current = "riverside", fav
             <h4 className="pkFinderH">{busy ? "Looking..." : shown.length ? `${shown.length} venue${shown.length === 1 ? "" : "s"}` : "No venues found"}</h4>
             <ul className="pkParkVenueList" data-finder="results">
               {shown.map((v) => (
-                <Row key={v.id} v={v} current={current} fav={fav.has(v.id)} loading={loading} onPick={pickRow} onFav={favRow} />
+                <Row key={v.id} v={v} current={current} fav={fav.has(v.id)} loading={loading} onPick={pickRow} onFav={favRow} badge={badges[v.id] || ""} />
               ))}
             </ul>
             <MoreOptions id="pickleball.finder" label="Filters" className="pkFinderMore">
@@ -137,7 +143,7 @@ export const FinderPanel = ({ list = [], places = {}, current = "riverside", fav
         )}
         <ul className="pkParkVenueList" data-finder="featured">
           {top.map((v) => (
-            <Row key={v.id} v={v} current={current} fav={fav.has(v.id)} loading={loading} onPick={pickRow} onFav={favRow} />
+            <Row key={v.id} v={v} current={current} fav={fav.has(v.id)} loading={loading} onPick={pickRow} onFav={favRow} badge={badges[v.id] || ""} />
           ))}
         </ul>
         <p className="pkParkCredit">

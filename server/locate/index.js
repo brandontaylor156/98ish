@@ -25,6 +25,11 @@
 // "loc:changed" to my own other devices (they read /state again). Push (category "places")
 // for asks, new shares and arrive/leave alerts when the person is away from 98ish.
 //
+// Live Venue Presence (presence.js): a sharer at one of Pickleball 98's real venues gets a
+// `venue` ({ id, area: "c<court>" | "site" } or { id, nearby } with approximate location) next
+// to their position in /state and "loc:pos", for the same people who may see the position.
+// It's worked out from the latest position and kept in memory only.
+//
 // Privacy: only the LATEST position is kept, never a history; it's dropped when sharing ends,
 // when you pause, and when the last share runs out (a sweep every minute). With approximate
 // location on, the position is snapped to a ~1 km grid before it's kept or sent anywhere.
@@ -42,6 +47,7 @@ const express = require("express")
 const { limiter } = require("../net/limiter")
 const { validate: validateName, normalize } = require("../aim/screenNames")
 const { createLocateStore, memoryStore, blank } = require("./store")
+const { createPresence } = require("./presence")
 
 const WINDOW_MS = 10 * 60_000
 const BOT_KEY = "smarterchild"
@@ -62,7 +68,7 @@ const newId = () => crypto.randomBytes(6).toString("hex")
 
 // aim: 98 Messenger's service ({ sessions, store }), a promise of it, or a function returning
 // either; push: server/push's service (or null)
-const createLocate = ({ aim, store, push = null, now = Date.now, limits = {}, sweepMs = 60_000 } = {}) => {
+const createLocate = ({ aim, store, push = null, now = Date.now, limits = {}, sweepMs = 60_000, presence = createPresence() } = {}) => {
   const storeReady = Promise.resolve(store || createLocateStore())
   storeReady.catch((error) => console.error("[locate] store failed", error))
   const getAim = async () => (typeof aim === "function" ? aim() : aim)
@@ -123,10 +129,10 @@ const createLocate = ({ aim, store, push = null, now = Date.now, limits = {}, sw
       const share = doc.shares.find((x) => x.to === account.key)
       if (!core.shareActive(share, t)) continue
       if (await blockedBetween(doc.key, account.key)) continue
-      friends.push({ key: doc.key, name: doc.name, until: share.until, since: share.since, paused: !!doc.paused, pos: doc.paused ? null : doc.pos })
+      friends.push({ key: doc.key, name: doc.name, until: share.until, since: share.since, paused: !!doc.paused, pos: doc.paused ? null : doc.pos, venue: doc.paused ? null : await presence.of(doc.key, doc.pos) })
     }
     friends.sort((a, b) => a.name.localeCompare(b.name))
-    return { me: meView(mine), friends, now: t }
+    return { me: { ...meView(mine), venue: mine.paused ? null : await presence.of(account.key, mine.pos) }, friends, now: t }
   }
 
   // ---- sharing ----
@@ -188,7 +194,10 @@ const createLocate = ({ aim, store, push = null, now = Date.now, limits = {}, sw
       mine.shares = mine.shares.filter((s) => s.to !== key)
     }
     const core = await loadCore()
-    if (!mine.shares.some((s) => core.shareActive(s, now()))) mine.pos = null
+    if (!mine.shares.some((s) => core.shareActive(s, now()))) {
+      mine.pos = null
+      presence.forget(account.key)
+    }
     await save(mine)
     await goneFor(stopped, account.key, "stopped")
     await emitTo(account.key, "loc:changed", {})
@@ -198,7 +207,10 @@ const createLocate = ({ aim, store, push = null, now = Date.now, limits = {}, sw
   const pause = async (account, { paused } = {}) => {
     const mine = await load(account.key, account.name)
     mine.paused = !!paused
-    if (mine.paused) mine.pos = null
+    if (mine.paused) {
+      mine.pos = null
+      presence.forget(account.key)
+    }
     await save(mine)
     const core = await loadCore()
     const viewers = mine.shares.filter((s) => core.shareActive(s, now())).map((s) => s.to)
@@ -231,10 +243,12 @@ const createLocate = ({ aim, store, push = null, now = Date.now, limits = {}, sw
     const pos = mine.coarse ? { ...core.coarsen(checked.pos), at: t } : { ...checked.pos, at: t }
     mine.pos = pos
     await save(mine)
+    // Live Venue Presence: which real venue (and court) they're at, if any (presence.js)
+    const venue = (await presence.step(account.key, pos)).now
     const s = await storeReady
     for (const share of viewers) {
       if (await blockedBetween(account.key, share.to)) continue
-      await emitTo(share.to, "loc:pos", { key: account.key, name: account.name, pos })
+      await emitTo(share.to, "loc:pos", { key: account.key, name: account.name, pos, venue })
       // the viewer's "tell me when ..." on me
       const viewer = await s.get(share.to)
       for (const watch of viewer?.watches || []) {
@@ -249,7 +263,7 @@ const createLocate = ({ aim, store, push = null, now = Date.now, limits = {}, sw
         pushTo(share.to, { title: `${account.name} ${words}`, body: "Buddy Locator", tag: `loc-${watch.id}`, key: `loc-alert-${watch.id}`, url: `/?open=program&name=Buddy%20Locator` })
       }
     }
-    return { kept: true, pos }
+    return { kept: true, pos, venue }
   }
 
   // ---- asking ----
@@ -343,7 +357,10 @@ const createLocate = ({ aim, store, push = null, now = Date.now, limits = {}, sw
       const done = doc.shares.filter((x) => !core.shareActive(x, t)).map((x) => x.to)
       doc.shares = doc.shares.filter((x) => core.shareActive(x, t))
       doc.asks = doc.asks.filter((a) => a.at >= askBefore)
-      if (!doc.shares.length) doc.pos = null
+      if (!doc.shares.length) {
+        doc.pos = null
+        presence.forget(doc.key)
+      }
       await save(doc)
       await goneFor(done, doc.key, "ended")
       if (done.length) await emitTo(doc.key, "loc:changed", {})
@@ -370,6 +387,7 @@ const createLocate = ({ aim, store, push = null, now = Date.now, limits = {}, sw
     const mine = await s.get(key)
     const viewers = mine ? mine.shares.filter((x) => core.shareActive(x, now())).map((x) => x.to) : []
     const removed = mine ? await s.remove(key) : false
+    presence.forget(key)
     const changed = await s.pullMentions(key)
     await goneFor(viewers, key, "deleted")
     return { removed: removed ? 1 : 0, changed }

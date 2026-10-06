@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from "react"
+import { useLocate } from "../../../utils/locate"
+import { friendsAt } from "../pickleball/park/presence.js"
 import { Select } from "../../shared/select/Combo"
 import Dialog from "../../shared/Dialog"
 import MoreOptions from "../../shared/MoreOptions"
@@ -380,11 +382,26 @@ export const SessionView = ({ session, state, buddies, onBack, onScore, onEdit }
   const canInvite = host || session.open
   const started = Date.now() >= session.start - 30 * 60_000
   const name = (k) => nameFor(session, k, state.names)
+  // Live Venue Presence: who's physically at this session's court right now: friends who share
+  // their location with you (Buddy Locator), and you. Nothing new is shared: it's what your
+  // Buddy Locator already shows you, matched to this venue.
+  const loc = useLocate()
+  const venueId = session.venue?.id || null
+  const meHere = !!venueId && loc.me?.venue?.id === venueId && !loc.me.venue.nearby
+  const liveHere = new Set(venueId ? friendsAt(loc.friends, venueId).here.map((f) => f.key) : [])
+  if (meHere && me) liveHere.add(me)
+  const sessionNow = Date.now() > session.start - 2 * 3_600_000 && Date.now() < session.start + (session.minutes || 120) * 60_000
   const person = (k) => (
     <li key={k}>
       {name(k)}
       {k === session.host ? " (host)" : ""}
       {session.rsvps?.[k]?.late ? <span className="pbLate"> · {core.lateText(session.rsvps[k].late)}</span> : null}
+      {liveHere.has(k) && session.rsvps?.[k]?.late !== "here" ? (
+        <span className="pbHereLive" data-here-live={k}>
+          {" "}
+          · here now
+        </span>
+      ) : null}
     </li>
   )
   const answer = async (s) => {
@@ -446,6 +463,14 @@ export const SessionView = ({ session, state, buddies, onBack, onScore, onEdit }
             I'm here
           </button>
         </div>
+      )}
+      {meHere && sessionNow && (mine === "in" || mine === "waitlist") && session.rsvps?.[me]?.late !== "here" && !session.cancelled && (
+        <p className="pbCheckIn" data-check-in>
+          You're at {core.venueName(session.venue, { short: true })}.{" "}
+          <button type="button" onClick={() => late("here")} data-check-in-btn>
+            Check in
+          </button>
+        </p>
       )}
       {msg && <p className="pbError">{msg}</p>}
       <div className="pbWho">

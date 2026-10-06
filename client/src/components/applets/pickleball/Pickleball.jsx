@@ -33,7 +33,10 @@ import { getClone } from "./twin/clone/store.js"
 import { cloneLevel } from "./twin/clone/profile.js"
 // Real Games (the pickleball you play in real life: sessions, scorekeeper, matches, ladder; applets/pbclub, server/pbclub)
 const RealGames = React.lazy(() => import("../pbclub/PbClub"))
-import { ParkHud, ParkIntro, ParkMenu, ParkResult, ParkTurn } from "./park/ParkHud"
+import { ParkHud, ParkIntro, ParkMenu, ParkResult, ParkTurn, RealFriendsBar } from "./park/ParkHud"
+import { badgeText, friendsAt } from "./park/presence.js"
+import { useLocate } from "../../../utils/locate"
+import { useAim } from "../aim/AimContext"
 // Venue Finder: any pickleball venue on Earth (park/live/)
 import { FinderPanel } from "./park/live/FinderPanel"
 import { isLiveId } from "./park/live/liveVenue.js"
@@ -248,6 +251,17 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
     return { name: online.me?.name || characterById(p.character).nick, look: lookForPlayer(p, { character: p.character, outfit: p.outfit }, "park"), rep: validRep(p.parkRep) }
   }
   const parkNet = usePark({ world: parkWorld, active: !!parkWorld, me: parkWorld ? myParkInfo() : null })
+  // Live Venue Presence (park/presence.js): Buddy Locator friends physically at a real venue.
+  // The server decides who's where ({ id, area }: a venue and a court, nothing finer) and only
+  // for friends who share their location with you; they stand in My Park "here for real".
+  const loc = useLocate()
+  const aim = useAim()
+  const parkVenueId = parkWorld?.venue || null
+  const realHere = React.useMemo(() => (parkVenueId ? friendsAt(loc.friends, parkVenueId) : { here: [], nearby: [] }), [loc.friends, parkVenueId])
+  useEffect(() => {
+    parkWorld?.setReal?.(realHere.here.map((f) => ({ key: f.key, name: f.name, area: f.venue.area })))
+  }, [parkWorld, realHere])
+  const [parkCounts, setParkCounts] = useState({}) // people in each real venue's online parks (the picker's badges)
 
   const later = (fn, ms) => {
     const id = setTimeout(() => {
@@ -577,7 +591,11 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
     }
     const [{ loadVenueSpec }, { venueLayoutSpec }] = await Promise.all([import("./park/venues/index.js"), import("./park/venuegen.js")])
     const spec = await loadVenueSpec(id)
-    return spec ? L.makeLayout(venueLayoutSpec(spec)) : L.RIVERSIDE_LAYOUT
+    if (!spec) return L.RIVERSIDE_LAYOUT
+    const layout = L.makeLayout(venueLayoutSpec(spec))
+    // every court as the venue file has them (Live Venue Presence places real friends by court)
+    layout.rawCourts = spec.courts || []
+    return layout
   }
   const courtVenueRef = useRef(null)
   const getEngine = React.useCallback(() => engineRef.current, [])
@@ -593,6 +611,17 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
   const [parkPick, setParkPick] = useState(false)
   const [parkLoading, setParkLoading] = useState(null)
   const [parkErr, setParkErr] = useState(null) // Venue Finder couldn't build a venue: why
+  // the picker's badges: how many are in each real venue's online parks (numbers only)
+  useEffect(() => {
+    if (!parkPick || !parkNet.request) return
+    let live = true
+    Promise.resolve(parkNet.request("park:counts", {}))
+      .then((r) => live && r?.ok && setParkCounts(r.counts || {}))
+      .catch(() => {})
+    return () => {
+      live = false
+    }
+  }, [parkPick])
   // a Venue Finder venue you picked or starred: kept (small) so it shows without the index
   const keepPlace = (id, place) => {
     if (!place) return
@@ -1323,6 +1352,26 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
             onMenu={() => setParkUi((u) => ({ ...u, menu: true }))}
           />
         )}
+        {screen === "park" && phase === "world" && parkWorld && !parkUi.menu && !parkUi.turn && !parkUi.intro && (
+          <RealFriendsBar
+            here={realHere.here.map((f) => ({ key: f.key, name: f.name, area: f.venue.area }))}
+            nearby={realHere.nearby.map((f) => ({ key: f.key, name: f.name, area: null }))}
+            venueName={VENUE_LIST.find((v) => v.id === parkVenueId)?.short || "here"}
+            courtName={(area) => {
+              const m = /^c(\d+)$/.exec(area || "")
+              const c = m ? parkWorld.layout?.rawCourts?.[Number(m[1])] : null
+              return c ? `Court ${c.n ?? Number(m[1]) + 1}` : ""
+            }}
+            canIm={aim?.status === "online"}
+            onHi={(f) => aim?.sendIm?.(f.name, `I see you at ${VENUE_LIST.find((v) => v.id === parkVenueId)?.short || "the courts"}! Saving you a spot in the virtual park too: Pickleball 98 > My Park.`)}
+            onPlan={() => {
+              const id = parkVenueId
+              leavePark()
+              setClubHandoff({ id: Date.now(), venue: id })
+              setScreen("club")
+            }}
+          />
+        )}
         {screen === "park" && phase === "world" && parkUi.intro && <ParkIntro showPad={showPad} onDone={() => (setPrefs({ parkIntro: true }), setParkUi((u) => ({ ...u, intro: false })))} />}
         {screen === "park" && parkUi.turn && !parkUi.menu && <ParkTurn key={parkUi.turn.court} turn={parkUi.turn} onGo={() => withScheme(() => startParkGame(parkUi.turn))} />}
         {screen === "park" && phase === "world" && parkUi.menu && (
@@ -1354,6 +1403,13 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
         {parkPick && (
           <FinderPanel
             list={VENUE_LIST}
+            badges={Object.fromEntries(
+              VENUE_LIST.map((v) => {
+                const friends = badgeText(friendsAt(loc.friends, v.id))
+                const n = parkCounts[v.id] || 0
+                return [v.id, [friends, n ? `${n} playing in 98ish` : ""].filter(Boolean).join(" · ")]
+              })
+            )}
             places={prefs.parkPlaces || {}}
             current={prefs.parkVenue || "riverside"}
             favs={Array.isArray(prefs.parkFavs) ? prefs.parkFavs : []}
