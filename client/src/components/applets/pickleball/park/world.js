@@ -246,6 +246,7 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
   let netRate = "normal"
   let parkNo = null
   let myNum = null
+  let voiceTalk = new Set() // park numbers whose voice is coming through right now (labels)
   let lastSent = null
   let serverCourts = COURTS.map(() => ({ q: [], g: null }))
 
@@ -399,7 +400,7 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
     return labels[i]
   }
   const proj = new THREE.Vector3()
-  const setLabel = (i, x, y, z, name, sub, say, kind) => {
+  const setLabel = (i, x, y, z, name, sub, say, kind, talk = false) => {
     const L = labelFor(i)
     if (!L) return
     proj.set(x, y, z).project(camera)
@@ -427,6 +428,11 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
     }
     if (L.kind !== kind) {
       L.el.dataset.kind = L.kind = kind
+    }
+    if (L.talk !== talk) {
+      L.talk = talk
+      if (talk) L.el.dataset.talk = "1"
+      else delete L.el.dataset.talk
     }
   }
   const hideLabel = (i) => {
@@ -978,8 +984,9 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
       const remote = b.remote
       const speaking = !!(b.say && clock < b.say.until)
       // (your own name only shows while you say something: the rep is in the menu)
+      const talk = remote && voiceTalk.has(b.num)
       const near = b.isMe ? false : remote ? b.dist < 26 : b.real ? b.dist < 45 : speaking ? b.dist < 18 : b.dist < 6.5 && b.mode === "walk"
-      if (!near && !speaking) continue
+      if (!near && !speaking && !talk) continue
       cand.push(b)
     }
     cand.sort((a, c) => a.dist - c.dist)
@@ -987,7 +994,7 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
       const top = (b.seat ? b.seat.y + 1.25 : 2.12) + (b.y || 0)
       const speaking = b.say && clock < b.say.until ? b.say.text : ""
       const sub = b.isMe ? (me.rep ? repLine(me.rep) : "") : b.remote ? b.repText || "" : b.real ? b.realSub || "" : ""
-      setLabel(i++, b.x, top, b.z, b.isMe ? me.name : b.real ? `${b.name} · here for real` : b.name || "", b.dist < 14 || b.isMe || b.real ? sub : "", speaking, b.isMe ? "me" : b.remote ? "person" : b.real ? "real" : "regular")
+      setLabel(i++, b.x, top, b.z, b.isMe ? me.name : b.real ? `${b.name} · here for real` : b.name || "", b.dist < 14 || b.isMe || b.real ? sub : "", speaking, b.isMe ? "me" : b.remote ? "person" : b.real ? "real" : "regular", !!(b.remote && voiceTalk.has(b.num)))
     }
     for (; i < labels.length; i++) hideLabel(i)
   }
@@ -1134,6 +1141,7 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
   const remoteBody = (r) => {
     const b = makeBody(`n${r.num}`, r.look, r.name, { remote: true })
     b.repText = r.repText
+    b.num = r.num
     return b
   }
   const addRemote = (v) => {
@@ -1519,6 +1527,22 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
       else if (type === "park:go" && d && courts[d.court]) myTurn(courts[d.court], { kind: d.kind === "room" ? "room" : "solo", roomId: d.roomId || null })
       else if (type === "park:rate" && d?.rate) netRate = d.rate
       sendHud(false)
+    },
+    // Spatial voice (utils/voice): where you listen from (your spot, facing the camera's way),
+    // where each person in your park stands (by park number), and, while you're in a court
+    // game with other people, who's on your court
+    voicePlace() {
+      const people = {}
+      const names = {}
+      for (const r of remotes.values()) {
+        names[r.num] = r.name
+        if (!r.body.hidden) people[r.num] = { x: r.body.x, z: r.body.z }
+      }
+      const mine = myNum !== null ? serverCourts.find((c) => c.g && c.g.k === "room" && c.g.p.includes(myNum)) : null
+      return { listener: { x: me.walker.x, z: me.walker.z, yaw: follow.yaw }, people, court: mine ? mine.g.p.filter((n) => n && n !== myNum) : null, me: myNum, names }
+    },
+    setVoiceTalk(nums) {
+      voiceTalk = new Set(nums)
     },
     // where you are in the park and what everyone's doing (tests)
     get info() {

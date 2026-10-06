@@ -97,6 +97,7 @@ Shipped recently (details in the docs): 2026-10-06 overnight: Pickleball 98 titl
 - `keyboard-crash.md`: the headless-Chrome renderer crash investigation (repro `keyboard-crash-repro.mjs`). Read if the crash comes up again.
 - `tetris-mobile.md`: Tetris app-style swipe controls and layout, research and numbers. Read before touching Tetris touch play.
 - `notifications.md`: Notification Center, Web Push (iPhone requirements, triggers, deep links), Do Not Disturb (client + server). Read before adding a toast, push or sound.
+- `voice.md`: spatial voice chat (P2P WebRTC audio, signaling relay `server/voice/relay.js`, `utils/voice/` mesh/session/spatial math) in My Park, Come Over and Watch Together, with the per-ear test numbers. Read before touching voice or the park/hangout/together voice events.
 - `messenger.md`: calls (WebRTC signaling) and Messenger history, pictures, voice, reactions, receipts with caps and tests. Read before changing 98 Messenger.
 - `sharing.md`: Web Share out, share target in, clipboard. Read before adding a "Send To" or receive path.
 - `together-music.md`: Watch & Listen Together (synced YouTube for an IM or chat room: relay `server/aim/together.js`, sync math, invites) and Music 98 (song files, tag reader, library, player, Media Session). Read before touching either, or audio uploads.

@@ -17,10 +17,13 @@
 //   hg:view { app, doc?, scroll?, title? }  (no ack) what you're looking at, for followers
 //   hg:give { to, file: { name, type, data } }  hand someone a file (a data URL / text)
 //   hg:doc { id }             tell the hangout about a document shared with it
+//   hg:vc { on }              -> { ok, on: [key], ice }   voice on/off (spatial by cursor)
+//   hg:sig { to, kind, data } a voice connection message (server/voice/relay.js; the audio
+//                             goes browser to browser over WebRTC, never through here)
 // server -> client
 //   hg:invite { id, from }   hg:state { ...state }   hg:p { k, x, y, t?, f? }
 //   hg:desk { k, snap }   hg:act { from, act }   hg:view { k, ... }   hg:gift { from, file }
-//   hg:doc { id, from, meta }   hg:end { reason }
+//   hg:doc { id, from, meta }   hg:end { reason }   hg:vc { room, on }   hg:sig { room, from, kind, data }
 //
 // Privacy: private programs (Messenger, Mail, Notes, Passwords, Photos...) never show in a
 // visit or a follow, here as well as on the device (PRIVATE_APPS, kept in step with the
@@ -28,6 +31,7 @@
 
 const crypto = require("crypto")
 const { normalize } = require("./screenNames")
+const { createVoiceRelay } = require("../voice/relay")
 
 const MAX_PEOPLE = 4
 const MAX_HANGOUTS = 200
@@ -60,7 +64,8 @@ const unit = (v) => {
   return Number.isFinite(n) ? Math.round(Math.min(1, Math.max(0, n)) * 1000) / 1000 : null
 }
 
-const createHangout = ({ sessions, hidden, emitTo, limiter, pushTo = null, ydocs = null, now = () => Date.now(), lostMs = LOST_MS }) => {
+const createHangout = ({ sessions, hidden, emitTo, limiter, pushTo = null, ydocs = null, ice = null, now = () => Date.now(), lostMs = LOST_MS }) => {
+  const voice = createVoiceRelay({ prefix: "hg", emit: (key, event, payload) => emitTo(key, event, payload), now })
   const live = new Map() // id -> hangout
   const of = new Map() // key -> hangout id (each person is in at most one)
   const inviteLimited = limiter(INVITES_PER_MINUTE, 60_000)
@@ -104,6 +109,7 @@ const createHangout = ({ sessions, hidden, emitTo, limiter, pushTo = null, ydocs
       if (of.get(k) === h.id) of.delete(k)
       emitTo(k, "hg:end", { reason })
     }
+    voice.drop(h.id)
     live.delete(h.id)
   }
 
@@ -118,6 +124,7 @@ const createHangout = ({ sessions, hidden, emitTo, limiter, pushTo = null, ydocs
     h.watching.delete(key)
     for (const [k, v] of h.watching) if (v === key) h.watching.set(k, null)
     of.delete(key)
+    voice.leave(key)
     emitTo(key, "hg:end", { reason })
     if (h.joined.size <= 1 && !h.invited.size) return end(h, "alone")
     changed(h)
@@ -133,6 +140,22 @@ const createHangout = ({ sessions, hidden, emitTo, limiter, pushTo = null, ydocs
   }
 
   const bind = (on) => {
+    on("hg:vc", async (session, { on: want }, ack) => {
+      const h = live.get(of.get(session.key))
+      if (!h || !h.joined.has(session.key)) return ack({ ok: false, error: "You're not in a hangout." })
+      const r = voice.set(h.id, session.key, !!want)
+      if (!r.ok || !want) return ack(r)
+      const cfg = ice ? await ice.config().catch(() => null) : null
+      ack({ ...r, ice: cfg || { iceServers: [{ urls: "stun:stun.l.google.com:19302" }], turn: false } })
+    })
+    on("hg:sig", (session, { to, kind, data }, ack) => {
+      const h = live.get(of.get(session.key))
+      if (!h || typeof to !== "string") return ack({ ok: false, error: "You're not in a hangout." })
+      const a = sessions.get(session.key)
+      const b = sessions.get(to)
+      if (a && b && hidden(a, b)) return ack({ ok: false, error: "They don't have voice on." })
+      ack(voice.signal(h.id, session.key, to, { kind, data }))
+    })
     on("hg:invite", (session, { to }, ack) => {
       const key = normalize(String(to || ""))
       const target = sessions.get(key)
@@ -313,7 +336,7 @@ const createHangout = ({ sessions, hidden, emitTo, limiter, pushTo = null, ydocs
     for (const h of [...live.values()]) end(h, "server")
   }
 
-  return { bind, leave, dropped, resumed, blocked, close, live, of }
+  return { bind, leave, dropped, resumed, blocked, close, live, of, voice }
 }
 
 // a desktop as others may see it: wallpaper, icons and windows; private programs keep no title

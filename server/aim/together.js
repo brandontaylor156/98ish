@@ -21,15 +21,20 @@
 //   tg:say { id, text }                 the chat strip under the video
 //   tg:time {}                          -> { ok, now } (clients estimate their clock offset)
 //   tg:mine {}                          -> { ok, sessions: [...] } open sessions you can join
+//   tg:vc { id, on }                    -> { ok, on: [key], ice }   voice chat on/off
+//   tg:sig { id, to, kind, data }       a voice connection message (server/voice/relay.js; the
+//                                       audio goes browser to browser, never through here)
 // server -> client
 //   tg:invite { id, from, with?, room?, title }   tg:state { id, ...state }
 //   tg:react { id, from, emoji }   tg:say { id, line }   tg:end { id, reason }
+//   tg:vc { room: id, on: [key] }   tg:sig { room: id, from, kind, data }
 //
 // Who may join: in an IM session the two people in the conversation (neither blocking the
 // other); in a chat-room session whoever is in that room right now.
 
 const crypto = require("crypto")
 const { validate, normalize } = require("./screenNames")
+const { createVoiceRelay } = require("../voice/relay")
 
 const MAX_SESSIONS = 300 // all of them, server-wide (each is a few KB of memory)
 const MAX_HOSTED = 3 // per person
@@ -59,7 +64,8 @@ const cleanPos = (value) => {
   return Number.isFinite(n) && n >= 0 && n < 48 * 3600 ? n : null
 }
 
-const createTogether = ({ sessions, hidden, emitTo, limiter, rooms, botKey = null, pushTo = null, now = () => Date.now(), lostMs = LOST_MS, emptyMs = EMPTY_MS, idleMs = IDLE_MS }) => {
+const createTogether = ({ sessions, hidden, emitTo, limiter, rooms, botKey = null, pushTo = null, ice = null, now = () => Date.now(), lostMs = LOST_MS, emptyMs = EMPTY_MS, idleMs = IDLE_MS }) => {
+  const voice = createVoiceRelay({ prefix: "tg", emit: (key, event, payload) => emitTo(key, event, payload), now, maxPerRoom: 8 })
   const live = new Map() // id -> session
   const byConv = new Map() // "im:a|b" or "room:<key>" -> id
   const cmdLimited = limiter(COMMANDS_PER_10S, 10_000)
@@ -118,6 +124,7 @@ const createTogether = ({ sessions, hidden, emitTo, limiter, rooms, botKey = nul
     clearTimeout(s.emptyTimer)
     for (const entry of s.joined.values()) clearTimeout(entry.lostTimer)
     broadcast(s, "tg:end", { id: s.id, reason })
+    voice.drop(s.id)
     live.delete(s.id)
     if (byConv.get(s.conv) === s.id) byConv.delete(s.conv)
   }
@@ -133,6 +140,7 @@ const createTogether = ({ sessions, hidden, emitTo, limiter, rooms, botKey = nul
     if (!entry) return
     clearTimeout(entry.lostTimer)
     s.joined.delete(key)
+    voice.set(s.id, key, false)
     if (s.host === key) handOff(s)
     if (s.joined.size === 0) {
       clearTimeout(s.emptyTimer)
@@ -205,6 +213,22 @@ const createTogether = ({ sessions, hidden, emitTo, limiter, rooms, botKey = nul
   }
 
   const bind = (on) => {
+    on("tg:vc", async (session, { id, on: want }, ack) => {
+      const s = find(session, id)
+      if (!s) return ack({ ok: false, error: "You're not watching that." })
+      const r = voice.set(s.id, session.key, !!want)
+      if (!r.ok || !want) return ack(r)
+      const cfg = ice ? await ice.config().catch(() => null) : null
+      ack({ ...r, ice: cfg || { iceServers: [{ urls: "stun:stun.l.google.com:19302" }], turn: false } })
+    })
+    on("tg:sig", (session, { id, to, kind, data }, ack) => {
+      const s = find(session, id)
+      if (!s || typeof to !== "string") return ack({ ok: false, error: "You're not watching that." })
+      const a = sessions.get(session.key)
+      const b = sessions.get(to)
+      if (a && b && hidden(a, b)) return ack({ ok: false, error: "They don't have voice on." })
+      ack(voice.signal(s.id, session.key, to, { kind, data }))
+    })
     on("tg:time", (session, payload, ack) => ack({ ok: true, now: now() }))
 
     on("tg:mine", (session, payload, ack) => {
@@ -467,7 +491,7 @@ const createTogether = ({ sessions, hidden, emitTo, limiter, rooms, botKey = nul
     for (const s of [...live.values()]) end(s, "closed")
   }
 
-  return { bind, dropped, resumed, leaveAll, leftRoom, blocked, close, live, position }
+  return { bind, dropped, resumed, leaveAll, leftRoom, blocked, close, live, position, voice }
 }
 
 module.exports = { createTogether, REACTIONS, RATES, MAX_QUEUE, MAX_SESSIONS }

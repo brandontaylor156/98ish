@@ -356,3 +356,38 @@ test("sanitizeSnapshot keeps only safe pictures and hides private windows", () =
   const m = sanitizeSnapshot({ windows: [{ title: "98 Messenger" }, { app: "aim-im", title: "Theo - Instant Message" }, { app: "notepad", title: "a.txt" }] })
   assert.deepEqual(m.windows.map((w) => w.title), ["Private window", "Private window", "a.txt"])
 })
+
+test("voice in a hangout: on/off with ICE, signals only between people in it with voice on", { skip }, async () => {
+  const { user, close } = await setup()
+  try {
+    const rosie = await user("Rosie")
+    const theo = await user("Theo")
+    const eve = await user("Eve")
+    assert.equal((await rosie.ask("hg:vc", { on: true })).ok, false, "not in a hangout yet")
+    const invited = theo.next("hg:invite")
+    await rosie.ask("hg:invite", { to: "Theo" })
+    const { id } = await invited
+    await theo.ask("hg:join", { id })
+    const on = await rosie.ask("hg:vc", { on: true })
+    assert.equal(on.ok, true, on.error)
+    assert.deepEqual(on.ice, { iceServers: [], turn: false })
+    const list = rosie.next("hg:vc")
+    await theo.ask("hg:vc", { on: true })
+    assert.deepEqual((await list).on, ["rosie", "theo"])
+    const sig = theo.next("hg:sig")
+    assert.equal((await rosie.ask("hg:sig", { to: "theo", kind: "offer", data: { sdp: "v=0\r\n" } })).ok, true)
+    const got = await sig
+    assert.equal(got.from, "rosie")
+    assert.equal(got.kind, "offer")
+    // someone outside the hangout can't signal into it or be signalled
+    assert.equal((await eve.ask("hg:sig", { to: "rosie", kind: "bye" })).ok, false)
+    assert.equal((await rosie.ask("hg:sig", { to: "eve", kind: "bye" })).ok, false)
+    // Theo leaves the hangout: his voice goes off
+    const after = rosie.next("hg:vc")
+    await theo.ask("hg:leave", {})
+    const l = await after
+    assert.ok(!l.on.includes("theo"))
+  } finally {
+    await close()
+  }
+})

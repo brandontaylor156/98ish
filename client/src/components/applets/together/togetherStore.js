@@ -7,6 +7,8 @@
 
 import { useSyncExternalStore } from "react"
 import { offsetFrom } from "./syncCore"
+import { createVoiceSession } from "../../../utils/voice/session.js"
+import { duckStep } from "../../../utils/voice/spatial.js"
 
 const EMPTY = { id: null, state: null, chat: [], reactions: [], offset: 0, error: null, ended: null, joining: false }
 let snap = EMPTY
@@ -89,6 +91,7 @@ export const join = async (id) => {
 export const leave = async () => {
   const id = snap.id
   if (!id) return
+  stopVoice()
   set({ ...EMPTY, offset: snap.offset })
   await ask("tg:leave", { id })
 }
@@ -107,6 +110,10 @@ export const dismissEnded = () => set({ ended: null })
 
 // server events (forwarded by AimContext)
 export const handleTogetherEvent = (event, payload) => {
+  if ((event === "tg:vc" || event === "tg:sig") && payload) {
+    for (const fn of voiceEvents.get(event) || []) fn(payload)
+    return
+  }
   if (!payload || payload.id !== snap.id) return
   if (event === "tg:state") {
     // newer only (events can cross an ack)
@@ -119,11 +126,78 @@ export const handleTogetherEvent = (event, payload) => {
     set({ reactions: [...snap.reactions, r].slice(-24) })
     setTimeout(() => set({ reactions: snap.reactions.filter((x) => x !== r) }), 2600)
   } else if (event === "tg:end") {
+    stopVoice()
     set({ ...EMPTY, offset: snap.offset, ended: { reason: payload.reason, title: snap.state?.queue?.[snap.state.index]?.title || "" } })
   }
 }
 
-export const TOGETHER_EVENTS = ["tg:state", "tg:say", "tg:react", "tg:end"]
+export const TOGETHER_EVENTS = ["tg:state", "tg:say", "tg:react", "tg:end", "tg:vc", "tg:sig"]
+
+// ---- voice chat (utils/voice): talk while you watch; the video dips while someone talks ----
+const voiceEvents = new Map([
+  ["tg:vc", new Set()],
+  ["tg:sig", new Set()],
+])
+let voice = null // { id, session }
+let voiceState = { status: "off", peers: {}, on: [], duck: 1 }
+const voiceListeners = new Set()
+const voiceSet = (s) => {
+  voiceState = { ...voiceState, ...s }
+  voiceListeners.forEach((fn) => fn())
+}
+let duckTimer = null
+const voiceFor = () => {
+  if (!snap.id) return null
+  if (voice?.id === snap.id) return voice.session
+  voice?.session.stop()
+  const id = snap.id
+  const space = {
+    get me() {
+      return meKey()
+    },
+    mode: "flat",
+    join: (on) => ask("tg:vc", { id, on }),
+    send: (to, kind, data) => ask("tg:sig", { id, to, kind, data }),
+    listen: (onList, onSignal) => {
+      const a = (d) => d.room === id && onList(d.on || [])
+      const b = (d) => d.room === id && onSignal(d.from, d.kind, d.data)
+      voiceEvents.get("tg:vc").add(a)
+      voiceEvents.get("tg:sig").add(b)
+      return () => (voiceEvents.get("tg:vc").delete(a), voiceEvents.get("tg:sig").delete(b))
+    },
+  }
+  const session = createVoiceSession({ space })
+  session.subscribe((s) => voiceSet(s))
+  voice = { id, session }
+  // the video's volume dips while anyone else talks (fast down, slow back up)
+  clearInterval(duckTimer)
+  let last = performance.now()
+  duckTimer = setInterval(() => {
+    const now = performance.now()
+    const talking = Object.values(voiceState.peers || {}).some((p) => p.talking)
+    const duck = duckStep(voiceState.duck, voiceState.status === "on" && talking, (now - last) / 1000)
+    last = now
+    if (Math.abs(duck - voiceState.duck) > 0.005) voiceSet({ duck })
+  }, 100)
+  return session
+}
+export const voiceSession = () => voiceFor()
+export const toggleVoice = () => {
+  const s = voiceFor()
+  if (!s) return
+  if (s.state.status === "off" || s.state.status === "error") s.start()
+  else s.stop()
+}
+function stopVoice() {
+  voice?.session.stop()
+  voice = null
+  clearInterval(duckTimer)
+  duckTimer = null
+  voiceSet({ status: "off", peers: {}, on: [], talking: false, duck: 1 })
+}
+const subscribeVoice = (fn) => (voiceListeners.add(fn), () => voiceListeners.delete(fn))
+const voiceSnapshot = () => voiceState
+export const useTogetherVoice = () => useSyncExternalStore(subscribeVoice, voiceSnapshot, voiceSnapshot)
 
 // tests
 export const resetTogether = () => {

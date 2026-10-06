@@ -185,6 +185,7 @@ export const topics = [
           "Paste more links to fill **Up Next**. More options shows the list: tap one to play it, move it up or down, or remove it.",
           "More options also has **Speed**, **Anyone can control the video** (the host can turn it off so only they control it), **Mini player**, and **End for Everyone** for the host.",
           "If the host leaves, whoever has been watching longest becomes the host. **Leave** takes you out; the others keep watching.",
+          "**🎙 Voice** at the top turns on [[voice-chat|voice chat]]: the video turns down while someone talks.",
         ],
       },
       { phone: "On iPhone, the first video may need one tap: press **Tap to join the video** (or the video itself). YouTube stops when 98ish goes to the background or the screen locks; that's an iPhone rule for videos in web pages. Keep 98ish open on screen while you watch.", computer: "You can keep watching in the window while you do other things in 98ish." },
@@ -219,6 +220,7 @@ export const topics = [
           "**Work on the same thing**: in Notepad or Paint, **File > Share with Friends Here**. Everyone types or draws at once and sees each other's typing (with colored carets) and strokes as they happen. **Undo** undoes only your own changes. Changes made while offline join the others' when you're back. Come Over > Shared lists everything shared.",
           "**Shared with Friends folder**: Come Over > Shared > Make a shared folder. Anyone in it adds files (from Drive C:, by dragging from My Computer, or from your device), up to 1 MB each and 6 MB in all.",
           "**Hand a file**: drag a file from My Computer onto a friend's dot on the taskbar (or onto their pointer's name). It lands on their desktop.",
+          "**Talk**: the **🎙** on the taskbar strip turns on [[voice-chat|voice chat]]; a friend's voice comes from the side their pointer is on.",
         ],
       },
       { h: "Privacy" },
@@ -229,6 +231,26 @@ export const topics = [
       { open: "Come Over", label: "Open Come Over" },
     ],
     related: ["buddy-locator", "watch-together", "notepad", "paint"],
+  },
+  {
+    id: "voice-chat",
+    book: "internet",
+    title: "Voice chat (hear friends where they are)",
+    summary: "Talk out loud with friends in My Park, Come Over and Watch Together. In My Park you hear people from where they stand: louder up close, from the left or the right.",
+    keywords: ["voice", "voice chat", "talk", "microphone", "mic", "spatial audio", "proximity chat", "push to talk", "mute", "hear friends", "party chat"],
+    body: [
+      "Voice chat is off until you turn it on, and asks for your microphone the first time. While it's on, a **mic** shows on screen: tap it to mute or unmute yourself.",
+      {
+        list: [
+          "**My Park** (Pickleball 98): open the park menu (☰) and press **Voice: Off** to turn it on. You hear the people near you who have voice on, **from where they stand**: louder up close, fading out by about 15 meters, from your left or right as you turn. A green dot by a name shows who's talking. **Push to talk** (in the menu) sends your voice only while you hold **Hold to talk**. **Mute** next to a name silences that person for you. In a court game with other people, your court-mates come through clearly and the rest of the park quietly.",
+          "**Come Over**: press the **🎙** on the taskbar strip (or Voice Chat in its menu). A friend's voice comes from the side their pointer is on. Turn **Spatial Sound** off in the menu to hear everyone in the middle.",
+          "**Watch Together**: press **🎙 Voice** at the top. The video turns down while someone talks and comes back after.",
+        ],
+      },
+      { phone: "On iPhone, 98ish has to be open on screen to talk: when it goes to the background the microphone stops and the mic says **Voice paused**; it starts again when you're back. Use headphones to keep your friends' voices out of your microphone.", computer: "Headphones keep your friends' voices out of your microphone." },
+      { note: "Your voice goes straight from your device to your friends' devices; it's never recorded or saved, and the 98ish server only passes along the setup messages. On networks that block direct connections, voice can't connect unless the 98ish server has a relay set up (see [[privacy-third-parties]])." },
+    ],
+    related: ["come-over", "watch-together", "pickleball", "privacy-server"],
   },
   {
     id: "buddy-locator",
