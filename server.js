@@ -3,7 +3,7 @@
 // couples (server/couples: pairing, love letters, Our Story, flowers), Shared Albums
 // (server/albums), and shared
 // calendars (server/calendar), Web Push notifications (server/push), the Address Book's
-// online copy (server/contacts), Notes (server/notes), Buddy Locator (server/locate), and Compass's web relay (server/web: WEB_* env vars, see there).
+// online copy (server/contacts), Notes (server/notes), Buddy Locator (server/locate), Pickleball Club 98 (server/pbclub), and Compass's web relay (server/web: WEB_* env vars, see there).
 // Env: PORT, MONGODB_URI (accounts, guestbook and online drives; kept in memory without it),
 // VAPID_PUBLIC_KEY + VAPID_PRIVATE_KEY + VAPID_SUBJECT (push notifications; off without them),
 // DRIVE_SYNC_QUOTA_MB and DRIVE_SYNC_MAX_FILE_MB (file sync, see server/drive/sync.js),
@@ -35,6 +35,7 @@ const { contactsRouter } = require("./server/contacts")
 const { notesService } = require("./server/notes")
 const { albumsService } = require("./server/albums")
 const { locateService } = require("./server/locate")
+const { clubService } = require("./server/pbclub")
 const { createWeb } = require("./server/web")
 const { defaultRecords } = require("./server/web/records")
 const { refuseOpaqueOrigins, allowSocketRequest } = require("./server/web/origins")
@@ -87,6 +88,10 @@ app.use("/api/albums", albums.router())
 const locate = locateService({ aim: () => aim, push })
 app.use("/api/locate", locate.router())
 locate.start()
+// Pickleball Club 98 (real-life matches, friends' ratings, play sessions)
+const pbclub = clubService({ aim: () => aim, push })
+app.use("/api/pbclub", pbclub.router())
+pbclub.start()
 const dollhouse = dollhouseRouter()
 app.use("/api/dollhouse", dollhouse)
 const town = townRouter()
@@ -147,6 +152,7 @@ const eraser = createAccountEraser()
   .add("contacts", (ctx) => contacts.eraseAccount(ctx))
   .add("notes", (ctx) => notes.eraseAccount(ctx))
   .add("locations", (ctx) => locate.eraseAccount(ctx))
+  .add("pickleball", (ctx) => pbclub.eraseAccount(ctx))
   .add("mail", (ctx) => mail.eraseAccount(ctx))
   .add("puzzles", (ctx) => puzzles.eraseAccount(ctx))
   .add("quiz", (ctx) => quiz.eraseAccount(ctx))

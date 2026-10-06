@@ -31,6 +31,7 @@ export const imageMapper = {
   song: "program_icons/song.svg",
   together: "program_icons/together.svg",
   locator: "program_icons/locator.svg",
+  pbclub: "program_icons/pbclub.svg",
   music: "program_icons/midi.svg",
   hearts: "program_icons/hearts.svg",
   wordpad: "program_icons/wordpad.svg",

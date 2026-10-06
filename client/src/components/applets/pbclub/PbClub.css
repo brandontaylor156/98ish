@@ -1,0 +1,570 @@
+/* Pickleball Club 98: a gray 98 window with tabs; the scorekeeper gets thumb-sized buttons */
+
+.pbRoot {
+  --pb-a: #1f5fbf;
+  --pb-b: #b0301f;
+  --pb-navy: #000080;
+  position: relative;
+  height: calc(100% - 25px);
+  display: flex;
+  flex-direction: column;
+  background: #c0c0c0;
+  font-family: "Pixelated MS Sans Serif", Arial, sans-serif;
+  font-size: 11px;
+  color: #000;
+  text-align: left;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.pbRoot input,
+.pbRoot textarea,
+.pbRoot [data-selectable] {
+  user-select: text;
+  -webkit-user-select: text;
+}
+.pbTabs {
+  margin: 4px 4px 0;
+  flex: none;
+}
+.pbTabs a {
+  white-space: nowrap;
+}
+.pbPanel {
+  flex: 1;
+  min-height: 0;
+  margin: 0 4px 4px;
+  display: flex;
+  flex-direction: column;
+}
+.pbBody {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.pbH {
+  margin: 6px 0 2px;
+  font-size: 12px;
+  font-weight: bold;
+}
+.pbMuted {
+  color: #555;
+  margin: 2px 0;
+}
+.pbError {
+  color: #a00000;
+  margin: 4px 0;
+}
+.pbNote {
+  background: #ffffe1;
+  border: 1px solid #808080;
+  padding: 4px 6px;
+  margin: 2px 0;
+  white-space: pre-wrap;
+}
+.pbBannerInfo {
+  background: #ffffe1;
+  border: 1px solid #808080;
+  padding: 6px;
+  margin: 0;
+}
+.pbSaved {
+  background: #e6ffe6;
+  border: 1px solid #2a7a2a;
+  padding: 6px;
+  margin: 0;
+}
+.pbButtons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 2px 0;
+}
+.pbLinkBtn {
+  display: inline-flex;
+  align-items: center;
+  min-height: 23px;
+  padding: 0 8px;
+  background: #c0c0c0;
+  color: #000;
+  text-decoration: none;
+  box-shadow: inset -1px -1px #0a0a0a, inset 1px 1px #fff, inset -2px -2px #808080, inset 2px 2px #dfdfdf;
+}
+.pbBig {
+  min-height: 40px;
+  font-size: 13px;
+  font-weight: bold;
+}
+.pbPrimary {
+  font-weight: bold;
+}
+.pbBig.is-on {
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #0a0a0a, inset -2px -2px #dfdfdf, inset 2px 2px #808080;
+  background: #d8e4ff;
+}
+.pbList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.pbCheck {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* sessions */
+.pbSessionRow {
+  width: 100%;
+  min-height: 46px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  padding: 4px 8px;
+  text-align: left;
+}
+.pbSessionRow.is-cancelled {
+  color: #808080;
+}
+.pbSessionTitle {
+  font-weight: bold;
+  font-size: 12px;
+}
+.pbSessionMeta {
+  color: #333;
+}
+.pbBack {
+  align-self: flex-start;
+}
+.pbFacts {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.pbRsvp {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 4px;
+}
+.pbLateRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+.pbLateRow button[aria-pressed="true"],
+.pbSeg button[aria-pressed="true"] {
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #0a0a0a, inset -2px -2px #dfdfdf, inset 2px 2px #808080;
+}
+.pbLate {
+  color: #a05000;
+}
+.pbWho {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 18px;
+}
+.pbWho ul,
+.pbWho ol {
+  margin: 2px 0;
+  padding-left: 18px;
+}
+.pbChat {
+  border-top: 1px solid #808080;
+  padding-top: 4px;
+}
+.pbChatList {
+  list-style: none;
+  margin: 2px 0;
+  padding: 4px;
+  background: #fff;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080;
+  max-height: 140px;
+  overflow-y: auto;
+  min-height: 24px;
+}
+.pbChatForm {
+  display: flex;
+  gap: 4px;
+}
+.pbChatForm input {
+  flex: 1;
+  min-width: 0;
+}
+.pbCourts {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border-top: 1px solid #808080;
+  padding-top: 4px;
+}
+.pbRoundHead {
+  font-weight: bold;
+}
+.pbCourtCard {
+  background: #dfe9f5;
+  border: 1px solid #808080;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.pbVs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+}
+.pbSide {
+  min-height: 32px;
+}
+.pbSide.is-winner {
+  background: #c8f0c8;
+  font-weight: bold;
+}
+.pbSide:disabled {
+  color: #000;
+  text-shadow: none;
+}
+.pbRoundTools {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.pbRoundTools select {
+  flex: 1;
+  min-width: 140px;
+}
+.pbGroups {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  align-items: center;
+}
+.pbGroup.is-a {
+  background: #dfe9ff;
+}
+.pbGroup.is-b {
+  background: #ffe4dc;
+}
+.pbEditor {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: min(300px, 78vw);
+  max-height: 62vh;
+  overflow-y: auto;
+}
+.pbEditor label,
+.pbOpts label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.pbEditor label.pbCheck,
+.pbOpts label.pbCheck {
+  flex-direction: row;
+}
+.pbRow2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+.pbInviteList {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+/* courts (venues) */
+.pbVenue {
+  background: #fff;
+  border: 1px solid #808080;
+  padding: 5px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.pbVenueName {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 8px;
+  align-items: baseline;
+}
+
+/* scorekeeper: setup */
+.pbSetup {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.pbTeam {
+  border-color: var(--team, #808080);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.pbTeam legend {
+  color: var(--team, #000);
+  font-weight: bold;
+}
+.pbPick {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.pbPick select {
+  flex: 1;
+  min-width: 140px;
+}
+.pbPick input {
+  flex: 1;
+  min-width: 120px;
+}
+.pbOpts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+/* scorekeeper: the game */
+.pbScore {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 100%;
+}
+.pbScoreHead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #000;
+  color: #ffd84a;
+  padding: 4px 10px;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080;
+}
+.pbCall {
+  font-family: "Courier New", monospace;
+  font-weight: bold;
+  font-size: 40px;
+  line-height: 1;
+  letter-spacing: 2px;
+}
+.pbScoreMeta {
+  display: flex;
+  flex-direction: column;
+  color: #ddd;
+  font-size: 11px;
+}
+.pbBanner {
+  background: var(--pb-navy);
+  color: #fff;
+  font-weight: bold;
+  font-size: 14px;
+  text-align: center;
+  padding: 4px;
+}
+.pbCourtWrap {
+  display: flex;
+  justify-content: center;
+}
+.pbCourt {
+  width: 100%;
+  max-width: 260px;
+  max-height: 34vh;
+  display: block;
+}
+.pbRallies {
+  display: grid;
+  grid-template-rows: 1fr 1fr;
+  gap: 6px;
+  flex: 1;
+  min-height: 150px;
+}
+.pbRally {
+  min-height: 72px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  border-left: 8px solid var(--team, #808080);
+  touch-action: manipulation;
+}
+.pbRallyNames {
+  font-size: 16px;
+  font-weight: bold;
+  color: var(--team, #000);
+}
+.pbRallySub {
+  font-size: 11px;
+  color: #333;
+}
+.pbOver {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+}
+.pbScoreTools {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.pbScoreTools button {
+  flex: 1;
+  min-height: 32px;
+}
+
+/* matches */
+.pbMatch {
+  background: #fff;
+  border: 1px solid #808080;
+  padding: 4px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.pbMatch.is-focus {
+  outline: 2px solid var(--pb-navy);
+}
+.pbMatch[data-status="pending"] .pbMatchStatus,
+.pbMatch[data-status="removing"] .pbMatchStatus {
+  color: #a05000;
+}
+.pbMatch[data-status="disputed"] .pbMatchStatus {
+  color: #a00000;
+}
+.pbMatchTop {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.pbMatchScore {
+  font-weight: bold;
+  font-size: 12px;
+}
+.pbMatchDate {
+  color: #555;
+  margin-left: auto;
+}
+.pbWL {
+  display: inline-block;
+  width: 16px;
+  text-align: center;
+  color: #fff;
+  font-weight: bold;
+}
+.pbWL.is-w,
+.pbForm .is-w {
+  background: #2a7a2a;
+}
+.pbWL.is-l,
+.pbForm .is-l {
+  background: #a03020;
+}
+.pbGameRow {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 2px 0;
+}
+.pbGameRow input {
+  width: 52px;
+}
+
+/* ladder */
+.pbSeg {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+.pbSeg select {
+  margin-left: auto;
+}
+.pbTable {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+}
+.pbTable th,
+.pbTable td {
+  border: 1px solid #c0c0c0;
+  padding: 3px 4px;
+  text-align: left;
+}
+.pbTable th {
+  background: #dfdfdf;
+}
+.pbTable tr.is-me td {
+  background: #ffffe1;
+  font-weight: bold;
+}
+.pbStatGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+}
+.pbStatGrid div {
+  background: #fff;
+  border: 1px solid #808080;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.pbStatGrid b {
+  font-size: 15px;
+}
+.pbForm {
+  display: flex;
+  gap: 2px;
+  margin: 4px 0;
+}
+.pbForm span {
+  width: 18px;
+  text-align: center;
+  color: #fff;
+  font-weight: bold;
+}
+.pbMiniList {
+  margin: 2px 0 6px;
+  padding-left: 18px;
+}
+.pbAbout {
+  display: flex;
+  gap: 8px;
+  max-width: 320px;
+}
+
+/* phones: bigger touch targets everywhere */
+.pbRoot.is-mobile {
+  font-size: 13px;
+}
+.pbRoot.is-mobile button,
+.pbRoot.is-mobile select,
+.pbRoot.is-mobile .pbLinkBtn {
+  min-height: 34px;
+}
+.pbRoot.is-mobile .pbRally {
+  min-height: 96px;
+}
+.pbRoot.is-mobile .pbRallyNames {
+  font-size: 18px;
+}
+.pbRoot.is-mobile .pbOpts {
+  grid-template-columns: 1fr;
+}

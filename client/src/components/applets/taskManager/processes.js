@@ -30,6 +30,7 @@ export const APP_PROFILES = {
   Hover: { image: "hover.exe", mem: 9408, threads: 6, handles: 88, cpu: [1, 22] },
   "YouTube '98": { image: "mplayer2.exe", mem: 7752, threads: 9, handles: 141, cpu: [0.9, 12] },
   "Music 98": { image: "wmplayer.exe", mem: 9216, threads: 11, handles: 188, cpu: [0.6, 6] },
+  "Pickleball Club 98": { image: "pbclub.exe", mem: 7680, threads: 8, handles: 131, cpu: [0.4, 7] },
   "Buddy Locator": { image: "locator.exe", mem: 18432, threads: 12, handles: 214, cpu: [0.7, 14] },
   "Watch Together": { image: "together.exe", mem: 8340, threads: 10, handles: 152, cpu: [0.8, 10] },
   "Internet Explorer": { image: "iexplore.exe", mem: 14872, threads: 11, handles: 296, cpu: [0.8, 9] },

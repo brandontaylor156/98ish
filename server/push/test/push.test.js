@@ -96,7 +96,7 @@ const serveRouter = (p) => {
 
 test("settings: defaults, cleaning, quiet hours across midnight and time zones", () => {
   const d = push.settingsOf({})
-  assert.deepEqual(d.categories, { im: true, calls: true, calendar: true, couples: true, mail: true, games: true, notes: true, albums: true, places: true })
+  assert.deepEqual(d.categories, { im: true, calls: true, calendar: true, couples: true, mail: true, games: true, notes: true, albums: true, places: true, pickleball: true })
   assert.equal(d.quiet.on, false)
   assert.equal(d.callsInQuiet, true)
   assert.equal(d.tz, "UTC")
