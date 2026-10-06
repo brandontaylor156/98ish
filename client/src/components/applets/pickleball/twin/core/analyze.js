@@ -8,6 +8,7 @@ import { createTracker, sampleAt } from "./tracker.js"
 import { detectOnsets } from "./onsets.js"
 import { buildRallies, findHits } from "./hits.js"
 import { rallyPath } from "./ballpath.js"
+import { annotateHits, measuredPath } from "../ball/realball.js"
 import { computeStats } from "./stats.js"
 import { readySeries } from "../coach/pose.js"
 
@@ -75,9 +76,18 @@ export const createAnalyzer = ({ taps, players = 4 }) => {
 }
 
 // the ball paths (not stored: rebuilt from the rallies whenever an analysis is opened)
+// (Real Ball: where the ball was measured, its flights replace the rebuilt ones, and the hits
+// carry their speed, bounce and line call)
 export const withPaths = (analysis) => {
   const hand = new Map(analysis.players.map((p) => [p.id, p.hand]))
-  return { ...analysis, paths: analysis.rallies.map((r) => rallyPath(r.hits, (id) => hand.get(id) ?? 1)) }
+  const a = analysis.ball && !analysis.ballOff ? annotateHits(analysis) : analysis
+  return {
+    ...a,
+    paths: a.rallies.map((r, ri) => {
+      const rebuilt = rallyPath(r.hits, (id) => hand.get(id) ?? 1)
+      return a.ball && !analysis.ballOff ? measuredPath(r, a.ball.flights?.[ri], rebuilt) : rebuilt
+    }),
+  }
 }
 
 // doubles is two a side and singles one: the players who spent most time nearest the camera's

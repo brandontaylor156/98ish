@@ -12,6 +12,9 @@ import { buildFrames } from "./core/replay.js"
 import { KIND_LABEL, KINDS } from "./core/hits.js"
 import { HEAT_L, HEAT_W } from "./core/stats.js"
 import { courtsOf, twinVenue, venueChoices } from "./venues.js"
+import { callText } from "./ball/flight.js"
+import { ballStats } from "./ball/realball.js"
+import { BounceMap } from "./ball/BounceMap.jsx"
 
 const CAMS = [
   ["broadcast", "Broadcast"],
@@ -37,6 +40,8 @@ export const TwinPlayer = ({ getEngine, game, video, onBack, onChange, onShare, 
   const [showVideo, setShowVideo] = useState(!!video)
   const [courts, setCourts] = useState([])
   const [busy, setBusy] = useState(false)
+  // Real Ball: the line call being challenged (an index into this rally's calls)
+  const [challenge, setChallenge] = useState(null)
   const videoRef = useRef(null)
   const url = useMemo(() => (video ? URL.createObjectURL(video) : null), [video])
   useEffect(() => () => url && URL.revokeObjectURL(url), [url])
@@ -78,6 +83,7 @@ export const TwinPlayer = ({ getEngine, game, video, onBack, onChange, onShare, 
   useEffect(
     () => () => {
       const e = getEngine()
+      e?.twinChallenge?.(null)
       e?.stopTwin()
       e?.quit()
     },
@@ -109,6 +115,32 @@ export const TwinPlayer = ({ getEngine, game, video, onBack, onChange, onShare, 
 
   const ctl = (patch) => getEngine()?.twinControl(patch)
   const hits = rally ? rally.hits : []
+  // Real Ball: this rally's measured bounces with a line call, last one first (the one that
+  // usually decided the point)
+  const calls = hits
+    .map((h, i) => ({ h, i, call: h.ball?.call, bounce: h.ball?.bounce }))
+    .filter((c) => c.call && c.bounce)
+    .reverse()
+  const showCall = (k) => {
+    const c = calls[k]
+    if (!c || !window_) return
+    const e = getEngine()
+    e?.twinControl({ paused: true })
+    // (from just before the bounce: the ball comes down onto its mark)
+    e?.twinSeek(Math.max(0, c.bounce.t - window_.from - 0.05))
+    e?.twinChallenge({ x: c.bounce.x, z: c.bounce.z, verdict: c.call.close ? "in" : c.call.verdict })
+    setChallenge(k)
+  }
+  const endChallenge = () => {
+    getEngine()?.twinChallenge(null)
+    setChallenge(null)
+  }
+  useEffect(() => {
+    // a new rally or leaving the replay ends a challenge
+    setChallenge(null)
+    getEngine()?.twinChallenge?.(null)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ri, tab])
   const nameOf = (id) => analysis.players.find((p) => p.id === id)?.name || `Player ${id + 1}`
 
   return (
@@ -141,6 +173,22 @@ export const TwinPlayer = ({ getEngine, game, video, onBack, onChange, onShare, 
                   Back to Coach
                 </button>
               )}
+            </div>
+          )}
+          {challenge !== null && calls[challenge] && (
+            <div className={`pkTwinChallenge ${calls[challenge].call.close ? "is-close" : calls[challenge].call.verdict === "in" ? "is-in" : "is-out"}`} data-challenge={calls[challenge].call.close ? "close" : calls[challenge].call.verdict}>
+              <small>{KIND_LABEL[calls[challenge].h.kind]} by {nameOf(calls[challenge].h.player)} · the {calls[challenge].call.line === "net" ? "court" : calls[challenge].call.line}</small>
+              <b>{callText(calls[challenge].call)}</b>
+              <div className="pkTwinButtons">
+                {calls.length > 1 && (
+                  <button type="button" onClick={() => showCall((challenge + 1) % calls.length)}>
+                    Another call
+                  </button>
+                )}
+                <button type="button" className="pkPrimary" onClick={endChallenge} data-action="challenge-done">
+                  Done
+                </button>
+              </div>
             </div>
           )}
           {!rally && <div className="pkCenter"><div className="pkPanel window">No rallies were found in this video.</div></div>}
@@ -184,6 +232,11 @@ export const TwinPlayer = ({ getEngine, game, video, onBack, onChange, onShare, 
                       </option>
                     ))}
                   </Select>
+                )}
+                {calls.length > 0 && (
+                  <button type="button" onClick={() => (challenge === null ? showCall(0) : endChallenge())} data-action="challenge" title="Hawk-Eye: see where the ball really bounced">
+                    {challenge === null ? "Challenge" : "End challenge"}
+                  </button>
                 )}
                 <span className="pkMuted">{st ? `${clock(st.t)} / ${clock(st.duration)}` : ""}</span>
               </div>
@@ -286,8 +339,30 @@ export const TwinStats = ({ analysis, onRally, onClone = null, onCoach = null })
   const name = (id) => analysis.players.find((p) => p.id === id)?.name || `Player ${id + 1}`
   const color = (id) => analysis.players.find((p) => p.id === id)?.color || "#888"
   const maxHist = Math.max(1, ...Object.values(s.histogram || {}))
+  const bs = ballStats(analysis)
   return (
     <div className="pkTwinStats">
+      {bs && bs.trusted > 0 && (
+        <div className="pkTwinCard" data-real-ball>
+          <b>Real Ball</b>
+          <p className="pkMuted">
+            The ball was followed on {bs.trusted} of {bs.flights} shots. {bs.ins + bs.outs > 0 ? `Line calls: ${bs.ins} in, ${bs.outs} out.` : ""}
+          </p>
+          <div className="pkTwinPlayerStats">
+            <BounceMap bounces={bs.bounces} />
+            <dl>
+              {bs.players.map((p) => (
+                <React.Fragment key={p.id}>
+                  <dt>{name(p.id)}</dt>
+                  <dd>
+                    fastest {Math.round(p.fastest * 3.6)} km/h · typical {Math.round(p.typical * 3.6)} km/h
+                  </dd>
+                </React.Fragment>
+              ))}
+            </dl>
+          </div>
+        </div>
+      )}
       <div className="pkTwinCard">
         <b>The game</b>
         <p>
@@ -380,7 +455,7 @@ export const TwinStats = ({ analysis, onRally, onClone = null, onCoach = null })
           </div>
         )
       })}
-      <p className="pkMuted pkTwinNote">Shots are read from the video and its sound: the kinds are a good guess, not a referee. The ball's path is rebuilt between the hits.</p>
+      <p className="pkMuted pkTwinNote">Shots are read from the video and its sound: the kinds are a good guess, not a referee. {bs && bs.trusted > 0 ? "Where the ball was followed, its path and bounces are measured; elsewhere it's rebuilt between the hits." : "The ball's path is rebuilt between the hits."}</p>
     </div>
   )
 }

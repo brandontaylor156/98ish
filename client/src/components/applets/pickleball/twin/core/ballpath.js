@@ -6,6 +6,7 @@
 // arc's timing and the net allow, close to where that kind of shot usually lands.
 
 import { HALF_L, HALF_W, KITCHEN } from "./homography.js"
+import { flightAt } from "../ball/flight.js"
 
 const G = 9.81
 const NET_Y = 0.89 // m (0.914 at the posts, 0.864 in the middle)
@@ -97,13 +98,15 @@ export const rallyPath = (hits, handOf = () => 1) => {
 export const ballAt = (segments, t) => {
   for (const s of segments) {
     if (t < s.t0 || t > s.t1) continue
+    // (Real Ball: a measured flight, sampled from the game's ball physics)
+    if (s.flight) return flightAt(s, t)
     return arc(s.P0, s.P1, Math.max(1e-3, s.t1 - s.t0)).at(t - s.t0)
   }
   return null
 }
 
 // net clearance check for tests: every segment that crosses the net clears it
-export const clearsNet = (segments) => segments.every((s) => {
+export const clearsNet = (segments) => segments.filter((s) => !s.flight).every((s) => {
   const h = netCrossing(s.P0, s.P1, Math.max(1e-3, s.t1 - s.t0))
   return h === null || h >= NET_Y
 })

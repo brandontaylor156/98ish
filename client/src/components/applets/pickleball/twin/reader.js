@@ -9,6 +9,9 @@ import { footPoint, torsoColor } from "./core/tracker.js"
 import { applyH } from "./core/homography.js"
 import { courtRegion, fromCrop, mergePeople, playerBox, scanTiles } from "./core/regions.js"
 import { createLandmarker, MODEL_MB } from "./poseModel.js"
+import { cameraFromHomography } from "./ball/flight.js"
+import { createBallFinder, searchRegion } from "./ball/detect.js"
+import { analyzeBall } from "./ball/realball.js"
 
 export const READ_FPS = 15
 export const READ_WIDTH = 640
@@ -224,7 +227,7 @@ export const startPose = async ({ model = "lite", players = 4, gpu = true, specs
 
 // Reads a whole video. taps: the calibration in 0..1 video coordinates ({ id, u, v }).
 // control: { paused, cancelled } (the caller flips them). Returns the analysis (finish()).
-export const readGame = async (blob, { taps, players = 4, fps = READ_FPS, width = READ_WIDTH, model = "lite", gpu = true, control = {}, onProgress, onFrame, onStatus, onDebug = null, names, hands, from = 0, to = null } = {}) => {
+export const readGame = async (blob, { taps, players = 4, fps = READ_FPS, width = READ_WIDTH, model = "lite", gpu = true, control = {}, onProgress, onFrame, onStatus, onDebug = null, names, hands, from = 0, to = null, ball = true } = {}) => {
   const { video, close } = await openVideo(blob)
   const sound = decodeSound(blob)
   let pose = null
@@ -270,6 +273,24 @@ export const readGame = async (blob, { taps, players = 4, fps = READ_FPS, width 
       const f = footPoint(p.lm)
       return f ? applyH(analyzer.calibration.H, f[0], f[1]) : null
     }
+    // Real Ball (ball/): the ball's spots in every frame read, fitted to flights at the end
+    const ballCam = ball ? cameraFromHomography(analyzer.calibration.H, W, H) : null
+    const spots = []
+    const finder = ballCam
+      ? createBallFinder({
+          W,
+          H,
+          region: searchRegion(ballCam, W, H),
+          // (players' bodies: a shirt or a shoe moving isn't the ball; their hands stay in)
+          exclude: () =>
+            analyzer
+              .tracks()
+              .map((tr) => playerBox(Hinv, tr.x, tr.z, W, H))
+              .filter(Boolean)
+              .map((b) => ({ x0: b.x + b.w * 0.15, y0: b.y + b.h * 0.35, x1: b.x + b.w * 0.85, y1: b.y + b.h })),
+        })
+      : null
+    let ballMs = 0
     pose = await startPose({ model, players, gpu, specs, onStatus })
     onStatus?.(pose.delegate === "GPU" ? "Reading the video (graphics chip)..." : "Reading the video...")
     const end = Math.min(to ?? video.duration, video.duration, from + MAX_READ_SECONDS)
@@ -296,6 +317,12 @@ export const readGame = async (blob, { taps, players = 4, fps = READ_FPS, width 
         if (xi < 0 || yi < 0 || xi >= W || yi >= H) return null
         const k = (yi * W + xi) * 4
         return [img.data[k], img.data[k + 1], img.data[k + 2]]
+      }
+      if (finder) {
+        const b0 = performance.now()
+        const found = finder.push(t, img.data)
+        if (found) spots.push(found)
+        ballMs += performance.now() - b0
       }
       const p0 = performance.now()
       // each tracked player where they're heading (seen in the last second)
@@ -340,7 +367,17 @@ export const readGame = async (blob, { taps, players = 4, fps = READ_FPS, width 
     if (onDebug) onDebug({ final: true, tracks: analyzer.tracks() })
     const audio = await sound
     const result = analyzer.finish({ audio, names, hands })
-    result.readStats = { frames: n, seconds: (performance.now() - started) / 1000, fps, width: W, where: pose.where, delegate: pose.delegate, switchedToCpu: switched, seekMsPerFrame: seekMs / Math.max(1, n), poseMsPerFrame: poseMs / Math.max(1, n), frameMode: frames.mode, inferencesPerFrame: inferences / Math.max(1, n), tiles: tiles.length, sound: !!audio, workerError: pose.where === "page" ? lastWorkerError : null }
+    if (finder && spots.length > 10) {
+      onStatus?.("Following the ball...")
+      const f0 = performance.now()
+      try {
+        const b = analyzeBall(spots, result, { W, H })
+        if (b) result.ball = { ...b, W, H, ms: Math.round(ballMs + performance.now() - f0) }
+      } catch (err) {
+        console.warn("[twin] Real Ball failed", err)
+      }
+    }
+    result.readStats = { frames: n, seconds: (performance.now() - started) / 1000, fps, width: W, where: pose.where, delegate: pose.delegate, switchedToCpu: switched, seekMsPerFrame: seekMs / Math.max(1, n), poseMsPerFrame: poseMs / Math.max(1, n), frameMode: frames.mode, ballMsPerFrame: ballMs / Math.max(1, n), inferencesPerFrame: inferences / Math.max(1, n), tiles: tiles.length, sound: !!audio, workerError: pose.where === "page" ? lastWorkerError : null }
     return result
   } finally {
     pose?.close()

@@ -500,3 +500,47 @@
   flex-basis: 100%;
   color: #00507a;
 }
+
+/* Real Ball: the Hawk-Eye challenge banner and the bounce map */
+.pkTwinChallenge {
+  position: absolute;
+  top: 44px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3;
+  min-width: 220px;
+  max-width: calc(100% - 12px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 12px;
+  background: #000;
+  color: #fff;
+  border: 2px solid #fff;
+  box-shadow: 2px 2px 0 #000;
+  text-align: center;
+}
+.pkTwinChallenge b {
+  font-size: 22px;
+  letter-spacing: 0.04em;
+}
+.pkTwinChallenge.is-in b {
+  color: #46e07a;
+}
+.pkTwinChallenge.is-out b {
+  color: #ff5a5a;
+}
+.pkTwinChallenge.is-close b {
+  color: #ffd84a;
+  font-size: 18px;
+}
+.pkTwinChallenge small {
+  opacity: 0.85;
+}
+.pkTwinBounces {
+  width: 72px;
+  height: auto;
+  border: 1px solid #000;
+  flex: none;
+}
