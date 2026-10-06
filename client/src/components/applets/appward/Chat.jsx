@@ -5,20 +5,12 @@ import { change } from "./store.js"
 import { Icon } from "./icons.jsx"
 import { useAw, ago, avatarColor, initials } from "./ctx.js"
 import { RecordChip } from "./Records.jsx"
-import { playSystemSound } from "../../../utils/systemSounds"
 
 // Conversations: channels and direct messages, with @mentions (which notify), emoji and
-// records attached as chips. Coworkers in the sample workspace answer when mentioned.
+// records attached as chips. Nobody answers for anyone: the sample workspace's people are
+// records, not chat bots (the owner asked for real substance, 2026-10-06).
 
 const EMOJI = ["🙂", "😀", "😂", "😉", "😎", "🤔", "😮", "😢", "👍", "👏", "🙌", "🎉", "🔥", "✅", "❗", "☕", "🍕", "📦", "🔧", "📈"]
-
-const REPLIES = [
-  (me) => `@${me} On it!`,
-  (me) => `@${me} Sure thing, I'll take a look this afternoon.`,
-  (me) => `@${me} Thanks for the heads up 👍`,
-  (me) => `@${me} Good catch. Can we talk at the production meeting?`,
-  (me) => `@${me} Done! Let me know if you need anything else.`,
-]
 
 // text with @mentions picked out
 const MessageText = ({ text }) => {
@@ -50,14 +42,12 @@ export const ChatView = ({ channel: wanted, focusMsg }) => {
   const [flash, setFlash] = useState(focusMsg || null)
   const listRef = useRef(null)
   const inputRef = useRef(null)
-  const timers = useRef([])
 
   // a notification can open a channel at a message
   useEffect(() => {
     if (wanted && getRecord(ws, "conversations", wanted)) setActive(wanted)
     if (focusMsg) setFlash(focusMsg)
   }, [wanted, focusMsg])
-  useEffect(() => () => timers.current.forEach(clearTimeout), [])
 
   const chan = active && getRecord(ws, "conversations", active)
   const messages = chan ? channelMessages(ws, active) : []
@@ -92,22 +82,6 @@ export const ChatView = ({ channel: wanted, focusMsg }) => {
     setAttachments([])
     setEmoji(false)
     if (out.mentioned.length) toast(`Notified ${out.mentioned.map((h) => userName(ws, h)).join(", ")}.`)
-    // a coworker who was mentioned (or the person in a direct message) writes back
-    const dmWith = chan.kind === "Direct" ? ws.users.find((u) => u.name === chan.channel && u.handle !== ws.me) : null
-    const replier = out.mentioned.find((h) => h !== ws.me) || dmWith?.handle
-    if (replier) {
-      const channelId = active
-      timers.current.push(
-        setTimeout(() => {
-          const line = REPLIES[Math.floor(Math.random() * REPLIES.length)](ws.me)
-          const reply = change((w) => postMessage(w, channelId, { from: replier, text: line }))
-          if (reply?.ok) {
-            playSystemSound("ding")
-            toast(`${userName(ws, replier)} mentioned you. See Notifications.`)
-          }
-        }, 1400 + Math.random() * 900)
-      )
-    }
   }
 
   const attach = () =>
