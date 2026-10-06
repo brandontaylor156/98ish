@@ -108,4 +108,5 @@ Shipped recently (details in the docs): Delete My Account + privacy guide; file 
 - `games-new.md`: design and research for the quick games (Bomb Panic sources). Read when extending them.
 - `pickleball-log.md`: Pickleball 98 feature notes (footwork, upper body, pro movement, mocap/MakeHuman, Practice, phone round, swipe trail + sounds, athletes, My Park, arms) with measurements, tests and leftovers. Read before any Pickleball work.
 - `pickleball-movement.md`, `pickleball-arms.md`, `pickleball-practice.md`: research and specs behind movement, arms and Practice. Read with the matching log section.
+- `casino.md`: Casino 98 (Hold'em vs computer + online, Blackjack, Roulette, Slots, Video Poker, Craps, Baccarat), the shared chip bank, rules modules and tests. Read before touching `applets/casino/` or `server/arcade/games/holdem.js`.
 - `history.md`: past dated close-outs and status snapshots (2026-10-03/04) and the original iPhone checklist. Read for background on when and why something shipped.

@@ -13,7 +13,7 @@ import { navigate } from "../../utils/startNav"
 import { helpHandoff } from "../../utils/help"
 import "./StartMenu.css"
 
-const GROUPS = ["Accessories", "Business", "Community", "Games", "Internet", "Entertainment", "System Tools", "Us", "My Projects"]
+const GROUPS = ["Accessories", "Business", "Casino", "Community", "Games", "Internet", "Entertainment", "System Tools", "Us", "My Projects"]
 // a program shows in its group and in any it's `also` in (Photo Puzzle is in Us and Games)
 const inGroup = (p, group) => p.group === group || !!p.also?.includes(group)
 // the community's pages on 98ish.com, at the bottom of Programs > Community

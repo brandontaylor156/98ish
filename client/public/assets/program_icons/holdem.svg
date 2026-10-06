@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <!-- Texas Hold'em: two hole cards (ace and king of spades) over green felt, and a chip -->
+  <ellipse cx="24" cy="38" rx="22" ry="8" fill="#0b6b3a" stroke="#5a3214" stroke-width="2"/>
+  <g transform="rotate(-12 18 24)">
+    <rect x="7" y="6" width="20" height="28" rx="2" fill="#fff" stroke="#000" stroke-width="1.2"/>
+    <text x="9.5" y="14" font-family="Arial, sans-serif" font-weight="bold" font-size="7.5">A</text>
+    <path d="M17 17c2 3.5 6 5.5 6 9 0 2-1.5 3.2-3 3.2-1.1 0-2-.6-2.5-1.2.2 1.2.7 2 1.7 2.7h-4.4c1-.7 1.5-1.5 1.7-2.7-.5.6-1.4 1.2-2.5 1.2-1.5 0-3-1.2-3-3.2 0-3.5 4-5.5 6-9z"/>
+  </g>
+  <g transform="rotate(10 30 24)">
+    <rect x="20" y="6" width="20" height="28" rx="2" fill="#fff" stroke="#000" stroke-width="1.2"/>
+    <text x="22.5" y="14" font-family="Arial, sans-serif" font-weight="bold" font-size="7.5">K</text>
+    <path d="M30 17c2 3.5 6 5.5 6 9 0 2-1.5 3.2-3 3.2-1.1 0-2-.6-2.5-1.2.2 1.2.7 2 1.7 2.7h-4.4c1-.7 1.5-1.5 1.7-2.7-.5.6-1.4 1.2-2.5 1.2-1.5 0-3-1.2-3-3.2 0-3.5 4-5.5 6-9z"/>
+  </g>
+  <circle cx="38" cy="40" r="6" fill="#d81e1e" stroke="#000"/>
+  <circle cx="38" cy="40" r="3.5" fill="none" stroke="#fff" stroke-dasharray="2 1.6"/>
+</svg>

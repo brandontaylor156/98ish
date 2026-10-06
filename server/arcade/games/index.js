@@ -12,4 +12,5 @@ module.exports = [
   require("./colormatch"),
   require("./echo"),
   require("./tetherball"),
+  require("./holdem"),
 ]

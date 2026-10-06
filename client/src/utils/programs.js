@@ -91,6 +91,15 @@ export const programs = [
   { name: "Last Card", app: "lastcard", type: "lastcard", icon: "/assets/program_icons/lastcard.svg", width: 900, height: 680, group: "Games", desktop: false, single: true, online: "lastcard" },
   { name: "Hexlands", app: "hexlands", type: "hexlands", icon: "/assets/program_icons/hexlands.svg", width: 1000, height: 700, group: "Games", desktop: false, single: true, online: "hexlands" },
   { name: "Monster Duel", app: "monsterduel", type: "monsterduel", icon: "/assets/program_icons/monsterduel.svg", width: 1000, height: 720, group: "Games", desktop: false, single: true, online: "monsterduel" },
+  // Casino 98 (applets/casino): one window, the program picks the game; they share a chip bank
+  { name: "Casino 98", app: "casino", type: "casino", icon: "/assets/program_icons/casino.svg", width: 660, height: 580, group: "Casino", also: ["Games"], desktop: false, single: true },
+  { name: "Texas Hold'em", app: "casino", type: "holdem", icon: "/assets/program_icons/holdem.svg", width: 920, height: 680, group: "Casino", desktop: false, single: true, online: "holdem" },
+  { name: "Blackjack", app: "casino", type: "blackjack", icon: "/assets/program_icons/blackjack.svg", width: 680, height: 600, group: "Casino", desktop: false, single: true },
+  { name: "Roulette", app: "casino", type: "roulette", icon: "/assets/program_icons/roulette.svg", width: 820, height: 680, group: "Casino", desktop: false, single: true },
+  { name: "Slots", app: "casino", type: "slots", icon: "/assets/program_icons/slots.svg", width: 480, height: 660, group: "Casino", desktop: false, single: true },
+  { name: "Video Poker", app: "casino", type: "videopoker", icon: "/assets/program_icons/videopoker.svg", width: 640, height: 580, group: "Casino", desktop: false, single: true },
+  { name: "Craps", app: "casino", type: "craps", icon: "/assets/program_icons/craps.svg", width: 720, height: 680, group: "Casino", desktop: false, single: true },
+  { name: "Baccarat", app: "casino", type: "baccarat", icon: "/assets/program_icons/baccarat.svg", width: 660, height: 620, group: "Casino", desktop: false, single: true },
   { name: "Block Ten", app: "blockten", type: "blockten", icon: "/assets/program_icons/blockten.svg", width: 440, height: 640, group: "Games", desktop: false, single: true },
   // quick games (docs/games-new.md)
   { name: "Boom Frenzy", app: "boomfrenzy", type: "boomfrenzy", icon: "/assets/program_icons/boomfrenzy.svg", width: 460, height: 640, group: "Games", desktop: false, single: true },

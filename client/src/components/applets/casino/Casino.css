@@ -1,0 +1,1500 @@
+/* Casino 98: a 98 window (gray chrome, beveled buttons) around green felt tables */
+
+.csRoot {
+  --cs-felt: #0b6b3a;
+  --cs-felt2: #064223;
+  --cs-gold: #f2c200;
+  --cs-ink: #fff8d8;
+  --cw: 71px;
+  position: relative;
+  height: calc(100% - 25px);
+  display: flex;
+  flex-direction: column;
+  background: #c0c0c0;
+  font-family: "Pixelated MS Sans Serif", Arial, sans-serif;
+  font-size: 11px;
+  color: #000;
+  text-align: left;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.csBody {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.csGame {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.csMuted {
+  color: #555;
+}
+.csRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+  align-items: center;
+}
+.csPrimary {
+  font-weight: bold;
+}
+.csHow p {
+  margin: 0 0 8px;
+  max-width: 420px;
+  line-height: 1.4;
+}
+
+/* ---------- the bar: Lobby, title, chips ---------- */
+
+.csBar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 6px;
+  border-bottom: 1px solid #808080;
+  box-shadow: 0 1px 0 #fff;
+  min-height: 28px;
+  flex-wrap: wrap;
+}
+.csBarTitle {
+  font-size: 12px;
+  margin-right: auto;
+}
+.csLobbyBtn {
+  min-width: 0 !important;
+  padding: 0 8px;
+  min-height: 24px;
+}
+.csBalance {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px 2px 3px;
+  background: #000;
+  color: #3f3;
+  font-family: "Courier New", monospace;
+  font-size: 13px;
+  border: 2px inset #fff;
+}
+.csBalanceUnit {
+  font-size: 10px;
+  color: #9c9;
+}
+.csRefill {
+  font-weight: bold;
+  min-height: 24px;
+  animation: csPulse 1.2s ease-in-out infinite alternate;
+}
+@keyframes csPulse {
+  to {
+    color: #a00;
+  }
+}
+
+/* ---------- the felt ---------- */
+
+.csFelt {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  margin: 4px;
+  border: 2px inset #fff;
+  background: radial-gradient(ellipse at 50% 35%, var(--cs-felt) 0%, var(--cs-felt2) 100%);
+  color: var(--cs-ink);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 8px;
+}
+.csFeltText {
+  color: rgba(255, 230, 140, 0.55);
+  font-weight: bold;
+  letter-spacing: 1px;
+  text-align: center;
+  font-size: 10px;
+}
+.csMsgRow {
+  min-height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+.csMsg {
+  display: inline-block;
+  padding: 3px 10px;
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+  border-radius: 3px;
+  font-size: 12px;
+  max-width: 100%;
+}
+.csMsg.is-win {
+  background: #f2c200;
+  color: #000;
+  font-weight: bold;
+}
+.csMsg.is-lose {
+  background: rgba(0, 0, 0, 0.6);
+  color: #ddd;
+}
+.csMsg.is-error {
+  background: #fff;
+  color: #a00000;
+}
+
+/* ---------- controls (the gray panel underneath) ---------- */
+
+.csControls {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  padding: 6px 6px calc(6px + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid #fff;
+}
+.csActions {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.csActions button {
+  min-height: 30px;
+  min-width: 70px;
+}
+.csBig {
+  min-height: 36px !important;
+  min-width: 84px !important;
+  font-size: 12px;
+}
+.csMore {
+  align-self: center;
+  width: 100%;
+  max-width: 560px;
+}
+.csOpts {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 4px 2px;
+}
+.csOpts.csGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 8px 12px;
+}
+.csField {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.csField > span:first-child {
+  color: #333;
+}
+.csStepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.csStepper button {
+  min-width: 30px !important;
+  min-height: 28px;
+  padding: 0;
+}
+.csStepper b {
+  min-width: 18px;
+  text-align: center;
+  font-size: 13px;
+}
+
+/* ---------- chips ---------- */
+
+.csChip {
+  --chip: #eee;
+  --chip-edge: #fff;
+  --chip-ink: #000;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  box-sizing: border-box;
+  background: radial-gradient(circle, var(--chip) 0 52%, transparent 53%), repeating-conic-gradient(var(--chip) 0 22.5deg, var(--chip-edge) 22.5deg 45deg);
+  border: 2px solid rgba(0, 0, 0, 0.55);
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.45), inset 0 0 0 4px rgba(0, 0, 0, 0.12);
+  color: var(--chip-ink);
+  font-weight: bold;
+  font-size: 11px;
+  font-family: Arial, sans-serif;
+  line-height: 1;
+  padding: 0;
+  min-width: 0;
+  vertical-align: middle;
+}
+.csChip > span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 62%;
+  height: 62%;
+  border-radius: 50%;
+  border: 1px dashed rgba(0, 0, 0, 0.35);
+}
+.csChip.is-small {
+  width: 24px;
+  height: 24px;
+  font-size: 8px;
+  border-width: 1px;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.45);
+}
+.csChip.c1 {
+  --chip: #f4f4f4;
+  --chip-edge: #3a6fd8;
+}
+.csChip.c5 {
+  --chip: #d81e1e;
+  --chip-edge: #fff;
+  --chip-ink: #fff;
+}
+.csChip.c25 {
+  --chip: #12923f;
+  --chip-edge: #fff;
+  --chip-ink: #fff;
+}
+.csChip.c100 {
+  --chip: #1a1a1a;
+  --chip-edge: #e8e8e8;
+  --chip-ink: #fff;
+}
+.csChip.c500 {
+  --chip: #7a2fb0;
+  --chip-edge: #f2c200;
+  --chip-ink: #fff;
+}
+.csChip.c1000 {
+  --chip: #f2c200;
+  --chip-edge: #8a5a00;
+}
+.csRack {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+button.csRackChip {
+  width: 42px;
+  height: 42px;
+  cursor: pointer;
+  transition: transform 0.08s;
+}
+button.csRackChip.is-on {
+  transform: translateY(-4px);
+  outline: 2px solid #000080;
+  outline-offset: 2px;
+}
+button.csRackChip:disabled {
+  opacity: 0.35;
+}
+button.csRackChip:focus-visible {
+  outline: 2px dotted #000;
+}
+
+/* ---------- cards ---------- */
+
+.csCard {
+  --w: var(--cw);
+  display: inline-block;
+  flex: none;
+  width: var(--w);
+  height: calc(var(--w) * 96 / 71);
+  border-radius: 4px;
+  box-shadow: 1px 2px 3px rgba(0, 0, 0, 0.45);
+  background: #fff;
+}
+.csCard img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.csCard.is-small {
+  --w: 44px;
+}
+.csCard.is-dim {
+  filter: brightness(0.6);
+}
+.csCard.is-glow {
+  box-shadow: 0 0 0 2px var(--cs-gold), 0 0 10px 2px rgba(255, 220, 0, 0.8);
+}
+.csDealt {
+  animation: csDeal 0.32s ease-out backwards;
+}
+@keyframes csDeal {
+  from {
+    transform: translate(40px, -60px) rotate(8deg);
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .csDealt,
+  .csRefill {
+    animation: none;
+  }
+}
+.csCards {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  min-height: calc(var(--cw) * 96 / 71);
+}
+.csFan > .csCard + .csCard {
+  margin-left: calc(var(--cw) * -0.45);
+}
+.csSlot {
+  display: inline-block;
+  width: var(--cw);
+  height: calc(var(--cw) * 96 / 71);
+  border: 2px dashed rgba(255, 255, 255, 0.25);
+  border-radius: 5px;
+  box-sizing: border-box;
+}
+.csSlot.is-small {
+  width: 44px;
+  height: 60px;
+}
+
+/* ---------- the lobby ---------- */
+
+.csLobby,
+.csSetup {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+.csMarquee {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 6px 18px;
+  background: #000;
+  border: 3px ridge #f2c200;
+  font-family: "Arial Black", Arial, sans-serif;
+  letter-spacing: 3px;
+}
+.csMarquee span {
+  color: #ff4040;
+  font-size: 22px;
+  text-shadow: 0 0 6px #f00;
+}
+.csMarquee b {
+  color: #f2c200;
+  font-size: 28px;
+  text-shadow: 0 0 8px #f90;
+}
+.csMarquee.is-small span {
+  font-size: 15px;
+}
+.csMarquee.is-small b {
+  font-size: 18px;
+}
+.csTag {
+  margin: 0;
+  text-align: center;
+  color: #333;
+}
+.csTiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 8px;
+  width: 100%;
+  max-width: 600px;
+}
+.csTile {
+  display: grid !important;
+  grid-template-columns: 34px 1fr;
+  grid-template-rows: auto auto;
+  column-gap: 8px;
+  text-align: left;
+  padding: 8px !important;
+  min-height: 58px;
+  align-items: center;
+}
+.csTile img {
+  grid-row: 1 / span 2;
+  width: 32px;
+  height: 32px;
+}
+.csTile b {
+  font-size: 12px;
+}
+.csTile small {
+  color: #444;
+  line-height: 1.25;
+}
+.csBigTile {
+  width: 100%;
+  max-width: 340px;
+  grid-template-columns: 1fr;
+  text-align: center;
+  justify-items: center;
+}
+.csBigTile b {
+  font-size: 14px;
+}
+.csStats {
+  border-collapse: collapse;
+  margin: 4px auto;
+}
+.csStats th {
+  text-align: left;
+  font-weight: normal;
+  padding: 2px 16px 2px 0;
+}
+.csStats td {
+  text-align: right;
+  font-weight: bold;
+}
+.csOnline {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+.csOnlineBtn {
+  width: 100%;
+  max-width: 340px;
+}
+
+/* ---------- Blackjack ---------- */
+
+.csDealer,
+.csPlayer {
+  display: flex;
+  justify-content: center;
+  gap: 18px;
+  flex-wrap: wrap;
+  min-height: calc(var(--cw) * 96 / 71 + 30px);
+}
+.csPlayer.is-multi {
+  --cw: 56px;
+  gap: 10px;
+}
+.csBjHand,
+.csBacHand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 6px;
+  border: 2px solid transparent;
+}
+.csBjHand.is-active {
+  border-color: var(--cs-gold);
+  background: rgba(255, 220, 0, 0.08);
+}
+.csHandInfo {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 24px;
+}
+.csHandLabel {
+  color: rgba(255, 240, 190, 0.8);
+  font-weight: bold;
+}
+.csTotal {
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  padding: 1px 6px;
+  border-radius: 8px;
+  font-size: 12px;
+}
+.csResult {
+  font-weight: bold;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: #222;
+  color: #fff;
+}
+.csResult.is-blackjack,
+.csResult.is-win {
+  background: var(--cs-gold);
+  color: #000;
+}
+.csResult.is-push {
+  background: #cfd8e8;
+  color: #000;
+}
+.csEmptyHand {
+  align-self: center;
+  color: rgba(255, 255, 255, 0.3);
+  font-weight: bold;
+  letter-spacing: 2px;
+}
+.csBetSpot {
+  width: 86px !important;
+  height: 86px;
+  min-width: 0 !important;
+  border-radius: 50% !important;
+  border: 3px solid rgba(255, 240, 190, 0.7) !important;
+  background: rgba(0, 0, 0, 0.12) !important;
+  box-shadow: none !important;
+  color: rgba(255, 240, 190, 0.85) !important;
+  font-weight: bold;
+  letter-spacing: 2px;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  align-self: center;
+  cursor: pointer;
+}
+.csBetSpot:active {
+  background: rgba(255, 255, 255, 0.1) !important;
+}
+.csSide {
+  color: var(--cs-gold);
+}
+
+/* ---------- Hold'em ---------- */
+
+.csHoldem {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.csPokerArea {
+  position: relative;
+  flex: 1;
+  min-height: 300px;
+  margin: 4px;
+  border: 2px inset #fff;
+  background: #234;
+  background: radial-gradient(ellipse at 50% 40%, #3b2a1a, #1a120a);
+  overflow: hidden;
+}
+.csOval {
+  position: absolute;
+  left: 9%;
+  right: 9%;
+  top: 14%;
+  bottom: 14%;
+  border-radius: 50% / 50%;
+  background: radial-gradient(ellipse at 50% 40%, var(--cs-felt), var(--cs-felt2));
+  border: 10px solid #5a3214;
+  box-shadow: inset 0 0 0 2px #d8b25a, 0 4px 12px rgba(0, 0, 0, 0.6);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: var(--cs-ink);
+}
+.csBoard {
+  display: flex;
+  gap: 4px;
+}
+.csBoard .csCard,
+.csBoard .csSlot {
+  --w: 52px;
+  width: 52px;
+  height: 70px;
+}
+.csPot {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: bold;
+  min-height: 24px;
+}
+.csSeat {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  z-index: 2;
+}
+.csHole {
+  display: flex;
+  margin-bottom: -10px;
+  z-index: 1;
+}
+.csHole .csCard + .csCard {
+  margin-left: -18px;
+}
+.csHole .csCard.is-small {
+  --w: 34px;
+}
+.csHole.is-mine .csCard {
+  --w: 56px;
+}
+.csHole.is-mine .csCard + .csCard {
+  margin-left: -8px;
+}
+.csPlate {
+  position: relative;
+  z-index: 2;
+  min-width: 78px;
+  padding: 3px 6px;
+  background: #c0c0c0;
+  border: 2px outset #fff;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+  overflow: hidden;
+}
+.csName {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 96px;
+}
+.csStack {
+  font-family: "Courier New", monospace;
+  color: #004000;
+  font-weight: bold;
+}
+.csLast {
+  font-size: 10px;
+  color: #000080;
+}
+.csLast.is-fold {
+  color: #777;
+}
+.csLast.is-allin {
+  color: #b00000;
+  font-weight: bold;
+}
+.csSeat.is-turn .csPlate {
+  background: #ffffc0;
+  box-shadow: 0 0 0 2px var(--cs-gold), 0 0 10px rgba(255, 220, 0, 0.9);
+}
+.csSeat.is-folded {
+  opacity: 0.55;
+}
+.csSeat.is-out {
+  opacity: 0.35;
+}
+.csSeat.is-winner .csPlate {
+  background: var(--cs-gold);
+}
+.csDealerBtn {
+  position: absolute;
+  right: -10px;
+  bottom: -6px;
+  z-index: 3;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  color: #000;
+  border: 1px solid #333;
+  font-weight: bold;
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+}
+.csBetChip {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  color: #fff;
+  font-weight: bold;
+  text-shadow: 0 1px 1px #000;
+}
+.csClock {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 3px;
+  width: 100%;
+  background: #c00000;
+  transform-origin: left;
+  animation: csClock linear forwards;
+}
+@keyframes csClock {
+  to {
+    transform: scaleX(0);
+  }
+}
+.csHoldemMsg {
+  margin: 0 4px;
+}
+.csHoldemMsg .csMsg {
+  background: #000;
+  color: #fff;
+}
+.csHoldemMsg .csMsg.is-win {
+  background: var(--cs-gold);
+  color: #000;
+}
+.csRaise {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: stretch;
+  max-width: 520px;
+  width: 100%;
+  align-self: center;
+}
+.csSizes {
+  display: flex;
+  gap: 4px;
+  justify-content: center;
+}
+.csSizes button {
+  min-width: 0 !important;
+  flex: 1;
+  min-height: 26px;
+  padding: 0 4px;
+}
+.csSizes button.is-on {
+  font-weight: bold;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #0a0a0a, inset -2px -2px #dfdfdf, inset 2px 2px grey;
+}
+.csSlider {
+  width: 100%;
+  margin: 2px 0;
+}
+.csSummary {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 8px;
+  margin: 0 4px 4px;
+  background: #ffffe1;
+  border: 1px solid #000;
+  text-align: center;
+}
+
+/* ---------- Roulette ---------- */
+
+.csRouletteFelt {
+  gap: 6px;
+}
+.csWheelRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  justify-content: center;
+}
+.csWheel svg {
+  width: 170px;
+  height: 170px;
+  display: block;
+  filter: drop-shadow(0 3px 4px rgba(0, 0, 0, 0.6));
+}
+.csWheel.is-small svg {
+  width: 128px;
+  height: 128px;
+}
+.csHistory {
+  display: grid;
+  grid-template-columns: repeat(2, 26px);
+  gap: 3px;
+  max-height: 170px;
+  overflow: hidden;
+}
+.csPocket {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 20px;
+  padding: 0 3px;
+  border-radius: 3px;
+  font-weight: bold;
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  box-sizing: border-box;
+}
+.csPocket.is-red {
+  background: #c8102e;
+}
+.csPocket.is-black {
+  background: #111;
+}
+.csPocket.is-green {
+  background: #0a7a3a;
+}
+.csPocket.is-last {
+  outline: 2px solid var(--cs-gold);
+}
+.csLayout {
+  display: grid;
+  grid-template-columns: 34px repeat(12, minmax(30px, 1fr)) 40px;
+  grid-template-rows: repeat(6, 17px) 28px 28px;
+  gap: 2px;
+  width: 100%;
+  max-width: 720px;
+  padding: 4px;
+  box-sizing: border-box;
+  border: 2px solid rgba(255, 240, 190, 0.6);
+}
+.csLayout.is-upright {
+  grid-template-columns: 44px 40px repeat(6, minmax(0, 1fr));
+  grid-template-rows: 30px repeat(12, 31px) 30px;
+  max-width: 360px;
+}
+.csLayout button {
+  position: relative;
+  min-width: 0 !important;
+  min-height: 0;
+  padding: 0;
+  margin: 0;
+  border: 1px solid rgba(255, 240, 190, 0.7) !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  color: #fff !important;
+  font-weight: bold;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  text-shadow: 0 1px 1px #000;
+}
+.csLayout button:active {
+  filter: brightness(1.3);
+}
+.csLayout .csNum.is-red .csCellLabel,
+.csLayout .csNum.is-black .csCellLabel {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 18px;
+  border-radius: 9px;
+}
+.csLayout .csNum.is-red .csCellLabel {
+  background: #c8102e;
+}
+.csLayout .csNum.is-black .csCellLabel {
+  background: #111;
+}
+.csLayout .csNum.is-green {
+  background: #0a7a3a !important;
+}
+.csLayout .csOut.is-red {
+  background: #c8102e !important;
+}
+.csLayout .csOut.is-black {
+  background: #111 !important;
+}
+.csLayout.is-upright .csOut .csCellLabel {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-size: 11px;
+}
+.csLayout .is-covered {
+  outline: 2px dotted var(--cs-gold);
+  outline-offset: -3px;
+}
+.csLayout .is-pending {
+  background: rgba(255, 220, 0, 0.35) !important;
+}
+.csLayout .csNum.is-hit,
+.csLayout .csOut.is-hit {
+  background: rgba(255, 220, 0, 0.6) !important;
+  color: #000 !important;
+  text-shadow: none;
+}
+.csLayout .csNum.is-hit .csCellLabel {
+  color: #fff;
+}
+.csOnCell {
+  position: absolute !important;
+  right: 1px;
+  bottom: 1px;
+  z-index: 1;
+  pointer-events: none;
+}
+.csBetList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  justify-content: center;
+}
+.csBetTag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(0, 0, 0, 0.45);
+  padding: 2px 2px 2px 4px;
+  border-radius: 3px;
+  color: #fff;
+}
+.csBetTag button {
+  min-width: 22px !important;
+  min-height: 20px;
+  padding: 0;
+}
+
+/* ---------- Slots ---------- */
+
+.csSlotsFelt {
+  background: radial-gradient(ellipse at 50% 30%, #4a0d5a, #160320);
+  justify-content: center;
+}
+.csCabinet {
+  --row: 72px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px 12px;
+  background: linear-gradient(#c8c8c8, #8e8e8e);
+  border: 3px outset #fff;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.6);
+}
+.csReelBox {
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+}
+.csLineMarks {
+  display: grid;
+  grid-template-rows: repeat(5, 1fr);
+  gap: 2px;
+}
+.csLineMarks span {
+  width: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #444;
+  color: #888;
+  font-weight: bold;
+  border-radius: 2px;
+}
+.csLineMarks span.is-on {
+  background: #b00000;
+  color: #fff;
+}
+.csLineMarks span.is-win {
+  background: #ff2;
+  color: #000;
+}
+.csReels {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(3, var(--row));
+  gap: 4px;
+  padding: 4px;
+  background: #111;
+  border: 3px inset #fff;
+}
+.csReel {
+  height: calc(var(--row) * 3);
+  overflow: hidden;
+  background: linear-gradient(#bbb, #fff 20%, #fff 80%, #bbb);
+}
+.csStrip {
+  will-change: transform;
+}
+.csSym {
+  height: var(--row);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.csSym svg {
+  width: 78%;
+  height: 78%;
+}
+.csPaylines {
+  position: absolute;
+  inset: 4px;
+  width: calc(100% - 8px);
+  height: calc(100% - 8px);
+  pointer-events: none;
+}
+.csLed {
+  min-width: 200px;
+  padding: 4px 10px;
+  background: #000;
+  color: #ff3030;
+  font-family: "Courier New", monospace;
+  font-weight: bold;
+  font-size: 18px;
+  text-align: center;
+  border: 2px inset #fff;
+  letter-spacing: 2px;
+  text-shadow: 0 0 6px #f00;
+}
+.csLed .is-error {
+  font-size: 11px;
+  letter-spacing: 0;
+}
+.csWinList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+  color: #000;
+  font-weight: bold;
+}
+.csSlotsBets {
+  display: flex;
+  justify-content: center;
+  gap: 18px;
+  align-items: flex-end;
+}
+.csSlotsBets .csField b {
+  font-size: 14px;
+  min-height: 28px;
+  display: flex;
+  align-items: center;
+}
+.csSpin {
+  min-width: 160px !important;
+  min-height: 44px !important;
+  font-size: 16px !important;
+  letter-spacing: 3px;
+}
+.csPaytable {
+  margin: 0 auto;
+  border-collapse: collapse;
+}
+.csPaytable td {
+  padding: 2px 8px;
+}
+.csPaySyms {
+  display: flex;
+  gap: 2px;
+}
+.csMiniSym {
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  border: 1px solid #888;
+}
+.csMiniSym svg {
+  width: 22px;
+  height: 22px;
+}
+.csAny {
+  font-size: 9px;
+  color: #666;
+}
+
+/* ---------- Video Poker ---------- */
+
+.csVpFelt {
+  background: #000080;
+  justify-content: flex-start;
+}
+.csVpPays {
+  border-collapse: collapse;
+  background: #000040;
+  color: #ffd800;
+  font-family: "Courier New", monospace;
+  font-weight: bold;
+  border: 2px solid #ffd800;
+  font-size: 12px;
+}
+.csVpPays th,
+.csVpPays td {
+  padding: 1px 8px;
+  text-align: right;
+  border-right: 1px solid rgba(255, 216, 0, 0.35);
+}
+.csVpPays th:first-child,
+.csVpPays td:first-child {
+  text-align: left;
+}
+.csVpPays .is-on {
+  background: #b00000;
+  color: #fff;
+}
+.csVpPays tr.is-hit td {
+  background: #fff;
+  color: #000080;
+}
+.csVpHand {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  margin-top: 6px;
+}
+.csVpCard {
+  display: flex !important;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  border: 0 !important;
+  cursor: pointer;
+}
+.csVpCard:disabled {
+  cursor: default;
+}
+.csHeld {
+  min-height: 16px;
+  font-weight: bold;
+  color: #ffd800;
+  font-family: "Courier New", monospace;
+  font-size: 13px;
+  white-space: pre;
+}
+.csVpCard.is-hint .csHeld {
+  color: #8cf;
+}
+.csVpCard.is-held .csCard {
+  transform: translateY(-6px);
+  box-shadow: 0 0 0 2px #ffd800, 0 4px 6px rgba(0, 0, 0, 0.6);
+}
+
+/* ---------- Craps ---------- */
+
+.csDiceRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.csDie {
+  width: 44px;
+  height: 44px;
+  background: #fafafa;
+  border-radius: 7px;
+  border: 1px solid #999;
+  box-shadow: inset -2px -2px 0 #ccc, 2px 3px 3px rgba(0, 0, 0, 0.5);
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  padding: 5px;
+  box-sizing: border-box;
+}
+.csDie i {
+  display: block;
+  margin: 2px;
+  border-radius: 50%;
+}
+.csDie i.is-pip {
+  background: #111;
+}
+.csDie.is-rolling {
+  animation: csShake 0.18s linear infinite;
+}
+@keyframes csShake {
+  25% {
+    transform: rotate(14deg) translate(2px, -3px);
+  }
+  75% {
+    transform: rotate(-12deg) translate(-2px, 2px);
+  }
+}
+.csPuck {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: #111;
+  color: #fff;
+  font-weight: bold;
+  border: 2px solid #fff;
+  font-size: 11px;
+}
+.csPuck.is-on {
+  background: #fff;
+  color: #000;
+  border-color: #000;
+}
+.csPuck.is-small {
+  width: 24px;
+  height: 24px;
+  font-size: 8px;
+}
+.csBoxes {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 3px;
+  width: 100%;
+  max-width: 640px;
+}
+.csBox {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-height: 64px;
+  padding: 3px 1px;
+  border: 2px solid rgba(255, 240, 190, 0.7);
+}
+.csBox.is-point {
+  background: rgba(255, 255, 255, 0.12);
+}
+.csBoxNum {
+  min-width: 0 !important;
+  width: 100%;
+  min-height: 26px;
+  padding: 0;
+  font-weight: bold;
+  font-size: 14px;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: #fff !important;
+  border: 0 !important;
+}
+.csBoxNum:disabled {
+  color: #fff !important;
+  text-shadow: none;
+}
+.csBoxBet {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  font-size: 10px;
+}
+.csOddsBtn {
+  min-width: 0 !important;
+  min-height: 18px;
+  padding: 0 3px;
+  font-size: 10px;
+}
+.csCrapsRow {
+  display: flex;
+  gap: 4px;
+  width: 100%;
+  max-width: 640px;
+}
+.csSpot {
+  flex: 1;
+  min-width: 0 !important;
+  min-height: 56px;
+  display: flex !important;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 4px !important;
+  background: rgba(0, 0, 0, 0.12) !important;
+  color: #fff !important;
+  border: 2px solid rgba(255, 240, 190, 0.75) !important;
+  box-shadow: none !important;
+  cursor: pointer;
+  text-shadow: 0 1px 1px #000;
+}
+.csSpot b {
+  font-size: 13px;
+  letter-spacing: 1px;
+}
+.csSpot small {
+  font-size: 10px;
+  color: rgba(255, 245, 210, 0.85);
+}
+.csSpot:disabled {
+  opacity: 0.6;
+}
+.csSpot:active:not(:disabled) {
+  background: rgba(255, 255, 255, 0.15) !important;
+}
+.csSpot.csPass {
+  flex: 2;
+}
+.csSpot.is-hit {
+  background: rgba(255, 220, 0, 0.35) !important;
+}
+.csOnTable {
+  color: #333;
+}
+
+/* ---------- Baccarat ---------- */
+
+.csBacHands {
+  display: flex;
+  gap: 18px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.csBacHand.is-winner {
+  border-color: var(--cs-gold);
+  background: rgba(255, 220, 0, 0.1);
+}
+.csBacHand .csCard.is-third {
+  transform: rotate(90deg) translateX(10px);
+  margin-left: 12px;
+}
+.csBacSpots {
+  display: flex;
+  gap: 4px;
+  width: 100%;
+  max-width: 560px;
+}
+.csBac-player b {
+  color: #9cf;
+}
+.csBac-banker b {
+  color: #f99;
+}
+.csBac-tie b {
+  color: #9f9;
+}
+.csRoad {
+  display: grid;
+  grid-template-rows: repeat(6, 16px);
+  grid-auto-flow: column;
+  grid-auto-columns: 16px;
+  gap: 2px;
+  padding: 3px;
+  background: #fff;
+  border: 2px inset #fff;
+}
+.csBead {
+  border-radius: 50%;
+  color: #fff;
+  font-size: 9px;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.csBead.is-player {
+  background: #1d4fd8;
+}
+.csBead.is-banker {
+  background: #c8102e;
+}
+.csBead.is-tie {
+  background: #12923f;
+}
+.csRules p {
+  margin: 0 0 6px;
+  line-height: 1.35;
+}
+
+/* ---------- phones ---------- */
+
+.csRoot.is-mobile {
+  --cw: 60px;
+}
+.csRoot.is-mobile .csFelt {
+  margin: 2px;
+  padding: 8px 4px;
+}
+.csRoot.is-mobile .csControls {
+  padding-left: 4px;
+  padding-right: 4px;
+}
+.csRoot.is-mobile .csActions button {
+  min-height: 40px;
+}
+.csRoot.is-mobile .csBig {
+  min-height: 44px !important;
+  flex: 1;
+  max-width: 160px;
+  font-size: 13px;
+}
+.csRoot.is-mobile .csRack {
+  gap: 10px;
+}
+.csRoot.is-mobile button.csRackChip {
+  width: 46px;
+  height: 46px;
+}
+.csRoot.is-mobile .csTiles {
+  grid-template-columns: 1fr 1fr;
+}
+.csRoot.is-mobile .csTile {
+  grid-template-columns: 1fr;
+  justify-items: center;
+  text-align: center;
+}
+.csRoot.is-mobile .csTile img {
+  grid-row: auto;
+}
+.csRoot.is-mobile .csPokerArea {
+  min-height: 0;
+  margin: 2px;
+}
+.csRoot.is-mobile .csOval {
+  left: 14%;
+  right: 14%;
+  top: 12%;
+  bottom: 12%;
+  border-width: 7px;
+}
+.csRoot.is-mobile .csBoard .csCard,
+.csRoot.is-mobile .csBoard .csSlot {
+  --w: 40px;
+  width: 40px;
+  height: 54px;
+}
+.csRoot.is-mobile .csBoard {
+  gap: 2px;
+}
+.csRoot.is-mobile .csPlate {
+  min-width: 62px;
+  padding: 2px 3px;
+}
+.csRoot.is-mobile .csName {
+  max-width: 70px;
+}
+.csRoot.is-mobile .csHole .csCard.is-small {
+  --w: 26px;
+}
+.csRoot.is-mobile .csHole.is-mine .csCard {
+  --w: 48px;
+}
+.csRoot.is-mobile .csCabinet {
+  --row: 64px;
+  padding: 8px;
+}
+.csRoot.is-mobile .csVpHand {
+  gap: 3px;
+}
+.csRoot.is-mobile .csVpHand .csCard.is-small {
+  --w: 62px;
+}
+.csRoot.is-mobile .csSpot b {
+  font-size: 11px;
+}
+.csRoot.is-mobile .csDie {
+  width: 40px;
+  height: 40px;
+}
