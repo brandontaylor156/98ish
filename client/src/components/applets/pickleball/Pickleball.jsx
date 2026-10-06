@@ -28,7 +28,8 @@ import { bindingsFor, keyName } from "./input.js"
 import "./Pickleball.css"
 import "./Overlay.css"
 import { helpItem } from "../../../utils/help"
-import { ParkHud, ParkIntro, ParkMenu, ParkResult, ParkTurn } from "./park/ParkHud"
+import { ParkHud, ParkIntro, ParkMenu, ParkResult, ParkTurn, ParkVenues } from "./park/ParkHud"
+import { VENUE_LIST } from "./park/venues/index.js"
 import { usePark } from "./park/usePark"
 import { recordGame, validRep } from "./park/rep.js"
 import { COURTS as PARK_COURTS, LEVEL_NAMES as PARK_LEVELS } from "./park/layout.js"
@@ -523,21 +524,56 @@ const Pickleball = ({ onClose, mobile }) => {
     else if (s.kind === "train") startTrain(s.plan, { intro: false })
   }
   // ---- My Park (park/) ----
-  const startPark = async () => {
+  // a venue's layout: Riverside (built in) or a real venue (its spec loaded, then generated)
+  const loadParkLayout = async (id) => {
+    const L = await import("./park/layout.js")
+    if (!id || id === "riverside") return L.RIVERSIDE_LAYOUT
+    const [{ loadVenueSpec }, { venueLayoutSpec }] = await Promise.all([import("./park/venues/index.js"), import("./park/venuegen.js")])
+    const spec = await loadVenueSpec(id)
+    return spec ? L.makeLayout(venueLayoutSpec(spec)) : L.RIVERSIDE_LAYOUT
+  }
+  const courtVenueRef = useRef(null)
+  // the engine's venue for a game on court `court` in the park you're in (that court, its surroundings)
+  const parkCourtVenue = (court) => {
+    const w = parkRef.current
+    const make = courtVenueRef.current
+    if (!w?.layout || !make || court === null || court === undefined) return "park"
+    const layout = w.layout
+    return { key: `park:${layout.id}:${court}`, build: (scene, o) => make(scene, { layout, courtId: court, quality: o.quality }), room: layout.spec.indoor ? "hall" : "park" }
+  }
+  const [parkPick, setParkPick] = useState(false)
+  const [parkLoading, setParkLoading] = useState(null)
+  const pickPark = () => {
+    if (session?.kind !== "park") quitToMenu()
+    setParkPick(true)
+  }
+  const startPark = async (venueId = prefsRef.current.parkVenue || "riverside") => {
     const e = engineRef.current
     if (!e) return
+    let w = parkRef.current
+    // (a different venue: the old park goes)
+    if (w && w.venue !== venueId) {
+      parkRef.current = null
+      setParkWorld(null)
+      setParkHud(null)
+      e.setWorld(null)
+      w.dispose()
+      w = null
+    }
+    if (!w) setParkLoading(venueId)
     reset()
     setSession({ kind: "park" })
     setScreen("park")
     setParkUi({ menu: false, intro: !prefsRef.current.parkIntro, turn: null, result: null })
-    let w = parkRef.current
     if (!w) {
       try {
-        const { createWorld } = await import("./park/world.js")
+        const [{ createWorld }, layout, cv] = await Promise.all([import("./park/world.js"), loadParkLayout(venueId), import("./park/courtvenue.js")])
+        courtVenueRef.current = cv.buildCourtVenue
         if (engineRef.current !== e) return
-        w = createWorld({ ...e.worldContext(), phone: !!mobile, me: myParkInfo(), labelsEl: parkLabelsRef.current, onHud: setParkHud, onEvent: (ev) => parkEventRef.current?.(ev) })
+        w = createWorld({ ...e.worldContext(), layout, phone: !!mobile, me: myParkInfo(), labelsEl: parkLabelsRef.current, onHud: setParkHud, onEvent: (ev) => parkEventRef.current?.(ev) })
       } catch (error) {
         console.error(error)
+        setParkLoading(null)
         setScreen("main")
         setSession(null)
         return
@@ -545,6 +581,7 @@ const Pickleball = ({ onClose, mobile }) => {
       parkRef.current = w
       setParkWorld(w)
     }
+    setParkLoading(null)
     w.resume()
     e.setWorld(w)
   }
@@ -595,7 +632,8 @@ const Pickleball = ({ onClose, mobile }) => {
     setSession({ kind: "parkgame", level, court: t.court })
     w.suspend()
     e.setWorld(null)
-    e.newMatch({ doubles: true, level, scoring: "sideout", target: 11, venue: "park", roster, humans: 1 })
+    // (played on that very court, with the venue all round it)
+    e.newMatch({ doubles: true, level, scoring: "sideout", target: 11, venue: parkCourtVenue(t.court), roster, humans: 1 })
   }
   parkEventRef.current = (ev) => {
     const w = parkRef.current
@@ -719,6 +757,8 @@ const Pickleball = ({ onClose, mobile }) => {
       setParkUi((u) => ({ ...u, menu: false, turn: null }))
     }
     if (parkRef.current && !parkGameRef.current) parkGameRef.current = { court: null, kind: "room", level: "intermediate" }
+    // (a room game called from My Park: on that court, at that venue)
+    if (parkRef.current && parkGameRef.current?.kind === "room" && opts?.settings) opts = { ...opts, settings: { ...opts.settings, venueBuild: parkCourtVenue(parkGameRef.current.court) } }
     e?.setWorld(null)
     if (e) e.startOnline(opts)
     else pendingStart.current = opts
@@ -1005,7 +1045,7 @@ const Pickleball = ({ onClose, mobile }) => {
         { label: "Quick Match (F2)", onClick: startQuick },
         { label: "World Tour...", onClick: () => (quitToMenu(), setScreen("tour")) },
         { label: "Practice...", onClick: () => (quitToMenu(), setHubView("hub"), setScreen("practice")) },
-        { label: "My Park...", onClick: () => (session?.kind !== "park" && quitToMenu(), startPark()) },
+        { label: "My Park...", onClick: pickPark },
         { label: "2 Players...", onClick: () => (quitToMenu(), setScreen("versus")) },
         { label: "Locker Room...", onClick: () => (session?.kind !== "online" && quitToMenu(), setLockerFor(null), setScreen("locker")) },
         { label: "Play Online...", onClick: () => (session?.kind !== "online" && quitToMenu(), setScreen("online")) },
@@ -1223,6 +1263,8 @@ const Pickleball = ({ onClose, mobile }) => {
             onSay={(i) => (parkRef.current?.say(i), setParkUi((u) => ({ ...u, menu: false })))}
             onEmote={(id) => (parkRef.current?.emote(id), setParkUi((u) => ({ ...u, menu: false })))}
             onLocker={() => (setParkUi((u) => ({ ...u, menu: false })), parkEventRef.current?.({ type: "locker" }))}
+            venueName={parkWorld?.layout?.name || "My Park"}
+            onVenues={() => (setParkUi((u) => ({ ...u, menu: false })), setParkPick(true))}
             onLeave={leavePark}
           />
         )}
@@ -1237,10 +1279,30 @@ const Pickleball = ({ onClose, mobile }) => {
           />
         )}
 
+        {parkPick && (
+          <ParkVenues
+            list={VENUE_LIST}
+            current={prefs.parkVenue || "riverside"}
+            favs={Array.isArray(prefs.parkFavs) ? prefs.parkFavs : []}
+            loading={parkLoading}
+            onPick={(id) => {
+              setPrefs({ parkVenue: id })
+              setParkPick(false)
+              startPark(id)
+            }}
+            onFav={(id) => {
+              const f = Array.isArray(prefsRef.current.parkFavs) ? prefsRef.current.parkFavs : []
+              setPrefs({ parkFavs: f.includes(id) ? f.filter((x) => x !== id) : [...f, id].slice(0, 20) })
+            }}
+            onClose={() => setParkPick(false)}
+          />
+        )}
+        {parkLoading && screen === "park" && !parkPick && <div className="pkCenter pkDim" data-park="loading"><div className="pkPanel window">Walking over to {VENUE_LIST.find((v) => v.id === parkLoading)?.short || "the park"}...</div></div>}
+
         {/* ---------- menus ---------- */}
         {atMenu && screen === "main" && phase === "title" && (
           <TitleMenu
-            onPick={(s) => (s === "park" ? startPark() : s === "rules" ? setDialog("rules") : s === "settings" ? setDialog("settings") : s === "controls" ? setDialog("controls") : (setPlayersFor("p1"), s === "practice" && setHubView("hub"), setScreen(s)))}
+            onPick={(s) => (s === "park" ? pickPark() : s === "rules" ? setDialog("rules") : s === "settings" ? setDialog("settings") : s === "controls" ? setDialog("controls") : (setPlayersFor("p1"), s === "practice" && setHubView("hub"), setScreen(s)))}
             onOnline={() => setScreen("online")}
             tour={tour}
             showPad={showPad}

@@ -123,6 +123,10 @@ const seeded = (seed) => {
   return () => ((s = (s * 16807) % 2147483647) / 2147483647)
 }
 
+// (the build works out which courts can't be reached and saves them as spec.genExclude: the
+// browser passes those and skips the check)
+export const venueLayoutSpec = (spec) => generateVenue(spec, spec.genExclude ? { exclude: spec.genExclude, noCheck: true } : {}).layoutSpec
+
 export const generateVenue = (spec, opts = {}) => {
   const maxLive = opts.maxLive ?? spec.live ?? 6
   const rand = seeded(spec.id.split("").reduce((h, c) => (h * 31 + c.charCodeAt(0)) | 0, 7))
@@ -782,5 +786,5 @@ export const generateVenue = (spec, opts = {}) => {
     const bad = [...L.COURTS.filter((c) => !reach(c.outside)).map((c) => layoutCourts[L.COURTS.indexOf(c)].src), ...(L.MACHINE_COURT && !reach({ x: L.MACHINE_COURT.gate.x + L.MACHINE_COURT.out.x, z: L.MACHINE_COURT.gate.z + L.MACHINE_COURT.out.z }) ? [machine.c.i] : [])]
     if (bad.length && (opts.tries || 0) < 16) return generateVenue(spec, { ...opts, exclude: [...exclude, ...bad], tries: (opts.tries || 0) + 1 })
   }
-  return { layoutSpec, info: { banks: banks.length, live: layoutCourts.length, courts: courts.length, pickleball: pbCourts.length } }
+  return { layoutSpec, info: { banks: banks.length, live: layoutCourts.length, courts: courts.length, pickleball: pbCourts.length, exclude: [...exclude] } }
 }

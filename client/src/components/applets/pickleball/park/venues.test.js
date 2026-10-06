@@ -4,7 +4,7 @@
 import test from "node:test"
 import assert from "node:assert/strict"
 import { readFileSync } from "node:fs"
-import { generateVenue } from "./venuegen.js"
+import { venueLayoutSpec } from "./venuegen.js"
 import { makeLayout } from "./layout.js"
 import { VENUE_LIST } from "./venues/index.js"
 
@@ -24,7 +24,8 @@ const built = new Map()
 const get = (id) => {
   if (!built.has(id)) {
     const s = spec(id)
-    const g = generateVenue(s)
+    // (as the browser does it: the saved exclusions, no check)
+    const g = { layoutSpec: venueLayoutSpec(s) }
     built.set(id, { s, g, L: makeLayout(g.layoutSpec) })
   }
   return built.get(id)
@@ -129,5 +130,18 @@ test("venuegen: a court's frame (any angle) and the world agree", () => {
     const loc = { x: -(0), z: 5 }
     const w = { x: c.x + loc.x * c.f.c + loc.z * c.f.s, z: c.z - loc.x * c.f.s + loc.z * c.f.c }
     assert.ok(Math.hypot(w.x - p.x, w.z - p.z) < 1e-9)
+  }
+})
+
+test("venuegen: every number in a venue's layout and scenery is a real number (no NaN)", () => {
+  const bad = (o, path, out) => {
+    if (typeof o === "number" && !Number.isFinite(o)) out.push(path)
+    else if (o && typeof o === "object") for (const [k, v] of Object.entries(o)) bad(v, `${path}.${k}`, out)
+    return out
+  }
+  for (const id of IDS) {
+    const { g, L } = get(id)
+    const out = bad({ scene: g.layoutSpec.scene, courts: L.COURTS, boxes: L.BOXES, circles: L.CIRCLES, seats: L.ALL_SEATS, nav: L.NAV, lights: L.LIGHTS }, id, [])
+    assert.deepEqual(out.slice(0, 5), [], `${id}: not numbers`)
   }
 })

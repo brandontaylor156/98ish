@@ -79,12 +79,29 @@ export const SPECTATE_ANGLES = ["Sideline", "Baseline", "High"]
 // (a phone held upright looks down the court first: the sideline view is too wide for it)
 const ORDER = { wide: [0, 1, 2], tall: [1, 0, 2] }
 export const angleName = (angle = 0, portrait = false) => SPECTATE_ANGLES[(portrait ? ORDER.tall : ORDER.wide)[((angle % 3) + 3) % 3]]
-export const spectatorShot = (court, angle = 0, bodies = [], { portrait = false } = {}) => {
+export const spectatorShot = (court, angle = 0, bodies = [], { portrait = false, maxY = null, isClear = null } = {}) => {
   // (in the court's own axes: u along it, v toward the spectators' side; Riverside: u east,
   // v toward the path)
   const u = court.u || { x: 1, z: 0 }
-  const v = court.view || { x: 0, z: -(court.side ?? 1) }
+  const v0 = court.view || { x: 0, z: -(court.side ?? 1) }
   const hz = court.hz ?? PEN.hz
+  // (a real venue: if a building or a wall is between the court and the lens, try the other
+  // side, then come in closer)
+  const tries = isClear ? [[1, 1, 1], [-1, 1, 1], [1, -1, 1], [-1, -1, 1], [1, 1, 0.75], [-1, -1, 0.75], [1, 1, 0.5], [1, 1, 0.3]] : [[1, 1, 1]]
+  let best = null
+  for (const [sv, se, k] of tries) {
+    const shot = framing(court, angle, { u, v: { x: v0.x * sv, z: v0.z * sv }, hz, se, k, portrait, maxY })
+    if (!isClear || isClear(shot.cam)) {
+      best = shot
+      break
+    }
+  }
+  if (!best) best = framing(court, angle, { u, v: v0, hz, se: 1, k: 0.3, portrait, maxY })
+  const c = clearShot(best.cam, best.look, bodies, { near: 1.6, ahead: 3.2 })
+  return { cam: { x: c.x, y: c.y, z: c.z }, look: best.look, fov: best.fov, name: SPECTATE_ANGLES[best.a], moved: c.moved, width: HALF_W }
+}
+// one framing of the three angles: se flips the baseline end, k scales the distance out
+const framing = (court, angle, { u, v, hz, se = 1, k = 1, portrait, maxY }) => {
   const at = (a, b, y) => ({ x: court.x + u.x * a + v.x * b, y, z: court.z + u.z * a + v.z * b })
   const a = (portrait ? ORDER.tall : ORDER.wide)[((angle % 3) + 3) % 3]
   let cam
@@ -93,21 +110,21 @@ export const spectatorShot = (court, angle = 0, bodies = [], { portrait = false 
   if (a === 0) {
     // from behind the bleachers, up over the fence: the whole court side on, a little to one
     // side of the net
-    cam = at(1.5, hz + 4.2 + (portrait ? 4.5 : 0), portrait ? 8.5 : 4.7)
+    cam = at(1.5, (hz + 4.2 + (portrait ? 4.5 : 0)) * k, portrait ? 8.5 : 4.7)
     look = at(0, -0.3, 0.2)
     fov = portrait ? 64 : 52
   } else if (a === 1) {
     // behind a baseline, high enough to see over the near players
-    const e = court.baseE ?? (court.x >= 0 ? 1 : -1)
-    cam = at(e * (HALF_L + 4.4 + (portrait ? 3 : 0)), 0.6, portrait ? 5.6 : 4.4)
+    const e = (court.baseE ?? (court.x >= 0 ? 1 : -1)) * se
+    cam = at(e * (HALF_L + (4.4 + (portrait ? 3 : 0)) * k), 0.6, portrait ? 5.6 : 4.4)
     look = at(-e * 1.0, 0, 0.2)
     fov = portrait ? 64 : 48
   } else {
     // high over the bleachers: the whole court
-    cam = at(-1.5, hz + 4.5 + (portrait ? 2 : 0), portrait ? 11 : 8.5)
+    cam = at(-1.5, (hz + 4.5 + (portrait ? 2 : 0)) * k, portrait ? 11 : 8.5)
     look = at(0, -0.4, 0)
     fov = portrait ? 62 : 46
   }
-  const c = clearShot(cam, look, bodies, { near: 1.6, ahead: 3.2 })
-  return { cam: { x: c.x, y: c.y, z: c.z }, look, fov, name: SPECTATE_ANGLES[a], moved: c.moved, width: HALF_W }
+  if (maxY !== null && cam.y > maxY) cam = { ...cam, y: maxY }
+  return { cam, look, fov, a }
 }

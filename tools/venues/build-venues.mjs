@@ -397,7 +397,9 @@ const buildOne = (v) => {
     if (h.extra) hall.extra = h.extra
     for (const b of buildings) if (b.hallK === k) b.h = hall.h
     if (h.doorW) hall.doorW = h.doorW
-    for (const key of ["padH", "beams", "ducts", "slats", "living", "murals", "lightsStyle", "outside", "columns"]) if (h[key] !== undefined) hall[key] = h[key]
+    for (const key of ["padH", "beams", "ducts", "slats", "living", "murals", "lightsStyle", "outside"]) if (h[key] !== undefined) hall[key] = h[key]
+    // a row of steel columns: from / to in any of the point forms
+    if (h.columns) hall.columns = { from: pr([sh(P(h.columns.from))])[0], to: pr([sh(P(h.columns.to))])[0], n: h.columns.n || 4 }
     return hall
   })
 
@@ -475,10 +477,13 @@ for (const v of CONFIG.venues) {
   let spec
   if (!ids.length || ids.includes(v.id)) {
     spec = buildOne(v)
+    // (the courts the generator had to swap out: saved, so the browser skips that check)
+    const ex = generateVenue(spec).info.exclude
+    if (ex.length) spec.genExclude = ex
     fs.writeFileSync(file, JSON.stringify(spec))
   } else spec = JSON.parse(fs.readFileSync(file, "utf8"))
   // (the generator, as the browser runs it: how many courts have live games, the walkable bounds)
-  const gen = generateVenue(spec)
+  const gen = generateVenue(spec, spec.genExclude ? { exclude: spec.genExclude, noCheck: true } : {})
   const b = gen.layoutSpec.bounds
   server[v.id] = { courts: gen.layoutSpec.courts.length, bounds: { x0: Math.floor(b.x0), x1: Math.ceil(b.x1), z0: Math.floor(b.z0), z1: Math.ceil(b.z1) } }
   const pb = spec.courts.filter((c) => c.s === "p").length + spec.courts.reduce((s, c) => s + (c.pb || 0), 0)

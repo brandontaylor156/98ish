@@ -55,6 +55,9 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
   // (the venue: layout.js's named exports follow the active layout)
   setLayout(layout)
   const venue = layout
+  // (indoors: cameras stay under the lowest hall roof)
+  const halls = layout.spec.scene?.halls || []
+  const roofY = halls.length ? Math.min(...halls.map((h) => h.h || 9)) - 0.6 : null
   const rand = seeded(seed)
   const scene = new THREE.Scene()
   const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 400)
@@ -922,7 +925,9 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
       const c = courts[me.watching]
       const bodiesNear = []
       for (const b of bodies.values()) if (b.court === c || (b.seat && b.seat.court === c.def.id)) bodiesNear.push({ x: b.x, z: b.z, h: b.seat ? b.seat.y + 1.0 : 1.95 })
-      const shot = spectatorShot(c.def, me.angle, bodiesNear, { portrait: por })
+      // (a real venue: nothing solid between the court and the lens)
+      const isClear = venue.kind === "riverside" ? null : (cam) => venue.segmentHit({ x: c.def.x, z: c.def.z }, cam, Math.min(cam.y - 0.3, 3.2)) === null
+      const shot = spectatorShot(c.def, me.angle, bodiesNear, { portrait: por, maxY: roofY, isClear })
       const k = 1 - Math.exp(-dt * 3)
       tv.set(shot.cam.x, shot.cam.y, shot.cam.z)
       camera.position.lerp(tv, k)
@@ -1150,6 +1155,9 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
   const world = {
     scene,
     camera,
+    // which venue this is (layout.js / venuegen.js): online, friends at the same venue meet
+    venue: layout.id || "riverside",
+    layout,
     get exposure() {
       return exposure
     },

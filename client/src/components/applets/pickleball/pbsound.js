@@ -359,6 +359,7 @@ export const voiceFor = (type, o) => {
 // long, by venue. Outdoors it's the court and the fence; the stadium's stands ring longer.
 export const ROOMS = {
   park: { wet: 0.06, len: 0.25 },
+  hall: { wet: 0.15, len: 0.7 }, // (an indoor pickleball hall: hard walls, a high roof)
   beach: { wet: 0.035, len: 0.18 },
   winter: { wet: 0.03, len: 0.2 }, // (snow soaks it up)
   club: { wet: 0.08, len: 0.35 },

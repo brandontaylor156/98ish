@@ -93,18 +93,22 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
 
   // ---------- the venue ----------
   let venueId = "park"
+  // (a venue can also be { key, build(scene, { quality }), room }: a court in My Park at a real venue)
+  let venueCustom = null
   let venue = buildVenue(scene, { venue: venueId, quality: settings.quality })
   renderer.toneMappingExposure = venue.def.exposure
   const setVenue = (id) => {
-    const next = VENUES[id] ? id : "park"
+    const custom = id && typeof id === "object" && id.build ? id : null
+    const next = custom ? custom.key : VENUES[id] ? id : "park"
     if (next === venueId && venue) return
     venue.dispose()
     venueId = next
-    venue = buildVenue(scene, { venue: venueId, quality: settings.quality })
+    venueCustom = custom
+    venue = custom ? custom.build(scene, { quality: settings.quality }) : buildVenue(scene, { venue: venueId, quality: settings.quality })
     venue.setScreenCompact?.(portraitScreen())
     renderer.toneMappingExposure = venue.def.exposure
     audio.setCrowd(settings.sound ? venue.def.crowd : 0)
-    audio.setRoom(venueId)
+    audio.setRoom(custom ? custom.room || "park" : venueId)
     placeUmpire()
     warm()
   }
@@ -1644,7 +1648,7 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
       cut = null
       humans = 1
       netWait = null
-      setVenue(s.venue || "stadium")
+      setVenue(s.venueBuild || s.venue || "stadium")
       // (each person's own Locker Room look, checked; or their player's kit)
       const withLooks = people.map((p) => ({ ...p, look: p.look && typeof p.look === "object" ? validateLook(p.look, characterLook(p.character || DEFAULT_LOOKS[p.seat % 4], p.outfit)) : lookFor(p.character || DEFAULT_LOOKS[p.seat % 4], p.outfit) }))
       const { roster, doubles } = onlineRoster(withLooks, { doubles: s.doubles, level: s.level || "intermediate" })
@@ -1925,7 +1929,7 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
         renderer.setPixelRatio(pixelRatio)
         renderer.setSize(size.width, size.height, false)
         renderer.shadowMap.enabled = QUALITY[settings.quality].shadows
-        const id = venueId
+        const id = venueCustom || venueId
         venueId = null
         setVenue(id)
         if (match) buildFigures()
@@ -2001,6 +2005,10 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
       },
       get mode() {
         return mode
+      },
+      // the venue the match is drawn at (My Park: "<venue> · Court N")
+      get venueName() {
+        return venue.def.name
       },
       // (My Park) the world on screen, if any
       get world() {

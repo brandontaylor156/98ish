@@ -47,7 +47,7 @@ export const VENUE_LIST = [
     "courts": 28,
     "tennis": 12,
     "live": 6,
-    "kb": 6.3
+    "kb": 6.4
   },
   {
     "id": "paseo",

@@ -34,7 +34,7 @@ export const usePark = ({ world, active, me }) => {
     })
     const m = meRef.current || {}
     const rep = m.rep ? { level: repLevel(m.rep.points).index, wins: m.rep.wins, losses: m.rep.losses, streak: m.rep.streak } : null
-    net.request("park:join", { look: m.look, rep }).then((r) => {
+    net.request("park:join", { look: m.look, rep, venue: world.venue || "riverside" }).then((r) => {
       if (!live) return
       if (r?.ok) {
         world.netJoined(r)
