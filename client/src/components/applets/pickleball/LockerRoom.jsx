@@ -1,4 +1,5 @@
 import React, { useEffect, useId, useMemo, useRef, useState } from "react"
+import Combo from "../../shared/select/Combo"
 import { CHARACTERS } from "./looks.js"
 import { BODIES, BOTTOMS, BUILDS, DESIGNS, GLASSES, HAIR_COLORS, HAIR_COLOR_NAMES, HAIR_STYLES, HATS, HEIGHT, KIT_COLORS, PLAYS, PRO_STYLES, SKIN_TONES, SOCKS, THEMES, TOPS, applyTheme, characterLook, defaultStyleFor, randomLook, themeById, validateLook } from "./locker.js"
 
@@ -46,13 +47,7 @@ const Check = ({ checked, onChange, name, children }) => {
 const Pick = ({ label, value, options, onChange, name }) => (
   <label className="pkField pkLockerField">
     <span>{label}</span>
-    <select value={value} data-field={name} onChange={(e) => onChange(e.target.value)}>
-      {options.map((o) => (
-        <option key={o.id} value={o.id}>
-          {o.name}
-        </option>
-      ))}
-    </select>
+    <Combo value={value} name={name} ariaLabel={label} options={options.map((o) => [o.id, o.name])} onChange={onChange} />
   </label>
 )
 
@@ -151,24 +146,13 @@ export const LockerRoom = ({ prefs, setPrefs, engine, onBack, initial }) => {
           <div className="pkLockerTop">
             <label className="pkField pkLockerField">
               <span>Dressing</span>
-              <select value={who} data-field="who" onChange={(e) => pickWho(e.target.value)}>
-                {people.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.nick}
-                    {c.id === prefs.character ? " (you)" : prefs.looks?.[c.id] ? " (custom)" : ""}
-                  </option>
-                ))}
-              </select>
+              <Combo value={who} name="who" ariaLabel="Dressing" options={people.map((c) => [c.id, `${c.nick}${c.id === prefs.character ? " (you)" : prefs.looks?.[c.id] ? " (custom)" : ""}`])} onChange={pickWho} />
             </label>
             <div className="pkLockerView" role="group" aria-label="Viewer">
               <button type="button" aria-label="Turn left" title="Turn left" onClick={() => engine()?.showcaseTurn(-0.6)}>
                 {"<"}
               </button>
-              <select value={pose} aria-label="Viewer pose" data-field="pose" onChange={(e) => setPose(e.target.value)}>
-                <option value="ready">Ready (swings)</option>
-                <option value="run">Jogging</option>
-                <option value="still">Standing</option>
-              </select>
+              <Combo value={pose} name="pose" ariaLabel="Viewer pose" options={[["ready", "Ready (swings)"], ["run", "Jogging"], ["still", "Standing"]]} onChange={setPose} />
               <button type="button" aria-label="Turn right" title="Turn right" onClick={() => engine()?.showcaseTurn(0.6)}>
                 {">"}
               </button>
@@ -258,10 +242,7 @@ export const LockerRoom = ({ prefs, setPrefs, engine, onBack, initial }) => {
                   </Check>
             <label className="pkField pkLockerField">
               <span>Computer players</span>
-              <select value={prefs.aiLooks || "own"} data-field="aiLooks" onChange={(e) => setPrefs({ aiLooks: e.target.value })}>
-                <option value="own">Their own kits</option>
-                <option value="random">Random kits</option>
-              </select>
+              <Combo value={prefs.aiLooks || "own"} name="aiLooks" ariaLabel="Computer players" options={[["own", "Their own kits"], ["random", "Random kits"]]} onChange={(v) => setPrefs({ aiLooks: v })} />
             </label>
           </fieldset>
           <p className="pkLockerHint">Drag the player to turn them around.</p>

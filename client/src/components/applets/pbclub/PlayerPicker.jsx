@@ -1,4 +1,5 @@
 import React from "react"
+import { Select } from "../../shared/select/Combo"
 
 // One player slot: you, a buddy from your Buddy List, or a guest (typed name; guests are in
 // your record but not the ratings).
@@ -10,7 +11,7 @@ const PlayerPicker = ({ label, value, people, taken = [], onChange, id }) => {
   const selected = value?.k ? value.k : value?.g !== undefined ? GUEST : ""
   return (
     <div className="pbPick">
-      <select
+      <Select
         id={id}
         aria-label={label}
         value={selected}
@@ -28,7 +29,7 @@ const PlayerPicker = ({ label, value, people, taken = [], onChange, id }) => {
           </option>
         ))}
         <option value={GUEST}>A guest (not on 98 Messenger)</option>
-      </select>
+      </Select>
       {value?.g !== undefined && <input type="text" maxLength={24} placeholder="Guest's name" value={value.g} aria-label={`${label}: guest's name`} onChange={(e) => onChange({ g: e.target.value })} />}
     </div>
   )

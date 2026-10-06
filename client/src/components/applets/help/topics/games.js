@@ -280,7 +280,7 @@ export const topics = [
           "**World Tour:** eight matches from the Park Open to the Center Court Masters. Win to unlock new outfits.",
           "**2 Players:** head to head on one keyboard or two gamepads.",
           "**Play Online:** Quick Match, rooms with a code, and invites. See [[online-play]].",
-          "World Tour and 2 Players are under **More modes »** on the title screen. The first time you open the game it offers a 2-minute lesson.",
+          "The title screen has four places to go: **Play** (Quick Match; its setup screen also has **Play Online**, **World Tour** and **2 Players** under More ways to play), **My Park**, **Practice** and **Real Games** (your real-life pickleball), plus **My Player** (pick your player, then the Locker Room). Settings, Controls and Rules are in the Options and Help menus. The first time you open the game it offers a 2-minute lesson.",
         ],
       },
       { h: "Practice" },
@@ -362,7 +362,7 @@ export const topics = [
         computer: "Move with the keys, aim with the mouse, and click (or press Space) to hit. Two players on one keyboard: Player 1 uses W A S D and F, Player 2 the arrows and L; while holding hit, your move keys steer the aim. A gamepad works too. Change any key in **Controls**.",
       },
       { h: "The Locker Room" },
-      "Open **Locker Room** on the title screen (or Game > Locker Room..., or **Locker Room...** on the players screen) to dress any player. Drag the player to turn them around, and pick **Jogging** to see the kit move.",
+      "Open **My Player** on the title screen and pick **Locker Room...** (or Game > Locker Room...) to dress any player. Drag the player to turn them around, and pick **Jogging** to see the kit move.",
       {
         list: [
           "**Body:** skin, hair and hair color, a beard, height and build; **Plays** (right- or left-handed) and **Pro style** (a compact all-court game with a one-handed backhand, or an aggressive two-hander with a two-handed backhand).",

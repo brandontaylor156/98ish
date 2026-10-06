@@ -545,3 +545,70 @@
 .selSheet .is-focused .is-active {
   outline: none;
 }
+
+/* ---- Combo.jsx: a drop-down drawn from a <button> (no native select) ---- */
+button.selCombo {
+  display: inline-flex;
+  align-items: stretch;
+  box-sizing: border-box;
+  min-width: 90px;
+  min-height: 21px;
+  max-width: 100%;
+  padding: 2px;
+  background: #fff;
+  color: #000;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px grey, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+  border: none;
+  border-radius: 0;
+  font: inherit;
+  text-align: left;
+  cursor: default;
+  vertical-align: middle;
+  -webkit-appearance: none;
+  appearance: none;
+  -webkit-tap-highlight-color: transparent;
+}
+button.selCombo:active {
+  box-shadow: inset -1px -1px #fff, inset 1px 1px grey, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+}
+button.selCombo:focus {
+  outline: none;
+}
+button.selCombo:focus .selComboText {
+  background: #000080;
+  color: #fff;
+}
+button.selCombo:disabled {
+  background: silver;
+  color: grey;
+}
+.selComboText {
+  flex: 1;
+  min-width: 0;
+  padding: 0 4px 0 2px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  align-self: center;
+  line-height: normal;
+}
+.selComboBtn {
+  flex: none;
+  width: 16px;
+  background:
+    url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='7' height='4'%3E%3Cpath d='M0 0h7v1H6v1H5v1H4v1H3V3H2V2H1V1H0z'/%3E%3C/svg%3E") center / 7px 4px no-repeat,
+    silver;
+  box-shadow: inset -1px -1px #0a0a0a, inset 1px 1px #dfdfdf, inset -2px -2px grey, inset 2px 2px #fff;
+}
+button.selCombo.is-open .selComboBtn,
+button.selCombo:active .selComboBtn {
+  background-position: calc(50% + 1px) calc(50% + 1px), 0 0;
+  box-shadow: inset 1px 1px grey, inset -1px -1px grey;
+}
+.os-mobile button.selCombo {
+  min-height: 36px;
+  font-size: 16px;
+}
+.os-mobile .selComboBtn {
+  width: 28px;
+}

@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react"
+import { Select } from "../../shared/select/Combo"
 import MoreOptions from "../../shared/MoreOptions"
 import PrimaryBar from "../../shared/PrimaryBar"
 import CourtDiagram from "./CourtDiagram"
@@ -286,60 +287,60 @@ const Scorekeeper = ({ me, people, prefill, onSaved }) => {
       ))}
       <div className="field-row-stacked">
         <label htmlFor="pb-venue">Where</label>
-        <select id="pb-venue" value={cfg.venue} onChange={(e) => setCfg({ ...cfg, venue: e.target.value })}>
+        <Select id="pb-venue" value={cfg.venue} onChange={(e) => setCfg({ ...cfg, venue: e.target.value })}>
           <option value="">(somewhere else)</option>
           {VENUES.map((v) => (
             <option key={v.id} value={v.id}>
               {v.short}
             </option>
           ))}
-        </select>
+        </Select>
       </div>
       <MoreOptions id="pbclub.score" summary={summary}>
         <div className="pbOpts">
           <label>
             Game
-            <select value={cfg.format} onChange={(e) => setCfg({ ...cfg, format: e.target.value })}>
+            <Select value={cfg.format} onChange={(e) => setCfg({ ...cfg, format: e.target.value })}>
               <option value="doubles">Doubles</option>
               <option value="singles">Singles</option>
-            </select>
+            </Select>
           </label>
           <label>
             Scoring
-            <select value={cfg.scoring} onChange={(e) => setCfg({ ...cfg, scoring: e.target.value })}>
+            <Select value={cfg.scoring} onChange={(e) => setCfg({ ...cfg, scoring: e.target.value })}>
               <option value="sideout">Side-out (traditional)</option>
               <option value="rally">Rally (every rally scores)</option>
-            </select>
+            </Select>
           </label>
           <label>
             Play to
-            <select value={cfg.to} onChange={(e) => setCfg({ ...cfg, to: Number(e.target.value) })}>
+            <Select value={cfg.to} onChange={(e) => setCfg({ ...cfg, to: Number(e.target.value) })}>
               <option value={11}>11</option>
               <option value={15}>15</option>
               <option value={21}>21</option>
-            </select>
+            </Select>
           </label>
           <label>
             Win by
-            <select value={cfg.winBy} onChange={(e) => setCfg({ ...cfg, winBy: Number(e.target.value) })}>
+            <Select value={cfg.winBy} onChange={(e) => setCfg({ ...cfg, winBy: Number(e.target.value) })}>
               <option value={2}>2</option>
               <option value={1}>1</option>
-            </select>
+            </Select>
           </label>
           <label>
             Match
-            <select value={cfg.bestOf} onChange={(e) => setCfg({ ...cfg, bestOf: Number(e.target.value) })}>
+            <Select value={cfg.bestOf} onChange={(e) => setCfg({ ...cfg, bestOf: Number(e.target.value) })}>
               <option value={1}>One game</option>
               <option value={3}>Best of 3</option>
               <option value={5}>Best of 5</option>
-            </select>
+            </Select>
           </label>
           <label>
             Serves first
-            <select value={cfg.first} onChange={(e) => setCfg({ ...cfg, first: Number(e.target.value) })}>
+            <Select value={cfg.first} onChange={(e) => setCfg({ ...cfg, first: Number(e.target.value) })}>
               <option value={0}>{size === 1 ? "Player A" : "Team A"}</option>
               <option value={1}>{size === 1 ? "Player B" : "Team B"}</option>
-            </select>
+            </Select>
           </label>
           {cfg.scoring === "rally" && (
             <label className="pbCheck">

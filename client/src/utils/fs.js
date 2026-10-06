@@ -654,14 +654,14 @@ const DEFAULT_ITEMS = [
   ["C:/Programs/Last Card", "file", "lastcard"],
   ["C:/Programs/Hexlands", "file", "hexlands"],
   ["C:/Programs/Monster Duel", "file", "monsterduel"],
-  ["C:/Programs/Casino/Casino 98", "file", "casino"],
-  ["C:/Programs/Casino/Texas Hold'em", "file", "holdem"],
-  ["C:/Programs/Casino/Blackjack", "file", "blackjack"],
-  ["C:/Programs/Casino/Roulette", "file", "roulette"],
-  ["C:/Programs/Casino/Slots", "file", "slots"],
-  ["C:/Programs/Casino/Video Poker", "file", "videopoker"],
-  ["C:/Programs/Casino/Craps", "file", "craps"],
-  ["C:/Programs/Casino/Baccarat", "file", "baccarat"],
+  ["C:/Programs/Casino 98", "file", "casino"],
+  ["C:/Programs/Texas Hold'em", "file", "holdem"],
+  ["C:/Programs/Blackjack", "file", "blackjack"],
+  ["C:/Programs/Roulette", "file", "roulette"],
+  ["C:/Programs/Slots", "file", "slots"],
+  ["C:/Programs/Video Poker", "file", "videopoker"],
+  ["C:/Programs/Craps", "file", "craps"],
+  ["C:/Programs/Baccarat", "file", "baccarat"],
   ["C:/Programs/Sunny Acres", "file", "town"],
   ["C:/Programs/Photo Puzzle", "file", "puzzle"],
   ["C:/Programs/Doodle Together", "file", "doodle"],
@@ -694,6 +694,26 @@ const DEFAULT_ITEMS = [
 ]
 
 // add an item at a path, creating missing folders; skips it if the name is taken
+// starting shortcuts that moved to a new place ([old path, new path]): the casino games went
+// from C:/Programs/Casino/ to C:/Programs/ with the rest of the games (the owner, 2026-10-06)
+const MOVED_DEFAULTS = ["Casino 98", "Texas Hold'em", "Blackjack", "Roulette", "Slots", "Video Poker", "Craps", "Baccarat"].map((n) => [`C:/Programs/Casino/${n}`, `C:/Programs/${n}`])
+
+// remove a program shortcut left at an old starting path (and its folder once that's empty)
+const removeShortcutAt = (fsys, path) => {
+  const parts = path.split("/")
+  const dirs = [fsys.root]
+  for (const part of parts.slice(0, -1)) {
+    const next = dirs.at(-1).getItem(part)
+    if (!next?.isDirectory) return
+    dirs.push(next)
+  }
+  const dir = dirs.at(-1)
+  const item = dir.getItem(parts.at(-1))
+  if (!item || item.isDirectory || item.textContent) return
+  dir.removeItem(item.name)
+  if (dir !== fsys.root && !dir.content.length) dirs.at(-2).removeItem(dir.name)
+}
+
 const addAt = (fsys, [path, kind, type, text = ""]) => {
   const parts = path.split("/")
   let dir = fsys.root
@@ -1016,6 +1036,8 @@ const loadInto = (fsys, saved) =>
       // starting files added in later versions (deleted ones stay deleted)
       const seen = new Set(saved.defaults || [])
       for (const entry of DEFAULT_ITEMS) if (!seen.has(entry[0])) addAt(fsys, entry)
+      // starting files that moved: the old copy goes (only if it's still the untouched shortcut)
+      for (const [from, to] of MOVED_DEFAULTS) if (seen.has(from) && !seen.has(to)) removeShortcutAt(fsys, from)
       return true
     } catch (error) {
       console.error("[fs] the saved drive couldn't be read", error)

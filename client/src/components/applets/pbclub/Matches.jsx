@@ -1,4 +1,5 @@
 import React, { useState } from "react"
+import { Select } from "../../shared/select/Combo"
 import Dialog from "../../shared/Dialog"
 import MoreOptions from "../../shared/MoreOptions"
 import * as core from "./clubCore"
@@ -111,10 +112,10 @@ const LogDialog = ({ me, people, onClose }) => {
       <div className="pbEditor">
         <label>
           Game
-          <select value={kind} onChange={(e) => setKind(e.target.value)}>
+          <Select value={kind} onChange={(e) => setKind(e.target.value)}>
             <option value="doubles">Doubles</option>
             <option value="singles">Singles</option>
-          </select>
+          </Select>
         </label>
         {[0, 1].map((t) => (
           <fieldset key={t} className="pbTeam">
@@ -143,14 +144,14 @@ const LogDialog = ({ me, people, onClose }) => {
         <div className="pbRow2">
           <label>
             Where
-            <select value={venue} onChange={(e) => setVenue(e.target.value)}>
+            <Select value={venue} onChange={(e) => setVenue(e.target.value)}>
               <option value="">(somewhere else)</option>
               {core.VENUES.map((v) => (
                 <option key={v.id} value={v.id}>
                   {v.short}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
           <label>
             Day

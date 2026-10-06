@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react"
+import { Select } from "../../shared/select/Combo"
 import MoreOptions from "../../shared/MoreOptions"
 import * as core from "./clubCore"
 import * as club from "../../../utils/pbclub"
@@ -38,13 +39,13 @@ const Ladder = ({ state }) => {
             {k === "doubles" ? "Doubles" : "Singles"}
           </button>
         ))}
-        <select value={season} onChange={(e) => changeSeason(e.target.value)} aria-label="Season">
+        <Select value={season} onChange={(e) => changeSeason(e.target.value)} aria-label="Season">
           {SEASONS.map(([v, l]) => (
             <option key={v} value={v}>
               {l}
             </option>
           ))}
-        </select>
+        </Select>
       </div>
       {table.length ? (
         <table className="pbTable" data-ladder>

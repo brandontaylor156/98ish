@@ -136,6 +136,24 @@
 
 /* ---------- the title screen ---------- */
 
+.pkOtherWays {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid #808080;
+}
+.pkOtherWays span {
+  width: 100%;
+  font-weight: bold;
+}
+.pkOtherWays button {
+  flex: 1;
+  min-height: 34px;
+}
+
 .pkTitle2 {
   position: absolute;
   inset: 0;

@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react"
+import Combo from "../../shared/select/Combo"
 import MenuBar from "../../shared/MenuBar"
 import Dialog from "../../shared/Dialog"
 import GameChat, { useGameChatMenuItem } from "../../shared/GameChat"
@@ -1327,7 +1328,7 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
             </React.Suspense>
           </div>
         )}
-        {atMenu && screen === "quick" && <QuickMenu prefs={prefs} setPrefs={setPrefs} tour={tour} onStart={() => withScheme(startQuick)} onBack={() => setScreen("main")} onPlayers={() => (setPlayersFor("p1q"), setScreen("players"))} />}
+        {atMenu && screen === "quick" && <QuickMenu prefs={prefs} setPrefs={setPrefs} tour={tour} onStart={() => withScheme(startQuick)} onBack={() => setScreen("main")} onPlayers={() => (setPlayersFor("p1q"), setScreen("players"))} onOnline={() => setScreen("online")} onTour={() => setScreen("tour")} onVersus={() => setScreen("versus")} />}
         {(atMenu || phase === "showcase") && screen === "locker" && (
           <LockerRoom
             prefs={prefs}
@@ -1373,37 +1374,19 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
                 <div className="pkOnlineSettings">
                   <label>
                     Format{" "}
-                    <select disabled={disabled} value={s.format} onChange={(e) => set({ ...s, format: e.target.value })}>
-                      <option value="singles">Singles (1 v 1)</option>
-                      <option value="doubles">Doubles (2 v 2, computer partners fill in)</option>
-                    </select>
+                    <Combo disabled={disabled} value={s.format} name="format" ariaLabel="Format" options={[["singles", "Singles (1 v 1)"], ["doubles", "Doubles (2 v 2, computer partners fill in)"]]} onChange={(v) => set({ ...s, format: v })} />
                   </label>
                   <label>
                     Game to{" "}
-                    <select disabled={disabled} value={s.target} onChange={(e) => set({ ...s, target: Number(e.target.value) })}>
-                      {[7, 11, 15].map((n) => (
-                        <option key={n} value={n}>
-                          {n}
-                        </option>
-                      ))}
-                    </select>
+                    <Combo disabled={disabled} value={s.target} name="target" ariaLabel="Game to" options={[7, 11, 15].map((n) => [n, String(n)])} onChange={(v) => set({ ...s, target: v })} />
                   </label>
                   <label>
                     Scoring{" "}
-                    <select disabled={disabled} value={s.scoring} onChange={(e) => set({ ...s, scoring: e.target.value })}>
-                      <option value="sideout">Side-out</option>
-                      <option value="rally">Rally</option>
-                    </select>
+                    <Combo disabled={disabled} value={s.scoring} name="scoring" ariaLabel="Scoring" options={[["sideout", "Side-out"], ["rally", "Rally"]]} onChange={(v) => set({ ...s, scoring: v })} />
                   </label>
                   <label>
                     Venue{" "}
-                    <select disabled={disabled} value={s.venue} onChange={(e) => set({ ...s, venue: e.target.value })}>
-                      {Object.values(VENUE_INFO).map((v) => (
-                        <option key={v.id} value={v.id}>
-                          {v.name} ({v.time})
-                        </option>
-                      ))}
-                    </select>
+                    <Combo disabled={disabled} value={s.venue} name="venue" ariaLabel="Venue" options={Object.values(VENUE_INFO).map((v) => [v.id, `${v.name} (${v.time})`])} onChange={(v) => set({ ...s, venue: v })} />
                   </label>
                 </div>
               )}

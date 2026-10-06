@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react"
-import { PlayOnlineButton } from "../../shared/online"
-import MoreOptions from "../../shared/MoreOptions"
+import Combo from "../../shared/select/Combo"
 import { CHARACTERS, OUTFITS, characterById } from "./looks.js"
 import { STYLES, LEVELS } from "./ai.js"
 import { VENUE_INFO as VENUES } from "./looks.js"
@@ -61,7 +60,6 @@ const Portrait = ({ c, outfit }) => {
 
 // ---------- the title screen ----------
 export const TitleMenu = ({ onPick, onOnline, tour, showPad, offer = null }) => {
-  const next = nextMatch(tour)
   return (
     <div className="pkTitle2">
       <div className="pkLogo2" aria-label="Pickleball 98">
@@ -73,50 +71,30 @@ export const TitleMenu = ({ onPick, onOnline, tour, showPad, offer = null }) => 
       {/* the shared launcher pattern (docs/simplicity.md): Play (Quick Match), then Practice
           (where the game teaches itself), Play Online, then the other modes under More
           modes; the small row stays. offer: the first-time "New to pickleball?" card */}
+      {/* the fundamental UI stays simple (owner, 2026-10-06; docs/simplicity.md): four places to
+          go, nothing else. Quick Match setup holds Play Online, World Tour and 2 Players; the
+          menu bar holds Settings, Controls and Rules; My Player holds Players + Locker Room. */}
       <div className="pkMainMenu">
         {offer}
-        <button type="button" className="pkBig" data-menu="quick" onClick={() => onPick("quick")} autoFocus>
-          <b>Quick Match</b>
-          <small>Singles or doubles against the computer</small>
-        </button>
-        <button type="button" className="pkBig" data-menu="practice" onClick={() => onPick("practice")}>
-          <b>Practice</b>
-          <small>Lessons with a coach, a ball machine, drills</small>
+        <button type="button" className="pkBig pkBigPlay" data-menu="quick" onClick={() => onPick("quick")} autoFocus>
+          <b>Play</b>
+          <small>Quick Match · online with friends · World Tour</small>
         </button>
         <button type="button" className="pkBig" data-menu="park" onClick={() => onPick("park")}>
           <b>My Park</b>
-          <small>Walk the courts, watch games, call next and play</small>
+          <small>Walk real venues, watch, call next and play</small>
+        </button>
+        <button type="button" className="pkBig" data-menu="practice" onClick={() => onPick("practice")}>
+          <b>Practice</b>
+          <small>Lessons, a ball machine, drills</small>
         </button>
         <button type="button" className="pkBig" data-menu="club" onClick={() => onPick("club")}>
           <b>Real Games</b>
-          <small>Your real-life pickleball: who's in, keep score, friends' ladder</small>
+          <small>Your real-life pickleball with friends</small>
         </button>
-        <PlayOnlineButton onClick={onOnline} className="pkOnlineBig" sub="Quick Match, rooms with a code, invites" />
-        <MoreOptions id="pickleball.modes" label="More modes" lessLabel="Fewer modes" className="pkMore" summary="World Tour · 2 Players">
-          <button type="button" className="pkBig" data-menu="tour" onClick={() => onPick("tour")}>
-            <b>World Tour</b>
-            <small>{next ? `Next: ${next.title}` : "You're the champion!"}</small>
-          </button>
-          <button type="button" className="pkBig" data-menu="versus" onClick={() => onPick("versus")}>
-            <b>2 Players</b>
-            <small>{showPad ? "Head to head on one screen (keyboard or gamepads)" : "Head to head on one keyboard or two gamepads"}</small>
-          </button>
-        </MoreOptions>
         <div className="pkSmallRow">
-          <button type="button" onClick={() => onPick("players")}>
-            Players
-          </button>
-          <button type="button" data-menu="locker" onClick={() => onPick("locker")}>
-            Locker Room
-          </button>
-          <button type="button" onClick={() => onPick("settings")}>
-            Settings
-          </button>
-          <button type="button" onClick={() => onPick("controls")}>
-            Controls
-          </button>
-          <button type="button" onClick={() => onPick("rules")}>
-            Rules
+          <button type="button" data-menu="players" onClick={() => onPick("players")}>
+            My Player
           </button>
         </div>
       </div>
@@ -196,7 +174,7 @@ const venueOptions = (tour) => {
 }
 
 // ---------- Quick Match ----------
-export const QuickMenu = ({ prefs, setPrefs, tour, onStart, onBack, onPlayers }) => {
+export const QuickMenu = ({ prefs, setPrefs, tour, onStart, onBack, onPlayers, onOnline, onTour, onVersus }) => {
   const me = characterById(prefs.character)
   const pickers = [["random", "Random"], ...CHARACTERS.filter((c) => !c.boss && c.id !== prefs.character).map((c) => [c.id, c.nick])]
   return (
@@ -218,23 +196,11 @@ export const QuickMenu = ({ prefs, setPrefs, tour, onStart, onBack, onPlayers })
         </div>
         <div className="pkField">
           <span>Against</span>
-          <select value={prefs.opponent} onChange={(e) => setPrefs({ opponent: e.target.value })} aria-label="Opponent">
-            {pickers.map(([v, l]) => (
-              <option key={v} value={v}>
-                {l}
-              </option>
-            ))}
-          </select>
+          <Combo value={prefs.opponent} options={pickers} onChange={(v) => setPrefs({ opponent: v })} ariaLabel="Opponent" name="opponent" />
           {prefs.doubles && (
             <>
               <span className="pkInline">Partner</span>
-              <select value={prefs.partner} onChange={(e) => setPrefs({ partner: e.target.value })} aria-label="Partner">
-                {pickers.map(([v, l]) => (
-                  <option key={v} value={v}>
-                    {l}
-                  </option>
-                ))}
-              </select>
+              <Combo value={prefs.partner} options={pickers} onChange={(v) => setPrefs({ partner: v })} ariaLabel="Partner" name="partner" />
             </>
           )}
         </div>
@@ -256,6 +222,26 @@ export const QuickMenu = ({ prefs, setPrefs, tour, onStart, onBack, onPlayers })
           Back
         </button>
       </div>
+      {(onOnline || onTour || onVersus) && (
+        <div className="pkOtherWays" data-other-ways>
+          <span>More ways to play</span>
+          {onOnline && (
+            <button type="button" onClick={onOnline} data-menu="online">
+              Play Online
+            </button>
+          )}
+          {onTour && (
+            <button type="button" onClick={onTour} data-menu="tour">
+              World Tour
+            </button>
+          )}
+          {onVersus && (
+            <button type="button" onClick={onVersus} data-menu="versus">
+              2 Players
+            </button>
+          )}
+        </div>
+      )}
     </Panel>
   )
 }

@@ -1,11 +1,11 @@
 # Casino 98
 
-Seven casino games sharing one bank of play chips: Texas Hold'em (vs computer + online), Blackjack, Roulette, Slots, Video Poker, Craps, Baccarat. Start > Programs > **Casino** (a new Start menu group; "Casino 98" is also in Games). Help: `applets/help/topics/casino.js` (one topic per program).
+Seven casino games sharing one bank of play chips: Texas Hold'em (vs computer + online), Blackjack, Roulette, Slots, Video Poker, Craps, Baccarat. Start > Programs > Games lists the lobby and every game (moved out of a Casino folder at the owner's request, 2026-10-06). Help: `applets/help/topics/casino.js` (one topic per program).
 
 ## Layout
 
 - One window component, `client/src/components/applets/casino/Casino.jsx` (`app: "casino"`); each of the 8 programs in `utils/programs.js` opens it and `window.program` picks the game ("Casino 98" opens the lobby). Switching games inside the window renames it (`onTitle`). All 8 share the lazy chunk `Casino` (AddRemove CHUNKS).
-- Program files live in `C:\Programs\Casino\` (`utils/fs.js`), DOS commands `casino holdem poker texas blackjack bj roulette slots vpoker videopoker craps dice baccarat`.
+- Program files live in `C:\Programs\` with the other games (`utils/fs.js`; `MOVED_DEFAULTS` removes the old `C:\Programs\Casino\` shortcuts from existing drives), DOS commands `casino holdem poker texas blackjack bj roulette slots vpoker videopoker craps dice baccarat`.
 - **Pure rules** (no React; Node tests import them; the server imports `holdem.js`):
   - `cards.js` (shoes built on `../cards/deck.js`; ids carry the deck number, `QH.3`), `poker.js` (best-5-of-7 evaluator, `compare`, Monte Carlo `equity`).
   - `holdem.js`: room-module shape (`create/action/view/isOver/bot/botDelay`), freeze-out NLHE. `holdemBot.js`: equity + pot odds + position + style; easy/normal/hard.

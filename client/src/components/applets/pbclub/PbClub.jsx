@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react"
+import { Select } from "../../shared/select/Combo"
 import MenuBar from "../../shared/MenuBar"
 import Dialog from "../../shared/Dialog"
 import { helpItem } from "../../../utils/help"
@@ -45,21 +46,21 @@ const MeetDialog = ({ venue, buddies, onClose, send }) => {
       <div className="pbEditor">
         <label>
           To
-          <select value={who} onChange={(e) => setWho(e.target.value)} data-meet-to>
+          <Select value={who} onChange={(e) => setWho(e.target.value)} data-meet-to>
             {buddies.map((b) => (
               <option key={b.k} value={b.name}>
                 {b.name}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
         <label>
           When
-          <select value={when} onChange={(e) => setWhen(e.target.value)}>
+          <Select value={when} onChange={(e) => setWhen(e.target.value)}>
             <option value="now">Now</option>
             <option value="soon">In 30 minutes</option>
             <option value="later">Later today</option>
-          </select>
+          </Select>
         </label>
         <p className="pbNote" data-selectable>
           {text}

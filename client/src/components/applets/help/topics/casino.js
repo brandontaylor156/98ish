@@ -13,7 +13,7 @@ export const topics = [
     keywords: ["casino", "chips", "chip bank", "refill", "bankroll", "gambling", "play money", "Casino 98", "lobby"],
     programs: ["Casino 98"],
     body: [
-      "**Casino 98** has seven table games: [[texas-holdem|Texas Hold'em]], [[blackjack]], [[roulette]], [[slots]], [[video-poker|Video Poker]], [[craps]] and [[baccarat]]. Open the lobby (Start > Programs > Casino > Casino 98) or any game straight from the Casino folder.",
+      "**Casino 98** has seven table games: [[texas-holdem|Texas Hold'em]], [[blackjack]], [[roulette]], [[slots]], [[video-poker|Video Poker]], [[craps]] and [[baccarat]]. Open the lobby (Start > Programs > Games > Casino 98) or any game straight from the Casino folder.",
       { h: "Your chips" },
       "Every game bets from the same chips, shown at the top right of each game. You start with 1,000. They're **play chips**: nothing here can be bought, cashed out or won for real.",
       { list: ["Run low (under 5 chips) and a **Free refill** button tops you back up to 1,000.", "The lobby's **More options** shows your record (won, lost, biggest win, refills) and **Start Over** goes back to 1,000 chips.", "Chips are kept on this device, separately for each user. Online Hold'em tables use their own chips and never touch your bank."] },

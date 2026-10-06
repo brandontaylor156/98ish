@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react"
+import { Select } from "../../shared/select/Combo"
 import Dialog from "../../shared/Dialog"
 import MoreOptions from "../../shared/MoreOptions"
 import PrimaryBar from "../../shared/PrimaryBar"
@@ -142,7 +143,7 @@ export const SessionEditor = ({ session, buddies, venueId, onClose, onSaved }) =
       <div className="pbEditor">
         <label>
           Where
-          <select value={venue} onChange={(e) => setVenue(e.target.value)} data-venue>
+          <Select value={venue} onChange={(e) => setVenue(e.target.value)} data-venue>
             {core.VENUES.map((v) => (
               <option key={v.id} value={v.id}>
                 {v.short}
@@ -150,7 +151,7 @@ export const SessionEditor = ({ session, buddies, venueId, onClose, onSaved }) =
               </option>
             ))}
             <option value="other">Somewhere else...</option>
-          </select>
+          </Select>
         </label>
         {venue === "other" && (
           <>
@@ -171,23 +172,23 @@ export const SessionEditor = ({ session, buddies, venueId, onClose, onSaved }) =
         <div className="pbRow2">
           <label>
             Players
-            <select value={max} onChange={(e) => setMax(Number(e.target.value))}>
+            <Select value={max} onChange={(e) => setMax(Number(e.target.value))}>
               {[2, 4, 5, 6, 7, 8, 9, 10, 12, 14, 16, 20, 24, 32].map((n) => (
                 <option key={n} value={n}>
                   {n}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
           <label>
             How long
-            <select value={minutes} onChange={(e) => setMinutes(Number(e.target.value))}>
+            <Select value={minutes} onChange={(e) => setMinutes(Number(e.target.value))}>
               {[60, 90, 120, 150, 180, 240].map((n) => (
                 <option key={n} value={n}>
                   {n % 60 ? `${Math.floor(n / 60)}h ${n % 60}m` : `${n / 60} hour${n > 60 ? "s" : ""}`}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
         </div>
         {buddies.length > 0 && (
@@ -212,35 +213,35 @@ export const SessionEditor = ({ session, buddies, venueId, onClose, onSaved }) =
           </label>
           <label>
             Courts
-            <select value={courts} onChange={(e) => setCourts(Number(e.target.value))}>
+            <Select value={courts} onChange={(e) => setCourts(Number(e.target.value))}>
               {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => (
                 <option key={n} value={n}>
                   {n}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
           <div className="pbRow2">
             <label>
               Level from
-              <select value={skill?.min ?? ""} onChange={(e) => setSkill(e.target.value ? { min: Number(e.target.value), max: Math.max(Number(e.target.value), skill?.max ?? 6) } : null)}>
+              <Select value={skill?.min ?? ""} onChange={(e) => setSkill(e.target.value ? { min: Number(e.target.value), max: Math.max(Number(e.target.value), skill?.max ?? 6) } : null)}>
                 <option value="">Any</option>
                 {core.SKILLS.map((v) => (
                   <option key={v} value={v}>
                     {v.toFixed(1)}
                   </option>
                 ))}
-              </select>
+              </Select>
             </label>
             <label>
               to
-              <select value={skill?.max ?? ""} disabled={!skill} onChange={(e) => setSkill({ ...skill, max: Number(e.target.value) })}>
+              <Select value={skill?.max ?? ""} disabled={!skill} onChange={(e) => setSkill({ ...skill, max: Number(e.target.value) })}>
                 {core.SKILLS.filter((v) => !skill || v >= skill.min).map((v) => (
                   <option key={v} value={v}>
                     {v.toFixed(1)}
                   </option>
                 ))}
-              </select>
+              </Select>
             </label>
           </div>
           <label>
@@ -340,11 +341,11 @@ const Courts = ({ session, me, names, onScore }) => {
       )}
       {canRun && (
         <div className="pbRoundTools">
-          <select value={mode} onChange={(e) => setMode(e.target.value)} aria-label="How to rotate">
+          <Select value={mode} onChange={(e) => setMode(e.target.value)} aria-label="How to rotate">
             <option value="mix">Mix it up (new partners)</option>
             <option value="king">King of the court</option>
             <option value="mixed">Two groups (mixed doubles)</option>
-          </select>
+          </Select>
           <button type="button" className="pbPrimary" disabled={busy} onClick={next} data-next-round>
             {round ? "Next Round" : "Make Courts"}
           </button>
