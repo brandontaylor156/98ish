@@ -155,7 +155,10 @@ export const realLook = ({ date = new Date(), lat, lon, weather = CLEAR } = {}) 
   // opens up for it, so the photo-matched paint reads true in any season (clear-sky light only:
   // clouds still darken the scene)
   const flat = (el) => 0.9 + 2.6 * Math.sin((Math.max(el, 4) * Math.PI) / 180)
-  const autoExp = sun.elevation > 2 ? Math.max(1, Math.min(1.35, flat(76) / flat(sun.elevation))) : 1
+  // (a low sun stays a low sun: the opening-up fades out toward the horizon, so golden hour
+  // and dusk keep their mood)
+  const expCap = 1 + 0.35 * Math.max(0, Math.min(1, (sun.elevation - 2) / 16))
+  const autoExp = sun.elevation > 2 ? Math.max(1, Math.min(expCap, flat(76) / flat(sun.elevation))) : 1
   return {
     hour: date.getHours() + date.getMinutes() / 60,
     kind,

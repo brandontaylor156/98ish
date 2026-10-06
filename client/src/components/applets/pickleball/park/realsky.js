@@ -23,10 +23,17 @@ float rsFbm(vec2 p) {
   for (int i = 0; i < OCTAVES; i++) { v += a * rsNoise(p); p = p * 2.03 + vec2(17.1, 9.3); a *= 0.5; }
   return v / (1.0 - pow(0.5, float(OCTAVES)));
 }
+// (the sun-side sample for High's shading: the big shapes are enough)
+float rsFbm3(vec2 p) {
+  float v = 0.0; float a = 0.5;
+  for (int i = 0; i < 3; i++) { v += a * rsNoise(p); p = p * 2.03 + vec2(17.1, 9.3); a *= 0.5; }
+  return v / 0.875;
+}
 `
 
 export const createRealSky = ({ radius = 300, quality = "medium", phone = false } = {}) => {
-  const clouds = quality === "high" ? 2 : quality === "low" ? 0 : 1
+  // (phones draw the flatter layer even on High: the sky fills most of a portrait screen)
+  const clouds = quality === "low" ? 0 : quality === "high" && !phone ? 2 : 1
   const w = phone ? 48 : SKY_W
   const h = phone ? 24 : SKY_H
   const tex = new THREE.DataTexture(new Uint8Array(w * h * 4).fill(255), w, h, THREE.RGBAFormat)
@@ -56,7 +63,7 @@ export const createRealSky = ({ radius = 300, quality = "medium", phone = false 
     depthWrite: false,
     fog: false,
     uniforms,
-    defines: { CLOUDS: clouds, OCTAVES: clouds === 2 ? 5 : 3 },
+    defines: { CLOUDS: clouds, OCTAVES: clouds === 2 ? 4 : 3 },
     vertexShader: "varying vec3 vDir; void main() { vDir = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }",
     fragmentShader: `
 uniform sampler2D skyTex;
@@ -88,7 +95,7 @@ void main() {
     float n = rsFbm(p);
     dens = smoothstep(1.0 - cover - 0.06, 1.0 - cover + 0.32, n) * smoothstep(0.0, 0.16, d.y);
   #if CLOUDS > 1
-    float n2 = rsFbm(p + normalize(sunDir.xz + 1e-4) * 0.09);
+    float n2 = rsFbm3(p + normalize(sunDir.xz + 1e-4) * 0.09);
     float shade = clamp(0.62 + (n - n2) * 3.2, 0.18, 1.0);
   #else
     float shade = 0.72;
