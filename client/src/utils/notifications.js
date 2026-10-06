@@ -33,6 +33,7 @@ export const APPS = {
   achievements: { name: "Achievements", icon: "/assets/program_icons/welcome.svg" },
   notes: { name: "Notes", icon: "/assets/program_icons/notes.svg" },
   locator: { name: "Buddy Locator", icon: "/assets/program_icons/locator.svg" },
+  pbclub: { name: "Pickleball Club 98", icon: "/assets/program_icons/pbclub.svg" },
   tasks: { name: "Tasks", icon: "/assets/program_icons/tasks.svg" },
   photos: { name: "Photos", icon: "/assets/program_icons/photos.svg" },
   system: { name: "98ish", icon: "/assets/start98.png" },
@@ -214,6 +215,9 @@ export const targetFromParams = (params) => {
     // a shared album (Photos)
     else if (params.get("album")) extra.handoff = { id: Date.now(), album: name("album") }
     else if (params.get("event")) extra.handoff = { id: Date.now(), calendarId: name("cal"), eventId: name("event") }
+    // Pickleball Club 98: a play session or a match to confirm
+    else if (/^[0-9a-f]{16}$/.test(params.get("pbsession") || "")) extra.handoff = { id: Date.now(), session: name("pbsession") }
+    else if (/^[0-9a-f]{16}$/.test(params.get("pbmatch") || "")) extra.handoff = { id: Date.now(), match: name("pbmatch") }
     // a Watch Together invitation to join
     else if (/^[0-9a-f]{20}$/.test(params.get("together") || "")) extra.handoff = { id: Date.now(), together: name("together") }
     return { kind: "program", name: name("name"), extra }

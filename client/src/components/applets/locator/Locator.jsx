@@ -6,6 +6,7 @@ import { placeCall } from "../aim/call/CallButtons"
 import * as loc from "../../../utils/locate"
 import { agoText, directionsUrl, distanceM, distanceText, untilText } from "./locateCore"
 import { ArrowIcon } from "./LocatorTray"
+import { VENUES } from "../pbclub/clubCore"
 import "./Locator.css"
 
 // Buddy Locator: a map of the buddies who share their location with you, and sharing yours
@@ -228,6 +229,25 @@ const PlaceDialog = ({ mapCenter, onClose }) => {
             Middle of Map
           </button>
         </div>
+        <select
+          aria-label="Or a pickleball court"
+          value=""
+          onChange={(e) => {
+            const v = VENUES.find((x) => x.id === e.target.value)
+            if (!v) return
+            setSpot({ lat: v.lat, lon: v.lon, from: v.name })
+            if (!name.trim()) setName(v.short)
+            setR(v.indoor ? 100 : 300)
+          }}
+          data-place-venue
+        >
+          <option value="">Or a pickleball court...</option>
+          {VENUES.map((v) => (
+            <option key={v.id} value={v.id}>
+              {v.short}
+            </option>
+          ))}
+        </select>
         <span className="locHint">{spot ? `${spot.from} (${spot.lat.toFixed(4)}, ${spot.lon.toFixed(4)})` : "Move the map so the place is in the middle, or use where you are."}</span>
       </div>
       <div className="field-row-stacked">

@@ -90,6 +90,8 @@ export const programs = [
   { name: "Battleship", app: "net-battleship", type: "battleship", icon: "/assets/program_icons/battleship.svg", width: 660, height: 500, group: "Games", desktop: false, single: true },
   // Brandon's other web apps (utils/projects.js), each in its own window
   ...PROJECTS.map((p) => ({ name: p.name, app: "webapp", icon: p.icon, width: 1000, height: 680, group: "My Projects", single: true })),
+  // real-life pickleball with your group: scorekeeper, friends' ratings, play sessions (applets/pbclub, server/pbclub)
+  { name: "Pickleball Club 98", app: "pbclub", type: "pbclub", icon: "/assets/program_icons/pbclub.svg", width: 560, height: 720, group: "Accessories", also: ["Games"], desktop: false, single: true },
   { name: "Pickleball 98", app: "pickleball", type: "pickleball", icon: "/assets/program_icons/pickleball.svg", width: 960, height: 660, group: "Games", desktop: false, single: true, online: "pickleball" },
   { name: "Shred 98", app: "shred", type: "shred", icon: "/assets/program_icons/shred.svg", width: 940, height: 660, group: "Games", desktop: false, single: true },
   { name: "Downhill", app: "ski", type: "ski", icon: "/assets/program_icons/ski.svg", width: 640, height: 520, group: "Games", desktop: false, single: true },

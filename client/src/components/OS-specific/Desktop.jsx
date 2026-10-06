@@ -54,6 +54,7 @@ const MediaPlayer = lazyApp(() => import("../applets/mediaPlayer/MediaPlayer"))
 const Music = lazyApp(() => import("../applets/music/Music"))
 const Together = lazyApp(() => import("../applets/together/Together"))
 const Locator = lazyApp(() => import("../applets/locator/Locator"))
+const PbClub = lazyApp(() => import("../applets/pbclub/PbClub"))
 const NetWindow = lazyApp(() => import("../applets/network/NetWindow"))
 const Mail = lazyApp(() => import("../applets/mail/Mail"))
 const HomePageStudio = lazyApp(() => import("../applets/homepage/HomePageStudio"))
@@ -100,6 +101,7 @@ const DeskNotes = React.lazy(() => import("../applets/notes/DeskNotes"))
 const NotesBridge = React.lazy(() => import("../applets/notes/NotesBridge"))
 const PhotosBridge = React.lazy(() => import("../applets/photos/PhotosBridge"))
 const LocatorBridge = React.lazy(() => import("../applets/locator/LocatorBridge"))
+const PbClubBridge = React.lazy(() => import("../applets/pbclub/PbClubBridge"))
 const Find = lazyApp(() => import("../applets/find/Find"))
 // 98ish Help (Start > Help, F1, Help > Help Topics: utils/help.js openHelp)
 const HelpViewer = lazyApp(() => import("../applets/help/HelpViewer"))
@@ -853,6 +855,7 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
       {window.app === "chesspuzzles" && <ChessPuzzles mobile={mobile} onClose={() => closeWindow(window, index)} />}
       {window.app === "imposter" && <Imposter mobile={mobile} onClose={() => closeWindow(window, index)} />}
       {window.app === "musiclib" && <Music mobile={mobile} handoff={window.handoff} onClose={() => closeWindow(window, index)} />}
+      {window.app === "pbclub" && <PbClub mobile={mobile} handoff={window.handoff} onClose={() => closeWindow(window, index)} />}
       {window.app === "locator" && <Locator mobile={mobile} dispatch={dispatch} onClose={() => closeWindow(window, index)} />}
       {window.app === "together" && <Together mobile={mobile} dispatch={dispatch} handoff={window.handoff} onClose={() => closeWindow(window, index)} />}
       {window.app === "hexlands" && <Hexlands mobile={mobile} onClose={() => closeWindow(window, index)} />}
@@ -1186,6 +1189,7 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
           <NotesBridge socket={socket} />
           <PhotosBridge socket={socket} />
           <LocatorBridge socket={socket} />
+          <PbClubBridge socket={socket} />
         </React.Suspense>
       </NetProvider>
     </AimProvider>

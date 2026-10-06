@@ -95,6 +95,14 @@
 //                                                  them are told; they're taken out of everyone
 //                                                  else's record (shares with them, their asks,
 //                                                  alerts about them). No position history exists
+//   pickleball  pbsessions, pbmatches              Pickleball Club 98 (server/pbclub): play
+//                                                  sessions they host deleted (the invited are
+//                                                  told); their RSVPs, invitations and chat lines
+//                                                  taken out of others' sessions. In matches they
+//                                                  played they become "Deleted player" (a random id
+//                                                  not linked to them) so the other players'
+//                                                  records and ratings stay; matches with no other
+//                                                  account, and unconfirmed ones they logged, deleted
 //   aim         aimusers                           the account (password hash, profile, Buddy
 //                                                  List, blocks, remembered devices) deleted; their
 //                                                  name taken off everyone's Buddy List and block

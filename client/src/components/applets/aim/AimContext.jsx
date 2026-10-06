@@ -601,6 +601,8 @@ export const AimProvider = ({ socket, windows, dispatch: dispatchWindow, onOpenV
     import("../../../utils/albums").then((m) => m.setAlbumsSession(session)).catch(() => {})
     // Buddy Locator (utils/locate.js: who shares with whom, live positions)
     import("../../../utils/locate").then((m) => m.setLocateSession(session)).catch(() => {})
+    // Pickleball Club 98 (utils/pbclub.js: sessions, matches, the friends' ladder)
+    import("../../../utils/pbclub").then((m) => m.setClubSession(session)).catch(() => {})
   }, [state.status, state.me?.screenName])
 
   // ---- search: the signed-on account's conversations (this device's copy) ----
