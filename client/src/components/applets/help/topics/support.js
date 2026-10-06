@@ -348,6 +348,7 @@ export const topics = [
           rows: [
             ["IndexedDB (database \"98ish-drive\")", "Drive C: and the Recycle Bin: files, photos, documents, recordings, and file sync's bookkeeping. Each extra user profile has its own database (\"98ish-drive-\" plus an id)."],
             ["IndexedDB (database \"98ish-music\")", "Music 98's album art (small pictures from your songs). The songs themselves are files in Drive C: (C:\\My Music); their names, artists and playlists are in localStorage \"98ish.music\"."],
+            ["IndexedDB (database \"98ish-twin\")", "Pickleball 98's Twin Replay: your filmed or opened game videos, the court corners you tapped, what was read from them (everyone's positions and hits, the names you gave) and replays friends sent you. Never uploaded. Each extra user profile has its own (\"98ish-twin-\" plus an id), deleted with the profile."],
             ["localStorage (keys starting \"98ish.\")", "Settings, desktop, scores and game saves (and Casino 98's play chips, and Pickleball 98's last My Park venue and favorite venues; Real Games' scorekeeper settings, a game in progress and matches waiting to be sent), Address Book contacts, notes (and which are pinned to this desktop), notifications, \"On this device\" calendars, reminders, Internet Explorer history and favorites, drafts, and 98 Messenger's \"Sign me on automatically\" key. Each extra user profile's keys start \"98ish.u.\" plus an id."],
             ["The user list (shared by the device)", "User names, pictures, linked screen names, and each user's lock PIN or password, stored only as a salted, scrambled copy (PBKDF2)."],
             ["Service worker caches", "A copy of the 98ish app for offline use, things shared to 98ish from other apps (Android), and notifications that arrived while 98ish was closed."],
@@ -442,6 +443,7 @@ export const topics = [
             ["Open-Meteo (open-meteo.com)", "The weather in Weather and for outdoor Real Games sessions in Pickleball 98", "Your device's IP address and the court's or place's rough location (rounded to about a kilometer)."],
             ["Apple Maps / Google Maps", "Real Games' Directions links (Pickleball 98) (only when you tap one)", "The court you asked directions to, as with any link you open."],
             ["OpenFreeMap (tiles.openfreemap.org)", "Buddy Locator's map", "Your device's IP address and which parts of the map it loads (so, roughly where you're looking). Never your position or your buddies'."],
+            ["jsDelivr (cdn.jsdelivr.net) and Google (storage.googleapis.com)", "Pickleball 98's Twin Replay: the pose model's code and model file, downloaded once when you first read a video", "Your device's IP address, as for any download. Never your video or anything in it: the video is read on your device."],
           ],
         },
       },

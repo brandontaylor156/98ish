@@ -36,6 +36,8 @@ import { VENUE_LIST } from "./park/venues/index.js"
 import { usePark } from "./park/usePark"
 import { recordGame, validRep } from "./park/rep.js"
 import { COURTS as PARK_COURTS, LEVEL_NAMES as PARK_LEVELS } from "./park/layout.js"
+// Twin Replay: film a real game, watch it here (twin/; loaded when opened)
+const TwinReplay = React.lazy(() => import("./twin/TwinReplay.jsx"))
 
 // Pickleball 98: React draws the menus and the broadcast-style overlays. The venue, the
 // players and the ball are three.js (engine.js, loaded on first open with three.js); the game
@@ -169,6 +171,7 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
   const timers = useRef(new Set())
   const [phase, setPhase] = useState("loading") // loading | error | title | playing | paused | over | showcase
   const [screen, setScreen] = useState("main") // main | quick | tour | practice | versus | players | settings | controls | online | club
+  const [twinBack, setTwinBack] = useState("main") // where Twin Replay goes back to (Real Games opens it too)
   const [clubHandoff, setClubHandoff] = useState(null) // a Real Games session/match to show (a notification or deep link)
   const [playersFor, setPlayersFor] = useState("p1")
   const [lockerFor, setLockerFor] = useState(null) // who the Locker Room opens on (and where it goes back to)
@@ -537,6 +540,7 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
     return spec ? L.makeLayout(venueLayoutSpec(spec)) : L.RIVERSIDE_LAYOUT
   }
   const courtVenueRef = useRef(null)
+  const getEngine = React.useCallback(() => engineRef.current, [])
   // the engine's venue for a game on court `court` in the park you're in (that court, its surroundings)
   const parkCourtVenue = (court) => {
     const w = parkRef.current
@@ -1061,6 +1065,7 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
         { label: "2 Players...", onClick: () => (quitToMenu(), setScreen("versus")) },
         { label: "Locker Room...", onClick: () => (session?.kind !== "online" && quitToMenu(), setLockerFor(null), setScreen("locker")) },
         { label: "Play Online...", onClick: () => (session?.kind !== "online" && quitToMenu(), setScreen("online")) },
+        { label: "Twin Replay (film a real game)...", onClick: () => (session?.kind !== "online" && quitToMenu(), setScreen("twin")) },
         "-",
         { label: phase === "paused" ? "Resume (P)" : "Pause (P)", disabled: (phase !== "playing" && phase !== "paused") || isOnline, onClick: togglePause },
         { label: "Quit to Main Menu", disabled: !session, onClick: quitToMenu },
@@ -1311,6 +1316,13 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
         )}
         {parkLoading && screen === "park" && !parkPick && <div className="pkCenter pkDim" data-park="loading"><div className="pkPanel window">Walking over to {VENUE_LIST.find((v) => v.id === parkLoading)?.short || "the park"}...</div></div>}
 
+        {/* ---------- Twin Replay (twin/): a real game, filmed, replayed here ---------- */}
+        {screen === "twin" && phase !== "loading" && phase !== "error" && (
+          <React.Suspense fallback={<div className="pkCenter pkDim"><div className="pkPanel window">Opening Twin Replay...</div></div>}>
+            <TwinReplay getEngine={getEngine} onExit={() => (setScreen(twinBack), setTwinBack("main"))} />
+          </React.Suspense>
+        )}
+
         {/* ---------- menus ---------- */}
         {atMenu && screen === "main" && phase === "title" && (
           <TitleMenu
@@ -1324,7 +1336,7 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
         {atMenu && screen === "club" && (
           <div className="pkClubHost" data-screen="club">
             <React.Suspense fallback={<div className="pkCenter pkDim"><div className="pkPanel window">Loading Real Games...</div></div>}>
-              <RealGames embedded mobile={mobile} handoff={clubHandoff} onClose={() => setScreen("main")} />
+              <RealGames embedded mobile={mobile} handoff={clubHandoff} onClose={() => setScreen("main")} onTwin={() => (setTwinBack("club"), setScreen("twin"))} />
             </React.Suspense>
           </div>
         )}
