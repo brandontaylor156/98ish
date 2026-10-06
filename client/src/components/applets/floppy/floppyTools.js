@@ -175,7 +175,10 @@ export const ask = async (text, { dispatch, onToken } = {}) => {
     return { reply: brain ? CANT : `${CANT} Or give me a brain (More options) and I'll understand much more.` }
   }
 
-  return askModel(text, { dispatch, onToken })
+  return askModel(text, { dispatch, onToken }).catch((e) => {
+    if (e?.message !== "slow") throw e
+    return { reply: "My brain is too slow on this device right now, so I let it rest. Plain commands still work: try \"open Paint\" or \"remind me to stretch at 7\"." }
+  })
 }
 
 // the model: the embedding model picks the tool, the language model fills its arguments
@@ -195,7 +198,12 @@ export const askModel = async (text, { dispatch, onToken, run = true } = {}) => 
   if (route.tool !== "chat" && route.score >= ROUTE_MIN) {
     const tool = tools.find((t) => t.name === route.tool)
     // the sentence itself first (reliable), the model only for what that can't read
-    const args = fillSlots(tool.name, text, { ...registry(), now, zone: z })
+    let args = fillSlots(tool.name, text, { ...registry(), now, zone: z })
+    // a program by what it's for ("I feel like drawing" -> Paint): its help page's summary, by meaning
+    if (!args && tool.name === "open_program") {
+      const name = await programByMeaning(text)
+      if (name) args = { name }
+    }
     if (args) {
       const checked = parseModelOutput(JSON.stringify({ tool: tool.name, args }), tools)
       if (checked.ok && checked.call) return { ...(await act(checked.call)), route, filled: "rules" }
@@ -216,6 +224,28 @@ export const askModel = async (text, { dispatch, onToken, run = true } = {}) => 
   const reply = out.replace(/^\s*\{\s*"reply"\s*:\s*"?|"?\s*\}\s*$/g, "").trim()
   return { reply: reply || CANT, raw: out, route }
 }
+
+// ---- programs by meaning ----
+let programVecs = null
+const programByMeaning = async (text) => {
+  try {
+    if (!programVecs) {
+      const names = programs.map((p) => p.name)
+      const about = names.map((n) => {
+        const topic = TOPICS.find((t) => (t.programs || []).includes(n))
+        return `${n}: ${topic?.summary || topic?.title || n}`
+      })
+      const vecs = await embed(about)
+      programVecs = names.map((n, i) => [n, vecs[i]])
+    }
+    const [q] = await embed([text])
+    const ranked = programVecs.map(([n, v]) => [n, cosineSim(v, q)]).sort((a, b) => b[1] - a[1])
+    return ranked[0] && ranked[0][1] >= 0.3 ? ranked[0][0] : null
+  } catch {
+    return null
+  }
+}
+const cosineSim = (a, b) => a.reduce((s, x, i) => s + x * b[i], 0)
 
 // ---- routing ----
 const ROUTE_MIN = 0.45
