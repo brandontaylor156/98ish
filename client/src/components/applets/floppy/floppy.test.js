@@ -1,7 +1,7 @@
 // node --test client/src/components/applets/floppy/floppy.test.js
 import test from "node:test"
 import assert from "node:assert/strict"
-import { buildTools, needsConfirm, parseModelOutput, parseWhen, ruleIntent, rankHelp, describeCall, systemPrompt, buildMessages, closestOf, resolveDate, TOOL_EXAMPLES, SLOT_EXAMPLES, routeByVectors, slotMessages, likelyValues, parseSlots, chatMessages } from "./floppyCore.js"
+import { buildTools, needsConfirm, parseModelOutput, parseWhen, ruleIntent, rankHelp, describeCall, systemPrompt, buildMessages, closestOf, resolveDate, TOOL_EXAMPLES, SLOT_EXAMPLES, routeByVectors, slotMessages, likelyValues, parseSlots, chatMessages, fillSlots, cannedReply } from "./floppyCore.js"
 import { readFileSync } from "node:fs"
 import { TOPICS } from "../help/topics/index.js"
 import { topicText } from "../help/helpCore.js"
@@ -130,6 +130,25 @@ test("with the brain: route to one tool, then fill only its arguments", () => {
   assert.deepEqual(parseSlots('Sure: {"title":"New paddles"}', note, tools).call, { tool: "create_note", args: { title: "New paddles" } })
   assert.equal(parseSlots("{}", note, tools).ok, false)
   assert.equal(chatMessages("who are you?")[0].role, "system")
+})
+
+test("once routed, the sentence fills the arguments (the model's failures from the real run)", () => {
+  assert.deepEqual(fillSlots("pickleball", "open Pickleball and start practice", ctx), { mode: "practice" })
+  assert.deepEqual(fillSlots("pickleball", "let's hit the courts at Los Cab", ctx), { mode: "park", venue: "loscab" })
+  assert.deepEqual(fillSlots("pickleball", "let's play a match", ctx), { mode: "quick" })
+  assert.deepEqual(fillSlots("create_note", "can you jot down that I need new paddles", ctx), { title: "I need new paddles" })
+  assert.deepEqual(fillSlots("create_reminder", "don't let me forget to stretch tomorrow morning", ctx), { text: "Stretch", date: "2026-10-07", time: "09:00" })
+  assert.deepEqual(fillSlots("send_im", "let Sam know I'm on my way", ctx), { to: "Sam", text: "I'm on my way" })
+  assert.deepEqual(fillSlots("send_im", "tell jordan lee that the court is booked", ctx), { to: "Jordan Lee", text: "the court is booked" })
+  assert.deepEqual(fillSlots("create_event", "put dinner with Sam on my calendar saturday at 7pm", ctx), { title: "Dinner with Sam", date: "2026-10-10", time: "19:00" })
+  assert.deepEqual(fillSlots("create_task", "add buy milk to my to-do list", ctx), { title: "Buy milk" })
+  assert.deepEqual(fillSlots("set_dnd", "silence notifications for an hour", ctx), { on: true, minutes: 60 })
+  assert.deepEqual(fillSlots("open_program", "I want to open the calculator", ctx), { name: "Calculator" })
+  assert.equal(fillSlots("open_program", "I feel like drawing something", ctx), null) // the model handles this one
+  assert.deepEqual(fillSlots("search", "where are my beach photos", ctx), { query: "beach photos" })
+  assert.match(cannedReply("who made you?"), /98ish/)
+  assert.match(cannedReply("tell me a joke"), /floppy/i)
+  assert.equal(cannedReply("explain quantum physics"), null)
 })
 
 test("help questions find the right page", () => {

@@ -462,6 +462,98 @@ export const routeByVectors = (qvec, exampleVecs) => {
   return { tool: ranked[0][0], score: ranked[0][1], margin: ranked[0][1] - (ranked[1]?.[1] ?? 0), ranked }
 }
 
+// Once the tool is known, most arguments come out of the sentence reliably without the model
+// (a 0.5B model invents details: it copied the example's text into a note). -> args | null
+const stripLead = (s, re) => s.replace(re, "").replace(/^(that|to|about)\s+/i, "").trim()
+export const fillSlots = (toolName, input, { programs = [], venues = [], buddies = [], now = Date.now(), zone = "UTC" } = {}) => {
+  const text = String(input || "").trim().replace(/[.!?]+$/, "")
+  const lower = text.toLowerCase()
+  switch (toolName) {
+    case "pickleball": {
+      const venue = venues.find((v) => lower.includes(fold(v.short || v.name)) || lower.includes(fold(v.name).split(" ")[0]))
+      const mode = /practi|drill|lesson|ball machine/.test(lower) ? "practice" : /park|walk|venue|court/.test(lower) || venue ? "park" : /real|score|my game|ladder|session/.test(lower) ? "real" : /online|friend/.test(lower) ? "online" : /tour/.test(lower) ? "tour" : "quick"
+      return { mode, ...(mode === "park" && venue ? { venue: venue.id } : {}) }
+    }
+    case "create_reminder": {
+      const when = parseWhen(text, { now, zone })
+      const what = stripLead(when.rest, /^(please\s+)?(remind me|don'?t let me forget|ping me|remember|make sure i|tell me)\b\s*/i)
+      return what ? { text: cap(what), date: when.date || dayIn(now, zone).date, time: when.time || "09:00" } : null
+    }
+    case "create_event": {
+      const when = parseWhen(text, { now, zone })
+      const what = stripLead(when.rest, /^(please\s+)?(put|add|schedule|book|set up|plan)\b\s*/i).replace(/\s+(on|to|in)\s+(my|the)\s+calendar\b/i, "")
+      return what && when.date ? { title: cap(what), date: when.date, ...(when.time ? { time: when.time } : {}) } : null
+    }
+    case "create_task": {
+      const when = parseWhen(text, { now, zone })
+      const what = stripLead(when.rest, /^(please\s+)?(add|new task:?|i need to|i have to|put)\b\s*/i).replace(/\s+(to|on)\s+(my\s+)?(to-?do( list)?|tasks?|list)\b.*$/i, "").replace(/,?\s*add it as a task$/i, "")
+      return what ? { title: cap(what), ...(when.date ? { date: when.date } : {}) } : null
+    }
+    case "create_note": {
+      const what = stripLead(text, /^(please\s+)?(can you\s+)?(jot down|write (this )?down|take a note|make a note|note( down)?|remember)\b:?\s*/i)
+      if (!what) return null
+      const [first, ...more] = what.split(/:\s+/)
+      return { title: cap(first.slice(0, 60)), ...(more.length ? { body: more.join(": ") } : first.length > 60 ? { body: what } : {}) }
+    }
+    case "send_im": {
+      const lead = "^(?:please\\s+)?(?:tell|message|text|let|send|ping|ask)\\s+"
+      const tail = "\\s*(?:know\\s+)?(?:that\\s+|saying\\s+|:\\s*|a message saying\\s+)?(.+)$"
+      // known buddies first, longest name first ("Jordan Lee" before "Jordan")
+      for (const b of [...buddies].sort((x, y) => y.length - x.length)) {
+        const mb = new RegExp(`${lead}(${b.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})\\b${tail}`, "i").exec(text)
+        if (mb) return { to: b, text: mb[2].replace(/^(that|saying)\s+/i, "").trim() }
+      }
+      const m = /^(?:please\s+)?(?:tell|message|text|let|send|ping|ask)\s+(\w[\w ]*?)\s+(?:know\s+)?(?:that\s+|saying\s+|:\s*|a message saying\s+)?(.+)$/i.exec(text)
+      if (!m) return null
+      const to = closestOf(m[1], buddies) || m[1].trim()
+      return { to, text: m[2].replace(/^(that|saying)\s+/i, "").trim() }
+    }
+    case "set_dnd": {
+      const off = /\b(off|stop|end|disable|cancel)\b/.test(lower)
+      const mins = /(\d+|an?|one)\s*(hours?|hrs?|minutes?|mins?)/i.exec(lower)
+      const n = mins ? ({ a: 1, an: 1, one: 1 }[mins[1]] ?? Number(mins[1])) * (/^h/i.test(mins[2]) ? 60 : 1) : null
+      return off ? { on: false } : n ? { on: true, minutes: n } : { on: true }
+    }
+    case "play_music": {
+      const m = /play\s+(?!some|music|songs?|my songs)(.+?)(?:\s+(?:in|on)\s+music.*)?$/i.exec(text)
+      return m ? { song: m[1] } : {}
+    }
+    case "watch_together": {
+      const url = /(https?:\/\/\S+)/.exec(text)?.[1]
+      if (!url) return null
+      const w = /\bwith\s+(\S+)/i.exec(text)?.[1]
+      return { url, ...(w ? { with: closestOf(w, buddies) || w } : {}) }
+    }
+    case "search":
+      return { query: stripLead(text, /^(please\s+)?(search( for)?|find( me)?|look( for| up)?|where('s| is| are)( my)?)\b\s*/i) || text }
+    case "open_help":
+      return { subject: text }
+    case "open_program": {
+      const name = programFor(text.replace(/^.*\b(open|launch|start|run|show me|use)\s+/i, ""), programs)
+      return name ? { name } : null
+    }
+    case "open_file": {
+      const m = /(?:open|show)\s+(?:the\s+)?(?:file|document|photo|picture)?\s*(?:called\s+)?(.+)$/i.exec(text)
+      return m ? { name: m[1].trim() } : null
+    }
+    default:
+      return null
+  }
+}
+
+// small talk a 0.5B model fumbles: Floppy's own answers
+export const cannedReply = (input) => {
+  const t = fold(String(input || ""))
+  if (/\b(who|what) are you\b|your name/.test(t)) return "I'm Floppy, the 98ish helper! I hold 1.44 MB of tips, and I can open programs, make reminders and notes, send IMs and find help pages."
+  if (/who (made|built|created) you/.test(t)) return "I was put together for 98ish, a Windows 98-style computer for friends. My brain is a small open AI model running right on this device."
+  if (/what can you do|help me|what do you do/.test(t)) return "Try: \"open Paint\", \"remind me to stretch at 7\", \"jot down that I need new paddles\", \"tell Sam I'm on my way\", \"start pickleball practice\", or ask how to do something."
+  if (/\b(thanks|thank you|thx)\b/.test(t)) return "Any time! That's what floppies are for."
+  if (/\bjoke\b/.test(t)) return "Why did the floppy disk go to therapy? It had too many bad sectors."
+  if (/^(hi|hello|hey|yo)\b/.test(t)) return "Hi there! What can I do for you?"
+  if (/how are you/.test(t)) return "Spinning along at 300 RPM, thanks for asking!"
+  return null
+}
+
 // a few words about each argument for the slot-filling prompt
 const argHint = (k, v) => (v.enum ? `${k}: one of ${v.enum.length > 40 ? v.enum.slice(0, 40).join(", ") + ", ..." : v.enum.join(", ")}` : `${k}: ${v.type}${v.description ? ` (${v.description})` : ""}`)
 
@@ -472,7 +564,7 @@ export const SLOT_EXAMPLES = {
   create_reminder: ["remind me to call mom tomorrow at 6pm", { text: "Call mom", date: "tomorrow", time: "18:00" }],
   create_event: ["dinner with Sam saturday at 7pm", { title: "Dinner with Sam", date: "saturday", time: "19:00" }],
   create_task: ["add buy milk to my list", { title: "Buy milk" }],
-  create_note: ["jot down that the gate code is 4512", { title: "Gate code", body: "4512" }],
+  create_note: ["write down the wifi password", { title: "The wifi password" }],
   send_im: ["tell Sam I'm running late", { to: "Sam", text: "I'm running late" }],
   set_dnd: ["silence everything for an hour", { on: true, minutes: 60 }],
   pickleball: ["let's practice pickleball", { mode: "practice" }],

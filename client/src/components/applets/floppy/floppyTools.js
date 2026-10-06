@@ -14,7 +14,7 @@ import { taskDraft } from "../tasks/tasksCore"
 import { VENUE_LIST } from "../pickleball/park/venues/index.js"
 import { TOPICS } from "../help/topics/index.js"
 import { topicText } from "../help/helpCore.js"
-import { TOOL_EXAMPLES, buildTools, chatMessages, dayIn, describeCall, needsConfirm, parseSlots, rankHelp, resolveDate, routeByVectors, ruleIntent, slotMessages } from "./floppyCore"
+import { TOOL_EXAMPLES, buildTools, cannedReply, chatMessages, dayIn, describeCall, fillSlots, needsConfirm, parseModelOutput, parseSlots, rankHelp, resolveDate, routeByVectors, ruleIntent, slotMessages } from "./floppyCore"
 import { embed, generate, getBrain } from "./brain"
 
 // 98 Messenger lives inside the desktop's AimProvider; FloppyBridge hands it over
@@ -194,15 +194,23 @@ export const askModel = async (text, { dispatch, onToken, run = true } = {}) => 
   }
   if (route.tool !== "chat" && route.score >= ROUTE_MIN) {
     const tool = tools.find((t) => t.name === route.tool)
+    // the sentence itself first (reliable), the model only for what that can't read
+    const args = fillSlots(tool.name, text, { ...registry(), now, zone: z })
+    if (args) {
+      const checked = parseModelOutput(JSON.stringify({ tool: tool.name, args }), tools)
+      if (checked.ok && checked.call) return { ...(await act(checked.call)), route, filled: "rules" }
+    }
     let messages = slotMessages(tool, text, when)
     for (let attempt = 0; attempt < 2; attempt++) {
       const out = await generate(messages, { max: 60 })
       const parsed = parseSlots(out, tool, tools)
-      if (parsed.ok && parsed.call) return { ...(await act(parsed.call)), raw: out, route }
+      if (parsed.ok && parsed.call) return { ...(await act(parsed.call)), raw: out, route, filled: "model" }
       messages = [...messages, { role: "assistant", content: out }, { role: "user", content: `That wasn't valid: ${parsed.error} Answer again with the JSON arguments only.` }]
     }
   }
-  // just talk (with help pages for context)
+  // just talk: Floppy's own answers for small talk, else the model (with help pages for context)
+  const canned = cannedReply(text)
+  if (canned) return { reply: canned, route }
   const grounding = (await findHelp(text, { useVectors: true })).slice(0, 2).map((p) => ({ title: p.title, text: p.summary }))
   const out = await generate(chatMessages(text, { grounding }), { onToken, max: 70 })
   const reply = out.replace(/^\s*\{\s*"reply"\s*:\s*"?|"?\s*\}\s*$/g, "").trim()
