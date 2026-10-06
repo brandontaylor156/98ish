@@ -165,12 +165,12 @@ const patch = (material, kind) => {
   {
     vec3 surfWN = normalize(vSurfN + surfBend(surfD, vSurfN) * surfNK);
     vec3 surfVN = normalize((viewMatrix * vec4(surfWN, 0.0)).xyz);
-    normal = normalize(mix(normal, surfVN, 0.85 * surfOn));
+    normal = normalize(mix(normal, surfVN, ${material.normalMap ? 0.3 : 0.85} * surfOn)); // (a material's own relief, round 2's windows and quilting, stays)
   }`
       )
   }
   const prevKey = material.customProgramCacheKey?.bind(material)
-  material.customProgramCacheKey = () => `${prevKey ? prevKey() : ""}|surf:${kind}`
+  material.customProgramCacheKey = () => `${prevKey ? prevKey() : ""}|surf:${kind}${material.normalMap ? ":n" : ""}`
   material.needsUpdate = true
 }
 

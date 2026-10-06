@@ -9,6 +9,7 @@ import * as THREE from "three"
 import { addProps, propMaterials } from "./props.js"
 import { FINISH, roomRect } from "./propkit.js"
 import { surfaced } from "./surfaces.js"
+import { buildCars, buildDecals, buildGlow, buildTrees, canvasTex, normalFor, windscreenTex, planDecals, setDetailEnv, skyEnvironment, windowMaps } from "./detail.js"
 
 const canvasTexture = (w, h, draw) => {
   const c = document.createElement("canvas")
@@ -118,6 +119,11 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
   const e1 = new THREE.Euler()
   const C = S.colors || {}
   const B = L.BOUNDS
+  // round 2 realism (detail.js; Medium/High): real trees, cars, decals, windows in relief that
+  // reflect a sky, glowing hall lights. Low keeps the cheap shapes below.
+  const detail = quality !== "low"
+  const env = detail ? keep(skyEnvironment({ indoor: !!S.indoor, ground: S.groundStyle === "lawn" ? "#6f8a55" : "#9a958a" })) : null
+  setDetailEnv(env)
 
   // ---------- the ground ----------
   // (the area to paint: the walkable bounds plus the scenery round them, at most 2048 px)
@@ -371,7 +377,7 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
 
   // ---------- low fences, nets, walls, hedges ----------
   // (the low dividers between paired courts: dark, not the windscreens' color)
-  const screenMat = surfaced(lambert(hex(S.fence?.dividerColor, 0x1d2420), { side: THREE.DoubleSide }), "fabric")
+  const screenMat = surfaced(lambert(hex(S.fence?.dividerColor, 0x1d2420), { side: THREE.DoubleSide, ...(detail ? { map: keep(windscreenTex()) } : {}) }), "fabric")
   const wallMat = lambert(0xc9c2b4)
   const hedgeMat = lambert(0x3f6b34, { flatShading: true })
   const netTex = keep(
@@ -637,7 +643,15 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
   const wallMats = new Map()
   const wallMatFor = (color, ribs) => {
     const key = `${color}|${ribs}`
-    if (!wallMats.has(key)) wallMats.set(key, surfaced(lambert(color, { map: ribs === "mission" ? missionTex : ribs ? ribsTex : windowsTex, side: THREE.DoubleSide }), "stucco"))
+    if (!wallMats.has(key)) {
+      // (Medium/High: frames, sills and recessed glass in relief, the glass reflecting the sky)
+      const wm = detail && ribs !== true ? windowMaps(ribs === "mission" ? "mission" : "windows") : null
+      const ribN = detail && ribs === true ? normalFor(ribsTex, 2) : null
+      const o = wm
+        ? { map: wm.map, normalMap: wm.normalMap, specularMap: wm.specularMap, envMap: env, combine: THREE.MixOperation, reflectivity: 0.9 }
+        : { map: ribs === "mission" ? missionTex : ribs ? ribsTex : windowsTex, ...(ribN ? { normalMap: ribN } : {}) }
+      wallMats.set(key, surfaced(lambert(color, { ...o, side: THREE.DoubleSide }), "stucco"))
+    }
     return wallMats.get(key)
   }
   const roofMats = new Map()
@@ -926,6 +940,43 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
     return plainMats.get(color)
   }
   const hvac = []
+  // (round 2: a light coping on parapets; louvered rooftop units)
+  const copingMat = surfaced(lambert(0xe9e6df, { side: THREE.DoubleSide }), "concrete")
+  const flatRing = (p, y, w) => {
+    // a flat band w wide just inside the outline (the coping on top of a parapet)
+    const pos = []
+    const ccw = signedArea(p) > 0
+    for (let i = 0; i < p.length; i++) {
+      const a = p[i]
+      const b = p[(i + 1) % p.length]
+      const L2 = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1
+      // inward normal
+      let nx = -(b[1] - a[1]) / L2
+      let nz = (b[0] - a[0]) / L2
+      if (!ccw) (nx = -nx), (nz = -nz)
+      const a2 = [a[0] + nx * w, a[1] + nz * w]
+      const b2 = [b[0] + nx * w, b[1] + nz * w]
+      pos.push(a[0], y, a[1], b[0], y, b[1], b2[0], y, b2[1], a[0], y, a[1], b2[0], y, b2[1], a2[0], y, a2[1])
+    }
+    const g = new THREE.BufferGeometry()
+    g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3))
+    g.computeVertexNormals()
+    // face up whichever way the triangles wind
+    const n = g.attributes.normal
+    for (let i = 0; i < n.count; i++) n.setXYZ(i, 0, 1, 0)
+    return keep(g)
+  }
+  const hvacTex = () =>
+    canvasTex(64, 64, (ctx) => {
+      ctx.fillStyle = "#ffffff"
+      ctx.fillRect(0, 0, 64, 64)
+      ctx.fillStyle = "rgba(0,0,0,0.22)"
+      for (let y = 8; y < 52; y += 4) ctx.fillRect(6, y, 52, 2)
+      ctx.fillStyle = "rgba(0,0,0,0.12)"
+      ctx.fillRect(0, 60, 64, 4)
+      ctx.strokeStyle = "rgba(0,0,0,0.3)"
+      ctx.strokeRect(2, 2, 60, 60)
+    }, { repeat: false })
   // S.roofs: roof-only parts over a building drawn with roofStyle "none" (a clubhouse's wings
   // at their own heights). A part's walls run from y0 (default: its own height, so none) up
   // to h; parts are drawn, never walked into (collision stays with the building)
@@ -978,16 +1029,21 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
       }
     } else {
       group.add(new THREE.Mesh(flat(b.p, b.h), b.hall ? lambert(hex(b.r, ROOFS.hall)) : roofMat))
-      if (b.parapet) {
-        group.add(new THREE.Mesh(wallRing(b.p, b.h, b.h + b.parapet), plainMatFor(color)))
-        group.add(new THREE.Mesh(wallRing(b.p, b.h, b.h + b.parapet, { inward: true, offset: 0.25 }), plainMatFor(color)))
+      // (Medium/High: every flat roof gets a parapet and its coping, and a big one its units)
+      const par = b.parapet || (detail && !b.hall ? 0.45 : 0)
+      if (par) {
+        group.add(new THREE.Mesh(wallRing(b.p, b.h, b.h + par), plainMatFor(color)))
+        group.add(new THREE.Mesh(wallRing(b.p, b.h, b.h + par, { inward: true, offset: 0.25 }), plainMatFor(color)))
+        if (detail) group.add(new THREE.Mesh(flatRing(b.p, b.h + par + 0.01, 0.3), copingMat))
       }
+      const roofArea = Math.abs(signedArea(b.p))
+      const hv = b.hvac || (detail && !b.hall && roofArea > 300 ? Math.round(roofArea / 240) : 0)
       // rooftop units (air handlers, fans) scattered on a flat roof
-      if (b.hvac) {
+      if (hv) {
         const xs = b.p.map((q2) => q2[0])
         const zs = b.p.map((q2) => q2[1])
         const ar = Math.abs(signedArea(b.p))
-        const n = Math.min(60, typeof b.hvac === "number" ? b.hvac : Math.round(ar / 110))
+        const n = Math.min(60, typeof hv === "number" ? hv : Math.round(ar / 110))
         let tries = 0
         for (let k = 0; k < n && tries < n * 12; tries++) {
           const x = Math.min(...xs) + rand() * (Math.max(...xs) - Math.min(...xs))
@@ -1000,7 +1056,7 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
     }
   }
   if (hvac.length) {
-    const units = new THREE.InstancedMesh(keep(new THREE.BoxGeometry(1, 1, 1).translate(0, 0.5, 0)), lambert(0xd3d5d4), hvac.length)
+    const units = new THREE.InstancedMesh(keep(new THREE.BoxGeometry(1, 1, 1).translate(0, 0.5, 0)), lambert(0xd3d5d4, detail ? { map: keep(hvacTex()) } : {}), hvac.length)
     hvac.forEach((u, i) => units.setMatrixAt(i, m4.compose(v1.set(u.x, u.y, u.z), q.setFromEuler(e1.set(0, -u.ry, 0)), v2.set(u.sx, u.sy, u.sz))))
     group.add(units)
   }
@@ -1116,10 +1172,12 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
     const fin = FINISH[r.type] || {}
     const floorKind = r.floorStyle === "plain" ? null : r.floorStyle || fin.floor
     const fmap = floorTexFor(floorKind)
-    g.add(new THREE.Mesh(flat(r.p, 0.015), surfaced(std(hex(r.floor, 0xc9bda8), { roughness: floorKind === "wood" ? 0.45 : 0.6, ...(fmap ? { map: fmap } : {}) }), FLOOR_SURFACE[floorKind] || "concrete")))
+    // (Medium/High: plank and grout joints in relief, a soft sheen that reflects the room)
+    const fN = detail && fmap ? normalFor(fmap, 2) : null
+    g.add(new THREE.Mesh(flat(r.p, 0.015), surfaced(std(hex(r.floor, 0xc9bda8), { roughness: floorKind === "wood" ? 0.45 : 0.6, ...(fmap ? { map: fmap } : {}), ...(fN ? { normalMap: fN } : {}), ...(detail ? { envMap: env, envMapIntensity: 0.35 } : {}) }), FLOOR_SURFACE[floorKind] || "concrete")))
     const wh = r.wainscot ? 1.1 : 0
     // (indoors the walls get the room's own light: some emissive, so a white wall reads white)
-    const lit = (c, map = null) => surfaced(lambert(c, { emissive: new THREE.Color(c).multiplyScalar(0.28), ...(map ? { map } : {}) }), "stucco")
+    const lit = (c, map = null) => surfaced(lambert(c, { emissive: new THREE.Color(c).multiplyScalar(0.28), ...(map ? { map, ...(detail ? { normalMap: normalFor(map, 2.5) } : {}) } : {}) }), "stucco")
     const wmap = surfaceTexFor(r.wallTex)
     if (wh) g.add(new THREE.Mesh(wallRing(r.p, 0, wh, { inward: true, gaps, offset: 0.12 }), lit(hex(r.wainscot, 0x8a8a8a), wmap)))
     g.add(new THREE.Mesh(wallRing(r.p, wh, H, { inward: true, gaps, offset: 0.12 }), lit(hex(r.wall, 0xece6da), wmap)))
@@ -1331,8 +1389,11 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
     // block, panels: a texture tinted by the color)
     const padMap = surfaceTexFor(h.padTex || h.wallTex)
     const wallMap = surfaceTexFor(h.wallTex)
-    const hallPadMat = surfaced(lambert(hex(h.pads, 0x1d2f5a), padMap ? { map: padMap } : {}), "fabric")
-    const hallWallMat = surfaced(lambert(hex(h.wall, 0xd9d4c8), wallMap ? { map: wallMap } : {}), h.wallTex === "block" ? "concrete" : "stucco")
+    // (Medium/High: the quilting, block joints and panel seams in relief)
+    const padN = detail && padMap ? normalFor(padMap, 3) : null
+    const wallN = detail && wallMap ? normalFor(wallMap, 2.5) : null
+    const hallPadMat = surfaced(lambert(hex(h.pads, 0x1d2f5a), padMap ? { map: padMap, ...(padN ? { normalMap: padN } : {}) } : {}), "fabric")
+    const hallWallMat = surfaced(lambert(hex(h.wall, 0xd9d4c8), wallMap ? { map: wallMap, ...(wallN ? { normalMap: wallN } : {}) } : {}), h.wallTex === "block" ? "concrete" : "stucco")
     group.add(new THREE.Mesh(wallRing(p, 0, padH, { inward: true, gaps: cutaway ? null : hallGaps, offset: 0.12 }), hallPadMat))
     group.add(new THREE.Mesh(wallRing(p, padH, H, { inward: true, gaps: cutaway ? null : hallGaps, offset: 0.12 }), hallWallMat))
     // the extra doors (to the street, the next hall): frames and leaves (once for a door two
@@ -1535,6 +1596,8 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
     }
   }
   let hallLampMat = null
+  // a soft glow round every hall light (one draw)
+  if (detail && lightRows.length) buildGlow(group, lightRows.map((l) => ({ x: l.x, y: l.y, z: l.z })), { keep, size: lightRows[0]?.round ? 1.6 : 2.4 })
   if (lightRows.length) {
     hallLampMat = keep(new THREE.MeshBasicMaterial({ color: 0xfff8e8 }))
     const boxes = lightRows.filter((l) => !l.round)
@@ -1666,7 +1729,8 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
   for (const p of ring(bd.palms || 0, 10, 70)) byKind.palm.push({ ...p, s: 0.9 + rand() * 0.5 })
   for (const p of ring(bd.trees ?? (S.indoor ? 6 : 24), 8, 80)) byKind[bd.treeKind || "broadleaf"].push({ ...p, s: 0.8 + rand() * 0.6 })
   const trunkMat = lambert(0x6b4a2b)
-  if (byKind.broadleaf.length || byKind.eucalyptus.length) {
+  if (detail) buildTrees(group, byKind, { keep, rand })
+  if (!detail && (byKind.broadleaf.length || byKind.eucalyptus.length)) {
     const list = [...byKind.broadleaf, ...byKind.eucalyptus]
     const crown = new THREE.InstancedMesh(keep(new THREE.IcosahedronGeometry(1.6, 0)), lambert(0xffffff, { flatShading: true }), list.length)
     const trunk = new THREE.InstancedMesh(keep(new THREE.CylinderGeometry(0.18, 0.25, 2, 5)), trunkMat, list.length)
@@ -1680,7 +1744,7 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
     })
     group.add(crown, trunk)
   }
-  if (byKind.palm.length) {
+  if (!detail && byKind.palm.length) {
     // a tall thin trunk and a crown of drooping fronds (instanced: 6 fronds a palm)
     const P = byKind.palm
     const ptrunk = new THREE.InstancedMesh(keep(new THREE.CylinderGeometry(0.16, 0.24, 1, 6).translate(0, 0.5, 0)), lambert(0x8b7355), P.length)
@@ -1698,7 +1762,7 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
     })
     group.add(ptrunk, fronds, tip)
   }
-  if (byKind.conifer.length) {
+  if (!detail && byKind.conifer.length) {
     const list = byKind.conifer
     const cone = new THREE.InstancedMesh(keep(new THREE.ConeGeometry(1.5, 4.2, 7)), lambert(0x2e5a45, { flatShading: true }), list.length)
     const trunk = new THREE.InstancedMesh(keep(new THREE.CylinderGeometry(0.16, 0.22, 1.6, 5)), trunkMat, list.length)
@@ -1723,11 +1787,12 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
       cars.push({ x: s.x + j * Math.cos(s.yaw), z: s.z - j * Math.sin(s.yaw), yaw: s.yaw + (rand() < 0.5 ? 0 : Math.PI) + (rand() - 0.5) * 0.06, c: rand() })
     }
   }
-  if (cars.length) {
+  const palette = [0xf2f2f2, 0xf2f2f2, 0xecebe6, 0xf6f6f4, 0x1d1f22, 0x1d1f22, 0x26282c, 0x5f646a, 0x6e7378, 0x8a9096, 0xb8bcc0, 0xc8ccd0, 0xaeb3b8, 0x1e3a6b, 0x2c5aa0, 0x8a1e22, 0xb0302a, 0x3d5a40, 0xc9b38a, 0x5a3a2a]
+  if (detail && cars.length) buildCars(group, cars, palette, { keep, rand })
+  if (!detail && cars.length) {
     const body = new THREE.InstancedMesh(keep(new THREE.BoxGeometry(1.8, 0.75, 4.3).translate(0, 0.55, 0)), lambert(0xffffff), cars.length)
     const cab = new THREE.InstancedMesh(keep(new THREE.BoxGeometry(1.6, 0.6, 2.2).translate(0, 1.2, -0.2)), lambert(0x2a3540), cars.length)
-    // (white, black, grey, silver most of all; a few blues, reds and others)
-    const palette = [0xf2f2f2, 0xf2f2f2, 0xecebe6, 0xf6f6f4, 0x1d1f22, 0x1d1f22, 0x26282c, 0x5f646a, 0x6e7378, 0x8a9096, 0xb8bcc0, 0xc8ccd0, 0xaeb3b8, 0x1e3a6b, 0x2c5aa0, 0x8a1e22, 0xb0302a, 0x3d5a40, 0xc9b38a, 0x5a3a2a]
+    // (white, black, grey, silver most of all; a few blues, reds and others: palette above)
     const cc = new THREE.Color()
     cars.forEach((c, i) => {
       m4.compose(v1.set(c.x, 0, c.z), q.setFromEuler(e1.set(0, c.yaw, 0)), v2.set(1, 1, 1))
@@ -1736,6 +1801,16 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
       body.setColorAt(i, cc.setHex(palette[Math.floor(c.c * palette.length)]))
     })
     group.add(body, cab)
+  }
+
+  // ---------- decals (Medium/High): wear on the courts, oil and cracks in the lots, leaves ----------
+  if (detail) {
+    const lots = S.areas.filter((a) => a.k === "parking").map((a) => a.p)
+    const stalls = lots.flatMap((p) => lotStalls(p).stalls)
+    const plan = planDecals({ courts: S.courts, stalls, lots, trees: [...byKind.broadleaf, ...byKind.eucalyptus].filter((t) => t.x > B.x0 && t.x < B.x1 && t.z > B.z0 && t.z < B.z1), rand, inPoly: pointInPoly })
+    // a soft shadow under every car
+    plan.under = cars.map((c) => ({ x: c.x, z: c.z, y: 0.008, w: 2.3, l: 4.9, yaw: c.yaw }))
+    buildDecals(group, plan, { keep })
   }
 
   // ---------- street lamps (OSM) ----------

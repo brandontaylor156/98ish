@@ -85,6 +85,7 @@ export const mergeStatic = (group, keep) => {
     mesh.castShadow = first.castShadow
     mesh.receiveShadow = first.receiveShadow
     mesh.renderOrder = first.renderOrder
+    if (first.customDepthMaterial) mesh.customDepthMaterial = first.customDepthMaterial // (cut-out shadows: chain-link)
     for (const o of list) o.parent.remove(o)
     group.add(mesh)
   }

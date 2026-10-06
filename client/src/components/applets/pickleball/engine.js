@@ -1547,7 +1547,9 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
         inFrame = false
         return
       }
-      renderer.render(world.scene, world.camera)
+      // (a world may draw itself: My Park on High adds ambient occlusion, park/world.js)
+      if (world.render) world.render(renderer)
+      else renderer.render(world.scene, world.camera)
       perf.frames++
       perf.renderMs += performance.now() - renderStart
       perf.cpuMs += renderStart - cpuStart
