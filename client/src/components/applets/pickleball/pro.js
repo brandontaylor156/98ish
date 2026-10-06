@@ -72,6 +72,20 @@ export const splitHeight = (e) => {
   return -Math.sin(((e - SPLIT.lead) / (SPLIT.dur - SPLIT.lead)) * Math.PI) * SPLIT.sink
 }
 
+// ---- overheads: a jump to get the paddle up to a high ball ----
+// Standing, the athletes' paddle face reaches about 2.05 m (measured: contact exact up to
+// 2.05, then 6.5 cm short at 2.15 and 50 cm short at 2.6). A real overhead on a high ball
+// leaves the ground: the body rises into the contact and lands after it. `y` is the contact
+// height, `tRel` seconds from contact (negative before). Returns how far the body lifts (m).
+export const OVERHEAD = { reach: 2.05, max: 0.5, up: 0.32, down: 0.3 }
+export const overheadLift = (y, tRel) => {
+  const need = Math.min(OVERHEAD.max, Math.max(0, (y ?? 0) - OVERHEAD.reach))
+  if (need <= 0 || tRel < -OVERHEAD.up || tRel > OVERHEAD.down) return 0
+  // a jump's arc: rising fast, a moment's hang at the top (the contact), falling
+  const u = tRel < 0 ? 1 + tRel / OVERHEAD.up : 1 - tRel / OVERHEAD.down
+  return need * Math.sin((Math.min(1, Math.max(0, u)) * Math.PI) / 2) ** 0.7
+}
+
 // ---- footwork choice ----
 // How a player moves sideways: shuffle (small side steps facing the net, feet never cross) or
 // a crossover (hips open toward the ball, the back foot crossing in front, shoulders kept

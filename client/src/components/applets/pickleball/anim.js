@@ -42,7 +42,7 @@ import { ON_HANDLE, createStroke, mixPose, predictContact, stepStroke } from "./
 import { armIK, limitStep, limitTurn, lookToward, pushOut, ramp, smoothW } from "./upper.js"
 import { sideOf } from "./rules.js"
 import { FAST_BALL } from "./shots.js"
-import { CROSS, READY, SPLIT, lungePlan, quickSteps, readyFor, shouldSplit, splitHeight, stepIn, weightFor } from "./pro.js"
+import { CROSS, READY, SPLIT, lungePlan, overheadLift, quickSteps, readyFor, shouldSplit, splitHeight, stepIn, weightFor } from "./pro.js"
 import { motionLibrary } from "./mm/runtime.js"
 import { qaxis, qmul, qrot } from "./mm/quat.js"
 import { driveMM } from "./mm/drive.js"
@@ -314,7 +314,7 @@ export const updateAnim = (a, s, dt) => {
   const mmLib = a.useMM ? motionLibrary() : null
   let mmo = null
   if (mmLib) {
-    const hopPrev = a.hop > 0 ? splitHeight(SPLIT.dur - a.hop) : 0
+    const hopPrev = (a.hop > 0 ? splitHeight(SPLIT.dur - a.hop) : 0) + (a.jumpY || 0)
     // (a stroke coming or under way: the body right at the game's position, so the paddle
     // meets the ball where the match says)
     const tight = swing && swing.t < 0.25 ? 1 : s.prep ? clamp(1 - (s.prep.ttc - 0.15) / 0.45, 0, 1) : 0
@@ -422,6 +422,12 @@ export const updateAnim = (a, s, dt) => {
   if (a.hop > 0) {
     hopY = splitHeight(SPLIT.dur - a.hop)
     stance = R.stance + SPLIT.wider
+  }
+  // an overhead on a ball above standing reach: jump into it (pro.js overheadLift)
+  {
+    const hi = swing ? { y: swing.y, t: swing.t } : s.prep ? { y: s.prep.y, t: -s.prep.ttc } : null
+    a.jumpY = hi && hi.y > 1.62 ? overheadLift(hi.y, hi.t) : 0
+    hopY += a.jumpY
   }
   // moods
   const mood = a.mood && s.between ? a.mood : null
@@ -697,7 +703,7 @@ export const updateAnim = (a, s, dt) => {
     const hip = V(pelvisXZ.x + fr.r.x * side * BODY.hipHalf, 0, pelvisXZ.z + fr.r.z * side * BODY.hipHalf)
     const f = feet[i]
     const h = Math.hypot(f.x - hip.x, f.z - hip.z)
-    const ay = f.y + BODY.ankle
+    const ay = f.y + BODY.ankle + (a.jumpY || 0) // (in an overhead's jump the feet are off the court too)
     const maxY = ay + Math.sqrt(Math.max(0.01, (LEG * 0.985) ** 2 - h * h))
     if (!f.step && py > maxY) py = maxY // hips can't float above a planted foot
     else if (f.step?.want) {
@@ -714,7 +720,11 @@ export const updateAnim = (a, s, dt) => {
   py = Math.max(py, 0.55)
   if (a.pelvisY === undefined || dt <= 0) a.pelvisY = py
   // fast down (the legs must reach; never a drop of more than a few cm in a frame), gentler up
-  a.pelvisY = py < a.pelvisY ? Math.max(py, a.pelvisY - 4.8 * dt) : a.pelvisY + (py - a.pelvisY) * (1 - Math.exp(-dt * 14))
+  // (an overhead's jump goes up quickly: the take-off)
+  // (landing from an overhead's jump: the hips come down with the feet)
+  const jumpDrop = Math.max(0, (a.jumpPrev || 0) - (a.jumpY || 0))
+  a.jumpPrev = a.jumpY || 0
+  a.pelvisY = py < a.pelvisY ? Math.max(py, a.pelvisY - 4.8 * dt - jumpDrop * 1.05) : a.pelvisY + (py - a.pelvisY) * (1 - Math.exp(-dt * ((a.jumpY || 0) > 0.005 ? 40 : 14)))
   let pelvis = V(pelvisXZ.x, a.pelvisY, pelvisXZ.z)
 
   // ---- springs: smooth everything that isn't a hard swing ----
@@ -748,7 +758,7 @@ export const updateAnim = (a, s, dt) => {
   let legs = [0, 1].map((i) => {
     const f = feet[i]
     const hip = i ? hipR : hipL
-    let ankle = V(f.x, f.y + BODY.ankle, f.z)
+    let ankle = V(f.x, f.y + BODY.ankle + (a.jumpY || 0), f.z)
     if (f.step) {
       // a foot in the air stays within the leg's reach (it lands where it was going)
       const dy = hip.y - ankle.y
@@ -761,7 +771,7 @@ export const updateAnim = (a, s, dt) => {
     const ff = frame(f.yaw)
     const pole = add(norm(add(ff.f, mul(ff.r, i ? 0.32 : -0.32))), V(0, 0.05, 0)) // knees bend forward and out, over the toes
     const ik = twoBone(hip, ankle, BODY.thigh, BODY.shin, pole)
-    return { hip, knee: ik.mid, ankle: ik.end, foot: { x: ik.end.x, y: ik.end.y - BODY.ankle, z: ik.end.z, yaw: f.yaw, pitch: f.step ? Math.sin(Math.PI * f.step.t) * -0.35 : 0, planted: !f.step } }
+    return { hip, knee: ik.mid, ankle: ik.end, foot: { x: ik.end.x, y: ik.end.y - BODY.ankle, z: ik.end.z, yaw: f.yaw, pitch: f.step ? Math.sin(Math.PI * f.step.t) * -0.35 : 0, planted: !f.step && !((a.jumpY || 0) > 0.01) } }
   })
 
   // ---- motion matching: the captured pelvis, legs and trunk instead ----

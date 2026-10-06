@@ -96,21 +96,22 @@ export const LEVELS = {
     touch: 0.04,
     offset: 0.012,
     judge: 0.15,
-    softTouch: 0.18,
+    softTouch: 0.22,
     dropTouch: 0.14,
     drop: 0.6,
     reset: 0.85,
     bang: 0,
-    patience: 3,
-    impatience: 0.2,
-    attack: 0.04,
+    patience: 2,
+    impatience: 0.26,
+    attack: 0.01,
+    sense: 1,
     hands: 0.28,
     counter: 0.65,
     lob: 0.03,
     advance: 1,
     timing: [0.5, 0.42],
     serveWait: 0.9,
-    maxY: 2.15,
+    maxY: 2.3, // (an overhead jumps for it: pro.js overheadLift)
   },
   legend: {
     ...COMMON,
@@ -122,24 +123,31 @@ export const LEVELS = {
     touch: 0.028,
     offset: 0.008,
     judge: 0.1,
-    softTouch: 0.18,
+    softTouch: 0.21,
     dropTouch: 0.11,
     drop: 0.6,
-    reset: 0.9,
+    reset: 0.85,
     bang: 0,
-    patience: 3,
-    impatience: 0.3,
-    attack: 0.04,
-    hands: 0.27,
+    patience: 2,
+    impatience: 0.45,
+    attack: -0.01,
+    sense: 1,
+    hands: 0.31,
     counter: 0.75,
     lob: 0.03,
     advance: 1,
     timing: [0.65, 0.32],
     serveWait: 0.8,
-    maxY: 2.2,
+    maxY: 2.35,
   },
 }
 export const LEVEL_KEYS = Object.keys(LEVELS)
+
+// How good a player's shot sense is (0 none, 0.5 some, 1 full): picking a pace that lands,
+// rolling low balls at the feet, aiming attacks sharp. It used to be read off the attack
+// threshold (attack > 0.03 = full); levels may now set it directly (sense) so a top level
+// can attack lower balls without losing its judgment.
+export const senseOf = (lv) => lv.sense ?? (lv.attack > 0.03 ? 1 : lv.attack > 0 ? 0.5 : 0)
 
 // Styles scale a level's habits (multipliers; "attack" is added, in meters)
 export const STYLES = {
@@ -386,7 +394,8 @@ export const aiShot = (m, p, lv = p.level, at = m.ball, rand = m.rand) => {
   const hard = () => 0.72 + rand() * 0.28
   const dinks = r.dinks || 0
   // good players only go hard when the ball lets them (the pace that still lands in)
-  const wise = rand() < (lv.attack > 0.03 ? 1 : lv.attack > 0 ? 0.5 : 0)
+  const sense = senseOf(lv)
+  const wise = rand() < sense
   const fit = (target, paces) => {
     if (!wise) return paces[0]
     const pace = paceThatFits(p, ball, target, paces)
@@ -405,14 +414,14 @@ export const aiShot = (m, p, lv = p.level, at = m.ball, rand = m.rand) => {
   }
   // a ball met above the net, near it: attack (at the body, or put it away)
   if (!fast && above > lv.attack && dist < 5.5) {
-    const target = t.attack(y, lv.attack > 0)
+    const target = t.attack(y, sense > 0)
     const pace = fit(target, [hard(), 0.74, 0.6, 0.48])
     if (pace !== null) return { pace, target, intent: y > 1.45 ? "smash" : "speedup" }
   }
   if (fast) {
     // a hard ball at the net: counter it if it's up around the tape, or block it soft
     if ((above > -0.06 && rand() < lv.counter) || above > 0.45) {
-      const target = t.attack(y, lv.attack > 0)
+      const target = t.attack(y, sense > 0)
       const pace = fit(target, [hard(), 0.74, 0.6])
       if (pace !== null) return { pace, target, intent: y > 1.45 ? "smash" : "counter" }
     }
@@ -429,8 +438,8 @@ export const aiShot = (m, p, lv = p.level, at = m.ball, rand = m.rand) => {
     if (rand() < lv.bang * 0.6 || rand() < itch) {
       // from down there: a good player rolls it at the feet (firm, topspin); a banger just
       // hits it hard, and it sails or comes back high
-      const roll = rand() < (lv.attack > 0.03 ? 0.85 : lv.attack > 0 ? 0.5 : 0.15)
-      const target = roll ? t.attack(y, true, true) : t.attack(y, lv.attack > 0)
+      const roll = rand() < (sense >= 1 ? 0.85 : sense > 0 ? 0.5 : 0.15)
+      const target = roll ? t.attack(y, true, true) : t.attack(y, sense > 0)
       const pace = fit(target, roll ? [0.42 + rand() * 0.16, 0.4] : [0.62 + rand() * 0.35, 0.6])
       // (nothing lands from that low: a patient player just dinks again)
       if (pace !== null) return { pace, target, intent: roll ? "roll" : "speedup" }

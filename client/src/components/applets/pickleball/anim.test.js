@@ -93,7 +93,8 @@ test("a whole match animates: feet on the court, no sliding, bones keep their le
         const ankle = k ? pose.ankleR : pose.ankleL
         assert.ok((k ? pose.footR : pose.footL).y >= -1e-9, "foot not under the court")
         if (f.step) return
-        const gap = Math.hypot(ankle.x - f.x, ankle.y - BODY.ankle - f.y, ankle.z - f.z)
+        // (an overhead's jump lifts the planted feet off their spots by the jump: pro.js overheadLift)
+        const gap = Math.hypot(ankle.x - f.x, ankle.y - BODY.ankle - f.y - (anims[i].jumpY || 0), ankle.z - f.z)
         worstFloat = Math.max(worstFloat, gap)
       })
       // planted feet: no sliding between frames

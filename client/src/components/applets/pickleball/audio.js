@@ -21,6 +21,7 @@ export const createAudio = () => {
   let voice = true
   let crowdLevel = 0 // how big the crowd is (0 = nobody)
   let murmur = null
+  let crowdTension = 0 // a long rally's swell (setTension)
   let room = null // { conv, wet }
   let roomVenue = "park"
   const bank = new Map() // voice key -> [AudioBuffer]
@@ -297,7 +298,13 @@ export const createAudio = () => {
         src.start()
         murmur = { src, g }
       }
-      if (murmur) murmur.g.gain.setTargetAtTime(size * 0.035, c.currentTime, 0.4)
+      if (murmur) murmur.g.gain.setTargetAtTime(size * 0.035 * (1 + crowdTension * 1.6), c.currentTime, 0.4)
+    },
+    // a long rally: the murmur swells and lifts in pitch as it goes on (0..1; 0 when it ends)
+    setTension(t) {
+      crowdTension = Math.max(0, Math.min(1, t))
+      if (!murmur || !ctx) return
+      murmur.g.gain.setTargetAtTime(crowdLevel * 0.035 * (1 + crowdTension * 1.6), ctx.currentTime, crowdTension > 0 ? 0.6 : 0.25)
     },
     cheer(level = 0.6) {
       if (crowdLevel <= 0) return

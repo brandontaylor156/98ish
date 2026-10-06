@@ -17,6 +17,9 @@ export const buildCourtVenue = (scene, { layout, courtId = null, quality = "medi
   const park = buildPark(holder, { quality, layout, cutaway: !!layout.spec.indoor })
   const d = dayLook(hour ?? hourOf())
   park.setDayLook(d)
+  // the sun's shadow box and the sky centred on this court (the park centres them on its walking
+  // camera; a match never moves them, and at a big venue the court sat outside the shadow box)
+  park.followSky?.({ x: c.x, z: c.z })
   // the court's frame -> the engine's: turn by -rot about the court's middle
   holder.rotation.y = -c.rot
   const off = new THREE.Vector3(c.x, 0, c.z).applyAxisAngle(new THREE.Vector3(0, 1, 0), -c.rot)

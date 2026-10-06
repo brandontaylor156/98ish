@@ -7,6 +7,8 @@ import * as THREE from "three"
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js"
 import { HALF_L, HALF_W, KITCHEN, LINE_W, NET_POST_X, netHeightAt } from "./physics.js"
 import { VENUE_INFO } from "./looks.js"
+import { applySurfaces } from "./park/surfaces.js"
+import { bakeVenueAO, clearBakedAO } from "./park/occlusion.js"
 
 export { VENUE_INFO as VENUES }
 const VENUES = VENUE_INFO
@@ -198,12 +200,17 @@ export const buildVenue = (scene,{ venue = "park", quality = "medium" } = {}) =>
   ground.rotation.x = -Math.PI / 2
   ground.position.y = -0.03
   group.add(ground)
+  // real surfaces on the classic venues too (park/surfaces.js; off on Low): grass where it's
+  // grass, a concrete concourse under the stadium; sand and snow keep their own look
+  if (venue === "park" || venue === "club") ground.material.userData.surface = "grass"
+  else if (venue === "stadium") ground.material.userData.surface = "concrete"
   const AX = HALF_W + 3.6
   const AZ = HALF_L + 5.8
   const apron = new THREE.Mesh(keep(new THREE.PlaneGeometry(2 * AX, 2 * AZ)), std(V.apron, { roughness: 0.9 }))
   apron.rotation.x = -Math.PI / 2
   apron.position.y = -0.005
   apron.receiveShadow = shadows
+  apron.material.userData.surface = "acrylic"
   group.add(apron)
   // the court surface: a subtle grain so it reads as a textured hard court
   const grain = canvasTexture(256, 256, (ctx, w, h) => {
@@ -222,11 +229,13 @@ export const buildVenue = (scene,{ venue = "park", quality = "medium" } = {}) =>
   const court = new THREE.Mesh(keep(new THREE.PlaneGeometry(2 * HALF_W, 2 * HALF_L)), std(0xffffff, { map: grain, roughness: 0.8 }))
   court.rotation.x = -Math.PI / 2
   court.receiveShadow = shadows
+  court.material.userData.surface = "acrylic"
   group.add(court)
   const kitchen = new THREE.Mesh(keep(new THREE.PlaneGeometry(2 * HALF_W, 2 * KITCHEN)), std(V.kitchen, { roughness: 0.8 }))
   kitchen.rotation.x = -Math.PI / 2
   kitchen.position.y = 0.001
   kitchen.receiveShadow = shadows
+  kitchen.material.userData.surface = "acrylic"
   group.add(kitchen)
 
   // the lines: 2 in wide, inside the court's outer edges (they're part of the court)
@@ -246,6 +255,7 @@ export const buildVenue = (scene,{ venue = "park", quality = "medium" } = {}) =>
   lg.computeVertexNormals()
   const lines = new THREE.Mesh(lg, std(0xf4f7fb, { roughness: 0.7 }))
   lines.receiveShadow = shadows
+  lines.material.userData.surface = "acrylic"
   group.add(lines)
 
   // ---- the net: posts, a sagging mesh, the tape, the center strap ----
@@ -258,6 +268,7 @@ export const buildVenue = (scene,{ venue = "park", quality = "medium" } = {}) =>
   keep(netTex)
   netTex.wrapS = netTex.wrapT = THREE.RepeatWrapping
   const postMat = std(0x2b2f36, { roughness: 0.5, metalness: 0.3 })
+  postMat.userData.surface = "metal"
   for (const s of [-1, 1]) {
     const post = new THREE.Mesh(keep(new THREE.CylinderGeometry(0.04, 0.045, 0.98, 10)), postMat)
     post.position.set(s * NET_POST_X, 0.49, 0)
@@ -761,6 +772,10 @@ export const buildVenue = (scene,{ venue = "park", quality = "medium" } = {}) =>
   mergeStatic(group, keep)
   scene.add(group)
   scene.fog = new THREE.Fog(V.fog[0], V.fog[1], V.fog[2])
+  // the realism kit (docs/venue-realism.md) on Medium/High: textured surfaces, and contact
+  // darkness baked from the venue's own geometry (stands, fences, posts) like the real venues
+  applySurfaces(group, { quality })
+  const cancelAO = quality !== "low" ? bakeVenueAO(group, { x0: -AX - 6, z0: -AZ - 6, x1: AX + 6, z1: AZ + 6 }) : (clearBakedAO(), null)
 
   // the big screen's picture: the score (and a message like "REPLAY")
   // the biggest bold type (from `size` down to `min`) that fits `width`; fillText's maxWidth
@@ -836,6 +851,8 @@ export const buildVenue = (scene,{ venue = "park", quality = "medium" } = {}) =>
     setScreenCompact,
     update,
     dispose() {
+      cancelAO?.()
+      clearBakedAO()
       scene.remove(group)
       disposables.forEach((d) => d.dispose?.())
     },

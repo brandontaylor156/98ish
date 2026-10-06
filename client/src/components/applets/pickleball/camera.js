@@ -54,6 +54,15 @@ export const clearShot = (cam, look, bodies, opts = {}) => {
   return { ...c, moved: Math.hypot(c.x - cam.x, c.y - cam.y, c.z - cam.z) }
 }
 
+// The camera eases toward its target, so a clear target isn't enough: on the way there it
+// can pass through a player (the owner saw a back fill the screen for a few frames: 3 of
+// 2,227 in a test). easeClear moves the camera k of the way to its target and then clears
+// where it actually is. Returns { x, y, z, moved } (moved: how far clearing pushed it).
+export const easeClear = (cur, target, k, look, bodies, opts = {}) => {
+  const p = { x: cur.x + (target.x - cur.x) * k, y: cur.y + (target.y - cur.y) * k, z: cur.z + (target.z - cur.z) * k }
+  return clearShot(p, look, bodies, opts)
+}
+
 // The TV shot of the server before a serve: from beside the court on the server's own side,
 // a little toward the net, at about head height, looking at their chest. `server` { x, z, team }.
 export const serverShot = (server, { portrait = false } = {}) => {
