@@ -28,7 +28,9 @@
  *   mirror? (false: stays put in the left-handed mirror), opacity? (0-1; drawn through the
  *   CSS variable --tc-opacity, so a game's CSS can dim further with calc()), ariaDisabled?,
  *   default: { portrait, landscape } each a rect { x, y, w, h } in % of the game area, or
- *   (size) => rect (see fromPx in layout.js for pixel anchors) }.
+ *   (size) => rect (see fromPx in layout.js for pixel anchors),
+ *   retired?: { portrait: [old defaults...], landscape: [...] } (when a default moves: a
+ *   saved layout still holding an old default spot gets the new one) }.
  * Zones are big invisible touch areas (pinball flippers); they show only while editing.
  *
  * Props: game (storage key), controls, onPress(action, control, { repeat }),
@@ -57,6 +59,7 @@ import {
   effectiveRects,
   findOverlaps,
   mergeLayout,
+  retiredRects,
   mirrorRects,
   orientationOf,
   savedLayout,
@@ -132,7 +135,7 @@ const TouchControls = ({
     [controls, size, orientation, scale, alpha]
   )
   const saved = savedLayout(store, game, orientation)
-  const layout = useMemo(() => defaults && mergeLayout(defaults, saved), [defaults, saved])
+  const layout = useMemo(() => defaults && mergeLayout(defaults, saved, retiredRects(controls, size, orientation)), [defaults, saved])
   const zoneIds = controls.filter(isZone).map((c) => c.id)
 
   // ---- playing: press / release ----
@@ -325,6 +328,48 @@ const EditLayer = ({ controls, draft, setDraft, rects, size, zoneIds, defaults, 
   const [panelAt, setPanelAt] = useState(null) // "top" | "middle" | "bottom"
   const [collapsed, setCollapsed] = useState(false)
   const byId = Object.fromEntries(controls.map((c) => [c.id, c]))
+  // Dragged by its title bar (mouse or finger), the panel goes anywhere in the game area:
+  // { left, top } in px of the layer, kept so its title bar stays reachable
+  const panelRef = useRef(null)
+  const [panelPos, setPanelPos] = useState(null)
+  const panelDrag = useRef(null)
+  const clampPanel = (left, top) => {
+    const p = panelRef.current
+    const w = p?.offsetWidth || 200
+    const h = p?.offsetHeight || 120
+    // the whole panel stays inside the area (when it fits; else its top does)
+    return {
+      left: Math.round(Math.max(0, Math.min(size.width - w, left))),
+      top: Math.round(Math.max(0, Math.min(size.height - h, top))),
+    }
+  }
+  const onPanelGrab = (e) => {
+    if (e.target.closest("button")) return
+    if (e.pointerType === "mouse" && e.button !== 0) return
+    e.preventDefault()
+    const p = panelRef.current
+    const layer = layerRef.current
+    if (!p || !layer) return
+    const pr = p.getBoundingClientRect()
+    const lr = layer.getBoundingClientRect()
+    // (the layer may be scaled with its window: measure px per CSS px)
+    const k = lr.width ? layer.offsetWidth / lr.width : 1
+    panelDrag.current = { id: e.pointerId, dx: e.clientX - pr.left, dy: e.clientY - pr.top, lr, k }
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId)
+    } catch {
+      // the pointer is already gone
+    }
+  }
+  const onPanelMove = (e) => {
+    const d = panelDrag.current
+    if (!d || d.id !== e.pointerId) return
+    e.preventDefault()
+    setPanelPos(clampPanel((e.clientX - d.dx - d.lr.left) * d.k, (e.clientY - d.dy - d.lr.top) * d.k))
+  }
+  const onPanelDrop = (e) => {
+    if (panelDrag.current?.id === e.pointerId) panelDrag.current = null
+  }
 
   useEffect(() => {
     layerRef.current?.focus({ preventScroll: true })
@@ -484,12 +529,26 @@ const EditLayer = ({ controls, draft, setDraft, rects, size, zoneIds, defaults, 
           )
         })}
 
-      <div className={`tcPanel window tcPanel--${where} ${size.height < 340 ? "tcPanel--short" : ""}`} onPointerDown={(e) => e.stopPropagation()}>
-        <div className="title-bar">
+      <div
+        ref={panelRef}
+        className={`tcPanel window ${panelPos ? "tcPanel--free" : `tcPanel--${where}`} ${size.height < 340 ? "tcPanel--short" : ""}`}
+        style={panelPos ? { left: panelPos.left, top: panelPos.top } : undefined}
+        onPointerDown={(e) => e.stopPropagation()}
+      >
+        <div
+          className="title-bar tcPanelBar"
+          data-touch-surface=""
+          title="Drag to move this panel"
+          onPointerDown={onPanelGrab}
+          onPointerMove={onPanelMove}
+          onPointerUp={onPanelDrop}
+          onPointerCancel={onPanelDrop}
+          onLostPointerCapture={onPanelDrop}
+        >
           <div className="title-bar-text">Customize Controls</div>
           <div className="title-bar-controls">
             <button type="button" aria-label={collapsed ? "Maximize" : "Minimize"} title={collapsed ? "Show options" : "Hide options"} onClick={() => setCollapsed(!collapsed)} />
-            <button type="button" className="tcPanelMove" aria-label="Move panel" title="Move this panel" onClick={() => setPanelAt(PANEL_SPOTS[(PANEL_SPOTS.indexOf(where) + 1) % 3])}>
+            <button type="button" className="tcPanelMove" aria-label="Move panel" title="Move this panel" onClick={() => (setPanelPos(null), setPanelAt(PANEL_SPOTS[(PANEL_SPOTS.indexOf(where) + 1) % 3]))}>
               {where === "bottom" ? "▲︎" : "▼︎"}
             </button>
           </div>

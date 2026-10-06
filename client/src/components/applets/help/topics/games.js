@@ -100,7 +100,7 @@ export const topics = [
     keywords: ["touch controls", "on-screen buttons", "Customize controls", "gear", "left-handed", "Mirror", "button size", "opacity", "vibrate"],
     body: [
       "On a phone or tablet, action games show buttons on top of the game: arrows, drop, flippers and so on. You can arrange them however feels best for your thumbs.",
-      { steps: ["Tap the small **gear** button on the game (\"Customize controls\"). The game pauses.", "Drag a button to move it.", "Drag a button's corner, or pinch it with two fingers, to make it bigger or smaller.", "Tap a button to pick it: you can then hide it (untick **Show**) or change how see-through it is.", "Tap **Done** to keep your changes, or **Cancel** to forget them."], title: "To customize the controls:" },
+      { steps: ["Tap the small **gear** button on the game (\"Customize controls\"). The game pauses.", "Drag a button to move it.", "Drag a button's corner, or pinch it with two fingers, to make it bigger or smaller.", "Tap a button to pick it: you can then hide it (untick **Show**) or change how see-through it is.", "The **Customize Controls** box can be dragged by its title bar if it covers a button.", "Tap **Done** to keep your changes, or **Cancel** to forget them."], title: "To customize the controls:" },
       { h: "Handy extras" },
       {
         list: [
@@ -154,7 +154,7 @@ export const topics = [
         ],
       },
       {
-        phone: "Play with your finger on the well, like the official Tetris app (see the table below). The screen is laid out like the app too: the score above the well, Hold and the next 3 pieces beside its top, Pause at the top left and a **Hold** button at the bottom left.",
+        phone: "Play with your finger on the well, like the official Tetris app (see the table below). The screen is laid out like the app too: the score above the well, Hold and the next 3 pieces beside its top, Pause at the top left and a **Hold** button halfway up the left side, right under your thumb. (Drag it somewhere else in Customize controls if you like.)",
         computer: "Use the keys above. Hold an arrow to slide the piece along.",
       },
       { h: "Swipe controls on a phone" },
@@ -711,9 +711,10 @@ export const topics = [
       "Place your five ships on your grid, then take turns firing at the other grid, one shot each. A white dot is a miss, red is a hit. Sink all five of their ships to win.",
       { h: "Placing your ships" },
       {
-        phone: "Pick a ship and tap a square, or drag it. Tap **Rotate** to turn it.",
-        computer: "Drag a ship onto your grid. Press {{R}} or right-click to turn it while placing. **Random** places them all for you.",
+        phone: "Drag each ship from the dock onto your grid (or tap it to drop it in). Drag a placed ship to move it, and tap it to turn it. **Random** places them all for you.",
+        computer: "Drag each ship from the dock onto your grid (or click it to drop it in). Drag a placed ship to move it; click it, right-click it or press {{R}} to turn it. **Random** places them all for you.",
       },
+      "A ship that won't fit shows red and goes back where it was.",
       "Ships can touch but not overlap.",
       "From the Start menu you play the computer. To play a person, use **Play Online** to invite someone who's online, or right-click them in Network Neighborhood.",
     ],

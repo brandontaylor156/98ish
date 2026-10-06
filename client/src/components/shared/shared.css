@@ -226,6 +226,22 @@
   overflow: visible;
 }
 
+/* a drop-down too tall for the window scrolls (MenuBar.jsx DropMenu) */
+.menuBar .menu.window.is-scroll {
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+}
+
+/* finger-sized rows on a phone, as in the right-click menus */
+.os-mobile .menuBar .menu button {
+  min-height: 34px !important;
+  align-items: center;
+  font-size: 13px;
+}
+
 .menuHasSub {
   position: relative;
 }

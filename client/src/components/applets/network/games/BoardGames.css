@@ -621,15 +621,65 @@
   width: 100%;
 }
 
-.bsTrayShips {
+/* the dock: ships still to place (drag one onto the grid, or tap it) */
+.bsDock {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  min-height: 28px;
 }
 
-.bsPlace:not(.is-wide) .bsTrayShips {
+.bsPlace:not(.is-wide) .bsDock {
   display: grid;
   grid-template-columns: 1fr 1fr;
+}
+
+.bsDockDone {
+  grid-column: 1 / -1;
+  padding: 6px 4px;
+  color: #303030;
+}
+
+.bsPlace {
+  position: relative;
+}
+
+/* placed ships drag and turn by touch: the squares take the whole gesture (no scrolling) */
+.bsPlacing .bsCell.is-ship,
+.bsPlace.is-dragging .bsCell {
+  touch-action: none;
+  cursor: grab;
+}
+
+.bsPlace.is-dragging,
+.bsPlace.is-dragging * {
+  cursor: grabbing !important;
+}
+
+/* the ship under the finger while it's off the grid */
+.bsDragShip {
+  position: absolute;
+  z-index: 5;
+  display: flex;
+  pointer-events: none;
+  transform: translate(calc(var(--bs-cell) * -0.5 - var(--bs-cell) * var(--bs-k)), calc(var(--bs-cell) * -0.5));
+  opacity: 0.85;
+}
+
+.bsDragShip[style*="column"] {
+  transform: translate(calc(var(--bs-cell) * -0.5), calc(var(--bs-cell) * -0.5 - var(--bs-cell) * var(--bs-k)));
+}
+
+.bsDragShip i {
+  width: var(--bs-cell);
+  height: var(--bs-cell);
+  background: linear-gradient(#a8a8a8, #6e6e6e);
+  border: 1px solid #2a2a2a;
+}
+
+.bsTip {
+  margin: 4px 0 0;
+  color: #303030;
 }
 
 .netApp .bsTrayShip {
@@ -639,16 +689,9 @@
   padding: 3px 6px;
   text-align: left;
   touch-action: none;
+  cursor: grab;
 }
 
-.netApp .bsTrayShip.is-selected {
-  background: #000080;
-  color: #fff;
-}
-
-.bsTrayShip.is-placed .bsTrayHull i {
-  background: #6e6e6e;
-}
 
 .bsTrayHull {
   display: inline-flex;
@@ -661,11 +704,6 @@
   border: 1px solid #000;
   margin-right: -1px;
   background: #b0b0b0;
-}
-
-.bsTrayAt {
-  margin-left: auto;
-  opacity: 0.7;
 }
 
 .bsTrayButtons {

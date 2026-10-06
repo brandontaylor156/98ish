@@ -114,9 +114,17 @@ The 15 bombs (*inferred* except where noted):
 | 14 | Chain bomb (yellow, links) | tap it; if it goes off it also takes the bombs next to it (2 hearts) | 20 |
 | 15 | Gold bomb | tap fast: it sinks after about 1 s (no harm if missed); worth a lot | 100 |
 
-**Panic Time** (*inferred*): in Endless 30 s after the start and 30 s after each one ends (and
-once per stage from stage 5, halfway to the goal), the sky turns red for 8 s: bombs come three
-times as fast (every hole can fill), fuses are 30% shorter and every whack scores double.
+**Panic Time** (*inferred*): in Endless 25 s after the start and 25 s after each one ends (and
+once per stage from stage 3, halfway to the goal; twice from stage 10, at a third and two
+thirds), the sky turns red for 8 s: bombs come three times as fast (every hole can fill), fuses
+are 30% shorter and every whack scores double.
+
+**Difficulty ramp** (2026-10-05, the owner found stage 3 "a little too easy"): `speedOf` is
+1 + 0.14 per stage + 0.3 across a stage (was 0.07 and 0.15), so stage 3 runs 1.28x-1.58x and
+stage 20 3.7x-4x; fuses are 3.1 s / sqrt(speed) (floor 1.0 s), spawns 1.15 s / speed (floor
+0.22 s), up to 3 + 1.6 x speed bombs at once (8 max). From 1.4x (stage 4) a spawn can be a pair
+(10% rising to 45%), from 2.5x (stage 12) three at once (6-20%). Endless climbs 9% every 10
+bombs up to 4x. Tests in `boomfrenzy.test.js` ("it gets hard fast", pairs/threes, two Panics).
 
 **3 Weapons** (*inferred* names and powers; charged by whacking, shown as three buttons with a
 charge meter; each use spends its cost from the one meter, which holds 40; bombs a weapon

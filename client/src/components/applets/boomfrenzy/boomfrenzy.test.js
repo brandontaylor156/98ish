@@ -219,8 +219,8 @@ test("weapons: charged by whacks; the mallet clears the field, freeze stops fuse
   assert.equal(E.whack(s, 6), "defused")
 })
 
-test("a stage is won at its goal; stars from hearts left; Panic Time halfway from stage 5", () => {
-  const s = quiet({ stage: 5 })
+test("a stage is won at its goal; stars from hearts left; Panic Time halfway from stage 3", () => {
+  const s = quiet({ stage: 3 })
   s.hearts = 2
   let panics = 0
   for (let i = 0; i < s.goal; i++) {
@@ -240,7 +240,7 @@ test("a stage is won at its goal; stars from hearts left; Panic Time halfway fro
   assert.equal(p.score, 20)
 })
 
-test("endless: Panic Time 30 seconds after the last one ends, and it keeps getting faster", () => {
+test("endless: Panic Time 25 seconds after the last one ends, and it keeps getting faster", () => {
   const s = E.newGame({ mode: "endless", seed: 11 })
   s.hearts = 1e9 // never lose
   let panics = 0
@@ -253,6 +253,65 @@ test("endless: Panic Time 30 seconds after the last one ends, and it keeps getti
   const fast = E.speedOf({ ...s, whacked: 100 })
   assert.ok(fast > slow)
   assert.ok(E.spawnGap({ ...s, whacked: 100, panicUntil: 0 }) < E.spawnGap({ ...s, whacked: 0, panicUntil: 0 }))
+})
+
+test("it gets hard fast: stage 3 is well past stage 1, and stage 20 is chaos", () => {
+  const at = (stage, whacked = 0) => ({ ...E.newGame({ stage, seed: 1 }), whacked })
+  // stage 1 stays gentle for learning
+  assert.equal(E.speedOf(at(1)), 1)
+  // stage 3 starts 28% faster and ends 58% faster than stage 1
+  assert.ok(E.speedOf(at(3)) >= 1.28)
+  assert.ok(E.speedOf(at(3, E.goalFor(3))) >= 1.55)
+  assert.ok(E.baseFuse(at(3, E.goalFor(3))) < 0.82 * E.baseFuse(at(1)))
+  assert.ok(E.spawnGap(at(3, E.goalFor(3))) < 0.65 * E.spawnGap(at(1)))
+  assert.ok(E.maxBombs(at(3, E.goalFor(3))) >= 5)
+  // late stages: short fuses, bombs every ~0.3 s, up to 8 at once, in pairs and threes
+  const late = at(20, 40)
+  assert.ok(E.baseFuse(late) <= 1.6)
+  assert.ok(E.spawnGap(late) <= 0.32)
+  assert.equal(E.maxBombs(late), 8)
+  const [two, three] = E.volleyOdds(late)
+  assert.ok(two >= 0.3 && three > 0)
+  // and every stage is harder than the one before
+  for (let st = 2; st <= 20; st++) assert.ok(E.speedOf(at(st)) > E.speedOf(at(st - 1)))
+})
+
+test("pairs from stage 4, threes from stage 12; never more than the field allows", () => {
+  assert.deepEqual(E.volleyOdds(E.newGame({ stage: 2 })), [0, 0])
+  assert.ok(E.volleyOdds(E.newGame({ stage: 4 }))[0] > 0)
+  assert.equal(E.volleyOdds(E.newGame({ stage: 11 }))[1], 0)
+  assert.ok(E.volleyOdds(E.newGame({ stage: 12 }))[1] > 0)
+  const s = E.newGame({ stage: 16, seed: 5 })
+  s.hearts = 1e9
+  let most = 0
+  let pairs = 0
+  for (let i = 0; i < 60 * 40; i++) {
+    E.step(s, 1 / 60)
+    const pops = E.takeEvents(s).filter((e) => e.type === "pop").length
+    if (pops >= 2) pairs++
+    most = Math.max(most, s.holes.filter(Boolean).length)
+    if (!E.isPanic(s)) assert.ok(s.holes.filter(Boolean).length <= E.HOLES - 1)
+  }
+  assert.ok(pairs > 5, `bombs came in pairs (${pairs})`)
+  assert.ok(most >= 6, `the field got crowded (${most})`)
+})
+
+test("two Panic Times a stage from stage 10", () => {
+  assert.deepEqual(E.panicMarks(2), [])
+  assert.deepEqual(E.panicMarks(3), [0.5])
+  assert.equal(E.panicMarks(10).length, 2)
+  const s = quiet({ stage: 10 })
+  s.hearts = 5
+  let panics = 0
+  for (let i = 0; i < s.goal && !s.over; i++) {
+    const h = s.holes.findIndex((b) => !b)
+    E.makeBomb(s, "black", h)
+    E.whack(s, h)
+    panics += E.takeEvents(s).filter((e) => e.type === "panic").length
+    // let a Panic Time run out before the next whack
+    if (E.isPanic(s)) s.t = s.panicUntil
+  }
+  assert.equal(panics, 2)
 })
 
 test("Sort Rush: right pen scores, wrong pen blows up, a dropped bomb in the yard keeps walking", () => {

@@ -50,6 +50,13 @@ const SubMenu = ({ items, close }) => {
   useLayoutEffect(() => {
     const el = ref.current
     if (!el) return
+    // inside a menu that scrolls (too tall for the window) it can't stick out to a side:
+    // it drops down over its row instead
+    if (el.parentElement.closest(".menu.is-scroll")) {
+      el.style.left = "12px"
+      el.style.top = `${el.parentElement.getBoundingClientRect().height - 2}px`
+      return
+    }
     // the window clips what's outside it, so its edge counts (else the screen's)
     const frame = el.closest(".desktopWindow, [data-window-index]")?.getBoundingClientRect()
     const vw = Math.min(document.documentElement.clientWidth, frame ? frame.right : Infinity)
@@ -66,6 +73,29 @@ const SubMenu = ({ items, close }) => {
   }, [])
   return (
     <ul className="menu window menuSub" ref={ref} role="menu">
+      <MenuItems items={items} close={close} />
+    </ul>
+  )
+}
+
+// A menu bar's drop-down. One taller than the room below it (a long Options menu on a phone,
+// above all in landscape) scrolls inside the window instead of running off its bottom, where
+// the rows past the edge couldn't be reached.
+const DropMenu = ({ items, close }) => {
+  const ref = useRef(null)
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const frame = el.closest(".desktopWindow, [data-window-index]")?.getBoundingClientRect()
+    const bottom = Math.min(window.innerHeight, frame ? frame.bottom : Infinity) - 4
+    const room = Math.floor(bottom - el.getBoundingClientRect().top)
+    if (el.scrollHeight > room && room > 60) {
+      el.classList.add("is-scroll")
+      el.style.maxHeight = `${room}px`
+    }
+  }, [])
+  return (
+    <ul className="menu window" ref={ref} role="menu">
       <MenuItems items={items} close={close} />
     </ul>
   )
@@ -103,11 +133,7 @@ const MenuBar = ({ menus }) => {
           <button type="button" onClick={() => setOpen(open === i ? null : i)} onMouseEnter={() => open !== null && setOpen(i)}>
             {menu.label}
           </button>
-          {open === i && (
-            <ul className="menu window">
-              <MenuItems items={menu.items} close={() => setOpen(null)} />
-            </ul>
-          )}
+          {open === i && <DropMenu items={menu.items} close={() => setOpen(null)} />}
         </li>
       ))}
     </ul>

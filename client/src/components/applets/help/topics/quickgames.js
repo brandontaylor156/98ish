@@ -54,7 +54,7 @@ export const topics = [
         },
       },
       { h: "Modes" },
-      "**Stages**: 20 of them. Each one is \"whack this many bombs\" and brings in a new bomb (shown before the stage starts); stars for the hearts you have left. **Endless**: no goal, Panic Time every 30 seconds, until the hearts run out. **Sort Rush**: drag (or flick) colored bombs into the pen of their color before they go off.",
+      "**Stages**: 20 of them. Each one is \"whack this many bombs\" and brings in a new bomb (shown before the stage starts); stars for the hearts you have left. It gets hard fast: every stage is quicker than the last and speeds up as you go, Panic Time comes from stage 3 (twice a stage from stage 10), and bombs pop up in pairs from stage 4 and in threes from stage 12. **Endless**: no goal, Panic Time every 25 seconds, faster every 10 bombs, until the hearts run out. **Sort Rush**: drag (or flick) colored bombs into the pen of their color before they go off.",
       { tip: "Boom Frenzy is inspired by Bomb Panic, an iPhone game from 2012. Its bombs, weapons and stages here are 98ish's own." },
       { open: "Boom Frenzy", label: "Play Boom Frenzy" },
     ],

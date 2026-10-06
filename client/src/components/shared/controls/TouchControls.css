@@ -182,6 +182,19 @@ button.tcButton.is-pressed {
   bottom: 6px;
 }
 
+/* dragged by its title bar to a spot of the player's choosing (left/top inline) */
+.tcPanel--free {
+  transform: none;
+}
+
+.tcPanelBar {
+  cursor: move;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
 /* main.css makes windows fill their box; this one sizes to its contents */
 .window.tcPanel {
   height: auto;

@@ -59,7 +59,7 @@ const SelectHost = () => {
     el.setAttribute("data-sel-open", "")
     el.setAttribute("aria-expanded", "true")
     el.setAttribute("aria-controls", `sel-popup-${n}`)
-    const next = { el, kind, via, sheet, rect: el.getBoundingClientRect(), n, size: { w: window.innerWidth, h: window.innerHeight } }
+    const next = { el, kind, via, sheet, rect: el.getBoundingClientRect(), n, size: { w: window.innerWidth, h: window.innerHeight }, at: performance.now() }
     live.current = next
     setOpen(next)
   }, [])
@@ -69,6 +69,13 @@ const SelectHost = () => {
     let lastTouch = null // { el, t }: the last touch on a field (to pair with a stray focus)
     let touchOpenedAt = 0
     const inPopup = (t) => !!popupRef.current?.contains(t)
+    // One tap can reach us two or three ways on an iPhone (its touchend, the mouse events and
+    // focus it makes up when the touchend can't be cancelled, a focus during the touch): the
+    // first one opens the list and the others must not shut it again. So a toggle on the same
+    // field right after it opened is the same tap, not a second one.
+    const SAME_TAP = 500
+    const justOpened = (el) => live.current?.el === el && performance.now() - (live.current.at || 0) < SAME_TAP
+    const recentTouchOn = (el) => lastTouch && lastTouch.el === el && performance.now() - lastTouch.t < 1000
 
     const onTouchStart = (e) => {
       touch = null
@@ -93,6 +100,7 @@ const SelectHost = () => {
       if (!e.cancelable) return
       e.preventDefault()
       touchOpenedAt = performance.now()
+      if (justOpened(t.el)) return
       if (live.current?.el === t.el) return close(false)
       if (live.current) close(false)
       openFor(t.el, "touch")
@@ -108,6 +116,16 @@ const SelectHost = () => {
       if (!kind) return
       // the mouse events a touch screen makes up after a tap we already handled
       if (performance.now() - touchOpenedAt < 1000) return e.preventDefault()
+      // the mouse events an iPhone makes up for a tap whose touchend couldn't be cancelled:
+      // the tap opens the list (as a touch: no focus, so no picker or keyboard of its own)
+      if (recentTouchOn(controlFor(e.target) || el)) {
+        e.preventDefault()
+        if (!live.current || live.current.el !== el) {
+          if (live.current) close(false)
+          openFor(el, "touch")
+        }
+        return
+      }
       if (kind !== "list") {
         // date and time fields: typing in the field stays; the button opens the calendar
         const r = el.getBoundingClientRect()
@@ -115,6 +133,7 @@ const SelectHost = () => {
       }
       e.preventDefault()
       if (document.activeElement !== el) el.focus({ preventScroll: true })
+      if (justOpened(el)) return
       if (live.current?.el === el) close()
       else {
         if (live.current) close(false)

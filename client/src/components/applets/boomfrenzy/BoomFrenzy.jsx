@@ -487,7 +487,7 @@ const BoomFrenzy = ({ mobile = false, paused = false, onClose }) => {
           "data-play": true,
         }}
         modes={[
-          last?.mode === "endless" ? { key: "stage", label: `Stage ${unlocked}`, sub: `${E.goalFor(unlocked)} bombs to whack`, onClick: () => start("stage", unlocked) } : { key: "endless", label: "Endless", sub: `No goal, Panic Time every 30 s · Best ${fmtNum(store.best(data, "endless"))}`, onClick: () => start("endless"), "data-mode": "endless" },
+          last?.mode === "endless" ? { key: "stage", label: `Stage ${unlocked}`, sub: `${E.goalFor(unlocked)} bombs to whack`, onClick: () => start("stage", unlocked) } : { key: "endless", label: "Endless", sub: `No goal, Panic Time every 25 s · Best ${fmtNum(store.best(data, "endless"))}`, onClick: () => start("endless"), "data-mode": "endless" },
           { key: "sort", label: "Sort Rush", sub: `Drag bombs into their pens · Best ${fmtNum(store.best(data, "sort"))}`, onClick: () => start("sort"), "data-mode": "sort" },
           { key: "select", label: "Stage Select...", sub: `${unlocked} of ${E.STAGES} stages open`, onClick: () => setDialog("stages") },
           { key: "scores", label: "High Scores...", sub: "Your best in every mode", onClick: () => setDialog("scores") },

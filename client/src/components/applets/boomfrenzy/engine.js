@@ -1,7 +1,9 @@
 // Boom Frenzy's rules, with no DOM (tested in boomfrenzy.test.js). A whack-the-bombs game
 // after Bomb Panic (Orangenose Studios, iPhone, 2012; research in docs/games-new.md): bombs
 // pop out of nine holes with burning fuses; whack them before they go off. 15 kinds of bomb,
-// Panic Time waves, 3 weapons, 20 stages and Endless.
+// Panic Time waves, 3 weapons, 20 stages and Endless. It gets hard fast: faster fuses and
+// spawns every stage (speedOf), bombs in pairs from stage 4 and threes from stage 12
+// (volleyOdds), Panic Time from stage 3 and twice a stage from 10 (panicMarks).
 //
 // The state is a plain object the UI keeps in a ref; step(state, dt) runs the clock and every
 // action (whack, swipe, holdStart/holdEnd, useWeapon) changes it in place and returns what
@@ -18,7 +20,7 @@ export const STAGES = 20
 export const METER_MAX = 40
 export const HOLD_TIME = 0.6
 export const PANIC_LEN = 8
-export const ENDLESS_PANIC_EVERY = 30
+export const ENDLESS_PANIC_EVERY = 25
 
 // the 15 bombs: points, taps needed, weight (how often it shows up once unlocked)
 export const BOMBS = {
@@ -87,7 +89,7 @@ export const newGame = ({ mode = "stage", stage = 1, seed = Date.now() } = {}) =
   snipUntil: 0,
   panicUntil: 0,
   nextPanicAt: mode === "endless" ? ENDLESS_PANIC_EVERY : Infinity,
-  stagePanicDone: false,
+  panicsDone: 0, // a stage's Panic Times so far (panicMarks)
   nextSpawnAt: 0.6,
   nextId: 1,
   events: [],
@@ -102,18 +104,31 @@ export const takeEvents = (s) => {
 }
 
 const progress = (s) => (s.mode === "stage" ? Math.min(1, s.whacked / s.goal) : 0)
-// how hard things are right now (1 = stage 1's start)
+// How hard things are right now (1 = stage 1's start). The owner found stage 3 too easy, so
+// the ramp is steep and starts early: each stage is 14% faster than the last and a stage
+// speeds up another 30% from its first bomb to its last (stage 3 ends at 1.6x, stage 10 at
+// 2.6x, stage 20 at 4x). Endless climbs 9% every 10 bombs, up to 4x.
 export const speedOf = (s) => {
-  if (s.mode === "endless") return Math.min(3.2, 1 + Math.floor(s.whacked / 20) * 0.12)
-  return 1 + (s.stage - 1) * 0.07 + progress(s) * 0.15
+  if (s.mode === "endless") return Math.min(4, 1 + Math.floor(s.whacked / 10) * 0.09)
+  return 1 + (s.stage - 1) * 0.14 + progress(s) * 0.3
+}
+// how far through a stage its Panic Times come: one halfway from stage 3, two (at a third
+// and two thirds) from stage 10
+export const panicMarks = (stage) => (stage < 3 ? [] : stage < 10 ? [0.5] : [1 / 3, 2 / 3])
+// Bombs that pop up together: from stage 4 (or a 1.3x Endless) a spawn is sometimes a pair,
+// from stage 12 (2.2x) sometimes three at once. Returns [chance of 2, chance of 3].
+export const volleyOdds = (s) => {
+  const v = speedOf(s)
+  if (v < 1.4) return [0, 0]
+  return [Math.min(0.45, 0.1 + (v - 1.4) * 0.2), v >= 2.5 ? Math.min(0.2, (v - 2.5) * 0.12 + 0.06) : 0]
 }
 export const isPanic = (s) => s.t < s.panicUntil
 export const isFrozen = (s) => s.t < s.freezeUntil
 export const isSnip = (s) => s.t < s.snipUntil
 const fuseRate = (s) => (isFrozen(s) ? 0 : s.t < s.slowUntil ? 0.5 : 1)
-export const baseFuse = (s) => Math.max(1.15, 3.1 / Math.sqrt(speedOf(s))) * (isPanic(s) ? 0.7 : 1)
-export const spawnGap = (s) => Math.max(0.26, 1.15 / speedOf(s)) / (isPanic(s) ? 3 : 1)
-const maxBombs = (s) => (isPanic(s) ? HOLES : Math.min(HOLES - 1, 3 + Math.floor(speedOf(s) * 1.6)))
+export const baseFuse = (s) => Math.max(1.0, 3.1 / Math.sqrt(speedOf(s))) * (isPanic(s) ? 0.7 : 1)
+export const spawnGap = (s) => Math.max(0.22, 1.15 / speedOf(s)) / (isPanic(s) ? 3 : 1)
+export const maxBombs = (s) => (isPanic(s) ? HOLES : Math.min(HOLES - 1, 3 + Math.floor(speedOf(s) * 1.6)))
 
 const emptyHoles = (s) => s.holes.map((b, i) => (b ? -1 : i)).filter((i) => i >= 0)
 const pickHole = (s, except = -1) => {
@@ -155,11 +170,15 @@ const pickType = (s) => {
 }
 
 const spawn = (s) => {
-  const live = s.holes.filter(Boolean).length
-  if (live >= maxBombs(s)) return
-  const hole = pickHole(s)
-  if (hole < 0) return
-  makeBomb(s, pickType(s), hole)
+  const [two, three] = volleyOdds(s)
+  const r = s.random()
+  const count = r < three ? 3 : r < three + two ? 2 : 1
+  for (let k = 0; k < count; k++) {
+    if (s.holes.filter(Boolean).length >= maxBombs(s)) return
+    const hole = pickHole(s)
+    if (hole < 0) return
+    makeBomb(s, pickType(s), hole)
+  }
 }
 
 const loseHeart = (s, n, hole) => {
@@ -225,9 +244,10 @@ const defuse = (s, b, { weapon = false } = {}) => {
 
 const checkGoal = (s) => {
   if (s.mode === "stage" && s.whacked >= s.goal) end(s, "won")
-  // a stage's Panic Time, halfway through (from stage 5)
-  if (s.mode === "stage" && s.stage >= 5 && !s.stagePanicDone && s.whacked >= s.goal / 2 && !s.over) {
-    s.stagePanicDone = true
+  // a stage's Panic Times (panicMarks: halfway from stage 3, twice from stage 10)
+  const marks = s.mode === "stage" ? panicMarks(s.stage) : []
+  if (s.panicsDone < marks.length && s.whacked >= s.goal * marks[s.panicsDone] && !s.over && !isPanic(s)) {
+    s.panicsDone++
     startPanic(s)
   }
 }
