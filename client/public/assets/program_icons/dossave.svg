@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48" shape-rendering="crispEdges">
+  <!-- a saved game: a floppy disk with a joystick label -->
+  <rect x="6" y="6" width="36" height="36" fill="#1e3a8a" stroke="#000"/>
+  <rect x="14" y="6" width="20" height="12" fill="#c0c0c0" stroke="#000"/>
+  <rect x="27" y="8" width="4" height="8" fill="#1e3a8a"/>
+  <rect x="11" y="24" width="26" height="16" fill="#fff" stroke="#000"/>
+  <rect x="22" y="27" width="2" height="7" fill="#000"/><rect x="20" y="25" width="6" height="4" fill="#c00"/>
+  <rect x="17" y="34" width="12" height="4" fill="#404040"/>
+</svg>

@@ -24,6 +24,9 @@ export const programs = [
   // the multiplayer desktop: friends over on your 98ish (applets/hangout, server/aim/hangout.js + ydocs.js)
   { name: "Come Over", app: "hangout", type: "hangout", icon: "/assets/program_icons/hangout.svg", width: 520, height: 560, group: "Internet", also: ["Us"], desktop: false, single: true },
   // make your own programs and send them in 98 Messenger (applets/vb98, server/aim/vbapps.js)
+  // LAN Party 98 (applets/lanparty): shareware DOS games alone or on a LAN with friends (js-dos, IPX over WebRTC), Flash via Ruffle
+  { name: "LAN Party 98", app: "lanparty", type: "lanparty", icon: "/assets/program_icons/lanparty.svg", width: 760, height: 600, group: "Games", desktop: false, single: true },
+  { name: "Virtual PC 98", app: "virtualpc", type: "virtualpc", icon: "/assets/program_icons/virtualpc.svg", width: 760, height: 560, group: "Accessories", desktop: false, single: true },
   { name: "Visual Basic 98", app: "vb98", type: "vb98", icon: "/assets/program_icons/vb98.svg", width: 780, height: 580, group: "Accessories", also: ["Games"], desktop: false },
   { name: "Buddy Locator", app: "locator", type: "locator", icon: "/assets/program_icons/locator.svg", width: 780, height: 580, group: "Internet", also: ["Us"], desktop: false, single: true },
   { name: "YouTube '98", type: "video", icon: "/assets/program_icons/video-48.png", width: 820, height: 620, group: "Internet", single: true },

@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48" shape-rendering="crispEdges">
+  <!-- LAN Party 98: two beige PCs joined by a network cable, a red demon face on one screen -->
+  <rect x="2" y="10" width="19" height="15" fill="#d8d0b8" stroke="#000"/>
+  <rect x="4" y="12" width="15" height="11" fill="#300"/>
+  <rect x="8" y="15" width="2" height="2" fill="#f40"/><rect x="13" y="15" width="2" height="2" fill="#f40"/>
+  <rect x="8" y="19" width="7" height="1" fill="#f40"/>
+  <rect x="7" y="25" width="9" height="3" fill="#a8a088" stroke="#000"/>
+  <rect x="27" y="10" width="19" height="15" fill="#d8d0b8" stroke="#000"/>
+  <rect x="29" y="12" width="15" height="11" fill="#003"/>
+  <rect x="31" y="14" width="2" height="2" fill="#0f0"/><rect x="35" y="17" width="2" height="2" fill="#0f0"/><rect x="39" y="15" width="2" height="2" fill="#0f0"/>
+  <rect x="32" y="25" width="9" height="3" fill="#a8a088" stroke="#000"/>
+  <path d="M11.5 28 V36 H36.5 V28" fill="none" stroke="#1e6fd9" stroke-width="2"/>
+  <rect x="21" y="33" width="6" height="6" fill="#ffd400" stroke="#000"/>
+</svg>

@@ -108,6 +108,7 @@ Shipped recently (details in the docs): 2026-10-06 overnight: Pickleball 98 titl
 - `env-vars.md`: every optional server env var with defaults, plus production config. Read before changing server limits or deploy settings.
 - `testing.md`: full testing notes (push and call test setups, per-area suites). Read before writing browser tests.
 - `games.md`: game performance rules (frame clock, dynamic resolution, AA, shaders, context loss), the five quick games, the retro art kit, Pinball: Blue Screen, Critter Catch Pinball, Battleship placement, Chess Puzzles (Lichess CC0 data, rating, Rush/Streak) and Imposter (party word game, pass-and-play + online). Read before building or tuning a game.
+- `lan-party.md`: LAN Party 98 (js-dos shareware DOOM/Heretic, LAN over WebRTC with the server/lanparty lobby, Ruffle Flash) and Virtual PC 98 (v86 FreeDOS), CDN pins, bundles, licenses, tests. Read before touching `applets/lanparty/` or `server/lanparty/`.
 - `games-new.md`: design and research for the quick games (Bomb Panic sources). Read when extending them.
 - `pickleball-log.md`: Pickleball 98 feature notes (footwork, upper body, pro movement, mocap/MakeHuman, Practice, phone round, swipe trail + sounds, athletes, My Park, arms) with measurements, tests and leftovers. Read before any Pickleball work.
 - `pickleball-venues.md`: strategy for real-world venues from OpenStreetMap (data licenses, measured coverage, venue index, generator, multiplayer, phases, open questions). Read before building Venue Finder.
