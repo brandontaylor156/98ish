@@ -514,6 +514,7 @@ export const topics = [
       { h: "Floppy's brain" },
       "Plain commands like the ones above work right away. For anything else, Floppy can download a **brain**: a small AI language model (Qwen, about 500 MB) that runs **only on this device**, so he understands plain English. Open **More options** in his chat and choose **Give Floppy a brain...**. It downloads once (Wi-Fi is best) and then works offline.",
       { note: "Nothing you type to Floppy leaves this device, with or without his brain. The model files come from Hugging Face's download servers once; after that they're kept in this browser." },
+      "**SmarterChild** in 98 Messenger borrows the brain on this device for real questions, still only on this device (see [[messenger]]).",
       "His brain rests when you close the chat, and while **Pickleball 98** is open (the game needs the memory). Delete it from his chat's More options, or from Control Panel > **Storage**.",
       { phone: "On a phone Floppy shows on the desktop when no program is open. A phone with iOS 26 or later runs the brain on its graphics chip; older ones may be slow." },
     ],

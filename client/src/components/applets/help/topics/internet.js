@@ -33,6 +33,7 @@ export const topics = [
       "Click **Chat** (or People > Join a Chat Room...) to join a room with more than one person. The **98ish Lobby** is where everyone hangs out; type any other name to make your own room, then invite buddies to it.",
       { h: "SmarterChild" },
       "SmarterChild is a friendly robot buddy who is always online. IM it **help** to see what it can do: jokes, trivia, the magic 8-ball, coin flips, dice, fortunes and the time.",
+      "If you gave **Floppy a brain** on this device ([[ask-floppy]]), SmarterChild uses it too: ask him a real question (\"why is the sky blue?\") and the on-device AI answers in his voice. That question and his answer stay on this device; they aren't sent to the 98ish server. His games, jokes and quick hellos still come from the regular SmarterChild, and so does everything on a device without the brain.",
       { h: "Your profile, warnings and blocking" },
       {
         list: [
