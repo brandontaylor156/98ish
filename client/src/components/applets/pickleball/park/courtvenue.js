@@ -9,13 +9,14 @@ import { VENUES } from "../venue.js"
 import { buildPark } from "./build.js"
 import { dayLook, hourOf } from "./sky.js"
 
-export const buildCourtVenue = (scene, { layout, courtId = null, quality = "medium", hour = null } = {}) => {
+export const buildCourtVenue = (scene, { layout, courtId = null, quality = "medium", hour = null, look = null, phone = false } = {}) => {
   const c = courtId === "machine" ? layout.MACHINE_COURT : layout.COURTS.find((k) => k.id === courtId) || layout.COURTS[0]
   const holder = new THREE.Group()
   // (buildPark adds its group to what it's given and sets fog on it: a stand-in "scene")
   // (an indoor venue: a cutaway, so the match camera outside the walls sees in)
-  const park = buildPark(holder, { quality, layout, cutaway: !!layout.spec.indoor })
-  const d = dayLook(hour ?? hourOf())
+  const park = buildPark(holder, { quality, layout, cutaway: !!layout.spec.indoor, phone })
+  // (the park's look when it has one: Real Sky's true sun, sky and weather)
+  const d = look || dayLook(hour ?? hourOf())
   park.setDayLook(d)
   // the sun's shadow box and the sky centred on this court (the park centres them on its walking
   // camera; a match never moves them, and at a big venue the court sat outside the shadow box)

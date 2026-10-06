@@ -7,10 +7,22 @@ import * as THREE from "three"
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js"
 import { HALF_L, HALF_W, KITCHEN, LINE_W, NET_POST_X, netHeightAt } from "./physics.js"
 import { VENUE_INFO } from "./looks.js"
-import { applySurfaces } from "./park/surfaces.js"
+import { applySurfaces, surfWet } from "./park/surfaces.js"
 import { bakeVenueAO, clearBakedAO } from "./park/occlusion.js"
+import { createPrecip } from "./park/realsky.js"
+import { setWindStrength } from "./park/detail.js"
 
 export { VENUE_INFO as VENUES }
+
+// Real Sky's "Real Weather at Classic Venues" (Options > Sky, off by default): each classic
+// venue borrows a real place's weather today (its own stylized time of day stays)
+export const CLASSIC_PLACES = {
+  park: { lat: 33.709, lon: -117.954, label: "Fountain Valley, CA" },
+  club: { lat: 32.84, lon: -117.27, label: "La Jolla, CA" },
+  beach: { lat: 33.655, lon: -118.0, label: "Huntington Beach, CA" },
+  winter: { lat: 38.94, lon: -119.98, label: "South Lake Tahoe, CA" },
+  stadium: { lat: 33.72, lon: -116.31, label: "Indian Wells, CA" },
+}
 const VENUES = VENUE_INFO
 
 const canvasTexture = (w, h, draw) => {
@@ -777,6 +789,39 @@ export const buildVenue = (scene,{ venue = "park", quality = "medium" } = {}) =>
   applySurfaces(group, { quality })
   const cancelAO = quality !== "low" ? bakeVenueAO(group, { x0: -AX - 6, z0: -AZ - 6, x1: AX + 6, z1: AZ + 6 }) : (clearBakedAO(), null)
 
+  // Real Weather at Classic Venues (weather.js shape, or null for the venue's own look): clouds
+  // dim and soften the sun and grey the sky, rain or snow falls and wets the court, the wind
+  // bends the trees, low visibility thickens the fog. The time of day stays the venue's own.
+  const precip = quality !== "low" ? createPrecip({ quality }) : null
+  if (precip) scene.add(precip.mesh)
+  const base = { sun: sun.intensity, hemi: hemi.intensity, top: skyMat.uniforms.top.value.clone(), horizon: skyMat.uniforms.horizon.value.clone(), fog: scene.fog.color.clone(), near: scene.fog.near, far: scene.fog.far }
+  const grey = { top: new THREE.Color(0x8e98a3), horizon: new THREE.Color(0xb9c0c7), rainTop: new THREE.Color(0x5d6670), rainHorizon: new THREE.Color(0x8b939b) }
+  const setWeather = (wx) => {
+    const c = wx ? wx.cover ?? 0 : 0
+    const r = wx ? wx.rain ?? 0 : 0
+    const night = !!V.night
+    sun.intensity = base.sun * (night ? 1 : Math.max(0.12, 1 - 0.8 * Math.pow(c, 1.4) - 0.35 * r))
+    if (shadows && !night) {
+      sun.shadow.radius = 3 + 7 * c
+      if ("intensity" in sun.shadow) sun.shadow.intensity = 1 - 0.6 * Math.min(1, c * 1.1)
+    }
+    hemi.intensity = base.hemi * (1 + 0.2 * c - 0.12 * r)
+    const k = night ? Math.min(1, c * 0.5) : Math.min(1, c * 0.85 + r * 0.3)
+    const t = r > 0.15 ? grey.rainTop : grey.top
+    const h = r > 0.15 ? grey.rainHorizon : grey.horizon
+    skyMat.uniforms.top.value.copy(base.top).lerp(night ? base.top.clone().multiplyScalar(1.4) : t, k)
+    skyMat.uniforms.horizon.value.copy(base.horizon).lerp(night ? base.horizon.clone().multiplyScalar(1.3) : h, k)
+    scene.fog?.color.copy(base.fog).lerp(night ? base.fog : h, k)
+    const fogK = wx ? Math.min(0.85, (wx.fog ?? 0) * 0.85 + r * 0.25) : 0
+    if (scene.fog) {
+      scene.fog.near = base.near * (1 - fogK * 0.8)
+      scene.fog.far = base.far * (1 - fogK * 0.65)
+    }
+    precip?.setWeather(wx || {})
+    surfWet.value = wx ? Math.min(1, Math.max(r, (wx.snow ?? 0) * 0.5) * 1.2) : 0
+    setWindStrength(wx ? wx.wind ?? 2 : 2)
+  }
+
   // the big screen's picture: the score (and a message like "REPLAY")
   // the biggest bold type (from `size` down to `min`) that fits `width`; fillText's maxWidth
   // squeezes anything still too long
@@ -850,9 +895,16 @@ export const buildVenue = (scene,{ venue = "park", quality = "medium" } = {}) =>
     drawScreen,
     setScreenCompact,
     update,
+    setWeather,
     dispose() {
       cancelAO?.()
       clearBakedAO()
+      if (precip) {
+        scene.remove(precip.mesh)
+        precip.dispose()
+      }
+      surfWet.value = 0
+      setWindStrength(2)
       scene.remove(group)
       disposables.forEach((d) => d.dispose?.())
     },

@@ -35,7 +35,11 @@ import { LINES, createRegular, goTo, speak, think, tickRegular } from "./regular
 import { createWalker, keepApart, stepWalker } from "./walker.js"
 import { liftPose } from "./lift.js"
 import { angleName, createFollow, spectatorShot, stepFollow, turnFollow, SPECTATE_ANGLES } from "./followcam.js"
-import { dayLook, hourOf } from "./sky.js"
+import { dayLook, hourOf, overrideDate, realLook } from "./sky.js"
+import { CLEAR, OVERRIDES, cachedWeather, fetchWeather } from "./weather.js"
+
+// Real Sky: Riverside isn't a real place; it borrows a Southern California park's sky
+export const DEFAULT_SKY_PLACE = { lat: 33.709, lon: -117.954 }
 import { ACTS, createClock, createTrack, observeClock, packPos, pushSample, sampleTrack, serverTime, shouldSend, unpackPos, UP_BIT } from "./interp.js"
 import { repLevel, repLine } from "./rep.js"
 import { CHAT_LINES, EMOTE_MOOD } from "./lines.js"
@@ -58,7 +62,7 @@ const blobTexture = () => {
   return new THREE.CanvasTexture(c)
 }
 
-export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "medium", phone = false, renderer = null, me: meInfo = {}, onHud, onEvent, labelsEl = null, audio = null, seed = (Math.random() * 1e9) | 0, hour = null } = {}) => {
+export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "medium", phone = false, renderer = null, me: meInfo = {}, onHud, onEvent, labelsEl = null, audio = null, seed = (Math.random() * 1e9) | 0, hour = null, sky = { real: true, mode: "real" } } = {}) => {
   // (the venue: layout.js's named exports follow the active layout)
   setLayout(layout)
   const venue = layout
@@ -90,7 +94,7 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
   const scene = new THREE.Scene()
   // (near 0.15: depth precision for the court paint layers far away on phones)
   const camera = new THREE.PerspectiveCamera(55, 1, 0.15, 400)
-  const park = buildPark(scene, { quality, layout })
+  const park = buildPark(scene, { quality, layout, phone })
   const mann = createMannequins(scene)
   let size = { width: 1, height: 1 }
   const portrait = () => size.height > size.width * 1.05
@@ -111,10 +115,43 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
   // ---------- time of day ----------
   let hourOverride = hour
   let dayAt = -999
+  // Real Sky (Options > Real Sky and Weather; Medium/High): the true sun and moon for the
+  // venue's own coordinates and its weather right now (Open-Meteo, 20-minute cache); off, or on
+  // Low, the classic hour-based looks. A mode other than "real" fixes the weather (and sunset /
+  // night fix the hour) for fun.
+  let skyCfg = { real: true, mode: "real", ...(sky || {}) }
+  const origin = layout.spec?.origin
+  const place = Array.isArray(origin) && Number.isFinite(origin[0]) ? { lat: origin[0], lon: origin[1] } : DEFAULT_SKY_PLACE
+  const skyOn = () => !!skyCfg.real && quality !== "low"
+  let weather = null
+  let wxAt = -1e9
+  let look = null
+  const lookNow = () => {
+    if (!skyOn()) return dayLook(hourOverride ?? hourOf())
+    const o = OVERRIDES[skyCfg.mode]
+    let date = new Date()
+    if (hourOverride != null) {
+      date = new Date()
+      date.setHours(Math.floor(hourOverride), Math.round((hourOverride % 1) * 60), 0, 0)
+    }
+    if (o?.hourOffset) date = overrideDate(o.hourOffset, place.lat, place.lon, date)
+    return realLook({ date, lat: place.lat, lon: place.lon, weather: o ? o.weather : weather || cachedWeather(place) || CLEAR })
+  }
+  const refreshWeather = () => {
+    wxAt = clock
+    if (!skyOn() || OVERRIDES[skyCfg.mode]) return
+    fetchWeather(place).then((w) => {
+      if (!w || disposed) return
+      weather = w
+      updateDay(true)
+    })
+  }
   const updateDay = (force) => {
+    if (skyOn() && clock - wxAt > 20 * 60) refreshWeather()
     if (!force && clock - dayAt < 60) return
     dayAt = clock
-    const d = dayLook(hourOverride ?? hourOf())
+    const d = lookNow()
+    look = d
     park.setDayLook(d)
     exposure = d.exposure
     nightLights = d.lights
@@ -1475,6 +1512,19 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
     // (the hour the park shows: a game on one of its courts uses the same light)
     get hour() {
       return hourOverride ?? hourOf()
+    },
+    // (the whole look: Real Sky's sun, sky and weather; a game on a court here uses it too)
+    get look() {
+      return look
+    },
+    get skyPlace() {
+      return place
+    },
+    // Options > Real Sky and Weather / Sky: { real, mode }
+    setSky(cfg = {}) {
+      skyCfg = { ...skyCfg, ...cfg }
+      wxAt = -1e9
+      updateDay(true)
     },
     get mode() {
       return me.mode
