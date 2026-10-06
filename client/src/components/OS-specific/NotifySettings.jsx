@@ -23,6 +23,7 @@ const KINDS = [
   ["mail", "98ish Mail"],
   ["games", "Game invitations"],
   ["notes", "Shared notes: a buddy shares or changes one"],
+  ["albums", "Shared albums: new photos, comments, likes"],
 ]
 
 // ---- the Add to Home Screen guide (original drawings) ----

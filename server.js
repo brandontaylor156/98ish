@@ -1,6 +1,7 @@
 // 98ish realtime server: the 98 Messenger (AIM-style) service on Socket.io, plus Network
 // Neighborhood (file sharing, WinPopup, network games), the guestbook's HTTP API, and
-// couples (server/couples: pairing, love letters, Our Story, flowers), and shared
+// couples (server/couples: pairing, love letters, Our Story, flowers), Shared Albums
+// (server/albums), and shared
 // calendars (server/calendar), Web Push notifications (server/push), the Address Book's
 // online copy (server/contacts), Notes (server/notes), and Compass's web relay (server/web: WEB_* env vars, see there).
 // Env: PORT, MONGODB_URI (accounts, guestbook and online drives; kept in memory without it),
@@ -32,6 +33,7 @@ const { calendarRouter, attachCalendar } = require("./server/calendar")
 const { defaultPush } = require("./server/push")
 const { contactsRouter } = require("./server/contacts")
 const { notesService } = require("./server/notes")
+const { albumsService } = require("./server/albums")
 const { createWeb } = require("./server/web")
 const { defaultRecords } = require("./server/web/records")
 const { refuseOpaqueOrigins, allowSocketRequest } = require("./server/web/origins")
@@ -77,6 +79,9 @@ app.use("/api/push", push.router())
 // Notes (sticky notes, shared with buddies); Tasks are to-do events in Calendar
 const notes = notesService({ aim: () => aim, push })
 app.use("/api/notes", notes.router())
+// Shared Albums in Photos (records in MongoDB, photos in file sync's bucket and budgets)
+const albums = albumsService({ aim: () => aim, push, storage: () => sync.storage() })
+app.use("/api/albums", albums.router())
 const dollhouse = dollhouseRouter()
 app.use("/api/dollhouse", dollhouse)
 const town = townRouter()
@@ -132,6 +137,7 @@ const eraser = createAccountEraser()
   .add("push", (ctx) => push.eraseAccount(ctx))
   .add("messages", async (ctx) => ({ removed: await (await imHistory).eraseAccount(ctx.key) }))
   .add("im media", (ctx) => imMedia.eraseAccount(ctx))
+  .add("albums", (ctx) => albums.eraseAccount(ctx))
   .add("drive", (ctx) => sync.eraseAccount(ctx))
   .add("contacts", (ctx) => contacts.eraseAccount(ctx))
   .add("notes", (ctx) => notes.eraseAccount(ctx))

@@ -3,7 +3,7 @@ import Dialog from "../shared/Dialog"
 import { imageMapper } from "../../utils/imageMapper"
 import { DESKTOP, DOCUMENTS, pathLabel, planReceived } from "../../utils/shareRules"
 import { folderAt, receiveFiles, saveLink, saveNote } from "../../utils/receive"
-import { webWindow, notepadWindow, photosWindow } from "../../utils/programs"
+import { launch, webWindow, notepadWindow, photosWindow } from "../../utils/programs"
 import "./ShareCenter.css"
 
 // Sharing between 98ish and the phone, the desktop-wide part:
@@ -138,6 +138,7 @@ const ShareCenter = ({ dispatch }) => {
     const problems = []
     const opens = []
     let lastPicture = null
+    const pictures = []
     for (let i = 0; i < entries.length; i++) {
       const entry = entries[i]
       const choice = choices[i]
@@ -163,7 +164,10 @@ const ShareCenter = ({ dispatch }) => {
         problems.push(...result.problems, ...result.notes)
         for (const made of result.added) {
           lines.push(`${made.name}: ${pathLabel(where)}`)
-          if (made.isImage) lastPicture = made
+          if (made.isImage) {
+            lastPicture = made
+            pictures.push(made)
+          }
         }
       } catch (error) {
         problems.push(error.message || `${entry.name} couldn't be saved.`)
@@ -172,7 +176,7 @@ const ShareCenter = ({ dispatch }) => {
     setBusy(null)
     await clearInbox()
     for (const win of opens) dispatch?.({ type: "open_window", payload: win })
-    if (lines.length || problems.length) setReport({ lines, problems, picture: lastPicture })
+    if (lines.length || problems.length) setReport({ lines, problems, picture: lastPicture, pictures })
   }
 
   const notice = notices[0]
@@ -256,6 +260,18 @@ const ShareCenter = ({ dispatch }) => {
                 {text}
               </p>
             ))}
+            {report.pictures?.length > 0 && (
+              <button
+                type="button"
+                className="shareAlbum"
+                onClick={() => {
+                  dispatch?.({ type: "open_window", payload: launch("Photos", { handoff: { id: Date.now(), addToAlbum: report.pictures.map((file) => ({ file })) } }) })
+                  setReport(null)
+                }}
+              >
+                Add to a Shared Album...
+              </button>
+            )}
           </div>
         </Dialog>
       )}

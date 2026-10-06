@@ -97,6 +97,7 @@ const Tasks = lazyApp(() => import("../applets/tasks/Tasks"))
 // notes pinned to the desktop (a phone: the Notes panel) and live shared-note changes
 const DeskNotes = React.lazy(() => import("../applets/notes/DeskNotes"))
 const NotesBridge = React.lazy(() => import("../applets/notes/NotesBridge"))
+const PhotosBridge = React.lazy(() => import("../applets/photos/PhotosBridge"))
 const Find = lazyApp(() => import("../applets/find/Find"))
 // 98ish Help (Start > Help, F1, Help > Help Topics: utils/help.js openHelp)
 const HelpViewer = lazyApp(() => import("../applets/help/HelpViewer"))
@@ -860,6 +861,7 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
         <Photos
           file={window.file}
           path={window.path}
+          handoff={window.handoff}
           mobile={mobile}
           dispatch={dispatch}
           onTitle={rename(index)}
@@ -1179,6 +1181,7 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
         <React.Suspense fallback={null}>
           <CalendarBridge socket={socket} windows={windows} dispatch={dispatch} mobile={mobile} />
           <NotesBridge socket={socket} />
+          <PhotosBridge socket={socket} />
         </React.Suspense>
       </NetProvider>
     </AimProvider>

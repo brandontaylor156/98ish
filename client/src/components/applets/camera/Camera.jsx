@@ -5,7 +5,7 @@ import Dialog from "../../shared/Dialog"
 import MoreOptions from "../../shared/MoreOptions"
 import { summarize } from "../../../utils/disclosure"
 import { useFsVersion } from "../../../hooks/useFs"
-import { photosWindow } from "../../../utils/programs"
+import { launch, photosWindow } from "../../../utils/programs"
 import { downloadBlob } from "../../../utils/fileTransfer"
 import { isKeyForWindow } from "../../../utils/windowKeys"
 import { unlock } from "../../../utils/achievements"
@@ -359,6 +359,9 @@ const Camera = ({ mobile, dispatch, onTitle, paused = false }) => {
     return () => clearTimeout(id)
   }, [fresh])
   const shareLast = (mode) => last?.parent && shareOut(itemPayload(last), mode, { title: "Camera" })
+  // Photos picks the shared album and sends it (a clip goes as it is: it never touches drive C:)
+  const albumLast = () => last?.parent && dispatch?.({ type: "open_window", payload: launch("Photos", { handoff: { id: Date.now(), addToAlbum: [{ file: last }] } }) })
+  const albumClip = () => clip && dispatch?.({ type: "open_window", payload: launch("Photos", { handoff: { id: Date.now(), addToAlbum: [{ blob: clip.blob, name: `Clip${clipExtension(clip.mime)}` }] } }) })
 
   const countdown = async (seconds) => {
     for (let n = seconds; n > 0; n--) {
@@ -603,6 +606,7 @@ const Camera = ({ mobile, dispatch, onTitle, paused = false }) => {
           items: [
             { label: "My Phone", onClick: () => shareLast("phone") },
             { label: "Other Apps...", onClick: () => shareLast("apps") },
+            { label: "Shared Album...", onClick: albumLast },
           ],
         },
         "-",
@@ -685,6 +689,9 @@ const Camera = ({ mobile, dispatch, onTitle, paused = false }) => {
                 <div className="camProblemButtons">
                   <button type="button" onClick={saveClip}>
                     Save to Your Device
+                  </button>
+                  <button type="button" onClick={albumClip} title="Up to a minute and 12 MB">
+                    Add to Shared Album...
                   </button>
                   <button type="button" onClick={() => setClip(null)}>
                     Discard

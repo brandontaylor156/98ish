@@ -100,7 +100,7 @@ Shipped recently (details in the docs): 2026-10-05: Casino 98 (Hold'em with onli
 - `messenger.md`: calls (WebRTC signaling) and Messenger history, pictures, voice, reactions, receipts with caps and tests. Read before changing 98 Messenger.
 - `sharing.md`: Web Share out, share target in, clipboard. Read before adding a "Send To" or receive path.
 - `together-music.md`: Watch & Listen Together (synced YouTube for an IM or chat room: relay `server/aim/together.js`, sync math, invites) and Music 98 (song files, tag reader, library, player, Media Session). Read before touching either, or audio uploads.
-- `apps.md`: Address Book, Notes & Tasks, Weather, Camera + Photos, Calendar + Clock (stores, servers, tests). Read before working on any of them.
+- `apps.md`: Address Book, Notes & Tasks, Weather, Camera + Photos (+ Shared Albums, Memories), Calendar + Clock (stores, servers, tests). Read before working on any of them.
 - `compass.md`: Compass and its relay: routing, isolation, safeguards, budgets, Render numbers/terms, security review with the test that proves each protection. Read before any change to Compass or `server/web/`.
 - `storage-sync.md`: the IndexedDB drive, persistence, file sync, the Vercel Blob bucket and its free budgets. Read before touching files, photos or sync.
 - `accounts-privacy.md`: Delete My Account flow and rules, privacy help topics. Read when adding anything stored per account.
