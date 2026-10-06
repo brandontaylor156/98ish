@@ -243,7 +243,18 @@ export const METRICS = [
         const next = h[3]
         let ok
         let note
-        if (!next) (ok = false), (note = "Third shot ended the point (into the net or out?)")
+        // Real Ball: the third shot's measured bounce, when the ball was followed
+        const b = h[2].ball
+        if (b?.call && !b.call.close && b.call.verdict === "out") (ok = false), (note = `Third shot out by ${Math.max(1, Math.round(Math.abs(b.call.margin) * 100))} cm (measured)`)
+        else if (b?.bounce && (h[2].kind === "drop" || h[2].kind === "dink")) {
+          const into = KITCHEN - depth(b.bounce.z)
+          ok = into >= 0
+          note = ok ? `Drop landed ${into.toFixed(1)} m inside their kitchen (measured)` : `Drop landed ${(-into).toFixed(1)} m short of their kitchen (measured)`
+        } else if (b?.bounce) {
+          const deep = depth(b.bounce.z)
+          ok = deep > 4.2 || !!next?.bounced
+          note = `Drive landed ${deep.toFixed(1)} m from the net (measured)`
+        } else if (!next) (ok = false), (note = "Third shot ended the point (into the net or out?)")
         else if (h[2].kind === "drop" || h[2].kind === "dink") {
           ok = next.bounced && depth(next.z) < KITCHEN + 0.9
           note = ok ? "Drop landed in their kitchen" : next.bounced ? "Drop landed short of the kitchen: they could attack it" : "Drop was high: they volleyed it at the net"

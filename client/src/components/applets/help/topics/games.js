@@ -268,7 +268,7 @@ export const topics = [
     book: "games-action",
     title: "Pickleball 98",
     summary: "3D pickleball with real rules, lessons, a ball machine, drills, a walk-around park with open play, a World Tour and online singles and doubles.",
-    keywords: ["pickleball", "My Park", "park", "venue", "real venues", "Los Cab", "Newport Beach", "Wolf + Bear", "Whittier Narrows", "iPickle", "Paseo Club", "Sinaloa", "California SMASH", "indoor", "favorites", "OpenStreetMap", "open play", "call next", "paddle stacking", "spectate", "watch", "park rep", "dink", "kitchen", "serve", "World Tour", "doubles", "drive", "lob", "paddle", "Locker Room", "outfit", "customize", "swimsuit", "beach", "winter", "practice", "ball machine", "drill", "lesson", "coach", "third shot drop", "reset", "split step", "two-bounce rule", "how to play", "swipe", "move pad", "left-handed", "camera", "swing trail", "swipe trail", "sound", "pop", "Twin Replay", "Twin Clones", "clone", "play my friend", "film a game", "video", "replay my game", "real game", "stats", "heat map", "shot mix", "pose", "Go Live", "live", "broadcast", "watch live", "stream", "live game"],
+    keywords: ["pickleball", "My Park", "park", "venue", "real venues", "Los Cab", "Newport Beach", "Wolf + Bear", "Whittier Narrows", "iPickle", "Paseo Club", "Sinaloa", "California SMASH", "indoor", "favorites", "OpenStreetMap", "open play", "call next", "paddle stacking", "spectate", "watch", "park rep", "dink", "kitchen", "serve", "World Tour", "doubles", "drive", "lob", "paddle", "Locker Room", "outfit", "customize", "swimsuit", "beach", "winter", "practice", "ball machine", "drill", "lesson", "coach", "third shot drop", "reset", "split step", "two-bounce rule", "how to play", "swipe", "move pad", "left-handed", "camera", "swing trail", "swipe trail", "sound", "pop", "Twin Replay", "Twin Clones", "clone", "play my friend", "film a game", "video", "replay my game", "real game", "stats", "heat map", "shot mix", "pose", "Go Live", "live", "broadcast", "watch live", "stream", "live game", "Real Ball", "line call", "Hawk-Eye", "challenge", "in or out", "shot speed", "bounce map"],
     programs: ["Pickleball 98"],
     body: [
       "Pickleball 98 is pickleball in 3D, with real rules and real ball physics. Play the computer, learn the game in Practice, go on a World Tour, play a friend on the same keyboard, or play people online.",
@@ -332,7 +332,18 @@ export const topics = [
           "**Replay:** each rally plays on the athletes. Play/pause, the rally's timeline (ticks are the hits), speed (1x, ½x, ¼x), **Camera** (Broadcast, Side, Top, Follow one player, Fence: where your phone was). **More options »** shows your video beside it in sync, changes the venue and court, and sends the game to a friend.",
           "**Stats:** rally lengths and highlights (tap one to watch it), and for each player where they stood (a heat map of their half), time at the kitchen line, meters covered, their shot mix (serve, return, drive, drop, dink, volley, overhead, lob), third-shot choices, and how often they hit a rally's last shot.",
           "**Send to a friend** makes a small replay file (no video: just everyone's positions and the hits); they open it in **Twin Replay > More options » > Open a replay file...**. **Try the demo rally** (under More options) shows what it does without filming anything.",
-          "Honest limits: the shot kinds are a good guess, not a referee; the ball's path is rebuilt between the hits (following the real ball in phone video isn't reliable yet); points and errors aren't judged. People walking through, or a player hidden behind another, can confuse it for a moment.",
+          "Honest limits: the shot kinds are a good guess, not a referee. People walking through, or a player hidden behind another, can confuse it for a moment.",
+        ],
+      },
+      { h: "Real Ball: line calls and the real ball's flight" },
+      "While Twin Replay reads a video it also looks for **the ball** in every picture (a small yellow thing that moves between pictures), then fits each shot's flight with the game's own ball physics (gravity, a holed ball's drag, the bounce), from the hit to the next player's paddle. Where it's sure, the replay shows the **real** flight instead of a rebuilt one.",
+      {
+        list: [
+          "**Challenge** (on the replay bar, when a rally has measured bounces): the camera swoops down to where the ball landed, a green or red mark shows the spot, and it says **IN by 3 cm**, **OUT by 4 cm**, or **Too close: call stands** when the margin is within the measurement's uncertainty. **Another call** steps through the rally's other bounces.",
+          "Lines are in (a ball touching any part of a line is in), except on a serve, where the kitchen line belongs to the kitchen (touching it is a fault); the centerline counts for both service courts.",
+          "**Stats** gets a **Real Ball** card: each player's fastest and typical shot speed (km/h), the line calls, and a map of every bounce. Coach uses the measured landing of your third shots (\"Drop landed 0.6 m inside their kitchen\").",
+          "Best results: film at 30 or 60 frames a second from the back fence, steady, the whole court in view, good light. A blurry or tiny ball, or a shot the camera barely saw, falls back to the rebuilt flight (and gets no line call).",
+          "It's a careful measurement, not an official one: the uncertainty is shown, and close calls stand. Everything runs on this device; nothing is uploaded.",
         ],
       },
       { h: "Twin Clones: play your friends" },

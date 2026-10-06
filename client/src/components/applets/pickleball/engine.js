@@ -813,8 +813,9 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
       k = snap ? 1 : 1 - Math.exp(-dt * 4)
     } else if (replay?.external) {
       twinCamera(portrait, ball)
-      fov = portrait ? 62 : 44
-      k = snap || replay.cut ? 1 : 1 - Math.exp(-dt * 5)
+      fov = replay.challenge ? (portrait ? 44 : 32) : portrait ? 62 : 44
+      // (the challenge swoops in slowly, like the TV's)
+      k = snap || replay.cut ? 1 : 1 - Math.exp(-dt * (replay.challenge ? 1.8 : 5))
       replay.cut = false
     } else if (replay) {
       // low and tight by the net post, following the ball
@@ -1425,6 +1426,14 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
   // fence films from)
   const twinCamera = (portrait, ball) => {
     const c = replay.cam
+    // Real Ball's challenge: down low beside the bounce, outside the line, looking at the mark
+    const ch = replay.challenge
+    if (ch) {
+      const side = ch.x >= 0 ? 1 : -1
+      tmpV.set(ch.x + side * 1.5, 0.5, ch.z + (ch.z > 0 ? 1.2 : -1.2))
+      tmpL.set(ch.x, 0.02, ch.z)
+      return
+    }
     if (c === "side") {
       tmpV.set(HALF_W + 2.2, 1.5, ball.z * 0.5)
       tmpL.set(ball.x * 0.5, Math.max(0.6, ball.y * 0.6), ball.z * 0.8)
@@ -2061,6 +2070,29 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
         replay.cut = true
       }
     },
+    // HOOK (Real Ball, twin/ball/): the line-call challenge. { x, z, verdict: "in" | "out" }
+    // swoops the camera down beside the bounce and shows the ball mark there; null ends it
+    twinChallenge(c) {
+      if (!replay?.external) return
+      if (!c) {
+        replay.challenge = null
+        mark.visible = false
+        markTimer = 0
+        mark.scale.setScalar(1)
+        markMat.in.depthTest = true
+        markMat.out.depthTest = true
+        return
+      }
+      replay.challenge = { x: c.x, z: c.z, verdict: c.verdict }
+      mark.material = c.verdict === "in" ? markMat.in : markMat.out
+      mark.material.opacity = 1
+      // (over whatever court surface the venue draws, and big enough to see from the low camera)
+      mark.material.depthTest = false
+      mark.position.set(c.x, 0.03, c.z)
+      mark.scale.setScalar(1.6)
+      mark.visible = true
+      markTimer = 1e9
+    },
     // jump to a time (seconds from the first frame)
     twinSeek(seconds) {
       if (!replay?.external) return
@@ -2079,7 +2111,7 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
     twinState() {
       if (!replay?.external) return null
       const fr = replay.frames
-      return { t: fr[replay.i].t - fr[0].t + replay.t, duration: fr[fr.length - 1].t - fr[0].t, paused: replay.paused, speed: replay.speed, cam: replay.cam, follow: replay.follow, ended: replay.ended, live: !!replay.live, behind: fr[fr.length - 1].t - fr[replay.i].t, at: fr[replay.i].t, ghost: !!ghost }
+      return { t: fr[replay.i].t - fr[0].t + replay.t, duration: fr[fr.length - 1].t - fr[0].t, paused: replay.paused, speed: replay.speed, cam: replay.cam, follow: replay.follow, ended: replay.ended, live: !!replay.live, behind: fr[fr.length - 1].t - fr[replay.i].t, at: fr[replay.i].t, ghost: !!ghost, challenge: !!replay.challenge }
     },
     // HOOK (Live Broadcast, twin/live/LiveWatch.jsx): more frames of a live replay (in order,
     // continuing the last one); keeps the newest `keep` seconds (rewind uses them)
