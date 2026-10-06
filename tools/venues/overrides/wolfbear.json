@@ -4,356 +4,279 @@
   "city": "Van Nuys, CA",
   "access": "public",
   "indoor": true,
-  "note": "Indoor courts in converted film sound stages: black acoustic walls, grey courts on steel-blue surrounds. The court grid is from the stage plans (spaced a little for walking room); the private practice court's room is a guess.",
-  "anchor": [
-    34.1813,
-    -118.4582
-  ],
-  "crop": 50,
+  "note": "Indoor courts in converted film sound stages on Calvert St: a black-box main hall (quilted acoustic blankets, a black truss ceiling with round LED high-bays, warm-grey courts on steel blue, low black mesh dividers), the cinder-block second hall, the streamed championship court with its flagstone spectator walk, and a private court. Court numbers follow the cards on the walls (12 and 14 are on the main hall's east wall); room positions are a reconstruction (docs/pickleball-venues.md).",
+  "_anchor": "the reference pack's aerial anchor (Stage 4's middle): en points are metres east, north of it",
+  "anchor": [34.18093, -118.45797],
+  "crop": 55,
+  "spawn": { "en": [26, 17], "deg": 300 },
+  "liveCourts": [1, 3, 5, 6, 10, 12],
+  "light": { "sky": 2.4, "sun": 0.6, "bounce": "#dcd6cc" },
   "courts": {
     "osm": false,
     "add": [
-      {
-        "id": "C1",
-        "en": [
-          13.8,
-          -25.7
-        ],
-        "bearing": 90
-      },
-      {
-        "id": "C2",
-        "en": [
-          29.2,
-          -25.7
-        ],
-        "bearing": 90
-      },
-      {
-        "id": "C3",
-        "en": [
-          13.8,
-          -33.7
-        ],
-        "bearing": 90
-      },
-      {
-        "id": "C4",
-        "en": [
-          29.2,
-          -33.7
-        ],
-        "bearing": 90
-      },
-      {
-        "id": "C5",
-        "en": [
-          13.8,
-          -41.7
-        ],
-        "bearing": 90
-      },
-      {
-        "id": "C6",
-        "en": [
-          29.2,
-          -41.7
-        ],
-        "bearing": 90
-      },
-      {
-        "id": "C7",
-        "en": [
-          13.8,
-          -49.7
-        ],
-        "bearing": 90
-      },
-      {
-        "id": "C8",
-        "en": [
-          29.2,
-          -49.7
-        ],
-        "bearing": 90
-      },
-      {
-        "id": "C9",
-        "en": [
-          13.8,
-          -57.7
-        ],
-        "bearing": 90
-      },
-      {
-        "id": "C10",
-        "en": [
-          29.2,
-          -57.7
-        ],
-        "bearing": 90
-      },
-      {
-        "id": "C11",
-        "en": [
-          -5.0,
-          -30.0
-        ],
-        "bearing": 90,
-        "surround": "#7fc0d0"
-      },
-      {
-        "id": "M24",
-        "en": [
-          -31.0,
-          -27.0
-        ],
-        "bearing": 90
-      }
+      { "id": "S5-1", "num": 1, "en": [-30.5, 5.0], "bearing": 0, "court": "#d8d0c2", "kitchen": "#bfe3e2", "surround": "#5f86a3" },
+      { "id": "S5-2", "num": 2, "en": [-22.7, 5.0], "bearing": 0, "court": "#d8d0c2", "kitchen": "#bfe3e2", "surround": "#5f86a3" },
+      { "id": "CHAMP", "num": 3, "en": [-26.6, -15.75], "bearing": 90, "court": "#bdbab4", "kitchen": "#4d524f", "surround": "#45463f" },
+      { "id": "M24", "num": 4, "en": [-46.8, -14.65], "bearing": 90, "court": "#2f62ad", "kitchen": "#e8742a", "surround": "#3f7a4f" },
+      { "id": "C5", "num": 5, "en": [-9.6, 17.5], "bearing": 90 },
+      { "id": "C6", "num": 6, "en": [6.3, 17.5], "bearing": 90 },
+      { "id": "C7", "num": 7, "en": [-9.6, 9.1], "bearing": 90 },
+      { "id": "C8", "num": 8, "en": [6.3, 9.1], "bearing": 90 },
+      { "id": "C9", "num": 9, "en": [-9.6, 0.7], "bearing": 90 },
+      { "id": "C10", "num": 10, "en": [6.3, 0.7], "bearing": 90 },
+      { "id": "C11", "num": 11, "en": [-9.6, -7.7], "bearing": 90 },
+      { "id": "C12", "num": 12, "en": [6.3, -7.7], "bearing": 90 },
+      { "id": "C13", "num": 13, "en": [-9.6, -16.1], "bearing": 90 },
+      { "id": "C14", "num": 14, "en": [6.3, -16.1], "bearing": 90 }
     ]
   },
   "halls": [
     {
-      "building": 432068622,
-      "height": 10,
-      "door": {
-        "en": [
-          38.4,
-          -32
-        ]
-      },
-      "wall": "#2c2a28",
-      "pads": "#222120",
-      "padH": 2.2,
-      "ceiling": "#3a3632",
-      "floor": "#5f8fae",
-      "beams": "#2b2b2b",
+      "name": "Main hall (Stage 4)",
+      "poly": [{ "en": [-17.6, -20.3] }, { "en": [14.3, -20.3] }, { "en": [14.3, 21.7] }, { "en": [-17.6, 21.7] }],
+      "height": 11,
+      "door": { "en": [-17.6, 13.3] },
+      "doorW": 1.8,
+      "doors": [
+        { "en": [-17.6, 13.3], "w": 1.8, "kind": "wood", "color": "#1d1f22" },
+        { "en": [-17.6, -11.9], "w": 1.6, "kind": "wood", "color": "#1d1f22" }
+      ],
+      "wall": "#2a2723",
+      "pads": "#2a2723",
+      "padH": 3.0,
+      "wallTex": "quilt",
+      "ceiling": "#141416",
+      "floor": "#5f7782",
+      "beams": "#18181a",
+      "trusses": "grid",
       "ducts": "#b9bcc0",
+      "lightsStyle": "round",
       "outside": "#c9c1b3",
-      "columns": {
-        "from": {
-          "en": [
-            21.5,
-            -20
-          ]
-        },
-        "to": {
-          "en": [
-            21.5,
-            -61
-          ]
-        },
-        "n": 4
-      }
+      "roof": "#a9a39a"
     },
     {
-      "rect": {
-        "en": [
-          -5.2,
-          -40.5
-        ],
-        "w": 19.6,
-        "d": 45,
-        "deg": 0
-      },
-      "height": 9,
-      "door": {
-        "en": [
-          -5.2,
-          -18
-        ]
-      },
-      "wall": "#f2f2ef",
-      "pads": "#4a4a4a",
-      "padH": 3,
-      "ceiling": "#3a3632",
-      "floor": "#5f8fae",
-      "beams": "#2b2b2b",
-      "outside": "#c9c1b3",
-      "roof": "#e8e6e0"
+      "name": "Second hall (Stage 5)",
+      "poly": [{ "en": [-35.6, -9.0] }, { "en": [-17.6, -9.0] }, { "en": [-17.6, 21.7] }, { "en": [-35.6, 21.7] }],
+      "height": 8,
+      "door": { "en": [-21.0, 21.7] },
+      "doorW": 2.0,
+      "doors": [{ "en": [-21.0, -9.0], "w": 1.8, "kind": "wood", "color": "#1d1f22" }],
+      "wall": "#ececea",
+      "pads": "#2a2a2c",
+      "padH": 3.0,
+      "wallTex": "block",
+      "ceiling": "#e4e2dc",
+      "floor": "#cdb88f",
+      "beams": "#5a3a2a",
+      "lightsStyle": "round",
+      "outside": "#d6d0c4",
+      "roof": "#d9d6cf"
     },
     {
-      "rect": {
-        "en": [
-          -31,
-          -27
-        ],
-        "w": 22,
-        "d": 14,
-        "deg": 0
-      },
+      "name": "Championship court",
+      "poly": [{ "en": [-35.6, -20.3] }, { "en": [-17.6, -20.3] }, { "en": [-17.6, -9.0] }, { "en": [-35.6, -9.0] }],
+      "height": 7,
+      "door": { "en": [-21.0, -9.0] },
+      "doorW": 1.8,
+      "doors": [{ "en": [-35.6, -11.0], "w": 1.2, "kind": "wood", "color": "#2b2f36" }],
+      "wall": "#1d1f1c",
+      "pads": "#1d1f1c",
+      "padH": 2.6,
+      "wallTex": "quilt",
+      "ceiling": "#111113",
+      "floor": "#45463f",
+      "beams": "#18181a",
+      "trusses": "grid",
+      "lightsStyle": "round",
+      "outside": "#c9c1b3",
+      "roof": "#bdb8ae"
+    },
+    {
+      "name": "Private court (M24)",
+      "poly": [{ "en": [-58.0, -20.3] }, { "en": [-35.6, -20.3] }, { "en": [-35.6, -9.0] }, { "en": [-58.0, -9.0] }],
       "height": 6,
-      "door": {
-        "en": [
-          -31,
-          -20
-        ]
-      },
-      "wall": "#2c2a28",
-      "pads": "#222120",
-      "ceiling": "#3a3632",
-      "floor": "#3a3d42",
+      "door": { "en": [-35.6, -11.0] },
+      "doorW": 1.2,
+      "wall": "#f2f2ef",
+      "pads": "#f2f2ef",
+      "padH": 2.0,
+      "ceiling": "#e8e6e0",
+      "floor": "#3f7a4f",
+      "beams": "#7a5a3a",
+      "lightsStyle": "strip",
       "outside": "#c9c1b3",
       "roof": "#bdb8ae"
     }
   ],
+  "rooms": [
+    {
+      "id": "lobby",
+      "type": "lobby",
+      "name": "Entry hall and check-in",
+      "furnish": false,
+      "wall": "#f2f2ef",
+      "floor": "#b8b4ac",
+      "floorStyle": "plain",
+      "partition": "#ececea",
+      "top": "#d9d6cf",
+      "h": 3.2,
+      "poly": [{ "en": [-31.0, 15.0] }, { "en": [-17.6, 15.0] }, { "en": [-17.6, 21.7] }, { "en": [-31.0, 21.7] }],
+      "doors": [
+        { "en": [-21.0, 21.7], "w": 2.0, "kind": "wood", "color": "#6b4a2b" },
+        { "en": [-21.5, 15.0], "w": 3.0, "kind": "open" }
+      ],
+      "props": [
+        { "t": "checkin", "en": [-24.6, 18.6], "face": 90, "c": "#1d1f22" },
+        { "t": "foldchair", "en": [-25.9, 18.6], "face": 90, "c": "#2b2f36" },
+        { "t": "paddlewall", "en": [-28.0, 21.5], "face": 180 },
+        { "t": "towels", "en": [-30.7, 18.35], "face": 90 },
+        { "t": "shelf", "en": [-27.0, 15.25], "face": 0 },
+        { "t": "tablesq", "en": [-18.6, 19.6], "c": "#f4f4f2" },
+        { "t": "wallart", "en": [-17.75, 17.2], "face": 270, "y": 1.35 },
+        { "t": "wallart", "en": [-17.75, 20.4], "face": 270, "y": 1.35 },
+        { "t": "signpanel", "en": [-24.6, 21.55], "face": 180, "y": 2.1, "c": "#1f2858" },
+        { "t": "filler", "en": [-19.4, 15.2], "face": 0 },
+        { "t": "fountain", "en": [-18.5, 15.2], "face": 0 },
+        { "t": "plant", "en": [-22.6, 21.2] },
+        { "t": "plant", "en": [-19.4, 21.2] },
+        { "t": "exitsign", "en": [-21.0, 21.45], "face": 180, "y": 2.55 }
+      ]
+    },
+    {
+      "id": "menRoom",
+      "type": "restroom",
+      "name": "Men's restroom",
+      "gender": "m",
+      "poly": [{ "en": [-35.6, 18.35] }, { "en": [-31.0, 18.35] }, { "en": [-31.0, 21.7] }, { "en": [-35.6, 21.7] }],
+      "doors": [{ "en": [-31.0, 20.0], "w": 1.0, "kind": "restroom", "gender": "m" }]
+    },
+    {
+      "id": "womenRoom",
+      "type": "restroom",
+      "name": "Women's restroom",
+      "gender": "f",
+      "poly": [{ "en": [-35.6, 15.0] }, { "en": [-31.0, 15.0] }, { "en": [-31.0, 18.35] }, { "en": [-35.6, 18.35] }],
+      "doors": [{ "en": [-31.0, 16.7], "w": 1.0, "kind": "restroom", "gender": "f" }]
+    }
+  ],
+  "props": [
+    { "t": "numcard", "n": 5, "en": [-17.45, 17.5], "face": 90, "y": 4.2 },
+    { "t": "numcard", "n": 7, "en": [-17.45, 9.1], "face": 90, "y": 4.2 },
+    { "t": "numcard", "n": 9, "en": [-17.45, 0.7], "face": 90, "y": 4.2 },
+    { "t": "numcard", "n": 11, "en": [-17.45, -7.7], "face": 90, "y": 4.2 },
+    { "t": "numcard", "n": 13, "en": [-17.45, -16.1], "face": 90, "y": 4.2 },
+    { "t": "numcard", "n": 6, "en": [14.15, 17.5], "face": 270, "y": 4.2 },
+    { "t": "numcard", "n": 8, "en": [14.15, 9.1], "face": 270, "y": 4.2 },
+    { "t": "numcard", "n": 10, "en": [14.15, 0.7], "face": 270, "y": 4.2 },
+    { "t": "numcard", "n": 12, "en": [14.15, -7.7], "face": 270, "y": 4.2 },
+    { "t": "numcard", "n": 14, "en": [14.15, -16.1], "face": 270, "y": 4.2 },
+    { "t": "banner", "en": [14.15, -11.8], "face": 270, "y": 6.0, "c": "#a83a2c" },
+    { "t": "banner", "en": [14.15, -13.1], "face": 270, "y": 6.0, "c": "#a83a2c" },
+    { "t": "banner", "en": [14.15, -14.4], "face": 270, "y": 6.0, "c": "#a83a2c" },
+    { "t": "banner", "en": [14.15, -15.7], "face": 270, "y": 6.0, "c": "#a83a2c" },
+    { "t": "exitsign", "en": [-17.3, 13.3], "face": 90, "y": 2.55 },
+    { "t": "exitsign", "en": [-17.3, -11.9], "face": 90, "y": 2.55 },
+    { "t": "extinguisher", "en": [-17.45, 5.0], "face": 90, "y": 0.9 },
+    { "t": "extinguisher", "en": [14.15, -3.5], "face": 270, "y": 0.9 },
+    { "t": "foldchair", "en": [-16.9, 5.3], "face": 90, "c": "#d9d9d6" },
+    { "t": "bagpile", "en": [-16.9, 4.3], "face": 90 },
+    { "t": "foldchair", "en": [-16.9, -3.1], "face": 90, "c": "#d9d9d6" },
+    { "t": "bagpile", "en": [13.6, 4.9], "face": 270 },
+    { "t": "foldchair", "en": [13.6, 13.3], "face": 270, "c": "#d9d9d6" },
+    { "t": "foldchair", "en": [13.6, -12.0], "face": 270, "c": "#d9d9d6" },
+    { "t": "bagpile", "en": [-1.6, 21.2], "face": 180 },
+    { "t": "foldchair", "en": [-1.6, -19.8], "face": 0, "c": "#d9d9d6" },
+    { "t": "cooler", "en": [-1.6, -19.0], "face": 0 },
+
+    { "t": "numcard", "n": 1, "en": [-30.5, -8.85], "face": 0, "y": 3.0 },
+    { "t": "numcard", "n": 2, "en": [-22.7, -8.85], "face": 0, "y": 3.0 },
+    { "t": "bench", "en": [-30.5, -6.9], "face": 0, "c": "#2b2f36" },
+    { "t": "foldchair", "en": [-27.2, -7.6], "face": 0, "c": "#d9d9d6" },
+    { "t": "foldchair", "en": [-26.6, -7.6], "face": 0, "c": "#d9d9d6" },
+    { "t": "foldchair", "en": [-26.0, -7.6], "face": 0, "c": "#d9d9d6" },
+    { "t": "bench", "en": [-22.7, -6.9], "face": 0, "c": "#2b2f36" },
+    { "t": "exitsign", "en": [-21.0, -8.75], "face": 0, "y": 2.55 },
+
+    { "t": "numcard", "n": 3, "en": [-35.45, -15.75], "face": 90, "y": 3.2 },
+    { "t": "flagstone", "en": [-33.4, -10.85], "w": 4.5, "d": 3.6 },
+    { "t": "flagstone", "en": [-28.9, -10.85], "w": 4.5, "d": 3.6 },
+    { "t": "flagstone", "en": [-24.4, -10.85], "w": 4.5, "d": 3.6 },
+    { "t": "flagstone", "en": [-19.85, -10.85], "w": 4.5, "d": 3.6 },
+    { "t": "blossomtree", "en": [-34.6, -9.9] },
+    { "t": "blossomtree", "en": [-29.2, -9.9] },
+    { "t": "blossomtree", "en": [-18.6, -9.9] },
+    { "t": "fridge", "en": [-24.2, -9.45], "face": 180 },
+    { "t": "fridge", "en": [-23.3, -9.45], "face": 180 },
+    { "t": "bench", "en": [-32.0, -11.2], "face": 180, "c": "#2b2f36" },
+    { "t": "bench", "en": [-27.0, -11.2], "face": 180, "c": "#2b2f36" },
+    { "t": "cooler", "en": [-30.3, -10.0], "face": 180, "c": "#2f6fb8" },
+    { "t": "cooler", "en": [-25.6, -10.0], "face": 180, "c": "#d23a2a" },
+    { "t": "railing", "line": { "from": { "en": [-34.6, -12.85] }, "to": { "en": [-28.6, -12.85] }, "every": 2 }, "face": 0 },
+    { "t": "railing", "line": { "from": { "en": [-24.6, -12.85] }, "to": { "en": [-18.6, -12.85] }, "every": 2 }, "face": 0 },
+    { "t": "scoreboard", "en": [-26.6, -12.4], "face": 180 },
+
+    { "t": "numcard", "n": 4, "en": [-57.85, -14.65], "face": 90, "y": 2.6 },
+    { "t": "door", "en": [-51.0, -20.15], "face": 0, "w": 3.0, "h": 3.4, "c": "#ececea" },
+    { "t": "door", "en": [-43.0, -20.15], "face": 0, "w": 3.0, "h": 3.4, "c": "#ececea" },
+    { "t": "bench", "en": [-46.8, -10.0], "face": 180, "c": "#2b2f36" },
+
+    { "t": "planter", "en": [-28.5, 22.3], "face": 0 },
+    { "t": "planter", "en": [-14.0, 22.3], "face": 0 },
+    { "t": "bin", "en": [-17.0, 22.4] },
+    { "t": "bench", "en": [-32.0, 22.5], "face": 0, "c": "#3a3f45" }
+  ],
   "buildings": {
-    "drop": [
-      432068618
-    ],
+    "drop": [432068618, 432068622],
     "add": [
       {
-        "poly": [
-          {
-            "en": [
-              -69,
-              -20
-            ]
-          },
-          {
-            "en": [
-              -42,
-              -20
-            ]
-          },
-          {
-            "en": [
-              -42,
-              -34
-            ]
-          },
-          {
-            "en": [
-              -20,
-              -34
-            ]
-          },
-          {
-            "en": [
-              -20,
-              -20
-            ]
-          },
-          {
-            "en": [
-              -15.4,
-              -20
-            ]
-          },
-          {
-            "en": [
-              -15.4,
-              -63
-            ]
-          },
-          {
-            "en": [
-              -69,
-              -63
-            ]
-          }
-        ],
+        "poly": [{ "en": [-89.7, -20.3] }, { "en": [-58.0, -20.3] }, { "en": [-58.0, -9.0] }, { "en": [-35.6, -9.0] }, { "en": [-35.6, 20.8] }, { "en": [-89.7, 20.8] }],
         "h": 7,
         "kind": "industrial",
         "color": "#c9c1b3",
-        "roof": "#bdb8ae"
+        "roof": "#bdb8ae",
+        "windows": "ribs",
+        "hvac": true
       }
     ]
   },
   "areas": {
     "add": [
-      {
-        "kind": "parking",
-        "rect": {
-          "en": [
-            47,
-            -40
-          ],
-          "w": 16,
-          "d": 40,
-          "deg": 90
-        }
-      }
+      { "kind": "parking", "poly": [{ "en": [14.6, -20.3] }, { "en": [33.0, -20.3] }, { "en": [33.0, 21.7] }, { "en": [14.6, 21.7] }] },
+      { "kind": "concrete", "poly": [{ "en": [-90, 21.7] }, { "en": [36, 21.7] }, { "en": [36, 25.2] }, { "en": [-90, 25.2] }] },
+      { "kind": "concrete", "poly": [{ "en": [33.0, -40] }, { "en": [36.0, -40] }, { "en": [36.0, 25.2] }, { "en": [33.0, 25.2] }] },
+      { "kind": "lawn", "poly": [{ "en": [-90, -20.3] }, { "en": [36, -20.3] }, { "en": [36, -40] }, { "en": [-90, -40] }], "color": "#5f7f45" }
     ]
   },
   "extras": [
-    {
-      "type": "mural",
-      "en": [
-        21.5,
-        -17.7
-      ],
-      "deg": 0,
-      "w": 30,
-      "h": 3.2,
-      "y": 1.2,
-      "style": "graffiti",
-      "face": "n"
-    },
-    {
-      "type": "banner",
-      "en": [
-        -5.2,
-        -62.6
-      ],
-      "deg": 0,
-      "w": 2.2,
-      "h": 4,
-      "y": 3,
-      "style": "emblem",
-      "face": "n"
-    }
+    { "type": "banner", "en": [-24.6, 21.85], "w": 2.6, "h": 1.6, "y": 3.6, "style": "navy", "face": "n" },
+    { "type": "mural", "en": [-1.6, 21.85], "w": 30, "h": 3.4, "y": 2.2, "style": "graffiti", "face": "n" },
+    { "type": "banner", "en": [-35.5, 5.0], "deg": 90, "w": 2.2, "h": 3.0, "y": 4.6, "style": "emblem", "face": "e" },
+    { "type": "awnings", "en": [-21.0, 22.5], "w": 4.0, "color": "#1f2858" }
   ],
   "colors": {
-    "court": "#b9b2a8",
-    "kitchen": "#b3aca2",
-    "surround": "#5f8fae",
+    "court": "#b4ab9c",
+    "kitchen": "#b4ab9c",
+    "surround": "#5f7782",
     "lines": "#f4f4f2",
     "ground": "#8a8a84",
     "far": "#9a9a90"
   },
   "fence": {
     "dividers": "net",
-    "netColor": "#151515"
+    "netColor": "#151515",
+    "netTop": "#151515"
   },
   "trees": {
     "rows": [
-      {
-        "from": {
-          "en": [
-            -60,
-            -12
-          ]
-        },
-        "to": {
-          "en": [
-            60,
-            -12
-          ]
-        },
-        "every": 10,
-        "kind": "broadleaf"
-      },
-      {
-        "from": {
-          "en": [
-            -70,
-            -105
-          ]
-        },
-        "to": {
-          "en": [
-            70,
-            -105
-          ]
-        },
-        "every": 8,
-        "kind": "broadleaf"
-      }
+      { "from": { "en": [-88, -26] }, "to": { "en": [34, -26] }, "every": 6, "kind": "broadleaf", "s": 1.3 },
+      { "from": { "en": [-85, -33] }, "to": { "en": [30, -33] }, "every": 7, "kind": "broadleaf", "s": 1.5 },
+      { "from": { "en": [-60, 38.5] }, "to": { "en": [40, 38.5] }, "every": 12, "kind": "broadleaf", "s": 1.1 },
+      { "from": { "en": [-12, 24.6] }, "to": { "en": [10, 24.6] }, "every": 22, "kind": "broadleaf", "s": 0.9 }
     ]
   },
   "backdrop": {
     "skyline": true,
+    "skylineTint": "#c9c1b3",
     "hills": "#9a8f78",
     "mountains": "#8f8c88",
     "mountainsDeg": -90

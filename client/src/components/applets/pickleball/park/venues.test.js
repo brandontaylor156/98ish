@@ -15,7 +15,8 @@ const IDS = ["loscab", "newport", "wolfbear", "whittier", "paseo", "sinaloa", "s
 const EXPECT = {
   loscab: { pb: 38, tennis: 13, indoor: false },
   newport: { pb: 44, tennis: 12, indoor: false },
-  wolfbear: { pb: 12, tennis: 0, indoor: true },
+  // (14: the main hall's cards run 5 to 14; courts 1-2 in the second hall, 3 streamed, 4 private)
+  wolfbear: { pb: 14, tennis: 0, indoor: true },
   whittier: { pb: 16, tennis: 12, indoor: false },
   paseo: { pb: 11, tennis: 11, indoor: false },
   sinaloa: { pb: 12, tennis: 0, indoor: false },
@@ -47,7 +48,11 @@ test("venue specs: court counts, indoor, sizes, the picker's list", () => {
   }
   // angles straight from the data: Newport's grid is turned (bearing 166 -> 76 deg), Wolf + Bear's runs east-west
   assert.ok(spec("newport").courts.filter((c) => c.s === "p").every((c) => Math.abs(Math.abs(c.a) - 76) < 2), "Newport turned 14 degrees")
-  assert.ok(spec("wolfbear").courts.every((c) => Math.abs(c.a) < 1), "Wolf + Bear east-west")
+  // Wolf + Bear: the main hall's ten (numbered 5-14) run east-west, the second hall's two north-south
+  const wb = spec("wolfbear").courts
+  assert.equal(wb.filter((c) => c.n >= 5 && Math.abs(c.a) < 1).length, 10, "Wolf + Bear main hall east-west")
+  assert.equal(wb.filter((c) => c.n <= 2 && Math.abs(Math.abs(c.a) - 90) < 1).length, 2, "Wolf + Bear second hall north-south")
+  assert.deepEqual(wb.map((c) => c.n).sort((a, b) => a - b), Array.from({ length: 14 }, (_, k) => k + 1), "Wolf + Bear numbers 1-14")
   assert.ok(spec("smash").courts.filter((c) => Math.abs(Math.abs(c.a) - 90) < 1).length === 6, "SMASH: six north-south courts")
   // Whittier: pickleball lines on six tennis courts (12 dual-use)
   assert.equal(spec("whittier").courts.reduce((n, c) => n + (c.pb || 0), 0), 12)
@@ -111,13 +116,17 @@ test("venuegen: people are kept out of the banks of courts, walls and stands; in
       assert.ok(Math.hypot(p.x - b.cx, p.z - b.cz) > 0.5, `${id}: pushed out of a bank`)
     }
     for (const h of g.layoutSpec.scene.halls || []) {
-      assert.ok(h.doorAt && h.doorAt.w >= 2, `${id}: hall door`)
-      // just inside and just outside the door are both open
+      // (a sound stage's door to the next hall can be a single door)
+      assert.ok(h.doorAt && h.doorAt.w >= 1.0, `${id}: hall door`)
+      // just inside the door (straight in from the wall it's on) is open
       const c = h.p.reduce((s, q) => [s[0] + q[0] / h.p.length, s[1] + q[1] / h.p.length], [0, 0])
-      const dx = c[0] - h.doorAt.x
-      const dz = c[1] - h.doorAt.z
-      const d = Math.hypot(dx, dz)
-      assert.ok(!L.blocked(h.doorAt.x + (dx / d) * 1.2, h.doorAt.z + (dz / d) * 1.2, 0.3), `${id}: inside the door`)
+      const a = h.p[h.doorAt.i]
+      const b = h.p[(h.doorAt.i + 1) % h.p.length]
+      const el = Math.hypot(b[0] - a[0], b[1] - a[1])
+      let nx = -(b[1] - a[1]) / el
+      let nz = (b[0] - a[0]) / el
+      if (nx * (c[0] - h.doorAt.x) + nz * (c[1] - h.doorAt.z) < 0) [nx, nz] = [-nx, -nz]
+      assert.ok(!L.blocked(h.doorAt.x + nx * 1.2, h.doorAt.z + nz * 1.2, 0.3), `${id}: inside the door`)
     }
   }
   // SMASH: the bar has stools for the regulars

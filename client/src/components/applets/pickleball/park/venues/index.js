@@ -32,10 +32,10 @@ export const VENUE_LIST = [
     "city": "Van Nuys, CA",
     "indoor": true,
     "access": "public",
-    "courts": 12,
+    "courts": 14,
     "tennis": 0,
-    "live": 4,
-    "kb": 7.3
+    "live": 6,
+    "kb": 14.7
   },
   {
     "id": "whittier",

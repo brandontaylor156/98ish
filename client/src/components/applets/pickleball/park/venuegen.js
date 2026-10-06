@@ -139,7 +139,7 @@ export const generateVenue = (spec, opts = {}) => {
     const a = c.a * DEG
     const u = { x: Math.cos(a), z: Math.sin(a) }
     const sz = SIZES[c.s] || SIZES.p
-    return { i, x: c.x, z: c.z, a, u, w: { x: -u.z, z: u.x }, s: c.s, pb: c.pb || 0, pl: c.pl || null, col: c.col ?? null, lit: !!c.lit, L: sz.L, W: sz.W, rot: Math.atan2(u.x, u.z) }
+    return { i, x: c.x, z: c.z, a, u, w: { x: -u.z, z: u.x }, s: c.s, pb: c.pb || 0, pl: c.pl || null, col: c.col ?? null, lit: !!c.lit, L: sz.L, W: sz.W, rot: Math.atan2(u.x, u.z), n: c.n || null }
   })
 
   // ---------- banks ----------
@@ -292,7 +292,10 @@ export const generateVenue = (spec, opts = {}) => {
   // (a door is a gap in every wall it sits on: a room's, a building's; "closed" doors aren't)
   const roomSpecs = (spec.rooms || []).filter((r) => r.p && r.p.length > 2)
   const openBuildings = (spec.buildings || []).filter((b) => b.doors && b.doors.length)
-  const allDoors = [...roomSpecs.flatMap((r) => r.doors || []), ...openBuildings.flatMap((b) => b.doors)].filter((d) => d.kind !== "closed").map((d) => ({ ...d, w: d.w || 1.8, kind: d.kind || "open" }))
+  // (halls can have more doors than their main one: to the street, to the next hall; each cuts
+  // every wall it sits on, both halls' where they share one)
+  const allDoors = [...roomSpecs.flatMap((r) => r.doors || []), ...openBuildings.flatMap((b) => b.doors), ...hallSpecs.flatMap((h) => h.doors || [])].filter((d) => d.kind !== "closed").map((d) => ({ ...d, w: d.w || 1.8, kind: d.kind || "open" }))
+  const doorHosts = [...roomSpecs.map((r) => r.p), ...openBuildings.map((b) => b.p), ...hallSpecs.map((h) => h.p)]
   const segDist = (p, a, b) => {
     const ab = sub(b, a)
     const t = Math.max(0, Math.min(1, dot(sub(p, a), ab) / (dot(ab, ab) || 1)))
@@ -309,7 +312,7 @@ export const generateVenue = (spec, opts = {}) => {
   })
   // over each doorway: overhead (people walk under, cameras don't pass)
   for (const d of allDoors) {
-    const host = [...roomSpecs.map((r) => r.p), ...openBuildings.map((b) => b.p)].find((poly) => gapsOn(poly).includes(d))
+    const host = doorHosts.find((poly) => gapsOn(poly).includes(d))
     if (!host) continue
     let best = null
     host.forEach((q, i) => {
@@ -392,7 +395,8 @@ export const generateVenue = (spec, opts = {}) => {
   // ---------- numbering every pickleball court, reading order ----------
   const pbCourts = courts.filter((c) => c.s === "p")
   const order = pbCourts.slice().sort((a, b) => a.bank - b.bank || Math.round(a.z / 4) - Math.round(b.z / 4) || a.x - b.x)
-  order.forEach((c, k) => (c.num = k + 1))
+  // (a venue's own numbers win: the cards on the real walls)
+  order.forEach((c, k) => (c.num = c.n || k + 1))
 
   // ---------- a court's gate side ----------
   // the open sides of a court in its bank: -> [{ out (unit), dist (center to the fence) }]
@@ -730,6 +734,30 @@ export const generateVenue = (spec, opts = {}) => {
       if (!solidFinal(p, 0.3)) nav.push({ x: round(p.x), z: round(p.z) })
     }
   }
+  // indoors the courts stand close (two metres between them at a busy club): nodes along every
+  // court's edges, in the aisles the coarse grid misses
+  if (indoor) {
+    for (const bk of bankBoxes) {
+      const u = { x: bk.ux, z: bk.uz }
+      const w = { x: -bk.uz, z: bk.ux }
+      for (const [n, half, t, tHalf] of [
+        [u, bk.hx, w, bk.hz],
+        [{ x: -u.x, z: -u.z }, bk.hx, w, bk.hz],
+        [w, bk.hz, u, bk.hx],
+        [{ x: -w.x, z: -w.z }, bk.hz, u, bk.hx],
+      ]) {
+        for (const off of [0.6, 0.9]) {
+          const steps = Math.max(1, Math.round((2 * (tHalf + off)) / 2))
+          for (let k = 0; k <= steps; k++) {
+            const s = -(tHalf + off) + (2 * (tHalf + off) * k) / steps
+            const p = add(add({ x: bk.cx, z: bk.cz }, n, half + off), t, s)
+            const q = { x: round(p.x), z: round(p.z) }
+            if (inBounds(q) && !solidFinal(q, 0.34) && !insideBuilding(q)) nav.push(q)
+          }
+        }
+      }
+    }
+  }
   // inside the rooms (a finer grid) and through every doorway, both sides
   for (const r of rooms) {
     // (small rooms every 1.25 m; big halls coarser, up to 4 m)
@@ -743,7 +771,7 @@ export const generateVenue = (spec, opts = {}) => {
       }
   }
   for (const d of allDoors) {
-    const host = [...roomSpecs.map((r) => r.p), ...openBuildings.map((b) => b.p)].find((poly) => gapsOn(poly).includes(d))
+    const host = doorHosts.find((poly) => gapsOn(poly).includes(d))
     if (!host) continue
     let best = null
     host.forEach((q, i) => {
