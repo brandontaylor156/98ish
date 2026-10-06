@@ -33,6 +33,9 @@ import { getClone } from "./twin/clone/store.js"
 import { cloneLevel } from "./twin/clone/profile.js"
 // Real Games (the pickleball you play in real life: sessions, scorekeeper, matches, ladder; applets/pbclub, server/pbclub)
 const RealGames = React.lazy(() => import("../pbclub/PbClub"))
+import ParkLoading from "./park/ParkLoading"
+// let the browser paint (the loading screen) before a step that blocks the page
+const nextPaint = () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))
 import { ParkHud, ParkIntro, ParkMenu, ParkResult, ParkTurn, RealFriendsBar, VoiceChip } from "./park/ParkHud"
 import { useParkVoice } from "./park/useParkVoice.js"
 import { badgeText, friendsAt } from "./park/presence.js"
@@ -622,6 +625,8 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
   }
   const [parkPick, setParkPick] = useState(false)
   const [parkLoading, setParkLoading] = useState(null)
+  const parkLoadingRef = useRef(null)
+  const [parkStep, setParkStep] = useState(null) // the loading screen's step: { label, pct }
   const [parkErr, setParkErr] = useState(null) // Venue Finder couldn't build a venue: why
   // the picker's badges: how many are in each real venue's online parks (numbers only)
   useEffect(() => {
@@ -660,19 +665,28 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
       w.dispose()
       w = null
     }
-    if (!w) setParkLoading(venueId)
+    if (!w) {
+      setParkLoading(venueId)
+      parkLoadingRef.current = venueId
+      setParkStep({ label: "Finding the courts", pct: 8 })
+    }
     reset()
     setSession({ kind: "park" })
     setScreen("park")
     setParkUi({ menu: false, intro: !prefsRef.current.parkIntro, turn: null, result: null })
     if (!w) {
       try {
+        await nextPaint()
         const [{ createWorld }, layout, cv] = await Promise.all([import("./park/world.js"), loadParkLayout(venueId), import("./park/courtvenue.js")])
         courtVenueRef.current = cv.buildCourtVenue
         if (engineRef.current !== e) return
+        setParkStep({ label: "Building the courts, buildings and trees", pct: 35 })
+        await nextPaint()
         w = createWorld({ ...e.worldContext(), layout, phone: !!mobile, me: myParkInfo(), labelsEl: parkLabelsRef.current, onHud: setParkHud, onEvent: (ev) => parkEventRef.current?.(ev) })
       } catch (error) {
         console.error(error)
+        parkLoadingRef.current = null
+        setParkStep(null)
         setParkLoading(null)
         setScreen("main")
         setSession(null)
@@ -685,6 +699,20 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
       }
       parkRef.current = w
       setParkWorld(w)
+    }
+    if (parkLoadingRef.current) {
+      // the first picture: shaders compile and textures upload behind the loading screen
+      setParkStep({ label: "Lighting it up", pct: 75 })
+      await nextPaint()
+      w.resume()
+      e.setWorld(w)
+      await Promise.race([e.ready, new Promise((r) => setTimeout(r, 8000))])
+      setParkStep({ label: "Here we go", pct: 100 })
+      await nextPaint()
+      parkLoadingRef.current = null
+      setParkLoading(null)
+      setParkStep(null)
+      return
     }
     setParkLoading(null)
     w.resume()
@@ -1461,7 +1489,7 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
             onClose={() => (setParkPick(false), setParkErr(null))}
           />
         )}
-        {parkLoading && screen === "park" && !parkPick && <div className="pkCenter pkDim" data-park="loading"><div className="pkPanel window">{isLiveId(parkLoading) ? "Building " : "Walking over to "}{VENUE_LIST.find((v) => v.id === parkLoading)?.short || prefs.parkPlaces?.[parkLoading]?.short || "the park"}...</div></div>}
+        {parkLoading && screen === "park" && !parkPick && <ParkLoading venue={VENUE_LIST.find((v) => v.id === parkLoading)?.short || prefs.parkPlaces?.[parkLoading]?.short || (isLiveId(parkLoading) ? "A court from the map" : "Riverside Park")} step={parkStep} />}
 
         {/* ---------- Twin Replay (twin/): a real game, filmed, replayed here ---------- */}
         {screen === "twin" && phase !== "loading" && phase !== "error" && (

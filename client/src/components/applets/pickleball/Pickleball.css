@@ -1942,3 +1942,67 @@
 .pkParkLive b {
   color: #c00;
 }
+
+/* ---------- My Park's loading screen (park/ParkLoading.jsx) ---------- */
+.pkParkLoad {
+  z-index: 12;
+}
+.pkParkLoadWin {
+  width: min(340px, calc(100% - 32px));
+}
+.pkParkLoadWin .window-body {
+  display: grid;
+  gap: 8px;
+  padding: 10px 12px 12px;
+}
+.pkParkLoadWhere,
+.pkParkLoadStep,
+.pkParkLoadTip {
+  margin: 0;
+}
+.pkParkLoadWhere b {
+  font-size: 14px;
+}
+.pkParkLoadTip {
+  color: #444;
+  font-size: 11px;
+}
+/* a sunken 98 progress well with navy blocks; the running blocks move on the compositor */
+.pkParkLoadBar {
+  position: relative;
+  height: 20px;
+  overflow: hidden;
+  background: #fff;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px grey, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+}
+.pkParkLoadFill {
+  position: absolute;
+  inset: 3px auto 3px 3px;
+  max-width: calc(100% - 6px);
+  background: repeating-linear-gradient(90deg, #000080 0 10px, transparent 10px 12px);
+  transition: width 0.4s ease-out;
+}
+.pkParkLoadRun {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  left: 0;
+  width: 46px;
+  background: repeating-linear-gradient(90deg, rgba(0, 0, 128, 0.35) 0 10px, transparent 10px 12px);
+  animation: pkParkRun 1.4s linear infinite;
+  will-change: transform;
+}
+@keyframes pkParkRun {
+  from { transform: translateX(-50px); }
+  to { transform: translateX(340px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pkParkLoadRun { animation: none; display: none; }
+}
+
+/* centered panels (loading, the park's welcome, notices) size to their content: main.css
+   gives every .window height: 100%, which stretched them to the whole stage on phones */
+.pkCenter > .window {
+  height: auto;
+  max-height: calc(100% - 16px);
+}
