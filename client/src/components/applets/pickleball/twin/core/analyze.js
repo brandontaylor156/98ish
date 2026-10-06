@@ -9,6 +9,7 @@ import { detectOnsets } from "./onsets.js"
 import { buildRallies, findHits } from "./hits.js"
 import { rallyPath } from "./ballpath.js"
 import { computeStats } from "./stats.js"
+import { readySeries } from "../coach/pose.js"
 
 export const ANALYSIS_VERSION = 1
 
@@ -57,6 +58,8 @@ export const createAnalyzer = ({ taps, players = 4 }) => {
           hand: handOf(tr.id),
           color: tr.color ? dominantColor(tr.color) : null,
           samples: tr.samples.map((s) => ({ t: round(s.t, 3), x: round(s.x, 3), z: round(s.z, 3) })),
+          // (Coach: the paddle-hand height each time the other side hit; the landmarks aren't kept)
+          ready: readySeries(tr, rallies, handOf(tr.id)),
         })),
         rallies: rallies.map((r) => ({
           id: r.id,

@@ -60,6 +60,28 @@ export const DRILLS = [
     },
   },
   {
+    id: "kitchen",
+    name: "Kitchen sprint",
+    goal: "Return deep, then sprint all the way to the kitchen line before their next shot.",
+    measure: "made",
+    stars: [3, 5, 7],
+    spec: {
+      machine: { shot: "drive", speed: "slow", place: "random", rate: 10 },
+      feed: "serve",
+      track: "moveIn",
+      balls: 8,
+      time: 180,
+      zones: ZONE_SETS.deep,
+      judge: (r) => {
+        const deep = r.outcome === "in" && deepInTheirCourt(r.landing)
+        const atLine = r.moveIn >= 3.4
+        if (r.outcome === "in" && atLine) return { ok: true, msg: deep ? "Deep, and at the line!" : "At the line! Now aim deeper too." }
+        if (r.outcome === "in") return { ok: false, msg: r.moveIn >= 1.5 ? "Keep going: all the way to the kitchen line." : "Run in right after your return." }
+        return { ok: false, msg: missMsg(r) }
+      },
+    },
+  },
+  {
     id: "drop",
     name: "Third-shot drop",
     goal: "From the baseline, drop it softly into their kitchen.",

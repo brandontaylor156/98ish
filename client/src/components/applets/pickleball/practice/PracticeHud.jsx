@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react"
+import { createBus } from "../../../../utils/audio"
 import { Coach } from "./Coach"
 import { CourtDiagram } from "./CourtDiagram"
 import { Stars } from "./PracticeHub"
@@ -25,6 +26,24 @@ const progressText = (plan, snap) => {
   return `${s.made || 0}`
 }
 
+// the split-step cue's sound: a short, bright tick as the machine hits (with the ring at your feet)
+const cueBus = createBus({ gain: 0.5 })
+const cueTick = () => {
+  const bus = cueBus()
+  if (!bus) return
+  const { ctx, out } = bus
+  const o = ctx.createOscillator()
+  const g = ctx.createGain()
+  o.type = "square"
+  o.frequency.value = 1320
+  g.gain.setValueAtTime(0.0001, ctx.currentTime)
+  g.gain.exponentialRampToValueAtTime(0.35, ctx.currentTime + 0.005)
+  g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.07)
+  o.connect(g).connect(out)
+  o.start()
+  o.stop(ctx.currentTime + 0.08)
+}
+
 export const PracticeHud = ({ plan, train, intro, touch, onStartTask, onPause, onAgain, onNext, onDone }) => {
   const snap = train?.snap
   const result = train?.result
@@ -40,6 +59,7 @@ export const PracticeHud = ({ plan, train, intro, touch, onStartTask, onPause, o
   useEffect(() => {
     if (!train?.cue) return
     setCue(true)
+    if (plan?.spec?.cue === "split" && plan?.sound !== false) cueTick()
     const t = setTimeout(() => setCue(false), 520)
     return () => clearTimeout(t)
   }, [train?.cue])

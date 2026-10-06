@@ -5,7 +5,8 @@
 import React, { useEffect, useMemo, useRef, useState } from "react"
 import MoreOptions from "../../../shared/MoreOptions"
 import { Select } from "../../../shared/select/Combo"
-import { CHARACTERS } from "../looks.js"
+import { CHARACTERS, lookFor } from "../looks.js"
+import { ghostSituations } from "./coach/ghost.js"
 import { withPaths } from "./core/analyze.js"
 import { buildFrames } from "./core/replay.js"
 import { KIND_LABEL, KINDS } from "./core/hits.js"
@@ -24,11 +25,13 @@ const clock = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStar
 
 const rosterFor = (players) => players.map((p, k) => ({ id: `p${p.id}`, team: p.team, ctrl: "cpu", level: "pro", name: p.name, character: CHARACTERS.filter((c) => !c.boss)[(k * 3 + 1) % CHARACTERS.filter((c) => !c.boss).length].id }))
 
-export const TwinPlayer = ({ getEngine, game, video, onBack, onChange, onShare, onDelete, onClone = null, onRematch = null }) => {
+export const TwinPlayer = ({ getEngine, game, video, onBack, onChange, onShare, onDelete, onClone = null, onRematch = null, moment = null, onCoach = null, onBackToCoach = null }) => {
   const analysis = useMemo(() => withPaths(game.analysis), [game.analysis])
   const rallies = analysis.rallies
   const [tab, setTab] = useState("replay")
-  const [ri, setRi] = useState(0)
+  // a Coach moment opens on its rally
+  const momentRally = moment ? Math.max(0, rallies.findIndex((r) => moment.t >= r.start - 0.6 && moment.t <= r.end + 0.6)) : 0
+  const [ri, setRi] = useState(momentRally)
   const [st, setSt] = useState(null)
   const [playAll, setPlayAll] = useState(true)
   const [showVideo, setShowVideo] = useState(!!video)
@@ -51,16 +54,26 @@ export const TwinPlayer = ({ getEngine, game, video, onBack, onChange, onShare, 
       if (!live) return
       const { frames } = buildFrames(analysis, window_)
       const e = getEngine()
-      e?.playTwin({ frames, venue, roster: rosterFor(analysis.players) })
+      const roster = rosterFor(analysis.players)
+      e?.playTwin({ frames, venue, roster })
       const keep = st
       if (keep) e?.twinControl({ cam: keep.cam, speed: keep.speed, follow: keep.follow })
+      // a Coach moment: slow, following the player, from just before it, with the ghost
+      if (moment && ri === momentRally) {
+        const idx = Math.max(0, analysis.players.findIndex((p) => p.id === moment.player))
+        // (runs to the line read best from the side; positions on the court from above)
+        const cam = moment.ghost === "kitchen" ? "side" : moment.ghost === "recover" || moment.ghost === "spacing" ? "top" : "broadcast"
+        e?.twinControl({ cam, follow: idx, speed: 0.5 })
+        e?.twinSeek(Math.max(0, moment.t - window_.from - 1.5))
+        if (moment.ghost) e?.twinGhost({ situations: ghostSituations(frames, idx, analysis, moment), look: lookFor(roster[idx].character) })
+      }
       setBusy(false)
     })()
     return () => {
       live = false
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab, ri, game.venue, game.court, analysis])
+  }, [tab, ri, game.venue, game.court, analysis, moment?.key])
   // leaving: the engine back to its title
   useEffect(
     () => () => {
@@ -118,6 +131,18 @@ export const TwinPlayer = ({ getEngine, game, video, onBack, onChange, onShare, 
       {tab === "replay" && (
         <>
           {url && showVideo && <video ref={videoRef} className="pkTwinPip" src={url} muted playsInline aria-label="Your video" />}
+          {moment && ri === momentRally && (
+            <div className="pkTwinMoment" data-coach-moment data-ghost={st?.ghost ? "on" : "off"}>
+              <b>{moment.title || "Coach"}</b>
+              <span>{moment.note}</span>
+              {moment.ghost && <small>The see-through player is the Pro way.</small>}
+              {onBackToCoach && (
+                <button type="button" onClick={onBackToCoach} data-action="back-to-coach">
+                  Back to Coach
+                </button>
+              )}
+            </div>
+          )}
           {!rally && <div className="pkCenter"><div className="pkPanel window">No rallies were found in this video.</div></div>}
           {rally && (
             <div className="pkTwinBar">
@@ -216,7 +241,7 @@ export const TwinPlayer = ({ getEngine, game, video, onBack, onChange, onShare, 
         </>
       )}
 
-      {tab === "stats" && <TwinStats analysis={analysis} onRally={(i) => (setRi(i), setTab("replay"))} onClone={onClone} />}
+      {tab === "stats" && <TwinStats analysis={analysis} onRally={(i) => (setRi(i), setTab("replay"))} onClone={onClone} onCoach={onCoach} />}
     </div>
   )
 }
@@ -256,7 +281,7 @@ const Heat = ({ heat, team }) => {
   return <canvas ref={ref} className="pkTwinHeat" aria-label="Where they stood (the net at the top)" />
 }
 
-export const TwinStats = ({ analysis, onRally, onClone = null }) => {
+export const TwinStats = ({ analysis, onRally, onClone = null, onCoach = null }) => {
   const s = analysis.stats
   const name = (id) => analysis.players.find((p) => p.id === id)?.name || `Player ${id + 1}`
   const color = (id) => analysis.players.find((p) => p.id === id)?.color || "#888"
@@ -330,11 +355,18 @@ export const TwinStats = ({ analysis, onRally, onClone = null }) => {
                 </div>
               ))}
             </div>
-            {onClone && (
+            {(onClone || onCoach) && (
               <div className="pkTwinButtons">
-                <button type="button" onClick={() => onClone(p.id)} data-action="make-clone" data-player={p.id}>
-                  Make a Clone of {name(p.id)}...
-                </button>
+                {onCoach && (
+                  <button type="button" onClick={() => onCoach(p.id)} data-action="coach-me" data-player={p.id}>
+                    Coach {name(p.id)} on this game
+                  </button>
+                )}
+                {onClone && (
+                  <button type="button" onClick={() => onClone(p.id)} data-action="make-clone" data-player={p.id}>
+                    Make a Clone of {name(p.id)}...
+                  </button>
+                )}
               </div>
             )}
             {Object.keys(p.third).length > 0 && (

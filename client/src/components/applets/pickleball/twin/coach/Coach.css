@@ -1,0 +1,269 @@
+/* Coach (twin/coach/CoachPanel.jsx): a 98 window over the game's canvas */
+
+.pkCch {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  background: rgba(0, 32, 64, 0.86);
+  color: #000;
+  text-align: left;
+  font-family: "Pixelated MS Sans Serif", Arial, sans-serif;
+}
+.pkCchTop {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  background: #c0c0c0;
+  box-shadow: inset 0 -1px #808080;
+  flex: none;
+}
+.pkCchTop > b {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+}
+.pkCchScroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 680px;
+  width: 100%;
+  margin: 0 auto;
+  box-sizing: border-box;
+  -webkit-overflow-scrolling: touch;
+}
+/* (the desktop's .window rule makes windows full-height and 300px wide: not these cards) */
+.pkCchCard {
+  height: auto;
+  min-width: 0;
+  max-width: none;
+  text-align: left;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: none;
+}
+.pkCchCard p {
+  margin: 2px 0;
+}
+.pkCchLevel {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.pkCchLevel > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+.pkCchLevel b {
+  font-size: 13px;
+}
+.pkCchStreak {
+  flex: none;
+  padding: 2px 6px;
+  background: #000080;
+  color: #fff;
+  font-size: 11px;
+}
+
+.pkCchRuler {
+  width: 100%;
+  max-width: 260px;
+  height: 22px;
+}
+.pkCchRulerBar {
+  fill: #808080;
+}
+.pkCchTick {
+  stroke: #000;
+  stroke-width: 1;
+}
+.pkCchTick.is-target {
+  stroke: #000080;
+  stroke-width: 3;
+}
+.pkCchMark {
+  fill: #ffd400;
+  stroke: #000;
+  stroke-width: 1.2;
+}
+
+.pkCchList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.pkCchRow {
+  background: #c0c0c0;
+  box-shadow: inset -1px -1px #0a0a0a, inset 1px 1px #fff, inset -2px -2px #808080, inset 2px 2px #dfdfdf;
+}
+button.pkCchRowHead,
+.pkCchRowHead {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas: "chip name" "val val";
+  align-items: center;
+  gap: 2px 8px;
+  width: 100%;
+  min-height: 0;
+  padding: 7px 9px;
+  background: none;
+  box-shadow: none;
+  border: 0;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+}
+.pkCchRowHead.is-static {
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: "name spark" "val spark";
+}
+.pkCchName {
+  grid-area: name;
+  font-weight: bold;
+  min-width: 0;
+}
+.pkCchVal {
+  grid-area: val;
+  min-width: 0;
+}
+.pkCchChip {
+  grid-area: chip;
+  padding: 1px 6px;
+  font-size: 11px;
+  white-space: nowrap;
+  border: 1px solid #000;
+}
+.pkCchChip.is-good {
+  background: #2e8b3a;
+  color: #fff;
+}
+.pkCchChip.is-close {
+  background: #ffd400;
+  color: #000;
+}
+.pkCchChip.is-work {
+  background: #b0301f;
+  color: #fff;
+}
+.pkCchChip.is-unknown {
+  background: #dfdfdf;
+  color: #404040;
+}
+.pkCchRowBody {
+  padding: 0 9px 9px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.pkCchRowBody p {
+  margin: 0;
+}
+.pkCchRowBody .pkTwinButtons button {
+  text-align: left;
+}
+.pkCchSpark {
+  grid-area: spark;
+  width: 120px;
+  height: 40px;
+  background: #fff;
+  box-shadow: inset 1px 1px #808080, inset -1px -1px #fff;
+}
+.pkCchBand {
+  stroke: #000080;
+  stroke-dasharray: 3 2;
+  stroke-width: 1;
+}
+.pkCchLine {
+  fill: none;
+  stroke: #000;
+  stroke-width: 1.6;
+}
+.pkCchEnd {
+  fill: #808080;
+}
+.pkCchEnd.is-up {
+  fill: #2e8b3a;
+}
+.pkCchEnd.is-down {
+  fill: #b0301f;
+}
+
+.pkCchCues {
+  margin: 4px 0 0;
+  padding-left: 1.3em;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.pkCchItems {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.pkCchItems li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: space-between;
+}
+.pkCchItems li > span {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.pkCchItems li.is-done b::after {
+  content: " ✓";
+  color: #2e8b3a;
+}
+.pkCchItems button {
+  flex: none;
+}
+.pkCchMore {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px 2px;
+  color: #fff;
+}
+.pkCchMore .pkMuted {
+  color: #cfd8e3;
+}
+.pkCchMe {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.pkCchCard .pkCchMe {
+  color: #000;
+}
+.pkCchPlan,
+.pkCchProgress {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.pkCchProgress > .pkMuted,
+.pkCchPlan > .pkMuted,
+.pkCchScroll > .pkMuted {
+  color: #cfd8e3;
+}

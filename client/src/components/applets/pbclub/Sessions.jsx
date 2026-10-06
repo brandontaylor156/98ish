@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react"
+import { currentCues } from "../pickleball/twin/coach/progress.js"
 import { useLocate } from "../../../utils/locate"
 import { friendsAt } from "../pickleball/park/presence.js"
 import { Select } from "../../shared/select/Combo"
@@ -413,6 +414,8 @@ export const SessionView = ({ session, state, buddies, onBack, onScore, onEdit }
     if (!r.ok) setMsg(r.error)
   }
   const unanswered = (session.invited || []).filter((k) => !session.rsvps?.[k])
+  // (Coach, in Pickleball 98's Twin Replay: the top three things to remember on court)
+  const cues = currentCues()
   return (
     <div className="pbSessionView" data-session-view={session.id}>
       <button type="button" className="pbBack" onClick={onBack}>
@@ -441,6 +444,16 @@ export const SessionView = ({ session, state, buddies, onBack, onScore, onEdit }
         {session.note && <div className="pbNote">{session.note}</div>}
         {session.cancelled && <div className="pbError">This session was cancelled.</div>}
       </div>
+      {cues.length > 0 && !session.cancelled && (
+        <div className="pbCues" data-coach-cues>
+          <b>Your Coach's cues for today</b>
+          <ol>
+            {cues.map((c, i) => (
+              <li key={i}>{c}</li>
+            ))}
+          </ol>
+        </div>
+      )}
       {!session.cancelled && (
         <div className="pbRsvp" role="group" aria-label="Are you in?">
           {["in", "maybe", "out"].map((s) => (
