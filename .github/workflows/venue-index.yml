@@ -15,14 +15,14 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 240
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
       - name: Build the index
-        run: node tools/venues/world/build-index.mjs --region world --cache "$RUNNER_TEMP/osm"
+        run: node tools/venues/world/build-index.mjs --region world --tile 10 --cache "$RUNNER_TEMP/osm"
       - name: Commit when it changed
         run: |
           git config user.name "venue-index-bot"

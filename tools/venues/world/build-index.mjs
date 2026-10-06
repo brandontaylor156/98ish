@@ -217,6 +217,12 @@ for (const c of clusters) {
 for (const [gh, rows] of shards) rows.sort((a, b) => b[4] + b[5] * 2 - (a[4] + a[5] * 2))
 for (const [gh, rows] of shards) rows.forEach((row, i) => row[7] && named.push([row[7], gh, i]))
 
+// (a run that lost too many tiles keeps the index it had rather than shipping holes)
+if (failed.length > Math.max(2, tiles.length * 0.03)) {
+  console.error(`${failed.length} tiles failed (${failed.slice(0, 8).join("; ")}): the index is left as it was. Run again later.`)
+  process.exit(2)
+}
+if (failed.length) console.warn(`missing tiles: ${failed.join("; ")}`)
 fs.mkdirSync(OUT, { recursive: true })
 for (const f of fs.readdirSync(OUT)) if (/^[0-9a-z]{2}\.json$/.test(f)) fs.rmSync(path.join(OUT, f))
 let bytes = 0
