@@ -565,9 +565,43 @@ A simulated operating system in a nostalgic style.
 by Brandon Taylor and Cameron De Robertis.
 
 Tech Stack:
+- React 19 + Vite
+- 98.css
+- three.js (Pickleball 98, Pinball, SPECTRA and friends)
+- Node, Express, Socket.io and MongoDB (98 Messenger, online games)
+- Yjs (Come Over), MediaPipe (Twin Replay), Blockly (Visual Basic 98)`
+
+// what README said before (an untouched old copy is refreshed: OLD_DEFAULTS below)
+const OLD_README_TEXT = `98ish:
+
+A simulated operating system in a nostalgic style.
+by Brandon Taylor and Cameron De Robertis.
+
+Tech Stack:
 - React,
 - Bootstrap,
 - 98.css`
+
+// a cover letter to fill in (WordPad), in the same HTML WordPad saves
+const COVER_LETTER_DOC = [
+  '<p><font face="Times New Roman" style="font-size: 12pt">[Your Name]<br>[Street Address]<br>[City, State ZIP]<br>[Phone] &middot; [E-mail]</font></p>',
+  "<p><br></p>",
+  '<p><font face="Times New Roman" style="font-size: 12pt">[Today&#39;s date: Insert &gt; Date and Time...]</font></p>',
+  "<p><br></p>",
+  '<p><font face="Times New Roman" style="font-size: 12pt">[Hiring Manager&#39;s Name]<br>[Company]<br>[Street Address]<br>[City, State ZIP]</font></p>',
+  "<p><br></p>",
+  '<p><font face="Times New Roman" style="font-size: 12pt">Dear [Hiring Manager&#39;s Name]:</font></p>',
+  "<p><br></p>",
+  '<p style="text-indent: 0.5in"><font face="Times New Roman" style="font-size: 12pt">I am writing to apply for the [Position] role at [Company]. [One sentence on where you saw it, or who referred you.] With [number] years of experience in [your field], I would bring [your strongest skill] to your team.</font></p>',
+  "<p><br></p>",
+  '<p style="text-indent: 0.5in"><font face="Times New Roman" style="font-size: 12pt">In my current role at [Current Company], I [an accomplishment with a number in it: grew, saved, built, led...]. I also [a second accomplishment that matches what the job asks for].</font></p>',
+  "<p><br></p>",
+  '<p style="text-indent: 0.5in"><font face="Times New Roman" style="font-size: 12pt">I would welcome the chance to talk about how I can help [Company] [the goal from the job posting]. Thank you for your time and consideration.</font></p>',
+  "<p><br></p>",
+  '<p><font face="Times New Roman" style="font-size: 12pt">Sincerely,</font></p>',
+  "<p><br></p>",
+  '<p><font face="Times New Roman" style="font-size: 12pt">[Your Name]</font></p>',
+].join("")
 
 // WordPad's sample document (the same kind of HTML WordPad saves)
 const WELCOME_DOC = [
@@ -693,7 +727,7 @@ const DEFAULT_ITEMS = [
   ...["AOL", "Yahoo", "Tim Tang", "Ask Jeeves", "Geocities", "eBay", "IMDb", "Chit Chat", "ReDirector", "98ish Guestbook"].map((n) => [`C:/Bookmarks/${n}`, "file", "internet"]),
   ["C:/Hello World", "file", "text", "Hello World!"],
   ["C:/README", "file", "note", README_TEXT],
-  ["C:/Cover Letter", "file", "text"],
+  ["C:/Cover Letter", "file", "richtext", COVER_LETTER_DOC],
   // a secret for the curious (an achievement)
   ["C:/Windows/Temp/~SECRET.TXT", "file", "text", "You found the secret file!\r\n\r\nNobody ever looks in C:\\Windows\\Temp. Except you.\r\nAs a reward, here is a fact: the 98ish floppy drive holds exactly one helper.\r\n\r\n- Floppy"],
 ]
@@ -717,6 +751,28 @@ const removeShortcutAt = (fsys, path) => {
   if (!item || item.isDirectory || item.textContent) return
   dir.removeItem(item.name)
   if (dir !== fsys.root && !dir.content.length) dirs.at(-2).removeItem(dir.name)
+}
+
+// starting files whose contents changed: an untouched old copy on an existing drive is
+// replaced by the new one ([path, is this the untouched old copy?]); anything edited stays
+const OLD_DEFAULTS = [
+  ["C:/README", (f) => f.textContent === OLD_README_TEXT],
+  ["C:/Cover Letter", (f) => f.type === FILE_TYPE.text && !f.textContent],
+]
+
+const refreshDefault = (fsys, path, untouched) => {
+  const entry = DEFAULT_ITEMS.find((e) => e[0] === path)
+  if (!entry) return
+  const parts = path.split("/")
+  let dir = fsys.root
+  for (const part of parts.slice(0, -1)) {
+    dir = dir.getItem(part)
+    if (!dir?.isDirectory) return
+  }
+  const old = dir.getItem(parts.at(-1))
+  if (!old || old.isDirectory || !untouched(old)) return
+  dir.removeItem(old.name)
+  addAt(fsys, entry)
 }
 
 const addAt = (fsys, [path, kind, type, text = ""]) => {
@@ -1043,6 +1099,7 @@ const loadInto = (fsys, saved) =>
       for (const entry of DEFAULT_ITEMS) if (!seen.has(entry[0])) addAt(fsys, entry)
       // starting files that moved: the old copy goes (only if it's still the untouched shortcut)
       for (const [from, to] of MOVED_DEFAULTS) if (seen.has(from) && !seen.has(to)) removeShortcutAt(fsys, from)
+      for (const [path, untouched] of OLD_DEFAULTS) refreshDefault(fsys, path, untouched)
       return true
     } catch (error) {
       console.error("[fs] the saved drive couldn't be read", error)
