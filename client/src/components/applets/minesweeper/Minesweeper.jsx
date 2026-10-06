@@ -33,7 +33,14 @@ const save = (key, value) => {
 }
 
 const DEFAULT_SETTINGS = { level: "beginner", custom: { rows: 16, cols: 30, mines: 99 }, marks: true }
-const DEFAULT_BEST = Object.fromEntries(Object.keys(LEVELS).map((level) => [level, { seconds: 999, name: "Anonymous" }]))
+// best times start empty (the owner: real times only); the old "999 seconds, Anonymous"
+// placeholders saved by earlier versions read as empty too
+const DEFAULT_BEST = Object.fromEntries(Object.keys(LEVELS).map((level) => [level, null]))
+const realBest = (b) => (b && Number.isFinite(b.seconds) && !(b.seconds >= 999 && b.name === "Anonymous") ? b : null)
+const loadBest = () => {
+  const saved = load(BEST_KEY, DEFAULT_BEST) || {}
+  return Object.fromEntries(Object.keys(LEVELS).map((level) => [level, realBest(saved[level])]))
+}
 
 const fieldFor = (settings) => (settings.level === "custom" ? clampCustom(settings.custom) : LEVELS[settings.level])
 
@@ -66,7 +73,7 @@ const Minesweeper = ({ fitWindow, onClose, race }) => {
   const touch = useIsTouch()
   const chatItem = useGameChatMenuItem(race ? "race" : "minesweeper")
   const [settings, setSettings] = useState(() => load(SETTINGS_KEY, DEFAULT_SETTINGS))
-  const [best, setBest] = useState(() => load(BEST_KEY, DEFAULT_BEST))
+  const [best, setBest] = useState(loadBest)
   const [game, setGame] = useState(() => (race ? raceGame(race) : createGame(fieldFor(settings))))
   const [now, setNow] = useState(Date.now())
   const [pressed, setPressed] = useState(null) // { mode: "reveal" | "chord", index }
@@ -127,7 +134,7 @@ const Minesweeper = ({ fitWindow, onClose, race }) => {
     if (game.status !== "won" || settings.level === "custom" || race) return
     if (settings.level === "expert") unlock("mine-expert")
     const seconds = elapsedSeconds(game)
-    if (seconds < best[settings.level].seconds) setDialog({ kind: "record", seconds, name: "Anonymous" })
+    if (!best[settings.level] || seconds < best[settings.level].seconds) setDialog({ kind: "record", seconds, name: "Anonymous" })
   }, [game.status])
 
   // ---- size: on a desktop the window fits the board; on a phone the board fits the screen ----
@@ -444,8 +451,14 @@ const Minesweeper = ({ fitWindow, onClose, race }) => {
               {Object.entries(LEVELS).map(([level, { label }]) => (
                 <tr key={level}>
                   <th>{label}:</th>
-                  <td>{best[level].seconds} sec</td>
-                  <td>{best[level].name}</td>
+                  {best[level] ? (
+                    <>
+                      <td>{best[level].seconds} sec</td>
+                      <td>{best[level].name}</td>
+                    </>
+                  ) : (
+                    <td colSpan={2}>No best time yet</td>
+                  )}
                 </tr>
               ))}
             </tbody>
