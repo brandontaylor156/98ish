@@ -151,6 +151,11 @@ export const realLook = ({ date = new Date(), lat, lon, weather = CLEAR } = {}) 
   const hemiI = lerp(a.hemi[2], b.hemi[2], t) * (1 + 0.22 * c - 0.15 * w.rain)
   const hemiSky = lerpHex(mix(a.hemi[0], b.hemi[0]), 0xd6dde4, greyK * 0.6 * dayK)
   sunColor = lerpHex(sunColor, 0xe8eef5, greyK * 0.5)
+  // the camera's exposure: a lower sun puts less light on flat ground, and a camera (or an eye)
+  // opens up for it, so the photo-matched paint reads true in any season (clear-sky light only:
+  // clouds still darken the scene)
+  const flat = (el) => 0.9 + 2.6 * Math.sin((Math.max(el, 4) * Math.PI) / 180)
+  const autoExp = sun.elevation > 2 ? Math.max(1, Math.min(1.35, flat(76) / flat(sun.elevation))) : 1
   return {
     hour: date.getHours() + date.getMinutes() / 60,
     kind,
@@ -165,7 +170,7 @@ export const realLook = ({ date = new Date(), lat, lon, weather = CLEAR } = {}) 
     sun: { color: sunColor, intensity: sunI, dir },
     hemi: [hemiSky, mix(a.hemi[1], b.hemi[1]), hemiI],
     fog,
-    exposure: lerp(a.exposure, b.exposure, t) * (1 - 0.05 * w.rain),
+    exposure: lerp(a.exposure, b.exposure, t) * (1 - 0.05 * w.rain) * autoExp,
     ground: lerp(a.ground, b.ground, t),
     lights: sun.elevation < 3 || (c > 0.85 && w.rain > 0.4 && sun.elevation < 12),
     stars: sun.elevation < -8 && c < 0.6,

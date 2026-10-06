@@ -16,7 +16,8 @@ import { createAudio } from "./audio.js"
 import { createAnim, seatedPose, setMood, situation, splitStep, updateAnim } from "./anim.js"
 import { createFigure } from "./rig.js"
 import { athletesReady, createAthlete, loadAthletes } from "./athlete.js"
-import { buildVenue, VENUES } from "./venue.js"
+import { buildVenue, CLASSIC_PLACES, VENUES } from "./venue.js"
+import { fetchWeather } from "./park/weather.js"
 import { CHARACTERS, lookFor } from "./looks.js"
 import { characterLook, validateLook } from "./locker.js"
 import { actionFor, bindingsFor, padEdges, readPad, stickAim } from "./input.js"
@@ -104,6 +105,17 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
     renderer.toneMappingExposure = venue.def.exposure
   }
   venueTone()
+  // Real Weather at Classic Venues (Options > Sky; settings.realWeather): the classic venue
+  // borrows a real place's weather today (Open-Meteo through park/weather.js, cached)
+  const venueWeather = () => {
+    const v = venue
+    if (venueCustom || !settings.realWeather || settings.quality === "low") return v?.setWeather?.(null)
+    const place = CLASSIC_PLACES[venueId]
+    if (!place || !v?.setWeather) return
+    fetchWeather(place).then((wx) => {
+      if (venue === v && wx && settings.realWeather) v.setWeather(wx)
+    })
+  }
   const setVenue = (id) => {
     const custom = id && typeof id === "object" && id.build ? id : null
     const next = custom ? custom.key : VENUES[id] ? id : "park"
@@ -114,6 +126,7 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
     venue = custom ? custom.build(scene, { quality: settings.quality }) : buildVenue(scene, { venue: venueId, quality: settings.quality })
     venue.setScreenCompact?.(portraitScreen())
     venueTone()
+    venueWeather()
     audio.setCrowd(settings.sound ? venue.def.crowd : 0)
     audio.setRoom(custom ? custom.room || "park" : venueId)
     placeUmpire()
@@ -2152,7 +2165,9 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
     },
     setSettings(patch) {
       const quality = patch.quality && patch.quality !== settings.quality
+      const weatherChanged = "realWeather" in patch && !!patch.realWeather !== !!settings.realWeather
       settings = { ...settings, ...patch }
+      if (weatherChanged && !quality) venueWeather()
       bindings = bindingsFor(settings.keys)
       audio.setEnabled(settings.sound)
       audio.setVoice(settings.voice)

@@ -218,6 +218,10 @@ try {
   await page.waitForTimeout(800)
   const intro = await page.$('[data-park="intro"] button')
   if (intro) await intro.click()
+  // Real Sky: a fixed clear sky (live weather would make the colors depend on the day); --sky real
+  // uses today's weather, --sky off the classic hour looks
+  const SKY = opt("sky", "clear")
+  await page.evaluate((m) => window.__park.setSky?.(m === "off" ? { real: false } : { real: true, mode: m }), SKY)
   await page.evaluate((h) => window.__park.setHour(h), HOUR)
   if (opt("tone")) await page.evaluate((t) => (window.__park.toneMapping = t), Number(opt("tone")))
   await page.waitForTimeout(500)

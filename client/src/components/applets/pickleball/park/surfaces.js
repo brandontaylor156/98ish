@@ -168,8 +168,8 @@ const patch = (material, kind) => {
   // rain: wet ground darkens, more in its low spots (where water stands)
   float surfPuddle = 0.0;
   ${wets ? `if (surfWet > 0.0 && vSurfN.y > 0.6) {
-    surfPuddle = smoothstep(0.47, 0.36, texture2D(${ground ? "surfB" : "surfTex"}, vSurfW.xz * 0.045).r) * surfWet;
-    diffuseColor.rgb *= 1.0 - surfWet * 0.24 - surfPuddle * 0.18;
+    surfPuddle = smoothstep(0.42, 0.28, texture2D(${ground ? "surfB" : "surfTex"}, vSurfW.xz * 0.031).r) * surfWet;
+    diffuseColor.rgb *= 1.0 - surfWet * 0.22 - surfPuddle * 0.12;
   }` : ""}
   // grime where a wall meets the ground
   if (surfGrime > 0.0 && abs(vSurfN.y) < 0.5) diffuseColor.rgb *= 1.0 - surfGrime * (1.0 - smoothstep(0.0, 0.8, vSurfW.y));
@@ -189,7 +189,7 @@ const patch = (material, kind) => {
       .replace(
         "#include <opaque_fragment>",
         `${wets ? `// wet ground (and its puddles) mirror the sky at a low angle
-  outgoingLight += surfSky * pow(1.0 - clamp(abs(dot(normal, normalize(vViewPosition))), 0.0, 1.0), 4.0) * (surfWet * 0.35 + surfPuddle * 0.9) * surfOn;` : ""}
+  outgoingLight += surfSky * pow(1.0 - clamp(abs(dot(normal, normalize(vViewPosition))), 0.0, 1.0), 5.0) * (surfWet * 0.2 + surfPuddle * 0.4) * surfOn;` : ""}
   ${k.sheen ? `// a sealed court or polished floor catches the sky at a low angle (Fresnel)
   outgoingLight += surfSky * pow(1.0 - clamp(abs(dot(normal, normalize(vViewPosition))), 0.0, 1.0), 5.0) * ${k.sheen.toFixed(2)} * surfOn;` : ""}
   #include <opaque_fragment>`

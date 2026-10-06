@@ -115,6 +115,23 @@ test("weather: fetched once per venue, cached 20 minutes, offline gives null", a
   assert.equal(await fetchWeather(null), null)
 })
 
+test("classic venues: each borrows a real place for Real Weather", async () => {
+  const { CLASSIC_PLACES, VENUES } = await import("../venue.js")
+  for (const id of Object.keys(VENUES)) {
+    const p = CLASSIC_PLACES[id]
+    assert.ok(p && Number.isFinite(p.lat) && Number.isFinite(p.lon) && p.label, `${id} has a place`)
+  }
+})
+
+test("realLook: a lower sun opens the camera up (paint reads true in any season), never past 1.35x", () => {
+  const lat = 33.71
+  const lon = -117.92
+  const june = realLook({ date: new Date("2026-06-21T19:55:00Z"), lat, lon })
+  const dec = realLook({ date: new Date("2026-12-21T19:55:00Z"), lat, lon })
+  assert.ok(dec.exposure > june.exposure, `${dec.exposure} > ${june.exposure}`)
+  assert.ok(dec.exposure / june.exposure <= 1.36)
+})
+
 test("realLook: midday clear is bright with the court lights off; overcast dims the sun; night has stars", () => {
   const lat = 33.71
   const lon = -117.92

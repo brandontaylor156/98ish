@@ -150,7 +150,7 @@ const readPrefs = () => {
   }
   return p
 }
-const engineSettings = (p) => ({ sound: p.sound, voice: p.voice, camera: p.camera, aid: p.aid, trail: p.trail, assist: p.assist, quality: p.quality, cuts: p.cuts, replays: p.replays, keys: p.keys, focus: p.focus || "auto", window: TIMING[p.timing] || TIMING.normal })
+const engineSettings = (p) => ({ sound: p.sound, voice: p.voice, camera: p.camera, aid: p.aid, trail: p.trail, assist: p.assist, quality: p.quality, cuts: p.cuts, replays: p.replays, keys: p.keys, focus: p.focus || "auto", window: TIMING[p.timing] || TIMING.normal, realWeather: p.realSky !== false && !!p.classicWeather })
 
 // on-screen controls (touchplay.js): the move pad bottom-left or bottom-right, the hit area
 // everywhere else, and Pause. Camera and the controls' gear are in the pause menu.
@@ -1260,6 +1260,8 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
               ["sunset", "Sunset"],
               ["night", "Night"],
             ].map(([v, l]) => ({ label: l, checked: (prefs.skyMode || "real") === v, disabled: prefs.realSky === false || prefs.quality === "low", onClick: () => setPrefs({ skyMode: v }) })),
+            "-",
+            { label: "Real Weather at Classic Venues", checked: !!prefs.classicWeather, disabled: prefs.realSky === false || prefs.quality === "low", onClick: () => setPrefs({ classicWeather: !prefs.classicWeather }) },
           ],
         },
         "-",
