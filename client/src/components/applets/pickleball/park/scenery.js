@@ -247,15 +247,75 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
     m.rotation.y = yawFor(b.ux, b.uz)
     group.add(m)
   }
+  // Courts with their own surround color (feature pods, red clay): in a bank, one patch per
+  // color round those courts, reaching the bank's edge wherever they're near it (aerials show
+  // a pod painted to its fence); a court outside every bank gets a pad round it.
+  const padOf = (c) => ({ w: c.W + (c.s === "t" ? 6.4 : 2.6), l: c.L + (c.s === "t" ? 11 : 4.8) })
+  const inBank = (c, b) => {
+    const dx = c.x - b.cx
+    const dz = c.z - b.cz
+    return Math.abs(dx * b.ux + dz * b.uz) <= b.hx && Math.abs(-dx * b.uz + dz * b.ux) <= b.hz
+  }
+  const patched = new Set()
+  for (const b of S.banks) {
+    if (b.s === "b") continue
+    const byColor = new Map()
+    for (const c of S.courts) {
+      const paint = c.col !== null && c.col !== undefined ? (S.palettes || [])[c.col] : null
+      if (!paint?.surround || patched.has(c) || !inBank(c, b)) continue
+      if (!byColor.has(paint.surround)) byColor.set(paint.surround, { paint, courts: [] })
+      byColor.get(paint.surround).courts.push(c)
+    }
+    const SNAP = 4.5
+    const rects = []
+    for (const { paint, courts } of byColor.values()) {
+      let u0 = Infinity, u1 = -Infinity, v0 = Infinity, v1 = -Infinity
+      for (const c of courts) {
+        patched.add(c)
+        const { w, l } = padOf(c)
+        const cs = Math.cos(c.rot)
+        const sn = Math.sin(c.rot)
+        for (const [X, Z] of [[-w / 2, -l / 2], [w / 2, -l / 2], [w / 2, l / 2], [-w / 2, l / 2]]) {
+          const dx = c.x + X * cs + Z * sn - b.cx
+          const dz = c.z - X * sn + Z * cs - b.cz
+          const u = dx * b.ux + dz * b.uz
+          const v = -dx * b.uz + dz * b.ux
+          u0 = Math.min(u0, u), u1 = Math.max(u1, u), v0 = Math.min(v0, v), v1 = Math.max(v1, v)
+        }
+      }
+      if (u0 + b.hx < SNAP) u0 = -b.hx
+      if (b.hx - u1 < SNAP) u1 = b.hx
+      if (v0 + b.hz < SNAP) v0 = -b.hz
+      if (b.hz - v1 < SNAP) v1 = b.hz
+      u0 = Math.max(u0, -b.hx), u1 = Math.min(u1, b.hx), v0 = Math.max(v0, -b.hz), v1 = Math.min(v1, b.hz)
+      rects.push({ paint, u0, u1, v0, v1 })
+    }
+    // two patches side by side meet halfway (pods share a pen with a thin divider between)
+    for (const A of rects)
+      for (const B of rects) {
+        if (A === B) continue
+        const overlapV = Math.min(A.v1, B.v1) - Math.max(A.v0, B.v0)
+        const overlapU = Math.min(A.u1, B.u1) - Math.max(A.u0, B.u0)
+        if (overlapV > 0 && B.u0 >= A.u1 && B.u0 - A.u1 < SNAP) A.u1 = B.u0 = (A.u1 + B.u0) / 2
+        if (overlapU > 0 && B.v0 >= A.v1 && B.v0 - A.v1 < SNAP) A.v1 = B.v0 = (A.v1 + B.v0) / 2
+      }
+    for (const { paint, u0, u1, v0, v1 } of rects) {
+      const uc = (u0 + u1) / 2
+      const vc = (v0 + v1) / 2
+      const patch = new THREE.Mesh(keep(new THREE.PlaneGeometry(u1 - u0, v1 - v0).rotateX(-Math.PI / 2)), kit.paintMats(paint).surround)
+      patch.position.set(b.cx + uc * b.ux - vc * b.uz, 0.004, b.cz + uc * b.uz + vc * b.ux)
+      patch.rotation.y = yawFor(b.ux, b.uz)
+      group.add(patch)
+    }
+  }
   const groups = new Map()
   const palettes = S.palettes || []
   for (const c of S.courts) {
     const paint = c.col !== null && c.col !== undefined ? palettes[c.col] : null
-    // (a court with its own surround color: a pad round it on the bank)
-    if (paint?.surround) {
+    // (a court with its own surround color outside every bank: a pad round it)
+    if (paint?.surround && !patched.has(c)) {
       const pm = kit.paintMats(paint)
-      const w = c.W + (c.s === "t" ? 6.4 : 2.6)
-      const l = c.L + (c.s === "t" ? 11 : 4.8)
+      const { w, l } = padOf(c)
       const pad = new THREE.Mesh(keep(new THREE.PlaneGeometry(w, l).rotateX(-Math.PI / 2)), pm.surround)
       pad.position.set(c.x, 0.004, c.z)
       pad.rotation.y = c.rot
@@ -1826,11 +1886,23 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
       }
     } else if (x.type === "solar") {
       // a solar canopy (h: how high its panels are; a court underneath needs ~6 m)
+      // (from above, as aerials show it: a light grey frame with rows of dark panels;
+      // x.color sets the frame)
       const sh = x.h || 3.6
-      const panel = new THREE.Mesh(keep(new THREE.BoxGeometry(x.w || 30, 0.15, x.d || 20)), lambert(0x23304a))
+      const W = x.w || 30
+      const D = x.d || 20
+      const panel = new THREE.Mesh(keep(new THREE.BoxGeometry(W, 0.15, D)), lambert(x.color ? new THREE.Color(x.color) : 0x9aa1aa))
       panel.position.set(x.x, sh, x.z)
       panel.rotation.set(0.12, ry, 0, "YXZ")
       group.add(panel)
+      const rows = Math.max(2, Math.round(D / 3))
+      const rowGeo = keep(new THREE.BoxGeometry(W - 0.6, 0.04, (D / rows) * 0.5))
+      const rowMat = lambert(0x4a5a72)
+      for (let k = 0; k < rows; k++) {
+        const row = new THREE.Mesh(rowGeo, rowMat)
+        row.position.set(0, 0.095, -D / 2 + (D / rows) * (k + 0.5))
+        panel.add(row)
+      }
       const c = Math.cos(ry)
       const sn = Math.sin(ry)
       for (let i = -1; i <= 1; i++)
