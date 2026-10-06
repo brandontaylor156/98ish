@@ -19,7 +19,7 @@ export const ACHIEVEMENTS = [
   { id: "recycle", title: "Taking Out the Trash", text: "Emptied the Recycle Bin.", hint: "Delete something, then make it gone for good." },
   { id: "photo-strip", title: "Say Cheese!", text: "Made a photo strip in Camera.", hint: "Camera has a photo booth mode: four poses, one strip." },
   { id: "wallpaper", title: "Interior Decorator", text: "Put your own picture on the desktop.", hint: "Display Properties and Paint can both change the wallpaper." },
-  { id: "updates", title: "Fully Patched", text: "Installed every Windows Update.", hint: "Windows Update has a few critical things for you. All of them." },
+  { id: "updates", title: "Fully Patched", text: "Brought 98ish up to date with 98ish Update.", hint: "98ish Update knows when there's a newer version." },
   { id: "smarterchild", title: "Robot Friend", text: "Chatted with SmarterChild.", hint: "Somebody on 98 Messenger is always online." },
   { id: "guestbook", title: "Sign Here", text: "Signed the 98ish guestbook.", hint: "A homepage on the Web Ring would love to hear from you." },
   { id: "full-song", title: "Encore", text: "Listened to a whole song in Media Player.", hint: "Play something in My Music all the way to the end." },

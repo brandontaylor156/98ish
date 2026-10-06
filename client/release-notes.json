@@ -1,0 +1,317 @@
+[
+ {
+  "hash": "89a6e94",
+  "at": 1791319352000,
+  "title": "real-substance audit (docs/real-substance-audit.md)"
+ },
+ {
+  "hash": "d246738",
+  "at": 1791318940000,
+  "title": "Floppy brain follow-up: find programs by meaning, a 45 s generation limit"
+ },
+ {
+  "hash": "f4c882e",
+  "at": 1791318720000,
+  "title": "LAN Party 98: shareware DOOM/Heretic with P2P LAN games, Shockwave Arcade (Ruffle), Virtual PC 98 (v86 + FreeDOS)"
+ },
+ {
+  "hash": "7fc81ca",
+  "at": 1791315036000,
+  "title": "Ask Floppy: an on-device assistant in Floppy's bubble that operates 98ish (tools from the registries, confirms, rule fallback, opt-in local model)"
+ },
+ {
+  "hash": "051d48c",
+  "at": 1791312657000,
+  "title": "venue realism round 3: baked ambient occlusion, HDRI reflections and sheen, more geometry detail, desktop post (bloom, MSAA)"
+ },
+ {
+  "hash": "04532c6",
+  "at": 1791312116000,
+  "title": "Venue Finder index: town names, ZIP code search, rotating Overpass mirrors"
+ },
+ {
+  "hash": "599ea11",
+  "at": 1791309994000,
+  "title": "Visual Basic 98: a VB-style app builder (form designer, VB-lite code + Blockly, sandboxed runtime) and programs sent in Messenger with shared state"
+ },
+ {
+  "hash": "50d6b1f",
+  "at": 1791307864000,
+  "title": "spatial voice: hear friends where they stand in My Park, Come Over and Watch Together (P2P WebRTC, HRTF)"
+ },
+ {
+  "hash": "3c12bcb",
+  "at": 1791305933000,
+  "title": "Coach: diagnosis from your own film vs level bands, 'watch this moment' with a pro ghost, adaptive drill plan, progress"
+ },
+ {
+  "hash": "e9efb0e",
+  "at": 1791305395000,
+  "title": "Live Broadcast: a real game tracked live on the filming phone, watched in 3D by friends at the real venue (data only, no video)"
+ },
+ {
+  "hash": "9e83879",
+  "at": 1791301221000,
+  "title": "venue realism round 2: real trees and palms, cars, windows in relief, wear decals, lit chain-link, padded halls"
+ },
+ {
+  "hash": "11fcded",
+  "at": 1791298126000,
+  "title": "venue realism foundation: CC0 world-space surface textures, sun shadows, Graphics Low/High"
+ },
+ {
+  "hash": "a1ad167",
+  "at": 1791295345000,
+  "title": "Live Venue Presence: friends physically at a real venue appear there in My Park (court-level, opt-in), badges, session check-in"
+ },
+ {
+  "hash": "4a39c0d",
+  "at": 1791293677000,
+  "title": "venue polish: Paseo outline roofs, real parking lot layout, climbable SMASH mezzanine and Los Cab ballroom"
+ },
+ {
+  "hash": "4e8b308",
+  "at": 1791291580000,
+  "title": "Whittier Narrows, Paseo Club and Sinaloa MS rebuilt from their reference packs"
+ },
+ {
+  "hash": "7b2a379",
+  "at": 1791291580000,
+  "title": "Venue Finder: any pickleball venue in OpenStreetMap, built live, walkable and playable with friends"
+ },
+ {
+  "hash": "0c76f89",
+  "at": 1791291433000,
+  "title": "venue docs (Newport/floors notes)"
+ },
+ {
+  "hash": "606d7c7",
+  "at": 1791291184000,
+  "title": "Twin Clones: AI opponents/partners that play like your real friends, fit from Twin Replay films"
+ },
+ {
+  "hash": "ea86bba",
+  "at": 1791288134000,
+  "title": "Wolf + Bear and Newport rebuilt from their reference packs (stairs and floor levels, rooftop terrace, interior finishes)"
+ },
+ {
+  "hash": "9533c4c",
+  "at": 1791288040000,
+  "title": "Twin Replay: film a real game, on-device tracking, 3D replay at the real venue, stats, shareable .twin files"
+ },
+ {
+  "hash": "f11d50e",
+  "at": 1791286637000,
+  "title": "Come Over: the multiplayer desktop (presence, visit, follow, shared Notepad/Paint via Yjs, shared folder, file handoff)"
+ },
+ {
+  "hash": "b5109b5",
+  "at": 1791286057000,
+  "title": "venues-wb-np"
+ },
+ {
+  "hash": "b0e32b5",
+  "at": 1791276645000,
+  "title": "venue fidelity pilots: true-color light, compare/solve tools, room + prop kits, Los Cab and California SMASH rebuilt and walkable"
+ },
+ {
+  "hash": "85d6587",
+  "at": 1791276123000,
+  "title": "Pickleball Club 98: courtside scorekeeper, friend ratings, Who's in? sessions, venue tie-ins"
+ },
+ {
+  "hash": "cfbe2c2",
+  "at": 1791269247000,
+  "title": "Buddy Locator: opt-in live location sharing with buddies, places and arrive/leave alerts"
+ },
+ {
+  "hash": "fefd049",
+  "at": 1791268332000,
+  "title": "My Park walk camera: never behind a wall (indoor venues)"
+ },
+ {
+  "hash": "905e4f2",
+  "at": 1791267536000,
+  "title": "Pickleball real venues: the owner's seven venues in My Park (Phase 0), makeLayout(spec), park games on your own court"
+ },
+ {
+  "hash": "637fb77",
+  "at": 1791267442000,
+  "title": "Shared Albums + Memories (Photos)"
+ },
+ {
+  "hash": "006e139",
+  "at": 1791266683000,
+  "title": "Watch & Listen Together and Music 98"
+ },
+ {
+  "hash": "22d9fba",
+  "at": 1791254923000,
+  "title": "Critter Catch Pinball (two tables, catch/evolve/map/bonus stages, Critter Dex)"
+ },
+ {
+  "hash": "9e108d0",
+  "at": 1791253129000,
+  "title": "Casino 98: Texas Hold'em (with online), Blackjack, Roulette, Slots, Video Poker, Craps, Baccarat"
+ },
+ {
+  "hash": "6c07284",
+  "at": 1791252172000,
+  "title": "Chess Puzzles (Lichess CC0 set) and Imposter party game"
+ },
+ {
+  "hash": "330adef",
+  "at": 1791252136000,
+  "title": "fixes: Pickleball drop-downs, Tetris Hold, draggable controls box, Battleship placement, Boom Frenzy ramp, Echo Pads"
+ },
+ {
+  "hash": "b0a603d",
+  "at": 1791181267000,
+  "title": "Pickleball arms: anatomical arm solver, twist bones, natural hands"
+ },
+ {
+  "hash": "de6b532",
+  "at": 1791179387000,
+  "title": "My Park: a walkable pickleball park with live games, spectating and online players"
+ },
+ {
+  "hash": "b36eafd",
+  "at": 1791176220000,
+  "title": "Pickleball swipe trail and real pickleball sounds"
+ },
+ {
+  "hash": "01f1de1",
+  "at": 1791173174000,
+  "title": "Pickleball athletes: realistic athletic bodies, faces, breathing, natural idle"
+ },
+ {
+  "hash": "47d4a63",
+  "at": 1791172060000,
+  "title": "Pickleball controls and fixes: Swipe hitting, swing path, camera, banners, ball in hand"
+ },
+ {
+  "hash": "e56b94c",
+  "at": 1791171478000,
+  "title": "main (Pickleball Practice) into the pb7 phone round"
+ },
+ {
+  "hash": "40f28ac",
+  "at": 1791170097000,
+  "title": "Pickleball Practice: lessons, ball machine, drills"
+ },
+ {
+  "hash": "8146db0",
+  "at": 1791160161000,
+  "title": "the retro pixel-art redraw of the five quick games"
+ },
+ {
+  "hash": "91384d2",
+  "at": 1791160004000,
+  "title": "Weather and Do Not Disturb"
+ },
+ {
+  "hash": "1a2625f",
+  "at": 1791159252000,
+  "title": "Notes and Tasks: sticky notes with checklists and sharing, Outlook-style tasks"
+ },
+ {
+  "hash": "7726056",
+  "at": 1791157261000,
+  "title": "Pinball: Blue Screen, a 98ish-themed pixel-art table"
+ },
+ {
+  "hash": "6ad9d50",
+  "at": 1791156842000,
+  "title": "Merge: no iPhone hold menus outside text fields and reading areas"
+ },
+ {
+  "hash": "68467b4",
+  "at": 1791156504000,
+  "title": "Pickleball motion capture: motion matching on real mocap, MakeHuman players"
+ },
+ {
+  "hash": "e4bcc23",
+  "at": 1791154191000,
+  "title": "98 Messenger: saved history, pictures, voice messages, reactions, read receipts"
+ },
+ {
+  "hash": "dfdf68a",
+  "at": 1791154121000,
+  "title": "five new games: Boom Frenzy, Color Match, Echo Pads, Zap It!, Tetherball"
+ },
+ {
+  "hash": "47493ac",
+  "at": 1791151287000,
+  "title": "Tetris: plays and looks like the official app on phones"
+ },
+ {
+  "hash": "5e6c5ec",
+  "at": 1791149807000,
+  "title": "games first wave: real-time clock, faster taps, AA, shadows, no shader stalls"
+ },
+ {
+  "hash": "697e23c",
+  "at": 1791147863000,
+  "title": "Pickleball pro movement and left/right-handed players"
+ },
+ {
+  "hash": "69bd406",
+  "at": 1791144531000,
+  "title": "simplicity round 2: baseline views for the remaining programs"
+ },
+ {
+  "hash": "c51a122",
+  "at": 1791143648000,
+  "title": "Tetris phone gestures (drag, flick to drop, tap to rotate, swipe up to hold)"
+ },
+ {
+  "hash": "eff919e",
+  "at": 1791134973000,
+  "title": "simple baseline views: More options everywhere"
+ },
+ {
+  "hash": "1507c38",
+  "at": 1791132229000,
+  "title": "Pickleball upper body: real strokes, ready stance, no arm pops"
+ },
+ {
+  "hash": "337f92d",
+  "at": 1791109991000,
+  "title": "Pickleball: real footwork and the Locker Room"
+ },
+ {
+  "hash": "50202f5",
+  "at": 1791108095000,
+  "title": "Compass true internet for signed-on users"
+ },
+ {
+  "hash": "12425db",
+  "at": 1791106729000,
+  "title": "phone keyboard polish: Enter labels, chat while typing, Speed Typist"
+ },
+ {
+  "hash": "582e3d9",
+  "at": 1791105050000,
+  "title": "Merge: popups stay put when a drag ends"
+ },
+ {
+  "hash": "fbe32d1",
+  "at": 1791103545000,
+  "title": "Compass: every site shows inside Compass"
+ },
+ {
+  "hash": "905b04b",
+  "at": 1791102831000,
+  "title": "smooth popup dragging on phones"
+ },
+ {
+  "hash": "5e69d4c",
+  "at": 1791101459000,
+  "title": "synced files in Vercel Blob"
+ },
+ {
+  "hash": "2aecf99",
+  "at": 1791100711000,
+  "title": "Compass, the 98ish web browser, in allowlist mode"
+ }
+]

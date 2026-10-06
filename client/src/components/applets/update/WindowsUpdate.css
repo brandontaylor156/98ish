@@ -150,3 +150,26 @@
 .wuList input[type="checkbox"] + label::after {
   top: 4px;
 }
+
+/* what's new list and the indeterminate check bar */
+.wuNotes li {
+  display: grid;
+  grid-template-columns: 6.5em 1fr;
+  gap: 6px;
+  align-items: start;
+}
+.wuDate {
+  color: #404040;
+  white-space: nowrap;
+}
+.wuIndeterminate {
+  width: 35%;
+  animation: wuSweep 1.2s linear infinite;
+}
+@keyframes wuSweep {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(300%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .wuIndeterminate { animation: none; width: 100%; }
+}
