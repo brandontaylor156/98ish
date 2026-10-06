@@ -28,6 +28,9 @@ const arg = (k, d = null) => {
 }
 const CACHE = arg("--cache", path.join(HERE, ".cache"))
 const REFRESH = process.argv.includes("--refresh")
+// --partial: no asking at all; build the index from every tile already in --cache (any region,
+// any tile size). Resumable: a normal run skips tiles it has cached, so it fills in what's missing.
+const PARTIAL = process.argv.includes("--partial")
 const REGION = arg("--region", "world")
 // the main Overpass address, then its sister servers (same operator) when one answers 429/504
 const ENDPOINTS = process.env.OVERPASS_URL ? [process.env.OVERPASS_URL] : ["https://overpass-api.de/api/interpreter", "https://z.overpass-api.de/api/interpreter", "https://lz4.overpass-api.de/api/interpreter"]
@@ -88,8 +91,8 @@ const ask = async (name, tile, tries = 4) => {
     }
     if (res.status === 429 || res.status === 504 || res.status === 502) {
       ep++
-      console.log(`  ${name} ${tile}: HTTP ${res.status}, waiting 60 s (next: ${ENDPOINTS[ep % ENDPOINTS.length]})`)
-      await sleep(60_000)
+      console.log(`  ${name} ${tile}: HTTP ${res.status}, waiting 20 s (next: ${ENDPOINTS[ep % ENDPOINTS.length]})`)
+      await sleep(20_000)
       continue
     }
     if (!res.ok) throw new Error(`${name}: HTTP ${res.status} ${(await res.text()).slice(0, 300)}`)
@@ -108,7 +111,7 @@ const ask = async (name, tile, tries = 4) => {
 }
 // a tile the server turns down splits into four (to 2.5 degrees), and those are asked instead
 const askTile = async (name, tile) => {
-  const small = tile[2] - tile[0] <= 1.25
+  const small = tile[2] - tile[0] <= 0.7
   const d = await ask(name, tile, small ? 4 : 2)
   if (d) return d
   if (small) {
@@ -138,12 +141,25 @@ const askAll = async (name, only = null) => {
   return out
 }
 
-const features = await askAll("features")
+// every cached answer of one kind, whatever region or tile size asked it
+const cachedAll = (name) => {
+  const out = { elements: [], osm3s: null }
+  if (!fs.existsSync(CACHE)) return out
+  for (const f of fs.readdirSync(CACHE)) {
+    if (!f.startsWith(`${name}-`)) continue
+    const d = JSON.parse(fs.readFileSync(path.join(CACHE, f), "utf8"))
+    out.elements.push(...d.elements)
+    out.osm3s ??= d.osm3s
+  }
+  return out
+}
+const coveredTiles = PARTIAL && fs.existsSync(CACHE) ? fs.readdirSync(CACHE).filter((f) => f.startsWith("features-")).map((f) => f.slice(9, -5).split("_").map(Number)) : null
+const features = PARTIAL ? cachedAll("features") : await askAll("features")
 // (names and towns only where there are courts)
 const withCourts = new Set(tiles.filter((t) => features.elements.some((e) => { const ll = e.center || e; return ll.lat >= t[0] && ll.lat < t[2] && ll.lon >= t[1] && ll.lon < t[3] })).map((t) => t.join(",")))
 console.log(`${features.elements.length} features in ${withCourts.size} of ${tiles.length} tiles`)
-const placesRaw = await askAll("places", withCourts)
-const townsRaw = await askAll("towns", withCourts)
+const placesRaw = PARTIAL ? cachedAll("places") : await askAll("places", withCourts)
+const townsRaw = PARTIAL ? cachedAll("towns") : await askAll("towns", withCourts)
 // (a feature on a tile edge can come back from both tiles)
 const dedupe = (list) => {
   const seen = new Set()
@@ -218,7 +234,7 @@ for (const [gh, rows] of shards) rows.sort((a, b) => b[4] + b[5] * 2 - (a[4] + a
 for (const [gh, rows] of shards) rows.forEach((row, i) => row[7] && named.push([row[7], gh, i]))
 
 // (a run that lost too many tiles keeps the index it had rather than shipping holes)
-if (failed.length > Math.max(2, tiles.length * 0.03)) {
+if (!PARTIAL && failed.length > Math.max(2, tiles.length * 0.03)) {
   console.error(`${failed.length} tiles failed (${failed.slice(0, 8).join("; ")}): the index is left as it was. Run again later.`)
   process.exit(2)
 }
@@ -237,7 +253,7 @@ const townRows = [...townCount.values()].map((t) => [t.name, t.shards.has(t.gh) 
 const search = { v: 1, towns: townRows, named }
 const searchText = JSON.stringify(search)
 fs.writeFileSync(path.join(OUT, "search.json"), searchText)
-const meta = { v: 1, failedTiles: failed, built: new Date().toISOString().slice(0, 10), region: REGION, venues: clusters.length, courts: courtTotal, shards: shards.size, osm_base: features.osm3s?.timestamp_osm_base || null, attribution: F.ATTRIBUTION, license: "ODbL 1.0 (https://opendatacommons.org/licenses/odbl/1-0/)" }
+const meta = { v: 1, partial: PARTIAL || undefined, covered: coveredTiles || undefined, failedTiles: failed, built: new Date().toISOString().slice(0, 10), region: REGION, venues: clusters.length, courts: courtTotal, shards: shards.size, osm_base: features.osm3s?.timestamp_osm_base || null, attribution: F.ATTRIBUTION, license: "ODbL 1.0 (https://opendatacommons.org/licenses/odbl/1-0/)" }
 fs.writeFileSync(path.join(OUT, "meta.json"), JSON.stringify(meta, null, 1))
 fs.writeFileSync(path.join(OUT, "LICENSE.txt"), "Pickleball 98 Venue Finder index.\nData © OpenStreetMap contributors (https://www.openstreetmap.org/copyright).\nThis index is a derivative database of OpenStreetMap and is made available under the Open Database License 1.0 (https://opendatacommons.org/licenses/odbl/1-0/).\nBuilt by tools/venues/world/build-index.mjs.\n")
 console.log(`${features.elements.length} features -> ${clusters.length} venues (${courtTotal} courts) in ${shards.size} shards, ${(bytes / 1024).toFixed(0)} KB; search.json ${(searchText.length / 1024).toFixed(0)} KB (${townRows.length} towns, ${named.length} named)`)
