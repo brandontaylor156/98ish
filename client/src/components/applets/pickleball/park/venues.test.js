@@ -316,3 +316,25 @@ test("parking lots: stalls in bays with driving aisles, inside the lot, along it
     assert.ok(u > 0 && u < 60 && w > 0 && w < 40)
   }
 })
+
+test("every venue's stairs climb to a deck you can walk on (Newport's terrace, SMASH's mezzanine, Los Cab's ballroom deck)", async () => {
+  const { stepWalker, createWalker } = await import("./walker.js")
+  const withStairs = IDS.filter((id) => get(id).L.STAIRS?.length)
+  for (const want of ["newport", "smash", "loscab"]) assert.ok(withStairs.includes(want), `${want} has stairs`)
+  for (const id of withStairs) {
+    const { L } = get(id)
+    setLayout(L)
+    for (const s of L.STAIRS) {
+      const deck = L.DECKS.find((d) => Math.abs(d.y - s.y1) < 0.1)
+      assert.ok(deck, `${id}: the stairs arrive at a deck`)
+      const yaw = Math.atan2(s.ux, s.uz)
+      const w = createWalker(s.a.x - s.ux * 1.2, s.a.z - s.uz * 1.2, yaw)
+      for (let k = 0; k < 500 && (w.y || 0) < s.y1 - 0.01; k++) stepWalker(w, { x: 0, y: 1 }, yaw, 1 / 30)
+      assert.ok(Math.abs(w.y - s.y1) < 0.01, `${id}: climbed to ${w.y} of ${s.y1}`)
+      // on along the top: still up there
+      for (let k = 0; k < 45; k++) stepWalker(w, { x: 0, y: 1 }, yaw, 1 / 30)
+      assert.ok(Math.abs(w.y - s.y1) < 0.01, `${id}: on the deck (${w.y})`)
+    }
+  }
+  setLayout(get("loscab").L)
+})

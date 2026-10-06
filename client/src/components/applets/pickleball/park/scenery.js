@@ -935,7 +935,19 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
     const wallMat = b.windows === "none" ? plainMatFor(color) : wallMatFor(color, b.windows === "mission" ? "mission" : ribs)
     const y0 = b.y0 || 0
     // (a hall's outside walls are drawn with its inside, cut for the door)
-    if (!b.hall && b.h - y0 > 0.05) group.add(new THREE.Mesh(wallRing(b.p, y0, b.h, b.doors && !b.roofOnly ? { gaps: doorsOn(b.p) } : {}), wallMat))
+    // (doors upstairs, a room on a second floor opening onto a balcony: the wall is cut at
+    // that floor only, door-high, solid above; the ground floor's doors cut as before)
+    const upDoors = b.doors && !b.roofOnly ? [...new Set((S.doors || []).filter((d) => (d.y || 0) > 0.5).map((d) => d.y))].filter((y) => doorsOn(b.p, y).length) : []
+    if (!b.hall && b.h - y0 > 0.05 && !upDoors.length) group.add(new THREE.Mesh(wallRing(b.p, y0, b.h, b.doors && !b.roofOnly ? { gaps: doorsOn(b.p) } : {}), wallMat))
+    else if (!b.hall && b.h - y0 > 0.05) {
+      const floors = [...upDoors].sort((a, c) => a - c)
+      group.add(new THREE.Mesh(wallRing(b.p, y0, floors[0], { gaps: doorsOn(b.p) }), wallMat))
+      floors.forEach((fy, k) => {
+        const top = Math.min(fy + 2.7, floors[k + 1] ?? b.h, b.h)
+        group.add(new THREE.Mesh(wallRing(b.p, fy, top, { gaps: doorsOn(b.p, fy) }), wallMat))
+        if ((floors[k + 1] ?? b.h) - top > 0.05) group.add(new THREE.Mesh(wallRing(b.p, top, floors[k + 1] ?? b.h), wallMat))
+      })
+    }
     const roofColor = hex(b.r, ROOFS[kind] ?? ROOFS.yes)
     const roofMat = roofMatFor(roofColor)
     if (b.hall && cutaway) continue
@@ -1129,7 +1141,8 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
         )
       }
       g.add(new THREE.Mesh(wallRing(r.p, 0, H, { gaps, offset: 0.02, edge: (a, b) => !onOuter(a, b) }), plainMatFor(hex(r.partition, 0xe9e6df))))
-      g.add(new THREE.Mesh(flat(r.p, H + 0.01), roofMatFor(hex(r.top, 0xcfcac0))))
+      // (an `open` room has no top or ceiling: it's open to the hall above, under a mezzanine)
+      if (!r.open) g.add(new THREE.Mesh(flat(r.p, H + 0.01), roofMatFor(hex(r.top, 0xcfcac0))))
     }
     // a free-standing room (not inside a building or hall) has its own outside and roof
     if (r.shell) {
@@ -1139,10 +1152,10 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
     const cc = new THREE.Color(hex(r.ceiling, 0xf2f0ea))
     const ceilKind = r.ceilingStyle === "plain" ? null : r.ceilingStyle || fin.ceiling
     const cmap = floorTexFor(ceilKind)
-    g.add(new THREE.Mesh(flatDown(r.p, H - 0.02), lambert(cc.getHex(), { emissive: cc.clone().multiplyScalar(0.3), ...(cmap ? { map: cmap } : {}) })))
+    if (!r.open) g.add(new THREE.Mesh(flatDown(r.p, H - 0.02), lambert(cc.getHex(), { emissive: cc.clone().multiplyScalar(0.3), ...(cmap ? { map: cmap } : {}) })))
     // ceiling lights every few metres: panels in a grid ceiling, strips in gyms and halls,
-    // pendants over a cafe's, bar's or lounge's tables
-    const R = roomRect(r.p)
+    // pendants over a cafe's, bar's or lounge's tables (none in an open room: the hall lights it)
+    const R = r.open ? null : roomRect(r.p)
     if (R) {
       const strip = r.type === "gym" || r.type === "hall" || r.type === "corridor" || r.type === "studio"
       const hang = r.type === "cafe" || r.type === "bar" || r.type === "lounge"

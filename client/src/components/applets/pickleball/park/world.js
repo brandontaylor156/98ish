@@ -71,9 +71,11 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
   // the ceiling over a spot (a room's or a hall's), for the cameras: null outdoors
   // (y: the floor you're on: a room upstairs counts only up there, the ground floor's only below)
   const onFloor = (r, y) => Math.abs((r.y || 0) - (y || 0)) < 1.2
+  // (a room open to the hall above, `open`: a bar under a mezzanine, has the hall's ceiling;
+  // up on a mezzanine inside a hall the hall's ceiling still caps the camera)
   const roofAt = (x, z, y = 0) => {
-    for (const r of rooms) if (onFloor(r, y) && inPoly(x, z, r.p)) return (r.y || 0) + (r.h || 3.2) - 0.35
-    for (const h of halls) if (y < 1.2 && inPoly(x, z, h.p)) return (h.h || 9) - 0.6
+    for (const r of rooms) if (!r.open && onFloor(r, y) && inPoly(x, z, r.p)) return (r.y || 0) + (r.h || 3.2) - 0.35
+    for (const h of halls) if (y < (h.h || 9) - 2.5 && inPoly(x, z, h.p)) return (h.h || 9) - 0.6
     return null
   }
   const roomAt = (x, z, y = 0) => rooms.find((r) => onFloor(r, y) && inPoly(x, z, r.p)) || null
@@ -1014,9 +1016,11 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
     const bodiesNear = []
     for (const b of bodies.values()) if (!b.isMe && !b.hidden && b.mode === "walk" && Math.abs(b.x - me.walker.x) < 8 && Math.abs(b.z - me.walker.z) < 8) bodiesNear.push({ x: b.x, z: b.z, h: b.seat ? b.seat.y + 1.0 : 1.95, r: 0.36 })
     const w = me.mode === "sit" && me.seat ? { x: me.seat.x, z: me.seat.z, yaw: me.seat.yaw, speed: 0, y: 0 } : me.walker
-    // (a room: the ceiling over you, and a closer camera; up on a terrace: no roof over you)
+    // (a room: the ceiling over you, and a closer camera; up on a rooftop terrace: no roof over
+    // you; up on a mezzanine in a hall: the hall's ceiling)
     const inRoom = roomAt(w.x, w.z, w.y || 0)
-    stepFollow(follow, w, dt, { portrait: por, bodies: bodiesNear, roofY: inRoom ? roofAt(w.x, w.z, w.y || 0) : (w.y || 0) > 1.2 ? null : roofY, tight: !!inRoom })
+    const up = (w.y || 0) > 1.2
+    stepFollow(follow, w, dt, { portrait: por, bodies: bodiesNear, roofY: inRoom ? roofAt(w.x, w.z, w.y || 0) : up ? roofAt(w.x, w.z, w.y) : roofY, tight: !!inRoom })
     // (in a room, the lens stays in that room: not out through its doorway)
     if (inRoom && !inPoly(follow.pos.x, follow.pos.z, inRoom.p)) {
       let lo = 0
