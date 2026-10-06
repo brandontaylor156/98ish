@@ -12,6 +12,8 @@ const { createCalls } = require("./calls")
 const { createTogether } = require("./together")
 const { createHangout } = require("./hangout")
 const { createYdocs } = require("./ydocs")
+const { createVbApps } = require("./vbapps")
+const { createVbappStore } = require("./vbappStore")
 const { createYdocStore } = require("./ydocStore")
 const { createIce } = require("./ice")
 const { createAccountEraser } = require("../account")
@@ -83,12 +85,17 @@ const limiter = (limit, windowMs) => {
 // aim:deleteAccount; without one only the account record goes.
 // `history` (./history.js, a store or a promise of one): saved conversations; in memory
 // without one. `media` (./media.js): pictures and voice messages in IMs; off without one.
-const attachAim = async (io, { store, bot, ice, callRingMs, callLostMs, push = null, eraser = null, history = null, media: imMedia = null, ydocStore = null, hangoutLostMs } = {}) => {
+const attachAim = async (io, { store, bot, ice, callRingMs, callLostMs, push = null, eraser = null, history = null, media: imMedia = null, ydocStore = null, vbappStore = null, hangoutLostMs } = {}) => {
   store ??= await createStore()
   // Come Over's shared documents (a store that failed to connect: they're kept in memory)
   ydocStore ??= await createYdocStore().catch((error) => {
     console.error("[come over] store failed, using memory", error?.message)
     return require("./ydocStore").memoryStore()
+  })
+  // Visual Basic 98 programs shared in a message (a store that failed: kept in memory)
+  vbappStore ??= await createVbappStore().catch((error) => {
+    console.error("[vb98] store failed, using memory", error?.message)
+    return require("./vbappStore").memoryStore()
   })
   bot ??= createBot()
   ice ??= createIce()
@@ -211,6 +218,13 @@ const attachAim = async (io, { store, bot, ice, callRingMs, callLostMs, push = n
   const ydocs = createYdocs({ store: ydocStore, sessions, hidden, emitTo, limiter, findUser: (key) => store.find(key) })
   const hangout = createHangout({ sessions, hidden, emitTo, limiter, pushTo: push ? pushTo : null, ydocs, ...(hangoutLostMs ? { lostMs: hangoutLostMs } : {}) })
   eraser.add("shared documents", (ctx) => ydocs.eraseAccount(ctx))
+  // Visual Basic 98: programs sent in a message, with their Shared values
+  const hangoutPeople = (key) => {
+    const h = hangout.live.get(hangout.of.get(key))
+    return h ? [...h.joined.keys()] : []
+  }
+  const vbapps = createVbApps({ store: vbappStore, sessions, hidden, emitTo, limiter, rooms, findUser: (key) => store.find(key), pushTo: push ? pushTo : null, hangoutPeople })
+  eraser.add("vb98 programs", (ctx) => vbapps.eraseAccount(ctx))
 
   const broadcastPresence = (subject, online = true) => {
     const payload = online ? presenceOf(subject) : { screenName: subject.user.screenName, online: false }
@@ -253,6 +267,7 @@ const attachAim = async (io, { store, bot, ice, callRingMs, callLostMs, push = n
     together.leaveAll(session.key)
     hangout.leave(session.key, "signedoff")
     ydocs.dropped(session.key)
+    vbapps.dropped(session.key)
     for (const key of rooms.keys()) leaveRoom(session, key)
     sessions.delete(session.key)
     tokens.delete(session.token)
@@ -330,6 +345,7 @@ const attachAim = async (io, { store, bot, ice, callRingMs, callLostMs, push = n
     together.bind(on)
     hangout.bind(on)
     ydocs.bind(on)
+    vbapps.bind(on)
     bindConversations(on, conversations)
 
     const startSession = (user, key, ack, remember) => {
@@ -589,6 +605,7 @@ const attachAim = async (io, { store, bot, ice, callRingMs, callLostMs, push = n
       together.dropped(session.key)
       hangout.dropped(session.key)
       ydocs.dropped(session.key)
+      vbapps.dropped(session.key)
     })
 
     // { to, text, style, media?: { id } (sent with aim:mediaUpload/aim:mediaCommit), thumb?
@@ -851,7 +868,7 @@ const attachAim = async (io, { store, bot, ice, callRingMs, callLostMs, push = n
     return (key && sessions.get(key)) || null
   }
 
-  const aim = { store, sessions, authenticate, calls, together, hangout, ydocs, push, eraser, history, media: imMedia }
+  const aim = { store, sessions, authenticate, calls, together, hangout, ydocs, vbapps, push, eraser, history, media: imMedia }
   push?.useAim(aim)
   return aim
 }
