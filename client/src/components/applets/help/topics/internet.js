@@ -450,6 +450,7 @@ export const topics = [
       { open: "HomePage Studio", label: "Open HomePage Studio" },
       { h: "Building your page" },
       "Your page is a stack of blocks. Add blocks from the **Insert** menu or the block buttons: Heading, Text and Clip Art are on the toolbar, and **More blocks »** has Marquee, Blinking Text, Divider, Link List, Hit Counter, Guestbook Button and Web Ring. Click a block to change it: its arrows move it up or down and its X deletes it (Format menu too). A block's size, effect, alignment and colors are under **More options »**.",
+      "A new page starts blank. For the full 1998 look in one click, choose **Use the Classic 90s Template** (or File > New from Classic 90s Template...): a marquee, dancing clip art, a hit counter, a guestbook button and the web ring, ready to edit.",
       "In a paragraph, put *stars* around words for bold and _underscores_ for italics.",
       "The **Page** tab (Page Properties) sets the title and background; **More options »** there has the colors, font, background music, sparkle trail and badge. Music starts when a visitor clicks on your page, because browsers don't allow sound before that.",
       "To use your own picture, choose Insert > **Picture from My Computer...** and pick one from your 98ish drive.",

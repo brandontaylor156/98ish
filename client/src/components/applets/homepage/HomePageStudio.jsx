@@ -27,7 +27,9 @@ const SERVER_URL = import.meta.env.VITE_SOCKET_URL || "http://localhost:8000"
 const DRAFT_KEY = "98ish.homepage.draft"
 const keyOf = (name) => String(name || "").replace(/\s+/g, "").toLowerCase()
 
-const starterPage = (screenName) => ({
+// the classic 90s page (marquee, dancing clip art, counter, guestbook, webring): a template
+// you can start from; a new page starts blank
+const classicPage = (screenName) => ({
   ...DEFAULT_SETTINGS,
   title: screenName ? `${screenName}'s Home Page` : "My Home Page",
   sparkle: true,
@@ -43,6 +45,12 @@ const starterPage = (screenName) => ({
     { type: "image", art: "construction", alt: "", align: "center" },
     { type: "webring" },
   ]),
+})
+
+const blankPage = (screenName) => ({
+  ...DEFAULT_SETTINGS,
+  title: screenName ? `${screenName}'s Home Page` : "My Home Page",
+  blocks: withIds([{ type: "heading", text: screenName ? `${screenName}'s Home Page` : "My Home Page", size: "h1", align: "center", color: "", effect: "" }]),
 })
 
 const readDraft = () => {
@@ -386,7 +394,7 @@ const HomePageStudio = ({ dispatch, onTitle, onClose, mobile }) => {
   const me = online ? aim.me.screenName : null
   const token = aim?.token
 
-  const [doc, setDoc] = useState(() => readDraft()?.doc || starterPage(null))
+  const [doc, setDoc] = useState(() => readDraft()?.doc || blankPage(null))
   const [selected, setSelected] = useState(null)
   const [tab, setTab] = useState("blocks") // blocks | page | preview (phones)
   const [published, setPublished] = useState(null) // { updatedAt, hits } | false
@@ -432,7 +440,7 @@ const HomePageStudio = ({ dispatch, onTitle, onClose, mobile }) => {
       setPublished(r.published ? { updatedAt: r.published.updatedAt, hits: r.published.hits } : false)
       const draft = readDraft()
       if (draft && (draft.owner === keyOf(me) || !draft.owner)) return
-      setDoc(r.published ? { ...DEFAULT_SETTINGS, ...r.published.page, blocks: withIds(r.published.page.blocks) } : starterPage(me))
+      setDoc(r.published ? { ...DEFAULT_SETTINGS, ...r.published.page, blocks: withIds(r.published.page.blocks) } : blankPage(me))
       setSelected(null)
       setDirty(false)
     })
@@ -549,6 +557,7 @@ const HomePageStudio = ({ dispatch, onTitle, onClose, mobile }) => {
       label: "File",
       items: [
         { label: "New Page", onClick: () => setDialog({ kind: "new" }) },
+        { label: "New from Classic 90s Template...", onClick: () => setDialog({ kind: "new", classic: true }) },
         { label: "Save Draft", onClick: saveDraft },
         "-",
         { label: "Publish to the Web", onClick: publish, disabled: busy },
@@ -635,6 +644,13 @@ const HomePageStudio = ({ dispatch, onTitle, onClose, mobile }) => {
           </li>
         ))}
         {doc.blocks.length === 0 && <li className="hsNone">No blocks yet. Insert one!</li>}
+        {doc.blocks.length <= 1 && (
+          <li className="hsNone">
+            <button type="button" onClick={() => setDialog({ kind: "new", classic: true })} data-classic-template>
+              Use the Classic 90s Template
+            </button>
+          </li>
+        )}
       </ol>
       {block && (
         <fieldset className="hsProps">
@@ -776,17 +792,18 @@ const HomePageStudio = ({ dispatch, onTitle, onClose, mobile }) => {
       )}
       {dialog?.kind === "new" && (
         <Dialog
-          title="New Page"
+          title={dialog.classic ? "Classic 90s Template" : "New Page"}
           sound="chord"
-          okLabel="Start Over"
+          okLabel={dialog.classic ? "Use Template" : "Start Over"}
           onOk={() => {
+            const classic = dialog.classic
             setDialog(null)
-            change(starterPage(me))
+            change(classic ? classicPage(me) : blankPage(me))
             setSelected(null)
           }}
           onCancel={() => setDialog(null)}
         >
-          <p className="dialogText hsDialogText">Start a fresh page? Your draft will be replaced (your published page stays until you publish again).</p>
+          <p className="dialogText hsDialogText">{dialog.classic ? "Start from the classic 90s page (marquee, dancing clip art, hit counter, guestbook, webring)? " : "Start a blank page? "}Your draft will be replaced (your published page stays until you publish again).</p>
         </Dialog>
       )}
       {dialog?.kind === "about" && (
