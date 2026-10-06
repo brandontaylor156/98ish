@@ -80,7 +80,7 @@ export default function SplatPanel({ world, venueName, onClose, phone }) {
     const glb = await cap.reconstruct(frames, { onStatus: setBusy })
     setBusy("Turning the 3D points into a backdrop...")
     const { positions, colors } = await cap.glbPoints(glb)
-    const bytes = pointsToSplat(positions, colors, { size: 0.03 })
+    const bytes = pointsToSplat(positions, colors, { size: 0.03, maxPoints: 250000 }) // ~8 MB: small enough to sync
     await useBytes(bytes, "splat", { source: "capture", title: `Captured ${new Date().toLocaleDateString()}`, splats: bytes.length / 32 })
     startAlign(bytes, "splat")
   })
