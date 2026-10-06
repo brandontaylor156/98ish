@@ -6,6 +6,7 @@ import { bounceSigma, callBounce, callText, cameraFromHomography, fitFlight, fli
 import { detectBall, createBallFinder, searchRegion, ballColor } from "./detect.js"
 import { analyzeBall, annotateHits, measuredPath, rallyVerdict, TRUST } from "./realball.js"
 import { makeCamera, observe } from "./testcam.js"
+import { forward, patchAt, prepare, sigmoid } from "./scorer.js"
 import { withPaths } from "../core/analyze.js"
 import { ballAt, rallyPath } from "../core/ballpath.js"
 
@@ -202,6 +203,32 @@ test("analyzeBall: rallies + spots -> measured flights, calls, the rally's winne
   const v = rallyVerdict({ hits: [{ team: 0 }] }, [{ conf: 0.9, bounce: { x: 0, z: -HALF_L - 0.1 }, call: { verdict: "out", close: false, margin: -0.1, line: "baseline" } }])
   assert.deepEqual([v.winner, v.why], [1, "out"])
   assert.deepEqual(rallyVerdict({ hits: [{ team: 1 }] }, [{ conf: 0.9, bounce: { x: 0, z: -2 }, call: null }]).why, "net")
+})
+
+test("the shipped scorer: loads, has the ONNX's shape, rates a ball patch above a court patch", async () => {
+  const fs = await import("node:fs")
+  const url = new URL("../../../../../../public/models/realball-scorer.json", import.meta.url)
+  const net = prepare(JSON.parse(fs.readFileSync(url, "utf8")))
+  assert.equal(net.P, 24)
+  assert.equal(net.fc.w.length, net.c3.cout * 9, "fc input = c3 channels x 3 x 3")
+  assert.ok(fs.statSync(new URL("../../../../../../public/models/realball-scorer.onnx", import.meta.url)).size > 10000, "the ONNX ships too")
+  const W = 64
+  const H = 64
+  const court = (bx) => {
+    const a = new Uint8ClampedArray(W * H * 4)
+    for (let i = 0; i < W * H; i++) (a[i * 4] = 45), (a[i * 4 + 1] = 95), (a[i * 4 + 2] = 175), (a[i * 4 + 3] = 255)
+    if (bx !== null)
+      for (let y = 30; y <= 34; y++) for (let x = bx - 2; x <= bx + 2; x++) {
+        const k = (y * W + x) * 4
+        a[k] = 215
+        a[k + 1] = 235
+        a[k + 2] = 60
+      }
+    return a
+  }
+  const ball = sigmoid(forward(net, patchAt(court(24), court(32), court(40), W, H, 32, 32)))
+  const empty = sigmoid(forward(net, patchAt(court(null), court(null), court(null), W, H, 32, 32)))
+  assert.ok(ball > 0.5 && ball > empty + 0.3, `ball ${ball.toFixed(2)} vs empty court ${empty.toFixed(2)}`)
 })
 
 test("the search region covers the court and the air above it", () => {

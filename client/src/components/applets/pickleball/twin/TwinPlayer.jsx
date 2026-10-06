@@ -127,7 +127,8 @@ export const TwinPlayer = ({ getEngine, game, video, onBack, onChange, onShare, 
     const e = getEngine()
     e?.twinControl({ paused: true })
     // (from just before the bounce: the ball comes down onto its mark)
-    e?.twinSeek(Math.max(0, c.bounce.t - window_.from))
+    // (just after the bounce: the ball rising off its mark, so the mark shows)
+    e?.twinSeek(Math.max(0, c.bounce.t - window_.from + 0.12))
     e?.twinChallenge({ x: c.bounce.x, z: c.bounce.z, verdict: c.call.close ? "in" : c.call.verdict })
     setChallenge(k)
   }
@@ -346,7 +347,7 @@ export const TwinStats = ({ analysis, onRally, onClone = null, onCoach = null })
         <div className="pkTwinCard" data-real-ball>
           <b>Real Ball</b>
           <p className="pkMuted">
-            The ball was followed on {bs.trusted} of {bs.flights} shots. {bs.ins + bs.outs > 0 ? `Line calls: ${bs.ins} in, ${bs.outs} out.` : ""}
+            The ball was followed on {bs.trusted} of {bs.flights} shots. Shot speeds: fastest / typical. {bs.ins + bs.outs > 0 ? `Line calls: ${bs.ins} in, ${bs.outs} out.` : ""}
           </p>
           <div className="pkTwinPlayerStats">
             <BounceMap bounces={bs.bounces} />
@@ -354,8 +355,8 @@ export const TwinStats = ({ analysis, onRally, onClone = null, onCoach = null })
               {bs.players.map((p) => (
                 <React.Fragment key={p.id}>
                   <dt>{name(p.id)}</dt>
-                  <dd>
-                    fastest {Math.round(p.fastest * 3.6)} km/h · typical {Math.round(p.typical * 3.6)} km/h
+                  <dd title="fastest / typical shot speed">
+                    {Math.round(p.fastest * 3.6)} / {Math.round(p.typical * 3.6)} km/h
                   </dd>
                 </React.Fragment>
               ))}

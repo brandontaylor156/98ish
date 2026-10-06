@@ -2063,12 +2063,18 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
         replay.challenge = null
         mark.visible = false
         markTimer = 0
+        mark.scale.setScalar(1)
+        markMat.in.depthTest = true
+        markMat.out.depthTest = true
         return
       }
       replay.challenge = { x: c.x, z: c.z, verdict: c.verdict }
       mark.material = c.verdict === "in" ? markMat.in : markMat.out
       mark.material.opacity = 1
-      mark.position.set(c.x, 0.012, c.z)
+      // (over whatever court surface the venue draws, and big enough to see from the low camera)
+      mark.material.depthTest = false
+      mark.position.set(c.x, 0.03, c.z)
+      mark.scale.setScalar(1.6)
       mark.visible = true
       markTimer = 1e9
     },
