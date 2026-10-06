@@ -44,10 +44,10 @@ export const VENUE_LIST = [
     "city": "South El Monte, CA",
     "indoor": false,
     "access": "public",
-    "courts": 28,
+    "courts": 20,
     "tennis": 12,
     "live": 6,
-    "kb": 6.6
+    "kb": 16.9
   },
   {
     "id": "paseo",
@@ -59,7 +59,7 @@ export const VENUE_LIST = [
     "courts": 11,
     "tennis": 11,
     "live": 6,
-    "kb": 6.4
+    "kb": 25
   },
   {
     "id": "sinaloa",
@@ -71,7 +71,7 @@ export const VENUE_LIST = [
     "courts": 12,
     "tennis": 0,
     "live": 6,
-    "kb": 9.6
+    "kb": 22.4
   },
   {
     "id": "smash",

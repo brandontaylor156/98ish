@@ -1,34 +1,1918 @@
 {
-  "name": "The Paseo Club",
-  "short": "Paseo Club",
-  "city": "Valencia, CA",
-  "access": "members",
-  "note": "Family club: navy courts with light-blue kitchens, tile roofs, a stucco amphitheatre with redwood cabanas.",
-  "lit": true,
-  "anchor": [34.4377, -118.562],
-  "crop": 60,
-  "courts": {
-    "dropNear": [
-      { "en": [-25.8, -134.9], "r": 4, "sport": "tennis" },
-      { "en": [-12.6, -175.2], "r": 5, "sport": "tennis" },
-      { "en": [9.3, -168.6], "r": 4, "sport": "tennis" }
-    ]
-  },
-  "colors": { "court": "#3f6fa3", "kitchen": "#6fb5dd", "surround": "#4f8a55", "tennis": "#2c4a86", "tennisSurround": "#4f8a55", "lines": "#f6f6f3", "windscreen": "#1b1f1d", "fence": "#1b1f1d", "ground": "#93a46e", "far": "#a39a6c" },
-  "fence": { "join": { "t": { "u": 10, "w": 8.5 } }, "lightEvery": 14, "poleH": 9 },
-  "buildings": {
-    "rules": [{ "en": [10, 60], "r": 140, "color": "#d9c7a6", "roof": "#b15a3c", "roofStyle": "gable" }]
-  },
-  "areas": { "add": [{ "kind": "lawn", "rect": { "en": [-35, -165], "w": 30, "d": 16, "deg": 0 } }] },
-  "extras": [
-    { "type": "stands", "en": [31, -54.5], "deg": 90, "w": 20, "rows": 4, "color": "#e3cf9f", "face": "w" },
-    { "type": "cabana", "en": [36, -48], "w": 4, "d": 3, "color": "#8a3f2a" },
-    { "type": "cabana", "en": [36, -61], "w": 4, "d": 3, "color": "#8a3f2a" },
-    { "type": "gazebo", "en": [-35, -165], "w": 8, "color": "#8a3f2a" }
+ "name": "The Paseo Club",
+ "short": "Paseo Club",
+ "city": "Valencia, CA",
+ "access": "members",
+ "note": "Mediterranean family club: cream stucco and red tile, a fountain courtyard, gyms, studios, spa, locker rooms with sauna and steam, a junior-Olympic pool; navy courts with sky-blue kitchens below stepped stucco terraces.",
+ "lit": true,
+ "_anchor": "the reference pack's aerial anchor: en points are meters east/north of it",
+ "anchor": [
+  34.4374,
+  -118.5621
+ ],
+ "crop": 105,
+ "spawn": {
+  "en": [
+   -22,
+   16
   ],
-  "trees": {
-    "default": "broadleaf",
-    "rows": [{ "from": { "en": [45, -30] }, "to": { "en": [45, -200] }, "every": 12, "kind": "conifer", "s": 1.2 }]
+  "deg": 85
+ },
+ "light": {
+  "sun": 1.0
+ },
+ "courts": {
+  "dropNear": [
+   {
+    "en": [
+     -16.6,
+     -101.5
+    ],
+    "r": 4,
+    "sport": "tennis"
+   },
+   {
+    "en": [
+     -3.4,
+     -141.8
+    ],
+    "r": 5,
+    "sport": "tennis"
+   },
+   {
+    "en": [
+     18.5,
+     -135.2
+    ],
+    "r": 4,
+    "sport": "tennis"
+   }
+  ],
+  "byId": {
+   "1413415728": {
+    "court": "#6f87a0",
+    "kitchen": "#6f87a0",
+    "surround": "#5f7d66"
+   },
+   "1413415729": {
+    "court": "#6f87a0",
+    "kitchen": "#6f87a0",
+    "surround": "#5f7d66"
+   }
+  }
+ },
+ "colors": {
+  "court": "#34506a",
+  "kitchen": "#4d93c4",
+  "surround": "#5f7d66",
+  "tennis": "#2c4a7f",
+  "tennisSurround": "#557f5a",
+  "lines": "#f6f6f3",
+  "windscreen": "#0d1216",
+  "fence": "#2a2722",
+  "ground": "#9aa070",
+  "far": "#b49a68"
+ },
+ "fence": {
+  "join": {
+   "t": {
+    "u": 10,
+    "w": 8.5
+   }
   },
-  "backdrop": { "hills": "#b49a68", "hillsHeight": 1.8, "trees": 34, "treeKind": "broadleaf" }
+  "lightEvery": 14,
+  "poleH": 9,
+  "screen": true,
+  "dividers": "low",
+  "dividerColor": "#f2f2ee"
+ },
+ "buildings": {
+  "drop": [
+   472562074,
+   472562070,
+   472562076
+  ],
+  "add": [
+   {
+    "poly": [
+     {
+      "en": [
+       -3.5,
+       32
+      ]
+     },
+     {
+      "en": [
+       22,
+       32
+      ]
+     },
+     {
+      "en": [
+       22,
+       62
+      ]
+     },
+     {
+      "en": [
+       -3.5,
+       62
+      ]
+     }
+    ],
+    "h": 9,
+    "kind": "clubhouse",
+    "color": "#e4d8bd",
+    "roof": "#9a4a32",
+    "roofStyle": "hip",
+    "tile": true,
+    "windows": "mission",
+    "doors": [
+     {
+      "en": [
+       15.5,
+       32
+      ],
+      "w": 2.4,
+      "kind": "open"
+     },
+     {
+      "en": [
+       -3.5,
+       40
+      ],
+      "w": 1.8,
+      "kind": "glass"
+     }
+    ]
+   },
+   {
+    "poly": [
+     {
+      "en": [
+       9,
+       9
+      ]
+     },
+     {
+      "en": [
+       25,
+       9
+      ]
+     },
+     {
+      "en": [
+       25,
+       32
+      ]
+     },
+     {
+      "en": [
+       9,
+       32
+      ]
+     }
+    ],
+    "h": 7,
+    "kind": "clubhouse",
+    "color": "#e4d8bd",
+    "roof": "#9a4a32",
+    "roofStyle": "hip",
+    "tile": true,
+    "windows": "mission",
+    "doors": [
+     {
+      "en": [
+       9,
+       25.5
+      ],
+      "w": 2.2,
+      "kind": "double"
+     },
+     {
+      "en": [
+       25,
+       26
+      ],
+      "w": 2.4,
+      "kind": "glass"
+     },
+     {
+      "en": [
+       9,
+       14
+      ],
+      "w": 1.6,
+      "kind": "glass"
+     },
+     {
+      "en": [
+       21,
+       9
+      ],
+      "w": 1.6,
+      "kind": "glass"
+     },
+     {
+      "en": [
+       15.5,
+       32
+      ],
+      "w": 2.4,
+      "kind": "open"
+     }
+    ]
+   },
+   {
+    "poly": [
+     {
+      "en": [
+       12,
+       68
+      ]
+     },
+     {
+      "en": [
+       40,
+       68
+      ]
+     },
+     {
+      "en": [
+       40,
+       91
+      ]
+     },
+     {
+      "en": [
+       12,
+       91
+      ]
+     }
+    ],
+    "h": 8,
+    "kind": "clubhouse",
+    "color": "#e4d8bd",
+    "roof": "#9a4a32",
+    "roofStyle": "hip",
+    "tile": true,
+    "windows": "mission",
+    "doors": [
+     {
+      "en": [
+       18.5,
+       68
+      ],
+      "w": 1.8,
+      "kind": "glass"
+     },
+     {
+      "en": [
+       32.5,
+       68
+      ],
+      "w": 1.8,
+      "kind": "double"
+     }
+    ]
+   },
+   {
+    "poly": [
+     {
+      "en": [
+       33,
+       9
+      ]
+     },
+     {
+      "en": [
+       43,
+       9
+      ]
+     },
+     {
+      "en": [
+       43,
+       20
+      ]
+     },
+     {
+      "en": [
+       33,
+       20
+      ]
+     }
+    ],
+    "h": 6,
+    "kind": "clubhouse",
+    "color": "#e4d8bd",
+    "roof": "#9a4a32",
+    "roofStyle": "hip",
+    "tile": true,
+    "windows": "mission",
+    "doors": [
+     {
+      "en": [
+       33,
+       15
+      ],
+      "w": 2.0,
+      "kind": "glass"
+     },
+     {
+      "en": [
+       38,
+       20
+      ],
+      "w": 2.4,
+      "kind": "double"
+     }
+    ]
+   }
+  ]
+ },
+ "rooms": [
+  {
+   "id": "pcLobby",
+   "type": "lobby",
+   "name": "Lobby and Welcome Desk",
+   "poly": [
+    {
+     "en": [
+      9,
+      19
+     ]
+    },
+    {
+     "en": [
+      25,
+      19
+     ]
+    },
+    {
+     "en": [
+      25,
+      32
+     ]
+    },
+    {
+     "en": [
+      9,
+      32
+     ]
+    }
+   ],
+   "doors": [
+    {
+     "en": [
+      9,
+      25.5
+     ],
+     "w": 2.2,
+     "kind": "double"
+    },
+    {
+     "en": [
+      25,
+      26
+     ],
+     "w": 2.4,
+     "kind": "glass"
+    },
+    {
+     "en": [
+      15.5,
+      32
+     ],
+     "w": 2.4,
+     "kind": "open"
+    },
+    {
+     "en": [
+      13,
+      19
+     ],
+     "w": 1.4,
+     "kind": "open"
+    },
+    {
+     "en": [
+      21,
+      19
+     ],
+     "w": 1.4,
+     "kind": "open"
+    }
+   ],
+   "floor": "#6b4a2e",
+   "floorStyle": "wood",
+   "accent": "#5a3420",
+   "sofa": "#d9c9a8",
+   "h": 4.2,
+   "wall": "#efe6d2",
+   "ceiling": "#f6f1e6"
+  },
+  {
+   "id": "pcShop",
+   "type": "proshop",
+   "name": "Pro shop",
+   "poly": [
+    {
+     "en": [
+      9,
+      9
+     ]
+    },
+    {
+     "en": [
+      17,
+      9
+     ]
+    },
+    {
+     "en": [
+      17,
+      19
+     ]
+    },
+    {
+     "en": [
+      9,
+      19
+     ]
+    }
+   ],
+   "doors": [
+    {
+     "en": [
+      9,
+      14
+     ],
+     "w": 1.6,
+     "kind": "glass"
+    },
+    {
+     "en": [
+      13,
+      19
+     ],
+     "w": 1.4,
+     "kind": "open"
+    }
+   ],
+   "floor": "#7a6a55",
+   "accent": "#2c4a7f",
+   "h": 3.6,
+   "wall": "#efe6d2",
+   "ceiling": "#f6f1e6"
+  },
+  {
+   "id": "pcKids",
+   "type": "kids",
+   "name": "Kids Club",
+   "poly": [
+    {
+     "en": [
+      17,
+      9
+     ]
+    },
+    {
+     "en": [
+      25,
+      9
+     ]
+    },
+    {
+     "en": [
+      25,
+      19
+     ]
+    },
+    {
+     "en": [
+      17,
+      19
+     ]
+    }
+   ],
+   "doors": [
+    {
+     "en": [
+      21,
+      9
+     ],
+     "w": 1.6,
+     "kind": "glass"
+    },
+    {
+     "en": [
+      21,
+      19
+     ],
+     "w": 1.4,
+     "kind": "open"
+    }
+   ],
+   "floor": "#2f5fa8",
+   "wall": "#f2d64b",
+   "accent": "#2aa198",
+   "h": 3.6
+  },
+  {
+   "id": "pcFit",
+   "type": "gym",
+   "name": "Fitness floor",
+   "poly": [
+    {
+     "en": [
+      8,
+      32
+     ]
+    },
+    {
+     "en": [
+      22,
+      32
+     ]
+    },
+    {
+     "en": [
+      22,
+      47
+     ]
+    },
+    {
+     "en": [
+      8,
+      47
+     ]
+    }
+   ],
+   "doors": [
+    {
+     "en": [
+      15.5,
+      32
+     ],
+     "w": 2.4,
+     "kind": "open"
+    },
+    {
+     "en": [
+      8,
+      40
+     ],
+     "w": 1.6,
+     "kind": "open"
+    },
+    {
+     "en": [
+      15,
+      47
+     ],
+     "w": 1.6,
+     "kind": "open"
+    }
+   ],
+   "floor": "#5a5d60",
+   "h": 4.5,
+   "wall": "#efe6d2",
+   "ceiling": "#f6f1e6"
+  },
+  {
+   "id": "pcPerf",
+   "type": "gym",
+   "name": "Performance Center",
+   "poly": [
+    {
+     "en": [
+      -3.5,
+      32
+     ]
+    },
+    {
+     "en": [
+      8,
+      32
+     ]
+    },
+    {
+     "en": [
+      8,
+      47
+     ]
+    },
+    {
+     "en": [
+      -3.5,
+      47
+     ]
+    }
+   ],
+   "doors": [
+    {
+     "en": [
+      8,
+      40
+     ],
+     "w": 1.6,
+     "kind": "open"
+    },
+    {
+     "en": [
+      -3.5,
+      40
+     ],
+     "w": 1.8,
+     "kind": "glass"
+    },
+    {
+     "en": [
+      2,
+      47
+     ],
+     "w": 1.4,
+     "kind": "glass"
+    }
+   ],
+   "floor": "#2b2d2f",
+   "wall": "#9a9c9e",
+   "accent": "#3f8f3a",
+   "h": 4.5
+  },
+  {
+   "id": "pcSpin",
+   "type": "studio",
+   "name": "Spin studio",
+   "poly": [
+    {
+     "en": [
+      -3.5,
+      47
+     ]
+    },
+    {
+     "en": [
+      8,
+      47
+     ]
+    },
+    {
+     "en": [
+      8,
+      62
+     ]
+    },
+    {
+     "en": [
+      -3.5,
+      62
+     ]
+    }
+   ],
+   "doors": [
+    {
+     "en": [
+      2,
+      47
+     ],
+     "w": 1.4,
+     "kind": "glass"
+    }
+   ],
+   "floor": "#2b2d2f",
+   "wall": "#3a3c40",
+   "ceiling": "#2a2b2e",
+   "h": 4.0
+  },
+  {
+   "id": "pcStudio",
+   "type": "studio",
+   "name": "Group fitness studio",
+   "poly": [
+    {
+     "en": [
+      8,
+      47
+     ]
+    },
+    {
+     "en": [
+      22,
+      47
+     ]
+    },
+    {
+     "en": [
+      22,
+      62
+     ]
+    },
+    {
+     "en": [
+      8,
+      62
+     ]
+    }
+   ],
+   "doors": [
+    {
+     "en": [
+      15,
+      47
+     ],
+     "w": 1.6,
+     "kind": "open"
+    }
+   ],
+   "floor": "#c9a26a",
+   "floorStyle": "wood",
+   "h": 4.5,
+   "wall": "#efe6d2",
+   "ceiling": "#f6f1e6"
+  },
+  {
+   "id": "pcPilates",
+   "type": "studio",
+   "name": "Reformer Pilates",
+   "poly": [
+    {
+     "en": [
+      12,
+      68
+     ]
+    },
+    {
+     "en": [
+      25,
+      68
+     ]
+    },
+    {
+     "en": [
+      25,
+      79
+     ]
+    },
+    {
+     "en": [
+      12,
+      79
+     ]
+    }
+   ],
+   "doors": [
+    {
+     "en": [
+      18.5,
+      68
+     ],
+     "w": 1.8,
+     "kind": "glass"
+    },
+    {
+     "en": [
+      18.5,
+      79
+     ],
+     "w": 1.2,
+     "kind": "wood"
+    }
+   ],
+   "floor": "#cdb48c",
+   "floorStyle": "wood",
+   "wall": "#f4f1ea",
+   "h": 3.8
+  },
+  {
+   "id": "pcSpa",
+   "type": "spa",
+   "name": "Spa",
+   "poly": [
+    {
+     "en": [
+      25,
+      68
+     ]
+    },
+    {
+     "en": [
+      40,
+      68
+     ]
+    },
+    {
+     "en": [
+      40,
+      79
+     ]
+    },
+    {
+     "en": [
+      25,
+      79
+     ]
+    }
+   ],
+   "doors": [
+    {
+     "en": [
+      32.5,
+      68
+     ],
+     "w": 1.8,
+     "kind": "double"
+    },
+    {
+     "en": [
+      31,
+      79
+     ],
+     "w": 1.2,
+     "kind": "wood"
+    }
+   ],
+   "floor": "#b9a588",
+   "wall": "#e6d6bc",
+   "h": 3.8
+  },
+  {
+   "id": "pcWomen",
+   "type": "locker",
+   "name": "Women's locker room",
+   "poly": [
+    {
+     "en": [
+      12,
+      79
+     ]
+    },
+    {
+     "en": [
+      21,
+      79
+     ]
+    },
+    {
+     "en": [
+      21,
+      91
+     ]
+    },
+    {
+     "en": [
+      12,
+      91
+     ]
+    }
+   ],
+   "doors": [
+    {
+     "en": [
+      18.5,
+      79
+     ],
+     "w": 1.2,
+     "kind": "wood"
+    },
+    {
+     "en": [
+      21,
+      82
+     ],
+     "w": 1.0,
+     "kind": "glass"
+    },
+    {
+     "en": [
+      21,
+      88
+     ],
+     "w": 1.0,
+     "kind": "sauna"
+    }
+   ],
+   "floor": "#cfc6b6",
+   "wall": "#ece5d6",
+   "gender": "f",
+   "h": 3.4
+  },
+  {
+   "id": "pcWSteam",
+   "type": "steam",
+   "name": "Women's steam room",
+   "poly": [
+    {
+     "en": [
+      21,
+      79
+     ]
+    },
+    {
+     "en": [
+      25,
+      79
+     ]
+    },
+    {
+     "en": [
+      25,
+      85
+     ]
+    },
+    {
+     "en": [
+      21,
+      85
+     ]
+    }
+   ],
+   "doors": [
+    {
+     "en": [
+      21,
+      82
+     ],
+     "w": 1.0,
+     "kind": "glass"
+    }
+   ],
+   "h": 3.0
+  },
+  {
+   "id": "pcWSauna",
+   "type": "sauna",
+   "name": "Women's sauna",
+   "poly": [
+    {
+     "en": [
+      21,
+      85
+     ]
+    },
+    {
+     "en": [
+      25,
+      85
+     ]
+    },
+    {
+     "en": [
+      25,
+      91
+     ]
+    },
+    {
+     "en": [
+      21,
+      91
+     ]
+    }
+   ],
+   "doors": [
+    {
+     "en": [
+      21,
+      88
+     ],
+     "w": 1.0,
+     "kind": "sauna"
+    }
+   ],
+   "h": 3.0
+  },
+  {
+   "id": "pcMen",
+   "type": "locker",
+   "name": "Men's locker room",
+   "poly": [
+    {
+     "en": [
+      29,
+      79
+     ]
+    },
+    {
+     "en": [
+      40,
+      79
+     ]
+    },
+    {
+     "en": [
+      40,
+      91
+     ]
+    },
+    {
+     "en": [
+      29,
+      91
+     ]
+    }
+   ],
+   "doors": [
+    {
+     "en": [
+      31,
+      79
+     ],
+     "w": 1.2,
+     "kind": "wood"
+    },
+    {
+     "en": [
+      29,
+      82
+     ],
+     "w": 1.0,
+     "kind": "glass"
+    },
+    {
+     "en": [
+      29,
+      88
+     ],
+     "w": 1.0,
+     "kind": "sauna"
+    }
+   ],
+   "floor": "#cfc6b6",
+   "wall": "#ece5d6",
+   "gender": "m",
+   "h": 3.4
+  },
+  {
+   "id": "pcMSteam",
+   "type": "steam",
+   "name": "Men's steam room",
+   "poly": [
+    {
+     "en": [
+      25,
+      79
+     ]
+    },
+    {
+     "en": [
+      29,
+      79
+     ]
+    },
+    {
+     "en": [
+      29,
+      85
+     ]
+    },
+    {
+     "en": [
+      25,
+      85
+     ]
+    }
+   ],
+   "doors": [
+    {
+     "en": [
+      29,
+      82
+     ],
+     "w": 1.0,
+     "kind": "glass"
+    }
+   ],
+   "h": 3.0
+  },
+  {
+   "id": "pcMSauna",
+   "type": "sauna",
+   "name": "Men's sauna",
+   "poly": [
+    {
+     "en": [
+      25,
+      85
+     ]
+    },
+    {
+     "en": [
+      29,
+      85
+     ]
+    },
+    {
+     "en": [
+      29,
+      91
+     ]
+    },
+    {
+     "en": [
+      25,
+      91
+     ]
+    }
+   ],
+   "doors": [
+    {
+     "en": [
+      29,
+      88
+     ],
+     "w": 1.0,
+     "kind": "sauna"
+    }
+   ],
+   "h": 3.0
+  },
+  {
+   "id": "pcCafe",
+   "type": "cafe",
+   "name": "Cafe and bar",
+   "poly": [
+    {
+     "en": [
+      33,
+      9
+     ]
+    },
+    {
+     "en": [
+      43,
+      9
+     ]
+    },
+    {
+     "en": [
+      43,
+      20
+     ]
+    },
+    {
+     "en": [
+      33,
+      20
+     ]
+    }
+   ],
+   "doors": [
+    {
+     "en": [
+      33,
+      15
+     ],
+     "w": 2.0,
+     "kind": "glass"
+    },
+    {
+     "en": [
+      38,
+      20
+     ],
+     "w": 2.4,
+     "kind": "double"
+    }
+   ],
+   "floor": "#7a5236",
+   "floorStyle": "wood",
+   "accent": "#5a3420",
+   "h": 4.0,
+   "wall": "#efe6d2",
+   "ceiling": "#f6f1e6"
+  }
+ ],
+ "props": [
+  {
+   "t": "lobbyfountain",
+   "en": [
+    1.5,
+    17
+   ]
+  },
+  {
+   "t": "planter",
+   "line": {
+    "from": {
+     "en": [
+      -5,
+      6
+     ]
+    },
+    "to": {
+     "en": [
+      -5,
+      28
+     ]
+    },
+    "every": 2.4
+   },
+   "face": 90,
+   "c": "#c9b48e"
+  },
+  {
+   "t": "planter",
+   "line": {
+    "from": {
+     "en": [
+      7.5,
+      6
+     ]
+    },
+    "to": {
+     "en": [
+      7.5,
+      12
+     ]
+    },
+    "every": 2.4
+   },
+   "face": 270,
+   "c": "#c9b48e"
+  },
+  {
+   "t": "bench",
+   "en": [
+    4.5,
+    22
+   ],
+   "face": 270,
+   "c": "#5a3420"
+  },
+  {
+   "t": "lounger",
+   "line": {
+    "from": {
+     "en": [
+      27.3,
+      30
+     ]
+    },
+    "to": {
+     "en": [
+      27.3,
+      56
+     ]
+    },
+    "every": 2.2
+   },
+   "face": 90,
+   "c": "#f4f2ec"
+  },
+  {
+   "t": "lounger",
+   "line": {
+    "from": {
+     "en": [
+      46.5,
+      30
+     ]
+    },
+    "to": {
+     "en": [
+      46.5,
+      52
+     ]
+    },
+    "every": 2.2
+   },
+   "face": 270,
+   "c": "#f4f2ec"
+  },
+  {
+   "t": "spa",
+   "en": [
+    45.5,
+    58.5
+   ]
+  },
+  {
+   "t": "umbrella",
+   "en": [
+    27.5,
+    59
+   ],
+   "c": "#f4f2ec"
+  },
+  {
+   "t": "umbrella",
+   "en": [
+    36,
+    59
+   ],
+   "c": "#f4f2ec"
+  },
+  {
+   "t": "startblock",
+   "line": {
+    "from": {
+     "en": [
+      31.3,
+      54.3
+     ]
+    },
+    "to": {
+     "en": [
+      42.1,
+      54.3
+     ]
+    },
+    "every": 1.8
+   },
+   "face": 180
+  },
+  {
+   "t": "towels",
+   "en": [
+    26.3,
+    24
+   ],
+   "face": 90
+  },
+  {
+   "t": "cafetable",
+   "en": [
+    37,
+    23.5
+   ]
+  },
+  {
+   "t": "umbrella",
+   "en": [
+    37,
+    23.5
+   ],
+   "c": "#c8b48a"
+  },
+  {
+   "t": "cafetable",
+   "en": [
+    41,
+    23.5
+   ]
+  },
+  {
+   "t": "umbrella",
+   "en": [
+    41,
+    23.5
+   ],
+   "c": "#c8b48a"
+  },
+  {
+   "t": "chair",
+   "en": [
+    36.1,
+    23.5
+   ],
+   "face": 90,
+   "c": "#5a3420"
+  },
+  {
+   "t": "chair",
+   "en": [
+    37.9,
+    23.5
+   ],
+   "face": 270,
+   "c": "#5a3420"
+  },
+  {
+   "t": "chair",
+   "en": [
+    40.1,
+    23.5
+   ],
+   "face": 90,
+   "c": "#5a3420"
+  },
+  {
+   "t": "chair",
+   "en": [
+    41.9,
+    23.5
+   ],
+   "face": 270,
+   "c": "#5a3420"
+  },
+  {
+   "t": "hoop",
+   "en": [
+    21,
+    3.5
+   ],
+   "face": 0
+  },
+  {
+   "t": "chair",
+   "line": {
+    "from": {
+     "en": [
+      -62,
+      -80
+     ]
+    },
+    "to": {
+     "en": [
+      -50,
+      -80
+     ]
+    },
+    "every": 1.6
+   },
+   "face": 180,
+   "c": "#f4f2ec"
+  },
+  {
+   "t": "waitboard",
+   "en": [
+    -46,
+    -80.5
+   ],
+   "face": 180
+  },
+  {
+   "t": "fountain",
+   "en": [
+    -8.5,
+    -78.5
+   ],
+   "face": 180
+  },
+  {
+   "t": "counter",
+   "en": [
+    -25,
+    -126.5
+   ],
+   "face": 0,
+   "c": "#8a5a33"
+  },
+  {
+   "t": "stool",
+   "line": {
+    "from": {
+     "en": [
+      -27.5,
+      -125
+     ]
+    },
+    "to": {
+     "en": [
+      -22.5,
+      -125
+     ]
+    },
+    "every": 1.2
+   },
+   "face": 180,
+   "c": "#5a3420"
+  },
+  {
+   "t": "picnic",
+   "en": [
+    -31,
+    -130
+   ],
+   "face": 90
+  },
+  {
+   "t": "picnic",
+   "en": [
+    -19,
+    -130
+   ],
+   "face": 90
+  },
+  {
+   "t": "picnic",
+   "line": {
+    "from": {
+     "en": [
+      42,
+      -12
+     ]
+    },
+    "to": {
+     "en": [
+      42,
+      -40
+     ]
+    },
+    "every": 5
+   },
+   "face": 90
+  },
+  {
+   "t": "bench",
+   "en": [
+    -30,
+    -3.2
+   ],
+   "face": 180,
+   "c": "#5a3420"
+  },
+  {
+   "t": "bench",
+   "en": [
+    -5,
+    -3.2
+   ],
+   "face": 180,
+   "c": "#5a3420"
+  }
+ ],
+ "areas": {
+  "add": [
+   {
+    "kind": "paved",
+    "poly": [
+     {
+      "en": [
+       -6,
+       4
+      ]
+     },
+     {
+      "en": [
+       9,
+       4
+      ]
+     },
+     {
+      "en": [
+       9,
+       30
+      ]
+     },
+     {
+      "en": [
+       -6,
+       30
+      ]
+     }
+    ],
+    "color": "#cfc6b4"
+   },
+   {
+    "kind": "deck",
+    "poly": [
+     {
+      "en": [
+       25,
+       22
+      ]
+     },
+     {
+      "en": [
+       50,
+       22
+      ]
+     },
+     {
+      "en": [
+       50,
+       64
+      ]
+     },
+     {
+      "en": [
+       25,
+       64
+      ]
+     }
+    ],
+    "color": "#d8cdb6"
+   },
+   {
+    "kind": "pool",
+    "poly": [
+     {
+      "en": [
+       30.2,
+       31.2
+      ]
+     },
+     {
+      "en": [
+       43.2,
+       31.2
+      ]
+     },
+     {
+      "en": [
+       43.2,
+       53.7
+      ]
+     },
+     {
+      "en": [
+       30.2,
+       53.7
+      ]
+     }
+    ],
+    "color": "#7fd6dc",
+    "lanes": 8
+   },
+   {
+    "kind": "pool",
+    "poly": [
+     {
+      "en": [
+       43.5,
+       26
+      ]
+     },
+     {
+      "en": [
+       47.5,
+       26
+      ]
+     },
+     {
+      "en": [
+       47.5,
+       29.5
+      ]
+     },
+     {
+      "en": [
+       43.5,
+       29.5
+      ]
+     }
+    ],
+    "color": "#8fdfe0"
+   },
+   {
+    "kind": "paved",
+    "poly": [
+     {
+      "en": [
+       33,
+       20
+      ]
+     },
+     {
+      "en": [
+       50,
+       20
+      ]
+     },
+     {
+      "en": [
+       50,
+       27
+      ]
+     },
+     {
+      "en": [
+       33,
+       27
+      ]
+     }
+    ],
+    "color": "#b07a5a"
+   },
+   {
+    "kind": "turf",
+    "poly": [
+     {
+      "en": [
+       17,
+       0
+      ]
+     },
+     {
+      "en": [
+       25,
+       0
+      ]
+     },
+     {
+      "en": [
+       25,
+       9
+      ]
+     },
+     {
+      "en": [
+       17,
+       9
+      ]
+     }
+    ]
+   },
+   {
+    "kind": "paved",
+    "poly": [
+     {
+      "en": [
+       38,
+       -45
+      ]
+     },
+     {
+      "en": [
+       52,
+       -45
+      ]
+     },
+     {
+      "en": [
+       52,
+       -5
+      ]
+     },
+     {
+      "en": [
+       38,
+       -5
+      ]
+     }
+    ],
+    "color": "#9b4a3a"
+   },
+   {
+    "kind": "paved",
+    "poly": [
+     {
+      "en": [
+       -55,
+       -6
+      ]
+     },
+     {
+      "en": [
+       34,
+       -6
+      ]
+     },
+     {
+      "en": [
+       34,
+       -1
+      ]
+     },
+     {
+      "en": [
+       -55,
+       -1
+      ]
+     }
+    ],
+    "color": "#d9cdb0"
+   },
+   {
+    "kind": "turf",
+    "poly": [
+     {
+      "en": [
+       -36,
+       -136
+      ]
+     },
+     {
+      "en": [
+       -14,
+       -136
+      ]
+     },
+     {
+      "en": [
+       -14,
+       -122
+      ]
+     },
+     {
+      "en": [
+       -36,
+       -122
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ "extras": [
+  {
+   "type": "stands",
+   "en": [
+    40.2,
+    -21.1
+   ],
+   "deg": 90,
+   "w": 20,
+   "rows": 4,
+   "color": "#e4d8bd",
+   "face": "w"
+  },
+  {
+   "type": "stands",
+   "en": [
+    -12,
+    -4.0
+   ],
+   "deg": 0,
+   "w": 34,
+   "rows": 3,
+   "color": "#e4d8bd",
+   "face": "s"
+  },
+  {
+   "type": "cabana",
+   "en": [
+    29,
+    61.8
+   ],
+   "w": 3.4,
+   "d": 2.6,
+   "color": "#f4f2ec"
+  },
+  {
+   "type": "cabana",
+   "en": [
+    33.5,
+    61.8
+   ],
+   "w": 3.4,
+   "d": 2.6,
+   "color": "#f4f2ec"
+  },
+  {
+   "type": "cabana",
+   "en": [
+    38,
+    61.8
+   ],
+   "w": 3.4,
+   "d": 2.6,
+   "color": "#f4f2ec"
+  },
+  {
+   "type": "canopy",
+   "en": [
+    45,
+    -15
+   ],
+   "w": 6,
+   "color": "#8a6a4a"
+  },
+  {
+   "type": "canopy",
+   "en": [
+    45,
+    -32
+   ],
+   "w": 6,
+   "color": "#8a6a4a"
+  },
+  {
+   "type": "sail",
+   "en": [
+    45,
+    -24
+   ],
+   "w": 8,
+   "color": "#d8c4a0"
+  },
+  {
+   "type": "gazebo",
+   "en": [
+    45,
+    -41
+   ],
+   "w": 5,
+   "color": "#f4f2ec"
+  },
+  {
+   "type": "sail",
+   "en": [
+    -25,
+    -128
+   ],
+   "w": 9,
+   "color": "#d8c4a0"
+  },
+  {
+   "type": "canopy",
+   "en": [
+    40,
+    25
+   ],
+   "w": 4,
+   "color": "#f4f2ec"
+  }
+ ],
+ "trees": {
+  "default": "broadleaf"
+ },
+ "backdrop": {
+  "hills": "#b49a68",
+  "hillsHeight": 1.8,
+  "trees": 34,
+  "treeKind": "broadleaf"
+ }
 }

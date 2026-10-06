@@ -1,24 +1,519 @@
 {
-  "name": "Sinaloa Middle School",
-  "short": "Sinaloa MS",
-  "city": "Simi Valley, CA",
-  "access": "public",
-  "note": "Free public school courts: twelve courts on one concrete slab, no lights, open outside school hours.",
-  "lit": false,
-  "anchor": [34.2654, -118.7846],
-  "crop": 60,
-  "courts": { "sports": ["pickleball", "basketball"] },
-  "colors": { "court": "#4a76a6", "kitchen": "#6f95b5", "surround": "#c4c4b6", "lines": "#f3f3ee", "fence": "#9a9d9f", "ground": "#a3a46e", "far": "#b4a473" },
-  "fence": { "join": { "p": { "u": 9, "w": 4.5 } }, "dividers": "none", "galvanized": true },
-  "buildings": {
-    "rules": [
-      { "en": [0, 0], "r": 300, "color": "#d8ccb4", "roof": "#a69d8c" },
-      { "en": [-95, -40], "r": 30, "color": "#e3dccb", "roof": "#8fc0bb", "kind": "portable" }
+ "name": "Sinaloa Middle School",
+ "short": "Sinaloa MS",
+ "city": "Simi Valley, CA",
+ "access": "public",
+ "note": "Free public school courts: twelve slate-blue courts on one concrete slab, galvanized chain-link, no windscreens, no lights; open outside school hours.",
+ "lit": false,
+ "_anchor": "the reference pack's aerial anchor: en points are meters east/north of it",
+ "anchor": [
+  34.265,
+  -118.7854
+ ],
+ "crop": 60,
+ "spawn": {
+  "en": [
+   5,
+   -40
+  ],
+  "deg": 300
+ },
+ "light": {
+  "sun": 1.0
+ },
+ "courts": {
+  "sports": [
+   "pickleball",
+   "basketball"
+  ],
+  "byId": {
+   "1458134958": {
+    "court": "#5f625e",
+    "kitchen": "#5f625e",
+    "surround": "#6b6d68"
+   },
+   "1458134959": {
+    "court": "#5f625e",
+    "kitchen": "#5f625e",
+    "surround": "#6b6d68"
+   },
+   "1458134960": {
+    "court": "#5f625e",
+    "kitchen": "#5f625e",
+    "surround": "#6b6d68"
+   },
+   "1458134961": {
+    "court": "#5f625e",
+    "kitchen": "#5f625e",
+    "surround": "#6b6d68"
+   }
+  }
+ },
+ "colors": {
+  "court": "#3f5e6c",
+  "kitchen": "#3f5e6c",
+  "surround": "#b9b8b0",
+  "lines": "#f4f4f2",
+  "fence": "#9a9c98",
+  "ground": "#a39a6a",
+  "far": "#9c9270"
+ },
+ "fence": {
+  "join": {
+   "p": {
+    "u": 9,
+    "w": 4.5
+   }
+  },
+  "dividers": "none",
+  "galvanized": true,
+  "netColor": "#1f3a2a"
+ },
+ "buildings": {
+  "rules": [
+   {
+    "en": [
+     0,
+     50
+    ],
+    "r": 200,
+    "color": "#d9cfb8",
+    "roof": "#d6d2c8",
+    "roofStyle": "flat",
+    "parapet": 0.5
+   }
+  ],
+  "add": [
+   {
+    "poly": [
+     {
+      "en": [
+       -31,
+       0
+      ]
+     },
+     {
+      "en": [
+       -21,
+       0
+      ]
+     },
+     {
+      "en": [
+       -21,
+       9
+      ]
+     },
+     {
+      "en": [
+       -31,
+       9
+      ]
+     }
+    ],
+    "h": 3.6,
+    "kind": "portable",
+    "color": "#d9cfb8",
+    "roof": "#4f8f86",
+    "roofStyle": "gable",
+    "tile": false,
+    "windows": "ribs"
+   },
+   {
+    "poly": [
+     {
+      "en": [
+       -31,
+       11.5
+      ]
+     },
+     {
+      "en": [
+       -21,
+       11.5
+      ]
+     },
+     {
+      "en": [
+       -21,
+       20.5
+      ]
+     },
+     {
+      "en": [
+       -31,
+       20.5
+      ]
+     }
+    ],
+    "h": 3.6,
+    "kind": "portable",
+    "color": "#d9cfb8",
+    "roof": "#4f8f86",
+    "roofStyle": "gable",
+    "tile": false,
+    "windows": "ribs"
+   },
+   {
+    "poly": [
+     {
+      "en": [
+       -31,
+       23
+      ]
+     },
+     {
+      "en": [
+       -21,
+       23
+      ]
+     },
+     {
+      "en": [
+       -21,
+       32
+      ]
+     },
+     {
+      "en": [
+       -31,
+       32
+      ]
+     }
+    ],
+    "h": 3.6,
+    "kind": "portable",
+    "color": "#d9cfb8",
+    "roof": "#4f8f86",
+    "roofStyle": "gable",
+    "tile": false,
+    "windows": "ribs"
+   },
+   {
+    "poly": [
+     {
+      "en": [
+       -31,
+       34.5
+      ]
+     },
+     {
+      "en": [
+       -21,
+       34.5
+      ]
+     },
+     {
+      "en": [
+       -21,
+       43.5
+      ]
+     },
+     {
+      "en": [
+       -31,
+       43.5
+      ]
+     }
+    ],
+    "h": 3.6,
+    "kind": "portable",
+    "color": "#d9cfb8",
+    "roof": "#4f8f86",
+    "roofStyle": "gable",
+    "tile": false,
+    "windows": "ribs"
+   }
+  ]
+ },
+ "props": [
+  {
+   "t": "bench",
+   "line": {
+    "from": {
+     "en": [
+      -32.6,
+      -36
+     ]
+    },
+    "to": {
+     "en": [
+      -32.6,
+      36
+     ]
+    },
+    "every": 12
+   },
+   "face": 270,
+   "c": "#1f3a2a"
+  },
+  {
+   "t": "bagpile",
+   "line": {
+    "from": {
+     "en": [
+      -32.9,
+      -30
+     ]
+    },
+    "to": {
+     "en": [
+      -32.9,
+      30
+     ]
+    },
+    "every": 20
+   },
+   "face": 270
+  },
+  {
+   "t": "fountain",
+   "en": [
+    -32.8,
+    -41.5
+   ],
+   "face": 270
+  },
+  {
+   "t": "bin",
+   "en": [
+    -32.8,
+    41.5
+   ],
+   "face": 270
+  },
+  {
+   "t": "bin",
+   "en": [
+    -45,
+    -45.4
+   ],
+   "face": 180
+  },
+  {
+   "t": "bench",
+   "line": {
+    "from": {
+     "en": [
+      -17.5,
+      4
+     ]
+    },
+    "to": {
+     "en": [
+      -17.5,
+      46
+     ]
+    },
+    "every": 7
+   },
+   "face": 270,
+   "c": "#1f3a2a"
+  }
+ ],
+ "areas": {
+  "add": [
+   {
+    "kind": "concrete",
+    "poly": [
+     {
+      "en": [
+       -66.7,
+       -43.6
+      ]
+     },
+     {
+      "en": [
+       -34.1,
+       -43.6
+      ]
+     },
+     {
+      "en": [
+       -34.1,
+       41.1
+      ]
+     },
+     {
+      "en": [
+       -66.7,
+       41.1
+      ]
+     }
+    ],
+    "color": "#b9b8b0"
+   },
+   {
+    "kind": "paved",
+    "poly": [
+     {
+      "en": [
+       -34.1,
+       -46
+      ]
+     },
+     {
+      "en": [
+       -15,
+       -46
+      ]
+     },
+     {
+      "en": [
+       -15,
+       50
+      ]
+     },
+     {
+      "en": [
+       -34.1,
+       50
+      ]
+     }
+    ],
+    "color": "#c9c4b6"
+   },
+   {
+    "kind": "parking",
+    "poly": [
+     {
+      "en": [
+       -10,
+       -45
+      ]
+     },
+     {
+      "en": [
+       60,
+       -45
+      ]
+     },
+     {
+      "en": [
+       60,
+       -12
+      ]
+     },
+     {
+      "en": [
+       -10,
+       -12
+      ]
+     }
     ]
+   }
+  ]
+ },
+ "extras": [
+  {
+   "type": "solar",
+   "en": [
+    -89,
+    87.5
+   ],
+   "w": 42,
+   "d": 75,
+   "deg": 0
   },
-  "extras": [{ "type": "solar", "en": [-161, 16], "w": 40, "d": 36, "deg": 0 }],
-  "trees": {
-    "rows": [{ "from": { "en": [-148, 0] }, "to": { "en": [-148, -92] }, "every": 4.5, "kind": "conifer", "s": 1.6 }]
+  {
+   "type": "canopy",
+   "en": [
+    -17.5,
+    4
+   ],
+   "w": 4.5,
+   "color": "#f2f2ee"
   },
-  "backdrop": { "hills": "#b69a64", "hillsHeight": 2.0, "mountains": "#a08a62", "mountainsDeg": -90, "trees": 18 }
+  {
+   "type": "canopy",
+   "en": [
+    -17.5,
+    10
+   ],
+   "w": 4.5,
+   "color": "#f2f2ee"
+  },
+  {
+   "type": "canopy",
+   "en": [
+    -17.5,
+    16
+   ],
+   "w": 4.5,
+   "color": "#f2f2ee"
+  },
+  {
+   "type": "canopy",
+   "en": [
+    -17.5,
+    22
+   ],
+   "w": 4.5,
+   "color": "#f2f2ee"
+  },
+  {
+   "type": "canopy",
+   "en": [
+    -17.5,
+    28
+   ],
+   "w": 4.5,
+   "color": "#f2f2ee"
+  },
+  {
+   "type": "canopy",
+   "en": [
+    -17.5,
+    34
+   ],
+   "w": 4.5,
+   "color": "#f2f2ee"
+  },
+  {
+   "type": "canopy",
+   "en": [
+    -17.5,
+    40
+   ],
+   "w": 4.5,
+   "color": "#f2f2ee"
+  },
+  {
+   "type": "canopy",
+   "en": [
+    -17.5,
+    46
+   ],
+   "w": 4.5,
+   "color": "#f2f2ee"
+  }
+ ],
+ "trees": {
+  "rows": [
+   {
+    "from": {
+     "en": [
+      -74.4,
+      44
+     ]
+    },
+    "to": {
+     "en": [
+      -74.4,
+      -47
+     ]
+    },
+    "every": 4.5,
+    "kind": "conifer",
+    "s": 1.6
+   }
+  ]
+ },
+ "backdrop": {
+  "hills": "#9c9270",
+  "hillsHeight": 2.2,
+  "mountains": "#a08a62",
+  "mountainsDeg": -90,
+  "trees": 18
+ }
 }
