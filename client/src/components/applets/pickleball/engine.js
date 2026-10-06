@@ -349,6 +349,7 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
   let aidVersion = -1
   let hitStop = 0
   let shake = 0
+  let rallyHits = 0 // shots in this rally (the crowd's swell)
   let umpireSignal = null
   let umpireSignalT = 0
   let cut = null // { kind, t } a TV cut between points
@@ -1486,6 +1487,9 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
           const mine = hitter?.ctrl === "human"
           onEvent?.({ type: "hit", kind: e.kind, label: e.label || KIND_LABEL[e.kind], tone: e.tone, tag: e.tag, mine, theirs: !!you && e.team !== you.team, slot: hitter?.slot, grade: e.grade, risky: e.risky, speed: e.speed, volley: e.volley, team: e.team })
           if (e.tone === "great") venue.crowd?.cheer(0.25)
+          // the crowd leans in as a rally runs long (8+ shots), and lets go when it ends
+          rallyHits++
+          if (rallyHits >= 8) audio.setTension?.((rallyHits - 6) / 14)
           break
         }
         case "bounce":
@@ -1519,6 +1523,8 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
           onEvent?.({ type: "fault", call: e.call, reason: e.reason, winner: e.winner, yours: e.winner === you?.team })
           break
         case "rally": {
+          rallyHits = 0
+          audio.setTension?.(0)
           if (demo) break
           const level = Math.min(1, 0.3 + e.shots / 14 + (e.last?.risky ? 0.2 : 0) + (e.kind === "winner" ? 0.15 : 0))
           venue.crowd?.cheer(level)
@@ -1534,6 +1540,8 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
           break
         }
         case "point":
+          rallyHits = 0
+          audio.setTension?.(0)
           if (demo) break
           audio.chime(e.winner === you?.team)
           for (const f of figures) setMood(f.anim, f.player.team === e.winner ? "cheer" : "sulk", Math.floor(Math.random() * 3))

@@ -557,11 +557,51 @@ const shared = (key, make) => {
 // xyz the center, w how far). Materials with a sway are one per athlete (their own uniforms);
 // they share the shader program.
 const swayUniforms = () => ({ pkSway: { value: new THREE.Vector3() }, pkFlare: { value: new THREE.Vector4(0, 0, 0, 0) } }) // (w 0: a Vector4 starts with w = 1)
-const athleteMaterial = (params, { wrap = "vec3(0.3)", rim = 0.12, key = "pk-cloth", sway = null } = {}) => {
+// Fabric you can see (2026-10-06): clothes get a knit's relief, worked out in the shader from
+// the garment's own rest-pose position (so the weave rides with the body instead of swimming
+// over it), bent into the lighting normal with screen-space derivatives (three's bump-map
+// math, inlined), fading out as the stitches get smaller than a pixel (no shimmer at the
+// broadcast camera). A soft sheen at grazing angles reads as cloth rather than plastic.
+const KNIT_VERT = ["#include <common>
+varying vec3 vPkRest;", "#include <begin_vertex>
+	vPkRest = position;"]
+const KNIT_FRAG = `
+	{
+		// a jersey knit: rows of little V's (about 2.5 mm), with a slower thread-to-thread wobble
+		vec3 q = vPkRest * vec3(260.0, 400.0, 260.0);
+		float across = q.x + q.z;
+		float v = abs(fract(q.y + abs(fract(across) - 0.5)) - 0.5);
+		float h = v * 2.0 + 0.25 * sin(across * 0.37 + q.y * 0.21);
+		float fade = 1.0 - smoothstep(0.35, 1.2, length(fwidth(q.xy)));
+		vec2 dHdxy = vec2(dFdx(h), dFdy(h)) * (0.0016 * fade);
+		vec3 vSigmaX = dFdx(-vViewPosition);
+		vec3 vSigmaY = dFdy(-vViewPosition);
+		vec3 R1 = cross(vSigmaY, normal);
+		vec3 R2 = cross(normal, vSigmaX);
+		float fDet = dot(vSigmaX, R1) * faceDirection;
+		vec3 vGrad = sign(fDet) * (dHdxy.x * R1 + dHdxy.y * R2);
+		normal = normalize(abs(fDet) * normal - vGrad);
+		// the weave's own shading in its grooves (tiny, so a garment keeps its color)
+		diffuseColor.rgb *= 1.0 - 0.06 * fade * (1.0 - v * 2.0);
+	}`
+const SHEEN_FRAG = `#include <emissivemap_fragment>
+	{
+		float pkGraze = 1.0 - saturate(dot(normal, normalize(vViewPosition)));
+		totalEmissiveRadiance += diffuseColor.rgb * (0.06 * pkGraze * pkGraze);
+	}`
+const athleteMaterial = (params, { wrap = "vec3(0.3)", rim = 0.12, key = "pk-cloth", sway = null, knit = false } = {}) => {
   const m = new THREE.MeshStandardMaterial(params)
   m.defines = { PK_WRAP: wrap }
   m.onBeforeCompile = (sh) => {
     athleteLight(sh, { rim })
+    if (knit) {
+      sh.vertexShader = sh.vertexShader.replace("#include <common>", KNIT_VERT[0]).replace("#include <begin_vertex>", KNIT_VERT[1])
+      sh.fragmentShader = sh.fragmentShader
+        .replace("#include <common>", "#include <common>
+varying vec3 vPkRest;")
+        .replace("#include <normal_fragment_maps>", "#include <normal_fragment_maps>" + KNIT_FRAG)
+        .replace("#include <emissivemap_fragment>", SHEEN_FRAG)
+    }
     if (!sway) return
     sh.uniforms.pkSway = sway.pkSway
     sh.uniforms.pkFlare = sway.pkFlare
@@ -569,12 +609,12 @@ const athleteMaterial = (params, { wrap = "vec3(0.3)", rim = 0.12, key = "pk-clo
       .replace("#include <common>", "#include <common>\nattribute float pkSwayW;\nuniform vec3 pkSway;\nuniform vec4 pkFlare;")
       .replace("#include <skinning_vertex>", "#include <skinning_vertex>\n\t{\n\t\tvec3 pkOut = vec3( transformed.x - pkFlare.x, 0.0, transformed.z - pkFlare.z );\n\t\ttransformed += ( pkSway + pkOut / max( length( pkOut ), 1e-4 ) * pkFlare.w ) * pkSwayW;\n\t}")
   }
-  m.customProgramCacheKey = () => key + (sway ? "-sway" : "")
+  m.customProgramCacheKey = () => key + (sway ? "-sway" : "") + (knit ? "-knit" : "")
   if (sway) m.userData.sway = sway
   return m
 }
 let outfitMaterial = null
-const outfitMat = () => (outfitMaterial ||= athleteMaterial({ vertexColors: true, roughness: 0.8, metalness: 0, side: THREE.DoubleSide }, { wrap: "vec3(0.32, 0.3, 0.3)", rim: 0.1 }))
+const outfitMat = () => (outfitMaterial ||= athleteMaterial({ vertexColors: true, roughness: 0.8, metalness: 0, side: THREE.DoubleSide }, { wrap: "vec3(0.32, 0.3, 0.3)", rim: 0.1, knit: true }))
 
 // ---- the paddle: a rounded face with an edge guard and a printed design, a wrapped grip ----
 const PADDLE = { w: 0.19, h: 0.27, neck: 0.075, handle: 0.135 }
@@ -1071,7 +1111,7 @@ const buildAthlete = (look = {}, { shadows = false, withPaddle = true } = {}, de
   const outfitGeo = outfitGeometry(tpl, look, variant)
   // (a skirt swings: this athlete's own material, for its spring's uniforms)
   const skirtSway = outfitGeo.userData.swings ? swayUniforms() : null
-  const outfit = new THREE.SkinnedMesh(outfitGeo, skirtSway ? athleteMaterial({ vertexColors: true, roughness: 0.8, metalness: 0, side: THREE.DoubleSide }, { wrap: "vec3(0.32, 0.3, 0.3)", rim: 0.1, sway: skirtSway }) : outfitMat())
+  const outfit = new THREE.SkinnedMesh(outfitGeo, skirtSway ? athleteMaterial({ vertexColors: true, roughness: 0.8, metalness: 0, side: THREE.DoubleSide }, { wrap: "vec3(0.32, 0.3, 0.3)", rim: 0.1, sway: skirtSway, knit: true }) : outfitMat())
   outfit.bind(skeleton, body.bindMatrix)
   body.parent.add(outfit)
   const parts = [body, outfit]
