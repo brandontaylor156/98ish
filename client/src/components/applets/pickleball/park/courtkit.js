@@ -19,7 +19,9 @@ const canvasTexture = (w, h, draw) => {
   t.colorSpace = THREE.SRGBColorSpace
   return t
 }
-const linesGeometry = (segs, y = 0.003) => {
+// (layer heights: surface 0, kitchen 0.008, lines 0.014, painted-on lines 0.016, art 0.018;
+// each layer's material also has a polygon offset)
+const linesGeometry = (segs, y = 0.014) => {
   const lp = []
   for (const [x0, z0, x1, z1] of segs) quad(lp, x0, z0, x1, z1, y)
   const g = new THREE.BufferGeometry()
@@ -74,12 +76,13 @@ export const createCourtKit = ({ keep, std, colors = {}, runoff = null }) => {
   )
   grain.wrapS = grain.wrapT = THREE.RepeatWrapping
   grain.repeat.set(3, 6)
+  const off = (n) => ({ polygonOffset: true, polygonOffsetFactor: -n, polygonOffsetUnits: -2 * n })
   const mats = {
     court: std(C.court, { map: grain, roughness: 0.8 }),
-    kitchen: std(C.kitchen, { map: grain, roughness: 0.8 }),
+    kitchen: std(C.kitchen, { map: grain, roughness: 0.8, ...off(1) }),
     runoff: std(C.surround, { roughness: 0.9 }),
-    line: std(C.lines, { roughness: 0.7 }),
-    pbLine: std(C.pbLines, { roughness: 0.7 }),
+    line: std(C.lines, { roughness: 0.7, ...off(2) }),
+    pbLine: std(C.pbLines, { roughness: 0.7, ...off(3) }),
     post: std(0x2b2f36, { roughness: 0.5, metalness: 0.3 }),
     tennis: std(C.tennis ?? C.court, { map: grain, roughness: 0.8 }),
     tennisRunoff: std(C.tennisSurround ?? C.surround, { roughness: 0.9 }),
@@ -104,7 +107,7 @@ export const createCourtKit = ({ keep, std, colors = {}, runoff = null }) => {
   const ro = runoff || { hx: HALF_L + 3.2, hz: HALF_W + 2.0 }
   const pb = {
     court: keep(new THREE.PlaneGeometry(2 * HALF_W, 2 * HALF_L).rotateX(-Math.PI / 2)),
-    kitchen: keep(new THREE.PlaneGeometry(2 * HALF_W, 2 * KITCHEN).rotateX(-Math.PI / 2).translate(0, 0.001, 0)),
+    kitchen: keep(new THREE.PlaneGeometry(2 * HALF_W, 2 * KITCHEN).rotateX(-Math.PI / 2).translate(0, 0.008, 0)),
     runoff: keep(new THREE.PlaneGeometry(2 * ro.hz, 2 * ro.hx).rotateX(-Math.PI / 2).translate(0, -0.002, 0)),
     lines: keep(
       linesGeometry([
@@ -136,7 +139,7 @@ export const createCourtKit = ({ keep, std, colors = {}, runoff = null }) => {
         [-LINE_W / 2, KITCHEN, LINE_W / 2, HALF_L],
         [-LINE_W / 2, -HALF_L, LINE_W / 2, -KITCHEN],
       ],
-      0.0035
+      0.016
     )
   )
 
@@ -190,6 +193,54 @@ export const createCourtKit = ({ keep, std, colors = {}, runoff = null }) => {
     rim: keep(new THREE.TorusGeometry(0.23, 0.015, 4, 12).rotateX(Math.PI / 2)),
   }
 
+  // center-court art (our own simple drawings, white on the court): "bear" (a walking bear
+  // silhouette), "paddle" (crossed paddles), "ball"
+  const arts = new Map()
+  const artMat = (kind) => {
+    if (!arts.has(kind)) {
+      const tex = keep(
+        canvasTexture(256, 128, (ctx, w, h) => {
+          ctx.clearRect(0, 0, w, h)
+          ctx.fillStyle = "#ffffff"
+          if (kind === "bear") {
+            const e = (x, y, rx, ry, r = 0) => {
+              ctx.beginPath()
+              ctx.ellipse(x, y, rx, ry, r, 0, Math.PI * 2)
+              ctx.fill()
+            }
+            e(128, 66, 78, 30) // body
+            e(56, 50, 26, 20, -0.25) // shoulders/head base
+            e(30, 52, 20, 15) // head
+            e(14, 56, 10, 7) // snout
+            e(36, 36, 6, 6) // ear
+            for (const [x, k] of [[66, 0], [96, 1], [168, 0], [196, 1]]) {
+              ctx.fillRect(x - 10 + k * 3, 80, 20, 40)
+              e(x + k * 3, 120, 13, 6)
+            }
+            e(204, 54, 10, 8) // tail end of the back
+          } else if (kind === "paddle") {
+            ctx.save()
+            for (const r of [-0.5, 0.5]) {
+              ctx.setTransform(Math.cos(r), Math.sin(r), -Math.sin(r), Math.cos(r), w / 2, h / 2)
+              ctx.beginPath()
+              ctx.ellipse(0, -18, 22, 30, 0, 0, Math.PI * 2)
+              ctx.fill()
+              ctx.fillRect(-5, 8, 10, 40)
+            }
+            ctx.restore()
+          } else {
+            ctx.beginPath()
+            ctx.arc(w / 2, h / 2, h * 0.4, 0, Math.PI * 2)
+            ctx.fill()
+          }
+        })
+      )
+      arts.set(kind, keep(new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, color: 0xf6f6f2, ...off(4) })))
+    }
+    return arts.get(kind)
+  }
+  const artGeo = keep(new THREE.PlaneGeometry(2.6, 1.3).rotateX(-Math.PI / 2))
+  const alleyGeo = keep(new THREE.PlaneGeometry(1.37, T.L).rotateX(-Math.PI / 2).translate(0, 0.008, 0))
   // a court painted its own colors (feature courts, red clay): materials made once per paint
   const painted = new Map()
   const paintMats = (paint) => {
@@ -199,9 +250,12 @@ export const createCourtKit = ({ keep, std, colors = {}, runoff = null }) => {
       const num = (v, d) => (typeof v === "string" && v[0] === "#" ? parseInt(v.slice(1), 16) : d)
       painted.set(key, {
         court: std(num(paint.court, C.court), { map: grain, roughness: paint.clay ? 1 : 0.8 }),
-        kitchen: std(num(paint.kitchen, num(paint.court, C.kitchen)), { map: grain, roughness: 0.8 }),
+        kitchen: std(num(paint.kitchen, num(paint.court, C.kitchen)), { map: grain, roughness: 0.8, ...off(1) }),
         tennis: std(num(paint.court, C.tennis ?? C.court), { map: grain, roughness: paint.clay ? 1 : 0.8 }),
         surround: paint.surround ? std(num(paint.surround, C.surround), { roughness: paint.clay ? 1 : 0.9 }) : null,
+        alley: paint.alley ? std(num(paint.alley, C.court), { map: grain, roughness: 0.8, ...off(1) }) : null,
+        line: paint.lines ? std(num(paint.lines, C.lines), { roughness: 0.7, ...off(2) }) : null,
+        art: paint.art ? artMat(paint.art) : null,
       })
     }
     return painted.get(key)
@@ -229,7 +283,14 @@ export const createCourtKit = ({ keep, std, colors = {}, runoff = null }) => {
       if (withRunoff) mesh(g, pb.runoff, mats.runoff)
       mesh(g, pb.court, pm?.court || mats.court)
       mesh(g, pb.kitchen, pm?.kitchen || mats.kitchen)
-      mesh(g, pb.lines, mats.line)
+      mesh(g, pb.lines, pm?.line || mats.line)
+      // the art in each kitchen, facing its baseline
+      if (pm?.art)
+        for (const s of [-1, 1]) {
+          const a = mesh(g, artGeo, pm.art, 1)
+          a.position.set(0, 0.018, s * KITCHEN * 0.5)
+          a.rotation.y = s > 0 ? 0 : Math.PI
+        }
       mesh(g, pb.net, mats.net, 2)
       mesh(g, pb.tape, mats.tape)
       for (const s of [-1, 1]) mesh(g, pb.post, mats.post).position.x = s * NET_POST_X
@@ -241,7 +302,9 @@ export const createCourtKit = ({ keep, std, colors = {}, runoff = null }) => {
       const pm = paintMats(paint)
       if (withRunoff) mesh(g, tn.runoff, mats.tennisRunoff)
       mesh(g, tn.court, pm?.tennis || mats.tennis)
-      mesh(g, tn.lines, mats.line)
+      // doubles alleys in their own color
+      if (pm?.alley) for (const s of [-1, 1]) mesh(g, alleyGeo, pm.alley).position.x = s * (T.S / 2 + 1.37 / 2)
+      mesh(g, tn.lines, pm?.line || mats.line)
       mesh(g, tn.net, mats.net, 2)
       mesh(g, tn.tape, mats.tape)
       for (const s of [-1, 1]) mesh(g, tn.post, mats.post).position.x = s * T.POST

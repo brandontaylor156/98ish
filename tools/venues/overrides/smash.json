@@ -1,55 +1,1368 @@
 {
-  "name": "California SMASH Pickleball & Social Club",
-  "short": "California SMASH",
-  "city": "El Segundo, CA",
-  "access": "public",
-  "indoor": true,
-  "note": "Social club: nine padded courts, a raised orange-steel lounge walkway and a full bar overlooking play.",
-  "anchor": [33.92722, -118.38807],
-  "crop": 50,
-  "courts": {
-    "osm": false,
-    "add": [
-      { "id": "N1", "en": [-30.8, 8.0], "bearing": 0, "court": "#1f9ad6", "kitchen": "#2f5590" },
-      { "id": "N2", "en": [-22.3, 8.0], "bearing": 0, "court": "#2f5590", "kitchen": "#1f9ad6" },
-      { "id": "N3", "en": [-13.8, 8.0], "bearing": 0, "court": "#1f9ad6", "kitchen": "#2f5590" },
-      { "id": "N4", "en": [-5.3, 8.0], "bearing": 0, "court": "#2f5590", "kitchen": "#1f9ad6" },
-      { "id": "N5", "en": [3.2, 8.0], "bearing": 0, "court": "#1f9ad6", "kitchen": "#2f5590" },
-      { "id": "N6", "en": [11.7, 8.0], "bearing": 0, "court": "#2f5590", "kitchen": "#1f9ad6" },
-      { "id": "S1", "en": [-26.0, -11.5], "bearing": 90, "court": "#1f9ad6", "kitchen": "#f39a1e" },
-      { "id": "S2", "en": [-8.5, -11.5], "bearing": 90, "court": "#f39a1e", "kitchen": "#e8861a" },
-      { "id": "S3", "en": [9.0, -11.5], "bearing": 90, "court": "#1f9ad6", "kitchen": "#2f5590" }
+ "name": "California SMASH Pickleball & Social Club",
+ "short": "California SMASH",
+ "city": "El Segundo, CA",
+ "access": "public",
+ "indoor": true,
+ "note": "Social club: nine padded courts, a raised orange-steel lounge walkway and a full bar overlooking play.",
+ "_anchor": "the building's middle (the reference pack's aerial anchor): en points are metres east, north of it; the east block's floor plan is a plausible reconstruction (docs/pickleball-venues.md)",
+ "anchor": [
+  33.92722,
+  -118.38807
+ ],
+ "crop": 50,
+ "spawn": {
+  "en": [
+   12,
+   -21.6
+  ],
+  "deg": 0
+ },
+ "courts": {
+  "osm": false,
+  "add": [
+   {
+    "id": "N1",
+    "en": [
+     -30.8,
+     8.0
+    ],
+    "bearing": 0,
+    "court": "#3d5a68",
+    "kitchen": "#2a96cc"
+   },
+   {
+    "id": "N2",
+    "en": [
+     -22.3,
+     8.0
+    ],
+    "bearing": 0,
+    "court": "#3d5a68",
+    "kitchen": "#2a96cc"
+   },
+   {
+    "id": "N3",
+    "en": [
+     -13.8,
+     8.0
+    ],
+    "bearing": 0,
+    "court": "#3d5a68",
+    "kitchen": "#2a96cc"
+   },
+   {
+    "id": "N4",
+    "en": [
+     -5.3,
+     8.0
+    ],
+    "bearing": 0,
+    "court": "#3d5a68",
+    "kitchen": "#2a96cc"
+   },
+   {
+    "id": "N5",
+    "en": [
+     3.2,
+     8.0
+    ],
+    "bearing": 0,
+    "court": "#3d5a68",
+    "kitchen": "#2a96cc"
+   },
+   {
+    "id": "N6",
+    "en": [
+     11.7,
+     8.0
+    ],
+    "bearing": 0,
+    "court": "#3d5a68",
+    "kitchen": "#2a96cc"
+   },
+   {
+    "id": "S1",
+    "en": [
+     -26.0,
+     -11.5
+    ],
+    "bearing": 90,
+    "court": "#2a96cc",
+    "kitchen": "#3d5a68"
+   },
+   {
+    "id": "S2",
+    "en": [
+     -8.5,
+     -11.5
+    ],
+    "bearing": 90,
+    "court": "#2a96cc",
+    "kitchen": "#f08c24",
+    "art": "bear"
+   },
+   {
+    "id": "S3",
+    "en": [
+     9.0,
+     -11.5
+    ],
+    "bearing": 90,
+    "court": "#f08c24",
+    "kitchen": "#2a96cc"
+   }
+  ]
+ },
+ "halls": [
+  {
+   "building": 424946012,
+   "height": 8,
+   "door": {
+    "en": [
+     30,
+     -16.6
     ]
-  },
-  "halls": [
+   },
+   "doorW": 2.4,
+   "wall": "#d9a04a",
+   "pads": "#1f2858",
+   "padH": 1.8,
+   "ceiling": "#ece8e0",
+   "floor": "#cfa873",
+   "beams": "#2a46b8",
+   "ducts": "#2c4fae",
+   "lightsStyle": "strip",
+   "outside": "#e9e9e6",
+   "roof": "#f2f2ee"
+  }
+ ],
+ "light": {
+  "sky": 2.6,
+  "sun": 0.6,
+  "bounce": "#e8e2d6"
+ },
+ "rooms": [
+  {
+   "id": "lobby",
+   "type": "lobby",
+   "name": "Lobby and front desk",
+   "wall": "#f4c430",
+   "floor": "#b78a52",
+   "furnish": false,
+   "partition": "#f2f2f0",
+   "poly": [
     {
-      "building": 424946012,
-      "height": 8,
-      "door": { "en": [35, -8] },
-      "wall": "#c9a26b",
-      "pads": "#22337a",
-      "padH": 1.5,
-      "ceiling": "#f1f0ec",
-      "floor": "#d8b98c",
-      "beams": "#2a46b8",
-      "ducts": "#2f5ab8",
-      "lightsStyle": "strip",
-      "outside": "#e9e6df",
-      "roof": "#f2f2ee",
-      "bar": { "en": [27.5, 2], "bearing": 0, "len": 16, "depth": 3, "tables": 8, "stools": 12, "tv": 4, "color": "#f2f0ea" }
+     "en": [
+      22,
+      -16.6
+     ]
+    },
+    {
+     "en": [
+      35.2,
+      -16.6
+     ]
+    },
+    {
+     "en": [
+      35.2,
+      -6
+     ]
+    },
+    {
+     "en": [
+      22,
+      -6
+     ]
     }
-  ],
-  "extras": [
-    { "type": "spine", "en": [-9.5, -3.5], "deg": 0, "w": 50, "d": 5, "h": 1.0, "color": "#c8a273", "frames": "#f08a1c" },
-    { "type": "mural", "en": [-34.8, 8], "deg": 90, "w": 26, "h": 3.5, "y": 3.5, "style": "sunset", "face": "e" },
-    { "type": "mural", "en": [-34.8, -11.5], "deg": 90, "w": 8, "h": 2.6, "y": 3.2, "style": "wave", "face": "e" },
-    { "type": "mural", "en": [-9, 16.8], "deg": 0, "w": 36, "h": 2.2, "y": 4.6, "style": "gradient", "face": "s" },
-    { "type": "living", "en": [16, 16.6], "deg": 0, "w": 6, "h": 3, "y": 1.6, "face": "s" }
-  ],
-  "colors": { "court": "#1f9ad6", "kitchen": "#2f5590", "surround": "#d8b98c", "lines": "#ffffff", "ground": "#8a8a84", "far": "#9a9a90" },
-  "fence": { "dividers": "net", "netColor": "#151515", "netTop": "#f2c21a" },
-  "trees": {
-    "rows": [{ "from": { "en": [39, -16] }, "to": { "en": [39, 16] }, "every": 6, "kind": "palm", "s": 1.1 }]
+   ],
+   "doors": [
+    {
+     "en": [
+      30,
+      -16.6
+     ],
+     "w": 2.4,
+     "kind": "double"
+    },
+    {
+     "en": [
+      22,
+      -12.5
+     ],
+     "w": 1.8,
+     "kind": "open"
+    },
+    {
+     "en": [
+      28.5,
+      -6
+     ],
+     "w": 2.6,
+     "kind": "open"
+    }
+   ],
+   "props": [
+    {
+     "t": "desk",
+     "en": [
+      29.5,
+      -9.2
+     ],
+     "face": 180,
+     "c": "#f2f2f0"
+    },
+    {
+     "t": "vending",
+     "en": [
+      34.7,
+      -9.5
+     ],
+     "face": 270,
+     "c": "#1e7fc8"
+    },
+    {
+     "t": "tv",
+     "en": [
+      29.5,
+      -6.15
+     ],
+     "face": 180,
+     "w": 3.0
+    },
+    {
+     "t": "sofa",
+     "en": [
+      24.2,
+      -15.6
+     ],
+     "face": 0,
+     "c": "#1e7fc8"
+    },
+    {
+     "t": "plant",
+     "en": [
+      22.6,
+      -6.6
+     ]
+    },
+    {
+     "t": "plant",
+     "en": [
+      34.6,
+      -16.0
+     ]
+    }
+   ]
   },
-  "backdrop": { "skyline": true, "palms": 14, "viaduct": { "from": [60, -40], "to": [170, 60], "h": 9 } }
+  {
+   "id": "proshop",
+   "type": "proshop",
+   "name": "Pro shop",
+   "accent": "#1e7fc8",
+   "wall": "#f2f2f0",
+   "floor": "#b78a52",
+   "poly": [
+    {
+     "en": [
+      16,
+      -16.6
+     ]
+    },
+    {
+     "en": [
+      22,
+      -16.6
+     ]
+    },
+    {
+     "en": [
+      22,
+      -9
+     ]
+    },
+    {
+     "en": [
+      16,
+      -9
+     ]
+    }
+   ]
+  },
+  {
+   "id": "bar",
+   "type": "bar",
+   "name": "Bar and restaurant",
+   "wall": "#f2f2f0",
+   "floor": "#9b7448",
+   "ceiling": "#2c2a2e",
+   "wainscot": "#1f2858",
+   "h": 4.0,
+   "furnish": false,
+   "partition": "#f2f2f0",
+   "top": "#c9c9cc",
+   "poly": [
+    {
+     "en": [
+      16,
+      -6
+     ]
+    },
+    {
+     "en": [
+      35.2,
+      -6
+     ]
+    },
+    {
+     "en": [
+      35.2,
+      10
+     ]
+    },
+    {
+     "en": [
+      28,
+      10
+     ]
+    },
+    {
+     "en": [
+      28,
+      12
+     ]
+    },
+    {
+     "en": [
+      16,
+      12
+     ]
+    }
+   ],
+   "doors": [
+    {
+     "en": [
+      35.2,
+      -2.8
+     ],
+     "w": 3.4,
+     "kind": "rollup"
+    },
+    {
+     "en": [
+      16,
+      -3.75
+     ],
+     "w": 4.2,
+     "kind": "open"
+    },
+    {
+     "en": [
+      16,
+      6
+     ],
+     "w": 2.4,
+     "kind": "open"
+    },
+    {
+     "en": [
+      27.2,
+      12
+     ],
+     "w": 1.4,
+     "kind": "open"
+    }
+   ],
+   "props": [
+    {
+     "t": "counter",
+     "en": [
+      32.9,
+      -0.5
+     ],
+     "face": 270,
+     "c": "#f2f2f0"
+    },
+    {
+     "t": "counter",
+     "en": [
+      32.9,
+      2.5
+     ],
+     "face": 270,
+     "c": "#f2f2f0"
+    },
+    {
+     "t": "counter",
+     "en": [
+      32.9,
+      5.5
+     ],
+     "face": 270,
+     "c": "#f2f2f0"
+    },
+    {
+     "t": "backbar",
+     "en": [
+      34.9,
+      -0.5
+     ],
+     "face": 270
+    },
+    {
+     "t": "backbar",
+     "en": [
+      34.9,
+      2.5
+     ],
+     "face": 270
+    },
+    {
+     "t": "backbar",
+     "en": [
+      34.9,
+      5.5
+     ],
+     "face": 270
+    },
+    {
+     "t": "stool",
+     "line": {
+      "from": {
+       "en": [
+        32.1,
+        -1.6
+       ]
+      },
+      "to": {
+       "en": [
+        32.1,
+        6.6
+       ]
+      },
+      "every": 0.9
+     },
+     "c": "#d23a2a",
+     "face": 90
+    },
+    {
+     "t": "tv",
+     "en": [
+      35.1,
+      0.5
+     ],
+     "face": 270,
+     "y": 1.2
+    },
+    {
+     "t": "tv",
+     "en": [
+      35.1,
+      4.5
+     ],
+     "face": 270,
+     "y": 1.2
+    },
+    {
+     "t": "tv",
+     "en": [
+      24,
+      11.9
+     ],
+     "face": 180
+    },
+    {
+     "t": "sofa",
+     "line": {
+      "from": {
+       "en": [
+        17.3,
+        11.4
+       ]
+      },
+      "to": {
+       "en": [
+        25.4,
+        11.4
+       ]
+      },
+      "every": 2.7
+     },
+     "face": 180,
+     "c": "#1e7fc8"
+    },
+    {
+     "t": "tablesq",
+     "line": {
+      "from": {
+       "en": [
+        17.3,
+        10.0
+       ]
+      },
+      "to": {
+       "en": [
+        25.4,
+        10.0
+       ]
+      },
+      "every": 2.7
+     },
+     "c": "#c9a06a"
+    },
+    {
+     "t": "pingpong",
+     "en": [
+      21.5,
+      -1.5
+     ],
+     "face": 90
+    },
+    {
+     "t": "pingpong",
+     "en": [
+      21.5,
+      3.6
+     ],
+     "face": 90
+    },
+    {
+     "t": "table",
+     "en": [
+      27.6,
+      0.5
+     ],
+     "c": "#c9a06a"
+    },
+    {
+     "t": "table",
+     "en": [
+      27.6,
+      4.0
+     ],
+     "c": "#c9a06a"
+    },
+    {
+     "t": "table",
+     "en": [
+      27.6,
+      7.4
+     ],
+     "c": "#c9a06a"
+    },
+    {
+     "t": "stool",
+     "en": [
+      26.8,
+      0.5
+     ],
+     "c": "#f2c21a",
+     "face": 90
+    },
+    {
+     "t": "stool",
+     "en": [
+      28.4,
+      0.5
+     ],
+     "c": "#f2c21a",
+     "face": 270
+    },
+    {
+     "t": "stool",
+     "en": [
+      26.8,
+      4.0
+     ],
+     "c": "#f2c21a",
+     "face": 90
+    },
+    {
+     "t": "stool",
+     "en": [
+      28.4,
+      4.0
+     ],
+     "c": "#f2c21a",
+     "face": 270
+    },
+    {
+     "t": "stool",
+     "en": [
+      26.8,
+      7.4
+     ],
+     "c": "#f2c21a",
+     "face": 90
+    },
+    {
+     "t": "stool",
+     "en": [
+      28.4,
+      7.4
+     ],
+     "c": "#f2c21a",
+     "face": 270
+    },
+    {
+     "t": "stairs",
+     "en": [
+      18.3,
+      7.5
+     ],
+     "face": 0,
+     "c": "#2a46b8"
+    },
+    {
+     "t": "glasswall",
+     "line": {
+      "from": {
+       "en": [
+        16.4,
+        -5.0
+       ]
+      },
+      "to": {
+       "en": [
+        16.4,
+        11.0
+       ]
+      },
+      "every": 2.0
+     },
+     "face": 270,
+     "y": 4.02
+    },
+    {
+     "t": "sofa",
+     "en": [
+      19.5,
+      2.0
+     ],
+     "face": 270,
+     "c": "#6a3a9a",
+     "y": 4.02
+    },
+    {
+     "t": "sofa",
+     "en": [
+      19.5,
+      -1.5
+     ],
+     "face": 270,
+     "c": "#b8323a",
+     "y": 4.02
+    },
+    {
+     "t": "sofa",
+     "en": [
+      19.5,
+      5.5
+     ],
+     "face": 270,
+     "c": "#1f2858",
+     "y": 4.02
+    },
+    {
+     "t": "coffeetable",
+     "en": [
+      18.0,
+      2.0
+     ],
+     "face": 0,
+     "c": "#f2f2f0",
+     "y": 4.02
+    },
+    {
+     "t": "desk",
+     "en": [
+      26.5,
+      8.5
+     ],
+     "face": 270,
+     "c": "#f2f2f0",
+     "y": 4.02
+    },
+    {
+     "t": "plant",
+     "en": [
+      17.0,
+      10.6
+     ],
+     "y": 4.02
+    }
+   ]
+  },
+  {
+   "id": "kitchen",
+   "type": "office",
+   "name": "Kitchen",
+   "furnish": false,
+   "poly": [
+    {
+     "en": [
+      28,
+      10
+     ]
+    },
+    {
+     "en": [
+      35.2,
+      10
+     ]
+    },
+    {
+     "en": [
+      35.2,
+      17.2
+     ]
+    },
+    {
+     "en": [
+      28,
+      17.2
+     ]
+    }
+   ],
+   "doors": [
+    {
+     "en": [
+      31.5,
+      10
+     ],
+     "w": 1.0,
+     "kind": "closed",
+     "color": "#2b2f36"
+    }
+   ]
+  },
+  {
+   "id": "backHall",
+   "type": "corridor",
+   "name": "Back hallway",
+   "benches": false,
+   "floor": "#9b7448",
+   "wall": "#f2f2f0",
+   "poly": [
+    {
+     "en": [
+      16,
+      12
+     ]
+    },
+    {
+     "en": [
+      28,
+      12
+     ]
+    },
+    {
+     "en": [
+      28,
+      14.2
+     ]
+    },
+    {
+     "en": [
+      16,
+      14.2
+     ]
+    }
+   ],
+   "doors": [
+    {
+     "en": [
+      18.5,
+      14.2
+     ],
+     "w": 1.0,
+     "kind": "restroom",
+     "gender": "m"
+    },
+    {
+     "en": [
+      23.5,
+      14.2
+     ],
+     "w": 1.0,
+     "kind": "restroom",
+     "gender": "f"
+    },
+    {
+     "en": [
+      26.9,
+      14.2
+     ],
+     "w": 0.9,
+     "kind": "closed",
+     "color": "#2b2f36"
+    }
+   ]
+  },
+  {
+   "id": "menRoom",
+   "type": "restroom",
+   "name": "Men's restroom",
+   "gender": "m",
+   "poly": [
+    {
+     "en": [
+      16,
+      14.2
+     ]
+    },
+    {
+     "en": [
+      21,
+      14.2
+     ]
+    },
+    {
+     "en": [
+      21,
+      17.2
+     ]
+    },
+    {
+     "en": [
+      16,
+      17.2
+     ]
+    }
+   ]
+  },
+  {
+   "id": "womenRoom",
+   "type": "restroom",
+   "name": "Women's restroom",
+   "gender": "f",
+   "poly": [
+    {
+     "en": [
+      21,
+      14.2
+     ]
+    },
+    {
+     "en": [
+      26,
+      14.2
+     ]
+    },
+    {
+     "en": [
+      26,
+      17.2
+     ]
+    },
+    {
+     "en": [
+      21,
+      17.2
+     ]
+    }
+   ]
+  }
+ ],
+ "extras": [
+  {
+   "type": "spine",
+   "en": [
+    -11.4,
+    -3.75
+   ],
+   "deg": 0,
+   "w": 47.6,
+   "d": 5.5,
+   "h": 0.9,
+   "color": "#b78a52",
+   "frames": "#e8602a"
+  },
+  {
+   "type": "mural",
+   "en": [
+    -35.6,
+    8
+   ],
+   "deg": 90,
+   "w": 26,
+   "h": 3.5,
+   "y": 3.8,
+   "style": "gradient",
+   "face": "e"
+  },
+  {
+   "type": "mural",
+   "en": [
+    -35.6,
+    -11.5
+   ],
+   "deg": 90,
+   "w": 10,
+   "h": 2.6,
+   "y": 3.4,
+   "style": "gradient",
+   "face": "e"
+  },
+  {
+   "type": "mural",
+   "en": [
+    -9,
+    16.8
+   ],
+   "deg": 0,
+   "w": 30,
+   "h": 2.2,
+   "y": 4.6,
+   "style": "sunset",
+   "face": "s"
+  },
+  {
+   "type": "mural",
+   "en": [
+    23,
+    -5.9
+   ],
+   "deg": 0,
+   "w": 2.0,
+   "h": 2.4,
+   "y": 1.6,
+   "style": "wave",
+   "face": "n"
+  },
+  {
+   "type": "living",
+   "en": [
+    8,
+    -16.4
+   ],
+   "deg": 0,
+   "w": 8,
+   "h": 3,
+   "y": 3.4,
+   "face": "n"
+  }
+ ],
+ "props": [
+  {
+   "t": "planter",
+   "line": {
+    "from": {
+     "en": [
+      -30,
+      -18.4
+     ]
+    },
+    "to": {
+     "en": [
+      20,
+      -18.4
+     ]
+    },
+    "every": 5
+   },
+   "face": 0
+  },
+  {
+   "t": "plant",
+   "en": [
+    27.6,
+    -17.3
+   ]
+  },
+  {
+   "t": "plant",
+   "en": [
+    32.4,
+    -17.3
+   ]
+  },
+  {
+   "t": "sofa",
+   "line": {
+    "from": {
+     "en": [
+      36.4,
+      -15
+     ]
+    },
+    "to": {
+     "en": [
+      36.4,
+      0
+     ]
+    },
+    "every": 2.6
+   },
+   "face": 90,
+   "c": "#e8641e"
+  },
+  {
+   "t": "tablesq",
+   "line": {
+    "from": {
+     "en": [
+      38.0,
+      -15
+     ]
+    },
+    "to": {
+     "en": [
+      38.0,
+      0
+     ]
+    },
+    "every": 2.6
+   },
+   "c": "#a8784a"
+  },
+  {
+   "t": "chair",
+   "line": {
+    "from": {
+     "en": [
+      39.3,
+      -15
+     ]
+    },
+    "to": {
+     "en": [
+      39.3,
+      0
+     ]
+    },
+    "every": 2.6
+   },
+   "face": 270,
+   "c": "#c8d43a"
+  },
+  {
+   "t": "toybox",
+   "en": [
+    41.5,
+    -10
+   ],
+   "face": 270,
+   "c": "#2a46b8"
+  },
+  {
+   "t": "toybox",
+   "en": [
+    41.5,
+    -4
+   ],
+   "face": 90,
+   "c": "#d23a2a"
+  },
+  {
+   "t": "courtsign",
+   "en": [
+    -26.5,
+    1.2
+   ],
+   "c": "#7a1f3a"
+  },
+  {
+   "t": "courtsign",
+   "en": [
+    -18.0,
+    1.2
+   ],
+   "c": "#7a1f3a"
+  },
+  {
+   "t": "courtsign",
+   "en": [
+    -9.5,
+    1.2
+   ],
+   "c": "#7a1f3a"
+  },
+  {
+   "t": "courtsign",
+   "en": [
+    -1.0,
+    1.2
+   ],
+   "c": "#7a1f3a"
+  },
+  {
+   "t": "courtsign",
+   "en": [
+    7.5,
+    1.2
+   ],
+   "c": "#7a1f3a"
+  },
+  {
+   "t": "tv",
+   "en": [
+    -20,
+    -1.1
+   ],
+   "face": 0,
+   "y": 1.2
+  },
+  {
+   "t": "tv",
+   "en": [
+    0,
+    -1.1
+   ],
+   "face": 0,
+   "y": 1.2
+  }
+ ],
+ "areas": {
+  "add": [
+   {
+    "kind": "deck",
+    "color": "#c9c3b6",
+    "poly": [
+     {
+      "en": [
+       35.2,
+       -16.6
+      ]
+     },
+     {
+      "en": [
+       43,
+       -16.6
+      ]
+     },
+     {
+      "en": [
+       43,
+       2
+      ]
+     },
+     {
+      "en": [
+       35.2,
+       2
+      ]
+     }
+    ]
+   },
+   {
+    "kind": "lawn",
+    "poly": [
+     {
+      "en": [
+       -36,
+       -19.4
+      ]
+     },
+     {
+      "en": [
+       26,
+       -19.4
+      ]
+     },
+     {
+      "en": [
+       26,
+       -17.4
+      ]
+     },
+     {
+      "en": [
+       -36,
+       -17.4
+      ]
+     }
+    ]
+   },
+   {
+    "kind": "concrete",
+    "poly": [
+     {
+      "en": [
+       -36,
+       -21.2
+      ]
+     },
+     {
+      "en": [
+       36,
+       -21.2
+      ]
+     },
+     {
+      "en": [
+       36,
+       -19.4
+      ]
+     },
+     {
+      "en": [
+       -36,
+       -19.4
+      ]
+     }
+    ]
+   },
+   {
+    "kind": "concrete",
+    "poly": [
+     {
+      "en": [
+       26,
+       -19.4
+      ]
+     },
+     {
+      "en": [
+       34,
+       -19.4
+      ]
+     },
+     {
+      "en": [
+       34,
+       -16.6
+      ]
+     },
+     {
+      "en": [
+       26,
+       -16.6
+      ]
+     }
+    ]
+   },
+   {
+    "kind": "parking",
+    "poly": [
+     {
+      "en": [
+       -80,
+       -19
+      ]
+     },
+     {
+      "en": [
+       -37,
+       -19
+      ]
+     },
+     {
+      "en": [
+       -37,
+       20
+      ]
+     },
+     {
+      "en": [
+       -60,
+       35
+      ]
+     },
+     {
+      "en": [
+       -80,
+       42
+      ]
+     }
+    ]
+   },
+   {
+    "kind": "parking",
+    "poly": [
+     {
+      "en": [
+       -36,
+       17.8
+      ]
+     },
+     {
+      "en": [
+       35,
+       17.8
+      ]
+     },
+     {
+      "en": [
+       35,
+       24.6
+      ]
+     },
+     {
+      "en": [
+       -36,
+       24.6
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ "colors": {
+  "court": "#3d5a68",
+  "kitchen": "#2a96cc",
+  "surround": "#cfa873",
+  "lines": "#f4f4f2",
+  "ground": "#8a8a84",
+  "far": "#9a9a90"
+ },
+ "fence": {
+  "dividers": "net",
+  "netColor": "#151515",
+  "netTop": "#f2c21a"
+ },
+ "trees": {
+  "rows": [
+   {
+    "from": {
+     "en": [
+      39,
+      -16
+     ]
+    },
+    "to": {
+     "en": [
+      39,
+      16
+     ]
+    },
+    "every": 6,
+    "kind": "palm",
+    "s": 1.1
+   },
+   {
+    "from": {
+     "en": [
+      -34,
+      -24.5
+     ]
+    },
+    "to": {
+     "en": [
+      34,
+      -24.5
+     ]
+    },
+    "every": 9,
+    "kind": "broadleaf",
+    "s": 0.9
+   }
+  ]
+ },
+ "backdrop": {
+  "skyline": true,
+  "palms": 14,
+  "viaduct": {
+   "from": [
+    53.2,
+    56.5
+   ],
+   "to": [
+    89.2,
+    -48.5
+   ],
+   "h": 9
+  }
+ }
 }

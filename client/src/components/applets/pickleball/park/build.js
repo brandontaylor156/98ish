@@ -65,7 +65,8 @@ export const buildPark = (scene, { quality = "medium", layout = RIVERSIDE_LAYOUT
   )
   // (a big venue: a bigger sky)
   const span = Math.max(BOUNDS.x1 - BOUNDS.x0, BOUNDS.z1 - BOUNDS.z0)
-  const skyR = Math.max(190, span * 0.9 + 120)
+  // (it follows the camera, followSky(), so it stays inside the camera's far plane)
+  const skyR = S ? 330 : Math.max(190, span * 0.9 + 120)
   const sky = new THREE.Mesh(keep(new THREE.SphereGeometry(skyR, 24, 12)), skyMat)
   sky.position.set((BOUNDS.x0 + BOUNDS.x1) / 2, 0, (BOUNDS.z0 + BOUNDS.z1) / 2)
   sky.renderOrder = -1
@@ -220,7 +221,9 @@ export const buildPark = (scene, { quality = "medium", layout = RIVERSIDE_LAYOUT
   const railMat = lambert(S?.colors?.fence ? parseInt(S.colors.fence.slice(1), 16) : 0x3d4a45)
   const gateMat = lambert(0x24302c)
   const fencePosts = []
-  const fenceSide = (x0, z0, x1, z1, { gates = [], h = PEN.h, screen = true } = {}) => {
+  // (a venue's windscreens: fence.screen false = none, fence.screenH = their height)
+  const SCREEN_H = S?.fence?.screenH ?? 1.15
+  const fenceSide = (x0, z0, x1, z1, { gates = [], h = PEN.h, screen = S?.fence?.screen !== false } = {}) => {
     // a straight run of fence from (x0, z0) to (x1, z1), with openings for gates (the
     // windscreen stops there)
     const len = Math.hypot(x1 - x0, z1 - z0)
@@ -245,9 +248,9 @@ export const buildPark = (scene, { quality = "medium", layout = RIVERSIDE_LAYOUT
       runs.push([from, len])
       for (const [a, b] of runs) {
         if (b - a < 0.05) continue
-        const s = new THREE.Mesh(keep(new THREE.PlaneGeometry(b - a, Math.min(1.15, h))), screenMat)
+        const s = new THREE.Mesh(keep(new THREE.PlaneGeometry(b - a, Math.min(SCREEN_H, h))), screenMat)
         const mid = (a + b) / 2 / len
-        s.position.set(x0 + (x1 - x0) * mid, Math.min(1.15, h) / 2, z0 + (z1 - z0) * mid)
+        s.position.set(x0 + (x1 - x0) * mid, Math.min(SCREEN_H, h) / 2, z0 + (z1 - z0) * mid)
         s.rotation.y = ry
         group.add(s)
       }
@@ -685,6 +688,11 @@ export const buildPark = (scene, { quality = "medium", layout = RIVERSIDE_LAYOUT
   mergeStatic(group, keep)
   // (added after the merge: switched on and off by the time of day)
   group.add(pools)
+  // (the rooms: each merged on its own, shown and hidden by cull())
+  for (const z of scenery?.zones || []) {
+    mergeStatic(z.group, keep)
+    group.add(z.group)
+  }
   // nothing here moves: its matrices are worked out once (what's added later to a court's
   // group, the players and the ball, still updates itself)
   group.traverse((o) => {
@@ -693,7 +701,40 @@ export const buildPark = (scene, { quality = "medium", layout = RIVERSIDE_LAYOUT
   })
   group.updateMatrixWorld(true)
   scene.add(group)
-  scene.fog = new THREE.Fog(0xd8ecfb, Math.max(60, span * 0.45), Math.max(170, skyR - 10))
+  // (a real venue: thinner haze, so its far courts keep their colors)
+  scene.fog = S ? new THREE.Fog(0xd8ecfb, Math.max(110, span * 0.7), Math.max(260, skyR + 60)) : new THREE.Fog(0xd8ecfb, Math.max(60, span * 0.45), Math.max(170, skyR - 10))
+
+  // ---- a real venue's light: measured so a flat surface in the midday sun shows its paint
+  // (spec hex) on screen, through the Neutral tone curve (tools/venues/compare.mjs truth):
+  // flat irradiance ~1.0, walls ~0.55-0.7 (sun from the south), indoors bright neutral LED
+  // light from above with a pale bounce off the floor. The sun's direction follows the hour
+  // (its matrix is updated here: the group's matrices are frozen after the build).
+  // (Riverside keeps its own long-standing look.)
+  const toneMapping = S ? THREE.NeutralToneMapping : THREE.ACESFilmicToneMapping
+  const white = new THREE.Color(0xffffff)
+  const venueLight = (d) => {
+    const k = S.light || {}
+    const day = Math.min(1, d.sun.intensity / 2.6)
+    const amb = Math.min(1, d.hemi[2] / 1.4)
+    if (S.indoor) {
+      hemi.color.setHex(0xffffff)
+      hemi.groundColor.set(k.bounce || "#e2ded6")
+      hemi.intensity = k.sky ?? 2.5
+      sun.color.setHex(0xfffaf2)
+      sun.intensity = k.sun ?? 0.6
+      sun.position.set(sun.target.position.x + 0.05, 40, 0.05)
+    } else {
+      hemi.color.setHex(d.hemi[0]).lerp(white, 0.65)
+      hemi.groundColor.set(k.bounce || "#c8c2b4")
+      hemi.intensity = (k.sky ?? 2.25) * amb
+      sun.color.setHex(d.sun.color).lerp(white, 0.4)
+      sun.intensity = (k.sun ?? 1.0) * day
+      const n = Math.hypot(d.sun.dir.x, d.sun.dir.y, d.sun.dir.z) || 1
+      sun.position.set(sun.target.position.x + (d.sun.dir.x / n) * 40, (d.sun.dir.y / n) * 40, (d.sun.dir.z / n) * 40)
+    }
+    sun.updateMatrix()
+    sun.updateMatrixWorld(true)
+  }
 
   // ---- the time of day (sky.js dayLook) ----
   const setDayLook = (d) => {
@@ -710,13 +751,7 @@ export const buildPark = (scene, { quality = "medium", layout = RIVERSIDE_LAYOUT
     groundMat?.color.setScalar(d.ground)
     pools.visible = !!d.lights
     lampMat.color.setHex(d.lights ? 0xfff6d8 : 0x9aa0a8)
-    // (indoors: the hall's own lights, whatever the time)
-    if (S?.indoor) {
-      hemi.intensity = Math.max(hemi.intensity, 1.5)
-      hemi.color.setHex(0xf2f0ea)
-      hemi.groundColor.setHex(0x8a8478)
-      sun.intensity = Math.max(sun.intensity, 1.2)
-    }
+    if (S) venueLight(d)
     scenery?.setDayLook?.(d)
   }
 
@@ -724,6 +759,7 @@ export const buildPark = (scene, { quality = "medium", layout = RIVERSIDE_LAYOUT
     group,
     sun,
     hemi,
+    toneMapping,
     courtGroups,
     machineGroup,
     setScore,
@@ -731,6 +767,18 @@ export const buildPark = (scene, { quality = "medium", layout = RIVERSIDE_LAYOUT
     setBoard,
     setDayLook,
     update: scenery?.update || null,
+    cull: scenery?.cull || null,
+    // (a real venue: the sky dome centred on the camera)
+    followSky: S
+      ? (p) => {
+          sky.position.set(p.x, 0, p.z)
+          stars.position.copy(sky.position)
+          sky.updateMatrix()
+          stars.updateMatrix()
+          sky.updateMatrixWorld(true)
+          stars.updateMatrixWorld(true)
+        }
+      : null,
     dispose() {
       scene.remove(group)
       scene.fog = null

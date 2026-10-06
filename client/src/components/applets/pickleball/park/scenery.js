@@ -6,6 +6,8 @@
 // skyline, mountains). Everything static: build.js merges it.
 
 import * as THREE from "three"
+import { addProps, propMaterials } from "./props.js"
+import { roomRect } from "./propkit.js"
 
 const canvasTexture = (w, h, draw) => {
   const c = document.createElement("canvas")
@@ -56,8 +58,8 @@ const hex = (v, d) => (typeof v === "string" && v[0] === "#" ? parseInt(v.slice(
 
 const WALLS = { school: 0xd9c7a3, industrial: 0xc9c6bd, warehouse: 0xbfc2c0, commercial: 0xd8d0c2, retail: 0xe0d6c4, house: 0xe8dcc6, residential: 0xe2d7c5, apartments: 0xd7cdbf, hotel: 0xd9d4ca, office: 0xc8ccd0, clubhouse: 0xe6d8bd, roof: 0x9a9184, garage: 0xbdb6aa, hall: 0xd4d2cc, yes: 0xd6cdbd }
 const ROOFS = { school: 0x8a8278, industrial: 0x9ea3a6, warehouse: 0xa4a8aa, house: 0x9a5a42, residential: 0x8e6a55, apartments: 0x8b8178, clubhouse: 0x8c3b2f, hall: 0xb8bcc0, yes: 0x8f8a82 }
-const AREA_FILL = { lawn: "#6f9a45", urban: "#b9b4a6", school: "#bdb7a6", grass: "#7fae5a", rec: "#86b45f", wood: "#4f7a3c", play: "#d1b07a", paved: "#c4bfb2", parking: "#5d6166", pool: "#4fb6e3", water: "#4a90c0" }
-const AREA_ORDER = ["urban", "school", "grass", "rec", "wood", "play", "lawn", "paved", "parking", "pool", "water"]
+const AREA_FILL = { lawn: "#6f9a45", urban: "#b9b4a6", school: "#bdb7a6", grass: "#7fae5a", rec: "#86b45f", wood: "#4f7a3c", play: "#d1b07a", paved: "#c4bfb2", concrete: "#d0cabd", channel: "#c9c3b3", asphalt: "#55595e", deck: "#dcd5c6", turf: "#5f8f43", sand: "#e3d3a8", dirt: "#a88a62", planter: "#4f6f38", parking: "#5d6166", pool: "#4fb6e3", water: "#4a90c0" }
+const AREA_ORDER = ["urban", "school", "grass", "rec", "wood", "play", "lawn", "turf", "dirt", "sand", "channel", "paved", "concrete", "asphalt", "parking", "deck", "planter", "pool", "water"]
 const ROAD = { major: ["#4b4e53", 1], road: ["#55585d", 2], service: ["#5f6267", 3], aisle: ["#5f6267", 3], cycle: ["#9a8f80", 4], foot: ["#d2cbbb", 5] }
 
 // cutaway: a game on one of an indoor venue's courts (courtvenue.js): the halls without their
@@ -100,10 +102,11 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
     const Z = (z) => (z - Z0) * PX
     ctx.fillStyle = C.ground || "#86a466"
     ctx.fillRect(0, 0, w, h)
-    // mottle
+    // mottle (grass: green blotches; paved ground, a town: grey wear)
+    const paved = S.groundStyle === "paved"
     for (let i = 0; i < 6000; i++) {
       const v = rand()
-      ctx.fillStyle = v < 0.5 ? `rgba(40,70,30,${0.04 + rand() * 0.06})` : `rgba(200,210,150,${0.03 + rand() * 0.05})`
+      ctx.fillStyle = paved ? (v < 0.5 ? `rgba(40,40,40,${0.02 + rand() * 0.04})` : `rgba(255,255,250,${0.02 + rand() * 0.04})`) : v < 0.5 ? `rgba(40,70,30,${0.04 + rand() * 0.06})` : `rgba(200,210,150,${0.03 + rand() * 0.05})`
       ctx.beginPath()
       ctx.arc(rand() * w, rand() * h, 1.5 + rand() * 7, 0, Math.PI * 2)
       ctx.fill()
@@ -116,12 +119,43 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
     for (const k of AREA_ORDER)
       for (const a of S.areas) {
         if (a.k !== k) continue
-        ctx.fillStyle = AREA_FILL[k] || "#999"
+        ctx.fillStyle = a.c || AREA_FILL[k] || "#999"
         poly(a.p)
         ctx.fill()
         if (k === "pool") {
-          ctx.strokeStyle = "#e8e4da"
-          ctx.lineWidth = Math.max(1, 1.2 * PX)
+          // lane lines along the pool's long side, then the coping round it
+          if (a.lanes) {
+            let best = null
+            for (let i = 0; i < a.p.length; i++) {
+              const p0 = a.p[i]
+              const p1 = a.p[(i + 1) % a.p.length]
+              const L = Math.hypot(p1[0] - p0[0], p1[1] - p0[1])
+              if (!best || L > best.L) best = { L, ux: (p1[0] - p0[0]) / L, uz: (p1[1] - p0[1]) / L }
+            }
+            const { ux, uz } = best
+            const us = a.p.map(([x, z]) => x * ux + z * uz)
+            const ws = a.p.map(([x, z]) => -x * uz + z * ux)
+            const u0 = Math.min(...us) + 1.6
+            const u1 = Math.max(...us) - 1.6
+            const w0 = Math.min(...ws)
+            const w1 = Math.max(...ws)
+            ctx.save()
+            poly(a.p)
+            ctx.clip()
+            ctx.strokeStyle = "rgba(20,60,120,0.75)"
+            ctx.lineWidth = Math.max(1, 0.25 * PX)
+            for (let k2 = 1; k2 <= a.lanes; k2++) {
+              const wv = w0 + ((w1 - w0) * (k2 - 0.5)) / a.lanes
+              ctx.beginPath()
+              ctx.moveTo(X(u0 * ux - wv * uz), Z(u0 * uz + wv * ux))
+              ctx.lineTo(X(u1 * ux - wv * uz), Z(u1 * uz + wv * ux))
+              ctx.stroke()
+            }
+            ctx.restore()
+          }
+          ctx.strokeStyle = "#ece7dc"
+          ctx.lineWidth = Math.max(1, (a.coping || 1.2) * PX)
+          poly(a.p)
           ctx.stroke()
         }
         if (k === "parking") {
@@ -209,7 +243,7 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
   const tennisSurroundMat = std(hex(C.tennisSurround ?? C.surround, 0x3c8a5a), { roughness: 0.9 })
   for (const b of S.banks) {
     const m = new THREE.Mesh(keep(new THREE.PlaneGeometry(2 * b.hx, 2 * b.hz).rotateX(-Math.PI / 2)), b.s === "t" ? tennisSurroundMat : b.s === "b" ? kit.mats.asphalt : surroundMat)
-    m.position.set(b.cx, 0.004, b.cz)
+    m.position.set(b.cx, 0.002, b.cz)
     m.rotation.y = yawFor(b.ux, b.uz)
     group.add(m)
   }
@@ -223,12 +257,12 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
       const w = c.W + (c.s === "t" ? 6.4 : 2.6)
       const l = c.L + (c.s === "t" ? 11 : 4.8)
       const pad = new THREE.Mesh(keep(new THREE.PlaneGeometry(w, l).rotateX(-Math.PI / 2)), pm.surround)
-      pad.position.set(c.x, 0.005, c.z)
+      pad.position.set(c.x, 0.004, c.z)
       pad.rotation.y = c.rot
       group.add(pad)
     }
     const g = c.s === "t" ? kit.tennis(c.x, c.z, c.rot, { pb: c.pb, layout: c.pl, runoff: false, paint }) : c.s === "b" ? kit.basketball(c.x, c.z, c.rot) : kit.pickleball(c.x, c.z, c.rot, { runoff: false, paint })
-    g.position.y = 0.006
+    g.position.y = 0.008
     g.updateMatrixWorld(true)
     group.add(g)
     groups.set(c, g)
@@ -311,10 +345,27 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
     })
   )
   ribsTex.wrapS = ribsTex.wrapT = THREE.RepeatWrapping
+  // stucco with one tall dark-framed window every 3 m (mission style, the clubs' white buildings)
+  const missionTex = keep(
+    canvasTexture(64, 64, (ctx, w) => {
+      ctx.fillStyle = "#ffffff"
+      ctx.fillRect(0, 0, w, w)
+      ctx.fillStyle = "#2e3a36"
+      ctx.fillRect(24, 14, 16, 28)
+      ctx.fillStyle = "rgba(120,150,160,0.9)"
+      ctx.fillRect(26, 16, 12, 24)
+      ctx.fillStyle = "#2e3a36"
+      ctx.fillRect(31, 16, 2, 24)
+      ctx.fillRect(26, 27, 12, 2)
+      ctx.fillStyle = "rgba(0,0,0,0.06)"
+      ctx.fillRect(0, 60, w, 4)
+    })
+  )
+  missionTex.wrapS = missionTex.wrapT = THREE.RepeatWrapping
   const wallMats = new Map()
   const wallMatFor = (color, ribs) => {
     const key = `${color}|${ribs}`
-    if (!wallMats.has(key)) wallMats.set(key, lambert(color, { map: ribs ? ribsTex : windowsTex, side: THREE.DoubleSide }))
+    if (!wallMats.has(key)) wallMats.set(key, lambert(color, { map: ribs === "mission" ? missionTex : ribs ? ribsTex : windowsTex, side: THREE.DoubleSide }))
     return wallMats.get(key)
   }
   const roofMats = new Map()
@@ -323,7 +374,8 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
     return roofMats.get(color)
   }
   // a wall ring (quads from y0 to y1) facing outward (or inward), uv in 3 m tiles
-  const wallRing = (p, y0, y1, { inward = false, gap = null, offset = 0 } = {}) => {
+  const wallRing = (p, y0, y1, { inward = false, gap = null, gaps = null, offset = 0, edge = null } = {}) => {
+    const cuts = gaps || (gap ? [gap] : [])
     const pos = []
     const uvs = []
     const ccw = signedArea(p) > 0 // (x east, z south: positive area runs clockwise seen from above)
@@ -332,14 +384,20 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
       const a = p[i]
       const b = p[(i + 1) % p.length]
       const len = Math.hypot(b[0] - a[0], b[1] - a[1])
-      if (len < 0.05) continue
+      if (len < 0.05 || (edge && !edge(a, b))) {
+        u += len
+        continue
+      }
       // outward normal
       // (positive area in x, z: the edge's right-hand side, (dz, -dx), is outside)
       const nx = ((b[1] - a[1]) / len) * (ccw ? 1 : -1)
       const nz = (-(b[0] - a[0]) / len) * (ccw ? 1 : -1)
       const o = inward ? -offset : offset
-      const cutAt = doorCut({ x: a[0], z: a[1] }, { x: (b[0] - a[0]) / len, z: (b[1] - a[1]) / len }, len, gap)
-      const runs = cutAt ? [[0, cutAt[0]], [cutAt[1], len]] : [[0, len]]
+      let runs = [[0, len]]
+      for (const g of cuts) {
+        const cutAt = doorCut({ x: a[0], z: a[1] }, { x: (b[0] - a[0]) / len, z: (b[1] - a[1]) / len }, len, g)
+        if (cutAt) runs = runs.flatMap(([s0, e0]) => [[s0, Math.min(e0, cutAt[0])], [Math.max(s0, cutAt[1]), e0]]).filter(([s0, e0]) => e0 - s0 > 0.02)
+      }
       for (const [s, e] of runs) {
         if (e - s < 0.05) continue
         const ax = a[0] + ((b[0] - a[0]) * s) / len + nx * o
@@ -375,6 +433,16 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
     g.translate(0, y, 0)
     return keep(g)
   }
+  // the doors (venuegen: every room's and open building's) that sit on a polygon's walls
+  const doorsOn = (poly) =>
+    (S.doors || []).filter((d) =>
+      poly.some((q, i) => {
+        const b = poly[(i + 1) % poly.length]
+        const L2 = (b[0] - q[0]) ** 2 + (b[1] - q[1]) ** 2 || 1
+        const t = Math.max(0, Math.min(1, ((d.x - q[0]) * (b[0] - q[0]) + (d.z - q[1]) * (b[1] - q[1])) / L2))
+        return Math.hypot(q[0] + (b[0] - q[0]) * t - d.x, q[1] + (b[1] - q[1]) * t - d.z) < 0.5
+      })
+    )
   // the same, facing down (a ceiling)
   const flatDown = (p, y) => {
     const shape = new THREE.Shape(p.map(([x, z]) => new THREE.Vector2(x, z)))
@@ -383,8 +451,35 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
     g.translate(0, y, 0)
     return keep(g)
   }
-  // a pitched roof over a building's smallest rectangle (tile roofs, the clubhouse's green roof)
-  const gableRoof = (p, h) => {
+  // clay tiles (white: the roof's color tints them): rows of barrel tiles with dark grooves
+  const tileTex = keep(
+    canvasTexture(64, 64, (ctx, w) => {
+      ctx.fillStyle = "#ffffff"
+      ctx.fillRect(0, 0, w, w)
+      for (let r = 0; r < 4; r++) {
+        const y = r * 16
+        for (let c = 0; c < 8; c++) {
+          const x = c * 8 + (r % 2 ? 4 : 0)
+          const g = ctx.createLinearGradient(x, 0, x + 8, 0)
+          g.addColorStop(0, "rgba(0,0,0,0.22)")
+          g.addColorStop(0.45, "rgba(255,255,255,0.10)")
+          g.addColorStop(1, "rgba(0,0,0,0.25)")
+          ctx.fillStyle = g
+          ctx.fillRect(x, y, 8, 16)
+        }
+        ctx.fillStyle = "rgba(0,0,0,0.30)"
+        ctx.fillRect(0, y + 14, w, 2)
+      }
+    })
+  )
+  tileTex.wrapS = tileTex.wrapT = THREE.RepeatWrapping
+  const tileMats = new Map()
+  const tileMatFor = (color) => {
+    if (!tileMats.has(color)) tileMats.set(color, lambert(color, { map: tileTex, side: THREE.DoubleSide }))
+    return tileMats.get(color)
+  }
+  // a building's smallest rectangle: { ux, uz (along the long side), u0, u1, w0, w1 }
+  const rectOf = (p) => {
     let best = null
     for (let i = 0; i < p.length; i++) {
       const a = p[i]
@@ -408,40 +503,291 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
       const area = (u1 - u0) * (w1 - w0)
       if (!best || area < best.area) best = { area, ux, uz, u0, u1, w0, w1 }
     }
-    // the ridge along the longer side
     let { ux, uz, u0, u1, w0, w1 } = best
     if (w1 - w0 > u1 - u0) {
       ;[ux, uz] = [-uz, ux]
       ;[u0, u1, w0, w1] = [w0, w1, -u1, -u0]
     }
+    return { ux, uz, u0, u1, w0, w1 }
+  }
+  // sloped roofs over the rectangle, with tile uvs (u along the eave, v up the slope):
+  // gable (ridge along the long side), hip (four slopes), mansard (a sloped band round a flat top)
+  const slopedRoof = (p, h, style, { rise: riseO, band = 5, eaves = 0.5 } = {}) => {
+    const { ux, uz, u0, u1, w0, w1 } = rectOf(p)
     const P = (u, w, y) => [u * ux - w * uz, y, u * uz + w * ux]
-    const rise = Math.min(3.2, (w1 - w0) * 0.28)
+    const pos = []
+    const uv = []
+    const tri = (A, B, C, e) => {
+      pos.push(...A, ...B, ...C)
+      for (const Q of [A, B, C]) uv.push((Q[0] * e[0] + Q[2] * e[1]) / 0.5, (Q[1] - h) / 0.17)
+    }
+    const quad = (A, B, C, D, e) => {
+      tri(A, B, C, e)
+      tri(A, C, D, e)
+    }
+    const o = eaves
+    const W = w1 - w0
+    const rise = riseO ?? Math.min(3.2, W * (style === "mansard" ? 0.22 : 0.27))
     const wm = (w0 + w1) / 2
-    const o = 0.4 // eaves
+    const eu = [ux, uz] // eave along u
+    const ew = [-uz, ux] // eave along w
     const A = P(u0 - o, w0 - o, h)
     const B = P(u1 + o, w0 - o, h)
     const C2 = P(u1 + o, w1 + o, h)
     const D = P(u0 - o, w1 + o, h)
-    const E = P(u0 - o, wm, h + rise)
-    const F = P(u1 + o, wm, h + rise)
-    const pos = [...A, ...B, ...F, ...A, ...F, ...E, ...D, ...E, ...F, ...D, ...F, ...C2, ...A, ...E, ...D, ...B, ...C2, ...F]
+    let top = null
+    if (style === "mansard") {
+      const bd = Math.min(band, W / 2 - 0.5, (u1 - u0) / 2 - 0.5)
+      const a = P(u0 + bd, w0 + bd, h + rise)
+      const b = P(u1 - bd, w0 + bd, h + rise)
+      const c = P(u1 - bd, w1 - bd, h + rise)
+      const d = P(u0 + bd, w1 - bd, h + rise)
+      quad(A, B, b, a, eu)
+      quad(B, C2, c, b, ew)
+      quad(C2, D, d, c, eu)
+      quad(D, A, a, d, ew)
+      top = [a, b, c, d]
+    } else if (style === "hip") {
+      const inset = Math.min(W / 2, (u1 - u0) / 2)
+      const E = P(u0 + inset, wm, h + rise)
+      const F = P(u1 - inset, wm, h + rise)
+      quad(A, B, F, E, eu)
+      quad(C2, D, E, F, eu)
+      tri(D, A, E, ew)
+      tri(B, C2, F, ew)
+    } else {
+      const E = P(u0 - o, wm, h + rise)
+      const F = P(u1 + o, wm, h + rise)
+      quad(A, B, F, E, eu)
+      quad(C2, D, E, F, eu)
+      tri(D, A, E, ew)
+      tri(B, C2, F, ew)
+    }
     const g = new THREE.BufferGeometry()
     g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3))
+    g.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2))
     g.computeVertexNormals()
-    return keep(g)
+    return { geo: keep(g), top }
   }
+  const plainMats = new Map()
+  const plainMatFor = (color) => {
+    if (!plainMats.has(color)) plainMats.set(color, lambert(color, { side: THREE.DoubleSide }))
+    return plainMats.get(color)
+  }
+  const hvac = []
   for (const b of S.buildings) {
     if (b.p.length < 3) continue
     const kind = b.k || "yes"
     const color = hex(b.c, WALLS[kind] ?? WALLS.yes)
-    const ribs = kind === "industrial" || kind === "warehouse" || kind === "hall" || kind === "garage" || !!b.hall
+    const ribs = b.windows === "ribs" || (!b.windows && (kind === "industrial" || kind === "warehouse" || kind === "hall" || kind === "garage" || !!b.hall))
+    const wallMat = b.windows === "none" ? plainMatFor(color) : wallMatFor(color, b.windows === "mission" ? "mission" : ribs)
+    const y0 = b.y0 || 0
     // (a hall's outside walls are drawn with its inside, cut for the door)
-    if (!b.hall) group.add(new THREE.Mesh(wallRing(b.p, 0, b.h), wallMatFor(color, ribs)))
-    const roofMat = roofMatFor(hex(b.r, ROOFS[kind] ?? ROOFS.yes))
+    if (!b.hall) group.add(new THREE.Mesh(wallRing(b.p, y0, b.h, b.doors ? { gaps: doorsOn(b.p) } : {}), wallMat))
+    const roofColor = hex(b.r, ROOFS[kind] ?? ROOFS.yes)
+    const roofMat = roofMatFor(roofColor)
     if (b.hall && cutaway) continue
-    if (b.rs === "gable" && !b.hall) group.add(new THREE.Mesh(gableRoof(b.p, b.h), roofMat))
-    else group.add(new THREE.Mesh(flat(b.p, b.h), b.hall ? lambert(hex(b.r, ROOFS.hall)) : roofMat))
+    const style = b.hall ? "flat" : b.rs || "flat"
+    if (style === "gable" || style === "hip" || style === "mansard") {
+      const r = slopedRoof(b.p, b.h, style, { rise: b.rise, band: b.band })
+      group.add(new THREE.Mesh(r.geo, b.tile === false ? roofMat : tileMatFor(roofColor)))
+      if (r.top) {
+        const t = r.top.map((q2) => [q2[0], q2[2]])
+        group.add(new THREE.Mesh(flat(t, r.top[0][1]), roofMatFor(hex(b.top, 0xe6e3dc))))
+        if (b.hvac) {
+          const xs = t.map((q2) => q2[0])
+          const zs = t.map((q2) => q2[1])
+          const n = Math.min(24, Math.round(Math.abs(signedArea(t)) / 120))
+          for (let k = 0, tries = 0; k < n && tries < n * 10; tries++) {
+            const x = Math.min(...xs) + rand() * (Math.max(...xs) - Math.min(...xs))
+            const z = Math.min(...zs) + rand() * (Math.max(...zs) - Math.min(...zs))
+            if (!pointInPoly(x, z, t) || !pointInPoly(x + 1.5, z + 1.5, t) || !pointInPoly(x - 1.5, z - 1.5, t)) continue
+            hvac.push({ x, z, y: r.top[0][1], sx: 1.2 + rand() * 1.8, sz: 1.0 + rand() * 1.2, sy: 0.6 + rand() * 0.7, ry: 0 })
+            k++
+          }
+        }
+      }
+    } else {
+      group.add(new THREE.Mesh(flat(b.p, b.h), b.hall ? lambert(hex(b.r, ROOFS.hall)) : roofMat))
+      if (b.parapet) {
+        group.add(new THREE.Mesh(wallRing(b.p, b.h, b.h + b.parapet), plainMatFor(color)))
+        group.add(new THREE.Mesh(wallRing(b.p, b.h, b.h + b.parapet, { inward: true, offset: 0.25 }), plainMatFor(color)))
+      }
+      // rooftop units (air handlers, fans) scattered on a flat roof
+      if (b.hvac) {
+        const xs = b.p.map((q2) => q2[0])
+        const zs = b.p.map((q2) => q2[1])
+        const ar = Math.abs(signedArea(b.p))
+        const n = Math.min(60, typeof b.hvac === "number" ? b.hvac : Math.round(ar / 110))
+        let tries = 0
+        for (let k = 0; k < n && tries < n * 12; tries++) {
+          const x = Math.min(...xs) + rand() * (Math.max(...xs) - Math.min(...xs))
+          const z = Math.min(...zs) + rand() * (Math.max(...zs) - Math.min(...zs))
+          if (!pointInPoly(x, z, b.p) || !pointInPoly(x + 2, z, b.p) || !pointInPoly(x - 2, z, b.p) || !pointInPoly(x, z + 2, b.p) || !pointInPoly(x, z - 2, b.p)) continue
+          hvac.push({ x, z, y: b.h, sx: 1.2 + rand() * 2.4, sz: 1.0 + rand() * 1.6, sy: 0.7 + rand() * 0.9, ry: Math.atan2(b.p[1][1] - b.p[0][1], b.p[1][0] - b.p[0][0]) })
+          k++
+        }
+      }
+    }
   }
+  if (hvac.length) {
+    const units = new THREE.InstancedMesh(keep(new THREE.BoxGeometry(1, 1, 1).translate(0, 0.5, 0)), lambert(0xd3d5d4), hvac.length)
+    hvac.forEach((u, i) => units.setMatrixAt(i, m4.compose(v1.set(u.x, u.y, u.z), q.setFromEuler(e1.set(0, -u.ry, 0)), v2.set(u.sx, u.sy, u.sz))))
+    group.add(units)
+  }
+
+  // ---------- the room kit: rooms (lobbies, gyms, locker rooms ...), their doors and props ----------
+  // Each room is its own zone (a group merged on its own, drawn only when you're in it or near
+  // one of its doors: cull()). Doors are gaps in every wall they sit on.
+  const propMats = propMaterials(keep)
+  const zones = []
+  const signMats = new Map()
+  const signMat = (g) => {
+    if (!signMats.has(g)) {
+      const tex = keep(
+        canvasTexture(64, 64, (ctx, w) => {
+          ctx.fillStyle = g === "f" ? "#b0306a" : g === "m" ? "#2f5fb0" : "#3a7a4a"
+          ctx.fillRect(0, 0, w, w)
+          ctx.fillStyle = "#ffffff"
+          ctx.beginPath()
+          ctx.arc(32, 15, 7, 0, Math.PI * 2)
+          ctx.fill()
+          if (g === "f") {
+            ctx.beginPath()
+            ctx.moveTo(32, 23)
+            ctx.lineTo(46, 46)
+            ctx.lineTo(18, 46)
+            ctx.closePath()
+            ctx.fill()
+          } else ctx.fillRect(24, 24, 16, 22)
+          ctx.fillRect(25, 46, 5, 12)
+          ctx.fillRect(34, 46, 5, 12)
+        })
+      )
+      signMats.set(g, keep(new THREE.MeshBasicMaterial({ map: tex })))
+    }
+    return signMats.get(g)
+  }
+  const frameMat = lambert(0x2e3236)
+  const leafMats = new Map()
+  const leafMat = (c) => {
+    if (!leafMats.has(c)) leafMats.set(c, lambert(hex(c, 0x8a6a4a)))
+    return leafMats.get(c)
+  }
+  const glassMat = keep(new THREE.MeshLambertMaterial({ color: 0xcfe6ef, transparent: true, opacity: 0.3, depthWrite: false, side: THREE.DoubleSide }))
+  const fixtureMat = keep(new THREE.MeshBasicMaterial({ color: 0xfffbf0 }))
+  // the doorway at d on the polygon's nearest edge: its frame, and a leaf by kind
+  const drawDoor = (g, d, poly, h) => {
+    let best = null
+    poly.forEach((q, i) => {
+      const a = q
+      const b = poly[(i + 1) % poly.length]
+      const L = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1
+      const t = Math.max(0, Math.min(1, ((d.x - a[0]) * (b[0] - a[0]) + (d.z - a[1]) * (b[1] - a[1])) / (L * L)))
+      const px = a[0] + (b[0] - a[0]) * t
+      const pz = a[1] + (b[1] - a[1]) * t
+      const dd = Math.hypot(px - d.x, pz - d.z)
+      if (!best || dd < best.dd) best = { dd, ux: (b[0] - a[0]) / L, uz: (b[1] - a[1]) / L }
+    })
+    if (!best || best.dd > 0.6) return
+    const ry = -Math.atan2(best.uz, best.ux)
+    const w = d.w || 1.8
+    const top = Math.min(2.4, h - 0.1)
+    const at = (s, y, n = 0) => [d.x + best.ux * s - best.uz * n, y, d.z + best.uz * s + best.ux * n]
+    const piece = (geo, mat, s, y, n = 0, extraRy = 0) => {
+      const m = new THREE.Mesh(keep(geo), mat)
+      const [x, yy, z] = at(s, y, n)
+      m.position.set(x, yy, z)
+      m.rotation.y = ry + extraRy
+      g.add(m)
+      return m
+    }
+    if (d.kind === "closed") {
+      piece(new THREE.BoxGeometry(w, top, 0.06), leafMat(d.color || "#8a6a4a"), 0, top / 2)
+      return
+    }
+    if (d.kind === "open") return
+    for (const s of [-1, 1]) piece(new THREE.BoxGeometry(0.1, top, 0.3), frameMat, (s * (w + 0.1)) / 2, top / 2)
+    piece(new THREE.BoxGeometry(w + 0.3, 0.12, 0.3), frameMat, 0, top + 0.06)
+    if (d.kind === "glass" || d.kind === "double" || d.kind === "sauna") {
+      // glass leaves slid / swung aside, a glass transom over the door
+      for (const s of d.kind === "sauna" ? [1] : [-1, 1]) piece(new THREE.BoxGeometry(w / 2, top - 0.05, 0.03), glassMat, s * (w * 0.75), top / 2, 0.06)
+      if (h > top + 0.4) piece(new THREE.BoxGeometry(w, Math.min(1.2, h - top - 0.2), 0.03), glassMat, 0, top + 0.12 + Math.min(1.2, h - top - 0.2) / 2)
+    } else if (d.kind === "rollup") {
+      piece(new THREE.BoxGeometry(w, 0.5, 0.35), leafMat("#c9ccd0"), 0, top - 0.25)
+    } else {
+      // a wooden leaf swung open against the wall, inside
+      const leaf = new THREE.Mesh(keep(new THREE.BoxGeometry(Math.min(1.0, w - 0.1), top - 0.05, 0.05).translate(Math.min(1.0, w - 0.1) / 2, 0, 0)), leafMat(d.color || "#8a6a4a"))
+      const [x, , z] = at(-w / 2 + 0.05, 0)
+      leaf.position.set(x, top / 2, z)
+      leaf.rotation.y = ry - Math.PI / 2
+      g.add(leaf)
+    }
+    if (d.kind === "restroom" || d.sign) {
+      for (const n of [0.17, -0.17]) piece(new THREE.PlaneGeometry(0.3, 0.3), signMat(d.gender || "u"), 0, 1.6 + (top > 2.3 ? 0 : 0), n, n > 0 ? 0 : Math.PI)
+    }
+  }
+  for (const r of S.rooms || []) {
+    const g = new THREE.Group()
+    const H = r.h || 3.2
+    const gaps = doorsOn(r.p).map((d) => ({ x: d.x, z: d.z, w: d.w || 1.8 }))
+    g.add(new THREE.Mesh(flat(r.p, 0.015), std(hex(r.floor, 0xc9bda8), { roughness: 0.6 })))
+    const wh = r.wainscot ? 1.1 : 0
+    // (indoors the walls get the room's own light: some emissive, so a white wall reads white)
+    const lit = (c) => lambert(c, { emissive: new THREE.Color(c).multiplyScalar(0.28) })
+    if (wh) g.add(new THREE.Mesh(wallRing(r.p, 0, wh, { inward: true, gaps, offset: 0.12 }), lit(hex(r.wainscot, 0x8a8a8a))))
+    g.add(new THREE.Mesh(wallRing(r.p, wh, H, { inward: true, gaps, offset: 0.12 }), lit(hex(r.wall, 0xece6da))))
+    // inside a hall or a building: the partition's other side and a top (seen from the courts),
+    // except along the building's own walls
+    if (!r.shell) {
+      const outer = [...S.buildings.map((b) => b.p), ...(S.halls || []).map((h2) => h2.p)]
+      const onOuter = (a, b) => {
+        const mx = (a[0] + b[0]) / 2
+        const mz = (a[1] + b[1]) / 2
+        return outer.some((poly) =>
+          poly.some((q, i) => {
+            const e = poly[(i + 1) % poly.length]
+            const L2 = (e[0] - q[0]) ** 2 + (e[1] - q[1]) ** 2 || 1
+            const t = Math.max(0, Math.min(1, ((mx - q[0]) * (e[0] - q[0]) + (mz - q[1]) * (e[1] - q[1])) / L2))
+            return Math.hypot(q[0] + (e[0] - q[0]) * t - mx, q[1] + (e[1] - q[1]) * t - mz) < 0.35
+          })
+        )
+      }
+      g.add(new THREE.Mesh(wallRing(r.p, 0, H, { gaps, offset: 0.02, edge: (a, b) => !onOuter(a, b) }), plainMatFor(hex(r.partition, 0xe9e6df))))
+      g.add(new THREE.Mesh(flat(r.p, H + 0.01), roofMatFor(hex(r.top, 0xcfcac0))))
+    }
+    // a free-standing room (not inside a building or hall) has its own outside and roof
+    if (r.shell) {
+      g.add(new THREE.Mesh(wallRing(r.p, 0, H + 0.4, { gaps, offset: 0.02 }), plainMatFor(hex(r.outside, 0xefece5))))
+      g.add(new THREE.Mesh(flat(r.p, H + 0.4), roofMatFor(hex(r.roof, 0xd9d6cf))))
+    }
+    const cc = new THREE.Color(hex(r.ceiling, 0xf2f0ea))
+    g.add(new THREE.Mesh(flatDown(r.p, H - 0.02), lambert(cc.getHex(), { emissive: cc.clone().multiplyScalar(0.3) })))
+    // ceiling light panels every few metres
+    const R = roomRect(r.p)
+    if (R) {
+      const strip = r.type === "gym" || r.type === "hall" || r.type === "corridor"
+      for (let u = R.u0 + 1.6; u < R.u1 - 1; u += strip ? 4 : 2.6)
+        for (let w = R.w0 + 1.4; w < R.w1 - 1; w += 2.6) {
+          const x = u * R.ux - w * R.uz
+          const z = u * R.uz + w * R.ux
+          if (!pointInPoly(x, z, r.p)) continue
+          const f = new THREE.Mesh(keep(new THREE.BoxGeometry(strip ? 2.4 : 0.6, 0.04, strip ? 0.25 : 0.6)), fixtureMat)
+          f.position.set(x, H - 0.05, z)
+          f.rotation.y = -Math.atan2(R.uz, R.ux)
+          g.add(f)
+        }
+    }
+    for (const d of doorsOn(r.p)) drawDoor(g, d, r.p, H)
+    for (const d of (r.doors || []).filter((d) => d.kind === "closed")) drawDoor(g, d, r.p, H)
+    addProps(g, r.props || [], propMats, keep)
+    zones.push({ group: g, poly: r.p, doors: doorsOn(r.p), h: H, id: r.id, type: r.type })
+  }
+  // the venue's own props (outdoors): with everything else
+  addProps(group, S.props || [], propMats, keep)
+  // the doors of buildings you can walk into (their frames and leaves, outside the rooms)
+  const roomDoors = zones.flatMap((z) => z.doors)
+  for (const b of S.buildings) if (b.doors) for (const d of doorsOn(b.p)) if (!roomDoors.includes(d)) drawDoor(group, d, b.p, b.h)
 
   // ---------- the halls: inside ----------
   const lightRows = []
@@ -453,12 +799,13 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
     group.add(floor)
     // the inside of the walls: pale above, padding below; the ceiling, facing down
     const gap = h.doorAt ? { x: h.doorAt.x, z: h.doorAt.z, w: h.doorAt.w } : null
+    const hallGaps = [...(gap ? [gap] : []), ...doorsOn(p).map((d) => ({ x: d.x, z: d.z, w: d.w || 1.8 }))]
     const padH = h.padH || 2.2
     // (one-sided: from outside, in a cutaway, you see through them)
-    group.add(new THREE.Mesh(wallRing(p, 0, padH, { inward: true, gap: cutaway ? null : gap, offset: 0.12 }), lambert(hex(h.pads, 0x1d2f5a))))
-    group.add(new THREE.Mesh(wallRing(p, padH, H, { inward: true, gap: cutaway ? null : gap, offset: 0.12 }), lambert(hex(h.wall, 0xd9d4c8))))
-    // (the outside walls: cut for the door too)
-    if (!cutaway) group.add(new THREE.Mesh(wallRing(p, 0, H, { gap, offset: 0.02 }), lambert(hex(h.outside, WALLS.hall), { map: ribsTex })))
+    group.add(new THREE.Mesh(wallRing(p, 0, padH, { inward: true, gaps: cutaway ? null : hallGaps, offset: 0.12 }), lambert(hex(h.pads, 0x1d2f5a))))
+    group.add(new THREE.Mesh(wallRing(p, padH, H, { inward: true, gaps: cutaway ? null : hallGaps, offset: 0.12 }), lambert(hex(h.wall, 0xd9d4c8))))
+    // (the outside walls: cut for the doors too)
+    if (!cutaway) group.add(new THREE.Mesh(wallRing(p, 0, H, { gaps: hallGaps, offset: 0.02 }), lambert(hex(h.outside, WALLS.hall), { map: ribsTex })))
     // (over the door: the wall closes again above 3.2 m)
     if (gap && !cutaway) {
       const a = p[h.doorAt.i]
@@ -695,7 +1042,7 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
     const ptrunk = new THREE.InstancedMesh(keep(new THREE.CylinderGeometry(0.16, 0.24, 1, 6).translate(0, 0.5, 0)), lambert(0x8b7355), P.length)
     const frondGeo = keep(new THREE.BoxGeometry(2.4, 0.05, 0.5).translate(1.2, 0, 0))
     const fronds = new THREE.InstancedMesh(frondGeo, lambert(0x3f7f3a, { flatShading: true }), P.length * 6)
-    const tip = new THREE.InstancedMesh(keep(new THREE.SphereGeometry(0.45, 6, 5)), lambert(0x4b6b30), P.length)
+    const tip = new THREE.InstancedMesh(keep(new THREE.SphereGeometry(0.45, 5, 3)), lambert(0x4b6b30), P.length)
     P.forEach((t, i) => {
       const h = (7 + rand() * 6) * t.s
       ptrunk.setMatrixAt(i, m4.compose(v1.set(t.x, 0, t.z), q.identity(), v2.set(t.s, h, t.s)))
@@ -721,19 +1068,22 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
   // ---------- cars in the lots ----------
   const cars = []
   for (const a of S.areas) {
-    if (a.k !== "parking" || cars.length > 140) continue
+    if (a.k !== "parking" || cars.length > 420) continue
+    const spawn = L.SPAWN || { x: 1e9, z: 1e9 }
     const xs = a.p.map((p) => p[0])
     const zs = a.p.map((p) => p[1])
     for (let z = Math.min(...zs) + 2.6; z < Math.max(...zs) - 2; z += 6)
       for (let x = Math.min(...xs) + 1.4; x < Math.max(...xs) - 1; x += 2.7) {
-        if (rand() > 0.62 || !pointInPoly(x, z, a.p) || cars.length > 140) continue
+        const near = Math.hypot(x - spawn.x, z - spawn.z) < 9
+        if (near || rand() > (a.full ?? 0.62) || !pointInPoly(x, z, a.p) || cars.length > 420) continue
         cars.push({ x, z, yaw: (rand() < 0.5 ? 0 : Math.PI) + (rand() - 0.5) * 0.06, c: rand() })
       }
   }
   if (cars.length) {
     const body = new THREE.InstancedMesh(keep(new THREE.BoxGeometry(1.8, 0.75, 4.3).translate(0, 0.55, 0)), lambert(0xffffff), cars.length)
     const cab = new THREE.InstancedMesh(keep(new THREE.BoxGeometry(1.6, 0.6, 2.2).translate(0, 1.2, -0.2)), lambert(0x2a3540), cars.length)
-    const palette = [0xf2f2f2, 0x1d1f22, 0x8a9096, 0xb8bcc0, 0x7a1e1e, 0x1e3a6b, 0x3d5a40, 0xc9b38a, 0xe8e8e2, 0x444a52]
+    // (white, black, grey, silver most of all; a few blues, reds and others)
+    const palette = [0xf2f2f2, 0xf2f2f2, 0xecebe6, 0xf6f6f4, 0x1d1f22, 0x1d1f22, 0x26282c, 0x5f646a, 0x6e7378, 0x8a9096, 0xb8bcc0, 0xc8ccd0, 0xaeb3b8, 0x1e3a6b, 0x2c5aa0, 0x8a1e22, 0xb0302a, 0x3d5a40, 0xc9b38a, 0x5a3a2a]
     const cc = new THREE.Color()
     cars.forEach((c, i) => {
       m4.compose(v1.set(c.x, 0, c.z), q.setFromEuler(e1.set(0, c.yaw, 0)), v2.set(1, 1, 1))
@@ -865,9 +1215,11 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
     const a = ((x.deg || 0) * Math.PI) / 180
     const ry = -a
     if (x.type === "tower") {
+      // (base: it rises from a roof, so nothing stands at the ground floor)
       const w = x.w || 5
-      const t = new THREE.Mesh(keep(new THREE.BoxGeometry(w, x.h || 14, w)), lambert(hex(x.color, 0xf1ece2)))
-      t.position.set(x.x, (x.h || 14) / 2, x.z)
+      const b0 = x.base || 0
+      const t = new THREE.Mesh(keep(new THREE.BoxGeometry(w, (x.h || 14) - b0, w)), lambert(hex(x.color, 0xf1ece2)))
+      t.position.set(x.x, b0 + ((x.h || 14) - b0) / 2, x.z)
       group.add(t)
       const cap = new THREE.Mesh(keep(new THREE.ConeGeometry(w * 0.78, w * 0.7, 4).rotateY(Math.PI / 4)), lambert(hex(x.roof, 0xb5583a)))
       cap.position.set(x.x, (x.h || 14) + w * 0.35, x.z)
@@ -1064,6 +1416,15 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
   return {
     groundMat,
     courtGroup: (c) => groups.get(c) || null,
+    // the rooms' zones (build.js merges each and adds them after the venue's own merge)
+    zones,
+    // draw a room only when you or the camera are in it, or near one of its doors
+    cull: (cam, me) => {
+      for (const z of zones) {
+        const inside = pointInPoly(me.x, me.z, z.poly) || pointInPoly(cam.x, cam.z, z.poly)
+        z.group.visible = inside || z.doors.some((d) => Math.hypot(d.x - cam.x, d.z - cam.z) < 9 || Math.hypot(d.x - me.x, d.z - me.z) < 9)
+      }
+    },
     setDayLook: (d) => {
       if (hallLampMat) hallLampMat.color.setHex(0xfff8e8)
     },
