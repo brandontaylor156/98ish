@@ -1,5 +1,5 @@
 import { DIRECTORY_TYPE, FILE_TYPE, fs, uniqueName, writeAndSave } from "./fs"
-import { convertUpload } from "./fileTransfer"
+import { convertUpload, uploadKind } from "./fileTransfer"
 import { decodeUpload, savePicture, uploadName } from "../components/applets/photos/library"
 import { planPastedText } from "./shareRules"
 import { readClipboard } from "./systemClipboard"
@@ -31,6 +31,12 @@ export const saveIncoming = async (dir, file) => {
     } catch (error) {
       return { ok: false, error: error.message || `${file.name} couldn't be opened as a picture.` }
     }
+  }
+  // songs and other audio: kept whole (not cut to a 30-second WAV), playable in Music 98
+  if (uploadKind(file) === "sound") {
+    const { importSongs } = await import("../components/applets/music/musicStore")
+    const result = await importSongs([file], null, dir)
+    return result.added.length ? { ok: true, file: result.added[0].file } : { ok: false, error: result.problems[0] || `${file.name} couldn't be added.` }
   }
   let converted
   try {

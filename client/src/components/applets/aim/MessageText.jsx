@@ -57,10 +57,23 @@ const clock = (time) => new Date(time).toLocaleTimeString([], { hour: "numeric",
 // One transcript line: "ScreenName (10:42:15 PM): message", yours in red, theirs in blue.
 // A picture or voice message shows under the name; reactions under the message. Right-click
 // (or hold, on a touch screen) opens the reaction picker: onMenu(message, x, y).
-export const TranscriptLine = React.memo(({ message, me, meKey, onMenu, onReact, getBlob, onOpenPicture }) => {
+export const TranscriptLine = React.memo(({ message, me, meKey, onMenu, onReact, getBlob, onOpenPicture, onAction }) => {
   const press = useLongPress((x, y) => onMenu?.(message, x, y))
   if (message.system) {
-    return <div className={message.error ? "aimSystem aimSystem--error" : "aimSystem"}>{message.text}</div>
+    return (
+      <div className={message.error ? "aimSystem aimSystem--error" : "aimSystem"}>
+        {message.text}
+        {/* an invitation line ("Rosie started Watch Together." [Join]) */}
+        {message.action && onAction && (
+          <>
+            {" "}
+            <button type="button" className="aimSystemAction" onClick={() => onAction(message.action)}>
+              {message.action.label}
+            </button>
+          </>
+        )}
+      </div>
+    )
   }
   const mine = message.mine || message.from === me
   const canReact = !!onMenu && !message.pending && !message.failed && message.id && !String(message.id).startsWith("t-") && !message.auto

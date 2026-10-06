@@ -29,6 +29,8 @@ export const APP_PROFILES = {
   SPECTRA: { image: "spectra.exe", mem: 48212, threads: 14, handles: 312, cpu: [6, 38] },
   Hover: { image: "hover.exe", mem: 9408, threads: 6, handles: 88, cpu: [1, 22] },
   "YouTube '98": { image: "mplayer2.exe", mem: 7752, threads: 9, handles: 141, cpu: [0.9, 12] },
+  "Music 98": { image: "wmplayer.exe", mem: 9216, threads: 11, handles: 188, cpu: [0.6, 6] },
+  "Watch Together": { image: "together.exe", mem: 8340, threads: 10, handles: 152, cpu: [0.8, 10] },
   "Internet Explorer": { image: "iexplore.exe", mem: 14872, threads: 11, handles: 296, cpu: [0.8, 9] },
   Compass: { image: "compass.exe", mem: 21760, threads: 14, handles: 342, cpu: [1, 12] },
   "View Video": { image: "iexplore.exe", mem: 11284, threads: 12, handles: 263, cpu: [0.8, 10] },

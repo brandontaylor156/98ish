@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <!-- A song file for Music 98: a page with a folded corner, a compact disc and an eighth note -->
+  <path d="M9 3h21l9 9v33H9z" fill="#ffffff" stroke="#000" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M30 3v9h9" fill="#c0c0c0" stroke="#000" stroke-width="1.5" stroke-linejoin="round"/>
+  <circle cx="22" cy="30" r="10" fill="#c9d3e3" stroke="#4a5266" stroke-width="1"/>
+  <path d="M22 20 A10 10 0 0 1 32 30 L27 30 A5 5 0 0 0 22 25 Z" fill="#7af0ff" opacity="0.7"/>
+  <circle cx="22" cy="30" r="3" fill="#fff" stroke="#4a5266"/>
+  <g fill="#000080">
+    <path d="M31 13h3v15h-3z"/>
+    <path d="M31 13h6v3h-6z"/>
+    <ellipse cx="30.5" cy="28.5" rx="3.4" ry="2.5" transform="rotate(-20 30.5 28.5)"/>
+  </g>
+</svg>

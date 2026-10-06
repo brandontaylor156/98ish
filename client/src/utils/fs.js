@@ -68,6 +68,9 @@ export const FILE_TYPE = {
   richtext: "richtext", // a WordPad document: sanitized HTML in textContent
   recorder: "recorder",
   sound: "sound", // a Wave Sound: a 16-bit mono WAV data URL in textContent
+  song: "song", // a song for Music 98: the original MP3/M4A/... as a data URL in textContent
+  musiclib: "musiclib",
+  together: "together",
   reversi: "reversi",
   chess: "chess",
   checkers: "checkers",
@@ -600,6 +603,8 @@ const DEFAULT_ITEMS = [
   ["C:/Programs/Task Manager", "file", "taskmanager"],
   ["C:/Programs/Hover", "file", "hover"],
   ["C:/Programs/YouTube '98", "file", "video"],
+  ["C:/Programs/Music 98", "file", "musiclib"],
+  ["C:/Programs/Watch Together", "file", "together"],
   ["C:/Programs/Notepad", "file", "notepad"],
   ["C:/Programs/Paint", "file", "paint"],
   ["C:/Programs/WordPad", "file", "wordpad"],

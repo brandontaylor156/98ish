@@ -528,6 +528,35 @@ export const topics = [
     ],
     related: ["sound-recorder", "no-sound", "sounds"],
   },
+  // ---- Music 98 ----
+  {
+    id: "music-98",
+    book: "accessories",
+    title: "Music 98",
+    summary: "Your own songs (MP3, M4A, FLAC...) with albums, artists, playlists and lock-screen controls.",
+    keywords: ["music", "songs", "mp3", "m4a", "itunes", "library", "album", "artist", "playlist", "shuffle", "repeat", "queue", "equalizer", "wmplayer", "windows media player", "lock screen"],
+    programs: ["Music 98"],
+    body: [
+      { img: "/assets/program_icons/music98.svg", alt: "Music 98 icon" },
+      "Music 98 plays **your own songs**: MP3, M4A/AAC, WAV, FLAC and OGG files from your phone or computer. Press **Add Songs...** and pick them. They're kept in **C:\\My Music**, and their names, artists, albums and album art come from the files themselves.",
+      {
+        list: [
+          "**Songs**, **Albums**, **Artists**, **Playlists** and **Queue** across the top; **Search** finds a song by title, artist or album.",
+          "Tap a song to play it (the rest of the list plays after it). An album or playlist has **Play** and **Shuffle**.",
+          "Each song's **...** button has **Play Next**, **Add to Queue**, **Add to Playlist** and **Edit Info...** (right-click works too on a computer).",
+          "The round buttons: **Shuffle**, Previous, **Play/Pause**, Next and **Repeat** (all, then this song).",
+          "Music keeps playing while Music 98 is minimized or you use other programs. Closing its window stops it.",
+        ],
+      },
+      { phone: "The phone's lock screen and Control Center show the song with its art, play/pause and skip. Volume is the phone's side buttons.", computer: "Media keys on your keyboard (play/pause, next, previous) work while 98ish is open. The taskbar speaker sets the volume." },
+      { h: "More options" },
+      "**Equalizer** (bass, mid, treble) and a **Visualizer** in the Now Playing panel.",
+      { note: "On iPhone, the equalizer and visualizer route sound through the browser's audio engine, which can stop the music when the screen locks. Leave them off when listening with the phone in your pocket." },
+      "Songs stay on this device. **File sync** copies them online only if you add My Music to the synced folders in Backup (online space is limited, so it's off). Opening a song file in My Computer plays it here, and Send To > My Phone gives you back the original file.",
+      { open: "Music 98", label: "Open Music 98" },
+    ],
+    related: ["media-player", "sound-recorder", "no-sound", "file-sync"],
+  },
 
   // ---- Magnifier ----
   {

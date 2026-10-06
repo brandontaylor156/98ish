@@ -22,6 +22,8 @@ const ChatRoom = ({ room }) => {
   const meKey = keyOf(aim.me?.screenName)
   const openMenu = useCallback((message, x, y) => setPicker({ message, x, y }), [])
   const toggle = useCallback((message, emoji) => aim.react(ck, message, emoji), [ck, aim.react])
+  // "Join" on a Watch Together invitation
+  const onAction = useCallback((action) => action.kind === "together" && aim.openTogether({ together: action.id }), [aim.openTogether])
 
   if (!aim.me) return null
 
@@ -60,6 +62,7 @@ const ChatRoom = ({ room }) => {
               onMenu={openMenu}
               onReact={toggle}
               getBlob={aim.getMediaBlob}
+              onAction={onAction}
             />
           ))}
         </div>
@@ -83,6 +86,9 @@ const ChatRoom = ({ room }) => {
         </ul>
         <button type="button" onClick={() => setDialog({ kind: "invite", to: "", message: `Join me in ${current?.name || room}!` })}>
           Invite...
+        </button>
+        <button type="button" className="aimWatch" disabled={!current} onClick={() => aim.openTogether({ room: current?.name || room, start: true })}>
+          Watch Together
         </button>
         <button type="button" onClick={() => setDialog({ kind: "clear" })} disabled={!messages.some((m) => !m.system)}>
           Clear History

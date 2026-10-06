@@ -9,6 +9,7 @@ const { normalize, validate } = require("./screenNames")
 const { createStore } = require("./store")
 const { createBot, BOT_NAME } = require("./bot")
 const { createCalls } = require("./calls")
+const { createTogether } = require("./together")
 const { createIce } = require("./ice")
 const { createAccountEraser } = require("../account")
 const { createHistoryStore, pairConv, roomConv, packStyle } = require("./history")
@@ -195,6 +196,9 @@ const attachAim = async (io, { store, bot, ice, callRingMs, callLostMs, push = n
   // voice and video calls (signaling only)
   const calls = createCalls({ sessions, hidden, emitTo, limiter, ice, botKey: BOT_KEY, ringMs: callRingMs, lostMs: callLostMs, offline: callNotices, allowed: push?.callAllowed ? (to, from) => push.callAllowed(to, from) : null })
 
+  // Watch & Listen Together (a shared YouTube player; control state only, in memory)
+  const together = createTogether({ sessions, hidden, emitTo, limiter, rooms, botKey: BOT_KEY, pushTo: push ? pushTo : null })
+
   const broadcastPresence = (subject, online = true) => {
     const payload = online ? presenceOf(subject) : { screenName: subject.user.screenName, online: false }
     for (const other of sessions.values()) {
@@ -216,6 +220,7 @@ const attachAim = async (io, { store, bot, ice, callRingMs, callLostMs, push = n
     const room = rooms.get(key)
     if (!room || !room.members.delete(session.key)) return
     session.socket?.leave(`chat:${key}`)
+    together.leftRoom(session.key, key)
     if (announce) {
       io.to(`chat:${key}`).emit("aim:chat", {
         room: room.name,
@@ -232,6 +237,7 @@ const attachAim = async (io, { store, bot, ice, callRingMs, callLostMs, push = n
     if (sessions.get(session.key) !== session) return
     clearTimeout(session.dropTimer)
     calls.endFor(session.key, "signedoff")
+    together.leaveAll(session.key)
     for (const key of rooms.keys()) leaveRoom(session, key)
     sessions.delete(session.key)
     tokens.delete(session.token)
@@ -262,6 +268,7 @@ const attachAim = async (io, { store, bot, ice, callRingMs, callLostMs, push = n
     socket.join("aim")
     for (const [key, room] of rooms) if (room.members.has(session.key)) socket.join(`chat:${key}`)
     calls.resumed(session)
+    together.resumed(session)
     const pending = session.pendingIms || []
     session.pendingIms = []
     if (pending.length) setTimeout(() => pending.forEach((m) => session.socket?.emit("aim:im", m)), 300)
@@ -304,6 +311,7 @@ const attachAim = async (io, { store, bot, ice, callRingMs, callLostMs, push = n
         }
       })
     calls.bind(on)
+    together.bind(on)
     bindConversations(on, conversations)
 
     const startSession = (user, key, ack, remember) => {
@@ -560,6 +568,7 @@ const attachAim = async (io, { store, bot, ice, callRingMs, callLostMs, push = n
       session.socket = null
       session.dropTimer = setTimeout(() => signOff(session), RESUME_GRACE_MS)
       calls.dropped(session.key)
+      together.dropped(session.key)
     })
 
     // { to, text, style, media?: { id } (sent with aim:mediaUpload/aim:mediaCommit), thumb?
@@ -704,6 +713,7 @@ const attachAim = async (io, { store, bot, ice, callRingMs, callLostMs, push = n
       if (other && wasHidden !== hidden(session, other)) {
         const nowHidden = hidden(session, other)
         if (nowHidden) calls.endBetween(session.key, other.key, "blocked")
+        if (nowHidden) together.blocked(session.key, other.key)
         emitTo(other.key, "aim:presence", nowHidden ? { screenName: session.user.screenName, online: false } : presenceOf(session))
         emitTo(session.key, "aim:presence", nowHidden ? { screenName: other.user.screenName, online: false } : presenceOf(other))
       }
@@ -820,7 +830,7 @@ const attachAim = async (io, { store, bot, ice, callRingMs, callLostMs, push = n
     return (key && sessions.get(key)) || null
   }
 
-  const aim = { store, sessions, authenticate, calls, push, eraser, history, media: imMedia }
+  const aim = { store, sessions, authenticate, calls, together, push, eraser, history, media: imMedia }
   push?.useAim(aim)
   return aim
 }

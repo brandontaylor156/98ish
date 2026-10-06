@@ -40,6 +40,8 @@ const TIPS = {
     "Want to see what a site looked like in 1998? Go > Open in Time Machine sends it to Internet Explorer.",
   ],
   "98 Messenger": ["Away messages are serious business. Choose yours wisely."],
+  "Music 98": ["Tap Add Songs... to bring in MP3s from your phone. Album art and track names come right out of the files!", "Each song's ... button has Play Next, Add to Queue and Add to Playlist."],
+  "Watch Together": ["Pick a buddy, paste a YouTube link, and you'll both watch at the same moment. Tap an emoji to react!", "Start it right from an IM window: the Watch button is next to Call."],
   "Task Manager": ["Whatever you do, don't end explorer.exe. I'm serious. Mostly."],
   "Display Properties": ["Pick Browse... to use your own picture as the wallpaper."],
   "Control Panel": ["Accessibility Options makes text bigger, turns on High Contrast, and opens the Magnifier."],

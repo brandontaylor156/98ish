@@ -9,6 +9,7 @@ import { currentUser } from "../../../utils/users"
 import { registerSearchProvider } from "../../../utils/searchIndex"
 import { applyReaction, fromServer, isTemp, mergeMessages, previewText, roomCk, sendFailure, tempId } from "./history/historyCore"
 import * as historyDb from "./history/historyDb"
+import { attachTogether, handleTogetherEvent, TOGETHER_EVENTS } from "../together/togetherStore"
 
 // One 98 Messenger session shared by every Messenger window: the Buddy List ("98 Messenger"),
 // Instant Message windows, chat rooms, Buddy Info and chat invitations.
@@ -527,6 +528,27 @@ export const AimProvider = ({ socket, windows, dispatch: dispatchWindow, onOpenV
         if (!raw.system) save([message])
       },
       "aim:chatMembers": ({ room, members }) => dispatch({ type: "room", room, members }),
+      // Watch Together: a buddy (or someone in a chat room) started a video for you
+      "tg:invite": (invite) => {
+        if (!invite?.id) return
+        const action = { kind: "together", id: invite.id, label: "Join" }
+        const text = `${invite.from} started Watch Together${invite.title ? `: ${invite.title}` : ""}.`
+        const quiet = !interrupts("im", invite.from)
+        if (invite.room) dispatch({ type: "room", room: invite.room, message: { id: sysId(), system: true, text, time: Date.now(), action } })
+        else {
+          const key = keyOf(invite.from)
+          dispatch({ type: "messages", ck: key, screenName: invite.from, messages: [{ id: sysId(), system: true, text, time: Date.now(), action }] })
+          if (!quiet || windowsRef.current.some((w) => !w.closed && w.aimId === `im:${key}`)) openIm(invite.from, { focus: false })
+        }
+        if (!quiet) sound("imReceive")
+        notify({
+          app: "im",
+          key: `tg:${invite.id}`,
+          title: invite.room ? `${invite.from} in ${invite.room}` : invite.from,
+          text: `Watch Together${invite.title ? `: ${invite.title}` : ""}. Tap to join.`,
+          target: { kind: "program", name: "Watch Together", extra: { handoff: { id: Date.now(), together: invite.id } } },
+        })
+      },
       "aim:chatInvite": (invite) => {
         sound("imReceive")
         openWindow(`invite:${keyOf(invite.room)}:${keyOf(invite.from)}`, {
@@ -552,6 +574,7 @@ export const AimProvider = ({ socket, windows, dispatch: dispatchWindow, onOpenV
       },
       disconnect: () => dispatch({ type: "connection", connected: false }),
     }
+    for (const event of TOGETHER_EVENTS) handlers[event] = (payload) => handleTogetherEvent(event, payload)
     for (const event of CALL_EVENTS) {
       handlers[event] = (payload) => {
         if (callListener.current) callListener.current(event, payload)
@@ -902,8 +925,18 @@ export const AimProvider = ({ socket, windows, dispatch: dispatchWindow, onOpenV
     return say(LOBBY, url)
   }
 
+  // Watch Together uses this session's socket while signed on
+  useEffect(() => {
+    attachTogether(state.status === "online" ? { request, meKey: myKey } : null)
+  }, [state.status])
+
+  // Watch Together's window: { with } / { room } (start from an IM or a chat room), { together }
+  // (join), { video, title } (from YouTube '98)
+  const openTogether = (handoff = {}) => dispatchWindow({ type: "open_window", payload: launch("Watch Together", { handoff: { id: Date.now(), ...handoff } }) })
+
   const value = {
     ...state,
+    openTogether,
     // signs 98ish Mail and HomePage Studio requests (null when signed off)
     token: state.status === "online" ? tokenRef.current : null,
     prefs,

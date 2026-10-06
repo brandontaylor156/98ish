@@ -158,6 +158,42 @@ export const topics = [
     related: ["messenger", "calls-trouble", "notifications", "us-together"],
   },
   {
+    id: "watch-together",
+    book: "internet",
+    title: "Watch & Listen Together",
+    summary: "Watch a YouTube video (or listen to music videos) at the same moment as a buddy or a whole chat room, with reactions and chat.",
+    keywords: ["watch party", "watch together", "listen together", "YouTube", "sync", "movie night", "queue", "up next", "reactions", "teleparty"],
+    programs: ["Watch Together"],
+    body: [
+      { img: "/assets/program_icons/together.svg", alt: "Watch Together icon" },
+      "Watch Together plays a YouTube video for you and your buddies **at the same moment**. When anyone presses pause, skips ahead or picks the next video, everyone's player follows within about half a second.",
+      {
+        steps: [
+          "Sign on to 98 Messenger.",
+          "In an IM window, press **Watch** (next to Call). In a chat room, press **Watch Together** beside the people list. Or open Start > Programs > Internet > Watch Together and pick a buddy or a room.",
+          "Paste a YouTube link in **Add a video** (in YouTube '98, Share > **Watch Together...** does it for you).",
+          "Your buddy gets an invitation in the conversation (and a notification if they're away): they press **Join**.",
+        ],
+        title: "To watch with someone:",
+      },
+      { h: "While you watch" },
+      {
+        list: [
+          "**Play/Pause**, **Previous**, **Next** and the seek bar control the video for everyone. YouTube's own buttons on the video work too.",
+          "Tap an emoji to send a **reaction**: it floats up over everyone's video with your name.",
+          "The little **chat** under the video is for while you watch (it isn't saved).",
+          "Paste more links to fill **Up Next**. More options shows the list: tap one to play it, move it up or down, or remove it.",
+          "More options also has **Speed**, **Anyone can control the video** (the host can turn it off so only they control it), **Mini player**, and **End for Everyone** for the host.",
+          "If the host leaves, whoever has been watching longest becomes the host. **Leave** takes you out; the others keep watching.",
+        ],
+      },
+      { phone: "On iPhone, the first video may need one tap: press **Tap to join the video** (or the video itself). YouTube stops when 98ish goes to the background or the screen locks; that's an iPhone rule for videos in web pages. Keep 98ish open on screen while you watch.", computer: "You can keep watching in the window while you do other things in 98ish." },
+      { note: "Every video plays in YouTube's own player and streams from YouTube to each person. 98ish only passes along the play/pause/seek and the queue. Some videos can't play outside YouTube (their owners turn that off); Watch Together says so and you can skip to the next one." },
+      { open: "Watch Together", label: "Open Watch Together" },
+    ],
+    related: ["messenger", "messenger-calls", "privacy-third-parties"],
+  },
+  {
     id: "mail",
     book: "internet",
     title: "98ish Mail",

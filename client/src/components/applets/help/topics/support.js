@@ -344,6 +344,7 @@ export const topics = [
           head: ["Kept in", "What"],
           rows: [
             ["IndexedDB (database \"98ish-drive\")", "Drive C: and the Recycle Bin: files, photos, documents, recordings, and file sync's bookkeeping. Each extra user profile has its own database (\"98ish-drive-\" plus an id)."],
+            ["IndexedDB (database \"98ish-music\")", "Music 98's album art (small pictures from your songs). The songs themselves are files in Drive C: (C:\\My Music); their names, artists and playlists are in localStorage \"98ish.music\"."],
             ["localStorage (keys starting \"98ish.\")", "Settings, desktop, scores and game saves (and Casino 98's play chips), Address Book contacts, notes (and which are pinned to this desktop), notifications, \"On this device\" calendars, reminders, Internet Explorer history and favorites, drafts, and 98 Messenger's \"Sign me on automatically\" key. Each extra user profile's keys start \"98ish.u.\" plus an id."],
             ["The user list (shared by the device)", "User names, pictures, linked screen names, and each user's lock PIN or password, stored only as a salted, scrambled copy (PBKDF2)."],
             ["Service worker caches", "A copy of the 98ish app for offline use, things shared to 98ish from other apps (Android), and notifications that arrived while 98ish was closed."],
@@ -400,6 +401,7 @@ export const topics = [
         list: [
           "**Instant messages** pass through the server to your buddy, and **chat rooms** to the people in them. They're saved only as the table above says (turn **Save my conversations on the server** off in My AIM > Preferences... to keep them on your devices only). Pictures and voice messages go straight from your device to Vercel Blob; the server never carries them, and push notifications only say \"📷 Picture\" or \"🎤 Voice message\".",
           "**Calls** go directly between the two devices. The server only passes the setup messages (who's calling, connection details); it never carries your voice or video.",
+          "**Watch Together** passes along only which YouTube videos are in the queue, play/pause and the position, reactions and the little chat, and only to the people watching. It's kept in memory while someone's watching and gone a minute after everyone leaves.",
           "**Online games, game chat and Network Neighborhood** (files and WinPopup messages sent between computers) go through the server live. Game chat keeps the last 50 lines of a room in memory for people who join later. In Imposter the server holds the secret word, who the imposters are, the clues and the votes only while the room is open.",
           "Who's online, away messages and warning levels.",
           "Your IP address is used for a few minutes to slow down password guessing and spam; it isn't stored with your account. Render (the host) may keep its own short request logs.",
@@ -426,7 +428,7 @@ export const topics = [
             ["Apple, Google or Mozilla push services", "Notifications while 98ish is closed (only if you turn them on)", "That a notification was sent to your device, when, and its size. The words are encrypted for your device; the push service can't read them."],
             ["Google's public STUN servers", "Helping two devices find each other for a call", "Your device's IP address during call setup. Your voice and video never go through it."],
             ["A TURN relay (only if the 98ish server has one set up)", "Calls on networks that block direct connections", "Your IP address and the call's encrypted audio and video passing through (it can't play them)."],
-            ["YouTube (Google)", "YouTube '98 and videos shared in 98 Messenger", "Searches go through 98ish's own relay on Vercel to the YouTube Data API. Videos play in YouTube's player, which sees your IP address and may set its own cookies."],
+            ["YouTube (Google)", "YouTube '98, Watch Together and videos shared in 98 Messenger", "Searches go through 98ish's own relay on Vercel to the YouTube Data API. Videos play in YouTube's player, which sees your IP address and may set its own cookies."],
             ["Internet Archive (web.archive.org)", "Internet Explorer's time machine", "The addresses you visit: 98ish's relay asks which dates exist, and the old pages load straight from the Archive."],
             ["Wiktionary", "\"Define\" in Word Duel", "The word you look up (it opens their page)."],
           ],
