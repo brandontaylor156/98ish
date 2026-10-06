@@ -205,11 +205,11 @@ const attachAim = async (io, { store, bot, ice, callRingMs, callLostMs, push = n
   const calls = createCalls({ sessions, hidden, emitTo, limiter, ice, botKey: BOT_KEY, ringMs: callRingMs, lostMs: callLostMs, offline: callNotices, allowed: push?.callAllowed ? (to, from) => push.callAllowed(to, from) : null })
 
   // Watch & Listen Together (a shared YouTube player; control state only, in memory)
-  const together = createTogether({ sessions, hidden, emitTo, limiter, rooms, botKey: BOT_KEY, pushTo: push ? pushTo : null })
+  const together = createTogether({ sessions, hidden, emitTo, limiter, rooms, botKey: BOT_KEY, pushTo: push ? pushTo : null, ice })
 
   // Come Over: the multiplayer desktop (presence in memory; shared documents in ydocStore)
   const ydocs = createYdocs({ store: ydocStore, sessions, hidden, emitTo, limiter, findUser: (key) => store.find(key) })
-  const hangout = createHangout({ sessions, hidden, emitTo, limiter, pushTo: push ? pushTo : null, ydocs, ...(hangoutLostMs ? { lostMs: hangoutLostMs } : {}) })
+  const hangout = createHangout({ sessions, hidden, emitTo, limiter, pushTo: push ? pushTo : null, ydocs, ice, ...(hangoutLostMs ? { lostMs: hangoutLostMs } : {}) })
   eraser.add("shared documents", (ctx) => ydocs.eraseAccount(ctx))
 
   const broadcastPresence = (subject, online = true) => {
@@ -586,6 +586,9 @@ const attachAim = async (io, { store, bot, ice, callRingMs, callLostMs, push = n
       session.socket = null
       session.dropTimer = setTimeout(() => signOff(session), RESUME_GRACE_MS)
       calls.dropped(session.key)
+      // (voice connections break with the socket: their voice goes off until they turn it on again)
+      together.voice.leave(session.key)
+      hangout.voice.leave(session.key)
       together.dropped(session.key)
       hangout.dropped(session.key)
       ydocs.dropped(session.key)

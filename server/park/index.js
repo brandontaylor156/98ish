@@ -35,12 +35,18 @@
 //   park:up    { court }   park:score { court, score }   park:done { court }
 //   park:counts {}  -> { ok, counts: { venue: people } }   how many are in each real venue's parks
 //                  (numbers only, for the venue picker's badges; Riverside and empty ones left out)
+//   park:vc    { on }  -> { ok, on: [num], ice: { iceServers, turn } }   spatial voice on/off
+//   park:sig   { to: num, kind, data }   a voice connection message for someone in your park
+//              (offer/answer/ice/bye; server/voice/relay.js: the audio itself goes browser to
+//              browser over WebRTC, never through here)
 // Server -> client: park:m (positions), park:person (someone joined / changed), park:gone
 // { num }, park:fx { num, emote | line }, park:courts [court], park:go { court, kind,
-// roomId? }, park:rate { rate }.
+// roomId? }, park:rate { rate }, park:vc { room, on: [num] } (who has voice on),
+// park:sig { room, from: num, kind, data }.
 
 
 const { sanitizeLook } = require("../arcade/games/pickleballLooks")
+const { createVoiceRelay } = require("../voice/relay")
 
 const CAP = 16
 const VENUES = require("./venues.json")
@@ -124,7 +130,7 @@ const realClock = {
 
 // liveVenues (server/venues): any venue Venue Finder built from OpenStreetMap ({ info(id) ->
 // { courts, bounds } | null }); maxLiveParks: how many of those can have a park open at once
-const createPark = ({ emit = () => {}, emitVolatile = null, rooms = null, clock = realClock, meterTotal = () => null, capBytes = 3000 * MB, cap = CAP, liveVenues = null, maxLiveParks = 60 } = {}) => {
+const createPark = ({ emit = () => {}, emitVolatile = null, rooms = null, clock = realClock, meterTotal = () => null, capBytes = 3000 * MB, cap = CAP, liveVenues = null, maxLiveParks = 60, ice = null } = {}) => {
   const liveInfo = (id) => (liveVenues && typeof id === "string" && !Object.prototype.hasOwnProperty.call(VENUES, id) ? liveVenues.info(id) : null)
   const vOf = (id) => (liveInfo(id) ? id : venueOf(id))
   const vInfo = (id) => liveInfo(id) || venueInfo(id)
@@ -208,6 +214,7 @@ const createPark = ({ emit = () => {}, emitVolatile = null, rooms = null, clock 
     return inst
   }
   const closeInstance = (inst) => {
+    voice.drop(`p${inst.n}`)
     if (inst.timer) clock.clearInterval(inst.timer)
     inst.timer = null
     instances.delete(inst.n)
@@ -245,6 +252,7 @@ const createPark = ({ emit = () => {}, emitVolatile = null, rooms = null, clock 
     const inst = instanceOf(pid)
     if (!inst) return { ok: true }
     const p = inst.people.get(pid)
+    if (p) voice.set(`p${inst.n}`, p.num, false)
     inst.people.delete(pid)
     where.delete(pid)
     let changed = false
@@ -263,6 +271,41 @@ const createPark = ({ emit = () => {}, emitVolatile = null, rooms = null, clock 
     if (changed) publishCourts(inst)
     if (!size(inst)) closeInstance(inst)
     return { ok: true }
+  }
+
+  // ---------- spatial voice (signaling only; server/voice/relay.js) ----------
+  // members are the park's small numbers; the relay's messages go to that number's browser
+  const voice = createVoiceRelay({
+    prefix: "park",
+    now: clock.now,
+    emit: (num, event, payload) => {
+      const inst = instances.get(Number(String(payload.room).slice(1)))
+      if (!inst) return
+      for (const q of inst.people.values()) if (q.num === num) return send(q.pid, event, payload)
+    },
+  })
+  let iceSource = ice
+  const iceConfig = async () => {
+    try {
+      iceSource ??= require("../aim/ice").createIce()
+      return await iceSource.config()
+    } catch {
+      return { iceServers: [{ urls: "stun:stun.l.google.com:19302" }], turn: false }
+    }
+  }
+  const voiceOn = async (pid, on) => {
+    const inst = instanceOf(pid)
+    if (!inst) return { ok: false, error: "You're not in the park." }
+    const p = inst.people.get(pid)
+    const r = voice.set(`p${inst.n}`, p.num, !!on)
+    if (!r.ok || !on) return r
+    return { ...r, ice: await iceConfig() }
+  }
+  const voiceSignal = (pid, { to, kind, data } = {}) => {
+    const inst = instanceOf(pid)
+    if (!inst) return { ok: false, error: "You're not in the park." }
+    if (!Number.isInteger(to)) return { ok: false, error: "Who to?" }
+    return voice.signal(`p${inst.n}`, inst.people.get(pid).num, to, { kind, data })
   }
 
   // ---------- moving ----------
@@ -427,11 +470,16 @@ const createPark = ({ emit = () => {}, emitVolatile = null, rooms = null, clock 
         if (typeof ack !== "function") ack = () => {}
         const computer = current()
         if (!computer) return ack({ ok: false, error: "Not connected to the network." })
-        try {
-          ack(handler(who(computer), isObject(payload) ? payload : {}) || { ok: true })
-        } catch (error) {
+        const fail = (error) => {
           console.error(`[park] ${event} failed`, error)
           ack({ ok: false, error: "Something went wrong. Please try again." })
+        }
+        try {
+          const out = handler(who(computer), isObject(payload) ? payload : {})
+          if (out && typeof out.then === "function") out.then((r) => ack(r || { ok: true }), fail)
+          else ack(out || { ok: true })
+        } catch (error) {
+          fail(error)
         }
       })
     on("park:join", (me, p) => join(me, p))
@@ -445,6 +493,8 @@ const createPark = ({ emit = () => {}, emitVolatile = null, rooms = null, clock 
     on("park:up", (me, p) => up(me.pid, p.court))
     on("park:score", (me, p) => score(me.pid, p.court, p.score))
     on("park:done", (me, p) => done(me.pid, p.court))
+    on("park:vc", (me, p) => voiceOn(me.pid, p.on))
+    on("park:sig", (me, p) => voiceSignal(me.pid, p))
     // fire and forget, a few times a second: no ack, no logging
     socket.on("park:pos", (data) => {
       const computer = current()
@@ -477,6 +527,9 @@ const createPark = ({ emit = () => {}, emitVolatile = null, rooms = null, clock 
       if (inst) flush(inst)
     },
     watchRooms,
+    voiceOn,
+    voiceSignal,
+    voice,
     instances,
     instanceOf: (pid) => instanceOf(pid)?.n ?? null,
     get rate() {
