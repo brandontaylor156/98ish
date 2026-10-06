@@ -990,7 +990,7 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
     const bodiesNear = []
     for (const b of bodies.values()) if (!b.isMe && !b.hidden && b.mode === "walk" && Math.abs(b.x - me.walker.x) < 8 && Math.abs(b.z - me.walker.z) < 8) bodiesNear.push({ x: b.x, z: b.z, h: b.seat ? b.seat.y + 1.0 : 1.95, r: 0.36 })
     const w = me.mode === "sit" && me.seat ? { x: me.seat.x, z: me.seat.z, yaw: me.seat.yaw, speed: 0 } : me.walker
-    stepFollow(follow, w, dt, { portrait: por, bodies: bodiesNear })
+    stepFollow(follow, w, dt, { portrait: por, bodies: bodiesNear, roofY })
     camera.position.set(follow.pos.x, follow.pos.y, follow.pos.z)
     lookAt.set(follow.look.x, follow.look.y, follow.look.z)
     const fov = por ? 62 : 55

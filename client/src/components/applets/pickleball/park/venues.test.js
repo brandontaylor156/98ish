@@ -5,7 +5,8 @@ import test from "node:test"
 import assert from "node:assert/strict"
 import { readFileSync } from "node:fs"
 import { venueLayoutSpec } from "./venuegen.js"
-import { makeLayout } from "./layout.js"
+import { makeLayout, setLayout } from "./layout.js"
+import { createFollow, followTarget, stepFollow } from "./followcam.js"
 import { VENUE_LIST } from "./venues/index.js"
 
 const spec = (id) => JSON.parse(readFileSync(new URL(`./venues/${id}.json`, import.meta.url), "utf8"))
@@ -144,4 +145,52 @@ test("venuegen: every number in a venue's layout and scenery is a real number (n
     const out = bad({ scene: g.layoutSpec.scene, courts: L.COURTS, boxes: L.BOXES, circles: L.CIRCLES, seats: L.ALL_SEATS, nav: L.NAV, lights: L.LIGHTS }, id, [])
     assert.deepEqual(out.slice(0, 5), [], `${id}: not numbers`)
   }
+})
+
+test("follow camera at the venues: never behind a wall, a building or a fence, never above a hall roof", () => {
+  // segmentHit3 itself: through a wall, over a fence, under a door's lintel
+  const { L: W } = get("wolfbear")
+  const wall = W.BOXES.find((b) => b.kind === "wall" && b.hx > 3)
+  const n = { x: -wall.uz, z: wall.ux } // across the wall
+  const at = (k, y) => ({ x: wall.cx + n.x * k, y, z: wall.cz + n.z * k })
+  assert.ok(W.segmentHit3(at(-2, 1.5), at(2, 3)), "through a hall wall")
+  assert.equal(W.segmentHit3(at(-2, wall.h + 1), at(2, wall.h + 1)), null, "over its top")
+  const lintel = W.BOXES.find((b) => b.kind === "lintel")
+  const ln = { x: -lintel.uz, z: lintel.ux }
+  const lat = (k, y) => ({ x: lintel.cx + ln.x * k, y, z: lintel.cz + ln.z * k })
+  assert.equal(W.segmentHit3(lat(-2, 1.5), lat(2, 2.0)), null, "under a lintel")
+  assert.ok(W.segmentHit3(lat(-2, 1.5), lat(2, 4.5)), "into a lintel")
+  // every walkable spot x 8 camera yaws at every venue, the indoor ones under their roofs
+  for (const id of IDS) {
+    const { L } = get(id)
+    setLayout(L)
+    const halls = L.spec.scene?.halls || []
+    const roofY = halls.length ? Math.min(...halls.map((h) => h.h || 9)) - 0.6 : null
+    let checked = 0
+    for (let i = 0; i < L.NAV.length; i += 3) {
+      const p = L.NAV[i]
+      for (let a = 0; a < 8; a++) {
+        const yaw = (a / 8) * Math.PI * 2
+        const st = createFollow(yaw)
+        for (let f = 0; f < 6; f++) stepFollow(st, { x: p.x, z: p.z, yaw, speed: 0 }, 1 / 30, { portrait: a % 2 === 0, roofY })
+        assert.equal(L.segmentHit3({ x: p.x, y: 1.55, z: p.z }, st.pos), null, `${id}: lens hidden at ${p.x},${p.z} yaw ${yaw.toFixed(2)}`)
+        if (roofY != null) assert.ok(st.pos.y <= roofY + 1e-9, `${id}: above the roof`)
+        checked++
+      }
+    }
+    assert.ok(checked > 400, `${id}: ${checked}`)
+  }
+  // a wall right behind you: the lens swings round to the open side instead of into the wall
+  setLayout(W)
+  const p = W.NAV.map((q) => ({ q, d: Math.abs((q.x - wall.cx) * n.x + (q.z - wall.cz) * n.z), along: Math.abs((q.x - wall.cx) * wall.ux + (q.z - wall.cz) * wall.uz) }))
+    .filter((o) => o.along < wall.hx - 4 && o.d > 0.6 && o.d < 1.6)
+    .sort((a, b) => a.d - b.d)[0].q
+  // (facing straight away from the wall... and straight along it with the wall behind)
+  const side = Math.sign((p.x - wall.cx) * n.x + (p.z - wall.cz) * n.z)
+  const intoWall = Math.atan2(-n.x * side, -n.z * side) // camera yaw whose "behind" is the wall
+  const t = followTarget({ x: p.x, z: p.z }, intoWall + Math.PI, { portrait: true })
+  assert.equal(W.segmentHit3({ x: p.x, y: 1.55, z: p.z }, t.cam), null)
+  assert.ok(t.open, "found an open spot")
+  assert.ok(Math.hypot(t.cam.x - p.x, t.cam.z - p.z) >= 1.3, "not right on top of you")
+  setLayout(get("loscab").L)
 })

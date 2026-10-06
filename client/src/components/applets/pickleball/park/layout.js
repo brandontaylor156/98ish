@@ -455,7 +455,7 @@ export const makeLayout = (spec) => {
     }
     return best
   }
-  const slab = (la, lb, box, pad) => {
+  const slab = (la, lb, box, pad, range = false) => {
     const dx = lb.x - la.x
     const dz = lb.z - la.z
     let t0 = 0
@@ -475,7 +475,29 @@ export const makeLayout = (spec) => {
       t1 = Math.min(t1, u1)
       if (t0 > t1) return null
     }
-    return t0
+    return range ? [t0, t1] : t0
+  }
+  // The same in 3D, for cameras: a segment from a to b ({ x, y, z }) against every solid box
+  // between its floor (y0, for a lintel) and its top. -> { t, h } (the fraction along it where
+  // it first goes in, and that box's top) or null. pad: room kept round each box.
+  const segmentHit3 = (a, b, pad = 0) => {
+    let best = null
+    for (const box of segBoxes(a, b)) {
+      const ax = a.x - box.cx
+      const az = a.z - box.cz
+      const bx = b.x - box.cx
+      const bz = b.z - box.cz
+      const la = { x: ax * box.ux + az * box.uz, z: -ax * box.uz + az * box.ux }
+      const lb = { x: bx * box.ux + bz * box.uz, z: -bx * box.uz + bz * box.ux }
+      const r = slab(la, lb, box, pad, true)
+      if (!r) continue
+      // (the heights the segment has while it's over the box)
+      const y0 = a.y + (b.y - a.y) * r[0]
+      const y1 = a.y + (b.y - a.y) * r[1]
+      if (Math.min(y0, y1) >= box.h + pad || Math.max(y0, y1) <= (box.y0 || 0)) continue
+      if (best === null || r[0] < best.t) best = { t: r[0], h: box.h }
+    }
+    return best
   }
 
   // ---------- things you can do ----------
@@ -694,6 +716,7 @@ export const makeLayout = (spec) => {
     resolve,
     blocked,
     segmentHit,
+    segmentHit3,
     nearestAction,
     chatSpots,
     route,
@@ -733,6 +756,7 @@ export const courtById = (id) => ACTIVE.courtById(id)
 export const resolve = (x, z, r) => ACTIVE.resolve(x, z, r)
 export const blocked = (x, z, r) => ACTIVE.blocked(x, z, r)
 export const segmentHit = (a, b, h, pad) => ACTIVE.segmentHit(a, b, h, pad)
+export const segmentHit3 = (a, b, pad) => ACTIVE.segmentHit3(a, b, pad)
 export const nearestAction = (x, z, list) => ACTIVE.nearestAction(x, z, list)
 export const chatSpots = (a, b) => ACTIVE.chatSpots(a, b)
 export const route = (from, to) => ACTIVE.route(from, to)
