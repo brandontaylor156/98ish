@@ -238,5 +238,5 @@ const endLines = (analysis) => {
   const longest = rallies.reduce((n, r) => Math.max(n, r.hits?.length || 0), 0)
   let fastest = null
   for (const r of rallies) for (const h of r.hits || []) if (h.ball?.speed && (!fastest || h.ball.speed > fastest.speed)) fastest = { speed: h.ball.speed, player: h.player }
-  return [`${rallies.length} rallies · ${shots} shots`, `Longest rally: ${longest} shots`, fastest ? `Fastest shot: ${Math.round(fastest.speed * MPH)} mph (${nameOf(analysis, fastest.player)})` : "", "Made with Pickleball 98"].filter(Boolean)
+  return [`${rallies.length} ${rallies.length === 1 ? "rally" : "rallies"} · ${shots} shots`, `Longest rally: ${longest} shots`, fastest ? `Fastest shot: ${Math.round(fastest.speed * MPH)} mph (${nameOf(analysis, fastest.player)})` : "", "Made with Pickleball 98"].filter(Boolean)
 }
