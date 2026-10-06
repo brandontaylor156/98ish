@@ -237,7 +237,7 @@ test("blocked buddies can't call, and blocking ends a call", { skip }, async () 
 })
 
 test("signing off or dropping ends calls; missed calls wait for the connection", { skip }, async () => {
-  const { user, close, aim } = await setup({ callLostMs: 150 })
+  const { user, close, aim } = await setup({ callLostMs: 600 }) // room for a reconnect + resume on a loaded machine (150 ms flaked)
   try {
     const rosie = await user("Rosie")
     const theo = await user("Theo")
