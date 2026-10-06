@@ -220,7 +220,9 @@ export const buildPark = (scene, { quality = "medium", layout = RIVERSIDE_LAYOUT
   const railMat = lambert(S?.colors?.fence ? parseInt(S.colors.fence.slice(1), 16) : 0x3d4a45)
   const gateMat = lambert(0x24302c)
   const fencePosts = []
-  const fenceSide = (x0, z0, x1, z1, { gates = [], h = PEN.h, screen = true } = {}) => {
+  // (a venue's windscreens: fence.screen false = none, fence.screenH = their height)
+  const SCREEN_H = S?.fence?.screenH ?? 1.15
+  const fenceSide = (x0, z0, x1, z1, { gates = [], h = PEN.h, screen = S?.fence?.screen !== false } = {}) => {
     // a straight run of fence from (x0, z0) to (x1, z1), with openings for gates (the
     // windscreen stops there)
     const len = Math.hypot(x1 - x0, z1 - z0)
@@ -245,9 +247,9 @@ export const buildPark = (scene, { quality = "medium", layout = RIVERSIDE_LAYOUT
       runs.push([from, len])
       for (const [a, b] of runs) {
         if (b - a < 0.05) continue
-        const s = new THREE.Mesh(keep(new THREE.PlaneGeometry(b - a, Math.min(1.15, h))), screenMat)
+        const s = new THREE.Mesh(keep(new THREE.PlaneGeometry(b - a, Math.min(SCREEN_H, h))), screenMat)
         const mid = (a + b) / 2 / len
-        s.position.set(x0 + (x1 - x0) * mid, Math.min(1.15, h) / 2, z0 + (z1 - z0) * mid)
+        s.position.set(x0 + (x1 - x0) * mid, Math.min(SCREEN_H, h) / 2, z0 + (z1 - z0) * mid)
         s.rotation.y = ry
         group.add(s)
       }

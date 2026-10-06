@@ -56,8 +56,8 @@ const hex = (v, d) => (typeof v === "string" && v[0] === "#" ? parseInt(v.slice(
 
 const WALLS = { school: 0xd9c7a3, industrial: 0xc9c6bd, warehouse: 0xbfc2c0, commercial: 0xd8d0c2, retail: 0xe0d6c4, house: 0xe8dcc6, residential: 0xe2d7c5, apartments: 0xd7cdbf, hotel: 0xd9d4ca, office: 0xc8ccd0, clubhouse: 0xe6d8bd, roof: 0x9a9184, garage: 0xbdb6aa, hall: 0xd4d2cc, yes: 0xd6cdbd }
 const ROOFS = { school: 0x8a8278, industrial: 0x9ea3a6, warehouse: 0xa4a8aa, house: 0x9a5a42, residential: 0x8e6a55, apartments: 0x8b8178, clubhouse: 0x8c3b2f, hall: 0xb8bcc0, yes: 0x8f8a82 }
-const AREA_FILL = { lawn: "#6f9a45", urban: "#b9b4a6", school: "#bdb7a6", grass: "#7fae5a", rec: "#86b45f", wood: "#4f7a3c", play: "#d1b07a", paved: "#c4bfb2", parking: "#5d6166", pool: "#4fb6e3", water: "#4a90c0" }
-const AREA_ORDER = ["urban", "school", "grass", "rec", "wood", "play", "lawn", "paved", "parking", "pool", "water"]
+const AREA_FILL = { lawn: "#6f9a45", urban: "#b9b4a6", school: "#bdb7a6", grass: "#7fae5a", rec: "#86b45f", wood: "#4f7a3c", play: "#d1b07a", paved: "#c4bfb2", concrete: "#d0cabd", channel: "#c9c3b3", asphalt: "#55595e", deck: "#dcd5c6", turf: "#5f8f43", sand: "#e3d3a8", dirt: "#a88a62", planter: "#4f6f38", parking: "#5d6166", pool: "#4fb6e3", water: "#4a90c0" }
+const AREA_ORDER = ["urban", "school", "grass", "rec", "wood", "play", "lawn", "turf", "dirt", "sand", "channel", "paved", "concrete", "asphalt", "parking", "deck", "planter", "pool", "water"]
 const ROAD = { major: ["#4b4e53", 1], road: ["#55585d", 2], service: ["#5f6267", 3], aisle: ["#5f6267", 3], cycle: ["#9a8f80", 4], foot: ["#d2cbbb", 5] }
 
 // cutaway: a game on one of an indoor venue's courts (courtvenue.js): the halls without their
@@ -100,10 +100,11 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
     const Z = (z) => (z - Z0) * PX
     ctx.fillStyle = C.ground || "#86a466"
     ctx.fillRect(0, 0, w, h)
-    // mottle
+    // mottle (grass: green blotches; paved ground, a town: grey wear)
+    const paved = S.groundStyle === "paved"
     for (let i = 0; i < 6000; i++) {
       const v = rand()
-      ctx.fillStyle = v < 0.5 ? `rgba(40,70,30,${0.04 + rand() * 0.06})` : `rgba(200,210,150,${0.03 + rand() * 0.05})`
+      ctx.fillStyle = paved ? (v < 0.5 ? `rgba(40,40,40,${0.02 + rand() * 0.04})` : `rgba(255,255,250,${0.02 + rand() * 0.04})`) : v < 0.5 ? `rgba(40,70,30,${0.04 + rand() * 0.06})` : `rgba(200,210,150,${0.03 + rand() * 0.05})`
       ctx.beginPath()
       ctx.arc(rand() * w, rand() * h, 1.5 + rand() * 7, 0, Math.PI * 2)
       ctx.fill()
@@ -116,12 +117,43 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
     for (const k of AREA_ORDER)
       for (const a of S.areas) {
         if (a.k !== k) continue
-        ctx.fillStyle = AREA_FILL[k] || "#999"
+        ctx.fillStyle = a.c || AREA_FILL[k] || "#999"
         poly(a.p)
         ctx.fill()
         if (k === "pool") {
-          ctx.strokeStyle = "#e8e4da"
-          ctx.lineWidth = Math.max(1, 1.2 * PX)
+          // lane lines along the pool's long side, then the coping round it
+          if (a.lanes) {
+            let best = null
+            for (let i = 0; i < a.p.length; i++) {
+              const p0 = a.p[i]
+              const p1 = a.p[(i + 1) % a.p.length]
+              const L = Math.hypot(p1[0] - p0[0], p1[1] - p0[1])
+              if (!best || L > best.L) best = { L, ux: (p1[0] - p0[0]) / L, uz: (p1[1] - p0[1]) / L }
+            }
+            const { ux, uz } = best
+            const us = a.p.map(([x, z]) => x * ux + z * uz)
+            const ws = a.p.map(([x, z]) => -x * uz + z * ux)
+            const u0 = Math.min(...us) + 1.6
+            const u1 = Math.max(...us) - 1.6
+            const w0 = Math.min(...ws)
+            const w1 = Math.max(...ws)
+            ctx.save()
+            poly(a.p)
+            ctx.clip()
+            ctx.strokeStyle = "rgba(20,60,120,0.75)"
+            ctx.lineWidth = Math.max(1, 0.25 * PX)
+            for (let k2 = 1; k2 <= a.lanes; k2++) {
+              const wv = w0 + ((w1 - w0) * (k2 - 0.5)) / a.lanes
+              ctx.beginPath()
+              ctx.moveTo(X(u0 * ux - wv * uz), Z(u0 * uz + wv * ux))
+              ctx.lineTo(X(u1 * ux - wv * uz), Z(u1 * uz + wv * ux))
+              ctx.stroke()
+            }
+            ctx.restore()
+          }
+          ctx.strokeStyle = "#ece7dc"
+          ctx.lineWidth = Math.max(1, (a.coping || 1.2) * PX)
+          poly(a.p)
           ctx.stroke()
         }
         if (k === "parking") {
@@ -383,8 +415,35 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
     g.translate(0, y, 0)
     return keep(g)
   }
-  // a pitched roof over a building's smallest rectangle (tile roofs, the clubhouse's green roof)
-  const gableRoof = (p, h) => {
+  // clay tiles (white: the roof's color tints them): rows of barrel tiles with dark grooves
+  const tileTex = keep(
+    canvasTexture(64, 64, (ctx, w) => {
+      ctx.fillStyle = "#ffffff"
+      ctx.fillRect(0, 0, w, w)
+      for (let r = 0; r < 4; r++) {
+        const y = r * 16
+        for (let c = 0; c < 8; c++) {
+          const x = c * 8 + (r % 2 ? 4 : 0)
+          const g = ctx.createLinearGradient(x, 0, x + 8, 0)
+          g.addColorStop(0, "rgba(0,0,0,0.22)")
+          g.addColorStop(0.45, "rgba(255,255,255,0.10)")
+          g.addColorStop(1, "rgba(0,0,0,0.25)")
+          ctx.fillStyle = g
+          ctx.fillRect(x, y, 8, 16)
+        }
+        ctx.fillStyle = "rgba(0,0,0,0.30)"
+        ctx.fillRect(0, y + 14, w, 2)
+      }
+    })
+  )
+  tileTex.wrapS = tileTex.wrapT = THREE.RepeatWrapping
+  const tileMats = new Map()
+  const tileMatFor = (color) => {
+    if (!tileMats.has(color)) tileMats.set(color, lambert(color, { map: tileTex, side: THREE.DoubleSide }))
+    return tileMats.get(color)
+  }
+  // a building's smallest rectangle: { ux, uz (along the long side), u0, u1, w0, w1 }
+  const rectOf = (p) => {
     let best = null
     for (let i = 0; i < p.length; i++) {
       const a = p[i]
@@ -408,39 +467,125 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
       const area = (u1 - u0) * (w1 - w0)
       if (!best || area < best.area) best = { area, ux, uz, u0, u1, w0, w1 }
     }
-    // the ridge along the longer side
     let { ux, uz, u0, u1, w0, w1 } = best
     if (w1 - w0 > u1 - u0) {
       ;[ux, uz] = [-uz, ux]
       ;[u0, u1, w0, w1] = [w0, w1, -u1, -u0]
     }
+    return { ux, uz, u0, u1, w0, w1 }
+  }
+  // sloped roofs over the rectangle, with tile uvs (u along the eave, v up the slope):
+  // gable (ridge along the long side), hip (four slopes), mansard (a sloped band round a flat top)
+  const slopedRoof = (p, h, style, { rise: riseO, band = 5, eaves = 0.5 } = {}) => {
+    const { ux, uz, u0, u1, w0, w1 } = rectOf(p)
     const P = (u, w, y) => [u * ux - w * uz, y, u * uz + w * ux]
-    const rise = Math.min(3.2, (w1 - w0) * 0.28)
+    const pos = []
+    const uv = []
+    const tri = (A, B, C, e) => {
+      pos.push(...A, ...B, ...C)
+      for (const Q of [A, B, C]) uv.push((Q[0] * e[0] + Q[2] * e[1]) / 0.5, (Q[1] - h) / 0.17)
+    }
+    const quad = (A, B, C, D, e) => {
+      tri(A, B, C, e)
+      tri(A, C, D, e)
+    }
+    const o = eaves
+    const W = w1 - w0
+    const rise = riseO ?? Math.min(3.2, W * (style === "mansard" ? 0.22 : 0.27))
     const wm = (w0 + w1) / 2
-    const o = 0.4 // eaves
+    const eu = [ux, uz] // eave along u
+    const ew = [-uz, ux] // eave along w
     const A = P(u0 - o, w0 - o, h)
     const B = P(u1 + o, w0 - o, h)
     const C2 = P(u1 + o, w1 + o, h)
     const D = P(u0 - o, w1 + o, h)
-    const E = P(u0 - o, wm, h + rise)
-    const F = P(u1 + o, wm, h + rise)
-    const pos = [...A, ...B, ...F, ...A, ...F, ...E, ...D, ...E, ...F, ...D, ...F, ...C2, ...A, ...E, ...D, ...B, ...C2, ...F]
+    let top = null
+    if (style === "mansard") {
+      const bd = Math.min(band, W / 2 - 0.5, (u1 - u0) / 2 - 0.5)
+      const a = P(u0 + bd, w0 + bd, h + rise)
+      const b = P(u1 - bd, w0 + bd, h + rise)
+      const c = P(u1 - bd, w1 - bd, h + rise)
+      const d = P(u0 + bd, w1 - bd, h + rise)
+      quad(A, B, b, a, eu)
+      quad(B, C2, c, b, ew)
+      quad(C2, D, d, c, eu)
+      quad(D, A, a, d, ew)
+      top = [a, b, c, d]
+    } else if (style === "hip") {
+      const inset = Math.min(W / 2, (u1 - u0) / 2)
+      const E = P(u0 + inset, wm, h + rise)
+      const F = P(u1 - inset, wm, h + rise)
+      quad(A, B, F, E, eu)
+      quad(C2, D, E, F, eu)
+      tri(D, A, E, ew)
+      tri(B, C2, F, ew)
+    } else {
+      const E = P(u0 - o, wm, h + rise)
+      const F = P(u1 + o, wm, h + rise)
+      quad(A, B, F, E, eu)
+      quad(C2, D, E, F, eu)
+      tri(D, A, E, ew)
+      tri(B, C2, F, ew)
+    }
     const g = new THREE.BufferGeometry()
     g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3))
+    g.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2))
     g.computeVertexNormals()
-    return keep(g)
+    return { geo: keep(g), top }
   }
+  const plainMats = new Map()
+  const plainMatFor = (color) => {
+    if (!plainMats.has(color)) plainMats.set(color, lambert(color, { side: THREE.DoubleSide }))
+    return plainMats.get(color)
+  }
+  const hvac = []
   for (const b of S.buildings) {
     if (b.p.length < 3) continue
     const kind = b.k || "yes"
     const color = hex(b.c, WALLS[kind] ?? WALLS.yes)
-    const ribs = kind === "industrial" || kind === "warehouse" || kind === "hall" || kind === "garage" || !!b.hall
+    const ribs = b.windows === "ribs" || (!b.windows && (kind === "industrial" || kind === "warehouse" || kind === "hall" || kind === "garage" || !!b.hall))
+    const wallMat = b.windows === "none" ? plainMatFor(color) : wallMatFor(color, ribs)
+    const y0 = b.y0 || 0
     // (a hall's outside walls are drawn with its inside, cut for the door)
-    if (!b.hall) group.add(new THREE.Mesh(wallRing(b.p, 0, b.h), wallMatFor(color, ribs)))
-    const roofMat = roofMatFor(hex(b.r, ROOFS[kind] ?? ROOFS.yes))
+    if (!b.hall) group.add(new THREE.Mesh(wallRing(b.p, y0, b.h), wallMat))
+    const roofColor = hex(b.r, ROOFS[kind] ?? ROOFS.yes)
+    const roofMat = roofMatFor(roofColor)
     if (b.hall && cutaway) continue
-    if (b.rs === "gable" && !b.hall) group.add(new THREE.Mesh(gableRoof(b.p, b.h), roofMat))
-    else group.add(new THREE.Mesh(flat(b.p, b.h), b.hall ? lambert(hex(b.r, ROOFS.hall)) : roofMat))
+    const style = b.hall ? "flat" : b.rs || "flat"
+    if (style === "gable" || style === "hip" || style === "mansard") {
+      const r = slopedRoof(b.p, b.h, style, { rise: b.rise, band: b.band })
+      group.add(new THREE.Mesh(r.geo, b.tile === false ? roofMat : tileMatFor(roofColor)))
+      if (r.top) {
+        const t = r.top.map((q2) => [q2[0], q2[2]])
+        group.add(new THREE.Mesh(flat(t, r.top[0][1]), roofMatFor(hex(b.top, 0xe6e3dc))))
+      }
+    } else {
+      group.add(new THREE.Mesh(flat(b.p, b.h), b.hall ? lambert(hex(b.r, ROOFS.hall)) : roofMat))
+      if (b.parapet) {
+        group.add(new THREE.Mesh(wallRing(b.p, b.h, b.h + b.parapet), plainMatFor(color)))
+        group.add(new THREE.Mesh(wallRing(b.p, b.h, b.h + b.parapet, { inward: true, offset: 0.25 }), plainMatFor(color)))
+      }
+      // rooftop units (air handlers, fans) scattered on a flat roof
+      if (b.hvac) {
+        const xs = b.p.map((q2) => q2[0])
+        const zs = b.p.map((q2) => q2[1])
+        const ar = Math.abs(signedArea(b.p))
+        const n = Math.min(60, typeof b.hvac === "number" ? b.hvac : Math.round(ar / 110))
+        let tries = 0
+        for (let k = 0; k < n && tries < n * 12; tries++) {
+          const x = Math.min(...xs) + rand() * (Math.max(...xs) - Math.min(...xs))
+          const z = Math.min(...zs) + rand() * (Math.max(...zs) - Math.min(...zs))
+          if (!pointInPoly(x, z, b.p) || !pointInPoly(x + 2, z, b.p) || !pointInPoly(x - 2, z, b.p) || !pointInPoly(x, z + 2, b.p) || !pointInPoly(x, z - 2, b.p)) continue
+          hvac.push({ x, z, y: b.h, sx: 1.2 + rand() * 2.4, sz: 1.0 + rand() * 1.6, sy: 0.7 + rand() * 0.9, ry: Math.atan2(b.p[1][1] - b.p[0][1], b.p[1][0] - b.p[0][0]) })
+          k++
+        }
+      }
+    }
+  }
+  if (hvac.length) {
+    const units = new THREE.InstancedMesh(keep(new THREE.BoxGeometry(1, 1, 1).translate(0, 0.5, 0)), lambert(0xd3d5d4), hvac.length)
+    hvac.forEach((u, i) => units.setMatrixAt(i, m4.compose(v1.set(u.x, u.y, u.z), q.setFromEuler(e1.set(0, -u.ry, 0)), v2.set(u.sx, u.sy, u.sz))))
+    group.add(units)
   }
 
   // ---------- the halls: inside ----------
@@ -721,12 +866,12 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
   // ---------- cars in the lots ----------
   const cars = []
   for (const a of S.areas) {
-    if (a.k !== "parking" || cars.length > 140) continue
+    if (a.k !== "parking" || cars.length > 700) continue
     const xs = a.p.map((p) => p[0])
     const zs = a.p.map((p) => p[1])
     for (let z = Math.min(...zs) + 2.6; z < Math.max(...zs) - 2; z += 6)
       for (let x = Math.min(...xs) + 1.4; x < Math.max(...xs) - 1; x += 2.7) {
-        if (rand() > 0.62 || !pointInPoly(x, z, a.p) || cars.length > 140) continue
+        if (rand() > (a.full ?? 0.7) || !pointInPoly(x, z, a.p) || cars.length > 700) continue
         cars.push({ x, z, yaw: (rand() < 0.5 ? 0 : Math.PI) + (rand() - 0.5) * 0.06, c: rand() })
       }
   }

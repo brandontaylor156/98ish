@@ -146,10 +146,38 @@ const at = (o, proj) => (o.ll ? proj.xz(o.ll) : o.xz ? [...o.xz] : null)
 
 const HEIGHTS = { house: 5, residential: 6, apartments: 10, school: 5, industrial: 7.5, warehouse: 8, commercial: 6.5, retail: 6, roof: 3.5, garage: 3, hotel: 14, office: 10, yes: 5.5, clubhouse: 5.5, hall: 9 }
 
+// a building's look (overrides: buildings.style by id, rules, add): roof (color), roofStyle
+// ("flat" | "gable" | "hip" | "mansard"), color (walls), h, kind, tile (clay-tile texture on
+// sloped roofs), parapet (m), hvac (rooftop units: true or a count), band (mansard band m),
+// rise (m), windows ("rows" | "none" | "ribs"), trim (a color band at the top of the walls)
+const styleBuilding = (b, o) => {
+  if (o.color) b.c = o.color
+  if (o.roof) b.r = o.roof
+  if (o.roofStyle) b.rs = o.roofStyle
+  if (o.kind) b.k = o.kind
+  if (o.h) b.h = o.h
+  for (const k of ["tile", "parapet", "hvac", "band", "rise", "windows", "trim", "top"]) if (o[k] !== undefined) b[k] = o[k]
+}
+
+// two override layers: objects merge key by key (the top one wins), lists join (base first)
+const mergeOv = (base, top) => {
+  if (top === undefined) return base
+  if (Array.isArray(base) && Array.isArray(top)) return [...base, ...top]
+  if (base && top && typeof base === "object" && typeof top === "object" && !Array.isArray(base) && !Array.isArray(top)) {
+    const o = { ...base }
+    for (const k of Object.keys(top)) o[k] = mergeOv(base[k], top[k])
+    return o
+  }
+  return top
+}
+
 const buildOne = (v) => {
   const raw = JSON.parse(fs.readFileSync(path.join(HERE, "osm", `${v.id}.json`), "utf8"))
   const ovPath = path.join(HERE, "overrides", `${v.id}.json`)
-  const ov = fs.existsSync(ovPath) ? JSON.parse(fs.readFileSync(ovPath, "utf8")) : {}
+  // the hand-written corrections over the layer measured from references (ingest-refs.mjs)
+  const refsPath = path.join(HERE, "overrides", `${v.id}.refs.json`)
+  const refsOv = fs.existsSync(refsPath) ? JSON.parse(fs.readFileSync(refsPath, "utf8")) : {}
+  const ov = mergeOv(refsOv, fs.existsSync(ovPath) ? JSON.parse(fs.readFileSync(ovPath, "utf8")) : {})
   const proj = makeProj(v.lat, v.lon)
   // (a dossier's coordinates: { en: [east, north] } in meters from its own anchor)
   const dproj = ov.anchor ? makeProj(ov.anchor[0], ov.anchor[1]) : proj
@@ -202,7 +230,9 @@ const buildOne = (v) => {
   }
   for (const add of oc.add || []) {
     const p = P(add)
-    courts.push({ id: add.id || `add${courts.length}`, x: p[0], z: p[1], a: degOf(add), s: add.sport || "pickleball", pb: add.pb || 0, pbLayout: add.pbLayout, lit: add.lit ? 1 : 0, paint: add.court || add.kitchen || add.surround || add.clay ? { court: add.court, kitchen: add.kitchen, surround: add.surround, clay: add.clay } : null })
+    const paint = {}
+    for (const k of ["court", "kitchen", "surround", "alley", "lines", "clay", "art"]) if (add[k] !== undefined) paint[k] = add[k]
+    courts.push({ id: add.id || `add${courts.length}`, x: p[0], z: p[1], a: degOf(add), s: add.sport || "pickleball", pb: add.pb || 0, pbLayout: add.pbLayout, lit: add.lit ? 1 : 0, paint: Object.keys(paint).length ? paint : null })
   }
   for (const g of oc.grid || []) {
     const p0 = P(g)
@@ -224,8 +254,16 @@ const buildOne = (v) => {
     for (const c of courts) {
       if (rule.sport && rule.sport !== c.s) continue
       if (Math.hypot(c.x - px, c.z - pz) > (rule.r || 4)) continue
-      c.paint = { ...(c.paint || {}), ...(rule.court ? { court: rule.court } : {}), ...(rule.kitchen ? { kitchen: rule.kitchen } : {}), ...(rule.surround ? { surround: rule.surround } : {}), ...(rule.clay ? { clay: true } : {}) }
+      c.paint = { ...(c.paint || {}), ...(rule.court ? { court: rule.court } : {}), ...(rule.kitchen ? { kitchen: rule.kitchen } : {}), ...(rule.surround ? { surround: rule.surround } : {}), ...(rule.alley ? { alley: rule.alley } : {}), ...(rule.lines ? { lines: rule.lines } : {}), ...(rule.art ? { art: rule.art } : {}), ...(rule.clay ? { clay: true } : {}) }
     }
+  }
+  // per-court paint by OSM id (colors measured off the aerial: court, kitchen, surround, alley, lines)
+  const PAINT_KEYS = ["court", "kitchen", "surround", "alley", "lines", "clay", "art"]
+  for (const c of courts) {
+    const by = oc.byId?.[String(c.id)]
+    if (!by) continue
+    c.paint = { ...(c.paint || {}) }
+    for (const k of PAINT_KEYS) if (by[k] !== undefined) c.paint[k] = by[k]
   }
   for (const rule of oc.pbNear || []) {
     const [px, pz] = P(rule)
@@ -274,12 +312,17 @@ const buildOne = (v) => {
     const pts = pts0.map(sh)
     if (!nearBox(pts)) continue
     if (hallIds.has(String(e.id))) hallPolys[hallIds.get(String(e.id))] = pts
+    if (t.building && ob.toArea?.[e.id]) {
+      const c = clipPoly(pts, box)
+      if (c.length > 2) areas.push({ k: ob.toArea[e.id], p: pr(simplify(c, 0.3, true)) })
+      continue
+    }
     if (t.building && !bDrop.has(String(e.id))) {
       if (pts.length < 3 || Math.abs(area(pts)) < 12) continue
       const kind = ob.kind?.[e.id] || (t.building === "yes" ? (t.amenity === "school" ? "school" : "yes") : t.building)
       const levels = parseFloat(t["building:levels"])
       const h = ob.height?.[e.id] ?? (parseFloat(t.height) || (levels ? levels * 3.4 + 0.6 : HEIGHTS[kind] || 5.5))
-      const b = { p: pr(simplify(pts, 0.3, true)), h: r1(h), k: kind }
+      const b = { id: e.id, p: pr(simplify(pts, 0.3, true)), h: r1(h), k: kind }
       if (ob.color?.[e.id]) b.c = ob.color[e.id]
       if (ob.roof?.[e.id]) b.r = ob.roof[e.id]
       // style rules: every building whose middle is within r of a point
@@ -292,7 +335,9 @@ const buildOne = (v) => {
         if (rule.roofStyle) b.rs = rule.roofStyle
         if (rule.kind) b.k = rule.kind
         if (rule.h) b.h = rule.h
+        styleBuilding(b, rule)
       }
+      if (ob.style?.[e.id]) styleBuilding(b, ob.style[e.id])
       if (hallIds.has(String(e.id))) {
         b.hall = 1
         b.hallK = hallIds.get(String(e.id))
@@ -344,7 +389,7 @@ const buildOne = (v) => {
   }
   for (const a of ov.areas?.add || []) {
     const pts = polyOfO(a).map(sh)
-    if (pts.length > 2) areas.push({ k: a.kind || "paved", p: pr(pts) })
+    if (pts.length > 2) areas.push({ k: a.kind || "paved", p: pr(pts), ...(a.color ? { c: a.color } : {}), ...(a.lanes ? { lanes: a.lanes } : {}), ...(a.coping ? { coping: a.coping } : {}) })
   }
   if (ov.areas?.drop) for (const k of ov.areas.drop) for (let i = areas.length - 1; i >= 0; i--) if (areas[i].k === k) areas.splice(i, 1)
   // trees from overrides
@@ -362,9 +407,8 @@ const buildOne = (v) => {
   for (const add of ob.add || []) {
     const pts = polyOfO(add).map(sh)
     const b = { p: pr(pts), h: add.h || 5.5, k: add.kind || "yes" }
-    if (add.color) b.c = add.color
-    if (add.roof) b.r = add.roof
-    if (add.roofStyle) b.rs = add.roofStyle
+    styleBuilding(b, add)
+    if (add.y0) b.y0 = add.y0
     if (add.hall) b.hall = 1
     buildings.push(b)
   }
@@ -417,6 +461,8 @@ const buildOne = (v) => {
     lit: ov.lit ?? courts.some((c) => c.lit),
     live: ov.live || 6,
     colors: ov.colors || {},
+    ...(ov.light ? { light: ov.light } : {}),
+    ...(ov.groundStyle ? { groundStyle: ov.groundStyle } : {}),
     fence: ov.fence || {},
     backdrop: ov.backdrop || {},
     courts: courts.map((c) => {

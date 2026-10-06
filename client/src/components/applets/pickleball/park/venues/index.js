@@ -11,7 +11,7 @@ export const VENUE_LIST = [
     "courts": 54,
     "tennis": 13,
     "live": 6,
-    "kb": 12.8
+    "kb": 27.5
   },
   {
     "id": "newport",

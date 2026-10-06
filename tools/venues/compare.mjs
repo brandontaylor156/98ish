@@ -324,9 +324,11 @@ function courtErrors(lay, aerial) {
     if (c.xz) [x, z] = c.xz
     else if (c.ll) [x, z] = toXZ(c.ll[0], c.ll[1])
     else if (c.en) [x, z] = [ax + c.en[0], az - c.en[1]]
+    else if (c.center) [x, z] = [ax + c.center[0], az - c.center[1]]
     else if (c.x !== undefined && c.y !== undefined) [x, z] = [ax + c.x, az - c.y]
-    const bearing = c.bearing ?? (c.deg !== undefined ? c.deg + 90 : null)
-    return { id: c.id, sport: /^t/.test(c.sport || c.s || "p") ? "t" : /^b/.test(c.sport || c.s || "") ? "b" : "p", x, z, bearing }
+    const bearing = c.bearing ?? c.angle_deg ?? (c.deg !== undefined ? c.deg + 90 : null)
+    const sp = c.sport || c.type || c.s || "p"
+    return { id: c.id, sport: /^t/.test(sp) ? "t" : /^b/.test(sp) ? "b" : "p", x, z, bearing }
   })
   // built courts: the long axis as a compass bearing (spec a: 0 = east, 90 = south)
   const built = spec.courts.map((c, i) => ({ i, s: c.s, x: c.x, z: c.z, bearing: (c.a + 90 + 360) % 180 }))
