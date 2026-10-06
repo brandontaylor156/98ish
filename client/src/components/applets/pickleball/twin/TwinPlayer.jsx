@@ -15,6 +15,7 @@ import { courtsOf, twinVenue, venueChoices } from "./venues.js"
 import { callText } from "./ball/flight.js"
 import { ballStats } from "./ball/realball.js"
 import { BounceMap } from "./ball/BounceMap.jsx"
+import { Reels } from "./reels/Reels.jsx"
 
 const CAMS = [
   ["broadcast", "Broadcast"],
@@ -143,6 +144,17 @@ export const TwinPlayer = ({ getEngine, game, video, onBack, onChange, onShare, 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ri, tab])
   const nameOf = (id) => analysis.players.find((p) => p.id === id)?.name || `Player ${id + 1}`
+  // Reels: load one rally into the engine (it plays a rally at a time), shaders ready
+  const prepareRally = async (m) => {
+    const e = getEngine()
+    if (!e) return
+    const venue = await twinVenue(game.venue || "stadium", game.court)
+    const r = m.rally
+    const { frames } = buildFrames(analysis, { from: Math.max(0, r.start - 1.5), to: r.end + 2 })
+    e.playTwin({ frames, venue, roster: rosterFor(analysis.players) })
+    e.twinControl({ paused: true })
+    await Promise.race([e.ready, new Promise((ok) => setTimeout(ok, 6000))])
+  }
 
   return (
     <div className="pkTwinPlayer" data-tab={tab}>
@@ -157,6 +169,9 @@ export const TwinPlayer = ({ getEngine, game, video, onBack, onChange, onShare, 
           </button>
           <button type="button" role="tab" aria-selected={tab === "stats"} className={tab === "stats" ? "is-on" : ""} onClick={() => setTab("stats")}>
             Stats
+          </button>
+          <button type="button" role="tab" aria-selected={tab === "reel"} className={tab === "reel" ? "is-on" : ""} onClick={() => setTab("reel")} data-tab-btn="reel">
+            Highlights
           </button>
         </div>
       </div>
@@ -294,6 +309,8 @@ export const TwinPlayer = ({ getEngine, game, video, onBack, onChange, onShare, 
           )}
         </>
       )}
+
+      {tab === "reel" && <Reels analysis={analysis} game={game} video={video} getEngine={getEngine} prepare={prepareRally} onBack={() => setTab("stats")} />}
 
       {tab === "stats" && <TwinStats analysis={analysis} onRally={(i) => (setRi(i), setTab("replay"))} onClone={onClone} onCoach={onCoach} />}
     </div>

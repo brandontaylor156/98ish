@@ -268,7 +268,7 @@ export const topics = [
     book: "games-action",
     title: "Pickleball 98",
     summary: "3D pickleball with real rules, lessons, a ball machine, drills, a walk-around park with open play, a World Tour and online singles and doubles.",
-    keywords: ["pickleball", "My Park", "park", "venue", "real venues", "Los Cab", "Newport Beach", "Wolf + Bear", "Whittier Narrows", "iPickle", "Paseo Club", "Sinaloa", "California SMASH", "indoor", "favorites", "OpenStreetMap", "open play", "call next", "paddle stacking", "spectate", "watch", "park rep", "dink", "kitchen", "serve", "World Tour", "doubles", "drive", "lob", "paddle", "Locker Room", "outfit", "customize", "swimsuit", "beach", "winter", "practice", "ball machine", "drill", "lesson", "coach", "third shot drop", "reset", "split step", "two-bounce rule", "how to play", "swipe", "move pad", "left-handed", "camera", "swing trail", "swipe trail", "sound", "pop", "Twin Replay", "Twin Clones", "clone", "play my friend", "film a game", "video", "replay my game", "real game", "stats", "heat map", "shot mix", "pose", "Go Live", "live", "broadcast", "watch live", "stream", "live game", "Real Ball", "line call", "Hawk-Eye", "challenge", "in or out", "shot speed", "bounce map"],
+    keywords: ["pickleball", "My Park", "park", "venue", "real venues", "Los Cab", "Newport Beach", "Wolf + Bear", "Whittier Narrows", "iPickle", "Paseo Club", "Sinaloa", "California SMASH", "indoor", "favorites", "OpenStreetMap", "open play", "call next", "paddle stacking", "spectate", "watch", "park rep", "dink", "kitchen", "serve", "World Tour", "doubles", "drive", "lob", "paddle", "Locker Room", "outfit", "customize", "swimsuit", "beach", "winter", "practice", "ball machine", "drill", "lesson", "coach", "third shot drop", "reset", "split step", "two-bounce rule", "how to play", "swipe", "move pad", "left-handed", "camera", "swing trail", "swipe trail", "sound", "pop", "Twin Replay", "Twin Clones", "clone", "play my friend", "film a game", "video", "replay my game", "real game", "stats", "heat map", "shot mix", "pose", "Go Live", "live", "broadcast", "watch live", "stream", "live game", "Real Ball", "line call", "Hawk-Eye", "challenge", "highlights", "highlight reel", "highlight film", "make a video", "in or out", "shot speed", "bounce map"],
     programs: ["Pickleball 98"],
     body: [
       "Pickleball 98 is pickleball in 3D, with real rules and real ball physics. Play the computer, learn the game in Practice, go on a World Tour, play a friend on the same keyboard, or play people online.",
@@ -345,6 +345,15 @@ export const topics = [
           "**Stats** gets a **Real Ball** card: each player's fastest and typical shot speed (km/h), the line calls, and a map of every bounce. Coach uses the measured landing of your third shots (\"Drop landed 0.6 m inside their kitchen\").",
           "Best results: film at 30 or 60 frames a second from the back fence, steady, the whole court in view, good light. A blurry or tiny ball, or a shot the camera barely saw, falls back to the rebuilt flight (and gets no line call).",
           "It's a careful measurement, not an official one: the uncertainty is shown, and close calls stand. Everything runs on this device; nothing is uploaded.",
+        ],
+      },
+      { h: "Highlights: a highlight film of your game" },
+      "In a Twin Replay game, the **Highlights** tab picks the best rallies (the longest, the fastest shots, close line calls, kitchen battles, the biggest runs) and cuts a broadcast-style film of them: your own video of each point, a **3D replay** of the best one from the TV angle, the **Hawk-Eye** view of close calls in slow motion, a score bug and shot speeds on screen, a title and an end card with the game's stats, and a soundtrack made for it.",
+      {
+        list: [
+          "Reorder or remove moments with the arrows and the ✕, then **Make the film**. Keep Pickleball 98 open while it's made: the 3D parts are filmed as they play (about as long as the film).",
+          "**Save to Device** puts the video (MP4, about 60 seconds at 720p) in your phone's Files or Photos; **Share...** sends it to any app; **Add to Album** puts it in a Shared Album (albums take videos up to 60 seconds and 12 MB).",
+          "Everything is made on this device: the film never goes to a server unless you share it. The music is generated, so it's yours to post. Games kept without their video get a film of 3D replays.",
         ],
       },
       { h: "Twin Clones: play your friends" },
