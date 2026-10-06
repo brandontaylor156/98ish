@@ -278,6 +278,8 @@ export const matchScore = (q, name) => {
   if (a.split(" ").every((w) => words.some((x) => x.startsWith(w)))) return 2
   return b.includes(a) ? 1 : 0
 }
+// a US ZIP code ("92708" or "92708-1234") -> "92708", else null
+export const zipOf = (q) => String(q || "").trim().match(/^(\d{5})(?:-\d{4})?$/)?.[1] || null
 // search.json -> the best towns and named venues for a query
 export const searchIndex = (idx, q, limit = 12) => {
   if (!idx || fold(q).length < 2) return { towns: [], named: [] }

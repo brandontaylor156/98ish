@@ -6,7 +6,7 @@
 // anyone's own: it isn't per user and holds nothing personal (Help: privacy-device). The last
 // 60 venues stay; older ones go first.
 
-import { IDX_BASE, cellsNear, nearest, readRow, searchIndex } from "./finder.js"
+import { IDX_BASE, cellsNear, nearest, readRow, searchIndex, zipOf } from "./finder.js"
 
 const SERVER_URL = import.meta.env?.VITE_SOCKET_URL || "http://localhost:8000"
 const DB = "98ish-venues"
@@ -35,8 +35,24 @@ export const venuesNear = async (lat, lon, { km = 80, limit = 40 } = {}) => {
   const lists = await Promise.all(cellsNear(lat, lon, km).map(loadShard))
   return nearest(lists.flat(), lat, lon, limit, km)
 }
-// search by venue name or town: names straight from search.json, towns open their shard
+// a US ZIP code's center (idx/zip/NN.json, by its first two digits), or null
+const zipCache = new Map()
+export const zipPoint = async (zip) => {
+  const k = zip.slice(0, 2)
+  if (!zipCache.has(k)) zipCache.set(k, fetch(`${IDX_BASE}/zip/${k}.json`).then((r) => (r.ok ? r.json() : { z: {} })).catch(() => (zipCache.delete(k), { z: {} })))
+  const p = (await zipCache.get(k)).z?.[zip]
+  return p ? { lat: p[0], lon: p[1] } : null
+}
+// search by ZIP code, venue name or town: a ZIP lists the courts around it; names come straight
+// from search.json; towns open their shard
 export const searchVenues = async (q, { from = null } = {}) => {
+  const zip = zipOf(q)
+  if (zip) {
+    const at = await zipPoint(zip)
+    if (!at) return []
+    const near = await venuesNear(at.lat, at.lon, { km: 40, limit: 30 })
+    return near.map((v) => ({ ...v, why: "zip", near: zip, score: -v.km }))
+  }
   const idx = await loadSearch()
   const { towns, named } = searchIndex(idx, q, 8)
   const out = new Map()

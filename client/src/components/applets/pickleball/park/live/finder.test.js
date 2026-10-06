@@ -218,3 +218,9 @@ test("the Overpass side: a bounded query and the compact form", () => {
   assert.equal(c[1].g.length, 2)
   assert.equal(c[2].g.length, 3)
 })
+
+test("ZIP search: a US ZIP code (with or without +4) is recognized, nothing else is", () => {
+  assert.equal(F.zipOf("92708"), "92708")
+  assert.equal(F.zipOf(" 92708-1234 "), "92708")
+  for (const q of ["9270", "927081", "Fountain Valley", "92708 courts", "", null]) assert.equal(F.zipOf(q), null)
+})

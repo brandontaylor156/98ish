@@ -99,7 +99,7 @@ export const FinderPanel = ({ list = [], places = {}, current = "riverside", fav
           </button>
         </div>
         <form className="pkFinderBar" onSubmit={search} data-finder="bar">
-          <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Any court: name or town" aria-label="Search pickleball venues" data-finder="q" enterKeyHint="search" />
+          <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Any court: name, town or ZIP" aria-label="Search pickleball venues" data-finder="q" enterKeyHint="search" />
           <button type="submit" disabled={busy || q.trim().length < 2} data-finder="go">
             Find
           </button>
