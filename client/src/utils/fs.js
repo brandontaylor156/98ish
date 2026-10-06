@@ -75,6 +75,11 @@ export const FILE_TYPE = {
   hangout: "hangout",
   vb98: "vb98",
   vbapp: "vbapp", // a Visual Basic 98 program (.vb98): its JSON in textContent
+  lanparty: "lanparty",
+  virtualpc: "virtualpc",
+  swf: "swf", // a Flash movie (.swf): the file as a data URL in textContent; plays in LAN Party 98's Shockwave Arcade
+  dossave: "dossave", // a DOS game's saved changes (LAN Party 98): a js-dos changes bundle as a data URL
+  dosgame: "dosgame", // a bundled DOS game's program (C:\Games\DOOM\DOOM.EXE): its game id in textContent; starts it in LAN Party 98
   reversi: "reversi",
   chess: "chess",
   checkers: "checkers",
@@ -656,6 +661,12 @@ const DEFAULT_ITEMS = [
   ["C:/Programs/Word Duel", "file", "wordduel"],
   ["C:/Programs/Chess Puzzles", "file", "chesspuzzles"],
   ["C:/Programs/Imposter", "file", "imposter"],
+  ["C:/Programs/LAN Party 98", "file", "lanparty"],
+  ["C:/Programs/Virtual PC 98", "file", "virtualpc"],
+  // LAN Party 98's bundled shareware games and Flash demo (double-click to play)
+  ["C:/Games/DOOM/DOOM.EXE", "file", "dosgame", "doom"],
+  ["C:/Games/HERETIC/HERETIC.EXE", "file", "dosgame", "heretic"],
+  ["C:/Games/Flash/98ish Spinner.swf", "file", "swf", "/emu/flash/98ish-spinner.swf"],
   ["C:/Programs/Last Card", "file", "lastcard"],
   ["C:/Programs/Hexlands", "file", "hexlands"],
   ["C:/Programs/Monster Duel", "file", "monsterduel"],

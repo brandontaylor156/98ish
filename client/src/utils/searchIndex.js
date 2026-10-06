@@ -72,6 +72,8 @@ export const PROGRAM_KEYWORDS = {
   WordPad: ["word", "write", "documents", "letter"],
   "98 Messenger": ["aim", "im", "instant message", "chat", "buddies", "buddy list", "messenger", "video call", "call"],
   "98ish Mail": ["email", "e-mail", "inbox", "outlook", "letters", "mail"],
+  "LAN Party 98": ["doom", "heretic", "dos games", "ms-dos", "lan party", "multiplayer", "deathmatch", "ipx", "shareware", "flash", "swf", "shockwave", "ruffle"],
+  "Virtual PC 98": ["freedos", "emulator", "virtual machine", "vm", "pc", "x86", "disk image", "iso", "v86", "boot"],
   "Address Book": ["contacts", "people", "phone numbers", "addresses", "birthdays", "wab", "vcard"],
   Calendar: ["events", "schedule", "agenda", "appointments", "reminders", "dates"],
   Clock: ["alarm", "timer", "stopwatch", "world clock", "time"],

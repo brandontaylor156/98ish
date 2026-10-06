@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48" shape-rendering="crispEdges">
+  <!-- Virtual PC 98: a monitor showing a DOS prompt inside a window -->
+  <rect x="4" y="5" width="40" height="30" fill="#c0c0c0" stroke="#000"/>
+  <rect x="6" y="7" width="36" height="4" fill="#000080"/>
+  <rect x="7" y="13" width="34" height="19" fill="#000"/>
+  <text x="9" y="21" font-family="Courier New, monospace" font-size="6" fill="#c0c0c0">A:\&gt;_</text>
+  <rect x="9" y="25" width="16" height="1.5" fill="#808080"/>
+  <rect x="18" y="35" width="12" height="4" fill="#a0a0a0" stroke="#000"/>
+  <rect x="12" y="39" width="24" height="3" fill="#c0c0c0" stroke="#000"/>
+</svg>

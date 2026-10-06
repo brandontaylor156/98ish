@@ -1,4 +1,4 @@
-import { fs } from "./fs"
+import { fs, readContent } from "./fs"
 import { hyperlinks } from "./hyperlinks"
 import { explorerWindow, ieWindow, launch, webWindow, mediaPlayerWindow, notepadWindow, photosWindow, programByType, recorderWindow, windowFor, wordpadWindow } from "./programs"
 import { helpHandoff } from "./help"
@@ -62,6 +62,21 @@ export const openItem = (item, dispatch) => {
   // a Visual Basic 98 program (.vb98): run it
   if (item.type === "vbapp") {
     dispatch({ type: "open_window", payload: launch("Visual Basic 98", { name: item.name.replace(/\.vb98$/i, ""), handoff: { id: Date.now(), run: fs.partsOf(item).join("/") } }) })
+    return true
+  }
+  // LAN Party 98: a bundled DOS game's program (DOOM.EXE), a Flash movie, a DOS saved game;
+  // Virtual PC 98: its saved machine
+  if (item.type === "dosgame") {
+    dispatch({ type: "open_window", payload: launch("LAN Party 98", { handoff: { id: Date.now(), game: item.textContent } }) })
+    return true
+  }
+  if (item.type === "swf") {
+    readContent(item).then((src) => src && dispatch({ type: "open_window", payload: launch("LAN Party 98", { handoff: { id: Date.now(), flash: src, name: item.name } }) }))
+    return true
+  }
+  if (item.type === "dossave") {
+    if (/\.v86$/i.test(item.name)) dispatch({ type: "open_window", payload: launch("Virtual PC 98") })
+    else dispatch({ type: "open_window", payload: launch("LAN Party 98", { handoff: { id: Date.now(), game: item.name.replace(/\.sav$/i, "").toLowerCase() } }) })
     return true
   }
   // a contact card (.vcf): the Address Book offers to import it

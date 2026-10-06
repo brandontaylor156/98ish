@@ -646,6 +646,30 @@ export const topics = [
     related: ["media-player", "sound-recorder", "no-sound", "file-sync"],
   },
 
+  // ---- Virtual PC 98 ----
+  {
+    id: "virtual-pc",
+    book: "accessories",
+    title: "Virtual PC 98",
+    summary: "A real PC inside 98ish: FreeDOS boots from a floppy, or boot a disk image of your own.",
+    keywords: ["Virtual PC", "FreeDOS", "emulator", "virtual machine", "v86", "disk image", "iso", "img", "boot", "x86"],
+    programs: ["Virtual PC 98"],
+    body: [
+      { img: "/assets/program_icons/virtualpc.svg", alt: "Virtual PC 98 icon" },
+      "**Virtual PC 98** (Start > Programs > Accessories) emulates a whole x86 PC with v86. It boots **FreeDOS** (a free MS-DOS) from floppy A:. Try **DIR**, **EDIT** or **HELP** at the prompt.",
+      {
+        list: [
+          "**Machine > Insert Disk Image...** boots a floppy (.img), hard disk or CD (.iso) image of your own, like an old system disk you own. It stays in this window: it isn't uploaded or copied to drive C:.",
+          "**Machine > Save State** keeps the whole computer, mid-whatever, in **C:\Games\Saves\VIRTUALPC.V86**; **Load State** picks it up again.",
+          "On a phone, tap **Keyboard** to type into the PC.",
+        ],
+      },
+      { note: "FreeDOS is free software (GPL; sources at freedos.org). The PC emulator loads from the jsDelivr CDN the first time (see [[privacy-third-parties]])." },
+      { open: "Virtual PC 98", label: "Open Virtual PC 98" },
+    ],
+    related: ["lan-party", "ms-dos"],
+  },
+
   // ---- Magnifier ----
   {
     id: "magnifier",

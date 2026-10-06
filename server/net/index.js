@@ -19,6 +19,7 @@ const { createRooms } = require("../arcade/rooms")
 const ROOM_GAMES = require("../arcade/games")
 const { createPark } = require("../park")
 const { createBroadcasts } = require("../broadcast")
+const { createLanParty } = require("../lanparty")
 
 const RESUME_GRACE_MS = 30_000
 const MAX_FILE_BYTES = 200 * 1024 // text documents
@@ -163,6 +164,9 @@ const attachNet = (io, { aim: initialAim = null, graceMs = RESUME_GRACE_MS, game
     aim: () => aim,
     ...broadcastOptions,
   })
+  // LAN Party 98: the lobby for DOS LAN games (the game traffic itself goes phone to phone
+  // over WebRTC; server/lanparty only passes the host's peer id and who's coming)
+  const lanParty = createLanParty({ emit: emitPid, aim: () => aim })
 
   const guestName = () => {
     const taken = new Set([...computers.values()].map((c) => c.guestName))
@@ -189,6 +193,7 @@ const attachNet = (io, { aim: initialAim = null, graceMs = RESUME_GRACE_MS, game
     rooms.drop(computer.pid)
     park.drop(computer.pid)
     liveCasts.drop(computer.pid)
+    lanParty.drop(computer.pid)
     broadcast()
   }
 
@@ -409,6 +414,8 @@ const attachNet = (io, { aim: initialAim = null, graceMs = RESUME_GRACE_MS, game
     park.wire(socket, current, (computer) => ({ pid: computer.pid, name: nameOf(computer), key: aimSessionOf(computer)?.key || null }))
     // ---- Live Broadcast (server/broadcast) ----
     liveCasts.wire(socket, current, (computer) => ({ pid: computer.pid, name: nameOf(computer), key: aimSessionOf(computer)?.key || null }))
+    // ---- LAN Party 98 (server/lanparty) ----
+    lanParty.wire(socket, current, (computer) => ({ pid: computer.pid, name: nameOf(computer), key: aimSessionOf(computer)?.key || null }))
 
     on("net:leave", (computer, { matchId }) => {
       const result = games.leave(computer.pid, String(matchId))

@@ -1,0 +1,31 @@
+LAN Party 98 and Virtual PC 98: what's here and under which terms
+=================================================================
+
+Engines (not stored here; loaded unmodified from the jsDelivr CDN at pinned versions)
+-------------------------------------------------------------------------------------
+js-dos 8.5.1 and its emulators (DOSBox, DOSBox-X builds, WebRTC-NET/HumbleNet)
+  License: GNU General Public License v2.0
+  Source:  https://github.com/caiiiycuk/js-dos  https://github.com/caiiiycuk/emulators
+  Package: https://www.npmjs.com/package/js-dos  (DOSBox: https://www.dosbox.com, GPL-2.0)
+v86 0.5.470
+  License: BSD 2-Clause.  Source: https://github.com/copy/v86
+Ruffle 0.6.0 (@ruffle-rs/ruffle)
+  License: MIT or Apache-2.0.  Source: https://github.com/ruffle-rs/ruffle
+
+Files in this folder
+--------------------
+games/doom.jsdos     DOOM v1.9 shareware (id Software, 1993-1995), the unmodified files of
+                     the official shareware release doom19s.zip (/idgames: idstuff/doom),
+                     which says "SHAREWARE VERSION ... PLEASE DISTRIBUTE!!!". The shareware
+                     README.TXT, LICENSE terms and ORDER.FRM are included in the bundle.
+games/heretic.jsdos  Heretic v1.2 shareware episode (Raven Software / id Software, 1994-1995),
+                     the unmodified files of htic_v12.zip (/idgames: idstuff/heretic), which
+                     says "FREELY DISTRIBUTE". LICENSE.DOC and VENDOR.DOC are included.
+                     (Each bundle adds only a DOSBox config, .jsdos/dosbox.conf.)
+vm/freedos722.img    A FreeDOS boot floppy (from the v86 project's demo images). FreeDOS is
+                     free software, mostly GPL; sources: https://www.freedos.org
+vm/seabios.bin       SeaBIOS, LGPL-3.0, https://www.seabios.org (from the v86 repository)
+vm/vgabios.bin       LGPL VGABIOS (Bochs/v86), LGPL-2.1, from the v86 repository
+flash/98ish-spinner.swf  An original demo made for 98ish (tools/lanparty/make_demo_swf.py).
+
+Rebuild the game bundles: python tools/lanparty/build_bundles.py

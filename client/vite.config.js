@@ -19,8 +19,9 @@ const swManifest = () => ({
         return statSync(full).isDirectory() ? walk(full) : ['/' + relative('public', full).replace(/[\\/]+/g, '/')]
       })
     const skip = new Set(['/sw.js', '/sw-manifest.json'])
-    // (Venue Finder's index, megabytes of shards, loads only when someone searches: not precached)
-    const all = [...new Set([...files, ...walk('public')])].filter((f) => !skip.has(f) && !f.endsWith('.map') && !f.startsWith('/venues/idx/'))
+    // (Venue Finder's index, megabytes of shards, loads only when someone searches, and LAN Party
+    // 98's game bundles and disk images under /emu/, loaded when a game starts: not precached)
+    const all = [...new Set([...files, ...walk('public')])].filter((f) => !skip.has(f) && !f.endsWith('.map') && !f.startsWith('/venues/idx/') && !f.startsWith('/emu/'))
     this.emitFile({
       type: 'asset',
       fileName: 'sw-manifest.json',
