@@ -48,6 +48,9 @@ import { FinderPanel } from "./park/live/FinderPanel"
 import { isLiveId } from "./park/live/liveVenue.js"
 import { VENUE_LIST } from "./park/venues/index.js"
 import { usePark } from "./park/usePark"
+import * as livingNet from "../../../utils/livingpark"
+import { memoryKey, pickLine, rememberResult } from "./park/living.js"
+import { AwayCard, ClonePanel } from "./park/LivingPanel"
 import { recordGame, validRep } from "./park/rep.js"
 import { COURTS as PARK_COURTS, LEVEL_NAMES as PARK_LEVELS } from "./park/layout.js"
 // Twin Replay: film a real game, watch it here (twin/; loaded when opened)
@@ -261,6 +264,44 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
   }, [parkWorld, prefs.realSky, prefs.skyMode])
   const [parkHud, setParkHud] = useState(null)
   const [parkUi, setParkUi] = useState({ menu: false, intro: false, turn: null, result: null })
+  // Living Park (park/living.js, utils/livingpark.js): buddies' clones left at this venue
+  // (owner -> { owner, name, clone, look, phrases }), your clone's panel, the away card
+  const parkClonesRef = useRef(new Map())
+  const [livingUi, setLivingUi] = useState({ panel: false, away: null })
+  const venueNames = useMemo(() => Object.fromEntries([["riverside", "Riverside Park"], ...VENUE_LIST.map((v) => [v.id, v.short || v.name])]), [])
+  const readParkMemory = (venueId) => {
+    try {
+      return JSON.parse(localStorage.getItem(memoryKey(venueId)) || "null")
+    } catch {
+      return null
+    }
+  }
+  const writeParkMemory = (venueId, mem) => {
+    try {
+      localStorage.setItem(memoryKey(venueId), JSON.stringify(mem))
+    } catch {
+      // storage blocked: the regulars forget you next visit
+    }
+  }
+  // the clones at this venue, and (once a visit) what yours did while you were away
+  const loadLiving = async (venueId, w, { away = false } = {}) => {
+    if (!livingNet.signedOn() || !w) return
+    const r = await livingNet.atVenue(venueId)
+    if (r.ok && parkRef.current === w) {
+      parkClonesRef.current = new Map(r.clones.map((c) => [c.owner, c]))
+      w.setClones?.(r.clones)
+    }
+    if (away) {
+      const m = await livingNet.mine()
+      if (m.ok && m.away?.games && parkRef.current === w) setLivingUi((u) => ({ ...u, away: m.away }))
+    }
+  }
+  // (owners come and go: a clone stands down when its owner signs on; look again every minute)
+  useEffect(() => {
+    if (!parkWorld) return
+    const id = setInterval(() => loadLiving(parkWorld.venue || "riverside", parkWorld), 60_000)
+    return () => clearInterval(id)
+  }, [parkWorld])
   const myParkInfo = () => {
     const p = prefsRef.current
     return { name: online.me?.name || characterById(p.character).nick, look: lookForPlayer(p, { character: p.character, outfit: p.outfit }, "park"), rep: validRep(p.parkRep) }
@@ -381,6 +422,25 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
     setReward(null)
     // a game in My Park: your park rep, then back to the park
     const pg = parkGameRef.current
+    if (pg && pg.kind === "clone" && !pg.done) {
+      pg.done = true
+      const rep = recordGame(prefsRef.current.parkRep, !!e.youWon, { level: pg.level })
+      const { earned, ...kept } = rep
+      setPrefs({ parkRep: kept })
+      const mine = e.youWon ? e.score[e.winner] : e.score[1 - e.winner]
+      const theirs = e.youWon ? e.score[1 - e.winner] : e.score[e.winner]
+      // into the clone's memory log (its owner hears about it), and what the regulars remember
+      livingNet.sendResult({ owner: pg.owner, cloneWon: !e.youWon, score: [theirs, mine] })
+      const w = parkRef.current
+      const venueId = w?.venue || "riverside"
+      const mem = rememberResult(readParkMemory(venueId), { won: !!e.youWon, score: [mine, theirs], vs: `${pg.name}'s clone` }, Date.now())
+      writeParkMemory(venueId, mem)
+      w?.remember?.(mem)
+      const c = parkClonesRef.current.get(pg.owner)
+      const line = c ? pickLine(c.phrases, e.youWon ? "loss" : "win") : ""
+      setParkUi((u) => ({ ...u, result: { won: !!e.youWon, score: [mine, theirs], earned, rep: kept, vs: `${pg.name}'s clone`, line } }))
+      return
+    }
     if (pg && (pg.kind === "solo" || pg.kind === "room") && !pg.done) {
       pg.done = true
       const rep = recordGame(prefsRef.current.parkRep, !!e.youWon, { level: pg.level })
@@ -689,7 +749,7 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
         if (engineRef.current !== e) return
         setParkStep({ label: "Building the courts, buildings and trees", pct: 35 })
         await nextPaint()
-        w = createWorld({ ...e.worldContext(), layout, phone: !!mobile, me: myParkInfo(), labelsEl: parkLabelsRef.current, onHud: setParkHud, onEvent: (ev) => parkEventRef.current?.(ev), sky: { real: prefsRef.current.realSky !== false, mode: prefsRef.current.skyMode || "real" } })
+        w = createWorld({ ...e.worldContext(), layout, phone: !!mobile, me: myParkInfo(), labelsEl: parkLabelsRef.current, onHud: setParkHud, onEvent: (ev) => parkEventRef.current?.(ev), memory: readParkMemory(venueId), onMemory: (mem) => writeParkMemory(venueId, mem), sky: { real: prefsRef.current.realSky !== false, mode: prefsRef.current.skyMode || "real" } })
       } catch (error) {
         console.error(error)
         parkLoadingRef.current = null
@@ -714,6 +774,7 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
       w.resume()
       e.setWorld(w)
       await Promise.race([e.ready, new Promise((r) => setTimeout(r, 8000))])
+      loadLiving(venueId, w, { away: true })
       setParkStep({ label: "Here we go", pct: 100 })
       await nextPaint()
       parkLoadingRef.current = null
@@ -775,6 +836,33 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
     // (played on that very court, with the venue all round it)
     e.newMatch({ doubles: true, level, scoring: "sideout", target: 11, venue: parkCourtVenue(t.court), roster, humans: 1 })
   }
+  // a friend's clone left here: a singles game against it on the court nearest you
+  const startCloneGame = (ev) => {
+    const e = engineRef.current
+    const w = parkRef.current
+    const c = parkClonesRef.current.get(ev.owner)
+    if (!e || !w || !c?.clone) return
+    let level
+    try {
+      level = cloneLevel(c.clone)
+    } catch {
+      return
+    }
+    const p = prefsRef.current
+    const me0 = myParkInfo()
+    const roster = [
+      { id: "you", team: 0, ctrl: "human", slot: 0, name: me0.name, character: p.character, outfit: p.outfit, look: me0.look },
+      { id: "clone", team: 1, ctrl: "cpu", level, name: `${c.name}'s clone`, look: c.look || undefined, hand: c.clone.hand, clone: c.clone.id },
+    ]
+    const court = Number.isInteger(ev.court) ? ev.court : 0
+    parkGameRef.current = { court, kind: "clone", owner: c.owner, name: c.name, level: c.clone.base || "intermediate" }
+    setParkUi((u) => ({ ...u, turn: null, menu: false }))
+    reset()
+    setSession({ kind: "parkgame", level: c.clone.base || "intermediate", court })
+    w.suspend()
+    e.setWorld(null)
+    e.newMatch({ doubles: false, level: c.clone.base || "intermediate", scoring: "sideout", target: 11, venue: parkCourtVenue(court), roster, humans: 1 })
+  }
   parkEventRef.current = (ev) => {
     const w = parkRef.current
     const e = engineRef.current
@@ -799,7 +887,8 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
       setSession(null)
       setHubView("machine")
       setScreen("practice")
-    } else if (ev.type === "worldMenu") setParkUi((u) => ({ ...u, menu: !u.menu }))
+    } else if (ev.type === "challenge") startCloneGame(ev)
+    else if (ev.type === "worldMenu") setParkUi((u) => ({ ...u, menu: !u.menu }))
   }
   // the score of your park game, for everyone in the park (their court boards)
   // (a room game: the host tells the park)
@@ -1489,8 +1578,15 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
             onVenues={() => (setParkUi((u) => ({ ...u, menu: false })), setParkPick(true))}
             onLeave={leavePark}
             onBackdrop={prefs.quality === "low" ? null : () => setParkUi((u) => ({ ...u, menu: false, backdrop: true }))}
+            onClone={() => (setParkUi((u) => ({ ...u, menu: false })), setLivingUi((u) => ({ ...u, panel: true })))}
             voice={{ ...parkVoice, names: parkWorld?.voicePlace?.().names || {} }}
           />
+        )}
+        {screen === "park" && phase === "world" && livingUi.panel && parkWorld && (
+          <ClonePanel venueId={parkWorld.venue || "riverside"} venueName={venueNames[parkWorld.venue] || parkWorld?.layout?.name || "My Park"} venueNames={venueNames} look={myParkInfo().look} onClose={() => (setLivingUi((u) => ({ ...u, panel: false })), stageRef.current?.focus({ preventScroll: true }))} />
+        )}
+        {screen === "park" && phase === "world" && livingUi.away && !parkUi.intro && !parkUi.menu && (
+          <AwayCard away={livingUi.away} venueNames={venueNames} onClose={() => (setLivingUi((u) => ({ ...u, away: null })), livingNet.seen(), stageRef.current?.focus({ preventScroll: true }))} />
         )}
         {parkWorld && parkVoice.state.status !== "off" && !parkUi.menu && <VoiceChip voice={parkVoice} />}
         {parkUi.result && (phase === "over" || online.phase === "over") && (
