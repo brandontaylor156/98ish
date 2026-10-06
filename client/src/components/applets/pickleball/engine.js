@@ -809,6 +809,11 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
       tmpL.set(c.x, portrait ? -1.0 : 0.95, c.z - back * 0.6)
       fov = portrait ? 54 : 40
       k = snap ? 1 : 1 - Math.exp(-dt * 4)
+    } else if (replay?.external) {
+      twinCamera(portrait, ball)
+      fov = portrait ? 62 : 44
+      k = snap || replay.cut ? 1 : 1 - Math.exp(-dt * 5)
+      replay.cut = false
     } else if (replay) {
       // low and tight by the net post, following the ball
       const s = replay.side
@@ -1259,8 +1264,10 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
     onEvent?.({ type: "replay", on: true })
     if (venue.drawScreen) venue.drawScreen({ message: "REPLAY" })
   }
-  function endReplay() {
+  function endReplay(force = false) {
     if (!replay) return
+    // (a Twin Replay only ends when its screen says so: taps on the picture don't skip it)
+    if (replay.external && !force) return
     replay = null
     record = []
     if (match) match.hold = false
@@ -1270,6 +1277,7 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
     onEvent?.({ type: "replay", on: false })
   }
   const stepReplay = (dt) => {
+    if (replay.external) return stepTwin(dt)
     replay.t += dt * 0.4 // slow motion
     let acc = 0
     let i = replay.i
@@ -1291,6 +1299,88 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
     const a = replay.frame.ball
     replay.ball = { x: a.x + (next.ball.x - a.x) * u, y: a.y + (next.ball.y - a.y) * u, z: a.z + (next.ball.z - a.z) * u }
     return dt * 0.4
+  }
+
+  // ---------- Twin Replay (twin/): a real game's tracked frames, played on these figures ----------
+  // frames: [{ t, dt, players: [situation], ball, events?: [{ type: "hit" | "bounce", ... }] }]
+  const startTwin = ({ frames, venue: v = "stadium", roster }) => {
+    if (!frames?.length) return false
+    startLocal({ doubles: frames[0].players.length > 2, venue: v, humans: 1, roster, level: "pro", seed: 1 }, false)
+    replay = { external: true, frames, i: 0, t: 0, side: 1, frame: frames[0], ball: { ...frames[0].ball }, speed: 1, paused: false, cam: "broadcast", follow: 0, cut: true, ended: false }
+    match.hold = true
+    placeTwin(0)
+    onEvent?.({ type: "replay", on: true, twin: true })
+    return true
+  }
+  // every figure where frame i has them (a seek: no slide across the court)
+  const placeTwin = (i) => {
+    replay.i = Math.max(0, Math.min(replay.frames.length - 1, i))
+    replay.t = 0
+    replay.frame = replay.frames[replay.i]
+    replay.ball = { ...replay.frame.ball }
+    for (const f of figures) {
+      const s = replay.frame.players[figures.indexOf(f)]
+      if (s) f.anim = createAnim(s.x, s.z, s.facing ?? (f.player.team === 0 ? Math.PI : 0))
+    }
+    trailHistory.length = 0
+    replay.cut = true
+  }
+  function stepTwin(dt) {
+    const R = replay
+    const rate = R.paused ? 0 : R.speed
+    R.t += dt * rate
+    let i = R.i
+    while (i < R.frames.length - 1 && R.t >= R.frames[i].dt) {
+      R.t -= R.frames[i].dt
+      i++
+      // the frame's hits and bounces, heard as they pass (not while seeking)
+      for (const e of R.frames[i].events || []) {
+        if (e.type === "hit") {
+          audio.hit({ kind: e.kind, speed: e.speed || 10, grade: "good", x: e.x, y: e.y, z: e.z }, hear(e.x, e.y, e.z, null))
+          for (const f of figures) if (f.player.team !== e.team) splitStep(f.anim, { fallback: true })
+        } else if (e.type === "bounce") audio.bounce(0.5, hear(e.x, 0, e.z))
+      }
+    }
+    if (i >= R.frames.length - 1) {
+      i = R.frames.length - 1
+      R.t = 0
+      if (!R.ended) {
+        R.ended = true
+        R.paused = true
+        onEvent?.({ type: "twinEnd" })
+      }
+    }
+    R.i = i
+    R.frame = R.frames[i]
+    const next = R.frames[Math.min(R.frames.length - 1, i + 1)]
+    const u = Math.min(1, R.t / Math.max(1e-3, R.frame.dt))
+    const a = R.frame.ball
+    R.ball = { x: a.x + (next.ball.x - a.x) * u, y: a.y + (next.ball.y - a.y) * u, z: a.z + (next.ball.z - a.z) * u }
+    return dt * rate
+  }
+  // the Twin Replay cameras: broadcast (high behind the near baseline), side (by the net post,
+  // low), top (straight down), follow (behind one player), fence (where a phone on the back
+  // fence films from)
+  const twinCamera = (portrait, ball) => {
+    const c = replay.cam
+    if (c === "side") {
+      tmpV.set(HALF_W + 2.2, 1.5, ball.z * 0.5)
+      tmpL.set(ball.x * 0.5, Math.max(0.6, ball.y * 0.6), ball.z * 0.8)
+    } else if (c === "top") {
+      tmpV.set(0, portrait ? 24 : 19, 0.01)
+      tmpL.set(0, 0, 0)
+    } else if (c === "follow") {
+      const s = replay.frame.players[replay.follow] || replay.frame.players[0]
+      const back = s.facing === Math.PI ? 1 : -1 // team 0 looks toward -z: stand behind at +z
+      tmpV.set(s.x * 0.85, 2.3, s.z + back * 3.6)
+      tmpL.set((s.x + ball.x) / 2, 0.9, (s.z + ball.z) / 2 - back * 1.5)
+    } else if (c === "fence") {
+      tmpV.set(0.3, 3.1, HALF_L + 4.2)
+      tmpL.set(0, 0, -1)
+    } else {
+      tmpV.set(0, portrait ? 9.5 : 6.2, HALF_L + (portrait ? 11 : 8.5))
+      tmpL.set(ball.x * 0.25, 0, portrait ? -1.5 : -0.5)
+    }
   }
 
   // ---------- events ----------
@@ -1468,7 +1558,8 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
     }
     pollPads()
     if (match && status !== "paused" && status !== "showcase") {
-      if (replay) dt = stepReplay(dt) || dt
+      if (replay?.external) dt = stepReplay(dt)
+      else if (replay) dt = stepReplay(dt) || dt
       else if (mode === "guest" && guest) {
         if (devAuto.size) autopilot(match, 0, devJitter)
         guest.tick(dtMs, now)
@@ -1873,6 +1964,54 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
         scene.add(layer.group)
         warm()
       }
+    },
+    // HOOK (Twin Replay, twin/TwinReplay.jsx): play a real game's tracked frames on the
+    // figures at a venue (a VENUES id or a park court venue). roster: createMatch's (names, looks)
+    playTwin(opts) {
+      return startTwin(opts)
+    },
+    // { paused, speed, cam: "broadcast" | "side" | "top" | "follow" | "fence", follow: index }
+    twinControl(patch) {
+      if (!replay?.external) return
+      if (patch.paused !== undefined) {
+        replay.paused = !!patch.paused
+        if (!replay.paused && replay.ended) {
+          replay.ended = false
+          placeTwin(0)
+        }
+      }
+      if (patch.speed) replay.speed = Math.max(0.1, Math.min(2, patch.speed))
+      if (patch.cam && patch.cam !== replay.cam) {
+        replay.cam = patch.cam
+        replay.cut = true
+      }
+      if (patch.follow !== undefined && patch.follow !== replay.follow) {
+        replay.follow = patch.follow
+        replay.cut = true
+      }
+    },
+    // jump to a time (seconds from the first frame)
+    twinSeek(seconds) {
+      if (!replay?.external) return
+      const fr = replay.frames
+      const t0 = fr[0].t
+      let lo = 0
+      let hi = fr.length - 1
+      while (hi - lo > 1) {
+        const m = (lo + hi) >> 1
+        if (fr[m].t - t0 <= seconds) lo = m
+        else hi = m
+      }
+      replay.ended = false
+      placeTwin(lo)
+    },
+    twinState() {
+      if (!replay?.external) return null
+      const fr = replay.frames
+      return { t: fr[replay.i].t - fr[0].t + replay.t, duration: fr[fr.length - 1].t - fr[0].t, paused: replay.paused, speed: replay.speed, cam: replay.cam, follow: replay.follow, ended: replay.ended }
+    },
+    stopTwin() {
+      if (replay?.external) endReplay(true)
     },
     skipReplay() {
       endReplay()

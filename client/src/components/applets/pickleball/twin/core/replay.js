@@ -12,6 +12,8 @@ export const FPS = 30
 
 // the game's stroke kinds (strokes.js) for our shot kinds
 export const STROKE = { serve: "serve", return: "drive", drive: "drive", drop: "drop", dink: "dink", volley: "punch", overhead: "smash", lob: "lob" }
+// how hard each kind sounds (m/s of ball speed, for audio.hit)
+const SPEED = { serve: 12, return: 11, drive: 15, drop: 7, dink: 5, volley: 12, overhead: 18, lob: 9 }
 
 // analysis: { players: [{ id, team, hand, samples }], rallies: [{ hits, start, end }],
 //   paths: [{ segments }] (one per rally) }
@@ -32,7 +34,13 @@ export const buildFrames = (analysis, { from = null, to = null, fps = FPS } = {}
     // before the serve the ball is in the server's hand; after a rally it rests where it landed
     const serve = rally?.hits[0]
     let holder = null
-    if (!ball && rally && serve && t < serve.t) holder = serve.player
+    if (!ball && rally && serve && t < serve.t) {
+      holder = serve.player
+      // (the engine draws a held ball at the holder's hand; this is where it sits meanwhile)
+      const sv = players.find((q) => q.id === holder)
+      const at = sv ? sampleAt(sv.samples, t) : null
+      if (at) ball = { x: at.x + (sv.team === 0 ? -0.25 : 0.25), y: 0.95, z: at.z + (sv.team === 0 ? -0.35 : 0.35) }
+    }
     if (ball) lastBall = ball
     const situations = players.map((p) => {
       const at = sampleAt(p.samples, t) || { x: 0, z: p.team === 0 ? 6 : -6, vx: 0, vz: 0 }
@@ -86,6 +94,20 @@ export const buildFrames = (analysis, { from = null, to = null, fps = FPS } = {}
     // (the ball in a hand: the engine draws it at the holder's free hand)
     const shown = ball || lastBall
     frames.push({ t, dt, players: situations, ball: { x: shown.x, y: shown.y, z: shown.z }, held: holder !== null })
+  }
+  // the sounds: each hit and bounce on the first frame at or after it
+  const frameAt = (t) => {
+    const i = Math.ceil((t - start) / dt - 1e-6)
+    return i >= 0 && i < frames.length ? frames[i] : null
+  }
+  for (const h of allHits) {
+    const f = frameAt(h.t)
+    const c = h.contact || { x: h.x, y: h.height, z: h.z }
+    if (f) (f.events ||= []).push({ type: "hit", kind: STROKE[h.kind] || "drive", team: h.team, x: c.x, y: c.y, z: c.z, speed: SPEED[h.kind] || 10 })
+  }
+  for (const p of paths) for (const b of p.bounces || []) {
+    const f = frameAt(b.t)
+    if (f) (f.events ||= []).push({ type: "bounce", x: b.x, z: b.z })
   }
   return { frames, t0: start, duration: end - start }
 }

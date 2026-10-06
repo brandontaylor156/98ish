@@ -33,7 +33,7 @@ export const createAnalyzer = ({ taps, players = 4 }) => {
     // people seen in the last frame, mapped to tracks (for the "name your players" step)
     tracks: () => tracker.tracks,
     finish({ audio = null, onsets = null, hands = {}, names = {}, minSamples = 8 } = {}) {
-      const tracks = tracker.finish().filter((tr) => tr.samples.length >= minSamples)
+      const tracks = balanceTeams(tracker.finish().filter((tr) => tr.samples.length >= minSamples))
       const found = onsets || (audio ? detectOnsets(audio.samples, audio.rate) : [])
       const handOf = (id) => (hands[id] === -1 ? -1 : 1)
       const hits = findHits(tracks, found)
@@ -74,6 +74,17 @@ export const createAnalyzer = ({ taps, players = 4 }) => {
 export const withPaths = (analysis) => {
   const hand = new Map(analysis.players.map((p) => [p.id, p.hand]))
   return { ...analysis, paths: analysis.rallies.map((r) => rallyPath(r.hits, (id) => hand.get(id) ?? 1)) }
+}
+
+// doubles is two a side and singles one: the players who spent most time nearest the camera's
+// baseline are team 0, whatever a few odd frames said
+export const balanceTeams = (tracks) => {
+  if (tracks.length !== 4 && tracks.length !== 2) return tracks
+  const mean = (tr) => tr.samples.reduce((a, s) => a + s.z, 0) / Math.max(1, tr.samples.length)
+  const order = [...tracks].sort((a, b) => mean(b) - mean(a))
+  const half = tracks.length / 2
+  order.forEach((tr, i) => (tr.team = i < half ? 0 : 1))
+  return tracks
 }
 
 const round = (v, d) => {
