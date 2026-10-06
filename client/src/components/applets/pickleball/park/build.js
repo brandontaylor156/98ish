@@ -7,12 +7,14 @@
 // scenery (its other courts, fences, buildings, parking, an indoor hall) is scenery.js.
 
 import * as THREE from "three"
+import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js"
 import { HALF_L } from "../physics.js"
 import { mergeStatic } from "../venue.js"
 import { LEVEL_NAMES, PATH_W, PEN, RIVERSIDE_LAYOUT, SEAT_ROWS } from "./layout.js"
 import { createCourtKit } from "./courtkit.js"
 import { buildScenery } from "./scenery.js"
 import { applySurfaces, surfaced } from "./surfaces.js"
+import { chainLink, windscreenTex } from "./detail.js"
 
 const canvasTexture = (w, h, draw) => {
   const c = document.createElement("canvas")
@@ -217,8 +219,13 @@ export const buildPark = (scene, { quality = "medium", layout = RIVERSIDE_LAYOUT
     })
   )
   fenceTex.wrapS = fenceTex.wrapT = THREE.RepeatWrapping
-  const fenceMat = keep(new THREE.MeshBasicMaterial({ map: fenceTex, transparent: true, side: THREE.DoubleSide, depthWrite: false }))
-  const screenMat = lambert(S?.colors?.windscreen ? new THREE.Color(S.colors.windscreen).getHex() : 0x1f4a37, { side: THREE.DoubleSide })
+  // (a venue on Medium/High, detail.js: a woven wire with a highlight, lit, and its cut-out shadow)
+  const wire = S && quality !== "low" ? chainLink(S?.colors?.fence ? parseInt(S.colors.fence.slice(1), 16) : null) : null
+  const fenceMat = wire
+    ? keep(new THREE.MeshLambertMaterial({ map: keep(wire.tex), transparent: true, side: THREE.DoubleSide, depthWrite: false, alphaTest: 0.05 }))
+    : keep(new THREE.MeshBasicMaterial({ map: fenceTex, transparent: true, side: THREE.DoubleSide, depthWrite: false }))
+  // (Medium/High: a woven screen with hems and grommets, detail.js)
+  const screenMat = lambert(S?.colors?.windscreen ? new THREE.Color(S.colors.windscreen).getHex() : 0x1f4a37, { side: THREE.DoubleSide, ...(wire ? { map: keep(windscreenTex()) } : {}) })
   const railMat = lambert(S?.colors?.fence ? parseInt(S.colors.fence.slice(1), 16) : 0x3d4a45)
   const gateMat = lambert(0x24302c)
   const fencePosts = []
@@ -237,6 +244,7 @@ export const buildPark = (scene, { quality = "medium", layout = RIVERSIDE_LAYOUT
     f.position.set((x0 + x1) / 2, h / 2, (z0 + z1) / 2)
     f.rotation.y = ry
     f.renderOrder = 1
+    if (wire) (f.customDepthMaterial = wire.depth), (f.userData.shadowCaster = true)
     group.add(f)
     if (screen) {
       const cuts = gates.slice().sort((a, b) => a.at - b.at)
@@ -249,7 +257,12 @@ export const buildPark = (scene, { quality = "medium", layout = RIVERSIDE_LAYOUT
       runs.push([from, len])
       for (const [a, b] of runs) {
         if (b - a < 0.05) continue
-        const s = new THREE.Mesh(keep(new THREE.PlaneGeometry(b - a, Math.min(SCREEN_H, h))), screenMat)
+        const sg = keep(new THREE.PlaneGeometry(b - a, Math.min(SCREEN_H, h)))
+        if (wire) {
+          const suv = sg.attributes.uv
+          for (let i = 0; i < suv.count; i++) suv.setX(i, suv.getX(i) * (b - a))
+        }
+        const s = new THREE.Mesh(sg, screenMat)
         const mid = (a + b) / 2 / len
         s.position.set(x0 + (x1 - x0) * mid, Math.min(SCREEN_H, h) / 2, z0 + (z1 - z0) * mid)
         s.rotation.y = ry
@@ -648,12 +661,37 @@ export const buildPark = (scene, { quality = "medium", layout = RIVERSIDE_LAYOUT
   const lampMat = keep(new THREE.MeshBasicMaterial({ color: 0x9aa0a8 }))
   if (LIGHTS.length) {
     const poles = new THREE.InstancedMesh(keep(new THREE.CylinderGeometry(0.07, 0.1, 7.5, 6)), frameMat, LIGHTS.length)
-    const lamps = new THREE.InstancedMesh(keep(new THREE.BoxGeometry(double ? 1.2 : 0.5, 0.18, 0.35)), lampMat, LIGHTS.length)
+    // (Medium/High: a real fixture: a cross-arm, LED heads tilted down with a bright lens)
+    let lampGeo = new THREE.BoxGeometry(double ? 1.2 : 0.5, 0.18, 0.35)
+    let lensGeo = null
+    if (wire) {
+      const parts = [new THREE.BoxGeometry(double ? 1.5 : 0.7, 0.07, 0.07).translate(0, -0.05, 0)]
+      const lens = []
+      for (const sx of double ? [-0.62, 0.62] : [0.25]) {
+        parts.push(new THREE.BoxGeometry(0.46, 0.09, 0.62).rotateX(0.35).translate(sx, 0.02, 0.18))
+        parts.push(new THREE.BoxGeometry(0.06, 0.25, 0.06).translate(sx, 0.08, 0.0))
+        lens.push(new THREE.PlaneGeometry(0.4, 0.55).rotateX(Math.PI / 2 + 0.35).translate(sx, -0.03, 0.18))
+      }
+      lampGeo = mergeGeometries(parts.map((g) => (g.deleteAttribute("uv"), g)), false)
+      lensGeo = mergeGeometries(lens.map((g) => (g.deleteAttribute("uv"), g)), false)
+    }
+    const lamps = new THREE.InstancedMesh(keep(lampGeo), wire ? lambert(0x2f3338) : lampMat, LIGHTS.length)
+    const lenses = lensGeo ? new THREE.InstancedMesh(keep(lensGeo), keep(new THREE.MeshBasicMaterial({ color: 0xe8ecef, side: THREE.DoubleSide })), LIGHTS.length) : null
     LIGHTS.forEach((l, i) => {
       poles.setMatrixAt(i, m4.compose(v1.set(l.x, POLE_H / 2, l.z), q.identity(), v2.set(1, POLE_H / 7.5, 1)))
-      lamps.setMatrixAt(i, m4.makeTranslation(l.x, POLE_H, l.z))
+      // (the heads face the nearest court centre)
+      let best = null
+      for (const c of S?.courts || COURTS) {
+        const d = (c.x - l.x) ** 2 + (c.z - l.z) ** 2
+        if (!best || d < best.d) best = { d, c }
+      }
+      const yaw = best ? Math.atan2(best.c.x - l.x, best.c.z - l.z) : 0
+      m4.compose(v1.set(l.x, POLE_H, l.z), q.setFromEuler(new THREE.Euler(0, yaw, 0)), v2.set(1, 1, 1))
+      lamps.setMatrixAt(i, m4)
+      lenses?.setMatrixAt(i, m4)
     })
     group.add(poles, lamps)
+    if (lenses) group.add(lenses)
   }
   // at night: a pool of light on each court (additive, a soft gradient)
   const poolTex = keep(
@@ -698,7 +736,7 @@ export const buildPark = (scene, { quality = "medium", layout = RIVERSIDE_LAYOUT
       const m = Array.isArray(o.material) ? o.material[0] : o.material
       const seeThrough = !m || m.transparent || m.isMeshBasicMaterial || m.isShaderMaterial
       o.receiveShadow = !m?.isMeshBasicMaterial && !m?.isShaderMaterial
-      o.castShadow = !seeThrough && o.renderOrder >= 0
+      o.castShadow = (!seeThrough || !!o.userData.shadowCaster) && !o.userData.noCast && o.renderOrder >= 0
       // indoors the "sun" is the ceiling's light: the roof, ceiling, trusses and fixtures above
       // it mustn't shadow the floor
       if (o.castShadow && S.indoor) {
