@@ -41,7 +41,10 @@ class Refused extends Error {
   }
 }
 
-const createVenues = ({ store = null, fetchImpl = globalThis.fetch, now = Date.now, idxDir = IDX, endpoint = process.env.OVERPASS_URL || "https://overpass-api.de/api/interpreter", limits = {} } = {}) => {
+// the main Overpass address, then its sister servers (same operator) when it answers 429/504
+const ENDPOINTS = process.env.OVERPASS_URL ? [process.env.OVERPASS_URL] : ["https://overpass-api.de/api/interpreter", "https://z.overpass-api.de/api/interpreter", "https://lz4.overpass-api.de/api/interpreter"]
+
+const createVenues = ({ store = null, fetchImpl = globalThis.fetch, now = Date.now, idxDir = IDX, endpoints = ENDPOINTS, limits = {} } = {}) => {
   const L = {
     dailyQueries: Number(process.env.VENUES_DAILY_QUERIES) || 250,
     dailyBytes: (Number(process.env.VENUES_DAILY_MB) || 60) * 1024 * 1024,
@@ -102,8 +105,17 @@ const createVenues = ({ store = null, fetchImpl = globalThis.fetch, now = Date.n
       if (wait > 0) await new Promise((r) => setTimeout(r, wait))
       lastAt = now()
       today.queries++
-      const res = await fetchImpl(endpoint, { method: "POST", headers: { "User-Agent": UA, "Content-Type": "application/x-www-form-urlencoded" }, body: "data=" + encodeURIComponent(query) })
-      if (res.status === 429 || res.status === 504) throw new Refused(503, "The map server is busy. Try this venue again in a minute.")
+      let res = null
+      for (const endpoint of endpoints) {
+        try {
+          res = await fetchImpl(endpoint, { method: "POST", headers: { "User-Agent": UA, "Content-Type": "application/x-www-form-urlencoded" }, body: "data=" + encodeURIComponent(query) })
+        } catch {
+          res = null
+          continue
+        }
+        if (res.status !== 429 && res.status !== 504 && res.status !== 502) break
+      }
+      if (!res || res.status === 429 || res.status === 504 || res.status === 502) throw new Refused(503, "The map server is busy. Try this venue again in a minute.")
       if (!res.ok) throw new Refused(502, "The map server didn't answer. Try again in a minute.")
       const text = await res.text()
       today.bytes += text.length

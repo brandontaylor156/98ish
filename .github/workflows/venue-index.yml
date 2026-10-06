@@ -1,0 +1,33 @@
+name: Venue Finder index
+
+# Rebuilds Pickleball 98's Venue Finder index (every pickleball venue in OpenStreetMap) once a
+# month and commits it when it changed. Data © OpenStreetMap contributors, ODbL 1.0.
+# The build asks the public Overpass API one tile at a time, 10 s apart (tools/venues/world/build-index.mjs).
+
+on:
+  schedule:
+    - cron: "17 9 3 * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Build the index
+        run: node tools/venues/world/build-index.mjs --region world --cache "$RUNNER_TEMP/osm"
+      - name: Commit when it changed
+        run: |
+          git config user.name "venue-index-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add client/public/venues/idx
+          if git diff --cached --quiet; then echo "no changes"; exit 0; fi
+          git commit -m "Venue Finder: monthly index rebuild from OpenStreetMap"
+          git push

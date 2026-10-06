@@ -29,67 +29,134 @@ const arg = (k, d = null) => {
 const CACHE = arg("--cache", path.join(HERE, ".cache"))
 const REFRESH = process.argv.includes("--refresh")
 const REGION = arg("--region", "world")
-const ENDPOINT = process.env.OVERPASS_URL || "https://overpass-api.de/api/interpreter"
+// the main Overpass address, then its sister servers (same operator) when one answers 429/504
+const ENDPOINTS = process.env.OVERPASS_URL ? [process.env.OVERPASS_URL] : ["https://overpass-api.de/api/interpreter", "https://z.overpass-api.de/api/interpreter", "https://lz4.overpass-api.de/api/interpreter"]
+let ep = 0
 const UA = "98ish-venue-index/1.0 (Pickleball 98 Venue Finder; https://98ish.vercel.app)"
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
-// the area a query covers: the whole world, or a box
-const AREAS = {
-  world: "",
-  us: "(18.5,-179.9,71.6,-66.5)",
-  ca: "(32.4,-124.6,42.1,-114.0)",
-}
-const box = AREAS[REGION] ?? ""
+// the world in tiles (20 x 30 degrees), asked one at a time: the public Overpass instance
+// turns one worldwide query down (HTTP 504), small boxes go through. --region narrows it.
+const REGIONS = { world: [-60, -180, 80, 180], us: [24, -125, 50, -65], ca: [32, -125, 43, -114] }
+// (the US: the lower 48 in tiles, plus Hawaii and southern Alaska as one box each)
+const EXTRA = { us: [[18, -161, 23, -154], [55, -155, 65, -140]] }
+const [la0, lo0, la1, lo1] = REGIONS[REGION] || REGIONS.world
+const tiles = []
+// (--tile N: N-degree tiles; 5 goes through a busy server, bigger boxes get 504s)
+const TILE = Number(arg("--tile", 5))
+for (let la = la0; la < la1; la += TILE) for (let lo = lo0; lo < lo1; lo += TILE) tiles.push([la, lo, Math.min(la + TILE, la1), Math.min(lo + TILE, lo1)])
+tiles.push(...(EXTRA[REGION] || []))
+const bboxOf = (t) => `(${t.join(",")})`
 
 const QUERIES = {
-  features: `[out:json][timeout:900][maxsize:1073741824];(
-nwr["sport"~"pickleball"]${box};
-nwr["leisure"~"^(pitch|court)$"]["pickleball"="yes"]${box};
+  features: (b) => `[out:json][timeout:90];(
+nwr["sport"~"pickleball"]${b};
+nwr["leisure"~"^(pitch|court)$"]["pickleball"="yes"]${b};
 );out center tags qt;`,
-  places: `[out:json][timeout:900][maxsize:1073741824];
-nwr["sport"~"pickleball"]${box}->.pb;
+  places: (b) => `[out:json][timeout:90];
+nwr["sport"~"pickleball"]${b}->.pb;
 (
 nwr(around.pb:150)["name"]["leisure"~"^(park|sports_centre|recreation_ground|sports_hall|fitness_centre|playground|common)$"];
 nwr(around.pb:150)["name"]["club"];
 nwr(around.pb:150)["name"]["amenity"~"^(school|college|university|community_centre)$"];
 nwr(around.pb:150)["name"]["landuse"="recreation_ground"];
 );out center tags qt;`,
-  towns: `[out:json][timeout:900][maxsize:1073741824];
-node["place"~"^(city|town|suburb)$"]["name"]${box};
+  towns: (b) => `[out:json][timeout:90];
+node["place"~"^(city|town|suburb)$"]["name"]${b};
 out tags qt;`,
 }
 
 let lastAsk = 0
-const ask = async (name) => {
+const GAP = Number(process.env.OVERPASS_GAP_MS) || 5_000
+const failed = []
+const ask = async (name, tile, tries = 4) => {
   fs.mkdirSync(CACHE, { recursive: true })
-  const file = path.join(CACHE, `${REGION}-${name}.json`)
+  const file = path.join(CACHE, `${name}-${tile.join("_")}.json`)
   if (!REFRESH && fs.existsSync(file)) return JSON.parse(fs.readFileSync(file, "utf8"))
-  for (let attempt = 0; attempt < 5; attempt++) {
-    const wait = 30_000 - (Date.now() - lastAsk)
+  for (let attempt = 0; attempt < tries; attempt++) {
+    const wait = GAP - (Date.now() - lastAsk)
     if (lastAsk && wait > 0) await sleep(wait)
     lastAsk = Date.now()
     const t0 = Date.now()
-    console.log(`asking Overpass: ${name} (${REGION})...`)
-    const res = await fetch(ENDPOINT, { method: "POST", headers: { "User-Agent": UA, "Content-Type": "application/x-www-form-urlencoded" }, body: "data=" + encodeURIComponent(QUERIES[name]) })
-    if (res.status === 429 || res.status === 504) {
-      console.log(`  HTTP ${res.status}: waiting 120 s`)
-      await sleep(120_000)
+    let res
+    try {
+      res = await fetch(ENDPOINTS[ep % ENDPOINTS.length], { method: "POST", headers: { "User-Agent": UA, "Content-Type": "application/x-www-form-urlencoded" }, body: "data=" + encodeURIComponent(QUERIES[name](bboxOf(tile))) })
+    } catch (error) {
+      console.log(`  ${name} ${tile}: ${error.message}; waiting 60 s`)
+      await sleep(60_000)
+      continue
+    }
+    if (res.status === 429 || res.status === 504 || res.status === 502) {
+      ep++
+      console.log(`  ${name} ${tile}: HTTP ${res.status}, waiting 60 s (next: ${ENDPOINTS[ep % ENDPOINTS.length]})`)
+      await sleep(60_000)
       continue
     }
     if (!res.ok) throw new Error(`${name}: HTTP ${res.status} ${(await res.text()).slice(0, 300)}`)
     const text = await res.text()
     const data = JSON.parse(text)
-    if (data.remark && /runtime error|timed out|out of memory/i.test(data.remark)) throw new Error(`${name}: ${data.remark}`)
+    if (data.remark && /runtime error|timed out|out of memory/i.test(data.remark)) {
+      console.log(`  ${name} ${tile}: ${data.remark.slice(0, 120)}; waiting 60 s`)
+      await sleep(60_000)
+      continue
+    }
     fs.writeFileSync(file, text)
-    console.log(`  ${data.elements.length} elements, ${(text.length / 1e6).toFixed(1)} MB in ${((Date.now() - t0) / 1000).toFixed(0)} s`)
+    if (data.elements.length) console.log(`  ${name} ${tile}: ${data.elements.length} elements, ${(text.length / 1e6).toFixed(1)} MB in ${((Date.now() - t0) / 1000).toFixed(0)} s`)
     return data
   }
-  throw new Error(`${name}: gave up`)
+  return null
+}
+// a tile the server turns down splits into four (to 2.5 degrees), and those are asked instead
+const askTile = async (name, tile) => {
+  const small = tile[2] - tile[0] <= 1.25
+  const d = await ask(name, tile, small ? 4 : 2)
+  if (d) return d
+  if (small) {
+    failed.push(`${name} ${tile}`)
+    return { elements: [] }
+  }
+  const [a, b, c, e] = tile
+  const ml = (a + c) / 2
+  const mo = (b + e) / 2
+  console.log(`  ${name} ${tile}: splitting`)
+  const out = { elements: [], osm3s: null }
+  for (const t of [[a, b, ml, mo], [a, mo, ml, e], [ml, b, c, mo], [ml, mo, c, e]]) {
+    const q = await askTile(name, t)
+    out.elements.push(...q.elements)
+    out.osm3s ??= q.osm3s
+  }
+  return out
+}
+const askAll = async (name, only = null) => {
+  const out = { elements: [], osm3s: null }
+  for (const t of tiles) {
+    if (only && !only.has(t.join(","))) continue
+    const d = await askTile(name, t)
+    out.elements.push(...d.elements)
+    out.osm3s ??= d.osm3s
+  }
+  return out
 }
 
-const features = await ask("features")
-const placesRaw = await ask("places")
-const townsRaw = await ask("towns")
+const features = await askAll("features")
+// (names and towns only where there are courts)
+const withCourts = new Set(tiles.filter((t) => features.elements.some((e) => { const ll = e.center || e; return ll.lat >= t[0] && ll.lat < t[2] && ll.lon >= t[1] && ll.lon < t[3] })).map((t) => t.join(",")))
+console.log(`${features.elements.length} features in ${withCourts.size} of ${tiles.length} tiles`)
+const placesRaw = await askAll("places", withCourts)
+const townsRaw = await askAll("towns", withCourts)
+// (a feature on a tile edge can come back from both tiles)
+const dedupe = (list) => {
+  const seen = new Set()
+  return list.filter((e) => {
+    const k = `${e.type}${e.id}`
+    if (seen.has(k)) return false
+    seen.add(k)
+    return true
+  })
+}
+features.elements = dedupe(features.elements)
+placesRaw.elements = dedupe(placesRaw.elements)
+townsRaw.elements = dedupe(townsRaw.elements)
 
 // places for names
 const kindOfPlace = (t) => (t.amenity && /school|college|university/.test(t.amenity) ? "school" : t.leisure === "sports_centre" || t.leisure === "sports_hall" || t.leisure === "fitness_centre" ? "sports" : t.club ? "club" : "park")
@@ -164,7 +231,7 @@ const townRows = [...townCount.values()].map((t) => [t.name, t.shards.has(t.gh) 
 const search = { v: 1, towns: townRows, named }
 const searchText = JSON.stringify(search)
 fs.writeFileSync(path.join(OUT, "search.json"), searchText)
-const meta = { v: 1, built: new Date().toISOString().slice(0, 10), region: REGION, venues: clusters.length, courts: courtTotal, shards: shards.size, osm_base: features.osm3s?.timestamp_osm_base || null, attribution: F.ATTRIBUTION, license: "ODbL 1.0 (https://opendatacommons.org/licenses/odbl/1-0/)" }
+const meta = { v: 1, failedTiles: failed, built: new Date().toISOString().slice(0, 10), region: REGION, venues: clusters.length, courts: courtTotal, shards: shards.size, osm_base: features.osm3s?.timestamp_osm_base || null, attribution: F.ATTRIBUTION, license: "ODbL 1.0 (https://opendatacommons.org/licenses/odbl/1-0/)" }
 fs.writeFileSync(path.join(OUT, "meta.json"), JSON.stringify(meta, null, 1))
 fs.writeFileSync(path.join(OUT, "LICENSE.txt"), "Pickleball 98 Venue Finder index.\nData © OpenStreetMap contributors (https://www.openstreetmap.org/copyright).\nThis index is a derivative database of OpenStreetMap and is made available under the Open Database License 1.0 (https://opendatacommons.org/licenses/odbl/1-0/).\nBuilt by tools/venues/world/build-index.mjs.\n")
 console.log(`${features.elements.length} features -> ${clusters.length} venues (${courtTotal} courts) in ${shards.size} shards, ${(bytes / 1024).toFixed(0)} KB; search.json ${(searchText.length / 1024).toFixed(0)} KB (${townRows.length} towns, ${named.length} named)`)
