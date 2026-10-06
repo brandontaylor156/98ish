@@ -935,6 +935,107 @@ export const buildGlow = (group, lights, { keep = (x) => x, size = 2.2, color = 
   return pts
 }
 
+// ---------------------------------------------------------------- parking lots (round 3)
+
+// crisp painted stall lines (each a little worn, some more than others), concrete wheel stops
+// at the back of each stall, and curbs round the lot: three instanced draws.
+//   stripes [[x0, z0, x1, z1]], stops [[x, z, yaw]], edges [[[x, z], [x, z]]]
+export const buildLotDetail = (group, { stripes = [], stops = [], edges = [] }, { keep = (x) => x, rand = Math.random } = {}) => {
+  const m4 = new THREE.Matrix4()
+  const q = new THREE.Quaternion()
+  const p = new THREE.Vector3()
+  const s = new THREE.Vector3()
+  const up = new THREE.Vector3(0, 1, 0)
+  const c = new THREE.Color()
+  const out = []
+  if (stripes.length) {
+    const paint = keep(new THREE.MeshLambertMaterial({ color: 0xffffff, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 }))
+    const geo = keep(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2))
+    const inst = new THREE.InstancedMesh(geo, paint, stripes.length)
+    stripes.forEach(([x0, z0, x1, z1], i) => {
+      const len = Math.hypot(x1 - x0, z1 - z0)
+      q.setFromAxisAngle(up, Math.atan2(-(z1 - z0), x1 - x0))
+      inst.setMatrixAt(i, m4.compose(p.set((x0 + x1) / 2, 0.012, (z0 + z1) / 2), q, s.set(len, 1, 0.11)))
+      // worn paint: most lines a soft white, a few faded toward the asphalt
+      inst.setColorAt(i, c.setScalar(0.62 + rand() * 0.28 - (rand() < 0.15 ? 0.2 : 0)))
+    })
+    inst.userData.noCast = true
+    group.add(inst)
+    out.push(inst)
+  }
+  const concrete = keep(new THREE.MeshLambertMaterial({ color: 0xbdb8ae }))
+  concrete.userData.surface = "concrete"
+  if (stops.length) {
+    const geo = keep(new THREE.BoxGeometry(1.75, 0.12, 0.2).translate(0, 0.06, 0))
+    const inst = new THREE.InstancedMesh(geo, concrete, stops.length)
+    stops.forEach(([x, z, yaw], i) => inst.setMatrixAt(i, m4.compose(p.set(x, 0, z), q.setFromAxisAngle(up, yaw), s.set(1, 1, 1))))
+    group.add(inst)
+    out.push(inst)
+  }
+  const curbs = edges.filter(([a, b]) => Math.hypot(b[0] - a[0], b[1] - a[1]) > 0.8)
+  if (curbs.length) {
+    const geo = keep(new THREE.BoxGeometry(1, 0.15, 0.18).translate(0, 0.075, 0))
+    const inst = new THREE.InstancedMesh(geo, concrete, curbs.length)
+    curbs.forEach(([a, b], i) => {
+      const len = Math.hypot(b[0] - a[0], b[1] - a[1])
+      inst.setMatrixAt(i, m4.compose(p.set((a[0] + b[0]) / 2, 0, (a[1] + b[1]) / 2), q.setFromAxisAngle(up, Math.atan2(-(b[1] - a[1]), b[0] - a[0])), s.set(len, 1, 1)))
+    })
+    group.add(inst)
+    out.push(inst)
+  }
+  return out
+}
+
+// ---------------------------------------------------------------- weeds (round 3)
+
+// little tufts of grass and weeds where a slab meets a fence or a curb: crossed alpha-cut
+// cards, instanced, a few greens and straw tones. tufts [{ x, z, s (size), r (yaw) }]
+export const buildTufts = (group, tufts, { keep = (x) => x } = {}) => {
+  if (!tufts.length) return null
+  const tex = keep(
+    canvasTex(
+      64,
+      48,
+      (ctx, w, h) => {
+        ctx.clearRect(0, 0, w, h)
+        const r = rng(77)
+        for (let i = 0; i < 26; i++) {
+          const x = w * (0.15 + r() * 0.7)
+          const top = h * (0.05 + r() * 0.55)
+          const lean = (r() - 0.5) * w * 0.35
+          const g = Math.round(110 + r() * 80)
+          ctx.strokeStyle = `rgb(${Math.round(g * 0.62)},${g},${Math.round(g * 0.42)})`
+          ctx.lineWidth = 1.5 + r() * 1.5
+          ctx.beginPath()
+          ctx.moveTo(x, h)
+          ctx.quadraticCurveTo(x + lean * 0.3, (h + top) / 2, x + lean, top)
+          ctx.stroke()
+        }
+      },
+      { repeat: false }
+    )
+  )
+  const card = new THREE.PlaneGeometry(0.42, 0.28).translate(0, 0.14, 0)
+  const geo = keep(mergeGeometries([card.clone(), card.clone().rotateY(Math.PI / 2)]))
+  const mat = keep(new THREE.MeshLambertMaterial({ map: tex, alphaTest: 0.5, side: THREE.DoubleSide }))
+  const inst = new THREE.InstancedMesh(geo, mat, tufts.length)
+  const m4 = new THREE.Matrix4()
+  const q = new THREE.Quaternion()
+  const p = new THREE.Vector3()
+  const s = new THREE.Vector3()
+  const up = new THREE.Vector3(0, 1, 0)
+  const c = new THREE.Color()
+  const tones = [0x8fae5e, 0x7c9a4e, 0xa8b46a, 0xc2b47c, 0x6f8f45]
+  tufts.forEach((t, i) => {
+    inst.setMatrixAt(i, m4.compose(p.set(t.x, 0, t.z), q.setFromAxisAngle(up, t.r), s.setScalar(t.s)))
+    inst.setColorAt(i, c.setHex(tones[i % tones.length]))
+  })
+  inst.userData.noCast = true
+  inst.userData.noAO = true
+  group.add(inst)
+  return inst
+}
+
 // ---------------------------------------------------------------- windscreens
 
 // a woven windscreen (u in meters, v the screen's height): a fine weave, hems top and bottom

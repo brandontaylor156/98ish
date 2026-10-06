@@ -12,6 +12,7 @@
 // they arrive a neutral 1x1 stands in, so nothing waits on them.
 
 import * as THREE from "three"
+import { aoUniforms } from "./occlusion.js"
 
 const BASE = "/assets/venue-tex/"
 // kind: tiles per meter (scale), how much the detail changes the paint (strength), how much
@@ -22,20 +23,23 @@ export const SURFACES = {
   grass: { scale: 0.55, strength: 0.75, normal: 0.8, ao: 0.7 },
   stucco: { scale: 0.7, strength: 0.4, normal: 0.9, ao: 0.4, grime: 0.28 },
   roof: { scale: 0.6, strength: 0.35, normal: 1.0, ao: 0.8 },
-  wood: { scale: 0.5, strength: 0.55, normal: 0.7, ao: 0.5 },
+  wood: { scale: 0.5, strength: 0.55, normal: 0.7, ao: 0.5, sheen: 0.16 },
   deck: { scale: 0.5, strength: 0.6, normal: 0.9, ao: 0.6 },
   carpet: { scale: 1.2, strength: 0.45, normal: 0.6, ao: 0.4 },
-  rubber: { scale: 0.8, strength: 0.4, normal: 0.6, ao: 0.4 },
+  rubber: { scale: 0.8, strength: 0.4, normal: 0.6, ao: 0.4, sheen: 0.06 },
   metal: { scale: 0.8, strength: 0.25, normal: 0.4, ao: 0.2 },
-  tile: { scale: 0.5, strength: 0.4, normal: 0.9, ao: 0.6 },
+  tile: { scale: 0.5, strength: 0.4, normal: 0.9, ao: 0.6, sheen: 0.18 },
   fabric: { scale: 2.0, strength: 0.35, normal: 0.6, ao: 0.4 },
   // (macro: a big, slow second sample of the same texture on floors: sun fade and wear patches)
-  acrylic: { scale: 3.0, strength: 0.3, normal: 0.75, ao: 0.3, macro: 0.55, macroScale: 0.03 },
+  acrylic: { scale: 3.0, strength: 0.3, normal: 0.75, ao: 0.3, macro: 0.55, macroScale: 0.03, sheen: 0.32 },
 }
 const KINDS = Object.keys(SURFACES)
 
 // one switch for all of them (the dev compare tool; a live toggle): 1 on, 0 the flat look
 const surfOn = { value: 1 }
+// the sky's light (build.js venueLight sets it from the hemisphere light): what a sealed court
+// or a polished floor reflects at a low angle (the sheen below), so it fades with the day
+export const surfSky = { value: new THREE.Color(0.3, 0.33, 0.36) }
 export const setSurfacesOn = (on) => (surfOn.value = on ? 1 : 0)
 
 // one shared uniform per kind: every material of that kind sees the texture when it lands
@@ -105,7 +109,7 @@ const patch = (material, kind) => {
   const prev = material.onBeforeCompile
   material.onBeforeCompile = (shader, renderer) => {
     prev?.call(material, shader, renderer)
-    Object.assign(shader.uniforms, uniforms, { surfOn })
+    Object.assign(shader.uniforms, uniforms, { surfOn, surfSky }, aoUniforms)
     shader.vertexShader = shader.vertexShader
       .replace("#include <common>", "#include <common>\nvarying vec3 vSurfW;\nvarying vec3 vSurfN;")
       .replace(
@@ -146,7 +150,7 @@ const patch = (material, kind) => {
   float surfAOK = ${(k.ao ?? 0.4).toFixed(2)};
   float surfGrime = ${(k.grime ?? 0).toFixed(2)};`
     shader.fragmentShader = shader.fragmentShader
-      .replace("#include <common>", `#include <common>\n${decl}\nuniform float surfOn;\n${common}`)
+      .replace("#include <common>", `#include <common>\n${decl}\nuniform float surfOn;\nuniform vec3 surfSky;\nuniform sampler2D surfAOTex;\nuniform vec4 surfAOBox;\nuniform float surfAOOn;\n${common}`)
       .replace(
         "#include <map_fragment>",
         `#include <map_fragment>
@@ -157,7 +161,32 @@ const patch = (material, kind) => {
   surfK *= surfFar; surfNK *= surfFar;
   diffuseColor.rgb *= mix(1.0, surfD.r * 2.0, surfK) * mix(1.0, surfD.a, surfAOK * surfFar);
   // grime where a wall meets the ground
-  if (surfGrime > 0.0 && abs(vSurfN.y) < 0.5) diffuseColor.rgb *= 1.0 - surfGrime * (1.0 - smoothstep(0.0, 0.8, vSurfW.y));`
+  if (surfGrime > 0.0 && abs(vSurfN.y) < 0.5) diffuseColor.rgb *= 1.0 - surfGrime * (1.0 - smoothstep(0.0, 0.8, vSurfW.y));
+  // baked ground occlusion (occlusion.js): floors near the ground, and walls near their foot
+  // (sampled a little out from the wall, where the corner's shade is)
+  float surfAO = 1.0;
+  if (surfAOOn > 0.5 && surfAOBox.z > 0.0 && vSurfW.y < 2.0) {
+    bool surfUp = vSurfN.y > 0.6;
+    vec2 surfAP = vSurfW.xz + (surfUp ? vec2(0.0) : normalize(vSurfN.xz + 1e-5) * 0.35);
+    vec2 surfAUV = (surfAP - surfAOBox.xy) * surfAOBox.zw;
+    if (surfAUV.x > 0.0 && surfAUV.y > 0.0 && surfAUV.x < 1.0 && surfAUV.y < 1.0) {
+      float surfAW = surfUp ? 1.0 - smoothstep(0.5, 1.4, vSurfW.y) : (1.0 - smoothstep(0.0, 1.8, vSurfW.y)) * step(abs(vSurfN.y), 0.6);
+      surfAO = mix(1.0, texture2D(surfAOTex, surfAUV).r, surfAW * surfOn);
+    }
+  }`
+      )
+      .replace(
+        "#include <opaque_fragment>",
+        `${k.sheen ? `// a sealed court or polished floor catches the sky at a low angle (Fresnel)
+  outgoingLight += surfSky * pow(1.0 - clamp(abs(dot(normal, normalize(vViewPosition))), 0.0, 1.0), 5.0) * ${k.sheen.toFixed(2)} * surfOn;` : ""}
+  #include <opaque_fragment>`
+      )
+      .replace(
+        "#include <aomap_fragment>",
+        `#include <aomap_fragment>
+  // (the sky's light is what a corner, a car or a bench blocks; the sun has its shadow map)
+  reflectedLight.indirectDiffuse *= surfAO;
+  reflectedLight.directDiffuse *= mix(1.0, surfAO, 0.15);`
       )
       .replace(
         "#include <normal_fragment_maps>",
