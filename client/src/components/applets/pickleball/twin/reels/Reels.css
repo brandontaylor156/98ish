@@ -1,4 +1,8 @@
 /* Instant Replay Reels (twin/reels/Reels.jsx) */
+/* Twin Replay's game view lets taps through to the court; the Highlights panel takes them */
+.pkTwin[data-view="game"] .pkReels {
+  pointer-events: auto;
+}
 .pkReels {
   position: absolute;
   inset: 8px;

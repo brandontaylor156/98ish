@@ -16,6 +16,9 @@ import { popTimes, renderSoundtrack } from "./soundtrack.js"
 
 export class Cancelled extends Error {}
 
+// (dev: tests read the film back with the same library)
+if (import.meta.env?.DEV && typeof window !== "undefined") window.__mediabunny = { Input, BlobSource, ALL_FORMATS, CanvasSink }
+
 // what this browser can make: MP4 (H.264 + AAC), else WebM (VP9/VP8 + Opus), else nothing
 export const pickFormat = async (W, H) => {
   if ((await canEncodeVideo("avc", { width: W, height: H })) && (await canEncodeAudio("aac"))) return { video: "avc", audio: "aac", mime: "video/mp4", ext: "mp4", format: () => new Mp4OutputFormat({ fastStart: "in-memory" }) }
