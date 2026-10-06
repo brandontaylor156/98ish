@@ -665,18 +665,8 @@ const DEFAULT_ITEMS = [
   ["C:/Programs/98 Messenger", "file", "chat"],
   ["C:/Programs/MS-DOS Prompt", "file", "dos"],
   ["C:/Programs/Media Player", "file", "media"],
-  // the Media Player's songs (textContent is the song id)
+  // your songs (Music 98) and recordings (Sound Recorder)
   ["C:/My Music", "dir", "folder"],
-  ...[
-    ["STARTUP.MID", "startup"],
-    ["HIGHWAY.MID", "highway"],
-    ["FUSION.MID", "fusion"],
-    ["NEONPOP.MID", "neonpop"],
-    ["RAINDAY.MID", "ballad"],
-    ["8BITRUN.MID", "chiptune"],
-    ["NEBULA.MID", "ambient"],
-    ["GROOVE.MID", "funky"],
-  ].map(([name, id]) => [`C:/My Music/${name}`, "file", "music", id]),
   ["C:/Programs/Hearts", "file", "hearts"],
   ["C:/Programs/Reversi", "file", "reversi"],
   ["C:/Programs/Chess", "file", "chess"],
@@ -770,6 +760,30 @@ const OLD_DEFAULTS = [
   ["C:/README", (f) => f.textContent === OLD_README_TEXT],
   ["C:/Cover Letter", (f) => f.type === FILE_TYPE.text && !f.textContent],
 ]
+
+// starting files that are gone: the Media Player's 8 built-in synth songs (the owner chose
+// real files, 2026-10-06). An untouched copy is removed; a renamed or moved one stays.
+const RETIRED_DEFAULTS = [
+  ["STARTUP.MID", "startup"],
+  ["HIGHWAY.MID", "highway"],
+  ["FUSION.MID", "fusion"],
+  ["NEONPOP.MID", "neonpop"],
+  ["RAINDAY.MID", "ballad"],
+  ["8BITRUN.MID", "chiptune"],
+  ["NEBULA.MID", "ambient"],
+  ["GROOVE.MID", "funky"],
+].map(([name, id]) => [`C:/My Music/${name}`, (f) => f.type === FILE_TYPE.music && f.textContent === id])
+
+const retireDefault = (fsys, path, untouched) => {
+  const parts = path.split("/")
+  let dir = fsys.root
+  for (const part of parts.slice(0, -1)) {
+    dir = dir.getItem(part)
+    if (!dir?.isDirectory) return
+  }
+  const old = dir.getItem(parts.at(-1))
+  if (old && !old.isDirectory && untouched(old)) dir.removeItem(old.name)
+}
 
 const refreshDefault = (fsys, path, untouched) => {
   const entry = DEFAULT_ITEMS.find((e) => e[0] === path)
@@ -1111,6 +1125,7 @@ const loadInto = (fsys, saved) =>
       // starting files that moved: the old copy goes (only if it's still the untouched shortcut)
       for (const [from, to] of MOVED_DEFAULTS) if (seen.has(from) && !seen.has(to)) removeShortcutAt(fsys, from)
       for (const [path, untouched] of OLD_DEFAULTS) refreshDefault(fsys, path, untouched)
+      for (const [path, untouched] of RETIRED_DEFAULTS) retireDefault(fsys, path, untouched)
       return true
     } catch (error) {
       console.error("[fs] the saved drive couldn't be read", error)

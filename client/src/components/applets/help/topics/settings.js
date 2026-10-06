@@ -32,7 +32,7 @@ export const topics = [
       { tip: "In Photos you can also use **Share > Set as Wallpaper** on any picture. Couples who are paired can pick **Our photos** to show pictures from Our Story, taking turns." },
       { note: "A very big picture may be too large to keep in the browser. If 98ish says so, try a smaller one." },
       { h: "Screen saver" },
-      "On the **Screen Saver** tab, choose one (3D Pipes, Starfield Simulation, Mystify Your Mind, Flying 98ish, Scrolling Marquee, Beziers, Aquarium, Flower Garden or Love Notes). **Settings...** changes how it looks, **Preview** shows it now, and **Wait** sets how many minutes of doing nothing before it starts. Move the mouse, press a key or touch the screen to come back.",
+      "On the **Screen Saver** tab, choose one (3D Pipes, Starfield Simulation, Mystify Your Mind, Flying 98ish, Scrolling Marquee, Beziers, Aquarium, Flower Garden or Love Notes). **Settings...** changes how it looks, **Preview** shows it now, and **Wait** sets how many minutes of doing nothing before it starts. Move the mouse, press a key or touch the screen to come back. **Love Notes**, left with its default lines, floats lines from the love letters your partner sent you (in Us); letters still sealed stay sealed.",
       "Tick **Password protected** to lock 98ish when the screen saver starts. That needs a PIN or password first: see [[lock-screen]].",
       { h: "Colors and the mouse trail" },
       "The **Appearance** tab has color schemes for the title bars and the desktop (Windows Standard, Rainy Day, Lilac, Cotton Candy and many more), and a **Mouse trail** of sparkles or hearts. Trails only follow a mouse, not a finger.",
@@ -402,7 +402,7 @@ export const topics = [
     id: "appward",
     book: "business",
     title: "Appward 98",
-    summary: "A just-for-fun 1998-style tribute to the Appward business suite, with linked business apps and made-up sample data.",
+    summary: "A just-for-fun 1998-style tribute to the Appward business suite: linked business apps for your real work, with optional sample data to explore.",
     keywords: ["Appward", "business", "work orders", "App Creator", "Report Builder", "Insights", "CRM", "sample data"],
     programs: ["Appward 98"],
     body: [
@@ -412,7 +412,7 @@ export const topics = [
         steps: [
           "Open Appward 98 from the desktop or Start > Programs > Business.",
           "Sign in with **any name and password**: your workspace is kept on this computer.",
-          "The first time, a Setup Wizard asks for a company name and offers a workspace full of sample records. Say yes to see what it can do.",
+          "The first time, a Setup Wizard asks for your company or team and starts you with an empty workspace. To explore first, pick **Fill it with sample data** (the sample company and its people are made up and never chat back).",
         ],
         title: "To start:",
       },

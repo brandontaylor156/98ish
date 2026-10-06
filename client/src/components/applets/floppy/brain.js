@@ -143,6 +143,9 @@ export const embed = (texts) => {
   })
 }
 
+// an answer is on its way (SmarterChild waits before letting the brain go)
+export const brainBusy = () => pending.size > 0
+
 // let the memory go (Floppy closed, Pickleball opened): the files stay cached
 export const unloadBrain = () => {
   if (!worker) return

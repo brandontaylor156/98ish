@@ -9,6 +9,7 @@ import { currentUser } from "../../../utils/users"
 import { registerSearchProvider } from "../../../utils/searchIndex"
 import { applyReaction, fromServer, isTemp, mergeMessages, previewText, roomCk, sendFailure, tempId } from "./history/historyCore"
 import * as historyDb from "./history/historyDb"
+import { brainHere, forScript, smartAnswer } from "./smartChild"
 import { attachTogether, handleTogetherEvent, TOGETHER_EVENTS } from "../together/togetherStore"
 import { attachHangout, handleHangoutEvent, HANGOUT_EVENTS } from "../../../utils/hangout"
 import { attachVbApps, handleVbEvent, VBAPP_EVENTS } from "../../../utils/vbapps"
@@ -852,13 +853,46 @@ export const AimProvider = ({ socket, windows, dispatch: dispatchWindow, onOpenV
     return result
   }
 
+  // A real question to SmarterChild on a device with Floppy's brain: answered here by the
+  // on-device model (smartChild.js), and neither line goes to the server. false: the brain
+  // isn't there (or couldn't load), so the scripted SmarterChild on the server answers.
+  const smartChildAnswers = async (temp, history) => {
+    const lastBot = [...history].reverse().find((m) => !m.mine && !m.system)?.text || ""
+    if (forScript(temp.text, lastBot)) return false
+    try {
+      if (!(await brainHere())) return false
+    } catch {
+      return false
+    }
+    const ck = temp.ck
+    const sent = { ...temp, id: `l-${temp.id.slice(2)}`, pending: false }
+    dispatch({ type: "update", ck, id: temp.id, fn: () => sent })
+    save([sent])
+    unlock("smarterchild")
+    dispatch({ type: "typing", screenName: BOT_NAME, state: "typing" })
+    let text
+    try {
+      text = await smartAnswer({ name: stateRef.current.me?.screenName, history, text: temp.text, windows: windowsRef.current })
+    } catch (error) {
+      text = error?.message === "pickleball" ? "My big brain is napping while Pickleball 98 is open. Ask me again after! :-)" : "Whoa, that one made my circuits smoke. Try asking again? :-P"
+    }
+    dispatch({ type: "typing", screenName: BOT_NAME, state: "none" })
+    const reply = { id: sysId().replace("s-", "l-"), ck, conv: BOT_NAME, from: BOT_NAME, mine: false, text: text || "Hmm, I'm drawing a blank. Ask me another way?", time: Date.now(), held: false }
+    dispatch({ type: "messages", ck, screenName: BOT_NAME, messages: [reply] })
+    save([reply])
+    if (interrupts("im", BOT_NAME)) sound("imReceive")
+    return true
+  }
+
   // An IM: shown at once, then given the server's id (and kept) when it's sent
   const sendIm = async (screenName, text, extra = {}) => {
     const style = prefsRef.current.style
     const ck = keyOf(screenName)
     const temp = { id: tempId(), ck, conv: screenName, from: stateRef.current.me.screenName, text, style, time: Date.now(), mine: true, pending: true, ...(extra.local || {}) }
+    const history = stateRef.current.convos[ck]?.messages || []
     dispatch({ type: "messages", ck, screenName, messages: [temp] })
     sound("imSend")
+    if (ck === keyOf(BOT_NAME) && !extra.media && (await smartChildAnswers(temp, history))) return { ok: true, local: true }
     const result = extra.media ? await request("aim:im", { to: screenName, text, style, media: { id: extra.media.id }, thumb: extra.thumb }) : await request("aim:im", { to: screenName, text, style })
     if (result.ok && ck === keyOf(BOT_NAME)) unlock("smarterchild")
     if (!result.ok) {

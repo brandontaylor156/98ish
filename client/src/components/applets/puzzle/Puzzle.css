@@ -820,3 +820,15 @@
 .pzApp.is-mobile button.pzTile {
   min-height: 0;
 }
+
+/* "Your photos" and "Sample pictures" labels in the picture choice */
+.pzGroupLabel {
+  margin: 6px 0 2px;
+  font-weight: bold;
+}
+.pzThumbWait {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  background: #dfdfdf;
+}

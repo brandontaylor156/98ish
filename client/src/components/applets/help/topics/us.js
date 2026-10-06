@@ -203,7 +203,7 @@ export const topics = [
     keywords: ["jigsaw", "puzzle", "slide puzzle", "secret message", "photo", "pieces"],
     programs: ["Photo Puzzle"],
     body: [
-      "Photo Puzzle turns a picture into a jigsaw (12, 24, 48 or 96 pieces) or a slide puzzle (3x3, 4x4 or 5x5). Use a built-in picture, one from your 98ish drive, or a photo from your phone or computer.",
+      "Photo Puzzle turns a picture into a jigsaw (12, 24, 48 or 96 pieces) or a slide puzzle (3x3, 4x4 or 5x5). Your newest photos on the 98ish drive come first; you can also pick any picture with From My Computer..., upload a photo from your phone or computer, or use one of the built-in sample pictures.",
       { open: "Photo Puzzle", label: "Open Photo Puzzle" },
       { h: "Playing" },
       { phone: "Drag pieces up from the tray under the board. Pieces that fit snap together, and a group near its spot snaps onto the board.", computer: "Drag pieces onto the board. Pieces that fit snap together, and a group near its spot snaps onto the board." },
@@ -253,6 +253,7 @@ export const topics = [
     body: [
       "Dream House is a dollhouse to decorate. Fill the rooms with furniture from the catalog, change wallpaper and floors, and dress up the little people who live there. It's saved on this device, or shared with your partner.",
       { open: "Dream House", label: "Open Dream House" },
+      "The first time you open it, choose the furnished **Starter House** or an **Empty House** to decorate from scratch. House > **New House...** lets you switch later.",
       { phone: "Tap **Catalog** and tap something to put it in the room you're looking at, then drag it where you like. Pinch to zoom; double-tap a room to zoom right in.", computer: "Drag things from the catalog into any room, or click one to drop it in the selected room. Scroll to zoom, drag an empty spot to look around, and double-click a room to zoom in." },
       {
         list: [

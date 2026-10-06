@@ -49,14 +49,12 @@ export const openItem = (item, dispatch) => {
     return true
   }
   if (item.type === "music") {
-    // start the sound card now, inside the click/tap (iOS needs a gesture)
+    // an old built-in synth song (.MID; retired 2026-10-06): Media Player, which now plays your
+    // own songs and recordings
     unlockAudio()
-    const song = item.textContent || item.name
     const player = latestPlayer()
-    if (player) {
-      player.play(song)
-      dispatch({ type: "focus_window", payload: { index: player.index } })
-    } else dispatch({ type: "open_window", payload: mediaPlayerWindow(song) })
+    if (player) dispatch({ type: "focus_window", payload: { index: player.index } })
+    else dispatch({ type: "open_window", payload: mediaPlayerWindow() })
     return true
   }
   // a Visual Basic 98 program (.vb98): run it

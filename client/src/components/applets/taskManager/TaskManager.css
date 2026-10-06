@@ -396,3 +396,23 @@
 .tm-proc-table {
   min-width: 340px;
 }
+
+/* real-data notes (realStats.js) and the Select Columns dialog */
+.tm-note {
+  margin: 4px 2px 0;
+  font-size: 11px;
+  color: #404040;
+}
+.tm-hidden {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  color: #00ff00;
+  font-size: 11px;
+  text-align: center;
+}
+.tm-columns {
+  display: grid;
+  gap: 4px;
+  margin: 8px 0;
+}

@@ -118,14 +118,15 @@ test("the server refuses text that isn't the prompt and impossible speed", () =>
   assert.equal(t.last("a").view.racers[0].pos, 0)
 })
 
-test("Quick Match: computer racers fill the empty lanes and type at a human pace", () => {
+test("Quick Match: computer racers fill the empty lanes by themselves and type at a human pace", () => {
   const t = setup()
   const q = t.rooms.quick(me("a"), "speedtype", { length: "short", botWpm: 60 })
   assert.ok(q.ok, q.error)
   assert.equal(t.rooms.fillBots("a", q.roomId).ok, false, "people get a chance to show up first")
-  t.clock.advance(16_000)
-  const filled = t.rooms.fillBots("a", q.roomId)
-  assert.ok(filled.ok, filled.error)
+  t.clock.advance(10_000)
+  assert.equal(t.last("a").phase, "lobby", "still waiting for people")
+  // alone past the offer time: the computer racers join and the race starts with nobody pressing anything
+  t.clock.advance(6_000)
   let room = t.last("a")
   assert.equal(room.phase, "playing")
   assert.equal(room.seats.filter((s) => s?.bot).length, 3, "fills up to four racers")

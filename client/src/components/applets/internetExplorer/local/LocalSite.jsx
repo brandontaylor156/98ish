@@ -315,6 +315,37 @@ const Guestbook = ({ onOpen }) => {
 
 // ---------- the other ring sites ----------
 
+// the Hall of Fame on the Shrine: your own Minesweeper best times (Minesweeper.jsx saves them)
+const SHRINE_LEVELS = [
+  ["beginner", "Beginner"],
+  ["intermediate", "Intermediate"],
+  ["expert", "Expert"],
+]
+const ShrineBest = () => {
+  let best = {}
+  try {
+    best = JSON.parse(localStorage.getItem("98ish.minesweeper.best")) || {}
+  } catch {
+    best = {}
+  }
+  const real = (b) => b && Number.isFinite(b.seconds) && !(b.seconds >= 999 && b.name === "Anonymous")
+  const rows = SHRINE_LEVELS.filter(([k]) => real(best[k]))
+  if (!rows.length) return <p>No records yet. Win a game of Minesweeper and your time is enshrined here forever (or until you reset it).</p>
+  return (
+    <table className="lsTable">
+      <tbody>
+        {rows.map(([k, label]) => (
+          <tr key={k}>
+            <th>{label}</th>
+            <td>{best[k].seconds} sec</td>
+            <td>{best[k].name}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  )
+}
+
 const Shrine = () => (
   <div className="lsPage lsPage--shrine">
     <Marquee>!!! WARNING: this page contains EXTREME minesweeping knowledge !!!</Marquee>
@@ -340,26 +371,8 @@ const Shrine = () => (
         </ol>
       </div>
       <div>
-        <h2>Hall of Fame</h2>
-        <table className="lsTable">
-          <tbody>
-            <tr>
-              <th>Beginner</th>
-              <td>4 sec</td>
-              <td>Sweepy McSweepface</td>
-            </tr>
-            <tr>
-              <th>Intermediate</th>
-              <td>31 sec</td>
-              <td>FlagQueen97</td>
-            </tr>
-            <tr>
-              <th>Expert</th>
-              <td>112 sec</td>
-              <td>the webmaster (me)</td>
-            </tr>
-          </tbody>
-        </table>
+        <h2>Your Hall of Fame</h2>
+        <ShrineBest />
         <h2>Awards This Site Has Won</h2>
         <div className="lsAwards">
           <span>Top 5% of Minesweeper Sites</span>
@@ -368,7 +381,39 @@ const Shrine = () => (
         <small>*the day was a Tuesday</small>
       </div>
     </div>
-    <UnderConstruction text="MORE TIPS COMING SOON" />
+    <h2>Advanced Techniques (for the truly devoted)</h2>
+    <div className="lsColumns">
+      <div>
+        <h3>Patterns to know by heart</h3>
+        <ul>
+          <li><b>1-1 from a wall:</b> on a straight edge, a 1 next to the wall followed by another 1 means the square third along from the wall is safe.</li>
+          <li><b>1-2 from a wall:</b> the hidden square beyond the 2 (on the far side from the 1) is always a mine.</li>
+          <li><b>1-2-1:</b> mines under both 1s, the square under the 2 is safe.</li>
+          <li><b>1-2-2-1:</b> mines under the two 2s, the squares under the 1s are safe.</li>
+          <li><b>Reduce the numbers:</b> subtract the flags already touching a number. A 3 with two flags next to it is really a 1. Then the patterns above work again.</li>
+          <li><b>Shared squares:</b> if every hidden neighbor of one number is also a neighbor of a second number with the same count, the second number's other hidden neighbors are safe.</li>
+        </ul>
+      </div>
+      <div>
+        <h3>Speed</h3>
+        <ul>
+          <li><b>Chord, don't click:</b> once a number has all its flags, click it (or both buttons) to open every other neighbor at once. Experts chord far more than they click.</li>
+          <li><b>Flag only what you need:</b> a flag you never chord around is wasted time. Many fast players flag almost nothing on Beginner.</li>
+          <li><b>Work in one area:</b> finish the region you're in before jumping across the board; your eyes stay on the pattern.</li>
+          <li><b>The first click is never a mine</b> in 98ish, just as in Windows. It won't always open a patch, so keep clicking fresh squares in open areas until you get one to work from.</li>
+        </ul>
+        <h3>When you have to guess</h3>
+        <ul>
+          <li>Count first: the red counter minus your flags is the mines left. Near the end that number often settles a 50/50.</li>
+          <li>Guess where the most new information would come from: a square that would open a fresh area beats one that only reveals a single number.</li>
+          <li>A random untouched square far from the numbers has roughly (mines left ÷ hidden squares) chance of a mine. On Expert that's about 1 in 5 at the start, often better than a bad 50/50.</li>
+          <li>Guess early. A forced guess with 10 seconds on the clock costs less than the same guess at 200.</li>
+        </ul>
+      </div>
+    </div>
+    <p className="lsCenter">
+      <small>Webmaster's note: I finally finished this page. The under-construction sign has been retired with full honors.</small>
+    </p>
   </div>
 )
 

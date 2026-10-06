@@ -511,7 +511,11 @@ const createRooms = ({ games = [], emit = () => {}, emitVolatile = null, blocked
       room.offerFor = room.waitingSince
       const at = room.waitingSince + T.botOffer
       clock.setTimeout(() => {
-        if (rooms.get(room.id) === room && room.phase === "lobby" && room.waitingSince + T.botOffer <= clock.now()) publish(room)
+        if (rooms.get(room.id) !== room || room.phase !== "lobby" || room.waitingSince + T.botOffer > clock.now()) return
+        // a game with autoFill (Speed Typist's races) fills in computer players and starts by
+        // itself, so a solo Quick Match never just waits; the rest offer the button
+        if (room.game.autoFill && humans(room).length === 1) fillQuick(room)
+        else publish(room)
       }, Math.max(0, at - clock.now()) + 50)
     }
   }
@@ -799,11 +803,17 @@ const createRooms = ({ games = [], emit = () => {}, emitVolatile = null, blocked
     if (room.phase !== "lobby") return { ok: false, error: "The game has already started." }
     if (room.private && room.host !== pid) return { ok: false, error: "Only the host can add computer players." }
     if (room.quick && clock.now() < room.waitingSince + T.botOffer) return { ok: false, error: "Give people a few more seconds to find you." }
-    const target = room.quick ? Math.max(room.game.minPlayers, Math.min(capacity(room), room.game.fillTo || capacity(room))) : capacity(room)
+    if (room.quick) return fillQuick(room)
+    const target = capacity(room)
     while (filled(room) < target && freeSeat(room) >= 0) room.seats[freeSeat(room)] = { bot: true, name: botName(room), ready: true }
-    if (room.quick) return startGame(room)
     publish(room)
     return { ok: true }
+  }
+  // Quick Match: computer players up to the game's fillTo, then go
+  const fillQuick = (room) => {
+    const target = Math.max(room.game.minPlayers, Math.min(capacity(room), room.game.fillTo || capacity(room)))
+    while (filled(room) < target && freeSeat(room) >= 0) room.seats[freeSeat(room)] = { bot: true, name: botName(room), ready: true }
+    return startGame(room)
   }
 
   const act = (pid, roomId, action) => {

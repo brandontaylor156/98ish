@@ -23,7 +23,7 @@ const HELP = {
   EXIT: "Quits the MS-DOS Prompt.",
   HELP: "Provides help for commands, or opens 98ish Help for a program.\n\nHELP [command]\nHELP program\n\nExamples: HELP DIR   HELP TETRIS\n\nWINHELP opens 98ish Help.",
   MD: "Creates a directory.\n\nMD [drive:]path",
-  MEM: "Displays the amount of used and free memory.",
+  MEM: "Displays the browser memory used by 98ish, the space drive C:'s files take, and the open windows.",
   MOVE: "Moves a file or directory.\n\nMOVE source destination",
   REN: "Renames a file or directory.\n\nREN [drive:][path]name newname",
   RD: "Removes an empty directory.\n\nRD [drive:]path",
@@ -504,6 +504,40 @@ const splitRedirect = (line) => {
 
 const COLORS = "000000 000080 008000 008080 800000 800080 808000 c0c0c0 808080 0000ff 00ff00 00ffff ff0000 ff00ff ffff00 ffffff".split(" ").map((c) => "#" + c)
 
+// MEM, with real numbers: drive C:'s files (their sizes as 98ish stores them), the open
+// windows, and the browser's memory for this page where it says (Chrome and Edge; Safari
+// keeps it private). Laid out like MS-DOS 7's MEM.
+const kb = (bytes) => `${Math.round(bytes / 1024).toLocaleString("en-US")}K`
+const pad = (text, width) => String(text).padStart(width)
+export const memReport = ({ root = fs.root, heap = typeof performance !== "undefined" ? performance.memory : null, windows = typeof document !== "undefined" ? document.querySelectorAll(".window[data-window-index]").length : 0 } = {}) => {
+  let files = 0
+  let folders = 0
+  let bytes = 0
+  const walk = (dir) => {
+    for (const item of dir.content || []) {
+      if (item.isDirectory) {
+        folders++
+        walk(item)
+      } else {
+        files++
+        bytes += Number.isFinite(item.size) ? item.size : 0
+      }
+    }
+  }
+  walk(root)
+  const lines = ["", "Memory Type        Total  =   Used  +   Free", "----------------  -------   -------   -------"]
+  if (heap && Number.isFinite(heap.jsHeapSizeLimit)) {
+    const used = heap.usedJSHeapSize
+    const limit = heap.jsHeapSizeLimit
+    lines.push(`Browser memory   ${pad(kb(limit), 8)}  ${pad(kb(used), 8)}  ${pad(kb(Math.max(0, limit - used)), 8)}`)
+  } else lines.push("Browser memory   (not reported by this browser)")
+  lines.push(`Drive C: files   ${pad("", 8)}  ${pad(kb(bytes), 8)}`, "")
+  lines.push(`${files.toLocaleString("en-US")} file(s) in ${folders.toLocaleString("en-US")} folder(s) on drive C:`)
+  lines.push(`${windows} window(s) open`)
+  lines.push("98ish is resident in the browser tab.")
+  return lines
+}
+
 export const run = (input, shell) => {
   const result = { out: [], open: [] }
   const raw = input.trim()
@@ -560,17 +594,7 @@ export const run = (input, shell) => {
       out = [`Current time is ${now().toLocaleTimeString("en-US", { hour12: false })}`]
       break
     case "mem":
-      out = [
-        "",
-        "Memory Type        Total  =   Used  +   Free",
-        "----------------  -------   -------   -------",
-        "Conventional         640K       38K      602K",
-        "Upper                  0K        0K        0K",
-        "Extended (XMS)   130,048K   47,104K   82,944K",
-        "",
-        "Largest executable program size        602K (616,448 bytes)",
-        "MS-DOS is resident in the high memory area.",
-      ]
+      out = memReport()
       break
     case "color": {
       const attr = (args[0] || "07").toLowerCase()

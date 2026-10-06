@@ -187,7 +187,7 @@ const WizardArt = () => (
 
 export const Wizard = ({ name, onFinish, onCancel }) => {
   const [step, setStep] = useState(0)
-  const [form, setForm] = useState({ company: "Acme Widgets Co.", me: name, title: "Team Member", sample: true })
+  const [form, setForm] = useState({ company: "", me: name, title: "", sample: false })
   const set = (patch) => setForm((f) => ({ ...f, ...patch }))
   const canNext = step !== 1 || (form.company.trim() && form.me.trim())
   return (
@@ -213,7 +213,7 @@ export const Wizard = ({ name, onFinish, onCancel }) => {
                 <p>What's your company called, and who are you?</p>
                 <label className="awPickRow">
                   <span>Company:</span>
-                  <input type="text" value={form.company} onChange={(e) => set({ company: e.target.value })} maxLength={60} aria-label="Company" />
+                  <input type="text" value={form.company} onChange={(e) => set({ company: e.target.value })} maxLength={60} aria-label="Company" placeholder="Your company or team" />
                 </label>
                 <label className="awPickRow">
                   <span>Your name:</span>
@@ -221,21 +221,21 @@ export const Wizard = ({ name, onFinish, onCancel }) => {
                 </label>
                 <label className="awPickRow">
                   <span>Job title:</span>
-                  <input type="text" value={form.title} onChange={(e) => set({ title: e.target.value })} maxLength={40} aria-label="Job title" />
+                  <input type="text" value={form.title} onChange={(e) => set({ title: e.target.value })} maxLength={40} aria-label="Job title" placeholder="(optional)" />
                 </label>
               </>
             )}
             {step === 2 && (
               <>
                 <h3>Sample Data</h3>
-                <p>Would you like to start with a workspace full of made-up sample records? It's the quickest way to see what Appward 98 can do.</p>
-                <div className="field-row">
-                  <input type="radio" id="awSampleYes" name="awSample" checked={form.sample} onChange={() => set({ sample: true })} />
-                  <label htmlFor="awSampleYes">Yes, fill my workspace with sample data (recommended)</label>
-                </div>
+                <p>Start with an empty workspace for your real work, or explore first with a workspace full of made-up sample records.</p>
                 <div className="field-row">
                   <input type="radio" id="awSampleNo" name="awSample" checked={!form.sample} onChange={() => set({ sample: false })} />
-                  <label htmlFor="awSampleNo">No, start with an empty workspace</label>
+                  <label htmlFor="awSampleNo">Start with an empty workspace (recommended)</label>
+                </div>
+                <div className="field-row">
+                  <input type="radio" id="awSampleYes" name="awSample" checked={form.sample} onChange={() => set({ sample: true })} />
+                  <label htmlFor="awSampleYes">Fill it with sample data to explore</label>
                 </div>
                 <p className="awMuted">The sample company, people and records are all fictional.</p>
               </>
@@ -246,7 +246,7 @@ export const Wizard = ({ name, onFinish, onCancel }) => {
                 <p>Appward 98 has everything it needs to set up your workspace:</p>
                 <ul>
                   <li>Company: <b>{form.company}</b></li>
-                  <li>You: <b>{form.me}</b>, {form.title}</li>
+                  <li>You: <b>{form.me}</b>{form.title ? `, ${form.title}` : ""}</li>
                   <li>{form.sample ? "Sample data included" : "Empty workspace"}</li>
                 </ul>
                 <p>Click Finish to start using Appward 98.</p>

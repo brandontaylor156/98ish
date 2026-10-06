@@ -5,6 +5,11 @@ import waybackHandler from './api/wayback.js'
 import a11yCss from './postcss-a11y.js'
 import { readdirSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
+import { releaseNotes } from './releaseNotes.mjs'
+
+// one version per build: the service worker's cache name, the app's own idea of its version
+// (__BUILD_VERSION__) and 98ish Update's "is there a newer one?" all use it
+const BUILD_VERSION = String(Date.now())
 
 // Lists every built file and public asset for the service worker (public/sw.js) to
 // save for offline use. A new version string each build gives each deploy its own cache.
@@ -27,7 +32,21 @@ const swManifest = () => ({
     this.emitFile({
       type: 'asset',
       fileName: 'sw-manifest.json',
-      source: JSON.stringify({ version: String(Date.now()), files: all }),
+      source: JSON.stringify({ version: BUILD_VERSION, files: all }),
+    })
+  },
+})
+
+// 98ish Update's "what's new": the recent feature merges (releaseNotes.mjs), stamped with
+// this build's version and time
+const releaseNotesFile = () => ({
+  name: 'release-notes',
+  apply: 'build',
+  generateBundle() {
+    this.emitFile({
+      type: 'asset',
+      fileName: 'release-notes.json',
+      source: JSON.stringify({ version: BUILD_VERSION, builtAt: Number(BUILD_VERSION), notes: releaseNotes() }),
     })
   },
 })
@@ -58,6 +77,7 @@ export default defineConfig(({ mode }) => {
       react(),
       programSizes(),
       swManifest(),
+      releaseNotesFile(),
       {
         // Serve the Vercel function locally so `npm run dev` matches production
         name: 'dev-api',
@@ -67,6 +87,7 @@ export default defineConfig(({ mode }) => {
         },
       },
     ],
+    define: { __BUILD_VERSION__: JSON.stringify(mode === 'production' ? BUILD_VERSION : 'dev') },
     css: {
       // 98.css ships `@media (not(hover))`, which Lightning CSS rejects
       lightningcss: { errorRecovery: true },

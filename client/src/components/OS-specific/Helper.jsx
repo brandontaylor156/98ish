@@ -97,7 +97,7 @@ const TIPS = {
     "Search finds words on every help page. Index is the place for a quick keyword, like a book's index.",
   ],
   Find: ["Type in the Start menu's box to find anything: programs, settings, the words inside your documents, people and events."],
-  "Media Player": ["Every song in My Music was made right here in your browser. No files, all synth!"],
+  "Media Player": ["Media Player plays your Music 98 songs and Sound Recorder recordings. File > Open from Your Device plays a song or video from your phone!"],
   "Lovebirds Quiz Show": ["Answer about yourself, then send it to someone special. Results wait in your Inbox!"],
   Us: ["Send Flowers puts a bouquet on your partner's desktop. They have to water it every day, or it wilts!"],
   "Love Letters": ["Try a countdown: seven letters, one unlocks each day. Or an \"Open when you miss me\" letter for later."],

@@ -42,10 +42,46 @@
   cursor: pointer;
 }
 
-.mpCanvas {
-  display: block;
+.mpVideo {
   width: 100%;
   height: 100%;
+  object-fit: contain;
+  background: #000;
+}
+
+.mpNow {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 6px;
+  color: #3dff7a;
+  text-align: center;
+  overflow: hidden;
+}
+
+.mpNowTitle {
+  font-weight: bold;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mpArt {
+  width: 64px;
+  height: 64px;
+  object-fit: cover;
+  image-rendering: auto;
+}
+
+.mpError {
+  justify-content: flex-end;
+  padding-bottom: 6px;
+  color: #ff8080;
 }
 
 .mpDisplayNote {
@@ -333,69 +369,20 @@
 }
 
 /* Open dialog */
-.mpOpenLook {
+.mpEmpty {
+  padding: 10px 8px;
+  text-align: center;
+}
+
+.mpEmpty p {
+  margin: 0 0 8px;
+}
+
+.mpEmptyButtons {
   display: flex;
-  align-items: center;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: 6px;
-}
-
-.mpOpenFolder {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 2px 4px;
-  background: #fff;
-  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
-}
-
-.mpOpenFolder img {
-  width: 16px;
-  height: 16px;
-}
-
-.mpOpenList {
-  list-style: none;
-  margin: 0;
-  padding: 3px;
-  height: 160px;
-  max-height: 40vh;
-  overflow-y: auto;
-  background: #fff;
-  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
-}
-
-.mpOpenList li {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 1px 3px;
-  cursor: default;
-}
-
-.mpOpenList li img {
-  width: 16px;
-  height: 16px;
-}
-
-.mpOpenList li.is-selected {
-  background: #000080;
-  color: #fff;
-}
-
-.mpOpenName {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  white-space: nowrap;
-}
-
-.mpOpenName span {
-  flex: 1;
-  padding: 3px 4px;
-  background: #fff;
-  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
-  min-height: 20px;
 }
 
 .mpAbout {
@@ -498,8 +485,4 @@
 
 .os-mobile .mpStatus {
   font-size: 12px;
-}
-
-.os-mobile .mpOpenList li {
-  min-height: 36px;
 }

@@ -1,8 +1,9 @@
-import React, { useState } from "react"
+import React, { useEffect, useState } from "react"
 import { VERSION } from "../dos/commands"
 import { useAchievements } from "../../../utils/achievements"
 import { Trophy } from "../../OS-specific/AchievementToast"
 import { currentUserName } from "../../../utils/users"
+import { deviceLater, deviceNow, formatBytes } from "../../../utils/deviceInfo"
 import "./SystemProperties.css"
 
 const TABS = [
@@ -30,12 +31,23 @@ const productId = () => {
 
 const formatDate = (t) => new Date(t).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })
 
-// My Computer > Properties: the version, who it's registered to, some very impressive
-// hardware, and the Achievements found so far (with hints for the rest).
+// My Computer > Properties: the version, who it's registered to, the real device it's
+// running on (as far as the browser says: utils/deviceInfo.js), and the Achievements found so
+// far (with hints for the rest).
+const HIDDEN = "not reported by this browser"
 const SystemProperties = ({ tab: initialTab = "general", onClose }) => {
   const [tab, setTab] = useState(initialTab)
   const { unlocked, list, count } = useAchievements()
   const [pid] = useState(productId)
+  const [dev] = useState(deviceNow)
+  const [later, setLater] = useState(null)
+  useEffect(() => {
+    let live = true
+    deviceLater().then((v) => live && setLater(v))
+    return () => {
+      live = false
+    }
+  }, [])
 
   return (
     <div className="spRoot">
@@ -78,12 +90,20 @@ const SystemProperties = ({ tab: initialTab = "general", onClose }) => {
                 {pid}
               </p>
               <p className="spHead">Computer:</p>
-              <p className="spIndent">
-                98ish Turbo 400 MHz processor
+              <p className="spIndent" data-selectable>
+                {dev.cores ? `${dev.cores}-core processor` : `Processor: ${HIDDEN}`}
                 <br />
-                64.0MB RAM
+                {dev.memoryGb ? `${dev.memoryGb >= 8 ? "8 GB or more" : `${dev.memoryGb} GB`} RAM (about)` : `RAM: ${HIDDEN}`}
                 <br />
-                3D accelerator with a whole 8MB
+                {later ? later.gpu || `Graphics: ${HIDDEN}` : "Graphics: checking..."}
+                <br />
+                {dev.screen ? `${dev.screen.width} x ${dev.screen.height} screen${dev.screen.ratio !== 1 ? ` (${dev.screen.ratio}x)` : ""}` : `Screen: ${HIDDEN}`}
+                <br />
+                {dev.system}
+                <br />
+                {later ? (later.storage ? `98ish storage: ${formatBytes(later.storage.used)} used of ${formatBytes(later.storage.quota)}` : `Storage: ${HIDDEN}`) : "Storage: checking..."}
+                <br />
+                {dev.online ? `Online${dev.connection ? ` (${dev.connection})` : ""}` : "Offline"}
                 <br />
                 {count} of {list.length} achievements found
               </p>

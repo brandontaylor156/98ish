@@ -1,14 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from "react"
 import { programs, windowFor } from "../../../utils/programs"
-import {
-  APP_PROFILES,
-  COMMIT_LIMIT,
-  PHYSICAL_TOTAL,
-  buildProcessList,
-  formatCpuTime,
-  formatK,
-  stepSim,
-} from "./processes"
+import { APP_PROFILES, pidForWindow, profileFor } from "./processes"
+import { createMonitor } from "./realStats"
+import { deviceLater, deviceNow, formatBytes } from "../../../utils/deviceInfo"
 import { HistoryGraph, Meter } from "./Graphs"
 import {
   CheckGlyph,
@@ -35,13 +29,41 @@ const SPEEDS = [
   { label: "Paused", ms: 0 },
 ]
 
+// the Processes tab's columns (View > Select Columns... picks which show; Image Name always does)
 const PROC_COLUMNS = [
-  { id: "image", label: "Image Name" },
+  { id: "image", label: "Image Name", fixed: true },
   { id: "pid", label: "PID", width: 46, align: "right" },
-  { id: "cpu", label: "CPU", width: 36, align: "right" },
-  { id: "cpuTime", label: "CPU Time", width: 66, align: "right" },
+  { id: "status", label: "Status", width: 74 },
+  { id: "window", label: "Window" },
+  { id: "cpu", label: "CPU", width: 40, align: "right" },
   { id: "mem", label: "Mem Usage", width: 80, align: "right" },
 ]
+const COLUMNS_KEY = "98ish.taskmgr.columns"
+const DEFAULT_COLUMNS = ["image", "pid", "status", "cpu", "mem"]
+const readColumns = () => {
+  try {
+    const saved = JSON.parse(localStorage.getItem(COLUMNS_KEY))
+    if (Array.isArray(saved) && saved.length) return ["image", ...PROC_COLUMNS.map((c) => c.id).filter((id) => id !== "image" && saved.includes(id))]
+  } catch {
+    // storage blocked: the defaults
+  }
+  return DEFAULT_COLUMNS
+}
+const HIDDEN = "Not reported by this browser"
+const kOf = (bytes) => `${Math.round(bytes / 1024).toLocaleString("en-US")} K`
+
+// The real processes: this browser tab (98ish itself, where the CPU and memory numbers
+// belong) and one per open window. A web page can't see per-window CPU or memory, so
+// windows show their state instead of made-up numbers.
+const buildProcessList = (windows) => {
+  const apps = []
+  ;(windows || []).forEach((w, index) => {
+    if (w.closed) return
+    const profile = profileFor(w.app?.startsWith("aim") ? "98 Messenger" : w.app === "ie" ? "Internet Explorer" : w.program || w.name)
+    apps.push({ key: "w" + index, image: profile.image, pid: pidForWindow(index), windowIndex: index, title: w.name, status: w.minimized ? "Minimized" : w.active ? "Active" : "Running" })
+  })
+  return [{ key: "tab", image: "98ish.exe", pid: 4, title: "This browser tab", status: "Running", self: true }, ...apps]
+}
 
 const TERMINATE_WARNING =
   "WARNING: Terminating a process can cause undesired results including loss of data and system instability. The process will not be given the chance to save its state or data before it is terminated. Are you sure you want to terminate the process?"
@@ -170,6 +192,33 @@ const NewTaskDialog = ({ onRun, onClose }) => {
   )
 }
 
+// View > Select Columns...: which columns the Processes tab shows
+const ColumnsDialog = ({ columns, onOk, onClose }) => {
+  const [picked, setPicked] = useState(columns)
+  const toggle = (id) => setPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]))
+  return (
+    <Dialog title="Select Columns" onClose={onClose} width={300}>
+      <p className="tm-msg-text">Select the columns that will appear on the Process page of the Task Manager.</p>
+      <div className="tm-columns">
+        {PROC_COLUMNS.map((c) => (
+          <div className="field-row" key={c.id}>
+            <input id={`tm-col-${c.id}`} type="checkbox" checked={picked.includes(c.id)} disabled={c.fixed} onChange={() => toggle(c.id)} />
+            <label htmlFor={`tm-col-${c.id}`}>{c.label}</label>
+          </div>
+        ))}
+      </div>
+      <div className="tm-dialog-buttons">
+        <button type="button" className="default" onClick={() => onOk(PROC_COLUMNS.map((c) => c.id).filter((id) => id === "image" || picked.includes(id)))}>
+          OK
+        </button>
+        <button type="button" onClick={onClose}>
+          Cancel
+        </button>
+      </div>
+    </Dialog>
+  )
+}
+
 // selfIndex: this Task Manager's own position in `windows`
 const TaskManager = ({ dispatch, windows, selfIndex }) => {
 
@@ -184,18 +233,49 @@ const TaskManager = ({ dispatch, windows, selfIndex }) => {
   const menuRef = useRef(null)
 
   const procs = useMemo(() => buildProcessList(windows), [windows])
-  const procsRef = useRef(procs)
-  procsRef.current = procs
 
-  const [sim, setSim] = useState(() => stepSim(null, procs, 0))
-
+  // the real numbers, sampled at the update speed (realStats.js); history for the graphs
+  const monitorRef = useRef(null)
+  const [stats, setStats] = useState({ busy: 0, fps: 0, heap: null, ping: null, busyHistory: [], memHistory: [], tick: 0, peak: 0 })
+  const takeSample = () => {
+    const m = monitorRef.current
+    if (!m) return
+    const now = m.sample()
+    setStats((prev) => ({
+      ...now,
+      busyHistory: [...prev.busyHistory.slice(-299), now.busy],
+      memHistory: now.heap ? [...prev.memHistory.slice(-299), now.heap.used] : prev.memHistory,
+      tick: prev.tick + 1,
+      peak: now.heap ? Math.max(prev.peak, now.heap.used) : prev.peak,
+    }))
+  }
+  useEffect(() => {
+    monitorRef.current = createMonitor()
+    return () => monitorRef.current?.stop()
+  }, [])
   useEffect(() => {
     if (!speed) return
-    const id = setInterval(() => {
-      setSim((prev) => stepSim(prev, procsRef.current, speed / 1000))
-    }, speed)
+    const id = setInterval(takeSample, speed)
     return () => clearInterval(id)
   }, [speed])
+  const [device] = useState(deviceNow)
+  const [later, setLater] = useState(null)
+  useEffect(() => {
+    let live = true
+    deviceLater().then((v) => live && setLater(v))
+    return () => {
+      live = false
+    }
+  }, [])
+  const [columns, setColumns] = useState(readColumns)
+  const saveColumns = (next) => {
+    setColumns(next)
+    try {
+      localStorage.setItem(COLUMNS_KEY, JSON.stringify(next))
+    } catch {
+      // this visit only
+    }
+  }
 
   // Always On Top and Hide When Minimized are kept on the window for the shell to honor
   useEffect(() => {
@@ -229,31 +309,18 @@ const TaskManager = ({ dispatch, windows, selfIndex }) => {
   const appSel = apps.some((a) => a.index === selectedApp) ? selectedApp : null
   const procSel = procs.some((p) => p.key === selectedProc) ? selectedProc : null
 
+  const usage = stats.busy
   const rows = useMemo(() => {
-    const list = procs.map((p) => ({
-      ...p,
-      cpuNow: sim.cpu[p.key] || 0,
-      memNow: sim.mem[p.key] !== undefined ? sim.mem[p.key] : p.mem,
-      cpuTimeNow: sim.cpuTime[p.key] || 0,
-    }))
+    const list = procs.map((p) => ({ ...p, cpuNow: p.self ? stats.busy : null, memNow: p.self && stats.heap ? stats.heap.used : null }))
     if (!sort.col) return list
-    const field = { image: "image", pid: "pid", cpu: "cpuNow", cpuTime: "cpuTimeNow", mem: "memNow" }[sort.col]
+    const field = { image: "image", pid: "pid", status: "status", window: "title", cpu: "cpuNow", mem: "memNow" }[sort.col]
     return [...list].sort((a, b) => {
-      const x = a[field]
-      const y = b[field]
-      const c = typeof x === "string" ? x.localeCompare(y, "en", { sensitivity: "base" }) : x - y
+      const x = a[field] ?? -1
+      const y = b[field] ?? -1
+      const c = typeof x === "string" && typeof y === "string" ? x.localeCompare(y, "en", { sensitivity: "base" }) : (Number(x) || 0) - (Number(y) || 0)
       return (c || a.pid - b.pid) * sort.dir
     })
-  }, [procs, sim, sort])
-
-  const totals = useMemo(
-    () =>
-      procs.reduce(
-        (t, p) => ({ handles: t.handles + p.handles, threads: t.threads + p.threads }),
-        { handles: 0, threads: 0 }
-      ),
-    [procs]
-  )
+  }, [procs, stats, sort])
 
   // ---- actions --------------------------------------------------------------
 
@@ -285,19 +352,13 @@ const TaskManager = ({ dispatch, windows, selfIndex }) => {
 
   const terminate = (proc) => {
     setDialog(null)
-    if (!proc.system) {
+    if (!proc.self) {
       dispatch({ type: "close_window", payload: { name: windows[proc.windowIndex].name, index: proc.windowIndex } })
       return
     }
-    // ending the shell takes the whole system down (BlueScreen in Power.jsx)
-    if (proc.image === "explorer.exe") {
-      window.dispatchEvent(new CustomEvent("98ish:crash", { detail: { process: proc.image } }))
-      return
-    }
-    let text ="The operation could not be completed.\n\nAccess is denied."
-    if (proc.pid === 0) text = "The operation could not be completed.\n\nThe parameter is incorrect."
-    else if (proc.critical) text = "This is a critical system process. Task Manager cannot end this process."
-    setDialog({ type: "error", title: "Unable to Terminate Process", text })
+    // ending 98ish itself takes every window with it: the blue screen, then a fresh start
+    // (App.jsx; the "bsod" achievement)
+    window.dispatchEvent(new CustomEvent("98ish:crash", { detail: { process: proc.image } }))
   }
 
   const askEndProcess = (key) => {
@@ -319,7 +380,7 @@ const TaskManager = ({ dispatch, windows, selfIndex }) => {
     dispatch({ type: "open_window", payload: windowFor(program) })
   }
 
-  const refreshNow = () => setSim((prev) => stepSim(prev, procsRef.current, 0.5))
+  const refreshNow = () => takeSample()
 
   const listKeys = (e, items, current, setCurrent, onEnter, onDelete) => {
     if (!items.length) return
@@ -391,7 +452,7 @@ const TaskManager = ({ dispatch, windows, selfIndex }) => {
           })),
         },
         { separator: true },
-        { label: "Select Columns...", accel: "S", disabled: true }, // the columns are fixed
+        { label: "Select Columns...", accel: "S", onClick: () => (setTab("processes"), setDialog({ type: "columns" })) },
       ],
     },
     {
@@ -438,7 +499,7 @@ const TaskManager = ({ dispatch, windows, selfIndex }) => {
 
   const appIndexes = apps.map((a) => a.index)
   const procKeys = rows.map((p) => p.key)
-  const usage = sim.usage
+  const shown = PROC_COLUMNS.filter((c) => columns.includes(c.id))
 
   const renderApplications = () => (
     <>
@@ -510,20 +571,20 @@ const TaskManager = ({ dispatch, windows, selfIndex }) => {
       >
         <table className="interactive tm-table tm-proc-table">
           <colgroup>
-            {PROC_COLUMNS.map((c) => (
+            {shown.map((c) => (
               <col key={c.id} style={{ width: c.width }} />
             ))}
           </colgroup>
           <thead>
             <tr>
-              {PROC_COLUMNS.map((c) => (
+              {shown.map((c) => (
                 <th
                   key={c.id}
                   className={"tm-sortable" + (c.align ? " tm-right" : "")}
                   onClick={() =>
                     setSort((s) => ({
                       col: c.id,
-                      dir: s.col === c.id ? -s.dir : c.id === "image" ? 1 : -1,
+                      dir: s.col === c.id ? -s.dir : c.id === "image" || c.id === "window" || c.id === "status" ? 1 : -1,
                     }))
                   }
                 >
@@ -534,21 +595,21 @@ const TaskManager = ({ dispatch, windows, selfIndex }) => {
           </thead>
           <tbody>
             {rows.map((p) => (
-              <tr
-                key={p.key}
-                className={procSel === p.key ? "highlighted" : ""}
-                onMouseDown={() => setSelectedProc(p.key)}
-              >
-                <td>{p.image}</td>
-                <td className="tm-right">{p.pid}</td>
-                <td className="tm-right">{String(Math.min(99, p.cpuNow)).padStart(2, "0")}</td>
-                <td className="tm-right">{formatCpuTime(p.cpuTimeNow)}</td>
-                <td className="tm-right">{formatK(p.memNow)} K</td>
+              <tr key={p.key} className={procSel === p.key ? "highlighted" : ""} onMouseDown={() => setSelectedProc(p.key)}>
+                {shown.map((c) => {
+                  if (c.id === "image") return <td key={c.id}>{p.image}</td>
+                  if (c.id === "pid") return <td key={c.id} className="tm-right">{p.pid}</td>
+                  if (c.id === "status") return <td key={c.id}>{p.status}</td>
+                  if (c.id === "window") return <td key={c.id}>{p.title}</td>
+                  if (c.id === "cpu") return <td key={c.id} className="tm-right">{p.cpuNow === null ? "" : String(Math.min(99, p.cpuNow)).padStart(2, "0")}</td>
+                  return <td key={c.id} className="tm-right">{p.self ? (p.memNow !== null ? kOf(p.memNow) : "n/a") : ""}</td>
+                })}
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+      <p className="tm-note">CPU and memory are for 98ish as a whole (this browser tab); a web page can't measure each window separately.</p>
       <div className="tm-buttons">
         <button disabled={procSel === null} onClick={() => askEndProcess(procSel)}>
           <u>E</u>nd Process
@@ -557,6 +618,7 @@ const TaskManager = ({ dispatch, windows, selfIndex }) => {
     </>
   )
 
+  const heapMb = (b) => `${(b / 1024 / 1024).toFixed(b < 10 * 1024 * 1024 ? 1 : 0)} MB`
   const renderPerformance = () => (
     <div className="tm-perf">
       <fieldset className="tm-group tm-meter-group">
@@ -568,68 +630,65 @@ const TaskManager = ({ dispatch, windows, selfIndex }) => {
       <fieldset className="tm-group">
         <legend>CPU Usage History</legend>
         <div className="tm-screen">
-          <HistoryGraph data={sim.cpuHistory} max={100} tick={sim.tick} />
+          <HistoryGraph data={stats.busyHistory} max={100} tick={stats.tick} />
         </div>
       </fieldset>
       <fieldset className="tm-group tm-meter-group">
         <legend>MEM Usage</legend>
-        <div className="tm-screen">
-          <Meter value={(sim.commit / COMMIT_LIMIT) * 100} label={`${sim.commit}K`} />
-        </div>
+        <div className="tm-screen">{stats.heap ? <Meter value={(stats.heap.used / stats.heap.limit) * 100} label={heapMb(stats.heap.used)} /> : <span className="tm-hidden">n/a</span>}</div>
       </fieldset>
       <fieldset className="tm-group">
         <legend>Memory Usage History</legend>
-        <div className="tm-screen">
-          <HistoryGraph data={sim.memHistory} max={COMMIT_LIMIT} tick={sim.tick} color="#ffff00" />
-        </div>
+        <div className="tm-screen">{stats.heap ? <HistoryGraph data={stats.memHistory} max={stats.heap.limit} tick={stats.tick} color="#ffff00" /> : <span className="tm-hidden">{HIDDEN}</span>}</div>
       </fieldset>
 
       <div className="tm-stats">
         <fieldset className="tm-group">
           <legend>Totals</legend>
           <dl className="tm-dl">
-            <dt>Handles</dt>
-            <dd>{totals.handles}</dd>
-            <dt>Threads</dt>
-            <dd>{totals.threads}</dd>
-            <dt>Processes</dt>
-            <dd>{procs.length}</dd>
+            <dt>Windows</dt>
+            <dd>{apps.length + 1}</dd>
+            <dt>Frames/sec</dt>
+            <dd>{stats.fps}</dd>
+            <dt>Server ping</dt>
+            <dd>{stats.ping === null ? "offline" : `${stats.ping} ms`}</dd>
           </dl>
         </fieldset>
         <fieldset className="tm-group">
-          <legend>Physical Memory (K)</legend>
+          <legend>This Device</legend>
           <dl className="tm-dl">
-            <dt>Total</dt>
-            <dd>{PHYSICAL_TOTAL}</dd>
-            <dt>Available</dt>
-            <dd>{sim.available}</dd>
-            <dt>File Cache</dt>
-            <dd>{sim.cache}</dd>
+            <dt>Processors</dt>
+            <dd>{device.cores ?? "n/a"}</dd>
+            <dt>RAM</dt>
+            <dd>{device.memoryGb ? `${device.memoryGb >= 8 ? "8+" : device.memoryGb} GB` : "n/a"}</dd>
+            <dt>Connection</dt>
+            <dd>{device.online ? device.connection || "online" : "offline"}</dd>
           </dl>
         </fieldset>
         <fieldset className="tm-group">
-          <legend>Commit Charge (K)</legend>
+          <legend>98ish Memory</legend>
           <dl className="tm-dl">
-            <dt>Total</dt>
-            <dd>{sim.commit}</dd>
+            <dt>In use</dt>
+            <dd>{stats.heap ? heapMb(stats.heap.used) : "n/a"}</dd>
             <dt>Limit</dt>
-            <dd>{COMMIT_LIMIT}</dd>
+            <dd>{stats.heap ? heapMb(stats.heap.limit) : "n/a"}</dd>
             <dt>Peak</dt>
-            <dd>{sim.peak}</dd>
+            <dd>{stats.peak ? heapMb(stats.peak) : "n/a"}</dd>
           </dl>
         </fieldset>
         <fieldset className="tm-group">
-          <legend>Kernel Memory (K)</legend>
+          <legend>98ish Storage</legend>
           <dl className="tm-dl">
-            <dt>Total</dt>
-            <dd>{sim.paged + sim.nonpaged}</dd>
-            <dt>Paged</dt>
-            <dd>{sim.paged}</dd>
-            <dt>Nonpaged</dt>
-            <dd>{sim.nonpaged}</dd>
+            <dt>Used</dt>
+            <dd>{later?.storage ? formatBytes(later.storage.used) : "n/a"}</dd>
+            <dt>Allowed</dt>
+            <dd>{later?.storage ? formatBytes(later.storage.quota) : "n/a"}</dd>
+            <dt>Free</dt>
+            <dd>{later?.storage ? formatBytes(Math.max(0, later.storage.quota - later.storage.used)) : "n/a"}</dd>
           </dl>
         </fieldset>
       </div>
+      {!stats.heap && <p className="tm-note">Memory: {HIDDEN.toLowerCase()} (Safari and Firefox keep it private).</p>}
     </div>
   )
 
@@ -637,6 +696,7 @@ const TaskManager = ({ dispatch, windows, selfIndex }) => {
     if (!dialog) return null
     const close = () => setDialog(null)
     if (dialog.type === "newTask") return <NewTaskDialog onRun={runTask} onClose={close} />
+    if (dialog.type === "columns") return <ColumnsDialog columns={columns} onOk={(next) => (saveColumns(next), close())} onClose={close} />
     if (dialog.type === "confirmEnd")
       return (
         <MessageBox
@@ -656,9 +716,9 @@ const TaskManager = ({ dispatch, windows, selfIndex }) => {
           width={350}
           icon={<InfoIcon />}
           text={
-            "98ish Task Manager\nVersion 4.0 (Build 1381: Service Pack 6)\n\nThis product is licensed to:\n98ish User\n\nPhysical memory available to Windows: " +
-            formatK(PHYSICAL_TOTAL) +
-            " KB"
+            "98ish Task Manager\nVersion 4.0 (Build 1381: Service Pack 6)\n\nThis product is licensed to:\n98ish User\n\nThis device: " +
+            (device.cores ? `${device.cores} processors` : "processors not reported") +
+            (device.memoryGb ? `, about ${device.memoryGb >= 8 ? "8 GB or more" : `${device.memoryGb} GB`} of memory` : "")
           }
           buttons={[{ label: "OK", onClick: close }]}
         />
@@ -723,9 +783,7 @@ const TaskManager = ({ dispatch, windows, selfIndex }) => {
       <div className="status-bar tm-status">
         <p className="status-bar-field">Processes: {procs.length}</p>
         <p className="status-bar-field">CPU Usage: {usage}%</p>
-        <p className="status-bar-field tm-status-mem">
-          Mem Usage: {sim.commit}K / {COMMIT_LIMIT}K
-        </p>
+        <p className="status-bar-field tm-status-mem">Mem Usage: {stats.heap ? `${Math.round(stats.heap.used / 1024).toLocaleString("en-US")}K` : "n/a"}</p>
       </div>
 
       {renderDialog()}
