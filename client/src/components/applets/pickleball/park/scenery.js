@@ -8,6 +8,7 @@
 import * as THREE from "three"
 import { addProps, propMaterials } from "./props.js"
 import { FINISH, roomRect } from "./propkit.js"
+import { surfaced } from "./surfaces.js"
 
 const canvasTexture = (w, h, draw) => {
   const c = document.createElement("canvas")
@@ -44,6 +45,8 @@ const pointInPoly = (x, z, poly) => {
 // A parking lot's stalls, as lots are laid out: along the lot's longest side, bays of two
 // stall rows back to back (5.4 m deep, 2.7 m wide) then a 7 m driving aisle. Returns the
 // stalls { x, z, yaw (a car's long side across the row) } and the stripes between them.
+// a room's floor finish (propkit FINISH) -> its surface texture (surfaces.js)
+const FLOOR_SURFACE = { wood: "wood", tile: "tile", rubber: "rubber", carpet: "carpet", stone: "concrete", slats: "deck" }
 const STALL_W = 2.7
 const STALL_D = 5.4
 const AISLE = 7
@@ -264,7 +267,7 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
   })
   keep(groundTex)
   groundTex.anisotropy = 4
-  const groundMat = lambert(0xffffff, { map: groundTex })
+  const groundMat = surfaced(lambert(0xffffff, { map: groundTex }), "ground")
   const ground = new THREE.Mesh(keep(new THREE.PlaneGeometry(GW, GD)), groundMat)
   ground.rotation.x = -Math.PI / 2
   ground.position.set((X0 + X1) / 2, 0, (Z0 + Z1) / 2)
@@ -277,8 +280,8 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
   group.add(far)
 
   // ---------- the banks' surfaces and every court ----------
-  const surroundMat = std(hex(C.surround, 0x3c8a5a), { roughness: 0.9 })
-  const tennisSurroundMat = std(hex(C.tennisSurround ?? C.surround, 0x3c8a5a), { roughness: 0.9 })
+  const surroundMat = surfaced(std(hex(C.surround, 0x3c8a5a), { roughness: 0.9 }), "acrylic")
+  const tennisSurroundMat = surfaced(std(hex(C.tennisSurround ?? C.surround, 0x3c8a5a), { roughness: 0.9 }), "acrylic")
   for (const b of S.banks) {
     const m = new THREE.Mesh(keep(new THREE.PlaneGeometry(2 * b.hx, 2 * b.hz).rotateX(-Math.PI / 2)), b.s === "t" ? tennisSurroundMat : b.s === "b" ? kit.mats.asphalt : surroundMat)
     m.position.set(b.cx, 0.002, b.cz)
@@ -368,7 +371,7 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
 
   // ---------- low fences, nets, walls, hedges ----------
   // (the low dividers between paired courts: dark, not the windscreens' color)
-  const screenMat = lambert(hex(S.fence?.dividerColor, 0x1d2420), { side: THREE.DoubleSide })
+  const screenMat = surfaced(lambert(hex(S.fence?.dividerColor, 0x1d2420), { side: THREE.DoubleSide }), "fabric")
   const wallMat = lambert(0xc9c2b4)
   const hedgeMat = lambert(0x3f6b34, { flatShading: true })
   const netTex = keep(
@@ -634,12 +637,12 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
   const wallMats = new Map()
   const wallMatFor = (color, ribs) => {
     const key = `${color}|${ribs}`
-    if (!wallMats.has(key)) wallMats.set(key, lambert(color, { map: ribs === "mission" ? missionTex : ribs ? ribsTex : windowsTex, side: THREE.DoubleSide }))
+    if (!wallMats.has(key)) wallMats.set(key, surfaced(lambert(color, { map: ribs === "mission" ? missionTex : ribs ? ribsTex : windowsTex, side: THREE.DoubleSide }), "stucco"))
     return wallMats.get(key)
   }
   const roofMats = new Map()
   const roofMatFor = (color) => {
-    if (!roofMats.has(color)) roofMats.set(color, lambert(color, { side: THREE.DoubleSide }))
+    if (!roofMats.has(color)) roofMats.set(color, surfaced(lambert(color, { side: THREE.DoubleSide }), "concrete"))
     return roofMats.get(color)
   }
   // a wall ring (quads from y0 to y1) facing outward (or inward), uv in 3 m tiles
@@ -746,7 +749,7 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
   tileTex.wrapS = tileTex.wrapT = THREE.RepeatWrapping
   const tileMats = new Map()
   const tileMatFor = (color) => {
-    if (!tileMats.has(color)) tileMats.set(color, lambert(color, { map: tileTex, side: THREE.DoubleSide }))
+    if (!tileMats.has(color)) tileMats.set(color, surfaced(lambert(color, { map: tileTex, side: THREE.DoubleSide }), "roof"))
     return tileMats.get(color)
   }
   // a building's smallest rectangle: { ux, uz (along the long side), u0, u1, w0, w1 }
@@ -919,7 +922,7 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
   }
   const plainMats = new Map()
   const plainMatFor = (color) => {
-    if (!plainMats.has(color)) plainMats.set(color, lambert(color, { side: THREE.DoubleSide }))
+    if (!plainMats.has(color)) plainMats.set(color, surfaced(lambert(color, { side: THREE.DoubleSide }), "stucco"))
     return plainMats.get(color)
   }
   const hvac = []
@@ -1113,10 +1116,10 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
     const fin = FINISH[r.type] || {}
     const floorKind = r.floorStyle === "plain" ? null : r.floorStyle || fin.floor
     const fmap = floorTexFor(floorKind)
-    g.add(new THREE.Mesh(flat(r.p, 0.015), std(hex(r.floor, 0xc9bda8), { roughness: floorKind === "wood" ? 0.45 : 0.6, ...(fmap ? { map: fmap } : {}) })))
+    g.add(new THREE.Mesh(flat(r.p, 0.015), surfaced(std(hex(r.floor, 0xc9bda8), { roughness: floorKind === "wood" ? 0.45 : 0.6, ...(fmap ? { map: fmap } : {}) }), FLOOR_SURFACE[floorKind] || "concrete")))
     const wh = r.wainscot ? 1.1 : 0
     // (indoors the walls get the room's own light: some emissive, so a white wall reads white)
-    const lit = (c, map = null) => lambert(c, { emissive: new THREE.Color(c).multiplyScalar(0.28), ...(map ? { map } : {}) })
+    const lit = (c, map = null) => surfaced(lambert(c, { emissive: new THREE.Color(c).multiplyScalar(0.28), ...(map ? { map } : {}) }), "stucco")
     const wmap = surfaceTexFor(r.wallTex)
     if (wh) g.add(new THREE.Mesh(wallRing(r.p, 0, wh, { inward: true, gaps, offset: 0.12 }), lit(hex(r.wainscot, 0x8a8a8a), wmap)))
     g.add(new THREE.Mesh(wallRing(r.p, wh, H, { inward: true, gaps, offset: 0.12 }), lit(hex(r.wall, 0xece6da), wmap)))
@@ -1198,7 +1201,7 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
   }
   for (const d of S.decks || []) {
     if (d.slab) {
-      const slab = new THREE.Mesh(flat(d.p, d.y), std(hex(d.color, 0xb78a52), { roughness: 0.6 }))
+      const slab = new THREE.Mesh(flat(d.p, d.y), surfaced(std(hex(d.color, 0xb78a52), { roughness: 0.6 }), "deck"))
       group.add(slab)
       const under = new THREE.Mesh(flatDown(d.p, d.y - 0.28), lambert(0x2c2a2e))
       group.add(under)
@@ -1328,8 +1331,8 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
     // block, panels: a texture tinted by the color)
     const padMap = surfaceTexFor(h.padTex || h.wallTex)
     const wallMap = surfaceTexFor(h.wallTex)
-    const hallPadMat = lambert(hex(h.pads, 0x1d2f5a), padMap ? { map: padMap } : {})
-    const hallWallMat = lambert(hex(h.wall, 0xd9d4c8), wallMap ? { map: wallMap } : {})
+    const hallPadMat = surfaced(lambert(hex(h.pads, 0x1d2f5a), padMap ? { map: padMap } : {}), "fabric")
+    const hallWallMat = surfaced(lambert(hex(h.wall, 0xd9d4c8), wallMap ? { map: wallMap } : {}), h.wallTex === "block" ? "concrete" : "stucco")
     group.add(new THREE.Mesh(wallRing(p, 0, padH, { inward: true, gaps: cutaway ? null : hallGaps, offset: 0.12 }), hallPadMat))
     group.add(new THREE.Mesh(wallRing(p, padH, H, { inward: true, gaps: cutaway ? null : hallGaps, offset: 0.12 }), hallWallMat))
     // the extra doors (to the street, the next hall): frames and leaves (once for a door two

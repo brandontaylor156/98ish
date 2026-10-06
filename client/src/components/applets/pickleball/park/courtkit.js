@@ -5,6 +5,7 @@
 // whole venue).
 
 import * as THREE from "three"
+import { surfaced } from "./surfaces.js"
 import { HALF_L, HALF_W, KITCHEN, LINE_W, NET_POST_X, netHeightAt } from "../physics.js"
 
 const quad = (positions, x0, z0, x1, z1, y) => {
@@ -78,17 +79,17 @@ export const createCourtKit = ({ keep, std, colors = {}, runoff = null }) => {
   grain.repeat.set(3, 6)
   const off = (n) => ({ polygonOffset: true, polygonOffsetFactor: -n, polygonOffsetUnits: -2 * n })
   const mats = {
-    court: std(C.court, { map: grain, roughness: 0.8 }),
-    kitchen: std(C.kitchen, { map: grain, roughness: 0.8, ...off(1) }),
-    runoff: std(C.surround, { roughness: 0.9 }),
-    line: std(C.lines, { roughness: 0.7, ...off(2) }),
-    pbLine: std(C.pbLines, { roughness: 0.7, ...off(3) }),
-    post: std(0x2b2f36, { roughness: 0.5, metalness: 0.3 }),
-    tennis: std(C.tennis ?? C.court, { map: grain, roughness: 0.8 }),
-    tennisRunoff: std(C.tennisSurround ?? C.surround, { roughness: 0.9 }),
-    asphalt: std(0x4b4f55, { roughness: 0.95 }),
-    bbLine: std(0xf2f2f2, { roughness: 0.8 }),
-    hoop: std(0xd8dde2, { roughness: 0.4, metalness: 0.4 }),
+    court: surfaced(std(C.court, { map: grain, roughness: 0.8 }), "acrylic"),
+    kitchen: surfaced(std(C.kitchen, { map: grain, roughness: 0.8, ...off(1) }), "acrylic"),
+    runoff: surfaced(std(C.surround, { roughness: 0.9 }), "acrylic"),
+    line: surfaced(std(C.lines, { roughness: 0.7, ...off(2) }), "acrylic"),
+    pbLine: surfaced(std(C.pbLines, { roughness: 0.7, ...off(3) }), "acrylic"),
+    post: surfaced(std(0x2b2f36, { roughness: 0.5, metalness: 0.3 }), "metal"),
+    tennis: surfaced(std(C.tennis ?? C.court, { map: grain, roughness: 0.8 }), "acrylic"),
+    tennisRunoff: surfaced(std(C.tennisSurround ?? C.surround, { roughness: 0.9 }), "acrylic"),
+    asphalt: surfaced(std(0x4b4f55, { roughness: 0.95 }), "asphalt"),
+    bbLine: surfaced(std(0xf2f2f2, { roughness: 0.8 }), "asphalt"),
+    hoop: surfaced(std(0xd8dde2, { roughness: 0.4, metalness: 0.4 }), "metal"),
     rim: std(0xe0662a, { roughness: 0.5 }),
   }
   const netTex = keep(
@@ -249,12 +250,12 @@ export const createCourtKit = ({ keep, std, colors = {}, runoff = null }) => {
     if (!painted.has(key)) {
       const num = (v, d) => (typeof v === "string" && v[0] === "#" ? parseInt(v.slice(1), 16) : d)
       painted.set(key, {
-        court: std(num(paint.court, C.court), { map: grain, roughness: paint.clay ? 1 : 0.8 }),
-        kitchen: std(num(paint.kitchen, num(paint.court, C.kitchen)), { map: grain, roughness: 0.8, ...off(1) }),
-        tennis: std(num(paint.court, C.tennis ?? C.court), { map: grain, roughness: paint.clay ? 1 : 0.8 }),
-        surround: paint.surround ? std(num(paint.surround, C.surround), { roughness: paint.clay ? 1 : 0.9 }) : null,
-        alley: paint.alley ? std(num(paint.alley, C.court), { map: grain, roughness: 0.8, ...off(1) }) : null,
-        line: paint.lines ? std(num(paint.lines, C.lines), { roughness: 0.7, ...off(2) }) : null,
+        court: surfaced(std(num(paint.court, C.court), { map: grain, roughness: paint.clay ? 1 : 0.8 }), "acrylic"),
+        kitchen: surfaced(std(num(paint.kitchen, num(paint.court, C.kitchen)), { map: grain, roughness: 0.8, ...off(1) }), "acrylic"),
+        tennis: surfaced(std(num(paint.court, C.tennis ?? C.court), { map: grain, roughness: paint.clay ? 1 : 0.8 }), "acrylic"),
+        surround: paint.surround ? surfaced(std(num(paint.surround, C.surround), { roughness: paint.clay ? 1 : 0.9 }), "acrylic") : null,
+        alley: paint.alley ? surfaced(std(num(paint.alley, C.court), { map: grain, roughness: 0.8, ...off(1) }), "acrylic") : null,
+        line: paint.lines ? surfaced(std(num(paint.lines, C.lines), { roughness: 0.7, ...off(2) }), "acrylic") : null,
         art: paint.art ? artMat(paint.art) : null,
       })
     }

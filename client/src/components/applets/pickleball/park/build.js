@@ -12,6 +12,7 @@ import { mergeStatic } from "../venue.js"
 import { LEVEL_NAMES, PATH_W, PEN, RIVERSIDE_LAYOUT, SEAT_ROWS } from "./layout.js"
 import { createCourtKit } from "./courtkit.js"
 import { buildScenery } from "./scenery.js"
+import { applySurfaces, surfaced } from "./surfaces.js"
 
 const canvasTexture = (w, h, draw) => {
   const c = document.createElement("canvas")
@@ -171,7 +172,7 @@ export const buildPark = (scene, { quality = "medium", layout = RIVERSIDE_LAYOUT
     })
     keep(groundTex)
     groundTex.anisotropy = 4
-    groundMat = lambert(0xffffff, { map: groundTex })
+    groundMat = surfaced(lambert(0xffffff, { map: groundTex }), "ground")
     const ground = new THREE.Mesh(keep(new THREE.PlaneGeometry(GW, GD)), groundMat)
     ground.rotation.x = -Math.PI / 2
     ground.position.set((GX0 + GX1) / 2, 0, (GZ0 + GZ1) / 2)
@@ -685,6 +686,44 @@ export const buildPark = (scene, { quality = "medium", layout = RIVERSIDE_LAYOUT
   }
   pools.visible = false
 
+  // ---- sun shadows (a real venue, Medium/High; docs/venue-realism.md): buildings, fences'
+  // frames, nets' posts, stands and trees throw real shadows in a box that follows the camera
+  // (followSky). Set before the merge (it keys on the flags). See-through things (chain-link,
+  // nets: MeshBasic with alpha) don't cast: they'd throw solid sheets.
+  const shadows = !!S && quality !== "low"
+  let realism = shadows // setRealism(): shadows + the sun/sky balance for them (surfaces.js has its own switch)
+  if (shadows) {
+    group.traverse((o) => {
+      if (!o.isMesh || o === sky) return
+      const m = Array.isArray(o.material) ? o.material[0] : o.material
+      const seeThrough = !m || m.transparent || m.isMeshBasicMaterial || m.isShaderMaterial
+      o.receiveShadow = !m?.isMeshBasicMaterial && !m?.isShaderMaterial
+      o.castShadow = !seeThrough && o.renderOrder >= 0
+      // indoors the "sun" is the ceiling's light: the roof, ceiling, trusses and fixtures above
+      // it mustn't shadow the floor
+      if (o.castShadow && S.indoor) {
+        if (!o.geometry.boundingBox) o.geometry.computeBoundingBox()
+        o.updateWorldMatrix(true, false)
+        const yMin = o.geometry.boundingBox.clone().applyMatrix4(o.matrixWorld).min.y
+        if (yMin > 3.5) o.castShadow = false
+      }
+    })
+    sun.castShadow = true
+    const size = quality === "high" ? 2048 : 1024
+    sun.shadow.mapSize.set(size, size)
+    const R = 45
+    Object.assign(sun.shadow.camera, { left: -R, right: R, top: R, bottom: -R, near: 1, far: 260 })
+    sun.shadow.camera.updateProjectionMatrix()
+    sun.shadow.bias = -0.0004
+    sun.shadow.normalBias = 0.05
+    sun.shadow.radius = 3
+    // the venue never moves (people keep their blob shadows): the shadow map is drawn again only
+    // when its box moves (followSky) or the light changes (setDayLook), not every frame
+    sun.shadow.autoUpdate = false
+    sun.shadow.needsUpdate = true
+  }
+  let shadowAt = null
+
   mergeStatic(group, keep)
   // (added after the merge: switched on and off by the time of day)
   group.add(pools)
@@ -693,6 +732,8 @@ export const buildPark = (scene, { quality = "medium", layout = RIVERSIDE_LAYOUT
     mergeStatic(z.group, keep)
     group.add(z.group)
   }
+  // real surfaces (surfaces.js; off on Low): CC0 detail sampled in world space on tagged materials
+  applySurfaces(group, { quality })
   // nothing here moves: its matrices are worked out once (what's added later to a court's
   // group, the players and the ball, still updates itself)
   group.traverse((o) => {
@@ -712,6 +753,7 @@ export const buildPark = (scene, { quality = "medium", layout = RIVERSIDE_LAYOUT
   // (Riverside keeps its own long-standing look.)
   const toneMapping = S ? THREE.NeutralToneMapping : THREE.ACESFilmicToneMapping
   const white = new THREE.Color(0xffffff)
+  const sunDir = new THREE.Vector3(0, 1, 0) // toward the sun (venueLight); the shadow box follows the camera along it
   const venueLight = (d) => {
     const k = S.light || {}
     const day = Math.min(1, d.sun.intensity / 2.6)
@@ -719,18 +761,24 @@ export const buildPark = (scene, { quality = "medium", layout = RIVERSIDE_LAYOUT
     if (S.indoor) {
       hemi.color.setHex(0xffffff)
       hemi.groundColor.set(k.bounce || "#e2ded6")
-      hemi.intensity = k.sky ?? 2.5
+      // (realism: a soft overhead key so benches, nets and people sit on contact shadows; the
+      // same total on the floor)
+      hemi.intensity = realism ? k.skyShadow ?? 1.7 : k.sky ?? 2.5
       sun.color.setHex(0xfffaf2)
-      sun.intensity = k.sun ?? 0.6
+      sun.intensity = realism ? k.sunShadow ?? 1.5 : k.sun ?? 0.6
       sun.position.set(sun.target.position.x + 0.05, 40, 0.05)
+      sunDir.set(0.05, 1, 0.05).normalize()
     } else {
       hemi.color.setHex(d.hemi[0]).lerp(white, 0.65)
       hemi.groundColor.set(k.bounce || "#c8c2b4")
-      hemi.intensity = (k.sky ?? 2.25) * amb
+      // with shadows the sun carries the light and the sky fills the shade (about the same total
+      // on a flat surface at midday, so the photo-matched paint holds; shade reads as shade)
+      hemi.intensity = (realism ? k.skyShadow ?? 0.9 : k.sky ?? 2.25) * amb
       sun.color.setHex(d.sun.color).lerp(white, 0.4)
-      sun.intensity = (k.sun ?? 1.0) * day
+      sun.intensity = (realism ? k.sunShadow ?? 2.6 : k.sun ?? 1.0) * day
       const n = Math.hypot(d.sun.dir.x, d.sun.dir.y, d.sun.dir.z) || 1
       sun.position.set(sun.target.position.x + (d.sun.dir.x / n) * 40, (d.sun.dir.y / n) * 40, (d.sun.dir.z / n) * 40)
+      sunDir.set(d.sun.dir.x / n, Math.max(0.15, d.sun.dir.y / n), d.sun.dir.z / n).normalize()
     }
     sun.updateMatrix()
     sun.updateMatrixWorld(true)
@@ -752,6 +800,14 @@ export const buildPark = (scene, { quality = "medium", layout = RIVERSIDE_LAYOUT
     pools.visible = !!d.lights
     lampMat.color.setHex(d.lights ? 0xfff6d8 : 0x9aa0a8)
     if (S) venueLight(d)
+    if (shadows) {
+      sun.shadow.needsUpdate = true
+      if (shadowAt) {
+        sun.position.copy(sun.target.position).addScaledVector(sunDir, 120)
+        sun.updateMatrix()
+        sun.updateMatrixWorld(true)
+      }
+    }
     scenery?.setDayLook?.(d)
   }
 
@@ -766,11 +822,29 @@ export const buildPark = (scene, { quality = "medium", layout = RIVERSIDE_LAYOUT
     setRacks,
     setBoard,
     setDayLook,
+    // the realistic look on or off (shadows and their light); the next setDayLook applies the light
+    setRealism: (on) => {
+      realism = shadows && !!on
+      sun.castShadow = realism
+      sun.shadow.needsUpdate = true
+    },
     update: scenery?.update || null,
     cull: scenery?.cull || null,
     // (a real venue: the sky dome centred on the camera)
     followSky: S
       ? (p) => {
+          if (shadows && (!shadowAt || Math.hypot(p.x - shadowAt.x, p.z - shadowAt.z) > 8)) {
+            // the shadow box: re-centred once the camera has gone 8 m, the sun 120 m back along its light
+            shadowAt = { x: p.x, z: p.z }
+            sun.shadow.needsUpdate = true
+            sun.target.position.set(p.x, 0, p.z)
+            sun.position.copy(sun.target.position).addScaledVector(sunDir, 120)
+            // (the park's matrices are frozen after the build: work these out by hand)
+            sun.target.updateMatrix()
+            sun.target.updateMatrixWorld(true)
+            sun.updateMatrix()
+            sun.updateMatrixWorld(true)
+          }
           sky.position.set(p.x, 0, p.z)
           stars.position.copy(sky.position)
           sky.updateMatrix()

@@ -1,0 +1,14 @@
+Surface textures derived from ambientCG materials (CC0 1.0, https://ambientcg.com):
+  asphalt.webp  <- Asphalt031  https://ambientcg.com/view?id=Asphalt031
+  concrete.webp  <- Concrete034  https://ambientcg.com/view?id=Concrete034
+  grass.webp  <- Grass004  https://ambientcg.com/view?id=Grass004
+  stucco.webp  <- Plaster001  https://ambientcg.com/view?id=Plaster001
+  roof.webp  <- RoofingTiles006  https://ambientcg.com/view?id=RoofingTiles006
+  wood.webp  <- WoodFloor041  https://ambientcg.com/view?id=WoodFloor041
+  deck.webp  <- Planks037A  https://ambientcg.com/view?id=Planks037A
+  carpet.webp  <- Carpet016  https://ambientcg.com/view?id=Carpet016
+  rubber.webp  <- Rubber004  https://ambientcg.com/view?id=Rubber004
+  metal.webp  <- Metal049A  https://ambientcg.com/view?id=Metal049A
+  tile.webp  <- Tiles107  https://ambientcg.com/view?id=Tiles107
+  fabric.webp  <- Fabric030  https://ambientcg.com/view?id=Fabric030
+acrylic.webp is generated (tools/venues/textures/build-textures.py).
