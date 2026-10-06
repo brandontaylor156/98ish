@@ -66,8 +66,10 @@ const kindOf = (m, o) => {
   return "solid"
 }
 
-// draw `root`'s static meshes into the height map H and canopy map C
-export const rasterize = (root, grid) => {
+// the work of drawing `root`'s static meshes into the height map H and canopy map C, cut into
+// jobs (an instance, or up to 4,000 triangles of a big merged mesh) so the browser can spread it
+// over frames. run(job) draws one; tris() counts what was drawn.
+export const rasterJobs = (root, grid) => {
   const { x0, z0, cell, nx, nz, H, C } = grid
   const a = new THREE.Vector3()
   const b = new THREE.Vector3()
@@ -107,29 +109,40 @@ export const rasterize = (root, grid) => {
     }
   }
   root.updateMatrixWorld(true)
+  const jobs = []
+  const CHUNK = 4000 * 3
   root.traverse((o) => {
     if (!o.isMesh || !o.visible || !o.geometry?.attributes?.position) return
     const m = Array.isArray(o.material) ? o.material[0] : o.material
     const kind = kindOf(m, o)
     if (!kind) return
+    const idx = o.geometry.index
+    const n = idx ? idx.count : o.geometry.attributes.position.count
+    const count = o.isInstancedMesh ? o.count : 1
+    for (let s = 0; s < count; s++) for (let t0 = 0; t0 < n; t0 += CHUNK) jobs.push({ o, kind, s, t0, t1: Math.min(n, t0 + CHUNK) })
+  })
+  const run = ({ o, kind, s, t0, t1 }) => {
     const pos = o.geometry.attributes.position
     const idx = o.geometry.index
-    const n = idx ? idx.count : pos.count
-    const count = o.isInstancedMesh ? o.count : 1
-    for (let s = 0; s < count; s++) {
-      if (o.isInstancedMesh) {
-        o.getMatrixAt(s, inst)
-        m4.multiplyMatrices(o.matrixWorld, inst)
-      } else m4.copy(o.matrixWorld)
-      for (let t = 0; t + 2 < n; t += 3) {
-        a.fromBufferAttribute(pos, idx ? idx.getX(t) : t).applyMatrix4(m4)
-        b.fromBufferAttribute(pos, idx ? idx.getX(t + 1) : t + 1).applyMatrix4(m4)
-        c.fromBufferAttribute(pos, idx ? idx.getX(t + 2) : t + 2).applyMatrix4(m4)
-        draw(a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z, kind)
-      }
+    if (o.isInstancedMesh) {
+      o.getMatrixAt(s, inst)
+      m4.multiplyMatrices(o.matrixWorld, inst)
+    } else m4.copy(o.matrixWorld)
+    for (let t = t0; t + 2 < t1; t += 3) {
+      a.fromBufferAttribute(pos, idx ? idx.getX(t) : t).applyMatrix4(m4)
+      b.fromBufferAttribute(pos, idx ? idx.getX(t + 1) : t + 1).applyMatrix4(m4)
+      c.fromBufferAttribute(pos, idx ? idx.getX(t + 2) : t + 2).applyMatrix4(m4)
+      draw(a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z, kind)
     }
-  })
-  return tris
+  }
+  return { jobs, run, tris: () => tris }
+}
+
+// all of it at once (Node tests)
+export const rasterize = (root, grid) => {
+  const r = rasterJobs(root, grid)
+  for (const j of r.jobs) r.run(j)
+  return r.tris()
 }
 
 export const makeGrid = (bounds, { maxCells = 1100, minCell = 0.3 } = {}) => {
@@ -219,8 +232,7 @@ export const bakeVenueAO = (root, bounds, { sync = typeof requestAnimationFrame 
   let cancelled = false
   const grid = makeGrid(bounds)
   const t0 = typeof performance !== "undefined" ? performance.now() : Date.now()
-  grid.tris = rasterize(root, grid)
-  grid.rasterMs = (typeof performance !== "undefined" ? performance.now() : Date.now()) - t0
+  const raster = rasterJobs(root, grid)
   const publish = () => {
     if (cancelled) return
     const tex = toTexture(grid, finishAO(grid))
@@ -233,16 +245,26 @@ export const bakeVenueAO = (root, bounds, { sync = typeof requestAnimationFrame 
     Object.assign(lastAO, { ms: Math.round(grid.ms), tris: grid.tris, cells: grid.nx * grid.nz, rasterMs: Math.round(grid.rasterMs) })
     onDone?.(grid)
   }
+  const rasterDone = () => {
+    grid.tris = raster.tris()
+    grid.rasterMs = (typeof performance !== "undefined" ? performance.now() : Date.now()) - t0
+  }
   if (sync) {
+    for (const job of raster.jobs) raster.run(job)
+    rasterDone()
     aoRows(grid, 0, grid.nz)
     publish()
     return () => {}
   }
+  let r = 0
   let j = 0
   const step = () => {
     if (cancelled) return
     const until = performance.now() + budgetMs
-    while (j < grid.nz && performance.now() < until) {
+    // first the height map, then the AO rows, a few ms a frame
+    while (r < raster.jobs.length && performance.now() < until) raster.run(raster.jobs[r++])
+    if (r === raster.jobs.length && grid.rasterMs === undefined) rasterDone()
+    while (r === raster.jobs.length && j < grid.nz && performance.now() < until) {
       const j1 = Math.min(grid.nz, j + 8)
       aoRows(grid, j, j1)
       j = j1

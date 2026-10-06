@@ -1345,14 +1345,15 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
   updateRacks()
   park.setBoard([{ name: me.name, text: me.rep ? repLine(me.rep) : "Newcomer · 0-0", you: true }])
 
-  // post-processing on High at a real venue (post.js: bloom on the lights, FXAA, a mild
+  // post-processing on High at a real venue (post.js: bloom on the lights, MSAA, a mild
   // vignette; colors through one tone curve). Off with localStorage 98ish.park.post = "0".
   // (Ambient occlusion is baked into the surfaces instead: occlusion.js.)
   let postFlag = true
   try {
     postFlag = typeof localStorage === "undefined" || localStorage.getItem("98ish.park.post") !== "0"
   } catch {}
-  const post = postFlag && quality === "high" && layout.id && layout.id !== "riverside" ? createPost(scene) : null
+  // (not on phones: the full-screen passes halved the frame rate in phone emulation; desktop High only)
+  const post = postFlag && !phone && quality === "high" && layout.id && layout.id !== "riverside" ? createPost(scene) : null
   const world = {
     scene,
     camera,
