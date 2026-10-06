@@ -1171,10 +1171,24 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
       if (!inGame) setScreen("watch")
       return
     }
+    if (handoff?.id && handoff.floppy) return void (floppyGo.current = handoff.floppy)
     if (!handoff?.id || !(handoff.session || handoff.match || handoff.venue)) return
     setClubHandoff(handoff)
     if (!inGame) setScreen("club")
   }, [handoff?.id])
+  // Floppy asked for a mode ("start pickleball practice"): once the game is up, unless one is on
+  const floppyGo = useRef(null)
+  useEffect(() => {
+    const f = floppyGo.current
+    if (!f || phase === "loading" || phase === "error" || inGame) return
+    floppyGo.current = null
+    if (f.mode === "quick") setScreen("quick")
+    else if (f.mode === "practice") (setHubView("hub"), setScreen("practice"))
+    else if (f.mode === "park") f.venue ? startPark(f.venue) : pickPark()
+    else if (f.mode === "real") setScreen("club")
+    else if (f.mode === "online") setScreen("online")
+    else if (f.mode === "tour") setScreen("tour")
+  }, [handoff?.id, phase])
   const isOnline = session?.kind === "online"
   const b = bindingsFor(prefs.keys)
   const keyText = (s) =>

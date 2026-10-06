@@ -19,8 +19,10 @@ const swManifest = () => ({
         return statSync(full).isDirectory() ? walk(full) : ['/' + relative('public', full).replace(/[\\/]+/g, '/')]
       })
     const skip = new Set(['/sw.js', '/sw-manifest.json'])
-    // (Venue Finder's index, megabytes of shards, loads only when someone searches: not precached)
-    const all = [...new Set([...files, ...walk('public')])].filter((f) => !skip.has(f) && !f.endsWith('.map') && !f.startsWith('/venues/idx/'))
+    // (Venue Finder's index, megabytes of shards, loads only when someone searches: not precached;
+    // nor Floppy's brain, the AI worker and its 27 MB WebAssembly runtime, only for people who opt in)
+    const onDemand = (f) => f.startsWith('/venues/idx/') || f.endsWith('.wasm') || /\/brain\.worker-[^/]+\.js$/.test(f)
+    const all = [...new Set([...files, ...walk('public')])].filter((f) => !skip.has(f) && !f.endsWith('.map') && !onDemand(f))
     this.emitFile({
       type: 'asset',
       fileName: 'sw-manifest.json',

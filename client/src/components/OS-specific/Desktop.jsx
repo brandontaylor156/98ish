@@ -105,6 +105,7 @@ const Hangout = lazyApp(() => import("../applets/hangout/Hangout"))
 const VB98 = lazyApp(() => import("../applets/vb98/VB98"))
 const HangoutLayer = React.lazy(() => import("../applets/hangout/HangoutLayer"))
 const PbClubBridge = React.lazy(() => import("../applets/pbclub/PbClubBridge"))
+const FloppyBridge = React.lazy(() => import("../applets/floppy/FloppyBridge"))
 const Find = lazyApp(() => import("../applets/find/Find"))
 // 98ish Help (Start > Help, F1, Help > Help Topics: utils/help.js openHelp)
 const HelpViewer = lazyApp(() => import("../applets/help/HelpViewer"))
@@ -1197,6 +1198,7 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
           <LocatorBridge socket={socket} />
           <HangoutLayer windows={windows} dispatch={dispatch} mobile={mobile} />
           <PbClubBridge socket={socket} />
+          <FloppyBridge />
         </React.Suspense>
       </NetProvider>
     </AimProvider>

@@ -3,10 +3,16 @@ import { setSettings, useSettings } from "../../utils/settings"
 import { useTour } from "../../utils/welcome"
 import { openHelp } from "../../utils/help"
 import "./Helper.css"
+import "../applets/floppy/Floppy.css"
+
+// Ask Floppy (applets/floppy): a chat that does things; loaded when first used
+const FloppyChat = React.lazy(() => import("../applets/floppy/FloppyChat"))
 
 // Floppy, the 98ish helper: a floppy disk who pops up with tips when you open things.
 // Click him for another tip. Hide him from his bubble or in Display Properties. A tip about a
-// program offers "Help for this program" (98ish Help at its topic).
+// program offers "Help for this program" (98ish Help at its topic). Every bubble has an
+// "Ask Floppy..." box: plain commands work at once, and an opt-in on-device model (his
+// "brain") understands more (applets/floppy, docs/floppy-brain.md).
 
 const WELCOME = "Hi, I'm Floppy! I hold 1.44 MB of helpful tips. Click me any time for one."
 const WELCOME_PHONE = WELCOME.replace("Click", "Tap")
@@ -208,9 +214,11 @@ const GENERAL = [
 
 const pick = (list) => list[Math.floor(Math.random() * list.length)]
 
-const Helper = ({ windows, mobile }) => {
+const Helper = ({ windows, mobile, dispatch }) => {
   const settings = useSettings()
   const [tip, setTip] = useState(null)
+  const [chat, setChat] = useState(null) // null | { first: question or "" }
+  const [askText, setAskText] = useState("")
   const [tipProgram, setTipProgram] = useState(null) // the program the tip is about
   const [mood, setMood] = useState("idle") // idle | talk | wave
   const seen = useRef(new Set())
@@ -263,6 +271,12 @@ const Helper = ({ windows, mobile }) => {
   // on phones every window fills the screen: only appear on the bare desktop
   if (mobile && windows.some((w) => !w.closed && !w.minimized)) return null
 
+  const openChat = (first = "") => {
+    setTip(null)
+    setAskText("")
+    setChat({ first, n: Date.now() })
+  }
+
   const nextTip = () => {
     const open = windows.filter((w) => !w.closed && !w.minimized && TIPS[w.program || w.name])
     const pool = [...GENERAL.map((text) => [text, null]), ...open.flatMap((w) => TIPS[w.program || w.name].map((text) => [text, w.program || w.name]))]
@@ -273,9 +287,26 @@ const Helper = ({ windows, mobile }) => {
 
   return (
     <div className="helper" data-mood={mood}>
-      {tip && (
+      {chat && (
+        <React.Suspense fallback={<div className="helperBubble">Floppy is coming...</div>}>
+          <FloppyChat key={chat.n} first={chat.first} windows={windows} dispatch={dispatch} mobile={mobile} onClose={() => setChat(null)} />
+        </React.Suspense>
+      )}
+      {tip && !chat && (
         <div className="helperBubble" role="status">
           <p>{tip}</p>
+          <form
+            className="helperAsk"
+            onSubmit={(e) => {
+              e.preventDefault()
+              if (askText.trim()) openChat(askText.trim())
+            }}
+          >
+            <input type="text" value={askText} onChange={(e) => setAskText(e.target.value)} placeholder="Ask Floppy..." aria-label="Ask Floppy" maxLength={300} data-helper-ask />
+            <button type="submit" disabled={!askText.trim()}>
+              Ask
+            </button>
+          </form>
           <div className="helperButtons">
             <button type="button" onClick={() => setTip(null)}>
               Thanks!

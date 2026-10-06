@@ -1,0 +1,162 @@
+/* Ask Floppy: a chat in Floppy's tooltip-yellow bubble */
+
+.flChat {
+  position: relative;
+  width: min(300px, calc(100vw - 32px));
+  max-height: min(460px, calc(100vh - var(--taskbar-h, 28px) - 120px));
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  background: #ffffe1;
+  color: #000;
+  border: 1px solid #000;
+  border-radius: 10px;
+  box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.35);
+  font-family: Tahoma, Verdana, Arial, sans-serif;
+  font-size: 12px;
+  line-height: 1.4;
+  animation: helperPop 0.18s ease-out;
+}
+.flChat::after {
+  content: "";
+  position: absolute;
+  right: 26px;
+  bottom: -9px;
+  width: 14px;
+  height: 14px;
+  background: #ffffe1;
+  border-right: 1px solid #000;
+  border-bottom: 1px solid #000;
+  transform: skewX(30deg) rotate(45deg);
+}
+.flChat.is-mobile {
+  width: calc(100vw - 32px);
+  font-size: 14px;
+}
+
+.flTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.flTop b {
+  font-size: 12px;
+}
+.flChat .flClose {
+  min-width: 0;
+  min-height: 0;
+  width: 20px;
+  height: 18px;
+  padding: 0;
+  line-height: 1;
+}
+
+.flLog {
+  flex: 1;
+  min-height: 60px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  user-select: text;
+  -webkit-user-select: text;
+}
+.flHint {
+  margin: 0;
+  color: #555;
+}
+.flMsg p {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.flMsg--you {
+  align-self: flex-end;
+  max-width: 85%;
+  padding: 3px 7px;
+  background: #fff;
+  border: 1px solid #808080;
+}
+.flMsg--floppy {
+  align-self: flex-start;
+  max-width: 95%;
+}
+.flThinking {
+  margin: 0;
+  color: #555;
+  font-style: italic;
+}
+
+.flResults {
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.flResults button {
+  width: 100%;
+  min-width: 0;
+  text-align: left;
+  font-size: 11px;
+  padding: 2px 6px;
+  white-space: normal;
+}
+.flResults small {
+  color: #555;
+  margin-left: 4px;
+}
+
+.flAsk {
+  display: flex;
+  gap: 4px;
+}
+.flAsk input {
+  flex: 1;
+  min-width: 0;
+}
+.flAsk button {
+  min-width: 52px;
+  padding: 0 6px;
+}
+
+.flMore {
+  font-size: 11px;
+}
+.flStatus {
+  margin: 4px 0;
+}
+.flMore progress {
+  width: 100%;
+}
+.flMore button {
+  min-width: 0;
+  padding: 0 8px;
+  margin-top: 4px;
+  font-size: 11px;
+}
+
+.flOffer p,
+.flConfirm {
+  margin: 0 0 8px;
+  max-width: 34ch;
+}
+
+/* the bubble's own "Ask Floppy..." row under a tip */
+.helperAsk {
+  display: flex;
+  gap: 4px;
+  margin-top: 6px;
+}
+.helperAsk input {
+  flex: 1;
+  min-width: 0;
+}
+.helperAsk button {
+  min-width: 0;
+  padding: 0 8px;
+  font-size: 11px;
+}

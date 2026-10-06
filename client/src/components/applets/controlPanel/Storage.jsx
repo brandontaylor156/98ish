@@ -10,6 +10,7 @@ import KeepSafe, { useKeepSafe } from "../../shared/KeepSafe"
 import MoreOptions from "../../shared/MoreOptions"
 import { getSyncFolders, statusText, useDriveSync } from "../../../utils/driveSync"
 import { isIos, isStandalone } from "../../../utils/push"
+import { brainBytes, deleteBrain } from "../floppy/brain"
 
 // What the space in this browser holds, for the breakdown: localStorage keys by what uses
 // them (after the per-person prefix 98ish.u.<id>. is taken off)
@@ -72,6 +73,27 @@ const Pie = ({ used, total }) => {
 // Storage: how much this browser lets 98ish keep and how much it uses (the Storage API's
 // estimate, which covers everything 98ish keeps here), whether the browser may clear it,
 // what uses it, and the Recycle Bin.
+// Floppy's brain (applets/floppy): the on-device AI model's files, if downloaded
+const FloppyBrainRow = () => {
+  const [bytes, setBytes] = useState(0)
+  const look = () => brainBytes().then(setBytes)
+  useEffect(() => {
+    look()
+  }, [])
+  if (!bytes) return null
+  return (
+    <fieldset>
+      <legend>Floppy's brain</legend>
+      <div className="cplRow">
+        <span data-storage="floppy">On-device AI model for Ask Floppy: {bytesText(bytes)}</span>
+        <button type="button" className="cplEnd" onClick={() => deleteBrain().then(look)} data-action="delete-floppy-brain">
+          Delete
+        </button>
+      </div>
+    </fieldset>
+  )
+}
+
 const Storage = ({ dispatch, onClose }) => {
   useFsVersion()
   const [estimate, setEstimate] = useState(null) // { usage, quota, usageDetails } | "none"
@@ -210,6 +232,7 @@ const Storage = ({ dispatch, onClose }) => {
           </table>
         </fieldset>
       </MoreOptions>
+      <FloppyBrainRow />
       <fieldset>
         <legend>Recycle Bin</legend>
         <div className="cplRow">
