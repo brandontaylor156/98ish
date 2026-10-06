@@ -243,6 +243,15 @@ export const specFromOsm = (raw, venue) => {
   courts = courts.filter((c) => !c.plain || pbCourts.some((p) => Math.hypot(p.x - c.x, p.z - c.z) < 40))
   if (!pbCourts.length) courts = courts.filter((c) => !c.plain)
 
+  // only pickleball lines on tennis courts (no court of its own): each such tennis court
+  // becomes 2 pickleball courts across it (the usual conversion), so there's somewhere to play
+  if (!courts.some((c) => c.s === "pickleball") && courts.some((c) => c.s === "tennis" && c.pb)) {
+    courts = courts.flatMap((c) => {
+      if (c.s !== "tennis" || !c.pb) return [c]
+      const a = (c.a * Math.PI) / 180
+      return [-1, 1].map((k) => ({ ...c, id: `${c.id}-${k}`, x: c.x + Math.cos(a) * k * 4.6, z: c.z + Math.sin(a) * k * 4.6, a: c.a + 90, s: "pickleball", pb: 0, onTennis: 1 }))
+    })
+  }
   // a hall tagged pickleball with nothing mapped inside: courts laid out in its footprint
   let synthHall = null
   if (!courts.some((c) => !c.plain)) {

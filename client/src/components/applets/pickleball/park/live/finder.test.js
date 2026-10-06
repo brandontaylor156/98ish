@@ -166,6 +166,18 @@ test("live spec: a sports centre tagged pickleball with nothing inside gets cour
   assert.ok(g.layoutSpec.courts.length >= 1)
 })
 
+test("live spec: only pickleball lines on tennis courts -> 2 playable courts across each", () => {
+  const lat = 36
+  const lon = -115
+  const proj = makeProj(lat, lon)
+  const els = [0, 1, 2].map((i) => rectEl(proj, 50 + i, i * 18, 0, 17, 34.7, { leisure: "pitch", sport: "tennis;pickleball" }))
+  const spec = specFromOsm({ elements: els }, { id: "ow50", lat, lon, r: 30, courts: 0, onTennis: 3, flags: 0 })
+  assert.equal(spec.courts.filter((c) => c.s === "p").length, 6)
+  assert.equal(spec.courts.filter((c) => c.s === "t").length, 0)
+  const g = generateVenue(spec)
+  assert.ok(g.layoutSpec.courts.length >= 4, `live ${g.layoutSpec.courts.length}`)
+})
+
 test("live spec: a bare pin (no courts mapped) still builds a small open slab", () => {
   const spec = specFromOsm({ elements: [] }, { id: "on5", lat: 1, lon: 1, r: 0, courts: 3, onTennis: 0, flags: 2 })
   assert.equal(spec.courts.length, 3)
