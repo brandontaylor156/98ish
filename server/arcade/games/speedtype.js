@@ -26,6 +26,7 @@ module.exports = {
   minPlayers: 1,
   maxPlayers: 5,
   fillTo: 4, // Quick Match: computer racers fill up to four
+  autoFill: true, // ...by themselves when nobody else turns up (rooms.js), so a solo Quick Match starts
   tickMs: 200,
   ready,
   get defaultSettings() {

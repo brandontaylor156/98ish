@@ -1063,7 +1063,7 @@ export const topics = [
           "**Race Your Ghost:** your own best run of a text.",
           "**Daily Prompt:** today's text, the same for everyone.",
           "**Practice Drills** for tricky keys, or your own text.",
-          "**Play Online:** Quick Match, private rooms with a code, invitations, Best of 3 and Sudden Death. See [[online-play]].",
+          "**Play Online:** Quick Match (if nobody else turns up within about 15 seconds, computer racers fill the lanes and the race starts), private rooms with a code, invitations, Best of 3 and Sudden Death. See [[online-play]].",
           "Race Your Ghost, the Daily Prompt, Practice Drills and Statistics are under **More modes »** on the title screen.",
         ],
       },
