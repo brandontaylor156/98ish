@@ -472,50 +472,53 @@ export const buildTrees = (group, byKind, { keep = (x) => x, rand = Math.random 
 
 // ---------------------------------------------------------------- cars
 
+// side profiles (x along the car, y up): a full-width lower body to the beltline and a
+// narrower cabin on it (real cars taper above the doors), the glass just proud of the cabin
 const carShapes = {
-  sedan: { body: [[-2.25, 0.32], [-2.25, 0.78], [-2.0, 0.88], [-1.35, 0.92], [-0.95, 1.38], [0.45, 1.4], [1.05, 0.95], [2.05, 0.84], [2.25, 0.62], [2.25, 0.32]], cabin: [3, 4, 5, 6], wheelZ: 1.38, track: 0.8 },
-  suv: { body: [[-2.3, 0.36], [-2.3, 1.02], [-2.18, 1.64], [0.55, 1.66], [1.3, 1.1], [2.2, 1.0], [2.3, 0.72], [2.3, 0.36]], cabin: [1, 2, 3, 4], wheelZ: 1.45, track: 0.84 },
-  hatch: { body: [[-1.95, 0.32], [-1.95, 0.9], [-1.75, 1.42], [0.35, 1.44], [1.0, 0.98], [1.85, 0.86], [2.0, 0.62], [2.0, 0.32]], cabin: [1, 2, 3, 4], wheelZ: 1.22, track: 0.78 },
+  sedan: { lower: [[-2.25, 0.32], [-2.25, 0.8], [-2.0, 0.92], [2.05, 0.88], [2.25, 0.64], [2.25, 0.32]], cabin: [[-1.45, 0.9], [-0.95, 1.38], [0.45, 1.4], [1.15, 0.9]], cw: 1.42, wheelZ: 1.38, track: 0.8, front: 2.25, back: -2.25, lightY: 0.74 },
+  suv: { lower: [[-2.3, 0.36], [-2.3, 1.06], [2.2, 1.04], [2.3, 0.76], [2.3, 0.36]], cabin: [[-2.22, 1.04], [-2.12, 1.66], [0.55, 1.68], [1.35, 1.04]], cw: 1.52, wheelZ: 1.45, track: 0.84, front: 2.3, back: -2.3, lightY: 0.9 },
+  hatch: { lower: [[-1.95, 0.32], [-1.95, 0.94], [1.85, 0.9], [2.0, 0.66], [2.0, 0.32]], cabin: [[-1.92, 0.92], [-1.75, 1.44], [0.35, 1.46], [1.05, 0.92]], cw: 1.44, wheelZ: 1.22, track: 0.78, front: 2.0, back: -1.95, lightY: 0.76 },
+}
+const extrude = (pts, width, bevel) => {
+  const g = new THREE.ExtrudeGeometry(new THREE.Shape(pts.map(([x, y]) => new THREE.Vector2(x, y))), bevel ? { depth: width - 0.12, bevelEnabled: true, bevelThickness: 0.06, bevelSize: 0.05, bevelSegments: 1, curveSegments: 1 } : { depth: width, bevelEnabled: false })
+  g.translate(0, 0, -(bevel ? width - 0.12 : width) / 2)
+  g.rotateY(Math.PI / 2)
+  return g
 }
 const carGeos = (kind) => {
   const k = carShapes[kind]
-  const shape = new THREE.Shape(k.body.map(([x, y]) => new THREE.Vector2(x, y)))
-  const W = 1.74
-  const body = new THREE.ExtrudeGeometry(shape, { depth: W - 0.16, bevelEnabled: true, bevelThickness: 0.08, bevelSize: 0.07, bevelSegments: 1, curveSegments: 1 })
-  body.translate(0, 0, -(W - 0.16) / 2)
-  body.rotateY(Math.PI / 2)
+  const W = 1.76
+  const lower = extrude(k.lower, W, true)
+  const cabin = extrude(k.cabin, k.cw, true)
+  const body = mergeGeometries([lower, cabin].map((g) => (g.index ? g.toNonIndexed() : g)), false)
+  lower.dispose()
+  cabin.dispose()
   body.computeVertexNormals()
-  // the glass: the cabin's outline a little inside the roof and outside the slopes
-  const [a, b, c, d] = k.cabin.map((i) => new THREE.Vector2(...k.body[i]))
-  const lerp = (p, q, t) => p.clone().lerp(q, t)
-  const out = (p, q, amt) => {
-    const n = new THREE.Vector2(q.y - p.y, p.x - q.x).normalize().multiplyScalar(-amt)
-    return n
+  // the glass: the cabin's outline, out a little on the slopes, down a little from the roof
+  const [a, b, c, d] = k.cabin.map(([x, y]) => new THREE.Vector2(x, y))
+  const out = (p, q, amt) => new THREE.Vector2(q.y - p.y, p.x - q.x).normalize().multiplyScalar(-amt)
+  const nb = out(a, b, 0.035)
+  const nd = out(c, d, 0.035)
+  const g = [a.clone().lerp(b, 0.06).add(nb), a.clone().lerp(b, 0.9).add(nb).add(new THREE.Vector2(0, -0.07)), c.clone().lerp(d, 0.1).add(nd).add(new THREE.Vector2(0, -0.07)), c.clone().lerp(d, 0.94).add(nd)]
+  const glass = extrude(g.map((v) => [v.x, v.y]), k.cw + 0.03, false)
+  // wheels (an open tire and a rim disc on the outside) and lamps (white front, red back)
+  const parts = []
+  const paint = (geo, c) => {
+    geo.setAttribute("color", new THREE.Float32BufferAttribute(new Array(geo.attributes.position.count).fill(c).flat(), 3))
+    if (geo.attributes.uv) geo.deleteAttribute("uv")
+    return geo
   }
-  const nb = out(a, b, 0.03)
-  const nd = out(c, d, 0.03)
-  const g = [lerp(a, b, 0.08).add(nb), lerp(a, b, 0.9).add(nb).add(new THREE.Vector2(0, -0.06)), lerp(c, d, 0.1).add(nd).add(new THREE.Vector2(0, -0.06)), lerp(c, d, 0.92).add(nd)]
-  const glass = new THREE.ExtrudeGeometry(new THREE.Shape(g), { depth: W + 0.02, bevelEnabled: false })
-  glass.translate(0, 0, -(W + 0.02) / 2)
-  glass.rotateY(Math.PI / 2)
-  // wheels: a tire and a rim (vertex colors)
-  const wheels = []
   for (const sx of [-1, 1])
     for (const sz of [-1, 1]) {
-      // (an open tire and a rim disc on its outer face: few triangles)
-      const tire = new THREE.CylinderGeometry(0.34, 0.34, 0.24, 9, 1, true).rotateZ(Math.PI / 2)
-      const rim = new THREE.CircleGeometry(0.22, 7).rotateY(sx * Math.PI / 2).translate(sx * 0.125, 0, 0)
-      const paint = (geo, c) => geo.setAttribute("color", new THREE.Float32BufferAttribute(new Array(geo.attributes.position.count).fill(c).flat(), 3))
-      paint(tire, [0.07, 0.07, 0.08])
-      paint(rim, [0.62, 0.64, 0.67])
-      for (const geo of [tire, rim]) {
-        geo.translate(sx * k.track, 0.34, sz * k.wheelZ)
-        geo.deleteAttribute("uv")
-        wheels.push(geo)
-      }
+      parts.push(paint(new THREE.CylinderGeometry(0.34, 0.34, 0.24, 9, 1, true).rotateZ(Math.PI / 2).translate(sx * k.track, 0.34, sz * k.wheelZ), [0.07, 0.07, 0.08]))
+      parts.push(paint(new THREE.CircleGeometry(0.22, 7).rotateY((sx * Math.PI) / 2).translate(sx * (k.track + 0.125), 0.34, sz * k.wheelZ), [0.62, 0.64, 0.67]))
     }
-  const wheel = mergeGeometries(wheels, false)
-  wheels.forEach((x) => x.dispose())
+  for (const sx of [-1, 1]) {
+    parts.push(paint(new THREE.PlaneGeometry(0.34, 0.12).translate(sx * 0.6, k.lightY, k.front + 0.01), [1.6, 1.6, 1.5]))
+    parts.push(paint(new THREE.PlaneGeometry(0.34, 0.12).rotateY(Math.PI).translate(sx * 0.6, k.lightY, k.back - 0.01), [0.9, 0.08, 0.06]))
+  }
+  const wheel = mergeGeometries(parts.map((x) => (x.index ? x.toNonIndexed() : x)), false)
+  parts.forEach((x) => x.dispose())
   return { body, glass, wheel }
 }
 

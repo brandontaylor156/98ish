@@ -504,6 +504,28 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
             ctx.fillRect(k, 0, 1, w)
             ctx.fillRect(0, k, w, 1)
           }
+        } else if (kind === "pad") {
+          // padded wall panels, 1 m wide (3 a tile): pillowed, stitched near the edges, dark joints
+          for (let px = 0; px < w; px += Math.round(w / 3)) {
+            const pw = Math.round(w / 3)
+            const g = ctx.createLinearGradient(px, 0, px + pw, 0)
+            g.addColorStop(0, "rgba(0,0,0,0.30)")
+            g.addColorStop(0.18, "rgba(255,255,255,0.0)")
+            g.addColorStop(0.5, "rgba(255,255,255,0.10)")
+            g.addColorStop(0.82, "rgba(255,255,255,0.0)")
+            g.addColorStop(1, "rgba(0,0,0,0.30)")
+            ctx.fillStyle = g
+            ctx.fillRect(px, 0, pw, w)
+            ctx.fillStyle = "rgba(0,0,0,0.6)"
+            ctx.fillRect(px, 0, 2, w)
+            ctx.fillStyle = "rgba(255,255,255,0.35)"
+            for (let y = 4; y < w; y += 6) {
+              ctx.fillRect(px + 5, y, 1, 3)
+              ctx.fillRect(px + pw - 6, y, 1, 3)
+            }
+          }
+          ctx.fillStyle = "rgba(0,0,0,0.3)"
+          ctx.fillRect(0, 0, w, 3)
         } else if (kind === "slats") {
           // vertical wood slats
           for (let x = 0; x < w; x += 6) {
@@ -1387,8 +1409,9 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
     const padH = h.padH || 2.2
     // (one-sided: from outside, in a cutaway, you see through them; quilted blankets, cinder
     // block, panels: a texture tinted by the color)
-    const padMap = surfaceTexFor(h.padTex || h.wallTex)
-    const wallMap = surfaceTexFor(h.wallTex)
+    // (Medium/High: a hall without its own finishes gets padded panels below, insulated panels above)
+    const padMap = surfaceTexFor(h.padTex || h.wallTex || (detail ? "pad" : null))
+    const wallMap = surfaceTexFor(h.wallTex || (detail ? "panel" : null))
     // (Medium/High: the quilting, block joints and panel seams in relief)
     const padN = detail && padMap ? normalFor(padMap, 3) : null
     const wallN = detail && wallMap ? normalFor(wallMap, 2.5) : null
@@ -1490,7 +1513,9 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
     }
     // (facing down it only gets the ground's fill light: a little of its own so its color reads)
     const ceilColor = new THREE.Color(hex(h.ceiling, 0xc8ccd2))
-    const ceil = new THREE.Mesh(flatDown(p, H - 0.05), lambert(ceilColor.getHex(), { emissive: ceilColor.clone().multiplyScalar(0.35) }))
+    // (Medium/High: a ceiling grid of insulated panels, seams in relief)
+    const ceilMap = detail ? floorTexFor("grid") : null
+    const ceil = new THREE.Mesh(flatDown(p, H - 0.05), lambert(ceilColor.getHex(), { emissive: ceilColor.clone().multiplyScalar(0.35), ...(ceilMap ? { map: ceilMap, normalMap: normalFor(ceilMap, 2) } : {}) }))
     group.add(ceil)
     // the door: a frame and a lit sign over it (unless a room's or the hall's own listed door
     // is there and draws its own)
