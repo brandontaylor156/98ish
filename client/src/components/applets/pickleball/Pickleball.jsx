@@ -33,7 +33,8 @@ import { getClone } from "./twin/clone/store.js"
 import { cloneLevel } from "./twin/clone/profile.js"
 // Real Games (the pickleball you play in real life: sessions, scorekeeper, matches, ladder; applets/pbclub, server/pbclub)
 const RealGames = React.lazy(() => import("../pbclub/PbClub"))
-import { ParkHud, ParkIntro, ParkMenu, ParkResult, ParkTurn, RealFriendsBar } from "./park/ParkHud"
+import { ParkHud, ParkIntro, ParkMenu, ParkResult, ParkTurn, RealFriendsBar, VoiceChip } from "./park/ParkHud"
+import { useParkVoice } from "./park/useParkVoice.js"
 import { badgeText, friendsAt } from "./park/presence.js"
 import { useLiveCourt } from "./twin/live/useLiveCourt.js"
 import { useLocate } from "../../../utils/locate"
@@ -256,6 +257,8 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
     return { name: online.me?.name || characterById(p.character).nick, look: lookForPlayer(p, { character: p.character, outfit: p.outfit }, "park"), rep: validRep(p.parkRep) }
   }
   const parkNet = usePark({ world: parkWorld, active: !!parkWorld, me: parkWorld ? myParkInfo() : null })
+  // spatial voice in My Park (park menu > Voice; utils/voice)
+  const parkVoice = useParkVoice({ world: parkWorld, joined: parkNet.joined, park: parkNet.park })
   // Live Venue Presence (park/presence.js): Buddy Locator friends physically at a real venue.
   // The server decides who's where ({ id, area }: a venue and a court, nothing finer) and only
   // for friends who share their location with you; they stand in My Park "here for real".
@@ -1411,8 +1414,10 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
             venueName={parkWorld?.layout?.name || "My Park"}
             onVenues={() => (setParkUi((u) => ({ ...u, menu: false })), setParkPick(true))}
             onLeave={leavePark}
+            voice={{ ...parkVoice, names: parkWorld?.voicePlace?.().names || {} }}
           />
         )}
+        {parkWorld && parkVoice.state.status !== "off" && !parkUi.menu && <VoiceChip voice={parkVoice} />}
         {parkUi.result && (phase === "over" || online.phase === "over") && (
           <ParkResult
             result={parkUi.result}

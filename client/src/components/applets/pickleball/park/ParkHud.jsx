@@ -151,7 +151,7 @@ export const ParkVenues = ({ list = [], current = "riverside", favs = [], loadin
 }
 
 // the menu: resume, the courts (watch any of them), say something, the Locker Room, leave
-export const ParkMenu = ({ courts = [], rep, online, venueName = "My Park", onResume, onWatch, onSay, onEmote, onLocker, onVenues, onLeave }) => {
+export const ParkMenu = ({ courts = [], rep, online, venueName = "My Park", onResume, onWatch, onSay, onEmote, onLocker, onVenues, onLeave, voice = null }) => {
   const lv = repLevel(rep?.points || 0)
   return (
     <div className="pkCenter pkDim" onClick={(e) => e.target === e.currentTarget && onResume()}>
@@ -164,6 +164,7 @@ export const ParkMenu = ({ courts = [], rep, online, venueName = "My Park", onRe
           Park rep: <b>{lv.name}</b> · {rep?.wins || 0}-{rep?.losses || 0}
           {lv.next ? <small> ({lv.toNext} to {lv.next})</small> : null}
         </p>
+        {voice?.supported && <VoiceMenu voice={voice} names={voice.names || {}} />}
         <div className="pkParkCourts">
           {courts.map((c) => (
             <div key={c.id} className="pkParkCourtRow">
@@ -206,6 +207,70 @@ export const ParkMenu = ({ courts = [], rep, online, venueName = "My Park", onRe
           </button>
         </div>
       </div>
+    </div>
+  )
+}
+
+// ---------- spatial voice (useParkVoice.js) ----------
+// In the menu: turn voice on or off, push to talk, and mute anyone you hear.
+const VoiceMenu = ({ voice, names }) => {
+  const v = voice.state
+  const live = v.status === "on" || v.status === "paused" || v.status === "starting"
+  const heard = Object.keys(v.peers || {})
+  return (
+    <div className="pkParkVoice" data-park="voice">
+      <button type="button" className={live ? "pkPrimary" : ""} onClick={voice.toggle} data-park="voice-toggle" aria-pressed={live}>
+        {v.status === "starting" ? "Voice: starting..." : live ? "Voice: On" : "Voice: Off"}
+      </button>
+      <small>{live ? (heard.length ? `Hearing ${heard.length} ${heard.length === 1 ? "person" : "people"} near you` : "Nobody near you has voice on yet") : "Talk to people near you in the park"}</small>
+      {live && (
+        <label className="pkParkVoicePtt">
+          <input type="checkbox" checked={!!v.ptt} onChange={(e) => voice.session?.setPushToTalk(e.target.checked)} data-park="voice-ptt" />
+          <span>Push to talk</span>
+        </label>
+      )}
+      {live && heard.length > 0 && (
+        <div className="pkParkVoicePeople">
+          {heard.map((id) => (
+            <button type="button" key={id} onClick={() => voice.session?.muteFriend(Number(id), !v.peers[id].muted)} data-park={`voice-mute-${id}`}>
+              {v.peers[id].muted ? "Unmute" : "Mute"} {names[id] || `Player ${id}`}
+            </button>
+          ))}
+        </div>
+      )}
+      {v.error && <p className="pkParkVoiceErr">{v.error}</p>}
+    </div>
+  )
+}
+
+// On screen while voice is on: a mic chip (tap: mute yourself), and a hold-to-talk button
+// with push to talk
+export const VoiceChip = ({ voice }) => {
+  const v = voice?.state
+  if (!v || v.status === "off") return null
+  if (v.status === "error") return null
+  const s = voice.session
+  const heard = Object.values(v.peers || {}).filter((p) => p.state === "connected" || p.level > 0).length
+  return (
+    <div className="pkVoiceChip" data-park="voice-chip" data-talking={v.talking ? "1" : undefined}>
+      <button type="button" className={`pkVoiceMic${v.muted ? " is-muted" : ""}`} onClick={() => s?.setMuted(!v.muted)} aria-label={v.muted ? "Unmute your microphone" : "Mute your microphone"} data-park="voice-mute">
+        <span aria-hidden="true">{v.muted ? "🔇" : "🎙"}</span>
+        <b>{v.status === "paused" ? "Voice paused" : v.muted ? "Muted" : "Mic on"}</b>
+        <small>{v.status === "paused" ? "Back in 98ish to talk" : `${heard} near you`}</small>
+      </button>
+      {v.ptt && !v.muted && (
+        <button
+          type="button"
+          className={`pkVoicePtt${v.pressed ? " is-down" : ""}`}
+          onPointerDown={(e) => (e.currentTarget.setPointerCapture?.(e.pointerId), s?.press(true))}
+          onPointerUp={() => s?.press(false)}
+          onPointerCancel={() => s?.press(false)}
+          data-park="voice-hold"
+          data-touch-surface
+        >
+          Hold to talk
+        </button>
+      )}
     </div>
   )
 }
