@@ -60,7 +60,10 @@ const AREA_FILL = { lawn: "#6f9a45", urban: "#b9b4a6", school: "#bdb7a6", grass:
 const AREA_ORDER = ["urban", "school", "grass", "rec", "wood", "play", "lawn", "paved", "parking", "pool", "water"]
 const ROAD = { major: ["#4b4e53", 1], road: ["#55585d", 2], service: ["#5f6267", 3], aisle: ["#5f6267", 3], cycle: ["#9a8f80", 4], foot: ["#d2cbbb", 5] }
 
-export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene: S, quality = "medium" }) => {
+// cutaway: a game on one of an indoor venue's courts (courtvenue.js): the halls without their
+// outside walls and roofs, so the match camera outside the walls sees in (the inside walls and
+// the ceiling face inward only: from outside you look through them)
+export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene: S, quality = "medium", cutaway = false }) => {
   const rand = seeded(S.id.length * 7919 + 13)
   const m4 = new THREE.Matrix4()
   const q = new THREE.Quaternion()
@@ -345,11 +348,14 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
         const bz = a[1] + ((b[1] - a[1]) * e) / len + nz * o
         const u0 = (u + s) / 3
         const u1 = (u + e) / 3
-        // two triangles, wound to face outward (or inward)
-        const tri = inward
-          ? [ax, y0, az, ax, y1, az, bx, y0, bz, bx, y0, bz, ax, y1, az, bx, y1, bz]
-          : [ax, y0, az, bx, y0, bz, ax, y1, az, bx, y0, bz, bx, y1, bz, ax, y1, az]
-        const tuv = inward ? [u0, y0 / 3, u0, y1 / 3, u1, y0 / 3, u1, y0 / 3, u0, y1 / 3, u1, y1 / 3] : [u0, y0 / 3, u1, y0 / 3, u0, y1 / 3, u1, y0 / 3, u1, y1 / 3, u0, y1 / 3]
+        // two triangles, wound to face outward (or inward): the order a0, b0, a1 faces
+        // (-dz, dx); flip it when that isn't the way wanted
+        const faceOut = -(bz - az) * nx + (bx - ax) * nz > 0
+        const asIs = faceOut !== inward
+        const tri = asIs
+          ? [ax, y0, az, bx, y0, bz, ax, y1, az, bx, y0, bz, bx, y1, bz, ax, y1, az]
+          : [ax, y0, az, ax, y1, az, bx, y0, bz, bx, y0, bz, ax, y1, az, bx, y1, bz]
+        const tuv = asIs ? [u0, y0 / 3, u1, y0 / 3, u0, y1 / 3, u1, y0 / 3, u1, y1 / 3, u0, y1 / 3] : [u0, y0 / 3, u0, y1 / 3, u1, y0 / 3, u1, y0 / 3, u0, y1 / 3, u1, y1 / 3]
         pos.push(...tri)
         uvs.push(...tuv)
       }
@@ -366,6 +372,14 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
     const shape = new THREE.Shape(p.map(([x, z]) => new THREE.Vector2(x, -z)))
     const g = new THREE.ShapeGeometry(shape)
     g.rotateX(-Math.PI / 2)
+    g.translate(0, y, 0)
+    return keep(g)
+  }
+  // the same, facing down (a ceiling)
+  const flatDown = (p, y) => {
+    const shape = new THREE.Shape(p.map(([x, z]) => new THREE.Vector2(x, z)))
+    const g = new THREE.ShapeGeometry(shape)
+    g.rotateX(Math.PI / 2)
     g.translate(0, y, 0)
     return keep(g)
   }
@@ -424,8 +438,9 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
     // (a hall's outside walls are drawn with its inside, cut for the door)
     if (!b.hall) group.add(new THREE.Mesh(wallRing(b.p, 0, b.h), wallMatFor(color, ribs)))
     const roofMat = roofMatFor(hex(b.r, ROOFS[kind] ?? ROOFS.yes))
+    if (b.hall && cutaway) continue
     if (b.rs === "gable" && !b.hall) group.add(new THREE.Mesh(gableRoof(b.p, b.h), roofMat))
-    else group.add(new THREE.Mesh(flat(b.p, b.h), roofMat))
+    else group.add(new THREE.Mesh(flat(b.p, b.h), b.hall ? lambert(hex(b.r, ROOFS.hall)) : roofMat))
   }
 
   // ---------- the halls: inside ----------
@@ -439,12 +454,13 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
     // the inside of the walls: pale above, padding below; the ceiling, facing down
     const gap = h.doorAt ? { x: h.doorAt.x, z: h.doorAt.z, w: h.doorAt.w } : null
     const padH = h.padH || 2.2
-    group.add(new THREE.Mesh(wallRing(p, 0, padH, { inward: true, gap, offset: 0.12 }), lambert(hex(h.pads, 0x1d2f5a), { side: THREE.DoubleSide })))
-    group.add(new THREE.Mesh(wallRing(p, padH, H, { inward: true, gap, offset: 0.12 }), lambert(hex(h.wall, 0xd9d4c8), { side: THREE.DoubleSide })))
+    // (one-sided: from outside, in a cutaway, you see through them)
+    group.add(new THREE.Mesh(wallRing(p, 0, padH, { inward: true, gap: cutaway ? null : gap, offset: 0.12 }), lambert(hex(h.pads, 0x1d2f5a))))
+    group.add(new THREE.Mesh(wallRing(p, padH, H, { inward: true, gap: cutaway ? null : gap, offset: 0.12 }), lambert(hex(h.wall, 0xd9d4c8))))
     // (the outside walls: cut for the door too)
-    group.add(new THREE.Mesh(wallRing(p, 0, H, { gap, offset: 0.02 }), wallMatFor(hex(h.outside, WALLS.hall), true)))
+    if (!cutaway) group.add(new THREE.Mesh(wallRing(p, 0, H, { gap, offset: 0.02 }), lambert(hex(h.outside, WALLS.hall), { map: ribsTex })))
     // (over the door: the wall closes again above 3.2 m)
-    if (gap) {
+    if (gap && !cutaway) {
       const a = p[h.doorAt.i]
       const b = p[(h.doorAt.i + 1) % p.length]
       const L = Math.hypot(b[0] - a[0], b[1] - a[1])
@@ -460,10 +476,12 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
       lg.rotation.y = -Math.atan2(uz, ux)
       group.add(lg)
     }
-    const ceil = new THREE.Mesh(flat(p, H - 0.05), lambert(hex(h.ceiling, 0xc8ccd2), { side: THREE.DoubleSide }))
+    // (facing down it only gets the ground's fill light: a little of its own so its color reads)
+    const ceilColor = new THREE.Color(hex(h.ceiling, 0xc8ccd2))
+    const ceil = new THREE.Mesh(flatDown(p, H - 0.05), lambert(ceilColor.getHex(), { emissive: ceilColor.clone().multiplyScalar(0.35) }))
     group.add(ceil)
     // the door: a frame and a lit sign over it
-    if (h.doorAt) {
+    if (h.doorAt && !cutaway) {
       const a = p[h.doorAt.i]
       const b = p[(h.doorAt.i + 1) % p.length]
       const ry = -Math.atan2(b[1] - a[1], b[0] - a[0])

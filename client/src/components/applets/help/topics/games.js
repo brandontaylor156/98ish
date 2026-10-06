@@ -236,7 +236,7 @@ export const topics = [
     book: "games-action",
     title: "Pickleball 98",
     summary: "3D pickleball with real rules, lessons, a ball machine, drills, a walk-around park with open play, a World Tour and online singles and doubles.",
-    keywords: ["pickleball", "My Park", "park", "open play", "call next", "paddle stacking", "spectate", "watch", "park rep", "dink", "kitchen", "serve", "World Tour", "doubles", "drive", "lob", "paddle", "Locker Room", "outfit", "customize", "swimsuit", "beach", "winter", "practice", "ball machine", "drill", "lesson", "coach", "third shot drop", "reset", "split step", "two-bounce rule", "how to play", "swipe", "move pad", "left-handed", "camera", "swing trail", "swipe trail", "sound", "pop"],
+    keywords: ["pickleball", "My Park", "park", "venue", "real venues", "Los Cab", "Newport Beach", "Wolf + Bear", "Whittier Narrows", "iPickle", "Paseo Club", "Sinaloa", "California SMASH", "indoor", "favorites", "OpenStreetMap", "open play", "call next", "paddle stacking", "spectate", "watch", "park rep", "dink", "kitchen", "serve", "World Tour", "doubles", "drive", "lob", "paddle", "Locker Room", "outfit", "customize", "swimsuit", "beach", "winter", "practice", "ball machine", "drill", "lesson", "coach", "third shot drop", "reset", "split step", "two-bounce rule", "how to play", "swipe", "move pad", "left-handed", "camera", "swing trail", "swipe trail", "sound", "pop"],
     programs: ["Pickleball 98"],
     body: [
       "Pickleball 98 is pickleball in 3D, with real rules and real ball physics. Play the computer, learn the game in Practice, go on a World Tour, play a friend on the same keyboard, or play people online.",
@@ -274,6 +274,17 @@ export const topics = [
         ],
       },
       "Online, other 98ish people in the same park walk around with you, with their names over them, and can call next on the same court: then you play each other (computer players fill the other spots). A park holds 16 people; more open another one.",
+      { h: "Real venues" },
+      "**My Park** first asks **where to?**: Riverside Park, or one of seven real Southern California venues: Los Cab Sports Village (Fountain Valley), The Tennis & Pickleball Club at Newport Beach, Wolf + Bear Indoor Pickleball (Van Nuys), iPickle Whittier Narrows (South El Monte), The Paseo Club (Valencia), Sinaloa Middle School (Simi Valley) and California SMASH (El Segundo). Tap one to go; **☆** stars your favorites so they're first. **Change venue...** is in the park's menu.",
+      {
+        list: [
+          "Each venue is built from the real map: every court where it really is and turned the way it's turned, its banks of fences, the clubhouse and other buildings round it, parking lots, trees and palms, and for the indoor clubs the hall itself (walls, a door, the lights, and at SMASH the raised lounge and the bar). Court colors and the look come from what the clubs look like; the drawing is 98ish's own.",
+          "A few courts at each venue have live games, regulars and a paddle rack (they're numbered like the venue's own courts, e.g. **Court 35**), and the other courts have people playing too. Your game is played **on the court you walked up to**, with the rest of the venue round you.",
+          "Online, friends who pick the **same venue** meet there. Different venues are different parks.",
+          "Some details are best guesses (for example where Wolf + Bear's private court is, or which tennis courts at Whittier Narrows have pickleball lines). No location is needed or used.",
+          "Map data © OpenStreetMap contributors, available under the Open Database License.",
+        ],
+      },
       { h: "How a good player plays" },
       {
         steps: [

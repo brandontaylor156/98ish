@@ -34,7 +34,7 @@ const fit = (ctx, text, size, min, width) => {
 // a box's y rotation that lays its length (local x) along the direction (ax, az)
 const yawFor = (ax, az) => Math.atan2(-az, ax)
 
-export const buildPark = (scene, { quality = "medium", layout = RIVERSIDE_LAYOUT } = {}) => {
+export const buildPark = (scene, { quality = "medium", layout = RIVERSIDE_LAYOUT, cutaway = false } = {}) => {
   const L = layout
   const { BENCHES, BOARD, BOOTH, BOUNDS, COURTS, FOUNTAIN, LIGHTS, MACHINE_COURT, TREES } = L
   const S = L.spec.scene || null // a real venue's scenery (venuegen.js)
@@ -189,7 +189,7 @@ export const buildPark = (scene, { quality = "medium", layout = RIVERSIDE_LAYOUT
     group.add(machineGroup)
   } else {
     // a real venue: its ground, every court, fences, buildings, parking, the hall (scenery.js)
-    scenery = buildScenery({ group, keep, lambert, std, kit, layout: L, scene: S, quality })
+    scenery = buildScenery({ group, keep, lambert, std, kit, layout: L, scene: S, quality, cutaway })
     groundMat = scenery.groundMat
     for (const c of S.courts) {
       if (c.live !== null && c.live !== undefined) courtGroups[c.live] = scenery.courtGroup(c)

@@ -5,7 +5,7 @@
 
 import * as THREE from "three"
 
-const MAX = 64
+const MAX = 112 // (the crowd plus a real venue's other courts: a few players on each)
 const LEG = 0.86
 const ARM = 0.6
 

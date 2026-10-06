@@ -255,6 +255,52 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
     }
   }
 
+  // ---------- a real venue's other courts: a doubles game on about half of them ----------
+  // Cheap figures only (the mannequin crowd): four in ready stances, shuffling a little and
+  // swinging now and then; drawn when near and in view. They don't play a real match.
+  const LOOKS = ["#2f6fd6", "#e63946", "#ffd23f", "#2a9d8f", "#f4a261", "#6a4c93", "#ffffff", "#1d3557"]
+  const SKINS = ["#f1c7a5", "#d39a6a", "#a0663d", "#6b4226", "#e8b98f"]
+  const ambient = (layout.spec.scene?.courts || [])
+    .filter((c) => c.s === "p" && (c.live === null || c.live === undefined) && !c.machine)
+    .filter((c, i) => ((i * 2654435761) >>> 0) % 100 < 55)
+    .map((c, i) => {
+      const s = Math.sin(c.rot)
+      const co = Math.cos(c.rot)
+      const at = (lx, lz) => ({ x: c.x + lx * co + lz * s, z: c.z - lx * s + lz * co })
+      const spots = [
+        [-1.5, -5.6, 0],
+        [1.5, -3.2, 0],
+        [-1.4, 4.8, Math.PI],
+        [1.6, 5.8, Math.PI],
+      ]
+      return {
+        x: c.x,
+        z: c.z,
+        people: spots.map(([lx, lz, yaw], k) => ({ ...at(lx, lz), yaw: yaw + c.rot, phase: (i * 4 + k) * 1.7, look: { shirt: LOOKS[(i * 3 + k) % LOOKS.length], skin: SKINS[(i + k * 2) % SKINS.length], bottomColor: k % 2 ? "#1d3557" : "#2b2b2b", hairColor: k % 3 ? "#2b1b0e" : "#8a5a2b", paddle: LOOKS[(i + k) % LOOKS.length] } })),
+      }
+    })
+  const ambSphere = new THREE.Sphere(new THREE.Vector3(), 9)
+  const drawAmbient = () => {
+    if (!ambient.length) return
+    const cx = camera.position.x
+    const cz = camera.position.z
+    let courtsDrawn = 0
+    for (const a of ambient) {
+      if (courtsDrawn >= 10) break
+      if (Math.hypot(a.x - cx, a.z - cz) > 60) continue
+      ambSphere.center.set(a.x, 1, a.z)
+      if (!frustum.intersectsSphere(ambSphere)) continue
+      courtsDrawn++
+      for (const p of a.people) {
+        const t = clock + p.phase
+        // (a shuffle and a swing every few seconds)
+        const sway = Math.sin(t * 1.3)
+        const swing = Math.max(0, Math.sin(t * 0.9) - 0.85) * 6
+        mann.add({ x: p.x + Math.cos(p.yaw) * sway * 0.25, z: p.z - Math.sin(p.yaw) * sway * 0.25, yaw: p.yaw, speed: Math.abs(sway) * 0.8, phase: t * 3, seat: null, swing: Math.min(1, swing), look: p.look })
+      }
+    }
+  }
+
   // ---------- figures: who gets a real athlete ----------
   const BUDGET_MAX = phone ? 5 : quality === "high" ? 14 : 10
   let budget = phone ? 3 : 8
@@ -850,6 +896,7 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
         blobs.setMatrixAt(nb++, bm4)
       }
     }
+    drawAmbient()
     mann.end()
     blobs.count = nb
     blobs.instanceMatrix.needsUpdate = true
@@ -1253,6 +1300,10 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
     },
     get suspended() {
       return suspended
+    },
+    // (the hour the park shows: a game on one of its courts uses the same light)
+    get hour() {
+      return hourOverride ?? hourOf()
     },
     get mode() {
       return me.mode

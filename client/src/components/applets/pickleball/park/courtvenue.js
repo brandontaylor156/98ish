@@ -13,7 +13,8 @@ export const buildCourtVenue = (scene, { layout, courtId = null, quality = "medi
   const c = courtId === "machine" ? layout.MACHINE_COURT : layout.COURTS.find((k) => k.id === courtId) || layout.COURTS[0]
   const holder = new THREE.Group()
   // (buildPark adds its group to what it's given and sets fog on it: a stand-in "scene")
-  const park = buildPark(holder, { quality, layout })
+  // (an indoor venue: a cutaway, so the match camera outside the walls sees in)
+  const park = buildPark(holder, { quality, layout, cutaway: !!layout.spec.indoor })
   const d = dayLook(hour ?? hourOf())
   park.setDayLook(d)
   // the court's frame -> the engine's: turn by -rot about the court's middle

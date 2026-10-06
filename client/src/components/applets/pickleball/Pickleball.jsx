@@ -539,7 +539,8 @@ const Pickleball = ({ onClose, mobile }) => {
     const make = courtVenueRef.current
     if (!w?.layout || !make || court === null || court === undefined) return "park"
     const layout = w.layout
-    return { key: `park:${layout.id}:${court}`, build: (scene, o) => make(scene, { layout, courtId: court, quality: o.quality }), room: layout.spec.indoor ? "hall" : "park" }
+    const hour = w.hour
+    return { key: `park:${layout.id}:${court}`, build: (scene, o) => make(scene, { layout, courtId: court, quality: o.quality, hour }), room: layout.spec.indoor ? "hall" : "park" }
   }
   const [parkPick, setParkPick] = useState(false)
   const [parkLoading, setParkLoading] = useState(null)
