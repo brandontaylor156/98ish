@@ -433,6 +433,92 @@ export const cosine = (a, b) => {
 // a few words from the question are enough for keyword ranking
 export const helpQuery = (q) => tokenize(q).filter((w) => !/^(i|a|an|the|to|my|do|can|how|what|is|in|on|of)$/.test(w)).join(" ") || q
 
+// ---- routing: which tool (small models can't pick from 13 tools in one prompt) ----
+// The embedding model compares the question with these examples; the language model then only
+// fills in one tool's arguments (a tiny prompt: fast on a phone's CPU, and far more accurate).
+
+export const TOOL_EXAMPLES = {
+  open_program: ["open paint", "launch the calculator", "I want to draw something", "show me my computer", "let me write a document", "start minesweeper", "I'd like to browse the web", "open my email"],
+  search: ["find my beach photos", "search for the grocery list", "where is my resume", "look for anything about tacos"],
+  open_help: ["how do I change the wallpaper", "how can I lock my computer", "what does do not disturb do", "explain how file sync works"],
+  create_reminder: ["remind me to call mom at 6", "don't let me forget the dentist tomorrow", "ping me in 20 minutes to check the oven", "remember to buy paddles friday"],
+  create_event: ["put dinner with Sam on my calendar saturday at 7", "schedule a meeting monday at 10", "add the tournament to my calendar on the 12th"],
+  create_task: ["add buy milk to my to-do list", "new task: fix the bike", "I need to do laundry this week, add it as a task"],
+  create_note: ["jot down that I need new paddles", "take a note: gate code is 4512", "write this down: book ideas", "make a note about the trip"],
+  send_im: ["tell Sam I'm running late", "message Mia that dinner is ready", "send Jordan a message saying good game", "let Alex know I'm on my way"],
+  set_dnd: ["turn on do not disturb", "silence notifications for an hour", "don't bother me for a while", "turn quiet mode off"],
+  pickleball: ["start pickleball practice", "let's play a quick match", "take me to the park at Los Cab", "score my real pickleball game", "play pickleball online"],
+  play_music: ["play some music", "put on my songs", "play that song I like", "I want to listen to music"],
+  watch_together: ["watch this youtube video with Sam", "let's watch a video together"],
+  open_file: ["open the file budget.txt", "open my resume document", "show the photo called beach"],
+  chat: ["who are you", "who made you", "tell me a joke", "how are you today", "what can you do", "thanks Floppy", "what is the meaning of life"],
+}
+
+// -> { tool, score, margin } (tool "chat" = just talk)
+export const routeByVectors = (qvec, exampleVecs) => {
+  const best = {}
+  for (const [tool, vecs] of Object.entries(exampleVecs)) best[tool] = Math.max(...vecs.map((v) => cosine(v, qvec)))
+  const ranked = Object.entries(best).sort((a, b) => b[1] - a[1])
+  return { tool: ranked[0][0], score: ranked[0][1], margin: ranked[0][1] - (ranked[1]?.[1] ?? 0), ranked }
+}
+
+// a few words about each argument for the slot-filling prompt
+const argHint = (k, v) => (v.enum ? `${k}: one of ${v.enum.length > 40 ? v.enum.slice(0, 40).join(", ") + ", ..." : v.enum.join(", ")}` : `${k}: ${v.type}${v.description ? ` (${v.description})` : ""}`)
+
+export const SLOT_EXAMPLES = {
+  open_program: ["I want to draw", { name: "Paint" }],
+  search: ["find my beach photos", { query: "beach photos" }],
+  open_help: ["how do I change the wallpaper", { subject: "change the wallpaper" }],
+  create_reminder: ["remind me to call mom tomorrow at 6pm", { text: "Call mom", date: "tomorrow", time: "18:00" }],
+  create_event: ["dinner with Sam saturday at 7pm", { title: "Dinner with Sam", date: "saturday", time: "19:00" }],
+  create_task: ["add buy milk to my list", { title: "Buy milk" }],
+  create_note: ["jot down that the gate code is 4512", { title: "Gate code", body: "4512" }],
+  send_im: ["tell Sam I'm running late", { to: "Sam", text: "I'm running late" }],
+  set_dnd: ["silence everything for an hour", { on: true, minutes: 60 }],
+  pickleball: ["let's practice pickleball", { mode: "practice" }],
+  play_music: ["play some music", {}],
+  watch_together: ["watch https://youtu.be/abcdefghijk with Mia", { url: "https://youtu.be/abcdefghijk", with: "Mia" }],
+  open_file: ["open budget.txt", { name: "budget.txt" }],
+}
+
+// the tiny prompt that fills one tool's arguments
+// a long list of allowed values (every program) cut to the ones the question is likely about
+export const likelyValues = (values, user, max = 24) => {
+  if (values.length <= max) return values
+  const words = tokenize(user).filter((w) => w.length >= 3)
+  const score = (v) => {
+    const f = fold(v)
+    return words.reduce((s, w) => s + (f.includes(w) ? 3 : f.split(/[^a-z0-9]+/).some((x) => x.startsWith(w.slice(0, 4))) ? 1 : 0), 0)
+  }
+  const hinted = programFor(user.replace(/^.*\b(open|launch|start|play|show)\s+/i, ""), values)
+  const ranked = values.map((v) => [v, score(v)]).filter(([, s]) => s > 0).sort((a, b) => b[1] - a[1]).map(([v]) => v)
+  const common = ["Paint", "Notepad", "My Computer", "Compass", "Calculator", "Minesweeper", "Solitaire", "98 Messenger", "Music 98", "Photos", "Calendar", "Notes", "Pickleball 98", "WordPad", "Camera"]
+  return [...new Set([hinted, ...ranked, ...common.filter((c) => values.includes(c)), ...values].filter(Boolean))].slice(0, max)
+}
+
+export const slotMessages = (tool, user, { today, time }) => {
+  const [ex, exArgs] = SLOT_EXAMPLES[tool.name] || ["", {}]
+  const props = Object.entries(tool.parameters.properties).map(([k, v]) => [k, v.enum ? { ...v, enum: likelyValues(v.enum, user) } : v])
+  return [
+    { role: "system", content: `Extract the arguments for "${tool.name}" (${tool.description}) as one line of JSON. Today is ${today}, it's ${time}.\nArguments:\n${props.map(([k, v]) => `- ${argHint(k, v)}${tool.parameters.required.includes(k) ? " (required)" : ""}`).join("\n")}` },
+    { role: "user", content: ex },
+    { role: "assistant", content: JSON.stringify(exArgs) },
+    { role: "user", content: String(user).slice(0, 300) },
+  ]
+}
+// the model's arguments -> a parsed call (same checks as a full tool call)
+export const parseSlots = (text, tool, tools) => {
+  const raw = String(text || "")
+  const obj = raw.includes('"tool"') ? raw : `{"tool":"${tool.name}","args":${raw.slice(raw.indexOf("{")) || "{}"}}`
+  return parseModelOutput(obj, tools)
+}
+
+// a short chat answer (no tools): who Floppy is, small talk, or a help page in words
+export const chatMessages = (user, { grounding = [] } = {}) => [
+  { role: "system", content: `You are Floppy, the cheerful floppy-disk helper of 98ish, a Windows 98-style computer. Answer in one or two short, friendly sentences.${grounding.length ? `\nUseful help pages:\n${grounding.map((g) => `* ${g.title}: ${g.text}`).join("\n")}` : ""}` },
+  { role: "user", content: String(user).slice(0, 300) },
+]
+
 // ---- the model ----
 
 export const MODELS = {

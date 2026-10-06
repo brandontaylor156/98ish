@@ -14,7 +14,7 @@ import { taskDraft } from "../tasks/tasksCore"
 import { VENUE_LIST } from "../pickleball/park/venues/index.js"
 import { TOPICS } from "../help/topics/index.js"
 import { topicText } from "../help/helpCore.js"
-import { buildMessages, buildTools, dayIn, describeCall, needsConfirm, parseModelOutput, rankHelp, resolveDate, ruleIntent, systemPrompt } from "./floppyCore"
+import { TOOL_EXAMPLES, buildTools, chatMessages, dayIn, describeCall, needsConfirm, parseSlots, rankHelp, resolveDate, routeByVectors, ruleIntent, slotMessages } from "./floppyCore"
 import { embed, generate, getBrain } from "./brain"
 
 // 98 Messenger lives inside the desktop's AimProvider; FloppyBridge hands it over
@@ -156,7 +156,7 @@ export const runTool = async (call, { dispatch }) => {
 
 const CANT = "I'm not sure what you mean. Try \"open Paint\", \"remind me to call Sam at 7\", or \"how do I change my wallpaper?\""
 
-export const ask = async (text, { history = [], dispatch, onToken } = {}) => {
+export const ask = async (text, { dispatch, onToken } = {}) => {
   const tools = currentTools()
   const z = zone()
   const reg = registry()
@@ -175,18 +175,55 @@ export const ask = async (text, { history = [], dispatch, onToken } = {}) => {
     return { reply: brain ? CANT : `${CANT} Or give me a brain (More options) and I'll understand much more.` }
   }
 
-  // the model, with a retry that explains what was wrong
+  return askModel(text, { dispatch, onToken })
+}
+
+// the model: the embedding model picks the tool, the language model fills its arguments
+// (also called directly by tests, skipping the rules)
+export const askModel = async (text, { dispatch, onToken, run = true } = {}) => {
+  const tools = currentTools()
+  const z = zone()
+  const act = async (call) => (!run ? { call } : needsConfirm(tools, call) ? { confirm: call } : { call, result: await runTool(call, { dispatch }) })
   const now = Date.now()
   const today = dayIn(now, z)
-  const grounding = (await findHelp(text, { useVectors: true })).slice(0, 2).map((p) => ({ title: p.title, text: p.summary }))
-  const system = systemPrompt({ tools, today: `${today.date} (${["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][today.weekday]})`, time: new Date(now).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: z }), grounding })
-  let messages = buildMessages({ system, history, user: text })
-  for (let attempt = 0; attempt < 2; attempt++) {
-    const out = await generate(messages, { onToken, max: 120 })
-    const parsed = parseModelOutput(out, tools)
-    if (parsed.ok && parsed.reply) return { reply: parsed.reply, help: grounding.length ? (await findHelp(text)).slice(0, 1) : undefined, raw: out }
-    if (parsed.ok && parsed.call) return { ...(await act(parsed.call)), raw: out }
-    messages = [...messages, { role: "assistant", content: out }, { role: "user", content: `That wasn't valid: ${parsed.error} Answer again with ONE line of JSON only.` }]
+  const when = { today: `${today.date} (${["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][today.weekday]})`, time: new Date(now).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: z }) }
+  const route = await routeQuestion(text)
+  if (route.tool === "open_help") {
+    const pages = await findHelp(text, { useVectors: true })
+    if (pages.length) return { reply: `This help page should answer it: "${pages[0].title}". ${pages[0].summary}`, help: pages.slice(0, 2), route }
   }
-  return { reply: CANT }
+  if (route.tool !== "chat" && route.score >= ROUTE_MIN) {
+    const tool = tools.find((t) => t.name === route.tool)
+    let messages = slotMessages(tool, text, when)
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const out = await generate(messages, { max: 60 })
+      const parsed = parseSlots(out, tool, tools)
+      if (parsed.ok && parsed.call) return { ...(await act(parsed.call)), raw: out, route }
+      messages = [...messages, { role: "assistant", content: out }, { role: "user", content: `That wasn't valid: ${parsed.error} Answer again with the JSON arguments only.` }]
+    }
+  }
+  // just talk (with help pages for context)
+  const grounding = (await findHelp(text, { useVectors: true })).slice(0, 2).map((p) => ({ title: p.title, text: p.summary }))
+  const out = await generate(chatMessages(text, { grounding }), { onToken, max: 70 })
+  const reply = out.replace(/^\s*\{\s*"reply"\s*:\s*"?|"?\s*\}\s*$/g, "").trim()
+  return { reply: reply || CANT, raw: out, route }
+}
+
+// ---- routing ----
+const ROUTE_MIN = 0.45
+let exampleVecs = null
+const routeQuestion = async (text) => {
+  try {
+    if (!exampleVecs) {
+      const entries = Object.entries(TOOL_EXAMPLES)
+      const flat = entries.flatMap(([, ex]) => ex)
+      const vecs = await embed(flat)
+      let i = 0
+      exampleVecs = Object.fromEntries(entries.map(([tool, ex]) => [tool, ex.map(() => vecs[i++])]))
+    }
+    const [qvec] = await embed([text])
+    return routeByVectors(qvec, exampleVecs)
+  } catch {
+    return { tool: "chat", score: 0, margin: 0 }
+  }
 }

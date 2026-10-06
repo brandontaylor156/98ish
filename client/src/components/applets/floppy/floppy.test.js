@@ -1,7 +1,7 @@
 // node --test client/src/components/applets/floppy/floppy.test.js
 import test from "node:test"
 import assert from "node:assert/strict"
-import { buildTools, needsConfirm, parseModelOutput, parseWhen, ruleIntent, rankHelp, describeCall, systemPrompt, buildMessages, closestOf, resolveDate } from "./floppyCore.js"
+import { buildTools, needsConfirm, parseModelOutput, parseWhen, ruleIntent, rankHelp, describeCall, systemPrompt, buildMessages, closestOf, resolveDate, TOOL_EXAMPLES, SLOT_EXAMPLES, routeByVectors, slotMessages, likelyValues, parseSlots, chatMessages } from "./floppyCore.js"
 import { readFileSync } from "node:fs"
 import { TOPICS } from "../help/topics/index.js"
 import { topicText } from "../help/helpCore.js"
@@ -102,6 +102,34 @@ test("anything that sends or changes something asks first", () => {
   assert.equal(needsConfirm(tools, { tool: "nope" }), false)
   assert.equal(describeCall({ tool: "send_im", args: { to: "Sam", text: "hi" } }), 'Send Sam the message "hi"')
   assert.equal(describeCall({ tool: "create_reminder", args: { text: "Call mom", date: "2026-10-07", time: "18:00" } }), 'Remind you: "Call mom" on Wed, Oct 7, 6:00 PM')
+})
+
+test("with the brain: route to one tool, then fill only its arguments", () => {
+  // every tool has routing examples and a slot example; "chat" is the talk-only class
+  for (const t of tools) {
+    assert.ok(TOOL_EXAMPLES[t.name]?.length >= 2, `examples for ${t.name}`)
+    assert.ok(SLOT_EXAMPLES[t.name], `slot example for ${t.name}`)
+  }
+  assert.ok(TOOL_EXAMPLES.chat.length >= 3)
+  // nearest example wins, with a margin
+  const ex = { open_program: [[1, 0, 0]], create_note: [[0, 1, 0]], chat: [[0, 0, 1]] }
+  const r = routeByVectors([0.1, 0.95, 0.1], ex)
+  assert.equal(r.tool, "create_note")
+  assert.ok(r.score > 0.9 && r.margin > 0.5)
+  // the slot prompt is tiny and only carries likely program names
+  const open = tools.find((t) => t.name === "open_program")
+  const msgs = slotMessages(open, "I feel like drawing something", { today: "2026-10-06", time: "11:00" })
+  const sys = msgs[0].content
+  assert.ok(sys.length < 1200, `slot prompt ${sys.length} chars`)
+  assert.match(sys, /Paint/)
+  assert.ok(likelyValues(PROGRAMS, "open the calculator").slice(0, 3).includes("Calculator"))
+  assert.equal(likelyValues(["A", "B"], "x").length, 2)
+  // the model's bare arguments become a checked call
+  assert.deepEqual(parseSlots('{"name":"paint"}', open, tools).call, { tool: "open_program", args: { name: "Paint" } })
+  const note = tools.find((t) => t.name === "create_note")
+  assert.deepEqual(parseSlots('Sure: {"title":"New paddles"}', note, tools).call, { tool: "create_note", args: { title: "New paddles" } })
+  assert.equal(parseSlots("{}", note, tools).ok, false)
+  assert.equal(chatMessages("who are you?")[0].role, "system")
 })
 
 test("help questions find the right page", () => {
