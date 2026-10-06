@@ -57,3 +57,8 @@
   max-height: 40vh;
   overflow-y: auto;
 }
+
+/* Received Items: send what came in to a shared album (Photos) */
+.shareAlbum {
+  margin-top: 8px;
+}

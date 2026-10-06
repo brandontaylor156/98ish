@@ -1,6 +1,6 @@
 // After Delete My Account (the server confirmed: server/account), this device forgets the
 // account: its remembered sign on, file sync's token and bookkeeping, the Address Book's
-// and Notes' link to it (shared notes stay here as plain copies), its notifications, cached mail headers and couple/town copies, its saved 98
+// and Notes' link to it (shared notes stay here as plain copies), Shared Albums' copies, its notifications, cached mail headers and couple/town copies, its saved 98
 // Messenger conversations and media (aim/history/historyDb.js), this browser's
 // push subscription, and the link from 98ish user profiles to the screen name. With
 // `eraseLocal`, the 98ish user logged on here also loses everything kept on this device (the
@@ -35,6 +35,8 @@ export const forgetAccountOnDevice = async ({ key, eraseLocal = false } = {}) =>
   await step(async () => (await import("./driveSync")).forgetSyncAccount(key))
   await step(async () => (await import("./contacts")).forgetContactsAccount(key))
   await step(async () => (await import("./notes")).forgetNotesAccount(key))
+  // Shared Albums: previews, photos and uploads waiting on this device
+  await step(async () => (await import("./albums")).forgetAlbumsAccount(key))
   await step(async () => (await import("./notifications")).forgetNotifications(key))
   // 98 Messenger conversations, pictures and voice messages this device kept for the account
   await step(async () => (await import("../components/applets/aim/history/historyDb")).eraseAccount(key))

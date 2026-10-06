@@ -33,6 +33,7 @@ export const APPS = {
   achievements: { name: "Achievements", icon: "/assets/program_icons/welcome.svg" },
   notes: { name: "Notes", icon: "/assets/program_icons/notes.svg" },
   tasks: { name: "Tasks", icon: "/assets/program_icons/tasks.svg" },
+  photos: { name: "Photos", icon: "/assets/program_icons/photos.svg" },
   system: { name: "98ish", icon: "/assets/start98.png" },
 }
 export const appInfo = (app) => APPS[app] || APPS.system
@@ -209,6 +210,8 @@ export const targetFromParams = (params) => {
     const extra = params.get("challenge") ? { challengeId: name("challenge") } : {}
     // a note (Notes) or a task (Tasks: a Calendar to-do event) to show
     if (params.get("note")) extra.handoff = { id: Date.now(), note: name("note") }
+    // a shared album (Photos)
+    else if (params.get("album")) extra.handoff = { id: Date.now(), album: name("album") }
     else if (params.get("event")) extra.handoff = { id: Date.now(), calendarId: name("cal"), eventId: name("event") }
     return { kind: "program", name: name("name"), extra }
   }

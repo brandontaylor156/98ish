@@ -20,6 +20,9 @@ import { EFFECTS } from "../camera/effects"
 import { FRAMES } from "../camera/frames"
 import Viewer from "./Viewer"
 import Slideshow from "./Slideshow"
+import Albums, { AlbumPicker } from "./Albums"
+import Memories, { MemoriesCard } from "./Memories"
+import { addToAlbum, albumsBadge, useAlbums } from "../../../utils/albums"
 import * as E from "./edits"
 import { CROP_ASPECTS, DRIVE_FULL, decodeUpload, editedName, imagesIn, initialCrop, kindOf, loadImage, pictureFolders, picturesFolder, savePicture, toJpeg, uploadName } from "./library"
 import { adjustFilterCss } from "../camera/effects"
@@ -33,6 +36,8 @@ import { useDisclosure } from "../../../utils/disclosure"
 // Edits stack up in memory (Undo goes back) and are written once, on Save. Pictures can
 // become the wallpaper, open in Paint or Photo Puzzle, travel by 98ish Mail or Network
 // Neighborhood, go to the Recycle Bin, come in from the real device and go back out.
+// Shared Albums (Albums.jsx: albums shared with buddies, with likes and comments) and
+// Memories (Memories.jsx: On this day, trips, slideshows with music) are two more views.
 
 const PREFS_KEY = "98ish.photos"
 const loadPrefs = () => {
@@ -69,6 +74,7 @@ const ICONS = {
   share: "M11 3l3 3-3 3M14 6H7a4 4 0 0 0-4 4v3",
   up: "M8 13V3M4 7l4-4 4 4",
   camera: "M2 5h3l1-2h4l1 2h3v8H2zM8 6.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5z",
+  albums: "M3 4h8v8H3zM5 2h8v8M5 10l2-3 2 2 2-2",
 }
 
 const Icon = ({ name }) => (
@@ -77,17 +83,23 @@ const Icon = ({ name }) => (
   </svg>
 )
 
-const Tool = ({ icon, label, onClick, disabled, on, title, expanded }) => (
-  <button type="button" className={`phTool${on ? " is-on" : ""}`} onClick={onClick} disabled={disabled} title={title || label} aria-label={expanded === undefined ? title || label : "Edit"} aria-expanded={expanded} aria-pressed={expanded === undefined ? on || undefined : undefined}>
+const Tool = ({ icon, label, onClick, disabled, on, title, expanded, badge }) => (
+  <button type="button" className={`phTool${on ? " is-on" : ""}${badge ? " alTool" : ""}`} onClick={onClick} disabled={disabled} title={title || label} aria-label={expanded === undefined ? (badge ? `${title || label} (${badge} new)` : title || label) : "Edit"} aria-expanded={expanded} aria-pressed={expanded === undefined ? on || undefined : undefined}>
     <Icon name={icon} />
     <span className="phToolLabel">{label}</span>
+    {badge ? <span className="alBadge">{badge}</span> : null}
   </button>
 )
 
 const FolderIcon = () => <img src="/assets/directory_folder.png" alt="" width="40" height="40" draggable={false} />
 
-const Photos = ({ file: initialFile = null, path = null, mobile, dispatch, onTitle, onClose, registerCloseGuard }) => {
+const Photos = ({ file: initialFile = null, path = null, handoff = null, mobile, dispatch, onTitle, onClose, registerCloseGuard }) => {
   useFsVersion()
+  const albums = useAlbums()
+  // "pictures" (the drive), "albums" (Shared Albums) or "memories"
+  const [mode, setMode] = useState(() => (handoff?.album ? "albums" : handoff?.memories ? "memories" : "pictures"))
+  const [albumStart, setAlbumStart] = useState(handoff?.album || null)
+  const [albumAdd, setAlbumAdd] = useState(null) // { sources, count } waiting for an album to be picked
   const net = useNet()
   const openGesture = useOpenGesture()
   // holding a tile on a touch screen opens its menu (iPhones send no contextmenu)
@@ -160,8 +172,21 @@ const Photos = ({ file: initialFile = null, path = null, mobile, dispatch, onTit
 
   useEffect(() => {
     if (!onTitle) return
+    if (mode === "albums") return onTitle("Shared Albums - Photos")
+    if (mode === "memories") return onTitle("Memories - Photos")
     onTitle(current ? `${current.name}${dirty ? " *" : ""} - Photos` : `${folder.name === "C:" ? "C:\\" : folder.name} - Photos`)
-  }, [current?.name, folder.name, dirty])
+  }, [current?.name, folder.name, dirty, mode])
+
+  // another program (a notification, Camera, Received Items) hands Photos an album to show,
+  // Memories, or pictures to add to a shared album
+  useEffect(() => {
+    if (!handoff) return
+    if (handoff.album) {
+      setAlbumStart(handoff.album)
+      setMode("albums")
+    } else if (handoff.memories) setMode("memories")
+    else if (handoff.addToAlbum?.length) setAlbumAdd({ sources: handoff.addToAlbum, count: handoff.addToAlbum.length })
+  }, [handoff?.id])
 
   // shutting down / closing warns about unsaved edits
   useEffect(() => (dirty ? trackUnsaved("Photos") : undefined), [dirty])
@@ -419,7 +444,7 @@ const Photos = ({ file: initialFile = null, path = null, mobile, dispatch, onTit
       setBusy(`Bringing in ${i + 1} of ${list.length}...`)
       try {
         const picture = await decodeUpload(list[i])
-        const result = await savePicture(into, uploadName(list[i].name), picture.data)
+        const result = await savePicture(into, uploadName(list[i].name), picture.data, { taken: picture.taken })
         if (!result.ok) {
           problems.push(result.error)
           break
@@ -479,6 +504,8 @@ const Photos = ({ file: initialFile = null, path = null, mobile, dispatch, onTit
   const has = !!target
   const viewing = !!current
   const shareItems = [
+    { label: "Add to Shared Album...", disabled: !has, onClick: () => askSave(() => setAlbumAdd({ sources: [{ file: target }], count: 1 })) },
+    "-",
     { label: "Set as Wallpaper", disabled: !has, onClick: setWallpaper },
     { label: "Open in Paint", disabled: !has, onClick: openInPaint },
     { label: "Use in Photo Puzzle", disabled: !has, onClick: usePuzzle },
@@ -524,7 +551,10 @@ const Photos = ({ file: initialFile = null, path = null, mobile, dispatch, onTit
     {
       label: "View",
       items: [
-        { label: "Thumbnails", checked: !viewing, onClick: () => viewing && closePhoto() },
+        { label: "My Pictures", checked: mode === "pictures" && !viewing, onClick: () => (setMode("pictures"), viewing && closePhoto()) },
+        { label: "Shared Albums", checked: mode === "albums", onClick: () => askSave(() => (setAlbumStart(null), setMode("albums"))) },
+        { label: "Memories", checked: mode === "memories", onClick: () => askSave(() => setMode("memories")) },
+        "-",
         { label: "Previous Picture", disabled: !viewing || items.length < 2, onClick: () => step(-1) },
         { label: "Next Picture", disabled: !viewing || items.length < 2, onClick: () => step(1) },
         "-",
@@ -570,6 +600,7 @@ const Photos = ({ file: initialFile = null, path = null, mobile, dispatch, onTit
       <Tool icon="upload" label="Upload" onClick={() => uploadRef.current?.click()} title="Upload pictures from your device" />
       <Tool icon="show" label="Slideshow" onClick={() => setSlideshow(Math.max(0, items.indexOf(selected)))} disabled={!items.length} />
       <Tool icon="camera" label="Camera" onClick={() => dispatch?.({ type: "open_window", payload: launch("Camera") })} />
+      <Tool icon="albums" label="Albums" onClick={() => (setAlbumStart(null), setMode("albums"))} title="Shared Albums" badge={albumsBadge(albums)} />
       {picked && <span className="phSep" />}
       {picked && <Tool icon="wallpaper" label="Wallpaper" onClick={setWallpaper} title="Set as Wallpaper" />}
       {picked && <Tool icon="trash" label="Delete" onClick={askDelete} />}
@@ -778,6 +809,54 @@ const Photos = ({ file: initialFile = null, path = null, mobile, dispatch, onTit
         ? `${formatBytes(usage.free)} free on drive C:`
         : ""
 
+  const saveShowPrefs = (patch) =>
+    setShowPrefs((p) => {
+      const next = { ...p, ...patch }
+      try {
+        localStorage.setItem(PREFS_KEY, JSON.stringify(next))
+      } catch {
+        // this visit only
+      }
+      return next
+    })
+
+  // pictures picked for a shared album: choose the album, then they queue up and go
+  const albumPickDialog = albumAdd && (
+    <AlbumPicker
+      count={albumAdd.count}
+      onCancel={() => setAlbumAdd(null)}
+      onPick={async (id) => {
+        const sources = albumAdd.sources
+        setAlbumAdd(null)
+        setBusy(`Getting ${sources.length === 1 ? "it" : `${sources.length} items`} ready...`)
+        const r = await addToAlbum(id, sources)
+        setBusy(null)
+        if (r.problems?.length) setDialog({ kind: "alert", title: "Shared Albums", text: r.problems.join(" ") })
+        setAlbumStart(id)
+        setMode("albums")
+      }}
+    />
+  )
+
+  if (mode !== "pictures")
+    return (
+      <div ref={rootRef} className={`phRoot${mobile ? " phRoot--mobile" : ""}`} tabIndex={-1}>
+        <MenuBar menus={menus} />
+        {mode === "albums" ? (
+          <Albums mobile={mobile} dispatch={dispatch} startAlbum={albumStart} onBack={() => setMode("pictures")} showPrefs={showPrefs} onShowPrefs={saveShowPrefs} />
+        ) : (
+          <Memories onBack={() => setMode("pictures")} showPrefs={showPrefs} onShowPrefs={saveShowPrefs} onOpenAlbum={(id) => (setAlbumStart(id), setMode("albums"))} />
+        )}
+        {albumPickDialog}
+        {busy && <div className="phBusy">{busy}</div>}
+        {dialog?.kind === "alert" && (
+          <Dialog title={dialog.title} onOk={() => setDialog(null)}>
+            <p className="dialogText">{dialog.text}</p>
+          </Dialog>
+        )}
+      </div>
+    )
+
   return (
     <div ref={rootRef} className={`phRoot${mobile ? " phRoot--mobile" : ""}`} tabIndex={-1}>
       <MenuBar menus={menus} />
@@ -806,6 +885,7 @@ const Photos = ({ file: initialFile = null, path = null, mobile, dispatch, onTit
         </div>
       )}
       {!current && <KeepSafe place="photos" />}
+      {!current && <MemoriesCard onOpen={() => setMode("memories")} />}
       <div className="phBody">{current ? viewer : grid}</div>
       {current && toolPanel}
       <div className="status-bar phStatus">
@@ -820,17 +900,7 @@ const Photos = ({ file: initialFile = null, path = null, mobile, dispatch, onTit
           items={items}
           start={slideshow}
           prefs={showPrefs}
-          onPrefs={(patch) =>
-            setShowPrefs((p) => {
-              const next = { ...p, ...patch }
-              try {
-                localStorage.setItem(PREFS_KEY, JSON.stringify(next))
-              } catch {
-                // this visit only
-              }
-              return next
-            })
-          }
+          onPrefs={saveShowPrefs}
           onExit={(item) => {
             setSlideshow(null)
             if (current && item && item !== current) setCurrent(item)
@@ -839,6 +909,7 @@ const Photos = ({ file: initialFile = null, path = null, mobile, dispatch, onTit
         />
       )}
       {menu && <ContextMenu x={menu.x} y={menu.y} items={menu.items} onClose={() => setMenu(null)} />}
+      {albumPickDialog}
       {dialog?.kind === "alert" && (
         <Dialog title={dialog.title} onOk={() => setDialog(null)}>
           <p className="dialogText">{dialog.text}</p>

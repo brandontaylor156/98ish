@@ -14,6 +14,7 @@ Moved from CLAUDE.md on 2026-10-05. Never print any value.
   - `DRIVE_SYNC_TOTAL_MB` (default 380): all accounts' synced contents together; past it uploads get a 413 "98ish's online storage is full" (files wait on the device), so Atlas never fills up and refuses every write (mail, calendars, accounts).
   - `DRIVE_SYNC_MAX_FILE_MB` (default 12): the biggest single file that syncs.
   - `IM_HISTORY_MAX_DOCS` (default 120000, ~55 MB): saved IMs for everyone together (oldest go first). `MSG_MEDIA_QUOTA_MB` (50 per account per 90 days), `MSG_MEDIA_TOTAL_MB` (200), `MSG_MEDIA_DAYS` (90), `MSG_MEDIA_SHARE` (0.5 of each Blob budget): pictures and voice messages in IMs (see "98 Messenger history").
+  - `ALBUM_QUOTA_MB` (40 per account), `ALBUM_TOTAL_MB` (150), `ALBUM_MAX_ITEMS` (2000 records, ~25 MB of Atlas at most), `ALBUM_SHARE` (0.25 of each Blob budget): Shared Albums in Photos (`server/albums`, `docs/apps.md`).
 
 ## Production config (Render)
 - Env vars on `srv-davi6cm7bikc73e5k5ig`: `MONGODB_URI`, `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` (https://98ish.vercel.app), `BLOB_READ_WRITE_TOKEN` (Vercel Blob store `98ish-drive`, private, pdx1). The startup log says "online storage bucket on (Vercel Blob)" or "kept in MongoDB". Set on 2026-10-04 through Render's REST API using the CLI's login (`~/.render/cli.yaml` api.key; `PUT /v1/services/<id>/env-vars/<KEY>`); the Render CLI itself has no env-var command. Never print values. Don't regenerate the VAPID keys: every device would have to turn notifications on again.

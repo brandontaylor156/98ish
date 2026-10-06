@@ -26,7 +26,7 @@ export const saveIncoming = async (dir, file) => {
   if (isPicture(file)) {
     try {
       const picture = await decodeUpload(file)
-      const result = await savePicture(dir, uploadName(file.name || "Photo"), picture.data)
+      const result = await savePicture(dir, uploadName(file.name || "Photo"), picture.data, { taken: picture.taken })
       return result.ok ? { ok: true, file: result.file } : { ok: false, error: result.error }
     } catch (error) {
       return { ok: false, error: error.message || `${file.name} couldn't be opened as a picture.` }

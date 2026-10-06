@@ -1,0 +1,560 @@
+/* Shared Albums and Memories inside Photos (98 look: raised buttons, sunken panels) */
+
+.alRoot,
+.alAlbum,
+.alItem,
+.meRoot {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.alTool {
+  position: relative;
+}
+
+.alBadge {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 3px;
+  border-radius: 8px;
+  background: #c00000;
+  color: #fff;
+  font-size: 10px;
+  line-height: 15px;
+  text-align: center;
+}
+
+.alSignOn {
+  padding: 16px;
+  max-width: 420px;
+}
+
+.alSignOn p {
+  margin: 0 0 10px;
+}
+
+.alEmpty {
+  padding: 16px;
+}
+
+/* the list of albums */
+.alList {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 8px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 8px;
+  align-content: start;
+  background: #fff;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+  margin: 0 4px;
+}
+
+.alCard {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  text-align: left;
+  padding: 6px;
+  min-height: 76px;
+}
+
+.alCard.is-new .alCardName {
+  font-weight: bold;
+}
+
+.alCardCover {
+  flex: none;
+  width: 64px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #808080;
+  box-shadow: inset 1px 1px #0a0a0a, inset -1px -1px #fff;
+  overflow: hidden;
+}
+
+.alCardCover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.alCardBlank {
+  font-size: 26px;
+}
+
+.alCardText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.alCardName {
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.alCardInfo {
+  color: #404040;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.alNew {
+  margin-left: 6px;
+  padding: 0 4px;
+  background: #000080;
+  color: #fff;
+  font-size: 10px;
+  font-weight: bold;
+}
+
+.alQueue {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 4px 4px;
+  padding: 3px 6px;
+  background: #ffffe1;
+  border: 1px solid #808080;
+}
+
+.alQueue span {
+  flex: 1;
+}
+
+.alQueueList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 50vh;
+  overflow: auto;
+  min-width: min(380px, 80vw);
+}
+
+.alQueueList li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0;
+  border-bottom: 1px solid #dfdfdf;
+}
+
+.alQueueList img {
+  width: 40px;
+  height: 40px;
+  object-fit: cover;
+}
+
+.alQueueText {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* one album */
+.alHead {
+  padding: 4px 8px 6px;
+}
+
+.alHeadName {
+  font-size: 15px;
+  font-weight: bold;
+}
+
+.alHeadInfo {
+  color: #404040;
+}
+
+.alMoreRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.alThumb {
+  position: relative;
+}
+
+.alThumbWait {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: repeating-linear-gradient(45deg, #c0c0c0 0 6px, #dfdfdf 6px 12px);
+}
+
+.alVideoMark {
+  position: absolute;
+  left: 2px;
+  bottom: 2px;
+  padding: 0 3px;
+  background: rgba(0, 0, 0, 0.7);
+  color: #fff;
+  font-size: 10px;
+}
+
+/* one photo */
+.alItemBody {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  gap: 4px;
+  padding: 0 4px 4px;
+}
+
+.alItemMedia {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  background: #000;
+}
+
+.alItemMedia > * {
+  flex: 1;
+}
+
+.alVideo {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #000;
+}
+
+.alItemWait {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: #c0c0c0;
+}
+
+.alItemWait img {
+  max-width: 60%;
+  max-height: 60%;
+  opacity: 0.6;
+}
+
+.alItemSide {
+  flex: none;
+  width: 240px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px;
+  background: #fff;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+  min-height: 0;
+}
+
+.alItemBy,
+.alItemCaption,
+.alLikes {
+  margin: 0;
+}
+
+.alLikes {
+  color: #c00000;
+}
+
+.alComments {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  flex: 1;
+  min-height: 40px;
+  overflow: auto;
+}
+
+.alComments li {
+  padding: 3px 0;
+  border-bottom: 1px dotted #c0c0c0;
+  overflow-wrap: anywhere;
+}
+
+.alWhen {
+  color: #808080;
+  font-size: 10px;
+}
+
+.alX {
+  min-width: 0 !important;
+  min-height: 0 !important;
+  padding: 0 4px !important;
+  margin-left: 4px;
+}
+
+.alCommentRow,
+.alInviteRow {
+  display: flex;
+  gap: 4px;
+}
+
+.alCommentRow input,
+.alInviteRow input {
+  flex: 1;
+  min-width: 0;
+}
+
+/* pickers */
+.alPicker,
+.alPeople,
+.alAdd {
+  width: min(340px, calc(100vw - 48px));
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.alPickList {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 45vh;
+  overflow: auto;
+  padding: 4px;
+  background: #fff;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+}
+
+.alPickRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+  margin: 0 !important;
+}
+
+.alPickRow label {
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.alPickName {
+  white-space: nowrap;
+}
+
+.alPickInfo {
+  color: #808080;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.alPickNew {
+  flex: 1;
+  min-width: 0;
+}
+
+.alPeopleList {
+  list-style: none;
+  margin: 0 0 8px;
+  padding: 4px;
+  background: #fff;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+}
+
+.alPeopleList li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  min-height: 28px;
+}
+
+.alBuddyChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.alAddGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+  gap: 4px;
+  max-height: 45vh;
+  overflow: auto;
+  padding: 4px;
+  background: #fff;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+}
+
+.alAddTile {
+  position: relative;
+  aspect-ratio: 1;
+  min-width: 0 !important;
+  padding: 2px !important;
+}
+
+.alAddTile img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.alAddTile.is-on {
+  outline: 3px solid #000080;
+  outline-offset: -3px;
+}
+
+.alAddCheck {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 18px;
+  height: 18px;
+  background: #000080;
+  color: #fff;
+  font-weight: bold;
+  line-height: 18px;
+  text-align: center;
+}
+
+/* Memories */
+.meCard {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 4px 4px;
+  padding: 4px 6px;
+  text-align: left;
+  width: calc(100% - 8px);
+}
+
+.meCardThumbs {
+  display: flex;
+  gap: 2px;
+  flex: none;
+}
+
+.meCardThumbs img {
+  width: 40px;
+  height: 40px;
+  object-fit: cover;
+  box-shadow: inset 1px 1px #0a0a0a;
+}
+
+.meCardText {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.meCardText b {
+  color: #000080;
+}
+
+.meCardText span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.meBody {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 6px 8px;
+  margin: 0 4px;
+  background: #fff;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+}
+
+.meSection {
+  margin: 4px 0 6px;
+  font-size: 13px;
+  font-weight: bold;
+}
+
+.meGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.meMemory {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px;
+  background: #c0c0c0;
+  box-shadow: inset -1px -1px #0a0a0a, inset 1px 1px #fff, inset -2px -2px #808080, inset 2px 2px #dfdfdf;
+}
+
+.meCollage {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 2px;
+  height: 120px;
+  padding: 0 !important;
+  min-width: 0 !important;
+  overflow: hidden;
+  background: #808080;
+}
+
+.meCollage img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  min-height: 0;
+}
+
+.meCollage img:first-child {
+  grid-row: span 2;
+}
+
+.meMemoryTitle {
+  font-weight: bold;
+}
+
+.meMemoryInfo {
+  color: #404040;
+}
+
+.meMemoryButtons {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.meSettings label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+}
+
+@media (max-width: 600px) {
+  .alItemBody {
+    flex-direction: column;
+  }
+
+  .alItemSide {
+    width: auto;
+    max-height: 42%;
+  }
+
+  .alList {
+    grid-template-columns: 1fr;
+  }
+
+  .meGrid {
+    grid-template-columns: 1fr;
+  }
+}

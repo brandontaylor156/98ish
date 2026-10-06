@@ -1,5 +1,6 @@
 import { DIRECTORY_TYPE, DISK_FULL, FILE_TYPE, fs, storageInfo, uniqueName, writeAndSave } from "../../../utils/fs"
 import { MAX_CHARS, MAX_SIDE, SMALL_DRIVE_CHARS, SMALL_DRIVE_SIDE, fitEncode, fitScale, isHeic } from "./photoMath.js"
+import { dateFromName, exifDate, photoTime } from "./memoriesCore.js"
 
 export * from "./photoMath.js"
 
@@ -62,13 +63,15 @@ export const loadImage = (src) =>
 
 // Save a picture into a folder under a name (made unique).
 // Resolves { ok, file } | { ok: false, error }
-export const savePicture = async (dir, name, data) => {
+// `taken`: when the picture was taken (ms; Photos' Memories go by it), else now
+export const savePicture = async (dir, name, data, { taken = Date.now() } = {}) => {
   let file
   try {
     file = fs.createFileIn(dir, uniqueName(dir, name), FILE_TYPE.image, "")
   } catch (error) {
     return { ok: false, error: error.message }
   }
+  file.meta = { ...file.meta, taken: Math.round(Number(taken) || Date.now()) }
   if (!(await writeAndSave(file, data, { created: true }))) return { ok: false, error: DRIVE_FULL }
   return { ok: true, file }
 }
@@ -101,6 +104,20 @@ export const pictureFolders = () => {
   return out.sort((a, b) => (a.dir === pics ? -1 : b.dir === pics ? 1 : fs.displayPath(a.dir).localeCompare(fs.displayPath(b.dir))))
 }
 
+// every picture on drive C: with when it was taken (Memories): [{ file, time }]
+export const drivePhotos = () => {
+  const out = []
+  const walk = (dir) => {
+    for (const item of dir.content || []) {
+      if (item.isDirectory) walk(item)
+      else if (item.isImage) out.push({ file: item, time: photoTime(item) })
+    }
+  }
+  const drive = fs.resolve("C:")
+  if (drive?.isDirectory) walk(drive)
+  return out
+}
+
 // ---- from the real device ----
 
 // A picture file from the device (file input, drop) -> { data, width, height } or throws
@@ -121,7 +138,15 @@ export const decodeUpload = async (file, { maxSide = photoLimits().maxSide, maxC
           : `${file.name} couldn't be opened as a picture.`
       )
     }
-    return toJpeg(img, { maxSide, maxChars })
+    // when it was taken: the photo's EXIF date (the JPEG is redrawn, which drops EXIF), else
+    // the file's date on the device
+    let taken = null
+    try {
+      taken = exifDate(await file.slice(0, 128 * 1024).arrayBuffer())
+    } catch {
+      taken = null
+    }
+    return { ...toJpeg(img, { maxSide, maxChars }), taken: taken || dateFromName(file.name) || file.lastModified || Date.now() }
   } finally {
     URL.revokeObjectURL(url)
   }

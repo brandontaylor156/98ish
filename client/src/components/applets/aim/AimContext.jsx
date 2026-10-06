@@ -574,6 +574,8 @@ export const AimProvider = ({ socket, windows, dispatch: dispatchWindow, onOpenV
     import("../../../utils/contacts").then((m) => m.setSyncSession(session)).catch(() => {})
     // Notes too (utils/notes.js; shared notes and live changes need the account)
     import("../../../utils/notes").then((m) => m.setSyncSession(session)).catch(() => {})
+    // and Photos' Shared Albums (utils/albums.js)
+    import("../../../utils/albums").then((m) => m.setAlbumsSession(session)).catch(() => {})
   }, [state.status, state.me?.screenName])
 
   // ---- search: the signed-on account's conversations (this device's copy) ----

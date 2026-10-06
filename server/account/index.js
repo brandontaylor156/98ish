@@ -36,6 +36,13 @@
 //                                                  before the deletion and used after it leaves an
 //                                                  object with no record: the weekly tidy deletes
 //                                                  it). blobusage holds only daily totals, no account
+//   albums      albums, albumitems                 Shared Albums (server/albums): every photo and
+//               + bucket objects a/...             video they added is deleted from every album
+//                                                  (objects and records), their likes and comments
+//                                                  go, and they leave every album (the next member
+//                                                  becomes owner; an album left with nobody is
+//                                                  deleted with everything in it). The others see
+//                                                  "A member deleted their account"
 //   contacts    addressbooks                       their Address Book deleted
 //   notes       notes                              their own notes (and tombstones) deleted; in
 //                                                  notes shared with others they leave: the

@@ -450,7 +450,8 @@ export class FileSystem {
     const from = this.displayPath(item.parent)
     const originalName = item.name
     item.parent.removeItem(item.name)
-    item.meta = { deletedFrom: from, deletedAt: Date.now(), originalName }
+    // a picture's taken date (Photos' Memories) goes along and comes back
+    item.meta = { ...(item.meta?.taken ? { taken: item.meta.taken } : {}), deletedFrom: from, deletedAt: Date.now(), originalName }
     item.name = uniqueName(this.recycleBin, originalName)
     this.recycleBin.insertItem(item)
   }
@@ -467,7 +468,7 @@ export class FileSystem {
     }
     this.recycleBin.removeItem(item.name)
     item.name = uniqueName(dir, originalName || item.name)
-    item.meta = {}
+    item.meta = item.meta?.taken ? { taken: item.meta.taken } : {}
     dir.insertItem(item)
     return dir
   }

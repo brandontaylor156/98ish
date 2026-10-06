@@ -1,9 +1,17 @@
-import React, { useEffect, useRef, useState } from "react"
-import { readContent } from "../../../utils/fs"
+import React, { useEffect, useMemo, useRef, useState } from "react"
+import { fs, readContent } from "../../../utils/fs"
+import { reducedMotion } from "../../../utils/settings"
+import { TUNES, playMusic } from "./music"
 
 // A slideshow over the Photos window (or the whole screen, where the browser allows it):
-// each picture comes in with a transition and drifts slowly while it shows. Tap or move the
-// mouse for the controls; Escape, or Stop, ends it. Arrow keys and swipes step through.
+// each picture comes in with a transition and moves while it shows (a gentle drift, or a
+// Ken Burns pan and zoom), with music if chosen (three original tunes, or your own sound).
+// Tap or move the mouse for the controls; Escape, or Stop, ends it. Arrow keys and swipes
+// step through. Memories open it with a title card first.
+//
+// items: drive pictures by default; anything else (a shared album's photos) passes
+// getSrc(item) -> URL or null (shows a placeholder until it loads) and prefetch(item) ->
+// promise (the slideshow redraws when it resolves).
 
 export const TRANSITIONS = [
   { id: "random", label: "Random" },
@@ -18,21 +26,62 @@ export const SPEEDS = [
   { id: 4, label: "Medium (4 s)" },
   { id: 8, label: "Slow (8 s)" },
 ]
+export const MOTIONS = [
+  { id: "kenburns", label: "Ken Burns" },
+  { id: "drift", label: "Drift" },
+  { id: "still", label: "Still" },
+]
 const KINDS = TRANSITIONS.filter((t) => t.id !== "random").map((t) => t.id)
 
-const Slideshow = ({ items, start = 0, prefs, onPrefs, onExit }) => {
+const driveSrc = (item) => item.textContent || item.thumb || null
+const drivePrefetch = (item) => readContent(item)
+
+// a pan and zoom for one picture: where it starts and ends (scale, x %, y %)
+const kenBurns = (index) => {
+  const r = (n) => {
+    const x = Math.sin((index + 1) * 9301 + n * 49297) * 233280
+    return x - Math.floor(x)
+  }
+  const zoomIn = r(1) > 0.4
+  const s0 = zoomIn ? 1.04 : 1.22
+  const s1 = zoomIn ? 1.22 : 1.04
+  const p = () => `${((r(2 + Math.random()) - 0.5) * 7).toFixed(1)}%`
+  return { "--kb-s0": s0, "--kb-s1": s1, "--kb-x0": p(), "--kb-y0": p(), "--kb-x1": p(), "--kb-y1": p() }
+}
+
+export const soundFiles = () => {
+  const out = []
+  const walk = (dir) => {
+    for (const item of dir.content || []) {
+      if (item.isDirectory) walk(item)
+      else if (item.type === "sound") out.push(item)
+    }
+  }
+  const drive = fs.resolve("C:")
+  if (drive?.isDirectory) walk(drive)
+  return out.slice(0, 200)
+}
+
+const Slideshow = ({ items, start = 0, prefs, onPrefs, onExit, getSrc = driveSrc, prefetch = drivePrefetch, title = null, subtitle = null }) => {
   const [index, setIndex] = useState(Math.min(start, items.length - 1))
   const [prev, setPrev] = useState(null)
   const [kind, setKind] = useState(prefs.transition === "random" ? "fade" : prefs.transition)
   const [playing, setPlaying] = useState(true)
   const [controls, setControls] = useState(true)
+  const [card, setCard] = useState(!!title)
+  const [, setLoaded] = useState(0)
   const rootRef = useRef(null)
   const hideTimer = useRef(null)
   const touch = useRef(null)
+  const motion = reducedMotion() ? "still" : prefs.motion || "kenburns"
+  const music = prefs.music || "none"
+  const musicFile = useMemo(() => (music === "file" && prefs.musicFile ? fs.resolve(prefs.musicFile) : null), [music, prefs.musicFile])
+  const sounds = useMemo(() => (music === "file" ? soundFiles() : []), [music])
 
   const count = items.length
   const go = (step) => {
     if (!count) return
+    setCard(false)
     setPrev(index)
     setIndex((i) => (i + step + count) % count)
     setKind(prefs.transition === "random" ? KINDS[Math.floor(Math.random() * KINDS.length)] : prefs.transition)
@@ -40,17 +89,40 @@ const Slideshow = ({ items, start = 0, prefs, onPrefs, onExit }) => {
   const goRef = useRef(go)
   goRef.current = go
 
-  // the next picture loads while this one shows
+  // this picture and the next load while it shows
   useEffect(() => {
-    if (count > 1) readContent(items[(index + 1) % count])
+    let alive = true
+    const wake = () => alive && setLoaded((n) => n + 1)
+    Promise.resolve(prefetch(items[index]))
+      .then(wake)
+      .catch(() => {})
+    if (count > 1)
+      Promise.resolve(prefetch(items[(index + 1) % count]))
+        .then(wake)
+        .catch(() => {})
+    return () => {
+      alive = false
+    }
   }, [index, count])
 
-  // the next picture after the chosen time
+  // the title card, then the next picture after the chosen time
   useEffect(() => {
-    if (!playing || count < 2) return
+    if (!card) return
+    const id = setTimeout(() => setCard(false), 2600)
+    return () => clearTimeout(id)
+  }, [card])
+  useEffect(() => {
+    if (!playing || count < 2 || card) return
     const id = setTimeout(() => goRef.current(1), prefs.seconds * 1000)
     return () => clearTimeout(id)
-  }, [index, playing, prefs.seconds, count])
+  }, [index, playing, prefs.seconds, count, card])
+
+  // music while it plays
+  useEffect(() => {
+    if (!playing || music === "none") return
+    const player = playMusic(music, { file: musicFile })
+    return () => player.stop()
+  }, [playing, music, musicFile])
 
   const poke = () => {
     setControls(true)
@@ -88,6 +160,16 @@ const Slideshow = ({ items, start = 0, prefs, onPrefs, onExit }) => {
 
   const item = items[index]
   if (!item) return null
+  const dur = `${prefs.seconds + 1.5}s`
+  const slide = (it, i, cls) => {
+    const src = getSrc(it)
+    const img = src ? <img className={`phSlideImg ${cls}`} src={src} alt={i === index ? it.name || "Photo" : ""} draggable={false} /> : <div className="phSlideWait">Loading...</div>
+    return (
+      <div key={`${cls}${i}-${index}`} className={`phSlide phMotion--${motion}${cls === "phSlide--out" ? " phSlide--out" : ""}`} style={motion === "kenburns" ? { ...kenBurns(i), "--kb-dur": dur } : undefined}>
+        {img}
+      </div>
+    )
+  }
   return (
     <div
       ref={rootRef}
@@ -109,9 +191,16 @@ const Slideshow = ({ items, start = 0, prefs, onPrefs, onExit }) => {
       }}
       role="dialog"
       aria-label="Slideshow"
+      data-touch-surface
     >
-      {prev !== null && items[prev] && <img key={`p${prev}-${index}`} className="phSlide phSlide--out" src={items[prev].textContent || items[prev].thumb || undefined} alt="" draggable={false} />}
-      <img key={`c${index}`} className={`phSlide phSlide--in phIn--${kind}`} src={item.textContent || item.thumb || undefined} alt={item.name} draggable={false} />
+      {prev !== null && items[prev] && slide(items[prev], prev, "phSlide--out")}
+      {slide(item, index, `phSlide--in phIn--${kind}`)}
+      {card && (
+        <div className="phShowCard" aria-live="polite">
+          <div className="phShowCardTitle">{title}</div>
+          {subtitle && <div className="phShowCardSub">{subtitle}</div>}
+        </div>
+      )}
       <div className="phShowBar" onPointerDown={(e) => e.stopPropagation()}>
         <button type="button" onClick={() => go(-1)} aria-label="Previous picture">
           ◀︎
@@ -129,6 +218,13 @@ const Slideshow = ({ items, start = 0, prefs, onPrefs, onExit }) => {
             </option>
           ))}
         </select>
+        <select aria-label="Motion" value={prefs.motion || "kenburns"} onChange={(e) => onPrefs({ motion: e.target.value })}>
+          {MOTIONS.map((m) => (
+            <option key={m.id} value={m.id}>
+              {m.label}
+            </option>
+          ))}
+        </select>
         <select aria-label="Speed" value={prefs.seconds} onChange={(e) => onPrefs({ seconds: Number(e.target.value) })}>
           {SPEEDS.map((s) => (
             <option key={s.id} value={s.id}>
@@ -136,6 +232,23 @@ const Slideshow = ({ items, start = 0, prefs, onPrefs, onExit }) => {
             </option>
           ))}
         </select>
+        <select aria-label="Music" value={music} onChange={(e) => onPrefs({ music: e.target.value })}>
+          {TUNES.map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.label}
+            </option>
+          ))}
+        </select>
+        {music === "file" && (
+          <select aria-label="Your sound" value={prefs.musicFile || ""} onChange={(e) => onPrefs({ musicFile: e.target.value })}>
+            <option value="">{sounds.length ? "Pick a sound..." : "No sounds on drive C:"}</option>
+            {sounds.map((s) => (
+              <option key={fs.displayPath(s)} value={fs.displayPath(s)}>
+                {s.name}
+              </option>
+            ))}
+          </select>
+        )}
         <span className="phShowCount">
           {index + 1} / {count}
         </span>
