@@ -206,6 +206,14 @@ const Designer = ({ handoff, mobile, onTitle, onClose, dispatch }) => {
   // ---- controls ----
   const addControl = (type, at) => {
     change((p) => {
+      // a tapped tool lands under the others (not on top of the last one), while it fits
+      if (!at) {
+        const visible = p.controls.filter((x) => !CONTROL_TYPES[x.type]?.hidden)
+        const bottom = visible.reduce((m, x) => Math.max(m, x.top + x.height), 0)
+        const [, h] = CONTROL_TYPES[type].size
+        if (CONTROL_TYPES[type].hidden) at = { left: p.form.width - 40, top: 8 + p.controls.filter((x) => CONTROL_TYPES[x.type]?.hidden).length * 36 }
+        else if (bottom + 8 + h <= p.form.height) at = { left: 16, top: visible.length ? bottom + 8 : 16 }
+      }
       const c = newControl(type, p.controls, at)
       c.left = Math.max(0, Math.min(p.form.width - 8, c.left))
       c.top = Math.max(0, Math.min(p.form.height - 8, c.top))

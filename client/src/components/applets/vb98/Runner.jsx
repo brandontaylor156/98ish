@@ -3,7 +3,7 @@ import { compile } from "./vblang"
 import { buildSrcdoc, SANDBOX_ATTR } from "./srcdoc"
 import { checkSandboxMessage } from "./bridge"
 import { playVbSound } from "./vbsounds"
-import { onVbUpdate, vbClose, vbSet } from "../../../utils/vbapps"
+import { onVbUpdate, vbClose, vbSet, vbWatch } from "../../../utils/vbapps"
 
 // Runs one Visual Basic 98 program in its sandbox. The program can't touch 98ish: it draws
 // inside an iframe with no same-origin and no network, and only the messages bridge.js
@@ -44,6 +44,10 @@ const Runner = ({ project, shared = null, me = "", onEnd, onError, onEdit, mobil
   }, [w, h, mobile])
 
   const send = (msg) => frameRef.current?.contentWindow?.postMessage(msg, "*")
+  const scaleRef = useRef(1)
+  scaleRef.current = scale
+  // the program scales its own form (the iframe is sized to fit), so touches land true
+  useEffect(() => send({ t: "scale", s: scale }), [scale])
 
   // the sandbox's messages (checked against the allow-list)
   useEffect(() => {
@@ -55,7 +59,7 @@ const Runner = ({ project, shared = null, me = "", onEnd, onError, onEdit, mobil
       switch (msg.t) {
         case "boot":
           lastPong.current = Date.now()
-          send({ t: "init", project, js: compiled.js, me: { name: me || "You", host: true }, friends: shared?.people || [me || "You"], shared: stateRef.current })
+          send({ t: "init", project, js: compiled.js, me: { name: me || "You", host: true }, friends: shared?.people || [me || "You"], shared: stateRef.current, scale: scaleRef.current })
           break
         case "pong":
           lastPong.current = Date.now()
@@ -92,8 +96,12 @@ const Runner = ({ project, shared = null, me = "", onEnd, onError, onEdit, mobil
       if (v === "") delete stateRef.current[k]
       send({ t: "shared", k, v })
     })
+    // tell the server again now and then that it's open here (a dropped connection forgets)
+    vbWatch(shared.id)
+    const again = setInterval(() => vbWatch(shared.id), 30000)
     return () => {
       off()
+      clearInterval(again)
       vbClose(shared.id)
     }
   }, [shared?.id])
@@ -138,7 +146,7 @@ const Runner = ({ project, shared = null, me = "", onEnd, onError, onEdit, mobil
         </div>
       )}
       <div className="vbRunBox" style={{ width: w * scale, height: h * scale }}>
-        {!killed && <iframe ref={frameRef} title={project.form.caption || "Program"} className="vbRunFrame" sandbox={SANDBOX_ATTR} srcDoc={srcdoc} style={{ width: w, height: h, transform: `scale(${scale})` }} data-vb-frame />}
+        {!killed && <iframe ref={frameRef} title={project.form.caption || "Program"} className="vbRunFrame" sandbox={SANDBOX_ATTR} srcDoc={srcdoc} style={{ width: w * scale, height: h * scale }} data-vb-frame />}
         {killed && <div className="vbRunEnded">This program was ended.</div>}
       </div>
       {stalled && !killed && (

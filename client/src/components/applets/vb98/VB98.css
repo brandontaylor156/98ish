@@ -123,6 +123,12 @@
   padding: 3px;
   display: inline-block;
 }
+/* (phones stretch every .window to the full height: the form keeps its own size) */
+.vbRoot .vbFormFrame.window {
+  height: auto !important;
+  min-height: 0 !important;
+  max-width: none !important;
+}
 .vbFormFrame .title-bar {
   margin-bottom: 0;
 }

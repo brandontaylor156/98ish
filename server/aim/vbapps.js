@@ -7,8 +7,8 @@
 //   vb:share { app, title?, with? | room? | hangout: true }  -> { ok, id }
 //   vb:open { id }        -> { ok, id, app, title, state, people: [names], owner, from }
 //   vb:set { id, k, v }   -> { ok }            (relayed to everyone else who has it open)
-//   vb:close { id }
-//   vb:mine {}            -> { ok, list: [{ id, title, from, people, changedAt }] }
+//   vb:close { id }       vb:watch { id } (it's open here again, after a reconnect)
+//   vb:mine {}           -> { ok, list: [{ id, title, from, people, changedAt }] }
 //   vb:forget { id }      leaves a program shared with you (it's deleted when nobody's left)
 // server -> client
 //   vb:invite { id, from, title, with?, room?, hangout? }   vb:update { id, k, v, from }
@@ -180,6 +180,15 @@ const createVbApps = ({ store, sessions, hidden, emitTo, limiter, rooms, findUse
       save(r)
       for (const key of open.get(r.id) || []) if (key !== session.key) emitTo(key, "vb:update", { id: r.id, k, v, from: session.user.screenName })
       ack({ ok: true })
+    })
+
+    // "it's open here" again (after a reconnect, which forgets who has what open)
+    on("vb:watch", async (session, { id }, ack) => {
+      const r = await load(String(id || ""))
+      if (!r || !allowed(r, session)) return ack?.({ ok: false })
+      if (!open.has(r.id)) open.set(r.id, new Set())
+      open.get(r.id).add(session.key)
+      ack?.({ ok: true })
     })
 
     on("vb:close", async (session, { id }, ack) => {

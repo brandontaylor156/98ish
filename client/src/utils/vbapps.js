@@ -28,6 +28,8 @@ export const vbShare = (project, target) => ask("vb:share", { app: project, titl
 export const vbOpen = (id) => ask("vb:open", { id })
 export const vbSet = (id, k, v) => ask("vb:set", { id, k, v })
 export const vbClose = (id) => ask("vb:close", { id })
+// "it's open here" (again: after a reconnect the server has forgotten)
+export const vbWatch = (id) => ask("vb:watch", { id })
 export const vbMine = () => ask("vb:mine", {})
 export const vbForget = (id) => ask("vb:forget", { id })
 
