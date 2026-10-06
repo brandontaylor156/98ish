@@ -18,6 +18,8 @@ const Combo = ({ value, options, onChange, disabled = false, ariaLabel, name, cl
   const [rect, setRect] = useState(null)
   const btnRef = useRef(null)
   const listRef = useRef(null)
+  const touchPick = useRef(0)
+  const downAt = useRef(null)
   const index = Math.max(0, options.findIndex(([v]) => v === value || String(v) === String(value)))
   const label = options[index]?.[1] ?? ""
 
@@ -98,7 +100,17 @@ const Combo = ({ value, options, onChange, disabled = false, ariaLabel, name, cl
                 aria-disabled={o?.disabled || undefined}
                 className={`selRow${i === active ? " is-active" : ""}${o?.disabled ? " is-disabled" : ""}`}
                 onPointerEnter={(e) => e.pointerType === "mouse" && setActive(i)}
-                onClick={() => pick(i)}
+                // a finger picks on release (iOS can skip the click on a plain list row); the
+                // click that follows is ignored
+                onPointerDown={(e) => (downAt.current = { x: e.clientX, y: e.clientY })}
+                onPointerUp={(e) => {
+                  if (e.pointerType === "mouse") return
+                  const d = downAt.current
+                  if (!d || Math.hypot(e.clientX - d.x, e.clientY - d.y) > 10) return // a scroll, not a tap
+                  touchPick.current = performance.now()
+                  pick(i)
+                }}
+                onClick={() => performance.now() - touchPick.current > 600 && pick(i)}
               >
                 {l}
               </li>

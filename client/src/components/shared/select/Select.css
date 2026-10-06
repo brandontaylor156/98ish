@@ -612,3 +612,11 @@ button.selCombo:active .selComboBtn {
 .os-mobile .selComboBtn {
   width: 28px;
 }
+
+/* iOS sends clicks to plain elements only when they look clickable */
+@media (hover: none) {
+  .selRow,
+  button.selCombo {
+    cursor: pointer;
+  }
+}
