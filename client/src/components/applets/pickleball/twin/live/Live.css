@@ -109,9 +109,21 @@
   border: 2px solid #fff;
   image-rendering: pixelated;
 }
+.pkLiveBar,
+.pkLiveEnded {
+  height: auto; /* (not main.css's .window height: 100%) */
+}
 .pkLiveBar {
   margin: 8px;
   padding: 8px;
+  max-width: none;
+}
+@media (orientation: landscape) and (max-height: 500px) {
+  /* a phone on its side: the controls in a column on the left, the camera beside them */
+  .pkLiveBar {
+    align-self: flex-start;
+    width: min(330px, 45vw);
+  }
 }
 .pkLiveScore {
   display: flex;

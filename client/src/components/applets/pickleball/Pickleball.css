@@ -1925,6 +1925,8 @@
 
 /* My Park: a buddy live on a court here (Live Broadcast) */
 .pkParkLive {
+  height: auto; /* (not main.css's .window height: 100%) */
+  min-height: 0;
   position: absolute;
   top: 44px;
   left: 50%;
