@@ -254,6 +254,10 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
   const parkGameRef = useRef(null) // { court, kind: "solo" | "room" | "machine" | "locker", level }
   const parkEventRef = useRef(null)
   const [parkWorld, setParkWorld] = useState(null)
+  // Options > Sky: the park you're in follows it at once
+  useEffect(() => {
+    parkWorld?.setSky?.({ real: prefs.realSky !== false, mode: prefs.skyMode || "real" })
+  }, [parkWorld, prefs.realSky, prefs.skyMode])
   const [parkHud, setParkHud] = useState(null)
   const [parkUi, setParkUi] = useState({ menu: false, intro: false, turn: null, result: null })
   const myParkInfo = () => {
@@ -621,7 +625,9 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
     if (!w?.layout || !make || court === null || court === undefined) return "park"
     const layout = w.layout
     const hour = w.hour
-    return { key: `park:${layout.id}:${court}`, build: (scene, o) => make(scene, { layout, courtId: court, quality: o.quality, hour }), room: layout.spec.indoor ? "hall" : "park" }
+    // (Real Sky: the park's own sun, sky and weather follow you onto the court)
+    const look = w.look
+    return { key: `park:${layout.id}:${court}`, build: (scene, o) => make(scene, { layout, courtId: court, quality: o.quality, hour, look, phone: !!mobile }), room: layout.spec.indoor ? "hall" : "park" }
   }
   const [parkPick, setParkPick] = useState(false)
   const [parkLoading, setParkLoading] = useState(null)
@@ -682,7 +688,7 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
         if (engineRef.current !== e) return
         setParkStep({ label: "Building the courts, buildings and trees", pct: 35 })
         await nextPaint()
-        w = createWorld({ ...e.worldContext(), layout, phone: !!mobile, me: myParkInfo(), labelsEl: parkLabelsRef.current, onHud: setParkHud, onEvent: (ev) => parkEventRef.current?.(ev) })
+        w = createWorld({ ...e.worldContext(), layout, phone: !!mobile, me: myParkInfo(), labelsEl: parkLabelsRef.current, onHud: setParkHud, onEvent: (ev) => parkEventRef.current?.(ev), sky: { real: prefsRef.current.realSky !== false, mode: prefsRef.current.skyMode || "real" } })
       } catch (error) {
         console.error(error)
         parkLoadingRef.current = null
@@ -1240,6 +1246,22 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
           ["medium", "Graphics: Medium"],
           ["high", "Graphics: High"],
         ].map(([v, l]) => ({ label: l, checked: prefs.quality === v, onClick: () => setPrefs({ quality: v }) })),
+        // Real Sky (park/realsky.js): the venue's true sun, sky and weather; or a fixed one for fun
+        {
+          label: "Sky",
+          items: [
+            { label: "Real Sky and Weather", checked: prefs.realSky !== false, disabled: prefs.quality === "low", onClick: () => setPrefs({ realSky: prefs.realSky === false }) },
+            "-",
+            ...[
+              ["real", "Live (today, right now)"],
+              ["clear", "Clear"],
+              ["cloudy", "Cloudy"],
+              ["rain", "Rain"],
+              ["sunset", "Sunset"],
+              ["night", "Night"],
+            ].map(([v, l]) => ({ label: l, checked: (prefs.skyMode || "real") === v, disabled: prefs.realSky === false || prefs.quality === "low", onClick: () => setPrefs({ skyMode: v }) })),
+          ],
+        },
         "-",
         { label: "Settings...", onClick: () => setDialog("settings") },
         { label: "Controls...", onClick: () => setDialog("controls") },

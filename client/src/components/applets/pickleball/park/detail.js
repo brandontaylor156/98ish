@@ -80,11 +80,15 @@ const rng = (seed) => {
 
 // one clock for every swaying leaf (set when a tree mesh is drawn)
 export const windT = { value: 0 }
+// how hard it blows (Real Sky: the venue's wind speed; 1 a light breeze, up to ~3.5 a gale)
+export const windAmp = { value: 1 }
+export const setWindStrength = (ms = 2) => (windAmp.value = Math.max(0.35, Math.min(3.5, 0.55 + ms / 4.5)))
 const swaying = (material) => {
   material.onBeforeCompile = (shader) => {
     shader.uniforms.windT = windT
+    shader.uniforms.windAmp = windAmp
     shader.vertexShader = shader.vertexShader
-      .replace("#include <common>", "#include <common>\nuniform float windT;\nattribute float wind;")
+      .replace("#include <common>", "#include <common>\nuniform float windT;\nuniform float windAmp;\nattribute float wind;")
       .replace(
         "#include <begin_vertex>",
         `#include <begin_vertex>
@@ -95,7 +99,7 @@ const swaying = (material) => {
     #endif
     float ph = wp.x * 0.23 + wp.y * 0.17;
     float g = sin(windT * 0.9 + ph * 0.3) * 0.5 + 0.5;
-    float sw = wind * (sin(windT * 1.6 + ph) * 0.7 + sin(windT * 3.7 + ph * 2.3 + position.y) * 0.3) * (0.5 + g);
+    float sw = wind * windAmp * (sin(windT * 1.6 * (0.7 + 0.3 * windAmp) + ph) * 0.7 + sin(windT * 3.7 + ph * 2.3 + position.y) * 0.3) * (0.5 + g);
     transformed.x += sw * 0.09;
     transformed.z += sw * 0.06;
   }`

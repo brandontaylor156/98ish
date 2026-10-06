@@ -41,6 +41,10 @@ const surfOn = { value: 1 }
 // or a polished floor reflects at a low angle (the sheen below), so it fades with the day
 export const surfSky = { value: new THREE.Color(0.3, 0.33, 0.36) }
 export const setSurfacesOn = (on) => (surfOn.value = on ? 1 : 0)
+// Real Sky's rain (realsky.js, build.js): 0 dry .. 1 soaked. Outdoor ground kinds darken and
+// catch the sky in their low spots (puddle sheen); indoor venues keep it at 0
+export const surfWet = { value: 0 }
+const WETS = new Set(["ground", "asphalt", "concrete", "grass", "deck", "acrylic"])
 
 // one shared uniform per kind: every material of that kind sees the texture when it lands
 const texUniforms = new Map()
@@ -109,7 +113,8 @@ const patch = (material, kind) => {
   const prev = material.onBeforeCompile
   material.onBeforeCompile = (shader, renderer) => {
     prev?.call(material, shader, renderer)
-    Object.assign(shader.uniforms, uniforms, { surfOn, surfSky }, aoUniforms)
+    Object.assign(shader.uniforms, uniforms, { surfOn, surfSky, surfWet }, aoUniforms)
+    const wets = WETS.has(kind)
     shader.vertexShader = shader.vertexShader
       .replace("#include <common>", "#include <common>\nvarying vec3 vSurfW;\nvarying vec3 vSurfN;")
       .replace(
@@ -150,7 +155,7 @@ const patch = (material, kind) => {
   float surfAOK = ${(k.ao ?? 0.4).toFixed(2)};
   float surfGrime = ${(k.grime ?? 0).toFixed(2)};`
     shader.fragmentShader = shader.fragmentShader
-      .replace("#include <common>", `#include <common>\n${decl}\nuniform float surfOn;\nuniform vec3 surfSky;\nuniform sampler2D surfAOTex;\nuniform vec4 surfAOBox;\nuniform float surfAOOn;\n${common}`)
+      .replace("#include <common>", `#include <common>\n${decl}\nuniform float surfOn;\nuniform vec3 surfSky;\nuniform float surfWet;\nuniform sampler2D surfAOTex;\nuniform vec4 surfAOBox;\nuniform float surfAOOn;\n${common}`)
       .replace(
         "#include <map_fragment>",
         `#include <map_fragment>
@@ -160,6 +165,12 @@ const patch = (material, kind) => {
   surfGrime *= surfOn;
   surfK *= surfFar; surfNK *= surfFar;
   diffuseColor.rgb *= mix(1.0, surfD.r * 2.0, surfK) * mix(1.0, surfD.a, surfAOK * surfFar);
+  // rain: wet ground darkens, more in its low spots (where water stands)
+  float surfPuddle = 0.0;
+  ${wets ? `if (surfWet > 0.0 && vSurfN.y > 0.6) {
+    surfPuddle = smoothstep(0.47, 0.36, texture2D(${ground ? "surfB" : "surfTex"}, vSurfW.xz * 0.045).r) * surfWet;
+    diffuseColor.rgb *= 1.0 - surfWet * 0.24 - surfPuddle * 0.18;
+  }` : ""}
   // grime where a wall meets the ground
   if (surfGrime > 0.0 && abs(vSurfN.y) < 0.5) diffuseColor.rgb *= 1.0 - surfGrime * (1.0 - smoothstep(0.0, 0.8, vSurfW.y));
   // baked ground occlusion (occlusion.js): floors near the ground, and walls near their foot
@@ -177,7 +188,9 @@ const patch = (material, kind) => {
       )
       .replace(
         "#include <opaque_fragment>",
-        `${k.sheen ? `// a sealed court or polished floor catches the sky at a low angle (Fresnel)
+        `${wets ? `// wet ground (and its puddles) mirror the sky at a low angle
+  outgoingLight += surfSky * pow(1.0 - clamp(abs(dot(normal, normalize(vViewPosition))), 0.0, 1.0), 4.0) * (surfWet * 0.35 + surfPuddle * 0.9) * surfOn;` : ""}
+  ${k.sheen ? `// a sealed court or polished floor catches the sky at a low angle (Fresnel)
   outgoingLight += surfSky * pow(1.0 - clamp(abs(dot(normal, normalize(vViewPosition))), 0.0, 1.0), 5.0) * ${k.sheen.toFixed(2)} * surfOn;` : ""}
   #include <opaque_fragment>`
       )

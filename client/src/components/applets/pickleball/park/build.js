@@ -13,9 +13,10 @@ import { mergeStatic } from "../venue.js"
 import { LEVEL_NAMES, PATH_W, PEN, RIVERSIDE_LAYOUT, SEAT_ROWS } from "./layout.js"
 import { createCourtKit } from "./courtkit.js"
 import { buildScenery } from "./scenery.js"
-import { applySurfaces, surfaced, surfSky } from "./surfaces.js"
+import { applySurfaces, surfaced, surfSky, surfWet } from "./surfaces.js"
 import { bakeVenueAO, clearBakedAO, setBakedAOOn } from "./occlusion.js"
-import { chainLink, windscreenTex } from "./detail.js"
+import { chainLink, setWindStrength, windscreenTex } from "./detail.js"
+import { createPrecip, createRealSky } from "./realsky.js"
 
 const canvasTexture = (w, h, draw) => {
   const c = document.createElement("canvas")
@@ -38,7 +39,7 @@ const fit = (ctx, text, size, min, width) => {
 // a box's y rotation that lays its length (local x) along the direction (ax, az)
 const yawFor = (ax, az) => Math.atan2(-az, ax)
 
-export const buildPark = (scene, { quality = "medium", layout = RIVERSIDE_LAYOUT, cutaway = false } = {}) => {
+export const buildPark = (scene, { quality = "medium", layout = RIVERSIDE_LAYOUT, cutaway = false, phone = false } = {}) => {
   const L = layout
   const { BENCHES, BOARD, BOOTH, BOUNDS, COURTS, FOUNTAIN, LIGHTS, MACHINE_COURT, TREES } = L
   const S = L.spec.scene || null // a real venue's scenery (venuegen.js)
@@ -91,6 +92,16 @@ export const buildPark = (scene, { quality = "medium", layout = RIVERSIDE_LAYOUT
   stars.renderOrder = -1
   stars.visible = false
   group.add(stars)
+  // Real Sky (realsky.js; Medium/High): the physical sky, clouds, sun and moon, used when the
+  // look is a real one (sky.js realLook); the gradient above otherwise. Rain or snow outdoors.
+  const real = quality !== "low" ? createRealSky({ radius: skyR * 0.99, quality, phone }) : null
+  if (real) {
+    real.mesh.position.copy(sky.position)
+    real.mesh.visible = false
+    group.add(real.mesh)
+  }
+  const precip = quality !== "low" && !S?.indoor ? createPrecip({ quality, phone }) : null
+  if (precip) group.add(precip.mesh)
 
   // ---- light: sky and ground fill and the sun (no shadow map: blobs under people, and the
   // shade painted into the ground) ----
@@ -786,6 +797,7 @@ export const buildPark = (scene, { quality = "medium", layout = RIVERSIDE_LAYOUT
   const cancelAO = shadows ? bakeVenueAO(group, BOUNDS) : null
   // (a real venue: thinner haze, so its far courts keep their colors)
   scene.fog = S ? new THREE.Fog(0xd8ecfb, Math.max(110, span * 0.7), Math.max(260, skyR + 60)) : new THREE.Fog(0xd8ecfb, Math.max(60, span * 0.45), Math.max(170, skyR - 10))
+  const fogBase = { near: scene.fog.near, far: scene.fog.far }
 
   // ---- a real venue's light: measured so a flat surface in the midday sun shows its paint
   // (spec hex) on screen, through the Neutral tone curve (tools/venues/compare.mjs truth):
@@ -843,6 +855,28 @@ export const buildPark = (scene, { quality = "medium", layout = RIVERSIDE_LAYOUT
     pools.visible = !!d.lights
     lampMat.color.setHex(d.lights ? 0xfff6d8 : 0x9aa0a8)
     if (S) venueLight(d)
+    // Real Sky: the dome, the weather (indoors only the sky through the doors and windows
+    // changes: no rain or wet floor, the hall's own light)
+    const wx = d.real ? d.weather || {} : null
+    if (real) {
+      sky.visible = !d.real
+      real.mesh.visible = !!d.real
+      if (d.real) real.setLook(d)
+    }
+    const outside = !S?.indoor
+    precip?.setWeather(wx && outside ? wx : {})
+    surfWet.value = wx && outside ? Math.min(1, Math.max(wx.rain ?? 0, (wx.snow ?? 0) * 0.5) * 1.2) : 0
+    setWindStrength(wx ? wx.wind ?? 2 : 2)
+    if (wx) stars.visible = !!d.stars
+    // fog from the visibility; softer, fainter shadows under cloud
+    const fogK = wx ? Math.min(0.85, (wx.fog ?? 0) * 0.85 + (wx.rain ?? 0) * 0.25) : 0
+    scene.fog.near = fogBase.near * (1 - fogK * 0.8)
+    scene.fog.far = fogBase.far * (1 - fogK * 0.65)
+    if (shadows && outside) {
+      const cover = wx ? wx.cover ?? 0 : 0
+      sun.shadow.radius = 3 + 7 * cover
+      if ("intensity" in sun.shadow) sun.shadow.intensity = 1 - 0.6 * Math.min(1, cover * 1.1)
+    }
     if (shadows) {
       sun.shadow.needsUpdate = true
       if (shadowAt) {
@@ -895,6 +929,11 @@ export const buildPark = (scene, { quality = "medium", layout = RIVERSIDE_LAYOUT
           stars.updateMatrix()
           sky.updateMatrixWorld(true)
           stars.updateMatrixWorld(true)
+          if (real) {
+            real.mesh.position.copy(sky.position)
+            real.mesh.updateMatrix()
+            real.mesh.updateMatrixWorld(true)
+          }
         }
       : null,
     dispose() {
@@ -903,6 +942,9 @@ export const buildPark = (scene, { quality = "medium", layout = RIVERSIDE_LAYOUT
       if (shadows) clearBakedAO()
       scene.remove(group)
       scene.fog = null
+      real?.dispose()
+      precip?.dispose()
+      surfWet.value = 0
       disposables.forEach((d) => d.dispose?.())
       rackPaddles.dispose?.()
       rackHandles.dispose?.()
