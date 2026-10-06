@@ -352,4 +352,7 @@ test("sanitizeSnapshot keeps only safe pictures and hides private windows", () =
   assert.equal(s.icons[0].icon, "")
   assert.equal(s.icons[0].name.length, 40)
   assert.deepEqual([s.windows[0].app, s.windows[0].title, s.windows[0].x, s.windows[0].y], ["private", "Private window", 1, 0])
+  // default-deny: no program id (98 Messenger's Buddy List) and IM windows (aim-im) are private
+  const m = sanitizeSnapshot({ windows: [{ title: "98 Messenger" }, { app: "aim-im", title: "Theo - Instant Message" }, { app: "notepad", title: "a.txt" }] })
+  assert.deepEqual(m.windows.map((w) => w.title), ["Private window", "Private window", "a.txt"])
 })

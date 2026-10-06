@@ -39,6 +39,10 @@ const scrollerOf = (el) => {
   return all.find((n) => n.scrollHeight > n.clientHeight + 4 && /(auto|scroll)/.test(getComputedStyle(n).overflowY)) || null
 }
 
+// a window's program id: its app, or its program's type (SPECTRA, 98 Messenger... have no app;
+// 98 Messenger's type "chat" is private, and no id at all counts as private)
+const appOf = (w) => String(w?.app || programByName(w?.program)?.type || "").toLowerCase()
+
 const typeOfGift = (file) => (/^data:image\//.test(file.data) ? "image" : file.type === "richtext" ? "richtext" : file.type === "sound" ? "sound" : "text")
 
 const HangoutLayer = ({ windows, dispatch, mobile }) => {
@@ -58,7 +62,7 @@ const HangoutLayer = ({ windows, dispatch, mobile }) => {
     if (!hg.id) return
     const focusNow = () => {
       const w = windowsRef.current.find((x) => x.active && !x.closed && !x.minimized)
-      return w ? { app: String(w.app || ""), title: isPrivate(w.app) ? "" : String(w.name || "").slice(0, 60) } : null
+      return w ? { app: appOf(w), title: isPrivate(appOf(w)) ? "" : String(w.name || "").slice(0, 60) } : null
     }
     const move = (e) => {
       if (e.pointerType === "touch") return
@@ -113,7 +117,7 @@ const HangoutLayer = ({ windows, dispatch, mobile }) => {
       return
     }
     const tick = () => {
-      const snap = desktopSnapshot({ windows: windowsRef.current, icons: iconsOnScreen(), wallpaper: wallpaperOf(), screen: { w: window.innerWidth, h: window.innerHeight }, mobile })
+      const snap = desktopSnapshot({ windows: windowsRef.current.map((w) => ({ ...w, app: appOf(w) })), icons: iconsOnScreen(), wallpaper: wallpaperOf(), screen: { w: window.innerWidth, h: window.innerHeight }, mobile })
       if (lastDesk.current && sameSnapshot(lastDesk.current, snap)) return
       lastDesk.current = snap
       publishDesk(snap)
@@ -129,13 +133,13 @@ const HangoutLayer = ({ windows, dispatch, mobile }) => {
     for (const { from, act } of takeActs()) {
       if (act.type === "open") {
         const program = programByName(act.program)
-        if (!program || isPrivate(program.app)) continue
+        if (!program || isPrivate(program.app || program.type)) continue
         dispatch({ type: "open_window", payload: launch(program.name) })
         notify({ app: "hangout", title: `${from} opened ${program.name}`, text: "On your desktop (you let friends touch it in Come Over)." })
       } else if (act.type === "focus" || act.type === "minimize") {
         const open = windowsRef.current.map((w, index) => ({ w, index })).filter(({ w }) => !w.closed)
         const pick = open[act.index]
-        if (!pick || isPrivate(pick.w.app)) continue
+        if (!pick || isPrivate(appOf(pick.w))) continue
         dispatch({ type: act.type === "focus" ? "focus_window" : "toggle_minimize", payload: { index: pick.index } })
       }
     }
@@ -150,7 +154,7 @@ const HangoutLayer = ({ windows, dispatch, mobile }) => {
       const index = windowsRef.current.findIndex((w) => w.active && !w.closed && !w.minimized)
       const w = windowsRef.current[index]
       if (!w) return
-      const app = String(w.app || "").toLowerCase()
+      const app = appOf(w)
       const el = document.querySelector(`[data-window-index="${index}"]`)
       const doc = el?.querySelector("[data-shared]")?.getAttribute("data-shared") || undefined
       const sc = scrollerOf(el)
@@ -176,12 +180,12 @@ const HangoutLayer = ({ windows, dispatch, mobile }) => {
       if (open >= 0) dispatch({ type: "focus_window", payload: { index: open } })
       else openTarget({ kind: "program", name: v.app === "paint" ? "Paint" : "Notepad", extra: { handoff: { id: Date.now(), shared: v.doc, title: v.title?.replace(/ \(shared\).*$/, "") } } })
     } else {
-      const open = list.findIndex((w) => !w.closed && String(w.app).toLowerCase() === v.app)
+      const open = list.findIndex((w) => !w.closed && appOf(w) === v.app)
       if (open >= 0) {
         if (!list[open].active) dispatch({ type: "focus_window", payload: { index: open } })
       } else {
-        const program = programs.find((p) => String(p.app).toLowerCase() === v.app)
-        if (program && !isPrivate(program.app)) dispatch({ type: "open_window", payload: launch(program.name) })
+        const program = programs.find((p) => String(p.app || p.type).toLowerCase() === v.app)
+        if (program && !isPrivate(program.app || program.type)) dispatch({ type: "open_window", payload: launch(program.name) })
       }
     }
     if (typeof v.scroll === "number") {

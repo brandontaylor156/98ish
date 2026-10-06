@@ -16,7 +16,7 @@ const VisitView = ({ person, snap, cursor, canTouch, onAct }) => {
       </p>
       <div className={`hgVisitScreen${snap.mobile ? " is-phone" : ""}`} style={style} data-visit-screen={person.key}>
         <div className="hgVisitIcons">
-          {snap.icons.map((i, n) => (
+          {snap.icons.slice(0, 18).map((i, n) => (
             <button key={n} type="button" className="hgVisitIcon" disabled={!canTouch} onClick={() => onAct({ type: "open", program: i.program || i.name })} title={canTouch ? `Open ${i.name} on ${person.name}'s desktop` : i.name}>
               {i.icon ? <img src={i.icon} alt="" width="20" height="20" /> : <span className="hgVisitNoIcon" />}
               <span>{i.name}</span>

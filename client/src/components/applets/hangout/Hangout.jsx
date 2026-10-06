@@ -6,6 +6,7 @@ import { keyOf, useAim, useBuddyGroups } from "../aim/AimContext"
 import { useHangout, invite, join, leave, allowTouch, follow, act, meKey, clearEnded, shareDoc } from "../../../utils/hangout"
 import { useSharedDocs, refreshShared, createShared, deleteShared, ydocTraffic } from "../../../utils/ydoc"
 import { openTarget } from "../../../utils/notifications"
+import { VIEW_EVENT } from "../../../utils/couple"
 import { initials, listNames, MAX_PEOPLE } from "./hangoutCore"
 import VisitView from "./VisitView"
 import SharedFolder from "./SharedFolder"
@@ -74,6 +75,17 @@ const Hangout = ({ mobile, handoff, dispatch, onClose }) => {
   }, [handoff?.id, online])
   useEffect(() => {
     if (online) refreshShared()
+  }, [online])
+  // asked again while already open (a notification, the tray's Visit): the bridge sends it here
+  useEffect(() => {
+    const onView = (e) => {
+      const d = e.detail || {}
+      if (d.program !== "Come Over" || !d.handoff) return
+      if (d.handoff.tab) setTab(d.handoff.tab)
+      if (d.handoff.hangout && online) join(d.handoff.hangout)
+    }
+    window.addEventListener(VIEW_EVENT, onView)
+    return () => window.removeEventListener(VIEW_EVENT, onView)
   }, [online])
 
   const buddies = useMemo(() => {
@@ -240,10 +252,10 @@ const Hangout = ({ mobile, handoff, dispatch, onClose }) => {
         )}
         {hg.id && (
           <MoreOptions id="hangout.more" summary={mine?.touch ? "Friends can touch your desktop" : "Friends can look, not touch"}>
-            <label className="hgCheck">
-              <input type="checkbox" checked={!!mine?.touch} onChange={(e) => allowTouch(e.target.checked)} data-allow-touch />
-              Let friends here open and switch windows on my desktop
-            </label>
+            <div className="hgCheck">
+              <input id="hg-touch" type="checkbox" checked={!!mine?.touch} onChange={(e) => allowTouch(e.target.checked)} data-allow-touch />
+              <label htmlFor="hg-touch">Let friends here open and switch windows on my desktop</label>
+            </div>
             <p className="hgSmallNote">
               Private programs (98 Messenger, Mail, Notes, Passwords, Photos and others) never show in a visit or a follow. Traffic now: {traffic.kbps} KB/s; shared documents so far {traffic.docs} KB.
             </p>

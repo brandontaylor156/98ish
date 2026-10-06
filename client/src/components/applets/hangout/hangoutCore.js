@@ -2,11 +2,16 @@
 // layer and the tests. No React, no DOM.
 
 // programs that never show in someone else's view: kept in step with server/aim/hangout.js
-export const PRIVATE_APPS = new Set(["aim", "imwindow", "chatroom", "mail", "notes", "tasks", "passwords", "photos", "camera", "addressbook", "locator", "backup", "controlpanel", "deleteaccount", "lock", "users", "together"])
+export const PRIVATE_APPS = new Set(["aim", "aim-im", "aim-info", "aim-chat", "aim-delete", "chat", "mail", "notes", "tasks", "passwords", "photos", "camera", "addressbook", "locator", "backup", "control", "controlpanel", "lock", "users", "together", "us", "loveletters", "ourstory", "pet", "dollhouse"])
 // programs a follower's screen may open to mirror the leader
 export const FOLLOW_APPS = new Set(["notepad", "paint", "wordpad", "internetexplorer", "compass", "help", "calculator", "fileexplorer", "mediaplayer", "music", "weather", "calendar", "minesweeper", "solitaire", "freecell", "pickleball", "hangout"])
 
-export const isPrivate = (app) => PRIVATE_APPS.has(String(app || "").toLowerCase())
+// default-deny: a window without a program id (98 Messenger's Buddy List), any 98 Messenger
+// window (aim-*), or anything on the list is private
+export const isPrivate = (app) => {
+  const a = String(app || "").toLowerCase()
+  return !a || a.startsWith("aim") || PRIVATE_APPS.has(a)
+}
 export const mayFollow = (app) => FOLLOW_APPS.has(String(app || "").toLowerCase())
 
 export const MAX_PEOPLE = 4

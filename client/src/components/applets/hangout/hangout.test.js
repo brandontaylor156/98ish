@@ -48,6 +48,10 @@ test("privacy: private programs never show in a snapshot, and only safe programs
   assert.equal(isPrivate("Mail"), true)
   assert.equal(isPrivate("passwords"), true)
   assert.equal(isPrivate("notepad"), false)
+  // default-deny: 98 Messenger's Buddy List window has no program id; IM windows are aim-*
+  assert.equal(isPrivate(undefined), true)
+  assert.equal(isPrivate("aim-im"), true)
+  assert.equal(isPrivate("control"), true)
   assert.equal(mayFollow("notepad"), true)
   assert.equal(mayFollow("aim"), false)
   assert.equal(mayFollow("photos"), false)

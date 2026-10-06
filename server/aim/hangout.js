@@ -44,7 +44,9 @@ const MAX_SNAPSHOT = 12 * 1024
 const MAX_TEXT = 120
 
 // programs that never appear in someone else's view (titles hidden, follow refused)
-const PRIVATE_APPS = new Set(["aim", "imwindow", "chatroom", "mail", "notes", "tasks", "passwords", "photos", "camera", "addressbook", "locator", "backup", "controlpanel", "deleteaccount", "lock", "users", "together"])
+const PRIVATE_APPS = new Set(["aim", "aim-im", "aim-info", "aim-chat", "aim-delete", "chat", "mail", "notes", "tasks", "passwords", "photos", "camera", "addressbook", "locator", "backup", "control", "controlpanel", "lock", "users", "together", "us", "loveletters", "ourstory", "pet", "dollhouse"])
+// default-deny: no program id (98 Messenger's Buddy List), any aim-* window, or the list
+const isPrivate = (app) => !app || app.startsWith("aim") || PRIVATE_APPS.has(app)
 // programs a follower's screen may open to mirror the leader
 const FOLLOW_APPS = new Set(["notepad", "paint", "wordpad", "internetexplorer", "compass", "help", "calculator", "fileexplorer", "mediaplayer", "music", "weather", "calendar", "minesweeper", "solitaire", "freecell", "pickleball", "hangout"])
 
@@ -192,7 +194,7 @@ const createHangout = ({ sessions, hidden, emitTo, limiter, pushTo = null, ydocs
       if (t) msg.t = 1
       if (f && typeof f === "object") {
         const app = clean(f.app, 30).toLowerCase()
-        msg.f = PRIVATE_APPS.has(app) ? { app: "private", title: "" } : { app, title: clean(f.title, 60) }
+        msg.f = isPrivate(app) ? { app: "private", title: "" } : { app, title: clean(f.title, 60) }
       } else if (f === null) msg.f = null
       send(h, session.key, "hg:p", msg)
     })
@@ -320,7 +322,7 @@ const sanitizeSnapshot = (snap) => {
   const icons = (Array.isArray(snap.icons) ? snap.icons : []).slice(0, 40).map((i) => ({ name: clean(i?.name, 40), icon: /^\/[\w./-]{1,120}$/.test(i?.icon || "") ? i.icon : "", program: clean(i?.program, 40) }))
   const windows = (Array.isArray(snap.windows) ? snap.windows : []).slice(0, 16).map((w) => {
     const app = clean(w?.app, 30).toLowerCase()
-    const priv = PRIVATE_APPS.has(app)
+    const priv = isPrivate(app)
     const n = (v) => unit(v) ?? 0
     return { app: priv ? "private" : app, title: priv ? "Private window" : clean(w?.title, 60), icon: priv ? "" : /^\/[\w./-]{1,120}$/.test(w?.icon || "") ? w.icon : "", x: n(w?.x), y: n(w?.y), w: n(w?.w), h: n(w?.h), min: !!w?.min, active: !!w?.active }
   })
