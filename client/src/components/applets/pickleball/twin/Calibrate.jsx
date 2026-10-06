@@ -32,7 +32,9 @@ const CourtPicture = ({ next }) => (
   </svg>
 )
 
-export const Calibrate = ({ blob, initial, players: initialPlayers = 4, onDone, onCancel }) => {
+// snap (Live Broadcast): () => Promise<{ canvas, duration, vw, vh }>, a picture from the live
+// camera instead of a video's moment (no slider; "New picture" takes another); doneLabel
+export const Calibrate = ({ blob, snap = null, initial, players: initialPlayers = 4, onDone, onCancel, doneLabel = "Read the game" }) => {
   const [frame, setFrame] = useState(null) // { canvas, duration }
   const [t, setT] = useState(2)
   const [taps, setTaps] = useState(initial || [])
@@ -44,15 +46,16 @@ export const Calibrate = ({ blob, initial, players: initialPlayers = 4, onDone, 
   const loupeRef = useRef(null)
   const drag = useRef(null)
 
+  const [shot, setShot] = useState(0)
   useEffect(() => {
     let live = true
-    grabFrame(blob, t)
+    ;(snap ? snap() : grabFrame(blob, t))
       .then((f) => live && setFrame(f))
       .catch((e) => live && setError(e.message))
     return () => {
       live = false
     }
-  }, [blob, t])
+  }, [blob, t, shot])
 
   const done = taps.filter((p) => CORNERS.some((c) => c.id === p.id)).length
   const W = frame?.canvas.width || 640
@@ -157,11 +160,19 @@ export const Calibrate = ({ blob, initial, players: initialPlayers = 4, onDone, 
         <canvas ref={viewRef} className="pkTwinCalView" data-touch-surface onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={() => ((drag.current = null), setLoupe(null))} aria-label="The video frame: tap the court's corners" />
         {loupe && <canvas ref={loupeRef} className="pkTwinLoupe" style={{ left: Math.max(0, loupe.x - LOUPE / 2), top: Math.max(0, loupe.y - LOUPE - 36) }} aria-hidden="true" />}
       </div>
-      {frame && (
+      {frame && !snap && (
         <label className="pkTwinRow">
           <span>Moment</span>
           <input type="range" min="0" max={Math.max(0.5, frame.duration - 0.2)} step="0.5" value={t} onChange={(e) => setT(Number(e.target.value))} aria-label="Pick a moment where the corners show" />
         </label>
+      )}
+      {snap && (
+        <div className="pkTwinRow">
+          <span>Camera</span>
+          <button type="button" onClick={() => setShot((n) => n + 1)} data-action="new-picture">
+            New picture
+          </button>
+        </div>
       )}
       <div className="pkTwinRow">
         <span>Game</span>
@@ -180,7 +191,7 @@ export const Calibrate = ({ blob, initial, players: initialPlayers = 4, onDone, 
           Undo
         </button>
         <button type="button" className="pkPrimary" disabled={!cal?.ok} onClick={() => onDone({ taps, players, vw: frame?.vw, vh: frame?.vh })}>
-          Read the game
+          {doneLabel}
         </button>
       </div>
     </div>

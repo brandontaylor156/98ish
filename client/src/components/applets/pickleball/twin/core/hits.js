@@ -76,7 +76,7 @@ export const swingPeaks = (series, { min = 3.2, gap = 0.45 } = {}) => {
   }
   return peaks
 }
-const peakNear = (series, t, before = 0.28, after = 0.18) => {
+export const peakNear = (series, t, before = 0.28, after = 0.18) => {
   let best = null
   for (const s of series) {
     if (s.t < t - before) continue
@@ -185,7 +185,8 @@ export const buildRallies = (hits, posAt, { handOf = () => 1 } = {}) => {
       rallies.push(cur)
     }
     const p = posAt(h.player, h.t) || { x: 0, z: 0 }
-    const height = h.sample ? handHeight(h.sample, h.hand) : 1
+    // (Live Broadcast's hits come with their contact height measured already: height0)
+    const height = h.height0 ?? (h.sample ? handHeight(h.sample, h.hand) : 1)
     cur.hits.push({ ...h, x: p.x, z: p.z, height: Math.max(0.15, Math.min(2.8, height)), idx: cur.hits.length })
     cur.end = h.t
   }
@@ -199,7 +200,7 @@ export const buildRallies = (hits, posAt, { handOf = () => 1 } = {}) => {
       h.kind = classify(h, next, i)
       h.flight = next ? next.t - h.t : null
       // forehand / backhand: the swinging wrist on the player's paddle side
-      h.side = forehandOf(h, handOf(h.player))
+      h.side = h.side0 || forehandOf(h, handOf(h.player))
     })
     // the rally's last hitter (an error or a winner: we can't tell which from the video)
     r.lastHitter = hs[hs.length - 1].player
@@ -222,7 +223,7 @@ export const classify = (h, next, i) => {
 
 // h.sample.lm: was the faster wrist on the paddle side of the body? (team 0 faces away from a
 // camera at their baseline: image right = their right; team 1 faces it: image right = their left)
-const forehandOf = (h, hand) => {
+export const forehandOf = (h, hand) => {
   const lm = h.sample?.lm
   if (!lm || !lm[LM.lHip] || !lm[LM.rHip]) return "fh"
   const wrist = lm[h.hand === "l" ? LM.lWrist : LM.rWrist]
