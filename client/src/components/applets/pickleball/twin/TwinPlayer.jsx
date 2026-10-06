@@ -99,7 +99,7 @@ export const TwinPlayer = ({ getEngine, game, video, onBack, onChange, onShare, 
 
   return (
     <div className="pkTwinPlayer" data-tab={tab}>
-      <div className="pkTwinTop window">
+      <div className="pkTwinTop">
         <button type="button" onClick={onBack} aria-label="Back to your games">
           ‹ Games
         </button>
@@ -119,7 +119,7 @@ export const TwinPlayer = ({ getEngine, game, video, onBack, onChange, onShare, 
           {url && showVideo && <video ref={videoRef} className="pkTwinPip" src={url} muted playsInline aria-label="Your video" />}
           {!rally && <div className="pkCenter"><div className="pkPanel window">No rallies were found in this video.</div></div>}
           {rally && (
-            <div className="pkTwinBar window">
+            <div className="pkTwinBar">
               <div className="pkTwinBarRow">
                 <button type="button" disabled={ri === 0} onClick={() => setRi(ri - 1)} aria-label="Previous rally">
                   ⏮
@@ -257,7 +257,7 @@ export const TwinStats = ({ analysis, onRally }) => {
   const maxHist = Math.max(1, ...Object.values(s.histogram || {}))
   return (
     <div className="pkTwinStats">
-      <div className="pkPanel window pkTwinCard">
+      <div className="pkTwinCard">
         <b>The game</b>
         <p>
           {s.rallies} rallies · {s.shots} shots · longest rally {s.longest} shots
@@ -290,7 +290,7 @@ export const TwinStats = ({ analysis, onRally }) => {
       {s.players.map((p) => {
         const total = Math.max(1, p.shots)
         return (
-          <div key={p.id} className="pkPanel window pkTwinCard">
+          <div key={p.id} className="pkTwinCard">
             <b>
               <span className="pkTwinChip" style={{ background: color(p.id) }} /> {name(p.id)} <small className="pkMuted">{p.team === 0 ? "near side" : "far side"}</small>
             </b>

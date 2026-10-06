@@ -41,9 +41,18 @@ export const seekTo = (video, t) =>
       done = true
       video.removeEventListener("seeked", finish)
       clearTimeout(timer)
-      // (the decoded picture is ready one frame after "seeked" on some browsers)
-      if (video.requestVideoFrameCallback) video.requestVideoFrameCallback(() => resolve())
-      else resolve()
+      // (the decoded picture is ready one frame after "seeked" on some browsers; a paused video
+      // may never present one, so don't wait long)
+      if (video.requestVideoFrameCallback) {
+        let ok = false
+        const go = () => {
+          if (ok) return
+          ok = true
+          resolve()
+        }
+        video.requestVideoFrameCallback(go)
+        setTimeout(go, 120)
+      } else resolve()
     }
     const timer = setTimeout(finish, 2500)
     video.addEventListener("seeked", finish)

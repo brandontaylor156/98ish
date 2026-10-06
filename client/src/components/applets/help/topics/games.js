@@ -236,7 +236,7 @@ export const topics = [
     book: "games-action",
     title: "Pickleball 98",
     summary: "3D pickleball with real rules, lessons, a ball machine, drills, a walk-around park with open play, a World Tour and online singles and doubles.",
-    keywords: ["pickleball", "My Park", "park", "venue", "real venues", "Los Cab", "Newport Beach", "Wolf + Bear", "Whittier Narrows", "iPickle", "Paseo Club", "Sinaloa", "California SMASH", "indoor", "favorites", "OpenStreetMap", "open play", "call next", "paddle stacking", "spectate", "watch", "park rep", "dink", "kitchen", "serve", "World Tour", "doubles", "drive", "lob", "paddle", "Locker Room", "outfit", "customize", "swimsuit", "beach", "winter", "practice", "ball machine", "drill", "lesson", "coach", "third shot drop", "reset", "split step", "two-bounce rule", "how to play", "swipe", "move pad", "left-handed", "camera", "swing trail", "swipe trail", "sound", "pop"],
+    keywords: ["pickleball", "My Park", "park", "venue", "real venues", "Los Cab", "Newport Beach", "Wolf + Bear", "Whittier Narrows", "iPickle", "Paseo Club", "Sinaloa", "California SMASH", "indoor", "favorites", "OpenStreetMap", "open play", "call next", "paddle stacking", "spectate", "watch", "park rep", "dink", "kitchen", "serve", "World Tour", "doubles", "drive", "lob", "paddle", "Locker Room", "outfit", "customize", "swimsuit", "beach", "winter", "practice", "ball machine", "drill", "lesson", "coach", "third shot drop", "reset", "split step", "two-bounce rule", "how to play", "swipe", "move pad", "left-handed", "camera", "swing trail", "swipe trail", "sound", "pop", "Twin Replay", "film a game", "video", "replay my game", "real game", "stats", "heat map", "shot mix", "pose"],
     programs: ["Pickleball 98"],
     body: [
       "Pickleball 98 is pickleball in 3D, with real rules and real ball physics. Play the computer, learn the game in Practice, go on a World Tour, play a friend on the same keyboard, or play people online.",
@@ -284,6 +284,19 @@ export const topics = [
           "**Walk in like you would in real life.** At **Los Cab** you arrive in the parking lot, go through the front doors into the lobby (fountain, front desk, pro shop), down the hall past the locker rooms (each with a sauna and a steam room) and out to the 50 m pool, then on to the courts; the cafe, lounge, fitness centre, spin studio, racquetball, indoor gym, kids club and day spa are all open. At **California SMASH** you walk up the Maple Ave frontage, through the front doors into the lobby, through the bar and restaurant (and past the restrooms) out to the courts and the raised lounge, and out to the patio by the train viaduct. Inside, the camera comes closer and stays in the room. Upstairs spaces (SMASH's VIP mezzanine, Los Cab's ballroom) are shown but not walkable yet.",
           "Some details are best guesses (for example where Wolf + Bear's private court is, or which tennis courts at Whittier Narrows have pickleball lines). No location is needed or used.",
           "Map data © OpenStreetMap contributors, available under the Open Database License.",
+        ],
+      },
+      { h: "Twin Replay: your real games, replayed" },
+      "**Game > Twin Replay** turns a video of a real game into a replay in Pickleball 98: the players move where you all really moved and swing when you really hit, at your court (pick one of the real venues and the court number), with stats for everyone.",
+      {
+        list: [
+          "**Film a game** (in 98ish, with the back camera) or **Open a video** you filmed. Best: the phone on the back fence behind a baseline, sideways, the whole court in the picture, sound on (the paddle's pop times the hits).",
+          "**Tap the four corners** of the court in the order shown (hold and slide for a magnifier, drag a dot to fix it). Yellow lines show the court as 98ish now sees it. Pick **Doubles** or **Singles**, then **Read the game**.",
+          "Reading happens on this device: a pose model (Google's MediaPipe, free) finds the players in each picture, about 15 pictures for each second of video. It takes a while (a progress bar shows the time left; Pause and Stop work). Then name the players by their shirt color.",
+          "**Replay:** each rally plays on the athletes. Play/pause, the rally's timeline (ticks are the hits), speed (1x, ½x, ¼x), **Camera** (Broadcast, Side, Top, Follow one player, Fence: where your phone was). **More options »** shows your video beside it in sync, changes the venue and court, and sends the game to a friend.",
+          "**Stats:** rally lengths and highlights (tap one to watch it), and for each player where they stood (a heat map of their half), time at the kitchen line, meters covered, their shot mix (serve, return, drive, drop, dink, volley, overhead, lob), third-shot choices, and how often they hit a rally's last shot.",
+          "**Send to a friend** makes a small replay file (no video: just everyone's positions and the hits); they open it in **Twin Replay > More options » > Open a replay file...**. **Try the demo rally** (under More options) shows what it does without filming anything.",
+          "Honest limits: the shot kinds are a good guess, not a referee; the ball's path is rebuilt between the hits (following the real ball in phone video isn't reliable yet); points and errors aren't judged. People walking through, or a player hidden behind another, can confuse it for a moment.",
         ],
       },
       { h: "How a good player plays" },
