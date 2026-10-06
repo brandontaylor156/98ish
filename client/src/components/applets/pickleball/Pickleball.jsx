@@ -28,6 +28,8 @@ import { bindingsFor, keyName } from "./input.js"
 import "./Pickleball.css"
 import "./Overlay.css"
 import { helpItem } from "../../../utils/help"
+// Real Games (the pickleball you play in real life: sessions, scorekeeper, matches, ladder; applets/pbclub, server/pbclub)
+const RealGames = React.lazy(() => import("../pbclub/PbClub"))
 import { ParkHud, ParkIntro, ParkMenu, ParkResult, ParkTurn, ParkVenues } from "./park/ParkHud"
 import { VENUE_LIST } from "./park/venues/index.js"
 import { usePark } from "./park/usePark"
@@ -158,14 +160,15 @@ const rosterFor = ({ doubles, level, me, outfit, opponent, partner, p2, humans =
   return roster
 }
 
-const Pickleball = ({ onClose, mobile }) => {
+const Pickleball = ({ onClose, mobile, handoff }) => {
   const stageRef = useRef(null)
   const canvasRef = useRef(null)
   const engineRef = useRef(null)
   const meterRefs = [useRef(null), useRef(null)]
   const timers = useRef(new Set())
   const [phase, setPhase] = useState("loading") // loading | error | title | playing | paused | over | showcase
-  const [screen, setScreen] = useState("main") // main | quick | tour | practice | versus | players | settings | controls | online
+  const [screen, setScreen] = useState("main") // main | quick | tour | practice | versus | players | settings | controls | online | club
+  const [clubHandoff, setClubHandoff] = useState(null) // a Real Games session/match to show (a notification or deep link)
   const [playersFor, setPlayersFor] = useState("p1")
   const [lockerFor, setLockerFor] = useState(null) // who the Locker Room opens on (and where it goes back to)
   const [prefs, setPrefsState] = useState(readPrefs)
@@ -1031,6 +1034,12 @@ const Pickleball = ({ onClose, mobile }) => {
 
   const inGame = phase === "playing" || phase === "paused" || phase === "over"
   const atMenu = !inGame && phase !== "loading" && phase !== "error"
+  // a notification or deep link into Real Games (a session invite, a match to confirm): open it unless a game is on
+  useEffect(() => {
+    if (!handoff?.id || !(handoff.session || handoff.match || handoff.venue)) return
+    setClubHandoff(handoff)
+    if (!inGame) setScreen("club")
+  }, [handoff?.id])
   const isOnline = session?.kind === "online"
   const b = bindingsFor(prefs.keys)
   const keyText = (s) =>
@@ -1047,6 +1056,7 @@ const Pickleball = ({ onClose, mobile }) => {
         { label: "World Tour...", onClick: () => (quitToMenu(), setScreen("tour")) },
         { label: "Practice...", onClick: () => (quitToMenu(), setHubView("hub"), setScreen("practice")) },
         { label: "My Park...", onClick: pickPark },
+        { label: "Real Games...", onClick: () => (session?.kind !== "online" && quitToMenu(), setScreen("club")) },
         { label: "2 Players...", onClick: () => (quitToMenu(), setScreen("versus")) },
         { label: "Locker Room...", onClick: () => (session?.kind !== "online" && quitToMenu(), setLockerFor(null), setScreen("locker")) },
         { label: "Play Online...", onClick: () => (session?.kind !== "online" && quitToMenu(), setScreen("online")) },
@@ -1309,6 +1319,13 @@ const Pickleball = ({ onClose, mobile }) => {
             showPad={showPad}
             offer={firstTime && !prefs.welcomed && !prefs.tutorialDone ? <FirstTimeOffer onLesson={() => withScheme(() => startTrain({ kind: "lesson", id: "basics" }))} onPlay={() => withScheme(startQuick)} /> : null}
           />
+        )}
+        {atMenu && screen === "club" && (
+          <div className="pkClubHost" data-screen="club">
+            <React.Suspense fallback={<div className="pkCenter pkDim"><div className="pkPanel window">Loading Real Games...</div></div>}>
+              <RealGames embedded mobile={mobile} handoff={clubHandoff} onClose={() => setScreen("main")} />
+            </React.Suspense>
+          </div>
         )}
         {atMenu && screen === "quick" && <QuickMenu prefs={prefs} setPrefs={setPrefs} tour={tour} onStart={() => withScheme(startQuick)} onBack={() => setScreen("main")} onPlayers={() => (setPlayersFor("p1q"), setScreen("players"))} />}
         {(atMenu || phase === "showcase") && screen === "locker" && (

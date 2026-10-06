@@ -95,7 +95,7 @@
 //                                                  them are told; they're taken out of everyone
 //                                                  else's record (shares with them, their asks,
 //                                                  alerts about them). No position history exists
-//   pickleball  pbsessions, pbmatches              Pickleball Club 98 (server/pbclub): play
+//   pickleball  pbsessions, pbmatches              Pickleball 98 Real Games (server/pbclub): play
 //                                                  sessions they host deleted (the invited are
 //                                                  told); their RSVPs, invitations and chat lines
 //                                                  taken out of others' sessions. In matches they

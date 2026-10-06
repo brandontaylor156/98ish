@@ -1,4 +1,4 @@
-// Pickleball Club 98's rules, shared by the app and the server (server/pbclub loads this very
+// Real Games' rules (Pickleball 98), shared by the app and the server (server/pbclub loads this very
 // file): the venues, what a logged match and a play session look like, the friends' ratings,
 // stats, and who's in / waitlisted for a session. Pure: no React, no storage.
 //

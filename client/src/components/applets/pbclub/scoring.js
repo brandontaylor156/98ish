@@ -1,4 +1,4 @@
-// Pickleball Club 98's courtside scorekeeper: the scoring rules for real games, pure (no
+// Real Games' courtside scorekeeper (Pickleball 98): the scoring rules for real games, pure (no
 // React), so the tests can play whole games. Used by Scorekeeper.jsx.
 //
 //   newGame(cfg) -> state          cfg: { format: "doubles" | "singles", scoring: "sideout" |

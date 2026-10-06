@@ -25,6 +25,17 @@
   user-select: text;
   -webkit-user-select: text;
 }
+.pbTopBar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 4px 0;
+}
+.pbTopBar b {
+  flex: 1;
+  font-size: 13px;
+}
 .pbTabs {
   margin: 4px 4px 0;
   flex: none;

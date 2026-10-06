@@ -54,7 +54,6 @@ const MediaPlayer = lazyApp(() => import("../applets/mediaPlayer/MediaPlayer"))
 const Music = lazyApp(() => import("../applets/music/Music"))
 const Together = lazyApp(() => import("../applets/together/Together"))
 const Locator = lazyApp(() => import("../applets/locator/Locator"))
-const PbClub = lazyApp(() => import("../applets/pbclub/PbClub"))
 const NetWindow = lazyApp(() => import("../applets/network/NetWindow"))
 const Mail = lazyApp(() => import("../applets/mail/Mail"))
 const HomePageStudio = lazyApp(() => import("../applets/homepage/HomePageStudio"))
@@ -841,7 +840,7 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
       {window.app === "pinball" && <Pinball mobile={mobile} onClose={() => closeWindow(window, index)} onTitle={rename(index)} />}
       {window.app === "critterpinball" && <CritterPinball mobile={mobile} onClose={() => closeWindow(window, index)} onTitle={rename(index)} />}
       {window.app === "ski" && <Ski mobile={mobile} onClose={() => closeWindow(window, index)} />}
-      {window.app === "pickleball" && <Pickleball mobile={mobile} onClose={() => closeWindow(window, index)} />}
+      {window.app === "pickleball" && <Pickleball mobile={mobile} handoff={window.handoff} onClose={() => closeWindow(window, index)} />}
       {window.app === "shred" && <Shred mobile={mobile} onClose={() => closeWindow(window, index)} />}
       {window.app === "blockten" && <BlockTen mobile={mobile} onClose={() => closeWindow(window, index)} />}
       {window.app === "boomfrenzy" && <BoomFrenzy mobile={mobile} paused={!!window.minimized || !window.active} onClose={() => closeWindow(window, index)} />}
@@ -855,7 +854,6 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
       {window.app === "chesspuzzles" && <ChessPuzzles mobile={mobile} onClose={() => closeWindow(window, index)} />}
       {window.app === "imposter" && <Imposter mobile={mobile} onClose={() => closeWindow(window, index)} />}
       {window.app === "musiclib" && <Music mobile={mobile} handoff={window.handoff} onClose={() => closeWindow(window, index)} />}
-      {window.app === "pbclub" && <PbClub mobile={mobile} handoff={window.handoff} onClose={() => closeWindow(window, index)} />}
       {window.app === "locator" && <Locator mobile={mobile} dispatch={dispatch} onClose={() => closeWindow(window, index)} />}
       {window.app === "together" && <Together mobile={mobile} dispatch={dispatch} handoff={window.handoff} onClose={() => closeWindow(window, index)} />}
       {window.app === "hexlands" && <Hexlands mobile={mobile} onClose={() => closeWindow(window, index)} />}

@@ -231,6 +231,37 @@ export const topics = [
     ],
     related: ["tetris", "online-play", "game-invites"],
   },
+  // ---- Pickleball 98: Real Games (applets/pbclub, shown inside Pickleball 98) ----
+  {
+    id: "pickleball-club",
+    book: "games-action",
+    title: "Pickleball 98: Real Games",
+    summary: "Score your real pickleball games, plan open play with your group, and keep a friendly ladder.",
+    keywords: ["Real Games", "Pickleball Club", "scorekeeper", "score keeper", "keep score", "score call", "4-2-1", "side out", "rally scoring", "open play", "who's in", "RSVP", "waitlist", "round robin", "king of the court", "mixed doubles", "rating", "ladder", "DUPR", "Los Cab", "Wolf + Bear", "SMASH", "meet me at"],
+    body: [
+      { img: "/assets/program_icons/pickleball.svg", alt: "Pickleball 98 icon" },
+      "**Real Games** is the part of [[pickleball|Pickleball 98]] for the pickleball you play in real life. Open Pickleball 98 and pick **Real Games** on the title screen (or Game > Real Games...). It has four tabs:",
+      {
+        list: [
+          "**Play**: your group's sessions and your courts. **New Session...** picks the court, day, time and how many players, and invites buddies; each person answers **I'm in**, **Maybe** or **Can't**. When it's full, more \"in\"s go on a **waitlist** and the first one is told as soon as a spot opens. On the day: **Running late?** (5 to 30 minutes, or **I'm here**), a little chat, and the **courts**: everyone who's in gets a court each round, sit-outs rotate fairly. Choose **Mix it up** (new partners every round), **King of the court** (tap the winners: they move up a court and split up) or **Two groups** (one from each group on every team, for mixed doubles). **Score this game** opens the scorekeeper with those players.",
+          "**Score**: the courtside scorekeeper. Pick the players (you, buddies, or a guest) and **Start Game**, then tap whichever team won each rally. It shows the score call (\"4-2-1\": serving team, receiving team, server 1 or 2), who serves from which side and who receives, says **Side out**, **Switch ends** at 6 (8 in a game to 15, 11 to 21) and **Game point**, and can say the score out loud. **Undo** takes back the last rally. The screen stays on during a game, and a game in progress survives a reload or a locked phone.",
+          "**Matches**: every match you've played. A match counts once **someone on the other team confirms** it (they get a notification); **That's Wrong** sends it back. Nobody confirms in 7 days: it expires. To take back a confirmed match, **Remove...** asks the other team to agree. **Log a Match...** adds one you scored on paper.",
+          "**Ladder**: the friends' ratings (doubles and singles) for everyone you've played or planned with, and your record, streaks, last 10, best partners and head-to-head.",
+        ],
+      },
+      { h: "Scoring options (More options on the Score tab)" },
+      "Singles or doubles; **side-out** scoring (only the serving team scores; in doubles both partners serve, except the very first turn of the game: \"0-0-2\") or **rally** scoring (every rally scores; with **Win only on your serve**, a team can only win the game on its own serve); play to 11, 15 or 21; win by 2 or 1; one game or best of 3 or 5; who serves first.",
+      { h: "How the ratings work" },
+      "Everyone starts at 1500. Each confirmed game moves the winners up and the losers down: more for beating someone rated higher, a bit more for a blowout than an 11-10. In doubles your own rating counts most, so the stronger partner is expected to win more (gains less, loses more). New players move faster for their first 10 games. **Level** is a rough guide (1500 is about 3.5), not an official rating. Games with a guest are in your record but not the ratings. Change the season (all time, this year, the last 90 or 30 days) above the ladder.",
+      { h: "Your courts" },
+      "The Play tab lists Los Cab Sports Village, The Tennis & Pickleball Club at Newport Beach, Wolf + Bear Indoor Pickleball, iPickle Whittier Narrows, The Paseo Club, Sinaloa Middle School and California SMASH, with **Directions** (Apple Maps on Apple devices, Google Maps elsewhere), **Plan** (a session there) and **Meet Me Here**, which sends a buddy an IM with the address. Outdoor sessions in the next week show the weather. In Buddy Locator, **Add a Place** can pick one of these courts too.",
+      { phone: "Keep 98ish open on the court: iPhone web apps can't keep a screen awake or talk once they're in the background. The spoken score uses your phone's own voice, so nothing is sent anywhere." },
+      { note: "Sessions, RSVPs, chat and matches are kept on the 98ish server for your group (see [[privacy-server]]). Deleting your account turns you into \"Deleted player\" in your friends' match history so their ratings stay the same." },
+      { open: "Pickleball 98", label: "Open Pickleball 98" },
+    ],
+    related: ["pickleball", "buddy-locator", "calendar"],
+  },
+
   {
     id: "pickleball",
     book: "games-action",

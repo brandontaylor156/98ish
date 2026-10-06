@@ -1,4 +1,4 @@
-// Pickleball Club 98: the real-life side of pickleball for a group of 98 Messenger friends.
+// Pickleball 98's Real Games (once "Pickleball Club 98"): the real-life side of pickleball for a group of 98 Messenger friends.
 // Log the games you play at real courts (the opponent confirms, so the friends' ratings stay
 // honest), see a friends-only rating ladder, and plan play sessions ("Who's in?") with RSVPs,
 // a waitlist, a little chat and the courts' rotation everyone at the session sees. The rules
@@ -40,7 +40,7 @@ const { createClubStore, memoryStore } = require("./store")
 const WINDOW_MS = 10 * 60_000
 const SWEEP_MS = 60 * 60_000
 const BOT_KEY = "smarterchild"
-const OPEN_URL = "/?open=program&name=Pickleball%20Club%2098"
+const OPEN_URL = "/?open=program&name=Pickleball%2098"
 
 let coreModule = null
 const loadCore = () => (coreModule ??= import(pathToFileURL(path.join(__dirname, "../../client/src/components/applets/pbclub/clubCore.js")).href))
@@ -333,7 +333,7 @@ const createClub = ({ aim, store, push = null, now = Date.now, limits = {} } = {
           const t = core.teamOf(doc, me.key)
           if (t < 0) refuse(403, "You didn't play in it.")
           next = { ...doc, status: "removing", removeTeam: t, removeBy: me.key }
-          note = { title: `${me.name} asked to remove a match`, body: `${scoreLine(doc)}. Agree in Pickleball Club 98 to take it off your record.` }
+          note = { title: `${me.name} asked to remove a match`, body: `${scoreLine(doc)}. Agree in Pickleball 98 > Real Games to take it off your record.` }
         }
       } else if (act === "agree") {
         if (!core.canAgreeRemove(doc, me.key)) refuse(409, "That isn't waiting for you.")
@@ -501,7 +501,7 @@ const createClub = ({ aim, store, push = null, now = Date.now, limits = {} } = {
         const account = await accountFor(String(request.headers.authorization || "").replace(/^Bearer\s+/i, ""))
         if (!account) {
           badTokens(ip)
-          return response.status(401).json({ ok: false, error: "Sign on to 98 Messenger to use Pickleball Club 98 with your friends." })
+          return response.status(401).json({ ok: false, error: "Sign on to 98 Messenger to use Real Games with your friends." })
         }
         if (writes(account.key)) return response.status(429).json({ ok: false, error: "That's a lot at once. Please wait a few minutes." })
         request.account = account
@@ -518,7 +518,7 @@ const createClub = ({ aim, store, push = null, now = Date.now, limits = {} } = {
       } catch (error) {
         if (error instanceof Refused) return response.status(error.status).json({ ok: false, error: error.message })
         console.error("[pbclub]", error?.message)
-        response.status(503).json({ ok: false, error: "Pickleball Club isn't answering. Try again in a minute." })
+        response.status(503).json({ ok: false, error: "Real Games isn't answering. Try again in a minute." })
       }
     }
     const b = (request) => request.body || {}
@@ -538,7 +538,7 @@ const createClub = ({ aim, store, push = null, now = Date.now, limits = {} } = {
       if (error.type === "entity.too.large") return response.status(413).json({ ok: false, error: "That's too much at once." })
       if (error.type === "entity.parse.failed") return response.status(400).json({ ok: false, error: "That didn't make sense to the server." })
       console.error("[pbclub] request failed", error)
-      response.status(500).json({ ok: false, error: "Pickleball Club is unavailable right now. Please try again later." })
+      response.status(500).json({ ok: false, error: "Real Games is unavailable right now. Please try again later." })
     })
     return r
   }

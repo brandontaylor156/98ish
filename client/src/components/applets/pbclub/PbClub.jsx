@@ -11,12 +11,12 @@ import Ladder from "./Ladder"
 import { SessionEditor, SessionList, SessionView } from "./Sessions"
 import "./PbClub.css"
 
-// Pickleball Club 98: real-life pickleball with your group. Play (sessions: who's in, the
+// Real Games, inside Pickleball 98 (Pickleball.jsx renders it with `embedded`): real-life pickleball with your group. Play (sessions: who's in, the
 // courts' rotation, the real courts you play at), Score (the courtside scorekeeper), Matches
 // (confirm and log), Ladder (the friends' ratings and your stats). The server is
 // server/pbclub; the rules are clubCore.js, scoring.js and rotation.js.
 
-const ICON = "/assets/program_icons/pbclub.svg"
+const ICON = "/assets/program_icons/pickleball.svg"
 const TABS = [
   ["play", "Play"],
   ["score", "Score"],
@@ -110,7 +110,7 @@ const CourtsList = ({ onPlan, onMeet, canMeet, canPlan }) => (
   </ul>
 )
 
-const PbClub = ({ mobile, handoff, onClose }) => {
+const PbClub = ({ mobile, handoff, onClose, embedded = false }) => {
   const aim = useAim()
   const state = club.useClub()
   const [tab, setTab] = useState("play")
@@ -169,7 +169,7 @@ const PbClub = ({ mobile, handoff, onClose }) => {
         { label: "Exit", onClick: onClose },
       ],
     },
-    { label: "Help", items: [helpItem({ program: "Pickleball Club 98" }), "-", { label: "About Pickleball Club 98...", onClick: () => setAbout(true) }] },
+    { label: "Help", items: [helpItem("pickleball-club"), "-", { label: "About Real Games...", onClick: () => setAbout(true) }] },
   ]
 
   const signedOff = !online && (
@@ -220,8 +220,19 @@ const PbClub = ({ mobile, handoff, onClose }) => {
   }
 
   return (
-    <div className={`pbRoot${mobile ? " is-mobile" : ""}`} data-tab={tab}>
-      <MenuBar menus={menus} />
+    <div className={`pbRoot${mobile ? " is-mobile" : ""}${embedded ? " is-embedded" : ""}`} data-tab={tab}>
+      {!embedded && <MenuBar menus={menus} />}
+      {embedded && (
+        <div className="pbTopBar">
+          <button type="button" onClick={onClose} data-club-back>
+            « Back
+          </button>
+          <b>Real Games</b>
+          <button type="button" onClick={() => setEditing({})} disabled={!online} data-club-new>
+            New Session...
+          </button>
+        </div>
+      )}
       <menu role="tablist" className="pbTabs">
         {TABS.map(([id, label]) => (
           <li key={id} role="tab" aria-selected={tab === id}>
@@ -246,11 +257,11 @@ const PbClub = ({ mobile, handoff, onClose }) => {
       {editing && <SessionEditor session={editing.session || null} venueId={editing.venueId} buddies={buddies} onClose={() => setEditing(null)} onSaved={(s) => s && setOpen(s.id)} />}
       {meet && <MeetDialog venue={meet} buddies={buddies} onClose={() => setMeet(null)} send={(name, text) => aim.sendIm(name, text)} />}
       {about && (
-        <Dialog title="About Pickleball Club 98" onOk={() => setAbout(false)} onCancel={() => setAbout(false)}>
+        <Dialog title="About Real Games" onOk={() => setAbout(false)} onCancel={() => setAbout(false)}>
           <div className="pbAbout">
             <img src={ICON} alt="" width="32" height="32" />
             <p>
-              <b>Pickleball Club 98</b>: score your real games, plan open play with your group, and keep a friendly ladder. The score is spoken by your phone's own voice; nothing about you is shared outside your group.
+              <b>Real Games</b> (in Pickleball 98): score your real games, plan open play with your group, and keep a friendly ladder. The score is spoken by your phone's own voice; nothing about you is shared outside your group.
             </p>
           </div>
         </Dialog>

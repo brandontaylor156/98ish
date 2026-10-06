@@ -87,6 +87,10 @@ export const TitleMenu = ({ onPick, onOnline, tour, showPad, offer = null }) => 
           <b>My Park</b>
           <small>Walk the courts, watch games, call next and play</small>
         </button>
+        <button type="button" className="pkBig" data-menu="club" onClick={() => onPick("club")}>
+          <b>Real Games</b>
+          <small>Your real-life pickleball: who's in, keep score, friends' ladder</small>
+        </button>
         <PlayOnlineButton onClick={onOnline} className="pkOnlineBig" sub="Quick Match, rooms with a code, invites" />
         <MoreOptions id="pickleball.modes" label="More modes" lessLabel="Fewer modes" className="pkMore" summary="World Tour · 2 Players">
           <button type="button" className="pkBig" data-menu="tour" onClick={() => onPick("tour")}>

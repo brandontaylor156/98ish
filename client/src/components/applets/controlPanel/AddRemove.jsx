@@ -53,7 +53,6 @@ const CHUNKS = {
   Craps: "Casino",
   Baccarat: "Casino",
   "Buddy Locator": "Locator",
-  "Pickleball Club 98": "PbClub",
 }
 const chunkOf = (p) => (p.app === "webapp" ? "WebApp" : CHUNKS[p.name] || p.name.replace(/[^a-z0-9]/gi, ""))
 

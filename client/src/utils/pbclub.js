@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from "react"
 import * as core from "../components/applets/pbclub/clubCore.js"
 
-// Pickleball Club 98's state on this device (the server is server/pbclub; the rules are
+// Pickleball 98's Real Games: state on this device (the server is server/pbclub; the rules are
 // applets/pbclub/clubCore.js). Outside React so the live notices (PbClubBridge) and the app
 // share it.
 //

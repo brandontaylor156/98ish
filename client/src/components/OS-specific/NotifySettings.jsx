@@ -25,7 +25,7 @@ const KINDS = [
   ["notes", "Shared notes: a buddy shares or changes one"],
   ["albums", "Shared albums: new photos, comments, likes"],
   ["places", "Buddy Locator: a buddy shares, asks, arrives or leaves"],
-  ["pickleball", "Pickleball Club 98: invitations, a spot opening, matches to confirm"],
+  ["pickleball", "Pickleball 98 (Real Games): invitations, a spot opening, matches to confirm"],
 ]
 
 // ---- the Add to Home Screen guide (original drawings) ----

@@ -272,7 +272,7 @@ const addToCalendar = async (session) => {
       start: session.start,
       end: session.start + session.minutes * 60_000,
       location: [venue, core.venueAddress(session.venue)].filter(Boolean).join(", "),
-      notes: session.note || "Pickleball Club 98",
+      notes: session.note || "Pickleball 98 · Real Games",
       reminders: [60],
     }
     return await cal.saveEvent(id, event)

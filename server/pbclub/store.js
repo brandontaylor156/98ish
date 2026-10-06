@@ -1,4 +1,4 @@
-// Pickleball Club 98 on the 98ish server: play sessions (MongoDB collection "pbsessions")
+// Pickleball 98's Real Games on the 98ish server: play sessions (MongoDB collection "pbsessions")
 // and logged matches ("pbmatches") when MONGODB_URI is set, otherwise memory (lost on
 // restart). Every save names the rev it read, so two people answering at once can't
 // overwrite each other (the caller reads again and retries).
