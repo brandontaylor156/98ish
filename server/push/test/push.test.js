@@ -32,7 +32,7 @@ const skip = !ioClient && "socket.io-client not installed"
 const VAPID = { publicKey: "BPublicKeyForTests", privateKey: "private-for-tests", subject: "mailto:test@example.com" }
 const SUB = (n = 1) => ({ endpoint: `https://push.example.com/send/device-${n}`, keys: { p256dh: "B" + "p".repeat(86), auth: "a".repeat(22) } })
 const wait = (ms) => new Promise((r) => setTimeout(r, ms))
-const until = async (fn, ms = 2000) => {
+const until = async (fn, ms = 5000) => { // (2 s timed out on a loaded machine: it returns as soon as fn holds)
   const start = Date.now()
   while (!fn()) {
     if (Date.now() - start > ms) throw new Error("timed out")
