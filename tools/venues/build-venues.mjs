@@ -13,6 +13,7 @@
 import fs from "node:fs"
 import path from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
+import { buildSurround } from "./surround.mjs"
 
 const HERE = path.dirname(fileURLToPath(import.meta.url))
 const ROOT = path.join(HERE, "../..")
@@ -585,6 +586,16 @@ const buildOne = (v) => {
   }
   if (ov.liveCourts) spec.liveCourts = ov.liveCourts
   if (ov.gates) spec.gates = ov.gates
+  // the real surroundings (docs/venue-provenance.md): mapped buildings, parks, golf, roads, rails
+  // and trees out to ~450 m beyond the crop (surround.mjs), and the terrain's skyline from free
+  // elevation tiles (horizon.py). Nothing made up: what isn't mapped isn't drawn.
+  const surround = buildSurround({ id: v.id, proj, sh, box, cropIds: new Set(els.map((e) => e.id)), defaultTree: ov.trees?.default === "palm" ? "palm" : "broadleaf" })
+  if (surround) spec.surround = surround
+  const hzPath = path.join(HERE, "horizon", `${v.id}.json`)
+  if (fs.existsSync(hzPath)) {
+    const hz = JSON.parse(fs.readFileSync(hzPath, "utf8"))
+    spec.horizon = { ground: hz.ground, eye: hz.eye, groups: hz.groups, src: hz.source }
+  }
   return spec
 }
 

@@ -29,7 +29,8 @@ const folder = async (make = false) => {
 export const listBackdrops = async () => {
   const dir = await folder()
   if (!dir) return []
-  return dir.content.filter((f) => !f.isDirectory && f.meta?.venue).map((f) => ({ ...f.meta, file: f }))
+  // (a "demo" backdrop saved before 2026-10-06 was made-up hills and buildings: never shown now)
+  return dir.content.filter((f) => !f.isDirectory && f.meta?.venue && f.meta.source !== "demo").map((f) => ({ ...f.meta, file: f }))
 }
 
 export const getBackdrop = async (venue) => (await listBackdrops()).find((b) => b.venue === venue) || null

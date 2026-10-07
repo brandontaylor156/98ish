@@ -17,6 +17,7 @@ import { applySurfaces, surfaced, surfSky, surfWet } from "./surfaces.js"
 import { bakeVenueAO, clearBakedAO, setBakedAOOn } from "./occlusion.js"
 import { chainLink, setWindStrength, windscreenTex } from "./detail.js"
 import { createPrecip, createRealSky } from "./realsky.js"
+import { horizonMeshes, setHorizonLook } from "./horizon.js"
 
 const canvasTexture = (w, h, draw) => {
   const c = document.createElement("canvas")
@@ -99,6 +100,14 @@ export const buildPark = (scene, { quality = "medium", layout = RIVERSIDE_LAYOUT
     real.mesh.position.copy(sky.position)
     real.mesh.visible = false
     group.add(real.mesh)
+  }
+  // the real skyline (horizon.js: the terrain round the venue from elevation tiles, the sea)
+  const horizon = S?.horizon ? horizonMeshes(S.horizon) : []
+  for (const m of horizon) {
+    keep(m.geometry)
+    keep(m.material)
+    m.position.copy(sky.position)
+    group.add(m)
   }
   const precip = quality !== "low" && !S?.indoor ? createPrecip({ quality, phone }) : null
   if (precip) group.add(precip.mesh)
@@ -885,6 +894,7 @@ export const buildPark = (scene, { quality = "medium", layout = RIVERSIDE_LAYOUT
         sun.updateMatrixWorld(true)
       }
     }
+    setHorizonLook(horizon, d)
     scenery?.setDayLook?.(d)
   }
 
@@ -910,7 +920,7 @@ export const buildPark = (scene, { quality = "medium", layout = RIVERSIDE_LAYOUT
     cull: scenery?.cull || null,
     // (a real venue: the sky dome centred on the camera)
     followSky: S
-      ? (p) => {
+      ? (p, cam = null) => {
           if (shadows && (!shadowAt || Math.hypot(p.x - shadowAt.x, p.z - shadowAt.z) > 8)) {
             // the shadow box: re-centred once the camera has gone 8 m, the sun 120 m back along its light
             shadowAt = { x: p.x, z: p.z }
@@ -929,6 +939,13 @@ export const buildPark = (scene, { quality = "medium", layout = RIVERSIDE_LAYOUT
           stars.updateMatrix()
           sky.updateMatrixWorld(true)
           stars.updateMatrixWorld(true)
+          // (the skyline round the eye itself: its angles are worked out for an eye 1.7 m up)
+          const eye = cam || p
+          for (const m of horizon) {
+            m.position.set(eye.x, Math.max(0, (eye.y ?? 1.7) - (S.horizon?.eye ?? 1.7)), eye.z)
+            m.updateMatrix()
+            m.updateMatrixWorld(true)
+          }
           if (real) {
             real.mesh.position.copy(sky.position)
             real.mesh.updateMatrix()

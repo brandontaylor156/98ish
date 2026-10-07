@@ -2,8 +2,9 @@
 // parking, paths, pools painted into one texture), every court (live ones get their own
 // group for the matches), the low fences and nets, buildings (walls with windows, flat roofs),
 // an indoor hall (floor, padded walls, ceiling, light rows, a door) with its bar, trees (broad
-// leaf, palm, conifer), cars in the lots, street lamps, and a backdrop (hills, palms, a
-// skyline, mountains). Everything static: build.js merges it.
+// leaf, palm, conifer), cars in the lots, street lamps, and the real surroundings (mapped
+// buildings, parks and trees out to ~500 m; nothing invented, docs/venue-provenance.md).
+// Everything static: build.js merges it.
 
 import * as THREE from "three"
 import { addProps, propMaterials } from "./props.js"
@@ -11,6 +12,7 @@ import { FINISH, roomRect } from "./propkit.js"
 import { surfaced } from "./surfaces.js"
 import { buildCars, buildDecals, buildGlow, buildLotDetail, buildTrees, buildTufts, canvasTex, normalFor, windscreenTex, planDecals, setDetailEnv, skyEnvironment, windowMaps } from "./detail.js"
 import { dimEnvironment, loadHDRI, swapEnvironment } from "./environment.js"
+import { paintSurroundGround, railBridgeGeometry, surroundBuildingsGeometry } from "./surround.js"
 
 const canvasTexture = (w, h, draw) => {
   const c = document.createElement("canvas")
@@ -283,8 +285,20 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
   ground.position.set((X0 + X1) / 2, 0, (Z0 + Z1) / 2)
   ground.renderOrder = -0.5
   group.add(ground)
-  const farR = Math.max(260, Math.max(GW, GD))
-  const far = new THREE.Mesh(keep(new THREE.CircleGeometry(farR, 36)), lambert(hex(C.far, 0x8f9a6a)))
+  // the far ground: out to the mapped surroundings when the venue has them (their parks, golf,
+  // water and big roads painted in: surround.js), else a plain disc
+  const SU = S.surround
+  const farR = Math.max(260, Math.max(GW, GD), SU ? 460 : 0)
+  const farMat = SU
+    ? lambert(0xffffff, {
+        map: keep(
+          canvasTexture(quality === "low" ? 512 : 1024, quality === "low" ? 512 : 1024, (ctx, N) =>
+            paintSurroundGround(ctx, N, { cx: (X0 + X1) / 2, cz: (Z0 + Z1) / 2, R: farR, base: C.far || "#8f9a6a", surround: SU }),
+          ),
+        ),
+      })
+    : lambert(hex(C.far, 0x8f9a6a))
+  const far = new THREE.Mesh(keep(new THREE.CircleGeometry(farR, 48)), farMat)
   far.rotation.x = -Math.PI / 2
   far.position.set((X0 + X1) / 2, -0.05, (Z0 + Z1) / 2)
   group.add(far)
@@ -1787,22 +1801,10 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
   // ---------- trees ----------
   const byKind = { broadleaf: [], palm: [], conifer: [], eucalyptus: [] }
   for (const t of S.trees) (byKind[t.kind] || byKind.broadleaf).push(t)
-  // backdrop palms / trees beyond the walkable area
-  const bd = S.backdrop || {}
-  const ring = (n, r0, r1) => {
-    const out = []
-    const cx = (B.x0 + B.x1) / 2
-    const cz = (B.z0 + B.z1) / 2
-    const R = Math.hypot(B.x1 - B.x0, B.z1 - B.z0) / 2
-    for (let i = 0; i < n; i++) {
-      const a = rand() * Math.PI * 2
-      const r = R + r0 + rand() * (r1 - r0)
-      out.push({ x: cx + Math.cos(a) * r, z: cz + Math.sin(a) * r })
-    }
-    return out
-  }
-  for (const p of ring(bd.palms || 0, 10, 70)) byKind.palm.push({ ...p, s: 0.9 + rand() * 0.5 })
-  for (const p of ring(bd.trees ?? (S.indoor ? 6 : 24), 8, 80)) byKind[bd.treeKind || "broadleaf"].push({ ...p, s: 0.8 + rand() * 0.6 })
+  // only real trees: the venue's own (OSM, the aerial canopy, hand-placed from the reference pack)
+  // and the mapped ones around it (S.surround.trees); nothing is scattered to fill the view
+  // (docs/venue-provenance.md)
+  for (const t of S.surround?.trees || []) (byKind[t[3]] || byKind.broadleaf).push({ x: t[0], z: t[1], s: t[2] })
   const trunkMat = lambert(0x6b4a2b)
   if (detail) buildTrees(group, byKind, { keep, rand })
   if (!detail && (byKind.broadleaf.length || byKind.eucalyptus.length)) {
@@ -1917,47 +1919,9 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
     group.add(pole)
   }
 
-  // ---------- the backdrop: hills, a skyline, mountains ----------
-  const cx = (B.x0 + B.x1) / 2
-  const cz = (B.z0 + B.z1) / 2
-  const R = Math.max(farR * 0.7, Math.hypot(B.x1 - B.x0, B.z1 - B.z0) / 2 + 90)
-  if (bd.hills) {
-    const hillMat = lambert(hex(bd.hills, 0x9a9a6a), { flatShading: true })
-    const k = bd.hillsHeight || 1
-    for (let i = 0; i < 9; i++) {
-      const a = (i / 9) * Math.PI * 2 + rand() * 0.4
-      const r = 30 + rand() * 30
-      const hill = new THREE.Mesh(keep(new THREE.IcosahedronGeometry(r, 1)), hillMat)
-      hill.scale.set(1.4, 0.35 * k, 1)
-      hill.position.set(cx + Math.cos(a) * (R + 20), -2, cz + Math.sin(a) * (R + 20))
-      hill.rotation.y = a
-      group.add(hill)
-    }
-  }
-  if (bd.mountains) {
-    const mMat = lambert(hex(bd.mountains, 0x8a92a0), { flatShading: true })
-    const dir = (bd.mountainsDeg ?? -90) * (Math.PI / 180)
-    for (let i = 0; i < 7; i++) {
-      const a = dir + (i - 3) * 0.22
-      const r = 50 + rand() * 35
-      const m = new THREE.Mesh(keep(new THREE.ConeGeometry(r, r * 0.9, 6)), mMat)
-      m.position.set(cx + Math.cos(a) * (R + 120), r * 0.35 - 6, cz + Math.sin(a) * (R + 120))
-      group.add(m)
-    }
-  }
-  if (bd.skyline) {
-    const n = 40
-    const sk = new THREE.InstancedMesh(keep(new THREE.BoxGeometry(1, 1, 1).translate(0, 0.5, 0)), lambert(0xffffff), n)
-    const cc = new THREE.Color()
-    for (let i = 0; i < n; i++) {
-      const a = rand() * Math.PI * 2
-      const r = R + 30 + rand() * 60
-      sk.setMatrixAt(i, m4.compose(v1.set(cx + Math.cos(a) * r, 0, cz + Math.sin(a) * r), q.setFromEuler(e1.set(0, a, 0)), v2.set(10 + rand() * 25, 5 + rand() * 14, 10 + rand() * 20)))
-      if (bd.skylineTint) sk.setColorAt(i, cc.set(bd.skylineTint).offsetHSL(0, 0, (rand() - 0.5) * 0.12))
-      else sk.setColorAt(i, cc.setHSL(0.08, 0.08, 0.62 + rand() * 0.2))
-    }
-    group.add(sk)
-  }
+  // (no made-up backdrop: the hills, mountains and skyline that used to be scattered here are gone;
+  // the real surroundings are S.surround (mapped buildings, parks, golf) and S.horizon (the
+  // terrain's skyline from elevation tiles), drawn below and in horizon.js)
 
   // ---------- extras (from the venue's corrections): towers, stands, canopies ... ----------
   const art = (style, w, h) =>
@@ -2222,28 +2186,6 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
           post.position.set(x.x + ox * c + oz * sn, (sh - 0.2) / 2, x.z - ox * sn + oz * c)
           group.add(post)
         }
-    } else if (x.type === "golf") {
-      // rolling fairways and a few sand bunkers
-      const fair = lambert(0x6fa84a, { flatShading: true })
-      for (let k = 0; k < 6; k++) {
-        const mound = new THREE.Mesh(keep(new THREE.SphereGeometry(14 + rand() * 10, 10, 6)), fair)
-        mound.scale.y = 0.12
-        mound.position.set(x.x + (rand() - 0.5) * (x.w || 100), -0.4, x.z + (rand() - 0.5) * (x.d || 80))
-        group.add(mound)
-      }
-      const sand = lambert(0xe6d6a8)
-      for (let k = 0; k < 5; k++) {
-        const bunker = new THREE.Mesh(keep(new THREE.CircleGeometry(2.5 + rand() * 3, 10).rotateX(-Math.PI / 2)), sand)
-        bunker.position.set(x.x + (rand() - 0.5) * (x.w || 100), 0.02, x.z + (rand() - 0.5) * (x.d || 80))
-        group.add(bunker)
-      }
-    } else if (x.type === "ocean") {
-      const dist = x.dist || 500
-      const ox = (B.x0 + B.x1) / 2 + Math.cos(a) * dist
-      const oz = (B.z0 + B.z1) / 2 + Math.sin(a) * dist
-      const sea = new THREE.Mesh(keep(new THREE.CircleGeometry(dist * 0.9, 40).rotateX(-Math.PI / 2)), lambert(0x1478a8))
-      sea.position.set(ox, -0.6, oz)
-      group.add(sea)
     } else if (x.type === "awnings") {
       const aw = new THREE.Mesh(keep(new THREE.BoxGeometry(x.w || 10, 0.06, 1.4)), lambert(hex(x.color, 0x7a1f2a)))
       aw.position.set(x.x, 2.8, x.z)
@@ -2251,21 +2193,18 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
       group.add(aw)
     }
   }
-  // an elevated rail line in the backdrop (concrete deck on columns)
-  if (bd.viaduct) {
-    const [ax, az] = bd.viaduct.from
-    const [bx, bz] = bd.viaduct.to
-    const L = Math.hypot(bx - ax, bz - az)
-    const h = bd.viaduct.h || 9
-    const conc = lambert(0xbdbab2)
-    const deck = new THREE.Mesh(keep(new THREE.BoxGeometry(L, 1.4, 8)), conc)
-    deck.position.set((ax + bx) / 2, h, (az + bz) / 2)
-    deck.rotation.y = -Math.atan2(bz - az, bx - ax)
-    group.add(deck)
-    for (let d = 0; d <= L; d += 24) {
-      const col = new THREE.Mesh(keep(new THREE.CylinderGeometry(0.9, 1.1, h, 8)), conc)
-      col.position.set(ax + ((bx - ax) * d) / L, h / 2, az + ((bz - az) * d) / L)
-      group.add(col)
+  // ---------- the real surroundings (OpenStreetMap, beyond the crop: surround.js) ----------
+  if (SU?.buildings?.length) {
+    const g = keep(surroundBuildingsGeometry(SU.buildings))
+    const m = new THREE.Mesh(g, lambert(0xffffff, { vertexColors: true, side: THREE.DoubleSide }))
+    m.userData.noCast = true
+    group.add(m)
+  }
+  if (SU?.rails?.length) {
+    const parts = railBridgeGeometry(SU.rails)
+    if (parts.length) {
+      const conc = lambert(0xbdbab2)
+      for (const g of parts) group.add(new THREE.Mesh(keep(g), conc))
     }
   }
 

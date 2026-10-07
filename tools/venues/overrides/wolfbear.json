@@ -229,7 +229,8 @@
     "drop": [432068618, 432068622],
     "add": [
       {
-        "poly": [{ "en": [-89.7, -20.3] }, { "en": [-58.0, -20.3] }, { "en": [-58.0, -9.0] }, { "en": [-35.6, -9.0] }, { "en": [-35.6, 20.8] }, { "en": [-89.7, 20.8] }],
+        "_src": "aerial: the studio strip south of the lot (east of x -58 the strip is the M24 and championship halls) and the block west of it; the lot itself, with cars, used to be drawn as a 7 m building",
+        "poly": [{ "en": [-89.7, -20.3] }, { "en": [-58.0, -20.3] }, { "en": [-58.0, -9.0] }, { "en": [-74.0, -9.0] }, { "en": [-74.0, 20.8] }, { "en": [-89.7, 20.8] }],
         "h": 7,
         "kind": "industrial",
         "color": "#c9c1b3",
@@ -249,9 +250,7 @@
   },
   "extras": [
     { "type": "banner", "en": [-24.6, 21.85], "w": 2.6, "h": 1.6, "y": 3.6, "style": "navy", "face": "n" },
-    { "type": "mural", "en": [-1.6, 21.85], "w": 30, "h": 3.4, "y": 2.2, "style": "graffiti", "face": "n" },
-    { "type": "banner", "en": [-35.5, 5.0], "deg": 90, "w": 2.2, "h": 3.0, "y": 4.6, "style": "emblem", "face": "e" },
-    { "type": "awnings", "en": [-21.0, 22.5], "w": 4.0, "color": "#1f2858" }
+    { "type": "banner", "en": [-35.5, 5.0], "deg": 90, "w": 2.2, "h": 3.0, "y": 4.6, "style": "emblem", "face": "e" }
   ],
   "colors": {
     "court": "#b4ab9c",
@@ -273,12 +272,5 @@
       { "from": { "en": [-60, 38.5] }, "to": { "en": [40, 38.5] }, "every": 12, "kind": "broadleaf", "s": 1.1 },
       { "from": { "en": [-12, 24.6] }, "to": { "en": [10, 24.6] }, "every": 22, "kind": "broadleaf", "s": 0.9 }
     ]
-  },
-  "backdrop": {
-    "skyline": true,
-    "skylineTint": "#c9c1b3",
-    "hills": "#9a8f78",
-    "mountains": "#8f8c88",
-    "mountainsDeg": -90
   }
 }

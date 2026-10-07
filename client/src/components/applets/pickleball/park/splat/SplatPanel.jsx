@@ -2,13 +2,12 @@ import React, { useEffect, useRef, useState } from "react"
 import Combo from "../../../../shared/select/Combo"
 import { detectFormat, checkSize, centersFromSplat, centersFromPly, pointsToSplat, MAX_SYNCED_BYTES } from "./files.js"
 import { similarity, courtCorners, upAxis } from "./align.js"
-import { synthBackdrop } from "./synth.js"
 import { getBackdrop, saveBackdrop, setPlacement, removeBackdrop, readBytes } from "./store.js"
 
 // My Park > Photoreal backdrop...: a captured 3D copy of the place behind your venue.
 // Import a splat file (from a phone capture app or a desktop trainer), capture one with
-// the free MapAnything service, or try the demo; then line it up by tapping the court's
-// four corners in a view from above.
+// the free MapAnything service; then line it up by tapping the court's four corners in a
+// view from above. (No made-up demo backdrop: only a real capture of the place goes behind it.)
 const CORNERS = ["near-left", "near-right", "far-right", "far-left"]
 
 export default function SplatPanel({ world, venueName, onClose, phone }) {
@@ -25,22 +24,6 @@ export default function SplatPanel({ world, venueName, onClose, phone }) {
   useEffect(() => {
     refresh()
   }, [venue])
-
-  const center = () => {
-    if (!courts.length) return [0, 0]
-    let x = 0
-    let z = 0
-    for (const c of courts) (x += c.x), (z += c.z)
-    return [x / courts.length, z / courts.length]
-  }
-  // the demo starts outside the venue: past its farthest court and building
-  const reach = (c) => {
-    let r = 30
-    for (const k of courts) r = Math.max(r, Math.hypot(k.x - c[0], k.z - c[1]) + 12)
-    // every collision box (pens, buildings, bleachers...): its center plus its half-size
-    for (const b of layout?.BOXES || []) if (Number.isFinite(b.cx)) r = Math.max(r, Math.hypot(b.cx - c[0], b.cz - c[1]) + Math.hypot(b.hx || 0, b.hz || 0))
-    return r + 20
-  }
 
   const useBytes = async (bytes, format, meta) => {
     const size = checkSize(bytes)
@@ -70,13 +53,6 @@ export default function SplatPanel({ world, venueName, onClose, phone }) {
     if (!format) throw new Error("That isn't a splat file (.ply, .spz, .splat, .ksplat or .sog).")
     await useBytes(bytes, format, { source: "import", title: file.name })
     startAlign(bytes, format)
-  })
-
-  const demo = run("Making the demo backdrop...", async () => {
-    const c = center()
-    const inner = reach(c)
-    const bytes = synthBackdrop({ count: phone ? 300000 : 600000, center: c, inner, outer: inner + 95 })
-    await useBytes(bytes, "splat", { source: "demo", title: "Demo hills and trees", splats: bytes.length / 32 })
   })
 
   const capture = run("Recording...", async () => {
@@ -146,9 +122,6 @@ export default function SplatPanel({ world, venueName, onClose, phone }) {
             </button>
             <button type="button" disabled={!!busy} onClick={() => fileRef.current?.click()} data-splat="import">
               Import a splat file...
-            </button>
-            <button type="button" disabled={!!busy} onClick={demo} data-splat="demo">
-              Demo backdrop
             </button>
             {b && (
               <button type="button" disabled={!!busy} onClick={alignExisting} data-splat="align">

@@ -42,8 +42,9 @@ test("venue specs: court counts, indoor, sizes, the picker's list", () => {
     assert.equal(s.courts.filter((c) => c.s === "t").length, e.tennis, `${id} tennis`)
     assert.equal(!!s.indoor, e.indoor, `${id} indoor`)
     const kb = JSON.stringify(s).length / 1024
-    // (lazy-loaded, gzip about a quarter: the fidelity data, trees and rooms, makes it bigger)
-    assert.ok(kb < 48, `${id} spec ${kb.toFixed(1)} KB`)
+    // (lazy-loaded, gzip about a quarter: the fidelity data, trees and rooms, makes it bigger;
+    // the real surroundings and skyline add ~25-45 KB)
+    assert.ok(kb < 96, `${id} spec ${kb.toFixed(1)} KB`)
     if (e.indoor) assert.ok(s.halls?.length >= 1, `${id} has a hall`)
   }
   // angles straight from the data: Newport's grid is turned (bearing 166 -> 76 deg), Wolf + Bear's runs east-west
@@ -293,6 +294,31 @@ test("room kit: every room with a door you can open is reachable on foot from th
     assert.ok((g.layoutSpec.scene.doors || []).length >= 6, `${id}: doors`)
   }
   setLayout(get("loscab").L)
+})
+
+test("venue truth: nothing invented behind a real venue (docs/venue-provenance.md)", () => {
+  for (const id of IDS) {
+    const s = spec(id)
+    // no made-up backdrop (hills, mountains, a skyline, ring trees, palms) and no made-up golf/ocean
+    for (const k of ["hills", "mountains", "skyline", "trees", "palms"]) assert.equal(s.backdrop?.[k], undefined, `${id} backdrop.${k}`)
+    assert.ok(!(s.extras || []).some((x) => x.type === "golf" || x.type === "ocean"), `${id}: no invented golf/ocean`)
+    // the real skyline from elevation tiles, every degree, with its source
+    assert.ok(s.horizon?.groups?.near?.length === 360 && /Terrain Tiles/.test(s.horizon.src), `${id} horizon`)
+    // the real surroundings from OpenStreetMap, outside the walkable crop
+    assert.ok(/OpenStreetMap/.test(s.surround?.src || ""), `${id} surround source`)
+    for (const b of s.surround.buildings || []) assert.ok(b.h > 1 && b.h < 200 && b.p.length >= 3, `${id} surround building`)
+  }
+  // Newport sees the ocean to the south-west (and Catalina beyond it); Whittier the San Gabriels north
+  const sea = spec("newport").horizon.groups.sea
+  assert.ok(sea && sea[200] && !sea[20], "Newport: the sea south-west, not north")
+  const w = spec("whittier").horizon.groups
+  const top = (deg) => Math.max(...["near", "mid", "far"].map((g) => w[g]?.[deg]?.[1] ?? -999))
+  assert.ok(top(0) > 300 && top(0) > top(200), "Whittier: the San Gabriels rise north (> 3 degrees)")
+  // Newport's golf course is the real one, mapped (the course, its greens and bunkers)
+  const kinds = new Set(spec("newport").surround.areas.map((a) => a.k))
+  for (const k of ["golf", "green", "bunker"]) assert.ok(kinds.has(k), `Newport golf: ${k}`)
+  // SMASH's Metro viaduct comes from OpenStreetMap's bridge, not a hand-placed line
+  assert.ok(spec("smash").surround.rails.some((r) => r.bridge), "SMASH viaduct")
 })
 
 test("parking lots: stalls in bays with driving aisles, inside the lot, along its long side", async () => {

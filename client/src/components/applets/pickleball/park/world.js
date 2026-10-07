@@ -1887,7 +1887,7 @@ const devHooks = (world, { scene, park, exposure }) => {
       const d = new THREE.Vector3()
       c.getWorldDirection(d)
       const t = Math.max(0, -c.position.y / Math.min(-0.15, d.y))
-      park.followSky?.({ x: c.position.x + d.x * Math.min(t, 35), y: 0, z: c.position.z + d.z * Math.min(t, 35) })
+      park.followSky?.({ x: c.position.x + d.x * Math.min(t, 35), y: 0, z: c.position.z + d.z * Math.min(t, 35) }, c.position)
     }
     if (park.sun?.castShadow) park.sun.shadow.needsUpdate = true // (its own shadow map: the game's renderer may have used the flag)
     if (world.postOn && !ortho && world.devPostShots !== false) (devPost ??= createPost(scene)).render(r, c)

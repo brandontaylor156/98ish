@@ -508,12 +508,5 @@
     "s": 1.6
    }
   ]
- },
- "backdrop": {
-  "hills": "#9c9270",
-  "hillsHeight": 2.2,
-  "mountains": "#a08a62",
-  "mountainsDeg": -90,
-  "trees": 18
  }
 }

@@ -11,7 +11,7 @@ export const VENUE_LIST = [
     "courts": 54,
     "tennis": 13,
     "live": 6,
-    "kb": 37.7
+    "kb": 86.7
   },
   {
     "id": "newport",
@@ -23,7 +23,7 @@ export const VENUE_LIST = [
     "courts": 44,
     "tennis": 12,
     "live": 6,
-    "kb": 28.1
+    "kb": 95.4
   },
   {
     "id": "wolfbear",
@@ -35,7 +35,7 @@ export const VENUE_LIST = [
     "courts": 14,
     "tennis": 0,
     "live": 6,
-    "kb": 14.7
+    "kb": 81.2
   },
   {
     "id": "whittier",
@@ -47,7 +47,7 @@ export const VENUE_LIST = [
     "courts": 20,
     "tennis": 12,
     "live": 6,
-    "kb": 16.9
+    "kb": 46.8
   },
   {
     "id": "paseo",
@@ -59,7 +59,7 @@ export const VENUE_LIST = [
     "courts": 11,
     "tennis": 11,
     "live": 6,
-    "kb": 26.4
+    "kb": 74.6
   },
   {
     "id": "sinaloa",
@@ -71,7 +71,7 @@ export const VENUE_LIST = [
     "courts": 12,
     "tennis": 0,
     "live": 6,
-    "kb": 22.4
+    "kb": 70.6
   },
   {
     "id": "smash",
@@ -83,7 +83,7 @@ export const VENUE_LIST = [
     "courts": 9,
     "tennis": 0,
     "live": 6,
-    "kb": 13.4
+    "kb": 44
   }
 ]
 export const loadVenueSpec = (id) => {
