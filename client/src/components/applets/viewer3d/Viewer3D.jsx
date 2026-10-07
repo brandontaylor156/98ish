@@ -40,6 +40,7 @@ const Viewer3D = ({ mobile, handoff, dispatch, onClose, onTitle }) => {
   const photoInput = useRef(null)
   const modelInput = useRef(null)
 
+  const wanted = useRef(null) // the path last asked for, shown once the renderer is ready
   const refresh = useCallback(async () => setModels(await listModels()), [])
 
   // the viewer
@@ -50,7 +51,8 @@ const Viewer3D = ({ mobile, handoff, dispatch, onClose, onTitle }) => {
       if (!alive || !canvasRef.current) return
       v = createViewer(canvasRef.current, { toy })
       viewerRef.current = v
-      if (current) show(current)
+      // a model asked for before the renderer had loaded (a handoff, the newest model)
+      if (wanted.current) show(wanted.current)
     })
     return () => {
       alive = false
@@ -61,6 +63,7 @@ const Viewer3D = ({ mobile, handoff, dispatch, onClose, onTitle }) => {
 
   const show = useCallback(
     async (path) => {
+      wanted.current = path
       setError(null)
       const file = await fileAt(path)
       if (!file) return setError("That model isn't on drive C: any more.")
@@ -100,7 +103,7 @@ const Viewer3D = ({ mobile, handoff, dispatch, onClose, onTitle }) => {
 
   // show the newest model when nothing is open yet
   useEffect(() => {
-    if (!current && models.length && !handoff?.open && !handoff?.toy && viewerRef.current) show(models[0].file && pathFor(models[0]))
+    if (!current && models.length && !handoff?.open && !handoff?.toy) show(models[0].file && pathFor(models[0]))
   }, [models])
   const pathFor = (m) => m.path || ["C:", "My 3D", m.name].join("/")
 

@@ -70,13 +70,18 @@ export const createPetLayer = (scene, { quality = "medium" } = {}) => {
     }
   }
 
-  return {
+  const api = {
     step,
     get active() {
       return !!model
     },
+    // (tests: where it is and whether it's moving)
+    get state() {
+      return state && { ...state }
+    },
     dispose() {
       disposed = true
+      if (window.__pet === api) delete window.__pet
       scene.remove(group)
       group.traverse((o) => {
         o.geometry?.dispose?.()
@@ -88,4 +93,6 @@ export const createPetLayer = (scene, { quality = "medium" } = {}) => {
       })
     },
   }
+  if (import.meta.env?.DEV) window.__pet = api
+  return api
 }
