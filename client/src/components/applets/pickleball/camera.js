@@ -1,5 +1,5 @@
-// Pickleball 98's camera rules (pure, tested in pb7.test.js): no body in front of the lens,
-// and the TV shot of the server between points.
+// Pickleball 98's camera rules (pure, tested in pb7.test.js and gamefeel.test.js): no body in
+// front of the lens, the TV shot of the server between points, and the rally's framing.
 //
 // The owner's phone showed the between-points cut as a half-body close-up of the server's
 // partner (the old cut sat 2.6 m beside the server, on the partner's side) and, while the
@@ -74,4 +74,20 @@ export const serverShot = (server, { portrait = false } = {}) => {
     look: { x: server.x * 0.7, y: portrait ? 0.9 : 1.05, z: server.z - side * 0.4 },
     fov: portrait ? 56 : 36,
   }
+}
+
+// The rally's framing for the game cameras (broadcast and player views): `tight` 0..1 is
+// how much this is a hand battle at the kitchen (everyone within a few meters of the net,
+// ball in play: the camera closes in a few degrees), `leadX` is how far the look leads the
+// ball across the court (where it's going, not where it was). `players` [{ x, z }],
+// `ball` { p, v }, `live` whether the rally's on.
+export const KITCHEN_NEAR = 2.9 // every player this close to the net: fully tight
+export const KITCHEN_FAR = 4.6 // anyone further back than this: not tight at all
+export const rallyFrame = ({ players, ball, live }) => {
+  let far = 0
+  for (const p of players) far = Math.max(far, Math.abs(p.z))
+  const tight = live ? Math.max(0, Math.min(1, (KITCHEN_FAR - far) / (KITCHEN_FAR - KITCHEN_NEAR))) : 0
+  const vx = live ? ball.v?.x || 0 : 0
+  const leadX = Math.max(-0.6, Math.min(0.6, ball.p.x * 0.15 + vx * 0.05))
+  return { tight, leadX }
 }
