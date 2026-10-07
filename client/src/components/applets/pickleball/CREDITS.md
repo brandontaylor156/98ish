@@ -158,3 +158,24 @@ the repository):
 | "PickleBall.m4a" by fkunze (two outdoor games, Minnesota) | https://freesound.org/people/fkunze/sounds/547092/ | CC0 1.0 (https://creativecommons.org/publicdomain/zero/1.0/) | average spectra and decay times of paddle hits and bounces (`DESIGN.md`, "The sound") |
 
 License checked on the Freesound page on 2026-10-04.
+
+## Players v2: modeled kits, skins, teeth (2026-10-06)
+
+The kits are now modeled garments (docs/players-v2.md), fitted to the athletes by
+`tools/players/build-kit.mjs`. Everything new is from the same CC0 MakeHuman system assets zip
+listed under Characters (each file's header: "This asset was explicitly released as CC0 in
+september 2020"):
+
+| Asset | Used for |
+| --- | --- |
+| `clothes/male_casualsuit06` (tee and jeans: OBJ, .mhclo, normal and AO maps; the diffuse only for its shading, the print removed) | the men's tee, polo (a collar added) and tank; shorts and briefs cut from the jeans |
+| `clothes/female_casualsuit02` (tee and shorts) | the women's tee, polo and tank, and the briefs under a skirt |
+| `clothes/female_casualsuit01` (jeans) | the women's shorts (cut above the knee) |
+| `clothes/shoes05` (trainers and crew socks: OBJ, .mhclo, diffuse) | every player's shoes and socks (ankle socks cut from them) |
+| `teeth/teeth_base` (OBJ, .mhclo, `teeth.png`) | the teeth |
+| `skins/young_caucasian_male2`, `young_caucasian_female2` (`young_lightskinned_*_diffuse2.png`), `skins/young_african_male`, `young_african_female` (`young_darkskinned_*_diffuse.png`) | the mid and dark skin families' textures (the light one as before) |
+
+The KTX2 transcoder in `public/assets/pickleball/basis/` is three.js's copy of Binomial's Basis
+Universal transcoder (Apache 2.0, https://github.com/BinomialLLC/basis_universal), the same files
+as `three/examples/jsm/libs/basis/`. The builder encodes the High skins with `ktx2-encoder`
+(MIT, npm), a build-time tool only.

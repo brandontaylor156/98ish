@@ -16,7 +16,7 @@ import { inCourt, isLive, rightSign, sideOf } from "./rules.js"
 import { createAudio } from "./audio.js"
 import { createAnim, seatedPose, setMood, situation, splitStep, updateAnim } from "./anim.js"
 import { createFigure } from "./rig.js"
-import { athletesReady, createAthlete, loadAthletes } from "./athlete.js"
+import { athletesReady, createAthlete, loadAthletes, setAthleteRenderer } from "./athlete.js"
 import { buildVenue, CLASSIC_PLACES, VENUES } from "./venue.js"
 import { fetchWeather } from "./park/weather.js"
 import { CHARACTERS, lookFor } from "./looks.js"
@@ -70,6 +70,8 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
   // (anti-aliased on every screen: phones too, at the quality's pixel ratio, 1.5 on Medium)
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance", stencil: false })
   renderer.outputColorSpace = THREE.SRGBColorSpace
+  // (players v2: the High skins are KTX2; their transcoder picks the format this GPU reads)
+  setAthleteRenderer(renderer)
   // (reading every program's info log makes each compile wait for the GPU driver: dev only)
   renderer.debug.checkShaderErrors = !!import.meta.env.DEV
   // (tests: draw calls and triangles, renderer.info)
