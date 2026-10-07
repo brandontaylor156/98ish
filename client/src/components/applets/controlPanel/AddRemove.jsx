@@ -57,6 +57,7 @@ const CHUNKS = {
   "LAN Party 98": "LanParty",
   "Virtual PC 98": "VirtualPC",
   "Visual Basic 98": "VB98",
+  "3D Viewer 98": "Viewer3D",
 }
 const chunkOf = (p) => (p.app === "webapp" ? "WebApp" : CHUNKS[p.name] || p.name.replace(/[^a-z0-9]/gi, ""))
 

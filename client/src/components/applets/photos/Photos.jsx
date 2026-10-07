@@ -381,6 +381,8 @@ const Photos = ({ file: initialFile = null, path = null, handoff = null, mobile,
   const openInPaint = () => target && askSave(() => dispatch?.({ type: "open_window", payload: paintWindow(target) }))
   const usePuzzle = () => target && askSave(() => dispatch?.({ type: "open_window", payload: launch("Photo Puzzle", { handoff: { id: Date.now(), file: target } }) }))
   const sendMail = () => target && askSave(() => dispatch?.({ type: "open_window", payload: launch("98ish Mail", { handoff: { id: Date.now(), attach: target } }) }))
+  // Snap to 3D: 3D Viewer 98 asks before the photo goes to Hugging Face
+  const make3d = () => target && askSave(() => dispatch?.({ type: "open_window", payload: launch("3D Viewer 98", { handoff: { id: Date.now(), photo: fs.partsOf(target).join("/") } }) }))
   const sendNetwork = () => {
     if (!target) return
     if (!net || net.status !== "online") return setDialog({ kind: "alert", title: "Send to Network Neighborhood", text: "Network Neighborhood isn't connected right now. Open it from the desktop and try again in a moment." })
@@ -509,6 +511,7 @@ const Photos = ({ file: initialFile = null, path = null, handoff = null, mobile,
     { label: "Set as Wallpaper", disabled: !has, onClick: setWallpaper },
     { label: "Open in Paint", disabled: !has, onClick: openInPaint },
     { label: "Use in Photo Puzzle", disabled: !has, onClick: usePuzzle },
+    { label: "Make 3D...", disabled: !has, onClick: make3d },
     "-",
     { label: "Send by 98ish Mail...", disabled: !has, onClick: sendMail },
     { label: "Send to Network Neighborhood...", disabled: !has, onClick: sendNetwork },

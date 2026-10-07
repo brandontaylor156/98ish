@@ -28,6 +28,8 @@ export const programs = [
   { name: "LAN Party 98", app: "lanparty", type: "lanparty", icon: "/assets/program_icons/lanparty.svg", width: 760, height: 600, group: "Games", desktop: false, single: true },
   { name: "Virtual PC 98", app: "virtualpc", type: "virtualpc", icon: "/assets/program_icons/virtualpc.svg", width: 760, height: 560, group: "Accessories", desktop: false, single: true },
   { name: "Visual Basic 98", app: "vb98", type: "vb98", icon: "/assets/program_icons/vb98.svg", width: 780, height: 580, group: "Accessories", also: ["Games"], desktop: false },
+  // Snap to 3D (applets/viewer3d): photo -> 3D model on a free Hugging Face Space, or import a .glb; toys open more windows
+  { name: "3D Viewer 98", app: "viewer3d", type: "viewer3d", icon: "/assets/program_icons/viewer3d.svg", width: 520, height: 600, group: "Accessories", desktop: false },
   { name: "Buddy Locator", app: "locator", type: "locator", icon: "/assets/program_icons/locator.svg", width: 780, height: 580, group: "Internet", also: ["Us"], desktop: false, single: true },
   { name: "YouTube '98", type: "video", icon: "/assets/program_icons/video-48.png", width: 820, height: 620, group: "Internet", single: true },
   { name: "My Computer", app: "explorer", icon: "/assets/program_icons/computer_explorer.png", width: 640, height: 440, group: null },

@@ -42,6 +42,8 @@ export const FILE_TYPE = {
   text: "text",
   splat: "splat", // a Gaussian-splat capture (Pickleball 98 venue backdrops): the file's bytes as a data URL in textContent
   head3d: "head3d", // Be Yourself: your 3D head (a LAM avatar zip), the bytes as a data URL in textContent (C:\My Head)
+  model3d: "model3d", // a 3D model (3D Viewer 98, C:\My 3D): the .glb/.gltf bytes as a data URL in textContent
+  viewer3d: "viewer3d",
   executable: "executable",
   note: "note",
   notepad: "notepad",
@@ -654,6 +656,7 @@ const DEFAULT_ITEMS = [
   ["C:/Programs/Buddy Locator", "file", "locator"],
   ["C:/Programs/Come Over", "file", "hangout"],
   ["C:/Programs/Visual Basic 98", "file", "vb98"],
+  ["C:/Programs/3D Viewer 98", "file", "viewer3d"],
   ["C:/Programs/Notepad", "file", "notepad"],
   ["C:/Programs/Paint", "file", "paint"],
   ["C:/Programs/WordPad", "file", "wordpad"],

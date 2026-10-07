@@ -1,0 +1,168 @@
+/* 3D Viewer 98: a 98 window around a teal 3D stage */
+.v3dRoot {
+  display: flex;
+  flex-direction: column;
+  height: calc(100% - 25px);
+  background: #c0c0c0;
+  font-family: "Pixelated MS Sans Serif", Arial, sans-serif;
+  font-size: 11px;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+.v3dRoot input {
+  user-select: text;
+  -webkit-user-select: text;
+}
+.v3dToy {
+  height: 100%;
+}
+.v3dBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+}
+.v3dBar .selCombo {
+  flex: 1;
+  min-width: 120px;
+}
+.v3dMake {
+  font-weight: bold;
+}
+.v3dStage {
+  position: relative;
+  flex: 1;
+  min-height: 140px;
+  margin: 0 6px;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px grey, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+  padding: 2px;
+}
+.v3dCanvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+.v3dEmpty {
+  position: absolute;
+  inset: 2px;
+  display: grid;
+  align-content: center;
+  gap: 6px;
+  padding: 16px;
+  background: rgba(0, 128, 128, 0.92);
+  color: #fff;
+  text-align: center;
+}
+.v3dEmpty p {
+  margin: 0;
+}
+.v3dLink {
+  min-width: 0;
+  padding: 0 4px;
+}
+.v3dBusy {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(300px, calc(100% - 24px));
+  height: auto;
+  min-width: 0;
+}
+.v3dBusy p {
+  margin: 0 0 8px;
+}
+/* a 98 progress well whose blocks run on the compositor (never looks frozen) */
+.v3dBusyBar {
+  position: relative;
+  height: 18px;
+  overflow: hidden;
+  background: #fff;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px grey, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+}
+.v3dBusyBar div {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  width: 60px;
+  background: repeating-linear-gradient(90deg, #000080 0 10px, transparent 10px 12px);
+  animation: v3dRun 1.6s linear infinite;
+  will-change: transform;
+}
+@keyframes v3dRun {
+  from {
+    transform: translateX(-60px);
+  }
+  to {
+    transform: translateX(300px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .v3dBusyBar div {
+    animation: none;
+    width: 50%;
+  }
+}
+.v3dStatus {
+  padding: 3px 8px;
+  min-height: 16px;
+  color: #000;
+}
+.v3dError {
+  color: #a00000;
+}
+.v3dMore {
+  margin: 0 6px 6px;
+}
+.v3dMoreRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.v3dFileBtn {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 10px;
+  min-height: 23px;
+  background: silver;
+  box-shadow: inset -1px -1px #0a0a0a, inset 1px 1px #fff, inset -2px -2px grey, inset 2px 2px #dfdfdf;
+  cursor: default;
+}
+.v3dToken {
+  display: grid;
+  gap: 3px;
+  margin-top: 8px;
+}
+.v3dToken small {
+  color: #444;
+}
+.v3dMakeBody {
+  display: grid;
+  gap: 8px;
+  max-width: 320px;
+}
+.v3dMakeBody p {
+  margin: 0;
+}
+.v3dMakePhoto {
+  max-height: 160px;
+  max-width: 100%;
+  justify-self: center;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px grey;
+}
+.v3dHint {
+  color: #444;
+}
+.v3dSend {
+  display: grid;
+  gap: 6px;
+  min-width: 200px;
+}
+.is-mobile .v3dBar button,
+.is-mobile .v3dMoreRow button,
+.is-mobile .v3dFileBtn {
+  min-height: 36px;
+}

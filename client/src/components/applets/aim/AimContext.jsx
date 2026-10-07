@@ -911,7 +911,7 @@ export const AimProvider = ({ socket, windows, dispatch: dispatchWindow, onOpenV
     return result
   }
 
-  // A picture or voice message: { kind: "image" | "audio", blob, thumb?, w, h | d, wf }
+  // A picture, voice message or 3D model: { kind: "image" | "audio" | "model", blob, thumb?, w, h | d, wf | title, tris }
   const sendMedia = async (screenName, item) => {
     const ck = keyOf(screenName)
     if (ck === keyOf(BOT_NAME)) {
@@ -919,8 +919,14 @@ export const AimProvider = ({ socket, windows, dispatch: dispatchWindow, onOpenV
       return { ok: false }
     }
     const { uploadMedia } = await import("./history/mediaClient")
-    const info = item.kind === "image" ? { kind: "image", w: item.w, h: item.h } : { kind: "audio", d: Math.round(item.d * 10) / 10, wf: item.wf }
-    const localMedia = item.kind === "image" ? { k: "image", w: item.w, h: item.h, z: item.blob.size } : { k: "audio", d: info.d, wf: item.wf, z: item.blob.size }
+    const info =
+      item.kind === "image" ? { kind: "image", w: item.w, h: item.h } : item.kind === "model" ? { kind: "model", title: item.title, tris: item.tris } : { kind: "audio", d: Math.round(item.d * 10) / 10, wf: item.wf }
+    const localMedia =
+      item.kind === "image"
+        ? { k: "image", w: item.w, h: item.h, z: item.blob.size }
+        : item.kind === "model"
+          ? { k: "model", t: String(item.title || "3D model").slice(0, 40), tr: item.tris || 0, z: item.blob.size }
+          : { k: "audio", d: info.d, wf: item.wf, z: item.blob.size }
     const temp = { id: tempId(), ck, conv: screenName, from: stateRef.current.me.screenName, text: "", time: Date.now(), mine: true, pending: true, media: { ...localMedia, id: "" }, thumb: item.thumb, localBlob: item.blob }
     dispatch({ type: "messages", ck, screenName, messages: [temp] })
     const uploaded = await uploadMedia(request, item.blob, info).catch(() => ({ ok: false }))
@@ -1017,10 +1023,26 @@ export const AimProvider = ({ socket, windows, dispatch: dispatchWindow, onOpenV
   // a program someone sent (Visual Basic 98)
   const openVbApp = (id, title) => dispatchWindow({ type: "open_window", payload: launch("Visual Basic 98", { name: title || "Program", handoff: { id: Date.now(), vbapp: id } }) })
 
+  // Open on a 3D model in an IM: keep it in C:\My 3D (once), then show it in 3D Viewer 98
+  const openModel = async (ck, message) => {
+    try {
+      const got = await getMediaBlob(message.media)
+      const blob = got?.blob
+      if (!blob) return systemLine(ck, got?.expired ? "That 3D model has expired." : got?.resting ? "Online storage is resting, so that 3D model can't be fetched right now." : "That 3D model couldn't be fetched.", { error: true })
+      const { saveModel } = await import("../viewer3d/store")
+      const saved = await saveModel(new Uint8Array(await blob.arrayBuffer()), { title: message.media.t || "3D model", source: "message" })
+      if (!saved.ok) return systemLine(ck, saved.error, { error: true })
+      dispatchWindow({ type: "open_window", payload: launch("3D Viewer 98", { handoff: { id: Date.now(), open: saved.path } }) })
+    } catch {
+      systemLine(ck, "That 3D model couldn't be opened (it may have expired).", { error: true })
+    }
+  }
+
   const value = {
     ...state,
     openTogether,
     openVbApp,
+    openModel,
     // signs 98ish Mail and HomePage Studio requests (null when signed off)
     token: state.status === "online" ? tokenRef.current : null,
     prefs,

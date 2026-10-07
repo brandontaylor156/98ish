@@ -33,6 +33,8 @@ export const imageMapper = {
   locator: "program_icons/locator.svg",
   hangout: "program_icons/hangout.svg",
   vb98: "program_icons/vb98.svg",
+  viewer3d: "program_icons/viewer3d.svg",
+  model3d: "program_icons/model3d.svg",
   lanparty: "program_icons/lanparty.svg",
   virtualpc: "program_icons/virtualpc.svg",
   swf: "program_icons/swf.svg",
