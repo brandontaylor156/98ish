@@ -1807,14 +1807,6 @@
  "trees": {
   "default": "palm"
  },
- "backdrop": {
-  "palms": 26,
-  "skyline": true,
-  "skylineTint": "#e4e0d6",
-  "trees": 20,
-  "mountains": "#9aa0a8",
-  "mountainsDeg": 0
- },
  "decks": [
   {
    "name": "Ballroom floor",

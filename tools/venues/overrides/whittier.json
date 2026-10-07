@@ -381,40 +381,6 @@
     "poly": [
      {
       "en": [
-       59.5,
-       98
-      ]
-     },
-     {
-      "en": [
-       64.5,
-       98
-      ]
-     },
-     {
-      "en": [
-       64.5,
-       -15
-      ]
-     },
-     {
-      "en": [
-       59.5,
-       -15
-      ]
-     }
-    ],
-    "h": 5,
-    "kind": "industrial",
-    "color": "#d9d6cc",
-    "roof": "#efefea",
-    "roofStyle": "flat",
-    "parapet": 0.5
-   },
-   {
-    "poly": [
-     {
-      "en": [
        60,
        -10
       ]
@@ -995,6 +961,19 @@
   "add": [
    {
     "kind": "paved",
+    "_src": "aerial: the concrete service drive along the tennis rows' east side (a van parked on it; it used to be drawn as a 5 m building)",
+    "rect": {
+     "en": [
+      54.5,
+      35.5
+     ],
+     "w": 6,
+     "d": 125,
+     "deg": 0
+    }
+   },
+   {
+    "kind": "paved",
     "rect": {
      "en": [
       7.6,
@@ -1367,12 +1346,5 @@
     "s": 1.4
    }
   ]
- },
- "backdrop": {
-  "hills": "#a08e62",
-  "mountains": "#8f97a6",
-  "mountainsDeg": -90,
-  "trees": 30,
-  "treeKind": "eucalyptus"
  }
 }

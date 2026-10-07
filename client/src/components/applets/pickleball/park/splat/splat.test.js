@@ -2,8 +2,21 @@ import test from "node:test"
 import assert from "node:assert/strict"
 import { similarity, apply, rotate, courtCorners, upAxis, COURT_W, COURT_L } from "./align.js"
 import { detectFormat, checkSize, centersFromSplat, parsePlyHeader, centersFromPly, pointsToSplat, MAX_BYTES, MAX_SYNCED_BYTES } from "./files.js"
-import { synthBackdrop } from "./synth.js"
 import { nextBackdrops } from "./store.js"
+
+// a flat-ish ring of colored points as .splat bytes (stands in for a capture in these tests)
+const ringSplat = (count) => {
+  let seed = 98
+  const r = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296)
+  const pos = new Float32Array(count * 3)
+  const col = new Uint8Array(count * 3).fill(128)
+  for (let i = 0; i < count; i++) {
+    const a = r() * Math.PI * 2
+    const d = 55 + r() * 95
+    pos.set([Math.cos(a) * d, r() * 20, Math.sin(a) * d], i * 3)
+  }
+  return pointsToSplat(pos, col, { size: 0.22, maxPoints: count })
+}
 
 const near = (a, b, eps = 1e-6) => assert.ok(Math.abs(a - b) < eps, `${a} vs ${b}`)
 
@@ -45,7 +58,7 @@ test("court corners are the regulation size", () => {
 })
 
 test("formats, caps and centers", () => {
-  const splat = synthBackdrop({ count: 2000 })
+  const splat = ringSplat(2000)
   assert.equal(splat.length, 2000 * 32)
   assert.equal(detectFormat(splat, "x.splat"), "splat")
   assert.equal(detectFormat(new Uint8Array([0x1f, 0x8b, 8, 0]), "a.spz"), "spz")

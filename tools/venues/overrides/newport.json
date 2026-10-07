@@ -1897,29 +1897,9 @@
    ],
    "w": 4.2,
    "color": "#a8703f"
-  },
-  {
-   "type": "golf",
-   "en": [
-    -150,
-    120
-   ],
-   "w": 200,
-   "d": 150
-  },
-  {
-   "type": "ocean",
-   "deg": 135,
-   "dist": 520
   }
  ],
  "trees": {
   "default": "palm"
- },
- "backdrop": {
-  "palms": 30,
-  "trees": 30,
-  "skyline": true,
-  "skylineTint": "#d9b48f"
  }
 }

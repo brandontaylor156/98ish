@@ -17,6 +17,7 @@ import { applySurfaces, surfaced, surfSky, surfWet } from "./surfaces.js"
 import { bakeVenueAO, clearBakedAO, setBakedAOOn } from "./occlusion.js"
 import { chainLink, setWindStrength, windscreenTex } from "./detail.js"
 import { createPrecip, createRealSky } from "./realsky.js"
+import { horizonMeshes, setHorizonLook } from "./horizon.js"
 
 const canvasTexture = (w, h, draw) => {
   const c = document.createElement("canvas")
@@ -99,6 +100,14 @@ export const buildPark = (scene, { quality = "medium", layout = RIVERSIDE_LAYOUT
     real.mesh.position.copy(sky.position)
     real.mesh.visible = false
     group.add(real.mesh)
+  }
+  // the real skyline (horizon.js: the terrain round the venue from elevation tiles, the sea)
+  const horizon = S?.horizon ? horizonMeshes(S.horizon) : []
+  for (const m of horizon) {
+    keep(m.geometry)
+    keep(m.material)
+    m.position.copy(sky.position)
+    group.add(m)
   }
   const precip = quality !== "low" && !S?.indoor ? createPrecip({ quality, phone }) : null
   if (precip) group.add(precip.mesh)
@@ -885,6 +894,7 @@ export const buildPark = (scene, { quality = "medium", layout = RIVERSIDE_LAYOUT
         sun.updateMatrixWorld(true)
       }
     }
+    setHorizonLook(horizon, d)
     scenery?.setDayLook?.(d)
   }
 
@@ -929,6 +939,11 @@ export const buildPark = (scene, { quality = "medium", layout = RIVERSIDE_LAYOUT
           stars.updateMatrix()
           sky.updateMatrixWorld(true)
           stars.updateMatrixWorld(true)
+          for (const m of horizon) {
+            m.position.copy(sky.position)
+            m.updateMatrix()
+            m.updateMatrixWorld(true)
+          }
           if (real) {
             real.mesh.position.copy(sky.position)
             real.mesh.updateMatrix()

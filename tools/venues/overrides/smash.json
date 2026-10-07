@@ -1321,21 +1321,6 @@
    }
   ]
  },
- "backdrop": {
-  "skyline": true,
-  "palms": 14,
-  "viaduct": {
-   "from": [
-    53.2,
-    56.5
-   ],
-   "to": [
-    89.2,
-    -48.5
-   ],
-   "h": 9
-  }
- },
  "decks": [
   {
    "name": "VIP mezzanine",

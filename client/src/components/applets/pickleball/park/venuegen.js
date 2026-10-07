@@ -1026,6 +1026,9 @@ export const generateVenue = (spec, opts = {}) => {
       lit: !!spec.lit,
       colors,
       backdrop: spec.backdrop || {},
+      // the real surroundings and skyline (tools/venues/surround.mjs, horizon.py; docs/venue-provenance.md)
+      surround: spec.surround || null,
+      horizon: spec.horizon || null,
       light: spec.light || null,
       groundStyle: spec.groundStyle || null,
       palettes: spec.palettes || [],

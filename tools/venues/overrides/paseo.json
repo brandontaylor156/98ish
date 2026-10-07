@@ -1909,12 +1909,6 @@
  "trees": {
   "default": "broadleaf"
  },
- "backdrop": {
-  "hills": "#b49a68",
-  "hillsHeight": 1.8,
-  "trees": 34,
-  "treeKind": "broadleaf"
- },
  "roofs": [
   {
    "poly": [

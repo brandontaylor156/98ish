@@ -229,7 +229,8 @@
     "drop": [432068618, 432068622],
     "add": [
       {
-        "poly": [{ "en": [-89.7, -20.3] }, { "en": [-58.0, -20.3] }, { "en": [-58.0, -9.0] }, { "en": [-35.6, -9.0] }, { "en": [-35.6, 20.8] }, { "en": [-89.7, 20.8] }],
+        "_src": "aerial: the studio strip south of the lot and the block west of it (the lot itself, with cars, used to be drawn as a 7 m building)",
+        "poly": [{ "en": [-89.7, -20.3] }, { "en": [-35.6, -20.3] }, { "en": [-35.6, -9.0] }, { "en": [-74.0, -9.0] }, { "en": [-74.0, 20.8] }, { "en": [-89.7, 20.8] }],
         "h": 7,
         "kind": "industrial",
         "color": "#c9c1b3",
@@ -273,12 +274,5 @@
       { "from": { "en": [-60, 38.5] }, "to": { "en": [40, 38.5] }, "every": 12, "kind": "broadleaf", "s": 1.1 },
       { "from": { "en": [-12, 24.6] }, "to": { "en": [10, 24.6] }, "every": 22, "kind": "broadleaf", "s": 0.9 }
     ]
-  },
-  "backdrop": {
-    "skyline": true,
-    "skylineTint": "#c9c1b3",
-    "hills": "#9a8f78",
-    "mountains": "#8f8c88",
-    "mountainsDeg": -90
   }
 }
