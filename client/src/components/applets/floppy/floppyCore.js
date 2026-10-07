@@ -453,6 +453,7 @@ export const TOOL_EXAMPLES = {
   pickleball: ["start pickleball practice", "let's play a quick match", "take me to the park at Los Cab", "score my real pickleball game", "play pickleball online"],
   play_music: ["play some music", "put on my songs", "play that song I like", "I want to listen to music"],
   watch_together: ["watch this youtube video with Sam", "let's watch a video together"],
+  send_picture: ["send my paint picture to Sam", "send this drawing to Mia", "share what I drew with Alex in messenger"],
   open_file: ["open the file budget.txt", "open my resume document", "show the photo called beach"],
   operate: ["click the send button", "press the start button in this window", "in this game tap new game", "type my name into the box", "fill in this form for me", "choose large in the list here", "turn on the second checkbox"],
   chat: ["who are you", "who made you", "tell me a joke", "how are you today", "what can you do", "thanks Floppy", "what is the meaning of life"],
@@ -575,6 +576,7 @@ export const SLOT_EXAMPLES = {
   play_music: ["play some music", {}],
   watch_together: ["watch https://youtu.be/abcdefghijk with Mia", { url: "https://youtu.be/abcdefghijk", with: "Mia" }],
   open_file: ["open budget.txt", { name: "budget.txt" }],
+  send_picture: ["send my drawing to Sam", { to: "Sam", app: "Paint" }],
 }
 
 // the tiny prompt that fills one tool's arguments

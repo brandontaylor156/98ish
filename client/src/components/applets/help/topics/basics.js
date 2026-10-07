@@ -497,7 +497,7 @@ export const topics = [
     book: "start",
     title: "Ask Floppy",
     summary: "Type what you want in Floppy's bubble and he does it: open programs, make reminders and notes, send IMs, answer how-to questions.",
-    keywords: ["ask floppy", "floppy", "assistant", "helper", "ai", "brain", "on-device", "voice assistant", "clippy", "commands", "remind me"],
+    keywords: ["ask floppy", "floppy", "assistant", "helper", "ai", "brain", "on-device", "voice assistant", "clippy", "commands", "remind me", "click for me", "do it for me", "write a program", "make a quiz"],
     body: [
       "Every Floppy bubble has an **Ask Floppy...** box. Type what you want and press **Ask**:",
       {
@@ -511,6 +511,11 @@ export const topics = [
         ],
       },
       "Anything that sends or changes something (a reminder, an event, a note, a task, an IM, Do Not Disturb) shows **Floppy wants to...** first; nothing happens until you press **Do it**.",
+      { h: "Floppy works your windows" },
+      "Floppy can press buttons for you: \"make Paint's background blue and send it to Sam\", \"open Notepad and type groceries: milk, eggs\", \"set up a Who's in? at Los Cab Saturday 9am\". He outlines each control and says what he's about to press (turn this off with **Show me each step** under More options), and a **Stop** button ends it any time.",
+      "He always asks **Yes/No** before anything that sends, deletes, buys, bets, shares or invites. He asks before touching a private program (Notes, Mail, Photos, Messenger chats), and he never touches **Passwords** or user accounts. With his brain he can try other windows too (\"click New Game in this window\"), one step at a time.",
+      { h: "Floppy writes programs" },
+      "Ask \"make a poll: where should we eat? pizza, tacos or sushi\", \"make a countdown to Christmas\", \"write a program that picks between Sam, Mia and me\" or \"make me a quiz about space\" (the quiz needs his brain, or spell it out: \"quiz: 2+2? 3 / *4 / 5\"). He builds it from a checked pattern, makes sure it compiles, and opens it in **Visual Basic 98** ready to **Run** or **Send** (see [[visual-basic-98]]).",
       { h: "Floppy's brain" },
       "Plain commands like the ones above work right away. For anything else, Floppy can download a **brain**: a small AI language model (Qwen, about 500 MB) that runs **only on this device**, so he understands plain English. Open **More options** in his chat and choose **Give Floppy a brain...**. It downloads once (Wi-Fi is best) and then works offline.",
       { note: "Nothing you type to Floppy leaves this device, with or without his brain. The model files come from Hugging Face's download servers once; after that they're kept in this browser." },
