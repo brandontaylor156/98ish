@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48" shape-rendering="crispEdges">
+  <!-- 3D Viewer 98: a small monitor showing a shaded cube, with a camera lens (photo -> 3D) -->
+  <rect x="5" y="6" width="34" height="27" fill="#c0c0c0" stroke="#000" stroke-width="1.4"/>
+  <rect x="8" y="9" width="28" height="20" fill="#008080"/>
+  <polygon points="22,12 31,16 22,20 13,16" fill="#ffff7f" stroke="#000" stroke-width="0.8"/>
+  <polygon points="13,16 22,20 22,28 13,24" fill="#d4a017" stroke="#000" stroke-width="0.8"/>
+  <polygon points="31,16 22,20 22,28 31,24" fill="#8a6a10" stroke="#000" stroke-width="0.8"/>
+  <rect x="17" y="33" width="10" height="3" fill="#808080" stroke="#000" stroke-width="1"/>
+  <rect x="12" y="36" width="20" height="3" fill="#c0c0c0" stroke="#000" stroke-width="1"/>
+  <rect x="32" y="27" width="13" height="10" fill="#404040" stroke="#000" stroke-width="1"/>
+  <rect x="35" y="25" width="5" height="3" fill="#404040" stroke="#000" stroke-width="0.8"/>
+  <circle cx="38.5" cy="32" r="3.2" fill="#1a1a7a" stroke="#c0c0c0" stroke-width="1"/>
+  <circle cx="37.6" cy="31" r="0.9" fill="#fff"/>
+</svg>

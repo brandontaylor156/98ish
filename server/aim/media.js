@@ -26,7 +26,8 @@ const mongoose = require("mongoose")
 const MB = 1024 * 1024
 const DAY = 86_400_000
 const RESERVE_MS = 30 * 60_000
-const MAX_BYTES = { image: 900 * 1024, audio: 1.5 * MB }
+// (model: a 3D model from 3D Viewer 98, a .glb shrunk on the device to fit; kept as t: title, tr: triangles)
+const MAX_BYTES = { image: 900 * 1024, audio: 1.5 * MB, model: 2 * MB }
 const AUDIO_MIME = /^audio\/(mp4|webm|ogg|aac|mpeg|x-m4a)$/
 const SCOPE = "media"
 
@@ -129,14 +130,19 @@ const createMedia = ({ store, storage = async () => null, env = process.env, now
 
   // -> { ok, id, url, method, headers } | { ok: false, error | resting }
   const upload = async (key, info = {}) => {
-    const kind = info.kind === "audio" ? "audio" : info.kind === "image" ? "image" : null
+    const kind = info.kind === "audio" ? "audio" : info.kind === "image" ? "image" : info.kind === "model" ? "model" : null
     const mime = String(info.mime || "").split(";")[0].trim().toLowerCase()
     const size = Number(info.size)
-    if (!kind || (kind === "image" ? mime !== "image/jpeg" : !AUDIO_MIME.test(mime))) return { ok: false, error: "That kind of file can't be sent." }
+    if (!kind || (kind === "image" ? mime !== "image/jpeg" : kind === "model" ? mime !== "model/gltf-binary" : !AUDIO_MIME.test(mime))) return { ok: false, error: "That kind of file can't be sent." }
     if (!Number.isInteger(size) || size <= 0) return { ok: false, error: "That file is empty." }
-    if (size > MAX_BYTES[kind]) return { ok: false, error: kind === "image" ? "That picture is too big to send." : "That voice message is too long to send." }
+    if (size > MAX_BYTES[kind]) return { ok: false, error: kind === "image" ? "That picture is too big to send." : kind === "model" ? "That 3D model is too big to send." : "That voice message is too long to send." }
     const num = (v, max) => Math.max(0, Math.min(max, Math.round(Number(v) || 0)))
-    const meta = kind === "image" ? { w: num(info.w, 4096), h: num(info.h, 4096) } : { d: num(info.d, 61), wf: /^[0-9]{1,64}$/.test(String(info.wf || "")) ? String(info.wf) : "" }
+    const meta =
+      kind === "image"
+        ? { w: num(info.w, 4096), h: num(info.h, 4096) }
+        : kind === "model"
+          ? { t: String(info.title || "3D model").replace(/[\u0000-\u001f]/g, "").slice(0, 40), tr: num(info.tris, 1e6) }
+          : { d: num(info.d, 61), wf: /^[0-9]{1,64}$/.test(String(info.wf || "")) ? String(info.wf) : "" }
     if (tooFast(key)) return { ok: false, error: "That's a lot of pictures and voice messages at once. Try again in a little while." }
     const s = await bucketOf()
     if (!s) return resting(null)
@@ -185,6 +191,7 @@ const createMedia = ({ store, storage = async () => null, env = process.env, now
     const rec = typeof id === "string" && /^[0-9a-f]{20}$/.test(id) ? await db.get(id) : null
     if (!rec || rec.k !== key || rec.pending || new Date(rec.x).getTime() <= now()) return null
     await db.allow(id, keys)
+    if (rec.kind === "model") return { id, k: "model", t: rec.t || "3D model", tr: rec.tr || 0, z: rec.z }
     return rec.kind === "image" ? { id, k: "image", w: rec.w, h: rec.h, z: rec.z } : { id, k: "audio", d: rec.d, wf: rec.wf || "", z: rec.z }
   }
 

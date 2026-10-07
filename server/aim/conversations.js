@@ -29,7 +29,7 @@ const CK = /^(#[a-z0-9'!?.-]{1,32}|~?[a-z0-9]{1,32})$/
 const cleanThumb = (thumb) => (typeof thumb === "string" && thumb.length <= 24_000 && /^data:image\/jpeg;base64,[A-Za-z0-9+/]+={0,2}$/.test(thumb) ? thumb : null)
 
 // what notifications say for a picture or voice message (never the media itself)
-const mediaPreview = (media, text = "") => (media?.k === "image" ? `📷 Picture${text ? `: ${text}` : ""}` : media?.k === "audio" ? "🎤 Voice message" : text)
+const mediaPreview = (media, text = "") => (media?.k === "image" ? `📷 Picture${text ? `: ${text}` : ""}` : media?.k === "audio" ? "🎤 Voice message" : media?.k === "model" ? `🧊 3D model${media.t ? `: ${media.t}` : ""}` : text)
 
 const bindConversations = (on, { io, history, media, sessions, rooms, hidden, emitTo, persist, prefsOf, botKey }) => {
   const reactLimit = new Map() // key -> times (60 a minute)

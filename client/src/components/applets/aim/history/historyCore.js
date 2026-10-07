@@ -170,11 +170,12 @@ export const fitWithin = (w, h, max) => {
 }
 
 // what a notification or the Buddy List says for a message
-export const previewText = (message) => (message?.media?.k === "image" ? "📷 Picture" : message?.media?.k === "audio" ? "🎤 Voice message" : String(message?.text || ""))
+export const previewText = (message) =>
+  message?.media?.k === "image" ? "📷 Picture" : message?.media?.k === "audio" ? "🎤 Voice message" : message?.media?.k === "model" ? `🧊 3D model${message.media.t ? `: ${message.media.t}` : ""}` : String(message?.text || "")
 
 // what to say when a picture or voice message couldn't go
 export const sendFailure = (kind, result) => {
-  const what = kind === "audio" ? "Voice message" : "Picture"
+  const what = kind === "audio" ? "Voice message" : kind === "model" ? "3D model" : "Picture"
   if (!result || result.resting) return `${what} couldn't be sent: online storage is resting${result?.until ? ` until ${new Date(result.until).toLocaleDateString([], { month: "short", day: "numeric" })}` : ""}. You can still send messages.`
   return `${what} couldn't be sent: ${String(result.error || "please try again.").replace(/^\w/, (c) => c.toLowerCase())}`
 }

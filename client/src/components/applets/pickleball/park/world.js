@@ -19,6 +19,7 @@
 
 import { createSplatLayer } from "./splat/layer.js"
 import { getBackdrop, readBytes } from "./splat/store.js"
+import { createPetLayer } from "../../viewer3d/petLayer.js"
 import * as THREE from "three"
 import { createAnim, setMood, situation, updateAnim, seatedPose } from "../anim.js"
 import { blocker } from "../camera.js"
@@ -1368,6 +1369,7 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
     }
     stepRegulars(dt)
     stepRemotes()
+    pet.step(dt, me.mode === "sit" && me.seat ? { x: me.seat.x, z: me.seat.z, yaw: me.seat.yaw, y: 0 } : me.walker)
     makeOne()
     updateCamera(dt)
     drawBodies(dt)
@@ -1402,6 +1404,8 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
         if (!disposed) await splat.show(bytes, b.format, b.transform, b.splats || 0)
       })
       .catch((e) => console.warn("[park] splat backdrop", e))
+  // your 3D Viewer 98 model, if you placed one in My Park: it trots after you (viewer3d/petLayer.js)
+  const pet = createPetLayer(scene, { quality })
   const post = postFlag && !phone && quality === "high" && layout.id && layout.id !== "riverside" ? createPost(scene) : null
   const world = {
     scene,
@@ -1676,6 +1680,7 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
       if (disposed) return
       post?.dispose()
       splat.dispose()
+      pet.dispose()
       disposed = true
       for (const b of bodies.values()) dropFig(b)
       bodies.clear()

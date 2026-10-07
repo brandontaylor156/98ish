@@ -201,7 +201,10 @@ const ImWindow = ({ buddy, focusInput }) => {
   const openMenu = React.useCallback((message, x, y) => setPicker({ message, x, y }), [])
   const toggleReaction = React.useCallback((message, emoji) => aim.react(key, message, emoji), [key, aim.react])
   // "Join" on a Watch Together invitation
-  const onAction = React.useCallback((action) => (action.kind === "together" ? aim.openTogether({ together: action.id }) : action.kind === "vb98" && aim.openVbApp(action.id)), [aim.openTogether, aim.openVbApp])
+  const onAction = React.useCallback(
+    (action) => (action.kind === "together" ? aim.openTogether({ together: action.id }) : action.kind === "vb98" ? aim.openVbApp(action.id) : action.kind === "model" && aim.openModel(key, action.message)),
+    [aim.openTogether, aim.openVbApp, aim.openModel, key]
+  )
   const meKey = keyOf(aim.me?.screenName)
   const status =
     typingText(screenName, convo?.typing) ||

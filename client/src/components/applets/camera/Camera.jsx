@@ -15,7 +15,7 @@ import * as sounds from "./sounds"
 import { BURST_COUNT, MAX_CLIP_SECONDS, MODES, STRIP_COUNT, TIMERS, cameraProblem, clipExtension, clockText, isAppleMobile, nextTimer, pickClipType } from "./support"
 import { fitScale, loadImage, nextPhotoName, photoLimits, picturesFolder, savePicture, stripLayout, toJpeg } from "../photos/library"
 import { useDriveUsage } from "../../../hooks/useFs"
-import { previewOf } from "../../../utils/fs"
+import { fs, previewOf } from "../../../utils/fs"
 import { formatBytes } from "../../../utils/fileInfo"
 import { itemPayload, shareOut } from "../../../utils/share"
 import "./Camera.css"
@@ -361,6 +361,8 @@ const Camera = ({ mobile, dispatch, onTitle, paused = false }) => {
   const shareLast = (mode) => last?.parent && shareOut(itemPayload(last), mode, { title: "Camera" })
   // Photos picks the shared album and sends it (a clip goes as it is: it never touches drive C:)
   const albumLast = () => last?.parent && dispatch?.({ type: "open_window", payload: launch("Photos", { handoff: { id: Date.now(), addToAlbum: [{ file: last }] } }) })
+  // Snap to 3D: the last photo -> 3D Viewer 98 (it asks before the photo goes to Hugging Face)
+  const make3dLast = () => last?.parent && dispatch?.({ type: "open_window", payload: launch("3D Viewer 98", { handoff: { id: Date.now(), photo: fs.partsOf(last).join("/") } }) })
   const albumClip = () => clip && dispatch?.({ type: "open_window", payload: launch("Photos", { handoff: { id: Date.now(), addToAlbum: [{ blob: clip.blob, name: `Clip${clipExtension(clip.mime)}` }] } }) })
 
   const countdown = async (seconds) => {
@@ -609,6 +611,7 @@ const Camera = ({ mobile, dispatch, onTitle, paused = false }) => {
             { label: "Shared Album...", onClick: albumLast },
           ],
         },
+        { label: "Make 3D from Last Photo...", disabled: !last?.parent, onClick: make3dLast },
         "-",
         { label: "Picture from Your Device...", onClick: () => fileRef.current?.click() },
       ],

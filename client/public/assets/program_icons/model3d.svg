@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48" shape-rendering="crispEdges">
+  <!-- a 3D model file (.glb): a page with a folded corner and a shaded cube -->
+  <polygon points="10,4 32,4 40,12 40,44 10,44" fill="#fff" stroke="#000" stroke-width="1.4"/>
+  <polygon points="32,4 32,12 40,12" fill="#c0c0c0" stroke="#000" stroke-width="1"/>
+  <polygon points="25,16 35,21 25,26 15,21" fill="#ffff7f" stroke="#000" stroke-width="0.9"/>
+  <polygon points="15,21 25,26 25,37 15,32" fill="#d4a017" stroke="#000" stroke-width="0.9"/>
+  <polygon points="35,21 25,26 25,37 35,32" fill="#8a6a10" stroke="#000" stroke-width="0.9"/>
+</svg>

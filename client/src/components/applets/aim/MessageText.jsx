@@ -110,6 +110,17 @@ export const TranscriptLine = React.memo(({ message, me, meKey, onMenu, onReact,
           <VoiceBubble message={message} getBlob={getBlob} />
         </span>
       )}
+      {/* a 3D model from 3D Viewer 98: Open saves it to C:\My 3D and shows it */}
+      {media?.k === "model" && (
+        <span className="aimMsgBody aimModelCard" data-model-card>
+          <span aria-hidden="true">🧊</span> <b>{media.t || "3D model"}</b> <small>3D model{media.tr ? ` · ${Number(media.tr).toLocaleString()} triangles` : ""}</small>{" "}
+          {onAction && !message.pending && (
+            <button type="button" className="aimSystemAction" onClick={() => onAction({ kind: "model", message })} data-model-open>
+              Open
+            </button>
+          )}
+        </span>
+      )}
       {message.r && <ReactionChips r={message.r} meKey={meKey} onToggle={canReact && onReact ? (emoji) => onReact(message, emoji) : undefined} />}
     </div>
   )

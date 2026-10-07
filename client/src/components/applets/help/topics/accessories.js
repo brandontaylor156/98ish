@@ -617,6 +617,41 @@ export const topics = [
     ],
     related: ["messenger", "come-over"],
   },
+  // ---- 3D Viewer 98 (Snap to 3D) ----
+  {
+    id: "viewer-3d",
+    book: "accessories",
+    title: "3D Viewer 98",
+    summary: "Turn a photo into a 3D model, spin it, put it in My Park, make it a desktop toy or send it to a friend.",
+    keywords: ["3d", "3d viewer", "snap to 3d", "make 3d", "3d model", "model", "glb", "gltf", ".glb", "photo to 3d", "bring to life", "rig", "pet", "desktop toy", "trellis", "anigen", "hugging face", "token"],
+    programs: ["3D Viewer 98"],
+    body: [
+      { img: "/assets/program_icons/viewer3d.svg", alt: "3D Viewer 98 icon" },
+      "3D Viewer 98 shows **3D models** and makes new ones from your photos. Models live on drive C: in **C:\\My 3D** (up to 20; the oldest goes), so they sync like your other files.",
+      {
+        list: [
+          "**Make 3D from a Photo...**: pick or take a photo of **one thing** (a mug, a shoe, a toy, your dog) on a plain background. A free service on Hugging Face (TRELLIS.2) cuts it out and builds a textured model in a minute or two. You can also start from **Photos** (a picture's menu: Make 3D...) or **Camera** (right after a shot).",
+          "**Import Model...** opens any **.glb** or **.gltf** file (a .gltf must carry its pictures inside). Big ones are simplified to 30,000 triangles so they stay quick on a phone.",
+          "Drag to turn it, pinch to zoom. On a phone, **Tilt to Look** (More options) turns the view as you tilt the phone.",
+        ],
+      },
+      { h: "Use it" },
+      {
+        list: [
+          "**Place in My Park**: your model stands next to you in Pickleball 98's My Park and trots after you as you walk (it never moves you, and only you see it).",
+          "**Set as Desktop Toy**: a small window where it spins. Open as many as you like.",
+          "**Send in Messenger...**: pick a buddy; it's shrunk to 2 MB and sent like a picture. They tap **Open** and it lands in their C:\\My 3D.",
+          "**Bring a Creature to Life...** (More options): from a photo of an animal or character, a second free service (AniGen) builds a model **with bones**, and it sways and breathes in the viewer.",
+          "**Share a Picture** saves or shares an image of the view.",
+        ],
+      },
+      { h: "Free time on Hugging Face" },
+      "Making a model uses a few minutes of free graphics-card time on Hugging Face, and everyone gets a small amount a day (about 2 minutes without signing in, which may not be enough for one model). A **free Hugging Face token** (More options) gives you more: make one at huggingface.co under Settings > Access Tokens (a \"Read\" token is enough) and paste it in. It's kept only on this device and sent only to Hugging Face. When the day's time is used up, 3D Viewer says when it comes back.",
+      { note: "Your photo is sent to Hugging Face only when you tap Make 3D or Bring to Life (see [[privacy-third-parties]]). Models made there are TRELLIS.2 (MIT) and AniGen (MIT)." },
+      { open: "3D Viewer 98", label: "Open 3D Viewer 98" },
+    ],
+    related: ["photos", "camera", "pickleball", "messenger"],
+  },
   // ---- Music 98 ----
   {
     id: "music-98",

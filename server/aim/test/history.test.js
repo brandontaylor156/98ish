@@ -343,6 +343,16 @@ test("media: upload with a signed URL, size checked, only the two people can fet
   assert.equal((await s.media.upload("alice", { kind: "image", mime: "image/gif", size: 10 })).ok, false)
   assert.equal((await s.media.upload("alice", { kind: "image", mime: "image/jpeg", size: 2 * 1024 * 1024 })).ok, false)
   assert.equal((await s.media.upload("alice", { kind: "audio", mime: "audio/mp4;codecs=mp4a.40.2", size: 3000, d: 4, wf: "0123456789" })).ok, true, "voice: AAC in MP4")
+  // 3D models (3D Viewer 98): .glb only, up to 2 MB, keeping a cleaned title and the triangle count
+  assert.equal((await s.media.upload("alice", { kind: "model", mime: "model/gltf+json", size: 1000 })).ok, false, "only binary glTF")
+  assert.equal((await s.media.upload("alice", { kind: "model", mime: "model/gltf-binary", size: 3 * 1024 * 1024 })).ok, false, "over 2 MB")
+  const glbBytes = Buffer.alloc(1200, 7)
+  const glb = await s.media.upload("alice", { kind: "model", mime: "model/gltf-binary", size: glbBytes.length, title: "Red\u0007 Mug", tris: 12000 })
+  assert.equal(glb.ok, true)
+  await fetch(glb.url, { method: glb.method, headers: glb.headers, body: glbBytes })
+  assert.deepEqual(await s.media.commit("alice", glb.id), { ok: true })
+  assert.deepEqual(await s.media.attach("alice", glb.id, ["bob"]), { id: glb.id, k: "model", t: "Red Mug", tr: 12000, z: 1200 })
+  assert.equal(mediaPreview({ k: "model", t: "Red Mug" }), "🧊 3D model: Red Mug")
 
   // a file that didn't arrive whole is refused at commit
   const ticket = await s.media.upload("alice", { kind: "image", mime: "image/jpeg", size: 100 })
