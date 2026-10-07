@@ -306,6 +306,15 @@ export const topics = [
         ],
       },
       "Online, other 98ish people in the same park walk around with you, with their names over them, and can call next on the same court: then you play each other (computer players fill the other spots). A park holds 16 people; more open another one.",
+      { h: "Living Park: clones and regulars who remember you" },
+      {
+        list: [
+          "**Leave your clone in the park:** My Park's menu > **My clone in the park...** > **Leave my clone at** this venue. While you're signed off, your buddies at that venue find **your clone** by the entrance and can walk up and **Challenge** it to a game of singles; it plays the way your films say you play. You need your own clone first (Twin Replay > Stats > Make a Clone, with **This is me**). **Take it back** removes it. It's only ever in one venue, and only your buddies see it, only while you're away.",
+          "**What it may say:** your clone never makes up words. It only says the lines in **What it may say** (hello, when it wins, when it loses, a bit of trash talk, encouragement), which you write or keep; the game picks one that fits the moment. Up to 20 lines of 60 characters.",
+          "**Playing a friend's clone:** walk up to it and press **Challenge**. The result card shows the line their clone picked. Your friend gets a notification (\"Your clone lost to Sam 7-11 at Los Cab\"; Do Not Disturb holds it like any other) and, when they come back to My Park, a **While you were away** card with who played it and the scores. Their clone's log keeps the last 50 games.",
+          "**The regulars remember you:** at each venue the first few regulars say hello by name and remember the last time you met and your recent results there (\"Saw you win 11-7 against Alice's clone\"). They also keep a day: quieter in the morning, busiest for evening open play, and they say so. Their memory stays on this device.",
+        ],
+      },
       { h: "Real venues" },
       "**My Park** first asks **where to?**: Riverside Park, or one of seven real Southern California venues: Los Cab Sports Village (Fountain Valley), The Tennis & Pickleball Club at Newport Beach, Wolf + Bear Indoor Pickleball (Van Nuys), iPickle Whittier Narrows (South El Monte), The Paseo Club (Valencia), Sinaloa Middle School (Simi Valley) and California SMASH (El Segundo). Tap one to go; **☆** stars your favorites so they're first. **Change venue...** is in the park's menu.",
       "The real venues have real surfaces (court grain, asphalt, grass, stucco, tile roofs, wood and tile floors) and sun shadows that follow the time of day. On an older phone, **Options > Graphics: Low** goes back to the simpler flat look and runs faster (it applies the next time you open a venue).",

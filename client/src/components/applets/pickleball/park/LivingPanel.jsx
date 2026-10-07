@@ -101,7 +101,7 @@ export const ClonePanel = ({ venueId, venueName, venueNames = {}, look, onClose 
                 <Combo value={cloneId} options={mine.map((c) => [c.id, c.name])} onChange={setCloneId} ariaLabel="Clone" name="living-clone" />
               </label>
             )}
-            <details className="pkLivingPhrases" open={!rec}>
+            <details className="pkLivingPhrases">
               <summary>
                 What it may say ({total}/{LIMITS.total} lines)
               </summary>

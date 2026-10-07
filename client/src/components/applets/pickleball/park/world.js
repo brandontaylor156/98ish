@@ -1739,6 +1739,8 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
         regulars: regulars.map((r) => ({ id: r.id, state: r.state, x: r.x, z: r.z, seated: r.seated, court: r.court })),
         remotes: [...remotes.values()].map((r) => ({ num: r.num, name: r.name, x: r.body.x, y: r.body.y || 0, z: r.body.z, hidden: r.body.hidden })),
         real: [...bodies.values()].filter((b) => b.real).map((b) => ({ key: b.key, name: b.name, sub: b.realSub, x: b.x, z: b.z })),
+        clones: cloneBodies().map((b) => ({ owner: b.owner, name: b.name, x: b.x, z: b.z, say: b.say?.text || null })),
+        regularSay: regulars.slice(0, NAMED).map((r) => ({ name: r.name, say: r.say?.text || null, x: r.x, z: r.z })),
         full,
         mannequins: manns,
         budget,
