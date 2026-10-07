@@ -20,6 +20,13 @@
 // Athletic since 2026-10-04: muscle-topology bodies with a muscle normal map, wrapped (soft,
 // warm) skin light and a rim, faces that blink and react (morph targets), tops that drape, a
 // pleated skirt and hair that swing on springs, breathing (CREDITS.md, CLAUDE.md).
+//
+// Players v2 (2026-10-06, docs/players-v2.md): modeled kits (MakeHuman's CC0 garments fitted
+// to each body by tools/players/build-kit.mjs: tee, polo, tank, shorts, briefs, shoes, socks;
+// kitmap.js picks them per look, kitGeometry/kitMaterial dress the athlete, the skin under
+// them isn't drawn), a skin texture per skin-tone family (KTX2 on High), teeth. Kinds the kits
+// don't model are still grown by outfit.js. Bodies are now about 0.9 MB (Medium) and 1.6 MB
+// (High) each.
 // The assets (about 2.2 MB: mh-m/mh-f/mh-hair.glb and moves.json, in public/assets/pickleball/;
 // mh-*-hi.glb only on High;
 // the older Quaternius files are about 0.8 MB more, only fetched if those fail) load the first time Pickleball

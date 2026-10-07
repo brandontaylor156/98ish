@@ -15,8 +15,11 @@
 //          young_lightskinned_male_diffuse.png, low-poly.obj/.mhclo, brown_eye.png,
 //          eyebrow001.*, eyelashes01.*, short02.*, long01.* ...)
 //   2. In any scratch folder: npm i @gltf-transform/core @gltf-transform/extensions
-//      @gltf-transform/functions meshoptimizer sharp
+//      @gltf-transform/functions meshoptimizer sharp ktx2-encoder
 //   3. TOOLS=<that folder> node build-mh-athletes.mjs <src> <out dir>
+//      (players v2, docs/players-v2.md: the src assets folder also needs the clothes, teeth and
+//      skins the kits use, see players/build-kit.mjs; KIT=0 builds the bodies without them,
+//      HAIR=0 skips mh-hair.glb, LODS=med builds only Medium, KIT_DEBUG=1 writes the atlases)
 //
 // What it does, per body (an athletic young man and woman: MakeHuman's macro modifiers):
 //   - morphs the base mesh with the macro targets, finds the game-engine skeleton's joints on
