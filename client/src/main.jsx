@@ -28,5 +28,26 @@ fsReady.finally(() => {
 // Save the app for offline use (and installing to a phone's home screen). Only on the
 // real site: a service worker would get in the way of the dev server.
 if (import.meta.env.PROD && "serviceWorker" in navigator) {
-  window.addEventListener("load", () => navigator.serviceWorker.register("/sw.js").catch(() => {}))
+  window.addEventListener("load", () => {
+    navigator.serviceWorker
+      .register("/sw.js")
+      .then((reg) => {
+        // an iPhone Home Screen app can stay open for days: look for a new version whenever
+        // it comes back to the front (and hourly), not only on a cold start
+        const check = () => reg.update().catch(() => {})
+        document.addEventListener("visibilitychange", () => document.visibilityState === "visible" && check())
+        setInterval(check, 60 * 60 * 1000)
+      })
+      .catch(() => {})
+  })
+  // A new version took over (sw.js skipWaiting + clients.claim), but this page still runs the
+  // old code. Reload onto it at a moment that interrupts nothing: right away if 98ish is in the
+  // background, otherwise the next time it's put away (switching apps, locking the phone).
+  let hadController = !!navigator.serviceWorker.controller
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (!hadController) return void (hadController = true) // the first install, not an update
+    if (document.visibilityState === "hidden") return location.reload()
+    const onHide = () => document.visibilityState === "hidden" && location.reload()
+    document.addEventListener("visibilitychange", onHide)
+  })
 }
