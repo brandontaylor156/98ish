@@ -99,7 +99,9 @@ export const ParkResult = ({ result, onBack }) => (
   <div className="pkCenter pkDim">
     <div className="pkPanel pkParkResult window" data-park="result">
       <b className={result.won ? "pkWin" : "pkLose"}>{result.won ? "You win!" : "Good game!"}</b>
+      {result.vs && <small className="pkParkVs">vs {result.vs}</small>}
       <p className="pkFinal2">{result.score ? `${result.score[0]} - ${result.score[1]}` : ""}</p>
+      {result.line && <p className="pkParkCloneLine">"{result.line}"</p>}
       {result.rep && (
         <p>
           +{result.earned} park rep · <b>{repLine(result.rep)}</b>
@@ -151,7 +153,7 @@ export const ParkVenues = ({ list = [], current = "riverside", favs = [], loadin
 }
 
 // the menu: resume, the courts (watch any of them), say something, the Locker Room, leave
-export const ParkMenu = ({ courts = [], rep, online, venueName = "My Park", onResume, onWatch, onSay, onEmote, onLocker, onVenues, onLeave, voice = null, onBackdrop = null }) => {
+export const ParkMenu = ({ courts = [], rep, online, venueName = "My Park", onResume, onWatch, onSay, onEmote, onLocker, onVenues, onLeave, voice = null, onBackdrop = null, onClone = null }) => {
   const lv = repLevel(rep?.points || 0)
   return (
     <div className="pkCenter pkDim" onClick={(e) => e.target === e.currentTarget && onResume()}>
@@ -200,6 +202,11 @@ export const ParkMenu = ({ courts = [], rep, online, venueName = "My Park", onRe
           {onVenues && (
             <button type="button" onClick={onVenues} data-park="venues-open">
               Change venue...
+            </button>
+          )}
+          {onClone && (
+            <button type="button" onClick={onClone} data-park="clone-open">
+              My clone in the park...
             </button>
           )}
           {onBackdrop && (

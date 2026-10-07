@@ -1,5 +1,63 @@
 /* My Park's screen: the move pad, one context button, a menu button, names over people. */
 
+/* ---------- Living Park (LivingPanel.jsx): taller than a phone, so it scrolls ---------- */
+.pkLivingPanel,
+.pkLivingAway {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(380px, calc(100% - 24px));
+  max-height: calc(100% - 24px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  text-align: left;
+}
+.pkLivingPanel p,
+.pkLivingAway p {
+  margin: 0;
+}
+.pkLivingPhrases summary {
+  cursor: pointer;
+  font-weight: bold;
+}
+.pkLivingPhrases fieldset {
+  margin: 6px 0 0;
+  display: grid;
+  gap: 4px;
+}
+.pkLivingLine {
+  display: flex;
+  gap: 4px;
+}
+.pkLivingLine input {
+  flex: 1;
+  min-width: 0;
+}
+.pkLivingLine button {
+  min-width: 28px;
+  padding: 0 6px;
+}
+.pkLivingError {
+  color: #a00000;
+}
+.pkLivingHead {
+  font-weight: bold;
+}
+.pkLivingLog {
+  margin: 0;
+  padding-left: 1.1em;
+  display: grid;
+  gap: 3px;
+  font-size: 12px;
+}
+.pkParkVs {
+  display: block;
+  opacity: 0.85;
+}
+.pkParkCloneLine {
+  font-style: italic;
+}
+
 .pkPark {
   position: absolute;
   inset: 0;
@@ -70,6 +128,24 @@
 }
 .pkParkLabel[data-kind="real"] .pkParkLabelIn > small {
   color: #ffe9b8;
+}
+
+/* Living Park: a friend's clone left here (a lilac name, a little "C" badge) */
+.pkParkLabel[data-kind="clone"] .pkParkLabelIn > b {
+  color: #d9b8ff;
+}
+.pkParkLabel[data-kind="clone"] .pkParkLabelIn > b::before {
+  content: "C";
+  display: inline-block;
+  margin-right: 4px;
+  padding: 0 3px;
+  border: 1px solid #d9b8ff;
+  font-size: 9px;
+  line-height: 11px;
+  vertical-align: 1px;
+}
+.pkParkLabel[data-kind="clone"] .pkParkLabelIn > small {
+  color: #efe2ff;
 }
 
 .pkParkLabel[data-kind="me"] .pkParkLabelIn > b {

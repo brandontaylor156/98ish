@@ -103,6 +103,10 @@
 //                                                  not linked to them) so the other players'
 //                                                  records and ratings stay; matches with no other
 //                                                  account, and unconfirmed ones they logged, deleted
+//   park clones parkclones                         Pickleball 98 Living Park (server/livingpark):
+//                                                  their clone left in My Park (with its phrasebook
+//                                                  and memory log) deleted; in other clones' logs
+//                                                  they become "Deleted player"
 //   shared documents  shareddocs                   Come Over (server/aim/ydocs.js): shared Notepad
 //                                                  texts, Paint pictures and Shared with Friends
 //                                                  folders only they're in deleted; in shared ones

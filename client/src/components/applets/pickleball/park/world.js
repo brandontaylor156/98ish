@@ -29,6 +29,7 @@ import { createPost } from "./post.js"
 import { aoUniforms, lastAO, setBakedAOOn } from "./occlusion.js"
 import { createMannequins } from "./mannequin.js"
 import { spotFor } from "./presence.js"
+import { cleanMemory, meetRegular, pickLine, scheduleFor } from "./living.js"
 import { ACTIVE, ALL_SEATS, COURTS, INTERACTABLES, LEVEL_NAMES, RIVERSIDE_LAYOUT, SPAWN, WAYPOINTS, dirToWorld, nearestAction, poseToWorld, resolve, seatApproach, setLayout, toLocal, toWorld, yawToWorld } from "./layout.js"
 import { callNext, leaveQueue, nextLineup, ordered, positionOf } from "./queue.js"
 import { LINES, createRegular, goTo, speak, think, tickRegular } from "./regulars.js"
@@ -62,7 +63,7 @@ const blobTexture = () => {
   return new THREE.CanvasTexture(c)
 }
 
-export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "medium", phone = false, renderer = null, me: meInfo = {}, onHud, onEvent, labelsEl = null, audio = null, seed = (Math.random() * 1e9) | 0, hour = null, sky = { real: true, mode: "real" } } = {}) => {
+export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "medium", phone = false, renderer = null, me: meInfo = {}, onHud, onEvent, labelsEl = null, audio = null, seed = (Math.random() * 1e9) | 0, hour = null, sky = { real: true, mode: "real" }, memory = null, onMemory = null } = {}) => {
   // (the venue: layout.js's named exports follow the active layout)
   setLayout(layout)
   const venue = layout
@@ -492,6 +493,9 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
     if (me.mode === "sit") return { kind: "stand", label: "Stand up" }
     // (up on a terrace: the courts' racks and benches are down below)
     if ((me.walker.y || 0) > 1.2) return null
+    // (a friend's clone left here: walk up to challenge it)
+    const cl = nearestClone(2.4)
+    if (cl) return { kind: "challenge", owner: cl.owner, label: `Challenge ${cl.name}'s clone`, detail: "Plays the way they really play" }
     const it = nearestAction(me.walker.x, me.walker.z)
     if (!it) return null
     if (it.kind === "rack") {
@@ -592,6 +596,7 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
       if (seat) sitOn(seat)
     } else if (a.kind === "locker") onEvent?.({ type: "locker" })
     else if (a.kind === "machine") onEvent?.({ type: "machine" })
+    else if (a.kind === "challenge") onEvent?.({ type: "challenge", owner: a.owner, court: nearestCourt() })
     sendHud(true)
     return true
   }
@@ -851,6 +856,110 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
     }
   }
 
+  // ---------- Living Park (living.js): friends' clones left here, regulars who remember you ----------
+  // A clone is shown, not driven: it stands with the others by the entrance until challenged,
+  // and only ever says lines from its owner's phrasebook. list: [{ owner, name, look, phrases }]
+  const cloneBodies = () => [...bodies.values()].filter((b) => b.clone)
+  const setClones = (list = []) => {
+    const keep = new Set()
+    const shown = list.filter((c) => c?.owner).slice(0, 8)
+    shown.forEach((c, k) => {
+      const key = `clone:${c.owner}`
+      keep.add(key)
+      let b = bodies.get(key)
+      if (!b) {
+        b = makeBody(key, c.look || null, c.name, { clone: true, owner: c.owner })
+        // a little group facing the way in, a few steps from where you arrive
+        const side = (k - (shown.length - 1) / 2) * 1.5
+        const fx = Math.sin(SPAWN.yaw)
+        const fz = Math.cos(SPAWN.yaw)
+        const p = resolve(SPAWN.x + fx * 6 + fz * side, SPAWN.z + fz * 6 - fx * side, 0.35)
+        b.x = p.x
+        b.z = p.z
+        b.yaw = SPAWN.yaw + Math.PI
+      }
+      b.name = c.name
+      b.phrases = c.phrases || null
+      b.speed = 0
+      b.vx = 0
+      b.vz = 0
+    })
+    for (const b of cloneBodies()) if (!keep.has(b.key)) removeBody(b)
+  }
+  const nearestClone = (within) => {
+    let best = null
+    for (const b of cloneBodies()) {
+      const d = Math.hypot(b.x - me.walker.x, b.z - me.walker.z)
+      if (d < within && (!best || d < best.d)) best = { d, owner: b.owner, name: b.name }
+    }
+    return best
+  }
+  // the court nearest you (a challenge is played there)
+  const nearestCourt = () => {
+    let best = 0
+    let bd = Infinity
+    for (const c of courts) {
+      const d = Math.hypot(c.def.x - me.walker.x, c.def.z - me.walker.z)
+      if (d < bd) {
+        bd = d
+        best = c.def.id
+      }
+    }
+    return best
+  }
+  // one of a clone's approved lines, over its head
+  const cloneSay = (owner, kind) => {
+    const b = bodies.get(`clone:${owner}`)
+    if (!b?.phrases) return ""
+    const line = pickLine(b.phrases, kind, rand, b.lastLine)
+    if (line) {
+      b.lastLine = line
+      speak(b, line, clock)
+    }
+    return line
+  }
+  // a few named regulars per venue remember you (this device: living.js memoryKey); the
+  // venue's day sets how keen everyone is to play
+  let parkMemory = cleanMemory(memory)
+  const NAMED = 4
+  const greeted = new Set()
+  let schedAt = -1e9
+  const stepLiving = () => {
+    // clones say hi when you come up (then not again until you've walked away)
+    for (const b of cloneBodies()) {
+      const d = Math.hypot(b.x - me.walker.x, b.z - me.walker.z)
+      if (d < 4 && !greeted.has(b.key)) {
+        greeted.add(b.key)
+        cloneSay(b.owner, "greet")
+      } else if (d > 9) greeted.delete(b.key)
+    }
+    for (let i = 0; i < Math.min(NAMED, regulars.length); i++) {
+      const r = regulars[i]
+      if (r.state === "playing" || r.body.mode !== "walk") continue
+      const key = `reg:${r.id}`
+      const d = Math.hypot(r.x - me.walker.x, r.z - me.walker.z)
+      if (d < 2.6 && !greeted.has(key)) {
+        greeted.add(key)
+        const met = meetRegular(parkMemory, r.name, me.name, Date.now())
+        parkMemory = met.mem
+        speak(r, met.line, clock)
+        r.yaw = Math.atan2(me.walker.x - r.x, me.walker.z - r.z)
+        onMemory?.(parkMemory)
+      } else if (d > 12) greeted.delete(key)
+    }
+    // the day: every couple of minutes, how keen they are follows the hour
+    if (clock - schedAt > 120) {
+      schedAt = clock
+      const day = scheduleFor(hourOverride ?? hourOf())
+      for (const r of regulars) {
+        r.baseKeen ??= r.keen
+        r.keen = Math.min(1, r.baseKeen * day.keen)
+      }
+      const talker = regulars.slice(0, NAMED).find((r) => r.body.mode === "walk" && r.state !== "playing")
+      if (talker && rand() < 0.5) speak(talker, day.line, clock)
+    }
+  }
+
   // ---------- the regulars' day ----------
   const thinkFor = (r) => {
     const ev = think(r, ctxFor())
@@ -1025,7 +1134,7 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
       const speaking = !!(b.say && clock < b.say.until)
       // (your own name only shows while you say something: the rep is in the menu)
       const talk = remote && voiceTalk.has(b.num)
-      const near = b.isMe ? false : remote ? b.dist < 26 : b.real ? b.dist < 45 : speaking ? b.dist < 18 : b.dist < 6.5 && b.mode === "walk"
+      const near = b.isMe ? false : remote ? b.dist < 26 : b.real || b.clone ? b.dist < 45 : speaking ? b.dist < 18 : b.dist < 6.5 && b.mode === "walk"
       if (!near && !speaking && !talk) continue
       cand.push(b)
     }
@@ -1033,8 +1142,9 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
     for (const b of cand.slice(0, 12)) {
       const top = (b.seat ? b.seat.y + 1.25 : 2.12) + (b.y || 0)
       const speaking = b.say && clock < b.say.until ? b.say.text : ""
-      const sub = b.isMe ? (me.rep ? repLine(me.rep) : "") : b.remote ? b.repText || "" : b.real ? b.realSub || "" : ""
-      setLabel(i++, b.x, top, b.z, b.isMe ? me.name : b.real ? `${b.name} · here for real` : b.name || "", b.dist < 14 || b.isMe || b.real ? sub : "", speaking, b.isMe ? "me" : b.remote ? "person" : b.real ? "real" : "regular", !!(b.remote && voiceTalk.has(b.num)))
+      const sub = b.isMe ? (me.rep ? repLine(me.rep) : "") : b.remote ? b.repText || "" : b.real ? b.realSub || "" : b.clone ? "Walk up to challenge" : ""
+      const title = b.isMe ? me.name : b.real ? `${b.name} · here for real` : b.clone ? `${b.name}'s clone` : b.name || ""
+      setLabel(i++, b.x, top, b.z, title, b.dist < 14 || b.isMe || b.real || b.clone ? sub : "", speaking, b.isMe ? "me" : b.remote ? "person" : b.real ? "real" : b.clone ? "clone" : "regular", !!(b.remote && voiceTalk.has(b.num)))
     }
     for (; i < labels.length; i++) hideLabel(i)
   }
@@ -1367,6 +1477,7 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
       park.setScore(c.def.id, { names: view.people ? c.human.names : view.names, score: view.score || sb.score, note: c.state === "human" ? "PLAYERS ONLINE" : c.state === "changeover" ? "NEXT GAME" : c.queue.length + serverCourts[c.def.id].q.length ? `${c.queue.length + serverCourts[c.def.id].q.length} UP NEXT` : "" })
     }
     stepRegulars(dt)
+    stepLiving()
     stepRemotes()
     makeOne()
     updateCamera(dt)
@@ -1531,6 +1642,12 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
     },
     // ---- Live Venue Presence: friends here for real ([{ key, name, area, look? }]) ----
     setReal,
+    setClones,
+    cloneSay,
+    // the regulars' memory of you (living.js), e.g. after a game here
+    remember(next) {
+      parkMemory = cleanMemory(next)
+    },
     setLive,
     // ---- online (the page's socket: usePark) ----
     setNet(n) {
@@ -1622,6 +1739,8 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
         regulars: regulars.map((r) => ({ id: r.id, state: r.state, x: r.x, z: r.z, seated: r.seated, court: r.court })),
         remotes: [...remotes.values()].map((r) => ({ num: r.num, name: r.name, x: r.body.x, y: r.body.y || 0, z: r.body.z, hidden: r.body.hidden })),
         real: [...bodies.values()].filter((b) => b.real).map((b) => ({ key: b.key, name: b.name, sub: b.realSub, x: b.x, z: b.z })),
+        clones: cloneBodies().map((b) => ({ owner: b.owner, name: b.name, x: b.x, z: b.z, say: b.say?.text || null })),
+        regularSay: regulars.slice(0, NAMED).map((r) => ({ name: r.name, say: r.say?.text || null, x: r.x, z: r.z })),
         full,
         mannequins: manns,
         budget,
