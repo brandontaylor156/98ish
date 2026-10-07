@@ -14,7 +14,7 @@ import { CHARACTERS } from "./looks.js"
 
 const HERE = path.dirname(fileURLToPath(import.meta.url))
 const ASSETS = path.join(HERE, "../../../../public/assets/pickleball")
-const PIECES = ["tee", "tank", "shorts", "briefs", "shoes", "socks", "anklesocks"]
+const PIECES = ["tee", "polo", "tank", "shorts", "briefs", "shoes", "socks", "anklesocks"]
 
 test("kit files: delete_verts ranges and singles, until the next keyword", () => {
   const s = parseDeleteVerts("name x\nverts 0\n1 2 3 0.3 0.3 0.4 0 0 0\ndelete_verts\n5 - 8 10\n12 - 13 \nmaterial x\n99\n")
@@ -97,7 +97,7 @@ test("kit textures: prints removed from the cloth's shading, folds kept; binding
 test("outfit mapping: which modeled pieces each roster look wears, the rest still grown", () => {
   for (const c of CHARACTERS) {
     const { pieces, replaced } = kitPiecesFor(c.look, PIECES)
-    const top = { tee: "tee", polo: "tee", tank: "tank" }[c.look.shirtStyle || "tee"]
+    const top = c.look.shirtStyle || "tee"
     assert.ok(pieces.includes(top), `${c.id} wears the ${top}`)
     assert.ok(pieces.includes(c.look.bottom === "skirt" ? "briefs" : "shorts"), `${c.id}'s bottoms`)
     assert.ok(pieces.includes("shoes"), `${c.id}'s shoes`)
@@ -108,6 +108,8 @@ test("outfit mapping: which modeled pieces each roster look wears, the rest stil
   assert.deepEqual(kitPiecesFor({ shirtStyle: "rash", bottom: "pants", sockStyle: "knee" }, PIECES).pieces, ["shoes"])
   assert.deepEqual(kitPiecesFor({ shirtStyle: "tee", bottom: "shorts", sockStyle: "none" }, PIECES).pieces, ["tee", "shorts", "shoes"])
   assert.deepEqual(kitPiecesFor({ shirtStyle: "onepiece", sockStyle: "ankle" }, PIECES).pieces, ["anklesocks", "shoes"])
+  // an older body file without the polo: the tee stands in
+  assert.deepEqual(kitPiecesFor({ shirtStyle: "polo" }, ["tee", "shorts", "shoes", "socks"]).pieces, ["tee", "shorts", "socks", "shoes"])
   // a body file without kits: nothing modeled
   assert.deepEqual(kitPiecesFor({ shirtStyle: "tee" }, []).pieces, [])
 })

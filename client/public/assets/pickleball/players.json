@@ -26,6 +26,7 @@
      "Eyes": 172,
      "Brows": 560,
      "Kit_tee": 4262,
+     "Kit_polo": 4344,
      "Kit_tank": 2908,
      "Kit_shorts": 910,
      "Kit_briefs": 698,
@@ -118,6 +119,7 @@
      "Eyes": 172,
      "Brows": 560,
      "Kit_tee": 5456,
+     "Kit_polo": 5536,
      "Kit_tank": 3432,
      "Kit_shorts": 920,
      "Kit_briefs": 704,
@@ -229,6 +231,7 @@
      "Eyes": 172,
      "Brows": 560,
      "Kit_tee": 2290,
+     "Kit_polo": 2340,
      "Kit_tank": 1372,
      "Kit_briefs": 2434,
      "Kit_shorts": 840,
@@ -310,7 +313,7 @@
      "eye": 6698,
      "brows": 50911,
      "kitNormal": 33882,
-     "kitDetail": 156314,
+     "kitDetail": 157290,
      "teeth": 17890
     }
    },
@@ -321,6 +324,7 @@
      "Eyes": 172,
      "Brows": 560,
      "Kit_tee": 2524,
+     "Kit_polo": 2564,
      "Kit_tank": 1504,
      "Kit_briefs": 2524,
      "Kit_shorts": 848,
@@ -402,7 +406,7 @@
      "eye": 6698,
      "brows": 50911,
      "kitNormal": 167366,
-     "kitDetail": 590502,
+     "kitDetail": 593254,
      "teeth": 17890
     }
    }
@@ -411,18 +415,18 @@
  "files": {
   "pl-skin-m-mid.jpg": 74638,
   "pl-skin-m-dark.jpg": 61939,
-  "mh-m.glb": 833408,
+  "mh-m.glb": 896768,
   "pl-skin-m-light-hi.ktx2": 478492,
   "pl-skin-m-mid-hi.ktx2": 466440,
   "pl-skin-m-dark-hi.ktx2": 377434,
-  "mh-m-hi.glb": 1464932,
+  "mh-m-hi.glb": 1542368,
   "pl-skin-f-mid.jpg": 70380,
   "pl-skin-f-dark.jpg": 59148,
-  "mh-f.glb": 833760,
+  "mh-f.glb": 870148,
   "pl-skin-f-light-hi.ktx2": 519183,
   "pl-skin-f-mid-hi.ktx2": 449372,
   "pl-skin-f-dark-hi.ktx2": 497635,
-  "mh-f-hi.glb": 1594684
+  "mh-f-hi.glb": 1635524
  },
  "bits": {
   "tee": 1,
@@ -431,7 +435,8 @@
   "briefs": 8,
   "shoes": 16,
   "socks": 32,
-  "anklesocks": 64
+  "anklesocks": 64,
+  "polo": 128
  },
  "part": {
   "tee": 0,
@@ -440,6 +445,7 @@
   "briefs": 1,
   "shoes": 2,
   "socks": 3,
-  "anklesocks": 3
+  "anklesocks": 3,
+  "polo": 0
  }
 }

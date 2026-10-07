@@ -412,7 +412,7 @@ const bodyUnder = (tpl, full, look, v) => {
 // vertices in this build's shape, their twist-bone weights shared out like the body's, and a
 // part per vertex (kitmap.js PIECE_PART: which of the look's colors it takes). Built once per
 // build and set of pieces, shared.
-const KIT_BITS = { tee: 1, tank: 2, shorts: 4, briefs: 8, shoes: 16, socks: 32, anklesocks: 64 }
+const KIT_BITS = { tee: 1, tank: 2, shorts: 4, briefs: 8, shoes: 16, socks: 32, anklesocks: 64, polo: 128 }
 const kitGeometry = (tpl, pieces, v) => {
   const key = pieces.join("|")
   v.kits ||= {}
@@ -854,7 +854,7 @@ const KNIT_FRAG = `
 		// reads as cloth from the broadcast camera, where the knit itself is under a pixel
 		vec3 w = vPkRest * vec3(21.0, 13.0, 21.0);
 		float folds = sin(w.x * 1.7 + sin(w.y * 1.3) * 1.9) * sin(w.y * 2.3 + w.z * 1.1) + 0.5 * sin(w.z * 3.1 - w.y * 0.7 + sin(w.x * 2.2));
-		vec2 dHdxy = vec2(dFdx(h), dFdy(h)) * (0.0016 * fade) + vec2(dFdx(folds), dFdy(folds)) * 0.018;
+		vec2 dHdxy = vec2(dFdx(h), dFdy(h)) * (0.0016 * fade) + vec2(dFdx(folds), dFdy(folds)) * 0.009; // (players v2: half: on a white skirt the old strength read as blotches)
 		vec3 vSigmaX = dFdx(-vViewPosition);
 		vec3 vSigmaY = dFdy(-vViewPosition);
 		vec3 R1 = cross(vSigmaY, normal);
