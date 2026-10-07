@@ -35,7 +35,7 @@ export const VENUE_LIST = [
     "courts": 14,
     "tennis": 0,
     "live": 6,
-    "kb": 81.4
+    "kb": 81.2
   },
   {
     "id": "whittier",

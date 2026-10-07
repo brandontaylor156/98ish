@@ -146,7 +146,7 @@ export const ParkVenues = ({ list = [], current = "riverside", favs = [], loadin
             </li>
           ))}
         </ul>
-        <p className="pkParkCredit">Real venues: map data © OpenStreetMap contributors (ODbL), drawn in 98ish style. No location needed.</p>
+        <p className="pkParkCredit">Real venues: map data © OpenStreetMap contributors (ODbL); skyline from AWS Terrain Tiles (USGS 3DEP, SRTM); drawn in 98ish style. No location needed.</p>
       </div>
     </div>
   )
