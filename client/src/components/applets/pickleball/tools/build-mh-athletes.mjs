@@ -53,6 +53,7 @@ import { pathToFileURL } from "url"
 import fs from "fs"
 import path from "path"
 import zlib from "zlib"
+import { fitKit, kitTextures, toAtlas, BITS, PART, ATLAS } from "./players/build-kit.mjs"
 import { applyTarget, boneFrame, dilate, encodeTangentNormal, expressionDelta, fitVerts, highpass, macroTargets, neighbors, parseFitting, parseObj, parseTarget, qFromTo, rasterUV, rotateAbout, transferWeights, triTangents, vertexNormals } from "./mh-core.mjs"
 
 const req = createRequire(path.join(process.env.TOOLS || ".", "package.json"))
@@ -62,6 +63,9 @@ const { ALL_EXTENSIONS, EXTMeshoptCompression, EXTTextureWebP } = await load("@g
 const { prune, dedup, reorder, quantize, simplify, weld } = await load("@gltf-transform/functions")
 const { MeshoptEncoder, MeshoptSimplifier } = await load("meshoptimizer")
 const sharp = (await load("sharp")).default
+// (players v2: the High skins as KTX2, Basis ETC1S: an eighth of the GPU memory of RGBA)
+// (ESM only: imported by its file, not through require.resolve)
+const { encodeToKTX2 } = await import(pathToFileURL(path.join(process.env.TOOLS || ".", "node_modules/ktx2-encoder/dist/node/index.js")).href)
 
 const [src, outDir] = process.argv.slice(2)
 if (!src || !outDir) {
@@ -97,10 +101,13 @@ const LOCALS = {
     ...both("upperarm-shoulder-muscle-incr", 0.6),
     ...both("upperarm-muscle-incr", 0.5),
     ...both("lowerarm-muscle-incr", 0.6),
-    ...legs("upperleg-muscle-incr", 0.38),
-    ...legs("lowerleg-muscle-incr", 0.5),
+    // (players v2: lighter legs than the first athletic pass, 0.38 / 0.5 / 0.3: thighs and
+    // calves read like a pro player's, not a bodybuilder's)
+    ...legs("upperleg-muscle-incr", 0.22),
+    ...legs("lowerleg-muscle-incr", 0.3),
     ["legs/measure-knee-circ-decr", 0.3],
-    ["legs/measure-calf-circ-incr", 0.3],
+    ["legs/measure-thigh-circ-decr", 0.12],
+    ["legs/measure-calf-circ-incr", 0.1],
   ],
   f: [
     ["torso/torso-vshape-incr", 0.2],
@@ -141,6 +148,13 @@ const EXPRESSIONS = {
   shout: [[U + "mouth-open", 0.8], [U + "mouth-corner-puller", 0.25], [U + "eyebrows-left-inner-up", 0.35], [U + "eyebrows-right-inner-up", 0.35], [U + "eye-left-opened-up", 0.3], [U + "eye-right-opened-up", 0.3]],
 }
 const UNIT = 0.1 // MakeHuman's decimeters -> meters
+// players v2 (docs/players-v2.md): modeled kits, teeth and a skin texture per skin-tone family
+// in the bodies (KIT=0 builds the bodies as before)
+const KIT = process.env.KIT !== "0" && STYLE !== "toon"
+// the skin textures: MakeHuman's young skins, one per family of the game's six tones
+// (looks.js SKIN: 0-1 light, 2-3 mid, 4-5 dark); the light one is in the body file, the other
+// two are their own files (pl-skin-<body>-<family>[-hi].jpg), fetched for a look that needs them
+const SKINS = { light: "young_lightskinned_%_diffuse.png", mid: "young_lightskinned_%_diffuse2.png", dark: "young_darkskinned_%_diffuse.png" }
 const HAIR_FILE = STYLE === "toon" ? "mh-hair-toon.glb" : "mh-hair.glb"
 
 const base = parseObj(read(path.join(src, "base.obj")))
@@ -337,16 +351,17 @@ for (const [kind, B] of Object.entries(BODIES)) {
     const q3 = qFromTo(sub(ankle, hip), [0, -1, 0])
     addMove([`thigh_${sd}`, `calf_${sd}`, `foot_${sd}`, `ball_${sd}`], q3, hip)
   }
-  const poseVerts = (src) => {
+  // (any fitted vertices with their weights: the proxy's by default, a garment's for the kits)
+  const poseVerts = (src, weights = pw) => {
     const out = new Float64Array(src.length)
     for (let i = 0; i < src.length / 3; i++) {
       const v = [src[i * 3], src[i * 3 + 1], src[i * 3 + 2]]
       const o = [0, 0, 0]
-      for (const [b, w] of pw[i]) {
+      for (const [b, w] of weights[i]) {
         const m = moveOf(b, v)
         for (let k = 0; k < 3; k++) o[k] += m[k] * w
       }
-      for (let k = 0; k < 3; k++) out[i * 3 + k] = pw[i].length ? o[k] : v[k]
+      for (let k = 0; k < 3; k++) out[i * 3 + k] = weights[i].length ? o[k] : v[k]
     }
     return out
   }
@@ -441,7 +456,9 @@ for (const [kind, B] of Object.entries(BODIES)) {
     for (let i = 0; i < expr[name].length; i += 3) if (Math.hypot(expr[name][i], expr[name][i + 1], expr[name][i + 2]) > 2e-4) moved++
     console.log(kind, "expression", name, moved, "vertices")
   }
-  built[kind] = { kind, B, pos, mpos, dmpos, pobj, pw, bones, byName, joints, fromBase, face, expr }
+  built[kind] = { kind, B, pos, mpos, dmpos, pobj, pw, bones, byName, joints, fromBase, face, expr, fit, poseVerts, toM }
+  // players v2: the modeled kits (players/build-kit.mjs), and which body vertices they hide
+  if (KIT) built[kind].kit = fitKit(kind, built[kind], { A, read, baseWeights, buildMesh, parseFitting, parseObj, fitVerts, transferWeights })
   console.log(kind, "proxy", ppos.length / 3, "verts", pobj.faces.length, "faces; height", (Math.max(...Array.from(mpos).filter((_, i) => i % 3 === 1))).toFixed(3), "m")
 }
 
@@ -612,11 +629,11 @@ const eyeTexture = async (size) => {
 
 // ---- simplify (Medium): about half the triangles; the face's moving parts (expressions) and
 // the UV seams kept exactly ----
-const simplifyMesh = (mesh, ratio, error, locked) => {
+const simplifyMesh = (mesh, ratio, error, locked, flags = ["LockBorder"]) => {
   const n = mesh.position.length / 3
   const lock = new Uint8Array(n)
   for (let i = 0; i < n; i++) lock[i] = locked(i) ? 1 : 0
-  const [out] = MeshoptSimplifier.simplifyWithAttributes(Uint32Array.from(mesh.index), Float32Array.from(mesh.position), 3, Float32Array.from(mesh.normal), 3, [0.5, 0.5, 0.5], lock, Math.floor((mesh.index.length * ratio) / 3) * 3, error, ["LockBorder"])
+  const [out] = MeshoptSimplifier.simplifyWithAttributes(Uint32Array.from(mesh.index), Float32Array.from(mesh.position), 3, Float32Array.from(mesh.normal), 3, [0.5, 0.5, 0.5], lock, Math.floor((mesh.index.length * ratio) / 3) * 3, error, flags)
   const map = new Int32Array(n).fill(-1)
   const keep = []
   for (const v of out) if (map[v] < 0) map[v] = keep.push(v) - 1
@@ -632,6 +649,8 @@ const simplifyMesh = (mesh, ratio, error, locked) => {
 
 const skinHex = {}
 const bodyCache = {}
+// players v2: what was built (public/assets/pickleball/players.json; the asset tests read it)
+const manifest = { version: 2, bodies: {}, files: {}, bits: BITS, part: PART }
 const writeBody = async (kind, K, lod) => {
   const { B, pos, mpos, pobj, pw, bones, fromBase, expr } = K
   const hi = lod === "hi"
@@ -661,7 +680,7 @@ const writeBody = async (kind, K, lod) => {
 
   const acc = (type, array) => doc.createAccessor().setType(type).setArray(array).setBuffer(buffer)
   // a skinned mesh; morphs: { name: Float32Array (3 per vertex) } become morph targets
-  const skinned = (name, mesh, weightsOf, mat, morphs = null) => {
+  const skinned = (name, mesh, weightsOf, mat, morphs = null, extra = null) => {
     const n = mesh.position.length / 3
     const J = new Uint16Array(n * 4)
     const W = new Float32Array(n * 4)
@@ -681,6 +700,7 @@ const writeBody = async (kind, K, lod) => {
       .setAttribute("WEIGHTS_0", acc("VEC4", W))
       .setIndices(acc("SCALAR", mesh.position.length / 3 > 65535 ? mesh.index : Uint16Array.from(mesh.index)))
       .setMaterial(mat)
+    for (const [k, v] of Object.entries(extra || {})) prim.setAttribute(k, acc(v.type, v.array))
     const m = doc.createMesh(name).addPrimitive(prim)
     if (morphs) {
       const names = Object.keys(morphs)
@@ -713,7 +733,9 @@ const writeBody = async (kind, K, lod) => {
     body = simplifyMesh(body, Number(process.env.RATIO || 0.5), Number(process.env.ERR || 0.0012), (i) => moving(body.src[i]))
   }
   const cache = (bodyCache[kind] ||= {})
-  const texSize = hi ? 2048 : 1024
+  // (players v2: High's 2048 skins are KTX2 files beside the body, pl-skin-*-hi.ktx2; the file
+  // carries a 1024 one, drawn until they're in or if a device can't read them)
+  const texSize = hi && !KIT ? 2048 : 1024
   cache["skin" + texSize] ||= await (async () => {
     let s = sharp(A(B.skin)).resize(texSize, texSize)
     if (STYLE === "toon") s = s.median(5).blur(1.2)
@@ -743,7 +765,15 @@ const writeBody = async (kind, K, lod) => {
     .setRoughnessFactor(0.6)
     .setMetallicFactor(0)
     .setExtras({ refSkin: skinHex[kind], hueMix: 0.45, skinGain: 0.86, headScale: STYLE === "toon" ? 1.08 : 1.02, style: STYLE, lod })
-  skinned("Body", body, (i) => pw[body.src[i]], bodyMat, morphsFor(body, expr))
+  // (players v2: which kit pieces hide each vertex, a bit per piece, build-kit.mjs BITS; VEC4
+  // bytes, the first one used: meshopt wants 4-byte vertex strides)
+  let kitAttr = null
+  if (K.kit) {
+    const a = new Uint8Array((body.position.length / 3) * 4)
+    body.src.forEach((v, i) => (a[i * 4] = K.kit.hide[v]))
+    kitAttr = { _KIT: { type: "VEC4", array: a } }
+  }
+  skinned("Body", body, (i) => pw[body.src[i]], bodyMat, morphsFor(body, expr), kitAttr)
 
   // the eyes (two low-poly spheres) and the brows + lashes (one atlas), all on the Head bone
   const head = () => [["head", 1]]
@@ -793,9 +823,96 @@ const writeBody = async (kind, K, lod) => {
     skinned("Brows", merged, head, doc.createMaterial("Brows").setBaseColorTexture(doc.createTexture("brows").setImage(img).setMimeType("image/png")).setAlphaMode("MASK").setAlphaCutoff(0.35).setDoubleSided(true).setRoughnessFactor(0.9).setMetallicFactor(0), morphs)
   }
 
+  // ---- players v2: the kit pieces (one atlas material), the teeth ----
+  if (K.kit) {
+    const slot = hi ? 1024 : 512
+    cache["kit" + slot] ||= await (async () => {
+      const t = await kitTextures(kind, K.kit.pieces, { sharp, A }, slot)
+      return {
+        normal: await sharp(t.normal, { raw: { width: t.W, height: t.H, channels: 3 } }).webp({ quality: 88, effort: 6 }).toBuffer(),
+        detail: await sharp(t.detail, { raw: { width: t.W, height: t.H, channels: 3 } }).webp({ nearLossless: true, quality: 60, effort: 6 }).toBuffer(),
+      }
+    })()
+    const tex = cache["kit" + slot]
+    if (process.env.KIT_DEBUG) {
+      fs.writeFileSync(path.join(outDir, `kit-${kind}-${slot}-normal.webp`), tex.normal)
+      fs.writeFileSync(path.join(outDir, `kit-${kind}-${slot}-detail.webp`), tex.detail)
+    }
+    // (glTF has no slot for the detail map: it rides as the occlusion texture, whose red holds
+    // the occlusion anyway, times the cloth's shading; athlete.js reads all three channels)
+    const kitMat = doc
+      .createMaterial("Kit")
+      .setNormalTexture(doc.createTexture("kitNormal").setImage(tex.normal).setMimeType("image/webp"))
+      .setOcclusionTexture(doc.createTexture("kitDetail").setImage(tex.detail).setMimeType("image/webp"))
+      .setRoughnessFactor(0.85)
+      .setMetallicFactor(0)
+      .setDoubleSided(true)
+      .setExtras({ atlas: ATLAS[kind], bits: BITS, part: PART })
+    for (const pc of K.kit.pieces) {
+      let mesh = { ...pc.mesh }
+      if (!hi) mesh = simplifyMesh(mesh, pc.part >= 2 ? 0.5 : 0.6, 0.0015, () => false)
+      mesh.uv = toAtlas(mesh.uv, kind, pc.slot)
+      const node = skinned("Kit_" + pc.name, mesh, (i) => pc.weights[mesh.src[i]], kitMat)
+      node.setExtras({ part: pc.part, bit: BITS[pc.name] })
+    }
+    // the teeth (MakeHuman's teeth_base, on the Head bone, opening with the face's expressions)
+    {
+      const fit = parseFitting(read(A("teeth_base.mhclo")))
+      const obj = parseObj(read(A("teeth_base.obj")))
+      const p = fitVerts(fit, pos)
+      const m = new Float64Array(p.length)
+      for (let i = 0; i < p.length; i += 3) m.set(fromBase([p[i], p[i + 1], p[i + 2]]), i)
+      let mesh = buildMesh(obj, m)
+      const d = {}
+      for (const [e, list] of Object.entries(EXPRESSIONS)) d[e] = expressionDelta(fit, pos, list.map(([t, w]) => [target(t), w]), UNIT)
+      // (many small pieces, each tooth its own: borders free, or nothing simplifies)
+      mesh = simplifyMesh(mesh, hi ? 0.3 : 0.15, 0.08, () => false, [])
+      cache.teeth ||= await sharp(A("teeth.png")).resize(256, 256).flatten({ background: "#d8c8b8" }).jpeg({ quality: 86 }).toBuffer()
+      skinned("Teeth", mesh, head, doc.createMaterial("Teeth").setBaseColorTexture(doc.createTexture("teeth").setImage(cache.teeth).setMimeType("image/jpeg")).setRoughnessFactor(0.3).setMetallicFactor(0), morphsFor(mesh, d))
+    }
+    // the other skin families' textures, beside the body (and their average tones)
+    for (const [fam, pattern] of Object.entries(SKINS)) {
+      const name = pattern.replace("%", kind === "m" ? "male" : "female")
+      const out = hi ? `pl-skin-${kind}-${fam}-hi.ktx2` : `pl-skin-${kind}-${fam}.jpg`
+      const jpg = fam === "light" ? skinJpg : await sharp(A(name)).resize(1024, 1024).jpeg({ quality: 86, mozjpeg: true }).toBuffer()
+      if (hi) {
+        const png = await sharp(A(name)).resize(2048, 2048).png().toBuffer()
+        const ktx = await encodeToKTX2(new Uint8Array(png), {
+          isUASTC: false,
+          qualityLevel: 160,
+          compressionLevel: 3,
+          generateMipmap: true,
+          isPerceptual: true,
+          imageDecoder: async (b) => {
+            const { data, info } = await sharp(b).ensureAlpha().raw().toBuffer({ resolveWithObject: true })
+            return { data: new Uint8Array(data), width: info.width, height: info.height }
+          },
+        })
+        fs.writeFileSync(path.join(outDir, out), ktx)
+      } else if (fam !== "light") fs.writeFileSync(path.join(outDir, out), jpg)
+      const { data, info } = await sharp(jpg).raw().toBuffer({ resolveWithObject: true })
+      const sum = [0, 0, 0]
+      for (let j = 0; j < body.uv.length / 2; j++) {
+        const x = Math.min(info.width - 1, Math.max(0, Math.floor(body.uv[j * 2] * info.width)))
+        const y = Math.min(info.height - 1, Math.max(0, Math.floor(body.uv[j * 2 + 1] * info.height)))
+        const o = (y * info.width + x) * info.channels
+        for (let k = 0; k < 3; k++) sum[k] += toLin(data[o + k] / 255)
+      }
+      const hex = "#" + sum.map((x) => Math.round(toSrgb(x / (body.uv.length / 2)) * 255).toString(16).padStart(2, "0")).join("")
+      const M = (manifest.bodies[kind] ||= { skins: {} })
+      M.skins[fam] = { ...(M.skins[fam] || {}), ref: hex, [hi ? "hi" : "med"]: fam === "light" && !hi ? null : out }
+      if (fam !== "light" || hi) manifest.files[out] = fs.statSync(path.join(outDir, out)).size
+    }
+  }
+
   doc.createExtension(EXTTextureWebP).setRequired(true)
   await compress(doc)
   await io.write(path.join(outDir, file), doc)
+  if (K.kit) {
+    manifest.files[file] = fs.statSync(path.join(outDir, file)).size
+    const M = manifest.bodies[kind]
+    M[hi ? "hi" : "med"] = { file, meshes: Object.fromEntries(doc.getRoot().listMeshes().map((m) => [m.getName(), m.listPrimitives()[0].getIndices().getCount() / 3])), bones: bones.map((b) => b.name), textures: Object.fromEntries(doc.getRoot().listTextures().map((t) => [t.getName(), t.getImage().byteLength])) }
+  }
   const tris = doc
     .getRoot()
     .listMeshes()
@@ -803,6 +920,10 @@ const writeBody = async (kind, K, lod) => {
   console.log(file, fs.statSync(path.join(outDir, file)).size, "bytes", tris.join(", "), "skin", skinHex[kind])
 }
 for (const [kind, K] of Object.entries(built)) for (const lod of process.env.LODS ? process.env.LODS.split(",") : ["med", "hi"]) await writeBody(kind, K, lod)
+if (KIT) {
+  fs.writeFileSync(path.join(outDir, "players.json"), JSON.stringify(manifest, null, 1))
+  console.log("players.json written")
+}
 
 // ---- hair: every style fitted to each body, in that body's Head bone space ----
 function mergeMeshes(parts) {
@@ -838,7 +959,7 @@ const HAIRS = {
   Hair_Braid: "braid01",
   Hair_Afro: "afro01",
 }
-{
+if (process.env.HAIR !== "0") {
   const doc = new Document()
   const buffer = doc.createBuffer()
   const scene = doc.createScene("hair")

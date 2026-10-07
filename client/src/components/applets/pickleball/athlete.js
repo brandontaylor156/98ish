@@ -31,11 +31,13 @@ import { faceTargets, stepSweat, faceDetail } from "./face.js"
 import { loadHDRI } from "./park/environment.js"
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js"
 import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js"
+import { KTX2Loader } from "three/examples/jsm/loaders/KTX2Loader.js"
 import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js"
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js"
 import { BODY } from "./anim.js"
 import { SKIN } from "./looks.js"
 import { aimDelta, additiveMove, bendAxis, decodeMoves, frameOf, LAYERS, layerTargets, limitQuat, Q, qaxis, qinv, qmul, qrot, qslerp, solveLimb, stepLayers, clipTime, norm } from "./retarget.js"
+import { kitPiecesFor, PIECE_PART } from "./kitmap.js"
 import { BUILD_SCALE, buildGarment, buildSkirt, landmarks, prepareBody, radiusProfile, reshapeBody, visibleIndex } from "./outfit.js"
 import { loadMotion } from "./mm/runtime.js"
 import { hash01 } from "./between.js"
@@ -138,6 +140,18 @@ const template = (gltf, set = SETS[0]) => {
   })
   const body = meshes.Body
   addTwistBones(body)
+  // players v2: the modeled kit pieces (each its own skinned mesh in the file, on the body's
+  // skin), taken out of the scene (an athlete wears a merged few of them: kitGeometry), their
+  // twist-bone weights shared out like the body's
+  let kit = null
+  for (const [name, o] of Object.entries(meshes)) {
+    if (!name.startsWith("Kit_")) continue
+    if (!kit) kit = { pieces: {}, normal: o.material.normalMap || null, normalScale: o.material.normalScale ? o.material.normalScale.clone() : new THREE.Vector2(1, -1), detail: o.material.aoMap || null }
+    kit.pieces[name.slice(4)] = o.geometry
+    o.removeFromParent()
+  }
+  if (kit?.normal) kit.normal.anisotropy = 4
+  if (kit?.detail) kit.detail.anisotropy = 4
   const bones = Object.fromEntries(body.skeleton.bones.map((b) => [b.name, b]))
   const rest = {}
   for (const b of body.skeleton.bones) rest[b.name] = { wq: toQ(b.getWorldQuaternion(tq)), wp: toV(b.getWorldPosition(tv)), lp: b.position.clone() }
@@ -239,10 +253,15 @@ const template = (gltf, set = SETS[0]) => {
   // them cost two more skinned draws per athlete); their rest transform in its space
   const toHead = new THREE.Matrix4().copy(bones.Head.matrixWorld).invert()
   const onHead = { Eyes: toHead.clone().multiply(meshes.Eyes.matrixWorld), Brows: toHead.clone().multiply(meshes.Brows.matrixWorld) }
+  // (players v2: the teeth, on the head like the eyes, opening with the face's expressions)
+  if (meshes.Teeth) onHead.Teeth = toHead.clone().multiply(meshes.Teeth.matrixWorld)
+  if (meshes.Teeth) maps.teeth = new THREE.MeshStandardMaterial({ map: meshes.Teeth.material.map, roughness: 0.32, metalness: 0, color: new THREE.Color(0.86, 0.84, 0.8) })
   // the facial expressions (morph targets on the face and the brows/lashes, if the file has them)
   const faces = { body: body.morphTargetDictionary || null, brows: meshes.Brows.morphTargetDictionary || null }
   const armRef = armReference(rest)
-  const t = { set: set.id, armRef, headScale: ud.headScale ?? set.headScale, scene, rest, prepared, marks, scale, ankleH, head, maps, grip, curl, spread, garments: {}, bones, onHead, joints, variants: {}, faces }
+  // the body's _KIT attribute: which kit pieces hide each vertex (a bit each)
+  const kitBits = g.attributes._kit ? Uint8Array.from({ length: n }, (_, i) => g.attributes._kit.getX(i)) : null
+  const t = { set: set.id, armRef, headScale: ud.headScale ?? set.headScale, scene, rest, prepared, marks, scale, ankleH, head, maps, grip, curl, spread, garments: {}, bones, onHead, joints, variants: {}, faces, kit: kit && kitBits ? kit : null, kitBits, lod: ud.lod || "med" }
   return t
 }
 // Twist bones (arms.js TWIST): two along each forearm and one at the top of each upper arm,
@@ -358,18 +377,112 @@ export const garmentKinds = (look) => {
 }
 // the body without the skin its clothes hide: the same vertices, a shorter index (shared by
 // everyone dressed the same way)
+// players v2: what a look wears, split into the modeled kit pieces the body file has
+// (kitmap.js) and the garments still grown from the body (outfit.js)
+const wornOf = (tpl, look) => {
+  const { pieces, replaced } = kitPiecesFor(look, tpl.kit ? Object.keys(tpl.kit.pieces) : [])
+  return { pieces, grown: garmentKinds(look).filter((k) => !replaced.has(k)) }
+}
 const bodyUnder = (tpl, full, look, v) => {
-  const key = garmentKinds(look).join("|")
+  const { pieces, grown } = wornOf(tpl, look)
+  const key = grown.join("|") + "/" + pieces.join("|")
   if (!v.bodies[key]) {
     const g = new THREE.BufferGeometry()
-    for (const [name, attr] of Object.entries(full.attributes)) g.setAttribute(name, name === "position" ? v.position : attr)
+    for (const [name, attr] of Object.entries(full.attributes)) if (name !== "_kit") g.setAttribute(name, name === "position" ? v.position : attr)
     // (the face's expressions: offsets, the same for every build)
     g.morphAttributes = full.morphAttributes
     g.morphTargetsRelative = full.morphTargetsRelative
-    g.setIndex(new THREE.BufferAttribute(visibleIndex(garmentKinds(look), v.prepared, tpl.marks), 1))
+    let index = visibleIndex(grown, v.prepared, tpl.marks)
+    // (and the skin under the modeled pieces: triangles whose corners they all hide)
+    if (pieces.length && tpl.kitBits) {
+      let mask = 0
+      for (const p of pieces) mask |= KIT_BITS[p] || 0
+      const K = tpl.kitBits
+      const keep = []
+      for (let t = 0; t < index.length; t += 3) if (!(K[index[t]] & mask && K[index[t + 1]] & mask && K[index[t + 2]] & mask)) keep.push(index[t], index[t + 1], index[t + 2])
+      index = index instanceof Uint32Array ? Uint32Array.from(keep) : Uint16Array.from(keep)
+    }
+    g.setIndex(new THREE.BufferAttribute(index, 1))
     v.bodies[key] = g
   }
   return v.bodies[key]
+}
+
+// The modeled kit a look wears, as ONE skinned geometry (on the body's skeleton): the pieces'
+// vertices in this build's shape, their twist-bone weights shared out like the body's, and a
+// part per vertex (kitmap.js PIECE_PART: which of the look's colors it takes). Built once per
+// build and set of pieces, shared.
+const KIT_BITS = { tee: 1, tank: 2, shorts: 4, briefs: 8, shoes: 16, socks: 32, anklesocks: 64 }
+const kitGeometry = (tpl, pieces, v) => {
+  const key = pieces.join("|")
+  v.kits ||= {}
+  if (v.kits[key]) return v.kits[key]
+  const geos = pieces.map((p) => tpl.kit.pieces[p])
+  let nv = 0
+  let ni = 0
+  for (const g of geos) {
+    nv += g.attributes.position.count
+    ni += g.index.count
+  }
+  const position = new Float32Array(nv * 3)
+  const normal = new Float32Array(nv * 3)
+  const uv = new Float32Array(nv * 2)
+  const skinIndex = new Uint16Array(nv * 4)
+  const skinWeight = new Float32Array(nv * 4)
+  const part = new Float32Array(nv)
+  const index = nv > 65535 ? new Uint32Array(ni) : new Uint16Array(ni)
+  let ov = 0
+  let oi = 0
+  geos.forEach((g, gi) => {
+    const A = g.attributes
+    const n = A.position.count
+    for (let i = 0; i < n; i++) {
+      const o = ov + i
+      position[o * 3] = A.position.getX(i)
+      position[o * 3 + 1] = A.position.getY(i)
+      position[o * 3 + 2] = A.position.getZ(i)
+      normal[o * 3] = A.normal.getX(i)
+      normal[o * 3 + 1] = A.normal.getY(i)
+      normal[o * 3 + 2] = A.normal.getZ(i)
+      uv[o * 2] = A.uv.getX(i)
+      uv[o * 2 + 1] = A.uv.getY(i)
+      for (let k = 0; k < 4; k++) {
+        skinIndex[o * 4 + k] = A.skinIndex.getComponent(i, k)
+        skinWeight[o * 4 + k] = A.skinWeight.getComponent(i, k)
+      }
+      part[o] = PIECE_PART[pieces[gi]]
+    }
+    for (let i = 0; i < g.index.count; i++) index[oi + i] = g.index.getX(i) + ov
+    ov += n
+    oi += g.index.count
+  })
+  // the twist bones (arms.js TWIST): the sleeves turn along the forearm and upper arm with the skin
+  const names = tpl.prepared.bones
+  const idx = (name) => names.indexOf(name)
+  for (const s of ["l", "r"]) {
+    const E = tpl.rest["lowerarm_" + s]?.wp
+    const W = tpl.rest["hand_" + s]?.wp
+    const S = tpl.rest["upperarm_" + s]?.wp
+    if (!E || !W || !S) continue
+    const fa = TWIST.forearm.map(([u, name]) => [u, idx(name + "_" + s)])
+    const ua = TWIST.upperarm.map(([u, name]) => [u, idx(name + "_" + s)])
+    if (fa.some(([, i]) => i < 0) || ua.some(([, i]) => i < 0)) continue
+    splitTwistWeights(position, skinIndex, skinWeight, idx("lowerarm_" + s), E, W, fa)
+    splitTwistWeights(position, skinIndex, skinWeight, idx("upperarm_" + s), S, E, ua)
+  }
+  // this build's shape (outfit.js reshapeBody, the same moves as the body's)
+  let shaped = position
+  if (v.key !== "regular") shaped = reshapeBody(prepareBody({ position, skinIndex, skinWeight, index, bones: names }), tpl.joints, tpl.marks, BUILD_SCALE[v.key])
+  const geo = new THREE.BufferGeometry()
+  geo.setAttribute("position", new THREE.BufferAttribute(shaped, 3))
+  geo.setAttribute("normal", new THREE.BufferAttribute(normal, 3))
+  geo.setAttribute("uv", new THREE.BufferAttribute(uv, 2))
+  geo.setAttribute("skinIndex", new THREE.BufferAttribute(skinIndex, 4))
+  geo.setAttribute("skinWeight", new THREE.BufferAttribute(skinWeight, 4))
+  geo.setAttribute("pkPart", new THREE.BufferAttribute(part, 1))
+  geo.setIndex(new THREE.BufferAttribute(index, 1))
+  v.kits[key] = geo
+  return geo
 }
 
 // Everything a look wears but its hair, as ONE skinned mesh (one draw call): the clothes
@@ -416,7 +529,9 @@ const outfitGeometry = (tpl, look, v) => {
   const trim = look.trim || "#ffffff"
   const bottom = look.bottomColor || "#23395d"
   const socks = look.socks || "#ffffff"
-  const kinds = garmentKinds(look)
+  // (players v2: what the modeled kit pieces don't cover; the skirt over modeled briefs too)
+  const { pieces, grown: kinds } = wornOf(tpl, look)
+  if (pieces.includes("briefs")) garment("skirt", bottom, trim)
   for (const kind of kinds) {
     if (kind === "shoes") continue
     if (kind === "briefs") {
@@ -430,7 +545,7 @@ const outfitGeometry = (tpl, look, v) => {
     else if (kind === "wristbands") garment(kind, look.wristColor || "#ffffff", look.wristColor || "#ffffff")
     else garment(kind, socks, socks)
   }
-  for (const side of ["l", "r"]) rigid(sneakerGeometry(tpl, side, look), "foot_" + side)
+  if (!pieces.includes("shoes")) for (const side of ["l", "r"]) rigid(sneakerGeometry(tpl, side, look), "foot_" + side)
   // hats and glasses: flatten the pieces, colors from their materials
   const acc = accessories(look, tpl.head)
   acc.updateMatrixWorld(true)
@@ -614,7 +729,80 @@ const skinMaterial = (maps, hex, { pores = false, sweat = null } = {}) => {
     if (pores) sh.fragmentShader = sh.fragmentShader.replace("#include <normal_fragment_maps>", "#include <normal_fragment_maps>" + PORE_FRAG)
   }
   m.customProgramCacheKey = () => "pk-skin" + (pores ? "-pores" : "")
+  // (players v2: the skin family's own texture swapped in when it arrives, with its own average
+  // tone, so the recoloring starts from a skin like the look's: darker skin keeps its texture's
+  // detail instead of a pale skin's darkened)
+  m.userData.setSkin = (map, refHex) => {
+    const r = srgb(refHex)
+    const l = r.r * 0.2126 + r.g * 0.7152 + r.b * 0.0722
+    uniforms.refHue.value.set(r.r / l, r.g / l, r.b / l)
+    uniforms.refLum.value = l
+    m.map = map
+    m.needsUpdate = true
+  }
   return m
+}
+// players v2: the skin tones' families (looks.js SKIN 0-1 light, 2-3 mid, 4-5 dark) and their
+// textures (public/assets/pickleball/players.json; the light one is in the body file)
+export const skinFamily = (skin) => {
+  const i = typeof skin === "number" ? skin : SKIN.indexOf(skin)
+  if (i < 0) {
+    // (a custom color: by its lightness)
+    const l = srgb(typeof skin === "string" ? skin : SKIN[2]).getHSL({}).l
+    return l > 0.62 ? "light" : l > 0.4 ? "mid" : "dark"
+  }
+  return i <= 1 ? "light" : i <= 3 ? "mid" : "dark"
+}
+let manifestP = null
+const playersManifest = () =>
+  (manifestP ||= fetch(BASE + "players.json")
+    .then((r) => (r.ok ? r.json() : null))
+    .catch(() => null))
+const skinTex = new Map()
+// (High: KTX2, Basis ETC1S, transcoded to what this GPU reads: a 2048 skin in about 2.8 MB of
+// memory instead of 22; Medium, or if that fails: a 1024 JPEG)
+let ktx2 = null
+let athleteRenderer = null
+export const setAthleteRenderer = (r) => {
+  athleteRenderer = r
+}
+const ktx2Loader = () => {
+  if (!ktx2 && athleteRenderer) {
+    ktx2 = new KTX2Loader().setTranscoderPath(BASE + "basis/")
+    ktx2.detectSupport(athleteRenderer)
+  }
+  return ktx2
+}
+const skinTexture = (kind, fam, lod) => {
+  const key = `${kind}|${fam}|${lod}`
+  if (!skinTex.has(key))
+    skinTex.set(
+      key,
+      playersManifest().then(async (mf) => {
+        const S = mf?.bodies?.[kind]?.skins?.[fam]
+        if (!S) return null
+        const jpeg = (file) =>
+          new THREE.TextureLoader().loadAsync(BASE + file).then((map) => {
+            map.flipY = false // (glTF's UV convention, like the body's own)
+            map.colorSpace = THREE.SRGBColorSpace
+            map.anisotropy = 4
+            return map
+          })
+        let map = null
+        if (lod === "hi" && S.hi && ktx2Loader()) {
+          try {
+            map = await ktx2Loader().loadAsync(BASE + S.hi)
+            map.colorSpace = THREE.SRGBColorSpace
+            map.anisotropy = 4
+          } catch {
+            map = null
+          }
+        }
+        if (!map && S.med) map = await jpeg(S.med).catch(() => null)
+        return map ? { map, ref: S.ref } : null
+      })
+    )
+  return skinTex.get(key)
 }
 // a sole that shows against the shoe: off-white under white shoes, white under the rest
 const soleFor = (hex) => (srgb(hex).getHSL({}).l > 0.85 ? "#d8d2c4" : "#f4f4f2")
@@ -659,7 +847,9 @@ const KNIT_FRAG = `
 			h = smoothstep(0.18, 0.3, length(cell)) * 1.4;
 			v = 0.25 + 0.25 * h;
 		}
-		float fade = 1.0 - smoothstep(0.35, 1.2, length(fwidth(q.xy)));
+		// (players v2: gone well before a stitch shrinks to a pixel: at 0.35-1.2 the weave beat
+		// against the pixel grid, a moire over every grown garment)
+		float fade = 1.0 - smoothstep(0.1, 0.4, length(fwidth(q.xy)));
 		// soft folds and wrinkles (a few cm across, more across the body than down it): what
 		// reads as cloth from the broadcast camera, where the knit itself is under a pixel
 		vec3 w = vPkRest * vec3(21.0, 13.0, 21.0);
@@ -742,6 +932,59 @@ const athleteMaterial = (params, { wrap = "vec3(0.3)", rim = 0.12, key = "pk-clo
 }
 let outfitMaterial = null
 const outfitMat = () => (outfitMaterial ||= athleteMaterial({ vertexColors: true, roughness: 0.8, metalness: 0, side: THREE.DoubleSide }, { wrap: "vec3(0.32, 0.3, 0.3)", rim: 0.1, knit: true }))
+
+// The modeled kit's material (players v2, docs/players-v2.md): the garments' own normal maps
+// (folds, seams, hems: real cloth instead of the procedural knit, which shimmered), and the
+// detail atlas (tools/players/build-kit.mjs): R the cloth's shading and occlusion (0.5 = the
+// color as is), G the trim (the tee's binding and stripes, the shoes' accents), B a tank's own
+// binding. The look's colors are uniforms (one material per athlete, one shader program for
+// all): which ones a vertex takes is its part (kitmap.js PIECE_PART). Lit like the rest of the
+// athlete (wrapped light, a rim, a soft sheen on the cloth at grazing angles).
+const kitMaterial = (kit, look) => {
+  const m = new THREE.MeshStandardMaterial({ normalMap: kit.normal, normalScale: kit.normalScale.clone().multiplyScalar(1.6), roughness: 0.84, metalness: 0, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 })
+  m.defines = { PK_WRAP: "vec3(0.32, 0.3, 0.3)" }
+  const C = (hex, fb) => srgb(hex || fb)
+  const shirt = look.shirt || "#1a9fb0"
+  const trim = look.trim || "#ffffff"
+  const bottom = look.bottomColor || "#23395d"
+  const u = {
+    pkDetail: { value: kit.detail },
+    pkTop: { value: C(shirt) },
+    pkTrim: { value: C(trim) },
+    pkBottom: { value: C(bottom) },
+    pkBottomTrim: { value: C(bottom === trim ? shirt : trim) },
+    pkShoe: { value: C(look.shoes, "#ffffff") },
+    pkShoeAccent: { value: C(look.shoeAccent || look.trim, "#1a9fb0") },
+    pkSocks: { value: C(look.socks, "#ffffff") },
+  }
+  m.onBeforeCompile = (sh) => {
+    Object.assign(sh.uniforms, u)
+    athleteLight(sh, { rim: 0.1 })
+    sh.vertexShader = sh.vertexShader.replace("#include <common>", "#include <common>\nattribute float pkPart;\nvarying float vPkPart;").replace("#include <begin_vertex>", "#include <begin_vertex>\n\tvPkPart = pkPart;")
+    sh.fragmentShader = sh.fragmentShader
+      .replace("#include <common>", "#include <common>\nvarying float vPkPart;\nuniform sampler2D pkDetail;\nuniform vec3 pkTop;\nuniform vec3 pkTrim;\nuniform vec3 pkBottom;\nuniform vec3 pkBottomTrim;\nuniform vec3 pkShoe;\nuniform vec3 pkShoeAccent;\nuniform vec3 pkSocks;")
+      .replace(
+        "#include <map_fragment>",
+        `#include <map_fragment>
+      vec3 pkDet = texture2D(pkDetail, vNormalMapUv).rgb;
+      {
+        vec3 base = pkTop;
+        vec3 tr = pkTrim;
+        float mask = pkDet.g;
+        if (vPkPart > 3.5) mask = pkDet.b;
+        else if (vPkPart > 2.5) { base = pkSocks; tr = pkSocks; }
+        else if (vPkPart > 1.5) { base = pkShoe; tr = pkShoeAccent; }
+        else if (vPkPart > 0.5) { base = pkBottom; tr = pkBottomTrim; }
+        mask = smoothstep(0.3, 0.7, mask);
+        diffuseColor.rgb *= mix(base, tr, mask) * (pkDet.r * 2.0);
+      }`
+      )
+      .replace("#include <roughnessmap_fragment>", "#include <roughnessmap_fragment>\n\tif (vPkPart > 1.5 && vPkPart < 2.5) roughnessFactor = 0.55;")
+      .replace("#include <emissivemap_fragment>", SHEEN_FRAG)
+  }
+  m.customProgramCacheKey = () => "pk-kit"
+  return m
+}
 
 // ---- the paddle: a rounded face with an edge guard and a printed design, a wrapped grip ----
 const PADDLE = { w: 0.19, h: 0.27, neck: 0.075, handle: 0.135 }
@@ -1273,8 +1516,29 @@ const buildAthlete = (look = {}, { shadows = false, withPaddle = true } = {}, de
   const skirtSway = outfitGeo.userData.swings ? swayUniforms() : null
   const outfit = new THREE.SkinnedMesh(outfitGeo, skirtSway ? athleteMaterial({ vertexColors: true, roughness: 0.8, metalness: 0, side: THREE.DoubleSide }, { wrap: "vec3(0.32, 0.3, 0.3)", rim: 0.1, sway: skirtSway, knit: true }) : outfitMat())
   outfit.bind(skeleton, body.bindMatrix)
-  body.parent.add(outfit)
-  const parts = [body, outfit]
+  const parts = [body]
+  // (everything may be modeled kit now: an empty outfit isn't drawn)
+  if (outfitGeo.attributes.position.count) {
+    body.parent.add(outfit)
+    parts.push(outfit)
+  }
+  // players v2: the modeled kit (one more skinned draw, its own material for the look's colors)
+  const worn = wornOf(tpl, look)
+  let kitMesh = null
+  if (worn.pieces.length) {
+    kitMesh = new THREE.SkinnedMesh(kitGeometry(tpl, worn.pieces, variant), kitMaterial(tpl.kit, look))
+    kitMesh.name = "Kit"
+    kitMesh.bind(skeleton, body.bindMatrix)
+    body.parent.add(kitMesh)
+    parts.push(kitMesh)
+  }
+  // the skin family's own texture (players.json: light, mid, dark), when it's in; the light
+  // one, recolored, until then
+  const fam = skinFamily(look.skin)
+  if ((fam !== "light" || tpl.lod === "hi") && tpl.set === "mh")
+    skinTexture(kind, fam, tpl.lod).then((t) => {
+      if (t && body.material?.userData?.setSkin) body.material.userData.setSkin(t.map, t.ref)
+    })
 
   // the head: bigger, with eyes, brows and hair
   const head = B.Head
@@ -1283,6 +1547,7 @@ const buildAthlete = (look = {}, { shadows = false, withPaddle = true } = {}, de
   for (const [name, mat] of [
     ["Eyes", tpl.maps.eyes],
     ["Brows", browMat],
+    ...(meshes.Teeth && tpl.onHead.Teeth ? [["Teeth", tpl.maps.teeth]] : []),
   ]) {
     meshes[name].removeFromParent()
     const m = new THREE.Mesh(meshes[name].geometry, mat)
@@ -1731,7 +1996,7 @@ const buildAthlete = (look = {}, { shadows = false, withPaddle = true } = {}, de
   }
 
   // ---- the face: blinks, focus, effort, a smile, a shout (morph targets) ----
-  const faceMeshes = [body, attach.find((m) => m.morphTargetDictionary && m !== body)].filter((m) => m?.morphTargetDictionary)
+  const faceMeshes = [body, ...attach.filter((m) => m.morphTargetDictionary && m !== body)].filter((m) => m?.morphTargetDictionary)
   const faceW = { blink: 0, smile: 0, effort: 0, shout: 0 }
   let blinkIn = 1.5 + hash01(look.name || skinHex + hairHex) * 3
   let blinkT = -1
@@ -1870,6 +2135,7 @@ const buildAthlete = (look = {}, { shadows = false, withPaddle = true } = {}, de
   const disposeOwn = () => {
     // (the materials made for this athlete alone: a swinging skirt's, swinging hair's)
     if (skirtSway) outfit.material.dispose()
+    if (kitMesh) kitMesh.material.dispose()
     body.material.dispose()
     if (hairMeshW) hairMeshW.material.dispose()
   }
