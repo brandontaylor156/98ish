@@ -1584,6 +1584,18 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
           const level = Math.min(1, 0.3 + e.shots / 14 + (e.last?.risky ? 0.2 : 0) + (e.kind === "winner" ? 0.15 : 0))
           venue.crowd?.cheer(level)
           audio.cheer(level)
+          // the players react as the point ends (not a second later with the score): a long
+          // rally or a put-away gets the big celebration (and the big groan), a long rally
+          // leaves the losers hands on knees, an error of their own is a groan; an ordinary
+          // point, any of the three
+          if (!match.practice) {
+            const long = e.shots >= 10
+            for (const f of figures) {
+              const won = f.player.team === e.winner
+              const variant = long || e.last?.kind === "smash" ? (won ? 2 : long ? 1 : 2) : !won && e.kind === "error" && e.last?.team === f.player.team ? 2 : Math.floor(Math.random() * 3)
+              setMood(f.anim, won ? "cheer" : "sulk", variant)
+            }
+          }
           onEvent?.({ type: "rally", ...e, yours: e.winner === you?.team })
           // runs of rallies: the crowd rises with yours (juice.js)
           if (you) {
@@ -1597,9 +1609,12 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
             }
           }
           // a great point gets the replay
-          // (only the great ones: a long rally, or a winner off a smash, a risky or a perfect
-          // shot; 9+ shots used to replay most Pro points)
-          const worthy = e.shots >= 14 || (e.kind === "winner" && (e.last?.kind === "smash" || e.last?.risky || e.last?.grade === "perfect") && e.shots >= 4)
+          // (only the great ones: a long rally, a winner off a smash or a risky shot, or a
+          // perfect winner that ends a real rally; 9+ shots or any perfect winner used to
+          // replay about every other point)
+          const winner = e.kind === "winner"
+          // (simulated, a person vs the computer: Rookie 35% -> 3%, Club 52% -> 8%, Pro 69% -> 22%)
+          const worthy = e.shots >= 18 || (winner && (e.last?.kind === "smash" || e.last?.risky) && e.shots >= 4) || (winner && e.last?.grade === "perfect" && e.shots >= 14)
           // (only for this match: a replay due as the next match starts would freeze it)
           if (worthy && settings.replays !== false && mode === "local") {
             const forMatch = match
@@ -1612,7 +1627,6 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
           audio.setTension?.(0)
           if (demo) break
           audio.chime(e.winner === you?.team)
-          for (const f of figures) setMood(f.anim, f.player.team === e.winner ? "cheer" : "sulk", Math.floor(Math.random() * 3))
           onEvent?.({ type: "point", ...e, yours: e.winner === you?.team })
           if (you && e.score) {
             const back = streakScore(streaksFor(), e.score)
