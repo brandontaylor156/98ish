@@ -24,11 +24,26 @@ Built 2026-10-06 from idea #1 of the GitHub research ("Floppy gets a brain"). Fl
 See the numbers in the 2026-10-06 report (headless Chrome on the dev machine, no GPU). On iPhone (iOS 26, WebGPU) expect the Qwen3 model; nothing measured on a real phone yet.
 
 ## Tests
+- `node --test client/src/components/applets/floppy/hands.test.js` (7): Passwords never / private ask / risky labels and dialog OK, recipe plans (Paint + send, Notepad, Who's in?), snapshot text + agent action checks, VB request detection and rule params, every kind compiles (with nasty quotes), a generated quiz actually runs in the VB runtime (score, last screen), the generate → check → repair loop with a fake model.
 - `node --test client/src/components/applets/floppy/floppy.test.js` (6): tools from registries (and a new program appears), prompt shape, parser (good/sloppy/wrong/no JSON), when-parser, fallback intents, confirm gating + describeCall, help ranking on the real topics (+ vectors winning).
 - Browser (scratchpad `floppy/rules.mjs`, 390x844 touch): open Paint; reminder with confirm, saved in the calendar store; help answer links; IM confirm then "sign on first"; fallback answer; no sideways scroll, no page errors. `floppy/model.mjs [webgpu]`: loads the brain through the app's modules and asks the model directly (skipping the rules).
+
+## Floppy works windows (`hands.js`, `handsCore.js`)
+- **Recipes first, no model** (`planRecipe`): Paint background color (right-click a `.pSwatch` = background color, then Image > Clear Image; "and send it to X" adds the `send_picture` tool, which sends the Paint canvas through Messenger's picture pipeline `preparePicture` + `aim.sendMedia`), Notepad open + type, Pickleball 98 "Who's in?" (handoff venue, set date/time inputs, press Create). Each step is `{do: open|click|set|type|choose|menu|key|wait|tool, target: {css, text}}`.
+- **Agent with the brain** (page-agent idea, MIT, ported not vendored): the active window's controls become numbered text lines (`snapshotText`); the model answers one JSON action at a time (`click/type/select/key/done`), checked by `parseAgentAction` against the list (index exists, role fits, not disabled); max 8 steps. Routed when MiniLM picks the `operate` tool.
+- **Safety** (`appAccess`, `isRisky`): `NEVER_APPS` (passwords, users, lock, account deletion, backup) are refused; `PRIVATE_APPS` (from hangoutCore) need a Yes first; any press whose label (or whose dialog's text, for OK/Yes) says send/delete/remove/buy/pay/bet/share/post/submit/invite/create/sign out/leave/block/call needs a Yes. **Stop** aborts between steps. "Show me each step" (localStorage `98ish.floppy.showMe`, on by default) outlines each control for 900 ms with a tooltip (`.flHandBox`), off = 150 ms.
+- Window identity: title bar text matched to `programs.js` names (`programOfWindow`). Dev hook `window.__floppyHands`.
+
+## Floppy writes VB98 programs (`vbgen.js`)
+- A small model is unreliable at whole programs, so it only fills **parameters** of known-good patterns: poll, quiz, eightball, countdown, picker, hello (`KINDS`), plus as-is templates (tic-tac-toe, reaction, soundboard, platformer).
+- Order: rules from the sentence (`ruleParams`: "poll: Q? a, b, c", "quiz: Q? a / *b / c; ...", holidays/dates for countdown, "between A, B and C") → else the model with schema + one example (`paramMessages`) → `validateParams` → `buildProject` → `checkProject` (`validateProject` + `compile`). Any failure goes back to the model as the next message (up to 3 tries).
+- Opens in Visual Basic 98's designer via handoff `{edit: project}`, ready to Run/Send. `detectVbRequest` stays out of notes/reminders/messages.
+
+## Runtime (wllama vs transformers.js)
+Not evaluated in this round (stopped early); transformers.js stays the default. To do: measure wllama v3 (WASM, GGUF Qwen2.5-0.5B q4) load time, tokens/s and peak memory against transformers.js on the same machine, switch only if clearly better on iPhone (budget 300-600 MB).
 
 ## Privacy
 Nothing typed leaves the device; the chat isn't saved (gone on close). Help: `ask-floppy` topic; privacy-device (Cache Storage row) and privacy-third-parties (Hugging Face + jsDelivr row).
 
 ## Next
-Voice (Moonshine/Whisper-tiny in, Kokoro out) as optional downloads; tool results fed back to the model for follow-ups ("and invite Sam"); Floppy reachable on phones while a program is open (a tray button).
+Browser-verify the recipes and VB generation at 390x844 and one real model run (agent 2-step task, quiz); wllama comparison; optional face (TalkingHead / 2D viseme mouth). Voice (Moonshine/Whisper-tiny in, Kokoro out) as optional downloads; tool results fed back to the model for follow-ups ("and invite Sam"); Floppy reachable on phones while a program is open (a tray button).
