@@ -150,3 +150,59 @@ The owner asked about the characters themselves. What already existed (MakeHuman
 - **Measured** (scratchpad `faces/shots/`, before = main, after = this branch): close-ups `before-face-*` vs `after5-face-*` (`after3-` before the last softening), side views `*-side-*`, lineup `after2-close-pair.png`, My Park walking view `before-park.png` vs `after4-park.png`. Phone 390x844 after a 10 s warm-up (headless Chrome, software GPU, a loaded machine): main High 21.9-29.7 fps / 6.6 at 4x CPU, Low 40.7 / 11.5; this branch High 35.5 / 9.9, Low 53 / 18.8: no measurable cost (the difference is noise). Desktop High 59 fps both. Note: the first High reading right after a quality switch can catch the one-time compile of the new shaders.
 - **Tests:** `node --test client/src/components/applets/pickleball/face.test.js` (4: reactions incl. a serve's determination, effort by stroke, sweat over a long rally vs one shot and drying, detail levels). All Pickleball, park and Twin suites pass.
 - **Left:** iris parallax; the hair highlight ignores shadows (kept faint for that reason); shoes don't reflect the sky (they share the cloth material); sweat has no visible droplets.
+
+## Game feel (2026-10-06)
+The owner: "the actual gameplay needs to be just as good" as My Park. Audit first (a person model, `autopilot` with timing scatter, against the computer in Node; then a phone match in Chrome), then fixes. Nothing here moves your player: the only movement change is the existing between-points walk back, a bit brisker.
+- **Audit findings:**
+  - Input latency is not the problem. Taps and keys reach `match.press`/`release` inside the event handler, with no frame queue. Contact comes `SWING_LEAD` (0.13 s, 0.07 at the net) after you let go, and that's what the timing grade is built around.
+  - Every "Swing and a miss!" came after the point was already over (Club: 6.3 per 100 swings). A swing let go early waited `ARM_S` (1 s), then expired into a whiff event, on top of the point's own callouts.
+  - Some swings never met a ball that passed just beside the player, even with the player standing at about 1.03 m. The "let it come to the body" wait held the swing until the ball got closer, but on that line it never did.
+  - Between points was 3.9 s from the point to the next serve contact at Club. Most of it was the 1.7 m/s walk back (intro averaged 2.6 s), plus 1.8 s of dead ball and the computer's serve wait.
+  - Instant replays played on 52% of Club points and 69% of Pro points (9+ shots, or any perfect winner). Each was 6 s of frames at 0.4x: 15 s or more on screen.
+  - There was no haptic, no streak or comeback reaction, and no camera response to hits or a kitchen battle. The players' celebrate/sulk came 1.8 s late, with the score, and was picked at random.
+  - Shot kinds were already distinct: median speeds dink 7, drop 10.8, roll 11.9, drive 18.3, smash 20.7, speed-up 21.9 m/s.
+- **Fixes:**
+  - `match.js dropSwing`: when the point ends, a pending swing goes quietly. A swing let go in the last 0.3 s still animates, but no miss is called. A held hit is dropped; the serve is untouched. `goneBy` calls a miss as soon as the ball has passed the player low and is still going away, instead of a second later.
+  - `canHit`: a person's swing stretches to `STRETCH` (1.15x `REACH`) for a ball at its nearest pass. It no longer waits for a ball that isn't closing on them (`closing` ≤ 0.5 m/s). People only; the computer's plans are unchanged. `strike`'s spacing still makes a long reach less accurate.
+  - Pacing: `DEAD_S` 1.8 -> 1.25, `INTRO_S` 1.3 -> 0.9, `INTRO_MAX` 5.5 -> 3.0 (then everyone steps onto their spot), `WALK_BACK` 1.7 -> 2.0 m/s. Computer `serveWait` is down about 0.25 s per level (`ai.js`). Tapping still skips ahead.
+  - Perfect contact: when it's your hit, 45 ms of hit-stop and a 0.6 camera kick (smashes and big hits get 1.0). The kick is a 2.4° FOV punch that springs back (`engine.js kick`). The shot banner shows the timing word in gold, PERFECT, and pops in bigger (`hud.jsx shotBanner perfect`, `Overlay.css .is-perfect`; still under Reduce Motion).
+  - Haptics (`juice.js hapticFor`, `Pickleball.jsx feelIt`): `navigator.vibrate` on your hits (8 ms, 18 perfect, 28 smash), a miss, your rallies won and your game won. An iPhone has no vibrate, so the screen edges glow instead (`.pkPulse`, strength from `pulseFor`). Options > **Hit Buzz** turns both off (pref `haptics`).
+  - Streaks (`juice.js`): 3/5/8 perfect contacts in a row; rally runs of 3 and 5 (yours, with a crowd swell) and 4 (theirs: "Stop the run!"); one comeback per game, from 3+ down to level or ahead. They arrive as `streak` engine events and show as callouts.
+  - Camera (`camera.js rallyFrame`): the look leads the ball across the court (`ball.x*0.15 + vx*0.05`, at most 0.6 m). Broadcast and Behind-you close in 4-5° when everyone is within 2.9 m of the net, ramping out to 4.6 m. Both are eased in the engine. The `clearShot`/`easeClear` blocker rules still apply on top.
+  - Reactions: the players react as soon as the rally ends (the `rally` event), not with the score. After a 10+ shot rally or a smash, the winners celebrate big and the losers groan or go hands on knees; an own error gets the groan.
+  - Replays: only for a rally of 18+ shots, a winner off a smash or risky shot (4+ shots), or a perfect winner ending 14+ shots. That's Rookie 35% -> 3% of points, Club 52% -> 8%, Pro 69% -> 22% (simulated). They're quick: the last 3.6 s at half speed, 7.3 s on screen (measured), and a tap still skips.
+- **Measured** (Node person-model harness, scratchpad `feel/`: `sim.mjs`, `phases.mjs`, `kinds.mjs`, `worthy.mjs`; 3 seeds, timing scatter 0.06 s):
+
+  | Level | Misses per 100 swings | Point to next serve | Mean shots per point |
+  |---|---|---|---|
+  | Rookie | 0 -> 0 | 3.51 -> 3.17 s | 4.9 -> 5.5 |
+  | Club | 6.3 -> 2.8, none after a point | 3.90 -> 3.41 s | 7.2 -> 8.4 |
+  | Pro | 3.7 -> 1.6 | 3.93 -> 3.44 s | 12.2 -> 11.5 |
+
+  - Win rates are unchanged: Rookie 33/38, Club 33/49, Pro 30/62.
+  - Perfect share by timing scatter: 0.04 s about 65%, 0.15 s about 39%. Timing earns perfects.
+  - Phone, 390x844 (headless Chrome, Medium, scratchpad `feel/browser.mjs`, shots in `feel/shots/`):
+    - Singles: 59.6 / 41.2 fps on two back-to-back runs.
+    - Doubles: 43 fps, 16 fps at 4x CPU (6.9 at 4x in a run on a loaded machine).
+    - These are within the documented noise of this machine; the new per-frame work is one O(players) function.
+  - FOV in doubles: about 60.0° in kitchen battles vs 64.0° at the baseline; kicks down to 59°.
+  - In a 60 s singles run, 21 glows fired, and the streak callouts were seen ("3 in a row!", "ON FIRE! 5 perfect").
+  - No page errors.
+- **Tests:** `node --test client/src/components/applets/pickleball/gamefeel.test.js` (10 tests):
+  - no miss called after a point, and a pending swing dropped quietly;
+  - a ball gone by is a miss at once;
+  - the stretch, for people only;
+  - timing windows, and that steadier timing earns more perfects;
+  - shot speeds distinct;
+  - point-to-serve under 3.6 s;
+  - rally camera framing;
+  - haptic and glow strengths;
+  - streaks and the comeback.
+  
+  All 22 non-park Pickleball suites pass (207 tests), plus Help.
+- **Left:**
+  - Nothing here has been felt on a real iPhone yet: the glow vs a buzz, the 45 ms hit-stop, the kick strength.
+  - The perfect window is unchanged (±0.06 s Normal), so about 55% of a decent player's shots are perfect. Making perfect rarer would change the computer balance, which is tuned on the same grades.
+  - No announcer voice for streaks (callouts and crowd only).
+  - The computer players have no per-character personality in how they play; reactions are by situation, not character, because `looks.js` belongs to the character work.
+  - The intro still waits for the walk back, about 2.3 s at Club. A tap skips it.
