@@ -1295,10 +1295,15 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
   }
 
   // ---------- replays ----------
+  const REPLAY_SHOW_S = 3.6 // seconds shown: the last shots and the ~1 s after the point
+  const REPLAY_SPEED = 0.5 // slow motion: about 7 s on screen (a tap skips it)
   const startReplay = (side) => {
     if (record.length < 30 || mode !== "local") return
-    // from a moment before the rally's last few shots to the end
-    const frames = record.slice(-Math.min(record.length, 60 * 6))
+    // the last few seconds of the point (REPLAY_SHOW_S of play, whatever the frame rate): quick,
+    // not a second rally (it used to be 6 s of frames at 0.4x, 15 s or more on screen)
+    let from = record.length - 1
+    for (let t = 0; from > 0 && t < REPLAY_SHOW_S; from--) t += record[from].dt
+    const frames = record.slice(from)
     replay = { frames, i: 0, t: 0, side: side || (Math.random() < 0.5 ? 1 : -1), frame: frames[0], ball: { ...frames[0].ball } }
     match.hold = true
     for (const f of figures) f.anim = createAnim(frames[0].players[figures.indexOf(f)]?.x ?? f.player.x, frames[0].players[figures.indexOf(f)]?.z ?? f.player.z, f.player.team === 0 ? Math.PI : 0)
@@ -1322,7 +1327,7 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
   }
   const stepReplay = (dt) => {
     if (replay.external) return stepTwin(dt)
-    replay.t += dt * 0.4 // slow motion
+    replay.t += dt * REPLAY_SPEED // slow motion
     let acc = 0
     let i = replay.i
     while (i < replay.frames.length - 1 && acc + replay.frames[i].dt <= replay.t) {
@@ -1342,7 +1347,7 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
     const u = Math.min(1, replay.t / Math.max(1e-3, replay.frame.dt))
     const a = replay.frame.ball
     replay.ball = { x: a.x + (next.ball.x - a.x) * u, y: a.y + (next.ball.y - a.y) * u, z: a.z + (next.ball.z - a.z) * u }
-    return dt * 0.4
+    return dt * REPLAY_SPEED
   }
 
   // ---------- Twin Replay (twin/): a real game's tracked frames, played on these figures ----------
@@ -1592,7 +1597,9 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
             }
           }
           // a great point gets the replay
-          const worthy = e.shots >= 9 || (e.kind === "winner" && (e.last?.kind === "smash" || e.last?.risky || e.last?.grade === "perfect") && e.shots >= 3)
+          // (only the great ones: a long rally, or a winner off a smash, a risky or a perfect
+          // shot; 9+ shots used to replay most Pro points)
+          const worthy = e.shots >= 14 || (e.kind === "winner" && (e.last?.kind === "smash" || e.last?.risky || e.last?.grade === "perfect") && e.shots >= 4)
           // (only for this match: a replay due as the next match starts would freeze it)
           if (worthy && settings.replays !== false && mode === "local") {
             const forMatch = match
