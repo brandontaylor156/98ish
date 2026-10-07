@@ -29,6 +29,7 @@ export const buildTools = (registry = {}) => {
     { name: "play_music", side: false, description: "Play songs in Music 98 (optionally one matching a name).", parameters: { type: "object", properties: { song: { type: "string" } }, required: [] } },
     { name: "watch_together", side: false, description: "Start Watch Together with a YouTube link, optionally with a buddy.", parameters: { type: "object", properties: { url: { type: "string" }, with: { type: "string" } }, required: ["url"] } },
     { name: "open_file", side: false, description: "Open a file from the drive by its name.", parameters: { type: "object", properties: { name: { type: "string" } }, required: ["name"] } },
+    { name: "send_picture", side: true, description: "Send the picture in an open window (Paint) to a buddy in 98 Messenger.", parameters: { type: "object", properties: { to: { type: "string", enum: registry.buddies?.length ? registry.buddies : undefined }, app: { type: "string" } }, required: ["to"] } },
   ]
 }
 
@@ -67,7 +68,7 @@ export const FEW_SHOT = [
 // ---- parsing what the model wrote ----
 
 // the first balanced {...} in the text (inside ```json fences or not)
-const firstObject = (text) => {
+export const firstObject = (text) => {
   const s = String(text || "")
   const start = s.indexOf("{")
   if (start < 0) return null
@@ -97,7 +98,7 @@ const repair = (json) =>
     .replace(/([{,]\s*)([A-Za-z_][\w]*)\s*:/g, '$1"$2":')
     .replace(/'([^'"\\]*)'/g, '"$1"')
 
-const tryJson = (s) => {
+export const tryJson = (s) => {
   try {
     return JSON.parse(s)
   } catch {
@@ -387,6 +388,8 @@ export const describeCall = (call) => {
       return `Watch Together${a.with ? ` with ${a.with}` : ""}`
     case "open_file":
       return `Open the file "${a.name}"`
+    case "send_picture":
+      return `Send ${a.app || "Paint"}'s picture to ${a.to}`
     default:
       return call?.tool || "Do that"
   }
@@ -451,6 +454,7 @@ export const TOOL_EXAMPLES = {
   play_music: ["play some music", "put on my songs", "play that song I like", "I want to listen to music"],
   watch_together: ["watch this youtube video with Sam", "let's watch a video together"],
   open_file: ["open the file budget.txt", "open my resume document", "show the photo called beach"],
+  operate: ["click the send button", "press the start button in this window", "in this game tap new game", "type my name into the box", "fill in this form for me", "choose large in the list here", "turn on the second checkbox"],
   chat: ["who are you", "who made you", "tell me a joke", "how are you today", "what can you do", "thanks Floppy", "what is the meaning of life"],
 }
 

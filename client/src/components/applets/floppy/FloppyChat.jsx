@@ -5,7 +5,10 @@ import { openResult } from "../../../utils/search"
 import { openHelp } from "../../../utils/help"
 import { describeCall } from "./floppyCore"
 import { ask, runTool } from "./floppyTools"
-import { brainBytes, brainChosen, deleteBrain, loadBrain, pickleballOpen, unloadBrain, useBrain } from "./brain"
+import { brainBytes, brainChosen, deleteBrain, generate, getBrain, loadBrain, pickleballOpen, unloadBrain, useBrain } from "./brain"
+import { runAgent, runPlan } from "./hands"
+import { makeProgram } from "./vbgen"
+import { launch } from "../../../utils/programs"
 import "./Floppy.css"
 
 // Ask Floppy: a little chat in Floppy's bubble. Plain commands work at once (the rule-based
@@ -13,6 +16,16 @@ import "./Floppy.css"
 // sends or changes something shows a confirm box first.
 
 const mb = (bytes) => `${Math.round(bytes / 1e6)} MB`
+
+// "Show me each step": each control is outlined and named before Floppy presses it
+const SHOW_KEY = "98ish.floppy.showMe"
+const showMeOn = () => {
+  try {
+    return localStorage.getItem(SHOW_KEY) !== "off"
+  } catch {
+    return true
+  }
+}
 
 const FloppyChat = ({ windows, dispatch, first, onClose, mobile }) => {
   const brain = useBrain()
@@ -23,6 +36,9 @@ const FloppyChat = ({ windows, dispatch, first, onClose, mobile }) => {
   const [confirm, setConfirm] = useState(null)
   const [offer, setOffer] = useState(false)
   const [cached, setCached] = useState(0)
+  const [working, setWorking] = useState(null) // { stop: AbortController } while Floppy works a window
+  const [question, setQuestion] = useState(null) // { text, resolve }: a yes/no before a risky step
+  const [showMe, setShowMe] = useState(showMeOn)
   const history = useRef([])
   const listRef = useRef(null)
   const inputRef = useRef(null)
@@ -74,7 +90,10 @@ const FloppyChat = ({ windows, dispatch, first, onClose, mobile }) => {
       })
       setStreaming("")
       history.current = [...history.current, { role: "user", content: question }, ...(out.raw ? [{ role: "assistant", content: out.raw }] : [])].slice(-8)
-      if (out.confirm) setConfirm(out.confirm)
+      if (out.operate) await operate(out.operate)
+      else if (out.agent) await operateWithBrain(out.agent)
+      else if (out.program) await writeProgram(out.program)
+      else if (out.confirm) setConfirm(out.confirm)
       else if (out.call) say({ from: "floppy", text: out.result.text, results: out.result.results })
       else say({ from: "floppy", text: out.reply, help: out.help })
     } catch (e) {
@@ -84,6 +103,55 @@ const FloppyChat = ({ windows, dispatch, first, onClose, mobile }) => {
       setBusy(false)
       inputRef.current?.focus({ preventScroll: true })
     }
+  }
+
+  // a yes/no in the bubble (a risky step, a private window)
+  const yesNo = (text) => new Promise((resolve) => setQuestion({ text, resolve }))
+  const answer = (yes) => {
+    question?.resolve(yes)
+    setQuestion(null)
+  }
+
+  // Floppy works 98ish's windows: a recipe's steps, shown one by one (Stop any time)
+  const io = (stop) => ({
+    dispatch,
+    windows,
+    signal: stop.signal,
+    showMs: showMe ? 900 : 150,
+    confirm: yesNo,
+    narrate: (t) => say({ from: "floppy", text: t, step: true }),
+    runTool: (call) => runTool(call, { dispatch }),
+  })
+  const operate = async (plan) => {
+    const stop = new AbortController()
+    setWorking({ stop })
+    say({ from: "floppy", text: `On it: ${plan.title}.` })
+    try {
+      const r = await runPlan(plan, io(stop))
+      say({ from: "floppy", text: r.ok ? "All done!" : r.stopped ? "Okay, I stopped." : `I got stuck: ${r.error}` })
+    } finally {
+      setWorking(null)
+    }
+  }
+  const operateWithBrain = async (goal) => {
+    const stop = new AbortController()
+    setWorking({ stop })
+    say({ from: "floppy", text: "Let me look at this window..." })
+    try {
+      const r = await runAgent(goal, { ...io(stop), generate: (m) => generate(m, { max: 60 }) })
+      say({ from: "floppy", text: r.ok ? r.say || "Done!" : r.stopped ? "Okay, I stopped." : `I got stuck: ${r.error}` })
+    } finally {
+      setWorking(null)
+    }
+  }
+
+  // "make me a program that...": built, checked, and opened in Visual Basic 98 ready to Run or Send
+  const writeProgram = async (request) => {
+    say({ from: "floppy", text: "Writing your program..." })
+    const r = await makeProgram(request, { generate: getBrain().status === "ready" ? (m) => generate(m, { max: 400 }) : null, today: new Date().toDateString() })
+    if (!r.ok) return say({ from: "floppy", text: r.error })
+    dispatch({ type: "open_window", payload: launch("Visual Basic 98", { handoff: { id: Date.now(), edit: r.project } }) })
+    say({ from: "floppy", text: `Here's "${r.project.name}" in Visual Basic 98. Press Run (F5) to try it${r.kind === "poll" || r.kind === "countdown" ? ", or Send it in Messenger so friends can join in" : ""}.`, program: true })
   }
 
   useEffect(() => {
@@ -138,7 +206,7 @@ const FloppyChat = ({ windows, dispatch, first, onClose, mobile }) => {
       <div className="flLog" ref={listRef} data-selectable>
         {log.length === 0 && <p className="flHint">Try: "open Paint", "remind me to stretch at 7", "start pickleball practice", "how do I lock my computer?"</p>}
         {log.map((m, i) => (
-          <div key={i} className={`flMsg flMsg--${m.from}`} data-from={m.from}>
+          <div key={i} className={`flMsg flMsg--${m.from}`} data-from={m.from} data-step={m.step ? "" : undefined}>
             <p>{m.text}</p>
             {m.results?.length > 0 && (
               <ul className="flResults">
@@ -169,7 +237,23 @@ const FloppyChat = ({ windows, dispatch, first, onClose, mobile }) => {
             <p>{streaming}</p>
           </div>
         )}
-        {busy && !streaming && <p className="flThinking">Floppy is thinking...</p>}
+        {busy && !streaming && !working && <p className="flThinking">Floppy is thinking...</p>}
+        {question && (
+          <div className="flQuestion" data-floppy-question>
+            <p>{question.text}</p>
+            <button type="button" onClick={() => answer(true)} data-answer="yes">
+              Yes
+            </button>
+            <button type="button" onClick={() => answer(false)} data-answer="no">
+              No
+            </button>
+          </div>
+        )}
+        {working && !question && (
+          <button type="button" className="flStop" onClick={() => working.stop.abort()} data-action="stop">
+            Stop
+          </button>
+        )}
       </div>
       <form
         className="flAsk"
@@ -184,6 +268,22 @@ const FloppyChat = ({ windows, dispatch, first, onClose, mobile }) => {
         </button>
       </form>
       <MoreOptions id="floppy.brain" className="flMore" summary={status}>
+        <div className="field-row">
+          <input
+            id="fl-showme"
+            type="checkbox"
+            checked={showMe}
+            onChange={(e) => {
+              setShowMe(e.target.checked)
+              try {
+                localStorage.setItem(SHOW_KEY, e.target.checked ? "on" : "off")
+              } catch {
+                // this visit only
+              }
+            }}
+          />
+          <label htmlFor="fl-showme">Show me each step when I work a window</label>
+        </div>
         <p className="flStatus" data-brain-status={brain.status}>
           {status}
         </p>

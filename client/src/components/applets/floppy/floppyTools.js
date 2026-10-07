@@ -16,6 +16,10 @@ import { TOPICS } from "../help/topics/index.js"
 import { topicText } from "../help/helpCore.js"
 import { TOOL_EXAMPLES, buildTools, cannedReply, chatMessages, dayIn, describeCall, fillSlots, needsConfirm, parseModelOutput, parseSlots, rankHelp, resolveDate, routeByVectors, ruleIntent, slotMessages } from "./floppyCore"
 import { embed, generate, getBrain } from "./brain"
+import { preparePicture } from "../aim/history/mediaClient"
+import { findWindowEl } from "./hands"
+import { planRecipe } from "./handsCore"
+import { detectVbRequest } from "./vbgen"
 
 // 98 Messenger lives inside the desktop's AimProvider; FloppyBridge hands it over
 let aim = null
@@ -139,6 +143,14 @@ export const runTool = async (call, { dispatch }) => {
       open(dispatch, "Watch Together", { handoff: { id: now, ...(video ? { video } : {}), ...(a.with ? { with: a.with } : {}) } })
       return { text: "Watch Together is ready: press Start when you are." }
     }
+    case "send_picture": {
+      if (aim?.status !== "online") return { text: "Sign on to 98 Messenger first, then I can send it." }
+      const canvas = findWindowEl(a.app || "Paint")?.querySelector("canvas.pCanvas, canvas")
+      if (!canvas) return { text: `I couldn't find a picture in ${a.app || "Paint"}.` }
+      const pic = await preparePicture(canvas.toDataURL("image/png"))
+      const r = await aim.sendMedia(a.to, { kind: "image", blob: pic.blob, thumb: pic.thumb, w: pic.width, h: pic.height })
+      return r?.ok === false ? { text: `It didn't go: ${r.error || "try again"}` } : { text: `Sent the picture to ${a.to}!` }
+    }
     case "open_file": {
       const { groups } = searchAll(a.name, { types: ["files", "photos"], perType: 1 })
       const hit = groups[0]?.results[0]
@@ -165,7 +177,14 @@ export const ask = async (text, { dispatch, onToken } = {}) => {
 
   const act = async (call) => (needsConfirm(tools, call) ? { confirm: call } : { call, result: await runTool(call, { dispatch }) })
 
+  // "make me a program that...": Visual Basic 98 (FloppyChat builds it, with the brain if needed)
+  if (detectVbRequest(text)) return { program: text }
+  // a known multi-step job in 98ish's windows (a recipe: no model needed)
+  const plan = planRecipe(text, { ...reg, now: Date.now(), zone: z })
+  if (plan) return { operate: plan }
   if (intent?.tool) return act(intent)
+  // "click Send", "type my name in the box": working a window step by step needs the brain
+  if (!brain && /^(?:please\s+)?(click|press|tap|type|choose|select|fill in|tick|check)\b/i.test(text.trim())) return { reply: "To work a window step by step I need my brain (More options). Without it I can do known jobs like \"make Paint's background blue\", \"open Notepad and type hello\" or \"set up a Who's in? at Los Cab Saturday 9am\"." }
   if (intent?.help || !brain) {
     const pages = await findHelp(intent?.help || text, { useVectors: brain })
     if (intent?.help || pages.length) {
@@ -191,6 +210,8 @@ export const askModel = async (text, { dispatch, onToken, run = true } = {}) => 
   const today = dayIn(now, z)
   const when = { today: `${today.date} (${["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][today.weekday]})`, time: new Date(now).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: z }) }
   const route = await routeQuestion(text)
+  // "do it in this window": the brain works the active window step by step (hands.js runAgent)
+  if (route.tool === "operate" && route.score >= ROUTE_MIN) return { agent: text, route }
   if (route.tool === "open_help") {
     const pages = await findHelp(text, { useVectors: true })
     if (pages.length) return { reply: `This help page should answer it: "${pages[0].title}". ${pages[0].summary}`, help: pages.slice(0, 2), route }
