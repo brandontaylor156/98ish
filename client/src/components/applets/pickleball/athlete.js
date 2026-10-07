@@ -27,6 +27,8 @@
 // stand in; createAthlete has the same interface as rig.js's createFigure.
 
 import * as THREE from "three"
+import { faceTargets, stepSweat, faceDetail } from "./face.js"
+import { loadHDRI } from "./park/environment.js"
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js"
 import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js"
 import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js"
@@ -203,11 +205,9 @@ const template = (gltf, set = SETS[0]) => {
   const maps = { skin: body.material.map, normal: body.material.normalMap || null, normalScale: body.material.normalScale ? body.material.normalScale.clone().multiplyScalar(0.85) : null, brows: meshes.Brows.material.map, eyes: meshes.Eyes.material, ref: srgb(ud.refSkin || "#a87551"), hueMix: ud.hueMix ?? 0.45, gain: ud.skinGain ?? 0.86 }
   maps.skin.anisotropy = 4
   if (maps.normal) maps.normal.anisotropy = 4
-  // the eyes: wet and bright (a little light of their own so the whites never go gray)
-  maps.eyes.roughness = 0.12
-  maps.eyes.emissive = new THREE.Color(1, 1, 1)
-  maps.eyes.emissiveMap = maps.eyes.map
-  maps.eyes.emissiveIntensity = 0.12
+  // the eyes: wet and bright (a little light of their own so the whites never go gray), a
+  // clear wet layer over them, the upper lid's shadow across the top of the eyeball
+  maps.eyes = eyeMaterial(maps.eyes, head.eyeY, (eyes.boundingBox.max.y - eyes.boundingBox.min.y) / 2)
   // the grip: where the paddle sits in each hand, in that hand bone's own space
   const grip = { l: gripFrame(rest, "l"), r: gripFrame(rest, "r") }
   // which way each finger bone curls (in its own space): toward the palm
@@ -395,10 +395,10 @@ const outfitGeometry = (tpl, look, v) => {
       // (the cloth's folds and creases, baked: outfit.js shade)
       if (g.shade) for (let k = 0; k < 3; k++) color[i * 3 + k] *= g.shade[i]
     }
-    parts.push({ position: g.position, normal: g.normal, color, skinIndex: g.skinIndex, skinWeight: g.skinWeight, index: g.index, sway: g.sway || null })
+    parts.push({ position: g.position, normal: g.normal, color, skinIndex: g.skinIndex, skinWeight: g.skinWeight, index: g.index, sway: g.sway || null, mat: null })
   }
   // a rigid piece (a three.js geometry in rest world space) on one bone
-  const rigid = (geo, bone) => {
+  const rigid = (geo, bone, kind = 0) => {
     const src = geo.index ? geo : geo
     const n = src.attributes.position.count
     const skinIndex = new Uint16Array(n * 4)
@@ -409,7 +409,8 @@ const outfitGeometry = (tpl, look, v) => {
       skinWeight[i * 4] = 1
     }
     const index = src.index ? src.index.array : Uint32Array.from({ length: n }, (_, i) => i)
-    parts.push({ position: src.attributes.position.array, normal: src.attributes.normal.array, color: src.attributes.color.array, skinIndex, skinWeight, index })
+    const mat = src.attributes.pkMat ? src.attributes.pkMat.array : new Float32Array(n).fill(kind)
+    parts.push({ position: src.attributes.position.array, normal: src.attributes.normal.array, color: src.attributes.color.array, skinIndex, skinWeight, index, mat })
   }
   const shirt = look.shirt || "#1a9fb0"
   const trim = look.trim || "#ffffff"
@@ -440,7 +441,7 @@ const outfitGeometry = (tpl, look, v) => {
     const color = new Float32Array(n * 3)
     for (let i = 0; i < n; i++) color.set([o.material.color.r, o.material.color.g, o.material.color.b], i * 3)
     g.setAttribute("color", new THREE.BufferAttribute(color, 3))
-    rigid(g, "Head")
+    rigid(g, "Head", 3)
     o.geometry.dispose()
     g.dispose()
   })
@@ -457,6 +458,7 @@ const outfitGeometry = (tpl, look, v) => {
   const skinIndex = new Uint16Array(nv * 4)
   const skinWeight = new Float32Array(nv * 4)
   const sway = new Float32Array(nv)
+  const matKind = new Float32Array(nv)
   const index = nv > 65535 ? new Uint32Array(ni) : new Uint16Array(ni)
   let ov = 0
   let oi = 0
@@ -472,6 +474,7 @@ const outfitGeometry = (tpl, look, v) => {
       sway.set(p.sway, ov)
       swings = true
     }
+    if (p.mat) matKind.set(p.mat, ov)
     for (let i = 0; i < p.index.length; i++) index[oi + i] = p.index[i] + ov
     ov += n
     oi += p.index.length
@@ -483,6 +486,7 @@ const outfitGeometry = (tpl, look, v) => {
   geo.setAttribute("skinIndex", new THREE.BufferAttribute(skinIndex, 4))
   geo.setAttribute("skinWeight", new THREE.BufferAttribute(skinWeight, 4))
   geo.setAttribute("pkSwayW", new THREE.BufferAttribute(sway, 1))
+  geo.setAttribute("pkMat", new THREE.BufferAttribute(matKind, 1))
   geo.setIndex(new THREE.BufferAttribute(index, 1))
   geo.userData.swings = swings
   return geo
@@ -515,29 +519,101 @@ const athleteLight = (sh, { rim = 0.2 } = {}) => {
     .replace("#include <lights_physical_pars_fragment>", LIGHTS_CHUNK)
     .replace("#include <emissivemap_fragment>", `#include <emissivemap_fragment>\n\t{\n\t\tfloat pkRim = 1.0 - saturate( dot( normal, normalize( vViewPosition ) ) );\n\t\ttotalEmissiveRadiance += diffuseColor.rgb * ( ${rim.toFixed(3)} * pkRim * pkRim * pkRim );\n\t}`)
 }
-const skinMaterial = (maps, hex) => {
+// The sky to reflect in what's shiny on a player (eyes, paddle, shoe uppers; never skin or
+// cloth, whose light is calibrated): the venue kit's normalized outdoor HDRI, loaded once.
+const gearEnv = (m, intensity) => {
+  m.envMapIntensity = intensity
+  loadHDRI(false).then((tex) => {
+    if (!tex) return
+    m.envMap = tex
+    m.needsUpdate = true
+  })
+  return m
+}
+// Eyes (faces, 2026-10-06): a clear coat (the wet film's sharp highlight over the eye's own
+// softer shine), and the upper lid's shadow over the top of the eyeball (a little under the
+// lower lid too), from the eye's height in its own space; the sky reflects faintly in them.
+const eyeMaterial = (src, eyeY, eyeR) => {
+  const m = new THREE.MeshPhysicalMaterial({ map: src.map, roughness: 0.12, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.04, emissive: new THREE.Color(1, 1, 1), emissiveMap: src.map, emissiveIntensity: 0.12 })
+  const u = { pkEyeY: { value: eyeY }, pkEyeR: { value: Math.max(eyeR, 1e-4) } }
+  m.onBeforeCompile = (sh) => {
+    Object.assign(sh.uniforms, u)
+    sh.vertexShader = sh.vertexShader.replace("#include <common>", "#include <common>\nvarying float vPkEyeH;").replace("#include <begin_vertex>", "#include <begin_vertex>\n\tvPkEyeH = position.y;")
+    sh.fragmentShader = sh.fragmentShader.replace("#include <common>", "#include <common>\nuniform float pkEyeY;\nuniform float pkEyeR;\nvarying float vPkEyeH;").replace(
+      "#include <emissivemap_fragment>",
+      `#include <emissivemap_fragment>
+      {
+        float pkLid = smoothstep(pkEyeY + pkEyeR * 0.1, pkEyeY + pkEyeR * 0.85, vPkEyeH);
+        float pkLow = 1.0 - smoothstep(pkEyeY - pkEyeR * 0.85, pkEyeY - pkEyeR * 0.35, vPkEyeH);
+        float pkShade = 1.0 - 0.5 * pkLid - 0.18 * pkLow;
+        diffuseColor.rgb *= pkShade;
+        totalEmissiveRadiance *= pkShade * pkShade;
+      }`
+    )
+  }
+  m.customProgramCacheKey = () => "pk-eyes"
+  return gearEnv(m, 0.35)
+}
+// Skin detail (faces, 2026-10-06): pores as a fine bump from the body's rest-pose position
+// (High only; faded out once they're under a pixel), a little sheen on the lips (found by
+// the skin texture's own redness), and sweat: the skin goes wetter (glossier, a touch darker)
+// as the athlete works (face.js stepSweat; a uniform per athlete).
+const PORE_FRAG = `
+	{
+		vec3 pq = vPkRest * 1500.0;
+		float ph = pkNoise(pq);
+		float fade = 1.0 - smoothstep(0.3, 1.0, length(fwidth(pq)));
+		float pores = smoothstep(0.62, 0.95, ph);
+		vec2 dHdxy = vec2(dFdx(pores), dFdy(pores)) * (-0.0007 * fade);
+		vec3 vSigmaX = dFdx(-vViewPosition);
+		vec3 vSigmaY = dFdy(-vViewPosition);
+		vec3 R1 = cross(vSigmaY, normal);
+		vec3 R2 = cross(normal, vSigmaX);
+		float fDet = dot(vSigmaX, R1) * faceDirection;
+		vec3 vGrad = sign(fDet) * (dHdxy.x * R1 + dHdxy.y * R2);
+		normal = normalize(abs(fDet) * normal - vGrad);
+	}`
+const NOISE_GLSL = `
+float pkHash(vec3 p) { p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
+float pkNoise(vec3 x) {
+	vec3 i = floor(x); vec3 f = fract(x); f = f * f * (3.0 - 2.0 * f);
+	return mix(mix(mix(pkHash(i), pkHash(i + vec3(1, 0, 0)), f.x), mix(pkHash(i + vec3(0, 1, 0)), pkHash(i + vec3(1, 1, 0)), f.x), f.y),
+		mix(mix(pkHash(i + vec3(0, 0, 1)), pkHash(i + vec3(1, 0, 1)), f.x), mix(pkHash(i + vec3(0, 1, 1)), pkHash(i + vec3(1, 1, 1)), f.x), f.y), f.z);
+}`
+const skinMaterial = (maps, hex, { pores = false, sweat = null } = {}) => {
   const ref = maps.ref
   const lum = ref.r * 0.2126 + ref.g * 0.7152 + ref.b * 0.0722
   const m = new THREE.MeshStandardMaterial({ map: maps.skin, normalMap: maps.normal, roughness: 0.55, metalness: 0 })
   if (maps.normal && maps.normalScale) m.normalScale.copy(maps.normalScale)
   m.defines = { PK_WRAP: "vec3(0.5, 0.3, 0.24)" }
-  const uniforms = { skinTone: { value: srgb(hex).multiplyScalar(maps.gain) }, refHue: { value: new THREE.Vector3(ref.r / lum, ref.g / lum, ref.b / lum) }, refLum: { value: lum }, hueMix: { value: maps.hueMix }, skinWarm: { value: skinWarmth(hex) } }
+  const uniforms = { skinTone: { value: srgb(hex).multiplyScalar(maps.gain) }, refHue: { value: new THREE.Vector3(ref.r / lum, ref.g / lum, ref.b / lum) }, refLum: { value: lum }, hueMix: { value: maps.hueMix }, skinWarm: { value: skinWarmth(hex) }, pkSweat: sweat || { value: 0 } }
+  if (pores) m.defines.PK_PORES = ""
   m.onBeforeCompile = (sh) => {
     Object.assign(sh.uniforms, uniforms)
     athleteLight(sh, { rim: 0.22 })
-    sh.fragmentShader = sh.fragmentShader.replace("#include <common>", "#include <common>\nuniform vec3 skinTone;\nuniform vec3 refHue;\nuniform float refLum;\nuniform float hueMix;\nuniform vec3 skinWarm;").replace(
-      "#include <map_fragment>",
-      `#include <map_fragment>
+    if (pores) sh.vertexShader = sh.vertexShader.replace("#include <common>", KNIT_VERT[0]).replace("#include <begin_vertex>", KNIT_VERT[1])
+    sh.fragmentShader = sh.fragmentShader
+      .replace("#include <common>", "#include <common>\nuniform vec3 skinTone;\nuniform vec3 refHue;\nuniform float refLum;\nuniform float hueMix;\nuniform vec3 skinWarm;\nuniform float pkSweat;" + (pores ? "\nvarying vec3 vPkRest;" + NOISE_GLSL : ""))
+      .replace(
+        "#include <map_fragment>",
+        `#include <map_fragment>
+      float pkLipK = 0.0;
       {
         float l = dot(diffuseColor.rgb, vec3(0.2126, 0.7152, 0.0722));
         vec3 hue = diffuseColor.rgb / max(l, 1e-4);
+        // the lips: where the texture is redder than the skin around it
+        pkLipK = smoothstep(0.05, 0.16, hue.r / refHue.r - hue.g / refHue.g);
         diffuseColor.rgb = skinTone * (l / refLum) * mix(vec3(1.0), hue / refHue, hueMix);
         // warmth (light under the skin), most for pale skin, which goes gray under cool lights
         diffuseColor.rgb *= skinWarm;
+        // wet skin reads a touch darker
+        diffuseColor.rgb *= 1.0 - 0.07 * pkSweat;
       }`
-    )
+      )
+      .replace("#include <roughnessmap_fragment>", "#include <roughnessmap_fragment>\n\troughnessFactor = mix(roughnessFactor, 0.34, pkLipK * 0.7);\n\troughnessFactor = mix(roughnessFactor, 0.24, pkSweat * 0.85);")
+    if (pores) sh.fragmentShader = sh.fragmentShader.replace("#include <normal_fragment_maps>", "#include <normal_fragment_maps>" + PORE_FRAG)
   }
-  m.customProgramCacheKey = () => "pk-skin"
+  m.customProgramCacheKey = () => "pk-skin" + (pores ? "-pores" : "")
   return m
 }
 // a sole that shows against the shoe: off-white under white shoes, white under the rest
@@ -570,6 +646,19 @@ const KNIT_FRAG = `
 		float across = q.x + q.z;
 		float v = abs(fract(q.y + abs(fract(across) - 0.5)) - 0.5);
 		float h = v * 2.0 + 0.25 * sin(across * 0.37 + q.y * 0.21);
+		if (vPkMat > 2.5) { h = 0.0; v = 0.5; }
+		else if (vPkMat > 1.5) {
+			// a sole: tread grooves round it (every 4 mm), a smooth rubber
+			float g = fract(vPkRest.y * 250.0);
+			h = smoothstep(0.0, 0.2, g) * (1.0 - smoothstep(0.55, 0.75, g)) * 1.6;
+			v = 0.5;
+		} else if (vPkMat > 0.5) {
+			// an engineered mesh upper: rows of little holes (about 3 mm)
+			vec2 m2 = vec2(across * 0.85, q.y * 0.55);
+			vec2 cell = fract(m2 + vec2(0.5 * step(0.5, fract(m2.y * 0.5)), 0.0)) - 0.5;
+			h = smoothstep(0.18, 0.3, length(cell)) * 1.4;
+			v = 0.25 + 0.25 * h;
+		}
 		float fade = 1.0 - smoothstep(0.35, 1.2, length(fwidth(q.xy)));
 		// soft folds and wrinkles (a few cm across, more across the body than down it): what
 		// reads as cloth from the broadcast camera, where the knit itself is under a pixel
@@ -591,18 +680,55 @@ const SHEEN_FRAG = `#include <emissivemap_fragment>
 		float pkGraze = 1.0 - saturate(dot(normal, normalize(vViewPosition)));
 		totalEmissiveRadiance += diffuseColor.rgb * (0.06 * pkGraze * pkGraze);
 	}`
-const athleteMaterial = (params, { wrap = "vec3(0.3)", rim = 0.12, key = "pk-cloth", sway = null, knit = false } = {}) => {
+// Hair's highlight (faces, 2026-10-06): Kajiya-Kay, two lobes along the strands (which hang
+// down the head: the tangent is "down" across the surface): a sharp white one and a softer one
+// in the hair's own color, shifted apart and jittered per card so it breaks up like real hair.
+const HAIR_SPEC_FRAG = `#include <lights_fragment_end>
+	#if NUM_DIR_LIGHTS > 0
+	{
+		vec3 pkUp = normalize((viewMatrix * vec4(0.0, 1.0, 0.0, 0.0)).xyz);
+		// (on the crown, facing up, "down the strands" is undefined: the highlight fades there)
+		float pkSide = 1.0 - smoothstep(0.3, 0.65, abs(dot(normal, pkUp)));
+		vec3 pkT = normalize(pkUp - normal * dot(normal, pkUp) + vec3(1e-4));
+		vec3 pkV = normalize(vViewPosition);
+		#ifdef USE_MAP
+			float pkJit = fract(sin(dot(floor(vMapUv * 140.0), vec2(12.9898, 78.233))) * 43758.5453) - 0.5;
+		#else
+			float pkJit = 0.0;
+		#endif
+		vec3 pkT1 = normalize(pkT + normal * (0.1 + pkJit * 0.12));
+		vec3 pkT2 = normalize(pkT - normal * 0.18);
+		for (int i = 0; i < NUM_DIR_LIGHTS; i++) {
+			vec3 L = directionalLights[i].direction;
+			vec3 H = normalize(L + pkV);
+			float d1 = dot(pkT1, H);
+			float d2 = dot(pkT2, H);
+			float s1 = pow(sqrt(max(0.0, 1.0 - d1 * d1)), 260.0);
+			float s2 = pow(sqrt(max(0.0, 1.0 - d2 * d2)), 60.0);
+			float ndl = saturate(dot(normal, L) * 0.6 + 0.4);
+			reflectedLight.directSpecular += directionalLights[i].color * (ndl * pkSide) * (0.025 * s1 * mix(vec3(1.0), diffuseColor.rgb * 3.0, 0.5) + 0.14 * s2 * diffuseColor.rgb);
+		}
+	}
+	#endif`
+// Shoes and hard pieces in the outfit mesh (gear, 2026-10-06): the merged mesh carries a
+// per-vertex kind (pkMat: 0 cloth, 1 a shoe's mesh upper, 2 its rubber sole, 3 a hard piece:
+// a hat's brim, glasses): the upper gets an engineered mesh of little holes instead of the knit,
+// the sole tread grooves and a matte rubber, hard pieces a smooth plastic.
+const GEAR_VERT = ["attribute float pkMat;\nvarying float vPkMat;", "\tvPkMat = pkMat;"]
+const athleteMaterial = (params, { wrap = "vec3(0.3)", rim = 0.12, key = "pk-cloth", sway = null, knit = false, hairSpec = false } = {}) => {
   const m = new THREE.MeshStandardMaterial(params)
   m.defines = { PK_WRAP: wrap }
   m.onBeforeCompile = (sh) => {
     athleteLight(sh, { rim })
     if (knit) {
-      sh.vertexShader = sh.vertexShader.replace("#include <common>", KNIT_VERT[0]).replace("#include <begin_vertex>", KNIT_VERT[1])
+      sh.vertexShader = sh.vertexShader.replace("#include <common>", KNIT_VERT[0] + "\n" + GEAR_VERT[0]).replace("#include <begin_vertex>", KNIT_VERT[1] + "\n" + GEAR_VERT[1])
       sh.fragmentShader = sh.fragmentShader
-        .replace("#include <common>", "#include <common>\nvarying vec3 vPkRest;")
+        .replace("#include <common>", "#include <common>\nvarying vec3 vPkRest;\nvarying float vPkMat;")
         .replace("#include <normal_fragment_maps>", "#include <normal_fragment_maps>" + KNIT_FRAG)
         .replace("#include <emissivemap_fragment>", SHEEN_FRAG)
+        .replace("#include <roughnessmap_fragment>", "#include <roughnessmap_fragment>\n\tif (vPkMat > 2.5) roughnessFactor = 0.42;\n\telse if (vPkMat > 1.5) roughnessFactor = 0.93;\n\telse if (vPkMat > 0.5) roughnessFactor = 0.62;")
     }
+    if (hairSpec) sh.fragmentShader = sh.fragmentShader.replace("#include <lights_fragment_end>", HAIR_SPEC_FRAG)
     if (!sway) return
     sh.uniforms.pkSway = sway.pkSway
     sh.uniforms.pkFlare = sway.pkFlare
@@ -610,7 +736,7 @@ const athleteMaterial = (params, { wrap = "vec3(0.3)", rim = 0.12, key = "pk-clo
       .replace("#include <common>", "#include <common>\nattribute float pkSwayW;\nuniform vec3 pkSway;\nuniform vec4 pkFlare;")
       .replace("#include <skinning_vertex>", "#include <skinning_vertex>\n\t{\n\t\tvec3 pkOut = vec3( transformed.x - pkFlare.x, 0.0, transformed.z - pkFlare.z );\n\t\ttransformed += ( pkSway + pkOut / max( length( pkOut ), 1e-4 ) * pkFlare.w ) * pkSwayW;\n\t}")
   }
-  m.customProgramCacheKey = () => key + (sway ? "-sway" : "") + (knit ? "-knit" : "")
+  m.customProgramCacheKey = () => key + (sway ? "-sway" : "") + (knit ? "-knit" : "") + (hairSpec ? "-spec" : "")
   if (sway) m.userData.sway = sway
   return m
 }
@@ -756,10 +882,36 @@ const paddleFor = (look) => {
     return g
   }
   const geo = mergeGeometries([piece(P.face, "#ffffff", true), piece(P.guard, b), piece(P.throat, b), piece(P.handle, "#1d1d22"), piece(P.cap, b)])
-  const mat = new THREE.MeshStandardMaterial({ map: paddleTexture(a, b, design), vertexColors: true, roughness: 0.5, metalness: 0.05 })
+  const mat = paddleMaterial(paddleTexture(a, b, design), strip * 2)
   const out = { geo, mat }
   assets.paddles.set(key, out)
   return out
+}
+// The paddle's face (gear, 2026-10-06): a clear coat over a carbon twill that shows only in
+// the highlights (it varies the roughness, never the print's colors); the edge guard and grip
+// stay satin. The sky reflects in the coat.
+const paddleMaterial = (map, faceFromV) => {
+  const m = new THREE.MeshPhysicalMaterial({ map, vertexColors: true, roughness: 0.5, metalness: 0.05, clearcoat: 0.55, clearcoatRoughness: 0.22 })
+  m.onBeforeCompile = (sh) => {
+    sh.uniforms.pkFaceV = { value: faceFromV }
+    sh.fragmentShader = sh.fragmentShader.replace("#include <common>", "#include <common>\nuniform float pkFaceV;").replace(
+      "#include <roughnessmap_fragment>",
+      `#include <roughnessmap_fragment>
+      #ifdef USE_MAP
+      if (vMapUv.y > pkFaceV) {
+        // a 2x2 twill: tows over two, under two, shifted a step each row
+        vec2 tw = vMapUv * vec2(90.0, 120.0);
+        float row = floor(tw.y);
+        float over = step(0.5, fract((floor(tw.x) + row) * 0.25 + 0.01));
+        float along = mix(fract(tw.x), fract(tw.y), over);
+        float tow = 0.5 + 0.5 * cos(along * 6.2832);
+        roughnessFactor = 0.3 + 0.22 * over + 0.1 * tow;
+      }
+      #endif`
+    )
+  }
+  m.customProgramCacheKey = () => "pk-paddle"
+  return gearEnv(m, 0.45)
 }
 const buildPaddle = (look, shadows) => {
   const { geo, mat } = paddleFor(look)
@@ -920,6 +1072,7 @@ const sneakerGeometry = (tpl, side, look) => {
   const heightAt = (u) => (u > 0.55 ? 1 - (u - 0.55) * 1.05 : 1) // lower over the toes
   const pos = []
   const col = []
+  const kinds = [] // (pkMat: 1 the mesh upper, 2 the rubber sole)
   const C = (hex) => new THREE.Color(hex)
   const cSole = C(soleFor(shoes))
   const cUpper = C(shoes)
@@ -938,12 +1091,14 @@ const sneakerGeometry = (tpl, side, look) => {
       if (r.part === "upper" && j >= 3 && p.u < 0.08) c = cAccent // the heel tab
       if (j === rings.length - 1 && p.u > 0.45 && p.u < 0.78) c = cLace
       col.push(c.r, c.g, c.b)
+      kinds.push(r.part === "sole" ? 2 : 1)
     }
   })
   // caps: the bottom and the top (where the ankle goes in)
   const top = rings.length * N
   pos.push(cx, sole0 + 0.002, mz, cx, sole0 + 0.032 + 0.062, mz - L * 0.12)
   col.push(cSole.r, cSole.g, cSole.b, cUpper.r, cUpper.g, cUpper.b)
+  kinds.push(2, 1)
   const idx = []
   for (let j = 0; j < rings.length - 1; j++)
     for (let i = 0; i < N; i++) {
@@ -960,6 +1115,7 @@ const sneakerGeometry = (tpl, side, look) => {
   const g = new THREE.BufferGeometry()
   g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3))
   g.setAttribute("color", new THREE.Float32BufferAttribute(col, 3))
+  g.setAttribute("pkMat", new THREE.Float32BufferAttribute(kinds, 1))
   g.setIndex(idx)
   g.computeVertexNormals()
   // which way round the triangles face depends on the outline's direction: make them face out
@@ -1100,7 +1256,10 @@ const buildAthlete = (look = {}, { shadows = false, withPaddle = true } = {}, de
   // materials (shared between athletes who look alike)
   const skinHex = typeof look.skin === "number" ? SKIN[look.skin] || SKIN[2] : look.skin || SKIN[2]
   const hairHex = look.hairColor || "#2b1b0e"
-  body.material = shared(`skin|${kind}|${skinHex}`, () => skinMaterial(tpl.maps, skinHex))
+  // (the skin is this athlete's own material: its sweat is its own; the program is shared)
+  const fd = faceDetail(detail)
+  const sweatU = { value: 0 }
+  body.material = skinMaterial(tpl.maps, skinHex, { pores: fd.pores, sweat: sweatU })
   // (the MakeHuman brows and lashes are cut out of their texture's alpha)
   const cutout = tpl.set === "mh"
   const browMat = shared(`brows|${kind}|${hairHex}|${tpl.set}`, () => new THREE.MeshStandardMaterial({ map: tpl.maps.brows, color: tint(hairHex, REF_HAIR), roughness: 0.9, ...(cutout ? { alphaTest: 0.3, side: THREE.DoubleSide } : {}) }))
@@ -1147,8 +1306,8 @@ const buildAthlete = (look = {}, { shadows = false, withPaddle = true } = {}, de
       m = shared(`haircap|${hairHex}`, () => athleteMaterial({ color: tint(hairHex, REF_HAIR).multiplyScalar(0.2), roughness: 0.9, metalness: 0 }, { wrap: "vec3(0.2)", rim: 0.05, key: "pk-hair" }))
     } else if (swings) {
       hairSway = swayUniforms()
-      m = athleteMaterial({ map: src.material.map, color: tint(hairHex, REF_HAIR), roughness: 0.66, side: THREE.DoubleSide, ...(cut ? { alphaTest: 0.42, alphaToCoverage: true } : {}) }, { wrap: "vec3(0.35)", rim: 0.16, key: "pk-hair", sway: hairSway })
-    } else m = shared(`hair|${src.material.map.uuid}|${hairHex}`, () => athleteMaterial({ map: src.material.map, color: tint(hairHex, REF_HAIR), roughness: 0.66, side: THREE.DoubleSide, ...(cut ? { alphaTest: 0.42, alphaToCoverage: true } : {}) }, { wrap: "vec3(0.35)", rim: 0.16, key: "pk-hair" }))
+      m = athleteMaterial({ map: src.material.map, color: tint(hairHex, REF_HAIR), roughness: 0.66, side: THREE.DoubleSide, ...(cut ? { alphaTest: 0.42, alphaToCoverage: true } : {}) }, { wrap: "vec3(0.35)", rim: 0.16, key: "pk-hair", sway: hairSway, hairSpec: fd.hairSpec })
+    } else m = shared(`hair|${src.material.map.uuid}|${hairHex}|${fd.hairSpec ? 1 : 0}`, () => athleteMaterial({ map: src.material.map, color: tint(hairHex, REF_HAIR), roughness: 0.66, side: THREE.DoubleSide, ...(cut ? { alphaTest: 0.42, alphaToCoverage: true } : {}) }, { wrap: "vec3(0.35)", rim: 0.16, key: "pk-hair", hairSpec: fd.hairSpec }))
     const h = new THREE.Mesh(geo, m)
     // (the file's node transform undoes the mesh compression's quantization)
     h.position.copy(src.position)
@@ -1577,7 +1736,13 @@ const buildAthlete = (look = {}, { shadows = false, withPaddle = true } = {}, de
   let blinkIn = 1.5 + hash01(look.name || skinHex + hairHex) * 3
   let blinkT = -1
   let faceSeed = hash01((look.name || "") + kind) * 1000
+  let sweat = 0
   const updateFace = (info, dt) => {
+    // sweat builds through long rallies (face.js), on this athlete's own skin
+    if (fd.sweat) {
+      sweat = stepSweat(sweat, { speed: info.speed, stroke: info.stroke, between: info.between }, dt)
+      sweatU.value = sweat
+    }
     if (!faceMeshes.length) return
     // a blink every 2 to 6 seconds (sometimes two), quick to close, a little slower to open
     blinkIn -= dt
@@ -1595,15 +1760,8 @@ const buildAthlete = (look = {}, { shadows = false, withPaddle = true } = {}, de
     }
     // what the face is doing: celebrating (a smile; a shout with both arms up), sulking (a
     // frown), working (effort through a hard swing; focus while the ball comes)
-    const mood = info.mood
-    const cheer = mood?.kind === "cheer"
-    const sulk = mood?.kind === "sulk"
-    const swingW = info.stroke || 0
-    const want = {
-      smile: cheer ? (mood.variant === 2 ? 0.35 : 0.85) : info.between && !mood ? 0.12 : 0,
-      shout: cheer ? (mood.variant === 2 ? 0.75 : mood.variant === 0 ? 0.45 : 0) : 0,
-      effort: sulk ? 0.45 : swingW > 0.2 ? (info.fast ? 0.75 : 0.4) * swingW : info.swinging || (info.ready || 0) > 0.5 ? 0.18 : 0,
-    }
+    // (face.js: a smile after a point, a grimace after an error, determination before a serve)
+    const want = faceTargets(info)
     for (const k of ["smile", "shout", "effort"]) faceW[k] += (want[k] - faceW[k]) * Math.min(1, dt * (k === "effort" && want[k] > faceW[k] ? 14 : 6))
     // (relaxed upper lids rest a little over the iris: wide-open eyes stare)
     faceW.blink = Math.max(blink, 0.16 + faceW.effort * 0.15)
@@ -1712,6 +1870,7 @@ const buildAthlete = (look = {}, { shadows = false, withPaddle = true } = {}, de
   const disposeOwn = () => {
     // (the materials made for this athlete alone: a swinging skirt's, swinging hair's)
     if (skirtSway) outfit.material.dispose()
+    body.material.dispose()
     if (hairMeshW) hairMeshW.material.dispose()
   }
   return { group: root, apply, setShadows, dispose: () => (dispose(), disposeOwn()), probe, probeUpper, probeLife, probeArms, debug: { paddle: paddleHolder, bones: B, arm: () => armState[paddleSide].last }, blobs: [], vertices, skinned: true, detail: tpl === assets.hi?.[kind] ? "high" : "medium" }
