@@ -47,6 +47,26 @@
   font-weight: bold;
 }
 
+/* a perfectly timed shot: the timing word in gold, and the banner pops in a touch bigger */
+.pkBanner.is-perfect {
+  animation: pkBannerPerfect 0.22s ease-out;
+}
+
+.pkBanner.is-perfect span {
+  color: var(--pk-gold);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+@keyframes pkBannerPerfect {
+  0% {
+    transform: translateX(-50%) scale(1.25);
+  }
+  100% {
+    transform: translateX(-50%) scale(1);
+  }
+}
+
 .pkBanner--call b {
   font-size: 36px;
   color: var(--pk-gold);
@@ -505,6 +525,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .pkBanner,
+  .pkBanner.is-perfect,
   .pkDemo i {
     animation: none;
   }

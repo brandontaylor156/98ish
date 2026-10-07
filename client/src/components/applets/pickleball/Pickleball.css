@@ -79,6 +79,28 @@
   border: 0;
 }
 
+/* the hit you felt, on a phone that can't buzz: a quick warm glow at the screen's edges
+   (Pickleball.jsx feelIt; --pk-pulse 0..1 is how strong) */
+.pkPulse {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  pointer-events: none;
+  opacity: 0;
+  box-shadow: inset 0 0 calc(14px + 34px * var(--pk-pulse, 0.5)) rgba(255, 214, 96, 0.85);
+}
+.pkPulse.is-on {
+  animation: pkPulse 280ms ease-out;
+}
+@keyframes pkPulse {
+  0% {
+    opacity: var(--pk-pulse, 0.5);
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
 .pkCanvas {
   position: absolute;
   inset: 0;

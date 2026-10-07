@@ -41,7 +41,7 @@ export const ScoreBug = ({ hud, online }) => {
 export const Banner = ({ banner }) => {
   if (!banner) return null
   return (
-    <div key={banner.id} className={`pkBanner pkBanner--${banner.kind} pkTone--${banner.tone || "ok"}${banner.p2 ? " is-p2" : ""}`} role="status" aria-live="polite" data-testid="banner" data-kind={banner.kind} data-id={banner.id}>
+    <div key={banner.id} className={`pkBanner pkBanner--${banner.kind} pkTone--${banner.tone || "ok"}${banner.p2 ? " is-p2" : ""}${banner.perfect ? " is-perfect" : ""}`} role="status" aria-live="polite" data-testid="banner" data-kind={banner.kind} data-id={banner.id}>
       {banner.over && <small>{banner.over}</small>}
       <b>{banner.text}</b>
       {banner.sub && <span>{banner.sub}</span>}
@@ -54,7 +54,7 @@ export const shotBanner = (shot) => {
   const g = shot.grade || ""
   const word = { perfect: "perfect", good: "good", early: "early", late: "late", "very early": "way early", "very late": "way late", soft: "soft" }[g] || ""
   const sub = [word, shot.speed ? `${Math.round(shot.speed * MPH)} mph` : ""].filter(Boolean).join(" · ")
-  return { kind: "shot", text: shot.label, sub, tone: shot.tone || "ok", p2: shot.slot === 1 }
+  return { kind: "shot", text: shot.label, sub, tone: shot.tone || "ok", p2: shot.slot === 1, perfect: g === "perfect" }
 }
 
 // The one hint line: what to do right now, in a few words; it goes away for good after

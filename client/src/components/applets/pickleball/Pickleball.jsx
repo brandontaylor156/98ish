@@ -14,6 +14,8 @@ import { layoutKey, readSwipe, touchControlsFor, touchPrefs } from "./touchplay.
 import { createTrailCanvas } from "./trailcanvas.js"
 import { SHOT_COLORS, bandOf, swipeLook } from "./swipetrail.js"
 import { paceOf } from "./shots.js"
+import { hapticFor, pulseFor } from "./juice.js"
+import { reducedMotion } from "../../../utils/settings"
 import { SchemeChooser } from "./SchemeChooser"
 import { PracticeHub, FirstTimeOffer } from "./practice/PracticeHub"
 import { PracticeHud } from "./practice/PracticeHud"
@@ -99,6 +101,8 @@ const DEFAULTS = {
   assist: "reflex",
   timing: "normal",
   replays: true,
+  // a buzz (or, on an iPhone, a glow at the screen's edges) on your hits and points: juice.js
+  haptics: true,
   // TV camera cuts to the server between points (optional; off unless you turn it on)
   cuts: false,
   hints: true,
@@ -197,6 +201,7 @@ const rosterFor = ({ doubles, level, me, outfit, opponent, opponent2 = null, par
 
 const Pickleball = ({ onClose, mobile, handoff }) => {
   const stageRef = useRef(null)
+  const pulseRef = useRef(null) // the screen-edge glow (feelIt)
   const canvasRef = useRef(null)
   const engineRef = useRef(null)
   const meterRefs = [useRef(null), useRef(null)]
@@ -332,6 +337,25 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
   }
   // everything the overlay says goes through the one banner slot (banner.js)
   const say = (item) => setBanners((b) => pushBanner(b, item, performance.now()))
+  // a buzz for your moments (juice.js); a phone that can't buzz (an iPhone) glows at the
+  // screen's edges instead
+  const feelIt = (e) => {
+    const h = hapticFor(e)
+    if (!h) return
+    let buzzed = false
+    try {
+      buzzed = typeof navigator.vibrate === "function" && navigator.vibrate(h)
+    } catch {
+      buzzed = false
+    }
+    const el = pulseRef.current
+    const k = pulseFor(e)
+    if (buzzed || !el || !k || reducedMotion()) return
+    el.style.setProperty("--pk-pulse", String(k))
+    el.classList.remove("is-on")
+    void el.offsetWidth // (restarts the animation)
+    el.classList.add("is-on")
+  }
   const callout = (text, tone = "info", ms, kind = "play") => say({ kind, text, tone: TONE[tone] || "ok", ms })
   const flash = (text) => {
     const id = ++uid
@@ -356,7 +380,11 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
     const s = sessionRef.current
     // practice: the session's labels say it all (no IN/OUT, WINNER or score callouts)
     if (s?.kind === "train" && (e.type === "line" || e.type === "rally" || e.type === "point" || e.type === "call")) return
+    if (prefsRef.current.haptics !== false) feelIt(e)
     switch (e.type) {
+      case "streak":
+        callout(e.text, e.tone, 1300)
+        break
       case "hit":
         if (e.mine && e.slot === 0) trailApi.current?.resolve(e.kind)
         // (a practice drill labels each shot itself)
@@ -1323,6 +1351,7 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
         { label: "Swing Trail", checked: prefs.trail, onClick: () => setPrefs({ trail: !prefs.trail }) },
         { label: "Show Swipe Trail", checked: prefs.swipeTrail, disabled: !showPad, onClick: () => setPrefs({ swipeTrail: !prefs.swipeTrail }) },
         { label: "Instant Replays", checked: prefs.replays, onClick: () => setPrefs({ replays: !prefs.replays }) },
+        { label: "Hit Buzz", checked: prefs.haptics !== false, onClick: () => setPrefs({ haptics: prefs.haptics === false }) },
         "-",
         ...[
           ["broadcast", "Camera: Broadcast"],
@@ -1403,6 +1432,7 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
       <MenuBar menus={menus} />
       <GameChat game="pickleball" title="Pickleball 98" room={online.chatRoom} />
       <div className="pkStage" ref={stageRef} tabIndex={0} data-phase={phase} data-screen={screen}>
+        <div ref={pulseRef} className="pkPulse" aria-hidden="true" />
         <canvas className="pkCanvas" ref={canvasRef} aria-label="Pickleball court" />
         {showPad && <canvas className="pkSwipeTrail" ref={trailRef} aria-hidden="true" />}
 

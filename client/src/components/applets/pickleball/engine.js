@@ -7,11 +7,12 @@
 import * as THREE from "three"
 import { BALL_R, HALF_L, HALF_W, predictPath, STEP } from "./physics.js"
 import { createMatch, advance, handBattle, humanBySlot, meterFor, playerById, press as mPress, previewShot, release as mRelease, scenario, scoreboard, serve as mServe, setAim, setMove, step, autopilot } from "./match.js"
-import { clearShot, blocker, easeClear, serverShot } from "./camera.js"
+import { clearShot, blocker, easeClear, serverShot, rallyFrame } from "./camera.js"
+import { createStreaks, streakHit, streakRally, streakScore } from "./juice.js"
 import { readSwipe, swipeServe, swipeTarget } from "./touchplay.js"
 import { ATTACK_H, KIND_LABEL, paceOf, planShot } from "./shots.js"
 import { LEVELS } from "./ai.js"
-import { inCourt, rightSign, sideOf } from "./rules.js"
+import { inCourt, isLive, rightSign, sideOf } from "./rules.js"
 import { createAudio } from "./audio.js"
 import { createAnim, seatedPose, setMood, situation, splitStep, updateAnim } from "./anim.js"
 import { createFigure } from "./rig.js"
@@ -362,6 +363,15 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
   let aidVersion = -1
   let hitStop = 0
   let shake = 0
+  let kick = 0 // the camera's punch-in on a great hit (0..1)
+  // this match's streaks (juice.js): a new match starts them over
+  let streaks = null
+  const streaksFor = () => {
+    if (!streaks || streaks.match !== match) streaks = { ...createStreaks(mainHuman()?.team ?? 0), match }
+    return streaks
+  }
+  let frameTight = 0 // the eased kitchen-battle close-in (camera.js rallyFrame)
+  let frameLead = 0 // the eased lead of the look across the court
   let rallyHits = 0 // shots in this rally (the crowd's swell)
   let umpireSignal = null
   let umpireSignalT = 0
@@ -863,6 +873,10 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
       const p = mainHuman()
       const s = sideOf(viewTeam())
       const cam = humans >= 2 ? "tv" : settings.camera
+      // the rally's framing (camera.js rallyFrame): lead the ball, close in at the kitchen
+      const fr = match ? rallyFrame({ players: match.players, ball: match.ball, live: match.phase === "rally" && isLive(match.rally) }) : { tight: 0, leadX: 0 }
+      frameTight += (fr.tight - frameTight) * Math.min(1, dt * 1.6)
+      frameLead += (fr.leadX - frameLead) * Math.min(1, dt * 3)
       if (cam === "tv" || !p) {
         tmpV.set(0, portrait ? 13.5 : 9.8, s * (HALF_L + (portrait ? 10.5 : 8.8)))
         tmpL.set(0, 0, -s * (portrait ? 1.8 : 1.4))
@@ -876,15 +890,16 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
         // lifts it if you're in the way)
         const hz = Math.max(2.4, Math.abs(p.z))
         tmpV.set(p.x * 0.8, 3.1 + (portrait ? 1.3 : 0), s * (hz + 4.4 + (portrait ? 1.8 : 0)))
-        tmpL.set(p.x * 0.3 + ball.x * 0.2, 0.6, -s * 4.5)
-        fov = portrait ? 66 : 52
+        tmpL.set(p.x * 0.3 + frameLead * 1.3, 0.6, -s * 4.5)
+        fov = (portrait ? 66 : 52) - frameTight * 4
       } else {
         // broadcast: high behind your end, following you across
         const hz = Math.max(3, Math.min(HALF_L + 1, Math.abs(p.z)))
         tmpV.set(p.x * (portrait ? 0.25 : 0.45), (portrait ? 8.2 : 4.9) + (hz - 3) * 0.06, s * (hz + (portrait ? 6.8 : 6.6)))
-        tmpL.set(p.x * 0.15 + ball.x * 0.15, 0, -s * (portrait ? 3.4 : 2.2))
-        // a short, wide screen (a phone on its side) zooms in a little
-        fov = portrait ? 64 : size.height < 480 ? 40 : 47
+        tmpL.set(p.x * 0.15 + frameLead, 0, -s * (portrait ? 3.4 : 2.2))
+        // a short, wide screen (a phone on its side) zooms in a little; a kitchen battle
+        // closes in a few degrees
+        fov = (portrait ? 64 : size.height < 480 ? 40 : 47) - frameTight * (portrait ? 5 : 4)
       }
     }
     // no body in front of the lens (camera.js): every in-match view, replays and cuts too
@@ -906,8 +921,13 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
       snapCam = false
       k = 1
     }
+    // a great hit punches in a couple of degrees and springs back (kick: 0..1)
+    if (kick > 0) {
+      fov -= kick * 2.4
+      kick = Math.max(0, kick - dt * 5)
+    }
     if (camera.fov !== fov) {
-      camera.fov += (fov - camera.fov) * (snap ? 1 : Math.min(1, dt * 4))
+      camera.fov += (fov - camera.fov) * (snap ? 1 : kick > 0 ? Math.min(1, dt * 18) : Math.min(1, dt * 4))
       camera.updateProjectionMatrix()
     }
     camLook.lerp(tmpL, k)
@@ -1275,10 +1295,15 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
   }
 
   // ---------- replays ----------
+  const REPLAY_SHOW_S = 3.6 // seconds shown: the last shots and the ~1 s after the point
+  const REPLAY_SPEED = 0.5 // slow motion: about 7 s on screen (a tap skips it)
   const startReplay = (side) => {
     if (record.length < 30 || mode !== "local") return
-    // from a moment before the rally's last few shots to the end
-    const frames = record.slice(-Math.min(record.length, 60 * 6))
+    // the last few seconds of the point (REPLAY_SHOW_S of play, whatever the frame rate): quick,
+    // not a second rally (it used to be 6 s of frames at 0.4x, 15 s or more on screen)
+    let from = record.length - 1
+    for (let t = 0; from > 0 && t < REPLAY_SHOW_S; from--) t += record[from].dt
+    const frames = record.slice(from)
     replay = { frames, i: 0, t: 0, side: side || (Math.random() < 0.5 ? 1 : -1), frame: frames[0], ball: { ...frames[0].ball } }
     match.hold = true
     for (const f of figures) f.anim = createAnim(frames[0].players[figures.indexOf(f)]?.x ?? f.player.x, frames[0].players[figures.indexOf(f)]?.z ?? f.player.z, f.player.team === 0 ? Math.PI : 0)
@@ -1302,7 +1327,7 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
   }
   const stepReplay = (dt) => {
     if (replay.external) return stepTwin(dt)
-    replay.t += dt * 0.4 // slow motion
+    replay.t += dt * REPLAY_SPEED // slow motion
     let acc = 0
     let i = replay.i
     while (i < replay.frames.length - 1 && acc + replay.frames[i].dt <= replay.t) {
@@ -1322,7 +1347,7 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
     const u = Math.min(1, replay.t / Math.max(1e-3, replay.frame.dt))
     const a = replay.frame.ball
     replay.ball = { x: a.x + (next.ball.x - a.x) * u, y: a.y + (next.ball.y - a.y) * u, z: a.z + (next.ball.z - a.z) * u }
-    return dt * 0.4
+    return dt * REPLAY_SPEED
   }
 
   // ---------- Twin Replay (twin/): a real game's tracked frames, played on these figures ----------
@@ -1507,7 +1532,15 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
           if (demo) break
           const hitter = playerById(match, e.player)
           const mine = hitter?.ctrl === "human"
+          // your perfect contact: a beat of hit-stop and the camera punches in (juice.js)
+          if (mine && perfect && !big && mode === "local") hitStop = Math.max(hitStop, 0.045)
+          if (mine && (perfect || big) && !reducedMotion()) kick = big ? 1 : 0.6
           onEvent?.({ type: "hit", kind: e.kind, label: e.label || KIND_LABEL[e.kind], tone: e.tone, tag: e.tag, mine, theirs: !!you && e.team !== you.team, slot: hitter?.slot, grade: e.grade, risky: e.risky, speed: e.speed, volley: e.volley, team: e.team })
+          const run = mine && hitter?.slot === 0 ? streakHit(streaksFor(), { mine, grade: e.grade }) : null
+          if (run) {
+            onEvent?.({ type: "streak", ...run })
+            venue.crowd?.cheer(0.4)
+          }
           if (e.tone === "great") venue.crowd?.cheer(0.25)
           // the crowd leans in as a rally runs long (8+ shots), and lets go when it ends
           rallyHits++
@@ -1551,9 +1584,37 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
           const level = Math.min(1, 0.3 + e.shots / 14 + (e.last?.risky ? 0.2 : 0) + (e.kind === "winner" ? 0.15 : 0))
           venue.crowd?.cheer(level)
           audio.cheer(level)
+          // the players react as the point ends (not a second later with the score): a long
+          // rally or a put-away gets the big celebration (and the big groan), a long rally
+          // leaves the losers hands on knees, an error of their own is a groan; an ordinary
+          // point, any of the three
+          if (!match.practice) {
+            const long = e.shots >= 10
+            for (const f of figures) {
+              const won = f.player.team === e.winner
+              const variant = long || e.last?.kind === "smash" ? (won ? 2 : long ? 1 : 2) : !won && e.kind === "error" && e.last?.team === f.player.team ? 2 : Math.floor(Math.random() * 3)
+              setMood(f.anim, won ? "cheer" : "sulk", variant)
+            }
+          }
           onEvent?.({ type: "rally", ...e, yours: e.winner === you?.team })
+          // runs of rallies: the crowd rises with yours (juice.js)
+          if (you) {
+            const run = streakRally(streaksFor(), e)
+            if (run) {
+              if (run.level) {
+                venue.crowd?.cheer(run.level)
+                audio.cheer(run.level)
+              }
+              onEvent?.({ type: "streak", ...run })
+            }
+          }
           // a great point gets the replay
-          const worthy = e.shots >= 9 || (e.kind === "winner" && (e.last?.kind === "smash" || e.last?.risky || e.last?.grade === "perfect") && e.shots >= 3)
+          // (only the great ones: a long rally, a winner off a smash or a risky shot, or a
+          // perfect winner that ends a real rally; 9+ shots or any perfect winner used to
+          // replay about every other point)
+          const winner = e.kind === "winner"
+          // (simulated, a person vs the computer: Rookie 35% -> 3%, Club 52% -> 8%, Pro 69% -> 22%)
+          const worthy = e.shots >= 18 || (winner && (e.last?.kind === "smash" || e.last?.risky) && e.shots >= 4) || (winner && e.last?.grade === "perfect" && e.shots >= 14)
           // (only for this match: a replay due as the next match starts would freeze it)
           if (worthy && settings.replays !== false && mode === "local") {
             const forMatch = match
@@ -1566,8 +1627,15 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
           audio.setTension?.(0)
           if (demo) break
           audio.chime(e.winner === you?.team)
-          for (const f of figures) setMood(f.anim, f.player.team === e.winner ? "cheer" : "sulk", Math.floor(Math.random() * 3))
           onEvent?.({ type: "point", ...e, yours: e.winner === you?.team })
+          if (you && e.score) {
+            const back = streakScore(streaksFor(), e.score)
+            if (back) {
+              venue.crowd?.cheer(back.level)
+              audio.cheer(back.level)
+              onEvent?.({ type: "streak", ...back })
+            }
+          }
           break
         case "call":
           if (demo) break
