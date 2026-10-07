@@ -45,16 +45,17 @@ import { LEVELS, NET_LINE, REACH, afterShot, aiServe, aiShot, aiTiming, autoTarg
 const HAND_Y = 0.98 // the server holds the ball here
 const SERVE_CONTACT_Y = 0.52 // and strikes it down here, well below the waist
 export const WAIST_Y = 1.02
-const INTRO_S = 1.3 // the score call
-const INTRO_MAX = 5.5 // walking back into place takes no longer than this
-const WALK_BACK = 1.7 // m/s: between points players walk back into place (a brisk walk, not a jog)
-const DEAD_S = 1.8
+const INTRO_S = 0.9 // the score call
+const INTRO_MAX = 3.0 // walking back into place takes no longer than this (then everyone steps onto their spot)
+const WALK_BACK = 2.0 // m/s: between points players walk back into place (a brisk walk, not a jog)
+const DEAD_S = 1.25 // after the point: long enough to see it land and hear the call
 const MAX_HIT_Y = 2.3
 export const SWING_LEAD = 0.13 // s from letting go of the button to the paddle meeting the ball
 export const SWING_LEAD_FAST = 0.07 // a compact block or counter at the net gets there quicker
 const MIN_SWING = 0.05 // the quickest a swing can get there
 const LATE_MAX = 0.22 // still holding this long after the ball got there: swing anyway
 const ARM_S = 1.0 // let go early: the swing waits this long for the ball
+const STRETCH = 1.15 // a person reaches this much past REACH for a ball at its nearest pass
 export const DEFAULT_WINDOW = 0.06 // the perfect timing zone, +- seconds
 // maxY: the highest ball you can play (2.4: an overhead jumps up to it, pro.js overheadLift)
 const HUMAN = { speed: 4.0, reaction: 0.05, judge: 0.15, maxY: 2.4 }
@@ -377,7 +378,12 @@ export const canHit = (m, p, req = p.armed || p.charge, { reach = REACH, wait = 
   const dx = ball.p.x - p.x
   const dz = ball.p.z - p.z
   const d = Math.hypot(dx, dz)
-  if (d > reach) return false
+  // how fast the ball is still closing on them (0 or less: this is as near as it gets)
+  const closing = d > 1e-3 ? -(dx * (ball.v.x - (p.vx || 0)) + dz * (ball.v.z - (p.vz || 0))) / d : 0
+  // a person's swing stretches for a ball passing just beyond arm's length (a long reach
+  // still costs control: strike's spacing)
+  const person = p.ctrl === "human" && !isAi(m, p) && !req.auto
+  if (d > (person && reach === REACH && closing < 0.3 ? reach * STRETCH : reach)) return false
   if (ball.p.y > MAX_HIT_Y || ball.p.y < BALL_R + 0.02) return false
   const volley = bouncesOf(m) === 0
   // the AI and the assist mind the rules (no volleying the return, no volleys in the kitchen)
@@ -387,7 +393,8 @@ export const canHit = (m, p, req = p.armed || p.charge, { reach = REACH, wait = 
   const ahead = (p.z - ball.p.z) * side
   const coming = ball.v.z * side > 1
   // (a player reaching over the kitchen for a volley takes it at arm's length)
-  if (wait && !req.lunge && ahead > 0.4 && coming && d > 0.55) return false
+  // (but a ball going past a person's side never gets nearer: their swing takes it now)
+  if (wait && !req.lunge && ahead > 0.4 && coming && d > 0.55 && (!person || closing > 0.5)) return false
   return true
 }
 
@@ -1097,7 +1104,7 @@ const mirrorStep = (m, dt) => {
     movePlayer(m, p, dt)
     if (p.swing) p.swing.t += dt
     if (p.ctrl !== "human") continue
-    if (p.armed?.until && m.t > p.armed.until) {
+    if (dropSwing(m, p) === "miss") {
       if (!p.swing || p.swing.t > 0.4) p.swing = { t: 0, kind: p.armed.kind, hand: "fh", y: 0.8, whiff: true }
       p.armed = null
     }
@@ -1125,6 +1132,31 @@ const mirrorStep = (m, dt) => {
       }
     }
   }
+}
+
+// A person's swing that can't meet the ball any more. The point's over: it goes quietly (a
+// swing let go just as it ended still shows, but no "miss" is called after the point).
+// The ball's gone by them, or the swing waited its whole second: "miss", called right away.
+export const dropSwing = (m, p) => {
+  if (p.ctrl !== "human") return null
+  if (m.phase !== "rally" || !isLive(m.rally)) {
+    if (p.armed && m.t - p.armed.release < 0.3 && (!p.swing || p.swing.t > 0.4)) p.swing = { t: 0, kind: p.armed.kind, hand: "fh", y: 0.8, whiff: true }
+    p.armed = null
+    if (p.charge?.kind === "hit") p.charge = null
+    return null
+  }
+  if (!p.armed) return null
+  if (p.armed.until && m.t > p.armed.until) return "miss"
+  return goneBy(m, p) ? "miss" : null
+}
+
+// The ball has passed a person low and is still going away from them, out of reach
+export const goneBy = (m, p) => {
+  const r = m.rally
+  const b = m.ball
+  if (r.hits === 0 || r.lastTeam === p.team) return false
+  const side = sideOf(p.team)
+  return (p.z - b.p.z) * side < -0.35 && b.v.z * side > 0 && b.p.y < 1.2 && Math.hypot(b.p.x - p.x, b.p.z - p.z) > REACH * 1.35
 }
 
 // The movement assist's reflex: a hard ball at a person at the net who didn't swing gets a
@@ -1168,8 +1200,8 @@ export const step = (m, dt = STEP) => {
   for (const p of m.players) {
     movePlayer(m, p, dt)
     if (p.swing) p.swing.t += dt
-    if (p.armed?.until && m.t > p.armed.until) {
-      // too early: a swing at nothing
+    if (dropSwing(m, p) === "miss") {
+      // too early, or the ball's gone by: a swing at nothing
       if (!p.swing || p.swing.t > 0.4) p.swing = { t: 0, kind: p.armed.kind, hand: "fh", y: 0.8, whiff: true }
       emit(m, { type: "whiff", player: p.id })
       p.armed = null

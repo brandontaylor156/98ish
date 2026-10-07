@@ -34,7 +34,7 @@ import { FAST_BALL, SOFT_KINDS, planIntent, solveDrive } from "./shots.js"
 //   (less and they're late); counter: chance of countering (vs. blocking) a hard ball
 //   met above the net; lob: chance of a surprise lob; advance: chance of moving up after a
 //   good soft shot; timing: chance of a perfect / good swing.
-const COMMON = { serveWait: 1.1, maxY: 1.95 }
+const COMMON = { serveWait: 0.85, maxY: 1.95 }
 export const LEVELS = {
   beginner: {
     ...COMMON,
@@ -59,7 +59,7 @@ export const LEVELS = {
     lob: 0.04,
     advance: 0.45,
     timing: [0.12, 0.45],
-    serveWait: 1.4,
+    serveWait: 1.1,
     maxY: 1.7,
   },
   intermediate: {
@@ -110,7 +110,7 @@ export const LEVELS = {
     lob: 0.03,
     advance: 1,
     timing: [0.5, 0.42],
-    serveWait: 0.9,
+    serveWait: 0.7,
     maxY: 2.3, // (an overhead jumps for it: pro.js overheadLift)
   },
   legend: {
@@ -137,7 +137,7 @@ export const LEVELS = {
     lob: 0.03,
     advance: 1,
     timing: [0.65, 0.32],
-    serveWait: 0.8,
+    serveWait: 0.6,
     maxY: 2.35,
   },
 }
