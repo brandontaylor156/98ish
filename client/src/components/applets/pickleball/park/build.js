@@ -920,7 +920,7 @@ export const buildPark = (scene, { quality = "medium", layout = RIVERSIDE_LAYOUT
     cull: scenery?.cull || null,
     // (a real venue: the sky dome centred on the camera)
     followSky: S
-      ? (p) => {
+      ? (p, cam = null) => {
           if (shadows && (!shadowAt || Math.hypot(p.x - shadowAt.x, p.z - shadowAt.z) > 8)) {
             // the shadow box: re-centred once the camera has gone 8 m, the sun 120 m back along its light
             shadowAt = { x: p.x, z: p.z }
@@ -939,8 +939,10 @@ export const buildPark = (scene, { quality = "medium", layout = RIVERSIDE_LAYOUT
           stars.updateMatrix()
           sky.updateMatrixWorld(true)
           stars.updateMatrixWorld(true)
+          // (the skyline round the eye itself: its angles are worked out for an eye 1.7 m up)
+          const eye = cam || p
           for (const m of horizon) {
-            m.position.copy(sky.position)
+            m.position.set(eye.x, Math.max(0, (eye.y ?? 1.7) - (S.horizon?.eye ?? 1.7)), eye.z)
             m.updateMatrix()
             m.updateMatrixWorld(true)
           }

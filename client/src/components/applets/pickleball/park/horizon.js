@@ -9,10 +9,10 @@ import * as THREE from "three"
 
 const RING = 318 // inside the sky dome (330) and the camera's far plane (400)
 const BOTTOM = -6 // degrees: the nearest band reaches down past the far ground's edge
-const BASE = { near: 0x6f7052, mid: 0x7a7a60, far: 0x8a8f86, sea: 0x3f6f8c }
+const BASE = { near: 0x5c5e45, mid: 0x5f6352, far: 0x56607a, sea: 0x356a8c }
 const ORDER = ["far", "sea", "mid", "near"]
 // visibility (km): how fast distance fades a ridge into the haze (SoCal on a fair day)
-const HAZE_KM = 16
+const HAZE_KM = 36
 
 export const horizonMeshes = (hz) => {
   const eye = hz.eye ?? 1.7
@@ -33,8 +33,10 @@ export const horizonMeshes = (hz) => {
       const yTop = eye + RING * Math.tan((top * Math.PI) / 180)
       const yBot = eye + RING * Math.tan((Math.min(bot, top) * Math.PI) / 180)
       pos.set([x, yBot, z, x, yTop, z], i * 6)
-      const h = c ? Math.min(0.94, Math.max(0.12, 1 - Math.exp(-c[2] / HAZE_KM))) : 1
-      haze[i * 2] = h
+      const h = c ? Math.min(0.78, Math.max(0.1, 1 - Math.exp(-c[2] / HAZE_KM))) : 1
+      // (the nearest land fades into the haze toward its foot: from up high that's the far
+      // ground's own foggy edge, so the two meet without a seam)
+      haze[i * 2] = name === "near" ? Math.max(h, 0.9) : h
       haze[i * 2 + 1] = h
     }
     const idx = []
