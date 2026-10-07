@@ -688,7 +688,7 @@ const HAIR_SPEC_FRAG = `#include <lights_fragment_end>
 	{
 		vec3 pkUp = normalize((viewMatrix * vec4(0.0, 1.0, 0.0, 0.0)).xyz);
 		// (on the crown, facing up, "down the strands" is undefined: the highlight fades there)
-		float pkSide = 1.0 - smoothstep(0.55, 0.85, abs(dot(normal, pkUp)));
+		float pkSide = 1.0 - smoothstep(0.3, 0.65, abs(dot(normal, pkUp)));
 		vec3 pkT = normalize(pkUp - normal * dot(normal, pkUp) + vec3(1e-4));
 		vec3 pkV = normalize(vViewPosition);
 		#ifdef USE_MAP
@@ -706,7 +706,7 @@ const HAIR_SPEC_FRAG = `#include <lights_fragment_end>
 			float s1 = pow(sqrt(max(0.0, 1.0 - d1 * d1)), 260.0);
 			float s2 = pow(sqrt(max(0.0, 1.0 - d2 * d2)), 60.0);
 			float ndl = saturate(dot(normal, L) * 0.6 + 0.4);
-			reflectedLight.directSpecular += directionalLights[i].color * (ndl * pkSide) * (0.06 * s1 * (0.7 + pkJit) + 0.25 * s2 * diffuseColor.rgb);
+			reflectedLight.directSpecular += directionalLights[i].color * (ndl * pkSide) * (0.025 * s1 * mix(vec3(1.0), diffuseColor.rgb * 3.0, 0.5) + 0.14 * s2 * diffuseColor.rgb);
 		}
 	}
 	#endif`
