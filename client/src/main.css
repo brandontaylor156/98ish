@@ -371,6 +371,10 @@ video {
   border-top: 1px solid #f4f4f4;
   border-bottom: 1px solid #4e4e4e;
   padding-bottom: calc(2px + env(safe-area-inset-bottom));
+  /* a phone on its side: the Start button, the toolbar buttons and the clock stay clear of
+     the notch and the rounded corners (they ran in under them, off the left edge) */
+  padding-left: calc(2px + env(safe-area-inset-left));
+  padding-right: calc(2px + env(safe-area-inset-right));
   z-index: 99999999;
   height: var(--taskbar-h);
 }
@@ -1083,7 +1087,9 @@ select:focus {
 
 /* Start menu across the bottom, search results stacked above it */
 .os-mobile .startArea {
-  right: 0;
+  /* clear of the notch with the phone on its side, like the taskbar */
+  left: env(safe-area-inset-left);
+  right: env(safe-area-inset-right);
   flex-direction: column-reverse;
   align-items: stretch;
 }
