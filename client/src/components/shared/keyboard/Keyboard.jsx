@@ -142,7 +142,12 @@ const Keyboard = () => {
       // a tap on the taskbar, a toolbar or a plain spot doesn't put the keyboard away: it stays
       // on its field (still on screen) until its X is pressed or the field's window goes
       const cur = live.current.field
-      if (!el && cur && onScreen(cur) && strayTap()) return
+      // (but a box that just opened and took the focus, with no field to type in, such as
+      // Save As's "replace it?", puts it away: it would cover the box's buttons)
+      const now = document.activeElement
+      const box = now?.closest?.(".dialog, [role=dialog]")
+      const newBox = !!box && !box.contains(cur)
+      if (!el && cur && onScreen(cur) && strayTap() && !newBox) return
       if (el && el !== cur) setDormant(!wantsKeyboard(el))
       setField(el && !el.dataset.kbNative ? el : null)
     }
