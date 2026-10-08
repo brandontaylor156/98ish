@@ -509,6 +509,40 @@ export const topics = [
     related: ["calendar", "calendar-sharing", "push-setup", "home-screen"],
   },
 
+  // ---- Maps 98 ----
+  {
+    id: "maps",
+    book: "accessories",
+    title: "Maps 98",
+    summary: "Find a place, see where you are, and get directions to drive, walk or bike, or hand off to Apple Maps.",
+    keywords: ["map", "maps", "directions", "navigation", "route", "address", "where am I", "GPS", "turn by turn", "Apple Maps", "Google Maps", "drop a pin", "walk", "bike", "drive"],
+    programs: ["Maps 98"],
+    body: [
+      { img: "/assets/program_icons/maps.svg", alt: "Maps 98 icon" },
+      "Maps 98 finds places and shows you how to get there.",
+      {
+        steps: [
+          "Type a place or an address in the box at the top (a few letters are enough; press **Search** for more). Pick one from the list, or one of the numbered squares on the map.",
+          "Press **Directions**. Choose **Drive**, **Walk** or **Bike**: you see how long it takes, how far it is, and every turn written out (**steps**).",
+          "Press **Start** to follow along: your blue dot moves and the next turn shows at the top of the card.",
+        ],
+        title: "To get directions:",
+      },
+      {
+        list: [
+          "**◎** (beside Search) shows where you are. The first time, your browser asks if 98ish may know your location.",
+          "Touch and hold the map (or right-click it) to drop a pin anywhere and get directions there.",
+          "No location? Directions asks where you're starting: type an address.",
+          "Your recent places show when the search box is empty.",
+        ],
+      },
+      { phone: "For spoken turn-by-turn directions with the screen off, press **Open in Apple Maps**: the same place opens in the iPhone's Maps app.", computer: "On a Mac or iPhone the button says **Open in Apple Maps**; elsewhere it opens Google Maps." },
+      { note: "Search comes from Photon (by komoot) and Nominatim, directions from Valhalla on FOSSGIS's servers, and the map from OpenFreeMap, all free services built on OpenStreetMap. What you search for and the two ends of a route go to them; your location only goes to the directions service when you ask for directions from where you are. Maps 98 keeps your recent places on this device only." },
+      { open: "Maps 98", label: "Open Maps 98" },
+    ],
+    related: ["buddy-locator", "weather", "privacy-third-parties"],
+  },
+
   // ---- Clock ----
   {
     id: "clock",
@@ -633,7 +667,7 @@ export const topics = [
       "3D Viewer 98 shows **3D models** and makes new ones from your photos. Models live on drive C: in **C:\\My 3D** (up to 20; the oldest goes), so they sync like your other files.",
       {
         list: [
-          "**Make 3D from a Photo...**: pick or take a photo of **one thing** (a mug, a shoe, a toy, your dog) on a plain background. A free service on Hugging Face (TRELLIS.2) cuts it out and builds a textured model in a minute or two. You can also start from **Photos** (a picture's menu: Make 3D...) or **Camera** (right after a shot).",
+          "**Make 3D from a Photo...**: pick or take a photo of **one thing** (a mug, a shoe, a toy, your dog) on a plain background. Free services on Hugging Face cut it out and build a model in about half a minute to three minutes: **TRELLIS.2** first (a textured model); when it's out of free time or busy, 3D Viewer moves on by itself to **Hunyuan3D-2**, **Hunyuan3D-2.1**, the community **TRELLIS** and **TripoSG**, and tells you which one is working and your place in its line. Hunyuan3D and TripoSG make the shape, and 3D Viewer colors it from your photo. You can also start from **Photos** (a picture's menu: Make 3D...) or **Camera** (right after a shot).",
           "**Import Model...** opens any **.glb** or **.gltf** file (a .gltf must carry its pictures inside). Big ones are simplified to 30,000 triangles so they stay quick on a phone.",
           "Drag to turn it, pinch to zoom. On a phone, **Tilt to Look** (More options) turns the view as you tilt the phone.",
         ],
@@ -649,8 +683,17 @@ export const topics = [
         ],
       },
       { h: "Free time on Hugging Face" },
-      "Making a model uses a few minutes of free graphics-card time on Hugging Face, and everyone gets a small amount a day (about 2 minutes without signing in, which may not be enough for one model). A **free Hugging Face token** (More options) gives you more: make one at huggingface.co under Settings > Access Tokens (a \"Read\" token is enough) and paste it in. It's kept only on this device and sent only to Hugging Face. When the day's time is used up, 3D Viewer says when it comes back.",
-      { note: "Your photo is sent to Hugging Face only when you tap Make 3D or Bring to Life (see [[privacy-third-parties]]). Models made there are TRELLIS.2 (MIT) and AniGen (MIT)." },
+      "Making a model uses free graphics-card time on Hugging Face. Everyone gets a small amount a day, shared by all those services (a few minutes without signing in). TRELLIS.2 asks for about 2 minutes at a time; the Hunyuan3D services ask for much less, so they often still work when TRELLIS.2 says no.",
+      {
+        steps: [
+          "Sign up free at huggingface.co.",
+          "Go to Settings > Access Tokens > **Create new token**, choose **Read**, and copy it.",
+          "In 3D Viewer 98, open **More options**, paste it into **Your Hugging Face token** and press **Check** (it says which Hugging Face name it belongs to).",
+        ],
+        title: "To get your own, bigger daily allowance:",
+      },
+      "The token is kept on this device for you only (each person on the computer has their own), sent only to Hugging Face, and removed when you press **Remove** or delete your 98 Messenger account. More options also says how much free time is left today when Hugging Face has told 3D Viewer, and when it comes back.",
+      { note: "Your photo is sent to Hugging Face only when you tap Make 3D or Bring to Life (see [[privacy-third-parties]]). The services' models: TRELLIS.2 and TRELLIS (MIT), Hunyuan3D-2 and 2.1 (Tencent Hunyuan community license), TripoSG (MIT) and AniGen (MIT); the models you make are yours to keep and use." },
       { open: "3D Viewer 98", label: "Open 3D Viewer 98" },
     ],
     related: ["photos", "camera", "pickleball", "messenger"],

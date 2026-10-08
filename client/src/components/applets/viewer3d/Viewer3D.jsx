@@ -6,14 +6,15 @@ import Combo from "../../shared/select/Combo"
 import { helpItem } from "../../../utils/help"
 import { launch } from "../../../utils/programs"
 import { keyOf, useAim } from "../aim/AimContext"
-import { MAX_TRIS, SEND_BYTES, SEND_TRIS, validateModel } from "./core.js"
+import { MAX_TRIS, PHOTO_SPACES, SEND_BYTES, SEND_TRIS, validateModel } from "./core.js"
 import { fileAt, getPet, listModels, readModel, saveModel, setPet } from "./store.js"
-import { getToken, setToken } from "./space.js"
+import { checkToken, getQuota, getToken, quotaLine, setToken } from "./space.js"
 import "./Viewer3D.css"
 
 // 3D Viewer 98 (Snap to 3D): see, make and use 3D models. A model is a .glb on drive C:
-// (C:\My 3D). "Make 3D from a Photo..." sends a photo to a free Hugging Face Space (TRELLIS.2)
-// and gets a textured model back; "Bring to Life" asks AniGen for a rigged one; "Import" opens
+// (C:\My 3D). "Make 3D from a Photo..." sends a photo to free Hugging Face Spaces (TRELLIS.2
+// first, then the others in space.js when one is out of free time or busy) and gets a model
+// back (a shape-only one is colored from the photo, paint.js); "Bring to Life" asks AniGen for a rigged one; "Import" opens
 // any .glb/.gltf. Then: Place in My Park (it trots after you), Set as Desktop Toy (a small
 // spinning window), Send in Messenger (shrunk to 2 MB), Share a picture of the view.
 //   handoff: { open: path } | { toy: path } | { photo: path (an image on the drive) }
@@ -36,6 +37,8 @@ const Viewer3D = ({ mobile, handoff, dispatch, onClose, onTitle }) => {
   const [send, setSend] = useState(false)
   const [tilt, setTilt] = useState(false)
   const [token, setTok] = useState(getToken())
+  const [tokenCheck, setTokenCheck] = useState(null) // { busy } | { ok, name } | { ok: false, error }
+  const [quota, setQuota] = useState(getQuota())
   const [pet, setPetPath] = useState(getPet())
   const photoInput = useRef(null)
   const modelInput = useRef(null)
@@ -116,12 +119,21 @@ const Viewer3D = ({ mobile, handoff, dispatch, onClose, onTitle }) => {
     try {
       const space = await import("./space.js")
       const made = rig ? await space.bringToLife(photo, { onStatus: setBusy }) : await space.makeFromPhoto(photo, { onStatus: setBusy })
-      await keep(made.bytes, { title: name || (rig ? "Creature" : "Model"), source: rig ? "rigged" : "photo" })
-      setNote(`Made in ${Math.round((Date.now() - t0) / 1000)} s by ${made.space}.`)
+      let bytes = made.bytes
+      // a plain shape (Hunyuan3D, TripoSG): its colors come from the photo
+      if (!rig && made.textured === false) {
+        setBusy("Coloring it from your photo...")
+        const { paintFromPhoto } = await import("./paint.js")
+        bytes = await paintFromPhoto(bytes, photo)
+      }
+      await keep(bytes, { title: name || (rig ? "Creature" : "Model"), source: rig ? "rigged" : "photo" })
+      const skipped = made.tried?.length ? ` (${made.tried.map((t) => t.name).join(", ")} couldn't, so ${made.space} did)` : ""
+      setNote(`Made in ${Math.round((Date.now() - t0) / 1000)} s by ${made.space}${made.textured === false && !rig ? ", colored from your photo" : ""}${skipped}.`)
     } catch (e) {
       setError(e?.message || "The model couldn't be made.")
     } finally {
       setBusy(null)
+      setQuota(getQuota())
     }
   }
 
@@ -302,7 +314,7 @@ const Viewer3D = ({ mobile, handoff, dispatch, onClose, onTitle }) => {
       <div className="v3dStatus" data-v3d-status>
         {error ? <span className="v3dError">{error}</span> : note ? <span>{note}</span> : info ? <span>{`${info.triangles.toLocaleString()} triangles${info.rigged ? " · has bones" : ""}${info.animations ? ` · ${info.animations} animation${info.animations === 1 ? "" : "s"}` : ""}${pet === current ? " · in My Park" : ""}`}</span> : <span>&nbsp;</span>}
       </div>
-      <MoreOptions id="viewer3d.more" summary={has ? "Place in My Park · Desktop toy · Send · Bring to life" : "Bring to life · Hugging Face token"} className="v3dMore">
+      <MoreOptions id="viewer3d.more" summary={`${has ? "Place in My Park · Desktop toy · Send · Bring to life" : "Bring to life"} · ${token ? "Your Hugging Face token is set" : "Add a free Hugging Face token for more 3D time"}`} className="v3dMore" forceOpen={/free 3D time/i.test(error || "") && !token}>
         <div className="v3dMoreRow">
           <button type="button" disabled={!has} onClick={placeInPark} data-v3d-park>
             {pet === current && has ? "Take Out of My Park" : "Place in My Park"}
@@ -327,17 +339,42 @@ const Viewer3D = ({ mobile, handoff, dispatch, onClose, onTitle }) => {
           </label>
         </div>
         <div className="v3dToken">
-          <label htmlFor="v3d-token">Hugging Face token (free; more 3D time each day)</label>
-          <input
-            id="v3d-token"
-            type="password"
-            autoComplete="off"
-            placeholder="hf_..."
-            value={token}
-            onChange={(e) => setTok(e.target.value)}
-            onBlur={() => setToken(token)}
-          />
-          <small>Kept on this device only and sent only to Hugging Face. Make one free at huggingface.co (Settings &gt; Access Tokens, "Read").</small>
+          <label htmlFor="v3d-token">Your Hugging Face token (free; gives you your own, bigger daily 3D time)</label>
+          <div className="v3dTokenRow">
+            <input
+              id="v3d-token"
+              type="password"
+              autoComplete="off"
+              placeholder="hf_..."
+              value={token}
+              onChange={(e) => (setTok(e.target.value), setTokenCheck(null))}
+              onBlur={() => (setToken(token), setQuota(getQuota()))}
+            />
+            <button
+              type="button"
+              disabled={!token.trim() || tokenCheck?.busy}
+              onClick={async () => {
+                setToken(token)
+                setQuota(getQuota())
+                setTokenCheck({ busy: true })
+                setTokenCheck(await checkToken(token))
+              }}
+              data-v3d-token-check
+            >
+              {tokenCheck?.busy ? "Checking..." : "Check"}
+            </button>
+            {token && (
+              <button type="button" onClick={() => (setTok(""), setToken(""), setTokenCheck(null), setQuota(getQuota()))}>
+                Remove
+              </button>
+            )}
+          </div>
+          {tokenCheck && !tokenCheck.busy && <small className={tokenCheck.ok ? "v3dOk" : "v3dError"}>{tokenCheck.ok ? `It works: signed in to Hugging Face as ${tokenCheck.name}.` : tokenCheck.error}</small>}
+          <small>
+            How: at huggingface.co, sign up free, then Settings &gt; Access Tokens &gt; Create new token, type "Read", and paste it here. It's kept on this device for you only, sent only to Hugging Face, and removed if you delete your 98 Messenger account.
+          </small>
+          <small data-v3d-quota>{quotaLine(quota) || "Free 3D time left today: Hugging Face says how much when it runs low."}</small>
+          <small>Free services tried, in order: {PHOTO_SPACES.map((x) => `${x.name}${x.textured ? "" : " (shape, colored from your photo)"}`).join(", ")}.</small>
         </div>
       </MoreOptions>
       <input ref={photoInput} type="file" accept="image/*" onChange={(e) => onPhoto(e, false)} hidden />
@@ -347,9 +384,12 @@ const Viewer3D = ({ mobile, handoff, dispatch, onClose, onTitle }) => {
           <div className="v3dMakeBody">
             <img src={make.url} alt="" className="v3dMakePhoto" />
             <p>
-              This photo goes to a free service on Hugging Face ({make.rig ? "AniGen" : "TRELLIS.2"}), which builds a 3D model {make.rig ? "with bones" : "of the main thing in it"}. It takes {make.rig ? "2 to 4" : "1 to 3"} minutes.
+              This photo goes to a free service on Hugging Face ({make.rig ? "AniGen" : "TRELLIS.2, or another free one if it's busy or out of time"}), which builds a 3D model {make.rig ? "with bones" : "of the main thing in it"}. It takes {make.rig ? "2 to 4" : "about 1 to 3"} minutes.
             </p>
-            <p className="v3dHint">Best: one object, plain background, good light. Free time on Hugging Face is limited each day{token ? "" : " (a free token in More options gives you more)"}.</p>
+            <p className="v3dHint">
+              Best: one object, plain background, good light. {quotaLine(quota) || "Free time on Hugging Face is limited each day."}
+              {token ? "" : " A free token in More options gives you more."}
+            </p>
           </div>
         </Dialog>
       )}

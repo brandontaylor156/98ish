@@ -15,7 +15,8 @@ import { currentUserId, keysOf, listUsers, rawRemove, updateUser } from "./users
 const keyOf = (name) => String(name || "").replace(/\s+/g, "").toLowerCase()
 
 // account-tied things kept per 98ish user in localStorage (mapped by utils/userStorage.js)
-const ACCOUNT_KEYS = ["98ish.aim.remember", "98ish.mail.index", "98ish.dollhouse.shared", "98ish.cal.reminders", "98ish.push.device"]
+// (98ish.hfToken / hfQuota: 3D Viewer 98's Hugging Face token and what it knows of the free time)
+const ACCOUNT_KEYS = ["98ish.aim.remember", "98ish.mail.index", "98ish.dollhouse.shared", "98ish.cal.reminders", "98ish.push.device", "98ish.hfToken", "98ish.hfQuota"]
 
 const step = async (fn) => {
   try {
