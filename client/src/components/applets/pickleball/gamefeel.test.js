@@ -121,7 +121,8 @@ test("timing windows: perfect is tight, good is forgiving, and better timing ear
   assert.ok(p.speedMul > 1 && l.speedMul < 1)
   const share = (jitter) => {
     const c = {}
-    play("intermediate", [1], jitter, (e) => {
+    // (pooled over three games: one game is too few swings to tell)
+    play("intermediate", [1, 2, 3], jitter, (e) => {
       if (e.type === "hit" && e.player === "you" && e.kind !== "serve") c[e.grade] = (c[e.grade] || 0) + 1
     })
     const tot = Object.values(c).reduce((a, b) => a + b, 0)

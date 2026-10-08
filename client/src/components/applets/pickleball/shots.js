@@ -441,7 +441,8 @@ export const planIntent = ({ team, from, incoming = null, target, pace = 0.3, sh
   } else {
     const f = (pace - HARD_MIN) / (1 - HARD_MIN)
     kind = shotNo === 2 ? "return" : from.y > 1.45 && dist < 5.5 ? "smash" : dist < 4.2 ? (inSpeed > FAST_BALL ? "counter" : "speedup") : "drive"
-    mode = { speed: 15 + 9 * f }
+    // (an overhead comes down from above: 40-60 mph)
+    mode = { speed: kind === "smash" ? 18 + 9 * f : 15 + 9 * f }
     spin = kind === "smash" ? 60 : 130
     brush = kind === "smash" ? 2.5 : 4.5
     minClear = 0.05

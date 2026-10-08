@@ -503,8 +503,8 @@ export const strike = (m, p, { forced = false } = {}) => {
     offset = ai ? lv.offset : 0.01
     // (a serve is a rehearsed, unhurried swing: a little steadier than a rally shot, but a
     // deep, paced serve still misses now and then: pros fault on a few percent of serves)
-    face = ai ? lv.face * 0.85 : 0.008 * q.face
-    touch = ai ? lv.touch * 0.75 : 0.03 * q.touch
+    face = ai ? lv.face * 0.7 : 0.008 * q.face
+    touch = ai ? lv.touch * 0.6 : 0.03 * q.touch
   } else if (ai) {
     // ---- a computer player ----
     const req = m.practice?.shot?.(m, p) || aiShot(m, p, lv)
@@ -512,10 +512,13 @@ export const strike = (m, p, { forced = false } = {}) => {
     // a hard ball at the net: did they get their hands there in time?
     const avail = m.lastShot ? m.t - m.lastShot.t : 1
     let delta = aiTiming(lv, m.rand, window)
-    if (fast && avail < lv.hands) {
+    // (lv.hands is the time they need for an 18 m/s (40 mph) ball; a harder one needs more:
+    // the paddle has further to come round relative to the ball)
+    const need = lv.hands * Math.max(1, inSpeed / 18)
+    if (fast && avail < need) {
       // (too quick for their hands: the paddle never gets there; a little less quick: late)
-      if (avail < lv.hands * 0.62) return null // beaten
-      delta = window * (2.4 + ((lv.hands - avail) / lv.hands) * 4) // late
+      if (avail < need * 0.62) return null // beaten
+      delta = window * (2.4 + ((need - avail) / need) * 4) // late
     }
     pace = clamp(req.pace + gauss(m.rand) * 0.04, 0, 1)
     q = shotQuality(delta, { window, kind: pace < 0.36 ? "dink" : "drive" })
@@ -687,7 +690,10 @@ export const applyStrike = (m, p, s) => {
     // returner crosses); a poacher carries on across and the partner switches behind
     const st = m.stack?.[p.team]
     if (st && (shotNo === 1 || shotNo === 2)) for (const q of m.players) if (q.team === p.team && st.pref[q.id]) q.lane = st.pref[q.id]
-    if (m.plans?.[p.team]?.poach && m.plans[p.team].player === p.id) for (const q of m.players) if (q.team === p.team) q.lane = q.lane === "right" ? "left" : "right"
+    if (m.plans?.[p.team]?.poach && m.plans[p.team].player === p.id) {
+      for (const q of m.players) if (q.team === p.team) q.lane = q.lane === "right" ? "left" : "right"
+      r.poached = true
+    }
   }
   m.version++
   emit(m, { type: "hit", player: p.id, team: p.team, kind: s.kind, speed, volley: s.volley, x: ball.p.x, y: ball.p.y, z: ball.p.z, paddle: s.paddle, grade: s.grade, risky: s.risky, hand: s.hand, human: p.ctrl !== "cpu" && p.ctrl !== "feeder", label: j.text, tone: j.tone, tag: j.tag, fast: !!s.fast, attackH: a.attackH, aim: s.aim, intent: s.intent ?? null, planned: s.landing })

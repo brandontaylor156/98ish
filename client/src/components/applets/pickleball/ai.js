@@ -117,7 +117,7 @@ export const LEVELS = {
     reset: 0.85,
     bang: 0,
     patience: 2,
-    impatience: 0.26,
+    impatience: 0.4,
     attack: 0.01,
     sense: 1,
     hands: 0.22,
@@ -150,7 +150,7 @@ export const LEVELS = {
     reset: 0.85,
     bang: 0,
     patience: 2,
-    impatience: 0.45,
+    impatience: 0.5,
     attack: -0.01,
     sense: 1,
     hands: 0.2,
@@ -338,8 +338,8 @@ export const planTeam = (m, team) => {
       if (!mine && Math.abs(plan.x) > 0.3) {
         score += 0.8
         // a poach: the net player crosses to put away a floater in the partner's half
-        if (plan.volley && plan.y > NET_H_CENTER + 0.1 && Math.abs(p.z) < 3.4 && (lv.poach || 0) > 0) {
-          score -= 0.95 * lv.poach
+        if (plan.volley && plan.y > NET_H_CENTER - 0.05 && Math.abs(p.z) < 3.4 && (lv.poach || 0) > 0) {
+          score -= 1.2 * lv.poach
           poach = true
         }
       }
@@ -556,15 +556,15 @@ export const aiShot = (m, p, lv = p.level, at = m.ball, rand = m.rand) => {
   if (dist < 3.8) {
     // at the kitchen line with a low ball
     if (!oppsAtNet) return rand() < 0.5 ? { pace: soft(0.2), target: t.dink(false), intent: "dink" } : { pace: 0.45 + rand() * 0.2, target: t.deep(), intent: "drive" }
-    if (crowding && rand() < lv.lob * 0.25) return { pace: soft(0.2), target: t.lob(), intent: "lob" }
+    // (against a ball machine it's a drill: keep dinking unless the ball is really up)
+    const drilling = opps.every((q) => q.ctrl === "feeder")
+    if (crowding && !drilling && rand() < lv.lob * 0.25) return { pace: soft(0.2), target: t.lob(), intent: "lob" }
     // The dink battle: wait for a ball you can attack. Pros start attacking a dink they meet
     // at about thigh height (a roll volley or a flick at the hip from below the tape, a
     // speed-up from above it), a little lower once they're itchy (patience, impatience);
     // beginners attack anything, badly. A dink at the ankles just gets dinked again.
     const itchy = dinks >= lv.patience
     const thr = (lv.attackH ?? 0.7) - (itchy ? lv.impatience * 0.25 : 0)
-    // (against a ball machine it's a drill: keep dinking unless the ball is really up)
-    const drilling = opps.every((q) => q.ctrl === "feeder")
     const want = drilling ? 0 : clamp((y - thr) / 0.15, 0, 1) * (itchy ? 1 : 0.6)
     if (rand() < lv.bang * 0.6 || rand() < want) {
       const roll = y < NET_H_CENTER - 0.04 && rand() < (sense >= 1 ? 0.45 : sense > 0 ? 0.5 : 0.15)

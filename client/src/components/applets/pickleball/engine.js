@@ -119,6 +119,8 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
       if (venue === v && wx && settings.realWeather) v.setWeather(wx)
     })
   }
+  // the ball the venue plays: indoor (a hall's custom venue says so) or outdoor
+  const ballKindOf = (v) => (v && typeof v === "object" && v.ball === "indoor" ? "indoor" : "outdoor")
   const setVenue = (id) => {
     const custom = id && typeof id === "object" && id.build ? id : null
     const next = custom ? custom.key : VENUES[id] ? id : "park"
@@ -522,7 +524,7 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
     cut = null
     humans = opts.humans || 1
     setVenue(opts.venue || (demo ? "stadium" : venueId))
-    match = createMatch({ assist: settings.assist, window: settings.window, ...opts })
+    match = createMatch({ assist: settings.assist, window: settings.window, ball: ballKindOf(opts.venue), ...opts })
     match.autoplay = demo
     mode = demo ? "demo" : "local"
     trailHistory.length = 0
@@ -1923,7 +1925,7 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
       const withLooks = people.map((p) => ({ ...p, look: p.look && typeof p.look === "object" ? validateLook(p.look, characterLook(p.character || DEFAULT_LOOKS[p.seat % 4], p.outfit)) : lookFor(p.character || DEFAULT_LOOKS[p.seat % 4], p.outfit) }))
       const { roster, doubles } = onlineRoster(withLooks, { doubles: s.doubles, level: s.level || "intermediate" })
       const named = roster.map((r, i) => (r.ctrl === "cpu" ? { ...r, character: CHARACTERS[(i * 3 + 2) % 9].id, look: lookFor(CHARACTERS[(i * 3 + 2) % 9].id), name: `${CHARACTERS[(i * 3 + 2) % 9].nick} (CPU)` } : r))
-      const options = { doubles, scoring: s.scoring || "sideout", target: s.target || 11, assist: settings.assist, window: settings.window }
+      const options = { doubles, scoring: s.scoring || "sideout", target: s.target || 11, assist: settings.assist, window: settings.window, ball: ballKindOf(s.venueBuild || s.venue) }
       if (role === "host") {
         guest = null
         match = createMatch({ ...options, roster: named.map((r) => (r.seat === seat ? { ...r, ctrl: "human", slot: 0 } : r)), seed })

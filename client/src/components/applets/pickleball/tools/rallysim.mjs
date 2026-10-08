@@ -92,10 +92,10 @@ export const simulate = ({ level = "pro", games = 6, seed0 = 1, doubles = true, 
           }
         } else if (e.type === "rally") {
           const last = shots.at(-1)
-          // the dink phase and the first attack out of it (a speed-up or roll after a dink)
+          // the dink phase and the first speed-up of the rally (as the PPA stats count them)
           const dinks = shots.filter((s) => s.kind === "dink").length
           if (dinks) dinkCounts.push(dinks)
-          const ATT = new Set(["speedup", "roll"])
+          const ATT = new Set(["speedup"])
           const first = shots.findIndex((s, i) => i > 2 && ATT.has(s.kind))
           attacks += shots.filter((s, i) => i > 2 && ATT.has(s.kind)).length
           if (first >= 0) {

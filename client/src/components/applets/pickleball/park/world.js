@@ -263,7 +263,7 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
   const startGame = (c, entries, starts = [], { score = null } = {}) => {
     c.gameNo++
     c.on = entries
-    c.match = createMatch({ doubles: true, scoring: "rally", target: AI_TARGET, level: c.def.level, seed: (seed + c.def.id * 7919 + c.gameNo * 104729) >>> 0, assist: "reflex", roster: rosterOf(c, entries) })
+    c.match = createMatch({ doubles: true, scoring: "rally", target: AI_TARGET, level: c.def.level, seed: (seed + c.def.id * 7919 + c.gameNo * 104729) >>> 0, assist: "reflex", roster: rosterOf(c, entries), ball: layout.spec?.indoor ? "indoor" : "outdoor" })
     if (score) c.match.game.score = [...score]
     c.match.players.forEach((p, i) => {
       const s = starts[i]
