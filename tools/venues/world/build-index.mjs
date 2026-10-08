@@ -38,7 +38,8 @@ import { planTiles, quarters, isCovered, townBoxes, SMALL_LAT } from "./tiles.mj
 
 const HERE = path.dirname(fileURLToPath(import.meta.url))
 const ROOT = path.join(HERE, "../../..")
-const OUT = path.join(ROOT, "client/public/venues/idx")
+// (--out DIR: write the index somewhere else, e.g. to look at a build before it ships)
+const OUT = process.argv.includes("--out") ? path.resolve(process.argv[process.argv.indexOf("--out") + 1]) : path.join(ROOT, "client/public/venues/idx")
 const F = await import(pathToFileURL(path.join(ROOT, "client/src/components/applets/pickleball/park/live/finder.js")).href)
 
 const arg = (k, d = null) => {
@@ -192,6 +193,11 @@ const ask = async (name, file, query, tries = 2) => {
     if (name === "towns") {
       // (CSV has no room for an error: an answer counts only with its closing "__end__" row)
       if (remark || /<html|<\?xml/i.test(text.slice(0, 200)) || !text.includes("__end__")) {
+        // (cut off at its 90 s: too many towns in one ask, so the caller halves it)
+        if (Date.now() - t0 > 85_000 && !/Dispatcher/i.test(remark)) {
+          console.log(`  ${label} @${host}: cut off after ${((Date.now() - t0) / 1000).toFixed(0)} s`)
+          return null
+        }
         tired(ep)
         console.log(`  ${label} @${host}: ${remark.slice(0, 110) || "not CSV"}; resting it`)
         continue
@@ -249,12 +255,28 @@ const askQuarters = async (tile) => {
   return out
 }
 // the towns for a tile's courts (one CSV query; none when the tile has no courts)
-const askTowns = async (tile, elements) => {
-  const pts = elements.filter((e) => F.indexKind(e) === "features").map((e) => (e.center ? [e.center.lat, e.center.lon] : [e.lat, e.lon])).filter(([a]) => Number.isFinite(a))
+// (a busy area's towns that don't fit one ask are asked in halves: towns-<tile>_a, _ab, ...)
+const askTowns = async (tile, elements, part = "") => {
+  const pts = (part ? elements : elements.filter((e) => F.indexKind(e) === "features").map((e) => (e.center ? [e.center.lat, e.center.lon] : [e.lat, e.lon]))).filter(([a]) => Number.isFinite(a))
   if (!pts.length) return
-  const d = await ask("towns", cacheFile("towns", tile), QUERIES.towns(townBoxes(pts)), 4)
-  if (d === null) failed.push(`towns ${tile}`)
-  return d
+  const name = tile.join("_") + (part ? `_${part}` : "")
+  const file = path.join(CACHE, `towns-${name}.json`)
+  // (asked in halves on an earlier run: the halves carry on, the whole isn't asked again)
+  const child = (k) => path.join(CACHE, `towns-${tile.join("_")}_${part}${k}.json`)
+  const begunInHalves = !REFRESH && !fs.existsSync(file) && fs.readdirSync(CACHE).some((f) => f.startsWith(path.basename(child("a"), ".json")))
+  if (!begunInHalves) {
+    const d = fs.existsSync(file) && !REFRESH ? true : await ask("towns", file, QUERIES.towns(townBoxes(pts)), 1)
+    if (d !== null) return d
+    if (townBoxes(pts).length < 2 || part.length >= 4) {
+      failed.push(`towns ${name}`)
+      return d
+    }
+  }
+  // halves by longitude
+  pts.sort((x, y) => x[1] - y[1])
+  const mid = Math.ceil(pts.length / 2)
+  for (const [k, half] of [["a", pts.slice(0, mid)], ["b", pts.slice(mid)]]) if ((await askTowns(tile, half, part + k)) === DEFERRED) return DEFERRED
+  return true
 }
 
 const plan = planTiles(REGION)
