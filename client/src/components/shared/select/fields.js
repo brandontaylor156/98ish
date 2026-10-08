@@ -31,6 +31,24 @@ export const controlFor = (target) => {
   return control && pickerKind(control) ? control : null
 }
 
+// On touch screens the fields themselves take no touches at all (Select.css: pointer-events
+// none), so the phone can never open its own picker for them, whatever order an iPhone sends
+// a tap's events in. A tap lands on what's under the field instead (its row, its label, the
+// window): this finds the field at that point: the target's own field, or one inside the
+// target whose box holds the point. (Only inside it: a dialog's backdrop over a window must
+// not reach the window's fields behind it.)
+export const controlAt = (target, x, y) => {
+  const own = controlFor(target)
+  if (own) return own
+  if (!target || target.nodeType !== 1 || !target.querySelectorAll) return null
+  for (const el of target.querySelectorAll("select, input")) {
+    if (!pickerKind(el)) continue
+    const r = el.getBoundingClientRect()
+    if (x >= r.left - 1 && x <= r.right + 1 && y >= r.top - 1 && y <= r.bottom + 1) return el
+  }
+  return null
+}
+
 // set a value through the element's own (prototype) setter, the way typing would, so
 // React's value tracking notices; then the events a real choice fires
 const setThrough = (el, prop, value) => {
