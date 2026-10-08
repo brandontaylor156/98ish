@@ -12,6 +12,42 @@ export const noteGesture = (field) => {
   lastGesture = performance.now()
   if (field !== undefined) tapped = field
 }
+// Runs fn once the tap in progress is over: just after its click (or shortly after the finger
+// lifts when no click comes: a hold, a scroll). Bringing the keyboard up during the tap moves
+// the page (phone windows end above the keyboard), and the mouse events a phone makes up at
+// the end of a tap then landed on whatever had moved under the finger: in Appward's sign-in
+// (a centered box with an autofocused field) the tap's mousedown hit the text above the
+// field, focus left it, and the keyboard went away again. Returns a cancel function.
+export const afterTap = (fn, win = globalThis.window) => {
+  let done = false
+  let timer = 0
+  const cleanup = () => {
+    clearTimeout(timer)
+    win.removeEventListener("click", onClick, true)
+    win.removeEventListener("pointerup", onUp, true)
+    win.removeEventListener("pointercancel", onUp, true)
+  }
+  const go = () => {
+    if (done) return
+    done = true
+    cleanup()
+    fn()
+  }
+  const onClick = () => setTimeout(go, 0)
+  const onUp = () => {
+    clearTimeout(timer)
+    timer = setTimeout(go, 450)
+  }
+  win.addEventListener("click", onClick, true)
+  win.addEventListener("pointerup", onUp, true)
+  win.addEventListener("pointercancel", onUp, true)
+  timer = setTimeout(go, 2000) // a press that never ends (the app went to the background)
+  return () => {
+    done = true
+    cleanup()
+  }
+}
+
 // A field marked data-kb-auto (Speed Typist's race box) always wants the keyboard when it's
 // typable and focused, touch or no touch: typing is the whole point of the screen. Our
 // keyboard is a page element, so unlike the phone's it can come up without a gesture.

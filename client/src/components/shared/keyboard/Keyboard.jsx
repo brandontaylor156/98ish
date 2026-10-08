@@ -5,7 +5,7 @@ import { PAD_LETTERS, alternatesFor, isPad, rowsFor } from "./layouts"
 import { balloonFor, deleteRepeat, hitTest, layoutKeys, metricsFor, stripFor, stripIndex } from "./geometry"
 import { wantsCapital, wantsPeriod } from "./editing"
 import { focusNext, moveBy, pressKey, textBefore } from "./typing"
-import { KB_WANT, noteGesture, suppress, wantsKeyboard } from "./native"
+import { KB_WANT, afterTap, noteGesture, suppress, wantsKeyboard } from "./native"
 import { haptic, keyClick } from "./feedback"
 import { BackIcon, EnterIcon, KeyboardIcon, ShiftIcon } from "./icons"
 import "./Keyboard.css"
@@ -166,8 +166,12 @@ const Keyboard = () => {
       const el = textFieldFor(e.target)
       if (!el || el !== document.activeElement || el.dataset.kbNative || el === live.current.field) return
       clearTimeout(outTimer)
-      setDormant(false)
-      setField(el)
+      // after the tap (native.js afterTap: showing it now moves the page under the finger)
+      afterTap(() => {
+        if (document.activeElement !== el) return
+        setDormant(false)
+        setField(el)
+      })
     }
     // an app asking for the keyboard on its focused field (requestKeyboard: Speed Typist's
     // race box turning typable at the green light, or coming back into view)
@@ -255,11 +259,19 @@ const Keyboard = () => {
   // a tap on the field itself brings the keyboard back up (after focus from code)
   useEffect(() => {
     if (!field) return
+    let cancel = null
     const onDown = (e) => {
-      if (textFieldFor(e.target) === live.current.field) setDormant(false)
+      const el = live.current.field
+      if (textFieldFor(e.target) !== el) return
+      // once the tap is over (afterTap): coming up mid-tap moved the field away from the finger
+      cancel?.()
+      cancel = afterTap(() => document.activeElement === el && setDormant(false))
     }
     document.addEventListener("pointerdown", onDown, true)
-    return () => document.removeEventListener("pointerdown", onDown, true)
+    return () => {
+      cancel?.()
+      document.removeEventListener("pointerdown", onDown, true)
+    }
   }, [field])
 
   // (once a hardware keyboard has typed, it stays the way to type, field after field, until
