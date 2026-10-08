@@ -67,7 +67,7 @@ stance.mjs, sheets.py).
    only its serves (between-points time) and the hand-labeled rally are.
 7. **Statistics.** Medians with p10-p90 and a bootstrap 90% interval of the median ("CI").
    Ball numbers count only refitted flights that pass strict checks (rms < 2.5 px, >= 10 points,
-   both ends within 0.8-1.0 m of the players): 64 of 2,179 flights in the doubles matches.
+   both ends within 0.8-1.0 m of the players): 64 of 2,179 flights in the doubles matches, 22 of 960 in the singles.
 
 ## 3. Real vs. the game
 
@@ -91,6 +91,16 @@ matches pooled.
 | soft from the back (drops, resets) | 23.6 mph (22.5-25.1, n=10) | 21.5 | 21.5 |
 | return speed | 33.7 mph (30.3-50.9, n=8) | 31.6 | 31.6 |
 | game clock at the default speed | real time | 1x (no setting) | Medium = 1x |
+
+Men's singles (Staksrud v Johnson), against the game's computer Pro singles:
+
+| measure | PPA Tour (median, CI, n) | game before | game after |
+|---|---|---|---|
+| between points | **16.8 s** (12.5-18.4, n=53) | 5.9 s | **15.5 s** (+2.5 s singles serve routine) |
+| players' speed (95th percentile, near half) | 4.07 m/s (3.71-4.30, n=54) | 3.89 | 3.89 |
+| acceleration | 6.2 m/s^2 (5.5-6.6, n=54) | 6.1 | 6.1 |
+| drive speed | 42.5 mph (40.3-58.4, n=10) | (doubles 43.5) | |
+| serve speed | 52.5 mph (35-57, n=4: too few) | 41.5 | not changed |
 
 Hand-labeled rally (men's final, 22 s, the first 14 hits): serve to return 1.24 s (game 1.12),
 return to third shot 1.20 s (game 1.58), third to fourth 1.09 s; then a firm hands exchange at
@@ -117,7 +127,7 @@ Reading it:
 
 - `match.js`: `REAL_ROUTINE` (match option `routine: "real"`): the point sinks in for 4.0 s, a
   walk back at 1.4 m/s (was a brisk 2.0), the score call once everyone is in place (>= 3.2 s from
-  the point's start, at most 9 s), then a computer server's own routine of 3.6 s +-1.5 s on top
+  the point's start, at most 9 s), then a computer server's own routine of 3.6 s +-1.5 s (singles +2.5 s) on top
   of their level's `serveWait`. A tap still skips the wait, now also during a computer server's
   routine (`press`). Practice, the title's demo, online games and Game speed Fast keep the quick
   routine; tests and the simulator default to quick (seeded matches are unchanged).
@@ -127,8 +137,8 @@ Reading it:
 - `tools/rallysim.mjs`: timing (hit-to-hit gaps, rally seconds, between points from the last
   hit), ball flight (apex, net clearance, flight to the bounce), movement (kitchen arrival, speed95,
   acc95, reaction, depth by shot number), `observedKind`, `--routine=real`.
-- Tests: `ppa.test.js` (6): between points with the real routine 11.5-15 s and the quick one
-  < 7 s, Pro movement inside the tour's bands, shot speeds in the measured bands, observedKind,
+- Tests: `ppa.test.js` (7): between points with the real routine 11.5-15 s (singles 13.5-18 s)
+  and the quick one < 7 s, singles speed, Pro movement inside the tour's bands, shot speeds in the measured bands, observedKind,
   a tap hurrying a computer server, the Game speed defaults.
 
 ## 5. Speed settings: "Medium"
@@ -175,7 +185,8 @@ upright hip-to-ankle reads 0.74 m, so use the ratios). n = pose samples.
   feet 0.38 (n=239: groundstrokes come up out of the crouch); in transition 88%, knees 153, feet
   0.39 (n=53).
 - **Speeds:** each player's 95th-percentile speed in a rally 3.3 m/s (men 3.6, mixed 3.5, women
-  3.2), acceleration 4.9 m/s^2 over 0.4 s (men 5.3, women 4.3): short bursts, not sprints.
+  3.2; singles 4.1), acceleration 4.9 m/s^2 over 0.4 s (men 5.3, women 4.3, singles 6.2): short
+  bursts, not sprints.
 - **Reaction:** a player standing still starts moving (> 1.2 m/s) 0.30 s after the far contact
   (0.20-0.35).
 - **Split step:** not resolvable at 10 fps; at the far side's contact players are often still

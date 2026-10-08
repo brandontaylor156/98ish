@@ -54,7 +54,7 @@ const DEAD_S = 1.25 // after the point: long enough to see it land and hear the 
 // measured from PPA Tour broadcasts (docs/ppa-reference.md), last hit to the next serve
 // ~14 s: the point sinks in and the ball comes back, a walk back at walking pace, the score
 // call, then the server's own routine (a few bounces of the ball). A tap hurries it along.
-export const REAL_ROUTINE = { dead: 4.0, walk: 1.4, intro: 3.2, introMax: 9, serve: 3.6, serveJitter: 3.0 }
+export const REAL_ROUTINE = { dead: 4.0, walk: 1.4, intro: 3.2, introMax: 9, serve: 3.6, serveJitter: 3.0, singles: 2.5 } // (singles on tour: 16.8 s, n=53)
 const MAX_HIT_Y = 2.3
 export const SWING_LEAD = 0.13 // s from letting go of the button to the paddle meeting the ball
 export const SWING_LEAD_FAST = 0.07 // a compact block or counter at the net gets there quicker
@@ -268,7 +268,7 @@ export const beginPoint = (m, { snap = false } = {}) => {
   m.ball.v = v3()
   m.ball.w = v3()
   holdBall(m, server)
-  server.serveAt = isAi(m, server) ? server.level.serveWait + (realRoutine(m) ? REAL_ROUTINE.serve + (m.rand() - 0.5) * REAL_ROUTINE.serveJitter : 0) : 0
+  server.serveAt = isAi(m, server) ? server.level.serveWait + (realRoutine(m) ? REAL_ROUTINE.serve + (m.game.doubles ? 0 : REAL_ROUTINE.singles) + (m.rand() - 0.5) * REAL_ROUTINE.serveJitter : 0) : 0
   emit(m, { type: "call", call: scoreCall(m.game), server: server.id })
 }
 

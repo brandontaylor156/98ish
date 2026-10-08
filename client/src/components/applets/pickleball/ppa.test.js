@@ -26,6 +26,13 @@ test("between points: the real routine takes ~13 s from the last hit to the next
   assert.equal(REAL_ROUTINE.walk, 1.4)
 })
 
+test("singles: a longer routine between points (tour 16.8 s, CI 12.5-18.4, n=53) and the singles players' speed (4.07 m/s, CI 3.71-4.30)", () => {
+  const S = simulate({ level: "pro", games: 2, doubles: false, routine: "real" })
+  const b = S.timing.betweenSec.median
+  assert.ok(b >= 13.5 && b <= 18, `singles between ${b} s`)
+  assert.ok(S.movement.speed95.median >= 3.4 && S.movement.speed95.median <= 4.4, `singles speed95 ${S.movement.speed95.median}`)
+})
+
 test("movement at Pro matches the tour's players (95th-percentile speed 3.31 m/s, acceleration 4.9 m/s^2, the returning team at the line 1.6 s after the return)", () => {
   const M = proRun().movement
   assert.ok(M.speed95.median >= 2.9 && M.speed95.median <= 3.8, `speed95 ${M.speed95.median}`)
