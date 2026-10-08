@@ -324,6 +324,8 @@ export const serve = (m, shot) => {
   if (m.phase !== "serve") return false
   const p = playerById(m, m.game.server)
   if (!p || m.ball.held !== p.id) return false
+  // (a drill with a friend: the feeder's tap puts the drill's feed in play, not a serve)
+  if (m.practice?.serveTap?.(m, p)) return true
   m.ball.held = null
   m.ball.v = v3(0, 0.2, 0)
   m.ball.w = v3()
@@ -725,6 +727,7 @@ export const applyRemoteStrike = (m, p, s) => {
     if (p.id !== m.game.server || m.ball.held !== p.id) return false
     if (m.phase === "intro") settleIntro(m)
     if (m.phase !== "serve") return false
+    if (m.practice?.serveTap?.(m, p)) return true
     m.phase = "rally"
     m.phaseT = 0
     m.events.push({ id: ++m.eventSeq, t: m.t, type: "toss", player: p.id })

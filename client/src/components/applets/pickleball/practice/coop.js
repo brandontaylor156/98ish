@@ -228,5 +228,12 @@ export const createCoop = (drillId, { rand = Math.random } = {}) => {
     emit(m)
   }
 
-  return { state: st, begin, tick, end, returns: false, coop: true, snap }
+  // the feeder tapped before the feed came: feed now (a drill has no serve; the serve drill does)
+  const serveTap = (m) => {
+    if (!drill.feed || st.fedAt !== null || m.phase !== "serve") return false
+    feed(m)
+    return true
+  }
+
+  return { state: st, begin, tick, end, serveTap, returns: false, coop: true, snap }
 }

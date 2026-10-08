@@ -119,7 +119,11 @@ test("battleship: placement, turns, sinking, and the other fleet is never sent u
   const { games, inbox, last, start } = setup()
   const id = start("battleship")
   const fleetA = bs.randomFleet()
-  const fleetB = bs.randomFleet()
+  // (two random fleets share an identical ship ~3.5% of the time, and the leak check below
+  // would then find your own ship's placement and call it the enemy's: re-roll until distinct)
+  let fleetB = bs.randomFleet()
+  const same = (f) => f.some((s) => fleetA.some((t) => JSON.stringify(s) === JSON.stringify(t)))
+  while (same(fleetB)) fleetB = bs.randomFleet()
   assert.equal(last("a").phase, "placing")
   assert.equal(games.gameMove("a", id, { fleet: fleetA.slice(0, 3) }).ok, false)
   assert.equal(games.gameMove("a", id, { cell: 0 }).ok, false) // can't fire yet
