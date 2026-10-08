@@ -171,47 +171,14 @@ All kept, and each now sits on real numbers:
 - **Ball machine speeds** (Slow / Medium / Fast): unchanged feeds (drives 25 / 32 / 40 mph,
   volleys 25 / 30 / 36), now flown with the new ball.
 - **Timing** (Relaxed / Normal / Strict) and **Focus** slow-motion: unchanged.
-Ask the owner if "speed settings" meant something else (no game-speed option existed).
+(2026-10-08) The owner answered "Medium is fine, but whatever is ultra realistic": a **Game speed**
+setting now exists (Slow 0.8x / **Medium = real life**, the default / Fast 1.2x), and Medium also plays
+the tour's between-points routine (~13 s), measured from PPA Tour footage: docs/ppa-reference.md.
 
 ## 8. Measurements: before -> after
 
 All-computer doubles, rally scoring to 11, 16 games a level (~300 points each), the same seeds
-before and after: eginner (0 points): rally {"mean":null,"median":null,"p90":null,"max":null,"upTo4":null,"upTo9":null,"tenPlus":null,"twentyPlus":null}
- mix {}
- mph 
- third {} fifth-after-drive {}
- serve {"mph":null,"faultPct":0,"depthFromBaseline":{"median":null,"p90":null}} return {"median":null,"p90":null,"within2m":0}
- bounce apex ; drive flight null s
- dink phase {"ralliesWithDinks":null,"dinksMean":null,"attacksPerRally":null,"firstAttackWins":0}
- contact height after 
- ends {}
-intermediate (0 points): rally {"mean":null,"median":null,"p90":null,"max":null,"upTo4":null,"upTo9":null,"tenPlus":null,"twentyPlus":null}
- mix {}
- mph 
- third {} fifth-after-drive {}
- serve {"mph":null,"faultPct":0,"depthFromBaseline":{"median":null,"p90":null}} return {"median":null,"p90":null,"within2m":0}
- bounce apex ; drive flight null s
- dink phase {"ralliesWithDinks":null,"dinksMean":null,"attacksPerRally":null,"firstAttackWins":0}
- contact height after 
- ends {}
-pro (0 points): rally {"mean":null,"median":null,"p90":null,"max":null,"upTo4":null,"upTo9":null,"tenPlus":null,"twentyPlus":null}
- mix {}
- mph 
- third {} fifth-after-drive {}
- serve {"mph":null,"faultPct":0,"depthFromBaseline":{"median":null,"p90":null}} return {"median":null,"p90":null,"within2m":0}
- bounce apex ; drive flight null s
- dink phase {"ralliesWithDinks":null,"dinksMean":null,"attacksPerRally":null,"firstAttackWins":0}
- contact height after 
- ends {}
-legend (0 points): rally {"mean":null,"median":null,"p90":null,"max":null,"upTo4":null,"upTo9":null,"tenPlus":null,"twentyPlus":null}
- mix {}
- mph 
- third {} fifth-after-drive {}
- serve {"mph":null,"faultPct":0,"depthFromBaseline":{"median":null,"p90":null}} return {"median":null,"p90":null,"within2m":0}
- bounce apex ; drive flight null s
- dink phase {"ralliesWithDinks":null,"dinksMean":null,"attacksPerRally":null,"firstAttackWins":0}
- contact height after 
- ends {}.
+before and after.
 "Before" is commit cbb819a run with the same simulator. Shots count the serve (as the PPA stats
 wraps do).
 
@@ -280,6 +247,10 @@ Other checks (scratchpad scripts, not in the repo):
   (about 1 in 6 Pro games, as on tour) and round-the-post shots rarer still.
 
 ## 9. Left / next
+
+- **Checked against PPA Tour footage (2026-10-08, docs/ppa-reference.md):** movement, kitchen
+  arrival, reaction and shot speeds match; between points was changed; returns may be flatter on
+  tour (not changed: one end camera can't measure heights reliably).
 
 - **Not felt on a real iPhone.** The physics is measured against data, not against the owner's
   hands: the soft game may feel harder (resets of hard balls now fail more, as they do for real).
