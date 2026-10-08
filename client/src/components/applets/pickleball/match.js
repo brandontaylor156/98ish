@@ -74,6 +74,24 @@ const HOME_GLIDE = 0.9
 const HOME_EASE = 3
 // (only for recoveries shorter than this (m))
 const HOME_NEAR = 0.8
+// A doubles team coming in from the back in stages (ai.js afterShot: "step", then the line)
+// walks in through the transition zone and is still walking in as the other side plays the next
+// ball: the split step is a hop on the way, not a stop (PPA footage: 1.73 m/s in the transition
+// zone at the far contact; the game's teams used to sprint up to the zone and stand there,
+// 0.67). They watch their drop for WALK.watch s, then go: quick steps that ease down to
+// WALK.split m/s at WALK.at m from the net as the other side hits (front-loaded, the pace
+// falling as the cube of the time left: a short burst, then a walk: speed95 and acc95 stay
+// near the tour's). Timed by the other side's contact (their plan's at); WALK.free m/s if
+// that isn't known. Computer players only: nothing moves a person's player.
+export const WALK = { at: 3.4, split: 1.9, watch: 0.3, creep: 0.4, min: 1.2, free: 1.7, k: 3 }
+export const walkIn = (m, p, left, speed) => {
+  const since = m.lastShot && m.lastShot.team === p.team ? m.t - m.lastShot.t : 9
+  if (since < WALK.watch) return WALK.creep
+  const D = Math.abs(p.z) - WALK.at
+  // (the pace that, falling as (time left)^k, ends at WALK.split right at WALK.at)
+  const pace = D <= 0 ? WALK.min : left !== null && left > 0.05 ? WALK.split + (WALK.k + 1) * (D / left - WALK.split) : WALK.free
+  return clamp(pace, WALK.min, speed)
+}
 const NET_ZONE = 4.6 // m from the net: inside this, a fast ball at you is a hand battle
 
 // a hard ball coming at a player near the net (a speed-up or a drive): a hand battle
@@ -989,8 +1007,10 @@ const movePlayer = (m, p, dt) => {
       if (ai && p.homing && !between && m.game.doubles) {
         const opp = m.plans?.[1 - p.team]
         const left = opp && opp.at !== undefined && !opp.letGo ? opp.at - m.t : null
+        // (a team coming in from the back in stages walks in through the split: walkIn)
+        if (m.teamDepth[p.team] === "step" && m.teamStage?.[p.team]) s = Math.min(s, walkIn(m, p, left, speed))
         // (small adjustments only: a long recovery is still a burst, as on tour)
-        if (left !== null && left > 0.12 && d < HOME_NEAR) s = Math.min(speed, Math.sqrt(2 * HOME_EASE * d), Math.max(HOME_GLIDE, (1.4 * d) / left))
+        else if (left !== null && left > 0.12 && d < HOME_NEAR) s = Math.min(speed, Math.sqrt(2 * HOME_EASE * d), Math.max(HOME_GLIDE, (1.4 * d) / left))
       }
       wantX = (dx / d) * s
       wantZ = (dz / d) * s
