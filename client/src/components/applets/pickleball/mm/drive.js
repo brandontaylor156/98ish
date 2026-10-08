@@ -14,6 +14,8 @@ import { qrot } from "./quat.js"
 
 // the captures' standing hip height (Neutral idles, retargeted; measured)
 const STAND_HIP = 0.955
+// how far the hips may come up above an athletic capture's to stand as tall as the tour's ready
+export const RISE = 0.12
 const sub = (a, b) => ({ x: a.x - b.x, y: a.y - b.y, z: a.z - b.z })
 const len = (a) => Math.hypot(a.x, a.y, a.z)
 const norm = (a) => {
@@ -59,12 +61,21 @@ export const driveMM = (a, s, mv, dt, o) => {
   // retarget, so a 3 cm crouch was a 5 cm one)
   const wantY = (s.between ? Math.max(HIP_Y, STAND_HIP) : HIP_Y) - (o.crouch ?? 0)
   // (down: a low ball the arm can't reach down to, on top of whatever the capture does)
-  const drop = Math.max(0, mocapY - wantY) + (o.down || 0)
+  // (in a rally the athletic captures (100STYLE BentKnees) sit deeper than PPA pros stand
+  // ready: docs/ppa-reference.md measured hips at 85-90% of upright on a wide base. Standing or
+  // moving slowly the hips come up toward the wanted height, up to RISE above the capture;
+  // the legs straighten to the pinned feet. Running, the capture's own posture.)
+  const rise = s.between ? 0 : RISE * Math.max(0, Math.min(1, 1 - (speed - 1.2) / 1.3))
+  const drop = Math.max(-rise, mocapY - wantY) + (o.down || 0)
   const hop = o.hopY || 0
-  const p = solveMMPose(a.mmPose, out, dt, { drop, still: speed < 0.6 && !hop, lift: hop > 0 ? [hop, hop] : [0, 0], stance: o.stance, stanceW: Math.max(0, Math.min(1, 1 - (speed - 0.6) / 1.4)), shift: o.shift || null, reach: o.reach || null })
+  // (in a rally the height is the hips' above the standing ankle, as the footage measured it:
+  // a capture up on the balls of the feet would otherwise read ~5 cm lower than asked)
+  const hipAbove = s.between ? undefined : wantY - ANKLE_Y
+  const p = solveMMPose(a.mmPose, out, dt, { drop, hipAbove, rise, down: o.down || 0, still: speed < 0.6 && !hop, lift: hop > 0 ? [hop, hop] : [0, 0], raise: hop, stance: o.stance, stanceW: Math.max(0, Math.min(1, 1 - (speed - 0.6) / 1.4)), shift: o.shift || null, reach: o.reach || null })
   const P = p.P
-  // the hop: the whole body up
-  if (hop) for (const k of Object.keys(P)) P[k] = { x: P[k].x, y: P[k].y + hop, z: P[k].z }
+  // (the hop: the whole body up, solved in solveMMPose: the pelvis raised by it and the feet
+  // lifted by it, once. It used to be added again to every joint afterwards, lifting the feet
+  // twice as high as the hips: an overhead's 25 cm jump drew a 50 cm tuck)
   const D = p.D
   const pelvis = P[B.pelvis]
   const neck = P[B.neck_01]

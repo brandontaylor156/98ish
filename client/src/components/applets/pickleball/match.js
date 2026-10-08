@@ -65,6 +65,15 @@ const STRETCH = 1.15 // a person reaches this much past REACH for a ball at its 
 export const DEFAULT_WINDOW = 0.06 // the perfect timing zone, +- seconds
 // maxY: the highest ball you can play (2.4: an overhead jumps up to it, pro.js overheadLift)
 const HUMAN = { speed: 4.0, reaction: 0.05, judge: 0.15, maxY: 2.4 }
+// how hard a computer player's momentum is checked while they read a new ball (m/s^2): a
+// split step, not a stop dead (movePlayer)
+const SPLIT_BRAKE = 4
+// the slowest a computer player glides back to their spot when there's time (m/s)
+const HOME_GLIDE = 0.9
+// and how gently they ease into it (m/s^2: a glide, not the 9 m/s^2 of a stop at a ball)
+const HOME_EASE = 3
+// (only for recoveries shorter than this (m))
+const HOME_NEAR = 0.8
 const NET_ZONE = 4.6 // m from the net: inside this, a fast ball at you is a hand battle
 
 // a hard ball coming at a player near the net (a speed-up or a drive): a hand battle
@@ -249,6 +258,7 @@ export const beginPoint = (m, { snap = false } = {}) => {
   m.rally = createRally(m.game)
   m.teamDepth = ["back", "back"]
   m.teamDepth[1 - m.game.serving] = "net"
+  m.teamStage = [null, null]
   servePositions(m, snap)
   m.phase = "intro"
   m.phaseT = 0
@@ -952,12 +962,36 @@ const movePlayer = (m, p, dt) => {
   let target = null
   if (between || ai) target = p.target
   else if (!manual && assist === "full" && p.intercept && !p.intercept.letGo && m.phase === "rally") target = p.intercept.stand
+  // (a computer player reading a new ball, before they react: the split step. They don't
+  // stop dead: momentum already going the ball's way carries on, checked gently (pros are
+  // still drifting ~1 m/s at the other side's contact, PPA footage); momentum the wrong way is
+  // checked hard, as the split step's landing does. Never faster than easing into the spot.)
+  if (ai && !between && target && m.t < p.reactAt) {
+    const dx = target.x - p.x
+    const dz = target.z - p.z
+    const d = Math.hypot(dx, dz)
+    if (d > 0.03) {
+      const along = (p.vx * dx + p.vz * dz) / d
+      const keep = Math.min(Math.max(0, along - SPLIT_BRAKE * dt), Math.sqrt(2 * 9 * d))
+      wantX = (dx / d) * keep
+      wantZ = (dz / d) * keep
+    }
+  }
   if (target && (m.t >= p.reactAt || between)) {
     const dx = target.x - p.x
     const dz = target.z - p.z
     const d = Math.hypot(dx, dz)
     if (d > 0.03) {
-      const s = Math.min(between ? Math.min(lv.speed * 0.7, realRoutine(m) ? REAL_ROUTINE.walk : WALK_BACK) : speed, Math.sqrt(2 * 9 * d)) // ease into the spot
+      let s = Math.min(between ? Math.min(lv.speed * 0.7, realRoutine(m) ? REAL_ROUTINE.walk : WALK_BACK) : speed, Math.sqrt(2 * 9 * d)) // ease into the spot
+      // (recovering to their spot, a computer player times it to arrive as the other side
+      // hits, gliding in rather than sprinting there and standing: pros are still moving
+      // ~1 m/s at the far contact, PPA footage; docs/ppa-reference.md)
+      if (ai && p.homing && !between && m.game.doubles) {
+        const opp = m.plans?.[1 - p.team]
+        const left = opp && opp.at !== undefined && !opp.letGo ? opp.at - m.t : null
+        // (small adjustments only: a long recovery is still a burst, as on tour)
+        if (left !== null && left > 0.12 && d < HOME_NEAR) s = Math.min(speed, Math.sqrt(2 * HOME_EASE * d), Math.max(HOME_GLIDE, (1.4 * d) / left))
+      }
       wantX = (dx / d) * s
       wantZ = (dz / d) * s
     }
@@ -1065,6 +1099,8 @@ const think = (m) => {
     if (m.phase === "rally" && isLive(r) && r.lastTeam !== null && !m.ball.held) {
       const team = 1 - r.lastTeam
       const plan = planTeam(m, team)
+      // (when that team will hit: the other side times its recovery to it)
+      if (plan.player && plan.t !== undefined) plan.at = m.t + plan.t
       m.plans[team] = plan
       for (const p of m.players) {
         if (p.team !== team) continue
@@ -1089,9 +1125,13 @@ const think = (m) => {
     }
     const plan = m.plans[p.team]
     const mine = plan && plan.player === p.id && !plan.letGo
+    p.homing = false
     if (mine && isAi(m, p)) p.target = plan.stand
     else if (p.dodge && isAi(m, p) && m.phase === "rally") p.target = p.dodge
-    else if (m.phase === "rally" || m.phase === "dead") p.target = homeFor(m, p)
+    else if (m.phase === "rally" || m.phase === "dead") {
+      p.target = homeFor(m, p)
+      p.homing = m.phase === "rally"
+    }
     if (isAi(m, p) && m.phase === "rally") {
       // a computer partner leaves the ball to a person who is already swinging at it
       const deferring = m.players.some((q) => q.team === p.team && q !== p && (q.ctrl === "human" || q.ctrl === "remote") && (q.charge || q.armed) && Math.hypot(m.ball.p.x - q.x, m.ball.p.z - q.z) < 2.5)

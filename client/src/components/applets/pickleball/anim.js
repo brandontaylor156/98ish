@@ -42,7 +42,7 @@ import { ON_HANDLE, createStroke, mixPose, predictContact, stepStroke } from "./
 import { armIK, limitStep, limitTurn, lookToward, pushOut, ramp, smoothW } from "./upper.js"
 import { sideOf } from "./rules.js"
 import { FAST_BALL } from "./shots.js"
-import { CROSS, READY, SPLIT, lungePlan, overheadLift, quickSteps, readyFor, shouldSplit, splitHeight, stepIn, weightFor } from "./pro.js"
+import { CROSS, OVERHEAD_SET, READY, SPLIT, dropStep, isOverhead, landingSink, lungePlan, overheadLift, overheadTurn, quickSteps, readyFor, shouldSplit, splitHeight, stepIn, weightFor } from "./pro.js"
 import { motionLibrary } from "./mm/runtime.js"
 import { qaxis, qmul, qrot } from "./mm/quat.js"
 import { driveMM } from "./mm/drive.js"
@@ -171,8 +171,15 @@ export { createGait, updateGait }
 // how much lower a stroke gets (knees), by the shot
 const SERVE_Y = 0.52 // the serve's contact height (match.js SERVE_CONTACT_Y)
 // (pros get low from the knees AND a hinge at the hips, not a deep squat: these are small)
-const CROUCH = { drive: 0.03, return: 0.03, slice: 0.02, dink: 0.05, drop: 0.04, block: 0.03, reset: 0.05, punch: 0.02, speedup: 0.02, counter: 0.02, roll: 0.04, lob: 0.04, smash: 0.01, serve: 0.03 }
+// (PPA footage: at their own contact at the kitchen line pros' hips stay at ~87% of upright on
+// a wide base: the dink is played from the wide stance and a hinge, with little extra knee)
+const CROUCH = { drive: 0.03, return: 0.03, slice: 0.02, dink: 0.03, drop: 0.03, block: 0.02, reset: 0.035, punch: 0.02, speedup: 0.02, counter: 0.02, roll: 0.03, lob: 0.04, smash: 0.01, serve: 0.03 }
+// (motion matching: a pinned foot settles anywhere within ~7 cm of where the capture has it, so
+// the ready stance is asked a little wider to land at the tour's width: pro.js READY)
+const MM_WIDE = 0.035
 const MAX_CROUCH = 0.24 // (outside lunges: lower than this, the trunk bends instead)
+// strokes played off the bounce from the back, which rise out of the ready crouch
+const GROUND = new Set(["drive", "return", "slice", "drop", "lob", "reset", "roll"])
 
 // ---- the whole body ----
 
@@ -204,7 +211,7 @@ export const createAnim = (x, z, yaw) => ({
   t: 0,
   // the upper body: layer weights, the stroke, the pop limiter's last targets, the elbows'
   // bends, the head
-  w: { relax: 0, pumpP: 0, pumpO: 0, hold: 0, mood: 0, two: 0 },
+  w: { relax: 0, pumpP: 0, pumpO: 0, hold: 0, mood: 0, two: 0, track: 0 },
   stroke: createStroke(),
   handLim: null,
   axisLim: null,
@@ -291,7 +298,8 @@ export const updateAnim = (a, s, dt) => {
   if (a.hop > 0) a.hop -= dt
   const hand = s.hand ?? 1 // +1: holds the paddle in the right hand
   const proStyle = s.twoHand ? "twohand" : "allcourt"
-  const R = readyFor(proStyle, !!s.atNet)
+  // (the ready position by where they stand: kitchen line, transition, baseline; pro.js)
+  const R = readyFor(proStyle, typeof s.depth === "number" ? s.depth : !!s.atNet)
 
   // which way to face: square to the net and the ball while shuffling and backpedaling; turned
   // to run for a long, fast move (or walking between points); squared up again when a ball is
@@ -306,6 +314,11 @@ export const updateAnim = (a, s, dt) => {
     const cy = Math.atan2(c.x - s.x, c.z - s.z)
     yaw = yaw + clamp(wrap(cy - yaw), -0.6, 0.6) * 0.35
   }
+  // an overhead: sideways as soon as the high ball is read (pro.js OVERHEAD_SET), the paddle
+  // side back, through square again with the smash
+  const oh = s.prep && isOverhead(s.prep.kind, s.prep.y) ? { ...s.prep, tRel: -s.prep.ttc } : swing && isOverhead(swing.kind, swing.y) ? { ...swing, tRel: swing.t } : s.high && !swing ? { ...s.high, tRel: -s.high.ttc } : null
+  const ohW = oh ? overheadTurn(oh.tRel) : 0
+  if (ohW > 0) yaw += wrap(s.facing - hand * OVERHEAD_SET.turn - yaw) * ohW
   if (a.turn.yaw === undefined) a.turn.yaw = a.yaw
   // motion matching (mm/: the skinned athletes on Medium/High once the database is in): the
   // legs, hips and trunk come from motion capture that follows the game's movement; the
@@ -318,7 +331,7 @@ export const updateAnim = (a, s, dt) => {
     // (a stroke coming or under way: the body right at the game's position, so the paddle
     // meets the ball where the match says)
     const tight = swing && swing.t < 0.25 ? 1 : s.prep ? clamp(1 - (s.prep.ttc - 0.15) / 0.45, 0, 1) : 0
-    mmo = driveMM(a, s, mv, dt, { lib: mmLib, yaw, crouch: a.crouch.p ?? 0, down: a.mmDown || 0, hopY: Math.max(0, hopPrev), every: a.mmEvery, stance: s.between ? READY.between.stance : R.stance, tight, reach: a.mmReach || null, shift: { x: (a.shift.p?.x || 0) + (a.mmLunge?.x || 0), z: (a.shift.p?.z || 0) + (a.mmLunge?.z || 0) } })
+    mmo = driveMM(a, s, mv, dt, { lib: mmLib, yaw, crouch: a.crouch.p ?? 0, down: (a.mmDown || 0) + Math.max(0, -hopPrev), hopY: Math.max(0, hopPrev), every: a.mmEvery, stance: s.between ? READY.between.stance : R.stance + MM_WIDE, tight, reach: a.mmReach || null, shift: { x: (a.shift.p?.x || 0) + (a.mmLunge?.x || 0), z: (a.shift.p?.z || 0) + (a.mmLunge?.z || 0) } })
     a.yaw = mmo.yaw
     a.turn.yaw = a.yaw
     a.turn.w = 0
@@ -358,11 +371,19 @@ export const updateAnim = (a, s, dt) => {
     const near = swing ? clamp(1 - (swing.t - 0.12) / 0.4, 0, 1) : clamp(1 - (s.prep.ttc - 0.05) / (c.y < 0.6 ? 0.5 : 0.3), 0, 1)
     // the stroke's knee bend, and low balls: get down to them as they arrive (knees, and a
     // hinge at the hips; the arm reaches the rest)
-    let down = ((CROUCH[c.kind] ?? 0.03) + Math.max(0, 0.6 - c.y) * 0.3) * smooth(Math.max(near, swing ? 0 : 0.25))
+    let down = ((CROUCH[c.kind] ?? 0.03) + Math.max(0, 0.6 - c.y) * 0.22) * smooth(Math.max(near, swing ? 0 : 0.25))
+    // (a groundstroke from the back comes UP out of the ready crouch: the legs drive into it.
+    // PPA footage: at their own contact baseline players' hips are at ~92% of upright vs ~85%
+    // while waiting; at the kitchen they stay down on a wide base, ~87%)
+    const depth = typeof s.depth === "number" ? s.depth : s.atNet ? 2.5 : 6
+    // (an overhead: tall into it, out of the ready crouch, the legs pushing up into the jump)
+    if (isOverhead(c.kind, c.y)) crouch -= R.crouch * near
+    else if (GROUND.has(c.kind) && !c.volley) crouch -= (R.crouch + (CROUCH[c.kind] ?? 0.03) + braking * 0.05) * 0.85 * smooth(clamp((depth - 3.6) / 1.6, 0, 1)) * near
     lowLean = clamp((0.75 - c.y) * 1.1, 0, 0.5) * near
     // wide or far, and low: the lunge (pro.js): the near foot steps out, that knee bends, the
     // back leg stays long, the hips go over toward the front foot
-    const lp = near > 0 ? lungePlan(lc, c.y) : null
+    // (not on an overhead: that one turns sideways and steps back, pro.js OVERHEAD_SET)
+    const lp = near > 0 && !isOverhead(c.kind, c.y) ? lungePlan(lc, c.y) : null
     if (lp) {
       lunging = true
       // (down into the lunge once the front foot is down, not before: the back leg stays long)
@@ -386,7 +407,12 @@ export const updateAnim = (a, s, dt) => {
     // the weight goes forward (pro.js stepIn; worked out right-handed, mirrored)
     const st0 = a.stroke
     const soon = swing ? swing.t < 0.35 : s.prep.ttc < 0.42
-    if (!lp && soon && st0.style && st0.phase !== "none") {
+    // (an overhead whose ball is behind them: the drop step, the paddle-side foot back)
+    const ds = !lp && s.prep && isOverhead(c.kind, c.y) ? dropStep(V(lc.x * hand, 0, lc.z), s.prep.ttc) : null
+    if (ds) {
+      const spot = toWorld(ground, fr, V(ds.spot.x * hand, 0, ds.spot.z))
+      reach = { foot: hand > 0 ? ds.foot : 1 - ds.foot, x: spot.x, z: spot.z }
+    } else if (!lp && soon && st0.style && st0.phase !== "none") {
       const si = stepIn(st0.style, st0.side, V(lc.x * hand, 0, lc.z), speed)
       if (si) {
         const spot = toWorld(ground, fr, V(si.spot.x * hand, 0, si.spot.z))
@@ -428,6 +454,14 @@ export const updateAnim = (a, s, dt) => {
     const hi = swing ? { y: swing.y, t: swing.t } : s.prep ? { y: s.prep.y, t: -s.prep.ttc } : null
     a.jumpY = hi && hi.y > 1.62 ? overheadLift(hi.y, hi.t) : 0
     hopY += a.jumpY
+    // (touching down from it: the knees take the landing)
+    if (a.jumpY > 0.005) a.landE = -1
+    else if (a.landE === -1 && (a.jumpPrev || 0) > 0.005) a.landE = 0
+    if (a.landE >= 0) {
+      crouch += landingSink(a.landE)
+      a.landE += dt
+      if (a.landE > OVERHEAD_SET.absorb) a.landE = undefined
+    }
   }
   // moods
   const mood = a.mood && s.between ? a.mood : null
@@ -571,6 +605,17 @@ export const updateAnim = (a, s, dt) => {
   // the weight through the stroke (pro.js WEIGHT; used next frame by the hips)
   a.weightT = so.w > 0 ? weightFor(so.style, so.phase, so.u) * so.w : 0
   if (so.w > 0) pose = so.pose
+  // (an overhead's set-up: the other arm up, pointing at the falling ball, until the swing
+  // pulls it down across the chest)
+  W.track = ramp(W.track || 0, oh && oh.tRel < -0.14 && !s.between ? 1 : 0, dt, 0.25, 0.12)
+  if (W.track > 1e-3) {
+    const o = V(-0.18, sh, 0.1)
+    const b = toStd(local(s.ball))
+    const toward = norm(sub(b, o), V(0, 0.8, 0.6))
+    // (not behind the head: the arm points up and out in front of it)
+    const dir = norm(V(toward.x, Math.max(0.45, toward.y), Math.max(0.15, toward.z)))
+    pose = { ...pose, off: lerpV(pose.off, add(o, mul(dir, OVERHEAD_SET.track)), smoothW(W.track))}
+  }
   // eyes on the contact point until just after the hit, then on the ball
   if (so.phase !== "none" && inp && !inp.after && s.prep) lookAt = V(s.prep.x, s.prep.y, s.prep.z)
   // (players v3: the eyes stay on the contact point a moment after it, as pros' heads do)
@@ -655,7 +700,7 @@ export const updateAnim = (a, s, dt) => {
   // (motion matching: only the stroke's turn goes on top of the captured trunk)
   const twistT = mmo ? -pose.coil * hand : -pose.coil * hand + runTwist + (fc.side || 0) * CROSS.chest
   // (a ball the arm can't reach down to: bend at the hips first, then the knees)
-  leanT += (pose.lean || 0) + lowLean + clamp((a.overDown || 0) * 1.4, 0, 0.35)
+  leanT += (pose.lean || 0) + lowLean + clamp((a.overDown || 0) * 2, 0, 0.45)
   // how quickly the hands may move: a swing is fast, everything else smooth
   const fast = so.fast
   // (the captured arms swing freely: followed closely)
@@ -678,7 +723,9 @@ export const updateAnim = (a, s, dt) => {
   a.overDown = (a.overDown || 0) + (downNow - (a.overDown || 0)) * (1 - Math.exp(-dt * (downNow > (a.overDown || 0) ? 20 : 8)))
   if (over > 0 && !s.between && reaching) {
     const d = norm(gap)
-    shiftT = V(clamp(d.x * over, -0.4, 0.4), clamp(d.y * over, -0.3, 0.04), clamp(d.z * over, -0.4, 0.4))
+    // (down: a hinge at the hips takes a share first, the knees the rest: overDown leans the
+    // trunk below. Pros reach a low ball with the hips back and the chest over it, not a squat)
+    shiftT = V(clamp(d.x * over, -0.4, 0.4), clamp(d.y * over * 0.6, -0.3, 0.04), clamp(d.z * over, -0.4, 0.4))
   }
   const shift = springV(a.shift, shiftT, k >= 200 ? 36 : 16, dt)
   py += shift.y
@@ -793,7 +840,7 @@ export const updateAnim = (a, s, dt) => {
     // more upright: the chest over the knees, the shoulders and paddle out in front)
     const mLean = Math.atan2(dot(mmo.spine, fr.f), mmo.spine.y)
     const readyLean = s.between ? 0 : Math.max(0, R.lean - mLean) * (1 - clamp(running01, 0, 1)) * 0.85
-    const leanS = springN(a.mmLean, clamp((pose.lean || 0) + lowLean + clamp((a.overDown || 0) * 1.4, 0, 0.35) + readyLean, -0.3, 0.7), fast ? 30 : 12, dt)
+    const leanS = springN(a.mmLean, clamp((pose.lean || 0) + lowLean + clamp((a.overDown || 0) * 2, 0, 0.45) + readyLean, -0.3, 0.7), fast ? 30 : 12, dt)
     const Rl = qaxis(mul(fr.r, -1), leanS)
     spineDir = norm(qrot(Rl, mmo.spine))
     const Rot = qmul(qaxis(spineDir, twist), Rl)
@@ -1054,6 +1101,13 @@ export const situation = (m, p) => {
     }
   }
   if (p.charge?.kind === "serve") prep = null
+  // an overhead on its way (presentation: the body turns sideways as soon as the lob is read,
+  // before the swing's own window opens; pro.js OVERHEAD_SET)
+  let high = null
+  if (!between && !prep && p.expect && r && r.lastTeam !== team && !ball.held && (p.ctrl === "cpu" || p.ctrl === "feeder" || p.charge || p.armed)) {
+    const ttc = p.expect.at - m.t
+    if (p.expect.y > OVERHEAD_SET.y && ttc > 0 && ttc < OVERHEAD_SET.readAt) high = { ttc, x: p.expect.x, y: p.expect.y, z: p.expect.z, kind: "smash" }
+  }
   // (remembered for the other side's split steps: hitClock; presentation only)
   p.animPrepT = m.t
   p.animPrepTtc = prep && prep.kind !== "serve" && prep.forward ? prep.ttc : null
@@ -1074,9 +1128,12 @@ export const situation = (m, p) => {
     holding,
     swing,
     prep,
+    high,
     charging: !!p.charge,
     between,
     atNet: Math.abs(p.z) < 3.4,
+    // (how far from the net: the ready position blends kitchen / transition / baseline)
+    depth: Math.abs(p.z),
     // where they're heading (a computer player's spot, or the stand-in's intercept)
     goal: p.target && (between || p.ctrl === "cpu") ? { x: p.target.x, z: p.target.z } : p.intercept?.stand && !p.intercept.letGo ? { x: p.intercept.stand.x, z: p.intercept.stand.z } : null,
     hand,

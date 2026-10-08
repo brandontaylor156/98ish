@@ -16,6 +16,9 @@ const SHIN = 0.43
 // soft IK takes up the rest. It was the soft IK's own start, 0.975 of the leg, which kept every
 // standing player's knees bent about 30 degrees: half sitting)
 const NEED_REACH = 0.993
+// (rising above an athletic capture: the legs stay at least this bent, about 155 degrees at the
+// knee: PPA footage's ready knees)
+const RISE_REACH = 0.975
 
 export const createMMPose = () => ({ lock: createFootLock(), drop: 0, dropV: 0 })
 
@@ -42,7 +45,7 @@ export const solveMMPose = (st, o, dt, extra = {}) => {
     const aL = P0[B.foot_l]
     const aR = P0[B.foot_r]
     const half = Math.abs((aR.x - aL.x) * rx + (aR.z - aL.z) * rz) / 2
-    const target = Math.max(0, Math.min(0.2, extra.stance - half)) * (extra.stanceW ?? 1)
+    const target = Math.max(0, Math.min(0.26, extra.stance - half)) * (extra.stanceW ?? 1)
     st.widen = (st.widen || 0) + (target - (st.widen || 0)) * (1 - Math.exp(-dt / 0.25))
   } else st.widen = (st.widen || 0) * Math.exp(-dt / 0.25)
   const wide = st.widen
@@ -63,6 +66,9 @@ export const solveMMPose = (st, o, dt, extra = {}) => {
   const sh = extra.shift || { x: 0, z: 0 }
   const hipW = (s) => ({ x: P0[B["thigh_" + s]].x + sh.x, y: P0[B["thigh_" + s]].y, z: P0[B["thigh_" + s]].z + sh.z })
   let need = 0
+  // (and how much room they leave to rise: negative, the hips could come up that far with the
+  // legs still bent at least RISE_REACH's worth)
+  let room = -Infinity
   for (let i = 0; i < 2; i++) {
     if (!fl[i].locked) continue // (a foot in the air just reaches as far as it can)
     const h = hipW(i ? "r" : "l")
@@ -70,9 +76,22 @@ export const solveMMPose = (st, o, dt, extra = {}) => {
     const dh = Math.hypot(a.x - h.x, a.z - h.z)
     const maxY = a.y + Math.sqrt(Math.max(0, (LEG * NEED_REACH) ** 2 - dh * dh))
     need = Math.max(need, h.y - maxY)
+    room = Math.max(room, h.y - (a.y + Math.sqrt(Math.max(0, (LEG * RISE_REACH) ** 2 - dh * dh))))
   }
   // (a deep drop only for a lunge or a step out; otherwise a foot left far behind steps over)
-  const want = Math.min(extra.reach ? 0.22 : 0.07, Math.max(0, need)) + (extra.drop || 0)
+  // (the larger of the two, not their sum: hips lowered for a crouch already bring the pinned
+  // feet within reach; added up, a wide ready stance sat ~7 cm deeper than asked. A negative
+  // drop (anim.js asking the hips up above an athletic capture) only as far as the feet allow)
+  let dropC = extra.drop || 0
+  if (extra.hipAbove !== undefined) {
+    // (a height asked as the hips' above the lower (standing) ankle)
+    const ank = Math.min(P0[B.foot_l].y, P0[B.foot_r].y)
+    const hy = (P0[B.thigh_l].y + P0[B.thigh_r].y) / 2
+    dropC = Math.max(-(extra.rise || 0), hy - ank - extra.hipAbove) + (extra.down || 0)
+  }
+  const cap = extra.reach ? 0.22 : 0.07
+  let want = Math.max(Math.min(cap, Math.max(0, need)), dropC)
+  if (dropC < 0) want = need > 0 ? Math.min(cap, need) : Math.min(0, Math.max(dropC, room === -Infinity ? 0 : room))
   // (down fast, up gently: a critically damped spring with a quicker half-life going down)
   const hl = want > st.drop ? 0.05 : 0.15
   const y = (4 * Math.LN2) / hl / 2
@@ -83,6 +102,8 @@ export const solveMMPose = (st, o, dt, extra = {}) => {
   st.dropV = e * (st.dropV - j1 * y * dt)
   // (anything left over the soft IK absorbs: the foot reaches a hair short, never a snap)
   pelvis.y -= st.drop
+  // (a hop or a jump: the body goes up with the lifted feet)
+  pelvis.y += extra.raise || 0
   // (a reach for a ball: the hips go toward it, the pinned feet stay)
   if (extra.shift) {
     pelvis.x += extra.shift.x

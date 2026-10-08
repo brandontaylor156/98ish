@@ -38,7 +38,7 @@ export const poseMetrics = (pose) => {
   }
 }
 
-export const STATES = ["tap", "net-tap", "twirl", "wipe", "receive", "walkback", "jog", "sprintstop", "kitchen-shuffle", "backpedal2", "lob-turn", "ready", "split", "run", "shuffle", "walk", "sprint", "backpedal", "stop", "turn", "lunge", "backswing", "drive", "drive-follow", "backhand", "backhand-follow", "dink", "volley", "overhead", "serve", "serve-follow", "celebrate", "celebrate2", "celebrate3", "frustrated", "frustrated2", "frustrated3", "idle", "shuffle-ready", "run-hit", "dink-bh", "volley-bh", "reach-bh", "lob", "ready-net", "kitchen-adjust", "crossover", "transition", "backhand-two", "dink-wide", "hands-battle"]
+export const STATES = ["tap", "net-tap", "twirl", "wipe", "receive", "walkback", "jog", "sprintstop", "kitchen-shuffle", "backpedal2", "lob-turn", "ready", "split", "run", "shuffle", "walk", "sprint", "backpedal", "stop", "turn", "lunge", "backswing", "drive", "drive-follow", "backhand", "backhand-follow", "dink", "volley", "overhead", "serve", "serve-follow", "celebrate", "celebrate2", "celebrate3", "frustrated", "frustrated2", "frustrated3", "idle", "shuffle-ready", "run-hit", "dink-bh", "volley-bh", "reach-bh", "lob", "ready-net", "kitchen-adjust", "crossover", "transition", "backhand-two", "dink-wide", "hands-battle", "ready-kitchen", "ready-mid", "ready-base", "split-move", "overhead-lob"]
 
 // Movement tests for the footwork (motion matching vs the procedural gait): a player moved
 // by the match's own rule (accelerating at most 12 m/s^2 toward the velocity they want, or
@@ -269,6 +269,42 @@ const script = (state, x, z, { hand = 1, twoHand = false } = {}) => {
           const v = t < 0.75 ? 2.4 : 0
           if (t < 1.35) return base(t, { z: zz(t), vz: v, prep: t > 0.8 ? { ttc: 1.35 - t, x: c.x, y: c.y, z: c.z, kind: "reset", hand: "fh", forward: true } : null, ball: t > 0.75 ? { ...c } : { x, y: 1.2, z: z + 6 } })
           return base(t, { swing: { t: t - 1.35, kind: "reset", hand: "fh", x: c.x, y: c.y, z: c.z }, ball: { ...c } })
+        },
+      }
+    }
+    // the ready position by where they stand (pro.js READY, PPA footage): the kitchen line,
+    // the transition zone, the baseline; the other side's contact (and the split step) at 1.0
+    case "ready-kitchen":
+    case "ready-mid":
+    case "ready-base": {
+      const depth = { "ready-kitchen": 2.55, "ready-mid": 4.3, "ready-base": 6.9 }[state]
+      return { T: 1.12, events: [[1.0 - 0.13, (a) => splitStep(a)]], at: (t) => base(t, { depth, atNet: depth < 3.4, ball: { x: x + 0.4, y: 1.0, z: z + 5 } }) }
+    }
+    case "split-move": {
+      // moving up through the transition (1.6 m/s) as the other side hits at t = 0.8: the split
+      // step keeps the momentum (the match checks it gently: SPLIT_BRAKE)
+      const v = (t) => (t < 0.8 ? 1.6 : Math.max(0, 1.6 - 4 * (t - 0.8)))
+      const zz = (t) => z - 1.6 * 0.8 + (t < 0.8 ? 1.6 * t : 1.6 * 0.8 + 1.6 * (t - 0.8) - 2 * (t - 0.8) ** 2)
+      return { T: 1.2, events: [[0.8 - 0.13, (a) => splitStep(a)]], at: (t) => base(t, { z: zz(t), vz: v(t), depth: 4.6 - (zz(t) - z), ball: { x, y: 1.0, z: z + 6 } }) }
+    }
+    case "overhead-lob": {
+      // a lob over a player at the kitchen line: read at once, sideways, back 1.1 m (the drop
+      // step), the jump and the smash at t = 1.3 (contact 2.3 m up, just behind them), the landing
+      const T0 = 1.3
+      const c = C(0.22, 2.3, 0.02)
+      const back = (t) => -1.1 * Math.min(1, Math.max(0, (t - 0.1) / 1.0)) ** 0.8
+      const zz = (t) => z + back(t)
+      const cz = c.z - 1.1
+      const cc = { x: c.x, y: c.y, z: cz }
+      return {
+        T: T0 + 0.55,
+        contact: cc,
+        at: (t) => {
+          const vz = t > 0.1 && t < 1.1 ? (zz(t + 0.01) - zz(t)) / 0.01 : 0
+          const ball = { x: c.x, y: Math.max(c.y, c.y + 4.9 * (T0 - t) * (T0 - t) * 0.4), z: cz + (T0 - t) * 3 }
+          if (t < T0 - 0.65) return base(t, { z: zz(t), vz, depth: 2.55 - back(t), atNet: true, high: { ttc: T0 - t, x: cc.x, y: cc.y, z: cc.z, kind: "smash" }, ball })
+          if (t < T0) return base(t, { z: zz(t), vz, depth: 2.55 - back(t), atNet: true, prep: { ttc: T0 - t, x: cc.x, y: cc.y, z: cc.z, kind: "smash", hand: "fh", forward: true }, ball })
+          return base(t, { z: zz(t), depth: 3.65, swing: { t: t - T0, kind: "smash", hand: "fh", x: cc.x, y: cc.y, z: cc.z }, ball: { ...cc } })
         },
       }
     }

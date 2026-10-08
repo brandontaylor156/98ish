@@ -42,26 +42,63 @@ export const handOf = (look) => (look && look.plays === "left" ? -1 : 1)
 // vertical); back: the hips pushed back behind the feet (m); stance: half the distance between
 // the ankles (m); hand: the paddle hand (wrist) for the standard posture (shoulders 1.3 m up and
 // 0.1 m ahead of the feet; anim.js moves it with the real one); tip: the paddle's direction
+//
+// Measured on PPA Tour footage (docs/ppa-reference.md "For the animation work"; ratios of the
+// hips' height above the ankles to standing upright, the feet's distance): while the other
+// side hits, at the kitchen line the hips sit at ~90% of upright on a WIDE base (feet ~0.65 m
+// apart, wider than the shoulders); at the baseline lower, ~85%, on a narrower one (~0.54 m);
+// in the transition zone in between (~89%, ~0.51 m). Pros stand taller and wider than the
+// coaching's "knees bent 35-45 degrees" suggested: the height comes off the wide base and a
+// hinge at the hips, not a squat. (The crouch and stance numbers below were calibrated with
+// the game's own skeleton to give those ratios: scratchpad stance.mjs, the log's "athletes'
+// movement round".)
 export const READY = {
   // (the hand a forearm's length in front of the body with the elbows bent about 90 degrees
   // and in front of the ribs, the paddle's head up toward 11 o'clock: docs/pickleball-arms.md)
   net: {
-    allcourt: { crouch: 0.068, lean: 0.42, back: 0.07, stance: 0.25, hand: { x: 0.08, y: 1.04, z: 0.34 }, tip: { x: -0.3, y: 0.72, z: 0.62 } },
-    twohand: { crouch: 0.075, lean: 0.4, back: 0.07, stance: 0.28, hand: { x: 0.06, y: 1.09, z: 0.34 }, tip: { x: -0.26, y: 0.76, z: 0.58 } },
+    allcourt: { crouch: 0.045, lean: 0.42, back: 0.1, stance: 0.29, hand: { x: 0.08, y: 1.04, z: 0.34 }, tip: { x: -0.3, y: 0.72, z: 0.62 } },
+    twohand: { crouch: 0.05, lean: 0.4, back: 0.1, stance: 0.31, hand: { x: 0.06, y: 1.09, z: 0.34 }, tip: { x: -0.26, y: 0.76, z: 0.58 } },
+  },
+  mid: {
+    allcourt: { crouch: 0.065, lean: 0.38, back: 0.09, stance: 0.225, hand: { x: 0.085, y: 1.03, z: 0.34 }, tip: { x: -0.27, y: 0.71, z: 0.645 } },
+    twohand: { crouch: 0.07, lean: 0.37, back: 0.09, stance: 0.245, hand: { x: 0.065, y: 1.08, z: 0.34 }, tip: { x: -0.24, y: 0.75, z: 0.6 } },
   },
   base: {
-    allcourt: { crouch: 0.05, lean: 0.34, back: 0.05, stance: 0.24, hand: { x: 0.09, y: 1.02, z: 0.34 }, tip: { x: -0.24, y: 0.7, z: 0.67 } },
-    twohand: { crouch: 0.055, lean: 0.33, back: 0.05, stance: 0.26, hand: { x: 0.07, y: 1.07, z: 0.34 }, tip: { x: -0.22, y: 0.74, z: 0.63 } },
+    allcourt: { crouch: 0.105, lean: 0.34, back: 0.09, stance: 0.24, hand: { x: 0.09, y: 1.02, z: 0.34 }, tip: { x: -0.24, y: 0.7, z: 0.67 } },
+    twohand: { crouch: 0.11, lean: 0.33, back: 0.09, stance: 0.255, hand: { x: 0.07, y: 1.07, z: 0.34 }, tip: { x: -0.22, y: 0.74, z: 0.63 } },
   },
   between: { crouch: 0.004, lean: 0.05, back: 0, stance: 0.115 },
 }
-export const readyFor = (style, atNet) => READY[atNet ? "net" : "base"][style === "twohand" ? "twohand" : "allcourt"]
+// the zones by distance from the net (m): the kitchen line's ready up to KITCHEN_Z, the
+// transition's around MID_Z, the baseline's from BASE_Z back
+export const ZONES = { kitchen: 3.0, mid: 4.3, base: 5.6 }
+const blendReady = (a, b, u) => {
+  if (u <= 0) return a
+  if (u >= 1) return b
+  const o = {}
+  for (const k of Object.keys(a)) {
+    const x = a[k]
+    const y = b[k]
+    o[k] = typeof x === "number" ? x + (y - x) * u : { x: x.x + (y.x - x.x) * u, y: x.y + (y.y - x.y) * u, z: x.z + (y.z - x.z) * u }
+  }
+  return o
+}
+// the ready position for a player `depth` meters from the net (or, given a boolean, the old
+// kitchen / baseline choice): blended smoothly through the transition zone
+export const readyFor = (style, depth) => {
+  const k = style === "twohand" ? "twohand" : "allcourt"
+  if (typeof depth !== "number") return READY[depth ? "net" : "base"][k]
+  if (depth <= ZONES.kitchen) return READY.net[k]
+  if (depth < ZONES.mid) return blendReady(READY.net[k], READY.mid[k], smooth(ZONES.kitchen, ZONES.mid, depth))
+  if (depth < ZONES.base) return blendReady(READY.mid[k], READY.base[k], smooth(ZONES.mid, ZONES.base, depth))
+  return READY.base[k]
+}
 
 // ---- the split step ----
 // lead: the hop leaves the court this long before the other side's contact, so it lands on it;
 // dur: the whole move (hop, landing, sinking and coming back up); up: the hop's height; sink:
 // how far the hips drop on the landing; wider: how much wider the feet land (each side)
-export const SPLIT = { lead: 0.13, dur: 0.36, up: 0.03, sink: 0.06, wider: 0.03, again: 0.55 }
+export const SPLIT = { lead: 0.13, dur: 0.36, up: 0.03, sink: 0.025, wider: 0.03, again: 0.55 }
 // should a player split now? oppHit: seconds until the other side hits (null if not known);
 // since: seconds since this player's last split
 export const shouldSplit = (oppHit, since) => oppHit !== null && oppHit !== undefined && oppHit <= SPLIT.lead && oppHit > -0.04 && since > SPLIT.again
@@ -77,7 +114,7 @@ export const splitHeight = (e) => {
 // 2.05, then 6.5 cm short at 2.15 and 50 cm short at 2.6). A real overhead on a high ball
 // leaves the ground: the body rises into the contact and lands after it. `y` is the contact
 // height, `tRel` seconds from contact (negative before). Returns how far the body lifts (m).
-export const OVERHEAD = { reach: 2.05, max: 0.5, up: 0.32, down: 0.3 }
+export const OVERHEAD = { reach: 2.0, max: 0.5, up: 0.32, down: 0.3 }
 export const overheadLift = (y, tRel) => {
   const need = Math.min(OVERHEAD.max, Math.max(0, (y ?? 0) - OVERHEAD.reach))
   if (need <= 0 || tRel < -OVERHEAD.up || tRel > OVERHEAD.down) return 0
@@ -85,6 +122,43 @@ export const overheadLift = (y, tRel) => {
   const u = tRel < 0 ? 1 + tRel / OVERHEAD.up : 1 - tRel / OVERHEAD.down
   return need * Math.sin((Math.min(1, Math.max(0, u)) * Math.PI) / 2) ** 0.7
 }
+
+// ---- the overhead's set-up, as pros play it ----
+// (docs/pickleball-movement.md "Serve, return and overheads": turn sideways and shuffle back,
+// the other arm up pointing at the ball, the elbow about at ear height; finish across the
+// body.) As soon as the high ball is read the body turns sideways: the feet and hips about 60
+// degrees off the net (the paddle side back), the shoulders further with the stroke's own coil;
+// the other hand goes up and tracks the falling ball; a ball behind them gets a drop step (the
+// paddle-side foot back and a little out, 45 degrees); then the smash turns them back through
+// square, and the landing is absorbed in the knees.
+// y: the contact height that makes it an overhead (strokes.js chooseStroke); turn: the body's
+// turn off the net (rad); readAt: how long before contact the turn starts (s) and ramp: how long
+// it takes; hold: until this long before contact it stays full, then eases to atHit at contact
+// and to square `after` s later; track: the tracking arm's reach toward the ball (m, the arm
+// is 0.56); dropBack/dropOut: the drop step's spot (m, body frame, paddle side); dropFrom/To:
+// when (s before contact) it's taken; behind: a contact closer than this in front of the body
+// (m) calls for it; land: the landing's knee bend (m) and absorb: how long it lasts (s)
+export const OVERHEAD_SET = { y: 1.62, turn: 1.0, readAt: 1.4, ramp: 0.3, hold: 0.22, atHit: 0.35, after: 0.25, track: 0.5, dropBack: 0.34, dropOut: 0.16, dropFrom: 0.75, dropTo: 0.2, behind: 0.3, land: 0.06, absorb: 0.3 }
+const SOFT_SHOTS = new Set(["dink", "drop", "reset", "block", "roll"])
+export const isOverhead = (kind, y) => y > OVERHEAD_SET.y && !SOFT_SHOTS.has(kind)
+// how much of the sideways turn (0..1) at tRel seconds from contact (negative before)
+export const overheadTurn = (tRel) => {
+  const O = OVERHEAD_SET
+  if (tRel <= -O.readAt) return 0
+  if (tRel < -O.readAt + O.ramp) return smooth(-O.readAt, -O.readAt + O.ramp, tRel)
+  if (tRel < -O.hold) return 1
+  if (tRel < 0) return 1 + (O.atHit - 1) * smooth(-O.hold, 0, tRel)
+  return O.atHit * (1 - smooth(0, O.after, tRel))
+}
+// the drop step for an overhead whose contact (body frame, right-handed, lc.z forward) is
+// behind or right over the player: the paddle-side foot back and out. null if none.
+export const dropStep = (lc, ttc) => {
+  const O = OVERHEAD_SET
+  if (ttc > O.dropFrom || ttc < O.dropTo || lc.z > O.behind) return null
+  return { foot: 1, spot: { x: O.dropOut, z: -O.dropBack } }
+}
+// the landing after an overhead's jump: how far the hips sink (m) e seconds after touching down
+export const landingSink = (e) => (e < 0 || e > OVERHEAD_SET.absorb ? 0 : Math.sin((e / OVERHEAD_SET.absorb) * Math.PI) * OVERHEAD_SET.land)
 
 // ---- footwork choice ----
 // How a player moves sideways: shuffle (small side steps facing the net, feet never cross) or

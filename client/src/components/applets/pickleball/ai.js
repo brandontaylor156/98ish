@@ -105,7 +105,7 @@ export const LEVELS = {
     ...COMMON,
     label: "Pro",
     speed: 4.1,
-    reaction: 0.17,
+    reaction: 0.2,
     sigma: 0.2,
     face: 0.011,
     touch: 0.04,
@@ -138,7 +138,7 @@ export const LEVELS = {
     ...COMMON,
     label: "Legend",
     speed: 4.25,
-    reaction: 0.15,
+    reaction: 0.18,
     sigma: 0.16,
     face: 0.009,
     touch: 0.032,
@@ -153,7 +153,7 @@ export const LEVELS = {
     impatience: 0.5,
     attack: -0.01,
     sense: 1,
-    hands: 0.2,
+    hands: 0.23, // (0.2 -> 0.23: Legend doubles rallies ran 12.1-12.3 shots over 48 games vs PPA 10.7)
     counter: 0.75,
     lob: 0.03,
     advance: 1,
@@ -205,6 +205,8 @@ const STAND_SIDE = 0.5 // where a player stands relative to the ball they'll hit
 const STAND_BACK = 0.22
 export const NET_LINE = KITCHEN + 0.42 // "at the kitchen line": toes just behind it
 export const BASE_LINE = HALF_L + 0.25
+// the transition zone where a team coming in from the baseline in stages splits before going on
+export const STEP_Z = 3.3
 const LINE_Z = KITCHEN + FOOT_R + 0.07 // toes on the line (and not in the kitchen)
 const LUNGE = 0.95 // m forward a player at the line reaches for a volley over the kitchen
 
@@ -223,7 +225,7 @@ export const homeFor = (m, p) => {
   else if (!servingTeam && r.hits < 2) depth = p.id === r.receiver ? BASE_LINE : NET_LINE
   else {
     const lv = p.level || {}
-    depth = m.teamDepth[p.team] === "net" ? lv.stanceNet ?? NET_LINE : m.teamDepth[p.team] === "mid" ? 4.3 : lv.stanceBack ?? BASE_LINE - 0.1
+    depth = m.teamDepth[p.team] === "net" ? lv.stanceNet ?? NET_LINE : m.teamDepth[p.team] === "mid" ? 4.3 : m.teamDepth[p.team] === "step" ? STEP_Z : lv.stanceBack ?? BASE_LINE - 0.1
   }
   // until their side has played its first shot, partners hold where they set up for the serve
   // (a stacked partner waits off the court; nobody wanders across the serve's path)
@@ -599,6 +601,14 @@ export const aiShot = (m, p, lv = p.level, at = m.ball, rand = m.rand) => {
 // assessBall): move up behind a good soft shot, follow a drive in a step, stay at the net
 export const afterShot = (m, team, kind, p, a = null) => {
   const lv = p.ctrl === "cpu" ? p.level : LEVELS.pro
+  const stage = m.teamStage || (m.teamStage = [null, null])
+  // a team moving up in stages takes its next step as the other side plays a soft ball (a
+  // split step in the transition zone, then on to the line); a hard one holds them there
+  const other = 1 - team
+  if (stage[other]) {
+    if (SOFT_KINDS.has(kind)) m.teamDepth[other] = stage[other]
+    stage[other] = null
+  }
   const current = m.teamDepth[team]
   const roll = m.rand()
   if (kind === "serve") m.teamDepth[team] = "back"
@@ -606,8 +616,17 @@ export const afterShot = (m, team, kind, p, a = null) => {
   else if (current === "net") return
   else if (SOFT_KINDS.has(kind)) {
     const good = !a || (!a.attackable && a.in)
-    if (good) m.teamDepth[team] = roll < lv.advance ? "net" : "mid"
-    else if (current === "back" && roll < lv.advance * 0.5) m.teamDepth[team] = "mid"
+    if (good) {
+      const to = roll < lv.advance ? "net" : "mid"
+      // from the baseline pros come in in stages: up to the transition zone behind their
+      // drop, a split step as the other side plays it, then on to the line (PPA footage: the
+      // serving team reaches the kitchen line ~4.9 s after the serve, the returners 1.6 s
+      // after the return; docs/ppa-reference.md)
+      if (m.game?.doubles && current === "back" && to === "net") {
+        m.teamDepth[team] = "step"
+        stage[team] = "net"
+      } else m.teamDepth[team] = to
+    } else if (current === "back" && roll < lv.advance * 0.5) m.teamDepth[team] = "mid"
   } else if (current === "back" && roll < lv.advance * 0.5) m.teamDepth[team] = "mid"
 }
 

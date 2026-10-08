@@ -118,10 +118,12 @@ export const contactAxis = (c, side, style) => {
   // head a little out in front
   if (style === "dink") return norm(add(norm(sub(c, V(0.18, 1.3, 0.1))), V(0, 0.05, 0.3)))
   const y = c.y
-  const low = N(0.42 * side, -0.78 + clamp(y, 0, 0.6) * 0.5, 0.38)
+  // (a low ball: the paddle head drops well below the wrist, so the hand stays up near the
+  // knee and the body needn't squat: how pros play low drives, drops and resets)
+  const low = N(0.42 * side, -0.86 + clamp(y, 0, 0.6) * 0.4, 0.34)
   const mid = N(0.92 * side, (y - 1.0) * 0.7, 0.36)
   const high = N(0.45 * side, 0.8, 0.3)
-  if (y < 0.75) return norm(lerpV(low, mid, smooth((y - 0.35) / 0.4)))
+  if (y < 0.75) return norm(lerpV(low, mid, smooth((y - 0.45) / 0.35)))
   return norm(lerpV(mid, high, smooth((y - 1.15) / 0.35)))
 }
 export const contactHand = (c, axis) => sub(c, mul(axis, PADDLE_REACH))
@@ -177,7 +179,7 @@ export const strokeKeys = (style, side, c, opts = {}) => {
     }
     case "overhead": {
       const top = Math.min(c.y, 2.1)
-      back = P(V(0.32, clamp(c.y - 0.55, 1.42, 1.6), -0.2), N(0.12, -0.45, -0.88), 0.9, V(-0.04, top - 0.08, 0.32), V(1, 0.05, -0.25), -0.08)
+      back = P(V(0.32, clamp(c.y - 0.55, 1.42, 1.6), -0.2), N(0.12, -0.45, -0.88), 0.6, V(-0.04, top - 0.08, 0.32), V(1, 0.05, -0.25), -0.08)
       contact = P(ch, ax, -0.05, V(-0.22, 1.3, 0.22), V(0.75, -0.25, 0.3), 0.14)
       follow = P(V(-0.24, 0.98, 0.38), N(-0.3, -0.75, 0.55), -0.72, V(-0.3, 1.0, 0.02), V(0.3, -0.45, 0.85), 0.3, 0.03)
       break
