@@ -25,7 +25,7 @@
     "pl-face-m01-med.ktx2": 139910,
     "pl-face-m01.bin": 80572,
     "pl-face-m01-cards.bin": 7376,
-    "pl-face-m01-shell.jpg": 111387
+    "pl-face-m01-shell.jpg": 29581
    },
    "cards": "pl-face-m01-cards.bin",
    "cardsTone": "#936850",
@@ -55,13 +55,15 @@
     "pl-face-m02-med.ktx2": 143134,
     "pl-face-m02.bin": 80572,
     "pl-face-m02-cards.bin": 36040,
-    "pl-face-m02-cards.webp": 368660,
-    "pl-face-m02-shell.jpg": 106737
+    "pl-face-m02-cards.webp": 101304,
+    "pl-face-m02-shell.jpg": 26062,
+    "pl-face-m02-cards.ktx2": 170987
    },
    "cards": "pl-face-m02-cards.bin",
    "cardsTone": "#231a15",
    "cardsTex": "pl-face-m02-cards.webp",
-   "shellTex": "pl-face-m02-shell.jpg"
+   "shellTex": "pl-face-m02-shell.jpg",
+   "cardsKtx": "pl-face-m02-cards.ktx2"
   },
   "m03": {
    "body": "m",
@@ -87,13 +89,15 @@
     "pl-face-m03-med.ktx2": 139069,
     "pl-face-m03.bin": 80568,
     "pl-face-m03-cards.bin": 17896,
-    "pl-face-m03-cards.webp": 309900,
-    "pl-face-m03-shell.jpg": 85492
+    "pl-face-m03-cards.webp": 88648,
+    "pl-face-m03-shell.jpg": 23224,
+    "pl-face-m03-cards.ktx2": 179793
    },
    "cards": "pl-face-m03-cards.bin",
    "cardsTone": "#150d05",
    "cardsTex": "pl-face-m03-cards.webp",
-   "shellTex": "pl-face-m03-shell.jpg"
+   "shellTex": "pl-face-m03-shell.jpg",
+   "cardsKtx": "pl-face-m03-cards.ktx2"
   },
   "f01": {
    "body": "f",
@@ -119,7 +123,7 @@
     "pl-face-f01-med.ktx2": 135508,
     "pl-face-f01.bin": 80988,
     "pl-face-f01-cards.bin": 9088,
-    "pl-face-f01-shell.jpg": 118507
+    "pl-face-f01-shell.jpg": 32429
    },
    "cards": "pl-face-f01-cards.bin",
    "cardsTone": "#93694a",
@@ -149,13 +153,15 @@
     "pl-face-f02-med.ktx2": 127035,
     "pl-face-f02.bin": 81464,
     "pl-face-f02-cards.bin": 21424,
-    "pl-face-f02-cards.webp": 323590,
-    "pl-face-f02-shell.jpg": 111558
+    "pl-face-f02-cards.webp": 84838,
+    "pl-face-f02-shell.jpg": 27947,
+    "pl-face-f02-cards.ktx2": 147123
    },
    "cards": "pl-face-f02-cards.bin",
    "cardsTone": "#1b150f",
    "cardsTex": "pl-face-f02-cards.webp",
-   "shellTex": "pl-face-f02-shell.jpg"
+   "shellTex": "pl-face-f02-shell.jpg",
+   "cardsKtx": "pl-face-f02-cards.ktx2"
   },
   "m04": {
    "body": "m",
@@ -181,13 +187,15 @@
     "pl-face-m04-med.ktx2": 142368,
     "pl-face-m04.bin": 80572,
     "pl-face-m04-cards.bin": 25372,
-    "pl-face-m04-cards.webp": 344666,
-    "pl-face-m04-shell.jpg": 123503
+    "pl-face-m04-cards.webp": 92696,
+    "pl-face-m04-shell.jpg": 30482,
+    "pl-face-m04-cards.ktx2": 182664
    },
    "cards": "pl-face-m04-cards.bin",
    "cardsTone": "#2d231c",
    "cardsTex": "pl-face-m04-cards.webp",
-   "shellTex": "pl-face-m04-shell.jpg"
+   "shellTex": "pl-face-m04-shell.jpg",
+   "cardsKtx": "pl-face-m04-cards.ktx2"
   },
   "m05": {
    "body": "m",
@@ -213,7 +221,7 @@
     "pl-face-m05-med.ktx2": 138966,
     "pl-face-m05.bin": 80568,
     "pl-face-m05-cards.bin": 10364,
-    "pl-face-m05-shell.jpg": 92608
+    "pl-face-m05-shell.jpg": 22355
    },
    "cards": "pl-face-m05-cards.bin",
    "cardsTone": "#4b2c1e",
@@ -243,13 +251,15 @@
     "pl-face-m06-med.ktx2": 136960,
     "pl-face-m06.bin": 80528,
     "pl-face-m06-cards.bin": 20920,
-    "pl-face-m06-cards.webp": 365292,
-    "pl-face-m06-shell.jpg": 124045
+    "pl-face-m06-cards.webp": 166002,
+    "pl-face-m06-shell.jpg": 30050,
+    "pl-face-m06-cards.ktx2": 238496
    },
    "cards": "pl-face-m06-cards.bin",
    "cardsTone": "#846454",
    "cardsTex": "pl-face-m06-cards.webp",
-   "shellTex": "pl-face-m06-shell.jpg"
+   "shellTex": "pl-face-m06-shell.jpg",
+   "cardsKtx": "pl-face-m06-cards.ktx2"
   },
   "m07": {
    "body": "m",
@@ -275,13 +285,15 @@
     "pl-face-m07-med.ktx2": 136457,
     "pl-face-m07.bin": 80524,
     "pl-face-m07-cards.bin": 16856,
-    "pl-face-m07-cards.webp": 117846,
-    "pl-face-m07-shell.jpg": 98097
+    "pl-face-m07-cards.webp": 34020,
+    "pl-face-m07-shell.jpg": 25905,
+    "pl-face-m07-cards.ktx2": 85629
    },
    "cards": "pl-face-m07-cards.bin",
    "cardsTone": "#1c1009",
    "cardsTex": "pl-face-m07-cards.webp",
-   "shellTex": "pl-face-m07-shell.jpg"
+   "shellTex": "pl-face-m07-shell.jpg",
+   "cardsKtx": "pl-face-m07-cards.ktx2"
   },
   "m08": {
    "body": "m",
@@ -307,13 +319,15 @@
     "pl-face-m08-med.ktx2": 139904,
     "pl-face-m08.bin": 80572,
     "pl-face-m08-cards.bin": 24464,
-    "pl-face-m08-cards.webp": 345468,
-    "pl-face-m08-shell.jpg": 102664
+    "pl-face-m08-cards.webp": 103704,
+    "pl-face-m08-shell.jpg": 27573,
+    "pl-face-m08-cards.ktx2": 191934
    },
    "cards": "pl-face-m08-cards.bin",
    "cardsTone": "#191412",
    "cardsTex": "pl-face-m08-cards.webp",
-   "shellTex": "pl-face-m08-shell.jpg"
+   "shellTex": "pl-face-m08-shell.jpg",
+   "cardsKtx": "pl-face-m08-cards.ktx2"
   },
   "f03": {
    "body": "f",
@@ -339,13 +353,15 @@
     "pl-face-f03-med.ktx2": 132649,
     "pl-face-f03.bin": 81308,
     "pl-face-f03-cards.bin": 23384,
-    "pl-face-f03-cards.webp": 247728,
-    "pl-face-f03-shell.jpg": 112015
+    "pl-face-f03-cards.webp": 74954,
+    "pl-face-f03-shell.jpg": 29716,
+    "pl-face-f03-cards.ktx2": 132121
    },
    "cards": "pl-face-f03-cards.bin",
    "cardsTone": "#1e1510",
    "cardsTex": "pl-face-f03-cards.webp",
-   "shellTex": "pl-face-f03-shell.jpg"
+   "shellTex": "pl-face-f03-shell.jpg",
+   "cardsKtx": "pl-face-f03-cards.ktx2"
   },
   "f04": {
    "body": "f",
@@ -371,13 +387,15 @@
     "pl-face-f04-med.ktx2": 133259,
     "pl-face-f04.bin": 81316,
     "pl-face-f04-cards.bin": 23372,
-    "pl-face-f04-cards.webp": 247728,
-    "pl-face-f04-shell.jpg": 111988
+    "pl-face-f04-cards.webp": 74954,
+    "pl-face-f04-shell.jpg": 29611,
+    "pl-face-f04-cards.ktx2": 132121
    },
    "cards": "pl-face-f04-cards.bin",
    "cardsTone": "#1e1510",
    "cardsTex": "pl-face-f04-cards.webp",
-   "shellTex": "pl-face-f04-shell.jpg"
+   "shellTex": "pl-face-f04-shell.jpg",
+   "cardsKtx": "pl-face-f04-cards.ktx2"
   },
   "f05": {
    "body": "f",
@@ -403,13 +421,15 @@
     "pl-face-f05-med.ktx2": 130773,
     "pl-face-f05.bin": 81376,
     "pl-face-f05-cards.bin": 27448,
-    "pl-face-f05-cards.webp": 421312,
-    "pl-face-f05-shell.jpg": 117428
+    "pl-face-f05-cards.webp": 109334,
+    "pl-face-f05-shell.jpg": 32884,
+    "pl-face-f05-cards.ktx2": 186853
    },
    "cards": "pl-face-f05-cards.bin",
    "cardsTone": "#513b29",
    "cardsTex": "pl-face-f05-cards.webp",
-   "shellTex": "pl-face-f05-shell.jpg"
+   "shellTex": "pl-face-f05-shell.jpg",
+   "cardsKtx": "pl-face-f05-cards.ktx2"
   },
   "f06": {
    "body": "f",
@@ -435,13 +455,15 @@
     "pl-face-f06-med.ktx2": 146746,
     "pl-face-f06.bin": 81448,
     "pl-face-f06-cards.bin": 19768,
-    "pl-face-f06-cards.webp": 326082,
-    "pl-face-f06-shell.jpg": 87951
+    "pl-face-f06-cards.webp": 82758,
+    "pl-face-f06-shell.jpg": 23779,
+    "pl-face-f06-cards.ktx2": 141713
    },
    "cards": "pl-face-f06-cards.bin",
    "cardsTone": "#0f0c09",
    "cardsTex": "pl-face-f06-cards.webp",
-   "shellTex": "pl-face-f06-shell.jpg"
+   "shellTex": "pl-face-f06-shell.jpg",
+   "cardsKtx": "pl-face-f06-cards.ktx2"
   },
   "f07": {
    "body": "f",
@@ -467,13 +489,15 @@
     "pl-face-f07-med.ktx2": 130858,
     "pl-face-f07.bin": 81492,
     "pl-face-f07-cards.bin": 29704,
-    "pl-face-f07-cards.webp": 290042,
-    "pl-face-f07-shell.jpg": 89476
+    "pl-face-f07-cards.webp": 75310,
+    "pl-face-f07-shell.jpg": 23587,
+    "pl-face-f07-cards.ktx2": 171263
    },
    "cards": "pl-face-f07-cards.bin",
    "cardsTone": "#1e1511",
    "cardsTex": "pl-face-f07-cards.webp",
-   "shellTex": "pl-face-f07-shell.jpg"
+   "shellTex": "pl-face-f07-shell.jpg",
+   "cardsKtx": "pl-face-f07-cards.ktx2"
   }
  }
 }

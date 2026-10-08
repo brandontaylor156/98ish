@@ -1019,7 +1019,19 @@ const loadFaceCards = (id) => {
                   return t
                 })
               : null
-          const [buf, cardsTex, shellTex] = await Promise.all([fetch(BASE + f.cards).then((r) => (r.ok ? r.arrayBuffer() : null)), tex(f.cardsTex), tex(f.shellTex)])
+          // (the cards' texture: KTX2 with alpha where it can, else the WebP)
+          const cardsKtx = async () => {
+            if (!f.cardsKtx || !ktx2Loader()) return null
+            try {
+              const t = await ktx2Loader().loadAsync(BASE + f.cardsKtx)
+              t.colorSpace = THREE.SRGBColorSpace
+              t.anisotropy = 4
+              return t
+            } catch {
+              return null
+            }
+          }
+          const [buf, cardsTex, shellTex] = await Promise.all([fetch(BASE + f.cards).then((r) => (r.ok ? r.arrayBuffer() : null)), cardsKtx().then((t) => t || tex(f.cardsTex)), tex(f.shellTex)])
           if (!buf) return null
           const hl = new DataView(buf).getUint32(0, true)
           const h = JSON.parse(new TextDecoder().decode(new Uint8Array(buf, 4, hl)))

@@ -566,15 +566,34 @@ for (const face of FACES) {
     entry.cardsTone = cardsOut.tone
     entry.files = { ...(entry.files || {}), [`${name}-cards.bin`]: cardsOut.bin.length }
     if (cardsOut.tex) {
+      // (the cards' texture as KTX2 with alpha, 1024 (a fraction of a WebP's GPU memory and
+      // download); a 512 WebP where KTX2 can't be read)
       const T2 = cardsOut.tex
-      const webp = await sharp(T2.data, { raw: { width: T2.width, height: T2.height, channels: 4 } }).resize(1024, 1024).webp({ quality: 88, alphaQuality: 90 }).toBuffer()
+      const png = await sharp(T2.data, { raw: { width: T2.width, height: T2.height, channels: 4 } }).resize(1024, 1024).png().toBuffer()
+      const ktx = Buffer.from(
+        await encodeToKTX2(new Uint8Array(png), {
+          isUASTC: false,
+          qualityLevel: 128,
+          compressionLevel: 3,
+          generateMipmap: true,
+          isPerceptual: true,
+          imageDecoder: async (b) => {
+            const { data, info } = await sharp(b).ensureAlpha().raw().toBuffer({ resolveWithObject: true })
+            return { data: new Uint8Array(data), width: info.width, height: info.height }
+          },
+        })
+      )
+      fs.writeFileSync(path.join(outDir, `${name}-cards.ktx2`), ktx)
+      const webp = await sharp(T2.data, { raw: { width: T2.width, height: T2.height, channels: 4 } }).resize(512, 512).webp({ quality: 80, alphaQuality: 85 }).toBuffer()
       fs.writeFileSync(path.join(outDir, `${name}-cards.webp`), webp)
+      entry.cardsKtx = `${name}-cards.ktx2`
       entry.cardsTex = `${name}-cards.webp`
+      entry.files[`${name}-cards.ktx2`] = ktx.length
       entry.files[`${name}-cards.webp`] = webp.length
-    } else delete entry.cardsTex
+    } else (delete entry.cardsTex, delete entry.cardsKtx)
     if (cardsOut.shellTris) {
       // (the shell's texture: the photographed head's own, as it was painted)
-      const jpg = await sharp(src.color.data, { raw: { width: src.color.width, height: src.color.height, channels: 3 } }).resize(1024, 1024).jpeg({ quality: 86, mozjpeg: true }).toBuffer()
+      const jpg = await sharp(src.color.data, { raw: { width: src.color.width, height: src.color.height, channels: 3 } }).resize(512, 512).jpeg({ quality: 85, mozjpeg: true }).toBuffer()
       fs.writeFileSync(path.join(outDir, `${name}-shell.jpg`), jpg)
       entry.shellTex = `${name}-shell.jpg`
       entry.files[`${name}-shell.jpg`] = jpg.length
