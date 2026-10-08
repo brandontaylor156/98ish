@@ -414,7 +414,18 @@ const buildOne = (v) => {
   if (ov.areas?.drop) for (const k of ov.areas.drop) for (let i = areas.length - 1; i >= 0; i--) if (areas[i].k === k) areas.splice(i, 1)
   for (const a of ov.areas?.add || []) {
     const pts = polyOfO(a).map(sh)
-    if (pts.length > 2) areas.push({ k: a.kind || "paved", p: pr(pts), ...(a.color ? { c: a.color } : {}), ...(a.lanes ? { lanes: a.lanes } : {}), ...(a.coping ? { coping: a.coping } : {}) })
+    // (a lot's stall rows traced off the aerial: { from, to, toward (a point on the stalls'
+    // side), depth } -> { a, b, d }, d < 0 when the stalls are right of a -> b: scenery.js
+    // lotStalls; `full`: the share of stalls taken)
+    const rows = (a.rows || []).map((r) => {
+      const A = sh(P(r.from))
+      const B = sh(P(r.to))
+      const T = sh(P(r.toward))
+      const L = Math.hypot(B[0] - A[0], B[1] - A[1]) || 1
+      const side = Math.sign((T[0] - A[0]) * ((B[1] - A[1]) / L) - (T[1] - A[1]) * ((B[0] - A[0]) / L)) || 1
+      return { a: [r1(A[0]), r1(A[1])], b: [r1(B[0]), r1(B[1])], d: side * (r.depth || 5.4) }
+    })
+    if (pts.length > 2) areas.push({ k: a.kind || "paved", p: pr(pts), ...(a.color ? { c: a.color } : {}), ...(a.lanes ? { lanes: a.lanes } : {}), ...(a.coping ? { coping: a.coping } : {}), ...(rows.length ? { rows } : {}), ...(a.full !== undefined ? { full: a.full } : {}) })
   }
   // trees from overrides
   for (const tr of ov.trees?.add || []) {

@@ -340,7 +340,10 @@ export const generateVenue = (spec, opts = {}) => {
       const dd = segDist(d, a, b)
       if (!best || dd < best.dd) best = { dd, u: { x: (b.x - a.x) / (len(sub(b, a)) || 1), z: (b.z - a.z) / (len(sub(b, a)) || 1) } }
     })
-    if (d.kind !== "open") extraBoxes.push({ cx: d.x, cz: d.z, hx: d.w / 2 + 0.2, hz: 0.2, ux: best.u.x, uz: best.u.z, h: (d.y || 0) + 12, y0: (d.y || 0) + 2.4, kind: "lintel" })
+    // (up to the floor of a door straight above it, if there is one: Los Cab's ballroom door
+    // over the lobby's)
+    const above = allDoors.filter((o) => (o.y || 0) > (d.y || 0) + 0.5 && Math.hypot(o.x - d.x, o.z - d.z) < (o.w + d.w) / 2 + 0.4).map((o) => o.y)
+    if (d.kind !== "open") extraBoxes.push({ cx: d.x, cz: d.z, hx: d.w / 2 + 0.2, hz: 0.2, ux: best.u.x, uz: best.u.z, h: above.length ? Math.min(...above) : (d.y || 0) + 12, y0: (d.y || 0) + 2.4, kind: "lintel" })
   }
   // ---------- floors above the ground: decks (a rooftop terrace, a mezzanine) and stairs ----------
   // (layout.js: a body's height decides what's solid for it; the walker climbs the stairs)
@@ -363,9 +366,13 @@ export const generateVenue = (spec, opts = {}) => {
   })
   const decks = (spec.decks || []).map((d) => {
     const p = d.p
+    // (an upstairs room's doors onto this deck: Los Cab's ballroom opens onto its balcony; the
+    // railing round the balcony had run across both glass doors, so nobody could go in)
+    const doorGaps = roomSpecs.filter((r) => Math.abs((r.y || 0) - d.y) < 0.3).flatMap((r) => (r.doors || []).map((o) => [o.x, o.z, (o.w || 1.6) + 0.2]))
+    const deckOpenings = [...(d.openings || []), ...doorGaps]
     if (d.rail !== false) {
       // a railing round the edge, open where stairs arrive (and where it says)
-      const openings = [...stairs.filter((s) => Math.abs(s.y1 - d.y) < 0.3).map((s) => ({ x: s.b.x, z: s.b.z, w: s.w + 0.5 })), ...(d.openings || []).map((o) => ({ x: o[0], z: o[1], w: o[2] || 1.6 }))]
+      const openings = [...stairs.filter((s) => Math.abs(s.y1 - d.y) < 0.3).map((s) => ({ x: s.b.x, z: s.b.z, w: s.w + 0.5 })), ...deckOpenings.map((o) => ({ x: o[0], z: o[1], w: o[2] || 1.6 }))]
       for (const bx of wallBoxesGaps(p, 1.05, "rail", openings)) extraBoxes.push({ ...bx, hz: 0.06, y0: d.y, h: d.y + 1.05 })
     }
     if (d.slab) {
@@ -374,7 +381,7 @@ export const generateVenue = (spec, opts = {}) => {
       const zs = p.map((q) => q[1])
       extraBoxes.push({ cx: round((Math.min(...xs) + Math.max(...xs)) / 2), cz: round((Math.min(...zs) + Math.max(...zs)) / 2), hx: round((Math.max(...xs) - Math.min(...xs)) / 2), hz: round((Math.max(...zs) - Math.min(...zs)) / 2), ux: 1, uz: 0, y0: round(d.y - 0.3), h: d.y, kind: "deck" })
     }
-    return { y: d.y, p, name: d.name || null, rail: d.rail !== false, railColor: d.railColor || null, slab: !!d.slab, color: d.color || null, openings: d.openings || [] }
+    return { y: d.y, p, name: d.name || null, rail: d.rail !== false, railColor: d.railColor || null, slab: !!d.slab, color: d.color || null, openings: deckOpenings }
   })
   // props: the rooms' furniture and the venue's own (outdoors), solid ones bumped into
   const venueProps = (spec.props || []).filter((pr) => pr && pr.t)
@@ -419,7 +426,28 @@ export const generateVenue = (spec, opts = {}) => {
   for (const b of spec.buildings || []) {
     if (b.hall) continue
     if (!b.p.some(([x, z]) => x > reach.x0 && x < reach.x1 && z > reach.z0 && z < reach.z1)) continue
-    extraBoxes.push(...(b.doors ? wallBoxesGaps(b.p, b.h, "building", gapsOn(b.p)) : wallBoxes(b.p, b.h, "building")))
+    // an upstairs room's door in this building's outside wall (Los Cab's ballroom onto its
+    // balcony): the wall is open there at that floor only, door-high (scenery.js draws it so);
+    // below and above it stays solid. (Before, the wall was solid at every height there: the
+    // balcony's doors couldn't be walked through.)
+    const edge = (d) => b.p.findIndex((q, k) => segDist(d, { x: q[0], z: q[1] }, { x: b.p[(k + 1) % b.p.length][0], z: b.p[(k + 1) % b.p.length][1] }) < 0.5)
+    const ups = b.doors ? allDoors.filter((d) => (d.y || 0) > 0.5 && edge(d) >= 0) : []
+    extraBoxes.push(...(b.doors ? wallBoxesGaps(b.p, b.h, "building", [...gapsOn(b.p), ...ups]) : wallBoxes(b.p, b.h, "building")))
+    for (const d of ups) {
+      const i = edge(d)
+      const q0 = b.p[i]
+      const q1 = b.p[(i + 1) % b.p.length]
+      const L = Math.hypot(q1[0] - q0[0], q1[1] - q0[1]) || 1
+      const ux = (q1[0] - q0[0]) / L
+      const uz = (q1[1] - q0[1]) / L
+      const box = { cx: d.x, cz: d.z, hx: (d.w || 1.8) / 2 + 0.05, hz: 0.15, ux, uz, kind: "building" }
+      if (b.h > d.y + 2.4) extraBoxes.push({ ...box, y0: d.y + 2.4, h: b.h })
+      // below it the wall, except where a ground-floor door is (the lobby's under the ballroom's)
+      const at = (p) => (p.x - q0[0]) * ux + (p.z - q0[1]) * uz
+      let runs = [[at(d) - box.hx, at(d) + box.hx]]
+      for (const g of gapsOn(b.p)) if (edge(g) === i) runs = runs.flatMap(([s0, e0]) => [[s0, Math.min(e0, at(g) - g.w / 2)], [Math.max(s0, at(g) + g.w / 2), e0]]).filter(([s0, e0]) => e0 - s0 > 0.05)
+      for (const [s0, e0] of runs) extraBoxes.push({ ...box, cx: q0[0] + ux * (s0 + e0) / 2, cz: q0[1] + uz * (s0 + e0) / 2, hx: (e0 - s0) / 2, h: d.y })
+    }
   }
   // solid extras: stands, a tower, a raised lounge, columns (circles)
   const extraCircles = []
@@ -430,6 +458,14 @@ export const generateVenue = (spec, opts = {}) => {
     else if (x.type === "tower" && !x.base) extraBoxes.push({ cx: x.x, cz: x.z, hx: (x.w || 5) / 2, hz: (x.w || 5) / 2, ux: 1, uz: 0, h: x.h || 14, kind: "tower" })
     else if (x.type === "spine") extraBoxes.push({ cx: x.x, cz: x.z, hx: (x.w || 20) / 2, hz: (x.d || 5) / 2, ux: u.x, uz: u.z, h: (x.h || 1) + 1.1, kind: "spine" })
     else if (x.type === "gazebo") extraCircles.push({ x: x.x, z: x.z, r: 0.25 })
+    else if (x.type === "pergola" && x.poly) {
+      // (its posts, as scenery.js stands them: one every 3.5 m at most round the edge)
+      x.poly.forEach(([ax, az], i) => {
+        const [bx, bz] = x.poly[(i + 1) % x.poly.length]
+        const n = Math.max(1, Math.ceil(Math.hypot(bx - ax, bz - az) / 3.5))
+        for (let k = 0; k < n; k++) extraCircles.push({ x: ax + ((bx - ax) * k) / n, z: az + ((bz - az) * k) / n, r: 0.2 })
+      })
+    }
   }
   for (const h of hallSpecs) {
     if (!h.columns) continue
@@ -934,12 +970,20 @@ export const generateVenue = (spec, opts = {}) => {
   }
   const fences = []
   if (style !== "none") {
+    // (fence.chamfer: the pens' corners cut at 45 degrees, legs this long, as the aerials show
+    // at Whittier Narrows and the Paseo Club; a pen too small for it keeps square corners)
+    const chamfer = spec.fence?.chamfer || 0
     banks.forEach((bank) => {
       const cs = corners(bank.box)
       const gs = gatesOn.get(bank.i) || []
+      const c = chamfer > 0 && Math.min(bank.box.hx, bank.box.hz) * 2 > chamfer * 4 ? chamfer : 0
       for (let k = 0; k < 4; k++) {
-        const a = cs[k]
-        const b = cs[(k + 1) % 4]
+        const a0 = cs[k]
+        const b0 = cs[(k + 1) % 4]
+        const L0 = len(sub(b0, a0))
+        const u = { x: (b0.x - a0.x) / L0, z: (b0.z - a0.z) / L0 }
+        const a = add(a0, u, c)
+        const b = add(b0, u, -c)
         const ab = sub(b, a)
         const L = len(ab)
         const gates = gs
@@ -950,6 +994,13 @@ export const generateVenue = (spec, opts = {}) => {
           })
           .filter((t) => t !== null)
         fences.push({ a: [round(a.x), round(a.z)], b: [round(b.x), round(b.z)], h: fenceH, k: "chain", gates })
+        if (c) {
+          // the cut corner: from this side's end to the next side's start
+          const n0 = cs[(k + 2) % 4]
+          const L1 = len(sub(n0, b0)) || 1
+          const nb = add(b0, { x: (n0.x - b0.x) / L1, z: (n0.z - b0.z) / L1 }, c)
+          fences.push({ a: [round(b.x), round(b.z)], b: [round(nb.x), round(nb.z)], h: fenceH, k: "chain", gates: [] })
+        }
       }
       // dividers between neighbouring courts (tennis: full fences; pickleball: low windscreens)
       const div = spec.fence?.dividers ?? (bank.s === "t" ? "fence" : "low")

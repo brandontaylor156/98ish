@@ -1871,7 +1871,9 @@ const devHooks = (world, { scene, park, exposure }) => {
       c.lookAt(cx, 0, cz)
     } else {
       const k = cam || {}
-      c = new THREE.PerspectiveCamera(k.fov || 55, w / h, 0.1, 1500)
+      // (a drone's height: the near plane well out, or the court paint layers, centimetres
+      // apart, fight at that distance and courts show their surround through them)
+      c = new THREE.PerspectiveCamera(k.fov || 55, w / h, Math.max(0.1, ((k.y ?? 1.7) - 20) * 0.5), 1500)
       const hd = ((k.heading || 0) * Math.PI) / 180
       const pt = ((k.pitch || 0) * Math.PI) / 180
       c.position.set(k.x || 0, k.y ?? 1.7, k.z || 0)

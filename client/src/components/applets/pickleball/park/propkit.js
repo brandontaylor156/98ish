@@ -66,6 +66,7 @@ export const PROPS = {
   backbar: { w: 3.0, d: 0.45, h: 2.3, solid: true, wall: true },
   stairs: { w: 1.6, d: 4.0, h: 2.8 },
   partition: { w: 2.0, d: 0.06, h: 1.1, solid: true },
+  stuccowall: { w: 2.0, d: 0.3, h: 2.2, solid: true },
   glasswall: { w: 2.0, d: 0.06, h: 2.4, solid: true },
   kidsmat: { w: 2, d: 2, h: 0.04 },
   toybox: { w: 0.9, d: 0.5, h: 0.5, solid: true, wall: true },
