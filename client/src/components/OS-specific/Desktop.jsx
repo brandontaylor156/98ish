@@ -48,12 +48,12 @@ const FreeCell = lazyApp(() => import("../applets/cards/FreeCell"))
 const Paint = lazyApp(() => import("../applets/paint/Paint"))
 const WordPad = lazyApp(() => import("../applets/wordpad/WordPad"))
 const SoundRecorder = lazyApp(() => import("../applets/soundRecorder/SoundRecorder"))
-const Pinball = lazyApp(() => import("../applets/pinball/Pinball"))
 const CritterPinball = lazyApp(() => import("../applets/critterpinball/CritterPinball"))
 const MediaPlayer = lazyApp(() => import("../applets/mediaPlayer/MediaPlayer"))
 const Music = lazyApp(() => import("../applets/music/Music"))
 const Together = lazyApp(() => import("../applets/together/Together"))
 const Locator = lazyApp(() => import("../applets/locator/Locator"))
+const Maps = lazyApp(() => import("../applets/maps/Maps"))
 const NetWindow = lazyApp(() => import("../applets/network/NetWindow"))
 const Mail = lazyApp(() => import("../applets/mail/Mail"))
 const HomePageStudio = lazyApp(() => import("../applets/homepage/HomePageStudio"))
@@ -69,7 +69,6 @@ const Tetherball = lazyApp(() => import("../applets/tetherball/Tetherball"))
 const WordDuel = lazyApp(() => import("../applets/wordduel/WordDuel"))
 const SpeedType = lazyApp(() => import("../applets/speedtype/SpeedType"))
 const LastCard = lazyApp(() => import("../applets/lastcard/LastCard"))
-const ChessPuzzles = lazyApp(() => import("../applets/chesspuzzles/ChessPuzzles"))
 const Imposter = lazyApp(() => import("../applets/imposter/Imposter"))
 const Hexlands = lazyApp(() => import("../applets/hexlands/Hexlands"))
 const MonsterDuel = lazyApp(() => import("../applets/monsterduel/MonsterDuel"))
@@ -194,7 +193,7 @@ const minWidthFor = (window) =>
 const HELP_BUTTON = new Set(["Display Properties", "Date/Time Properties", "Keyboard Properties", "Passwords", "Desktop Themes", "System Properties", "Accessibility Options", "Add/Remove Programs", "Mouse", "Regional Settings", "Storage", "Internet Options", "Fonts", "Power Management", "Sounds"])
 
 // High Contrast leaves these windows' contents in their own colors (games, pictures)
-const KEEP_COLORS = new Set(["paint", "photos", "camera", "webapp", "magnifier", "pinball"])
+const KEEP_COLORS = new Set(["paint", "photos", "camera", "webapp", "magnifier", "doodle", "quiz"])
 const keepsColors = (window) => {
   const p = programByName(window.program)
   return KEEP_COLORS.has(window.app) || p?.group === "Games" || !!p?.also?.includes("Games") || !!window.app?.startsWith("net-")
@@ -847,7 +846,6 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
       )}
       {window.app === "solitaire" && <Solitaire onClose={() => closeWindow(window, index)} />}
       {window.app === "freecell" && <FreeCell onClose={() => closeWindow(window, index)} onTitle={rename(index)} />}
-      {window.app === "pinball" && <Pinball mobile={mobile} onClose={() => closeWindow(window, index)} onTitle={rename(index)} />}
       {window.app === "critterpinball" && <CritterPinball mobile={mobile} onClose={() => closeWindow(window, index)} onTitle={rename(index)} />}
       {window.app === "ski" && <Ski mobile={mobile} onClose={() => closeWindow(window, index)} />}
       {window.app === "pickleball" && <Pickleball mobile={mobile} handoff={window.handoff} onClose={() => closeWindow(window, index)} />}
@@ -861,10 +859,10 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
       {window.app === "wordduel" && <WordDuel mobile={mobile} onClose={() => closeWindow(window, index)} />}
       {window.app === "speedtype" && <SpeedType mobile={mobile} onClose={() => closeWindow(window, index)} />}
       {window.app === "lastcard" && <LastCard mobile={mobile} onClose={() => closeWindow(window, index)} />}
-      {window.app === "chesspuzzles" && <ChessPuzzles mobile={mobile} onClose={() => closeWindow(window, index)} />}
       {window.app === "imposter" && <Imposter mobile={mobile} onClose={() => closeWindow(window, index)} />}
       {window.app === "musiclib" && <Music mobile={mobile} handoff={window.handoff} onClose={() => closeWindow(window, index)} />}
       {window.app === "locator" && <Locator mobile={mobile} dispatch={dispatch} onClose={() => closeWindow(window, index)} />}
+      {window.app === "maps" && <Maps mobile={mobile} handoff={window.handoff} onClose={() => closeWindow(window, index)} />}
       {window.app === "hangout" && <Hangout mobile={mobile} handoff={window.handoff} dispatch={dispatch} onClose={() => closeWindow(window, index)} />}
       {window.app === "lanparty" && <LanParty handoff={window.handoff} onClose={() => closeWindow(window, index)} />}
       {window.app === "virtualpc" && <VirtualPC handoff={window.handoff} onClose={() => closeWindow(window, index)} />}
@@ -901,6 +899,7 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
 
       {window.app === "calc" && (
         <Calculator
+          mobile={mobile}
           // fits its window to the buttons (Standard, Scientific); phones stretch them
           fitWindow={
             mobile || window.maximized
@@ -967,6 +966,7 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
         <NetWindow
           window={window}
           dispatch={dispatch}
+          mobile={mobile}
           onClose={() => closeWindow(window, index)}
           // Minesweeper Race sizes its window like Minesweeper does
           fitWindow={

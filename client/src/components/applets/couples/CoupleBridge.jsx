@@ -1,6 +1,6 @@
 import React, { Suspense, lazy, useEffect, useRef, useState } from "react"
 import { keyOf, useAim } from "../aim/AimContext"
-import { launch, programByName } from "../../../utils/programs"
+import { launch, programByName, retiredExtra } from "../../../utils/programs"
 import {
   OPEN_EVENT,
   VIEW_EVENT,
@@ -84,6 +84,10 @@ const CoupleBridge = ({ socket, windows, dispatch, mobile }) => {
       const program = programByName(e.detail?.program)
       if (!program) return
       const extra = e.detail?.extra || {}
+      // a retired program's name ("Chess Puzzles"): its new home, in the right mode (an open
+      // window gets it as a handoff when it's brought forward)
+      const retired = retiredExtra(e.detail?.program)
+      if (Object.keys(retired).length) return dispatch({ type: "open_window", payload: launch(program.name, { ...extra, ...retired, handoff: { id: Date.now(), ...retired } }) })
       const index = program.single ? windowsRef.current.findIndex((w) => !w.closed && w.program === program.name) : -1
       if (index >= 0) {
         dispatch({ type: "focus_window", payload: { index } })

@@ -40,7 +40,7 @@ const HeartsLauncher = ({ onClose }) => {
 }
 
 // Every Network Neighborhood window, by its app
-const NetWindow = ({ window: w, dispatch, onClose, fitWindow }) => {
+const NetWindow = ({ window: w, dispatch, onClose, fitWindow, mobile = false }) => {
   switch (w.app) {
     case "network":
       return <NetworkNeighborhood onClose={onClose} />
@@ -68,7 +68,8 @@ const NetWindow = ({ window: w, dispatch, onClose, fitWindow }) => {
     case "net-reversi":
       return <Reversi matchId={w.matchId} onClose={onClose} />
     case "net-chess":
-      return <Chess matchId={w.matchId} onClose={onClose} />
+      // (Chess Puzzles is Chess's Puzzles mode: chessMode on opening, or a handoff when it's open)
+      return <Chess matchId={w.matchId} onClose={onClose} mobile={mobile} startMode={w.chessMode} handoff={w.handoff} />
     case "net-battleship":
       return <Battleship matchId={w.matchId} onClose={onClose} />
     default:

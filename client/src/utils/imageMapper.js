@@ -16,7 +16,7 @@ export const imageMapper = {
   minesweeper: "program_icons/mine-48.png",
   solitaire: "program_icons/solitaire.svg",
   freecell: "program_icons/freecell.svg",
-  pinball: "program_icons/pinball.svg",
+  pinball: "program_icons/critterpinball.svg", // (retired: Critter Catch Pinball)
   critterpinball: "program_icons/critterpinball.svg",
   hover: "program_icons/hover2-48.png",
   spectra: "program_icons/spectra.svg",
@@ -31,6 +31,7 @@ export const imageMapper = {
   song: "program_icons/song.svg",
   together: "program_icons/together.svg",
   locator: "program_icons/locator.svg",
+  maps: "program_icons/maps.svg",
   hangout: "program_icons/hangout.svg",
   vb98: "program_icons/vb98.svg",
   viewer3d: "program_icons/viewer3d.svg",
@@ -64,7 +65,7 @@ export const imageMapper = {
   tetherball: "program_icons/tetherball.svg",
   speedtype: "program_icons/speedtype.svg",
   wordduel: "program_icons/wordduel.svg",
-  chesspuzzles: "program_icons/chesspuzzles.svg",
+  chesspuzzles: "program_icons/chess.svg", // (retired: Chess's Puzzles mode)
   imposter: "program_icons/imposter.svg",
   lastcard: "program_icons/lastcard.svg",
   hexlands: "program_icons/hexlands.svg",

@@ -6,7 +6,10 @@ import { CHESS_LEVELS, useNetGame, useSoloChess } from "./useBoardGame"
 import { ChessPiece, PIECE_NAMES } from "./ChessPieces"
 import "./BoardGames.css"
 import { helpItem } from "../../../../utils/help"
-import { useNet } from "../NetContext"
+import { lazyApp } from "../../../OS-specific/LazyApp"
+
+// Chess's Puzzles mode (the Lichess-style trainer), loaded the first time it's opened
+const ChessPuzzles = lazyApp(() => import("../../chesspuzzles/ChessPuzzles"))
 
 // Chess against another computer on the network, or against this one. Click (or drag) a
 // piece, then where it goes. Black sees the board from their side.
@@ -69,10 +72,9 @@ const MoveList = ({ sans, compact }) => {
   )
 }
 
-const ChessBoard = ({ view, act, onClose }) => {
+const ChessBoard = ({ view, act, onClose, onPuzzles }) => {
   const chatItem = useGameChatMenuItem("chess")
   const onlineItem = usePlayOnlineItem("chess")
-  const net = useNet()
   const [sel, setSel] = useState(null)
   const [promo, setPromo] = useState(null) // { from, to } waiting for a piece choice
   const [error, setError] = useState(null)
@@ -241,7 +243,7 @@ const ChessBoard = ({ view, act, onClose }) => {
               "-",
             ]
           : []),
-        { label: "Puzzles...", onClick: () => net?.openProgram("Chess Puzzles") },
+        ...(onPuzzles ? [{ label: "Puzzles", onClick: onPuzzles }] : []),
         "-",
         { label: "Offer Draw", disabled: !!result || !!view.drawOffer, onClick: () => act.draw("offer") },
         { label: "Resign...", disabled: !!result, onClick: () => setDialog("resign") },
@@ -377,11 +379,64 @@ const NetChess = ({ matchId, onClose }) => {
   return <ChessBoard view={view} act={act} onClose={onClose} />
 }
 
-const SoloChess = ({ onClose }) => {
+const SoloPlay = ({ onClose, onPuzzles }) => {
   const { view, act } = useSoloChess()
-  return <ChessBoard view={view} act={act} onClose={onClose} />
+  return <ChessBoard view={view} act={act} onClose={onClose} onPuzzles={onPuzzles} />
 }
 
-const Chess = ({ matchId, onClose }) => (matchId ? <NetChess matchId={matchId} onClose={onClose} /> : <SoloChess onClose={onClose} />)
+// Chess from the Start menu: Play (the computer, or Play Online) and Puzzles (the trainer that
+// used to be its own program, applets/chesspuzzles). Both stay mounted once opened, so
+// switching never loses a game in progress; the last one chosen is remembered.
+const MODE_KEY = "98ish.chess.mode"
+const readMode = () => {
+  try {
+    return localStorage.getItem(MODE_KEY) === "puzzles" ? "puzzles" : "play"
+  } catch {
+    return "play"
+  }
+}
+const SoloChess = ({ onClose, mobile, startMode, handoff }) => {
+  const [mode, setModeState] = useState(() => (startMode === "puzzles" || startMode === "play" ? startMode : readMode()))
+  const [puzzlesOpened, setPuzzlesOpened] = useState(mode === "puzzles")
+  const setMode = (next) => {
+    setModeState(next)
+    if (next === "puzzles") setPuzzlesOpened(true)
+    try {
+      localStorage.setItem(MODE_KEY, next)
+    } catch {
+      // not remembered, that's all
+    }
+  }
+  // opened again (a shortcut, DOS PUZZLES, Help) while it's open
+  useEffect(() => {
+    if (handoff?.chessMode) setMode(handoff.chessMode)
+  }, [handoff?.id])
+  return (
+    <div className="chHost" data-mode={mode}>
+      <div className="chModeTabs" role="tablist" aria-label="Chess">
+        {[
+          ["play", "Play"],
+          ["puzzles", "Puzzles"],
+        ].map(([id, label]) => (
+          <button key={id} type="button" role="tab" aria-selected={mode === id} className={mode === id ? "is-on" : ""} onClick={() => setMode(id)}>
+            <img src={id === "play" ? "/assets/program_icons/chess.svg" : "/assets/program_icons/chesspuzzles.svg"} alt="" />
+            {label}
+          </button>
+        ))}
+      </div>
+      <div className="chHostBody" hidden={mode !== "play"}>
+        <SoloPlay onClose={onClose} onPuzzles={() => setMode("puzzles")} />
+      </div>
+      {puzzlesOpened && (
+        <div className="chHostBody" hidden={mode !== "puzzles"}>
+          <ChessPuzzles mobile={mobile} onClose={onClose} />
+        </div>
+      )}
+    </div>
+  )
+}
+
+const Chess = ({ matchId, onClose, mobile = false, startMode, handoff }) =>
+  matchId ? <NetChess matchId={matchId} onClose={onClose} /> : <SoloChess onClose={onClose} mobile={mobile} startMode={startMode} handoff={handoff} />
 
 export default Chess

@@ -1417,7 +1417,10 @@ const Paint = ({ file: initialFile = null, handoff = null, mobile = false, onTit
               onPointerMove={onPointerMove}
               onPointerUp={onPointerUp}
               onPointerCancel={onPointerUp}
-              onPointerLeave={() => (setHover(null), setStatus((st) => ({ ...st, pos: drag.current ? st.pos : null })))}
+              onPointerLeave={(e) =>
+                // a finger "leaves" every time it lifts: keep its last spot so the status bar doesn't blank out between strokes
+                (setHover(null), setStatus((st) => ({ ...st, pos: drag.current || e.pointerType === "touch" || mobile ? st.pos : null })))
+              }
               onContextMenu={(e) => e.preventDefault()}
             >
               <canvas ref={canvasRef} className="pCanvas" width={W} height={H} style={{ width: W * zoom, height: H * zoom }} aria-label="Picture" />
@@ -1577,8 +1580,12 @@ const Paint = ({ file: initialFile = null, handoff = null, mobile = false, onTit
                     : "Connecting..."
               : statusHint}
           </p>
-          <p className="status-bar-field pStatusPos">{status.pos ? `${status.pos[0]},${status.pos[1]}` : ""}</p>
-          <p className="status-bar-field pStatusSize">{sizeText}</p>
+          <p className="status-bar-field pStatusPos" aria-label="Pointer position">
+            {status.pos ? `${status.pos[0]},${status.pos[1]}` : mobile ? "0,0" : " "}
+          </p>
+          <p className="status-bar-field pStatusSize" aria-label="Size">
+            {sizeText || (mobile ? `${W}x${H}` : " ")}
+          </p>
         </div>
       )}
 

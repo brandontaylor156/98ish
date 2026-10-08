@@ -241,7 +241,8 @@ const ComputerFolder = ({ computerId, computerName }) => {
   const actions = [
     { id: "file", label: "Send a File", icon: <SendFileIcon />, run: () => setDialog({ kind: "file" }) },
     { id: "message", label: net.canIm(computer) ? "Instant Message" : "Send a Message", icon: <MessageIcon />, run: sendMessage },
-    ...Object.entries(GAME_INFO).map(([game, info]) => ({
+    // the games A to Z
+    ...Object.entries(GAME_INFO).sort(([, a], [, b]) => a.name.localeCompare(b.name, "en", { sensitivity: "base" })).map(([game, info]) => ({
       id: game,
       label: info.name,
       icon: <GameIcon src={info.icon} />,

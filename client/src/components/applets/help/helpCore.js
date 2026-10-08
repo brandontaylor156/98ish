@@ -163,7 +163,8 @@ export const validate = ({ books = [], topics = [], programNames = null } = {}) 
 // ---- Contents ----
 
 // -> [{ kind: "book", id, title, children: [...] } | { kind: "topic", id, title }], books by
-// `order` (then as listed), topics as listed, a book's sub-books before its pages
+// `order` (then as listed), topics as listed (or A to Z in a book with `sort: "az"`, like
+// the game books), a book's sub-books before its pages
 export const buildToc = (books, topics) => {
   const order = (b) => (typeof b.order === "number" ? b.order : 1000)
   const sorted = books.map((b, i) => ({ b, i })).sort((x, y) => order(x.b) - order(y.b) || x.i - y.i).map((x) => x.b)
@@ -171,7 +172,10 @@ export const buildToc = (books, topics) => {
     kind: "book",
     id: b.id,
     title: b.title,
-    children: [...sorted.filter((c) => c.parent === b.id).map(node), ...topics.filter((t) => t.book === b.id).map((t) => ({ kind: "topic", id: t.id, title: t.title }))],
+    children: [
+      ...sorted.filter((c) => c.parent === b.id).map(node),
+      ...(b.sort === "az" ? (list) => [...list].sort((x, y) => x.title.localeCompare(y.title, "en", { sensitivity: "base", numeric: true })) : (list) => list)(topics.filter((t) => t.book === b.id)).map((t) => ({ kind: "topic", id: t.id, title: t.title })),
+    ],
   })
   return sorted.filter((b) => !b.parent).map(node)
 }

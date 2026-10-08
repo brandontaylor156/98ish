@@ -1,7 +1,7 @@
 // Help topics: the quick games (Boom Frenzy, Color Match, Echo Pads, Zap It!, Tetherball).
 // (Format: see ../helpCore.js. No imports here: Node's tests load this file directly.)
 
-export const books = [{ id: "games-quick", title: "Quick reflex games", parent: "games" }]
+export const books = [{ id: "games-quick", title: "Quick reflex games", parent: "games", sort: "az" }]
 
 export const topics = [
   {
@@ -125,7 +125,7 @@ export const topics = [
           rows: [
             ["Tap it", "Tap the pad", "{{Space}} or click"],
             ["Swipe it", "Swipe sideways", "{{Left}} / {{Right}}, or drag sideways"],
-            ["Twist it", "Two fingers turning, like a knob (or circle one finger)", "{{T}}, or draw a circle with the mouse"],
+            ["Twist it", "A knob appears on the screen: drag your finger round it. Or turn two fingers like opening a jar, draw a quick circle, or (with motion allowed) turn the phone itself", "{{T}}, turn the on-screen knob, or draw a circle with the mouse"],
             ["Pull it", "Drag down", "{{Down}}"],
             ["Flick it", "Flick up", "{{Up}}"],
             ["Shake it", "Shake the phone", "(not on computers)"],

@@ -139,6 +139,18 @@
 .v3dToken small {
   color: #444;
 }
+.v3dTokenRow {
+  display: flex;
+  gap: 4px;
+}
+.v3dTokenRow input {
+  flex: 1;
+  min-width: 0;
+}
+.v3dToken small.v3dOk {
+  color: #006400;
+  font-weight: bold;
+}
 .v3dMakeBody {
   display: grid;
   gap: 8px;

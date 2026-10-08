@@ -4,10 +4,11 @@
 export const books = [
   { id: "games", title: "Games", order: 50 },
   { id: "games-online", title: "Playing online", parent: "games" },
-  { id: "games-action", title: "Action and sports", parent: "games" },
-  { id: "games-cards", title: "Cards and board games", parent: "games" },
-  { id: "games-puzzle", title: "Puzzles and word games", parent: "games" },
-  { id: "games-sim", title: "Building and strategy", parent: "games" },
+  // the games A to Z (the owner's wish, 2026-10-07)
+  { id: "games-action", title: "Action and sports", parent: "games", sort: "az" },
+  { id: "games-cards", title: "Cards and board games", parent: "games", sort: "az" },
+  { id: "games-puzzle", title: "Puzzles and word games", parent: "games", sort: "az" },
+  { id: "games-sim", title: "Building and strategy", parent: "games", sort: "az" },
 ]
 
 export const topics = [
@@ -114,7 +115,7 @@ export const topics = [
       },
       { note: "On a computer with a touch screen, turn the buttons on or off with **Show Touch Controls** in the game's menu." },
     ],
-    related: ["tetris", "pinball", "phone-basics"],
+    related: ["tetris", "critterpinball", "phone-basics"],
   },
 
   // ---------------- Action and sports ----------------
@@ -500,67 +501,11 @@ export const topics = [
     related: ["touch-controls", "no-sound"],
   },
   {
-    id: "pinball",
-    book: "games-action",
-    title: "Pinball: Blue Screen",
-    summary: "A 90s-style PC pinball table themed on 98ish: missions, ramps, locks and multiball.",
-    keywords: ["pinball", "flippers", "plunger", "nudge", "tilt", "multiball", "missions", "blue screen", "ramp", "skill shot", "jackpot", "ranks"],
-    programs: ["Pinball"],
-    body: [
-      "Pull the plunger back and let go to launch the ball. Keep it out of the drain with the flippers. You have 3 balls. The left flipper button also works the little flipper on the upper left.",
-      { h: "Controls" },
-      {
-        keys: [
-          ["Z, Left Shift or Left arrow", "Left flippers"],
-          ["/, Right Shift or Right arrow", "Right flipper"],
-          ["Space or Down (hold, let go)", "Plunger"],
-          ["X, . or Up arrow", "Nudge the table"],
-          ["F2", "New game"],
-          ["F3", "Pause or resume"],
-        ],
-      },
-      {
-        phone: "Hold the left or right half of the table for those flippers (both at once works). With the ball in the shooter lane, **drag the plunger down** and let go (or hold **HOLD**). Tap **NUDGE**, or give the phone a shake, to bump the table.",
-        computer: "Use the keys above, or click the halves of the table. Hold the plunger key longer for a stronger launch. A gamepad works too: bumpers or triggers flip, A launches.",
-      },
-      { h: "The table" },
-      {
-        list: [
-          "**M-S-G** lanes up top: light all three to raise the end-of-ball bonus (the flippers move the lit lanes). A launch into the blinking lane is a **skill shot**.",
-          "**Start** pop bumpers, slingshots, and the **Hourglass** spinner in the left orbit.",
-          "Knock down **9-8-I-S-H** to light the lock, then shoot the **Blue Screen**. Three locked balls start **multiball**: the **My Computer** ramp scores jackpots, the Blue Screen a super jackpot.",
-          "The **Floppy drive** relights **Restore**, which kicks a ball back from the left outlane once, and collects extra balls.",
-          "The **Hard Drive** is a captive ball: hit it hard enough to bump it to the top.",
-          "Nudging can save a ball, but too much is a **TILT**.",
-        ],
-      },
-      { h: "Missions" },
-      "The display shows the current mission. Each one done ranks you up, from Intern to Sysadmin; ranks 3 and 6 light an extra ball at the Floppy drive. After Sysadmin the missions go round again and ask for more.",
-      {
-        table: {
-          head: ["Mission", "What to do"],
-          rows: [
-          ["Dial-up", "Spin the Hourglass 30 times"],
-          ["Virus Scan", "Knock down 9-8-I-S-H"],
-          ["Defragment", "Shoot the My Computer ramp 3 times"],
-          ["Send an IM", "Light M-S-G up top"],
-          ["Save to Floppy", "Sink the Floppy drive twice"],
-          ["Surf the Web", "Loop the orbits twice"],
-          ["Disk Cleanup", "Bump the Hard Drive to the top twice"],
-            ["Install Update", "Lock 3 balls in the Blue Screen for multiball"],
-          ],
-        },
-      },
-      "Game > **High Scores** keeps your ten best games, with your initials (each person on the computer has their own).",
-    ],
-    related: ["touch-controls", "critterpinball"],
-  },
-  {
     id: "critterpinball",
     book: "games-action",
     title: "Critter Catch Pinball",
     summary: "Pinball where you catch critters: reveal them, hit them, evolve them, travel the map and fill your Critter Dex.",
-    keywords: ["pinball", "critters", "catch", "monsters", "creatures", "evolve", "evolution", "dex", "collection", "bonus stage", "boss", "Sparkit", "Ember", "Tide", "map"],
+    keywords: ["pinball", "critters", "catch", "monsters", "creatures", "evolve", "evolution", "dex", "collection", "bonus stage", "boss", "Sparkit", "Ember", "Tide", "map", "Blue Screen", "flippers", "plunger"],
     programs: ["Critter Catch Pinball"],
     body: [
       "A pinball game about catching critters, in the spirit of the critter-catching pinball games of the late 90s, with 98ish's own 47 critters. Pick the **Ember** table (meadows, forests, a volcano) or the **Tide** table (beaches, reefs, a glacier): each has its own critters and areas. You have 3 balls.",
@@ -601,8 +546,9 @@ export const topics = [
       },
       { h: "The Critter Dex" },
       "Game > **Critter Dex** (or Critter Dex on the start screen) shows every critter you've seen and caught on both tables: caught ones in color with their Dex page, seen ones as a shadow. It and the high scores (one list per table) are kept in this browser, for each person on the computer separately.",
+      { note: "Critter Catch Pinball is 98ish's one pinball game now. The older **Pinball: Blue Screen** table was retired; if you played it, your best Blue Screen scores still show at the bottom of **High Scores**, and old Pinball shortcuts open Critter Catch Pinball." },
     ],
-    related: ["pinball", "touch-controls"],
+    related: ["touch-controls"],
   },
   {
     id: "downhill",
@@ -845,10 +791,11 @@ export const topics = [
     id: "chess",
     book: "games-cards",
     title: "Chess",
-    summary: "Chess against the computer (three levels) or a person.",
-    keywords: ["chess", "checkmate", "castle", "stalemate", "promotion", "Flip Board"],
+    summary: "Chess against the computer (three levels) or a person, and chess puzzles.",
+    keywords: ["chess", "checkmate", "castle", "stalemate", "promotion", "Flip Board", "puzzles"],
     programs: ["Chess"],
     body: [
+      "Chess has two tabs at the top: **Play** (a game against the computer, or a person online) and **Puzzles** (find the best move: rated puzzles, Puzzle Rush, Puzzle Streak and the Daily Puzzle; see [[chess-puzzles]]). Chess remembers the tab you used last.",
       "Checkmate the other king: attack it so it has no way out.",
       { phone: "Tap a piece to see where it can go, then tap the square.", computer: "Click a piece to see where it can go, then click the square, or drag the piece there." },
       {
@@ -865,14 +812,14 @@ export const topics = [
   {
     id: "chess-puzzles",
     book: "games-cards",
-    title: "Chess Puzzles",
-    summary: "Find the best move: rated puzzles, Puzzle Streak, Puzzle Rush, the Daily Puzzle and themes.",
+    title: "Chess: Puzzles",
+    summary: "Chess's Puzzles tab: rated puzzles, Puzzle Streak, Puzzle Rush, the Daily Puzzle and themes.",
     keywords: ["chess puzzles", "tactics", "puzzle rating", "Puzzle Rush", "Puzzle Streak", "Daily Puzzle", "mate in 2", "fork", "pin", "Lichess", "hint", "Survival"],
-    programs: ["Chess Puzzles"],
     body: [
+      "Open **Chess** and tap the **Puzzles** tab at the top (it used to be a program of its own, Chess Puzzles; your rating, history and best scores carried over).",
       "Each puzzle starts with your opponent's move. Then find the best reply, and keep going until it's solved: the computer answers each right move. Any move that checkmates counts.",
       { phone: "Tap a piece, then its square, or drag it.", computer: "Click a piece, then its square, or drag it there." },
-      "A wrong move is shown for a moment, then taken back: try another move (**Retry**), or **View solution** to watch the answer. **Hint** shows the piece to move; press it again for the square. Chess's Game menu has **Puzzles...** too.",
+      "A wrong move is shown for a moment, then taken back: try another move (**Retry**), or **View solution** to watch the answer. **Hint** shows the piece to move; press it again for the square. Chess's Game menu has **Puzzles** too.",
       { h: "Your puzzle rating" },
       "Puzzles are picked near your rating (it starts at 1500, with a **?** while it's still settling). Solve one without a mistake and it goes up; a wrong move or the solution lowers it, by more for an easy puzzle. Solving with a hint doesn't raise it. More options > **Reset rating** starts over.",
       { h: "Other ways to play (More options or the Game menu)" },
@@ -885,6 +832,7 @@ export const topics = [
           "**History:** every puzzle you've tried; **Replay** any of them (it doesn't change your rating).",
         ],
       },
+      { open: "Chess", label: "Open Chess" },
       { note: "The 4,000+ puzzles come from the Lichess puzzle database (lichess.org), which Lichess released into the public domain (CC0). They're built in, so puzzles work offline and never contact Lichess. Your rating and history stay on this device." },
     ],
     related: ["chess", "checkers"],

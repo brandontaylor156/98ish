@@ -918,3 +918,76 @@
     grid-row: 6;
   }
 }
+
+/* Chess from the Start menu: Play and Puzzles tabs over the two modes (Chess.jsx SoloChess) */
+.chHost {
+  position: relative;
+  height: calc(100% - 25px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #c0c0c0;
+}
+
+.chModeTabs {
+  flex: none;
+  display: flex;
+  gap: 2px;
+  padding: 4px 4px 0;
+  border-bottom: 1px solid #fff;
+  box-shadow: 0 1px 0 #808080;
+}
+
+.chModeTabs button {
+  min-width: 96px;
+  min-height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 12px;
+  margin-bottom: -1px;
+  box-shadow: inset -1px 0 #0a0a0a, inset 1px 1px #fff, inset -2px 0 #808080, inset 2px 2px #dfdfdf;
+  color: #000;
+  text-shadow: none;
+}
+
+.chModeTabs button.is-on {
+  position: relative;
+  z-index: 1;
+  font-weight: bold;
+  background: #c0c0c0;
+  border-bottom: 1px solid #c0c0c0;
+  padding-bottom: 2px;
+}
+
+.chModeTabs button img {
+  width: 16px;
+  height: 16px;
+}
+
+.chHostBody {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+}
+
+.chHostBody[hidden] {
+  display: none;
+}
+
+.chHostBody > .netApp,
+.chHostBody > .appLoading {
+  height: 100%;
+}
+
+.os-mobile .chModeTabs button {
+  flex: 1;
+  min-height: 36px;
+  font-size: 14px;
+}
+
+.os-mobile .chModeTabs button img {
+  width: 20px;
+  height: 20px;
+}

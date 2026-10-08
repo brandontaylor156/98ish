@@ -3,8 +3,11 @@
 // classify(trace) turns what fingers (or the mouse) did into a command:
 //   trace = { pointers: { [id]: [{ x, y, t }...] } }  (px and ms; every pointer that touched)
 // Rules, in order:
-//   twist  two pointers whose line turned 35 degrees or more; or one pointer that went at
-//          least 3/4 of the way round a circle (mouse, or one finger circling)
+//   twist  two pointers whose line turned 30 degrees or more; or one pointer that went about
+//          2/3 of the way round a circle (mouse, or one finger circling: a round path, so
+//          a straight line, whose angle from its middle flips once, never counts)
+// Twist it also comes from the Twist knob on screen (knobTurn) and from turning the phone
+// itself like a steering wheel (twistDetector, DeviceMotion's rotationRate).
 //   flick  fast and short upward (at least 40 px, under 260 ms, mostly vertical)
 //   pull   a downward drag (at least 60 px, mostly vertical)
 //   swipe  sideways (at least 50 px, mostly horizontal)
@@ -53,6 +56,9 @@ export const circleTurn = (pts) => {
   const cy = pts.reduce((s, p) => s + p.y, 0) / pts.length
   const r = pts.reduce((s, p) => s + Math.hypot(p.x - cx, p.y - cy), 0) / pts.length
   if (r < 18) return 0
+  // round enough: the points keep roughly the same distance from the middle
+  const spread = pts.reduce((s, p) => s + Math.abs(Math.hypot(p.x - cx, p.y - cy) - r), 0) / pts.length / r
+  if (spread > 0.45) return 0
   let total = 0
   for (let i = 1; i < pts.length; i++) total += wrap(angleOf(pts[i].x - cx, pts[i].y - cy) - angleOf(pts[i - 1].x - cx, pts[i - 1].y - cy))
   return total
@@ -63,7 +69,7 @@ export const classify = (trace) => {
   if (!lists.length) return null
   if (lists.length >= 2) {
     const [a, b] = lists.sort((x, y) => y.length - x.length)
-    return Math.abs(twoFingerTurn(a, b)) >= (35 * Math.PI) / 180 ? "twist" : null
+    return Math.abs(twoFingerTurn(a, b)) >= (30 * Math.PI) / 180 ? "twist" : null
   }
   const pts = lists[0]
   const first = pts[0]
@@ -74,7 +80,7 @@ export const classify = (trace) => {
   const ms = last.t - first.t
   let travel = 0
   for (let i = 1; i < pts.length; i++) travel += Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y)
-  if (Math.abs(circleTurn(pts)) >= Math.PI * 1.5 && travel > 150) return "twist"
+  if (Math.abs(circleTurn(pts)) >= Math.PI * 1.25 && travel > 110) return "twist"
   const vertical = Math.abs(dy) > Math.abs(dx) * 1.4
   const horizontal = Math.abs(dx) > Math.abs(dy) * 1.4
   if (vertical && dy < -40 && ms < 260) return "flick"
@@ -111,6 +117,40 @@ export const shakeDetector = ({ threshold = 14, peaks = 3, windowMs = 900 } = {}
     reset: () => {
       hits = []
       lastSign = 0
+    },
+  }
+}
+
+// How far (degrees, signed) a finger dragged round a knob centered at (cx, cy) has turned it
+export const knobTurn = (pts, cx, cy) => {
+  let total = 0
+  for (let i = 1; i < pts.length; i++) total += wrap(angleOf(pts[i].x - cx, pts[i].y - cy) - angleOf(pts[i - 1].x - cx, pts[i - 1].y - cy))
+  return (total * 180) / Math.PI
+}
+export const KNOB_DEGREES = 70 // turning the on-screen knob this far is a twist
+
+// Twist the phone: turning it like a steering wheel or a jar lid (rotation about the axis
+// through the screen: DeviceMotion's rotationRate.alpha, degrees a second). feed({ rate, t })
+// -> true once it has turned `degrees` within `windowMs` (either way)
+export const twistDetector = ({ degrees = 45, windowMs = 700 } = {}) => {
+  let samples = []
+  let lastT = null
+  return {
+    feed: ({ rate = 0, t }) => {
+      const dt = lastT === null ? 0 : Math.min(0.1, Math.max(0, (t - lastT) / 1000))
+      lastT = t
+      samples.push({ t, d: (rate || 0) * dt })
+      samples = samples.filter((s) => t - s.t <= windowMs)
+      const turned = samples.reduce((sum, s) => sum + s.d, 0)
+      if (Math.abs(turned) >= degrees) {
+        samples = []
+        return true
+      }
+      return false
+    },
+    reset: () => {
+      samples = []
+      lastT = null
     },
   }
 }

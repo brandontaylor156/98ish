@@ -166,7 +166,7 @@ export const topics = [
       "The **Start** button in the bottom-left corner opens the Start menu. Almost everything begins here.",
       {
         list: [
-          "**Programs**: every program, sorted into folders like Accessories, Games, Internet, Community and Us.",
+          "**Programs**: every program, in folders listed A to Z, with the programs in each folder A to Z too: Accessories, Development (Visual Basic 98), Games, Internet, **Together** (things to do with friends or your partner: Watch Together, Doodle Together, Lovebirds Quiz Show, Come Over, Buddy Locator, Photo Puzzle), Us (just for couples) and more.",
           "**Documents**: your My Documents folder and what's in it.",
           "**Favorites**: web pages you've saved in Internet Explorer.",
           "**Settings**: the Control Panel, wallpaper, date and time, keyboard, passwords, themes, taskbar, notifications and keyboard shortcuts.",

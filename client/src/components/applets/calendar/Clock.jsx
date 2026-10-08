@@ -22,6 +22,8 @@ import {
   useClockApp,
 } from "./clockStore"
 import CheckBox from "./CheckBox"
+import { ALARM_SOUNDS, DEFAULT_ALARM_SOUND, alarmSound, previewAlarm, primeAlarmAudio } from "./sounds"
+import { setTimerSound } from "./clockStore"
 import MoreOptions from "../../shared/MoreOptions"
 import { summarize } from "../../../utils/disclosure"
 import { formatTime, uses24h } from "../../../utils/region"
@@ -141,11 +143,41 @@ const daysText = (days) => {
   return named ? named[0] : days.map((d) => WEEKDAYS_SHORT[d]).join(" ")
 }
 
+// a drop-down of the alarm sounds with a Play button to hear one (a few seconds)
+const SoundPicker = ({ value, onChange, label = "Sound" }) => {
+  const [playing, setPlaying] = useState(null)
+  useEffect(() => () => playing?.stop(), [playing])
+  const play = () => {
+    playing?.stop()
+    const stop = previewAlarm(value)
+    const timer = setTimeout(() => setPlaying(null), 3200)
+    setPlaying({ stop: () => (stop(), clearTimeout(timer)) })
+  }
+  return (
+    <div className="ckSound">
+      <label>
+        <span>{label}:</span>
+        <select aria-label={`${label} for the alarm`} value={value} onChange={(e) => (playing?.stop(), setPlaying(null), onChange(e.target.value))}>
+          {ALARM_SOUNDS.map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.name}
+            </option>
+          ))}
+        </select>
+      </label>
+      <button type="button" onClick={() => (playing ? (playing.stop(), setPlaying(null)) : play())}>
+        {playing ? "Stop" : "▶ Play"}
+      </button>
+    </div>
+  )
+}
+
 const Alarms = () => {
   const app = useClockApp()
   const [time, setTime] = useState("07:00")
   const [label, setLabel] = useState("")
   const [days, setDays] = useState([1, 2, 3, 4, 5])
+  const [sound, setSound] = useState(DEFAULT_ALARM_SOUND)
   const sorted = [...app.alarms].sort((a, b) => a.time.localeCompare(b.time))
   return (
     <div className="ckAlarms">
@@ -155,14 +187,16 @@ const Alarms = () => {
           const [h, m] = a.time.split(":").map(Number)
           return (
             <li key={a.id} className={a.on ? "" : "ckOff"}>
-              <CheckBox label={`Alarm ${a.time} on`} checked={a.on} onChange={(on) => updateAlarm(a.id, { on, lastRang: on ? null : a.lastRang })} />
+              <CheckBox className="ckAlarmOn" label={`Alarm ${a.time} on`} checked={a.on} onChange={(on) => (on && primeAlarmAudio(), updateAlarm(a.id, { on, lastRang: on ? null : a.lastRang }))} />
               <span className="ckAlarmTime">
                 {uses24h() ? `${pad(h)}:${pad(m)}` : `${h % 12 || 12}:${pad(m)}`}
                 {!uses24h() && <small> {h < 12 ? "AM" : "PM"}</small>}
               </span>
               <span className="ckAlarmInfo">
                 <b>{a.label || "Alarm"}</b>
-                <span>{daysText(a.days)}</span>
+                <span>
+                  {daysText(a.days)} · ♪ {alarmSound(a.sound).name}
+                </span>
               </span>
               <button type="button" aria-label={`Delete alarm ${a.time}`} onClick={() => removeAlarm(a.id)}>
                 Delete
@@ -175,12 +209,12 @@ const Alarms = () => {
         <legend>New alarm</legend>
         <div className="calWhen">
           <input type="time" aria-label="Alarm time" value={time} onChange={(e) => setTime(e.target.value)} />
-          <button type="button" className="calPrimary" disabled={!time} onClick={() => addAlarm({ time, label: label.trim(), days })}>
+          <button type="button" className="calPrimary" disabled={!time} onClick={() => (primeAlarmAudio(), addAlarm({ time, label: label.trim(), days, sound }))}>
             Add alarm
           </button>
         </div>
-        {/* the label and the days: More options (docs/simplicity.md) */}
-        <MoreOptions id="clock.alarm" summary={summarize(days.length ? daysText(days) : "Once", label.trim() ? `"${label.trim()}"` : "No label")}>
+        {/* the label, the days and the sound: More options (docs/simplicity.md) */}
+        <MoreOptions id="clock.alarm" summary={summarize(days.length ? daysText(days) : "Once", label.trim() ? `"${label.trim()}"` : "No label", alarmSound(sound).name)}>
           <input type="text" aria-label="Alarm label" value={label} maxLength={40} placeholder="Label (Wake up!)" onChange={(e) => setLabel(e.target.value)} />
           <div className="calWeekdays" role="group" aria-label="Repeat on">
             {WEEKDAYS_SHORT.map((d, i) => {
@@ -193,6 +227,8 @@ const Alarms = () => {
             })}
           </div>
           <p className="calNote">{days.length ? `Repeats: ${daysText(days)}` : "Rings once, then switches off."}</p>
+          <SoundPicker value={sound} onChange={setSound} />
+          <p className="calNote">It rings until you press Stop or Snooze. With 98ish closed, a notification comes instead (turn notifications on in Start &gt; Settings &gt; Notifications).</p>
         </MoreOptions>
       </fieldset>
     </div>
@@ -251,17 +287,20 @@ const Timer = () => {
           </div>
           <div className="ckPresets">
             {PRESETS.map((p) => (
-              <button key={p} type="button" onClick={() => startTimer(p * 60_000, label.trim())}>
+              <button key={p} type="button" onClick={() => (primeAlarmAudio(), startTimer(p * 60_000, label.trim()))}>
                 {p < 60 ? `${p} min` : "1 hour"}
               </button>
             ))}
           </div>
           <input type="text" aria-label="Timer label" className="ckTimerLabel" value={label} maxLength={40} placeholder="Label (Pasta!)" onChange={(e) => setLabel(e.target.value)} />
           <div className="ckButtons">
-            <button type="button" className="calPrimary" disabled={!(h || m || s)} onClick={() => startTimer((h * 3600 + m * 60 + s) * 1000, label.trim())}>
+            <button type="button" className="calPrimary" disabled={!(h || m || s)} onClick={() => (primeAlarmAudio(), startTimer((h * 3600 + m * 60 + s) * 1000, label.trim()))}>
               Start
             </button>
           </div>
+          <MoreOptions id="clock.timer" summary={`Sound: ${alarmSound(app.timerSound).name}`}>
+            <SoundPicker value={alarmSound(app.timerSound).id} onChange={setTimerSound} />
+          </MoreOptions>
         </>
       )}
     </div>

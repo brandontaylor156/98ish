@@ -1,9 +1,17 @@
-/* Calculator */
+/* Calculator: Windows 98 bevels and the system font, a greenish LCD readout, and keys
+   color-coded by family (each family has its own face and ink):
+     digit  light silver, black       op     lavender, navy        eq   navy, white
+     mem    sage green, dark green    clear  rose, dark red        fn   lilac, plum
+   Standard is a 4-column pocket-calculator pad; Scientific keeps Windows 98's layout.
+   Phones stretch the keys to fill the window; held sideways they show Scientific. */
 
 .calcRoot {
-  --k: 36px; /* key width */
-  --kh: 29px; /* key height */
-  --gap: 5px;
+  --k: 40px; /* scientific key width (desktop) */
+  --kh: 28px; /* scientific key height (desktop) */
+  --gap: 4px;
+  --bevel-up: inset -1px -1px #0a0a0a, inset 1px 1px #fff, inset -2px -2px #808080, inset 2px 2px #dfdfdf;
+  --bevel-down: inset -1px -1px #fff, inset 1px 1px #0a0a0a, inset -2px -2px #dfdfdf, inset 2px 2px #808080;
+  --sunken: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
   position: relative;
   height: calc(100% - 25px);
   display: flex;
@@ -17,44 +25,87 @@
   overflow: hidden;
   user-select: none;
   -webkit-user-select: none;
-}
-
-.calcRoot.is-scientific {
-  --kh: 28px;
-  --gap: 4px;
+  -webkit-touch-callout: none;
 }
 
 .calcBody {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
   padding: 6px 8px 8px;
 }
 
-/* desktop: the window fits the buttons */
+/* desktop: the window fits the keys */
 .calcRoot.is-fitted .calcBody {
   align-self: flex-start;
   width: max-content;
 }
 
-/* phones and maximized windows: the buttons fill the space */
+/* phones and maximized windows: the keys fill the space */
 .calcRoot:not(.is-fitted) .calcBody {
   flex: 1;
   min-height: 0;
 }
 
-.calcDisplay {
-  height: 23px;
+/* ---- the LCD ---- */
+
+.calcLcd {
   flex: none;
-  padding: 3px 5px;
-  background: #fff;
-  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 5px 8px 4px;
+  background: linear-gradient(180deg, #a9b98f 0%, #bccaa5 18%, #b5c49d 100%);
+  box-shadow: var(--sunken), inset 0 4px 6px rgba(40, 56, 20, 0.28);
+  color: #1d2a12;
+  min-width: 0;
+}
+
+.calcLcdTop {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 12px;
+  font-size: 9px;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+/* unlit segments stay faintly visible, like a real LCD */
+.calcFlag {
+  color: rgba(29, 42, 18, 0.14);
+  font-weight: bold;
+}
+
+.calcFlag.is-lit {
+  color: #1d2a12;
+}
+
+.calcPending {
+  flex: 1;
+  min-width: 0;
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  direction: rtl;
+  unicode-bidi: plaintext;
+  color: rgba(29, 42, 18, 0.7);
+  font-size: 10px;
+}
+
+.calcDisplay {
+  height: 24px;
+  flex: none;
+  font-size: 20px;
+  line-height: 24px;
   text-align: right;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: clip;
   direction: rtl; /* long numbers lose their start, not their end */
   unicode-bidi: plaintext;
+  text-shadow: 1px 1px 0 rgba(29, 42, 18, 0.18);
   -webkit-user-select: text;
   user-select: text;
   -webkit-touch-callout: default;
@@ -64,42 +115,176 @@
   direction: ltr;
 }
 
+.calcDisplay[data-error] {
+  font-size: 14px;
+}
+
 /* ---- keys ---- */
 
 .calcRoot .calcKey {
+  --face: #d4d4d4;
+  --ink: #000;
   min-width: 0;
   min-height: 0;
   width: var(--k);
   height: var(--kh);
   padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: var(--face);
+  color: var(--ink);
+  text-shadow: none;
+  box-shadow: var(--bevel-up);
   font: inherit;
   white-space: nowrap;
   touch-action: manipulation;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.calcKey--blue {
-  color: #0000ff;
+.calcRoot .calcKey > span {
+  pointer-events: none;
 }
-.calcKey--red {
-  color: #ff0000;
+
+/* the families (Scientific's older color names map onto them) */
+.calcRoot .calcKey--digit,
+.calcRoot .calcKey--blue {
+  --face: #e4e4e4;
+  --ink: #000;
 }
-.calcKey--navy {
-  color: #000080;
+
+.calcRoot .calcKey--op,
+.calcRoot .calcKey--red {
+  --face: #c9cfeb;
+  --ink: #000080;
+  font-weight: bold;
 }
-.calcKey--purple {
-  color: #800080;
+
+.calcRoot .calcKey--mem {
+  --face: #c6dcc0;
+  --ink: #0c5a0c;
+  font-weight: bold;
+}
+
+.calcRoot .calcKey--clear {
+  --face: #ebc9c6;
+  --ink: #9a0a0a;
+  font-weight: bold;
+}
+
+.calcRoot .calcKey--fn,
+.calcRoot .calcKey--navy,
+.calcRoot .calcKey--purple {
+  --face: #d9d0e6;
+  --ink: #4a0f6e;
+}
+
+.calcRoot .calcKey--eq {
+  --face: #1c2f9c;
+  --ink: #fff;
+  font-weight: bold;
+  box-shadow: inset -1px -1px #0a0a0a, inset 1px 1px #8a9ae6, inset -2px -2px #0d1660, inset 2px 2px #4d61cc;
+}
+
+.calcRoot .calcKey:not(:disabled):active,
+.calcRoot .calcKey.is-pressed {
+  box-shadow: var(--bevel-down);
+  padding: 2px 0 0 2px;
+  filter: brightness(0.94);
+}
+
+.calcRoot .calcKey--eq:not(:disabled):active,
+.calcRoot .calcKey--eq.is-pressed {
+  box-shadow: inset 1px 1px #0a0a0a, inset -1px -1px #8a9ae6, inset 2px 2px #0d1660, inset -2px -2px #4d61cc;
+}
+
+.calcRoot .calcKey:focus {
+  outline: none;
+}
+
+.calcRoot .calcKey:focus-visible {
+  outline: 1px dotted #000;
+  outline-offset: -5px;
 }
 
 .calcRoot .calcKey:disabled {
+  --face: #c8c8c8;
   color: #808080;
   text-shadow: 1px 1px 0 #fff;
+  font-weight: normal;
 }
 
-/* a key typed on the keyboard lights up like a click */
-.calcRoot .calcKey.is-pressed {
-  box-shadow: inset -1px -1px #fff, inset 1px 1px #0a0a0a, inset -2px -2px #dfdfdf, inset 2px 2px #808080;
-  padding: 2px 0 0 2px;
+/* ---- Standard: the pocket-calculator pad ---- */
+
+.calcPad {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
 }
+
+.calcPadRow {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 5px;
+}
+
+/* (a little gap between the short rows and the main pad) */
+.calcPadRow--small + .calcPadRow:not(.calcPadRow--small) {
+  margin-top: 3px;
+}
+
+.calcRoot .calcKey--zero {
+  grid-column: span 2;
+}
+
+/* desktop: fixed key sizes, so the window fits */
+.calcRoot.is-fitted .calcPadRow {
+  grid-template-columns: repeat(4, 48px);
+}
+
+.calcRoot.is-fitted .calcPad .calcKey {
+  width: 100%;
+  height: 32px;
+  font-size: 13px;
+}
+
+.calcRoot.is-fitted .calcPad .calcKey--op,
+.calcRoot.is-fitted .calcPad .calcKey--eq {
+  font-size: 16px;
+}
+
+.calcRoot.is-fitted .calcPadRow--small .calcKey {
+  height: 24px;
+  font-size: 11px;
+}
+
+.calcRoot.is-fitted .calcLcd {
+  width: auto;
+}
+
+/* stretched: rows share the height (the short rows a bit less) */
+.calcRoot:not(.is-fitted) .calcPad {
+  flex: 1;
+  min-height: 0;
+}
+
+.calcRoot:not(.is-fitted) .calcPadRow {
+  flex: 1;
+  min-height: 0;
+}
+
+.calcRoot:not(.is-fitted) .calcPadRow--small {
+  flex: 0.62;
+}
+
+.calcRoot:not(.is-fitted) .calcPad .calcKey {
+  width: 100%;
+  height: 100%;
+  font-size: 15px;
+}
+
+/* ---- Scientific ---- */
 
 .calcTopRow {
   display: flex;
@@ -110,36 +295,13 @@
 .calcClears {
   margin-left: auto;
   display: flex;
-  gap: 5px;
+  gap: 4px;
 }
 
 .calcRoot .calcKey--wide {
   width: 62px;
 }
 
-.calcIndicator {
-  width: var(--k);
-  height: 26px;
-  flex: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080;
-}
-
-/* Standard: memory keys, a gap, then the number pad */
-.calcStdGrid {
-  display: grid;
-  grid-template-columns: calc(var(--k) + 8px) repeat(5, var(--k));
-  grid-auto-rows: var(--kh);
-  gap: 5px 5px;
-}
-
-.calcStdGrid > .calcKey:nth-child(6n + 1) {
-  width: var(--k);
-}
-
-/* Scientific */
 .calcModes {
   display: flex;
   gap: 6px;
@@ -176,7 +338,7 @@
 
 .calcSciBlock {
   display: flex;
-  gap: 10px;
+  gap: 8px;
 }
 
 .calcCol {
@@ -221,7 +383,7 @@
   list-style: none;
   overflow: auto;
   background: #fff;
-  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+  box-shadow: var(--sunken);
 }
 
 .calcStatsList button {
@@ -266,7 +428,7 @@
   max-height: 110px;
   overflow: auto;
   background: #fff;
-  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+  box-shadow: var(--sunken);
   padding: 2px;
   -webkit-user-select: text;
   user-select: text;
@@ -292,23 +454,11 @@
   font-weight: bold;
 }
 
-/* ---- stretched (phones, maximized) ---- */
+/* ---- Scientific stretched (phones, maximized) ---- */
 
-.calcRoot:not(.is-fitted) .calcKey,
-.calcRoot:not(.is-fitted) .calcStdGrid > .calcKey:nth-child(6n + 1) {
+.calcRoot:not(.is-fitted) .calcSciKeys .calcKey {
   width: 100%;
   height: 100%;
-}
-
-.calcRoot:not(.is-fitted) .calcStdGrid {
-  flex: 1;
-  min-height: 0;
-  grid-template-columns: repeat(6, 1fr);
-  grid-auto-rows: 1fr;
-}
-
-.calcRoot:not(.is-fitted) .calcStdGrid > .calcKey:nth-child(6n + 1) {
-  width: calc(100% - 6px);
 }
 
 .calcRoot:not(.is-fitted) .calcSciKeys {
@@ -316,7 +466,6 @@
   min-height: 0;
 }
 
-.calcRoot:not(.is-fitted) .calcSciKeys,
 .calcRoot:not(.is-fitted) .calcSciBlock {
   min-height: 0;
 }
@@ -347,25 +496,58 @@
   grid-auto-rows: 1fr;
 }
 
-.calcRoot:not(.is-fitted) .calcRoot .calcKey--wide {
-  width: auto;
-}
-
-/* ---- phones ---- */
+/* ---- phones: thumb-sized ---- */
 
 .os-mobile .calcRoot {
   font-size: 14px;
 }
 
-.os-mobile .calcDisplay {
-  height: 48px;
-  padding: 8px 10px;
-  font-size: 28px;
-  line-height: 32px;
+.os-mobile .calcBody {
+  gap: 8px;
+  padding: 8px 8px 10px;
 }
 
-.os-mobile .calcRoot .calcKey {
+.os-mobile .calcLcd {
+  padding: 8px 12px 6px;
+}
+
+.os-mobile .calcLcdTop {
+  height: 16px;
+  font-size: 11px;
+  gap: 8px;
+}
+
+.os-mobile .calcPending {
+  font-size: 13px;
+}
+
+.os-mobile .calcDisplay {
+  height: 52px;
+  font-size: 44px;
+  line-height: 52px;
+}
+
+.os-mobile .calcDisplay[data-error] {
+  font-size: 22px;
+}
+
+.os-mobile .calcPad,
+.os-mobile .calcPadRow {
+  gap: 8px;
+}
+
+.os-mobile .calcRoot:not(.is-fitted) .calcPad .calcKey {
+  font-size: 24px;
+}
+
+.os-mobile .calcRoot:not(.is-fitted) .calcPadRow--small .calcKey {
   font-size: 16px;
+}
+
+/* the signs read at a glance */
+.os-mobile .calcRoot:not(.is-fitted) .calcPad .calcKey--op,
+.os-mobile .calcRoot:not(.is-fitted) .calcPad .calcKey--eq {
+  font-size: 34px;
 }
 
 .os-mobile .calcRoot .calcKey--wide {
@@ -377,15 +559,6 @@
 .os-mobile .calcClears {
   flex: 1;
   gap: 6px;
-}
-
-.os-mobile .calcIndicator {
-  width: 40px;
-  height: 40px;
-}
-
-.os-mobile .calcStdGrid {
-  gap: 8px;
 }
 
 .os-mobile .calcRoot .calcRadios {
@@ -405,13 +578,12 @@
   height: 40px;
 }
 
-.os-mobile .calcRoot.is-scientific .calcIndicator {
-  width: 30px;
-  font-size: 12px;
-}
-
 .os-mobile .calcRoot.is-scientific .calcKey[data-key="back"] {
   flex: 1.9;
+}
+
+.os-mobile .calcRoot.is-scientific .calcSciKeys .calcKey {
+  font-size: 15px;
 }
 
 .os-mobile .calcStats .title-bar-text {
@@ -431,7 +603,6 @@
     padding: 6px 14px 6px 10px;
   }
 
-  .os-mobile .calcRoot.is-scientific .calcRoot,
   .os-mobile .calcRoot.is-scientific .calcSciKeys {
     flex-direction: column;
     gap: 8px;
@@ -457,15 +628,63 @@
     flex: 6;
   }
 
-  .os-mobile .calcRoot.is-scientific .calcKey {
+  .os-mobile .calcRoot.is-scientific .calcSciKeys .calcKey {
     font-size: 14px;
   }
 
   .os-mobile .calcRoot.is-scientific .calcDisplay {
     height: 40px;
-    font-size: 22px;
-    line-height: 26px;
+    font-size: 30px;
+    line-height: 40px;
   }
+}
+
+/* a phone held sideways: Scientific, compact, the number pad on the right */
+.os-mobile .calcRoot.is-landscape .calcBody {
+  gap: 4px;
+  padding: 4px 8px 6px;
+}
+
+.os-mobile .calcRoot.is-landscape .calcLcd {
+  padding: 3px 10px 2px;
+}
+
+.os-mobile .calcRoot.is-landscape .calcDisplay {
+  height: 30px;
+  font-size: 26px;
+  line-height: 30px;
+}
+
+.os-mobile .calcRoot.is-landscape .calcModes .calcRadios,
+.os-mobile .calcRoot.is-landscape .calcChecks {
+  padding: 2px 8px;
+  height: 30px;
+  flex-wrap: nowrap;
+}
+
+.os-mobile .calcRoot.is-landscape .calcRoot .calcKey--wide,
+.os-mobile .calcRoot.is-landscape .calcClears .calcKey {
+  height: 30px;
+}
+
+.os-mobile .calcRoot.is-landscape .calcTopRow {
+  flex: none;
+}
+
+.os-mobile .calcRoot.is-landscape .calcModes {
+  flex: none;
+}
+
+.os-mobile .calcRoot.is-landscape .calcSciKeys,
+.os-mobile .calcRoot.is-landscape .calcSciBlock,
+.os-mobile .calcRoot.is-landscape .calcCol,
+.os-mobile .calcRoot.is-landscape .calcFnGrid,
+.os-mobile .calcRoot.is-landscape .calcNumGrid {
+  gap: 4px;
+}
+
+.os-mobile .calcRoot.is-landscape .calcSciKeys .calcKey {
+  font-size: 14px;
 }
 
 .os-mobile .calcStatsList {

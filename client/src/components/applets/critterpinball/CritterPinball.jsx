@@ -68,6 +68,11 @@ const CONTROLS = [
 ]
 
 const fmt = (n) => n.toLocaleString("en-US")
+// Pinball: Blue Screen, the table this replaced (2026-10-07): its best games stay readable
+// under High Scores (its list is kept as it was, per user; it's a different table, so its
+// scores don't mix into these)
+const RETIRED_SCORES_KEY = "98ish.pinball.scores"
+const retiredScores = () => G.cleanScores(load(RETIRED_SCORES_KEY, [])).slice(0, 3)
 
 const touchControls = (inLane, playing) => [
   {
@@ -781,6 +786,11 @@ const CritterPinball = ({ onClose, onTitle, mobile }) => {
               ))}
             </tbody>
           </table>
+          {retiredScores().length > 0 && (
+            <p className="pbRetired">
+              <b>Retired table, Pinball: Blue Screen:</b> {retiredScores().map((s) => `${s.name} ${fmt(s.score)}`).join(" · ")}
+            </p>
+          )}
           {scores.length > 0 && (
             <button
               type="button"

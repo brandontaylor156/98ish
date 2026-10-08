@@ -190,6 +190,9 @@ export const savePushSettings = (token, patch) => api("PUT", "/settings", token,
 export const sendTestPush = (token) => api("POST", "/test", token)
 export const getSeen = (token) => api("GET", "/seen", token)
 export const putSeen = (token, seenAt) => api("PUT", "/seen", token, { seenAt })
+// Clock's alarms, so the server can push "Alarm" when 98ish is closed or in the background
+// (kept in the account's push settings: Delete My Account's push step removes them)
+export const putAlarms = (token, alarms, tz) => api("PUT", "/alarms", token, { alarms, tz })
 // pushes Do Not Disturb held back (the server forgets them once taken)
 export const takeHeld = (token) => (token ? api("POST", "/held", token, {}) : Promise.resolve({ ok: false }))
 

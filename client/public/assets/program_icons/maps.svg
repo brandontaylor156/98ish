@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48" shape-rendering="crispEdges">
+  <!-- Maps 98 (original): a folded road map in 98 colors, a route in navy, a red pin and a compass rose -->
+  <path d="M4 9 L16 5 L30 9 L44 5 L44 39 L30 43 L16 39 L4 43 Z" fill="#e8f4d8" stroke="#000" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M16 5 L16 39 M30 9 L30 43" stroke="#7a8a6a" stroke-width="1"/>
+  <path d="M4 30 L44 22" stroke="#7fbfff" stroke-width="4"/>
+  <path d="M10 14 L40 36" stroke="#f0d070" stroke-width="3"/>
+  <path d="M8 38 L14 30 L22 31 L26 22 L33 18" fill="none" stroke="#000080" stroke-width="2.5" stroke-dasharray="3 2" stroke-linecap="square"/>
+  <rect x="30" y="8" width="10" height="10" fill="#e00000" stroke="#000" stroke-width="1.5"/>
+  <rect x="32" y="10" width="3" height="3" fill="#ff9090"/>
+  <rect x="34" y="18" width="2" height="8" fill="#000"/>
+  <circle cx="9" cy="38" r="2.5" fill="#1a6dff" stroke="#fff" stroke-width="1"/>
+  <path d="M10 8 L11.5 12 L10 11 L8.5 12 Z" fill="#000"/>
+  <path d="M10 18 L11.5 14 L10 15 L8.5 14 Z" fill="#a00000"/>
+</svg>

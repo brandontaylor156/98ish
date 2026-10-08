@@ -90,10 +90,53 @@ test("the pet trots after you and never needs you to move", () => {
 test("Hugging Face errors become honest words", () => {
   const q = spaceError({ message: "You have exceeded your ZeroGPU quota (120s requested vs. 149s left). Try again in 22:25:24. Authenticate with a Hugging Face token for more quota" })
   assert.equal(q.quota, true)
-  assert.match(q.text, /used up \(it comes back in about 22 hours\)/)
+  assert.match(q.text, /used up \(2 min 29 s left, and this needs 2 min\); it comes back in about 22 hours/)
   assert.match(q.text, /token/)
   assert.equal(quotaWait("Try again in 0:05:10."), "in about 5 minutes")
   assert.match(spaceError(new Error("Space is sleeping")).text, /asleep/)
   assert.match(spaceError(new Error("too many requests in queue")).text, /busy/)
   assert.match(spaceError(new Error("boom")).text, /import a \.glb/)
+})
+
+import * as C from "./core.js"
+
+test("free-time numbers from Hugging Face's refusal, and the order to try Spaces in", () => {
+  const msg = "You have exceeded your ZeroGPU quota (120s requested vs. 49s left). Try again in 23:59:48."
+  assert.deepEqual(C.quotaNumbers(msg), { requested: 120, left: 49 })
+  assert.deepEqual(C.quotaNumbers("boom"), { requested: null, left: null })
+  const e = C.spaceError({ message: msg })
+  assert.equal(e.quota, true)
+  assert.equal(e.left, 49)
+  assert.match(e.text, /49 s left, and this needs 2 min/)
+  assert.equal(C.minutesText(171), "2 min 51 s")
+  assert.equal(C.minutesText(45), "45 s")
+  assert.match(C.spaceError({ message: "RuntimeError", title: "ZeroGPU worker error" }).text, /hiccup/)
+  // unknown allowance: best first; 49 s left: only the cheap ones that fit come first
+  assert.equal(C.planSpaces(C.PHOTO_SPACES)[0].id, "trellis2")
+  const plan = C.planSpaces(C.PHOTO_SPACES, { left: 49 })
+  assert.ok(plan.slice(0, 2).every((s) => s.gpu <= 49))
+  assert.equal(plan.length, C.PHOTO_SPACES.length)
+  assert.ok(!C.planSpaces(C.PHOTO_SPACES, { skip: ["trellis2"] }).some((s) => s.id === "trellis2"))
+  assert.ok(C.PHOTO_SPACES.some((s) => !s.textured), "a shape-only fallback exists")
+})
+
+test("coloring a shape from the photo: the subject's box and the pixel over a point", () => {
+  const w = 20
+  const h = 10
+  const rgba = new Uint8ClampedArray(w * h * 4).fill(255)
+  // a red block from (5,2) to (14,7) on white
+  for (let y = 2; y <= 7; y++)
+    for (let x = 5; x <= 14; x++) {
+      const i = (y * w + x) * 4
+      rgba[i] = 200
+      rgba[i + 1] = 20
+      rgba[i + 2] = 20
+    }
+  assert.deepEqual(C.subjectBox(rgba, w, h), { x0: 5, y0: 2, x1: 14, y1: 7 })
+  const box3 = { minX: -1, maxX: 1, minY: 0, maxY: 2 }
+  const box2 = { x0: 5, y0: 2, x1: 14, y1: 7 }
+  assert.deepEqual(C.photoPixel(-1, 2, box3, box2), [5, 2]) // top left of the model -> top left of the subject
+  assert.deepEqual(C.photoPixel(1, 0, box3, box2), [14, 7])
+  // a plain photo: the whole picture
+  assert.deepEqual(C.subjectBox(new Uint8ClampedArray(w * h * 4).fill(255), w, h), { x0: 0, y0: 0, x1: w - 1, y1: h - 1 })
 })

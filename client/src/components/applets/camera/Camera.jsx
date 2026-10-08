@@ -49,6 +49,12 @@ const PREVIEW_EFFECT = 480 // ...and with one (every pixel is worked on, 30 time
 const STRIP_SHOT = { w: 480, h: 360 }
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+// the next frame the browser actually paints (so a flash is on screen before we capture)
+const painted = () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+// how long each countdown number shows: it pops in, holds, then clears (Camera.css camPop
+// runs for COUNT_MS); the gap after it is the beat before the next number or the flash
+const COUNT_MS = 800
+const COUNT_GAP_MS = 200
 const iphone = typeof navigator !== "undefined" && isAppleMobile(navigator.userAgent, navigator.maxTouchPoints)
 
 // Draw a picture (video, img) into a w x h area, cropped to fill it, flipped if `mirror`
@@ -330,6 +336,15 @@ const Camera = ({ mobile, dispatch, onTitle, paused = false }) => {
     setFlash((n) => n + 1)
     return render(videoRef.current, { mirror: mirrored() })
   }
+  // after a countdown: the flash goes up first, and the picture is taken while it's on screen
+  // (capturing first held the main thread, so the flash used to land after the shot)
+  const flashAndCapture = async (options) => {
+    setCount(null)
+    setFlash((n) => n + 1)
+    sounds.shutter()
+    await painted()
+    return render(videoRef.current, { mirror: mirrored(), ...options })
+  }
 
   const save = async (canvas, prefix = "PHOTO") => {
     const dir = picturesFolder()
@@ -365,14 +380,16 @@ const Camera = ({ mobile, dispatch, onTitle, paused = false }) => {
   const make3dLast = () => last?.parent && dispatch?.({ type: "open_window", payload: launch("3D Viewer 98", { handoff: { id: Date.now(), photo: fs.partsOf(last).join("/") } }) })
   const albumClip = () => clip && dispatch?.({ type: "open_window", payload: launch("Photos", { handoff: { id: Date.now(), addToAlbum: [{ blob: clip.blob, name: `Clip${clipExtension(clip.mime)}` }] } }) })
 
+  // 3, 2, 1: each number shows, then clears before the next (a second apart)
   const countdown = async (seconds) => {
     for (let n = seconds; n > 0; n--) {
       if (cancelRef.current.cancelled) return false
       setCount(n)
       sounds.beep(n === 1)
-      await sleep(1000)
+      await sleep(COUNT_MS)
+      setCount(null)
+      await sleep(COUNT_GAP_MS)
     }
-    setCount(null)
     return !cancelRef.current.cancelled
   }
 
@@ -380,8 +397,9 @@ const Camera = ({ mobile, dispatch, onTitle, paused = false }) => {
     setBusy("countdown")
     try {
       if (prefs.timer && !(await countdown(prefs.timer))) return
+      const shot = prefs.timer ? await flashAndCapture() : snap()
       setBusy("saving")
-      const file = await save(snap())
+      const file = await save(shot)
       if (file) setStatus(`Saved ${file.name} in C:\\My Pictures`)
     } finally {
       setCount(null)
@@ -421,10 +439,9 @@ const Camera = ({ mobile, dispatch, onTitle, paused = false }) => {
       for (let i = 0; i < STRIP_COUNT; i++) {
         setBadge(`Shot ${i + 1} of ${STRIP_COUNT}`)
         if (!(await countdown(3))) return
-        sounds.shutter()
-        setFlash((n) => n + 1)
-        shots.push(render(videoRef.current, { w: STRIP_SHOT.w, h: STRIP_SHOT.h, frame: false, mirror: mirrored() }))
-        await sleep(500)
+        // the frame is taken at the flash
+        shots.push(await flashAndCapture({ w: STRIP_SHOT.w, h: STRIP_SHOT.h, frame: false }))
+        await sleep(700) // the flash fades, then the next countdown
       }
       setBusy("saving")
       setBadge("Developing...")
@@ -670,12 +687,13 @@ const Camera = ({ mobile, dispatch, onTitle, paused = false }) => {
             </div>
           )}
           {count !== null && (
-            <div className="camCount" key={count} aria-live="assertive">
+            <div className="camCount" key={`count-${count}`} aria-live="assertive">
               {count}
             </div>
           )}
           {badge && <div className={`camBadge${busy === "recording" ? " is-rec" : ""}`}>{badge}</div>}
-          {flash > 0 && <div className="camFlash" key={flash} />}
+          {/* (keys of their own: a bare number here once matched the countdown's, and React kept stale numbers on screen) */}
+          {flash > 0 && <div className="camFlash" key={`flash-${flash}`} />}
           {fresh && fresh === last && fresh.parent && !busy && (
             <button type="button" className="camShareLast" onClick={() => (shareLast("phone"), setFresh(null))} title={`Send ${fresh.name} to your phone or another app`}>
               Share {fresh.name}...

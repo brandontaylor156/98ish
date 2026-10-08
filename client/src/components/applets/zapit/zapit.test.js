@@ -93,3 +93,33 @@ test("the game: the right move scores and calls the next; a wrong one or a late 
   }
   for (let k = 2; k < seen.length; k++) assert.ok(!(seen[k] === seen[k - 1] && seen[k] === seen[k - 2]))
 })
+
+test("twist is easier now: 2/3 of a circle with one finger, a 30-degree two-finger turn; lines still aren't", () => {
+  assert.equal(Z.classify(one(arc(200, 200, 45, 0, Math.PI * 1.3, 500, 30))), "twist")
+  const a = arc(200, 200, 60, 0, (32 * Math.PI) / 180, 250)
+  const b = arc(200, 200, 60, Math.PI, Math.PI + (32 * Math.PI) / 180, 250)
+  assert.equal(Z.classify({ pointers: { 1: a, 2: b } }), "twist")
+  // a long straight drag (its angle from the middle flips once) is a swipe or a pull, never a twist
+  assert.equal(Z.classify(one(line(40, 200, 300, 205, 300, 30))), "swipe")
+  assert.equal(Z.classify(one(line(150, 60, 152, 320, 400, 30))), "pull")
+})
+
+test("the on-screen knob: degrees turned round its middle, either way", () => {
+  const pts = arc(100, 100, 50, 0, Math.PI / 2, 300, 12)
+  assert.ok(Math.abs(Z.knobTurn(pts, 100, 100) - 90) < 1)
+  assert.ok(Math.abs(Z.knobTurn(arc(100, 100, 50, 1, 1 - Math.PI / 3, 300, 12), 100, 100) + 60) < 1)
+  assert.ok(Z.KNOB_DEGREES <= 90)
+})
+
+test("twisting the phone: 45 degrees of turn within 0.7 s, not a slow drift", () => {
+  const d = Z.twistDetector()
+  let t = 0
+  let fired = false
+  for (let i = 0; i < 10 && !fired; i++) fired = d.feed({ rate: 150, t: (t += 50) }) // 150 deg/s for ~0.5 s
+  assert.equal(fired, true)
+  const slow = Z.twistDetector()
+  let u = 0
+  let any = false
+  for (let i = 0; i < 100; i++) any = slow.feed({ rate: 20, t: (u += 50) }) || any // 20 deg/s for 5 s
+  assert.equal(any, false)
+})

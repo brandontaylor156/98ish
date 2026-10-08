@@ -452,3 +452,149 @@
   border-left: 3px solid #2ecc40;
   font-size: 11px;
 }
+
+/* ---- how it works: three numbered steps (start screen, signed-off screen) ---- */
+.tgSteps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+}
+
+.tgSteps li {
+  display: flex;
+  gap: 6px;
+  align-items: flex-start;
+  padding: 6px;
+  background: #dfdfdf;
+  box-shadow: inset -1px -1px #808080, inset 1px 1px #fff;
+}
+
+.tgSteps li > span:last-child {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.tgSteps small {
+  color: #404040;
+  line-height: 1.25;
+}
+
+.tgStepNo {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #000080;
+  color: #fff;
+  font-weight: bold;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tgStepRow {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.tgStepRow > .tgStepNo {
+  margin-top: 2px;
+}
+
+.tgStepBody {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.tgStepBody > label {
+  font-weight: bold;
+}
+
+.tgStepBody select,
+.tgStepBody .tgPrimary {
+  width: 100%;
+}
+
+.tgPicked {
+  color: #006400;
+  font-weight: bold;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tgEmptyBuddies {
+  padding: 6px;
+  background: #ffffe1;
+  border: 1px solid #000;
+}
+
+.tgHelpLink {
+  align-self: center;
+  min-height: 0;
+  border: 0;
+  background: none;
+  box-shadow: none !important;
+  color: #0000ee;
+  text-decoration: underline;
+  text-shadow: none;
+}
+
+.tgJoin {
+  font-weight: bold;
+}
+
+/* the session: whom it's waiting for */
+.tgWaiting {
+  padding: 4px 6px;
+  background: #ffffe1;
+  border: 1px solid #000;
+  line-height: 1.3;
+}
+
+.tgCover {
+  flex-direction: column;
+  gap: 6px;
+}
+
+.tgCover b {
+  font-size: 14px;
+}
+
+.tgTap--start {
+  box-shadow: inset -1px -1px #0a0a0a, inset 1px 1px #fff, inset -2px -2px #808080, inset 2px 2px #dfdfdf, 0 0 0 2px #000080;
+}
+
+.os-mobile .tgSteps {
+  grid-template-columns: 1fr;
+  gap: 3px;
+}
+
+.os-mobile .tgSteps li {
+  align-items: center;
+  padding: 5px 8px;
+}
+
+.os-mobile .tgSteps li > span:last-child {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 0 6px;
+  align-items: baseline;
+}
+
+.os-mobile .tgStepNo {
+  width: 24px;
+  height: 24px;
+}
+
+.os-mobile .tgPrimary {
+  min-height: 40px;
+}

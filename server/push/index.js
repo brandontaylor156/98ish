@@ -13,8 +13,11 @@
 //   - a subscription the push service says is gone (404/410) is forgotten
 // Categories: im, calls (incoming and missed), calendar (and Tasks), couples, mail, games,
 // notes (a buddy shared or changed a shared note: server/notes).
-// It also runs two schedules: calendar reminders for accounts with push (from the server
-// calendars; the in-app reminders cover 98ish while it's open) and Our Pet asking for care.
+// It also runs three schedules: calendar reminders for accounts with push (from the server
+// calendars; the in-app reminders cover 98ish while it's open), Our Pet asking for care, and
+// Clock's alarms and timer (category alarms: a copy the client keeps current with PUT
+// /alarms, kept in the account's push settings, so Delete My Account's push step erases it;
+// it rings through Do Not Disturb and quiet hours, and only when 98ish isn't in front).
 //
 // Every route but /config needs a signed-on 98 Messenger session (Bearer token).
 //   GET  /api/push/config        { enabled, publicKey, categories }
@@ -25,6 +28,7 @@
 //   GET  /api/push/seen          { seenAt }   PUT { seenAt }  (Notification Center read state)
 //   GET  /api/push/dnd           { dnd }      PUT { dnd, tz }  (Do Not Disturb; the newest change wins)
 //   POST /api/push/held          { held: [message] }: pushes held back by Do Not Disturb (and forgets them)
+//   PUT  /api/push/alarms        { alarms: [{ id, time: "07:30", days: [0..6], label } | { id: "timer", at, label }], tz }
 //
 // Do Not Disturb (rules shared with the client: client/src/utils/dndCore.js): while it's on
 // (by hand or by its schedule, in the account's time zone) a push isn't sent but held, and
@@ -39,7 +43,9 @@ const { limiter } = require("../net/limiter")
 const { sessionFrom } = require("../aim/auth")
 const { memoryStore, createPushStore } = require("./store")
 
-const CATEGORIES = ["im", "calls", "calendar", "couples", "mail", "games", "notes", "albums", "places", "pickleball"]
+const CATEGORIES = ["im", "calls", "calendar", "couples", "mail", "games", "notes", "albums", "places", "pickleball", "alarms"]
+const MAX_ALARMS = 31 // Clock keeps 30 alarms, plus a running timer
+const ALARM_CATCH_UP_MS = 5 * 60_000 // a server that slept: an alarm this late still rings; later ones are skipped
 const MINUTE = 60_000
 const HOUR = 60 * MINUTE
 const REMINDER_EVERY_MS = MINUTE
@@ -116,6 +122,32 @@ const cleanSubscription = (sub) => {
 
 const cleanText = (text, max) => String(text ?? "").replace(/[\u0000-\u0008\u000B-\u001F\u007F]/g, "").slice(0, max)
 
+// Clock's alarms as the client sends them: only what a push needs, capped
+const cleanAlarms = (list) =>
+  (Array.isArray(list) ? list : [])
+    .slice(0, MAX_ALARMS)
+    .map((a) => {
+      const id = cleanText(a?.id, 20)
+      const label = cleanText(a?.label, 40)
+      if (!id) return null
+      if (id === "timer") return Number.isFinite(a.at) && a.at > 0 ? { id, at: Math.round(a.at), label } : null
+      if (!TIME.test(a?.time)) return null
+      const days = [...new Set((Array.isArray(a.days) ? a.days : []).filter((d) => Number.isInteger(d) && d >= 0 && d <= 6))].sort()
+      return { id, time: a.time, days, label }
+    })
+    .filter(Boolean)
+
+// the wall clock in `tz` at `time`: { date: "YYYY-MM-DD", wd: 0..6, hm: "07:30" }
+const wallIn = (time, tz) => {
+  const parts = new Intl.DateTimeFormat("en-US", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit", weekday: "short", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(new Date(time))
+  const get = (type) => parts.find((p) => p.type === type)?.value || ""
+  return { date: `${get("year")}-${get("month")}-${get("day")}`, wd: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(get("weekday")), hm: `${get("hour") === "24" ? "00" : get("hour")}:${get("minute")}` }
+}
+const label12 = (hm) => {
+  const [h, m] = hm.split(":").map(Number)
+  return `${h % 12 || 12}:${String(m).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}`
+}
+
 // recurrences and reminder times are shared with the client (an ES module)
 let recurModule = null
 const loadRecur = () => (recurModule ??= import(pathToFileURL(path.join(__dirname, "../../client/src/components/applets/calendar/recur.js")).href))
@@ -143,6 +175,7 @@ const createPush = ({ store: storeOrPromise, webpush, vapid = {}, now = Date.now
   const getStore = () => (storePromise ??= Promise.resolve(storeOrPromise || createPushStore()))
   let aim = null
   const timers = []
+  const alarmCheckedAt = new Map() // key -> when its alarms were last looked at (memory: a restart looks back a minute)
 
   // no 98ish in front of them: signed off, connection gone, or the tab in the background
   const isAway = (key) => {
@@ -208,7 +241,8 @@ const createPush = ({ store: storeOrPromise, webpush, vapid = {}, now = Date.now
           return { sent: 0, skipped: "dnd" }
         }
       }
-      if (category !== "system" && inQuietHours(settings, now()) && !(category === "calls" && settings.callsInQuiet)) return { sent: 0, skipped: "quiet" }
+      // (an alarm you set rings through quiet hours, like Do Not Disturb)
+      if (category !== "system" && category !== "alarms" && inQuietHours(settings, now()) && !(category === "calls" && settings.callsInQuiet)) return { sent: 0, skipped: "quiet" }
       const payload = JSON.stringify({
         ...message,
         title: cleanText(message.title, 120),
@@ -322,6 +356,64 @@ const createPush = ({ store: storeOrPromise, webpush, vapid = {}, now = Date.now
     return count
   }
 
+  // ---------- Clock's alarms ----------
+
+  // every account with push and alarms: the ones due since the last look (minute by minute,
+  // in the account's alarm time zone), each once per day and time; a timer once at its end
+  const checkAlarms = async () => {
+    if (!enabled) return 0
+    const store = await getStore()
+    const t = now()
+    let count = 0
+    for (const key of await store.subs.keys()) {
+      const saved = await store.prefs.get(key)
+      const alarms = cleanAlarms(saved.alarms)
+      if (!alarms.length) continue
+      const tz = validZone(saved.alarmTz) ? saved.alarmTz : validZone(saved.tz) ? saved.tz : "UTC"
+      const since = Math.max(alarmCheckedAt.get(key) || t - MINUTE, t - ALARM_CATCH_UP_MS)
+      alarmCheckedAt.set(key, t)
+      const fired = { ...(saved.alarmFired || {}) }
+      const due = []
+      // each minute that started in (since, t]
+      for (let m = Math.floor(since / MINUTE) * MINUTE + MINUTE; m <= t; m += MINUTE) {
+        const wall = wallIn(m, tz)
+        for (const a of alarms) {
+          if (a.id === "timer" || a.time !== wall.hm || (a.days.length && !a.days.includes(wall.wd))) continue
+          const mark = `${wall.date} ${wall.hm}`
+          if (fired[a.id] === mark) continue
+          fired[a.id] = mark
+          due.push({ alarm: a, title: "Alarm", body: a.label ? `${label12(a.time)} · ${a.label}` : label12(a.time) })
+        }
+      }
+      const timer = alarms.find((a) => a.id === "timer")
+      if (timer && timer.at <= t && timer.at > t - ALARM_CATCH_UP_MS) due.push({ alarm: timer, title: "Timer", body: timer.label ? `Time's up! · ${timer.label}` : "Time's up!" })
+      // one-time alarms and a finished timer are done (the client switches them off too)
+      const left = alarms.filter((a) => !due.some((d) => d.alarm.id === a.id && (a.id === "timer" || !a.days.length)) && !(a.id === "timer" && a.at <= t))
+      const keepFired = Object.fromEntries(Object.entries(fired).filter(([id]) => left.some((a) => a.id === id)))
+      if (!due.length && left.length === alarms.length) continue
+      await store.prefs.set(key, { alarmFired: keepFired, ...(left.length !== alarms.length ? { alarms: left } : {}) })
+      for (const d of due.slice(0, 3)) {
+        const result = await notify(
+          key,
+          "alarms",
+          {
+            title: d.title,
+            body: d.body,
+            tag: `alarm-${d.alarm.id}`,
+            key: `alarm-${d.alarm.id}-${Math.floor(t / MINUTE)}`,
+            app: "clock",
+            url: "/?open=program&name=Clock",
+            requireInteraction: true,
+            renotify: true,
+          },
+          { urgency: "high", ttl: 10 * MINUTE }
+        )
+        count += result.sent
+      }
+    }
+    return count
+  }
+
   const start = ({ calendars, couples } = {}) => {
     if (!enabled) return
     const every = (fn, ms) => {
@@ -331,6 +423,7 @@ const createPush = ({ store: storeOrPromise, webpush, vapid = {}, now = Date.now
     }
     every(() => checkReminders({ calendars }), REMINDER_EVERY_MS)
     every(() => checkPets({ couples }), PET_EVERY_MS)
+    every(() => checkAlarms(), MINUTE / 4) // alarms want the minute they're set for
   }
 
   // ---------- HTTP ----------
@@ -460,6 +553,18 @@ const createPush = ({ store: storeOrPromise, webpush, vapid = {}, now = Date.now
         response.json({ ok: true, dnd: next })
       })
     )
+    r.put(
+      "/alarms",
+      handle(async (request, response, store, key) => {
+        const raw = request.body?.alarms
+        if (!Array.isArray(raw) || raw.length > MAX_ALARMS) return response.status(400).json({ ok: false, error: "That's not a list of alarms." })
+        const alarms = cleanAlarms(raw)
+        const tz = request.body?.tz
+        if (tz !== undefined && !validZone(tz)) return response.status(400).json({ ok: false, error: "That time zone isn't one I know." })
+        await store.prefs.set(key, { alarms, ...(tz ? { alarmTz: tz } : {}) })
+        response.json({ ok: true, alarms: alarms.length })
+      })
+    )
     r.post(
       "/held",
       handle(async (request, response, store, key) => {
@@ -490,6 +595,7 @@ const createPush = ({ store: storeOrPromise, webpush, vapid = {}, now = Date.now
     notify,
     checkReminders,
     checkPets,
+    checkAlarms,
     start,
     stop: () => timers.splice(0).forEach(clearInterval),
     router,
@@ -501,4 +607,4 @@ const createPush = ({ store: storeOrPromise, webpush, vapid = {}, now = Date.now
 let shared = null
 const defaultPush = () => (shared ??= createPush({ store: process.env.MONGODB_URI ? undefined : memoryStore() }))
 
-module.exports = { createPush, defaultPush, settingsOf, inQuietHours, minutesIn, cleanSubscription, CATEGORIES, DEFAULT_SETTINGS, PET_NEEDS }
+module.exports = { createPush, defaultPush, settingsOf, inQuietHours, minutesIn, cleanSubscription, cleanAlarms, wallIn, CATEGORIES, DEFAULT_SETTINGS, PET_NEEDS }
