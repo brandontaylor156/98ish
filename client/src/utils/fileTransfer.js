@@ -1,5 +1,7 @@
-import { FILE_TYPE, fs, peekContent, uniqueName, writeAndSave } from "./fs"
+import { FILE_TYPE, mediaBlob, peekContent } from "./fs"
+import { isMediaRef } from "./driveStore"
 import { hyperlinks } from "./hyperlinks"
+import { mediaKindOf } from "./mediaRules"
 import { makeZip } from "./zip"
 
 // Getting files out of 98ish (Download to your computer) and in (Upload from your
@@ -54,7 +56,11 @@ const exportProblem = (item, text) => {
     case "sound":
       return text.startsWith("data:audio/") ? null : "This sound is empty."
     case "song":
-      return text.startsWith("data:") ? null : "This song is empty."
+      return text.startsWith("data:") || isMediaRef(text) ? null : "This song is empty."
+    case "movie":
+      return text.startsWith("data:") || isMediaRef(text) ? null : "This video is empty."
+    case "pdf":
+      return text.startsWith("data:") || isMediaRef(text) ? null : "This PDF is empty."
     case FILE_TYPE.internet:
       return hyperlinks[item.name] || text ? null : "This shortcut doesn't point anywhere."
     case FILE_TYPE.music:
@@ -65,11 +71,17 @@ const exportProblem = (item, text) => {
 }
 
 // What a file becomes on your computer: { name, data, mime } or { error } if it can't go
-// (`text` is its contents: pass them for a big file that may not be loaded)
-export const exportFile = (item, text = item.textContent || "") => {
+// (`text` is its contents: pass them for a big file that may not be loaded; `blob` is the
+// file's Blob for a big song, video or PDF kept on this device: fs.js mediaBlob)
+export const exportFile = (item, text = item.textContent || "", blob = null) => {
   const name = realName(item.name)
   const problem = exportProblem(item, text)
   if (problem) return { error: problem }
+  if (isMediaRef(text)) {
+    if (!blob) return { error: "Getting the file ready... Try again in a moment." }
+    const mime = blob.type || "application/octet-stream"
+    return { name: /\.[a-z0-9]{2,5}$/i.test(name) ? name : withExt(name, MEDIA_EXT[mime] || ""), data: blob, mime }
+  }
   switch (item.type) {
     case FILE_TYPE.text:
     case FILE_TYPE.note:
@@ -89,6 +101,12 @@ export const exportFile = (item, text = item.textContent || "") => {
       if (!text.startsWith("data:")) return { error: "This song is empty." }
       const mime = text.slice(5, text.indexOf(";")) || "audio/mpeg"
       return { name: /\.[a-z0-9]{2,5}$/i.test(name) ? name : withExt(name, SONG_EXT[mime] || ".mp3"), data: dataUrlBytes(text), mime }
+    }
+    // a video or PDF: the original file
+    case "movie":
+    case "pdf": {
+      const mime = text.slice(5, text.indexOf(";")) || (item.type === "pdf" ? "application/pdf" : "video/mp4")
+      return { name: /\.[a-z0-9]{2,5}$/i.test(name) ? name : withExt(name, MEDIA_EXT[mime] || ""), data: dataUrlBytes(text), mime }
     }
     case FILE_TYPE.internet: {
       const url = hyperlinks[item.name] || text
@@ -125,12 +143,19 @@ export const exportFolder = async (dir) => {
         await walk(item, `${prefix}${unique(realName(item.name))}/`)
         continue
       }
-      const out = exportFile(item, await peekContent(item))
+      const text = await peekContent(item)
+      // a big video/song/PDF kept on this device goes in too, up to ZIP_MEDIA_MAX each
+      const blob = isMediaRef(text) ? await mediaBlob(item) : null
+      if (blob && blob.size > ZIP_MEDIA_MAX) {
+        skipped.push(item.name)
+        continue
+      }
+      const out = exportFile(item, text, blob)
       if (out.error) {
         skipped.push(item.name)
         continue
       }
-      entries.push({ path: prefix + unique(out.name), data: out.data })
+      entries.push({ path: prefix + unique(out.name), data: out.data instanceof Blob ? new Uint8Array(await out.data.arrayBuffer()) : out.data })
       files++
     }
   }
@@ -162,8 +187,9 @@ export const downloadItem = async (item) => {
     downloadBlob(zip.data, zip.name, zip.mime)
     return { ok: true, name: zip.name, skipped: zip.skipped }
   }
-  const out = exportFile(item, await peekContent(item))
-  if (out.error) return { ok: false, error: out.error }
+  const text = await peekContent(item)
+  const out = exportFile(item, text, isMediaRef(text) ? await mediaBlob(item) : null)
+  if (out.error) return { ok: false, error: isMediaRef(text) ? "This file's contents aren't on this device any more." : out.error }
   downloadBlob(out.data, out.name, out.mime)
   return { ok: true, name: out.name, skipped: [] }
 }
@@ -171,28 +197,30 @@ export const downloadItem = async (item) => {
 // ---------- in ----------
 
 export const MAX_TEXT_BYTES = 200 * 1024
-export const MAX_MEDIA_BYTES = 25 * 1024 * 1024 // the file you pick; it's shrunk to fit
+export const MAX_MEDIA_BYTES = 25 * 1024 * 1024 // a picture you pick; it's shrunk to fit
 const MAX_SIDE = 1600
 const MAX_IMAGE_CHARS = 4_000_000 // ~3 MB of PNG
-const SOUND_RATE = 22050
-const MAX_SOUND_SECONDS = 30
+const ZIP_MEDIA_MAX = 200 * 1024 * 1024 // a big video in a folder's .zip (it's built in memory)
 
 const TEXT_EXT = /\.(txt|text|md|markdown|log|csv|tsv|json|js|mjs|ts|jsx|css|ini|cfg|conf|xml|yml|yaml|bat|cmd|sh|py|c|h|cpp|java|sql|srt|nfo|diz)$/i
 const IMAGE_EXT_RE = /\.(png|jpe?g|gif|webp|bmp)$/i
-const SOUND_EXT = /\.(wav|mp3|ogg|oga|m4a|aac|opus|weba|flac)$/i
 const SONG_EXT = { "audio/mpeg": ".mp3", "audio/mp4": ".m4a", "audio/aac": ".aac", "audio/wav": ".wav", "audio/ogg": ".ogg", "audio/flac": ".flac", "audio/webm": ".weba" }
+const MEDIA_EXT = { ...SONG_EXT, "video/mp4": ".mp4", "video/quicktime": ".mov", "video/webm": ".webm", "video/ogg": ".ogv", "video/3gpp": ".3gp", "application/pdf": ".pdf" }
 const RICH_EXT = /\.(html?|rtf)$/i
 
 // File picker filter: everything that can come in
-export const UPLOAD_ACCEPT = "text/*,image/png,image/jpeg,image/gif,image/webp,image/bmp,audio/*,.txt,.md,.log,.csv,.json,.ini,.xml,.html,.htm,.rtf,.wav,.mp3,.ogg,.m4a,.aac,.flac,.opus"
+export const UPLOAD_ACCEPT =
+  "text/*,image/png,image/jpeg,image/gif,image/webp,image/bmp,audio/*,video/*,application/pdf,.txt,.md,.log,.csv,.json,.ini,.xml,.html,.htm,.rtf,.wav,.mp3,.ogg,.m4a,.aac,.flac,.opus,.mp4,.m4v,.mov,.webm,.pdf"
 
-// -> "text" | "image" | "sound" | "richtext" | null
+// -> "text" | "image" | "richtext" | "song" | "movie" | "pdf" | null. Songs, videos and PDFs
+// are kept as they came (utils/mediaFiles.js), never converted.
 export const uploadKind = (file) => {
   const name = file.name || ""
   const type = file.type || ""
   if (RICH_EXT.test(name) || type === "text/html" || type === "application/rtf" || type === "text/rtf") return "richtext"
   if (IMAGE_EXT_RE.test(name) || /^image\/(png|jpeg|gif|webp|bmp|x-ms-bmp)$/.test(type)) return "image"
-  if (SOUND_EXT.test(name) || type.startsWith("audio/")) return "sound"
+  const media = mediaKindOf(file)
+  if (media) return media
   if (TEXT_EXT.test(name) || type.startsWith("text/") || type === "application/json") return "text"
   return null
 }
@@ -200,18 +228,10 @@ export const uploadKind = (file) => {
 // "photo.jpg" -> "photo", "notes.md" stays (it says what's inside)
 const baseName = (fileName) =>
   String(fileName || "Uploaded")
-    .replace(/\.(txt|png|jpe?g|gif|webp|bmp|wav|mp3|ogg|oga|m4a|aac|opus|weba|html?|rtf)$/i, "")
+    .replace(/\.(txt|png|jpe?g|gif|webp|bmp|html?|rtf)$/i, "")
     .replace(/[\\/:"<>|\u0000-\u001F]/g, "_")
     .trim()
     .slice(0, 64) || "Uploaded"
-
-const readDataUrl = (blob) =>
-  new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(reader.result)
-    reader.onerror = () => reject(reader.error)
-    reader.readAsDataURL(blob)
-  })
 
 const loadImage = (file) =>
   new Promise((resolve, reject) => {
@@ -250,53 +270,6 @@ export const imageToPng = async (file) => {
   } finally {
     done()
   }
-}
-
-// 16-bit mono PCM WAV bytes
-export const encodeWav = (samples, rate) => {
-  const view = new DataView(new ArrayBuffer(44 + samples.length * 2))
-  const text = (at, s) => [...s].forEach((c, i) => view.setUint8(at + i, c.charCodeAt(0)))
-  text(0, "RIFF")
-  view.setUint32(4, 36 + samples.length * 2, true)
-  text(8, "WAVE")
-  text(12, "fmt ")
-  view.setUint32(16, 16, true)
-  view.setUint16(20, 1, true) // PCM
-  view.setUint16(22, 1, true) // mono
-  view.setUint32(24, rate, true)
-  view.setUint32(28, rate * 2, true)
-  view.setUint16(32, 2, true)
-  view.setUint16(34, 16, true)
-  text(36, "data")
-  view.setUint32(40, samples.length * 2, true)
-  for (let i = 0; i < samples.length; i++) {
-    const s = Math.max(-1, Math.min(1, samples[i]))
-    view.setInt16(44 + i * 2, s < 0 ? s * 0x8000 : s * 0x7fff, true)
-  }
-  return new Uint8Array(view.buffer)
-}
-
-// Any sound the browser can play -> a mono 22 kHz WAV data URL (the first 30 seconds)
-export const audioToWav = async (file) => {
-  const OfflineCtx = window.OfflineAudioContext || window.webkitOfflineAudioContext
-  if (!OfflineCtx) throw new Error("can't be read by this browser")
-  // decoding needs no sound card: an offline context doesn't open one
-  const ctx = new OfflineCtx(1, 1, 44100)
-  const buffer = await file.arrayBuffer()
-  const decoded = await new Promise((resolve, reject) => {
-    const fail = () => reject(new Error("isn't a sound this browser can play"))
-    ctx.decodeAudioData(buffer, resolve, fail)?.catch?.(fail) // Safari only has the callbacks
-  })
-  const seconds = Math.min(decoded.duration, MAX_SOUND_SECONDS)
-  const frames = Math.max(1, Math.ceil(seconds * SOUND_RATE))
-  const offline = new OfflineCtx(1, frames, SOUND_RATE)
-  const source = offline.createBufferSource()
-  source.buffer = decoded
-  source.connect(offline.destination) // mixes down to mono
-  source.start()
-  const rendered = await offline.startRendering()
-  const wav = encodeWav(rendered.getChannelData(0), SOUND_RATE)
-  return { data: await readDataUrl(new Blob([wav], { type: "audio/wav" })), seconds, trimmed: decoded.duration > MAX_SOUND_SECONDS + 0.05 }
 }
 
 // ---- rich text: only plain formatting comes in (no scripts, frames, or outside pictures) ----
@@ -423,7 +396,7 @@ const tooBig = (bytes) => `${Math.round(bytes / 1024 / 1024)} MB`
 export const convertUpload = async (file) => {
   const kind = uploadKind(file)
   const name = baseName(file.name)
-  if (!kind) throw new Error("isn't a kind of file 98ish can open (text, pictures, sounds and web pages can come in)")
+  if (!kind) throw new Error("isn't a kind of file 98ish can open (text, pictures, songs, videos, PDFs and web pages can come in)")
   if (kind === "text" || kind === "richtext") {
     if (file.size > MAX_TEXT_BYTES) throw new Error("is bigger than 200 KB")
     const text = await file.text()
@@ -432,36 +405,8 @@ export const convertUpload = async (file) => {
     if (FILE_TYPE.richtext) return { name, type: FILE_TYPE.richtext, content: html }
     return { name, type: FILE_TYPE.text, content: htmlText(html) }
   }
-  if (file.size > MAX_MEDIA_BYTES) throw new Error(`is ${tooBig(file.size)}; pictures and sounds can be up to 25 MB`)
-  if (kind === "image") {
-    const png = await imageToPng(file)
-    return { name, type: FILE_TYPE.image, content: png.data, note: png.shrunk ? `${name} was shrunk to ${png.width} x ${png.height} to fit.` : null }
-  }
-  if (!FILE_TYPE.sound) throw new Error("is a sound, and this version of 98ish has nowhere to play it")
-  const wav = await audioToWav(file)
-  return { name, type: FILE_TYPE.sound, content: wav.data, note: wav.trimmed ? `${name} was cut to its first ${MAX_SOUND_SECONDS} seconds to fit.` : null }
-}
-
-// Bring real files into a folder: -> { added: [File], problems: [text], notes: [text] }
-export const uploadInto = async (dir, files) => {
-  const added = []
-  const problems = []
-  const notes = []
-  for (const file of files) {
-    let converted
-    try {
-      converted = await convertUpload(file)
-    } catch (error) {
-      problems.push(`${file.name} ${error.message || "couldn't be read"}.`)
-      continue
-    }
-    const made = fs.createFileIn(dir, uniqueName(dir, converted.name), converted.type, "")
-    if (!(await writeAndSave(made, converted.content, { created: true }))) {
-      problems.push(`${file.name} didn't fit: drive C: is full. Delete some pictures or sounds (and empty the Recycle Bin), then try again.`)
-      continue
-    }
-    added.push(made)
-    if (converted.note) notes.push(converted.note)
-  }
-  return { added, problems, notes }
+  if (kind !== "image") throw new Error("is a song, video or PDF: it's kept as it is (utils/mediaFiles.js), not converted")
+  if (file.size > MAX_MEDIA_BYTES) throw new Error(`is ${tooBig(file.size)}; pictures can be up to 25 MB`)
+  const png = await imageToPng(file)
+  return { name, type: FILE_TYPE.image, content: png.data, note: png.shrunk ? `${name} was shrunk to ${png.width} x ${png.height} to fit.` : null }
 }

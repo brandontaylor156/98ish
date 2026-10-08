@@ -1,7 +1,8 @@
 // Music 98's library on this device.
-// - The songs themselves are files in the drive (type "song": the original MP3/M4A/... as a
-//   data URL), so My Computer, Recycle Bin, Backup and file sync treat them like any file.
-//   Imports go to C:\My Music.
+// - The songs themselves are files in the drive (type "song": the original MP3/M4A/..., never
+//   converted or cut), so My Computer, Recycle Bin, Backup and file sync treat them like any
+//   file. Up to 8 MB a song is a data URL; bigger ones (up to 300 MB) are kept as a Blob on
+//   this device (utils/mediaFiles.js; not synced). Imports go to C:\My Music.
 // - What's in them (title, artist, album, length, art) is read once and kept in localStorage
 //   "98ish.music" (per user through the storage seam), keyed by the file's content hash, so
 //   renaming or moving a song keeps its details.
@@ -9,13 +10,15 @@
 //   deleted with the user (onUserRemoved).
 // - Playlists and player settings: localStorage "98ish.music" too.
 
-import { DIRECTORY_TYPE, FILE_TYPE, fs, readContent, uniqueName, writeAndSave } from "../../../utils/fs"
+import { DIRECTORY_TYPE, FILE_TYPE, fs, mediaBlob } from "../../../utils/fs"
+import { keepMediaFile } from "../../../utils/mediaFiles"
+import { MEDIA_CAPS } from "../../../utils/mediaRules"
 import { currentUserId, DEFAULT_ID, onUserRemoved } from "../../../utils/users"
-import { guessFromName, mimeFor, parseTags } from "./tags"
+import { guessFromName, mimeFor, parseTags, tagBytes } from "./tags"
 
 const KEY = "98ish.music"
 const DB = "98ish-music"
-export const MAX_SONG_BYTES = 60 * 1024 * 1024
+export const MAX_SONG_BYTES = MEDIA_CAPS.song
 export const SONG_ACCEPT = "audio/*,.mp3,.m4a,.aac,.wav,.ogg,.oga,.opus,.flac,.webm"
 const ART_PX = 256
 
@@ -86,7 +89,7 @@ const openDb = () => {
   })
   return opening
 }
-const putArt = async (key, url) => {
+export const putArt = async (key, url) => {
   memArt.set(key, url)
   const db = await openDb()
   if (!db) return
@@ -145,15 +148,6 @@ const artKeyOf = (bytes) => {
 
 // ---- reading a song ----
 
-const dataUrlBytes = (url) => {
-  const comma = url.indexOf(",")
-  if (comma < 0) return new Uint8Array()
-  const bin = atob(url.slice(comma + 1))
-  const out = new Uint8Array(bin.length)
-  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i)
-  return out
-}
-
 // how long a song is, from the browser itself
 const measure = (url) =>
   new Promise((resolve) => {
@@ -175,8 +169,8 @@ const measure = (url) =>
     a.src = url
   })
 
-// details for a song file whose bytes we have
-const describe = async (file, bytes, url) => {
+// details for a song file: its tag bytes (tags.js tagBytes) and the whole file as a Blob
+const describe = async (file, bytes, blob) => {
   const tags = parseTags(bytes)
   const guess = guessFromName(file.name)
   let art = null
@@ -189,8 +183,8 @@ const describe = async (file, bytes, url) => {
     if (await getArt(key)) art = key
   }
   let duration = 0
-  if (url) {
-    const blobUrl = URL.createObjectURL(new Blob([bytes], { type: mimeFor(file.name, (url.match(/^data:([^;,]+)/) || [])[1]) }))
+  if (blob) {
+    const blobUrl = URL.createObjectURL(blob.type ? blob : blob.slice(0, blob.size, mimeFor(file.name)))
     duration = await measure(blobUrl)
     URL.revokeObjectURL(blobUrl)
   }
@@ -244,9 +238,9 @@ export const readPending = (tracks, onEach) => {
   reading = (async () => {
     for (const t of todo) {
       try {
-        const url = await readContent(t.file)
-        if (!url.startsWith("data:")) continue
-        load().tracks[t.key] = await describe(t.file, dataUrlBytes(url), url)
+        const blob = await mediaBlob(t.file)
+        if (!blob) continue
+        load().tracks[t.key] = await describe(t.file, await tagBytes(blob), blob)
         save()
         onEach?.()
       } catch {
@@ -257,14 +251,6 @@ export const readPending = (tracks, onEach) => {
   return reading
 }
 
-const readFile = (file) =>
-  new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(reader.result)
-    reader.onerror = () => reject(reader.error || new Error("couldn't be read"))
-    reader.readAsDataURL(file)
-  })
-
 const musicFolder = () => {
   const c = fs.resolve(["C:"]) || fs.root
   return fs.resolve(["C:", "My Music"]) || fs.createDirectoryIn(c, "My Music", DIRECTORY_TYPE.folder)
@@ -273,11 +259,13 @@ const musicFolder = () => {
 const AUDIO_NAME = /\.(mp3|m4a|mp4|aac|wav|ogg|oga|opus|flac|weba|webm)$/i
 export const isSongFile = (f) => /^audio\//i.test(f?.type || "") || AUDIO_NAME.test(f?.name || "")
 
-// Real files from the phone or computer -> songs in C:\My Music
-// -> { added: [track], problems: [text] }
+// Real files from the phone or computer -> songs in C:\My Music, kept as they are (full
+// length, original format) -> { added: [track], problems: [text], notes: [text] }
+// (notes: "kept on this device only" for songs over 8 MB)
 export const importSongs = async (files, onProgress, into = null) => {
   const added = []
   const problems = []
+  const notes = []
   const list = [...files]
   const dir = into || musicFolder()
   for (let i = 0; i < list.length; i++) {
@@ -287,24 +275,16 @@ export const importSongs = async (files, onProgress, into = null) => {
       problems.push(`${f.name} isn't a song file.`)
       continue
     }
-    if (f.size > MAX_SONG_BYTES) {
-      problems.push(`${f.name} is too big (songs up to ${MAX_SONG_BYTES / 1024 / 1024} MB).`)
-      continue
-    }
     try {
-      const bytes = new Uint8Array(await f.arrayBuffer())
-      let url = await readFile(f)
       // the right type, so every browser knows what it is
-      const mime = mimeFor(f.name, f.type)
-      url = url.replace(/^data:[^;,]*/, `data:${mime}`)
-      const name = uniqueName(dir, f.name.replace(/[\\/:"<>|]/g, "_"))
-      const file = fs.createFileIn(dir, name, FILE_TYPE.song, "")
-      if (!(await writeAndSave(file, url, { created: true }))) {
-        file.parent = null
-        problems.push(`${f.name} didn't fit: drive C: is full.`)
+      const kept = await keepMediaFile(dir, f, { kind: "song", mime: mimeFor(f.name, f.type) })
+      if (!kept.ok) {
+        problems.push(kept.error)
         continue
       }
-      const meta = await describe(file, bytes, url)
+      if (kept.note) notes.push(kept.note)
+      const file = kept.file
+      const meta = await describe(file, await tagBytes(f), f)
       load().tracks[file.contentHash] = meta
       save()
       added.push({ key: file.contentHash, path: file.path, name: file.name, file, ...meta })
@@ -313,7 +293,7 @@ export const importSongs = async (files, onProgress, into = null) => {
     }
   }
   onProgress?.(list.length, list.length, "")
-  return { added, problems }
+  return { added, problems, notes }
 }
 
 // details you typed (Edit Info...)
@@ -324,10 +304,25 @@ export const editTrack = (key, patch) => {
   save()
 }
 
-// forget details of songs no longer in the drive (keeps the saved list small)
+// every video file in the drive (Media Player's Videos; playlists can hold both)
+export const videoFiles = () => {
+  const out = []
+  const walk = (dir) => {
+    for (const item of dir.content) {
+      if (item.isDirectory) walk(item)
+      else if (item.type === FILE_TYPE.movie) out.push(item)
+    }
+  }
+  walk(fs.root)
+  return out
+}
+
+// forget details of songs no longer in the drive (keeps the saved list small); playlists keep
+// songs and videos that are still there
 export const tidy = () => {
   const d = load()
   const keys = new Set(songFiles().map((f) => f.contentHash))
+  const inLists = new Set([...keys, ...videoFiles().map((f) => f.contentHash)])
   let changed = false
   for (const k of Object.keys(d.tracks)) {
     if (!keys.has(k)) {
@@ -337,7 +332,7 @@ export const tidy = () => {
   }
   for (const p of d.playlists) {
     const before = p.keys.length
-    p.keys = p.keys.filter((k) => keys.has(k))
+    p.keys = p.keys.filter((k) => inLists.has(k))
     if (p.keys.length !== before) changed = true
   }
   if (changed) save()

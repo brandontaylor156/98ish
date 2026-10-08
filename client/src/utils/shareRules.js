@@ -83,25 +83,33 @@ export const safeFileName = (name, ext = "") => {
 
 const IMAGE_NAME = /\.(png|jpe?g|gif|webp|bmp|heic|heif|avif)$/i
 const IMAGE_TYPE = /^image\//i
-const SOUND_NAME = /\.(wav|mp3|ogg|oga|m4a|aac|opus|weba)$/i
+const SOUND_NAME = /\.(wav|mp3|ogg|oga|m4a|aac|opus|weba|flac)$/i
+const MOVIE_NAME = /\.(mp4|m4v|mov|webm|3gp)$/i
 const RICH_NAME = /\.(html?|rtf)$/i
 const TEXT_NAME = /\.(txt|text|md|markdown|log|csv|tsv|json|js|mjs|ts|jsx|css|ini|cfg|conf|xml|yml|yaml|bat|cmd|sh|py|c|h|cpp|java|sql|srt|nfo|diz|vcf|ics)$/i
 
-// A file from the phone -> "image" | "sound" | "richtext" | "text" | null (can't come in)
+// A file from the phone -> "image" | "sound" | "movie" | "pdf" | "richtext" | "text" | null
+// (can't come in). Sounds, videos and PDFs are kept exactly as they are (utils/mediaFiles.js).
 export const incomingKind = ({ name = "", type = "" } = {}) => {
   if (RICH_NAME.test(name) || type === "text/html" || /rtf$/i.test(type)) return "richtext"
   if (IMAGE_NAME.test(name) || IMAGE_TYPE.test(type)) return "image"
+  if (/\.pdf$/i.test(name) || type === "application/pdf") return "pdf"
+  if (type.startsWith("video/")) return "movie"
   if (SOUND_NAME.test(name) || type.startsWith("audio/")) return "sound"
+  if (MOVIE_NAME.test(name)) return "movie"
   if (TEXT_NAME.test(name) || type.startsWith("text/") || type === "application/json") return "text"
   return null
 }
 
 export const PICTURES = ["C:", "My Pictures"]
+export const MUSIC = ["C:", "My Music"]
+export const VIDEOS = ["C:", "My Videos"]
 export const DOCUMENTS = ["C:", "Documents"]
 export const DESKTOP = ["C:", "Desktop"]
 
-// Where a received file goes: pictures to My Pictures, everything else to My Documents
-export const destinationFor = (kind) => (kind === "image" ? PICTURES : DOCUMENTS)
+// Where a received file goes: pictures to My Pictures, songs to My Music, videos to My Videos,
+// everything else (PDFs too) to Documents
+export const destinationFor = (kind) => (kind === "image" ? PICTURES : kind === "sound" ? MUSIC : kind === "movie" ? VIDEOS : DOCUMENTS)
 
 // "C:\\My Pictures"
 export const pathLabel = (parts) => (parts.length === 1 ? `${parts[0]}\\` : parts.join("\\"))

@@ -373,6 +373,7 @@ export const NetProvider = ({ socket, windows, dispatch: dispatchWindow, mobile,
   }
 
   const sendFile = async (computer, file) => {
+    if (file.deviceOnly) return { ok: false, error: `${file.name} is kept on this device only (over 8 MB), so it can't be sent from here. Use Send To > My Phone instead.` }
     const content = await readContent(file)
     const preview = file.type === "image" ? await thumbnail(content).catch(() => null) : null
     const result = await request("net:sendFile", { to: { id: computer.id }, name: file.name, content, type: file.type, preview })

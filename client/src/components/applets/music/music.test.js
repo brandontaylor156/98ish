@@ -2,7 +2,7 @@
 // the library/queue logic. node --test client/src/components/applets/music/music.test.js
 import test from "node:test"
 import assert from "node:assert/strict"
-import { guessFromName, mimeFor, parseTags } from "./tags.js"
+import { TAG_READ_ALL, guessFromName, mimeFor, parseTags, tagBytes } from "./tags.js"
 import { albumKeyOf, append, dropKey, filterTracks, groupAlbums, groupArtists, insertNext, makeQueue, nextPos, prevPos, reshuffle, shuffled, sortSongs, titleOf } from "./library.js"
 
 const enc = new TextEncoder()
@@ -220,4 +220,49 @@ test("queue edits: play next, add, a deleted song", () => {
   assert.deepEqual(q.order, ["c", "b", "z"])
   assert.equal(q.order[q.pos], "b")
   assert.equal(dropKey(q, "nope"), q)
+})
+
+// wave 2: big songs are kept whole as Blobs; their tags are read from the parts they live in
+test("tagBytes reads a 40 MB MP3's ID3v2 and ID3v1 without the middle", async () => {
+  const v1 = new Uint8Array(128)
+  v1.set(bytes("TAG"), 0)
+  v1.set(bytes("End Title"), 3)
+  v1.set(bytes("1999"), 93)
+  const tag = id3([textFrame("TPE1", "Long Mix Artist"), textFrame("TALB", "Live Set")])
+  const middle = new Uint8Array(40 * 1024 * 1024) // the music: never read
+  const blob = new Blob([tag, MPEG_FRAME, middle, v1])
+  assert.ok(blob.size > TAG_READ_ALL)
+  const read = await tagBytes(blob)
+  assert.ok(read.length < 5 * 1024 * 1024, `read ${read.length} bytes`)
+  const t = parseTags(read)
+  assert.equal(t.artist, "Long Mix Artist")
+  assert.equal(t.album, "Live Set")
+  assert.equal(t.title, "End Title") // from ID3v1 at the very end
+  assert.equal(t.year, "1999")
+})
+
+test("tagBytes finds an M4A's moov box after 40 MB of audio", async () => {
+  const atom = (type, ...body) => {
+    const b = bytes(...body)
+    return bytes(be32(b.length + 8), type, b)
+  }
+  const data = (kind, value) => atom("data", be32(kind), be32(0), value)
+  const ilst = atom("ilst", atom("©nam", data(1, enc.encode("Audiobook Ch. 1"))), atom("©ART", data(1, enc.encode("Narrator"))))
+  const meta = atom("meta", [0, 0, 0, 0], atom("hdlr", new Uint8Array(25)), ilst)
+  const audio = 40 * 1024 * 1024
+  const mdatHead = bytes(be32(audio + 8), "mdat")
+  const blob = new Blob([atom("ftyp", "M4A ", be32(0), "isom"), mdatHead, new Uint8Array(audio), atom("moov", atom("mvhd", new Uint8Array(20)), atom("udta", meta))])
+  const read = await tagBytes(blob)
+  assert.ok(read.length < 4096, `read ${read.length} bytes`)
+  const t = parseTags(read)
+  assert.equal(t.format, "mp4")
+  assert.equal(t.title, "Audiobook Ch. 1")
+  assert.equal(t.artist, "Narrator")
+})
+
+test("tagBytes reads small songs whole", async () => {
+  const tag = id3([textFrame("TIT2", "Short")])
+  const read = await tagBytes(new Blob([tag, MPEG_FRAME]))
+  assert.equal(read.length, tag.length + MPEG_FRAME.length)
+  assert.equal(parseTags(read).title, "Short")
 })

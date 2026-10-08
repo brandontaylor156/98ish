@@ -486,3 +486,184 @@
 .os-mobile .mpStatus {
   font-size: 12px;
 }
+
+/* ---- the library: Music | Videos (wave 2) ---- */
+
+.mpLibBar {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  margin-bottom: -4px;
+}
+
+.mpTabs {
+  display: flex;
+  gap: 0;
+  flex: 1;
+}
+
+/* 98 tabs: the chosen one sits forward, joined to the list below */
+.mpTabs button {
+  min-height: 22px;
+  padding: 2px 12px !important;
+  box-shadow: inset -1px 0 #0a0a0a, inset 1px 1px #fff, inset -2px 0 #808080, inset 2px 2px #dfdfdf;
+  border-radius: 3px 3px 0 0;
+}
+
+.mpTabs button.is-on {
+  position: relative;
+  z-index: 1;
+  font-weight: bold;
+  padding-bottom: 4px !important;
+  margin-top: -2px;
+}
+
+.mpAdd {
+  margin-bottom: 4px;
+}
+
+.mpBusy {
+  padding: 2px 4px;
+  color: #000080;
+}
+
+.mpFind {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  flex: 1 1 100%;
+}
+
+.mpFind label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.mpSearch {
+  width: 120px;
+}
+
+.mpPoster {
+  flex: none;
+  width: 48px;
+  height: 27px;
+  background: #000;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080;
+}
+
+.mpPoster img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* a film strip: sprocket holes top and bottom */
+.mpPosterNone {
+  width: 100%;
+  height: 100%;
+  background:
+    repeating-linear-gradient(90deg, #c0c0c0 0 3px, transparent 3px 7px) top / 100% 3px no-repeat,
+    repeating-linear-gradient(90deg, #c0c0c0 0 3px, transparent 3px 7px) bottom / 100% 3px no-repeat,
+    #303030;
+}
+
+.mpVideoRow .mpRowTitle {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.mpResumeBar {
+  display: block;
+  height: 3px;
+  width: 100%;
+  max-width: 160px;
+  background: #808080;
+}
+
+.mpResumeBar span {
+  display: block;
+  height: 100%;
+  background: #c00000;
+}
+
+.mpRowMore {
+  flex: none;
+  min-height: 0 !important;
+  width: 22px;
+  height: 18px;
+  padding: 0 !important;
+  line-height: 1;
+}
+
+.mpRow.is-selected .mpRowTime {
+  color: #fff;
+}
+
+.mpResumed {
+  position: absolute;
+  left: 4px;
+  bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 4px;
+  background: rgba(0, 0, 0, 0.7);
+  color: #fff;
+}
+
+.mpResumed button {
+  min-height: 0;
+  padding: 1px 6px !important;
+}
+
+.mpNameRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.mpNameRow input {
+  flex: 1;
+}
+
+.os-mobile .mpTabs button {
+  min-height: 38px;
+  padding: 4px 18px !important;
+  font-size: 14px;
+}
+
+.os-mobile .mpAdd {
+  min-height: 38px;
+}
+
+.os-mobile .mpPoster {
+  width: 64px;
+  height: 36px;
+}
+
+.os-mobile .mpRowMore {
+  width: 38px;
+  height: 32px;
+}
+
+.os-mobile .mpSearch {
+  width: 100%;
+  min-height: 32px;
+  font-size: 16px;
+}
+
+.os-mobile .mpFind label {
+  flex: 1 1 100%;
+}
+
+.os-mobile .mpFind select {
+  flex: 1;
+  min-height: 32px;
+}

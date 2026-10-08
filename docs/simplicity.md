@@ -163,7 +163,8 @@ The owner: "Continue, do it." Every program left on the list above, then a secon
 - **98ish Help**: toolbar Hide, Back, Home, Print, Options; Forward appears once you've gone back; phones leave Print to Options. Contents opens as closed books on the home page (a topic still opens its book).
 - **Add/Remove Programs**: a **Find a program** box over the list; a selected program shows **Add/Remove...**, and **More options »** (`addremove.where`, summary "On the desktop · In the Start menu") the two checkboxes. Shorter intro text.
 - **WordPad**: Aa (above). Phones' toolbar: New, Open, Save, Print, Find, Undo, Aa (Print Preview, Cut, Copy, Paste, Date/Time are in the menus).
-- **Media Player**: Play (Pause while playing), Previous, Next; **More »** (inline, `mediaplayer.more`, summary "Shuffle · Repeat · Volume 80%") Stop, Shuffle, Repeat, Mute, volume. Play menu unchanged.
+- **Media Player**: Play (Pause while playing), Previous, Next, and the library tabs **Music | Videos** with **Add Songs...**/**Add Videos...** (wave 2); **More »** (inline, `mediaplayer.more`, summary "Playlist: X · "query" · Shuffle · Repeat · Volume 80%") Stop, Shuffle, Repeat, Mute, volume, Search, Playlist, Picture in Picture. Rows' **…** menu for Play from Start / Add to Playlist / Show in My Computer. Play menu unchanged.
+- **PDF Viewer** (wave 2): baseline is the pages, the page counter and **Send to My Phone**; **More »** (`pdfviewer.more`) zoom −/Fit/+, Open in Browser, Download.
 - **Sounds**: Volume, Mute, Play system sounds; **Scheme and events »** (`sounds.events`) the events list, Play, Scheme, startup sound.
 - **Desktop Themes**: Theme + preview + OK; **More options »** (`themes.parts`, summary "Uses all 8 parts · Previews" or "Not using: ...") the Previews buttons and the parts checkboxes.
 - **Power Management**: screen saver wait and lock wait; **More options »** (`power.more`) Screen Saver... and Keep the screen on.

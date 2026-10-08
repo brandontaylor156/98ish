@@ -371,3 +371,48 @@ export const mimeFor = (name, type = "") => {
   const ext = String(name || "").toLowerCase().split(".").pop()
   return { mp3: "audio/mpeg", m4a: "audio/mp4", mp4: "audio/mp4", aac: "audio/aac", wav: "audio/wav", ogg: "audio/ogg", oga: "audio/ogg", opus: "audio/ogg", flac: "audio/flac", weba: "audio/webm", webm: "audio/webm" }[ext] || "audio/mpeg"
 }
+
+// ---- big files: only the parts the tags live in ----
+
+const MiB = 1024 * 1024
+export const TAG_READ_ALL = 32 * MiB // smaller files are read whole
+const joinBytes = (parts) => {
+  const out = new Uint8Array(parts.reduce((n, p) => n + p.length, 0))
+  let at = 0
+  for (const p of parts) {
+    out.set(p, at)
+    at += p.length
+  }
+  return out
+}
+const bytesOf = async (blob, start, end) => new Uint8Array(await blob.slice(start, end).arrayBuffer())
+
+// A song's Blob -> bytes parseTags can read, without loading a 200 MB file into memory:
+// MP4/M4A: the ftyp and moov boxes joined (moov is often at the end); others: the ID3v2 tag
+// or the first 4 MB (FLAC/Ogg comments and pictures are at the start), plus the last 128
+// bytes (ID3v1).
+export const tagBytes = async (blob) => {
+  const size = blob.size
+  if (size <= TAG_READ_ALL) return new Uint8Array(await blob.arrayBuffer())
+  const head = await bytesOf(blob, 0, 16)
+  if (latin1(head, 4, 8) === "ftyp") {
+    const parts = []
+    let i = 0
+    for (let n = 0; i + 8 <= size && n < 200; n++) {
+      const h = await bytesOf(blob, i, i + 16)
+      let box = u32(h, 0)
+      const type = latin1(h, 4, 8)
+      if (box === 1) box = u32(h, 8) * 2 ** 32 + u32(h, 12)
+      else if (box === 0) box = size - i
+      if (box < 8) break
+      if (type === "ftyp" || (type === "moov" && box <= 64 * MiB)) parts.push(await bytesOf(blob, i, i + box))
+      if (type === "moov") break
+      i += box
+    }
+    return joinBytes(parts)
+  }
+  let front = 4 * MiB
+  if (latin1(head, 0, 3) === "ID3") front = Math.max(front, 10 + syncsafe(head, 6) + 10)
+  front = Math.min(front, 64 * MiB, size - 128)
+  return joinBytes([await bytesOf(blob, 0, front), await bytesOf(blob, size - 128, size)])
+}

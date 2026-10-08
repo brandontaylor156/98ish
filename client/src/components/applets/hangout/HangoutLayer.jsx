@@ -300,6 +300,8 @@ export const handFile = async (key, path) => {
     const item = fs.resolve(path)
     const file = item && !item.isDirectory ? item : null
     if (!file) return { ok: false, error: "Pick a file to hand over." }
+    // a big video/song/PDF kept on this device: its bytes never leave it this way
+    if (file.deviceOnly) return { ok: false, error: `${file.name} is kept on this device only (over 8 MB), so it can't be sent from here. Use Send To > My Phone instead.` }
     await readContent(file)
     const res = await give(key, { name: file.name, type: file.type, data: file.textContent || "" })
     if (!res.ok) notify({ app: "hangout", title: "Couldn't hand it over", text: res.error || "" })

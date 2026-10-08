@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from "react"
 import { currentUserId, DEFAULT_ID, onUserRemoved } from "./users"
-import { readContent } from "./fs"
+import { mediaBlob as driveMediaBlob, readContent } from "./fs"
 import { dateFromName, exifDate, photoTime } from "../components/applets/photos/memoriesCore.js"
 import {
   PHOTO_MAX_BYTES,
@@ -512,6 +512,12 @@ export const prepareUpload = async (source) => {
     }
   }
   const file = source?.file || source
+  // a video on drive C: (Media Player's Videos): its original file, as it is
+  if (file?.type === "movie") {
+    const blob = await driveMediaBlob(file)
+    if (!blob) throw new Error(`${file.name} isn't on this device any more.`)
+    return prepareVideo(blob, file.name)
+  }
   const data = await readContent(file)
   if (!data || !/^data:image\//.test(data)) throw new Error(`${file?.name || "That file"} isn't a picture.`)
   return photoFromImage(await loadImg(data), photoTime(file), file.name)

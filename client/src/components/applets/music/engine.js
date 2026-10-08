@@ -9,7 +9,7 @@
 
 import { claimPlaybackSession, createAudioContext, masterOutput, closeAudioContext } from "../../../utils/audio"
 import { masterGain, subscribeSettings } from "../../../utils/settings"
-import { readContent } from "../../../utils/fs"
+import { mediaBlob } from "../../../utils/fs"
 import { albumOf, artistOf, makeQueue, nextPos, prevPos, reshuffle, insertNext, append, dropKey, titleOf } from "./library"
 import { getArt, getPrefs, setPrefs, trackFor } from "./musicStore"
 
@@ -74,9 +74,9 @@ const loadInto = async (index, key) => {
   if (keysIn[index] === key && urls[index]) return true
   const track = trackFor(key)
   if (!track) return false
-  const url = await readContent(track.file)
-  if (!url.startsWith("data:")) return false
-  const blob = await (await fetch(url)).blob()
+  // a data URL or a big song kept as a Blob on this device (never a copy in memory)
+  const blob = await mediaBlob(track.file)
+  if (!blob) return false
   if (urls[index]) URL.revokeObjectURL(urls[index])
   urls[index] = URL.createObjectURL(blob)
   keysIn[index] = key
@@ -101,7 +101,6 @@ const unload = (index) => {
 // ---- Media Session (lock screen, Control Center, headphones) ----
 
 const ms = () => (typeof navigator !== "undefined" && navigator.mediaSession ? navigator.mediaSession : null)
-let handlersSet = false
 const setMetadata = (track, art) => {
   const session = ms()
   if (!session || typeof MediaMetadata === "undefined") return
@@ -115,8 +114,7 @@ const setMetadata = (track, art) => {
   } catch {
     // older browsers
   }
-  if (handlersSet) return
-  handlersSet = true
+  // set again with each song: Media Player may have taken the lock screen controls meanwhile
   const on = (action, fn) => {
     try {
       session.setActionHandler(action, fn)

@@ -20,7 +20,7 @@
       "files": [
         {
           "name": "files",
-          "accept": ["image/*", "text/*", "audio/*", "application/json", "application/rtf", ".jpg", ".jpeg", ".png", ".gif", ".webp", ".heic", ".txt", ".md", ".csv", ".json", ".html", ".htm", ".rtf", ".wav", ".mp3", ".m4a"]
+          "accept": ["image/*", "text/*", "audio/*", "video/*", "application/pdf", "application/json", "application/rtf", ".jpg", ".jpeg", ".png", ".gif", ".webp", ".heic", ".txt", ".md", ".csv", ".json", ".html", ".htm", ".rtf", ".wav", ".mp3", ".m4a", ".flac", ".mp4", ".mov", ".webm", ".pdf"]
         }
       ]
     }

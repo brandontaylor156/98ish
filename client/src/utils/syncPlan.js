@@ -45,6 +45,10 @@ export const scanLocal = (drive, folders) => {
   return out
 }
 
+// A file that doesn't go online: a big video/song/PDF kept on this device (fs.js storeMedia:
+// over 8 MB, utils/mediaRules.js), or text longer than the server takes (maxFile)
+export const staysOnDevice = (item, maxFile = 0) => !!item && !item.isDirectory && (!!item.deviceOnly || (maxFile > 0 && (item.textLength || 0) > maxFile))
+
 // does what's here differ from the base?
 export const differs = (local, base) => {
   if (!base || base.deleted) return !!local

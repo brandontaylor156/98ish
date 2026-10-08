@@ -55,9 +55,9 @@ const takeAddressShare = () => {
   return { marked: true, failed, get: get.title || get.text || get.url ? get : null }
 }
 
-const ICONS = { image: imageMapper.image, text: imageMapper.text, richtext: imageMapper.richtext, sound: imageMapper.sound, link: imageMapper.internet, note: imageMapper.note, unsupported: imageMapper.text }
+const ICONS = { image: imageMapper.image, text: imageMapper.text, richtext: imageMapper.richtext, sound: imageMapper.song, movie: imageMapper.movie, pdf: imageMapper.pdf, link: imageMapper.internet, note: imageMapper.note, unsupported: imageMapper.text }
 
-const KIND_NAME = { image: "Picture", text: "Text document", richtext: "Web page / document", sound: "Sound", link: "Web link", note: "Text", unsupported: "File" }
+const KIND_NAME = { image: "Picture", text: "Text document", richtext: "Web page / document", sound: "Song (kept whole)", movie: "Video (kept as it is)", pdf: "PDF", link: "Web link", note: "Text", unsupported: "File" }
 
 // the choices for each row: [value, label]
 const choicesFor = (entry) => {
@@ -218,7 +218,7 @@ const ShareCenter = ({ dispatch }) => {
                           ))}
                         </select>
                       ) : (
-                        <span className="shareNo">98ish can't keep this kind of file (pictures, text, web pages and sounds can come in).</span>
+                        <span className="shareNo">98ish can't keep this kind of file (pictures, songs, videos, PDFs, text and web pages can come in).</span>
                       )}
                     </div>
                   </li>

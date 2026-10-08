@@ -20,6 +20,7 @@ export const APP_PROFILES = {
   "3D Viewer 98": { image: "view3d.exe", mem: 18432, threads: 6, handles: 140, cpu: [0.6, 18] },
   "Buddy Locator": { image: "locator.exe", mem: 18432, threads: 12, handles: 214, cpu: [0.7, 14] },
   "Maps 98": { image: "maps98.exe", mem: 21504, threads: 12, handles: 230, cpu: [0.6, 16] },
+  "PDF Viewer": { image: "pdfview.exe", mem: 16384, threads: 7, handles: 150, cpu: [0.4, 14] },
   "Watch Together": { image: "together.exe", mem: 8340, threads: 10, handles: 152, cpu: [0.8, 10] },
   "Internet Explorer": { image: "iexplore.exe", mem: 14872, threads: 11, handles: 296, cpu: [0.8, 9] },
   Compass: { image: "compass.exe", mem: 21760, threads: 14, handles: 342, cpu: [1, 12] },

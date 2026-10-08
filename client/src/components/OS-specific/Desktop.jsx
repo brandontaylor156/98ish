@@ -54,6 +54,7 @@ const Music = lazyApp(() => import("../applets/music/Music"))
 const Together = lazyApp(() => import("../applets/together/Together"))
 const Locator = lazyApp(() => import("../applets/locator/Locator"))
 const Maps = lazyApp(() => import("../applets/maps/Maps"))
+const PdfViewer = lazyApp(() => import("../applets/pdfViewer/PdfViewer"))
 const NetWindow = lazyApp(() => import("../applets/network/NetWindow"))
 const Mail = lazyApp(() => import("../applets/mail/Mail"))
 const HomePageStudio = lazyApp(() => import("../applets/homepage/HomePageStudio"))
@@ -862,6 +863,7 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
       {window.app === "imposter" && <Imposter mobile={mobile} onClose={() => closeWindow(window, index)} />}
       {window.app === "musiclib" && <Music mobile={mobile} handoff={window.handoff} onClose={() => closeWindow(window, index)} />}
       {window.app === "locator" && <Locator mobile={mobile} dispatch={dispatch} onClose={() => closeWindow(window, index)} />}
+      {window.app === "pdf" && <PdfViewer file={window.file} mobile={mobile} dispatch={dispatch} onTitle={rename(index)} onClose={() => closeWindow(window, index)} />}
       {window.app === "maps" && <Maps mobile={mobile} handoff={window.handoff} onClose={() => closeWindow(window, index)} />}
       {window.app === "hangout" && <Hangout mobile={mobile} handoff={window.handoff} dispatch={dispatch} onClose={() => closeWindow(window, index)} />}
       {window.app === "lanparty" && <LanParty handoff={window.handoff} onClose={() => closeWindow(window, index)} />}

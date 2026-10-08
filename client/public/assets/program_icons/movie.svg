@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <!-- A video file for Media Player: a page with a folded corner and a strip of film with a play mark -->
+  <path d="M9 3h21l9 9v33H9z" fill="#ffffff" stroke="#000" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M30 3v9h9" fill="#c0c0c0" stroke="#000" stroke-width="1.5" stroke-linejoin="round"/>
+  <rect x="12" y="18" width="24" height="20" fill="#202020" stroke="#000"/>
+  <g fill="#c0c0c0">
+    <rect x="13.5" y="19.5" width="2.5" height="2.5"/><rect x="18.5" y="19.5" width="2.5" height="2.5"/><rect x="23.5" y="19.5" width="2.5" height="2.5"/><rect x="28.5" y="19.5" width="2.5" height="2.5"/><rect x="33" y="19.5" width="2" height="2.5"/>
+    <rect x="13.5" y="34" width="2.5" height="2.5"/><rect x="18.5" y="34" width="2.5" height="2.5"/><rect x="23.5" y="34" width="2.5" height="2.5"/><rect x="28.5" y="34" width="2.5" height="2.5"/><rect x="33" y="34" width="2" height="2.5"/>
+  </g>
+  <rect x="13" y="23.5" width="22" height="9" fill="#3a6ea5"/>
+  <path d="M21.5 24.5v7l6-3.5z" fill="#ffffff"/>
+</svg>

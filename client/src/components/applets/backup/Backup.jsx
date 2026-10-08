@@ -69,7 +69,9 @@ const Backup = ({ dispatch, mobile }) => {
         // fine
       }
       setLast(now)
-      setDialog({ kind: "alert", title: "Backup", text: `Saved ${name} (${formatBytes(blob.size)}) to your computer's Downloads: ${describe(here)}.` })
+      // big songs/videos/PDFs kept on this device only: just their names are in a backup
+      const local = here.deviceOnly ? ` ${here.deviceOnly} big song${here.deviceOnly === 1 ? ", video or PDF is" : "s, videos or PDFs are"} kept on this device only and ${here.deviceOnly === 1 ? "isn't" : "aren't"} in it: keep your own copies of those.` : ""
+      setDialog({ kind: "alert", title: "Backup", text: `Saved ${name} (${formatBytes(blob.size)}) to your computer's Downloads: ${describe(here)}.${local}` })
     } catch (error) {
       setDialog({ kind: "alert", title: "Backup", text: `The backup couldn't be made: ${error.message}` })
     } finally {

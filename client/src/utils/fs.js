@@ -7,7 +7,7 @@
 
 import { unlock } from "./achievements"
 import { DEFAULT_ID, currentUserId, onUserRemoved } from "./users"
-import { DB_NAME, INLINE_MAX, MIGRATED_KEY, OLD_KEY, byteSize, contentKey, migrateFromLocal, openDriveDb, readMarker, readOldDrive, retireOldDrive } from "./driveStore"
+import { DB_NAME, INLINE_MAX, MIGRATED_KEY, OLD_KEY, blobsToDelete, byteSize, contentKey, isMediaRef, isQuotaError, mediaKeysIn, mediaRef, migrateFromLocal, newMediaKey, openDriveDb, parseMediaRef, readMarker, readOldDrive, retireOldDrive } from "./driveStore"
 
 const listeners = new Set()
 let notifyQueued = false
@@ -72,11 +72,14 @@ export const FILE_TYPE = {
   richtext: "richtext", // a WordPad document: sanitized HTML in textContent
   recorder: "recorder",
   sound: "sound", // a Wave Sound: a 16-bit mono WAV data URL in textContent
-  song: "song", // a song for Music 98: the original MP3/M4A/... as a data URL in textContent
+  song: "song", // a song for Music 98: the original MP3/M4A/... as a data URL in textContent (or a media reference: see storeMedia)
+  movie: "movie", // a video file (C:\My Videos): the original MP4/MOV/WebM, a data URL or a media reference; plays in Media Player
+  pdf: "pdf", // a PDF document: the original file, a data URL or a media reference; opens in PDF Viewer
   musiclib: "musiclib",
   together: "together",
   locator: "locator",
   maps: "maps",
+  pdfviewer: "pdfviewer",
   hangout: "hangout",
   vb98: "vb98",
   vbapp: "vbapp", // a Visual Basic 98 program (.vb98): its JSON in textContent
@@ -267,6 +270,12 @@ export class File extends Item {
   get textLength() {
     if (this._text !== null) return this._text.length
     return parseInt(String(this._key || "").split("-").pop(), 36) || 0
+  }
+
+  // a big video/song/PDF kept as a Blob on this device (its text is a media reference):
+  // not synced, not in backups (storeMedia below)
+  get deviceOnly() {
+    return this._text !== null && isMediaRef(this._text)
   }
 
   // a small preview of a big picture (null for small ones: use textContent)
@@ -656,6 +665,7 @@ const DEFAULT_ITEMS = [
   ["C:/Programs/Watch Together", "file", "together"],
   ["C:/Programs/Buddy Locator", "file", "locator"],
   ["C:/Programs/Maps 98", "file", "maps"],
+  ["C:/Programs/PDF Viewer", "file", "pdfviewer"],
   ["C:/Programs/Come Over", "file", "hangout"],
   ["C:/Programs/Visual Basic 98", "file", "vb98"],
   ["C:/Programs/3D Viewer 98", "file", "viewer3d"],
@@ -673,6 +683,7 @@ const DEFAULT_ITEMS = [
   ["C:/Programs/Media Player", "file", "media"],
   // your songs (Music 98) and recordings (Sound Recorder)
   ["C:/My Music", "dir", "folder"],
+  ["C:/My Videos", "dir", "folder"],
   ["C:/Programs/Hearts", "file", "hearts"],
   ["C:/Programs/Reversi", "file", "reversi"],
   ["C:/Programs/Chess", "file", "chess"],
@@ -848,6 +859,8 @@ const CACHE_CHARS = (isPhone ? 48 : 160) * 1024 * 1024 // big contents kept in m
 let mode = "memory" // idb | local (old localStorage drive) | unavailable (can't save) | memory
 let db = null
 let storedKeys = new Set() // content keys saved in IndexedDB
+let storedBlobKeys = new Set() // big media files (Blobs) saved in IndexedDB
+const freshBlobs = new Map() // media key -> when it was stored (kept while its file is made)
 const missingKeys = new Set()
 const info = { mode: "memory", ready: false, problem: null, problemText: "", migration: null, justMigrated: false, persisted: null, lastSaveOk: true }
 const statusListeners = new Set()
@@ -991,6 +1004,77 @@ export const ensureLoaded = async (item) => {
   if (item.isDirectory) {
     for (const child of item.content) await ensureLoaded(child)
   } else await readContent(item)
+}
+
+// ---- big media files kept as they came (videos, big songs and PDFs) ----
+// A file's text can be a short media reference ("98ish-media:<key>;<mime>;<bytes>",
+// driveStore.js) whose bytes are a Blob in IndexedDB's "blobs" store: a long video is never
+// turned into a giant text, and the phone reads it straight from storage. These files are
+// on this device only (file sync and Backup skip them; utils/mediaRules.js has the caps).
+
+const blobCache = new Map() // media key -> Blob (backed by storage, not memory); the newest few
+const BLOB_CACHE = 6
+
+// Keep a Blob in the drive -> { ok: true, ref } (the text for the file) | { ok: false, error, full }
+export const storeMedia = async (blob, { mime } = {}) => {
+  if (mode !== "idb" || !db) return { ok: false, error: "This browser isn't letting 98ish use its larger storage (a private window does this), so big files can't be kept here." }
+  const type = mime || blob.type || "application/octet-stream"
+  const typed = blob.type === type ? blob : new Blob([blob], { type })
+  const key = newMediaKey(blob.size)
+  try {
+    if (testHooks.fail?.([typed])) throw new DOMException("The drive is full.", "QuotaExceededError")
+    await db.putBlob(key, typed)
+  } catch (error) {
+    const full = isQuotaError(error)
+    return { ok: false, full, error: full ? "There isn't room for it on this device's storage." : `It couldn't be saved (${error?.name || "error"}).` }
+  }
+  storedBlobKeys.add(key)
+  freshBlobs.set(key, Date.now())
+  return { ok: true, ref: mediaRef({ key, mime: type, size: blob.size }) }
+}
+
+// true for a file whose bytes are a big media Blob on this device (not synced, not backed up)
+export const isDeviceOnly = (file) => !!file && !file.isDirectory && !!file.deviceOnly
+// { key, mime, size } of such a file, else null
+export const mediaInfo = (file) => (isDeviceOnly(file) ? parseMediaRef(file._text) : null)
+
+const keepBlob = (key, blob) => {
+  blobCache.delete(key)
+  blobCache.set(key, blob)
+  while (blobCache.size > BLOB_CACHE) blobCache.delete(blobCache.keys().next().value)
+}
+
+// A media file's bytes as a Blob (a video, a song, a PDF, a picture): from the blobs store for
+// a media reference, or made from a data URL. null when there's nothing (or it's missing).
+export const mediaBlob = async (file) => {
+  if (!file || file.isDirectory) return null
+  const text = await readContent(file)
+  const ref = parseMediaRef(text)
+  if (ref) {
+    if (blobCache.has(ref.key)) return blobCache.get(ref.key)
+    let blob = null
+    try {
+      blob = db ? await db.getBlob(ref.key) : null
+    } catch {
+      blob = null
+    }
+    if (!(blob instanceof Blob)) return null
+    if (!blob.type && ref.mime) blob = blob.slice(0, blob.size, ref.mime)
+    keepBlob(ref.key, blob)
+    return blob
+  }
+  if (!text.startsWith("data:")) return null
+  try {
+    return await (await fetch(text)).blob()
+  } catch {
+    return null
+  }
+}
+
+// The Blob right now if it was read before (sharing must start inside the tap), else null
+export const peekMediaBlob = (file) => {
+  const ref = mediaInfo(file)
+  return ref ? blobCache.get(ref.key) || null : null
 }
 
 // ---- thumbnails of big pictures (for folder views, Photos, Camera) ----
@@ -1170,15 +1254,22 @@ const saveIdb = async () => {
     savedAt: Date.now(),
   }
   const deletes = [...storedKeys].filter((key) => !out.refs.has(key))
+  // big media files nothing points at any more (emptied from the Recycle Bin, replaced)
+  const blobDeletes = blobsToDelete(storedBlobKeys, mediaKeysIn(index.bin, mediaKeysIn(index.root)), freshBlobs)
   try {
     if (testHooks.fail?.([...out.puts.values()])) throw new DOMException("The drive is full.", "QuotaExceededError")
-    await db.commit({ index, puts: [...out.puts], deletes })
+    await db.commit({ index, puts: [...out.puts], deletes, blobDeletes })
   } catch (error) {
     console.warn("[fs] the drive couldn't be saved", error)
     return false
   }
   for (const key of out.puts.keys()) storedKeys.add(key)
   for (const key of deletes) storedKeys.delete(key)
+  for (const key of blobDeletes) {
+    storedBlobKeys.delete(key)
+    freshBlobs.delete(key)
+    blobCache.delete(key)
+  }
   // saved big texts move from the file into the cache (and can be forgotten later)
   for (const [file, key] of out.settle) {
     if (file._text === null || file.contentHash !== key) continue
@@ -1308,6 +1399,11 @@ const start = async () => {
       storedKeys = new Set(await db.contentKeys())
     } catch {
       storedKeys = new Set()
+    }
+    try {
+      storedBlobKeys = new Set(await db.blobKeys())
+    } catch {
+      storedBlobKeys = new Set()
     }
     if (index && !loadInto(fs, index)) {
       // a damaged index: show the starting files, and don't save over it
@@ -1468,15 +1564,19 @@ export const writeDriveJson = async (emit) => {
   emit("}")
 }
 
-// Counts without reading any contents: { files, folders, recycled, bytes }
+// Counts without reading any contents: { files, folders, recycled, bytes, deviceOnly }
+// (deviceOnly: big songs/videos/PDFs kept as Blobs here; backups only note their names)
 export const driveSummary = () => {
-  const counts = { files: 0, folders: 0, recycled: fs.recycleBin.content.length, bytes: itemBytes(fs.root) }
+  const counts = { files: 0, folders: 0, recycled: fs.recycleBin.content.length, bytes: itemBytes(fs.root), deviceOnly: 0 }
   const walk = (dir) => {
     for (const item of dir.content) {
       if (item.isDirectory) {
         if (item.type !== DIRECTORY_TYPE.drive) counts.folders++
         walk(item)
-      } else counts.files++
+      } else {
+        counts.files++
+        if (item.deviceOnly) counts.deviceOnly++
+      }
     }
   }
   walk(fs.root)

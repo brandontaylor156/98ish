@@ -201,3 +201,53 @@ test("compareDrives notices every kind of difference", async () => {
   edited.root[0].c[0].c[0].x = "milk"
   assert.match(await S.compareDrives(drive, edited, get), /contents/)
 })
+
+// ---- wave 2: big media kept as Blobs in the drive ----
+
+test("a version 1 drive gains the blobs store; Blobs go in, come out, and go when nothing points at them", async () => {
+  const factory = createFakeIndexedDb()
+  // an old drive database (version 1: meta + contents only)
+  await new Promise((resolve) => {
+    const r = factory.open("98ish-drive", 1)
+    r.onupgradeneeded = () => {
+      r.result.createObjectStore("meta")
+      r.result.createObjectStore("contents")
+    }
+    r.onsuccess = resolve
+  })
+  const db = await S.openDriveDb(factory)
+  assert.ok(db, "opens at version 2")
+  const video = new Blob([new Uint8Array(3 * 1024 * 1024).fill(9)], { type: "video/mp4" })
+  await db.putBlob("mvideo1", video)
+  await db.putBlob("mvideo2", new Blob(["x"], { type: "application/pdf" }))
+  const back = await db.getBlob("mvideo1")
+  assert.ok(back instanceof Blob)
+  assert.equal(back.size, video.size)
+  assert.equal(back.type, "video/mp4")
+  assert.deepEqual((await db.blobKeys()).sort(), ["mvideo1", "mvideo2"])
+  // a save that leaves mvideo2 unreferenced deletes it in the same transaction
+  const index = { version: 2, root: [{ k: "d", n: "C:", t: "drive", m: {}, c: [{ k: "f", n: "Trip.mov", t: "movie", m: {}, x: S.mediaRef({ key: "mvideo1", mime: "video/mp4", size: video.size }) }] }], bin: [] }
+  const used = S.mediaKeysIn(index.root)
+  assert.deepEqual([...used], ["mvideo1"])
+  const gone = S.blobsToDelete(new Set(await db.blobKeys()), used)
+  assert.deepEqual(gone, ["mvideo2"])
+  await db.commit({ index, blobDeletes: gone })
+  assert.deepEqual(await db.blobKeys(), ["mvideo1"])
+  // a full drive refuses a big Blob
+  const tiny = createFakeIndexedDb({ quotaChars: 1024 })
+  const small = await S.openDriveDb(tiny)
+  tiny.control.quotaChars = 1024
+  await assert.rejects(small.putBlob("mbig", new Blob([new Uint8Array(4096)])))
+})
+
+test("blobsToDelete keeps fresh and Recycle Bin blobs", () => {
+  const stored = new Set(["a", "b", "c", "d"])
+  const used = S.mediaKeysIn([{ k: "f", x: S.mediaRef({ key: "bbbb", size: 1 }) }], S.mediaKeysIn([{ k: "d", c: [{ k: "f", x: S.mediaRef({ key: "aaaa", size: 1 }) }] }]))
+  assert.deepEqual([...used].sort(), ["aaaa", "bbbb"])
+  const keys = new Set(["aaaa", "bbbb", "cccc", "dddd"])
+  // cccc was just stored (its file is being made): kept for MEDIA_HOLD_MS
+  const fresh = new Map([["cccc", 1000]])
+  assert.deepEqual(S.blobsToDelete(keys, used, fresh, 1000 + 60_000), ["dddd"])
+  assert.deepEqual(S.blobsToDelete(keys, used, fresh, 1000 + S.MEDIA_HOLD_MS + 1), ["cccc", "dddd"])
+  assert.equal(stored.size, 4)
+})

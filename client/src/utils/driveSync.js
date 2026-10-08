@@ -2,7 +2,7 @@ import { useEffect, useState } from "react"
 import { DIRECTORY_TYPE, fs, fsReady, onFsChange, peekContent, readDriveMeta, saveNow, uniqueName, writeDriveMeta } from "./fs"
 import { contentKey } from "./driveStore"
 import { mergeAchievements, readAchievements, writeAchievements } from "./driveSnapshot"
-import { DEFAULT_FOLDERS, NEVER_SYNC, baseOf, conflictName, decide, deviceName, inScope, planPush, scanLocal } from "./syncPlan"
+import { DEFAULT_FOLDERS, NEVER_SYNC, baseOf, conflictName, decide, deviceName, inScope, planPush, scanLocal, staysOnDevice } from "./syncPlan"
 
 // File sync with your 98 Messenger account (server/drive/sync.js): the folders you pick
 // (My Documents, My Pictures and Desktop to start with) are kept the same on every device
@@ -408,7 +408,8 @@ const push = async (st, maxFile) => {
   let skipped = 0
   // contents the server doesn't have yet
   const files = changes.filter((c) => c.kind === "f" && !c.deleted)
-  const tooBig = new Set(files.filter((c) => maxFile && (byPath.get(c.path)?.item.textLength || 0) > maxFile).map((c) => c.path))
+  // too big for the server, or a big media file kept on this device: they stay here
+  const tooBig = new Set(files.filter((c) => staysOnDevice(byPath.get(c.path)?.item, maxFile)).map((c) => c.path))
   skipped += tooBig.size
   const hashes = [...new Set(files.filter((c) => !tooBig.has(c.path)).map((c) => c.hash))]
   const missing = new Set()
@@ -502,7 +503,7 @@ const runCycle = async () => {
       usage: after.usage,
       quota: after.quota,
       files: after.files,
-      text: skipped ? `${skipped} file${skipped === 1 ? " is" : "s are"} too big to sync.` : "",
+      text: skipped ? `${skipped} file${skipped === 1 ? " is" : "s are"} too big to sync: ${skipped === 1 ? "it stays" : "they stay"} on this device.` : "",
     })
   } catch (error) {
     failures++
