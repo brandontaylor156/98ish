@@ -6,7 +6,7 @@
 // anyone's own: it isn't per user and holds nothing personal (Help: privacy-device). The last
 // 60 venues stay; older ones go first.
 
-import { IDX_BASE, cellsNear, nearest, readRow, searchIndex, zipOf } from "./finder.js"
+import { IDX_BASE, cellsNear, nearest, readRow, searchIndex, searchKey, zipOf } from "./finder.js"
 
 const SERVER_URL = import.meta.env?.VITE_SOCKET_URL || "http://localhost:8000"
 const DB = "98ish-venues"
@@ -25,8 +25,20 @@ export const loadShard = (gh) => {
     )
   return shardCache.get(gh)
 }
-let searchCache = null
-export const loadSearch = () => (searchCache ??= fetch(`${IDX_BASE}/search.json`).then((r) => (r.ok ? r.json() : null)).catch(() => (searchCache = null)))
+// the names a query can match: one small file per first letter (idx/search/<k>.json)
+const searchCache = new Map()
+export const loadSearch = (q) => {
+  const k = searchKey(q)
+  if (!k) return Promise.resolve(null)
+  if (!searchCache.has(k))
+    searchCache.set(
+      k,
+      fetch(`${IDX_BASE}/search/${k}.json`)
+        .then((r) => (r.ok ? r.json() : null))
+        .catch(() => (searchCache.delete(k), null))
+    )
+  return searchCache.get(k)
+}
 let metaCache = null
 export const loadMeta = () => (metaCache ??= fetch(`${IDX_BASE}/meta.json`).then((r) => (r.ok ? r.json() : null)).catch(() => (metaCache = null)))
 
@@ -44,7 +56,7 @@ export const zipPoint = async (zip) => {
   return p ? { lat: p[0], lon: p[1] } : null
 }
 // search by ZIP code, venue name or town: a ZIP lists the courts around it; names come straight
-// from search.json; towns open their shard
+// from the search file for its first letter; towns open their shard
 export const searchVenues = async (q, { from = null } = {}) => {
   const zip = zipOf(q)
   if (zip) {
@@ -53,7 +65,7 @@ export const searchVenues = async (q, { from = null } = {}) => {
     const near = await venuesNear(at.lat, at.lon, { km: 40, limit: 30 })
     return near.map((v) => ({ ...v, why: "zip", near: zip, score: -v.km }))
   }
-  const idx = await loadSearch()
+  const idx = await loadSearch(q)
   const { towns, named } = searchIndex(idx, q, 8)
   const out = new Map()
   for (const n of named) {

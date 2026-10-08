@@ -464,9 +464,30 @@ for (const [gh, rows] of shards) {
 const r4 = (v) => Math.round(v * 1e4) / 1e4
 // towns: the town's own shard is where it is; a town on a shard edge points at its venues' main shard
 const townRows = [...townCount.values()].map((t) => [t.name, t.shards.has(t.gh) ? t.gh : [...t.shards][0], r4(t.lat), r4(t.lon), t.n]).sort((a, b) => b[4] - a[4])
-const search = { v: 1, towns: townRows, named }
-const searchText = JSON.stringify(search)
-fs.writeFileSync(path.join(OUT, "search.json"), searchText)
+// search: one file per first letter of a word (idx/search/<k>.json, finder.js searchKeysOf), so
+// a search loads the names that can match it, not the whole world's
+const buckets = new Map()
+const into = (name, kind, row) => {
+  for (const k of F.searchKeysOf(name)) {
+    if (!buckets.has(k)) buckets.set(k, { v: 1, towns: [], named: [] })
+    buckets.get(k)[kind].push(row)
+  }
+}
+townRows.forEach((t) => into(t[0], "towns", t))
+named.forEach((n) => into(n[0], "named", n))
+const searchDir = path.join(OUT, "search")
+fs.rmSync(searchDir, { recursive: true, force: true })
+fs.rmSync(path.join(OUT, "search.json"), { force: true })
+fs.mkdirSync(searchDir, { recursive: true })
+let searchBytes = 0
+let searchMax = 0
+for (const [k, b] of buckets) {
+  const text = JSON.stringify(b)
+  searchBytes += text.length
+  searchMax = Math.max(searchMax, text.length)
+  fs.writeFileSync(path.join(searchDir, `${k}.json`), text)
+}
+const searchText = { length: searchBytes }
 // ZIP codes (US Census ZCTA Gazetteer, public domain): idx/zip/NN.json { v, z: { "92708": [lat, lon] } }
 // by the first two digits, so a ZIP search loads one ~7 KB file. Without --zips the old ones stay.
 const ZIPS = arg("--zips")
@@ -511,4 +532,4 @@ const meta = {
 }
 fs.writeFileSync(path.join(OUT, "meta.json"), JSON.stringify(meta))
 fs.writeFileSync(path.join(OUT, "LICENSE.txt"), "Pickleball 98 Venue Finder index.\nData © OpenStreetMap contributors (https://www.openstreetmap.org/copyright).\nThis index is a derivative database of OpenStreetMap and is made available under the Open Database License 1.0 (https://opendatacommons.org/licenses/odbl/1-0/).\nBuilt by tools/venues/world/build-index.mjs.\n")
-console.log(`${featureEls.length} features -> ${clusters.length} venues (${courtTotal} courts) in ${shards.size} shards, ${(bytes / 1024).toFixed(0)} KB; search.json ${(searchText.length / 1024).toFixed(0)} KB (${townRows.length} towns, ${named.length} named); ${covered.length}/${fullPlan.length} world tiles covered${complete ? "" : " (partial)"}`)
+console.log(`${featureEls.length} features -> ${clusters.length} venues (${courtTotal} courts) in ${shards.size} shards, ${(bytes / 1024).toFixed(0)} KB; search/ ${buckets.size} files, ${(searchText.length / 1024).toFixed(0)} KB, largest ${(searchMax / 1024).toFixed(0)} KB (${townRows.length} towns, ${named.length} named); ${covered.length}/${fullPlan.length} world tiles covered${complete ? "" : " (partial)"}`)
