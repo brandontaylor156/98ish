@@ -1186,6 +1186,9 @@ const bodyCheck = (m) => {
   if (r.hits === 0 || b.y > 1.8 || m.held?.length) return
   for (const p of m.players) {
     if (p.id === r.lastPlayer && m.t - (m.lastShot?.t ?? -9) < 0.25) continue
+    // (a person on another computer: the host sees them a moment late and their swing may be
+    // on its way over the network, so the host doesn't call their body)
+    if (p.ctrl === "remote") continue
     const rad = (b.y > HEAD_Y ? 0.11 : BODY_R) + BALL_R
     const dx = b.x - p.x
     const dz = b.z - p.z

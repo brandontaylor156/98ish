@@ -38,8 +38,9 @@ test("rally length: Pro and Legend points last like real pro doubles (not 14-19 
   // before this round: Pro mean 13.9 (p90 27, max 50), Legend 18.7 (p90 37, max 64); real pro
   // doubles average roughly 8-11 shots. Club stays shorter, Rookie shortest.
   const club = rallies("intermediate", [1, 2])
-  const pro = rallies("pro", [1, 2, 3])
-  const legend = rallies("legend", [1, 2, 3])
+  // (six games each: rally lengths are heavy-tailed, three games is too few to read a p90)
+  const pro = rallies("pro", [1, 2, 3, 4, 5, 6])
+  const legend = rallies("legend", [1, 2, 3, 4, 5, 6])
   for (const [name, r] of [["pro", pro], ["legend", legend]]) {
     // (PPA championship finals: 8.9-14.8 shots a rally by match, 10.7 on average in 2022, 13.6
     // at the 2019 US Open; Ramsey, PPA stats wraps)
