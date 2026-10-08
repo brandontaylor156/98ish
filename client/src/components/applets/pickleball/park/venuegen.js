@@ -1003,6 +1003,7 @@ export const generateVenue = (spec, opts = {}) => {
   const layoutSpec = {
     id: spec.id,
     name: spec.name,
+    short: spec.short || spec.name,
     kind: "venue",
     indoor,
     bounds,

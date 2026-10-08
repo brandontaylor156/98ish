@@ -1333,7 +1333,8 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
       mode,
       humans,
       netWait,
-      venue: venue.def.name,
+      // (the scorebug: "Newport · Court 35"; the full name stays for menus and replays)
+      venue: venue.def.short || venue.def.name,
     })
   }
 

@@ -31,7 +31,7 @@ export const buildCourtVenue = (scene, { layout, courtId = null, quality = "medi
   // apart it stood in the next court and in the divider; the engine seats no umpire without a
   // seat. The umpire's voice still calls the score.)
   const base = VENUES.park
-  const def = { ...base, id: `park:${layout.id}`, name: `${layout.name} · ${c.name}`, crowd: 0, exposure: d.exposure ?? 1, toneMapping: park.toneMapping }
+  const def = { ...base, id: `park:${layout.id}`, name: `${layout.name} · ${c.name}`, short: `${layout.spec?.short || layout.name} · ${c.name}`, crowd: 0, exposure: d.exposure ?? 1, toneMapping: park.toneMapping }
   return {
     group: holder,
     def,

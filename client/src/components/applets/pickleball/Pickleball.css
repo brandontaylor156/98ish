@@ -1000,7 +1000,8 @@
   top: 8px;
   left: 8px;
   min-width: 190px;
-  max-width: calc(100% - 16px);
+  /* (clear of the pause button at the top right) */
+  max-width: calc(100% - 84px);
   font-family: var(--pk-tv);
   color: #fff;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
@@ -1018,6 +1019,19 @@
   letter-spacing: 1px;
   color: var(--pk-ink);
   background: var(--pk-gold);
+}
+
+/* one line: a long venue name ("The Tennis & Pickleball Club at Newport Beach · Court 35") ends in "…" */
+.pkBugHead > span:first-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pkBugHead > span:last-child {
+  flex: none;
+  white-space: nowrap;
 }
 
 .pkBugRow {
