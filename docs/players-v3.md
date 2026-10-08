@@ -151,3 +151,100 @@ Changes:
 - **Earlier, fuller unit turn**: the shoulders' coil follows a stroke at 24/s (was 14), and the
   compact take-back for a late ball turns 0.45 rad (was 0.3).
 
+
+Measured after (same match, same seed; Node): contact 2.5 cm median (unchanged), slide p99
+5.4 mm, joint-accel p99 7.33 cm/frame² (main 7.36), split landing unchanged. In the studio drive
+(`v3/coil.mjs`) the stroke's coil now reaches about 39 degrees at the end of the take-back with
+the hips held at about 7 (hip-shoulder separation about 30 degrees), and the hips fire first in
+the forward swing (17 degrees, then back through the ball). The whole-match "drive separation"
+metric hardly moves (12.9 vs 14.8 degrees), because in match play most drives are late and
+compact (the take-back has no time); it's visible in the studio and on the serve.
+
+Not done this round (next): mocap-driven strokes (no free licensed sports stroke capture
+exists: see section 2), a real Erne/ATP, the head held still at contact (median 13.9 cm of head
+travel in the last 0.1 s: the trunk's turn carries it), arms from the capture.
+
+## 6. Measurements
+
+### Frame rate (Chrome, a pro doubles match on autoplay at Sunset Club, after a warm-up)
+
+Headless Chrome on this machine (software-ish GPU, two other agents running): treat ±30% as noise
+(docs/pickleball-log.md says the same of earlier rounds). "before" = main (cbb819a) served from a
+copy, "after" = this branch; runs back to back.
+
+| | Low | Medium | High | Ultra |
+| --- | --- | --- | --- | --- |
+| phone 390×844, before | 38.1 fps (7.1 at 4× CPU) | 26.7 (8.4) | 25.3 (5.8) | – |
+| phone 390×844, after | 33.6 (6.9) | 26.6 (10.0) | 23.1 (4.6) | 21.8 (3.5) (no post on a phone) |
+| desktop 1280×720, before | 29.7 | 17.7 | 20.1 | – |
+| desktop 1280×720, after | 26.6 | 19.0 | 19.3 | 7.2 |
+
+Low, Medium and High are the same within the noise: photo faces cost no frame time (same
+triangles, one texture swap; draw calls 102-113 vs 110). Ultra's post chain (GTAO + bloom +
+MSAA at full resolution) is heavy on this machine's GPU: it's meant for a real desktop GPU and is
+never used on phones. Not yet measured on a real iPhone or a real GPU.
+
+### Downloads and memory
+
+- Per face, Medium: the 1024 KTX2 atlas (≈125-145 KB), eye, hair mask, shape (≈80 KB) and, for
+  "own" hair, the cards (KTX2 ≈100-200 KB + geometry 15-40 KB) and shell texture (≈30 KB): about
+  0.35-0.5 MB. High adds the 2048 KTX2 (≈400-500 KB) and the detail map (≈50-75 KB).
+- All 15 faces on disk: about 18 MB, fetched only for the faces on screen (a match: four), never
+  precached by the service worker.
+- GPU: a Medium face atlas ≈0.7 MB (ETC1S→ETC2/ASTC), High ≈2.8 MB, instead of 22 MB for a 2048
+  RGBA texture.
+
+### Screenshots and video (session scratchpad `v3/shots/`, temporary)
+
+- `compare/*.jpg`: before (main) left, after right, for `phone-*` (390×844) and `desktop-*`
+  (1280×720): `broadcast`, `kitchen` and `kitchen-tv` (a dink exchange), `serve`, `face-*`
+  (Dex, Maya, Lena, Kenji), `locker-*` (Dex, Rosa), `park` (My Park, Riverside).
+- `cmp-ultra/*.jpg`: High left, Ultra right.
+- `look/roster2-34.jpg`: all ten roster players' faces at 3/4.
+- `locker/locker-sheet.jpg`: the Locker Room on a phone (Face picker open, a new face picked).
+- Rally video: `after/rally.webm` (behind the player), `after/rally-tv.webm` (TV high);
+  before: `beforemain/rally.webm`, `before/rally-tv.webm`; frame sheets `*/rally-sheet.jpg`.
+- Movement filmstrips: `film/beforemain-*.jpg` vs `film/afterclose-*.jpg` (drive, backhand,
+  serve, overhead, dink, lunge; 8 frames each, close 3/4 camera).
+
+## 7. Honest assessment
+
+- **Faces** are the big visible change: real photographed skin, brows, stubble, lips, irises,
+  and the photographed hair and its volume, instead of MakeHuman's painted faces. From the
+  broadcast camera players now read as different, real people. Up close they are a decade-old
+  game's quality (Rocketbox heads are about 2,000 vertices with 2048 textures), not 2K's: the
+  jaw/neck seam is soft, some foreheads show a slightly flat transition into the cap or hair,
+  and two faces come from adults, not athletes.
+- **Bodies, kits and shoes** are unchanged from v2 (MakeHuman CC0 garments).
+- **Movement**: the stroke now has a proper kinetic chain in the studio and the serve; match
+  play looks much as before because the motion matching, foot planting and stroke timing were
+  already the strongest part. No new mocap: none with a usable license exists for free.
+- **Ultra** looks better on a desktop (contact shadows, the venue's light on skin) but is too
+  heavy for this test machine; real GPUs only.
+- Everything is unverified on a real iPhone.
+
+## 8. Paid options for the owner (nothing bought)
+
+| Option | Price (2026) | What it would add | License note |
+| --- | --- | --- | --- |
+| **MetaHuman** (Epic) | free under $1M/yr revenue | film-quality faces, bodies, strand hair with card LODs | needs a Windows PC with UE 5.6+, 32 GB RAM, a modern GPU, and an Epic account; then export FBX LODs and retarget (a few days' work) |
+| Character Creator 4 (Reallusion) | ≈$299 + content packs | photoreal heads (Headshot from a photo), clothes, export | default content OK in games; store content needs export licenses |
+| ActorCore mocap | ≈$2-12 a clip, packs to ≈$200 | studio mocap (no pickleball; some sports) | royalty-free in games when bought |
+| Move.ai (markerless mocap from video) | from ≈$16/month; API ≈$0.01-0.04 a second | real pickleball strokes captured from our own filmed players | our own capture: no third-party license issue |
+| Rokoko Vision / Smartsuit | free tier (video), suits ≈$2,500+ | own pickleball mocap | ours |
+| Renderpeople / 3D Scan Store scans | ≈$30-150 a head | true photogrammetry heads | game use allowed; raw files may not be redistributed (a web game ships them: check) |
+
+The biggest single jump for the money: **record real pickleball strokes** (Move.ai from a phone
+video of a good player, or a Rokoko suit) and feed them to the motion-matching database; and,
+if the owner can borrow a capable PC for a day, **MetaHuman** heads at web LODs.
+
+## 9. Where things are / next steps
+
+- Branch `worktree-agent-a8fb631feefa6217f`, not merged. Unit tests: pickleball 202 + park,
+  twin, practice, help suites all pass; root `npm test` 571/571; `vite build` succeeds.
+- Rebuild faces: `tools/build-faces.mjs` (header has the steps; a face takes 2-8 minutes, the
+  full set about an hour on this machine). The Rocketbox downloads and FBX2glTF conversion were
+  done with a scratch script (`v3/scripts/rbfetch.mjs`); the build expects `<rb>/<Name>/`.
+- Next: more faces (100+ Rocketbox adults left); a face-specific neck blend (the seam); hair
+  cards' anisotropic highlight under the shell; mocap strokes (see 8); Erne/ATP; the real
+  iPhone pass (Medium on the phone with four different faces; KTX2 on iOS).
