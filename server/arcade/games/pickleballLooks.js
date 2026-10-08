@@ -7,7 +7,9 @@
 
 const LOOK_IDS = {
   body: ["m", "f"],
-  hair: ["short", "buzz", "pixie", "buns", "long", "bald"],
+  hair: ["short", "buzz", "pixie", "buns", "long", "bald", "own"],
+  // players v3: the photographed faces (client faceList.js; "none" is the classic modeled face)
+  face: ["none", "m01", "m02", "m03", "f01", "f02", "m04", "m05", "m06", "m07", "m08", "f03", "f04", "f05", "f06", "f07"],
   build: ["slim", "regular", "strong"],
   theme: ["classic", "club", "pro", "beach", "winter", "retro", "casual", "custom"],
   shirtStyle: ["tee", "polo", "tank", "rash", "jacket", "crop", "onepiece"],

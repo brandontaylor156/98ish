@@ -13,6 +13,7 @@ import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js"
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js"
 import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js"
 import { ShaderPass } from "three/examples/jsm/postprocessing/ShaderPass.js"
+import { GTAOPass } from "three/examples/jsm/postprocessing/GTAOPass.js"
 
 // a gentle darkening toward the corners (applied after the tone curve, in display space)
 const VignetteShader = {
@@ -22,9 +23,12 @@ const VignetteShader = {
     "uniform sampler2D tDiffuse; uniform float amount; varying vec2 vUv; void main() { vec4 c = texture2D(tDiffuse, vUv); vec2 d = vUv - 0.5; float v = 1.0 - amount * smoothstep(0.25, 0.75, dot(d, d) * 2.0); gl_FragColor = vec4(c.rgb * v, c.a); }",
 }
 
-export const createPost = (scene, { bloom = 0.22, threshold = 1.15, vignette = 0.12 } = {}) => {
+// ao (players v3, matches on Ultra): ground-truth ambient occlusion (three's GTAOPass): the
+// soft contact darkening under arms, chins, collars, between legs and where feet meet the court
+export const createPost = (scene, { bloom = 0.22, threshold = 1.15, vignette = 0.12, ao = false } = {}) => {
   let composer = null
   let renderPass = null
+  let aoPass = null
   let bloomPass = null
   let owner = null
   let last = ""
@@ -37,6 +41,11 @@ export const createPost = (scene, { bloom = 0.22, threshold = 1.15, vignette = 0
     composer = new EffectComposer(renderer, rt)
     renderPass = new RenderPass(scene, camera)
     composer.addPass(renderPass)
+    if (ao) {
+      aoPass = new GTAOPass(scene, camera, Math.max(1, size.x), Math.max(1, size.y), undefined, { radius: 0.3, distanceExponent: 1.4, thickness: 0.6, scale: 1, samples: 12 })
+      aoPass.blendIntensity = 0.8
+      composer.addPass(aoPass)
+    }
     // (half resolution: a soft glow, at a quarter of the cost)
     bloomPass = new UnrealBloomPass(new THREE.Vector2(Math.max(1, size.x / 2), Math.max(1, size.y / 2)), bloom, 0.45, threshold)
     composer.addPass(bloomPass)
@@ -50,6 +59,7 @@ export const createPost = (scene, { bloom = 0.22, threshold = 1.15, vignette = 0
     render(renderer, camera) {
       if (!composer || owner !== renderer) build(renderer, camera)
       renderPass.camera = camera
+      if (aoPass) aoPass.camera = camera
       renderer.getSize(size)
       const pr = renderer.getPixelRatio()
       const key = `${size.x}x${size.y}@${pr}`
@@ -64,6 +74,7 @@ export const createPost = (scene, { bloom = 0.22, threshold = 1.15, vignette = 0
     dispose() {
       composer?.dispose()
       bloomPass?.dispose?.()
+      aoPass?.dispose?.()
       composer = null
     },
   }

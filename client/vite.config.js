@@ -30,7 +30,8 @@ const swManifest = () => ({
     // Spark, the 2.6 MB splat renderer, only for people who add a photoreal backdrop; and
     // Pickleball's High skins (KTX2, about 450 KB each, fetched per skin tone on High, with
     // their transcoder's .wasm): not precached)
-    const onDemand = (f) => f.startsWith('/venues/idx/') || f.startsWith('/emu/') || f.startsWith('/vendor/lam/') || f.endsWith('.wasm') || f.endsWith('.ktx2') || /\/brain\.worker-[^/]+\.js$/.test(f) || /\/spark\.module-[^/]+\.js$/.test(f)
+    // (and Pickleball's photographed faces, about 0.7 MB each, fetched per face a match shows)
+    const onDemand = (f) => f.startsWith('/assets/pickleball/pl-face-') || f.startsWith('/venues/idx/') || f.startsWith('/emu/') || f.startsWith('/vendor/lam/') || f.endsWith('.wasm') || f.endsWith('.ktx2') || /\/brain\.worker-[^/]+\.js$/.test(f) || /\/spark\.module-[^/]+\.js$/.test(f)
     const all = [...new Set([...files, ...walk('public')])].filter((f) => !skip.has(f) && !f.endsWith('.map') && !onDemand(f))
     this.emitFile({
       type: 'asset',

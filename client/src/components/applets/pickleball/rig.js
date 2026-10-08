@@ -211,7 +211,7 @@ export const createFigure = (look = {}, { shadows = false, withPaddle = true } =
   mouth.scale.set(0.03, 0.006, 0.01)
   mouth.position.set(0, -0.045, 0.094)
   // hair
-  const hair = { buzz: "spiky", pixie: "short", buns: "bun" }[look.hair] || look.hair || "short"
+  const hair = { buzz: "spiky", pixie: "short", buns: "bun", own: look.body === "f" ? "long" : "short" }[look.hair] || look.hair || "short"
   if (hair !== "bald") {
     const capMesh = add(hair === "curly" ? new THREE.IcosahedronGeometry(1, 1) : G.cap, M.hair, headG)
     capMesh.scale.set(0.105, hair === "curly" ? 0.1 : 0.118, 0.112)

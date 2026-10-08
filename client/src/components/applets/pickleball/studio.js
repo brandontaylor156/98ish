@@ -108,6 +108,10 @@ const moveScript = (name, x, z, base) => {
 // a moment for a figure at (x, z) facing +z: { T, at(t) -> situation, events, contact }
 // hand: +1 right-handed, -1 left-handed (a "forehand" state is on the paddle side either way);
 // twoHand: a two-handed backhand
+// (tests: a state's length in seconds, for filmstrips)
+export const stateLength = (state) => script(state, 0, -4.6).T
+// (tests: a state's script, to run its poses in Node)
+export const studioScript = (...a) => script(...a)
 const script = (state, x, z, { hand = 1, twoHand = false } = {}) => {
   const base = (t, extra = {}) => ({ x, z, vx: 0, vz: 0, facing: 0, ball: { x, y: 1, z: z + 6 }, holding: false, swing: null, prep: null, charging: false, between: false, atNet: false, hand, twoHand, ...extra })
   const stroke = (kind, c, { follow = 0, atNet = false, hand = "fh" } = {}) => {

@@ -1437,6 +1437,7 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
           ["low", "Graphics: Low"],
           ["medium", "Graphics: Medium"],
           ["high", "Graphics: High"],
+          ["ultra", "Graphics: Ultra"],
         ].map(([v, l]) => ({ label: l, checked: prefs.quality === v, onClick: () => setPrefs({ quality: v }) })),
         // Real Sky (park/realsky.js): the venue's true sun, sky and weather; or a fixed one for fun
         {
@@ -1985,7 +1986,8 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
             Character models, eyes, brows and hairstyles: MakeHuman (makehumancommunity.org) base mesh, body and facial
             expression targets, muscle proxies and system assets (MakeHuman and MPFB2), CC0 public domain. Older character models and motion clips: Universal Base Characters and Universal
             Animation Library by Quaternius (quaternius.com), CC0 public domain. Clothes, shoes, hats, paddles and swings are
-            made in the game.
+            made in the game. Photographed faces: the Microsoft Rocketbox Avatar Library (github.com/microsoft/Microsoft-Rocketbox),
+            Copyright (c) 2020 Microsoft, MIT License; carried onto the MakeHuman heads.
             <br />
             <br />
             Footwork and gestures are motion capture: the 100STYLE dataset by Ian Mason, Sebastian Starke and Taku Komura

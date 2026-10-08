@@ -13,7 +13,7 @@
 // people over), what they like (their level's courts) and a little chance.
 
 import { ALL_SEATS, COURTS, WAYPOINTS, chatSpots, resolve, route, seatApproach } from "./layout.js"
-import { DEFAULT_LOOK, HAIR_COLORS, SKIN_TONES, randomLook, validateLook } from "../locker.js"
+import { DEFAULT_LOOK, HAIR_COLORS, SKIN_TONES, facesForBody, randomLook, validateLook } from "../locker.js"
 
 export const WALK = 1.3 // m/s, a stroll
 export const NAMES = [
@@ -51,6 +51,17 @@ export const parkLook = (rand, body) => {
   const look = randomLook(rand, base, { venue: rand() < 0.6 ? "park" : null })
   // (some wear a cap or a visor at the park)
   if (rand() < 0.35) look.hat = pick(["cap", "visor", "cap", "capBack", "bucket"])
+  // players v3: a photographed face (its own skin; its own hair color most of the time)
+  const faces = facesForBody(body).filter((f) => f.body)
+  if (faces.length) {
+    const f = pick(faces)
+    look.face = f.id
+    look.skin = f.tone
+    if (f.hairTone && rand() < 0.8) look.hairColor = f.hairTone
+    if ((f.beard || 0) > 0.12) look.beard = rand() < 0.7
+    // (their own photographed hair, most of the time)
+    if (rand() < 0.65) look.hair = "own"
+  }
   return validateLook(look, base)
 }
 

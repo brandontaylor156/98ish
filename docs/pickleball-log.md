@@ -242,3 +242,10 @@ After "Medium is fine, but whatever is ultra realistic. Watch a pickleball match
 - **Not changed (too uncertain from one end camera):** returns may be flatter on tour (apex 1.69 vs 2.13 m, n=8, biased fits) and return-to-third quicker (1.20 vs 1.58 s, one hand-labeled rally); shot-by-shot timing and shots per rally (automatic hit finding confuses bounces), ball heights.
 - **Tools:** `tools/rallysim.mjs` now measures timing, ball flight, movement (`speed95`, `acc95` the footage way) and classes shots as a camera would (`observedKind`); `--routine=real`.
 - **Tests:** `node --test client/src/components/applets/pickleball/ppa.test.js` (7).
+
+## Players v3: photographed faces, Ultra, kinetic chain (2026-10-07/08)
+After "ultra realistic people ... compete with NBA 2K27". Full notes, research, licenses and numbers in `docs/players-v3.md`.
+- **Faces:** 15 photographed heads from Microsoft Rocketbox (MIT) carried onto the MakeHuman head by `tools/build-faces.mjs` (landmarks, similarity + thin-plate + ICP fit of the face front, bakes of skin, normal/specular, iris, hair mask; the photographed hair as a shell + cards). Looks have `face` (Locker Room > Body > Face) and hair `own`; the roster and My Park regulars wear them. Runtime in `athlete.js` (face variants, photo skin material, `loadFaceCards`), `faceshape.js`, `faceList.js`.
+- **Ultra** quality: venue sky on skin/kits, GTAO + bloom post in matches (desktop only), faster motion-matching search.
+- **Movement:** the captured hips join strokes (hips lead the forward swing; ~30 degrees of hip-shoulder separation at the end of a take-back), fuller unit turn, eyes held on the contact longer.
+- **Tests:** `faces.test.js` (8), `locker.test.js` updated; all pickleball/park/twin suites and root `npm test` pass. **Left:** neck seam, real-iPhone pass, mocap strokes, Erne/ATP.

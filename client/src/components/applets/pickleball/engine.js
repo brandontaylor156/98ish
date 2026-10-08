@@ -19,6 +19,7 @@ import { createFigure } from "./rig.js"
 import { athletesReady, createAthlete, loadAthletes, setAthleteRenderer } from "./athlete.js"
 import { buildVenue, CLASSIC_PLACES, VENUES } from "./venue.js"
 import { fetchWeather } from "./park/weather.js"
+import { createPost } from "./park/post.js"
 import { CHARACTERS, lookFor } from "./looks.js"
 import { characterLook, validateLook } from "./locker.js"
 import { actionFor, bindingsFor, padEdges, readPad, stickAim } from "./input.js"
@@ -32,7 +33,11 @@ const BALL_SCALE = 1.5 // drawn a little bigger than life so it reads on a phone
 const TRAIL_N = 18
 const REPLAY_S = 9 // seconds of play kept for replays
 const PACE_SCALE = { slow: 0.8, medium: 1, fast: 1.2 } // menus.jsx PACE
-const QUALITY = { low: { ratio: 1, shadows: false }, medium: { ratio: 1.5, shadows: true }, high: { ratio: 2, shadows: true } }
+// (players v3: Ultra, for a strong computer: High plus the athletes lit by the venue's sky,
+// sharper and softer shadows, ambient occlusion and a soft bloom; venues build as on High)
+const QUALITY = { low: { ratio: 1, shadows: false }, medium: { ratio: 1.5, shadows: true }, high: { ratio: 2, shadows: true }, ultra: { ratio: 2, shadows: true, post: true } }
+// what venues, My Park and the rest see: Ultra is High to them
+const subQuality = (q) => (q === "ultra" ? "high" : q)
 const UMPIRE_LOOK = { body: "m", skin: 1, hair: "short", hairColor: "#3a2a1e", hat: "cap", hatColor: "#ffffff", shirt: "#1d2b53", shirtStyle: "polo", trim: "#ffffff", bottom: "shorts", bottomColor: "#c9b991", shoes: "#ffffff", shoeAccent: "#1d2b53", socks: "#ffffff", build: 1.02, glasses: true }
 const DEFAULT_LOOKS = ["maya", "dex", "lena", "kenji"]
 
@@ -102,7 +107,7 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
   let venueId = "park"
   // (a venue can also be { key, build(scene, { quality }), room }: a court in My Park at a real venue)
   let venueCustom = null
-  let venue = buildVenue(scene, { venue: venueId, quality: settings.quality })
+  let venue = buildVenue(scene, { venue: venueId, quality: subQuality(settings.quality) })
   // a venue's tone curve (a real venue in My Park: Neutral, so its paint shows as painted)
   const venueTone = () => {
     renderer.toneMapping = venue.def.toneMapping ?? THREE.ACESFilmicToneMapping
@@ -129,7 +134,7 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
     venue.dispose()
     venueId = next
     venueCustom = custom
-    venue = custom ? custom.build(scene, { quality: settings.quality }) : buildVenue(scene, { venue: venueId, quality: settings.quality })
+    venue = custom ? custom.build(scene, { quality: subQuality(settings.quality) }) : buildVenue(scene, { venue: venueId, quality: subQuality(settings.quality) })
     venue.setScreenCompact?.(portraitScreen())
     venueTone()
     venueWeather()
@@ -382,6 +387,8 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
   let inFrame = false
   let disposed = false
   let studioHold = false // (dev: a studio still is on screen)
+  let matchPost = null // (Ultra's post chain, made the first time it's needed)
+  const phoneScreen = () => typeof matchMedia !== "undefined" && matchMedia("(pointer: coarse)").matches && Math.min(innerWidth, innerHeight) < 600
   let hudKey = ""
   let hudTimer = 0
   let aidVersion = -1
@@ -1029,7 +1036,7 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
       if (s.holding && !replay && match.phase !== "serve") s = { ...s, holding: false }
       // (motion matching for the skinned athletes: searched more often on High)
       f.anim.useMM = !!f.fig.skinned
-      f.anim.mmEvery = settings.quality === "high" ? 0.1 : 0.2
+      f.anim.mmEvery = settings.quality === "ultra" ? 0.066 : settings.quality === "high" ? 0.1 : 0.2
       const pose = updateAnim(f.anim, s, dt)
       f.fig.apply(pose, dt)
       f.pose = pose
@@ -1841,7 +1848,9 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
       inFrame = false
       return
     }
-    renderer.render(scene, camera)
+    // (Ultra: ambient occlusion, a soft bloom, MSAA through the post chain; never on a phone)
+    if (QUALITY[settings.quality]?.post && !phoneScreen()) (matchPost ||= createPost(scene, { ao: true, bloom: 0.16, vignette: 0.1 })).render(renderer, camera)
+    else renderer.render(scene, camera)
     // (Reels: a highlight film copies the picture now, before the browser clears it)
     if (rendered) rendered(canvas, replay?.external ? replayClock() : null)
     perf.frames++
@@ -2086,7 +2095,7 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
     },
     // what a world needs from the engine: figures (athletes or the simple ones), sounds
     worldContext() {
-      return { makeFigure: (look, opts) => makeFigure(look, opts), quality: settings.quality, audio, renderer }
+      return { makeFigure: (look, opts) => makeFigure(look, opts), quality: subQuality(settings.quality), detail: settings.quality, audio, renderer }
     },
     // the on-screen hit control: down and up (hold for pace, let go to swing)
     shotDown(action = "hit", slot = 0) {
@@ -2403,6 +2412,7 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
       contactGeo.dispose()
       contactMat.dispose()
       Object.values(tex).forEach((t) => t.dispose())
+      matchPost?.dispose()
       renderer.dispose()
       renderer.forceContextLoss() // give the GPU context back now, not whenever GC runs
       if (window.__pickleball?.api === api) delete window.__pickleball

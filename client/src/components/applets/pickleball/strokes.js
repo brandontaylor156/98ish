@@ -337,7 +337,7 @@ const withinReach = (c, sh = 1.3) => {
 
 // a short take-back for a ball that leaves no time for the full one (the paddle just behind
 // the contact, a small turn)
-const compactBack = (K, side) => ({ ...K.contact, hand: add(K.contact.hand, V(0.06 * side, 0.05, -0.16)), coil: 0.3 * side, off: K.back.off })
+const compactBack = (K, side) => ({ ...K.contact, hand: add(K.contact.hand, V(0.06 * side, 0.05, -0.16)), coil: 0.45 * side, off: K.back.off })
 
 // One frame. inp (null when no ball is coming and no swing is on):
 //   key: which ball / swing ("p<ball>" before contact, "s<swing id>" after)

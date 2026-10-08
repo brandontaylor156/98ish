@@ -573,7 +573,8 @@ export const updateAnim = (a, s, dt) => {
   if (so.w > 0) pose = so.pose
   // eyes on the contact point until just after the hit, then on the ball
   if (so.phase !== "none" && inp && !inp.after && s.prep) lookAt = V(s.prep.x, s.prep.y, s.prep.z)
-  else if (so.phase !== "none" && swing && swing.t < 0.15) lookAt = V(swing.x, swing.y, swing.z)
+  // (players v3: the eyes stay on the contact point a moment after it, as pros' heads do)
+  else if (so.phase !== "none" && swing && swing.t < 0.22) lookAt = V(swing.x, swing.y, swing.z)
   if (swing && swing.t < 0.05 && swing.n) normalT = swing.n
   a.extraCrouch = so.w > 0 ? (so.pose.crouch || 0) * so.w : 0
 
@@ -730,8 +731,12 @@ export const updateAnim = (a, s, dt) => {
   // ---- springs: smooth everything that isn't a hard swing ----
   // (the hips turn quicker than the shoulders: in a swing the hips lead, the shoulders
   // follow, then the arm)
-  const twist = springN(a.twist, twistT, fast ? 40 : 14, dt)
-  const hipTwist = springN(a.hipTwist, twistT * 0.4, fast ? 70 : 18, dt)
+  // (players v3: the unit turn comes early and full, as soon as the ball is read)
+  const twist = springN(a.twist, twistT, fast ? 40 : so.w > 0.02 ? 24 : 14, dt)
+  // (players v3, the kinetic chain: in the take-back the hips hold back while the shoulders
+  // coil, a stretch between them (hip-shoulder separation, 25-35 degrees in a pro's drive); in
+  // the forward swing the hips fire first and further, the shoulders follow, then the arm)
+  const hipTwist = springN(a.hipTwist, twistT * (fast ? 0.6 : 0.26), fast ? 80 : 18, dt)
   // (never folded more than about 52 degrees at the hips)
   const lean = springN(a.lean, Math.min(0.92, leanT + Math.abs(lungeLean) * 0.4), 12, dt)
   const roll = springN(a.roll, lungeLean + rollT, 8, dt)
@@ -805,6 +810,22 @@ export const updateAnim = (a, s, dt) => {
       { hip: mmo.hipL, knee: mmo.kneeL, ankle: mmo.ankleL, foot: mmo.footL },
       { hip: mmo.hipR, knee: mmo.kneeR, ankle: mmo.ankleR, foot: mmo.footR },
     ]
+    // (players v3, the kinetic chain: the captured hips join the stroke, turning about the
+    // pelvis by their own spring, ahead of the shoulders in the forward swing; the knees bend
+    // again to the pinned feet. Before, only the chest turned for a stroke over the captured hips)
+    if (Math.abs(hipTwist) > 1e-3) {
+      const Rh = qaxis(UP, hipTwist)
+      const relH = (p) => add(pelvis, qrot(Rh, sub(p, pelvis)))
+      hipL = relH(hipL)
+      hipR = relH(hipR)
+      pelvisRight = norm(qrot(Rh, pelvisRight))
+      legs = legs.map((l, i) => {
+        const hip = i ? hipR : hipL
+        const pole = sub(l.knee, mul(add(l.hip, l.ankle), 0.5))
+        const r = twoBone(hip, l.ankle, len(sub(l.knee, l.hip)), len(sub(l.ankle, l.knee)), pole)
+        return { ...l, hip, knee: r.mid }
+      })
+    }
     // standing like an athlete (idle.js): the captured body never freezes. Between points the
     // weight goes over one leg, then the other (the hips over the standing leg, the other hip
     // dropping); ready in a rally, a light bounce and small shifts. The pinned feet stay put

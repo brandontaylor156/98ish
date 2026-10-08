@@ -309,7 +309,7 @@ export const SettingsMenu = ({ prefs, setPrefs, onBack, onControls, showPad, onT
       )}
       <div className="pkField">
         <span>Graphics</span>
-        <Radio name="pk-quality" value={prefs.quality} options={[["low", "Low"], ["medium", "Medium"], ["high", "High"]]} onChange={(v) => setPrefs({ quality: v })} />
+        <Radio name="pk-quality" value={prefs.quality} options={[["low", "Low"], ["medium", "Medium"], ["high", "High"], ["ultra", "Ultra"]]} onChange={(v) => setPrefs({ quality: v })} />
       </div>
       <div className="pkField">
         <span>Camera</span>
