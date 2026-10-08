@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <!-- Snipping Tool: a little 98 window with a dashed snip box, and red scissors cutting it -->
+  <rect x="3" y="5" width="34" height="28" fill="#ffffff" stroke="#000" stroke-width="1.5"/>
+  <rect x="3.75" y="5.75" width="32.5" height="5" fill="#000080"/>
+  <rect x="31" y="7" width="3.5" height="2.5" fill="#c0c0c0"/>
+  <g fill="#808080">
+    <rect x="7" y="14" width="12" height="2"/>
+    <rect x="7" y="18" width="20" height="2"/>
+    <rect x="7" y="22" width="16" height="2"/>
+  </g>
+  <rect x="12" y="12" width="22" height="16" fill="#cfe3ff" fill-opacity="0.55" stroke="#000" stroke-width="1.5" stroke-dasharray="3 2"/>
+  <g transform="translate(30 30) rotate(-35)">
+    <path d="M-1.5 -2 L1.5 -2 L4 -16 L1.2 -16 Z" fill="#e8e8e8" stroke="#000" stroke-width="1"/>
+    <path d="M-1.5 -2 L1.5 -2 L-1 -16 L-4 -16 Z" fill="#c8c8c8" stroke="#000" stroke-width="1"/>
+    <circle cx="0" cy="-2" r="1.2" fill="#000"/>
+    <ellipse cx="-4.5" cy="4.5" rx="3.6" ry="4.4" fill="none" stroke="#c00000" stroke-width="2.6"/>
+    <ellipse cx="4.5" cy="4.5" rx="3.6" ry="4.4" fill="none" stroke="#c00000" stroke-width="2.6"/>
+    <path d="M-2 0.5 L-1 -2 M2 0.5 L1 -2" stroke="#c00000" stroke-width="2.4"/>
+  </g>
+</svg>

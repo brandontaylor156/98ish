@@ -153,6 +153,13 @@ on a Home Screen app) = 303pt against iOS's 291 without suggestions / 336 with t
 - Title bar: keyboard icon, "Keyboard", **X** (hide); on sign-in fields "Passwords" (the
   phone's keyboard, for AutoFill). Its buttons are small but their touch areas reach into
   the gap above the first row.
+- **Clipboard** (wave 2, 2026-10-08; not on password fields): opens the clipboard history
+  panel (`shared/clipboard/`, `openClipHistory({ target: field, toggle: true })`) as a sheet
+  just above the keyboard (`bottom: taskbar + --kb-h`); tapping an item types it in at the
+  caret with `typing.js insert` (so undo and React state work) and the keyboard stays up
+  (the panel is `data-kb-keep` and its buttons never take focus). Copies made with the
+  phone's own Copy (the field's callout) reach the history through the page's `copy` event.
+  Details in `docs/sharing.md`.
 
 ### Touch behavior (as iOS)
 

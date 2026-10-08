@@ -129,8 +129,15 @@ export const createFakeIndexedDb = ({ quotaChars = Infinity, failOpen = false, f
       })
       return r
     },
-    // for tests: a store's contents
+    deleteDatabase: (name) => {
+      databases.delete(name)
+      const r = request()
+      later(() => r.onsuccess?.())
+      return r
+    },
+    // for tests: a store's contents, and the databases there are
     peek: (name, store) => new Map(databases.get(name)?.stores.get(store) || []),
+    names: () => [...databases.keys()],
   }
   return factory
 }

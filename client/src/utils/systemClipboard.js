@@ -2,6 +2,8 @@
 // other apps. Writes start inside the tap or click (iOS needs that); reads ask the
 // browser, which may say no (then Ctrl+V or the phone's own Paste still works).
 
+import { recordImage, recordText } from "./clipHistory"
+
 export const PASTE_BLOCKED =
   "98ish isn't allowed to read your clipboard from this menu. Press Ctrl+V instead (on a phone, tap and hold, then choose Paste)."
 
@@ -26,9 +28,11 @@ const execCopy = (text) => {
   return ok
 }
 
-// Put text on the system clipboard -> Promise<boolean>
-export const copyText = (text) => {
+// Put text on the system clipboard -> Promise<boolean>. It's also kept in 98ish's clipboard
+// history (utils/clipHistory.js) unless { history: false } (a secret link, a code).
+export const copyText = (text, { history = true } = {}) => {
   const value = String(text ?? "")
+  if (history) recordText(value)
   if (navigator.clipboard?.writeText) {
     return navigator.clipboard.writeText(value).then(
       () => true,
@@ -54,7 +58,8 @@ const pngBlob = (dataUrl) =>
 
 // Put a picture (a data URL) on the system clipboard as a PNG -> Promise<boolean>.
 // Safari wants the ClipboardItem made inside the tap with the picture still on its way.
-export const copyImage = (dataUrl) => {
+export const copyImage = (dataUrl, { history = true } = {}) => {
+  if (history) recordImage(dataUrl)
   if (!window.ClipboardItem || !navigator.clipboard?.write) return Promise.resolve(false)
   try {
     const blob = /^data:image\/png/i.test(dataUrl) ? fetch(dataUrl).then((r) => r.blob()) : pngBlob(dataUrl)

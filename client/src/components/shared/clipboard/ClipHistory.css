@@ -1,0 +1,149 @@
+/* The clipboard history panel (ClipHistory.jsx): a small 98 window by the field on a
+   computer, a sheet above the 98ish keyboard on a phone */
+.clipPanel {
+  position: fixed;
+  z-index: 2147483060;
+  width: 320px;
+  height: auto; /* not main.css's 100% for windows */
+  min-width: 0;
+  max-height: min(440px, calc(100dvh - var(--taskbar-h, 35px) - 12px));
+  display: flex;
+  flex-direction: column;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  touch-callout: none;
+}
+.clipPanel.is-phone {
+  left: 6px;
+  right: 6px;
+  width: auto;
+  bottom: calc(var(--taskbar-h, 35px) + var(--kb-h, 0px) + 4px);
+  max-height: calc(100dvh - var(--taskbar-h, 35px) - var(--kb-h, 0px) - env(safe-area-inset-top) - 12px);
+}
+.clipBody {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  margin: 4px;
+  gap: 6px;
+}
+.clipList {
+  list-style: none;
+  margin: 0;
+  padding: 2px;
+  overflow-y: auto;
+  min-height: 0;
+  flex: 1 1 auto;
+  background: #fff;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+  -webkit-overflow-scrolling: touch;
+}
+.clipRow {
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+  border-bottom: 1px dotted #c0c0c0;
+}
+.clipRow.is-pinned {
+  background: #ffffe1;
+}
+.clipItem {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 40px;
+  text-align: left;
+  padding: 4px 6px;
+  background: transparent;
+  box-shadow: none;
+  border: 0;
+}
+.clipItem:hover,
+.clipItem:focus {
+  background: #000080;
+  color: #fff;
+  outline: none;
+}
+.clipItem:focus-visible {
+  outline: 1px dotted #fff;
+  outline-offset: -3px;
+}
+.clipText {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 12px;
+  line-height: 15px;
+}
+.clipItem img {
+  display: block;
+  max-width: 100%;
+  max-height: 72px;
+  object-fit: contain;
+  background: repeating-conic-gradient(#e0e0e0 0 25%, #fff 0 50%) 0 0 / 12px 12px;
+  -webkit-user-drag: none;
+  pointer-events: none;
+}
+.clipTools {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 2px;
+}
+.clipTool {
+  min-width: 26px;
+  min-height: 20px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.clipPanel.is-phone .clipTool {
+  min-width: 36px;
+  min-height: 30px;
+}
+.clipPanel.is-phone .clipItem {
+  min-height: 48px;
+}
+.clipFoot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 6px;
+}
+.clipFoot .moreOpts {
+  flex: 1 1 160px;
+  min-width: 0;
+}
+.clipFoot .moreOpts-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-top: 4px;
+}
+.clipEmpty,
+.clipOff,
+.clipNote {
+  margin: 4px 2px;
+}
+.clipOff p {
+  margin: 0 0 6px;
+}
+.clipSmall {
+  font-size: 11px;
+  color: #404040;
+  margin: 0;
+}
+.clipNote {
+  font-size: 11px;
+  background: #ffffe1;
+  border: 1px solid #808080;
+  padding: 3px 5px;
+}
+.clipPrimary {
+  min-width: 90px;
+  font-weight: bold;
+}

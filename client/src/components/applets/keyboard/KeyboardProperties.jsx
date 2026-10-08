@@ -42,7 +42,7 @@ const KeyboardProperties = ({ onClose, tab: firstTab }) => {
   const [tab, setTab] = useState(firstTab === "speed" ? "speed" : "touch")
   const [draft, setDraft] = useState(getSettings)
   const update = (patch) => setDraft((d) => ({ ...d, ...patch }))
-  const keys = ["keyboard", "keyClicks", "keyVibrate", "keyPreviews", "autoCaps", "periodShortcut", "keyRepeatDelay", "keyRepeatRate"]
+  const keys = ["keyboard", "keyClicks", "keyVibrate", "keyPreviews", "autoCaps", "periodShortcut", "keyRepeatDelay", "keyRepeatRate", "clipboardHistory"]
   const saved = getSettings()
   const changed = keys.some((k) => draft[k] !== saved[k])
 
@@ -103,7 +103,7 @@ const KeyboardProperties = ({ onClose, tab: firstTab }) => {
               id="keyboard.typing"
               label="While typing"
               lessLabel="Hide typing options"
-              summary={summarize(draft.keyboard === "phone" && "For the 98ish keyboard", draft.keyClicks ? "Clicks" : "No clicks", draft.keyPreviews && "Letter previews", draft.autoCaps && "Auto capitals", draft.periodShortcut && "Double space period")}
+              summary={summarize(draft.keyboard === "phone" && "For the 98ish keyboard", draft.keyClicks ? "Clicks" : "No clicks", draft.keyPreviews && "Letter previews", draft.autoCaps && "Auto capitals", draft.periodShortcut && "Double space period", draft.clipboardHistory === false ? "No clipboard history" : "Clipboard history")}
             >
               <fieldset className="kpField" disabled={draft.keyboard === "phone"}>
                 <legend>While typing</legend>
@@ -112,6 +112,11 @@ const KeyboardProperties = ({ onClose, tab: firstTab }) => {
                 {check("kp-previews", "keyPreviews", "Show each letter as you tap it")}
                 {check("kp-caps", "autoCaps", "Capital letters to start sentences")}
                 {check("kp-period", "periodShortcut", "Double space types a period")}
+              </fieldset>
+              <fieldset className="kpField">
+                <legend>Clipboard</legend>
+                {check("kp-cliphist", "clipboardHistory", "Keep a clipboard history (Ctrl+Shift+V, or Clipboard on the 98ish keyboard)")}
+                <p className="kpHint">The last 25 things you copy, kept on this device only, never from password boxes. Turning it off deletes them.</p>
               </fieldset>
             </MoreOptions>
             {!touch && <p className="kpHint">These are for phones and tablets. With a mouse and keyboard, nothing changes.</p>}

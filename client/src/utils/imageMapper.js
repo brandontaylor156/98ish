@@ -32,6 +32,7 @@ export const imageMapper = {
   movie: "program_icons/movie.svg",
   pdf: "program_icons/pdf.svg",
   pdfviewer: "program_icons/pdfviewer.svg",
+  snip: "program_icons/snip.svg",
   together: "program_icons/together.svg",
   locator: "program_icons/locator.svg",
   maps: "program_icons/maps.svg",

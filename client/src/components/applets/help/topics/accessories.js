@@ -658,6 +658,56 @@ export const topics = [
     ],
     related: ["files-in-out", "share-phone", "my-computer"],
   },
+  // ---- Snipping Tool ----
+  {
+    id: "snipping-tool",
+    book: "accessories",
+    title: "Snipping Tool",
+    summary: "Take a picture of part of the 98ish screen, mark it up, and save, copy or send it.",
+    keywords: ["snipping tool", "snip", "screenshot", "screen shot", "screen capture", "print screen", "capture", "crop", "highlight", "markup", "win+shift+s", "ctrl+shift+s"],
+    programs: ["Snipping Tool"],
+    body: [
+      { img: "/assets/program_icons/snip.svg", alt: "Snipping Tool icon" },
+      "Snipping Tool takes a picture (a **snip**) of what's on the 98ish screen.",
+      { steps: ["Open Start > Programs > Accessories > Snipping Tool.", "Pick **Rectangle**, **Window** or **Full screen**, then press **New snip**. Snipping Tool steps aside and the screen freezes.", "Rectangle: drag a box over what you want. Window: tap (or click) a window. Full screen: it's taken at once.", "Mark it up: **Pen** draws, **Highlighter** marks in see-through yellow, **Crop** keeps just the box you drag. **Undo** takes back the last change.", "Press **Save** (a picture in C:\\My Pictures), **Copy**, or **Send to My Phone** (your phone's share sheet: Save Image, Messages, AirDrop...)."], title: "To snip:" },
+      {
+        list: [
+          "The bar at the top of the frozen screen switches between Rectangle, Window and Full screen, or cancels ({{Esc}}).",
+          "**Pen »** picks the pen's color and a thick or thin line.",
+          "**More options »** on the first screen: a **Delay** (3, 5 or 10 seconds, to open a menu or switch windows first) and, on a computer, **Capture another window or screen...** (your browser asks which one).",
+        ],
+      },
+      { computer: "Press {{Ctrl+Shift+S}} ({{Command+Shift+S}} on a Mac) anywhere in 98ish to snip a rectangle right away. In Snipping Tool, {{Ctrl+Z}} undoes, {{Ctrl+S}} saves and {{Ctrl+C}} copies.", phone: "Snipping Tool snips what 98ish shows, not other apps. Your phone's own screenshot (side button + volume up) still works for everything." },
+      { note: "Snips are made on your device from 98ish's own page, so they show 98ish only. 3D games are copied from their last drawn frame; one that isn't drawing right then (paused) shows as a gray \"3D picture\" box. Web pages from other sites inside a window (YouTube, Compass) can't be copied and show as a striped box. The screen copier (modern-screenshot) is downloaded from jsDelivr the first time you snip, so the first snip needs the internet." },
+      { tip: "Copy puts the snip in [[clipboard-history]] too, so you can paste it into Paint or a 98 Messenger IM later." },
+      { open: "Snipping Tool", label: "Open Snipping Tool" },
+    ],
+    related: ["clipboard-history", "photos", "paint", "share-phone"],
+  },
+  // ---- Clipboard history (not a program: Ctrl+Shift+V and the 98ish keyboard) ----
+  {
+    id: "clipboard-history",
+    book: "accessories",
+    title: "Clipboard history",
+    summary: "Paste something you copied earlier: the last 25 things copied in 98ish.",
+    keywords: ["clipboard", "clipboard history", "paste", "copy", "copied", "win+v", "ctrl+shift+v", "pin", "paste again"],
+    body: [
+      "98ish keeps the last **25** things you copy (words, and pictures made small) so you can paste them again later, like Windows' clipboard history.",
+      { steps: ["Click or tap where the words should go.", "Press {{Ctrl+Shift+V}} ({{Command+Shift+V}} on a Mac), or on a phone tap **Clipboard** in the 98ish keyboard's title bar.", "Tap (or click, or use the arrow keys and {{Enter}}) the thing to paste."], title: "To paste from the history:" },
+      {
+        list: [
+          "**Pin** (the pushpin) keeps an item at the top, through **Clear all**.",
+          "**X** deletes one item; **Clear all** deletes everything that isn't pinned.",
+          "A picture pastes into programs that take pictures (Paint, My Computer, an IM). Where it can't be pasted directly, it's put on your device's clipboard: then press {{Ctrl+V}} (on a phone, tap and hold, then Paste).",
+        ],
+      },
+      { h: "Privacy" },
+      "The history stays **on this device**, separately for each user profile, and is never synced or uploaded. Nothing is kept from password boxes. It's deleted when the user profile is removed and when you delete your 98 Messenger account here. To stop it, turn off **Keep a clipboard history** in Keyboard Properties > While typing (or **More** in the history): that also deletes everything in it.",
+      { note: "Kept: up to 25 items, each up to 256 KB (bigger pictures are made smaller first), 4 MB in all; the oldest unpinned items go first." },
+      { open: "Keyboard Properties", label: "Open Keyboard Properties" },
+    ],
+    related: ["snipping-tool", "share-phone", "privacy-device"],
+  },
   // ---- Visual Basic 98 ----
   {
     id: "visual-basic-98",

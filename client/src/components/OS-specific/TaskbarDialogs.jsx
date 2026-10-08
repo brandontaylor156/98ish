@@ -18,6 +18,8 @@ export const SHORTCUTS = [
   ["Ctrl+Alt+R", "Run..."],
   ["Ctrl+Alt+K", "This list of shortcuts."],
   ["Ctrl+Alt+L, or Windows/Command+L", "Lock 98ish (set a PIN or password in Passwords first)."],
+  ["Ctrl+Shift+S (Command+Shift+S on a Mac)", "Snipping Tool: snip part of the screen."],
+  ["Ctrl+Shift+V (Command+Shift+V on a Mac)", "Clipboard history: paste something you copied earlier."],
 ]
 
 const TaskbarProperties = ({ settings, mobile, onClose }) => {

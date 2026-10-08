@@ -32,6 +32,8 @@ export const programs = [
   { name: "3D Viewer 98", app: "viewer3d", type: "viewer3d", icon: "/assets/program_icons/viewer3d.svg", width: 520, height: 600, group: "Accessories", desktop: false },
   // find places, see where you are, directions (Photon/Nominatim search, Valhalla routes, OpenFreeMap; applets/maps, utils/maps.js openMaps)
   // PDFs on drive C:, page by page (applets/pdfViewer; pdf.js from jsDelivr, or the browser's own viewer)
+  // a picture of part of the 98ish screen, marked up and saved/copied/sent (applets/snipping; Ctrl+Shift+S)
+  { name: "Snipping Tool", app: "snip", type: "snip", icon: "/assets/program_icons/snip.svg", width: 460, height: 420, group: "Accessories", desktop: false, single: true },
   { name: "PDF Viewer", app: "pdf", type: "pdfviewer", icon: "/assets/program_icons/pdfviewer.svg", width: 640, height: 640, group: "Accessories", desktop: false },
   { name: "Maps 98", app: "maps", type: "maps", icon: "/assets/program_icons/maps.svg", width: 860, height: 600, group: "Accessories", also: ["Internet"], desktop: false, single: true },
   { name: "Buddy Locator", app: "locator", type: "locator", icon: "/assets/program_icons/locator.svg", width: 780, height: 580, group: "Internet", also: ["Together", "Us"], desktop: false, single: true },

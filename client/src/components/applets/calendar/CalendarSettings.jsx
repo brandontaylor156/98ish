@@ -290,7 +290,7 @@ export const CalendarSettings = ({ calendarId, mobile, onClose, tab: firstTab = 
                     </li>
                     <li>Google Calendar: Other calendars &gt; From URL.</li>
                   </ol>
-                  <input type="text" readOnly aria-label="Subscription link" value={feed.https} onFocus={(e) => e.target.select()} />
+                  <input type="text" readOnly data-clip="off" aria-label="Subscription link" value={feed.https} onFocus={(e) => e.target.select()} />
                   <div className="calRowInline">
                     <button type="button" onClick={() => copy(feed.https, setCopied, "feed")}>
                       {copied === "feed" ? "Copied!" : "Copy link"}
