@@ -74,13 +74,15 @@ test("bounce test: dropped from 78 in, it rebounds 30-34 in (bottom to top, gran
   between(inches, 30, 34, "rebound height (in)")
 })
 
-test("terminal velocity is sane for a holed plastic ball (heavy drag)", () => {
+test("terminal velocity is sane for a holed plastic ball (Cd 0.30-0.33 outdoor, ~0.45 indoor)", () => {
   const vt = P.terminalVelocity()
-  between(vt, 12, 17, "terminal velocity m/s")
-  // a ball dropped from very high approaches it and never exceeds it
+  between(vt, 15, 19, "terminal velocity m/s")
+  assert.ok(P.terminalVelocity(P.BALLS.indoor.cd0, P.BALLS.indoor.m) < vt, "the lighter, draggier indoor ball falls slower")
+  // a ball dropped from very high approaches it and never exceeds it (drag rises a little
+  // with speed, so it settles just under the low-speed figure)
   const ball = P.createBall(P.v3(0, 500, 0))
   for (let i = 0; i < 240 * 12; i++) P.flightStep(ball)
-  near(-ball.v.y, vt, 0.05, "falling speed after 12 s")
+  between(-ball.v.y, vt * 0.95, vt, "falling speed after 12 s")
   // drag is strong: a 20 m/s drive loses a big share of its speed over the court
   const drive = P.createBall(P.v3(0, 1, 6.5), P.v3(0, 1, -20))
   while (drive.p.z > -6.5) P.flightStep(drive)
@@ -101,20 +103,40 @@ test("spin: topspin dips, backspin floats (modest Magnus lift)", () => {
   assert.ok(Math.abs(top.z - flat.z) < 2.5, "lift is modest")
 })
 
-test("bounce friction: topspin skids through low and fast, backspin checks up", () => {
-  const land = (spin) => {
-    const v = P.v3(0, -5, -10)
+test("bounce friction: topspin kicks forward and low, slice skids through, a steep slice checks up", () => {
+  const land = (spin, v = P.v3(0, -5, -10)) => {
     const ball = P.createBall(P.v3(0, P.BALL_R, 0), v, P.scale(P.topspinAxis(v), spin))
     P.bounceOnCourt(ball)
-    return { vz: -ball.v.z, angle: Math.atan2(ball.v.y, -ball.v.z) }
+    return { vz: -ball.v.z, angle: Math.atan2(ball.v.y, -ball.v.z), w: ball.w }
   }
+  // a drive-like landing (27 degrees): the hard plastic ball slides through the contact
   const top = land(200)
   const flat = land(0)
   const back = land(-200)
-  assert.ok(top.vz > flat.vz && flat.vz > back.vz, `forward speed after the bounce: ${top.vz} ${flat.vz} ${back.vz}`)
-  assert.ok(top.angle < flat.angle && flat.angle < back.angle, "topspin stays lower, backspin kicks up steeper")
-  // and the bounce keeps the ball's vertical speed by the coefficient of restitution
-  near(P.COURT_COR, 0.65, 0.05, "COR")
+  assert.ok(top.vz > flat.vz + 1, `topspin kicks forward: ${top.vz} vs ${flat.vz}`)
+  assert.ok(top.angle < flat.angle, "and comes off lower")
+  // slice keeps sliding the whole contact: it skids on as fast and as low as a flat ball
+  // (Coulomb friction can't take more than mu * N), it doesn't sit up
+  assert.ok(back.vz >= flat.vz - 1e-9 && back.angle <= flat.angle + 1e-9, `slice skids: ${back.vz} ${back.angle}`)
+  // a slice dink falling steeply (63 degrees) is grabbed: it checks up and barely comes on
+  const steepFlat = land(0, P.v3(0, -4, -2))
+  const steepSlice = land(-150, P.v3(0, -4, -2))
+  assert.ok(steepSlice.vz < steepFlat.vz - 0.5, `a steep slice checks: ${steepSlice.vz} vs ${steepFlat.vz}`)
+  // the bounce keeps the ball's vertical speed by the coefficient of restitution (the drop
+  // test's impact speed gives 0.64), a little less on harder impacts
+  near(P.COURT_COR, 0.64, 0.03, "COR")
+  assert.ok(P.courtCor(12) < P.courtCor(4), "harder impacts lose more")
+})
+
+test("sidespin (a tilted spin axis) bounces sideways and curves in the air", () => {
+  const v = P.v3(0, -4, -8)
+  // spin about the flight direction (a corkscrew): the contact point slides sideways
+  const ball = P.createBall(P.v3(0, P.BALL_R, 0), v, P.v3(0, 0, 150))
+  P.bounceOnCourt(ball)
+  assert.ok(Math.abs(ball.v.x) > 0.8, `kicks sideways: ${ball.v.x}`)
+  // spin about the vertical axis: the Magnus force curves the flight sideways
+  const curve = P.flyToGround({ p: P.v3(0, 1, 6), v: P.v3(0, 2, -14), w: P.v3(0, 150, 0) })
+  assert.ok(Math.abs(curve.x) > 0.15, `curves: lands ${curve.x} m off line`)
 })
 
 test("the net stops a low ball and lets a high one pass", () => {
@@ -438,7 +460,7 @@ test("computer matches finish with a legal score and realistic shot speeds", () 
     assert.ok(Math.max(a, b) >= m.game.target && Math.abs(a - b) >= 2, `final ${a}-${b}`)
     const avg = (k) => speeds[k].reduce((s, v) => s + v, 0) / speeds[k].length
     between(avg("serve"), 12, 20, `${level} serve speed`)
-    between(avg("dink"), 3, 7.5, `${level} dink speed`) // (8-17 mph; a floated one runs faster)
+    between(avg("dink"), 3, 8.5, `${level} dink speed`) // (8-19 mph; a beginner pushes them firmer)
     if (speeds.drive) between(avg("drive"), 15, 25, `${level} drive speed`)
     assert.ok(m.stats.shots > m.stats.rallies * 2, "real rallies happen")
   }

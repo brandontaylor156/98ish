@@ -15,7 +15,7 @@
 // A guest's copy of the match (match.js "mirror" mode) flies the ball forward from each
 // snapshot to the host's present time, so the ball is where it really is, not where it was.
 
-import { BALL_R, STEP, bounceOnCourt, flightStep, netContact } from "./physics.js"
+import { BALL_R, STEP, bounceOnCourt, flyWithNet } from "./physics.js"
 import { applyRemoteStrike, createMatch, playerById, step } from "./match.js"
 import { isLive } from "./rules.js"
 
@@ -120,9 +120,7 @@ export const projectBall = (ball, seconds) => {
       ball.p.z += ball.v.z * STEP
       continue
     }
-    const prevZ = ball.p.z
-    flightStep(ball, STEP)
-    netContact(prevZ, ball)
+    flyWithNet(ball, STEP)
     if (ball.p.y <= BALL_R && ball.v.y < 0) {
       bounceOnCourt(ball)
       if (Math.abs(ball.v.y) < 0.25) {
@@ -274,6 +272,7 @@ export const createGuest = ({ me, send, ...options }) => {
   const applyBall = (snap) => {
     const [px, py, pz, vx, vy, vz, wx, wy, wz, held, rolling, rest] = snap.b
     const b = { p: { x: px, y: py, z: pz }, v: { x: vx, y: vy, z: vz }, w: { x: wx, y: wy, z: wz }, held: held >= 0 ? m.players[held].id : null, rolling: !!rolling, rest: !!rest }
+    if (m.ball.kind) b.kind = m.ball.kind // (the same ball as the host's: both set it from the room's venue)
     if (!b.held) projectBall(b, Math.max(0, m.t - snap.t))
     const old = m.ball.p
     const jump = Math.hypot(b.p.x - old.x, b.p.y - old.y, b.p.z - old.z)

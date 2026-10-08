@@ -173,8 +173,14 @@ const PAGES = [
         <p className="dialogText">
           You may not <b>volley</b> while touching the kitchen or its line, and if the momentum of a volley carries you
           into it afterwards (even after the ball is dead), that's a fault too. You can step into the kitchen any time
-          to play a ball that has bounced: just get back out before you volley. Soft shots into the kitchen
-          (<b>dinks</b>) are the heart of the game.
+          to play a ball that has bounced: just get both feet back out before you volley. Soft shots into the kitchen
+          (<b>dinks</b>) are the heart of the game. The kitchen ends at the sidelines: jumping round its corner to
+          volley from outside the court is legal (an <b>Erne</b>), and so is hitting the ball round the outside of
+          the net post.
+          <br />
+          <br />
+          A ball that touches <b>you</b> instead of your paddle loses you the point, even if it was going out. A serve
+          that clips the net and lands in the right box is in: there are no lets.
         </p>
       </>
     ),

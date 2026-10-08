@@ -19,9 +19,12 @@ const play = (level, seeds, jitter, onEvent) => {
     let n = 0
     while (m.phase !== "over" && n < 240 * 60 * 20) {
       autopilot(m, 0, { jitter, rand })
+      // (whether the point was still on as this step began: a miss called in the very step the
+      // ball bounces a second time is a miss during the point)
+      const was = isLive(m.rally) && m.phase === "rally"
       step(m)
       n++
-      for (const e of m.events) onEvent(e, m)
+      for (const e of m.events) onEvent(e, m, was)
       m.events.length = 0
     }
   }
@@ -30,10 +33,10 @@ const play = (level, seeds, jitter, onEvent) => {
 test("no 'Swing and a miss!' after the point is over (it used to come a second after the swing)", () => {
   let whiffs = 0
   let afterPoint = 0
-  play("intermediate", [1, 2], 0.06, (e, m) => {
+  play("intermediate", [1, 2], 0.06, (e, m, was) => {
     if (e.type !== "whiff" || e.player !== "you") return
     whiffs++
-    if (!isLive(m.rally) || m.phase !== "rally") afterPoint++
+    if (!was) afterPoint++
   })
   assert.equal(afterPoint, 0, `${afterPoint} of ${whiffs} misses were called after the point`)
 })
@@ -118,7 +121,8 @@ test("timing windows: perfect is tight, good is forgiving, and better timing ear
   assert.ok(p.speedMul > 1 && l.speedMul < 1)
   const share = (jitter) => {
     const c = {}
-    play("intermediate", [1], jitter, (e) => {
+    // (pooled over three games: one game is too few swings to tell)
+    play("intermediate", [1, 2, 3], jitter, (e) => {
       if (e.type === "hit" && e.player === "you" && e.kind !== "serve") c[e.grade] = (c[e.grade] || 0) + 1
     })
     const tot = Object.values(c).reduce((a, b) => a + b, 0)

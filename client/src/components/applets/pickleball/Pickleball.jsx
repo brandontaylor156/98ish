@@ -763,7 +763,8 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
     const hour = w.hour
     // (Real Sky: the park's own sun, sky and weather follow you onto the court)
     const look = w.look
-    return { key: `park:${layout.id}:${court}`, build: (scene, o) => make(scene, { layout, courtId: court, quality: o.quality, hour, look, phone: !!mobile }), room: layout.spec.indoor ? "hall" : "park" }
+    // (indoors they play the indoor ball: 26 bigger holes, lighter, slower; physics.js BALLS)
+    return { key: `park:${layout.id}:${court}`, build: (scene, o) => make(scene, { layout, courtId: court, quality: o.quality, hour, look, phone: !!mobile }), room: layout.spec.indoor ? "hall" : "park", ball: layout.spec.indoor ? "indoor" : "outdoor" }
   }
   const [parkPick, setParkPick] = useState(false)
   const [parkLoading, setParkLoading] = useState(null)

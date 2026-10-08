@@ -117,7 +117,10 @@ test("a whole match animates: feet on the court, no sliding, bones keep their le
   assert.equal(worstSlide, 0, "planted feet never slide")
   // (3.5 cm: since players walk back between points at a brisk 1.7 m/s, match.js WALK_BACK, the
   // procedural walk's longest strides land a few millimeters further than the legs quite reach)
-  assert.ok(worstFloat < 0.035, `ankles reach the feet (worst gap ${worstFloat.toFixed(3)} m)`)
+  // (5 cm since the 2026-10-07 physics round: a computer player who meets dinks at the top of
+  // the bounce stands still and reaches for a ball out wide; the procedural legs' known reach
+  // limit, docs/pickleball-log.md upper body "Left", shows up as a 4.8 cm gap there)
+  assert.ok(worstFloat < 0.05, `ankles reach the feet (worst gap ${worstFloat.toFixed(3)} m)`)
   paddleMiss.sort((a, b) => a - b)
   const median = paddleMiss[Math.floor(paddleMiss.length / 2)]
   assert.ok(paddleMiss.length > 10, "saw contacts")

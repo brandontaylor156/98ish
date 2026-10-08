@@ -278,6 +278,16 @@ export const refBounce = (rally, x, z) => {
   return end(rally, teamOnSide(rally.bounceSide), "Double bounce", "Two bounces")
 }
 
+// The ball in play touched a player (their body or clothing; the paddle hand below the wrist
+// counts as the paddle). That player's team loses the rally, wherever they stand and whether
+// or not the ball was going out (2026 USA Pickleball rulebook 10.C.3; on the serve, 7.E.4: a
+// serve that hits the server's partner is the server's fault, 7.E.5: one that hits the
+// receiving side before it lands is theirs).
+export const refBody = (rally, team, player) => {
+  if (!isLive(rally) || rally.hits === 0) return null
+  return end(rally, team, "Hit by the ball", player ? "Fault: the ball hit a player" : "Fault: body")
+}
+
 // The ball went somewhere it can't come back from (into the fence, under the net...)
 export const refDead = (rally, faultTeam, reason) => (isLive(rally) ? end(rally, faultTeam, reason) : null)
 

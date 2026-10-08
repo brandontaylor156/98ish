@@ -268,7 +268,7 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
   const startGame = (c, entries, starts = [], { score = null } = {}) => {
     c.gameNo++
     c.on = entries
-    c.match = createMatch({ doubles: true, scoring: "rally", target: AI_TARGET, level: c.def.level, seed: (seed + c.def.id * 7919 + c.gameNo * 104729) >>> 0, assist: "reflex", roster: rosterOf(c, entries) })
+    c.match = createMatch({ doubles: true, scoring: "rally", target: AI_TARGET, level: c.def.level, seed: (seed + c.def.id * 7919 + c.gameNo * 104729) >>> 0, assist: "reflex", roster: rosterOf(c, entries), ball: layout.spec?.indoor ? "indoor" : "outdoor" })
     if (score) c.match.game.score = [...score]
     c.match.players.forEach((p, i) => {
       const s = starts[i]
@@ -1744,7 +1744,7 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
         me: { x: me.walker.x, y: me.walker.y || 0, z: me.walker.z, yaw: me.walker.yaw, speed: me.walker.speed, gait: me.walker.gait, mode: me.mode, seat: me.seat?.id || null, watching: me.watching, queued: me.queued },
         camera: { x: camera.position.x, y: camera.position.y, z: camera.position.z, fov: camera.fov, yaw: follow.yaw },
         action,
-        courts: courts.map((c) => ({ id: c.def.id, state: c.state, phase: c.match.phase, score: scoreboard(c.match).score, on: c.on.map((e) => e.id), queue: c.queue.map((e) => e.id), human: c.human })),
+        courts: courts.map((c) => ({ id: c.def.id, state: c.state, phase: c.match.phase, score: scoreboard(c.match).score, on: c.on.map((e) => e.id), queue: c.queue.map((e) => e.id), human: c.human, ball: c.match.ball.kind || "outdoor" })),
         regulars: regulars.map((r) => ({ id: r.id, state: r.state, x: r.x, z: r.z, seated: r.seated, court: r.court })),
         remotes: [...remotes.values()].map((r) => ({ num: r.num, name: r.name, x: r.body.x, y: r.body.y || 0, z: r.body.z, hidden: r.body.hidden })),
         real: [...bodies.values()].filter((b) => b.real).map((b) => ({ key: b.key, name: b.name, sub: b.realSub, x: b.x, z: b.z })),
