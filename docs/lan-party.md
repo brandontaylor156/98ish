@@ -38,6 +38,18 @@ real PC inside 98ish). Two programs:
   `catalog.js` `diskOptions` picks the drive (none = FreeDOS floppy; `.iso` = CD; ≤ 2.88 MB =
   floppy; bigger = hard disk). Save State gzips `save_state()` to `C:\Games\Saves\VIRTUALPC.V86`
   (≤ 24 MB). BIOS files and the FreeDOS floppy are in `client/public/emu/vm/`.
+- **Virtual PC typing** (2026-10-07; the owner: "typing doesn't even work"): v86 skips key events
+  aimed at text fields, and a phone types into one, so v86 runs with `disable_keyboard: true` and
+  `pcKeys.js` sends every key with `keyboard_send_scancodes` (set 1) from the hidden type-in box
+  (`data-kb-layout="dos"`: the 98ish keyboard's DOS layout with Esc, Tab, Ctrl, arrows): a real
+  keyboard by `event.code`, down and up (held keys, Shift/Ctrl, games); the 98ish keyboard's
+  made-up keys as whole presses with Shift/Ctrl around them; the phone's own keyboard, dictation
+  and paste from `beforeinput` (text -> one press per character, Backspace, Enter). Held keys are
+  let go when the box loses focus. A tap on the screen focuses the box (pointerdown cancelled so
+  its mouse events don't blur it); with a mouse it's focused once FreeDOS is up. Tests:
+  `node --test client/src/components/applets/lanparty/pcKeys.test.js`, browser script `vpc.mjs`
+  (phone: Keyboard, d i r Enter on the 98ish keyboard -> the listing, Backspace; desktop: `dir a:`
+  + Enter, `ver` on a real keyboard).
 - `/emu/` is excluded from the service worker's precache (`vite.config.js`).
 
 ## The LAN
@@ -78,6 +90,7 @@ real PC inside 98ish). Two programs:
 - Not tried on a real iPhone. js-dos says its v8 mobile support is "WIP".
 - LAN latency wasn't measured (the data channel lives inside js-dos's WASM); the LAN test was
   two tabs on one machine. Cellular without TURN may not connect.
-- Disk images inserted in Virtual PC aren't kept (by design); v86 reads keys from the page, so the
-  phone **Keyboard** button may need work on iOS.
+- Disk images inserted in Virtual PC aren't kept (by design). Typing from the phone's own
+  keyboard (Keyboard Properties > the phone's keyboard) goes through `beforeinput`: tested in
+  the unit test only, not on a real iPhone.
 - Only two DOS games (both shareware with IPX); no js-dos IPX on Render (not needed: P2P).

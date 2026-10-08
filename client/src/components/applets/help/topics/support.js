@@ -28,6 +28,7 @@ export const topics = [
           "A **game** is stuck or acting up: [[game-trouble]]",
           "You want to **start over** or clear things out: [[reset-data]]",
           "You **forgot your PIN**: [[forgot-pin]]",
+          "**Buttons stopped responding** to taps: [[taps-stopped]]",
         ],
       },
       { h: "Quick things that fix a lot" },
@@ -43,6 +44,25 @@ export const topics = [
       { tip: "Found a real bug, or have an idea? Welcome to 98ish > Get involved > **Send feedback** opens the 98ish page on GitHub, where you can tell us about it." },
     ],
     related: ["server-waking", "no-sound", "reset-data", "privacy-overview"],
+  },
+  {
+    id: "taps-stopped",
+    book: "trouble",
+    title: "Buttons stopped responding to taps",
+    summary: "98ish puts things right by itself when you come back to it or turn the phone; and how to tell us what was in the way.",
+    keywords: ["buttons don't work", "frozen", "stuck", "taps don't work", "unresponsive", "can't tap", "nothing happens", "tap debug", "tapdebug"],
+    body: [
+      "If taps suddenly do nothing, something invisible may be catching them: a box that ended up off the screen, a drag or a long press the phone lost when you switched apps, or the page shifted after turning the phone.",
+      "98ish now checks for these by itself **every time you come back to it, and every time you turn the phone**: drags and presses that were cut off end, dialog boxes come back onto the screen, and an invisible box that was catching taps lets them through. Three taps on buttons that do nothing also make it check.",
+      {
+        steps: ["Switch to another app and back (or lock and unlock the phone).", "Turn the phone sideways and back.", "If it's still stuck, reload: in the Home Screen app, close it from the app switcher and open it again. Your files and settings are kept."],
+        title: "If it happens:",
+      },
+      { h: "Help us find it: tap debug" },
+      "Open 98ish once with **?tapdebug=1** after the address (for example 98ish.vercel.app/?tapdebug=1). A few yellow lines then show at the bottom of the screen: for every tap, what was under your finger, and whether the tap got through. If the buttons stop again, take a screenshot of those lines and send it to us. Open it with **?tapdebug=0** to turn the lines off.",
+      { note: "Tap debug is remembered on that phone or browser until you turn it off. It only shows on your screen; nothing is sent anywhere." },
+    ],
+    related: ["trouble-start", "keyboard-trouble", "game-trouble"],
   },
   {
     id: "server-waking",
