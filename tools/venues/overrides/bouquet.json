@@ -4,8 +4,8 @@
  "city": "Santa Clarita, CA",
  "access": "public",
  "note": "City of Santa Clarita park in Saugus (28127 Wellston Dr): 8 dedicated outdoor pickleball courts in one fenced pen (the city's count), two rows of four on what were two tennis courts, free and first come; the basketball court, the softball field, the playground and the restroom beside them, Bouquet Canyon Elementary next door.",
- "_lit": "no court lights: none show in the aerial (the softball field's poles do), OSM has no lit tag; the city's older listing says 'lighted tennis court' (owner question)",
- "lit": false,
+ "_lit": "court lights: the owner confirms the courts are lit at night (2026-10-07; the city's older listing also says 'lighted tennis court'); the aerial doesn't resolve the poles, so they stand by rule along the pen's long sides",
+ "lit": true,
  "_anchor": "the z20 aerial's anchor: en points are meters east/north of it",
  "anchor": [
   34.4535,
@@ -71,8 +71,9 @@
    }
   },
   "dividers": "none",
-  "_benches": "nothing by rule: no benches, bleachers by the courts or pro-shop kiosk (none mapped, none in the aerial; a city park with no pro shop)",
-  "benches": false,
+  "_benches": "benches: the owner confirms benches by the courts (2026-10-07), placed by rule outside the pen (exact spots not mapped or seen); still no bleachers by the courts or pro-shop kiosk (a city park with no pro shop)",
+  "_screen": "windscreens on the pen fence: owner confirms (2026-10-07); color from the aerial's dark fence line",
+  "screen": true,
   "bleachers": false,
   "booth": false,
   "netColor": "#1b1f1d"
@@ -80,7 +81,7 @@
  "trees": {
   "default": "broadleaf"
  },
- "_props": "OSM: the five picnic tables (leisure=picnic_table nodes) and the two bleachers by the softball field (leisure=bleachers)",
+ "_props": "OSM: the five picnic tables (leisure=picnic_table nodes) and the two bleachers by the softball field (leisure=bleachers); the paddle wait board: owner confirms one (2026-10-07), spot approximate: outside the pen's east fence on the lot side, where players arrive",
  "props": [
   {"t": "picnic", "ll": [34.452705, -118.505666], "face": 0},
   {"t": "picnic", "ll": [34.452538, -118.505727], "face": 0},
@@ -88,6 +89,7 @@
   {"t": "picnic", "ll": [34.452723, -118.505571], "face": 0},
   {"t": "picnic", "ll": [34.452557, -118.504962], "face": 0},
   {"t": "bleacher", "ll": [34.45364, -118.5059], "face": 180},
-  {"t": "bleacher", "ll": [34.45352, -118.50572], "face": 90}
+  {"t": "bleacher", "ll": [34.45352, -118.50572], "face": 90},
+  {"t": "waitboard", "en": [21, 3], "face": 90}
  ]
 }

@@ -489,6 +489,8 @@ export const generateVenue = (spec, opts = {}) => {
 
   // furniture placed so far (racks, bleachers), as boxes, to keep things apart
   const placed = []
+  // where people stand at the live courts (gate, rack): later furniture keeps clear of them
+  const keepClear = []
   const free = (b) => !placed.some((p) => boxesOverlap(p, b)) && !extraBoxes.some((p) => !p.y0 && boxesOverlap(p, b)) && !bankBoxes.some((p) => boxesOverlap(p, b))
   const bounds0 = { x0: allBanksBox.cx - allBanksBox.hx - 24, x1: allBanksBox.cx + allBanksBox.hx + 24, z0: allBanksBox.cz - allBanksBox.hz - 24, z1: allBanksBox.cz + allBanksBox.hz + 24 }
   for (const h of halls) {
@@ -556,6 +558,7 @@ export const generateVenue = (spec, opts = {}) => {
     }
     placed.push(rackBox)
     if (bBox) placed.push(bBox)
+    keepClear.push(...spots)
     // (the court's half sizes as layout.js wants them: the fence distance on the gate side)
     const hx = alongU ? side.dist : c.L / 2 + banks[c.bank].room.u
     const viewSide = !alongU ? out : (() => {
@@ -688,7 +691,7 @@ export const generateVenue = (spec, opts = {}) => {
           const yaw = Math.atan2(-dir.x, -dir.z)
           const box = { cx: p.x, cz: p.z, hx: 0.9, hz: 0.45, ux: Math.cos(yaw), uz: -Math.sin(yaw) }
           const front = add(p, { x: Math.sin(yaw), z: Math.cos(yaw) }, 0.9)
-          if (!free(box) || !walkable(p, 0.6) || !walkable(front, 0.4) || nearTree(p, 1.3) || nearTree(front, 1.0) || rand() < 0.25) continue
+          if (!free(box) || !walkable(p, 0.6) || !walkable(front, 0.4) || nearTree(p, 1.3) || nearTree(front, 1.0) || rand() < 0.25 || keepClear.some((q) => Math.hypot(q.x - p.x, q.z - p.z) < 1.6 || Math.hypot(q.x - front.x, q.z - front.z) < 0.9)) continue
           placed.push(box)
           benches.push({ id: `b${benches.length}`, x: round(p.x), z: round(p.z), yaw })
         }

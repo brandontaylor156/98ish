@@ -151,9 +151,11 @@ A City of Santa Clarita park at 28127 Wellston Dr, Saugus, next to Bouquet Canyo
 | Surround: 257 buildings (houses and the school, OSM heights; 1 default), parks/pitches | OSM |
 | Skyline: the hills north of Saugus up to 8.2 deg (the highest of the eight venues), the Santa Clarita valley round | Terrain |
 
-**Not drawn:** court lights (none show in the aerial, where the softball field's poles do, and OSM has no `lit`; so no night games there), dividers between the courts (none clear in the aerial), and nothing by rule: no benches, bleachers by the courts or pro-shop kiosk (`fence.benches/bleachers/booth: false`). The softball diamond and its light poles aren't drawn (not mapped as such; the pitch is a flat area).
+| Court lights, benches, the paddle wait board, windscreens on the pen fence | **Owner** (2026-10-07: "courts are lit at night", "there are benches and a wait board", windscreens yes). Their exact spots aren't mapped or resolved in the aerial: light poles stand by rule along the pen's long sides, benches by rule outside the pen (clear of the gates and racks), the wait board outside the east fence on the lot side (approximate) |
 
-**Owner questions:** do the courts have lights now? Are there benches or a wait board by the gate (where)? Any windscreens?
+**Not drawn:** dividers between the courts (none clear in the aerial), bleachers by the courts and a pro-shop kiosk (`fence.bleachers/booth: false`). The softball diamond and its light poles aren't drawn (not mapped as such; the pitch is a flat area).
+
+**Owner questions (answered 2026-10-07):** lights yes, benches and a wait board yes, windscreens yes. Still open: where exactly the wait board and benches stand.
 
 ## Interiors: the GUESS layouts (kept, need the owner)
 

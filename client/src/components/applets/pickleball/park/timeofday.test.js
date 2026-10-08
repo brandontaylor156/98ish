@@ -28,9 +28,9 @@ test("time of day: each choice is the right moment for that place and season", (
 
 test("time of day: night only where the courts really have lights", () => {
   const byId = Object.fromEntries(VENUE_LIST.map((v) => [v.id, v]))
-  // lit outdoor courts and indoor halls play at night; Sinaloa (no lights) and Bouquet Canyon (none seen) don't
-  for (const id of ["loscab", "newport", "whittier", "paseo", "wolfbear", "smash"]) assert.ok(nightOk(byId[id]), id)
-  for (const id of ["sinaloa", "bouquet"]) {
+  // lit outdoor courts and indoor halls play at night (Bouquet Canyon: lit, per the owner); Sinaloa (no lights) doesn't
+  for (const id of ["loscab", "newport", "whittier", "paseo", "wolfbear", "smash", "bouquet"]) assert.ok(nightOk(byId[id]), id)
+  for (const id of ["sinaloa"]) {
     assert.ok(!nightOk(byId[id]), id)
     assert.equal(timeAt("night", byId[id]), "now")
   }

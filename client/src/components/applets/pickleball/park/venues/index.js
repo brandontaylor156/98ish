@@ -115,11 +115,11 @@ export const VENUE_LIST = [
     "access": "public",
     "lat": 34.453523,
     "lon": -118.505113,
-    "lit": false,
+    "lit": true,
     "courts": 8,
     "tennis": 0,
     "live": 6,
-    "kb": 55.2
+    "kb": 55.4
   }
 ]
 export const loadVenueSpec = (id) => {
