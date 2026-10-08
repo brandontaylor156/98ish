@@ -51,10 +51,12 @@ test("resume: a tile is covered by its own answer or its quarters' (recursively)
   assert.equal(isCovered(t, () => false), false)
 })
 
-test("towns are asked only round the courts: 1-degree cells, padded, merged along a row", () => {
-  const boxes = townBoxes([[33.7, -117.9], [33.8, -116.2], [40.7, -74.0]])
-  assert.equal(boxes.length, 2)
-  assert.deepEqual(boxes[0], [32.5, -118.5, 34.5, -115.5])
-  assert.deepEqual(boxes[1], [39.5, -74.5, 41.5, -72.5])
+test("towns are asked only round the courts: quarter-degree cells, padded, merged along a row", () => {
+  const boxes = townBoxes([[33.7, -117.9], [33.7, -117.6], [33.8, -116.2], [40.7, -74.0]])
+  assert.equal(boxes.length, 3)
+  // (two courts 2 cells apart share a box)
+  assert.deepEqual(boxes[0], [33.35, -118.15, 33.9, -117.35])
+  assert.deepEqual(boxes[1], [33.6, -116.4, 34.15, -115.85])
+  assert.deepEqual(boxes[2], [40.35, -74.15, 40.9, -73.6])
   assert.deepEqual(townBoxes([]), [])
 })

@@ -93,10 +93,11 @@ export const quarters = ([a, b, c, e]) => {
 export const isCovered = (t, has) => has(t) || (t[2] - t[0] > SMALL_LAT && quarters(t).every((q) => isCovered(q, has)))
 // a padded box (for the towns asked round a tile's courts)
 export const pad = ([s, w, n, e], d) => [Math.max(-90, s - d), Math.max(-180, w - d), Math.min(90, n + d), Math.min(180, e + d)]
-// the 1-degree cells that hold venues, padded, merged into runs along each row: the boxes the
-// towns are asked for (only where there are courts, not a whole 5 x 10 tile of villages)
-export const townBoxes = (points, padDeg = 0.5) => {
-  const cells = new Set(points.map(([la, lo]) => `${Math.floor(la)},${Math.floor(lo)}`))
+// the cells (a quarter degree) that hold venues, padded, merged into runs along each row: the
+// boxes the towns are asked for (only round the courts: a 5 x 10 tile of Europe holds 100,000
+// villages; the nearest town to a court is almost always within the pad, about 15 km)
+export const townBoxes = (points, padDeg = 0.15, cell = 0.25) => {
+  const cells = new Set(points.map(([la, lo]) => `${Math.floor(la / cell)},${Math.floor(lo / cell)}`))
   const rows = new Map()
   for (const c of cells) {
     const [la, lo] = c.split(",").map(Number)
@@ -113,7 +114,7 @@ export const townBoxes = (points, padDeg = 0.5) => {
         prev = lo
         continue
       }
-      out.push(pad([la, start, la + 1, prev + 1], padDeg).map((v) => Math.round(v * 100) / 100))
+      out.push(pad([la * cell, start * cell, (la + 1) * cell, (prev + 1) * cell], padDeg).map((v) => Math.round(v * 100) / 100))
       start = prev = lo
     }
   }
