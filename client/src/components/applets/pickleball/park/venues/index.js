@@ -8,6 +8,9 @@ export const VENUE_LIST = [
     "city": "Fountain Valley, CA",
     "indoor": false,
     "access": "members",
+    "lat": 33.714515,
+    "lon": -117.923701,
+    "lit": true,
     "courts": 54,
     "tennis": 13,
     "live": 6,
@@ -20,10 +23,13 @@ export const VENUE_LIST = [
     "city": "Newport Beach, CA",
     "indoor": false,
     "access": "members",
+    "lat": 33.611121,
+    "lon": -117.879536,
+    "lit": true,
     "courts": 44,
     "tennis": 12,
     "live": 6,
-    "kb": 95.4
+    "kb": 95.3
   },
   {
     "id": "wolfbear",
@@ -32,6 +38,9 @@ export const VENUE_LIST = [
     "city": "Van Nuys, CA",
     "indoor": true,
     "access": "public",
+    "lat": 34.180921,
+    "lon": -118.458081,
+    "lit": true,
     "courts": 14,
     "tennis": 0,
     "live": 6,
@@ -44,6 +53,9 @@ export const VENUE_LIST = [
     "city": "South El Monte, CA",
     "indoor": false,
     "access": "public",
+    "lat": 34.043765,
+    "lon": -118.057659,
+    "lit": true,
     "courts": 20,
     "tennis": 12,
     "live": 6,
@@ -56,6 +68,9 @@ export const VENUE_LIST = [
     "city": "Valencia, CA",
     "indoor": false,
     "access": "members",
+    "lat": 34.436651,
+    "lon": -118.562242,
+    "lit": true,
     "courts": 11,
     "tennis": 11,
     "live": 6,
@@ -68,6 +83,9 @@ export const VENUE_LIST = [
     "city": "Simi Valley, CA",
     "indoor": false,
     "access": "public",
+    "lat": 34.265631,
+    "lon": -118.785571,
+    "lit": false,
     "courts": 12,
     "tennis": 0,
     "live": 6,
@@ -80,10 +98,28 @@ export const VENUE_LIST = [
     "city": "El Segundo, CA",
     "indoor": true,
     "access": "public",
+    "lat": 33.927233,
+    "lon": -118.38817,
+    "lit": true,
     "courts": 9,
     "tennis": 0,
     "live": 6,
     "kb": 44
+  },
+  {
+    "id": "bouquet",
+    "name": "Bouquet Canyon Park",
+    "short": "Bouquet Canyon",
+    "city": "Santa Clarita, CA",
+    "indoor": false,
+    "access": "public",
+    "lat": 34.453523,
+    "lon": -118.505113,
+    "lit": false,
+    "courts": 8,
+    "tennis": 0,
+    "live": 6,
+    "kb": 55.1
   }
 ]
 export const loadVenueSpec = (id) => {
@@ -102,6 +138,8 @@ export const loadVenueSpec = (id) => {
       return import("./sinaloa.json").then((m) => m.default || m)
     case "smash":
       return import("./smash.json").then((m) => m.default || m)
+    case "bouquet":
+      return import("./bouquet.json").then((m) => m.default || m)
     default:
       return Promise.resolve(null)
   }

@@ -17,7 +17,8 @@ import { fileURLToPath } from "node:url"
 const HERE = path.dirname(fileURLToPath(import.meta.url))
 const CONFIG = JSON.parse(fs.readFileSync(path.join(HERE, "venues.config.json"), "utf8"))
 const OUT = path.join(HERE, "osm")
-const ENDPOINT = "https://overpass-api.de/api/interpreter"
+// (the main instance first; its mirrors when it is busy: 429/504 move on to the next)
+const ENDPOINTS = ["https://overpass-api.de/api/interpreter", "https://lz4.overpass-api.de/api/interpreter", "https://z.overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter"]
 const UA = "98ish-venue-build/1.0 (Pickleball 98 My Park; https://98ish.vercel.app)"
 export const SURROUND_R = 500
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
@@ -51,8 +52,8 @@ const compact = (el) => {
 }
 
 const fetchOne = async (v) => {
-  for (let attempt = 0; attempt < 4; attempt++) {
-    const res = await fetch(ENDPOINT, { method: "POST", headers: { "User-Agent": UA, "Content-Type": "application/x-www-form-urlencoded" }, body: "data=" + encodeURIComponent(queryFor(v)) })
+  for (let attempt = 0; attempt < 8; attempt++) {
+    const res = await fetch(ENDPOINTS[attempt % ENDPOINTS.length], { method: "POST", headers: { "User-Agent": UA, "Content-Type": "application/x-www-form-urlencoded" }, body: "data=" + encodeURIComponent(queryFor(v)) })
     if (res.status === 429 || res.status === 504) {
       console.log(`  ${v.id}: HTTP ${res.status}, waiting 90 s`)
       await sleep(90_000)

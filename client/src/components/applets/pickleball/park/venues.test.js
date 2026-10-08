@@ -10,7 +10,7 @@ import { createFollow, followTarget, stepFollow } from "./followcam.js"
 import { VENUE_LIST } from "./venues/index.js"
 
 const spec = (id) => JSON.parse(readFileSync(new URL(`./venues/${id}.json`, import.meta.url), "utf8"))
-const IDS = ["loscab", "newport", "wolfbear", "whittier", "paseo", "sinaloa", "smash"]
+const IDS = ["loscab", "newport", "wolfbear", "whittier", "paseo", "sinaloa", "smash", "bouquet"]
 // what each venue should have (pickleball courts of its own; indoor)
 const EXPECT = {
   loscab: { pb: 38, tennis: 13, indoor: false },
@@ -21,6 +21,8 @@ const EXPECT = {
   paseo: { pb: 11, tennis: 11, indoor: false },
   sinaloa: { pb: 12, tennis: 0, indoor: false },
   smash: { pb: 9, tennis: 0, indoor: true },
+  // (8 dedicated courts, the city's count: four on each of the two old tennis courts, placed off the aerial)
+  bouquet: { pb: 8, tennis: 0, indoor: false },
 }
 const built = new Map()
 const get = (id) => {

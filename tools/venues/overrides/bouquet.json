@@ -1,0 +1,91 @@
+{
+ "name": "Bouquet Canyon Park",
+ "short": "Bouquet Canyon",
+ "city": "Santa Clarita, CA",
+ "access": "public",
+ "note": "City of Santa Clarita park in Saugus (28127 Wellston Dr): 8 dedicated outdoor pickleball courts in one fenced pen (the city's count), two rows of four on what were two tennis courts, free and first come; the basketball court, the softball field, the playground and the restroom beside them, Bouquet Canyon Elementary next door.",
+ "_lit": "no court lights: none show in the aerial (the softball field's poles do), OSM has no lit tag; the city's older listing says 'lighted tennis court' (owner question)",
+ "lit": false,
+ "_anchor": "the z20 aerial's anchor: en points are meters east/north of it",
+ "anchor": [
+  34.4535,
+  -118.50505
+ ],
+ "crop": 70,
+ "spawn": {
+  "_src": "the park's lot east of the courts (OSM 995954595)",
+  "en": [
+   30,
+   4
+  ],
+  "deg": 270
+ },
+ "light": {
+  "sun": 1.0
+ },
+ "courts": {
+  "sports": [
+   "pickleball",
+   "basketball"
+  ],
+  "_drop": "OSM's two 'pickleball' pitches are the two old tennis courts (37 x 18.5 m each); the aerial shows four pickleball courts on each, so the eight are placed from the aerial",
+  "drop": [
+   751797805,
+   751797806
+  ],
+  "_add": "court centres traced off the Esri z20 aerial (two rows of four, long axis at bearing 170.4, 8.9 m apart in each old tennis court, 9.25 m across its middle, rows 18 m apart); they agree with OSM's two pitches within 3 m",
+  "add": [
+   {"id": "B1", "en": [-16.55, 9.25], "bearing": 170.4},
+   {"id": "B2", "en": [-7.77, 10.73], "bearing": 170.4},
+   {"id": "B3", "en": [1.35, 12.28], "bearing": 170.4},
+   {"id": "B4", "en": [10.13, 13.76], "bearing": 170.4},
+   {"id": "B5", "en": [-13.55, -8.5], "bearing": 170.4},
+   {"id": "B6", "en": [-4.77, -7.02], "bearing": 170.4},
+   {"id": "B7", "en": [4.35, -5.47], "bearing": 170.4},
+   {"id": "B8", "en": [13.13, -3.99], "bearing": 170.4}
+  ]
+ },
+ "_colors": "sampled off the aerial (court and kitchen the same blue, a grey-green surround, black fence), lifted out of the aerial's haze by eye",
+ "colors": {
+  "court": "#46668a",
+  "kitchen": "#46668a",
+  "surround": "#5f6e5c",
+  "lines": "#f2f2ef",
+  "fence": "#1f2322",
+  "windscreen": "#26302b",
+  "ground": "#9c946c",
+  "far": "#8f8a66"
+ },
+ "fence": {
+  "_room": "the pen in the aerial: about 39 m along the courts by 41 m across",
+  "join": {
+   "p": {
+    "u": 6,
+    "w": 4
+   }
+  },
+  "room": {
+   "p": {
+    "u": 3.9,
+    "w": 3.8
+   }
+  },
+  "dividers": "none",
+  "_benches": "no benches by rule: none are mapped and the aerial doesn't show where they are",
+  "benches": false,
+  "netColor": "#1b1f1d"
+ },
+ "trees": {
+  "default": "broadleaf"
+ },
+ "_props": "OSM: the five picnic tables (leisure=picnic_table nodes) and the two bleachers by the softball field (leisure=bleachers)",
+ "props": [
+  {"t": "picnic", "ll": [34.452705, -118.505666], "face": 0},
+  {"t": "picnic", "ll": [34.452538, -118.505727], "face": 0},
+  {"t": "picnic", "ll": [34.452514, -118.505748], "face": 90},
+  {"t": "picnic", "ll": [34.452723, -118.505571], "face": 0},
+  {"t": "picnic", "ll": [34.452557, -118.504962], "face": 0},
+  {"t": "bleacher", "ll": [34.45364, -118.5059], "face": 180},
+  {"t": "bleacher", "ll": [34.45352, -118.50572], "face": 90}
+ ]
+}

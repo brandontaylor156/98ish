@@ -47,10 +47,10 @@ const start = async () => {
   return { call, sent, presence, tick: (ms) => (t += ms), close: () => server.close() }
 }
 
-test("the server knows the seven real venues (origin, courts, bounds), never Riverside", async () => {
+test("the server knows the eight real venues (origin, courts, bounds), never Riverside", async () => {
   const venues = await loadVenues()
   const ids = venues.map((v) => v.id).sort()
-  assert.deepEqual(ids, ["loscab", "newport", "paseo", "sinaloa", "smash", "whittier", "wolfbear"])
+  assert.deepEqual(ids, ["bouquet", "loscab", "newport", "paseo", "sinaloa", "smash", "whittier", "wolfbear"])
   for (const v of venues) {
     assert.equal(v.origin.length, 2)
     assert.ok(v.courts.length > 0 && v.bounds.x1 > v.bounds.x0)

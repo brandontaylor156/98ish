@@ -668,7 +668,8 @@ export const generateVenue = (spec, opts = {}) => {
 
   // ---------- benches along the banks ----------
   const benches = []
-  if (!indoor) {
+  // (fence.benches: false: none by rule; a venue built only from what is mapped or seen)
+  if (!indoor && spec.fence?.benches !== false) {
     for (const bank of banks) {
       const B = bank.box
       const u = { x: B.ux, z: B.uz }
