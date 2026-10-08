@@ -3,6 +3,8 @@ import { createPortal } from "react-dom"
 import MenuBar from "../../shared/MenuBar"
 import Dialog from "../../shared/Dialog"
 import FileDialog from "../notepad/FileDialog"
+import PrintDialog from "../../shared/PrintDialog"
+import { PICTURE_CSS, pictureHtml, printDocument } from "../../../utils/print"
 import { useFloating } from "../../../hooks/useFloating"
 import EditColors from "./EditColors"
 import { BrushSample, EraserSample, FillSample, LineSample, SelectModeSample, SpraySample, ToolIcon } from "./PaintIcons"
@@ -703,6 +705,15 @@ const Paint = ({ file: initialFile = null, handoff = null, mobile = false, onTit
     return filePayload(title, { name: safeFileName(title, ".png"), data: dataUrlBytes(pictureUrl()), mime: "image/png" })
   }
 
+  // File > Print: the picture alone, as big as the page allows (turned sideways when it's wide)
+  const print = () => {
+    setDialog(null)
+    const { width, height } = img.current
+    const name = file?.name || "untitled"
+    const ok = printDocument({ title: name, html: pictureHtml(pictureUrl(), name), css: PICTURE_CSS, page: `size: ${width > height ? "landscape" : "portrait"}; margin: 0.5in` })
+    if (!ok) setDialog({ kind: "alert", title: "Paint", text: "This browser can't print from here. Use File > Send To to open the picture somewhere that can." })
+  }
+
   const setAsWallpaper = (display) => {
     const url = pictureUrl()
     if (!saveWallpaperImage(url)) return setDialog({ kind: "alert", title: "Paint", text: "This picture is too big to use as the wallpaper. Try making it smaller (Image > Attributes)." })
@@ -1184,6 +1195,7 @@ const Paint = ({ file: initialFile = null, handoff = null, mobile = false, onTit
     if (key === "c") return run(copy)
     if (key === "a") return run(selectAll)
     if (key === "s") return run(save)
+    if (key === "p") return run(() => (commitAll(), setDialog({ kind: "print" })))
     if (key === "o") return run(() => guard(() => setDialog({ kind: "open" })))
     if (key === "n" && e.shiftKey) return run(clearImage)
     if (key === "e") return run(() => setDialog({ kind: "attributes", w: img.current.width, h: img.current.height }))
@@ -1228,6 +1240,8 @@ const Paint = ({ file: initialFile = null, handoff = null, mobile = false, onTit
         { label: "Open... Ctrl+O", onClick: () => guard(() => setDialog({ kind: "open" })) },
         { label: "Save Ctrl+S", onClick: save },
         { label: "Save As...", onClick: () => (commitAll(), setDialog({ kind: "saveAs" })) },
+        "-",
+        { label: "Print... Ctrl+P", onClick: () => (commitAll(), setDialog({ kind: "print" })) },
         "-",
         { label: "Set As Wallpaper (Tiled)", onClick: () => setAsWallpaper("tile") },
         { label: "Set As Wallpaper (Centered)", onClick: () => setAsWallpaper("center") },
@@ -1800,6 +1814,8 @@ const Paint = ({ file: initialFile = null, handoff = null, mobile = false, onTit
           </div>
         </Dialog>
       )}
+
+      {dialog?.kind === "print" && (<PrintDialog name={file?.name || "untitled"} note={`${img.current.width} x ${img.current.height} pixels`} onPrint={print} onCancel={() => setDialog(null)} />)}
 
       {dialog?.kind === "alert" && (
         <Dialog title={dialog.title} onOk={() => setDialog(null)}>

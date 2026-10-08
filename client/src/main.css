@@ -55,6 +55,31 @@ html, body {
   -webkit-tap-highlight-color: transparent;
 }
 
+/* Printing (utils/print.js): only the document's print copy goes on paper. The page is
+   un-pinned for print (a position: fixed html/body printed one cut-off page). */
+.os-print {
+  display: none;
+}
+@media print {
+  html,
+  body {
+    position: static !important;
+    inset: auto !important;
+    width: auto !important;
+    height: auto !important;
+    overflow: visible !important;
+    background: #fff !important;
+  }
+  body.os-printing > *:not(.os-print) {
+    display: none !important;
+  }
+  body.os-printing > .os-print {
+    display: block !important;
+    color: #000;
+    background: #fff;
+  }
+}
+
 /* A modal layer whose dialog can't be seen (off screen, never drawn) lets taps through
    instead of swallowing every one (utils/inputGuard.js sets data-input-stuck); a dialog
    that turns up inside it still takes its own taps */

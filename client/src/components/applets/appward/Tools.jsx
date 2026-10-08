@@ -158,7 +158,7 @@ export const ReportBuilderView = () => {
       subtitle: `${ws.company} · ${result.rows.length} record${result.rows.length === 1 ? "" : "s"}`,
       body: tableHtml(result.columns.map((c) => c.label), result.rows.map((r) => r.cells), Object.keys(result.totals).length ? totals : null),
     })
-    if (!ok) toast("Allow pop-ups to print.")
+    if (!ok) toast("This browser can't print from here.")
   }
   const exportCsv = () => result && downloadText(`${result.title.replace(/[^\w -]/g, "")}.csv`, toCsv(result.columns.map((c) => c.label), result.rows.map((r) => r.cells)))
   const save = () => {

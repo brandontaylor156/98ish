@@ -1,7 +1,8 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react"
-import { createPortal } from "react-dom"
 import MenuBar from "../../shared/MenuBar"
 import Dialog from "../../shared/Dialog"
+import PrintDialog from "../../shared/PrintDialog"
+import { printDocument } from "../../../utils/print"
 import FileDialog from "../notepad/FileDialog"
 import { useFloating } from "../../../hooks/useFloating"
 import { fs, readContent, writeAndSave } from "../../../utils/fs"
@@ -128,7 +129,6 @@ const WordPad = ({ file: initialFile = null, mobile = false, onTitle, onClose, r
   const [find, setFind] = useState(null)
   const [colorMenu, setColorMenu] = useState(null) // { left, top } while open
   const [preview, setPreview] = useState(null) // { html, page, zoom }
-  const [printHtml, setPrintHtml] = useState(null)
   const [saveType, setSaveType] = useState("rich")
   const edRef = useRef(null)
   const findBox = useFloating() // Find / Replace drags anywhere, like a real dialog
@@ -759,26 +759,13 @@ const WordPad = ({ file: initialFile = null, mobile = false, onTitle, onClose, r
 
   // ---- printing ----
 
+  // the document alone, on Letter pages, through the browser's print window (utils/print.js),
+  // straight from the tap (iOS opens its print screen only inside one)
   const print = () => {
-    setPrintHtml(sanitizeHtml(ed().innerHTML))
     setDialog(null)
+    const ok = printDocument({ title: file?.name || "Document", html: `<div class="wpDoc wpPrintDoc">${sanitizeHtml(ed().innerHTML)}</div>`, css: PRINT_CSS, page: "size: letter; margin: 1in 1.25in" })
+    if (!ok) setDialog({ kind: "alert", text: "This browser can't print from here. Use File > Send To to open the document somewhere that can." })
   }
-
-  // once the print-only copy is on the page, open the browser's print dialog
-  useEffect(() => {
-    if (printHtml === null) return
-    const done = () => setPrintHtml(null)
-    window.addEventListener("afterprint", done)
-    const id = requestAnimationFrame(() => {
-      try {
-        window.print()
-      } catch {}
-    })
-    return () => {
-      cancelAnimationFrame(id)
-      window.removeEventListener("afterprint", done)
-    }
-  }, [printHtml])
 
   // Send To: the document as a web page any phone opens; Other Apps gets its words
   const sharePayload = () => {
@@ -1047,13 +1034,6 @@ const WordPad = ({ file: initialFile = null, mobile = false, onTitle, onClose, r
         </div>
       )}
 
-      {printHtml !== null &&
-        createPortal(
-          <div className="wpPrintArea">
-            <div className="wpDoc" dangerouslySetInnerHTML={{ __html: printHtml }} />
-          </div>,
-          document.body
-        )}
 
       {find && (
         <form
@@ -1343,12 +1323,7 @@ const WordPad = ({ file: initialFile = null, mobile = false, onTitle, onClose, r
       )}
 
       {dialog?.kind === "print" && (
-        <Dialog title="Print" okLabel="OK" onOk={print} onCancel={() => setDialog(null)}>
-          <p className="dialogText">
-            <b>Printer:</b> your browser&apos;s printer
-          </p>
-          <p className="dialogText">WordPad prints {name} on its own, without the desktop around it. Choose a printer (or Save as PDF) in the next window.</p>
-        </Dialog>
+        <PrintDialog name={name} onPrint={print} onCancel={() => setDialog(null)} />
       )}
 
       {dialog?.kind === "alert" && (
@@ -1362,6 +1337,9 @@ const WordPad = ({ file: initialFile = null, mobile = false, onTitle, onClose, r
 
 // Print Preview: Letter pages (8.5 x 11 in., 1.25 in. side and 1 in. top/bottom margins),
 // each a window onto the document, shrunk to fit
+// on paper: the .wpDoc styles (WordPad.css), pictures kept whole
+const PRINT_CSS = ".wpPrintDoc img { break-inside: avoid; } .wpPrintDoc { color: #000; }"
+
 const PAGE = { w: 816, h: 1056, mx: 120, my: 96 }
 const BODY = { w: PAGE.w - PAGE.mx * 2, h: PAGE.h - PAGE.my * 2 }
 

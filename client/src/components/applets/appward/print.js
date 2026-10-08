@@ -1,10 +1,11 @@
-// Printing: a report or record goes into its own small window as plain HTML (escaped)
-// and the browser's Print dialog opens there, so the desktop around it never prints.
+// Printing: a report or record as plain HTML (escaped) in 98ish's print copy (utils/print.js),
+// so the desktop around it never prints.
+import { printDocument } from "../../../utils/print"
 
 export const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c])
 
 const STYLE = `
-body { font: 12px "Courier New", monospace; margin: 24px; color: #000; }
+.awPrint { font: 12px "Courier New", monospace; color: #000; }
 h1 { font: bold 18px Arial, sans-serif; margin: 0 0 2px; }
 .sub { font: 11px Arial, sans-serif; margin-bottom: 12px; border-bottom: 2px solid #000; padding-bottom: 6px; }
 table { border-collapse: collapse; width: 100%; }
@@ -21,21 +22,14 @@ export const tableHtml = (columns, rows, totals = null) =>
     .map((r) => `<tr>${r.map((c) => `<td>${esc(c)}</td>`).join("")}</tr>`)
     .join("")}</tbody>${totals ? `<tfoot><tr>${totals.map((t) => `<td>${esc(t)}</td>`).join("")}</tr></tfoot>` : ""}</table>`
 
-export const printPage = ({ title, subtitle, body }) => {
-  const w = window.open("", "_blank", "width=820,height=640")
-  if (!w) return false
-  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(title)}</title><style>${STYLE}</style></head><body><h1>${esc(title)}</h1><div class="sub">${esc(subtitle)}</div>${body}<div class="foot">Printed from Appward 98 (an unofficial retro tribute) on ${esc(new Date().toLocaleString())}</div></body></html>`)
-  w.document.close()
-  w.focus()
-  setTimeout(() => {
-    try {
-      w.print()
-    } catch {
-      // the window was closed first
-    }
-  }, 250)
-  return true
-}
+// (the 98ish print copy rather than a pop-up window: a Home Screen iPhone app can't open one)
+export const printPage = ({ title, subtitle, body }) =>
+  printDocument({
+    title,
+    html: `<div class="awPrint"><h1>${esc(title)}</h1><div class="sub">${esc(subtitle)}</div>${body}<div class="foot">Printed from Appward 98 (an unofficial retro tribute) on ${esc(new Date().toLocaleString())}</div></div>`,
+    css: STYLE,
+    page: "margin: 0.5in",
+  })
 
 // a CSV download (Report Builder's Export)
 export const downloadText = (name, text, type = "text/csv") => {
