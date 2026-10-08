@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react"
 import { getSettings } from "../../utils/settings"
+import { onInputReset, swallowNextClick } from "../../utils/inputGuard"
 
 // Phone desktop icons: tap to open, drag to move. Icons snap to a grid; dropping onto
 // another icon swaps the two. The arrangement is remembered on this device.
@@ -29,20 +30,8 @@ const saveCells = (cells) => {
 const cellKey = ({ col, row }) => `${col},${row}`
 
 // After a tap opens an app, the browser still sends a click to whatever is now under the
-// finger: the window that just opened. Swallow that one click.
-const swallowNextClick = () => {
-  const handler = (event) => {
-    event.stopPropagation()
-    event.preventDefault()
-    cleanup()
-  }
-  const cleanup = () => {
-    window.removeEventListener("click", handler, true)
-    clearTimeout(timer)
-  }
-  window.addEventListener("click", handler, true)
-  const timer = setTimeout(cleanup, 600)
-}
+// finger: the window that just opened. Swallow that one click (swallowNextClick, in
+// utils/inputGuard.js, which drops it if the page goes to the background first).
 
 // Every program gets a cell: its saved one if still on screen and free, else the first gap
 const arrange = (programs, saved, columns, rows) => {
@@ -90,6 +79,16 @@ const MobileIcons = ({ programs, onOpen }) => {
     observer.observe(el)
     return () => observer.disconnect()
   }, [])
+
+  // a press the page lost (put away mid-drag, the phone turned): the icon goes back
+  useEffect(
+    () =>
+      onInputReset(() => {
+        gesture.current = null
+        setDrag(null)
+      }),
+    []
+  )
 
   const cells = arrange(programs, saved, size.columns, size.rows)
 

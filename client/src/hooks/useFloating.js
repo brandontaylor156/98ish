@@ -1,5 +1,6 @@
 import { useCallback, useRef } from "react"
 import { playSystemSound } from "../utils/systemSounds"
+import { INPUT_RESET } from "../utils/inputGuard"
 
 // Lets a popup inside a window (a dialog, Find, a property sheet) float free like a
 // Windows 98 child dialog: it opens where its CSS lays it out (dialogs: centered over
@@ -49,12 +50,28 @@ const keyboardTop = () => {
   return r?.height ? r.top : null
 }
 
+// The part of the page that's on screen, in the layout coordinates fixed boxes are placed
+// in. The phone's own keyboard (Keyboard Properties > the phone's keyboard) and Safari's bars
+// shrink only the visual viewport, so a box placed by innerHeight alone sat partly under
+// them. (A pinch-zoomed page keeps the whole layout viewport: popups don't chase the zoom.)
+export const visibleViewport = () => {
+  const width = document.documentElement.clientWidth || window.innerWidth
+  const height = window.innerHeight
+  const vv = window.visualViewport
+  if (vv && Math.abs(vv.scale - 1) < 0.02 && vv.height > 100) {
+    const top = Math.max(0, vv.offsetTop)
+    return { top, bottom: Math.min(height, top + vv.height), width }
+  }
+  return { top: 0, bottom: height, width }
+}
+
 // the screen above (or below) the taskbar, clear of the safe areas and the 98ish keyboard
 const screenArea = () => {
-  const width = document.documentElement.clientWidth
-  const height = window.innerHeight
+  const view = visibleViewport()
+  const width = view.width
+  const height = view.bottom
   const safe = safeInsets()
-  let top = safe.top
+  let top = Math.max(view.top, safe.top)
   let bottom = height
   const bar = document.querySelector(".taskbar")?.getBoundingClientRect()
   if (bar?.height && bar.width) {
@@ -164,7 +181,24 @@ export const attachFloating = (el, { center = false, takeFocus = true } = {}) =>
         : [...el.querySelectorAll(FOCUSABLE)].find((f) => !f.closest(".title-bar") && (f.offsetWidth || f.offsetHeight))
     target?.focus({ preventScroll: true })
   }
-  const onFocus = (e) => (lastFocus = e.target)
+  // the focused field stays in view in a dialog that scrolls (a short screen, the keyboard
+  // up), clear of the buttons kept at its bottom (shared.css)
+  const revealFocus = () => {
+    const f = document.activeElement
+    if (!f || f === el || !el.contains(f)) return
+    const body = f.closest(".dialogBody")
+    if (!body || !el.contains(body) || body.scrollHeight <= body.clientHeight + 1) return
+    const b = body.getBoundingClientRect()
+    const r = f.getBoundingClientRect()
+    const sticky = body.querySelector(":scope > .dialogButtons")
+    const bottom = b.bottom - (sticky && !sticky.contains(f) ? sticky.offsetHeight : 0) - 4
+    if (r.bottom > bottom) body.scrollTop += r.bottom - bottom
+    else if (r.top < b.top + 4) body.scrollTop -= b.top + 4 - r.top
+  }
+  const onFocus = (e) => {
+    lastFocus = e.target
+    requestAnimationFrame(revealFocus)
+  }
   el._floating = { activate }
 
   // where left/top 0 put the box's corner on screen (its containing block's corner),
@@ -221,18 +255,48 @@ export const attachFloating = (el, { center = false, takeFocus = true } = {}) =>
     }
   }
 
+  // Never taller or wider than the free screen (above the taskbar and any keyboard): a tall
+  // dialog scrolls inside instead of running under the keyboard with its buttons out of
+  // reach (WordPad's Save As in landscape). Dialogs everywhere; every popup on a phone.
+  const sizeTo = (area) => {
+    if (!mobile() && !el.classList.contains("dialog")) return
+    const h = `${Math.max(80, Math.floor(area.bottom - area.top))}px`
+    const w = `${Math.max(120, Math.floor(area.right - area.left))}px`
+    if (el.style.maxHeight !== h) el.style.maxHeight = h
+    if (el.style.maxWidth !== w) el.style.maxWidth = w
+  }
+
+  // Centered popups (dialogs) open in the middle of what you can see of their window: the
+  // part of it on screen, above the taskbar and the keyboard (on a phone, the free screen).
+  // They stay centered as they grow, shrink, the keyboard comes and goes or the phone turns,
+  // until you drag one: then it stays where you put it. (A dialog used to keep its top-left
+  // corner when its content arrived after it opened, so it grew toward the bottom right.)
+  let moved = false
+  const centered = (area, w, h) => {
+    let { left, right, top, bottom } = area
+    const r = !mobile() && el.parentElement?.getBoundingClientRect()
+    if (r && r.width && r.height) {
+      const l2 = Math.max(left, r.left)
+      const r2 = Math.min(right, r.right)
+      const t2 = Math.max(top, r.top)
+      const b2 = Math.min(bottom, r.bottom)
+      if (r2 - l2 > 40 && b2 - t2 > 40) [left, right, top, bottom] = [l2, r2, t2, b2]
+    }
+    return { x: (left + right - w) / 2, y: (top + bottom - h) / 2 }
+  }
+
   const init = () => {
     const laid = el.getBoundingClientRect()
     if (!laid.width && !laid.height) return false
     el.setAttribute("data-floating", "on")
     el.style.left = "0px"
     el.style.top = "0px"
+    const area = screenArea()
+    sizeTo(area)
     const w = el.offsetWidth
     const h = el.offsetHeight
-    const start = center
-      ? { x: laid.left + (laid.width - w) / 2, y: laid.top + (laid.height - h) / 2 }
-      : { x: laid.left, y: laid.top }
-    pos = clamp(start, true)
+    const start = center ? centered(area, w, h) : { x: laid.left, y: laid.top }
+    pos = clamp(start, true, { area, w, h, bar: 20 })
     place()
     return true
   }
@@ -277,10 +341,12 @@ export const attachFloating = (el, { center = false, takeFocus = true } = {}) =>
     frame = 0
     const r = measure()
     if (r) pos = { x: r.left, y: r.top }
-    drag = { id: e.pointerId, dx: e.clientX - pos.x, dy: e.clientY - pos.y, bar, touch: e.pointerType !== "mouse", fit: fit() }
+    drag = { id: e.pointerId, x0: e.clientX, y0: e.clientY, dx: e.clientX - pos.x, dy: e.clientY - pos.y, bar, touch: e.pointerType !== "mouse", fit: fit() }
   }
   const onMove = (e) => {
     if (!drag || e.pointerId !== drag.id) return
+    // (a press that hardly moves doesn't count as placing it)
+    if (!moved && Math.hypot(e.clientX - drag.x0, e.clientY - drag.y0) > 4) moved = true
     pos = clamp({ x: e.clientX - drag.dx, y: e.clientY - drag.dy }, false, drag.fit)
     if (!frame) frame = requestAnimationFrame(() => show())
   }
@@ -325,21 +391,49 @@ export const attachFloating = (el, { center = false, takeFocus = true } = {}) =>
   const refit = (why) => {
     if (debugLines && pos) debugLog(`refit (${why?.type || (Array.isArray(why) ? "observer" : "?")}${drag ? ", dragging" : ""}) at ${corner(el)}`)
     if (!pos) return void init()
+    const area = screenArea()
+    sizeTo(area)
     if (drag) drag.fit = fit()
-    pos = clamp(pos, false, drag?.fit)
+    if (center && !moved && !drag) {
+      // still where it opened: keep it in the middle
+      const w = el.offsetWidth
+      const h = el.offsetHeight
+      if (!w && !h) return // hidden with its window
+      pos = clamp(centered(area, w, h), true, { area, w, h, bar: 20 })
+    } else pos = clamp(pos, false, drag?.fit)
     place()
+    if (!drag) requestAnimationFrame(revealFocus)
   }
   const resized = new ResizeObserver(refit)
   resized.observe(el)
   window.addEventListener("resize", refit)
   const keyboard = new MutationObserver(refit)
   keyboard.observe(document.documentElement, { attributes: true, attributeFilter: ["class", "style"] })
+  // the phone's keyboard or Safari's bars (the visual viewport), turning the phone (iOS
+  // reports the new size a moment late), coming back from the background, or the shell's
+  // input reset (utils/inputGuard.js): a drag left hanging ends, and the box is put back on
+  // screen
+  const vv = window.visualViewport
+  vv?.addEventListener("resize", refit)
+  vv?.addEventListener("scroll", refit)
+  let later = 0
+  const settle = (e) => {
+    if (e?.type === "visibilitychange" && document.visibilityState !== "visible") return void end("hidden")
+    end(e?.type || "reset")
+    refit(e)
+    clearTimeout(later)
+    later = setTimeout(() => refit(e), 350)
+  }
+  window.addEventListener("orientationchange", settle)
+  document.addEventListener("visibilitychange", settle)
+  window.addEventListener(INPUT_RESET, settle)
 
   // the window moved, maximized or came back: the dialog stays where it is on screen,
   // as an owned window does in Windows
   const box = el.closest(".desktopWindow")?.parentElement
-  const moved = box && new MutationObserver(() => pos && place())
-  moved?.observe(box, { attributes: true, attributeFilter: ["style", "class"] })
+  const windowMoved = box && new MutationObserver(() => pos && place())
+  windowMoved?.observe(box, { attributes: true, attributeFilter: ["style", "class"] })
+  el._floating.refit = refit
 
   return () => {
     el.removeEventListener("focusin", onFocus)
@@ -354,8 +448,14 @@ export const attachFloating = (el, { center = false, takeFocus = true } = {}) =>
     el.removeEventListener("contextmenu", onMenu)
     resized.disconnect()
     keyboard.disconnect()
-    moved?.disconnect()
+    windowMoved?.disconnect()
     window.removeEventListener("resize", refit)
+    vv?.removeEventListener("resize", refit)
+    vv?.removeEventListener("scroll", refit)
+    window.removeEventListener("orientationchange", settle)
+    document.removeEventListener("visibilitychange", settle)
+    window.removeEventListener(INPUT_RESET, settle)
+    clearTimeout(later)
     cancelAnimationFrame(frame)
     drag = null
     clearTimeout(el._flashTimer)

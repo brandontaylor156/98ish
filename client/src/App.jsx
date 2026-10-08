@@ -275,12 +275,14 @@ function App() {
     return watchActivity()
   }, [phase])
   useEffect(() => {
-    document.documentElement.classList.toggle("os-locked", locked)
+    // only while the lock screen is up: Log On asks for the password itself, and hiding
+    // everything but the lock screen hid Log On too (a blank screen nothing answered)
+    document.documentElement.classList.toggle("os-locked", locked && phase !== "logOn")
     if (locked) {
       closeMenu()
       setPower(null)
     }
-  }, [locked])
+  }, [locked, phase])
   const lockComputer = () => {
     closeMenu()
     // nothing to unlock with yet: Passwords Properties, to set one

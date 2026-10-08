@@ -55,6 +55,16 @@ html, body {
   -webkit-tap-highlight-color: transparent;
 }
 
+/* A modal layer whose dialog can't be seen (off screen, never drawn) lets taps through
+   instead of swallowing every one (utils/inputGuard.js sets data-input-stuck); a dialog
+   that turns up inside it still takes its own taps */
+[data-input-stuck] {
+  pointer-events: none !important;
+}
+[data-input-stuck] :is([data-floating], .dialog, .window) {
+  pointer-events: auto;
+}
+
 /* No phone "hold" menus (text loupe, Copy/Look Up, Save Image, link previews) except where
    people read or type. Off for everything; back on for text boxes and for areas marked
    data-selectable (or class "selectable") and dialog paragraphs (keep READING_SELECTOR in

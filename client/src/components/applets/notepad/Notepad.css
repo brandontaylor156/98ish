@@ -131,6 +131,14 @@
   columns: 2 140px;
 }
 
+/* a short screen (a phone in landscape, the keyboard up): the list gives up its room first,
+   so File name and Save stay in view (shared.css lets a floating dialog's body shrink) */
+.dialog[data-floating="on"] > .dialogBody > .npFdList {
+  flex: 0 1 150px;
+  height: auto;
+  min-height: 46px;
+}
+
 .npFdList button {
   width: 100%;
   display: flex;

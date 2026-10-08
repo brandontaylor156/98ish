@@ -7,6 +7,7 @@ import { wantsCapital, wantsPeriod } from "./editing"
 import { focusNext, moveBy, pressKey, textBefore } from "./typing"
 import { KB_WANT, afterTap, noteGesture, suppress, wantsKeyboard } from "./native"
 import { haptic, keyClick } from "./feedback"
+import { onInputReset } from "../../../utils/inputGuard"
 import { BackIcon, EnterIcon, KeyboardIcon, ShiftIcon } from "./icons"
 import "./Keyboard.css"
 
@@ -767,7 +768,11 @@ const Keyboard = () => {
     }
     window.addEventListener("pointerup", end, true)
     window.addEventListener("pointercancel", end, true)
+    // the app put away or the phone turned mid-press (utils/inputGuard.js): no key stays held
+    // (a held Delete kept deleting when the page came back)
+    const off = onInputReset(() => [...pointers.current.values()].forEach((p) => release(p, false)))
     return () => {
+      off()
       window.removeEventListener("pointerup", end, true)
       window.removeEventListener("pointercancel", end, true)
     }
