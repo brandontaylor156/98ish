@@ -1,7 +1,7 @@
 import React, { useEffect, useId, useMemo, useRef, useState } from "react"
 import Combo from "../../shared/select/Combo"
 import { CHARACTERS } from "./looks.js"
-import { BODIES, BOTTOMS, BUILDS, DESIGNS, GLASSES, HAIR_COLORS, HAIR_COLOR_NAMES, HAIR_STYLES, HATS, HEIGHT, KIT_COLORS, PLAYS, PRO_STYLES, SKIN_TONES, SOCKS, THEMES, TOPS, applyTheme, characterLook, defaultStyleFor, randomLook, themeById, validateLook } from "./locker.js"
+import { BODIES, faceById, facesForBody, BOTTOMS, BUILDS, DESIGNS, GLASSES, HAIR_COLORS, HAIR_COLOR_NAMES, HAIR_STYLES, HATS, HEIGHT, KIT_COLORS, PLAYS, PRO_STYLES, SKIN_TONES, SOCKS, THEMES, TOPS, applyTheme, characterLook, defaultStyleFor, randomLook, themeById, validateLook } from "./locker.js"
 
 // Pickleball 98's Locker Room: dress any player (yours, or the computer's) over the 3D
 // viewer, which you can turn by dragging. Tabs: Body (skin, hair, height, build, which hand
@@ -73,6 +73,12 @@ export const LockerRoom = ({ prefs, setPrefs, engine, onBack, initial }) => {
   }, [look])
   useEffect(() => engine()?.showcasePose(pose), [pose])
   useEffect(() => () => engine()?.showcasePose("ready"), [])
+  // a photographed face comes with its own skin tone and hair color (both can be changed after)
+  const pickFace = (id) => {
+    const f = faceById(id)
+    if (!f?.body) return { face: id }
+    return { face: id, skin: f.tone, ...(f.hairTone ? { hairColor: f.hairTone } : {}) }
+  }
   const pickWho = (id) => {
     setWho(id)
     setLook(saved(id))
@@ -178,7 +184,8 @@ export const LockerRoom = ({ prefs, setPrefs, engine, onBack, initial }) => {
             <div className="window-body">
               {tab === "body" && (
                 <>
-                  <Pick label="Body" name="body" value={look.body} options={BODIES} onChange={(v) => set({ body: v })} />
+                  <Pick label="Body" name="body" value={look.body} options={BODIES} onChange={(v) => set({ body: v, ...pickFace(facesForBody(v).find((f) => f.body)?.id || "none") })} />
+                  <Pick label="Face" name="face" value={look.face} options={facesForBody(look.body)} onChange={(v) => set(pickFace(v))} />
                   <Swatches label="Skin" name="skin" value={look.skin} colors={SKIN_TONES} names={SKIN_TONES.map((_, i) => `Skin tone ${i + 1}`)} onChange={(c) => set({ skin: c })} />
                   <Pick label="Hair" name="hair" value={look.hair} options={HAIR_STYLES} onChange={(v) => set({ hair: v })} />
                   <Swatches label="Hair color" name="hairColor" value={look.hairColor} colors={HAIR_COLORS} names={HAIR_COLOR_NAMES} onChange={(c) => set({ hairColor: c })} />

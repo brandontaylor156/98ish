@@ -179,3 +179,31 @@ The KTX2 transcoder in `public/assets/pickleball/basis/` is three.js's copy of B
 Universal transcoder (Apache 2.0, https://github.com/BinomialLLC/basis_universal), the same files
 as `three/examples/jsm/libs/basis/`. The builder encodes the High skins with `ktx2-encoder`
 (MIT, npm), a build-time tool only.
+
+## Players v3: photographed faces (2026-10-07)
+
+The athletes' faces and head skin are photographed heads from the **Microsoft Rocketbox Avatar
+Library** (https://github.com/microsoft/Microsoft-Rocketbox), released under the **MIT License**:
+
+> MIT License. Copyright (c) 2020 Microsoft. Permission is hereby granted, free of charge, to any
+> person obtaining a copy of this software and associated documentation files (the "Software"), to
+> deal in the Software without restriction, including without limitation the rights to use, copy,
+> modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit
+> persons to whom the Software is furnished to do so, subject to the following conditions: The above
+> copyright notice and this permission notice shall be included in all copies or substantial
+> portions of the Software. THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+> IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
+> PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+> CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+> FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+Used per face (`tools/build-faces.mjs`, the list in its `FACES`): the avatar's `Export/<Name>.fbx`
+and `<Name>_facial.fbx` (its head mesh, rest-pose bones and facial targets, read for the shape and
+the landmarks), `Textures/<prefix>_head_color.tga`, `_head_normal.tga` and `_head_specular.tga`
+(baked into our UV layout: `pl-face-<id>.jpg`, `-hi.ktx2`, `-n.jpg`, `-eye.jpg`, `-hair.jpg`,
+`.bin`). Avatars: Sports_Male_01, Male_Adult_04, Male_Adult_10, Sports_Female_01,
+Business_Female_01, Male_Adult_05, Male_Adult_12, Male_Adult_03, Male_Adult_07, Male_Adult_09,
+Medical_Female_01, Female_Adult_11, Female_Adult_14, Sports_Female_02, Female_Adult_05. The FBX
+files were converted with FBX2glTF (BSD, the `fbx2gltf` npm package; a build-time tool only).
+The bodies, kits, hair cards, eyeballs' shape, teeth and expressions are still MakeHuman's (CC0,
+above).

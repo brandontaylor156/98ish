@@ -331,7 +331,7 @@ export const thinPlate = (src, dst, lambda = 0) => {
 // mesh: welded { pos, index, count }; move: Float64Array weight per vertex (0 = stays, 1 = free);
 // target: triangleGrid of the source surface (with its pos/index/normals for the facing test);
 // pins: [[vertex, [x, y, z]]] landmarks held where they belong; returns new positions
-export const fitSurface = (mesh, move, target, { pins = [], rounds = 12, maxR = 0.03, smooth = 12, stiff = [8, 1], normalsT = null, maxShift = 0.01 } = {}) => {
+export const fitSurface = (mesh, move, target, { pins = [], rounds = 12, maxR = 0.03, smooth = 12, stiff = [8, 1], normalsT = null, maxShift = 0.01, skip = null } = {}) => {
   const n = mesh.count
   const pos = Float64Array.from(mesh.pos)
   const start = mesh.pos
@@ -352,6 +352,8 @@ export const fitSurface = (mesh, move, target, { pins = [], rounds = 12, maxR = 
       }
       const p = P(pos, i)
       const ni = P(nrm, i)
+      // (skipped vertices — the mouth's inside, the lips' seam — just ride along with their neighbors)
+      if (skip?.[i]) continue
       const hit = target.query(p, maxR, normalsT ? (t) => dot(normalsT(t), ni) > 0.2 : null)
       if (!hit) continue
       const dd = sub(hit.p, p)
@@ -547,7 +549,7 @@ export const faceLandmarks = ({ pos, eyeL, eyeR, smile, jaw }) => {
   const vtx = { mouthL: cl, mouthR: cr, lipUp: up, lipLo: lo, nose, chin, under, browL: brow(eyeL[0]), browR: brow(eyeR[0]), browM: brow(0) }
   const pts = { eyeL, eyeR }
   for (const [k, i] of Object.entries(vtx)) if (i >= 0) pts[k] = P(pos, i)
-  return { pts, vtx, mid, ipd }
+  return { pts, vtx, mid, ipd, seam }
 }
 
 // ---- landmarks on the source head: its face rig's bones, pulled onto its skin ----
@@ -596,6 +598,46 @@ export const faceWeight = (p, mid) => {
 export const photoWeight = (p, mid) => {
   const y = p[1] - mid[1]
   return smoothstep(-0.27, -0.2, y)
+}
+
+// ---- grow an image's covered texels outward (mask 1 = covered), `passes` texels, in place ----
+// (only the frontier is visited each pass: fast on 2048 maps)
+export const grow = (img, mask, size, ch, passes = 4) => {
+  const N = size * size
+  let front = []
+  for (let i = 0; i < N; i++) {
+    if (mask[i]) continue
+    const x = i % size
+    const y = (i - x) / size
+    if ((x > 0 && mask[i - 1]) || (x < size - 1 && mask[i + 1]) || (y > 0 && mask[i - size]) || (y < size - 1 && mask[i + size])) front.push(i)
+  }
+  const sum = new Float64Array(ch)
+  for (let p = 0; p < passes && front.length; p++) {
+    const vals = new Uint8Array(front.length * ch)
+    for (let f = 0; f < front.length; f++) {
+      const i = front[f]
+      const x = i % size
+      sum.fill(0)
+      let n = 0
+      for (const j of [x > 0 ? i - 1 : -1, x < size - 1 ? i + 1 : -1, i - size, i + size]) {
+        if (j < 0 || j >= N || !mask[j]) continue
+        for (let c = 0; c < ch; c++) sum[c] += img[j * ch + c]
+        n++
+      }
+      for (let c = 0; c < ch; c++) vals[f * ch + c] = Math.round(sum[c] / (n || 1))
+    }
+    const next = new Set()
+    for (let f = 0; f < front.length; f++) {
+      const i = front[f]
+      for (let c = 0; c < ch; c++) img[i * ch + c] = vals[f * ch + c]
+      mask[i] = 1
+    }
+    for (const i of front) {
+      const x = i % size
+      for (const j of [x > 0 ? i - 1 : -1, x < size - 1 ? i + 1 : -1, i - size, i + size]) if (j >= 0 && j < N && !mask[j]) next.add(j)
+    }
+    front = [...next]
+  }
 }
 
 // ---- color helpers (sRGB bytes <-> linear) ----

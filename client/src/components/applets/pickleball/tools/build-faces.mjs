@@ -26,7 +26,7 @@ import { createRequire } from "module"
 import { pathToFileURL } from "url"
 import fs from "fs"
 import path from "path"
-import { add, adjacency, classifyTargets, colorStats, dot, faceLandmarks, faceWeight, fitSphere, fitSurface, len, mul, norm, normalsOf, ourLandmarks, photoWeight, sampleImage, similarity, sourceLandmarks, sub, thinPlate, toLin, toSrgb, triangleGrid, weld, weldedMesh } from "./players/faces.mjs"
+import { add, adjacency, classifyTargets, colorStats, dot, faceLandmarks, faceWeight, grow, fitSphere, fitSurface, len, mul, norm, normalsOf, ourLandmarks, photoWeight, sampleImage, similarity, sourceLandmarks, sub, thinPlate, toLin, toSrgb, triangleGrid, weld, weldedMesh } from "./players/faces.mjs"
 import { rasterUV, dilate, triTangents } from "./mh-core.mjs"
 
 const req = createRequire(path.join(process.env.TOOLS || ".", "package.json"))
@@ -52,6 +52,20 @@ const ONLY = onlyArg ? new Set(onlyArg.split(",")) : null
 // texture prefix, and a short description for the Locker Room
 export const FACES = [
   { id: "m01", body: "m", src: "Sports_Male_01", prefix: "m021" },
+  { id: "m02", body: "m", src: "Male_Adult_04", prefix: "m006" },
+  { id: "m03", body: "m", src: "Male_Adult_10", prefix: "m024" },
+  { id: "f01", body: "f", src: "Sports_Female_01", prefix: "f021" },
+  { id: "f02", body: "f", src: "Business_Female_01", prefix: "f014" },
+  { id: "m04", body: "m", src: "Male_Adult_05", prefix: "m009" },
+  { id: "m05", body: "m", src: "Male_Adult_12", prefix: "m007" },
+  { id: "m06", body: "m", src: "Male_Adult_03", prefix: "m004" },
+  { id: "m07", body: "m", src: "Male_Adult_07", prefix: "m013" },
+  { id: "m08", body: "m", src: "Male_Adult_09", prefix: "m017" },
+  { id: "f03", body: "f", src: "Medical_Female_01", prefix: "f152" },
+  { id: "f04", body: "f", src: "Female_Adult_11", prefix: "f011" },
+  { id: "f05", body: "f", src: "Female_Adult_14", prefix: "f017" },
+  { id: "f06", body: "f", src: "Sports_Female_02", prefix: "f013" },
+  { id: "f07", body: "f", src: "Female_Adult_05", prefix: "f005" },
 ]
 
 // ---- reading ----
@@ -195,6 +209,25 @@ const sourceHead = async (face) => {
   const nt = head.index.length / 3
   const skinTris = []
   const eyeTris = []
+  // (UV islands: the triangles joined through shared vertices; a vertex is split at a seam)
+  const parent = Int32Array.from({ length: head.pos.length / 3 }, (_, i) => i)
+  const find = (a) => {
+    while (parent[a] !== a) a = parent[a] = parent[parent[a]]
+    return a
+  }
+  for (let t = 0; t < nt; t++) {
+    const a = find(head.index[t * 3])
+    parent[find(head.index[t * 3 + 1])] = a
+    parent[find(head.index[t * 3 + 2])] = a
+  }
+  const island = new Map() // root -> { tris, v }
+  for (let t = 0; t < nt; t++) {
+    const r = find(head.index[t * 3])
+    if (!island.has(r)) island.set(r, { tris: [], v: 0 })
+    const I = island.get(r)
+    I.tris.push(t)
+    for (let k = 0; k < 3; k++) I.v += head.uv[head.index[t * 3 + k] * 2 + 1] / 3
+  }
   for (let t = 0; t < nt; t++) {
     let u = 0
     let v = 0
@@ -202,9 +235,12 @@ const sourceHead = async (face) => {
       u += head.uv[head.index[t * 3 + k] * 2] / 3
       v += head.uv[head.index[t * 3 + k] * 2 + 1] / 3
     }
+    const I = island.get(find(head.index[t * 3]))
+    // the head's skin: islands centered in the upper part of the atlas (the face, the scalp, the
+    // neck); below them, the eyeballs, teeth, tongue and any modeled hair (a bun, a ponytail)
     if (u < 0.36 && v > 0.6) {
       if (u > 0.19 && v > 0.84) eyeTris.push(t)
-    } else skinTris.push(t)
+    } else if (I.v / I.tris.length < 0.6 && I.tris.length > 20) skinTris.push(t)
   }
   const color = TGA(path.join(dir, `${face.prefix}_head_color.tga`))
   const nfile = path.join(dir, `${face.prefix}_head_normal.tga`)
@@ -219,7 +255,7 @@ const sourceHead = async (face) => {
     if (!img) continue
     const mask = new Uint8Array(img.width * img.height)
     rasterUV(img.width, tris, head.uv, (ti, b0, b1, b2, x, y) => (mask[y * img.width + x] = 1))
-    dilate(img.data, mask, img.width, 3, 6)
+    grow(img.data, mask, img.width, 3, 6)
   }
   return { head, bones, skinTris, eyeTris, color, normal, spec }
 }
@@ -326,7 +362,17 @@ for (const face of FACES) {
   const pins = Object.entries(ourLm.vtx)
     .filter(([k, v]) => v >= 0 && srcLm.pts[k])
     .map(([k, v]) => [W.canon[v], srcLm.pts[k]])
-  const fitted = fitSurface({ pos: start, index: W.index, count: W.count }, move, surf, { pins, rounds: 14, maxR: 0.025, smooth: 10, stiff: [6, 1.5], normalsT: (t) => tn[t] })
+  // (the mouth's inside and the lips' seam aren't pulled onto the photo's surface: they ride
+  // along with the lips, so the mouth stays closed as it was)
+  const cornerX0 = Math.abs(hi.body.pos[ourLm.vtx.mouthL * 3])
+  const lipFront0 = Math.min(hi.body.pos[ourLm.vtx.lipUp * 3 + 2], hi.body.pos[ourLm.vtx.lipLo * 3 + 2])
+  const skip = new Uint8Array(W.count)
+  for (let i = 0; i < W.count; i++) {
+    const q = [W.pos[i * 3], W.pos[i * 3 + 1], W.pos[i * 3 + 2]]
+    const dy = Math.abs(q[1] - ourLm.seam)
+    if (Math.abs(q[0]) < cornerX0 * 1.05 && ((dy < 0.0045 && q[2] < lipFront0 - 0.001) || (dy < 0.013 && q[2] < lipFront0 - 0.0035))) skip[i] = 1
+  }
+  const fitted = fitSurface({ pos: start, index: W.index, count: W.count }, move, surf, { pins, rounds: 14, maxR: 0.025, smooth: 10, stiff: [6, 1.5], normalsT: (t) => tn[t], skip })
   // the moved vertices, per original vertex of the hi body
   const nrmW = normalsOf(fitted, W.index, W.count)
   const nV = hi.body.pos.length / 3
@@ -516,6 +562,15 @@ for (const face of FACES) {
   const out = Buffer.alloc(N * N * 3)
   for (let i = 0; i < N * N; i++) for (let k = 0; k < 3; k++) out[i * 3 + k] = toSrgb(toLin(best.img.data[i * 3 + k]) * gain[k])
   const det = Buffer.alloc(N * N * 3)
+  // the hair painted on the photo's scalp (R) and face (G): where it differs from the skin in
+  // lightness or hue, inside the regions hair grows; the game recolors it to the look's hair
+  // color, or (bald, shaved) covers it with skin
+  const hairM = new Uint8Array(N * N * 3)
+  const skinLum = 0.2126 * photoMean[0] + 0.7152 * photoMean[1] + 0.0722 * photoMean[2]
+  const skinChroma = photoMean.map((x) => x / skinLum)
+  const hairSum = [0, 0, 0, 0]
+  let beardArea = 0
+  let faceArea = 0
   for (let i = 0; i < N * N; i++) (det[i * 3] = 128), (det[i * 3 + 1] = 128), (det[i * 3 + 2] = 70)
   const tris = []
   for (let t = 0; t < hi.body.index.length; t += 3) tris.push([hi.body.index[t], hi.body.index[t + 1], hi.body.index[t + 2]])
@@ -539,16 +594,48 @@ for (const face of FACES) {
     return { N: Nn, T, B }
   }
   const ourMid = ourLm.mid
+  // inside the mouth (behind the lips' front, between the corners): keeps our own texture (the
+  // photo has no mouth inside; its closest points there would be teeth or lip edges)
+  const cornerX = Math.abs(hi.body.pos[ourLm.vtx.mouthL * 3])
+  const lipFront = Math.min(hi.body.pos[ourLm.vtx.lipUp * 3 + 2], hi.body.pos[ourLm.vtx.lipLo * 3 + 2])
+  const inMouth = new Uint8Array(nV)
+  for (let i = 0; i < nV; i++) {
+    const q = [hi.body.pos[i * 3], hi.body.pos[i * 3 + 1], hi.body.pos[i * 3 + 2]]
+    inMouth[i] = Math.abs(q[0]) < cornerX * 0.92 && Math.abs(q[1] - ourLm.seam) < 0.013 && q[2] < lipFront - 0.0035 ? 1 : 0
+  }
   let baked = 0
   rasterUV(N, tris, uvN, (ti, b0, b1, b2, x, y) => {
     const [a, b, c] = tris[ti]
+    if (inMouth[a] && inMouth[b] && inMouth[c]) return
     const p = [0, 1, 2].map((k) => newPos[a * 3 + k] * b0 + newPos[b * 3 + k] * b1 + newPos[c * 3 + k] * b2)
     const w = photoWeight(p, ourMid)
     if (w <= 0) return
+    // (the photo's relief is kept on the face, a third of it on the scalp: there it's the
+    // painted hair's, and its islands' edges show as lines)
+    const wd = w * (1 - 0.65 * Math.max(0, Math.min(1, (p[1] - ourMid[1] - 0.05) / 0.03)))
     const s = sampleSrc(p)
     if (!s) return
     const o = (y * N + x) * 3
     for (let k = 0; k < 3; k++) out[o + k] = toSrgb(toLin(s.rgb[k]) * w + toLin(out[o + k]) * (1 - w))
+    {
+      const c = s.rgb.map(toLin)
+      const l = 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2] + 1e-5
+      const dl = Math.abs(Math.log(l / skinLum))
+      const dc = Math.hypot(c[0] / l - skinChroma[0], c[1] / l - skinChroma[1], c[2] / l - skinChroma[2])
+      const hairness = Math.max(Math.min(1, Math.max(0, (dl - 0.3) / 0.4)), Math.min(1, Math.max(0, (dc - 0.12) / 0.18)))
+      const y = p[1] - ourMid[1]
+      const z = p[2] - ourMid[2]
+      // (the scalp: above the forehead, or behind the face above the ears' bottoms)
+      const scalp = Math.max(Math.min(1, Math.max(0, (y - 0.045) / 0.02)), z < -0.065 && y > -0.04 ? 1 : 0)
+      // (a beard: below the nose, in front, above the neck's middle)
+      const face = y < -0.035 && y > -0.17 && z > -0.075 ? 1 : 0
+      const r = hairness * scalp * w
+      const g = hairness * face * (1 - scalp) * w
+      hairM[o] = Math.round(255 * r)
+      hairM[o + 1] = Math.round(255 * g)
+      if (r > 0.6) for (let k = 0; k < 3; k++) (hairSum[k] += c[k]), k === 2 && hairSum[3]++
+      if (face) (faceArea++, (beardArea += g))
+    }
     // the photo's normal: its tangent-space value -> the source's object space -> our tangent space
     const tbS = srcTB[s.h.t]
     const tbO = ourTB[ti]
@@ -562,14 +649,22 @@ for (const face of FACES) {
       const nObj = norm(add(add(mul(fS.T, tn[0]), mul(fS.B, g)), mul(fS.N, tn[2])))
       const nO = [0, 1, 2].map((k) => newNrm[a * 3 + k] * b0 + newNrm[b * 3 + k] * b1 + newNrm[c * 3 + k] * b2)
       const fO = frame(nO, tbO)
-      det[o] = Math.round(Math.max(0, Math.min(255, 128 + 127 * dot(nObj, fO.T) * w)))
+      det[o] = Math.round(Math.max(0, Math.min(255, 128 + 127 * dot(nObj, fO.T) * wd)))
       // (glTF convention: green is +Y "up", against v)
-      det[o + 1] = Math.round(Math.max(0, Math.min(255, 128 - 127 * dot(nObj, fO.B) * w)))
+      det[o + 1] = Math.round(Math.max(0, Math.min(255, 128 - 127 * dot(nObj, fO.B) * wd)))
     }
     if (src.spec) det[o + 2] = Math.round(sampleImage(src.spec, s.u, s.v)[0] * w + 70 * (1 - w))
     baked++
   })
   console.log(face.id, "baked texels", baked)
+  // (every island grown a few texels past its edge: filtering at a UV seam never reaches the
+  // background, a skin-colored line across the scalp or under the chin)
+  {
+    const covered = new Uint8Array(N * N)
+    rasterUV(N, tris, uvN, (ti, b0, b1, b2, x, y) => (covered[y * N + x] = 1))
+    grow(out, Uint8Array.from(covered), N, 3, 8)
+    grow(det, covered, N, 3, 8)
+  }
 
   // ---- the eye: the photo's iris on our eyeball (by direction from each eye's center) ----
   const eyeImg = await (async () => {
@@ -623,7 +718,7 @@ for (const face of FACES) {
       for (let k = 0; k < 3; k++) img[(y * tex + x) * 3 + k] = Math.round(rgb[k])
       mask[y * tex + x] = 1
     })
-    dilate(img, mask, tex, 3, 8)
+    grow(img, mask, tex, 3, 8)
     console.log(face.id, "eye sphere r", (sph.radius * 1000).toFixed(1), "mm, map", A.flat().map((x) => x.toFixed(3)).join(","), "texels", mask.reduce((a, b) => a + b, 0))
     return { img, tex }
   })()
@@ -643,6 +738,10 @@ for (const face of FACES) {
   write(`${name}.jpg`, await raw(out).resize(1024, 1024).jpeg({ quality: 88, mozjpeg: true }).toBuffer())
   write(`${name}-n.jpg`, await raw(det).resize(1024, 1024).jpeg({ quality: 92, mozjpeg: true }).toBuffer())
   write(`${name}-eye.jpg`, await raw(eyeImg.img, eyeImg.tex).jpeg({ quality: 90 }).toBuffer())
+  // (the hair mask, soft: 512 is plenty for where hair is)
+  write(`${name}-hair.jpg`, await raw(Buffer.from(hairM)).resize(512, 512).blur(1.2).jpeg({ quality: 88 }).toBuffer())
+  const hairTone = hairSum[3] ? "#" + [0, 1, 2].map((k) => toSrgb(hairSum[k] / hairSum[3]).toString(16).padStart(2, "0")).join("") : null
+  console.log(face.id, "hair tone", hairTone, "beard", (beardArea / (faceArea || 1)).toFixed(2))
   if (process.env.FACE_KTX !== "0") {
     const png = await raw(out).png().toBuffer()
     const ktx = await encodeToKTX2(new Uint8Array(png), {
@@ -660,9 +759,20 @@ for (const face of FACES) {
   }
   files[`${name}.bin`] = fs.statSync(path.join(outDir, `${name}.bin`)).size
   console.log(face.id, "done in", ((Date.now() - t0) / 1000).toFixed(1), "s", JSON.stringify(files))
-  manifest.faces[face.id] = { body: face.body, src: face.src, tone: "#" + photoMean.map((x) => toSrgb(x).toString(16).padStart(2, "0")).join(""), family: best.fam, med: `${name}.jpg`, hi: files[`${name}-hi.ktx2`] ? `${name}-hi.ktx2` : null, detail: `${name}-n.jpg`, eye: `${name}-eye.jpg`, shape: `${name}.bin`, files }
+  manifest.faces[face.id] = { body: face.body, src: face.src, tone: "#" + photoMean.map((x) => toSrgb(x).toString(16).padStart(2, "0")).join(""), family: best.fam, med: `${name}.jpg`, hi: files[`${name}-hi.ktx2`] ? `${name}-hi.ktx2` : null, detail: `${name}-n.jpg`, eye: `${name}-eye.jpg`, hair: `${name}-hair.jpg`, hairTone, beard: +(beardArea / (faceArea || 1)).toFixed(3), shape: `${name}.bin`, files }
 }
 fs.writeFileSync(path.join(outDir, "faces.json"), JSON.stringify(manifest, null, 1))
+// the Locker Room's list (the app's own code, beside this folder): ids, bodies, natural tones
+{
+  const order = FACES.map((f) => f.id).filter((id) => manifest.faces[id])
+  const list = order.map((id) => {
+    const f = manifest.faces[id]
+    return `  { id: ${JSON.stringify(id)}, body: ${JSON.stringify(f.body)}, tone: ${JSON.stringify(f.tone)}, hairTone: ${JSON.stringify(f.hairTone || null)}, beard: ${f.beard || 0} },`
+  })
+  const file = path.join(path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1")), "..", "faceList.js")
+  fs.writeFileSync(file, `// Players v3: the photographed faces (written by tools/build-faces.mjs from faces.json; don't edit\n// by hand). tone: the photo's skin, hairTone: its painted hair, beard: how much of the lower face\n// is facial hair (0-1). Sources and license: CREDITS.md (Microsoft Rocketbox, MIT).\nexport const FACE_LIST = [\n${list.join("\n")}\n]\n`)
+  console.log("faceList.js:", order.length, "faces")
+}
 
 function require3cross(a, b) {
   return [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]]

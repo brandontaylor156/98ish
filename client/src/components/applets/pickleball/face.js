@@ -45,7 +45,7 @@ export const stepSweat = (sweat, act = {}, dt = 0) => {
 // simple figures). Pores are a fine normal detail only High's close-ups show; the hair's
 // highlight, the eyelid shadow, the wet eyes, gear sheen and sweat are cheap enough for both.
 export const faceDetail = (detail = "medium") => ({
-  pores: detail === "high",
+  pores: detail === "high" || detail === "ultra",
   hairSpec: true,
   eyelid: true,
   wetEyes: true,

@@ -47,6 +47,7 @@ import { aimDelta, additiveMove, bendAxis, decodeMoves, frameOf, LAYERS, layerTa
 import { kitPiecesFor, PIECE_PART } from "./kitmap.js"
 import { BUILD_SCALE, buildGarment, buildSkirt, landmarks, prepareBody, radiusProfile, reshapeBody, visibleIndex } from "./outfit.js"
 import { loadMotion } from "./mm/runtime.js"
+import { parseFaceShape } from "./faceshape.js"
 import { hash01 } from "./between.js"
 import { ARM_PROBE, FINGER_NAMES, RELAXED_ELBOW, TWIST, armMetrics, armReference, armRig, clavicleFor, fingerPose, gripFrame, solveArm, solvePaddleArm, splitTwistWeights, stepFingers, twistOf } from "./arms.js"
 
@@ -735,7 +736,7 @@ const skinMaterial = (maps, hex, { pores = false, sweat = null, photo = null } =
   const m = new THREE.MeshStandardMaterial({ map: photo?.map || maps.skin, normalMap: maps.normal, roughness: 0.55, metalness: 0 })
   if (maps.normal && maps.normalScale) m.normalScale.copy(maps.normalScale)
   m.defines = { PK_WRAP: "vec3(0.5, 0.3, 0.24)" }
-  const uniforms = { skinTone: { value: srgb(hex).multiplyScalar(maps.gain) }, refHue: { value: new THREE.Vector3(ref.r / lum, ref.g / lum, ref.b / lum) }, refLum: { value: lum }, hueMix: { value: maps.hueMix }, skinWarm: { value: skinWarmth(hex) }, pkSweat: sweat || { value: 0 }, pkTint: { value: new THREE.Vector3(1, 1, 1) }, pkFaceDetail: { value: photo?.detail || null } }
+  const uniforms = { skinTone: { value: srgb(hex).multiplyScalar(maps.gain) }, refHue: { value: new THREE.Vector3(ref.r / lum, ref.g / lum, ref.b / lum) }, refLum: { value: lum }, hueMix: { value: maps.hueMix }, skinWarm: { value: skinWarmth(hex) }, pkSweat: sweat || { value: 0 }, pkTint: { value: new THREE.Vector3(1, 1, 1) }, pkFaceDetail: { value: photo?.detail || null }, pkHairMask: { value: photo?.hair || null }, pkHairTone: { value: new THREE.Vector3(1, 1, 1) }, pkHairTarget: { value: new THREE.Vector3(1, 1, 1) }, pkBald: { value: 0 }, pkShave: { value: 0 }, pkSkinFill: { value: new THREE.Vector3(1, 1, 1) } }
   if (pores) m.defines.PK_PORES = ""
   // players v3: a photo face's own atlas, drawn as photographed (no recoloring), only tinted
   // gently toward the look's skin tone if that differs from the photo's; its detail map: the
@@ -752,13 +753,25 @@ const skinMaterial = (maps, hex, { pores = false, sweat = null, photo = null } =
     uniforms.pkTint.value.set(k * (0.5 + (0.5 * (s.r / ls)) / (t.r / lt)), k * (0.5 + (0.5 * (s.g / ls)) / (t.g / lt)), k * (0.5 + (0.5 * (s.b / ls)) / (t.b / lt)))
     uniforms.refHue.value.set(t.r / lt, t.g / lt, t.b / lt)
     if (photo.detail) m.defines.PK_FACE_DETAIL = ""
+    // the photo's painted hair: recolored to the look's hair color (its own shading kept), or
+    // under skin for a bald head; facial hair shaved off when the look has no beard
+    if (photo.hair && photo.hairTone) {
+      m.defines.PK_HAIRMASK = ""
+      const ht = srgb(photo.hairTone)
+      uniforms.pkHairTone.value.set(ht.r, ht.g, ht.b)
+      const want = srgb(photo.hairColor || photo.hairTone)
+      uniforms.pkHairTarget.value.set(want.r, want.g, want.b)
+      uniforms.pkBald.value = photo.bald ? 1 : 0
+      uniforms.pkShave.value = photo.shave ? 1 : 0
+      uniforms.pkSkinFill.value.set(t.r, t.g, t.b)
+    }
   }
   m.onBeforeCompile = (sh) => {
     Object.assign(sh.uniforms, uniforms)
     athleteLight(sh, { rim: 0.22 })
     if (pores) sh.vertexShader = sh.vertexShader.replace("#include <common>", KNIT_VERT[0]).replace("#include <begin_vertex>", KNIT_VERT[1])
     sh.fragmentShader = sh.fragmentShader
-      .replace("#include <common>", "#include <common>\nuniform vec3 skinTone;\nuniform vec3 refHue;\nuniform float refLum;\nuniform float hueMix;\nuniform vec3 skinWarm;\nuniform float pkSweat;\nuniform vec3 pkTint;\nuniform sampler2D pkFaceDetail;" + (pores ? "\nvarying vec3 vPkRest;" + NOISE_GLSL : ""))
+      .replace("#include <common>", "#include <common>\nuniform vec3 skinTone;\nuniform vec3 refHue;\nuniform float refLum;\nuniform float hueMix;\nuniform vec3 skinWarm;\nuniform float pkSweat;\nuniform vec3 pkTint;\nuniform sampler2D pkFaceDetail;\nuniform sampler2D pkHairMask;\nuniform vec3 pkHairTone;\nuniform vec3 pkHairTarget;\nuniform float pkBald;\nuniform float pkShave;\nuniform vec3 pkSkinFill;" + (pores ? "\nvarying vec3 vPkRest;" + NOISE_GLSL : ""))
       .replace(
         "#include <map_fragment>",
         `#include <map_fragment>
@@ -769,6 +782,20 @@ const skinMaterial = (maps, hex, { pores = false, sweat = null, photo = null } =
         // the lips: where the texture is redder than the skin around it
         pkLipK = smoothstep(0.05, 0.16, hue.r / refHue.r - hue.g / refHue.g);
         #ifdef PK_PHOTO
+        #ifdef PK_HAIRMASK
+        {
+          vec2 hm = texture2D( pkHairMask, vMapUv ).rg;
+          float hl = dot( diffuseColor.rgb, vec3( 0.2126, 0.7152, 0.0722 ) );
+          float tl = dot( pkHairTone, vec3( 0.2126, 0.7152, 0.0722 ) );
+          // (the strands' own light and dark, in the new color)
+          vec3 recol = pkHairTarget * clamp( hl / max( tl, 1e-4 ), 0.2, 3.0 ) / max( pkTint, vec3( 0.05 ) );
+          float hAny = max( hm.r, hm.g );
+          diffuseColor.rgb = mix( diffuseColor.rgb, recol, smoothstep( 0.15, 0.7, hAny ) );
+          // (bald / shaved: skin where the hair was; a little darker where it was thick, as on a scalp)
+          float cover = max( pkBald * smoothstep( 0.1, 0.6, hm.r ), pkShave * smoothstep( 0.1, 0.6, hm.g ) * 0.92 );
+          diffuseColor.rgb = mix( diffuseColor.rgb, pkSkinFill * ( 0.92 + 0.08 * hl / max( tl, 1e-4 ) ), cover );
+        }
+        #endif
         diffuseColor.rgb *= pkTint;
         #else
         diffuseColor.rgb = skinTone * (l / refLum) * mix(vec3(1.0), hue / refHue, hueMix);
@@ -800,7 +827,7 @@ const skinMaterial = (maps, hex, { pores = false, sweat = null, photo = null } =
       )
     if (pores) sh.fragmentShader = sh.fragmentShader.replace("#include <normal_fragment_maps>", "#include <normal_fragment_maps>" + PORE_FRAG)
   }
-  m.customProgramCacheKey = () => "pk-skin" + (pores ? "-pores" : "") + (photo ? (photo.detail ? "-photo-d" : "-photo") : "")
+  m.customProgramCacheKey = () => "pk-skin" + (pores ? "-pores" : "") + (photo ? (photo.detail ? "-photo-d" : "-photo") + (photo.hair && photo.hairTone ? "-h" : "") : "")
   // (players v3: the face's High atlas swapped in when it arrives)
   m.userData.setPhoto = (t) => {
     if (!photo || !t?.map) return
@@ -906,14 +933,6 @@ export const faceOf = (look) => {
 }
 const faceShapes = new Map() // id -> Promise
 const faceShapeNow = new Map() // id -> the parsed shape (once in)
-export const parseFaceShape = (buf) => {
-  const hl = new DataView(buf).getUint32(0, true)
-  const h = JSON.parse(new TextDecoder().decode(new Uint8Array(buf, 4, hl)))
-  const base = 4 + hl
-  const lods = {}
-  for (const [k, L] of Object.entries(h.lods)) lods[k] = { count: L.count, brows: L.brows, idx: new Uint16Array(buf, base + L.idx, L.count), pos: new Int16Array(buf, base + L.pos, L.count * 3), nrm: new Int8Array(buf, base + L.nrm, L.count * 3), lash: new Int16Array(buf, base + L.lash, L.brows * 3), teeth: L.teeth || 0, tooth: L.tooth !== undefined ? new Int16Array(buf, base + L.tooth, (L.teeth || 0) * 3) : null }
-  return { unit: h.unit, eyes: h.eyes, teeth: h.teeth, lods }
-}
 const loadFaceShape = (id) => {
   if (!faceShapes.has(id))
     faceShapes.set(
@@ -957,8 +976,8 @@ const faceTexture = (id, lod) => {
             map = null
           }
         }
-        const [med, detail, eye] = await Promise.all([map ? null : jpeg(f.med).catch(() => null), f.detail ? jpeg(f.detail, false).catch(() => null) : null, f.eye ? jpeg(f.eye).catch(() => null) : null])
-        const t = map || med ? { map: map || med, detail, eye, tone: f.tone } : null
+        const [med, detail, eye, hair] = await Promise.all([map ? null : jpeg(f.med).catch(() => null), f.detail ? jpeg(f.detail, false).catch(() => null) : null, f.eye ? jpeg(f.eye).catch(() => null) : null, f.hair ? jpeg(f.hair, false).catch(() => null) : null])
+        const t = map || med ? { map: map || med, detail, eye, hair, tone: f.tone } : null
         if (t) faceTexNow.set(key, t)
         return t
       })
@@ -1601,6 +1620,8 @@ const HAIR_MH = {
   long: { m: "Hair_Long", f: "Hair_Long" },
 }
 // styles that hang out of the back of a hat (cropped at the crown); the rest become a buzz cut
+// players v3: with a photo face these styles are the photo's own hair (cards would only cover it)
+const PHOTO_OWN_HAIR = ["short", "buzz", "pixie", "spiky", "bald"]
 const UNDER_HAT_MH = ["Hair_Long", "Hair_Ponytail", "Hair_Braid", "Hair_Bun"]
 export const bodyOf = (look) => (look.body === "f" ? "f" : "m")
 // Under a cap or a bucket hat only close-cropped hair stays inside it (the other styles'
@@ -1674,7 +1695,9 @@ const hairSwayWeights = (tpl, src, geo) => {
 const DRIVEN_SPINE = ["spine_01", "spine_02", "spine_03"]
 const buildAthlete = (look = {}, { shadows = false, withPaddle = true } = {}, detail = "medium") => {
   const kind = bodyOf(look)
-  const tpl = (detail === "high" && assets.hi?.[kind]) || assets[kind]
+  const tpl = (isHi(detail) && assets.hi?.[kind]) || assets[kind]
+  // (players v3: Ultra lights the skin and the kit with the venue's sky as well)
+  const ultra = detail === "ultra"
   const root = new THREE.Group()
   const holder = cloneSkinned(tpl.scene)
   // taller or shorter (a few percent: the legs still reach the court through the IK)
@@ -1704,7 +1727,11 @@ const buildAthlete = (look = {}, { shadows = false, withPaddle = true } = {}, de
   const faceInfo = tpl.set === "mh" && faceShapeNow.has(look.face) ? faceOf(look) : null
   const faceT = faceInfo && (faceTexNow.get(`${faceInfo.id}|${lodKey}`) || faceTexNow.get(`${faceInfo.id}|med`))
   const face = faceT?.map ? faceInfo : null
-  body.material = skinMaterial(tpl.maps, skinHex, { pores: fd.pores, sweat: sweatU, photo: face ? { tone: face.tone, map: faceT.map, detail: faceT.detail } : null })
+  // (the photo's own hair: recolored to the look's; under skin when bald; facial hair shaved
+  // when the look has no beard)
+  const photoHair = face ? { hair: faceT.hair, hairTone: face.hairTone, hairColor: look.hairColor, bald: look.hair === "bald", shave: look.beard === false && (face.beard || 0) > 0.12 } : null
+  body.material = skinMaterial(tpl.maps, skinHex, { pores: fd.pores, sweat: sweatU, photo: face ? { tone: face.tone, map: faceT.map, detail: faceT.detail, ...photoHair } : null })
+  if (ultra) gearEnv(body.material, 0.3)
   if (face && !faceTexNow.get(`${face.id}|${lodKey}`)) faceTexture(face.id, lodKey).then((t) => body.material?.userData?.setPhoto?.(t))
   // (the MakeHuman brows and lashes are cut out of their texture's alpha)
   const cutout = tpl.set === "mh"
@@ -1730,6 +1757,7 @@ const buildAthlete = (look = {}, { shadows = false, withPaddle = true } = {}, de
   let kitMesh = null
   if (worn.pieces.length) {
     kitMesh = new THREE.SkinnedMesh(kitGeometry(tpl, worn.pieces, variant), kitMaterial(tpl.kit, look))
+    if (ultra) gearEnv(kitMesh.material, 0.25)
     kitMesh.name = "Kit"
     kitMesh.bind(skeleton, body.bindMatrix)
     body.parent.add(kitMesh)
@@ -1753,7 +1781,7 @@ const buildAthlete = (look = {}, { shadows = false, withPaddle = true } = {}, de
   for (const [name, mat] of [
     ["Eyes", fparts?.eyeMat || tpl.maps.eyes],
     ["Brows", browMat],
-    ...(meshes.Teeth && tpl.onHead.Teeth ? [["Teeth", tpl.maps.teeth]] : []),
+    ...(meshes.Teeth && tpl.onHead.Teeth && !(typeof window !== "undefined" && window.__pbNoTeeth) ? [["Teeth", tpl.maps.teeth]] : []),
   ]) {
     meshes[name].removeFromParent()
     const geo = (fparts && { Eyes: fparts.eyes, Brows: fparts.brows, Teeth: fparts.teeth }[name]) || meshes[name].geometry
@@ -1763,7 +1791,8 @@ const buildAthlete = (look = {}, { shadows = false, withPaddle = true } = {}, de
     head.add(m)
     attach.push(m)
   }
-  const hairName = hairFor(look, kind)
+  // (a photo face's short styles are its own photographed hair: no cards over it)
+  const hairName = face && PHOTO_OWN_HAIR.includes(look.hair) ? null : hairFor(look, kind)
   const hatted = HATS.includes(look.hat)
   let hairSway = null // (the uniforms of a hairstyle that swings: a ponytail, a braid, long hair)
   let hairMeshW = null
@@ -1791,10 +1820,11 @@ const buildAthlete = (look = {}, { shadows = false, withPaddle = true } = {}, de
   }
   const hairSrc = hairMesh(hairName, kind)
   // (the cap under any hairstyle but the buzz cut itself; not under a hat)
-  const capSrc = hairSrc && tpl.set === "mh" && !hatted && hairName !== "Hair_Buzz" ? hairMesh("Hair_Buzz", kind) : null
+  const capSrc = hairSrc && tpl.set === "mh" && !hatted && hairName !== "Hair_Buzz" && !face ? hairMesh("Hair_Buzz", kind) : null
   if (capSrc) wearHair(capSrc, false, { cap: true })
   if (hairSrc) wearHair(hairSrc, hatted)
-  const beard = look.beard ? hairMesh("Hair_Beard", kind) : null
+  // (a photo face with its own beard keeps it, recolored; the cards only where it has none)
+  const beard = look.beard && !(face && (face.beard || 0) > 0.12) ? hairMesh("Hair_Beard", kind) : null
   if (beard) wearHair(beard)
 
   // the paddle in the playing hand
@@ -2361,12 +2391,13 @@ const faceReady = (look, lod) => {
     return Promise.all([loadFaceShape(look.face), faceTexture(look.face, "med"), lod === "hi" ? faceTexture(look.face, "hi") : null]).then(([s, t]) => !!(s && t))
   })
 }
+const isHi = (d) => d === "high" || d === "ultra"
 export const createAthlete = (look = {}, opts = {}) => {
-  const detail = opts.detail === "high" && assets.setInfo?.hi ? "high" : "medium"
+  const detail = isHi(opts.detail) && assets.setInfo?.hi ? opts.detail : "medium"
   let inner = buildAthlete(look, opts, detail)
   const wantFace = !!look.face && assets.set === "mh" && (!facesInfo || !!faceOf(look))
   const faceDone = () => !wantFace || inner.face === look.face
-  if ((detail !== "high" || inner.detail === "high") && faceDone()) return inner
+  if ((!isHi(detail) || inner.detail === "high") && faceDone()) return inner
   const group = new THREE.Group()
   group.add(inner.group)
   let disposed = false
@@ -2416,15 +2447,15 @@ export const createAthlete = (look = {}, opts = {}) => {
     group.add(inner.group)
     if (lastPose) inner.apply(lastPose, 1 / 60)
   }
-  if (detail === "high" && inner.detail !== "high") {
+  if (isHi(detail) && inner.detail !== "high") {
     hiWaiters.add(() => {
       if (!assets.hi) return
       upgrade()
     })
     loadHi()
   }
-  if (!faceDone()) faceReady(look, detail === "high" ? "hi" : "med").then((ok) => ok && upgrade())
+  if (!faceDone()) faceReady(look, isHi(detail) ? "hi" : "med").then((ok) => ok && upgrade())
   return fig
 }
 // (tests and the Locker Room: preload a face, so an athlete made after has it at once)
-export const preloadFace = (look, detail = "medium") => faceReady(look, detail === "high" ? "hi" : "med")
+export const preloadFace = (look, detail = "medium") => faceReady(look, isHi(detail) ? "hi" : "med")

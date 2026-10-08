@@ -23,6 +23,7 @@
 // a one-piece, a sports top with swim shorts), the same standard for everyone.
 
 import { CHARACTERS, OUTFITS, SKIN as BASE_SKIN } from "./looks.js"
+import { FACE_LIST } from "./faceList.js"
 
 export const LOOK_VERSION = 3
 
@@ -47,6 +48,13 @@ export const KIT_COLORS = [
   "#ff8c42", "#ff7a1a", "#ef476f", "#e63946", "#d62828", "#8d1b2c",
   "#ff9ec7", "#e05a9a", "#9d4edd", "#5c2a9d", "#c8b88a", "#8a7f5c",
 ]
+// players v3: the photographed faces (faceList.js, written from tools/build-faces.mjs's
+// faces.json), per body; "none" is the classic modeled face. Each has its own skin tone and hair
+// color, which picking it sets (both can be changed after)
+let faceNo = { m: 0, f: 0 }
+export const FACES = [{ id: "none", name: "Classic (modeled)", body: null }, ...FACE_LIST.map((f) => ({ ...f, name: `Face ${++faceNo[f.body]}` }))]
+export const facesForBody = (body) => FACES.filter((f) => !f.body || f.body === body)
+export const faceById = (id) => FACES.find((f) => f.id === id) || null
 export const BODIES = [
   { id: "m", name: "Body A" },
   { id: "f", name: "Body B" },
@@ -196,6 +204,7 @@ export const DEFAULT_LOOK = {
   skin: SKIN_TONES[3],
   hair: "long",
   hairColor: "#2b1b0e",
+  face: FACES.find((f) => f.body === "f")?.id || "none",
   beard: false,
   height: 1,
   build: "regular",
@@ -234,6 +243,7 @@ const ids = (list) => list.map((x) => x.id)
 export const LOOK_IDS = {
   body: ids(BODIES),
   hair: ids(HAIR_STYLES),
+  face: ids(FACES),
   build: ids(BUILDS),
   theme: [...THEME_IDS, "custom"],
   shirtStyle: ids(TOPS),
@@ -263,6 +273,9 @@ export const validateLook = (raw, fallback = DEFAULT_LOOK) => {
   const alias = typeof r.hair === "string" && Object.hasOwn(HAIR_ALIASES, r.hair) ? HAIR_ALIASES[r.hair][out.body] : r.hair
   out.hair = oneOf(alias, HAIR_STYLES, fb.hair)
   out.hairColor = color(r.hairColor, fb.hairColor)
+  // a face is for its own body (a look moved to the other body takes that body's first face)
+  const fc = faceById(oneOf(r.face, FACES, fb.face))
+  out.face = fc && (!fc.body || fc.body === out.body) ? fc.id : facesForBody(out.body).find((f) => f.body)?.id || "none"
   out.beard = typeof r.beard === "boolean" ? r.beard : fb.beard
   const h = Number(r.height)
   out.height = Number.isFinite(h) ? Math.round(Math.max(HEIGHT.min, Math.min(HEIGHT.max, h)) * 100) / 100 : fb.height
