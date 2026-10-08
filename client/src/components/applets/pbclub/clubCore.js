@@ -37,6 +37,7 @@ export const VENUES = [
   { id: "paseo", name: "The Paseo Club", short: "Paseo Club", address: "27650 Dickason Dr, Valencia, CA 91355", lat: 34.4377, lon: -118.562, indoor: false, access: "Members club" },
   { id: "sinaloa", name: "Sinaloa Middle School", short: "Sinaloa MS", address: "601 Royal Ave, Simi Valley, CA 93065", lat: 34.2654, lon: -118.7846, indoor: false, access: "Public courts" },
   { id: "smash", name: "California SMASH", short: "California SMASH", address: "815 N Nash St, El Segundo, CA 90245", lat: 33.92722, lon: -118.38807, indoor: true, access: "Public, reservations" },
+  { id: "bouquet", name: "Bouquet Canyon Park", short: "Bouquet Canyon", address: "28127 Wellston Dr, Santa Clarita, CA 91350", lat: 34.45352, lon: -118.50507, indoor: false, access: "Public courts" },
 ]
 export const venueById = (id) => VENUES.find((v) => v.id === id) || null
 

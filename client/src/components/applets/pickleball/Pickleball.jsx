@@ -7,7 +7,7 @@ import TouchControls, { GLYPHS, fromPx, useTouchControlsMenuItem, useTouchContro
 import PlayOnline, { OnlineResultBar, useOnlineRoom } from "../../shared/online"
 import { unlock } from "../../../utils/achievements"
 import { RulesPrimer } from "./RulesPrimer"
-import { TitleMenu, QuickMenu, PlayersMenu, TourMenu, VersusMenu, SettingsMenu, ControlsMenu, LEVEL_NAMES, TIMING } from "./menus"
+import { TitleMenu, PlayersMenu, TourMenu, VersusMenu, SettingsMenu, ControlsMenu, LEVEL_NAMES, TIMING } from "./menus"
 import { ScoreBug, Banner, HintLine, shotBanner, Meter, ReplayBug, TutorialPanel, OverScreen } from "./hud"
 import { clearBanners, emptyBanners, nextBannerAt, pushBanner, tickBanners } from "./banner.js"
 import { layoutKey, readSwipe, touchControlsFor, touchPrefs } from "./touchplay.js"
@@ -55,6 +55,15 @@ import { memoryKey, pickLine, rememberResult } from "./park/living.js"
 import { AwayCard, ClonePanel } from "./park/LivingPanel"
 import { recordGame, validRep } from "./park/rep.js"
 import { COURTS as PARK_COURTS, LEVEL_NAMES as PARK_LEVELS } from "./park/layout.js"
+// Play (vs Computer | Online), where & when (the venue picker that previews each venue behind it)
+// and the time of day: play/, park/timeofday.js
+import { PlaySetup, PlayTabs, VenueSheet, WhereRow } from "./play/PlaySetup"
+import { useVenueBuilds } from "./play/useVenueBuilds.js"
+import { ARENA_IDS, currentPlace, isArena, placeById, placeText } from "./play/places.js"
+import { TIMES, timeAt, validTime } from "./park/timeofday.js"
+// drilling with a friend online (practice/coop.js: the host's match runs it)
+import { COOP_DRILLS, coopById, createCoop } from "./practice/coop.js"
+import { CoopHud, cleanCoopSnap } from "./practice/CoopHud"
 // Twin Replay: film a real game, watch it here (twin/; loaded when opened)
 const TwinReplay = React.lazy(() => import("./twin/TwinReplay.jsx"))
 // Live Broadcast (twin/live/): go live from the fence, or watch a friend's game live in 3D
@@ -115,8 +124,12 @@ const DEFAULTS = {
   looks: {},
   aiLooks: "own",
   autoVenue: false,
+  // the time of day you play (park/timeofday.js): "now" (Real Sky) | morning | midday | golden | night
+  tod: "now",
 }
-const ONLINE_DEFAULTS = { format: "singles", target: 11, scoring: "sideout", venue: "stadium" }
+// mode: "match" | "drill" (drill: which co-op drill, two people); venue: an arena or a real venue; tod: the time of day
+const ONLINE_VENUES = [...VENUE_LIST.map((v) => [v.id, v.short]), ...Object.values(VENUE_INFO).map((v) => [v.id, `${v.name} (${v.time})`])]
+const ONLINE_DEFAULTS = { format: "singles", target: 11, scoring: "sideout", venue: "stadium", tod: "now", mode: "match", drill: "dinks" }
 
 const load = (key, fallback) => {
   try {
@@ -151,6 +164,7 @@ const readPrefs = () => {
   p.looks = validateLooks(p.looks)
   if (!["own", "random"].includes(p.aiLooks)) p.aiLooks = "own"
   p.autoVenue = !!p.autoVenue
+  p.tod = validTime(p.tod)
   // saves from before the skinned athletes kept phones on Low: move them up once
   if (!p.athletes) {
     if (p.quality === "low") p.quality = "medium"
@@ -242,6 +256,8 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
   const [stickUi, setStickUi] = useState(null)
   const [zoneHint, setZoneHint] = useState(null)
   const [toast, setToast] = useState(null)
+  const [coop, setCoop] = useState(null) // drilling with a friend: the latest report (practice/coop.js)
+  const [onlinePreset, setOnlinePreset] = useState(null) // the online screen opened for a drill (Practice > Drill with a friend)
   const touchVisible = useTouchControlsVisible()
   const controlsMenuItem = useTouchControlsMenuItem()
   const chatItem = useGameChatMenuItem("pickleball")
@@ -265,8 +281,8 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
   const [parkWorld, setParkWorld] = useState(null)
   // Options > Sky: the park you're in follows it at once
   useEffect(() => {
-    parkWorld?.setSky?.({ real: prefs.realSky !== false, mode: prefs.skyMode || "real" })
-  }, [parkWorld, prefs.realSky, prefs.skyMode])
+    parkWorld?.setSky?.({ real: prefs.realSky !== false, mode: prefs.skyMode || "real", time: timeAt(prefs.tod, placeById(parkWorld?.venue, prefsRef.current)) })
+  }, [parkWorld, prefs.realSky, prefs.skyMode, prefs.tod])
   const [parkHud, setParkHud] = useState(null)
   const [parkUi, setParkUi] = useState({ menu: false, intro: false, turn: null, result: null })
   // Living Park (park/living.js, utils/livingpark.js): buddies' clones left at this venue
@@ -422,6 +438,11 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
         setReplay(e.on)
         break
       case "drill":
+        if (e.coop) {
+          setCoop(e.snap)
+          if (onlineRef.current.isHost) onlineRef.current.sendRelay({ type: "coop", snap: e.snap })
+          break
+        }
         if (e.train) {
           setTrain((t) => ({ snap: e.snap, result: e.result ? { ...e.result, id: e.id } : t?.result || null, cue: e.cue ? e.id : t?.cue || null }))
           break
@@ -571,15 +592,26 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
   // ---- starting matches ----
   // everyone's look for this match: saved Locker Room looks, computer players' kits, the venue
   const dress = (roster, venue) => roster.map((r) => (r.character ? { ...r, look: lookForPlayer(prefsRef.current, { character: r.character, outfit: r.outfit, ai: r.ctrl === "cpu" }, venue) } : r))
-  const startQuick = () => {
+  // where you play (play/places.js): an arena (locked ones wait for the World Tour) or a real
+  // venue's court lit for your time of day (play/useVenueBuilds.js); { id, venue } for the engine
+  const playVenue = async () => {
     const p = prefsRef.current
-    const venues = unlocks(tour).venues
-    const venue = venues.includes(p.venue) ? p.venue : "park"
+    const id = isArena(p.venue) && !unlocks(tour).venues.includes(p.venue) ? "park" : p.venue || "park"
+    try {
+      return { id, venue: await venueBuilds.venueFor(id, p.tod) }
+    } catch (error) {
+      console.error(error)
+      return { id: "park", venue: "park" }
+    }
+  }
+  const startQuick = async () => {
+    const p = prefsRef.current
+    const { id, venue } = await playVenue()
     reset()
     const roster = rosterFor({ doubles: p.doubles, level: p.level, me: p.character, outfit: p.outfit, opponent: p.opponent, partner: p.partner })
     setSession({ kind: "quick", level: p.level })
     setScreen("main")
-    engineRef.current?.newMatch({ doubles: p.doubles, level: p.level, scoring: p.scoring, target: p.target, venue, roster: dress(roster, venue), humans: 1 })
+    engineRef.current?.newMatch({ doubles: p.doubles, level: p.level, scoring: p.scoring, target: p.target, venue, roster: dress(roster, id), humans: 1 })
   }
   // a match against Twin Clones (Twin Replay's clones list or Rematch): spec { doubles,
   // partner, opponents: [clone ids | null], venue, court } at that game's venue and court
@@ -605,15 +637,14 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
     setScreen("main")
     engineRef.current?.newMatch({ doubles: false, level: t.level, scoring: "sideout", target: t.target, venue: t.venue, roster: dress(roster, t.venue), humans: 1 })
   }
-  const startVersus = () => {
+  const startVersus = async () => {
     const p = prefsRef.current
+    const { id, venue } = await playVenue()
     reset()
-    const venues = unlocks(tour).venues
     const roster = rosterFor({ doubles: p.doubles, level: "intermediate", me: p.character, outfit: p.outfit, p2: p.p2, humans: 2 })
     setSession({ kind: "versus" })
     setScreen("main")
-    const venue = venues.includes(p.venue) ? p.venue : "park"
-    engineRef.current?.newMatch({ doubles: p.doubles, level: "intermediate", scoring: p.scoring, target: p.target, venue, roster: dress(roster, venue), humans: 2 })
+    engineRef.current?.newMatch({ doubles: p.doubles, level: "intermediate", scoring: p.scoring, target: p.target, venue, roster: dress(roster, id), humans: 2 })
   }
   // practice (practice/): the ball machine, a drill or a lesson. A lesson opens on its tip
   // card (the court waits, paused) unless intro is false (Again)
@@ -637,8 +668,10 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
       e.setLayer(layerRef.current)
     })
   }
-  const startTrain = (p0, { intro = true } = {}) => {
+  const startTrain = async (p0, { intro = true } = {}) => {
     const p = prefsRef.current
+    // (practice at your venue too; the ball machine court in My Park is that park's)
+    const { id: venueId, venue } = parkGameRef.current?.kind === "machine" ? { id: "park", venue: parkCourtVenue("machine") } : await playVenue()
     const plan = planFor(p0)
     reset()
     setTrain(null)
@@ -648,7 +681,7 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
     setScreen("main")
     setHubView(plan.kind === "machine" ? "machine" : plan.kind === "drill" ? "drills" : "lessons")
     const tm = trainMatch(plan.spec, { character: p.character, outfit: p.outfit })
-    engineRef.current?.newMatch({ ...tm, roster: dress(tm.roster, "park"), venue: "park", humans: 1 })
+    engineRef.current?.newMatch({ ...tm, roster: dress(tm.roster, venueId), venue, humans: 1 })
     putLayer()
     if (card) engineRef.current?.pause()
   }
@@ -707,6 +740,20 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
   }
   const courtVenueRef = useRef(null)
   const getEngine = React.useCallback(() => engineRef.current, [])
+  // ---- where & when (play/): the venue builds, the title's background, the picker sheet ----
+  const venueBuilds = useVenueBuilds({ getEngine, loadLayout: (id) => loadParkLayout(id), prefsRef, mobile })
+  const [where, setWhere] = useState(null) // the sheet is open (over "quick" | "practice" | "main")
+  const place = currentPlace(prefs)
+  // the title's background is where you'll play: the demo match moves there (and back after a match)
+  const titleUp = phase === "title"
+  useEffect(() => {
+    if (titleUp) venueBuilds.preview(isArena(prefs.venue) && !unlocks(tour).venues.includes(prefs.venue) ? "park" : prefs.venue, prefs.tod)
+  }, [titleUp, prefs.venue, prefs.tod, prefs.quality, prefs.realSky])
+  const pickPlace = (pl) => {
+    if (pl.kind === "arena" && !unlocks(tour).venues.includes(pl.id)) return
+    // (a real venue is also where My Park opens)
+    setPrefs({ venue: pl.id, ...(pl.kind !== "arena" ? { parkVenue: pl.id } : {}) })
+  }
   // the engine's venue for a game on court `court` in the park you're in (that court, its surroundings)
   const parkCourtVenue = (court) => {
     const w = parkRef.current
@@ -743,11 +790,16 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
     const keys = Object.keys(next).sort((a, b) => (next[b].at || 0) - (next[a].at || 0)).slice(0, 30)
     setPrefs({ parkPlaces: Object.fromEntries(keys.map((k) => [k, next[k]])) })
   }
+  // My Park opens where you play (a real venue), else where you last walked
+  const parkStartVenue = () => {
+    const p = prefsRef.current
+    return p.venue && !isArena(p.venue) && placeById(p.venue, p) ? p.venue : p.parkVenue || "riverside"
+  }
   const pickPark = () => {
     if (session?.kind !== "park") quitToMenu()
     setParkPick(true)
   }
-  const startPark = async (venueId = prefsRef.current.parkVenue || "riverside") => {
+  const startPark = async (venueId = parkStartVenue()) => {
     const e = engineRef.current
     if (!e) return
     let w = parkRef.current
@@ -857,6 +909,7 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
     const me0 = myParkInfo()
     const roster = t.lineup.map((x) => (x.me ? { id: "you", team: x.team, ctrl: "human", slot: 0, name: me0.name, character: p.character, outfit: p.outfit, look: me0.look } : { id: x.id, team: x.team, ctrl: "cpu", level, name: x.name, look: x.look }))
     parkGameRef.current = { court: t.court, kind: "solo", level }
+    if (w.venue && w.venue !== "riverside") setPrefs({ parkCourt: { ...(p.parkCourt || {}), [w.venue]: t.court } })
     reset()
     setSession({ kind: "parkgame", level, court: t.court })
     w.suspend()
@@ -1004,10 +1057,23 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
   useEffect(() => {
     if (online.room && screen !== "online") setScreen("online")
   }, [online.room?.id])
-  const startOnlineEngine = (opts) => {
+  const startOnlineEngine = async (opts) => {
+    const drill = opts?.settings?.mode === "drill" ? coopById(opts.settings.drill).id : null
+    // (a real venue: everyone builds that venue's court at the room's time of day)
+    if (opts?.settings && !(parkRef.current && parkGameRef.current?.kind === "room") && opts.settings.venue && !isArena(opts.settings.venue)) {
+      try {
+        opts = { ...opts, settings: { ...opts.settings, venueBuild: await venueBuilds.venueFor(opts.settings.venue, validTime(opts.settings.tod)) } }
+      } catch (error) {
+        console.error(error)
+        opts = { ...opts, settings: { ...opts.settings, venue: "park" } }
+      }
+    }
+    // (drilling with a friend: the host's match runs the drill; the guest hears its reports)
+    if (drill && opts.role === "host") opts = { ...opts, settings: { ...opts.settings, doubles: false, practice: createCoop(drill) } }
     const e = engineRef.current
     reset()
-    setSession({ kind: "online" })
+    setCoop(null)
+    setSession({ kind: "online", coop: drill })
     // (a game called from My Park: the park waits while you play)
     if (parkRef.current && !parkRef.current.suspended) {
       parkRef.current.suspend()
@@ -1029,7 +1095,8 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
     netStarted.current = key
     const people = room.seats.map((s, seat) => (s && !s.bot ? { seat, name: s.name, ...(hellos.current.get(seat) || {}) } : null)).filter(Boolean)
     const settings = { ...ONLINE_DEFAULTS, ...room.settings }
-    const start = { people, settings: { doubles: settings.format === "doubles", target: settings.target, scoring: settings.scoring, venue: settings.venue }, seed: (Math.random() * 1e9) | 0 }
+    const drill = settings.mode === "drill" ? coopById(settings.drill).id : null
+    const start = { people, settings: { doubles: !drill && settings.format === "doubles", target: settings.target, scoring: settings.scoring, venue: settings.venue, tod: validTime(settings.tod), ...(drill ? { mode: "drill", drill } : {}) }, seed: (Math.random() * 1e9) | 0 }
     netStarted.start = start
     o.sendRelay({ type: "start", ...start })
     startOnlineEngine({ role: "host", seat: room.you, ...start, send: { snap: o.sendSnap, relay: (d, to) => o.sendRelay(d, to) } })
@@ -1083,6 +1150,7 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
         startOnlineEngine({ role: "guest", seat: o.seat, people: d.people, settings: d.settings || {}, seed: d.seed, send: { input: o.sendInput, relay: (x) => o.sendRelay(x) } })
       } else if (d.type === "hit") engineRef.current?.netRelay(d, from)
       else if (d.type === "final" && !o.isHost) engineRef.current?.netFinal(d)
+      else if (d.type === "coop" && !o.isHost) setCoop(cleanCoopSnap(d.snap))
     })
     return () => {
       offSnap()
@@ -1430,7 +1498,8 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
   return (
     <div className={`pkRoot${mobile ? " is-mobile" : ""}`} onKeyDown={onKeyDown}>
       <MenuBar menus={menus} />
-      <GameChat game="pickleball" title="Pickleball 98" room={online.chatRoom} />
+      {/* (the chat opens only when you tap its bubble; a new message shows a badge there) */}
+      <GameChat game="pickleball" title="Pickleball 98" room={online.chatRoom} ticker={false} />
       <div className="pkStage" ref={stageRef} tabIndex={0} data-phase={phase} data-screen={screen}>
         <div ref={pulseRef} className="pkPulse" aria-hidden="true" />
         <canvas className="pkCanvas" ref={canvasRef} aria-label="Pickleball court" />
@@ -1447,7 +1516,8 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
         )}
 
         {/* ---------- in a match ---------- */}
-        {inGame && hud && !tutorialStep?.card && session?.kind !== "practice" && session?.kind !== "tutorial" && session?.kind !== "train" && <ScoreBug hud={hud} online={onlineText} />}
+        {inGame && hud && !tutorialStep?.card && session?.kind !== "practice" && session?.kind !== "tutorial" && session?.kind !== "train" && !session?.coop && <ScoreBug hud={hud} online={onlineText} />}
+        {inGame && session?.coop && <CoopHud snap={coop} drill={session.coop} partner={online.room?.seats?.find((s, i) => s && i !== online.seat && !s.bot)?.name || null} />}
         {/* (the one banner slot; a practice drill labels each shot itself: practice/PracticeHud.jsx) */}
         {inGame && <Banner banner={banners.current} />}
         <Meter ref={meterRefs[0]} slot={0} />
@@ -1641,14 +1711,15 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
               })
             )}
             places={prefs.parkPlaces || {}}
-            current={prefs.parkVenue || "riverside"}
+            current={parkStartVenue()}
             favs={Array.isArray(prefs.parkFavs) ? prefs.parkFavs : []}
             loading={parkLoading}
             error={parkErr}
             onPick={(id, place) => {
               keepPlace(id, place)
               setParkErr(null)
-              setPrefs({ parkVenue: id })
+              // (the venue you walk is where you play: matches and Practice follow it)
+              setPrefs({ parkVenue: id, ...(id !== "riverside" ? { venue: id } : {}) })
               setParkPick(false)
               startPark(id)
             }}
@@ -1682,12 +1753,14 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
         )}
 
         {/* ---------- menus ---------- */}
-        {atMenu && screen === "main" && phase === "title" && (
+        {atMenu && screen === "main" && phase === "title" && !where && (
           <TitleMenu
             onPick={(s) => (s === "park" ? pickPark() : s === "rules" ? setDialog("rules") : s === "settings" ? setDialog("settings") : s === "controls" ? setDialog("controls") : (setPlayersFor("p1"), s === "practice" && setHubView("hub"), setScreen(s)))}
             onOnline={() => setScreen("online")}
             tour={tour}
             showPad={showPad}
+            where={{ text: placeText(place, prefs.tod), onChange: () => setWhere("main") }}
+            parkName={placeById(parkStartVenue(), prefs)?.short || null}
             offer={firstTime && !prefs.welcomed && !prefs.tutorialDone ? <FirstTimeOffer onLesson={() => withScheme(() => startTrain({ kind: "lesson", id: "basics" }))} onPlay={() => withScheme(startQuick)} /> : null}
           />
         )}
@@ -1698,7 +1771,34 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
             </React.Suspense>
           </div>
         )}
-        {atMenu && screen === "quick" && <QuickMenu prefs={prefs} setPrefs={setPrefs} tour={tour} onStart={() => withScheme(startQuick)} onBack={() => setScreen("main")} onPlayers={() => (setPlayersFor("p1q"), setScreen("players"))} onOnline={() => setScreen("online")} onTour={() => setScreen("tour")} onVersus={() => setScreen("versus")} />}
+        {atMenu && screen === "quick" && !where && (
+          <PlaySetup
+            prefs={prefs}
+            setPrefs={setPrefs}
+            place={place}
+            onWhere={() => setWhere("quick")}
+            onStart={() => withScheme(startQuick)}
+            onBack={() => setScreen("main")}
+            onPlayers={() => (setPlayersFor("p1q"), setScreen("players"))}
+            onTab={(t) => t === "online" && setScreen("online")}
+            onTour={() => setScreen("tour")}
+            onVersus={() => setScreen("versus")}
+          />
+        )}
+        {/* where & when: the venue sheet; the court behind it is the venue picked (play/) */}
+        {atMenu && where && (
+          <VenueSheet
+            prefs={prefs}
+            current={place}
+            tod={prefs.tod}
+            loading={venueBuilds.loading}
+            error={venueBuilds.error}
+            locked={ARENA_IDS.filter((id) => !unlocks(tour).venues.includes(id))}
+            onPick={pickPlace}
+            onTime={(t) => setPrefs({ tod: t })}
+            onDone={() => (setWhere(null), stageRef.current?.focus({ preventScroll: true }))}
+          />
+        )}
         {(atMenu || phase === "showcase") && screen === "locker" && (
           <LockerRoom
             prefs={prefs}
@@ -1729,35 +1829,62 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
           />
         )}
         {atMenu && screen === "tour" && <TourMenu tour={tour} onPlay={(t) => withScheme(() => startTour(t))} onBack={() => setScreen("main")} onReset={() => setTour(freshTour())} />}
-        {atMenu && screen === "practice" && <PracticeHub key={hubView} initialView={hubView} prefs={prefs} setPrefs={setPrefs} onStart={(x) => withScheme(() => startTrain(x))} onTutorial={() => withScheme(() => startTutorial(0))} onBack={() => (parkGameRef.current?.kind === "machine" ? backToPark() : (setHubView("hub"), setScreen("main")))} backOut={parkGameRef.current?.kind === "machine"} />}
+        {atMenu && screen === "practice" && !where && <PracticeHub onFriend={() => (setOnlinePreset({ ...ONLINE_DEFAULTS, mode: "drill", drill: "dinks", venue: prefs.venue && ONLINE_VENUES.some(([id]) => id === prefs.venue) ? prefs.venue : "stadium", tod: prefs.tod, at: Date.now() }), setScreen("online"))} where={parkGameRef.current?.kind === "machine" ? null : <WhereRow place={place} tod={prefs.tod} onChange={() => setWhere("practice")} />} key={hubView} initialView={hubView} prefs={prefs} setPrefs={setPrefs} onStart={(x) => withScheme(() => startTrain(x))} onTutorial={() => withScheme(() => startTutorial(0))} onBack={() => (parkGameRef.current?.kind === "machine" ? backToPark() : (setHubView("hub"), setScreen("main")))} backOut={parkGameRef.current?.kind === "machine"} />}
         {atMenu && screen === "versus" && <VersusMenu prefs={prefs} setPrefs={setPrefs} tour={tour} showPad={showPad} onStart={startVersus} onBack={() => setScreen("main")} onPlayers={(who) => (setPlayersFor(who === "p2" ? "p2" : "p1v"), setScreen("players"))} />}
         {screen === "online" && !onlinePlaying && phase !== "loading" && (
           <div className="pkOnline">
+            {!online.room && (
+              <div className="pkOnlineTabs">
+                <PlayTabs tab="online" onTab={(t) => t === "cpu" && setScreen("quick")} />
+              </div>
+            )}
             <PlayOnline
               online={online}
               title="Pickleball 98"
               icon={ICON}
-              blurb="Singles or doubles against people anywhere: Quick Match, a private room with a code, or invite someone. You play your own player; everyone else's moves come over the network."
-              defaultSettings={ONLINE_DEFAULTS}
+              key={onlinePreset?.at || "online"}
+              blurb="Singles or doubles against people anywhere, or drill together with a friend (dinks, drops, volleys, serve and return, a free rally): Quick Match, a private room with a code, or invite someone. You play your own player; everyone else's moves come over the network."
+              defaultSettings={onlinePreset || { ...ONLINE_DEFAULTS, venue: ONLINE_VENUES.some(([id]) => id === prefs.venue) ? prefs.venue : "stadium", tod: prefs.tod }}
               quickSettings
               renderSettings={(s, set, { disabled }) => (
                 <div className="pkOnlineSettings">
                   <label>
-                    Format{" "}
-                    <Combo disabled={disabled} value={s.format} name="format" ariaLabel="Format" options={[["singles", "Singles (1 v 1)"], ["doubles", "Doubles (2 v 2, computer partners fill in)"]]} onChange={(v) => set({ ...s, format: v })} />
+                    Play{" "}
+                    <Combo disabled={disabled} value={s.mode || "match"} name="mode" ariaLabel="Play" options={[["match", "A match"], ["drill", "Drill together (2 people)"]]} onChange={(v) => set({ ...s, mode: v, drill: s.drill || "dinks" })} />
                   </label>
-                  <label>
-                    Game to{" "}
-                    <Combo disabled={disabled} value={s.target} name="target" ariaLabel="Game to" options={[7, 11, 15].map((n) => [n, String(n)])} onChange={(v) => set({ ...s, target: v })} />
-                  </label>
-                  <label>
-                    Scoring{" "}
-                    <Combo disabled={disabled} value={s.scoring} name="scoring" ariaLabel="Scoring" options={[["sideout", "Side-out"], ["rally", "Rally"]]} onChange={(v) => set({ ...s, scoring: v })} />
-                  </label>
+                  {s.mode === "drill" && (
+                    <label>
+                      Drill{" "}
+                      <Combo disabled={disabled} value={s.drill || "dinks"} name="drill" ariaLabel="Drill" options={COOP_DRILLS.map((d) => [d.id, d.name])} onChange={(v) => set({ ...s, drill: v })} />
+                    </label>
+                  )}
+                  {/* (a drill keeps no score: no format, game length or scoring) */}
+                  {s.mode !== "drill" && (
+                    <>
+                      <label>
+                        Format{" "}
+                        <Combo disabled={disabled} value={s.format} name="format" ariaLabel="Format" options={[["singles", "Singles (1 v 1)"], ["doubles", "Doubles (2 v 2, computer partners fill in)"]]} onChange={(v) => set({ ...s, format: v })} />
+                      </label>
+                      <label>
+                        Game to{" "}
+                        <Combo disabled={disabled} value={s.target} name="target" ariaLabel="Game to" options={[7, 11, 15].map((n) => [n, String(n)])} onChange={(v) => set({ ...s, target: v })} />
+                      </label>
+                      <label>
+                        Scoring{" "}
+                        <Combo disabled={disabled} value={s.scoring} name="scoring" ariaLabel="Scoring" options={[["sideout", "Side-out"], ["rally", "Rally"]]} onChange={(v) => set({ ...s, scoring: v })} />
+                      </label>
+                    </>
+                  )}
                   <label>
                     Venue{" "}
-                    <Combo disabled={disabled} value={s.venue} name="venue" ariaLabel="Venue" options={Object.values(VENUE_INFO).map((v) => [v.id, `${v.name} (${v.time})`])} onChange={(v) => set({ ...s, venue: v })} />
+                    <Combo disabled={disabled} value={s.venue} name="venue" ariaLabel="Venue" options={ONLINE_VENUES} onChange={(v) => set({ ...s, venue: v })} />
                   </label>
+                  {!isArena(s.venue) && (
+                    <label>
+                      Time{" "}
+                      <Combo disabled={disabled} value={timeAt(s.tod, placeById(s.venue))} name="tod" ariaLabel="Time of day" options={TIMES.filter((t) => t.id !== "night" || timeAt("night", placeById(s.venue)) === "night").map((t) => [t.id, t.label])} onChange={(v) => set({ ...s, tod: v })} />
+                    </label>
+                  )}
                 </div>
               )}
               onBack={() => {

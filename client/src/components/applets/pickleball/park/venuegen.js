@@ -542,7 +542,8 @@ export const generateVenue = (spec, opts = {}) => {
     if (!free(rackBox)) return null
     let bl = 0
     let bBox = null
-    for (const L of indoor ? [bleacher, 2.4] : [bleacher, 5, 3.2]) {
+    // (fence.bleachers: false: none by rule, a venue built only from what is mapped or seen)
+    for (const L of spec.fence?.bleachers === false ? [] : indoor ? [bleacher, 2.4] : [bleacher, 5, 3.2]) {
       if (L < 2.2) continue
       const center = add(add(fence, out, 0.95), tangent, shift)
       const box = { cx: center.x, cz: center.z, hx: L / 2 + 0.1, hz: 0.6, ux: tangent.x, uz: tangent.z }
@@ -638,7 +639,9 @@ export const generateVenue = (spec, opts = {}) => {
   const faceCourts = sub(gate0, spawnAt)
   const spawnYaw = spec.spawn?.deg !== null && spec.spawn?.deg !== undefined ? Math.atan2(Math.cos(spec.spawn.deg * DEG), Math.sin(spec.spawn.deg * DEG)) : Math.atan2(faceCourts.x, faceCourts.z)
   let booth = null
-  {
+  // (fence.booth: false: no pro-shop kiosk by rule, e.g. a city park with none; the Locker
+  // Room is still in the menus)
+  if (spec.fence?.booth !== false) {
     const fwd = { x: Math.sin(spawnYaw), z: Math.cos(spawnYaw) }
     const right = { x: fwd.z, z: -fwd.x }
     for (const [a, b] of [
@@ -668,7 +671,8 @@ export const generateVenue = (spec, opts = {}) => {
 
   // ---------- benches along the banks ----------
   const benches = []
-  if (!indoor) {
+  // (fence.benches: false: none by rule; a venue built only from what is mapped or seen)
+  if (!indoor && spec.fence?.benches !== false) {
     for (const bank of banks) {
       const B = bank.box
       const u = { x: B.ux, z: B.uz }

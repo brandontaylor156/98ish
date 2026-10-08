@@ -38,6 +38,7 @@ import { createWalker, keepApart, stepWalker } from "./walker.js"
 import { liftPose } from "./lift.js"
 import { angleName, createFollow, spectatorShot, stepFollow, turnFollow, SPECTATE_ANGLES } from "./followcam.js"
 import { dayLook, hourOf, overrideDate, realLook } from "./sky.js"
+import { lookFor as timeLook } from "./timeofday.js"
 import { CLEAR, OVERRIDES, cachedWeather, fetchWeather } from "./weather.js"
 
 // Real Sky: Riverside isn't a real place; it borrows a Southern California park's sky
@@ -129,6 +130,10 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
   let wxAt = -1e9
   let look = null
   const lookNow = () => {
+    // the time of day you chose (timeofday.js: morning, midday, golden hour, night; "now" is
+    // the real clock), unless a test set the hour
+    const chosen = hourOverride == null && skyCfg.time && skyCfg.time !== "now" && !OVERRIDES[skyCfg.mode]?.hourOffset ? skyCfg.time : null
+    if (chosen) return timeLook(chosen, place, { real: skyOn() })
     if (!skyOn()) return dayLook(hourOverride ?? hourOf())
     const o = OVERRIDES[skyCfg.mode]
     let date = new Date()

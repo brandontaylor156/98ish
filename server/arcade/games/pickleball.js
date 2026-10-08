@@ -12,7 +12,13 @@ const { sanitizeLook } = require("./pickleballLooks")
 const FORMATS = ["singles", "doubles"]
 const TARGETS = [7, 11, 15]
 const SCORING = ["sideout", "rally"]
-const VENUES = ["park", "club", "stadium", "beach", "winter"]
+// the made-up arenas, and the real venues (My Park's: built by tools/venues/build-venues.mjs)
+const VENUES = ["park", "club", "stadium", "beach", "winter", ...Object.keys(require("../../park/venues.json")).filter((id) => id !== "riverside")]
+// the time of day (client park/timeofday.js)
+const TIMES = ["now", "morning", "midday", "golden", "night"]
+// "drill": two friends drilling together (client practice/coop.js), always two people
+const MODES = ["match", "drill"]
+const DRILLS = ["dinks", "drops", "volleys", "serve", "rally"]
 
 const defaultSettings = { format: "singles", target: 11, scoring: "sideout", venue: "stadium" }
 
@@ -43,12 +49,28 @@ module.exports = {
       if (!VENUES.includes(s.venue)) return { error: "That venue doesn't exist." }
       out.venue = s.venue
     }
+    // (only when asked for: older clients' settings stay exactly as they were)
+    if (s.tod !== undefined) {
+      if (!TIMES.includes(s.tod)) return { error: "Pick a time of day." }
+      out.tod = s.tod
+    }
+    if (s.mode !== undefined) {
+      if (!MODES.includes(s.mode)) return { error: "Pick a match or a drill." }
+      if (s.mode === "drill") {
+        if (!DRILLS.includes(s.drill)) return { error: "Pick a drill." }
+        out.mode = "drill"
+        out.drill = s.drill
+        out.format = "singles"
+      }
+    }
     return out
   },
-  // Quick Match pairs people who want the same game; the venue is the host's choice
-  bucket: (s) => `${s.format}:${s.target}:${s.scoring}`,
-  // singles is full with two (start right away); doubles waits a moment for more
-  quickSeats: (s) => (s.format === "singles" ? 2 : 4),
+  // Quick Match pairs people who want the same game (a drill: the same drill); the venue and
+  // the time are the host's choice
+  bucket: (s) => `${s.format}:${s.target}:${s.scoring}${s.mode === "drill" ? `:drill:${s.drill}` : ""}`,
+  // a drill is two people; singles is full with two (start right away); doubles waits a moment for more
+  seats: (s) => (s.mode === "drill" ? 2 : 4),
+  quickSeats: (s) => (s.format === "singles" || s.mode === "drill" ? 2 : 4),
   // what people's browsers tell each other about their players ("hello": who I am and what
   // I'm wearing; "start": the host's line-up) goes through the look checks; the rest (hits,
   // the final score) passes as it is

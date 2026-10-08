@@ -57,6 +57,15 @@ const Icon = ({ kind }) => (
         <circle cx="22" cy="27" r="2.5" fill="#24272e" />
       </>
     )}
+    {kind === "friend" && (
+      <>
+        <circle cx="10" cy="11" r="4" fill="#f2c79a" stroke="#0b1224" strokeWidth="1.2" />
+        <rect x="5" y="16" width="10" height="11" rx="2" fill="#2a5d9f" stroke="#0b1224" strokeWidth="1.2" />
+        <circle cx="22" cy="11" r="4" fill="#b5784a" stroke="#0b1224" strokeWidth="1.2" />
+        <rect x="17" y="16" width="10" height="11" rx="2" fill="#ff7a5c" stroke="#0b1224" strokeWidth="1.2" />
+        <circle cx="16" cy="6" r="2" fill="#d9f03c" stroke="#0b1224" strokeWidth="0.8" />
+      </>
+    )}
     {kind === "drills" && (
       <>
         <circle cx="16" cy="16" r="12" fill="#ff7a5c" stroke="#0b1224" strokeWidth="1.5" />
@@ -80,7 +89,9 @@ export const Stars = ({ n, of = 3 }) => (
 
 // ---------- the hub ----------
 // backOut: the sub-screens' close goes straight back out (opened from My Park's ball-machine court)
-export const PracticeHub = ({ prefs, setPrefs, onStart, onTutorial, onBack, initialView = "hub", backOut = false }) => {
+// where: the where & when row (play/PlaySetup.jsx WhereRow): practice at your venue and time;
+// onFriend: drill with a friend online (the online screen, Drill together)
+export const PracticeHub = ({ prefs, setPrefs, onStart, onTutorial, onBack, initialView = "hub", backOut = false, where = null, onFriend = null }) => {
   const [view, setView] = useState(initialView) // hub | machine | drills | lessons
   const lessonsDone = prefs.lessons || {}
   const doneN = LESSONS.filter((l) => lessonsDone[l.id]).length
@@ -91,6 +102,7 @@ export const PracticeHub = ({ prefs, setPrefs, onStart, onTutorial, onBack, init
   if (view === "lessons") return <LessonsPanel done={lessonsDone} onStart={onStart} onBack={() => setView("hub")} />
   return (
     <Panel title="Practice" onBack={onBack}>
+      {where && <div className="pkHubWhere pkForm">{where}</div>}
       <div className="pkHubTiles">
         <button type="button" className="pkHubTile is-lessons" data-practice="lessons" onClick={() => setView("lessons")} autoFocus>
           <Icon kind="lessons" />
@@ -115,6 +127,15 @@ export const PracticeHub = ({ prefs, setPrefs, onStart, onTutorial, onBack, init
             </small>
           </span>
         </button>
+        {onFriend && (
+          <button type="button" className="pkHubTile" data-practice="friend" onClick={onFriend}>
+            <Icon kind="friend" />
+            <span>
+              <b>Drill with a friend</b>
+              <small>Online: dinks, drops, volleys, serve and return or a free rally; count the streak together</small>
+            </span>
+          </button>
+        )}
       </div>
       <div className="pkRow pkRowEnd">
         <button type="button" onClick={onTutorial} data-action="tutorial">

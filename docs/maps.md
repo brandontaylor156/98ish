@@ -10,7 +10,7 @@ openMaps({ name: "Los Cab Sports Village", lat: 33.7173, lon: -117.9861, directi
 - `lat`, `lon` (required, WGS84 degrees); `name` and `address`/`detail` (optional, the card's two lines); `directions: true` opens straight into directions from your location (the location prompt comes from the tap that called it; without a location it asks where you're starting); `mode`: `"drive"` (default for directions), `"walk"` or `"bike"`.
 - Returns `false` and opens nothing when the coordinates aren't valid.
 - It dispatches the shell's program-open event (`98ish:couple-open`, CoupleBridge): a new window gets `handoff: { id, dest, directions, mode }`; an open Maps 98 comes forward and gets the same handoff through `98ish:couple-view`, so it never opens twice.
-- **For Pickleball 98's Directions button** (the next round; this round didn't touch Pickleball 98): replace the Apple/Google link with `openMaps({ name: venue.name, lat: venue.lat, lon: venue.lon, address: venue.address, directions: true })`.
+- **Pickleball 98** (2026-10-07): Real Games' **Directions** (the courts list and a session at a known venue) call `openMaps({ name, lat, lon, address, directions: true })`. A session at your own place (no coordinates) keeps the Apple/Google links.
 - Already wired: Buddy Locator's **Directions** on a buddy's card (was an Apple/Google Maps link).
 
 ## Services (all free, no key) and their terms

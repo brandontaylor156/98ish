@@ -39,7 +39,7 @@ const MAX_RECORDS = 2000
 const RESULTS_PER_DAY = 20
 const OPEN_URL = "/?open=program&name=Pickleball%2098"
 const VENUES = require("../park/venues.json")
-const VENUE_NAMES = { riverside: "Riverside Park", loscab: "Los Cab", newport: "Newport Beach Club", wolfbear: "Wolf + Bear", whittier: "Whittier Narrows", paseo: "The Paseo Club", sinaloa: "Sinaloa", smash: "California SMASH" }
+const VENUE_NAMES = { riverside: "Riverside Park", loscab: "Los Cab", newport: "Newport Beach Club", wolfbear: "Wolf + Bear", whittier: "Whittier Narrows", paseo: "The Paseo Club", sinaloa: "Sinaloa", smash: "California SMASH", bouquet: "Bouquet Canyon" }
 
 let rules = null
 let profiles = null

@@ -5,12 +5,12 @@ import test from "node:test"
 import assert from "node:assert/strict"
 import { readFileSync } from "node:fs"
 import { venueLayoutSpec } from "./venuegen.js"
-import { makeLayout, setLayout } from "./layout.js"
+import { makeLayout, setLayout, toLocal } from "./layout.js"
 import { createFollow, followTarget, stepFollow } from "./followcam.js"
 import { VENUE_LIST } from "./venues/index.js"
 
 const spec = (id) => JSON.parse(readFileSync(new URL(`./venues/${id}.json`, import.meta.url), "utf8"))
-const IDS = ["loscab", "newport", "wolfbear", "whittier", "paseo", "sinaloa", "smash"]
+const IDS = ["loscab", "newport", "wolfbear", "whittier", "paseo", "sinaloa", "smash", "bouquet"]
 // what each venue should have (pickleball courts of its own; indoor)
 const EXPECT = {
   loscab: { pb: 38, tennis: 13, indoor: false },
@@ -21,6 +21,8 @@ const EXPECT = {
   paseo: { pb: 11, tennis: 11, indoor: false },
   sinaloa: { pb: 12, tennis: 0, indoor: false },
   smash: { pb: 9, tennis: 0, indoor: true },
+  // (8 dedicated courts, the city's count: four on each of the two old tennis courts, placed off the aerial)
+  bouquet: { pb: 8, tennis: 0, indoor: false },
 }
 const built = new Map()
 const get = (id) => {
@@ -319,6 +321,31 @@ test("venue truth: nothing invented behind a real venue (docs/venue-provenance.m
   for (const k of ["golf", "green", "bunker"]) assert.ok(kinds.has(k), `Newport golf: ${k}`)
   // SMASH's Metro viaduct comes from OpenStreetMap's bridge, not a hand-placed line
   assert.ok(spec("smash").surround.rails.some((r) => r.bridge), "SMASH viaduct")
+})
+
+// The owner, 2026-10-07: "The bench in Newport pickleball during the game WTF." Nothing on the
+// ground (props, benches, stands, trees, light poles) stands on a live court or within 0.3 m
+// of its sidelines and 1 m of its baselines, where the players run during a game. (Walls of
+// rooms and halls are buildings: indoor run-offs are what the building gives. Things up on a
+// wall, doors and number cards don't count.)
+test("live courts are clear: nothing stands where the players run (the Newport bench)", () => {
+  const HL = 6.705 + 1.0
+  const HW = 3.05 + 0.3
+  const MOUNTED = new Set(["door", "numcard", "exitsign", "banner", "tv", "wallart", "signpanel", "extinguisher", "mirror", "pendant", "curtain", "flagstone", "rug", "mat"])
+  for (const id of IDS) {
+    const { s, L } = get(id)
+    const bad = []
+    const inPlay = (c, x, z, r = 0) => {
+      const p = toLocal(c, x, z)
+      return Math.abs(p.x) < HW + r && Math.abs(p.z) < HL + r
+    }
+    for (const c of L.COURTS) {
+      for (const pr of s.props || []) if (!MOUNTED.has(pr.t) && !((pr.y || 0) > 2) && inPlay(c, pr.x, pr.z)) bad.push(`${pr.t} on ${c.name}`)
+      for (const b of L.BOXES) if ((b.kind === "bench" || b.kind === "bleacher" || b.kind === "booth" || b.kind === "board") && inPlay(c, b.cx, b.cz)) bad.push(`${b.kind} on ${c.name}`)
+      for (const t of L.CIRCLES) if (inPlay(c, t.x, t.z, t.r)) bad.push(`a tree or pole on ${c.name}`)
+    }
+    assert.deepEqual(bad, [], `${id}: things in play`)
+  }
 })
 
 test("parking lots: stalls in bays with driving aisles, inside the lot, along its long side", async () => {

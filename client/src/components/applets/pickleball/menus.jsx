@@ -1,6 +1,4 @@
 import React, { useEffect, useState } from "react"
-import Combo from "../../shared/select/Combo"
-import { listClones } from "./twin/clone/store.js"
 import { CHARACTERS, OUTFITS, characterById } from "./looks.js"
 import { STYLES, LEVELS } from "./ai.js"
 import { VENUE_INFO as VENUES } from "./looks.js"
@@ -60,7 +58,9 @@ const Portrait = ({ c, outfit }) => {
 }
 
 // ---------- the title screen ----------
-export const TitleMenu = ({ onPick, onOnline, tour, showPad, offer = null }) => {
+// where: { text, onChange } (the venue and time you play: the scene behind is it; play/)
+// parkName: the venue My Park opens at
+export const TitleMenu = ({ onPick, onOnline, tour, showPad, offer = null, where = null, parkName = null }) => {
   return (
     <div className="pkTitle2">
       <div className="pkLogo2" aria-label="Pickleball 98">
@@ -83,7 +83,7 @@ export const TitleMenu = ({ onPick, onOnline, tour, showPad, offer = null }) => 
         </button>
         <button type="button" className="pkBig" data-menu="park" onClick={() => onPick("park")}>
           <b>My Park</b>
-          <small>Walk real venues, watch, call next and play</small>
+          <small>{parkName ? `Walk ${parkName}: watch, call next and play` : "Walk real venues, watch, call next and play"}</small>
         </button>
         <button type="button" className="pkBig" data-menu="practice" onClick={() => onPick("practice")}>
           <b>Practice</b>
@@ -97,6 +97,11 @@ export const TitleMenu = ({ onPick, onOnline, tour, showPad, offer = null }) => 
           <button type="button" data-menu="players" onClick={() => onPick("players")}>
             My Player
           </button>
+          {where && (
+            <button type="button" data-menu="where" onClick={where.onChange} title="Where and when you play">
+              {where.text}
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -174,80 +179,7 @@ const venueOptions = (tour) => {
   return Object.values(VENUES).map((v) => [v.id, `${v.name} (${v.time})`, !u.venues.includes(v.id)])
 }
 
-// ---------- Quick Match ----------
-export const QuickMenu = ({ prefs, setPrefs, tour, onStart, onBack, onPlayers, onOnline, onTour, onVersus }) => {
-  const me = characterById(prefs.character)
-  // your Twin Clones (Twin Replay > Your clones) play like the real people they're built from
-  const clones = listClones().map((c) => [`clone:${c.id}`, `Clone: ${c.name}`])
-  const pickers = [["random", "Random"], ...clones, ...CHARACTERS.filter((c) => !c.boss && c.id !== prefs.character).map((c) => [c.id, c.nick])]
-  return (
-    <Panel title="Quick Match" onBack={onBack} wide>
-      <div className="pkForm">
-        <div className="pkField">
-          <span>You</span>
-          <button type="button" className="pkWho" onClick={onPlayers}>
-            <Portrait c={me} outfit={prefs.outfit} /> {me.name} <small>(change)</small>
-          </button>
-        </div>
-        <div className="pkField">
-          <span>Format</span>
-          <Radio name="pk-format" value={prefs.doubles} options={[[false, "Singles"], [true, "Doubles"]]} onChange={(v) => setPrefs({ doubles: v })} />
-        </div>
-        <div className="pkField">
-          <span>Opponents</span>
-          <Radio name="pk-level" value={prefs.level} options={Object.keys(LEVELS).map((k) => [k, LEVEL_NAMES[k]])} onChange={(v) => setPrefs({ level: v })} />
-        </div>
-        <div className="pkField">
-          <span>Against</span>
-          <Combo value={prefs.opponent} options={pickers} onChange={(v) => setPrefs({ opponent: v })} ariaLabel="Opponent" name="opponent" />
-          {prefs.doubles && (
-            <>
-              <span className="pkInline">Partner</span>
-              <Combo value={prefs.partner} options={pickers} onChange={(v) => setPrefs({ partner: v })} ariaLabel="Partner" name="partner" />
-            </>
-          )}
-        </div>
-        <div className="pkField">
-          <span>Venue</span>
-          <Radio name="pk-venue" value={prefs.venue} options={venueOptions(tour)} onChange={(v) => setPrefs({ venue: v })} />
-        </div>
-        <div className="pkField">
-          <span>Scoring</span>
-          <Radio name="pk-scoring" value={prefs.scoring} options={[["sideout", "Side-out"], ["rally", "Rally"]]} onChange={(v) => setPrefs({ scoring: v })} />
-          <Radio name="pk-target" value={prefs.target} options={[[7, "to 7"], [11, "to 11"], [15, "to 15"], [21, "to 21"]]} onChange={(v) => setPrefs({ target: v })} />
-        </div>
-      </div>
-      <div className="pkRow pkRowEnd">
-        <button type="button" className="pkPrimary pkGo" onClick={onStart} data-action="start">
-          Start Match
-        </button>
-        <button type="button" onClick={onBack}>
-          Back
-        </button>
-      </div>
-      {(onOnline || onTour || onVersus) && (
-        <div className="pkOtherWays" data-other-ways>
-          <span>More ways to play</span>
-          {onOnline && (
-            <button type="button" onClick={onOnline} data-menu="online">
-              Play Online
-            </button>
-          )}
-          {onTour && (
-            <button type="button" onClick={onTour} data-menu="tour">
-              World Tour
-            </button>
-          )}
-          {onVersus && (
-            <button type="button" onClick={onVersus} data-menu="versus">
-              2 Players
-            </button>
-          )}
-        </div>
-      )}
-    </Panel>
-  )
-}
+// (Quick Match's setup is play/PlaySetup.jsx: vs Computer | Online first)
 
 // ---------- the World Tour ----------
 export const TourMenu = ({ tour, onPlay, onBack, onReset }) => {

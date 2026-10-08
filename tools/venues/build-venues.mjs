@@ -621,7 +621,7 @@ for (const v of CONFIG.venues) {
   const b = gen.layoutSpec.bounds
   server[v.id] = { courts: gen.layoutSpec.courts.length, bounds: { x0: Math.floor(b.x0), x1: Math.ceil(b.x1), z0: Math.floor(b.z0), z1: Math.ceil(b.z1) } }
   const pb = spec.courts.filter((c) => c.s === "p").length + spec.courts.reduce((s, c) => s + (c.pb || 0), 0)
-  index.push({ id: v.id, name: spec.name, short: spec.short, city: spec.city, indoor: spec.indoor, access: spec.access, courts: pb, tennis: spec.courts.filter((c) => c.s === "t").length, live: gen.layoutSpec.courts.length, kb: Math.round(JSON.stringify(spec).length / 102.4) / 10 })
+  index.push({ id: v.id, name: spec.name, short: spec.short, city: spec.city, indoor: spec.indoor, access: spec.access, lat: spec.origin?.[0], lon: spec.origin?.[1], lit: !!spec.lit || !!spec.indoor, courts: pb, tennis: spec.courts.filter((c) => c.s === "t").length, live: gen.layoutSpec.courts.length, kb: Math.round(JSON.stringify(spec).length / 102.4) / 10 })
   console.log(`${v.id}: ${spec.courts.length} courts (${pb} pickleball), ${spec.buildings.length} buildings, ${spec.trees.length} trees, ${gen.layoutSpec.courts.length} live, ${index[index.length - 1].kb} KB`)
 }
 // the picker's list (small, bundled) and lazy loaders for the specs
