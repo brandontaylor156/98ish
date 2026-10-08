@@ -13,7 +13,22 @@ import { HALF_L, HALF_W, BALL_R, netHeightAt } from "../physics.js"
 
 const MPH = 2.23694
 
-const pct = (a, q) => {
+// A shot's kind as a camera sees it (docs/ppa-reference.md): the same rule classifies the PPA
+// footage's measured flights and the game's own shots, so the two compare like for like.
+// idx: 0 serve, 1 return, 2 third; mph; hitterZ: the hitter's distance from the net (m);
+// y: contact height (m); apex: the flight's highest point (m); landZ: where it first lands,
+// distance from the net (m), null if it was played out of the air.
+export const observedKind = ({ idx, mph, hitterZ, y, apex, landZ }) => {
+  if (idx === 0) return "serve"
+  if (idx === 1) return "return"
+  if (apex > 3.4) return "lob"
+  if (y > 1.75 && mph > 33) return "overhead"
+  if (idx === 2) return (landZ !== null && landZ < 3.4) || mph < 31 ? "third drop" : "third drive"
+  if (hitterZ < 3.3) return mph < 21 ? "dink" : mph >= 33 ? "fast at net" : "firm at net"
+  return mph < 29 ? "soft from back" : "drive"
+}
+
+const pct =(a, q) => {
   if (!a.length) return null
   const s = [...a].sort((x, y) => x - y)
   return s[Math.min(s.length - 1, Math.floor(q * s.length))]
@@ -57,6 +72,7 @@ export const simulate = ({ level = "pro", games = 6, seed0 = 1, doubles = true, 
   const reaction = [] // after an opponent's hit: seconds until a player first moves > 1.1 m/s
   const depthAt = {} // distance from the net of the serving / returning team at shots 1..6
   const LINE = 2.13 + 0.6
+  const observed = {} // by observedKind: mph, clear, apex, flight (to the first bounce), gap (to the next hit), y, land
   let lastDecided = null
   let flightWatch = null // { kind, t0, apex, crossed }
   for (let g = 0; g < games; g++) {
@@ -79,7 +95,9 @@ export const simulate = ({ level = "pro", games = 6, seed0 = 1, doubles = true, 
         flightWatch.apex = Math.max(flightWatch.apex, m.ball.p.y)
         if (!flightWatch.crossed && Math.sign(prevZ) !== Math.sign(m.ball.p.z) && prevZ !== 0) {
           flightWatch.crossed = true
-          ;(netClear[flightWatch.kind] ||= []).push(m.ball.p.y - BALL_R - netHeightAt(m.ball.p.x))
+          const clear = m.ball.p.y - BALL_R - netHeightAt(m.ball.p.x)
+          ;(netClear[flightWatch.kind] ||= []).push(clear)
+          if (flightWatch.shot) flightWatch.shot.clear = clear
         }
       }
       if (m.phase === "rally" && shots.length) {
@@ -116,6 +134,7 @@ export const simulate = ({ level = "pro", games = 6, seed0 = 1, doubles = true, 
         if (e.type === "hit") {
           if (flightWatch) {
             ;(apexH[flightWatch.kind] ||= []).push(flightWatch.apex)
+            if (flightWatch.shot) flightWatch.shot.apex = flightWatch.apex
             flightWatch = null
           }
           flightWatch = { kind: e.kind, t0: e.t, apex: m.ball.p.y, crossed: false }
@@ -152,6 +171,7 @@ export const simulate = ({ level = "pro", games = 6, seed0 = 1, doubles = true, 
           const prev = shots.at(-1)
           if (prev) (contactAfter[prev.kind] ||= []).push(e.y)
           shots.push({ kind: k, team: e.team, t: e.t, speed: e.speed, y: e.y, z: e.z, tag: e.tag })
+          flightWatch.shot = shots.at(-1)
           kinds[k] = (kinds[k] || 0) + 1
           ;(speeds[k] ||= []).push(e.speed * MPH)
           if (k === "serve") {
@@ -171,6 +191,8 @@ export const simulate = ({ level = "pro", games = 6, seed0 = 1, doubles = true, 
             // the first bounce after a hit only
             if (!last.bounced) {
               last.bounced = true
+              last.landZ = Math.abs(e.z)
+              last.landT = e.t
               ;(flight[last.kind] ||= []).push(e.t - last.t)
               bounceWatch = { kind: last.kind, apex: 0 }
               const depth = HALF_L - Math.abs(e.z)
@@ -185,9 +207,23 @@ export const simulate = ({ level = "pro", games = 6, seed0 = 1, doubles = true, 
           lastDecided = e.t
           if (flightWatch) {
             ;(apexH[flightWatch.kind] ||= []).push(flightWatch.apex)
+            if (flightWatch.shot) flightWatch.shot.apex = flightWatch.apex
             flightWatch = null
           }
           kitchenWatch = null
+          // the same shots as a camera would class them (observedKind)
+          shots.forEach((s, i) => {
+            const next = shots[i + 1]
+            const ok = observedKind({ idx: i, mph: s.speed * MPH, hitterZ: Math.abs(s.z), y: s.y, apex: s.apex ?? s.y, landZ: s.landZ ?? null })
+            const o = (observed[ok] ||= { mph: [], clear: [], apex: [], flight: [], gap: [], y: [], land: [] })
+            o.mph.push(s.speed * MPH)
+            if (s.clear !== undefined) o.clear.push(s.clear)
+            if (s.apex !== undefined) o.apex.push(s.apex)
+            if (s.landT !== undefined && (!next || s.landT < next.t)) o.flight.push(s.landT - s.t)
+            if (s.landZ !== undefined && (!next || s.landT < next.t)) o.land.push(s.landZ)
+            if (next) o.gap.push(next.t - s.t)
+            o.y.push(s.y)
+          })
           for (const p of m.players) {
             const s = mv[p.id]
             if (shots.length >= 3) {
@@ -266,6 +302,7 @@ export const simulate = ({ level = "pro", games = 6, seed0 = 1, doubles = true, 
       flightS: q3(flight),
     },
     ballFlight: { apexM: q3(apexH), netClearM: q3(netClear) },
+    observed: Object.fromEntries(Object.entries(observed).map(([k, o]) => [k, { n: o.mph.length, mph: q3v(o.mph, 1), clear: q3v(o.clear), apex: q3v(o.apex), flight: q3v(o.flight), gap: q3v(o.gap), y: q3v(o.y), land: q3v(o.land) }])),
     movement: {
       kitchenReturner: { median: r2(pct(kitchenRet, 0.5)), p90: r2(pct(kitchenRet, 0.9)), n: kitchenRet.length },
       kitchenServingTeam: { median: r2(pct(kitchenSrv, 0.5)), p90: r2(pct(kitchenSrv, 0.9)), n: kitchenSrv.length },
@@ -276,6 +313,7 @@ export const simulate = ({ level = "pro", games = 6, seed0 = 1, doubles = true, 
     },
   }
 }
+const q3v = (a, d = 2) => (a.length ? [pct(a, 0.1), pct(a, 0.5), pct(a, 0.9)].map((v) => (d === 1 ? r1(v) : r2(v))) : null)
 const q3 = (o) => Object.fromEntries(Object.entries(o).map(([k, a]) => [k, { p10: r2(pct(a, 0.1)), median: r2(pct(a, 0.5)), p90: r2(pct(a, 0.9)), n: a.length }]))
 
 // one level's numbers in a few lines
@@ -295,6 +333,7 @@ export const summary = (L) =>
     ` flight to bounce ${Object.entries(L.timing.flightS).map(([k, v]) => `${k}:${v.median}`).join(" ")}`,
     ` apex ${Object.entries(L.ballFlight.apexM).map(([k, v]) => `${k}:${v.median}`).join(" ")}; net clearance ${Object.entries(L.ballFlight.netClearM).map(([k, v]) => `${k}:${v.median}(${v.p10}-${v.p90})`).join(" ")}`,
     ` movement ${JSON.stringify(L.movement)}`,
+    ...Object.entries(L.observed).map(([k, o]) => ` [${k}] n${o.n} mph ${o.mph} clear ${o.clear} apex ${o.apex} flight ${o.flight} gap ${o.gap} y ${o.y} land ${o.land}`),
   ].join("\n")
 
 const isMain = process.argv[1] && import.meta.url.endsWith(process.argv[1].replace(/\\/g, "/").split("/").pop())
