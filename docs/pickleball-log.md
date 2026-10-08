@@ -206,3 +206,10 @@ The owner: "the actual gameplay needs to be just as good" as My Park. Audit firs
   - No announcer voice for streaks (callouts and crowd only).
   - The computer players have no per-character personality in how they play; reactions are by situation, not character, because `looks.js` belongs to the character work.
   - The intro still waits for the walk back, about 2.3 s at Club. A tap skips it.
+
+## Players v3: photographed faces, Ultra, kinetic chain (2026-10-07/08)
+After "ultra realistic people ... compete with NBA 2K27". Full notes, research, licenses and numbers in `docs/players-v3.md`.
+- **Faces:** 15 photographed heads from Microsoft Rocketbox (MIT) carried onto the MakeHuman head by `tools/build-faces.mjs` (landmarks, similarity + thin-plate + ICP fit of the face front, bakes of skin, normal/specular, iris, hair mask; the photographed hair as a shell + cards). Looks have `face` (Locker Room > Body > Face) and hair `own`; the roster and My Park regulars wear them. Runtime in `athlete.js` (face variants, photo skin material, `loadFaceCards`), `faceshape.js`, `faceList.js`.
+- **Ultra** quality: venue sky on skin/kits, GTAO + bloom post in matches (desktop only), faster motion-matching search.
+- **Movement:** the captured hips join strokes (hips lead the forward swing; ~30 degrees of hip-shoulder separation at the end of a take-back), fuller unit turn, eyes held on the contact longer.
+- **Tests:** `faces.test.js` (8), `locker.test.js` updated; all pickleball/park/twin suites and root `npm test` pass. **Left:** neck seam, real-iPhone pass, mocap strokes, Erne/ATP.
