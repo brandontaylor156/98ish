@@ -28,14 +28,23 @@ const savePrefs = (state) => {
   }
 }
 
-// [label, key, color, arg]. Colors as on the real thing: blue digits, red operators and
-// memory, purple functions, navy for the rest.
-const STANDARD_KEYS = [
-  [["MC", "mc", "red"], ["7", "7", "blue"], ["8", "8", "blue"], ["9", "9", "blue"], ["/", "div", "red"], ["sqrt", "sqrt", "navy"]],
-  [["MR", "mr", "red"], ["4", "4", "blue"], ["5", "5", "blue"], ["6", "6", "blue"], ["*", "mul", "red"], ["%", "pct", "navy"]],
-  [["MS", "ms", "red"], ["1", "1", "blue"], ["2", "2", "blue"], ["3", "3", "blue"], ["-", "sub", "red"], ["1/x", "recip", "navy"]],
-  [["M+", "mplus", "red"], ["0", "0", "blue"], ["+/-", "neg", "blue"], [".", ".", "blue"], ["+", "add", "red"], ["=", "eq", "red"]],
+// [label, key, color, arg, shown]. Color-coded families, each with its own key face (Calculator.css):
+// digits (light), operators (lavender, navy signs), memory (green), clears (rose), functions
+// (purple/navy text), and = (navy, the one to find at a glance). `shown` is the drawn glyph
+// when it differs from the label (the label stays the accessible name).
+// Standard: a pocket-calculator pad, 4 balanced columns: memory and functions in two
+// short rows on top, then clears and the operator column down the right.
+const STANDARD_ROWS = [
+  [["MC", "mc", "mem"], ["MR", "mr", "mem"], ["MS", "ms", "mem"], ["M+", "mplus", "mem"]],
+  [["sqrt", "sqrt", "fn", null, "√x"], ["%", "pct", "fn"], ["1/x", "recip", "fn", null, "¹⁄x"], ["+/-", "neg", "fn", null, "±"]],
+  [["C", "c", "clear"], ["CE", "ce", "clear"], ["Backspace", "back", "clear", null, "⌫"], ["/", "div", "op", null, "÷"]],
+  [["7", "7", "digit"], ["8", "8", "digit"], ["9", "9", "digit"], ["*", "mul", "op", null, "×"]],
+  [["4", "4", "digit"], ["5", "5", "digit"], ["6", "6", "digit"], ["-", "sub", "op", null, "−"]],
+  [["1", "1", "digit"], ["2", "2", "digit"], ["3", "3", "digit"], ["+", "add", "op", null, "+"]],
+  [["0", "0", "digit"], [".", ".", "digit"], ["=", "eq", "eq"]],
 ]
+const OP_SIGNS = { add: "+", sub: "−", mul: "×", div: "÷", pow: "^", root: "yroot", mod: "Mod", and: "And", or: "Or", xor: "Xor", lsh: "Lsh", rsh: "Rsh" }
+const SIGN_FOR = { "/": "÷", "*": "×", "-": "−" }
 
 const STAT_KEYS = [["Sta", "sta"], ["Ave", "ave"], ["Sum", "sum"], ["s", "s"], ["Dat", "dat"]]
 
@@ -53,7 +62,7 @@ const NUMBER_KEYS = [
   [["7", "7", "blue"], ["8", "8", "blue"], ["9", "9", "blue"], ["/", "div", "red"], ["Mod", "mod", "red"], ["And", "and", "red"]],
   [["4", "4", "blue"], ["5", "5", "blue"], ["6", "6", "blue"], ["*", "mul", "red"], ["Or", "or", "red"], ["Xor", "xor", "red"]],
   [["1", "1", "blue"], ["2", "2", "blue"], ["3", "3", "blue"], ["-", "sub", "red"], ["Lsh", "lsh", "red"], ["Not", "not", "red"]],
-  [["0", "0", "blue"], ["+/-", "neg", "blue"], [".", ".", "blue"], ["+", "add", "red"], ["=", "eq", "red"], ["Int", "int", "red"]],
+  [["0", "0", "blue"], ["+/-", "neg", "blue"], [".", ".", "blue"], ["+", "add", "red"], ["=", "eq", "eq"], ["Int", "int", "red"]],
   [["A", "A", "blue"], ["B", "B", "blue"], ["C", "C", "blue"], ["D", "D", "blue"], ["E", "E", "blue"], ["F", "F", "blue"]],
 ]
 
@@ -93,8 +102,34 @@ const HELP = [
   ["Ctrl+S, Insert", "Sta, Dat"],
 ]
 
-const Calculator = ({ fitWindow }) => {
+// a phone held sideways: the Scientific keys, whatever View says (like a phone's calculator)
+const LANDSCAPE = "(orientation: landscape) and (max-height: 520px)"
+const useLandscape = (on) => {
+  const [landscape, setLandscape] = useState(() => on && typeof window !== "undefined" && !!window.matchMedia?.(LANDSCAPE).matches)
+  useEffect(() => {
+    if (!on || !window.matchMedia) return setLandscape(false)
+    const mq = window.matchMedia(LANDSCAPE)
+    const change = () => setLandscape(mq.matches)
+    change()
+    mq.addEventListener?.("change", change)
+    return () => mq.removeEventListener?.("change", change)
+  }, [on])
+  return landscape
+}
+
+// what's waiting for the next number, as a little line above the readout ("12 + 3 ×")
+const pendingText = (calc) => {
+  if (calc.error) return ""
+  const show = (v) => displayText({ ...calc, error: null, entry: null, value: v })
+  return calc.frames
+    .map((f, i) => `${i ? "( " : ""}${f.values.map((v, j) => `${show(v)}${f.ops[j] ? ` ${OP_SIGNS[f.ops[j]] || f.ops[j]}` : ""}`).join(" ")}`)
+    .join(" ")
+    .trim()
+}
+
+const Calculator = ({ fitWindow, mobile = false }) => {
   const [calc, setCalc] = useState(() => initialState(loadPrefs()))
+  const landscape = useLandscape(mobile)
   const [statsOpen, setStatsOpen] = useState(false)
   const [statPick, setStatPick] = useState(null)
   const [dialog, setDialog] = useState(null)
@@ -104,7 +139,7 @@ const Calculator = ({ fitWindow }) => {
   const calcRef = useRef(calc)
   calcRef.current = calc
   const id = useId()
-  const sci = calc.mode === "scientific"
+  const sci = calc.mode === "scientific" || landscape
 
   const update = (fn) =>
     setCalc((current) => {
@@ -204,7 +239,7 @@ const Calculator = ({ fitWindow }) => {
 
   // ---- pieces ----
 
-  const key = ([label, k, color = "purple"], extra = "") => {
+  const key = ([label, k, color = "purple", , shown], extra = "") => {
     const statKey = ["ave", "sum", "s", "dat"].includes(k)
     const disabled = (statKey && !statsOpen) || !isEnabled(calc, k)
     const active = (k === "inv" && calc.inv) || (k === "hyp" && calc.hyp)
@@ -219,7 +254,7 @@ const Calculator = ({ fitWindow }) => {
         onMouseDown={(e) => e.preventDefault()} // keep the focus (and keyboard) on the calculator
         onClick={() => send(k)}
       >
-        {label}
+        <span aria-hidden="true">{shown || SIGN_FOR[label] || label}</span>
       </button>
     )
   }
@@ -235,27 +270,39 @@ const Calculator = ({ fitWindow }) => {
     </fieldset>
   )
 
-  const memoryBox = (
-    <div className="calcIndicator" title="Memory">
-      {calc.memory !== 0 ? "M" : ""}
-    </div>
-  )
-
   const clearKeys = (
     <div className="calcClears">
-      {key(["Backspace", "back", "red"], "calcKey--wide")}
-      {key(["CE", "ce", "red"], "calcKey--wide")}
-      {key(["C", "c", "red"], "calcKey--wide")}
-    </div>
-  )
-
-  const display = (
-    <div className="calcDisplay" role="status" aria-label="Display" data-error={calc.error ? "" : undefined}>
-      {displayText(calc)}
+      {key(["Backspace", "back", "clear"], "calcKey--wide")}
+      {key(["CE", "ce", "clear"], "calcKey--wide")}
+      {key(["C", "c", "clear"], "calcKey--wide")}
     </div>
   )
 
   const depth = parenDepth(calc)
+  const pending = pendingText(calc)
+
+  // the LCD: a little status line (memory, Inv/Hyp, parentheses, base and angle) and what's
+  // waiting, over the big readout
+  const display = (
+    <div className="calcLcd">
+      <div className="calcLcdTop" aria-hidden="true">
+        <span className={`calcFlag${calc.memory !== 0 ? " is-lit" : ""}`}>M</span>
+        {sci && (
+          <>
+            <span className={`calcFlag${calc.inv ? " is-lit" : ""}`}>INV</span>
+            <span className={`calcFlag${calc.hyp ? " is-lit" : ""}`}>HYP</span>
+            <span className={`calcFlag${statsOpen ? " is-lit" : ""}`}>STA</span>
+            <span className={`calcFlag${depth ? " is-lit" : ""}`}>{depth ? `(${depth}` : "( )"}</span>
+            <span className="calcFlag is-lit">{calc.base === 10 ? calc.angle.toUpperCase() : { 16: "HEX", 8: "OCT", 2: "BIN" }[calc.base]}</span>
+          </>
+        )}
+        <span className="calcPending">{pending}</span>
+      </div>
+      <div className="calcDisplay" role="status" aria-label="Display" data-error={calc.error ? "" : undefined}>
+        {displayText(calc)}
+      </div>
+    </div>
+  )
 
   const viewMenu = [
     { label: "Standard", checked: !sci, onClick: () => send("mode", "standard") },
@@ -314,7 +361,7 @@ const Calculator = ({ fitWindow }) => {
   return (
     <div
       ref={rootRef}
-      className={`calcRoot${fitWindow ? " is-fitted" : ""}${sci ? " is-scientific" : ""}`}
+      className={`calcRoot${fitWindow ? " is-fitted" : ""}${sci ? " is-scientific" : ""}${landscape ? " is-landscape" : ""}`}
       tabIndex={-1}
       onKeyDown={onKeyDown}
       onCopy={onCopy}
@@ -329,13 +376,13 @@ const Calculator = ({ fitWindow }) => {
         {display}
 
         {!sci && (
-          <>
-            <div className="calcTopRow">
-              {memoryBox}
-              {clearKeys}
-            </div>
-            <div className="calcStdGrid">{STANDARD_KEYS.flat().map((k) => key(k))}</div>
-          </>
+          <div className="calcPad">
+            {STANDARD_ROWS.map((row, i) => (
+              <div key={i} className={`calcPadRow${i < 2 ? " calcPadRow--small" : ""}`}>
+                {row.map((k) => key(k, k[1] === "0" ? "calcKey--zero" : ""))}
+              </div>
+            ))}
+          </div>
         )}
 
         {sci && (
@@ -355,23 +402,16 @@ const Calculator = ({ fitWindow }) => {
                   <label htmlFor={`${id}-hyp`}>Hyp</label>
                 </span>
               </fieldset>
-              <div className="calcIndicator" title="Statistics Box">
-                {statsOpen ? "Sta" : ""}
-              </div>
-              <div className="calcIndicator" title="Parentheses">
-                {depth ? `(=${depth}` : ""}
-              </div>
-              {memoryBox}
               {clearKeys}
             </div>
             <div className="calcSciKeys">
               <div className="calcSciBlock">
-                <div className="calcCol calcStatCol">{STAT_KEYS.map(([l, k]) => key([l, k, "navy"]))}</div>
+                <div className="calcCol calcStatCol">{STAT_KEYS.map(([l, k]) => key([l, k, "fn"]))}</div>
                 <div className="calcFnGrid">{FUNCTION_KEYS.flat().map((k) => key(k))}</div>
               </div>
               <div className="calcSciBlock">
                 <div className="calcCol calcMemCol">
-                  {MEMORY_KEYS.map(([l, k]) => key([l, k, k === "pi" ? "navy" : "red"]))}
+                  {MEMORY_KEYS.map(([l, k]) => key([l, k, k === "pi" ? "fn" : "mem"]))}
                 </div>
                 <div className="calcNumGrid">{NUMBER_KEYS.flat().map((k) => key(k))}</div>
               </div>

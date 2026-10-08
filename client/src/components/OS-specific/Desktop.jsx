@@ -901,6 +901,7 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
 
       {window.app === "calc" && (
         <Calculator
+          mobile={mobile}
           // fits its window to the buttons (Standard, Scientific); phones stretch them
           fitWindow={
             mobile || window.maximized
