@@ -969,16 +969,19 @@ const faceTexture = (id, lod) => {
             return map
           })
         let map = null
-        if (lod === "hi" && f.hi && ktx2Loader()) {
+        // (KTX2 where it can: a sixth of the GPU memory; the 1024 JPEG if that fails)
+        const kf = lod === "hi" ? f.hi : f.medKtx
+        if (kf && ktx2Loader()) {
           try {
-            map = await ktx2Loader().loadAsync(BASE + f.hi)
+            map = await ktx2Loader().loadAsync(BASE + kf)
             map.colorSpace = THREE.SRGBColorSpace
             map.anisotropy = 4
           } catch {
             map = null
           }
         }
-        const [med, detail, eye, hair] = await Promise.all([map ? null : jpeg(f.med).catch(() => null), f.detail ? jpeg(f.detail, false).catch(() => null) : null, f.eye ? jpeg(f.eye).catch(() => null) : null, f.hair ? jpeg(f.hair, false).catch(() => null) : null])
+        // (the photo's relief and specular: High and Ultra only; Medium keeps the body's own)
+        const [med, detail, eye, hair] = await Promise.all([map ? null : jpeg(f.med).catch(() => null), f.detail && lod === "hi" ? jpeg(f.detail, false).catch(() => null) : null, f.eye ? jpeg(f.eye).catch(() => null) : null, f.hair ? jpeg(f.hair, false).catch(() => null) : null])
         const t = map || med ? { map: map || med, detail, eye, hair, tone: f.tone } : null
         if (t) faceTexNow.set(key, t)
         return t
@@ -1731,7 +1734,7 @@ const buildAthlete = (look = {}, { shadows = false, withPaddle = true } = {}, de
   const face = faceT?.map ? faceInfo : null
   // (the photo's own hair: recolored to the look's; under skin when bald; facial hair shaved
   // when the look has no beard)
-  const photoHair = face ? { hair: faceT.hair, hairTone: face.hairTone, hairColor: look.hairColor, bald: look.hair === "bald", shave: look.beard === false && (face.beard || 0) > 0.12 } : null
+  const photoHair = face ? { hair: faceT.hair, hairTone: face.hairTone, hairColor: look.hairColor, bald: look.hair === "bald", shave: false } : null
   body.material = skinMaterial(tpl.maps, skinHex, { pores: fd.pores, sweat: sweatU, photo: face ? { tone: face.tone, map: faceT.map, detail: faceT.detail, ...photoHair } : null })
   if (ultra) gearEnv(body.material, 0.3)
   if (face && !faceTexNow.get(`${face.id}|${lodKey}`)) faceTexture(face.id, lodKey).then((t) => body.material?.userData?.setPhoto?.(t))

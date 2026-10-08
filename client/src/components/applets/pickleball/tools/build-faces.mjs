@@ -628,7 +628,7 @@ for (const face of FACES) {
     const wFar = w
     const yS = p[1] - ourMid[1]
     const zS = p[2] - ourMid[2]
-    const onScalp = Math.max(Math.min(1, Math.max(0, (yS - 0.045) / 0.02)), zS < -0.065 && yS > -0.04 ? 1 : 0)
+    const onScalp = Math.max(Math.min(1, Math.max(0, (yS - 0.045) / 0.02)), zS < -0.065 && yS > -0.04 ? 1 : 0, Math.abs(p[0]) > 0.058 && yS > -0.035 ? 1 : 0)
     if (onScalp > 0.5) (scalpN++, near > 0.5 && scalpNear++)
     if (near < 1 && onScalp > 0) {
       const c = s.rgb.map(toLin)
@@ -647,7 +647,7 @@ for (const face of FACES) {
       const y = p[1] - ourMid[1]
       const z = p[2] - ourMid[2]
       // (the scalp: above the forehead, or behind the face above the ears' bottoms)
-      const scalp = Math.max(Math.min(1, Math.max(0, (y - 0.045) / 0.02)), z < -0.065 && y > -0.04 ? 1 : 0)
+      const scalp = Math.max(Math.min(1, Math.max(0, (y - 0.045) / 0.02)), z < -0.065 && y > -0.04 ? 1 : 0, Math.abs(p[0]) > 0.058 && y > -0.035 ? 1 : 0)
       // (a beard: below the nose, in front, above the neck's middle)
       const face = y < -0.035 && y > -0.17 && z > -0.075 ? 1 : 0
       const r = hairness * scalp * w
@@ -769,7 +769,10 @@ for (const face of FACES) {
   console.log(face.id, "scalp near the photo's", (scalpNear / (scalpN || 1)).toFixed(2), ownHair ? "(its own hair)" : "(modeled hair: cards)")
   console.log(face.id, "hair tone", hairTone, "beard", (beardArea / (faceArea || 1)).toFixed(2))
   if (process.env.FACE_KTX !== "0") {
-    const png = await raw(out).png().toBuffer()
+    // (KTX2 at both sizes: a 2048 for High, and a 1024 for Medium, about a sixth of a JPEG's GPU
+    // memory: a park full of different faces fits a phone)
+    for (const [size, suffix] of [[2048, "-hi"], [1024, "-med"]]) {
+    const png = await (size === N ? raw(out) : raw(out).resize(size, size)).png().toBuffer()
     const ktx = await encodeToKTX2(new Uint8Array(png), {
       isUASTC: false,
       qualityLevel: 160,
@@ -781,11 +784,12 @@ for (const face of FACES) {
         return { data: new Uint8Array(data), width: info.width, height: info.height }
       },
     })
-    write(`${name}-hi.ktx2`, Buffer.from(ktx))
+    write(`${name}${suffix}.ktx2`, Buffer.from(ktx))
+    }
   }
   files[`${name}.bin`] = fs.statSync(path.join(outDir, `${name}.bin`)).size
   console.log(face.id, "done in", ((Date.now() - t0) / 1000).toFixed(1), "s", JSON.stringify(files))
-  manifest.faces[face.id] = { body: face.body, src: face.src, tone: "#" + photoMean.map((x) => toSrgb(x).toString(16).padStart(2, "0")).join(""), family: best.fam, med: `${name}.jpg`, hi: files[`${name}-hi.ktx2`] ? `${name}-hi.ktx2` : null, detail: `${name}-n.jpg`, eye: `${name}-eye.jpg`, hair: `${name}-hair.jpg`, hairTone, ownHair, beard: +(beardArea / (faceArea || 1)).toFixed(3), shape: `${name}.bin`, files }
+  manifest.faces[face.id] = { body: face.body, src: face.src, tone: "#" + photoMean.map((x) => toSrgb(x).toString(16).padStart(2, "0")).join(""), family: best.fam, med: `${name}.jpg`, hi: files[`${name}-hi.ktx2`] ? `${name}-hi.ktx2` : null, medKtx: files[`${name}-med.ktx2`] ? `${name}-med.ktx2` : null, detail: `${name}-n.jpg`, eye: `${name}-eye.jpg`, hair: `${name}-hair.jpg`, hairTone, ownHair, beard: +(beardArea / (faceArea || 1)).toFixed(3), shape: `${name}.bin`, files }
 }
 fs.writeFileSync(path.join(outDir, "faces.json"), JSON.stringify(manifest, null, 1))
 // the Locker Room's list (the app's own code, beside this folder): ids, bodies, natural tones
