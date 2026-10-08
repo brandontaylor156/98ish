@@ -513,7 +513,7 @@ export const topics = [
     book: "accessories",
     title: "Clock",
     summary: "World clocks, alarms, a timer and a stopwatch.",
-    keywords: ["alarm", "timer", "stopwatch", "world clock", "time zones", "snooze"],
+    keywords: ["alarm", "timer", "stopwatch", "world clock", "time zones", "snooze", "alarm sound", "ringtone", "wake up"],
     programs: ["Clock"],
     body: [
       { img: "/assets/program_icons/clock.svg", alt: "Clock icon" },
@@ -521,12 +521,13 @@ export const topics = [
       {
         list: [
           "**World Clock**: add cities to see what time it is for faraway friends.",
-          "**Alarm**: set a time and click **Add alarm**. **More options »** adds a label and the days it repeats (weekdays unless you change them). When it rings, choose **Snooze** (9 more minutes) or stop it.",
-          "**Timer**: pick a quick time (1 minute up to 1 hour) or set hours, minutes and seconds. You can pause it.",
+          "**Alarm**: set a time and click **Add alarm**. **More options »** adds a label, the days it repeats (weekdays unless you change them) and its **sound**: Bedside Beeper, Sunrise Chimes, Old Brass Bell or 8-Bit Wake Up (press **▶ Play** to hear one). It starts a little softer and rings until you press **Stop** or **Snooze** (9 more minutes). Tick or untick the box next to an alarm to turn it on or off.",
+          "**Timer**: pick a quick time (1 minute up to 1 hour) or set hours, minutes and seconds. You can pause it. Its sound is under **More options »**.",
           "**Stopwatch**: start, stop, take laps and reset.",
         ],
       },
-      { note: "Alarms and the timer keep going when the Clock window is closed, but only while 98ish is open. If you close the browser tab, they won't ring." },
+      { note: "Alarms and the timer keep going when the Clock window is closed. With 98ish closed or in the background (a phone puts pages to sleep), they can't play a sound, so 98ish sends a **notification** instead, if you're signed on to 98 Messenger and turned notifications on ([[push-setup]]). Do Not Disturb never stops your own alarms." },
+      { phone: "On an iPhone, alarms ring through the silent switch while 98ish is open. Tap the screen once after opening 98ish so the iPhone lets it play sound." },
       "Times show in 12-hour or 24-hour style, whichever you chose in [[regional|Regional Settings]].",
       { tip: "On the taskbar, right-click the clock (or touch and hold it) to open Clock or Calendar." },
       { open: "Clock", label: "Open Clock" },

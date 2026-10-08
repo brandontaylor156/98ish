@@ -12,7 +12,8 @@
 // What is kept where, per account, and what deleting does (key = the normalized screen name):
 //
 //   step        collections                       what happens
-//   push        pushsubs, pushprefs, pushinboxes   their devices, settings and held IMs deleted;
+//   push        pushsubs, pushprefs, pushinboxes   their devices, settings (with the copy of Clock's
+//                                                  alarms kept for alarm pushes) and held IMs deleted;
 //                                                  IMs they sent that wait for someone else deleted
 //   messages    imhistory, imclears, imreads       98 Messenger's saved conversations (server/aim/
 //                                                  history.js): their copy of every IM and room

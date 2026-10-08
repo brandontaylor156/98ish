@@ -2,8 +2,9 @@ import { useSyncExternalStore } from "react"
 
 // The Clock app's alarms, timer and world clocks, kept in localStorage so they still ring
 // with the Clock window closed (CalendarBridge watches them while 98ish is open).
-//   alarm: { id, time: "07:30", days: [0..6] (none: just once), label, on, lastRang }
+//   alarm: { id, time: "07:30", days: [0..6] (none: just once), label, on, lastRang, sound }
 //   timer: { duration (ms), endsAt (running) | remaining (paused), label }
+//   timerSound: the timer's sound (sounds.js ALARM_SOUNDS id)
 //   cities: IANA zones for World Clock
 
 const KEY = "98ish.clock.app"
@@ -40,7 +41,7 @@ const id = () => Math.random().toString(36).slice(2, 10)
 
 // ---- alarms ----
 
-export const addAlarm = (alarm) => set({ alarms: [...state.alarms, { id: id(), time: "07:00", days: [], label: "", on: true, lastRang: null, ...alarm }].slice(0, 30) })
+export const addAlarm = (alarm) => set({ alarms: [...state.alarms, { id: id(), time: "07:00", days: [], label: "", on: true, lastRang: null, sound: "beeper", ...alarm }].slice(0, 30) })
 export const updateAlarm = (alarmId, patch) => set({ alarms: state.alarms.map((a) => (a.id === alarmId ? { ...a, ...patch } : a)) })
 export const removeAlarm = (alarmId) => set({ alarms: state.alarms.filter((a) => a.id !== alarmId) })
 
@@ -67,6 +68,7 @@ export const startTimer = (duration, label = "") => set({ timer: { duration, end
 export const pauseTimer = () => state.timer?.endsAt && set({ timer: { ...state.timer, endsAt: null, remaining: Math.max(0, state.timer.endsAt - Date.now()) } })
 export const resumeTimer = () => state.timer?.remaining && set({ timer: { ...state.timer, endsAt: Date.now() + state.timer.remaining, remaining: null } })
 export const cancelTimer = () => set({ timer: null })
+export const setTimerSound = (sound) => set({ timerSound: sound })
 export const timerLeft = (timer, now = Date.now()) => (!timer ? 0 : timer.endsAt ? Math.max(0, timer.endsAt - now) : timer.remaining || 0)
 
 // ---- the stopwatch (kept, so it keeps counting with the window closed) ----
@@ -76,6 +78,13 @@ export const stopwatchStop = () => state.stopwatch?.startedAt && set({ stopwatch
 export const stopwatchReset = () => set({ stopwatch: null })
 export const stopwatchLap = () => state.stopwatch?.startedAt && set({ stopwatch: { ...state.stopwatch, laps: [Date.now() - state.stopwatch.startedAt, ...state.stopwatch.laps].slice(0, 99) } })
 export const stopwatchElapsed = (sw, now = Date.now()) => (!sw ? 0 : sw.startedAt ? now - sw.startedAt : sw.elapsed || 0)
+
+// ---- what the server needs to push alarms with 98ish closed ----
+// (the alarms that are on, and a running timer as a one-time alarm at its end)
+export const alarmsForPush = (app = state) => [
+  ...app.alarms.filter((a) => a.on).map((a) => ({ id: a.id, time: a.time, days: a.days || [], label: a.label || "" })),
+  ...(app.timer?.endsAt ? [{ id: "timer", at: app.timer.endsAt, label: app.timer.label || "" }] : []),
+]
 
 // ---- world clocks ----
 

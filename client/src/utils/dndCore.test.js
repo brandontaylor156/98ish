@@ -116,6 +116,8 @@ test("who gets through: calls from favorites, reminders if allowed, nothing else
   assert.equal(dndAllows({ ...s, calls: "none" }, { kind: "calls", from: "sweetpea" }, t), false)
   assert.equal(dndAllows(s, { kind: "calendar" }, t), true)
   assert.equal(dndAllows({ ...s, reminders: false }, { kind: "calendar" }, t), false)
+  // your own alarms always ring, whatever else is held
+  assert.equal(dndAllows({ ...s, reminders: false, calls: "none" }, { kind: "alarms" }, t), true)
   for (const kind of ["im", "mail", "games", "couples", "system"]) assert.equal(dndAllows(s, { kind }, t), false, kind)
   // off: everything gets through
   assert.equal(dndAllows(DND_DEFAULTS, { kind: "im" }, t), true)

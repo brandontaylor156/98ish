@@ -1,12 +1,14 @@
 import React, { useEffect, useRef, useState } from "react"
 import { useAim } from "../aim/AimContext"
 import { launch, programByName } from "../../../utils/programs"
-import { now as wallNow } from "../../../utils/clock"
+import { now as wallNow, currentZone } from "../../../utils/clock"
 import { useFloating } from "../../../hooks/useFloating"
 import { dateIn, dueReminders, whenLabel, zoneParts } from "./recur"
 import { OPEN_EVENT, VIEW_EVENT, allEvents, applyLive, calendarById, getCal, answerInvite, openCalendar, refresh, signedOn, useCalendar, zone } from "./store"
-import { dueAlarms, getClockApp, markRang, cancelTimer, useClockApp, timerLeft } from "./clockStore"
-import { playNotice, playReminder, ringAlarm } from "./sounds"
+import { alarmsForPush, dueAlarms, getClockApp, markRang, cancelTimer, useClockApp, timerLeft } from "./clockStore"
+import { playNotice, playReminder, primeAlarmAudio, ringAlarm } from "./sounds"
+import { putAlarms, usePushSession } from "../../../utils/push"
+import { claimPlaybackSession } from "../../../utils/audio"
 import { interrupts, notify as notifyCenter } from "../../../utils/notifications"
 import { useDnd } from "../../../utils/dnd"
 import { isLocked, notifyLocked } from "../../../utils/lock"
@@ -16,7 +18,8 @@ import "./CalendarBridge.css"
 //   - keeps the calendar store signed on with 98 Messenger and applies live cal:* notices
 //   - fires event reminders (a Reminder window with Snooze and Dismiss, a chime, and a
 //     system notification when 98ish is in the background and notifications are allowed)
-//   - rings the Clock's alarms and timer
+//   - rings the Clock's alarms and timer (their sound loops until Stop or Snooze), and keeps
+//     the server's copy of them current so it can push "Alarm" when 98ish is closed
 //   - shows toasts when someone else adds, changes or comments on an event
 //   - opens Calendar and Clock when asked (openCalendar(), the taskbar clock, ?calendar= links)
 
@@ -479,14 +482,14 @@ const CalendarBridge = ({ socket, windows, dispatch, mobile }) => {
       const app = getClockApp()
       if (app.timer?.endsAt && timerLeft(app.timer) <= 0) {
         cancelTimer()
-        ring({ kind: "timer", label: app.timer.label })
+        ring({ kind: "timer", label: app.timer.label, sound: app.timerSound })
       }
       const w = wallNow()
       const wall = { date: `${w.getFullYear()}-${String(w.getMonth() + 1).padStart(2, "0")}-${String(w.getDate()).padStart(2, "0")}`, wd: w.getDay(), h: w.getHours(), mi: w.getMinutes() }
       for (const a of dueAlarms(app.alarms, wall)) {
         markRang(a, wall)
         const [h, m] = a.time.split(":").map(Number)
-        ring({ kind: "alarm", id: a.id, label: a.label, time12: `${h % 12 || 12}:${String(m).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}` })
+        ring({ kind: "alarm", id: a.id, label: a.label, sound: a.sound, time12: `${h % 12 || 12}:${String(m).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}` })
       }
       // a snoozed alarm
       if (snoozedAlarm.current && snoozedAlarm.current.until <= Date.now()) {
@@ -502,15 +505,42 @@ const CalendarBridge = ({ socket, windows, dispatch, mobile }) => {
   const snoozedAlarm = useRef(null)
   const ring = (what) => {
     stopRing.current?.()
-    stopRing.current = ringAlarm()
+    stopRing.current = null
     setAlarm(what)
-    notify(what.kind === "timer" ? "Timer" : "Alarm", what.label || (what.kind === "timer" ? "Time's up!" : what.time12), "clock-alarm")
+    // Do Not Disturb: your own alarms and timers always ring (dndCore's "alarms" rule), like
+    // a phone's; asked anyway so the rule lives in one place
+    if (interrupts("alarms")) {
+      const stop = ringAlarm({ sound: what.sound, onTimeout: () => setAlarm(null) })
+      // iPhone: play through the ringer switch while it rings, like a music app
+      const release = claimPlaybackSession()
+      stopRing.current = () => (stop(), release())
+    }
+    notify(what.kind === "timer" ? "Timer" : "Alarm", what.label || (what.kind === "timer" ? "Time's up!" : what.time12), "clock-alarm", "alarms")
   }
   const stopAlarm = () => {
     stopRing.current?.()
     stopRing.current = null
     setAlarm(null)
   }
+  // an alarm or timer is set: have the sound card ready, so the next tap unlocks it (iOS)
+  useEffect(() => {
+    if (watching) primeAlarmAudio()
+  }, [watching])
+  // the server's copy (for a push when 98ish is closed or in the background): only when it
+  // changed, a moment after the last change
+  const pushSession = usePushSession()
+  const pushedAlarms = useRef("")
+  const forPush = JSON.stringify(alarmsForPush(clockApp))
+  useEffect(() => {
+    if (!pushSession?.token) return
+    const body = `${pushSession.account}|${currentZone()}|${forPush}`
+    if (body === pushedAlarms.current) return
+    const t = setTimeout(async () => {
+      const result = await putAlarms(pushSession.token, JSON.parse(forPush), currentZone())
+      if (result.ok) pushedAlarms.current = body
+    }, 1500)
+    return () => clearTimeout(t)
+  }, [pushSession?.token, pushSession?.account, forPush])
   const snoozeAlarm = () => {
     snoozedAlarm.current = { alarm, until: Date.now() + 9 * 60_000 }
     stopAlarm()

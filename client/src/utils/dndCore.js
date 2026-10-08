@@ -99,6 +99,8 @@ export const dndAllows = (state, { kind, from } = {}, t = Date.now(), tz) => {
   const s = cleanDnd(state)
   if (kind === "calls") return s.calls === "everyone" || (s.calls === "favorites" && !!from && s.favorites.includes(keyOf(from)))
   if (kind === "calendar") return s.reminders
+  // Clock's alarms and timer: you set them yourself, so they always ring (like a phone's)
+  if (kind === "alarms") return true
   return false
 }
 

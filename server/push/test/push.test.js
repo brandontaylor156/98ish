@@ -96,7 +96,7 @@ const serveRouter = (p) => {
 
 test("settings: defaults, cleaning, quiet hours across midnight and time zones", () => {
   const d = push.settingsOf({})
-  assert.deepEqual(d.categories, { im: true, calls: true, calendar: true, couples: true, mail: true, games: true, notes: true, albums: true, places: true, pickleball: true })
+  assert.deepEqual(d.categories, { im: true, calls: true, calendar: true, couples: true, mail: true, games: true, notes: true, albums: true, places: true, pickleball: true, alarms: true })
   assert.equal(d.quiet.on, false)
   assert.equal(d.callsInQuiet, true)
   assert.equal(d.tz, "UTC")
@@ -763,4 +763,69 @@ test("Our Pet asks for care at most every 8 hours, only when it needs something"
   assert.equal(await p.service.checkPets({ couples }), 0) // not again so soon
   p.advance(8 * 60 * 60_000)
   assert.equal(await p.service.checkPets({ couples }), 1)
+})
+
+test("Clock alarms: pushed at their minute in the alarm zone, through Do Not Disturb and quiet hours, once; one-time alarms and timers then go", async () => {
+  const p = makePush()
+  p.setTime(Date.parse("2026-10-05T12:59:30Z")) // a Monday, 7:59:30 AM in Chicago
+  const aim = fakeAim()
+  p.service.useAim(aim)
+  aim.sessions.delete("alice") // 98ish closed
+  const store = await p.service.getStore()
+  await store.subs.save({ key: "alice", endpoint: "https://push.example.com/a", p256dh: "k", auth: "a" })
+  // Do Not Disturb and quiet hours both on: alarms still ring
+  await store.prefs.set("alice", { tz: "America/Chicago", quiet: { on: true, from: "22:00", to: "09:00" }, dnd: { on: true, calls: "none", reminders: false, updatedAt: p.now() } })
+
+  const r = serveRouter(p)
+  try {
+    assert.equal((await r.call("PUT", "/alarms", { alarms: [] })).status, 401)
+    assert.equal((await r.call("PUT", "/alarms", { alarms: "nope" }, r.aim.ALICE)).status, 400)
+    assert.equal((await r.call("PUT", "/alarms", { alarms: [], tz: "Mars/Olympus" }, r.aim.ALICE)).status, 400)
+    const put = await r.call(
+      "PUT",
+      "/alarms",
+      {
+        tz: "America/Chicago",
+        alarms: [
+          { id: "wk", time: "08:00", days: [1, 2, 3, 4, 5], label: "Work" },
+          { id: "we", time: "08:00", days: [0, 6], label: "Weekend" },
+          { id: "once", time: "08:01", days: [], label: "" },
+          { id: "bad", time: "25:00", days: [] },
+          { id: "timer", at: p.now() + 3 * 60_000, label: "Pasta" },
+        ],
+      },
+      r.aim.ALICE
+    )
+    assert.equal(put.alarms, 4) // the bad time dropped
+  } finally {
+    r.close()
+  }
+  p.service.useAim(aim) // (serveRouter brought its own, with everyone signed on) 98ish closed
+  assert.equal(await p.service.checkAlarms(), 0) // 7:59
+  p.advance(40_000) // 8:00:10
+  assert.equal(await p.service.checkAlarms(), 1)
+  const n = p.webpush.sent[0].data
+  assert.equal(n.title, "Alarm")
+  assert.equal(n.body, "8:00 AM · Work")
+  assert.equal(n.category, "alarms")
+  assert.equal(n.requireInteraction, true)
+  assert.match(n.url, /name=Clock$/)
+  assert.equal(await p.service.checkAlarms(), 0) // not twice for the same minute
+  p.advance(60_000) // 8:01:10: the one-time alarm, which then goes
+  assert.equal(await p.service.checkAlarms(), 1)
+  assert.deepEqual((await store.prefs.get("alice")).alarms.map((a) => a.id), ["wk", "we", "timer"])
+  p.advance(2 * 60_000) // the timer's end
+  assert.equal(await p.service.checkAlarms(), 1)
+  assert.equal(p.webpush.sent.at(-1).data.body, "Time's up! · Pasta")
+  assert.deepEqual((await store.prefs.get("alice")).alarms.map((a) => a.id), ["wk", "we"])
+
+  // 98ish in front: the page rings it itself, no push
+  aim.sessions.set("alice", { key: "alice", socket: { emit() {} }, visible: true })
+  p.setTime(Date.parse("2026-10-06T12:59:50Z"))
+  await p.service.checkAlarms()
+  p.advance(30_000)
+  assert.equal(await p.service.checkAlarms(), 0)
+  // Delete My Account's push step takes the alarms with the settings
+  await p.service.eraseAccount({ key: "alice" })
+  assert.equal((await store.prefs.get("alice")).alarms, undefined)
 })
