@@ -43,6 +43,9 @@ So every object outside a venue's buildings has a source, and nothing is drawn t
   - The west block drew its parking lot (cars in the aerial) as a 7 m building. It's now the studio strip plus the block west of the lot.
   - A 30 m graffiti mural on the Calvert St wall and a navy awning over the entrance: neither is in any photo. The entrance photo shows the banner over the brown "14911" doors, and the banner stays.
 
+- **Newport (2026-10-07, the owner's "bench during the game"):** a bench 0.23 m off Court 43's sideline by its kitchen and a paddle wait board in the 4.2 m between the back-to-back baselines of Courts 35 and 43. Neither had a source; both are gone. `venues.test.js` "live courts are clear" keeps every live court's sidelines (0.3 m) and baselines (1 m) clear at every venue.
+- **Every real venue's match view:** the umpire's chair by the net post (a stadium thing; no real court here has one).
+
 ## Per venue
 
 Courts, nets, fences, light poles and court paint come from OSM plus the aerial and the club's photos at every venue (`docs/venue-realism.md`). The tables cover everything else outside.
@@ -135,6 +138,23 @@ Courts, nets, fences, light poles and court paint come from OSM plus the aerial 
 | Surround: 84 buildings (4 default height), 57 roads (the 105 freeway ramps, Nash, Maple) | OSM |
 | Skyline: flat coastal plain; the Palos Verdes hills south, the Santa Monica Mountains north, the Baldwin Hills and San Gabriels north-east (up to 2.1°) | Terrain |
 
+### Bouquet Canyon Park (Santa Clarita) (2026-10-07)
+
+A City of Santa Clarita park at 28127 Wellston Dr, Saugus, next to Bouquet Canyon Elementary. The city lists **8 outdoor pickleball courts** (santaclarita.gov, Adult Sports > Pickleball); its older park listing (film.santaclarita.gov) has a "lighted tennis court", which is what the courts were.
+
+| Object class | Source |
+|---|---|
+| 8 pickleball courts in one fenced pen, two rows of four, long axis at bearing 170.4 | **Aerial** (Esri z20): four courts on each of the two old tennis courts, 8.9 m apart in each, 9.25 m across the middle, rows 18 m apart. OSM maps the two old courts as two 37 x 18.5 m "pickleball" pitches (751797805/6); the eight sit within 3 m of them |
+| Court colors (blue court and kitchen, grey-green surround), black fence | Aerial (sampled, lifted out of its haze by eye) |
+| Basketball court, restroom building (4.2 m), playground, the lot, five picnic tables, two bleachers by the softball field | OSM |
+| 177 trees (88 small crowns drawn as conifers) | Canopy (segmented off the z19 aerial: dark green, not grass) |
+| Surround: 257 buildings (houses and the school, OSM heights; 1 default), parks/pitches | OSM |
+| Skyline: the hills north of Saugus up to 8.2 deg (the highest of the eight venues), the Santa Clarita valley round | Terrain |
+
+**Not drawn:** court lights (none show in the aerial, where the softball field's poles do, and OSM has no `lit`; so no night games there), dividers between the courts (none clear in the aerial), and nothing by rule: no benches, bleachers by the courts or pro-shop kiosk (`fence.benches/bleachers/booth: false`). The softball diamond and its light poles aren't drawn (not mapped as such; the pitch is a flat area).
+
+**Owner questions:** do the courts have lights now? Are there benches or a wait board by the gate (where)? Any windscreens?
+
 ## Interiors: the GUESS layouts (kept, need the owner)
 
 These rooms are inside real buildings and are furnished from tour videos and photos. Which room sits where inside each building is a guess. Their contents are reasonably sourced.
@@ -164,6 +184,8 @@ These rooms are inside real buildings and are furnished from tour videos and pho
 - **Sinaloa:** is the shaded seating along the covered walkway right?
 
 Also open:
+- SMASH: Court 9's east baseline is 0.3 m from the pro shop's wall (the courts are traced; the rooms' line is a guess). A match at SMASH plays on Court 8 (`play/courtpick.js`: a clear camera). Is there a wall right there?
+- Wolf + Bear: the streamed court's spectator walk starts 0.05 m off its sideline (the rail is now 0.35 m off). How much room is there really?
 - Whittier: which two tennis courts carry pickleball lines? Shared use is a guess.
 - Sinaloa: the cypress row's exact line.
 
