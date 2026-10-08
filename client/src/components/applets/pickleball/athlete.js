@@ -80,6 +80,7 @@ export const loadAthletes = () => {
   // (the motion-matching database comes in alongside, on its own: the athletes don't wait
   // for it, and the procedural footwork carries on until it's in, or if it fails)
   loadMotion().catch(() => {})
+  loadFaces() // (players v3: the photo faces' list, small)
   if (loading) return loading
   loading = (async () => {
     const loader = loaderOf()
@@ -220,6 +221,7 @@ const template = (gltf, set = SETS[0]) => {
   head.eyeY = (eyes.boundingBox.min.y + eyes.boundingBox.max.y) / 2
   head.eyeZ = eyes.boundingBox.max.z
   head.eyeX = eyes.boundingBox.max.x * 0.55
+  head.eyeR = (eyes.boundingBox.max.y - eyes.boundingBox.min.y) / 2
   // the materials' textures (shared by every instance)
   const ud = body.material.userData || {}
   // (the glTF normal map: three's loader flips its y; keep that, at the strength wanted)
@@ -338,17 +340,42 @@ const cross3 = (a, b) => ({ x: a.y * b.z - a.z * b.y, y: a.z * b.x - a.x * b.z, 
 
 // A body in one of the builds (slim, regular, strong: outfit.js reshapeBody): its vertex
 // positions, and the garments and trimmed bodies made from it (built once, shared)
-const variantOf = (tpl, build, full) => {
-  const key = BUILD_SCALE[build] ? build : "regular"
+const variantOf = (tpl, build, full, face = null) => {
+  const bkey = BUILD_SCALE[build] ? build : "regular"
+  // (players v3: a photo face moves the front of the head: its own variant of the body)
+  const shape = face ? faceShapeNow.get(face.id) : null
+  const key = shape ? `${bkey}|${face.id}` : bkey
   if (tpl.variants[key]) return tpl.variants[key]
   let prepared = tpl.prepared
   let position = full.attributes.position
-  if (key !== "regular") {
-    const moved = reshapeBody(tpl.prepared, tpl.joints, tpl.marks, BUILD_SCALE[key])
+  let normal = null
+  if (bkey !== "regular") {
+    const moved = reshapeBody(tpl.prepared, tpl.joints, tpl.marks, BUILD_SCALE[bkey])
     prepared = { ...tpl.prepared, position: moved }
     position = new THREE.BufferAttribute(moved, 3)
   }
-  tpl.variants[key] = { key, prepared, position, garments: key === "regular" ? tpl.garments : {}, bodies: {} }
+  if (shape) {
+    const L = shape.lods[tpl.lod === "hi" ? "hi" : "med"]
+    const moved = Float32Array.from(prepared.position)
+    const nsrc = full.attributes.normal
+    const nrm = new Float32Array(nsrc.count * 3)
+    for (let i = 0; i < nsrc.count; i++) (nrm[i * 3] = nsrc.getX(i)), (nrm[i * 3 + 1] = nsrc.getY(i)), (nrm[i * 3 + 2] = nsrc.getZ(i))
+    const u = shape.unit
+    for (let k = 0; k < L.count; k++) {
+      const i = L.idx[k]
+      for (let c = 0; c < 3; c++) {
+        moved[i * 3 + c] += L.pos[k * 3 + c] * u
+        nrm[i * 3 + c] = L.nrm[k * 3 + c] / 127
+      }
+    }
+    prepared = { ...prepared, position: moved }
+    position = new THREE.BufferAttribute(moved, 3)
+    normal = new THREE.BufferAttribute(nrm, 3)
+  }
+  // (a face doesn't change what's worn below the neck: the build's garments and kits are shared)
+  const base = shape ? variantOf(tpl, build, full) : null
+  if (base) base.kits ||= {}
+  tpl.variants[key] = { key, prepared, position, normal, garments: base ? base.garments : bkey === "regular" ? tpl.garments : {}, kits: base ? base.kits : undefined, bodies: {} }
   return tpl.variants[key]
 }
 
@@ -395,7 +422,7 @@ const bodyUnder = (tpl, full, look, v) => {
   const key = grown.join("|") + "/" + pieces.join("|")
   if (!v.bodies[key]) {
     const g = new THREE.BufferGeometry()
-    for (const [name, attr] of Object.entries(full.attributes)) if (name !== "_kit") g.setAttribute(name, name === "position" ? v.position : attr)
+    for (const [name, attr] of Object.entries(full.attributes)) if (name !== "_kit") g.setAttribute(name, name === "position" ? v.position : name === "normal" && v.normal ? v.normal : attr)
     // (the face's expressions: offsets, the same for every build)
     g.morphAttributes = full.morphAttributes
     g.morphTargetsRelative = full.morphTargetsRelative
@@ -702,20 +729,36 @@ float pkNoise(vec3 x) {
 	return mix(mix(mix(pkHash(i), pkHash(i + vec3(1, 0, 0)), f.x), mix(pkHash(i + vec3(0, 1, 0)), pkHash(i + vec3(1, 1, 0)), f.x), f.y),
 		mix(mix(pkHash(i + vec3(0, 0, 1)), pkHash(i + vec3(1, 0, 1)), f.x), mix(pkHash(i + vec3(0, 1, 1)), pkHash(i + vec3(1, 1, 1)), f.x), f.y), f.z);
 }`
-const skinMaterial = (maps, hex, { pores = false, sweat = null } = {}) => {
+const skinMaterial = (maps, hex, { pores = false, sweat = null, photo = null } = {}) => {
   const ref = maps.ref
   const lum = ref.r * 0.2126 + ref.g * 0.7152 + ref.b * 0.0722
-  const m = new THREE.MeshStandardMaterial({ map: maps.skin, normalMap: maps.normal, roughness: 0.55, metalness: 0 })
+  const m = new THREE.MeshStandardMaterial({ map: photo?.map || maps.skin, normalMap: maps.normal, roughness: 0.55, metalness: 0 })
   if (maps.normal && maps.normalScale) m.normalScale.copy(maps.normalScale)
   m.defines = { PK_WRAP: "vec3(0.5, 0.3, 0.24)" }
-  const uniforms = { skinTone: { value: srgb(hex).multiplyScalar(maps.gain) }, refHue: { value: new THREE.Vector3(ref.r / lum, ref.g / lum, ref.b / lum) }, refLum: { value: lum }, hueMix: { value: maps.hueMix }, skinWarm: { value: skinWarmth(hex) }, pkSweat: sweat || { value: 0 } }
+  const uniforms = { skinTone: { value: srgb(hex).multiplyScalar(maps.gain) }, refHue: { value: new THREE.Vector3(ref.r / lum, ref.g / lum, ref.b / lum) }, refLum: { value: lum }, hueMix: { value: maps.hueMix }, skinWarm: { value: skinWarmth(hex) }, pkSweat: sweat || { value: 0 }, pkTint: { value: new THREE.Vector3(1, 1, 1) }, pkFaceDetail: { value: photo?.detail || null } }
   if (pores) m.defines.PK_PORES = ""
+  // players v3: a photo face's own atlas, drawn as photographed (no recoloring), only tinted
+  // gently toward the look's skin tone if that differs from the photo's; its detail map: the
+  // photo's normal relief (RG, added to the body's) and its specular (B: oily nose and forehead
+  // glossier, matte cheeks)
+  if (photo) {
+    m.defines.PK_PHOTO = ""
+    const t = srgb(photo.tone)
+    const s = srgb(hex)
+    const lt = t.r * 0.2126 + t.g * 0.7152 + t.b * 0.0722
+    const ls = s.r * 0.2126 + s.g * 0.7152 + s.b * 0.0722
+    // (the tone's lightness all the way, its hue only halfway: the photo's own variation stays)
+    const k = Math.max(0.55, Math.min(1.8, ls / lt))
+    uniforms.pkTint.value.set(k * (0.5 + (0.5 * (s.r / ls)) / (t.r / lt)), k * (0.5 + (0.5 * (s.g / ls)) / (t.g / lt)), k * (0.5 + (0.5 * (s.b / ls)) / (t.b / lt)))
+    uniforms.refHue.value.set(t.r / lt, t.g / lt, t.b / lt)
+    if (photo.detail) m.defines.PK_FACE_DETAIL = ""
+  }
   m.onBeforeCompile = (sh) => {
     Object.assign(sh.uniforms, uniforms)
     athleteLight(sh, { rim: 0.22 })
     if (pores) sh.vertexShader = sh.vertexShader.replace("#include <common>", KNIT_VERT[0]).replace("#include <begin_vertex>", KNIT_VERT[1])
     sh.fragmentShader = sh.fragmentShader
-      .replace("#include <common>", "#include <common>\nuniform vec3 skinTone;\nuniform vec3 refHue;\nuniform float refLum;\nuniform float hueMix;\nuniform vec3 skinWarm;\nuniform float pkSweat;" + (pores ? "\nvarying vec3 vPkRest;" + NOISE_GLSL : ""))
+      .replace("#include <common>", "#include <common>\nuniform vec3 skinTone;\nuniform vec3 refHue;\nuniform float refLum;\nuniform float hueMix;\nuniform vec3 skinWarm;\nuniform float pkSweat;\nuniform vec3 pkTint;\nuniform sampler2D pkFaceDetail;" + (pores ? "\nvarying vec3 vPkRest;" + NOISE_GLSL : ""))
       .replace(
         "#include <map_fragment>",
         `#include <map_fragment>
@@ -725,17 +768,46 @@ const skinMaterial = (maps, hex, { pores = false, sweat = null } = {}) => {
         vec3 hue = diffuseColor.rgb / max(l, 1e-4);
         // the lips: where the texture is redder than the skin around it
         pkLipK = smoothstep(0.05, 0.16, hue.r / refHue.r - hue.g / refHue.g);
+        #ifdef PK_PHOTO
+        diffuseColor.rgb *= pkTint;
+        #else
         diffuseColor.rgb = skinTone * (l / refLum) * mix(vec3(1.0), hue / refHue, hueMix);
         // warmth (light under the skin), most for pale skin, which goes gray under cool lights
         diffuseColor.rgb *= skinWarm;
+        #endif
         // wet skin reads a touch darker
         diffuseColor.rgb *= 1.0 - 0.07 * pkSweat;
       }`
       )
-      .replace("#include <roughnessmap_fragment>", "#include <roughnessmap_fragment>\n\troughnessFactor = mix(roughnessFactor, 0.34, pkLipK * 0.7);\n\troughnessFactor = mix(roughnessFactor, 0.24, pkSweat * 0.85);")
+      .replace(
+        "#include <roughnessmap_fragment>",
+        `#include <roughnessmap_fragment>
+	#ifdef PK_FACE_DETAIL
+	{
+		float pkSpec = texture2D( pkFaceDetail, vNormalMapUv ).b;
+		roughnessFactor = mix( 0.68, 0.47, smoothstep( 0.15, 0.6, pkSpec ) );
+	}
+	#endif
+	roughnessFactor = mix(roughnessFactor, 0.34, pkLipK * 0.7);
+	roughnessFactor = mix(roughnessFactor, 0.24, pkSweat * 0.85);`
+      )
+      .replace(
+        "mapN.xy *= normalScale;",
+        `#ifdef PK_FACE_DETAIL
+		mapN.xy += texture2D( pkFaceDetail, vNormalMapUv ).xy * 2.0 - 1.0;
+	#endif
+	mapN.xy *= normalScale;`
+      )
     if (pores) sh.fragmentShader = sh.fragmentShader.replace("#include <normal_fragment_maps>", "#include <normal_fragment_maps>" + PORE_FRAG)
   }
-  m.customProgramCacheKey = () => "pk-skin" + (pores ? "-pores" : "")
+  m.customProgramCacheKey = () => "pk-skin" + (pores ? "-pores" : "") + (photo ? (photo.detail ? "-photo-d" : "-photo") : "")
+  // (players v3: the face's High atlas swapped in when it arrives)
+  m.userData.setPhoto = (t) => {
+    if (!photo || !t?.map) return
+    m.map = t.map
+    if (t.detail) uniforms.pkFaceDetail.value = t.detail
+    m.needsUpdate = true
+  }
   // (players v2: the skin family's own texture swapped in when it arrives, with its own average
   // tone, so the recoloring starts from a skin like the look's: darker skin keeps its texture's
   // detail instead of a pale skin's darkened)
@@ -811,6 +883,124 @@ const skinTexture = (kind, fam, lod) => {
     )
   return skinTex.get(key)
 }
+// ---- players v3: photo faces (docs/players-v3.md; tools/build-faces.mjs) ----
+// A look's `face` names one of the photographed faces in faces.json (Microsoft Rocketbox's
+// avatars, MIT, carried onto our own head topology at build time): the face's shape (the front
+// of the head; per level of detail, the moved Body vertices and their normals, the eyes', teeth's
+// and lashes' shifts), its skin atlas (the photo baked in: a 1024 JPEG, a 2048 KTX2 on High), a
+// detail map (the photo's normal relief and specular) and its own eye. The shape is small and
+// comes first (an athlete is built again once it's in, like the High swap); the textures swap
+// into the material when they arrive.
+let facesInfo = null
+let facesP = null
+export const loadFaces = () =>
+  (facesP ||= fetch(BASE + "faces.json")
+    .then((r) => (r.ok ? r.json() : null))
+    .catch(() => null)
+    .then((j) => (facesInfo = j)))
+// (the faces for a body, for the Locker Room: [{ id, tone, family }])
+export const facesFor = (kind) => Object.entries(facesInfo?.faces || {}).filter(([, f]) => f.body === kind).map(([id, f]) => ({ id, tone: f.tone, family: f.family, name: f.name || id }))
+export const faceOf = (look) => {
+  const f = look?.face && facesInfo?.faces?.[look.face]
+  return f && f.body === bodyOf(look) ? { id: look.face, ...f } : null
+}
+const faceShapes = new Map() // id -> Promise
+const faceShapeNow = new Map() // id -> the parsed shape (once in)
+export const parseFaceShape = (buf) => {
+  const hl = new DataView(buf).getUint32(0, true)
+  const h = JSON.parse(new TextDecoder().decode(new Uint8Array(buf, 4, hl)))
+  const base = 4 + hl
+  const lods = {}
+  for (const [k, L] of Object.entries(h.lods)) lods[k] = { count: L.count, brows: L.brows, idx: new Uint16Array(buf, base + L.idx, L.count), pos: new Int16Array(buf, base + L.pos, L.count * 3), nrm: new Int8Array(buf, base + L.nrm, L.count * 3), lash: new Int16Array(buf, base + L.lash, L.brows * 3), teeth: L.teeth || 0, tooth: L.tooth !== undefined ? new Int16Array(buf, base + L.tooth, (L.teeth || 0) * 3) : null }
+  return { unit: h.unit, eyes: h.eyes, teeth: h.teeth, lods }
+}
+const loadFaceShape = (id) => {
+  if (!faceShapes.has(id))
+    faceShapes.set(
+      id,
+      loadFaces().then(async (mf) => {
+        const f = mf?.faces?.[id]
+        if (!f?.shape) return null
+        const r = await fetch(BASE + f.shape)
+        if (!r.ok) return null
+        const s = parseFaceShape(await r.arrayBuffer())
+        faceShapeNow.set(id, s)
+        return s
+      }).catch(() => null)
+    )
+  return faceShapes.get(id)
+}
+const faceTex = new Map()
+const faceTexNow = new Map() // "id|lod" -> the textures (once in)
+const faceTexture = (id, lod) => {
+  const key = `${id}|${lod}`
+  if (!faceTex.has(key))
+    faceTex.set(
+      key,
+      loadFaces().then(async (mf) => {
+        const f = mf?.faces?.[id]
+        if (!f) return null
+        const jpeg = (file, color = true) =>
+          new THREE.TextureLoader().loadAsync(BASE + file).then((map) => {
+            map.flipY = false
+            map.colorSpace = color ? THREE.SRGBColorSpace : THREE.NoColorSpace
+            map.anisotropy = 4
+            return map
+          })
+        let map = null
+        if (lod === "hi" && f.hi && ktx2Loader()) {
+          try {
+            map = await ktx2Loader().loadAsync(BASE + f.hi)
+            map.colorSpace = THREE.SRGBColorSpace
+            map.anisotropy = 4
+          } catch {
+            map = null
+          }
+        }
+        const [med, detail, eye] = await Promise.all([map ? null : jpeg(f.med).catch(() => null), f.detail ? jpeg(f.detail, false).catch(() => null) : null, f.eye ? jpeg(f.eye).catch(() => null) : null])
+        const t = map || med ? { map: map || med, detail, eye, tone: f.tone } : null
+        if (t) faceTexNow.set(key, t)
+        return t
+      })
+    )
+  return faceTex.get(key)
+}
+// the face's parts for a template (cached per face and level of detail): the eyes, lashes
+// (the brows' cards dropped: the photo has its own brows) and teeth moved with the face
+const faceParts = (tpl, face, meshes) => {
+  tpl.faceParts ||= {}
+  if (tpl.faceParts[face.id]) return tpl.faceParts[face.id]
+  const shape = faceShapeNow.get(face.id)
+  const L = shape.lods[tpl.lod === "hi" ? "hi" : "med"]
+  const shifted = (geo, fn) => {
+    const g = geo.clone()
+    const p = g.attributes.position
+    const out = new Float32Array(p.count * 3)
+    for (let i = 0; i < p.count; i++) {
+      const d = fn(i, p.getX(i))
+      out[i * 3] = p.getX(i) + d[0]
+      out[i * 3 + 1] = p.getY(i) + d[1]
+      out[i * 3 + 2] = p.getZ(i) + d[2]
+    }
+    g.setAttribute("position", new THREE.BufferAttribute(out, 3))
+    g.morphAttributes = geo.morphAttributes
+    g.morphTargetsRelative = geo.morphTargetsRelative
+    g.computeBoundingSphere()
+    return g
+  }
+  const eyes = shifted(meshes.Eyes.geometry, (i, x) => (x > 0 ? shape.eyes.l : shape.eyes.r))
+  const u = shape.unit
+  const brows = shifted(meshes.Brows.geometry, (i) => (L.lash && i < L.brows ? [L.lash[i * 3] * u, L.lash[i * 3 + 1] * u, L.lash[i * 3 + 2] * u] : [0, 0, 0]))
+  // (the lashes only: the cards on the right half of the brows' atlas)
+  const uv = brows.attributes.uv
+  const idx = brows.index.array
+  const keep = []
+  for (let t = 0; t < idx.length; t += 3) if (uv.getX(idx[t]) + uv.getX(idx[t + 1]) + uv.getX(idx[t + 2]) > 1.5) keep.push(idx[t], idx[t + 1], idx[t + 2])
+  brows.setIndex(keep)
+  const teeth = meshes.Teeth ? shifted(meshes.Teeth.geometry, (i) => (L.tooth && i < L.teeth ? [L.tooth[i * 3] * u, L.tooth[i * 3 + 1] * u, L.tooth[i * 3 + 2] * u] : shape.teeth)) : null
+  return (tpl.faceParts[face.id] = { eyes, brows, teeth, eyeMat: null })
+}
+
 // a sole that shows against the shoe: off-white under white shoes, white under the rest
 const soleFor = (hex) => (srgb(hex).getHSL({}).l > 0.85 ? "#d8d2c4" : "#f4f4f2")
 
@@ -1509,13 +1699,19 @@ const buildAthlete = (look = {}, { shadows = false, withPaddle = true } = {}, de
   // (the skin is this athlete's own material: its sweat is its own; the program is shared)
   const fd = faceDetail(detail)
   const sweatU = { value: 0 }
-  body.material = skinMaterial(tpl.maps, skinHex, { pores: fd.pores, sweat: sweatU })
+  // players v3: the photo face, if its shape and a texture are in (createAthlete waits for them)
+  const lodKey = tpl.lod === "hi" ? "hi" : "med"
+  const faceInfo = tpl.set === "mh" && faceShapeNow.has(look.face) ? faceOf(look) : null
+  const faceT = faceInfo && (faceTexNow.get(`${faceInfo.id}|${lodKey}`) || faceTexNow.get(`${faceInfo.id}|med`))
+  const face = faceT?.map ? faceInfo : null
+  body.material = skinMaterial(tpl.maps, skinHex, { pores: fd.pores, sweat: sweatU, photo: face ? { tone: face.tone, map: faceT.map, detail: faceT.detail } : null })
+  if (face && !faceTexNow.get(`${face.id}|${lodKey}`)) faceTexture(face.id, lodKey).then((t) => body.material?.userData?.setPhoto?.(t))
   // (the MakeHuman brows and lashes are cut out of their texture's alpha)
   const cutout = tpl.set === "mh"
   const browMat = shared(`brows|${kind}|${hairHex}|${tpl.set}`, () => new THREE.MeshStandardMaterial({ map: tpl.maps.brows, color: tint(hairHex, REF_HAIR), roughness: 0.9, ...(cutout ? { alphaTest: 0.3, side: THREE.DoubleSide } : {}) }))
 
   // everything worn but the hair: one more skinned mesh on the same skeleton
-  const variant = variantOf(tpl, look.build, body.geometry)
+  const variant = variantOf(tpl, look.build, body.geometry, face)
   body.geometry = bodyUnder(tpl, body.geometry, look, variant)
   body.updateMorphTargets()
   const outfitGeo = outfitGeometry(tpl, look, variant)
@@ -1542,7 +1738,7 @@ const buildAthlete = (look = {}, { shadows = false, withPaddle = true } = {}, de
   // the skin family's own texture (players.json: light, mid, dark), when it's in; the light
   // one, recolored, until then
   const fam = skinFamily(look.skin)
-  if ((fam !== "light" || tpl.lod === "hi") && tpl.set === "mh")
+  if (!face && (fam !== "light" || tpl.lod === "hi") && tpl.set === "mh")
     skinTexture(kind, fam, tpl.lod).then((t) => {
       if (t && body.material?.userData?.setSkin) body.material.userData.setSkin(t.map, t.ref)
     })
@@ -1551,13 +1747,17 @@ const buildAthlete = (look = {}, { shadows = false, withPaddle = true } = {}, de
   const head = B.Head
   head.scale.setScalar(tpl.headScale)
   const attach = []
+  // (a photo face: its own eye; the eyes, lashes and teeth moved with its shape; no brow cards)
+  const fparts = face ? faceParts(tpl, face, meshes) : null
+  if (fparts && faceT.eye && !fparts.eyeMat) fparts.eyeMat = eyeMaterial({ map: faceT.eye }, tpl.head.eyeY + faceShapeNow.get(face.id).eyes.l[1], tpl.head.eyeR)
   for (const [name, mat] of [
-    ["Eyes", tpl.maps.eyes],
+    ["Eyes", fparts?.eyeMat || tpl.maps.eyes],
     ["Brows", browMat],
     ...(meshes.Teeth && tpl.onHead.Teeth ? [["Teeth", tpl.maps.teeth]] : []),
   ]) {
     meshes[name].removeFromParent()
-    const m = new THREE.Mesh(meshes[name].geometry, mat)
+    const geo = (fparts && { Eyes: fparts.eyes, Brows: fparts.brows, Teeth: fparts.teeth }[name]) || meshes[name].geometry
+    const m = new THREE.Mesh(geo, mat)
     m.matrixAutoUpdate = false
     m.matrix.copy(tpl.onHead[name])
     head.add(m)
@@ -2146,16 +2346,27 @@ const buildAthlete = (look = {}, { shadows = false, withPaddle = true } = {}, de
     body.material.dispose()
     if (hairMeshW) hairMeshW.material.dispose()
   }
-  return { group: root, apply, setShadows, dispose: () => (dispose(), disposeOwn()), probe, probeUpper, probeLife, probeArms, debug: { paddle: paddleHolder, bones: B, arm: () => armState[paddleSide].last }, blobs: [], vertices, skinned: true, detail: tpl === assets.hi?.[kind] ? "high" : "medium" }
+  return { group: root, apply, setShadows, dispose: () => (dispose(), disposeOwn()), probe, probeUpper, probeLife, probeArms, debug: { paddle: paddleHolder, bones: B, arm: () => armState[paddleSide].last }, blobs: [], vertices, skinned: true, detail: tpl === assets.hi?.[kind] ? "high" : "medium", face: face?.id || null }
 }
 
 // An athlete (rig.js createFigure's interface). On High, the detailed bodies: if they aren't
 // in yet the Medium ones stand in and the athlete swaps itself over, in place, when they
 // arrive (the same group, posed from the next frame on).
+// (players v3: a photo face's shape and first texture; resolves true once both are in)
+const faceReady = (look, lod) => {
+  if (!look?.face || assets?.set !== "mh") return Promise.resolve(false)
+  return loadFaces().then((mf) => {
+    const f = mf?.faces?.[look.face]
+    if (!f || f.body !== bodyOf(look)) return false
+    return Promise.all([loadFaceShape(look.face), faceTexture(look.face, "med"), lod === "hi" ? faceTexture(look.face, "hi") : null]).then(([s, t]) => !!(s && t))
+  })
+}
 export const createAthlete = (look = {}, opts = {}) => {
   const detail = opts.detail === "high" && assets.setInfo?.hi ? "high" : "medium"
   let inner = buildAthlete(look, opts, detail)
-  if (detail !== "high" || inner.detail === "high") return inner
+  const wantFace = !!look.face && assets.set === "mh" && (!facesInfo || !!faceOf(look))
+  const faceDone = () => !wantFace || inner.face === look.face
+  if ((detail !== "high" || inner.detail === "high") && faceDone()) return inner
   const group = new THREE.Group()
   group.add(inner.group)
   let disposed = false
@@ -2189,17 +2400,31 @@ export const createAthlete = (look = {}, opts = {}) => {
     get detail() {
       return inner.detail
     },
+    get face() {
+      return inner.face
+    },
     skinned: true,
   }
-  hiWaiters.add(() => {
-    if (disposed || !assets.hi) return
-    const next = buildAthlete(look, { ...opts, shadows: shadowsOn }, "high")
+  // built again (posed as it was) when something better arrives: the High body, a photo face
+  const upgrade = () => {
+    if (disposed) return
+    const next = buildAthlete(look, { ...opts, shadows: shadowsOn }, detail)
+    if (next.detail === inner.detail && next.face === inner.face) return next.dispose()
     group.remove(inner.group)
     inner.dispose()
     inner = next
     group.add(inner.group)
     if (lastPose) inner.apply(lastPose, 1 / 60)
-  })
-  loadHi()
+  }
+  if (detail === "high" && inner.detail !== "high") {
+    hiWaiters.add(() => {
+      if (!assets.hi) return
+      upgrade()
+    })
+    loadHi()
+  }
+  if (!faceDone()) faceReady(look, detail === "high" ? "hi" : "med").then((ok) => ok && upgrade())
   return fig
 }
+// (tests and the Locker Room: preload a face, so an athlete made after has it at once)
+export const preloadFace = (look, detail = "medium") => faceReady(look, detail === "high" ? "hi" : "med")
