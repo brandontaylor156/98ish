@@ -221,6 +221,7 @@ wraps do).
 | median / p90 | 6 / 13 → 5 / 11 | 10 / 25 → 9 / 21 | 9 / 20 → 8 / 23 |
 | rallies of 9 shots or fewer | 76.6% → 86% | 47.5% → 51.3% | 53.6% → 57.7% |
 | rallies of 20+ | 1.4% → 0.6% | 17.2% → 13.9% | 11.3% → 13.3% |
+| rallies of 30+ | 0% → 0% | 6.9% → 3% | 2.7% → 3.3% |
 | third shots that are drops | 58% → 47% | 59% → 50% | 64% → 51% |
 | serve speed, median mph | 35.6 → 36.6 | 35.9 → 41.5 | 35.8 → 42.1 |
 | serve faults | 0% → 4.4% | 0% → 2.3% | 0% → 2.7% |
@@ -247,7 +248,8 @@ by match; speed-ups win ~56%; serves mostly 35-50 mph; drives and speed-ups 40-6
 net the most common error.
 
 Reading it:
-- **Pro and Legend now match the 2022 pro game** (10.9 shots, 51-58% of rallies 9 or fewer), where
+- **Pro and Legend now match the 2022 pro game** (10.9 shots, 51-58% of rallies 9 or fewer, 3%
+  of rallies 30+ shots), where
   before Pro played like 2019 (12.8, 47.5%) with a 92-shot outlier, and Legend won 45% of its
   rallies with speed-up winners (it had no real defense against them).
 - **Nobody was a machine before:** 0% serve faults at every level and almost no return errors;
@@ -278,8 +280,8 @@ Other checks (scratchpad scripts, not in the repo):
 - **Dinks** at ~14 mph sit at the top of the 5-15 mph range; a slower, loopier dink option would
   be more varied.
 - **Spin decay** is an estimate (no pickleball measurement found); **court friction** too.
-- **Long tail:** Pro/Legend still have ~13-14% rallies of 20+ shots (2022 tour: ~3-4% of 30+;
-  see the 30+ share in the table).
+- **Long rallies:** 30+ shot rallies are now 3-3.3% at Pro/Legend (2022 tour 2.9-3.8%; Pro was
+  6.9%), but 20+ shot rallies (13-14%) may still be a little common.
 - **Ernes and ATPs** are rare (as on tour) and only the computer plans them; a person can do
   either by moving there themselves (the rules allow both).
 - The ball's look doesn't change between the indoor and outdoor ball (the texture shows 26 holes).
