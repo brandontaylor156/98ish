@@ -6,6 +6,8 @@ import App from "./App"
 import { fsReady } from "./utils/fs"
 import { installTouchGuard } from "./utils/touchGuard"
 import { installInputGuard } from "./utils/inputGuard"
+import { installClipHistory } from "./utils/clipHistory"
+import { installCanvasKinds } from "./utils/canvasKinds"
 import "../node_modules/98.css/dist/98.css"
 import "./main.css"
 import "bootstrap/dist/css/bootstrap.min.css"
@@ -16,6 +18,10 @@ import "bootstrap/dist/css/bootstrap.min.css"
 installTouchGuard()
 // taps that stop working: resets on coming back / turning the phone, ?tapdebug=1 (utils/inputGuard.js)
 installInputGuard()
+// clipboard history: copies kept per user, Ctrl+Shift+V opens the list (utils/clipHistory.js)
+installClipHistory()
+// which canvases are 3D (WebGL), so Snipping Tool can grab their picture (utils/canvasKinds.js)
+installCanvasKinds()
 
 const rootEl = document.getElementById("root")
 const slow = setTimeout(() => {

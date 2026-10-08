@@ -87,6 +87,9 @@ export const DEFAULT_SETTINGS = {
   periodShortcut: true, // double space types ". "
   keyRepeatDelay: 500, // ms before a held key repeats
   keyRepeatRate: 60, // ms between repeats
+  // Clipboard history (utils/clipHistory.js): keep the last 25 copies on this device for
+  // Ctrl+Shift+V / the keyboard's clipboard button; turning it off erases what's kept
+  clipboardHistory: true,
   // Accessibility Options (Control Panel; utils/a11y.js, hooks/useA11y.js, a11y.css)
   textSize: "normal", // normal | large | xlarge: every font size and the title bars
   contrast: "off", // off | black | white: Windows 98's High Contrast schemes

@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react"
 import Dialog from "../../shared/Dialog"
+import { recordText } from "../../../utils/clipHistory"
 import "./CharMap.css"
 
 // Character Map, as in Windows 98: pick a font, press a character to see it enlarged (drag
@@ -240,6 +241,7 @@ const CharMap = ({ onClose }) => {
 
   const copy = async () => {
     if (!text) return
+    recordText(text) // 98ish's clipboard history (Ctrl+Shift+V)
     try {
       await navigator.clipboard.writeText(text)
       return

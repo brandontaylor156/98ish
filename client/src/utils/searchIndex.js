@@ -122,6 +122,7 @@ registerSearchable([
   S("datetime", "Date and time", ["date", "time", "clock", "date/time", "timedate"], prog("Date/Time Properties", { tab: "date" }), "Date/Time Properties", "/assets/program_icons/datetime.svg"),
   S("timezone", "Time zone", ["time zone", "timezone", "daylight saving", "dst", "zone"], prog("Date/Time Properties", { tab: "zone" }), "Date/Time Properties > Time Zone", "/assets/program_icons/datetime.svg"),
   S("keyboard", "Keyboard", ["keyboard", "on-screen keyboard", "touch keyboard", "typing", "key repeat"], prog("Keyboard Properties"), "Settings > Keyboard", "/assets/program_icons/keyboard.svg"),
+  S("clipboard", "Clipboard history", ["clipboard", "clipboard history", "paste", "copy", "win+v", "ctrl+shift+v"], prog("Keyboard Properties"), "Settings > Keyboard > While typing > Clipboard", "/assets/program_icons/keyboard.svg"),
   S("passwords", "Passwords and PIN", ["password", "passwords", "pin", "lock screen", "lock", "security", "change password"], prog("Passwords", { tab: "change" }), "Settings > Passwords and Users", "/assets/program_icons/passwords.svg"),
   S("lock", "Lock screen", ["lock", "lock screen", "lock after", "auto lock", "idle lock"], prog("Passwords", { tab: "lock" }), "Passwords and Users > Lock Screen", "/assets/program_icons/passwords.svg"),
   S("users", "User profiles", ["users", "user", "profiles", "accounts", "log on", "switch user"], prog("Passwords", { tab: "users" }), "Passwords and Users > Users", "/assets/program_icons/passwords.svg"),

@@ -1,5 +1,6 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
+import { recordImage } from "../../../utils/clipHistory"
 import MenuBar from "../../shared/MenuBar"
 import Dialog from "../../shared/Dialog"
 import FileDialog from "../notepad/FileDialog"
@@ -480,6 +481,8 @@ const Paint = ({ file: initialFile = null, handoff = null, mobile = false, onTit
       canvas.width = piece.width
       canvas.height = piece.height
       canvas.getContext("2d").putImageData(toImageData(piece), 0, 0)
+      // 98ish's clipboard history too (Ctrl+Shift+V)
+      recordImage(canvas.toDataURL("image/png"))
       canvas.toBlob((blob) => {
         if (blob && window.ClipboardItem && navigator.clipboard?.write) navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]).catch(() => {})
       })
@@ -1216,8 +1219,9 @@ const Paint = ({ file: initialFile = null, handoff = null, mobile = false, onTit
     e.preventDefault()
     const item = [...(e.clipboardData?.items || [])].find((i) => i.type.startsWith("image/"))
     const blob = item?.getAsFile()
-    // our own copy wins when there is one: the system copy can lag behind
-    if (clipboard) return placePiece(P.cloneSurface(clipboard))
+    // our own copy wins when there is one: the system copy can lag behind (but a picture
+    // picked in the clipboard history is what was asked for)
+    if (clipboard && !(blob && e.nativeEvent?.fromClipHistory)) return placePiece(P.cloneSurface(clipboard))
     if (blob) pasteFromBlob(blob)
   }
 

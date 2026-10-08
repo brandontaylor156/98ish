@@ -15,6 +15,7 @@ import AchievementToast from "./components/OS-specific/AchievementToast"
 import CursorTrail from "./components/OS-specific/CursorTrail"
 import KeyboardHost from "./components/shared/keyboard/KeyboardHost"
 import SelectHost from "./components/shared/select/SelectHost"
+import ClipHost from "./components/shared/clipboard/ClipHost"
 import A11yHost from "./components/OS-specific/A11yHost"
 import { arrangeWindows } from "./utils/windowArrange"
 import { unlock } from "./utils/achievements"
@@ -302,6 +303,21 @@ function App() {
     window.addEventListener("keydown", onKey, true)
     return () => window.removeEventListener("keydown", onKey, true)
   }, [phase])
+  // Snipping Tool: Ctrl+Shift+S (Command+Shift+S on a Mac) snips a rectangle from anywhere
+  // (like Windows' Win+Shift+S, which Windows itself keeps for its own Snipping Tool)
+  useEffect(() => {
+    if (phase !== "desktop") return
+    const onKey = (e) => {
+      if (e.code !== "KeyS" || !e.shiftKey || e.altKey || !(e.ctrlKey || e.metaKey) || (e.ctrlKey && e.metaKey)) return
+      if (document.documentElement.classList.contains("os-locked")) return
+      e.preventDefault()
+      e.stopPropagation()
+      closeMenu()
+      dispatch({ type: "open_window", payload: launch("Snipping Tool", { handoff: { id: Date.now(), start: "rect" } }) })
+    }
+    window.addEventListener("keydown", onKey, true)
+    return () => window.removeEventListener("keydown", onKey, true)
+  }, [phase])
   // 98ish Help: openHelp() from anywhere (utils/help.js), and F1 for the program in front
   const windowsRef = useRef(windows)
   windowsRef.current = windows
@@ -506,6 +522,8 @@ function App() {
       <KeyboardHost />
       {/* 98-style drop-down lists and date/time pickers for every <select> and date field */}
       <SelectHost />
+      {/* clipboard history (Ctrl+Shift+V, the keyboard's Clipboard button): utils/clipHistory.js */}
+      {phase === "desktop" && <ClipHost mobile={mobile} />}
       {/* Accessibility Options, Mouse and Power Management for the whole page */}
       <A11yHost settings={settings} mobile={mobile} />
     </div>

@@ -8,6 +8,7 @@ import { focusNext, moveBy, pressKey, textBefore } from "./typing"
 import { KB_WANT, afterTap, noteGesture, suppress, wantsKeyboard } from "./native"
 import { haptic, keyClick } from "./feedback"
 import { onInputReset } from "../../../utils/inputGuard"
+import { openClipHistory } from "../../../utils/clipHistory"
 import { BackIcon, EnterIcon, KeyboardIcon, ShiftIcon } from "./icons"
 import "./Keyboard.css"
 
@@ -958,6 +959,12 @@ const Keyboard = () => {
                 {label}
               </button>
             </>
+          )}
+          {/* clipboard history: paste something copied earlier (utils/clipHistory.js) */}
+          {info && !isPassword(info) && (
+          <button type="button" className="kb98TitleText kb98ClipBtn" tabIndex={-1} aria-label="Clipboard history" title="Clipboard history" onClick={() => openClipHistory({ target: field, toggle: true })}>
+            Clipboard
+          </button>
           )}
           <button type="button" className="close" tabIndex={-1} aria-label="Hide keyboard" title="Hide keyboard" onClick={hide} />
         </div>

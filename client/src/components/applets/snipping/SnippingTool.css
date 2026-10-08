@@ -1,0 +1,266 @@
+/* Snipping Tool (SnippingTool.jsx) */
+.snipRoot {
+  display: flex;
+  flex-direction: column;
+  height: calc(100% - 25px);
+  min-height: 0;
+  outline: none;
+  background: #c0c0c0;
+  font-family: "Pixelated MS Sans Serif", Arial, sans-serif;
+  font-size: 11px;
+  overflow: hidden;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  touch-callout: none;
+}
+.snipStart {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.snipHome {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.snipNew {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 0 18px;
+  font-weight: bold;
+}
+.snipRoot.is-phone .snipNew {
+  align-self: stretch;
+  justify-content: center;
+  min-height: 46px;
+}
+.snipKinds {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+}
+.snipKinds .snipKind {
+  margin: 0;
+  min-height: 28px;
+  align-items: center;
+}
+.snipRoot.is-phone .snipKinds .snipKind {
+  min-height: 36px;
+}
+.snipDelay {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.snipSmall {
+  margin: 0;
+  font-size: 11px;
+  color: #404040;
+}
+.snipAbout {
+  margin-top: auto;
+}
+.snipStatus {
+  margin: 0 4px 4px;
+  padding: 3px 6px;
+  font-size: 11px;
+  background: #ffffe1;
+  border: 1px solid #808080;
+}
+.snipLink {
+  margin-left: 8px;
+  min-width: 0;
+  min-height: 0;
+  padding: 0 8px;
+}
+
+/* the markup view */
+.snipTools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  padding: 4px;
+  border-bottom: 1px solid #808080;
+}
+.snipTools button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  padding: 0 8px;
+}
+.snipTools button.is-on {
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #0a0a0a, inset -2px -2px #dfdfdf, inset 2px 2px #808080;
+  background: repeating-conic-gradient(#c0c0c0 0 25%, #fff 0 50%) 0 0 / 2px 2px;
+}
+.snipRoot.is-phone .snipTools button {
+  min-height: 36px;
+  padding: 0 6px;
+}
+.snipToolNew {
+  font-weight: bold;
+}
+.snipPenOpts {
+  padding: 2px 6px;
+}
+.snipPenOpts .moreOpts-body {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 0;
+}
+.snipColors {
+  display: flex;
+  gap: 4px;
+}
+.snipSwatch {
+  min-width: 0;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+}
+.snipSwatch.is-on {
+  outline: 2px solid #000080;
+  outline-offset: 1px;
+}
+.snipStage {
+  flex: 1 1 auto;
+  min-height: 80px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #808080;
+  margin: 4px;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+}
+.snipPaper {
+  position: relative;
+  touch-action: none;
+  box-shadow: 2px 2px 0 #000;
+  cursor: crosshair;
+}
+.snipPaper canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  -webkit-user-drag: none;
+}
+.snipLive {
+  pointer-events: none;
+}
+.snipCropBox {
+  position: absolute;
+  border: 1px dashed #fff;
+  outline: 1px dashed #000;
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.4);
+  pointer-events: none;
+}
+.snipPaper.tool-crop {
+  overflow: hidden;
+}
+.snipActions {
+  padding: 4px;
+}
+.snipActions button {
+  min-height: 30px;
+}
+.snipRoot.is-phone .snipActions button {
+  min-height: 44px;
+}
+
+/* the full-screen chooser over the frozen screen */
+.snipLayer {
+  position: fixed;
+  z-index: 2147483300;
+  touch-action: none;
+  cursor: crosshair;
+  overflow: hidden;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  touch-callout: none;
+}
+.snipLayer.is-window {
+  cursor: pointer;
+}
+.snipShotHost,
+.snipShot {
+  position: absolute;
+  left: 0;
+  top: 0;
+  pointer-events: none;
+}
+.snipDim {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+}
+.snipDim.has-box {
+  inset: auto;
+  background: transparent;
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.35);
+  outline: 2px solid #fff;
+  border: 1px dashed #000;
+}
+.snipBar {
+  position: absolute;
+  top: calc(8px + env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 4px 6px;
+  max-width: calc(100% - 16px);
+  height: auto; /* not main.css's 100% for windows */
+  min-width: 0;
+  cursor: default;
+}
+.snipModes {
+  display: flex;
+  gap: 2px;
+}
+.snipModes button {
+  min-width: 0;
+  padding: 0 8px;
+}
+.snipModes button.is-on {
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #0a0a0a, inset -2px -2px #dfdfdf, inset 2px 2px #808080;
+  font-weight: bold;
+}
+.snipHint {
+  font-size: 11px;
+}
+.os-mobile .snipBar button {
+  min-height: 36px;
+}
+.snipCountdown {
+  position: fixed;
+  z-index: 2147483300;
+  top: calc(10px + env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 6px 14px;
+  height: auto;
+  min-width: 0;
+  font-weight: bold;
+  pointer-events: none;
+}
+.snipBusy {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483300;
+  cursor: progress;
+}

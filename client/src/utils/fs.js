@@ -80,6 +80,7 @@ export const FILE_TYPE = {
   locator: "locator",
   maps: "maps",
   pdfviewer: "pdfviewer",
+  snip: "snip", // Snipping Tool (the program)
   hangout: "hangout",
   vb98: "vb98",
   vbapp: "vbapp", // a Visual Basic 98 program (.vb98): its JSON in textContent
@@ -666,6 +667,7 @@ const DEFAULT_ITEMS = [
   ["C:/Programs/Buddy Locator", "file", "locator"],
   ["C:/Programs/Maps 98", "file", "maps"],
   ["C:/Programs/PDF Viewer", "file", "pdfviewer"],
+  ["C:/Programs/Snipping Tool", "file", "snip"],
   ["C:/Programs/Come Over", "file", "hangout"],
   ["C:/Programs/Visual Basic 98", "file", "vb98"],
   ["C:/Programs/3D Viewer 98", "file", "viewer3d"],
