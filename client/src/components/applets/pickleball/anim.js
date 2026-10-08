@@ -573,7 +573,8 @@ export const updateAnim = (a, s, dt) => {
   if (so.w > 0) pose = so.pose
   // eyes on the contact point until just after the hit, then on the ball
   if (so.phase !== "none" && inp && !inp.after && s.prep) lookAt = V(s.prep.x, s.prep.y, s.prep.z)
-  else if (so.phase !== "none" && swing && swing.t < 0.15) lookAt = V(swing.x, swing.y, swing.z)
+  // (players v3: the eyes stay on the contact point a moment after it, as pros' heads do)
+  else if (so.phase !== "none" && swing && swing.t < 0.22) lookAt = V(swing.x, swing.y, swing.z)
   if (swing && swing.t < 0.05 && swing.n) normalT = swing.n
   a.extraCrouch = so.w > 0 ? (so.pose.crouch || 0) * so.w : 0
 

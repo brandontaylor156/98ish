@@ -36,6 +36,8 @@ export const HAIR_STYLES = [
   { id: "buns", name: "Buns" },
   { id: "long", name: "Long" },
   { id: "bald", name: "Shaved" },
+  // players v3: a photographed face's own hair (its cards, or its painted short hair)
+  { id: "own", name: "Their own (photo)" },
 ]
 // older looks' hair (the World Tour's players) and what they are now, by body
 export const HAIR_ALIASES = { spiky: { m: "buzz", f: "pixie" }, curly: { m: "buzz", f: "buns" }, bun: { m: "buns", f: "buns" }, ponytail: { m: "long", f: "long" }, braid: { m: "long", f: "long" } }

@@ -989,6 +989,51 @@ const faceTexture = (id, lod) => {
     )
   return faceTex.get(key)
 }
+// the photographed hair cards of a face (style "own"): geometry in the body's rest space (on the
+// Head bone like the eyes) and their texture (WebP with alpha)
+const faceCards = new Map()
+const faceCardsNow = new Map()
+const loadFaceCards = (id) => {
+  if (!faceCards.has(id))
+    faceCards.set(
+      id,
+      loadFaces()
+        .then(async (mf) => {
+          const f = mf?.faces?.[id]
+          if (!f?.cards || !f.cardsTex) return null
+          const [buf, tex] = await Promise.all([
+            fetch(BASE + f.cards).then((r) => (r.ok ? r.arrayBuffer() : null)),
+            new THREE.TextureLoader().loadAsync(BASE + f.cardsTex).then((t) => {
+              t.flipY = false
+              t.colorSpace = THREE.SRGBColorSpace
+              t.anisotropy = 4
+              return t
+            }),
+          ])
+          if (!buf) return null
+          const hl = new DataView(buf).getUint32(0, true)
+          const h = JSON.parse(new TextDecoder().decode(new Uint8Array(buf, 4, hl)))
+          let o = 4 + hl
+          const pos = new Float32Array(buf, o, h.verts * 3)
+          o += h.verts * 12
+          const uv = new Float32Array(buf, o, h.verts * 2)
+          o += h.verts * 8
+          const index = new Uint16Array(buf, o, h.tris * 3)
+          const geo = new THREE.BufferGeometry()
+          geo.setAttribute("position", new THREE.BufferAttribute(pos, 3))
+          geo.setAttribute("uv", new THREE.BufferAttribute(uv, 2))
+          geo.setIndex(new THREE.BufferAttribute(index, 1))
+          geo.computeVertexNormals()
+          geo.computeBoundingSphere()
+          const c = { geo, tex, tone: f.cardsTone || f.hairTone }
+          faceCardsNow.set(id, c)
+          return c
+        })
+        .catch(() => null)
+    )
+  return faceCards.get(id)
+}
+
 // the face's parts for a template (cached per face and level of detail): the eyes, lashes
 // (the brows' cards dropped: the photo has its own brows) and teeth moved with the face
 const faceParts = (tpl, face, meshes) => {
@@ -1797,8 +1842,10 @@ const buildAthlete = (look = {}, { shadows = false, withPaddle = true } = {}, de
     attach.push(m)
   }
   // (a photo face's short styles are its own photographed hair: no cards over it)
-  const hairName = face && face.ownHair !== false && PHOTO_OWN_HAIR.includes(look.hair) ? null : hairFor(look, kind)
   const hatted = HATS.includes(look.hat)
+  // ("own": the photographed hair cards, carried onto this head; under a hat, the painted hair)
+  const ownCards = face && look.hair === "own" && !hatted ? faceCardsNow.get(face.id) : null
+  const hairName = ownCards || (face && face.ownHair !== false && (PHOTO_OWN_HAIR.includes(look.hair) || look.hair === "own")) ? null : hairFor(look, kind)
   let hairSway = null // (the uniforms of a hairstyle that swings: a ponytail, a braid, long hair)
   let hairMeshW = null
   const wearHair = (src, crop, { cap = false } = {}) => {
@@ -1829,6 +1876,19 @@ const buildAthlete = (look = {}, { shadows = false, withPaddle = true } = {}, de
   if (capSrc) wearHair(capSrc, false, { cap: true })
   if (hairSrc) wearHair(hairSrc, hatted)
   // (a photo face with its own beard keeps it, recolored; the cards only where it has none)
+  if (ownCards) {
+    // (tinted from the photo's own hair color to the look's: a multiply, per channel)
+    const tone = srgb(ownCards.tone || "#3a2a1e")
+    const want = srgb(hairHex)
+    const k = (a, b) => Math.max(0.25, Math.min(4, b / Math.max(a, 1e-3)))
+    const col = new THREE.Color(k(tone.r, want.r), k(tone.g, want.g), k(tone.b, want.b))
+    const m = shared(`facecards|${face.id}|${hairHex}|${fd.hairSpec ? 1 : 0}`, () => athleteMaterial({ map: ownCards.tex, color: col, roughness: 0.62, side: THREE.DoubleSide, alphaTest: 0.4, alphaToCoverage: true }, { wrap: "vec3(0.35)", rim: 0.14, key: "pk-hair", hairSpec: fd.hairSpec }))
+    const h = new THREE.Mesh(ownCards.geo, m)
+    h.matrixAutoUpdate = false
+    h.matrix.copy(tpl.onHead.Eyes)
+    head.add(h)
+    attach.push(h)
+  }
   const beard = look.beard && !(face && (face.beard || 0) > 0.12) ? hairMesh("Hair_Beard", kind) : null
   if (beard) wearHair(beard)
 
@@ -2381,7 +2441,7 @@ const buildAthlete = (look = {}, { shadows = false, withPaddle = true } = {}, de
     body.material.dispose()
     if (hairMeshW) hairMeshW.material.dispose()
   }
-  return { group: root, apply, setShadows, dispose: () => (dispose(), disposeOwn()), probe, probeUpper, probeLife, probeArms, debug: { paddle: paddleHolder, bones: B, arm: () => armState[paddleSide].last }, blobs: [], vertices, skinned: true, detail: tpl === assets.hi?.[kind] ? "high" : "medium", face: face?.id || null }
+  return { group: root, apply, setShadows, dispose: () => (dispose(), disposeOwn()), probe, probeUpper, probeLife, probeArms, debug: { paddle: paddleHolder, bones: B, arm: () => armState[paddleSide].last }, blobs: [], vertices, skinned: true, detail: tpl === assets.hi?.[kind] ? "high" : "medium", face: face?.id || null, cards: !!ownCards }
 }
 
 // An athlete (rig.js createFigure's interface). On High, the detailed bodies: if they aren't
@@ -2393,7 +2453,7 @@ const faceReady = (look, lod) => {
   return loadFaces().then((mf) => {
     const f = mf?.faces?.[look.face]
     if (!f || f.body !== bodyOf(look)) return false
-    return Promise.all([loadFaceShape(look.face), faceTexture(look.face, "med"), lod === "hi" ? faceTexture(look.face, "hi") : null]).then(([s, t]) => !!(s && t))
+    return Promise.all([loadFaceShape(look.face), faceTexture(look.face, "med"), lod === "hi" ? faceTexture(look.face, "hi") : null, look.hair === "own" && f.cards ? loadFaceCards(look.face) : null]).then(([s, t]) => !!(s && t))
   })
 }
 const isHi = (d) => d === "high" || d === "ultra"
@@ -2401,7 +2461,8 @@ export const createAthlete = (look = {}, opts = {}) => {
   const detail = isHi(opts.detail) && assets.setInfo?.hi ? opts.detail : "medium"
   let inner = buildAthlete(look, opts, detail)
   const wantFace = !!look.face && assets.set === "mh" && (!facesInfo || !!faceOf(look))
-  const faceDone = () => !wantFace || inner.face === look.face
+  const wantCards = look.hair === "own" && !HATS.includes(look.hat) && !!facesInfo?.faces?.[look.face]?.cards
+  const faceDone = () => !wantFace || (inner.face === look.face && (!wantCards || inner.cards))
   if ((!isHi(detail) || inner.detail === "high") && faceDone()) return inner
   const group = new THREE.Group()
   group.add(inner.group)
@@ -2439,13 +2500,16 @@ export const createAthlete = (look = {}, opts = {}) => {
     get face() {
       return inner.face
     },
+    get cards() {
+      return inner.cards
+    },
     skinned: true,
   }
   // built again (posed as it was) when something better arrives: the High body, a photo face
   const upgrade = () => {
     if (disposed) return
     const next = buildAthlete(look, { ...opts, shadows: shadowsOn }, detail)
-    if (next.detail === inner.detail && next.face === inner.face) return next.dispose()
+    if (next.detail === inner.detail && next.face === inner.face && next.cards === inner.cards) return next.dispose()
     group.remove(inner.group)
     inner.dispose()
     inner = next

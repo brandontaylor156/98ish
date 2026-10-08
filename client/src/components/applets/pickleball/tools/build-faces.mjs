@@ -69,7 +69,7 @@ export const FACES = [
 ]
 
 // ---- reading ----
-const TGA = (file) => {
+const TGA = (file, keepAlpha = false) => {
   const b = fs.readFileSync(file)
   const idLen = b[0]
   const type = b[2]
@@ -96,6 +96,19 @@ const TGA = (file) => {
     }
   } else throw new Error("TGA type " + type)
   const top = !!(desc & 32)
+  if (keepAlpha && ch === 4) {
+    const data = Buffer.alloc(w * h * 4)
+    for (let y = 0; y < h; y++)
+      for (let x = 0; x < w; x++) {
+        const s = ((top ? y : h - 1 - y) * w + x) * 4
+        const d = (y * w + x) * 4
+        data[d] = px[s + 2]
+        data[d + 1] = px[s + 1]
+        data[d + 2] = px[s]
+        data[d + 3] = px[s + 3]
+      }
+    return { width: w, height: h, channels: 4, data }
+  }
   const data = Buffer.alloc(w * h * 3)
   for (let y = 0; y < h; y++)
     for (let x = 0; x < w; x++) {
@@ -257,7 +270,11 @@ const sourceHead = async (face) => {
     rasterUV(img.width, tris, head.uv, (ti, b0, b1, b2, x, y) => (mask[y * img.width + x] = 1))
     grow(img.data, mask, img.width, 3, 6)
   }
-  return { head, bones, skinTris, eyeTris, color, normal, spec }
+  // the photographed hair cards (the "opacity" material), if the avatar has them
+  const cardsPrim = prims.find((p) => /opacity/i.test(p.getMaterial()?.getName() || ""))
+  const ofile = path.join(dir, `${face.prefix}_opacity_color.tga`)
+  const cards = cardsPrim && fs.existsSync(ofile) ? { ...arrays(node, cardsPrim), tex: TGA(ofile, true) } : null
+  return { head, bones, skinTris, eyeTris, color, normal, spec, cards }
 }
 
 // apply a similarity transform to a flat position array (in place) and to normals
@@ -307,6 +324,7 @@ for (const face of FACES) {
     names.map((k) => LM_WEIGHT[k])
   )
   transformAll(T, src.head.pos, src.head.nrm, src.head.targets)
+  if (src.cards) transformAll(T, src.cards.pos, src.cards.nrm)
   for (const k of Object.keys(src.bones)) src.bones[k] = T.apply(src.bones[k])
   const surf = triangleGrid(src.head.pos, src.head.index, src.skinTris)
   const srcLm1 = sourceLandmarks(src.bones, surf)
@@ -398,6 +416,87 @@ for (const face of FACES) {
     )
   }
   if (process.env.FACE_BAKE === "0") continue
+
+  // ---- the photographed hair cards, carried onto our head ----
+  // Each card vertex keeps its place over the photographed scalp: the closest scalp point there,
+  // moved to the closest point on our (fitted) head, takes the vertex along. Lashes (cards near
+  // the eyes) and anything in front of the face are left out. Written as a small binary (rest
+  // positions, UVs, triangles) and the texture as a WebP with alpha; the game puts them on the
+  // Head bone like the MakeHuman hairstyles (style "own").
+  let cardsOut = null
+  if (src.cards) {
+    const C = src.cards
+    const ourGrid = triangleGrid(Float64Array.from(newPos), hi.body.index, null, 0.008)
+    const nC = C.pos.length / 3
+    const moved = new Float32Array(nC * 3)
+    for (let i = 0; i < nC; i++) {
+      const p = [C.pos[i * 3], C.pos[i * 3 + 1], C.pos[i * 3 + 2]]
+      const hs = surf.query(p, 0.12)
+      let off = [0, 0, 0]
+      if (hs) {
+        const ho = ourGrid.query(hs.p, 0.05)
+        if (ho) off = sub(ho.p, hs.p)
+      }
+      for (let k = 0; k < 3; k++) moved[i * 3 + k] = p[k] + off[k]
+    }
+    const keep = []
+    const nearEye = (q) => Math.min(len(sub(q, ourLm.pts.eyeL)), len(sub(q, ourLm.pts.eyeR))) < 0.028
+    for (let t = 0; t < C.index.length; t += 3) {
+      const tri = [C.index[t], C.index[t + 1], C.index[t + 2]]
+      const c = [0, 1, 2].map((k) => tri.reduce((a, v) => a + moved[v * 3 + k], 0) / 3)
+      if (nearEye(c)) continue
+      keep.push(...tri)
+    }
+    if (keep.length) {
+      // (only the vertices the kept triangles use)
+      const remap = new Map()
+      const P = []
+      const U = []
+      const I = []
+      for (const v of keep) {
+        if (!remap.has(v)) {
+          remap.set(v, P.length / 3)
+          P.push(moved[v * 3], moved[v * 3 + 1], moved[v * 3 + 2])
+          U.push(C.uv[v * 2], C.uv[v * 2 + 1])
+        }
+        I.push(remap.get(v))
+      }
+      const hdr = Buffer.from(JSON.stringify({ v: 1, verts: P.length / 3, tris: I.length / 3 }))
+      const hpad2 = Buffer.alloc((4 - ((hdr.length + 4) % 4)) % 4, 32)
+      const hl2 = Buffer.alloc(4)
+      hl2.writeUInt32LE(hdr.length + hpad2.length)
+      const idx = Uint16Array.from(I)
+      const ipad = Buffer.alloc((4 - (idx.byteLength % 4)) % 4)
+      cardsOut = { bin: Buffer.concat([hl2, hdr, hpad2, Buffer.from(Float32Array.from(P).buffer), Buffer.from(Float32Array.from(U).buffer), Buffer.from(idx.buffer), ipad]), tex: C.tex, tris: I.length / 3 }
+      // (the cards' own hair color: the average of what's opaque)
+      let sum = [0, 0, 0]
+      let n = 0
+      for (let i = 0; i < C.tex.width * C.tex.height; i += 7) {
+        if (C.tex.data[i * 4 + 3] < 200) continue
+        for (let k = 0; k < 3; k++) sum[k] += toLin(C.tex.data[i * 4 + k])
+        n++
+      }
+      cardsOut.tone = n ? "#" + sum.map((x) => toSrgb(x / n).toString(16).padStart(2, "0")).join("") : null
+      console.log(face.id, "hair cards:", cardsOut.tris, "triangles, tone", cardsOut.tone)
+    }
+  }
+  const writeCards = async (name, entry) => {
+    if (!cardsOut) return
+    fs.writeFileSync(path.join(outDir, `${name}-cards.bin`), cardsOut.bin)
+    const T2 = cardsOut.tex
+    const webp = await sharp(T2.data, { raw: { width: T2.width, height: T2.height, channels: 4 } }).resize(1024, 1024).webp({ quality: 88, alphaQuality: 90 }).toBuffer()
+    fs.writeFileSync(path.join(outDir, `${name}-cards.webp`), webp)
+    entry.cards = `${name}-cards.bin`
+    entry.cardsTex = `${name}-cards.webp`
+    entry.cardsTone = cardsOut.tone
+    entry.files = { ...(entry.files || {}), [`${name}-cards.bin`]: cardsOut.bin.length, [`${name}-cards.webp`]: webp.length }
+  }
+  if (process.env.FACE_CARDS_ONLY === "1") {
+    // (just the cards: the rest of this face's files as they were)
+    const entry = manifest.faces[face.id]
+    if (entry) await writeCards(`pl-face-${face.id}`, entry)
+    continue
+  }
 
   // ---- the other parts that sit on the face: eyes, teeth, lashes ----
   const eyeShift = { l: sub(srcLm.pts.eyeL, ourLm.pts.eyeL), r: sub(srcLm.pts.eyeR, ourLm.pts.eyeR) }
@@ -789,7 +888,9 @@ for (const face of FACES) {
   }
   files[`${name}.bin`] = fs.statSync(path.join(outDir, `${name}.bin`)).size
   console.log(face.id, "done in", ((Date.now() - t0) / 1000).toFixed(1), "s", JSON.stringify(files))
-  manifest.faces[face.id] = { body: face.body, src: face.src, tone: "#" + photoMean.map((x) => toSrgb(x).toString(16).padStart(2, "0")).join(""), family: best.fam, med: `${name}.jpg`, hi: files[`${name}-hi.ktx2`] ? `${name}-hi.ktx2` : null, medKtx: files[`${name}-med.ktx2`] ? `${name}-med.ktx2` : null, detail: `${name}-n.jpg`, eye: `${name}-eye.jpg`, hair: `${name}-hair.jpg`, hairTone, ownHair, beard: +(beardArea / (faceArea || 1)).toFixed(3), shape: `${name}.bin`, files }
+  const entryNew = { body: face.body, src: face.src, tone: "#" + photoMean.map((x) => toSrgb(x).toString(16).padStart(2, "0")).join(""), family: best.fam, med: `${name}.jpg`, hi: files[`${name}-hi.ktx2`] ? `${name}-hi.ktx2` : null, medKtx: files[`${name}-med.ktx2`] ? `${name}-med.ktx2` : null, detail: `${name}-n.jpg`, eye: `${name}-eye.jpg`, hair: `${name}-hair.jpg`, hairTone, ownHair, beard: +(beardArea / (faceArea || 1)).toFixed(3), shape: `${name}.bin`, files }
+  await writeCards(name, entryNew)
+  manifest.faces[face.id] = entryNew
 }
 fs.writeFileSync(path.join(outDir, "faces.json"), JSON.stringify(manifest, null, 1))
 // the Locker Room's list (the app's own code, beside this folder): ids, bodies, natural tones
@@ -797,7 +898,7 @@ fs.writeFileSync(path.join(outDir, "faces.json"), JSON.stringify(manifest, null,
   const order = FACES.map((f) => f.id).filter((id) => manifest.faces[id])
   const list = order.map((id) => {
     const f = manifest.faces[id]
-    return `  { id: ${JSON.stringify(id)}, body: ${JSON.stringify(f.body)}, tone: ${JSON.stringify(f.tone)}, hairTone: ${JSON.stringify(f.hairTone || null)}, beard: ${f.beard || 0} },`
+    return `  { id: ${JSON.stringify(id)}, body: ${JSON.stringify(f.body)}, tone: ${JSON.stringify(f.tone)}, hairTone: ${JSON.stringify(f.hairTone || null)}, beard: ${f.beard || 0}, cards: ${!!f.cards} },`
   })
   const file = path.join(path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1")), "..", "faceList.js")
   fs.writeFileSync(file, `// Players v3: the photographed faces (written by tools/build-faces.mjs from faces.json; don't edit\n// by hand). tone: the photo's skin, hairTone: its painted hair, beard: how much of the lower face\n// is facial hair (0-1). Sources and license: CREDITS.md (Microsoft Rocketbox, MIT).\nexport const FACE_LIST = [\n${list.join("\n")}\n]\n`)

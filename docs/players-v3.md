@@ -101,7 +101,53 @@ draws the photo as photographed (no recoloring; only a gentle tint if the look's
 differs from the photo's: lightness fully, hue halfway), the detail map adds the photo's relief to
 the muscle normal map and drives roughness from its specular (oily nose and forehead, matte
 cheeks), and the hair mask recolors the painted hair to the look's hair color (keeping the
-strands' own light and dark), covers it with skin for "Shaved", and shaves facial hair off a look
-without a beard. Short styles (short, buzz, pixie) are the photo's own hair; longer ones add the
-MakeHuman hair cards on top. The eyes get the photographed iris; the brow cards are dropped (the
-photo has brows), the lashes stay.
+strands' own light and dark) and covers it with skin for "Shaved". (Shaving a photographed
+beard was tried and left blotches: a photo face keeps its own facial hair; the Beard option adds
+MakeHuman's beard cards only to faces without one.) Short styles (short, buzz, pixie, shaved)
+are the photo's own hair, unless the photographed head had modeled hair (an afro, a bun: its
+scalp is far from ours, `ownHair: false`): then every style uses the hair cards, over a scalp
+painted in the photo's hair color. Longer styles add the MakeHuman hair cards on top. The eyes get
+the photographed iris; the brow cards are dropped (the photo has brows), the lashes stay.
+
+Levels of detail: Medium (phones) uses the 1024 atlas as KTX2 (about 0.7 MB of GPU memory, against
+5.3 MB as a JPEG, so a park full of different faces fits a phone) and no detail map; High and
+Ultra the 2048 KTX2 and the detail map. Where KTX2 fails, the 1024 JPEG. Low draws the simple
+figures (no faces).
+
+The faces (`FACES` in build-faces.mjs; Locker Room order): men m01 Sports_Male_01, m02
+Male_Adult_04, m03 Male_Adult_10, m04 Male_Adult_05, m05 Male_Adult_12, m06 Male_Adult_03, m07
+Male_Adult_07, m08 Male_Adult_09; women f01 Sports_Female_01, f02 Business_Female_01, f03
+Medical_Female_01, f04 Female_Adult_11, f05 Female_Adult_14, f06 Sports_Female_02, f07
+Female_Adult_05. The roster wears them (looks.js `face`; their skin is the face's own tone,
+`characterLook`); My Park's regulars get a random face of their body (`parkLook`). Rocketbox has
+about 100 more adults and professionals; adding one is a line in `FACES` and a rebuild.
+
+## 4. Ultra quality
+
+Settings > Graphics and Options > Graphics have **Ultra** (for a strong computer): High plus
+- the venue's sky (the venue kit's HDRI) lighting the athletes' skin and kits (`gearEnv`, 0.3 and
+  0.25), so they take the place's color instead of looking pasted in;
+- a post chain in matches (`park/post.js` with `ao: true`): three's GTAOPass ambient occlusion
+  (contact shadows under arms, chins, collars, between the legs and under the feet), a soft
+  bloom, 4x MSAA and a mild vignette, through one tone curve; never on a phone screen;
+- motion matching searched every 0.066 s instead of 0.1.
+Venues, My Park and everything else build as on High (`subQuality`).
+
+## 5. Movement (this round)
+
+Measured first (Node, a pro doubles match animated with motion matching, scratchpad
+`v3/match-metrics.mjs`): contact error median 2.5 cm (p90 9.7), planted-foot slide p99 5.4 mm,
+split step landing 13 ms before the other side's contact (the hop is 0.13 s up: the metric's
+end-of-hop 225 ms minus that), kitchen ready stance knees 57 degrees, feet 0.58 m apart, trunk
+23 degrees forward. These match docs/pickleball-movement.md's spec. What didn't: under motion
+matching the **hips never took part in a stroke** (only the chest turned over the captured hips),
+and the unit turn reached only about 15 degrees in match drives.
+
+Changes:
+- **Kinetic chain** (`anim.js`): the captured hips now turn with a stroke on their own spring
+  (about a quarter of the chest's turn in the take-back, so the shoulders coil against the hips;
+  60% and faster in the forward swing, so the hips fire first), and the knees are solved again to
+  the pinned feet. The procedural path (Low, loading) gets the same split.
+- **Earlier, fuller unit turn**: the shoulders' coil follows a stroke at 24/s (was 14), and the
+  compact take-back for a late ball turns 0.45 rad (was 0.3).
+

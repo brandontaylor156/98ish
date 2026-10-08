@@ -136,7 +136,13 @@ test("faces: shape files parse; every face is on its own body with sane offsets"
       assert.ok(L.lash.length === L.brows * 3)
     }
     for (const e of [s.eyes.l, s.eyes.r]) assert.ok(Math.hypot(...e) < 0.015, `${id} eyes move under 1.5 cm`)
-    for (const k of ["med", "detail", "eye", "shape"]) assert.ok(fs.existsSync(path.join(ASSETS, f[k])), `${id} ${k}`)
+    for (const k of ["med", "detail", "eye", "shape", "hair"]) assert.ok(fs.existsSync(path.join(ASSETS, f[k])), `${id} ${k}`)
+    // download budgets: what Medium fetches for a face (KTX2 or the JPEG, eye, hair mask, shape),
+    // and High's extra (the 2048 KTX2 and the detail map)
+    const size = (k) => (f[k] ? fs.statSync(path.join(ASSETS, f[k])).size : 0)
+    const med = (f.medKtx ? size("medKtx") : size("med")) + size("eye") + size("hair") + size("shape")
+    assert.ok(med < 420e3, `${id}: Medium downloads ${med} bytes`)
+    assert.ok(size("hi") + size("detail") < 750e3, `${id}: High's extra ${size("hi") + size("detail")} bytes`)
   }
 })
 

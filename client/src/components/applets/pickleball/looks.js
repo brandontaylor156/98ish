@@ -16,7 +16,7 @@ export const CHARACTERS = [
     style: "allround",
     blurb: "Plays every shot. Never panics at the kitchen line.",
     stats: { speed: 1, power: 1, touch: 1.04 },
-    look: { face: "f03", body: "f", skin: 2, hair: "ponytail", hairColor: "#2a1a10", hat: "visor", hatColor: "#ffffff", shirt: "#18a3b5", shirtStyle: "tank", trim: "#ffffff", bottom: "skirt", bottomColor: "#1d3557", shoes: "#ffffff", shoeAccent: "#18a3b5", socks: "#ffffff", paddle: "#ffd23f", paddleEdge: "#1d3557", build: 0.96 },
+    look: { face: "f03", body: "f", skin: 2, hair: "own", hairColor: "#2a1a10", hat: "visor", hatColor: "#ffffff", shirt: "#18a3b5", shirtStyle: "tank", trim: "#ffffff", bottom: "skirt", bottomColor: "#1d3557", shoes: "#ffffff", shoeAccent: "#18a3b5", socks: "#ffffff", paddle: "#ffd23f", paddleEdge: "#1d3557", build: 0.96 },
   },
   {
     id: "dex",
@@ -25,7 +25,7 @@ export const CHARACTERS = [
     style: "banger",
     blurb: "Hits it hard and asks questions later.",
     stats: { speed: 1.02, power: 1.08, touch: 0.94 },
-    look: { face: "m02", body: "m", skin: 5, hair: "short", hairColor: "#141010", hat: "headband", hatColor: "#ff7a1a", shirt: "#ff7a1a", shirtStyle: "tee", trim: "#2b2b2b", bottom: "shorts", bottomColor: "#2b2b2b", shoes: "#2b2b2b", shoeAccent: "#ff7a1a", socks: "#ffffff", paddle: "#2b2b2b", paddleEdge: "#ff7a1a", build: 1.08, beard: true },
+    look: { face: "m02", body: "m", skin: 5, hair: "own", hairColor: "#141010", hat: "headband", hatColor: "#ff7a1a", shirt: "#ff7a1a", shirtStyle: "tee", trim: "#2b2b2b", bottom: "shorts", bottomColor: "#2b2b2b", shoes: "#2b2b2b", shoeAccent: "#ff7a1a", socks: "#ffffff", paddle: "#2b2b2b", paddleEdge: "#ff7a1a", build: 1.08, beard: true },
   },
   {
     id: "lena",
@@ -43,7 +43,7 @@ export const CHARACTERS = [
     style: "counter",
     blurb: "Quick hands. Your best drive comes right back.",
     stats: { speed: 1.05, power: 0.97, touch: 1.03 },
-    look: { face: "m03", body: "m", skin: 1, hair: "spiky", hairColor: "#111111", hat: "none", hatColor: "#111111", shirt: "#23395d", shirtStyle: "tee", trim: "#e63946", bottom: "shorts", bottomColor: "#e9ecef", shoes: "#e63946", shoeAccent: "#ffffff", socks: "#23395d", paddle: "#e63946", paddleEdge: "#111111", build: 0.98, glasses: true, plays: "left" },
+    look: { face: "m03", body: "m", skin: 1, hair: "own", hairColor: "#111111", hat: "none", hatColor: "#111111", shirt: "#23395d", shirtStyle: "tee", trim: "#e63946", bottom: "shorts", bottomColor: "#e9ecef", shoes: "#e63946", shoeAccent: "#ffffff", socks: "#23395d", paddle: "#e63946", paddleEdge: "#111111", build: 0.98, glasses: true, plays: "left" },
   },
   {
     id: "priya",
@@ -52,7 +52,7 @@ export const CHARACTERS = [
     style: "lobber",
     blurb: "Crowd the net and you'll be chasing one over your head.",
     stats: { speed: 1, power: 1, touch: 1.05 },
-    look: { face: "f04", body: "f", skin: 3, hair: "braid", hairColor: "#1c120c", hat: "none", hatColor: "#7b2cbf", shirt: "#9d4edd", shirtStyle: "tank", trim: "#ffd6ff", bottom: "shorts", bottomColor: "#3c096c", shoes: "#ffffff", shoeAccent: "#9d4edd", socks: "#ffffff", paddle: "#ffd6ff", paddleEdge: "#7b2cbf", build: 0.95 },
+    look: { face: "f04", body: "f", skin: 3, hair: "own", hairColor: "#1c120c", hat: "none", hatColor: "#7b2cbf", shirt: "#9d4edd", shirtStyle: "tank", trim: "#ffd6ff", bottom: "shorts", bottomColor: "#3c096c", shoes: "#ffffff", shoeAccent: "#9d4edd", socks: "#ffffff", paddle: "#ffd6ff", paddleEdge: "#7b2cbf", build: 0.95 },
   },
   {
     id: "gus",
@@ -70,7 +70,7 @@ export const CHARACTERS = [
     style: "allround",
     blurb: "Club champion three years running.",
     stats: { speed: 1.03, power: 1.01, touch: 1.01 },
-    look: { face: "f05", body: "f", skin: 2, hair: "curly", hairColor: "#3b2416", hat: "none", hatColor: "#ef476f", shirt: "#ef476f", shirtStyle: "tee", trim: "#ffffff", bottom: "skirt", bottomColor: "#2b2d42", shoes: "#ffffff", shoeAccent: "#ef476f", socks: "#ffffff", paddle: "#06d6a0", paddleEdge: "#2b2d42", build: 0.95, backhand: "two" },
+    look: { face: "f05", body: "f", skin: 2, hair: "own", hairColor: "#3b2416", hat: "none", hatColor: "#ef476f", shirt: "#ef476f", shirtStyle: "tee", trim: "#ffffff", bottom: "skirt", bottomColor: "#2b2d42", shoes: "#ffffff", shoeAccent: "#ef476f", socks: "#ffffff", paddle: "#06d6a0", paddleEdge: "#2b2d42", build: 0.95, backhand: "two" },
   },
   {
     id: "sam",
@@ -88,7 +88,7 @@ export const CHARACTERS = [
     style: "dinker",
     blurb: "Soft hands, sharp angles.",
     stats: { speed: 1.02, power: 0.95, touch: 1.08 },
-    look: { face: "f06", body: "f", skin: 1, hair: "long", hairColor: "#141414", hat: "visor", hatColor: "#ffd166", shirt: "#ffd166", shirtStyle: "tank", trim: "#118ab2", bottom: "skirt", bottomColor: "#118ab2", shoes: "#ffffff", shoeAccent: "#118ab2", socks: "#ffffff", paddle: "#118ab2", paddleEdge: "#073b4c", build: 0.93 },
+    look: { face: "f06", body: "f", skin: 1, hair: "own", hairColor: "#141414", hat: "visor", hatColor: "#ffd166", shirt: "#ffd166", shirtStyle: "tank", trim: "#118ab2", bottom: "skirt", bottomColor: "#118ab2", shoes: "#ffffff", shoeAccent: "#118ab2", socks: "#ffffff", paddle: "#118ab2", paddleEdge: "#073b4c", build: 0.93 },
   },
   {
     id: "lou",
@@ -98,7 +98,7 @@ export const CHARACTERS = [
     blurb: "The Kitchen King. Undefeated at the Stadium.",
     stats: { speed: 1.04, power: 1.06, touch: 1.08 },
     boss: true,
-    look: { face: "m06", body: "m", skin: 1, hair: "short", hairColor: "#5a5a5a", hat: "cap", hatColor: "#111111", shirt: "#111111", shirtStyle: "polo", trim: "#ffd700", bottom: "shorts", bottomColor: "#111111", shoes: "#111111", shoeAccent: "#ffd700", socks: "#111111", paddle: "#ffd700", paddleEdge: "#111111", build: 1.06, glasses: true },
+    look: { face: "m06", body: "m", skin: 1, hair: "own", hairColor: "#5a5a5a", hat: "cap", hatColor: "#111111", shirt: "#111111", shirtStyle: "polo", trim: "#ffd700", bottom: "shorts", bottomColor: "#111111", shoes: "#111111", shoeAccent: "#ffd700", socks: "#111111", paddle: "#ffd700", paddleEdge: "#111111", build: 1.06, glasses: true },
   },
 ]
 

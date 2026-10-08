@@ -59,6 +59,8 @@ export const parkLook = (rand, body) => {
     look.skin = f.tone
     if (f.hairTone && rand() < 0.8) look.hairColor = f.hairTone
     if ((f.beard || 0) > 0.12) look.beard = rand() < 0.7
+    // (their own photographed hair, most of the time)
+    if (rand() < 0.65) look.hair = "own"
   }
   return validateLook(look, base)
 }
