@@ -241,6 +241,7 @@ const sourceHead = async (face) => {
     I.tris.push(t)
     for (let k = 0; k < 3; k++) I.v += head.uv[head.index[t * 3 + k] * 2 + 1] / 3
   }
+  const triIsland = new Int32Array(nt)
   for (let t = 0; t < nt; t++) {
     let u = 0
     let v = 0
@@ -248,6 +249,7 @@ const sourceHead = async (face) => {
       u += head.uv[head.index[t * 3 + k] * 2] / 3
       v += head.uv[head.index[t * 3 + k] * 2 + 1] / 3
     }
+    triIsland[t] = find(head.index[t * 3])
     const I = island.get(find(head.index[t * 3]))
     // the head's skin: islands centered in the upper part of the atlas (the face, the scalp, the
     // neck); below them, the eyeballs, teeth, tongue and any modeled hair (a bun, a ponytail)
@@ -274,7 +276,7 @@ const sourceHead = async (face) => {
   const cardsPrim = prims.find((p) => /opacity/i.test(p.getMaterial()?.getName() || ""))
   const ofile = path.join(dir, `${face.prefix}_opacity_color.tga`)
   const cards = cardsPrim && fs.existsSync(ofile) ? { ...arrays(node, cardsPrim), tex: TGA(ofile, true) } : null
-  return { head, bones, skinTris, eyeTris, color, normal, spec, cards }
+  return { head, bones, skinTris, eyeTris, triIsland, color, normal, spec, cards }
 }
 
 // apply a similarity transform to a flat position array (in place) and to normals
@@ -705,6 +707,19 @@ for (const face of FACES) {
     const q = [hi.body.pos[i * 3], hi.body.pos[i * 3 + 1], hi.body.pos[i * 3 + 2]]
     inMouth[i] = Math.abs(q[0]) < cornerX * 0.92 && Math.abs(q[1] - ourLm.seam) < 0.013 && q[2] < lipFront - 0.0035 ? 1 : 0
   }
+  // (each of our vertices' closest point on the photographed head, once: inside a triangle whose
+  // three corners land on one of the photo's UV islands the texels interpolate those (fast and
+  // smooth); elsewhere (across a seam) each texel looks for its own closest point)
+  const vHit = new Array(nV).fill(null)
+  for (let i = 0; i < nV; i++) {
+    const q = [newPos[i * 3], newPos[i * 3 + 1], newPos[i * 3 + 2]]
+    if (photoWeight(q, ourLm.mid) <= 0) continue
+    const h = surf.query(q, 0.04)
+    if (!h) continue
+    const I = [src.head.index[h.t * 3], src.head.index[h.t * 3 + 1], src.head.index[h.t * 3 + 2]]
+    vHit[i] = { h, isl: src.triIsland[h.t], dist: Math.sqrt(h.d2), u: src.head.uv[I[0] * 2] * h.w[0] + src.head.uv[I[1] * 2] * h.w[1] + src.head.uv[I[2] * 2] * h.w[2], v: src.head.uv[I[0] * 2 + 1] * h.w[0] + src.head.uv[I[1] * 2 + 1] * h.w[1] + src.head.uv[I[2] * 2 + 1] * h.w[2] }
+  }
+  let fastTexels = 0
   let baked = 0
   rasterUV(N, tris, uvN, (ti, b0, b1, b2, x, y) => {
     const [a, b, c] = tris[ti]
@@ -715,7 +730,18 @@ for (const face of FACES) {
     // (the photo's relief is kept on the face, a third of it on the scalp: there it's the
     // painted hair's, and its islands' edges show as lines)
     const wd = w * (1 - 0.65 * Math.max(0, Math.min(1, (p[1] - ourMid[1] - 0.05) / 0.03)))
-    const s = sampleSrc(p)
+    const ha = vHit[a]
+    const hb = vHit[b]
+    const hc = vHit[c]
+    let s
+    if (ha && hb && hc && ha.isl === hb.isl && hb.isl === hc.isl) {
+      const u = ha.u * b0 + hb.u * b1 + hc.u * b2
+      const v = ha.v * b0 + hb.v * b1 + hc.v * b2
+      const dom = b0 >= b1 && b0 >= b2 ? ha : b1 >= b2 ? hb : hc
+      const dist = ha.dist * b0 + hb.dist * b1 + hc.dist * b2
+      s = { rgb: sampleImage(src.color, u, v), u, v, h: { t: dom.h.t, w: dom.h.w, d2: dist * dist } }
+      fastTexels++
+    } else s = sampleSrc(p)
     if (!s) return
     const o = (y * N + x) * 3
     // (only where the photographed surface is close to ours: a scalp under modeled hair (an afro,
@@ -776,7 +802,7 @@ for (const face of FACES) {
     if (src.spec) det[o + 2] = Math.round(sampleImage(src.spec, s.u, s.v)[0] * w + 70 * (1 - w))
     baked++
   })
-  console.log(face.id, "baked texels", baked)
+  console.log(face.id, "baked texels", baked, "interpolated", fastTexels)
   // (every island grown a few texels past its edge: filtering at a UV seam never reaches the
   // background, a skin-colored line across the scalp or under the chin)
   {

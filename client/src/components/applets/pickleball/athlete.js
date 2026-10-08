@@ -376,7 +376,7 @@ const variantOf = (tpl, build, full, face = null) => {
   // (a face doesn't change what's worn below the neck: the build's garments and kits are shared)
   const base = shape ? variantOf(tpl, build, full) : null
   if (base) base.kits ||= {}
-  tpl.variants[key] = { key, prepared, position, normal, garments: base ? base.garments : bkey === "regular" ? tpl.garments : {}, kits: base ? base.kits : undefined, bodies: {} }
+  tpl.variants[key] = { key, build: bkey, prepared, position, normal, garments: base ? base.garments : bkey === "regular" ? tpl.garments : {}, kits: base ? base.kits : undefined, bodies: {} }
   return tpl.variants[key]
 }
 
@@ -507,7 +507,9 @@ const kitGeometry = (tpl, pieces, v) => {
   }
   // this build's shape (outfit.js reshapeBody, the same moves as the body's)
   let shaped = position
-  if (v.key !== "regular") shaped = reshapeBody(prepareBody({ position, skinIndex, skinWeight, index, bones: names }), tpl.joints, tpl.marks, BUILD_SCALE[v.key])
+  // (v.build: the build alone; a photo face's variant key also names the face)
+  const bk = v.build || v.key
+  if (bk !== "regular") shaped = reshapeBody(prepareBody({ position, skinIndex, skinWeight, index, bones: names }), tpl.joints, tpl.marks, BUILD_SCALE[bk])
   const geo = new THREE.BufferGeometry()
   geo.setAttribute("position", new THREE.BufferAttribute(shaped, 3))
   geo.setAttribute("normal", new THREE.BufferAttribute(normal, 3))
@@ -733,7 +735,10 @@ float pkNoise(vec3 x) {
 const skinMaterial = (maps, hex, { pores = false, sweat = null, photo = null } = {}) => {
   const ref = maps.ref
   const lum = ref.r * 0.2126 + ref.g * 0.7152 + ref.b * 0.0722
-  const m = new THREE.MeshStandardMaterial({ map: photo?.map || maps.skin, normalMap: maps.normal, roughness: 0.55, metalness: 0 })
+  // (players v3: a photo face on High/Ultra gets skin's second, sharper specular lobe (the thin oily layer
+  // over the skin's broad sheen) as a faint clear coat)
+  const twoLobe = !!(photo && pores)
+  const m = twoLobe ? new THREE.MeshPhysicalMaterial({ map: photo.map, normalMap: maps.normal, roughness: 0.55, metalness: 0, clearcoat: 0.1, clearcoatRoughness: 0.36 }) : new THREE.MeshStandardMaterial({ map: photo?.map || maps.skin, normalMap: maps.normal, roughness: 0.55, metalness: 0 })
   if (maps.normal && maps.normalScale) m.normalScale.copy(maps.normalScale)
   m.defines = { PK_WRAP: "vec3(0.5, 0.3, 0.24)" }
   const uniforms = { skinTone: { value: srgb(hex).multiplyScalar(maps.gain) }, refHue: { value: new THREE.Vector3(ref.r / lum, ref.g / lum, ref.b / lum) }, refLum: { value: lum }, hueMix: { value: maps.hueMix }, skinWarm: { value: skinWarmth(hex) }, pkSweat: sweat || { value: 0 }, pkTint: { value: new THREE.Vector3(1, 1, 1) }, pkFaceDetail: { value: photo?.detail || null }, pkHairMask: { value: photo?.hair || null }, pkHairTone: { value: new THREE.Vector3(1, 1, 1) }, pkHairTarget: { value: new THREE.Vector3(1, 1, 1) }, pkBald: { value: 0 }, pkShave: { value: 0 }, pkSkinFill: { value: new THREE.Vector3(1, 1, 1) } }
@@ -787,10 +792,14 @@ const skinMaterial = (maps, hex, { pores = false, sweat = null, photo = null } =
           vec2 hm = texture2D( pkHairMask, vMapUv ).rg;
           float hl = dot( diffuseColor.rgb, vec3( 0.2126, 0.7152, 0.0722 ) );
           float tl = dot( pkHairTone, vec3( 0.2126, 0.7152, 0.0722 ) );
-          // (the strands' own light and dark, in the new color)
+          // (nothing changes when the look keeps the photo's own hair color)
+          float change = clamp( length( pkHairTarget - pkHairTone ) * 6.0, 0.0, 1.0 );
+          // the scalp: the strands' own light and dark, in the new color
           vec3 recol = pkHairTarget * clamp( hl / max( tl, 1e-4 ), 0.2, 3.0 ) / max( pkTint, vec3( 0.05 ) );
-          float hAny = max( hm.r, hm.g );
-          diffuseColor.rgb = mix( diffuseColor.rgb, recol, smoothstep( 0.15, 0.7, hAny ) );
+          diffuseColor.rgb = mix( diffuseColor.rgb, recol, smoothstep( 0.15, 0.7, hm.r ) * change );
+          // facial hair: tinted by the colors' ratio (a misread freckle or shadow keeps its own hue)
+          vec3 ratio = clamp( pkHairTarget / max( pkHairTone, vec3( 0.004 ) ), vec3( 0.25 ), vec3( 4.0 ) );
+          diffuseColor.rgb = mix( diffuseColor.rgb, diffuseColor.rgb * ratio, smoothstep( 0.3, 0.8, hm.g ) * change );
           // (bald / shaved: skin where the hair was; a little darker where it was thick, as on a scalp)
           float cover = max( pkBald * smoothstep( 0.1, 0.6, hm.r ), pkShave * smoothstep( 0.1, 0.6, hm.g ) * 0.92 );
           diffuseColor.rgb = mix( diffuseColor.rgb, pkSkinFill * ( 0.92 + 0.08 * hl / max( tl, 1e-4 ) ), cover );
