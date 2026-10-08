@@ -29,7 +29,7 @@ No motion capture of either player exists under a license we could use. Everythi
 - **Crossover and drop step.** A crossover step reaches wide balls. A drop step goes 45 degrees back with the hitting foot. https://usapickleball.org/blog/advanced-pickleball-footwork-crossover-and-drop-steps-at-the-kitchen-line/
 - **Wide dinks.** Use an inside-foot cross-step, then recover to the middle. https://www.thedinkpickleball.com/wide-pickleball-dink-mistakes-and-how-to-fix-them-fast/
 - **Lunges.** A lunge adds about 46 cm of reach. The front knee tracks over the second toe. https://www.thedinkpickleball.com/how-to-improve-pickleball-footwork-5-pro-drills/
-- **Erne.** The sequence and the legality rules are at https://www.thedinkpickleball.com/erne-pickleball-setup-jump-legal-landing-explained/ (the game has no Erne yet).
+- **Erne.** The sequence and the legality rules are at https://www.thedinkpickleball.com/erne-pickleball-setup-jump-legal-landing-explained/ (computer players have played Ernes and around-the-post shots since 2026-10-07; a person can hit an ATP too).
 
 ### Transition zone and resets
 - **Moving in.** From the baseline to the kitchen (about 4.3 m) takes 4 to 6 steps, with a split at each opponent contact: 2 steps, split, 2 steps, split.
@@ -69,18 +69,19 @@ All values are for a right-hander and are mirrored for a left-hander.
 
 | What | Spec | Where |
 | --- | --- | --- |
-| Ready at the kitchen: stance (ankle to ankle) | 0.50 m all-court, 0.56 m two-hander (wider than the 0.38 m shoulders) | `READY.net.*.stance` |
-| Ready at the kitchen: knees | 35-45 deg (pelvis about 7 cm below standing) | `READY.*.crouch` |
+| Ready at the kitchen: stance (ankle to ankle) | 0.58 m all-court, 0.62 m two-hander, ~0.64 m at the other side's contact (PPA footage ~0.65 m; 2026-10-08, was 0.50 / 0.56) | `READY.net.*.stance` |
+| Ready at the kitchen: height | hips ~90% of upright at the other side's contact (PPA footage), knees ~25-45 deg; was 35-45 deg of knee from the coaching | `READY.*.crouch` |
 | Ready at the kitchen: trunk | 23-24 deg forward, hips 7 cm back (back about parallel to the shins) | `lean`, `back` |
 | Ready paddle | face about 1.15 m, 12-13 cm below the shoulders, about 0.4 m in front of the neck, tip to the backhand side; two-hander 8 cm higher with the other hand on the handle | `hand`, `tip` |
-| Baseline ready | a little higher and more upright (lean 19 deg) | `READY.base` |
-| Split step | leaves the court 0.13 s before the other side's contact; 3 cm hop; lands 3 cm wider each side; hips sink 6 cm; 0.36 s in all; not mid-sprint (over 2.2 m/s) | `SPLIT`, `shouldSplit` |
+| Transition / baseline ready | by distance from the net (`ZONES`, blended): transition hips ~89%, baseline LOWER than the kitchen, ~85%, on a narrower base (PPA footage; was higher at the baseline) | `READY.mid`, `READY.base`, `readyFor(style, depth)` |
+| Split step | leaves the court 0.13 s before the other side's contact; 3 cm hop; lands 3 cm wider each side; hips sink 2.5 cm (was 6); 0.36 s in all; not mid-sprint (over 2.2 m/s); computer players keep the momentum going the ball's way (match.js `SPLIT_BRAKE`) | `SPLIT`, `shouldSplit` |
 | Kitchen footwork | slow moves at the net use cadence x 1.5, so the strides are shorter | `quickSteps` |
 | Crossover | sideways over 2.1 m/s with more than 0.9 m to go: hips open 43 deg, feet free to cross, shoulders turned back 32 deg toward the net; stays on above 1.4 m/s | `CROSS`, `footworkFor` |
 | Lunge / step out | contact more than 0.6 m to the side, or low and more than 0.75 m ahead: near foot out to 0.8 x the contact's side offset (low ball, up to 0.8 m) or 0.6 x (higher ball, up to 0.55 m); hips 75% of the way over the front foot; drops only after the front foot lands; front knee 80-100 deg, back knee under 45 deg | `LUNGE`, `lungePlan` |
 | Low balls | hinge at the hips first (up to 52 deg of trunk), then the knees; stroke crouch arrives with the ball, not before | `anim.js` |
 | Dink | a pendulum from the shoulder with the paddle in line with the arm; take-back about 10 cm; short lift that stops | `strokes.js` |
 | Drive | take-back at about the ball's height (wrist under 1.2 m), unit turn 41 deg, finish in front of the other shoulder; hips 5 cm back, then 7 cm forward through contact; the front foot steps in from a standstill | `strokes.js`, `WEIGHT`, `stepIn` |
+| Overhead | sideways ~57 deg as soon as the lob is read, the other hand pointing at the ball, a drop step back for a ball over or behind, the jump, the landing in the knees, through square with the smash | `OVERHEAD_SET`, `overheadTurn`, `dropStep`, `landingSink` |
 | Two-hander | both hands on the handle (8.5 cm apart) from take-back to the high finish over the paddle shoulder; one hand only when stretching wider than 0.85 m | `twoHanded` |
 | Punch / counter | 11 cm cock, short push, 0.22 s reset; hand battles 40% shorter still | `STYLES`, `styleTimes` |
 | Running | runs lower (pelvis 3.5 cm down); less bob in runs and shuffles | `locomotion.js` |

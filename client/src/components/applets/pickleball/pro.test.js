@@ -37,7 +37,7 @@ const stroke = (a, { kind, c, T0 = 0.7, after = 0.4, extra = {} }, each) => {
   return pose
 }
 
-test("the ready position at the kitchen: wide, knees bent, hips back, chest over the knees, paddle out front", () => {
+test("the ready position at the kitchen: wide (PPA footage ~0.65 m), tall knees, hips back, chest over the knees, paddle out front", () => {
   for (const twoHand of [false, true]) {
     const a = createAnim(0, 0, 0)
     let p
@@ -47,8 +47,10 @@ test("the ready position at the kitchen: wide, knees bent, hips back, chest over
     const trunk = (Math.acos(p.spine.y) * 180) / Math.PI
     const shoulderY = (p.shoulderL.y + p.shoulderR.y) / 2
     const ahead = p.paddle.face.z - p.neck.z
-    assert.ok(stance >= 0.46 && stance <= 0.62, `feet a little wider than the shoulders (${stance.toFixed(2)} m)`)
-    assert.ok(k >= 35 && k <= 58, `knees bent (${k.toFixed(0)} deg)`)
+    assert.ok(stance >= 0.54 && stance <= 0.7, `feet wider than the shoulders (${stance.toFixed(2)} m)`)
+    // (the tour stands taller than the old coaching numbers: knees ~24 deg of bend while the
+    // other side hits, from a wide base; docs/ppa-reference.md)
+    assert.ok(k >= 15 && k <= 45, `knees softly bent (${k.toFixed(0)} deg)`)
     assert.ok(trunk >= 18 && trunk <= 32, `chest over the knees (${trunk.toFixed(0)} deg)`)
     assert.ok(p.pelvis.z < -0.03, `hips back (${p.pelvis.z.toFixed(2)})`)
     assert.ok(p.paddle.face.y < shoulderY && p.paddle.face.y > p.pelvis.y + 0.15, `paddle between the waist and the chest (${p.paddle.face.y.toFixed(2)})`)
@@ -61,7 +63,10 @@ test("the ready position at the kitchen: wide, knees bent, hips back, chest over
     else assert.ok(hands > 0.1, `one hand on the handle (${hands.toFixed(2)})`)
   }
   assert.ok(readyFor("twohand", true).hand.y > readyFor("allcourt", true).hand.y, "a two-hander holds it higher")
-  assert.ok(READY.net.allcourt.crouch > READY.base.allcourt.crouch, "lower at the kitchen than at the baseline")
+  // (PPA footage: lower at the baseline (hips ~85% of upright) than at the kitchen (~90%), on a
+  // narrower base; the kitchen line is the widest)
+  assert.ok(READY.base.allcourt.crouch > READY.mid.allcourt.crouch && READY.mid.allcourt.crouch > READY.net.allcourt.crouch, "lower at the baseline than at the kitchen")
+  assert.ok(READY.net.allcourt.stance > READY.base.allcourt.stance, "wider at the kitchen")
 })
 
 test("left-handed: the whole body is the mirror image of a right-hander's", () => {
@@ -139,7 +144,7 @@ test("the split step: lands as the other side hits, a small hop and a sink", () 
   assert.equal(shouldSplit(0.05, 0.2), false, "not twice in a row")
   assert.equal(splitHeight(-0.1), 0)
   assert.ok(splitHeight(SPLIT.lead / 2) > 0.02, "up on the toes")
-  assert.ok(splitHeight(SPLIT.lead + (SPLIT.dur - SPLIT.lead) / 2) < -0.04, "sinks on the landing")
+  assert.ok(splitHeight(SPLIT.lead + (SPLIT.dur - SPLIT.lead) / 2) < -0.02, "sinks on the landing (a little: hips ~90% of upright at the far contact)")
   assert.equal(splitHeight(SPLIT.dur + 0.01), 0)
   // the anim starts it itself from oppHit; the engine's late fallback does nothing then
   const a = createAnim(0, 0, 0)

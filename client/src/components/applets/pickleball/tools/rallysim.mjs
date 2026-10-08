@@ -72,6 +72,8 @@ export const simulate = ({ level = "pro", games = 6, seed0 = 1, doubles = true, 
   const speed95 = [] // each player's rally: 95th percentile of the smoothed speed (footage method)
   const acc95 = [] // and of the change in speed over 0.4 s
   const reaction = [] // after an opponent's hit: seconds until a player first moves > 1.1 m/s
+  const atOppHit = [] // each player's speed (m/s) as the other side hits (serves aside)
+  const atOppSm = [] // the same, smoothed the footage's way (positions over 0.5 s, speed over 0.4 s)
   const depthAt = {} // distance from the net of the serving / returning team at shots 1..6
   const LINE = 2.13 + 0.6
   const observed = {} // by observedKind: mph, clear, apex, flight (to the first bounce), gap (to the next hit), y, land
@@ -149,6 +151,12 @@ export const simulate = ({ level = "pro", games = 6, seed0 = 1, doubles = true, 
           }
           // reactions: the other team's players, from this hit (only those standing still)
           for (const p of m.players) if (p.team !== e.team) mv[p.id].react = Math.hypot(p.vx, p.vz) < 0.6 ? e.t : null
+          // (the footage: how fast the other side's players are moving as this ball is hit;
+          // a split step there doesn't stop them dead)
+          if (e.kind !== "serve") for (const p of m.players) if (p.team !== e.team) {
+            atOppHit.push(Math.hypot(p.vx, p.vz))
+            ;(mv[p.id].oppHits ||= []).push(e.t)
+          }
           const shotNo = shots.length + 1
           if (shotNo <= 6) {
             for (const team of [0, 1]) {
@@ -245,10 +253,17 @@ export const simulate = ({ level = "pro", games = 6, seed0 = 1, doubles = true, 
                 const ac = []
                 for (let i = 4; i < sp.length; i++) ac.push(Math.abs(sp[i] - sp[i - 4]) / 0.4)
                 if (sp.length) speed95.push(pct(sp, 0.95))
+                // (and at each of the other side's contacts, smoothed the same way: footage 1.0 m/s)
+                for (const th of s.oppHits || []) {
+                  // (sp[i - 2] is the speed at sm[i]'s time)
+                  let bi = -1
+                  for (let i = 2; i < sm.length - 2; i++) if (bi < 0 || Math.abs(sm[i][0] - th) < Math.abs(sm[bi][0] - th)) bi = i
+                  if (bi >= 0 && Math.abs(sm[bi][0] - th) < 0.08) atOppSm.push(sp[bi - 2])
+                }
                 if (ac.length) acc95.push(pct(ac, 0.95))
               }
             }
-            Object.assign(s, { lastV: null, lastT: 0, peakV: 0, peakA: 0, react: null, path: [] })
+            Object.assign(s, { lastV: null, lastT: 0, peakV: 0, peakA: 0, react: null, path: [], oppHits: [] })
           }
           // the dink phase and the first speed-up of the rally (as the PPA stats count them)
           const dinks = shots.filter((s) => s.kind === "dink").length
@@ -329,6 +344,7 @@ export const simulate = ({ level = "pro", games = 6, seed0 = 1, doubles = true, 
       speed95: { p10: r2(pct(speed95, 0.1)), median: r2(pct(speed95, 0.5)), p90: r2(pct(speed95, 0.9)), n: speed95.length },
       acc95: { p10: r2(pct(acc95, 0.1)), median: r2(pct(acc95, 0.5)), p90: r2(pct(acc95, 0.9)), n: acc95.length },
       reaction: { p10: r2(pct(reaction, 0.1)), median: r2(pct(reaction, 0.5)), p90: r2(pct(reaction, 0.9)), n: reaction.length },
+      speedAtOppHit: { median: r2(pct(atOppHit, 0.5)), p75: r2(pct(atOppHit, 0.75)), n: atOppHit.length, smoothed: r2(pct(atOppSm, 0.5)), nSmoothed: atOppSm.length },
       depthAt: Object.fromEntries(Object.entries(depthAt).sort().map(([k, a]) => [k, r2(pct(a, 0.5))])),
     },
   }

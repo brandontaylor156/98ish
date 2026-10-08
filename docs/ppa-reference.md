@@ -200,6 +200,15 @@ upright hip-to-ankle reads 0.74 m, so use the ratios). n = pose samples.
 ## Where I am / next steps
 
 - Done: the measurements above, the real between-points routine, Game speed, tests, docs.
+- Done (2026-10-08, the athletes' movement round, `docs/pickleball-log.md`): the animation notes
+  above are in the game. Ready stances by court position at the other side's contact (hips 0.88-0.90
+  at the kitchen, 0.87 in transition, 0.82-0.83 at the baseline; kitchen feet 0.64 m with motion
+  matching), a lighter split step that keeps momentum, reaction 0.30 s (Pro) / 0.28 (Legend), the
+  serving team at the line 4.75 s after the serve (was 4.07; moves up in stages), returners 1.55 s,
+  speed95 3.17 m/s, acc95 5.24, a real overhead set-up. Not matched: knee angles (133-136 vs 156:
+  the footage's knees are likely read straight from the end camera, and a 90%-tall, 0.65 m-wide
+  stance can't straighten past ~140 in a rigid leg), the far-contact speed (0.40 vs 1.0 m/s), own
+  contact at the baseline (hips 0.80 vs 0.92).
 - Next (if wanted): hand-label 20-30 more rallies with `sheets.py` (full-resolution frames with
   the ball circled are readable at 12-15 fps) to measure shot-by-shot timing, returns and shots
   per rally properly; a second camera angle (sideline replays) would fix ball heights.
