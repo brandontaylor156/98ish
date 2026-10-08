@@ -11,6 +11,11 @@ import { ACTIONS, ACTION_LABEL, bindingsFor, keyName, rebind } from "./input.js"
 
 export const LEVEL_NAMES = { beginner: "Rookie", intermediate: "Club", pro: "Pro", legend: "Legend" }
 export const TIMING = { relaxed: 0.085, normal: 0.06, strict: 0.042 }
+// Game speed: how fast the game's clock runs on this device. Medium is real life: the ball,
+// the players and the time between points as measured from PPA Tour broadcasts
+// (docs/ppa-reference.md). Slow gives you more time to learn; Fast is an arcade feel.
+// (engine.js PACE_SCALE keeps the same numbers.)
+export const PACE = { slow: 0.8, medium: 1, fast: 1.2 }
 
 const Radio = ({ name, value, options, onChange, disabled }) => (
   <div className="pkRadios" role="radiogroup">
@@ -309,6 +314,10 @@ export const SettingsMenu = ({ prefs, setPrefs, onBack, onControls, showPad, onT
       <div className="pkField">
         <span>Camera</span>
         <Radio name="pk-cam" value={prefs.camera} options={[["broadcast", "Broadcast"], ["tv", "TV high"], ["side", "Sideline"], ["player", "Behind you"]]} onChange={(v) => setPrefs({ camera: v })} />
+      </div>
+      <div className="pkField" data-field="pace">
+        <span>Game speed</span>
+        <Radio name="pk-pace" value={prefs.pace || "medium"} options={[["slow", "Slow"], ["medium", "Medium (real life)"], ["fast", "Fast"]]} onChange={(v) => setPrefs({ pace: v })} />
       </div>
       <div className="pkField">
         <span>Timing</span>
