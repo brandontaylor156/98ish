@@ -4,7 +4,6 @@
 // buildings and the hall are all round you, exactly as you left them.
 
 import * as THREE from "three"
-import { NET_POST_X } from "../physics.js"
 import { VENUES } from "../venue.js"
 import { buildPark } from "./build.js"
 import { dayLook, hourOf } from "./sky.js"
@@ -28,27 +27,9 @@ export const buildCourtVenue = (scene, { layout, courtId = null, quality = "medi
   holder.updateMatrixWorld(true)
   scene.add(holder)
   scene.fog = holder.fog || new THREE.Fog(0xd8ecfb, 60, 180)
-  // an umpire's chair by the net post (the engine seats its umpire there)
-  const chair = new THREE.Group()
-  const metal = new THREE.MeshLambertMaterial({ color: 0x2b2f36 })
-  const legGeo = new THREE.BoxGeometry(0.06, 1.5, 0.06)
-  for (const [dx, dz] of [
-    [-0.25, -0.25],
-    [0.25, -0.25],
-    [-0.25, 0.25],
-    [0.25, 0.25],
-  ]) {
-    const leg = new THREE.Mesh(legGeo, metal)
-    leg.position.set(dx, 0.75, dz)
-    chair.add(leg)
-  }
-  const seatGeo = new THREE.BoxGeometry(0.6, 0.06, 0.6)
-  const seat = new THREE.Mesh(seatGeo, metal)
-  seat.position.y = 1.52
-  chair.add(seat)
-  const UX = NET_POST_X + 1.0
-  chair.position.set(UX, 0, 0)
-  scene.add(chair)
+  // (no umpire's chair: real courts don't have one, and at a venue whose courts sit a metre
+  // apart it stood in the next court and in the divider; the engine seats no umpire without a
+  // seat. The umpire's voice still calls the score.)
   const base = VENUES.park
   const def = { ...base, id: `park:${layout.id}`, name: `${layout.name} · ${c.name}`, crowd: 0, exposure: d.exposure ?? 1, toneMapping: park.toneMapping }
   return {
@@ -56,15 +37,11 @@ export const buildCourtVenue = (scene, { layout, courtId = null, quality = "medi
     def,
     sun: park.sun,
     crowd: null,
-    umpireSeat: { x: UX - 0.05, y: 1.58, z: 0, yaw: -Math.PI / 2 },
+    umpireSeat: null,
     update: park.update || undefined,
     dispose() {
       park.dispose()
       scene.remove(holder)
-      scene.remove(chair)
-      legGeo.dispose()
-      seatGeo.dispose()
-      metal.dispose()
       scene.fog = null
     },
   }

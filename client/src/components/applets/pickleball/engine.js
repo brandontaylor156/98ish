@@ -496,6 +496,15 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
     warm()
   }
   const placeUmpire = () => {
+    // (no chair at a real venue: real courts have no umpire, so nobody sits there)
+    if (!venue?.umpireSeat) {
+      if (umpire) {
+        scene.remove(umpire.group)
+        umpire.dispose()
+        umpire = null
+      }
+      return
+    }
     if (!umpire) {
       umpire = makeFigure(UMPIRE_LOOK, { shadows: !!QUALITY[settings.quality]?.shadows, withPaddle: false })
       scene.add(umpire.group)
@@ -1041,7 +1050,7 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
       }
     })
     // the umpire watches the ball, and signals calls
-    if (umpire) {
+    if (umpire && venue.umpireSeat) {
       const b = replay ? replay.ball : match.ball.p
       umpireSignalT = Math.max(0, umpireSignalT - dt)
       umpire.apply(seatedPose(venue.umpireSeat, b, umpireSignalT > 0 ? umpireSignal : null), dt)
