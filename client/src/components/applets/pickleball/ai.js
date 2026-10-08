@@ -215,6 +215,12 @@ const bouncesNow = (m) => m.rally.bounces + (m.held?.length || 0)
 
 // Where a player waits when the ball isn't theirs to hit. Partners move as a unit (one
 // depth per team), each covering their half, both drifting toward the ball.
+// SHADE: how far a doubles team shifts with the ball across the court (of its x). Pros move
+// with the ball as if tied by a rope, so they are still moving as the other side hits (PPA
+// footage, the feet tracked the same way: 0.76 m/s at the kitchen line at the far contact;
+// 0.3 gave the game 0.51, 0.42 gives 0.66 with rally length and bursts unchanged; 0.45 made
+// Pro rallies a shot longer: docs/pickleball-log.md "Athletes, round 2")
+export const SHADE = 0.42
 export const homeFor = (m, p) => {
   const side = sideOf(p.team)
   const rs = rightSign(p.team)
@@ -235,7 +241,7 @@ export const homeFor = (m, p) => {
   let x
   if (m.game.doubles) {
     const lane = p.lane === "right" ? 1 : -1
-    x = rs * lane * 1.4 + clamp(ballX, -HALF_W, HALF_W) * 0.3
+    x = rs * lane * 1.4 + clamp(ballX, -HALF_W, HALF_W) * SHADE
   } else {
     x = clamp(ballX, -HALF_W, HALF_W) * 0.45
   }

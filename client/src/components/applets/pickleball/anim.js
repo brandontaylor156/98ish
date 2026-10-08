@@ -177,8 +177,15 @@ const CROUCH = { drive: 0.03, return: 0.03, slice: 0.02, dink: 0.03, drop: 0.03,
 // (motion matching: a pinned foot settles anywhere within ~7 cm of where the capture has it, so
 // the ready stance is asked a little wider to land at the tour's width: pro.js READY)
 const MM_WIDE = 0.035
+// the procedural feet on the move in a rally keep this share of the ready stance's width
+// (locomotion.js body.athletic; motion matching has its own captured shuffles)
+const ATHLETIC = 0.95
 const MAX_CROUCH = 0.24 // (outside lunges: lower than this, the trunk bends instead)
 // strokes played off the bounce from the back, which rise out of the ready crouch
+// (a groundstroke from the back: the crouch it comes up to (m), and the share of a low
+// ball's reach that the hinge takes over from the hips)
+const GROUND_CROUCH = 0.03
+const GROUND_HINGE = 0.4
 const GROUND = new Set(["drive", "return", "slice", "drop", "lob", "reset", "roll"])
 
 // ---- the whole body ----
@@ -360,6 +367,8 @@ export const updateAnim = (a, s, dt) => {
   const c = swing || s.prep
   let lungeLean = 0
   let lowLean = 0
+  // (a groundstroke from the back: how far it comes up out of the crouch, 0..1)
+  let groundUp = 0
   // the hips (body frame): back in the ready position, over a lunging foot, forward with the
   // weight through a drive
   const running01 = clamp(bl.run + bl.sprint + bl.walk * 0.5, 0, 1)
@@ -378,7 +387,10 @@ export const updateAnim = (a, s, dt) => {
     const depth = typeof s.depth === "number" ? s.depth : s.atNet ? 2.5 : 6
     // (an overhead: tall into it, out of the ready crouch, the legs pushing up into the jump)
     if (isOverhead(c.kind, c.y)) crouch -= R.crouch * near
-    else if (GROUND.has(c.kind) && !c.volley) crouch -= (R.crouch + (CROUCH[c.kind] ?? 0.03) + braking * 0.05) * 0.85 * smooth(clamp((depth - 3.6) / 1.6, 0, 1)) * near
+    else if (GROUND.has(c.kind) && !c.volley) {
+      groundUp = smooth(clamp((depth - 3.6) / 1.6, 0, 1)) * near
+      crouch -= (R.crouch + (CROUCH[c.kind] ?? 0.03) + braking * 0.05) * 0.85 * groundUp
+    }
     lowLean = clamp((0.75 - c.y) * 1.1, 0, 0.5) * near
     // wide or far, and low: the lunge (pro.js): the near foot steps out, that knee bends, the
     // back leg stays long, the hips go over toward the front foot
@@ -403,6 +415,11 @@ export const updateAnim = (a, s, dt) => {
       a.mmLungeT = { x: fr.r.x * lp.shift * over + fr.f.x * lp.shiftZ * over, z: fr.r.z * lp.shift * over + fr.f.z * lp.shiftZ * over }
     } else if (Math.abs(lc.z) > 0.55) stance = R.stance + STANCE.wide
     crouch += down
+    // (round 2: the legs drive up into a groundstroke from the back whatever else asked them
+    // down (a shuffle's or a run's lower pelvis, a low ball): the low ball is met with a hinge
+    // at the hips and the arm, below. PPA footage, measured the same way: own contact at the
+    // baseline, hips at 92% of upright; the game was at 83-87%)
+    if (groundUp > 0 && !lp) crouch = lerp(crouch, Math.min(crouch, GROUND_CROUCH), groundUp * 0.85)
     // a drive (or lob, or the serve) from a standstill: the front foot steps toward the ball as
     // the weight goes forward (pro.js stepIn; worked out right-handed, mirrored)
     const st0 = a.stroke
@@ -478,7 +495,7 @@ export const updateAnim = (a, s, dt) => {
   let idleMove = null
   const crouchS = springN(a.crouch, crouch, 10, dt)
 
-  updateGait(a.gait, { x: s.x, z: s.z, vx: mv.x, vz: mv.z, yaw: a.yaw, stance, reach, minHip: 0.93 - crouchS - 0.1, crossover: fc.mode !== "face", quick: quickSteps(speed, !!s.atNet && !s.between) }, dt)
+  updateGait(a.gait, { x: s.x, z: s.z, vx: mv.x, vz: mv.z, yaw: a.yaw, stance, athletic: s.between ? 0 : R.stance * ATHLETIC, reach, minHip: 0.93 - crouchS - 0.1, crossover: fc.mode !== "face", quick: quickSteps(speed, !!s.atNet && !s.between) }, dt)
   const feet = a.gait.feet
   const extra = springV(a.extra, extraT, 24, dt)
 
@@ -725,7 +742,8 @@ export const updateAnim = (a, s, dt) => {
     const d = norm(gap)
     // (down: a hinge at the hips takes a share first, the knees the rest: overDown leans the
     // trunk below. Pros reach a low ball with the hips back and the chest over it, not a squat)
-    shiftT = V(clamp(d.x * over, -0.4, 0.4), clamp(d.y * over * 0.6, -0.3, 0.04), clamp(d.z * over, -0.4, 0.4))
+    // (a groundstroke from the back: less of it from the hips, more from the hinge)
+    shiftT = V(clamp(d.x * over, -0.4, 0.4), clamp(d.y * over * 0.6 * (1 - GROUND_HINGE * groundUp), -0.3, 0.04), clamp(d.z * over, -0.4, 0.4))
   }
   const shift = springV(a.shift, shiftT, k >= 200 ? 36 : 16, dt)
   py += shift.y

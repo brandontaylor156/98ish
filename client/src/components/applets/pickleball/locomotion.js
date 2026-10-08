@@ -71,6 +71,9 @@ export const GAITS = {
 // the motion-capture clips the blend weights drive, and their own cycle lengths (s)
 export const CLIPS = { walk: { clip: "Walk_Loop", duration: 1.3333, contact: 0.953 }, run: { clip: "Jog_Fwd_Loop", duration: 0.9333, contact: 0.016 }, sprint: { clip: "Sprint_Loop", duration: 0.6667, contact: 0.984 } }
 
+// a rally's shuffle: the closing foot stays this many athletic half widths from the other
+// (body.athletic; ~0.3 m at the kitchen line)
+export const SHUFFLE_GAP = 1.15
 export const IDLE_SPEED = 0.15 // below this (m/s) the feet stand still
 export const MOVE_SPEED = 0.32 // above this they start stepping
 
@@ -280,13 +283,13 @@ const spotFor = (i, p, yaw, width) => {
   const s = i ? 1 : -1
   return { x: p.x + fr.r.x * s * width, z: p.z + fr.r.z * s * width }
 }
-// keep foot i on its own side of the other foot (in the body frame)
-const uncross = (g, i, spot, body, yaw) => {
+// keep foot i on its own side of the other foot (in the body frame), at least gap apart
+const uncross = (g, i, spot, body, yaw, gap = FOOT.minGap) => {
   const fr = frame(yaw)
   const o = g.feet[1 - i]
   const lat = (spot.x - body.x) * fr.r.x + (spot.z - body.z) * fr.r.z
   const latO = (o.bx - body.x) * fr.r.x + (o.bz - body.z) * fr.r.z
-  const lim = i === 0 ? Math.min(lat, latO - FOOT.minGap) : Math.max(lat, latO + FOOT.minGap)
+  const lim = i === 0 ? Math.min(lat, latO - gap) : Math.max(lat, latO + gap)
   if (lim === lat) return spot
   return { x: spot.x + fr.r.x * (lim - lat), z: spot.z + fr.r.z * (lim - lat) }
 }
@@ -319,7 +322,8 @@ const startStep = (g, i, dur, kind) => {
 }
 
 // One frame of footwork. body: { x, z, vx, vz, yaw, stance (half width standing), reach:
-// { foot, x, z } | null, minHip (the pelvis height, for how far a leg reaches) }
+// { foot, x, z } | null, minHip (the pelvis height, for how far a leg reaches), athletic
+// (the half width the feet keep on the move in a rally; 0 or missing: the gait's own) }
 export const updateGait = (g, body, dt) => {
   const bs = blendSpace({ vx: body.vx, vz: body.vz, yaw: body.yaw, crossover: !!body.crossover, quick: body.quick || 1 })
   g.blend = bs
@@ -329,7 +333,26 @@ export const updateGait = (g, body, dt) => {
   g.moving = speed > MOVE_SPEED || (g.moving && speed > IDLE_SPEED)
   const reachH = Math.sqrt(Math.max(0.04, 0.86 ** 2 - Math.max(0.3, (body.minHip ?? 0.8) - 0.075) ** 2)) + 0.08
   const maxReach = Math.min(FOOT.reach, reachH)
-  const width = g.moving ? lerp(body.stance, bs.width, smoothstep(IDLE_SPEED, 0.9, speed)) : body.stance
+  // (in a rally the feet keep an athletic base on the move: shuffles and slow adjustment
+  // steps land about as wide as the ready stance (a backpedal stays the gait's own: wide feet
+  // going back outran the legs in a swing); only a real run (forward, or
+  // a fast move any way) narrows to a runner's track. PPA footage: feet ~0.54 m apart at the baseline as the other side
+  // hits, mostly while moving. body.athletic: that base's half width, 0 between points)
+  let moveW = bs.width
+  // (and a shuffle's closing foot stops short of the other: a pro's feet never come together)
+  let gap = FOOT.minGap
+  const ath = body.athletic || 0
+  if (ath > moveW) {
+    const gw = bs.gaits
+    const tot = gw.walk + gw.run + gw.sprint + gw.shuffle + gw.back
+    const share = tot > 1e-6 ? (gw.shuffle + (gw.walk + gw.run) * (1 - smoothstep(1.4, 2.6, speed))) / tot : 1
+    // (a fast move narrows again: wide feet and long strides at 3 m/s outrun the legs)
+    const fast = 1 - smoothstep(1.8, 2.8, speed)
+    moveW = lerp(bs.width, ath, share * fast)
+    const side = tot > 1e-6 ? gw.shuffle / tot : 0
+    gap = Math.max(gap, ath * SHUFFLE_GAP * side * fast)
+  }
+  const width = g.moving ? lerp(body.stance, moveW, smoothstep(IDLE_SPEED, 0.9, speed)) : body.stance
   const hipOf = (i) => ({ x: body.x + fr.r.x * (i ? 1 : -1) * 0.095, z: body.z + fr.r.z * (i ? 1 : -1) * 0.095 })
   // the feet point where the body faces, turned out a little (and a little more when wide)
   const footYaw = (i) => body.yaw + (i ? -1 : 1) * (FOOT.toeOut + (g.moving ? -0.06 : 0.08))
@@ -373,7 +396,7 @@ export const updateGait = (g, body, dt) => {
       const ahead = clamp((1 - st.t) * st.dur + (bs.duty / Math.max(bs.cycles, 0.5)) * 0.5, 0, 0.45)
       want = spotFor(i, { x: body.x + body.vx * ahead, z: body.z + body.vz * ahead }, body.yaw, width)
     }
-    if (!body.crossover) want = uncross(g, i, want, body, body.yaw)
+    if (!body.crossover) want = uncross(g, i, want, body, body.yaw, gap)
     // (a target that jumps, say a new ball calling for a step out the other way, is followed at a
     // foot's top speed, so the foot in the air never teleports)
     if (!st.ws) st.ws = { x: want.x, z: want.z }

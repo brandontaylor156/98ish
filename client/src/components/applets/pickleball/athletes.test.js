@@ -137,6 +137,10 @@ test("computer players: reaction ~0.30 s after the far contact (tour 0.30, 0.20-
   // (the split step doesn't freeze them: tour players move ~1.0 m/s at the far contact; the old
   // stop-dead read gave 0.31 m/s, measured the footage's way)
   assert.ok(L.movement.speedAtOppHit.smoothed > 0.36, `moving at the far contact (${L.movement.speedAtOppHit.smoothed} m/s)`)
+  // (round 2: the footage's own count, the third shot on, at the kitchen line: tour 0.76 m/s
+  // with the feet tracked; the game's body 0.34 before the team shaded with the ball, ai.js SHADE)
+  const kz = L.movement.speedAtOppHitFootage.kitchen
+  assert.ok(kz.n > 100 && kz.median > 0.42, `moving at the kitchen line at the far contact (${kz.median} m/s, n=${kz.n})`)
   // short bursts, not sprints (tour 3.31 m/s, 4.9 m/s^2)
   assert.ok(L.movement.speed95.median > 2.9 && L.movement.speed95.median < 3.7, `speed95 ${L.movement.speed95.median}`)
   assert.ok(L.movement.acc95.median > 4.3 && L.movement.acc95.median < 5.9, `acc95 ${L.movement.acc95.median}`)

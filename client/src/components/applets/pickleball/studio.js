@@ -38,7 +38,7 @@ export const poseMetrics = (pose) => {
   }
 }
 
-export const STATES = ["tap", "net-tap", "twirl", "wipe", "receive", "walkback", "jog", "sprintstop", "kitchen-shuffle", "backpedal2", "lob-turn", "ready", "split", "run", "shuffle", "walk", "sprint", "backpedal", "stop", "turn", "lunge", "backswing", "drive", "drive-follow", "backhand", "backhand-follow", "dink", "volley", "overhead", "serve", "serve-follow", "celebrate", "celebrate2", "celebrate3", "frustrated", "frustrated2", "frustrated3", "idle", "shuffle-ready", "run-hit", "dink-bh", "volley-bh", "reach-bh", "lob", "ready-net", "kitchen-adjust", "crossover", "transition", "backhand-two", "dink-wide", "hands-battle", "ready-kitchen", "ready-mid", "ready-base", "split-move", "overhead-lob"]
+export const STATES = ["tap", "net-tap", "twirl", "wipe", "receive", "walkback", "jog", "sprintstop", "kitchen-shuffle", "backpedal2", "lob-turn", "ready", "split", "run", "shuffle", "walk", "sprint", "backpedal", "stop", "turn", "lunge", "backswing", "drive", "drive-follow", "backhand", "backhand-follow", "dink", "volley", "overhead", "serve", "serve-follow", "celebrate", "celebrate2", "celebrate3", "frustrated", "frustrated2", "frustrated3", "idle", "shuffle-ready", "run-hit", "dink-bh", "volley-bh", "reach-bh", "lob", "ready-net", "kitchen-adjust", "crossover", "transition", "backhand-two", "dink-wide", "hands-battle", "ready-kitchen", "ready-mid", "ready-base", "split-move", "overhead-lob", "drive-low"]
 
 // Movement tests for the footwork (motion matching vs the procedural gait): a player moved
 // by the match's own rule (accelerating at most 12 m/s^2 toward the velocity they want, or
@@ -183,6 +183,10 @@ const script = (state, x, z, { hand = 1, twoHand = false } = {}) => {
     }
     case "drive":
       return stroke("drive", C(0.62, 0.85, 0.4))
+    // a low groundstroke from the baseline (a third-shot drive or drop off a low return: the
+    // game's groundstrokes from the back are met ~0.5 m up)
+    case "drive-low":
+      return stroke("drive", C(0.66, 0.52, 0.45))
     case "drive-follow":
       return stroke("drive", C(0.62, 0.85, 0.4), { follow: 0.2 })
     case "backhand":
