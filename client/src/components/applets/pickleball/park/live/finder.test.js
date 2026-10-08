@@ -74,6 +74,25 @@ test("naming: own name, a nearby park/club/school, the operator; generic names s
   assert.equal(F.nameVenue({ ...c, els: [{ type: "way", id: 2, tags: { name: "Sunset Courts" } }] }, places), "Sunset Courts")
   assert.equal(F.nameVenue({ ...c, els: [{ type: "way", id: 3, tags: { operator: "City of Irvine" } }] }, []), "City of Irvine")
   assert.equal(F.nameVenue(c, []), null)
+  // the names pass: the park the courts stand inside, after a nearby place, before the operator
+  assert.equal(F.nameVenue(c, [], "Central Park"), "Central Park")
+  assert.equal(F.nameVenue(c, places, "Central Park"), "Mile Square Park")
+  assert.equal(F.nameVenue({ ...c, els: [{ type: "way", id: 3, tags: { operator: "City of Irvine" } }] }, [], "Heritage Park"), "Heritage Park")
+  assert.equal(F.nameVenue(c, [], "Tennis Courts"), null)
+  const answer = [
+    { type: "m", id: 1, tags: { i: "0" } },
+    { type: "area", id: 1, tags: { amenity: "school", name: "Lincoln Elementary" } },
+    { type: "area", id: 2, tags: { leisure: "park", name: "Lincoln Park" } },
+    { type: "m", id: 2, tags: { i: "1" } },
+    { type: "m", id: 3, tags: { i: "2" } },
+    { type: "area", id: 3, tags: { landuse: "recreation_ground", name: "Rec Ground" } },
+    { type: "area", id: 4, tags: { club: "sport", name: "Dink Club" } },
+  ]
+  const split = F.splitIsIn(answer)
+  assert.equal(F.pickEnclosing(split.get("0")), "Lincoln Park")
+  assert.equal(F.pickEnclosing(split.get("1")), null)
+  assert.equal(F.pickEnclosing(split.get("2")), "Dink Club")
+  assert.equal(F.pickEnclosing([{ tags: { boundary: "administrative", name: "Irvine" } }]), null)
   // the title falls back to the town
   assert.equal(F.readRow(F.makeRow({ id: "ow1", lat: 1, lon: 1, r: 5, courts: 2, onTennis: 0, flags: 0, name: "", town: "Simi Valley" })).title, "Pickleball courts, Simi Valley")
   const townOf = F.townIndex([

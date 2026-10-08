@@ -202,9 +202,11 @@ export const flagsOf = (cluster) => {
 }
 
 // a venue's name: one of its own features' names, else the nearest named park/club/school
-// around it (`places`: [{ name, lat, lon, kind }]), else "Pickleball courts" (+ the town)
+// around it (`places`: [{ name, lat, lon, kind }]), else the named park/club/school the courts
+// stand inside (`enclosing`: a name from the build's names pass, OSM is_in), else the operator,
+// else "Pickleball courts" (+ the town)
 const GENERIC = /^(pickleball( courts?)?|tennis( courts?)?|courts?|pitch)$/i
-export const nameVenue = (cluster, places = []) => {
+export const nameVenue = (cluster, places = [], enclosing = null) => {
   const own = cluster.els.map((e) => e.tags?.name).filter((n) => n && !GENERIC.test(n.trim()))
   // (a hall's or club's name beats a court's "Court 3")
   const best = own.find((n) => !/^court\s*\d+$/i.test(n)) || null
@@ -222,7 +224,45 @@ export const nameVenue = (cluster, places = []) => {
     if (!near || score < near.score) near = { name: p.name, score }
   }
   if (near) return near.name
+  if (enclosing && !GENERIC.test(enclosing.trim())) return enclosing
   return opName || null
+}
+
+// the names pass (build-index.mjs --names): which named OSM area a venue stands inside. `areas`
+// are Overpass `is_in` answers ({ tags }); a sports centre or club beats a park, a park beats a
+// school or campus, a recreation ground comes last. Returns a name or null.
+const areaRank = (t) =>
+  t.leisure === "sports_centre" || t.leisure === "sports_hall" || t.leisure === "fitness_centre" || t.club
+    ? 0
+    : /^(park|recreation_ground|common|playground)$/.test(t.leisure || "") || t.amenity === "community_centre"
+      ? 1
+      : /^(school|college|university)$/.test(t.amenity || "")
+        ? 2
+        : t.landuse === "recreation_ground"
+          ? 3
+          : 9
+export const pickEnclosing = (areas = []) => {
+  let best = null
+  for (const a of areas) {
+    const t = a?.tags || {}
+    if (!t.name || GENERIC.test(t.name.trim())) continue
+    const rank = areaRank(t)
+    if (rank < 9 && (!best || rank < best.rank)) best = { name: t.name, rank }
+  }
+  return best?.name || null
+}
+// one names-pass answer: a marker ({ type: "m", tags: { i } }, Overpass `make`) before each
+// point's areas -> Map(i -> [areas])
+export const splitIsIn = (elements = []) => {
+  const out = new Map()
+  let cur = null
+  for (const e of elements) {
+    if (e.type === "m") {
+      cur = String(e.tags?.i ?? "")
+      out.set(cur, [])
+    } else if (cur !== null && e.type === "area") out.get(cur).push(e)
+  }
+  return out
 }
 
 // the nearest town (places: [{ name, lat, lon, pop }]) through a grid built once

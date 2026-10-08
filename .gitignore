@@ -40,3 +40,6 @@ dist-ssr
 
 # Claude Code worktrees
 .claude/
+
+# Venue Finder index build cache (tools/venues/world/build-index.mjs default --cache)
+tools/venues/world/.cache/
