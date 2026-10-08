@@ -89,13 +89,21 @@ test("attackable: a dink that floats up (high and deep) can be hit down; pop-ups
 })
 
 test("resets: absorbing a hard ball is harder than dinking a soft one, and better players do it cleaner", () => {
+  // (played the way match.js strike does: the touch wobble, plus the paddle's face and push
+  // errors, which grow with the incoming pace; "bad" = floats up where it can be attacked, or
+  // finds the net)
   const popRate = (lv, inSpeed, n = 200) => {
     const rand = seeded(7)
     let pops = 0
     for (let i = 0; i < n; i++) {
-      const absorb = inSpeed > FAST_BALL ? 1.3 + (inSpeed - FAST_BALL) / 8 : 1
-      const s = shoot(v3(0.4, 0.5, 2.4), v3(0, -1, inSpeed), { x: -0.8, z: -1.6 }, 0.08, { apexSigma: lv.softTouch * absorb, rand })
-      if (s.a.attackable) pops++
+      const absorb = inSpeed > FAST_BALL ? 1.45 + (inSpeed - FAST_BALL) / 5 : 1
+      const hardness = 1 + inSpeed * 0.02
+      const from = v3(0.4, 0.5, 2.4)
+      const inc = v3(0, -1, inSpeed)
+      const plan = planIntent({ team: 0, from, incoming: inc, target: { x: -0.8, z: -1.6 }, pace: 0.08, apexSigma: lv.softTouch * absorb, rand })
+      const res = playShot({ p: from, v: inc, w: v3() }, plan, { faceError: lv.face * hardness, touch: lv.touch * hardness, offset: lv.offset, rand })
+      const a = assessBall(res.ball, 0)
+      if (a.attackable || (a.clearance !== null && a.clearance < 0)) pops++
     }
     return pops / n
   }

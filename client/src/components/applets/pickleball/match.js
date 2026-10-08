@@ -18,7 +18,7 @@
 // is just before the ball gets there. What kind of shot it was follows from all that and
 // from where it was hit (shots.js planIntent), and so does whether it can be attacked.
 
-import { BALL_R, HALF_L, HALF_W, KITCHEN, NET_H_CENTER, STEP, bounceOnCourt, flightStep, len, netContact, v3 } from "./physics.js"
+import { BALLS, BALL_R, HALF_L, HALF_W, KITCHEN, NET_H_CENTER, STEP, bounceOnCourt, flyWithNet, len, v3 } from "./physics.js"
 import {
   FOOT_R,
   courtOf,
@@ -29,6 +29,7 @@ import {
   rallyWon,
   receiver as receiverOf,
   refBounce,
+  refBody,
   refDead,
   refFeet,
   refHit,
@@ -132,6 +133,15 @@ export const createMatch = (options = {}) => {
   const roster = o.roster || defaultRoster(o)
   const players = roster.map((r) => makePlayer({ level: o.level, ...r }))
   const ids = [0, 1].map((team) => players.filter((p) => p.team === team).map((p) => p.id))
+  // computer doubles teams may stack: each player keeps the side that puts a forehand in the
+  // middle (a right-hander on the left, a left-hander on the right), whatever the score
+  const stack = [0, 1].map((team) => {
+    const t = players.filter((p) => p.team === team)
+    if (!o.doubles || t.length !== 2 || t.some((p) => p.ctrl !== "cpu")) return null
+    if (rand() >= Math.max(...t.map((p) => p.level?.stack || 0))) return null
+    const [a, b] = t[0].hand === -1 && t[1].hand !== -1 ? [t[1], t[0]] : t
+    return { pref: { [a.id]: "left", [b.id]: "right" } }
+  })
   const m = {
     o,
     rand,
@@ -140,7 +150,8 @@ export const createMatch = (options = {}) => {
     phase: "intro", // intro | serve | rally | dead | over
     phaseT: 0,
     t: 0,
-    ball: { p: v3(0, HAND_Y, HALF_L), v: v3(), w: v3(), held: null, rolling: false, rest: false },
+    // the ball: outdoor (40 holes) unless the match is indoors (o.ball "indoor": 26 holes)
+    ball: { p: v3(0, HAND_Y, HALF_L), v: v3(), w: v3(), held: null, rolling: false, rest: false, ...(BALLS[o.ball] && o.ball !== "outdoor" ? { kind: o.ball } : {}) },
     players,
     events: [],
     eventSeq: 0,
@@ -148,6 +159,7 @@ export const createMatch = (options = {}) => {
     version: 0,
     planned: -1,
     teamDepth: ["back", "back"],
+    stack,
     assist: o.assist,
     autoplay: false,
     humanLevel: HUMAN,
@@ -197,10 +209,18 @@ const servePositions = (m, snap) => {
     const rs = rightSign(p.team)
     const court = g.doubles ? courtOf(g, p.id) : serverCourt(g)
     p.lane = court
-    const x = rs * (court === "right" ? 1 : -1) * (g.doubles ? 1.55 : 1.2)
+    let x = rs * (court === "right" ? 1 : -1) * (g.doubles ? 1.55 : 1.2)
     let z
     if (p.team === g.serving) z = side * (HALF_L + 0.35)
     else z = side * (p.id === recv ? HALF_L + 0.25 : NET_LINE)
+    // stacking: the partner of a server or receiver who is in the "wrong" court for the team's
+    // plan waits on that same side, just off the court, and they switch after the shot
+    const st = m.stack?.[p.team]
+    if (st && g.doubles) {
+      const lead = p.team === g.serving ? g.server : recv
+      const leadCourt = courtOf(g, lead)
+      if (p.id !== lead && st.pref[lead] !== leadCourt) x = rs * (leadCourt === "right" ? 1 : -1) * (HALF_W + 0.3)
+    }
     p.spot = { x, z }
     if (snap) {
       p.x = x
@@ -394,6 +414,9 @@ export const canHit = (m, p, req = p.armed || p.charge, { reach = REACH, wait = 
   const coming = ball.v.z * side > 1
   // (a player reaching over the kitchen for a volley takes it at arm's length)
   // (but a ball going past a person's side never gets nearer: their swing takes it now)
+  // (a computer player meets it where it planned to: the top of the bounce, or out of the air
+  // in front, rather than letting it drop past)
+  if (wait && req.kind === "ai" && p.expect && isAi(m, p) && !person) return m.t >= p.expect.at - 0.012 || d < 0.3
   if (wait && !req.lunge && ahead > 0.4 && coming && d > 0.55 && (!person || closing > 0.5)) return false
   return true
 }
@@ -429,7 +452,7 @@ export const previewShot = (m, p, pace) => {
   const target = aimFor(m, p, pace)
   const from = { x: e.x, y: e.y, z: e.z }
   const plan = planIntent({ team: p.team, from, incoming: m.ball.v, target, pace, shotNo: m.rally.hits + 1, volley: !!e.volley })
-  const res = playShot({ p: from, v: m.ball.v, w: m.ball.w }, plan)
+  const res = playShot({ p: from, v: m.ball.v, w: m.ball.w, kind: m.ball.kind }, plan)
   return { kind: plan.kind, band: plan.band, target: plan.target, landing: res.solved.landing, long: !!res.solved.long }
 }
 
@@ -478,9 +501,10 @@ export const strike = (m, p, { forced = false } = {}) => {
     plan = planShot("serve", { team: p.team, from: ball.p, aim: clamp((aim ?? 0) + q.aimShift, -1.2, 1.2), depth: depth ?? 0, power: clamp((req.power ?? 0.5) * (ai ? 1 : p.stats.power || 1), 0, 1), targetX: st?.x, targetZ: st?.z, court: r.court, variant: req.variant, risky: !!req.risky, sigma, rand: m.rand })
     if (plan.mode.speed !== undefined && q.speedMul !== 1) plan.mode = { speed: plan.mode.speed * q.speedMul }
     offset = ai ? lv.offset : 0.01
-    // (a serve is a rehearsed, unhurried swing: steadier than a rally shot)
-    face = ai ? lv.face * 0.6 : 0.008 * q.face
-    touch = ai ? lv.touch * 0.4 : 0.03 * q.touch
+    // (a serve is a rehearsed, unhurried swing: a little steadier than a rally shot, but a
+    // deep, paced serve still misses now and then: pros fault on a few percent of serves)
+    face = ai ? lv.face * 0.85 : 0.008 * q.face
+    touch = ai ? lv.touch * 0.75 : 0.03 * q.touch
   } else if (ai) {
     // ---- a computer player ----
     const req = m.practice?.shot?.(m, p) || aiShot(m, p, lv)
@@ -489,26 +513,32 @@ export const strike = (m, p, { forced = false } = {}) => {
     const avail = m.lastShot ? m.t - m.lastShot.t : 1
     let delta = aiTiming(lv, m.rand, window)
     if (fast && avail < lv.hands) {
-      if (avail < lv.hands * 0.7 && m.rand() < 0.5) return null // beaten
+      // (too quick for their hands: the paddle never gets there; a little less quick: late)
+      if (avail < lv.hands * 0.62) return null // beaten
       delta = window * (2.4 + ((lv.hands - avail) / lv.hands) * 4) // late
     }
     pace = clamp(req.pace + gauss(m.rand) * 0.04, 0, 1)
     q = shotQuality(delta, { window, kind: pace < 0.36 ? "dink" : "drive" })
     // low balls, fast balls and hitting on the run are harder (a level's errors already
     // include its timing: the grade only nudges them)
-    const hardness = 1 + Math.max(0, 0.45 - ball.p.y) * 2.5 + Math.hypot(p.vx, p.vz) * 0.12 + inSpeed * 0.02
+    // (and a fast ball jammed into the body, with no room to swing, is the hardest of all:
+    // why pros aim speed-ups at the paddle-side hip)
+    const room = Math.hypot(ball.p.x - p.x, ball.p.z - p.z)
+    const jam = fast ? Math.max(0, 0.42 - room) * 2.4 : 0
+    const hardness = 1 + Math.max(0, 0.45 - ball.p.y) * 2.5 + Math.hypot(p.vx, p.vz) * 0.12 + inSpeed * 0.02 + jam
     const nudge = (k) => 1 + (k - 1) * 0.5
     const far = Math.abs(ball.p.z) >= 3.8
     // softening a hard ball is hard: a reset off a real speed-up floats or dumps more often
     // (tuned 2026-10-06 against simulated rally lengths: Pro/Legend points ran ~14-19 shots)
-    const absorb = fast ? 1.45 + Math.max(0, inSpeed - FAST_BALL) / 5 : 1
+    const absorb = fast ? 1.45 + Math.max(0, inSpeed - FAST_BALL) / 3.5 : 1
     offset = lv.offset * (0.5 + m.rand())
     face = lv.face * hardness * nudge(q.face)
     touch = lv.touch * hardness * nudge(q.touch)
     const target = { ...req.target }
     target.x += q.aimShift * rightSign(p.team) * 1.2
     plan = planIntent({ team: p.team, from: ball.p, incoming: ball.v, target, pace, shotNo, volley, sigma: lv.sigma * hardness * nudge(q.sigma), apexSigma: (far ? lv.dropTouch : lv.softTouch) * absorb * (1 + Math.max(0, 0.45 - ball.p.y) * 1.5) * nudge(q.touch), apexAdd: q.apexAdd * 0.5, rand: m.rand })
-    if (plan.mode.speed !== undefined && q.speedMul !== 1) plan.mode = { speed: plan.mode.speed * q.speedMul }
+    // (how hard their hard balls are: a pro's drive is a club player's best)
+    if (plan.mode.speed !== undefined) plan.mode = { speed: plan.mode.speed * q.speedMul * (lv.power ?? 1) }
   } else {
     // ---- a person: their hold (pace), their aim, their timing ----
     const req = { ...(p.armed || p.charge) }
@@ -530,7 +560,7 @@ export const strike = (m, p, { forced = false } = {}) => {
     plan = planIntent({ team: p.team, from: ball.p, incoming: ball.v, target, pace, shotNo, volley, sigma: ((0.2 + spacing * 0.5) * q.sigma) / skill, apexSigma: (((0.05 + spacing * 0.2) * q.touch) / skill) * absorb * low, apexAdd: q.apexAdd, rand: m.rand })
     if (plan.mode.speed !== undefined && q.speedMul !== 1) plan.mode = { speed: plan.mode.speed * q.speedMul * (p.stats.power || 1) }
   }
-  const res = playShot({ p: ball.p, v: ball.v, w: ball.w }, plan, { faceError: face, touch, offset, rand: m.rand })
+  const res = playShot({ p: ball.p, v: ball.v, w: ball.w, kind: ball.kind }, plan, { faceError: face, touch, offset, rand: m.rand })
   const kind = serving ? "serve" : plan.kind
   return {
     player: p.id,
@@ -551,6 +581,7 @@ export const strike = (m, p, { forced = false } = {}) => {
     paddle: len(res.u),
     paddleVy: res.u.y,
     landing: res.solved.landing,
+    aim: plan.target,
   }
 }
 
@@ -641,6 +672,7 @@ export const applyStrike = (m, p, s) => {
   const erne = s.volley && Math.abs(s.feet.x) > HALF_W + 0.05 && Math.abs(s.feet.z) < KITCHEN + 0.7
   const j = judgeShot(s.kind, a, { contactY: s.contact.y, oppsBack, erne })
   r.dinks = s.kind === "dink" ? (r.dinks || 0) + 1 : 0
+  if (shotNo === 3) r.third = s.kind
   m.stats.shots++
   m.stats.rallyShots++
   const ts = m.stats.teams[p.team]
@@ -649,9 +681,16 @@ export const applyStrike = (m, p, s) => {
   ts.fastest = Math.max(ts.fastest, speed)
   countShot(m, p, s, j, shotNo)
   m.lastShot = { kind: s.kind, by: p.id, team: p.team, speed, volley: s.volley, landing: s.landing, t: m.t, grade: s.grade, risky: s.risky, label: j.text, tone: j.tone, tag: j.tag, attackable: a.attackable, pace: s.pace }
-  if (!m.mirror) afterShot(m, p.team, s.kind, p, a)
+  if (!m.mirror) {
+    afterShot(m, p.team, s.kind, p, a)
+    // doubles teamwork: a stacking team takes its sides after its first shot (the server or
+    // returner crosses); a poacher carries on across and the partner switches behind
+    const st = m.stack?.[p.team]
+    if (st && (shotNo === 1 || shotNo === 2)) for (const q of m.players) if (q.team === p.team && st.pref[q.id]) q.lane = st.pref[q.id]
+    if (m.plans?.[p.team]?.poach && m.plans[p.team].player === p.id) for (const q of m.players) if (q.team === p.team) q.lane = q.lane === "right" ? "left" : "right"
+  }
   m.version++
-  emit(m, { type: "hit", player: p.id, team: p.team, kind: s.kind, speed, volley: s.volley, x: ball.p.x, y: ball.p.y, z: ball.p.z, paddle: s.paddle, grade: s.grade, risky: s.risky, hand: s.hand, human: p.ctrl !== "cpu" && p.ctrl !== "feeder", label: j.text, tone: j.tone, tag: j.tag, fast: !!s.fast, attackH: a.attackH })
+  emit(m, { type: "hit", player: p.id, team: p.team, kind: s.kind, speed, volley: s.volley, x: ball.p.x, y: ball.p.y, z: ball.p.z, paddle: s.paddle, grade: s.grade, risky: s.risky, hand: s.hand, human: p.ctrl !== "cpu" && p.ctrl !== "feeder", label: j.text, tone: j.tone, tag: j.tag, fast: !!s.fast, attackH: a.attackH, aim: s.aim, intent: s.intent ?? null, planned: s.landing })
   if (result) decided(m, result)
 }
 
@@ -919,13 +958,26 @@ const movePlayer = (m, p, dt) => {
   const ax = wantX - p.vx
   const az = wantZ - p.vz
   const a = Math.hypot(ax, az)
-  const maxDv = 12 * dt
+  // (between points nobody sprints off: a relaxed walk picks up at ~5 m/s^2)
+  const maxDv = (between ? 5 : 12) * dt
   if (a > maxDv) {
     p.vx += (ax / a) * maxDv
     p.vz += (az / a) * maxDv
   } else {
     p.vx = wantX
     p.vz = wantZ
+  }
+  // a computer player who just volleyed keeps out of the kitchen until balanced (rule 11.A.2:
+  // momentum carrying a volleyer into it is a fault); a person is never steered
+  if (ai && !between && m.rally?.watch?.get(p.id)?.left > 0 && !inKitchen(p.x, p.z)) {
+    // brake (hard, but not instantly) so the toes stop at the line
+    const side = sideOf(p.team)
+    const room = Math.abs(p.z) - (KITCHEN + FOOT_R + 0.01)
+    const toward = -p.vz * side // + when heading for the net
+    if (toward > 0 && Math.abs(p.x) - FOOT_R <= HALF_W && toward * toward >= 2 * 14 * Math.max(room, 0.001)) {
+      const slower = Math.max(0, toward - 14 * dt)
+      p.vz = -side * (room > 0.004 ? slower : 0)
+    }
   }
   p.x += p.vx * dt
   p.z += p.vz * dt
@@ -949,6 +1001,34 @@ export const clampPlayer = (m, p) => {
   }
 }
 
+// A computer player in the way of a ball they aren't going to hit (it's going out, or their
+// partner has it) steps out of its line: a ball that touches them loses the rally (refBody)
+const dodgeFor = (m, p, plan) => {
+  const path = plan?.path
+  if (!path || (plan.player === p.id && !plan.letGo)) return null
+  const until = plan.player && !plan.letGo && plan.t !== undefined ? plan.t : 2
+  for (let i = 1; i < path.length; i++) {
+    const s = path[i]
+    if (s.t > until) break
+    if (s.t < 0.04 || s.y > 1.85) continue
+    const dx = p.x - s.x
+    const dz = p.z - s.z
+    if (dx * dx + dz * dz > 0.45 * 0.45) continue
+    const a = path[i - 1]
+    const vx = s.x - a.x
+    const vz = s.z - a.z
+    const l = Math.hypot(vx, vz) || 1
+    let px = -vz / l
+    let pz = vx / l
+    if (dx * px + dz * pz < 0) {
+      px = -px
+      pz = -pz
+    }
+    return { x: p.x + px * 0.8, z: p.z + pz * 0.8 }
+  }
+  return null
+}
+
 const think = (m) => {
   // re-plan whenever the ball's path changed (a hit, a bounce, the net)
   if (m.planned !== m.version) {
@@ -959,6 +1039,7 @@ const think = (m) => {
       p.intercept = null
       p.expect = null
       p.zoneT = null
+      p.dodge = null
     }
     if (m.phase === "rally" && isLive(r) && r.lastTeam !== null && !m.ball.held) {
       const team = 1 - r.lastTeam
@@ -973,6 +1054,7 @@ const think = (m) => {
         const exp = isAi(m, p) ? (plan.player === p.id && !plan.letGo ? plan : null) : mine && !mine.letGo ? mine : null
         if (exp && exp.t !== undefined) p.expect = { at: m.t + exp.t, x: exp.x, y: exp.y, z: exp.z, volley: !!exp.volley }
       }
+      for (const p of m.players) p.dodge = p.team === team && isAi(m, p) ? dodgeFor(m, p, plan) : null
     }
   }
   for (const p of m.players) {
@@ -987,6 +1069,7 @@ const think = (m) => {
     const plan = m.plans[p.team]
     const mine = plan && plan.player === p.id && !plan.letGo
     if (mine && isAi(m, p)) p.target = plan.stand
+    else if (p.dodge && isAi(m, p) && m.phase === "rally") p.target = p.dodge
     else if (m.phase === "rally" || m.phase === "dead") p.target = homeFor(m, p)
     if (isAi(m, p) && m.phase === "rally") {
       // a computer partner leaves the ball to a person who is already swinging at it
@@ -1036,9 +1119,7 @@ const stepBall = (m, dt) => {
     ball.p.z += ball.v.z * dt
     if (s < 0.05) ball.rest = true
   } else {
-    const prevZ = ball.p.z
-    flightStep(ball, dt)
-    const net = netContact(prevZ, ball)
+    const net = flyWithNet(ball, dt)
     if (net) {
       m.version++
       emit(m, { type: net, x: ball.p.x, y: ball.p.y, speed: len(ball.v) })
@@ -1061,6 +1142,7 @@ const stepBall = (m, dt) => {
       else refereeBounce(m, b)
     }
   }
+  if (!ball.rolling && !m.mirror && isLive(r)) bodyCheck(m)
   // the fence around the court stops everything
   const fx = HALF_W + 3.4
   const fz = HALF_L + 5.4
@@ -1084,6 +1166,32 @@ const stepBall = (m, dt) => {
       ball.p.z = Math.sign(ball.p.z) * fz
       ball.v.z *= -0.15
     }
+  }
+}
+
+// A ball in play that touches a player (not their paddle) loses them the rally (rules.js
+// refBody). A body is a standing capsule: the torso and legs 0.19 m round, the head 0.11.
+// The player who just hit it is skipped for a moment (the ball is leaving their paddle).
+export const BODY_R = 0.19
+const HEAD_Y = 1.5
+const bodyCheck = (m) => {
+  const r = m.rally
+  const b = m.ball.p
+  if (r.hits === 0 || b.y > 1.8 || m.held?.length) return
+  for (const p of m.players) {
+    if (p.id === r.lastPlayer && m.t - (m.lastShot?.t ?? -9) < 0.25) continue
+    const rad = (b.y > HEAD_Y ? 0.11 : BODY_R) + BALL_R
+    const dx = b.x - p.x
+    const dz = b.z - p.z
+    if (dx * dx + dz * dz > rad * rad) continue
+    const res = refBody(r, p.team, p.id)
+    if (res) {
+      emit(m, { type: "body", player: p.id, x: b.x, y: b.y, z: b.z })
+      // it drops off them
+      m.ball.v = v3(m.ball.v.x * 0.15, Math.min(0, m.ball.v.y) * 0.3, m.ball.v.z * 0.15)
+      decided(m, res)
+    }
+    return
   }
 }
 

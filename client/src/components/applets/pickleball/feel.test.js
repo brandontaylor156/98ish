@@ -41,7 +41,9 @@ test("rally length: Pro and Legend points last like real pro doubles (not 14-19 
   const pro = rallies("pro", [1, 2, 3])
   const legend = rallies("legend", [1, 2, 3])
   for (const [name, r] of [["pro", pro], ["legend", legend]]) {
-    assert.ok(r.mean >= 6.5 && r.mean <= 13, `${name} mean ${r.mean.toFixed(1)} shots`)
+    // (PPA championship finals: 8.9-14.8 shots a rally by match, 10.7 on average in 2022, 13.6
+    // at the 2019 US Open; Ramsey, PPA stats wraps)
+    assert.ok(r.mean >= 7.5 && r.mean <= 15, `${name} mean ${r.mean.toFixed(1)} shots`)
     assert.ok(r.p90 <= 26, `${name} p90 ${r.p90}`)
   }
   assert.ok(club.mean < pro.mean, `club ${club.mean.toFixed(1)} shorter than pro ${pro.mean.toFixed(1)}`)

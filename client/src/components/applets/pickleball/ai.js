@@ -17,128 +17,155 @@
 // person's games; it may carry stanceNet/stanceBack (where they stand), crossDink, deepZ and
 // serveDepth, read below with the old numbers as defaults (levels without them play as before).
 
-import { HALF_L, HALF_W, KITCHEN, NET_H_CENTER, len, predictPath } from "./physics.js"
+import { HALF_L, HALF_W, KITCHEN, NET_H_CENTER, NET_POST_X, len, predictPath } from "./physics.js"
 import { FOOT_R, inKitchen, rightSign, sideOf } from "./rules.js"
 import { FAST_BALL, SOFT_KINDS, planIntent, solveDrive } from "./shots.js"
 
 // Per level:
-//   speed m/s on court; reaction s before moving to a new ball; sigma m of aim scatter;
-//   face rad of paddle wobble; touch: relative error in how hard the face pushes; offset m
-//   off the sweet spot; judge: lets a ball go if it lands this far out; softTouch m: how far
-//   a dink's height wanders (up is a pop-up); dropTouch: the same for drops and resets from
-//   farther back; drop: chance of a third-shot drop (else a drive); reset: chance of
-//   playing soft (a reset or drop) from the transition zone against net players; bang:
-//   chance of just hitting hard; patience: dinks before they get itchy; impatience: chance
-//   of speeding up a ball that isn't up, once itchy; attack: m above the net a ball must be
-//   met before they attack it; hands: s they need to react to a hard ball at the net
-//   (less and they're late); counter: chance of countering (vs. blocking) a hard ball
-//   met above the net; lob: chance of a surprise lob; advance: chance of moving up after a
-//   good soft shot; timing: chance of a perfect / good swing.
-const COMMON = { serveWait: 0.85, maxY: 1.95 }
+//   speed m/s on court; reaction s before moving to a new ball (a split step's worth at the
+//   top: human, not superhuman); sigma m of aim scatter; face rad of paddle-angle wobble;
+//   touch: relative error in how hard the face pushes; offset m off the sweet spot; judge:
+//   lets a ball go if it lands this far out; softTouch m: how shaky a dink's touch is (played
+//   as face angle and push: shots.js wobble; low = into the net, high or long = attackable);
+//   dropTouch: the same for drops and resets from farther back; power: how hard their hard
+//   balls are (pros drive 45-60 mph, club players ~40, beginners ~30); serve: their serve's
+//   pace (0..1) and how deep they aim it; drop: chance of a third-shot drop on a neutral
+//   return (a short or high return gets driven: ai.js thirdShot); reset: chance of playing
+//   soft from the transition zone against net players; bang: chance of just hitting hard;
+//   patience: dinks before they get itchy; impatience: chance of speeding up a ball that
+//   isn't up, once itchy; attack: m above the net a ball must be met before they attack it;
+//   hands: s they need to react to a hard ball at the net (less and they're late); counter:
+//   chance of countering (vs. blocking) a hard ball met above the net; lob: chance of a
+//   surprise lob; advance: chance of moving up after a good soft shot; timing: chance of a
+//   perfect / good swing; stack: chance a computer team stacks (keeps its forehands in the
+//   middle); poach: how keen the net player is to take a floater in the partner's half; erne:
+//   chance of going round the kitchen for an Erne when a ball comes down the line.
+// Levels differ the way real players do: consistency (face, touch), decisions (patience,
+// what they attack, drop or drive) and shot quality (power, depth), not superhuman speed.
+const COMMON = { serveWait: 0.85, maxY: 1.95, power: 1, serve: 0.6, stack: 0, poach: 0, erne: 0 }
 export const LEVELS = {
   beginner: {
     ...COMMON,
     label: "Rookie",
-    speed: 3.0,
-    reaction: 0.34,
+    speed: 3.2,
+    reaction: 0.3,
     sigma: 0.45,
-    face: 0.022,
-    touch: 0.07,
+    face: 0.03,
+    touch: 0.09,
     offset: 0.04,
     judge: 0.9,
-    softTouch: 0.34,
-    dropTouch: 0.5,
+    softTouch: 0.26,
+    dropTouch: 0.36,
     drop: 0.15,
     reset: 0.2,
     bang: 0.4,
     patience: 1,
     impatience: 0.45,
     attack: -0.2,
-    hands: 0.45,
+    hands: 0.42,
     counter: 0.4,
-    lob: 0.04,
+    lob: 0.05,
     advance: 0.45,
     timing: [0.12, 0.45],
     serveWait: 1.1,
     maxY: 1.7,
+    power: 0.8,
+    serve: 0.3,
+    attackH: 0.4,
   },
   intermediate: {
     ...COMMON,
     label: "Club",
-    speed: 3.6,
+    speed: 3.7,
     reaction: 0.22,
-    sigma: 0.38,
-    face: 0.018,
-    touch: 0.045,
+    sigma: 0.32,
+    face: 0.02,
+    touch: 0.06,
     offset: 0.024,
     judge: 0.4,
-    softTouch: 0.2,
-    dropTouch: 0.2,
+    softTouch: 0.14,
+    dropTouch: 0.17,
     drop: 0.55,
     reset: 0.5,
     bang: 0.08,
     patience: 3,
     impatience: 0.3,
     attack: 0.02,
-    hands: 0.34,
+    hands: 0.3,
     counter: 0.5,
     lob: 0.04,
     advance: 0.85,
     timing: [0.3, 0.5],
+    power: 0.92,
+    serve: 0.5,
+    poach: 0.3,
+    attackH: 0.55,
   },
   pro: {
     ...COMMON,
     label: "Pro",
-    speed: 4.2,
-    reaction: 0.14,
-    sigma: 0.24,
-    face: 0.01,
+    speed: 4.1,
+    reaction: 0.17,
+    sigma: 0.2,
+    face: 0.011,
     touch: 0.04,
     offset: 0.012,
     judge: 0.15,
-    softTouch: 0.22,
-    dropTouch: 0.14,
-    drop: 0.6,
+    softTouch: 0.062,
+    dropTouch: 0.1,
+    drop: 0.5,
     reset: 0.85,
     bang: 0,
     patience: 2,
     impatience: 0.26,
     attack: 0.01,
     sense: 1,
-    hands: 0.28,
+    hands: 0.22,
     counter: 0.65,
     lob: 0.03,
     advance: 1,
     timing: [0.5, 0.42],
     serveWait: 0.7,
     maxY: 2.3, // (an overhead jumps for it: pro.js overheadLift)
+    power: 1,
+    serve: 0.72,
+    stack: 0.6,
+    poach: 0.7,
+    erne: 0.25,
+    attackH: 0.5,
   },
   legend: {
     ...COMMON,
     label: "Legend",
-    speed: 4.5,
-    reaction: 0.1,
-    sigma: 0.18,
-    face: 0.008,
-    touch: 0.028,
+    speed: 4.25,
+    reaction: 0.15,
+    sigma: 0.16,
+    face: 0.009,
+    touch: 0.032,
     offset: 0.008,
     judge: 0.1,
-    softTouch: 0.21,
-    dropTouch: 0.11,
-    drop: 0.6,
+    softTouch: 0.055,
+    dropTouch: 0.085,
+    drop: 0.5,
     reset: 0.85,
     bang: 0,
     patience: 2,
     impatience: 0.45,
     attack: -0.01,
     sense: 1,
-    hands: 0.31,
+    hands: 0.2,
     counter: 0.75,
     lob: 0.03,
     advance: 1,
     timing: [0.65, 0.32],
     serveWait: 0.6,
     maxY: 2.35,
+    power: 1.05,
+    serve: 0.8,
+    stack: 0.7,
+    poach: 0.8,
+    erne: 0.4,
+    attackH: 0.48,
   },
 }
 export const LEVEL_KEYS = Object.keys(LEVELS)
@@ -198,6 +225,10 @@ export const homeFor = (m, p) => {
     const lv = p.level || {}
     depth = m.teamDepth[p.team] === "net" ? lv.stanceNet ?? NET_LINE : m.teamDepth[p.team] === "mid" ? 4.3 : lv.stanceBack ?? BASE_LINE - 0.1
   }
+  // until their side has played its first shot, partners hold where they set up for the serve
+  // (a stacked partner waits off the court; nobody wanders across the serve's path)
+  const first = servingTeam ? r.hits < 1 : r.hits < 2
+  if (first && m.game.doubles && p.spot && p.id !== r.receiver && p.id !== r.server) return { x: p.spot.x, z: p.spot.z }
   const ballX = m.ball.p.x
   let x
   if (m.game.doubles) {
@@ -211,7 +242,7 @@ export const homeFor = (m, p) => {
 
 // Every way a player could meet the ball on its predicted path; returns the one they'd
 // pick (or the least-bad one if they can't make any). null if they'd let it go.
-export const interceptFor = (m, p, path, { speed, reaction, judge = 0.2, maxY = 2 }) => {
+export const interceptFor = (m, p, path, { speed, reaction, judge = 0.2, maxY = 2, erne = 0 }) => {
   const side = sideOf(p.team)
   const r = m.rally
   const volleyAllowed = r.hits >= 3
@@ -222,7 +253,12 @@ export const interceptFor = (m, p, path, { speed, reaction, judge = 0.2, maxY = 
   const first = already === 0 && path.find((s) => s.bounce)
   if (first && Math.sign(first.z) === side) {
     const outBy = Math.max(Math.abs(first.x) - HALF_W, Math.abs(first.z) - HALF_L)
-    if (outBy > judge) return { letGo: true }
+    // (but a ball going out that would hit you on the way still loses you the point: one
+    // coming at the body gets played)
+    const atBody = path.some((s) => s.bounces === 0 && s.t > 0.05 && s.y < 1.6 && Math.hypot(s.x - p.x, s.z - p.z) < 0.6)
+    // (and a fast ball is harder to read: the faster it comes, the surer they must be)
+    const speed = Math.hypot(m.ball.v.x, m.ball.v.y, m.ball.v.z)
+    if (outBy > judge + Math.max(0, speed - 8) * 0.03 && !atBody) return { letGo: true }
   }
   const nearNet = Math.abs(p.z) < 4.2
   let best = null
@@ -235,14 +271,24 @@ export const interceptFor = (m, p, path, { speed, reaction, judge = 0.2, maxY = 
     const volley = bounces === 0
     if (volley && !volleyAllowed) continue
     // stand beside the ball (on whichever side is closer) and a step behind it
-    const sx = s.x + (p.x >= s.x ? STAND_SIDE : -STAND_SIDE)
+    let sx = s.x + (p.x >= s.x ? STAND_SIDE : -STAND_SIDE)
     let sz = s.z + side * STAND_BACK
     let lunge = false
+    let ernie = false
     if (volley && inKitchen(sx, sz)) {
-      // a volley over the kitchen: toes on the line, reaching forward for it
-      if (Math.abs(s.z) < LINE_Z - LUNGE) continue
-      sz = side * LINE_Z
-      lunge = true
+      // an Erne: a ball coming down the line over the kitchen, taken out of the air from just
+      // outside the sideline, level with the kitchen (legal: the feet are off the court, not
+      // in the non-volley zone, which only runs sideline to sideline)
+      if (erne > 0 && Math.abs(s.x) > HALF_W - 0.55 && Math.abs(s.z) < KITCHEN && s.y > 0.3 && s.y < 1.4) {
+        sx = Math.sign(s.x) * (HALF_W + FOOT_R + 0.22)
+        sz = s.z + side * 0.05
+        ernie = true
+      } else {
+        // a volley over the kitchen: toes on the line, reaching forward for it
+        if (Math.abs(s.z) < LINE_Z - LUNGE) continue
+        sz = side * LINE_Z
+        lunge = true
+      }
     }
     const dist = Math.hypot(sx - p.x, sz - p.z)
     const need = reaction + Math.max(0, dist - 0.25) / speed
@@ -252,9 +298,9 @@ export const interceptFor = (m, p, path, { speed, reaction, judge = 0.2, maxY = 
     // at the net: meet it as high as it gets (a ball up there can be hit down); take high
     // ones out of the air. From the back: a comfortable height after the bounce.
     let cost
-    if (volley) cost = nearNet ? s.t * 0.4 + (s.y < 0.45 ? 0.7 : 0) - (s.y > 0.95 ? 0.6 + (s.y - 0.95) : 0) + (lunge ? 0.15 : 0) : 0.9 + s.t
+    if (volley) cost = nearNet ? s.t * 0.4 + (s.y < 0.45 ? 0.7 : 0) - (s.y > 0.95 ? 0.6 + (s.y - 0.95) : 0) + (lunge ? 0.15 : 0) + (ernie ? 0.9 - erne : 0) : 0.9 + s.t
     else cost = nearNet ? Math.max(0, 0.95 - s.y) + s.t * 0.2 : Math.abs(s.y - 0.75) + s.t * 0.25
-    if (!best || cost < best.cost) best = { ...s, stand: { x: sx, z: sz }, volley, slack, cost, lunge }
+    if (!best || cost < best.cost) best = { ...s, stand: { x: sx, z: sz }, volley, slack, cost, lunge, erne: ernie }
   }
   return best || (fallback ? { ...fallback, late: true } : null)
 }
@@ -270,26 +316,41 @@ export const middleForehand = (p, x) => Math.abs(x) <= 0.6 && (p.hand || 1) === 
 // assist, and the animation's "here it comes")
 export const planTeam = (m, team) => {
   const ball = m.ball
-  const path = predictPath({ p: ball.p, v: ball.v, w: ball.w }, { maxT: 3.2, every: 1 / 60, maxBounces: 2 })
+  const path = predictPath({ p: ball.p, v: ball.v, w: ball.w, kind: ball.kind }, { maxT: 3.2, every: 1 / 60, maxBounces: 2 })
   let pick = null
+  let letGo = false
   const each = {}
   for (const p of m.players.filter((q) => q.team === team)) {
-    const plan = interceptFor(m, p, path, levelOf(m, p))
+    const lv = levelOf(m, p)
+    const plan = interceptFor(m, p, path, lv)
     each[p.id] = plan
     if (!plan) continue
-    if (plan.letGo) return { letGo: true, path, each }
+    // (going out: let it go, unless it's coming at someone's body: that player plays it)
+    if (plan.letGo) {
+      letGo = true
+      continue
+    }
     // doubles: each player covers their own half; a little bias to the one whose half it is
     let score = plan.late ? 10 - plan.slack : -plan.slack * 0.4 + (plan.cost || 0)
+    let poach = false
     if (m.game.doubles) {
       const mine = Math.sign(plan.x * rightSign(team)) === (p.lane === "right" ? 1 : -1)
-      if (!mine && Math.abs(plan.x) > 0.3) score += 0.8
+      if (!mine && Math.abs(plan.x) > 0.3) {
+        score += 0.8
+        // a poach: the net player crosses to put away a floater in the partner's half
+        if (plan.volley && plan.y > NET_H_CENTER + 0.1 && Math.abs(p.z) < 3.4 && (lv.poach || 0) > 0) {
+          score -= 0.95 * lv.poach
+          poach = true
+        }
+      }
       // a ball down the middle: the player whose forehand is in the middle takes it
       else if (middleForehand(p, plan.x)) score -= 0.15
       // a person's half is theirs: the computer partner leaves it alone
       if (p.ctrl !== "cpu" && !m.autoplay) score = mine || Math.abs(plan.x) <= 0.3 ? -100 : score + 0.5
     }
-    if (!pick || score < pick.score) pick = { ...plan, player: p.id, score }
+    if (!pick || score < pick.score) pick = { ...plan, player: p.id, score, poach }
   }
+  if (letGo && !pick) return { letGo: true, path, each }
   return pick ? { ...pick, path, each } : { path, each }
 }
 
@@ -324,7 +385,7 @@ export const targetsFor = (m, p, from, rand) => {
     },
     // drops and resets: into the kitchen, toward the middle
     drop() {
-      return { x: cx(-hitX * 0.3 + (rand() - 0.5) * 1.6), z: opp * (1.2 + rand() * 0.7) }
+      return { x: cx(-hitX * 0.3 + (rand() - 0.5) * 1.6), z: opp * (1.5 + rand() * 0.55) }
     },
     // deep: returns and drives from the back
     deep() {
@@ -341,6 +402,15 @@ export const targetsFor = (m, p, from, rand) => {
       const hip = sharp ? rightSign(q.team) * (q.hand || 1) * 0.32 : (rand() - 0.5) * 1.2
       const back = Math.abs(q.z) > 5 ? -0.6 : y > 1.45 || feet ? -0.45 : 0.9
       return { x: cx(q.x + hip), z: opp * clamp(Math.abs(q.z) + back, 1.4, HALF_L - 0.3) }
+    },
+    // a put-away through the gap between them (doubles), or into the open court
+    gap() {
+      if (opps.length < 2) {
+        const q = opps[0]
+        return { x: cx(-Math.sign(q.x || 0.01) * (HALF_W - 0.6)), z: opp * clamp(Math.abs(q.z) + 0.6, 2.4, HALF_L - 0.6) }
+      }
+      const z = (Math.abs(opps[0].z) + Math.abs(opps[1].z)) / 2
+      return { x: cx(middle() + (rand() - 0.5) * 0.4), z: opp * clamp(z + 0.4, 2.4, HALF_L - 0.6) }
     },
     // a lob over whoever's closest to the net, on their backhand side (a left-hander's is on
     // their right)
@@ -366,13 +436,30 @@ export const autoTarget = (m, p, pace) => {
 // The hardest of these paces that still lands in from here (good players know what a ball
 // at this height lets them do); null if none does. (Past the target is fine: a ball at
 // someone's hip that they leave still has to land in.)
-export const paceThatFits = (p, at, target, paces) => {
+export const paceThatFits = (p, at, target, paces, { shotNo = 4, volley = false, power = 1, bodies = null } = {}) => {
   for (const pace of paces) {
-    const plan = planIntent({ team: p.team, from: at.p, incoming: at.v, target, pace })
-    const s = solveDrive(at.p, plan.target, { ...plan.mode, spin: plan.spin, minClear: plan.minClear })
+    // (the shot it would really be: a volley at the net is played differently from a ball
+    // off the bounce, and their own power counts)
+    const plan = planIntent({ team: p.team, from: at.p, incoming: at.v, target, pace, shotNo, volley })
+    const mode = plan.mode.speed !== undefined ? { speed: plan.mode.speed * power } : plan.mode
+    const s = solveDrive(at.p, plan.target, { ...mode, spin: plan.spin, minClear: plan.minClear, kind: at.kind })
     if (Math.abs(s.landing.z) < HALF_L - 0.35 && Math.abs(s.landing.x) < HALF_W - 0.1) return pace
+    // (a ball at someone's body doesn't have to land in: they have to play it or wear it;
+    // that's how pros speed up from below the tape)
+    if (bodies && s.clearance !== null && s.clearance > 0.03 && atABody(at, s, bodies)) return pace
   }
   return null
+}
+
+// does this launch pass through one of these players' bodies (hip to shoulder) before it lands?
+const atABody = (at, s, bodies) => {
+  const path = predictPath({ p: at.p, v: s.v, w: s.w, kind: at.kind }, { maxT: 1.2, every: 1 / 120, maxBounces: 1 })
+  for (const q of path) {
+    if (q.bounces > 0) return false
+    if (q.y < 0.5 || q.y > 1.5) continue
+    for (const b of bodies) if (Math.hypot(q.x - b.x, q.z - b.z) < 0.3) return true
+  }
+  return false
 }
 
 // The shot a computer player chooses for the ball in front of it: { pace, target, intent }
@@ -396,25 +483,62 @@ export const aiShot = (m, p, lv = p.level, at = m.ball, rand = m.rand) => {
   // good players only go hard when the ball lets them (the pace that still lands in)
   const sense = senseOf(lv)
   const wise = rand() < sense
+  const ctx = { shotNo, volley: shotNo > 2 && r.bounces + (m.held?.length || 0) === 0, power: lv.power ?? 1, bodies: sense >= 1 ? opps.filter((q) => Math.abs(q.z) < 4.5).map((q) => ({ x: q.x, z: q.z })) : null }
   const fit = (target, paces) => {
     if (!wise) return paces[0]
-    const pace = paceThatFits(p, ball, target, paces)
+    const pace = paceThatFits(p, ball, target, paces, ctx)
     if (pace !== null) return pace
     // (or a little deeper: through them rather than at their feet)
     const deeper = { x: target.x, z: Math.sign(target.z) * Math.min(HALF_L - 0.6, Math.abs(target.z) + 1.4) }
-    const pace2 = paceThatFits(p, ball, deeper, paces)
+    const pace2 = paceThatFits(p, ball, deeper, paces, ctx)
     if (pace2 !== null) Object.assign(target, deeper)
     return pace2
   }
 
-  if (shotNo === 2) return { pace: 0.48 + rand() * 0.2, target: t.deep(), intent: "return" }
+  // ---- the return (shot 2): deep, unhurried, with a little topspin, so the returner has
+  // time to get to the kitchen line (deep returns win ~70% of rallies at 3.5+; Gandhi 2024)
+  if (shotNo === 2) return { pace: 0.45 + rand() * 0.18, target: t.deep(), intent: "return" }
+  // ---- the third shot: drop or drive by situation. Pros drop a little over half the time
+  // on a neutral, deep return (PPA stats wraps: 42-80% drops by match, ~34% drives overall)
+  // and drive a short or sitting return, or one the returner hasn't followed in on.
   if (shotNo === 3) {
-    if (rand() < lv.drop) return { pace: soft(0.22), target: t.drop(), intent: "drop" }
-    return { pace: 0.7 + rand() * 0.25, target: rand() < 0.5 ? t.attack(y, false) : t.deep(), intent: "drive" }
+    const shortReturn = dist < HALF_L - 2.2
+    const sitting = y > 0.85
+    const notIn = !oppsAtNet
+    let drive = 1 - lv.drop
+    if (sitting) drive += 0.25
+    if (shortReturn) drive += 0.2
+    if (notIn) drive += 0.2
+    if (y < 0.45) drive -= 0.2
+    if (rand() >= drive) return { pace: soft(0.22), target: t.drop(), intent: "drop" }
+    const target = rand() < 0.55 ? t.attack(y, sense > 0) : t.deep()
+    const pace = fit(target, [0.7 + rand() * 0.25, 0.68]) ?? 0.66
+    return { pace, target, intent: "drive" }
+  }
+  // ---- the fifth shot after a third-shot drive: the drive drew a block or a volley; now
+  // drop it in and follow (pros: 66% drops, 31% firm volleys; PPA "Third shot drives: what
+  // happens next", 2024) unless it sits up
+  if (shotNo === 5 && r.third === "drive" && dist > 3.4 && !fast) {
+    if (above > 0.15 && rand() < 0.6) {
+      const target = t.attack(y, sense > 0)
+      const pace = fit(target, [0.7 + rand() * 0.2, 0.6])
+      if (pace !== null) return { pace, target, intent: "drive" }
+    }
+    if (rand() < 0.68 + (sense - 0.5) * 0.2) return { pace: soft(0.18), target: t.drop(), intent: "drop" }
+  }
+  // around the post (ATP): a ball pulled out wide past the net post, met low near the net,
+  // can go round the outside of the post at any height (rule 13.C), down their sideline
+  if (Math.abs(ball.p.x) > NET_POST_X + 0.1 && dist < 3.6 && !fast && rand() < (lv.erne || 0) * 1.5) {
+    const sx = Math.sign(ball.p.x)
+    const target = { x: sx * (HALF_W - 0.35 - rand() * 0.4), z: -sideOf(p.team) * (KITCHEN + 0.6 + rand() * 1.4) }
+    return { pace: 0.45 + rand() * 0.25, target, intent: "atp" }
   }
   // a ball met above the net, near it: attack (at the body, or put it away)
   if (!fast && above > lv.attack && dist < 5.5) {
-    const target = t.attack(y, sense > 0)
+    // high enough to hit down: put it away at the feet or through the middle; otherwise at the
+    // paddle-side hip (pros' favorite speed-up target)
+    const high = y > 1.05
+    const target = high ? (rand() < 0.5 ? t.gap() : t.attack(y, sense > 0, true)) : t.attack(y, sense > 0)
     const pace = fit(target, [hard(), 0.74, 0.6, 0.48])
     if (pace !== null) return { pace, target, intent: y > 1.45 ? "smash" : "speedup" }
   }
@@ -433,12 +557,17 @@ export const aiShot = (m, p, lv = p.level, at = m.ball, rand = m.rand) => {
     // at the kitchen line with a low ball
     if (!oppsAtNet) return rand() < 0.5 ? { pace: soft(0.2), target: t.dink(false), intent: "dink" } : { pace: 0.45 + rand() * 0.2, target: t.deep(), intent: "drive" }
     if (crowding && rand() < lv.lob * 0.25) return { pace: soft(0.2), target: t.lob(), intent: "lob" }
-    // impatience: speed up a ball that isn't up (it'll go long, or come back at you)
-    const itch = dinks >= lv.patience ? lv.impatience : lv.impatience * 0.1
-    if (rand() < lv.bang * 0.6 || rand() < itch) {
-      // from down there: a good player rolls it at the feet (firm, topspin); a banger just
-      // hits it hard, and it sails or comes back high
-      const roll = rand() < (sense >= 1 ? 0.85 : sense > 0 ? 0.5 : 0.15)
+    // The dink battle: wait for a ball you can attack. Pros start attacking a dink they meet
+    // at about thigh height (a roll volley or a flick at the hip from below the tape, a
+    // speed-up from above it), a little lower once they're itchy (patience, impatience);
+    // beginners attack anything, badly. A dink at the ankles just gets dinked again.
+    const itchy = dinks >= lv.patience
+    const thr = (lv.attackH ?? 0.7) - (itchy ? lv.impatience * 0.25 : 0)
+    // (against a ball machine it's a drill: keep dinking unless the ball is really up)
+    const drilling = opps.every((q) => q.ctrl === "feeder")
+    const want = drilling ? 0 : clamp((y - thr) / 0.15, 0, 1) * (itchy ? 1 : 0.6)
+    if (rand() < lv.bang * 0.6 || rand() < want) {
+      const roll = y < NET_H_CENTER - 0.04 && rand() < (sense >= 1 ? 0.45 : sense > 0 ? 0.5 : 0.15)
       const target = roll ? t.attack(y, true, true) : t.attack(y, sense > 0)
       const pace = fit(target, roll ? [0.42 + rand() * 0.16, 0.4] : [0.62 + rand() * 0.35, 0.6])
       // (nothing lands from that low: a patient player just dinks again)
@@ -449,6 +578,13 @@ export const aiShot = (m, p, lv = p.level, at = m.ball, rand = m.rand) => {
   // the transition zone or the back
   if (oppsAtNet) {
     if (rand() < lv.lob * (crowding ? 1 : 0.4)) return { pace: soft(0.2), target: t.lob(), intent: "lob" }
+    // stuck in the middle against net players: reset it into the kitchen (pros mostly do)
+    // unless the ball sits up, then drive it at them
+    if (above > 0.2 && rand() < 0.5) {
+      const target = t.attack(y, sense > 0)
+      const pace = fit(target, [hard(), 0.7])
+      if (pace !== null) return { pace, target, intent: "drive" }
+    }
     if (rand() < lv.reset) return { pace: soft(), target: t.drop(), intent: "drop" }
     return { pace: hard(), target: rand() < 0.6 ? t.attack(y, false) : t.deep(), intent: "drive" }
   }
@@ -483,5 +619,7 @@ export const aiServe = (m, p) => {
     const deep = clamp((lv.serveDepth - 4.5) / 2.6, 0, 1)
     return { kind: "serve", variant, aim: (m.rand() - 0.5) * 1.2, power: clamp(0.18 + deep * 0.62 + (m.rand() - 0.5) * 0.2, 0.15, 0.95) }
   }
-  return { kind: "serve", variant, aim: (m.rand() - 0.5) * 1.2, power: 0.25 + m.rand() * 0.55 * (lv.bang > 0.2 ? 1.2 : 1) }
+  // deep and firm at the top (serve), softer and safer lower down; a banger goes for it
+  const base = (lv.serve ?? 0.5) + (lv.bang > 0.2 ? 0.15 : 0)
+  return { kind: "serve", variant, aim: (m.rand() - 0.5) * 1.2, power: clamp(base + (m.rand() - 0.5) * 0.3, 0.12, 1) }
 }

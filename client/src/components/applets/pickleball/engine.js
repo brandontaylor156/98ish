@@ -1154,7 +1154,7 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
     if (!show) landRing.visible = false
     else if (aidVersion !== match.version) {
       aidVersion = match.version
-      const path = predictPath({ p: match.ball.p, v: match.ball.v, w: match.ball.w }, { maxT: 2.5, every: 1 / 30, maxBounces: 1 })
+      const path = predictPath({ p: match.ball.p, v: match.ball.v, w: match.ball.w, kind: match.ball.kind }, { maxT: 2.5, every: 1 / 30, maxBounces: 1 })
       const land = path.find((s) => s.bounce)
       landRing.visible = !!land && Math.sign(land.z) === sideOf(you.team)
       if (land) {

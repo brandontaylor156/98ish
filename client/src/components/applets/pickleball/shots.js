@@ -77,8 +77,10 @@ export const planShot = (kind, { team, from, aim = 0, depth = 0, power = 0.5, ta
       x = want * HALF_W * 0.5 + aim * hand * 0.9
       x = want * clamp(x * want, 0.45, HALF_W - 0.4)
       z = opp * (HALF_L - 0.75 - (1 - power) * 0.9 - Math.max(0, -depth) * 1.2)
-      mode = { speed: 13 + power * 5 }
-      spin = 50 + power * 40
+      // 27-47 mph from a soft to a full serve (pros mostly serve 35-50 mph; the fastest
+      // recorded legal serves are ~68-70 mph)
+      mode = { speed: 12 + power * 9 }
+      spin = 50 + power * 50
       brush = 2.5
       minClear = 0.25
       if (variant === "slice") {
@@ -268,7 +270,7 @@ const tilt = (n, yaw, pitch) => {
 // dink float or find the net); offset: meters off the sweet spot.
 // Returns { ball, n, u, plan, solved }.
 export const playShot = (ball, plan, { faceError = 0, touch = 0, offset = 0, rand = Math.random } = {}) => {
-  const opts = { ...plan.mode, spin: plan.spin, minClear: plan.minClear }
+  const opts = { ...plan.mode, spin: plan.spin, minClear: plan.minClear, kind: ball.kind }
   // (a touch shot keeps its pace: if that pace can't land it there, it carries long)
   const solve = (o) => (plan.strict && o.speed !== undefined ? solveDrive(ball.p, plan.target, o) : solveShot(ball.p, plan.target, o))
   let solved = solve(opts)
@@ -286,7 +288,22 @@ export const playShot = (ball, plan, { faceError = 0, touch = 0, offset = 0, ran
   // no one swings faster than this
   const speed = len(u)
   if (speed > MAX_PADDLE_SPEED) u = scale(u, MAX_PADDLE_SPEED / speed)
-  if (touch > 0) u = add(u, scale(n, dot(u, n) * Math.max(-0.5, Math.min(0.5, gauss(rand) * touch))))
+  // a soft shot's touch: the face a little open or closed, the push a little firm or short
+  if (plan.wobble) {
+    const w = plan.wobble
+    u = add(u, scale(n, dot(u, n) * Math.max(-0.45, Math.min(0.6, w.push))))
+    n = tilt(n, 0, Math.max(-0.35, Math.min(0.5, w.pitch)))
+  }
+  if (touch > 0) {
+    // the push: off by a share of the face's own speed, and by how firmly the hand holds the
+    // paddle against the ball's impact (a firmer grip makes a livelier rebound), which grows
+    // with the incoming speed: why soaking up a 45 mph speed-up into the kitchen is hard,
+    // while a dink off a dink is easy
+    const g = Math.max(-2.5, Math.min(2.5, gauss(rand)))
+    const own = dot(u, n) * Math.max(-0.5, Math.min(0.5, g * touch))
+    const grip = g * touch * GRIP_ERR * Math.abs(dot(ball.v, n))
+    u = add(u, scale(n, own + grip))
+  }
   if (faceError > 0) n = tilt(n, gauss(rand) * faceError, gauss(rand) * faceError)
   const out = paddleHit(ball, n, u, { offset })
   return { ball: out, n, u, plan, solved }
@@ -315,15 +332,15 @@ const VOLLEY_TO = 4.0 // and the ball's height counts until here
 
 // The same pace, lifted just enough to clear the tape (so it lands long): what a hard swing
 // at a low ball really does. Returns solveShot's shape plus long: true when it had to lift.
-export const solveDrive = (p, target, { speed, spin = 0, minClear = 0.06 } = {}) => {
-  const s = solveShot(p, target, { speed, spin, minClear: -9 })
+export const solveDrive = (p, target, { speed, spin = 0, minClear = 0.06, kind } = {}) => {
+  const s = solveShot(p, target, { speed, spin, minClear: -9, kind })
   if (s.clearance === null || s.clearance >= minClear) return s
   const h = Math.hypot(s.v.x, s.v.z)
   const sp = Math.hypot(h, s.v.y)
   const dir = v3(s.v.x / h, 0, s.v.z / h)
   const at = (elev) => {
     const v = v3(dir.x * Math.cos(elev) * sp, Math.sin(elev) * sp, dir.z * Math.cos(elev) * sp)
-    return { v, r: flyToGround({ p, v, w: s.w }, { dt: 1 / 120, maxT: 5 }) }
+    return { v, r: flyToGround({ p, v, w: s.w, kind }, { dt: 1 / 120, maxT: 5 }) }
   }
   let lo = Math.atan2(s.v.y, h)
   let hi = Math.min(lo + 0.9, 1.25)
@@ -343,8 +360,17 @@ export const solveDrive = (p, target, { speed, spin = 0, minClear = 0.06 } = {})
 //   team: the hitter's; from: the contact point; incoming: the ball's velocity as it comes
 //   (a fast one makes a soft shot a reset); target {x, z} on the other side; pace 0..1;
 //   shotNo: this shot's number in the rally (2 = the return); volley: out of the air.
-//   sigma: m of aim scatter; apexSigma: m of error in how high a soft shot goes (floating
-//   up, the usual miss, or into the net).
+//   sigma: m of aim scatter; apexSigma: how shaky the touch is on a soft shot (in meters of
+//   arc height it would add or take off; played as a face angle and push error: wobble);
+//   apexAdd: a late contact (opens the face: it floats).
+// meant height over the tape for soft shots (m)
+export const SOFT_CLEAR = { dink: 0.17, reset: 0.24, block: 0.3, drop: 0.28 }
+// how much of the incoming ball's speed (along the face) a shaky grip adds or takes off, per
+// unit of touch error
+export const GRIP_ERR = 0.5
+export const TOUCH_PITCH = 0.22 // rad of face angle per meter of apexSigma
+export const TOUCH_PUSH = 0.35 // relative face speed per meter of apexSigma
+export const LATE_PITCH = 0.3 // rad of face opening per meter of apexAdd
 export const planIntent = ({ team, from, incoming = null, target, pace = 0.3, shotNo = 4, volley = false, sigma = 0, apexSigma = 0, apexAdd = 0, rand = Math.random }) => {
   const opp = sideOf(other(team))
   const band = paceBand(pace)
@@ -364,6 +390,7 @@ export const planIntent = ({ team, from, incoming = null, target, pace = 0.3, sh
   let spin
   let brush
   let minClear
+  let wobble = null
   if (band === "soft") {
     const f = pace / SOFT_MAX
     if (tz > KITCHEN + 2.6) {
@@ -375,25 +402,42 @@ export const planIntent = ({ team, from, incoming = null, target, pace = 0.3, sh
       minClear = 0.6
     } else {
       kind = inSpeed > FAST_BALL ? "reset" : dist < 3.8 ? "dink" : "drop"
-      // just over the tape from the kitchen line; a longer arc from farther back
-      const apex = dist < 3.8 ? Math.max(from.y + 0.03, netTop + 0.06 + 0.32 * f) : Math.max(from.y + 0.1, netTop + 0.1 + D * 0.075 + 0.3 * f)
-      let err = apexSigma > 0 ? gauss(rand) * apexSigma : 0
-      if (err < 0) err *= 0.5 // a miss floats up (and long) more often than it finds the net
-      err += apexAdd
-      mode = { apex: apex + Math.max(0, err) }
-      if (err > 0) tz = Math.min(HALF_L, tz + err * (dist < 3.8 ? 1.6 : 2.2))
+      // The arc a good player means, as a height over the tape: a dink crosses ~6-10 in over
+      // and drops into the kitchen; a drop from the back crosses ~1-1.5 ft over and comes down
+      // steeply (Steyn et al. 2025: launched at 11-16 m/s, 12-23 degrees); a reset in between.
+      // A firmer touch means a little higher. Nobody means to hit the net: the misses come
+      // from the paddle (wobble below, then physics).
+      // (a reset off a hard ball is meant with more margin: a miss should float, not net)
+      const clear = kind === "dink" ? SOFT_CLEAR.dink + 0.12 * f : kind === "reset" ? SOFT_CLEAR.block + 0.15 * f : dist < 5.5 ? SOFT_CLEAR.reset + 0.15 * f : SOFT_CLEAR.drop + 0.15 * f
+      mode = { clear }
       spin = kind === "drop" ? 30 : kind === "reset" ? -10 : -15
       brush = kind === "drop" ? 1.2 : kind === "reset" ? 0 : -0.5
-      minClear = 0.04 + Math.min(0, err) // a low miss: into the net
+      minClear = 0.07
+      // Touch: how far the hand's feel is off on this one, as the paddle's face angle (rad,
+      // + = opened) and push (relative face speed). A late contact opens the face and floats
+      // it (apexAdd); a shaky hand goes either way: a closed face finds the net, an open one
+      // or too much push floats it up and long, where it can be attacked.
+      const g1 = apexSigma > 0 ? gauss(rand) : 0
+      const g2 = apexSigma > 0 ? gauss(rand) : 0
+      wobble = { pitch: g1 * apexSigma * TOUCH_PITCH + apexAdd * LATE_PITCH, push: g2 * apexSigma * TOUCH_PUSH + apexAdd * 0.25 }
     }
   } else if (band === "firm") {
     const f = (pace - SOFT_MAX) / (HARD_MIN - SOFT_MAX)
     // (firm back at a hard ball, at the net, is a counter: there's no time for more)
-    kind = shotNo === 2 ? "return" : volley && dist < 4.2 ? (inSpeed > FAST_BALL ? "counter" : "punch") : dist < 3.8 ? "roll" : "drive"
+    // (a firm volley met below the tape can't be punched down: it's rolled up and over)
+    kind = shotNo === 2 ? "return" : volley && dist < 4.2 ? (inSpeed > FAST_BALL ? "counter" : from.y < NET_H_CENTER + 0.02 ? "roll" : "punch") : dist < 3.8 ? "roll" : "drive"
     mode = { speed: 8 + 7 * f }
     spin = kind === "punch" ? 40 : 95
     brush = kind === "punch" ? 1.5 : 3.2
     minClear = 0.06
+    if (kind === "roll") {
+      // a rolling dipper off a low ball: brushed up hard (~1,700-2,000 rpm of topspin) at
+      // 15-25 mph, so it clears the tape rising and dips at their feet
+      mode = { speed: 7 + 4.5 * f }
+      spin = 185
+      brush = 5.2
+      minClear = 0.07
+    }
   } else {
     const f = (pace - HARD_MIN) / (1 - HARD_MIN)
     kind = shotNo === 2 ? "return" : from.y > 1.45 && dist < 5.5 ? "smash" : dist < 4.2 ? (inSpeed > FAST_BALL ? "counter" : "speedup") : "drive"
@@ -404,7 +448,7 @@ export const planIntent = ({ team, from, incoming = null, target, pace = 0.3, sh
   }
   // around the post: no net to clear out there
   if (Math.abs(from.x) > NET_POST_X + 0.05 && dist < 4) minClear = Math.min(minClear, -0.5)
-  return { kind, band, pace, target: { x, z: opp * tz }, mode, spin, brush, minClear, strict: mode.speed !== undefined }
+  return { kind, band, pace, target: { x, z: opp * tz }, mode, spin, brush, minClear, strict: mode.speed !== undefined, wobble }
 }
 
 const netHeightOf = (x) => {
@@ -418,7 +462,7 @@ const netHeightOf = (x) => {
 // down on it.
 export const assessBall = (ball, team) => {
   const opp = sideOf(other(team))
-  const path = predictPath({ p: ball.p, v: ball.v, w: ball.w || v3() }, { maxT: 4, every: 1 / 120, maxBounces: 2 })
+  const path = predictPath({ p: ball.p, v: ball.v, w: ball.w || v3(), kind: ball.kind }, { maxT: 4, every: 1 / 120, maxBounces: 2 })
   let clearance = null
   let crossX = 0
   let landing = null

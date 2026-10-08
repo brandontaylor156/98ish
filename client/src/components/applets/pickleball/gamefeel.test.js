@@ -19,9 +19,12 @@ const play = (level, seeds, jitter, onEvent) => {
     let n = 0
     while (m.phase !== "over" && n < 240 * 60 * 20) {
       autopilot(m, 0, { jitter, rand })
+      // (whether the point was still on as this step began: a miss called in the very step the
+      // ball bounces a second time is a miss during the point)
+      const was = isLive(m.rally) && m.phase === "rally"
       step(m)
       n++
-      for (const e of m.events) onEvent(e, m)
+      for (const e of m.events) onEvent(e, m, was)
       m.events.length = 0
     }
   }
@@ -30,10 +33,10 @@ const play = (level, seeds, jitter, onEvent) => {
 test("no 'Swing and a miss!' after the point is over (it used to come a second after the swing)", () => {
   let whiffs = 0
   let afterPoint = 0
-  play("intermediate", [1, 2], 0.06, (e, m) => {
+  play("intermediate", [1, 2], 0.06, (e, m, was) => {
     if (e.type !== "whiff" || e.player !== "you") return
     whiffs++
-    if (!isLive(m.rally) || m.phase !== "rally") afterPoint++
+    if (!was) afterPoint++
   })
   assert.equal(afterPoint, 0, `${afterPoint} of ${whiffs} misses were called after the point`)
 })
