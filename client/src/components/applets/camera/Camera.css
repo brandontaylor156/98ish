@@ -148,23 +148,26 @@
   color: #fff;
   text-shadow: 4px 4px 0 #000080, -2px -2px 0 #000;
   pointer-events: none;
-  animation: camPop 1s ease-out both;
+  /* (Camera.jsx COUNT_MS) each number pops in, holds, then shrinks away completely */
+  animation: camPop 0.8s ease-out both;
 }
 
 @keyframes camPop {
   0% {
-    transform: scale(1.6);
+    transform: scale(1.5);
     opacity: 0;
   }
   15% {
     transform: scale(1);
     opacity: 1;
   }
-  85% {
+  70% {
+    transform: scale(1);
     opacity: 1;
   }
   100% {
-    opacity: 0.2;
+    transform: scale(0.6);
+    opacity: 0;
   }
 }
 
@@ -192,14 +195,16 @@
   inset: 0;
   background: #fff;
   pointer-events: none;
-  animation: camFlash 0.45s ease-out forwards;
+  animation: camFlash 0.5s ease-out forwards;
 }
 
+/* full white at once (the shot is taken while it's up), then fading */
 @keyframes camFlash {
-  from {
-    opacity: 0.95;
+  0%,
+  25% {
+    opacity: 1;
   }
-  to {
+  100% {
     opacity: 0;
   }
 }
