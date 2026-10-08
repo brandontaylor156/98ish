@@ -12,6 +12,7 @@ import Ladder from "./Ladder"
 import { SessionEditor, SessionList, SessionView } from "./Sessions"
 import "./PbClub.css"
 import { useNet } from "../network/NetContext"
+import { openMaps } from "../../../utils/maps"
 
 // Live Broadcast (Pickleball 98's twin/live): "Go Live" from the fence, and your buddies'
 // games that are live right now (server/broadcast bc:list, refreshed and on bc:live)
@@ -110,14 +111,9 @@ const MeetDialog = ({ venue, buddies, onClose, send }) => {
   )
 }
 
-// Apple devices open Apple Maps, everything else Google Maps
-const appleDevice = () => typeof navigator !== "undefined" && /iPhone|iPad|iPod|Macintosh/.test(navigator.userAgent)
-
 const CourtsList = ({ onPlan, onMeet, canMeet, canPlan }) => (
   <ul className="pbList pbVenues" data-venues>
     {core.VENUES.map((v) => {
-      const links = core.mapsLinks({ id: v.id })
-      const directions = appleDevice() ? links.apple : links.google
       return (
         <li key={v.id} className="pbVenue" data-venue-row={v.id}>
           <div className="pbVenueName">
@@ -130,9 +126,10 @@ const CourtsList = ({ onPlan, onMeet, canMeet, canPlan }) => (
             {v.address}
           </div>
           <div className="pbButtons">
-            <a className="pbLinkBtn" href={directions} target="_blank" rel="noreferrer">
+            {/* Maps 98 (utils/maps.js): directions from where you are, inside 98ish */}
+            <button type="button" onClick={() => openMaps({ name: v.name, lat: v.lat, lon: v.lon, address: v.address, directions: true })} data-directions={v.id}>
               Directions
-            </a>
+            </button>
             {canPlan && (
               <button type="button" onClick={() => onPlan(v.id)}>
                 Plan
@@ -255,7 +252,7 @@ const PbClub = ({ mobile, handoff, onClose, embedded = false, onTwin = null, onL
         {state.error && <p className="pbError">{state.error}</p>}
         <h4 className="pbH">Your courts</h4>
         <CourtsList onPlan={(venueId) => setEditing({ venueId })} onMeet={setMeet} canPlan={online} canMeet={online && buddies.length > 0} />
-        <p className="pbMuted pbCredit">Directions open in Apple Maps on Apple devices, Google Maps elsewhere.</p>
+        <p className="pbMuted pbCredit">Directions open in Maps 98 (with a button there to hand off to Apple Maps).</p>
       </>
     )
   }

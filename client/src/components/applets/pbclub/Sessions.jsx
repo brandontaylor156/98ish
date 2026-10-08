@@ -10,6 +10,7 @@ import * as core from "./clubCore"
 import { nextRound } from "./rotation"
 import { fromPid } from "./PlayerPicker"
 import * as club from "../../../utils/pbclub"
+import { openMaps } from "../../../utils/maps"
 import { forecastUrl, shapeForecast, conditionOf, temp } from "../weather/weatherCore"
 
 // Play sessions: "Who's in?" for a time at a court. The list, one session (RSVP, running
@@ -427,13 +428,23 @@ export const SessionView = ({ session, state, buddies, onBack, onScore, onEdit }
         <div>
           {core.venueName(session.venue)}
           {venue ? ` · ${venue.indoor ? "Indoor" : "Outdoor"}` : ""} ·{" "}
-          <a href={links.apple} target="_blank" rel="noreferrer">
-            Apple Maps
-          </a>{" "}
-          ·{" "}
-          <a href={links.google} target="_blank" rel="noreferrer">
-            Google Maps
-          </a>
+          {venue ? (
+            // one of the courts we know: Maps 98 (utils/maps.js), directions from where you are
+            <button type="button" className="pbLinkBtn" onClick={() => openMaps({ name: venue.name, lat: venue.lat, lon: venue.lon, address: venue.address, directions: true })} data-directions={venue.id}>
+              Directions
+            </button>
+          ) : (
+            // (your own place, no coordinates: look it up)
+            <>
+              <a href={links.apple} target="_blank" rel="noreferrer">
+                Apple Maps
+              </a>{" "}
+              ·{" "}
+              <a href={links.google} target="_blank" rel="noreferrer">
+                Google Maps
+              </a>
+            </>
+          )}
         </div>
         {weather && <div data-weather>Weather: {weather}</div>}
         {session.skill && (
