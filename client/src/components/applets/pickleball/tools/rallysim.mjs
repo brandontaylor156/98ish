@@ -74,6 +74,10 @@ export const simulate = ({ level = "pro", games = 6, seed0 = 1, doubles = true, 
   const reaction = [] // after an opponent's hit: seconds until a player first moves > 1.1 m/s
   const atOppHit = [] // each player's speed (m/s) as the other side hits (serves aside)
   const atOppSm = [] // the same, smoothed the footage's way (positions over 0.5 s, speed over 0.4 s)
+  // (and as the footage's agg2 counts them: from the third shot on, by where the player stands;
+  // plus every 0.1 s of the rally, for the ratio "at the far contact / any moment")
+  const atOppZone = { kitchen: [], transition: [], baseline: [], all: [] }
+  const rallySp = []
   const depthAt = {} // distance from the net of the serving / returning team at shots 1..6
   const LINE = 2.13 + 0.6
   const observed = {} // by observedKind: mph, clear, apex, flight (to the first bounce), gap (to the next hit), y, land
@@ -155,7 +159,7 @@ export const simulate = ({ level = "pro", games = 6, seed0 = 1, doubles = true, 
           // a split step there doesn't stop them dead)
           if (e.kind !== "serve") for (const p of m.players) if (p.team !== e.team) {
             atOppHit.push(Math.hypot(p.vx, p.vz))
-            ;(mv[p.id].oppHits ||= []).push(e.t)
+            ;(mv[p.id].oppHits ||= []).push({ t: e.t, third: shots.length >= 2 })
           }
           const shotNo = shots.length + 1
           if (shotNo <= 6) {
@@ -254,12 +258,21 @@ export const simulate = ({ level = "pro", games = 6, seed0 = 1, doubles = true, 
                 for (let i = 4; i < sp.length; i++) ac.push(Math.abs(sp[i] - sp[i - 4]) / 0.4)
                 if (sp.length) speed95.push(pct(sp, 0.95))
                 // (and at each of the other side's contacts, smoothed the same way: footage 1.0 m/s)
-                for (const th of s.oppHits || []) {
+                for (const oh of s.oppHits || []) {
+                  const th = oh.t
                   // (sp[i - 2] is the speed at sm[i]'s time)
                   let bi = -1
                   for (let i = 2; i < sm.length - 2; i++) if (bi < 0 || Math.abs(sm[i][0] - th) < Math.abs(sm[bi][0] - th)) bi = i
-                  if (bi >= 0 && Math.abs(sm[bi][0] - th) < 0.08) atOppSm.push(sp[bi - 2])
+                  if (bi >= 0 && Math.abs(sm[bi][0] - th) < 0.08) {
+                    atOppSm.push(sp[bi - 2])
+                    if (oh.third) {
+                      const z = Math.abs(sm[bi][2])
+                      atOppZone.all.push(sp[bi - 2])
+                      atOppZone[z < 3.2 ? "kitchen" : z > 5 ? "baseline" : "transition"].push(sp[bi - 2])
+                    }
+                  }
                 }
+                for (const v of sp) rallySp.push(v)
                 if (ac.length) acc95.push(pct(ac, 0.95))
               }
             }
@@ -345,6 +358,10 @@ export const simulate = ({ level = "pro", games = 6, seed0 = 1, doubles = true, 
       acc95: { p10: r2(pct(acc95, 0.1)), median: r2(pct(acc95, 0.5)), p90: r2(pct(acc95, 0.9)), n: acc95.length },
       reaction: { p10: r2(pct(reaction, 0.1)), median: r2(pct(reaction, 0.5)), p90: r2(pct(reaction, 0.9)), n: reaction.length },
       speedAtOppHit: { median: r2(pct(atOppHit, 0.5)), p75: r2(pct(atOppHit, 0.75)), n: atOppHit.length, smoothed: r2(pct(atOppSm, 0.5)), nSmoothed: atOppSm.length },
+      // (footage, docs/ppa-reference.md: third shot on 0.99, kitchen 0.76, transition 1.73,
+      // baseline 0.94; any moment of the rally 0.89)
+      speedAtOppHitFootage: Object.fromEntries(Object.entries(atOppZone).map(([k, a]) => [k, { median: r2(pct(a, 0.5)), n: a.length }])),
+      speedInRally: { median: r2(pct(rallySp, 0.5)), p25: r2(pct(rallySp, 0.25)), p75: r2(pct(rallySp, 0.75)) },
       depthAt: Object.fromEntries(Object.entries(depthAt).sort().map(([k, a]) => [k, r2(pct(a, 0.5))])),
     },
   }

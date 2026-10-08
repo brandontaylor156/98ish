@@ -174,8 +174,16 @@ Measured on the near-half players (MediaPipe world landmarks; its absolute scale
 upright hip-to-ankle reads 0.74 m, so use the ratios). n = pose samples.
 - **Upright reference:** hips above the ankles 0.74 (0.69-0.76) in MediaPipe units (n=285
   player-windows).
+- **Knee angles: don't compare them as true angles.** MediaPipe's world landmarks barely bend
+  the knee (161 deg on the upright samples, 157 at the kitchen) and shorten the bones instead
+  (thigh + shin read 8% shorter in the ready stance, the same 8% as the hip-to-ankle
+  distance). Run on the game's own athletes rendered from this camera, it reads a true 127 deg
+  knee as 149 and a true 139 as 154 (2026-10-08, "Athletes, round 2" in
+  `docs/pickleball-log.md`). Compare the hip-to-ankle distance as a share of the player's own
+  upright one instead: kitchen 0.92, transition 0.90, baseline 0.88 (at their own contact
+  0.92 / 0.89 / 0.90).
 - **Ready at the kitchen line while the other side hits:** hips at **90%** of upright (73-100%),
-  knees **156 deg** (144-167; ~25 deg of bend), feet **0.55** apart (0.21-0.77; ~0.65 m in real
+  knees **156 deg** as MediaPipe reads them (144-167), feet **0.55** apart (0.21-0.77; ~0.65 m in real
   units, wider than shoulders) (n=190).
 - **Ready at the baseline while the other side hits:** lower, hips at **85%** (63-99%), knees
   150 deg (124-164), feet 0.47 apart (n=248).
@@ -209,6 +217,16 @@ upright hip-to-ankle reads 0.74 m, so use the ratios). n = pose samples.
   the footage's knees are likely read straight from the end camera, and a 90%-tall, 0.65 m-wide
   stance can't straighten past ~140 in a rigid leg), the far-contact speed (0.40 vs 1.0 m/s), own
   contact at the baseline (hips 0.80 vs 0.92).
+- Done (2026-10-08, athletes round 2, `docs/pickleball-log.md` "Athletes, round 2"): the knee
+  gap was the measurement: MediaPipe on the game's own athletes from the end camera reads them
+  at 149-154 deg (tour 149-157), and the hip-to-ankle reach matches (0.94 / 0.88 vs 0.92 / 0.88).
+  The far-contact speed is now measured the footage's way (the third shot on, by zone, the
+  feet's centroid as the tracker sees them): at the kitchen line 0.34 -> 0.66 m/s (tour 0.76)
+  with doubles teams shading with the ball (`ai.js SHADE`); own contact at the baseline hips
+  0.87 / 0.83 -> 0.91 / 0.90 (tour 0.92, measured the footage's way: the lower ankle and the
+  90th-percentile reference). Left: the transition zone's speed at the far contact (0.6-0.7 vs
+  1.73 m/s; the game's teams stop to split there, the tour's keep walking in) and the footage's
+  share of far contacts made from the baseline (41% vs the game's 5%).
 - Next (if wanted): hand-label 20-30 more rallies with `sheets.py` (full-resolution frames with
   the ball circled are readable at 12-15 fps) to measure shot-by-shot timing, returns and shots
   per rally properly; a second camera angle (sideline replays) would fix ball heights.
