@@ -167,16 +167,19 @@ export const topics = [
     programs: ["Watch Together"],
     body: [
       { img: "/assets/program_icons/together.svg", alt: "Watch Together icon" },
-      "Watch Together plays a YouTube video for you and your buddies **at the same moment**. When anyone presses pause, skips ahead or picks the next video, everyone's player follows within about half a second.",
+      "**In short:** pick a video, invite a buddy, and you both watch it at the same moment. When either of you pauses or skips, the other one's video does too. It's like sitting on the same couch, on two phones.",
       {
         steps: [
-          "Sign on to 98 Messenger.",
-          "In an IM window, press **Watch** (next to Call). In a chat room, press **Watch Together** beside the people list. Or open Start > Programs > Internet > Watch Together and pick a buddy or a room.",
-          "Paste a YouTube link in **Add a video** (in YouTube '98, Share > **Watch Together...** does it for you).",
-          "Your buddy gets an invitation in the conversation (and a notification if they're away): they press **Join**.",
+          "Sign on to 98 Messenger (Watch Together sends the invitation there).",
+          "Open Watch Together: press **Watch** in an IM window (next to Call), choose **Watch Together** on a buddy in the Buddy List (right-click, or touch and hold on a phone), press **Watch Together** in a chat room, or open Start > Programs > Together > Watch Together.",
+          "**1 Video:** paste a YouTube link, or type a few words and press **Search**, then pick one. (You can also start without a video and add one after.)",
+          "**2 Watch with:** pick the buddy. Buddies who aren't signed on get a notification.",
+          "**3** Press **Start watching with...**. Your buddy gets a **Join** button in your conversation. Until they join, the top of the window says who you're waiting for.",
+          "Press **▶ Play for everyone** when you're both there.",
         ],
         title: "To watch with someone:",
       },
+      { tip: "Got an invitation? Press **Join** in the IM (or on the notification, or under **Invitations** in Watch Together)." },
       { h: "While you watch" },
       {
         list: [

@@ -266,7 +266,7 @@ const ImWindow = ({ buddy, focusInput }) => {
           />
         )}
         {key !== keyOf(BOT_NAME) && (
-          <button type="button" className="callStart aimWatch" disabled={blocked} onClick={() => aim.openTogether({ with: screenName, start: true })} title={`Watch YouTube together with ${screenName}`}>
+          <button type="button" className="callStart aimWatch" disabled={blocked} onClick={() => aim.openTogether({ with: screenName })} title={`Watch YouTube together with ${screenName}: pick a video, they get a Join button`}>
             <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true">
               <rect x="1" y="3" width="14" height="10" fill="#000080" stroke="#000" />
               <rect x="2.5" y="4.5" width="11" height="7" fill="#7fd0ff" />

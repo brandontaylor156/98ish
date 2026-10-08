@@ -146,6 +146,7 @@ const BuddyList = () => {
         { label: "Add Buddy...", onClick: () => setDialog({ kind: "addBuddy", text: "", group: me.groups[0]?.name }) },
         "-",
         { label: "Join a Chat Room...", onClick: () => setDialog({ kind: "chat", text: LOBBY }) },
+        { label: "Watch Together...", onClick: () => aim.openTogether(selectedBuddy ? { with: selectedBuddy } : {}) },
         { label: "Block List...", onClick: () => setDialog({ kind: "blockList" }) },
         "-",
         { label: "Pair with a partner...", onClick: () => openCouples("Us") },
@@ -305,6 +306,7 @@ const BuddyList = () => {
               { label: "Send Instant Message", bold: true, onClick: () => aim.openIm(b.screenName) },
               { label: "Call", disabled: !canCall, onClick: () => placeCall(b.screenName, false, callError) },
               { label: "Video Call", disabled: !canCall, onClick: () => placeCall(b.screenName, true, callError) },
+              ...(bot ? [] : [{ label: "Watch Together...", onClick: () => aim.openTogether({ with: b.screenName }) }]),
               "-",
               { label: "Get Info", onClick: () => aim.openInfo(b.screenName) },
               ...(bot

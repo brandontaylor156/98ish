@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react"
 import { BOT_NAME, keyOf, useAim } from "../aim/AimContext"
 import MoreOptions from "../../shared/MoreOptions"
 import { launch } from "../../../utils/programs"
+import { openHelp } from "../../../utils/help"
 import { createPlayer } from "./player"
 import * as store from "./togetherStore"
 import { canControl, clock, current, decide, expectedPos, parseYouTube, peopleLine, RATES, REACTIONS, userJumped } from "./syncCore"
@@ -44,6 +45,33 @@ const TvIcon = ({ size = 16 }) => (
   </svg>
 )
 
+// How it works, in three steps (the first thing on the start screen and the signed-off one)
+const HowItWorks = ({ compact = false }) => (
+  <ol className={`tgSteps${compact ? " is-compact" : ""}`} aria-label="How Watch Together works">
+    <li>
+      <span className="tgStepNo">1</span>
+      <span>
+        <b>Pick a video</b>
+        {!compact && <small>Paste a YouTube link or search</small>}
+      </span>
+    </li>
+    <li>
+      <span className="tgStepNo">2</span>
+      <span>
+        <b>Invite a buddy</b>
+        {!compact && <small>They get a Join button in 98 Messenger</small>}
+      </span>
+    </li>
+    <li>
+      <span className="tgStepNo">3</span>
+      <span>
+        <b>Watch in sync</b>
+        {!compact && <small>Same moment on both screens: pause, skip, react, chat</small>}
+      </span>
+    </li>
+  </ol>
+)
+
 // ---- the start screen ----
 
 const StartView = ({ aim, handoff, mobile }) => {
@@ -61,6 +89,13 @@ const StartView = ({ aim, handoff, mobile }) => {
     [aim.presence, aim.me]
   )
   const rooms = Object.values(aim.rooms || {}).map((r) => r.name)
+  // the rest of the Buddy List: they're invited by notification and join when they open it
+  const offline = useMemo(() => {
+    const on = new Set(online.map(keyOf))
+    const names = new Map()
+    for (const g of aim.me?.groups || []) for (const n of g.buddies || []) if (!on.has(keyOf(n)) && keyOf(n) !== keyOf(BOT_NAME) && keyOf(n) !== keyOf(aim.me?.screenName)) names.set(keyOf(n), n)
+    return [...names.values()].sort((a, b) => a.localeCompare(b))
+  }, [aim.me, online])
 
   useEffect(() => {
     let alive = true
@@ -81,8 +116,11 @@ const StartView = ({ aim, handoff, mobile }) => {
     if (handoff.video) setLink(`https://youtu.be/${handoff.video}`)
   }, [handoff?.id])
 
-  const choice = target || (online[0] ? `im:${online[0]}` : rooms[0] ? `room:${rooms[0]}` : "")
+  const choice = target || (online[0] ? `im:${online[0]}` : rooms[0] ? `room:${rooms[0]}` : offline[0] ? `im:${offline[0]}` : "")
+  const choiceName = choice.startsWith("room:") ? `the ${choice.slice(5)} room` : choice.slice(3)
+  // one box for a link or words to search YouTube for
   const parsed = parseYouTube(link)
+  const looksLikeLink = /^\s*(https?:|www\.|youtu)/i.test(link)
   const begin = async () => {
     if (!choice) return
     const [kind, ...rest] = choice.split(":")
@@ -91,7 +129,7 @@ const StartView = ({ aim, handoff, mobile }) => {
     if (parsed) {
       options.video = parsed.id
       options.start = parsed.start
-      options.title = handoff?.video === parsed.id && handoff.title ? handoff.title : await titleFor(parsed.id)
+      options.title = handoff?.video === parsed.id && handoff.title ? handoff.title : search?.picked?.id === parsed.id ? search.picked.title : await titleFor(parsed.id)
     }
     const res = await store.start(options)
     // tell them in the conversation too (the invite reaches them either way)
@@ -105,11 +143,27 @@ const StartView = ({ aim, handoff, mobile }) => {
     try {
       const { searchVideos } = await import("../videoPlayer/api")
       const data = await searchVideos(q)
-      setSearch({ q, results: (data.videos || []).slice(0, 10), busy: false })
+      setSearch({ q, results: (data.videos || []).slice(0, 10), busy: false, picked: null })
     } catch (error) {
       setSearch({ q, results: [], busy: false, error: error.message || "Search isn't working right now. Paste a link instead." })
     }
   }
+
+  const searchFor = async (q) => {
+    setSearch({ q, results: search?.results || [], busy: true, error: null })
+    try {
+      const { searchVideos } = await import("../videoPlayer/api")
+      const data = await searchVideos(q)
+      setSearch({ q, results: (data.videos || []).slice(0, 10), busy: false })
+    } catch (error) {
+      setSearch({ q, results: [], busy: false, error: error.message || "Search isn't working right now. Paste a YouTube link instead." })
+    }
+  }
+  const pick = (v) => {
+    setLink(`https://youtu.be/${v.id}`)
+    setSearch((x) => ({ ...x, picked: v }))
+  }
+  const noOne = !online.length && !rooms.length && !offline.length
 
   return (
     <div className="tgStart">
@@ -117,7 +171,7 @@ const StartView = ({ aim, handoff, mobile }) => {
         <TvIcon size={32} />
         <div>
           <b>Watch &amp; Listen Together</b>
-          <div className="tgHint">A YouTube video plays for you and your buddies at the same moment. Pause, skip and react together.</div>
+          <div className="tgHint">Pick a video, invite a buddy, and you both watch it at the same moment: when one of you pauses or skips, so does the other.</div>
         </div>
       </div>
 
@@ -127,11 +181,11 @@ const StartView = ({ aim, handoff, mobile }) => {
           {invites.map((s) => (
             <div key={s.id} className="tgInvite">
               <span>
-                <b>{s.host}</b>
+                <b>{s.host}</b> invited you
                 {s.room ? ` in ${s.room}` : ""}
                 {s.title ? `: ${s.title}` : ""}
               </span>
-              <button type="button" onClick={() => store.join(s.id)}>
+              <button type="button" className="tgJoin" onClick={() => store.join(s.id)}>
                 Join
               </button>
             </div>
@@ -139,47 +193,96 @@ const StartView = ({ aim, handoff, mobile }) => {
         </fieldset>
       )}
 
-      <div className="tgField">
-        <label htmlFor="tg-with">Watch with:</label>
-        <select id="tg-with" value={choice} onChange={(e) => setTarget(e.target.value)} disabled={!online.length && !rooms.length}>
-          {!online.length && !rooms.length && <option value="">(no buddies online)</option>}
-          {online.map((name) => (
-            <option key={name} value={`im:${name}`}>
-              {name}
-            </option>
-          ))}
-          {/* a buddy picked in an IM window who isn't online (they'll get a notification) */}
-          {target.startsWith("im:") && !online.includes(target.slice(3)) && <option value={target}>{target.slice(3)}</option>}
-          {rooms.map((room) => (
-            <option key={room} value={`room:${room}`}>
-              Chat room: {room}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div className="tgField">
-        <label htmlFor="tg-link">Video:</label>
-        <input id="tg-link" type="url" inputMode="url" placeholder="Paste a YouTube link (or add one later)" value={link} onChange={(e) => setLink(e.target.value)} />
-      </div>
-      {link && !parsed && <div className="tgError">That doesn't look like a YouTube link.</div>}
-
-      <button type="button" className="tgPrimary" disabled={!choice || snap.joining || (!!link && !parsed)} onClick={begin}>
-        <TvIcon /> {snap.joining ? "Starting..." : "Start Watching"}
-      </button>
-      {snap.error && <div className="tgError">{snap.error}</div>}
-
-      <MoreOptions id="together.start" summary="Search YouTube">
-        <div className="tgField">
-          <label htmlFor="tg-search">Search:</label>
-          <input id="tg-search" value={search?.q || ""} onChange={(e) => setSearch({ ...search, q: e.target.value })} onKeyDown={(e) => e.key === "Enter" && runSearch()} />
-          <button type="button" onClick={runSearch} disabled={search?.busy}>
-            Search
-          </button>
+      <div className="tgStepRow">
+        <span className="tgStepNo">1</span>
+        <div className="tgStepBody">
+          <label htmlFor="tg-link">Video</label>
+          <div className="tgRow">
+            <input
+              id="tg-link"
+              type="search"
+              enterKeyHint={looksLikeLink ? "done" : "search"}
+              placeholder="Paste a YouTube link, or type to search"
+              value={link}
+              onChange={(e) => setLink(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && !parsed && link.trim() && searchFor(link.trim())}
+            />
+            {!parsed && link.trim() && !looksLikeLink && (
+              <button type="button" onClick={() => searchFor(link.trim())} disabled={search?.busy}>
+                {search?.busy ? "..." : "Search"}
+              </button>
+            )}
+          </div>
+          {parsed && <div className="tgPicked">✓ {search?.picked?.title || (handoff?.video === parsed.id && handoff.title) || "YouTube video"}</div>}
+          {!link && <div className="tgHint">No video yet? That's fine: you can add one after you start.</div>}
+          {link && looksLikeLink && !parsed && <div className="tgError">That doesn't look like a YouTube link.</div>}
+          {search?.error && <div className="tgError">{search.error}</div>}
+          {!parsed && <SearchResults results={search?.results} onPick={pick} mobile={mobile} />}
         </div>
-        {search?.error && <div className="tgError">{search.error}</div>}
-        <SearchResults results={search?.results} onPick={(v) => setLink(`https://youtu.be/${v.id}`)} mobile={mobile} />
-      </MoreOptions>
+      </div>
+
+      <div className="tgStepRow">
+        <span className="tgStepNo">2</span>
+        <div className="tgStepBody">
+          <label htmlFor="tg-with">Watch with</label>
+          {noOne ? (
+            <div className="tgEmptyBuddies">
+              No buddies yet. In 98 Messenger, use <b>People &gt; Add Buddy...</b>, then come back here.
+            </div>
+          ) : (
+            <select id="tg-with" value={choice} onChange={(e) => setTarget(e.target.value)}>
+              {online.length > 0 && (
+                <optgroup label="Online now">
+                  {online.map((name) => (
+                    <option key={name} value={`im:${name}`}>
+                      {name}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+              {rooms.length > 0 && (
+                <optgroup label="Chat rooms you're in">
+                  {rooms.map((room) => (
+                    <option key={room} value={`room:${room}`}>
+                      Chat room: {room}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+              {/* a buddy picked in an IM window who isn't on the list */}
+              {target.startsWith("im:") && !online.includes(target.slice(3)) && !offline.includes(target.slice(3)) && <option value={target}>{target.slice(3)}</option>}
+              {offline.length > 0 && (
+                <optgroup label="Not signed on (they get a notification)">
+                  {offline.map((name) => (
+                    <option key={name} value={`im:${name}`}>
+                      {name}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+            </select>
+          )}
+          {choice.startsWith("im:") && !online.includes(choiceName) && <div className="tgHint">{choiceName} isn't signed on. They'll get an invitation and can join when they open 98ish.</div>}
+        </div>
+      </div>
+
+      <div className="tgStepRow">
+        <span className="tgStepNo">3</span>
+        <div className="tgStepBody">
+          <button type="button" className="tgPrimary" disabled={!choice || snap.joining || (!!link && !parsed && looksLikeLink)} onClick={begin} data-tg-start>
+            <TvIcon /> {snap.joining ? "Starting..." : choice ? `Start watching with ${choiceName}` : "Start watching"}
+          </button>
+          {snap.error && <div className="tgError">{snap.error}</div>}
+        </div>
+      </div>
+      {noOne && (
+        <button type="button" onClick={() => aim.openBuddyList?.()} hidden={!aim.openBuddyList}>
+          Open the Buddy List
+        </button>
+      )}
+      <button type="button" className="tgHelpLink" onClick={() => openHelp("watch-together")}>
+        How does Watch Together work?
+      </button>
     </div>
   )
 }
@@ -384,6 +487,8 @@ const SessionView = ({ aim, mobile }) => {
   }
   const isHost = state.hostKey === me
   const where = state.kind === "room" ? `Chat room: ${state.room}` : peopleLine(state.people)
+  // a two-person session where the other one hasn't joined yet
+  const waitingFor = state.kind !== "room" && state.people.length < 2 ? (state.with || []).find((n) => keyOf(n) !== me) || null : null
 
   return (
     <div className={`tgSession${mini ? " is-mini" : ""}`}>
@@ -413,9 +518,24 @@ const SessionView = ({ aim, mobile }) => {
         </button>
       </div>
 
+      {waitingFor && (
+        <div className="tgWaiting" role="status" data-tg-waiting>
+          Invitation sent to <b>{waitingFor}</b>. When they tap <b>Join</b> (in 98 Messenger or the notification), you'll both see the same moment.
+        </div>
+      )}
       <div className="tgStage" data-touch-surface>
         <div className="tgPlayer" ref={host} />
-        {!item && <div className="tgCover">Nothing playing yet. Add a YouTube link below.</div>}
+        {!item && (
+          <div className="tgCover">
+            <b>Nothing playing yet</b>
+            <span>{control ? "Paste a YouTube link in Add a video below, and it plays for everyone." : `Waiting for ${state.host} to pick a video.`}</span>
+          </div>
+        )}
+        {item && !state.playing && !needsTap && control && !playerError && position < 1 && (
+          <button type="button" className="tgTap tgTap--start" onClick={togglePlay} data-tg-play-everyone>
+            ▶ Play for everyone
+          </button>
+        )}
         {playerError && <div className="tgCover tgCover--error">{playerError}</div>}
         {needsTap && !playerError && (
           <button type="button" className="tgTap" onClick={togglePlay}>
@@ -601,11 +721,16 @@ const Together = ({ mobile, handoff, dispatch }) => {
           <TvIcon size={32} />
           <div>
             <b>Watch &amp; Listen Together</b>
-            <div className="tgHint">Sign on to 98 Messenger to watch YouTube with your buddies.</div>
+            <div className="tgHint">Watch a YouTube video with a buddy, at the same moment on both screens.</div>
           </div>
         </div>
+        <HowItWorks />
+        <p className="tgHint">It works through 98 Messenger, so first sign on (or make a free screen name).</p>
         <button type="button" className="tgPrimary" onClick={() => dispatch?.({ type: "open_window", payload: launch("98 Messenger") })}>
-          Open 98 Messenger
+          Sign on to 98 Messenger
+        </button>
+        <button type="button" className="tgHelpLink" onClick={() => openHelp("watch-together")}>
+          How does Watch Together work?
         </button>
       </div>
     )
