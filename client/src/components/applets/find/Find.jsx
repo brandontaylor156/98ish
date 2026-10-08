@@ -30,6 +30,8 @@ const KINDS = [
   ["sound", "Wave Sound"],
   ["music", "MIDI Sequence"],
   ["song", "Song"],
+  ["movie", "Video Clip"],
+  ["pdf", "PDF Document"],
   ["vcard", "vCard File"],
   ["internet", "Internet Shortcut"],
 ]

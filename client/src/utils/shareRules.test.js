@@ -54,8 +54,15 @@ test("incomingKind and destinations", () => {
   assert.equal(R.incomingKind({ name: "notes.md", type: "" }), "text")
   assert.equal(R.incomingKind({ name: "page.html", type: "text/html" }), "richtext")
   assert.equal(R.incomingKind({ name: "memo.m4a", type: "audio/mp4" }), "sound")
-  assert.equal(R.incomingKind({ name: "report.pdf", type: "application/pdf" }), null)
+  assert.equal(R.incomingKind({ name: "report.pdf", type: "application/pdf" }), "pdf")
+  assert.equal(R.incomingKind({ name: "IMG_0002.MOV", type: "video/quicktime" }), "movie")
+  assert.equal(R.incomingKind({ name: "clip.mp4", type: "" }), "movie")
+  assert.equal(R.incomingKind({ name: "song.flac", type: "" }), "sound")
+  assert.equal(R.incomingKind({ name: "setup.exe", type: "application/octet-stream" }), null)
   assert.deepEqual(R.destinationFor("image"), ["C:", "My Pictures"])
+  assert.deepEqual(R.destinationFor("sound"), ["C:", "My Music"])
+  assert.deepEqual(R.destinationFor("movie"), ["C:", "My Videos"])
+  assert.deepEqual(R.destinationFor("pdf"), ["C:", "Documents"])
   assert.deepEqual(R.destinationFor("text"), ["C:", "Documents"])
   assert.equal(R.pathLabel(["C:", "My Pictures"]), "C:\\My Pictures")
   assert.equal(R.pathLabel(["C:"]), "C:\\")
@@ -78,6 +85,7 @@ test("planReceived routes files, links and text", () => {
     { name: "IMG_1.jpg", type: "image/jpeg", size: 10 },
     { name: "list.txt", type: "text/plain", size: 5 },
     { name: "doc.pdf", type: "application/pdf", size: 5 },
+    { name: "app.exe", type: "application/octet-stream", size: 5 },
     { name: "", type: "", size: 0 }, // Android sends an empty file part when nothing was picked
   ]
   const plan = R.planReceived({ title: "", text: "", url: "", files })
@@ -86,7 +94,8 @@ test("planReceived routes files, links and text", () => {
     [
       ["image", "IMG_1.jpg", ["C:", "My Pictures"]],
       ["text", "list.txt", ["C:", "Documents"]],
-      ["unsupported", "doc.pdf", undefined],
+      ["pdf", "doc.pdf", ["C:", "Documents"]],
+      ["unsupported", "app.exe", undefined],
     ]
   )
   // Android: the link in text, the page title in title

@@ -5,7 +5,7 @@
 
 const later = (fn) => setTimeout(fn, 0)
 
-const sizeOf = (value) => (typeof value === "string" ? value.length : JSON.stringify(value ?? null).length)
+const sizeOf = (value) => (typeof value === "string" ? value.length : typeof Blob !== "undefined" && value instanceof Blob ? value.size : JSON.stringify(value ?? null).length)
 
 export const createFakeIndexedDb = ({ quotaChars = Infinity, failOpen = false, failWrites = false, hang = false } = {}) => {
   const databases = new Map() // name -> { version, stores: Map(name -> Map(key -> value)) }

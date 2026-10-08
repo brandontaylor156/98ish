@@ -113,3 +113,11 @@ test("device names", () => {
   assert.equal(P.deviceName("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) Safari"), "Mac")
   assert.equal(P.deviceName(""), "another computer")
 })
+
+test("staysOnDevice: big media kept on this device and over-long texts never go online", () => {
+  assert.equal(P.staysOnDevice({ isDirectory: false, deviceOnly: true, textLength: 60 }), true)
+  assert.equal(P.staysOnDevice({ isDirectory: false, deviceOnly: false, textLength: 13_000_000 }, 12 * 1024 * 1024), true)
+  assert.equal(P.staysOnDevice({ isDirectory: false, deviceOnly: false, textLength: 9_000_000 }, 12 * 1024 * 1024), false)
+  assert.equal(P.staysOnDevice({ isDirectory: true, deviceOnly: false }), false)
+  assert.equal(P.staysOnDevice(null), false)
+})

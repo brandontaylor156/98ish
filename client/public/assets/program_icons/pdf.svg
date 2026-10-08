@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <!-- A PDF document: a page with a folded corner, lines of text and a red "PDF" band -->
+  <path d="M9 3h21l9 9v33H9z" fill="#ffffff" stroke="#000" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M30 3v9h9" fill="#c0c0c0" stroke="#000" stroke-width="1.5" stroke-linejoin="round"/>
+  <g fill="#808080">
+    <rect x="13" y="9" width="13" height="2"/>
+    <rect x="13" y="14" width="22" height="2"/>
+    <rect x="13" y="18" width="22" height="2"/>
+    <rect x="13" y="38" width="22" height="2"/>
+  </g>
+  <rect x="11" y="23" width="26" height="12" fill="#b00000" stroke="#600000"/>
+  <text x="24" y="32.5" font-family="Arial, Helvetica, sans-serif" font-size="9" font-weight="bold" fill="#ffffff" text-anchor="middle">PDF</text>
+</svg>

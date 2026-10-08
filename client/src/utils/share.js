@@ -1,4 +1,4 @@
-import { contentReady, readContent } from "./fs"
+import { contentReady, isDeviceOnly, mediaBlob, peekMediaBlob, readContent } from "./fs"
 import { downloadBlob, exportFile } from "./fileTransfer"
 import { hyperlinks } from "./hyperlinks"
 import { copyText } from "./systemClipboard"
@@ -80,6 +80,8 @@ export const shareOut = (payload, mode = "apps", { title = "Send To" } = {}) => 
 // sharing must start inside the tap, with nothing awaited first
 export const warmItem = (item) => {
   if (item && !item.isDirectory && !contentReady(item)) readContent(item).catch(() => {})
+  // a big video/song/PDF kept on this device: its Blob, ready for the tap
+  if (item && isDeviceOnly(item) && !peekMediaBlob(item)) mediaBlob(item).catch(() => {})
 }
 
 // A file or folder in the 98ish drive
@@ -95,7 +97,15 @@ export const itemPayload = (item) => {
     if (!url) return { error: "This shortcut doesn't point anywhere." }
     return { title: item.name, url, files: [], preferText: true }
   }
-  const out = exportFile(item)
+  let blob = null
+  if (isDeviceOnly(item)) {
+    blob = peekMediaBlob(item)
+    if (!blob) {
+      warmItem(item)
+      return { error: "Getting the file ready... Try Send To again in a moment." }
+    }
+  }
+  const out = exportFile(item, item.textContent || "", blob)
   if (out.error) return { error: out.error }
   const text = item.type === "text" || item.type === "note" ? item.textContent || "" : ""
   return { title: item.name, files: [out], text, preferText: !!text }

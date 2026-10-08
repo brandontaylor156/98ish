@@ -167,7 +167,11 @@ const Music = ({ mobile, handoff, onClose }) => {
     setBusy({ text: "Adding songs..." })
     const result = await lib.importSongs(files, (i, n, name) => setBusy({ text: name ? `Adding ${name} (${i + 1} of ${n})...` : "Finishing..." }))
     setBusy(null)
-    if (result.problems.length) setDialog({ kind: "alert", title: "Add Songs", text: `${result.added.length ? `Added ${result.added.length} song${result.added.length === 1 ? "" : "s"}. ` : ""}${result.problems.join(" ")}` })
+    // problems, and songs over 8 MB being kept on this device only (not synced)
+    const notes = result.notes || []
+    const note = notes.length > 1 ? `${notes.length} of them are over 8 MB, so they're kept on this device only (not synced or backed up).` : notes[0] || ""
+    if (result.problems.length || note)
+      setDialog({ kind: "alert", title: "Add Songs", text: `${result.added.length ? `Added ${result.added.length} song${result.added.length === 1 ? "" : "s"}. ` : ""}${[...result.problems, note].filter(Boolean).join(" ")}` })
   }
 
   const playFrom = (list, track) => engine.playList(list.map((t) => t.key), track?.key ?? null)
@@ -337,7 +341,7 @@ const Music = ({ mobile, handoff, onClose }) => {
                 <button type="button" className="muRowMain" onClick={() => setOpen({ kind: "playlist", key: p.id })}>
                   <span className="muRowText">
                     <span className="muTitle">{p.name}</span>
-                    <span className="muSub">{p.keys.length} songs</span>
+                    <span className="muSub">{p.keys.filter((k) => byKey.has(k)).length} songs{p.keys.some((k) => !byKey.has(k)) ? " (+ videos in Media Player)" : ""}</span>
                   </span>
                 </button>
               </li>

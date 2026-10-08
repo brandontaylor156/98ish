@@ -11,9 +11,10 @@ import { launch, paintWindow } from "../../../utils/programs"
 import { useFsVersion } from "../../../hooks/useFs"
 import { useOpenGesture } from "../../../hooks/useMediaQuery"
 import { useLongPress } from "../../../hooks/useLongPress"
-import { UPLOAD_ACCEPT, canDownload, downloadItem, uploadInto } from "../../../utils/fileTransfer"
+import { UPLOAD_ACCEPT, canDownload, downloadItem } from "../../../utils/fileTransfer"
 import { itemPayload, shareOut, warmItem } from "../../../utils/share"
 import { receiveFiles, savePasted, summarize } from "../../../utils/receive"
+import { DEVICE_ONLY_LINE } from "../../../utils/mediaRules"
 import { fromPasteEvent, readClipboard } from "../../../utils/systemClipboard"
 import { isSyncEnabled, setSyncEnabled, statusText, syncNow, useDriveSync } from "../../../utils/driveSync"
 import { openBackup, openSignOn, useKeepSafe } from "../../shared/KeepSafe"
@@ -587,6 +588,12 @@ const FileExplorer = ({ path: initialPath = ["C:"], dispatch, onTitle }) => {
                 <th>Size:</th>
                 <td>{formatSize(sizeOf(dialog.item))}</td>
               </tr>
+              {dialog.item.deviceOnly && (
+                <tr>
+                  <th>Kept:</th>
+                  <td data-device-only>{DEVICE_ONLY_LINE}</td>
+                </tr>
+              )}
               {dialog.item.isDirectory && (
                 <tr>
                   <th>Contains:</th>

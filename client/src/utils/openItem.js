@@ -35,6 +35,21 @@ export const openItem = (item, dispatch) => {
     dispatch({ type: "open_window", payload: launch("Music 98", { handoff: { id: Date.now(), play: item.path } }) })
     return true
   }
+  // a video: Media Player's Videos (the open one plays it, picking up where you stopped)
+  if (item.type === "movie") {
+    const path = fs.partsOf(item).join("/")
+    const player = latestPlayer()
+    if (player) {
+      player.play(path)
+      dispatch({ type: "focus_window", payload: { index: player.index } })
+    } else dispatch({ type: "open_window", payload: mediaPlayerWindow(path) })
+    return true
+  }
+  // a PDF: PDF Viewer
+  if (item.type === "pdf") {
+    dispatch({ type: "open_window", payload: launch("PDF Viewer", { file: fs.partsOf(item).join("/"), name: item.name.replace(/\.pdf$/i, "") }) })
+    return true
+  }
   if (item.type === "sound") {
     dispatch({ type: "open_window", payload: recorderWindow(item) })
     return true

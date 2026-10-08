@@ -1,0 +1,105 @@
+/* PDF Viewer */
+
+.pdfRoot {
+  height: calc(100% - 25px);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 0 3px 3px;
+  background: #c0c0c0;
+  font-family: "Pixelated MS Sans Serif", Arial, sans-serif;
+  font-size: 11px;
+  overflow: hidden;
+}
+
+.pdfRoot .menuBar {
+  margin: 0 -3px;
+}
+
+.pdfBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.pdfPageNo {
+  flex: 1 1 auto;
+  min-width: 90px;
+}
+
+.pdfMore .moreOpts-body {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.pdfScroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  background: #808080;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+}
+
+.pdfPage {
+  flex: none;
+  background: #fff;
+  box-shadow: 2px 2px 0 #000;
+}
+
+.pdfPage canvas {
+  display: block;
+}
+
+.pdfFrame {
+  flex: 1;
+  width: 100%;
+  min-height: 300px;
+  border: 0;
+  background: #fff;
+}
+
+.pdfNote {
+  margin: 8px;
+  padding: 6px 8px;
+  max-width: 420px;
+  background: #ffffe1;
+  border: 1px solid #000;
+  color: #000;
+}
+
+.pdfStatus {
+  margin: 0;
+}
+
+.pdfStatus p {
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.os-mobile .pdfRoot {
+  font-size: 13px;
+  padding: 0 4px 4px;
+}
+
+.os-mobile .pdfScroll {
+  padding: 6px;
+  gap: 6px;
+}
+
+.os-mobile .pdfBar button {
+  min-height: 38px;
+}
+
+.os-mobile .pdfLocal {
+  display: none;
+}

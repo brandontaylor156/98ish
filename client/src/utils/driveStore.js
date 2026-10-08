@@ -13,6 +13,10 @@
 //   meta     "index" -> { version: 2, root: [node], bin: [node], defaults: [path], savedAt }
 //            "migration" -> { at, files, chars }
 //   contents <content key> -> the text of one big file (a picture, a sound, a long document)
+//   blobs    <media key> -> a big media file kept as it came (a Blob: a long video, a big
+//            song or PDF). The file's own text is then a short reference (mediaRef below):
+//            "98ish-media:<key>;<mime>;<bytes>". Such files stay on this device (file sync
+//            skips them) and are read with mediaBlob() in fs.js. Added in DB_VERSION 2.
 // node = { k: "d", n, t, m, c: [node] }
 //      | { k: "f", n, t, m, s: bytes, v: modified (ms), x: text (small files)
 //          | h: content key and hd: its first characters (big files),
@@ -23,13 +27,48 @@
 // No React and no fs.js here: Node tests drive it with a small fake IndexedDB.
 
 export const DB_NAME = "98ish-drive"
-export const DB_VERSION = 1
+export const DB_VERSION = 2
 export const OLD_KEY = "98ish.fs.v1"
 export const MIGRATED_KEY = "98ish.fs.migrated"
 export const INLINE_MAX = 8 * 1024 // texts longer than this are kept in "contents"
 // how long the old copy stays after a move (it still fills localStorage, which settings and
 // the wallpaper share, so not too long; a problem with the new drive shows on the next start)
 export const RETAIN_MS = 3 * 24 * 60 * 60 * 1000
+
+// ---------- big media kept as files (blobs) ----------
+
+export const MEDIA_PREFIX = "98ish-media:"
+// a media file's text: where its bytes are, what they are and how many
+export const mediaRef = ({ key, mime = "application/octet-stream", size = 0 }) =>
+  `${MEDIA_PREFIX}${key};${String(mime || "").replace(/[;\s]/g, "") || "application/octet-stream"};${Math.max(0, Math.round(Number(size) || 0))}`
+// -> { key, mime, size } | null
+export const parseMediaRef = (text) => {
+  const value = String(text ?? "")
+  if (!value.startsWith(MEDIA_PREFIX) || value.length > 300) return null
+  const [key, mime, size] = value.slice(MEDIA_PREFIX.length).split(";")
+  if (!key || !/^[\w-]{4,80}$/.test(key)) return null
+  return { key, mime: mime || "application/octet-stream", size: Number(size) || 0 }
+}
+export const isMediaRef = (text) => typeof text === "string" && text.startsWith(MEDIA_PREFIX)
+// a new media key: random (a big file isn't read just to hash it)
+export const newMediaKey = (size = 0) => `m${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}${Math.max(0, Math.floor(Number(size) || 0)).toString(36)}`
+// Every media key that saved nodes point at (files in folders and in the Recycle Bin)
+export const mediaKeysIn = (nodes, out = new Set()) => {
+  for (const node of nodes || []) {
+    if (node.k === "d") mediaKeysIn(node.c, out)
+    else if (typeof node.x === "string" && isMediaRef(node.x)) {
+      const ref = parseMediaRef(node.x)
+      if (ref) out.add(ref.key)
+    }
+  }
+  return out
+}
+
+// Which stored media blobs can go: nothing points at them any more, and they weren't just
+// written (a file is made for a new blob right after it's stored: holdMs keeps it meanwhile)
+export const MEDIA_HOLD_MS = 10 * 60 * 1000
+export const blobsToDelete = (storedKeys, usedKeys, fresh = new Map(), now = Date.now(), holdMs = MEDIA_HOLD_MS) =>
+  [...storedKeys].filter((key) => !usedKeys.has(key) && !(fresh.has(key) && now - fresh.get(key) < holdMs))
 
 // ---------- little helpers ----------
 
@@ -54,6 +93,7 @@ export const contentKey = (text) => `${hashText(text)}-${text.length.toString(36
 // sound itself; other text counts as UTF-8
 export const byteSize = (text) => {
   const value = String(text ?? "")
+  if (isMediaRef(value)) return parseMediaRef(value)?.size || 0
   const comma = value.startsWith("data:") ? value.indexOf(",") : -1
   if (comma > 0 && value.slice(0, comma).endsWith(";base64")) {
     const body = value.length - comma - 1
@@ -101,21 +141,34 @@ const wrap = (db) => {
     },
     getContent: (key) => req(store("contents").get(key)),
     contentKeys: () => req(store("contents").getAllKeys()),
+    // big media files (Blobs), written on their own before a file points at them
+    putBlob: async (key, blob) => {
+      const tx = db.transaction("blobs", "readwrite")
+      tx.objectStore("blobs").put(blob, key)
+      await finished(tx)
+    },
+    getBlob: (key) => req(store("blobs").get(key)),
+    blobKeys: () => req(store("blobs").getAllKeys()),
     // Everything in one transaction: all of it is saved, or none of it
-    commit: async ({ index = null, puts = [], deletes = [], meta = {} } = {}) => {
-      const tx = db.transaction(["meta", "contents"], "readwrite")
+    commit: async ({ index = null, puts = [], deletes = [], blobDeletes = [], meta = {} } = {}) => {
+      const tx = db.transaction(blobDeletes.length ? ["meta", "contents", "blobs"] : ["meta", "contents"], "readwrite")
       const contents = tx.objectStore("contents")
       for (const [key, text] of puts) contents.put(text, key)
       for (const key of deletes) contents.delete(key)
+      if (blobDeletes.length) {
+        const blobs = tx.objectStore("blobs")
+        for (const key of blobDeletes) blobs.delete(key)
+      }
       const metaStore = tx.objectStore("meta")
       if (index) metaStore.put(index, "index")
       for (const [key, value] of Object.entries(meta)) metaStore.put(value, key)
       await finished(tx)
     },
     clear: async () => {
-      const tx = db.transaction(["meta", "contents"], "readwrite")
+      const tx = db.transaction(["meta", "contents", "blobs"], "readwrite")
       tx.objectStore("meta").clear()
       tx.objectStore("contents").clear()
+      tx.objectStore("blobs").clear()
       await finished(tx)
     },
     close: () => db.close(),
@@ -145,6 +198,7 @@ export const openDriveDb = (factory, { name = DB_NAME, timeoutMs = 6000 } = {}) 
       const db = request.result
       if (!db.objectStoreNames.contains("meta")) db.createObjectStore("meta")
       if (!db.objectStoreNames.contains("contents")) db.createObjectStore("contents")
+      if (!db.objectStoreNames.contains("blobs")) db.createObjectStore("blobs")
     }
     request.onsuccess = async () => {
       const db = request.result

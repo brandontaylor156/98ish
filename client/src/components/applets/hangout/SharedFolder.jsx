@@ -53,6 +53,7 @@ const SharedFolder = ({ meta, dispatch }) => {
   }
   const addFromDrive = async (file) => {
     setPicking(false)
+    if (file.deviceOnly) return setMsg(`${file.name} is kept on this device only (over 8 MB), so it can't be sent from here. Use Send To > My Phone instead.`)
     await readContent(file)
     put(file.name, file.type, file.textContent || "")
   }

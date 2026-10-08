@@ -1,12 +1,14 @@
 import { DIRECTORY_TYPE, FILE_TYPE, fs, uniqueName, writeAndSave } from "./fs"
-import { convertUpload, uploadKind } from "./fileTransfer"
+import { convertUpload } from "./fileTransfer"
+import { mediaKindOf } from "./mediaRules"
 import { decodeUpload, savePicture, uploadName } from "../components/applets/photos/library"
 import { planPastedText } from "./shareRules"
 import { readClipboard } from "./systemClipboard"
 
 // Things from the phone landing in the 98ish drive: shared to 98ish (the share target),
 // picked with Upload from Phone, or pasted. Pictures become JPEGs (like Camera's, so
-// two dozen fit); text, web pages and sounds go through the upload converter.
+// two dozen fit); text and web pages go through the upload converter; songs, videos and PDFs
+// are kept exactly as they came (utils/mediaFiles.js: full length, no conversion).
 
 // A folder by path, made (with any missing parents) if it isn't there
 export const folderAt = (parts) => {
@@ -32,11 +34,20 @@ export const saveIncoming = async (dir, file) => {
       return { ok: false, error: error.message || `${file.name} couldn't be opened as a picture.` }
     }
   }
+  const media = mediaKindOf(file)
   // songs and other audio: kept whole (not cut to a 30-second WAV), playable in Music 98
-  if (uploadKind(file) === "sound") {
+  if (media === "song") {
     const { importSongs } = await import("../components/applets/music/musicStore")
     const result = await importSongs([file], null, dir)
-    return result.added.length ? { ok: true, file: result.added[0].file } : { ok: false, error: result.problems[0] || `${file.name} couldn't be added.` }
+    return result.added.length ? { ok: true, file: result.added[0].file, note: result.notes?.[0] || null } : { ok: false, error: result.problems[0] || `${file.name} couldn't be added.` }
+  }
+  // videos (Media Player's Videos) and PDFs (PDF Viewer): the original file
+  if (media === "movie" || media === "pdf") {
+    const { keepMediaFile } = await import("./mediaFiles")
+    const result = await keepMediaFile(dir, file, { kind: media })
+    if (!result.ok) return result
+    if (media === "movie") import("../components/applets/mediaPlayer/videoStore").then((m) => m.describeVideo(result.file)).catch(() => {})
+    return { ok: true, file: result.file, note: result.note }
   }
   let converted
   try {

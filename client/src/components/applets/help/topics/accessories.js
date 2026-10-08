@@ -284,7 +284,7 @@ export const topics = [
           "In [[memories|Memories]]: **Share as Album...** makes an album from a memory.",
         ],
       },
-      "Photos are sent at up to 2048 pixels. Videos can be MP4, MOV or WebM, up to a minute and 12 MB. If you're offline, or 98ish's free online storage is resting, they wait on your device (\"waiting to upload\") and go up by themselves later. **Details...** shows what's waiting, and lets you retry or remove one that couldn't be added.",
+      "Photos are sent at up to 2048 pixels (redrawn, which also leaves out the photo's hidden location and camera details). Videos go exactly as they are: MP4, MOV or WebM, up to a minute and 12 MB. If you're offline, or 98ish's free online storage is resting, they wait on your device (\"waiting to upload\") and go up by themselves later. **Details...** shows what's waiting, and lets you retry or remove one that couldn't be added.",
       { h: "Likes, comments and news" },
       "Open a photo to see who added it, **Like** it and add comments. When a buddy adds photos or comments, the album says **New**, the **Albums** button shows a red number, the [[notifications|Notification Center]] lists it, and (with notifications on) your phone gets a notification, which [[do-not-disturb|Do Not Disturb]] holds back like any other.",
       { h: "Leaving and deleting" },
@@ -610,20 +610,53 @@ export const topics = [
     id: "media-player",
     book: "accessories",
     title: "Media Player",
-    summary: "Play your own songs, recordings and videos with a playlist.",
-    keywords: ["music", "songs", "video", "videos", "mp3", "mp4", "recordings", "playlist", "shuffle", "mplayer", "MIDI"],
+    summary: "Your music and videos in one library: play them, pick up a video where you stopped, make playlists.",
+    keywords: ["music", "songs", "video", "videos", "movie", "movies", "mp3", "mp4", "mov", "recordings", "playlist", "shuffle", "mplayer", "MIDI", "resume", "continue watching", "my videos", "picture in picture", "library"],
     programs: ["Media Player"],
     body: [
       { img: "/assets/program_icons/mediaplayer.svg", alt: "Media Player icon" },
-      "Media Player plays **your own things**: the songs in your [[music-98]] library, the recordings you made in [[sound-recorder]], and any song or video you open from your phone or computer (**File > Open from Your Device...**). Something opened from your device plays from memory: it isn't copied to the drive or sent anywhere, and it leaves the playlist when you close Media Player.",
-      "Nothing to play yet? Press **Open Music 98** and **Add Songs...** there, or record something in Sound Recorder; they show up in the playlist here.",
-      "Press Play (it turns into Pause while something plays), Previous or Next, or tap a row in the **Playlist** (View > Playlist). **More »** beside them shows Stop, **Shuffle**, **Repeat**, Mute and the volume, and the **Play** menu has them all too. A video plays in the black screen at the top.",
+      "Media Player is the library for **your own music and videos**. Pick **Music** or **Videos** above the list, then tap something to play it.",
+      {
+        list: [
+          "**Music**: the songs in your [[music-98]] library and the recordings you made in [[sound-recorder]]. **Add Songs...** brings songs in from your phone or computer.",
+          "**Videos**: your video files (MP4, MOV, WebM), each with a picture from the video and its length. **Add Videos...** brings them in; they're kept in **C:\\My Videos** exactly as they are. A video you stopped part way **picks up where you left off** next time (a red line under it shows how far you got; **Start Over** on the screen, or **Play from Start** in its **…** menu, begins again).",
+          "Each row's **…** button (or right-click) has **Play**, **Add to Playlist** (a new one or one you made in Music 98: playlists can hold songs and videos) and **Show in My Computer**.",
+        ],
+      },
+      "Press Play (it turns into Pause while something plays), Previous or Next. **More »** beside them shows Stop, **Shuffle**, **Repeat**, Mute and the volume, **Search** (by title, artist, album or file name), **Playlist** (play just one of your playlists) and, for a video, **Picture in Picture**. A video plays in the black screen at the top.",
+      "**File > Open from Your Device...** plays a song or video once without keeping it: it plays from memory, isn't copied to the drive or sent anywhere, and leaves the list when you close Media Player.",
+      { phone: "The lock screen and Control Center show what's playing with play/pause and skip. Songs keep playing with the screen locked; iPhone pauses a video when you leave Safari or lock the phone, unless you start **Picture in Picture** first.", computer: "Media keys on your keyboard (play/pause, next, previous) work while 98ish is open." },
+      { note: "Songs and videos are kept as they came (no cutting or converting). Up to 8 MB each they're ordinary files that can sync; bigger ones (videos up to 2 GB, songs up to 300 MB) stay **on this device only**: they don't sync and aren't in backups, and the bottom of Media Player says so. See [[files-in-out]]." },
       { keys: [["Space", "Play or pause"], ["Left / Right arrow", "Back or forward 5 seconds"], ["Up / Down arrow", "Volume up or down"]], title: "Keys" },
       "The speaker by the taskbar clock sets the volume for every sound in 98ish, Media Player included.",
       { note: "On an iPhone, check the ringer switch and tap the page once if nothing plays. See [[no-sound]]. The 8 built-in tunes Media Player used to have are gone; untouched copies were removed from My Music." },
       { open: "Media Player", label: "Open Media Player" },
     ],
-    related: ["music-98", "sound-recorder", "no-sound", "sounds"],
+    related: ["music-98", "sound-recorder", "no-sound", "sounds", "files-in-out"],
+  },
+  // ---- PDF Viewer ----
+  {
+    id: "pdf-viewer",
+    book: "accessories",
+    title: "PDF Viewer",
+    summary: "Read the PDFs on drive C:, page by page, and send them to your phone's apps.",
+    keywords: ["pdf", "pdf viewer", "acrobat", "reader", "document", "manual", "ticket", "boarding pass", "menu", "open pdf", "zoom", "print pdf"],
+    programs: ["PDF Viewer"],
+    body: [
+      { img: "/assets/program_icons/pdfviewer.svg", alt: "PDF Viewer icon" },
+      "PDF Viewer shows a **PDF** from drive C: page by page. Open a PDF in My Computer (or anywhere on the desktop) and it opens here. Scroll to read; the top says which page you're on.",
+      "PDFs come in **as they are** with **Upload from Phone...** (My Computer or the desktop), by dragging one onto My Computer, or from Compass's downloads. They land where you put them (Compass: C:\\Downloads).",
+      {
+        list: [
+          "**Send to My Phone** hands the PDF to your phone: open it in Books or Files, AirDrop it, or print it.",
+          "**More »**: zoom out, **Fit**, zoom in, **Open in Browser** (your browser's own viewer) and **Download**.",
+        ],
+      },
+      { note: "The page viewer is pdf.js (made by Mozilla), downloaded from jsDelivr the first time you open a PDF; your PDF itself never leaves the device. Offline before that, PDF Viewer shows your browser's own viewer instead (on an iPhone that may show only the first page: use Send to My Phone). A PDF with a password can't be shown here." },
+      { note: "PDFs up to 8 MB are ordinary files that can sync; bigger ones (up to 200 MB) stay on this device only. See [[files-in-out]]." },
+      { open: "PDF Viewer", label: "Open PDF Viewer" },
+    ],
+    related: ["files-in-out", "share-phone", "my-computer"],
   },
   // ---- Visual Basic 98 ----
   {
@@ -710,7 +743,7 @@ export const topics = [
     programs: ["Music 98"],
     body: [
       { img: "/assets/program_icons/music98.svg", alt: "Music 98 icon" },
-      "Music 98 plays **your own songs**: MP3, M4A/AAC, WAV, FLAC and OGG files from your phone or computer. Press **Add Songs...** and pick them. They're kept in **C:\\My Music**, and their names, artists, albums and album art come from the files themselves.",
+      "Music 98 plays **your own songs**: MP3, M4A/AAC, WAV, FLAC and OGG files from your phone or computer. Press **Add Songs...** and pick them. They're kept in **C:\\My Music** exactly as they are (full length, never cut or converted; up to 300 MB a song), and their names, artists, albums and album art come from the files themselves.",
       {
         list: [
           "**Songs**, **Albums**, **Artists**, **Playlists** and **Queue** across the top; **Search** finds a song by title, artist or album.",
@@ -724,7 +757,7 @@ export const topics = [
       { h: "More options" },
       "**Equalizer** (bass, mid, treble) and a **Visualizer** in the Now Playing panel.",
       { note: "On iPhone, the equalizer and visualizer route sound through the browser's audio engine, which can stop the music when the screen locks. Leave them off when listening with the phone in your pocket." },
-      "Songs stay on this device. **File sync** copies them online only if you add My Music to the synced folders in Backup (online space is limited, so it's off). Opening a song file in My Computer plays it here, and Send To > My Phone gives you back the original file.",
+      "Songs stay on this device. **File sync** copies them online only if you add My Music to the synced folders in Backup (online space is limited, so it's off), and even then songs over 8 MB stay on this device only (they aren't in backups either). Opening a song file in My Computer plays it here, and Send To > My Phone gives you back the original file. Your videos are in [[media-player]] (Videos).",
       { open: "Music 98", label: "Open Music 98" },
     ],
     related: ["media-player", "sound-recorder", "no-sound", "file-sync"],
