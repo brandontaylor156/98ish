@@ -1369,6 +1369,8 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
       return
     }
     if (handoff?.id && handoff.floppy) return void (floppyGo.current = handoff.floppy)
+    // "Meet me at <venue>" from 98 Messenger (play/meet.js parkHandoff): My Park at that venue
+    if (handoff?.id && handoff.meet?.venue) return void (floppyGo.current = { mode: "park", venue: handoff.meet.venue, place: handoff.meet.place || null })
     if (!handoff?.id || !(handoff.session || handoff.match || handoff.venue)) return
     setClubHandoff(handoff)
     if (!inGame) setScreen("club")
@@ -1381,7 +1383,11 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
     floppyGo.current = null
     if (f.mode === "quick") setScreen("quick")
     else if (f.mode === "practice") (setHubView("hub"), setScreen("practice"))
-    else if (f.mode === "park") f.venue ? startPark(f.venue) : pickPark()
+    else if (f.mode === "park") {
+      // (a Venue Finder court from a card: kept like one you picked, so My Park can build it)
+      if (f.venue && f.place && isLiveId(f.venue)) keepPlace(f.venue, f.place)
+      f.venue ? startPark(f.venue) : pickPark()
+    }
     else if (f.mode === "real") setScreen("club")
     else if (f.mode === "online") setScreen("online")
     else if (f.mode === "tour") setScreen("tour")

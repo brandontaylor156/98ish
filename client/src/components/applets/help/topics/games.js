@@ -224,6 +224,7 @@ export const topics = [
         list: [
           "**Quick Match:** pick a mode and you're matched with whoever's looking.",
           "**Play with a Friend:** pick a mode and **Create a room**, then invite anyone on Network Neighborhood or 98 Messenger. Empty seats can be filled with computer players.",
+          "**Nobody around?** In Battle and Arena, after 10 seconds alone you're offered computer players. A **Sprint Race** Quick Match doesn't wait for a button: if nobody turns up in 10 seconds, computer racers (Easy, Medium or Hard, your pick while you wait) join and the race starts. **Race computer players now** starts at once.",
           "**Open Rooms** lists rooms you can join.",
         ],
       },
@@ -277,7 +278,8 @@ export const topics = [
       {
         list: [
           "**Play:** the first choice is **vs Computer** or **Online** (two tabs at the top). vs Computer: singles or doubles against Rookie, Club, Pro or Legend players, and **Where** (below); who exactly you play, the scoring, **World Tour** and **2 Players** are under **More options »**. **Start Match** is the button at the bottom.",
-          "**Where and when:** tap **Change** next to Where (on the Play screen, in Practice, or the venue button on the title screen). Pick any of the real venues from My Park, the Venue Finder courts you starred or visited, or one of the five made-up arenas: the court behind the list switches to that venue at once so you can see where you'll play. Then pick the **time of day**: **Now** (the real sky and today's weather there), **Morning**, **Midday**, **Golden hour** or **Night** (under the lights; only where the courts really have lights: not at Sinaloa). Matches, Practice and online rooms then play on that venue's real court.",
+          "**Where and when:** tap **Change** next to Where (on the Play screen, in Practice, or the venue button on the title screen). Pick any of the real venues from My Park, the Venue Finder courts you starred or visited, or one of the five made-up arenas: the court behind the list switches to that venue at once so you can see where you'll play. Then pick the **time of day**: **Now** (the real sky and today's weather there), **Morning**, **Midday**, **Golden hour** or **Night** (under the lights; only where the courts really have lights: not at Sinaloa). Matches, Practice and online rooms then play on that venue's real court. A real court (not an arena) has **Directions** under its name: it opens [[maps|Maps 98]] with directions there.",
+          "**Meet a buddy there:** in a 98 Messenger IM, **+** > **Meet Me at a Court...** sends a card for any of these courts; your buddy's **Play here** opens My Park at that court (see [[messenger-history]]).",
           "**Practice:** lessons with a coach, a ball machine and drills (below).",
           "**My Park:** walk round a public park where games are going on, watch from the bleachers, and put your paddle in a rack to play next (below).",
           "**World Tour:** eight matches from the Park Open to the Center Court Masters. Win to unlock new outfits.",

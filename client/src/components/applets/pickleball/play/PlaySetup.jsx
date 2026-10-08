@@ -7,6 +7,8 @@ import { LEVELS } from "../ai.js"
 import { LEVEL_NAMES } from "../menus.jsx"
 import { TIMES, nightOk, timeAt } from "../park/timeofday.js"
 import { placeLists, placeNote, placeText } from "./places.js"
+import { placeDirections } from "./meet.js"
+import { openMaps } from "../../../../utils/maps"
 import "./play.css"
 
 // Pickleball 98's "Play" (the owner: "it's confusing that the 'Start game' button is there but
@@ -171,6 +173,12 @@ export const VenueSheet = ({ prefs, current, tod, loading = null, error = null, 
         <div className="pkVenueNow" aria-live="polite">
           <b>{current?.name}</b>
           {loading ? <small>Loading the venue...</small> : <small>{error || "The court behind this is where you'll play."}</small>}
+          {/* the real place: Maps 98's directions (docs/maps.md) */}
+          {placeDirections(current) && (
+            <button type="button" className="pkVenueDirections" onClick={() => openMaps(placeDirections(current))} data-directions={current.id}>
+              Directions
+            </button>
+          )}
         </div>
         {current?.kind === "arena" ? (
           <p className="pkVenueTimeNote">{current.short} always plays at its own time: {current.time}.</p>

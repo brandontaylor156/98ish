@@ -19,6 +19,7 @@ const { createIce } = require("./ice")
 const { createAccountEraser } = require("../account")
 const { createHistoryStore, pairConv, roomConv, packStyle } = require("./history")
 const { bindConversations, newId, cleanThumb, mediaPreview } = require("./conversations")
+const { cleanCard, cardPreview } = require("./cards")
 
 const MAX_MESSAGE = 1024
 const MAX_PROFILE = 1024
@@ -612,11 +613,15 @@ const attachAim = async (io, { store, bot, ice, callRingMs, callLostMs, push = n
     })
 
     // { to, text, style, media?: { id } (sent with aim:mediaUpload/aim:mediaCommit), thumb?
-    // (a small preview picture, passed on live, never stored) } -> { ok, id, offline? }
-    on("aim:im", async (session, { to, text, style, media: mediaRef, thumb }, ack) => {
+    // (a small preview picture, passed on live, never stored), card? (./cards.js: "Meet me at
+    // <venue>") } -> { ok, id, offline? }
+    on("aim:im", async (session, { to, text, style, media: mediaRef, thumb, card: rawCard }, ack) => {
       const message = clean(text, MAX_MESSAGE).trim()
       const wantsMedia = !!mediaRef?.id
-      if (!message && !wantsMedia) return ack({ ok: false, error: "Message is empty." })
+      const card = rawCard === undefined || rawCard === null ? null : cleanCard(rawCard)
+      if (rawCard !== undefined && rawCard !== null && !card) return ack({ ok: false, error: "That card can't be sent." })
+      if (card && wantsMedia) return ack({ ok: false, error: "Send the card and the picture separately." })
+      if (!message && !wantsMedia && !card) return ack({ ok: false, error: "Message is empty." })
       if (warningOf(session.key) >= 100) {
         return ack({ ok: false, error: "Your warning level is too high to send messages right now. Try again later." })
       }
@@ -626,7 +631,7 @@ const attachAim = async (io, { store, bot, ice, callRingMs, callLostMs, push = n
       const payloadStyle = cleanStyle(style)
 
       if (target.key === BOT_KEY) {
-        if (wantsMedia) return ack({ ok: false, error: `${BOT_NAME} can't open pictures or voice messages. Try typing!` })
+        if (wantsMedia || card) return ack({ ok: false, error: `${BOT_NAME} can't open pictures, voice messages or cards. Try typing!` })
         ack({ ok: true, id: newId() })
         socket.emit("aim:typing", { from: BOT_NAME, state: "typing" })
         const reply = await bot.reply(session.key, session.user.screenName, message)
@@ -656,8 +661,8 @@ const attachAim = async (io, { store, bot, ice, callRingMs, callLostMs, push = n
       }
       const id = newId()
       const time = Date.now()
-      const im = { id, from: session.user.screenName, text: message, style: payloadStyle, time, ...(media ? { media } : {}) }
-      const preview = mediaPreview(media, message)
+      const im = { id, from: session.user.screenName, text: message, style: payloadStyle, time, ...(media ? { media } : {}), ...(card ? { card } : {}) }
+      const preview = card ? cardPreview(card, message) : mediaPreview(media, message)
       const imNotice = {
         title: session.user.screenName,
         body: preview,
@@ -667,7 +672,7 @@ const attachAim = async (io, { store, bot, ice, callRingMs, callLostMs, push = n
         renotify: true,
         url: `/?open=im&with=${encodeURIComponent(session.user.screenName)}`,
       }
-      const doc = { _id: id, c: pairConv(session.key, target.key), f: session.user.screenName, fk: session.key, to: toName, t: message, s: packStyle(payloadStyle), at: time, ...(media ? { m: media } : {}) }
+      const doc = { _id: id, c: pairConv(session.key, target.key), f: session.user.screenName, fk: session.key, to: toName, t: message, s: packStyle(payloadStyle), at: time, ...(media ? { m: media } : {}), ...(card ? { v: card } : {}) }
 
       if (!shown) {
         await (await push.getStore()).inbox.add(target.key, im)

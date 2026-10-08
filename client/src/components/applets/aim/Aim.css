@@ -475,6 +475,61 @@
   min-height: 32px;
 }
 
+/* "Meet me at <venue>": a small 98 box with Play here and Directions */
+.aimVenueCard {
+  padding: 4px 6px;
+  background: #fffff0;
+  border: 1px solid #808080;
+  box-shadow: inset 1px 1px #fff;
+  max-width: 300px;
+}
+.aimVenueCard small {
+  color: #404040;
+}
+.aimVenueCardButtons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+.aimVenueCardButtons .aimSystemAction {
+  margin-left: 0;
+}
+
+/* the "Meet me at..." list */
+.aimMeetList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: min(52vh, 360px);
+  overflow-y: auto;
+  background: #fff;
+  box-shadow: inset 1px 1px #808080, inset -1px -1px #dfdfdf;
+}
+.aimMeetList h4 {
+  margin: 6px 6px 2px;
+  font-size: 11px;
+}
+.aimMeetList button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 4px 8px;
+  min-height: 34px;
+  background: transparent;
+  box-shadow: none;
+  border: 0;
+}
+.aimMeetList button.is-on,
+.aimMeetList button:focus-visible {
+  background: #000080;
+  color: #fff;
+}
+.aimMeetList button small {
+  display: block;
+  opacity: 0.8;
+}
+
 /* the Watch Together button beside Call / Video Call */
 .aimRoot .aimWatch {
   display: inline-flex;

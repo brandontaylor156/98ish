@@ -370,6 +370,34 @@
   right: 8px;
   width: calc(100vw - 16px);
 }
+/* a phone on its side: a small note in the top corner that taps go straight through (it had
+   spread across the whole width over the game or program) */
+@media (orientation: landscape) and (max-height: 500px) {
+  .os-mobile .achToast {
+    /* (below a full-screen window's title bar, so its close box stays in sight) */
+    top: calc(env(safe-area-inset-top, 0px) + 34px);
+    right: calc(env(safe-area-inset-right, 0px) + 8px);
+    bottom: auto;
+    width: min(260px, 40vw);
+    pointer-events: none;
+    opacity: 0.94;
+  }
+  .os-mobile .achToast .title-bar {
+    padding-top: 1px;
+    padding-bottom: 1px;
+  }
+  .os-mobile .achToast .achToastBody {
+    padding: 4px 6px;
+    gap: 6px;
+  }
+  .os-mobile .achToast .trophy {
+    width: 22px;
+    height: 22px;
+  }
+  .os-mobile .achToast .achToastBody p {
+    display: none;
+  }
+}
 .os-mobile .volumePopup {
   width: 110px;
 }

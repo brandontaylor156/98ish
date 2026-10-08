@@ -287,12 +287,46 @@ test("bots in a race finish 40 lines on the shared pieces", async () => {
   await ready
   const s = setup()
   const { roomId: id } = s.t.quick(s.P("a"), "race")
-  s.clock.advance(10_000)
-  s.t.fillBots("a", id, "hard")
+  s.clock.advance(5_000)
+  assert.equal(s.t.fillBots("a", id, "hard").ok, true, "racing computer players right away")
   s.clock.advance(3000 + 90_000)
   const room = s.last("a", "tetris:room")
   const bots = room.players.filter((p) => p.bot)
   assert.ok(bots.every((p) => p.finishTime > 10_000), JSON.stringify(bots))
+})
+
+test("Sprint Race Quick Match alone: computer racers fill in by themselves after the wait and the race starts", async () => {
+  await ready
+  const s = setup()
+  const { roomId: id } = s.t.quick(s.P("a"), "race")
+  assert.equal(s.t.botLevel("a", id, "hard").ok, true, "the level picked while waiting")
+  assert.equal(s.t.botLevel("a", id, "silly").ok, false)
+  s.clock.advance(9_000)
+  assert.equal(s.last("a", "tetris:room").phase, "waiting", "people get a few seconds to turn up")
+  s.clock.advance(1_100)
+  let room = s.last("a", "tetris:room")
+  assert.equal(room.phase, "countdown", "no button to press: the race starts")
+  assert.equal(room.players.length, 4)
+  assert.equal(room.players.filter((p) => p.bot === "hard").length, 3)
+  s.clock.advance(3000 + 90_000)
+  room = s.last("a", "tetris:room")
+  assert.ok(room.players.filter((p) => p.bot).every((p) => p.finishTime > 10_000), "the computer racers race")
+
+  // someone else turns up in time: no computer racers
+  const t = setup()
+  const { roomId: two } = t.t.quick(t.P("a"), "race")
+  t.clock.advance(4_000)
+  t.t.quick(t.P("b"), "race")
+  t.clock.advance(20_000)
+  assert.equal(t.t.rooms.get(two).players.filter((p) => p.bot).length, 0)
+
+  // the other modes still only offer computer players
+  const u = setup()
+  const { roomId: arena } = u.t.quick(u.P("a"), "arena")
+  u.clock.advance(15_000)
+  assert.equal(u.last("a", "tetris:room").phase, "waiting")
+  assert.equal(u.last("a", "tetris:room").canFillBots, true)
+  assert.equal(u.t.rooms.get(arena).players.length, 1)
 })
 
 test("disconnects: a short grace, then you lose that match; back in time and you play on", () => {

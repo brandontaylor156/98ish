@@ -894,8 +894,12 @@ export const AimProvider = ({ socket, windows, dispatch: dispatchWindow, onOpenV
     const history = stateRef.current.convos[ck]?.messages || []
     dispatch({ type: "messages", ck, screenName, messages: [temp] })
     sound("imSend")
-    if (ck === keyOf(BOT_NAME) && !extra.media && (await smartChildAnswers(temp, history))) return { ok: true, local: true }
-    const result = extra.media ? await request("aim:im", { to: screenName, text, style, media: { id: extra.media.id }, thumb: extra.thumb }) : await request("aim:im", { to: screenName, text, style })
+    if (ck === keyOf(BOT_NAME) && !extra.media && !extra.card && (await smartChildAnswers(temp, history))) return { ok: true, local: true }
+    const result = extra.media
+      ? await request("aim:im", { to: screenName, text, style, media: { id: extra.media.id }, thumb: extra.thumb })
+      : extra.card
+        ? await request("aim:im", { to: screenName, text, style, card: extra.card })
+        : await request("aim:im", { to: screenName, text, style })
     if (result.ok && ck === keyOf(BOT_NAME)) unlock("smarterchild")
     if (!result.ok) {
       dispatch({ type: "update", ck, id: temp.id, fn: (m) => ({ ...m, pending: false, failed: true }) })
@@ -938,6 +942,16 @@ export const AimProvider = ({ socket, windows, dispatch: dispatchWindow, onOpenV
     await historyDb.putMedia(myKey(), uploaded.id, item.blob)
     dispatch({ type: "remove", ck, id: temp.id })
     return sendIm(screenName, "", { media: { id: uploaded.id }, thumb: item.thumb, local: { media: { ...localMedia, id: uploaded.id }, thumb: item.thumb } })
+  }
+
+  // "Meet me at <venue>": a small card (pickleball/play/meet.js; the server checks it)
+  const sendCard = (screenName, card, text = "") => sendIm(screenName, text, { card, local: { card } })
+
+  // Play here on a venue card: Pickleball 98 opens My Park at that venue
+  const openVenue = async (card) => {
+    const { parkHandoff } = await import("../pickleball/play/meet.js")
+    const meet = parkHandoff(card)
+    if (meet) dispatchWindow({ type: "open_window", payload: launch("Pickleball 98", { handoff: { id: Date.now(), meet } }) })
   }
 
   // the bytes of a picture or voice message (this device's copy, else fetched once)
@@ -1043,6 +1057,8 @@ export const AimProvider = ({ socket, windows, dispatch: dispatchWindow, onOpenV
     openTogether,
     openVbApp,
     openModel,
+    openVenue,
+    sendCard,
     // signs 98ish Mail and HomePage Studio requests (null when signed off)
     token: state.status === "online" ? tokenRef.current : null,
     prefs,

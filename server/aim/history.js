@@ -16,6 +16,7 @@
 //   m    picture / voice message: { id, k: "image" | "audio", w, h, d (seconds), z (bytes),
 //        wf (voice waveform, 40 digits) }. The bytes are in the online storage bucket for 90
 //        days (media.js); the small preview picture is never stored here.
+//   v    a card (./cards.js, at most 400 bytes): { k: "venue", id, n, lat, lon, a?, c?, sh? }
 //   r    reactions { key: "heart" | "lol" | "wow" | "sad" | "up" | "bang" }
 //   h    1 while it waits for someone signed off (held with their notifications)
 //
@@ -86,6 +87,7 @@ const toWire = (doc, key) => {
     time: doc.at,
     u: doc.u,
     ...(doc.m ? { media: { ...doc.m } } : {}),
+    ...(doc.v ? { card: { ...doc.v } } : {}),
     ...(doc.r && Object.keys(doc.r).length ? { r: { ...doc.r } } : {}),
     ...(doc.h ? { held: true } : {}),
   }

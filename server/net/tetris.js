@@ -25,7 +25,9 @@ ready.catch((error) => console.error("[tetris] couldn't load the engine", error)
 const MODES = {
   battle: { name: "Battle 2P", min: 2, max: 2, duration: 120_000, kosToWin: 3, fill: 2 },
   arena: { name: "Arena", min: 2, max: 6, escalateAfter: 120_000, escalateEvery: 8_000, hardEnd: 300_000, fill: 4 },
-  race: { name: "Sprint Race", min: 2, max: 5, duration: 180_000, goal: 40, fill: 4 },
+  // (autoFill: alone in a Quick Match, computer racers fill in by themselves after botOffer and
+  // the race starts, so a solo Sprint Race never just waits; the other modes offer the button)
+  race: { name: "Sprint Race", min: 2, max: 5, duration: 180_000, goal: 40, fill: 4, autoFill: true },
 }
 const ITEMS = ["shield", "sweep", "mirror", "darkness"]
 const OFFENSIVE = ["mirror", "darkness"]
@@ -266,15 +268,24 @@ const createTetris = ({ emit, clock = realClock, random = Math.random, ranks = n
     const { min, max } = MODES[room.mode]
     if (n >= max) return start(room)
     if (n >= min && !room.autoStart) room.autoStart = later(room, T.autoStart, () => room.phase === "waiting" && room.players.length >= min && start(room))
-    if (n === 1) later(room, T.botOffer, () => room.phase === "waiting" && publish(room)) // offer bots
+    // alone: offer computer players (or, for a race, fill them in and go)
+    if (n === 1)
+      later(room, T.botOffer, () => {
+        if (room.phase !== "waiting") return
+        const alone = humans(room).length === 1 && room.players.length === 1
+        if (MODES[room.mode].autoFill && alone && lib.engine && clock.now() - room.waitingSince >= T.botOffer) return fillQuick(room, room.botLevel || "medium")
+        publish(room)
+      })
   }
 
-  const quick = (player, mode) => {
+  const quick = (player, mode, { level } = {}) => {
     if (!MODES[mode]) return { ok: false, error: "Unknown mode." }
     leaveCurrent(player.pid)
     let room = [...rooms.values()].find((r) => r.quick && r.mode === mode && r.phase === "waiting" && r.players.length < MODES[mode].max)
     if (!room && rooms.size >= MAX_ROOMS) return FULL
     if (!room) room = makeRoom(mode, { quick: true })
+    // (the computer racers' level if nobody turns up: the one picked on this device)
+    if (BOT_LEVELS.includes(level) && !room.players.length) room.botLevel = level
     addPlayer(room, player)
     publish(room)
     checkQuickStart(room)
@@ -362,6 +373,17 @@ const createTetris = ({ emit, clock = realClock, random = Math.random, ranks = n
       publish(room)
       return { ok: true }
     }
+    return fillQuick(room, level)
+  }
+  // the level computer racers will have if they fill in by themselves (a Sprint Race)
+  const botLevel = (pid, roomId, level) => {
+    const room = rooms.get(roomId)
+    if (!room || !room.players.some((p) => p.pid === pid && !p.left) || room.phase !== "waiting") return { ok: false, error: "No such room." }
+    if (!BOT_LEVELS.includes(level)) return { ok: false, error: "No such level." }
+    room.botLevel = level
+    return { ok: true }
+  }
+  const fillQuick = (room, level) => {
     while (room.players.length < MODES[room.mode].fill) addBot(room, level)
     room.botLevel = level
     start(room)
@@ -797,7 +819,8 @@ const createTetris = ({ emit, clock = realClock, random = Math.random, ranks = n
       })
     const id = (v) => String(v ?? "")
     on("tetris:hello", (me) => hello(me.pid))
-    on("tetris:quick", (me, { mode }) => quick(me, id(mode)))
+    on("tetris:quick", (me, { mode, level }) => quick(me, id(mode), { level: id(level) }))
+    on("tetris:botLevel", (me, { roomId, level }) => botLevel(me.pid, id(roomId), id(level)))
     on("tetris:create", (me, { mode, isPrivate }) => create(me, { mode: id(mode), isPrivate: isPrivate !== false }))
     on("tetris:join", (me, { roomId }) => join(me, id(roomId)))
     on("tetris:list", () => ({ ok: true, rooms: list() }))
@@ -828,6 +851,7 @@ const createTetris = ({ emit, clock = realClock, random = Math.random, ranks = n
     setMode,
     setStrategy,
     fillBots,
+    botLevel,
     // the people (not computer players) in a room, for its match chat
     playersOf: (roomId) => {
       const room = rooms.get(roomId)

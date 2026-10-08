@@ -304,7 +304,8 @@ const createLocate = ({ aim, store, push = null, now = Date.now, limits = {}, sw
     for (const input of list) {
       const checked = core.cleanPlace(input)
       if (!checked.ok) refuse(400, checked.error)
-      clean.push({ ...checked.place, id: checked.place.id || newId() })
+      // (an id given twice keeps it once: a venue place, "pbloscab", is one place)
+      clean.push({ ...checked.place, id: checked.place.id && !clean.some((p) => p.id === checked.place.id) ? checked.place.id : newId() })
     }
     const mine = await load(account.key, account.name)
     const before = new Map(mine.places.map((p) => [p.id, p]))
