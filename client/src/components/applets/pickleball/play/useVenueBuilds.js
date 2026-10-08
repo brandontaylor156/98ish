@@ -12,6 +12,7 @@ import { useRef, useState } from "react"
 import { isArena, placeById } from "./places.js"
 import { timeAt, lookFor } from "../park/timeofday.js"
 import { cachedWeather, fetchWeather } from "../park/weather.js"
+import { pickCourt } from "./courtpick.js"
 
 const KEEP = 3
 
@@ -54,7 +55,7 @@ export const useVenueBuilds = ({ getEngine, loadLayout, prefsRef, mobile }) => {
     const weather = t === "now" && real ? await weatherAt(place) : null
     const look = lookFor(t, place, { weather, real })
     const want = court ?? prefs.parkCourt?.[id]
-    const c = layout.COURTS.find((k) => k.id === want) || layout.COURTS[0]
+    const c = pickCourt(layout, want)
     // (the key: a different court or light is a different picture; the same one isn't rebuilt)
     const key = `park:${layout.id}:${c.id}:${t}:${t === "now" ? Math.round(Date.now() / 600_000) : ""}`
     return { key, court: c.id, build: (scene, o) => cv.buildCourtVenue(scene, { layout, courtId: c.id, quality: o.quality, look, phone: !!mobile }), room: layout.spec.indoor ? "hall" : "park" }

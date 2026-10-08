@@ -71,8 +71,10 @@
    }
   },
   "dividers": "none",
-  "_benches": "no benches by rule: none are mapped and the aerial doesn't show where they are",
+  "_benches": "nothing by rule: no benches, bleachers by the courts or pro-shop kiosk (none mapped, none in the aerial; a city park with no pro shop)",
   "benches": false,
+  "bleachers": false,
+  "booth": false,
   "netColor": "#1b1f1d"
  },
  "trees": {
