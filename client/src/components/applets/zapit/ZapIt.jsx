@@ -38,8 +38,85 @@ const speak = (text, on) => {
   }
 }
 
-// ---- motion (Shake it) ----
+// ---- motion (Shake it, and twisting the phone for Twist it) ----
 const needsMotionPermission = () => typeof window !== "undefined" && typeof window.DeviceMotionEvent?.requestPermission === "function"
+
+// what each call means, shown under the toy while you're learning (your first few of each),
+// and always for Twist it, the one people get stuck on
+const HINTS = {
+  tap: "Tap anywhere",
+  swipe: "Swipe left or right",
+  pull: "Drag down",
+  flick: "Flick up, quick",
+  shake: "Shake the phone",
+}
+const LEARN_TIMES = 3 // a call's hint shows this many times
+// Twist it, on screen: a knob to turn with one finger (drag round it), as well as turning two
+// fingers anywhere, drawing a circle, or turning the phone. Its own pointer handling, so a
+// drag on it never reads as a swipe.
+const TwistKnob = ({ onTwist, phone, motionOn }) => {
+  const ref = useRef(null)
+  const drag = useRef(null)
+  const [turn, setTurn] = useState(0)
+  const center = () => {
+    const r = ref.current.getBoundingClientRect()
+    return [r.left + r.width / 2, r.top + r.height / 2]
+  }
+  const down = (e) => {
+    e.stopPropagation()
+    e.preventDefault()
+    e.currentTarget.setPointerCapture?.(e.pointerId)
+    drag.current = { id: e.pointerId, pts: [{ x: e.clientX, y: e.clientY }], done: false }
+  }
+  const move = (e) => {
+    e.stopPropagation()
+    const d = drag.current
+    if (!d || d.id !== e.pointerId || d.done) return
+    d.pts.push({ x: e.clientX, y: e.clientY })
+    const [cx, cy] = center()
+    const deg = Z.knobTurn(d.pts, cx, cy)
+    setTurn(deg)
+    if (Math.abs(deg) >= Z.KNOB_DEGREES) {
+      d.done = true
+      onTwist()
+    }
+  }
+  const up = (e) => {
+    e.stopPropagation()
+    drag.current = null
+    setTurn(0)
+  }
+  return (
+    <div className="zpTwist" data-twist-hint>
+      <div
+        ref={ref}
+        className="zpKnob"
+        role="button"
+        aria-label="Twist knob: drag around it to twist"
+        data-touch-surface
+        onPointerDown={down}
+        onPointerMove={move}
+        onPointerUp={up}
+        onPointerCancel={up}
+        style={{ "--turn": `${turn}deg` }}
+      >
+        <svg viewBox="0 0 100 100" aria-hidden="true" className="zpKnobArrows">
+          <path d="M50 8 A42 42 0 0 1 92 50" />
+          <path d="M92 50 l-8 -10 M92 50 l9 -9" />
+          <path d="M50 92 A42 42 0 0 1 8 50" />
+          <path d="M8 50 l8 10 M8 50 l-9 9" />
+        </svg>
+        <div className="zpKnobCap">
+          <span className="zpKnobGrip" />
+        </div>
+      </div>
+      <p className="zpTwistText">
+        Turn the knob, or turn {phone ? "two fingers" : "the mouse in a circle"} anywhere
+        {phone && motionOn ? ", or twist the phone" : ""}
+      </p>
+    </div>
+  )
+}
 
 // the play screen: the toy picture is the gesture pad. live() gives what changes every frame
 // (the timer ring, the beat lights); the pad paints itself, so React renders only on events.
@@ -108,6 +185,8 @@ const ZapIt = ({ mobile = false, paused = false, onClose }) => {
   const [feedback, setFeedback] = useState(null)
   const trace = useRef({ pointers: {}, down: 0 })
   const shaker = useRef(Z.shakeDetector())
+  const twister = useRef(Z.twistDetector())
+  const lastTwist = useRef(0)
   const rootRef = useRef(null)
   const g = gameRef.current
   const redraw = () => setFrame((f) => (f + 1) % 1e9)
@@ -125,7 +204,16 @@ const ZapIt = ({ mobile = false, paused = false, onClose }) => {
       const a = e.acceleration?.x != null ? e.acceleration : e.accelerationIncludingGravity
       if (!a || a.x == null) return
       if (motion !== "on") setMotion("on")
-      if (shaker.current.feed({ x: a.x, y: a.y, z: a.z, t: performance.now(), gravity: a === e.accelerationIncludingGravity })) did("shake")
+      const t = performance.now()
+      // turning the phone like a jar lid is Twist it (only when that's the call: turning it
+      // by accident never costs a game), and a twist's wobble isn't taken for a shake
+      if (twister.current.feed({ rate: e.rotationRate?.alpha ?? 0, t }) && gameRef.current?.s.command === "twist") {
+        lastTwist.current = t
+        shaker.current.reset()
+        return did("twist")
+      }
+      if (t - lastTwist.current < 700) return
+      if (shaker.current.feed({ x: a.x, y: a.y, z: a.z, t, gravity: a === e.accelerationIncludingGravity })) did("shake")
     }
     window.addEventListener("devicemotion", onMotion)
     return () => window.removeEventListener("devicemotion", onMotion)
@@ -142,6 +230,13 @@ const ZapIt = ({ mobile = false, paused = false, onClose }) => {
     }
   }
 
+  // how many times you've done each call (hints show for the first few)
+  const done = prefs.done || {}
+  const newTo = (cmd) => !(done[cmd] > 0)
+  const learned = (cmd) => {
+    if ((done[cmd] || 0) < LEARN_TIMES) setPref({ done: { ...done, [cmd]: (done[cmd] || 0) + 1 } })
+  }
+
   const callOut = (cmd) => {
     sounds.call(cmd)
     speak(Z.LABELS[cmd], prefs.voice)
@@ -152,6 +247,7 @@ const ZapIt = ({ mobile = false, paused = false, onClose }) => {
     const beat = Z.beatFor(0)
     gameRef.current = { s, left: beat + 900, beat: beat + 900, beatT: 0, ticks: 0 }
     shaker.current.reset()
+    twister.current.reset()
     setHold(false)
     setFeedback(null)
     setScreen("play")
@@ -206,7 +302,9 @@ const ZapIt = ({ mobile = false, paused = false, onClose }) => {
       return end(game, `wrong:${cmd}`)
     }
     game.s = r.state
-    const beat = Z.beatFor(r.state.score)
+    learned(cmd)
+    // a call you've never done gets twice the time (Twist it, mostly)
+    const beat = Z.beatFor(r.state.score) * (newTo(r.state.command) ? 2 : 1)
     game.left = beat
     game.beat = beat
     game.beatT = 0
@@ -320,7 +418,7 @@ const ZapIt = ({ mobile = false, paused = false, onClose }) => {
       items: [
         { label: "Sound", checked: prefs.sound, onClick: () => setPref({ sound: !prefs.sound }) },
         { label: "Spoken Calls", checked: prefs.voice, onClick: () => setPref({ voice: !prefs.voice }) },
-        { label: motion === "on" ? "Shake It: on" : "Allow Motion (Shake it)", disabled: motion !== "ask", onClick: allowMotion },
+        { label: motion === "on" ? "Motion: on (Shake it, twist the phone)" : "Allow Motion (Shake it, twist the phone)", disabled: motion !== "ask", onClick: allowMotion },
         chatItem,
       ],
     },
@@ -336,6 +434,7 @@ const ZapIt = ({ mobile = false, paused = false, onClose }) => {
         play={{ label: last ? "Play again" : "Play", sub: `Solo · Best: ${store.best(data, "solo")} zaps`, onClick: startSolo, autoFocus: true, "data-play": true }}
         modes={[
           { key: "party", label: "Party", sub: `Pass the phone · ${prefs.players} players`, onClick: () => startParty(), "data-mode": "party" },
+          { key: "howto", label: "How to play", sub: "Tap, swipe, twist, pull, flick, shake", onClick: () => setDialog("howto"), "data-howto": true },
           { key: "scores", label: "High Scores...", sub: "Solo and party bests", onClick: () => setDialog("scores") },
         ]}
         optionsSummary={`${motionNote} · Calls ${prefs.voice ? "spoken" : "not spoken"}`}
@@ -343,7 +442,7 @@ const ZapIt = ({ mobile = false, paused = false, onClose }) => {
           <>
             {motion === "ask" && (
               <button type="button" onClick={allowMotion} data-allow-motion>
-                Allow motion (for Shake it)
+                Allow motion (Shake it, and twisting the phone)
               </button>
             )}
             <span className="zpNote">{motionNote}</span>
@@ -439,6 +538,12 @@ const ZapIt = ({ mobile = false, paused = false, onClose }) => {
     body = (
       <div className="zpPlay">
         <Pad view={view} live={() => (gameRef.current ? { frac: Math.max(0, gameRef.current.left / gameRef.current.beat), ticks: gameRef.current.ticks } : {})} animate={!hold && !dialog} onDown={onDown} onMove={onMove} onUp={onUp} onPause={() => setHold(true)}>
+          {!hold && !g.over && cmd === "twist" && <TwistKnob onTwist={() => did("twist")} phone={mobile} motionOn={motion === "on"} />}
+          {!hold && !g.over && cmd !== "twist" && HINTS[cmd] && (done[cmd] || 0) < LEARN_TIMES && (
+            <p className="zpHint" data-hint={cmd}>
+              {HINTS[cmd]}
+            </p>
+          )}
           {hold && !g.over && <RetroPaused onResume={() => (setHold(false), rootRef.current?.focus({ preventScroll: true }))} onQuit={toTitle} />}
           {g.over && (
             <RetroPanel
@@ -491,11 +596,12 @@ const ZapIt = ({ mobile = false, paused = false, onClose }) => {
               <b>Tap it</b>: tap the screen. <b>Swipe it</b>: swipe sideways. <b>Pull it</b>: drag down. <b>Flick it</b>: flick up.
             </li>
             <li>
-              <b>Twist it</b>: two fingers turning, like a knob (or draw a circle with one finger or the mouse).
+              <b>Twist it</b>: a knob appears on the screen. Drag your finger round it (a quarter turn is enough). Or put two fingers down and turn them like opening a jar, or draw a quick circle with one finger or the mouse. With motion allowed, you can also turn the phone itself like a steering wheel. The first time it's called you get extra time.
             </li>
             <li>
               <b>Shake it</b>: shake the phone. Android phones have it right away; on iPhone, tap Allow motion in Options first. Computers don't get Shake it.
             </li>
+            <li>While you're learning, a hint under the toy says what each call means.</li>
             <li>Keys: Space = Tap, Left/Right = Swipe, Down = Pull, Up = Flick, T = Twist. P pauses.</li>
           </ul>
           <p>

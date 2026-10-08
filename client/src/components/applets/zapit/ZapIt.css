@@ -43,3 +43,99 @@
     animation: none;
   }
 }
+
+/* Twist it: the on-screen knob (drag round it) with a spinning arrow hint, near the bottom
+   of the pad, and a line saying the other ways to twist */
+.zpTwist {
+  position: absolute;
+  left: 50%;
+  bottom: 14px;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  z-index: 3;
+  pointer-events: none;
+  width: min(92%, 340px);
+}
+
+.zpKnob {
+  --turn: 0deg;
+  position: relative;
+  width: 124px;
+  height: 124px;
+  border-radius: 50%;
+  pointer-events: auto;
+  touch-action: none;
+  cursor: grab;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.zpKnobArrows {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: #ffe14d;
+  stroke-width: 6;
+  stroke-linecap: square;
+  filter: drop-shadow(2px 2px 0 #000);
+  animation: zpSpin 1.6s linear infinite;
+}
+
+.zpKnobCap {
+  position: absolute;
+  inset: 22px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #fff 0, #dfdfdf 30%, #c0c0c0 60%, #808080 100%);
+  box-shadow: inset -2px -2px #404040, inset 2px 2px #fff, 0 0 0 2px #000;
+  transform: rotate(var(--turn));
+}
+
+.zpKnobGrip {
+  position: absolute;
+  left: calc(50% - 5px);
+  top: 6px;
+  width: 10px;
+  height: 30px;
+  background: #000080;
+  box-shadow: inset 1px 1px #4040ff, 1px 1px 0 #fff;
+}
+
+.zpTwistText,
+.zpHint {
+  margin: 0;
+  padding: 3px 8px;
+  background: #ffffe1;
+  border: 1px solid #000;
+  color: #000;
+  font-size: 13px;
+  text-align: center;
+  line-height: 1.3;
+}
+
+.zpHint {
+  position: absolute;
+  left: 50%;
+  bottom: 14px;
+  transform: translateX(-50%);
+  z-index: 3;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+@keyframes zpSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .zpKnobArrows {
+    animation: none;
+  }
+}
