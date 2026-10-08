@@ -1043,7 +1043,7 @@ const loadFaceCards = (id) => {
           }
           const cards = part(h.verts, h.tris)
           const shell = h.v >= 2 ? part(h.shellVerts || 0, h.shellTris || 0) : null
-          const c = { cards: cards && cardsTex ? cards : null, cardsTex, shell: shell && shellTex ? shell : null, shellTex, tone: f.cardsTone || f.hairTone }
+          const c = { cards: cards && cardsTex ? cards : null, cardsTex, shell: shell && shellTex ? shell : null, shellTex, tone: f.hairTone || f.cardsTone }
           faceCardsNow.set(id, c)
           return c
         })
