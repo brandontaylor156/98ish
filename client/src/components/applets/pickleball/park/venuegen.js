@@ -970,12 +970,20 @@ export const generateVenue = (spec, opts = {}) => {
   }
   const fences = []
   if (style !== "none") {
+    // (fence.chamfer: the pens' corners cut at 45 degrees, legs this long, as the aerials show
+    // at Whittier Narrows and the Paseo Club; a pen too small for it keeps square corners)
+    const chamfer = spec.fence?.chamfer || 0
     banks.forEach((bank) => {
       const cs = corners(bank.box)
       const gs = gatesOn.get(bank.i) || []
+      const c = chamfer > 0 && Math.min(bank.box.hx, bank.box.hz) * 2 > chamfer * 4 ? chamfer : 0
       for (let k = 0; k < 4; k++) {
-        const a = cs[k]
-        const b = cs[(k + 1) % 4]
+        const a0 = cs[k]
+        const b0 = cs[(k + 1) % 4]
+        const L0 = len(sub(b0, a0))
+        const u = { x: (b0.x - a0.x) / L0, z: (b0.z - a0.z) / L0 }
+        const a = add(a0, u, c)
+        const b = add(b0, u, -c)
         const ab = sub(b, a)
         const L = len(ab)
         const gates = gs
@@ -986,6 +994,13 @@ export const generateVenue = (spec, opts = {}) => {
           })
           .filter((t) => t !== null)
         fences.push({ a: [round(a.x), round(a.z)], b: [round(b.x), round(b.z)], h: fenceH, k: "chain", gates })
+        if (c) {
+          // the cut corner: from this side's end to the next side's start
+          const n0 = cs[(k + 2) % 4]
+          const L1 = len(sub(n0, b0)) || 1
+          const nb = add(b0, { x: (n0.x - b0.x) / L1, z: (n0.z - b0.z) / L1 }, c)
+          fences.push({ a: [round(b.x), round(b.z)], b: [round(nb.x), round(nb.z)], h: fenceH, k: "chain", gates: [] })
+        }
       }
       // dividers between neighbouring courts (tennis: full fences; pickleball: low windscreens)
       const div = spec.fence?.dividers ?? (bank.s === "t" ? "fence" : "low")

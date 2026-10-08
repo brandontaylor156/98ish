@@ -63,6 +63,8 @@ Courts, nets, fences, light poles and court paint come from OSM plus the aerial 
 | Surround: 193 buildings (9 with a default height), 58 areas, 34 roads | OSM |
 | Skyline: the Santa Ana Mountains east (up to 2.5°), the Puente Hills and San Gabriels north; flat to the west | Terrain |
 
+Los Cab's ballroom balcony (2026-10-08): no new objects; its railing now opens at the ballroom's two glass doors (it ran across them) and the clubhouse wall opens there at that floor.
+
 ### The Tennis & Pickleball Club at Newport Beach
 
 | Object class | Source |
@@ -99,6 +101,7 @@ Courts, nets, fences, light poles and court paint come from OSM plus the aerial 
 | Warehouse east of the lawn (32 × 38 m) | Aerial (checked) |
 | Canopies (white and lilac shades) | Photo/video |
 | Service drive (paved) | Aerial |
+| Chamfered pen corners (1.8 m legs, `fence.chamfer`) | Aerial (every pen's corners cut at 45 degrees; the pack: "45-degree cut corners on every pen") (2026-10-08) |
 | 252 trees | Canopy (plus 9 placed from photos) |
 | Surround: 104 buildings (2 default height), 19 areas, 13 roads | OSM |
 | Skyline: the San Gabriel Mountains north (up to 4.6°, 20–25 km), the Puente Hills south-east, the Montebello Hills west | Terrain |
@@ -108,6 +111,16 @@ Courts, nets, fences, light poles and court paint come from OSM plus the aerial 
 | Object class | Source |
 |---|---|
 | Main clubhouse, north wing (OSM 472562070), the building east of the pool (OSM 472562076), south wing | OSM + aerial (the south wing was GUESS in the pack; the aerial shows it) |
+| Clubhouse footprint: one L (2026-10-08) | OSM 472562074's main block (west jogs, the NW notch, the recessed porch on the east side) + the south arm's tile wing as the aerial shows it (e 10..17, n 15..28.6). OSM's outline also takes in the patio and the pergola south of the arm, which the aerial shows open |
+| Clubhouse roofs: the long main hip (9 m), the lower west wing, the small NW part, the south arm's hip, a 10 m gable front over the entrance | Aerial (roof planes and ridges) + tour 0:12 (the taller gable over the door). Heights: OSM 9.0 m for the building; the parts' split is read off the aerial |
+| North building: a U round a paved court open to the south | OSM 472562070 + aerial (it was one rectangle) |
+| Main entrance (dark wood doors) on the fountain walk, the tiered fountain just before it, the gated cream stucco wall across the courtyard (n 14.6) | Tour 0:04 and 0:12 (gate on the walk's axis, the fountain a few metres before the doors) + aerial (the wall's line, the courtyard's trees) |
+| Slatted pergola (e 17.6..21, n 11..23.4) and a small tile-roofed ramada beside it | Aerial (light slats; a small red tile roof). Their posts are by rule (one every 3.5 m) |
+| Paved patio south of the clubhouse | Aerial |
+| The club's lot west of the courts, its stall rows, 60 % full | Aerial (rows traced; ours are square to their row where the real stalls are angled) + tour 0:00 (the drone shows it about that full). OSM maps only its aisles (889992214/5, 623455853) |
+| Scrub of the wash east of the trail | Aerial + tour 0:00 (the river wash's chaparral and riparian trees), drawn as flat ground like the surround's woods |
+| Chamfered pen corners (2.5 m legs) | Aerial + tour 1:28-2:16 (the pack: "chain-link + chamfered pens") |
+| No pro-shop kiosk (`fence.booth: false`) | The club's pro shop is a room in the clubhouse (tour 6:18); the rule's kiosk by the arrival had no source |
 | 8 OSM buildings (school, retail) | OSM |
 | Stadium steps / stands, cabanas, pavilions with sails, gazebo | Photo/video (tour) + aerial |
 | 225 trees | Canopy |
@@ -122,8 +135,10 @@ Courts, nets, fences, light poles and court paint come from OSM plus the aerial 
 | 4 teal-roofed portables | Aerial (traced) |
 | Covered walkway (white canopies) | Aerial + photo |
 | Solar carports | Aerial |
-| Cypress row west of the courts | Aerial (approximate; the row of trees along the slab) |
-| 371 trees | Canopy |
+| Cypress row west of the courts | Aerial (the row of trees along the slab's west fence; moved 5.6 m east onto it on 2026-10-08, it had stood on the dirt path) |
+| 278 trees | Canopy (2026-10-08: the field north of the slab and the lawn of the north courtyard cleared: the tree finder had read open grass as a 6 m grid of trees; the photo from court 2 sees the field and the hills) |
+| One school lot (OSM 1292473661), three stall rows, a quarter of its 141 stalls taken (2026-10-08) | OSM (the lot and its two parking aisles 644908998/644909001) + aerial z19 (a double row with a planter strip between the aisles, one row south of the middle aisle, the grass island). Occupancy: our choice for when people play there (after school, weekends); the school-day aerial shows about 50 cars. Before: OSM's two overlapping lots and a hand-drawn one each laid their own stalls (433 stalls, about 215 cars) |
+| No windscreens, no pro-shop kiosk | Photos (bare galvanized chain-link) + the pack ("looks wrong: windscreens"); the kiosk stood in the lot by rule |
 | Surround: 293 houses (no heights mapped: 5 m default, flagged), 31 areas, 6 roads | OSM |
 | Skyline: the Santa Susana Mountains and Simi Hills (up to 5.2°) | Terrain |
 
@@ -184,6 +199,9 @@ These rooms are inside real buildings and are furnished from tour videos and pho
   - Where are the stairs and elevator to the ballroom?
   - Where are the Timeless Venues lawn and hall, and the tennis courtyard cabanas?
 - **Sinaloa:** is the shaded seating along the covered walkway right?
+- **Paseo Club (2026-10-08):** which room is where in the new L (we put the lobby inside the entrance on the fountain walk, the pro shop in the south arm, the kids club by the pool porch)? Is the small tile roof in the south courtyard open (a ramada) or a room? What's in the NE lot by the clubhouse (not drawn)?
+- **Whittier (2026-10-08):** which court is "1"? A photo shows cards 1 and 3 on neighbouring net posts of one row; we assumed the south-east pen's south row (1 = PB16).
+- **Wolf + Bear (2026-10-08):** a photo from behind a court's baseline in the main hall shows a wall close on the left and cards 12 and 14 on the far wall over that court and the next one: our 2x5 has 12 and 14 in the middle and south rows of the east column. Which way do the numbers run, and how much room is behind the baselines (the photo's camera stands about 1 m behind our west wall)?
 
 Also open:
 - SMASH: Court 9's east baseline is 0.3 m from the pro shop's wall (the courts are traced; the rooms' line is a guess). A match at SMASH plays on Court 8 (`play/courtpick.js`: a clear camera). Is there a wall right there?

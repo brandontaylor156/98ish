@@ -37,7 +37,9 @@ test("the shader patch: world position in, detail on the paint, bent normal, swi
     const s = compile(m)
     assert.match(s.vertexShader, /vSurfW = \(modelMatrix \* surfP\)\.xyz/)
     assert.match(s.fragmentShader, /diffuseColor\.rgb \*= mix\(1\.0, surfD\.r \* 2\.0, surfK\)/)
-    assert.match(s.fragmentShader, /surfBend\(surfD, vSurfN\)/)
+    assert.match(s.fragmentShader, /surfBend\(surfD, surfFN\)/)
+    // (the side you see: double-sided roofs wound either way are lit from above)
+    assert.match(s.fragmentShader, /surfFN = vSurfN \* faceDirection/)
     assert.ok(s.uniforms.surfTex && s.uniforms.surfOn, "its texture and the switch are uniforms")
   }
   const sg = compile(ground)

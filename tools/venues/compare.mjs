@@ -14,7 +14,8 @@
 //   solve    camera poses from correspondences: refs/<venue>/points.json lists, per photo,
 //            pixels of known points ({ uv: [u, v], court: <osm id or spec index>, c: [i, j]
 //            (i along the court's length, j across, each -1 or 1: a corner) } or
-//            { uv, en: [e, n], h }); a Levenberg-Marquardt fit of position, heading, pitch,
+//            { uv, en: [e, n], h }), or { guess: { x, y, h, yaw, pitch, hfov }, points } for a
+//            photo with no pose in photos.json; a Levenberg-Marquardt fit of position, heading, pitch,
 //            roll and field of view from the pack's guess -> refs/<venue>/poses.json, which
 //            photo mode prefers
 //
@@ -143,8 +144,12 @@ if (modes.includes("solve")) {
   const anchor = readJson("aerial.json").anchor
   const [ax, az] = toXZ(anchor.lat, anchor.lon)
   const poses = readJson("poses.json") || {}
-  for (const [file, list] of Object.entries(pointsFile)) {
-    const ph = photosList.find((q) => q.file === file || q.file.endsWith("/" + file))
+  for (const [file, entry] of Object.entries(pointsFile)) {
+    // (a photo's entry: its points, or { guess: a pose like photos.json's, points } for a
+    // photo the pack has no pose for)
+    const list = Array.isArray(entry) ? entry : entry.points
+    const ph0 = photosList.find((q) => q.file === file || q.file.endsWith("/" + file))
+    const ph = !Array.isArray(entry) && entry.guess ? { ...(ph0 || { file }), pose: entry.guess } : ph0
     const img = path.join(REFS, ph?.file || file)
     // the photo's size (JPEG SOF0/2 marker)
     const buf = fs.readFileSync(img)
@@ -487,7 +492,8 @@ try {
         ;[x, z] = [ax + p.en[0], az - p.en[1]]
       } else continue
       const cam = { x, z, y: p.height ?? p.y ?? 1.7, heading: p.heading ?? p.yaw ?? 0, pitch: p.pitch ?? 0, roll: p.roll || 0, fov: p.vfov ?? p.fov ?? 55 }
-      const url = await page.evaluate(({ W, Hh, cam }) => window.__park.devShot({ w: W, h: Hh, cam }), { W, Hh, cam })
+      // (from a drone's height the game's fog, its draw distance, would haze the whole venue)
+      const url = await page.evaluate(({ W, Hh, cam }) => window.__park.devShot({ w: W, h: Hh, cam, fog: cam.y < 30 }), { W, Hh, cam })
       const out = await page.evaluate(({ ref, url, W, Hh }) => __cmp.compose(ref, url, W, Hh, { overlay: false, edges: false }), { ref: dataUrl(file), url, W, Hh })
       const name = `photo-${path.basename(p.file).replace(/\.\w+$/, "")}.png`
       res.push({ file: p.file, cam, side: savePng(name, out.side) })

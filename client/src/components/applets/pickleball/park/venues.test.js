@@ -512,6 +512,23 @@ test("Sinaloa's school lot: one lot, the aerial's three stall rows, a modest sha
   assert.equal(s.fence.booth, false, "no kiosk standing in the lot")
 })
 
+test("chamfered pens: Whittier's and the Paseo Club's pen corners are cut at 45 degrees (the aerials); other venues keep square corners", () => {
+  for (const [id, c] of [["whittier", 1.8], ["paseo", 2.5]]) {
+    const { s, g } = get(id)
+    assert.equal(s.fence.chamfer, c)
+    const fences = g.layoutSpec.scene.fences.filter((f) => f.k === "chain")
+    const diag = fences.filter((f) => {
+      const L = Math.hypot(f.b[0] - f.a[0], f.b[1] - f.a[1])
+      return Math.abs(L - c * Math.SQRT2) < 0.15
+    })
+    assert.ok(diag.length >= 8, `${id}: ${diag.length} cut corners`)
+    // each cut corner joins the ends of two sides (a closed outline: every end meets another)
+    const ends = fences.flatMap((f) => [f.a, f.b])
+    for (const f of diag) for (const p of [f.a, f.b]) assert.ok(ends.filter((q) => Math.hypot(q[0] - p[0], q[1] - p[1]) < 0.12).length >= 2, `${id}: a cut corner meets its sides`)
+  }
+  for (const id of ["loscab", "newport", "sinaloa", "bouquet"]) assert.ok(!get(id).s.fence?.chamfer, `${id}: square corners`)
+})
+
 test("parking lots: stalls in bays with driving aisles, inside the lot, along its long side", async () => {
   const { lotStalls } = await import("./scenery.js")
   // a 60 x 40 m lot turned 30 degrees

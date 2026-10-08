@@ -74,7 +74,7 @@ export const VENUE_LIST = [
     "courts": 11,
     "tennis": 11,
     "live": 6,
-    "kb": 75.7
+    "kb": 76.4
   },
   {
     "id": "sinaloa",
@@ -89,7 +89,7 @@ export const VENUE_LIST = [
     "courts": 12,
     "tennis": 0,
     "live": 6,
-    "kb": 70.6
+    "kb": 67.9
   },
   {
     "id": "smash",
