@@ -423,7 +423,25 @@ const buildOne = (v) => {
       const T = sh(P(r.toward))
       const L = Math.hypot(B[0] - A[0], B[1] - A[1]) || 1
       const side = Math.sign((T[0] - A[0]) * ((B[1] - A[1]) / L) - (T[1] - A[1]) * ((B[0] - A[0]) / L)) || 1
-      return { a: [r1(A[0]), r1(A[1])], b: [r1(B[0]), r1(B[1])], d: side * (r.depth || 5.4) }
+      const row = { a: [r1(A[0]), r1(A[1])], b: [r1(B[0]), r1(B[1])], d: side * (r.depth || 5.4) }
+      // `angle`: the stalls' lines measured off the north-up aerial, degrees counter-clockwise
+      // from the row's from -> to (90 = square) -> k, the lean toward b in degrees (spec frame:
+      // x east, z south, so the aerial's turn runs the other way)
+      if (Number.isFinite(r.angle) && Math.abs(r.angle - 90) > 0.5) {
+        const ux = (B[0] - A[0]) / L
+        const uz = (B[1] - A[1]) / L
+        const t = (r.angle * Math.PI) / 180
+        // (to the aerial's frame: z -> -north; turn; back)
+        const ex = ux * Math.cos(t) + uz * Math.sin(t)
+        const en = ux * Math.sin(t) - uz * Math.cos(t)
+        let sx = ex
+        let sz = -en
+        const nx = side * uz
+        const nz = -side * ux
+        if (sx * nx + sz * nz < 0) (sx = -sx), (sz = -sz)
+        row.k = Math.round((Math.atan2(sx * ux + sz * uz, sx * nx + sz * nz) * 180) / Math.PI)
+      }
+      return row
     })
     if (pts.length > 2) areas.push({ k: a.kind || "paved", p: pr(pts), ...(a.color ? { c: a.color } : {}), ...(a.lanes ? { lanes: a.lanes } : {}), ...(a.coping ? { coping: a.coping } : {}), ...(rows.length ? { rows } : {}), ...(a.full !== undefined ? { full: a.full } : {}) })
   }

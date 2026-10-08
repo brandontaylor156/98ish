@@ -12,6 +12,9 @@ openMaps({ name: "Los Cab Sports Village", lat: 33.7173, lon: -117.9861, directi
 - It dispatches the shell's program-open event (`98ish:couple-open`, CoupleBridge): a new window gets `handoff: { id, dest, directions, mode }`; an open Maps 98 comes forward and gets the same handoff through `98ish:couple-view`, so it never opens twice.
 - **Pickleball 98** (2026-10-07): Real Games' **Directions** (the courts list and a session at a known venue) call `openMaps({ name, lat, lon, address, directions: true })`. A session at your own place (no coordinates) keeps the Apple/Google links.
 - Already wired: Buddy Locator's **Directions** on a buddy's card (was an Apple/Google Maps link).
+- **Pickleball 98's where & when sheet** (2026-10-08): a real venue or a Venue Finder court (never a made-up arena) shows **Directions** under its name (`play/meet.js placeDirections`): a real venue sends its full name, VENUE_LIST position and Real Games' street address; a Venue Finder court its title, position and town. Checked again: Real Games' courts list and sessions already called `openMaps({ name, lat, lon, address, directions: true })`.
+- **98 Messenger's "Meet me at" cards** (2026-10-08): **Directions** on the card calls `openMaps` with the card's name, position and address (`docs/messenger.md`).
+- Browser (scratchpad `r8loc.mjs`): the sheet shows Directions for California SMASH, none for an arena, and the tap opens Maps 98 on "California SMASH Pickleball & Social Club, 815 N Nash St, El Segundo"; `r8meet.mjs`: a card's Directions opens Maps 98 in directions mode on Los Cab.
 
 ## Services (all free, no key) and their terms
 - **Map:** OpenFreeMap vector tiles with the `liberty` style (as Buddy Locator; `MAP_STYLE` from `locator/LocatorMap.jsx`), MapLibre GL loaded only when Maps 98 opens. Credit shown by the style and in the footer.

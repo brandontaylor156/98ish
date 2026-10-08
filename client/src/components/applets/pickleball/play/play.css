@@ -107,6 +107,12 @@
 .pkVenueNow small {
   color: #444;
 }
+.pkVenueNow .pkVenueDirections {
+  align-self: flex-start;
+  min-height: 28px;
+  margin-top: 3px;
+  padding: 0 10px;
+}
 .pkVenueTimes {
   display: flex;
   flex-wrap: wrap;

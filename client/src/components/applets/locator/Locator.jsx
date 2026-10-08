@@ -7,7 +7,8 @@ import * as loc from "../../../utils/locate"
 import { agoText, distanceM, distanceText, untilText } from "./locateCore"
 import { openMaps } from "../../../utils/maps"
 import { ArrowIcon } from "./LocatorTray"
-import { VENUES } from "../pbclub/clubCore"
+import { VENUE_LIST } from "../pickleball/park/venues/index.js"
+import { venuePlace, venuePlaceChoices, venuePlaceId } from "../pickleball/play/meet.js"
 import "./Locator.css"
 
 // Buddy Locator: a map of the buddies who share their location with you, and sharing yours
@@ -117,73 +118,82 @@ const ShareDialog = ({ buddies, preset, onClose }) => {
   )
 }
 
+// Notify Me...: one of your places, or one of Pickleball 98's real venues (picking a venue
+// makes it one of your places, so "Rosie arrived at Los Cab" works like any other place)
 const AlertDialog = ({ friend, places, watches, onClose, onAddPlace }) => {
-  const [place, setPlace] = useState(places[0]?.id || "")
+  const venues = venuePlaceChoices(places)
+  const [place, setPlace] = useState(places[0]?.id || venues[0]?.id || "")
   const existing = watches.find((w) => w.who === friend.key && w.place === place)
   const [on, setOn] = useState(existing?.on || "arrive")
   const [error, setError] = useState(null)
   useEffect(() => setOn(watches.find((w) => w.who === friend.key && w.place === place)?.on || "arrive"), [place])
   const save = async (value) => {
+    // a venue that isn't one of your places yet becomes one first
+    const venue = venues.find((v) => v.id === place)
+    if (venue && value !== "off") {
+      const added = await loc.savePlaces([...(loc.getLocate().me?.places || places), venuePlace(venue.venue)])
+      if (!added.ok) return setError(added.error)
+    }
     const result = await loc.setWatch(friend.key, place, value)
     if (result.ok) onClose()
     else setError(result.error)
   }
   return (
     <Popup title={`Notify Me: ${friend.name}`} onClose={onClose}>
-      {places.length ? (
-        <>
-          <div className="field-row-stacked">
-            <label htmlFor="loc-alert-place">Place</label>
-            <select id="loc-alert-place" value={place} onChange={(e) => setPlace(e.target.value)}>
+      <div className="field-row-stacked">
+        <label htmlFor="loc-alert-place">Place</label>
+        <select id="loc-alert-place" value={place} onChange={(e) => setPlace(e.target.value)}>
+          {places.length > 0 && (
+            <optgroup label="My places">
               {places.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name}
                 </option>
               ))}
-            </select>
+            </optgroup>
+          )}
+          {venues.length > 0 && (
+            <optgroup label="Pickleball courts">
+              {venues.map((v) => (
+                <option key={v.id} value={v.id}>
+                  {v.name}
+                </option>
+              ))}
+            </optgroup>
+          )}
+        </select>
+      </div>
+      <fieldset className="locChoices">
+        <legend>Tell me when {friend.name}</legend>
+        {[
+          ["arrive", "arrives"],
+          ["leave", "leaves"],
+          ["both", "arrives or leaves"],
+        ].map(([id, label]) => (
+          <div className="field-row" key={id}>
+            <input type="radio" id={`loc-on-${id}`} name="loc-on" checked={on === id} onChange={() => setOn(id)} />
+            <label htmlFor={`loc-on-${id}`}>{label}</label>
           </div>
-          <fieldset className="locChoices">
-            <legend>Tell me when {friend.name}</legend>
-            {[
-              ["arrive", "arrives"],
-              ["leave", "leaves"],
-              ["both", "arrives or leaves"],
-            ].map(([id, label]) => (
-              <div className="field-row" key={id}>
-                <input type="radio" id={`loc-on-${id}`} name="loc-on" checked={on === id} onChange={() => setOn(id)} />
-                <label htmlFor={`loc-on-${id}`}>{label}</label>
-              </div>
-            ))}
-          </fieldset>
-          {friend.pos?.coarse && <p className="locHint">{friend.name} shares an approximate location, so arriving and leaving can't be told.</p>}
-          {error && <p className="locError">{error}</p>}
-          <div className="locButtons">
-            <button type="button" className="locPrimary" onClick={() => save(on)}>
-              OK
-            </button>
-            {existing && (
-              <button type="button" onClick={() => save("off")}>
-                Turn Off
-              </button>
-            )}
-            <button type="button" onClick={onClose}>
-              Cancel
-            </button>
-          </div>
-        </>
-      ) : (
-        <>
-          <p>Name a place first (Home, Work, the courts), then pick it here.</p>
-          <div className="locButtons">
-            <button type="button" className="locPrimary" onClick={onAddPlace}>
-              Add a Place...
-            </button>
-            <button type="button" onClick={onClose}>
-              Cancel
-            </button>
-          </div>
-        </>
-      )}
+        ))}
+      </fieldset>
+      {friend.pos?.coarse && <p className="locHint">{friend.name} shares an approximate location, so arriving and leaving can't be told.</p>}
+      {error && <p className="locError">{error}</p>}
+      <div className="locButtons">
+        <button type="button" className="locPrimary" onClick={() => save(on)} disabled={!place}>
+          OK
+        </button>
+        {existing && (
+          <button type="button" onClick={() => save("off")}>
+            Turn Off
+          </button>
+        )}
+        <button type="button" onClick={onAddPlace}>
+          Add a Place...
+        </button>
+        <button type="button" onClick={onClose}>
+          Cancel
+        </button>
+      </div>
     </Popup>
   )
 }
@@ -208,7 +218,8 @@ const PlaceDialog = ({ mapCenter, onClose }) => {
   const save = async () => {
     if (!name.trim()) return setError("Give the place a name.")
     if (!spot) return setError("Pick where it is.")
-    const places = [...(loc.getLocate().me?.places || []), { name: name.trim(), lat: spot.lat, lon: spot.lon, r }]
+    // (a pickleball court keeps its venue id, so it isn't offered twice)
+    const places = [...(loc.getLocate().me?.places || []), { ...(spot.id ? { id: spot.id } : {}), name: name.trim(), lat: spot.lat, lon: spot.lon, r }]
     const result = await loc.savePlaces(places)
     if (result.ok) onClose()
     else setError(result.error)
@@ -233,16 +244,17 @@ const PlaceDialog = ({ mapCenter, onClose }) => {
           aria-label="Or a pickleball court"
           value=""
           onChange={(e) => {
-            const v = VENUES.find((x) => x.id === e.target.value)
+            const v = VENUE_LIST.find((x) => x.id === e.target.value)
             if (!v) return
-            setSpot({ lat: v.lat, lon: v.lon, from: v.name })
-            if (!name.trim()) setName(v.short)
-            setR(v.indoor ? 100 : 300)
+            const vp = venuePlace(v.id)
+            setSpot({ lat: vp.lat, lon: vp.lon, from: v.name, id: vp.id })
+            if (!name.trim()) setName(vp.name)
+            setR(vp.r)
           }}
           data-place-venue
         >
           <option value="">Or a pickleball court...</option>
-          {VENUES.map((v) => (
+          {VENUE_LIST.filter((v) => !(loc.getLocate().me?.places || []).some((p) => p.id === venuePlaceId(v.id))).map((v) => (
             <option key={v.id} value={v.id}>
               {v.short}
             </option>

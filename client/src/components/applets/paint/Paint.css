@@ -693,6 +693,16 @@
 .pRoot--mobile .pHandle::before {
   inset: -12px;
 }
+/* (the touch area stops at the picture's margin: 12 px past the edge made the box 2 px wider
+   than a 390-wide phone, so the canvas scrolled sideways a little) */
+.pRoot--mobile .pHandle--right::before,
+.pRoot--mobile .pHandle--corner::before {
+  right: -10px;
+}
+.pRoot--mobile .pHandle--bottom::before,
+.pRoot--mobile .pHandle--corner::before {
+  bottom: -10px;
+}
 
 .pRoot--mobile .pCanvasWrap {
   margin: 4px 20px 20px 4px;

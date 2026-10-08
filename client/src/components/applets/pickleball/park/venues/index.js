@@ -74,7 +74,7 @@ export const VENUE_LIST = [
     "courts": 11,
     "tennis": 11,
     "live": 6,
-    "kb": 76.4
+    "kb": 76.9
   },
   {
     "id": "sinaloa",

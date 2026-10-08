@@ -12,6 +12,7 @@ import { useDisclosure } from "../../../utils/disclosure"
 import { TranscriptLine, textStyle } from "./MessageText"
 import { useIsTouch } from "../../../hooks/useMediaQuery"
 import { CallButtons } from "./call/CallButtons"
+import { openMaps } from "../../../utils/maps"
 
 const TYPING_PAUSE_MS = 3000
 
@@ -64,7 +65,7 @@ export const useScrollBack = (ref, messages, onOlder) => {
 }
 
 // Composer shared by IM windows and chat rooms: Enter sends, Shift+Enter is a new line.
-// `onAttach` adds the "+" button (Picture, Voice Message) in IM windows.
+// `onAttach` adds the "+" button (Picture, Voice Message, Meet Me at a Court) in IM windows.
 export const Composer = ({ onSend, onTypingChange, disabled, autoFocus, onAttach }) => {
   const [format, setFormat] = useDisclosure("messenger.format", false)
   const { prefs } = useAim()
@@ -116,8 +117,8 @@ export const Composer = ({ onSend, onTypingChange, disabled, autoFocus, onAttach
           <button
             type="button"
             className="aimAttach"
-            aria-label="Send a picture or voice message"
-            title="Picture or voice message"
+            aria-label="Send a picture, voice message or court"
+            title="Picture, voice message or a court to meet at"
             disabled={disabled}
             onClick={(e) => {
               const r = e.currentTarget.getBoundingClientRect()
@@ -148,6 +149,53 @@ export const Composer = ({ onSend, onTypingChange, disabled, autoFocus, onAttach
         </button>
       </div>
     </div>
+  )
+}
+
+// "Meet me at...": pick one of Pickleball 98's real venues (or a Venue Finder court you kept)
+// and send it as a card (+ menu; pickleball/play/meet.js)
+const MeetPicker = ({ screenName, onSend, onCancel }) => {
+  const [choices, setChoices] = useState(null)
+  const [pick, setPick] = useState(null)
+  useEffect(() => {
+    let live = true
+    import("../pickleball/play/meet.js").then(({ meetChoices }) => {
+      let prefs = {}
+      try {
+        prefs = JSON.parse(localStorage.getItem("98ish.pickleball") || "{}") || {}
+      } catch {}
+      if (live) setChoices(meetChoices(prefs))
+    })
+    return () => {
+      live = false
+    }
+  }, [])
+  const Row = ({ c }) => (
+    <li>
+      <button type="button" aria-pressed={pick?.id === c.id} className={pick?.id === c.id ? "is-on" : ""} onClick={() => setPick(c)} data-meet={c.id}>
+        <b>{c.short}</b>
+        <small>{c.note}</small>
+      </button>
+    </li>
+  )
+  return (
+    <Dialog title="Meet me at..." okLabel="Send" okDisabled={!pick} onOk={() => pick && onSend(pick.card)} onCancel={onCancel}>
+      <p className="dialogText">Send {screenName} a court. They can open it in Pickleball 98 or get directions.</p>
+      {!choices ? (
+        <p className="dialogText">Loading the courts...</p>
+      ) : (
+        <ul className="aimMeetList" aria-label="Courts">
+          <li role="presentation"><h4>Real courts</h4></li>
+          {choices.real.map((c) => (
+            <Row key={c.id} c={c} />
+          ))}
+          {choices.finder.length > 0 && <li role="presentation"><h4>From Venue Finder</h4></li>}
+          {choices.finder.map((c) => (
+            <Row key={c.id} c={c} />
+          ))}
+        </ul>
+      )}
+    </Dialog>
   )
 }
 
@@ -202,8 +250,18 @@ const ImWindow = ({ buddy, focusInput }) => {
   const toggleReaction = React.useCallback((message, emoji) => aim.react(key, message, emoji), [key, aim.react])
   // "Join" on a Watch Together invitation
   const onAction = React.useCallback(
-    (action) => (action.kind === "together" ? aim.openTogether({ together: action.id }) : action.kind === "vb98" ? aim.openVbApp(action.id) : action.kind === "model" && aim.openModel(key, action.message)),
-    [aim.openTogether, aim.openVbApp, aim.openModel, key]
+    (action) => {
+      if (action.kind === "together") return aim.openTogether({ together: action.id })
+      if (action.kind === "vb98") return aim.openVbApp(action.id)
+      if (action.kind === "model") return aim.openModel(key, action.message)
+      // a "Meet me at" card: My Park there, or Maps 98's directions (from the tap: the location prompt)
+      if (action.kind === "venue") return aim.openVenue(action.card)
+      if (action.kind === "directions") {
+        const c = action.card
+        return openMaps({ name: c.n, lat: c.lat, lon: c.lon, address: c.a || c.c || "", directions: true })
+      }
+    },
+    [aim.openTogether, aim.openVbApp, aim.openModel, aim.openVenue, key]
   )
   const meKey = keyOf(aim.me?.screenName)
   const status =
@@ -324,6 +382,7 @@ const ImWindow = ({ buddy, focusInput }) => {
           items={[
             { label: "Picture...", onClick: () => setDialog({ kind: "picture" }) },
             { label: "Voice Message", onClick: () => setVoice(true) },
+            { label: "Meet Me at a Court...", onClick: () => setDialog({ kind: "meet" }) },
           ]}
           onClose={() => setAttachMenu(null)}
         />
@@ -335,6 +394,16 @@ const ImWindow = ({ buddy, focusInput }) => {
           onPick={(pic) => {
             setDialog(null)
             aim.sendMedia(screenName, { kind: "image", blob: pic.blob, thumb: pic.thumb, w: pic.width, h: pic.height })
+          }}
+        />
+      )}
+      {dialog?.kind === "meet" && (
+        <MeetPicker
+          screenName={screenName}
+          onCancel={() => setDialog(null)}
+          onSend={(card) => {
+            setDialog(null)
+            aim.sendCard(screenName, card)
           }}
         />
       )}

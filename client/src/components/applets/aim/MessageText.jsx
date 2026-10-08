@@ -121,6 +121,23 @@ export const TranscriptLine = React.memo(({ message, me, meKey, onMenu, onReact,
           )}
         </span>
       )}
+      {/* "Meet me at <venue>" (pickleball/play/meet.js): Play here opens My Park there, Directions opens Maps 98 */}
+      {message.card?.k === "venue" && (
+        <span className="aimMsgBody aimVenueCard" data-venue-card={message.card.id}>
+          <span aria-hidden="true">📍</span> <b>Meet me at {message.card.n}</b>
+          {message.card.c && <small> {message.card.c}</small>}
+          {onAction && !message.pending && (
+            <span className="aimVenueCardButtons">
+              <button type="button" className="aimSystemAction" onClick={() => onAction({ kind: "venue", card: message.card })} data-venue-play>
+                Play here
+              </button>
+              <button type="button" className="aimSystemAction" onClick={() => onAction({ kind: "directions", card: message.card })} data-venue-directions>
+                Directions
+              </button>
+            </span>
+          )}
+        </span>
+      )}
       {message.r && <ReactionChips r={message.r} meKey={meKey} onToggle={canReact && onReact ? (emoji) => onReact(message, emoji) : undefined} />}
     </div>
   )

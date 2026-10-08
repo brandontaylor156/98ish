@@ -218,6 +218,54 @@ test("places and alerts: arriving and leaving, with a margin, once each", async 
   assert.equal((await s.call("bob", "/places", { places: [{ name: "Moon", lat: 99, lon: 0 }] })).status, 400)
 })
 
+test("venue places: Pickleball 98's real venues as places, so 'Alice arrived at Los Cab' just works", async (t) => {
+  const meet = await import("../../../client/src/components/applets/pickleball/play/meet.js")
+  const { VENUE_LIST } = await import("../../../client/src/components/applets/pickleball/park/venues/index.js")
+  // every real venue makes a valid place (the same rules as any other place), one id each
+  const core = await import("../../../client/src/components/applets/locator/locateCore.js")
+  const all = VENUE_LIST.map((v) => meet.venuePlace(v.id))
+  assert.equal(all.length, VENUE_LIST.length)
+  assert.equal(new Set(all.map((p) => p.id)).size, all.length)
+  for (const p of all) {
+    const checked = core.cleanPlace(p)
+    assert.equal(checked.ok, true, p.name)
+    assert.deepEqual(checked.place, p, "kept exactly as made (id, name, centre, size)")
+    assert.ok(p.r >= 100 && p.r <= 300)
+  }
+  assert.equal(meet.venuePlace("riverside"), null, "the made-up park isn't a place")
+  assert.equal(meet.venueOfPlace(meet.venuePlace("smash")).id, "smash")
+  // the choices leave out venues you already have
+  assert.equal(meet.venuePlaceChoices([meet.venuePlace("loscab")]).some((c) => c.venue === "loscab"), false)
+  assert.equal(meet.venuePlaceChoices([]).length, VENUE_LIST.length)
+
+  const s = await start()
+  t.after(s.close)
+  await s.call("alice", "/share", { to: "Bob" })
+  const loscab = meet.venuePlace("loscab")
+  // the same venue twice keeps one id (and the server never trusts the client to avoid it)
+  let r = await s.call("bob", "/places", { places: [loscab, meet.venuePlace("newport"), loscab] })
+  assert.equal(r.status, 200, JSON.stringify(r.body))
+  const ids = r.body.me.places.map((p) => p.id)
+  assert.equal(new Set(ids).size, 3)
+  assert.equal(ids[0], "pbloscab")
+  assert.equal(ids[1], "pbnewport")
+  await s.call("bob", "/places", { places: [loscab, meet.venuePlace("newport")] })
+  r = await s.call("bob", "/watch", { who: "alice", place: "pbloscab", on: "both" })
+  assert.equal(r.status, 200, JSON.stringify(r.body))
+  const v = VENUE_LIST.find((x) => x.id === "loscab")
+  await s.call("alice", "/update", { ...FAR, acc: 10 })
+  await s.call("alice", "/update", { lat: v.lat + 0.0004, lon: v.lon, acc: 10 }) // ~45 m from the courts' middle
+  assert.deepEqual(s.sent("bob", "loc:alert").map((e) => [e.payload.event, e.payload.place]), [["arrive", "Los Cab"]])
+  assert.equal(s.pushed.at(-1).message.title, "Alice arrived at Los Cab")
+  await s.call("alice", "/update", { ...FAR, acc: 10 })
+  assert.deepEqual(s.sent("bob", "loc:alert").map((e) => e.payload.event), ["arrive", "leave"])
+  // nothing new kept: the venue places are Bob's places (the 20-place cap, the same record)
+  const doc = await s.store.get("bob")
+  assert.deepEqual(doc.places.map((p) => Object.keys(p).sort()), [["id", "lat", "lon", "name", "r"], ["id", "lat", "lon", "name", "r"]])
+  r = await s.call("bob", "/places", { places: Array.from({ length: 21 }, (_, i) => ({ ...loscab, id: `x${i}` })) })
+  assert.equal(r.status, 413)
+})
+
 test("blocking hides you even with a share in place", async (t) => {
   const blocked = { bob: [] }
   const s = await start({ blocked })

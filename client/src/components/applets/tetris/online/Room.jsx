@@ -99,7 +99,16 @@ const Room = ({ online, onExit }) => {
           <div className="tetrisHourglass" aria-hidden="true" />
           <div>
             {count >= room.min ? <p>Found {count - 1} opponent{count === 2 ? "" : "s"}. Starting in a moment...</p> : <p>Looking for players...</p>}
-            {room.canFillBots ? (
+            {room.mode === "race" && count < room.min ? (
+              // a Sprint Race fills in computer racers by itself (server: MODES.race.autoFill)
+              <div className="tetrisBotOffer" data-race-autofill>
+                <p>{botIn > 0 ? `If nobody turns up in ${botIn}s, computer racers join and the race starts.` : "Computer racers are joining..."}</p>
+                <BotLevel value={level} onChange={(v) => (setLevel(v), act("tetris:botLevel", { roomId: room.id, level: v }))} name={`bots-${room.id}`} />
+                <button type="button" className="tetrisFillBots" onClick={() => act("tetris:bots", { roomId: room.id, level })}>
+                  Race computer players now
+                </button>
+              </div>
+            ) : room.canFillBots ? (
               <div className="tetrisBotOffer">
                 <p>Nobody else is around right now. Play against computer players?</p>
                 <BotLevel value={level} onChange={setLevel} name={`bots-${room.id}`} />

@@ -512,6 +512,58 @@ test("Sinaloa's school lot: one lot, the aerial's three stall rows, a modest sha
   assert.equal(s.fence.booth, false, "no kiosk standing in the lot")
 })
 
+test("angled stalls: a row with k leans its stalls k degrees toward b, a car's width apart across the lean", async () => {
+  const { lotStalls } = await import("./scenery.js")
+  const lot = [[-5, -20], [40, -20], [40, 20], [-5, 20]]
+  const square = lotStalls(lot, [{ a: [0, 0], b: [30, 0], d: 5.4 }])
+  const angled = lotStalls(lot, [{ a: [0, 0], b: [30, 0], d: 5.4, k: 30 }])
+  assert.equal(square.stalls.length, 11)
+  assert.ok(angled.stalls.length < square.stalls.length && angled.stalls.length >= 8, `${angled.stalls.length} angled stalls`)
+  // stripes: 5.4 m long, turned 30 degrees off square, 2.7 / cos 30 apart along the row
+  for (const [x0, z0, x1, z1] of angled.stripes) {
+    assert.ok(Math.abs(Math.hypot(x1 - x0, z1 - z0) - 5.4) < 1e-6)
+    const off = (Math.abs(Math.atan2(x1 - x0, Math.abs(z1 - z0))) * 180) / Math.PI
+    assert.ok(Math.abs(off - 30) < 1e-6, `stripe ${off.toFixed(1)} degrees off square`)
+  }
+  const xs = angled.stalls.map((s) => s.x).sort((a, b) => a - b)
+  for (let i = 1; i < xs.length; i++) assert.ok(Math.abs(xs[i] - xs[i - 1] - 2.7 / Math.cos(Math.PI / 6)) < 1e-6)
+  // the cars turn with their stalls (a square row's yaw, turned by k)
+  const d = Math.abs(angled.stalls[0].yaw - square.stalls[0].yaw)
+  assert.ok(Math.abs(Math.min(d, 2 * Math.PI - d) - Math.PI / 6) < 1e-6)
+  // every stall stays between the row's two ends
+  for (const s of angled.stalls) assert.ok(s.x > 0 && s.x < 30)
+})
+
+test("Paseo's lots: angled stalls where the aerial shows them, and the north-east lot by the clubhouse", async () => {
+  const { lotStalls } = await import("./scenery.js")
+  const s = spec("paseo")
+  const lots = s.areas.filter((a) => a.k === "parking")
+  assert.equal(lots.length, 2, "the club's lot and the north-east lot")
+  const [club, ne] = lots.sort((a, b) => Math.min(...a.p.map((p) => p[0])) - Math.min(...b.p.map((p) => p[0])))
+  // four of the club lot's rows lean (measured off the aerial two ways: edge directions and car blobs)
+  const leaning = club.rows.filter((r) => r.k)
+  assert.equal(leaning.length, 4)
+  for (const r of leaning) assert.ok(Math.abs(r.k) >= 10 && Math.abs(r.k) <= 25, `lean ${r.k}`)
+  // the north-east lot: square rows, about the share of the club's lot taken
+  assert.ok(ne.rows.length >= 5 && ne.rows.every((r) => !r.k))
+  assert.equal(ne.full, 0.6)
+  for (const lot of lots) {
+    const { stalls, stripes } = lotStalls(lot.p, lot.rows)
+    assert.equal(stripes.length, stalls.length * 2)
+    for (const st of stalls) assert.ok(inside(st.x, st.z, lot.p), "stalls inside the lot")
+    // the leaning rows and the new lot overlap nothing (two of the earlier square rows meet at
+    // one end; untouched here)
+    const rows = lot.rows.map((r) => ({ r, stalls: lotStalls(lot.p, [r]).stalls }))
+    for (const A of rows)
+      for (const B of rows)
+        if (A !== B && (lot === ne || A.r.k))
+          for (const a of A.stalls) for (const b of B.stalls) assert.ok(Math.hypot(a.x - b.x, a.z - b.z) > 2.6, "no stall on top of another")
+    // no stall inside a building
+    for (const b of s.buildings) for (const st of stalls) assert.ok(!inside(st.x, st.z, b.p), `a stall inside building ${b.id}`)
+  }
+  assert.ok(lotStalls(ne.p, ne.rows).stalls.length >= 25, "the north-east lot's stalls")
+})
+
 test("chamfered pens: Whittier's and the Paseo Club's pen corners are cut at 45 degrees (the aerials); other venues keep square corners", () => {
   for (const [id, c] of [["whittier", 1.8], ["paseo", 2.5]]) {
     const { s, g } = get(id)

@@ -52,8 +52,8 @@ export const topics = [
     id: "messenger-history",
     book: "internet",
     title: "Pictures, voice messages, reactions and saved conversations",
-    summary: "Send pictures and voice messages, react to messages, see when they've been read, and find old conversations on any device.",
-    keywords: ["send a picture", "photo in IM", "voice message", "voice note", "record", "reaction", "react", "heart", "read receipt", "seen", "delivered", "history", "old messages", "clear history", "conversation history", "scroll back"],
+    summary: "Send pictures, voice messages and a court to meet at, react to messages, see when they've been read, and find old conversations on any device.",
+    keywords: ["send a picture", "photo in IM", "voice message", "voice note", "record", "meet me at", "meet at the courts", "send a court", "venue card", "pickleball court", "reaction", "react", "heart", "read receipt", "seen", "delivered", "history", "old messages", "clear history", "conversation history", "scroll back"],
     body: [
       { h: "Pictures" },
       {
@@ -68,6 +68,12 @@ export const topics = [
       },
       { tip: "On a computer you can also click the button once to start, then click **Send** when you're done." },
       "A voice message shows as a play button with its sound wave and length. It plays at the taskbar's volume.",
+      { h: "Meet me at a court" },
+      {
+        steps: ["Click **+**, then **Meet Me at a Court...**.", "Pick one of Pickleball 98's real courts (Los Cab, Newport, Wolf + Bear...) or a court you kept from Venue Finder.", "Press **Send**."],
+        title: "To send a court to meet at:",
+      },
+      "Your buddy gets a small card, **Meet me at Los Cab Sports Village**, with two buttons: **Play here** opens [[pickleball|Pickleball 98]]'s My Park at that court, and **Directions** opens [[maps|Maps 98]] with directions from where they are. The card is only the court's name, town, address and map position: never your location.",
       { note: "Pictures and voice messages are kept online for **90 days**; after that the message says it expired (unless your device already has it). If 98ish's free online storage is used up for the month, you'll see \"Picture couldn't be sent: online storage is resting\"; ordinary messages keep working." },
       { h: "Reactions" },
       { phone: "Press and hold a message, then tap one of the six reactions: ❤️ 😂 😮 😢 👍 ‼️.", computer: "Right-click a message, then click one of the six reactions: ❤️ 😂 😮 😢 👍 ‼️." },
@@ -295,13 +301,14 @@ export const topics = [
       {
         list: [
           "Buddies who share with you appear on the map and in the list, with how long ago their location came in and how far away they are.",
-          "Tap a buddy for **Message**, **Call**, **Directions** (opens Apple Maps or Google Maps) and **Notify Me...**.",
+          "Tap a buddy for **Message**, **Call**, **Directions** (opens Maps 98) and **Notify Me...**.",
           "To see someone who isn't sharing, open **More options** and use **Ask to see a buddy**. They get a request and choose.",
           "When someone asks to see you, a yellow bar shows **Share 1 Hour**, **Always** or **Not Now**.",
         ],
       },
       { h: "Places and alerts" },
       "Under More options, **Add a Place...** names a spot (Home, Work, the courts) from where you are or the middle of the map, with a size. Then tap a buddy, press **Notify Me...**, pick the place, and choose arrives, leaves, or both. You'll get a notification (and a push if you're away from 98ish; Do Not Disturb holds it).",
+      "**Pickleball courts are ready-made places.** **Notify Me...** also lists Pickleball 98's real venues (Los Cab, Newport Beach Club, Wolf + Bear, Whittier Narrows, Paseo Club, Sinaloa MS, California SMASH, Bouquet Canyon): pick one and it becomes one of your places, so you hear \"Rosie arrived at Los Cab\". It counts as one of your 20 places; remove it under More options > Places like any other.",
       { h: "At the courts" },
       "If you're at one of the eight real pickleball venues in Pickleball 98 (Los Cab, Newport Beach, Wolf + Bear, Whittier Narrows, Paseo Club, Sinaloa, California SMASH, Bouquet Canyon), the buddies you share with see you there in **My Park**, \"here for real\" beside the court you're on, and the venue list says **1 friend here now**. They see the court, not your spot on it. With approximate location on you only show as **nearby**.",
       { h: "Privacy" },

@@ -535,6 +535,7 @@ export const topics = [
           "Touch and hold the map (or right-click it) to drop a pin anywhere and get directions there.",
           "No location? Directions asks where you're starting: type an address.",
           "Your recent places show when the search box is empty.",
+          "Other programs open Maps 98 straight into directions: **Directions** on a buddy in [[buddy-locator|Buddy Locator]], on a court in Pickleball 98's Real Games and its **where & when** list, and on a **Meet me at** card in [[messenger-history|98 Messenger]].",
         ],
       },
       { phone: "For spoken turn-by-turn directions with the screen off, press **Open in Apple Maps**: the same place opens in the iPhone's Maps app.", computer: "On a Mac or iPhone the button says **Open in Apple Maps**; elsewhere it opens Google Maps." },

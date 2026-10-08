@@ -5,6 +5,7 @@
 // case), or "#<room key>" for a Buddy Chat room. A message:
 //   { id, ck, conv (who / which room, as shown), from, mine, text, style, time,
 //     media?: { id, k: "image" | "audio", w, h, d, z, wf }, thumb? (preview, this device only),
+//     card?: { k: "venue", id, n, lat, lon, a?, c?, sh? } ("Meet me at <venue>", pickleball/play/meet.js),
 //     r?: { key: reaction }, held? (waiting for someone signed off), deliveredAt?, auto?,
 //     system? (a grey line, never saved), error? }
 
@@ -58,6 +59,7 @@ export const fromServer = (m, { meKey, ck, conv } = {}) => {
   if (m.room) out.room = m.room
   if (m.media) out.media = m.media
   if (m.thumb) out.thumb = m.thumb
+  if (isCard(m.card)) out.card = m.card
   // the server's word on reactions is complete: none listed means none
   out.r = m.r && Object.keys(m.r).length ? m.r : undefined
   out.held = !!m.held
@@ -170,8 +172,13 @@ export const fitWithin = (w, h, max) => {
 }
 
 // what a notification or the Buddy List says for a message
+// a card's shape (the server checked it field by field: server/aim/cards.js)
+const isCard = (c) => !!c && c.k === "venue" && typeof c.n === "string" && Number.isFinite(c.lat) && Number.isFinite(c.lon)
+
 export const previewText = (message) =>
-  message?.media?.k === "image" ? "📷 Picture" : message?.media?.k === "audio" ? "🎤 Voice message" : message?.media?.k === "model" ? `🧊 3D model${message.media.t ? `: ${message.media.t}` : ""}` : String(message?.text || "")
+  isCard(message?.card)
+    ? `📍 Meet me at ${message.card.n}${message.text ? `: ${message.text}` : ""}`
+    : message?.media?.k === "image" ? "📷 Picture" : message?.media?.k === "audio" ? "🎤 Voice message" : message?.media?.k === "model" ? `🧊 3D model${message.media.t ? `: ${message.media.t}` : ""}` : String(message?.text || "")
 
 // what to say when a picture or voice message couldn't go
 export const sendFailure = (kind, result) => {

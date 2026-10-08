@@ -57,6 +57,7 @@ const AISLE = 7
 // A lot whose stall rows were traced off the aerial (`rows`: [{ a: [x, z], b: [x, z], d }],
 // each row's back line a -> b, its stalls d metres deep to the left of a -> b, or to the right
 // when d < 0) lays its stalls along those rows only, so nothing parks in the aisles between.
+// A row with `k` has angled stalls: they lean k degrees toward b (measured off the aerial).
 const rowStalls = (p, rows) => {
   const stalls = []
   const stripes = []
@@ -71,6 +72,33 @@ const rowStalls = (p, rows) => {
     const nx = Math.sign(d) * uz
     const nz = -Math.sign(d) * ux
     const D = Math.abs(d)
+    if (r.k) {
+      // angled stalls (`k`: degrees the stalls lean toward b): each stall is D long along its
+      // lean and STALL_W wide across it, so they sit STALL_W / cos(k) apart along the row
+      const t = (r.k * Math.PI) / 180
+      const sx = nx * Math.cos(t) + ux * Math.sin(t)
+      const sz = nz * Math.cos(t) + uz * Math.sin(t)
+      // (the row's direction turned the same way: a car's long side lies across it)
+      const vx = ux * Math.cos(t) - nx * Math.sin(t)
+      const vz = uz * Math.cos(t) - nz * Math.sin(t)
+      const yaw = Math.atan2(-vz, vx)
+      const pitch = STALL_W / Math.cos(t)
+      const on = (u, s) => [r.a[0] + ux * u + sx * s, r.a[1] + uz * u + sz * s]
+      // (the far ends shift by D sin k: keep the whole stall between a and b)
+      const lo = Math.max(0, -D * Math.sin(t))
+      const hi = L - Math.max(0, D * Math.sin(t))
+      const n = Math.floor((hi - lo) / pitch)
+      const u0 = lo + (hi - lo - n * pitch) / 2
+      for (let k = 0; k < n; k++) {
+        const u = u0 + k * pitch
+        const [x, z] = on(u + pitch / 2, D / 2)
+        if (!pointInPoly(x, z, p)) continue
+        stalls.push({ x, z, yaw })
+        stops.push([...on(u + pitch / 2, 0.7), yaw])
+        stripes.push([...on(u, 0), ...on(u, D)], [...on(u + pitch, 0), ...on(u + pitch, D)])
+      }
+      continue
+    }
     const at = (u, w) => [r.a[0] + ux * u + nx * w, r.a[1] + uz * u + nz * w]
     const yaw = Math.atan2(-uz, ux)
     const n = Math.floor(L / STALL_W)

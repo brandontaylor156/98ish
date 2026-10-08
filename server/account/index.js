@@ -17,7 +17,8 @@
 //                                                  IMs they sent that wait for someone else deleted
 //   messages    imhistory, imclears, imreads       98 Messenger's saved conversations (server/aim/
 //                                                  history.js): their copy of every IM and room
-//                                                  message goes, their reactions and read receipts
+//                                                  message goes (with any "Meet me at" card in it,
+//                                                  server/aim/cards.js), their reactions and read receipts
 //                                                  go. The other person's copy stays (it's theirs,
 //                                                  like mail) without the name: sender/recipient
 //                                                  read "(deleted account)" and the conversation
@@ -91,7 +92,8 @@
 //                                                  counters (u:<key>), their browsing sessions
 //                                                  and the relay's cookie jar for them
 //   locations   locations                          Buddy Locator (server/locate): their record (who
-//                                                  they share with, their latest position, places,
+//                                                  they share with, their latest position, places
+//                                                  (Pickleball 98 venues picked as places too),
 //                                                  alerts, asks) deleted; the people who could see
 //                                                  them are told; they're taken out of everyone
 //                                                  else's record (shares with them, their asks,
