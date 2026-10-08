@@ -50,6 +50,11 @@ const INTRO_S = 0.9 // the score call
 const INTRO_MAX = 3.0 // walking back into place takes no longer than this (then everyone steps onto their spot)
 const WALK_BACK = 2.0 // m/s: between points players walk back into place (a brisk walk, not a jog)
 const DEAD_S = 1.25 // after the point: long enough to see it land and hear the call
+// The real between-points routine (match option routine: "real"; Game speed Medium/Slow):
+// measured from PPA Tour broadcasts (docs/ppa-reference.md), last hit to the next serve
+// ~14 s: the point sinks in and the ball comes back, a walk back at walking pace, the score
+// call, then the server's own routine (a few bounces of the ball). A tap hurries it along.
+export const REAL_ROUTINE = { dead: 4.0, walk: 1.4, intro: 3.2, introMax: 9, serve: 3.6, serveJitter: 3.0 }
 const MAX_HIT_Y = 2.3
 export const SWING_LEAD = 0.13 // s from letting go of the button to the paddle meeting the ball
 export const SWING_LEAD_FAST = 0.07 // a compact block or counter at the net gets there quicker
@@ -197,6 +202,8 @@ const isAi = (m, p) => p.ctrl === "cpu" || p.ctrl === "feeder" || (m.autoplay &&
 // reflex block of a hard ball at the net), "light" (also fine positioning while you swing) or
 // "full" (runs to the ball for you). Booleans from older settings mean light/off. The game
 // itself uses "reflex": the owner wants a player moved only by their own hand.
+// the real between-points routine is on (not in practice: drills keep their quick feeds)
+const realRoutine = (m) => m.o?.routine === "real" && !m.practice
 const assistOf = (m) => (m.assist === true ? "light" : m.assist === false ? "off" : m.assist || "off")
 
 // ---- points ----
@@ -261,7 +268,7 @@ export const beginPoint = (m, { snap = false } = {}) => {
   m.ball.v = v3()
   m.ball.w = v3()
   holdBall(m, server)
-  server.serveAt = isAi(m, server) ? server.level.serveWait : 0
+  server.serveAt = isAi(m, server) ? server.level.serveWait + (realRoutine(m) ? REAL_ROUTINE.serve + (m.rand() - 0.5) * REAL_ROUTINE.serveJitter : 0) : 0
   emit(m, { type: "call", call: scoreCall(m.game), server: server.id })
 }
 
@@ -795,6 +802,11 @@ export const press = (m, slot) => {
     m.skip = true
     return true
   }
+  // (the computer is about to serve: a tap hurries its routine)
+  if (m.phase === "serve" && m.ball.held && m.ball.held !== p.id) {
+    m.skip = true
+    return true
+  }
   if (m.ball.held === p.id && m.phase === "serve") {
     p.charge = { kind: "serve", variant: "drive", start: m.t }
     return true
@@ -945,7 +957,7 @@ const movePlayer = (m, p, dt) => {
     const dz = target.z - p.z
     const d = Math.hypot(dx, dz)
     if (d > 0.03) {
-      const s = Math.min(between ? Math.min(lv.speed * 0.7, WALK_BACK) : speed, Math.sqrt(2 * 9 * d)) // ease into the spot
+      const s = Math.min(between ? Math.min(lv.speed * 0.7, realRoutine(m) ? REAL_ROUTINE.walk : WALK_BACK) : speed, Math.sqrt(2 * 9 * d)) // ease into the spot
       wantX = (dx / d) * s
       wantZ = (dz / d) * s
     }
@@ -1304,11 +1316,13 @@ export const step = (m, dt = STEP) => {
 
   if (m.phase === "intro") {
     const placed = m.players.every((p) => !p.spot || Math.hypot(p.x - p.spot.x, p.z - p.spot.z) < 0.25)
-    if ((m.phaseT >= INTRO_S && placed) || m.phaseT >= INTRO_MAX || (m.skip && m.phaseT > 0.3)) settleIntro(m)
+    const real = realRoutine(m)
+    if ((m.phaseT >= (real ? REAL_ROUTINE.intro : INTRO_S) && placed) || m.phaseT >= (real ? REAL_ROUTINE.introMax : INTRO_MAX) || (m.skip && m.phaseT > 0.3)) settleIntro(m)
   }
   if (m.phase === "serve" && m.ball.held) {
     const server = playerById(m, m.ball.held)
-    if (isAi(m, server) && m.phaseT >= server.serveAt) {
+    // (a tap hurries a computer server's routine too)
+    if (isAi(m, server) && (m.phaseT >= server.serveAt || (m.skip && m.phaseT > 0.4 + server.level.serveWait * 0.5))) {
       const s = aiServe(m, server)
       s.grade = ["perfect", "good", "good", "late", "early"][Math.min(4, Math.floor(Math.abs(aiTiming(server.level, m.rand, 1)) / 1.2))]
       serve(m, s)
@@ -1383,7 +1397,7 @@ export const step = (m, dt = STEP) => {
       m.tallied = true
       tally(m, over)
     }
-    if (over && (m.phaseT >= (m.practice ? 0.9 : DEAD_S) || (m.skip && m.phaseT > 0.5)) && !m.hold) {
+    if (over && (m.phaseT >= (m.practice ? 0.9 : realRoutine(m) ? REAL_ROUTINE.dead : DEAD_S) || (m.skip && m.phaseT > 0.5)) && !m.hold) {
       m.tallied = false
       finishPoint(m)
     }

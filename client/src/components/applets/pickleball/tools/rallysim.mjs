@@ -37,7 +37,7 @@ const mean = (a) => (a.length ? a.reduce((s, v) => s + v, 0) / a.length : null)
 const r1 = (v) => (v === null || v === undefined ? null : Math.round(v * 10) / 10)
 const r2 = (v) => (v === null || v === undefined ? null : Math.round(v * 100) / 100)
 
-export const simulate = ({ level = "pro", games = 6, seed0 = 1, doubles = true, scoring = "rally", target = 11, ball, maxSteps = 240 * 60 * 40 } = {}) => {
+export const simulate = ({ level = "pro", games = 6, seed0 = 1, doubles = true, scoring = "rally", target = 11, ball, routine, maxSteps = 240 * 60 * 40 } = {}) => {
   const rallies = []
   const dinkCounts = []
   const contactAfter = {}
@@ -69,6 +69,8 @@ export const simulate = ({ level = "pro", games = 6, seed0 = 1, doubles = true, 
   const kitchenSrv = [] // serving team: seconds from the serve to the first of them at the line
   const peakSpeed = [] // each player's fastest moment in a rally (m/s)
   const peakAcc = [] // and hardest acceleration (m/s^2, 0.1 s smoothing)
+  const speed95 = [] // each player's rally: 95th percentile of the smoothed speed (footage method)
+  const acc95 = [] // and of the change in speed over 0.4 s
   const reaction = [] // after an opponent's hit: seconds until a player first moves > 1.1 m/s
   const depthAt = {} // distance from the net of the serving / returning team at shots 1..6
   const LINE = 2.13 + 0.6
@@ -79,7 +81,7 @@ export const simulate = ({ level = "pro", games = 6, seed0 = 1, doubles = true, 
     const roster = doubles
       ? [0, 1].flatMap((team) => [1, 2].map((k) => ({ id: `t${team}p${k}`, team, ctrl: "cpu", level, name: `P${team}${k}` })))
       : [0, 1].map((team) => ({ id: `t${team}`, team, ctrl: "cpu", level, name: `P${team}` }))
-    const m = createMatch({ doubles, level, scoring, target, seed: seed0 + g * 7919, roster, ...(ball ? { ball } : {}) })
+    const m = createMatch({ doubles, level, scoring, target, seed: seed0 + g * 7919, roster, ...(ball ? { ball } : {}), ...(routine ? { routine } : {}) })
     let shots = []
     let bounceWatch = null // { kind, apex }
     let n = 0
@@ -109,6 +111,7 @@ export const simulate = ({ level = "pro", games = 6, seed0 = 1, doubles = true, 
             if (s.lastV !== null) s.peakA = Math.max(s.peakA, Math.abs(v - s.lastV) / (m.t - s.lastT))
             s.lastV = v
             s.lastT = m.t
+            ;(s.path ||= []).push([m.t, p.x, p.z])
           }
           if (s.react && v > 1.1) {
             if (m.t - s.react <= 1) reaction.push(m.t - s.react)
@@ -204,7 +207,7 @@ export const simulate = ({ level = "pro", games = 6, seed0 = 1, doubles = true, 
         } else if (e.type === "rally") {
           const last = shots.at(-1)
           if (shots.length) rallySec.push(e.t - shots[0].t)
-          lastDecided = e.t
+          lastDecided = shots.length ? shots.at(-1).t : e.t // (the last hit, as the footage times it)
           if (flightWatch) {
             ;(apexH[flightWatch.kind] ||= []).push(flightWatch.apex)
             if (flightWatch.shot) flightWatch.shot.apex = flightWatch.apex
@@ -229,8 +232,23 @@ export const simulate = ({ level = "pro", games = 6, seed0 = 1, doubles = true, 
             if (shots.length >= 3) {
               peakSpeed.push(s.peakV)
               peakAcc.push(s.peakA)
+              // as the footage measures it (docs/ppa-reference.md): positions every 0.1 s
+              // smoothed over 0.5 s, speed over 0.4 s, the rally's 95th percentile
+              const P = s.path || []
+              if (P.length >= 15) {
+                const sm = P.map((q, i) => {
+                  const w = P.slice(Math.max(0, i - 2), i + 3)
+                  return [q[0], w.reduce((a, r) => a + r[1], 0) / w.length, w.reduce((a, r) => a + r[2], 0) / w.length]
+                })
+                const sp = []
+                for (let i = 2; i < sm.length - 2; i++) sp.push(Math.hypot(sm[i + 2][1] - sm[i - 2][1], sm[i + 2][2] - sm[i - 2][2]) / (sm[i + 2][0] - sm[i - 2][0]))
+                const ac = []
+                for (let i = 4; i < sp.length; i++) ac.push(Math.abs(sp[i] - sp[i - 4]) / 0.4)
+                if (sp.length) speed95.push(pct(sp, 0.95))
+                if (ac.length) acc95.push(pct(ac, 0.95))
+              }
             }
-            Object.assign(s, { lastV: null, lastT: 0, peakV: 0, peakA: 0, react: null })
+            Object.assign(s, { lastV: null, lastT: 0, peakV: 0, peakA: 0, react: null, path: [] })
           }
           // the dink phase and the first speed-up of the rally (as the PPA stats count them)
           const dinks = shots.filter((s) => s.kind === "dink").length
@@ -308,6 +326,8 @@ export const simulate = ({ level = "pro", games = 6, seed0 = 1, doubles = true, 
       kitchenServingTeam: { median: r2(pct(kitchenSrv, 0.5)), p90: r2(pct(kitchenSrv, 0.9)), n: kitchenSrv.length },
       peakSpeed: { median: r2(pct(peakSpeed, 0.5)), p90: r2(pct(peakSpeed, 0.9)), max: r2(pct(peakSpeed, 1)) },
       peakAcc: { median: r1(pct(peakAcc, 0.5)), p90: r1(pct(peakAcc, 0.9)) },
+      speed95: { p10: r2(pct(speed95, 0.1)), median: r2(pct(speed95, 0.5)), p90: r2(pct(speed95, 0.9)), n: speed95.length },
+      acc95: { p10: r2(pct(acc95, 0.1)), median: r2(pct(acc95, 0.5)), p90: r2(pct(acc95, 0.9)), n: acc95.length },
       reaction: { p10: r2(pct(reaction, 0.1)), median: r2(pct(reaction, 0.5)), p90: r2(pct(reaction, 0.9)), n: reaction.length },
       depthAt: Object.fromEntries(Object.entries(depthAt).sort().map(([k, a]) => [k, r2(pct(a, 0.5))])),
     },
@@ -346,7 +366,7 @@ if (isMain) {
   const games = Number(pos[1] || 6)
   const doubles = pos[2] !== "singles"
   const levels = level === "all" ? ["beginner", "intermediate", "pro", "legend"] : level.split(",")
-  const out = levels.map((lv) => simulate({ level: lv, games, doubles, ball: flag("ball") }))
+  const out = levels.map((lv) => simulate({ level: lv, games, doubles, ball: flag("ball"), routine: flag("routine") }))
   if (flag("json")) (await import("node:fs")).writeFileSync(flag("json"), JSON.stringify(out, null, 1))
   console.log(out.map(summary).join("\n"))
 }

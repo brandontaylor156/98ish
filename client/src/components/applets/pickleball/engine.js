@@ -553,7 +553,9 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
     cut = null
     humans = opts.humans || 1
     setVenue(opts.venue || (demo ? "stadium" : venueId))
-    match = createMatch({ assist: settings.assist, window: settings.window, ball: ballKindOf(opts.venue), ...opts })
+    // (Game speed Medium and Slow: the real between-points routine, measured on the PPA Tour;
+    // Fast keeps the quick one. Practice and the title's demo always run quick.)
+    match = createMatch({ assist: settings.assist, window: settings.window, ball: ballKindOf(opts.venue), routine: !demo && settings.pace !== "fast" ? "real" : "quick", ...opts })
     ballLook()
     match.autoplay = demo
     mode = demo ? "demo" : "local"
