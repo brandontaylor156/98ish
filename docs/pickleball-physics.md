@@ -268,6 +268,14 @@ Reading it:
 Other checks (scratchpad scripts, not in the repo):
 - A person (the stand-in with real button timing, jitter 0.05 s) with a computer partner wins
   ~59% of points against Club and ~47% against Pro; their errors are mostly speed-ups long.
+- Browser smoke (scratchpad `phys/smoke.mjs`, vite 5304 / server 8304, headless Chrome): Quick Match
+  plays, Practice's ball machine feeds and records, Twin Replay's demo plays (the `playTwin` hook),
+  My Park courts play at Riverside (outdoor ball) and Wolf + Bear (indoor ball), no page errors. The
+  online room started and both sides kept the same score, but the headless stand-ins didn't return
+  serves on either side; the same script on the base code (cbb819a) does exactly the same, so it's
+  the harness (`netplay.test.js` passes). Worth a real two-device check.
+- Frame sequences (0.1 s of game time apart, Pro doubles, the computer on every player; scratchpad
+  `phys/frames/`): a dink rally and a third-shot drop at 390x844 and 1280x720, with contact sheets.
 - Computer teams stack in most Pro/Legend games; ~28 poaches in 6 Legend games; Ernes are rare
   (about 1 in 6 Pro games, as on tour) and round-the-post shots rarer still.
 
