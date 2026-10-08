@@ -1430,7 +1430,8 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
   return (
     <div className={`pkRoot${mobile ? " is-mobile" : ""}`} onKeyDown={onKeyDown}>
       <MenuBar menus={menus} />
-      <GameChat game="pickleball" title="Pickleball 98" room={online.chatRoom} />
+      {/* (the chat opens only when you tap its bubble; a new message shows a badge there) */}
+      <GameChat game="pickleball" title="Pickleball 98" room={online.chatRoom} ticker={false} />
       <div className="pkStage" ref={stageRef} tabIndex={0} data-phase={phase} data-screen={screen}>
         <div ref={pulseRef} className="pkPulse" aria-hidden="true" />
         <canvas className="pkCanvas" ref={canvasRef} aria-label="Pickleball court" />

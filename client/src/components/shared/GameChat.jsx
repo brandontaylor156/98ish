@@ -21,7 +21,9 @@
  * window on a desktop (or inside it, shrinking the game, when there's no room beside it),
  * or on a phone as a bottom sheet that slides up over the game (shrinking the game would
  * squeeze its on-screen controls together). While the chat is closed, a new message shows
- * for a few seconds as a one-line ticker at the top of the game; tapping it opens the chat. The chat window itself loads on first open (GameChatPanel.jsx).
+ * for a few seconds as a one-line ticker at the top of the game (ticker={false}: only the
+ * badge); tapping it opens the chat. The chat never opens by itself: every visit starts with
+ * it closed. The chat window itself loads on first open (GameChatPanel.jsx).
  * Players can turn chat off for one game (the menu item), for every game, set the swear
  * filter, and mute people (all in the chat's Options, kept in localStorage "98ish.gamechat").
  */
@@ -143,12 +145,14 @@ const dockFor = (layout) => {
   return "inside"
 }
 
-const ChatHost = ({ game, room, mode, title, net }) => {
+const ChatHost = ({ game, room, mode, title, net, ticker: showTicker = true }) => {
   const socket = net.socket
   const p = useChatPrefs()
   const anchor = useRef(null)
   const [layout, setLayout] = useState(null)
-  const [open, setOpenState] = useState(() => !!current().open[game])
+  // (closed until you ask: opening a game never opens its chat, even if it was open last time;
+  // a new message shows the unread badge on the bubble)
+  const [open, setOpenState] = useState(false)
   const [dock, setDock] = useState(null)
   const [messages, setMessages] = useState([])
   const [count, setCount] = useState(0)
@@ -166,7 +170,6 @@ const ChatHost = ({ game, room, mode, title, net }) => {
   const setOpen = (value) => {
     setOpenState(value)
     if (value) setUnread(0)
-    setChatPrefs((q) => ({ open: { ...q.open, [game]: value } }))
   }
 
   useLayoutEffect(() => setLayout(findLayout(anchor.current)), [])
@@ -184,7 +187,7 @@ const ChatHost = ({ game, room, mode, title, net }) => {
         setUnread((n) => n + 1)
         // the swear filter applies to the ticker too (Strict hides the message)
         const filter = current().filter
-        if (!(message.masked && filter === "strict")) setTicker(message.masked && filter !== "off" ? { ...message, text: message.masked } : message)
+        if (showTicker && !(message.masked && filter === "strict")) setTicker(message.masked && filter !== "off" ? { ...message, text: message.masked } : message)
       }
       if ((!openRef.current || !document.hasFocus()) && Date.now() - lastChime.current > 1500) {
         lastChime.current = Date.now()
@@ -339,12 +342,13 @@ const ChatHost = ({ game, room, mode, title, net }) => {
   )
 }
 
-const GameChat = ({ game, room, mode, title }) => {
+// ticker: false shows only the unread badge on the bubble (no one-line message over the game)
+const GameChat = ({ game, room, mode, title, ticker = true }) => {
   const p = useChatPrefs()
   const net = useNet()
   if (!chatOn(p, game) || !net?.socket) return null
   const name = room || `lobby:${game}`
-  return <ChatHost key={name} game={game} room={name} mode={mode || (name.startsWith("match:") ? "match" : "lobby")} title={title || game} net={net} />
+  return <ChatHost key={name} game={game} room={name} mode={mode || (name.startsWith("match:") ? "match" : "lobby")} title={title || game} net={net} ticker={ticker} />
 }
 
 export default GameChat
