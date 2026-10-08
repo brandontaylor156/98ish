@@ -503,8 +503,8 @@ export const strike = (m, p, { forced = false } = {}) => {
     offset = ai ? lv.offset : 0.01
     // (a serve is a rehearsed, unhurried swing: a little steadier than a rally shot, but a
     // deep, paced serve still misses now and then: pros fault on a few percent of serves)
-    face = ai ? lv.face * 0.7 : 0.008 * q.face
-    touch = ai ? lv.touch * 0.6 : 0.03 * q.touch
+    face = ai ? lv.face * 0.8 : 0.008 * q.face
+    touch = ai ? lv.touch * 0.68 : 0.03 * q.touch
   } else if (ai) {
     // ---- a computer player ----
     const req = m.practice?.shot?.(m, p) || aiShot(m, p, lv)

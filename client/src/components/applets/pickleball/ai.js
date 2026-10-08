@@ -392,7 +392,9 @@ export const targetsFor = (m, p, from, rand) => {
       // (the across draw comes first, as it always has: seeded matches stay the same)
       const x = cx(middle() + (rand() - 0.5) * 1.6)
       const want = p.level?.deepZ
-      const z = want ? clamp(want + (rand() - 0.5) * 1.0, 3.6, HALF_L - 0.3) : HALF_L - 0.9 - rand() * 1.2
+      // (players without full shot sense leave themselves more room behind the baseline)
+      const margin = (1 - senseOf(p.level || {})) * 0.6
+      const z = want ? clamp(want + (rand() - 0.5) * 1.0, 3.6, HALF_L - 0.3) : HALF_L - 0.9 - margin - rand() * 1.2
       return { x, z: opp * z }
     },
     // a speed-up or put-away: at a player's paddle-side hip (it lands behind them), or at
