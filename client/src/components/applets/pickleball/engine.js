@@ -1946,7 +1946,8 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
       const options = { doubles, scoring: s.scoring || "sideout", target: s.target || 11, assist: settings.assist, window: settings.window }
       if (role === "host") {
         guest = null
-        match = createMatch({ ...options, roster: named.map((r) => (r.seat === seat ? { ...r, ctrl: "human", slot: 0 } : r)), seed })
+        // (s.practice: drilling with a friend, practice/coop.js; the host's match runs it)
+        match = createMatch({ ...options, ...(s.practice ? { practice: s.practice } : {}), roster: named.map((r) => (r.seat === seat ? { ...r, ctrl: "human", slot: 0 } : r)), seed })
         host = createHost(match, send)
         mode = "host"
       } else {

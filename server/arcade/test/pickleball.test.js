@@ -66,6 +66,34 @@ test("settings: sensible defaults, bad values refused", () => {
   assert.match(v({ scoring: "x" }).error, /scoring/)
   assert.match(v({ venue: "moon" }).error, /venue/)
   assert.equal(pickleball.bucket(v({ venue: "park" })), pickleball.bucket(v({ venue: "club" })), "the venue doesn't split Quick Match")
+  // the real venues and the time of day (Pickleball 98's where & when)
+  assert.equal(v({ venue: "newport", tod: "golden" }).venue, "newport")
+  assert.equal(v({ venue: "bouquet" }).venue, "bouquet")
+  assert.equal(v({ tod: "golden" }).tod, "golden")
+  assert.match(v({ tod: "teatime" }).error, /time of day/)
+  assert.match(v({ venue: "riverside" }).error, /venue/)
+})
+
+test("drilling with a friend: a two-person room, its own Quick Match line per drill", () => {
+  const v = pickleball.validateSettings
+  const d = v({ mode: "drill", drill: "dinks", format: "doubles" })
+  assert.deepEqual([d.mode, d.drill, d.format], ["drill", "dinks", "singles"])
+  assert.match(v({ mode: "drill" }).error, /drill/)
+  assert.match(v({ mode: "drill", drill: "smash" }).error, /drill/)
+  assert.match(v({ mode: "party" }).error, /match or a drill/)
+  assert.equal(pickleball.seats(d), 2)
+  assert.equal(pickleball.seats(v({})), 4)
+  assert.notEqual(pickleball.bucket(d), pickleball.bucket(v({})), "a drill isn't a match")
+  assert.notEqual(pickleball.bucket(d), pickleball.bucket(v({ mode: "drill", drill: "volleys" })), "nor another drill")
+  const { rooms, last } = setup()
+  const a = rooms.quick(me("a"), "pickleball", { mode: "drill", drill: "dinks" })
+  rooms.quick(me("x"), "pickleball", { format: "singles" }) // someone after a match: not paired with a drill
+  assert.equal(last("a").phase, "lobby")
+  const b = rooms.quick(me("b"), "pickleball", { mode: "drill", drill: "dinks" })
+  assert.equal(b.roomId, a.roomId)
+  assert.equal(last("a").phase, "playing")
+  assert.equal(last("a").seats.length, 2)
+  assert.equal(last("a").settings.drill, "dinks")
 })
 
 test("Quick Match: singles starts as soon as two people are in", () => {

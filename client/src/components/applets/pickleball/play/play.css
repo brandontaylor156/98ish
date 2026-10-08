@@ -168,3 +168,42 @@
 .pkHubWhere {
   margin-bottom: 8px;
 }
+
+/* drilling with a friend online (practice/CoopHud.jsx) */
+.pkCoopHud {
+  position: absolute;
+  z-index: 4;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(360px, calc(100% - 16px));
+  padding: 6px 10px;
+  background: rgba(6, 10, 28, 0.82);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  text-align: center;
+  pointer-events: none;
+}
+.pkCoopTop b {
+  color: #ffd23f;
+}
+.pkCoopNums {
+  display: flex;
+  justify-content: center;
+  gap: 14px;
+  margin-top: 2px;
+}
+.pkCoopNums b {
+  font-size: 18px;
+}
+.pkCoopWord {
+  margin-top: 2px;
+  font-size: 12px;
+  color: #dfe6ff;
+}
+.pkCoopWord.is-good {
+  color: #9dff9d;
+}
+.pkCoopWord.is-warn {
+  color: #ffc58a;
+}
