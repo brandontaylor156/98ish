@@ -1888,6 +1888,9 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
   canvas.addEventListener("webglcontextlost", onContextLost)
   canvas.addEventListener("webglcontextrestored", onContextRestored)
 
+  // HOOK (Play / where & when): the title's demo match plays where you'll play (an arena id or a
+  // real venue's court venue); null: the stadium
+  let demoVenue = null
   const demoOptions = () => {
     const ids = CHARACTERS.filter((c) => !c.boss).map((c) => c.id)
     const pick = () => ids.splice(Math.floor(Math.random() * ids.length), 1)[0]
@@ -1897,7 +1900,7 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
       doubles: true,
       level: "pro",
       seed: (Math.random() * 1e9) | 0,
-      venue: "stadium",
+      venue: demoVenue || "stadium",
       roster: [
         { id: "you", team: 0, ctrl: "human", slot: 0, name: nick(who[0]), character: who[0] },
         { id: "partner", team: 0, ctrl: "cpu", level: "pro", name: nick(who[1]), character: who[1] },
@@ -1914,6 +1917,14 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
     // a match on this computer. opts: createMatch options plus venue and humans (1 or 2)
     newMatch(opts) {
       startLocal(opts, false)
+    },
+    // the title's background: the demo match moves to this venue (and stays there after a match)
+    setDemoVenue(v) {
+      demoVenue = v || null
+      if (mode === "demo" && !world) {
+        setVenue(demoVenue || "stadium")
+        hudKey = ""
+      }
     },
     // the title screen's demo match
     demo() {

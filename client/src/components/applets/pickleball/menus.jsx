@@ -60,7 +60,9 @@ const Portrait = ({ c, outfit }) => {
 }
 
 // ---------- the title screen ----------
-export const TitleMenu = ({ onPick, onOnline, tour, showPad, offer = null }) => {
+// where: { text, onChange } (the venue and time you play: the scene behind is it; play/)
+// parkName: the venue My Park opens at
+export const TitleMenu = ({ onPick, onOnline, tour, showPad, offer = null, where = null, parkName = null }) => {
   return (
     <div className="pkTitle2">
       <div className="pkLogo2" aria-label="Pickleball 98">
@@ -83,7 +85,7 @@ export const TitleMenu = ({ onPick, onOnline, tour, showPad, offer = null }) => 
         </button>
         <button type="button" className="pkBig" data-menu="park" onClick={() => onPick("park")}>
           <b>My Park</b>
-          <small>Walk real venues, watch, call next and play</small>
+          <small>{parkName ? `Walk ${parkName}: watch, call next and play` : "Walk real venues, watch, call next and play"}</small>
         </button>
         <button type="button" className="pkBig" data-menu="practice" onClick={() => onPick("practice")}>
           <b>Practice</b>
@@ -97,6 +99,11 @@ export const TitleMenu = ({ onPick, onOnline, tour, showPad, offer = null }) => 
           <button type="button" data-menu="players" onClick={() => onPick("players")}>
             My Player
           </button>
+          {where && (
+            <button type="button" data-menu="where" onClick={where.onChange} title="Where and when you play">
+              {where.text}
+            </button>
+          )}
         </div>
       </div>
     </div>

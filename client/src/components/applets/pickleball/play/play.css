@@ -1,0 +1,170 @@
+/* Pickleball 98: Play (vs Computer | Online) and the where & when sheet (play/PlaySetup.jsx) */
+
+/* the setup panel: the form scrolls, the primary button stays at the bottom */
+.pkPlay {
+  max-height: calc(100% - 16px);
+}
+.pkPlayBody {
+  flex: 1 1 auto;
+}
+.pkPlayGo {
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: stretch;
+  padding: 6px 8px 8px;
+  border-top: 1px solid #808080;
+  background: #c0c0c0;
+}
+.pkPlayGo .pkGo {
+  flex: 1;
+  min-height: 40px;
+  font-size: 14px;
+}
+
+/* the first choice: two big tabs */
+.pkPlayTabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+.pkPlayTab {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  min-height: 46px;
+  padding: 5px 8px;
+  text-align: left;
+}
+.pkPlayTab b {
+  font-size: 13px;
+}
+.pkPlayTab small {
+  color: #444;
+}
+.pkPlayTab.is-on {
+  border-style: inset;
+  background: #fff;
+  box-shadow: inset 0 -3px 0 #000080;
+}
+.pkPlayTab.is-on b {
+  color: #000080;
+}
+
+/* where & when: one row with the venue and time, Change opens the sheet */
+.pkWhereBtn {
+  flex: 1 1 200px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 32px;
+  padding: 3px 8px;
+  text-align: left;
+}
+.pkWhereBtn small {
+  color: #000080;
+  text-decoration: underline;
+  white-space: nowrap;
+}
+.pkPlayMore {
+  margin-top: 8px;
+}
+
+/* the online screen: the same two tabs above Play Online */
+.pkOnlineTabs {
+  max-width: 560px;
+  margin: 0 auto 6px;
+}
+
+/* the sheet: at the bottom, the venue in 3D above it */
+.pkVenueSheet.window {
+  position: absolute;
+  z-index: 8;
+  left: 50%;
+  bottom: 8px;
+  transform: translateX(-50%);
+  width: min(520px, calc(100% - 16px));
+  height: auto;
+  max-height: 56%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.pkVenueBody {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.pkVenueNow {
+  display: flex;
+  flex-direction: column;
+}
+.pkVenueNow small {
+  color: #444;
+}
+.pkVenueTimes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+}
+.pkTimeChip {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 30px;
+  padding: 2px 6px;
+}
+.pkTimeChip.is-on {
+  border-style: inset;
+  background: #fff;
+  font-weight: bold;
+}
+.pkVenueTimeNote {
+  margin: 0;
+  color: #444;
+  font-size: 11px;
+}
+.pkVenueLists h4 {
+  margin: 6px 0 2px;
+  font-size: 11px;
+}
+.pkVenueLists ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.pkVenueRow {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-height: 36px;
+  padding: 3px 8px;
+  text-align: left;
+}
+.pkVenueRow small {
+  color: #444;
+}
+.pkVenueRow.is-on {
+  border-style: inset;
+  background: #000080;
+  color: #fff;
+}
+.pkVenueRow.is-on small {
+  color: #dfe6ff;
+}
+.pkVenueLoading {
+  font-style: italic;
+}
+
+/* Practice: where & when above the tiles, and drilling with a friend online */
+.pkHubWhere {
+  margin-bottom: 8px;
+}
