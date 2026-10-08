@@ -31,6 +31,7 @@ import { releaseGpu } from "../../../utils/webglLoss.js"
 const BALL_SCALE = 1.5 // drawn a little bigger than life so it reads on a phone
 const TRAIL_N = 18
 const REPLAY_S = 9 // seconds of play kept for replays
+const PACE_SCALE = { slow: 0.8, medium: 1, fast: 1.2 } // menus.jsx PACE
 const QUALITY = { low: { ratio: 1, shadows: false }, medium: { ratio: 1.5, shadows: true }, high: { ratio: 2, shadows: true } }
 const UMPIRE_LOOK = { body: "m", skin: 1, hair: "short", hairColor: "#3a2a1e", hat: "cap", hatColor: "#ffffff", shirt: "#1d2b53", shirtStyle: "polo", trim: "#ffffff", bottom: "shorts", bottomColor: "#c9b991", shoes: "#ffffff", shoeAccent: "#1d2b53", socks: "#ffffff", build: 1.02, glasses: true }
 const DEFAULT_LOOKS = ["maya", "dex", "lena", "kenji"]
@@ -78,7 +79,7 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
   if (import.meta.env?.DEV) window.__pbRenderer = renderer
   renderer.toneMapping = THREE.ACESFilmicToneMapping
   renderer.shadowMap.type = THREE.PCFShadowMap
-  let settings = { sound: true, voice: true, camera: "broadcast", aid: true, trail: true, assist: "reflex", quality: "medium", cuts: true, keys: {}, window: 0.06, focus: "auto", ...initial }
+  let settings = { sound: true, voice: true, camera: "broadcast", aid: true, trail: true, assist: "reflex", quality: "medium", cuts: true, keys: {}, window: 0.06, focus: "auto", pace: "medium", ...initial }
   let bindings = bindingsFor(settings.keys)
   let maxRatio = Math.min(dpr, QUALITY[settings.quality]?.ratio || 1.5)
   let pixelRatio = maxRatio
@@ -1716,6 +1717,10 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
     return focus
   }
 
+  // Game speed (Settings): Medium is real life; Slow and Fast scale the match clock for games
+  // on this device only (online games and the title's demo match always run at real speed)
+  const paceScale = () => (mode === "local" ? PACE_SCALE[settings.pace] || 1 : 1)
+
   // ---------- the frame ----------
   const frame = (now) => {
     raf = 0
@@ -1763,7 +1768,7 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
       } else {
         if (mode === "demo") match.autoplay = true
         if (devAuto.size && mode !== "demo") for (const slot of devAuto) autopilot(match, slot, devJitter)
-        perf.steps += advance(match, dt * focusScale())
+        perf.steps += advance(match, dt * focusScale() * paceScale())
         if (host) host.capture(match.events)
         handleEvents()
       }

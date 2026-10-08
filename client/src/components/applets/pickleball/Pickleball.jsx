@@ -7,7 +7,7 @@ import TouchControls, { GLYPHS, fromPx, useTouchControlsMenuItem, useTouchContro
 import PlayOnline, { OnlineResultBar, useOnlineRoom } from "../../shared/online"
 import { unlock } from "../../../utils/achievements"
 import { RulesPrimer } from "./RulesPrimer"
-import { TitleMenu, PlayersMenu, TourMenu, VersusMenu, SettingsMenu, ControlsMenu, LEVEL_NAMES, TIMING } from "./menus"
+import { TitleMenu, PlayersMenu, TourMenu, VersusMenu, SettingsMenu, ControlsMenu, LEVEL_NAMES, TIMING, PACE } from "./menus"
 import { ScoreBug, Banner, HintLine, shotBanner, Meter, ReplayBug, TutorialPanel, OverScreen } from "./hud"
 import { clearBanners, emptyBanners, nextBannerAt, pushBanner, tickBanners } from "./banner.js"
 import { layoutKey, readSwipe, touchControlsFor, touchPrefs } from "./touchplay.js"
@@ -109,6 +109,10 @@ const DEFAULTS = {
   // (the reflex block and the rules guard only: never moves you; not a setting any more)
   assist: "reflex",
   timing: "normal",
+  // game speed (menus.jsx PACE): "medium" is real life (measured from PPA Tour broadcasts,
+  // docs/ppa-reference.md); slow and fast scale the clock of games on this device (online
+  // games stay at medium)
+  pace: "medium",
   replays: true,
   // a buzz (or, on an iPhone, a glow at the screen's edges) on your hits and points: juice.js
   haptics: true,
@@ -172,7 +176,7 @@ const readPrefs = () => {
   }
   return p
 }
-const engineSettings = (p) => ({ sound: p.sound, voice: p.voice, camera: p.camera, aid: p.aid, trail: p.trail, assist: p.assist, quality: p.quality, cuts: p.cuts, replays: p.replays, keys: p.keys, focus: p.focus || "auto", window: TIMING[p.timing] || TIMING.normal, realWeather: p.realSky !== false && !!p.classicWeather })
+const engineSettings = (p) => ({ sound: p.sound, voice: p.voice, camera: p.camera, aid: p.aid, trail: p.trail, assist: p.assist, quality: p.quality, cuts: p.cuts, replays: p.replays, keys: p.keys, focus: p.focus || "auto", window: TIMING[p.timing] || TIMING.normal, pace: PACE[p.pace] ? p.pace : "medium", realWeather: p.realSky !== false && !!p.classicWeather })
 
 // on-screen controls (touchplay.js): the move pad bottom-left or bottom-right, the hit area
 // everywhere else, and Pause. Camera and the controls' gear are in the pause menu.
