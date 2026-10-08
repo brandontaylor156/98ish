@@ -227,6 +227,13 @@ upright hip-to-ankle reads 0.74 m, so use the ratios). n = pose samples.
   90th-percentile reference). Left: the transition zone's speed at the far contact (0.6-0.7 vs
   1.73 m/s; the game's teams stop to split there, the tour's keep walking in) and the footage's
   share of far contacts made from the baseline (41% vs the game's 5%).
+- Done (2026-10-08, athletes round 3, `docs/pickleball-log.md` "Athletes, round 3"): the
+  serving team walks in through the split (`match.js WALK`): in the transition zone at the far
+  contact 0.66 -> 1.66 m/s (tour 1.73), rally length 10.5 (10.7), acc95 5.26 -> 4.98 (4.9),
+  returners 1.55 s (1.6), serving team 4.77 -> 4.72 s (4.85); speed95 3.22 -> 3.11 (3.31: the
+  sprint to the zone was a burst the tour doesn't make there). Motion-matching foot pops cut
+  80 -> 13 (> 4 cm, 64 player-minutes). Left: speed95, the kitchen drift (0.66 vs 0.76), the
+  baseline zone's far-contact speed (1.40 vs 0.94).
 - Next (if wanted): hand-label 20-30 more rallies with `sheets.py` (full-resolution frames with
   the ball circled are readable at 12-15 fps) to measure shot-by-shot timing, returns and shots
   per rally properly; a second camera angle (sideline replays) would fix ball heights.

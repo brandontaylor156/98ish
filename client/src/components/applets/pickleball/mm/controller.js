@@ -21,7 +21,7 @@
 import { qmul, qslerp, qaxis } from "./quat.js"
 import { DIM, contactsOf, normalizeQuery, rootDelta, virtualPose, toRoot } from "./features.js"
 import { search } from "./search.js"
-import { angVel, applyInert, createInert, decay, transition } from "./inertialize.js"
+import { angVel, applyInert, createInert, decay, decaySpring, transition } from "./inertialize.js"
 import { NB } from "./skeleton.js"
 import { TAG } from "./library.js"
 const TAG_IDLE = TAG.idle
@@ -176,6 +176,7 @@ export const updateMM = (st, input, dt) => {
   const traj = predictTrajectory({ x: input.x, z: input.z, vx: input.vx, vz: input.vz, wx: want.x, wz: want.z, goal: input.goal, maxSpeed: input.maxSpeed || 4 }, times)
   // ---- search ----
   st.timer -= dt
+  let jumped = false
   const changed = st.lastWant && (Math.hypot(want.x - st.lastWant.x, want.z - st.lastWant.z) > 1.2 || Math.abs(wrap(input.yaw - st.lastWant.yaw)) > 0.6)
   // standing still in a captured idle: let it play (its sway, its weight shifts) instead of
   // searching again and again for the one best standing frame, which jumped back every half
@@ -232,6 +233,7 @@ export const updateMM = (st, input, dt) => {
           st.u = 0
         }
         st.stats.jumps++
+        jumped = true
       }
       st.stats.cost = best.cost
     }
@@ -272,6 +274,17 @@ export const updateMM = (st, input, dt) => {
   r.x += mvx
   r.z += mvz
   r.yaw += myaw
+  // (the root's turn is inertialized too: a jump to a clip turning at another rate swung the
+  // whole body (and a foot in the air half a meter out) round by up to 4-8 degrees in one frame.
+  // The difference in turning speed decays like the pose's offsets)
+  const rate = dt > 0 ? myaw / dt : 0
+  const yo = st.yawOff || (st.yawOff = { x: 0, v: 0 })
+  if (jumped && st.screenRate !== undefined) yo.v = st.screenRate - rate
+  const yn = decaySpring(yo.x, yo.v, MM.halflife, dt)
+  r.yaw += yn.x - yo.x
+  yo.x = yn.x
+  yo.v = yn.v
+  st.screenRate = rate + yn.v
   // ---- the root follows the game: pulled toward its position and facing ----
   // (gently while a foot is planted: the pinned foot would have to absorb the pull; firmly
   // while both feet are off the court, where a slide can't show)

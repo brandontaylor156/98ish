@@ -19,6 +19,8 @@ const NEED_REACH = 0.993
 // (rising above an athletic capture: the legs stay at least this bent, about 155 degrees at the
 // knee: PPA footage's ready knees)
 const RISE_REACH = 0.975
+// (a pinned foot further than this from where the leg reaches: it steps instead of dragging)
+export const DRAG = 0.025
 
 export const createMMPose = () => ({ lock: createFootLock(), drop: 0, dropV: 0 })
 
@@ -118,6 +120,10 @@ export const solveMMPose = (st, o, dt, extra = {}) => {
     const kOut = (s === "l" ? -1 : 1) * wide
     const an = P[B["foot_" + s]]
     const r = legIK(P[B["thigh_" + s]], { x: kn.x + rx * kOut, y: kn.y, z: kn.z + rz * kOut }, fl[i].ankle, THIGH, SHIN, { x: an.x + rx * kOut, y: an.y, z: an.z + rz * kOut }, { x: Math.sin(o.root.yaw), y: 0, z: Math.cos(o.root.yaw) })
+    // (a pinned foot the leg can't reach any more (the body moved on from a lunge's foot):
+    // the leg would drag it along the court and up into the air, a few cm a frame; the foot
+    // lock steps it over next frame instead)
+    if (fl[i].locked && Math.hypot(r.ankle.x - fl[i].ankle.x, r.ankle.y - fl[i].ankle.y, r.ankle.z - fl[i].ankle.z) > DRAG) st.lock[i].drag = true
     const da = { x: r.ankle.x - P[B["foot_" + s]].x, y: r.ankle.y - P[B["foot_" + s]].y, z: r.ankle.z - P[B["foot_" + s]].z }
     P[B["calf_" + s]] = r.knee
     P[B["foot_" + s]] = r.ankle
