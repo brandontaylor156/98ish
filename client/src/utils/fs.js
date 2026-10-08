@@ -665,7 +665,6 @@ const DEFAULT_ITEMS = [
   ["C:/Programs/Minesweeper", "file", "minesweeper"],
   ["C:/Programs/Solitaire", "file", "solitaire"],
   ["C:/Programs/FreeCell", "file", "freecell"],
-  ["C:/Programs/Pinball", "file", "pinball"],
   ["C:/Programs/Critter Catch Pinball", "file", "critterpinball"],
   ["C:/Programs/98 Messenger", "file", "chat"],
   ["C:/Programs/MS-DOS Prompt", "file", "dos"],
@@ -688,7 +687,6 @@ const DEFAULT_ITEMS = [
   ["C:/Programs/Tetherball", "file", "tetherball"],
   ["C:/Programs/Speed Typist 98", "file", "speedtype"],
   ["C:/Programs/Word Duel", "file", "wordduel"],
-  ["C:/Programs/Chess Puzzles", "file", "chesspuzzles"],
   ["C:/Programs/Imposter", "file", "imposter"],
   ["C:/Programs/LAN Party 98", "file", "lanparty"],
   ["C:/Programs/Virtual PC 98", "file", "virtualpc"],
@@ -777,7 +775,11 @@ const RETIRED_DEFAULTS = [
   ["8BITRUN.MID", "chiptune"],
   ["NEBULA.MID", "ambient"],
   ["GROOVE.MID", "funky"],
-].map(([name, id]) => [`C:/My Music/${name}`, (f) => f.type === FILE_TYPE.music && f.textContent === id])
+].map(([name, id]) => [`C:/My Music/${name}`, (f) => f.type === FILE_TYPE.music && f.textContent === id]).concat([
+  // programs folded into others (2026-10-07): Pinball -> Critter Catch Pinball, Chess Puzzles -> Chess
+  ["C:/Programs/Pinball", (f) => f.type === FILE_TYPE.pinball],
+  ["C:/Programs/Chess Puzzles", (f) => f.type === FILE_TYPE.chesspuzzles],
+])
 
 const retireDefault = (fsys, path, untouched) => {
   const parts = path.split("/")

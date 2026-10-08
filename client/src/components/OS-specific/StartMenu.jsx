@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react"
 import { fs } from "../../utils/fs"
 import { useFsVersion } from "../../hooks/useFs"
-import { programs, launch, explorerWindow, notepadWindow, ieWindow } from "../../utils/programs"
+import { programs, launch, explorerWindow, notepadWindow, ieWindow, sortByName } from "../../utils/programs"
 import { openItem } from "../../utils/openItem"
 import { iconFor } from "../../utils/fileInfo"
 import RunDialog from "./RunDialog"
@@ -13,8 +13,11 @@ import { navigate } from "../../utils/startNav"
 import { helpHandoff } from "../../utils/help"
 import "./StartMenu.css"
 
-const GROUPS = ["Accessories", "Business", "Community", "Games", "Internet", "Entertainment", "System Tools", "Us", "My Projects"]
-// a program shows in its group and in any it's `also` in (Photo Puzzle is in Us and Games)
+// Programs' folders, A to Z like Windows 98's Start menu; each folder's programs A to Z too.
+// Together: things you do with friends or your partner (Watch Together, Doodle Together, Quiz
+// Show, Come Over...); Us: couples only; Development: making programs (Visual Basic 98)
+const GROUPS = ["Accessories", "Business", "Community", "Development", "Entertainment", "Games", "Internet", "My Projects", "System Tools", "Together", "Us"]
+// a program shows in its group and in any it's `also` in (Photo Puzzle is in Us, Games and Together)
 const inGroup = (p, group) => p.group === group || !!p.also?.includes(group)
 // the community's pages on 98ish.com, at the bottom of Programs > Community
 const COMMUNITY_PAGES = [
@@ -90,7 +93,7 @@ const StartMenu = ({ dispatch, onQuery, onSearchKey, onSearchFocus, closeMenu, o
           label: group,
           icon: ICON.group,
           items: () => [
-            ...programs.filter((p) => inGroup(p, group) && !hiddenStart.includes(p.name)).map(programItem),
+            ...sortByName(programs.filter((p) => inGroup(p, group) && !hiddenStart.includes(p.name))).map(programItem),
             ...(group === "Community" ? ["-", ...COMMUNITY_PAGES.map(([label, url]) => ({ label, icon: "/assets/internet_explorer.png", onClick: () => go(ieWindow(url)) }))] : []),
           ],
         })),

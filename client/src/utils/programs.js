@@ -19,18 +19,18 @@ export const programs = [
   // your own songs (C:\My Music), Windows Media Player 7 style (applets/music)
   { name: "Music 98", app: "musiclib", type: "musiclib", icon: "/assets/program_icons/music98.svg", width: 520, height: 640, group: "Entertainment", desktop: false, single: true },
   // a YouTube video in sync with an IM buddy or a chat room (applets/together, server/aim/together.js)
-  { name: "Watch Together", app: "together", type: "together", icon: "/assets/program_icons/together.svg", width: 520, height: 680, group: "Internet", also: ["Entertainment", "Us"], desktop: false, single: true },
+  { name: "Watch Together", app: "together", type: "together", icon: "/assets/program_icons/together.svg", width: 520, height: 680, group: "Internet", also: ["Entertainment", "Together", "Us"], desktop: false, single: true },
   // opt-in location sharing with buddies on a map (applets/locator, server/locate)
   // the multiplayer desktop: friends over on your 98ish (applets/hangout, server/aim/hangout.js + ydocs.js)
-  { name: "Come Over", app: "hangout", type: "hangout", icon: "/assets/program_icons/hangout.svg", width: 520, height: 560, group: "Internet", also: ["Us"], desktop: false, single: true },
+  { name: "Come Over", app: "hangout", type: "hangout", icon: "/assets/program_icons/hangout.svg", width: 520, height: 560, group: "Internet", also: ["Together", "Us"], desktop: false, single: true },
   // make your own programs and send them in 98 Messenger (applets/vb98, server/aim/vbapps.js)
   // LAN Party 98 (applets/lanparty): shareware DOS games alone or on a LAN with friends (js-dos, IPX over WebRTC), Flash via Ruffle
   { name: "LAN Party 98", app: "lanparty", type: "lanparty", icon: "/assets/program_icons/lanparty.svg", width: 760, height: 600, group: "Games", desktop: false, single: true },
   { name: "Virtual PC 98", app: "virtualpc", type: "virtualpc", icon: "/assets/program_icons/virtualpc.svg", width: 760, height: 560, group: "Accessories", desktop: false, single: true },
-  { name: "Visual Basic 98", app: "vb98", type: "vb98", icon: "/assets/program_icons/vb98.svg", width: 780, height: 580, group: "Accessories", also: ["Games"], desktop: false },
+  { name: "Visual Basic 98", app: "vb98", type: "vb98", icon: "/assets/program_icons/vb98.svg", width: 780, height: 580, group: "Accessories", also: ["Development"], desktop: false },
   // Snap to 3D (applets/viewer3d): photo -> 3D model on a free Hugging Face Space, or import a .glb; toys open more windows
   { name: "3D Viewer 98", app: "viewer3d", type: "viewer3d", icon: "/assets/program_icons/viewer3d.svg", width: 520, height: 600, group: "Accessories", desktop: false },
-  { name: "Buddy Locator", app: "locator", type: "locator", icon: "/assets/program_icons/locator.svg", width: 780, height: 580, group: "Internet", also: ["Us"], desktop: false, single: true },
+  { name: "Buddy Locator", app: "locator", type: "locator", icon: "/assets/program_icons/locator.svg", width: 780, height: 580, group: "Internet", also: ["Together", "Us"], desktop: false, single: true },
   { name: "YouTube '98", type: "video", icon: "/assets/program_icons/video-48.png", width: 820, height: 620, group: "Internet", single: true },
   { name: "My Computer", app: "explorer", icon: "/assets/program_icons/computer_explorer.png", width: 640, height: 440, group: null },
   { name: "Notepad", app: "notepad", type: "notepad", icon: "/assets/note.png", width: 520, height: 420, group: "Accessories" },
@@ -42,7 +42,6 @@ export const programs = [
   { name: "Camera", app: "camera", type: "camera", icon: "/assets/program_icons/camera.svg", width: 780, height: 600, group: "Accessories", also: ["Entertainment"], single: true },
   { name: "Photos", app: "photos", type: "photos", icon: "/assets/program_icons/photos.svg", width: 820, height: 580, group: "Accessories", also: ["Entertainment"] },
   { name: "Paint", app: "paint", type: "paint", icon: "/assets/program_icons/paint.svg", width: 700, height: 540, group: "Accessories", desktop: false },
-  { name: "Pinball", app: "pinball", type: "pinball", icon: "/assets/program_icons/pinball.svg", width: 700, height: 760, group: "Games", desktop: false, single: true },
   { name: "Critter Catch Pinball", app: "critterpinball", type: "critterpinball", icon: "/assets/program_icons/critterpinball.svg", width: 700, height: 780, group: "Games", desktop: false, single: true },
   { name: "Minesweeper", type: "minesweeper", icon: "/assets/program_icons/mine-48.png", width: 373, height: 456, group: "Games", single: true },
   { name: "98 Messenger", type: "chat", icon: "/assets/program_icons/aim2-48.png", width: 260, height: 520, group: "Internet", single: true, also: ["Community"] },
@@ -104,7 +103,6 @@ export const programs = [
   { name: "Downhill", app: "ski", type: "ski", icon: "/assets/program_icons/ski.svg", width: 640, height: 520, group: "Games", desktop: false, single: true },
   { name: "Speed Typist 98", app: "speedtype", type: "speedtype", icon: "/assets/program_icons/speedtype.svg", width: 720, height: 560, group: "Games", desktop: false, single: true, online: "speedtype" },
   { name: "Word Duel", app: "wordduel", type: "wordduel", icon: "/assets/program_icons/wordduel.svg", width: 560, height: 690, group: "Games", desktop: false, single: true, online: "wordduel" },
-  { name: "Chess Puzzles", app: "chesspuzzles", type: "chesspuzzles", icon: "/assets/program_icons/chesspuzzles.svg", width: 560, height: 700, group: "Games", desktop: false, single: true },
   { name: "Imposter", app: "imposter", type: "imposter", icon: "/assets/program_icons/imposter.svg", width: 620, height: 700, group: "Games", desktop: false, single: true, online: "imposter" },
   { name: "Last Card", app: "lastcard", type: "lastcard", icon: "/assets/program_icons/lastcard.svg", width: 900, height: 680, group: "Games", desktop: false, single: true, online: "lastcard" },
   { name: "Hexlands", app: "hexlands", type: "hexlands", icon: "/assets/program_icons/hexlands.svg", width: 1000, height: 700, group: "Games", desktop: false, single: true, online: "hexlands" },
@@ -126,9 +124,9 @@ export const programs = [
   { name: "Zap It!", app: "zapit", type: "zapit", icon: "/assets/program_icons/zapit.svg", width: 460, height: 600, group: "Games", desktop: false, single: true },
   { name: "Tetherball", app: "tetherball", type: "tetherball", icon: "/assets/program_icons/tetherball.svg", width: 820, height: 600, group: "Games", desktop: false, single: true, online: "tetherball" },
   { name: "Sunny Acres", app: "town", type: "town", icon: "/assets/program_icons/town.svg", width: 860, height: 620, group: "Games", desktop: false, single: true },
-  { name: "Photo Puzzle", app: "puzzle", type: "puzzle", icon: "/assets/program_icons/puzzle.svg", width: 820, height: 600, group: "Us", desktop: false, single: true, also: ["Games"] },
-  { name: "Doodle Together", app: "doodle", type: "doodle", icon: "/assets/program_icons/doodle.svg", width: 780, height: 640, group: "Us", desktop: false, single: true, also: ["Games"] },
-  { name: "Lovebirds Quiz Show", app: "quiz", type: "quiz", icon: "/assets/program_icons/quiz.svg", width: 560, height: 620, group: "Us", desktop: false, single: true, also: ["Games"] },
+  { name: "Photo Puzzle", app: "puzzle", type: "puzzle", icon: "/assets/program_icons/puzzle.svg", width: 820, height: 600, group: "Us", desktop: false, single: true, also: ["Games", "Together"] },
+  { name: "Doodle Together", app: "doodle", type: "doodle", icon: "/assets/program_icons/doodle.svg", width: 780, height: 640, group: "Together", desktop: false, single: true, also: ["Us"] },
+  { name: "Lovebirds Quiz Show", app: "quiz", type: "quiz", icon: "/assets/program_icons/quiz.svg", width: 560, height: 620, group: "Together", desktop: false, single: true, also: ["Us"] },
   // couples (utils/couple.js): Us is on the desktop once you're paired ("paired")
   { name: "Us", app: "us", icon: "/assets/program_icons/us.svg", width: 540, height: 540, group: "Us", desktop: "paired", single: true },
   { name: "Love Letters", app: "loveletters", icon: "/assets/program_icons/loveletters.svg", width: 720, height: 580, group: "Us", desktop: false, single: true },
@@ -147,8 +145,22 @@ export const programs = [
 // The desktop shows these (MS-DOS Prompt and Display Properties live in the Start menu)
 export const desktopPrograms = programs.filter((p) => p.desktop !== false)
 
-export const programByName = (name) => programs.find((p) => p.name === name) || null
-export const programByType = (type) => programs.find((p) => p.type === type) || null
+// Programs that were folded into another (2026-10-07): an old shortcut, a DOS alias, a Help
+// link or a push deep link with the old name or file type opens the one that took its place
+export const RETIRED_PROGRAMS = {
+  Pinball: { to: "Critter Catch Pinball" }, // Pinball: Blue Screen; its high scores show in Critter Catch's High Scores
+  "Chess Puzzles": { to: "Chess", extra: { chessMode: "puzzles" } }, // now Chess's Puzzles mode
+}
+const RETIRED_TYPES = { pinball: "Pinball", chesspuzzles: "Chess Puzzles" }
+export const retiredExtra = (name) => RETIRED_PROGRAMS[name]?.extra || {}
+
+export const programByName = (name) => programs.find((p) => p.name === name) || (RETIRED_PROGRAMS[name] ? programs.find((p) => p.name === RETIRED_PROGRAMS[name].to) : null) || null
+export const programByType = (type) => programs.find((p) => p.type === type) || (RETIRED_TYPES[type] ? programByName(RETIRED_TYPES[type]) : null) || null
+
+// A to Z the way people read names ("3D Viewer 98" < "Baccarat" < "Chess"; case and accents ignored)
+const collator = new Intl.Collator("en", { sensitivity: "base", numeric: true })
+export const byName = (a, b) => collator.compare(a, b)
+export const sortByName = (list, nameOf = (x) => x.name) => [...list].sort((a, b) => byName(nameOf(a), nameOf(b)))
 
 // The window payload the window manager expects, for a program plus anything extra
 // (a file for Notepad, a folder for My Computer, a URL for Internet Explorer...)
@@ -168,7 +180,9 @@ export const windowFor = (program, extra = {}) => ({
   ...extra,
 })
 
-export const launch = (name, extra) => windowFor(programByName(name), extra)
+// (a retired name opens its new home in the right mode; a handoff tells one that's already open)
+export const launch = (name, extra) =>
+  windowFor(programByName(name), RETIRED_PROGRAMS[name]?.extra ? { ...retiredExtra(name), handoff: { id: Date.now(), ...retiredExtra(name) }, ...extra } : extra)
 
 // An Internet Explorer window, optionally opening a page (as of the date IE is set to)
 export const ieWindow = (url) => launch("Internet Explorer", { url })

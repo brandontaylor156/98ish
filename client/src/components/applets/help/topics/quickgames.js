@@ -1,7 +1,7 @@
 // Help topics: the quick games (Boom Frenzy, Color Match, Echo Pads, Zap It!, Tetherball).
 // (Format: see ../helpCore.js. No imports here: Node's tests load this file directly.)
 
-export const books = [{ id: "games-quick", title: "Quick reflex games", parent: "games" }]
+export const books = [{ id: "games-quick", title: "Quick reflex games", parent: "games", sort: "az" }]
 
 export const topics = [
   {

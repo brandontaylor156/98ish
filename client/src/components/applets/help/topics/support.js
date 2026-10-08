@@ -463,7 +463,7 @@ export const topics = [
           ],
         },
       },
-      "Chess Puzzles' puzzles come from the Lichess puzzle database (public domain) and are built into 98ish: solving them never contacts Lichess, and your puzzle rating and history stay on this device.",
+      "Chess's puzzles (its Puzzles tab) come from the Lichess puzzle database (public domain) and are built into 98ish: solving them never contacts Lichess, and your puzzle rating and history stay on this device.",
       "Pickleball 98's real venues in My Park are built from OpenStreetMap data (© OpenStreetMap contributors, ODbL) that ships inside 98ish: choosing a venue never contacts OpenStreetMap or any map service, and 98ish never asks where you are. Online, the 98ish server only learns which venue you picked (so friends at the same venue meet) and your position inside it, as with Riverside Park.",
       "98ish has no ads, analytics or tracking scripts, and sells nothing to anyone.",
     ],

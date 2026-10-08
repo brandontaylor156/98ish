@@ -27,7 +27,7 @@ export const GAMES = [
   { key: "videopoker", program: "Video Poker", blurb: "Jacks or Better: hold, draw, hit the royal.", icon: "videopoker" },
   { key: "craps", program: "Craps", blurb: "Roll the dice. Pass line, odds, come, field, place.", icon: "craps" },
   { key: "baccarat", program: "Baccarat", blurb: "Player, Banker or Tie. The cards do the rest.", icon: "baccarat" },
-]
+].sort((a, b) => a.program.localeCompare(b.program, "en", { sensitivity: "base" })) // the lobby lists them A to Z
 const byProgram = (name) => GAMES.find((g) => g.program === name)?.key || "lobby"
 const titleOf = (key) => GAMES.find((g) => g.key === key)?.program || "Casino 98"
 const PREFS = "98ish.casino.prefs"

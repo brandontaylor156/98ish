@@ -1,6 +1,6 @@
 import { fs, validName, FILE_TYPE, readContent } from "../../../utils/fs"
 import { now } from "../../../utils/clock"
-import { programs } from "../../../utils/programs"
+import { programs, programByName } from "../../../utils/programs"
 import { unlock } from "../../../utils/achievements"
 
 // The MS-DOS Prompt's command interpreter, kept apart from the screen so it can be tested
@@ -75,7 +75,7 @@ export const ALIASES = {
   mspaint: "Paint",
   pbrush: "Paint",
   freecell: "FreeCell",
-  pinball: "Pinball",
+  pinball: "Critter Catch Pinball",
   critter: "Critter Catch Pinball",
   critters: "Critter Catch Pinball",
   critterpinball: "Critter Catch Pinball",
@@ -213,7 +213,7 @@ export const ALIASES = {
   typist: "Speed Typist 98",
   typing: "Speed Typist 98",
   wordduel: "Word Duel",
-  puzzles: "Chess Puzzles",
+  puzzles: "Chess Puzzles", // (Chess, opened on Puzzles: utils/programs.js RETIRED_PROGRAMS)
   chesspuzzles: "Chess Puzzles",
   imposter: "Imposter",
   impostor: "Imposter",
@@ -283,7 +283,9 @@ export const ALIASES = {
 export const programFor = (word) => {
   const bare = word.toLowerCase().replace(/^"|"$/g, "").replace(/\.(exe|com|bat)$/, "")
   const name = ALIASES[bare] || programs.find((p) => p.name.toLowerCase().replace(/[^a-z0-9]/g, "") === bare.replace(/[^a-z0-9]/g, ""))?.name
-  return name ? programs.find((p) => p.name === name) : null
+  const program = name ? programByName(name) : null
+  // launchName: what to open (a retired program's name opens its new home in the right mode)
+  return program ? { ...program, launchName: name } : null
 }
 
 // ---- words and paths ----
@@ -779,7 +781,7 @@ export const run = (input, shell) => {
       }
       const item = resolveArg(target, shell.cwd)
       if (item) result.open.push({ item })
-      else if (programFor(target)) result.open.push({ program: programFor(target).name })
+      else if (programFor(target)) result.open.push({ program: programFor(target).launchName })
       else out = [`Cannot find the file '${target}' (or one of its components).`]
       break
     }
@@ -797,7 +799,7 @@ export const run = (input, shell) => {
       }
       const program = programFor(m[1])
       if (program) {
-        result.open.push(program.app === "ie" && rest ? { url: rest } : { program: program.name })
+        result.open.push(program.app === "ie" && rest ? { url: rest } : { program: program.launchName })
         break
       }
       out = ["Bad command or file name"]

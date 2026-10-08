@@ -244,7 +244,7 @@ const ImWindow = ({ buddy, focusInput }) => {
     { label: "Doodle Together", onClick: () => playGame("doodle") },
     { label: "Quiz Show", onClick: () => playGame("quiz") },
     { label: "Sunny Acres Co-op", onClick: () => playGame("town") },
-  ]
+  ].sort((a, b) => a.label.localeCompare(b.label, "en", { sensitivity: "base" })) // A to Z
 
   const addBuddy = async () => {
     const [first, ...rest] = aim.me.groups

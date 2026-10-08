@@ -67,7 +67,6 @@ const TIPS = {
     "Light C-A-T-C-H with the ramp and orbit loops, then sink the Den to meet a wild critter!",
     "Knock down E-V-O, then sink the Den to evolve one of your catches. The Critter Dex keeps every critter you've caught.",
   ],
-  Pinball: ["Knock down 9-8-I-S-H, then shoot the Blue Screen: lock three balls for multiball!", "On a phone, drag the plunger down and let go. Each mission ranks you up from Intern to Sysadmin."],
   Calendar: [
     "Share a calendar: File > New Calendar, then invite people by screen name or send them the invite link. Couples get an Us calendar by themselves.",
     "Want reminders with 98ish closed? Open an event and tap Add to my phone, or subscribe your phone to a whole calendar in its Properties > Phone.",
@@ -118,7 +117,10 @@ const TIPS = {
   ],
   Reversi: ["Corners can never be flipped. Grab them, and stay off the squares next to them until you can."],
   Checkers: ["Play Online finds you an opponent, or Play the Computer starts right away. Kings move backward too!"],
-  Chess: ["Drag a piece or click it, then click where it goes. Level in the menu makes the computer tougher."],
+  Chess: [
+    "Drag a piece or click it, then click where it goes. Level in the menu makes the computer tougher.",
+    "Tap Puzzles at the top for chess puzzles: your opponent moves first, then find the best reply. Puzzle Rush and Puzzle Streak are in its More options.",
+  ],
   Battleship: ["Press R (or right-click) to turn a ship while you place it. Random does it all for you."],
   "Last Card": [
     "Down to two cards? Press LAST CARD! before you play, or someone can catch you and you'll draw 2.",
@@ -148,10 +150,6 @@ const TIPS = {
   "Speed Typist 98": [
     "Race your ghost! Finish any race and your best run of that prompt waits for you under Race Your Ghost.",
     "Play Online, then Create Room: Best of 3, Sudden Death, strict typing, or paste your own text for the room to race.",
-  ],
-  "Chess Puzzles": [
-    "Your opponent moves first, then find the best reply. Stuck? Hint shows the piece, then the square.",
-    "More options has Puzzle Streak, Puzzle Rush and themes like Mate in 2 or Fork.",
   ],
   Imposter: [
     "Pass the phone around: each player peeks at their card, then you take turns giving clues.",
