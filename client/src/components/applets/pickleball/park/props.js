@@ -134,6 +134,8 @@ const T = {
     }
     return { solid: parts }
   },
+  // a garden wall: stucco with a cap (Paseo's fountain courtyard)
+  stuccowall: (c) => ({ solid: [box(2, 2.2, 0.3, 0, 0, 0, c || "#e4d8bd"), box(2.02, 0.08, 0.36, 0, 2.2, 0, "#efe8d8")] }),
   partition: (c) => ({ solid: [box(2, 0.05, 0.05, 0, 1.05, 0, c || "#2b2f36"), box(0.05, 1.1, 0.05, -0.98, 0, 0, c || "#2b2f36"), box(0.05, 1.1, 0.05, 0.98, 0, 0, c || "#2b2f36")], glass: [box(1.9, 0.95, 0.02, 0, 0.08, 0, "#1d1f22")] }),
   glasswall: () => ({ solid: [box(2, 0.06, 0.06, 0, 2.34, 0, "#3a3e44"), box(2, 0.06, 0.06, 0, 0, 0, "#3a3e44")], glass: [box(2, 2.3, 0.02, 0, 0.05, 0, "#cfe6ef")] }),
   kidsmat: (c) => ({ solid: [box(2, 0.04, 2, 0, 0, 0, c || "#f4b942")] }),

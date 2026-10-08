@@ -264,7 +264,7 @@ test("floors above the ground: up Newport's stairs to the rooftop terrace bar, i
   setLayout(get("loscab").L)
 })
 
-test("room kit: every room with a door you can open is reachable on foot from the arrival (Los Cab, SMASH)", () => {
+test("room kit: every room with a door you can open is reachable on foot from the arrival (Los Cab, SMASH, Paseo)", () => {
   const inPoly = (x, z, p) => {
     let inside = false
     for (let i = 0, j = p.length - 1; i < p.length; j = i++) {
@@ -274,7 +274,7 @@ test("room kit: every room with a door you can open is reachable on foot from th
     }
     return inside
   }
-  for (const id of ["loscab", "smash"]) {
+  for (const id of ["loscab", "smash", "paseo"]) {
     const { g, L } = get(id)
     setLayout(L)
     const rooms = g.layoutSpec.scene.rooms || []
@@ -346,6 +346,170 @@ test("live courts are clear: nothing stands where the players run (the Newport b
     }
     assert.deepEqual(bad, [], `${id}: things in play`)
   }
+})
+
+test("upper floors you can walk: SMASH's mezzanine and Los Cab's ballroom, up the stairs, a long walk about without falling through, over a railing or through a wall; the camera clear", async () => {
+  const { stepWalker, createWalker } = await import("./walker.js")
+  const inPoly = (x, z, p) => {
+    let inside = false
+    for (let i = 0, j = p.length - 1; i < p.length; j = i++) {
+      const [xi, zi] = p[i]
+      const [xj, zj] = p[j]
+      if (zi > z !== zj > z && x < ((xj - xi) * (z - zi)) / (zj - zi) + xi) inside = !inside
+    }
+    return inside
+  }
+  // a fixed sequence of stick pushes: long pushes each way (into every railing and wall) and
+  // wandering (a little LCG so the run is the same every time)
+  let seed = 7
+  const rnd = () => ((seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648)
+  for (const id of ["smash", "loscab"]) {
+    const { L } = get(id)
+    setLayout(L)
+    const s = L.STAIRS[0]
+    const y1 = s.y1
+    const decks = L.DECKS.filter((d) => Math.abs(d.y - y1) < 0.1)
+    const onStairs = (x, z) => {
+      const t = (x - s.a.x) * s.ux + (z - s.a.z) * s.uz
+      const c = Math.abs(-(x - s.a.x) * s.uz + (z - s.a.z) * s.ux)
+      return t > -0.6 && t < s.L + 0.6 && c < s.w / 2 + 0.4
+    }
+    const upHere = (x, z) => decks.some((d) => inPoly(x, z, d.p))
+    // up the stairs
+    const yaw = Math.atan2(s.ux, s.uz)
+    const w = createWalker(s.a.x - s.ux * 1.2, s.a.z - s.uz * 1.2, yaw)
+    for (let k = 0; k < 500 && (w.y || 0) < y1 - 0.01; k++) stepWalker(w, { x: 0, y: 1 }, yaw, 1 / 30)
+    assert.ok(Math.abs(w.y - y1) < 0.01, `${id}: climbed to ${w.y} of ${y1}`)
+    for (let k = 0; k < 30; k++) stepWalker(w, { x: 0, y: 1 }, yaw, 1 / 30)
+    assert.ok(upHere(w.x, w.z), `${id}: on the upper floor`)
+    const pushes = []
+    for (const dir of [0, Math.PI / 2, Math.PI, -Math.PI / 2, Math.PI / 4, (-3 * Math.PI) / 4]) pushes.push(...Array(150).fill({ cam: dir, x: 0, y: 1 }))
+    for (let k = 0; k < 900; k++) pushes.push({ cam: rnd() * Math.PI * 2, x: rnd() * 2 - 1, y: rnd() })
+    const st = createFollow(yaw)
+    let up = 0
+    let downs = 0
+    pushes.forEach((p, k) => {
+      stepWalker(w, { x: p.x, y: p.y }, p.cam, 1 / 30)
+      // (walked back down the stairs and off their foot: fine, that's the way down; back up)
+      const t = (w.x - s.a.x) * s.ux + (w.z - s.a.z) * s.uz
+      if (w.y < 0.01 && t < 0.2 && t > -2.5) {
+        downs++
+        for (let j = 0; j < 500 && w.y < y1 - 0.01; j++) stepWalker(w, { x: 0, y: 1 }, yaw, 1 / 30)
+        for (let j = 0; j < 30; j++) stepWalker(w, { x: 0, y: 1 }, yaw, 1 / 30)
+      }
+      // never on the ground floor below, never off the floor's edge (railings, walls): always on
+      // this floor or on the stairs at their own height
+      const there = upHere(w.x, w.z)
+      assert.ok(there || onStairs(w.x, w.z), `${id}: step ${k} at ${w.x.toFixed(2)}, ${w.z.toFixed(2)}, y ${w.y}: left the floor`)
+      if (there) {
+        assert.ok(Math.abs(w.y - y1) < 0.01, `${id}: step ${k}: fell to ${w.y}`)
+        up++
+      } else assert.ok(Math.abs(w.y - L.heightAt(w.x, w.z, w.y)) < 0.05, `${id}: on the stairs' step`)
+      // the follow camera: never a wall or a floor between it and your head
+      stepFollow(st, { x: w.x, z: w.z, y: w.y, yaw: w.yaw, speed: w.speed || 0 }, 1 / 30, { portrait: true })
+      if (k % 15 === 14) assert.equal(L.segmentHit3({ x: w.x, y: w.y + 1.55, z: w.z }, st.pos), null, `${id}: camera at step ${k}`)
+    })
+    assert.ok(up > pushes.length * 0.6, `${id}: spent the walk up there (${up})`)
+  }
+  // Los Cab: from the balcony through the ballroom's glass doors and across its floor
+  {
+    const { L, s: sp } = get("loscab")
+    setLayout(L)
+    const room = sp.rooms.find((r) => r.id === "ballroom")
+    const door = room.doors[0]
+    const st = L.STAIRS[0]
+    const w = createWalker(st.b.x - st.ux * 0.5, st.b.z - st.uz * 0.5, 0, st.y1)
+    w.y = st.y1
+    const go = (tx, tz, n) => {
+      for (let k = 0; k < n && Math.hypot(tx - w.x, tz - w.z) > 0.3; k++) stepWalker(w, { x: 0, y: 1 }, Math.atan2(tx - w.x, tz - w.z), 1 / 30)
+    }
+    go(door.x, door.z + 1.2, 400)
+    go(door.x, door.z - 4, 400)
+    const c = room.p.reduce((a, q) => [a[0] + q[0] / room.p.length, a[1] + q[1] / room.p.length], [0, 0])
+    go(c[0], c[1], 600)
+    assert.ok(inPoly(w.x, w.z, room.p) && Math.hypot(w.x - c[0], w.z - c[1]) < 1.5, `into the ballroom (${w.x.toFixed(1)}, ${w.z.toFixed(1)})`)
+    assert.ok(Math.abs(w.y - room.y) < 0.01, `on the ballroom's floor (${w.y})`)
+  }
+  setLayout(get("loscab").L)
+})
+
+// (a spec point from the reference pack's metres east/north of its aerial anchor)
+const fromEn = (s, anchor, [e, n]) => {
+  const K = Math.cos((s.origin[0] * Math.PI) / 180)
+  return [(anchor[1] - s.origin[1]) * 111320 * K + e, -(anchor[0] - s.origin[0]) * 111320 - n]
+}
+const inside = (x, z, p) => {
+  let r = false
+  for (let i = 0, j = p.length - 1; i < p.length; j = i++) {
+    const [xi, zi] = p[i]
+    const [xj, zj] = p[j]
+    if (zi > z !== zj > z && x < ((xj - xi) * (z - zi)) / (zj - zi) + xi) r = !r
+  }
+  return r
+}
+const areaOf = (p) => Math.abs(p.reduce((a, q, i) => a + q[0] * p[(i + 1) % p.length][1] - p[(i + 1) % p.length][0] * q[1], 0)) / 2
+
+test("Paseo's clubhouse is the L the aerial and OSM show, tile-roofed in parts, its rooms inside it", () => {
+  const s = spec("paseo")
+  const A = [34.4374, -118.5621] // the reference pack's aerial anchor
+  const at = (e, n) => fromEn(s, A, [e, n])
+  const club = s.buildings.find((b) => b.k === "clubhouse" && inside(...at(15, 50), b.p))
+  assert.ok(club, "a clubhouse building over the main block")
+  // the main block (OSM 472562074) and the south arm's tile wing are one building: an L
+  assert.ok(inside(...at(13.5, 20), club.p), "the south arm")
+  assert.ok(inside(...at(0, 45), club.p), "the west wing")
+  // not the open patio, the pergola courtyard, the fountain courtyard or the NW corner's trees
+  for (const [e, n, what] of [[13.5, 11, "patio"], [20, 22, "pergola courtyard"], [1.5, 22, "fountain courtyard"], [0, 58, "NW corner"], [22.3, 42, "recessed porch"]]) assert.ok(!inside(...at(e, n), club.p), what)
+  const a = areaOf(club.p)
+  // (OSM 472562074 is 1039 m2 with the patio and pergola south of the arm, which the aerial shows open)
+  assert.ok(a > 880 && a < 1000, `footprint ${a.toFixed(0)} m2`)
+  // its roofs: tile hips/gable in parts, all over the footprint
+  const parts = s.roofs.filter((r) => r.p.every(([x, z]) => Math.abs(x - club.p[0][0]) < 60 && Math.abs(z - club.p[0][1]) < 60) && inside(...r.p.reduce((c, q) => [c[0] + q[0] / r.p.length, c[1] + q[1] / r.p.length], [0, 0]), club.p))
+  assert.ok(parts.length >= 5 && parts.every((r) => r.tile && ["hip", "gable"].includes(r.rs)), `${parts.length} tile roof parts`)
+  assert.ok(parts.some((r) => r.rs === "gable" && r.h > 9.5), "the taller gable front over the entrance")
+  // every clubhouse room inside the building
+  const mine = ["pcLobby", "pcShop", "pcKids", "pcFit", "pcPerf", "pcSpin", "pcStudio"]
+  for (const r of s.rooms.filter((q) => mine.includes(q.id))) {
+    const xs = r.p.map((q) => q[0])
+    const zs = r.p.map((q) => q[1])
+    let n = 0
+    for (let x = Math.min(...xs) + 0.25; x < Math.max(...xs); x += 0.5)
+      for (let z = Math.min(...zs) + 0.25; z < Math.max(...zs); z += 0.5)
+        if (inside(x, z, r.p)) {
+          n++
+          assert.ok(inside(x, z, club.p), `${r.id}: (${x.toFixed(1)}, ${z.toFixed(1)}) inside the clubhouse`)
+        }
+    assert.ok(n > 40, `${r.id} has a floor`)
+  }
+  // the entrance on the fountain walk, the fountain just before it
+  assert.ok(club.doors.some((d) => Math.hypot(d.x - at(1.5, 28.6)[0], d.z - at(1.5, 28.6)[1]) < 0.3), "the main entrance")
+  assert.ok(s.props.some((p) => p.t === "lobbyfountain" && Math.hypot(p.x - at(1.5, 24)[0], p.z - at(1.5, 24)[1]) < 0.5), "the fountain")
+  // no pro-shop kiosk by rule at a club with its own pro shop inside
+  assert.equal(s.fence.booth, false)
+})
+
+test("Sinaloa's school lot: one lot, the aerial's three stall rows, a modest share taken, nothing in the aisles", async () => {
+  const { lotStalls } = await import("./scenery.js")
+  const s = spec("sinaloa")
+  const A = [34.265, -118.7854]
+  const lots = s.areas.filter((a) => a.k === "parking")
+  assert.equal(lots.length, 1, "one lot (OSM's two overlapping lots and the hand-drawn one had tripled the stalls)")
+  const lot = lots[0]
+  assert.ok(lot.rows?.length >= 3, "stall rows traced")
+  const { stalls, stripes } = lotStalls(lot.p, lot.rows)
+  assert.ok(stalls.length > 100 && stalls.length < 170, `${stalls.length} stalls`)
+  assert.equal(stripes.length, stalls.length * 2)
+  assert.ok(lot.full > 0 && lot.full <= 0.35, `share taken ${lot.full}`)
+  assert.ok(stalls.length * lot.full < 50, `about ${Math.round(stalls.length * lot.full)} cars`)
+  // OSM's parking aisles (n -14.6 and n -34.3, 7 m wide): no stall reaches into them
+  for (const n of [-14.6, -34.3]) {
+    const z = fromEn(s, A, [0, n])[1]
+    for (const st of stalls) assert.ok(Math.abs(st.z - z) >= 3.5 + 2.7 - 0.05, `a stall at z ${st.z} in the aisle at n ${n}`)
+  }
+  for (const st of stalls) assert.ok(inside(st.x, st.z, lot.p), "stalls inside the lot")
+  // no stall nearer than a car's width to another (no double rows on top of each other)
+  for (let i = 0; i < stalls.length; i++) for (let j = i + 1; j < stalls.length; j++) assert.ok(Math.hypot(stalls[i].x - stalls[j].x, stalls[i].z - stalls[j].z) > 2.6)
+  assert.equal(s.fence.booth, false, "no kiosk standing in the lot")
 })
 
 test("parking lots: stalls in bays with driving aisles, inside the lot, along its long side", async () => {

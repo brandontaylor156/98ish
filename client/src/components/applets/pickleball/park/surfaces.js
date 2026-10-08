@@ -205,7 +205,10 @@ const patch = (material, kind) => {
         "#include <normal_fragment_maps>",
         `#include <normal_fragment_maps>
   {
-    vec3 surfWN = normalize(vSurfN + surfBend(surfD, vSurfN) * surfNK);
+    // (the side you see: a double-sided roof or screen wound the other way would otherwise
+    // be lit from below, near black; three.js flips its own normal the same way)
+    vec3 surfFN = vSurfN * faceDirection;
+    vec3 surfWN = normalize(surfFN + surfBend(surfD, surfFN) * surfNK);
     vec3 surfVN = normalize((viewMatrix * vec4(surfWN, 0.0)).xyz);
     normal = normalize(mix(normal, surfVN, ${material.normalMap ? 0.3 : 0.85} * surfOn)); // (a material's own relief, round 2's windows and quilting, stays)
   }`

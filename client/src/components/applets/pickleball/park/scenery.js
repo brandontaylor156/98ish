@@ -54,7 +54,40 @@ const FLOOR_SURFACE = { wood: "wood", tile: "tile", rubber: "rubber", carpet: "c
 const STALL_W = 2.7
 const STALL_D = 5.4
 const AISLE = 7
-export const lotStalls = (p) => {
+// A lot whose stall rows were traced off the aerial (`rows`: [{ a: [x, z], b: [x, z], d }],
+// each row's back line a -> b, its stalls d metres deep to the left of a -> b, or to the right
+// when d < 0) lays its stalls along those rows only, so nothing parks in the aisles between.
+const rowStalls = (p, rows) => {
+  const stalls = []
+  const stripes = []
+  const stops = []
+  for (const r of rows) {
+    const L = Math.hypot(r.b[0] - r.a[0], r.b[1] - r.a[1])
+    if (L < STALL_W) continue
+    const ux = (r.b[0] - r.a[0]) / L
+    const uz = (r.b[1] - r.a[1]) / L
+    const d = r.d || STALL_D
+    // (left of a -> b, x right and z down the screen: (uz, -ux))
+    const nx = Math.sign(d) * uz
+    const nz = -Math.sign(d) * ux
+    const D = Math.abs(d)
+    const at = (u, w) => [r.a[0] + ux * u + nx * w, r.a[1] + uz * u + nz * w]
+    const yaw = Math.atan2(-uz, ux)
+    const n = Math.floor(L / STALL_W)
+    const u0 = (L - n * STALL_W) / 2
+    for (let k = 0; k < n; k++) {
+      const u = u0 + k * STALL_W
+      const [x, z] = at(u + STALL_W / 2, D / 2)
+      if (!pointInPoly(x, z, p)) continue
+      stalls.push({ x, z, yaw })
+      stops.push([...at(u + STALL_W / 2, 0.7), yaw])
+      stripes.push([...at(u, 0), ...at(u, D)], [...at(u + STALL_W, 0), ...at(u + STALL_W, D)])
+    }
+  }
+  return { stalls, stripes, stops }
+}
+export const lotStalls = (p, rows) => {
+  if (rows?.length) return rowStalls(p, rows)
   let best = null
   for (let i = 0; i < p.length; i++) {
     const a = p[i]
@@ -221,7 +254,7 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
           ctx.clip()
           ctx.strokeStyle = "rgba(240,240,235,0.75)"
           ctx.lineWidth = Math.max(1, 0.12 * PX)
-          for (const [x0, z0, x1, z1] of lotStalls(a.p).stripes) {
+          for (const [x0, z0, x1, z1] of lotStalls(a.p, a.rows).stripes) {
             ctx.beginPath()
             ctx.moveTo(X(x0), Z(z0))
             ctx.lineTo(X(x1), Z(z1))
@@ -1857,7 +1890,7 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
   for (const a of S.areas) {
     if (a.k !== "parking" || cars.length > 420) continue
     const spawn = L.SPAWN || { x: 1e9, z: 1e9 }
-    for (const s of lotStalls(a.p).stalls) {
+    for (const s of lotStalls(a.p, a.rows).stalls) {
       if (cars.length > 420) break
       if (Math.hypot(s.x - spawn.x, s.z - spawn.z) < 12 || rand() > (a.full ?? 0.5)) continue
       const j = (rand() - 0.5) * 0.3
@@ -1882,15 +1915,16 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
 
   // ---------- decals (Medium/High): wear on the courts, oil and cracks in the lots, leaves ----------
   if (detail) {
-    const lots = S.areas.filter((a) => a.k === "parking").map((a) => a.p)
-    const stalls = lots.flatMap((p) => lotStalls(p).stalls)
+    const lotAreas = S.areas.filter((a) => a.k === "parking")
+    const lots = lotAreas.map((a) => a.p)
+    const plans = lotAreas.map((a) => lotStalls(a.p, a.rows))
+    const stalls = plans.flatMap((x) => x.stalls)
     const plan = planDecals({ courts: S.courts, stalls, lots, trees: [...byKind.broadleaf, ...byKind.eucalyptus].filter((t) => t.x > B.x0 && t.x < B.x1 && t.z > B.z0 && t.z < B.z1), rand, inPoly: pointInPoly })
     // a soft shadow under every car
     plan.under = cars.map((c) => ({ x: c.x, z: c.z, y: 0.008, w: 2.3, l: 4.9, yaw: c.yaw }))
     buildDecals(group, plan, { keep })
     // round 3: crisp painted stall lines (a little worn), concrete wheel stops, curbs round the
     // lots, and weeds along the foot of the fences and the curbs (outdoors)
-    const plans = lots.map((p) => lotStalls(p))
     const edges = lots.flatMap((p) => p.map((a, i) => [a, p[(i + 1) % p.length]]))
     buildLotDetail(group, { stripes: plans.flatMap((x) => x.stripes), stops: plans.flatMap((x) => x.stops), edges }, { keep, rand })
     if (!S.indoor) {
@@ -2062,6 +2096,43 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
         curtain.position.set(x.x - w / 2, 1.3, x.z)
         curtain.rotation.y = Math.PI / 2
         group.add(curtain)
+      }
+    } else if (x.type === "pergola" && x.poly?.length >= 3) {
+      // a pergola over a patio (poly): square posts round its edge (one every 3.5 m at most),
+      // a beam along every side, then light slats across the short way, or (roof: "tile") a
+      // small tile hip roof on the posts: an open ramada
+      const p = x.poly
+      const h = x.h || 2.9
+      const mat = lambert(hex(x.color, 0xefe9dc))
+      const posts = []
+      for (let i = 0; i < p.length; i++) {
+        const [ax2, az2] = p[i]
+        const [bx2, bz2] = p[(i + 1) % p.length]
+        const L2 = Math.hypot(bx2 - ax2, bz2 - az2)
+        const n = Math.max(1, Math.ceil(L2 / 3.5))
+        for (let k = 0; k < n; k++) posts.push([ax2 + ((bx2 - ax2) * k) / n, az2 + ((bz2 - az2) * k) / n])
+        const beam = new THREE.Mesh(keep(new THREE.BoxGeometry(L2 + 0.2, 0.22, 0.14)), mat)
+        beam.position.set((ax2 + bx2) / 2, h - 0.11, (az2 + bz2) / 2)
+        beam.rotation.y = -Math.atan2(bz2 - az2, bx2 - ax2)
+        group.add(beam)
+      }
+      const post = new THREE.InstancedMesh(keep(new THREE.BoxGeometry(0.2, h, 0.2).translate(0, h / 2, 0)), mat, posts.length)
+      posts.forEach(([px, pz], i) => post.setMatrixAt(i, m4.compose(v1.set(px, 0, pz), q.identity(), v2.set(1, 1, 1))))
+      group.add(post)
+      if (x.roof === "tile") {
+        const r = slopedRoof(p, h, "hip", { rise: x.rise ?? 1.2, eaves: 0.3 })
+        group.add(new THREE.Mesh(r.geo, tileMatFor(hex(x.roofColor, 0x9a4a32))))
+      } else {
+        const { ux, uz, u0, u1, w0, w1 } = rectOf(p)
+        const slats = []
+        for (let u = u0 + 0.2; u < u1 - 0.1; u += 0.45) slats.push(u)
+        const slat = new THREE.InstancedMesh(keep(new THREE.BoxGeometry(0.07, 0.16, w1 - w0 + 0.4)), mat, slats.length)
+        const yaw = -Math.atan2(uz, ux)
+        slats.forEach((u, i) => {
+          const wm = (w0 + w1) / 2
+          slat.setMatrixAt(i, m4.compose(v1.set(u * ux - wm * uz, h + 0.08, u * uz + wm * ux), q.setFromEuler(e1.set(0, yaw, 0)), v2.set(1, 1, 1)))
+        })
+        group.add(slat)
       }
     } else if (x.type === "canopy") {
       const w = x.w || 3
