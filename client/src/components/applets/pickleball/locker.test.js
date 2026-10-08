@@ -6,7 +6,7 @@ import test from "node:test"
 import assert from "node:assert/strict"
 import { createRequire } from "node:module"
 import { CHARACTERS, OUTFITS, SKIN } from "./looks.js"
-import { DEFAULT_LOOK, LOOK_IDS, LOOK_STYLES, LOOK_COLORS, LOOK_FLAGS, HEIGHT, THEMES, VENUE_THEMES, applyTheme, characterLook, isColor, lookForPlayer, lookPayload, randomLook, validateLook, validateLooks, defaultStyleFor } from "./locker.js"
+import { DEFAULT_LOOK, FACES, LOOK_IDS, LOOK_STYLES, LOOK_COLORS, LOOK_FLAGS, HEIGHT, THEMES, VENUE_THEMES, applyTheme, characterLook, isColor, lookForPlayer, lookPayload, randomLook, validateLook, validateLooks, defaultStyleFor } from "./locker.js"
 import { seeded } from "./match.js"
 
 const require = createRequire(import.meta.url)
@@ -28,7 +28,9 @@ test("the World Tour's players (old looks) come out as complete looks", () => {
       const look = characterLook(c.id, o.id)
       assertValid(look, `${c.id}/${o.id}`)
       assert.equal(look.body, c.look.body)
-      assert.equal(look.skin, SKIN[c.look.skin]) // index -> the same tone
+      // (players v3: a photographed face's own tone; otherwise index -> the same tone)
+      const fc = FACES.find((f) => f.id === c.look.face && f.body)
+      assert.equal(look.skin, fc ? fc.tone : SKIN[c.look.skin])
     }
   // old field forms
   const old = validateLook({ body: "m", skin: 5, hair: "spiky", glasses: true, build: 1.08, beard: true })

@@ -1009,32 +1009,41 @@ const loadFaceCards = (id) => {
       loadFaces()
         .then(async (mf) => {
           const f = mf?.faces?.[id]
-          if (!f?.cards || !f.cardsTex) return null
-          const [buf, tex] = await Promise.all([
-            fetch(BASE + f.cards).then((r) => (r.ok ? r.arrayBuffer() : null)),
-            new THREE.TextureLoader().loadAsync(BASE + f.cardsTex).then((t) => {
-              t.flipY = false
-              t.colorSpace = THREE.SRGBColorSpace
-              t.anisotropy = 4
-              return t
-            }),
-          ])
+          if (!f?.cards) return null
+          const tex = (file, color = true) =>
+            file
+              ? new THREE.TextureLoader().loadAsync(BASE + file).then((t) => {
+                  t.flipY = false
+                  t.colorSpace = color ? THREE.SRGBColorSpace : THREE.NoColorSpace
+                  t.anisotropy = 4
+                  return t
+                })
+              : null
+          const [buf, cardsTex, shellTex] = await Promise.all([fetch(BASE + f.cards).then((r) => (r.ok ? r.arrayBuffer() : null)), tex(f.cardsTex), tex(f.shellTex)])
           if (!buf) return null
           const hl = new DataView(buf).getUint32(0, true)
           const h = JSON.parse(new TextDecoder().decode(new Uint8Array(buf, 4, hl)))
           let o = 4 + hl
-          const pos = new Float32Array(buf, o, h.verts * 3)
-          o += h.verts * 12
-          const uv = new Float32Array(buf, o, h.verts * 2)
-          o += h.verts * 8
-          const index = new Uint16Array(buf, o, h.tris * 3)
-          const geo = new THREE.BufferGeometry()
-          geo.setAttribute("position", new THREE.BufferAttribute(pos, 3))
-          geo.setAttribute("uv", new THREE.BufferAttribute(uv, 2))
-          geo.setIndex(new THREE.BufferAttribute(index, 1))
-          geo.computeVertexNormals()
-          geo.computeBoundingSphere()
-          const c = { geo, tex, tone: f.cardsTone || f.hairTone }
+          // (cards, then the shell (v2): positions, UVs, triangles each, the triangles 4-byte padded)
+          const part = (verts, tris) => {
+            const pos = new Float32Array(buf, o, verts * 3)
+            o += verts * 12
+            const uv = new Float32Array(buf, o, verts * 2)
+            o += verts * 8
+            const index = new Uint16Array(buf, o, tris * 3)
+            o += Math.ceil((tris * 6) / 4) * 4
+            if (!verts || !tris) return null
+            const geo = new THREE.BufferGeometry()
+            geo.setAttribute("position", new THREE.BufferAttribute(pos, 3))
+            geo.setAttribute("uv", new THREE.BufferAttribute(uv, 2))
+            geo.setIndex(new THREE.BufferAttribute(index, 1))
+            geo.computeVertexNormals()
+            geo.computeBoundingSphere()
+            return geo
+          }
+          const cards = part(h.verts, h.tris)
+          const shell = h.v >= 2 ? part(h.shellVerts || 0, h.shellTris || 0) : null
+          const c = { cards: cards && cardsTex ? cards : null, cardsTex, shell: shell && shellTex ? shell : null, shellTex, tone: f.cardsTone || f.hairTone }
           faceCardsNow.set(id, c)
           return c
         })
@@ -1891,12 +1900,19 @@ const buildAthlete = (look = {}, { shadows = false, withPaddle = true } = {}, de
     const want = srgb(hairHex)
     const k = (a, b) => Math.max(0.25, Math.min(4, b / Math.max(a, 1e-3)))
     const col = new THREE.Color(k(tone.r, want.r), k(tone.g, want.g), k(tone.b, want.b))
-    const m = shared(`facecards|${face.id}|${hairHex}|${fd.hairSpec ? 1 : 0}`, () => athleteMaterial({ map: ownCards.tex, color: col, roughness: 0.62, side: THREE.DoubleSide, alphaTest: 0.4, alphaToCoverage: true }, { wrap: "vec3(0.35)", rim: 0.14, key: "pk-hair", hairSpec: fd.hairSpec }))
-    const h = new THREE.Mesh(ownCards.geo, m)
-    h.matrixAutoUpdate = false
-    h.matrix.copy(tpl.onHead.Eyes)
-    head.add(h)
-    attach.push(h)
+    // (the shell: the photographed scalp's hair, opaque; the cards over it, cut out by their alpha)
+    const parts = [
+      [ownCards.shell, () => athleteMaterial({ map: ownCards.shellTex, color: col, roughness: 0.7 }, { wrap: "vec3(0.35)", rim: 0.12, key: "pk-hair", hairSpec: fd.hairSpec }), "shell"],
+      [ownCards.cards, () => athleteMaterial({ map: ownCards.cardsTex, color: col, roughness: 0.62, side: THREE.DoubleSide, alphaTest: 0.4, alphaToCoverage: true }, { wrap: "vec3(0.35)", rim: 0.14, key: "pk-hair", hairSpec: fd.hairSpec }), "cards"],
+    ]
+    for (const [geo, make, what] of parts) {
+      if (!geo) continue
+      const h = new THREE.Mesh(geo, shared(`face${what}|${face.id}|${hairHex}|${fd.hairSpec ? 1 : 0}`, make))
+      h.matrixAutoUpdate = false
+      h.matrix.copy(tpl.onHead.Eyes)
+      head.add(h)
+      attach.push(h)
+    }
   }
   const beard = look.beard && !(face && (face.beard || 0) > 0.12) ? hairMesh("Hair_Beard", kind) : null
   if (beard) wearHair(beard)

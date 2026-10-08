@@ -257,6 +257,17 @@ const sourceHead = async (face) => {
       if (u > 0.19 && v > 0.84) eyeTris.push(t)
     } else if (I.v / I.tris.length < 0.6 && I.tris.length > 20) skinTris.push(t)
   }
+  // (the eyeballs only: that corner of the atlas can also hold a hair clip or earrings; an eye
+  // triangle is within 2.5 cm of an eye bone)
+  {
+    const near = (t) => {
+      const c = [0, 1, 2].map((k) => (head.pos[head.index[t * 3] * 3 + k] + head.pos[head.index[t * 3 + 1] * 3 + k] + head.pos[head.index[t * 3 + 2] * 3 + k]) / 3)
+      return ["LEye", "REye"].some((b) => bones[b] && len(sub(c, bones[b])) < 0.025)
+    }
+    const kept = eyeTris.filter(near)
+    eyeTris.length = 0
+    eyeTris.push(...kept)
+  }
   const color = TGA(path.join(dir, `${face.prefix}_head_color.tga`))
   const nfile = path.join(dir, `${face.prefix}_head_normal.tga`)
   const sfile = path.join(dir, `${face.prefix}_head_specular.tga`)
@@ -351,7 +362,8 @@ for (const face of FACES) {
   const tg = classifyTargets(masked, src.head.targets, mul(add(sEyeL, sEyeR), 0.5))
   const srcLm = tg.smile >= 0 && tg.jaw >= 0 ? faceLandmarks({ pos: masked, eyeL: sEyeL, eyeR: sEyeR, smile: src.head.targets[tg.smile], jaw: src.head.targets[tg.jaw] }) : srcLm1
   console.log(face.id, "source targets: smile", tg.smile, "jaw", tg.jaw, "missing", Object.keys(LM_WEIGHT).filter((k) => !srcLm.pts[k]).join(",") || "none", "ours missing", Object.keys(LM_WEIGHT).filter((k) => !ourLm.pts[k]).join(",") || "none")
-  const lmNames = Object.keys(LM_WEIGHT).filter((k) => ourLm.pts[k] && srcLm.pts[k])
+  // (a landmark more than 4 cm from ours after the rigid fit is a misread: left out)
+  const lmNames = Object.keys(LM_WEIGHT).filter((k) => ourLm.pts[k] && srcLm.pts[k] && len(sub(ourLm.pts[k], srcLm.pts[k])) < 0.04)
   const residual = lmNames.map((k) => [k, +(len(sub(srcLm.pts[k], ourLm.pts[k])) * 1000).toFixed(1)])
   console.log(face.id, "scale", T.s.toFixed(3), "landmark gaps (mm)", residual.map((r) => r.join(" ")).join(", "))
   // the source's triangle normals (for the facing test)
@@ -377,10 +389,14 @@ for (const face of FACES) {
     if (move[i] <= 0) continue
     const p = [W.pos[i * 3], W.pos[i * 3 + 1], W.pos[i * 3 + 2]]
     const q = tps(p)
-    for (let k = 0; k < 3; k++) start[i * 3 + k] = p[k] + (q[k] - p[k]) * move[i]
+    // (never more than 3 cm: a spline far from its landmarks can run away)
+    const dq = sub(q, p)
+    const lq = len(dq)
+    const cap = lq > 0.03 ? 0.03 / lq : 1
+    for (let k = 0; k < 3; k++) start[i * 3 + k] = p[k] + dq[k] * cap * move[i]
   }
   const pins = Object.entries(ourLm.vtx)
-    .filter(([k, v]) => v >= 0 && srcLm.pts[k])
+    .filter(([k, v]) => v >= 0 && lmNames.includes(k))
     .map(([k, v]) => [W.canon[v], srcLm.pts[k]])
   // (the mouth's inside and the lips' seam aren't pulled onto the photo's surface: they ride
   // along with the lips, so the mouth stays closed as it was)
@@ -419,79 +435,150 @@ for (const face of FACES) {
   }
   if (process.env.FACE_BAKE === "0") continue
 
-  // ---- the photographed hair cards, carried onto our head ----
-  // Each card vertex keeps its place over the photographed scalp: the closest scalp point there,
-  // moved to the closest point on our (fitted) head, takes the vertex along. Lashes (cards near
-  // the eyes) and anything in front of the face are left out. Written as a small binary (rest
-  // positions, UVs, triangles) and the texture as a WebP with alpha; the game puts them on the
-  // Head bone like the MakeHuman hairstyles (style "own").
+  // ---- the photographed hair, carried onto our head ----
+  // Two parts, both placed by the rigid fit alone (so the hair keeps its photographed volume):
+  // the photographed scalp's hair shell (its triangles above and behind the face whose texture is
+  // hair, wherever they stand out from our head: a big afro, a bun, a thick crop) with the head's
+  // own texture, and the hair cards (the "opacity" material: fringes, strands, a ponytail) with
+  // theirs. Anything that would sink into our head is pushed out to 3 mm above it; cards near the
+  // eyes (lashes) are left out. The game puts both on the Head bone (style "own").
   let cardsOut = null
-  if (src.cards) {
-    const C = src.cards
+  {
     const ourGrid = triangleGrid(Float64Array.from(newPos), hi.body.index, null, 0.008)
-    const nC = C.pos.length / 3
-    const moved = new Float32Array(nC * 3)
-    for (let i = 0; i < nC; i++) {
-      const p = [C.pos[i * 3], C.pos[i * 3 + 1], C.pos[i * 3 + 2]]
-      const hs = surf.query(p, 0.12)
-      let off = [0, 0, 0]
-      if (hs) {
-        const ho = ourGrid.query(hs.p, 0.05)
-        if (ho) off = sub(ho.p, hs.p)
-      }
-      for (let k = 0; k < 3; k++) moved[i * 3 + k] = p[k] + off[k]
+    const pushOut = (p) => {
+      const q = ourGrid.query(p, 0.05)
+      if (!q) return p
+      const I = [hi.body.index[q.t * 3], hi.body.index[q.t * 3 + 1], hi.body.index[q.t * 3 + 2]]
+      const n = norm([0, 1, 2].map((k) => newNrm[I[0] * 3 + k] * q.w[0] + newNrm[I[1] * 3 + k] * q.w[1] + newNrm[I[2] * 3 + k] * q.w[2]))
+      const d = dot(sub(p, q.p), n)
+      return d < 0.003 ? add(q.p, mul(n, 0.003)) : p
     }
-    const keep = []
+    const outside = (p) => {
+      const q = ourGrid.query(p, 0.05)
+      if (!q) return true
+      const I = [hi.body.index[q.t * 3], hi.body.index[q.t * 3 + 1], hi.body.index[q.t * 3 + 2]]
+      const n = norm([0, 1, 2].map((k) => newNrm[I[0] * 3 + k] * q.w[0] + newNrm[I[1] * 3 + k] * q.w[1] + newNrm[I[2] * 3 + k] * q.w[2]))
+      return dot(sub(p, q.p), n) > 0.002
+    }
     const nearEye = (q) => Math.min(len(sub(q, ourLm.pts.eyeL)), len(sub(q, ourLm.pts.eyeR))) < 0.028
-    for (let t = 0; t < C.index.length; t += 3) {
-      const tri = [C.index[t], C.index[t + 1], C.index[t + 2]]
-      const c = [0, 1, 2].map((k) => tri.reduce((a, v) => a + moved[v * 3 + k], 0) / 3)
-      if (nearEye(c)) continue
-      keep.push(...tri)
+    const mid = ourLm.mid
+    // (the photo's skin, from its cheeks: hair is what differs from it)
+    const cheek = []
+    for (const t of src.skinTris) {
+      const c = [0, 1, 2].map((k) => (src.head.pos[src.head.index[t * 3] * 3 + k] + src.head.pos[src.head.index[t * 3 + 1] * 3 + k] + src.head.pos[src.head.index[t * 3 + 2] * 3 + k]) / 3)
+      const y = c[1] - mid[1]
+      if (y > -0.07 && y < -0.035 && Math.abs(c[0]) > 0.03 && Math.abs(c[0]) < 0.05 && c[2] - mid[2] > -0.03) cheek.push(t)
     }
-    if (keep.length) {
-      // (only the vertices the kept triangles use)
+    const triUV = (t) => [0, 1].map((k) => (src.head.uv[src.head.index[t * 3] * 2 + k] + src.head.uv[src.head.index[t * 3 + 1] * 2 + k] + src.head.uv[src.head.index[t * 3 + 2] * 2 + k]) / 3)
+    const skin = [0, 0, 0]
+    for (const t of cheek) {
+      const [u, v] = triUV(t)
+      const c = sampleImage(src.color, u, v)
+      for (let k = 0; k < 3; k++) skin[k] += toLin(c[k]) / (cheek.length || 1)
+    }
+    const sl = 0.2126 * skin[0] + 0.7152 * skin[1] + 0.0722 * skin[2] + 1e-5
+    const hairy = (t) => {
+      const [u, v] = triUV(t)
+      const c = sampleImage(src.color, u, v).map(toLin)
+      const l = 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2] + 1e-5
+      const dl = Math.abs(Math.log(l / sl))
+      const dc = Math.hypot(c[0] / l - skin[0] / sl, c[1] / l - skin[1] / sl, c[2] / l - skin[2] / sl)
+      return dl > 0.45 || dc > 0.18
+    }
+    // the shell
+    const shellKeep = []
+    for (const t of src.skinTris) {
+      const vs = [src.head.index[t * 3], src.head.index[t * 3 + 1], src.head.index[t * 3 + 2]]
+      const ps = vs.map((v) => [src.head.pos[v * 3], src.head.pos[v * 3 + 1], src.head.pos[v * 3 + 2]])
+      const c = [0, 1, 2].map((k) => (ps[0][k] + ps[1][k] + ps[2][k]) / 3)
+      const y = c[1] - mid[1]
+      const z = c[2] - mid[2]
+      const scalp = y > 0.04 || (z < -0.05 && y > -0.05) || (Math.abs(c[0]) > 0.06 && y > -0.03)
+      if (!scalp || !hairy(t)) continue
+      if (!ps.some(outside)) continue
+      shellKeep.push(...vs)
+    }
+    const pack = (keepIdx, pos, uv) => {
       const remap = new Map()
       const P = []
       const U = []
       const I = []
-      for (const v of keep) {
+      for (const v of keepIdx) {
         if (!remap.has(v)) {
           remap.set(v, P.length / 3)
-          P.push(moved[v * 3], moved[v * 3 + 1], moved[v * 3 + 2])
-          U.push(C.uv[v * 2], C.uv[v * 2 + 1])
+          const q = pushOut([pos[v * 3], pos[v * 3 + 1], pos[v * 3 + 2]])
+          P.push(q[0], q[1], q[2])
+          U.push(uv[v * 2], uv[v * 2 + 1])
         }
         I.push(remap.get(v))
       }
-      const hdr = Buffer.from(JSON.stringify({ v: 1, verts: P.length / 3, tris: I.length / 3 }))
+      return { P: Float32Array.from(P), U: Float32Array.from(U), I: Uint16Array.from(I) }
+    }
+    const shell = shellKeep.length ? pack(shellKeep, src.head.pos, src.head.uv) : null
+    // the cards
+    let cards = null
+    if (src.cards) {
+      const C = src.cards
+      const keep = []
+      for (let t = 0; t < C.index.length; t += 3) {
+        const tri = [C.index[t], C.index[t + 1], C.index[t + 2]]
+        const c = [0, 1, 2].map((k) => tri.reduce((a2, v) => a2 + C.pos[v * 3 + k], 0) / 3)
+        if (nearEye(c)) continue
+        keep.push(...tri)
+      }
+      if (keep.length) cards = pack(keep, C.pos, C.uv)
+    }
+    if (cards || shell) {
+      const empty = { P: new Float32Array(0), U: new Float32Array(0), I: new Uint16Array(0) }
+      const A = cards || empty
+      const S2 = shell || empty
+      const hdr = Buffer.from(JSON.stringify({ v: 2, verts: A.P.length / 3, tris: A.I.length / 3, shellVerts: S2.P.length / 3, shellTris: S2.I.length / 3 }))
       const hpad2 = Buffer.alloc((4 - ((hdr.length + 4) % 4)) % 4, 32)
       const hl2 = Buffer.alloc(4)
       hl2.writeUInt32LE(hdr.length + hpad2.length)
-      const idx = Uint16Array.from(I)
-      const ipad = Buffer.alloc((4 - (idx.byteLength % 4)) % 4)
-      cardsOut = { bin: Buffer.concat([hl2, hdr, hpad2, Buffer.from(Float32Array.from(P).buffer), Buffer.from(Float32Array.from(U).buffer), Buffer.from(idx.buffer), ipad]), tex: C.tex, tris: I.length / 3 }
-      // (the cards' own hair color: the average of what's opaque)
+      const parts = (X) => [Buffer.from(X.P.buffer), Buffer.from(X.U.buffer), Buffer.from(X.I.buffer), Buffer.alloc((4 - (X.I.byteLength % 4)) % 4)]
+      cardsOut = { bin: Buffer.concat([hl2, hdr, hpad2, ...parts(A), ...parts(S2)]), tex: src.cards && cards ? src.cards.tex : null, tris: A.I.length / 3, shellTris: S2.I.length / 3 }
+      // (the hair's own color: the opaque cards' average, or the shell's)
       let sum = [0, 0, 0]
       let n = 0
-      for (let i = 0; i < C.tex.width * C.tex.height; i += 7) {
-        if (C.tex.data[i * 4 + 3] < 200) continue
-        for (let k = 0; k < 3; k++) sum[k] += toLin(C.tex.data[i * 4 + k])
-        n++
+      if (cardsOut.tex) {
+        const T3 = cardsOut.tex
+        for (let i = 0; i < T3.width * T3.height; i += 7) {
+          if (T3.data[i * 4 + 3] < 200) continue
+          for (let k = 0; k < 3; k++) sum[k] += toLin(T3.data[i * 4 + k])
+          n++
+        }
       }
+      if (!n && shell)
+        for (let i = 0; i < S2.U.length; i += 2) {
+          const c = sampleImage(src.color, S2.U[i], S2.U[i + 1])
+          for (let k = 0; k < 3; k++) sum[k] += toLin(c[k])
+          n++
+        }
       cardsOut.tone = n ? "#" + sum.map((x) => toSrgb(x / n).toString(16).padStart(2, "0")).join("") : null
-      console.log(face.id, "hair cards:", cardsOut.tris, "triangles, tone", cardsOut.tone)
+      console.log(face.id, "own hair:", cardsOut.tris, "card triangles,", cardsOut.shellTris, "shell triangles, tone", cardsOut.tone)
     }
   }
   const writeCards = async (name, entry) => {
     if (!cardsOut) return
     fs.writeFileSync(path.join(outDir, `${name}-cards.bin`), cardsOut.bin)
-    const T2 = cardsOut.tex
-    const webp = await sharp(T2.data, { raw: { width: T2.width, height: T2.height, channels: 4 } }).resize(1024, 1024).webp({ quality: 88, alphaQuality: 90 }).toBuffer()
-    fs.writeFileSync(path.join(outDir, `${name}-cards.webp`), webp)
     entry.cards = `${name}-cards.bin`
-    entry.cardsTex = `${name}-cards.webp`
     entry.cardsTone = cardsOut.tone
-    entry.files = { ...(entry.files || {}), [`${name}-cards.bin`]: cardsOut.bin.length, [`${name}-cards.webp`]: webp.length }
+    entry.files = { ...(entry.files || {}), [`${name}-cards.bin`]: cardsOut.bin.length }
+    if (cardsOut.tex) {
+      const T2 = cardsOut.tex
+      const webp = await sharp(T2.data, { raw: { width: T2.width, height: T2.height, channels: 4 } }).resize(1024, 1024).webp({ quality: 88, alphaQuality: 90 }).toBuffer()
+      fs.writeFileSync(path.join(outDir, `${name}-cards.webp`), webp)
+      entry.cardsTex = `${name}-cards.webp`
+      entry.files[`${name}-cards.webp`] = webp.length
+    } else delete entry.cardsTex
+    if (cardsOut.shellTris) {
+      // (the shell's texture: the photographed head's own, as it was painted)
+      const jpg = await sharp(src.color.data, { raw: { width: src.color.width, height: src.color.height, channels: 3 } }).resize(1024, 1024).jpeg({ quality: 86, mozjpeg: true }).toBuffer()
+      fs.writeFileSync(path.join(outDir, `${name}-shell.jpg`), jpg)
+      entry.shellTex = `${name}-shell.jpg`
+      entry.files[`${name}-shell.jpg`] = jpg.length
+    } else delete entry.shellTex
   }
   if (process.env.FACE_CARDS_ONLY === "1") {
     // (just the cards: the rest of this face's files as they were)
@@ -667,6 +754,7 @@ for (const face of FACES) {
   // lightness or hue, inside the regions hair grows; the game recolors it to the look's hair
   // color, or (bald, shaved) covers it with skin
   const hairM = new Uint8Array(N * N * 3)
+  const isMale = face.body === "m"
   const skinLum = 0.2126 * photoMean[0] + 0.7152 * photoMean[1] + 0.0722 * photoMean[2]
   const skinChroma = photoMean.map((x) => x / skinLum)
   const hairSum = [0, 0, 0, 0]
@@ -760,7 +848,8 @@ for (const face of FACES) {
       hairM[o] = Math.max(hairM[o], Math.round(255 * onScalp * (1 - near) * wFar))
       if (near < 0.5) for (let k = 0; k < 3; k++) (farHair[k] += c[k]), k === 2 && farHair[3]++
     }
-    w *= near
+    // (on the scalp the photo's hair is painted even where its surface stands off ours: it is hair)
+    w *= onScalp > 0.5 ? 1 : near
     if (w <= 0.001) return
     for (let k = 0; k < 3; k++) out[o + k] = toSrgb(toLin(s.rgb[k]) * w + toLin(out[o + k]) * (1 - w))
     {
@@ -774,13 +863,15 @@ for (const face of FACES) {
       // (the scalp: above the forehead, or behind the face above the ears' bottoms)
       const scalp = Math.max(Math.min(1, Math.max(0, (y - 0.045) / 0.02)), z < -0.065 && y > -0.04 ? 1 : 0, Math.abs(p[0]) > 0.058 && y > -0.035 ? 1 : 0)
       // (a beard: below the nose, in front, above the neck's middle)
-      const face = y < -0.035 && y > -0.17 && z > -0.075 ? 1 : 0
+      // (facial hair: men only, and darker than the skin: lips and blushes are not a beard)
+      const region = y < -0.035 && y > -0.17 && z > -0.075
+      const face = isMale && region && l < skinLum * 0.8 ? 1 : 0
       const r = hairness * scalp * w
       const g = hairness * face * (1 - scalp) * w
       hairM[o] = Math.max(hairM[o], Math.round(255 * r))
       hairM[o + 1] = Math.round(255 * g)
       if (r > 0.6) for (let k = 0; k < 3; k++) (hairSum[k] += c[k]), k === 2 && hairSum[3]++
-      if (face) (faceArea++, (beardArea += g))
+      if (region) (faceArea++, (beardArea += g))
     }
     // the photo's normal: its tangent-space value -> the source's object space -> our tangent space
     const tbS = srcTB[s.h.t]

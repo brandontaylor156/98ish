@@ -142,13 +142,16 @@ test("faces: shape files parse; every face is on its own body with sane offsets"
       const b = fs.readFileSync(path.join(ASSETS, f.cards))
       const hl = b.readUInt32LE(0)
       const h = JSON.parse(b.subarray(4, 4 + hl).toString())
-      assert.ok(h.verts > 50 && h.tris > 50, `${id} cards`)
-      assert.ok(b.length >= 4 + hl + h.verts * 20 + h.tris * 6, `${id} cards size`)
-      const pos = new Float32Array(b.buffer.slice(b.byteOffset + 4 + hl, b.byteOffset + 4 + hl + h.verts * 12))
-      let minY = Infinity
-      for (let i = 1; i < pos.length; i += 3) minY = Math.min(minY, pos[i])
-      assert.ok(minY > 1.2, `${id} cards sit on the head (lowest ${minY})`)
-      assert.ok(fs.existsSync(path.join(ASSETS, f.cardsTex)))
+      assert.ok(h.tris + (h.shellTris || 0) > 50, `${id} cards or shell`)
+      assert.ok(b.length >= 4 + hl + (h.verts + (h.shellVerts || 0)) * 20 + (h.tris + (h.shellTris || 0)) * 6, `${id} cards size`)
+      if (h.verts) {
+        const pos = new Float32Array(b.buffer.slice(b.byteOffset + 4 + hl, b.byteOffset + 4 + hl + h.verts * 12))
+        let minY = Infinity
+        for (let i = 1; i < pos.length; i += 3) minY = Math.min(minY, pos[i])
+        assert.ok(minY > 1.2, `${id} cards sit on the head (lowest ${minY})`)
+        assert.ok(fs.existsSync(path.join(ASSETS, f.cardsTex)))
+      }
+      if (h.shellTris) assert.ok(fs.existsSync(path.join(ASSETS, f.shellTex)))
     }
     // download budgets: what Medium fetches for a face (KTX2 or the JPEG, eye, hair mask, shape),
     // and High's extra (the 2048 KTX2 and the detail map)

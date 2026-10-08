@@ -589,7 +589,8 @@ export const faceWeight = (p, mid) => {
   const y = p[1] - mid[1]
   const z = p[2] - mid[2]
   const front = smoothstep(-0.07, -0.035, z)
-  const top = 1 - smoothstep(0.035, 0.065, y)
+  // (the forehead keeps our shape from 2 cm above the eyes: caps and visors sit on it)
+  const top = 1 - smoothstep(0.018, 0.042, y)
   const bottom = smoothstep(-0.16, -0.115, y)
   return front * top * bottom
 }
