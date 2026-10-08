@@ -2,7 +2,7 @@ import React, { Suspense, lazy, useEffect, useState } from "react"
 import { useIsTouch } from "../../../hooks/useMediaQuery"
 import { useSettings } from "../../../utils/settings"
 import { textFieldFor } from "./fields"
-import { KB_WANT, noteGesture, restore, restoreAll, suppress } from "./native"
+import { KB_WANT, afterTap, noteGesture, restore, restoreAll, suppress } from "./native"
 
 // The keyboard itself loads on the first tap into a text field
 const Keyboard = lazy(() => import("./Keyboard"))
@@ -27,7 +27,8 @@ const KeyboardHost = () => {
       suppress(el)
       // a field that was focused while read-only (Speed Typist's box during the countdown)
       // gets no new focus event when it's tapped: the tap itself asks for the keyboard
-      if (el === document.activeElement) setWanted(true)
+      // (once the tap is over: see afterTap)
+      if (el === document.activeElement) afterTap(() => el === document.activeElement && setWanted(true))
     }
     const onUp = () => noteGesture()
     // focus from code (autoFocus, dialogs, MS-DOS): the attribute is in place before the

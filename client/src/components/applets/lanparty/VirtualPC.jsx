@@ -5,6 +5,7 @@ import { helpItem } from "../../../utils/help"
 import { fs, readContent, writeAndSave, FILE_TYPE } from "../../../utils/fs"
 import { CDN, diskOptions } from "./catalog"
 import { loadV86 } from "./engines"
+import { createPcKeyboard } from "./pcKeys"
 import "./LanParty.css"
 
 // Virtual PC 98: a real x86 PC emulated by v86, booting FreeDOS from a floppy (bundled), or a
@@ -33,6 +34,11 @@ const VirtualPC = ({ handoff, onClose }) => {
   const [status, setStatus] = useState("Starting the PC...")
   const [error, setError] = useState("")
   const [boots, setBoots] = useState(0)
+  const [typing, setTyping] = useState(false) // the type-in box has focus: keys go to the PC
+  // every key reaches the PC as scancodes (pcKeys.js): v86 skips keys aimed at a text box,
+  // which is where a phone types
+  const keys = useRef(null)
+  if (!keys.current) keys.current = createPcKeyboard((codes) => emu.current?.keyboard_send_scancodes?.(codes))
 
   useEffect(() => {
     let dead = false
@@ -49,10 +55,16 @@ const VirtualPC = ({ handoff, onClose }) => {
           vga_bios: { url: `${CDN.v86Bios}vgabios.bin` },
           ...diskOptions(disk),
           autostart: true,
+          disable_keyboard: true, // pcKeys.js sends every key
           disable_speaker: false,
         })
         emu.current = e
-        e.add_listener("emulator-ready", () => !dead && setStatus(""))
+        e.add_listener("emulator-ready", () => {
+          if (dead) return
+          setStatus("")
+          // with a mouse, typing goes straight to the PC
+          if (!window.matchMedia?.("(pointer: coarse)").matches) keyInput.current?.focus({ preventScroll: true })
+        })
       })
       .catch((err) => !dead && (setStatus(""), setError(err.message)))
     return () => {
@@ -74,6 +86,13 @@ const VirtualPC = ({ handoff, onClose }) => {
       .then((bytes) => setDisk({ name: handoff.image.name, buffer: bytes.buffer }))
       .catch(() => setError("That disk image couldn't be read."))
   }, [handoff?.id])
+
+  // a press on the screen: typing goes to the PC (and on a phone the 98ish keyboard comes up).
+  // Cancelled, so the press's mouse events don't take the focus away from the box again.
+  const typeHere = (e) => {
+    e.preventDefault()
+    keyInput.current?.focus({ preventScroll: true })
+  }
 
   const insert = () => {
     const input = document.createElement("input")
@@ -150,21 +169,37 @@ const VirtualPC = ({ handoff, onClose }) => {
       <div className="vpStage">
         <div className="vpBar">
           <b>{disk ? disk.name : "FreeDOS (floppy A:)"}</b>
-          <button type="button" onClick={() => keyInput.current?.focus()} data-vp-keyboard>
+          <button type="button" onClick={() => keyInput.current?.focus({ preventScroll: true })} data-vp-keyboard>
             Keyboard
           </button>
           <button type="button" onClick={saveState}>
             Save State
           </button>
         </div>
-        <div className="vpScreenWrap" onPointerDown={() => keyInput.current?.focus({ preventScroll: true })}>
+        <div className={typing ? "vpScreenWrap is-typing" : "vpScreenWrap"} onPointerDown={typeHere}>
           <div className="vpScreen" ref={screen} data-vp-screen>
             <div />
             <canvas />
           </div>
           {status && <div className="lpStatus">{status}</div>}
           {/* the phone's keyboard types into the PC (v86 reads the page's key events) */}
-          <input ref={keyInput} className="vpKeyInput" aria-label="Type into the PC" autoCapitalize="off" autoCorrect="off" spellCheck={false} data-native-keyboard onInput={(ev) => (ev.target.value = "")} />
+          <input
+            ref={keyInput}
+            className="vpKeyInput"
+            aria-label="Type into the PC"
+            autoCapitalize="off"
+            autoCorrect="off"
+            autoComplete="off"
+            spellCheck={false}
+            data-kb-layout="dos"
+            data-vp-keys
+            onFocus={() => setTyping(true)}
+            onBlur={() => (setTyping(false), keys.current.releaseAll())}
+            onKeyDown={(ev) => keys.current.keydown(ev.nativeEvent) && (ev.preventDefault(), ev.stopPropagation())}
+            onKeyUp={(ev) => keys.current.keyup(ev.nativeEvent) && (ev.preventDefault(), ev.stopPropagation())}
+            onBeforeInput={(ev) => keys.current.beforeinput(ev.nativeEvent) && ev.preventDefault()}
+            onInput={(ev) => (ev.target.value = "")}
+          />
         </div>
       </div>
       {error && (

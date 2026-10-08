@@ -5,6 +5,7 @@ import ReactDOM from "react-dom/client"
 import App from "./App"
 import { fsReady } from "./utils/fs"
 import { installTouchGuard } from "./utils/touchGuard"
+import { installInputGuard } from "./utils/inputGuard"
 import "../node_modules/98.css/dist/98.css"
 import "./main.css"
 import "bootstrap/dist/css/bootstrap.min.css"
@@ -13,6 +14,8 @@ import "bootstrap/dist/css/bootstrap.min.css"
 // the first start after an update moves the old drive over, which can take a moment)
 // no phone "hold" menus outside text boxes and reading areas (utils/touchGuard.js)
 installTouchGuard()
+// taps that stop working: resets on coming back / turning the phone, ?tapdebug=1 (utils/inputGuard.js)
+installInputGuard()
 
 const rootEl = document.getElementById("root")
 const slow = setTimeout(() => {

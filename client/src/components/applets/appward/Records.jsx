@@ -566,7 +566,7 @@ export const RecordForm = ({ app, id, preset, tabKey, onCreated, onDeleted, focu
 
   const print = () => {
     const rows = app.fields.filter((f) => f.type !== "bom" && f.type !== "refs").map((f) => `<tr><th>${esc(f.label)}</th><td>${esc(f.type === "rich" ? display(ws, f, rec[f.key]) : f.type === "long" ? rec[f.key] : display(ws, f, rec[f.key]))}</td></tr>`)
-    if (!printPage({ title: `${singular(app.name)} ${recordNo(app, id)}`, subtitle: `${ws.company} · ${recordTitle(ws, app.id, rec)}`, body: `<table>${rows.join("")}</table>` })) toast("Allow pop-ups to print.")
+    if (!printPage({ title: `${singular(app.name)} ${recordNo(app, id)}`, subtitle: `${ws.company} · ${recordTitle(ws, app.id, rec)}`, body: `<table>${rows.join("")}</table>` })) toast("This browser can't print from here.")
   }
 
   const doDecide = (decision) => {

@@ -317,9 +317,15 @@ export const SOUND_EVENTS = [
 const play = (name, scheme) => {
   const sound = SCHEME_SOUNDS[scheme]?.[name] || SOUNDS[name]
   if (!sound || !masterGain()) return
-  const b = bus()
-  if (!b) return
-  sound(b.ctx, b.out)
+  // a sound must never break the button that played it (an iPhone can leave the audio
+  // device "interrupted" or closed after the app was put away)
+  try {
+    const b = bus()
+    if (!b) return
+    sound(b.ctx, b.out)
+  } catch {
+    // no sound this time
+  }
 }
 
 export const playSystemSound = (name) => {

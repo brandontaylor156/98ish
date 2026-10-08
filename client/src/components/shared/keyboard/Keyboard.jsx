@@ -5,8 +5,9 @@ import { PAD_LETTERS, alternatesFor, isPad, rowsFor } from "./layouts"
 import { balloonFor, deleteRepeat, hitTest, layoutKeys, metricsFor, stripFor, stripIndex } from "./geometry"
 import { wantsCapital, wantsPeriod } from "./editing"
 import { focusNext, moveBy, pressKey, textBefore } from "./typing"
-import { KB_WANT, noteGesture, suppress, wantsKeyboard } from "./native"
+import { KB_WANT, afterTap, noteGesture, suppress, wantsKeyboard } from "./native"
 import { haptic, keyClick } from "./feedback"
+import { onInputReset } from "../../../utils/inputGuard"
 import { BackIcon, EnterIcon, KeyboardIcon, ShiftIcon } from "./icons"
 import "./Keyboard.css"
 
@@ -141,7 +142,12 @@ const Keyboard = () => {
       // a tap on the taskbar, a toolbar or a plain spot doesn't put the keyboard away: it stays
       // on its field (still on screen) until its X is pressed or the field's window goes
       const cur = live.current.field
-      if (!el && cur && onScreen(cur) && strayTap()) return
+      // (but a box that just opened and took the focus, with no field to type in, such as
+      // Save As's "replace it?", puts it away: it would cover the box's buttons)
+      const now = document.activeElement
+      const box = now?.closest?.(".dialog, [role=dialog]")
+      const newBox = !!box && !box.contains(cur)
+      if (!el && cur && onScreen(cur) && strayTap() && !newBox) return
       if (el && el !== cur) setDormant(!wantsKeyboard(el))
       setField(el && !el.dataset.kbNative ? el : null)
     }
@@ -166,8 +172,12 @@ const Keyboard = () => {
       const el = textFieldFor(e.target)
       if (!el || el !== document.activeElement || el.dataset.kbNative || el === live.current.field) return
       clearTimeout(outTimer)
-      setDormant(false)
-      setField(el)
+      // after the tap (native.js afterTap: showing it now moves the page under the finger)
+      afterTap(() => {
+        if (document.activeElement !== el) return
+        setDormant(false)
+        setField(el)
+      })
     }
     // an app asking for the keyboard on its focused field (requestKeyboard: Speed Typist's
     // race box turning typable at the green light, or coming back into view)
@@ -255,11 +265,19 @@ const Keyboard = () => {
   // a tap on the field itself brings the keyboard back up (after focus from code)
   useEffect(() => {
     if (!field) return
+    let cancel = null
     const onDown = (e) => {
-      if (textFieldFor(e.target) === live.current.field) setDormant(false)
+      const el = live.current.field
+      if (textFieldFor(e.target) !== el) return
+      // once the tap is over (afterTap): coming up mid-tap moved the field away from the finger
+      cancel?.()
+      cancel = afterTap(() => document.activeElement === el && setDormant(false))
     }
     document.addEventListener("pointerdown", onDown, true)
-    return () => document.removeEventListener("pointerdown", onDown, true)
+    return () => {
+      cancel?.()
+      document.removeEventListener("pointerdown", onDown, true)
+    }
   }, [field])
 
   // (once a hardware keyboard has typed, it stays the way to type, field after field, until
@@ -755,7 +773,11 @@ const Keyboard = () => {
     }
     window.addEventListener("pointerup", end, true)
     window.addEventListener("pointercancel", end, true)
+    // the app put away or the phone turned mid-press (utils/inputGuard.js): no key stays held
+    // (a held Delete kept deleting when the page came back)
+    const off = onInputReset(() => [...pointers.current.values()].forEach((p) => release(p, false)))
     return () => {
+      off()
       window.removeEventListener("pointerup", end, true)
       window.removeEventListener("pointercancel", end, true)
     }

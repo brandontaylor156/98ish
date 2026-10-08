@@ -160,6 +160,45 @@
   max-height: calc(100dvh - 16px);
 }
 
+/* useFloating keeps a dialog no taller than the free screen (inline max-height: above the
+   taskbar and any keyboard). Then its body scrolls, its list boxes give up room first
+   (FileDialog's file list) and its buttons (OK, Save, Cancel) stay in view at the bottom. */
+.dialog[data-floating="on"] {
+  display: flex;
+  flex-direction: column;
+}
+.dialog[data-floating="on"] > .title-bar {
+  flex: none;
+}
+.dialog[data-floating="on"] > .dialogBody {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+.dialog[data-floating="on"] > .dialogBody > * {
+  flex-shrink: 0;
+}
+.dialog[data-floating="on"] > .dialogBody > .dialogButtons {
+  position: sticky;
+  bottom: 0;
+  margin-bottom: -2px;
+  padding-bottom: 2px;
+  background: #c0c0c0;
+}
+
+/* the Print box (PrintDialog.jsx) */
+.printDlg {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+.printDlg > svg {
+  flex: none;
+}
+.printDlgHint {
+  color: #404040;
+}
+
 /* clicking the window a dialog blocks flashes the dialog's title bar */
 [data-flashing] > .title-bar {
   animation: floatingFlash 0.7s steps(1) both;

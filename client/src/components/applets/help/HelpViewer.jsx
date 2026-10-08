@@ -6,6 +6,7 @@ import { bookPath, buildIndex, buildToc, indexLookup, parseInline, prepareTopics
 import { BookIcon, PageIcon, ToolIcon, TipIcon, NoteIcon, WarnIcon, PhoneIcon, MouseIcon } from "./art"
 import "./register"
 import "./Help.css"
+import { printDocument } from "../../../utils/print"
 
 // 98ish Help, after Windows 98's HTML Help viewer: a toolbar (Hide/Show, Back, Forward, Home,
 // Print, Options), tabs on the left (Contents: books and pages; Index: keywords with a
@@ -244,30 +245,14 @@ const TopicPage = React.forwardRef(({ topic, go, marks, onOpen, mobile }, ref) =
 
 // ---- printing: just the topic, in its own little page ----
 
-const PRINT_CSS = `body{font:12pt Georgia,serif;margin:2em;color:#000}h1{font:bold 18pt Arial,sans-serif}h2{font:bold 13pt Arial,sans-serif;margin-top:1.4em}
+const PRINT_CSS = `.hlpPrint{font:12pt Georgia,serif;color:#000}.hlpPrint *{max-height:none!important;overflow:visible!important;position:static!important}h1{font:bold 18pt Arial,sans-serif}h2{font:bold 13pt Arial,sans-serif;margin-top:1.4em}
 kbd{font:10pt monospace;border:1px solid #888;padding:0 3px}aside,.hlpDevice{border:1px solid #999;padding:6px 10px;margin:10px 0}aside svg,.hlpDevice svg,.hlpArrow,.hlpOpenArrow{display:none}
 table{border-collapse:collapse}td,th{border:1px solid #bbb;padding:3px 8px;text-align:left}button{border:0;background:none;font:inherit;padding:0}a{color:#000;text-decoration:none}
 .hlpShortcut{display:none}figure img{max-width:64px}`
+// (through utils/print.js: an iPhone printed the whole page instead of a hidden frame's)
 const printTopic = (node, title) => {
   if (!node) return
-  const frame = document.createElement("iframe")
-  frame.setAttribute("aria-hidden", "true")
-  frame.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0"
-  document.body.appendChild(frame)
-  const doc = frame.contentDocument
-  doc.open()
-  doc.write(`<!doctype html><html><head><meta charset="utf-8"><title>${title.replace(/</g, "&lt;")} - 98ish Help</title><style>${PRINT_CSS}</style></head><body>${node.innerHTML}</body></html>`)
-  doc.close()
-  const done = () => setTimeout(() => frame.remove(), 1000)
-  setTimeout(() => {
-    try {
-      frame.contentWindow.focus()
-      frame.contentWindow.print()
-    } catch {
-      window.print()
-    }
-    done()
-  }, 50)
+  printDocument({ title: `${title} - 98ish Help`, html: `<div class="hlpPrint">${node.innerHTML}</div>`, css: PRINT_CSS, page: "margin: 0.75in" })
 }
 
 // ---- the Contents tree ----

@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
-import { controlFor, isTextEntry, pickerKind } from "./fields"
+import { controlAt, controlFor, isTextEntry, pickerKind } from "./fields"
 import Popup from "./Popup"
 import ListPicker from "./ListPicker"
 import DatePicker from "./DatePicker"
@@ -80,9 +80,11 @@ const SelectHost = () => {
     const onTouchStart = (e) => {
       touch = null
       if (inPopup(e.target) || e.touches.length !== 1) return
-      const el = controlFor(e.target)
-      if (!el) return
+      // (on touch screens the field itself takes no touches: Select.css; the tap lands on its
+      // row or label, and controlAt finds the field under the finger)
       const p = e.touches[0]
+      const el = controlAt(e.target, p.clientX, p.clientY)
+      if (!el) return
       touch = { el, x: p.clientX, y: p.clientY }
       lastTouch = { el, t: performance.now() }
     }
@@ -111,7 +113,7 @@ const SelectHost = () => {
 
     const onMouseDown = (e) => {
       if (e.button !== 0 || inPopup(e.target)) return
-      const el = e.target.closest?.("select, input")
+      const el = e.target.closest?.("select, input") || (touchPrimary() ? controlAt(e.target, e.clientX, e.clientY) : null)
       const kind = el && pickerKind(el)
       if (!kind) return
       // the mouse events a touch screen makes up after a tap we already handled
@@ -146,7 +148,7 @@ const SelectHost = () => {
       const cur = live.current
       if (!cur || inPopup(e.target)) return
       if (cur.el === e.target || cur.el.contains(e.target)) return
-      if (controlFor(e.target) === cur.el && e.pointerType === "touch") return
+      if (controlAt(e.target, e.clientX, e.clientY) === cur.el && e.pointerType === "touch") return
       close(false)
     }
 

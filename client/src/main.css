@@ -55,6 +55,41 @@ html, body {
   -webkit-tap-highlight-color: transparent;
 }
 
+/* Printing (utils/print.js): only the document's print copy goes on paper. The page is
+   un-pinned for print (a position: fixed html/body printed one cut-off page). */
+.os-print {
+  display: none;
+}
+@media print {
+  html,
+  body {
+    position: static !important;
+    inset: auto !important;
+    width: auto !important;
+    height: auto !important;
+    overflow: visible !important;
+    background: #fff !important;
+  }
+  body.os-printing > *:not(.os-print) {
+    display: none !important;
+  }
+  body.os-printing > .os-print {
+    display: block !important;
+    color: #000;
+    background: #fff;
+  }
+}
+
+/* A modal layer whose dialog can't be seen (off screen, never drawn) lets taps through
+   instead of swallowing every one (utils/inputGuard.js sets data-input-stuck); a dialog
+   that turns up inside it still takes its own taps */
+[data-input-stuck] {
+  pointer-events: none !important;
+}
+[data-input-stuck] :is([data-floating], .dialog, .window) {
+  pointer-events: auto;
+}
+
 /* No phone "hold" menus (text loupe, Copy/Look Up, Save Image, link previews) except where
    people read or type. Off for everything; back on for text boxes and for areas marked
    data-selectable (or class "selectable") and dialog paragraphs (keep READING_SELECTOR in
@@ -336,6 +371,10 @@ video {
   border-top: 1px solid #f4f4f4;
   border-bottom: 1px solid #4e4e4e;
   padding-bottom: calc(2px + env(safe-area-inset-bottom));
+  /* a phone on its side: the Start button, the toolbar buttons and the clock stay clear of
+     the notch and the rounded corners (they ran in under them, off the left edge) */
+  padding-left: calc(2px + env(safe-area-inset-left));
+  padding-right: calc(2px + env(safe-area-inset-right));
   z-index: 99999999;
   height: var(--taskbar-h);
 }
@@ -1048,7 +1087,9 @@ select:focus {
 
 /* Start menu across the bottom, search results stacked above it */
 .os-mobile .startArea {
-  right: 0;
+  /* clear of the notch with the phone on its side, like the taskbar */
+  left: env(safe-area-inset-left);
+  right: env(safe-area-inset-right);
   flex-direction: column-reverse;
   align-items: stretch;
 }

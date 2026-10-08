@@ -419,32 +419,7 @@
   overflow: hidden;
 }
 
-/* Printing: only the document, on plain paper */
-.wpPrintArea {
-  display: none;
-}
-
-@media print {
-  @page {
-    size: letter;
-    margin: 1in 1.25in;
-  }
-
-  html,
-  body {
-    height: auto !important;
-    overflow: visible !important;
-    background: #fff !important;
-  }
-
-  body > *:not(.wpPrintArea) {
-    display: none !important;
-  }
-
-  .wpPrintArea {
-    display: block !important;
-  }
-}
+/* Printing: the document goes through utils/print.js (only it is on paper; main.css) */
 
 /* phones: finger-sized buttons; the bars scroll sideways instead of squeezing */
 .os-mobile .wpBar {

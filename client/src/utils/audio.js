@@ -158,7 +158,12 @@ const wake = (ctx) => {
     contexts.delete(ctx)
     return
   }
-  if (ctx.state !== "running" && !held.has(ctx)) ctx.resume().catch(() => {})
+  if (ctx.state === "running" || held.has(ctx)) return
+  try {
+    ctx.resume()?.catch?.(() => {})
+  } catch {
+    // an older WebKit context that throws instead of rejecting
+  }
 }
 
 // Wake every context. Inside a gesture this is what unlocks audio; older iOS also wants

@@ -2,6 +2,8 @@ import React, { useEffect, useRef, useState } from "react"
 import MenuBar from "../../shared/MenuBar"
 import Dialog from "../../shared/Dialog"
 import FileDialog from "./FileDialog"
+import PrintDialog from "../../shared/PrintDialog"
+import { TEXT_CSS, printDocument, textHtml } from "../../../utils/print"
 import { useFloating } from "../../../hooks/useFloating"
 import { fs, readContent } from "../../../utils/fs"
 import { useFsVersion } from "../../../hooks/useFs"
@@ -254,6 +256,13 @@ const Notepad = ({ file: initialFile = null, handoff = null, onTitle, onClose, r
   }
 
   // Send To: the words (Other Apps) or a .txt file (My Phone)
+  // File > Print: the words alone (wrapped), the file name on top, through the print window
+  const print = () => {
+    setDialog(null)
+    const name = file?.name || "Untitled"
+    if (!printDocument({ title: name, html: textHtml(name, text), css: TEXT_CSS, page: "margin: 0.75in" })) setDialog({ kind: "alert", title: "Notepad", text: "This browser can't print from here. Use File > Send To to open the text somewhere that can." })
+  }
+
   const sharePayload = () => textPayload(file?.name || "Untitled", text, { fileName: file?.name || "Untitled" })
 
   // ---- find / replace ----
@@ -322,6 +331,7 @@ const Notepad = ({ file: initialFile = null, handoff = null, onTitle, onClose, r
     if (ctrl && key === "s") return e.preventDefault(), save()
     if (ctrl && key === "o") return e.preventDefault(), guard(() => setDialog({ kind: "open" }))
     if (ctrl && key === "n") return e.preventDefault(), newFile()
+    if (ctrl && key === "p") return e.preventDefault(), setDialog({ kind: "print" })
     if (ctrl && key === "f") return e.preventDefault(), setFind({ mode: "find", query: lastFind.current.query, matchCase: lastFind.current.matchCase, up: false })
     if (ctrl && key === "h") return e.preventDefault(), setFind({ mode: "replace", query: lastFind.current.query, replace: "", matchCase: lastFind.current.matchCase })
   }
@@ -335,6 +345,7 @@ const Notepad = ({ file: initialFile = null, handoff = null, onTitle, onClose, r
         { label: "Save Ctrl+S", onClick: save },
         { label: "Save As...", onClick: () => setDialog({ kind: "saveAs" }) },
         "-",
+        { label: "Print... Ctrl+P", onClick: () => setDialog({ kind: "print" }) },
         { label: "Send To", items: sendToItems(sharePayload, { title: "Notepad" }) },
         sharedId
           ? { label: "Stop Sharing (keep a copy)", onClick: stopSharing }
@@ -568,6 +579,8 @@ const Notepad = ({ file: initialFile = null, handoff = null, onTitle, onClose, r
           </fieldset>
         </Dialog>
       )}
+
+      {dialog?.kind === "print" && <PrintDialog name={file?.name || "Untitled"} onPrint={print} onCancel={() => setDialog(null)} />}
 
       {dialog?.kind === "alert" && (
         <Dialog title={dialog.title} sound="ding" onOk={() => setDialog(null)}>

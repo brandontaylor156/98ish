@@ -210,14 +210,23 @@ rooms, game chat) stay scrolled to the newest line when the keyboard makes them 
 - Opens when a text field is tapped, or focused by code within a second of a touch (Run's
   box, a dialog's first field, Notepad opening). Like iOS, a field focused by code with no
   touch behind it (an IM window popping up by itself) waits: the phone's keyboard stays down
-  too, and tapping the field brings ours up.
+  too, and tapping the field brings ours up. **After the tap, not during it** (`afterTap` in
+  native.js, 2026-10-07): bringing it up on the press shrank the phone windows mid-tap, and the
+  mouse events a phone makes up at the end of a tap landed on whatever had moved under the
+  finger. In Appward 98's sign-in (a centered box with an autofocused field) the tap's
+  mousedown hit the text above the field, focus left it and the keyboard went away again: the
+  owner's "Appward's keyboard behaves differently". Now it comes up just after the tap's click
+  (or 450 ms after the finger lifts with no click). Browser script `aw-explore.mjs`.
 - Stays while focus moves between fields (no flicker).
 - Hides when: its X is pressed, the field is removed or hidden (window closed, minimized,
   switched; a MutationObserver watches while open), the field turns read-only, or Enter
   dismisses (above). A stray tap elsewhere (the desktop, the taskbar, a toolbar) does NOT put
   it away (the owner asked for this): the keyboard stays on its field, and the next key puts
   focus back into the field first (`suppress` then `focus`, so the phone keyboard stays down).
-  Focusing another text field moves the keyboard to it.
+  Focusing another text field moves the keyboard to it. Not kept for a box that just opened and
+  took the focus without a field to type in (Save As's "replace it?" in landscape was under it).
+  The input guard (`utils/inputGuard.js`) lets go of held keys when the app is put away or the
+  phone turns (a held Delete kept deleting).
 - Physical keyboard: a real (trusted) key press while a field is focused hides the on-screen
   keyboard for the session; a small "Keyboard" button appears at the bottom right to bring it
   back.

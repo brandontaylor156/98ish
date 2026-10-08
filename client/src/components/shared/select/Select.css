@@ -1,6 +1,18 @@
 /* 98-style drop-down lists and date/time pickers (SelectHost.jsx). The fields themselves
    (select, input[type=date|time|datetime-local|month]) are drawn in main.css. */
 
+/* Touch screens: the fields take no touches themselves, so an iPhone never opens its own
+   wheel or date picker for them (the owner still saw it in Date/Time and Calendar on his
+   Home Screen app, 2026-10-07: cancelling the tap's touchend wasn't always enough). The tap
+   reaches the row behind the field and SelectHost opens the 98 picker (fields.js
+   controlAt). data-native-select opts out; list boxes (multiple, size > 1) stay native. */
+@media (hover: none) and (pointer: coarse) {
+  select:not([multiple]):not([size]:not([size="0"]):not([size="1"])):not([data-native-select] *):not([data-native-select]),
+  input:is([type="date"], [type="time"], [type="datetime-local"], [type="month"]):not([readonly]):not([data-native-select] *):not([data-native-select]) {
+    pointer-events: none;
+  }
+}
+
 .selLayer {
   position: fixed;
   inset: 0;
