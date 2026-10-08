@@ -366,6 +366,9 @@ export const characterLook = (characterId, outfitId = "home") => {
   const c = CHARACTERS.find((x) => x.id === characterId) || CHARACTERS[0]
   const o = OUTFITS.find((x) => x.id === outfitId) || OUTFITS[0]
   const look = { ...c.look }
+  // (a photographed face: the character's skin is that face's own tone)
+  const fc = faceById(c.look.face)
+  if (fc?.tone) look.skin = fc.tone
   for (const k of ["shirt", "trim", "bottomColor", "paddle", "paddleEdge"]) if (o[k]) look[k] = o[k]
   if (o.trim === null) look.trim = c.look.shirt
   return validateLook(look, { ...DEFAULT_LOOK, body: c.look.body })

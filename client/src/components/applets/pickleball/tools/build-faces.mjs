@@ -571,6 +571,9 @@ for (const face of FACES) {
   const hairSum = [0, 0, 0, 0]
   let beardArea = 0
   let faceArea = 0
+  let scalpN = 0
+  let scalpNear = 0
+  const farHair = [0, 0, 0, 0]
   for (let i = 0; i < N * N; i++) (det[i * 3] = 128), (det[i * 3 + 1] = 128), (det[i * 3 + 2] = 70)
   const tris = []
   for (let t = 0; t < hi.body.index.length; t += 3) tris.push([hi.body.index[t], hi.body.index[t + 1], hi.body.index[t + 2]])
@@ -608,7 +611,7 @@ for (const face of FACES) {
     const [a, b, c] = tris[ti]
     if (inMouth[a] && inMouth[b] && inMouth[c]) return
     const p = [0, 1, 2].map((k) => newPos[a * 3 + k] * b0 + newPos[b * 3 + k] * b1 + newPos[c * 3 + k] * b2)
-    const w = photoWeight(p, ourMid)
+    let w = photoWeight(p, ourMid)
     if (w <= 0) return
     // (the photo's relief is kept on the face, a third of it on the scalp: there it's the
     // painted hair's, and its islands' edges show as lines)
@@ -616,6 +619,24 @@ for (const face of FACES) {
     const s = sampleSrc(p)
     if (!s) return
     const o = (y * N + x) * 3
+    // (only where the photographed surface is close to ours: a scalp under modeled hair (an afro,
+    // a bun) or a much thinner neck is far away, and what's there isn't skin: our own skin then,
+    // and on the scalp the hair mask, in the photo's hair color)
+    const dist = Math.sqrt(s.h.d2)
+    const scalpish = p[1] - ourMid[1] > 0.045 || p[2] - ourMid[2] < -0.065
+    const near = 1 - Math.max(0, Math.min(1, (dist - (scalpish ? 0.014 : 0.008)) / (scalpish ? 0.014 : 0.01)))
+    const wFar = w
+    const yS = p[1] - ourMid[1]
+    const zS = p[2] - ourMid[2]
+    const onScalp = Math.max(Math.min(1, Math.max(0, (yS - 0.045) / 0.02)), zS < -0.065 && yS > -0.04 ? 1 : 0)
+    if (onScalp > 0.5) (scalpN++, near > 0.5 && scalpNear++)
+    if (near < 1 && onScalp > 0) {
+      const c = s.rgb.map(toLin)
+      hairM[o] = Math.max(hairM[o], Math.round(255 * onScalp * (1 - near) * wFar))
+      if (near < 0.5) for (let k = 0; k < 3; k++) (farHair[k] += c[k]), k === 2 && farHair[3]++
+    }
+    w *= near
+    if (w <= 0.001) return
     for (let k = 0; k < 3; k++) out[o + k] = toSrgb(toLin(s.rgb[k]) * w + toLin(out[o + k]) * (1 - w))
     {
       const c = s.rgb.map(toLin)
@@ -631,7 +652,7 @@ for (const face of FACES) {
       const face = y < -0.035 && y > -0.17 && z > -0.075 ? 1 : 0
       const r = hairness * scalp * w
       const g = hairness * face * (1 - scalp) * w
-      hairM[o] = Math.round(255 * r)
+      hairM[o] = Math.max(hairM[o], Math.round(255 * r))
       hairM[o + 1] = Math.round(255 * g)
       if (r > 0.6) for (let k = 0; k < 3; k++) (hairSum[k] += c[k]), k === 2 && hairSum[3]++
       if (face) (faceArea++, (beardArea += g))
@@ -649,9 +670,9 @@ for (const face of FACES) {
       const nObj = norm(add(add(mul(fS.T, tn[0]), mul(fS.B, g)), mul(fS.N, tn[2])))
       const nO = [0, 1, 2].map((k) => newNrm[a * 3 + k] * b0 + newNrm[b * 3 + k] * b1 + newNrm[c * 3 + k] * b2)
       const fO = frame(nO, tbO)
-      det[o] = Math.round(Math.max(0, Math.min(255, 128 + 127 * dot(nObj, fO.T) * wd)))
+      det[o] = Math.round(Math.max(0, Math.min(255, 128 + 127 * dot(nObj, fO.T) * wd * near)))
       // (glTF convention: green is +Y "up", against v)
-      det[o + 1] = Math.round(Math.max(0, Math.min(255, 128 - 127 * dot(nObj, fO.B) * wd)))
+      det[o + 1] = Math.round(Math.max(0, Math.min(255, 128 - 127 * dot(nObj, fO.B) * wd * near)))
     }
     if (src.spec) det[o + 2] = Math.round(sampleImage(src.spec, s.u, s.v)[0] * w + 70 * (1 - w))
     baked++
@@ -740,7 +761,12 @@ for (const face of FACES) {
   write(`${name}-eye.jpg`, await raw(eyeImg.img, eyeImg.tex).jpeg({ quality: 90 }).toBuffer())
   // (the hair mask, soft: 512 is plenty for where hair is)
   write(`${name}-hair.jpg`, await raw(Buffer.from(hairM)).resize(512, 512).blur(1.2).jpeg({ quality: 88 }).toBuffer())
-  const hairTone = hairSum[3] ? "#" + [0, 1, 2].map((k) => toSrgb(hairSum[k] / hairSum[3]).toString(16).padStart(2, "0")).join("") : null
+  // (the scalp mostly far from the photo's: its hair is modeled (an afro, a bun): our hair cards
+  // for every style, the photo's hair color from that modeled hair)
+  const ownHair = scalpNear / (scalpN || 1) > 0.5
+  const hs = ownHair || !farHair[3] ? hairSum : farHair
+  const hairTone = hs[3] ? "#" + [0, 1, 2].map((k) => toSrgb(hs[k] / hs[3]).toString(16).padStart(2, "0")).join("") : null
+  console.log(face.id, "scalp near the photo's", (scalpNear / (scalpN || 1)).toFixed(2), ownHair ? "(its own hair)" : "(modeled hair: cards)")
   console.log(face.id, "hair tone", hairTone, "beard", (beardArea / (faceArea || 1)).toFixed(2))
   if (process.env.FACE_KTX !== "0") {
     const png = await raw(out).png().toBuffer()
@@ -759,7 +785,7 @@ for (const face of FACES) {
   }
   files[`${name}.bin`] = fs.statSync(path.join(outDir, `${name}.bin`)).size
   console.log(face.id, "done in", ((Date.now() - t0) / 1000).toFixed(1), "s", JSON.stringify(files))
-  manifest.faces[face.id] = { body: face.body, src: face.src, tone: "#" + photoMean.map((x) => toSrgb(x).toString(16).padStart(2, "0")).join(""), family: best.fam, med: `${name}.jpg`, hi: files[`${name}-hi.ktx2`] ? `${name}-hi.ktx2` : null, detail: `${name}-n.jpg`, eye: `${name}-eye.jpg`, hair: `${name}-hair.jpg`, hairTone, beard: +(beardArea / (faceArea || 1)).toFixed(3), shape: `${name}.bin`, files }
+  manifest.faces[face.id] = { body: face.body, src: face.src, tone: "#" + photoMean.map((x) => toSrgb(x).toString(16).padStart(2, "0")).join(""), family: best.fam, med: `${name}.jpg`, hi: files[`${name}-hi.ktx2`] ? `${name}-hi.ktx2` : null, detail: `${name}-n.jpg`, eye: `${name}-eye.jpg`, hair: `${name}-hair.jpg`, hairTone, ownHair, beard: +(beardArea / (faceArea || 1)).toFixed(3), shape: `${name}.bin`, files }
 }
 fs.writeFileSync(path.join(outDir, "faces.json"), JSON.stringify(manifest, null, 1))
 // the Locker Room's list (the app's own code, beside this folder): ids, bodies, natural tones

@@ -928,6 +928,8 @@ export const loadFaces = () =>
 // (the faces for a body, for the Locker Room: [{ id, tone, family }])
 export const facesFor = (kind) => Object.entries(facesInfo?.faces || {}).filter(([, f]) => f.body === kind).map(([id, f]) => ({ id, tone: f.tone, family: f.family, name: f.name || id }))
 export const faceOf = (look) => {
+  // (dev: window.__pbNoFaces draws the classic modeled faces, for before/after comparisons)
+  if (typeof window !== "undefined" && window.__pbNoFaces) return null
   const f = look?.face && facesInfo?.faces?.[look.face]
   return f && f.body === bodyOf(look) ? { id: look.face, ...f } : null
 }
@@ -1792,7 +1794,7 @@ const buildAthlete = (look = {}, { shadows = false, withPaddle = true } = {}, de
     attach.push(m)
   }
   // (a photo face's short styles are its own photographed hair: no cards over it)
-  const hairName = face && PHOTO_OWN_HAIR.includes(look.hair) ? null : hairFor(look, kind)
+  const hairName = face && face.ownHair !== false && PHOTO_OWN_HAIR.includes(look.hair) ? null : hairFor(look, kind)
   const hatted = HATS.includes(look.hat)
   let hairSway = null // (the uniforms of a hairstyle that swings: a ponytail, a braid, long hair)
   let hairMeshW = null
