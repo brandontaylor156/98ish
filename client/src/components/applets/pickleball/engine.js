@@ -152,7 +152,26 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
     }
   })
   tex.ball = ballTex
-  const ballMesh = new THREE.Mesh(new THREE.SphereGeometry(BALL_R * BALL_SCALE, 18, 12), new THREE.MeshStandardMaterial({ map: ballTex, roughness: 0.45, emissive: 0x3a4000, emissiveIntensity: 0.6 }))
+  // the outdoor ball: 40 smaller holes (the one above, 26 bigger ones, is the indoor ball)
+  const ballTexOut = canvasTexture(128, 64, (ctx, w, h) => {
+    ctx.fillStyle = "#e6f046"
+    ctx.fillRect(0, 0, w, h)
+    ctx.fillStyle = "#a9b324"
+    for (let i = 0; i < 40; i++) {
+      ctx.beginPath()
+      ctx.arc((i * 29 + (i % 4) * 5) % w, ((i * 17) % 7) * (h / 7) + 4, 2.3, 0, Math.PI * 2)
+      ctx.fill()
+    }
+  })
+  tex.ballOut = ballTexOut
+  const ballLook = () => {
+    const want = match?.ball?.kind === "indoor" ? ballTex : ballTexOut
+    if (ballMesh.material.map !== want) {
+      ballMesh.material.map = want
+      ballMesh.material.needsUpdate = true
+    }
+  }
+  const ballMesh = new THREE.Mesh(new THREE.SphereGeometry(BALL_R * BALL_SCALE, 18, 12), new THREE.MeshStandardMaterial({ map: ballTexOut, roughness: 0.45, emissive: 0x3a4000, emissiveIntensity: 0.6 }))
   ballMesh.castShadow = true
   scene.add(ballMesh)
   const ballShadow = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: tex.blob, transparent: true, depthWrite: false }))
@@ -525,6 +544,7 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
     humans = opts.humans || 1
     setVenue(opts.venue || (demo ? "stadium" : venueId))
     match = createMatch({ assist: settings.assist, window: settings.window, ball: ballKindOf(opts.venue), ...opts })
+    ballLook()
     match.autoplay = demo
     mode = demo ? "demo" : "local"
     trailHistory.length = 0
@@ -1937,6 +1957,7 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
         match = guest.m
         mode = "guest"
       }
+      ballLook()
       buildFigures()
       trailHistory.length = 0
       hudKey = ""
