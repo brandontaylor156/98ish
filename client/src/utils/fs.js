@@ -76,6 +76,7 @@ export const FILE_TYPE = {
   musiclib: "musiclib",
   together: "together",
   locator: "locator",
+  maps: "maps",
   hangout: "hangout",
   vb98: "vb98",
   vbapp: "vbapp", // a Visual Basic 98 program (.vb98): its JSON in textContent
@@ -654,6 +655,7 @@ const DEFAULT_ITEMS = [
   ["C:/Programs/Music 98", "file", "musiclib"],
   ["C:/Programs/Watch Together", "file", "together"],
   ["C:/Programs/Buddy Locator", "file", "locator"],
+  ["C:/Programs/Maps 98", "file", "maps"],
   ["C:/Programs/Come Over", "file", "hangout"],
   ["C:/Programs/Visual Basic 98", "file", "vb98"],
   ["C:/Programs/3D Viewer 98", "file", "viewer3d"],

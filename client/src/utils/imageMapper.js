@@ -31,6 +31,7 @@ export const imageMapper = {
   song: "program_icons/song.svg",
   together: "program_icons/together.svg",
   locator: "program_icons/locator.svg",
+  maps: "program_icons/maps.svg",
   hangout: "program_icons/hangout.svg",
   vb98: "program_icons/vb98.svg",
   viewer3d: "program_icons/viewer3d.svg",

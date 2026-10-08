@@ -1,0 +1,493 @@
+/* Maps 98: a 98 window with a search bar, the map, and a card for the place and directions
+   (beside the map on a computer, under it on a phone) */
+
+.mpRoot {
+  position: relative;
+  height: calc(100% - 25px);
+  display: flex;
+  flex-direction: column;
+  background: #c0c0c0;
+  color: #000;
+  font-family: "Pixelated MS Sans Serif", Arial, sans-serif;
+  font-size: 11px;
+  overflow: hidden;
+}
+
+.mpSearch {
+  flex: none;
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+}
+
+.mpSearch input {
+  flex: 1;
+  min-width: 0;
+}
+
+.mpRoot .mpSearch button {
+  min-width: 0;
+  padding: 0 10px;
+}
+
+.mpRoot .mpMeBtn {
+  width: 32px;
+  padding: 0;
+  font-size: 16px;
+}
+
+.mpBody {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  gap: 4px;
+  padding: 0 4px 4px;
+}
+
+.mpMapArea {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+  padding: 2px;
+}
+
+.mpMapWrap,
+.mpMap {
+  position: absolute;
+  inset: 2px;
+}
+
+/* MapLibre sets position: relative on its container: the map needs its box */
+.mpMap.maplibregl-map {
+  position: absolute;
+}
+
+.mpLoading,
+.mpMapError {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  text-align: center;
+  background: #008080;
+  color: #fff;
+}
+
+/* pins */
+.mpPin {
+  width: 26px;
+  height: 36px;
+  position: relative;
+  pointer-events: none;
+}
+
+.mpPinHead {
+  position: absolute;
+  left: 3px;
+  top: 0;
+  width: 20px;
+  height: 20px;
+  background: #e00000;
+  border: 2px solid #000;
+  box-shadow: inset 2px 2px #ff8080, inset -2px -2px #800000;
+}
+
+.mpPinTail {
+  position: absolute;
+  left: 11px;
+  top: 20px;
+  width: 4px;
+  height: 16px;
+  background: #000;
+}
+
+.mpMe {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgba(0, 90, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mpMe span {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #1a6dff;
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 1px #003;
+}
+
+.mpRoot .mpResult {
+  min-width: 0;
+  min-height: 0;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  font-weight: bold;
+  background: #ffffe1;
+  border: 1px solid #000;
+  box-shadow: 1px 1px 0 #000;
+  cursor: pointer;
+}
+
+/* results and recents float over the map's top */
+.mpResults,
+.mpRecents {
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  top: 6px;
+  max-height: 55%;
+  overflow: auto;
+  margin: 0;
+  padding: 2px;
+  list-style: none;
+  z-index: 3;
+}
+
+.mpResults li + li {
+  border-top: 1px solid #a0a0a0;
+}
+
+.mpRoot .mpResults button,
+.mpRoot .mpRecents > button {
+  display: flex;
+  gap: 6px;
+  align-items: flex-start;
+  width: 100%;
+  min-height: 0;
+  padding: 4px 6px;
+  border: 0;
+  background: none;
+  box-shadow: none;
+  text-align: left;
+  color: #000;
+  text-shadow: none;
+}
+
+.mpRoot .mpRecents > button {
+  flex-direction: column;
+  gap: 0;
+}
+
+.mpResults button:hover,
+.mpResults button:focus,
+.mpRecents > button:hover {
+  background: #000080;
+  color: #fff;
+}
+
+.mpResults small,
+.mpRecents small,
+.mpCardName small {
+  display: block;
+  color: inherit;
+  opacity: 0.75;
+}
+
+.mpNum {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #ffffe1;
+  color: #000;
+  border: 1px solid #000;
+  font-weight: bold;
+}
+
+.mpRecentsTitle {
+  padding: 2px 6px;
+  font-weight: bold;
+}
+
+.mpNone {
+  padding: 6px;
+}
+
+/* the place / directions card */
+.mpCard {
+  flex: none;
+  width: 290px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px;
+  overflow: auto;
+}
+
+.mpCardHead {
+  display: flex;
+  gap: 6px;
+  align-items: flex-start;
+}
+
+.mpCardPin {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  margin-top: 2px;
+  background: #e00000;
+  border: 2px solid #000;
+}
+
+.mpCardName {
+  flex: 1;
+  min-width: 0;
+}
+
+.mpCardName b {
+  font-size: 13px;
+}
+
+.mpRoot .mpX {
+  min-width: 0;
+  width: 22px;
+  min-height: 0;
+  height: 22px;
+  padding: 0;
+}
+
+.mpCardButtons {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.mpRoot .mpPrimary {
+  font-weight: bold;
+  flex: 1;
+  min-height: 30px;
+}
+
+/* a 98 button that's a link */
+.mpHandoff {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 30px;
+  padding: 0 8px;
+  background: #c0c0c0;
+  color: #000;
+  text-decoration: none;
+  box-shadow: inset -1px -1px #0a0a0a, inset 1px 1px #fff, inset -2px -2px #808080, inset 2px 2px #dfdfdf;
+  white-space: nowrap;
+}
+
+.mpHandoff:active {
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #0a0a0a, inset -2px -2px #dfdfdf, inset 2px 2px #808080;
+}
+
+.mpDirs {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.mpModes {
+  display: flex;
+  gap: 2px;
+}
+
+.mpRoot .mpModes button {
+  flex: 1;
+  min-width: 0;
+  padding: 0 4px;
+}
+
+.mpRoot .mpModes button.is-on {
+  font-weight: bold;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #0a0a0a, inset -2px -2px #dfdfdf, inset 2px 2px #808080;
+  background: #dfdfdf;
+}
+
+.mpFromAsk input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.mpFromList {
+  list-style: none;
+  margin: 2px 0 0;
+  padding: 0;
+  background: #fff;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080;
+}
+
+.mpRoot .mpFromList button {
+  width: 100%;
+  text-align: left;
+  border: 0;
+  box-shadow: none;
+  background: none;
+  padding: 4px;
+  min-height: 0;
+}
+
+.mpSummary {
+  font-size: 14px;
+}
+
+.mpSummary b {
+  color: #006400;
+  font-size: 18px;
+}
+
+.mpNext {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 6px;
+  background: #000080;
+  color: #fff;
+}
+
+.mpNext small {
+  display: block;
+}
+
+.mpNext .mpTurn {
+  font-size: 26px;
+}
+
+.mpRoot .mpStepsToggle {
+  align-self: flex-start;
+  min-height: 0;
+  border: 0;
+  box-shadow: none;
+  background: none;
+  padding: 2px 0;
+  font-weight: bold;
+}
+
+.mpSteps {
+  list-style: none;
+  margin: 0;
+  padding: 2px;
+  background: #fff;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+  max-height: 260px;
+  overflow: auto;
+}
+
+.mpSteps li {
+  display: flex;
+  gap: 6px;
+  padding: 4px;
+  align-items: flex-start;
+}
+
+.mpSteps li + li {
+  border-top: 1px dotted #a0a0a0;
+}
+
+.mpSteps li.is-next {
+  background: #ffffe1;
+}
+
+.mpSteps small {
+  color: #555;
+}
+
+.mpTurn {
+  flex: none;
+  width: 18px;
+  text-align: center;
+  font-weight: bold;
+  color: #000080;
+}
+
+.mpNext .mpTurn {
+  color: #fff;
+}
+
+.mpHint {
+  color: #404040;
+}
+
+.mpError {
+  color: #a00000;
+}
+
+.mpStatus {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 22px;
+  padding: 6px 8px;
+  background: #ffffe1;
+  border: 1px solid #000;
+  z-index: 5;
+}
+
+.mpCredit {
+  flex: none;
+  padding: 1px 6px 3px;
+  font-size: 9px;
+  color: #404040;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ---- phones: the map on top, the card under it ---- */
+.mpRoot.is-mobile {
+  font-size: 14px;
+}
+
+.mpRoot.is-mobile .mpSearch input,
+.mpRoot.is-mobile .mpSearch button {
+  height: 36px;
+  min-height: 36px;
+}
+
+.mpRoot.is-mobile .mpMeBtn {
+  width: 40px;
+  font-size: 20px;
+}
+
+.mpRoot.is-mobile .mpBody {
+  flex-direction: column;
+}
+
+.mpRoot.is-mobile .mpMapArea {
+  min-height: 42%;
+}
+
+.mpRoot.is-mobile .mpCard {
+  width: auto;
+  max-height: 52%;
+}
+
+.mpRoot.is-mobile.has-route .mpMapArea {
+  min-height: 36%;
+}
+
+.mpRoot.is-mobile .mpPrimary,
+.mpRoot.is-mobile .mpHandoff,
+.mpRoot.is-mobile .mpModes button {
+  min-height: 40px;
+}
+
+.mpRoot.is-mobile .mpResults button,
+.mpRoot.is-mobile .mpRecents > button {
+  padding: 8px;
+}
+
+.mpRoot.is-mobile .mpCardName b {
+  font-size: 16px;
+}
+
+.mpRoot.is-mobile .mpCredit {
+  font-size: 10px;
+}

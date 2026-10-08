@@ -66,6 +66,7 @@ export const PROGRAM_KEYWORDS = {
   "Critter Catch Pinball": ["pinball", "catch monsters", "creatures", "evolve", "collect them all", "dex", "pocket monsters", "blue screen", "flippers"],
   Chess: ["chess puzzles", "puzzles", "tactics", "puzzle rush", "puzzle streak", "daily puzzle", "checkmate", "lichess"],
   Calculator: ["calc", "math", "sums", "add", "numbers"],
+  "Maps 98": ["map", "maps", "directions", "navigation", "gps", "route", "address", "where am i", "apple maps", "google maps", "drive", "walk", "bike"],
   Photos: ["pictures", "images", "gallery", "photo viewer", "slideshow"],
   Camera: ["webcam", "selfie", "photo booth", "take a picture"],
   Paint: ["draw", "drawing", "mspaint", "pictures"],

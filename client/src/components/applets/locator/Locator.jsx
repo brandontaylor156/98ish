@@ -4,7 +4,8 @@ import MoreOptions from "../../shared/MoreOptions"
 import { launch } from "../../../utils/programs"
 import { placeCall } from "../aim/call/CallButtons"
 import * as loc from "../../../utils/locate"
-import { agoText, directionsUrl, distanceM, distanceText, untilText } from "./locateCore"
+import { agoText, distanceM, distanceText, untilText } from "./locateCore"
+import { openMaps } from "../../../utils/maps"
 import { ArrowIcon } from "./LocatorTray"
 import { VENUES } from "../pbclub/clubCore"
 import "./Locator.css"
@@ -33,7 +34,6 @@ const RADII = [
   [300, "300 m (a campus)"],
   [1000, "1 km (a neighborhood)"],
 ]
-const apple = () => typeof navigator !== "undefined" && /iPhone|iPad|Macintosh/.test(navigator.userAgent)
 
 // ---- small dialogs (98 windows over the app) ----
 
@@ -445,7 +445,7 @@ const Locator = ({ mobile, dispatch }) => {
                 <button type="button" onClick={() => placeCall(friend.name, false, flash)}>
                   Call
                 </button>
-                <button type="button" disabled={!friend.pos} onClick={() => friend.pos && window.open(directionsUrl(friend.pos, apple()), "_blank", "noopener")}>
+                <button type="button" disabled={!friend.pos} onClick={() => friend.pos && openMaps({ name: friend.name, lat: friend.pos.lat, lon: friend.pos.lon, directions: true })}>
                   Directions
                 </button>
                 <button type="button" onClick={() => setDialog({ kind: "alert", friend })}>

@@ -52,6 +52,10 @@ const TIPS = {
   "Virtual PC 98": ["It's a real PC inside your PC: FreeDOS boots from the floppy. Try DIR, then EDIT.", "Machine > Save State keeps the whole computer as it is, to pick up later."],
   "3D Viewer 98": ["Snap a photo of one thing on a plain background and tap Make 3D: a free service turns it into a model you can spin.", "Model > Place in My Park and your model trots after you in Pickleball 98's park!", "Send in Messenger shares a model with a buddy; they tap Open to spin it too."],
   "Visual Basic 98": ["Tap a tool in the Toolbox to put it on your form, then press Run. Try File > New from Template for a poll or Tic-Tac-Toe!", "Made something fun? Send... puts it in a 98 Messenger conversation, and it runs on your friend's 98ish too.", "Not a coder? The Blocks tab snaps code together like puzzle pieces."],
+  "Maps 98": [
+    "Type a place or an address, pick it, then press Directions. Drive, Walk or Bike, with every turn written out.",
+    "Touch and hold the map to drop a pin. For spoken directions with the screen off, press Open in Apple Maps.",
+  ],
   "Buddy Locator": ["Share My Location picks one buddy and how long: an hour, the rest of the day, or until you stop. Nobody else sees a thing.", "Name a place like Home or the courts, pick a buddy, and press Notify Me... to hear when they get there."],
   "Watch Together": ["Pick a buddy, paste a YouTube link, and you'll both watch at the same moment. Tap an emoji to react!", "Start it right from an IM window: the Watch button is next to Call."],
   "Task Manager": ["Whatever you do, don't end explorer.exe. I'm serious. Mostly."],
