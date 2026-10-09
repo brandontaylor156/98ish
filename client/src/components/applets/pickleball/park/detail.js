@@ -1130,7 +1130,9 @@ export const planDecals = ({ courts = [], stalls = [], lots = [], trees = [], ha
           const p = world(c, (rand() - 0.5) * hw * 1.6, side * (half.kitchen + 0.3 + rand() * 0.9))
           out.scuff.push({ ...p, y: 0.013, w: 1.0 + rand() * 0.9, l: 0.3 + rand() * 0.2, yaw: c.rot + (rand() - 0.5) * 0.8 + Math.PI / 2 })
         }
-      for (let i = 0; i < 3; i++) {
+      // (behind the baselines: tennis only; on a pickleball court that wear lands on the surround and
+      // read as dirt or weeds: the owner wants the courts clean, 2026-10-09)
+      for (let i = 0; i < (tennis ? 3 : 0); i++) {
         const p = world(c, (rand() - 0.5) * hw * 1.4, side * (hl + 0.5 + rand() * 1.2))
         out.scuff.push({ ...p, y: 0.013, w: 1.3 + rand() * 1.0, l: 0.35 + rand() * 0.25, yaw: c.rot + (rand() - 0.5) * 0.6 })
       }

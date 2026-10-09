@@ -1203,7 +1203,7 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
   const updateCamera = (dt) => {
     const por = portrait()
     // (eased, so turning the phone doesn't jump)
-    const wantShift = me.mode !== "watch" && por ? LENS_SHIFT : 0
+    const wantShift = me.mode !== "watch" && por && !dev.noLens ? LENS_SHIFT : 0
     setLensShift(Math.abs(wantShift - lensShift) < 0.002 ? wantShift : lensShift + (wantShift - lensShift) * Math.min(1, dt * 6))
     if (me.mode === "watch") {
       const c = courts[me.watching]
