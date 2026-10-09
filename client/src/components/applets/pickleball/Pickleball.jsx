@@ -56,6 +56,10 @@ import { isLiveId } from "./park/live/liveVenue.js"
 import { ATTRIBUTION as OSM_CREDIT } from "./park/live/finder.js"
 import { VENUE_LIST } from "./park/venues/index.js"
 import { usePark } from "./park/usePark"
+// Roam, the open world (client/src/roam/; docs/open-world.md): Explore Valencia from the Paseo Club
+import { RoamFound, RoamHud, RoamMenu } from "../../../roam/ui/RoamHud.jsx"
+import { makeHost98, useRoamNet, useRoamVoice } from "../../../roam/host98.js"
+import { townById, townForVenue } from "../../../roam/towns/index.js"
 import * as livingNet from "../../../utils/livingpark"
 import { memoryKey, pickLine, rememberResult } from "./park/living.js"
 import { AwayCard, ClonePanel } from "./park/LivingPanel"
@@ -340,6 +344,28 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
   const parkNet = usePark({ world: parkWorld, active: !!parkWorld, me: parkWorld ? myParkInfo() : null })
   // spatial voice in My Park (park menu > Voice; utils/voice)
   const parkVoice = useParkVoice({ world: parkWorld, joined: parkNet.joined, park: parkNet.park })
+  // ---------- Roam: the open town round a venue (Explore Valencia) ----------
+  const roamRef = useRef(null)
+  const roamEventRef = useRef(null)
+  const roamLabelsRef = useRef(null)
+  const [roamWorld, setRoamWorld] = useState(null)
+  const [roamHud, setRoamHud] = useState(null)
+  const [roamUi, setRoamUi] = useState({ menu: false, found: null, from: null })
+  const roamNet = useRoamNet({ world: roamWorld, active: !!roamWorld, look: roamWorld ? myParkInfo().look : null })
+  const roamVoice = useRoamVoice({ world: roamWorld, joined: roamNet.joined, n: roamNet.n })
+  // (in My Park at a venue with a town round it: the way out shows near the arrival)
+  const exploreTown = parkWorld ? townForVenue(parkWorld.venue) : null
+  const [nearExit, setNearExit] = useState(false)
+  useEffect(() => {
+    if (!exploreTown || !parkWorld) return setNearExit(false)
+    const gate = exploreTown.venues[parkWorld.venue]?.back
+    if (!gate) return
+    const id = setInterval(() => {
+      const m = parkRef.current?.info?.me
+      setNearExit(!!m && m.mode === "walk" && Math.hypot(m.x - gate.x, m.z - gate.z) < gate.r + 12)
+    }, 700)
+    return () => clearInterval(id)
+  }, [exploreTown, parkWorld])
   // hanging out in My Park (park menu > Hang out): chill music (park/chillmusic.js, made here,
   // original), chill mode (the screen hidden for a calm view: parkUi.chill), golden hour
   const chillMusicRef = useRef(null)
@@ -494,7 +520,8 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
         onGameOver(e)
         break
       case "worldMenu":
-        parkEventRef.current?.(e)
+        if (sessionRef.current?.kind === "roam") roamEventRef.current?.(e)
+        else parkEventRef.current?.(e)
         break
       default:
     }
@@ -973,6 +1000,63 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
     w.resume()
     e.setWorld(w)
   }
+  // Roam: out of the venue into its town (from: the venue; you come out where you stood)
+  const startRoam = async (townId, { from = null } = {}) => {
+    const e = engineRef.current
+    const town = townById(townId)
+    if (!e || !town) return
+    const v = from ? town.venues?.[from] : null
+    let at = null
+    const pw = parkRef.current
+    if (pw) {
+      const m = pw.info?.me
+      if (m && v) at = { x: m.x, z: m.z, yaw: m.yaw }
+      parkRef.current = null
+      parkGameRef.current = null
+      setParkWorld(null)
+      setParkHud(null)
+      setParkUi({ menu: false, intro: false, turn: null, result: null })
+      e.setWorld(null)
+      pw.dispose()
+    }
+    reset()
+    setSession({ kind: "roam" })
+    setScreen("roam")
+    setRoamUi({ menu: false, found: null, from })
+    await nextPaint()
+    const { createRoam } = await import("../../../roam/world.js")
+    if (engineRef.current !== e) return
+    const ctx = e.worldContext()
+    const host = makeHost98({ engineCtx: ctx, me: myParkInfo(), sky: { real: prefsRef.current.realSky !== false } })
+    const w = createRoam({ town, host, phone: !!mobile, quality: ctx.quality, start: at || (v ? { x: v.x, z: v.z, yaw: v.yaw } : null), labelsEl: roamLabelsRef.current, onHud: setRoamHud, onEvent: (ev) => roamEventRef.current?.(ev) })
+    roamRef.current = w
+    setRoamWorld(w)
+    e.setWorld(w)
+    if (import.meta.env?.DEV) window.__roam = w
+    w.whenReady().then(() => roamRef.current === w && w.ensureOpen(v))
+  }
+  if (import.meta.env?.DEV) window.__pbStartRoam = startRoam
+  const leaveRoam = ({ quit = true } = {}) => {
+    const w = roamRef.current
+    roamRef.current = null
+    setRoamWorld(null)
+    setRoamHud(null)
+    setRoamUi({ menu: false, found: null, from: null })
+    engineRef.current?.setWorld(null)
+    w?.dispose()
+    reset()
+    setSession(null)
+    setScreen("main")
+    if (quit) engineRef.current?.quit()
+  }
+  roamEventRef.current = (ev) => {
+    if (ev.type === "found") setRoamUi((u) => ({ ...u, found: ev.egg }))
+    else if (ev.type === "venue") {
+      leaveRoam({ quit: false })
+      startPark(ev.venue)
+    } else if (ev.type === "toast") flash(ev.text)
+    else if (ev.type === "worldMenu") setRoamUi((u) => ({ ...u, menu: !u.menu }))
+  }
   // back to the park after a game, the Locker Room or the ball machine
   const backToPark = ({ court = null } = {}) => {
     const w = parkRef.current
@@ -1090,6 +1174,7 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
   useEffect(() => () => parkRef.current?.dispose(), [])
 
   const quitToMenu = () => {
+    if (sessionRef.current?.kind === "roam") return leaveRoam()
     const pg = parkGameRef.current
     // (in My Park: out of a game, the ball machine or the Locker Room goes back to the park)
     if (sessionRef.current?.kind === "parkgame" || (pg && pg.kind === "room" && sessionRef.current?.kind === "online")) {
@@ -1847,6 +1932,30 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
             <SplatPanel world={parkWorld} phone={!!mobile} venueName={parkWorld?.layout?.name || "My Park"} onClose={() => (setParkUi((u) => ({ ...u, backdrop: false })), stageRef.current?.focus({ preventScroll: true }))} />
           </React.Suspense>
         )}
+        {screen === "park" && phase === "world" && parkWorld && exploreTown && nearExit && !parkUi.menu && !parkUi.turn && !parkUi.intro && (
+          <button type="button" className="pkExploreChip" onClick={() => startRoam(exploreTown.id, { from: parkWorld.venue })} data-park="explore-chip">
+            Explore {exploreTown.name} ›
+          </button>
+        )}
+        {/* ---------- Roam: the open town (client/src/roam/) ---------- */}
+        {screen === "roam" && <div className="roamLabels" ref={roamLabelsRef} aria-hidden="true" />}
+        {screen === "roam" && roamWorld && phase === "world" && !roamUi.menu && !roamUi.found && <RoamHud world={roamWorld} hud={roamHud} voice={roamVoice} onMenu={() => setRoamUi((u) => ({ ...u, menu: true }))} onAction={() => roamRef.current?.action()} />}
+        {screen === "roam" && roamWorld && roamUi.menu && (
+          <RoamMenu
+            town={roamWorld.town}
+            found={roamWorld.found}
+            canGoBack={!!roamUi.from}
+            voice={roamVoice}
+            onBack={() => {
+              const from = roamUi.from
+              leaveRoam({ quit: false })
+              startPark(from)
+            }}
+            onLeave={() => leaveRoam()}
+            onClose={() => (setRoamUi((u) => ({ ...u, menu: false })), stageRef.current?.focus({ preventScroll: true }))}
+          />
+        )}
+        {screen === "roam" && roamUi.found && <RoamFound egg={roamUi.found} onClose={() => (setRoamUi((u) => ({ ...u, found: null })), stageRef.current?.focus({ preventScroll: true }))} />}
         {screen === "park" && parkUi.turn && !parkUi.menu && <ParkTurn key={parkUi.turn.court} turn={parkUi.turn} onGo={() => withScheme(() => startParkGame(parkUi.turn))} />}
         {screen === "park" && phase === "world" && parkUi.menu && (
           <ParkMenu
@@ -1872,6 +1981,7 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
               onGolden: () => setPrefs({ tod: prefs.tod === "golden" ? "now" : "golden" }),
             }}
             voice={{ ...parkVoice, names: parkWorld?.voicePlace?.().names || {} }}
+            explore={exploreTown ? { name: exploreTown.name, onGo: () => startRoam(exploreTown.id, { from: parkWorld.venue }) } : null}
           />
         )}
         {screen === "park" && phase === "world" && livingUi.panel && parkWorld && (

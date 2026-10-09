@@ -1,0 +1,256 @@
+/* Roam's own controls (no 98.css: this goes wherever the world goes). Classic grey bevels. */
+.roamHud {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  touch-callout: none;
+  font-family: Tahoma, Verdana, "Segoe UI", sans-serif;
+  font-size: 13px;
+  color: #000;
+}
+.roamHud * {
+  -webkit-user-select: none;
+  user-select: none;
+}
+.roamBtn {
+  font: inherit;
+  background: #c0c0c0;
+  color: #000;
+  border: 0;
+  box-shadow: inset -1px -1px #0a0a0a, inset 1px 1px #fff, inset -2px -2px #808080, inset 2px 2px #dfdfdf;
+  padding: 6px 12px;
+  min-height: 34px;
+  min-width: 34px;
+  touch-action: manipulation;
+}
+.roamBtn:active,
+.roamBtn.is-on {
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #0a0a0a, inset -2px -2px #dfdfdf, inset 2px 2px #808080;
+}
+.roamTop {
+  position: absolute;
+  top: calc(6px + env(safe-area-inset-top, 0px));
+  left: calc(6px + env(safe-area-inset-left, 0px));
+  right: calc(6px + env(safe-area-inset-right, 0px));
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 6px;
+  pointer-events: none;
+}
+.roamTop > * {
+  pointer-events: auto;
+}
+.roamInfo {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  align-items: center;
+  background: rgba(255, 255, 225, 0.92);
+  border: 1px solid #000;
+  padding: 3px 8px;
+  max-width: 64%;
+}
+.roamInfo b {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+.roamTopRight {
+  display: flex;
+  gap: 6px;
+}
+.roamAction {
+  position: absolute;
+  right: calc(8px + env(safe-area-inset-right, 0px));
+  top: calc(52px + env(safe-area-inset-top, 0px));
+  font-weight: bold;
+  font-size: 15px;
+  padding: 10px 16px;
+  min-height: 46px;
+  max-width: 70%;
+}
+.roamHint {
+  position: absolute;
+  left: 50%;
+  top: calc(52px + env(safe-area-inset-top, 0px));
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  padding: 4px 10px;
+  border-radius: 2px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.roamRiders {
+  top: calc(84px + env(safe-area-inset-top, 0px));
+}
+.roamSprint {
+  position: absolute;
+  right: calc(14px + env(safe-area-inset-right, 0px));
+  bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+  min-width: 72px;
+  min-height: 56px;
+  font-weight: bold;
+}
+.roamPedals {
+  position: absolute;
+  right: calc(12px + env(safe-area-inset-right, 0px));
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+}
+.roamPedal {
+  min-width: 78px;
+  min-height: 78px;
+  font-weight: bold;
+  font-size: 15px;
+}
+.roamGas {
+  min-height: 110px;
+  background: #b9d8b4;
+}
+.roamBrake {
+  background: #e2b9b4;
+}
+.roamStick {
+  position: absolute;
+  width: 112px;
+  height: 112px;
+  margin: -56px 0 0 -56px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.75);
+  background: rgba(0, 0, 0, 0.12);
+  pointer-events: none;
+}
+.roamStick.is-steer {
+  height: 40px;
+  margin-top: -20px;
+  border-radius: 20px;
+}
+.roamKnob {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 34px;
+  height: 34px;
+  margin: -17px 0 0 -17px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid #333;
+}
+.roamLoading {
+  position: absolute;
+  left: 50%;
+  top: 45%;
+  transform: translate(-50%, -50%);
+  background: #c0c0c0;
+  border: 1px solid #000;
+  padding: 10px 16px;
+  pointer-events: none;
+}
+.roamCredit {
+  position: absolute;
+  left: calc(4px + env(safe-area-inset-left, 0px));
+  bottom: calc(2px + env(safe-area-inset-bottom, 0px));
+  font-size: 10px;
+  color: rgba(0, 0, 0, 0.7);
+  background: rgba(255, 255, 255, 0.55);
+  padding: 0 3px;
+  pointer-events: none;
+}
+.roamLabels {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 5;
+}
+.roamLabel {
+  position: absolute;
+  left: 0;
+  top: 0;
+  background: rgba(255, 255, 225, 0.92);
+  border: 1px solid #000;
+  font: 12px Tahoma, Verdana, sans-serif;
+  padding: 1px 5px;
+  white-space: nowrap;
+}
+.roamSheet {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  background: rgba(0, 0, 0, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+.roamPanel {
+  background: #c0c0c0;
+  box-shadow: inset -1px -1px #0a0a0a, inset 1px 1px #dfdfdf, inset -2px -2px #808080, inset 2px 2px #fff;
+  padding: 3px;
+  width: min(360px, 100%);
+  max-height: 100%;
+  display: flex;
+  flex-direction: column;
+  font: 13px Tahoma, Verdana, sans-serif;
+}
+.roamPanelHead {
+  background: linear-gradient(90deg, #000080, #1084d0);
+  color: #fff;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 2px 2px 2px 6px;
+}
+.roamPanelHead .roamBtn {
+  min-height: 22px;
+  min-width: 26px;
+  padding: 0 6px;
+}
+.roamPanelBody {
+  padding: 8px;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.roamPanelBody h4 {
+  margin: 0;
+}
+.roamPanelBody p {
+  margin: 0;
+  line-height: 1.35;
+}
+.roamFound {
+  list-style: none;
+  margin: 0;
+  padding: 4px;
+  background: #fff;
+  box-shadow: inset 1px 1px #808080, inset -1px -1px #fff;
+  max-height: 40vh;
+  overflow: auto;
+}
+.roamFound li {
+  display: flex;
+  gap: 6px;
+  padding: 3px 0;
+  color: #777;
+}
+.roamFound li.is-found {
+  color: #000;
+}
+.roamFound small {
+  display: block;
+}
+.roamWide {
+  width: 100%;
+  min-height: 40px;
+}

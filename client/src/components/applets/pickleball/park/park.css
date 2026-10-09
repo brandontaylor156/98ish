@@ -169,6 +169,22 @@
   box-shadow: 1px 1px 0 rgba(0, 0, 0, 0.35);
 }
 
+/* Roam: the way out of a venue into its town (Explore Valencia), shown near the arrival */
+.pkExploreChip {
+  position: absolute;
+  left: 50%;
+  bottom: calc(46% + 8px);
+  transform: translateX(-50%);
+  z-index: 6;
+  font-weight: bold;
+  min-height: 38px;
+  padding: 4px 14px !important;
+  white-space: nowrap;
+}
+.pkRoot:not(.is-mobile) .pkExploreChip {
+  bottom: 70px;
+}
+
 /* the menu button, top left */
 .pkParkMenuBtn {
   position: absolute;
