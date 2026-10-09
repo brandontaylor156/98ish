@@ -443,7 +443,8 @@ test("walking: past a dead zone a light push walks, more jogs, all the way (held
   // camera looking east: up the pad goes east
   for (let i = 0; i < 120; i++) stepWalker(w, { x: 0, y: 1 }, Math.PI / 2, 1 / 60)
   assert.ok(w.x > -18 + 3 && Math.abs(w.z - 0.5) < 0.01)
-  assert.equal(w.gait, "jog")
+  // (held all the way for 2 s: a run, which draws as the fast gait)
+  assert.equal(w.speed, SPEEDS.run)
   for (let i = 0; i < 90; i++) stepWalker(w, { x: 0, y: 0 }, Math.PI / 2, 1 / 60)
   assert.equal(w.speed, 0)
   // pad right with the camera looking east: south (+z), into the bleachers' edge, not through it

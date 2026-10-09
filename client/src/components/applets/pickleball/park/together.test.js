@@ -45,7 +45,9 @@ test("hand in hand: you walk beside them by yourself; your own stick lets go", (
   assert.equal(breaksAway({ x: 0, y: 0.5 }), true)
   assert.equal(breaksAway({ x: 0, y: 0, keys: true }), true)
   // the pad's push for a speed: walker.js reads back about that speed
-  for (const v of [0.8, 1.2, 1.45]) assert.ok(Math.abs(speedFor(magFor(v)) - v) < 0.12, `${v}`)
+  for (const v of [1.2, 1.45, 2.5]) assert.ok(Math.abs(speedFor(magFor(v)) - v) < 0.12, `${v}`)
+  // (slower than the lightest walk: the lightest walk, which keeps up)
+  assert.ok(Math.abs(speedFor(magFor(0.8)) - 1.1) < 0.05)
   assert.equal(magFor(0.2), 0)
   // walking together along Riverside's main path: the leader walks east, the other one keeps
   // up beside them (as their browser does it, from the leader's position a third of a second old)

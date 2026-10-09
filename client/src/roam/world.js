@@ -578,6 +578,11 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
   let car = null // the car you're driving (sim/car.js)
   let carMesh = null
   const input = { x: 0, y: 0, sprint: false, gas: 0, brake: 0, steer: 0 }
+  // the stick's frame: the camera's heading when the thumb went down. The camera may come round
+  // behind you while you walk; the way you push keeps meaning the same way on the ground, so a
+  // diagonal push walks a straight line instead of curling round as the camera follows (owner,
+  // 2026-10-09: "he doesn't go the direction I'm pointing"). A look drag turns it with the camera.
+  let moveRef = null
   const keys = new Set()
   const cam = { yaw: wrap((sp.yaw ?? 0) + 0), pitch: 0.3, dist: phone ? 5.2 : 4.6, pos: null, look: new THREE.Vector3(), behindT: 0 }
 
@@ -1283,11 +1288,19 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
     // (a drag up or down tilts the view: lower sees more of the town ahead)
     const height = 0.35 + cam.pitch * 2.2
     // (comes round behind you only when you walk away from it)
-    if (w.speed > 0.6) {
+    // (and only while the push is mostly straight up the stick: a sideways or diagonal push walks
+    // its line with the camera holding still, so what you point at is where you go)
+    const pushUp = Math.hypot(input.x, input.y) > 0.12 && Math.abs(Math.atan2(input.x, input.y)) < 0.45
+    if (w.speed > 0.6 && (pushUp || moveRef === null)) {
       const away = Math.cos(wrap(w.yaw - cam.yaw))
       if (away > 0.3) {
         cam.behindT += dt
-        if (cam.behindT > 0.35) cam.yaw += wrap(w.yaw - cam.yaw) * Math.min(1, dt * 1.6 * away)
+        if (cam.behindT > 0.35) {
+          const turn = wrap(w.yaw - cam.yaw) * Math.min(1, dt * 1.6 * away)
+          cam.yaw += turn
+          // (the stick's frame comes round with it: up the stick stays straight ahead on screen)
+          if (moveRef !== null) moveRef += turn
+        }
       } else cam.behindT = 0
     } else cam.behindT = 0
     const bx = tx - Math.sin(cam.yaw) * dist
@@ -1545,7 +1558,9 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
       const kl = Math.hypot(kx, ky) || 1
       const ix = input.x + (kx / kl) * (kx || ky ? 0.85 : 0)
       const iy = input.y + (ky / kl) * (kx || ky ? 0.85 : 0)
-      stepWalker(me.walker, { x: ix, y: iy, sprint: input.sprint || shift }, cam.yaw, dt, { resolve: resolveFoot, heightAt: (x, z, y) => heightAt(x, z, y, false) })
+      if (Math.hypot(ix, iy) < 0.12) moveRef = null
+      else if (moveRef === null) moveRef = cam.yaw
+      stepWalker(me.walker, { x: ix, y: iy, sprint: input.sprint || shift }, moveRef ?? cam.yaw, dt, { resolve: resolveFoot, heightAt: (x, z, y) => heightAt(x, z, y, false) })
     }
     stepRide(dt)
     stepRemotes()
@@ -1631,6 +1646,8 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
     drag(dx, dy = 0) {
       if (driving || riding) return
       cam.yaw -= dx * 0.008
+      // (looking round while you walk steers you the same way)
+      if (moveRef !== null) moveRef -= dx * 0.008
       cam.pitch = Math.max(0.05, Math.min(0.9, cam.pitch + dy * 0.004))
     },
     action: doAction,

@@ -7,13 +7,15 @@
 // The ground's height comes from the town (terrain, bridge decks); walls push you along them.
 
 export const DEAD = 0.15
-export const SPEED = { walk: 1.6, jog: 3.8, sprint: 6.8 }
-// (the push, past the dead zone, where jogging starts, where running starts, and where it's full)
-const JOG_AT = 0.5
-const RUN_AT = 0.8
-const ACCEL = 9
-const DECEL = 13
-const TURN = 10 // rad/s toward where you're going
+export const SPEED = { walk: 1.8, jog: 4.2, sprint: 6.8 }
+// (the push, past the dead zone, where jogging starts, where running starts, and where it's full).
+// Snappy (owner, 2026-10-09: "I move, he doesn't, he lags"): a small push already walks briskly,
+// half way jogs, and you're up to speed in about a third of a second.
+const JOG_AT = 0.35
+const RUN_AT = 0.65
+const ACCEL = 18
+const DECEL = 20
+const TURN = 14 // rad/s toward where you're going
 export const RADIUS = 0.35
 
 export const createWalker = (x = 0, z = 0, yaw = 0) => ({ x, z, y: 0, yaw, vx: 0, vz: 0, speed: 0, gait: "stand" })
@@ -23,10 +25,10 @@ export const targetSpeed = (m, sprint) => {
   if (m < DEAD) return 0
   if (sprint) return SPEED.sprint
   const k = Math.min(1, (m - DEAD) / (1 - DEAD))
-  if (k < JOG_AT) return 0.8 + (SPEED.walk - 0.8) * (k / JOG_AT)
+  if (k < JOG_AT) return 1.2 + (SPEED.walk - 1.2) * (k / JOG_AT)
   if (k < RUN_AT) return SPEED.walk + (SPEED.jog - SPEED.walk) * ((k - JOG_AT) / (RUN_AT - JOG_AT))
   // (the last of the push: up to a run, all the way out)
-  return SPEED.jog + (SPEED.sprint - SPEED.jog) * Math.min(1, (k - RUN_AT) / (0.97 - RUN_AT))
+  return SPEED.jog + (SPEED.sprint - SPEED.jog) * Math.min(1, (k - RUN_AT) / (0.9 - RUN_AT))
 }
 
 const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a))

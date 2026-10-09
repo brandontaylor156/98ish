@@ -235,6 +235,10 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
   meBody.z = SPAWN.z
   meBody.yaw = SPAWN.yaw
   const follow = createFollow(SPAWN.yaw)
+  // the pad's frame: the camera's heading when the thumb went down, held while you push (the
+  // follow camera may swing round behind you as you walk; a diagonal push still walks its straight
+  // line instead of curling as the camera turns). A look drag turns it with the camera.
+  let moveRef = null
   const input = { x: 0, y: 0, sprint: false }
   const keys = new Set()
 
@@ -2310,7 +2314,9 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
         iy = auto.y
         sprint = auto.sprint
       }
-      stepWalker(me.walker, { x: ix, y: iy, sprint }, follow.yaw, dt)
+      if (auto || Math.hypot(ix, iy) < 0.12) moveRef = null
+      else if (moveRef === null) moveRef = follow.yaw
+      stepWalker(me.walker, { x: ix, y: iy, sprint }, moveRef ?? follow.yaw, dt)
       // (posing for the picture: at the lens; a hug, a high five...: at each other)
       const faceTo = auto?.face ?? (tg.selfie ? tg.selfie.shot.yaw : tg.emote ? faceOther(tg.emote.other) : undefined)
       if (faceTo !== undefined && me.walker.speed < 0.3) me.walker.yaw += wrap(faceTo - me.walker.yaw) * Math.min(1, dt * 6)
@@ -2546,7 +2552,10 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
     },
     // a drag on the picture turns the camera round you (px)
     drag(dx) {
-      if (me.mode === "walk" || me.mode === "sit") turnFollow(follow, -dx * 0.008)
+      if (me.mode === "walk" || me.mode === "sit") {
+        turnFollow(follow, -dx * 0.008)
+        if (moveRef !== null) moveRef -= dx * 0.008
+      }
       else if (me.mode === "act") activity?.drag?.(dx)
     },
     // ---- activities (acts/): the spots here, and one running ----

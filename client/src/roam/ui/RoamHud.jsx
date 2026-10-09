@@ -64,7 +64,8 @@ export function RoamHud({ world, hud, voice = null, onMenu, onAction, onPhone = 
     return "look"
   }
   const down = (e) => {
-    if (e.target !== rootRef.current) return
+    // (any touch on the picture moves or looks; only the buttons and panels keep their own)
+    if (e.target !== rootRef.current && e.target.closest?.("button, a, input, select, textarea, [role=button], .roamSheet, .roamTripBar, .roamGps, .roamTop > *")) return
     const kind = zoneOf(e)
     if (kind === "move" && [...touches.current.values()].some((t) => t.kind === "move")) return
     if (kind === "steer" && [...touches.current.values()].some((t) => t.kind === "steer")) return

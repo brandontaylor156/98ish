@@ -12,10 +12,12 @@
 
 import { heightAt, resolve } from "./layout.js"
 
-export const SPEEDS = { walk: 1.45, jog: 3.1, run: 4.3, sprint: 6.2 }
-export const ACCEL = 7 // m/s^2 speeding up
-export const DECEL = 11 // m/s^2 slowing down
-export const SPRINT_AFTER = 1.2 // s at full push before a run
+// (snappier 2026-10-09, the owner: "I move, he doesn't, he lags": a light push already walks
+// briskly, you're up to speed in about a third of a second, and a full push runs almost at once)
+export const SPEEDS = { walk: 1.7, jog: 3.4, run: 4.6, sprint: 6.2 }
+export const ACCEL = 14 // m/s^2 speeding up
+export const DECEL = 18 // m/s^2 slowing down
+export const SPRINT_AFTER = 0.35 // s at full push before a run
 export const DEAD = 0.15 // the stick's dead zone (of its reach)
 export const RADIUS = 0.35
 
@@ -30,8 +32,8 @@ export const speedFor = (mag, { sprint = false, full = 0 } = {}) => {
   if (sprint) return SPEEDS.sprint
   // (past the dead zone, 0..1)
   const m = Math.min(1, (mag - DEAD) / (1 - DEAD))
-  if (m < 0.5) return 0.7 + (SPEEDS.walk - 0.7) * (m / 0.5)
-  if (m < 0.82) return SPEEDS.walk + (SPEEDS.jog - SPEEDS.walk) * ((m - 0.5) / 0.32)
+  if (m < 0.35) return 1.1 + (SPEEDS.walk - 1.1) * (m / 0.35)
+  if (m < 0.75) return SPEEDS.walk + (SPEEDS.jog - SPEEDS.walk) * ((m - 0.35) / 0.4)
   return full >= SPRINT_AFTER ? SPEEDS.run : SPEEDS.jog
 }
 
