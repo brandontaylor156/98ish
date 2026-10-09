@@ -492,7 +492,7 @@ export const topics = [
         },
       },
       "Chess's puzzles (its Puzzles tab) come from the Lichess puzzle database (public domain) and are built into 98ish: solving them never contacts Lichess, and your puzzle rating and history stay on this device.",
-      "Pickleball 98's real venues in My Park are built from OpenStreetMap data (© OpenStreetMap contributors, ODbL) that ships inside 98ish: choosing a venue never contacts OpenStreetMap or any map service, and 98ish never asks where you are. Online, the 98ish server only learns which venue you picked (so friends at the same venue meet) and your position inside it, as with Riverside Park.",
+      "Pickleball 98's real venues in My Park are built from OpenStreetMap data (© OpenStreetMap contributors, ODbL) that ships inside 98ish: choosing a venue never contacts OpenStreetMap or any map service, and 98ish never asks where you are. Online, the 98ish server only learns which venue you picked (so friends at the same venue meet) and your position inside it, as with Riverside Park. **Together** (holding hands, a selfie, date night...) only works between two signed-on people, after the other says yes; the server passes the ask and the yes and who's walking with whom (kept in memory while you're in the park), never a picture: each device takes its own selfie and keeps it in My Pictures, and only the one who asked puts it in your shared album and, for a couple, Our Story.",
       "98ish has no ads, analytics or tracking scripts, and sells nothing to anyone.",
     ],
     related: ["privacy-overview", "privacy-server", "push-setup", "messenger-calls"],
