@@ -27,7 +27,7 @@ import { createChase, stepChase } from "./sim/chase.js"
 import { carPose, createTraffic, laneOffset, nextRoad, signalGreen, stopsOn } from "./sim/traffic.js"
 import { createPeds, walkLines } from "./sim/peds.js"
 import { SURF, materialOf } from "./render/buildings.js"
-import { kitKindOf } from "./render/trees.js"
+import { kitKindOf, speciesOf } from "./render/trees.js"
 import { STREET } from "./data/tile.js"
 import valencia from "./towns/valencia.js"
 import { TOWNS, townForVenue } from "./towns/index.js"
@@ -440,7 +440,8 @@ test("materials: houses stucco under tile or shingle, works in concrete panels, 
   assert.deepEqual(materialOf(shop, 1), { wall: SURF.stucco, roof: SURF.flat })
   assert.equal(materialOf(box, 1).wall, SURF.panel)
   assert.ok(["palm", "fanpalm"].includes(kitKindOf({ x: 3, z: 9, kind: 1 })))
-  assert.ok(kitKindOf({ x: 3, z: 9, kind: 0 }).startsWith("broad"))
+  assert.equal(kitKindOf({ x: 3, z: 9, kind: 0 }), null, "broad-leaf trees are the town's own species (render/treekit.js)")
+  assert.ok(["plane", "oak", "round"].includes(speciesOf({ x: 3, z: 9, kind: 0, sp: "oak" })) && speciesOf({ kind: 3 }) === "pine")
 })
 
 test("street nodes: lamps, signals and stop signs kept in the tile", () => {
@@ -479,12 +480,12 @@ test("parked cars: the same in every browser, in lots and at curbs, never in a b
     const inShop = c.x > shop[0].x - 1 && c.x < shop[2].x + 1 && c.z > shop[0].z - 1 && c.z < shop[2].z + 1
     assert.ok(!inShop, "not in the shop")
   }
-  for (let i = 0; i < a.length; i++) for (let j = i + 1; j < a.length; j++) assert.ok(Math.hypot(a[i].x - a[j].x, a[i].z - a[j].z) >= 4.6)
+  for (let i = 0; i < a.length; i++) for (let j = i + 1; j < a.length; j++) assert.ok(Math.hypot(a[i].x - a[j].x, a[i].z - a[j].z) >= (a[i].src === "lot" && a[j].src === "lot" ? 2.3 : 4.6))
   assert.ok(new Set(a.map((c) => c.id)).size === a.length)
 })
 
 test("lines: markings on arterials, decks you can stand on, trees off the roads", () => {
-  const elements = [way(1, { highway: "secondary", lanes: "4" }, [[0, 2000], [4096, 2000]]), way(2, { highway: "residential", bridge: "yes" }, [[1000, 0], [1000, 1000]]), compactElement({ type: "node", id: 3, lat: ll(2000, 2000)[0], lon: ll(2000, 2000)[1], tags: { natural: "tree" } })]
+  const elements = [way(1, { highway: "secondary", lanes: "4" }, [[0, 2000], [4096, 2000]]), way(2, { highway: "residential", bridge: "yes" }, [[1000, 0], [1000, 1000]]), compactElement({ type: "node", id: 3, lat: ll(2000, 2024)[0], lon: ll(2000, 2024)[1], tags: { natural: "tree" } })]
   const tile = decodeTile(buildTile({ ...T, elements, elevation: () => 350 }), frame, 300)
   const m = markingArrays(tile.roads, () => 50)
   assert.ok(m.position.length > 100)
@@ -493,7 +494,7 @@ test("lines: markings on arterials, decks you can stand on, trees off the roads"
   const d = decks[0]
   assert.ok(near(deckAt(decks, (d.ax + d.bx) / 2, (d.az + d.bz) / 2, 50), 50, 1e-6))
   assert.equal(deckAt(decks, (d.ax + d.bx) / 2, (d.az + d.bz) / 2, 20), null, "far below: under it")
-  assert.equal(treeSpots(tile).length, 0, "the mapped tree in the road isn't drawn")
+  assert.equal(treeSpots(tile).length, 0, "the mapped tree on the road's lanes (3 m off its line) isn't drawn")
 })
 
 test("online: positions pack small and are checked; cars are named once; tracks glide", () => {

@@ -64,17 +64,38 @@ export const createPeds = ({ cap = 3, seed = 7 } = {}) => {
       }
       const shoppy = world.lines.filter((l) => l.shop)
       while (peds.length > this.cap) peds.pop()
-      if (peds.length < this.cap && shoppy.length && rand() < dt * 1.5) {
-        for (let tries = 0; tries < 8; tries++) {
+      // (just arrived, world.view.fresh: people come into the view you see first, 12-70 m ahead,
+      // so the street isn't empty; later they appear out of sight where they can)
+      const v = world.view
+      const fresh = !!v?.fresh
+      if (peds.length < this.cap && shoppy.length && rand() < dt * (fresh ? 6 : 1.5)) {
+        let pick = null
+        for (let tries = 0; tries < 16; tries++) {
           const line = shoppy[Math.floor(rand() * shoppy.length)]
           const L = roadLength(line.road)
           if (L < 12) continue
-          const p = { id: `p${nextId++}`, line, s: 2 + rand() * (L - 4), dir: rand() < 0.5 ? 1 : -1, speed: 0, pace: 1.1 + rand() * 0.4, pause: 0 }
+          const p = { id: `p${nextId}`, line, s: 2 + rand() * (L - 4), dir: rand() < 0.5 ? 1 : -1, speed: 0, pace: 1.1 + rand() * 0.4, pause: 0 }
           Object.assign(p, pedPose(p))
           const d = Math.hypot(p.x - center.x, p.z - center.z)
-          if (d < 25 || d > 110) continue
-          peds.push(p)
-          break
+          const seen = v ? ((p.x - v.x) * v.fx + (p.z - v.z) * v.fz) / Math.max(1, Math.hypot(p.x - v.x, p.z - v.z)) > 0.75 : false
+          if (fresh) {
+            if (d < 12 || d > 70) continue
+            if (seen) {
+              pick = p
+              break
+            }
+          } else {
+            if (d < 25 || d > 110) continue
+            if (!seen || !v) {
+              pick = p
+              break
+            }
+          }
+          pick ||= p
+        }
+        if (pick) {
+          nextId++
+          peds.push(pick)
         }
       }
       for (const p of peds) {

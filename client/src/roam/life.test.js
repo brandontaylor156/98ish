@@ -10,6 +10,9 @@ import { DRIVABLE, decodeTile, tileSeaAt } from "./data/tile.js"
 import { TOWNS, startSpot, startSpots } from "./towns/index.js"
 import { createWalker, stepWalker, targetSpeed, SPEED } from "./sim/walker.js"
 import { tableSpots, tableClear, EAT } from "./sim/tables.js"
+import { VIEW_CLEAR, bestFacing, sightline } from "./sim/arrival.js"
+import { createColliders } from "./sim/collide.js"
+import { wallRings } from "./render/buildings.js"
 
 const HERE = path.dirname(fileURLToPath(import.meta.url))
 
@@ -71,6 +74,40 @@ for (const town of Object.values(TOWNS))
       }
     }
   })
+
+for (const town of Object.values(TOWNS))
+  test(`arriving (${town.name}): every start faces an open view with life in it, never a wall within 25 m`, () => {
+    for (const s of startSpots(town)) {
+      if (s.kind === "venue") continue
+      const sp = startSpot(town, s.id)
+      const tiles = tilesNear(town, sp.x, sp.z, 220)
+      const col = createColliders()
+      for (const t of tiles) col.addTile(t.key, wallRings(t.buildings, () => 0))
+      const segment = (ax, az, bx, bz) => col.segment(ax, az, bx, bz, -1e9)
+      const f = bestFacing(sp.x, sp.z, { segment, tiles, prefer: sp.yaw })
+      assert.ok(f.open, `${s.id}: an open heading exists`)
+      // the whole middle of the view is clear for 25 m (no wall filling the screen)
+      const v = sightline(sp.x, sp.z, f.yaw, segment)
+      assert.ok(v.clear >= VIEW_CLEAR, `${s.id}: clear ${v.clear.toFixed(0)} m`)
+      assert.ok(v.center >= 40, `${s.id}: a view down the street or across the plaza (${v.center.toFixed(0)} m)`)
+      // something to see: shops, places, trees
+      assert.ok(f.life >= 3, `${s.id}: life in view ${f.life.toFixed(1)}`)
+    }
+  })
+
+test("arriving: the facing turns away from a wall in front to the open street beside it", () => {
+  // a long wall 12 m north of the spot (z -12), a street running east with shops along it
+  const col = createColliders()
+  col.addTile("t", [{ ring: [{ x: -60, z: -12 }, { x: 60, z: -12 }, { x: 60, z: -40 }, { x: -60, z: -40 }] }])
+  const segment = (ax, az, bx, bz) => col.segment(ax, az, bx, bz, -1e9)
+  const shops = [40, 70, 100].map((x) => ({ kind: 5, area: 400, ring: [{ x, z: 10 }, { x: x + 15, z: 10 }, { x: x + 15, z: 25 }, { x, z: 25 }] }))
+  const f = bestFacing(0, 0, { segment, tiles: [{ buildings: shops, pois: [], vegTrees: [], trees: [] }], prefer: Math.PI })
+  assert.ok(f.open)
+  assert.ok(Math.abs(Math.cos(f.yaw - Math.PI)) < 0.9, `not into the wall (yaw ${f.yaw.toFixed(2)})`)
+  assert.ok(Math.sin(f.yaw) > 0.5, `toward the shops down the street (yaw ${f.yaw.toFixed(2)})`)
+  const into = sightline(0, 0, Math.PI, segment)
+  assert.ok(into.clear < 14, "facing the wall is blocked")
+})
 
 test("no Run button: pushing the stick all the way out runs; partway jogs and walks", () => {
   const hud = fs.readFileSync(path.join(HERE, "ui", "RoamHud.jsx"), "utf8")
