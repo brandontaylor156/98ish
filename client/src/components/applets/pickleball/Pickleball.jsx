@@ -368,16 +368,32 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
   const [roamHop, setRoamHop] = useState(null)
   const roamNet = useRoamNet({ world: roamWorld, active: !!roamWorld, look: roamWorld ? myParkInfo().look : null })
   const roamVoice = useRoamVoice({ world: roamWorld, joined: roamNet.joined, n: roamNet.n })
-  // (in My Park at a venue with a town round it: the way out shows near the arrival)
+  // (in My Park at a venue with a town round it: "Explore <town>" shows for the first 10 s after
+  // you arrive, then only on the venue's outskirts, where you'd walk out: near its outer edge, or
+  // at the way out to town when that's away from where you arrived. Always in the park menu.
+  // Owner, 2026-10-09: "I don't want a button plastered on the entire time when I'm just trying
+  // to roam around")
   const exploreTown = parkWorld ? townForVenue(parkWorld.venue) : null
   const [nearExit, setNearExit] = useState(false)
   useEffect(() => {
     if (!exploreTown || !parkWorld) return setNearExit(false)
     const gate = exploreTown.venues[parkWorld.venue]?.back
-    if (!gate) return
+    const b = parkWorld.layout?.BOUNDS || parkWorld.layout?.spec?.bounds || null
+    const t0 = Date.now()
+    let spawn = null
     const id = setInterval(() => {
       const m = parkRef.current?.info?.me
-      setNearExit(!!m && m.mode === "walk" && Math.hypot(m.x - gate.x, m.z - gate.z) < gate.r + 12)
+      if (!m || m.mode !== "walk") return setNearExit(false)
+      spawn ??= { x: m.x, z: m.z }
+      if (Date.now() - t0 < 10000) return setNearExit(true)
+      // (the outskirts: within ~15 m of the venue's outer edge, more at a big venue)
+      let edge = false
+      if (b) {
+        const reach = Math.max(15, 0.12 * Math.min(b.x1 - b.x0, b.z1 - b.z0))
+        edge = Math.min(m.x - b.x0, b.x1 - m.x, m.z - b.z0, b.z1 - m.z) < reach
+      }
+      const gateAway = gate && Math.hypot(gate.x - spawn.x, gate.z - spawn.z) > 30 && Math.hypot(m.x - gate.x, m.z - gate.z) < gate.r + 6
+      setNearExit(edge || !!gateAway)
     }, 700)
     return () => clearInterval(id)
   }, [exploreTown, parkWorld])
