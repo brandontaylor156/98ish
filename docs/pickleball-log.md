@@ -455,3 +455,55 @@ The owner: "Add like, other fun activities to do at each venue, like tennis at w
 ## My Park leisure: swimming, the hot tub, food and drinks, Vince's keys (2026-10-09)
 
 Swim in the real pools (Los Cab, Paseo: cannonball, freestyle, float, a length or laps against the clock, with or racing a friend), soak in Los Cab's hot tub (bubbles, steam, lo-fi, side by side), order food and drinks at the sourced bars, cafes and snack window for Casino 98's chips and eat or drink them in hand (one for your partner too), and the drinks machine's easter egg: give Vince a cold drink and he hands you the keys to the Sundowner GT in Explore Valencia (kept per account). Files `park/leisure/` (spots, menu, poses, water, held, swimRun, tubRun, parkside, useLeisure), `server/park/finds.js`; hooks in `world.js` (`leisure`, `d.pose`, held items, swim/tub acts), `anim.js` (moods carry, sip, fan), `interp.js` (ACTS swim 5, tub 6), Together kinds swim/tub/treat. Everything, with measurements, tests and owner questions: `docs/venue-activities.md` "Leisure"; sources: `docs/venue-provenance.md` "Leisure".
+
+## My Park at 30 on a phone: what a frame costs, and fewer draws (2026-10-09)
+
+The owner: "we are playing a lot on MOBILE"; phone emulation had My Park at 10-17 fps at its busiest spots. Measured in headless Chrome as a phone (390x844 at 3x, Medium, 4x CPU throttle, GPU flags `--use-angle=d3d11`) on this i3-N305, shared with another agent; every comparison alternates the base build (vite 8301, this branch's start plus the profiler) with this one (5301), two rounds, and gives ranges. 4x throttle of this CPU is slower than an iPhone, so the absolute numbers are a floor. Not yet tried on a real iPhone.
+
+**What a frame costs** (`park/prof.js`: `__park.devProf(true)` / `devProf()`, ms per frame per part, draws and triangles; dev only). At Los Cab's arrival before: renderer.render 25-35 ms of JS, the live courts 6-20 ms, the athletes 7-17 ms (3.5-4 ms each), the camera, regulars, labels and leisure about 2 ms together. The GPU wasn't the limit: half the pixels (0.5 pixel ratio) changed nothing, and a `gl.readPixels` sync added ~1 ms. The render's cost was WebGL calls: 1,318 a frame at Los Cab (111 program switches for 162 draws, 223 matrix uploads, 167 texture binds); a draw cost ~0.15-0.2 ms at 4x whatever its triangles. Chrome's trace: the page's main thread busy end to end, 86% of it in the animation-frame callback; DOM, style and layout ~3%. Night costs the same as day (the lights are additive light pools on the courts, not real lights; there are no point lights anywhere). In the courts, 60% was the shot solver flying trial balls (`solveShot` -> `rangeOf` -> `flyToGround`).
+
+**What changed** (one commit each, with its measurement):
+- **One pass for see-through things** (`perf.js singlePass`, build.js): three.js draws a transparent double-sided material twice (back faces, front faces) and re-checks its program before each: every chain-link fence, net, glass pane and weed card. They're flat cards without depth writes: one pass looks the same.
+- **Venues merged by look** (`perf.js mergeByLook`, after venue.js `mergeStatic`, per room zone and roof too): meshes whose materials differ only in color are one mesh per look, the colors baked into vertex colors in the material's own linear space. Materials whose color changes at run time are `userData.live` (the lamps, the ground, hall lamps). Whole-venue draws (Node): Los Cab 403 -> 305, Newport 288 -> 199, Wolf + Bear 155 -> 108, Whittier 175 -> 106, Paseo 362 -> 262, Sinaloa 131 -> 78, SMASH 193 -> 148, Bouquet 101 -> 88.
+- **The opaque list sorted by program** (`perf.js programSort`, set by `world.render` for its own frame only): useProgram 111 -> 59 a frame at Los Cab; GL calls 1,318 -> 1,087.
+- **Cheaper athletes far off on a phone** (world.js `drawBodies`; `dev.noLod` switches it off): posed every frame within 12 m (always: you, an activity's people, the court you watch), every 2nd to 20 m, every 3rd past; the paddle-body solver (a third of an athlete's posing) only within 13-15 m (`fig.live.noGuard`, athlete.js); lashes and teeth (two draws an athlete) hidden past 11 m (`userData.nearOnly`). With four athletes: Los Cab people 18.1 -> 13.2 ms a frame, Paseo 14.8 -> 9.3.
+- **The flight step without garbage** (physics.js): `flightStep` made five objects a step and used `Math.hypot`; `ballSpec(ball)` looked the ball up as `BALLS[ball]`, turning it into the string "[object Object]" every step. A doubles game: 6.12 -> 2.05 ms per simulated second (Node), for every court and every match; `tools/rallysim.mjs pro 6` prints byte-identical statistics before and after.
+- **The hot tub's steam in one draw** (leisure/water.js: one instanced mesh of camera-facing quads instead of a sprite and a material per puff; 7 draws -> 1).
+- **Dynamic resolution's floor on a phone** (utils/dynamicResolution.js `setFloor`, set by the engine while My Park on a phone is up): under 28 fps for two 2 s windows once at 1.0 -> 0.75; back up after six windows at 32 fps (twelve once that has failed). Emulation is main-thread bound, so it doesn't show in these numbers; it's for an iPhone whose GPU is the slow part.
+- Tried and dropped: far ambient courts at 120 physics steps a second saved only 24% of a court (the solver runs per hit) and shortened pro rallies 13.3 -> 11.8 shots.
+
+**Before -> after** (fps; phone emulation at 4x; two alternating rounds; the second round of the night runs overlapped the other agent's heaviest work, hence some wide low ends):
+
+| Venue | Day: arrival | Day: walking | Day: Watch | Night: arrival | Night: walking |
+|---|---|---|---|---|---|
+| Los Cab | 14.8-15.4 -> 26.7-26.8 | 17.8-20.7 -> 24.9-28.9 | 15.5-16.4 -> 18.0-22.6 | 11.9-17.2 -> 25.0-25.4 | 8.3-19.8 -> 26.7-30.3 |
+| Newport | 19.8-20.2 -> 29.2-29.3 | 23.8-24.4 -> 27.3-29.3 | 17.5-17.7 -> 18.5-19.3 | 18.5-19.1 -> 11.0-22.2 | 19.7-22.7 -> 18.7-25.7 |
+| Wolf + Bear | 26.2-32.1 -> 28.1-33.5 | 26.4-28.8 -> 29.1-32.9 | 23.6-24.7 -> 21.1-27.2 | 28.8-29.6 -> 8.9-32.0 | 23.1-26.7 -> 8.3-37.5 |
+| Whittier | 22.2-26.5 -> 16.7-31.9 | 23.1-26.3 -> 10.5-30.3 | 18.5-19.4 -> 16.9-23.0 | 14.1-22.5 -> 24.3-28.8 | 20.3-25.1 -> 24.6-30.5 |
+| Paseo | 20.3-24.3 -> 21.0-28.3 | 24.2-29.2 -> 25.7-33.8 | 17.8-18.6 -> 22.9-24.7 | 20.8-23.3 -> 9.5-29.4 | 25.5-25.8 -> 31.1-34.9 |
+| Sinaloa | 14.0-20.8 -> 25.5-27.1 | 26.7-26.8 -> 26.9-33.4 | 17.1-17.6 -> 20.6-22.5 | 18.7-20.5 -> 13.4-28.3 | 25.1-28.6 -> 20.6-26.1 |
+| SMASH | 8.2-19.5 -> 21.6-21.9 | 11.0-19.6 -> 26.1-26.3 | 10.0-14.2 -> 18.6-19.0 | 18.9-19.8 -> 14.1-22.0 | 19.1-20.4 -> 17.3-26.9 |
+| Bouquet | 10.8-16.9 -> 25.9-26.1 | 12.3-20.4 -> 27.5-31.6 | 13.5-15.9 -> 20.3-20.4 | 18.9-20.0 -> 13.7-28.2 | 21.8-22.2 -> 17.2-31.8 |
+
+The steadier signal is the frame split, which moved the same way in every run (median ms a frame, base -> new, day arrivals): render Los Cab 27.9 -> 19.0, Newport 21.7 -> 15.8, Whittier 18.9 -> 14.6, Paseo 20.5 -> 15.4, Sinaloa 23.7 -> 16.7, SMASH 25.0 -> 18.4, Bouquet 24.6 -> 17.6; courts Los Cab 9.0 -> 3.3, Bouquet 12.7 -> 3.5, SMASH 6.3 -> 3.7; draws in view Los Cab 147 -> 118, Sinaloa 137 -> 90, SMASH watching 168 -> 131. Triangles unchanged (330-345k at Los Cab).
+
+Activities and leisure (`actprof.mjs`, three alternating rounds; the first round was the quiet one, the other two overlapped the other agent's runs; fps base -> new; median render ms and draws):
+
+| Where | fps, first round | fps, all three rounds | render ms | draws |
+|---|---|---|---|---|
+| Los Cab tennis (a match) | 20.4 -> 29.7 | 10.1-25.2 -> 18.5-29.7 | 27.7 -> 20.0 | 96 -> 88 |
+| Los Cab hot tub | 38.8 -> 43.9 | 11.3-38.8 -> 24.7-43.9 | 19.3 -> 15.5 | 79 -> 68 |
+| Los Cab swimming | 36.5 -> 42.0 | 14.3-36.5 -> 19.6-42.0 | 26.4 -> 20.0 | 78 -> 67 |
+| Los Cab pool deck | 30.6 -> 32.2 | 21.6-30.6 -> 20.4-32.2 | 23.8 -> 28.9 | 132 -> 108 |
+| SMASH TV, standing | 19.9 -> 21.7 | 12.3-20.1 -> 11.0-22.7 | 27.8 -> 22.9 | 145 -> 126 |
+| Los Cab at night, arrival | 17.2 -> 23.1 | 8.8-17.2 -> 11.5-24.8 | 28.5 -> 21.6 | 151 -> 125 |
+
+(The earlier "hot tub with two phones, 13 fps" was two emulated phones rendering on one machine at once: twice the work on the same CPU, not a phone's number.)
+
+**Look** (scratchpad `perf/shots.mjs`, `diff.py`): the same lens drawn by both builds (the base run's follow camera reused, people hidden, after the ground-occlusion bake): mean pixel difference 0.0-0.7 of 255 at Los Cab day and night, Newport (watching), Sinaloa, SMASH, Whittier, Wolf + Bear, Bouquet at night and Los Cab's pool deck; Paseo 4.2 (the trees' sway: the leaves' wind runs on the clock). Game screenshots side by side (the arrival, the hot tub) show the same picture.
+
+**Graphics** (unchanged in what each shows): Low = the flat look (no surfaces, shadows or baked occlusion, simple shapes); Medium = the phone default (realism, a 1024 shadow map redrawn only when its box moves 8 m or the light changes, no post); High = 2048 shadows and the detailed bodies; desktop High/Ultra add the post pass. The draw savings apply to all three; the athlete savings and the resolution floor to phones only, so the desktop picture is unchanged.
+
+**Tests:** `park/perf.test.js` (every venue under a whole-venue draw budget, these numbers + ~8%; the merge's color rule and what it leaves alone; one pass; the program sort), `utils/frameClock.test.js` (the floor), all 59 Pickleball test files. Browser scripts (session scratchpad `perf/`; vite 5301 = this branch, 8301 = a copy of the base with the profiler): `prof.mjs` (the frame split at the arrival, walking, Watch), `ab.sh` + `absum.mjs` (alternating runs), `actprof.mjs` (tennis, the tub, swimming, the pool deck, SMASH's TV, Los Cab at night), `abtoggle.mjs` (a switch on and off in one page), `glcount.mjs` (GL calls per frame by function), `calls.mjs` (the render list), `cpuprof.mjs` + `incl.mjs`, `trace.mjs`, `shots.mjs`, `tubshot.mjs`.
+
+**Left:** still under 30 at 4x where four or five athletes are on screen (Watch, SMASH's TV): an athlete is ~3.5 ms of posing and ~8 draws; next would be fewer draws per athlete (body and kit in one skinned mesh) or a cheaper pose for the far side of the court. The venue's remaining draws are mostly instanced trees and cars split per shape (three or four draws each; `BatchedMesh` could make them one, if Safari's multi-draw holds up). The shadow box's redraw (every 8 m walked) is a one-frame +80 draws. React's dev build costs ~1.5% here, not in production. All of it needs the owner's iPhone.
