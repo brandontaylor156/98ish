@@ -10,7 +10,12 @@
 // - a per-person store (98ish's per-user localStorage) for the finds.
 
 import { useEffect, useRef, useState } from "react"
-import { createAnim, updateAnim } from "../components/applets/pickleball/anim.js"
+import { createAnim, updateAnim, setMood, seatedPose } from "../components/applets/pickleball/anim.js"
+import { gearFig } from "../components/applets/pickleball/park/acts/gear.js"
+import { holdFig } from "../components/applets/pickleball/park/leisure/held.js"
+import { ITEMS as LEISURE_ITEMS } from "../components/applets/pickleball/park/leisure/menu.js"
+import * as togetherRules from "../components/applets/pickleball/park/together.js"
+import { createLife98 } from "../utils/roamLife.js"
 import { liftPose } from "../components/applets/pickleball/park/lift.js"
 import { createRealSky } from "../components/applets/pickleball/park/realsky.js"
 import { dayLook, hourOf, realLook } from "../components/applets/pickleball/park/sky.js"
@@ -70,7 +75,7 @@ const walkSituation = (s, key, t, look) => {
 }
 
 // engineCtx: Pickleball's api.worldContext() ({ makeFigure, quality, renderer })
-export const makeHost98 = ({ engineCtx, me = {}, sky = { real: true, mode: "real" }, aim = null, phone = false, towns = null } = {}) => {
+export const makeHost98 = ({ engineCtx, me = {}, sky = { real: true, mode: "real" }, aim = null, phone = false, towns = null, travel = null, equip = null } = {}) => {
   const quality = engineCtx?.quality || "medium"
   let n = 0
   const store = {
@@ -98,6 +103,15 @@ export const makeHost98 = ({ engineCtx, me = {}, sky = { real: true, mode: "real
     // what 98ish has unlocked in the open world: { sundowner: at } once Vince in My Park handed
     // you his car keys (park/leisure/useLeisure.jsx writes it; the account keeps it too)
     unlocks: () => store.get("roam.unlocks") || {},
+    // My Park's rules for doing things together (park/together.js: where two stand for a hug,
+    // walking hand in hand, the consent rules' breaking away); roam/life/social.js uses them
+    together: togetherRules,
+    // what a person can hold to eat or drink (My Park's leisure items: name, food or drink, sips)
+    heldItems: LEISURE_ITEMS,
+    // your Home/Work places, the Bag, gifts and the chip bank (utils/roamLife.js: on your 98
+    // Messenger account, or this device when signed off), Pickleball 98's Locker Room, and going
+    // to another town (the page: travel(townId, at))
+    life: createLife98({ travel, equip }),
     // the other towns (the train between them): [{ id, name, station }]
     towns: () => (towns ? Object.values(towns).map((t) => ({ id: t.id, name: t.name, station: t.station || null })) : []),
     // the in-game phone's Messages: 98 Messenger (your buddies, and a quick message to one)
@@ -187,8 +201,33 @@ export const makeHost98 = ({ engineCtx, me = {}, sky = { real: true, mode: "real
       let anim = null
       let t = 0
       let at = null
+      // (Explore's emotes, doing things together, sitting and eating: roam/life/social.js)
+      let mood = null // { kind, variant, keep, at }
+      let seat = null // { x, y, z, yaw, ground? }
+      let held = null
+      const tmpLook = { x: 0, y: 1.2, z: 0 }
       return {
         group: fig.group,
+        // a mood from anim.js (wave, thumbs, point, cheer, hug, highfive, twirl, dance, hold,
+        // carry, sip...) or null; keep: until taken away
+        setMood(kind, variant = 0, keep = false) {
+          mood = kind ? { kind, variant, keep, fresh: true } : null
+          if (!kind && anim) anim.mood = null
+        },
+        get mood() {
+          return anim?.mood ? anim.mood.kind : null
+        },
+        // sitting: on a chair or a couch (y: the seat's height), or on the ground (ground: true)
+        setSeat(s) {
+          seat = s || null
+        },
+        // something to eat or drink in the hand (My Park's held items), or null; the paddle
+        // goes away while you hold it
+        hold(id) {
+          held = id || null
+          gearFig(fig, held ? "none" : "paddle")
+          holdFig(fig, held)
+        },
         update(s, dt) {
           const step = Math.min(0.1, dt)
           t += step
@@ -196,6 +235,19 @@ export const makeHost98 = ({ engineCtx, me = {}, sky = { real: true, mode: "real
           if (at && Math.hypot(at.x - s.x, at.z - s.z) > 4) anim = null
           at = { x: s.x, z: s.z }
           if (!anim) anim = createAnim(s.x, s.z, s.yaw)
+          if (seat) {
+            const fr = { x: Math.sin(seat.yaw), z: Math.cos(seat.yaw) }
+            tmpLook.x = seat.x + fr.x * 3
+            tmpLook.z = seat.z + fr.z * 3
+            tmpLook.y = (seat.y || 0) + 1.1
+            const y0 = s.y || 0
+            fig.apply(seatedPose({ x: seat.x, y: y0 + (seat.ground ? 0.12 : seat.h ?? 0.45), z: seat.z, yaw: seat.yaw }, tmpLook, null, seat.ground ? { drop: 0.1, ahead: 0.62 } : { drop: (seat.h ?? 0.45) + 0.02, ahead: 0.42 }), step)
+            return
+          }
+          if (mood?.fresh) {
+            setMood(anim, mood.kind, mood.variant, mood.keep)
+            mood.fresh = false
+          }
           anim.useMM = !!fig.skinned && !lite
           anim.mmEvery = 0.2
           fig.apply(liftPose(updateAnim(anim, walkSituation(s, key, t, look), step), s.y || 0), step)
@@ -230,7 +282,10 @@ export const makeHost98 = ({ engineCtx, me = {}, sky = { real: true, mode: "real
 
 // Roam online over 98ish's shared connection (server/roam): joins the town while you're in it
 // and passes everything to the world (setNet / netJoined / netEvent). -> { joined, n, people, error }
-const EVENTS = ["roam:m", "roam:person", "roam:gone", "roam:car", "roam:ride", "roam:seat", "roam:hop"]
+const EVENTS = ["roam:m", "roam:person", "roam:gone", "roam:car", "roam:ride", "roam:seat", "roam:hop",
+  // (going inside, emotes, things put down, doing things together: server/roam/inside.js and
+  // park/together.js; gifts and shared places: server/roam/life.js over the same connection)
+  "roam:in", "roam:invite", "roam:say", "roam:emote", "roam:placed", "roam:unplaced", "roam:ask", "roam:answer", "roam:link", "roam:tg", "roam:tgend", "roamlife:gift", "roamlife:shared", "roamlife:changed"]
 export const useRoamNet = ({ world, active, look }) => {
   const net = useNet()
   const socket = net?.socket
