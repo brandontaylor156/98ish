@@ -1337,13 +1337,15 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
     let f = colliders.segment(tx, tz, bx, bz, ty)
     const side = 0.45
     f = Math.min(f, colliders.segment(tx, tz, bx - cyw * side, bz + sy * side, ty), colliders.segment(tx, tz, bx + cyw * side, bz - sy * side, ty))
-    const wantD = f < 1 ? Math.max(0.5, dist * f - 0.35) : dist
+    // (a wall right behind you: the lens stays this side of it, however close, and rises to look
+    // down over your shoulder instead of going through it)
+    const wantD = f < 1 ? Math.max(0.12, dist * f - 0.3) : dist
     // (in fast, out slowly; never further than the wall allows)
     cam.boom = Math.min(wantD, stepBoom(cam.boom, wantD, dt))
     const k = cam.boom / dist
     const cx = tx - sy * cam.boom
     const cz = tz - cyw * cam.boom
-    let cy = ty + height * (0.55 + 0.45 * k)
+    let cy = ty + height * (0.55 + 0.45 * k) + Math.max(0, 1.2 - cam.boom) * 0.9
     // (never under the ground)
     const g = groundAt(cx, cz)
     if (g !== null && cy < g + 0.8) cy = g + 0.8
