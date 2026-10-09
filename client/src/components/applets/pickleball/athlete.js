@@ -49,7 +49,8 @@ import { BUILD_SCALE, buildGarment, buildSkirt, landmarks, prepareBody, radiusPr
 import { loadMotion } from "./mm/runtime.js"
 import { parseFaceShape } from "./faceshape.js"
 import { hash01 } from "./between.js"
-import { ARM_PROBE, FINGER_NAMES, RELAXED_ELBOW, TWIST, armMetrics, armReference, armRig, clavicleFor, fingerPose, gripFrame, solveArm, solvePaddleArm, splitTwistWeights, stepFingers, twistOf } from "./arms.js"
+import { ARM_PROBE, FINGER_NAMES, RELAXED_ELBOW, TWIST, armMetrics, armReference, armRig, clavicleFor, fingerPose, gripFrame, armFK, guardPaddleArm, paddleOfArm, solveArm, solvePaddleArm, splitTwistWeights, stepFingers, twistOf } from "./arms.js"
+import { LIMBS, bodyCapsules, paddleDepth, rollPaddle, skipFor } from "./paddlebody.js"
 
 const BASE = "/assets/pickleball/"
 // the bodies: MakeHuman's (CC0, realistic proportions: tools/build-mh-athletes.mjs), or the
@@ -2065,6 +2066,7 @@ const buildAthlete = (look = {}, { shadows = false, withPaddle = true } = {}, de
   const rigs = { l: armRig(rest, "l", s, tpl.grip.l), r: armRig(rest, "r", s, tpl.grip.r) }
   const armState = { l: {}, r: {} }
   const armHold = { key: null, skips: 0, side: null, two: false }
+  let offShape = "relaxed" // (the other hand's shape this frame)
   let frameNo = Math.round(hash01(look.name || "") * 10) // (athletes take their light frames in turn)
   const girdle = { l: { elev: 0, prot: 0 }, r: { elev: 0, prot: 0 } }
   const axisU = { l: norm(toV(restLp.lowerarm_l)), r: norm(toV(restLp.lowerarm_r)) }
@@ -2102,6 +2104,130 @@ const buildAthlete = (look = {}, { shadows = false, withPaddle = true } = {}, de
     const st = armState[sd].last
     const up = st ? Math.max(0, Math.min(1, (st.a.ua.y + 0.6) / 0.9)) : 0
     return { pron: 12 + 28 * up, flex: 12 - 4 * up, dev: -7 }
+  }
+
+  // ---- the paddle kept out of the body (paddlebody.js): the body's capsules from the drawn
+  // bones (the legs and the trunk are posed before the arms), the paddle arm's hand turned at
+  // the wrist (and if that isn't enough, its wrist moved and the arm solved again), the other
+  // arm moved out of the paddle's way ----
+  const girth = height * (BUILD_SCALE[look.build] || 1)
+  const guardCaps = []
+  let guardNear = false // (the paddle within 5 cm of the body last time it was checked)
+  const guarding =() => withPaddle && !(typeof window !== "undefined" && window.__pbNoGuard)
+  const guardJoints = (S, res) => {
+    const fk = armFK(rigs[paddleSide], S, res)
+    const hq = turnOf("Head")
+    const headUp = qrot(hq, UPV)
+    // (the other upper arm, as last frame left it on this frame's shoulder: the paddle keeps out
+    // of it too, unless that hand holds the paddle; its forearm and hand move out of the way)
+    let shoulderO
+    let elbowO
+    if (offShape !== "grip" && offShape !== "cup") {
+      const oSide = paddleSide === "r" ? "l" : "r"
+      B["upperarm_" + oSide].updateWorldMatrix(false, false)
+      B["lowerarm_" + oSide].updateWorldMatrix(false, false)
+      shoulderO = matP(B["upperarm_" + oSide])
+      elbowO = matP(B["lowerarm_" + oSide])
+    }
+    return {
+      shoulderO,
+      elbowO,
+      pelvis: matP(B.pelvis),
+      neck: matP(B.neck_01),
+      pelvisRight: qrot(turnOf("pelvis"), { x: -1, y: 0, z: 0 }),
+      chestRight: qrot(turnOf("spine_03"), { x: -1, y: 0, z: 0 }),
+      head: add3(matP(B.Head), scale3(headUp, 0.02 * height)),
+      headUp,
+      headFwd: qrot(hq, FWD),
+      shoulderP: S,
+      elbowP: fk.E,
+      wristP: fk.W,
+      handTipO: null,
+      hipL: matP(B.thigh_l),
+      kneeL: matP(B.calf_l),
+      ankleL: matP(B.foot_l),
+      hipR: matP(B.thigh_r),
+      kneeR: matP(B.calf_r),
+      ankleR: matP(B.foot_r),
+    }
+  }
+  const guardSkip = skipFor({})
+  // How a paddle is carried (walking, running, standing about between points): hanging from
+  // the hand with its tip forward and out from the leg, the face to the side; running, tipped
+  // up in front, the way players run with one. (It used to be a fixed relaxed hand: the paddle
+  // then hung wherever the hand pointed it, often into the thigh as the arm swung.)
+  const carryWay = (chest, side, speed) => {
+    const out = side === "r" ? chest.right : scale3(chest.right, -1)
+    const run = Math.max(0, Math.min(1, (speed - 1.6) / 1.6))
+    const walk = add3(add3(scale3(chest.fwd, 0.55), scale3(chest.up, -0.62)), scale3(out, 0.55))
+    const running = add3(add3(scale3(chest.fwd, 0.72), scale3(chest.up, 0.5)), scale3(out, 0.35))
+    return { carryAxis: norm(add3(scale3(walk, 1 - run), scale3(running, run))), carryNormal: out }
+  }
+  const guardPaddle = (res, S, exact, solveAgain) => {
+    const prof = typeof window !== "undefined" && window.__pbGuardProf
+    const t0 = prof ? performance.now() : 0
+    const keep = (1 - exact) * (1 - exact)
+    bodyCapsules(guardJoints(S, res), { kind, scale: girth, out: guardCaps })
+    if (exact > 0.02) {
+      // around contact the face stays on the ball: the paddle rolls about the face's normal (the
+      // handle and the hand swing round) and the arm is solved again to hold it there
+      const p = paddleOfArm(rigs[paddleSide], res, FACE_FROM_GRIP, armFK(rigs[paddleSide], S, res).W)
+      const r = rollPaddle(p, guardCaps, { margin: 0.015, skip: guardSkip, maxTurn: 1.1 * exact })
+      if (Math.abs(r.angle) > 0.01) {
+        res = solveAgain(null, { face: p.face, axis: r.paddle.axis, normal: p.normal })
+        bodyCapsules(guardJoints(S, res), { kind, scale: girth, out: guardCaps })
+        if (prof) prof.roll = (prof.roll || 0) + 1
+      }
+    }
+    let g = guardPaddleArm(rigs[paddleSide], S, res, guardCaps, { faceFromGrip: FACE_FROM_GRIP, keep, skip: guardSkip })
+    guardNear = g.before !== null && g.before > -0.05
+    // (what the wrist couldn't do: the hand goes out too, the arm solved again; twice at most)
+    let total = null
+    for (let i = 0; i < 2 && g.shift; i++) {
+      total = total ? add3(total, scale3(g.shift, 1.15)) : scale3(g.shift, 1.15)
+      const again = solveAgain(total)
+      bodyCapsules(guardJoints(S, again), { kind, scale: girth, out: guardCaps })
+      const g2 = guardPaddleArm(rigs[paddleSide], S, again, guardCaps, { faceFromGrip: FACE_FROM_GRIP, keep, skip: guardSkip })
+      if (prof) prof.again = (prof.again || 0) + 1
+      if (g2.depth === null || g2.depth > g.depth) break
+      g = g2
+    }
+    if (prof) {
+      prof.n = (prof.n || 0) + 1
+      prof.ms = (prof.ms || 0) + performance.now() - t0
+      if (g.before !== null && g.before > -0.015) prof.hit = (prof.hit || 0) + 1
+    }
+    return g.res
+  }
+  // the other arm (shoulder S, solved res) moved out of the paddle's way: its target pushed away
+  // from the paddle by as far as the arm is into it, and solved again (twice at most)
+  const yieldCaps = []
+  const yieldArm = (res, S, target, solveAt) => {
+    const prof = typeof window !== "undefined" && window.__pbGuardProf
+    const t0 = prof ? performance.now() : 0
+    const paddleRes = armState[paddleSide].last
+    if (!paddleRes) return res
+    const p = paddleOfArm(rigs[paddleSide], paddleRes, FACE_FROM_GRIP, matP(B["hand_" + paddleSide]))
+    const rigO = rigs[paddleSide === "r" ? "l" : "r"]
+    const L = LIMBS[kind] || LIMBS.any
+    let out = res
+    let t = target
+    for (let i = 0; i < 2; i++) {
+      yieldCaps.length = 0
+      const fk = armFK(rigO, S, out)
+      const tip = add3(fk.W, scale3(norm(sub3(fk.W, fk.E)), 0.13 * height))
+      const cap = (a, b, ra, rb, part) => yieldCaps.push({ ax: a.x, ay: a.y, az: a.z, bx: b.x, by: b.y, bz: b.z, ra: ra * girth, rb: rb * girth, part })
+      cap(S, fk.E, L.upperarm[0], L.upperarm[1], "upperarmO")
+      cap(fk.E, fk.W, L.forearm[0], L.forearm[1], "forearmO")
+      cap(fk.W, tip, L.hand, L.hand * 0.8, "handO")
+      const d = paddleDepth(p, yieldCaps, { margin: 0.015 })
+      if (d.depth <= -0.015) break
+      // (the contact's way out is the paddle's: the arm goes the other way)
+      t = sub3(t, scale3(d.n, d.depth + 0.015))
+      out = solveAt(t)
+    }
+    if (prof) prof.yieldMs = (prof.yieldMs || 0) + performance.now() - t0
+    return out
   }
 
   const apply = (pose, dt = 1 / 60) => {
@@ -2164,6 +2290,47 @@ const buildAthlete = (look = {}, { shadows = false, withPaddle = true } = {}, de
     addLocal(head, layerMoves("Head"))
     settle(head)
 
+    // legs: ankles over the pose's feet, at the model's own ankle height (before the arms: the
+    // paddle is kept out of them)
+    const ankleH = tpl.ankleH * s
+    const feet = { l: pose.footL, r: pose.footR }
+    const knees = { l: pose.kneeL, r: pose.kneeR }
+    const hips = { l: pose.hipL, r: pose.hipR }
+    for (const sd of ["l", "r"]) {
+      const L = limbs[sd].leg
+      const f = feet[sd]
+      const th = B["thigh_" + sd]
+      const ca = B["calf_" + sd]
+      const ft = B["foot_" + sd]
+      const rootP = worldP(th)
+      const target = { x: f.x, y: f.y + ankleH, z: f.z }
+      // (a foot pinned on the ball of the foot, motion matching: this model's own ball of the
+      // foot goes exactly there, whatever its foot's length; the heel turns round it)
+      if (f.pin?.ball) {
+        const p0 = f.pitch || 0
+        const fw = { x: Math.sin(f.yaw) * Math.cos(p0), y: -Math.sin(p0), z: Math.cos(f.yaw) * Math.cos(p0) }
+        const fu = { x: Math.sin(f.yaw) * Math.sin(p0), y: Math.cos(p0), z: Math.cos(f.yaw) * Math.sin(p0) }
+        const off = qrot(aimDelta(FWD, UPV, fw, fu), scale3(sub3(rest["ball_" + sd].wp, rest["foot_" + sd].wp), s))
+        target.x = f.pin.x - off.x
+        target.z = f.pin.z - off.z
+      }
+      const ankleP = { x: f.x, y: f.y + BODY.ankle, z: f.z }
+      const pole = sub3(knees[sd], scale3(add3(hips[sd], ankleP), 0.5))
+      const ik = solveLimb(rootP, target, L.l1, L.l2, pole, 1.06)
+      const upd = norm(sub3(ik.mid, rootP))
+      const lod = norm(sub3(ik.end, ik.mid))
+      const n = bendAxis(upd, lod, pole)
+      ca.position.copy(restLp["calf_" + sd]).multiplyScalar(ik.stretch)
+      ft.position.copy(restLp["foot_" + sd]).multiplyScalar(ik.stretch)
+      setWorldQ(th, qmul(aimDelta(L.th, L.thN, upd, n), rest["thigh_" + sd].wq))
+      setWorldQ(ca, qmul(aimDelta(L.ca, L.caN, lod, n), rest["calf_" + sd].wq))
+      // the foot: flat on the court (or as the step tips it), pointing along its yaw
+      const p = f.pitch || 0
+      const fwd = { x: Math.sin(f.yaw) * Math.cos(p), y: -Math.sin(p), z: Math.cos(f.yaw) * Math.cos(p) }
+      const fup = { x: Math.sin(f.yaw) * Math.sin(p), y: Math.cos(p), z: Math.cos(f.yaw) * Math.sin(p) }
+      setWorldQ(ft, qmul(aimDelta(FWD, UPV, fwd, fup), rest["foot_" + sd].wq))
+    }
+
     // ---- the arms (arms.js): the shoulder girdle first, then each arm solved on this model's
     // own bones with real joint limits: no locked or stretched elbows, the elbow's direction and
     // the paddle's roll chosen so the humerus, the forearm's twist and the wrist stay in range,
@@ -2217,7 +2384,8 @@ const buildAthlete = (look = {}, { shadows = false, withPaddle = true } = {}, de
     // position, gripping the handle for a two-hander, relaxed otherwise
     if (withPaddle) {
       const near = Math.hypot(pose.wristO.x - pose.wristP.x, pose.wristO.y - pose.wristP.y, pose.wristO.z - pose.wristP.z) < 0.2
-      setHand(oSide, info.fist ? "fist" : info.two ? "grip" : info.offGrip && near ? "cup" : info.open ? "open" : "relaxed", dt)
+      offShape = info.fist ? "fist" : info.two ? "grip" : info.offGrip && near ? "cup" : info.open ? "open" : "relaxed"
+      setHand(oSide, offShape, dt)
       setHand(pSide, "grip", dt)
     }
 
@@ -2242,7 +2410,8 @@ const buildAthlete = (look = {}, { shadows = false, withPaddle = true } = {}, de
       for (let i = 0; i < 4; i++) moved = Math.max(moved, Math.hypot(holdKey[i].x - armHold.key[i].x, holdKey[i].y - armHold.key[i].y, holdKey[i].z - armHold.key[i].z))
     }
     // (and on a slow device, every other frame away from a stroke: the athletes take turns)
-    const calm = exact === 0 && !info.fast && armHold.side === pSide && armHold.two === !!info.two
+    // (not while the paddle is close to the body: the guard checks it every frame then)
+    const calm = exact === 0 && !info.fast && armHold.side === pSide && armHold.two === !!info.two && !guardNear
     const holdArms = calm && ((moved < 0.008 && armHold.skips < 2 && (info.stroke || 0) < 0.05) || (dt > 1 / 40 && armHold.skips < 1 && (info.stroke || 0) < 0.3))
     if (holdArms) armHold.skips++
     else {
@@ -2256,7 +2425,10 @@ const buildAthlete = (look = {}, { shadows = false, withPaddle = true } = {}, de
     } else if (withPaddle) {
       const st = armState[pSide]
       const S = childP(B["clavicle_" + pSide], B["upperarm_" + pSide])
-      const res = solvePaddleArm(rigs[pSide], S, pose.paddle, chest, { faceFromGrip: FACE_FROM_GRIP, pole: bendOf(pSide), poleW: 0.35, prev: st.prev || null, maxTurn: (info.fast ? 40 : 14) * h, handRate: (info.fast ? 40 : 14) * h, handTurn: (info.fast ? 30 : 11) * h, exact, sideWant: (info.stroke || 0) > 0.05 && info.side ? info.side : 0, wrist: add3(wristTarget[pSide], scale3(sub3(S, shoulderPose[pSide]), 0.7)), stroke: info.stroke || 0, carry: Math.max(Math.max(0, Math.min(1, (1 - (info.ready ?? 1)) * 1.4 - 0.2)), info.swinging ? 0 : Math.max(0, Math.min(1, ((info.speed || 0) - 1.4) / 1.2))) * (1 - Math.min(1, (info.stroke || 0) * 3)) * (info.tap ? 0 : 1), dt, lite: frameNo % 2 === 1 && !info.fast, torso })
+      const armOpts = { faceFromGrip: FACE_FROM_GRIP, pole: bendOf(pSide), poleW: 0.35, prev: st.prev || null, maxTurn: (info.fast ? 40 : 14) * h, handRate: (info.fast ? 40 : 14) * h, handTurn: (info.fast ? 30 : 11) * h, exact, sideWant: (info.stroke || 0) > 0.05 && info.side ? info.side : 0, wrist: add3(wristTarget[pSide], scale3(sub3(S, shoulderPose[pSide]), 0.7)), stroke: info.stroke || 0, carry: Math.max(Math.max(0, Math.min(1, (1 - (info.ready ?? 1)) * 1.4 - 0.2)), info.swinging ? 0 : Math.max(0, Math.min(1, ((info.speed || 0) - 1.4) / 1.2))) * (1 - Math.min(1, (info.stroke || 0) * 3)) * (info.tap ? 0 : 1), dt, lite: frameNo % 2 === 1 && !info.fast, torso, ...carryWay(chest, pSide, info.speed || 0) }
+      let res = solvePaddleArm(rigs[pSide], S, pose.paddle, chest, armOpts)
+      // (the paddle's whole shape kept out of the body: paddlebody.js, arms.js guardPaddleArm)
+      if (guarding()) res = guardPaddle(res, S, exact, (shift, paddle) => (paddle ? solvePaddleArm(rigs[pSide], S, paddle, chest, { ...armOpts, psiMax: 0.12 }) : solvePaddleArm(rigs[pSide], S, { ...pose.paddle, face: add3(pose.paddle.face, shift) }, chest, { ...armOpts, wrist: add3(armOpts.wrist, shift) })))
       st.prev = res
       st.last = res
       placeArm(pSide, res)
@@ -2284,51 +2456,16 @@ const buildAthlete = (look = {}, { shadows = false, withPaddle = true } = {}, de
         const gripPt = sub3(pose.paddle.face, scale3(paddleNow.axis, FACE_FROM_GRIP - TOP_HAND))
         target = sub3(gripPt, qrot(H, scale3(gO.p, s)))
       }
-      const res = solveArm(rigs[oSide], S, target, chest, { pole: bendOf(oSide), poleW: 0.45, prev: st.bend || null, maxTurn: (info.fast ? 30 : 12) * Math.max(dt, 1 / 240), H, torso, relax: relaxFor(oSide), lite: frameNo % 2 === 1, elbow: H || info.fist ? null : RELAXED_ELBOW })
+      const offOpts = { pole: bendOf(oSide), poleW: 0.45, prev: st.bend || null, maxTurn: (info.fast ? 30 : 12) * Math.max(dt, 1 / 240), H, torso, relax: relaxFor(oSide), lite: frameNo % 2 === 1, elbow: H || info.fist ? null : RELAXED_ELBOW }
+      let res = solveArm(rigs[oSide], S, target, chest, offOpts)
+      // (and out of the paddle's way, unless it's holding it: a two-hander, a hand cupped on the
+      // throat)
+      if (paddleNow && !info.two && offShape !== "cup" && guarding()) res = yieldArm(res, S, target, (t) => solveArm(rigs[oSide], S, t, chest, offOpts))
       st.bend = res.bend
       st.last = res
       placeArm(oSide, res)
     }
 
-    // legs: ankles over the pose's feet, at the model's own ankle height
-    const ankleH = tpl.ankleH * s
-    const feet = { l: pose.footL, r: pose.footR }
-    const knees = { l: pose.kneeL, r: pose.kneeR }
-    const hips = { l: pose.hipL, r: pose.hipR }
-    for (const sd of ["l", "r"]) {
-      const L = limbs[sd].leg
-      const f = feet[sd]
-      const th = B["thigh_" + sd]
-      const ca = B["calf_" + sd]
-      const ft = B["foot_" + sd]
-      const rootP = worldP(th)
-      const target = { x: f.x, y: f.y + ankleH, z: f.z }
-      // (a foot pinned on the ball of the foot, motion matching: this model's own ball of the
-      // foot goes exactly there, whatever its foot's length; the heel turns round it)
-      if (f.pin?.ball) {
-        const p0 = f.pitch || 0
-        const fw = { x: Math.sin(f.yaw) * Math.cos(p0), y: -Math.sin(p0), z: Math.cos(f.yaw) * Math.cos(p0) }
-        const fu = { x: Math.sin(f.yaw) * Math.sin(p0), y: Math.cos(p0), z: Math.cos(f.yaw) * Math.sin(p0) }
-        const off = qrot(aimDelta(FWD, UPV, fw, fu), scale3(sub3(rest["ball_" + sd].wp, rest["foot_" + sd].wp), s))
-        target.x = f.pin.x - off.x
-        target.z = f.pin.z - off.z
-      }
-      const ankleP = { x: f.x, y: f.y + BODY.ankle, z: f.z }
-      const pole = sub3(knees[sd], scale3(add3(hips[sd], ankleP), 0.5))
-      const ik = solveLimb(rootP, target, L.l1, L.l2, pole, 1.06)
-      const upd = norm(sub3(ik.mid, rootP))
-      const lod = norm(sub3(ik.end, ik.mid))
-      const n = bendAxis(upd, lod, pole)
-      ca.position.copy(restLp["calf_" + sd]).multiplyScalar(ik.stretch)
-      ft.position.copy(restLp["foot_" + sd]).multiplyScalar(ik.stretch)
-      setWorldQ(th, qmul(aimDelta(L.th, L.thN, upd, n), rest["thigh_" + sd].wq))
-      setWorldQ(ca, qmul(aimDelta(L.ca, L.caN, lod, n), rest["calf_" + sd].wq))
-      // the foot: flat on the court (or as the step tips it), pointing along its yaw
-      const p = f.pitch || 0
-      const fwd = { x: Math.sin(f.yaw) * Math.cos(p), y: -Math.sin(p), z: Math.cos(f.yaw) * Math.cos(p) }
-      const fup = { x: Math.sin(f.yaw) * Math.sin(p), y: Math.cos(p), z: Math.cos(f.yaw) * Math.sin(p) }
-      setWorldQ(ft, qmul(aimDelta(FWD, UPV, fwd, fup), rest["foot_" + sd].wq))
-    }
     root.updateMatrixWorld(true)
     updateFace(info, dt)
     updateSway(dt)
@@ -2467,6 +2604,51 @@ const buildAthlete = (look = {}, { shadows = false, withPaddle = true } = {}, de
     return armMetrics(bones, tpl.armRef, { paddleSide: withPaddle ? paddleSide : null, stretch: { l: B.lowerarm_l.position.length() / restLp.lowerarm_l.length(), r: B.lowerarm_r.position.length() / restLp.lowerarm_r.length() } })
   }
 
+  // (the paddle against the body, paddlebody.js) the drawn body's joints, and the drawn paddle:
+  // its face's center, its axis (grip -> face) and the face's normal
+  const turnOf = (n) => {
+    B[n].matrixWorld.decompose(_dp, _dq, _ds)
+    return qmul(toQ(_dq), qinv(rest[n].wq))
+  }
+  const bodyJoints = () => {
+    const pq = turnOf("pelvis")
+    const cq = turnOf("spine_03")
+    const hq = turnOf("Head")
+    const oSide = paddleSide === "r" ? "l" : "r"
+    const headUp = qrot(hq, UPV)
+    const wristO = matP(B["hand_" + oSide])
+    const knuckle = B["middle_01_" + oSide] ? matP(B["middle_01_" + oSide]) : null
+    return {
+      pelvis: matP(B.pelvis),
+      neck: matP(B.neck_01),
+      pelvisRight: qrot(pq, { x: -1, y: 0, z: 0 }),
+      chestRight: qrot(cq, { x: -1, y: 0, z: 0 }),
+      head: add3(matP(B.Head), scale3(headUp, 0.02 * height)),
+      headUp,
+      headFwd: qrot(hq, FWD),
+      shoulderP: matP(B["upperarm_" + paddleSide]),
+      elbowP: matP(B["lowerarm_" + paddleSide]),
+      wristP: matP(B["hand_" + paddleSide]),
+      shoulderO: matP(B["upperarm_" + oSide]),
+      elbowO: matP(B["lowerarm_" + oSide]),
+      wristO,
+      handTipO: knuckle ? add3(knuckle, scale3(sub3(knuckle, wristO), 0.55)) : undefined,
+      hipL: matP(B.thigh_l),
+      kneeL: matP(B.calf_l),
+      ankleL: matP(B.foot_l),
+      hipR: matP(B.thigh_r),
+      kneeR: matP(B.calf_r),
+      ankleR: matP(B.foot_r),
+    }
+  }
+  const drawnPaddle = () => {
+    paddleHolder.matrixWorld.decompose(_dp, _dq, _ds)
+    const q = toQ(_dq)
+    const axis = qrot(q, UPV)
+    return { face: add3(toV(_dp), scale3(axis, FACE_FROM_GRIP)), axis, normal: qrot(q, FWD), grip: toV(_dp) }
+  }
+  const probePaddleBody = () => (withPaddle ? { joints: bodyJoints(), paddle: drawnPaddle(), kind, scale: height * (BUILD_SCALE[look.build] || 1), side: paddleSide, two: offShape === "grip", cup: offShape === "cup" } : null)
+
   let vertices = 0
   for (const p of [...parts, ...attach]) vertices += p.geometry.attributes.position.count
   // (tests) the face's expression weights and the springs' offsets
@@ -2478,7 +2660,7 @@ const buildAthlete = (look = {}, { shadows = false, withPaddle = true } = {}, de
     body.material.dispose()
     if (hairMeshW) hairMeshW.material.dispose()
   }
-  return { group: root, apply, setShadows, dispose: () => (dispose(), disposeOwn()), probe, probeUpper, probeLife, probeArms, debug: { paddle: paddleHolder, bones: B, arm: () => armState[paddleSide].last }, blobs: [], vertices, skinned: true, detail: tpl === assets.hi?.[kind] ? "high" : "medium", face: face?.id || null, cards: !!ownCards }
+  return { group: root, apply, setShadows, dispose: () => (dispose(), disposeOwn()), probe, probeUpper, probeLife, probeArms, probePaddleBody, debug: { paddle: paddleHolder, bones: B, arm: () => armState[paddleSide].last }, blobs: [], vertices, skinned: true, detail: tpl === assets.hi?.[kind] ? "high" : "medium", face: face?.id || null, cards: !!ownCards }
 }
 
 // An athlete (rig.js createFigure's interface). On High, the detailed bodies: if they aren't
@@ -2524,6 +2706,7 @@ export const createAthlete = (look = {}, opts = {}) => {
     probeUpper: () => inner.probeUpper(),
     probeLife: () => inner.probeLife(),
     probeArms: () => inner.probeArms(),
+    probePaddleBody: () => inner.probePaddleBody(),
     get debug() {
       return inner.debug
     },
