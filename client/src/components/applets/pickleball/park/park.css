@@ -605,3 +605,58 @@
 .pkVoicePtt.is-down {
   background: #2ecc40;
 }
+
+/* ---------- the mic on the park's screen (VoiceChip): under the menu button, thumb-sized ---------- */
+.pkVoiceChip {
+  flex-direction: column;
+  align-items: center;
+  max-width: calc(100% - 16px);
+}
+.pkVoiceChip.in-park {
+  top: 52px;
+  left: 8px;
+  transform: none;
+  align-items: flex-start;
+  max-width: min(320px, calc(100% - 16px));
+}
+.pkVoiceRow {
+  display: flex;
+  gap: 4px;
+  align-items: stretch;
+}
+.pkVoiceMic,
+.pkVoiceOff,
+.pkVoicePtt {
+  min-height: 44px;
+}
+.pkVoiceMic.is-off {
+  border-left-color: #808080;
+  min-width: 76px;
+}
+.pkVoiceOff {
+  min-width: 40px !important;
+  padding: 0 !important;
+  font-size: 18px;
+  line-height: 1;
+}
+.pkVoiceNote {
+  margin: 4px 0 0;
+  padding: 4px 8px;
+  background: rgba(255, 255, 225, 0.95);
+  color: #000;
+  border: 1px solid #000;
+  font-size: 12px;
+  line-height: 1.3;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.pkVoiceNote.is-problem {
+  background: #fff4f4;
+  border-color: #a00000;
+  color: #600000;
+}
+.pkParkVoiceHint {
+  margin: 0;
+  font-size: 11px;
+  color: #333;
+}

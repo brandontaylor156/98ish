@@ -111,7 +111,12 @@ const guestbook = guestbookRouter()
 app.use("/api", guestbook)
 
 const port = process.env.PORT || 8000
-const server = app.listen(port, () => console.log(`The server is all fired up on port ${port}`))
+const server = app.listen(port, () => {
+  console.log(`The server is all fired up on port ${port}`)
+  // calls and voice: which TURN relay is set up (names only; docs/env-vars.md)
+  const turn = require("./server/aim/ice").createIce().providers()
+  console.log(turn.length ? `[ice] TURN relay on (${turn.join(", ")})` : "[ice] no TURN relay set up: calls and voice are STUN-only (cellular often can't connect; docs/voice.md)")
+})
 usage.meter.attach(server) // every byte sent: HTTP, socket.io, the relay
 
 // Render stops the server with SIGTERM: save the usage counters first (3 s at most)

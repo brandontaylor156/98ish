@@ -302,17 +302,26 @@ export const topics = [
     book: "internet",
     title: "Voice chat (hear friends where they are)",
     summary: "Talk out loud with friends in My Park, Come Over and Watch Together. In My Park you hear people from where they stand: louder up close, from the left or the right.",
-    keywords: ["voice", "voice chat", "talk", "microphone", "mic", "spatial audio", "proximity chat", "push to talk", "mute", "hear friends", "party chat"],
+    keywords: ["voice", "voice chat", "talk", "microphone", "mic", "spatial audio", "proximity chat", "push to talk", "mute", "hear friends", "party chat", "can't hear", "voice not working", "mic not working", "couldn't connect", "relay", "cellular", "speaker", "earpiece"],
     body: [
       "Voice chat is off until you turn it on, and asks for your microphone the first time. While it's on, a **mic** shows on screen: tap it to mute or unmute yourself.",
       {
         list: [
-          "**My Park** (Pickleball 98): open the park menu (☰) and press **Voice: Off** to turn it on. You hear the people near you who have voice on, **from where they stand**: louder up close, fading out by about 15 meters, from your left or right as you turn. A green dot by a name shows who's talking. **Push to talk** (in the menu) sends your voice only while you hold **Hold to talk**. **Mute** next to a name silences that person for you. In a court game with other people, your court-mates come through clearly and the rest of the park quietly.",
+          "**My Park** (Pickleball 98): tap **🎙 Talk** under the menu button (top left) to turn it on (or the park menu ☰ > **Voice**). Then that button mutes and unmutes you, and **×** turns voice off. You hear the people near you who have voice on, **from where they stand**: louder up close, fading out by about 15 meters, from your left or right as you turn. A green dot by a name shows who's talking. **Push to talk** (in the menu) sends your voice only while you hold **Hold to talk**. **Mute** next to a name silences that person for you. In a court game with other people, your court-mates come through clearly and the rest of the park quietly.",
           "**Come Over**: press the **🎙** on the taskbar strip (or Voice Chat in its menu). A friend's voice comes from the side their pointer is on. Turn **Spatial Sound** off in the menu to hear everyone in the middle.",
           "**Watch Together**: press **🎙 Voice** at the top. The video turns down while someone talks and comes back after.",
         ],
       },
-      { phone: "On iPhone, 98ish has to be open on screen to talk: when it goes to the background the microphone stops and the mic says **Voice paused**; it starts again when you're back. Use headphones to keep your friends' voices out of your microphone.", computer: "Headphones keep your friends' voices out of your microphone." },
+      { phone: "On iPhone, 98ish has to be open on screen to talk: when it goes to the background the microphone stops and the mic says **Paused**; it starts again when you're back. While voice is on, 98ish keeps the screen from locking, and voices play from the loudspeaker (or your headphones). Use headphones to keep your friends' voices out of your microphone.", computer: "Headphones keep your friends' voices out of your microphone." },
+      { h: "If you can't hear each other" },
+      {
+        list: [
+          "**Both of you** have to turn voice on, and in My Park you have to be near each other (within about 15-25 meters). The line under the mic says who's too far away.",
+          "**\"Microphone blocked\"**: on iPhone open Settings > Apps > Safari > Microphone and choose **Ask** or **Allow**, then tap the mic again. From the Home Screen app, choose **Allow** when it asks.",
+          "**\"Voice couldn't connect to ... needs a relay\"**: one of you is on a network that won't let two phones talk directly (often cellular data, or a school or work Wi-Fi). Try both on Wi-Fi. When the 98ish server has a relay set up, voice gets through on any network; 98ish tries again by itself every half minute.",
+          "Still nothing? Check the taskbar volume isn't muted, and that your phone's volume is up.",
+        ],
+      },
       { note: "Your voice goes straight from your device to your friends' devices; it's never recorded or saved, and the 98ish server only passes along the setup messages. On networks that block direct connections, voice can't connect unless the 98ish server has a relay set up (see [[privacy-third-parties]])." },
     ],
     related: ["come-over", "watch-together", "pickleball", "privacy-server"],

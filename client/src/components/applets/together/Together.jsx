@@ -6,6 +6,7 @@ import { openHelp } from "../../../utils/help"
 import { createPlayer } from "./player"
 import * as store from "./togetherStore"
 import { canControl, clock, current, decide, expectedPos, parseYouTube, peopleLine, RATES, REACTIONS, userJumped } from "./syncCore"
+import { voiceStatus } from "../../../utils/voice/status.js"
 import "./Together.css"
 
 // Watch & Listen Together: a YouTube video (and an Up Next queue) playing in sync for an IM
@@ -518,6 +519,11 @@ const SessionView = ({ aim, mobile }) => {
         </button>
       </div>
 
+      {voiceStatus(voice, Object.fromEntries(state.people.map((p) => [keyOf(p.name), p.name]))).problem && (
+        <div className="tgWaiting" role="alert" data-tg-voice-problem>
+          {voiceStatus(voice, Object.fromEntries(state.people.map((p) => [keyOf(p.name), p.name]))).line}
+        </div>
+      )}
       {waitingFor && (
         <div className="tgWaiting" role="status" data-tg-waiting>
           Invitation sent to <b>{waitingFor}</b>. When they tap <b>Join</b> (in 98 Messenger or the notification), you'll both see the same moment.

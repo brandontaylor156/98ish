@@ -1701,7 +1701,7 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
         {screen === "park" && phase === "world" && livingUi.away && !parkUi.intro && !parkUi.menu && (
           <AwayCard away={livingUi.away} venueNames={venueNames} onClose={() => (setLivingUi((u) => ({ ...u, away: null })), livingNet.seen(), stageRef.current?.focus({ preventScroll: true }))} />
         )}
-        {parkWorld && parkVoice.state.status !== "off" && !parkUi.menu && <VoiceChip voice={parkVoice} />}
+        {parkWorld && (screen === "park" ? phase === "world" && !parkUi.turn && !parkUi.intro : parkVoice.state.status !== "off") && !parkUi.menu && <VoiceChip voice={parkVoice} inPark={screen === "park"} names={parkWorld?.voicePlace?.().names || {}} />}
         {parkUi.result && (phase === "over" || online.phase === "over") && (
           <ParkResult
             result={parkUi.result}

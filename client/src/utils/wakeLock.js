@@ -14,7 +14,7 @@ export const wakeLockSupported = () => typeof navigator !== "undefined" && "wake
 
 const sync = async () => {
   if (!wakeLockSupported() || pending) return
-  const want = getSettings().keepAwake && document.visibilityState === "visible"
+  const want = (getSettings().keepAwake || holders > 0) && document.visibilityState === "visible"
   if (want && !sentinel) {
     pending = true
     try {
@@ -35,6 +35,21 @@ const sync = async () => {
     lock.release().catch(() => {})
   }
   notify()
+}
+
+// Keep the screen on while something needs it (spatial voice: a locked iPhone stops the mic).
+// Call from a tap; returns the release. Taken again on coming back (watchWakeLock's listener).
+let holders = 0
+export const holdScreenOn = () => {
+  holders++
+  sync()
+  let released = false
+  return () => {
+    if (released) return
+    released = true
+    holders = Math.max(0, holders - 1)
+    sync()
+  }
 }
 
 // returns the cleanup, for useEffect (OS-specific/A11yHost.jsx)
