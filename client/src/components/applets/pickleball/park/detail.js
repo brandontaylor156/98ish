@@ -391,10 +391,394 @@ const coniferCrown = (seed) => {
   return geo
 }
 
-// ---------------------------------------------------------------- trees
+// ---------------------------------------------------------------- trees, round 4 (owner photos)
+// (fidelity round 4: the pines round Bouquet Canyon, the eucalyptus and fan palms round Los Cab,
+// as the owner's photos show them: a visible trunk and limbs, the foliage in layered pads at
+// the limbs' ends with sky between them, lit on top and dark underneath; drawn on canvases)
+
+// a limb: a tapered cylinder from a to b
+const limb = (a, b, r0, r1, sides = 5) => {
+  const d = new THREE.Vector3().subVectors(b, a)
+  const L = d.length()
+  const g = new THREE.CylinderGeometry(r1, r0, L, sides, 1, true)
+  g.translate(0, L / 2, 0)
+  g.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize()))
+  g.translate(a.x, a.y, a.z)
+  return g
+}
+
+// pine needles: twigs with bundles of long needles fanning forward, darker inside, lit tips;
+// a ragged spray with gaps (alpha cut)
+const needleSprayTex = (seed = 31, { hue = 110, sat = 34, lit = 20 } = {}) =>
+  canvasTex(256, 256, (ctx, w, h) => {
+    ctx.clearRect(0, 0, w, h)
+    const r = rng(seed)
+    ctx.lineCap = "round"
+    // the main twigs from the bottom middle, forking
+    const tips = []
+    const twig = (x, y, a, len, depth) => {
+      const x1 = x + Math.cos(a) * len
+      const y1 = y + Math.sin(a) * len
+      ctx.strokeStyle = "rgba(78,58,40,0.95)"
+      ctx.lineWidth = 1 + depth * 1.2
+      ctx.beginPath()
+      ctx.moveTo(x, y)
+      ctx.lineTo(x1, y1)
+      ctx.stroke()
+      for (let k = 0.35; k <= 1.001; k += 0.22) tips.push([x + (x1 - x) * k, y + (y1 - y) * k, a])
+      if (depth > 0) for (const da of [-0.55, 0.5]) twig(x1, y1, a + da + (r() - 0.5) * 0.3, len * (0.62 + r() * 0.15), depth - 1)
+    }
+    for (let i = 0; i < 3; i++) twig(w * (0.42 + r() * 0.16), h * 0.97, -Math.PI / 2 + (i - 1) * 0.55, h * 0.32, 2)
+    // needle bundles: 26-34 needles each, fanning round the twig's direction
+    for (const [x, y, a] of tips) {
+      if (Math.hypot(x - w / 2, y - h / 2) > w * 0.47) continue
+      // (a dark core under each bundle keeps it solid when the picture is small: thin needles
+      // alone fall under the alpha cut in the far mip levels)
+      ctx.fillStyle = `hsla(${hue},${sat}%,${lit - 8}%,0.8)`
+      ctx.beginPath()
+      ctx.ellipse(x + Math.cos(a) * 6, y + Math.sin(a) * 6, 11, 8, a, 0, Math.PI * 2)
+      ctx.fill()
+      const n = 26 + Math.floor(r() * 9)
+      for (let i = 0; i < n; i++) {
+        const na = a + (r() - 0.5) * 2.6
+        const l = 14 + r() * 20
+        const t = r()
+        ctx.strokeStyle = `hsl(${hue - 8 + r() * 18},${sat + r() * 14}%,${lit - 6 + t * 16}%)`
+        ctx.lineWidth = 1.1 + r() * 0.6
+        ctx.beginPath()
+        ctx.moveTo(x, y)
+        ctx.lineTo(x + Math.cos(na) * l, y + Math.sin(na) * l)
+        ctx.stroke()
+        // (sun on the tips)
+        if (t > 0.55) {
+          ctx.strokeStyle = `hsla(${hue - 20},${sat + 10}%,${lit + 22}%,0.6)`
+          ctx.beginPath()
+          ctx.moveTo(x + Math.cos(na) * l * 0.65, y + Math.sin(na) * l * 0.65)
+          ctx.lineTo(x + Math.cos(na) * l, y + Math.sin(na) * l)
+          ctx.stroke()
+        }
+      }
+    }
+  })
+
+// eucalyptus: long narrow sickle leaves hanging from thin twigs, blue-grey green, a sparse clump
+const eucLeafTex = () =>
+  canvasTex(256, 256, (ctx, w, h) => {
+    ctx.clearRect(0, 0, w, h)
+    const r = rng(83)
+    ctx.lineCap = "round"
+    for (let b = 0; b < 7; b++) {
+      // a twig arching out from the top middle, leaves hanging off it
+      const x0 = w * (0.3 + r() * 0.4)
+      const y0 = h * (0.1 + r() * 0.25)
+      const ang = (r() - 0.5) * 2.4
+      ctx.strokeStyle = "rgba(120,92,70,0.9)"
+      ctx.lineWidth = 1.5
+      ctx.beginPath()
+      ctx.moveTo(x0, y0)
+      const x1 = x0 + Math.sin(ang) * w * 0.35
+      const y1 = y0 + Math.cos(ang) * h * 0.3
+      ctx.quadraticCurveTo(x0 + Math.sin(ang) * w * 0.2, y0 - 10, x1, y1)
+      ctx.stroke()
+      for (let i = 0; i < 16; i++) {
+        const k = r()
+        const x = x0 + (x1 - x0) * k
+        const y = y0 + (y1 - y0) * k - Math.sin(k * Math.PI) * 10
+        const la = Math.PI / 2 + (r() - 0.5) * 1.2 // hanging
+        const L = 26 + r() * 22
+        const W = 4 + r() * 2.5
+        const lit = 30 + r() * 18
+        ctx.save()
+        ctx.translate(x, y)
+        ctx.rotate(la - Math.PI / 2)
+        ctx.fillStyle = `hsl(${88 + r() * 30},${16 + r() * 14}%,${lit}%)`
+        ctx.beginPath()
+        ctx.moveTo(0, 0)
+        ctx.quadraticCurveTo(W, L * 0.45, 1.5, L)
+        ctx.quadraticCurveTo(-W * 0.6, L * 0.5, 0, 0)
+        ctx.fill()
+        ctx.restore()
+      }
+    }
+  })
+
+// pale eucalyptus bark: smooth cream-grey with peeling tan strips
+const eucBarkTex = () =>
+  canvasTex(128, 256, (ctx, w, h) => {
+    const r = rng(19)
+    ctx.fillStyle = "#bdb3a2"
+    ctx.fillRect(0, 0, w, h)
+    for (let i = 0; i < 40; i++) {
+      ctx.fillStyle = `rgba(${150 + r() * 60},${130 + r() * 50},${100 + r() * 40},${0.25 + r() * 0.35})`
+      const x = r() * w
+      const y = r() * h
+      ctx.beginPath()
+      ctx.ellipse(x, y, 4 + r() * 10, 12 + r() * 40, 0, 0, Math.PI * 2)
+      ctx.fill()
+    }
+    for (let i = 0; i < 12; i++) {
+      ctx.strokeStyle = `rgba(90,70,50,${0.15 + r() * 0.2})`
+      ctx.lineWidth = 1
+      const x = r() * w
+      ctx.beginPath()
+      ctx.moveTo(x, 0)
+      ctx.lineTo(x + (r() - 0.5) * 10, h)
+      ctx.stroke()
+    }
+  })
+
+// a fan palm's leaf: a pleated fan of segments with ragged split tips (u across, v out)
+const fanTex = () =>
+  canvasTex(256, 256, (ctx, w, h) => {
+    ctx.clearRect(0, 0, w, h)
+    const r = rng(47)
+    const cx = w / 2
+    const cy = h * 0.98
+    const N = 44
+    for (let i = 0; i < N; i++) {
+      const a = -Math.PI * 0.92 + (i / (N - 1)) * Math.PI * 0.84
+      const L = h * (0.78 + r() * 0.16)
+      const lit = 26 + (i % 2) * 10 + r() * 8
+      ctx.strokeStyle = `hsl(${82 + r() * 18},${30 + r() * 14}%,${lit}%)`
+      ctx.lineWidth = 7
+      ctx.beginPath()
+      ctx.moveTo(cx, cy)
+      ctx.lineTo(cx + Math.cos(a) * L * 0.75, cy + Math.sin(a) * L * 0.75)
+      ctx.stroke()
+      // the split, drooping tips
+      ctx.lineWidth = 2
+      for (const s of [-0.03, 0.03]) {
+        ctx.beginPath()
+        ctx.moveTo(cx + Math.cos(a) * L * 0.72, cy + Math.sin(a) * L * 0.72)
+        ctx.lineTo(cx + Math.cos(a + s) * L, cy + Math.sin(a + s) * L + 8)
+        ctx.stroke()
+      }
+    }
+  })
+
+// a fan palm's skirt of old dead leaves hanging down the trunk
+const skirtTex = () =>
+  canvasTex(128, 128, (ctx, w, h) => {
+    ctx.clearRect(0, 0, w, h)
+    const r = rng(53)
+    for (let i = 0; i < 160; i++) {
+      const x = r() * w
+      ctx.strokeStyle = `hsl(${30 + r() * 12},${25 + r() * 20}%,${30 + r() * 25}%)`
+      ctx.lineWidth = 2 + r() * 3
+      ctx.beginPath()
+      ctx.moveTo(x, 0)
+      ctx.lineTo(x + (r() - 0.5) * 8, h * (0.75 + r() * 0.25))
+      ctx.stroke()
+    }
+  })
+
+// cards round a point, normals out of the pad and up, colours dark underneath and inside
+// (cards: [{ w, h, rx, ry, rz, dy }] relative to the pad)
+const padCards = (parts, c, size, r, { flat = 2, upright = 3, axis = null, tall = 0.62, tilt = 0.7 } = {}) => {
+  const cards = []
+  for (let i = 0; i < flat; i++) {
+    const g = new THREE.PlaneGeometry(size * (1 - i * 0.18), size * (1 - i * 0.18))
+    g.rotateX(-Math.PI / 2 + (r() - 0.5) * tilt)
+    g.rotateZ((r() - 0.5) * tilt * 0.85)
+    g.rotateY(r() * Math.PI)
+    g.translate(0, i * size * 0.16 - size * 0.05, 0)
+    cards.push(g)
+  }
+  for (let i = 0; i < upright; i++) {
+    const s = 0.8 + r() * 0.35
+    const g = new THREE.PlaneGeometry(size * 0.95 * s, size * tall * s)
+    g.rotateY((i / upright) * Math.PI + r() * 0.5)
+    g.rotateX((r() - 0.5) * tilt * 0.6)
+    g.translate((r() - 0.5) * size * 0.25, (r() - 0.5) * size * 0.2, (r() - 0.5) * size * 0.25)
+    cards.push(g)
+  }
+  for (const g of cards) {
+    g.translate(c.x, c.y, c.z)
+    const pos = g.attributes.position
+    const nor = g.attributes.normal
+    const col = new Float32Array(pos.count * 3)
+    const v = new THREE.Vector3()
+    for (let i = 0; i < pos.count; i++) {
+      v.set(pos.getX(i) - c.x, pos.getY(i) - c.y + size * 0.55, pos.getZ(i) - c.z).normalize()
+      nor.setXYZ(i, v.x, v.y, v.z)
+      // under the pad and toward the trunk it's darker
+      const up = Math.max(0, Math.min(1, (pos.getY(i) - c.y + size * 0.35) / (size * 0.7)))
+      const out = axis ? Math.min(1, Math.hypot(pos.getX(i) - axis.x, pos.getZ(i) - axis.z) / axis.r) : 1
+      const k = (0.5 + 0.5 * up) * (0.72 + 0.28 * out)
+      col[i * 3] = col[i * 3 + 1] = col[i * 3 + 2] = k
+    }
+    g.setAttribute("color", new THREE.BufferAttribute(col, 3))
+    parts.push(g)
+  }
+}
+
+const withWind = (geo, top) => {
+  const pos = geo.attributes.position
+  const wind = new Float32Array(pos.count)
+  for (let i = 0; i < pos.count; i++) wind[i] = Math.min(1.3, Math.max(0, pos.getY(i) / top) * 0.7 + Math.hypot(pos.getX(i), pos.getZ(i)) * 0.12)
+  geo.setAttribute("wind", new THREE.BufferAttribute(wind, 1))
+  return geo
+}
+const merged = (parts) => {
+  const g = mergeGeometries(parts.map((p) => (p.index ? p.toNonIndexed() : p)), false)
+  parts.forEach((p) => p.dispose())
+  return g
+}
+
+// a pine (Bouquet's Aleppo-type pines, about 14 m at s = 1): a tall, slightly leaning trunk,
+// limbs from about 40 % of its height rising 35-55 degrees, a pad of needles at each limb's end
+// and one partway along it, a small crown on top. lite: every other pad (far trees)
+export const pineModel = (seed, lite = false) => {
+  const r = rng(seed)
+  const H = 12.8 + r() * 2
+  const lean = (r() - 0.5) * 0.9
+  const top = new THREE.Vector3(lean, H, (r() - 0.5) * 0.6)
+  const trunk = [limb(new THREE.Vector3(0, -0.2, 0), new THREE.Vector3(lean * 0.45, H * 0.55, top.z * 0.4), 0.3, 0.2, 7), limb(new THREE.Vector3(lean * 0.45, H * 0.55, top.z * 0.4), top, 0.2, 0.07, 6)]
+  const crown = []
+  const axisAt = (y) => new THREE.Vector3((lean * y) / H, y, (top.z * y) / H)
+  // (the crown from about a third of the height, widest two-thirds up: an irregular ovoid of
+  // overlapping clumps, dense inside, ragged at its edge, as the owner's photos show)
+  const N = 14
+  const pads = []
+  for (let i = 0; i < N; i++) {
+    const k = i / (N - 1)
+    const y = H * (0.34 + k * 0.56) + (r() - 0.5) * 0.7
+    const az = i * 2.4 + r() * 0.6
+    const prof = Math.sin(Math.PI * Math.min(1, 0.25 + k * 0.85)) // the ovoid's width here
+    const L = (0.8 + 1.7 * prof) * (0.8 + r() * 0.4)
+    const rise = 0.45 + r() * 0.35 + k * 0.3
+    const a = axisAt(y)
+    const b = new THREE.Vector3(a.x + Math.cos(az) * L * Math.cos(rise), y + L * Math.sin(rise), a.z + Math.sin(az) * L * Math.cos(rise))
+    trunk.push(limb(a, b, 0.12 - k * 0.06, 0.035, 4))
+    pads.push({ c: b, s: 1.7 + prof * 0.7 + r() * 0.4 })
+    pads.push({ c: a.clone().lerp(b, 0.5).add(new THREE.Vector3((r() - 0.5) * 0.6, 0.35, (r() - 0.5) * 0.6)), s: 1.3 + prof * 0.4 })
+    // a side clump off the limb's end, up or down a little
+    const side = new THREE.Vector3(-Math.sin(az), 0, Math.cos(az)).multiplyScalar((r() - 0.5) * 2.2)
+    if (i % 2) pads.push({ c: b.clone().add(side).add(new THREE.Vector3(0, (r() - 0.6) * 0.9, 0)), s: 1.3 + prof * 0.4 })
+  }
+  pads.push({ c: top.clone().add(new THREE.Vector3(0, 0.2, 0)), s: 2.0 })
+  pads.push({ c: axisAt(H * 0.88).add(new THREE.Vector3(0.7, 0, -0.5)), s: 2.2 })
+  pads.push({ c: axisAt(H * 0.7), s: 1.9 })
+  pads.push({ c: axisAt(H * 0.55), s: 1.7 })
+  const maxR = 2.8
+  pads.forEach((p, i) => {
+    if (lite && i % 3 !== 0) return
+    padCards(crown, p.c, lite ? p.s * 1.3 : p.s, r, { flat: 1, upright: lite ? 2 : 4, tall: 0.85, tilt: 1.1, axis: { x: axisAt(p.c.y).x, z: axisAt(p.c.y).z, r: maxR } })
+  })
+  return { trunk: merged(trunk), crown: withWind(merged(crown), H) }
+}
+
+// a eucalyptus (Los Cab's, photo 2: tall, pale-barked, an airy rounded crown about 18 m at
+// s = 1): a trunk forking at about a third of its height into three or four limbs that fork
+// again; small hanging leaf clumps along the outer limbs, the sky showing through
+export const eucModel = (seed, lite = false) => {
+  const r = rng(seed)
+  const H = 16 + r() * 3
+  const parts = []
+  const crown = []
+  const fork = new THREE.Vector3((r() - 0.5) * 0.8, H * (0.3 + r() * 0.08), (r() - 0.5) * 0.8)
+  parts.push(limb(new THREE.Vector3(0, -0.2, 0), fork, 0.42, 0.3, 8))
+  const nL = 3 + (r() < 0.5 ? 1 : 0)
+  let pads = 0
+  for (let i = 0; i < nL; i++) {
+    const az = (i / nL) * Math.PI * 2 + r() * 0.6
+    const lean = 0.25 + r() * 0.25
+    const L1 = H * (0.38 + r() * 0.12)
+    const b = new THREE.Vector3(fork.x + Math.cos(az) * L1 * lean, fork.y + L1, fork.z + Math.sin(az) * L1 * lean)
+    parts.push(limb(fork, b, 0.24, 0.13, 6))
+    for (let j = 0; j < 3; j++) {
+      const az2 = az + (j - 1) * 0.9 + (r() - 0.5) * 0.4
+      const L2 = 2.6 + r() * 2.2
+      const up = 0.5 + r() * 0.5
+      const c2 = new THREE.Vector3(b.x + Math.cos(az2) * L2, b.y + L2 * up * 0.7 - 0.6, b.z + Math.sin(az2) * L2)
+      parts.push(limb(b, c2, 0.11, 0.04, 4))
+      const m = b.clone().lerp(c2, 0.5)
+      for (const [p, s] of [[c2, 3.4 + r() * 0.8], [m.add(new THREE.Vector3(0, -0.2, 0)), 2.8], [c2.clone().add(new THREE.Vector3((r() - 0.5) * 2.4, -1.0, (r() - 0.5) * 2.4)), 2.6], [c2.clone().add(new THREE.Vector3((r() - 0.5) * 2.4, 0.8, (r() - 0.5) * 2.4)), 2.4]]) {
+        pads++
+        if (lite && pads % 2) continue
+        padCards(crown, p, s, r, { flat: 2, upright: lite ? 2 : 3, tall: 0.75 })
+      }
+    }
+  }
+  return { trunk: merged(parts), crown: withWind(merged(crown), H) }
+}
+
+// a fan palm (Washingtonia, Los Cab's sunset photo: very tall and thin, a small round head of
+// fan leaves over a brown skirt of old ones); height from the tree's h or about 16 m
+const fanPalmCrown = (seed) => {
+  const r = rng(seed)
+  const leaves = []
+  const N = 14
+  for (let i = 0; i < N; i++) {
+    const az = (i / N) * Math.PI * 2 + r() * 0.3
+    const up = 0.9 - r() * 1.3 // radians above the level: some up, some drooping
+    const pl = 0.9 + r() * 0.5
+    const s = 1.5 + r() * 0.4
+    const g = new THREE.PlaneGeometry(s, s)
+    g.translate(0, s / 2, 0)
+    // the fan at the petiole's end, its face toward the sky a little
+    g.rotateX(-Math.PI / 2 + 0.5)
+    g.rotateX(-up * 0.7)
+    g.translate(0, Math.sin(up) * pl, Math.cos(up) * pl)
+    g.rotateY(az)
+    leaves.push(g)
+  }
+  const geo = merged(leaves)
+  const pos = geo.attributes.position
+  const nor = geo.attributes.normal
+  const v = new THREE.Vector3()
+  for (let i = 0; i < pos.count; i++) {
+    v.set(pos.getX(i), pos.getY(i) + 0.8, pos.getZ(i)).normalize()
+    nor.setXYZ(i, v.x, v.y, v.z)
+  }
+  return withWind(geo, 2)
+}
+
+// a scrub bush on a dry hillside (chaparral, the owner's wide photo): a low rounded mass of small
+// dark leaves with twiggy gaps, darker at its foot
+const bushTex = () =>
+  canvasTex(128, 128, (ctx, w, h) => {
+    ctx.clearRect(0, 0, w, h)
+    const r = rng(101)
+    for (let i = 0; i < 520; i++) {
+      const a = r() * Math.PI
+      const d = Math.sqrt(r())
+      const x = w / 2 + Math.cos(a) * d * w * 0.46 * (r() < 0.5 ? -1 : 1)
+      const y = h - Math.sin(a) * d * h * 0.82 - 2
+      const lit = 16 + (1 - y / h) * 22 + r() * 8
+      ctx.fillStyle = `hsl(${62 + r() * 30},${18 + r() * 16}%,${lit}%)`
+      ctx.beginPath()
+      ctx.ellipse(x, y, 2.5 + r() * 2.5, 1.8 + r() * 1.6, r() * Math.PI, 0, Math.PI * 2)
+      ctx.fill()
+    }
+  })
+
+// bushes: [{ x, y, z, s (height m), c (THREE.Color) }], two crossed cards each, one draw
+export const buildBushes = (group, bushes, { keep = (x) => x } = {}) => {
+  if (!bushes.length) return null
+  const a = new THREE.PlaneGeometry(1.6, 1).translate(0, 0.5, 0)
+  const b = a.clone().rotateY(Math.PI / 2)
+  const geo = keep(mergeGeometries([a, b], false))
+  a.dispose()
+  b.dispose()
+  const mat = keep(new THREE.MeshLambertMaterial({ map: keep(bushTex()), alphaTest: 0.4, side: THREE.DoubleSide }))
+  const mesh = new THREE.InstancedMesh(geo, mat, bushes.length)
+  const m4 = new THREE.Matrix4()
+  const q = new THREE.Quaternion()
+  const e = new THREE.Euler()
+  const v1 = new THREE.Vector3()
+  const v2 = new THREE.Vector3()
+  bushes.forEach((t, i) => {
+    mesh.setMatrixAt(i, m4.compose(v1.set(t.x, t.y - 0.08, t.z), q.setFromEuler(e.set(0, (t.x * 3.1 + t.z * 1.7) % 6.28, 0)), v2.set(t.s * 1.1, t.s, t.s * 1.1)))
+    if (t.c) mesh.setColorAt(i, t.c)
+  })
+  mesh.userData.noCast = true
+  group.add(mesh)
+  return mesh
+}
 
 // byKind: { broadleaf: [{ x, z, s }], eucalyptus, palm, conifer }; the meshes go into group
-export const buildTrees = (group, byKind, { keep = (x) => x, rand = Math.random } = {}) => {
+export const buildTrees = (group, byKind, { keep = (x) => x, rand = Math.random, near = () => true } = {}) => {
   const m4 = new THREE.Matrix4()
   const q = new THREE.Quaternion()
   const e = new THREE.Euler()
@@ -429,14 +813,41 @@ export const buildTrees = (group, byKind, { keep = (x) => x, rand = Math.random 
     add(vv.trunk, barkMat, list, (t) => at(t))
     add(vv.crown, broadLeaf, list, (t) => at(t), tint(0xe6f0e0))
   })
-  // eucalyptus: tall pale trunks, a high loose crown
+  // (round 4: near trees get the full model, far ones (near(t) false) a lighter one)
+  const variantsOf = (list, models) => {
+    const out = []
+    models.forEach((m, k) => {
+      const mine = list.filter((_, i) => i % models.length === k)
+      out.push({ m: m.full, list: mine.filter((t) => near(t)) }, { m: m.lite, list: mine.filter((t) => !near(t)) })
+    })
+    return out
+  }
+  // eucalyptus: tall pale forked trunks, airy hanging leaf clumps (round 4)
   const euc = byKind.eucalyptus || []
   if (euc.length) {
-    const trunk = trunkWithBranches({ seed: 4, h: 6.5, r0: 0.3, r1: 0.14, branches: 4, branchY: 0.6, branchL: 2.2, lean: 0.4 })
-    const crown = cardCrown({ seed: 14, n: 40, cy: 7.6, rx: 2.3, ry: 2.4, size: 1.9, tilt: 1.4 })
-    const eucBark = keep(new THREE.MeshLambertMaterial({ map: barkMat.map, color: 0xd8cfc0 }))
-    add(trunk, eucBark, euc, (t) => at(t))
-    add(crown, leafMat(leafTex("euc")), euc, (t) => at(t), tint(0xdde6d8))
+    const eucBark = keep(new THREE.MeshLambertMaterial({ map: keep(eucBarkTex()), color: 0xd2c9bb }))
+    const eucMat = leafMat(eucLeafTex(), { vertexColors: true })
+    const models = [91, 92, 93].map((s) => ({ full: eucModel(s), lite: eucModel(s, true) }))
+    for (const { m, list } of variantsOf(euc, models)) {
+      add(m.trunk, eucBark, list, (t) => at(t))
+      add(m.crown, eucMat, list, (t) => at(t), tint(0xdfe6dc))
+    }
+  }
+  // fan palms (Washingtonia): a tall thin ringed trunk, a skirt, a small head of fans
+  const fans = byKind.fanpalm || []
+  if (fans.length) {
+    const tg = new THREE.CylinderGeometry(0.16, 0.24, 1, 7, 1, true).translate(0, 0.5, 0)
+    const heights = fans.map((t) => t.h || (15 + (((t.x * 13.1 + t.z * 7.7) % 1) + 1) % 1 * 6) * t.s)
+    add(tg, palmBarkMat, fans, (t, i) => m4.compose(v1.set(t.x, t.y || 0, t.z), q.identity(), v2.set(t.s, heights[i], t.s)))
+    // the skirt: a hanging cone of old leaves under the head
+    const sk = new THREE.CylinderGeometry(0.62, 0.3, 1.5, 9, 1, true).translate(0, -0.75, 0)
+    add(sk, keep(new THREE.MeshLambertMaterial({ map: keep(skirtTex()), alphaTest: 0.4, side: THREE.DoubleSide })), fans, (t, i) => m4.compose(v1.set(t.x, (t.y || 0) + heights[i] - 0.2, t.z), q.identity(), v2.set(t.s, t.s, t.s)))
+    const fanMat = leafMat(fanTex())
+    const crowns = [fanPalmCrown(61), fanPalmCrown(62)]
+    crowns.forEach((geo, k) => {
+      const idx = fans.map((_, i) => i).filter((i) => i % 2 === k)
+      add(geo, fanMat, idx.map((i) => fans[i]), (t, j) => m4.compose(v1.set(t.x, (t.y || 0) + heights[idx[j]], t.z), q.setFromEuler(e.set(0, (t.x + t.z) % 6.28, 0)), v2.setScalar(Math.max(1, t.s) * 1.45)), tint(0xf2f2ea, 0.06))
+    })
   }
   // palms: a ringed trunk (scaled to each palm's height), a crown of fronds on top
   const palms = byKind.palm || []
@@ -474,52 +885,19 @@ export const buildTrees = (group, byKind, { keep = (x) => x, rand = Math.random 
   }
   // pines (Bouquet Canyon's Aleppo-type pines in the owner's photos): a tall leaning trunk bare
   // for half its height, open upswept limbs, the crown in irregular dark clumps
+  // (round 4: a visible trunk and limbs, layered needle pads lit on top; three shapes, the far
+  // ones lighter. At s = 1 about 14 m: the specs' 1.32 makes Bouquet's ~16-18 m, as tall as
+  // twice its 8 m poles in the owner's wide photo)
   const pines = byKind.pine || []
   if (pines.length) {
-    const clumpTex = pineTex()
-    const pv = [0, 1].map((k) => {
-      const r = rng(60 + k)
-      const trunk = trunkWithBranches({ seed: 7 + k, h: 10.5, r0: 0.3, r1: 0.09, branches: 6, branchY: 0.5, branchL: 3.2, lean: k ? 0.6 : -0.4 })
-      const parts = []
-      for (let i = 0; i < 9; i++) {
-        const a = r() * Math.PI * 2
-        const y = 6.2 + r() * 5.2
-        const rad = (1.0 + r() * 1.8) * (1 - (y - 6) / 9)
-        parts.push(cardCrown({ seed: 70 + k * 10 + i, n: 9, cx: Math.cos(a) * rad + (k ? 0.5 : -0.3), cy: y, cz: Math.sin(a) * rad, rx: 1.3 + r() * 0.6, ry: 0.8 + r() * 0.4, size: 1.5, tilt: 0.7 }))
-      }
-      const crown = mergeGeometries(parts, false)
-      parts.forEach((g) => g.dispose())
-      return { trunk, crown }
-    })
-    const pineMat = leafMat(clumpTex)
-    pv.forEach((vv, k) => {
-      const list = pines.filter((_, i) => i % 2 === k)
-      add(vv.trunk, barkMat, list, (t) => at(t))
-      add(vv.crown, pineMat, list, (t) => at(t), tint(0xe2eadf))
-    })
+    const pineMat = leafMat(needleSprayTex(31, { hue: 100, sat: 34, lit: 25 }), { vertexColors: true })
+    const models = [71, 72, 73].map((s) => ({ full: pineModel(s), lite: pineModel(s, true) }))
+    for (const { m, list } of variantsOf(pines, models)) {
+      add(m.trunk, barkMat, list, (t) => at(t, 0.88))
+      add(m.crown, pineMat, list, (t) => at(t, 0.88), tint(0xf2f5e8))
+    }
   }
 }
-
-// pine needles in clumps: short dark strokes radiating from tuft centres
-const pineTex = () =>
-  canvasTex(128, 128, (ctx, w, h) => {
-    ctx.clearRect(0, 0, w, h)
-    const r = rng(29)
-    for (let k = 0; k < 26; k++) {
-      const cx = w * (0.15 + r() * 0.7)
-      const cy = h * (0.15 + r() * 0.7)
-      for (let i = 0; i < 26; i++) {
-        const a = r() * Math.PI * 2
-        const l = 6 + r() * 9
-        ctx.strokeStyle = `hsl(${105 + r() * 30},${30 + r() * 18}%,${14 + r() * 16}%)`
-        ctx.lineWidth = 1.4
-        ctx.beginPath()
-        ctx.moveTo(cx, cy)
-        ctx.lineTo(cx + Math.cos(a) * l, cy + Math.sin(a) * l)
-        ctx.stroke()
-      }
-    }
-  })
 
 // ---------------------------------------------------------------- cars
 
@@ -1147,7 +1525,9 @@ export const chainLink = (fc = null) => {
         ctx.stroke()
       }
       wire(0, `rgba(${col[0]},${col[1]},${col[2]},0.95)`, 5)
-      wire(-1, `rgba(${Math.min(255, col[0] + 70)},${Math.min(255, col[1] + 70)},${Math.min(255, col[2] + 70)},0.6)`, 1.5)
+      // (the sunlit edge of the wire; black vinyl mesh only glints: the owner's partition photo)
+      const hi = col[0] + col[1] + col[2] < 180 ? 28 : 70
+      wire(-1, `rgba(${Math.min(255, col[0] + hi)},${Math.min(255, col[1] + hi)},${Math.min(255, col[2] + hi)},0.6)`, 1.5)
     },
     { srgb: true }
   )

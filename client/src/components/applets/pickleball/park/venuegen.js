@@ -738,7 +738,13 @@ export const generateVenue = (spec, opts = {}) => {
   // ---------- light poles (outdoors, when the courts are lit) ----------
   const lights = []
   const every = spec.fence?.lightEvery || 18
-  if (!indoor && spec.lit && spec.fence?.lightsAt === "gaps") {
+  if (!indoor && spec.lit && (spec.fence?.lightsAt === "gaps" || spec.fence?.lightsAt === "partitions")) {
+    // (fidelity round 4, lightsAt "partitions": in the banks with partitions (pairDividers.only)
+    // the poles stand only on the partitions, ±lightAlong from each court's middle, the T arm
+    // across the partition, a head over each court (the owner's drone photo, measured in its
+    // solved pose); none between the two courts of a pair or at the rows' ends)
+    const pd = spec.fence?.pairDividers
+    const partsOnly = (bank) => spec.fence.lightsAt === "partitions" && pd && (!pd.only || pd.only.some((p) => inBox(bank.box, p)))
     // (Los Cab, the owner's drone photo: a pole in every gap between side-by-side courts and
     // outside each row's end courts, two along each gap, ±lightAlong from the row's middle; the
     // T arm runs along the gap)
@@ -757,16 +763,26 @@ export const generateVenue = (spec, opts = {}) => {
         row.sort((a, b) => dot(a, w) - dot(b, w))
         const cu = row.reduce((s, c) => s + dot(c, u), 0) / row.length
         const lines = []
+        const parts = partsOnly(bank)
         row.forEach((c, i) => {
           const cw = dot(c, w)
+          if (parts) {
+            if (i + 1 < row.length && dot(row[i + 1], w) - cw - c.W > (pd.gap ?? 2.8)) lines.push((cw + dot(row[i + 1], w)) / 2)
+            return
+          }
           if (i === 0) lines.push(cw - c.W / 2 - Math.min(0.9, bank.room.w / 2))
           if (i + 1 < row.length) lines.push((cw + dot(row[i + 1], w)) / 2)
           else lines.push(cw + c.W / 2 + Math.min(0.9, bank.room.w / 2))
         })
+        // (lightAlong [out, in]: offsets from the court's middle away from and toward the bank's
+        // middle (Los Cab: by the outer kitchen line and 1.5 m inside the inner baseline, the
+        // two rows mirror each other across the centre aisle); a number: ±that)
+        const sOut = Math.sign(cu - dot({ x: bank.box.cx, z: bank.box.cz }, u)) || 1
+        const offs = Array.isArray(along) ? [sOut * along[0], sOut * along[1]] : [-along, along]
         for (const lw of lines)
-          for (const s of [-1, 1]) {
-            const p = { x: u.x * (cu + s * along) + w.x * lw, z: u.z * (cu + s * along) + w.z * lw }
-            if (lights.length < 160) lights.push({ x: round(p.x), z: round(p.z), arm: [round(u.x), round(u.z)] })
+          for (const off of offs) {
+            const p = { x: u.x * (cu + off) + w.x * lw, z: u.z * (cu + off) + w.z * lw }
+            if (lights.length < 160) lights.push({ x: round(p.x), z: round(p.z), arm: parts ? [round(w.x), round(w.z)] : [round(u.x), round(u.z)] })
           }
       }
     }
@@ -785,6 +801,25 @@ export const generateVenue = (spec, opts = {}) => {
     }
   }
 
+  // (fence.lightsOnPartitions { t, every }: poles standing on the hand-placed partitions of type
+  // t too, one every `every` m centred along each, the T arm across it: Paseo's photos show the
+  // poles rising from the low partitions inside the pen)
+  const lop = spec.fence?.lightsOnPartitions
+  if (!indoor && spec.lit && lop)
+    for (const p of spec.fence?.partitions || []) {
+      if (lop.t && p.t !== lop.t) continue
+      const dx = p.b[0] - p.a[0]
+      const dz = p.b[1] - p.a[1]
+      const len = Math.hypot(dx, dz)
+      const n = Math.max(1, Math.round(len / (lop.every || 12)))
+      for (let k = 0; k < n; k++) {
+        const t = (k + 0.5) / n
+        const q = { x: p.a[0] + dx * t, z: p.a[1] + dz * t }
+        if (lights.some((l) => Math.hypot(l.x - q.x, l.z - q.z) < 3)) continue
+        if (lights.length < 160) lights.push({ x: round(q.x), z: round(q.z), arm: [round(-dz / len), round(dx / len)] })
+      }
+    }
+
   // (poles placed by hand, from photos: fence.lights)
   if (!indoor) for (const l of spec.fence?.lights || []) lights.push({ x: l.x, z: l.z, ...(l.heads ? { heads: l.heads } : {}) })
 
@@ -792,7 +827,7 @@ export const generateVenue = (spec, opts = {}) => {
   const trees = (spec.trees || [])
     .map(([x, z, s, kind]) => ({ x, z, s: s || 1, kind: kind || "broadleaf" }))
     .filter((t) => !bankBoxes.some((b) => inBox(b, t, 0.3)) && !insideBuilding(t) && !insideHall(t))
-  const treeCircles = trees.filter((t) => inBounds(t, -2)).map((t) => ({ x: t.x, z: t.z, r: t.kind === "palm" ? 0.28 : 0.35 }))
+  const treeCircles = trees.filter((t) => inBounds(t, -2)).map((t) => ({ x: t.x, z: t.z, r: t.kind === "palm" || t.kind === "fanpalm" ? 0.28 : 0.35 }))
 
   // ---------- the bar (indoors) ----------
   const seats = []
@@ -1159,7 +1194,7 @@ export const generateVenue = (spec, opts = {}) => {
     fountain: null,
     board: null,
     benches,
-    trees: trees.filter((t) => inBounds(t, -2)).map((t) => ({ x: t.x, z: t.z, s: t.s, r: t.kind === "palm" ? 0.28 : 0.35, kind: t.kind })),
+    trees: trees.filter((t) => inBounds(t, -2)).map((t) => ({ x: t.x, z: t.z, s: t.s, r: t.kind === "palm" || t.kind === "fanpalm" ? 0.28 : 0.35, kind: t.kind })),
     lights,
     seats,
     circles: [...extraCircles, ...propCircles],

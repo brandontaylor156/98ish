@@ -319,6 +319,17 @@ export const buildPark = (scene, { quality = "medium", layout = RIVERSIDE_LAYOUT
     if (!typedMats.has(c)) typedMats.set(c, lambert(new THREE.Color(c).getHex()))
     return typedMats.get(c)
   }
+  // (galvanized steel: a light grey that catches the sun; round 4, the owner's partition photo)
+  const galvMats = new Map()
+  const frameMatFor = (c, T) => {
+    const col = new THREE.Color(c)
+    const hsl = {}
+    col.getHSL(hsl)
+    const metal = T?.post?.metal ?? (hsl.l > 0.55 && hsl.s < 0.12)
+    if (!metal || quality === "low") return typedMat(c)
+    if (!galvMats.has(c)) galvMats.set(c, std(col.getHex(), { roughness: 0.42, metalness: 0.45 }))
+    return galvMats.get(c)
+  }
   const meshMats = new Map()
   const meshMatFor = (c) => {
     if (meshMats.has(c)) return meshMats.get(c)
@@ -352,7 +363,11 @@ export const buildPark = (scene, { quality = "medium", layout = RIVERSIDE_LAYOUT
     if (!typedScreenMats.has(c)) typedScreenMats.set(c, lambert(new THREE.Color(c).getHex(), { side: THREE.DoubleSide, ...(wire ? { map: keep(windscreenTex()) } : {}) }))
     return typedScreenMats.get(c)
   }
+  // posts, bands and caps, instanced per colour: [x, z, h, d, y0]
   const typedPosts = new Map()
+  const typedBands = new Map()
+  const typedDomes = new Map()
+  const push = (m, key, v) => (m.has(key) ? m.get(key) : m.set(key, []).get(key)).push(v)
   const typedSide = (x0, z0, x1, z1, T, gates, hIn, opens = []) => {
     const len = Math.hypot(x1 - x0, z1 - z0)
     if (len < 0.05) return
@@ -418,29 +433,44 @@ export const buildPark = (scene, { quality = "medium", layout = RIVERSIDE_LAYOUT
       const rd = T.railD || 0.045
       for (const y of [h, ...(T.rails || [])]) {
         if (y >= h - 0.01 && T.cap) continue
-        const r = new THREE.Mesh(keep(new THREE.CylinderGeometry(rd / 2, rd / 2, L, 6).rotateZ(Math.PI / 2)), typedMat(frame))
+        const r = new THREE.Mesh(keep(new THREE.CylinderGeometry(rd / 2, rd / 2, L, 8).rotateZ(Math.PI / 2)), frameMatFor(frame, T))
         r.position.set(...at(mid, y))
         r.rotation.y = ry
         group.add(r)
       }
       if (T.cap) {
-        // a thick top rail: padded/capped (Los Cab's green), a rounded box along the top
+        // a thick top rail: padded/capped (Los Cab's green, owner photo 1: a round padded rail
+        // about 0.1 m thick riding on the posts, not a box): an oval tube along the top
         const ch = T.cap.h || 0.1
         const cw = T.cap.w || 0.1
-        const c = new THREE.Mesh(keep(new THREE.BoxGeometry(L, ch, cw)), typedMat(T.cap.color || frame))
+        const geo = T.cap.shape === "box" ? new THREE.BoxGeometry(L, ch, cw) : new THREE.CylinderGeometry(cw / 2, cw / 2, L, 14, 1, false).rotateZ(Math.PI / 2).scale(1, ch / cw, 1)
+        const c = new THREE.Mesh(keep(geo), typedMat(T.cap.color || frame))
         c.position.set(...at(mid, h - ch / 2 + 0.02))
         c.rotation.y = ry
         group.add(c)
       }
-      // posts: at the run's ends and every `every` m between
+      // posts: at the run's ends (terminal posts, heavier: post.end) and every `every` m between
+      // (round 4, the owner's partition photo: ~4 in terminals with a dome cap and tension bands
+      // up them, ~2.5-3 in line posts with a loop cap the top rail runs through, a band at each
+      // lower rail)
       const d = T.post?.d || 0.06
-      const key = `${d}|${frame}`
-      if (!typedPosts.has(key)) typedPosts.set(key, [])
+      const dEnd = T.post?.end || d
       const every = T.post?.every || 3
       const n = Math.max(1, Math.round(L / every))
+      const detailOn = quality !== "low"
+      const fk = `${frame}|${T.post?.metal ?? ""}`
       for (let i = 0; i <= n; i++) {
         const [px, , pz] = at(a + (L * i) / n, 0)
-        typedPosts.get(key).push([px, pz, h + (T.cap ? 0 : 0.03)])
+        const term = i === 0 || i === n
+        const pd = term ? dEnd : d
+        const ph = h + (T.cap ? 0 : 0.03)
+        push(typedPosts, fk, [px, pz, ph, pd])
+        if (!detailOn) continue
+        if (term) {
+          if (!T.cap) push(typedDomes, fk, [px, pz, ph, pd * 1.12])
+          for (let y = 0.25 + curbH; y < h - 0.15; y += 0.32) push(typedBands, fk, [px, pz, 0.022, pd + 0.014, y])
+        } else if (!T.cap) push(typedBands, fk, [px, pz, 0.07, pd + 0.02, h - 0.035])
+        for (const y of T.rails || []) if (y > 0.1) push(typedBands, fk, [px, pz, 0.05, pd + 0.016, y - 0.025])
       }
     }
     for (const gate of gates) {
@@ -476,10 +506,23 @@ export const buildPark = (scene, { quality = "medium", layout = RIVERSIDE_LAYOUT
       else fenceSide(f.a[0], f.a[1], f.b[0], f.b[1], { gates: (f.gates || []).map((at) => ({ at, w: 1.4 })), h: f.h })
     }
   }
-  for (const [key, list] of typedPosts) {
-    const [d, color] = key.split("|")
-    const mesh = new THREE.InstancedMesh(keep(new THREE.CylinderGeometry(+d / 2, +d / 2, 1, 8)), typedMat(color), list.length)
-    list.forEach(([x, z, h], i) => mesh.setMatrixAt(i, m4.compose(v1.set(x, h / 2, z), q.identity(), v2.set(1, h, 1))))
+  const fkMat = (fk) => {
+    const [color, metal] = fk.split("|")
+    return frameMatFor(color, metal === "" ? null : { post: { metal: metal === "true" } })
+  }
+  for (const [fk, list] of typedPosts) {
+    const mesh = new THREE.InstancedMesh(keep(new THREE.CylinderGeometry(0.5, 0.5, 1, 10)), fkMat(fk), list.length)
+    list.forEach(([x, z, h, d], i) => mesh.setMatrixAt(i, m4.compose(v1.set(x, h / 2, z), q.identity(), v2.set(d, h, d))))
+    group.add(mesh)
+  }
+  for (const [fk, list] of typedBands) {
+    const mesh = new THREE.InstancedMesh(keep(new THREE.CylinderGeometry(0.5, 0.5, 1, 10)), fkMat(fk), list.length)
+    list.forEach(([x, z, h, d, y], i) => mesh.setMatrixAt(i, m4.compose(v1.set(x, y + h / 2, z), q.identity(), v2.set(d, h, d))))
+    group.add(mesh)
+  }
+  for (const [fk, list] of typedDomes) {
+    const mesh = new THREE.InstancedMesh(keep(new THREE.SphereGeometry(0.5, 10, 5, 0, Math.PI * 2, 0, Math.PI / 2)), fkMat(fk), list.length)
+    list.forEach(([x, z, h, d], i) => mesh.setMatrixAt(i, m4.compose(v1.set(x, h - 0.01, z), q.identity(), v2.set(d, d * 0.8, d))))
     group.add(mesh)
   }
   if (fencePosts.length) {
@@ -791,7 +834,9 @@ export const buildPark = (scene, { quality = "medium", layout = RIVERSIDE_LAYOUT
   }
 
   // ---- the ball machine and its balls ----
-  if (machineGroup) {
+  // (Riverside only: at a real venue the machine and a court strewn with balls would be made up;
+  // its Ball Machine spot still works, the court stays as it is: docs/venue-provenance.md)
+  if (machineGroup && riverside) {
     const machine = new THREE.Group()
     const mBody = new THREE.Mesh(keep(new THREE.BoxGeometry(0.6, 0.55, 0.5)), lambert(0x2b2b2b))
     mBody.position.y = 0.45
@@ -834,7 +879,7 @@ export const buildPark = (scene, { quality = "medium", layout = RIVERSIDE_LAYOUT
   const lampMat = keep(new THREE.MeshBasicMaterial({ color: 0x9aa0a8 }))
   const hex6 = (c, d) => (c ? new THREE.Color(c).getHex() : d)
   if (LIGHTS.length) {
-    const poles = new THREE.InstancedMesh(keep(new THREE.CylinderGeometry(0.07, 0.1, 7.5, 6)), S?.fence?.poleColor ? lambert(hex6(S.fence.poleColor)) : frameMat, LIGHTS.length)
+    const poles = new THREE.InstancedMesh(keep(S?.fence?.poleD ? new THREE.CylinderGeometry(S.fence.poleD * 0.42, S.fence.poleD * 0.5, 7.5, 10) : new THREE.CylinderGeometry(0.07, 0.1, 7.5, 6)), S?.fence?.poleColor ? lambert(hex6(S.fence.poleColor)) : frameMat, LIGHTS.length)
     // (Medium/High: a real fixture: a cross-arm, LED heads tilted down with a bright lens)
     let lampGeo = new THREE.BoxGeometry(double ? 1.2 : 0.5, 0.18, 0.35)
     let lensGeo = null

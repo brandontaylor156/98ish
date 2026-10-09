@@ -55,11 +55,12 @@
     "surround": "#5f7d66"
    },
    "1413415729": {
-    "court": "#6f87a0",
-    "kitchen": "#6f87a0",
+    "court": "#4f795b",
+    "kitchen": "#4f795b",
     "surround": "#5f7d66"
    }
-  }
+  },
+  "_green": "round 4, the owner's dusk photo: the foreground court is green inside its lines (white lines on green, the same green family as the surround), its end-to-end neighbour to the north is one-colour slate blue, more navy courts with light-blue kitchens beyond a low black partition to the west, the sunset ahead (west): PB8 (OSM 1413415729, e -16.7 n -111.2) on the old tennis court, whose north partner PB4 stays slate; which court is GUESS from that arrangement (the aerial predates the green paint)"
  },
  "colors": {
   "court": "#34506a",
@@ -78,15 +79,109 @@
    "t": {
     "u": 10,
     "w": 8.5
+   },
+   "p": {
+    "u": 6,
+    "w": 9
    }
   },
   "lightEvery": 14,
-  "poleH": 9,
-  "screen": true,
-  "dividers": "low",
-  "dividerColor": "#f2f2ee",
+  "poleH": 7.3,
+  "dividers": "none",
   "booth": false,
-  "chamfer": 2.5
+  "chamfer": 2.5,
+  "_round4": "round 4, the owner's two photos (dusk, day) and the z20 aerial: the eight courts west of the tennis rows are one pen (the aerial's outline e -62..-10, n -84..-118), not three; inside it low black partitions where the aerial shows dark lines: two across it on the old tennis pens' lines (e -45.4 and -27.1, the whole pen's depth) and one between the two rows (n -100.7, e -61.2..-27.1); none between the courts of a pair (the aerial and the day photo show nets only). Perimeter: black chain-link with a black windscreen (both photos), 3.05 m (10 ft: the people by it in the day photo give 2.8-3.4 m). Partitions: about 0.95 m (the day photo: the people beside one, 0.9-1.0 m), black posts, black top and bottom rails, black mesh",
+  "types": {
+   "tall": {
+    "h": 3.05,
+    "mesh": "#1a1a1a",
+    "post": {
+     "d": 0.065,
+     "end": 0.09,
+     "every": 3,
+     "color": "#1c1c1c"
+    },
+    "screen": {
+     "y0": 0.08,
+     "y1": 2.97,
+     "color": "#121416"
+    },
+    "rails": [],
+    "railD": 0.042
+   },
+   "low": {
+    "h": 0.95,
+    "mesh": "#151515",
+    "post": {
+     "d": 0.05,
+     "end": 0.065,
+     "every": 2.4,
+     "color": "#1a1a1a"
+    },
+    "rails": [
+     0.07
+    ],
+    "railD": 0.04
+   }
+  },
+  "perimeter": "tall",
+  "partitions": [
+   {
+    "from": {
+     "en": [
+      -45.4,
+      -83.9
+     ]
+    },
+    "to": {
+     "en": [
+      -45.4,
+      -117.9
+     ]
+    },
+    "type": "low"
+   },
+   {
+    "from": {
+     "en": [
+      -27.1,
+      -83.9
+     ]
+    },
+    "to": {
+     "en": [
+      -27.1,
+      -117.9
+     ]
+    },
+    "type": "low"
+   },
+   {
+    "from": {
+     "en": [
+      -61.2,
+      -100.7
+     ]
+    },
+    "to": {
+     "en": [
+      -27.1,
+      -100.7
+     ]
+    },
+    "type": "low"
+   }
+  ],
+  "_lights": "round 4: black poles with a T arm and two flat LED heads (both photos; one pole in the dusk photo has a single arm), placed by the venue's rule every 14 m along the pens (not measured: the photos' poles stand along the courts' sides); 7.3 m (unmeasured: about four times the people); and poles standing on the low partitions inside the pen (both photos: the near poles rise from the partitions' line), one every ~11.5 m along each (spacing unmeasured)",
+  "poleStyle": "t",
+  "poleColor": "#1b1b1b",
+  "headColor": "#1f1f1f",
+  "armW": 1.6,
+  "poleD": 0.14,
+  "lightsOnPartitions": {
+   "t": "low",
+   "every": 11.5
+  }
  },
  "buildings": {
   "drop": [
@@ -2749,6 +2844,56 @@
    "color": "#e4d8bd",
    "roof": "tile",
    "roofColor": "#9a4a32"
+  },
+  {
+   "type": "fencebanner",
+   "style": "club",
+   "_src": "dusk photo: 'THE PASEO CLUB / VALENCIA' with a fleur-de-lis on its left half and 'HEAD' (and a small second sponsor) on the right, white on black, on the pen's tall fence beyond the courts, about as tall as the windscreen's upper two-thirds (~2 m; the fence's 3.05 m as the ruler); which fence and where along it is GUESS (the photo's pose isn't solved: the west fence, where the sunset puts the view)",
+   "en": [
+    -58.3,
+    -95.5
+   ],
+   "w": 4.4,
+   "h": 2.0,
+   "y": 1.95,
+   "face": "e"
+  },
+  {
+   "type": "fencebanner",
+   "style": "pristine",
+   "_src": "day photo: small 'PRISTINE' sponsor banners (about 1.3 x 0.75 m) on the north fence at both edges of the view (bearings 342 and 42 degrees from behind court PB6), e -46.2 and -26.7; the dusk photo sees one on the west fence and the same right-hand one",
+   "en": [
+    -46.2,
+    -83.95
+   ],
+   "w": 1.3,
+   "h": 0.75,
+   "y": 2.1,
+   "face": "s"
+  },
+  {
+   "type": "fencebanner",
+   "style": "pristine",
+   "en": [
+    -26.7,
+    -83.95
+   ],
+   "w": 1.3,
+   "h": 0.75,
+   "y": 2.1,
+   "face": "s"
+  },
+  {
+   "type": "fencebanner",
+   "style": "pristine",
+   "en": [
+    -58.3,
+    -103.5
+   ],
+   "w": 1.3,
+   "h": 0.75,
+   "y": 2.1,
+   "face": "e"
   }
  ],
  "trees": {
@@ -3075,5 +3220,6 @@
    "y0": 8,
    "hvac": 3
   }
- ]
+ ],
+ "_surroundRoofs": "round 4: the houses round the club (tan stucco, red tile in the day photo) take their roof colour and hip shape off a z18 aerial (surround-roofs.py; refs/paseo/wide)"
 }

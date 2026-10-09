@@ -92,7 +92,7 @@
  "fence": {
   "_src": "the owner's seven photos (2026-10-08) over the reference pack: the village's courts are in pairs with LOW partitions between the pairs (none inside a pair: the top-down drone photo, every pair), a thick green capped top rail on galvanized posts, black mesh and a green-painted concrete curb along the foot (photo 1); the village's north side, along the deck, is the same low fence (photos 1, 2); the other sides keep the pack's 3 m black chain-link with windscreens (photos 2, 4: tall black screens by the tennis court and the white building)",
   "lightEvery": 9,
-  "poleH": 8.5,
+  "poleH": 6.9,
   "doubleHeads": false,
   "screenH": 2.2,
   "dividerColor": "#2f3436",
@@ -110,14 +110,16 @@
     "h": 1.2,
     "mesh": "#1a1c1b",
     "post": {
-     "d": 0.06,
+     "d": 0.065,
+     "end": 0.09,
      "every": 2.5,
      "color": "#a7aeab"
     },
     "cap": {
      "color": "#2e7a57",
-     "h": 0.11,
-     "w": 0.12
+     "h": 0.1,
+     "w": 0.1,
+     "shape": "round"
     },
     "curb": {
      "h": 0.28,
@@ -237,15 +239,21 @@
     "type": "aisle"
    }
   ],
-  "_lights": "a pole in every gap between side-by-side courts and outside each row's end courts, two along each gap 4.5 m from the row's middle, with a T arm along the gap and two flat LED heads (drone photo 7, photos 2, 3, 5); white; 8.5 m (the pack's estimate; unmeasured)",
-  "lightsAt": "gaps",
-  "lightAlong": 4.5,
+  "_lights": "round 4, measured in the drone photo's solved pose (compare.mjs solve, 2.4 px; scratchpad meas.py): the poles stand ON the low partitions between the pairs, two per court, none between the two courts of a pair or at the rows' ends; along the partition they mirror across the centre aisle (n 47.8): bases at n 36.8, 44.2 (south row, courts' middle 38.8) and 51.6, 58.8 (north row, 56.6), i.e. 2.1 m from a court's middle on its outer side (by the outer kitchen line; photo 2 sees the pole between court 44's kitchen line and net) and 5.1 m on the aisle side; 6.8-6.9 m to the arm (6.4 on the far partition, less sure); a T arm about 3 m across the partition with a flat LED head over each court (the heads' pixels fit +-1.5 m); white; the pole about 0.15 m thick (photos 2, 3). Round 3 had a pole in every gap and at the rows' ends (86): 2x too many and 8.5 m tall",
+  "lightsAt": "partitions",
+  "lightAlong": [
+   2.1,
+   -5.1
+  ],
   "poleStyle": "t",
-  "armW": 2,
+  "armW": 3.0,
   "poleColor": "#dcdedb",
-  "headColor": "#3a3d40",
+  "headColor": "#d9dcda",
   "_sides": "low (pair type) on the village's north side (photos 1, 2) and on both blocks' ends at the cross-walkway (drone photo 7: a low fence with banners there, no tall screens)",
-  "_pairOnly": "the village's two blocks only; the south pod keeps no partitions (the pack saw white tube dividers there, not yet modelled)"
+  "_pairOnly": "the village's two blocks only; the south pod keeps no partitions (the pack saw white tube dividers there, not yet modelled)",
+  "_cap": "round 4 (owner photo 1 at full size): the green top rail is a round padded tube about 0.10 m thick (14 px against the 0.28 m curb's 45 px), riding on the galvanized posts, not a square box",
+  "poleD": 0.15,
+  "_headColor": "the heads' housings read white-grey from above (drone photo 7) and pale grey from the side (photo 2)"
  },
  "buildings": {
   "toArea": {
@@ -2002,7 +2010,43 @@
   }
  ],
  "trees": {
-  "default": "palm"
+  "default": "palm",
+  "_kinds": "round 4: the big trees north of the deck and the tennis courts (e 40..100, n 95..150) are eucalyptus: owner photo 2 (from the deck: tall, pale trunks, airy grey-green crowns over the tennis courts); the small canopies the pack called palms are the tall thin fan palms (Washingtonia) of owner photo 3 (sunset) and the drone photo 4's corner; the other big canopies stay generic broad-leaf (species not seen)",
+  "kinds": [
+   {
+    "kind": "eucalyptus",
+    "from": "broadleaf",
+    "poly": [
+     {
+      "en": [
+       40,
+       95
+      ]
+     },
+     {
+      "en": [
+       100,
+       95
+      ]
+     },
+     {
+      "en": [
+       100,
+       150
+      ]
+     },
+     {
+      "en": [
+       40,
+       150
+      ]
+     }
+    ]
+   }
+  ],
+  "rename": {
+   "palm": "fanpalm"
+  }
  },
  "decks": [
   {
@@ -2129,7 +2173,7 @@
    "rail": "#1d1f22"
   },
   {
-   "_src": "steel stairs up to the deck (photo 1: black stringers, wood treads, rising east along the deck); at its west end, where the aerial shows a lighter landing (x 18-22): the exact spot is GUESS",
+   "_src": "steel stairs up to the deck at its west end (owner photos 2 and 3: a flight under the deck's west end; the aerial's lighter landing x 18-22): the exact spot is GUESS",
    "from": {
     "en": [
      14.3,
@@ -2143,6 +2187,28 @@
     ]
    },
    "w": 1.4,
+   "y0": 0,
+   "y1": 3.1,
+   "color": "#c9b08a",
+   "rail": "#1b1c1e",
+   "open": true
+  },
+  {
+   "name": "deck east",
+   "_src": "round 4: the open steel stairs at the deck's EAST end, coming down eastward along the village's north fence (owner photo 1: the deck at the left, the stairs' top at its end and the flight descending to the right behind the low partition, black stringers, wood treads, black bar railing both sides; the z20 aerial: a dark 5.5 m patch just east of the deck's brown strip, x 49-54.5, n 66.5-69); 3.1 m in 5.7 m",
+   "from": {
+    "en": [
+     54.6,
+     68.0
+    ]
+   },
+   "to": {
+    "en": [
+     48.9,
+     68.0
+    ]
+   },
+   "w": 1.3,
    "y0": 0,
    "y1": 3.1,
    "color": "#c9b08a",

@@ -207,3 +207,6 @@ Medical_Female_01, Female_Adult_11, Female_Adult_14, Sports_Female_02, Female_Ad
 files were converted with FBX2glTF (BSD, the `fbx2gltf` npm package; a build-time tool only).
 The bodies, kits, hair cards, eyeballs' shape, teeth and expressions are still MakeHuman's (CC0,
 above).
+
+## Venues, fidelity round 4 (2026-10-08)
+No new third-party assets. The pines, eucalyptus, fan palms, the hillside's bushes and their leaf, needle, bark and fan pictures are drawn on canvases in `park/detail.js`; the hillside's cover is classes and counts read off an aerial (`tools/venues/terrain-cover.py`; the aerial itself is reference only and never shipped). The far ground's grass detail is the existing CC0 ambientCG grass surface (credited in `public/assets/venue-tex/CREDITS.txt`). The owner's photos are used for measuring only.

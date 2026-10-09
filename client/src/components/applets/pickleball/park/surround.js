@@ -20,13 +20,88 @@ const AREA_FILL = {
   water: "#4f86a8",
 }
 
+// what covers the hills (spec.terrain.cover, tools/venues/terrain-cover.py: a letter per cell
+// read off the aerial: g grass, s scrub, b bare, . built): soft patches in the photos' colours
+// (terrain.colors: { grass, scrub, bare, built }), a little mottled so a slope isn't one flat tone
+export const COVER = { grass: null, scrub: "#5a583a", bare: "#c4b08a", built: "#8e8b7f" }
+// the cover's rows are run-length coded (build-venues.mjs: a letter, then how many if more than
+// one); the dots' 0-9 are the letters a-j. -> { rows: [string], dots: [[0..9]] | null }
+export const decodeRuns = (row) => row.replace(/(\D)(\d*)/g, (m, ch, n) => ch.repeat(n ? +n : 1))
+const grids = new WeakMap()
+export const coverGrid = (T) => {
+  if (!grids.has(T)) {
+    const rows = T.cover.rows.map(decodeRuns)
+    const dots = T.cover.dots ? T.cover.dots.map((r) => Array.from(decodeRuns(r), (c) => c.charCodeAt(0) - 97)) : null
+    grids.set(T, { rows, dots })
+  }
+  return grids.get(T)
+}
+const paintCover = (ctx, s, P, base, T) => {
+  const col = { g: T.colors?.grass || base, s: T.colors?.scrub || COVER.scrub, b: T.colors?.bare || COVER.bare, ".": T.colors?.built || COVER.built }
+  const cell = T.cover.cell
+  const r0 = T.cover.r
+  const { rows, dots } = coverGrid(T)
+  let seed = 11
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647)
+  const rad = Math.max(1.5, cell * s * 0.85)
+  for (const k of ["g", "b", ".", "s"]) {
+    ctx.fillStyle = col[k]
+    for (let j = 0; j < rows.length; j++) {
+      const row = rows[j]
+      for (let i = 0; i < row.length; i++) {
+        if (row[i] !== k) continue
+        const [u, v] = P([-r0 + i * cell, -r0 + j * cell])
+        ctx.globalAlpha = k === "s" ? 0.85 : 0.75
+        ctx.beginPath()
+        ctx.arc(u + (rnd() - 0.5) * rad * 0.5, v + (rnd() - 0.5) * rad * 0.5, rad * (0.8 + rnd() * 0.4), 0, Math.PI * 2)
+        ctx.fill()
+      }
+    }
+    if (k === "g") {
+      // dry grass is never one tone: broad drifts a shade darker or lighter (4-14 m)
+      for (let i = 0; i < 1400; i++) {
+        ctx.globalAlpha = 0.08 + rnd() * 0.1
+        ctx.fillStyle = rnd() < 0.55 ? "#6f6548" : "#c9bb8f"
+        ctx.beginPath()
+        ctx.ellipse(rnd() * ctx.canvas.width, rnd() * ctx.canvas.height, (4 + rnd() * 10) * s, (2 + rnd() * 6) * s, rnd() * Math.PI, 0, Math.PI * 2)
+        ctx.fill()
+      }
+    }
+  }
+  // the bushes dotted over the grass (cover.dots: the aerial's dark specks per cell, 0-9)
+  // (dots: 0-9 per cell)
+  if (dots) {
+    ctx.fillStyle = col.s
+    for (let j = 0; j < dots.length; j++)
+      for (let i = 0; i < dots[j].length; i++) {
+        const d = dots[j][i]
+        if (d <= 0) continue
+        const [u, v] = P([-r0 + i * cell, -r0 + j * cell])
+        for (let k = 0; k < d * 2; k++) {
+          ctx.globalAlpha = 0.25 + rnd() * 0.2
+          ctx.beginPath()
+          ctx.arc(u + (rnd() - 0.5) * cell * s, v + (rnd() - 0.5) * cell * s, Math.max(0.7, (0.3 + rnd() * 0.6) * s), 0, Math.PI * 2)
+          ctx.fill()
+        }
+      }
+  }
+  // mottling: light and dark specks of dry grass
+  for (let i = 0; i < 9000; i++) {
+    ctx.globalAlpha = 0.08 + rnd() * 0.1
+    ctx.fillStyle = rnd() < 0.5 ? "#2e2a18" : "#f2e6c2"
+    ctx.fillRect(rnd() * ctx.canvas.width, rnd() * ctx.canvas.height, 1 + rnd() * 3, 1 + rnd() * 3)
+  }
+  ctx.globalAlpha = 1
+}
+
 // paint the surround's areas and roads into a canvas for the far ground disc (center cx, cz;
 // radius R; N pixels square). Canvas x = east, y = south (the disc's UVs, flipY on).
-export const paintSurroundGround = (ctx, N, { cx, cz, R, base, surround }) => {
+export const paintSurroundGround = (ctx, N, { cx, cz, R, base, surround, cover = null }) => {
   const s = N / (2 * R)
   const P = ([x, z]) => [(x - cx + R) * s, (z - cz + R) * s]
   ctx.fillStyle = base
   ctx.fillRect(0, 0, N, N)
+  if (cover) paintCover(ctx, s, P, base, cover)
   for (const a of surround.areas || []) {
     ctx.fillStyle = AREA_FILL[a.k] || AREA_FILL.grass
     ctx.beginPath()

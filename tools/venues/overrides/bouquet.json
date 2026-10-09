@@ -134,6 +134,7 @@
     "mesh": "#8e9592",
     "post": {
      "d": 0.073,
+     "end": 0.102,
      "every": 3.05,
      "color": "#a3aaa7"
     },
@@ -149,6 +150,7 @@
     "mesh": "#5b625f",
     "post": {
      "d": 0.073,
+     "end": 0.102,
      "every": 3.05,
      "color": "#a3aaa7"
     },
@@ -161,9 +163,10 @@
     "h": 1.52,
     "mesh": "#232a26",
     "post": {
-     "d": 0.09,
+     "d": 0.073,
+     "end": 0.102,
      "every": 3,
-     "color": "#adb4b1"
+     "color": "#b4bbb8"
     },
     "rails": [
      0.8,
@@ -278,7 +281,8 @@
   "bleachers": false,
   "booth": false,
   "netColor": "#1b1f1d",
-  "benches": false
+  "benches": false,
+  "_posts": "round 4 (the owner's partition photo, measured against the 1.66 in top rail and the 1.52 m height): line posts ~2.875 in (0.073 m) with a loop cap the top rail runs through and a band at the mid rail; terminal posts at every run's end ~4 in (0.102 m) with a dome cap and tension bands up them; all hot-dip galvanized (light, a metallic sheen); the mesh black vinyl"
  },
  "trees": {
   "default": "broadleaf",
@@ -438,6 +442,12 @@
    "_src": "aerial (the alcove box) + the owner's partition photo (a light flat metal roof near the fence top, dark posts)"
   }
  ],
- "_terrain": "the hills round the park from the USGS 3DEP terrain (terrain.py, 15 m grid to 450 m): the dry-grass hillside behind the north fence in the owner's wide photo; the far ground's base colour is that hillside's dry grass (wide photo, sunlit)",
- "terrain": true
+ "_terrain": "the hills round the park from the USGS 3DEP terrain (terrain.py, 15 m grid to 450 m): the dry-grass hillside behind the north fence in the owner's wide photo; the far ground's base colour is that hillside's dry grass (wide photo, sunlit); round 4: what covers it from the wide aerial (terrain-cover.py: grass, scrub in the ravines, bare trails, the bushes dotted over the grass per 7.5 m cell) in the owner's wide photo's colours (the hill's dry grass a muted tan, the scrub dark olive)",
+ "terrain": {
+  "colors": {
+   "grass": "#a39778",
+   "scrub": "#565638",
+   "bare": "#c2b08c"
+  }
+ }
 }
