@@ -261,7 +261,7 @@ export const useTogether = ({ world, hud, venueName = "My Park", nightOk = false
             <div className="pkTgGrid">{TOGETHER.filter((t) => t.base).map((t) => item(t, true))}</div>
             <MoreOptions id="pickleball.together" summary="Rally, sit, sunset, follow, high five, hug, twirl, dance">
               <div className="pkTgGrid is-small">
-                {TOGETHER.filter((t) => !t.base).map((t) => item(t, t.id === "rally"))}
+                {TOGETHER.filter((t) => !t.base && !t.act).map((t) => item(t, t.id === "rally"))}
               </div>
             </MoreOptions>
             <p className="pkTgHint">{who} gets asked first. Either of you can stop any time.</p>
@@ -272,7 +272,7 @@ export const useTogether = ({ world, hud, venueName = "My Park", nightOk = false
         <div className="pkPanel pkTgAsk" role="alertdialog" aria-label="An ask" data-together="ask" data-kind={asks[0].kind}>
           <p>
             <span aria-hidden="true">{togetherById(asks[0].kind)?.icon || "💞"} </span>
-            {togetherById(asks[0].kind)?.ask(asks[0].name) || `${asks[0].name} asks you`}
+            {togetherById(asks[0].kind)?.ask(asks[0].name, asks[0].data) || `${asks[0].name} asks you`}
           </p>
           <div className="pkTgAskRow">
             <button type="button" className="pkPrimary" onClick={() => answer(asks[0], true)} data-together="yes">

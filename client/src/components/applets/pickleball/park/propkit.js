@@ -76,6 +76,8 @@ export const PROPS = {
   pooltable: { w: 1.4, d: 2.6, h: 0.85, solid: true },
   flagpole: { w: 0.3, d: 0.3, h: 9, r: 0.12, solid: true },
   hoop: { w: 1.9, d: 1.4, h: 3.9, solid: true, wall: true },
+  // (a painted line on a floor: w its length, d its width; a gym's basketball court)
+  courtline: { w: 1, d: 0.05, h: 0.004 },
   massagebed: { w: 0.8, d: 2.0, h: 0.75, solid: true },
   startblock: { w: 0.5, d: 0.6, h: 0.75, solid: true },
   pingpong: { w: 1.53, d: 2.74, h: 0.92, solid: true },
@@ -183,6 +185,18 @@ export const roomRect = (p) => {
     ;[u0, u1, w0, w1] = [w0, w1, -u1, -u0]
   }
   return { ux, uz, u0, u1, w0, w1, L: u1 - u0, W: w1 - w0 }
+}
+
+// a basketball room big enough for a regulation court (28 x 15 m and room round it): the
+// court's middle in the rect's (u, w), or null
+const courtIn = (R) => (R && R.L >= 30.5 && R.W >= 17.5 ? { u: (R.u0 + R.u1) / 2, w: (R.w0 + R.w1) / 2 } : null)
+// that court in the venue: { x, z, rot } (local z along the court, layout.js frames), or null
+export const roomCourt = (room) => {
+  if (!room?.p || room.type !== "basketball" || room.furnish === false) return null
+  const R = roomRect(room.p)
+  const k = courtIn(R)
+  if (!k) return null
+  return { x: k.u * R.ux - k.w * R.uz, z: k.u * R.uz + k.w * R.ux, rot: Math.atan2(R.ux, R.uz), L: 28, W: 15 }
 }
 
 // Furniture for a room from its type's preset: props in venue coordinates, kept clear of the
@@ -363,6 +377,19 @@ export const furnishRoom = (room) => {
     }
     put("mat", u0 + 1.6, w0 + 1.2, 1, 0)
     put("mat", u0 + 1.6, w0 + 2.6, 1, 0)
+    // (room.tvs: TVs hung high on the wall the cardio row faces, over the mirrors; only where
+    // a venue's reference pack says the gym has them)
+    if (room.tvs) {
+      const alongU2 = L2 === "w0" || L2 === "w1"
+      const a0 = alongU2 ? u0 : w0
+      const a1 = alongU2 ? u1 : w1
+      const into = { u0: [1, 0], u1: [-1, 0], w0: [0, 1], w1: [0, -1] }[L2]
+      for (let s = a0 + 2; s <= a1 - 2; s += 3.6) {
+        const pu = alongU2 ? s : L2 === "u0" ? u0 + 0.08 : u1 - 0.08
+        const pw = alongU2 ? (L2 === "w0" ? w0 + 0.08 : w1 - 0.08) : s
+        out.push({ t: "tv", ...W(pu, pw), a: yawOf(into[0], into[1]), y: Math.min(0.95, (room.h || 4.2) - 2.65) })
+      }
+    }
     if (d0) {
       put("fountain", d0.u + (d0.u < cu ? 1.4 : -1.4), d0.w + (d0.w < cw ? 0.5 : -0.5), 0, d0.w < cw ? 1 : -1)
       put("filler", d0.u + (d0.u < cu ? 2.3 : -2.3), d0.w + (d0.w < cw ? 0.4 : -0.4), 0, d0.w < cw ? 1 : -1)
@@ -405,6 +432,59 @@ export const furnishRoom = (room) => {
     const alongU = back === "w0" || back === "w1"
     for (let s = (alongU ? u0 : w0) + 1.2; s < (alongU ? u1 : w1) - 1; s += 2.05) (alongU ? put("glasswall", s, cw + (w1 - w0) * 0.18, 0, 1) : put("glasswall", cu + (u1 - u0) * 0.18, s, 1, 0))
     row("bench", entry, { from: 0.2, to: 0.8, every: 4 })
+  } else if (type === "basketball" && courtIn(R)) {
+    // a regulation court in the middle of a big gym (My Park's Shoot hoops, acts/hoops.js): its
+    // lines on the floor and a hoop at each end, as courtkit.js draws an outdoor one (rim 1.6 m
+    // in from the baseline, 3.05 m up)
+    const k = courtIn(R)
+    const line = (a1, b1, a2, b2, extra = {}) => {
+      const p = W((a1 + a2) / 2, (b1 + b2) / 2)
+      const d = W(a2 - a1, b2 - b1)
+      const L = Math.hypot(d.x, d.z)
+      if (L < 0.02) return
+      out.push({ t: "courtline", ...p, a: Math.atan2(-d.z, d.x), w: L, d: 0.05, c: room.lines || "#f4f1ea", ...extra })
+    }
+    const hu = 14
+    const hw = 7.5
+    // (local: u along the court from its middle, w across)
+    const at = (u, w) => [k.u + u, k.w + w]
+    const seg = (u1, w1, u2, w2) => line(...at(u1, w1), ...at(u2, w2))
+    seg(-hu, -hw, hu, -hw)
+    seg(-hu, hw, hu, hw)
+    seg(-hu, -hw, -hu, hw)
+    seg(hu, -hw, hu, hw)
+    seg(0, -hw, 0, hw)
+    const arc = (cu0, r, a0, a1, n) => {
+      for (let i = 0; i < n; i++) {
+        const t0 = a0 + ((a1 - a0) * i) / n
+        const t1 = a0 + ((a1 - a0) * (i + 1)) / n
+        seg(cu0 + Math.cos(t0) * r, Math.sin(t0) * r, cu0 + Math.cos(t1) * r, Math.sin(t1) * r)
+      }
+    }
+    arc(0, 1.8, 0, Math.PI * 2, 16)
+    for (const s of [-1, 1]) {
+      const base = s * hu
+      const ft = s * (hu - 5.8)
+      // the key, the free-throw circle, the three-point line (6.75 m from the rim; straight
+      // 0.9 m in from the sidelines)
+      seg(base, -2.45, ft, -2.45)
+      seg(base, 2.45, ft, 2.45)
+      seg(ft, -2.45, ft, 2.45)
+      arc(ft, 1.8, s > 0 ? Math.PI / 2 : -Math.PI / 2, s > 0 ? Math.PI * 1.5 : Math.PI / 2, 8)
+      const rim = s * (hu - 1.575)
+      const side = 6.6
+      const cut = Math.sqrt(6.75 * 6.75 - side * side)
+      seg(base, -side, rim - s * cut, -side)
+      seg(base, side, rim - s * cut, side)
+      const th = Math.asin(side / 6.75)
+      arc(rim, 6.75, s > 0 ? Math.PI - th : -th, s > 0 ? Math.PI + th : th, 14)
+      // (the hoop's own origin: its rim 0.85 m in front of it, its board 0.55)
+      const p = W(...at(s * (hu - 1.575 + 0.85), 0))
+      const f = W(-s, 0)
+      out.push({ t: "hoop", ...p, a: Math.atan2(f.x, f.z) })
+      boxes.push({ u: k.u + s * (hu - 1), w: k.w, hu: 1.2, hw: 1.2 })
+    }
+    row("bleacher", other[0] || "w0", { from: 0.25, to: 0.75, gap: 0.5 })
   } else if (type === "basketball") {
     const alongU = R.L >= R.W
     if (alongU) {

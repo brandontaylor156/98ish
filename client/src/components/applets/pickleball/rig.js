@@ -483,7 +483,8 @@ export const createFigure = (look = {}, { shadows = false, withPaddle = true } =
     skin.dispose()
   }
 
-  return { group: skin.mesh, apply, setShadows, dispose, blobs, vertices: skin.vertices }
+  // (debug.paddle: the paddle's holder, as athlete.js has it: My Park's tennis swaps in a racket)
+  return { group: skin.mesh, apply, setShadows, dispose, blobs, vertices: skin.vertices, debug: { paddle } }
 }
 
 // Bake a figure's parts into one mesh. nodes: the moving parts (each a group of meshes, or a

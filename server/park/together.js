@@ -18,6 +18,9 @@
 //   hug, highfive, twirl, dance   paired emotes
 //   team     mixed doubles: the two of you against the computers (a private room, both on one side)
 //   rally    "how long can we rally": a co-op Free rally drill (practice/coop.js) for the two
+//   tennis, horse, workout   My Park activities (client park/acts/): tennis on a tennis court
+//            (a match or a co-op rally), H-O-R-S-E on a basketball court, a workout together;
+//            a private "parkact" room (server/arcade/games/parkact.js), both stay in the park
 //
 // Only states go over the network (who's linked to whom, what started): the walking itself is
 // each browser's own position updates, as always. Signed-on people only (a 98 Messenger
@@ -52,7 +55,14 @@ const KINDS = {
   dance: { near: 12 },
   team: { near: 60, game: true },
   rally: { near: 60, game: true },
+  // My Park activities (client park/acts/): a private room of the "parkact" game (relay), the
+  // two stay in the park; data { spot, mode }
+  tennis: { near: 30, act: true },
+  horse: { near: 30, act: true },
+  workout: { near: 30, act: true },
 }
+const ACT_MODES = { tennis: ["match", "rally"], horse: ["horse"], workout: ["daily", "quick", "together"] }
+const SPOT_ID = /^[a-z0-9-]{1,40}$/
 const ASK_MS = 30_000 // an unanswered ask goes after this long
 const APART_M = 22 // walking together ends past this
 const MAX_ASKS = 3 // pending asks to one person
@@ -68,6 +78,11 @@ const cleanData = (kind, data) => {
     return { seats: [seats[0], seats[1]] }
   }
   if (KINDS[kind]?.game) return { court: Number.isInteger(d.court) && d.court >= 0 && d.court < 64 ? d.court : null }
+  if (KINDS[kind]?.act) {
+    if (typeof d.spot !== "string" || !SPOT_ID.test(d.spot)) return null
+    const mode = ACT_MODES[kind].includes(d.mode) ? d.mode : ACT_MODES[kind][0]
+    return { spot: d.spot, mode }
+  }
   if (kind === "date") return { night: d.night === true }
   return {}
 }
@@ -75,7 +90,8 @@ const cleanData = (kind, data) => {
 // send(pid, event, payload), toAll(inst, event, payload), blocked(pidA, pidB), clock,
 // limit(n, ms) -> a sliding-window counter, startGame(inst, [pid, pid], kind, court) -> { ok }
 // (park/index.js: a private room on a free court)
-const createTogether = ({ send, toAll, blocked = () => false, clock, limit, startGame }) => {
+// startAct(inst, [pid, pid], kind, data) -> { ok } (park/index.js: a "parkact" room for the two)
+const createTogether = ({ send, toAll, blocked = () => false, clock, limit, startGame, startAct = () => ({ ok: false, error: "That isn't ready yet." }) }) => {
   const askLimit = limit(8, 30_000)
   const endLimit = limit(20, 30_000)
   const distOf = (p, q) => (p.pos && q.pos ? Math.hypot(p.pos[0] - q.pos[0], p.pos[1] - q.pos[1]) / 20 : Infinity)
@@ -162,6 +178,14 @@ const createTogether = ({ send, toAll, blocked = () => false, clock, limit, star
       }
       endLink(inst, p.pid)
       endLink(inst, q.pid)
+    } else if (k.act) {
+      const r = startAct(inst, [p.pid, q.pid], a.kind, a.data)
+      if (!r.ok) {
+        send(p.pid, "park:answer", { id, yes: false, num: q.num, error: r.error })
+        return r
+      }
+      endLink(inst, p.pid)
+      endLink(inst, q.pid)
     } else if (k.link) {
       endLink(inst, p.pid)
       endLink(inst, q.pid)
@@ -217,4 +241,4 @@ const createTogether = ({ send, toAll, blocked = () => false, clock, limit, star
   return { ask, answer, unlink, tgEnd, forget, moved, linkOf, KINDS }
 }
 
-module.exports = { createTogether, cleanData, KINDS, ASK_MS, APART_M }
+module.exports = { createTogether, cleanData, KINDS, ACT_MODES, ASK_MS, APART_M }

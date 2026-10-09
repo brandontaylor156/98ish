@@ -289,6 +289,26 @@ The owner: "Too much shrub and bushes ON the court ... Make sure the courts are 
 
 **Arrivals** (owner: "At Los Cab you should spawn to the area where the pickleball courts are"): every venue's arrival now stands 8-12 m from its pickleball courts by a live court's gate, facing the nearest four courts (`spawn._src` in the overrides keeps the old one). Picked by script on the walk graph: room to stand, the camera behind clear, all six live courts still reachable.
 
+## Activities: tennis, hoops, the gym, the TV (2026-10-09)
+
+My Park's activities (`docs/venue-activities.md`) are offered only where the venue has the place, each with its source (`park/acts/spots.js ACT_SOURCES`; the test "activities only where the venue has the place" checks it):
+
+| Venue | What's there | Source |
+|---|---|---|
+| Los Cab | Tennis: 13 courts | OSM (leisure=pitch, sport=tennis; 4 with pickleball lines) |
+| Los Cab | Basketball: the indoor gym | The owner ("the indoor basketball at Los Cab"); pack floorplan "Indoor basketball / badminton gym" (tour #12-13, #60). **Added:** one regulation court (28 x 15 m: lines, a hoop at each end, rims 3.05 m up) in the middle of the room the pack places it in (`propkit.js` basketball rooms 30.5 x 17.5 m and up). The room's place is the pack's GUESS; how many courts and which way: owner question. The hoops that used to stand at the room's two ends (80 m apart) are gone |
+| Los Cab | Gym: fitness centre | Pack floorplan "Fitness centre (cardio + weights)" (tour #2, #5, #18-24) |
+| Los Cab | TVs: lobby, fitness centre | Pack: lobby "... TV" (tour #72-73); fitness centre "treadmill rows facing TVs". **Added:** the fitness centre's TVs, hung high on the wall the cardio row faces (`tvs: true` in the override; one every 3.6 m) |
+| Newport | Tennis: 12 courts | OSM |
+| Whittier | Tennis: 12 courts; the shade roof's TV | OSM (its other 4 "tennis" slabs are the pickleball courts); pack "steel shade roof along the PB pens, couches and chairs, string lights, TV" |
+| Paseo | Tennis: 11 lit courts; gym: fitness floor, performance centre; TVs: lobby, fitness floor, cafe and bar | OSM (pitches; The Paseo Club as leisure=fitness_centre with sport fitness); pack ("Main fitness floor ... TVs", lobby "TV", bar "bar counter, TVs"). **Added:** the fitness floor's TVs (`tvs: true`) |
+| Sinaloa | Basketball: 8 outdoor courts | OSM |
+| SMASH | TVs: lobby video wall, bar, by the courts | Pack ("big video wall", "many TVs", "large TVs on columns along the spine") |
+| Bouquet | Basketball: 1 outdoor court | OSM |
+| Wolf + Bear | none | |
+
+Not offered for want of a source: Newport's lounge TV (drawn by the bar preset, not in the pack), the cafes' preset TVs at Los Cab and Whittier, Los Cab's ballroom TVs, Paseo's OSM basketball pitch (where the aerial shows the pickleball pen), Sinaloa's "Gym" (a school building, not walkable).
+
 ## Interiors: the GUESS layouts (kept, need the owner)
 
 These rooms are inside real buildings and are furnished from tour videos and photos. Which room sits where inside each building is a guess. Their contents are reasonably sourced.
@@ -319,6 +339,13 @@ These rooms are inside real buildings and are furnished from tour videos and pho
 - **Paseo Club (2026-10-08):** which room is where in the new L (we put the lobby inside the entrance on the fountain walk, the pro shop in the south arm, the kids club by the pool porch)? Is the small tile roof in the south courtyard open (a ramada) or a room? (The NE lot by the clubhouse is drawn now, from the aerial: a parking lot with six stall rows. Is it members' or staff parking?)
 - **Whittier (2026-10-08):** which court is "1"? A photo shows cards 1 and 3 on neighbouring net posts of one row; we assumed the south-east pen's south row (1 = PB16).
 - **Wolf + Bear (2026-10-08):** a photo from behind a court's baseline in the main hall shows a wall close on the left and cards 12 and 14 on the far wall over that court and the next one: our 2x5 has 12 and 14 in the middle and south rows of the east column. Which way do the numbers run, and how much room is behind the baselines (the photo's camera stands about 1 m behind our west wall)?
+
+- **Activities (2026-10-09):**
+  - Los Cab's indoor gym: how many basketball courts, and which way do they run? Badminton too? (One court drawn in the middle.)
+  - Los Cab's fitness centre: where do the TVs hang? (Drawn over the mirror wall the treadmills face.)
+  - Newport: is there a TV in the clubhouse lounge? (Drawn by the bar preset; not offered.)
+  - Paseo: OSM has a basketball court just south of the pickleball pen: is there one? Which wall has the bar's TVs?
+  - Sinaloa and Bouquet: are the basketball courts open to the public?
 
 Also open:
 - SMASH: Court 9's east baseline is 0.3 m from the pro shop's wall (the courts are traced; the rooms' line is a guess). A match at SMASH plays on Court 8 (`play/courtpick.js`: a clear camera). Is there a wall right there?

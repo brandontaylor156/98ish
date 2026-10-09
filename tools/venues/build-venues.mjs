@@ -612,7 +612,7 @@ const buildOne = (v) => {
   if (ov.rooms?.length)
     spec.rooms = ov.rooms.map((r, k) => {
       const out = { id: r.id || `room${k}`, type: r.type || "hall", p: pr(polyOfO(r).map(sh)) }
-      for (const key of ["name", "h", "floor", "wall", "ceiling", "wainscot", "furnish", "gender", "accent", "sofa", "chairs", "proshop", "shell", "outside", "roof", "benches", "partition", "top", "floorStyle", "ceilingStyle", "wallTex", "art", "trim", "level", "y", "open"]) if (r[key] !== undefined) out[key] = r[key]
+      for (const key of ["name", "h", "floor", "wall", "ceiling", "wainscot", "furnish", "gender", "accent", "sofa", "chairs", "proshop", "shell", "outside", "roof", "benches", "partition", "top", "floorStyle", "ceilingStyle", "wallTex", "art", "trim", "level", "y", "open", "tvs", "lines"]) if (r[key] !== undefined) out[key] = r[key]
       if (r.doors) out.doors = r.doors.map(doorOf)
       if (r.props) out.props = r.props.flatMap(propsOf)
       return out
