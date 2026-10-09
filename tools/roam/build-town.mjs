@@ -16,6 +16,7 @@ import { fileURLToPath } from "node:url"
 import { townById } from "../../client/src/roam/towns/index.js"
 import { townQuery, compactElement } from "../../client/src/roam/data/osm.js"
 import { buildTile } from "../../client/src/roam/data/tile.js"
+import { townSea } from "../../client/src/roam/data/sea.js"
 import { TERRAIN_URL, decodePng, terrainSampler, terrainTilesFor } from "../../client/src/roam/data/terrain.js"
 import { TILE_ZOOM, lat2y, lon2x, tileBounds, tilesInBox } from "../../client/src/roam/geo.js"
 
@@ -101,6 +102,14 @@ const elevation = terrainSampler((z, x, y) => pngs.get(`${z}/${x}/${y}`) || null
 console.log(`${tilesNeeded.length} terrain tiles`)
 
 // ---- 3. cut into tiles ----
+// the coast (a town with one): the sea for the tiles no coastline crosses (data/sea.js)
+// (over every tile the box touches, a little past the box itself)
+const tileBox = (() => {
+  const ts = tilesInBox(town.bbox, TILE_ZOOM).map((t) => tileBounds(t.z, t.x, t.y))
+  return { south: Math.min(...ts.map((b) => b.south)) - 0.002, north: Math.max(...ts.map((b) => b.north)) + 0.002, west: Math.min(...ts.map((b) => b.west)) - 0.002, east: Math.max(...ts.map((b) => b.east)) + 0.002 }
+})()
+const sea = town.coast ? townSea([...all.values()], tileBox) : null
+if (town.coast) console.log(sea ? "coast: the sea from the coastline" : "coast: no coastline found")
 const tiles = tilesInBox(town.bbox, TILE_ZOOM)
 const buckets = new Map(tiles.map((t) => [`${t.x}/${t.y}`, []]))
 const pad = 0.0003
@@ -130,7 +139,7 @@ let biggest = { k: "", n: 0 }
 const index = []
 let counts = { roads: 0, buildings: 0, areas: 0, trees: 0, pois: 0 }
 for (const t of tiles) {
-  const tile = buildTile({ z: t.z, x: t.x, y: t.y, elements: buckets.get(`${t.x}/${t.y}`), elevation })
+  const tile = buildTile({ z: t.z, x: t.x, y: t.y, elements: buckets.get(`${t.x}/${t.y}`), elevation, sea })
   const text = JSON.stringify(tile)
   const dir = path.join(OUT, String(t.z), String(t.x))
   fs.mkdirSync(dir, { recursive: true })

@@ -56,6 +56,8 @@ export const ROAD_PAINT = {
   [ROAD.stream]: ["#8f9a7a", null],
 }
 export const SIDEWALK = "#c4c0b6"
+// the sea floor under the water (a coast town)
+export const SEA = "#2f5a63"
 // round a house: its yard (a watered lawn, a little dry); round other buildings: concrete
 export const YARD = "#76924f"
 export const APRON = "#aaa69c"

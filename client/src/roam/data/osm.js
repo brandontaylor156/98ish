@@ -22,6 +22,7 @@ relation["amenity"]["type"="multipolygon"](${b});
 way["railway"~"^(rail|light_rail)$"](${b});
 way["golf"](${b});
 way["tourism"](${b});
+way["man_made"~"^(pier|breakwater|groyne)$"](${b});
 node["natural"~"^(tree|peak)$"](${b});
 node["highway"~"^(street_lamp|traffic_signals|stop)$"](${b});
 node["tourism"](${b});
@@ -33,7 +34,7 @@ node["name"](${b});
 export const KEEP_TAGS = new Set([
   "highway", "name", "ref", "lanes", "width", "oneway", "bridge", "tunnel", "layer", "sidewalk", "sidewalk:both", "sidewalk:left", "sidewalk:right", "footway", "service", "area", "lit", "surface",
   "building", "building:levels", "height", "min_height", "building:min_level", "roof:shape", "roof:levels",
-  "landuse", "leisure", "natural", "waterway", "water", "amenity", "parking", "railway", "golf", "tourism", "shop", "historic", "office", "sport", "denotation", "covered", "location",
+  "landuse", "leisure", "natural", "waterway", "water", "amenity", "parking", "railway", "golf", "tourism", "shop", "historic", "office", "sport", "denotation", "covered", "location", "man_made",
 ])
 
 // a raw Overpass element -> a small one ({ type, id, tags, geom | lat/lon | members }), or null
