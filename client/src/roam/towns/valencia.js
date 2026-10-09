@@ -28,7 +28,7 @@ export default {
   // somewhere fun"): the liveliest real spot first, then a few others; the picker remembers
   // yours. Each is open ground by the mapped place it names (docs/open-world.md "Arriving").
   starts: [
-    { id: "mall", name: "Town Center", kind: "mall", place: "Westfield Valencia Center", x: 323, z: 2234, look: { x: 369, z: 2310 } },
+    { id: "mall", name: "Town Center", kind: "mall", place: "Hyatt Regency", x: 42, z: 2060, look: { x: 42, z: 2160 } },
     { id: "centralpark", name: "Central Park", kind: "park", place: "Central Park", x: 3755, z: 600, look: { x: 3551, z: 312 } },
     { id: "bridgeport", name: "Bridgeport Park", kind: "park", place: "Bridgeport Park", x: 1278, z: 998, look: { x: 1268, z: 1048 } },
     { id: "paseo", name: "The Paseo Club", kind: "venue", venue: "paseo", x: -60, z: 20, yaw: Math.PI },
@@ -38,5 +38,7 @@ export default {
   // east row by the way out (the lot is the venue's, traced from the aerial: park/venues/
   // paseo.json; OSM hasn't mapped it). A game item, like the Turbo 98.
   keyCar: { id: "sundowner", model: "sundowner", color: 0xc8431f, x: -50.8, z: 10.3, yaw: -1.67, place: "The Paseo Club's lot" },
+  // the train station (the map's railway=station): the train between towns comes and goes here
+  station: { name: "Santa Clarita", x: 3418, z: 2547, yaw: 0 },
   eggs,
 }

@@ -65,6 +65,23 @@ export const laneOffset = (r) => {
   return Math.max(1.6, Math.min(r.width / 2 - 2.9, 3.6))
 }
 
+// the nearest point of a road to (x, z) -> { s (metres along), d (distance) }
+export const projectOn = (r, x, z) => {
+  const cum = lengthsOf(r)
+  let best = { s: 0, d: Infinity }
+  for (let i = 0; i + 1 < r.pts.length; i++) {
+    const a = r.pts[i]
+    const b = r.pts[i + 1]
+    const dx = b.x - a.x
+    const dz = b.z - a.z
+    const L2 = dx * dx + dz * dz || 1e-9
+    const k = Math.max(0, Math.min(1, ((x - a.x) * dx + (z - a.z) * dz) / L2))
+    const d = Math.hypot(x - a.x - dx * k, z - a.z - dz * k)
+    if (d < best.d) best = { s: cum[i] + Math.sqrt(L2) * k, d }
+  }
+  return best
+}
+
 // a car's place and heading -> { x, z, yaw }
 export const carPose = (c) => {
   const p = along(c.road, c.s)
@@ -245,9 +262,21 @@ export const createTraffic = ({ cap = 8, seed = 1 } = {}) => {
             }
           }
         }
-        // anyone in the lane ahead (people first: the car stops well short of you)
-        const ahead = blockedAhead(c, world, 28)
+        // anyone in the lane ahead (people first: the car stops well short of you); a car you
+        // flagged down doesn't count you (it pulls up beside you)
+        const ahead = blockedAhead(c, c.hail ? { ...world, people: (world.people || []).filter((p) => Math.hypot(p.x - c.hail.x, p.z - c.hail.z) > 3) } : world, 28)
         gap = Math.min(gap, ahead - 6.5)
+        // flagged down: pull up level with the one who waved, then wait for them
+        if (c.hail) {
+          c.hail.t += dt
+          const at = projectOn(c.road, c.hail.x, c.hail.z)
+          const togo = (at.s - c.s) * c.dir
+          if (at.d > c.road.width / 2 + 12 || togo < -8 || c.hail.t > 30) c.hail = null
+          else {
+            gap = Math.min(gap, Math.max(0, togo))
+            if (togo < 2.5 && c.speed < 0.4) c.hail.stopped = true
+          }
+        }
         // the speed for that gap (stopping at 4.5 m/s² comfortably)
         if (gap < Infinity) want = Math.min(want, Math.sqrt(Math.max(0, 2 * 4.5 * Math.max(0, gap))))
         c.speed += Math.max(-7.5 * dt, Math.min(2.2 * dt, want - c.speed))
@@ -266,11 +295,49 @@ export const createTraffic = ({ cap = 8, seed = 1 } = {}) => {
             c.dir = -c.dir
             c.s = Math.max(0, Math.min(L, c.s))
             c.speed = 0
-          } else c.s = Math.max(0, Math.min(L, c.s))
+          } else {
+            // (a one-way that ends where nothing is loaded yet: the car leaves the picture rather
+            // than sitting there with its foot down, holding up everyone behind it)
+            c.s = Math.max(0, Math.min(L, c.s))
+            c.gone = !c.hail
+          }
         }
         Object.assign(c, carPose(c))
       }
+      for (let i = cars.length - 1; i >= 0; i--) if (cars[i].gone) cars.splice(i, 1)
       return cars
+    },
+    // flag down a car (you on foot at x, z): the nearest one coming your way on a road close by
+    // pulls up beside you -> the car | null
+    hail(x, z) {
+      let best = null
+      let bt = Infinity
+      for (const c of cars) {
+        if (c.hail) return c
+        const at = projectOn(c.road, x, z)
+        if (at.d > c.road.width / 2 + 10) continue
+        const togo = (at.s - c.s) * c.dir
+        if (togo < 6 || togo > 180) continue
+        if (togo < bt) {
+          bt = togo
+          best = c
+        }
+      }
+      if (best) best.hail = { x, z, t: 0, stopped: false }
+      return best
+    },
+    // can anyone be flagged down from here? (the action shows when one is coming)
+    canHail(x, z) {
+      return cars.some((c) => {
+        const at = projectOn(c.road, x, z)
+        const togo = (at.s - c.s) * c.dir
+        return at.d <= c.road.width / 2 + 10 && togo >= 6 && togo <= 180
+      })
+    },
+    // the car is yours now: out of the traffic
+    remove(c) {
+      const i = cars.indexOf(c)
+      if (i >= 0) cars.splice(i, 1)
     },
     // circles a car takes up (for your car and you to bump into): [{ x, z, r }]
     solids() {

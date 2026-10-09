@@ -26,5 +26,7 @@ export default {
     { id: "lakebalboa", name: "Lake Balboa", kind: "park", place: "Beilenson Park / Lake Balboa Park", x: -3678, z: -93, look: { x: -3500, z: -200 } },
     { id: "wolfbear", name: "Wolf + Bear", kind: "venue", venue: "wolfbear", x: -15, z: 30, yaw: 0 },
   ],
+  // the train station (the map's railway=station): the train between towns comes and goes here
+  station: { name: "Northridge", x: -8017, z: -5513, yaw: 0 },
   eggs,
 }

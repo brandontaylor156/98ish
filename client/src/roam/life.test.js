@@ -14,7 +14,7 @@ import { tableSpots, tableClear, EAT } from "./sim/tables.js"
 const HERE = path.dirname(fileURLToPath(import.meta.url))
 
 // the decoded prebuilt tiles within r of a point
-export const tilesNear = (town, x, z, r = 300) => {
+const tilesNear = (town, x, z, r = 300) => {
   const dir = path.join(HERE, "..", "..", "public", "roam", town.id)
   const ix = JSON.parse(fs.readFileSync(path.join(dir, "index.json"), "utf8"))
   const f = townFrame(town.origin)

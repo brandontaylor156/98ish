@@ -41,7 +41,9 @@ const CAP = 16
 // the towns (client/src/roam/towns/): how far from the origin a position may be (decimetres)
 const TOWNS = { valencia: { reach: 300000 }, simi: { reach: 300000 }, northridge: { reach: 300000 }, newport: { reach: 300000 } }
 const HOP_MS = 30_000
-const MODELS = ["sedan", "hatch", "suv", "pickup", "turbo", "sundowner"]
+// (the cars, the cab, the dockless bikes and scooters, and the bus or train you ride; a friend can
+// ride along in a car, the bus or the train)
+const MODELS = ["sedan", "hatch", "suv", "pickup", "turbo", "sundowner", "taxi", "bike", "scooter", "bus", "train"]
 const LIMIT = { y: 30000, speed: 900, act: 15 }
 const ACT_RIDE = 8
 const MOVED_CAP = 200

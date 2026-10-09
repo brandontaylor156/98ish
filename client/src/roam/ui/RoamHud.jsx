@@ -11,6 +11,7 @@
 
 import React, { useEffect, useRef, useState } from "react"
 import "./roam.css"
+import "./getaround.css"
 import { Minimap } from "./Minimap.jsx"
 
 const STICK_R = 56
@@ -20,7 +21,12 @@ const mapSize = () => (typeof window !== "undefined" && Math.min(window.innerWid
 // a start spot's little sign
 export const START_ICON = { mall: "🛍", park: "🌳", beach: "🏖", campus: "🎓", fun: "🎡", venue: "🏓", station: "🚆" }
 
-export function RoamHud({ world, hud, voice = null, onMenu, onAction, arrival = null, onStarts = null, credit = "© OpenStreetMap contributors" }) {
+const TURN_ICON = { left: "⬅", right: "➡", keep: "⬆", arrive: "📍" }
+const miles = (m) => (m >= 160 ? `${(m / 1609.34).toFixed(1)} mi` : `${Math.round(m / 3.048) * 10} ft`)
+const clock = (s) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")}`
+const etaWords = (s) => (s < 60 ? "under a minute" : `${Math.round(s / 60)} min`)
+
+export function RoamHud({ world, hud, voice = null, onMenu, onAction, onPhone = null, arrival = null, onStarts = null, credit = "© OpenStreetMap contributors · aerial vegetation: USGS NAIP" }) {
   // (where you arrived, for a few seconds: tap to pick another start spot)
   const [showArrival, setShowArrival] = useState(!!arrival)
   useEffect(() => {
@@ -36,7 +42,8 @@ export function RoamHud({ world, hud, voice = null, onMenu, onAction, arrival = 
   const baseRef = useRef(null)
   const [pedal, setPedal] = useState({ gas: false, brake: false })
   const mode = hud?.mode || "walk"
-  const driving = mode === "drive"
+  // (a bike or a scooter rides on the walking stick; a car steers on the left with pedals on the right)
+  const driving = mode === "drive" && !hud?.two
 
   // (leaving a mode lets go of everything)
   useEffect(() => {
@@ -45,7 +52,7 @@ export function RoamHud({ world, hud, voice = null, onMenu, onAction, arrival = 
     setPedal({ gas: false, brake: false })
     world?.setStick(0, 0)
     world?.setDrive({ steer: 0, gas: 0, brake: 0 })
-  }, [mode, world])
+  }, [mode, world, hud?.two])
 
   const zoneOf = (e) => {
     const r = rootRef.current.getBoundingClientRect()
@@ -130,7 +137,7 @@ export function RoamHud({ world, hud, voice = null, onMenu, onAction, arrival = 
   }
 
   return (
-    <div className={`roamHud is-${mode}`} ref={rootRef} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up} data-touch-surface data-roam="hud">
+    <div className={`roamHud is-${mode}${hud?.gps ? " has-gps" : ""}`} ref={rootRef} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up} data-touch-surface data-roam="hud">
       <div className="roamTop">
         <div className="roamInfo" data-roam="info">
           {hud?.street ? <b data-roam="street">{hud.street}</b> : null}
@@ -146,12 +153,87 @@ export function RoamHud({ world, hud, voice = null, onMenu, onAction, arrival = 
               🎙
             </button>
           )}
+          {onPhone && (
+            <button type="button" className="roamBtn roamPhoneBtn" onClick={onPhone} data-roam="phone" aria-label="Phone">
+              📱
+            </button>
+          )}
           <button type="button" className="roamBtn" onClick={onMenu} data-roam="menu" aria-label="Menu">
             ☰
           </button>
         </div>
       </div>
       <Minimap world={world} size={mapSize()} />
+      {hud?.gps && (
+        <div className="roamGps" data-roam="gps" onPointerDown={(e) => e.stopPropagation()}>
+          <span className="roamGpsArrow" aria-hidden="true">{TURN_ICON[hud.gps.turn] || "⬆"}</span>
+          <span className="roamGpsText">
+            <b data-roam="gps-text">{hud.gps.text}</b>
+            <small>
+              {hud.gps.to} · {miles(hud.gps.left)} · {hud.gps.mins} min
+            </small>
+          </span>
+          <button type="button" className="roamGpsEnd" onClick={() => world?.clearDestination?.()} aria-label="End route" data-roam="gps-end">
+            ✕
+          </button>
+        </div>
+      )}
+      {hud?.ride && (
+        <div className="roamTripBar" data-roam="ride" data-phase={hud.ride.phase} onPointerDown={(e) => e.stopPropagation()}>
+          <span>
+            {hud.ride.kind === "taxi" ? "🚕" : "🚗"} <b>{hud.ride.name}</b>{" "}
+            {hud.ride.phase === "coming" ? `· ${hud.ride.driver} is ${etaWords(hud.ride.eta)} away` : hud.ride.phase === "waiting" ? `· ${hud.ride.driver} is here` : hud.ride.phase === "riding" ? `· to ${hud.ride.to || "your pin"} · ${etaWords(hud.ride.eta)}` : "· here!"}
+          </span>
+          {hud.ride.phase === "riding" ? (
+            <button type="button" className="roamBtn" onClick={() => world?.skipAhead?.()} data-roam="skip">
+              ⏩ Skip ahead
+            </button>
+          ) : hud.ride.phase === "coming" || hud.ride.phase === "waiting" ? (
+            <button type="button" className="roamBtn" onClick={() => world?.cancelRide?.()} data-roam="ride-cancel">
+              Cancel
+            </button>
+          ) : null}
+        </div>
+      )}
+      {hud?.transit && mode === "walk" && !hud?.ride && (
+        <div className="roamTripBar roamTransit" data-roam="transit" onPointerDown={(e) => e.stopPropagation()}>
+          <span>
+            {hud.transit.station ? "🚆" : "🚏"} <b>{hud.transit.stop}</b>
+            {hud.transit.next.slice(0, 2).map((n) => (
+              <small key={n.label}>
+                {n.label} · {n.secs <= 0 ? "here now" : clock(n.secs)}
+              </small>
+            ))}
+          </span>
+          {hud.transit.next[0]?.secs > 6 && (
+            <button type="button" className="roamBtn" onClick={() => world?.skipWait?.()} data-roam="skip-wait">
+              ⏩ Skip the wait
+            </button>
+          )}
+        </div>
+      )}
+      {hud?.onboard && (
+        <div className="roamTripBar roamOnboard" data-roam="onboard" onPointerDown={(e) => e.stopPropagation()}>
+          <span>
+            {hud.onboard.kind === "bus" ? "🚌" : "🚆"} <b>{hud.onboard.label}</b>
+            <small>{hud.onboard.at ? `At ${hud.onboard.at}` : hud.onboard.next ? `Next: ${hud.onboard.next}` : ""}</small>
+          </span>
+          {hud.onboard.next && !hud.onboard.at && (
+            <button type="button" className="roamBtn" onClick={() => world?.skipAhead?.()} data-roam="skip-stop">
+              ⏩ Next stop
+            </button>
+          )}
+          {hud.onboard.towns?.length ? (
+            <span className="roamTownBtns">
+              {hud.onboard.towns.map((t) => (
+                <button key={t.id} type="button" className="roamBtn" onClick={() => world?.trainTo?.(t.id)} data-roam={`train-${t.id}`}>
+                  Ride on to {t.name}
+                </button>
+              ))}
+            </span>
+          ) : null}
+        </div>
+      )}
       {(driving || mode === "ride") && (
         <div className="roamCarBtns">
           <button type="button" className={`roamBtn roamRadio${hud?.radio ? " is-on" : ""}`} onPointerDown={(e) => e.stopPropagation()} onClick={() => world?.radio?.(!hud?.radio)} data-roam="radio" aria-label="Radio">

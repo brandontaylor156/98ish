@@ -12,6 +12,28 @@ export const MODELS = {
   turbo: { top: 42, accel: 10, wheelbase: 2.5, len: 4.3, wid: 1.85, circles: [-1.25, 0, 1.25], r: 0.9 },
   // Vince's car, unlocked by his keys (My Park's drinks-machine easter egg): quick, planted
   sundowner: { top: 40, accel: 9.4, wheelbase: 2.74, len: 4.62, wid: 1.94, circles: [-1.35, 0, 1.35], r: 0.95 },
+  // a yellow cab (the ride app's cars are the everyday ones): a sedan underneath
+  taxi: { top: 30, accel: 6.5, wheelbase: 2.75, len: 4.7, wid: 1.85, circles: [-1.45, 0, 1.45], r: 0.92 },
+  // the dockless ones near the shops and parks (sim/fleet.js): nimble, quick off the mark, a
+  // tight turn at any speed (steer: full lock at walking pace and at top speed, rad)
+  bike: { top: 9.5, accel: 3.4, wheelbase: 1.05, len: 1.75, wid: 0.6, circles: [0], r: 0.42, two: true, steer: [0.6, 0.12], brake: 7 },
+  scooter: { top: 8, accel: 3.8, wheelbase: 0.85, len: 1.15, wid: 0.5, circles: [0], r: 0.38, two: true, steer: [0.65, 0.13], brake: 6.5 },
+  // a city bus (sim/transit.js drives it; you ride)
+  bus: { top: 18, accel: 1.5, wheelbase: 6.2, len: 12.2, wid: 2.55, circles: [-4.5, -1.5, 1.5, 4.5], r: 1.3, big: true },
+}
+// what a car is: two wheels (you stand on it) or four
+export const isTwo = (model) => !!MODELS[model]?.two
+
+// a bike or scooter on one thumb: the stick (x right, y up, each -1..1, the camera behind you)
+// says where to go: up rides on (the further, the faster), a sideways lean steers that way,
+// pulled back brakes. -> { steer -1..1 (right +), gas 0..1, brake 0..1 }
+export const stickToRide = (x, y) => {
+  const m = Math.min(1, Math.hypot(x, y))
+  if (m < 0.15) return { steer: 0, gas: 0, brake: 0 }
+  const a = Math.atan2(x, y) // 0 straight up, +pi/2 right
+  if (Math.abs(a) > 2.3) return { steer: 0, gas: 0, brake: m }
+  const steer = Math.max(-1, Math.min(1, a / 1.1))
+  return { steer, gas: m * Math.max(0.35, Math.cos(a * 0.6)), brake: 0 }
 }
 export const MODEL_IDS = ["sedan", "hatch", "suv", "pickup"]
 const BRAKE = 13
@@ -24,7 +46,12 @@ const G = 9.8
 export const createCar = ({ id = "car", model = "sedan", color = 0xffffff, x = 0, z = 0, yaw = 0, y = 0 } = {}) => ({ id, model, color, x, z, y, yaw, speed: 0, steer: 0, pitch: 0, roll: 0, vy: 0, hitT: 0 })
 
 // the steering angle a full lock gives at a speed (less the faster you go)
-export const steerLimit = (speed) => {
+export const steerLimit = (speed, model = null) => {
+  const m = model ? MODELS[model] : null
+  if (m?.steer) {
+    const k = Math.min(1, Math.abs(speed) / m.top)
+    return m.steer[0] + (m.steer[1] - m.steer[0]) * k
+  }
   const k = Math.min(1, Math.abs(speed) / 26)
   return MAX_STEER + (MIN_STEER - MAX_STEER) * Math.sqrt(k)
 }
@@ -47,8 +74,8 @@ export const stepCar = (c, input, dt, world = null) => {
     else a += m.accel * gas * Math.max(0.15, 1 - (c.speed / m.top) ** 2)
   }
   if (brake > 0) {
-    if (c.speed > 0.3) a -= BRAKE * brake
-    else if (gas === 0) a -= (c.speed > -REVERSE_TOP ? 4.5 : 0) * brake // (held at a stop: backs up)
+    if (c.speed > 0.3) a -= (m.brake || BRAKE) * brake
+    else if (gas === 0) a -= (c.speed > -(m.two ? 1.5 : REVERSE_TOP) ? (m.two ? 1.5 : 4.5) : 0) * brake // (held at a stop: backs up)
   }
   // rolling and air drag, and the slope (pitch: nose up +)
   const drag = 0.35 + 0.0016 * c.speed * c.speed
@@ -59,11 +86,11 @@ export const stepCar = (c, input, dt, world = null) => {
   // (the brake stops the car; it doesn't flip it into reverse by itself in one step)
   if (brake > 0 && gas === 0 && before > 0.3 && c.speed < 0) c.speed = 0
   if (gas === 0 && brake === 0 && Math.abs(c.speed) < 0.15 && Math.abs(Math.sin(c.pitch)) < 0.04) c.speed = 0
-  c.speed = Math.max(-REVERSE_TOP, Math.min(m.top, c.speed))
+  c.speed = Math.max(m.two ? -1.5 : -REVERSE_TOP, Math.min(m.top, c.speed))
   // nobody gets hit: someone in front (or behind, backing up) -> the car stops
   if (world?.blocked && Math.abs(c.speed) > 0.05 && world.blocked(c.x, c.z, c.yaw, Math.sign(c.speed), m)) c.speed = 0
   // turning (bicycle model)
-  const angle = c.steer * steerLimit(c.speed)
+  const angle = c.steer * steerLimit(c.speed, c.model)
   const yawRate = (c.speed * Math.tan(angle)) / m.wheelbase
   // (steer right = clockwise seen from above: yaw goes down in our frame, x east / z south)
   c.yaw -= yawRate * dt
