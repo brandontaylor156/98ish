@@ -357,7 +357,7 @@ export const createInterior = ({ town, host = {}, room, layout: L, phone = false
   const updateCamera = (dt) => {
     const w = me.walker
     const portrait = size.height > size.width * 1.05
-    const dist = seat ? 1.9 : cam.dist + (portrait ? 0.4 : 0)
+    const dist = seat ? 2.6 : cam.dist + (portrait ? 0.4 : 0)
     const head = seat ? 1.15 : 1.5
     const lx = w.x
     const lz = w.z
