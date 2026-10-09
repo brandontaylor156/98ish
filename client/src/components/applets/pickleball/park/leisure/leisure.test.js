@@ -64,12 +64,12 @@ const reachable = (L, start, targets, G = 0.5) => {
 
 test("leisure only where the venue really has it: the packs' pools, tub, counters and fridges, OSM's pool", () => {
   const want = {
-    loscab: { swim: ["The 50 m pool", "The lap pool"], tub: ["The hot tub"], order: ["Los Cab Cafe"], vending: ["The cafe's drinks fridge"] },
+    loscab: { swim: ["The 50 m pool", "The lap pool"], tub: ["The hot tub"], order: ["Los Cab Cafe"], vending: ["The cafe's drinks fridge", "The vending machines"] },
     // (the only pool and spa OSM has there are in a house's back garden: none)
-    newport: { swim: [], tub: [], order: ["The clubhouse bar", "The social lawn bar"], vending: [] },
+    newport: { swim: [], tub: [], order: ["The clubhouse bar", "The social lawn bar"], vending: ["The vending machine"] },
     wolfbear: { swim: [], tub: [], order: [], vending: ["The drinks fridges"] },
     whittier: { swim: [], tub: [], order: ["The snack window"], vending: [] },
-    paseo: { swim: ["The pool"], tub: [], order: ["The cafe and bar"], vending: [] },
+    paseo: { swim: ["The pool"], tub: ["The hot tub"], order: ["The cafe and bar"], vending: [] },
     sinaloa: { swim: [], tub: [], order: [], vending: [] },
     smash: { swim: [], tub: [], order: ["The bar and restaurant"], vending: ["The lobby's drinks fridge"] },
     bouquet: { swim: [], tub: [], order: [], vending: [] },
@@ -87,7 +87,8 @@ test("leisure only where the venue really has it: the packs' pools, tub, counter
         assert.ok(S.areas.some((a) => a.k === "pool" && a.p === s.poly), `${id} ${s.id}: a pool in the data`)
         assert.ok(src.pools.some((p) => Math.hypot(p.at[0] - s.cx, p.at[1] - s.cz) < 8), `${id} ${s.id}: a sourced pool`)
       }
-      if (s.kind === "tub") assert.ok(S.props.some((p) => p.t === src.tub.prop && p.x === s.x && p.z === s.z), `${id}: the tub is the spec's own`)
+      // (a tub prop, or the small pool the owner named as the hot tub)
+      if (s.kind === "tub") assert.ok(src.tub.prop ? S.props.some((p) => p.t === src.tub.prop && p.x === s.x && p.z === s.z) : S.areas.some((a) => a.k === "pool" && Math.hypot(a.p.reduce((t, q) => t + q[0], 0) / a.p.length - s.x, a.p.reduce((t, q) => t + q[1], 0) / a.p.length - s.z) < 4), `${id}: the tub is the spec's own`)
       if (s.kind === "order" || s.kind === "vending") {
         const def = src[s.kind === "order" ? "order" : "vending"]
         const counters = def.flatMap((d) => (d.room ? furnishRoom(S.rooms.find((r) => r.id === d.room)).filter((p) => p.t === (s.kind === "order" ? "counter" : d.t)) : S.props.filter((p) => (s.kind === "order" ? p.t === "counter" : p.t === d.loose))))

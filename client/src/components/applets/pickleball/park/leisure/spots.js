@@ -10,7 +10,7 @@
 //   leisureSpots(layout) -> [{ id, kind: "swim" | "tub" | "order" | "vending", ... , src }]
 //     swim:    { poly, cx, cz, along: { x, z }, len, wid, lanes, laps, entry }  (a pool)
 //     tub:     { x, z, r, rim, water, seats: [{ id, x, z, yaw }] }               (a round hot tub)
-//     order:   { x, z, y, r, at: { x, z, yaw }, menu: "bar" | "cafe" | "snack", name }
+//     order:   { x, z, y, r, at: { x, z, yaw }, menu: "bar" | "cafe" | "cafebar" | "snack" | "truck", name }
 //     vending: { x, z, y, r, at: { x, z, yaw }, name, egg: true }
 //   leisureAt(spots, x, z, y) -> { spot, d } the spot you're at (a pool's edge, a counter...) or null
 
@@ -30,7 +30,10 @@ export const LEISURE_SOURCES = {
     ],
     tub: { prop: "spa", name: "The hot tub", src: "Aerial: a round white tub at the 50 m pool's south-east corner; reference pack site sketch: \"(jacuzzi)\" beside the 50 m pool" },
     order: [{ room: "cafe", menu: "cafe", name: "Los Cab Cafe", src: "loscab.com, in the reference pack: \"Los Cab Cafe counter; drinks fridge\" (the cafe's place in the clubhouse is the pack's GUESS)" }],
-    vending: [{ room: "cafe", t: "vending", name: "The cafe's drinks fridge", src: "loscab.com, in the reference pack: the cafe's \"drinks fridge\"" }],
+    vending: [
+      { room: "cafe", t: "vending", name: "The cafe's drinks fridge", src: "loscab.com, in the reference pack: the cafe's \"drinks fridge\"" },
+      { loose: "vending", name: "The vending machines", src: "The owner (2026-10-09): Los Cab's two outdoor vending machines by the fitness building are real" },
+    ],
   },
   newport: {
     // (the only pool and spa OpenStreetMap has in Newport's crop, ways 1414460953/4, are in the
@@ -40,13 +43,17 @@ export const LEISURE_SOURCES = {
       { room: "chLounge", menu: "bar", name: "The clubhouse bar", src: "Reference pack floorplan: the clubhouse lounge, \"bar counter with black ladder-back stools\", dining tables" },
       { loose: [-30.4, 41.3], menu: "bar", name: "The social lawn bar", src: "Reference pack notes: the social lawn (2025-26), \"wood-clad outdoor bar with shelves\"" },
     ],
+    vending: [{ loose: "vending", name: "The vending machine", src: "The owner (2026-10-09): Newport's vending machine by the courts is real" }],
   },
   whittier: {
     order: [{ room: "wnSnack", menu: "snack", name: "The snack window", src: "Reference pack notes: \"snack window with string lights\"; the Friday social video (R7JzprkIfns: clubhouse, snack bar). Where it sits in the clubhouse is an owner question" }],
   },
   paseo: {
     pools: [{ at: [50, -125.5], name: "The pool", src: "OpenStreetMap way 1020677413 (leisure=swimming_pool, outdoor, lit); reference pack: \"junior-Olympic pool with cabanas\"" }],
-    order: [{ room: "pcCafe", menu: "cafe", name: "The cafe and bar", src: "Reference pack floorplan (the club's Virtual Club Tour): \"Cafe and bar\" (which building it's in is the pack's GUESS)" }],
+    // (the owner, 2026-10-09: one of the two small pools beside the main pool is a hot tub; the
+    // one at the main pool's north-east corner, about 5 m across)
+    tub: { area: [58.5, -111.2], name: "The hot tub", src: "The owner (2026-10-09): one of the small pools beside the main pool is a hot tub; its outline is the aerial's small pool at the main pool's north-east corner" },
+    order: [{ room: "pcCafe", menu: "cafebar", name: "The cafe and bar", src: "Reference pack floorplan (the club's Virtual Club Tour): \"Cafe and bar\" (which building it's in is the pack's GUESS)" }],
   },
   smash: {
     order: [{ room: "bar", menu: "bar", name: "The bar and restaurant", src: "Reference pack: the \"Social Club\" bar, \"red stools, long white bar, lit back bar\" (club tour 3JwJzKRyTQs)" }],
@@ -161,7 +168,18 @@ export const leisureSpots = (layout) => {
   })
   // ---- the hot tub: a spec prop (round) ----
   if (src.tub) {
-    const p = (S.props || []).find((q) => q.t === src.tub.prop)
+    // (a round tub prop, or a small pool area the owner named as the hot tub)
+    let p = src.tub.prop ? (S.props || []).find((q) => q.t === src.tub.prop) : null
+    if (!p && src.tub.area) {
+      const a = areas.find((q) => {
+        const c = centroid(q.p)
+        return Math.hypot(c.x - src.tub.area[0], c.z - src.tub.area[1]) < 4
+      })
+      if (a) {
+        const f = poolFrame(a.p)
+        p = { x: f.cx, z: f.cz, s: Math.max(0.8, Math.min(1.6, Math.min(f.len, f.wid) / 2 / 1.6)) }
+      }
+    }
     if (p) {
       const R = 1.6 * (p.s || 1)
       const seats = []

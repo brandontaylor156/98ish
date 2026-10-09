@@ -17,6 +17,10 @@ export const ITEMS = {
   icedcoffee: { name: "Iced coffee", icon: "🧋", price: 6, kind: "drink", held: "cup", color: "#8a5a3a", sips: 6 },
   coffee: { name: "Hot coffee", icon: "☕", price: 4, kind: "drink", held: "mug", color: "#5a3a26", sips: 5 },
   sparkling: { name: "Sparkling water", icon: "🫧", price: 4, kind: "drink", held: "bottle", color: "#bfe4f0", sips: 5 },
+  // (the owner, 2026-10-09: the bars serve beer and wine)
+  beer: { name: "Draft beer (golden ale)", short: "Draft beer", icon: "🍺", price: 8, kind: "drink", held: "pint", color: "#e3a62b", sips: 6, adult: true },
+  wine: { name: "Glass of red wine", short: "Red wine", icon: "🍷", price: 10, kind: "drink", held: "wine", color: "#7a1630", sips: 5, adult: true },
+  white: { name: "Glass of white wine", short: "White wine", icon: "🥂", price: 10, kind: "drink", held: "wine", color: "#efe3a0", sips: 5, adult: true },
   // food
   burger: { name: "Club burger", icon: "🍔", price: 14, kind: "food", held: "burger", sips: 5 },
   fries: { name: "Fries", icon: "🍟", price: 6, kind: "food", held: "fries", sips: 5 },
@@ -34,9 +38,13 @@ export const itemName = (id) => ITEMS[id]?.short || ITEMS[id]?.name || ""
 
 // what each kind of place serves
 export const MENUS = {
-  bar: ["lemonade", "halfhalf", "sparkling", "burger", "fries", "tacos", "wrap"],
+  bar: ["beer", "wine", "white", "lemonade", "halfhalf", "sparkling", "burger", "fries", "tacos", "wrap"],
   cafe: ["mango", "berry", "icedcoffee", "coffee", "lemonade", "wrap", "fries"],
+  // (a cafe that is also a bar: Paseo's "Cafe and bar")
+  cafebar: ["mango", "berry", "icedcoffee", "coffee", "beer", "wine", "white", "lemonade", "wrap", "fries"],
   snack: ["burger", "fries", "tacos", "lemonade", "halfhalf", "sparkling"],
+  // (food trucks: street food and cold drinks)
+  truck: ["tacos", "burger", "fries", "wrap", "lemonade", "halfhalf", "sparkling"],
   vending: ["fizz", "limepop", "water", "sports"],
 }
 export const menuFor = (spot) => (MENUS[spot?.kind === "vending" ? "vending" : spot?.menu] || []).map(itemById).filter(Boolean)
