@@ -7,12 +7,13 @@
 // Everything static: build.js merges it.
 
 import * as THREE from "three"
+import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js"
 import { addProps, propMaterials } from "./props.js"
 import { FINISH, roomRect } from "./propkit.js"
 import { surfaced } from "./surfaces.js"
 import { buildCars, buildDecals, buildGlow, buildLotDetail, buildTrees, buildTufts, canvasTex, normalFor, windscreenTex, planDecals, setDetailEnv, skyEnvironment, windowMaps } from "./detail.js"
 import { dimEnvironment, loadHDRI, swapEnvironment } from "./environment.js"
-import { paintSurroundGround, railBridgeGeometry, surroundBuildingsGeometry } from "./surround.js"
+import { paintSurroundGround, powerLineGeometry, railBridgeGeometry, roadBridgeGeometry, surroundBuildingsGeometry, terrainSampler } from "./surround.js"
 
 const canvasTexture = (w, h, draw) => {
   const c = document.createElement("canvas")
@@ -359,9 +360,25 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
         ),
       })
     : lambert(hex(C.far, 0x8f9a6a))
-  const far = new THREE.Mesh(keep(new THREE.CircleGeometry(farR, 48)), farMat)
-  far.rotation.x = -Math.PI / 2
-  far.position.set((X0 + X1) / 2, -0.05, (Z0 + Z1) / 2)
+  // (the terrain's real shape, terrain.py: the far ground becomes a grid lifted onto it, flat
+  // under the crop; the surroundings' buildings and trees stand on it)
+  const groundAt = terrainSampler(S.terrain, { x0: X0, x1: X1, z0: Z0, z1: Z1 })
+  let far
+  if (S.terrain) {
+    const segs = Math.min(120, Math.round((2 * farR) / (S.terrain.step || 15)))
+    const geo = new THREE.PlaneGeometry(2 * farR, 2 * farR, segs, segs).rotateX(-Math.PI / 2)
+    const pos = geo.attributes.position
+    const cx = (X0 + X1) / 2
+    const cz = (Z0 + Z1) / 2
+    for (let i = 0; i < pos.count; i++) pos.setY(i, groundAt(pos.getX(i) + cx, pos.getZ(i) + cz))
+    geo.computeVertexNormals()
+    far = new THREE.Mesh(keep(geo), farMat)
+    far.position.set(cx, -0.05, cz)
+  } else {
+    far = new THREE.Mesh(keep(new THREE.CircleGeometry(farR, 48)), farMat)
+    far.rotation.x = -Math.PI / 2
+    far.position.set((X0 + X1) / 2, -0.05, (Z0 + Z1) / 2)
+  }
   group.add(far)
 
   // ---------- the banks' surfaces and every court ----------
@@ -1363,7 +1380,44 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
     if (!railMats.has(c)) railMats.set(c, lambert(hex(c, 0xf2f2ee)))
     return railMats.get(c)
   }
+  // (a railing of black vertical bars: Los Cab's deck in the owner's photos; one textured
+  // quad a run, alpha-cut)
+  let barsMat = null
+  const barsMatFor = (c) => {
+    if (barsMat) return barsMat
+    const t = keep(
+      canvasTexture(64, 64, (ctx, w) => {
+        ctx.clearRect(0, 0, w, w)
+        ctx.fillStyle = "#ffffff"
+        ctx.fillRect(0, 0, w, 5)
+        ctx.fillRect(0, w - 4, w, 4)
+        for (let x = 4; x < w; x += 16) ctx.fillRect(x, 0, 4, w)
+      })
+    )
+    t.wrapS = THREE.RepeatWrapping
+    barsMat = keep(new THREE.MeshLambertMaterial({ map: t, color: hex(c, 0x1b1c1e), transparent: false, alphaTest: 0.5, side: THREE.DoubleSide }))
+    return barsMat
+  }
   for (const d of S.decks || []) {
+    if (d.fascia) {
+      // a wood deck on posts (Los Cab): planks, a brown fascia round its edge, posts under it
+      const slab = new THREE.Mesh(flat(d.p, d.y), surfaced(std(hex(d.color, 0x9b7653), { roughness: 0.75 }), "deck"))
+      group.add(slab)
+      group.add(new THREE.Mesh(flatDown(d.p, d.y - 0.35), lambert(0x4a3a2e)))
+      group.add(new THREE.Mesh(wallRing(d.p, d.y - 0.38, d.y + 0.05, {}), plainMatFor(hex(d.fascia, 0x6e4a33))))
+      const pm = lambert(hex(d.postColor, 0x1d1e20))
+      for (let i = 0; i < d.p.length; i++) {
+        const a = d.p[i]
+        const b = d.p[(i + 1) % d.p.length]
+        const L = Math.hypot(b[0] - a[0], b[1] - a[1])
+        const n = Math.max(1, Math.round(L / (d.postEvery || 3.6)))
+        for (let k = 0; k < n; k++) {
+          const post = new THREE.Mesh(keep(new THREE.BoxGeometry(0.16, d.y - 0.35, 0.16)), pm)
+          post.position.set(a[0] + ((b[0] - a[0]) * k) / n, (d.y - 0.35) / 2, a[1] + ((b[1] - a[1]) * k) / n)
+          group.add(post)
+        }
+      }
+    }
     if (d.slab) {
       const slab = new THREE.Mesh(flat(d.p, d.y), surfaced(std(hex(d.color, 0xb78a52), { roughness: 0.6 }), "deck"))
       group.add(slab)
@@ -1392,8 +1446,14 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
         top.position.set(a[0] + u.x * m, d.y + 1.05, a[1] + u.z * m)
         top.rotation.y = -Math.atan2(u.z, u.x)
         group.add(top)
-        // glass infill between the posts (a terrace's see-through railing)
-        const glass = new THREE.Mesh(keep(new THREE.PlaneGeometry(e0 - s0, 0.9)), glassMat)
+        // glass infill between the posts (a terrace's see-through railing), or black bars
+        const bars = d.railStyle === "bars"
+        const ig = keep(new THREE.PlaneGeometry(e0 - s0, 0.95))
+        if (bars) {
+          const uv = ig.attributes.uv
+          for (let i = 0; i < uv.count; i++) uv.setX(i, uv.getX(i) * (e0 - s0) * 2)
+        }
+        const glass = new THREE.Mesh(ig, bars ? barsMatFor(d.railColor) : glassMat)
         glass.position.set(a[0] + u.x * m, d.y + 0.55, a[1] + u.z * m)
         glass.rotation.y = -Math.atan2(u.z, u.x)
         glass.renderOrder = 1
@@ -1420,8 +1480,10 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
     for (let k = 0; k < n; k++) {
       const t = (k + 0.5) / n
       const hTop = s.y0 + (rise * (k + 1)) / n
-      const step = new THREE.Mesh(keep(new THREE.BoxGeometry(L / n + 0.02, Math.max(0.08, hTop - (s.y0 + (rise * k) / n) + 0.04), s.w)), stepMat)
-      step.position.set(s.a.x + ux * L * t, hTop - (hTop - (s.y0 + (rise * k) / n)) / 2, s.a.z + uz * L * t)
+      // (open steel stairs: a wood tread on each step, nothing under it)
+      const th = s.open ? 0.06 : Math.max(0.08, hTop - (s.y0 + (rise * k) / n) + 0.04)
+      const step = new THREE.Mesh(keep(new THREE.BoxGeometry(L / n + 0.02, th, s.w)), stepMat)
+      step.position.set(s.a.x + ux * L * t, s.open ? hTop - th / 2 : hTop - (hTop - (s.y0 + (rise * k) / n)) / 2, s.a.z + uz * L * t)
       step.rotation.y = ry
       group.add(step)
     }
@@ -1860,13 +1922,15 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
   }
 
   // ---------- trees ----------
-  const byKind = { broadleaf: [], palm: [], conifer: [], eucalyptus: [] }
+  const byKind = { broadleaf: [], palm: [], conifer: [], eucalyptus: [], pine: [] }
   for (const t of S.trees) (byKind[t.kind] || byKind.broadleaf).push(t)
   // only real trees: the venue's own (OSM, the aerial canopy, hand-placed from the reference pack)
   // and the mapped ones around it (S.surround.trees); nothing is scattered to fill the view
   // (docs/venue-provenance.md)
-  for (const t of S.surround?.trees || []) (byKind[t[3]] || byKind.broadleaf).push({ x: t[0], z: t[1], s: t[2] })
+  for (const t of S.surround?.trees || []) (byKind[t[3]] || byKind.broadleaf).push({ x: t[0], z: t[1], s: t[2], ...(S.terrain ? { y: groundAt(t[0], t[1]) } : {}) })
   const trunkMat = lambert(0x6b4a2b)
+  // (Low: pines drawn as the plain conifers)
+  if (!detail) byKind.conifer.push(...byKind.pine.splice(0))
   if (detail) buildTrees(group, byKind, { keep, rand })
   if (!detail && (byKind.broadleaf.length || byKind.eucalyptus.length)) {
     const list = [...byKind.broadleaf, ...byKind.eucalyptus]
@@ -1968,7 +2032,7 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
           tufts.push({ x: x0 + ((x1 - x0) * d) / len + nx * o, z: z0 + ((z1 - z0) * d) / len + nz * o, s: 0.6 + rand() * 0.8, r: rand() * Math.PI })
         }
       }
-      for (const f of S.fences) if (f.k === "chain" && tufts.length < 5000) along(f.a, f.b, 0.9, 0.18)
+      for (const f of S.fences) if (f.k === "chain" && !f.part && !S.fence?.types?.[f.t]?.curb && tufts.length < 5000) along(f.a, f.b, 0.9, 0.18)
       for (const [a, b] of edges) if (tufts.length < 6500) along(a, b, 1.3, 0.25)
       buildTufts(group, tufts, { keep })
     }
@@ -2285,6 +2349,56 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
           post.position.set(x.x + ox * c + oz * sn, (sh - 0.2) / 2, x.z - ox * sn + oz * c)
           group.add(post)
         }
+    } else if (x.type === "sign" && x.text) {
+      // a venue's own name in letters on a wall (our rendering of the real lettering: Los Cab's
+      // red serif capitals, the owner's photos); the letters only, the wall shows round them
+      const hgt = x.h || 0.9
+      const font = `${x.weight || "bold"} 96px ${x.font || "Georgia, 'Times New Roman', serif"}`
+      let wpx = 1024
+      if (typeof document !== "undefined") {
+        const m = document.createElement("canvas").getContext("2d")
+        m.font = font
+        wpx = Math.ceil(m.measureText(x.text).width + 24)
+      }
+      const tex = keep(
+        canvasTexture(Math.min(4096, wpx), 128, (ctx, w) => {
+          ctx.clearRect(0, 0, w, 128)
+          ctx.font = font
+          ctx.fillStyle = x.color || "#c8202e"
+          ctx.textBaseline = "middle"
+          ctx.fillText(x.text, 12, 66)
+        })
+      )
+      const wm = (hgt * Math.min(4096, wpx)) / 96
+      const sign = new THREE.Mesh(keep(new THREE.PlaneGeometry(wm, (hgt * 128) / 96)), keep(new THREE.MeshBasicMaterial({ map: tex, transparent: true, alphaTest: 0.3, depthWrite: false })))
+      sign.position.set(x.x, x.y ?? 5, x.z)
+      sign.rotation.y = faceYaw(x.face, x.deg)
+      sign.renderOrder = 1
+      sign.userData.noCast = true
+      group.add(sign)
+    } else if (x.type === "shade" && x.poly?.length >= 3) {
+      // a shade structure over benches (Bouquet's alcove, the owner's photo): square steel posts
+      // round its edge, a thin flat metal roof on top, falling `fall` m toward its low side
+      const p = x.poly
+      const h = x.h || 3.2
+      const postMat = lambert(hex(x.posts, 0x3b3f3c))
+      const posts = []
+      for (let i = 0; i < p.length; i++) {
+        const [ax2, az2] = p[i]
+        const [bx2, bz2] = p[(i + 1) % p.length]
+        const n = Math.max(1, Math.ceil(Math.hypot(bx2 - ax2, bz2 - az2) / 3.5))
+        for (let k = 0; k < n; k++) posts.push([ax2 + ((bx2 - ax2) * k) / n, az2 + ((bz2 - az2) * k) / n])
+      }
+      const post = new THREE.InstancedMesh(keep(new THREE.BoxGeometry(0.1, h, 0.1).translate(0, h / 2, 0)), postMat, posts.length)
+      posts.forEach(([px, pz], i) => post.setMatrixAt(i, m4.compose(v1.set(px, 0, pz), q.identity(), v2.set(1, 1, 1))))
+      group.add(post)
+      const { ux, uz, u0, u1, w0, w1 } = rectOf(p)
+      const roof = new THREE.Mesh(keep(new THREE.BoxGeometry(u1 - u0 + 0.5, 0.08, w1 - w0 + 0.5)), lambert(hex(x.roof, 0xc9cbc6)))
+      const um = (u0 + u1) / 2
+      const wm = (w0 + w1) / 2
+      roof.position.set(um * ux - wm * uz, h + 0.05, um * uz + wm * ux)
+      roof.rotation.set(0, -Math.atan2(uz, ux), x.fall ? Math.atan2(x.fall, u1 - u0) : 0, "YXZ")
+      group.add(roof)
     } else if (x.type === "awnings") {
       const aw = new THREE.Mesh(keep(new THREE.BoxGeometry(x.w || 10, 0.06, 1.4)), lambert(hex(x.color, 0x7a1f2a)))
       aw.position.set(x.x, 2.8, x.z)
@@ -2294,10 +2408,24 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
   }
   // ---------- the real surroundings (OpenStreetMap, beyond the crop: surround.js) ----------
   if (SU?.buildings?.length) {
-    const g = keep(surroundBuildingsGeometry(SU.buildings))
+    const g = keep(surroundBuildingsGeometry(SU.buildings, S.terrain ? groundAt : null))
     const m = new THREE.Mesh(g, lambert(0xffffff, { vertexColors: true, side: THREE.DoubleSide }))
     m.userData.noCast = true
     group.add(m)
+  }
+  if (SU?.roads?.some((r) => r.bridge)) {
+    const parts = roadBridgeGeometry(SU.roads)
+    if (parts.length) group.add(new THREE.Mesh(keep(mergeGeometries(parts.map((g) => (g.deleteAttribute("uv"), g)), false)), lambert(0xc4c0b6)))
+  }
+  if (SU?.power?.length) {
+    const { poles, wires } = powerLineGeometry(SU.power, S.terrain ? groundAt : () => 0)
+    const strip = (list) => mergeGeometries(list.map((g) => (g.deleteAttribute("uv"), g.index ? g.toNonIndexed() : g)), false)
+    if (poles.length) group.add(new THREE.Mesh(keep(strip(poles)), lambert(0x8d9096)))
+    if (wires.length) {
+      const w = new THREE.Mesh(keep(strip(wires)), lambert(0x2a2a2c))
+      w.userData.noCast = true
+      group.add(w)
+    }
   }
   if (SU?.rails?.length) {
     const parts = railBridgeGeometry(SU.rails)

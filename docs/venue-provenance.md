@@ -65,6 +65,37 @@ Courts, nets, fences, light poles and court paint come from OSM plus the aerial 
 
 Los Cab's ballroom balcony (2026-10-08): no new objects; its railing now opens at the ballroom's two glass doors (it ran across them) and the clubhouse wall opens there at that floor.
 
+#### Los Cab, fidelity round (2026-10-08): the owner's seven photos
+
+Sources: `refs/loscab/owner/` (photos 1-7; from "/10" carousels), the pack's z20 aerial, a z18 aerial for the surroundings (`refs/loscab/wide/`), OSM. The oblique drone photo (7) solved from 16 court corners at 2.4 px rms (`refs/loscab/points.json`); photos 1 and 2 by hand poses in `photos.json` (too few clear features). Positions as en (m east, north of the pack's anchor).
+
+| Object | Built | Method, uncertainty | Source |
+|---|---|---|---|
+| Partitions | low partitions between the pairs of courts in the village's two blocks, none inside a pair: 14 (2 in the west block, 12 in the east), from the pen's fence at a row's outer end to 1 m past the baselines on the centre aisle | Rule `fence.pairDividers`: between side-by-side neighbours whose sidelines are more than 2.8 m apart (pairs stand 2.0-2.2 m apart, pairs 3.3-4.9 m); checked court by court against drone photo 7 (partitions between 32 / 44, 52 / 62; none in 44 / 52 or 62 / 70) | Owner photo 7 |
+| Partition build | 1.2 m to the top of a thick green cap (`#2e7a57`), black mesh, galvanized posts ~2.5 m apart, a green-painted concrete curb 0.28 m along the foot | Photo 1: the curb ~0.28 m (owner); the people beside the fence give 1.0-1.5 m to the cap (±0.2 m); colours from photos 1 and 7 | Owner photos 1, 2 |
+| Before | 3 m windscreened fences round both blocks and 0.9 m screens between every pair of neighbours (33) | | |
+| Village perimeter | the same low fence on the north side (along the deck) and at both blocks' ends on the cross-walkway; the other sides keep the pack's 3 m black chain-link with windscreens to 2.2 m | Photos 1, 2 (looking over a low fence from the deck), 7 (a low fence with banners at the walkway); photos 2 and 4 show tall black screens by the white building and the tennis court | Owner photos |
+| Centre aisle | a black portable net barrier (~0.9 m) on white posts along the aisle between the two rows, one per block | Drone photo 7 (posts with white feet along the aisle), night photo 5 | Owner photos 5, 7 |
+| Light poles | 86 white poles: one in every gap between side-by-side courts and outside each row's end courts, two along each gap 4.5 m from the row's middle, a T arm along the gap with two flat LED heads (8.5 m, the pack's estimate, unmeasured) | Drone photo 7 (poles stand in the green between courts near the kitchen lines), photos 2, 3, 5 (T arms, two flat heads). Before: 51 double-head poles round the blocks' outsides every 9 m | Owner photos |
+| Cross-walkway | painted dark blue `#26386e`, x 21.9..27.3 | Drone photo 7, photo 4 | Owner photos |
+| Spectator deck | a wood deck 3.1 m up along the village's north side, x 20..48.9, n 67.3..70.3: planks, a brown fascia, black posts every 3.6 m, a black vertical-bar railing; walkable | The aerial's brown strip (x 20..49, n 66.2..69.3, set 1 m north to clear the village's fence); height from photo 1 (the people under it: 2.6-3.4 m); look from photos 1, 2, 6 | Aerial + owner photos |
+| Deck stairs | open steel stairs (black stringers, wood treads, black rails) rising east to the deck's west end, x 14.3..20 at n 68.8 | Photo 1 (they rise east along the deck); the spot is the aerial's lighter landing at x 18-22: **GUESS** within a few metres | Owner photo + aerial |
+| Tennis pens' south fence | 4.0 m behind the tennis baselines (n ~70.3), was 6 m by rule (it ran across the deck) | Aerial (the fence line south of the tennis row) | Aerial |
+| The white building's court side | plain white (`#ecebe6`), no windows (was beige with mission windows) | Photos 2, 5, 7 | Owner photos |
+| Sign | "LOS CABALLEROS SPORTS VILLAGE" in red serif capitals (~0.6 m letters, ~12 m long) high on that wall's west end, facing the courts: our own rendering of the venue's name | Photos 2 and 5 (letter height and length read off photo 5, ±30%) | Owner photos |
+| Freeway overpass | the Warner Ave and Harbor Blvd bridges (OSM `bridge=yes`) as decks with parapets on piers, 6.5 m a layer (a flagged default: OSM has no clearance) | OSM; photo 2 sees the overpass behind the trees | OSM + owner photo |
+| Power lines | the 66 kV lines along the Santa Ana River and into the substation east of the channel (OSM `power=line`, `tools/venues/osm/loscab.power.json`): a pole with a cross-arm at every mapped vertex, three sagging wires; 20 m (a flagged default) | OSM; photo 2 sees lines and a tower behind the courts | OSM + owner photo |
+| Surroundings' roofs | 189 of the 193 OSM buildings get their roof colour off the z18 aerial; 118 (the houses north of Warner) hip roofs, the industrial blocks flat | `surround-roofs.py` (as at Bouquet) | Aerial + OSM |
+
+Not changed: trees (the canopy's 420: palms by default, as the photos show palms and eucalyptus round the village; the eucalyptus aren't told apart yet), courts and colours (photo 7's dark blue `#2f5284` / kitchen `#5292dc` / green `#587654` agree with the pack's albedo within the overcast light).
+
+**Owner questions (Los Cab, 2026-10-08):**
+- The rest of the "/10" carousels, especially a photo of the stairs from further back (where along the deck are they?) and one along the south side by the white building.
+- How tall are the low partitions to the top of the green cap (we have 1.2 m) and how tall are the light poles (8.5 m)?
+- Does the deck run the whole north side of the east block or stop near x 49 (as the aerial's brown strip does)? Is the lighter strip west of it (x -3..20) a walkway on the ground?
+- Do the white tube dividers between the south pod's courts still stand (the pack saw them; no new photo shows the pod)?
+- Is the centre aisle's net barrier there every day or only at events (photo 7 is a tournament)?
+
 ### The Tennis & Pickleball Club at Newport Beach
 
 | Object class | Source |
@@ -170,9 +201,35 @@ A City of Santa Clarita park at 28127 Wellston Dr, Saugus, next to Bouquet Canyo
 
 | Court lights, benches, the paddle wait board, windscreens on the pen fence | **Owner** (2026-10-07: "courts are lit at night", "there are benches and a wait board", windscreens yes). Their exact spots aren't mapped or resolved in the aerial: light poles stand by rule along the pen's long sides, benches by rule outside the pen (clear of the gates and racks), the wait board outside the east fence on the lot side (approximate) |
 
-**Not drawn:** dividers between the courts (none clear in the aerial), bleachers by the courts and a pro-shop kiosk (`fence.bleachers/booth: false`). The softball diamond and its light poles aren't drawn (not mapped as such; the pitch is a flat area).
+**Not drawn:** bleachers by the courts and a pro-shop kiosk (`fence.bleachers/booth: false`). The softball diamond and its light poles aren't drawn (not mapped as such; the pitch is a flat area).
 
-**Owner questions (answered 2026-10-07):** lights yes, benches and a wait board yes, windscreens yes. Still open: where exactly the wait board and benches stand.
+**Owner questions (answered 2026-10-07):** lights yes, benches and a wait board yes, windscreens yes.
+
+#### Bouquet, fidelity round (2026-10-08): the owner's two photos
+
+Sources: `refs/bouquet/owner/` (the owner's wide shot from behind court 5 and the partition shot, the first of a 7-photo carousel), a z20 Esri aerial fetched for the pack (`refs/bouquet/aerial.jpg`, 200 x 160 m) and a z18 one for the surroundings (`refs/bouquet/wide/`), USGS 3DEP terrain. Poses solved with `compare.mjs solve` (`refs/bouquet/points.json`): the wide shot from 11 court features at 4.9 px rms (camera 1.7 m up, 102 degrees across), the partition shot from 7 (two court corners, two net posts each on two courts, the partition's west end) at 8.4 px. Measurements in the solved views by back-projecting pixels onto the ground and up vertical lines (scratchpad `meas.py`); "s" runs across the courts (east), "t" along them (south), from the courts' middle.
+
+| Object | Measured | Method, uncertainty | Source |
+|---|---|---|---|
+| The pen | 36.6 x 36.6 m (a standard 120 x 120 ft double tennis enclosure): 1.71 m beside the outer sidelines, 2.62 m behind the baselines | The court-aligned aerial: the windscreens' shadows fall north-west, so the west and north fences are the dark bands' inner edges, the south and east their outer edges (s -19.6..17.2, t -21.1..~15); the wide shot's fence foot projects to s -19.5 (±0.3 m). Before: 3.8 / 3.9 m all round, by rule | Aerial + owner photo |
+| Perimeter fence | 3.65 m (12 ft) chain-link; black windscreen from 0.15 to 3.0 m on the west, north and south sides; galvanized posts ~3 m apart | Wide shot, the west fence 9.8 m out: top 3.65 m, screen top 3.03 m, screen foot 0.14 m (±0.15 m; the far-left edge of an ultra-wide frame reads 3.3/2.9); the north-west corner's 3.66 m top projects onto the photo's corner within 3 px | Owner photo |
+| East side | the same height, bare chain-link (a mid rail) | The wide shot sees the parked car in the lot through it; the aerial's east band is thin | Owner photo + aerial |
+| Partitions | a cross: one across the pen between the two rows (t -2.93, west fence to east fence), one down its middle between the two old tennis courts (s -1.26: courts 2 / 3 and 6 / 7). None between the two courts of one old tennis court | Both photos show the cross partition; the aerial shows both lines; the wide shot sees a fence on the middle line (its foot projects to s -2.5 at 15 m) and none between courts 5 and 6 | Owner photos + aerial |
+| Partition build | 1.52 m (5 ft) to the top rail, a mid rail at ~0.8 m, a bottom rail; black vinyl mesh; galvanized posts ~0.09 m every ~3 m | Partition shot: 1.57 m top rail and 0.84 m mid rail at the second post (2 m from the camera); the wide shot's ratio to the rows gives 1.45-1.67 m; post feet project onto t -2.82 / -2.86 (the line is at -2.93) without being fitted. ±0.15 m. The caller's first reading was ~1.2 m against the nets | Owner photos |
+| Light poles | single shoebox heads on ~8 m galvanized poles along the west and east fences, one every 6.1 m | Heads fitted on the fence lines: 7.8 m at t -10, 8.3 m at t -4.3 (west), one on the east fence at t -16; the 6.1 m rule puts poles within 1 m of all three. Count between them is the rule's (14) | Owner photo |
+| Shade alcove | a light flat metal roof (~3.2 m) on dark posts over a 2.8 x 6.4 m alcove off the west fence where the cross partition ends; the pen's fence opens into it; a blue bench and a dark one under it, facing the courts | Aerial (a dark box s -22.4..-19.6, t -7..-0.6) + partition shot (no screen across the opening, the benches at the fence line, the roof near the fence top) | Aerial + owner photo |
+| Benches | only those two (the rule's benches round the pen are gone) | Partition shot | Owner photo |
+| Colours | courts and kitchens one blue `#3f72a8`, surround `#80957a`, galvanized `#8e9592`, screens `#1c1f1e` | The sunlit bright mode of each paint's hue class in both photos (scratchpad `hues.py`), between the evening wide shot and the overexposed midday one; the aerial's hazy `#46668a` / `#5f6e5c` read too dark and grey | Owner photos |
+| Pines | the 132 canopy trees west of the lot are Aleppo-type pines (a new `pine` kind: a tall leaning trunk bare for half its height, upswept limbs, the crown in dark clumps, ~13 m); the trees east of the lot stay broad-leaf | Both photos: pines on the north, west and south, about twice the poles' height; broad-leaf trees beyond the lot on the right | Owner photos + canopy |
+| Hillside | the hills round the park from the USGS 3DEP terrain (`tools/venues/terrain.py`: a 15 m grid to 450 m, -12 to +80 m); the far ground is lifted onto it (flat under the walkable crop, blended over 25 m), its base colour the hillside's dry grass `#a8986a` | Terrain tiles; colour from the wide shot's hillside (the aerial is a green-season one) | Terrain + owner photo |
+| Houses round the park | 257 OSM buildings (256 with mapped heights): 170 hip roofs and 87 flat, each roof's colour read off the z18 aerial | `tools/venues/surround-roofs.py`: a footprint's two halves along its long axis differ by more than 9 (0-255) in brightness = two slopes = hip (under 1,500 m2); rise 5:12 over its width, at most 3 m; colour the footprint's median. OSM's height is the ridge | Aerial + OSM |
+
+**Owner questions (Bouquet, 2026-10-08):**
+- The other six photos of the carousel ("1 of 7"): a shot of the east side and the lot, and one from the north fence looking south, would settle the south fence's screen and the poles' count.
+- Is the partition down the middle (between courts 2 / 3 and 6 / 7) really there, full length? The photos see it only from 15 m away.
+- How many light poles, and do the east ones match the west ones? (We have one every 6.1 m on both long sides.)
+- Is the south fence windscreened like the west and north (no photo sees it)? Does the alcove hold just the two benches?
+- Where do the wait board and the gates stand? (The wait board is still approximate, outside the east fence.)
 
 ## Interiors: the GUESS layouts (kept, need the owner)
 
@@ -216,8 +273,12 @@ Also open:
 ```
 node tools/venues/fetch-surround.mjs [id ...]   # polite Overpass: 25 s apart, back-off on 429/504
 python tools/venues/horizon.py [id ...]         # terrain tiles cached in tools/venues/horizon/.tiles (ignored)
+python tools/venues/terrain.py <id>             # the ground's shape to 450 m (venues with terrain: true)
+python tools/venues/surround-roofs.py <id> <refs>/<id>/wide   # roofs off a z18 aerial (refs/tools/tiles.py ... 960 960 18)
 node tools/venues/build-venues.mjs [id ...]
 ```
+
+Los Cab's power lines (`osm/loscab.power.json`) came from one Overpass query (`way[power=line]` and poles within 700 m, 2026-10-08).
 
 Tests: `node --test client/src/components/applets/pickleball/park/venues.test.js`. The test "venue truth: nothing invented behind a real venue" checks for:
 - no backdrop or golf/ocean extras;

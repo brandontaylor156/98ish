@@ -43,3 +43,6 @@ dist-ssr
 
 # Venue Finder index build cache (tools/venues/world/build-index.mjs default --cache)
 tools/venues/world/.cache/
+
+# Python bytecode (tools/venues/terrain.py imports horizon.py)
+__pycache__/

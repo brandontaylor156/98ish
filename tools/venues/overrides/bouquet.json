@@ -21,7 +21,7 @@
   "deg": 270
  },
  "light": {
-  "sun": 1.0
+  "sun": 1
  },
  "courts": {
   "sports": [
@@ -35,29 +35,85 @@
   ],
   "_add": "court centres traced off the Esri z20 aerial (two rows of four, long axis at bearing 170.4, 8.9 m apart in each old tennis court, 9.25 m across its middle, rows 18 m apart); they agree with OSM's two pitches within 3 m",
   "add": [
-   {"id": "B1", "en": [-16.55, 9.25], "bearing": 170.4},
-   {"id": "B2", "en": [-7.77, 10.73], "bearing": 170.4},
-   {"id": "B3", "en": [1.35, 12.28], "bearing": 170.4},
-   {"id": "B4", "en": [10.13, 13.76], "bearing": 170.4},
-   {"id": "B5", "en": [-13.55, -8.5], "bearing": 170.4},
-   {"id": "B6", "en": [-4.77, -7.02], "bearing": 170.4},
-   {"id": "B7", "en": [4.35, -5.47], "bearing": 170.4},
-   {"id": "B8", "en": [13.13, -3.99], "bearing": 170.4}
+   {
+    "id": "B1",
+    "en": [
+     -16.55,
+     9.25
+    ],
+    "bearing": 170.4
+   },
+   {
+    "id": "B2",
+    "en": [
+     -7.77,
+     10.73
+    ],
+    "bearing": 170.4
+   },
+   {
+    "id": "B3",
+    "en": [
+     1.35,
+     12.28
+    ],
+    "bearing": 170.4
+   },
+   {
+    "id": "B4",
+    "en": [
+     10.13,
+     13.76
+    ],
+    "bearing": 170.4
+   },
+   {
+    "id": "B5",
+    "en": [
+     -13.55,
+     -8.5
+    ],
+    "bearing": 170.4
+   },
+   {
+    "id": "B6",
+    "en": [
+     -4.77,
+     -7.02
+    ],
+    "bearing": 170.4
+   },
+   {
+    "id": "B7",
+    "en": [
+     4.35,
+     -5.47
+    ],
+    "bearing": 170.4
+   },
+   {
+    "id": "B8",
+    "en": [
+     13.13,
+     -3.99
+    ],
+    "bearing": 170.4
+   }
   ]
  },
- "_colors": "sampled off the aerial (court and kitchen the same blue, a grey-green surround, black fence), lifted out of the aerial's haze by eye",
+ "_colors": "court and kitchen one blue, a grey-green surround: the owner's two photos (2026-10-08), the sunlit bright mode of each paint's hue class, between the evening wide shot and the overexposed midday one (the aerial's hazy #46668a / #5f6e5c read too dark and grey)",
  "colors": {
-  "court": "#46668a",
-  "kitchen": "#46668a",
-  "surround": "#5f6e5c",
+  "court": "#3f72a8",
+  "kitchen": "#3f72a8",
+  "surround": "#80957a",
   "lines": "#f2f2ef",
-  "fence": "#1f2322",
-  "windscreen": "#26302b",
+  "fence": "#8e9592",
+  "windscreen": "#1c1f1e",
   "ground": "#9c946c",
-  "far": "#8f8a66"
+  "far": "#a8986a"
  },
  "fence": {
-  "_room": "the pen in the aerial: about 39 m along the courts by 41 m across",
+  "_room": "the pen is a standard double tennis enclosure, 36.6 x 36.6 m (120 x 120 ft): fence lines read off the court-aligned z20 aerial (the windscreens' shadows fall north-west: west and north fences at the band's inner edge, south and east at the outer) and the owner's wide photo (its fence foot at s -19.5, 1.7 m off court 5's sideline); 1.71 m beside the outer sidelines, 2.62 m behind the baselines",
   "join": {
    "p": {
     "u": 6,
@@ -66,30 +122,322 @@
   },
   "room": {
    "p": {
-    "u": 3.9,
-    "w": 3.8
+    "u": 2.62,
+    "w": 1.71
    }
   },
   "dividers": "none",
+  "_types": "measured in the owner's photos (solved poses, compare.mjs solve; scratchpad meas.py): the perimeter 3.65 m (12 ft) chain-link with black windscreen from 0.15 to 3.0 m (wide photo, 9.8 m away); galvanized posts every ~3 m; the east side bare chain-link (the car in the lot shows through it); the partitions 1.52 m (5 ft: 1.57 m in the partition photo, 1.45-1.67 by the ratio to the courts) with a mid rail at half height and a bottom rail, black vinyl mesh on galvanized posts (~0.09 m) every ~3 m",
+  "types": {
+   "tall": {
+    "h": 3.66,
+    "mesh": "#8e9592",
+    "post": {
+     "d": 0.073,
+     "every": 3.05,
+     "color": "#a3aaa7"
+    },
+    "screen": {
+     "y0": 0.15,
+     "y1": 3,
+     "color": "#1c1f1e"
+    },
+    "railD": 0.042
+   },
+   "east": {
+    "h": 3.66,
+    "mesh": "#5b625f",
+    "post": {
+     "d": 0.073,
+     "every": 3.05,
+     "color": "#a3aaa7"
+    },
+    "rails": [
+     1.8
+    ],
+    "railD": 0.042
+   },
+   "low": {
+    "h": 1.52,
+    "mesh": "#232a26",
+    "post": {
+     "d": 0.09,
+     "every": 3,
+     "color": "#adb4b1"
+    },
+    "rails": [
+     0.8,
+     0.06
+    ],
+    "railD": 0.042
+   }
+  },
+  "perimeter": "tall",
+  "sides": [
+   {
+    "en": [
+     16.31,
+     5.73
+    ],
+    "type": "east"
+   }
+  ],
+  "_partitions": "a cross of low partitions: one across the pen between the two rows (both owner photos; the aerial's line), one down its middle between the two old tennis courts (courts 2|3 and 6|7: the aerial's line, and in the wide photo a 1.7 m fence on that line, measured 15 m out); none between the two courts of an old tennis court (the wide photo sees none between courts 5 and 6)",
+  "partitions": [
+   {
+    "from": {
+     "en": [
+      -19.78,
+      -0.38
+     ]
+    },
+    "to": {
+     "en": [
+      16.31,
+      5.73
+     ]
+    },
+    "type": "low"
+   },
+   {
+    "from": {
+     "en": [
+      -4.79,
+      20.72
+     ]
+    },
+    "to": {
+     "en": [
+      1.32,
+      -15.37
+     ]
+    },
+    "type": "low"
+   },
+   {
+    "from": {
+     "en": [
+      -20.46,
+      3.64
+     ]
+    },
+    "to": {
+     "en": [
+      -23.26,
+      3.16
+     ]
+    },
+    "type": "tall"
+   },
+   {
+    "from": {
+     "en": [
+      -23.26,
+      3.16
+     ]
+    },
+    "to": {
+     "en": [
+      -22.19,
+      -3.15
+     ]
+    },
+    "type": "tall"
+   },
+   {
+    "from": {
+     "en": [
+      -22.19,
+      -3.15
+     ]
+    },
+    "to": {
+     "en": [
+      -19.39,
+      -2.67
+     ]
+    },
+    "type": "tall"
+   }
+  ],
+  "_openings": "the shade alcove: the west fence opens into it where the cross partition ends (partition photo: no screen across it, the benches at the fence line); the alcove off the aerial (a dark box 2.8 x 6.4 m outside the west fence)",
+  "openings": [
+   {
+    "en": [
+     -19.92,
+     0.48
+    ],
+    "w": 6.4
+   }
+  ],
+  "_lights": "single shoebox heads on ~8 m galvanized poles along the west and east fences (wide photo: heads fitted at 7.8 and 8.3 m on the west fence at t -10 and -4.3, one on the east fence at t -16), one every 6.1 m by rule (within 1 m of those three)",
+  "lightEvery": 6.1,
+  "poleH": 8,
+  "poleColor": "#c4c8c5",
   "_benches": "benches: the owner confirms benches by the courts (2026-10-07), placed by rule outside the pen (exact spots not mapped or seen); still no bleachers by the courts or pro-shop kiosk (a city park with no pro shop)",
-  "_screen": "windscreens on the pen fence: owner confirms (2026-10-07); color from the aerial's dark fence line",
-  "screen": true,
   "bleachers": false,
   "booth": false,
-  "netColor": "#1b1f1d"
+  "netColor": "#1b1f1d",
+  "benches": false
  },
  "trees": {
-  "default": "broadleaf"
+  "default": "broadleaf",
+  "_kinds": "pines: the owner's photos show tall Aleppo-type pines all round the pen (north, west and south of it, 15 m or so: about twice the 8 m light poles); the trees east of the lot are broad-leaf (the wide photo's right edge)",
+  "kinds": [
+   {
+    "kind": "pine",
+    "s": 0.6,
+    "poly": [
+     {
+      "en": [
+       -250,
+       -250
+      ]
+     },
+     {
+      "en": [
+       21,
+       -250
+      ]
+     },
+     {
+      "en": [
+       21,
+       250
+      ]
+     },
+     {
+      "en": [
+       -250,
+       250
+      ]
+     }
+    ]
+   }
+  ]
  },
  "_props": "OSM: the five picnic tables (leisure=picnic_table nodes) and the two bleachers by the softball field (leisure=bleachers); the paddle wait board: owner confirms one (2026-10-07), spot approximate: outside the pen's east fence on the lot side, where players arrive",
  "props": [
-  {"t": "picnic", "ll": [34.452705, -118.505666], "face": 0},
-  {"t": "picnic", "ll": [34.452538, -118.505727], "face": 0},
-  {"t": "picnic", "ll": [34.452514, -118.505748], "face": 90},
-  {"t": "picnic", "ll": [34.452723, -118.505571], "face": 0},
-  {"t": "picnic", "ll": [34.452557, -118.504962], "face": 0},
-  {"t": "bleacher", "ll": [34.45364, -118.5059], "face": 180},
-  {"t": "bleacher", "ll": [34.45352, -118.50572], "face": 90},
-  {"t": "waitboard", "en": [21, 3], "face": 90}
- ]
+  {
+   "t": "picnic",
+   "ll": [
+    34.452705,
+    -118.505666
+   ],
+   "face": 0
+  },
+  {
+   "t": "picnic",
+   "ll": [
+    34.452538,
+    -118.505727
+   ],
+   "face": 0
+  },
+  {
+   "t": "picnic",
+   "ll": [
+    34.452514,
+    -118.505748
+   ],
+   "face": 90
+  },
+  {
+   "t": "picnic",
+   "ll": [
+    34.452723,
+    -118.505571
+   ],
+   "face": 0
+  },
+  {
+   "t": "picnic",
+   "ll": [
+    34.452557,
+    -118.504962
+   ],
+   "face": 0
+  },
+  {
+   "t": "bleacher",
+   "ll": [
+    34.45364,
+    -118.5059
+   ],
+   "face": 180
+  },
+  {
+   "t": "bleacher",
+   "ll": [
+    34.45352,
+    -118.50572
+   ],
+   "face": 90
+  },
+  {
+   "t": "waitboard",
+   "en": [
+    21,
+    3
+   ],
+   "face": 90
+  },
+  {
+   "t": "bench",
+   "en": [
+    -22.17,
+    1.52
+   ],
+   "face": 80.4,
+   "c": "#3f6db0"
+  },
+  {
+   "t": "bench",
+   "en": [
+    -21.67,
+    -1.44
+   ],
+   "face": 80.4,
+   "c": "#2b2f2d"
+  }
+ ],
+ "_benchesNow": "the benches: the two the owner's partition photo shows under the shade alcove (a blue one and a dark one); the rule's benches round the pen had no spots",
+ "extras": [
+  {
+   "type": "shade",
+   "poly": [
+    {
+     "en": [
+      -20.49,
+      3.63
+     ]
+    },
+    {
+     "en": [
+      -23.26,
+      3.16
+     ]
+    },
+    {
+     "en": [
+      -22.19,
+      -3.15
+     ]
+    },
+    {
+     "en": [
+      -19.43,
+      -2.68
+     ]
+    }
+   ],
+   "h": 3.2,
+   "fall": 0.3,
+   "roof": "#c9cbc6",
+   "posts": "#3b3f3c",
+   "_src": "aerial (the alcove box) + the owner's partition photo (a light flat metal roof near the fence top, dark posts)"
+  }
+ ],
+ "_terrain": "the hills round the park from the USGS 3DEP terrain (terrain.py, 15 m grid to 450 m): the dry-grass hillside behind the north fence in the owner's wide photo; the far ground's base colour is that hillside's dry grass (wide photo, sunlit)",
+ "terrain": true
 }

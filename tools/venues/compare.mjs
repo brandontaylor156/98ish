@@ -464,8 +464,12 @@ try {
   if (photos && modes.includes("photo")) {
     const list = photos.photos || photos
     const res = []
+    // (--only <text>: just the photos whose file name has it)
+    const only = opt("only")
     for (const p of list) {
-      const file = /^photos[\/]/.test(p.file) ? path.join(REFS, p.file) : path.join(REFS, "photos", p.file)
+      if (only && !p.file.includes(only)) continue
+      // (a path inside the pack, e.g. the owner's photos in owner/, or a name in photos/)
+      const file = /^photos[\/]/.test(p.file) || fs.existsSync(path.join(REFS, p.file)) ? path.join(REFS, p.file) : path.join(REFS, "photos", p.file)
       if (!fs.existsSync(file)) continue
       const im = await page.evaluate((src) => __cmp.img(src).then((i) => ({ w: i.width, h: i.height })), dataUrl(file))
       const W = 640

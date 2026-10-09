@@ -90,11 +90,162 @@
   "far": "#8f8c84"
  },
  "fence": {
+  "_src": "the owner's seven photos (2026-10-08) over the reference pack: the village's courts are in pairs with LOW partitions between the pairs (none inside a pair: the top-down drone photo, every pair), a thick green capped top rail on galvanized posts, black mesh and a green-painted concrete curb along the foot (photo 1); the village's north side, along the deck, is the same low fence (photos 1, 2); the other sides keep the pack's 3 m black chain-link with windscreens (photos 2, 4: tall black screens by the tennis court and the white building)",
   "lightEvery": 9,
   "poleH": 8.5,
-  "doubleHeads": true,
+  "doubleHeads": false,
   "screenH": 2.2,
-  "dividerColor": "#2f3436"
+  "dividerColor": "#2f3436",
+  "dividers": "none",
+  "room": {
+   "t": {
+    "u": 4,
+    "w": 3.5
+   }
+  },
+  "_roomT": "the tennis pens' runoff: 4.0 m behind the baselines, from the aerial (their south fence at n 70.3, just north of the deck); the rule's 6 m put that fence across the deck",
+  "_types": "pair: the low partitions and the village's north fence, 1.2 m to the top of the green cap (photo 1: the curb ~0.28 m (owner) and the people beside it give 1.0-1.5 m; uncertain +-0.2 m), curb 0.28 m painted green, galvanized posts ~2.5 m apart; aisle: the black portable net barrier on white posts along the centre aisle between the two rows (drone photo 7, night photo 5), ~0.9 m",
+  "types": {
+   "pair": {
+    "h": 1.2,
+    "mesh": "#1a1c1b",
+    "post": {
+     "d": 0.06,
+     "every": 2.5,
+     "color": "#a7aeab"
+    },
+    "cap": {
+     "color": "#2e7a57",
+     "h": 0.11,
+     "w": 0.12
+    },
+    "curb": {
+     "h": 0.28,
+     "w": 0.18,
+     "color": "#4f8458"
+    },
+    "rails": [],
+    "railD": 0.04
+   },
+   "aisle": {
+    "h": 0.9,
+    "mesh": "#121212",
+    "weave": 7,
+    "post": {
+     "d": 0.05,
+     "every": 6.7,
+     "color": "#e8e8e4"
+    },
+    "rails": [],
+    "railD": 0.025
+   },
+   "tall": {
+    "h": 3,
+    "mesh": "#24302a",
+    "post": {
+     "d": 0.06,
+     "every": 3,
+     "color": "#2a302c"
+    },
+    "screen": {
+     "y0": 0,
+     "y1": 2.2,
+     "color": "#2f3436"
+    },
+    "railD": 0.045
+   }
+  },
+  "perimeter": "tall",
+  "sides": [
+   {
+    "en": [
+     4.2,
+     66.2
+    ],
+    "type": "pair"
+   },
+   {
+    "en": [
+     87.3,
+     67.1
+    ],
+    "type": "pair"
+   },
+   {
+    "en": [
+     21.9,
+     47.4
+    ],
+    "type": "pair"
+   },
+   {
+    "en": [
+     27.3,
+     48
+    ],
+    "type": "pair"
+   }
+  ],
+  "pairDividers": {
+   "t": "pair",
+   "gap": 2.8,
+   "reach": 1,
+   "only": [
+    {
+     "en": [
+      4.2,
+      47.4
+     ]
+    },
+    {
+     "en": [
+      87.3,
+      48.2
+     ]
+    }
+   ]
+  },
+  "partitions": [
+   {
+    "from": {
+     "en": [
+      -13.6,
+      47.2
+     ]
+    },
+    "to": {
+     "en": [
+      21.9,
+      47.5
+     ]
+    },
+    "type": "aisle"
+   },
+   {
+    "from": {
+     "en": [
+      27.3,
+      47.6
+     ]
+    },
+    "to": {
+     "en": [
+      147.2,
+      48.95
+     ]
+    },
+    "type": "aisle"
+   }
+  ],
+  "_lights": "a pole in every gap between side-by-side courts and outside each row's end courts, two along each gap 4.5 m from the row's middle, with a T arm along the gap and two flat LED heads (drone photo 7, photos 2, 3, 5); white; 8.5 m (the pack's estimate; unmeasured)",
+  "lightsAt": "gaps",
+  "lightAlong": 4.5,
+  "poleStyle": "t",
+  "armW": 2,
+  "poleColor": "#dcdedb",
+  "headColor": "#3a3d40",
+  "_sides": "low (pair type) on the village's north side (photos 1, 2) and on both blocks' ends at the cross-walkway (drone photo 7: a low fence with banners there, no tall screens)",
+  "_pairOnly": "the village's two blocks only; the south pod keeps no partitions (the pack saw white tube dividers there, not yet modelled)"
  },
  "buildings": {
   "toArea": {
@@ -112,51 +263,19 @@
    }
   ],
   "style": {
+   "219137452": {
+    "color": "#e6dfca"
+   },
    "1081282175": {
     "color": "#e6dfca"
    },
    "1081282176": {
-    "color": "#e6dfca"
-   },
-   "219137452": {
-    "color": "#e6dfca"
+    "color": "#ecebe6",
+    "windows": "none",
+    "_src": "the white building south of the village: a plain white wall with no windows on its court side (owner photos 2, 5, 7)"
    }
   },
   "doors": {
-   "1167115286": [
-    {
-     "en": [
-      -62,
-      -48.1
-     ],
-     "w": 2.4,
-     "kind": "glass"
-    },
-    {
-     "en": [
-      -59,
-      -27.45
-     ],
-     "w": 2.2,
-     "kind": "double"
-    },
-    {
-     "en": [
-      -83.4,
-      -24.2
-     ],
-     "w": 3.0,
-     "kind": "glass"
-    },
-    {
-     "en": [
-      -43.82,
-      -39.5
-     ],
-     "w": 1.8,
-     "kind": "glass"
-    }
-   ],
    "1081282175": [
     {
      "en": [
@@ -198,6 +317,40 @@
      "en": [
       -60,
       38.08
+     ],
+     "w": 1.8,
+     "kind": "glass"
+    }
+   ],
+   "1167115286": [
+    {
+     "en": [
+      -62,
+      -48.1
+     ],
+     "w": 2.4,
+     "kind": "glass"
+    },
+    {
+     "en": [
+      -59,
+      -27.45
+     ],
+     "w": 2.2,
+     "kind": "double"
+    },
+    {
+     "en": [
+      -83.4,
+      -24.2
+     ],
+     "w": 3,
+     "kind": "glass"
+    },
+    {
+     "en": [
+      -43.82,
+      -39.5
      ],
      "w": 1.8,
      "kind": "glass"
@@ -460,7 +613,7 @@
       -52,
       -41
      ],
-     "w": 1.0,
+     "w": 1,
      "kind": "closed",
      "color": "#5a3a26"
     }
@@ -959,7 +1112,7 @@
       -20,
       -4
      ],
-     "w": 2.0,
+     "w": 2,
      "kind": "glass"
     }
    ]
@@ -1141,7 +1294,7 @@
    "id": "ballroom",
    "type": "cafe",
    "name": "Ballroom",
-   "y": 5.0,
+   "y": 5,
    "h": 4.2,
    "poly": [
     {
@@ -1181,7 +1334,7 @@
       -66.5,
       -48.1
      ],
-     "w": 3.0,
+     "w": 3,
      "kind": "glass"
     },
     {
@@ -1189,7 +1342,7 @@
       -61,
       -48.1
      ],
-     "w": 2.0,
+     "w": 2,
      "kind": "glass"
     }
    ],
@@ -1429,6 +1582,37 @@
       "ll": [
        33.714148,
        -117.9221257
+      ]
+     }
+    ]
+   },
+   {
+    "kind": "paved",
+    "color": "#26386e",
+    "_src": "the dark blue cross-walkway between the west block and the east block (drone photo 7, photo 4)",
+    "poly": [
+     {
+      "en": [
+       21.9,
+       29.6
+      ]
+     },
+     {
+      "en": [
+       27.3,
+       29.6
+      ]
+     },
+     {
+      "en": [
+       27.3,
+       66.6
+      ]
+     },
+     {
+      "en": [
+       21.9,
+       66.6
       ]
      }
     ]
@@ -1675,7 +1859,7 @@
    "t": "stairs",
    "en": [
     50,
-    -15.0
+    -15
    ],
    "face": 90,
    "c": "#f2f2ee"
@@ -1754,7 +1938,7 @@
     },
     "every": 3.4
    },
-   "y": 5.0,
+   "y": 5,
    "_balcony": true
   }
  ],
@@ -1802,6 +1986,19 @@
    "rows": 5,
    "color": "#e6dcc8",
    "face": "n"
+  },
+  {
+   "type": "sign",
+   "text": "LOS CABALLEROS SPORTS VILLAGE",
+   "color": "#c8202e",
+   "h": 0.6,
+   "en": [
+    41.2,
+    30.75
+   ],
+   "y": 7,
+   "face": "n",
+   "_src": "the red serif letters high on the white building's north wall, at its west end (owner photos 2, 5); our own rendering of the venue's name; length and height read off photo 5 (~0.6 m letters)"
   }
  ],
  "trees": {
@@ -1810,7 +2007,7 @@
  "decks": [
   {
    "name": "Ballroom floor",
-   "y": 5.0,
+   "y": 5,
    "poly": [
     {
      "en": [
@@ -1841,7 +2038,7 @@
   },
   {
    "name": "Ballroom balcony",
-   "y": 5.0,
+   "y": 5,
    "poly": [
     {
      "en": [
@@ -1871,6 +2068,44 @@
    "slab": true,
    "color": "#cdbfa6",
    "railColor": "#1d1f22"
+  },
+  {
+   "name": "Spectator deck",
+   "_src": "the raised wood deck along the village's north side (owner photos 1, 2, 6: brown fascia, black vertical-bar railing, black posts); the aerial's brown strip x 20..49; 3.1 m up (photo 1: 2.6-3.4 m from the people under it); between the village's fence and the tennis pens'",
+   "y": 3.1,
+   "poly": [
+    {
+     "en": [
+      20,
+      67.3
+     ]
+    },
+    {
+     "en": [
+      48.9,
+      67.3
+     ]
+    },
+    {
+     "en": [
+      48.9,
+      70.3
+     ]
+    },
+    {
+     "en": [
+      20,
+      70.3
+     ]
+    }
+   ],
+   "rail": true,
+   "railStyle": "bars",
+   "railColor": "#1b1c1e",
+   "fascia": "#6b4a35",
+   "color": "#9b7653",
+   "postColor": "#1d1e20",
+   "postEvery": 3.6
   }
  ],
  "stairs": [
@@ -1889,9 +2124,32 @@
    },
    "w": 1.6,
    "y0": 0,
-   "y1": 5.0,
+   "y1": 5,
    "color": "#cdbfa6",
    "rail": "#1d1f22"
+  },
+  {
+   "_src": "steel stairs up to the deck (photo 1: black stringers, wood treads, rising east along the deck); at its west end, where the aerial shows a lighter landing (x 18-22): the exact spot is GUESS",
+   "from": {
+    "en": [
+     14.3,
+     68.8
+    ]
+   },
+   "to": {
+    "en": [
+     20,
+     68.8
+    ]
+   },
+   "w": 1.4,
+   "y0": 0,
+   "y1": 3.1,
+   "color": "#c9b08a",
+   "rail": "#1b1c1e",
+   "open": true
   }
- ]
+ ],
+ "surroundBridges": true,
+ "_surroundBridges": "Warner Ave and Harbor Blvd bridges (OSM bridge=yes) drawn as decks on piers: the freeway overpass in photo 2"
 }

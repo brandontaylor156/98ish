@@ -415,7 +415,7 @@ export const buildTrees = (group, byKind, { keep = (x) => x, rand = Math.random 
     return mesh
   }
   const tint = (base, j = 0.08) => () => cc.set(base).offsetHSL((rand() - 0.5) * 0.03, (rand() - 0.5) * 0.1, (rand() - 0.5) * j)
-  const at = (t, sy = 1) => m4.compose(v1.set(t.x, 0, t.z), q.setFromEuler(e.set(0, t.yaw ?? (t.x * 7.3 + t.z) % 6.28, 0)), v2.set(t.s, t.s * sy, t.s))
+  const at = (t, sy = 1) => m4.compose(v1.set(t.x, t.y || 0, t.z), q.setFromEuler(e.set(0, t.yaw ?? (t.x * 7.3 + t.z) % 6.28, 0)), v2.set(t.s, t.s * sy, t.s))
 
   // broad-leaf: two variants (a rounder and a taller crown)
   const broad = byKind.broadleaf || []
@@ -452,7 +452,7 @@ export const buildTrees = (group, byKind, { keep = (x) => x, rand = Math.random 
     tg.translate(0, 0.5, 0)
     tg.computeVertexNormals()
     const heights = palms.map((t) => t.h || (7 + ((t.x * 13.1 + t.z * 7.7) % 1 + 1) % 1 * 6) * t.s)
-    add(tg, palmBarkMat, palms, (t, i) => m4.compose(v1.set(t.x, 0, t.z), q.identity(), v2.set(t.s, heights[i], t.s)))
+    add(tg, palmBarkMat, palms, (t, i) => m4.compose(v1.set(t.x, t.y || 0, t.z), q.identity(), v2.set(t.s, heights[i], t.s)))
     const crowns = [palmCrown(31), palmCrown(32)]
     const frondMat = leafMat(frondTex(), { vertexColors: true })
     crowns.forEach((geo, k) => {
@@ -461,7 +461,7 @@ export const buildTrees = (group, byKind, { keep = (x) => x, rand = Math.random 
         geo,
         frondMat,
         idx.map((i) => palms[i]),
-        (t, j) => m4.compose(v1.set(t.x, heights[idx[j]] - 0.1, t.z), q.setFromEuler(e.set(0, (t.x + t.z) % 6.28, 0)), v2.set(t.s, t.s, t.s)),
+        (t, j) => m4.compose(v1.set(t.x, (t.y || 0) + heights[idx[j]] - 0.1, t.z), q.setFromEuler(e.set(0, (t.x + t.z) % 6.28, 0)), v2.set(t.s, t.s, t.s)),
         tint(0xffffff, 0.06)
       )
     })
@@ -472,7 +472,54 @@ export const buildTrees = (group, byKind, { keep = (x) => x, rand = Math.random 
     add(trunkWithBranches({ seed: 6, h: 6.0, r0: 0.2, r1: 0.06, branches: 0 }), barkMat, con, (t) => at(t))
     add(coniferCrown(16), leafMat(needleTex()), con, (t) => at(t), tint(0xe8efe8))
   }
+  // pines (Bouquet Canyon's Aleppo-type pines in the owner's photos): a tall leaning trunk bare
+  // for half its height, open upswept limbs, the crown in irregular dark clumps
+  const pines = byKind.pine || []
+  if (pines.length) {
+    const clumpTex = pineTex()
+    const pv = [0, 1].map((k) => {
+      const r = rng(60 + k)
+      const trunk = trunkWithBranches({ seed: 7 + k, h: 10.5, r0: 0.3, r1: 0.09, branches: 6, branchY: 0.5, branchL: 3.2, lean: k ? 0.6 : -0.4 })
+      const parts = []
+      for (let i = 0; i < 9; i++) {
+        const a = r() * Math.PI * 2
+        const y = 6.2 + r() * 5.2
+        const rad = (1.0 + r() * 1.8) * (1 - (y - 6) / 9)
+        parts.push(cardCrown({ seed: 70 + k * 10 + i, n: 9, cx: Math.cos(a) * rad + (k ? 0.5 : -0.3), cy: y, cz: Math.sin(a) * rad, rx: 1.3 + r() * 0.6, ry: 0.8 + r() * 0.4, size: 1.5, tilt: 0.7 }))
+      }
+      const crown = mergeGeometries(parts, false)
+      parts.forEach((g) => g.dispose())
+      return { trunk, crown }
+    })
+    const pineMat = leafMat(clumpTex)
+    pv.forEach((vv, k) => {
+      const list = pines.filter((_, i) => i % 2 === k)
+      add(vv.trunk, barkMat, list, (t) => at(t))
+      add(vv.crown, pineMat, list, (t) => at(t), tint(0xe2eadf))
+    })
+  }
 }
+
+// pine needles in clumps: short dark strokes radiating from tuft centres
+const pineTex = () =>
+  canvasTex(128, 128, (ctx, w, h) => {
+    ctx.clearRect(0, 0, w, h)
+    const r = rng(29)
+    for (let k = 0; k < 26; k++) {
+      const cx = w * (0.15 + r() * 0.7)
+      const cy = h * (0.15 + r() * 0.7)
+      for (let i = 0; i < 26; i++) {
+        const a = r() * Math.PI * 2
+        const l = 6 + r() * 9
+        ctx.strokeStyle = `hsl(${105 + r() * 30},${30 + r() * 18}%,${14 + r() * 16}%)`
+        ctx.lineWidth = 1.4
+        ctx.beginPath()
+        ctx.moveTo(cx, cy)
+        ctx.lineTo(cx + Math.cos(a) * l, cy + Math.sin(a) * l)
+        ctx.stroke()
+      }
+    }
+  })
 
 // ---------------------------------------------------------------- cars
 

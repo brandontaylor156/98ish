@@ -298,6 +298,20 @@ const buildOne = (v) => {
   const cx0 = courts.reduce((s, c) => s + c.x, 0) / courts.length
   const cz0 = courts.reduce((s, c) => s + c.z, 0) / courts.length
   const sh = ([x, z]) => [x - cx0, z - cz0]
+  // the fence's measured types (docs/venue-provenance.md): sides and partitions given as points
+  // (en / ll / xz) become the spec's metres; everything else passes through
+  const fenceOf = (f) => {
+    if (!f.sides && !f.partitions && !f.lights && !f.openings && !f.types) return f
+    // (notes on sources, keys starting with _, stay in the override)
+    const out = Object.fromEntries(Object.entries(f).filter(([k]) => !k.startsWith("_")))
+    const xz = (o) => sh(P(o)).map(r1)
+    if (f.pairDividers?.only) out.pairDividers = { ...f.pairDividers, only: f.pairDividers.only.map((o) => { const [x, z] = xz(o); return { x, z } }) }
+    if (f.openings) out.openings = f.openings.map((o) => { const [x, z] = xz(o); return { x, z, w: o.w || 2 } })
+    if (f.sides) out.sides = f.sides.map((s) => { const [x, z] = xz(s); return { x, z, t: s.type } })
+    if (f.partitions) out.partitions = f.partitions.map((p) => ({ a: xz(p.from), b: xz(p.to), t: p.type }))
+    if (f.lights) out.lights = f.lights.map((l) => { const [x, z] = xz(l); return { x, z, ...(l.heads ? { heads: l.heads } : {}) } })
+    return out
+  }
   const originLL = proj.ll([cx0, cz0])
   for (const c of courts) {
     c.x -= cx0
@@ -468,6 +482,20 @@ const buildOne = (v) => {
     }
     for (let i = trees.length - 1; i >= 0; i--) if (inside(trees[i]) && !trees[i].keep) trees.splice(i, 1)
   }
+  // trees.kinds: areas (rect/poly) whose trees are of one kind, as photos show them (Bouquet's
+  // pines); a tree's size can be scaled there too (s)
+  for (const area of ov.trees?.kinds || []) {
+    const q = polyOfO(area).map(sh)
+    const inside = ([x, z]) => {
+      let o = false
+      for (let i = 0, j = q.length - 1; i < q.length; j = i++) if (q[i][1] > z !== q[j][1] > z && x < ((q[j][0] - q[i][0]) * (z - q[i][1])) / (q[j][1] - q[i][1]) + q[i][0]) o = !o
+      return o
+    }
+    for (const t of trees) if (inside(t)) {
+      t[3] = area.kind
+      if (area.s) t[2] = Math.round(t[2] * area.s * 100) / 100
+    }
+  }
   for (const tr of ov.trees?.after || []) {
     const p = sh(P(tr))
     trees.push([r1(p[0]), r1(p[1]), tr.s ?? 1, tr.kind || "palm"])
@@ -535,7 +563,7 @@ const buildOne = (v) => {
     colors: ov.colors || {},
     ...(ov.light ? { light: ov.light } : {}),
     ...(ov.groundStyle ? { groundStyle: ov.groundStyle } : {}),
-    fence: ov.fence || {},
+    fence: fenceOf(ov.fence || {}),
     backdrop: ov.backdrop || {},
     courts: courts.map((c) => {
       const o = { x: r1(c.x), z: r1(c.z), a: normDeg(c.a), s: c.s[0] }
@@ -555,6 +583,7 @@ const buildOne = (v) => {
     extras: (ov.extras || []).map((x) => {
       const p = P(x) ? sh(P(x)) : [0, 0]
       const out = { ...x, x: r1(p[0]), z: r1(p[1]), deg: degOf(x, 0) }
+      if (x.type === "sign" || x.type === "shade") for (const k of Object.keys(out)) if (k.startsWith("_")) delete out[k]
       delete out.en
       delete out.ll
       delete out.xz
@@ -599,7 +628,7 @@ const buildOne = (v) => {
   if (ov.decks?.length)
     spec.decks = ov.decks.map((d) => {
       const out = { y: d.y, p: pr(polyOfO(d).map(sh)) }
-      for (const key of ["name", "rail", "railColor", "slab", "color"]) if (d[key] !== undefined) out[key] = d[key]
+      for (const key of ["name", "rail", "railColor", "slab", "color", "fascia", "railStyle", "postColor", "postEvery"]) if (d[key] !== undefined) out[key] = d[key]
       if (d.openings) out.openings = d.openings.map((o) => [...sh(P(o)).map(r1), o.w || 1.6])
       return out
     })
@@ -607,7 +636,7 @@ const buildOne = (v) => {
     spec.stairs = ov.stairs.map((s) => {
       const a = sh(P(s.from))
       const b = sh(P(s.to))
-      return { a: [r1(a[0]), r1(a[1])], b: [r1(b[0]), r1(b[1])], w: s.w || 1.6, y0: s.y0 || 0, y1: s.y1, ...(s.color ? { color: s.color } : {}), ...(s.rail ? { rail: s.rail } : {}) }
+      return { a: [r1(a[0]), r1(a[1])], b: [r1(b[0]), r1(b[1])], w: s.w || 1.6, y0: s.y0 || 0, y1: s.y1, ...(s.color ? { color: s.color } : {}), ...(s.rail ? { rail: s.rail } : {}), ...(s.open ? { open: 1 } : {}) }
     })
   if (ov.spawn) {
     const p = sh(P(ov.spawn))
@@ -618,8 +647,14 @@ const buildOne = (v) => {
   // the real surroundings (docs/venue-provenance.md): mapped buildings, parks, golf, roads, rails
   // and trees out to ~450 m beyond the crop (surround.mjs), and the terrain's skyline from free
   // elevation tiles (horizon.py). Nothing made up: what isn't mapped isn't drawn.
-  const surround = buildSurround({ id: v.id, proj, sh, box, cropIds: new Set(els.map((e) => e.id)), defaultTree: ov.trees?.default === "palm" ? "palm" : "broadleaf" })
+  const surround = buildSurround({ id: v.id, proj, sh, box, cropIds: new Set(els.map((e) => e.id)), defaultTree: ov.trees?.default === "palm" ? "palm" : "broadleaf", bridges: !!ov.surroundBridges })
   if (surround) spec.surround = surround
+  // the ground's real shape round the crop (terrain.py), when the override asks for it
+  const trPath = path.join(HERE, "terrain", `${v.id}.json`)
+  if (ov.terrain && fs.existsSync(trPath)) {
+    const tr = JSON.parse(fs.readFileSync(trPath, "utf8"))
+    spec.terrain = { r: tr.r, step: tr.step, n: tr.n, h: tr.h, src: tr.source, ...(ov.terrain.color ? { color: ov.terrain.color } : {}) }
+  }
   const hzPath = path.join(HERE, "horizon", `${v.id}.json`)
   if (fs.existsSync(hzPath)) {
     const hz = JSON.parse(fs.readFileSync(hzPath, "utf8"))
