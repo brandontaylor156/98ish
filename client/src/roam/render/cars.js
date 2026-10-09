@@ -16,6 +16,9 @@ const PROFILES = {
   turbo: { body: [[-2.15, 0.3], [-2.15, 0.85], [-1.6, 0.92], [-0.55, 1.22], [0.35, 1.25], [1.15, 0.92], [2.15, 0.72], [2.15, 0.3]], glass: [[-1.55, 0.92], [-0.55, 1.2], [0.34, 1.22], [1.1, 0.93]] },
 }
 
+// which body points outline the cabin: rear belt, rear roof, front roof, front belt
+const CABIN = { sedan: [2, 3, 4, 5], hatch: [1, 2, 3, 4], suv: [1, 2, 3, 4], pickup: [2, 3, 4, 5], turbo: [2, 3, 4, 5] }
+
 const toCar = (geo, width) => {
   // (the shape is drawn in x = along, y = up and pushed out along z; turn it so along is +z)
   geo.translate(0, 0, -width / 2)
@@ -52,7 +55,17 @@ export const carGeometry = (model) => {
   const W = m.wid
   const body = tint(extrude(p.body, W), 0xffffff)
   // (the glass band: a little wider and inside the roof line, so the windows read on every side)
-  const glass = tint(extrude(p.glass, W + 0.03, 0.02), 0x1c2329)
+  // (the glass band: the cabin's own outline from the body, pushed out a few cm so it shows on
+  // every side, its top just under the roof so the roof stays painted)
+  const cab = CABIN[model] || CABIN.sedan
+  const pts = cab.map((i) => p.body[i])
+  const cx = pts.reduce((a, q) => a + q[0], 0) / 4
+  const cy = pts.reduce((a, q) => a + q[1], 0) / 4
+  const out = pts.map(([x, y], k) => {
+    const l = Math.hypot(x - cx, y - cy) || 1
+    return [x + ((x - cx) / l) * 0.04, y + ((y - cy) / l) * 0.04 - (k === 1 || k === 2 ? 0.09 : 0)]
+  })
+  const glass = tint(extrude(out, W + 0.03, 0.02), 0x1c2329)
   const parts = [glass]
   const half = m.wheelbase / 2
   const wr = model === "suv" || model === "pickup" ? 0.38 : 0.33

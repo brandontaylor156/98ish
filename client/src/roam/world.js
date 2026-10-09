@@ -179,7 +179,7 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
     tiles.delete(key)
     tilesDirty = true
   }
-  const center = () => (driving && car ? { x: car.x, z: car.z } : riding ? { x: me.x, z: me.z } : { x: me.walker.x, z: me.walker.z })
+  const center = () => (driving && car ? { x: car.x, z: car.z } : { x: me.walker.x, z: me.walker.z })
   const stepTiles = (dt) => {
     wantT -= dt
     const c = center()
@@ -334,7 +334,7 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
     // a friend's car to ride along in (the passenger door)
     for (const r of remotes.values()) {
       if (!r.car || r.car.seat === 1) continue
-      if (Math.hypot(r.x - w.x, r.z - w.z) < 4.2 && r.speed < 2 && ![...remotes.values()].some((o) => o.car?.seat === 1 && o.car.driver === r.num)) return { kind: "ride", label: `Ride along with ${r.name}`, target: r.num }
+      if (Math.hypot(r.x - w.x, r.z - w.z) < 4.2 && r.speed < 2) return { kind: "ride", label: `Ride along with ${r.name}`, target: r.num }
     }
     const egg = eggs.nearest(w.x, w.z)
     if (egg) return { kind: "egg", label: egg.verb || "Take a look", target: egg.id }
@@ -774,7 +774,7 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
           tilesDirty = true
         }
         // (the driver you ride with got out: you're out too)
-        if (riding && d.num === riding.num && !d.car) getOut()
+        if (riding && !d.car && (d.num === riding.num || d.num === myNum)) getOut()
       } else if (type === "roam:ride" && d) {
         // someone got in beside you
         const r = remotes.get(d.num)
