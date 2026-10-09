@@ -631,6 +631,8 @@ const Camera = ({ mobile, dispatch, onTitle, paused = false }) => {
         { label: "Make 3D from Last Photo...", disabled: !last?.parent, onClick: make3dLast },
         "-",
         { label: "Picture from Your Device...", onClick: () => fileRef.current?.click() },
+        // pages -> a straight PDF: its own program (corners, looks, many pages)
+        { label: "Scan a Document...", onClick: () => dispatch?.({ type: "open_window", payload: launch("Scanner 98") }) },
       ],
     },
     {

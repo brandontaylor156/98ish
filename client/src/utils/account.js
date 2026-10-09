@@ -5,7 +5,7 @@
 // (utils/clipHistory.js, pinned items too), this browser's
 // push subscription, and the link from 98ish user profiles to the screen name. With
 // `eraseLocal`, the 98ish user logged on here also loses everything kept on this device (the
-// drive in IndexedDB, and every localStorage key of theirs via utils/users.js keysOf), as if
+// drive in IndexedDB and its files' earlier versions, and every localStorage key of theirs via utils/users.js keysOf), as if
 // new; otherwise their files and settings stay, as a local guest's.
 //
 // Every step is best effort and independent: one that fails (storage blocked) doesn't stop
@@ -63,6 +63,8 @@ export const forgetAccountOnDevice = async ({ key, eraseLocal = false } = {}) =>
   if (!eraseLocal) return { erased: false }
   // this 98ish user's files and settings on this device, all of them
   await step(async () => (await import("./fs")).eraseThisDrive())
+  // the files' earlier versions (utils/versions.js), kept beside the drive
+  await step(async () => (await import("./versions")).eraseVersions())
   await step(() => {
     const all = []
     for (let i = 0; i < localStorage.length; i++) all.push(localStorage.key(i))

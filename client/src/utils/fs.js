@@ -81,6 +81,7 @@ export const FILE_TYPE = {
   maps: "maps",
   pdfviewer: "pdfviewer",
   snip: "snip", // Snipping Tool (the program)
+  scanner: "scanner", // Scanner 98 (the program)
   hangout: "hangout",
   vb98: "vb98",
   vbapp: "vbapp", // a Visual Basic 98 program (.vb98): its JSON in textContent
@@ -668,6 +669,7 @@ const DEFAULT_ITEMS = [
   ["C:/Programs/Maps 98", "file", "maps"],
   ["C:/Programs/PDF Viewer", "file", "pdfviewer"],
   ["C:/Programs/Snipping Tool", "file", "snip"],
+  ["C:/Programs/Scanner 98", "file", "scanner"],
   ["C:/Programs/Come Over", "file", "hangout"],
   ["C:/Programs/Visual Basic 98", "file", "vb98"],
   ["C:/Programs/3D Viewer 98", "file", "viewer3d"],
@@ -1331,12 +1333,23 @@ const scheduleSave = () => {
   saveTimer = setTimeout(() => saveNow(), SAVE_DELAY_MS)
 }
 
+// Version history (utils/versions.js) installs a keeper here: every overwrite of a Notepad,
+// WordPad or Paint file hands it what the file held before, once the new contents are saved
+let versionKeeper = null
+const VERSIONED = new Set([FILE_TYPE.text, FILE_TYPE.note, FILE_TYPE.richtext, FILE_TYPE.image])
+export const setVersionKeeper = (fn) => (versionKeeper = fn)
+
 // Write a file's contents and save at once; on a full drive the old contents come back
 // (and a file that was just made is removed). Resolves true if it was saved.
 export const writeAndSave = async (file, content, { created = false } = {}) => {
+  const keepOld = !created && versionKeeper && file.parent && VERSIONED.has(file.type)
+  const old = keepOld ? await readContent(file) : null
   const before = { _text: file._text, _key: file._key, _hash: file._hash, _size: file._size, _thumb: file._thumb, _head: file._head, mtime: file.mtime }
   file.textContent = content
-  if (await saveNow({ quiet: true })) return true
+  if (await saveNow({ quiet: true })) {
+    if (keepOld && old && old !== `${content ?? ""}`) versionKeeper(file, old)
+    return true
+  }
   if (created && file.parent) file.parent.removeItem(file.name)
   else {
     Object.assign(file, before)

@@ -33,6 +33,7 @@ export const imageMapper = {
   pdf: "program_icons/pdf.svg",
   pdfviewer: "program_icons/pdfviewer.svg",
   snip: "program_icons/snip.svg",
+  scanner: "program_icons/scanner.svg",
   together: "program_icons/together.svg",
   locator: "program_icons/locator.svg",
   maps: "program_icons/maps.svg",

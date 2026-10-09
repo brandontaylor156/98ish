@@ -8,6 +8,8 @@ import { installTouchGuard } from "./utils/touchGuard"
 import { installInputGuard } from "./utils/inputGuard"
 import { installClipHistory } from "./utils/clipHistory"
 import { installCanvasKinds } from "./utils/canvasKinds"
+// version history: Notepad/WordPad/Paint keep what a file held before each save (utils/versions.js)
+import "./utils/versions"
 import "../node_modules/98.css/dist/98.css"
 import "./main.css"
 import "bootstrap/dist/css/bootstrap.min.css"

@@ -34,6 +34,8 @@ export const programs = [
   // PDFs on drive C:, page by page (applets/pdfViewer; pdf.js from jsDelivr, or the browser's own viewer)
   // a picture of part of the 98ish screen, marked up and saved/copied/sent (applets/snipping; Ctrl+Shift+S)
   { name: "Snipping Tool", app: "snip", type: "snip", icon: "/assets/program_icons/snip.svg", width: 460, height: 420, group: "Accessories", desktop: false, single: true },
+  // photos of pages -> straight PDFs (applets/scanner; corners found on the device, utils/pdfWriter.js)
+  { name: "Scanner 98", app: "scanner", type: "scanner", icon: "/assets/program_icons/scanner.svg", width: 560, height: 640, group: "Accessories", also: ["Business"], desktop: false, single: true },
   { name: "PDF Viewer", app: "pdf", type: "pdfviewer", icon: "/assets/program_icons/pdfviewer.svg", width: 640, height: 640, group: "Accessories", desktop: false },
   { name: "Maps 98", app: "maps", type: "maps", icon: "/assets/program_icons/maps.svg", width: 860, height: 600, group: "Accessories", also: ["Internet"], desktop: false, single: true },
   { name: "Buddy Locator", app: "locator", type: "locator", icon: "/assets/program_icons/locator.svg", width: 780, height: 580, group: "Internet", also: ["Together", "Us"], desktop: false, single: true },
