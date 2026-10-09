@@ -20,6 +20,7 @@ const PROFILES = {
   suv: [[-2.42, 0.42], [-2.42, 1.15], [-2.3, 1.74], [0.4, 1.78], [1.25, 1.2], [2.42, 1.08], [2.42, 0.42]],
   pickup: [[-2.8, 0.44], [-2.8, 1.12], [-0.6, 1.12], [-0.55, 1.78], [0.65, 1.8], [1.35, 1.2], [2.8, 1.1], [2.8, 0.44]],
   turbo: [[-2.15, 0.3], [-2.15, 0.85], [-1.6, 0.92], [-0.55, 1.22], [0.35, 1.25], [1.15, 0.92], [2.15, 0.72], [2.15, 0.3]],
+  sundowner: [[-2.31, 0.3], [-2.31, 0.86], [-1.9, 0.9], [-0.75, 1.17], [0.0, 1.22], [0.7, 0.84], [2.31, 0.64], [2.31, 0.3]],
 }
 const colored = (geo, hex, glow = 0) => {
   const g = geo.index ? geo.toNonIndexed() : geo
@@ -188,6 +189,23 @@ export const makeCarMesh = (model, color) => {
       group.add(pivot)
       wheels.push({ pivot, spin, front: w.front, left: w.x < 0 })
     }
+  if (model === "sundowner") {
+    // (the Sundowner GT: a thin gold pinstripe down each flank at the beltline, and a dark
+    // ducktail lip on the tail)
+    const spec = g.spec
+    const L = spec?.len || 4.62
+    const W = spec?.wid || 1.94
+    const belt = (spec?.belt || 0.76) - 0.04
+    const gold = new THREE.MeshBasicMaterial({ color: 0xe0b552 })
+    for (const s of [-1, 1]) {
+      const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.035, L * 0.78), gold)
+      stripe.position.set(s * (W / 2 - 0.005), belt, 0.05)
+      body.add(stripe)
+    }
+    const lip = new THREE.Mesh(new THREE.BoxGeometry(W * 0.86, 0.04, 0.16), new THREE.MeshLambertMaterial({ color: 0x15161a }))
+    lip.position.set(0, (spec?.top?.[2]?.[1] || 0.9) + 0.03, -L / 2 + 0.38)
+    body.add(lip)
+  }
   if (model === "turbo") {
     // (the Turbo 98's stripe and its underglow)
     const top = g.spec ? Math.max(...g.spec.top.map((k) => k[1])) : 1.22

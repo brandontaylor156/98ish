@@ -112,6 +112,11 @@
 //                                                  their clone left in My Park (with its phrasebook
 //                                                  and memory log) deleted; in other clones' logs
 //                                                  they become "Deleted player"
+//   park finds  parkfinds                          Pickleball 98 My Park's easter eggs found
+//                                                  (server/park/finds.js: Vince's car keys, which
+//                                                  unlock his car in Explore Valencia): the record
+//                                                  deleted. What's in someone's hand (park:hold)
+//                                                  lives only in memory
 //   tournaments pbtourneys, pbtrophies             Pickleball 98 tournaments (server/tourney):
 //                                                  sign-ups for events that haven't started
 //                                                  removed (a partner they invited gets a computer

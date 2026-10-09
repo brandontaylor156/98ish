@@ -153,3 +153,12 @@ test("realLook: midday clear is bright with the court lights off; overcast dims 
   const atSunset = realLook({ date: sunset, lat, lon })
   assert.ok(atSunset.sunEl < 6 && atSunset.sunEl > -1, `sunset elevation ${atSunset.sunEl}`)
 })
+
+test("the sky never samples under the horizon above it (the dark band over the sea)", async () => {
+  const { horizonRowV, rowElevation } = await import("./atmosphere.js")
+  for (const h of [24, 32]) {
+    const v = horizonRowV(h)
+    assert.ok(rowElevation(v) >= 0, `${h} rows: the clamp row is at or above the horizon`)
+    assert.ok(rowElevation(v - 1 / h) < 0, `${h} rows: the row under it is below`)
+  }
+})

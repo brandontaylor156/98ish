@@ -763,6 +763,20 @@ export const updateAnim = (a, s, dt) => {
       const sway = Math.sin(mood.t * 11) * 0.12
       mp = { hand: V(0.34 + sway, 1.72, 0.22), axis: norm(V(0.15 + sway, 1, 0.15)), off: V(-0.22, 0.95, 0.08), pole: V(1, -0.3, -0.2) }
       lookAt = add(add(ground, V(0, 1.6, 0)), mul(fr.f, 3))
+    } else if (mood.kind === "carry" || mood.kind === "sip") {
+      // (My Park leisure, park/leisure/: something to eat or drink in the paddle hand) carry:
+      // held in front at the waist, upright; sip: up to the mouth, tipped toward it (mood.p 0..1:
+      // up, a moment there, back down), the head a little back
+      const up = mood.kind === "sip" ? smoothW(clamp((mood.p ?? clamp(mood.t / 1.6, 0, 1)) / 0.3, 0, 1)) * (1 - smoothW(clamp(((mood.p ?? clamp(mood.t / 1.6, 0, 1)) - 0.72) / 0.28, 0, 1))) : 0
+      const carry = { hand: V(0.17, 1.02, 0.27), axis: V(0, 1, 0) }
+      const mouth = { hand: V(0.05, 1.47, 0.15), axis: norm(V(-0.05, 0.62, -0.78)) }
+      mp = { hand: lerpV(carry.hand, mouth.hand, up), axis: norm(lerpV(carry.axis, mouth.axis, up)), off: V(-0.22, 0.92, 0.06), pole: V(0.7, -1, -0.2), offPole: V(-0.4, -1, -0.2) }
+      lookAt = add(add(ground, V(0, 1.6 + 0.6 * up, 0)), mul(fr.f, 3))
+    } else if (mood.kind === "fan") {
+      // hot and thirsty: the free hand fanning the face, the other hanging
+      const sway = Math.sin(mood.t * 13) * 0.07
+      mp = { hand: V(0.24, 0.92, 0.06), axis: norm(V(0.1, -1, 0.1)), off: V(-0.1 + sway, 1.52, 0.22), pole: V(0.6, -1, -0.2), offPole: V(-1, -0.4, -0.2) }
+      lookAt = add(add(ground, V(0, 1.75, 0)), mul(fr.f, 3))
     } else if (mood.kind === "hold") {
       // hand in hand (My Park, together): the near hand out low toward the other one, the far
       // arm loose. variant 0: they're on the paddle hand's side; 1: on the other side

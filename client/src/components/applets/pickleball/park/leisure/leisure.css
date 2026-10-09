@@ -1,0 +1,176 @@
+/* My Park leisure (leisure/useLeisure.jsx): the menu, what's in your hand, the swim and hot tub
+   screens' buttons, the keys card. Thumb-sized on a phone (390 x 844): rows 48 px, buttons 44+. */
+
+.pkLsSheet .pkTgGrid {
+  margin-top: 6px;
+}
+
+.pkLsChips {
+  margin: 6px 2px 4px;
+  font-size: 12px;
+}
+
+.pkLsMenu {
+  list-style: none;
+  margin: 0 0 6px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pkLsMenu button {
+  display: flex !important;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 48px;
+  padding: 4px 10px !important;
+  text-align: left;
+}
+
+.pkLsIcon {
+  font-size: 22px;
+  width: 28px;
+  text-align: center;
+  flex: none;
+}
+
+.pkLsName {
+  flex: 1;
+  font-size: 13px;
+  line-height: 1.2;
+}
+
+.pkLsPrice {
+  flex: none;
+  font-weight: bold;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.pkLsPrice::after {
+  content: " chips";
+  font-weight: normal;
+  font-size: 11px;
+  opacity: 0.75;
+}
+
+.pkLsBoth {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  font-size: 13px;
+}
+
+/* in your hand: above the context button */
+.pkLsHeld {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 4px 4px 10px;
+  border-radius: 10px;
+  background: rgba(16, 22, 38, 0.72);
+  color: #fff;
+  pointer-events: auto;
+  max-width: calc(100vw - 32px);
+}
+
+.pkLsHeldName {
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 150px;
+}
+
+.pkLsSip {
+  min-width: 72px !important;
+  min-height: 44px;
+  font-weight: bold;
+}
+
+.pkLsDrop {
+  min-width: 44px !important;
+  min-height: 44px;
+  font-size: 18px;
+}
+
+/* swimming / the hot tub: Float, Laps, the music; above the move pad, on the right */
+.pkLsBtns {
+  position: absolute;
+  right: 10px;
+  bottom: calc(30% + 12px);
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pkAct:not(.is-touch) .pkLsBtns {
+  bottom: 16px;
+}
+
+.pkLsBtns button {
+  min-width: 96px;
+  min-height: 48px;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.pkAct--tub .pkLsBtns {
+  bottom: 24px;
+}
+
+@media (orientation: landscape) {
+  .pkAct.is-touch .pkLsBtns {
+    bottom: 16px;
+  }
+}
+
+.pkLsNote {
+  z-index: 17;
+  top: 44% !important;
+  bottom: auto !important;
+}
+
+/* Found: the keys */
+.pkLsKeysWrap {
+  z-index: 18;
+}
+
+.pkLsKeys {
+  width: min(340px, calc(100% - 24px));
+  padding: 3px !important;
+}
+
+.pkLsKeysBody {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 12px 4px;
+  text-align: center;
+}
+
+.pkLsKeysBody p {
+  margin: 4px 0 0;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.pkLsKeysIcon {
+  font-size: 40px;
+  line-height: 1.1;
+}
+
+.pkLsKeys .pkActEndRow {
+  padding: 8px;
+}
+
+/* (the park's mic chip, under the swim / hot tub status instead of over it) */
+.pkRoot:has(.pkAct--tub) .pkVoiceChip.in-park,
+.pkRoot:has(.pkAct--swim) .pkVoiceChip.in-park {
+  top: 112px;
+}

@@ -48,6 +48,8 @@ import { sunPosition } from "./solar.js"
 import { timeDate } from "./timeofday.js"
 import { activitySpots, nearestSpot } from "./acts/spots.js"
 import { gearFig } from "./acts/gear.js"
+import { createLeisureSide } from "./leisure/parkside.js"
+import { holdFig } from "./leisure/held.js"
 
 // Real Sky: Riverside isn't a real place; it borrows a Southern California park's sky
 export const DEFAULT_SKY_PLACE = { lat: 33.709, lon: -117.954 }
@@ -528,6 +530,26 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
   // the scene, and holds the camera; the park carries on round you.
   const spots = layout.spec?.scene ? activitySpots(layout) : []
   let activity = null
+  // ---------- leisure (leisure/): swimming, the hot tub, food and drinks, the drinks machine ----------
+  // only where the venue really has them (leisure/spots.js); the water, what people hold, and
+  // Vince by the machine live in leisure/parkside.js
+  let parkFinds = {}
+  const leisure = createLeisureSide({
+    layout,
+    scene,
+    quality,
+    phone,
+    clock: () => clock,
+    me: () => me,
+    meBody,
+    makeBody,
+    speak: (b, text) => speak(b, text, clock),
+    net: () => net,
+    onEvent: (ev) => onEvent?.(ev),
+    blocked: (x, z, r) => (venue.blocked ? venue.blocked(x, z, r) : false),
+    found: () => parkFinds,
+    people: () => [...remotes.values()].map((r) => r.body),
+  })
 
   // ---------- the HUD ----------
   let hudKey = ""
@@ -548,6 +570,10 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
     const it = nearestAction(me.walker.x, me.walker.z)
     // (an activity's spot, when it's nearer than the park's own thing there)
     const sp = spots.length ? nearestSpot(spots, me.walker.x, me.walker.z, me.walker.y || 0) : null
+    // (leisure: a pool's edge, the hot tub, a counter, the drinks machine, Vince; before the
+    // park's own benches and loungers by the water, and before an activity unless that's nearer)
+    const la = leisure.action()
+    if (la && (la.what === "give" || !sp || sp.k > 0.5 || la.d < 0.8)) return la
     if (sp && (!it || it.kind === "sit" || sp.k < Math.hypot(me.walker.x - it.x, me.walker.z - it.z) / it.r)) return { kind: "act", act: sp.spot.kind, spot: sp.spot.id, label: sp.spot.label, detail: sp.spot.detail }
     if (!it) return null
     if (it.kind === "rack") {
@@ -1172,6 +1198,7 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
     } else if (a.kind === "locker") onEvent?.({ type: "locker" })
     else if (a.kind === "machine") onEvent?.({ type: "machine" })
     else if (a.kind === "challenge") onEvent?.({ type: "challenge", owner: a.owner, court: nearestCourt() })
+    else if (a.kind === "leisure") leisure.doAction(a, tg.pal ? { num: tg.pal.num, name: tg.pal.name } : null)
     else if (a.kind === "act") {
       const spot = spots.find((s) => s.id === a.spot)
       if (spot) onEvent?.({ type: "activity", spot, pal: tg.pal ? { num: tg.pal.num, name: tg.pal.name } : null })
@@ -1726,7 +1753,14 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
     const step = Math.min(0.1, dt)
     // (an activity's body: posed from what the activity says, acts/)
     const d = b.drive ? b.drive() : null
-    gearFig(b.fig, d?.gear || "paddle", d?.gearColor)
+    // (something to eat or drink in the hand instead of the paddle: leisure/held.js)
+    gearFig(b.fig, b.held ? "none" : d?.gear || "paddle", d?.gearColor)
+    holdFig(b.fig, b.held || null)
+    if (d?.pose) {
+      // (a pose made whole by the activity: swimming, the hot tub, leisure/poses.js)
+      b.fig.apply(d.pose, step)
+      return
+    }
     if (d) {
       if (d.seat) {
         b.fig.apply(seatedPose(d.seat, d.look || tmpLook, null, { drop: d.seat.y + 0.02, ahead: 0.42 }), step)
@@ -2109,6 +2143,8 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
       const up = (s.act & UP_BIT) !== 0
       const act = s.act & ~UP_BIT
       b.hidden = act === ACTS.play
+      // (swimming or in the hot tub: leisure/parkside.js poses them)
+      leisure.remoteAct(b, act)
       b.x = s.x
       b.z = s.z
       b.y = up ? venue.levelAt(s.x, s.z) : 0
@@ -2141,12 +2177,12 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
     for (const s of ALL_SEATS) if (Math.hypot(s.x - x, s.z - z) < 0.3) best = s.court ?? null
     return best
   }
-  const myAct = () => (me.mode === "walk" || me.mode === "act" ? (me.walker.speed > 0.05 ? ACTS.move : ACTS.stand) | ((me.walker.y || 0) > 0.3 ? UP_BIT : 0) : me.seat ? (me.seat.y > 0.6 ? ACTS.sitHigh : ACTS.sitLow) : ACTS.stand)
+  const myAct = () => (me.mode === "act" && activity?.netAct?.() ? activity.netAct() : me.mode === "walk" || me.mode === "act" ? (me.walker.speed > 0.05 ? ACTS.move : ACTS.stand) | ((me.walker.y || 0) > 0.3 ? UP_BIT : 0) : me.seat ? (me.seat.y > 0.6 ? ACTS.sitHigh : ACTS.sitLow) : ACTS.stand)
   const sendPos = () => {
     if (!net) return
     const now = performance.now()
     const at = me.seat || me.walker
-    const p = { x: at.x, z: at.z, yaw: me.seat ? me.seat.yaw : me.walker.yaw, speed: me.mode === "walk" ? me.walker.speed : 0, act: myAct() }
+    const p = { x: at.x, z: at.z, yaw: me.seat ? me.seat.yaw : me.walker.yaw, speed: me.mode === "walk" || me.mode === "act" ? me.walker.speed : 0, act: myAct() }
     if (!shouldSend(lastSent, now, p, netRate)) return
     lastSent = { t: now, p }
     net.volatile("park:pos", packPos(p))
@@ -2188,6 +2224,9 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
     clock += dt
     frameNo++
     updateDay(false)
+    // (leisure: the water, Vince, sips; people swimming leave rings)
+    leisure.step(dt, look)
+    for (const r of remotes.values()) if (r.body.leisureAct === "swim") leisure.rippleFor(r.body, dt)
     adaptBudget(dtIn)
     // you
     if (me.mode === "act" && activity) {
@@ -2438,6 +2477,14 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
     get spots() {
       return spots
     },
+    // leisure (leisure/parkside.js): the places here, the water, what you hold, Vince
+    get leisure() {
+      return leisure
+    },
+    // what you've found (the account's park finds: Vince's keys), so Vince knows
+    setFinds(f) {
+      parkFinds = f && typeof f === "object" ? f : {}
+    },
     get activity() {
       return activity
     },
@@ -2512,6 +2559,8 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
     suspend() {
       // (off somewhere else: an activity here ends)
       if (activity) world.setActivity(null)
+      // (and what you were eating or drinking stays behind)
+      if (meBody.held) leisure.setHeld(null)
       suspended = true
       world.clearKeys()
       // (off to play: walking together, a picture or the sunset ends; the server ends the link)
@@ -2622,7 +2671,10 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
           pushSample(r.track, d.t, p)
           if (r.body.hidden && (p.act & ~UP_BIT) !== ACTS.play) r.body.hidden = false
         }
-      } else if (type === "park:person" && d) addRemote(d)
+      } else if (type === "park:person" && d) {
+        const r = addRemote(d)
+        if (r) leisure.remoteHeld(r.body, d.held || null)
+      }
       else if (type === "park:gone" && d) {
         const r = remotes.get(d.num)
         // (they left: whatever you were doing together is over)
@@ -2636,6 +2688,9 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
         const r = remotes.get(d.num)
         if (!r) return
         if (Number.isInteger(d.line) && CHAT_LINES[d.line]) speak(r.body, CHAT_LINES[d.line], clock)
+        // (leisure: a sip, a splash, a lap's time)
+        if (d.emote === "sip" || d.emote === "splash") leisure.remoteFx(r.body, d.emote)
+        if (Number.isInteger(d.lap)) onEvent?.({ type: "leisureLap", num: d.num, name: r.name, ms: d.lap })
         if (d.emote && EMOTE_MOOD[d.emote]) {
           const m = EMOTE_MOOD[d.emote]
           r.body.mood = { kind: m[0], variant: m[1], at: clock }
@@ -2754,6 +2809,7 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
     },
     dispose() {
       if (activity) world.setActivity(null)
+      leisure.dispose()
       if (disposed) return
       post?.dispose()
       splat.dispose()

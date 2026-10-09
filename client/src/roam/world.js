@@ -239,8 +239,8 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
       if (m === "gone") continue
       out.push(m ? { ...c, ...m } : c)
     }
-    // (the hidden car: parked like the rest once its tile is near)
-    for (const c of eggCars) {
+    // (the hidden car, and Vince's: parked like the rest once its tile is near)
+    for (const c of [...eggCars, ...keyCars]) {
       const m = moved.get(c.id)
       if (m === "gone") continue
       const p = m ? { ...c, ...m } : c
@@ -553,6 +553,9 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
   const eggs = createEggs({ town, frame, scene, host, groundAt: topAt, onFound: (egg) => onEvent({ type: "found", egg }) })
   eggs.setTogether((e) => togetherAt(e))
   const eggCars = eggs.cars()
+  // Vince's car (My Park's drinks-machine easter egg, unlocked by his keys through the host): the
+  // Sundowner GT in its stall by the venue it belongs to (town.keyCar)
+  const keyCars = town.keyCar && host.unlocks?.()?.[town.keyCar.id] ? [{ id: `keys:${town.keyCar.id}`, model: town.keyCar.model, color: town.keyCar.color, x: town.keyCar.x, z: town.keyCar.z, yaw: town.keyCar.yaw, keyCar: true, label: "The Sundowner GT" }] : []
 
   // ---------- other people (online) ----------
   let net = null
@@ -978,7 +981,10 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
     eggs.step(dt, center(), clock, camera)
     updateCamera(dt)
     // (the sky dome rides with the lens: the town is bigger than the dome)
-    if (sky?.mesh) sky.mesh.position.set(camera.position.x, 0, camera.position.z)
+    // (the dome is centred on the eye, height too: at y 0 its horizon sat above the eye wherever the
+    // ground is below the town's base, a dark band over the sea at Newport and in the low parts of
+    // a town: the sky-bar fix)
+    if (sky?.mesh) sky.mesh.position.copy(camera.position)
     stepLife(dt)
     drawLife(dt)
     drawLights()

@@ -21,6 +21,11 @@
 //   tennis, horse, workout   My Park activities (client park/acts/): tennis on a tennis court
 //            (a match or a co-op rally), H-O-R-S-E on a basketball court, a workout together;
 //            a private "parkact" room (server/arcade/games/parkact.js), both stay in the park
+//   swim, tub, treat   My Park leisure (client park/leisure/): swim together or race in the
+//            venue's pool (data { spot, mode: together | race }), sit in its hot tub side by side
+//            (data { spot, seats: [two seat ids] }), a drink or a bite bought for the other
+//            (data { item }: the asker pays only once it's taken). Each browser does its own part;
+//            a race's times go round as park:fx { lap }
 //
 // Only states go over the network (who's linked to whom, what started): the walking itself is
 // each browser's own position updates, as always. Signed-on people only (a 98 Messenger
@@ -60,7 +65,14 @@ const KINDS = {
   tennis: { near: 30, act: true },
   horse: { near: 30, act: true },
   workout: { near: 30, act: true },
+  swim: { near: 40, leisure: true },
+  tub: { near: 30, leisure: true },
+  treat: { near: 8, leisure: true },
 }
+const SWIM_MODES = ["together", "race"]
+// (what can be bought for someone: client park/leisure/menu.js ITEMS)
+const ITEM_ID = /^[a-z]{2,16}$/
+const TUB_SEAT = /^tub[0-9]$/
 const ACT_MODES = { tennis: ["match", "rally"], horse: ["horse"], workout: ["daily", "quick", "together"] }
 const SPOT_ID = /^[a-z0-9-]{1,40}$/
 const ASK_MS = 30_000 // an unanswered ask goes after this long
@@ -83,6 +95,16 @@ const cleanData = (kind, data) => {
     const mode = ACT_MODES[kind].includes(d.mode) ? d.mode : ACT_MODES[kind][0]
     return { spot: d.spot, mode }
   }
+  if (kind === "swim") {
+    if (typeof d.spot !== "string" || !SPOT_ID.test(d.spot)) return null
+    return { spot: d.spot, mode: SWIM_MODES.includes(d.mode) ? d.mode : "together" }
+  }
+  if (kind === "tub") {
+    const seats = Array.isArray(d.seats) ? d.seats : null
+    if (typeof d.spot !== "string" || !SPOT_ID.test(d.spot) || !seats || seats.length !== 2 || !seats.every((s) => typeof s === "string" && TUB_SEAT.test(s)) || seats[0] === seats[1]) return null
+    return { spot: d.spot, seats: [seats[0], seats[1]] }
+  }
+  if (kind === "treat") return typeof d.item === "string" && ITEM_ID.test(d.item) ? { item: d.item } : null
   if (kind === "date") return { night: d.night === true }
   return {}
 }

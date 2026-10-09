@@ -10,6 +10,8 @@ export const MODELS = {
   pickup: { top: 27, accel: 5.8, wheelbase: 3.3, len: 5.6, wid: 2.0, circles: [-1.9, -0.3, 1.5], r: 1.0 },
   // the hidden one (eggs): quicker
   turbo: { top: 42, accel: 10, wheelbase: 2.5, len: 4.3, wid: 1.85, circles: [-1.25, 0, 1.25], r: 0.9 },
+  // Vince's car, unlocked by his keys (My Park's drinks-machine easter egg): quick, planted
+  sundowner: { top: 40, accel: 9.4, wheelbase: 2.74, len: 4.62, wid: 1.94, circles: [-1.35, 0, 1.35], r: 0.95 },
 }
 export const MODEL_IDS = ["sedan", "hatch", "suv", "pickup"]
 const BRAKE = 13
