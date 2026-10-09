@@ -18,6 +18,8 @@ import { richTextPage } from "../../../utils/fileTransfer"
 import "./WordPad.css"
 import { helpItem } from "../../../utils/help"
 import { useDisclosure } from "../../../utils/disclosure"
+import PreviousVersions from "../../shared/versions/PreviousVersions"
+import { hasHistory } from "../../../utils/versions"
 
 // WordPad, as in Windows 98: a rich text editor with a toolbar, a format bar (font, size,
 // bold/italic/underline, color, alignment, bullets), a ruler and a status bar; Font,
@@ -835,6 +837,7 @@ const WordPad = ({ file: initialFile = null, mobile = false, onTitle, onClose, r
         { label: "Open... Ctrl+O", onClick: () => guard(() => setDialog({ kind: "open" })) },
         { label: "Save Ctrl+S", onClick: save },
         { label: "Save As...", onClick: saveAs },
+        { label: "Restore Previous Version...", disabled: !onDrive(file) || !hasHistory(file), onClick: () => guard(() => setDialog({ kind: "versions" })) },
         "-",
         { label: "Print... Ctrl+P", onClick: () => setDialog({ kind: "print" }) },
         { label: "Print Preview", onClick: openPreview },
@@ -1324,6 +1327,17 @@ const WordPad = ({ file: initialFile = null, mobile = false, onTitle, onClose, r
 
       {dialog?.kind === "print" && (
         <PrintDialog name={name} onPrint={print} onCancel={() => setDialog(null)} />
+      )}
+
+      {dialog?.kind === "versions" && file && (
+        <PreviousVersions
+          file={file}
+          onClose={() => setDialog(null)}
+          onRestored={() => {
+            setFormat(file.type === "richtext" ? "rich" : "text")
+            loadHtml(htmlOf(file))
+          }}
+        />
       )}
 
       {dialog?.kind === "alert" && (

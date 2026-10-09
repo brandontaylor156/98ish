@@ -6,7 +6,7 @@
 
 export const VERSION_CAPS = {
   perFile: 10, // versions kept per file
-  maxAgeDays: 30, // older ones go (a document edited once a week keeps a month of history)
+  maxAgeDays: 7, // older ones go (the last 10 versions or the last week, whichever is fewer)
   versionBytes: 6 * 1024 * 1024, // a bigger save isn't kept as a version (a huge picture)
   fileBytes: 16 * 1024 * 1024, // one file's versions together
   totalBytes: 64 * 1024 * 1024, // every file's versions together, on this device

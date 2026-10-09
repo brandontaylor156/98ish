@@ -29,7 +29,9 @@ export const busyFromLag = (lates, every) => {
   return Math.max(0, Math.min(100, Math.round((total / (total + lates.length * every)) * 100)))
 }
 
-export const createMonitor = () => {
+// options: ping (the server round trip every 5 s) and frames (a requestAnimationFrame counter) can be
+// left off by light watchers (the CPU Meter gadget), so they cost no network or battery
+export const createMonitor = ({ ping: wantPing = true, frames: wantFrames = true } = {}) => {
   const longTasks = []
   let observer = null
   try {
@@ -66,7 +68,7 @@ export const createMonitor = () => {
     frames++
     raf = requestAnimationFrame(frame)
   }
-  raf = requestAnimationFrame(frame)
+  if (wantFrames) raf = requestAnimationFrame(frame)
   // the server round trip, every few seconds
   let ping = null
   let pinging = false
@@ -86,8 +88,8 @@ export const createMonitor = () => {
       pinging = false
     }
   }
-  pingNow()
-  const pinger = setInterval(pingNow, 5000)
+  if (wantPing) pingNow()
+  const pinger = wantPing ? setInterval(pingNow, 5000) : null
 
   let lastAt = performance.now()
   let lastFrames = 0

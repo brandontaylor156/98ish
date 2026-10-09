@@ -26,6 +26,21 @@ import { PROJECTS } from "../../utils/projects"
 import { CLOSE_EVENT, quickLaunchDrop, watchSocket } from "../../utils/shell"
 import { readClipboard } from "../../utils/systemClipboard"
 import { openHelp } from "../../utils/help"
+import { hasHistory } from "../../utils/versions"
+const PreviousVersions = React.lazy(() => import("../shared/versions/PreviousVersions"))
+// desktop gadgets (Clock, Weather, Calendar, Notes, CPU Meter), loaded only when one is out
+import { useGadgets } from "../../utils/gadgets"
+const GadgetHost = React.lazy(() => import("./gadgets/GadgetHost"))
+const GadgetGallery = React.lazy(() => import("./gadgets/GadgetGallery"))
+const GadgetSpot = ({ mobile, dispatch }) => {
+  const state = useGadgets()
+  if (!state.list.length) return null
+  return (
+    <React.Suspense fallback={null}>
+      <GadgetHost mobile={mobile} dispatch={dispatch} />
+    </React.Suspense>
+  )
+}
 
 // Sharing with the phone (Send To, Received Items, Upload from Phone): its own download,
 // fetched when a menu that needs it opens, so a tap can call the share sheet at once
@@ -486,6 +501,7 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
     },
     ...(mobile ? [] : [{ label: "Line Up Icons", disabled: view.autoArrange, onClick: lineUp }, { label: "Select All", onClick: () => setSelection(new Set(icons.map((i) => i.key))) }]),
     "-",
+    { label: "Gadgets...", onClick: () => setDialog({ kind: "gadgets" }) },
     { label: "Refresh", onClick: () => setPositions((p) => ({ ...p })) },
     "-",
     { label: "Paste", onClick: paste },
@@ -588,6 +604,7 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
     "-",
     { label: "Delete", onClick: () => setDialog({ kind: "delete", item: icon.item }) },
     { label: "Rename", onClick: () => setDialog({ kind: "name", title: "Rename", text: icon.item.name, item: icon.item }) },
+    ...(hasHistory(icon.item) ? ["-", { label: "Restore Previous Version...", onClick: () => setDialog({ kind: "versions", item: icon.item }) }] : []),
   ]
 
   // Delete, F2 and Enter on a selected desktop file
@@ -1151,6 +1168,16 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
               <p className="dialogText">Are you sure you want to send these {dialog.items.length} items to the Recycle Bin?</p>
             </Dialog>
           )}
+          {dialog.kind === "gadgets" && (
+            <React.Suspense fallback={null}>
+              <GadgetGallery mobile={mobile} onClose={() => setDialog(null)} />
+            </React.Suspense>
+          )}
+          {dialog.kind === "versions" && (
+            <React.Suspense fallback={null}>
+              <PreviousVersions file={dialog.item} onClose={() => setDialog(null)} />
+            </React.Suspense>
+          )}
           {dialog.kind === "props" && (
             <Dialog title={`${dialog.program.name} Properties`} onOk={() => setDialog(null)}>
               <div className="deskProps">
@@ -1221,6 +1248,7 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
       <div className="mobileDesktop" onClick={() => closeMenu()} onContextMenu={onContextMenu} {...longPress}>
         <FlowerSpot mobile />
         <WeatherSpot mobile dispatch={dispatch} />
+        <GadgetSpot mobile dispatch={dispatch} />
         {paired && (
           <React.Suspense fallback={null}>
             <PetWalker windows={windows} mobile />
@@ -1270,6 +1298,7 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
     >
       <FlowerSpot />
       <WeatherSpot dispatch={dispatch} />
+      <GadgetSpot dispatch={dispatch} />
       {paired && (
         <React.Suspense fallback={null}>
           <PetWalker windows={windows} />

@@ -19,6 +19,8 @@ import { fromPasteEvent, readClipboard } from "../../../utils/systemClipboard"
 import { isSyncEnabled, setSyncEnabled, statusText, syncNow, useDriveSync } from "../../../utils/driveSync"
 import { openBackup, openSignOn, useKeepSafe } from "../../shared/KeepSafe"
 import DriveProperties from "./DriveProperties"
+import PreviousVersions from "../../shared/versions/PreviousVersions"
+import { hasHistory } from "../../../utils/versions"
 import "./FileExplorer.css"
 
 export { formatSize, iconFor, typeName }
@@ -602,10 +604,22 @@ const FileExplorer = ({ path: initialPath = ["C:"], dispatch, onTitle }) => {
                   </td>
                 </tr>
               )}
+              {hasHistory(dialog.item) && dialog.item.parent !== fs.recycleBin && (
+                <tr>
+                  <th>Versions:</th>
+                  <td>
+                    <button type="button" className="fxVersionsBtn" onClick={() => setDialog({ kind: "versions", item: dialog.item })}>
+                      Restore Previous Version...
+                    </button>
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </Dialog>
       )}
+
+      {dialog?.kind === "versions" && <PreviousVersions file={dialog.item} onClose={() => setDialog(null)} />}
 
       {dialog?.kind === "alert" && (
         <Dialog title={dialog.title} sound="ding" onOk={() => setDialog(null)}>

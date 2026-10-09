@@ -3,13 +3,15 @@
 // bring it back. On this device only (never synced, never in Backup), per 98ish user:
 // IndexedDB named through the storage seam (keyPrefix() + "versions"), deleted with a removed
 // user (onUserRemoved) and by Delete My Account's "erase this device". Caps: versionsCore.js
-// VERSION_CAPS (10 versions a file, 30 days, 16 MB a file, 64 MB in all).
+// VERSION_CAPS (10 versions a file, 7 days, 6 MB a version, 16 MB a file, 64 MB in all).
+// Versions follow their file: renamed or moved, they move with it; in the Recycle Bin they
+// stay (a restored file keeps its history); deleted for good, they go (`watchFiles`).
 //
 // How saves get here: fs.js writeAndSave calls the keeper installed below for every
 // overwrite of a versioned type (WordPad, Paint, Save As over an existing file); Notepad,
 // which sets textContent itself, calls keepBefore(file) first.
 
-import { FILE_TYPE, fs, readContent, setVersionKeeper, writeAndSave } from "./fs"
+import { FILE_TYPE, fs, fsReady, onFsChange, readContent, setVersionKeeper, writeAndSave } from "./fs"
 import { keyPrefix, onUserRemoved } from "./users"
 import { isVersioned } from "./versionsCore"
 import { createVersionStore } from "./versionStore"
@@ -26,10 +28,74 @@ export const versionKey = (file) => (file && !file.isDirectory && file.parent ? 
 
 export const hasHistory = (file) => !!file && !file.isDirectory && isVersioned(file.type)
 
+// ---- following files ----
+// The drive's File objects stay the same through renames, moves and the Recycle Bin, so each
+// path with versions is tied to its object; after every drive change each one is checked.
+const tracked = new Map() // path -> File
+
+// where a file is now: "drive" | "bin" | "gone"
+export const whereIs = (file, root = fs.root, bin = fs.recycleBin) => {
+  let n = file
+  while (n?.parent) n = n.parent
+  return n === root ? "drive" : n === bin ? "bin" : "gone"
+}
+
+const track = (key, file) => key && file && tracked.set(key, file)
+
+// after a drive change: moved files' versions follow, deleted-for-good files' versions go
+export const followFiles = async () => {
+  const moves = []
+  const gone = []
+  for (const [key, file] of tracked) {
+    const where = whereIs(file)
+    if (where === "gone") gone.push(key)
+    else if (where === "drive") {
+      const now = versionKey(file)
+      if (now && now !== key) moves.push([key, now, file])
+    }
+  }
+  for (const key of gone) {
+    tracked.delete(key)
+    await versionStore.forget(key).catch(() => {})
+  }
+  for (const [from, to, file] of moves) {
+    tracked.delete(from)
+    tracked.set(to, file)
+    await versionStore.move(from, to).catch(() => {})
+  }
+}
+
+let watching = null
+// once the drive is ready: tie every path with versions to its file (paths that no longer
+// lead anywhere and aren't in the Recycle Bin are cleared), then watch the drive
+export const watchFiles = () => {
+  watching ||= (async () => {
+    await fsReady
+    const index = await versionStore.load()
+    const inBin = new Map()
+    for (const item of fs.recycleBin.content) {
+      const from = String(item.meta?.deletedFrom || "").split("\\").filter(Boolean)
+      if (item.meta?.originalName) inBin.set([...from, item.meta.originalName].join("/"), item)
+    }
+    for (const key of Object.keys(index.files)) {
+      const file = fs.resolve(key.split("/")) || inBin.get(key)
+      if (file && !file.isDirectory) track(key, file)
+      else await versionStore.forget(key).catch(() => {})
+    }
+    let timer = null
+    onFsChange(() => {
+      clearTimeout(timer)
+      timer = setTimeout(() => followFiles(), 400)
+    })
+  })().catch(() => {})
+  return watching
+}
+
 // keep `oldText` (what the file held) as a version; never throws
 export const keepVersion = (file, oldText) => {
   const key = versionKey(file)
   if (!key || !hasHistory(file) || typeof oldText !== "string" || !oldText) return Promise.resolve(null)
+  track(key, file)
   return versionStore.keep(key, oldText, file.type).catch(() => null)
 }
 
@@ -87,6 +153,9 @@ export const eraseVersions = () => versionStore.erase().catch(() => false)
 
 // fs.js writeAndSave hands every overwrite of a versioned file here
 setVersionKeeper((file, oldText) => keepVersion(file, oldText))
+
+// start following files a little after the desktop is up (one small IndexedDB read)
+if (typeof window !== "undefined" && typeof indexedDB !== "undefined") setTimeout(() => watchFiles(), 4000)
 
 // a removed 98ish user's whole database
 onUserRemoved((id, prefix) => versionStore.dropDatabase(versionDbName(prefix)))

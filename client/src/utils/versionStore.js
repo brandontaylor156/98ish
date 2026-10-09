@@ -91,6 +91,11 @@ export const createVersionStore = ({ idb, dbName, now = () => Date.now(), caps }
   }
 
   const load = () => {
+    // another 98ish user's database (tests; the app reloads on a switch): start over
+    if (dbFor !== null && dbFor !== dbName()) {
+      loaded = null
+      index = emptyIndex()
+    }
     loaded ||= get(META, INDEX_KEY).then(async (raw) => {
       const clean = cleanIndex(raw)
       // versions past their 30 days go on the first look
@@ -117,6 +122,7 @@ export const createVersionStore = ({ idb, dbName, now = () => Date.now(), caps }
     },
     // the contents a file had before a save -> the version kept, or null (same/too big/empty)
     keep: async (path, text, type) => {
+      if (!(await openDb())) return null // no IndexedDB (some private windows): no history
       await load()
       const result = addVersion(index, { path, text, type, at: now() }, caps)
       if (!result.added) return null

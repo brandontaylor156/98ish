@@ -24,6 +24,8 @@ import { useHangout, shareDoc, meKey } from "../../../utils/hangout"
 import { createShared, openShared } from "../../../utils/ydoc"
 import { useSharedPaint } from "../hangout/sharedPaint"
 import { listNames } from "../hangout/hangoutCore"
+import PreviousVersions from "../../shared/versions/PreviousVersions"
+import { hasHistory } from "../../../utils/versions"
 
 // Paint, as in Windows 98: the tool box with its options, the color box, menus, undo,
 // selections you can drag, cut, copy and paste, text, the canvas resize handles, Open /
@@ -1244,6 +1246,7 @@ const Paint = ({ file: initialFile = null, handoff = null, mobile = false, onTit
         { label: "Open... Ctrl+O", onClick: () => guard(() => setDialog({ kind: "open" })) },
         { label: "Save Ctrl+S", onClick: save },
         { label: "Save As...", onClick: () => (commitAll(), setDialog({ kind: "saveAs" })) },
+        { label: "Restore Previous Version...", disabled: !onDrive(file) || !hasHistory(file), onClick: () => guard(() => setDialog({ kind: "versions" })) },
         "-",
         { label: "Print... Ctrl+P", onClick: () => (commitAll(), setDialog({ kind: "print" })) },
         "-",
@@ -1827,6 +1830,8 @@ const Paint = ({ file: initialFile = null, handoff = null, mobile = false, onTit
       )}
 
       {dialog?.kind === "print" && (<PrintDialog name={file?.name || "untitled"} note={`${img.current.width} x ${img.current.height} pixels`} onPrint={print} onCancel={() => setDialog(null)} />)}
+
+      {dialog?.kind === "versions" && file && <PreviousVersions file={file} onClose={() => setDialog(null)} onRestored={() => openFile(file)} />}
 
       {dialog?.kind === "alert" && (
         <Dialog title={dialog.title} onOk={() => setDialog(null)}>

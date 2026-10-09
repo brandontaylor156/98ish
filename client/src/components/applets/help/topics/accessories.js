@@ -684,6 +684,83 @@ export const topics = [
     ],
     related: ["clipboard-history", "photos", "paint", "share-phone"],
   },
+  // ---- Scanner 98 ----
+  {
+    id: "scanner-98",
+    book: "accessories",
+    title: "Scanner 98",
+    summary: "Turn photos of paper pages into a straight, clean PDF (or pictures), on your device.",
+    keywords: ["scanner", "scan", "scan a document", "document scanner", "pdf", "receipt", "page", "paper", "camera", "corners", "straighten", "black and white", "grayscale", "multi-page"],
+    programs: ["Scanner 98"],
+    body: [
+      { img: "/assets/program_icons/scanner.svg", alt: "Scanner 98 icon" },
+      "Scanner 98 makes the camera a document scanner: it finds the page's four corners, straightens it, cleans it up and saves every page in one PDF.",
+      { steps: ["Open Start > Programs > Accessories > Scanner 98 (or Camera's File > Scan a Document...).", "Lay the page on something darker than the paper and fit it in view. A blue outline shows when the page is found.", "Press **Scan** (or **Pick a Photo...** for a picture you already have).", "Drag any corner that's off onto the page's real corner (a magnifier shows where your finger is), then press **Keep Scan**.", "Scan the next page the same way. Press the **pages** button when you're done.", "Pick **Color**, **Grayscale** or **Black & white**, then **Save PDF** or **Send to My Phone**."], title: "To scan:" },
+      {
+        list: [
+          "**Save PDF** puts it in C:\\Documents; press **Open** to see it in PDF Viewer.",
+          "Tap a page for its menu: **Adjust Corners...**, **Turn Right**, **Move Earlier/Later**, **Delete Page**.",
+          "**More options »** (pages): the file name, and **Save Pages as Pictures** (JPEGs in C:\\My Pictures).",
+          "**More options »** (corners): **Use the Whole Photo** or **Find the Page Again**.",
+          "View > Switch Camera uses the other camera.",
+        ],
+      },
+      { tip: "Black & white is best for printed text: it whitens shadows and uneven light. A page up to 30 pages long fits in one scan." },
+      { note: "Everything happens on this device: photos and pages are never uploaded, and nothing is downloaded to find corners. A saved PDF is an ordinary file (it syncs like your other documents if it's under 8 MB). There's no text recognition (OCR)." },
+      { open: "Scanner 98", label: "Open Scanner 98" },
+    ],
+    related: ["pdf-viewer", "camera", "share-phone", "files-in-out"],
+  },
+  // ---- Previous versions (not a program: Notepad, WordPad, Paint and Properties) ----
+  {
+    id: "previous-versions",
+    book: "accessories",
+    title: "Restore a previous version",
+    summary: "Get back what a Notepad, WordPad or Paint file held before you saved over it.",
+    keywords: ["previous version", "previous versions", "version history", "restore", "undo save", "older version", "saved over", "revert", "history"],
+    body: [
+      "Each time you save a Notepad, WordPad or Paint file, 98ish keeps what the file held before, so you can go back.",
+      { steps: ["In Notepad, WordPad or Paint, choose File > **Restore Previous Version...** (or in My Computer, right-click the file > Properties > **Restore Previous Version...**; on the desktop, right-click or touch and hold the file).", "Pick a time in the list. The preview shows that version.", "Press **Restore** to put it back, or **Save a Copy** to keep it as a new file next to the original."], title: "To restore a version:" },
+      "Restoring keeps what the file held just before as a version too, so a restore can be undone the same way.",
+      { h: "What's kept, and where" },
+      {
+        list: [
+          "The last **10** versions of each file, for **7 days**. Older ones are deleted by themselves.",
+          "A version bigger than 6 MB isn't kept; one file's versions together up to 16 MB, everything together up to 64 MB (the oldest go first).",
+          "Renaming or moving a file takes its versions along; a file in the Recycle Bin keeps them until the bin is emptied.",
+        ],
+      },
+      "Versions are kept **only on this device**, separately for each user profile, and are never synced, uploaded or put in a Backup. They're deleted when the user profile is removed, and when you delete your 98 Messenger account here with \"erase this device\" checked. See [[privacy-device]].",
+    ],
+    related: ["notepad", "wordpad", "paint", "my-computer", "privacy-device"],
+  },
+  // ---- Desktop gadgets (not a program: the desktop's Gadgets... menu) ----
+  {
+    id: "gadgets",
+    book: "accessories",
+    title: "Desktop gadgets",
+    summary: "Put a clock, the weather, your next events, a sticky note or a CPU meter on the desktop.",
+    keywords: ["gadgets", "gadget", "widgets", "widget", "sidebar", "desktop clock", "cpu meter", "sticky note", "desktop weather", "desktop calendar"],
+    body: [
+      "Gadgets are small windows that sit on your desktop, under your programs.",
+      { steps: ["Right-click the desktop (on a phone: touch and hold an empty spot) and choose **Gadgets...**.", "Tick the gadgets you want, then press OK."], title: "To add gadgets:" },
+      {
+        table: {
+          head: ["Gadget", "Shows"],
+          rows: [
+            ["Clock", "The time on a 98 clock face and your next alarm (from Clock). Tap it for Clock's alarms."],
+            ["Weather", "Now, today's high and low, for Weather's current place. Tap it for Weather."],
+            ["Calendar", "Today's date and your next three events in the next two weeks. Tap it for Calendar."],
+            ["Notes", "A sticky note to type on. It's one of your Notes, so it syncs like them."],
+            ["CPU Meter", "How busy 98ish is right now, with a 30-second graph, and the memory it uses (where the browser reports it). Tap it for Task Manager."],
+          ],
+        },
+      },
+      { computer: "Drag a gadget by its title bar to move it; it stays where you put it. The X takes it off the desktop.", phone: "On a phone, gadgets sit in a row along the bottom of the desktop; swipe the row sideways when there are more than fit. The X takes one away." },
+      { note: "Gadgets are off until you add them. Which ones are out and where is kept on this device for each user profile; they use the programs' own data and don't store anything new." },
+    ],
+    related: ["clock", "weather", "calendar", "notes", "task-manager"],
+  },
   // ---- Clipboard history (not a program: Ctrl+Shift+V and the 98ish keyboard) ----
   {
     id: "clipboard-history",
