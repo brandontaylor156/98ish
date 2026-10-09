@@ -255,7 +255,10 @@ export const makeHost98 = ({ engineCtx, me = {}, sky = { real: true, mode: "real
           }
           anim.useMM = !!fig.skinned && !lite
           anim.mmEvery = 0.2
-          fig.apply(liftPose(updateAnim(anim, walkSituation(s, key, t, look), step), s.y || 0), step)
+          const pose = liftPose(updateAnim(anim, walkSituation(s, key, t, look), step), s.y || 0)
+          fig.apply(pose, step)
+          // (dev, when a test asks for it: the last pose of each figure, for the arm tests)
+          if (import.meta.env?.DEV && globalThis.__roamPoseProbe) (globalThis.__roamPoses ||= {})[key] = { pose, s: { x: s.x, z: s.z, vx: s.vx, vz: s.vz, yaw: s.yaw }, arms: fig.probeArms?.() || null, mood: anim.mood?.kind || null }
         },
         dispose: () => {
           fig.group.removeFromParent()

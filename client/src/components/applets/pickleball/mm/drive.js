@@ -71,7 +71,7 @@ export const driveMM = (a, s, mv, dt, o) => {
   // (in a rally the height is the hips' above the standing ankle, as the footage measured it:
   // a capture up on the balls of the feet would otherwise read ~5 cm lower than asked)
   const hipAbove = s.between ? undefined : wantY - ANKLE_Y
-  const p = solveMMPose(a.mmPose, out, dt, { drop, hipAbove, rise, down: o.down || 0, still: speed < 0.6 && !hop, lift: hop > 0 ? [hop, hop] : [0, 0], raise: hop, stance: o.stance, stanceW: Math.max(0, Math.min(1, 1 - (speed - 0.6) / 1.4)), shift: o.shift || null, reach: o.reach || null })
+  const p = solveMMPose(a.mmPose, out, dt, { drop, hipAbove, rise, down: o.down || 0, still: speed < 0.6 && !hop, lift: hop > 0 ? [hop, hop] : [0, 0], raise: hop, stance: o.stance, stanceW: Math.max(0, Math.min(1, s.between ? 1 - (speed - 0.3) / 0.6 : 1 - (speed - 0.6) / 1.4)), minHalf: s.between ? 0.042 * Math.max(0, Math.min(1, (speed - 0.6) / 0.6)) : 0, shift: o.shift || null, reach: o.reach || null })
   const P = p.P
   // (the hop: the whole body up, solved in solveMMPose: the pelvis raised by it and the feet
   // lifted by it, once. It used to be added again to every joint afterwards, lifting the feet

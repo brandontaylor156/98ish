@@ -55,7 +55,22 @@ export const solveMMPose = (st, o, dt, extra = {}) => {
     const k = (s === "l" ? -1 : 1) * wide
     const a = P0[B["foot_" + s]]
     const b = P0[B["ball_" + s]]
-    return { ankle: { x: a.x + rx * k, y: a.y, z: a.z + rz * k }, ball: { x: b.x + rx * k, y: b.y, z: b.z + rz * k }, yaw: footYaw(D[B["foot_" + s]]) }
+    // (moving: each foot lands at least minHalf to its own side of the middle. Some captured jogs
+    // put the feet right on the midline, a step width of 1 cm, the legs brushing: real runners
+    // land ~5-12 cm apart, under the hips but not crossing)
+    let push = 0
+    if (extra.minHalf) {
+      const sg = s === "l" ? -1 : 1
+      // (from the root's smooth path, not the hips, which sway side to side each step)
+      const lat = ((a.x + rx * k - o.root.x) * rx + (a.z + rz * k - o.root.z) * rz) * sg
+      if (lat < extra.minHalf) push = (extra.minHalf - lat) * sg
+    }
+    // (eased, so a foot never pops out sideways)
+    st.push ??= { l: 0, r: 0 }
+    // (set while the foot is in the air, held while it's down: a planted foot never slides)
+    if (!(o.contacts & (s === "l" ? 1 : 2))) st.push[s] += (push - st.push[s]) * (1 - Math.exp(-dt / 0.03))
+    const kk = k + st.push[s]
+    return { ankle: { x: a.x + rx * kk, y: a.y, z: a.z + rz * kk }, ball: { x: b.x + rx * kk, y: b.y, z: b.z + rz * kk }, yaw: footYaw(D[B["foot_" + s]]) }
   })
   const lift = extra.lift || [0, 0]
   const down = [!!(o.contacts & 1) && lift[0] <= 0.002, !!(o.contacts & 2) && lift[1] <= 0.002]
