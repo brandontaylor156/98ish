@@ -16,6 +16,7 @@
 import { HALF_L, HALF_W } from "../physics.js"
 import { makeLayout } from "./layout.js"
 import { ROOM_LOOK, furnishRoom, propSolid } from "./propkit.js"
+import { cleanZone, keepTree } from "./clean.js"
 
 const DEG = Math.PI / 180
 const SIZES = { p: { L: 2 * HALF_L, W: 2 * HALF_W }, t: { L: 23.77, W: 10.97 }, b: { L: 28, W: 15 } }
@@ -824,9 +825,13 @@ export const generateVenue = (spec, opts = {}) => {
   if (!indoor) for (const l of spec.fence?.lights || []) lights.push({ x: l.x, z: l.z, ...(l.heads ? { heads: l.heads } : {}) })
 
   // ---------- trees: solid if they're in the walkable part ----------
+  const treeZone = cleanZone({ courts, banks: banks.map((b) => b.box), buildings: spec.buildings || [], halls, rooms, decks, extras: spec.extras || [] })
   const trees = (spec.trees || [])
     .map(([x, z, s, kind]) => ({ x, z, s: s || 1, kind: kind || "broadleaf" }))
     .filter((t) => !bankBoxes.some((b) => inBox(b, t, 0.3)) && !insideBuilding(t) && !insideHall(t))
+    // (the courts kept clean, clean.js: no trunk by a court's lines, on a deck, under a shade
+    // roof or in a building; no crown over a court)
+    .filter((t) => keepTree(treeZone, t))
   const treeCircles = trees.filter((t) => inBounds(t, -2)).map((t) => ({ x: t.x, z: t.z, r: t.kind === "palm" || t.kind === "fanpalm" ? 0.28 : 0.35 }))
 
   // ---------- the bar (indoors) ----------

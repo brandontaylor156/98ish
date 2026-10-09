@@ -837,3 +837,44 @@ test("round 4: Paseo from the owner's photos: one pen, low black partitions, the
   const lights = venueLayoutSpec(s).lights
   assert.ok(lights.filter((l) => parts.some((f) => segDist(l, f.a, f.b) < 0.2)).length >= 6, "poles on the partitions")
 })
+
+// the owner (2026-10-09): "Too much shrub and bushes ON the court ... Make sure the courts are
+// CLEAN." Nothing green on or within 2 m of a court's lines, in a pen, on a deck or a walkway.
+test("clean courts: no tree, scrub, bush or weed tuft in the clean zone at any venue", async () => {
+  const { vegetationOf, cleanZone, crownOf } = await import("./clean.js")
+  for (const id of IDS) {
+    const { g } = get(id)
+    const S = g.layoutSpec.scene
+    const v = vegetationOf(S, { bounds: g.layoutSpec.bounds })
+    // (checked against plain geometry here, not the zone's own code)
+    const nearCourt = (x, z, pad) =>
+      S.courts.some((c) => {
+        const dx = x - c.x
+        const dz = z - c.z
+        const along = Math.abs(dx * Math.sin(c.rot || 0) + dz * Math.cos(c.rot || 0))
+        const across = Math.abs(dx * Math.cos(c.rot || 0) - dz * Math.sin(c.rot || 0))
+        return along <= c.L / 2 + pad && across <= c.W / 2 + pad
+      })
+    const inPen = (x, z, r) => S.banks.some((b) => Math.abs((x - b.cx) * b.ux + (z - b.cz) * b.uz) <= b.hx + r && Math.abs(-(x - b.cx) * b.uz + (z - b.cz) * b.ux) <= b.hz + r)
+    for (const t of v.trees) {
+      assert.ok(!nearCourt(t.x, t.z, 2) && !inPen(t.x, t.z, 0.3), `${id}: tree at ${t.x}, ${t.z} by a court`)
+      assert.ok(!nearCourt(t.x, t.z, crownOf(t) + 0.5), `${id}: a crown over a court at ${t.x}, ${t.z}`)
+    }
+    for (const [x, z, s] of v.shrubs) assert.ok(!nearCourt(x, z, 2 + s * 0.5) && !inPen(x, z, s * 0.5), `${id}: scrub at ${x}, ${z}`)
+    for (const b of v.bushes) assert.ok(!nearCourt(b.x, b.z, 2 + b.s) && !inPen(b.x, b.z, b.s), `${id}: bush at ${b.x}, ${b.z}`)
+    for (const t of v.tufts) assert.ok(!nearCourt(t.x, t.z, 2) && !inPen(t.x, t.z, 0.5), `${id}: weeds at ${t.x}, ${t.z}`)
+    // the scatter never stands on a lot, a plaza, a road or a deck, nor by a pen's fence
+    const zone = cleanZone(S)
+    for (const p of [...v.shrubs.map(([x, z]) => ({ x, z })), ...v.bushes, ...v.tufts]) assert.ok(!zone.dirty(p.x, p.z), `${id}: scatter on a hard surface at ${p.x}, ${p.z}`)
+    // the walkers' tree trunks (colliders) are drawn trees: none left standing invisible
+    const drawn = new Set(v.trees.map((t) => `${t.x},${t.z}`))
+    for (const t of g.layoutSpec.trees) assert.ok(drawn.has(`${t.x},${t.z}`), `${id}: an invisible tree trunk at ${t.x}, ${t.z}`)
+    // the hillside's scrub and bushes stay off the venue's own grounds (Bouquet: a mown park)
+    const B = g.layoutSpec.bounds
+    for (const p of [...v.shrubs.map(([x, z]) => ({ x, z })), ...v.bushes]) assert.ok(!(p.x > B.x0 && p.x < B.x1 && p.z > B.z0 && p.z < B.z1), `${id}: hill scatter inside the grounds at ${p.x}, ${p.z}`)
+  }
+  // Bouquet keeps its hillside (scrub and bushes beyond the park)
+  const bq = get("bouquet").g.layoutSpec
+  const hill = vegetationOf(bq.scene, { bounds: bq.bounds })
+  assert.ok(hill.shrubs.length > 500 && hill.bushes.length > 500, "Bouquet's hillside cover")
+})

@@ -11,9 +11,10 @@ import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js
 import { addProps, propMaterials } from "./props.js"
 import { FINISH, roomRect } from "./propkit.js"
 import { surfaced } from "./surfaces.js"
+import { cleanZone, curbTufts, hillScatter, keepTree } from "./clean.js"
 import { buildBushes, buildCars, buildDecals, buildGlow, buildLotDetail, buildTrees, buildTufts, canvasTex, normalFor, windscreenTex, planDecals, setDetailEnv, skyEnvironment, windowMaps } from "./detail.js"
 import { dimEnvironment, loadHDRI, swapEnvironment } from "./environment.js"
-import { COVER, coverGrid, paintSurroundGround, powerLineGeometry, railBridgeGeometry, roadBridgeGeometry, surroundBuildingsGeometry, terrainSampler } from "./surround.js"
+import { COVER, paintSurroundGround, powerLineGeometry, railBridgeGeometry, roadBridgeGeometry, surroundBuildingsGeometry, terrainSampler } from "./surround.js"
 
 const canvasTexture = (w, h, draw) => {
   const c = document.createElement("canvas")
@@ -187,6 +188,8 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
   const e1 = new THREE.Euler()
   const C = S.colors || {}
   const B = L.BOUNDS
+  // the courts kept clean (clean.js): nothing green on or by a court, a pen, a walkway, a deck
+  const zone = cleanZone(S)
   // round 2 realism (detail.js; Medium/High): real trees, cars, decals, windows in relief that
   // reflect a sky, glowing hall lights. Low keeps the cheap shapes below.
   const detail = quality !== "low"
@@ -407,16 +410,10 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
   // the hills' grass up close (Medium/High: the CC0 grass detail over the painted cover)
   if (S.terrain?.cover && detail) surfaced(farMat, "grass")
   // the scrub on the slopes (terrain-cover.py: the cells where the aerial is dark scrub, nothing
-  // added): two or three low rounded clumps a cell, darker underneath, standing on the terrain
-  const shrubs = []
-  if (S.terrain?.cover) {
-    const { r: r0, cell } = S.terrain.cover
-    const { rows } = coverGrid(S.terrain)
-    let sd = 3
-    const rnd = () => ((sd = (sd * 16807) % 2147483647) / 2147483647)
-    for (let j = 0; j < rows.length && shrubs.length < 3000; j++)
-      for (let i = 0; i < rows[j].length; i++) if (rows[j][i] === "s") for (let k = 0; k < 2 + (rnd() < 0.5 ? 1 : 0); k++) shrubs.push([-r0 + (i + rnd() - 0.5) * cell, -r0 + (j + rnd() - 0.5) * cell, 2 + rnd() * 2.6])
-  }
+  // added): two or three low rounded clumps a cell, darker underneath, standing on the terrain;
+  // only beyond the venue's own grounds and never on anything kept clean (clean.js hillScatter)
+  const hill = S.terrain?.cover ? hillScatter(S, { bounds: B, detail, zone }) : { shrubs: [], bushes: [] }
+  const shrubs = hill.shrubs
   if (shrubs.length) {
     const g = new THREE.IcosahedronGeometry(1, 0)
     const p = g.attributes.position
@@ -444,22 +441,9 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
   }
   // (Medium/High: the small bushes dotted over the grass, as many per cell as the aerial's
   // dark specks there (cover.dots), as low crossed cards; at most 4500)
-  const dotRows = S.terrain?.cover?.dots ? coverGrid(S.terrain).dots : null
-  if (detail && dotRows) {
-    const { r: r0, cell } = S.terrain.cover
+  if (detail && hill.bushes.length) {
     const scrubCol = new THREE.Color(S.terrain.colors?.scrub || COVER.scrub)
-    const list = []
-    let sd = 17
-    const rnd = () => ((sd = (sd * 16807) % 2147483647) / 2147483647)
-    for (let j = 0; j < dotRows.length && list.length < 4500; j++)
-      for (let i = 0; i < dotRows[j].length; i++) {
-        const d = dotRows[j][i]
-        for (let k = 0; k < Math.floor(d / 2); k++) {
-          const x = -r0 + (i + rnd() - 0.5) * cell
-          const z = -r0 + (j + rnd() - 0.5) * cell
-          list.push({ x, z, y: groundAt(x, z), s: 0.7 + rnd() * 1.1, c: scrubCol.clone().offsetHSL((rnd() - 0.5) * 0.05, (rnd() - 0.5) * 0.1, (rnd() - 0.5) * 0.1 + 0.06) })
-        }
-      }
+    const list = hill.bushes.map((b) => ({ x: b.x, z: b.z, y: groundAt(b.x, b.z), s: b.s, c: scrubCol.clone().offsetHSL((b.k - 0.5) * 0.05, (((b.k * 7.31) % 1) - 0.5) * 0.1, (((b.k * 3.17) % 1) - 0.5) * 0.1 + 0.06) }))
     buildBushes(group, list, { keep })
   }
 
@@ -2005,11 +1989,11 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
 
   // ---------- trees ----------
   const byKind = { broadleaf: [], palm: [], conifer: [], eucalyptus: [], pine: [], fanpalm: [] }
-  for (const t of S.trees) (byKind[t.kind] || byKind.broadleaf).push(t)
+  for (const t of S.trees) if (keepTree(zone, t)) (byKind[t.kind] || byKind.broadleaf).push(t)
   // only real trees: the venue's own (OSM, the aerial canopy, hand-placed from the reference pack)
   // and the mapped ones around it (S.surround.trees); nothing is scattered to fill the view
   // (docs/venue-provenance.md)
-  for (const t of S.surround?.trees || []) (byKind[t[3]] || byKind.broadleaf).push({ x: t[0], z: t[1], s: t[2], ...(S.terrain ? { y: groundAt(t[0], t[1]) } : {}) })
+  for (const t of S.surround?.trees || []) if (keepTree(zone, { x: t[0], z: t[1], s: t[2], kind: t[3] })) (byKind[t[3]] || byKind.broadleaf).push({ x: t[0], z: t[1], s: t[2], ...(S.terrain ? { y: groundAt(t[0], t[1]) } : {}) })
   const trunkMat = lambert(0x6b4a2b)
   // (Low: pines drawn as the plain conifers)
   if (!detail) byKind.conifer.push(...byKind.pine.splice(0))
@@ -2100,26 +2084,17 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
     const plan = planDecals({ courts: S.courts, stalls, lots, trees: [...byKind.broadleaf, ...byKind.eucalyptus].filter((t) => t.x > B.x0 && t.x < B.x1 && t.z > B.z0 && t.z < B.z1), rand, inPoly: pointInPoly })
     // a soft shadow under every car
     plan.under = cars.map((c) => ({ x: c.x, z: c.z, y: 0.008, w: 2.3, l: 4.9, yaw: c.yaw }))
+    // (no leaf litter on a court, a pen, a walk or a lot: clean.js)
+    plan.leaves = plan.leaves.filter((l) => !zone.dirty(l.x, l.z, Math.max(l.w, l.l) / 2))
     buildDecals(group, plan, { keep })
     // round 3: crisp painted stall lines (a little worn), concrete wheel stops, curbs round the
     // lots, and weeds along the foot of the fences and the curbs (outdoors)
     const edges = lots.flatMap((p) => p.map((a, i) => [a, p[(i + 1) % p.length]]))
     buildLotDetail(group, { stripes: plans.flatMap((x) => x.stripes), stops: plans.flatMap((x) => x.stops), edges }, { keep, rand })
+    // weeds only where a lot's curb meets open ground; none along the pens' fences (the owner:
+    // "Make sure the courts are CLEAN")
     if (!S.indoor) {
-      const tufts = []
-      const along = ([x0, z0], [x1, z1], every, off) => {
-        const len = Math.hypot(x1 - x0, z1 - z0)
-        if (len < 0.5) return
-        const nx = -(z1 - z0) / len
-        const nz = (x1 - x0) / len
-        for (let d = rand() * every; d < len; d += every * (0.6 + rand() * 0.8)) {
-          const side = rand() < 0.5 ? -1 : 1
-          const o = off * (0.4 + rand() * 0.8) * side
-          tufts.push({ x: x0 + ((x1 - x0) * d) / len + nx * o, z: z0 + ((z1 - z0) * d) / len + nz * o, s: 0.6 + rand() * 0.8, r: rand() * Math.PI })
-        }
-      }
-      for (const f of S.fences) if (f.k === "chain" && !f.part && !S.fence?.types?.[f.t]?.curb && tufts.length < 5000) along(f.a, f.b, 0.9, 0.18)
-      for (const [a, b] of edges) if (tufts.length < 6500) along(a, b, 1.3, 0.25)
+      const tufts = curbTufts(S, edges, { zone })
       buildTufts(group, tufts, { keep })
     }
   }
