@@ -39,6 +39,9 @@
 //   park:sig   { to: num, kind, data }   a voice connection message for someone in your park
 //              (offer/answer/ice/bye; server/voice/relay.js: the audio itself goes browser to
 //              browser over WebRTC, never through here)
+//   park:ask / park:answer / park:unlink / park:tgend   doing things together, by consent
+//              (hold hands, follow, sit, selfie, date night, paired emotes, a game as a team):
+//              ./together.js
 // Server -> client: park:m (positions), park:person (someone joined / changed), park:gone
 // { num }, park:fx { num, emote | line }, park:courts [court], park:go { court, kind,
 // roomId? }, park:rate { rate }, park:vc { room, on: [num] } (who has voice on),
@@ -47,6 +50,7 @@
 
 const { sanitizeLook } = require("../arcade/games/pickleballLooks")
 const { createVoiceRelay } = require("../voice/relay")
+const { createTogether } = require("./together")
 
 const CAP = 16
 const VENUES = require("./venues.json")
@@ -130,7 +134,7 @@ const realClock = {
 
 // liveVenues (server/venues): any venue Venue Finder built from OpenStreetMap ({ info(id) ->
 // { courts, bounds } | null }); maxLiveParks: how many of those can have a park open at once
-const createPark = ({ emit = () => {}, emitVolatile = null, rooms = null, clock = realClock, meterTotal = () => null, capBytes = 3000 * MB, cap = CAP, liveVenues = null, maxLiveParks = 60, ice = null } = {}) => {
+const createPark = ({ emit = () => {}, emitVolatile = null, rooms = null, clock = realClock, meterTotal = () => null, capBytes = 3000 * MB, cap = CAP, liveVenues = null, maxLiveParks = 60, ice = null, blocked = () => false } = {}) => {
   const liveInfo = (id) => (liveVenues && typeof id === "string" && !Object.prototype.hasOwnProperty.call(VENUES, id) ? liveVenues.info(id) : null)
   const vOf = (id) => (liveInfo(id) ? id : venueOf(id))
   const vInfo = (id) => liveInfo(id) || venueInfo(id)
@@ -253,6 +257,7 @@ const createPark = ({ emit = () => {}, emitVolatile = null, rooms = null, clock 
     if (!inst) return { ok: true }
     const p = inst.people.get(pid)
     if (p) voice.set(`p${inst.n}`, p.num, false)
+    together.forget(inst, pid)
     inst.people.delete(pid)
     where.delete(pid)
     let changed = false
@@ -317,6 +322,7 @@ const createPark = ({ emit = () => {}, emitVolatile = null, rooms = null, clock 
     const p = inst.people.get(pid)
     p.pos = clean
     p.dirty = true
+    together.moved(inst, pid)
     return true
   }
   const setLook = (pid, look) => {
@@ -368,6 +374,49 @@ const createPark = ({ emit = () => {}, emitVolatile = null, rooms = null, clock 
     return { ok: true }
   }
 
+  // a game on a court for these people: one person plays the park's computer players on their
+  // own ("solo"); two or more get a private Pickleball room, everyone seated, readied and
+  // started (settings: the room's; a "together" game brings its own)
+  const goPlay = (inst, court, players, settings = { format: "doubles", target: 11, scoring: "sideout", venue: "park" }, extra = {}) => {
+    const c = inst.courts[court]
+    for (const q of players) {
+      const p = inst.people.get(q)
+      if (p) p.playing = court
+      together.forget(inst, q)
+    }
+    const solo = () => {
+      c.game = { kind: "solo", players, score: [0, 0], since: clock.now() }
+      for (const q of players) send(q, "park:go", { court, kind: "solo", ...extra })
+      publishCourts(inst)
+      return { ok: true, kind: "solo" }
+    }
+    if (players.length === 1 || !rooms) return solo()
+    const people = players.map((q) => inst.people.get(q)).filter(Boolean)
+    const host = people[0]
+    const made = rooms.create(host.me, "pickleball", settings)
+    if (!made?.ok) {
+      // (a game together needs its room; any other: everyone plays their own game against the computer)
+      if (extra.together) {
+        for (const q of players) {
+          const p = inst.people.get(q)
+          if (p) p.playing = null
+        }
+        return { ok: false, error: made?.error || "The game couldn't start. Please try again." }
+      }
+      return solo()
+    }
+    for (const p of people.slice(1)) {
+      rooms.allow(p.pid, made.roomId)
+      rooms.join(p.me, { roomId: made.roomId })
+      rooms.ready(p.pid, made.roomId, true)
+    }
+    const started = rooms.start(host.pid, made.roomId)
+    c.game = { kind: "room", roomId: made.roomId, players, score: [0, 0], since: clock.now() }
+    for (const q of players) send(q, "park:go", { court, kind: "room", roomId: made.roomId, started: !!started?.ok, ...extra })
+    publishCourts(inst)
+    return { ok: true, kind: "room", roomId: made.roomId }
+  }
+
   // a court's game is over in someone's browser: the people at the front go on
   const up = (pid, court) => {
     const inst = instanceOf(pid)
@@ -379,38 +428,40 @@ const createPark = ({ emit = () => {}, emitVolatile = null, rooms = null, clock 
     if (!c.queue.includes(pid)) return { ok: false, error: "Put your paddle in the rack first." }
     const players = c.queue.slice(0, 4)
     c.queue = c.queue.slice(4)
-    for (const q of players) {
-      const p = inst.people.get(q)
-      if (p) p.playing = court
-    }
-    if (players.length === 1 || !rooms) {
-      c.game = { kind: "solo", players, score: [0, 0], since: clock.now() }
-      for (const q of players) send(q, "park:go", { court, kind: "solo" })
-      publishCourts(inst)
-      return { ok: true, kind: "solo" }
-    }
-    // two or more: a private Pickleball room, everyone seated and the game started
-    const people = players.map((q) => inst.people.get(q)).filter(Boolean)
-    const host = people[0]
-    const made = rooms.create(host.me, "pickleball", { format: "doubles", target: 11, scoring: "sideout", venue: "park" })
-    if (!made?.ok) {
-      // (no room: everyone plays their own game against the computer)
-      c.game = { kind: "solo", players, score: [0, 0], since: clock.now() }
-      for (const q of players) send(q, "park:go", { court, kind: "solo" })
-      publishCourts(inst)
-      return { ok: true, kind: "solo" }
-    }
-    for (const p of people.slice(1)) {
-      rooms.allow(p.pid, made.roomId)
-      rooms.join(p.me, { roomId: made.roomId })
-      rooms.ready(p.pid, made.roomId, true)
-    }
-    const started = rooms.start(host.pid, made.roomId)
-    c.game = { kind: "room", roomId: made.roomId, players, score: [0, 0], since: clock.now() }
-    for (const q of players) send(q, "park:go", { court, kind: "room", roomId: made.roomId, started: !!started?.ok })
-    publishCourts(inst)
-    return { ok: true, kind: "room", roomId: made.roomId }
+    return goPlay(inst, court, players)
   }
+
+  // ---------- together (./together.js) ----------
+  // a free court for two people playing together: the one asked for (the asker's browser
+  // picked one with a clear camera), else one nobody's waiting for, else any free one
+  const togetherGame = (inst, players, kind, want) => {
+    const free = (i) => !!inst.courts[i] && !inst.courts[i].game
+    let court = Number.isInteger(want) && free(want) ? want : -1
+    if (court < 0) court = inst.courts.findIndex((c, i) => free(i) && !c.queue.length)
+    if (court < 0) court = inst.courts.findIndex((c, i) => free(i))
+    if (court < 0) return { ok: false, error: "Every court is busy right now. Try again in a minute." }
+    for (const q of players) for (const c of inst.courts) c.queue = c.queue.filter((x) => x !== q)
+    const settings = kind === "rally" ? { format: "singles", target: 11, scoring: "sideout", venue: "park", mode: "drill", drill: "rally" } : { format: "doubles", target: 11, scoring: "sideout", venue: "park", teams: "us" }
+    return goPlay(inst, court, players, settings, { together: kind })
+  }
+  const together = createTogether({
+    send,
+    toAll,
+    blocked,
+    clock,
+    limit: (n, ms) => windowLimiter(n, ms, clock.now),
+    startGame: togetherGame,
+  })
+  const withInst = (fn) => (pid, payload) => {
+    const inst = instanceOf(pid)
+    if (!inst) return { ok: false, error: "You're not in the park." }
+    return fn(inst, pid, payload || {})
+  }
+  const tgAsk = withInst(together.ask)
+  const tgAnswer = withInst(together.answer)
+  const tgUnlink = withInst(together.unlink)
+  const tgEnd = withInst(together.tgEnd)
+
   const score = (pid, court, s) => {
     const inst = instanceOf(pid)
     const c = inst && courtOf(inst, court)
@@ -495,6 +546,10 @@ const createPark = ({ emit = () => {}, emitVolatile = null, rooms = null, clock 
     on("park:done", (me, p) => done(me.pid, p.court))
     on("park:vc", (me, p) => voiceOn(me.pid, p.on))
     on("park:sig", (me, p) => voiceSignal(me.pid, p))
+    on("park:ask", (me, p) => tgAsk(me.pid, p))
+    on("park:answer", (me, p) => tgAnswer(me.pid, p))
+    on("park:unlink", (me) => tgUnlink(me.pid))
+    on("park:tgend", (me, p) => tgEnd(me.pid, p))
     // fire and forget, a few times a second: no ack, no logging
     socket.on("park:pos", (data) => {
       const computer = current()
@@ -529,6 +584,10 @@ const createPark = ({ emit = () => {}, emitVolatile = null, rooms = null, clock 
     watchRooms,
     voiceOn,
     voiceSignal,
+    tgAsk,
+    tgAnswer,
+    tgUnlink,
+    tgEnd,
     voice,
     instances,
     instanceOf: (pid) => instanceOf(pid)?.n ?? null,

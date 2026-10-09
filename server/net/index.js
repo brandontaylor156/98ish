@@ -154,6 +154,12 @@ const attachNet = (io, { aim: initialAim = null, graceMs = RESUME_GRACE_MS, game
     emit: emitPid,
     emitVolatile: (pid, event, payload) => byPid.get(pid)?.socket?.volatile.emit(event, payload),
     rooms,
+    // (doing things together in the park: never between people who block each other)
+    blocked: (a, b) => {
+      const ca = byPid.get(a)
+      const cb = byPid.get(b)
+      return !!(ca && cb && blocked(ca, cb))
+    },
     ...parkOptions,
   })
   // Live Broadcast (Pickleball 98 > Real Games > Go Live): a real game's tracked data relayed
