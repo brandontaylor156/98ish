@@ -878,3 +878,26 @@ test("clean courts: no tree, scrub, bush or weed tuft in the clean zone at any v
   const hill = vegetationOf(bq.scene, { bounds: bq.bounds })
   assert.ok(hill.shrubs.length > 500 && hill.bushes.length > 500, "Bouquet's hillside cover")
 })
+
+// the owner (2026-10-09): "At Los Cab you should spawn to the area where the pickleball courts
+// are." Every venue's arrival stands by its pickleball courts, facing them, near a live court's
+// gate, with the camera behind you clear.
+test("arrival: by the pickleball courts and facing them at every venue", () => {
+  for (const id of IDS) {
+    const { g, L } = get(id)
+    setLayout(L)
+    const S = g.layoutSpec.scene
+    const sp = L.SPAWN
+    const pb = S.courts.filter((c) => c.s === "p")
+    const near = pb.slice().sort((a, b) => Math.hypot(a.x - sp.x, a.z - sp.z) - Math.hypot(b.x - sp.x, b.z - sp.z)).slice(0, 4)
+    assert.ok(Math.hypot(near[0].x - sp.x, near[0].z - sp.z) < 15, `${id}: arrival within 15 m of a pickleball court`)
+    const mid = { x: near.reduce((s, c) => s + c.x, 0) / 4, z: near.reduce((s, c) => s + c.z, 0) / 4 }
+    const want = Math.atan2(mid.x - sp.x, mid.z - sp.z)
+    const err = Math.abs(Math.atan2(Math.sin(want - sp.yaw), Math.cos(want - sp.yaw)))
+    assert.ok(err < 0.5, `${id}: arrival faces the courts (off by ${((err * 180) / Math.PI).toFixed(0)} deg)`)
+    assert.ok(Math.min(...L.COURTS.map((c) => Math.hypot(c.outside.x - sp.x, c.outside.z - sp.z))) < 12, `${id}: a live court's gate close by`)
+    assert.ok(!L.blocked(sp.x, sp.z, 0.8), `${id}: room to stand`)
+    const t = followTarget({ x: sp.x, z: sp.z, y: 0, yaw: sp.yaw }, sp.yaw, { portrait: true, roofY: S.indoor ? Math.min(...S.halls.map((h) => h.h || 9)) - 0.6 : null })
+    assert.ok(t.open && t.pulled < 0.7, `${id}: the camera behind the arrival is clear`)
+  }
+})
