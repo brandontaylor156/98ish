@@ -18,6 +18,45 @@ import { CLEAR, cachedWeather, fetchWeather } from "../components/applets/pickle
 import { loadHDRI } from "../components/applets/pickleball/park/environment.js"
 import { surfaceUniform } from "../components/applets/pickleball/park/surfaces.js"
 import { treeKit } from "../components/applets/pickleball/park/detail.js"
+import { createChillMusic } from "../components/applets/pickleball/park/chillmusic.js"
+import { createBus } from "../utils/audio.js"
+
+// the car's horn: two detuned reeds (about 400 and 500 Hz, a little growl), held while pressed;
+// under the taskbar volume (utils/audio.js)
+const hornBus = createBus({ gain: 0.22, threshold: -18 })
+const createHorn = () => {
+  let voice = null
+  return (on) => {
+    const b = hornBus()
+    const ctx = b?.ctx
+    if (!ctx) return
+    if (on && !voice) {
+      const g = ctx.createGain()
+      g.gain.setValueAtTime(0, ctx.currentTime)
+      g.gain.linearRampToValueAtTime(0.5, ctx.currentTime + 0.02)
+      const f = ctx.createBiquadFilter()
+      f.type = "lowpass"
+      f.frequency.value = 2200
+      f.connect(g).connect(b.out)
+      const oscs = [405, 507, 812].map((hz, i) => {
+        const o = ctx.createOscillator()
+        o.type = i === 2 ? "triangle" : "sawtooth"
+        o.frequency.value = hz
+        const og = ctx.createGain()
+        og.gain.value = i === 2 ? 0.15 : 0.5
+        o.connect(og).connect(f)
+        o.start()
+        return o
+      })
+      voice = { g, oscs }
+    } else if (!on && voice) {
+      const v = voice
+      voice = null
+      v.g.gain.setTargetAtTime(0, ctx.currentTime, 0.03)
+      setTimeout(() => v.oscs.forEach((o) => o.stop()), 200)
+    }
+  }
+}
 import { parkLook } from "../components/applets/pickleball/park/regulars.js"
 import { useNet } from "../components/applets/network/NetContext"
 import { createVoiceSession, voiceSupported } from "../utils/voice/session.js"
@@ -65,6 +104,19 @@ export const makeHost98 = ({ engineCtx, me = {}, sky = { real: true, mode: "real
     // uniforms, and the venues' trees (docs/venue-realism.md); none on Low (the plain look)
     surface: quality === "low" ? null : (kind) => surfaceUniform(kind, engineCtx?.renderer),
     trees: quality === "low" ? null : () => treeKit(),
+    // the car's horn (held) and its radio: My Park's own lo-fi loop (park/chillmusic.js, made
+    // with Web Audio, nothing downloaded)
+    audio: (() => {
+      let music = null
+      const horn = createHorn()
+      return {
+        horn,
+        radio(on) {
+          if (on) (music ||= createChillMusic()).start()
+          else music?.stop()
+        },
+      }
+    })(),
     // a person: you, a friend, or (lite: true) someone walking by, animated more cheaply (no
     // motion matching: the walk cycle only)
     figure(look, { lite = false } = {}) {

@@ -34,6 +34,7 @@ import { createEggs } from "./eggs.js"
 import { createTreeLayer } from "./render/trees.js"
 import { createTraffic, trafficRoad } from "./sim/traffic.js"
 import { createPeds, shopSpots, walkLines } from "./sim/peds.js"
+import { createStreetLayer, streetFurniture } from "./render/street.js"
 
 const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a))
 
@@ -252,7 +253,7 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
     const g = ownGround(t)
     const mesh = buildTileMesh(t, g, { near, texSize: near ? (phone ? 512 : 1024) : phone ? 128 : 256, anisotropy: host.anisotropy || 1 })
     scene.add(mesh.group)
-    const e = { t, mesh, near, decks: deckSurfaces(t.roads), trees: near || !phone ? treeSpots(t, { max: near ? 500 : 150 }).map((p) => ({ ...p, y: g(p.x, p.z) })) : [], cars: near ? parkedCars(t) : null }
+    const e = { t, mesh, near, decks: deckSurfaces(t.roads), trees: near || !phone ? treeSpots(t, { max: near ? 500 : 150 }).map((p) => ({ ...p, y: g(p.x, p.z) })) : [], cars: near ? parkedCars(t) : null, street: near ? streetFurniture(t).map((p) => ({ ...p, y: g(p.x, p.z) })) : [] }
     if (near) colliders.addTile(t.key, wallRings(t.buildings, g))
     tiles.set(t.key, e)
     tilesDirty = true
@@ -306,7 +307,10 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
     }
     const cc = center()
     if (tilesDirty || !treesAt || Math.hypot(cc.x - treesAt.x, cc.z - treesAt.z) > 50) {
-      if (tilesDirty) refreshLife()
+      if (tilesDirty) {
+        refreshLife()
+        streetLayer.set([...tiles.values()].flatMap((e) => e.street || []))
+      }
       tilesDirty = false
       refreshParked()
       treesAt = { x: cc.x, z: cc.z }
@@ -376,6 +380,17 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
     }
     return { x: px, z: pz, hit, nx, nz }
   }
+  // the map's signals, stop signs and lamps; the lights at night
+  const streetLayer = createStreetLayer(scene, { cap: phone ? 260 : 500 })
+  const drawLights = () => {
+    const cars = []
+    const glowR2 = (phone ? 160 : 260) ** 2
+    const cp = camera.position
+    for (const t of traffic.cars) if ((t.x - cp.x) ** 2 + (t.z - cp.z) ** 2 < glowR2) cars.push({ x: t.x, y: heightAt(t.x, t.z, 0, true) ?? 0, z: t.z, yaw: t.yaw, len: (MODELS[t.model] || MODELS.sedan).len, wid: (MODELS[t.model] || MODELS.sedan).wid })
+    if (driving && car) cars.push({ x: car.x, y: car.y, z: car.z, yaw: car.yaw, len: (MODELS[car.model] || MODELS.sedan).len, wid: (MODELS[car.model] || MODELS.sedan).wid, beam: true })
+    for (const r of remotes.values()) if (r.act & ACT.drive && r.car) cars.push({ x: r.x, y: r.y || 0, z: r.z, yaw: r.yaw, len: (MODELS[r.car.model] || MODELS.sedan).len, wid: (MODELS[r.car.model] || MODELS.sedan).wid })
+    streetLayer.update(clock, night, camera, cars)
+  }
   const stepLife = (dt) => {
     life.time = clock
     const c = center()
@@ -430,6 +445,8 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
   const sp = start || town.spawn || { x: 0, z: 0, yaw: 0 }
   const me = { name: host.me?.name || "You", look: host.me?.look || null, walker: createWalker(sp.x, sp.z, sp.yaw ?? 0), x: sp.x, z: sp.z, y: 0, yaw: sp.yaw ?? 0 }
   let driving = false
+  let radioOn = false
+  const audio = host.audio || null
   let riding = null // { num } the friend whose car you're in
   let car = null // the car you're driving (sim/car.js)
   let carMesh = null
@@ -573,12 +590,21 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
       me.walker.z = p.z
       me.walker.yaw = yaw
       riding = null
+      if (radioOn) {
+        radioOn = false
+        audio?.radio?.(false)
+      }
       net?.request?.("roam:car", { car: null })
       lastSent = null
       onEvent({ type: "ride", on: false })
       return
     }
     if (!driving || !car) return
+    audio?.horn?.(false)
+    if (radioOn) {
+      radioOn = false
+      audio?.radio?.(false)
+    }
     // the car stays where you left it (this session; friends see it there too)
     moved.set(car.id, { x: car.x, z: car.z, yaw: car.yaw })
     const spot = doorSpot(car, "driver")
@@ -808,6 +834,7 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
       online: net ? { people: remotes.size + 1, you: myNum } : null,
       riders: driving ? [...remotes.values()].filter((r) => r.car?.seat === 1 && r.car.driver === myNum).map((r) => r.name) : [],
       sprint: input.sprint,
+      radio: radioOn,
     }
     lastStreet = hud.street
     const s = JSON.stringify(hud)
@@ -881,6 +908,7 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
     if (sky?.mesh) sky.mesh.position.set(camera.position.x, 0, camera.position.z)
     stepLife(dt)
     drawLife(dt)
+    drawLights()
     drawPeople(dt)
     updateLabels()
     sendPos()
@@ -926,8 +954,19 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
       if (down) {
         if (code === "Enter" || code === "KeyF" || code === "KeyE") return doAction()
         if (code === "KeyQ") return (cam.yaw += 0.35)
+        if (code === "KeyH") {
+          world.horn(true)
+          return true
+        }
+        if (code === "KeyR") {
+          world.radio(!radioOn)
+          return true
+        }
         keys.add(code)
-      } else keys.delete(code)
+      } else {
+        keys.delete(code)
+        if (code === "KeyH") world.horn(false)
+      }
       return ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "KeyW", "KeyA", "KeyS", "KeyD", "ShiftLeft", "ShiftRight", "Space"].includes(code)
     },
     clearKeys() {
@@ -942,6 +981,34 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
       cam.pitch = Math.max(0.05, Math.min(0.9, cam.pitch + dy * 0.004))
     },
     action: doAction,
+    // the car's horn (held) and radio (on/off; it goes off when you get out)
+    horn(on) {
+      if (!driving && on) return
+      audio?.horn?.(!!on)
+    },
+    radio(on) {
+      radioOn = !!on && (driving || !!riding)
+      audio?.radio?.(radioOn)
+      sendHud(true)
+    },
+    get radioOn() {
+      return radioOn
+    },
+    // the minimap: the drivable roads round you (town metres), you, friends, the way you face
+    mapView(radius = 160) {
+      const p = center()
+      const roads = []
+      const r2 = (radius + 60) ** 2
+      for (const e of tiles.values()) {
+        if (!e.near) continue
+        const rc = e.t.rect
+        const dx = Math.max(rc.x0 - p.x, 0, p.x - rc.x1)
+        const dz = Math.max(rc.z0 - p.z, 0, p.z - rc.z1)
+        if (dx * dx + dz * dz > r2) continue
+        for (const r of e.t.roads) if (DRIVABLE.has(r.cls) && r.cls !== ROAD.driveway && r.cls !== ROAD.aisle) roads.push({ w: r.width, big: r.cls <= ROAD.tertiary, pts: r.pts })
+      }
+      return { x: p.x, z: p.z, yaw: driving && car ? car.yaw : riding ? remotes.get(riding.num)?.yaw ?? me.walker.yaw : me.walker.yaw, view: cam.yaw, roads, people: [...remotes.values()].map((r) => ({ x: r.x, z: r.z })), traffic: traffic.cars.map((t) => ({ x: t.x, z: t.z })) }
+    },
     refigure() {
       for (const k of [...figs.keys()]) dropFig(k)
     },
@@ -1171,6 +1238,9 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
       parkedLayer.dispose()
       trees.dispose()
       trafficLayer.dispose()
+      streetLayer.dispose()
+      audio?.horn?.(false)
+      audio?.radio?.(false)
       for (const f of pedFigs.values()) f.dispose()
       pedFigs.clear()
       eggs.dispose()

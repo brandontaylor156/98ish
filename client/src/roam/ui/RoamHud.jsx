@@ -6,12 +6,16 @@
 // (sideways) walks, the stick appearing under the thumb; a drag anywhere else turns the camera;
 // Run toggles running. Driving: drag on the left half to steer, hold Gas and Brake on the
 // right (Brake held when stopped backs up). One action button (Get in, Get out, Ride along,
-// Take a look...) and a menu (finds, voice, back to the courts, leave).
+// Take a look...) and a menu (finds, voice, back to the courts, leave). A minimap in the top
+// corner; in a car, a horn (hold) and the radio.
 
 import React, { useEffect, useRef, useState } from "react"
 import "./roam.css"
+import { Minimap } from "./Minimap.jsx"
 
 const STICK_R = 56
+// the minimap's size: a little bigger with room for it
+const mapSize = () => (typeof window !== "undefined" && Math.min(window.innerWidth, window.innerHeight) > 600 ? 124 : 92)
 
 export function RoamHud({ world, hud, voice = null, onMenu, onAction, credit = "© OpenStreetMap contributors" }) {
   const rootRef = useRef(null)
@@ -115,6 +119,11 @@ export function RoamHud({ world, hud, voice = null, onMenu, onAction, credit = "
     setPedal((p) => ({ ...p, [which]: on }))
     world?.setDrive({ [which]: on ? 1 : 0 })
   }
+  const horn = (on) => (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    world?.horn?.(on)
+  }
   const toggleSprint = () => {
     const next = !sprint
     setSprint(next)
@@ -143,6 +152,19 @@ export function RoamHud({ world, hud, voice = null, onMenu, onAction, credit = "
           </button>
         </div>
       </div>
+      <Minimap world={world} size={mapSize()} />
+      {(driving || mode === "ride") && (
+        <div className="roamCarBtns">
+          <button type="button" className={`roamBtn roamRadio${hud?.radio ? " is-on" : ""}`} onPointerDown={(e) => e.stopPropagation()} onClick={() => world?.radio?.(!hud?.radio)} data-roam="radio" aria-label="Radio">
+            {hud?.radio ? "♪ On" : "♪ Radio"}
+          </button>
+          {driving && (
+            <button type="button" className="roamBtn roamHorn" onPointerDown={horn(true)} onPointerUp={horn(false)} onPointerCancel={horn(false)} onPointerLeave={horn(false)} data-roam="horn">
+              Horn
+            </button>
+          )}
+        </div>
+      )}
       {hud?.action && (
         <button type="button" className="roamBtn roamAction" onClick={onAction} data-roam="action" data-kind={hud.action.kind}>
           {hud.action.label}
