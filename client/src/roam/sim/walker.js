@@ -1,12 +1,16 @@
 // Roam: you on foot. Pure; Node-tested (roam.test.js). Moved only by your own hand (the
-// owner's rule: nothing moves your player for you): the stick or keys, plus Sprint.
+// owner's rule: nothing moves your player for you): the stick or keys (Shift sprints).
 //
 // The stick is turned by the camera's heading (up the stick = away from the camera). A push
-// past the 15% dead zone walks (0.8-1.6 m/s), further jogs (to 3.8), Sprint runs (6.8).
+// past the 15% dead zone walks (0.8-1.6 m/s), further jogs (to 3.8), and pushed all the way
+// out it runs (6.8): there's no Run button (the owner: "The 'run' button is kinda useless").
 // The ground's height comes from the town (terrain, bridge decks); walls push you along them.
 
 export const DEAD = 0.15
 export const SPEED = { walk: 1.6, jog: 3.8, sprint: 6.8 }
+// (the push, past the dead zone, where jogging starts, where running starts, and where it's full)
+const JOG_AT = 0.5
+const RUN_AT = 0.8
 const ACCEL = 9
 const DECEL = 13
 const TURN = 10 // rad/s toward where you're going
@@ -18,8 +22,11 @@ export const createWalker = (x = 0, z = 0, yaw = 0) => ({ x, z, y: 0, yaw, vx: 0
 export const targetSpeed = (m, sprint) => {
   if (m < DEAD) return 0
   if (sprint) return SPEED.sprint
-  const k = (m - DEAD) / (1 - DEAD)
-  return k < 0.55 ? 0.8 + (SPEED.walk - 0.8) * (k / 0.55) : SPEED.walk + (SPEED.jog - SPEED.walk) * Math.min(1, (k - 0.55) / 0.4)
+  const k = Math.min(1, (m - DEAD) / (1 - DEAD))
+  if (k < JOG_AT) return 0.8 + (SPEED.walk - 0.8) * (k / JOG_AT)
+  if (k < RUN_AT) return SPEED.walk + (SPEED.jog - SPEED.walk) * ((k - JOG_AT) / (RUN_AT - JOG_AT))
+  // (the last of the push: up to a run, all the way out)
+  return SPEED.jog + (SPEED.sprint - SPEED.jog) * Math.min(1, (k - RUN_AT) / (0.97 - RUN_AT))
 }
 
 const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a))

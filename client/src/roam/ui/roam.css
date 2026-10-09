@@ -90,13 +90,23 @@
 .roamRiders {
   top: calc(84px + env(safe-area-inset-top, 0px));
 }
-.roamSprint {
+.roamArrival {
   position: absolute;
-  right: calc(14px + env(safe-area-inset-right, 0px));
-  bottom: calc(18px + env(safe-area-inset-bottom, 0px));
-  min-width: 72px;
-  min-height: 56px;
+  left: 50%;
+  bottom: calc(46% + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+  white-space: nowrap;
   font-weight: bold;
+  min-height: 40px;
+}
+.roamArrival u {
+  font-weight: normal;
+  margin-left: 6px;
+}
+.roamStartBtn {
+  text-align: left;
+  font-size: 15px;
+  min-height: 46px;
 }
 .roamPedals {
   position: absolute;

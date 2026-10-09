@@ -24,5 +24,14 @@ export default {
     paseo: { x: -60, z: 20, yaw: Math.PI, back: { x: -55, z: 14, r: 16 } },
   },
   spawn: { x: -60, z: 20, yaw: Math.PI },
+  // where Explore drops you (the owner: "You should have parked me at like, the mall or
+  // somewhere fun"): the liveliest real spot first, then a few others; the picker remembers
+  // yours. Each is open ground by the mapped place it names (docs/open-world.md "Arriving").
+  starts: [
+    { id: "mall", name: "Town Center", kind: "mall", place: "Westfield Valencia Center", x: 323, z: 2234, look: { x: 369, z: 2310 } },
+    { id: "centralpark", name: "Central Park", kind: "park", place: "Central Park", x: 3755, z: 600, look: { x: 3551, z: 312 } },
+    { id: "bridgeport", name: "Bridgeport Park", kind: "park", place: "Bridgeport Park", x: 1278, z: 998, look: { x: 1268, z: 1048 } },
+    { id: "paseo", name: "The Paseo Club", kind: "venue", venue: "paseo", x: -60, z: 20, yaw: Math.PI },
+  ],
   eggs,
 }

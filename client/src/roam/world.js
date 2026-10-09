@@ -41,6 +41,8 @@ import { createTraffic, trafficRoad } from "./sim/traffic.js"
 import { createPeds, shopSpots, walkLines } from "./sim/peds.js"
 import { createStreetLayer, streetFurniture } from "./render/street.js"
 import { seaUniforms } from "./render/sea.js"
+import { tableSpots } from "./sim/tables.js"
+import { createCrowdLayer } from "./render/crowd.js"
 
 const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a))
 
@@ -280,7 +282,7 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
     const g = ownGround(t)
     const mesh = buildTileMesh(t, g, { near, texSize: near ? (phone ? 512 : 1024) : phone ? 128 : 256, anisotropy: host.anisotropy || 1 })
     scene.add(mesh.group)
-    const e = { t, mesh, near, decks: deckSurfaces(t.roads, t.platforms), trees: near || !phone ? treeSpots(t, { max: near ? 500 : 150 }).map((p) => ({ ...p, y: g(p.x, p.z) })) : [], cars: near ? parkedCars(t) : null, street: near ? streetFurniture(t).map((p) => ({ ...p, y: g(p.x, p.z) })) : [] }
+    const e = { t, mesh, near, decks: deckSurfaces(t.roads, t.platforms), trees: near || !phone ? treeSpots(t, { max: near ? 500 : 150 }).map((p) => ({ ...p, y: g(p.x, p.z) })) : [], cars: near ? parkedCars(t) : null, street: near ? streetFurniture(t).map((p) => ({ ...p, y: g(p.x, p.z) })) : [], tables: near && !low ? tableSpots(t).map((tb) => ({ ...tb, y: g(tb.x, tb.z), chairs: tb.chairs.map((c) => ({ ...c, y: g(c.x, c.z) })) })) : [] }
     if (near) colliders.addTile(t.key, wallRings(t.buildings, g))
     if (near && t.shore?.length) shoreCol.addEdges(t.key, t.shore)
     tiles.set(t.key, e)
@@ -348,6 +350,11 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
       // (the venues' trees near you, plain ones farther off)
       const r2 = TREE_NEAR * TREE_NEAR
       trees.set([...tiles.values()].flatMap((e) => e.trees), (t) => (t.x - cc.x) ** 2 + (t.z - cc.z) ** 2 < r2)
+      // (café tables near you, nearest first)
+      const tb = [...tiles.values()].flatMap((e) => e.tables || []).filter((t) => (t.x - cc.x) ** 2 + (t.z - cc.z) ** 2 < 130 * 130)
+      tb.sort((a, b) => (a.x - cc.x) ** 2 + (a.z - cc.z) ** 2 - ((b.x - cc.x) ** 2 + (b.z - cc.z) ** 2))
+      crowd.set(tb)
+      busyNow(cc)
     }
   }
   const buildQueue = new Set()
@@ -357,6 +364,27 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
   const trafficLayer = createParkedLayer(scene, phone ? 10 : 18)
   const peds = createPeds({ cap: low ? 0 : phone ? 3 : 6, seed: (Date.now() & 0xffff) + 7 })
   const pedFigs = new Map() // id -> fig
+  // people sitting out at the cafés' tables (sim/tables.js; not on Low)
+  const crowd = low ? { set() {}, dispose() {}, count: 0 } : createCrowdLayer(scene, { cap: phone ? 40 : 80, shadows: true })
+  // round the shops (a mall, a main street): a few more people about and a little more traffic
+  const LIFE = { peds: low ? 0 : phone ? 3 : 6, traffic: low ? 3 : phone ? 6 : 14, busyPeds: low ? 0 : phone ? 5 : 9, busyTraffic: low ? 3 : phone ? 8 : 16 }
+  let busy = false
+  let devLifeSet = false
+  const busyNow = (c) => {
+    let n = 0
+    for (const e of tiles.values()) {
+      if (!e.near) continue
+      const rc = e.t.rect
+      if (Math.hypot(Math.max(rc.x0 - c.x, 0, c.x - rc.x1), Math.max(rc.z0 - c.z, 0, c.z - rc.z1)) > 250) continue
+      e.shops ||= shopSpots(e.t)
+      for (const sp of e.shops) if (Math.hypot(sp.x - c.x, sp.z - c.z) < 250) n++
+    }
+    busy = n >= 12
+    if (!devLifeSet) {
+      peds.cap = busy ? LIFE.busyPeds : LIFE.peds
+      traffic.cap = busy ? LIFE.busyTraffic : LIFE.traffic
+    }
+  }
   const PED_SEE = phone ? 75 : 120
   let lifeTick = 0
   const life = { roads: [], lines: [], street: [], time: 0 }
@@ -1201,6 +1229,8 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
         eggs: { found: eggs.foundCount, total: eggs.total },
         traffic: traffic.cars.map((t) => ({ id: t.id, x: t.x, z: t.z, yaw: t.yaw, speed: t.speed, road: t.road.name })),
         peds: peds.peds.map((p) => ({ id: p.id, x: p.x, z: p.z, speed: p.speed })),
+        busy,
+        seated: crowd.count,
         street: lastStreet,
       }
     },
@@ -1220,6 +1250,15 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
       cam.yaw = yaw
       cam.pos = null
       lastCenter = null
+    },
+    // the start picker: on foot at a start spot (out of any car first; tiles load round it)
+    goToStart(spot) {
+      if (!spot) return
+      if (driving || riding) getOut()
+      world.teleport(spot.x, spot.z, spot.yaw ?? me.walker.yaw)
+      cam.yaw = spot.yaw ?? cam.yaw
+      world.whenReady().then(() => !disposed && world.ensureOpen(spot))
+      sendHud(true)
     },
     // not inside a building (coming out of a venue somewhere the town draws a wall round):
     // the venue's own way out, else the nearest open ground
@@ -1293,6 +1332,7 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
     renderInfo: () => ({ sunI: +sun.intensity.toFixed(2), hemiI: +hemi.intensity.toFixed(2), sunPos: sun.position.toArray().map(Math.round), tgt: sun.target.position.toArray().map(Math.round), exposure, shadow: !!sun.shadow.map, shadowAt: { x: Math.round(shadowAt.x), z: Math.round(shadowAt.z), n: shadowAt.n, t: shadowAt.t, now: clock, nu: sun.shadow.needsUpdate }, sunDir: sunDir.toArray().map((v) => +v.toFixed(2)), trees: trees.nearCount, night: +night.toFixed(2) }),
     devSun: () => sun,
     devLife({ traffic: t, peds: p } = {}) {
+      devLifeSet = true
       if (t !== undefined) traffic.cap = t
       if (p !== undefined) peds.cap = p
     },
@@ -1312,10 +1352,10 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
     },
     // arriving from another town in your car: on the nearest through road to the town's
     // arrival spot, in its lane, facing along it
-    arriveByCar: async ({ model = "sedan", color = 0x8a8f98 } = {}) => {
+    arriveByCar: async ({ model = "sedan", color = 0x8a8f98, at = null } = {}) => {
       await world.whenReady()
       if (disposed || driving || riding) return false
-      const sp = town.spawn || { x: 0, z: 0, yaw: 0 }
+      const sp = at || town.spawn || { x: 0, z: 0, yaw: 0 }
       let best = null
       let bd = 450
       for (const t of tilesAround(frame, sp.x, sp.z, 450)) {
@@ -1368,6 +1408,7 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
       parkedLayer.dispose()
       trees.dispose()
       trafficLayer.dispose()
+      crowd.dispose()
       streetLayer.dispose()
       audio?.horn?.(false)
       audio?.radio?.(false)

@@ -57,9 +57,9 @@ import { ATTRIBUTION as OSM_CREDIT } from "./park/live/finder.js"
 import { VENUE_LIST } from "./park/venues/index.js"
 import { usePark } from "./park/usePark"
 // Roam, the open world (client/src/roam/; docs/open-world.md): Explore Valencia from the Paseo Club
-import { RoamFound, RoamHud, RoamMenu } from "../../../roam/ui/RoamHud.jsx"
+import { RoamFound, RoamHud, RoamMenu, RoamStarts } from "../../../roam/ui/RoamHud.jsx"
 import { makeHost98, useRoamNet, useRoamVoice } from "../../../roam/host98.js"
-import { TOWNS, townById, townForVenue } from "../../../roam/towns/index.js"
+import { TOWNS, startSpot, startSpots, townById, townForVenue } from "../../../roam/towns/index.js"
 import * as livingNet from "../../../utils/livingpark"
 import { memoryKey, pickLine, rememberResult } from "./park/living.js"
 import { AwayCard, ClonePanel } from "./park/LivingPanel"
@@ -1035,16 +1035,21 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
   }
   // Roam: out of the venue into its town (from: the venue; you come out where you stood);
   // car: arriving from another town in your car (Go to...)
-  const startRoam = async (townId, { from = null, car = null } = {}) => {
+  const startRoam = async (townId, { from = null, car = null, startId = undefined, at: arrive = null } = {}) => {
     const e = engineRef.current
     const town = townById(townId)
     if (!e || !town) return
     const v = from ? town.venues?.[from] : null
-    let at = null
+    // where you arrive: the start spot you picked last time in this town (the liveliest real
+    // spot the first time: the mall, docs/open-world.md "Arriving"); the venue's spot is one
+    // of them (then you come out where you stood)
+    const picked = startId !== undefined ? startId : roamStartPref(town.id)
+    const spot = arrive ? null : startSpot(town, picked)
+    let at = arrive || (spot && !spot.venue ? { x: spot.x, z: spot.z, yaw: spot.yaw } : null)
     const pw = parkRef.current
     if (pw) {
       const m = pw.info?.me
-      if (m && v) at = { x: m.x, z: m.z, yaw: m.yaw }
+      if (m && v && !at) at = { x: m.x, z: m.z, yaw: m.yaw }
       parkRef.current = null
       parkGameRef.current = null
       setParkWorld(null)
@@ -1056,22 +1061,43 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
     reset()
     setSession({ kind: "roam" })
     setScreen("roam")
-    setRoamUi({ menu: false, found: null, from })
+    setRoamUi({ menu: false, found: null, from, arrival: arrive ? null : spot?.id || null })
     await nextPaint()
     const { createRoam } = await import("../../../roam/world.js")
     if (engineRef.current !== e) return
     const ctx = e.worldContext()
-    const host = makeHost98({ engineCtx: ctx, me: myParkInfo(), sky: { real: prefsRef.current.realSky !== false } })
-    const w = createRoam({ town, host, phone: !!mobile, quality: ctx.quality, start: at || (v ? { x: v.x, z: v.z, yaw: v.yaw } : null), labelsEl: roamLabelsRef.current, onHud: setRoamHud, onEvent: (ev) => roamEventRef.current?.(ev) })
+    const host = makeHost98({ engineCtx: ctx, me: myParkInfo(), sky: { real: prefsRef.current.realSky !== false }, aim, phone: !!mobile })
+    const venueSpot = spot?.venue ? town.venues?.[spot.venue] : v
+    const w = createRoam({ town, host, phone: !!mobile, quality: ctx.quality, start: at || (venueSpot ? { x: venueSpot.x, z: venueSpot.z, yaw: venueSpot.yaw } : null), labelsEl: roamLabelsRef.current, onHud: setRoamHud, onEvent: (ev) => roamEventRef.current?.(ev) })
     roamRef.current = w
     setRoamWorld(w)
     e.setWorld(w)
     if (import.meta.env?.DEV) window.__roam = w
     return w.whenReady().then(async () => {
       if (roamRef.current !== w) return
-      w.ensureOpen(v)
-      if (car) await w.arriveByCar(car)
+      w.ensureOpen(at ? null : venueSpot)
+      if (car) await w.arriveByCar({ ...car, at: at || null })
     })
+  }
+  // the start spot you picked in a town (per person, this device)
+  const roamStartPref = (townId) => {
+    try {
+      return JSON.parse(localStorage.getItem(`98ish.roam.start.${townId}`) || "null")
+    } catch {
+      return null
+    }
+  }
+  // the start picker: go there now and remember it for next time
+  const pickRoamStart = (id) => {
+    const w = roamRef.current
+    if (!w) return
+    try {
+      localStorage.setItem(`98ish.roam.start.${w.town.id}`, JSON.stringify(id))
+    } catch {
+      // (storage blocked: it just isn't remembered)
+    }
+    setRoamUi((u) => ({ ...u, arrival: id, starts: false, menu: false }))
+    w.goToStart?.(startSpot(w.town, id))
   }
   // Roam: Go to... another town (a quick trip). Driving, you arrive in your car and anyone
   // riding along comes too (server/roam tickets); follow: you're the one riding along.
@@ -2023,7 +2049,8 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
         )}
         {/* ---------- Roam: the open town (client/src/roam/) ---------- */}
         {screen === "roam" && <div className="roamLabels" ref={roamLabelsRef} aria-hidden="true" />}
-        {screen === "roam" && roamWorld && phase === "world" && !roamUi.menu && !roamUi.found && <RoamHud world={roamWorld} hud={roamHud} voice={roamVoice} onMenu={() => setRoamUi((u) => ({ ...u, menu: true }))} onAction={() => roamRef.current?.action()} />}
+        {screen === "roam" && roamWorld && phase === "world" && !roamUi.menu && !roamUi.found && !roamUi.starts && <RoamHud world={roamWorld} hud={roamHud} voice={roamVoice} onMenu={() => setRoamUi((u) => ({ ...u, menu: true }))} onAction={() => roamRef.current?.action()} arrival={roamUi.arrival ? startSpot(roamWorld.town, roamUi.arrival) : null} onStarts={() => setRoamUi((u) => ({ ...u, starts: true }))} />}
+        {screen === "roam" && roamWorld && roamUi.starts && <RoamStarts town={roamWorld.town} starts={startSpots(roamWorld.town)} current={roamUi.arrival} onPick={pickRoamStart} onClose={() => (setRoamUi((u) => ({ ...u, starts: false })), stageRef.current?.focus({ preventScroll: true }))} />}
         {screen === "roam" && roamWorld && roamUi.menu && (
           <RoamMenu
             town={roamWorld.town}
@@ -2032,6 +2059,7 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
             towns={Object.values(TOWNS).filter((t) => t.id !== roamWorld.town.id).map((t) => ({ id: t.id, name: t.name }))}
             onGo={(id) => hopTo(id)}
             driving={roamWorld.mode === "drive"}
+            onStarts={() => setRoamUi((u) => ({ ...u, menu: false, starts: true }))}
             voice={roamVoice}
             onBack={() => {
               const from = roamUi.from

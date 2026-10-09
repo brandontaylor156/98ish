@@ -22,5 +22,12 @@ export default {
     newport: { x: -29, z: 25, yaw: Math.PI, back: { x: -29, z: 25, r: 16 } },
   },
   spawn: { x: -29, z: 25, yaw: Math.PI },
+  // where Explore drops you: the liveliest real spot first (docs/open-world.md "Arriving")
+  starts: [
+    { id: "fashionisland", name: "Fashion Island", kind: "mall", place: "Fashion Island", x: 405, z: -586, look: { x: 380, z: -560 } },
+    { id: "balboa", name: "Balboa Fun Zone", kind: "fun", place: "Fun Zone Arcade", x: -1917, z: 939, look: { x: -1911, z: 879 } },
+    { id: "pier", name: "The beach at the pier", kind: "beach", place: "Newport Pier", x: -4558, z: 422, look: { x: -4662, z: 463 } },
+    { id: "club", name: "The club", kind: "venue", venue: "newport", x: -29, z: 25, yaw: Math.PI },
+  ],
   eggs,
 }
