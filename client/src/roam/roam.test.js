@@ -18,7 +18,7 @@ import { createColliders } from "./sim/collide.js"
 import { createWalker, stepWalker } from "./sim/walker.js"
 import { MODELS, createCar, personAhead, stepCar } from "./sim/car.js"
 import { MAX_PER_TILE, parkedCars } from "./sim/parked.js"
-import { ACT, LIMIT, cleanCar, cleanPos, createTrack, packPos, pushSample, sampleTrack, shouldSend, unpackPos } from "./sim/sync.js"
+import { ACT, LIMIT, MODEL_LIST, cleanCar, cleanPos, createTrack, packPos, pushSample, sampleTrack, shouldSend, unpackPos } from "./sim/sync.js"
 import { eggSpots, nearestEgg, REACH } from "./eggs.js"
 import { createTileStore } from "./stream.js"
 import { CAR_KINDS, CAR_SPECS, carParts } from "./render/carmodel.js"
@@ -814,4 +814,40 @@ test("tile store: static tiles for the town, the function elsewhere, a pause aft
   const n = asked.length
   store.want([{ z: 16, x: 99, y: 99 }])
   assert.equal(asked.length, n, "a failed tile waits before it's asked again")
+})
+
+// Vince's car (My Park's drinks-machine easter egg): a real model everywhere, in its stall
+test("the Sundowner GT: a model of its own, parked in a stall by the Paseo Club, clear of buildings and lanes", () => {
+  const k = valencia.keyCar
+  assert.ok(k && k.model === "sundowner")
+  assert.ok(CAR_SPECS.sundowner && MODELS.sundowner && MODEL_LIST.includes("sundowner"))
+  assert.ok(MODELS.sundowner.top > MODELS.sedan.top, "quicker than the town's cars")
+  const parts = carParts("sundowner")
+  assert.ok(parts.paint.position.length > 1000)
+  // in its stall: no building, no road's lanes, near where you come out of the Paseo Club
+  const ix = JSON.parse(fs.readFileSync(path.join(PREBUILT, "index.json"), "utf8"))
+  const f = townFrame(valencia.origin)
+  const exit = valencia.venues.paseo
+  assert.ok(Math.hypot(k.x - exit.x, k.z - exit.z) < 30, "by the way out")
+  for (const t of tilesAround(f, k.x, k.z, 60)) {
+    const file = path.join(PREBUILT, "16", String(t.x), `${t.y}.json`)
+    if (!fs.existsSync(file)) continue
+    const d = decodeTile(JSON.parse(fs.readFileSync(file, "utf8")), f, ix.base)
+    for (const b of d.buildings) {
+      let inside = false
+      for (let i = 0, j = b.ring.length - 1; i < b.ring.length; j = i++) if (b.ring[i].z > k.z !== b.ring[j].z > k.z && k.x < ((b.ring[j].x - b.ring[i].x) * (k.z - b.ring[i].z)) / (b.ring[j].z - b.ring[i].z) + b.ring[i].x) inside = !inside
+      assert.ok(!inside, "not in a building")
+    }
+    for (const r of d.roads) {
+      if (r.cls !== ROAD.residential && r.cls !== ROAD.primary && r.cls !== ROAD.secondary && r.cls !== ROAD.tertiary) continue
+      for (let i = 0; i + 1 < r.pts.length; i++) {
+        const a = r.pts[i]
+        const b = r.pts[i + 1]
+        const dx = b.x - a.x
+        const dz = b.z - a.z
+        const q = Math.max(0, Math.min(1, ((k.x - a.x) * dx + (k.z - a.z) * dz) / (dx * dx + dz * dz || 1)))
+        assert.ok(Math.hypot(k.x - a.x - dx * q, k.z - a.z - dz * q) > r.width / 2 + 1, "off the street's lanes")
+      }
+    }
+  }
 })
