@@ -19,6 +19,8 @@ import { createShared, openShared } from "../../../utils/ydoc"
 import { useSharedText } from "../hangout/sharedText"
 import RemoteCarets from "../hangout/RemoteCarets"
 import { listNames } from "../hangout/hangoutCore"
+import PreviousVersions from "../../shared/versions/PreviousVersions"
+import { hasHistory, keepVersion } from "../../../utils/versions"
 
 // Notepad, as in Windows 98: File / Edit / Search / Help, Word Wrap, Set Font, Time/Date
 // (F5), Find (F3) and Replace, Open/Save As over the 98ish drive, the "save changes?"
@@ -156,8 +158,12 @@ const Notepad = ({ file: initialFile = null, handoff = null, onTitle, onClose, r
   const writeTo = (dir, fileName) => {
     try {
       let target = dir.getItem(fileName)
-      if (target && target.isText) target.textContent = text
-      else target = fs.createFileIn(dir, fileName, "text", text)
+      if (target && target.isText) {
+        // what it held before is kept as a previous version (utils/versions.js)
+        const old = target.loaded ? target.textContent : null
+        target.textContent = text
+        if (old !== null && old !== text) keepVersion(target, old)
+      } else target = fs.createFileIn(dir, fileName, "text", text)
       setFile(target)
       setSaved(text)
       setDialog(null)
@@ -171,7 +177,9 @@ const Notepad = ({ file: initialFile = null, handoff = null, onTitle, onClose, r
 
   const save = () => {
     if (onDrive(file)) {
+      const old = file.loaded ? file.textContent : null
       file.textContent = text
+      if (old !== null && old !== text) keepVersion(file, old)
       setSaved(text)
       const next = afterSave.current
       afterSave.current = null
@@ -344,6 +352,7 @@ const Notepad = ({ file: initialFile = null, handoff = null, onTitle, onClose, r
         { label: "Open... Ctrl+O", onClick: () => guard(() => setDialog({ kind: "open" })) },
         { label: "Save Ctrl+S", onClick: save },
         { label: "Save As...", onClick: () => setDialog({ kind: "saveAs" }) },
+        { label: "Restore Previous Version...", disabled: !onDrive(file) || !hasHistory(file), onClick: () => setDialog({ kind: "versions" }) },
         "-",
         { label: "Print... Ctrl+P", onClick: () => setDialog({ kind: "print" }) },
         { label: "Send To", items: sendToItems(sharePayload, { title: "Notepad" }) },
@@ -581,6 +590,17 @@ const Notepad = ({ file: initialFile = null, handoff = null, onTitle, onClose, r
       )}
 
       {dialog?.kind === "print" && <PrintDialog name={file?.name || "Untitled"} onPrint={print} onCancel={() => setDialog(null)} />}
+
+      {dialog?.kind === "versions" && file && (
+        <PreviousVersions
+          file={file}
+          onClose={() => setDialog(null)}
+          onRestored={(restored) => {
+            setText(restored)
+            setSaved(restored)
+          }}
+        />
+      )}
 
       {dialog?.kind === "alert" && (
         <Dialog title={dialog.title} sound="ding" onOk={() => setDialog(null)}>

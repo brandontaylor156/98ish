@@ -1,0 +1,358 @@
+/* Scanner 98 */
+.scanRoot {
+  display: flex;
+  flex-direction: column;
+  height: calc(100% - 25px);
+  min-height: 0;
+  background: #c0c0c0;
+  font-size: 12px;
+}
+
+/* ---- camera ---- */
+.scanCam {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.scanLive {
+  position: relative;
+  flex: 1;
+  min-height: 160px;
+  margin: 4px 4px 0;
+  background: #000;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080;
+  overflow: hidden;
+}
+
+.scanVideo,
+.scanOutline {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.scanOutline polygon {
+  fill: rgba(0, 128, 255, 0.18);
+  stroke: #00c0ff;
+  stroke-width: 3px;
+  vector-effect: non-scaling-stroke;
+  stroke-linejoin: round;
+}
+
+.scanNote,
+.scanHint {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  margin: 0;
+  padding: 3px 8px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  white-space: nowrap;
+  max-width: calc(100% - 16px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.scanNote {
+  top: 45%;
+}
+
+.scanHint {
+  top: 8px;
+}
+
+.scanProblem {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(340px, calc(100% - 24px));
+  height: auto;
+  min-width: 0;
+}
+
+.scanProblem p {
+  margin: 0 0 8px;
+}
+
+.scanProblemButtons {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.scanCamBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 6px calc(6px + env(safe-area-inset-bottom));
+}
+
+.scanShutter {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  min-width: 110px !important;
+  padding: 0 16px !important;
+  font-weight: bold;
+  justify-content: center;
+}
+
+.scanSide {
+  min-height: 36px;
+  min-width: 96px !important;
+}
+
+/* ---- corners ---- */
+.scanAdjust {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  margin: 4px 4px 0;
+  background: #404040;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080;
+  overflow: hidden;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.scanFrame {
+  position: absolute;
+  inset: 8px;
+}
+
+.scanPhoto,
+.scanCorners {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  -webkit-touch-callout: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.scanCorners {
+  overflow: visible;
+}
+
+.scanQuad {
+  fill: rgba(0, 128, 255, 0.15);
+  stroke: #00c0ff;
+  stroke-width: 2px;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+
+.scanHandle {
+  cursor: grab;
+  touch-action: none;
+}
+
+.scanHandle.is-drag {
+  cursor: grabbing;
+}
+
+.scanHit {
+  fill: transparent;
+}
+
+.scanDot {
+  fill: rgba(255, 255, 255, 0.85);
+  stroke: #0050c0;
+  stroke-width: 2px;
+  vector-effect: non-scaling-stroke;
+}
+
+.scanHandle.is-drag .scanDot {
+  fill: rgba(0, 192, 255, 0.5);
+}
+
+.scanLoupe {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 1px #000, 2px 2px 0 rgba(0, 0, 0, 0.4);
+  border-radius: 50%;
+  pointer-events: none;
+  background: #808080;
+}
+
+.scanLoupe.is-left {
+  right: auto;
+  left: 4px;
+}
+
+/* ---- pages ---- */
+.scanPagesView {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
+  padding: 6px 6px 0;
+  gap: 6px;
+}
+
+.scanFilters {
+  display: flex;
+  gap: 4px;
+}
+
+.scanFilters button {
+  flex: 1;
+  min-width: 0 !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 30px;
+  padding: 0 4px !important;
+}
+
+.scanFilters button.is-on {
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #0a0a0a, inset -2px -2px #dfdfdf, inset 2px 2px #808080;
+  background: #e0e0e0;
+  font-weight: bold;
+}
+
+.scanSwatch {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border: 1px solid #000;
+  flex: none;
+}
+
+.scanSwatch--color {
+  background: linear-gradient(135deg, #e00000 0 33%, #00a000 33% 66%, #0040e0 66%);
+}
+
+.scanSwatch--gray {
+  background: linear-gradient(90deg, #202020, #e0e0e0);
+}
+
+.scanSwatch--bw {
+  background: linear-gradient(90deg, #000 0 50%, #fff 50%);
+}
+
+.scanPages {
+  list-style: none;
+  margin: 0;
+  padding: 6px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+  gap: 8px;
+  background: #fff;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+  min-height: 140px;
+}
+
+.scanPage {
+  position: relative;
+  width: 100%;
+  min-width: 0 !important;
+  aspect-ratio: 8.5 / 11;
+  padding: 3px !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 4px;
+  overflow: hidden;
+}
+
+.scanPage img {
+  max-width: 100%;
+  max-height: 100%;
+  box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+}
+
+.scanPageNo {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  min-width: 18px;
+  padding: 0 3px;
+  background: #000080;
+  color: #fff;
+  font-weight: bold;
+  text-align: center;
+}
+
+.scanAdd span {
+  font-size: 28px;
+  line-height: 1;
+}
+
+.scanName input {
+  width: 100%;
+}
+
+.scanMore {
+  margin: 4px;
+}
+
+.scanMore button {
+  margin: 2px 4px 2px 0;
+}
+
+.scanActions .scanPrimary {
+  font-weight: bold;
+}
+
+.scanStatus {
+  margin: 0;
+  padding: 3px 6px calc(3px + env(safe-area-inset-bottom));
+  border-top: 1px solid #808080;
+  min-height: 20px;
+}
+
+.scanLink {
+  margin-left: 6px;
+  min-width: 0 !important;
+  padding: 0 8px !important;
+}
+
+/* phones: bigger targets */
+.scanRoot.is-phone .scanShutter {
+  flex-direction: column;
+  gap: 0;
+  min-width: 96px !important;
+  min-height: 64px;
+  font-size: 13px;
+}
+
+.scanRoot.is-phone .scanShutter svg {
+  width: 34px;
+  height: 34px;
+}
+
+.scanRoot.is-phone .scanSide {
+  min-height: 44px;
+  font-size: 12px;
+}
+
+.scanRoot.is-phone .scanFilters button {
+  min-height: 40px;
+}
+
+.scanRoot.is-phone .scanActions button {
+  min-height: 44px;
+}
+
+.scanRoot.is-phone .scanPages {
+  grid-template-columns: repeat(3, 1fr);
+}

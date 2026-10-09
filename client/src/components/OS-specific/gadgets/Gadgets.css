@@ -1,0 +1,297 @@
+/* Desktop gadgets: small 98 windows on the wallpaper (GadgetHost.jsx) */
+.gdgHost {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+.gdg.window {
+  position: absolute;
+  pointer-events: auto;
+  min-width: 0;
+  height: auto;
+  display: flex;
+  flex-direction: column;
+  font-size: 11px;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+.gdgBar {
+  flex: none;
+  padding: 2px 2px 2px 4px;
+  cursor: move;
+  touch-action: none;
+}
+.gdgWin.window-body {
+  margin: 2px;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+.gdgBody {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 4px;
+  font: inherit;
+  text-align: center;
+}
+button.gdgBody {
+  min-height: 0;
+  min-width: 0;
+  cursor: pointer;
+  box-shadow: none;
+  background: transparent;
+  border: 0;
+}
+button.gdgBody:focus-visible {
+  outline: 1px dotted #000;
+}
+.gdgSmall {
+  font-size: 11px;
+  color: #202020;
+  line-height: 1.25;
+}
+
+/* Clock */
+.gdgFace {
+  width: 112px;
+  height: 112px;
+}
+.gdgDigital {
+  font-family: "Courier New", monospace;
+  font-weight: bold;
+  font-size: 15px;
+  background: #000;
+  color: #00ff00;
+  padding: 1px 6px;
+  border: 2px inset #fff;
+}
+
+/* Weather */
+.gdgWeather {
+  background: linear-gradient(#1e5fbf, #6fa7e8) !important;
+  color: #fff;
+  text-shadow: 1px 1px 0 #0a246a;
+}
+.gdgWeather .gdgSmall {
+  color: #fff;
+}
+.gdgWxRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.gdgWxTemp {
+  font: bold 24px Arial, sans-serif;
+}
+.gdgPlace {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: bold;
+}
+
+/* Calendar */
+.gdgCal {
+  justify-content: flex-start;
+  align-items: stretch;
+}
+.gdgCalPage {
+  align-self: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 64px;
+  background: #fff;
+  border: 1px solid #000;
+  box-shadow: 2px 2px 0 #808080;
+}
+.gdgCalMonth {
+  align-self: stretch;
+  background: #c00000;
+  color: #fff;
+  font-weight: bold;
+  text-transform: uppercase;
+}
+.gdgCalDay {
+  font: bold 26px Arial, sans-serif;
+  line-height: 1.05;
+}
+.gdgCalWeek {
+  font-size: 10px;
+}
+.gdgCalList {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 4px;
+  text-align: left;
+  min-width: 0;
+}
+.gdgCalItem {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border-left: 3px solid #000080;
+  padding-left: 4px;
+}
+.gdgCalItem b,
+.gdgCalItem span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Notes */
+.gdgNote {
+  padding: 0;
+  border: 1px solid;
+  align-items: stretch;
+}
+.gdgNoteText {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  resize: none;
+  border: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  padding: 4px 6px;
+  font: 13px "Comic Sans MS", "Segoe Print", cursive;
+  -webkit-user-select: text;
+  user-select: text;
+}
+.gdgNoteOpen {
+  align-self: flex-end;
+  margin: 2px;
+  min-width: 0;
+  min-height: 0;
+  padding: 0 6px;
+  font-size: 10px;
+}
+.gdgNoteEmpty {
+  gap: 8px;
+}
+
+/* CPU Meter */
+.gdgMeter {
+  align-items: stretch;
+}
+.gdgMeterRow {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.gdgMeterRow > span:first-child {
+  width: 26px;
+  text-align: left;
+}
+.gdgLevel {
+  flex: 1;
+  height: 10px;
+  background: #000;
+  border: 1px inset #fff;
+  position: relative;
+}
+.gdgLevel > span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: #00c000;
+}
+.gdgNum {
+  min-width: 40px;
+  text-align: right;
+  font-family: "Courier New", monospace;
+}
+.gdgGraph {
+  height: 36px;
+  width: 100%;
+  background: #000 linear-gradient(transparent 49%, #004000 50%, transparent 51%);
+  border: 1px inset #fff;
+}
+
+/* phones: one row along the bottom of the desktop */
+.gdgStrip {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 6px;
+  display: flex;
+  gap: 8px;
+  padding: 0 8px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  touch-action: pan-x;
+  z-index: 1;
+  scrollbar-width: none;
+}
+.gdgStrip::-webkit-scrollbar {
+  display: none;
+}
+.gdg.window.is-phone {
+  position: relative;
+  flex: 0 0 auto;
+  width: 150px;
+  height: 150px;
+}
+.gdg.is-phone .gdgBar {
+  cursor: default;
+}
+.gdg.is-phone .gdgFace {
+  width: 76px;
+  height: 76px;
+}
+.gdg.is-phone .gdgCalDay {
+  font-size: 20px;
+}
+.gdg.is-phone .gdgCalItem:nth-child(n + 3) {
+  display: none;
+}
+
+/* the gallery */
+.dialog:has(.gdgPick) {
+  width: min(400px, calc(100vw - 16px));
+}
+.gdgIntro {
+  margin: 0 0 6px;
+}
+.gdgPick {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 360px;
+}
+.gdgPick li {
+  display: flex;
+  align-items: flex-start;
+}
+.gdgPick label {
+  display: flex;
+  gap: 6px;
+  align-items: flex-start;
+}
+.gdgPick label > span {
+  display: flex;
+  flex-direction: column;
+}
+.gdgAbout {
+  color: #404040;
+}
+.gdgHelp {
+  margin-top: 8px;
+}
+@media (hover: none) and (pointer: coarse) {
+  .gdgPick li {
+    min-height: 36px;
+  }
+}
