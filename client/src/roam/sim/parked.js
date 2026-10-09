@@ -6,10 +6,11 @@
 // up to 48 in a lot (spread over it, at most 40% of its stalls), 110 a tile. Never in a building, never on top of another car.
 
 import { AREA, DRIVABLE, ROAD } from "../data/tile.js"
-import { MODEL_IDS } from "./car.js"
 
 export const MAX_PER_TILE = 110
 export const MAX_PER_LOT = 48
+// what stands parked round here: mostly SUVs, then sedans, pickups and hatchbacks
+const MODEL_MIX = ["suv", "suv", "suv", "suv", "sedan", "sedan", "sedan", "pickup", "pickup", "hatch"]
 // original paint colors (white, silver, black, grey, the odd red/blue/pearl/green)
 export const PAINTS = [0xf2f2ef, 0xf2f2ef, 0xc9ccd0, 0xc9ccd0, 0x1d1f22, 0x1d1f22, 0x6b6f75, 0x8c1c1c, 0x1f3f7a, 0xe8e2d0, 0x3b5d47, 0x9aa7b4]
 
@@ -132,7 +133,7 @@ export const parkedCars = (tile) => {
     return offRoads(x, z, own)
   }
   const add = (x, z, yaw, src) => {
-    out.push({ id: `${tile.key}:${out.length}`, x, z, yaw, model: MODEL_IDS[Math.floor(rand() * MODEL_IDS.length) % MODEL_IDS.length], color: PAINTS[Math.floor(rand() * PAINTS.length) % PAINTS.length], src })
+    out.push({ id: `${tile.key}:${out.length}`, x, z, yaw, model: MODEL_MIX[Math.floor(rand() * MODEL_MIX.length) % MODEL_MIX.length], color: PAINTS[Math.floor(rand() * PAINTS.length) % PAINTS.length], src })
   }
   // the lots
   for (const a of tile.areas) {

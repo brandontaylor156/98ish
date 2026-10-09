@@ -13,15 +13,15 @@ export const AREA_COLORS = {
   dirt: "#a88f6a",
   dry: "#b3a571",
   scrub: "#7d8357",
-  grass: "#6f9a4c",
-  park: "#5f9445",
+  grass: "#629f43",
+  park: "#579c3d",
   wood: "#4f6f3a",
   cemetery: "#6d9150",
   school: "#9b9783",
   sand: "#c9b98d",
   golf: "#5aa04a",
   golfgreen: "#4fb04c",
-  parking: "#56585b",
+  parking: "#3a3c3f",
   plaza: "#b9b3a7",
   pitch: "#4f8d47",
   track: "#a9564a",
@@ -30,6 +30,12 @@ export const AREA_COLORS = {
   pool: "#3fa6d0",
 }
 export const areaColor = (cls) => AREA_COLORS[AREA_CLASSES[cls]] || BASE
+// a residential area where the aerial says what grows (render/ground.js paints that over it):
+// the streets, drives and roofs between the lawns are a warm neutral, not all green
+export const RES_WITH_VEG = "#a19c86"
+// the aerial's vegetation (data/veg.js VEG: none, dry, green, canopy) as RGBA: a golden dry
+// ground, a watered Southern California lawn, the deeper green under trees
+export const VEG_PAINT = [null, [190, 168, 108, 105], [92, 158, 60, 235], [70, 128, 48, 235]]
 
 // roads: [fill, curb/edge or null]
 export const ROAD_PAINT = {
@@ -38,13 +44,13 @@ export const ROAD_PAINT = {
   [ROAD.primary]: ["#3d3f42", "#9a9893"],
   [ROAD.secondary]: ["#3e4043", "#9a9893"],
   [ROAD.tertiary]: ["#404245", "#9a9893"],
-  [ROAD.residential]: ["#46484b", "#a3a19b"],
+  [ROAD.residential]: ["#404245", "#a3a19b"],
   [ROAD.unclassified]: ["#46484b", "#a3a19b"],
   [ROAD.living_street]: ["#4a4c4f", "#a3a19b"],
   [ROAD.link]: ["#3c3e41", "#8b8a86"],
-  [ROAD.service]: ["#4c4e51", null],
+  [ROAD.service]: ["#424447", null],
   [ROAD.driveway]: ["#8e8c86", null],
-  [ROAD.aisle]: ["#4f5154", null],
+  [ROAD.aisle]: ["#3d3f42", null],
   [ROAD.pedestrian]: ["#c8c2b4", null],
   [ROAD.footway]: ["#c9c3b5", null],
   [ROAD.cycleway]: ["#c3bdb0", null],
@@ -59,7 +65,7 @@ export const SIDEWALK = "#c4c0b6"
 // the sea floor under the water (a coast town)
 export const SEA = "#2f5a63"
 // round a house: its yard (a watered lawn, a little dry); round other buildings: concrete
-export const YARD = "#76924f"
+export const YARD = "#6e9a4a"
 export const APRON = "#aaa69c"
 // the order roads are painted in (later on top): water, paths, rail, small roads, big roads
 export const ROAD_ORDER = [ROAD.river, ROAD.stream, ROAD.track, ROAD.path, ROAD.footway, ROAD.cycleway, ROAD.steps, ROAD.pedestrian, ROAD.rail, ROAD.driveway, ROAD.aisle, ROAD.service, ROAD.living_street, ROAD.unclassified, ROAD.residential, ROAD.link, ROAD.tertiary, ROAD.secondary, ROAD.primary, ROAD.trunk, ROAD.motorway]

@@ -12,6 +12,11 @@ import * as THREE from "three"
 import { mergeGeometries, toCreasedNormals } from "three/examples/jsm/utils/BufferGeometryUtils.js"
 import { MODELS } from "../sim/car.js"
 import { carParts } from "./carmodel.js"
+import { makeTwoWheeler } from "./vehicles.js"
+
+// (the bus is drawn by render/transit.js, which registers itself here)
+let busMaker = null
+export const setBusMaker = (f) => (busMaker = f)
 
 // ---------- the plain fallback (phase 1's boxes) ----------
 const PROFILES = {
@@ -162,6 +167,23 @@ const shadowGeo = (model) => {
 
 // one car you can see move (yours, a friend's): -> { group, setColor, setWheels(steer, roll), setBrake, dispose }
 export const makeCarMesh = (model, color) => {
+  // (a bike or a scooter: render/vehicles.js; a bus: render/transit.js; a cab: a sedan with its
+  // roof sign)
+  if (MODELS[model]?.two) return makeTwoWheeler(model, color)
+  if (model === "bus" && busMaker) return busMaker(color)
+  if (model === "taxi") {
+    const m = makeCarMesh("sedan", color)
+    const sign = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.2, 0.26), new THREE.MeshBasicMaterial({ color: 0xfff2a8 }))
+    sign.position.set(0, 1.56, -0.25)
+    m.body.add(sign)
+    const dispose = m.dispose
+    m.dispose = () => {
+      sign.geometry.dispose()
+      sign.material.dispose()
+      dispose()
+    }
+    return m
+  }
   const g = carGeometry(model)
   carMaterials()
   const paintMat = new THREE.MeshStandardMaterial({ color, vertexColors: true, metalness: 0.0, roughness: 0.3, envMap: envTex, envMapIntensity: envK })
@@ -263,7 +285,7 @@ export const createParkedLayer = (scene, cap = 220) => {
   const sScale = new THREE.Vector3()
   const layerOf = (model) => {
     if (layers[model]) return layers[model]
-    const g = carGeometry(model)
+    const g = carGeometry(model === "taxi" ? "sedan" : model)
     const paint = new THREE.InstancedMesh(g.paint, m.paint, cap)
     const trim = new THREE.InstancedMesh(g.trimWithWheels, m.trim, cap)
     paint.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(cap * 3), 3)

@@ -70,7 +70,7 @@ const walkSituation = (s, key, t, look) => {
 }
 
 // engineCtx: Pickleball's api.worldContext() ({ makeFigure, quality, renderer })
-export const makeHost98 = ({ engineCtx, me = {}, sky = { real: true, mode: "real" } } = {}) => {
+export const makeHost98 = ({ engineCtx, me = {}, sky = { real: true, mode: "real" }, aim = null, phone = false, towns = null } = {}) => {
   const quality = engineCtx?.quality || "medium"
   let n = 0
   const store = {
@@ -98,6 +98,64 @@ export const makeHost98 = ({ engineCtx, me = {}, sky = { real: true, mode: "real
     // what 98ish has unlocked in the open world: { sundowner: at } once Vince in My Park handed
     // you his car keys (park/leisure/useLeisure.jsx writes it; the account keeps it too)
     unlocks: () => store.get("roam.unlocks") || {},
+    // the other towns (the train between them): [{ id, name, station }]
+    towns: () => (towns ? Object.values(towns).map((t) => ({ id: t.id, name: t.name, station: t.station || null })) : []),
+    // the in-game phone's Messages: 98 Messenger (your buddies, and a quick message to one)
+    messages: aim
+      ? (() => {
+          const A = () => (typeof aim === "function" ? aim() : aim) || {}
+          return {
+          me: () => A().me?.screenName || "",
+          // buddies, online first -> [{ name, online }]
+          buddies: () => {
+            const seen = new Set()
+            const out = []
+            const meKey = (A().me?.screenName || "").toLowerCase()
+            for (const g of A().me?.groups || [])
+              for (const b of g.buddies || []) {
+                const k = String(b).toLowerCase().replace(/\s+/g, "")
+                if (seen.has(k) || k === meKey.replace(/\s+/g, "") || k === "smarterchild") continue
+                seen.add(k)
+                out.push({ name: b, online: !!A().presence?.[k]?.online })
+              }
+            return out.sort((a, b) => b.online - a.online || a.name.localeCompare(b.name))
+          },
+          send: async (name, text) => {
+            try {
+              const r = await A().sendIm(name, text)
+              return r?.ok === false ? { ok: false, error: r.error || "Not sent." } : { ok: true }
+            } catch (e) {
+              return { ok: false, error: e?.message || "Not sent." }
+            }
+          },
+          }
+        })()
+      : null,
+    // the in-game phone's Camera: what the world shows now (or a selfie: the world's own lens turned
+    // round to face you) saved to My Pictures (Photos)
+    camera: engineCtx?.renderer
+      ? {
+          shoot: async (world, { selfie = false, place = "" } = {}) => {
+            const r = engineCtx.renderer
+            let url = null
+            try {
+              world.photoLens?.(selfie)
+              world.frame?.(0)
+              r.render(world.scene, world.camera)
+              url = r.domElement.toDataURL("image/jpeg", 0.9)
+            } finally {
+              world.photoLens?.(null)
+            }
+            if (!url || url.length < 1000) return { ok: false, error: "The picture didn't come out." }
+            const lib = await import("../components/applets/photos/library.js")
+            const now = new Date()
+            const stamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")} ${String(now.getHours()).padStart(2, "0")}.${String(now.getMinutes()).padStart(2, "0")}.${String(now.getSeconds()).padStart(2, "0")}`
+            const name = `${selfie ? "Selfie" : "Photo"} in ${place || "town"} ${stamp}.jpg`.replace(/[\\/:*?"<>|]/g, "")
+            const res = await lib.savePicture(lib.picturesFolder(), name, url)
+            return res.ok ? { ok: true, name, url } : { ok: false, error: res.error || "Couldn't save it." }
+          },
+        }
+      : null,
     anisotropy: Math.min(4, engineCtx?.renderer?.capabilities?.getMaxAnisotropy?.() || 1),
     fetch: (...a) => globalThis.fetch(...a),
     // a real sky for car paint and glass to reflect: My Park's CC0 outdoor HDRI (Poly Haven

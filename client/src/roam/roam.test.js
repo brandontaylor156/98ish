@@ -683,7 +683,8 @@ test("towns: each opens from its venue, shares the venue's frame, and its prebui
     assert.ok(v.back && v.back.r > 0)
     const ix = JSON.parse(fs.readFileSync(path.join(HERE, "..", "..", "public", "roam", town.id, "index.json"), "utf8"))
     assert.equal(ix.town, town.id)
-    assert.ok(ix.bytes < 10.5 * 1024 * 1024, `${town.id}: ${(ix.bytes / 1e6).toFixed(1)} MB`)
+    // (under ~10 MB of map, plus the aerial's vegetation: at most 30% more, docs/open-world.md)
+    assert.ok(ix.bytes < 11.5 * 1024 * 1024, `${town.id}: ${(ix.bytes / 1e6).toFixed(1)} MB`)
     assert.ok(ix.counts.buildings > 5000 && ix.counts.roads > 5000, `${town.id}: a whole town`)
     assert.equal(town.prebuilt, `/roam/${town.id}`, "a relative path the deployed site serves")
   }

@@ -20,5 +20,13 @@ export default {
     wolfbear: { x: -15, z: 30, yaw: 0, back: { x: -15, z: 30, r: 16 } },
   },
   spawn: { x: -15, z: 30, yaw: 0 },
+  // where Explore drops you: the liveliest real spot first (docs/open-world.md "Arriving")
+  starts: [
+    { id: "csun", name: "CSUN campus", kind: "campus", place: "California State University, Northridge", x: -6500, z: -6500, look: { x: -6423, z: -6562 } },
+    { id: "lakebalboa", name: "Lake Balboa", kind: "park", place: "Beilenson Park / Lake Balboa Park", x: -3678, z: -93, look: { x: -3500, z: -200 } },
+    { id: "wolfbear", name: "Wolf + Bear", kind: "venue", venue: "wolfbear", x: -15, z: 30, yaw: 0 },
+  ],
+  // the train station (the map's railway=station): the train between towns comes and goes here
+  station: { name: "Northridge", x: -8017, z: -5513, yaw: 0 },
   eggs,
 }

@@ -19,5 +19,13 @@ export default {
     sinaloa: { x: -47, z: 116, yaw: Math.PI, back: { x: -47, z: 116, r: 16 } },
   },
   spawn: { x: -47, z: 116, yaw: Math.PI },
+  // where Explore drops you: the liveliest real spot first (docs/open-world.md "Arriving")
+  starts: [
+    { id: "mall", name: "Town Center", kind: "mall", place: "Simi Valley Town Center", x: 1543, z: -2058, look: { x: 1547, z: -2049 } },
+    { id: "ranchosimi", name: "Rancho Simi Park", kind: "park", place: "Rancho Simi Community Park", x: 1897, z: -7, look: { x: 1908, z: -5 } },
+    { id: "sinaloa", name: "Sinaloa's courts", kind: "venue", venue: "sinaloa", x: -47, z: 116, yaw: Math.PI },
+  ],
+  // the train station (the map's railway=station): the train between towns comes and goes here
+  station: { name: "Simi Valley", x: 8310, z: -507, yaw: 0 },
   eggs,
 }

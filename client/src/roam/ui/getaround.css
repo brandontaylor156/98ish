@@ -1,0 +1,98 @@
+/* Roam, getting around: the phone button, the GPS's next turn, a ride on its way, a stop's
+   buses, the bus or train you're on (docs/open-world.md "Getting around"). Grey bevels like the
+   rest of the HUD; the GPS banner in a road-sign green. */
+.roamPhoneBtn {
+  font-size: 18px;
+  min-width: 44px;
+  min-height: 40px;
+}
+.roamGps {
+  position: absolute;
+  top: calc(48px + env(safe-area-inset-top, 0px));
+  left: calc(6px + env(safe-area-inset-left, 0px));
+  right: calc(6px + env(safe-area-inset-right, 0px));
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  background: #13643b;
+  color: #fff;
+  border: 1px solid #0a3d23;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+}
+.roamGpsArrow {
+  font-size: 30px;
+  line-height: 1;
+  min-width: 34px;
+  text-align: center;
+}
+.roamGpsText {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.roamGpsText b {
+  font-size: 16px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.roamGpsText small {
+  opacity: 0.85;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.roamGpsEnd {
+  font: inherit;
+  font-size: 18px;
+  background: transparent;
+  color: #fff;
+  border: 0;
+  min-width: 40px;
+  min-height: 40px;
+}
+.roamHud.has-gps .roamMap,
+.roamHud.has-gps .roamAction,
+.roamHud.has-gps .roamHint {
+  margin-top: 64px;
+}
+.roamTripBar {
+  position: absolute;
+  left: 50%;
+  bottom: calc(44% + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: calc(100% - 20px);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px 10px;
+  padding: 6px 10px;
+  background: rgba(255, 255, 225, 0.95);
+  border: 1px solid #000;
+}
+.roamTripBar > span {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.roamTripBar small {
+  color: #333;
+}
+.roamTripBar .roamBtn {
+  min-height: 40px;
+  font-weight: bold;
+}
+.roamTripBar > span.roamTownBtns {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+}
+.roamHud.is-ride .roamTripBar,
+.roamHud.is-transit .roamTripBar {
+  bottom: calc(76px + env(safe-area-inset-bottom, 0px));
+}

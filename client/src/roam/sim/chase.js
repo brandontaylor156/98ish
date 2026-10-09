@@ -21,8 +21,10 @@ export const stepChase = (ch, c, dt, env = {}) => {
   ch.yaw += wrap(c.yaw - ch.yaw) * Math.min(1, dt * rate)
   const fx = Math.sin(ch.yaw)
   const fz = Math.cos(ch.yaw)
-  const dist = (portrait ? 6.9 : 6.0) + Math.min(2.6, speed * 0.08)
-  const height = (portrait ? 2.25 : 1.95) + Math.min(0.7, speed * 0.022)
+  // (scale: closer behind a bike, farther behind a bus)
+  const sc = env.scale || 1
+  const dist = ((portrait ? 6.9 : 6.0) + Math.min(2.6, speed * 0.08)) * sc
+  const height = ((portrait ? 2.25 : 1.95) + Math.min(0.7, speed * 0.022)) * (sc < 1 ? 1.05 : 1 + (sc - 1) * 2.2)
   let bx = c.x - fx * dist
   let bz = c.z - fz * dist
   // walls between the car and the lens pull it in (and up a little)
