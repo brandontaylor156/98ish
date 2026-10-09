@@ -42,7 +42,8 @@ export const addStats = (stats = {}, res = {}, now = Date.now()) => {
     if (res.won === true) h.horseWins = num(h.horseWins) + 1
     if (res.won === false) h.horseLosses = num(h.horseLosses) + 1
     out.hoops = h
-  } else if (res.kind === "workout" && num(res.reps) > 0) {
+  } else if (res.kind === "workout" && num(res.reps) >= 8) {
+    // (a workout counts once it has eight reps in it: a peek and leave isn't one)
     const w = { ...(out.workout || {}) }
     w.sessions = num(w.sessions) + 1
     w.reps = num(w.reps) + num(res.reps)
@@ -54,8 +55,8 @@ export const addStats = (stats = {}, res = {}, now = Date.now()) => {
     const days = Array.isArray(w.days) ? w.days.filter((d) => typeof d === "string") : []
     if (!days.includes(day)) days.push(day)
     w.days = days.slice(-60)
-    if (res.daily) w.daily = day
-    w.lastAt = now
+    if (res.daily && (!w.daily || day > w.daily)) w.daily = day
+    w.lastAt = Math.max(num(w.lastAt), now)
     out.workout = w
   }
   return out

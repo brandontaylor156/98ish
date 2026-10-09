@@ -200,6 +200,31 @@
   line-height: 1.5;
 }
 
+/* the Locker Room's record (ActRecord.jsx, Trophies tab) */
+.pkActRecord {
+  margin-top: 10px;
+  text-align: left;
+  font-size: 13px;
+}
+.pkActRecord h3 {
+  margin: 10px 0 2px;
+  font-size: 14px;
+}
+.pkActRecord p,
+.pkActRecord ul {
+  margin: 2px 0;
+}
+.pkActRecord ul {
+  padding-left: 18px;
+}
+.pkActGains {
+  display: flex;
+  gap: 6px;
+  align-items: flex-start;
+  margin: 6px 0;
+  font-size: 12px;
+}
+
 /* the sheet's extras */
 .pkActLevels {
   display: flex;
@@ -398,6 +423,33 @@
   color: #fff;
   font-size: 12px;
   pointer-events: none;
+}
+.pkActCamVid {
+  position: absolute;
+  right: 10px;
+  bottom: calc(18% + 76px);
+  z-index: 2;
+  width: 96px;
+  height: 72px;
+  object-fit: cover;
+  border: 2px solid #fff;
+  border-radius: 8px;
+  transform: scaleX(-1);
+  pointer-events: none;
+}
+.pkActMoves {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 6px;
+  margin: 6px 0;
+}
+.pkActMoves button {
+  min-height: 44px;
+  font-size: 12px;
+}
+.pkActMoves button.is-on {
+  background: #ffe9b0 !important;
+  outline: 2px solid #c08a00;
 }
 .pkActMate {
   margin-top: 3px;

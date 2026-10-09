@@ -294,3 +294,101 @@ test("hoops: around the world and H-O-R-S-E's rules", async () => {
   f.shot(0, at, { made: false })
   assert.deepEqual([f.state.made, f.state.shots, f.state.swishes, f.state.best, f.state.streak], [2, 3, 1, 2, 0])
 })
+
+test("workout: today's plan, taps on the beat, the streak, real reps from the camera", async () => {
+  const W = await import("./workout.js")
+  // today's workout: five moves, the same all day (and for both of you), a different one tomorrow
+  const a = W.todaysPlan(new Date(2026, 9, 9, 8))
+  const b = W.todaysPlan(new Date(2026, 9, 9, 21))
+  const c = W.todaysPlan(new Date(2026, 9, 10, 8))
+  assert.equal(a.sets.length, 5)
+  assert.deepEqual(a.sets.map((s) => `${s.move}${s.bpm}`), b.sets.map((s) => `${s.move}${s.bpm}`))
+  assert.notDeepEqual(a.sets.map((s) => `${s.move}${s.bpm}`), c.sets.map((s) => `${s.move}${s.bpm}`))
+  assert.ok(!W.todaysPlan(new Date(2026, 9, 9), { treadmill: false }).sets.some((s) => s.move === "sprint"), "no treadmill, no sprints")
+  for (const s of a.sets) {
+    const M = W.MOVES[s.move]
+    assert.ok(s.bpm >= M.bpm[0] && s.bpm <= M.bpm[1])
+    assert.ok(Math.abs(s.notes[1] - s.notes[0] - (60 / s.bpm) * M.every) < 1e-3, "a rep every so many beats")
+  }
+  // on the beat: perfect within 70 ms, good within 150 ms, misses after; the streak's multiplier
+  const plan = W.quickPlan("squat", 90)
+  const w = W.createWorkout({ plan })
+  const n = w.notes
+  assert.equal(w.tap(n[0].t + 0.03).kind, "perfect")
+  assert.equal(w.tap(n[1].t - 0.12).kind, "good")
+  assert.equal(w.tap(n[2].t - 0.5), null, "a tap between notes: nothing")
+  const misses = w.step(n[2].t + 0.2)
+  assert.equal(misses.filter((e) => e.kind === "miss").length, 1)
+  assert.equal(w.state.streak, 0)
+  for (let i = 3; i < n.length; i++) w.tap(n[i].t)
+  assert.equal(w.state.best, n.length - 3)
+  assert.equal(W.multOf(0), 1)
+  assert.equal(W.multOf(10), 1.5)
+  assert.equal(W.multOf(40), 3)
+  assert.ok(w.state.score > (n.length - 1) * 100, "the streak multiplies")
+  // the body's rep: its phase is at the bottom of the squat (0.5) on each note
+  assert.ok(Math.abs(w.at(n[5].t).p - 0.5) < 0.01)
+  // to the end: done once, and the result
+  const done = w.step(plan.length + 1).filter((e) => e.type === "done")
+  assert.equal(done.length, 1)
+  const r = w.result()
+  assert.equal(r.reps, n.length - 1)
+  assert.equal(r.perfect, n.length - 2)
+  // real reps (the camera): a squat's hips going down to the knees and back up is one rep
+  const body = (hipY, wristY = 0.6) => {
+    const lm = Array.from({ length: 33 }, () => ({ x: 0.5, y: 0.5, v: 1 }))
+    lm[11] = lm[12] = { x: 0.5, y: 0.3, v: 1 }
+    lm[23] = lm[24] = { x: 0.5, y: hipY, v: 1 }
+    lm[25] = lm[26] = { x: 0.5, y: 0.75, v: 1 }
+    lm[15] = lm[16] = { x: 0.5, y: wristY, v: 1 }
+    lm[13] = lm[14] = { x: 0.5, y: 0.45, v: 1 }
+    return lm
+  }
+  const sq = W.repCounter("squat")
+  let reps = 0
+  for (let k = 0; k < 3; k++) {
+    for (const y of [0.55, 0.6, 0.66, 0.72, 0.74, 0.72, 0.62, 0.55]) if (sq.push(body(y))) reps++
+  }
+  assert.equal(reps, 3)
+  assert.equal(W.repSignal("squat", null), null, "no body seen: nothing")
+  const press = W.repCounter("press")
+  let pr = 0
+  for (let k = 0; k < 2; k++) for (const wy of [0.32, 0.2, 0.05, 0.02, 0.1, 0.3, 0.34]) if (press.push(body(0.55, wy))) pr++
+  assert.equal(pr, 2)
+  // a camera rep counts with more room on the timing than a tap
+  const w2 = W.createWorkout({ plan })
+  assert.equal(w2.real(w2.notes[0].t + 0.4).kind, "good")
+  assert.equal(w2.state.real, 1)
+})
+
+test("stats: what each activity adds, fitness levels, your player's gains", async () => {
+  const S = await import("./stats.js")
+  let st = {}
+  st = S.addStats(st, { kind: "tennis", mode: "match", won: true })
+  st = S.addStats(st, { kind: "tennis", mode: "rally", best: 9 })
+  st = S.addStats(st, { kind: "tennis", mode: "rally", best: 4 })
+  assert.deepEqual(st.tennis, { wins: 1, best: 9 })
+  st = S.addStats(st, { kind: "hoops", made: 7, shots: 10, swishes: 2, streak: 4, world: 12 })
+  st = S.addStats(st, { kind: "hoops", made: 1, shots: 5, streak: 1, world: 9, won: false })
+  assert.equal(st.hoops.made, 8)
+  assert.equal(st.hoops.world, 9, "the fewest shots round the world")
+  assert.equal(st.hoops.horseLosses, 1)
+  // a workout: a peek isn't one; eight reps is
+  const now = new Date(2026, 9, 9, 18).getTime()
+  st = S.addStats(st, { kind: "workout", reps: 3, score: 300 }, now)
+  assert.equal(st.workout, undefined)
+  for (let d = 0; d < 5; d++) st = S.addStats(st, { kind: "workout", reps: 40, perfect: 30, score: 3000 + d, streak: 12, daily: true }, now - d * S.DAY_MS)
+  const f = S.fitnessOf(st, now)
+  assert.equal(f.workouts, 5)
+  assert.equal(f.name, "Regular")
+  assert.equal(f.streakDays, 5)
+  assert.ok(f.today && f.pumped)
+  // your player: one build up while pumped; for good from "Fit"; never with gains off
+  const look = { build: "regular", shirt: "#fff" }
+  assert.equal(S.gainsLook(look, st, { now }).build, "strong")
+  assert.equal(S.gainsLook(look, st, { now: now + 2 * 3600_000 }).build, "regular", "the pump wears off")
+  assert.equal(S.gainsLook(look, st, { gains: false, now }).build, "regular")
+  for (let d = 5; d < 10; d++) st = S.addStats(st, { kind: "workout", reps: 40, score: 1 }, now - d * S.DAY_MS)
+  assert.equal(S.fitnessOf(st, now + 9 * 3600_000).name, "Fit")
+  assert.equal(S.gainsLook({ build: "slim" }, st, { now: now + 9 * 3600_000 }).build, "regular", "fit: for good")
+})

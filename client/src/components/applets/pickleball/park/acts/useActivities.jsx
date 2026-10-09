@@ -3,6 +3,7 @@ import MoreOptions from "../../../../shared/MoreOptions"
 import { useNet } from "../../../network/NetContext"
 import { ActHud } from "./ActivityHud.jsx"
 import { addStats, fitnessOf } from "./stats.js"
+import { MOVES, MOVE_IDS } from "./workout.js"
 import "./acts.css"
 
 // My Park activities (the owner: "other fun activities to do at each venue"): the context
@@ -23,7 +24,7 @@ const LEVELS = [
 const ASK_KIND = { tennis: "tennis", hoops: "horse", workout: "workout" }
 
 // what each sheet offers (pal: a friend near you, by name)
-export const sheetFor = (spot, { pal = null, stats = {} } = {}) => {
+export const sheetFor = (spot, { pal = null, stats = {}, move = "squat" } = {}) => {
   if (!spot) return null
   const k = spot.kind
   if (k === "tennis")
@@ -53,12 +54,13 @@ export const sheetFor = (spot, { pal = null, stats = {} } = {}) => {
     return {
       title: spot.name,
       items: [
-        { id: "daily", icon: "📅", label: "Today's workout", sub: stats.workout?.today ? "Done today: go again?" : "Five moves, about 2 minutes" },
-        { id: "quick", icon: "⚡", label: "Quick set", sub: "One move, 30 seconds" },
+        { id: "daily", icon: "📅", label: "Today's workout", sub: fitnessOf(stats).today ? "Done today: go again?" : "Five moves, about 2 minutes" },
+        { id: "quick", icon: "⚡", label: "Quick set", sub: `${(MOVES[move] || MOVES.squat).name}, 30 seconds` },
         ...(pal ? [{ id: "pal:together", icon: "💞", label: `Work out with ${pal.name}`, sub: "Same beat, side by side", pal: true }] : []),
       ],
-      hint: "Tap (or swipe for rows) in time with the beat: every rep on the beat counts.",
+      hint: "Tap (or swipe down for rows) in time with the beat: every rep on the beat counts.",
       camera: true,
+      moves: true,
     }
   if (k === "tv")
     return {
@@ -260,7 +262,7 @@ export const useActivities = ({ world, prefs, setPrefs, aim, mobile = false, sho
   }
 
   const stats = prefs.actStats || {}
-  const sh = sheet ? sheetFor(sheet.spot, { pal: sheet.pal, stats }) : null
+  const sh = sheet ? sheetFor(sheet.spot, { pal: sheet.pal, stats, move: prefs.actMove || "squat" }) : null
   const overlays = (
     <>
       {sh && (
@@ -283,8 +285,17 @@ export const useActivities = ({ world, prefs, setPrefs, aim, mobile = false, sho
                 </button>
               ))}
             </div>
-            {(sh.level || sh.camera) && (
-              <MoreOptions id={`pickleball.act.${sheet.spot.kind}`} summary={sh.level ? "How good the computer is" : "Count real reps with the camera"}>
+            {(sh.level || sh.camera || sh.moves) && (
+              <MoreOptions id={`pickleball.act.${sheet.spot.kind}`} summary={sh.level ? "How good the computer is" : "The quick set's move, real reps with the camera"}>
+                {sh.moves && (
+                  <div className="pkActMoves" role="radiogroup" aria-label="The quick set's move">
+                    {MOVE_IDS.filter((m) => sheet.spot.treadmill || !MOVES[m].treadmill).map((m) => (
+                      <button type="button" key={m} role="radio" aria-checked={(prefs.actMove || "squat") === m} className={(prefs.actMove || "squat") === m ? "is-on" : ""} onClick={() => setPrefs({ actMove: m })} data-act={`move-${m}`}>
+                        {MOVES[m].icon} {MOVES[m].name}
+                      </button>
+                    ))}
+                  </div>
+                )}
                 {sh.level && (
                   <div className="pkActLevels" role="radiogroup" aria-label="How good the computer is">
                     {LEVELS.map(([id, name]) => (
@@ -319,7 +330,7 @@ export const useActivities = ({ world, prefs, setPrefs, aim, mobile = false, sho
             if (res) setPrefs({ actStats: addStats(prefsRef.current.actStats || {}, res) })
             run.again?.()
           }}
-          fitness={fitnessOf(stats)}
+          fitness={fitnessOf(hud.over && run.result?.() ? addStats(stats, run.result()) : stats)}
           actions={{
             watchLive: (it) => {
               stopRun(true)

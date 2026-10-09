@@ -2,6 +2,7 @@ import React, { useEffect, useId, useMemo, useRef, useState } from "react"
 import Combo from "../../shared/select/Combo"
 import { CHARACTERS } from "./looks.js"
 import { useTourneys } from "../../../utils/tourney.js"
+import { ActRecord } from "./park/acts/ActRecord.jsx"
 import { BODIES, faceById, facesForBody, BOTTOMS, BUILDS, DESIGNS, GLASSES, HAIR_COLORS, HAIR_COLOR_NAMES, HAIR_STYLES, HATS, HEIGHT, KIT_COLORS, PLAYS, PRO_STYLES, SKIN_TONES, SOCKS, THEMES, TOPS, applyTheme, characterLook, defaultStyleFor, randomLook, themeById, validateLook } from "./locker.js"
 
 // Pickleball 98's Locker Room: dress any player (yours, or the computer's) over the 3D
@@ -258,7 +259,12 @@ export const LockerRoom = ({ prefs, setPrefs, engine, onBack, initial }) => {
                   <Swatches label="Shoe stripe" name="shoeAccent" value={look.shoeAccent} onChange={(c) => setPiece({ shoeAccent: c })} />
                 </>
               )}
-              {tab === "trophies" && <Trophies />}
+              {tab === "trophies" && (
+                <>
+                  <Trophies />
+                  <ActRecord prefs={prefs} setPrefs={setPrefs} />
+                </>
+              )}
               {tab === "paddle" && (
                 <>
                   <Pick label="Design" name="paddleDesign" value={look.paddleDesign} options={DESIGNS} onChange={(v) => set({ paddleDesign: v })} />

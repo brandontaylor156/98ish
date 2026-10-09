@@ -10,7 +10,9 @@ import { swipeLook } from "../../swipetrail.js"
 // happens; an end card with Play again.
 
 // a swipe anywhere in the zone: its points -> touchplay.js readSwipe -> run.swipe
-const SwipeZone = ({ run, kind, className = "", label, onTap = null }) => {
+// (rhythm: `beat` judges the moment the finger lands, or a swipe down the moment it's 30 px
+// on its way, not when it lifts: a lift comes a tenth of a second later)
+const SwipeZone = ({ run, kind, className = "", label, onTap = null, beat = null }) => {
   const ref = useRef(null)
   const trailRef = useRef(null)
   const trail = useRef(null)
@@ -31,14 +33,22 @@ const SwipeZone = ({ run, kind, className = "", label, onTap = null }) => {
     try {
       e.currentTarget.setPointerCapture(e.pointerId)
     } catch {}
-    sw.current = { id: e.pointerId, pts: [{ x: e.clientX, y: e.clientY, t: performance.now() }] }
+    sw.current = { id: e.pointerId, pts: [{ x: e.clientX, y: e.clientY, t: performance.now() }], fired: false }
     trail.current?.start(sw.current.pts[0])
     run.swipeStart?.()
+    if (beat && beat.input !== "swipe") {
+      sw.current.fired = true
+      run.tap?.()
+    }
   }
   const move = (e) => {
     const s = sw.current
     if (!s || s.id !== e.pointerId) return
     s.pts.push({ x: e.clientX, y: e.clientY, t: performance.now() })
+    if (beat && !s.fired && e.clientY - s.pts[0].y > 30) {
+      s.fired = true
+      run.swipe?.({ down: true })
+    }
     if (s.pts.length > 64) s.pts.splice(1, 1)
     const r = readSwipe(s.pts, size())
     trail.current?.move({ x: e.clientX, y: e.clientY, t: performance.now() }, swipeLook(r).color)
@@ -60,6 +70,7 @@ const SwipeZone = ({ run, kind, className = "", label, onTap = null }) => {
     const z = s.pts[s.pts.length - 1]
     r.down = z.y - a.y > Math.abs(z.x - a.x) && z.y - a.y > 30
     trail.current?.end(z, r)
+    if (s.fired) return
     if (r.tap && onTap) onTap()
     else run.swipe?.(r)
   }
@@ -168,7 +179,8 @@ const WorkoutHud = ({ run, hud, onLeave, onAgain, fitness }) => (
     <div className="pkActLane" ref={(el) => run.attachLane?.(el)} aria-hidden="true">
       <div className="pkActTarget" />
     </div>
-    <SwipeZone run={run} kind="workout" label={hud.move?.input === "swipe" ? "Swipe down on the beat" : "Tap on the beat"} onTap={() => run.tap?.()} />
+    <SwipeZone run={run} kind="workout" label={hud.move?.input === "swipe" ? "Swipe down on the beat" : "Tap on the beat"} onTap={() => run.tap?.()} beat={{ input: hud.move?.input }} />
+    {hud.cameraOn && <video className="pkActCamVid" ref={(el) => run.attachVideo?.(el)} playsInline muted autoPlay aria-label="Your camera: counting reps on this phone" />}
     {hud.judge && (
       <div key={hud.judge.id} className={`pkActJudge is-${hud.judge.kind}`} data-act="judge">
         {hud.judge.text}
