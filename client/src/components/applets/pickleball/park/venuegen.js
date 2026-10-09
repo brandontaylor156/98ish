@@ -801,6 +801,25 @@ export const generateVenue = (spec, opts = {}) => {
     }
   }
 
+  // (fence.lightsOnPartitions { t, every }: poles standing on the hand-placed partitions of type
+  // t too, one every `every` m centred along each, the T arm across it: Paseo's photos show the
+  // poles rising from the low partitions inside the pen)
+  const lop = spec.fence?.lightsOnPartitions
+  if (!indoor && spec.lit && lop)
+    for (const p of spec.fence?.partitions || []) {
+      if (lop.t && p.t !== lop.t) continue
+      const dx = p.b[0] - p.a[0]
+      const dz = p.b[1] - p.a[1]
+      const len = Math.hypot(dx, dz)
+      const n = Math.max(1, Math.round(len / (lop.every || 12)))
+      for (let k = 0; k < n; k++) {
+        const t = (k + 0.5) / n
+        const q = { x: p.a[0] + dx * t, z: p.a[1] + dz * t }
+        if (lights.some((l) => Math.hypot(l.x - q.x, l.z - q.z) < 3)) continue
+        if (lights.length < 160) lights.push({ x: round(q.x), z: round(q.z), arm: [round(-dz / len), round(dx / len)] })
+      }
+    }
+
   // (poles placed by hand, from photos: fence.lights)
   if (!indoor) for (const l of spec.fence?.lights || []) lights.push({ x: l.x, z: l.z, ...(l.heads ? { heads: l.heads } : {}) })
 

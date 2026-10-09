@@ -741,7 +741,7 @@ test("fence heights per type: Bouquet 3.66 m windscreened (east side bare), 1.52
   assert.equal(P.cap.shape, "round")
   assert.ok(P.cap.h <= 0.11 && P.cap.w <= 0.11)
   // other venues keep their untyped fences
-  for (const id of ["newport", "whittier", "paseo", "sinaloa"]) assert.ok(sceneOf(id).fences.every((f) => !f.t), `${id} untyped`)
+  for (const id of ["newport", "whittier", "sinaloa"]) assert.ok(sceneOf(id).fences.every((f) => !f.t), `${id} untyped`)
 })
 
 test("surroundings: real heights, roofs read off the aerial, Bouquet's hillside from the terrain, Los Cab's bridges and power lines", () => {
@@ -766,10 +766,13 @@ test("surroundings: real heights, roofs read off the aerial, Bouquet's hillside 
   assert.ok(Math.abs(at(0, 0)) < 1)
   assert.ok(!spec("loscab").terrain)
   // the other venues' surroundings are untouched (no roofs, bridges or power read in)
-  for (const id of ["newport", "whittier", "paseo", "sinaloa", "smash", "wolfbear"]) {
+  for (const id of ["newport", "whittier", "sinaloa", "smash", "wolfbear"]) {
     const su = spec(id).surround
     assert.ok(!su.buildings.some((b) => b.r || b.rc) && !su.power && !(su.roads || []).some((r) => r.bridge), `${id} unchanged`)
   }
+  // round 4: Paseo's houses (tan stucco, red tile in the day photo) take their roofs off its aerial
+  const ps = spec("paseo").surround
+  assert.ok(ps.buildings.filter((b) => b.rc).length > 100 && ps.buildings.filter((b) => b.r === "hip").length > 50, "Paseo's roofs")
 })
 
 test("terrain sampler: flat inside the crop, the real height beyond the blend", async () => {
@@ -806,4 +809,31 @@ test("round 4: tree species from the owner's photos, the hillside's cover, Los C
   const x1 = Math.max(...deck.p.map((p) => p[0]))
   const east = spec("loscab").stairs.find((s) => Math.abs(Math.min(s.a[0], s.b[0]) - x1) < 0.3 && Math.max(s.a[0], s.b[0]) > x1 + 4)
   assert.ok(east && east.open, "east stairs")
+})
+
+test("round 4: Paseo from the owner's photos: one pen, low black partitions, the green court, banners, black poles on the partitions", () => {
+  const s = spec("paseo")
+  const S = sceneOf("paseo")
+  const dark = (hex) => parseInt(hex.slice(1, 3), 16) + parseInt(hex.slice(3, 5), 16) + parseInt(hex.slice(5, 7), 16) < 150
+  // the eight courts west of the tennis rows are one pen with a tall black windscreened fence
+  const inBank = (c, b) => Math.abs((c.x - b.cx) * b.ux + (c.z - b.cz) * b.uz) <= b.hx + 0.5 && Math.abs(-(c.x - b.cx) * b.uz + (c.z - b.cz) * b.ux) <= b.hz + 0.5
+  const pens = S.banks.filter((b) => b.s === "p" && S.courts.filter((c) => c.s === "p" && inBank(c, b)).length === 8)
+  assert.equal(pens.length, 1, "one pen of eight")
+  const T = S.fence.types
+  assert.ok(T.tall.h > 2.9 && T.tall.h < 3.7 && T.tall.screen, "tall windscreened perimeter")
+  assert.ok(T.low.h > 0.8 && T.low.h < 1.1 && dark(T.low.mesh) && dark(T.low.post.color), "low black partitions")
+  const parts = S.fences.filter((f) => f.t === "low")
+  assert.equal(parts.length, 3, "two across the pen and one between the rows")
+  assert.ok(!S.fences.some((f) => f.k === "screen"), "no white dividers between the courts of a pair")
+  // the green court (PB8, OSM 1413415729): green inside its lines
+  const green = s.courts.filter((c) => c.s === "p" && c.col != null && /^#4f795b$/i.test(s.palettes[c.col].court))
+  assert.equal(green.length, 1, "one green court")
+  // banners on the windscreens: the club's and the sponsor's, as our own lettering
+  const banners = s.extras.filter((x) => x.type === "fencebanner")
+  assert.ok(banners.some((b) => b.style === "club") && banners.filter((b) => b.style === "pristine").length >= 2)
+  // black T poles, some standing on the partitions
+  assert.equal(s.fence.poleStyle, "t")
+  assert.ok(dark(s.fence.poleColor))
+  const lights = venueLayoutSpec(s).lights
+  assert.ok(lights.filter((l) => parts.some((f) => segDist(l, f.a, f.b) < 0.2)).length >= 6, "poles on the partitions")
 })

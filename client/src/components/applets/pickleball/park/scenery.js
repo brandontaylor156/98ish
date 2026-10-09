@@ -2462,6 +2462,60 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
       sign.renderOrder = 1
       sign.userData.noCast = true
       group.add(sign)
+    } else if (x.type === "fencebanner") {
+      // a banner zip-tied to a windscreen (our own rendering of what the owner's photos show:
+      // plain lettering and a drawn fleur-de-lis on black; no logos copied)
+      const w = x.w || 2.4
+      const h = x.h || 1.2
+      const W = 1024
+      const H = Math.max(64, Math.round((W * h) / w))
+      const tex = keep(
+        canvasTexture(W, H, (ctx) => {
+          ctx.fillStyle = x.bg || "#121315"
+          ctx.fillRect(0, 0, W, H)
+          ctx.fillStyle = "#f2f2ee"
+          ctx.textBaseline = "middle"
+          ctx.textAlign = "center"
+          if (x.style === "club") {
+            // a fleur-de-lis in a ring, the club's name and town, a sponsor's name on the right
+            const cx = W * 0.3
+            const cy = H * 0.3
+            const r = H * 0.16
+            ctx.strokeStyle = "#f2f2ee"
+            ctx.lineWidth = H * 0.012
+            ctx.beginPath()
+            ctx.arc(cx, cy, r, 0, Math.PI * 2)
+            ctx.stroke()
+            ctx.beginPath()
+            ctx.moveTo(cx, cy - r * 0.8)
+            ctx.quadraticCurveTo(cx + r * 0.28, cy - r * 0.1, cx, cy + r * 0.3)
+            ctx.quadraticCurveTo(cx - r * 0.28, cy - r * 0.1, cx, cy - r * 0.8)
+            for (const s of [-1, 1]) {
+              ctx.moveTo(cx, cy + r * 0.05)
+              ctx.quadraticCurveTo(cx + s * r * 0.75, cy - r * 0.55, cx + s * r * 0.55, cy + r * 0.25)
+              ctx.quadraticCurveTo(cx + s * r * 0.3, cy + r * 0.1, cx, cy + r * 0.3)
+            }
+            ctx.fill()
+            ctx.fillRect(cx - r * 0.45, cy + r * 0.28, r * 0.9, r * 0.12)
+            ctx.font = `bold ${Math.round(Math.min(H * 0.17, W * 0.05))}px Arial, sans-serif`
+            ctx.fillText("THE PASEO CLUB", cx, H * 0.63)
+            ctx.font = `${Math.round(H * 0.08)}px Arial, sans-serif`
+            ctx.fillText("V A L E N C I A", cx, H * 0.79)
+            ctx.font = `bold italic ${Math.round(H * 0.13)}px Arial, sans-serif`
+            ctx.fillText("HEAD", W * 0.74, H * 0.5)
+          } else {
+            ctx.font = `bold ${Math.round(H * 0.32)}px Arial, sans-serif`
+            ctx.fillText(x.text || "PRISTINE", W / 2, H * 0.55)
+          }
+        })
+      )
+      const b = new THREE.Mesh(keep(new THREE.PlaneGeometry(w, h)), lambert(0xffffff, { map: tex, side: THREE.DoubleSide }))
+      const yaw = faceYaw(x.face, x.deg)
+      // (a few centimetres off the screen, on the courts' side)
+      b.position.set(x.x + Math.sin(yaw) * 0.05, x.y ?? 1.8, x.z + Math.cos(yaw) * 0.05)
+      b.rotation.y = yaw
+      b.userData.noCast = true
+      group.add(b)
     } else if (x.type === "shade" && x.poly?.length >= 3) {
       // a shade structure over benches (Bouquet's alcove, the owner's photo): square steel posts
       // round its edge, a thin flat metal roof on top, falling `fall` m toward its low side

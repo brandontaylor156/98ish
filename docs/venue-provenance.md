@@ -176,6 +176,28 @@ Photo 2 is now solved too (7 features: four corners and kitchen-line ends of cou
 | Surround: 119 buildings (all with mapped heights), 32 areas, 21 roads, 49 trees | OSM |
 | Skyline: the hills of Valencia and the Santa Susana / San Gabriel ranges all round (up to 4.6°) | Terrain |
 
+#### Paseo, fidelity round 4 (2026-10-08): the owner's two photos
+
+Sources: `refs/paseo/owner/` (a dusk shot and a day shot, README there), the pack's z20 aerial, a new z18 one for the surroundings (`refs/paseo/wide/`, 1.1 km, reference only). Neither photo's pose could be solved (too few clean features; a 5-point try on the day shot fit no court assignment under 74 px): both side by sides use hand poses in `photos.json` (day: behind court PB6 looking north-north-west; dusk: by the green court looking west-north-west), so heights are judged against people and the fence, not measured in a solved view.
+
+| Object | Built | Method, uncertainty | Source |
+|---|---|---|---|
+| The pen | the eight courts west of the tennis rows are one pen (was three pens with walkways between) | The aerial: one outline round all eight (e -62..-10, n -84..-118); inside it only thin dark lines, no second fence; the day photo sees courts and low partitions, no tall fence, between the rows | Aerial + owner photo |
+| Perimeter | black chain-link, black windscreen from 0.08 to 2.97 m, 3.05 m (10 ft); black posts, 0.09 m terminals | Both photos (black screen to near the top); height from the people by it in the day photo (2.8-3.4 m) | Owner photos |
+| Partitions | low black partitions, 0.95 m: black posts every 2.4 m, black top and bottom rails, black mesh; on the aerial's three dark lines: across the pen at e -45.4 and e -27.1 (the old tennis pens' lines) and between the rows at n -100.7 (e -61.2..-27.1). The rule's white low screens between every pair of neighbours (8) are gone | Aerial (the lines' positions, ±0.5 m); the day photo (people beside one: 0.9-1.0 m; colours); the dusk photo (a low black partition beyond the green court) | Aerial + owner photos |
+| The green court | PB8 (OSM 1413415729, e -16.7 n -111.2): green inside its lines (`#4f795b`), white lines; its end-to-end partner PB4 stays one-colour slate | Dusk photo: a green court beside a one-colour blue court whose net is close, navy courts with light-blue kitchens beyond a low partition, the sunset ahead; the aerial predates the paint. **Which court is GUESS** from that arrangement | Owner photo |
+| Banners | "THE PASEO CLUB / VALENCIA" with a fleur-de-lis and "HEAD" on the right half (4.4 x 2 m) on the west fence; three small "PRISTINE" banners (1.3 x 0.75 m): two on the north fence at e -46.2 and -26.7, one on the west fence. Our own lettering in a plain font and a drawn fleur-de-lis, no logos copied | The day photo puts the two north ones (bearings 342 and 42 degrees from behind PB6); the dusk photo shows the club banner on a tall fence ahead (which fence and where: **GUESS**) and a PRISTINE banner on the west fence | Owner photos |
+| Light poles | black, 7.3 m, a T arm 1.6 m wide with two flat heads, 0.14 m thick; by the venue's rule round the pens plus one every ~11.5 m standing on each low partition | Both photos: black poles, T arms (one single arm in the dusk photo), the near ones rising from the partitions' line; the height judged at about four people (unmeasured) and the spacing unmeasured | Owner photos |
+| Houses round the club | the 118 mapped houses' roofs off the new z18 aerial: 79 hip roofs, 39 flat, each in its own colour (mostly red-brown tile) | `surround-roofs.py` (as at Bouquet and Los Cab); the day photo: tan stucco houses with red tile roofs beyond the fence | Aerial + OSM + owner photo |
+
+Not changed: the trees (the canopy's oaks and sycamores are the generic broad-leaf; the pines the dusk photo shows at its left edge aren't placed: no position), the clubhouse and everything north of the tennis rows.
+
+**Owner questions (Paseo, 2026-10-08):**
+- Which court is the green one? (We guessed the south one on the old tennis court, PB8, next to the slate one.)
+- Where along the fence is the big "THE PASEO CLUB" banner, and how many "PRISTINE" banners are there?
+- How tall are the low partitions and the light poles (we have 0.95 m and 7.3 m)? Do the poles stand on the partitions?
+- The rest of the carousel, especially one from a corner of the pen, would let us solve the poses and measure.
+
 ### Sinaloa Middle School (Simi Valley)
 
 | Object class | Source |

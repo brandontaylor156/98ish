@@ -587,7 +587,7 @@ const buildOne = (v) => {
     extras: (ov.extras || []).map((x) => {
       const p = P(x) ? sh(P(x)) : [0, 0]
       const out = { ...x, x: r1(p[0]), z: r1(p[1]), deg: degOf(x, 0) }
-      if (x.type === "sign" || x.type === "shade") for (const k of Object.keys(out)) if (k.startsWith("_")) delete out[k]
+      if (x.type === "sign" || x.type === "shade" || x.type === "fencebanner") for (const k of Object.keys(out)) if (k.startsWith("_")) delete out[k]
       delete out.en
       delete out.ll
       delete out.xz
