@@ -419,8 +419,12 @@ export const buildTile = ({ z, x, y, elements, elevation = null }) => {
         const cum = [0]
         for (let i = 1; i < geomU.length; i++) cum.push(cum[i - 1] + Math.hypot(geomU[i][0] - geomU[i - 1][0], geomU[i][1] - geomU[i - 1][1]))
         const total = cum[cum.length - 1] || 1
-        const hA = elevation(el.geom[0][0], el.geom[0][1]) ?? 0
-        const hB = elevation(el.geom[el.geom.length - 1][0], el.geom[el.geom.length - 1][1]) ?? 0
+        // (an end with no terrain under it, outside the fetched box: the other end's height, never
+        // sea level, which pulled a deck hundreds of metres down: the sky-bar fix, 2026-10-09)
+        const eA = elevation(el.geom[0][0], el.geom[0][1])
+        const eB = elevation(el.geom[el.geom.length - 1][0], el.geom[el.geom.length - 1][1])
+        const hA = eA ?? eB ?? 0
+        const hB = eB ?? eA ?? 0
         const metres = (total / EXTENT) * 504
         const hump = FOOT.has(rc) && metres > 14 ? Math.min(5.5, metres * 0.18) : 0
         deckAt = ([u, v]) => {
@@ -529,6 +533,39 @@ export const isHouse = (kind) => ["house", "residential", "detached", "semidetac
 // tile -> { rect, heights: Float32Array (m above the town's base), grid, roads, buildings,
 // areas, trees, pois } in town metres. frame: geo.js townFrame; base: the town's base
 // elevation (m)
+// (m: an edge sample this far below the one inside it is the terrain's no-data, not a cliff: the
+// lattice is ~16 m apart and the terrain tiles are smooth)
+export const NO_DATA_DROP = 60
+// a lattice's missing samples (index set) from the nearest real ones: the mean of the real samples
+// on the smallest square ring round each
+export const fillMissing = (heights, grid, missing) => {
+  const out = Float32Array.from(heights)
+  for (const idx of missing) {
+    const i = idx % grid
+    const j = Math.floor(idx / grid)
+    for (let r = 1; r < grid; r++) {
+      let sum = 0
+      let n = 0
+      for (let dj = -r; dj <= r; dj++)
+        for (let di = -r; di <= r; di++) {
+          if (Math.max(Math.abs(di), Math.abs(dj)) !== r) continue
+          const a = i + di
+          const c = j + dj
+          if (a < 0 || c < 0 || a >= grid || c >= grid) continue
+          const k = c * grid + a
+          if (missing.has(k)) continue
+          sum += heights[k]
+          n++
+        }
+      if (n) {
+        out[idx] = sum / n
+        break
+      }
+    }
+  }
+  return out
+}
+
 export const decodeTile = (tile, frame, base = 0) => {
   const b = tileBounds(tile.z, tile.x, tile.y)
   const rect = frame.tileRect(tile)
@@ -542,19 +579,52 @@ export const decodeTile = (tile, frame, base = 0) => {
     grid = tile.h.n
     heights = new Float32Array(grid * grid)
     let acc = 0
+    const missing = []
     for (let i = 0; i < tile.h.d.length && i < heights.length; i++) {
       acc += tile.h.d[i]
       heights[i] = acc / 10 - base
+      if (acc === 0) missing.push(i)
     }
+    // (a raw 0 is the terrain's no-data, not sea level: the box's north row and west column were
+    // built without the terrain beyond them, a ground 342 m down; next to it the sampler blended
+    // real and no-data, so an edge sample far below the one inside it is no-data too. Each takes
+    // the nearest real samples; a tile with none is flat at the base)
+    const bad = new Set(missing)
+    if (bad.size < heights.length)
+      for (let j = 0; j < grid; j++)
+        for (let i = 0; i < grid; i++) {
+          if (i > 0 && j > 0 && i < grid - 1 && j < grid - 1) continue
+          const k = j * grid + i
+          const ii = i === 0 ? 1 : i === grid - 1 ? grid - 2 : i
+          const jj = j === 0 ? 1 : j === grid - 1 ? grid - 2 : j
+          const inner = jj * grid + ii
+          if (!bad.has(inner) && heights[k] < heights[inner] - NO_DATA_DROP) bad.add(k)
+        }
+    if (bad.size === heights.length) heights = null
+    else if (bad.size) heights = fillMissing(heights, grid, bad)
   }
   const roads = (tile.r || []).map((r) => {
     const [cls, w, flags, name, layer] = r
     return { cls, width: w / 10, flags, name: names[name] || "", layer, pts: undelta(r, 5).map(pt), deck: null }
   })
-  // (bridges: the deck's height at each point, above the town's base)
+  // (bridges: the deck's height at each point, above the town's base; a no-data point takes its
+  // nearest real neighbour along the deck)
   for (const k of tile.k || []) {
     const road = roads[k[0]]
-    if (road && k.length - 1 === road.pts.length) road.deck = k.slice(1).map((d) => d / 10 - base)
+    if (!road || k.length - 1 !== road.pts.length) continue
+    const raw = k.slice(1)
+    // (no-data: a raw 0, or far below the deck's middle value, blended with no-data)
+    const mid = [...raw].sort((a, b) => a - b)[raw.length >> 1]
+    const ok = raw.map((d) => d !== 0 && d > mid - NO_DATA_DROP * 10)
+    if (!ok.some(Boolean)) continue
+    road.deck = raw.map((d, i) => {
+      if (ok[i]) return d / 10 - base
+      for (let s = 1; s < raw.length; s++) {
+        if (ok[i - s]) return raw[i - s] / 10 - base
+        if (ok[i + s]) return raw[i + s] / 10 - base
+      }
+      return 0
+    })
   }
   const buildings = (tile.b || []).map((r) => {
     const [kind, h, min, levels, roof, name] = r
