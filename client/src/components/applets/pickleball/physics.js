@@ -57,7 +57,9 @@ export const BALLS = {
   indoor: { kind: "indoor", label: "Indoor ball (26 holes)", m: 0.0232, cd0: 0.44, cdSlope: 0.002, top: 0.22, back: 0.14, side: 0.18, liftMax: 0.22, spinBase: 0.12, spinPerV: 0.022, e0: 0.705, eSlope: 0.011, mu: 0.4 },
 }
 export const BALL_KINDS = Object.keys(BALLS)
-export const ballSpec = (b) => BALLS[(b && (b.kind || b)) ] || BALLS.outdoor
+// (a ball object without a kind is outdoor; a kind's name works too. Not BALLS[ball]: that
+// turned the whole ball into the string "[object Object]" on every flight step)
+export const ballSpec = (b) => (!b ? BALLS.outdoor : typeof b === "string" ? BALLS[b] : b.kind ? BALLS[b.kind] : BALLS.outdoor) || BALLS.outdoor
 export const DRAG_CD = BALLS.outdoor.cd0 // (the outdoor ball's, at low speed)
 export const LIFT_PER_SPIN = BALLS.outdoor.top
 export const LIFT_MAX = BALLS.outdoor.liftMax
@@ -152,18 +154,58 @@ export const accel = (v, w, spec = BALLS.outdoor) => {
 
 // One flight step (midpoint method). Doesn't handle the ground or the net. The spin slows
 // with the air's friction on the shell and holes, faster at speed.
+// (accel's sums, written out without making objects: the shot solver flies thousands of these
+// steps a hit, the park's ambient courts most of all; lengths by Math.sqrt, not Math.hypot)
+const A1 = v3()
+const A2 = v3()
+const accelTo = (out, vx, vy, vz, w, spec) => {
+  const speed = Math.sqrt(vx * vx + vy * vy + vz * vz)
+  let ax = 0
+  let ay = -GRAVITY
+  let az = 0
+  if (speed > 1e-6) {
+    const k = (0.5 * AIR_RHO * BALL_AREA) / spec.m
+    const drag = k * dragCd(speed, spec) * speed
+    ax -= drag * vx
+    ay -= drag * vy
+    az -= drag * vz
+    const spin = Math.sqrt(w.x * w.x + w.y * w.y + w.z * w.z)
+    if (spin > 1e-6) {
+      const s = (BALL_R * spin) / speed
+      const cx = w.y * vz - w.z * vy
+      const cy = w.z * vx - w.x * vz
+      const cz = w.x * vy - w.y * vx
+      const cl2 = Math.sqrt(cx * cx + cy * cy + cz * cz)
+      if (cl2 > 1e-9) {
+        const up = cy / cl2
+        const slope = spec.top * Math.max(0, -up) + spec.back * Math.max(0, up) + spec.side * (1 - Math.abs(up))
+        const cl = Math.min(spec.liftMax, slope * s)
+        const f = (k * cl * speed * speed) / cl2
+        ax += cx * f
+        ay += cy * f
+        az += cz * f
+      }
+    }
+  }
+  out.x = ax
+  out.y = ay
+  out.z = az
+}
 export const flightStep = (ball, dt = STEP) => {
   const spec = ballSpec(ball)
-  const a1 = accel(ball.v, ball.w, spec)
-  const vm = v3(ball.v.x + a1.x * dt * 0.5, ball.v.y + a1.y * dt * 0.5, ball.v.z + a1.z * dt * 0.5)
-  const a2 = accel(vm, ball.w, spec)
-  ball.p.x += vm.x * dt
-  ball.p.y += vm.y * dt
-  ball.p.z += vm.z * dt
-  ball.v.x += a2.x * dt
-  ball.v.y += a2.y * dt
-  ball.v.z += a2.z * dt
-  const decay = Math.exp(-dt * (spec.spinBase + spec.spinPerV * len(vm)))
+  const v = ball.v
+  accelTo(A1, v.x, v.y, v.z, ball.w, spec)
+  const mx = v.x + A1.x * dt * 0.5
+  const my = v.y + A1.y * dt * 0.5
+  const mz = v.z + A1.z * dt * 0.5
+  accelTo(A2, mx, my, mz, ball.w, spec)
+  ball.p.x += mx * dt
+  ball.p.y += my * dt
+  ball.p.z += mz * dt
+  v.x += A2.x * dt
+  v.y += A2.y * dt
+  v.z += A2.z * dt
+  const decay = Math.exp(-dt * (spec.spinBase + spec.spinPerV * Math.sqrt(mx * mx + my * my + mz * mz)))
   ball.w.x *= decay
   ball.w.y *= decay
   ball.w.z *= decay

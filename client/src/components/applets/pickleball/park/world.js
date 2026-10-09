@@ -50,6 +50,8 @@ import { activitySpots, nearestSpot } from "./acts/spots.js"
 import { gearFig } from "./acts/gear.js"
 import { createLeisureSide } from "./leisure/parkside.js"
 import { holdFig } from "./leisure/held.js"
+import { mark as pmark, prof, profRead, profStart, spent as pspent } from "./prof.js"
+import { programSort } from "./perf.js"
 
 // Real Sky: Riverside isn't a real place; it borrows a Southern California park's sky
 export const DEFAULT_SKY_PLACE = { lat: 33.709, lon: -117.954 }
@@ -413,13 +415,18 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
   const BUDGET_MAX = phone ? 5 : quality === "high" ? 14 : 10
   let budget = phone ? 3 : 8
   const FULL_DIST = phone ? 22 : 34
+  // (phones: the paddle kept out of the body within 13-15 m of the lens, measured 2026-10-09:
+  // a player 15 m off is about 9% of an upright phone's height)
+  const GUARD_NEAR = 13
+  const GUARD_FAR = 15
+  const NEAR_PARTS = 11
   const MANN_DIST = 95
   const frustum = new THREE.Frustum()
   const projM = new THREE.Matrix4()
   const sphere = new THREE.Sphere(new THREE.Vector3(), 1.3)
   const courtSphere = new THREE.Sphere(new THREE.Vector3(), 11)
   // (tests: every court played out, a fixed athlete budget, no labels)
-  const dev = { allLive: false, budget: null, noLabels: false, noCutaway: false }
+  const dev = { allLive: false, budget: null, noLabels: false, noCutaway: false, noLod: false }
   let perfWin = { t: 0, n: 0 }
   // the frame budget: a step down when frames run long, back up when there's time
   const adaptBudget = (dt) => {
@@ -448,6 +455,16 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
       dropFig(b)
       try {
         b.fig = makeFigure(b.look || {}, { shadows: false })
+        // (dev: the frame-time split counts the figure's own posing, park/prof.js)
+        if (import.meta.env?.DEV && b.fig?.apply) {
+          const apply = b.fig.apply
+          b.fig.apply = (...a) => {
+            const t = pmark()
+            const r = apply(...a)
+            pspent("bodies.apply", t)
+            return r
+          }
+        }
       } catch {
         b.fig = null
         return
@@ -1710,6 +1727,8 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
     const mate = tgMateBody() || (tg.sunset ? tgOther(tg.sunset.other)?.body : null)
     if (mate?.inView) fullSet.add(mate)
     let fullIndex = 0
+    // (a phone's cheaper people far off; dev.noLod: as on a computer, for measuring)
+    const lod = phone && !dev.noLod
     mann.begin()
     let nb = 0
     for (const b of list) {
@@ -1727,11 +1746,30 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
       if (ready) {
         if (!b.fig.group.parent) parentOf(b).add(b.fig.group)
         // animation: every frame close up, every 2nd or 3rd further away
-        const every = fullIndex < 4 || b.dist < 9 ? 1 : b.dist < 20 ? 2 : 3
+        // (a phone: past 12 m every 2nd frame, unless it's you, someone an activity drives, or a
+        // player on the court you're watching)
+        const every = lod ? (b.isMe || b.drive || b.dist < 12 || (watched && b.court === watched) ? 1 : b.dist < 20 ? 2 : 3) : fullIndex < 4 || b.dist < 9 ? 1 : b.dist < 20 ? 2 : 3
         fullIndex++
         b.acc += dt
+        // (a phone: the paddle-body solver, athlete.js guardPaddle, only for the people near
+        // enough for a paddle through a body to show; a little hysteresis at the edge)
+        if (b.fig.live) b.fig.live.noGuard = lod && !b.isMe && !b.drive && b.dist > (b.fig.live.noGuard ? GUARD_NEAR : GUARD_FAR)
+        // (and the lashes and teeth only near: two draws an athlete, athlete.js nearOnly)
+        if (lod || b.nearParts === false) {
+          const near = !lod || b.isMe || !!b.drive || b.dist < (b.nearParts === false ? NEAR_PARTS - 1 : NEAR_PARTS)
+          if (b.nearParts !== near || b.nearFig !== b.fig) {
+            b.nearParts = near
+            b.nearFig = b.fig
+            b.fig.group.traverse((o) => {
+              if (o.userData.nearOnly) o.visible = near
+            })
+          }
+        }
         if ((frameNo + b.key.length) % every === 0 || !b.anim) {
+          const at = pmark()
           animate(b, b.acc)
+          pspent("bodies.animate", at)
+          if (prof.on) prof.ms["n.animated"] = (prof.ms["n.animated"] || 0) + 1
           b.acc = 0
         }
       } else {
@@ -1744,8 +1782,10 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
         blobs.setMatrixAt(nb++, bm4)
       }
     }
+    const mt = pmark()
     drawAmbient()
     mann.end()
+    pspent("bodies.mannequins", mt)
     blobs.count = nb
     blobs.instanceMatrix.needsUpdate = true
   }
@@ -1918,7 +1958,9 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
       camera.lookAt(lookAt)
       const at = activity.focus?.() || { x: meBody.x, y: meBody.y || 0, z: meBody.z }
       park.cull?.(camera.position, at)
+      const ct = pmark()
       if (!dev.noCutaway) park.cutaway?.(camera.position, bodyPoints(at), at, dt)
+      pspent("camera.cutaway", ct)
       park.followSky?.(camera.position)
       return
     }
@@ -1988,7 +2030,9 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
     let cap = inRoom ? roofAt(w.x, w.z, w.y || 0) : up ? roofAt(w.x, w.z, w.y) : roofY
     const ceil = ceilingOver(park.overheads || [], { x: w.x, y: w.y || 0, z: w.z })
     if (!dev.noCutaway && ceil !== null && ceil - 0.25 >= (w.y || 0) + 1.9) cap = cap == null ? ceil - 0.25 : Math.min(cap, ceil - 0.25)
+    const ft = pmark()
     stepFollow(follow, w, dt, { portrait: por, bodies: bodiesNear, roofY: cap, tight: !!inRoom, occ: dev.noCutaway ? null : camOcc })
+    pspent("camera.follow", ft)
     // (in a room, the lens stays in that room: not out through its doorway)
     if (inRoom && !inPoly(follow.pos.x, follow.pos.z, inRoom.p)) {
       let lo = 0
@@ -2003,9 +2047,11 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
     }
     camera.position.set(follow.pos.x, follow.pos.y, follow.pos.z)
     lookAt.set(follow.look.x, follow.look.y, follow.look.z)
+    const ct = pmark()
     park.cull?.(follow.pos, w)
     // you, always in sight: roofs and tree crowns between the lens and you fade (cutaway.js)
     if (!dev.noCutaway) park.cutaway?.(follow.pos, bodyPoints({ x: w.x, y: w.y || 0, z: w.z }), { x: w.x, y: w.y || 0, z: w.z }, dt)
+    pspent("camera.cutaway", ct)
     park.followSky?.(follow.pos)
     const fov = por ? 62 : 55
     if (Math.abs(camera.fov - fov) > 0.05) {
@@ -2223,11 +2269,17 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
     const dt = Math.min(0.1, dtIn)
     clock += dt
     frameNo++
+    if (prof.on) prof.frames++
+    let pt = pmark()
     updateDay(false)
+    pspent("day", pt)
     // (leisure: the water, Vince, sips; people swimming leave rings)
+    pt = pmark()
     leisure.step(dt, look)
     for (const r of remotes.values()) if (r.body.leisureAct === "swim") leisure.rippleFor(r.body, dt)
+    pspent("leisure", pt)
     adaptBudget(dtIn)
+    pt = pmark()
     // you
     if (me.mode === "act" && activity) {
       activity.step(dt)
@@ -2290,6 +2342,8 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
       meBody.seat = me.seat
     }
     if (meBody.say && clock > meBody.say.until) meBody.say = null
+    pspent("me", pt)
+    pt = pmark()
     // the courts: played out in full where you can see them; elsewhere (out of view, or far
     // away) just the score moves on, a point every 8 to 16 seconds
     camera.updateMatrixWorld()
@@ -2333,16 +2387,29 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
       const view = courtView(c)
       park.setScore(c.def.id, { names: view.people ? c.human.names : view.names, score: view.score || sb.score, note: c.state === "human" ? "PLAYERS ONLINE" : c.state === "changeover" ? "NEXT GAME" : c.queue.length + serverCourts[c.def.id].q.length ? `${c.queue.length + serverCourts[c.def.id].q.length} UP NEXT` : "" })
     }
+    pspent("courts", pt)
+    pt = pmark()
     stepRegulars(dt)
     stepLiving()
+    pspent("regulars", pt)
+    pt = pmark()
     stepRemotes()
     togetherStep(dt)
     pet.step(dt, me.mode === "sit" && me.seat ? { x: me.seat.x, z: me.seat.z, yaw: me.seat.yaw, y: 0 } : me.walker)
+    pspent("remotes+together", pt)
+    pt = pmark()
     makeOne()
+    pspent("makeFigure", pt)
+    pt = pmark()
     updateCamera(dt)
+    pspent("camera", pt)
+    pt = pmark()
     drawBodies(dt)
+    pspent("bodies", pt)
+    pt = pmark()
     if (!dev.noLabels) updateLabels()
     sendPos()
+    pspent("labels+net", pt)
     hudT += dt
     if (hudT > 0.12) {
       hudT = 0
@@ -2375,6 +2442,7 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
       .catch((e) => console.warn("[park] splat backdrop", e))
   // your 3D Viewer 98 model, if you placed one in My Park: it trots after you (viewer3d/petLayer.js)
   const pet = createPetLayer(scene, { quality })
+  let opaqueSort = null
   const post = postFlag && !phone && quality === "high" && layout.id && layout.id !== "riverside" ? createPost(scene) : null
   // what an activity (acts/) gets from the park
   const actApi = {
@@ -2422,7 +2490,15 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
     scene,
     camera,
     splat,
-    ...(post ? { render: (renderer) => post.render(renderer, camera), postOn: true } : {}),
+    phone,
+    // (drawn with the opaque list sorted by shader program: perf.js programSort)
+    render(r) {
+      r.setOpaqueSort(opaqueSort ||= programSort(r))
+      if (post) post.render(r, camera)
+      else r.render(scene, camera)
+      r.setOpaqueSort(null)
+    },
+    ...(post ? { postOn: true } : {}),
     // which venue this is (layout.js / venuegen.js): online, friends at the same venue meet
     venue: layout.id || "riverside",
     layout,
@@ -2848,6 +2924,8 @@ const devHooks = (world, { scene, park, exposure }) => {
   world.devAO = (on) => setBakedAOOn(on)
   world.devAOInfo = () => ({ on: aoUniforms.surfAOOn.value, size: [aoUniforms.surfAOTex.value.image?.width, aoUniforms.surfAOTex.value.image?.height], ...lastAO })
   world.devPark = park
+  // the frame-time split (prof.js): devProf(true) starts counting, devProf() reads ms per frame
+  world.devProf = (on) => (on === true ? (profStart(), true) : on === false ? ((prof.on = false), true) : profRead())
   // (tests) can the camera see you? rays from the lens to your feet, middle and head against
   // the venue as drawn (hidden and faded things don't count; see-through fences and nets, and
   // leaf cards, are told apart) -> [{ hit: null | { what, d } }]

@@ -27,6 +27,7 @@ import { createGuest, createHost, onlineRoster } from "./netplay.js"
 import { reducedMotion } from "../../../utils/settings"
 import { createFrameClock } from "../../../utils/frameClock.js"
 import { createResolution } from "../../../utils/dynamicResolution.js"
+import { mark as pmark, prof, spent as pspent } from "./park/prof.js"
 import { releaseGpu } from "../../../utils/webglLoss.js"
 
 const BALL_SCALE = 1.5 // drawn a little bigger than life so it reads on a phone
@@ -1755,8 +1756,15 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
         return
       }
       // (a world may draw itself: My Park on High adds ambient occlusion, park/world.js)
+      const rt = pmark()
       if (world.render) world.render(renderer)
       else renderer.render(world.scene, world.camera)
+      pspent("render", rt)
+      // (dev: draw calls and triangles per frame, shadow pass included, park/prof.js)
+      if (prof.on) {
+        prof.ms["n.calls"] = (prof.ms["n.calls"] || 0) + renderer.info.render.calls
+        prof.ms["n.tris"] = (prof.ms["n.tris"] || 0) + renderer.info.render.triangles
+      }
       perf.frames++
       perf.renderMs += performance.now() - renderStart
       perf.cpuMs += renderStart - cpuStart
@@ -2075,6 +2083,9 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
       world?.clearKeys?.()
       world = next || null
       worldDrag = null
+      // (My Park on a phone may go under 1.0 pixel ratio, to 0.75, while it runs under 28 fps:
+      // utils/dynamicResolution.js setFloor)
+      resolution.setFloor(world?.phone ? 0.75 : null)
       if (world) {
         world.resize(size.width || 1, size.height || 1)
         if (showcaseFig) showcaseFig.fig.group.visible = false

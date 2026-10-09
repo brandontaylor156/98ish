@@ -9,7 +9,10 @@
 //   default: under one pixel per CSS pixel looks worse than a few dropped frames).
 // - on target with spare time for `upAfter` windows in a row: one step back up, and twice as
 //   long before retrying the ratio that was just too slow (so it doesn't flip-flop).
-export const createResolution = ({ max = 1, min = 1, step = 0.25, windowMs = 2000, upAfter = 3 } = {}) => {
+// - a `floor` under `min` (setFloor; My Park on a phone: 0.75): once at `min`, two windows in a
+//   row under `floorFps` (28) step down to it; it comes back up after the frames hold
+//   `floorFps` + 4 for `upAfter` x 2 windows (x 4 after the step up has failed once).
+export const createResolution = ({ max = 1, min = 1, step = 0.25, windowMs = 2000, upAfter = 3, floor = null, floorFps = 28 } = {}) => {
   let ratio = Math.max(min, max)
   let top = ratio
   let sum = 0
@@ -19,6 +22,11 @@ export const createResolution = ({ max = 1, min = 1, step = 0.25, windowMs = 200
   let good = 0
   let failed = Infinity // the ratio that was last too slow
   let capped = false
+  let low = floor !== null && floor < min ? floor : null // the floor under min, if any
+  let slowWins = 0
+  let liftWins = 0
+  let lowFailed = false
+  let lifted = false // back at min from the floor (a slow window now means that failed)
   const clear = () => {
     sum = 0
     work = 0
@@ -48,6 +56,31 @@ export const createResolution = ({ max = 1, min = 1, step = 0.25, windowMs = 200
       capped = quick / n < 0.1 && avg > 28 && avg < 40 && busy < 14
       const target = res.target
       clear()
+      // (under min, down to the floor: phones in My Park)
+      if (low !== null && ratio <= min) {
+        if (avg > 1000 / floorFps) {
+          liftWins = 0
+          if (++slowWins >= 2 && ratio > low) {
+            slowWins = 0
+            good = 0
+            if (lifted) lowFailed = true
+            lifted = false
+            ratio = Math.max(low, ratio - step)
+            return true
+          }
+        } else slowWins = 0
+        if (ratio < min) {
+          if (avg < 1000 / (floorFps + 4)) {
+            if (++liftWins >= upAfter * (lowFailed ? 4 : 2)) {
+              liftWins = 0
+              ratio = Math.min(min, ratio + step)
+              lifted = ratio >= min
+              return true
+            }
+          } else liftWins = 0
+          return false
+        }
+      }
       if (avg > target * 1.15) {
         good = 0
         if (ratio <= min) return false
@@ -72,6 +105,13 @@ export const createResolution = ({ max = 1, min = 1, step = 0.25, windowMs = 200
       failed = Infinity
       good = 0
       clear()
+    },
+    // a floor under min (null: none); it applies from the next window
+    setFloor(f) {
+      low = f !== null && f !== undefined && f < min ? f : null
+      if (low === null && ratio < min) ratio = min
+      slowWins = liftWins = 0
+      lowFailed = lifted = false
     },
     // forget the window in progress (after a pause or anything else that stalls a frame)
     reset() {

@@ -1774,7 +1774,7 @@ const hairSwayWeights = (tpl, src, geo) => {
 
 // ---- an athlete ----
 const DRIVEN_SPINE = ["spine_01", "spine_02", "spine_03"]
-const buildAthlete = (look = {}, { shadows = false, withPaddle = true } = {}, detail = "medium") => {
+const buildAthlete = (look = {}, { shadows = false, withPaddle = true, live = {} } = {}, detail = "medium") => {
   const kind = bodyOf(look)
   const tpl = (isHi(detail) && assets.hi?.[kind]) || assets[kind]
   // (players v3: Ultra lights the skin and the kit with the venue's sky as well)
@@ -1869,6 +1869,8 @@ const buildAthlete = (look = {}, { shadows = false, withPaddle = true } = {}, de
     const m = new THREE.Mesh(geo, mat)
     m.matrixAutoUpdate = false
     m.matrix.copy(tpl.onHead[name])
+    // (the lashes and teeth: a few pixels past ~10 m; My Park on a phone leaves them out there)
+    if (name !== "Eyes") m.userData.nearOnly = true
     head.add(m)
     attach.push(m)
   }
@@ -2113,7 +2115,8 @@ const buildAthlete = (look = {}, { shadows = false, withPaddle = true } = {}, de
   const girth = height * (BUILD_SCALE[look.build] || 1)
   const guardCaps = []
   let guardNear = false // (the paddle within 5 cm of the body last time it was checked)
-  const guarding =() => withPaddle && !(typeof window !== "undefined" && window.__pbNoGuard)
+  // (live.noGuard: a figure the owner says is too far away for it to show, My Park on a phone)
+  const guarding = () => withPaddle && !live.noGuard && !(typeof window !== "undefined" && window.__pbNoGuard)
   const guardJoints = (S, res) => {
     const fk = armFK(rigs[paddleSide], S, res)
     const hq = turnOf("Head")
@@ -2660,7 +2663,7 @@ const buildAthlete = (look = {}, { shadows = false, withPaddle = true } = {}, de
     body.material.dispose()
     if (hairMeshW) hairMeshW.material.dispose()
   }
-  return { group: root, apply, setShadows, dispose: () => (dispose(), disposeOwn()), probe, probeUpper, probeLife, probeArms, probePaddleBody, debug: { paddle: paddleHolder, bones: B, arm: () => armState[paddleSide].last }, blobs: [], vertices, skinned: true, detail: tpl === assets.hi?.[kind] ? "high" : "medium", face: face?.id || null, cards: !!ownCards }
+  return { group: root, apply, setShadows, dispose: () => (dispose(), disposeOwn()), probe, probeUpper, probeLife, probeArms, probePaddleBody, debug: { paddle: paddleHolder, bones: B, arm: () => armState[paddleSide].last }, blobs: [], vertices, skinned: true, live, detail: tpl === assets.hi?.[kind] ? "high" : "medium", face: face?.id || null, cards: !!ownCards }
 }
 
 // An athlete (rig.js createFigure's interface). On High, the detailed bodies: if they aren't
@@ -2677,6 +2680,8 @@ const faceReady = (look, lod) => {
 }
 const isHi = (d) => d === "high" || d === "ultra"
 export const createAthlete = (look = {}, opts = {}) => {
+  // (fig.live: switches the owner can flip while it's drawn; kept across the upgrades below)
+  opts = { ...opts, live: opts.live || {} }
   const detail = isHi(opts.detail) && assets.setInfo?.hi ? opts.detail : "medium"
   let inner = buildAthlete(look, opts, detail)
   const wantFace = !!look.face && assets.set === "mh" && (!facesInfo || !!faceOf(look))
@@ -2724,6 +2729,7 @@ export const createAthlete = (look = {}, opts = {}) => {
       return inner.cards
     },
     skinned: true,
+    live: opts.live,
   }
   // built again (posed as it was) when something better arrives: the High body, a photo face
   const upgrade = () => {
