@@ -119,7 +119,8 @@ const T = {
   coffeetable: (c) => ({ solid: [box(1.2, 0.05, 0.6, 0, 0.38, 0, c || "#6b4a2b"), ...legs4(1.15, 0.55, 0.38, "#2b2f36", 0.04)] }),
   tv: () => ({ solid: [box(1.5, 0.86, 0.06, 0, 1.6, 0, "#121316"), box(1.4, 0.76, 0.01, 0, 1.65, 0.035, "#1f3d6b")] }),
   rug: (c) => ({ solid: [box(3, 0.012, 2, 0, 0.005, 0, c || "#8a6f5a")] }),
-  courtline: (c) => ({ solid: [box(1, 0.004, 0.05, 0, 0.003, 0, c || "#f4f1ea")] }),
+  // (just over a room's floor, which is drawn 1.5 cm up: scenery.js)
+  courtline: (c) => ({ solid: [box(1, 0.004, 0.05, 0, 0.019, 0, c || "#f4f1ea")] }),
   plant: () => ({ solid: [cyl(0.24, 0.18, 0.45, 0, 0, 0, "#d9d2c4", 10), paint(new THREE.IcosahedronGeometry(0.42, 0), "#3f7a3a", 0, 0.95, 0)] }),
   planter: (c) => ({ solid: [box(2, 0.6, 0.8, 0, 0, 0, c || "#c9c1b0"), paint(new THREE.BoxGeometry(1.8, 0.5, 0.65), "#3f6b34", 0, 0.82, 0)] }),
   counter: (c) => ({ solid: [box(3, 1.02, 0.65, 0, 0, 0, c || "#5a3a26"), box(3.1, 0.06, 0.8, 0, 1.02, 0.05, "#2a2622"), box(3, 0.1, 0.04, 0, 0.15, 0.33, "#b8892f")] }),

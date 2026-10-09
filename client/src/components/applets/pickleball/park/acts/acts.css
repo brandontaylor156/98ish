@@ -270,6 +270,16 @@
 .pkActPower span.is-sweet {
   background: #4ade80;
 }
+/* (the "just right" band: hoops.js SWEET_BAND either side of the line) */
+.pkActPower::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 67.2%;
+  height: 25.6%;
+  background: rgba(74, 222, 128, 0.35);
+}
 .pkActPower::after {
   content: "";
   position: absolute;

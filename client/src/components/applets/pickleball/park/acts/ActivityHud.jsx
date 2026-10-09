@@ -142,7 +142,7 @@ const HoopsHud = ({ run, hud, showPad, padSide, onLeave, onAgain }) => (
     <MoveZone showPad={showPad} padSide={padSide} />
     {hud.power !== null && hud.power !== undefined && (
       <div className="pkActPower" aria-hidden="true">
-        <span style={{ height: `${Math.round(Math.min(1.2, hud.power) * 80)}%` }} className={hud.power > 0.92 && hud.power < 1.08 ? "is-sweet" : ""} />
+        <span style={{ height: `${Math.round(Math.min(1.2, hud.power) * 80)}%` }} className={hud.power > 0.84 && hud.power < 1.16 ? "is-sweet" : ""} />
       </div>
     )}
     {hud.tip && <div className="pkActTip" data-act="tip">{hud.tip}</div>}

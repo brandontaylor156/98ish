@@ -210,3 +210,87 @@ test("tennis online: the host's snapshot puts the guest's game in the same place
   assert.ok(Math.abs(guest.state.ball.p.z - host.state.ball.p.z) < 0.01)
   assert.deepEqual(guest.state.score.points, host.state.score.points)
 })
+
+test("hoops: the ball, the rim, the board; a good swipe goes in, a bad one doesn't", async () => {
+  const H = await import("./hoops.js")
+  const hoop = H.hoopAt(1, H.HOOP_KINDS.court)
+  // a regulation ball dropped from 1.8 m comes back up about 1.2 m
+  const b = { p: { x: 0, y: 1.8, z: 0 }, v: { x: 0, y: 0, z: 0 } }
+  let down = false
+  let top = 0
+  for (let t = 0; t < 3; t += H.DT) {
+    if (H.stepBall(b, null) === "floor") down = true
+    if (down) top = Math.max(top, b.p.y)
+    if (down && b.v.y < 0 && top > 0.5) break
+  }
+  assert.ok(top + H.BALL.r > 1.05 && top + H.BALL.r < 1.45, `bounce ${top}`)
+  // the ideal shot goes in from close, the free-throw line, the corner three
+  for (const from of [{ x: 0, z: hoop.z - 2.5 }, { x: 0, z: hoop.z - 4.6 }, { x: 6.5, z: hoop.z - 1 }]) assert.ok(H.flyShot(from, H.idealShot(from, hoop).v, hoop).made, `in from ${from.x}, ${from.z}`)
+  // a ball dropped onto the rim bounces off it; dropped through the middle, it's a swish
+  const rimDrop = H.flyShot({ x: 0.23, z: hoop.z }, { x: 0, y: 4, z: 0 }, hoop)
+  assert.ok(rimDrop.rims >= 1)
+  const swish = H.flyShot({ x: 0, z: hoop.z }, { x: 0, y: 4, z: 0 }, hoop)
+  assert.ok(swish.made && swish.swish)
+  // into the backboard: it comes back off it
+  const bank = { p: { x: 0, y: 3.4, z: hoop.boardZ - 1.5 }, v: { x: 0, y: 0, z: 6 } }
+  let off = false
+  for (let t = 0; t < 1; t += H.DT) if (H.stepBall(bank, hoop) === "board") off = true
+  assert.ok(off && bank.v.z < 0)
+  // a swipe half way up and straight: in most of the time; much too short or long: rarely
+  const rate = (from, s, spread = 1) => {
+    const rand = H.rng(3)
+    let m = 0
+    for (let k = 0; k < 120; k++) if (H.flyShot(from, H.swipeShot(from, hoop, s, { rand, spread }).v, hoop).made) m++
+    return m / 120
+  }
+  const ft = { x: 0.6, z: hoop.z - 4.6 }
+  assert.ok(rate(ft, { depth: 0.5, u: 0 }) > 0.8, "a good swipe goes in")
+  assert.ok(rate(ft, { depth: 0.25, u: 0 }) < 0.15, "short")
+  assert.ok(rate(ft, { depth: 0.66, u: 0 }) < 0.5, "a bit long")
+  assert.ok(rate(ft, { depth: 0.56, u: 0 }) > 0.8, "a thumb's width off is still just right")
+  assert.ok(rate(ft, { depth: 0.5, u: 0.9 }) < 0.2, "wide")
+  // the computer: better at higher levels
+  assert.ok(rate(ft, { depth: 0.5 }, H.cpuSpread("hard")) > rate(ft, { depth: 0.5 }, H.cpuSpread("easy")))
+})
+
+test("hoops: around the world and H-O-R-S-E's rules", async () => {
+  const H = await import("./hoops.js")
+  const hoop = H.hoopAt(-1)
+  // around the world: seven spots round the key on the hoop's side; a make moves you on
+  const w = H.createHoopsGame({ mode: "world", hoop })
+  assert.equal(w.spots.length, 7)
+  for (const p of w.spots) assert.ok(Math.abs(Math.hypot(p.x, p.z - hoop.z) - 4.6) < 0.7 && p.z > hoop.z, "round the key")
+  assert.equal(w.canShoot(0, { x: 0, z: 0 }), "spot")
+  assert.equal(w.canShoot(0, w.spots[0]), null)
+  w.shot(0, w.spots[0], { made: false })
+  assert.equal(w.state.world, 0)
+  for (let i = 0; i < 7; i++) w.shot(0, w.spots[i], { made: true })
+  assert.ok(w.state.over && w.state.worldShots === 8)
+  // H-O-R-S-E: a make sets the shot; a miss matching it is a letter; the setter keeps going;
+  // a miss setting passes the turn; five letters and you're out
+  const g = H.createHoopsGame({ mode: "horse", players: [{ name: "You" }, { name: "Wes", cpu: true }], hoop })
+  const at = { x: 1, z: hoop.z + 4 }
+  assert.equal(g.canShoot(1, at), "turn")
+  g.shot(0, at, { made: true })
+  assert.deepEqual(g.state.toMatch, at)
+  assert.equal(g.state.turn, 1)
+  assert.equal(g.canShoot(1, { x: -3, z: hoop.z + 3 }), "match")
+  g.shot(1, at, { made: false })
+  assert.equal(g.state.letters[1], "H")
+  assert.equal(g.state.turn, 0, "the setter shoots again")
+  g.shot(0, at, { made: false })
+  assert.equal(g.state.turn, 1, "a missed set passes the turn")
+  assert.equal(g.state.toMatch, null)
+  for (let k = 0; k < 5; k++) {
+    g.shot(1, at, { made: true })
+    g.shot(0, at, { made: false })
+  }
+  assert.equal(g.state.letters[0], "HORSE")
+  assert.equal(g.state.over.winner, 1)
+  // a swish counts as a make and a swish
+  const f = H.createHoopsGame({ mode: "free", hoop })
+  f.shot(0, at, { made: true, swish: true })
+  f.shot(0, at, { made: true })
+  f.shot(0, at, { made: false })
+  assert.deepEqual([f.state.made, f.state.shots, f.state.swishes, f.state.best, f.state.streak], [2, 3, 1, 2, 0])
+})

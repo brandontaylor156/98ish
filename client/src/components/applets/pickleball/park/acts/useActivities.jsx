@@ -46,7 +46,8 @@ export const sheetFor = (spot, { pal = null, stats = {} } = {}) => {
         { id: "horse", icon: "🐴", label: "H-O-R-S-E", sub: "vs the computer" },
         ...(pal ? [{ id: "pal:horse", icon: "💞", label: `H-O-R-S-E with ${pal.name}`, sub: "Make it, they match it", pal: true }] : []),
       ],
-      hint: "Swipe up to shoot: how far up is how hard, the angle aims. Walk with the move pad.",
+      hint: "Swipe up to shoot: how far up is how hard (half way is just right), the angle aims. Walk with the move pad.",
+      level: true,
     }
   if (k === "workout")
     return {
@@ -158,7 +159,7 @@ export const useActivities = ({ world, prefs, setPrefs, aim, mobile = false, sho
         r = createTennisRun({ spot, mode: opts.mode || "match", level: opts.level || prefsRef.current.actLevel || "normal", link: opts.link || null, opp: opts.link ? { name: opts.link.name, look: opts.link.look } : null, seed: opts.link?.seed })
       } else if (spot.kind === "hoops") {
         const { createHoopsRun } = await import("./hoopsRun.js")
-        r = createHoopsRun({ spot, mode: opts.mode || "free", link: opts.link || null, opp: opts.link ? { name: opts.link.name, look: opts.link.look } : null, seed: opts.link?.seed })
+        r = createHoopsRun({ spot, mode: opts.mode || "free", level: prefsRef.current.actLevel || "normal", link: opts.link || null, opp: opts.link ? { name: opts.link.name, look: opts.link.look } : null, seed: opts.link?.seed })
       } else if (spot.kind === "workout") {
         const { createWorkoutRun } = await import("./workoutRun.js")
         r = createWorkoutRun({ spot, mode: opts.mode || "daily", move: opts.move || prefsRef.current.actMove || null, link: opts.link || null, mate: opts.link ? { name: opts.link.name, look: opts.link.look } : null, seed: opts.link?.seed, camera: !!opts.camera, stats: prefsRef.current.actStats || {} })

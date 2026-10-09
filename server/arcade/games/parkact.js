@@ -16,7 +16,7 @@ const LEVELS = ["easy", "normal", "hard"]
 const defaultSettings = { act: "tennis", mode: "match", venue: "park", spot: "tennis1", seed: 1, level: "normal" }
 
 // relay messages: { t: type, ... } with small numbers and short strings only
-const TYPES = new Set(["swing", "again", "shot", "turn", "letter", "spot", "ready", "beat", "score", "done", "bye", "hello"])
+const TYPES = new Set(["swing", "again", "shot", "result", "turn", "spot", "ready", "beat", "score", "done", "bye", "hello"])
 const cleanValue = (v, depth = 0) => {
   if (typeof v === "number") return Number.isFinite(v) ? Math.round(v * 1000) / 1000 : 0
   if (typeof v === "boolean") return v
