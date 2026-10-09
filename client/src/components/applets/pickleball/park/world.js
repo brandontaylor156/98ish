@@ -51,6 +51,7 @@ import { gearFig } from "./acts/gear.js"
 import { createLeisureSide } from "./leisure/parkside.js"
 import { holdFig } from "./leisure/held.js"
 import { mark as pmark, prof, profRead, profStart, spent as pspent } from "./prof.js"
+import { programSort } from "./perf.js"
 
 // Real Sky: Riverside isn't a real place; it borrows a Southern California park's sky
 export const DEFAULT_SKY_PLACE = { lat: 33.709, lon: -117.954 }
@@ -2418,6 +2419,7 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
       .catch((e) => console.warn("[park] splat backdrop", e))
   // your 3D Viewer 98 model, if you placed one in My Park: it trots after you (viewer3d/petLayer.js)
   const pet = createPetLayer(scene, { quality })
+  let opaqueSort = null
   const post = postFlag && !phone && quality === "high" && layout.id && layout.id !== "riverside" ? createPost(scene) : null
   // what an activity (acts/) gets from the park
   const actApi = {
@@ -2465,7 +2467,15 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
     scene,
     camera,
     splat,
-    ...(post ? { render: (renderer) => post.render(renderer, camera), postOn: true } : {}),
+    phone,
+    // (drawn with the opaque list sorted by shader program: perf.js programSort)
+    render(r) {
+      r.setOpaqueSort(opaqueSort ||= programSort(r))
+      if (post) post.render(r, camera)
+      else r.render(scene, camera)
+      r.setOpaqueSort(null)
+    },
+    ...(post ? { postOn: true } : {}),
     // which venue this is (layout.js / venuegen.js): online, friends at the same venue meet
     venue: layout.id || "riverside",
     layout,
