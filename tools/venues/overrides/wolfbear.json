@@ -8,7 +8,7 @@
   "_anchor": "the reference pack's aerial anchor (Stage 4's middle): en points are metres east, north of it",
   "anchor": [34.18093, -118.45797],
   "crop": 55,
-  "spawn": {"_src": "by the pickleball courts, facing them (the owner, 2026-10-09: \"spawn to the area where the pickleball courts are\")", "en": [-29.0, -3.5], "deg": -1.1},
+  "spawn": {"_src": "by the pickleball courts, facing them (the owner, 2026-10-09: \"spawn to the area where the pickleball courts are\")", "en": [-25.0, -3.8], "deg": -9.1},
   "liveCourts": [1, 3, 5, 6, 10, 12],
   "light": { "sky": 2.4, "sun": 0.6, "bounce": "#dcd6cc" },
   "courts": {

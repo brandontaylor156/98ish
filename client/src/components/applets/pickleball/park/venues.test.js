@@ -897,6 +897,8 @@ test("arrival: by the pickleball courts and facing them at every venue", () => {
     assert.ok(err < 0.5, `${id}: arrival faces the courts (off by ${((err * 180) / Math.PI).toFixed(0)} deg)`)
     assert.ok(Math.min(...L.COURTS.map((c) => Math.hypot(c.outside.x - sp.x, c.outside.z - sp.z))) < 12, `${id}: a live court's gate close by`)
     assert.ok(!L.blocked(sp.x, sp.z, 0.8), `${id}: room to stand`)
+    // (and every live court still reachable from it: none swapped out)
+    assert.equal(L.COURTS.length, 6, `${id}: six live courts`)
     const t = followTarget({ x: sp.x, z: sp.z, y: 0, yaw: sp.yaw }, sp.yaw, { portrait: true, roofY: S.indoor ? Math.min(...S.halls.map((h) => h.h || 9)) - 0.6 : null })
     assert.ok(t.open && t.pulled < 0.7, `${id}: the camera behind the arrival is clear`)
   }
