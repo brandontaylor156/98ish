@@ -61,6 +61,9 @@ import { RoamFound, RoamHud, RoamMenu, RoamStarts } from "../../../roam/ui/RoamH
 import { RoamPhone } from "../../../roam/ui/RoamPhone.jsx"
 import { makeHost98, useRoamNet, useRoamVoice } from "../../../roam/host98.js"
 import { TOWNS, startSpot, startSpots, townById, townForVenue } from "../../../roam/towns/index.js"
+// Explore's life: waving and hugs, Home/Work and going inside, the stores, the Bag (useExploreLife.jsx)
+import { equipFor, useExploreLife } from "./useExploreLife.jsx"
+import { useCouple } from "../../../utils/couple.js"
 import * as livingNet from "../../../utils/livingpark"
 import { memoryKey, pickLine, rememberResult } from "./park/living.js"
 import { AwayCard, ClonePanel } from "./park/LivingPanel"
@@ -191,7 +194,7 @@ const readPrefs = () => {
   }
   return p
 }
-const engineSettings = (p) => ({ sound: p.sound, voice: p.voice, camera: p.camera, aid: p.aid, trail: p.trail, assist: p.assist, quality: p.quality, cuts: p.cuts, replays: p.replays, keys: p.keys, focus: p.focus || "auto", window: TIMING[p.timing] || TIMING.normal, pace: PACE[p.pace] ? p.pace : "medium", realWeather: p.realSky !== false && !!p.classicWeather })
+const engineSettings = (p) => ({ sound: p.sound, voice: p.voice, camera: p.camera, aid: p.aid, trail: p.trail, assist: p.assist, quality: p.quality, cuts: p.cuts, replays: p.replays, keys: p.keys, focus: p.focus || "auto", window: TIMING[p.timing] || TIMING.normal, pace: PACE[p.pace] ? p.pace : "medium", realWeather: p.realSky !== false && !!p.classicWeather, ballColor: p.ballColor || null })
 
 // on-screen controls (touchplay.js): the move pad bottom-left or bottom-right, the hit area
 // everywhere else, and Pause. Camera and the controls' gear are in the pause menu.
@@ -1088,7 +1091,7 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
     const { createRoam } = await import("../../../roam/world.js")
     if (engineRef.current !== e) return
     const ctx = e.worldContext()
-    const host = makeHost98({ engineCtx: ctx, me: myParkInfo(), sky: { real: prefsRef.current.realSky !== false }, aim: () => aimRef.current, phone: !!mobile, towns: TOWNS })
+    const host = makeHost98({ engineCtx: ctx, me: myParkInfo(), sky: { real: prefsRef.current.realSky !== false }, aim: () => aimRef.current, phone: !!mobile, towns: TOWNS, equip: equipFor(prefsRef, setPrefs) })
     const venueSpot = spot?.venue ? town.venues?.[spot.venue] : v
     const w = createRoam({ town, host, phone: !!mobile, quality: ctx.quality, start: at || (venueSpot ? { x: venueSpot.x, z: venueSpot.z, yaw: venueSpot.yaw } : null), labelsEl: roamLabelsRef.current, onHud: setRoamHud, onEvent: (ev) => roamEventRef.current?.(ev) })
     roamRef.current = w
@@ -1124,7 +1127,7 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
   // Roam: Go to... another town (a quick trip). Driving, you arrive in your car and anyone
   // riding along comes too (server/roam tickets); follow: you're the one riding along.
   // train: on the train between towns (you arrive at the station, anyone riding along too)
-  const hopTo = async (townId, { follow = false, train = false } = {}) => {
+  const hopTo = async (townId, { follow = false, train = false, at: atSpot = null } = {}) => {
     const w = roamRef.current
     const town = townById(townId)
     if (!w || !town || town.id === w.town.id) return
@@ -1139,7 +1142,7 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
     engineRef.current?.setWorld(null)
     w.dispose()
     try {
-      const at = train && town.station ? { x: town.station.x, z: town.station.z, yaw: town.station.yaw || 0 } : null
+      const at = atSpot || (train && town.station ? { x: town.station.x, z: town.station.z, yaw: town.station.yaw || 0 } : null)
       await Promise.race([startRoam(town.id, { from: Object.keys(town.venues || {})[0] || null, car: car ? { model: car.model, color: car.color } : null, at }), new Promise((r) => setTimeout(r, 12000))])
     } finally {
       // (long enough to read where you're going)
@@ -1150,6 +1153,10 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
   }
   if (import.meta.env?.DEV) window.__pbHopTo = hopTo
   if (import.meta.env?.DEV) window.__pbStartRoam = startRoam
+  // Explore's life (useExploreLife.jsx): emotes and hugs, Home/Work and going inside, the stores, the Bag
+  const couple = useCouple()
+  const explore = useExploreLife({ engineRef, roamWorld, labelsRef: roamLabelsRef, mobile, aim, partner: couple?.status === "paired" ? couple.partner : null, flash, setPrefs, prefsRef, hopTo })
+  if (import.meta.env?.DEV) window.__explore = explore
   const leaveRoam = ({ quit = true } = {}) => {
     const w = roamRef.current
     roamRef.current = null
@@ -2082,8 +2089,11 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
         )}
         {/* ---------- Roam: the open town (client/src/roam/) ---------- */}
         {screen === "roam" && <div className="roamLabels" ref={roamLabelsRef} aria-hidden="true" />}
-        {screen === "roam" && roamWorld && phase === "world" && !roamUi.menu && !roamUi.found && !roamUi.starts && !roamUi.phone && <RoamHud world={roamWorld} hud={roamHud} voice={roamVoice} onMenu={() => setRoamUi((u) => ({ ...u, menu: true }))} onPhone={() => setRoamUi((u) => ({ ...u, phone: true }))} onAction={() => roamRef.current?.action()} arrival={roamUi.arrival ? startSpot(roamWorld.town, roamUi.arrival) : null} onStarts={() => setRoamUi((u) => ({ ...u, starts: true }))} />}
-        {screen === "roam" && roamWorld && roamUi.phone && <RoamPhone world={roamWorld} found={roamWorld.found} onClose={() => (setRoamUi((u) => ({ ...u, phone: false })), stageRef.current?.focus({ preventScroll: true }))} />}
+        {screen === "roam" && roamWorld && phase === "world" && !explore.inside && !roamUi.menu && !roamUi.found && !roamUi.starts && !roamUi.phone && <RoamHud world={roamWorld} hud={roamHud} voice={roamVoice} onMenu={() => setRoamUi((u) => ({ ...u, menu: true }))} onPhone={() => setRoamUi((u) => ({ ...u, phone: true }))} onAction={() => roamRef.current?.action()} arrival={roamUi.arrival ? startSpot(roamWorld.town, roamUi.arrival) : null} onStarts={() => setRoamUi((u) => ({ ...u, starts: true }))} {...explore.hudProps} />}
+        {/* inside (your office or home, the warehouse club, the mall): the same controls, no minimap */}
+        {screen === "roam" && roamWorld && phase === "world" && explore.inside && !roamUi.phone && <RoamHud world={explore.inside} hud={explore.insideHud} voice={roamVoice} onMenu={explore.insideMenu} onPhone={() => setRoamUi((u) => ({ ...u, phone: true }))} onAction={(i) => explore.inside?.action(i)} minimap={false} credit="" {...explore.hudProps} />}
+        {screen === "roam" && roamWorld && !roamUi.menu && !roamUi.phone && explore.overlays}
+        {screen === "roam" && roamWorld && roamUi.phone && <RoamPhone world={roamWorld} found={roamWorld.found} life={explore.phoneLife} start={roamUi.phoneApp || null} onClose={() => (setRoamUi((u) => ({ ...u, phone: false, phoneApp: null })), stageRef.current?.focus({ preventScroll: true }))} />}
         {screen === "roam" && roamWorld && roamUi.starts && <RoamStarts town={roamWorld.town} starts={startSpots(roamWorld.town)} current={roamUi.arrival} onPick={pickRoamStart} onClose={() => (setRoamUi((u) => ({ ...u, starts: false })), stageRef.current?.focus({ preventScroll: true }))} />}
         {screen === "roam" && roamWorld && roamUi.menu && (
           <RoamMenu

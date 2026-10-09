@@ -237,13 +237,14 @@ const createRoamLife = ({ aim, store = null, now = Date.now, limits = {} } = {})
     changed(account.key)
     return mine(doc)
   }
-  const gift = async (account, { to, id, note = "" } = {}) => {
+  const gift = async (account, { to, id, note = "", n = 1 } = {}) => {
     const { catalog } = await loadRules()
     const person = await findBuddy(account, to)
     const doc = await load(account)
-    const r = catalog.takeFromBag(doc.bag, id, 1)
+    const q = Math.max(1, Math.min(catalog.BAG.each, Math.floor(Number(n) || 1)))
+    const r = catalog.takeFromBag(doc.bag, id, q)
     if (!r.ok) refuse(400, r.error)
-    const g = { id: crypto.randomBytes(6).toString("hex"), from: account.key, fromName: account.name, item: id, n: 1, note: String(note || "").replace(/[\u0000-\u001f<>]/g, "").slice(0, catalog.BAG.note), at: now() }
+    const g = { id: crypto.randomBytes(6).toString("hex"), from: account.key, fromName: account.name, item: id, n: q, note: String(note || "").replace(/[\u0000-\u001f<>]/g, "").slice(0, catalog.BAG.note), at: now() }
     if (!(await db.pushGift(person.key, person.name, g, catalog.BAG.gifts))) refuse(413, `${person.name} has a lot of gifts waiting already.`)
     doc.bag = r.bag
     await save(doc)

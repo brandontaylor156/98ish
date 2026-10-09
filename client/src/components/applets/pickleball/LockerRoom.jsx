@@ -3,6 +3,8 @@ import Combo from "../../shared/select/Combo"
 import { CHARACTERS } from "./looks.js"
 import { useTourneys } from "../../../utils/tourney.js"
 import { ActRecord } from "./park/acts/ActRecord.jsx"
+import { getRoamLife, subscribeRoamLife } from "../../../utils/roamLife.js"
+import { itemOf } from "../../../roam/life/catalog.js"
 import { BODIES, faceById, facesForBody, BOTTOMS, BUILDS, DESIGNS, GLASSES, HAIR_COLORS, HAIR_COLOR_NAMES, HAIR_STYLES, HATS, HEIGHT, KIT_COLORS, PLAYS, PRO_STYLES, SKIN_TONES, SOCKS, THEMES, TOPS, applyTheme, characterLook, defaultStyleFor, randomLook, themeById, validateLook } from "./locker.js"
 
 // Pickleball 98's Locker Room: dress any player (yours, or the computer's) over the 3D
@@ -17,8 +19,46 @@ const TABS = [
   ["kit", "Kit"],
   ["gear", "Gear"],
   ["paddle", "Paddle"],
+  ["bag", "Bag"],
   ["trophies", "Trophies"],
 ]
+
+// what you bought in Explore (the warehouse club, the mall: utils/roamLife.js): paddles, balls and
+// clothes to use here; the matches play with what you pick
+const useBag = () => {
+  const [s, setS] = useState(() => getRoamLife())
+  useEffect(() => subscribeRoamLife(setS), [])
+  return Object.keys(s.bag || {})
+    .map(itemOf)
+    .filter((it) => it && (it.use.paddle || it.use.balls || it.use.wear))
+}
+const BagTab = ({ look, set, prefs, setPrefs }) => {
+  const gear = useBag()
+  if (!gear.length) return <p className="pkLockerHint">{"Nothing here yet. Buy a paddle, balls or clothes in Explore (Big Crate 98, the warehouse club, or the mall's shops) and they show up here."}</p>
+  const on = (it) =>
+    it.use.paddle ? look.paddle === it.use.paddle.paddle && look.paddleEdge === it.use.paddle.paddleEdge && look.paddleDesign === it.use.paddle.paddleDesign : it.use.balls ? prefs.ballColor === it.use.balls : Object.entries(it.use.wear).every(([k, v]) => look[k] === v)
+  const use = (it) => {
+    if (it.use.paddle) set({ ...it.use.paddle })
+    else if (it.use.balls) setPrefs({ ballColor: on(it) ? null : it.use.balls })
+    else set({ ...it.use.wear, theme: "custom", style: "" })
+  }
+  return (
+    <ul className="pkTrophies" data-locker="bag">
+      {gear.map((it) => (
+        <li key={it.id}>
+          <span aria-hidden="true">{it.icon}</span>
+          <span>
+            <b>{it.name}</b>
+            <small>{it.use.paddle ? "Paddle" : it.use.balls ? "Match balls" : "Clothes"}</small>
+          </span>
+          <button type="button" onClick={() => use(it)} data-bag={it.id} aria-pressed={on(it)}>
+            {on(it) ? (it.use.balls ? "In play ✓" : "On ✓") : it.use.balls ? "Play with these" : "Use"}
+          </button>
+        </li>
+      ))}
+    </ul>
+  )
+}
 
 // the trophies you won in tournaments (utils/tourney.js; kept on this device too)
 const Trophies = () => {
@@ -259,6 +299,7 @@ export const LockerRoom = ({ prefs, setPrefs, engine, onBack, initial }) => {
                   <Swatches label="Shoe stripe" name="shoeAccent" value={look.shoeAccent} onChange={(c) => setPiece({ shoeAccent: c })} />
                 </>
               )}
+              {tab === "bag" && <BagTab look={look} set={set} prefs={prefs} setPrefs={setPrefs} />}
               {tab === "trophies" && (
                 <>
                   <Trophies />

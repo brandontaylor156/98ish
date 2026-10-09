@@ -171,8 +171,38 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
     }
   })
   tex.ballOut = ballTexOut
+  // (the balls you bought in Explore: settings.ballColor, a pack of orange, pink or white balls
+  // from the warehouse club, roam/life/catalog.js; the same holes, your colour)
+  const tinted = new Map()
+  const tintedTex = (indoor, color) => {
+    const k = `${indoor ? "i" : "o"}${color}`
+    if (!tinted.has(k)) {
+      const c = new THREE.Color(color)
+      const dark = `#${c.clone().multiplyScalar(0.72).getHexString()}`
+      tinted.set(
+        k,
+        canvasTexture(128, 64, (ctx, w, h) => {
+          ctx.fillStyle = color
+          ctx.fillRect(0, 0, w, h)
+          ctx.fillStyle = dark
+          const n = indoor ? 26 : 40
+          for (let i = 0; i < n; i++) {
+            ctx.beginPath()
+            if (indoor) ctx.arc((i * 23 + (i % 3) * 7) % w, ((i * 37) % 5) * (h / 5) + 6, 3.2, 0, Math.PI * 2)
+            else ctx.arc((i * 29 + (i % 4) * 5) % w, ((i * 17) % 7) * (h / 7) + 4, 2.3, 0, Math.PI * 2)
+            ctx.fill()
+          }
+        })
+      )
+    }
+    return tinted.get(k)
+  }
   const ballLook = () => {
-    const want = match?.ball?.kind === "indoor" ? ballTex : ballTexOut
+    const indoor = match?.ball?.kind === "indoor"
+    const bc = typeof settings.ballColor === "string" && /^#[0-9a-f]{6}$/i.test(settings.ballColor) ? settings.ballColor : null
+    const want = bc ? tintedTex(indoor, bc) : indoor ? ballTex : ballTexOut
+    const glow = bc ? new THREE.Color(bc).multiplyScalar(0.25).getHex() : 0x3a4000
+    if (ballMesh.material.emissive.getHex() !== glow) ballMesh.material.emissive.setHex(glow)
     if (ballMesh.material.map !== want) {
       ballMesh.material.map = want
       ballMesh.material.needsUpdate = true

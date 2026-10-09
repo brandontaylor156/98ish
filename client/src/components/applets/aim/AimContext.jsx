@@ -660,6 +660,8 @@ export const AimProvider = ({ socket, windows, dispatch: dispatchWindow, onOpenV
     import("../../../utils/albums").then((m) => m.setAlbumsSession(session)).catch(() => {})
     // Buddy Locator (utils/locate.js: who shares with whom, live positions)
     import("../../../utils/locate").then((m) => m.setLocateSession(session)).catch(() => {})
+    // Pickleball 98 > Explore: your Home/Work places, the Bag and gifts (utils/roamLife.js)
+    import("../../../utils/roamLife").then((m) => m.setRoamLifeSession(session)).catch(() => {})
     // Pickleball 98's Real Games (utils/pbclub.js: sessions, matches, the friends' ladder)
     import("../../../utils/pbclub").then((m) => m.setClubSession(session)).catch(() => {})
     // and its tournaments (utils/tourney.js: sign-ups, brackets, trophies)

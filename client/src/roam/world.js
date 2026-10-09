@@ -579,6 +579,9 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
   let carMesh = null
   const input = { x: 0, y: 0, sprint: false, gas: 0, brake: 0, steer: 0 }
   const keys = new Set()
+  // (plug-ins from roam/life/: going inside, emotes and doing things together, things put down;
+  // each may offer an action, steer your walk (only after a yes), touch figures, hear the network)
+  const plugins = new Set()
   const cam = { yaw: wrap((sp.yaw ?? 0) + 0), pitch: 0.3, dist: phone ? 5.2 : 4.6, pos: null, look: new THREE.Vector3(), behindT: 0 }
 
   // figures (the host makes them: an athlete in 98ish)
@@ -634,6 +637,7 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
     const r = remotes.get(p.num) || { num: p.num, track: createTrack(), x: 0, z: 0, y: 0, yaw: 0, speed: 0, act: 0, car: null, carMesh: null }
     r.name = String(p.name || "Guest").slice(0, 40)
     r.look = p.look || null
+    r.inside = p.inside || null
     if (p.pos) {
       const q = unpackPos(p.pos)
       if (q) Object.assign(r, q)
@@ -704,6 +708,10 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
     for (const r of remotes.values()) {
       if (!r.car || r.car.seat === 1 || isTwo(r.car.model)) continue
       if (Math.hypot(r.x - w.x, r.z - w.z) < 4.2 && r.speed < 2) return { kind: "ride", label: `Ride along with ${r.name}`, target: r.num }
+    }
+    for (const p of plugins) {
+      const a = p.action?.(w)
+      if (a) return { kind: "plug", label: a.label, target: a }
     }
     const egg = eggs.nearest(w.x, w.z)
     if (egg) return { kind: "egg", label: egg.verb || "Take a look", target: egg.id }
@@ -889,6 +897,7 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
     else if (a.kind === "ride-in") boardRide()
     else if (a.kind === "board") boardTransit(a.target)
     else if (a.kind === "off") leaveTransit()
+    else if (a.kind === "plug") a.target.run?.()
     sendHud(true)
   }
   // is a friend here with you (for the couple's find)?
@@ -1320,7 +1329,10 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
     // you
     if (!driving && !riding) {
       const fig = figFor("me", me.look)
-      if (fig) fig.update({ x: me.walker.x, y: me.walker.y, z: me.walker.z, yaw: me.walker.yaw, vx: me.walker.vx, vz: me.walker.vz, speed: me.walker.speed }, dt)
+      if (fig) {
+        for (const p of plugins) p.figure?.("me", fig, dt)
+        fig.update({ x: me.walker.x, y: me.walker.y, z: me.walker.z, yaw: me.walker.yaw, vx: me.walker.vx, vz: me.walker.vz, speed: me.walker.speed }, dt)
+      }
     }
     if (driving && car && carMesh) {
       carMesh.group.position.set(car.x, car.y, car.z)
@@ -1363,12 +1375,13 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
       }
       // (on a bike or a scooter a friend stands on it, seen)
       const onTwo = inCar && isTwo(r.car?.model)
-      const hidden = (inCar && !onTwo) || (r.act & ACT.ride)
+      const hidden = (inCar && !onTwo) || (r.act & ACT.ride) || r.inside
       if (hidden || Math.hypot(r.x - camera.position.x, r.z - camera.position.z) > 120) {
         dropFig(`r${r.num}`)
         continue
       }
       const fig = figFor(`r${r.num}`, r.look)
+      if (fig && !onTwo) for (const p of plugins) p.figure?.(r.num, fig, dt)
       if (fig && onTwo) fig.update({ x: r.x, y: r.carMesh.group.position.y + (r.carMesh.deck || 0.2), z: r.z, yaw: r.yaw, vx: 0, vz: 0, speed: 0 }, dt)
       else if (fig) fig.update({ x: r.x, y: r.y, z: r.z, yaw: r.yaw, vx: Math.sin(r.yaw) * r.speed, vz: Math.cos(r.yaw) * r.speed, speed: r.speed }, dt)
     }
@@ -1382,7 +1395,7 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
     let i = 0
     for (const r of remotes.values()) {
       const d = Math.hypot(r.x - camera.position.x, r.z - camera.position.z)
-      if (d > 90) continue
+      if (d > 90 || r.inside) continue
       proj.set(r.x, (r.y || 0) + ((r.act & ACT.drive) || (r.act & ACT.ride) ? 2.2 : 2.15), r.z).project(camera)
       if (proj.z > 1 || Math.abs(proj.x) > 1.1 || Math.abs(proj.y) > 1.1) continue
       let el = labelPool[i]
@@ -1545,10 +1558,19 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
       const kl = Math.hypot(kx, ky) || 1
       const ix = input.x + (kx / kl) * (kx || ky ? 0.85 : 0)
       const iy = input.y + (ky / kl) * (kx || ky ? 0.85 : 0)
-      stepWalker(me.walker, { x: ix, y: iy, sprint: input.sprint || shift }, cam.yaw, dt, { resolve: resolveFoot, heightAt: (x, z, y) => heightAt(x, z, y, false) })
+      // (walking hand in hand or stepping in for a hug: only after both said yes, and your own
+      // push takes over at once: roam/life/social.js)
+      let mv = { x: ix, y: iy, sprint: input.sprint || shift }
+      for (const p of plugins) {
+        const o = p.input?.(mv, dt, cam.yaw)
+        if (o) mv = o
+      }
+      stepWalker(me.walker, mv, cam.yaw, dt, { resolve: resolveFoot, heightAt: (x, z, y) => heightAt(x, z, y, false) })
+      if (Number.isFinite(mv.face)) me.walker.yaw = mv.face
     }
     stepRide(dt)
     stepRemotes()
+    for (const p of plugins) p.step?.(dt)
     eggs.step(dt, center(), clock, camera)
     updateCamera(dt)
     // (the sky dome rides with the lens: the town is bigger than the dome)
@@ -1703,6 +1725,8 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
         ride: ride ? { x: ride.pose.x, z: ride.pose.z, phase: ride.phase } : null,
         stops: nav.transit ? nav.transit.buses.flatMap((l) => l.stops).filter((s) => Math.abs(s.x - c.x) < 1500 && Math.abs(s.z - c.z) < 1500) : [],
         stations: nav.transit?.stations || [],
+        // (your own Home/Work and the places friends share with you: roam/life/town.js)
+        pins: [...plugins].flatMap((p) => p.pins?.() || []),
         bbox: town.bbox ? (() => {
           const a = frame.toXZ(town.bbox.north, town.bbox.west)
           const b = frame.toXZ(town.bbox.south, town.bbox.east)
@@ -1819,7 +1843,85 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
       tilesDirty = true
       lastSent = null
       if (driving && car) net?.request?.("roam:car", { car: { id: car.id, model: car.model, color: car.color } })
+      for (const p of plugins) p.netEvent?.("joined", r)
       sendHud(true)
+    },
+    // ---- plug-ins (roam/life/) and what they need to see ----
+    use(p) {
+      plugins.add(p)
+      sendHud(true)
+      return () => plugins.delete(p)
+    },
+    get net() {
+      return net
+    },
+    get myNum() {
+      return myNum
+    },
+    get camYaw() {
+      return cam.yaw
+    },
+    // you on foot (null in a car, on a bus...) -> { num, name, x, y, z, yaw, speed }
+    meNow() {
+      if (driving || riding || onTransit) return null
+      const w = me.walker
+      return { num: myNum, name: me.name, x: w.x, y: w.y, z: w.z, yaw: w.yaw, speed: w.speed }
+    },
+    // the people online on foot near you -> [{ num, name, x, y, z, yaw, speed }]
+    peopleNow() {
+      return [...remotes.values()].filter((r) => !r.inside && !(r.act & (ACT.drive | ACT.ride))).map((r) => ({ num: r.num, name: r.name, x: r.x, y: r.y, z: r.z, yaw: r.yaw, speed: r.speed }))
+    },
+    // everyone online in the town, inside or out (for the interiors) -> [{ num, name, look, inside }]
+    remotesAll: () => [...remotes.values()].map((r) => ({ num: r.num, name: r.name, look: r.look, inside: r.inside || null })),
+    // open ground you can stand on (not in a building, not in the sea)?
+    isOpen: (x, z) => !colliders.inside(x, z) && !colliders.resolve(x, z, 0.5).hit && !seaAt(x, z),
+    // the building drawn round a point, or the nearest within r -> { id, ring, name, kind, height, area, x, z } | null
+    buildingAt(x, z, r = 0) {
+      let best = null
+      for (const e of tiles.values()) {
+        if (!e.near) continue
+        e.t.buildings.forEach((b, i) => {
+          if (b.ring.length < 3) return
+          let cx = 0
+          let cz = 0
+          for (const p of b.ring) {
+            cx += p.x
+            cz += p.z
+          }
+          cx /= b.ring.length
+          cz /= b.ring.length
+          if (Math.abs(cx - x) > 400 || Math.abs(cz - z) > 400) return
+          let inside = false
+          for (let a = 0, c = b.ring.length - 1; a < b.ring.length; c = a++) {
+            const p = b.ring[a]
+            const q = b.ring[c]
+            if (p.z > z !== q.z > z && x < ((q.x - p.x) * (z - p.z)) / (q.z - p.z || 1e-9) + p.x) inside = !inside
+          }
+          let d = 0
+          if (!inside) {
+            d = Infinity
+            for (let a = 0; a < b.ring.length; a++) {
+              const p = b.ring[a]
+              const q = b.ring[(a + 1) % b.ring.length]
+              const dx = q.x - p.x
+              const dz = q.z - p.z
+              const L2 = dx * dx + dz * dz || 1e-9
+              const k = Math.max(0, Math.min(1, ((x - p.x) * dx + (z - p.z) * dz) / L2))
+              d = Math.min(d, Math.hypot(x - p.x - dx * k, z - p.z - dz * k))
+            }
+          }
+          if (d <= r && (!best || d < best.d)) best = { id: `${e.t.key}:${i}`, ring: b.ring, name: b.name, kind: b.kind, height: b.height, area: b.area, x: cx, z: cz, d }
+        })
+      }
+      return best
+    },
+    // your own bike or scooter, from your Bag: you're on it
+    rideOwn(model, color) {
+      if (driving || riding || onTransit || !MODELS[model]) return false
+      const w = me.walker
+      getIn({ id: `own:${model}:${Math.floor(Math.random() * 1e6)}`, model, color, x: w.x, z: w.z, yaw: w.yaw })
+      sendHud(true)
+      return true
     },
     netEvent(type, d) {
       if (type === "roam:m" && d && Array.isArray(d.m)) {
@@ -1861,7 +1963,11 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
       } else if (type === "roam:hop" && d && typeof d.town === "string") {
         // (your driver is off to another town: you're coming too)
         if (riding) onEvent({ type: "hop", town: d.town, driver: String(d.driver || "Your friend").slice(0, 40), by: remotes.get(riding.num)?.car?.model || null })
+      } else if (type === "roam:in" && d) {
+        const r = remotes.get(d.num)
+        if (r) r.inside = d.room || null
       }
+      for (const p of plugins) p.netEvent?.(type, d)
       sendHud(false)
     },
     // spatial voice: where you listen from and where everyone is (by number)

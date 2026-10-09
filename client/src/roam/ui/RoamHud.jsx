@@ -26,7 +26,7 @@ const miles = (m) => (m >= 160 ? `${(m / 1609.34).toFixed(1)} mi` : `${Math.roun
 const clock = (s) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")}`
 const etaWords = (s) => (s < 60 ? "under a minute" : `${Math.round(s / 60)} min`)
 
-export function RoamHud({ world, hud, voice = null, onMenu, onAction, onPhone = null, arrival = null, onStarts = null, credit = "© OpenStreetMap contributors · aerial vegetation: USGS NAIP" }) {
+export function RoamHud({ world, hud, voice = null, onMenu, onAction, onPhone = null, arrival = null, onStarts = null, credit = "© OpenStreetMap contributors · aerial vegetation: USGS NAIP", extra = null, minimap = true }) {
   // (where you arrived, for a few seconds: tap to pick another start spot)
   const [showArrival, setShowArrival] = useState(!!arrival)
   useEffect(() => {
@@ -142,12 +142,16 @@ export function RoamHud({ world, hud, voice = null, onMenu, onAction, onPhone = 
         <div className="roamInfo" data-roam="info">
           {hud?.street ? <b data-roam="street">{hud.street}</b> : null}
           {driving || mode === "ride" ? <span data-roam="speed">{hud?.speed ?? 0} mph</span> : null}
-          <span className="roamFinds" data-roam="finds">
-            ★ {hud?.found ?? 0}/{hud?.total ?? 0}
-          </span>
+          {hud?.inside ? null : (
+            <span className="roamFinds" data-roam="finds">
+              ★ {hud?.found ?? 0}/{hud?.total ?? 0}
+            </span>
+          )}
+          {hud?.clock !== null && hud?.clock !== undefined ? <span data-roam="shift">⏱ On the clock {Math.floor(hud.clock / 60)}:{String(hud.clock % 60).padStart(2, "0")}</span> : null}
           {hud?.online ? <span data-roam="people">● {hud.online.people} here</span> : null}
         </div>
         <div className="roamTopRight">
+          {extra}
           {voice?.supported && (
             <button type="button" className={`roamBtn roamMic${voice.state.status === "on" ? " is-on" : ""}`} onClick={voice.toggle} data-roam="mic" aria-label="Voice">
               🎙
@@ -163,7 +167,7 @@ export function RoamHud({ world, hud, voice = null, onMenu, onAction, onPhone = 
           </button>
         </div>
       </div>
-      <Minimap world={world} size={mapSize()} />
+      {minimap && <Minimap world={world} size={mapSize()} />}
       {hud?.gps && (
         <div className="roamGps" data-roam="gps" onPointerDown={(e) => e.stopPropagation()}>
           <span className="roamGpsArrow" aria-hidden="true">{TURN_ICON[hud.gps.turn] || "⬆"}</span>
@@ -247,8 +251,13 @@ export function RoamHud({ world, hud, voice = null, onMenu, onAction, onPhone = 
         </div>
       )}
       {hud?.action && (
-        <button type="button" className="roamBtn roamAction" onClick={onAction} data-roam="action" data-kind={hud.action.kind}>
+        <button type="button" className="roamBtn roamAction" onClick={() => onAction(0)} data-roam="action" data-kind={hud.action.kind}>
           {hud.action.label}
+        </button>
+      )}
+      {hud?.action2 && (
+        <button type="button" className="roamBtn roamAction roamAction2" onClick={() => onAction(1)} data-roam="action2" data-kind={hud.action2.kind}>
+          {hud.action2.label}
         </button>
       )}
       {arrival && showArrival && onStarts && mode === "walk" && (
