@@ -236,7 +236,41 @@ export const buildingArrays = (buildings, groundAt, { far = false, key = "" } = 
         up(c2, c3, r2)
       }
       roofUV = null
-      // (the soffit isn't drawn: seen from the street the eaves read from the slopes alone)
+      // the eaves: a white fascia board round the overhang's edge and the soffit under it, so
+      // the roof has thickness instead of reading as a sheet
+      surf = mat.wall
+      const FASCIA = 0xf1ede4
+      const fd = 0.2
+      const corners = [c1, c2, c3, c4]
+      const inner = [at(-box.hl, -box.hw, eave - fd), at(box.hl, -box.hw, eave - fd), at(box.hl, box.hw, eave - fd), at(-box.hl, box.hw, eave - fd)]
+      for (let k = 0; k < 4; k++) {
+        const a = corners[k]
+        const bq = corners[(k + 1) % 4]
+        const a0 = [a[0], eave - fd, a[2]]
+        const b0 = [bq[0], eave - fd, bq[2]]
+        // (out from the house's middle)
+        const mx = (a[0] + bq[0]) / 2 - box.cx
+        const mz = (a[2] + bq[2]) / 2 - box.cz
+        const f = faceN(a0, b0, bq)
+        if (f[0] * mx + f[2] * mz < 0) {
+          tri(a0, bq, b0, [-f[0], -f[1], -f[2]], FASCIA)
+          tri(a0, a, bq, [-f[0], -f[1], -f[2]], FASCIA)
+        } else {
+          tri(a0, b0, bq, f, FASCIA)
+          tri(a0, bq, a, f, FASCIA)
+        }
+        // the soffit: from the fascia's foot in to the wall line, facing down (in shade)
+        const i0 = inner[k]
+        const i1 = inner[(k + 1) % 4]
+        const g = faceN(a0, b0, i1)
+        if (g[1] > 0) {
+          tri(a0, i1, b0, [0, -1, 0], wall, [0.72, 0.72, 0.72])
+          tri(a0, i0, i1, [0, -1, 0], wall, [0.72, 0.72, 0.72])
+        } else {
+          tri(a0, b0, i1, [0, -1, 0], wall, [0.72, 0.72, 0.72])
+          tri(a0, i1, i0, [0, -1, 0], wall, [0.72, 0.72, 0.72])
+        }
+      }
     } else {
       surf = mat.roof
       const contour = ring.map((p) => new Vector2(p.x, p.z))

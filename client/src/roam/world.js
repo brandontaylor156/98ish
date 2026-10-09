@@ -13,7 +13,12 @@
 // - parked cars (sim/parked.js) you can get into and drive (sim/car.js) with a chase camera;
 //   a car stays where you leave it; a friend can ride along;
 // - other people in the same town, walking and driving (sim/sync.js, server/roam);
-// - hidden finds at real places (eggs.js).
+// - hidden finds at real places (eggs.js);
+// - realism (docs/open-world.md): textured buildings with windows, lawns and lots, the venues'
+//   trees, sun shadows round you, real-proportioned cars (render/carmodel.js) with a chase
+//   camera (sim/chase.js), a little traffic and a few people walking (sim/traffic.js,
+//   sim/peds.js), the map's signals, stop signs and lamps and the lights at night
+//   (render/street.js), a minimap, a horn and a radio.
 
 import * as THREE from "three"
 import { TILE_ZOOM, tileKey, tileOf, tilesAround, townFrame } from "./geo.js"
@@ -137,7 +142,9 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
     hemi.intensity = d.hemi[2]
     scene.fog.color.setHex(d.fog)
     if (sky) scene.background = scene.fog.color
-    exposure = d.exposure ?? 1
+    // (a little under the venues': a town of pale stucco and concrete in full sun reads washed out
+    // at a court's exposure)
+    exposure = (d.exposure ?? 1) * (low ? 1 : 0.9)
     // night (0 day .. 1 night): lamps on, reflections dim
     night = d.sunEl !== undefined ? Math.max(0, Math.min(1, (4 - d.sunEl) / 10)) : d.lights ? 1 : 0
     lampUniforms.head.value = lampUniforms.tail.value = night

@@ -150,6 +150,7 @@ const RIM = rgb(0xa9adb2)
 const HUB = rgb(0x55585c)
 const HEAD = rgb(0xcfd8df)
 const BEZEL = rgb(0x0e0f10)
+const HEAD_WRAP = rgb(0x6f7a83) // (the lamp glass round the front corners: tinted, not a white flash)
 const TAIL = rgb(0x9a1016)
 const PLATE = rgb(0xdedfd8)
 const AMBER = rgb(0xd88a22)
@@ -203,7 +204,7 @@ const buildBody = (spec, paint, trim) => {
       const band = lamp && (k === 3 || k === n - 5)
       const isTrim = band || A[k][2] === 0 || A[k + 1][2] === 0
       const pt = isTrim ? trim : paint
-      const col = band ? (lamp === 1 ? HEAD : TAIL) : isTrim ? TRIM : WHITE
+      const col = band ? (lamp === 1 ? HEAD_WRAP : TAIL) : isTrim ? TRIM : WHITE
       // (counter-clockwise from outside: rear section a, front section b; the ring runs over
       // the top from right to left)
       quad(pt, [A[k][0], A[k][1], za], [A[k + 1][0], A[k + 1][1], za], [B[k + 1][0], B[k + 1][1], zb], [B[k][0], B[k][1], zb], col, band ? lamp : 0)
