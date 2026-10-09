@@ -63,7 +63,7 @@ export const carGeometry = (model) => {
   const cy = pts.reduce((a, q) => a + q[1], 0) / 4
   const ring = pts.map(([x, y], k) => {
     const l = Math.hypot(x - cx, y - cy) || 1
-    return [x + ((x - cx) / l) * 0.04, y + ((y - cy) / l) * 0.04 - (k === 1 || k === 2 ? 0.09 : 0)]
+    return [x + ((x - cx) / l) * 0.1, y + ((y - cy) / l) * 0.1 - (k === 1 || k === 2 ? 0.16 : 0)]
   })
   const glass = tint(extrude(ring, W + 0.03, 0.02), 0x1c2329)
   const parts = [glass]

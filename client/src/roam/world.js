@@ -17,7 +17,7 @@
 
 import * as THREE from "three"
 import { TILE_ZOOM, tileKey, tileOf, tilesAround, townFrame } from "./geo.js"
-import { tileHeightAt } from "./data/tile.js"
+import { DRIVABLE, ROAD, tileHeightAt } from "./data/tile.js"
 import { createTileStore } from "./stream.js"
 import { buildTileMesh, disposeMaterials } from "./render/tilemesh.js"
 import { treeSpots } from "./render/ground.js"
@@ -852,6 +852,33 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
           if (open(x, z)) return world.teleport(x, z, w.yaw)
         }
     },
+    // (tests: the scripted thumb) the closest point on a through road -> { x, z } | null
+    nearestRoadPoint(x, z) {
+      let best = null
+      let bd = 60
+      for (const e of tiles.values()) {
+        if (!e.near) continue
+        for (const r of e.t.roads) {
+          if (!DRIVABLE.has(r.cls) || r.cls === ROAD.service || r.cls === ROAD.aisle || r.cls === ROAD.driveway) continue
+          for (let i = 0; i + 1 < r.pts.length; i++) {
+            const a = r.pts[i]
+            const b = r.pts[i + 1]
+            const dx = b.x - a.x
+            const dz = b.z - a.z
+            const L2 = dx * dx + dz * dz || 1e-9
+            const k = Math.max(0, Math.min(1, ((x - a.x) * dx + (z - a.z) * dz) / L2))
+            const px = a.x + dx * k
+            const pz = a.z + dz * k
+            const d = Math.hypot(x - px, z - pz)
+            if (d < bd) {
+              bd = d
+              best = { x: px, z: pz }
+            }
+          }
+        }
+      }
+      return best
+    },
     // (tests) no wall between two points?
     clearPath: (x0, z0, x1, z1) => colliders.segment(x0, z0, x1, z1, -1e9) >= 1,
     // (tests) a point on a named street among the tiles drawn -> { x, z, yaw } | null
@@ -862,7 +889,7 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
           if (rx.test(r.name) && r.pts.length > 1) {
             const a = r.pts[0]
             const b = r.pts[1]
-            return { x: (a.x + b.x) / 2, z: (a.z + b.z) / 2, yaw: Math.atan2(b.x - a.x, b.z - a.z), name: r.name }
+            return { x: (a.x + b.x) / 2, z: (a.z + b.z) / 2, yaw: Math.atan2(b.x - a.x, b.z - a.z), name: r.name, pts: r.pts.map((p) => ({ x: p.x, z: p.z })) }
           }
       return null
     },
