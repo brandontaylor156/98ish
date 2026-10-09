@@ -9,9 +9,13 @@ import * as THREE from "three"
 // tall fan palms of Southern California streets), the rest broad-leaf in two shapes
 export const kitKindOf = (t) => {
   const h = Math.abs(Math.floor(t.x * 7.31 + t.z * 3.17)) % 10
+  // (shrubs and pines aren't in the kit: always the plain shapes)
+  if (t.kind === 2 || t.kind === 3) return null
   if (t.kind === 1) return h < 7 ? "fanpalm" : "palm"
   return h % 2 ? "broad1" : "broad0"
 }
+// flowering shrubs along the streets (bougainvillea magenta, lavender, white, yellow)
+const FLOWERS = [0xd6438a, 0x9566c9, 0xefe9dc, 0xe7c447]
 // a palm's trunk height from its spot (m)
 export const palmHeight = (t, kind) => {
   const f = (((t.x * 13.1 + t.z * 7.7) % 1) + 1) % 1
@@ -36,7 +40,9 @@ export const createTreeLayer = (scene, { cap = 4000, kit = null, nearCap = 0 } =
     const m = new THREE.InstancedMesh(geo, mat, n)
     m.count = 0
     m.frustumCulled = false
-    m.castShadow = true
+    // (the far, plain trees: thousands of them, so only the kit trees near you cast shadows;
+    // the shadow box is 75-120 m round you anyway)
+    m.castShadow = false
     m.receiveShadow = true
     scene.add(m)
     own.push(m)
@@ -48,6 +54,20 @@ export const createTreeLayer = (scene, { cap = 4000, kit = null, nearCap = 0 } =
   const pTrunks = make(palmTrunk, bark, palmCap)
   const pCrowns = make(palmCrown, frond, palmCap)
   crowns.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(cap * 3), 3)
+  // shrubs (the aerial's small crowns; some flowering along the streets) and pines
+  const shrubGeo = new THREE.IcosahedronGeometry(1, 1)
+  shrubGeo.translate(0, 0.55, 0)
+  const pineGeo = new THREE.ConeGeometry(1, 1, 8)
+  pineGeo.translate(0, 0.5, 0)
+  const shrubMat = new THREE.MeshLambertMaterial({ color: 0xffffff })
+  const pineMat = new THREE.MeshLambertMaterial({ color: 0x3f5f35 })
+  const shrubCap = Math.max(1, Math.round(cap * 0.4))
+  const pineCap = Math.max(1, Math.round(cap * 0.2))
+  const shrubs = make(shrubGeo, shrubMat, shrubCap)
+  shrubs.castShadow = false
+  shrubs.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(shrubCap * 3), 3)
+  const pTrunk2 = make(trunkGeo, bark, pineCap)
+  const pines = make(pineGeo, pineMat, pineCap)
   // ---- the near trees (the kit) ----
   const kitMeshes = {} // kind -> [{ mesh, part }]
   if (kit && nearCap > 0)
@@ -56,6 +76,7 @@ export const createTreeLayer = (scene, { cap = 4000, kit = null, nearCap = 0 } =
       kitMeshes[kind] = parts.map((part) => {
         const mesh = make(part.geo, part.mat, n)
         mesh.userData.kitShared = true
+        mesh.castShadow = true
         if (part.crown) mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(n * 3).fill(1), 3)
         kit.tick?.(mesh)
         return { mesh, part, cap: n }
@@ -66,16 +87,44 @@ export const createTreeLayer = (scene, { cap = 4000, kit = null, nearCap = 0 } =
   const v = new THREE.Vector3()
   const s = new THREE.Vector3()
   const c = new THREE.Color()
+  const c2 = new THREE.Color()
   const up = new THREE.Vector3(0, 1, 0)
   return {
     // list: [{ x, y, z, s, kind }] (kind 1: a palm); near(t): drawn with the kit
     set(list, near = () => false) {
       let n = 0
       let p = 0
+      let sh = 0
+      let pi = 0
       const counts = {}
       for (const t of list) {
         const k = t.s || 1
         const yaw = (t.x * 3.7 + t.z * 5.1) % 6.28
+        if (t.kind === 2) {
+          // (a shrub: s is its radius in metres)
+          if (sh >= shrubCap) continue
+          q.setFromAxisAngle(up, yaw)
+          m4.compose(v.set(t.x, t.y - 0.15, t.z), q, s.set(k, k * 0.72, k * 0.9))
+          shrubs.setMatrixAt(sh, m4)
+          const g = ((t.x * 13.1 + t.z * 7.7) % 1 + 1) % 1
+          if (t.flower) c.setHex(FLOWERS[(t.flower - 1) % FLOWERS.length]).lerp(c2.setRGB(0.3, 0.5, 0.22), 0.3)
+          else c.setRGB(0.3 + g * 0.12, 0.48 + g * 0.12, 0.2 + g * 0.06)
+          shrubs.instanceColor.setXYZ(sh, c.r, c.g, c.b)
+          sh++
+          continue
+        }
+        if (t.kind === 3) {
+          // (a pine: a tall dark cone on a short trunk)
+          if (pi >= pineCap) continue
+          const h = 6 + k * 5
+          q.setFromAxisAngle(up, yaw)
+          m4.compose(v.set(t.x, t.y - 0.2, t.z), q, s.set(k, 2.2, k))
+          pTrunk2.setMatrixAt(pi, m4)
+          m4.compose(v.set(t.x, t.y + 1.6, t.z), q, s.set(2.1 * k + 0.5, h, 2.1 * k + 0.5))
+          pines.setMatrixAt(pi, m4)
+          pi++
+          continue
+        }
         if (kit && near(t)) {
           const kind = kitKindOf(t)
           const parts = kitMeshes[kind]
@@ -121,7 +170,10 @@ export const createTreeLayer = (scene, { cap = 4000, kit = null, nearCap = 0 } =
       }
       trunks.count = crowns.count = n
       pTrunks.count = pCrowns.count = p
-      for (const m of [trunks, crowns, pTrunks, pCrowns]) m.instanceMatrix.needsUpdate = true
+      shrubs.count = sh
+      pTrunk2.count = pines.count = pi
+      shrubs.instanceColor.needsUpdate = true
+      for (const m of [trunks, crowns, pTrunks, pCrowns, shrubs, pTrunk2, pines]) m.instanceMatrix.needsUpdate = true
       crowns.instanceColor.needsUpdate = true
       for (const [kind, parts] of Object.entries(kitMeshes))
         for (const { mesh, part } of parts) {
@@ -140,8 +192,8 @@ export const createTreeLayer = (scene, { cap = 4000, kit = null, nearCap = 0 } =
         if (!m.userData.kitShared) m.dispose()
         else m.dispose?.()
       }
-      for (const g of [trunkGeo, crownGeo, palmTrunk, palmCrown]) g.dispose()
-      for (const m of [bark, leaf, frond]) m.dispose()
+      for (const g of [trunkGeo, crownGeo, palmTrunk, palmCrown, shrubGeo, pineGeo]) g.dispose()
+      for (const m of [bark, leaf, frond, shrubMat, pineMat]) m.dispose()
     },
   }
 }

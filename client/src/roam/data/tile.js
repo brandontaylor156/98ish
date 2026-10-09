@@ -26,6 +26,7 @@
 import { EXTENT, fromTileUnits, tileBounds, toTileUnits } from "../geo.js"
 import { stitchRings } from "./osm.js"
 import { inRings, seaRings } from "./sea.js"
+import { decodeVeg } from "./veg.js"
 
 export const TILE_VERSION = 1
 export const GRID = 33 // height samples per side (32 cells, ~16 m at z16)
@@ -773,7 +774,11 @@ export const decodeTile = (tile, frame, base = 0) => {
     return !(wetAt(mx + nx, mz + nz) && wetAt(mx - nx, mz - nz))
   })
   const platforms = (tile.q || []).map((r) => ({ own: r[0] === 1, h: r[1] / 10 - base, name: names[r[2]] || "", ring: undelta(r, 3).map(pt) }))
-  return { key: `${tile.z}/${tile.x}/${tile.y}`, z: tile.z, x: tile.x, y: tile.y, bounds: b, rect, heights, grid, roads, buildings, areas, trees, pois, street, sea, shore, platforms, seaY: -base || 0 }
+  // the vegetation from the aerial (data/veg.js; prebuilt towns): the ground raster, and the
+  // crowns in town metres
+  const veg = decodeVeg(tile.g)
+  const vegTrees = veg ? veg.trees.map((q) => ({ x: rect.x0 + q.u * (rect.x1 - rect.x0), z: rect.z0 + q.v * (rect.z1 - rect.z0), r: q.r })) : []
+  return { key: `${tile.z}/${tile.x}/${tile.y}`, z: tile.z, x: tile.x, y: tile.y, bounds: b, rect, heights, grid, roads, buildings, areas, trees, pois, street, sea, shore, platforms, seaY: -base || 0, veg, vegTrees }
 }
 
 // even-odd over rings of { x, z }

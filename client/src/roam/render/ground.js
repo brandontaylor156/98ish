@@ -3,8 +3,9 @@
 // for the mesh and the trees; the painting needs a 2D canvas (the browser).
 
 import { AREA, BUILDING_KINDS, DRIVABLE, F, ROAD, isHouse } from "../data/tile.js"
-import { APRON, AREA_COLORS, BASE, ROAD_ORDER, ROAD_PAINT, SEA, SIDEWALK, YARD, areaColor } from "./paint.js"
+import { APRON, AREA_COLORS, BASE, RES_WITH_VEG, ROAD_ORDER, ROAD_PAINT, SEA, SIDEWALK, VEG_PAINT, YARD, areaColor } from "./paint.js"
 import { hashStr, rng } from "../sim/parked.js"
+import { SHRUB_R } from "../data/veg.js"
 
 // the lattice -> { position, normal, uv, index } (two triangles a cell, split the way
 // data/tile.js tileHeightAt assumes)
@@ -50,6 +51,36 @@ export const groundArrays = (tile, { skirt = 0 } = {}) => {
   return { position: P, normal: N, uv: U, index: g * g > 65535 ? new Uint32Array(idx) : new Uint16Array(idx) }
 }
 
+// the surfaces drawn over the aerial's vegetation (a tree over a lot doesn't make the lot green)
+const HARD = new Set([AREA.parking, AREA.plaza, AREA.pitch, AREA.track, AREA.playground, AREA.water, AREA.pool, AREA.golfgreen])
+
+// the aerial's vegetation raster (VEG_N x VEG_N) painted soft-edged over the tile: a small
+// image of the cells' colours scaled up with smoothing (the cells are ~8 m; the blur reads as
+// lawns and planted strips, not squares)
+export const vegImage = (veg) => {
+  const n = veg.n
+  const px = new Uint8ClampedArray(n * n * 4)
+  for (let i = 0; i < n * n; i++) {
+    const c = VEG_PAINT[veg.raster[i]]
+    if (!c) continue
+    px.set(c, i * 4)
+  }
+  return px
+}
+const paintVeg = (ctx, veg, size) => {
+  const n = veg.n
+  const make = (w, h) => (typeof OffscreenCanvas !== "undefined" ? new OffscreenCanvas(w, h) : Object.assign(document.createElement("canvas"), { width: w, height: h }))
+  const small = make(n, n)
+  const g = small.getContext("2d")
+  if (!g) return
+  g.putImageData(new ImageData(vegImage(veg), n, n), 0, 0)
+  ctx.save()
+  ctx.imageSmoothingEnabled = true
+  ctx.imageSmoothingQuality = "high"
+  ctx.drawImage(small, 0, 0, size, size)
+  ctx.restore()
+}
+
 // paint the tile's ground into a 2D context of size x size
 export const paintGround = (ctx, tile, size) => {
   const { x0, x1, z0, z1 } = tile.rect
@@ -64,16 +95,26 @@ export const paintGround = (ctx, tile, size) => {
     ring.forEach((p, i) => (i ? ctx.lineTo(X(p.x), Z(p.z)) : ctx.moveTo(X(p.x), Z(p.z))))
     ctx.closePath()
   }
-  // land use, parks, water, lots (bottom-up by class: data/tile.js sorts them)
-  for (const a of tile.areas) {
+  // land use, parks, water, lots (bottom-up by class: data/tile.js sorts them); with the aerial's
+  // vegetation (data/veg.js) the soft ones (land use, parks) first, then what the aerial shows
+  // growing (lawns, landscaping, medians, the ground under trees, dry hills), then the hard
+  // surfaces (lots, plazas, courts, water) on top
+  const veg = tile.veg
+  const hard = (cls) => HARD.has(cls)
+  const drawArea = (a) => {
     poly(a.ring)
-    ctx.fillStyle = areaColor(a.cls)
+    ctx.fillStyle = veg && a.cls === AREA.res ? RES_WITH_VEG : areaColor(a.cls)
     ctx.fill()
     if (a.cls === AREA.pitch || a.cls === AREA.playground || a.cls === AREA.pool) {
       ctx.lineWidth = Math.max(1, 0.4 * sx)
       ctx.strokeStyle = "rgba(240,240,232,0.55)"
       ctx.stroke()
     }
+  }
+  for (const a of tile.areas) if (!veg || !hard(a.cls)) drawArea(a)
+  if (veg) {
+    paintVeg(ctx, veg, size)
+    for (const a of tile.areas) if (hard(a.cls)) drawArea(a)
   }
   // the sea (a coast town): the sea floor's colour under the water (render/sea.js draws the
   // water itself; far off and through the shallows this is what shows)
@@ -150,6 +191,21 @@ export const paintGround = (ctx, tile, size) => {
   void AREA_COLORS
 }
 
+// is a point within m metres of a road's edge?
+const nearRoad = (roads, x, z, m) => {
+  for (const r of roads)
+    for (let i = 0; i + 1 < r.pts.length; i++) {
+      const a = r.pts[i]
+      const b = r.pts[i + 1]
+      const dx = b.x - a.x
+      const dz = b.z - a.z
+      const L2 = dx * dx + dz * dz || 1e-9
+      const k = Math.max(0, Math.min(1, ((x - a.x) * dx + (z - a.z) * dz) / L2))
+      if (Math.hypot(x - a.x - dx * k, z - a.z - dz * k) < r.width / 2 + m) return true
+    }
+  return false
+}
+
 // the trees a tile draws: the map's own trees and tree rows, and the inside of its mapped
 // woods (a tree every ~70 m², the same in every browser) -> [{ x, z, s, kind }]
 export const treeSpots = (tile, { max = 500 } = {}) => {
@@ -178,8 +234,32 @@ export const treeSpots = (tile, { max = 500 } = {}) => {
         if (inside) out.push({ x: px, z: pz, s: 0.7 + rand() * 0.6, kind: 0 })
       }
   }
-  // (none standing in a road)
+  // the crowns the aerial shows (data/veg.js), sized by their crowns; not where the map already
+  // has a tree. Kinds (no species is mapped): palms along the arterials (small crowns within a
+  // few metres of a primary/secondary/tertiary road, about half of them), a pine now and then,
+  // the rest broad-leaf (sycamore, oak); crowns under SHRUB_R are shrubs, flowering along the
+  // streets now and then
   const drive = tile.roads.filter((r) => DRIVABLE.has(r.cls) && !(r.flags & (F.tunnel | F.bridge)))
+  if (tile.vegTrees?.length) {
+    const mapped = out.slice()
+    const arterial = drive.filter((r) => r.cls >= ROAD.trunk && r.cls <= ROAD.tertiary)
+    for (const q of tile.vegTrees) {
+      if (out.length >= max) break
+      if (mapped.some((m) => Math.abs(m.x - q.x) < 3 && Math.abs(m.z - q.z) < 3)) continue
+      const h = hashStr(`${Math.round(q.x * 10)},${Math.round(q.z * 10)}`) % 1000
+      if (q.r < SHRUB_R) {
+        const street = nearRoad(drive, q.x, q.z, 6)
+        out.push({ x: q.x, z: q.z, s: q.r, kind: 2, flower: street && h < 450 ? 1 + (h % 4) : 0 })
+        continue
+      }
+      const s = Math.max(0.45, Math.min(2.5, q.r / 3.2))
+      let kind = 0
+      if (q.r <= 3.6 && h < 520 && nearRoad(arterial, q.x, q.z, 3)) kind = 1
+      else if (q.r >= 2.4 && h % 9 === 0) kind = 3
+      out.push({ x: q.x, z: q.z, s, kind })
+    }
+  }
+  // (none standing in a road)
   return out.filter((t) => {
     for (const r of drive)
       for (let i = 0; i + 1 < r.pts.length; i++) {

@@ -134,8 +134,10 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
     look = d
     sky?.setLook?.(d)
     if (!sky) scene.background = new THREE.Color(d.sky[0])
-    sun.color.setHex(d.sun.color)
-    sun.intensity = d.sun.intensity
+    // (a warmer Southern California sun in the day: the owner asked for "more vibrant")
+    const dayK = d.sunEl !== undefined ? Math.max(0, Math.min(1, (d.sunEl - 2) / 12)) : 1
+    sun.color.setHex(d.sun.color).lerp(new THREE.Color(0xffdcae), 0.22 * dayK)
+    sun.intensity = d.sun.intensity * (1 + 0.06 * dayK)
     sunDir.set(d.sun.dir.x, Math.max(0.12, d.sun.dir.y), d.sun.dir.z).normalize()
     shadowAt.dirty = true
     hemi.color.setHex(d.hemi[0])
@@ -185,7 +187,7 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
   // out on a pier's deck you're above it (and its railings keep you on it)
   const shoreCol = createColliders()
   const parkedLayer = createParkedLayer(scene, phone ? 120 : 220)
-  const trees = createTreeLayer(scene, { cap: low ? 0 : phone ? 1800 : 4500, kit: low ? null : host.trees?.() || null, nearCap: phone ? 260 : 700 })
+  const trees = createTreeLayer(scene, { cap: low ? 0 : phone ? 3200 : 7000, kit: low ? null : host.trees?.() || null, nearCap: phone ? 260 : 700 })
   const TREE_NEAR = phone ? 150 : 240
   let treesAt = null
   const moved = new Map() // parked car id -> { x, z, yaw } (left somewhere else this session) | "gone"
@@ -282,7 +284,7 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
     const g = ownGround(t)
     const mesh = buildTileMesh(t, g, { near, texSize: near ? (phone ? 512 : 1024) : phone ? 128 : 256, anisotropy: host.anisotropy || 1 })
     scene.add(mesh.group)
-    const e = { t, mesh, near, decks: deckSurfaces(t.roads, t.platforms), trees: near || !phone ? treeSpots(t, { max: near ? 500 : 150 }).map((p) => ({ ...p, y: g(p.x, p.z) })) : [], cars: near ? parkedCars(t) : null, street: near ? streetFurniture(t).map((p) => ({ ...p, y: g(p.x, p.z) })) : [], tables: near && !low ? tableSpots(t).map((tb) => ({ ...tb, y: g(tb.x, tb.z), chairs: tb.chairs.map((c) => ({ ...c, y: g(c.x, c.z) })) })) : [] }
+    const e = { t, mesh, near, decks: deckSurfaces(t.roads, t.platforms), trees: near || !phone ? treeSpots(t, { max: near ? 1400 : phone ? 0 : 400 }).map((p) => ({ ...p, y: g(p.x, p.z) })) : [], cars: near ? parkedCars(t) : null, street: near ? streetFurniture(t).map((p) => ({ ...p, y: g(p.x, p.z) })) : [], tables: near && !low ? tableSpots(t).map((tb) => ({ ...tb, y: g(tb.x, tb.z), chairs: tb.chairs.map((c) => ({ ...c, y: g(c.x, c.z) })) })) : [] }
     if (near) colliders.addTile(t.key, wallRings(t.buildings, g))
     if (near && t.shore?.length) shoreCol.addEdges(t.key, t.shore)
     tiles.set(t.key, e)
@@ -349,7 +351,10 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
       treesAt = { x: cc.x, z: cc.z }
       // (the venues' trees near you, plain ones farther off)
       const r2 = TREE_NEAR * TREE_NEAR
-      trees.set([...tiles.values()].flatMap((e) => e.trees), (t) => (t.x - cc.x) ** 2 + (t.z - cc.z) ** 2 < r2)
+      const tl = [...tiles.values()].flatMap((e) => e.trees)
+      for (const t of tl) t.d2 = (t.x - cc.x) ** 2 + (t.z - cc.z) ** 2
+      tl.sort((a, b) => a.d2 - b.d2)
+      trees.set(tl, (t) => t.d2 < r2)
       // (café tables near you, nearest first)
       const tb = [...tiles.values()].flatMap((e) => e.tables || []).filter((t) => (t.x - cc.x) ** 2 + (t.z - cc.z) ** 2 < 130 * 130)
       tb.sort((a, b) => (a.x - cc.x) ** 2 + (a.z - cc.z) ** 2 - ((b.x - cc.x) ** 2 + (b.z - cc.z) ** 2))
@@ -1358,10 +1363,10 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
     },
     // arriving from another town in your car: on the nearest through road to the town's
     // arrival spot, in its lane, facing along it
-    arriveByCar: async ({ model = "sedan", color = 0x8a8f98, at = null } = {}) => {
+    arriveByCar: async ({ model = "sedan", color = 0x8a8f98, at: near = null } = {}) => {
       await world.whenReady()
       if (disposed || driving || riding) return false
-      const sp = at || town.spawn || { x: 0, z: 0, yaw: 0 }
+      const sp = near || town.spawn || { x: 0, z: 0, yaw: 0 }
       let best = null
       let bd = 450
       for (const t of tilesAround(frame, sp.x, sp.z, 450)) {
