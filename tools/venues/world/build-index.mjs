@@ -366,7 +366,7 @@ const placesNear = (lat, lon) => {
   for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) out.push(...(pgrid.get(`${i + a},${j + b}`) || []))
   return out
 }
-const towns = townEls.filter((e) => Number.isFinite(e.lat) && e.tags?.name).map((e) => ({ name: e.tags.name, lat: e.lat, lon: e.lon, pop: parseInt(String(e.tags.population || "").replace(/\D/g, ""), 10) || (e.tags.place === "city" ? 100000 : e.tags.place === "town" ? 10000 : e.tags.place === "village" ? 800 : 3000) }))
+const towns = townEls.filter((e) => Number.isFinite(e.lat) && e.tags?.name).map((e) => ({ name: e.tags.name, place: e.tags.place, lat: e.lat, lon: e.lon, pop: parseInt(String(e.tags.population || "").replace(/\D/g, ""), 10) || (e.tags.place === "city" ? 100000 : e.tags.place === "town" ? 10000 : e.tags.place === "village" ? 800 : 3000) }))
 const townOf = F.townIndex(towns)
 
 // cluster and name
@@ -463,6 +463,33 @@ for (const [gh, rows] of shards) {
 }
 const r4 = (v) => Math.round(v * 1e4) / 1e4
 // towns: the town's own shard is where it is; a town on a shard edge points at its venues' main shard
+// (a big city whose suburbs are each venue's nearest town still has to come up in town search:
+// "Las Vegas" lists the courts round it although every one of them is in Paradise or Whitney.
+// Cities and towns of 10,000+ with courts within 15 km are added with how many there are.)
+const VCELL = 0.25
+const vgrid = new Map()
+for (const c of clusters) {
+  const k = `${Math.floor(c.lat / VCELL)},${Math.floor(c.lon / VCELL)}`
+  if (!vgrid.has(k)) vgrid.set(k, [])
+  vgrid.get(k).push(c)
+}
+for (const t of towns) {
+  if (t.pop < 10000 || (t.place !== "city" && t.place !== "town")) continue
+  const key = `${t.name}|${F.geohash(t.lat, t.lon, 2)}`
+  if (townCount.has(key)) continue
+  const i = Math.floor(t.lat / VCELL)
+  const j = Math.floor(t.lon / VCELL)
+  let n = 0
+  const sh = new Set()
+  for (let a = -1; a <= 1; a++)
+    for (let b = -1; b <= 1; b++)
+      for (const c of vgrid.get(`${i + a},${j + b}`) || [])
+        if (F.kmBetween([t.lat, t.lon], [c.lat, c.lon]) <= 15) {
+          n++
+          sh.add(F.geohash(c.lat, c.lon, 2))
+        }
+  if (n) townCount.set(key, { name: t.name, lat: t.lat, lon: t.lon, gh: F.geohash(t.lat, t.lon, 2), n, shards: sh })
+}
 const townRows = [...townCount.values()].map((t) => [t.name, t.shards.has(t.gh) ? t.gh : [...t.shards][0], r4(t.lat), r4(t.lon), t.n]).sort((a, b) => b[4] - a[4])
 // search: one file per first letter of a word (idx/search/<k>.json, finder.js searchKeysOf), so
 // a search loads the names that can match it, not the whole world's

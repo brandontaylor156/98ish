@@ -309,6 +309,8 @@ const fold = (s) =>
     .normalize("NFD")
     .replace(/[̀-ͯ]/g, "")
     .toLowerCase()
+    // (an apostrophe or Hawaiian ʻokina joins: "Kapaʻa" is found as "kapaa", "O'Neill" as "oneill")
+    .replace(/['’ʻʼ`]/g, "")
     .replace(/[^a-z0-9 ]+/g, " ")
     .replace(/\s+/g, " ")
     .trim()
