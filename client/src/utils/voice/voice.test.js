@@ -83,3 +83,115 @@ test("Opus is asked for mono ~32 kbps with error correction", () => {
   // no opus: unchanged
   assert.equal(tuneOpus("v=0\r\na=rtpmap:0 PCMU/8000\r\n"), "v=0\r\na=rtpmap:0 PCMU/8000\r\n")
 })
+
+// ---------- 2026-10-09: connections that can't get through, and saying so ----------
+import { createMesh, RESTART_AFTER_MS, FAIL_AFTER_MS, RETRY_MS } from "./mesh.js"
+import { voiceStatus } from "./status.js"
+
+// a stand-in RTCPeerConnection that never gets anywhere (like two networks with no route
+// between them and no relay), with a fake clock
+const fakeWorld = () => {
+  let t = 0
+  let timers = []
+  const clock = {
+    now: () => t,
+    setTimeout: (fn, ms) => {
+      const h = { at: t + ms, fn }
+      timers.push(h)
+      return h
+    },
+    clearTimeout: (h) => (timers = timers.filter((x) => x !== h)),
+    advance: (ms) => {
+      const end = t + ms
+      for (;;) {
+        const next = timers.filter((h) => h.at <= end).sort((a, b) => a.at - b.at)[0]
+        if (!next) break
+        timers = timers.filter((h) => h !== next)
+        t = next.at
+        next.fn()
+      }
+      t = end
+    },
+  }
+  const made = []
+  class Peer {
+    constructor(cfg) {
+      this.cfg = cfg
+      this.connectionState = "new"
+      this.signalingState = "stable"
+      this.restarts = 0
+      this.closed = false
+      made.push(this)
+    }
+    addTransceiver() {}
+    getTransceivers() {
+      return []
+    }
+    addTrack() {
+      return { getParameters: () => ({}) }
+    }
+    restartIce() {
+      this.restarts++
+    }
+    close() {
+      this.closed = true
+      this.connectionState = "closed"
+    }
+  }
+  return { clock, Peer, made }
+}
+
+test("a connection that never gets through: one ICE restart, then given up, both told, retried after a while", () => {
+  const { clock, Peer, made } = fakeWorld()
+  const sent = []
+  const fails = []
+  const mesh = createMesh({ me: 1, transport: { send: (to, kind) => (sent.push([to, kind]), Promise.resolve({ ok: true })) }, iceServers: [{ urls: ["stun:x"] }], onFail: (id, info) => fails.push([id, info]), Peer, timers: clock, now: clock.now })
+  mesh.want([2])
+  assert.equal(made.length, 1)
+  clock.advance(RESTART_AFTER_MS + 1)
+  assert.equal(made[0].restarts, 1, "one ICE restart")
+  clock.advance(FAIL_AFTER_MS - RESTART_AFTER_MS)
+  assert.deepEqual(fails, [[2, { turn: false }]], "given up, and no relay was offered")
+  assert.ok(made[0].closed)
+  assert.ok(sent.some(([to, kind]) => to === 2 && kind === "bye"), "the other side is told")
+  mesh.want([2])
+  assert.equal(made.length, 1, "not hammered again at once")
+  clock.advance(RETRY_MS)
+  mesh.want([2])
+  assert.equal(made.length, 2, "tried again later")
+  // a relay offered: the reason changes
+  const { clock: c2, Peer: P2 } = fakeWorld()
+  const f2 = []
+  const m2 = createMesh({ me: 1, transport: { send: () => Promise.resolve({ ok: true }) }, iceServers: [{ urls: ["turns:relay.example:443"], username: "u", credential: "c" }], onFail: (id, info) => f2.push(info), Peer: P2, timers: c2, now: c2.now })
+  m2.want([5])
+  c2.advance(FAIL_AFTER_MS + 1)
+  assert.deepEqual(f2, [{ turn: true }])
+})
+
+test("their goodbye on a connection that never got through counts as a failure; an early one doesn't", async () => {
+  const { clock, Peer } = fakeWorld()
+  const fails = []
+  const mesh = createMesh({ me: 1, transport: { send: () => Promise.resolve({ ok: true }) }, onFail: (id) => fails.push(id), Peer, timers: clock, now: clock.now })
+  mesh.want([2, 3])
+  await mesh.signal(3, "bye", null) // right away: they just walked off
+  clock.advance(RESTART_AFTER_MS + 500)
+  await mesh.signal(2, "bye", null)
+  assert.deepEqual(fails, [2])
+  mesh.want([2, 3])
+  assert.deepEqual(mesh.peers.map((p) => p.id).sort(), [3], "2 waits, 3 is tried again")
+})
+
+test("voice status in words: the problem first, then connecting, hearing, too far, nobody", () => {
+  const names = { 2: "Ali", 3: "Bea", 4: "Cy" }
+  assert.equal(voiceStatus({ status: "off" }).line, "")
+  assert.match(voiceStatus({ status: "error", error: "Microphone blocked." }).line, /Microphone blocked/)
+  const base = { status: "on", peers: {}, problems: {}, far: [] }
+  assert.match(voiceStatus(base, names).line, /Nobody near you/)
+  assert.match(voiceStatus({ ...base, far: [3] }, names).line, /^Bea has voice on but is too far away/)
+  assert.match(voiceStatus({ ...base, peers: { 2: { state: "connecting" } } }, names).line, /^Connecting to Ali/)
+  assert.equal(voiceStatus({ ...base, peers: { 2: { state: "connected" }, 4: { state: "connected" } } }, names).hearing, 2)
+  const relay = voiceStatus({ ...base, peers: { 4: { state: "connected" } }, problems: { 2: { turn: false } } }, names)
+  assert.equal(relay.problem, true)
+  assert.match(relay.line, /^Voice couldn't connect to Ali: one of you is on a network that needs a relay/)
+  assert.match(voiceStatus({ ...base, problems: { 2: { turn: true }, 3: { turn: true } } }, names).line, /^Voice couldn't connect to Ali and Bea\. Trying again soon\./)
+})

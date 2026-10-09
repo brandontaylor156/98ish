@@ -9,11 +9,13 @@
 //   queue   (paddle in a court's rack, waiting by it) -> toCourt (called on) or think (gave up)
 //   toCourt (walking to the gate)                    -> the world puts them on court
 //   chat    (two of them, face to face, a few lines) -> think
+//   sit + hang (two of them side by side on a bench, chatting: hangout.js) -> think
 // think() picks the next one from what the park needs (a rack short of four paddles pulls
 // people over), what they like (their level's courts) and a little chance.
 
 import { ALL_SEATS, COURTS, WAYPOINTS, chatSpots, resolve, route, seatApproach } from "./layout.js"
 import { DEFAULT_LOOK, HAIR_COLORS, SKIN_TONES, facesForBody, randomLook, validateLook } from "../locker.js"
+import { HANG_LINES, benchPair } from "./hangout.js"
 
 export const WALK = 1.3 // m/s, a stroll
 export const NAMES = [
@@ -126,6 +128,7 @@ export const think = (r, ctx) => {
   r.seated = false
   r.face = null
   r.partner = null
+  r.hang = false
   // a rack short of four paddles: the keen ones (who haven't played for a while) go over,
   // their own level's courts first
   const open = ctx.courts.filter((c) => c.open && c.queue < 4)
@@ -140,6 +143,15 @@ export const think = (r, ctx) => {
     return { type: "queue", court: c.id }
   }
   const roll = rand()
+  // hang out: two of them on a bench together, chatting a while (the park as a place to be)
+  if (roll < 0.12 && ctx.partnerFor) {
+    const pair = benchPair(ALL_SEATS, ctx.seatFree, r)
+    const other = pair && ctx.partnerFor(r)
+    if (other) {
+      startHang(r, other, pair, ctx, rand)
+      return { type: "hang", with: other.id }
+    }
+  }
   if (roll < 0.32) {
     // sit: a bleacher seat at a court (watching) or a bench
     const free = ALL_SEATS.filter((s) => ctx.seatFree(s))
@@ -179,6 +191,27 @@ export const think = (r, ctx) => {
   r.t = 30
   goTo(r, pick(rand, WAYPOINTS))
   return null
+}
+
+export const startHang = (r, other, [sa, sb], ctx, rand) => {
+  const t = 40 + rand() * 50
+  for (const [p, q, seat] of [
+    [r, other, sa],
+    [other, r, sb],
+  ]) {
+    if (p.seat && p.seat !== seat) ctx.freeSeat?.(p.seat, p)
+    ctx.takeSeat(seat, p)
+    p.seat = seat
+    p.seated = false
+    p.state = "sit"
+    p.hang = true
+    p.partner = q.id
+    p.t = t
+    p.face = null
+    goTo(p, seatApproach(seat))
+  }
+  r.chatTurn = 1.5
+  other.chatTurn = 4
 }
 
 export const startChat = (r, other, a, b, rand) => {
@@ -265,6 +298,14 @@ export const tickRegular = (r, dt, others, now, rand) => {
     if (arrived && r.state === "wander") return { think: true }
     if (arrived && r.state === "toCourt") return { think: false, atGate: true }
     if (arrived && r.face) r.yaw = Math.atan2(r.face.x - r.x, r.face.z - r.z)
+  }
+  // side by side on a bench: a line now and then, taking turns
+  if (r.hang && r.seated) {
+    r.chatTurn = (r.chatTurn || 0) - dt
+    if (r.chatTurn <= 0) {
+      r.chatTurn = 5 + rand() * 4
+      speak(r, pick(rand, HANG_LINES), now)
+    }
   }
   if (r.state === "chat" && !r.path.length) {
     r.chatTurn = (r.chatTurn || 0) - dt

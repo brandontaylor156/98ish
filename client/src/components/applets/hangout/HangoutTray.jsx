@@ -5,6 +5,7 @@ import { useHangout, leave, follow, allowTouch, meKey, useHangoutVoice, toggleVo
 import { DRAG_TYPE } from "../../../utils/fsActions"
 import { initials } from "./hangoutCore"
 import { handFile } from "./HangoutLayer"
+import { voiceStatus } from "../../../utils/voice/status.js"
 
 // The taskbar's "who's here" strip while friends are over (Come Over): a colored dot for
 // each person (drop a file from My Computer on one to hand it to them), and a red Stop
@@ -76,11 +77,12 @@ const HangoutTray = ({ mobile }) => {
           className={`hgMic${vc.status === "on" || vc.status === "paused" ? " is-on" : ""}${vc.muted ? " is-muted" : ""}`}
           onClick={() => (vc.status === "on" ? voiceSession()?.setMuted(!vc.muted) : toggleVoice())}
           onContextMenu={(e) => (e.preventDefault(), toggleVoice())}
-          title={vc.error || (vc.status === "on" ? (vc.muted ? "Voice on, you're muted. Click to unmute (right-click: voice off)." : "Voice on. Click to mute yourself (right-click: voice off).") : "Talk with your friends here")}
+          title={vc.error || (voiceStatus(vc).problem ? voiceStatus(vc).line : null) || (vc.status === "on" ? (vc.muted ? "Voice on, you're muted. Click to unmute (right-click: voice off)." : "Voice on. Click to mute yourself (right-click: voice off).") : "Talk with your friends here")}
           aria-pressed={vc.status === "on"}
           data-hg-mic
         >
           {vc.status === "starting" ? "…" : vc.muted ? "🔇" : "🎙"}
+          {voiceStatus(vc).problem && <span className="hgMicWarn" aria-label="Voice problem"> ⚠</span>}
         </button>
         <button type="button" className="hgStop" onClick={() => leave()} title={followers.length ? "Someone is following your view. Stop sharing and leave." : "Stop sharing and leave"} data-hg-stop>
           {mobile ? "■" : "Stop"}

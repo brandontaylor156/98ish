@@ -1,4 +1,6 @@
 import { createBus, claimCallSession, getAudioContext, unlockAudio } from "../audio.js"
+import { masterGain, subscribeSettings } from "../settings.js"
+import { holdScreenOn } from "../wakeLock.js"
 import { createMesh } from "./mesh.js"
 import { distanceGain, listenerRelative, pickPeers, courtGain, cursorPan, talking as isTalking } from "./spatial.js"
 
@@ -20,6 +22,17 @@ import { distanceGain, listenerRelative, pickPeers, courtGain, cursorPan, talkin
 //            | { mine: { x, y }, people: { id: { x, y } } }                                 (pan)
 // Voice is never recorded or kept: audio goes straight from the mic into the connections and
 // from the connections to the speakers.
+//
+// iPhone (2026-10-09, after "the mic feature did not work"):
+// - start() does everything iOS wants inside the tap before its first await: wakes the audio,
+//   sets the audio session to play-and-record, starts the speaker element (below), keeps the
+//   screen on (a locked iPhone stops the mic), and only then asks for the microphone.
+// - While the mic is open, iOS plays Web Audio quietly through the voice-call route. So on
+//   iOS the voice mix (still spatial) goes into a MediaStreamDestination played by one <audio>
+//   element, which comes out of the loudspeaker (or headphones) at full volume.
+// - The context is woken again after the mic prompt and on every tick if iOS interrupted it.
+// - state.problems says who couldn't be reached (and whether a relay was offered),
+//   state.far who has voice on but is too far away to hear, state.relay whether TURN is on.
 
 const MIC = { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 }
 const TICK_MS = 100
@@ -35,8 +48,77 @@ const rms = (analyser, buf) => {
 
 export const voiceSupported = () => typeof window !== "undefined" && !!window.RTCPeerConnection && !!navigator.mediaDevices?.getUserMedia
 
-export const createVoiceSession = ({ space }) => {
-  let state = { status: "off", error: null, muted: false, ptt: false, pressed: false, talking: false, on: [], peers: {} }
+// iPhone/iPad Safari and Home Screen apps (iPadOS says it's a Mac with touch)
+export const isAppleMobile = () => {
+  if (typeof navigator === "undefined") return false
+  const ua = navigator.userAgent || ""
+  return /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && (navigator.maxTouchPoints || 0) > 1)
+}
+
+// where the voices come out: the shared master output (taskbar volume), or on iOS an <audio>
+// element fed by the mix (loudspeaker at full volume while the mic is open)
+const createOutput = (useElement) => {
+  if (!useElement) return { node: () => voiceBus()?.out || null, start() {}, resume() {}, stop() {}, el: null }
+  let el = null
+  let built = null // { ctx, gain, dest }
+  let off = null
+  const build = () => {
+    const ctx = getAudioContext()
+    if (!ctx || !ctx.createMediaStreamDestination) return null
+    if (built?.ctx === ctx) return built.gain
+    const gain = ctx.createGain()
+    gain.gain.value = masterGain()
+    const dest = ctx.createMediaStreamDestination()
+    gain.connect(dest)
+    off?.()
+    off = subscribeSettings((st) => {
+      try {
+        gain.gain.setTargetAtTime(masterGain(st), ctx.currentTime, 0.015)
+      } catch {
+        // closed
+      }
+    })
+    built = { ctx, gain, dest }
+    if (el) el.srcObject = dest.stream
+    return gain
+  }
+  return {
+    node: () => build() || voiceBus()?.out || null,
+    // (call inside the tap: iOS lets an element start playing only from a gesture)
+    start() {
+      if (typeof Audio === "undefined") return
+      el = el || new Audio()
+      el.setAttribute("playsinline", "")
+      el.autoplay = true
+      build()
+      el.play?.()?.catch?.(() => {})
+    },
+    // the element again after iOS paused it (back from the background)
+    resume() {
+      if (el && el.paused) el.play?.()?.catch?.(() => {})
+    },
+    stop() {
+      off?.()
+      off = null
+      try {
+        built?.gain.disconnect()
+      } catch {
+        // gone
+      }
+      built = null
+      if (el) {
+        el.pause?.()
+        el.srcObject = null
+      }
+    },
+    get el() {
+      return el
+    },
+  }
+}
+
+export const createVoiceSession = ({ space, elementOutput = isAppleMobile() }) => {
+  let state = { status: "off", error: null, muted: false, ptt: false, pressed: false, talking: false, on: [], peers: {}, problems: {}, far: [], relay: null }
   const subs = new Set()
   const set = (patch) => {
     state = { ...state, ...patch }
@@ -52,6 +134,8 @@ export const createVoiceSession = ({ space }) => {
   const graphs = new Map() // id -> { el, source, analyser, gain, panner, buf, level, talking, muted }
   const muted = new Set()
   let on = new Set()
+  const output = createOutput(elementOutput)
+  let releaseScreen = null
 
   const applyMicEnabled = () => {
     const live = !state.muted && (!state.ptt || state.pressed)
@@ -86,11 +170,11 @@ export const createVoiceSession = ({ space }) => {
     }
     source.connect(analyser)
     analyser.connect(gain)
-    const bus = voiceBus()
+    const out = output.node()
     if (panner) {
       gain.connect(panner)
-      panner.connect(bus.out)
-    } else gain.connect(bus.out)
+      if (out) panner.connect(out)
+    } else if (out) gain.connect(out)
     return { el, source, analyser, gain, panner, buf: new Float32Array(analyser.fftSize), level: 0, talking: false }
   }
   const dropGraph = (id) => {
@@ -137,6 +221,14 @@ export const createVoiceSession = ({ space }) => {
   const tick = () => {
     const ctx = getAudioContext()
     if (!ctx || !mesh) return
+    // iOS "interrupts" the context (a call, Siri, the mic prompt): wake it while voice is on
+    if (ctx.state !== "running" && document.visibilityState !== "hidden") {
+      try {
+        ctx.resume()?.catch?.(() => {})
+      } catch {
+        // older WebKit
+      }
+    }
     let where = null
     try {
       where = space.place ? space.place() : null
@@ -145,6 +237,7 @@ export const createVoiceSession = ({ space }) => {
     }
     // whom to connect to
     const others = [...on].filter((id) => id !== space.me)
+    let far = []
     if (space.mode === "world" && where?.listener) {
       const cand = others.map((id) => ({ id, ...(where.people?.[id] || {}) }))
       const current = new Set(mesh.peers.map((p) => p.id))
@@ -152,6 +245,7 @@ export const createVoiceSession = ({ space }) => {
       const chosen = pickPeers(where.listener, cand, current)
       for (const id of court) if (id !== space.me && on.has(id)) chosen.add(id)
       mesh.want([...chosen].sort((a, b) => String(a).localeCompare(String(b))))
+      far = others.filter((id) => !chosen.has(id))
     } else mesh.want(others)
     // levels and placement
     const peers = {}
@@ -167,7 +261,10 @@ export const createVoiceSession = ({ space }) => {
       micNode.level = rms(micNode.analyser, micNode.buf)
       me = isTalking(micNode.level, state.talking) && !state.muted && (!state.ptt || state.pressed)
     }
-    set({ peers, talking: me })
+    const problems = { ...state.problems }
+    for (const [id, p] of Object.entries(peers)) if (p.state === "connected") delete problems[id]
+    for (const id of Object.keys(problems)) if (![...on].some((o) => String(o) === id)) delete problems[id]
+    set({ peers, talking: me, far, problems })
   }
 
   const getMic = async () => {
@@ -188,6 +285,7 @@ export const createVoiceSession = ({ space }) => {
   const onVisible = async () => {
     if (state.status === "off" || state.status === "error") return
     if (document.visibilityState === "hidden") return set({ status: "paused" })
+    output.resume()
     const ended = !stream || stream.getAudioTracks().every((t) => t.readyState === "ended")
     if (ended) {
       try {
@@ -204,15 +302,29 @@ export const createVoiceSession = ({ space }) => {
   const start = async () => {
     if (state.status === "on" || state.status === "starting") return
     if (!voiceSupported()) return set({ status: "error", error: "This browser can't do voice. Try Safari or Chrome." })
-    set({ status: "starting", error: null })
+    set({ status: "starting", error: null, problems: {}, far: [] })
+    // everything iOS wants from the tap itself, before the first await
+    getAudioContext()
     unlockAudio()
+    releaseSession = claimCallSession()
+    output.start()
+    releaseScreen = holdScreenOn()
     try {
       stream = await getMic()
     } catch (error) {
+      stopLocal()
       const denied = error?.name === "NotAllowedError" || error?.name === "SecurityError"
-      return set({ status: "error", error: denied ? "Microphone blocked. Allow it in your browser's settings, then tap Voice again." : "No microphone was found." })
+      return set({
+        status: "error",
+        error: denied
+          ? isAppleMobile()
+            ? "Microphone blocked. On iPhone: Settings > Apps > Safari > Microphone > Ask (or Allow), then tap the mic again. From the Home Screen app, choose Allow when it asks."
+            : "Microphone blocked. Allow it in your browser's settings, then tap Voice again."
+          : "No microphone was found.",
+      })
     }
-    releaseSession = claimCallSession()
+    // (the mic prompt can leave iOS's context suspended or "interrupted")
+    unlockAudio()
     applyMicEnabled()
     const r = await space.join(true).catch(() => null)
     if (!r?.ok) {
@@ -224,6 +336,7 @@ export const createVoiceSession = ({ space }) => {
       me: space.me,
       transport: { send: space.send },
       iceServers: r.ice?.iceServers || [],
+      onFail: (id, info) => set({ problems: { ...state.problems, [id]: { at: Date.now(), turn: !!info?.turn } } }),
       onRemote: (id, remote) => {
         dropGraph(id)
         const g = graphFor(id, remote)
@@ -248,7 +361,7 @@ export const createVoiceSession = ({ space }) => {
     )
     document.addEventListener("visibilitychange", onVisible)
     timer = setInterval(tick, TICK_MS)
-    set({ status: "on", on: [...on] })
+    set({ status: "on", on: [...on], relay: !!r.ice?.turn })
   }
 
   const stopLocal = () => {
@@ -266,13 +379,16 @@ export const createVoiceSession = ({ space }) => {
     micNode = null
     releaseSession?.()
     releaseSession = null
+    output.stop()
+    releaseScreen?.()
+    releaseScreen = null
   }
 
   const stop = async () => {
     if (state.status === "off") return
     const was = state.status
     stopLocal()
-    set({ status: "off", error: null, talking: false, peers: {}, on: [] })
+    set({ status: "off", error: null, talking: false, peers: {}, on: [], problems: {}, far: [] })
     if (was !== "error") await space.join(false).catch(() => null)
   }
 
@@ -293,7 +409,7 @@ export const createVoiceSession = ({ space }) => {
     },
     // (tests) the live graph: per-friend analysers and panner positions
     get debug() {
-      return { graphs, mesh, stream }
+      return { graphs, mesh, stream, output: output.el }
     },
   }
 }

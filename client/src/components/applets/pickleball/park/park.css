@@ -605,3 +605,149 @@
 .pkVoicePtt.is-down {
   background: #2ecc40;
 }
+
+/* ---------- the mic on the park's screen (VoiceChip): under the menu button, thumb-sized ---------- */
+.pkVoiceChip {
+  flex-direction: column;
+  align-items: center;
+  max-width: calc(100% - 16px);
+}
+.pkVoiceChip.in-park {
+  top: 52px;
+  left: 8px;
+  transform: none;
+  align-items: flex-start;
+  max-width: min(320px, calc(100% - 16px));
+}
+.pkVoiceRow {
+  display: flex;
+  gap: 4px;
+  align-items: stretch;
+}
+.pkVoiceMic,
+.pkVoiceOff,
+.pkVoicePtt {
+  min-height: 44px;
+}
+.pkVoiceMic.is-off {
+  border-left-color: #808080;
+  min-width: 76px;
+}
+.pkVoiceOff {
+  min-width: 40px !important;
+  padding: 0 !important;
+  font-size: 18px;
+  line-height: 1;
+}
+.pkVoiceNote {
+  margin: 4px 0 0;
+  padding: 4px 8px;
+  background: rgba(255, 255, 225, 0.95);
+  color: #000;
+  border: 1px solid #000;
+  font-size: 12px;
+  line-height: 1.3;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.pkVoiceNote.is-problem {
+  background: #fff4f4;
+  border-color: #a00000;
+  color: #600000;
+}
+.pkParkVoiceHint {
+  margin: 0;
+  font-size: 11px;
+  color: #333;
+}
+
+/* ---------- tournaments at this venue (Pickleball.jsx parkTourney; Tournaments.jsx) ---------- */
+.pkTourneyChip {
+  position: absolute;
+  top: 52px;
+  right: 8px;
+  z-index: 11;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  max-width: min(230px, calc(100% - 120px));
+  min-height: 44px;
+  padding: 4px 8px !important;
+  text-align: left;
+  border-left: 4px solid #19a99a !important;
+}
+.pkTourneyChip small {
+  display: block;
+  font-size: 10px;
+}
+.pkTourneyChip b {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pkTourneyChip.is-go {
+  background: #c9f2ec;
+}
+.pkParkTourney {
+  width: min(560px, calc(100vw - 16px));
+  max-height: calc(100% - 24px);
+  display: flex;
+  flex-direction: column;
+}
+.pkParkTourneyBody {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  min-height: 0;
+  padding: 6px;
+}
+
+/* ---------- hanging out (park menu > Hang out; Pickleball.jsx parkUi.chill) ---------- */
+.pkParkHang {
+  display: grid;
+  gap: 4px;
+  margin: 0 0 8px;
+}
+.pkParkHangRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.pkParkHangRow button {
+  flex: 1 1 100px;
+  min-height: 44px;
+}
+.pkParkHangRow button.is-on {
+  background: #ffe9b0;
+  outline: 2px solid #c08a00;
+}
+/* chill mode: only the park (the move pad stays, faint, so you can still walk) */
+.pkRoot.is-chill .pkParkMenuBtn,
+.pkRoot.is-chill .pkParkActions,
+.pkRoot.is-chill .pkParkLabels,
+.pkRoot.is-chill .pkVoiceChip,
+.pkRoot.is-chill .pkRealBar,
+.pkRoot.is-chill .pkTourneyChip,
+.pkRoot.is-chill .pkParkLive,
+.pkRoot.is-chill .pkParkChip {
+  display: none !important;
+}
+.pkRoot.is-chill .pkParkPad {
+  opacity: 0.25;
+}
+.pkChillExit {
+  position: absolute;
+  left: 50%;
+  bottom: 14px;
+  transform: translateX(-50%);
+  z-index: 12;
+  min-height: 40px;
+  padding: 0 14px !important;
+  background: rgba(20, 24, 40, 0.45) !important;
+  color: #fff !important;
+  border: 1px solid rgba(255, 255, 255, 0.35) !important;
+  box-shadow: none !important;
+  border-radius: 20px;
+  font-size: 13px;
+  white-space: nowrap;
+}

@@ -1,0 +1,207 @@
+/* Tournaments (Tournaments.jsx): phone first */
+.pbRoot.is-mobile .pbTabs a {
+  padding-left: 6px;
+  padding-right: 6px;
+}
+.pbTabs {
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.tnRoot,
+.tnDetail {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.tnList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.tnCard {
+  width: 100%;
+  min-height: 56px;
+  display: grid;
+  gap: 2px;
+  text-align: left;
+  padding: 8px 10px !important;
+}
+.tnCard.is-live {
+  border-left: 5px solid #19a99a;
+}
+.tnCardName {
+  font-size: 14px;
+}
+.tnCardWhere {
+  color: #333;
+}
+.tnCardMine {
+  font-weight: bold;
+  color: #0b5d55;
+}
+.tnCardMine.is-go {
+  color: #000;
+  background: #c9f2ec;
+  padding: 2px 4px;
+}
+.tnChip {
+  justify-self: start;
+  font-size: 11px;
+  padding: 1px 6px;
+  background: #e8e8e8;
+  border: 1px solid #808080;
+  color: #000;
+}
+.tnChip.is-live {
+  background: #19a99a;
+  border-color: #0b5d55;
+  color: #fff;
+  font-weight: bold;
+}
+.tnBig {
+  min-height: 44px;
+  font-size: 14px;
+}
+.tnButtons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.tnButtons > * {
+  flex: 1 1 140px;
+}
+.tnBack {
+  align-self: flex-start;
+  min-height: 36px;
+}
+.tnHead {
+  padding: 8px 10px;
+  background: linear-gradient(90deg, #0d2433, #123b4c);
+  color: #fff;
+  display: grid;
+  gap: 4px;
+}
+.tnHeadName {
+  font: bold 18px/1.1 "Arial Narrow", Arial, sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+.tnSignup,
+.tnInvite,
+.tnIn,
+.tnNext,
+.tnEntries {
+  display: grid;
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid #808080;
+  background: #f4f4f0;
+}
+.tnSignup p,
+.tnInvite p,
+.tnIn p,
+.tnNext p,
+.tnEntries p {
+  margin: 0;
+}
+.tnDivs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 6px;
+}
+.tnDivs button {
+  min-height: 52px;
+  display: grid;
+  gap: 2px;
+  text-align: left;
+}
+.tnDivs button.is-on {
+  background: #c9f2ec;
+  outline: 2px solid #19a99a;
+}
+.tnPartner {
+  display: grid;
+  gap: 4px;
+}
+.tnReport {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+.tnReport input {
+  width: 56px;
+  min-height: 32px;
+}
+.tnFine {
+  font-size: 11px;
+}
+
+.tnBracket {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 6px;
+}
+.tnRound {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  gap: 8px;
+}
+.tnRoundName {
+  font-size: 11px;
+  text-transform: uppercase;
+  color: #0b5d55;
+}
+.tnChamp {
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+.tnTrophy {
+  font-size: 34px;
+}
+.tnDivTabs {
+  margin: 0;
+}
+.tnDivTabs button {
+  min-height: 32px;
+}
+.tnShelf {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+.tnShelfItem {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 4px 6px;
+  background: #fffbe6;
+  border: 1px solid #c8b560;
+}
+.tnShelfItem small {
+  display: block;
+}
+.tnCup {
+  font-size: 22px;
+}
+
+/* Pickleball 98's result card for a tournament match */
+.pkTourneyNote {
+  margin: 4px 0;
+  padding: 4px 6px;
+  background: #c9f2ec;
+  border: 1px solid #0b5d55;
+}
+.pkTourneyNote.is-bad {
+  background: #fff4f4;
+  border-color: #a00000;
+}

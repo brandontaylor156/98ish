@@ -35,12 +35,17 @@ import { getClone } from "./twin/clone/store.js"
 import { cloneLevel } from "./twin/clone/profile.js"
 // Real Games (the pickleball you play in real life: sessions, scorekeeper, matches, ladder; applets/pbclub, server/pbclub)
 const RealGames = React.lazy(() => import("../pbclub/PbClub"))
+const TourneyPanel = React.lazy(() => import("../pbclub/Tournaments"))
+import { ScoreBug as TourneyBug } from "../pbclub/ScoreBug"
+import * as tourneyNet from "../../../utils/tourney.js"
+import { DIVISIONS as TOURNEY_DIVISIONS } from "../pbclub/tourneyCore.js"
 import ParkLoading from "./park/ParkLoading"
 const SplatPanel = React.lazy(() => import("./park/splat/SplatPanel"))
 // let the browser paint (the loading screen) before a step that blocks the page
 const nextPaint = () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))
 import { ParkHud, ParkIntro, ParkMenu, ParkResult, ParkTurn, RealFriendsBar, VoiceChip } from "./park/ParkHud"
 import { useParkVoice } from "./park/useParkVoice.js"
+import { createChillMusic } from "./park/chillmusic.js"
 import { badgeText, friendsAt } from "./park/presence.js"
 import { useLiveCourt } from "./twin/live/useLiveCourt.js"
 import { useLocate } from "../../../utils/locate"
@@ -335,11 +340,38 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
   const parkNet = usePark({ world: parkWorld, active: !!parkWorld, me: parkWorld ? myParkInfo() : null })
   // spatial voice in My Park (park menu > Voice; utils/voice)
   const parkVoice = useParkVoice({ world: parkWorld, joined: parkNet.joined, park: parkNet.park })
+  // hanging out in My Park (park menu > Hang out): chill music (park/chillmusic.js, made here,
+  // original), chill mode (the screen hidden for a calm view: parkUi.chill), golden hour
+  const chillMusicRef = useRef(null)
+  const musicOn = !!parkWorld && !!prefs.parkMusic
+  useEffect(() => {
+    if (musicOn) (chillMusicRef.current ??= createChillMusic()).start()
+    else chillMusicRef.current?.stop()
+  }, [musicOn])
+  useEffect(() => () => chillMusicRef.current?.stop(), [])
   // Live Venue Presence (park/presence.js): Buddy Locator friends physically at a real venue.
   // The server decides who's where ({ id, area }: a venue and a court, nothing finer) and only
   // for friends who share their location with you; they stand in My Park "here for real".
   const loc = useLocate()
   const aim = useAim()
+  // tournaments at the venue you're walking (utils/tourney.js): a chip on the park's screen
+  // when one is today, live, or you're in it; the park menu's "Tournaments here..."
+  const tourneyState = tourneyNet.useTourneys()
+  const parkTourney = useMemo(() => {
+    if (!parkWorld) return null
+    const v = parkWorld.venue || "riverside"
+    const t = Date.now()
+    return tourneyState.events.find((e) => e.venue === v && e.status !== "done" && (e.next || e.entry || e.status === "live" || e.start - t < 24 * 3600_000)) || null
+  }, [parkWorld, tourneyState.events])
+  const tourneyBuddies = useMemo(() => {
+    const seen = new Set()
+    const out = []
+    for (const g of aim?.me?.groups || []) for (const b of g.buddies || []) {
+      const k = String(b).replace(/\s+/g, "").toLowerCase()
+      if (!seen.has(k) && k !== "smarterchild") seen.add(k), out.push({ k, name: b })
+    }
+    return out
+  }, [aim?.me?.groups])
   const parkVenueId = parkWorld?.venue || null
   const realHere = React.useMemo(() => (parkVenueId ? friendsAt(loc.friends, parkVenueId) : { here: [], nearby: [] }), [loc.friends, parkVenueId])
   useEffect(() => {
@@ -474,6 +506,7 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
     const s = sessionRef.current
     setResult(e)
     setReward(null)
+    reportTourney(e)
     // a game in My Park: your park rep, then back to the park
     const pg = parkGameRef.current
     if (pg && pg.kind === "clone" && !pg.done) {
@@ -634,6 +667,74 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
     setScreen("main")
     engineRef.current?.newMatch({ doubles: !!spec.doubles, level: p.level, scoring: p.scoring, target: p.target, venue, roster: dress(roster, typeof venue === "string" ? venue : "park"), humans: 1 })
   }
+  // a tournament match (Real Games > Tournaments, or My Park's tournament chip): against the
+  // computer team here and now at the event's venue, or online against people (make a room
+  // whose code the tournament passes to them, or join theirs). The result goes in by itself.
+  // spec: { id, name, venue, div, match, side, mine, them, vsCpu, online: "make" | "join", code }
+  const [tourneyNote, setTourneyNote] = useState(null) // { text, ok }
+  const startTourney = async (spec) => {
+    const div = TOURNEY_DIVISIONS[spec.div] || TOURNEY_DIVISIONS.d30
+    const doubles = div.kind === "doubles"
+    const venueId = spec.venue === "riverside" ? "park" : spec.venue
+    tourneyNet.setPlaying({ id: spec.id, match: spec.match, side: spec.side, name: spec.name, online: !spec.vsCpu })
+    setTourneyNote(null)
+    if (!spec.vsCpu) {
+      // people against people: the online room (Pickleball's own lobby), to 11 at the venue
+      if (spec.online === "join" && spec.code) {
+        setScreen("online")
+        online.joinCode(spec.code)
+      } else {
+        setOnlinePreset({ ...ONLINE_DEFAULTS, mode: "match", format: doubles ? "doubles" : "singles", target: 11, scoring: "sideout", venue: ONLINE_VENUES.some(([id]) => id === spec.venue) ? spec.venue : "stadium", tod: "now", at: Date.now() })
+        setScreen("online")
+      }
+      return
+    }
+    const p = prefsRef.current
+    let venue = "park"
+    try {
+      venue = await venueBuilds.venueFor(venueId, "now")
+    } catch (error) {
+      console.error(error)
+    }
+    reset()
+    const roster = rosterFor({ doubles, level: div.level, me: p.character, outfit: p.outfit })
+    // the names on court are the bracket's: your partner (a person plays as the computer
+    // here), and the computer team you drew
+    const mates = (spec.mine?.players || []).filter((x) => x.k !== tourneyNet.getTourneys().me)
+    const them = spec.them?.players || []
+    let o = 0
+    const meName = (spec.mine?.players || []).find((x) => x.k === tourneyNet.getTourneys().me)?.name
+    for (const r of roster) {
+      if (r.id === "you" && meName) r.name = meName
+      else if (r.id === "partner" && mates[0]) r.name = mates[0].cpu ? mates[0].name : `${mates[0].name} (computer)`
+      else if (r.team === 1 && them[o]) r.name = them[o++].name
+    }
+    setSession({ kind: "tourney", level: div.level, tourney: spec })
+    setScreen("main")
+    engineRef.current?.newMatch({ doubles, level: div.level, scoring: "sideout", target: 11, venue, roster: dress(roster, venueId), humans: 1 })
+  }
+  // the result of a tournament match goes in (local or online, either side may send it)
+  const reportTourney = (e) => {
+    const tp = tourneyNet.getPlaying()
+    const s = sessionRef.current
+    if (!tp || tp.done || !(s?.kind === "tourney" || (s?.kind === "online" && tp.online))) return
+    tp.done = true
+    const mine = e.youWon ? e.score[e.winner] : e.score[1 - e.winner]
+    const theirs = e.youWon ? e.score[1 - e.winner] : e.score[e.winner]
+    const score = tp.side === "a" ? [mine, theirs] : [theirs, mine]
+    tourneyNet.report(tp.id, tp.match, score).then((r) => {
+      if (r.ok || /already decided/.test(r.error || "")) setTourneyNote({ ok: true, text: `${e.youWon ? "You won" : "You lost"} ${mine}-${theirs}. The ${tp.name} bracket is updated.` })
+      else setTourneyNote({ ok: false, text: r.error || "The result didn't go in. Try Report a score in Tournaments." })
+    })
+  }
+  // an online room made for a tournament match: its code goes to the opponents
+  useEffect(() => {
+    const tp = tourneyNet.getPlaying()
+    const code = online.room?.code
+    if (!tp || !tp.online || !code || tp.code === code || !online.isHost) return
+    tp.code = code
+    tourneyNet.room(tp.id, tp.match, code)
+  }, [online.room?.code, online.isHost])
   const startTour = (t) => {
     const p = prefsRef.current
     reset()
@@ -1372,7 +1473,7 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
     if (handoff?.id && handoff.floppy) return void (floppyGo.current = handoff.floppy)
     // "Meet me at <venue>" from 98 Messenger (play/meet.js parkHandoff): My Park at that venue
     if (handoff?.id && handoff.meet?.venue) return void (floppyGo.current = { mode: "park", venue: handoff.meet.venue, place: handoff.meet.place || null })
-    if (!handoff?.id || !(handoff.session || handoff.match || handoff.venue)) return
+    if (!handoff?.id || !(handoff.session || handoff.match || handoff.venue || handoff.tourney)) return
     setClubHandoff(handoff)
     if (!inGame) setScreen("club")
   }, [handoff?.id])
@@ -1509,7 +1610,7 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
         : `Point at their court · ${keyName(b.solo.hit[0])} or click: tap soft, hold hard · C camera · P pause`
 
   return (
-    <div className={`pkRoot${mobile ? " is-mobile" : ""}`} onKeyDown={onKeyDown}>
+    <div className={`pkRoot${mobile ? " is-mobile" : ""}${screen === "park" && parkUi.chill ? " is-chill" : ""}`} onKeyDown={onKeyDown}>
       <MenuBar menus={menus} />
       {/* (the chat opens only when you tap its bubble; a new message shows a badge there) */}
       <GameChat game="pickleball" title="Pickleball 98" room={online.chatRoom} ticker={false} />
@@ -1529,7 +1630,7 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
         )}
 
         {/* ---------- in a match ---------- */}
-        {inGame && hud && !tutorialStep?.card && session?.kind !== "practice" && session?.kind !== "tutorial" && session?.kind !== "train" && !session?.coop && <ScoreBug hud={hud} online={onlineText} />}
+        {inGame && hud && !tutorialStep?.card && session?.kind !== "practice" && session?.kind !== "tutorial" && session?.kind !== "train" && session?.kind !== "tourney" && !session?.coop && <ScoreBug hud={hud} online={onlineText} />}
         {inGame && session?.coop && <CoopHud snap={coop} drill={session.coop} partner={online.room?.seats?.find((s, i) => s && i !== online.seat && !s.bot)?.name || null} />}
         {/* (the one banner slot; a practice drill labels each shot itself: practice/PracticeHud.jsx) */}
         {inGame && <Banner banner={banners.current} />}
@@ -1616,18 +1717,38 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
             result={result}
             session={session}
             reward={reward}
-            onAgain={session?.kind === "tour" && result.youWon ? null : again}
+            onAgain={(session?.kind === "tour" && result.youWon) || session?.kind === "tourney" ? null : again}
             onNext={session?.kind === "tour" && result.youWon && nextMatch(tour) ? () => startTour(nextMatch(tour)) : null}
-            onMenu={quitToMenu}
-          />
+            onMenu={session?.kind === "tourney" ? () => (quitToMenu(), setClubHandoff({ id: Date.now(), tourney: session.tourney.id }), setScreen("club")) : quitToMenu}
+          >
+            {session?.kind === "tourney" && <p className={`pkTourneyNote${tourneyNote?.ok === false ? " is-bad" : ""}`} data-tourney-note>{tourneyNote?.text || "Sending the result..."}</p>}
+          </OverScreen>
         )}
         {isOnline && online.phase === "over" && result && !parkUi.result && (
           <OverScreen result={result} session={{ kind: "online" }}>
+            {tourneyNote && <p className={`pkTourneyNote${tourneyNote.ok === false ? " is-bad" : ""}`} data-tourney-note>{tourneyNote.text}</p>}
             <OnlineResultBar online={online} />
           </OverScreen>
         )}
         {isOnline && online.phase === "over" && !result && <OnlineResultBar online={online} />}
 
+        {/* a tournament match: the broadcast-style score bug, top left */}
+        {session?.kind === "tourney" && hud?.score && phase !== "over" && (
+          <div className="pkTourneyBug" data-tourney-bug>
+            <TourneyBug
+              title={session.tourney.name}
+              a={(session.tourney.mine?.players || []).map((x) => x.name.split(/\s+/).at(-1)).join("/") || "You"}
+              b={session.tourney.them?.cpu && session.tourney.them.name ? session.tourney.them.name : (session.tourney.them?.players || []).map((x) => x.name).join("/")}
+              sa={hud.score[0]}
+              sb={hud.score[1]}
+              round={session.tourney.round}
+              serving={hud.serving === 0 ? "a" : hud.serving === 1 ? "b" : null}
+              serveNumber={hud.doubles && hud.scoring === "sideout" ? hud.serverNumber : ""}
+              call={hud.call}
+              mine="a"
+            />
+          </div>
+        )}
         {/* ---------- My Park ---------- */}
         {screen === "park" && <div className="pkParkLabels" ref={parkLabelsRef} aria-hidden="true" style={{ display: phase === "world" ? "" : "none" }} />}
         {screen === "park" && phase === "world" && parkWorld && !parkUi.menu && !parkUi.turn && (
@@ -1670,6 +1791,37 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
             }}
           />
         )}
+        {screen === "park" && phase === "world" && parkTourney && !parkUi.menu && !parkUi.turn && !parkUi.intro && !parkUi.tourney && (
+          <button type="button" className={`pkTourneyChip${parkTourney.next ? " is-go" : ""}`} onClick={() => setParkUi((u) => ({ ...u, tourney: true }))} data-park="tourney-chip">
+            <span aria-hidden="true">🏆</span>
+            <span>
+              <b>{parkTourney.name}</b>
+              <small>{parkTourney.next ? `Your match vs ${parkTourney.next.vs}` : parkTourney.status === "live" ? "Live now · see the bracket" : parkTourney.entry ? "You're in · see who's playing" : "Today · sign up"}</small>
+            </span>
+          </button>
+        )}
+        {screen === "park" && phase === "world" && parkUi.tourney && (
+          <div className="pkCenter pkDim" onClick={(e) => e.target === e.currentTarget && setParkUi((u) => ({ ...u, tourney: false }))}>
+            <div className="pkPanel window pkParkTourney" data-park="tourney-sheet">
+              <div className="pkParkMenuHead">
+                <b>Tournaments here</b>
+                <button type="button" className="pkParkVenuesX" onClick={() => setParkUi((u) => ({ ...u, tourney: false }))} aria-label="Close" data-park="tourney-close">
+                  ×
+                </button>
+              </div>
+              <div className="pkParkTourneyBody">
+                <React.Suspense fallback={<p>Loading...</p>}>
+                  <TourneyPanel venue={parkWorld?.venue || "riverside"} buddies={tourneyBuddies} focus={parkTourney?.id || null} onPlay={(spec) => (setParkUi((u) => ({ ...u, tourney: false })), leavePark(), withScheme(() => startTourney(spec)))} />
+                </React.Suspense>
+              </div>
+            </div>
+          </div>
+        )}
+        {screen === "park" && phase === "world" && parkUi.chill && !parkUi.menu && (
+          <button type="button" className="pkChillExit" onClick={() => setParkUi((u) => ({ ...u, chill: false }))} data-park="chill-exit" aria-label="Show the screen again">
+            ☾ Chill · tap to show the screen
+          </button>
+        )}
         {screen === "park" && phase === "world" && parkUi.intro && <ParkIntro showPad={showPad} onDone={() => (setPrefs({ parkIntro: true }), setParkUi((u) => ({ ...u, intro: false })))} />}
         {screen === "park" && parkUi.backdrop && parkWorld && (
           <React.Suspense fallback={null}>
@@ -1692,6 +1844,14 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
             onLeave={leavePark}
             onBackdrop={prefs.quality === "low" ? null : () => setParkUi((u) => ({ ...u, menu: false, backdrop: true }))}
             onClone={() => (setParkUi((u) => ({ ...u, menu: false })), setLivingUi((u) => ({ ...u, panel: true })))}
+            onTourneys={tourneyState.status === "off" ? null : () => setParkUi((u) => ({ ...u, menu: false, tourney: true }))}
+            hangout={{
+              music: !!prefs.parkMusic,
+              golden: prefs.tod === "golden",
+              onChill: () => setParkUi((u) => ({ ...u, menu: false, chill: true })),
+              onMusic: () => setPrefs({ parkMusic: !prefs.parkMusic }),
+              onGolden: () => setPrefs({ tod: prefs.tod === "golden" ? "now" : "golden" }),
+            }}
             voice={{ ...parkVoice, names: parkWorld?.voicePlace?.().names || {} }}
           />
         )}
@@ -1701,7 +1861,7 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
         {screen === "park" && phase === "world" && livingUi.away && !parkUi.intro && !parkUi.menu && (
           <AwayCard away={livingUi.away} venueNames={venueNames} onClose={() => (setLivingUi((u) => ({ ...u, away: null })), livingNet.seen(), stageRef.current?.focus({ preventScroll: true }))} />
         )}
-        {parkWorld && parkVoice.state.status !== "off" && !parkUi.menu && <VoiceChip voice={parkVoice} />}
+        {parkWorld && (screen === "park" ? phase === "world" && !parkUi.turn && !parkUi.intro : parkVoice.state.status !== "off") && !parkUi.menu && <VoiceChip voice={parkVoice} inPark={screen === "park"} names={parkWorld?.voicePlace?.().names || {}} />}
         {parkUi.result && (phase === "over" || online.phase === "over") && (
           <ParkResult
             result={parkUi.result}
@@ -1780,7 +1940,7 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
         {atMenu && screen === "club" && (
           <div className="pkClubHost" data-screen="club">
             <React.Suspense fallback={<div className="pkCenter pkDim"><div className="pkPanel window">Loading Real Games...</div></div>}>
-              <RealGames embedded mobile={mobile} handoff={clubHandoff} onClose={() => setScreen("main")} onTwin={() => (setTwinBack("club"), setTwinView(null), setScreen("twin"))} onCoach={() => (setTwinBack("club"), setTwinView("coach"), setScreen("twin"))} onLive={() => setScreen("live")} onWatch={(id) => (setWatchFor({ id, code: null }), setScreen("watch"))} />
+              <RealGames embedded mobile={mobile} handoff={clubHandoff} onTourneyPlay={(spec) => withScheme(() => startTourney(spec))} onClose={() => setScreen("main")} onTwin={() => (setTwinBack("club"), setTwinView(null), setScreen("twin"))} onCoach={() => (setTwinBack("club"), setTwinView("coach"), setScreen("twin"))} onLive={() => setScreen("live")} onWatch={(id) => (setWatchFor({ id, code: null }), setScreen("watch"))} />
             </React.Suspense>
           </div>
         )}

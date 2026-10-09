@@ -2089,3 +2089,27 @@
   height: auto;
   max-height: calc(100% - 16px);
 }
+
+/* Locker Room > Trophies (tournaments, utils/tourney.js) */
+.pkTrophies {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+.pkTrophies li {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 4px 6px;
+  background: #fffbe6;
+  border: 1px solid #c8b560;
+  color: #000;
+}
+.pkTrophies li > span:first-child {
+  font-size: 24px;
+}
+.pkTrophies small {
+  display: block;
+}

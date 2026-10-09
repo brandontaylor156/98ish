@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react"
 import { CHAT_LINES, EMOTES, INTRO } from "./lines.js"
 import { repLevel, repLine } from "./rep.js"
+import { voiceStatus } from "../../../../utils/voice/status.js"
 import "./park.css"
 
 // My Park's screen, kept simple (the owner: "keep the UI SIMPLE"): the move pad, ONE
@@ -153,7 +154,7 @@ export const ParkVenues = ({ list = [], current = "riverside", favs = [], loadin
 }
 
 // the menu: resume, the courts (watch any of them), say something, the Locker Room, leave
-export const ParkMenu = ({ courts = [], rep, online, venueName = "My Park", onResume, onWatch, onSay, onEmote, onLocker, onVenues, onLeave, voice = null, onBackdrop = null, onClone = null }) => {
+export const ParkMenu = ({ courts = [], rep, online, venueName = "My Park", onResume, onWatch, onSay, onEmote, onLocker, onVenues, onLeave, voice = null, onBackdrop = null, onClone = null, onTourneys = null, hangout = null }) => {
   const lv = repLevel(rep?.points || 0)
   return (
     <div className="pkCenter pkDim" onClick={(e) => e.target === e.currentTarget && onResume()}>
@@ -167,6 +168,22 @@ export const ParkMenu = ({ courts = [], rep, online, venueName = "My Park", onRe
           {lv.next ? <small> ({lv.toNext} to {lv.next})</small> : null}
         </p>
         {voice?.supported && <VoiceMenu voice={voice} names={voice.names || {}} />}
+        {hangout && (
+          <div className="pkParkHang" data-park="hangout">
+            <b>Hang out</b>
+            <div className="pkParkHangRow">
+              <button type="button" onClick={hangout.onChill} data-park="chill">
+                😌 Chill mode
+              </button>
+              <button type="button" className={hangout.music ? "is-on" : ""} aria-pressed={hangout.music} onClick={hangout.onMusic} data-park="music">
+                ♫ Music {hangout.music ? "on" : "off"}
+              </button>
+              <button type="button" className={hangout.golden ? "is-on" : ""} aria-pressed={hangout.golden} onClick={hangout.onGolden} data-park="golden">
+                🌅 Golden hour
+              </button>
+            </div>
+          </div>
+        )}
         <div className="pkParkCourts">
           {courts.map((c) => (
             <div key={c.id} className="pkParkCourtRow">
@@ -204,6 +221,11 @@ export const ParkMenu = ({ courts = [], rep, online, venueName = "My Park", onRe
               Change venue...
             </button>
           )}
+          {onTourneys && (
+            <button type="button" onClick={onTourneys} data-park="tourneys-open">
+              Tournaments here...
+            </button>
+          )}
           {onClone && (
             <button type="button" onClick={onClone} data-park="clone-open">
               My clone in the park...
@@ -229,12 +251,13 @@ const VoiceMenu = ({ voice, names }) => {
   const v = voice.state
   const live = v.status === "on" || v.status === "paused" || v.status === "starting"
   const heard = Object.keys(v.peers || {})
+  const st = voiceStatus(v, names)
   return (
     <div className="pkParkVoice" data-park="voice">
       <button type="button" className={live ? "pkPrimary" : ""} onClick={voice.toggle} data-park="voice-toggle" aria-pressed={live}>
         {v.status === "starting" ? "Voice: starting..." : live ? "Voice: On" : "Voice: Off"}
       </button>
-      <small>{live ? (heard.length ? `Hearing ${heard.length} ${heard.length === 1 ? "person" : "people"} near you` : "Nobody near you has voice on yet") : "Talk to people near you in the park"}</small>
+      <small>{live ? st.line : "Talk to people near you in the park"}</small>
       {live && (
         <label className="pkParkVoicePtt">
           <input type="checkbox" checked={!!v.ptt} onChange={(e) => voice.session?.setPushToTalk(e.target.checked)} data-park="voice-ptt" />
@@ -251,25 +274,48 @@ const VoiceMenu = ({ voice, names }) => {
         </div>
       )}
       {v.error && <p className="pkParkVoiceErr">{v.error}</p>}
+      {live && v.relay === false && <p className="pkParkVoiceHint">Tip: on cellular data, voice may not get through until 98ish's relay is set up. Wi-Fi works best.</p>}
     </div>
   )
 }
 
-// On screen while voice is on: a mic chip (tap: mute yourself), and a hold-to-talk button
-// with push to talk
-export const VoiceChip = ({ voice }) => {
+// The mic, always on screen in the park (under the menu button), thumb-sized:
+// off: one tap turns voice on (the mic prompt comes from that tap, as iOS wants);
+// on: tap mutes/unmutes, × turns voice off, and Hold to talk with push to talk. One line
+// under it says what's going on when something needs saying (connecting, too far, a network
+// that needs a relay, the mic blocked).
+export const VoiceChip = ({ voice, names = {}, inPark = true }) => {
   const v = voice?.state
-  if (!v || v.status === "off") return null
-  if (v.status === "error") return null
+  if (!voice?.supported || !v) return null
   const s = voice.session
-  const heard = Object.values(v.peers || {}).filter((p) => p.state === "connected" || p.level > 0).length
+  const st = voiceStatus(v, names)
+  if (v.status === "off" || v.status === "error") {
+    return (
+      <div className={`pkVoiceChip is-off${inPark ? " in-park" : ""}`} data-park="voice-chip">
+        <button type="button" className="pkVoiceMic is-off" onClick={voice.toggle} aria-label="Turn on voice chat" data-park="mic">
+          <span aria-hidden="true">🎙</span>
+          <b>Talk</b>
+        </button>
+        {v.status === "error" && (
+          <p className="pkVoiceNote is-problem" role="alert" data-voice-error>
+            {st.line}
+          </p>
+        )}
+      </div>
+    )
+  }
+  const quiet = !st.problem && st.hearing > 0
   return (
-    <div className="pkVoiceChip" data-park="voice-chip" data-talking={v.talking ? "1" : undefined}>
-      <button type="button" className={`pkVoiceMic${v.muted ? " is-muted" : ""}`} onClick={() => s?.setMuted(!v.muted)} aria-label={v.muted ? "Unmute your microphone" : "Mute your microphone"} data-park="voice-mute">
-        <span aria-hidden="true">{v.muted ? "🔇" : "🎙"}</span>
-        <b>{v.status === "paused" ? "Voice paused" : v.muted ? "Muted" : "Mic on"}</b>
-        <small>{v.status === "paused" ? "Back in 98ish to talk" : `${heard} near you`}</small>
-      </button>
+    <div className={`pkVoiceChip${inPark ? " in-park" : ""}`} data-park="voice-chip" data-talking={v.talking ? "1" : undefined}>
+      <div className="pkVoiceRow">
+        <button type="button" className={`pkVoiceMic${v.muted ? " is-muted" : ""}`} onClick={() => s?.setMuted(!v.muted)} aria-label={v.muted ? "Unmute your microphone" : "Mute your microphone"} aria-pressed={!!v.muted} data-park="voice-mute">
+          <span aria-hidden="true">{v.muted ? "🔇" : "🎙"}</span>
+          <b>{v.status === "paused" ? "Paused" : v.status === "starting" ? "Starting" : v.muted ? "Muted" : "Mic on"}</b>
+          <small>{v.status === "paused" ? "back in 98ish" : `${st.hearing} hearing`}</small>
+        </button>
+        <button type="button" className="pkVoiceOff" onClick={voice.toggle} aria-label="Turn voice off" data-park="voice-off">
+          ×
+        </button>
       {v.ptt && !v.muted && (
         <button
           type="button"
@@ -282,6 +328,12 @@ export const VoiceChip = ({ voice }) => {
         >
           Hold to talk
         </button>
+      )}
+      </div>
+      {!quiet && st.line && (
+        <p className={`pkVoiceNote${st.problem ? " is-problem" : ""}`} role={st.problem ? "alert" : undefined} data-voice-note data-voice-error={st.problem ? "" : undefined}>
+          {st.line}
+        </p>
       )}
     </div>
   )

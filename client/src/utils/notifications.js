@@ -219,6 +219,8 @@ export const targetFromParams = (params) => {
     // Pickleball 98's Real Games: a play session or a match to confirm
     else if (/^[0-9a-f]{16}$/.test(params.get("pbsession") || "")) extra.handoff = { id: Date.now(), session: name("pbsession") }
     else if (/^[0-9a-f]{16}$/.test(params.get("pbmatch") || "")) extra.handoff = { id: Date.now(), match: name("pbmatch") }
+    // a tournament (Real Games > Tournaments)
+    else if (/^[a-z]+-\d{8}$/.test(params.get("tourney") || "")) extra.handoff = { id: Date.now(), tourney: name("tourney") }
     // a Come Over invitation (a hangout to join)
     else if (/^[0-9a-f]{16}$/.test(params.get("hangout") || "")) extra.handoff = { id: Date.now(), hangout: name("hangout") }
     // Live Broadcast: a friend's game to watch live (Pickleball 98); code = the share link's
