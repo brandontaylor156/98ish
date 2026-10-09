@@ -72,7 +72,7 @@ export const sampleTrack = (tr, t) => {
 
 // a car someone's in, as sent once with roam:car: { id, model, color, seat: 0 driver | 1
 // passenger, driver: num (for a passenger) }
-export const MODEL_LIST = ["sedan", "hatch", "suv", "pickup", "turbo"]
+export const MODEL_LIST = ["sedan", "hatch", "suv", "pickup", "turbo", "sundowner"]
 export const cleanCar = (c) => {
   if (!c || typeof c !== "object") return null
   const id = typeof c.id === "string" && c.id.length <= 40 && /^[\w:/.-]+$/.test(c.id) ? c.id : null

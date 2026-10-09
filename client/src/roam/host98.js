@@ -95,6 +95,9 @@ export const makeHost98 = ({ engineCtx, me = {}, sky = { real: true, mode: "real
   return {
     me,
     store,
+    // what 98ish has unlocked in the open world: { sundowner: at } once Vince in My Park handed
+    // you his car keys (park/leisure/useLeisure.jsx writes it; the account keeps it too)
+    unlocks: () => store.get("roam.unlocks") || {},
     anisotropy: Math.min(4, engineCtx?.renderer?.capabilities?.getMaxAnisotropy?.() || 1),
     fetch: (...a) => globalThis.fetch(...a),
     // a real sky for car paint and glass to reflect: My Park's CC0 outdoor HDRI (Poly Haven

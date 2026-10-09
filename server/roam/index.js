@@ -33,7 +33,7 @@ const { createVoiceRelay } = require("../voice/relay")
 const CAP = 16
 // the towns (client/src/roam/towns/): how far from the origin a position may be (decimetres)
 const TOWNS = { valencia: { reach: 300000 } }
-const MODELS = ["sedan", "hatch", "suv", "pickup", "turbo"]
+const MODELS = ["sedan", "hatch", "suv", "pickup", "turbo", "sundowner"]
 const LIMIT = { y: 30000, speed: 900, act: 15 }
 const ACT_RIDE = 8
 const MOVED_CAP = 200

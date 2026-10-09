@@ -24,5 +24,10 @@ export default {
     paseo: { x: -60, z: 20, yaw: Math.PI, back: { x: -55, z: 14, r: 16 } },
   },
   spawn: { x: -60, z: 20, yaw: Math.PI },
+  // Vince's car (My Park's drinks-machine easter egg: his keys unlock it through the host,
+  // host.unlocks()): the Sundowner GT, in the Paseo Club's lot, the stall at the north end of its
+  // east row by the way out (the lot is the venue's, traced from the aerial: park/venues/
+  // paseo.json; OSM hasn't mapped it). A game item, like the Turbo 98.
+  keyCar: { id: "sundowner", model: "sundowner", color: 0xc8431f, x: -50.8, z: 10.3, yaw: -1.67, place: "The Paseo Club's lot" },
   eggs,
 }

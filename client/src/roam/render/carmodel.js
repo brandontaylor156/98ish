@@ -38,6 +38,12 @@ export const CAR_SPECS = {
     len: 5.6, wid: 2.0, wb: 3.4, R: 0.39, rear: 1.05, ride: 0.3, belt: 1.18, tw: 0.62,
     top: [[0, 1.12, "bed"], [1.95, 1.14, "bed"], [2.0, 1.2, "glass"], [2.06, 1.82, "glass"], [2.2, 1.86, "roof"], [3.3, 1.87, "roof"], [3.95, 1.24, "glass"], [4.15, 1.2, "hood"], [5.45, 1.12, "hood"], [5.6, 0.86, "hood"]],
   },
+  // Vince's car (My Park's drinks-machine easter egg, park/leisure/): an original grand tourer,
+  // long hood, the cabin set back, a fastback to a ducktail, low and wide on big wheels
+  sundowner: {
+    len: 4.62, wid: 1.94, wb: 2.74, R: 0.35, rear: 0.86, ride: 0.12, belt: 0.76, tw: 0.6,
+    top: [[0, 0.64, "deck"], [0.1, 0.84, "deck"], [0.42, 0.9, "deck"], [1.55, 1.17, "glass"], [1.8, 1.22, "roof"], [2.35, 1.22, "roof"], [3.02, 0.84, "glass"], [3.22, 0.78, "hood"], [4.45, 0.64, "hood"], [4.62, 0.46, "hood"]],
+  },
   turbo: {
     len: 4.3, wid: 1.86, wb: 2.5, R: 0.33, rear: 0.86, ride: 0.13, belt: 0.74, tw: 0.62,
     top: [[0, 0.7, "deck"], [0.1, 0.84, "deck"], [0.55, 0.88, "deck"], [1.35, 1.18, "glass"], [1.6, 1.22, "roof"], [2.3, 1.22, "roof"], [3.0, 0.82, "glass"], [3.2, 0.76, "hood"], [4.18, 0.62, "hood"], [4.3, 0.46, "hood"]],

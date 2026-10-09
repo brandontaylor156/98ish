@@ -222,8 +222,8 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
       if (m === "gone") continue
       out.push(m ? { ...c, ...m } : c)
     }
-    // (the hidden car: parked like the rest once its tile is near)
-    for (const c of eggCars) {
+    // (the hidden car, and Vince's: parked like the rest once its tile is near)
+    for (const c of [...eggCars, ...keyCars]) {
       const m = moved.get(c.id)
       if (m === "gone") continue
       const p = m ? { ...c, ...m } : c
@@ -488,6 +488,9 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
   const eggs = createEggs({ town, frame, scene, host, groundAt, onFound: (egg) => onEvent({ type: "found", egg }) })
   eggs.setTogether((e) => togetherAt(e))
   const eggCars = eggs.cars()
+  // Vince's car (My Park's drinks-machine easter egg, unlocked by his keys through the host): the
+  // Sundowner GT in its stall by the venue it belongs to (town.keyCar)
+  const keyCars = town.keyCar && host.unlocks?.()?.[town.keyCar.id] ? [{ id: `keys:${town.keyCar.id}`, model: town.keyCar.model, color: town.keyCar.color, x: town.keyCar.x, z: town.keyCar.z, yaw: town.keyCar.yaw, keyCar: true }] : []
 
   // ---------- other people (online) ----------
   let net = null
@@ -565,7 +568,7 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
     const egg = eggs.nearest(w.x, w.z)
     if (egg) return { kind: "egg", label: egg.verb || "Take a look", target: egg.id }
     const c = nearestParked(w.x, w.z, 3.4)
-    if (c) return { kind: "car", label: c.model === "turbo" ? "Get in the Turbo 98" : "Get in", target: c }
+    if (c) return { kind: "car", label: c.model === "turbo" ? "Get in the Turbo 98" : c.model === "sundowner" ? "Get in the Sundowner GT" : "Get in", target: c }
     const back = town.venues ? Object.entries(town.venues).find(([, v]) => v.back && Math.hypot(w.x - v.back.x, w.z - v.back.z) < v.back.r) : null
     if (back) return { kind: "venue", label: "Back to the courts", target: back[0] }
     return null
