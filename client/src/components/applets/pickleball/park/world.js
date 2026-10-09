@@ -2861,6 +2861,33 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
       for (const b of bodies.values()) if (!b.hidden && !(b.isMe && me.mode !== "watch")) list.push({ x: b.x, z: b.z, h: b.seat ? b.seat.y + 1.0 : 1.95, id: b.key })
       return blocker(cam, at, list, { near: 1.0, ahead: 2.2 })?.id || null
     },
+    // (tests: the walking chain) the walker, the body as drawn, and which way the lens looks
+    moveProbe() {
+      const w = me.walker
+      const a = meBody.anim
+      const d = a ? { x: a.mm?.root?.x ?? w.x, z: a.mm?.root?.z ?? w.z, yaw: a.yaw } : null
+      const v = new THREE.Vector3()
+      camera.getWorldDirection(v)
+      return { sim: { x: w.x, z: w.z, yaw: w.yaw, speed: w.speed, vx: w.vx, vz: w.vz }, drawn: d, view: Math.atan2(v.x, v.z), cam: { x: camera.position.x, y: camera.position.y, z: camera.position.z } }
+    },
+    // (tests) the most open ground near you: a spot with nothing solid within r m, or null
+    openSpot(r = 12, span = 70, stepM = 4) {
+      const w = me.walker
+      const free = (x, z) => {
+        const p = resolve(x, z, 0.35, 0)
+        return Math.hypot(p.x - x, p.z - z) < 1e-3 && venue.heightAt(x, z, 0) !== null
+      }
+      let best = null
+      for (let gx = -span; gx <= span; gx += stepM)
+        for (let gz = -span; gz <= span; gz += stepM) {
+          const x = w.x + gx
+          const z = w.z + gz
+          let ok = free(x, z)
+          for (let rr = 2; ok && rr <= r; rr += 2) for (let k = 0; ok && k < 16; k++) ok = free(x + Math.cos((k / 16) * Math.PI * 2) * rr, z + Math.sin((k / 16) * Math.PI * 2) * rr)
+          if (ok && (!best || Math.hypot(gx, gz) < best.d)) best = { x, z, d: Math.hypot(gx, gz) }
+        }
+      return best
+    },
     // (y: a floor above the ground, a rooftop terrace: tests; else the floor you're on)
     teleport(x, z, yaw = me.walker.yaw, y = me.walker.y || 0) {
       const p = resolve(x, z, 0.35, y)

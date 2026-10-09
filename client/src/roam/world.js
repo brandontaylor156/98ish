@@ -2032,6 +2032,13 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
         street: lastStreet,
       }
     },
+    // (tests: the walking chain) the walker, the body as drawn, and which way the lens looks
+    moveProbe() {
+      const w = me.walker
+      const d = figs.get("me")?.fig?.drawn || null
+      camera.getWorldDirection(tmpA)
+      return { sim: { x: w.x, z: w.z, yaw: w.yaw, speed: w.speed, vx: w.vx, vz: w.vz }, drawn: d, view: Math.atan2(tmpA.x, tmpA.z), cam: { x: camera.position.x, y: camera.position.y, z: camera.position.z } }
+    },
     // (tests) somewhere else, the parked cars near you, the eggs
     teleport(x, z, yaw = me.walker.yaw) {
       if (driving) {

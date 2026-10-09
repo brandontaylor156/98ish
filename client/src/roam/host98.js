@@ -257,6 +257,10 @@ export const makeHost98 = ({ engineCtx, me = {}, sky = { real: true, mode: "real
           anim.mmEvery = 0.2
           fig.apply(liftPose(updateAnim(anim, walkSituation(s, key, t, look), step), s.y || 0), step)
         },
+        // (tests: where the body is drawn and which way it faces, vs the walker's own)
+        get drawn() {
+          return anim ? { x: anim.mm?.root?.x ?? at?.x ?? 0, z: anim.mm?.root?.z ?? at?.z ?? 0, yaw: anim.yaw } : null
+        },
         dispose: () => {
           fig.group.removeFromParent()
           fig.dispose()
