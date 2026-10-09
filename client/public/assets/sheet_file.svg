@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <!-- a Sheets 98 workbook: a page with a folded corner and a small green grid -->
+  <g shape-rendering="crispEdges">
+    <path d="M9 3h22l9 9v33H9z" fill="#000"/>
+    <path d="M8 2h22l9 9v33H8z" fill="#fff" stroke="#000"/>
+    <path d="M30 2v9h9" fill="#c0c0c0" stroke="#000"/>
+    <rect x="12" y="16" width="23" height="22" fill="#fff" stroke="#008040"/>
+    <rect x="12" y="16" width="23" height="5" fill="#008040"/>
+    <g fill="#80c0a0">
+      <rect x="12" y="26" width="23" height="1"/><rect x="12" y="31" width="23" height="1"/>
+      <rect x="19" y="16" width="1" height="22"/><rect x="27" y="16" width="1" height="22"/>
+    </g>
+  </g>
+</svg>

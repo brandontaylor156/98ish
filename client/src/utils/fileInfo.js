@@ -17,7 +17,7 @@ export const typeName = (item) =>
     ? "JPEG Image"
     : item.isDirectory
     ? { drive: "Local Disk", documents: "File Folder", bookmarks: "File Folder", programs: "File Folder" }[item.type] || "File Folder"
-    : { text: "Text Document", note: "Text Document", internet: "Internet Shortcut", shortcut: "Shortcut", image: "Bitmap Image", music: "MIDI Sequence", song: "Song", movie: "Video Clip", pdf: "PDF Document", richtext: "Rich Text Document", sound: "Wave Sound", vcard: "vCard File", swf: "Flash Movie", dossave: "Saved Game", dosgame: "MS-DOS Application" }[item.type] || "Application"
+    : { text: "Text Document", note: "Text Document", internet: "Internet Shortcut", shortcut: "Shortcut", image: "Bitmap Image", music: "MIDI Sequence", song: "Song", movie: "Video Clip", pdf: "PDF Document", sheet: "Sheets 98 Workbook", richtext: "Rich Text Document", sound: "Wave Sound", vcard: "vCard File", swf: "Flash Movie", dossave: "Saved Game", dosgame: "MS-DOS Application" }[item.type] || "Application"
 
 // drive-sized numbers: "512 KB", "12.4 MB", "1.2 GB"
 export const formatBytes = (bytes) => {

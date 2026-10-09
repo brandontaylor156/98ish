@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <!-- Sheets 98: a green ledger grid with a rising bar chart in front -->
+  <g shape-rendering="crispEdges">
+    <rect x="5" y="5" width="38" height="38" fill="#000"/>
+    <rect x="3" y="3" width="38" height="38" fill="#fff"/>
+    <rect x="3" y="3" width="38" height="7" fill="#008040"/>
+    <rect x="3" y="3" width="7" height="38" fill="#c0c0c0"/>
+    <g fill="#80c0a0">
+      <rect x="3" y="16" width="38" height="1"/><rect x="3" y="22" width="38" height="1"/><rect x="3" y="28" width="38" height="1"/><rect x="3" y="34" width="38" height="1"/>
+      <rect x="18" y="3" width="1" height="38"/><rect x="28" y="3" width="1" height="38"/>
+    </g>
+    <rect x="3" y="10" width="38" height="1" fill="#004020"/>
+    <rect x="10" y="3" width="1" height="38" fill="#808080"/>
+    <rect x="3.5" y="3.5" width="37" height="37" fill="none" stroke="#004020"/>
+    <g fill="#fff">
+      <rect x="13" y="5" width="2" height="3"/><rect x="22" y="5" width="2" height="3"/><rect x="33" y="5" width="2" height="3"/>
+    </g>
+  </g>
+  <g shape-rendering="crispEdges" stroke="#000" stroke-width="1">
+    <rect x="22.5" y="30.5" width="5" height="15" fill="#0000c0"/>
+    <rect x="29.5" y="24.5" width="5" height="21" fill="#c00000"/>
+    <rect x="36.5" y="17.5" width="5" height="28" fill="#e0b000"/>
+  </g>
+  <path d="M20 46h26" stroke="#000" stroke-width="1"/>
+</svg>

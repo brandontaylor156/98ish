@@ -75,6 +75,12 @@ export const programs = [
   { name: "Clock", app: "clock", type: "clock", icon: "/assets/program_icons/clock.svg", width: 420, height: 500, group: "Accessories", desktop: false, single: true },
   { name: "Calculator", app: "calc", type: "calc", icon: "/assets/program_icons/calc.svg", width: 270, height: 272, group: "Accessories", desktop: false },
   { name: "Character Map", app: "charmap", type: "charmap", icon: "/assets/program_icons/charmap.svg", width: 610, height: 280, group: "System Tools", desktop: false, single: true },
+  // wave 4: a spreadsheet (applets/sheets: formulas in engine.js) and small utilities
+  { name: "Sheets 98", app: "sheets", type: "sheets", icon: "/assets/program_icons/sheets.svg", width: 760, height: 520, group: "Accessories", also: ["Business"], desktop: false },
+  { name: "Unit Converter", app: "units", type: "units", icon: "/assets/program_icons/units.svg", width: 340, height: 440, group: "Accessories", desktop: false, single: true },
+  { name: "Color Picker", app: "colorpicker", type: "colorpicker", icon: "/assets/program_icons/colorpicker.svg", width: 380, height: 560, group: "Accessories", desktop: false, single: true },
+  { name: "QR Code", app: "qrcode", type: "qrcode", icon: "/assets/program_icons/qrcode.svg", width: 380, height: 560, group: "Accessories", desktop: false, single: true },
+  { name: "Dice & Coin", app: "dice", type: "dice", icon: "/assets/program_icons/dice.svg", width: 360, height: 460, group: "Accessories", also: ["Games"], desktop: false, single: true },
   { name: "Backup", app: "backup", icon: "/assets/program_icons/backup.svg", width: 420, height: 460, group: "System Tools", desktop: false, single: true },
   { name: "Date/Time Properties", app: "datetime", icon: "/assets/program_icons/datetime.svg", width: 420, height: 370, group: null, desktop: false, single: true },
   // passwords, PINs, the lock screen and user profiles

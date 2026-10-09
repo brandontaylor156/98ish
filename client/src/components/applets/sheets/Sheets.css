@@ -1,0 +1,338 @@
+/* Sheets 98 */
+.shRoot {
+  display: flex;
+  flex-direction: column;
+  height: calc(100% - 25px);
+  min-height: 0;
+  background: #c0c0c0;
+  font-size: 12px;
+  overflow: hidden;
+}
+.shRoot .menuBar {
+  flex: none;
+}
+
+/* the formula bar: name box, fx (or Cancel/Enter while typing), the contents */
+.shBar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 3px;
+}
+.shName {
+  flex: none;
+  min-width: 56px;
+  max-width: 90px;
+  height: 20px;
+  line-height: 20px;
+  padding: 0 4px;
+  background: #fff;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.shFx {
+  flex: none;
+  width: 22px;
+  text-align: center;
+  font-family: "Times New Roman", serif;
+  font-size: 13px;
+}
+.shBarBtn {
+  flex: none;
+  min-width: 24px !important;
+  width: 24px;
+  height: 22px;
+  padding: 0 !important;
+}
+.shX {
+  color: #c00000;
+  font-weight: bold;
+}
+.shCheck {
+  color: #008000;
+  font-weight: bold;
+}
+.shInput {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 22px;
+  font-family: Arial, sans-serif;
+}
+
+.shMore {
+  flex: none;
+  padding: 0 3px;
+}
+.shTools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  padding: 2px 0;
+}
+.shTools button {
+  min-width: 0;
+  padding: 0 8px;
+}
+.shTools button[aria-pressed="true"] {
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #0a0a0a, inset -2px -2px #dfdfdf, inset 2px 2px #808080;
+}
+
+/* ---- the grid ---- */
+.shGrid {
+  flex: 1 1 auto;
+  min-height: 80px;
+  margin: 0 3px 3px;
+  overflow: auto;
+  position: relative;
+  background: #fff;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+  outline: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  touch-callout: none;
+  overscroll-behavior: contain;
+}
+.shInner {
+  position: relative;
+}
+.shColHeads {
+  position: sticky;
+  top: 0;
+  height: 20px;
+  z-index: 3;
+}
+.shCorner,
+.shColHead,
+.shRowHead {
+  background: #c0c0c0;
+  box-shadow: inset -1px -1px #808080, inset 1px 1px #fff;
+  color: #000;
+  text-align: center;
+  font-size: 11px;
+}
+.shCorner {
+  position: sticky;
+  left: 0;
+  width: 40px;
+  height: 20px;
+  z-index: 4;
+}
+.shColHead {
+  position: absolute;
+  top: 0;
+  height: 20px;
+  line-height: 20px;
+  box-sizing: border-box;
+  cursor: s-resize;
+}
+.shColHead.is-sel,
+.shRowHead.is-sel {
+  background: #a0a0a0;
+  font-weight: bold;
+}
+.shResize {
+  position: absolute;
+  right: -3px;
+  top: 0;
+  width: 6px;
+  height: 100%;
+  cursor: col-resize;
+  z-index: 1;
+  touch-action: none;
+}
+.shRow {
+  position: absolute;
+  left: 0;
+  height: 22px;
+}
+.shRowHead {
+  position: sticky;
+  left: 0;
+  width: 40px;
+  height: 22px;
+  line-height: 22px;
+  z-index: 2;
+  cursor: e-resize;
+}
+.shCell {
+  position: absolute;
+  top: 0;
+  height: 22px;
+  line-height: 21px;
+  box-sizing: border-box;
+  padding: 0 3px;
+  border-right: 1px solid #d4d4d4;
+  border-bottom: 1px solid #d4d4d4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: Arial, sans-serif;
+  font-size: 12px;
+  color: #000;
+  cursor: cell;
+}
+.shCell.is-num {
+  text-align: right;
+}
+.shCell.is-bool,
+.shCell.is-err {
+  text-align: center;
+}
+.shCell.is-err {
+  color: #c00000;
+}
+
+/* the selection: a light fill, a thick border, the active cell clear, the corner handle */
+.shSel {
+  position: absolute;
+  box-sizing: border-box;
+  border: 2px solid #000080;
+  background: rgba(0, 0, 128, 0.12);
+  pointer-events: none;
+  z-index: 1;
+}
+.shSelActive {
+  position: absolute;
+  background: #fff;
+  mix-blend-mode: multiply;
+  opacity: 0;
+}
+.shHandle {
+  position: absolute;
+  right: -5px;
+  bottom: -5px;
+  width: 8px;
+  height: 8px;
+  background: #000080;
+  border: 1px solid #fff;
+  pointer-events: auto;
+  cursor: crosshair;
+  touch-action: none;
+}
+/* a bigger target for a finger (the visible square stays small) */
+.shRoot.is-mobile .shHandle {
+  width: 12px;
+  height: 12px;
+  right: -8px;
+  bottom: -8px;
+  border-radius: 6px;
+}
+.shRoot.is-mobile .shHandle::after {
+  content: "";
+  position: absolute;
+  inset: -14px;
+}
+
+/* ---- chart ---- */
+.shChart {
+  flex: none;
+  margin: 0 3px 3px;
+  padding: 3px;
+  background: #c0c0c0;
+  box-shadow: inset -1px -1px #808080, inset 1px 1px #fff;
+}
+.shChartHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 2px;
+}
+.shChartBtns {
+  display: flex;
+  gap: 3px;
+}
+.shChartBtns button {
+  min-width: 0;
+  padding: 0 6px;
+}
+.shChartBtns button[aria-pressed="true"] {
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #0a0a0a, inset -2px -2px #dfdfdf, inset 2px 2px #808080;
+}
+.shChartSvg {
+  display: block;
+  width: 100%;
+  max-height: 180px;
+}
+.shChartEmpty {
+  padding: 8px;
+}
+
+.shStatus {
+  flex: none;
+  display: flex;
+  margin: 0;
+}
+.shStatus .status-bar-field {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.shSum {
+  flex: 2 1 auto;
+}
+
+.shDlgRow {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.shFnList {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 50vh;
+  overflow: auto;
+}
+.shFnList button {
+  text-align: left;
+  padding: 2px 6px;
+}
+
+/* ---- phones ---- */
+.shRoot.is-mobile .shInput {
+  height: 32px;
+}
+.shRoot.is-mobile .shName {
+  height: 30px;
+  line-height: 30px;
+}
+.shRoot.is-mobile .shBarBtn {
+  width: 34px;
+  height: 32px;
+}
+/* while typing, the formula bar sits right above the 98ish keyboard (the window ends where
+   the keyboard starts, so the bottom of the window is just above it) */
+html.kb-open .shRoot.is-mobile.is-editing .shBar {
+  order: 10;
+  border-top: 1px solid #808080;
+}
+.shQuick {
+  flex: none;
+  display: flex;
+  gap: 2px;
+  padding: 2px 3px 0;
+  overflow-x: auto;
+}
+.shQuick button {
+  flex: 1 0 auto;
+  min-width: 30px !important;
+  height: 32px;
+  padding: 0 4px !important;
+  font-family: Arial, sans-serif;
+  font-size: 15px;
+}
+html.kb-open .shRoot.is-mobile.is-editing .shQuick {
+  order: 9;
+}
+html.kb-open .shRoot.is-mobile.is-editing .shStatus,
+html.kb-open .shRoot.is-mobile.is-editing .shMore,
+html.kb-open .shRoot.is-mobile.is-editing .shChart {
+  display: none;
+}

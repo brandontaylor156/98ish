@@ -1,0 +1,145 @@
+/* QR Code */
+.qrRoot {
+  display: flex;
+  flex-direction: column;
+  height: calc(100% - 25px);
+  min-height: 0;
+  padding: 6px 6px 6px;
+  box-sizing: border-box;
+  background: #c0c0c0;
+  font-size: 12px;
+}
+.qrTabs {
+  flex: none;
+  margin: 0;
+}
+.qrPanel {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.qrPanel > .window-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  margin: 6px;
+}
+.qrMake,
+.qrScan {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.qrText {
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+}
+.qrCodeBox {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 140px;
+  padding: 6px;
+  background: #fff;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+}
+.qrCanvas {
+  width: min(100%, 220px);
+  height: auto;
+  image-rendering: pixelated;
+}
+.qrButtons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.qrPrimary {
+  font-weight: bold;
+}
+.qrStatus,
+.qrHint {
+  margin: 0;
+  color: #333;
+}
+.qrError {
+  color: #c00000;
+  padding: 4px 6px;
+  background: #fff;
+}
+.qrOptions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.qrWifi {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+}
+.qrViewer {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  max-height: 46vh;
+  background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080;
+}
+.qrVideo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.qrIdle {
+  color: #fff;
+  padding: 12px;
+  text-align: center;
+}
+.qrAim {
+  position: absolute;
+  width: 55%;
+  aspect-ratio: 1;
+  border: 2px dashed #00ff00;
+  pointer-events: none;
+}
+.qrResult {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.qrFound,
+.qrWifiFound {
+  padding: 6px;
+  background: #fff;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080;
+  word-break: break-all;
+  -webkit-user-select: text;
+  user-select: text;
+  max-height: 30vh;
+  overflow: auto;
+}
+.os-mobile .qrButtons button {
+  min-height: 36px;
+  flex: 1 1 auto;
+}
+
+/* the etched 98 group box (Bootstrap's reboot removes 98.css's) */
+.qrRoot fieldset {
+  margin: 0;
+  padding: 6px 8px 8px;
+  border: none;
+  min-width: 0;
+  box-shadow: inset -1px -1px #fff, inset -2px 1px #808080, inset 1px -2px #808080, inset 2px 2px #fff;
+}
+.qrRoot legend {
+  float: none;
+  width: auto;
+  margin: 0;
+  padding: 0 3px;
+  font-size: inherit;
+  line-height: inherit;
+}

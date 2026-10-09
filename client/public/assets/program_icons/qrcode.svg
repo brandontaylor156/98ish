@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <!-- QR Code: an original 11x11 pattern with three finder squares, on a white card -->
+  <g shape-rendering="crispEdges">
+    <rect x="5" y="5" width="40" height="40" fill="#000"/>
+    <rect x="3" y="3" width="40" height="40" fill="#fff" stroke="#000"/>
+    <g fill="#000" transform="translate(6 6) scale(3)">
+      <path d="M0 0h3v3H0zM8 0h3v3H8zM0 8h3v3H0z"/>
+      <path d="M4 0h1v1H4zM6 1h1v2H6zM4 2h1v1H4zM5 4h2v1H5zM0 4h1v1H0zM2 5h2v1H2zM8 4h1v1H8zM10 5h1v2h-1zM4 6h1v1H4zM6 6h2v1H6zM5 8h1v1H5zM7 8h2v1H7zM4 9h1v2H4zM6 10h2v1H6zM9 9h2v1H9zM10 10h1v1h-1zM8 6h1v1H8z"/>
+    </g>
+    <g fill="#fff" transform="translate(6 6) scale(3)">
+      <path d="M1 1h1v1H1zM9 1h1v1H9zM1 9h1v1H1z"/>
+    </g>
+  </g>
+</svg>

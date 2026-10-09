@@ -125,6 +125,14 @@
 //                                                  set stay part of the program for the others
 //                                                  (a vote, a board). Programs nobody changes for
 //                                                  30 days are deleted anyway (TTL)
+//   passkeys    aimpasskeys                       98 Messenger passkeys (server/aim/passkeys.js):
+//                                                  every passkey record of the account (credential
+//                                                  id, public key, counter, name, dates) deleted,
+//                                                  so none of them signs on again. The passkey
+//                                                  itself stays in the phone's/computer's password
+//                                                  manager (98ish can't reach it); it just no
+//                                                  longer opens anything. Challenges are memory
+//                                                  only (5 minutes)
 //   aim         aimusers                          the account (password hash, profile, Buddy
 //                                                  List, blocks, remembered devices) deleted; their
 //                                                  name taken off everyone's Buddy List and block

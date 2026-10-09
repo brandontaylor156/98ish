@@ -15,6 +15,8 @@ const { createYdocs } = require("./ydocs")
 const { createVbApps } = require("./vbapps")
 const { createVbappStore } = require("./vbappStore")
 const { createYdocStore } = require("./ydocStore")
+const { createPasskeyStore } = require("./passkeyStore")
+const { createPasskeys, configFromEnv: passkeyConfigFromEnv } = require("./passkeys")
 const { createIce } = require("./ice")
 const { createAccountEraser } = require("../account")
 const { createHistoryStore, pairConv, roomConv, packStyle } = require("./history")
@@ -28,6 +30,7 @@ const REMEMBER_MS = 60 * 86_400_000 // "Remember me" keeps a device signed on th
 const REMEMBERED_DEVICES = 6 // per account; the oldest is forgotten first
 const WARN_DECAY_MS = 30_000 // warning level drops 1% this often
 const IMS_PER_MINUTE = 30
+const PASSKEY_ASKS_PER_MINUTE = 30 // passkey options asked for, per IP (each makes a challenge)
 // Failed sign-ons allowed per 5 minutes, per IP and per screen name (password guessing)
 const FAILED_SIGN_ONS_PER_IP = 20
 const FAILED_SIGN_ONS_PER_NAME = 8
@@ -86,7 +89,7 @@ const limiter = (limit, windowMs) => {
 // aim:deleteAccount; without one only the account record goes.
 // `history` (./history.js, a store or a promise of one): saved conversations; in memory
 // without one. `media` (./media.js): pictures and voice messages in IMs; off without one.
-const attachAim = async (io, { store, bot, ice, callRingMs, callLostMs, push = null, eraser = null, history = null, media: imMedia = null, ydocStore = null, vbappStore = null, hangoutLostMs } = {}) => {
+const attachAim = async (io, { store, bot, ice, callRingMs, callLostMs, push = null, eraser = null, history = null, media: imMedia = null, ydocStore = null, vbappStore = null, passkeyStore = null, passkeyConfig = null, hangoutLostMs } = {}) => {
   store ??= await createStore()
   // Come Over's shared documents (a store that failed to connect: they're kept in memory)
   ydocStore ??= await createYdocStore().catch((error) => {
@@ -97,6 +100,11 @@ const attachAim = async (io, { store, bot, ice, callRingMs, callLostMs, push = n
   vbappStore ??= await createVbappStore().catch((error) => {
     console.error("[vb98] store failed, using memory", error?.message)
     return require("./vbappStore").memoryStore()
+  })
+  // passkeys (./passkeys.js; a store that failed to connect: kept in memory)
+  passkeyStore ??= await createPasskeyStore().catch((error) => {
+    console.error("[passkeys] store failed, using memory", error?.message)
+    return require("./passkeyStore").memoryStore()
   })
   bot ??= createBot()
   ice ??= createIce()
@@ -113,6 +121,9 @@ const attachAim = async (io, { store, bot, ice, callRingMs, callLostMs, push = n
   const failedByIp = limiter(FAILED_SIGN_ONS_PER_IP, 5 * 60_000)
   const failedByName = limiter(FAILED_SIGN_ONS_PER_NAME, 5 * 60_000)
   const imLimited = limiter(IMS_PER_MINUTE, 60_000)
+  const passkeyAsks = limiter(PASSKEY_ASKS_PER_MINUTE, 60_000)
+  const passkeys = createPasskeys({ store: passkeyStore, config: passkeyConfig || passkeyConfigFromEnv() })
+  eraser.add("passkeys", (ctx) => passkeys.eraseAccount(ctx))
 
   const warningOf = (key) => {
     const w = warnings.get(key)
@@ -574,6 +585,61 @@ const attachAim = async (io, { store, bot, ice, callRingMs, callLostMs, push = n
         console.error("[aim] remembered sign on failed", error)
         ack({ ok: false, error: "The 98 Messenger service is temporarily unavailable. Please try again." })
       }
+    })
+
+    // ---- passkeys (./passkeys.js) ----
+    // the page's origin, from the handshake: it picks the passkeys' RP ID
+    const origin = String(socket.handshake.headers.origin || "")
+
+    // a challenge for "Sign On with a passkey" (the page asks ahead, so the tap can call
+    // navigator.credentials.get() at once: iPhones want that straight from the tap)
+    socket.on("aim:passkeyOptions", (payload = {}, ack = () => {}) => {
+      if (typeof ack !== "function") return
+      if (passkeyAsks(ip)) return ack({ ok: false, error: "Too many tries. Please wait a minute." })
+      ack(passkeys.authenticationOptions({ origin }))
+    })
+
+    socket.on("aim:signOnPasskey", async (payload = {}, ack = () => {}) => {
+      if (typeof ack !== "function") return
+      try {
+        if (failedByIp.over(ip)) return ack({ ok: false, error: "Too many failed sign on attempts. Please wait a few minutes." })
+        const result = await passkeys.authenticate({ challengeId: payload.challengeId, credential: payload.credential, origin })
+        if (!result.ok) {
+          failedByIp(ip)
+          return ack({ ok: false, code: result.code, error: result.error })
+        }
+        const user = result.key !== BOT_KEY ? await store.find(result.key) : null
+        if (!user) return ack({ ok: false, code: "unknown_credential", error: "This passkey isn't linked to a 98 Messenger account any more. Sign on with your password." })
+        if (user.deleting) return ack({ ok: false, deleting: true, error: DELETING_TEXT })
+        const remember = payload.remember ? await rememberDevice(user) : undefined
+        startSession(user, result.key, ack, remember)
+      } catch (error) {
+        console.error("[aim] passkey sign on failed", error)
+        ack({ ok: false, error: "The 98 Messenger service is temporarily unavailable. Please try again." })
+      }
+    })
+
+    // My AIM > Passkeys...: adding one asks for the password again (a session someone else
+    // got hold of can't quietly add their own way in)
+    on("aim:passkeyAddStart", async (session, payload, ack) => {
+      if (failedByIp.over(ip) || failedByName.over(session.key)) return ack({ ok: false, error: "Too many failed attempts. Please wait a few minutes." })
+      const password = String(payload.password || "")
+      const user = await store.find(session.key)
+      if (!user || password.length < 4 || password.length > 64 || !(await bcrypt.compare(password, user.passwordHash))) {
+        failedByIp(ip)
+        failedByName(session.key)
+        return ack({ ok: false, error: "That password isn't right." })
+      }
+      ack(await passkeys.registrationOptions({ key: session.key, screenName: user.screenName, origin }))
+    })
+    on("aim:passkeyAdd", async (session, payload, ack) => {
+      ack(await passkeys.register({ key: session.key, challengeId: payload.challengeId, credential: payload.credential, origin, name: payload.name }))
+    })
+    on("aim:passkeyList", async (session, payload, ack) => {
+      ack({ ok: true, passkeys: await passkeys.list(session.key), available: !!passkeys.rpFor(origin) })
+    })
+    on("aim:passkeyRemove", async (session, payload, ack) => {
+      ack({ ok: await passkeys.remove(session.key, payload.id) })
     })
 
     // signing off on purpose forgets this device
