@@ -415,13 +415,18 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
   const BUDGET_MAX = phone ? 5 : quality === "high" ? 14 : 10
   let budget = phone ? 3 : 8
   const FULL_DIST = phone ? 22 : 34
+  // (phones: the paddle kept out of the body within 13-15 m of the lens, measured 2026-10-09:
+  // a player 15 m off is about 9% of an upright phone's height)
+  const GUARD_NEAR = 13
+  const GUARD_FAR = 15
+  const NEAR_PARTS = 11
   const MANN_DIST = 95
   const frustum = new THREE.Frustum()
   const projM = new THREE.Matrix4()
   const sphere = new THREE.Sphere(new THREE.Vector3(), 1.3)
   const courtSphere = new THREE.Sphere(new THREE.Vector3(), 11)
   // (tests: every court played out, a fixed athlete budget, no labels)
-  const dev = { allLive: false, budget: null, noLabels: false, noCutaway: false }
+  const dev = { allLive: false, budget: null, noLabels: false, noCutaway: false, noLod: false }
   let perfWin = { t: 0, n: 0 }
   // the frame budget: a step down when frames run long, back up when there's time
   const adaptBudget = (dt) => {
@@ -1722,6 +1727,8 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
     const mate = tgMateBody() || (tg.sunset ? tgOther(tg.sunset.other)?.body : null)
     if (mate?.inView) fullSet.add(mate)
     let fullIndex = 0
+    // (a phone's cheaper people far off; dev.noLod: as on a computer, for measuring)
+    const lod = phone && !dev.noLod
     mann.begin()
     let nb = 0
     for (const b of list) {
@@ -1739,9 +1746,25 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
       if (ready) {
         if (!b.fig.group.parent) parentOf(b).add(b.fig.group)
         // animation: every frame close up, every 2nd or 3rd further away
-        const every = fullIndex < 4 || b.dist < 9 ? 1 : b.dist < 20 ? 2 : 3
+        // (a phone: past 12 m every 2nd frame, unless it's you, someone an activity drives, or a
+        // player on the court you're watching)
+        const every = lod ? (b.isMe || b.drive || b.dist < 12 || (watched && b.court === watched) ? 1 : b.dist < 20 ? 2 : 3) : fullIndex < 4 || b.dist < 9 ? 1 : b.dist < 20 ? 2 : 3
         fullIndex++
         b.acc += dt
+        // (a phone: the paddle-body solver, athlete.js guardPaddle, only for the people near
+        // enough for a paddle through a body to show; a little hysteresis at the edge)
+        if (b.fig.live) b.fig.live.noGuard = lod && !b.isMe && !b.drive && b.dist > (b.fig.live.noGuard ? GUARD_NEAR : GUARD_FAR)
+        // (and the lashes and teeth only near: two draws an athlete, athlete.js nearOnly)
+        if (lod || b.nearParts === false) {
+          const near = !lod || b.isMe || !!b.drive || b.dist < (b.nearParts === false ? NEAR_PARTS - 1 : NEAR_PARTS)
+          if (b.nearParts !== near || b.nearFig !== b.fig) {
+            b.nearParts = near
+            b.nearFig = b.fig
+            b.fig.group.traverse((o) => {
+              if (o.userData.nearOnly) o.visible = near
+            })
+          }
+        }
         if ((frameNo + b.key.length) % every === 0 || !b.anim) {
           const at = pmark()
           animate(b, b.acc)
