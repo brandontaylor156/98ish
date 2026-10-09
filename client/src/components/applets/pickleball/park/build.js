@@ -311,6 +311,150 @@ export const buildPark = (scene, { quality = "medium", layout = RIVERSIDE_LAYOUT
       group.add(top)
     }
   }
+  // ---- a venue's measured fence types (spec fence.types; docs/venue-provenance.md): height,
+  // mesh (colour, from y), posts (diameter, spacing, colour), rails (top + any more), a windscreen
+  // band (y0..y1), a capped/padded top rail, a painted curb along the foot ----
+  const typedMats = new Map()
+  const typedMat = (c) => {
+    if (!typedMats.has(c)) typedMats.set(c, lambert(new THREE.Color(c).getHex()))
+    return typedMats.get(c)
+  }
+  const meshMats = new Map()
+  const meshMatFor = (c) => {
+    if (meshMats.has(c)) return meshMats.get(c)
+    const col = new THREE.Color(c).getHex()
+    const w = S && quality !== "low" ? chainLink(col) : null
+    let m
+    if (w) m = { mat: keep(new THREE.MeshLambertMaterial({ map: keep(w.tex), transparent: true, side: THREE.DoubleSide, depthWrite: false, alphaTest: 0.05 })), depth: w.depth }
+    else {
+      const t = keep(
+        canvasTexture(64, 64, (ctx, s) => {
+          ctx.clearRect(0, 0, s, s)
+          ctx.strokeStyle = `rgba(${(col >> 16) & 255},${(col >> 8) & 255},${col & 255},0.6)`
+          ctx.lineWidth = 4
+          ctx.beginPath()
+          ctx.moveTo(0, s / 2)
+          ctx.lineTo(s / 2, 0)
+          ctx.lineTo(s, s / 2)
+          ctx.lineTo(s / 2, s)
+          ctx.closePath()
+          ctx.stroke()
+        })
+      )
+      t.wrapS = t.wrapT = THREE.RepeatWrapping
+      m = { mat: keep(new THREE.MeshBasicMaterial({ map: t, transparent: true, side: THREE.DoubleSide, depthWrite: false })), depth: null }
+    }
+    meshMats.set(c, m)
+    return m
+  }
+  const typedScreenMats = new Map()
+  const typedScreenMat = (c) => {
+    if (!typedScreenMats.has(c)) typedScreenMats.set(c, lambert(new THREE.Color(c).getHex(), { side: THREE.DoubleSide, ...(wire ? { map: keep(windscreenTex()) } : {}) }))
+    return typedScreenMats.get(c)
+  }
+  const typedPosts = new Map()
+  const typedSide = (x0, z0, x1, z1, T, gates, hIn, opens = []) => {
+    const len = Math.hypot(x1 - x0, z1 - z0)
+    if (len < 0.05) return
+    const h = hIn ?? T.h ?? 3
+    const ry = -Math.atan2(z1 - z0, x1 - x0)
+    const at = (s, y) => [x0 + ((x1 - x0) * s) / len, y, z0 + ((z1 - z0) * s) / len]
+    const fenceColor = T.mesh || S?.colors?.fence || "#2a302c"
+    const frame = T.post?.color || fenceColor
+    // runs between the gates
+    const cuts = [...gates, ...opens].sort((a, b) => a.at - b.at)
+    const runs = []
+    let from = 0
+    for (const g of cuts) {
+      runs.push([from, g.at - g.w / 2])
+      from = Math.max(from, g.at + g.w / 2)
+    }
+    runs.push([from, len])
+    const curbH = T.curb?.h || 0
+    const meshY0 = Math.max(curbH, T.meshFrom || 0)
+    for (const [a, b] of runs) {
+      if (b - a < 0.05) continue
+      const L = b - a
+      const mid = (a + b) / 2
+      // the mesh (above the curb)
+      if (T.mesh !== "none") {
+        const mh = h - meshY0
+        const geo = keep(new THREE.PlaneGeometry(L, mh))
+        const uv = geo.attributes.uv
+        // (diamonds per metre: real 2-2.25 in chain-link is ~18; T.weave)
+        const k = T.weave || 14
+        for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * L * k, uv.getY(i) * mh * k)
+        const mm = meshMatFor(fenceColor)
+        const f = new THREE.Mesh(geo, mm.mat)
+        f.position.set(...at(mid, meshY0 + mh / 2))
+        f.rotation.y = ry
+        f.renderOrder = 1
+        if (mm.depth) (f.customDepthMaterial = mm.depth), (f.userData.shadowCaster = true)
+        group.add(f)
+      }
+      // the windscreen band
+      if (T.screen) {
+        const y0 = T.screen.y0 ?? 0
+        const y1 = Math.min(h, T.screen.y1 ?? h)
+        const sg = keep(new THREE.PlaneGeometry(L, y1 - y0))
+        if (wire) {
+          const suv = sg.attributes.uv
+          for (let i = 0; i < suv.count; i++) suv.setX(i, suv.getX(i) * L)
+        }
+        const s = new THREE.Mesh(sg, typedScreenMat(T.screen.color || S?.colors?.windscreen || "#1f2420"))
+        s.position.set(...at(mid, (y0 + y1) / 2))
+        s.rotation.y = ry
+        group.add(s)
+      }
+      // the curb (a painted concrete kick-board along the foot)
+      if (T.curb) {
+        const cw = T.curb.w || 0.2
+        const c = new THREE.Mesh(keep(new THREE.BoxGeometry(L, curbH, cw)), typedMat(T.curb.color || "#7a7a72"))
+        c.position.set(...at(mid, curbH / 2))
+        c.rotation.y = ry
+        group.add(c)
+      }
+      // rails: the top one (or its cap) and any others (mid, bottom)
+      const rd = T.railD || 0.045
+      for (const y of [h, ...(T.rails || [])]) {
+        if (y >= h - 0.01 && T.cap) continue
+        const r = new THREE.Mesh(keep(new THREE.CylinderGeometry(rd / 2, rd / 2, L, 6).rotateZ(Math.PI / 2)), typedMat(frame))
+        r.position.set(...at(mid, y))
+        r.rotation.y = ry
+        group.add(r)
+      }
+      if (T.cap) {
+        // a thick top rail: padded/capped (Los Cab's green), a rounded box along the top
+        const ch = T.cap.h || 0.1
+        const cw = T.cap.w || 0.1
+        const c = new THREE.Mesh(keep(new THREE.BoxGeometry(L, ch, cw)), typedMat(T.cap.color || frame))
+        c.position.set(...at(mid, h - ch / 2 + 0.02))
+        c.rotation.y = ry
+        group.add(c)
+      }
+      // posts: at the run's ends and every `every` m between
+      const d = T.post?.d || 0.06
+      const key = `${d}|${frame}`
+      if (!typedPosts.has(key)) typedPosts.set(key, [])
+      const every = T.post?.every || 3
+      const n = Math.max(1, Math.round(L / every))
+      for (let i = 0; i <= n; i++) {
+        const [px, , pz] = at(a + (L * i) / n, 0)
+        typedPosts.get(key).push([px, pz, h + (T.cap ? 0 : 0.03)])
+      }
+    }
+    for (const gate of gates) {
+      for (const dd of [-gate.w / 2, gate.w / 2]) {
+        const p = new THREE.Mesh(keep(new THREE.BoxGeometry(0.07, h + 0.05, 0.07)), gateMat)
+        p.position.set(...at(gate.at + dd, (h + 0.05) / 2))
+        group.add(p)
+      }
+      const top = new THREE.Mesh(keep(new THREE.BoxGeometry(gate.w, 0.07, 0.07)), gateMat)
+      top.position.set(...at(gate.at, Math.min(2.2, h - 0.1)))
+      top.rotation.y = ry
+      group.add(top)
+    }
+  }
   if (riverside) {
     const pen = (c, gateOn) => {
       const x0 = c.x - PEN.hx
@@ -327,8 +471,16 @@ export const buildPark = (scene, { quality = "medium", layout = RIVERSIDE_LAYOUT
   } else {
     for (const f of S.fences) {
       if (f.k !== "chain") continue
-      fenceSide(f.a[0], f.a[1], f.b[0], f.b[1], { gates: (f.gates || []).map((at) => ({ at, w: 1.4 })), h: f.h })
+      const T = f.t ? S.fence?.types?.[f.t] : null
+      if (T) typedSide(f.a[0], f.a[1], f.b[0], f.b[1], T, (f.gates || []).map((at) => ({ at, w: 1.4 })), f.h, f.opens || [])
+      else fenceSide(f.a[0], f.a[1], f.b[0], f.b[1], { gates: (f.gates || []).map((at) => ({ at, w: 1.4 })), h: f.h })
     }
+  }
+  for (const [key, list] of typedPosts) {
+    const [d, color] = key.split("|")
+    const mesh = new THREE.InstancedMesh(keep(new THREE.CylinderGeometry(+d / 2, +d / 2, 1, 8)), typedMat(color), list.length)
+    list.forEach(([x, z, h], i) => mesh.setMatrixAt(i, m4.compose(v1.set(x, h / 2, z), q.identity(), v2.set(1, h, 1))))
+    group.add(mesh)
   }
   if (fencePosts.length) {
     const fencePostMesh = new THREE.InstancedMesh(keep(new THREE.CylinderGeometry(0.035, 0.035, 1, 5)), railMat, fencePosts.length)
@@ -680,12 +832,25 @@ export const buildPark = (scene, { quality = "medium", layout = RIVERSIDE_LAYOUT
   const POLE_H = S?.fence?.poleH || 7.5
   const double = !!S?.fence?.doubleHeads
   const lampMat = keep(new THREE.MeshBasicMaterial({ color: 0x9aa0a8 }))
+  const hex6 = (c, d) => (c ? new THREE.Color(c).getHex() : d)
   if (LIGHTS.length) {
-    const poles = new THREE.InstancedMesh(keep(new THREE.CylinderGeometry(0.07, 0.1, 7.5, 6)), frameMat, LIGHTS.length)
+    const poles = new THREE.InstancedMesh(keep(new THREE.CylinderGeometry(0.07, 0.1, 7.5, 6)), S?.fence?.poleColor ? lambert(hex6(S.fence.poleColor)) : frameMat, LIGHTS.length)
     // (Medium/High: a real fixture: a cross-arm, LED heads tilted down with a bright lens)
     let lampGeo = new THREE.BoxGeometry(double ? 1.2 : 0.5, 0.18, 0.35)
     let lensGeo = null
-    if (wire) {
+    const tStyle = S?.fence?.poleStyle === "t"
+    if (tStyle) {
+      // (Los Cab, the owner's photos: a T arm on top, a flat LED head at each end, facing down)
+      const armW = S.fence.armW || 2.2
+      const parts = [new THREE.BoxGeometry(armW, 0.09, 0.09).translate(0, -0.05, 0), new THREE.BoxGeometry(0.12, 0.3, 0.12).translate(0, -0.2, 0)]
+      const lens = []
+      for (const sx of [-armW / 2, armW / 2]) {
+        parts.push(new THREE.BoxGeometry(0.62, 0.08, 0.46).translate(sx, -0.12, 0))
+        lens.push(new THREE.PlaneGeometry(0.54, 0.38).rotateX(Math.PI / 2).translate(sx, -0.165, 0))
+      }
+      lampGeo = mergeGeometries(parts.map((g) => (g.deleteAttribute("uv"), g)), false)
+      lensGeo = mergeGeometries(lens.map((g) => (g.deleteAttribute("uv"), g)), false)
+    } else if (wire) {
       const parts = [new THREE.BoxGeometry(double ? 1.5 : 0.7, 0.07, 0.07).translate(0, -0.05, 0)]
       const lens = []
       for (const sx of double ? [-0.62, 0.62] : [0.25]) {
@@ -696,7 +861,7 @@ export const buildPark = (scene, { quality = "medium", layout = RIVERSIDE_LAYOUT
       lampGeo = mergeGeometries(parts.map((g) => (g.deleteAttribute("uv"), g)), false)
       lensGeo = mergeGeometries(lens.map((g) => (g.deleteAttribute("uv"), g)), false)
     }
-    const lamps = new THREE.InstancedMesh(keep(lampGeo), wire ? lambert(0x2f3338) : lampMat, LIGHTS.length)
+    const lamps = new THREE.InstancedMesh(keep(lampGeo), wire || tStyle ? lambert(hex6(S?.fence?.headColor, 0x2f3338)) : lampMat, LIGHTS.length)
     const lenses = lensGeo ? new THREE.InstancedMesh(keep(lensGeo), keep(new THREE.MeshBasicMaterial({ color: 0xe8ecef, side: THREE.DoubleSide })), LIGHTS.length) : null
     LIGHTS.forEach((l, i) => {
       poles.setMatrixAt(i, m4.compose(v1.set(l.x, POLE_H / 2, l.z), q.identity(), v2.set(1, POLE_H / 7.5, 1)))
@@ -706,7 +871,8 @@ export const buildPark = (scene, { quality = "medium", layout = RIVERSIDE_LAYOUT
         const d = (c.x - l.x) ** 2 + (c.z - l.z) ** 2
         if (!best || d < best.d) best = { d, c }
       }
-      const yaw = best ? Math.atan2(best.c.x - l.x, best.c.z - l.z) : 0
+      // (a T arm runs along its gap: l.arm)
+      const yaw = l.arm ? Math.atan2(-l.arm[1], l.arm[0]) : best ? Math.atan2(best.c.x - l.x, best.c.z - l.z) : 0
       m4.compose(v1.set(l.x, POLE_H, l.z), q.setFromEuler(new THREE.Euler(0, yaw, 0)), v2.set(1, 1, 1))
       lamps.setMatrixAt(i, m4)
       lenses?.setMatrixAt(i, m4)

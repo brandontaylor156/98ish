@@ -624,3 +624,141 @@ test("every venue's stairs climb to a deck you can walk on (Newport's terrace, S
   }
   setLayout(get("loscab").L)
 })
+
+// ---------- fidelity round (2026-10-08): fences, partitions and surroundings from the owner's photos ----------
+const sceneOf = (id) => venueLayoutSpec(spec(id)).scene
+// a court's centre in its row's frame: along (u, its long axis) and across (w)
+const segDist = (p, a, b) => {
+  const [ax, az] = a
+  const [bx, bz] = b
+  const L2 = (bx - ax) ** 2 + (bz - az) ** 2 || 1
+  const t = Math.max(0, Math.min(1, ((p.x - ax) * (bx - ax) + (p.z - az) * (bz - az)) / L2))
+  return Math.hypot(p.x - (ax + (bx - ax) * t), p.z - (az + (bz - az) * t))
+}
+// does a fence run between two courts (crossing the segment between their centres)?
+const between = (f, A, B) => {
+  const [ax, az] = f.a
+  const [bx, bz] = f.b
+  const cross = (px, pz, qx, qz, rx, rz) => (qx - px) * (rz - pz) - (qz - pz) * (rx - px)
+  const d1 = cross(ax, az, bx, bz, A.x, A.z)
+  const d2 = cross(ax, az, bx, bz, B.x, B.z)
+  const d3 = cross(A.x, A.z, B.x, B.z, ax, az)
+  const d4 = cross(A.x, A.z, B.x, B.z, bx, bz)
+  return d1 * d2 < 0 && d3 * d4 < 0
+}
+
+test("partitions court by court: Bouquet's cross, Los Cab's between the pairs (the owner's photos)", () => {
+  // Bouquet: courts 1-4 north row west to east, 5-8 south row (spec order after the basketball court)
+  const bq = spec("bouquet")
+  const S = sceneOf("bouquet")
+  const pb = bq.courts.filter((c) => c.s === "p").map((c) => ({ x: c.x, z: c.z }))
+  const low = S.fences.filter((f) => f.t === "low")
+  assert.equal(low.length, 2, "two low partitions: across the pen and down its middle")
+  const parted = (i, j) => low.some((f) => between(f, pb[i], pb[j]))
+  // across: every north court from the court behind it
+  for (let k = 0; k < 4; k++) assert.ok(parted(k, k + 4), `Bouquet court ${k + 1} | ${k + 5}`)
+  // down the middle: between the two old tennis courts only
+  assert.ok(parted(1, 2) && parted(5, 6), "Bouquet 2|3 and 6|7")
+  for (const [i, j] of [[0, 1], [2, 3], [4, 5], [6, 7]]) assert.ok(!parted(i, j), `Bouquet ${i + 1}|${j + 1}: no partition inside an old tennis court`)
+  for (const f of low) assert.equal(f.h, 1.52)
+
+  // Los Cab: in each row of the village, a partition between neighbours more than 2.8 m apart
+  // (the pairs), none inside a pair
+  const lc = spec("loscab")
+  const L = sceneOf("loscab")
+  const parts = L.fences.filter((f) => f.t === "pair" && Array.isArray(f.part))
+  const village = lc.courts.map((c, i) => ({ ...c, i })).filter((c) => c.s === "p" && c.z < 40 && c.z > -40)
+  const rows = new Map()
+  for (const c of village) {
+    const k = Math.round(c.z / 6)
+    if (!rows.has(k)) rows.set(k, [])
+    rows.get(k).push(c)
+  }
+  let checked = 0
+  for (const row of rows.values()) {
+    if (row.length < 4) continue
+    row.sort((a, b) => a.x - b.x)
+    for (let k = 0; k + 1 < row.length; k++) {
+      const gap = row[k + 1].x - row[k].x - 6.1
+      const has = parts.some((f) => between(f, row[k], row[k + 1]))
+      if (gap > 2.8 && gap < 8) assert.ok(has, `Los Cab: courts at x ${row[k].x} | ${row[k + 1].x} (gap ${gap.toFixed(1)} m) have a partition`)
+      if (gap <= 2.8) assert.ok(!has, `Los Cab: no partition inside the pair at x ${row[k].x} | ${row[k + 1].x}`)
+      checked++
+    }
+  }
+  assert.ok(checked >= 20, `${checked} neighbours checked`)
+  assert.equal(parts.length, 14, "two in the west block, twelve in the east block")
+  // the centre aisle's portable net, one per block
+  assert.equal(L.fences.filter((f) => f.t === "aisle").length, 2)
+})
+
+test("fence heights per type: Bouquet 3.66 m windscreened (east side bare), 1.52 m partitions; Los Cab 1.2 m capped and curbed, 3 m tall sides", () => {
+  const S = sceneOf("bouquet")
+  const T = S.fence.types
+  assert.equal(T.tall.h, 3.66)
+  assert.ok(T.tall.screen && T.tall.screen.y0 > 0.1 && Math.abs(T.tall.screen.y1 - 3.0) < 0.01, "windscreen 0.15-3.0 m")
+  assert.ok(!T.east.screen, "the east side is bare chain-link (the lot shows through)")
+  assert.equal(T.low.h, 1.52)
+  assert.ok(T.low.rails.some((y) => y > 0.6 && y < 0.9), "a mid rail")
+  const per = S.fences.filter((f) => f.k === "chain" && !f.part && f.t)
+  assert.equal(per.filter((f) => f.t === "tall").length, 3, "three windscreened sides")
+  assert.equal(per.filter((f) => f.t === "east").length, 1, "one bare side")
+  for (const f of per) assert.equal(f.h, T[f.t].h)
+  // the pen: a standard double tennis enclosure, 36.6 m square
+  const bank = S.banks.find((b) => b.s === "p")
+  assert.ok(Math.abs(2 * bank.hx - 36.6) < 0.2 && Math.abs(2 * bank.hz - 36.6) < 0.2, `pen ${(2 * bank.hx).toFixed(1)} x ${(2 * bank.hz).toFixed(1)}`)
+  // the shade alcove's opening in the west fence
+  assert.ok(per.some((f) => f.opens?.length && Math.abs(f.opens[0].w - 6.4) < 0.01))
+
+  const L = sceneOf("loscab")
+  const P = L.fence.types.pair
+  assert.equal(P.h, 1.2)
+  assert.ok(P.cap && P.cap.color && P.curb && Math.abs(P.curb.h - 0.28) < 0.01, "green cap and a 0.28 m curb")
+  assert.equal(L.fence.types.tall.h, 3)
+  const vill = L.fences.filter((f) => f.k === "chain" && !f.part && f.t)
+  assert.equal(vill.filter((f) => f.t === "pair").length, 4, "the north sides and the walkway ends are low")
+  assert.ok(vill.filter((f) => f.t === "tall").length >= 4)
+  // the T-arm poles in every gap, along it
+  const lights = venueLayoutSpec(spec("loscab")).lights
+  assert.ok(lights.length > 60 && lights.every((l) => l.arm), `${lights.length} gap poles with arms`)
+  // other venues keep their untyped fences
+  for (const id of ["newport", "whittier", "paseo", "sinaloa"]) assert.ok(sceneOf(id).fences.every((f) => !f.t), `${id} untyped`)
+})
+
+test("surroundings: real heights, roofs read off the aerial, Bouquet's hillside from the terrain, Los Cab's bridges and power lines", () => {
+  const bq = spec("bouquet").surround
+  assert.ok(bq.buildings.length >= 250, `${bq.buildings.length} buildings round Bouquet`)
+  const mapped = bq.buildings.filter((b) => !b.g)
+  assert.ok(mapped.length / bq.buildings.length > 0.98, `${mapped.length} with mapped heights`)
+  assert.ok(bq.buildings.every((b) => b.h > 2 && b.h < 30))
+  const hips = bq.buildings.filter((b) => b.r === "hip")
+  assert.ok(hips.length > 100 && hips.every((b) => b.rise > 0 && b.rise <= 3 && /^#[0-9a-f]{6}$/.test(b.rc)), `${hips.length} hip roofs`)
+  const lc = spec("loscab").surround
+  assert.ok(lc.buildings.length >= 180, `${lc.buildings.length} buildings round Los Cab`)
+  assert.ok(lc.buildings.filter((b) => !b.g).length >= 180)
+  assert.ok(lc.buildings.filter((b) => !b.r).length > 50, "the industrial blocks stay flat")
+  assert.equal(lc.roads.filter((r) => r.bridge).length, 4, "Warner Ave and Harbor Blvd bridges (OSM)")
+  assert.ok(lc.power?.length >= 3 && lc.power.every((p) => p.p.length >= 2), "the 66 kV lines along the river (OSM)")
+  // the terrain: the hills north of Bouquet rise 20 m+ within 300 m; Los Cab has none
+  const T = spec("bouquet").terrain
+  assert.ok(T && T.n * T.n === T.h.length)
+  const at = (x, z) => T.h[Math.round((z + T.r) / T.step) * T.n + Math.round((x + T.r) / T.step)] / 10
+  assert.ok(at(0, -300) > 20, `north hill ${at(0, -300)} m`)
+  assert.ok(Math.abs(at(0, 0)) < 1)
+  assert.ok(!spec("loscab").terrain)
+  // the other venues' surroundings are untouched (no roofs, bridges or power read in)
+  for (const id of ["newport", "whittier", "paseo", "sinaloa", "smash", "wolfbear"]) {
+    const su = spec(id).surround
+    assert.ok(!su.buildings.some((b) => b.r || b.rc) && !su.power && !(su.roads || []).some((r) => r.bridge), `${id} unchanged`)
+  }
+})
+
+test("terrain sampler: flat inside the crop, the real height beyond the blend", async () => {
+  const { terrainSampler } = await import("./surround.js")
+  const T = { r: 30, step: 15, n: 5, h: Array(25).fill(100) }
+  const g = terrainSampler(T, { x0: -5, x1: 5, z0: -5, z1: 5 }, 10)
+  assert.equal(g(0, 0), 0)
+  assert.equal(g(5, 0), 0)
+  assert.ok(Math.abs(g(25, 0) - 10) < 1e-9)
+  assert.ok(g(10, 0) > 0 && g(10, 0) < 10)
+})

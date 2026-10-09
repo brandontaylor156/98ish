@@ -362,7 +362,7 @@ export const generateVenue = (spec, opts = {}) => {
     // under the high end: solid for the people on the ground (low enough for those on the steps)
     const under = add(a, u, L * 0.675)
     extraBoxes.push({ cx: round(under.x), cz: round(under.z), hx: round(L * 0.325), hz: round(w / 2), ux: u.x, uz: u.z, h: round(y0 + (y1 - y0) * 0.35), kind: "stairs" })
-    return { a, b, w, y0, y1, color: s.color || null, rail: s.rail || null }
+    return { a, b, w, y0, y1, color: s.color || null, rail: s.rail || null, ...(s.open ? { open: true } : {}) }
   })
   const decks = (spec.decks || []).map((d) => {
     const p = d.p
@@ -381,7 +381,7 @@ export const generateVenue = (spec, opts = {}) => {
       const zs = p.map((q) => q[1])
       extraBoxes.push({ cx: round((Math.min(...xs) + Math.max(...xs)) / 2), cz: round((Math.min(...zs) + Math.max(...zs)) / 2), hx: round((Math.max(...xs) - Math.min(...xs)) / 2), hz: round((Math.max(...zs) - Math.min(...zs)) / 2), ux: 1, uz: 0, y0: round(d.y - 0.3), h: d.y, kind: "deck" })
     }
-    return { y: d.y, p, name: d.name || null, rail: d.rail !== false, railColor: d.railColor || null, slab: !!d.slab, color: d.color || null, openings: deckOpenings }
+    return { y: d.y, p, name: d.name || null, rail: d.rail !== false, railColor: d.railColor || null, slab: !!d.slab, color: d.color || null, openings: deckOpenings, ...(d.fascia ? { fascia: d.fascia, railStyle: d.railStyle || null, postColor: d.postColor || null, postEvery: d.postEvery || null } : {}) }
   })
   // props: the rooms' furniture and the venue's own (outdoors), solid ones bumped into
   const venueProps = (spec.props || []).filter((pr) => pr && pr.t)
@@ -738,7 +738,39 @@ export const generateVenue = (spec, opts = {}) => {
   // ---------- light poles (outdoors, when the courts are lit) ----------
   const lights = []
   const every = spec.fence?.lightEvery || 18
-  if (!indoor && spec.lit) {
+  if (!indoor && spec.lit && spec.fence?.lightsAt === "gaps") {
+    // (Los Cab, the owner's drone photo: a pole in every gap between side-by-side courts and
+    // outside each row's end courts, two along each gap, ±lightAlong from the row's middle; the
+    // T arm runs along the gap)
+    const along = spec.fence?.lightAlong ?? 4.5
+    for (const bank of banks) {
+      if (bank.s !== "p") continue
+      const u = { x: bank.box.ux, z: bank.box.uz }
+      const w = { x: -u.z, z: u.x }
+      const rows = new Map()
+      for (const c of bank.courts) {
+        const k = Math.round(dot(c, u) / 3)
+        if (!rows.has(k)) rows.set(k, [])
+        rows.get(k).push(c)
+      }
+      for (const row of rows.values()) {
+        row.sort((a, b) => dot(a, w) - dot(b, w))
+        const cu = row.reduce((s, c) => s + dot(c, u), 0) / row.length
+        const lines = []
+        row.forEach((c, i) => {
+          const cw = dot(c, w)
+          if (i === 0) lines.push(cw - c.W / 2 - Math.min(0.9, bank.room.w / 2))
+          if (i + 1 < row.length) lines.push((cw + dot(row[i + 1], w)) / 2)
+          else lines.push(cw + c.W / 2 + Math.min(0.9, bank.room.w / 2))
+        })
+        for (const lw of lines)
+          for (const s of [-1, 1]) {
+            const p = { x: u.x * (cu + s * along) + w.x * lw, z: u.z * (cu + s * along) + w.z * lw }
+            if (lights.length < 160) lights.push({ x: round(p.x), z: round(p.z), arm: [round(u.x), round(u.z)] })
+          }
+      }
+    }
+  } else if (!indoor && spec.lit) {
     for (const bank of banks) {
       const B = bank.box
       const u = { x: B.ux, z: B.uz }
@@ -752,6 +784,9 @@ export const generateVenue = (spec, opts = {}) => {
         }
     }
   }
+
+  // (poles placed by hand, from photos: fence.lights)
+  if (!indoor) for (const l of spec.fence?.lights || []) lights.push({ x: l.x, z: l.z, ...(l.heads ? { heads: l.heads } : {}) })
 
   // ---------- trees: solid if they're in the walkable part ----------
   const trees = (spec.trees || [])
@@ -969,6 +1004,22 @@ export const generateVenue = (spec, opts = {}) => {
     gatesOn.get(bank).push(g)
   }
   const fences = []
+  // fence types measured at a venue (fence.types: { name: { h, ... } }, drawn by build.js
+  // fenceSide): the pens' perimeter (fence.perimeter, or fence.sides: the side nearest a point),
+  // partitions placed by hand (fence.partitions) or between the pairs of courts
+  // (fence.pairDividers). Venues without types build as before.
+  const types = spec.fence?.types || null
+  const typeH = (t) => types?.[t]?.h ?? fenceH
+  const sideType = (a, b) => {
+    for (const s of spec.fence?.sides || []) {
+      const ab = sub(b, a)
+      const L = len(ab) || 1
+      const t = dot(sub(s, a), ab) / (L * L)
+      const off = Math.abs((s.x - a.x) * ab.z - (s.z - a.z) * ab.x) / L
+      if (t > -0.05 && t < 1.05 && off < 4) return s.t
+    }
+    return spec.fence?.perimeter || null
+  }
   if (style !== "none") {
     // (fence.chamfer: the pens' corners cut at 45 degrees, legs this long, as the aerials show
     // at Whittier Narrows and the Paseo Club; a pen too small for it keeps square corners)
@@ -993,7 +1044,16 @@ export const generateVenue = (spec, opts = {}) => {
             return off < 0.2 && t > 0 && t < 1 ? t * L : null
           })
           .filter((t) => t !== null)
-        fences.push({ a: [round(a.x), round(a.z)], b: [round(b.x), round(b.z)], h: fenceH, k: "chain", gates })
+        const ft = types && bank.s === "p" ? sideType(a0, b0) : null
+        // (fence.openings: a gap in the pen's fence with no gate, e.g. into a shade alcove)
+        const opens = (spec.fence?.openings || [])
+          .map((o) => {
+            const t = dot(sub(o, a), ab) / (L * L)
+            const off = Math.abs((o.x - a.x) * ab.z - (o.z - a.z) * ab.x) / L
+            return off < 1 && t > 0 && t < 1 ? { at: round(t * L), w: o.w } : null
+          })
+          .filter(Boolean)
+        fences.push({ a: [round(a.x), round(a.z)], b: [round(b.x), round(b.z)], h: ft ? typeH(ft) : fenceH, k: "chain", gates, ...(ft ? { t: ft } : {}), ...(opens.length ? { opens } : {}) })
         if (c) {
           // the cut corner: from this side's end to the next side's start
           const n0 = cs[(k + 2) % 4]
@@ -1001,6 +1061,38 @@ export const generateVenue = (spec, opts = {}) => {
           const nb = add(b0, { x: (n0.x - b0.x) / L1, z: (n0.z - b0.z) / L1 }, c)
           fences.push({ a: [round(b.x), round(b.z)], b: [round(nb.x), round(nb.z)], h: fenceH, k: "chain", gates: [] })
         }
+      }
+      // partitions between the pairs of courts (fence.pairDividers: { t, gap, reach }): between
+      // side-by-side neighbours whose sidelines are more than `gap` m apart (a pair's two courts
+      // stand closer and share no partition), from the pen's fence at a row's outer end to
+      // `reach` m past the baseline on the aisle side
+      const pd = spec.fence?.pairDividers
+      // (pd.only: just the banks holding one of these points, e.g. the village's two blocks)
+      if (pd && bank.s === "p" && (!pd.only || pd.only.some((p) => inBox(bank.box, p)))) {
+        const u = { x: bank.box.ux, z: bank.box.uz }
+        const cu0 = dot({ x: bank.box.cx, z: bank.box.cz }, u)
+        const [u0, u1] = [cu0 - bank.box.hx, cu0 + bank.box.hx]
+        const list = bank.courts
+        for (let i = 0; i < list.length; i++)
+          for (let j = i + 1; j < list.length; j++) {
+            const A = list[i]
+            const Bc = list[j]
+            const d = sub(Bc, A)
+            const across = Math.abs(dot(d, A.w))
+            if (Math.abs(dot(d, u)) > 1 || across - A.W > A.W + 2.5) continue
+            // (the nearest neighbour across only: no court between them)
+            if (list.some((C) => C !== A && C !== Bc && Math.abs(dot(sub(C, A), u)) < 1 && dot(sub(C, A), A.w) * dot(d, A.w) > 0 && Math.abs(dot(sub(C, A), A.w)) < across)) continue
+            if (across - A.W <= (pd.gap ?? 2.8)) continue
+            const m = add(A, d, 0.5)
+            const cu = dot(A, u)
+            const reach = pd.reach ?? bank.room.u
+            const lo = cu - A.L / 2 - bank.room.u - 0.5 <= u0 ? u0 : cu - A.L / 2 - reach
+            const hi = cu + A.L / 2 + bank.room.u + 0.5 >= u1 ? u1 : cu + A.L / 2 + reach
+            const mu = dot(m, u)
+            const pa = add(m, u, lo - mu)
+            const pb = add(m, u, hi - mu)
+            fences.push({ a: [round(pa.x), round(pa.z)], b: [round(pb.x), round(pb.z)], h: typeH(pd.t), k: "chain", gates: [], t: pd.t, part: [A.i, Bc.i] })
+          }
       }
       // dividers between neighbouring courts (tennis: full fences; pickleball: low windscreens)
       const div = spec.fence?.dividers ?? (bank.s === "t" ? "fence" : "low")
@@ -1043,6 +1135,8 @@ export const generateVenue = (spec, opts = {}) => {
         }
     })
   }
+  // partitions placed by hand (from the aerial and photos): fence.partitions [{ a, b, t }]
+  for (const p of spec.fence?.partitions || []) fences.push({ a: p.a, b: p.b, h: typeH(p.t), k: "chain", gates: [], t: p.t, part: "hand" })
   for (const f of spec.fences || []) {
     const pts = f.p.map(([x, z]) => ({ x, z }))
     const nearBank = pts.some((p) => banks.some((b) => inBox(b.box, p, 4)))
@@ -1088,6 +1182,7 @@ export const generateVenue = (spec, opts = {}) => {
       // the real surroundings and skyline (tools/venues/surround.mjs, horizon.py; docs/venue-provenance.md)
       surround: spec.surround || null,
       horizon: spec.horizon || null,
+      ...(spec.terrain ? { terrain: spec.terrain } : {}),
       light: spec.light || null,
       groundStyle: spec.groundStyle || null,
       palettes: spec.palettes || [],

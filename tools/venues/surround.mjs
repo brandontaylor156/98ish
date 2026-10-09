@@ -56,7 +56,7 @@ const areaKind = (t) => {
 // paint order: big base areas first, details on top
 const AREA_ORDER = ["grass", "golf", "scrub", "wood", "sand", "pitch", "fairway", "green", "bunker", "water"]
 
-export const buildSurround = ({ id, proj, sh, box, cropIds, defaultTree = "broadleaf" }) => {
+export const buildSurround = ({ id, proj, sh, box, cropIds, defaultTree = "broadleaf", bridges = false }) => {
   const file = path.join(path.dirname(fileURLToPath(import.meta.url)), "osm", `${id}.surround.json`)
   if (!fs.existsSync(file)) return null
   const raw = JSON.parse(fs.readFileSync(file, "utf8"))
@@ -102,7 +102,7 @@ export const buildSurround = ({ id, proj, sh, box, cropIds, defaultTree = "broad
     }
     if (t.highway && e.g) {
       const pts = e.g.map(proj.xz).map(sh)
-      if (near(pts)) out.roads.push({ k: t.highway, w: ROADS[t.highway] || 8, p: pr(simplify(pts, 0.8)) })
+      if (near(pts)) out.roads.push({ k: t.highway, w: ROADS[t.highway] || 8, p: pr(simplify(pts, 0.8)), ...(bridges && t.bridge && t.bridge !== "no" ? { bridge: 1, layer: +t.layer || 1 } : {}) })
       continue
     }
     const k = areaKind(t)
@@ -111,6 +111,34 @@ export const buildSurround = ({ id, proj, sh, box, cropIds, defaultTree = "broad
         if (ring.length < 3 || !near(ring)) continue
         out.areas.push({ k, p: pr(simplify(ring, 1)) })
       }
+  }
+  // roofs read off the aerial (surround-roofs.py): colour, and hip roofs where the two slopes show
+  const roofFile = path.join(path.dirname(fileURLToPath(import.meta.url)), "surround-roofs", `${id}.json`)
+  if (fs.existsSync(roofFile)) {
+    const roofs = JSON.parse(fs.readFileSync(roofFile, "utf8")).roofs
+    for (const b of out.buildings) {
+      const r = roofs[`${b.p[0][0]},${b.p[0][1]}`]
+      if (!r) continue
+      b.rc = r.rc
+      if (r.r) (b.r = r.r), (b.rise = r.rise)
+    }
+  }
+  // power lines (OSM power=line, osm/<id>.power.json): the wires between the mapped vertices
+  // (each vertex a pole or tower); OSM has no heights here: 20 m (flagged, g: 1)
+  const powerFile = path.join(path.dirname(fileURLToPath(import.meta.url)), "osm", `${id}.power.json`)
+  if (fs.existsSync(powerFile)) {
+    const pw = JSON.parse(fs.readFileSync(powerFile, "utf8"))
+    out.power = []
+    for (const e of pw.elements) {
+      if (e.type !== "way" || e.tags.power !== "line" || !e.geometry) continue
+      const pts = e.geometry.map((g) => sh(proj.xz([g.lat, g.lon])))
+      if (!near(pts) || pts.length < 2) continue
+      // (a substation's short busbars are skipped: only spans longer than 30 m)
+      const L = pts.slice(1).reduce((s, q, i) => s + Math.hypot(q[0] - pts[i][0], q[1] - pts[i][1]), 0)
+      if (L < 60) continue
+      out.power.push({ p: pr(pts), h: 20, g: 1 })
+    }
+    if (!out.power.length) delete out.power
   }
   out.areas.sort((a, b) => AREA_ORDER.indexOf(a.k) - AREA_ORDER.indexOf(b.k))
   for (const k of Object.keys(out)) if (!out[k].length) delete out[k]
