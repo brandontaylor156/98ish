@@ -56,6 +56,7 @@ const TIPS = {
     "Type a place or an address, pick it, then press Directions. Drive, Walk or Bike, with every turn written out.",
     "Touch and hold the map to drop a pin. For spoken directions with the screen off, press Open in Apple Maps.",
   ],
+  "Scanner 98": ["Lay a page on something darker, wait for the blue outline, then press Scan. Drag any corner that's off, then Keep Scan.", "Scan every page, pick Color, Grayscale or Black & white, then Save PDF. It opens in PDF Viewer, or Send to My Phone."],
   "Snipping Tool": ["New snip, then drag a box over anything in 98ish. Pick Window to snip one window, or Full screen for everything.", "Mark it up with the pen or highlighter, crop it, then Save, Copy or Send to My Phone. Ctrl+Shift+S snips from anywhere."],
   "PDF Viewer": ["Open any PDF on drive C: and it shows here, page by page. Upload from Phone brings PDFs in as they are.", "Send To > My Phone hands the PDF to your phone's own apps: Books, Files, or print it."],
   "Buddy Locator": ["Share My Location picks one buddy and how long: an hour, the rest of the day, or until you stop. Nobody else sees a thing.", "Name a place like Home or the courts, pick a buddy, and press Notify Me... to hear when they get there."],

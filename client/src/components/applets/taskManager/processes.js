@@ -21,6 +21,7 @@ export const APP_PROFILES = {
   "Buddy Locator": { image: "locator.exe", mem: 18432, threads: 12, handles: 214, cpu: [0.7, 14] },
   "Maps 98": { image: "maps98.exe", mem: 21504, threads: 12, handles: 230, cpu: [0.6, 16] },
   "PDF Viewer": { image: "pdfview.exe", mem: 16384, threads: 7, handles: 150, cpu: [0.4, 14] },
+  "Scanner 98": { image: "scanner98.exe", mem: 12288, threads: 6, handles: 128, cpu: [0.4, 18] },
   "Snipping Tool": { image: "snippingtool.exe", mem: 6144, threads: 4, handles: 96, cpu: [0.1, 9] },
   "Watch Together": { image: "together.exe", mem: 8340, threads: 10, handles: 152, cpu: [0.8, 10] },
   "Internet Explorer": { image: "iexplore.exe", mem: 14872, threads: 11, handles: 296, cpu: [0.8, 9] },
