@@ -117,6 +117,12 @@
     left: 0;
     right: 42%;
   }
+  /* (sideways: the tip up top, clear of your player) */
+  .pkAct.is-touch:not(.pkAct--workout) .pkActTip {
+    top: 12px;
+    bottom: auto;
+    max-width: 44%;
+  }
 }
 
 .pkActTip {
