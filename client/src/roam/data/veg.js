@@ -28,9 +28,28 @@ const TREE_LUM = 92 // a crown from above is darker than this in natural colour
 
 export const ndviOf = (nir, red) => (nir - red) / (nir + red + 1)
 
-// one pixel: nir, red, green (0-255), the NIR's local spread, and its natural colour (r, g, b)
-export const classifyPixel = (nir, red, green, spread, r = red, g = green, b = green) => {
+// is a crown d metres from a road's line standing on its lanes? A wide two-way road (14 m+) keeps
+// the trees on its outer verge (the last 1.5 m: OSM's widths often take in the parkway strip the
+// street trees stand in) and in its median (within 1.5 m of the line: the aerial only shows a
+// crown there when there is a planted median, Valencia's boulevards; the traffic's lanes start
+// 2.6 m out). margin: added to the road's half width.
+export const onLanes = (r, d, oneway = false, margin = 0) => {
+  if (d >= r.width / 2 + margin) return false
+  if (!oneway && r.width >= 14 && (d < 1.5 || d > r.width / 2 - 1.5)) return false
+  return true
+}
+
+// a young street tree or a grey-green one (elms, olives, ficus kept small): only weakly green in
+// NIR at 1.2 m, but dark and green from above and not bright in NIR the way a lawn is. Checked
+// against Valencia's Town Center, where these line every street. Only among paving (the hills'
+// dark chaparral looks the same from above and is scrub, not trees: classifyImage's urban test)
+export const youngTree = (nir, red, r, g, b) => ndviOf(nir, red) > 0.12 && (r + g + b) / 3 < 108 && nir < 165 && g >= r + 5 && g >= b + 5
+
+// one pixel: nir, red, green (0-255), the NIR's local spread, its natural colour (r, g, b), and
+// whether it stands among paving (a town's street, not the hills)
+export const classifyPixel = (nir, red, green, spread, r = red, g = green, b = green, urban = true) => {
   const v = ndviOf(nir, red)
+  if (urban && youngTree(nir, red, r, g, b)) return VEG.canopy
   // (a crown: strongly green and lumpy or shaded; the hills' chaparral is only weakly green and
   // reads as dry scrub, not trees)
   // (from above a crown is dark: its own shade between the leaves; a watered lawn is a light,
@@ -64,6 +83,19 @@ export const classifyImage = ({ cir, rgb = null, w, h }) => {
     }
   }
   const box = (A, x0, y0, x1, y1) => A[y1 * (w + 1) + x1] - A[y0 * (w + 1) + x1] - A[y1 * (w + 1) + x0] + A[y0 * (w + 1) + x0]
+  // (paving round a pixel: grey, no plants; a street tree stands among it, the hills' scrub doesn't)
+  const PV = new Float64Array((w + 1) * (h + 1))
+  for (let y = 0; y < h; y++) {
+    let a = 0
+    for (let x = 0; x < w; x++) {
+      const i = (y * w + x) * 3
+      const r = rgb ? rgb[i] : cir[i + 1]
+      const g = rgb ? rgb[i + 1] : cir[i + 2]
+      const b = rgb ? rgb[i + 2] : cir[i + 2]
+      if (ndviOf(cir[i], cir[i + 1]) < 0.06 && Math.abs(r - b) < 22 && (r + g + b) / 3 > 60) a++
+      PV[(y + 1) * (w + 1) + x + 1] = PV[y * (w + 1) + x + 1] + a
+    }
+  }
   for (let y = 0; y < h; y++)
     for (let x = 0; x < w; x++) {
       const x0 = Math.max(0, x - 2)
@@ -75,7 +107,12 @@ export const classifyImage = ({ cir, rgb = null, w, h }) => {
       const spread = Math.sqrt(Math.max(0, box(S2, x0, y0, x1, y1) / c - m * m))
       const i = (y * w + x) * 3
       const sp = spread
-      out[y * w + x] = rgb ? classifyPixel(cir[i], cir[i + 1], cir[i + 2], sp, rgb[i], rgb[i + 1], rgb[i + 2]) : classifyPixel(cir[i], cir[i + 1], cir[i + 2], sp)
+      const ux0 = Math.max(0, x - 6)
+      const uy0 = Math.max(0, y - 6)
+      const ux1 = Math.min(w, x + 7)
+      const uy1 = Math.min(h, y + 7)
+      const urban = box(PV, ux0, uy0, ux1, uy1) / ((ux1 - ux0) * (uy1 - uy0)) >= 0.15
+      out[y * w + x] = rgb ? classifyPixel(cir[i], cir[i + 1], cir[i + 2], sp, rgb[i], rgb[i + 1], rgb[i + 2], urban) : classifyPixel(cir[i], cir[i + 1], cir[i + 2], sp, cir[i + 1], cir[i + 2], cir[i + 2], urban)
     }
   // (a crown's sunlit lumps: green with canopy on three sides is canopy too)
   const fill = []

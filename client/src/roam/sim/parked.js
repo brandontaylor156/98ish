@@ -3,12 +3,14 @@
 //
 // Where: in the mapped parking lots (rows of stalls along the lot's longest side, about a
 // third of them taken) and at the curb of residential streets (now and then). A modest count:
-// up to 48 in a lot (spread over it, at most 40% of its stalls), 110 a tile. Never in a building, never on top of another car.
+// up to 80 in a lot (spread over it, at most 68% of its stalls), 170 a tile. Never in a building, never on top of another car.
 
 import { AREA, DRIVABLE, ROAD } from "../data/tile.js"
 
-export const MAX_PER_TILE = 110
-export const MAX_PER_LOT = 48
+export const MAX_PER_TILE = 170
+export const MAX_PER_LOT = 80
+// the least gap between two cars parked side by side in a lot (stalls are STALL_W apart)
+export const LOT_GAP = 2.3
 // what stands parked round here: mostly SUVs, then sedans, pickups and hatchbacks
 const MODEL_MIX = ["suv", "suv", "suv", "suv", "sedan", "sedan", "sedan", "pickup", "pickup", "hatch"]
 // original paint colors (white, silver, black, grey, the odd red/blue/pearl/green)
@@ -111,6 +113,7 @@ export const parkedCars = (tile) => {
   const out = []
   const blds = tile.buildings.filter((b) => b.ring.length >= 3)
   const drive = tile.roads.filter((r) => DRIVABLE.has(r.cls))
+  const trees = [...(tile.trees || []), ...(tile.vegTrees || []).filter((q) => q.r >= 2.2)]
   // (off every other road's lanes: not across a side street or a lot's aisle)
   const offRoads = (x, z, own) => {
     for (const r of drive) {
@@ -127,9 +130,12 @@ export const parkedCars = (tile) => {
     }
     return true
   }
-  const clearOf = (x, z, own = null) => {
+  // (cars side by side in a lot's stalls are a stall apart; anything else keeps 4.6 m)
+  const clearOf = (x, z, own = null, lot = false) => {
     for (const b of blds) if (inRing(b.ring, x, z) || edgeDist(b.ring, x, z) < 2.6) return false
-    for (const c of out) if (Math.hypot(c.x - x, c.z - z) < 4.6) return false
+    for (const c of out) if (Math.hypot(c.x - x, c.z - z) < (lot && c.src === "lot" ? LOT_GAP : 4.6)) return false
+    // (not in a lot tree's planter island: the aerial's crowns and the map's trees)
+    if (lot) for (const q of trees) if (Math.abs(q.x - x) < 2.6 && Math.abs(q.z - z) < 2.6 && Math.hypot(q.x - x, q.z - z) < 2.4) return false
     return offRoads(x, z, own)
   }
   const add = (x, z, yaw, src) => {
@@ -144,11 +150,13 @@ export const parkedCars = (tile) => {
     let n = 0
     const stalls = lotStalls(r)
     // (spread over the whole lot: a big lot gets its share all over, not just its first rows)
-    const take = Math.min(0.4, MAX_PER_LOT / Math.max(1, stalls.length))
+    // (most stalls taken, the way the owner's photo of a Valencia business park shows them:
+    // a lot is mostly full on a weekday)
+    const take = Math.min(0.68, MAX_PER_LOT / Math.max(1, stalls.length))
     for (const st of stalls) {
       if (n >= MAX_PER_LOT || out.length >= MAX_PER_TILE) break
       if (rand() > take) continue
-      if (!clearOf(st.x, st.z)) continue
+      if (!clearOf(st.x, st.z, null, true)) continue
       add(st.x, st.z, st.yaw, "lot")
       n++
     }

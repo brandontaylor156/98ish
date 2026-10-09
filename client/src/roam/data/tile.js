@@ -62,7 +62,7 @@ export const DRIVABLE = new Set(["motorway", "trunk", "primary", "secondary", "t
 export const FOOT = new Set(["pedestrian", "footway", "path", "cycleway", "steps", "track"].map((n) => ROAD[n]))
 export const F = { oneway: 1, bridge: 2, tunnel: 4, walkL: 8, walkR: 16, lit: 32, sidewalk: 64 }
 
-export const AREA_CLASSES = ["res", "com", "ind", "farm", "dirt", "dry", "scrub", "grass", "park", "wood", "cemetery", "school", "sand", "golf", "golfgreen", "parking", "plaza", "pitch", "track", "playground", "water", "pool"]
+export const AREA_CLASSES = ["res", "com", "ind", "farm", "dirt", "dry", "scrub", "grass", "park", "wood", "cemetery", "school", "sand", "golf", "golfgreen", "parking", "plaza", "pitch", "track", "playground", "water", "pool", "wash"]
 export const AREA = Object.fromEntries(AREA_CLASSES.map((n, i) => [n, i]))
 
 // what stands at a street node (the map's highway=street_lamp / traffic_signals / stop)
@@ -127,10 +127,15 @@ export const roadFlags = (t) => {
   return f
 }
 
+// water that's dry most of the year: tagged intermittent or seasonal (an intermittent river, a
+// wash, a debris or retention basin; never a pool). In Southern California that's sand, gravel
+// and scrub, not a blue lake (the Santa Clara River is mapped as natural=water, intermittent)
+export const isWash = (t) => (t.natural === "water" || t.waterway === "riverbank" || t.landuse === "basin" || t.landuse === "reservoir") && (t.intermittent === "yes" || t.seasonal === "yes") && t.leisure !== "swimming_pool" && t.water !== "pool"
 export const areaClassOf = (t) => {
+  if (isWash(t)) return AREA.wash
   if (t.building) return -1
-  if (t.natural === "water" || t.waterway === "riverbank" || t.landuse === "reservoir" || t.landuse === "basin") return AREA.water
   if (t.leisure === "swimming_pool") return AREA.pool
+  if (t.natural === "water" || t.waterway === "riverbank" || t.landuse === "reservoir" || t.landuse === "basin") return AREA.water
   if (t.amenity === "parking" && t.parking !== "underground" && t.parking !== "multi-storey" && t.location !== "underground") return AREA.parking
   if (t.golf === "green" || t.golf === "tee") return AREA.golfgreen
   if (t.golf === "fairway") return AREA.golf

@@ -3,9 +3,13 @@
 // for the mesh and the trees; the painting needs a 2D canvas (the browser).
 
 import { AREA, BUILDING_KINDS, DRIVABLE, F, ROAD, isHouse } from "../data/tile.js"
-import { APRON, AREA_COLORS, BASE, RES_WITH_VEG, ROAD_ORDER, ROAD_PAINT, SEA, SIDEWALK, VEG_PAINT, YARD, areaColor } from "./paint.js"
+import { APRON, AREA_COLORS, BASE, RES_WITH_VEG, ROAD_ORDER, ROAD_PAINT, SEA, SIDEWALK, TRICKLE, VEG_PAINT, WASH_DAMP, WASH_SAND, YARD, areaColor } from "./paint.js"
 import { hashStr, rng } from "../sim/parked.js"
-import { SHRUB_R } from "../data/veg.js"
+import { SHRUB_R, onLanes } from "../data/veg.js"
+import { orientedBox } from "./buildings.js"
+
+// land where trees are a park's or a school's (a mix with oaks and pines)
+const GREENS = new Set([AREA.park, AREA.school, AREA.golf, AREA.cemetery, AREA.grass, AREA.pitch])
 
 // the lattice -> { position, normal, uv, index } (two triangles a cell, split the way
 // data/tile.js tileHeightAt assumes)
@@ -57,23 +61,37 @@ const HARD = new Set([AREA.parking, AREA.plaza, AREA.pitch, AREA.track, AREA.pla
 // the aerial's vegetation raster (VEG_N x VEG_N) painted soft-edged over the tile: a small
 // image of the cells' colours scaled up with smoothing (the cells are ~8 m; the blur reads as
 // lawns and planted strips, not squares)
-export const vegImage = (veg) => {
+// (paved: a dry cell in a commercial, industrial or school area is paving, pale pavers or a bare
+// planting bed, not the golden hills: tile -> (u, v) -> true there)
+const PAVED = new Set([AREA.com, AREA.ind, AREA.school, AREA.parking, AREA.plaza])
+export const pavedAt = (tile) => {
+  const list = (tile?.areas || []).filter((a) => PAVED.has(a.cls))
+  if (!list.length) return () => false
+  const { x0, x1, z0, z1 } = tile.rect
+  return (u, v) => {
+    const x = x0 + u * (x1 - x0)
+    const z = z0 + v * (z1 - z0)
+    return list.some((a) => inRingXZ(a.ring, x, z))
+  }
+}
+export const vegImage = (veg, paved = () => false) => {
   const n = veg.n
   const px = new Uint8ClampedArray(n * n * 4)
   for (let i = 0; i < n * n; i++) {
     const c = VEG_PAINT[veg.raster[i]]
     if (!c) continue
+    if (veg.raster[i] === 1 && paved(((i % n) + 0.5) / n, (Math.floor(i / n) + 0.5) / n)) continue
     px.set(c, i * 4)
   }
   return px
 }
-const paintVeg = (ctx, veg, size) => {
+const paintVeg = (ctx, veg, size, tile = null) => {
   const n = veg.n
   const make = (w, h) => (typeof OffscreenCanvas !== "undefined" ? new OffscreenCanvas(w, h) : Object.assign(document.createElement("canvas"), { width: w, height: h }))
   const small = make(n, n)
   const g = small.getContext("2d")
   if (!g) return
-  g.putImageData(new ImageData(vegImage(veg), n, n), 0, 0)
+  g.putImageData(new ImageData(vegImage(veg, pavedAt(tile)), n, n), 0, 0)
   ctx.save()
   ctx.imageSmoothingEnabled = true
   ctx.imageSmoothingQuality = "high"
@@ -112,8 +130,48 @@ export const paintGround = (ctx, tile, size) => {
     }
   }
   for (const a of tile.areas) if (!veg || !hard(a.cls)) drawArea(a)
+  // a dry riverbed: braided channels of washed sand along it, damp low lines, gravel (the
+  // aerial's scrub then grows over it)
+  tile.areas.forEach((a, ai) => {
+    if (a.cls !== AREA.wash) return
+    const box = orientedBox(a.ring)
+    if (!box) return
+    const rand = rng(hashStr(`wash:${tile.key}:${ai}`))
+    ctx.save()
+    poly(a.ring)
+    ctx.clip()
+    const along = (u, v) => [X(box.cx + box.ux * u - box.uz * v), Z(box.cz + box.uz * u + box.ux * v)]
+    const L = box.hl + 20
+    const n = Math.max(2, Math.min(9, Math.round(box.hw / 9)))
+    for (let k = 0; k < n * 2; k++) {
+      const v0 = (rand() * 2 - 1) * box.hw
+      const amp = 3 + rand() * 10
+      const wl = 60 + rand() * 120
+      const ph = rand() * 6.28
+      const damp = k >= n
+      ctx.beginPath()
+      for (let u = -L; u <= L; u += 6) {
+        const [px, pz] = along(u, v0 + Math.sin(u / wl + ph) * amp)
+        u === -L ? ctx.moveTo(px, pz) : ctx.lineTo(px, pz)
+      }
+      ctx.lineWidth = (damp ? 1 + rand() * 2 : 3 + rand() * 7) * sx
+      ctx.strokeStyle = damp ? WASH_DAMP : WASH_SAND
+      ctx.globalAlpha = damp ? 0.55 : 0.7
+      ctx.stroke()
+    }
+    ctx.globalAlpha = 1
+    const dots = Math.min(1600, Math.round((box.hl * box.hw * 4) / 30))
+    for (let k = 0; k < dots; k++) {
+      const [px, pz] = along((rand() * 2 - 1) * box.hl, (rand() * 2 - 1) * box.hw)
+      const g = 120 + Math.round(rand() * 90)
+      ctx.fillStyle = `rgba(${g},${g - 8},${g - 22},0.7)`
+      const r = (0.4 + rand() * 0.9) * sx
+      ctx.fillRect(px - r, pz - r, r * 2, r * 2)
+    }
+    ctx.restore()
+  })
   if (veg) {
-    paintVeg(ctx, veg, size)
+    paintVeg(ctx, veg, size, tile)
     for (const a of tile.areas) if (hard(a.cls)) drawArea(a)
   }
   // the sea (a coast town): the sea floor's colour under the water (render/sea.js draws the
@@ -179,6 +237,15 @@ export const paintGround = (ctx, tile, size) => {
       ctx.strokeStyle = paint[0]
       ctx.stroke()
     }
+    if (cls === ROAD.river)
+      for (const r of list) {
+        // (a river's line through its dry bed: damp sand and a thin trickle, not a channel of
+        // blue; Southern California's rivers run dry most of the year)
+        line(r.pts)
+        ctx.lineWidth = Math.max(1, 1.4 * sx)
+        ctx.strokeStyle = TRICKLE
+        ctx.stroke()
+      }
     if (cls === ROAD.rail)
       for (const r of list) {
         // (two rails)
@@ -216,7 +283,11 @@ const nearRoad = (roads, x, z, m) => {
 // woods (a tree every ~70 m², the same in every browser) -> [{ x, z, s, kind }]
 export const treeSpots = (tile, { max = 500 } = {}) => {
   const rand = rng(hashStr(`trees:${tile.key}`))
-  const out = tile.trees.map((p) => ({ x: p.x, z: p.z, s: 0.8 + rand() * 0.5, kind: rand() < 0.15 ? 1 : 0 }))
+  const out = tile.trees.map((p) => {
+    const s = 0.8 + rand() * 0.5
+    const kind = rand() < 0.15 ? 1 : 0
+    return { x: p.x, z: p.z, s, r: s * 3.4, kind }
+  })
   for (const a of tile.areas) {
     if (a.cls !== AREA.wood || out.length >= max) continue
     let x0 = Infinity
@@ -237,7 +308,10 @@ export const treeSpots = (tile, { max = 500 } = {}) => {
         let inside = false
         const r = a.ring
         for (let i = 0, j = r.length - 1; i < r.length; j = i++) if (r[i].z > pz !== r[j].z > pz && px < ((r[j].x - r[i].x) * (pz - r[i].z)) / (r[j].z - r[i].z) + r[i].x) inside = !inside
-        if (inside) out.push({ x: px, z: pz, s: 0.7 + rand() * 0.6, kind: 0 })
+        if (inside) {
+          const s = 0.7 + rand() * 0.6
+          out.push({ x: px, z: pz, s, r: s * 3.4, kind: 0, sp: rand() < 0.7 ? "oak" : "plane" })
+        }
       }
   }
   // the crowns the aerial shows (data/veg.js), sized by their crowns; not where the map already
@@ -249,32 +323,68 @@ export const treeSpots = (tile, { max = 500 } = {}) => {
   if (tile.vegTrees?.length) {
     const mapped = out.slice()
     const arterial = drive.filter((r) => r.cls >= ROAD.trunk && r.cls <= ROAD.tertiary)
-    const lots = tile.areas.filter((a) => a.cls === AREA.parking)
+    const lots = tile.areas.filter((a) => a.cls === AREA.parking).map((a) => ({ ring: a.ring, box: orientedBox(a.ring) }))
+    const greens = tile.areas.filter((a) => GREENS.has(a.cls))
     const offices = tile.buildings.filter((b) => !isHouse(b.kind) && b.area > 300)
-    const nearBuilding = (x, z) => offices.some((b) => Math.abs(b.ring[0].x - x) < 120 && Math.abs(b.ring[0].z - z) < 120 && b.ring.some((p, i) => {
-      const n = b.ring[(i + 1) % b.ring.length]
-      const dx = n.x - p.x
-      const dz = n.z - p.z
-      const L2 = dx * dx + dz * dz || 1e-9
-      const k = Math.max(0, Math.min(1, ((x - p.x) * dx + (z - p.z) * dz) / L2))
-      return Math.hypot(x - p.x - dx * k, z - p.z - dz * k) < 6
-    }))
+    const houses = tile.buildings.filter((b) => isHouse(b.kind))
+    // the nearest wall of a building within m metres -> its direction (radians) or null
+    const wallNear = (list, x, z, m) => {
+      let best = null
+      let bd = m
+      for (const b of list) {
+        if (Math.abs(b.ring[0].x - x) > 150 || Math.abs(b.ring[0].z - z) > 150) continue
+        for (let i = 0; i < b.ring.length; i++) {
+          const p = b.ring[i]
+          const n = b.ring[(i + 1) % b.ring.length]
+          const dx = n.x - p.x
+          const dz = n.z - p.z
+          const L2 = dx * dx + dz * dz || 1e-9
+          const k = Math.max(0, Math.min(1, ((x - p.x) * dx + (z - p.z) * dz) / L2))
+          const d = Math.hypot(x - p.x - dx * k, z - p.z - dz * k)
+          if (d < bd) {
+            bd = d
+            best = Math.atan2(-dz, dx)
+          }
+        }
+      }
+      return best
+    }
     for (const q of tile.vegTrees) {
       if (out.length >= max) break
       if (mapped.some((m) => Math.abs(m.x - q.x) < 3 && Math.abs(m.z - q.z) < 3)) continue
       const h = hashStr(`${Math.round(q.x * 10)},${Math.round(q.z * 10)}`) % 1000
+      const lot = lots.find((a) => inRingXZ(a.ring, q.x, q.z))
       if (q.r < SHRUB_R) {
         const street = nearRoad(drive, q.x, q.z, 6)
-        // (in a car park or by an office: a trimmed hedge in its curbed island)
-        const hedge = lots.some((a) => inRingXZ(a.ring, q.x, q.z)) || nearBuilding(q.x, q.z)
-        out.push({ x: q.x, z: q.z, s: q.r, kind: 2, hedge, flower: !hedge && street && h < 450 ? 1 + (h % 4) : 0 })
+        // (in a car park or by an office: a trimmed hedge in its curbed island, along the lot's
+        // rows or the building's wall)
+        const wall = lot ? null : wallNear(offices, q.x, q.z, 6)
+        const hedge = !!lot || wall !== null
+        const yaw = lot?.box ? Math.atan2(-lot.box.uz, lot.box.ux) : wall
+        out.push({ x: q.x, z: q.z, s: q.r, r: q.r, kind: 2, hedge, yaw: hedge ? yaw : undefined, len: q.r * 2.6, flower: !hedge && street && h < 450 ? 1 + (h % 4) : 0 })
         continue
       }
       const s = Math.max(0.45, Math.min(2.5, q.r / 3.2))
       let kind = 0
-      if (q.r <= 3.6 && h < 520 && nearRoad(arterial, q.x, q.z, 3)) kind = 1
-      else if (q.r >= 2.4 && h % 5 === 0) kind = 3
-      out.push({ x: q.x, z: q.z, s, kind })
+      if (q.r <= 3.6 && h < 400 && nearRoad(arterial, q.x, q.z, 3)) kind = 1
+      // the species (none is mapped: by where it stands, Southern California's usual planting):
+      // lots and streets sycamores and planes, round evergreens, a few oaks; by offices pines
+      // too; parks and schools a mix with oaks and pines; yards mostly round evergreens; the
+      // hills and washes live oaks with sycamores
+      const f = (h % 100) / 100
+      const pickOf = (mix) => {
+        let a = 0
+        for (const [sp, w] of mix) if (f < (a += w)) return sp
+        return mix[mix.length - 1][0]
+      }
+      let sp
+      if (lot || nearRoad(drive, q.x, q.z, 7)) sp = pickOf(wallNear(offices, q.x, q.z, 30) !== null ? [["plane", 0.4], ["pine", 0.2], ["round", 0.25], ["oak", 0.15]] : [["plane", 0.5], ["round", 0.33], ["oak", 0.12], ["pine", 0.05]])
+      else if (wallNear(offices, q.x, q.z, 30) !== null) sp = pickOf([["pine", 0.3], ["plane", 0.3], ["round", 0.25], ["oak", 0.15]])
+      else if (greens.some((a) => inRingXZ(a.ring, q.x, q.z))) sp = pickOf([["oak", 0.3], ["plane", 0.25], ["round", 0.25], ["pine", 0.2]])
+      else if (wallNear(houses, q.x, q.z, 22) !== null) sp = pickOf([["round", 0.45], ["plane", 0.22], ["oak", 0.18], ["pine", 0.15]])
+      else sp = pickOf([["oak", 0.7], ["plane", 0.18], ["round", 0.08], ["pine", 0.04]])
+      if (kind === 0 && sp === "pine") kind = 3
+      out.push({ x: q.x, z: q.z, s, r: q.r, kind, sp: kind === 0 ? sp : undefined, island: !!lot })
     }
   }
   // (none standing in a road)
@@ -287,7 +397,7 @@ export const treeSpots = (tile, { max = 500 } = {}) => {
         const dz = b.z - a.z
         const L2 = dx * dx + dz * dz || 1e-9
         const k = Math.max(0, Math.min(1, ((t.x - a.x) * dx + (t.z - a.z) * dz) / L2))
-        if (Math.hypot(t.x - a.x - dx * k, t.z - a.z - dz * k) < r.width / 2 + 0.3) return false
+        if (onLanes(r, Math.hypot(t.x - a.x - dx * k, t.z - a.z - dz * k), !!(r.flags & F.oneway), 0.3)) return false
       }
     return true
   })
