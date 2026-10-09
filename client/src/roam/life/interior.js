@@ -93,7 +93,7 @@ export const createInterior = ({ town, host = {}, room, layout: L, phone = false
   const me = { name: host.me?.name || "You", look: host.me?.look || null, walker: createWalker(sp.x, sp.z, L.spawn.yaw) }
   const input = { x: 0, y: 0, sprint: false }
   const keys = new Set()
-  const cam = { yaw: L.spawn.yaw, pitch: 0.28, dist: phone ? 3.3 : 3.0 }
+  const cam = { yaw: L.spawn.yaw, pitch: 0.2, dist: phone ? 3.3 : 3.0 }
   let size = { width: 1, height: 1 }
   let seat = null // the seat you're on
   let disposed = false
@@ -289,6 +289,8 @@ export const createInterior = ({ town, host = {}, room, layout: L, phone = false
     me.walker.yaw = s.yaw
     me.walker.vx = me.walker.vz = 0
     seat = s
+    // (the camera comes round behind you, looking where you look: the screen, the TV)
+    cam.yaw = s.yaw
     social?.sitAt({ x: p.x, z: p.z, y: 0, yaw: s.yaw, h: s.h || 0.45 })
   }
   let social = null
@@ -355,7 +357,7 @@ export const createInterior = ({ town, host = {}, room, layout: L, phone = false
   const updateCamera = (dt) => {
     const w = me.walker
     const portrait = size.height > size.width * 1.05
-    const dist = cam.dist + (portrait ? 0.4 : 0)
+    const dist = seat ? 1.9 : cam.dist + (portrait ? 0.4 : 0)
     const head = seat ? 1.15 : 1.5
     const lx = w.x
     const lz = w.z
@@ -367,7 +369,10 @@ export const createInterior = ({ town, host = {}, room, layout: L, phone = false
       bx = lx + (bx - lx) * kk
       bz = lz + (bz - lz) * kk
     }
-    const by = Math.min(L.H - 0.2, head + 0.35 + dist * Math.sin(cam.pitch))
+    // (never out through the doorway: the lens stays inside the room's walls)
+    bx = Math.max(O.x - L.W / 2 + 0.3, Math.min(O.x + L.W / 2 - 0.3, bx))
+    bz = Math.max(O.z - L.D / 2 + 0.3, Math.min(O.z + L.D / 2 - 0.3, bz))
+    const by = Math.min(L.H - 0.5, head + 0.25 + dist * Math.sin(cam.pitch))
     if (!camInit) {
       camPos.set(bx, by, bz)
       camInit = true
@@ -588,7 +593,13 @@ export const createInterior = ({ town, host = {}, room, layout: L, phone = false
     peopleNow() {
       return [...remotes.values()].filter((r) => r.seen).map((r) => ({ num: r.num, name: r.name, x: r.x, y: 0, z: r.z, yaw: r.yaw, speed: r.speed }))
     },
+    standUp() {
+      if (!seat) return
+      seat = null
+      social?.standUp()
+    },
     teleport(x, z, yaw = me.walker.yaw) {
+      if (seat) world.standUp()
       me.walker.x = x
       me.walker.z = z
       me.walker.yaw = yaw

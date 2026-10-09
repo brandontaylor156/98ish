@@ -1155,7 +1155,7 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
   if (import.meta.env?.DEV) window.__pbStartRoam = startRoam
   // Explore's life (useExploreLife.jsx): emotes and hugs, Home/Work and going inside, the stores, the Bag
   const couple = useCouple()
-  const explore = useExploreLife({ engineRef, roamWorld, labelsRef: roamLabelsRef, mobile, aim, partner: couple?.status === "paired" ? couple.partner : null, flash, setPrefs, prefsRef, hopTo })
+  const explore = useExploreLife({ engineRef, roamWorld, labelsRef: roamLabelsRef, mobile, aim, partner: couple?.status === "paired" ? couple.partner : null, flash, setPrefs, prefsRef, hopTo, closePhone: () => setRoamUi((u) => ({ ...u, phone: false })) })
   if (import.meta.env?.DEV) window.__explore = explore
   const leaveRoam = ({ quit = true } = {}) => {
     const w = roamRef.current

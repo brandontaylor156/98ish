@@ -254,7 +254,7 @@ export const clubLayout = (seed = 1, aisles = []) => {
     const a = aisles[i]
     if (a) {
       const ax = x + 6
-      signs.push({ text: a.name, x: ax, y: 7.2, z: -4.6, yaw: 0, w: 5.4, h: 0.9, bg: "#23395d", fg: "#ffffff" })
+      signs.push({ text: a.name, x: ax, y: 7.2, z: -4.6, yaw: Math.PI, w: 5.4, h: 0.9, bg: "#23395d", fg: "#ffffff" })
       spots.push({ id: `aisle-${a.id}`, kind: "aisle", aisle: a.id, x: ax, z: 0, r: 3.2, label: `Browse ${a.name}` })
     }
   })
@@ -272,7 +272,7 @@ export const clubLayout = (seed = 1, aisles = []) => {
   for (let i = 0; i < 4; i++) {
     const x = -20 + i * 5
     boxes.push({ x, z: -14, w: 0.9, d: 3.4, h: 0.9, color: "#3a3f47", solid: true }, { x, z: -15, w: 0.4, d: 0.4, h: 0.35, y: 0.9, color: "#222222", glow: "#7dff9a" })
-    signs.push({ text: String(i + 1), x, y: 2.4, z: -14, yaw: 0, w: 0.6, h: 0.6, bg: "#ffd166", fg: "#222222" })
+    signs.push({ text: String(i + 1), x, y: 2.4, z: -14, yaw: Math.PI, w: 0.6, h: 0.6, bg: "#ffd166", fg: "#222222" })
     spots.push({ id: `register${i}`, kind: "checkout", x: x + 1.4, z: -14, r: 1.9, label: "Check out" })
     npcs.push({ id: `cashier${i}`, name: ["Ana", "Ken", "Rosa", "Jay"][i], x: x - 1.0, z: -14, yaw: Math.PI / 2, lines: ["Find everything okay?", "Membership card? Just kidding. Play chips are fine.", "Have a good one!"] })
   }
@@ -339,7 +339,7 @@ export const mallLayout = (seed = 1, shops = []) => {
   // the arcade's claw machine and a fountain in the middle of the concourse with benches
   boxes.push({ x: 7.6, z: 26, w: 1.2, d: 1.2, h: 1.9, color: "#ff6fb0", solid: true }, { x: 7.6, z: 26, w: 1.0, d: 1.0, h: 0.8, y: 1.0, color: "#cfefff", glow: "#cfefff" })
   spots.push({ id: "claw", kind: "claw", x: 7.6, z: 24.4, r: 1.6, label: "Try the claw (5 chips)" })
-  signs.push({ text: "PIXEL ARCADE 98", x: 7.6, y: 3.2, z: 24.8, yaw: 0, w: 4.2, h: 0.7, bg: "#9d4edd", fg: "#ffffff" })
+  signs.push({ text: "PIXEL ARCADE 98", x: 7.6, y: 3.2, z: 24.8, yaw: Math.PI, w: 4.2, h: 0.7, bg: "#9d4edd", fg: "#ffffff" })
   boxes.push({ x: 0, z: -18, w: 3.2, d: 3.2, h: 0.55, color: "#b8c4cc", solid: true }, { x: 0, z: -18, w: 2.8, d: 2.8, h: 0.04, y: 0.55, color: "#5fb3e8", glow: "#5fb3e8" })
   for (const dz of [-3.2, 3.2]) {
     boxes.push({ x: 0, z: -18 + dz, w: 2.2, d: 0.5, h: 0.45, color: "#8a6a4c", solid: true })

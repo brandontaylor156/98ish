@@ -74,6 +74,8 @@ const walkSituation = (s, key, t, look) => {
   return { x: s.x, z: s.z, vx: s.vx || 0, vz: s.vz || 0, facing: s.yaw, ball: { x: s.x + fx * 3, y: 1.1, z: s.z + fz * 3 }, holding: false, swing: null, prep: null, charging: false, between: true, atNet: false, goal: null, hand: look?.plays === "left" ? -1 : 1, twoHand: look?.backhand === "two", oppHit: null, want: { x: s.vx || 0, z: s.vz || 0 }, id: key, phase: "intro", phaseT: t % 20, point: 0, mate: null, across: null, receiving: false }
 }
 
+const NO_PADDLE = new Set(["hug", "hold", "dance", "twirl", "thumbs", "point"])
+
 // engineCtx: Pickleball's api.worldContext() ({ makeFigure, quality, renderer })
 export const makeHost98 = ({ engineCtx, me = {}, sky = { real: true, mode: "real" }, aim = null, phone = false, towns = null, travel = null, equip = null } = {}) => {
   const quality = engineCtx?.quality || "medium"
@@ -213,6 +215,9 @@ export const makeHost98 = ({ engineCtx, me = {}, sky = { real: true, mode: "real
         setMood(kind, variant = 0, keep = false) {
           mood = kind ? { kind, variant, keep, fresh: true } : null
           if (!kind && anim) anim.mood = null
+          // (the paddle goes away for a hug, holding hands, a dance, a twirl, a thumbs up, pointing;
+          // a high five is a paddle tap and a wave can keep it)
+          if (!held) gearFig(fig, NO_PADDLE.has(kind) ? "none" : "paddle")
         },
         get mood() {
           return anim?.mood ? anim.mood.kind : null

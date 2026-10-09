@@ -30,6 +30,15 @@ const MOOD_OF = { wave: ["wave", 0], thumbs: ["thumbs", 0], cheer: ["cheer", 2],
 const SOLO_SECONDS = 2.6
 
 const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a))
+// (the town's walker doesn't move under a 15% push, My Park's does: the last steps into place
+// get just past the dead zone, a slow walk, so the two really meet)
+const WALK_MIN = 0.17
+export const HUG_GAP = 0.3 // metres between the two (their middles) in a hug
+const minPush = (p) => {
+  const m = Math.hypot(p.x, p.y)
+  if (p.arrived || m < 1e-6 || m >= WALK_MIN) return p
+  return { ...p, x: (p.x / m) * WALK_MIN, y: (p.y / m) * WALK_MIN }
+}
 
 // who a wave turns to: the nearest person within 20 m in front of you (within 75 degrees), else the
 // nearest within 8 m anywhere -> the yaw to face, or null
@@ -165,8 +174,17 @@ export const createSocial = ({ world, rules, friends = () => new Set(), onState 
     const other = person(a === mine ? b : a)
     if (!me || !other) return
     const spots = R.emoteSpots(a === mine ? me : other, b === mine ? me : other, kind)
+    // (a real hug: chest to chest, closer than My Park's spacing)
+    if (kind === "hug") {
+      const mx = (spots[0].x + spots[1].x) / 2
+      const mz = (spots[0].z + spots[1].z) / 2
+      for (const s of spots) {
+        s.x = mx + (s.x - mx) * (HUG_GAP / R.EMOTE_GAP.hug)
+        s.z = mz + (s.z - mz) * (HUG_GAP / R.EMOTE_GAP.hug)
+      }
+    }
     const role = a === mine ? 0 : 1
-    tg.moveTo = { ...spots[role], until: clock + 1.6 }
+    tg.moveTo = { ...spots[role], until: clock + 3.2 }
     tg.emote = { kind, other: role === 0 ? b : a, role, t: 0, started: false, spot: spots[role] }
     tg.others.delete(mine)
     if (kind === "hug") say(`A hug with ${other.name} ♥`)
@@ -197,7 +215,7 @@ export const createSocial = ({ world, rules, friends = () => new Set(), onState 
           tg.moveTo = null
           return { x: 0, y: 0, sprint: false, face }
         }
-        return { ...p, face: undefined }
+        return { ...minPush(p), face: undefined }
       }
       if (tg.emote?.started) {
         if (R.breaksAway(mv)) {
@@ -221,7 +239,7 @@ export const createSocial = ({ world, rules, friends = () => new Set(), onState 
         const lv = { x: leader.x, z: leader.z, yaw: leader.yaw, vx: Math.sin(leader.yaw) * (leader.speed || 0), vz: Math.cos(leader.yaw) * (leader.speed || 0) }
         const target = R.followTarget(l.kind, lv, R.LEAD_S, 1)
         const p = R.padToward(me, target, camYaw, { speed: leader.speed || 0 })
-        return p.arrived ? { x: 0, y: 0, sprint: false, face: leader.yaw } : p
+        return p.arrived ? { x: 0, y: 0, sprint: false, face: leader.yaw } : minPush(p)
       }
       return null
     },
@@ -237,7 +255,7 @@ export const createSocial = ({ world, rules, friends = () => new Set(), onState 
       if (tg.emote) {
         const e = tg.emote
         e.t += dt
-        if (!e.started && (!tg.moveTo || e.t > 1.8)) {
+        if (!e.started && (!tg.moveTo || e.t > 3.4)) {
           e.started = true
           e.t = 0
           tg.moveTo = null

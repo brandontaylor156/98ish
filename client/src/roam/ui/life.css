@@ -203,6 +203,22 @@
   background: #2f8f5b;
   color: #fff;
 }
+/* (the top bar with the 👋 and 💞 buttons too: the info box gives way, the buttons never leave the screen) */
+.roamTopRight {
+  flex-shrink: 0;
+}
+.roamInfo {
+  min-width: 0;
+  flex-shrink: 1;
+}
+@media (max-width: 480px) {
+  .rlfTgBtn small {
+    display: none;
+  }
+  .roamTopRight {
+    gap: 4px;
+  }
+}
 .roamInside {
   position: absolute;
   z-index: 9;

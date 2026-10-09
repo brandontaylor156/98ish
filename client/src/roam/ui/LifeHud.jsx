@@ -26,14 +26,14 @@ export function SocialButtons({ state, onEmotes, onTogether }) {
 }
 
 // ---------- the overlays: emotes, together, asks, chips, notes ----------
-export function SocialLayer({ social, state, rules, open, setOpen }) {
+export function SocialLayer({ social, state, rules, open, setOpen, sitChip = true }) {
   const kinds = useMemo(() => TOGETHER_HERE.map((id) => rules?.togetherById?.(id)).filter(Boolean), [rules])
   const ask = state?.asks?.[0] || null
   const who = state?.pal?.name || state?.link?.name || ""
   const chips = []
   if (state?.link) chips.push({ kind: state.link.kind, label: state.link.kind === "hand" ? "🤝 Let go" : "👣 Stop", sub: state.link.name })
   if (state?.emote === "dance") chips.push({ kind: "dance", label: "🕺 Stop dancing" })
-  if (state?.sitting) chips.push({ kind: "sit", label: "Stand up" })
+  if (state?.sitting && sitChip) chips.push({ kind: "sit", label: "Stand up" })
   return (
     <>
       {open === "emotes" && (
@@ -102,9 +102,9 @@ export function SocialLayer({ social, state, rules, open, setOpen }) {
 }
 
 // ---------- a store's shelf ----------
-export function ShopSheet({ store, aisle = null, balance, onAdd, onBuy, onClose, cartCount = 0 }) {
+export function ShopSheet({ store, aisle = null, aisleId = null, balance, onAdd, onBuy, onClose, cartCount = 0 }) {
   const s = STORES[store]
-  const items = itemsFor(store, aisle)
+  const items = itemsFor(store, aisleId)
   const club = store === "club"
   return (
     <div className="roamSheet" onPointerDown={(e) => e.target === e.currentTarget && onClose()} data-life="shop">

@@ -23,7 +23,9 @@ const MALL_COLORS = { threads: "#ef476f", court: "#2a9d8f", kicks: "#111111", sw
 let uidN = 0
 const uid = () => `${Date.now().toString(36)}${(++uidN).toString(36)}`.slice(-12)
 
-export const useExploreLife = ({ engineRef, roamWorld, labelsRef, mobile, aim, partner = null, flash, setPrefs, prefsRef, hopTo }) => {
+export const useExploreLife = ({ engineRef, roamWorld, labelsRef, mobile, aim, partner = null, flash, setPrefs, prefsRef, hopTo, closePhone = null }) => {
+  const closePhoneRef = useRef(closePhone)
+  closePhoneRef.current = closePhone
   const [socialState, setSocialState] = useState(null)
   const [open, setOpen] = useState(null) // "emotes" | "together"
   const [inside, setInside] = useState(null) // the interior world
@@ -59,6 +61,7 @@ export const useExploreLife = ({ engineRef, roamWorld, labelsRef, mobile, aim, p
     world.setSocial?.(social)
     const offs = [world.use(social.plugin), world.use(eat.plugin)]
     activeRef.current = { world, social, eat, offs }
+    if (import.meta.env?.DEV) window.__life = activeRef.current
   }
   const detach = () => {
     const a = activeRef.current
@@ -81,9 +84,10 @@ export const useExploreLife = ({ engineRef, roamWorld, labelsRef, mobile, aim, p
     if (!roamWorld) return undefined
     const tl = createTownLife({ world: roamWorld, host: roamWorld.host, social: socialProxy, onEvent: (ev) => townEvent(ev) })
     townLifeRef.current = tl
+    if (import.meta.env?.DEV) window.__townLife = tl
     const offNet = roamWorld.use({
       netEvent(type, d) {
-        if (type === "roam:invite" && d) setSheet({ kind: "invited", ...d })
+        if (type === "roam:invite" && d) setSheet({ ...d, kind: "invited", placeKind: d.kind })
         else if (type === "roamlife:gift" && d) {
           const it = itemOf(d.item)
           flash?.(`🎁 ${d.from} gave you ${it?.name ? it.name.toLowerCase() : "a gift"}! Open your phone's Bag.`)
@@ -145,6 +149,7 @@ export const useExploreLife = ({ engineRef, roamWorld, labelsRef, mobile, aim, p
     const w = insideRef.current
     if (!w) return
     insideRef.current = null
+    if (import.meta.env?.DEV) window.__inside = null
     const secs = w.clockOut?.() || 0
     if (secs > 0) roamWorld?.host?.life?.work(secs)
     roamWorld?.net?.request?.("roam:exit", {}).catch?.(() => {})
@@ -299,7 +304,10 @@ export const useExploreLife = ({ engineRef, roamWorld, labelsRef, mobile, aim, p
         return ok ? { ok: true, text: `On your ${it.use.ride}. Get off anywhere; it's still yours in your Bag.` } : { ok: false, error: "Get out of the car first." }
       },
       equip: async (id) => roamWorld?.host?.life?.equip(id) || { ok: false },
-      gift: (id) => setSheet({ kind: "gift", item: id }),
+      gift: (id) => {
+        closePhoneRef.current?.()
+        setSheet({ kind: "gift", item: id })
+      },
       travel: (p) => {
         const town = roamWorld
         if (!town || !p?.door) return
@@ -326,8 +334,8 @@ export const useExploreLife = ({ engineRef, roamWorld, labelsRef, mobile, aim, p
   const insideOwner = inside?.__back?.owner
   const overlays = (
     <>
-      {active && <SocialLayer social={active.social} state={socialState} rules={rules} open={open} setOpen={setOpen} />}
-      {sheet?.kind === "shop" && <ShopSheet store={sheet.store} aisle={sheet.aisle} balance={balance()} cartCount={cart.length} onAdd={addToCart} onBuy={buyNow} onClose={() => setSheet(null)} />}
+      {active && <SocialLayer social={active.social} state={socialState} rules={rules} open={open} setOpen={setOpen} sitChip={!inside} />}
+      {sheet?.kind === "shop" && <ShopSheet store={sheet.store} aisle={sheet.aisle} aisleId={sheet.aisleId} balance={balance()} cartCount={cart.length} onAdd={addToCart} onBuy={buyNow} onClose={() => setSheet(null)} />}
       {sheet?.kind === "checkout" && <CheckoutSheet cart={cart} me={meName()} balance={balance()} msg={msg} onRemove={(u) => sayCart({ op: "remove", uid: u })} onPay={pay} onClose={() => (setSheet(null), setMsg(""))} />}
       {sheet?.kind === "desk" && <DeskGame worked={insideHud?.worked || 0} onClose={() => setSheet(null)} onDone={(r) => flash?.(`Inbox zero: ${r.right} of ${r.of} right. Nice work!`)} />}
       {sheet?.kind === "gift" && (
@@ -388,7 +396,7 @@ export const useExploreLife = ({ engineRef, roamWorld, labelsRef, mobile, aim, p
       {sheet?.kind === "invited" && (
         <div className="roamPanel rlfAsk" role="alertdialog" data-life="invited">
           <p>
-            🏠 {sheet.name} invites you into {sheet.kind === "office" ? "their office" : "their home"}
+            🏠 {sheet.name} invites you into {sheet.placeKind === "office" ? "their office" : "their home"}
             {sheet.label ? ` (${sheet.label})` : ""}.
           </p>
           <div className="rlfRow">
