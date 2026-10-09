@@ -514,7 +514,30 @@ export const topics = [
       "Your look is saved with your user profile and goes with you online, so other people see it. **Auto by venue** puts everyone in the venue's kit (beach kit at Sandy Point, winter kit at Frost Hollow); **Computer players: Random kits** dresses the computer's players in kits of their own.",
       { tip: "Settings > Graphics: Medium and High show the full players with their photographed faces and clothes (High: sharper skin and faces); **Ultra** (for a strong computer) adds soft shadows where bodies meet (ambient occlusion), the venue's sky in the players' light and a soft glow; Low draws them simply (colors and the main pieces) for slow phones." },
     ],
-    related: ["online-play", "touch-controls", "game-trouble", "voice-chat"],
+    related: ["online-play", "touch-controls", "game-trouble", "voice-chat", "explore-town"],
+  },
+  {
+    id: "explore-town",
+    book: "games-action",
+    title: "Pickleball 98: Explore Valencia",
+    summary: "Walk out of the Paseo Club into all of Valencia: run around, get in parked cars and drive, ride along with a friend, and find hidden things.",
+    keywords: ["explore", "Valencia", "open world", "town", "city", "Santa Clarita", "walk around", "drive", "car", "cars", "get in", "get out", "ride along", "passenger", "gas", "brake", "steer", "run", "sprint", "easter eggs", "hidden", "found", "floppy disks", "Turbo 98", "Lookout Point", "together", "girlfriend", "boyfriend", "map", "streets", "OpenStreetMap", "Roam", "minimap", "compass", "horn", "radio", "traffic", "traffic lights", "stop signs", "night", "headlights"],
+    body: [
+      "From **My Park** at the **Paseo Club** you can walk out into the town round it: all of Valencia, built from the real map (streets, sidewalks, paseos, parks and every mapped building at its real height, on the real hills).",
+      {
+        list: [
+          "**Getting there:** at the Paseo Club, walk to where you came in and tap **Explore Valencia ›** (or open the park menu ☰ > **Explore Valencia...**). **Back to the courts** shows up when you walk back to the club.",
+          "Cars are arcade-easy: no damage, you slide along walls instead of crashing, and they stop for people in front of them. Get out anywhere once you've slowed down: the car stays where you left it. In a car, **Horn** honks while you hold it and **♪ Radio** plays a lo-fi station (it goes off when you get out).",
+          "**Around town:** a little traffic drives the real streets (it stops at the map's stop signs and traffic lights, and always stops for you), and a few people walk the sidewalks near the shops. The small round map in the corner turns with your view (N marks north; blue dots are friends). After dark the street lamps, windows and headlights come on.",
+          "**Together:** friends in Valencia at the same time see each other walk and drive. Walk up to a friend's car and tap **Ride along** to sit in the passenger seat. 🎙 turns on the same voice chat as My Park (you hear people where they are).",
+          "**Hidden finds:** 23 things are hidden at real places round town (lost floppy disks that glow, people with something to say, a view worth the climb, a car you'll want to drive, and one that only shows up when two of you go together). \"Something's glowing nearby...\" means you're close. The menu ☰ shows what you've found.",
+        ],
+      },
+      { phone: "Walking: drag anywhere in the lower part of the screen (the stick appears under your thumb); drag anywhere else to turn and tilt the view. Run runs until you let go of the stick. Driving: walk up to a parked car and tap Get in, drag on the left half of the screen to steer, and hold Gas and Brake on the right (hold Brake when stopped to back up).", computer: "Walking: W A S D or the arrow keys, Shift runs, drag the picture to turn the view. Driving: walk up to a parked car and press Enter (or F) to get in; W is gas, S is brake (hold it when stopped to back up), A and D steer, H honks, R turns the radio on or off, Enter gets out." },
+      { tip: "The town loads as you go (about half a kilometre at a time). On a slow connection the edge of town may take a moment to appear when you drive fast. On an older phone, Options > Graphics: Low turns off the textures, shadows and most of the traffic." },
+      { note: "Everything you see comes from OpenStreetMap (© OpenStreetMap contributors, ODbL) and free elevation data; nothing is made up, and businesses are just names on the map. While you're in town, the 98ish server knows your position there and which car you're in, only while you're there, so friends can see you (nothing is saved). What you've found is kept on this device for your user. See [[privacy-server]]." },
+    ],
+    related: ["pickleball", "voice-chat", "privacy-server"],
   },
   {
     id: "shred",

@@ -903,6 +903,51 @@ export const buildTrees = (group, byKind, { keep = (x) => x, rand = Math.random,
   }
 }
 
+// the same trees for the open world (client/src/roam through its host, roam/host98.js): shared
+// geometries and materials per kind, made once; the caller places them in its own instanced
+// meshes. -> { kinds: { broad0, broad1, palm, fanpalm: [{ geo, mat, place, dy, k, crown }] }, tick }
+// (place: "at" = the tree's spot scaled by s; "trunk" = scaled to the palm's height h; "head" =
+// at the top of the trunk (h + dy), scaled by s * k)
+let roamKit = null
+export const treeKit = () => {
+  if (roamKit) return roamKit
+  const leafMat = (map, opts = {}) => swaying(new THREE.MeshLambertMaterial({ map, alphaTest: 0.45, side: THREE.DoubleSide, ...opts }))
+  const bark = new THREE.MeshLambertMaterial({ map: barkTex(false), color: 0xffffff })
+  const palmBark = new THREE.MeshLambertMaterial({ map: barkTex(true), color: 0xffffff })
+  const broadLeaf = leafMat(leafTex("broad"))
+  const broad = (trunk, crown) => [
+    { geo: trunk, mat: bark, place: "at" },
+    { geo: crown, mat: broadLeaf, place: "at", crown: true },
+  ]
+  const ringed = new THREE.CylinderGeometry(0.17, 0.25, 1, 7, 10, true)
+  const rp = ringed.attributes.position
+  for (let i = 0; i < rp.count; i++) {
+    const y = rp.getY(i) + 0.5
+    const k = 1 + 0.07 * Math.abs(Math.sin(y * Math.PI * 13))
+    rp.setX(i, rp.getX(i) * k)
+    rp.setZ(i, rp.getZ(i) * k)
+  }
+  ringed.translate(0, 0.5, 0)
+  ringed.computeVertexNormals()
+  roamKit = {
+    kinds: {
+      broad0: broad(trunkWithBranches({ seed: 1, h: 3.2, r0: 0.24, r1: 0.13 }), cardCrown({ seed: 11, n: 42, cy: 3.9, rx: 2.1, ry: 1.7, size: 1.6 })),
+      broad1: broad(trunkWithBranches({ seed: 2, h: 3.6, r0: 0.22, r1: 0.12, branches: 4 }), cardCrown({ seed: 12, n: 46, cy: 4.4, rx: 1.8, ry: 2.1, size: 1.5 })),
+      palm: [
+        { geo: ringed, mat: palmBark, place: "trunk" },
+        { geo: palmCrown(31), mat: leafMat(frondTex(), { vertexColors: true }), place: "head", dy: -0.1, k: 1, crown: true },
+      ],
+      fanpalm: [
+        { geo: new THREE.CylinderGeometry(0.16, 0.24, 1, 7, 1, true).translate(0, 0.5, 0), mat: palmBark, place: "trunk" },
+        { geo: new THREE.CylinderGeometry(0.62, 0.3, 1.5, 9, 1, true).translate(0, -0.75, 0), mat: new THREE.MeshLambertMaterial({ map: skirtTex(), alphaTest: 0.4, side: THREE.DoubleSide }), place: "head", dy: -0.2, k: 1 },
+        { geo: fanPalmCrown(61), mat: leafMat(fanTex()), place: "head", dy: 0, k: 1.45, crown: true },
+      ],
+    },
+    tick,
+  }
+  return roamKit
+}
+
 // ---------------------------------------------------------------- cars
 
 // side profiles (x along the car, y up): a full-width lower body to the beltline and a

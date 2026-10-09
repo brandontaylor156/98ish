@@ -1,0 +1,1262 @@
+// Roam: an open town to walk and drive round (docs/open-world.md). Any town works by
+// configuration (towns/); Valencia is the first. This module is the whole 3D world and knows
+// nothing about 98ish: everything from the outside (the figures, the sky, the network, saved
+// finds, names) comes in through `host` (host98.js is 98ish's; a standalone app would bring
+// its own). It speaks the engine-world interface Pickleball 98's engine draws (scene, camera,
+// frame(dt), resize, key, setStick, drag, clearKeys, refigure, dispose), so it can also run in
+// any three.js loop.
+//
+// - the town streams round you in z16 tiles (stream.js): near tiles in full (painted ground,
+//   buildings with roof hints, lane markings, bridge decks, trees, parked cars, walls you
+//   collide with), far tiles as ground and plain blocks, then fog;
+// - you walk (sim/walker.js) with a follow camera you turn by dragging; Sprint runs;
+// - parked cars (sim/parked.js) you can get into and drive (sim/car.js) with a chase camera;
+//   a car stays where you leave it; a friend can ride along;
+// - other people in the same town, walking and driving (sim/sync.js, server/roam);
+// - hidden finds at real places (eggs.js);
+// - realism (docs/open-world.md): textured buildings with windows, lawns and lots, the venues'
+//   trees, sun shadows round you, real-proportioned cars (render/carmodel.js) with a chase
+//   camera (sim/chase.js), a little traffic and a few people walking (sim/traffic.js,
+//   sim/peds.js), the map's signals, stop signs and lamps and the lights at night
+//   (render/street.js), a minimap, a horn and a radio.
+
+import * as THREE from "three"
+import { TILE_ZOOM, tileKey, tileOf, tilesAround, townFrame } from "./geo.js"
+import { DRIVABLE, ROAD, tileHeightAt } from "./data/tile.js"
+import { createTileStore } from "./stream.js"
+import { buildTileMesh, disposeMaterials, roamLight, setRoamSurfaces } from "./render/tilemesh.js"
+import { treeSpots } from "./render/ground.js"
+import { deckAt, deckSurfaces } from "./render/linework.js"
+import { wallRings } from "./render/buildings.js"
+import { createParkedLayer, lampUniforms, makeCarMesh, setCarEnvironment } from "./render/cars.js"
+import { createChase, stepChase } from "./sim/chase.js"
+import { createColliders } from "./sim/collide.js"
+import { createWalker, stepWalker } from "./sim/walker.js"
+import { MODELS, createCar, doorSpot, personAhead, stepCar, steerLimit } from "./sim/car.js"
+import { parkedCars } from "./sim/parked.js"
+import { ACT, createTrack, packPos, pushSample, sampleTrack, shouldSend, unpackPos, DELAY } from "./sim/sync.js"
+import { createEggs } from "./eggs.js"
+import { createTreeLayer } from "./render/trees.js"
+import { createTraffic, trafficRoad } from "./sim/traffic.js"
+import { createPeds, shopSpots, walkLines } from "./sim/peds.js"
+import { createStreetLayer, streetFurniture } from "./render/street.js"
+
+const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a))
+
+export const createRoam = ({ town, host = {}, phone = false, quality = "medium", start = null, labelsEl = null, onHud = () => {}, onEvent = () => {} } = {}) => {
+  const frame = townFrame(town.origin)
+  const store = createTileStore({ town, frame, fetchFn: host.fetch })
+  const scene = new THREE.Scene()
+  const low = quality === "low"
+  // (the host's surface textures for walls, roofs and ground: before any tile's material is made)
+  if (!low) setRoamSurfaces(host.surface)
+  // (how far the town is drawn: near tiles in full, far tiles as blocks; fog hides the edge)
+  const NEAR_R = phone ? 380 : 560
+  const FAR_R = low ? 700 : phone ? 900 : 1500
+  const camera = new THREE.PerspectiveCamera(phone ? 62 : 58, 1, 0.35, FAR_R + 400)
+  scene.fog = new THREE.Fog(0xd8ecfb, FAR_R * 0.45, FAR_R * 0.98)
+  const hemi = new THREE.HemisphereLight(0xdcefff, 0x6d6a4c, 1.3)
+  const sun = new THREE.DirectionalLight(0xfff3dc, 2.4)
+  sun.position.set(-0.4, 0.8, 0.3)
+  scene.add(hemi, sun, sun.target)
+  // sun shadows in a box round you (buildings, trees, parked cars; Medium/High), drawn again
+  // only when the box moves or the light changes: the town is static (docs/open-world.md)
+  const sunDir = new THREE.Vector3(-0.4, 0.8, 0.3).normalize()
+  const SHADOW_R = phone ? 75 : 120
+  const shadowAt = { x: Infinity, z: Infinity, dirty: true, frames: 0, t: 0, n: 0 }
+  if (!low) {
+    sun.castShadow = true
+    sun.shadow.mapSize.set(phone ? 1024 : 2048, phone ? 1024 : 2048)
+    const sc = sun.shadow.camera
+    sc.left = sc.bottom = -SHADOW_R
+    sc.right = sc.top = SHADOW_R
+    sc.near = 1
+    sc.far = 900
+    sc.updateProjectionMatrix()
+    sun.shadow.bias = -0.0005
+    sun.shadow.normalBias = 0.35
+    sun.shadow.autoUpdate = false
+  }
+  const stepShadow = () => {
+    if (low) {
+      if (shadowAt.dirty) sun.position.copy(sunDir)
+      shadowAt.dirty = false
+      return
+    }
+    const c = center()
+    // (a fresh map is drawn on a few frames in a row after a change, and again every couple of
+    // seconds: a single redraw was sometimes lost in the browsers tested)
+    if (shadowAt.frames > 0) {
+      shadowAt.frames--
+      sun.shadow.needsUpdate = true
+    }
+    if (clock - shadowAt.t > 2.5) shadowAt.dirty = true
+    if (!shadowAt.dirty && Math.hypot(c.x - shadowAt.x, c.z - shadowAt.z) < 8) return
+    // (snapped to the map's texels, so standing still the edges don't crawl)
+    const texel = (SHADOW_R * 2) / sun.shadow.mapSize.x
+    const x = Math.round(c.x / texel) * texel
+    const z = Math.round(c.z / texel) * texel
+    const y = heightAt(c.x, c.z, 0) ?? 0
+    sun.target.position.set(x, y, z)
+    sun.position.set(x + sunDir.x * 400, y + sunDir.y * 400, z + sunDir.z * 400)
+    sun.target.updateMatrixWorld()
+    sun.updateMatrixWorld()
+    sun.shadow.needsUpdate = true
+    shadowAt.frames = 2
+    shadowAt.x = c.x
+    shadowAt.z = c.z
+    shadowAt.dirty = false
+    shadowAt.n++
+    shadowAt.t = clock
+  }
+  let exposure = 1
+  let size = { width: 1, height: 1 }
+  let disposed = false
+  let suspended = false
+  let clock = 0
+
+  // ---------- the sky (Real Sky through the host; a plain colour otherwise) ----------
+  const place = { lat: town.origin[0], lon: town.origin[1] }
+  const sky = host.sky?.create ? host.sky.create({ radius: FAR_R + 250, quality, phone }) : null
+  if (sky?.mesh) scene.add(sky.mesh)
+  let skyAt = -1e9
+  let look = null
+  let hourOverride = null // (tests: a fixed hour)
+  const applyLook = () => {
+    const d = host.sky?.look ? host.sky.look(place, { hour: hourOverride }) : null
+    if (!d) {
+      scene.background = new THREE.Color(0x9cc8ef)
+      return
+    }
+    look = d
+    sky?.setLook?.(d)
+    if (!sky) scene.background = new THREE.Color(d.sky[0])
+    sun.color.setHex(d.sun.color)
+    sun.intensity = d.sun.intensity
+    sunDir.set(d.sun.dir.x, Math.max(0.12, d.sun.dir.y), d.sun.dir.z).normalize()
+    shadowAt.dirty = true
+    hemi.color.setHex(d.hemi[0])
+    // (light bounced off a town is pavement and stucco, not a lawn: warmer and greyer than a
+    // park's, so walls in shade don't turn green)
+    hemi.groundColor.setHex(d.hemi[1]).lerp(new THREE.Color(0x8a7f6e), 0.65)
+    hemi.intensity = d.hemi[2]
+    scene.fog.color.setHex(d.fog)
+    if (sky) scene.background = scene.fog.color
+    // (a little under the venues': a town of pale stucco and concrete in full sun reads washed out
+    // at a court's exposure)
+    exposure = (d.exposure ?? 1) * (low ? 1 : 0.9)
+    // night (0 day .. 1 night): lamps on, reflections dim
+    night = d.sunEl !== undefined ? Math.max(0, Math.min(1, (4 - d.sunEl) / 10)) : d.lights ? 1 : 0
+    lampUniforms.head.value = lampUniforms.tail.value = night
+    roamLight.night.value = night
+    roamLight.sky.value.setHex(d.sky[1]).lerp(new THREE.Color(d.sky[0]), 0.35)
+    setCarEnvironment(envTex, 0.2 + 0.8 * (1 - night))
+  }
+  // the sky the cars' paint and glass reflect (the host's HDRI; none on Low)
+  let envTex = null
+  let night = 0
+  if (!low && host.environment)
+    host
+      .environment()
+      .then((t) => {
+        if (disposed || !t) return
+        envTex = t
+        setCarEnvironment(envTex, 0.2 + 0.8 * (1 - night))
+      })
+      .catch(() => {})
+  const stepSky = () => {
+    if (clock - skyAt < 60) return
+    skyAt = clock
+    applyLook()
+  }
+
+  // ---------- the town's tiles ----------
+  const tiles = new Map() // key -> { t (decoded), mesh, near, decks, trees, cars, walls }
+  const colliders = createColliders()
+  const parkedLayer = createParkedLayer(scene, phone ? 120 : 220)
+  const trees = createTreeLayer(scene, { cap: low ? 0 : phone ? 1800 : 4500, kit: low ? null : host.trees?.() || null, nearCap: phone ? 260 : 700 })
+  const TREE_NEAR = phone ? 150 : 240
+  let treesAt = null
+  const moved = new Map() // parked car id -> { x, z, yaw } (left somewhere else this session) | "gone"
+  let tilesDirty = true
+  let tilesDirtyForShadow = true
+  let wantT = 0
+  let lastCenter = null
+  let wanted = { near: new Set(), far: new Set(), list: [] }
+
+  // the decoded tile at a point (or null)
+  const tileAtCache = { key: "", t: null }
+  const tileAt = (x, z) => {
+    const ll = frame.toLatLon(x, z)
+    const k = tileKey(tileOf(ll.lat, ll.lon, TILE_ZOOM))
+    if (tileAtCache.key === k && tileAtCache.t) return tileAtCache.t
+    const t = store.get(k)
+    tileAtCache.key = k
+    tileAtCache.t = t
+    return t
+  }
+  const groundAt = (x, z) => {
+    const t = tileAt(x, z)
+    if (!t) return null
+    return tileHeightAt(t, x, z)
+  }
+  // the height to stand or drive at near height y (a bridge deck, or the ground)
+  const heightAt = (x, z, y = 0, drive = false) => {
+    const t = tileAt(x, z)
+    if (!t) return null
+    const g = tileHeightAt(t, x, z)
+    const e = tiles.get(t.key)
+    const d = e?.decks?.length ? deckAt(e.decks, x, z, y, drive) : null
+    return d !== null && d > (g ?? -1e9) ? d : g
+  }
+  // a tile's own ground (clamped inside it): for building its meshes
+  const ownGround = (t) => (x, z) => {
+    const r = t.rect
+    return tileHeightAt(t, Math.max(r.x0, Math.min(r.x1, x)), Math.max(r.z0, Math.min(r.z1, z))) ?? 0
+  }
+
+  const parkedList = () => {
+    const out = []
+    for (const e of tiles.values()) if (e.near && e.cars) for (const c of e.cars) {
+      const m = moved.get(c.id)
+      if (m === "gone") continue
+      out.push(m ? { ...c, ...m } : c)
+    }
+    // (the hidden car: parked like the rest once its tile is near)
+    for (const c of eggCars) {
+      const m = moved.get(c.id)
+      if (m === "gone") continue
+      const p = m ? { ...c, ...m } : c
+      const r = tiles.get(tileKey(tileOf(frame.toLatLon(p.x, p.z).lat, frame.toLatLon(p.x, p.z).lon, TILE_ZOOM)))
+      if (r?.near) out.push(p)
+    }
+    return out
+  }
+  const placeCar = (c) => {
+    const y = groundAt(c.x, c.z) ?? 0
+    const m = MODELS[c.model] || MODELS.sedan
+    const fx = Math.sin(c.yaw)
+    const fz = Math.cos(c.yaw)
+    const hf = groundAt(c.x + fx * m.wheelbase / 2, c.z + fz * m.wheelbase / 2) ?? y
+    const hb = groundAt(c.x - fx * m.wheelbase / 2, c.z - fz * m.wheelbase / 2) ?? y
+    return { ...c, y, pitch: Math.atan2(hf - hb, m.wheelbase), roll: 0 }
+  }
+  // (the nearest ones drawn: a parked car 200 m off is a few pixels; phone 70, desktop 160)
+  const PARKED_DRAW = phone ? 70 : 160
+  const refreshParked = () => {
+    const c = center()
+    const list = parkedList().filter((p) => !driving || p.id !== car?.id)
+    for (const p of list) p.d2 = (p.x - c.x) ** 2 + (p.z - c.z) ** 2
+    list.sort((a, b) => a.d2 - b.d2)
+    parkedLayer.set(list.slice(0, PARKED_DRAW).map(placeCar))
+  }
+
+  const buildTile = (t, near) => {
+    const old = tiles.get(t.key)
+    if (old) {
+      old.mesh.dispose()
+      if (old.near) colliders.removeTile(t.key)
+    }
+    const g = ownGround(t)
+    const mesh = buildTileMesh(t, g, { near, texSize: near ? (phone ? 512 : 1024) : phone ? 128 : 256, anisotropy: host.anisotropy || 1 })
+    scene.add(mesh.group)
+    const e = { t, mesh, near, decks: deckSurfaces(t.roads), trees: near || !phone ? treeSpots(t, { max: near ? 500 : 150 }).map((p) => ({ ...p, y: g(p.x, p.z) })) : [], cars: near ? parkedCars(t) : null, street: near ? streetFurniture(t).map((p) => ({ ...p, y: g(p.x, p.z) })) : [] }
+    if (near) colliders.addTile(t.key, wallRings(t.buildings, g))
+    tiles.set(t.key, e)
+    tilesDirty = true
+    tilesDirtyForShadow = true
+    return e
+  }
+  const dropTile = (key) => {
+    const e = tiles.get(key)
+    if (!e) return
+    e.mesh.dispose()
+    if (e.near) colliders.removeTile(key)
+    tiles.delete(key)
+    tilesDirty = true
+  }
+  const center = () => (driving && car ? { x: car.x, z: car.z } : { x: me.walker.x, z: me.walker.z })
+  const stepTiles = (dt) => {
+    wantT -= dt
+    const c = center()
+    if (wantT <= 0 || !lastCenter || Math.hypot(c.x - lastCenter.x, c.z - lastCenter.z) > 40) {
+      wantT = 0.5
+      lastCenter = c
+      // (looking ahead when driving: the tiles in front come first)
+      const ahead = driving && car ? { x: c.x + Math.sin(car.yaw) * Math.min(250, Math.abs(car.speed) * 6), z: c.z + Math.cos(car.yaw) * Math.min(250, Math.abs(car.speed) * 6) } : c
+      const near = tilesAround(frame, c.x, c.z, NEAR_R)
+      const far = tilesAround(frame, ahead.x, ahead.z, FAR_R)
+      wanted = { near: new Set(near.map(tileKey)), far: new Set(far.map(tileKey)), list: [...near, ...far.filter((t) => !near.some((n) => n.x === t.x && n.y === t.y))] }
+      store.want(wanted.list)
+      // gone too far: drop (with room to spare, so a tile on the edge doesn't flicker)
+      const keepR = FAR_R + 250
+      for (const [k, e] of tiles) {
+        const r = e.t.rect
+        const d = Math.hypot(Math.max(r.x0 - c.x, 0, c.x - r.x1), Math.max(r.z0 - c.z, 0, c.z - r.z1))
+        if (d > keepR) dropTile(k)
+        else if (e.near && d > NEAR_R + 160) buildQueue.add(k) // (rebuild as far)
+      }
+    }
+    // build one tile a frame (two when there's nothing near yet): near ones first, nearest first
+    let budget = tiles.size < 3 ? 2 : 1
+    for (const t of wanted.list) {
+      if (budget <= 0) break
+      const k = tileKey(t)
+      const d = store.get(k)
+      if (!d) continue
+      const want = wanted.near.has(k)
+      const e = tiles.get(k)
+      if (e && e.near === want) continue
+      if (e && e.near && !want && !buildQueue.has(k)) continue
+      buildTile(d, want)
+      buildQueue.delete(k)
+      budget--
+    }
+    const cc = center()
+    if (tilesDirty || !treesAt || Math.hypot(cc.x - treesAt.x, cc.z - treesAt.z) > 50) {
+      if (tilesDirty) {
+        refreshLife()
+        streetLayer.set([...tiles.values()].flatMap((e) => e.street || []))
+      }
+      tilesDirty = false
+      refreshParked()
+      treesAt = { x: cc.x, z: cc.z }
+      // (the venues' trees near you, plain ones farther off)
+      const r2 = TREE_NEAR * TREE_NEAR
+      trees.set([...tiles.values()].flatMap((e) => e.trees), (t) => (t.x - cc.x) ** 2 + (t.z - cc.z) ** 2 < r2)
+    }
+  }
+  const buildQueue = new Set()
+
+  // ---------- life: a little traffic, a few people walking near the shops ----------
+  const traffic = createTraffic({ cap: low ? 3 : phone ? 6 : 14, seed: (Date.now() & 0xffff) + 1 })
+  const trafficLayer = createParkedLayer(scene, phone ? 10 : 18)
+  const peds = createPeds({ cap: low ? 0 : phone ? 3 : 6, seed: (Date.now() & 0xffff) + 7 })
+  const pedFigs = new Map() // id -> fig
+  const PED_SEE = phone ? 75 : 120
+  let lifeTick = 0
+  const life = { roads: [], lines: [], street: [], time: 0 }
+  // (the roads, walks and stop/signal nodes of the near tiles: when tiles change)
+  const refreshLife = () => {
+    const roads = []
+    const lines = []
+    for (const e of tiles.values()) {
+      if (!e.near) continue
+      for (const r of e.t.roads) {
+        if (!r._street) r._street = e.t.street || []
+        if (trafficRoad(r)) roads.push(r)
+      }
+      const shops = shopSpots(e.t)
+      for (const l of walkLines(e.t.roads)) {
+        // (near a shop: any point of the walk within 60 m of one)
+        l.shop = shops.some((sh) => l.road.pts.some((q) => Math.hypot(q.x - sh.x, q.z - sh.z) < 60 + sh.r))
+        lines.push(l)
+      }
+    }
+    life.roads = roads
+    life.lines = lines
+  }
+  // where people are, for the traffic to stop for and the walkers to wait for
+  const peopleNow = () => {
+    const out = []
+    if (driving && car) out.push({ x: car.x, z: car.z, car: true }, { x: car.x + Math.sin(car.yaw) * 1.6, z: car.z + Math.cos(car.yaw) * 1.6, car: true }, { x: car.x - Math.sin(car.yaw) * 1.6, z: car.z - Math.cos(car.yaw) * 1.6, car: true })
+    else if (!riding) out.push({ x: me.walker.x, z: me.walker.z })
+    for (const r of remotes.values()) out.push({ x: r.x, z: r.z, car: !!(r.act & ACT.drive) })
+    return out
+  }
+  // the traffic as something to bump into (your car and you): colliders plus the cars' circles
+  const resolveWithTraffic = (x, z, r) => {
+    const p = colliders.resolve(x, z, r)
+    let px = p.x
+    let pz = p.z
+    let hit = p.hit
+    let nx = p.nx || 0
+    let nz = p.nz || 0
+    for (const c of traffic.solids()) {
+      const dx = px - c.x
+      const dz = pz - c.z
+      const d = Math.hypot(dx, dz)
+      const min = r + c.r
+      if (d < min && d > 1e-6) {
+        px = c.x + (dx / d) * min
+        pz = c.z + (dz / d) * min
+        nx = dx / d
+        nz = dz / d
+        hit = true
+      }
+    }
+    return { x: px, z: pz, hit, nx, nz }
+  }
+  // the map's signals, stop signs and lamps; the lights at night
+  const streetLayer = createStreetLayer(scene, { cap: phone ? 260 : 500 })
+  const drawLights = () => {
+    const cars = []
+    const glowR2 = (phone ? 160 : 260) ** 2
+    const cp = camera.position
+    for (const t of traffic.cars) if ((t.x - cp.x) ** 2 + (t.z - cp.z) ** 2 < glowR2) cars.push({ x: t.x, y: heightAt(t.x, t.z, 0, true) ?? 0, z: t.z, yaw: t.yaw, len: (MODELS[t.model] || MODELS.sedan).len, wid: (MODELS[t.model] || MODELS.sedan).wid })
+    if (driving && car) cars.push({ x: car.x, y: car.y, z: car.z, yaw: car.yaw, len: (MODELS[car.model] || MODELS.sedan).len, wid: (MODELS[car.model] || MODELS.sedan).wid, beam: true })
+    for (const r of remotes.values()) if (r.act & ACT.drive && r.car) cars.push({ x: r.x, y: r.y || 0, z: r.z, yaw: r.yaw, len: (MODELS[r.car.model] || MODELS.sedan).len, wid: (MODELS[r.car.model] || MODELS.sedan).wid })
+    streetLayer.update(clock, night, camera, cars)
+  }
+  const stepLife = (dt) => {
+    life.time = clock
+    const c = center()
+    const people = peopleNow()
+    life.people = people
+    traffic.step(life, c, dt)
+    peds.step({ lines: life.lines, people: [...people, ...traffic.cars.map((t) => ({ x: t.x, z: t.z }))] }, c, dt)
+  }
+  const drawLife = (dt) => {
+    trafficLayer.set(
+      traffic.cars.map((t) => {
+        const y = heightAt(t.x, t.z, 0, true) ?? 0
+        const m = MODELS[t.model] || MODELS.sedan
+        const fx = Math.sin(t.yaw) * (m.wheelbase / 2)
+        const fz = Math.cos(t.yaw) * (m.wheelbase / 2)
+        const hf = groundAt(t.x + fx, t.z + fz) ?? y
+        const hb = groundAt(t.x - fx, t.z - fz) ?? y
+        return { model: t.model, color: t.color, x: t.x, y, z: t.z, yaw: t.yaw, pitch: Math.atan2(hf - hb, m.wheelbase) }
+      })
+    )
+    const seen = new Set()
+    // (people walking by: a figure only within sight, animated every other frame on a phone)
+    lifeTick++
+    const animNow = !phone || lifeTick % 2 === 0
+    const camP = camera.position
+    for (const p of peds.peds) {
+      if (Math.hypot(p.x - camP.x, p.z - camP.z) > PED_SEE) continue
+      seen.add(p.id)
+      let fig = pedFigs.get(p.id)
+      if (!fig && host.figure) {
+        fig = host.figure(host.npcLook ? host.npcLook(p.id + ":" + Math.round(p.s)) : {}, { lite: true })
+        if (fig) {
+          scene.add(fig.group)
+          pedFigs.set(p.id, fig)
+        }
+      }
+      if (!fig) continue
+      fig.dtAcc = (fig.dtAcc || 0) + dt
+      if (!animNow) continue
+      const y = heightAt(p.x, p.z, 0) ?? 0
+      fig.update({ x: p.x, y, z: p.z, yaw: p.yaw, vx: Math.sin(p.yaw) * p.speed, vz: Math.cos(p.yaw) * p.speed, speed: p.speed }, fig.dtAcc)
+      fig.dtAcc = 0
+    }
+    for (const [id, fig] of pedFigs)
+      if (!seen.has(id)) {
+        fig.dispose()
+        pedFigs.delete(id)
+      }
+  }
+
+  // ---------- you ----------
+  const sp = start || town.spawn || { x: 0, z: 0, yaw: 0 }
+  const me = { name: host.me?.name || "You", look: host.me?.look || null, walker: createWalker(sp.x, sp.z, sp.yaw ?? 0), x: sp.x, z: sp.z, y: 0, yaw: sp.yaw ?? 0 }
+  let driving = false
+  let radioOn = false
+  const audio = host.audio || null
+  let riding = null // { num } the friend whose car you're in
+  let car = null // the car you're driving (sim/car.js)
+  let carMesh = null
+  const input = { x: 0, y: 0, sprint: false, gas: 0, brake: 0, steer: 0 }
+  const keys = new Set()
+  const cam = { yaw: wrap((sp.yaw ?? 0) + 0), pitch: 0.3, dist: phone ? 5.2 : 4.6, pos: null, look: new THREE.Vector3(), behindT: 0 }
+
+  // figures (the host makes them: an athlete in 98ish)
+  const figs = new Map() // key -> { fig, look }
+  const figFor = (key, look) => {
+    const f = figs.get(key)
+    if (f && f.look === look) return f.fig
+    if (f) {
+      f.fig.dispose()
+      figs.delete(key)
+    }
+    if (!host.figure) return null
+    const fig = host.figure(look || {})
+    if (!fig) return null
+    scene.add(fig.group)
+    figs.set(key, { fig, look })
+    return fig
+  }
+  const dropFig = (key) => {
+    const f = figs.get(key)
+    if (!f) return
+    f.fig.dispose()
+    figs.delete(key)
+  }
+
+  // ---------- the hidden finds ----------
+  const eggs = createEggs({ town, frame, scene, host, groundAt, onFound: (egg) => onEvent({ type: "found", egg }) })
+  eggs.setTogether((e) => togetherAt(e))
+  const eggCars = eggs.cars()
+
+  // ---------- other people (online) ----------
+  let net = null
+  let myNum = null
+  let netInfo = null
+  const remotes = new Map() // num -> { num, name, look, track, car, carMesh, seat, x, z, y, yaw, speed, act }
+  let lastSent = null
+  const netClock = { offset: null }
+  const addRemote = (p) => {
+    if (!p || p.num === myNum) return
+    const r = remotes.get(p.num) || { num: p.num, track: createTrack(), x: 0, z: 0, y: 0, yaw: 0, speed: 0, act: 0, car: null, carMesh: null }
+    r.name = String(p.name || "Guest").slice(0, 40)
+    r.look = p.look || null
+    if (p.pos) {
+      const q = unpackPos(p.pos)
+      if (q) Object.assign(r, q)
+    }
+    setRemoteCar(r, p.car || null)
+    remotes.set(p.num, r)
+  }
+  const setRemoteCar = (r, c) => {
+    if (r.carMesh && (!c || c.seat === 1 || r.car?.id !== c.id || r.car?.model !== c.model)) {
+      r.carMesh.dispose()
+      r.carMesh = null
+    }
+    r.car = c
+    if (c && c.seat !== 1 && !r.carMesh) {
+      r.carMesh = makeCarMesh(c.model, c.color)
+      scene.add(r.carMesh.group)
+    }
+    // (a parked car someone took is no longer parked)
+    if (c && c.seat !== 1 && c.id) moved.set(c.id, "gone")
+    tilesDirty = true
+  }
+  const dropRemote = (num) => {
+    const r = remotes.get(num)
+    if (!r) return
+    r.carMesh?.dispose()
+    dropFig(`r${num}`)
+    remotes.delete(num)
+    if (riding?.num === num) getOut()
+  }
+  const stepRemotes = () => {
+    const now = performance.now() / 1000
+    const t = netClock.offset === null ? null : now + netClock.offset - DELAY
+    for (const r of remotes.values()) {
+      const p = t !== null ? sampleTrack(r.track, t) : null
+      if (p) Object.assign(r, { x: p.x, z: p.z, y: p.y, yaw: p.yaw, speed: p.speed, act: p.act })
+    }
+  }
+
+  // ---------- doing things: the one action button ----------
+  let action = null // { kind, label, target }
+  const nearestParked = (x, z, within) => {
+    let best = null
+    let bd = within
+    for (const c of parkedList()) {
+      const d = Math.hypot(c.x - x, c.z - z)
+      if (d < bd) {
+        bd = d
+        best = c
+      }
+    }
+    return best
+  }
+  const actionFor = () => {
+    if (riding) return { kind: "out", label: "Get out" }
+    if (driving) return Math.abs(car.speed) < 2 ? { kind: "out", label: "Get out" } : null
+    const w = me.walker
+    // a friend's car to ride along in (the passenger door)
+    for (const r of remotes.values()) {
+      if (!r.car || r.car.seat === 1) continue
+      if (Math.hypot(r.x - w.x, r.z - w.z) < 4.2 && r.speed < 2) return { kind: "ride", label: `Ride along with ${r.name}`, target: r.num }
+    }
+    const egg = eggs.nearest(w.x, w.z)
+    if (egg) return { kind: "egg", label: egg.verb || "Take a look", target: egg.id }
+    const c = nearestParked(w.x, w.z, 3.4)
+    if (c) return { kind: "car", label: c.model === "turbo" ? "Get in the Turbo 98" : "Get in", target: c }
+    const back = town.venues ? Object.entries(town.venues).find(([, v]) => v.back && Math.hypot(w.x - v.back.x, w.z - v.back.z) < v.back.r) : null
+    if (back) return { kind: "venue", label: "Back to the courts", target: back[0] }
+    return null
+  }
+  const getIn = (c) => {
+    if (driving || riding) return
+    driving = true
+    car = createCar({ id: c.id, model: c.model, color: c.color, x: c.x, z: c.z, yaw: c.yaw })
+    car.y = heightAt(c.x, c.z, me.walker.y, true) ?? me.walker.y
+    moved.set(c.id, "gone")
+    carMesh = makeCarMesh(c.model, c.color)
+    scene.add(carMesh.group)
+    dropFig("me")
+    tilesDirty = true
+    cam.pos = null
+    net?.request?.("roam:car", { car: { id: c.id, model: c.model, color: c.color } })
+    lastSent = null
+    if (c.egg) eggs.find(c.egg)
+    onEvent({ type: "car", on: true, model: c.model })
+  }
+  const getOut = () => {
+    if (riding) {
+      const r = remotes.get(riding.num)
+      const yaw = r ? r.yaw : me.yaw
+      const base = r ? { x: r.x, z: r.z, yaw } : { x: me.x, z: me.z, yaw }
+      const spot = doorSpot({ ...base, model: r?.car?.model || "sedan" }, "passenger")
+      const p = colliders.resolve(spot.x, spot.z, 0.4)
+      me.walker.x = p.x
+      me.walker.z = p.z
+      me.walker.yaw = yaw
+      riding = null
+      if (radioOn) {
+        radioOn = false
+        audio?.radio?.(false)
+      }
+      net?.request?.("roam:car", { car: null })
+      lastSent = null
+      onEvent({ type: "ride", on: false })
+      return
+    }
+    if (!driving || !car) return
+    audio?.horn?.(false)
+    if (radioOn) {
+      radioOn = false
+      audio?.radio?.(false)
+    }
+    // the car stays where you left it (this session; friends see it there too)
+    moved.set(car.id, { x: car.x, z: car.z, yaw: car.yaw })
+    const spot = doorSpot(car, "driver")
+    const p = colliders.resolve(spot.x, spot.z, 0.4)
+    me.walker.x = p.x
+    me.walker.z = p.z
+    me.walker.yaw = car.yaw
+    me.walker.vx = me.walker.vz = 0
+    net?.request?.("roam:car", { car: null, left: { id: car.id, x: Math.round(car.x * 10), z: Math.round(car.z * 10), yaw: Math.round(((car.yaw / (2 * Math.PI)) * 256 + 256) % 256) } })
+    carMesh?.dispose()
+    carMesh = null
+    driving = false
+    cam.yaw = car.yaw
+    car = null
+    tilesDirty = true
+    lastSent = null
+    onEvent({ type: "car", on: false })
+  }
+  const rideAlong = (num) => {
+    const r = remotes.get(num)
+    if (!r?.car || driving) return
+    net?.request?.("roam:ride", { num }).then((res) => {
+      if (!res?.ok) return onEvent({ type: "toast", text: res?.error || "Couldn't get in." })
+      riding = { num }
+      dropFig("me")
+      cam.pos = null
+      lastSent = null
+      onEvent({ type: "ride", on: true, name: r.name })
+    })
+  }
+  const doAction = () => {
+    const a = actionFor()
+    if (!a) return
+    if (a.kind === "car") getIn(a.target)
+    else if (a.kind === "out") getOut()
+    else if (a.kind === "ride") rideAlong(a.target)
+    else if (a.kind === "egg") eggs.find(a.target, { together: togetherAt(eggs.get(a.target)) })
+    else if (a.kind === "venue") onEvent({ type: "venue", venue: a.target })
+    sendHud(true)
+  }
+  // is a friend here with you (for the couple's find)?
+  const togetherAt = (egg) => !!egg && [...remotes.values()].some((r) => Math.hypot(r.x - egg.x, r.z - egg.z) < 25)
+
+  // ---------- the camera ----------
+  const tmpA = new THREE.Vector3()
+  const portrait = () => size.height > size.width * 1.05
+  const chase = createChase()
+  const baseFov = camera.fov
+  let devCam = null // (tests: a fixed lens { pos, look })
+  const updateCamera = (dt) => {
+    if (devCam) {
+      camera.position.set(devCam.pos.x, devCam.pos.y, devCam.pos.z)
+      tmpA.set(devCam.look.x, devCam.look.y, devCam.look.z)
+      camera.lookAt(tmpA)
+      camera.clearViewOffset()
+      return
+    }
+    if (driving || riding) {
+      const c = driving ? car : remotes.get(riding.num)
+      if (!c) return
+      const v = stepChase(chase, c, dt, { portrait: portrait(), groundAt, segment: (x0, z0, x1, z1, y) => colliders.segment(x0, z0, x1, z1, y) })
+      camera.position.set(v.pos.x, v.pos.y, v.pos.z)
+      tmpA.set(v.look.x, v.look.y, v.look.z)
+      camera.lookAt(tmpA)
+      if (Math.abs(camera.fov - v.fov) > 0.05) {
+        camera.fov = v.fov
+        camera.updateProjectionMatrix()
+      }
+      camera.clearViewOffset()
+      cam.yaw = chase.yaw
+      cam.pos = null
+      return
+    }
+    chase.yaw = null
+    chase.pos = null
+    if (camera.fov !== baseFov) {
+      camera.fov = baseFov
+      camera.updateProjectionMatrix()
+    }
+    const w = me.walker
+    const tx = w.x
+    const tz = w.z
+    const ty = (w.y || 0) + 1.45
+    const dist = cam.dist
+    // (a drag up or down tilts the view: lower sees more of the town ahead)
+    const height = 0.35 + cam.pitch * 2.2
+    // (comes round behind you only when you walk away from it)
+    if (w.speed > 0.6) {
+      const away = Math.cos(wrap(w.yaw - cam.yaw))
+      if (away > 0.3) {
+        cam.behindT += dt
+        if (cam.behindT > 0.35) cam.yaw += wrap(w.yaw - cam.yaw) * Math.min(1, dt * 1.6 * away)
+      } else cam.behindT = 0
+    } else cam.behindT = 0
+    const bx = tx - Math.sin(cam.yaw) * dist
+    const bz = tz - Math.cos(cam.yaw) * dist
+    // walls between you and the lens pull it in
+    const f = colliders.segment(tx, tz, bx, bz, ty)
+    const k = f < 1 ? Math.max(0.12, f - 0.06) : 1
+    const cx = tx + (bx - tx) * k
+    const cz = tz + (bz - tz) * k
+    let cy = ty + height * (0.55 + 0.45 * k)
+    // (never under the ground)
+    const g = groundAt(cx, cz)
+    if (g !== null && cy < g + 0.8) cy = g + 0.8
+    if (!cam.pos) cam.pos = new THREE.Vector3(cx, cy, cz)
+    const lerp = Math.min(1, dt * 10)
+    cam.pos.x += (cx - cam.pos.x) * lerp
+    cam.pos.y += (cy - cam.pos.y) * lerp
+    cam.pos.z += (cz - cam.pos.z) * lerp
+    camera.position.copy(cam.pos)
+    // (upright phones: you sit a little above the middle, the way ahead above the thumbs;
+    // looking a little past you, the way the camera faces: more town, less ground)
+    tmpA.set(tx + Math.sin(cam.yaw) * 2.5, ty + 0.45, tz + Math.cos(cam.yaw) * 2.5)
+    camera.lookAt(tmpA)
+    if (portrait()) camera.setViewOffset(size.width, size.height, 0, size.height * 0.14, size.width, size.height)
+    else camera.clearViewOffset()
+  }
+
+  // ---------- drawing people ----------
+  const drawPeople = (dt) => {
+    // you
+    if (!driving && !riding) {
+      const fig = figFor("me", me.look)
+      if (fig) fig.update({ x: me.walker.x, y: me.walker.y, z: me.walker.z, yaw: me.walker.yaw, vx: me.walker.vx, vz: me.walker.vz, speed: me.walker.speed }, dt)
+    }
+    if (driving && car && carMesh) {
+      carMesh.group.position.set(car.x, car.y, car.z)
+      carMesh.group.rotation.set(-car.pitch, car.yaw, car.roll, "YXZ")
+      // the wheels steer and roll; the body leans out of a turn and dips under the brake
+      const steerA = car.steer * steerLimit(car.speed)
+      carMesh.setWheels(steerA, car.speed * dt)
+      const yawRate = (car.speed * Math.tan(steerA)) / (MODELS[car.model] || MODELS.sedan).wheelbase
+      const accel = dt > 0 ? (car.speed - (car.lastSpeed ?? car.speed)) / dt : 0
+      car.lastSpeed = car.speed
+      car.lean = (car.lean || 0) + (Math.max(-0.05, Math.min(0.05, -yawRate * car.speed * 0.006)) - (car.lean || 0)) * Math.min(1, dt * 6)
+      car.dive = (car.dive || 0) + (Math.max(-0.03, Math.min(0.03, -accel * 0.003)) - (car.dive || 0)) * Math.min(1, dt * 6)
+      carMesh.body.rotation.set(car.dive, 0, car.lean)
+      const braking = (input.brake > 0 || keys.has("ArrowDown") || keys.has("KeyS")) && car.speed > 0.3
+      carMesh.setBrake(braking)
+    }
+    // the others
+    for (const r of remotes.values()) {
+      const inCar = (r.act & ACT.drive) && r.carMesh
+      if (r.carMesh) {
+        r.carMesh.group.visible = !!(r.act & ACT.drive)
+        const g = heightAt(r.x, r.z, r.y, true)
+        r.carMesh.group.position.set(r.x, Number.isFinite(g) ? g : r.y, r.z)
+        r.carMesh.group.rotation.set(0, r.yaw, 0)
+        r.carMesh.setWheels(0, (r.speed || 0) * dt)
+      }
+      const hidden = inCar || (r.act & ACT.ride)
+      if (hidden || Math.hypot(r.x - camera.position.x, r.z - camera.position.z) > 120) {
+        dropFig(`r${r.num}`)
+        continue
+      }
+      const fig = figFor(`r${r.num}`, r.look)
+      if (fig) fig.update({ x: r.x, y: r.y, z: r.z, yaw: r.yaw, vx: Math.sin(r.yaw) * r.speed, vz: Math.cos(r.yaw) * r.speed, speed: r.speed }, dt)
+    }
+  }
+
+  // ---------- labels (names over people) ----------
+  const labelPool = []
+  const proj = new THREE.Vector3()
+  const updateLabels = () => {
+    if (!labelsEl) return
+    let i = 0
+    for (const r of remotes.values()) {
+      const d = Math.hypot(r.x - camera.position.x, r.z - camera.position.z)
+      if (d > 90) continue
+      proj.set(r.x, (r.y || 0) + ((r.act & ACT.drive) || (r.act & ACT.ride) ? 2.2 : 2.15), r.z).project(camera)
+      if (proj.z > 1 || Math.abs(proj.x) > 1.1 || Math.abs(proj.y) > 1.1) continue
+      let el = labelPool[i]
+      if (!el) {
+        el = document.createElement("div")
+        el.className = "roamLabel"
+        labelsEl.appendChild(el)
+        labelPool[i] = el
+      }
+      const text = r.act & ACT.ride ? `${r.name} (riding along)` : r.name
+      if (el.textContent !== text) el.textContent = text
+      el.style.display = ""
+      el.style.transform = `translate(${((proj.x + 1) / 2) * size.width}px, ${((1 - proj.y) / 2) * size.height}px) translate(-50%, -100%)`
+      i++
+    }
+    for (; i < labelPool.length; i++) labelPool[i].style.display = "none"
+  }
+
+  // ---------- the HUD ----------
+  let hudT = 0
+  let lastHud = ""
+  const streetAt = (x, z) => {
+    const t = tileAt(x, z)
+    if (!t) return ""
+    let best = ""
+    let bd = 14
+    for (const r of t.roads) {
+      if (!r.name) continue
+      for (let i = 0; i + 1 < r.pts.length; i++) {
+        const a = r.pts[i]
+        const b = r.pts[i + 1]
+        const dx = b.x - a.x
+        const dz = b.z - a.z
+        const L2 = dx * dx + dz * dz || 1e-9
+        const k = Math.max(0, Math.min(1, ((x - a.x) * dx + (z - a.z) * dz) / L2))
+        const d = Math.hypot(x - a.x - dx * k, z - a.z - dz * k) - r.width / 2
+        if (d < bd) {
+          bd = d
+          best = r.name
+        }
+      }
+    }
+    return best
+  }
+  const sendHud = (force) => {
+    action = actionFor()
+    const pos = center()
+    const hud = {
+      mode: driving ? "drive" : riding ? "ride" : "walk",
+      action: action ? { kind: action.kind, label: action.label } : null,
+      speed: driving ? Math.round(Math.abs(car.speed) * 2.237) : riding ? Math.round((remotes.get(riding.num)?.speed || 0) * 2.237) : 0,
+      street: frameNo % 4 === 0 || force ? streetAt(pos.x, pos.z) : lastStreet,
+      found: eggs.foundCount,
+      total: eggs.total,
+      hint: eggs.hint(pos.x, pos.z),
+      loading: tiles.size === 0,
+      online: net ? { people: remotes.size + 1, you: myNum } : null,
+      riders: driving ? [...remotes.values()].filter((r) => r.car?.seat === 1 && r.car.driver === myNum).map((r) => r.name) : [],
+      sprint: input.sprint,
+      radio: radioOn,
+    }
+    lastStreet = hud.street
+    const s = JSON.stringify(hud)
+    if (!force && s === lastHud) return
+    lastHud = s
+    onHud(hud)
+  }
+  let lastStreet = ""
+  let frameNo = 0
+
+  // ---------- online: sending ----------
+  const myPos = () => {
+    if (driving && car) return { x: car.x, z: car.z, y: car.y, yaw: car.yaw, speed: car.speed, act: ACT.drive | (Math.abs(car.speed) > 0.1 ? ACT.move : 0) }
+    if (riding) {
+      const r = remotes.get(riding.num)
+      return { x: r?.x ?? me.walker.x, z: r?.z ?? me.walker.z, y: r?.y ?? 0, yaw: r?.yaw ?? 0, speed: r?.speed ?? 0, act: ACT.ride }
+    }
+    const w = me.walker
+    return { x: w.x, z: w.z, y: w.y, yaw: w.yaw, speed: w.speed, act: (w.speed > 0.1 ? ACT.move : 0) | (w.speed > 5 ? ACT.sprint : 0) }
+  }
+  const sendPos = () => {
+    if (!net?.volatile) return
+    const p = myPos()
+    const now = performance.now() / 1000
+    if (!shouldSend(lastSent, p, now, driving)) return
+    lastSent = { t: now, p }
+    net.volatile("roam:pos", packPos(p))
+  }
+
+  // ---------- the frame ----------
+  const step = (dtIn) => {
+    if (disposed || suspended) return
+    const dt = Math.min(0.1, dtIn)
+    clock += dt
+    frameNo++
+    stepSky()
+    stepTiles(dt)
+    if (tilesDirtyForShadow) {
+      tilesDirtyForShadow = false
+      shadowAt.dirty = true
+    }
+    stepShadow()
+    // keys
+    const kx = (keys.has("ArrowRight") || keys.has("KeyD") ? 1 : 0) - (keys.has("ArrowLeft") || keys.has("KeyA") ? 1 : 0)
+    const ky = (keys.has("ArrowUp") || keys.has("KeyW") ? 1 : 0) - (keys.has("ArrowDown") || keys.has("KeyS") ? 1 : 0)
+    const shift = keys.has("ShiftLeft") || keys.has("ShiftRight")
+    const people = [...remotes.values()].filter((r) => !(r.act & (ACT.drive | ACT.ride))).map((r) => ({ x: r.x, z: r.z }))
+    if (driving && car) {
+      const gas = Math.max(input.gas, ky > 0 ? 1 : 0)
+      const brake = Math.max(input.brake, ky < 0 ? 1 : 0)
+      const steer = Math.max(-1, Math.min(1, input.steer + kx))
+      stepCar(car, { gas, brake, steer }, dt, { resolve: resolveWithTraffic, heightAt: (x, z, y) => heightAt(x, z, y, true), blocked: (x, z, yaw, dir, m) => personAhead(people, x, z, yaw, dir, m) })
+    } else if (riding) {
+      const r = remotes.get(riding.num)
+      if (r) {
+        me.walker.x = r.x
+        me.walker.z = r.z
+        me.walker.y = r.y
+      }
+    } else if (tileAt(me.walker.x, me.walker.z)) {
+      // (only once the ground under you is here: no walking off into nothing)
+      const kl = Math.hypot(kx, ky) || 1
+      const ix = input.x + (kx / kl) * (kx || ky ? 0.85 : 0)
+      const iy = input.y + (ky / kl) * (kx || ky ? 0.85 : 0)
+      stepWalker(me.walker, { x: ix, y: iy, sprint: input.sprint || shift }, cam.yaw, dt, { resolve: resolveWithTraffic, heightAt: (x, z, y) => heightAt(x, z, y, false) })
+    }
+    stepRemotes()
+    eggs.step(dt, center(), clock, camera)
+    updateCamera(dt)
+    // (the sky dome rides with the lens: the town is bigger than the dome)
+    if (sky?.mesh) sky.mesh.position.set(camera.position.x, 0, camera.position.z)
+    stepLife(dt)
+    drawLife(dt)
+    drawLights()
+    drawPeople(dt)
+    updateLabels()
+    sendPos()
+    hudT += dt
+    if (hudT > 0.15) {
+      hudT = 0
+      sendHud(false)
+    }
+  }
+
+  const world = {
+    scene,
+    camera,
+    town,
+    frame: step,
+    get exposure() {
+      return exposure
+    },
+    toneMapping: THREE.ACESFilmicToneMapping,
+    get mode() {
+      return driving ? "drive" : riding ? "ride" : "walk"
+    },
+    resize(width, height) {
+      size = { width: Math.max(1, width), height: Math.max(1, height) }
+      camera.aspect = size.width / size.height
+      camera.updateProjectionMatrix()
+    },
+    // the walking stick: x right, y up (each -1..1)
+    setStick(x, y) {
+      input.x = x
+      input.y = y
+    },
+    setSprint(on) {
+      input.sprint = !!on
+    },
+    // driving: steer -1..1 (right +), gas and brake 0..1
+    setDrive({ steer, gas, brake } = {}) {
+      if (steer !== undefined) input.steer = Math.max(-1, Math.min(1, steer))
+      if (gas !== undefined) input.gas = gas
+      if (brake !== undefined) input.brake = brake
+    },
+    key(code, down) {
+      if (down) {
+        if (code === "Enter" || code === "KeyF" || code === "KeyE") return doAction()
+        if (code === "KeyQ") return (cam.yaw += 0.35)
+        if (code === "KeyH") {
+          world.horn(true)
+          return true
+        }
+        if (code === "KeyR") {
+          world.radio(!radioOn)
+          return true
+        }
+        keys.add(code)
+      } else {
+        keys.delete(code)
+        if (code === "KeyH") world.horn(false)
+      }
+      return ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "KeyW", "KeyA", "KeyS", "KeyD", "ShiftLeft", "ShiftRight", "Space"].includes(code)
+    },
+    clearKeys() {
+      keys.clear()
+      input.x = input.y = input.gas = input.brake = input.steer = 0
+      input.sprint = false
+    },
+    // a drag on the picture turns the camera round you (px)
+    drag(dx, dy = 0) {
+      if (driving || riding) return
+      cam.yaw -= dx * 0.008
+      cam.pitch = Math.max(0.05, Math.min(0.9, cam.pitch + dy * 0.004))
+    },
+    action: doAction,
+    // the car's horn (held) and radio (on/off; it goes off when you get out)
+    horn(on) {
+      if (!driving && on) return
+      audio?.horn?.(!!on)
+    },
+    radio(on) {
+      radioOn = !!on && (driving || !!riding)
+      audio?.radio?.(radioOn)
+      sendHud(true)
+    },
+    get radioOn() {
+      return radioOn
+    },
+    // the minimap: the drivable roads round you (town metres), you, friends, the way you face
+    mapView(radius = 160) {
+      const p = center()
+      const roads = []
+      const r2 = (radius + 60) ** 2
+      for (const e of tiles.values()) {
+        if (!e.near) continue
+        const rc = e.t.rect
+        const dx = Math.max(rc.x0 - p.x, 0, p.x - rc.x1)
+        const dz = Math.max(rc.z0 - p.z, 0, p.z - rc.z1)
+        if (dx * dx + dz * dz > r2) continue
+        for (const r of e.t.roads) if (DRIVABLE.has(r.cls) && r.cls !== ROAD.driveway && r.cls !== ROAD.aisle) roads.push({ w: r.width, big: r.cls <= ROAD.tertiary, pts: r.pts })
+      }
+      return { x: p.x, z: p.z, yaw: driving && car ? car.yaw : riding ? remotes.get(riding.num)?.yaw ?? me.walker.yaw : me.walker.yaw, view: cam.yaw, roads, people: [...remotes.values()].map((r) => ({ x: r.x, z: r.z })), traffic: traffic.cars.map((t) => ({ x: t.x, z: t.z })) }
+    },
+    refigure() {
+      for (const k of [...figs.keys()]) dropFig(k)
+    },
+    setMe({ name, look } = {}) {
+      if (name) me.name = name
+      if (look && look !== me.look) {
+        me.look = look
+        net?.request?.("roam:look", { look })
+      }
+    },
+    suspend() {
+      suspended = true
+      world.clearKeys()
+    },
+    resume() {
+      suspended = false
+      sendHud(true)
+    },
+    get suspended() {
+      return suspended
+    },
+    // ---- online (the host's connection: server/roam) ----
+    setNet(n) {
+      net = n
+      if (!n) {
+        for (const num of [...remotes.keys()]) dropRemote(num)
+        myNum = null
+        netInfo = null
+        if (riding) getOut()
+      }
+      sendHud(true)
+    },
+    netJoined(r) {
+      myNum = r.you
+      netInfo = r
+      for (const p of r.people || []) addRemote(p)
+      for (const m of r.moved || []) moved.set(m.id, { x: m.x / 10, z: m.z / 10, yaw: (m.yaw / 256) * 2 * Math.PI })
+      tilesDirty = true
+      lastSent = null
+      if (driving && car) net?.request?.("roam:car", { car: { id: car.id, model: car.model, color: car.color } })
+      sendHud(true)
+    },
+    netEvent(type, d) {
+      if (type === "roam:m" && d && Array.isArray(d.m)) {
+        const now = performance.now() / 1000
+        // (the server's clock against ours: the smallest gap seen, eased)
+        const off = d.t / 1000 - now
+        netClock.offset = netClock.offset === null ? off : Math.max(off, netClock.offset - 0.002)
+        for (const row of d.m) {
+          if (!Array.isArray(row)) continue
+          const r = remotes.get(row[0])
+          const p = unpackPos(row.slice(1))
+          if (!r || !p) continue
+          pushSample(r.track, d.t / 1000, p)
+        }
+      } else if (type === "roam:person" && d) addRemote(d)
+      else if (type === "roam:gone" && d) dropRemote(d.num)
+      else if (type === "roam:car" && d) {
+        const r = remotes.get(d.num)
+        if (r) setRemoteCar(r, d.car || null)
+        if (d.left) {
+          moved.set(d.left.id, { x: d.left.x / 10, z: d.left.z / 10, yaw: (d.left.yaw / 256) * 2 * Math.PI })
+          tilesDirty = true
+        }
+        // (the driver you ride with got out: you're out too)
+        if (riding && !d.car && (d.num === riding.num || d.num === myNum)) getOut()
+      } else if (type === "roam:ride" && d) {
+        // someone got in beside you
+        const r = remotes.get(d.num)
+        if (r) r.car = d.car || r.car
+        onEvent({ type: "toast", text: `${r?.name || "A friend"} is riding along` })
+      }
+      sendHud(false)
+    },
+    // spatial voice: where you listen from and where everyone is (by number)
+    voicePlace() {
+      const people = {}
+      const names = {}
+      for (const r of remotes.values()) {
+        names[r.num] = r.name
+        people[r.num] = { x: r.x, z: r.z }
+      }
+      const p = center()
+      return { listener: { x: p.x, z: p.z, yaw: cam.yaw }, people, court: null, me: myNum, names }
+    },
+    setVoiceTalk() {},
+    // the eggs: found list
+    get found() {
+      return eggs.list()
+    },
+    // where you are (tests and the page)
+    get info() {
+      const p = center()
+      return {
+        me: { x: me.walker.x, y: me.walker.y, z: me.walker.z, yaw: me.walker.yaw, speed: me.walker.speed, mode: world.mode },
+        car: car ? { id: car.id, model: car.model, x: car.x, y: car.y, z: car.z, yaw: car.yaw, speed: car.speed, steer: car.steer, hitT: car.hitT } : null,
+        riding,
+        at: p,
+        latlon: frame.toLatLon(p.x, p.z),
+        camera: { x: camera.position.x, y: camera.position.y, z: camera.position.z, yaw: cam.yaw },
+        tiles: { built: tiles.size, near: [...tiles.values()].filter((e) => e.near).length, store: store.busy, edges: colliders.edges },
+        parked: parkedList().length,
+        action,
+        remotes: [...remotes.values()].map((r) => ({ num: r.num, name: r.name, x: r.x, z: r.z, act: r.act, car: r.car })),
+        net: net ? { you: myNum, info: netInfo ? { town: netInfo.town, n: netInfo.n } : null } : null,
+        eggs: { found: eggs.foundCount, total: eggs.total },
+        traffic: traffic.cars.map((t) => ({ id: t.id, x: t.x, z: t.z, yaw: t.yaw, speed: t.speed, road: t.road.name })),
+        peds: peds.peds.map((p) => ({ id: p.id, x: p.x, z: p.z, speed: p.speed })),
+        street: lastStreet,
+      }
+    },
+    // (tests) somewhere else, the parked cars near you, the eggs
+    teleport(x, z, yaw = me.walker.yaw) {
+      if (driving) {
+        car.x = x
+        car.z = z
+        car.yaw = yaw
+        car.speed = 0
+      } else {
+        me.walker.x = x
+        me.walker.z = z
+        me.walker.yaw = yaw
+        me.walker.vx = me.walker.vz = 0
+      }
+      cam.yaw = yaw
+      cam.pos = null
+      lastCenter = null
+    },
+    // not inside a building (coming out of a venue somewhere the town draws a wall round):
+    // the venue's own way out, else the nearest open ground
+    ensureOpen(spot = null) {
+      if (driving || riding) return
+      const w = me.walker
+      const open = (x, z) => !colliders.inside(x, z) && !colliders.resolve(x, z, 0.5).hit
+      if (open(w.x, w.z)) return
+      if (spot && open(spot.x, spot.z)) return world.teleport(spot.x, spot.z, spot.yaw ?? w.yaw)
+      const x0 = spot ? spot.x : w.x
+      const z0 = spot ? spot.z : w.z
+      for (let r = 2; r < 120; r += 2)
+        for (let a = 0; a < 16; a++) {
+          const x = x0 + Math.cos((a / 16) * Math.PI * 2) * r
+          const z = z0 + Math.sin((a / 16) * Math.PI * 2) * r
+          if (open(x, z)) return world.teleport(x, z, w.yaw)
+        }
+    },
+    // (tests: the scripted thumb) the closest point on a through road -> { x, z } | null
+    nearestRoadPoint(x, z) {
+      let best = null
+      let bd = 60
+      for (const e of tiles.values()) {
+        if (!e.near) continue
+        for (const r of e.t.roads) {
+          if (!DRIVABLE.has(r.cls) || r.cls === ROAD.service || r.cls === ROAD.aisle || r.cls === ROAD.driveway) continue
+          for (let i = 0; i + 1 < r.pts.length; i++) {
+            const a = r.pts[i]
+            const b = r.pts[i + 1]
+            const dx = b.x - a.x
+            const dz = b.z - a.z
+            const L2 = dx * dx + dz * dz || 1e-9
+            const k = Math.max(0, Math.min(1, ((x - a.x) * dx + (z - a.z) * dz) / L2))
+            const px = a.x + dx * k
+            const pz = a.z + dz * k
+            const d = Math.hypot(x - px, z - pz)
+            if (d < bd) {
+              bd = d
+              best = { x: px, z: pz }
+            }
+          }
+        }
+      }
+      return best
+    },
+    // (tests) no wall between two points?
+    clearPath: (x0, z0, x1, z1) => colliders.segment(x0, z0, x1, z1, -1e9) >= 1,
+    // (tests) a point on a named street among the tiles drawn -> { x, z, yaw } | null
+    findRoad(re) {
+      const rx = new RegExp(re, "i")
+      for (const e of tiles.values())
+        for (const r of e.t.roads)
+          if (rx.test(r.name) && r.pts.length > 1) {
+            const a = r.pts[0]
+            const b = r.pts[1]
+            return { x: (a.x + b.x) / 2, z: (a.z + b.z) / 2, yaw: Math.atan2(b.x - a.x, b.z - a.z), name: r.name, pts: r.pts.map((p) => ({ x: p.x, z: p.z })) }
+          }
+      return null
+    },
+    parkedNear(r = 60) {
+      const p = center()
+      return parkedList().filter((c) => Math.hypot(c.x - p.x, c.z - p.z) < r)
+    },
+    eggs,
+    frameOf: frame,
+    get draws() {
+      return [...tiles.values()].reduce((n, e) => n + e.mesh.calls, 0)
+    },
+    heightAt,
+    // (tests) what's drawn: shadows, trees, cars
+    renderInfo: () => ({ sunI: +sun.intensity.toFixed(2), hemiI: +hemi.intensity.toFixed(2), sunPos: sun.position.toArray().map(Math.round), tgt: sun.target.position.toArray().map(Math.round), exposure, shadow: !!sun.shadow.map, shadowAt: { x: Math.round(shadowAt.x), z: Math.round(shadowAt.z), n: shadowAt.n, t: shadowAt.t, now: clock, nu: sun.shadow.needsUpdate }, sunDir: sunDir.toArray().map((v) => +v.toFixed(2)), trees: trees.nearCount, night: +night.toFixed(2) }),
+    devSun: () => sun,
+    devLife({ traffic: t, peds: p } = {}) {
+      if (t !== undefined) traffic.cap = t
+      if (p !== undefined) peds.cap = p
+    },
+    devShadowDirty: () => (shadowAt.dirty = true),
+    // (tests) a fixed lens for close-up shots: devCamera({ x, y, z }, { x, y, z }) or null
+    devCamera(pos, look) {
+      devCam = pos && look ? { pos, look } : null
+    },
+    setHour(h) {
+      hourOverride = h
+      applyLook()
+    },
+    whenReady: async () => {
+      await store.ready()
+      const c = center()
+      const list = tilesAround(frame, c.x, c.z, 300)
+      store.want(list)
+      await store.whenLoaded(list)
+      for (let i = 0; i < 4; i++) stepTiles(0)
+    },
+    dispose() {
+      disposed = true
+      for (const k of [...tiles.keys()]) dropTile(k)
+      for (const k of [...figs.keys()]) dropFig(k)
+      for (const r of remotes.values()) r.carMesh?.dispose()
+      carMesh?.dispose()
+      parkedLayer.dispose()
+      trees.dispose()
+      trafficLayer.dispose()
+      streetLayer.dispose()
+      audio?.horn?.(false)
+      audio?.radio?.(false)
+      for (const f of pedFigs.values()) f.dispose()
+      pedFigs.clear()
+      eggs.dispose()
+      sky?.dispose?.()
+      disposeMaterials()
+      for (const el of labelPool) el.remove()
+    },
+  }
+  applyLook()
+  sendHud(true)
+  return world
+}

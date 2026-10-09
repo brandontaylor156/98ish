@@ -86,6 +86,13 @@ export const loadSurfaces = (renderer) => {
   return loading
 }
 
+// one kind's texture as a shared uniform ({ value }: a neutral 1x1 until it loads), for shaders
+// written elsewhere (the open world's buildings and ground, roam/host98.js)
+export const surfaceUniform = (kind, renderer = null) => {
+  if (typeof document !== "undefined") loadSurfaces(renderer)
+  return uniformFor(kind)
+}
+
 const common = /* glsl */ `
 varying vec3 vSurfW;
 varying vec3 vSurfN;

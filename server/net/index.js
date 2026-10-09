@@ -18,6 +18,7 @@ const { createCoop } = require("../town/coop")
 const { createRooms } = require("../arcade/rooms")
 const ROOM_GAMES = require("../arcade/games")
 const { createPark } = require("../park")
+const { createRoam } = require("../roam")
 const { createBroadcasts } = require("../broadcast")
 const { createLanParty } = require("../lanparty")
 
@@ -57,7 +58,7 @@ const validFileName = (name) => {
   return value && value.length <= 64 && !INVALID_NAME.test(value) && value !== "." && value !== ".." ? value : null
 }
 
-const attachNet = (io, { aim: initialAim = null, graceMs = RESUME_GRACE_MS, games: gameOptions = {}, tetrisRanks = null, quiz: quizOptions = {}, coop: coopOptions = {}, rooms: roomsOptions = {}, park: parkOptions = {}, broadcast: broadcastOptions = {} } = {}) => {
+const attachNet = (io, { aim: initialAim = null, graceMs = RESUME_GRACE_MS, games: gameOptions = {}, tetrisRanks = null, quiz: quizOptions = {}, coop: coopOptions = {}, rooms: roomsOptions = {}, park: parkOptions = {}, roam: roamOptions = null, broadcast: broadcastOptions = {} } = {}) => {
   let aim = initialAim
   const computers = new Map() // token -> computer
   const byPid = new Map() // pid -> computer
@@ -162,6 +163,12 @@ const attachNet = (io, { aim: initialAim = null, graceMs = RESUME_GRACE_MS, game
     },
     ...parkOptions,
   })
+  // Roam, the open world (Explore Valencia): who's where in town, cars, riding along (server/roam)
+  const roam = createRoam({
+    emit: emitPid,
+    emitVolatile: (pid, event, payload) => byPid.get(pid)?.socket?.volatile.emit(event, payload),
+    ...(roamOptions || { meterTotal: parkOptions.meterTotal, capBytes: parkOptions.capBytes }),
+  })
   // Live Broadcast (Pickleball 98 > Real Games > Go Live): a real game's tracked data relayed
   // live to the host's buddies (server/broadcast)
   const liveCasts = createBroadcasts({
@@ -198,6 +205,7 @@ const attachNet = (io, { aim: initialAim = null, graceMs = RESUME_GRACE_MS, game
     coop.drop(computer.pid)
     rooms.drop(computer.pid)
     park.drop(computer.pid)
+    roam.drop(computer.pid)
     liveCasts.drop(computer.pid)
     lanParty.drop(computer.pid)
     broadcast()
@@ -418,6 +426,7 @@ const attachNet = (io, { aim: initialAim = null, graceMs = RESUME_GRACE_MS, game
     rooms.wire(socket, current, (computer) => ({ pid: computer.pid, name: nameOf(computer), key: aimSessionOf(computer)?.key || null }))
     // ---- My Park (server/park) ----
     park.wire(socket, current, (computer) => ({ pid: computer.pid, name: nameOf(computer), key: aimSessionOf(computer)?.key || null }))
+    roam.wire(socket, current, (computer) => ({ pid: computer.pid, name: nameOf(computer), key: aimSessionOf(computer)?.key || null }))
     // ---- Live Broadcast (server/broadcast) ----
     liveCasts.wire(socket, current, (computer) => ({ pid: computer.pid, name: nameOf(computer), key: aimSessionOf(computer)?.key || null }))
     // ---- LAN Party 98 (server/lanparty) ----

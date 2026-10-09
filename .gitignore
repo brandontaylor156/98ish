@@ -46,3 +46,6 @@ tools/venues/world/.cache/
 
 # Python bytecode (tools/venues/terrain.py imports horizon.py)
 __pycache__/
+
+# Roam town builder caches (raw Overpass answers, terrain PNGs)
+tools/roam/cache/

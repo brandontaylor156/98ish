@@ -120,3 +120,7 @@ Research round 2's feature 12 (`scratchpad research/round2.md`). Options > Sky: 
 
 - New kind: add the ambientCG set to `SETS` in `build-textures.py`, rebuild (`python tools/venues/textures/build-textures.py <folder of unzipped 1K-JPG sets>`), add its numbers to `SURFACES` in `surfaces.js`, tag materials with `surfaced(mat, "<kind>")`.
 - Before/after: `__park.devSurfaces(false|true)` then `__park.devShot({ cam })` (scratchpad script `realism/shots.mjs`; set the hour in the same evaluate, since the game re-applies the real clock).
+
+## Reused by the open world (2026-10-09)
+
+Roam (Explore Valencia, `docs/open-world.md`) borrows these through its host (`client/src/roam/host98.js`): the surface textures as shared uniforms (`surfaces.js surfaceUniform(kind)`, sampled by the town's own wall/roof/ground shaders), the outdoor HDRI for car paint and glass (`environment.js loadHDRI`), and the trees (`detail.js treeKit()`: the broad-leaf, palm and fan-palm geometries and swaying materials, made once, placed by the town in its own instanced meshes).
