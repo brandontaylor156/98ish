@@ -27,6 +27,7 @@
 //   the one before, the thumb resting), the grip round the handle, cupped, a fist, open.
 
 import { Q, qmul, qinv as qinvQ, qrot as qrotQ, qaxis, qnorm, qslerp, qangle, frameOf } from "./mm/quat.js"
+import { resolvePaddle } from "./paddlebody.js"
 
 const V = (x = 0, y = 0, z = 0) => ({ x, y, z })
 const add = (a, b) => V(a.x + b.x, a.y + b.y, a.z + b.z)
@@ -755,7 +756,15 @@ export const solvePaddleArm = (rig, S, paddle, chest, opts = {}) => {
     let H = c.H
     // (carried, not played: running, walking between points, the paddle simply rides in a
     // relaxed hand, thumb up, the face to the side: the way people carry one)
-    if (carry > 0) H = qslerp(H, handOn(rig, r.a, rot.neutral, opts.carryHand || { pron: 10, flex: 8, dev: 4 }), carry)
+    // (opts.carryAxis: the paddle's way when carried, from the body: its tip out and forward of
+    // the leg, the face to the side, whichever face is nearer; the hand follows, in range)
+    if (carry > 0 && opts.carryAxis) {
+      const cY = norm(opts.carryAxis)
+      const cZ = norm(perp(opts.carryNormal || V(1, 0, 0), cY))
+      const Ha = qmul(frameOf(cY, cZ), qinv(g.q))
+      const Hb = qmul(frameOf(cY, mul(cZ, -1)), qinv(g.q))
+      H = qslerp(H, qangle(Ha, H) < qangle(Hb, H) ? Ha : Hb, carry)
+    } else if (carry > 0) H = qslerp(H, handOn(rig, r.a, rot.neutral, opts.carryHand || { pron: 10, flex: 8, dev: 4 }), carry)
     if (prev.hand && prev.neutral && opts.handTurn) H = wristRate(rot.neutral, H, prev.neutral, prev.hand, opts.handTurn)
     H = limitHand(rig, r.a, rot.neutral, H, COMFORT)
     out = { upper: rot.upper, lower: rot.lower, hand: H, bend: r.b, psi: c.psi, side: c.side, E: r.a.E, W, short: 0, a: r.a, cost: r.c }
@@ -780,6 +789,62 @@ export const solvePaddleArm = (rig, S, paddle, chest, opts = {}) => {
   out.axis = qrot(P, V(0, 1, 0))
   out.normal = qrot(P, V(0, 0, 1))
   return out
+}
+
+// ---- the paddle kept out of the body (paddlebody.js) ----
+// Where a solved arm's elbow and wrist really are: from its bones' rotations (a result blended
+// between the arm-first and the paddle-true arm keeps one arm's E and W, but draws the blend)
+export const armFK = (rig, S, res) => {
+  const st = res.stretch || 1
+  const E = add(S, mul(qrot(qmul(res.upper, qinv(rig.restUA)), rig.ua0), rig.l1 * st))
+  const W = add(E, mul(qrot(qmul(res.lower, qinv(rig.restLA)), rig.la0), rig.l2 * st))
+  return { E, W }
+}
+// Where a solved paddle arm puts the paddle (W: its wrist, armFK's): { face, axis, normal, grip }
+export const paddleOfArm = (rig, res, faceFromGrip, W = res.W) => {
+  const P = qmul(res.hand, rig.grip.q)
+  const axis = qrot(P, V(0, 1, 0))
+  const grip = add(W, qrot(P, rig.grip.at))
+  return { face: add(grip, mul(axis, faceFromGrip)), axis, normal: qrot(P, V(0, 0, 1)), grip }
+}
+// The same arm with another hand (its forearm's twist and the paddle's directions follow)
+export const armWithHand = (rig, res, H) => {
+  const fa = norm(qrot(qmul(res.lower, qinv(rig.restLA)), rig.la0))
+  const neutral = res.neutral || qmul(qmul(res.lower, qinv(rig.restLA)), rig.restHand)
+  const P = qmul(H, rig.grip.q)
+  return { ...res, hand: H, neutral, twist: wristSplit(H, neutral, fa).twist, axis: qrot(P, V(0, 1, 0)), normal: qrot(P, V(0, 0, 1)) }
+}
+// The paddle arm's hand turned (at the wrist, within the wrist's and forearm's real ranges) so
+// the paddle's whole shape clears the body's capsules (bodyCapsules, without this arm's own
+// hand) by margin. S: the shoulder; keep: 1 away from contact, 0 at it (the face exactly on
+// the ball). Returns { res (the arm, maybe with a new hand), before, depth, shift (what turning
+// couldn't do: where the wrist would have to go) }
+export const guardPaddleArm = (rig, S, res, caps, { faceFromGrip, margin = 0.015, skip = null, keep = 1, maxTurn = 0.9, maxShift = 0.1 } = {}) => {
+  if (keep <= 0.02) return { res, before: null, depth: null, shift: null }
+  const { W } = armFK(rig, S, res)
+  const p = paddleOfArm(rig, res, faceFromGrip, W)
+  // (turning only: what the wrist can do)
+  const r = resolvePaddle(p, caps, { pivot: W, margin, skip, maxTurn: maxTurn * keep, maxShift: 0 })
+  if (r.before <= -margin) return { res, before: r.before, depth: r.before, shift: null }
+  let out = res
+  let depth = r.depth
+  if (r.turned > 1e-4) {
+    const H = qnorm(qmul(r.turn, res.hand))
+    const fa = norm(qrot(qmul(res.lower, qinv(rig.restLA)), rig.la0))
+    const neutral = res.neutral || qmul(qmul(res.lower, qinv(rig.restLA)), rig.restHand)
+    const H2 = limitHand(rig, { fa }, neutral, H, JOINTS)
+    out = armWithHand(rig, res, H2)
+    // (the wrist at the end of its range: where that leaves the paddle)
+    if (qangle(H2, H) > 0.01) depth = null
+  }
+  // what turning couldn't do: how far the wrist would have to move
+  let shift = null
+  if (depth === null || depth > -margin) {
+    const r2 = resolvePaddle(paddleOfArm(rig, out, faceFromGrip, W), caps, { pivot: W, margin, skip, maxTurn: 0, maxShift: maxShift * keep })
+    depth = r2.before
+    if (len(r2.shift) > 0.0005) shift = r2.shift
+  }
+  return { res: out, before: r.before, depth, shift, part: r.part }
 }
 
 // the hand's turn against its forearm (its wrist) changed by at most rate from last frame's

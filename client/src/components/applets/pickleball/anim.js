@@ -49,6 +49,14 @@ import { driveMM } from "./mm/drive.js"
 import { betweenActs } from "./between.js"
 import { gestureArms } from "./mm/gesture.js"
 import { createIdle, stepIdle } from "./idle.js"
+import { bodyCapsules, paddleDepth, resolvePaddle, rollPaddle, skipFor } from "./paddlebody.js"
+
+// the paddle kept out of the body (paddlebody.js): how far clear (m)
+export const GUARD = { margin: 0.02 }
+const guardCaps = []
+const offCaps = []
+const guardSkip = skipFor({})
+const capsule = (a, b, ra, rb, part) => ({ ax: a.x, ay: a.y, az: a.z, bx: b.x, by: b.y, bz: b.z, ra, rb, part })
 
 // ---- the skeleton (meters) ----
 export const BODY = {
@@ -1016,6 +1024,70 @@ export const updateAnim = (a, s, dt) => {
   if (bt.tap) normalW = norm(lerpV(normalW, norm(sub(V(bt.tap.nx, 0, bt.tap.nz), mul(axisW, bt.tap.nx * axisW.x + bt.tap.nz * axisW.z)), normalW), smoothW(bt.tap.w)), normalW)
   if (bt.twirl) normalW = norm(qrot(qaxis(axisW, bt.twirl), normalW), normalW)
 
+  // ---- the paddle's whole shape kept out of the body (paddlebody.js): its face, edge and
+  // handle against the trunk, head, legs and this arm; turned at the wrist first, the hand
+  // moved out only for what turning can't do (and the arm solved again); never right at
+  // contact (the face is where the ball is). Then the other arm out of the paddle's way. The
+  // skinned athletes check the drawn paddle again on their own bones (athlete.js). ----
+  let armPf = armP
+  let armOf = armO
+  if (!a.noGuard && !(typeof window !== "undefined" && window.__pbNoGuard)) {
+    const tRel = inp ? inp.tRel : null
+    const exact = tRel === null || so.w < 0.3 ? 0 : clamp(1 - (Math.abs(tRel) - 0.05) / 0.12, 0, 1)
+    // (how much the guard may move the face: none at contact, coming back slowly after it)
+    const keep = (1 - exact) * (1 - exact)
+    // (the other hand holding the paddle: a two-hander, the hand on the throat in the ready)
+    const cup = so.w < 0.5 && W.relax < 0.5 && W.pumpO < 0.3 && len(sub(armO.end, armP.end)) < 0.2
+    const holds = W.two >= 0.5 || cup
+    const up = norm(sub(neck, pelvis))
+    // (the other upper arm too; its forearm and hand move out of the way below)
+    const J = { pelvis, neck, pelvisRight, chestRight: sr, head: add(neck, mul(up, 0.13)), headUp: up, headFwd: chestF, shoulderP: paddleSide, elbowP: armP.mid, wristP: armP.end, shoulderO: holds ? undefined : otherSide, elbowO: holds ? undefined : armO.mid, handTipO: null, hipL: legs[0].hip, kneeL: legs[0].knee, ankleL: legs[0].ankle, hipR: legs[1].hip, kneeR: legs[1].knee, ankleR: legs[1].ankle }
+    bodyCapsules(J, { kind: "any", out: guardCaps })
+    if (exact > 0.02) {
+      // around contact: the face stays on the ball; the paddle rolls about the face's normal
+      // (the handle and the hand swing round it) and the arm follows
+      const face = add(armP.end, mul(axisW, BODY.paddleReach))
+      const r = rollPaddle({ face, axis: axisW, normal: normalW }, guardCaps, { margin: GUARD.margin, skip: guardSkip, maxTurn: 1.1 * exact })
+      if (Math.abs(r.angle) > 1e-3) {
+        // (only if the arm reaches the hand's new place: the face stays on the ball)
+        const want = sub(face, mul(r.paddle.axis, BODY.paddleReach))
+        const st = { bend: a.ikP.bend }
+        const arm = armIK(st, paddleSide, want, BODY.upperArm, BODY.forearm, poleP, { maxTurn: (fast ? 40 : 14) * dt })
+        if (len(sub(arm.end, want)) < 0.006) {
+          a.ikP.bend = st.bend
+          armPf = arm
+          axisW = a.axisOut = r.paddle.axis
+        }
+      }
+    }
+    if (keep > 0.02) {
+      const pdl = { face: add(armPf.end, mul(axisW, BODY.paddleReach)), axis: axisW, normal: normalW }
+      const r = resolvePaddle(pdl, guardCaps, { pivot: armPf.end, margin: GUARD.margin, skip: guardSkip, maxTurn: 0.9 * keep, maxShift: 0.14 * keep })
+      a.guard = r.before
+      if (r.before > -GUARD.margin) {
+        axisW = a.axisOut = r.paddle.axis
+        normalW = a.normalOut = r.paddle.normal
+        if (len(r.shift) > 0.0005) {
+          // (the hand goes out: the arm solved again to it)
+          armPf = armIK(a.ikP, paddleSide, add(armPf.end, r.shift), BODY.upperArm, BODY.forearm, poleP, { maxTurn: (fast ? 40 : 14) * dt })
+        }
+      }
+    }
+    // the other arm out of the paddle's way (not while it holds it)
+    if (!holds) {
+      const pdl = { face: add(armPf.end, mul(axisW, BODY.paddleReach)), axis: axisW, normal: normalW }
+      for (let i = 0; i < 2; i++) {
+        const tip = add(armOf.end, mul(norm(sub(armOf.end, armOf.mid)), 0.13))
+        offCaps.length = 0
+        offCaps.push(capsule(otherSide, armOf.mid, 0.063, 0.049, "upperarmO"), capsule(armOf.mid, armOf.end, 0.042, 0.026, "forearmO"), capsule(armOf.end, tip, 0.028, 0.022, "handO"))
+        const d = paddleDepth(pdl, offCaps, { margin: GUARD.margin })
+        if (d.depth <= -GUARD.margin) break
+        offW = sub(armOf.end, mul(d.n, d.depth + GUARD.margin))
+        armOf = armIK(a.ikO, otherSide, offW, BODY.upperArm, BODY.forearm, poleO, { maxTurn: 12 * dt })
+      }
+    }
+  }
+
   // ---- the head looks at the ball: smoothly, within a neck's reach, at a top speed ----
   const headBase = add(neck, mul(spineDir, BODY.neck))
   const lookW = norm(sub(V(lookAt.x, lookAt.y, lookAt.z), headBase), chestF)
@@ -1042,14 +1114,14 @@ export const updateAnim = (a, s, dt) => {
     footL: legs[0].foot,
     footR: legs[1].foot,
     paddleShoulder: paddleSide,
-    elbowP: armP.mid,
-    wristP: armP.end,
-    elbowO: armO.mid,
-    wristO: armO.end,
+    elbowP: armPf.mid,
+    wristP: armPf.end,
+    elbowO: armOf.mid,
+    wristO: armOf.end,
     // where the elbows point (smooth, even with an arm straight): the athletes' IK poles
-    bendP: armP.bend,
-    bendO: armO.bend,
-    paddle: { grip: armP.end, axis: axisW, normal: normalW, face: add(armP.end, mul(axisW, BODY.paddleReach)) },
+    bendP: armPf.bend,
+    bendO: armOf.bend,
+    paddle: { grip: armPf.end, axis: axisW, normal: normalW, face: add(armPf.end, mul(axisW, BODY.paddleReach)) },
     hand,
     // for the skinned athletes' motion-capture layers (athlete.js)
     info: { breath: life.breath, breathDepth: life.depth, speed, phase: a.gait.phase, cycle: a.gait.cycle, moving: a.gait.moving, blend: a.gait.blend.weights, timeScale: a.gait.blend.timeScale, facing: a.face.mode || "face", swinging: !!(swing || s.prep || whiff), between: !!s.between, holding: !!s.holding, mood: mood ? { kind: mood.kind, variant: mood.variant } : null, stroke: so.w, style: so.style, fast, ready: (1 - W.pumpP) * (1 - smoothW(W.relax)), offGrip: so.w < 0.5 && W.relax < 0.5 && W.pumpO < 0.3 && !mood && !s.holding, fist: mood?.kind === "cheer", strokePhase: so.phase, tRel: inp ? inp.tRel : null, tap: !!(bt.tap || bt.twirl), aim: aimAt ? { x: aimAt.x, y: aimAt.y, z: aimAt.z, ttc: -inp.tRel } : null, side: so.side, two: W.two > 0.5, footwork: fc.mode, split: a.hop > 0, lunge: lunging, mm: mmo ? { v: mmo.v, contacts: mmo.contacts, locked: mmo.locked, searches: mmo.stats.searches, jumps: mmo.stats.jumps, gap: Math.hypot(mmo.root.x - s.x, mmo.root.z - s.z) } : null },

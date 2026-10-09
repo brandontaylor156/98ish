@@ -8,8 +8,21 @@
 import * as THREE from "three"
 import { createAnim, setMood, splitStep, updateAnim } from "./anim.js"
 import { hash01 } from "./between.js"
+import { bodyCapsules, paddleDepth, skipFor } from "./paddlebody.js"
+
+// (measure: the drawn paddle against the drawn body, every frame: paddlebody.js)
+const caps = []
+const paddleBodyFrame = (pb, t, pose) => {
+  if (!pb) return null
+  bodyCapsules(pb.joints, { kind: pb.kind, scale: pb.scale, out: caps })
+  const parts = {}
+  const r = paddleDepth(pb.paddle, caps, { skip: skipFor({ two: pb.two, cup: pb.cup }), parts })
+  return { t: Math.round(t * 1000) / 1000, depth: r.depth, part: r.part, what: r.what, parts, stroke: pose.info?.stroke, between: pose.info?.between, axis: pb.paddle.axis, normal: pb.paddle.normal, face: pb.paddle.face }
+}
 
 let lineup = [] // { fig, ball }
+// (tests) the figures on show, to measure them
+export const studioLineup = () => lineup
 
 // numbers to compare with the pro spec (docs/pickleball-movement.md): stance width (ankle to
 // ankle, m), knee flexion (degrees from straight), pelvis height, the trunk's forward lean
@@ -348,7 +361,7 @@ const script = (state, x, z, { hand = 1, twoHand = false } = {}) => {
 }
 
 // eye / at: [x, y, dz] a camera of your own (dz from the lineup's z), with fov
-export const studioShot = (ctx, { looks = [{}], state = "ready", cam = "close", z = -4.6, spacing, eye, at = [0, 1, 0], fov, T, follow = false, mm = true, noPaddle = false, focus = null } = {}) => {
+export const studioShot = (ctx, { looks = [{}], state = "ready", cam = "close", z = -4.6, spacing, eye, at = [0, 1, 0], fov, T, follow = false, mm = true, noPaddle = false, focus = null, measure = false } = {}) => {
   const { scene, camera, renderer, size, makeFigure, shadows } = ctx
   for (const f of lineup) {
     scene.remove(f.fig.group, f.ball)
@@ -372,10 +385,12 @@ export const studioShot = (ctx, { looks = [{}], state = "ready", cam = "close", 
     const dt = 1 / 60
     const events = [...(sc.events || [])]
     let pose = null
+    const measured = []
     for (let t = 0; t <= sc.T; t += dt) {
       while (events.length && events[0][0] <= t) events.shift()[1](anim)
       pose = updateAnim(anim, sc.at(t), dt)
       fig.apply(pose, dt)
+      if (measure && fig.probePaddleBody) measured.push(paddleBodyFrame(fig.probePaddleBody(), t, pose))
     }
     const ball = new THREE.Mesh(new THREE.SphereGeometry(0.037 * 1.5, 16, 12), new THREE.MeshStandardMaterial({ color: "#d8f03a", roughness: 0.6 }))
     ball.visible = !!sc.contact
@@ -392,6 +407,7 @@ export const studioShot = (ctx, { looks = [{}], state = "ready", cam = "close", 
       pelvis: { x: pose.pelvis.x, z: pose.pelvis.z },
       metrics: poseMetrics(pose),
       arms: fig.probeArms ? fig.probeArms() : null,
+      paddleBody: measure ? measured : null,
       info: pose.info ? { phase: pose.info.phase, stroke: pose.info.stroke, ready: pose.info.ready, between: pose.info.between, footL: pose.footL, footR: pose.footR, yaw: pose.yaw } : null,
     })
   })
