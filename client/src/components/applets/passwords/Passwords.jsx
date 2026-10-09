@@ -235,6 +235,11 @@ const AccountBox = () => {
         )}
       </p>
       <div className="pwButtons pwButtonsLeft">
+        {online && (
+          <button type="button" onClick={aim.openPasskeys}>
+            Passkeys...
+          </button>
+        )}
         <button type="button" onClick={aim.openDeleteAccount}>
           Delete My Account...
         </button>

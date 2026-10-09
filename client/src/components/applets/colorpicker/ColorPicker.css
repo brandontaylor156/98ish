@@ -1,0 +1,169 @@
+/* Color Picker */
+.cpRoot {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  height: calc(100% - 25px);
+  min-height: 0;
+  padding: 8px;
+  box-sizing: border-box;
+  overflow: auto;
+  background: #c0c0c0;
+  font-size: 12px;
+}
+.cpPickers {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.cpSquare {
+  position: relative;
+  height: 160px;
+  flex: none;
+  touch-action: none;
+  cursor: crosshair;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  touch-callout: none;
+}
+.cpSquareWhite,
+.cpSquareBlack {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.cpSquareWhite {
+  background: linear-gradient(to right, #fff, rgba(255, 255, 255, 0));
+}
+.cpSquareBlack {
+  background: linear-gradient(to top, #000, rgba(0, 0, 0, 0));
+}
+.cpDot {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  margin: -7px 0 0 -7px;
+  border: 2px solid #000;
+  border-radius: 50%;
+  pointer-events: none;
+}
+.cpHue {
+  position: relative;
+  height: 20px;
+  flex: none;
+  touch-action: none;
+  cursor: ew-resize;
+  background: linear-gradient(to right, #f00, #ff0 17%, #0f0 33%, #0ff 50%, #00f 67%, #f0f 83%, #f00);
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  touch-callout: none;
+}
+.cpHueMark {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  width: 4px;
+  margin-left: -3px;
+  border: 1px solid #000;
+  background: #fff;
+  pointer-events: none;
+}
+.cpRow {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+.cpSwatch {
+  flex: 1 1 40%;
+  min-height: 70px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "Courier New", monospace;
+  font-weight: bold;
+  border: 1px solid #000;
+}
+.cpFields {
+  flex: 1 1 60%;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+}
+.cpChan {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.cpChan input {
+  width: 100%;
+  box-sizing: border-box;
+  font-family: "Courier New", monospace;
+}
+.cpCopy {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.cpText {
+  color: #333;
+  -webkit-user-select: text;
+  user-select: text;
+}
+.cpMore {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.cpPicture img {
+  display: block;
+  max-width: 100%;
+  max-height: 200px;
+  cursor: crosshair;
+  touch-action: none;
+  -webkit-touch-callout: none;
+  touch-callout: none;
+}
+.cpHint {
+  color: #333;
+}
+.cpGrid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 3px;
+}
+.cpChip {
+  min-width: 0 !important;
+  min-height: 0 !important;
+  height: 20px;
+  padding: 0 !important;
+  border: 1px solid #000 !important;
+  box-shadow: none !important;
+}
+.os-mobile .cpCopy button {
+  min-height: 36px;
+  flex: 1 1 auto;
+}
+.os-mobile .cpChip {
+  height: 28px;
+}
+
+/* the etched 98 group box (Bootstrap's reboot removes 98.css's) */
+.cpRoot fieldset {
+  margin: 0;
+  padding: 6px 8px 8px;
+  border: none;
+  min-width: 0;
+  box-shadow: inset -1px -1px #fff, inset -2px 1px #808080, inset 1px -2px #808080, inset 2px 2px #fff;
+}
+.cpRoot legend {
+  float: none;
+  width: auto;
+  margin: 0;
+  padding: 0 3px;
+  font-size: inherit;
+  line-height: inherit;
+}

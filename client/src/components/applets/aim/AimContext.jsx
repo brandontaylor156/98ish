@@ -370,6 +370,32 @@ export const AimProvider = ({ socket, windows, dispatch: dispatchWindow, onOpenV
       })
     })
 
+  // Passkeys (utils/passkeys.js, server/aim/passkeys.js). The options are fetched before the
+  // tap (an iPhone wants navigator.credentials.get() straight from it): passkeyOptions() ->
+  // { ok, challengeId, publicKey }; then signOnPasskey(challengeId, credential, remember)
+  const passkeyOptions = () =>
+    new Promise((resolve) =>
+      socket.timeout(10_000).emit("aim:passkeyOptions", {}, (timeout, result) => resolve(timeout ? { ok: false, error: "Could not connect to the 98 Messenger service." } : result))
+    )
+  const signOnPasskey = (challengeId, credential, remember = prefsRef.current.remember !== false) =>
+    new Promise((resolve) => {
+      dispatch({ type: "signingOn" })
+      socket.timeout(15_000).emit("aim:signOnPasskey", { challengeId, credential, remember }, (timeout, result) => {
+        if (timeout || !result?.ok) {
+          const error = timeout ? "Could not connect to the 98 Messenger service. Please try again." : result.error
+          dispatch({ type: "signOnFailed", error })
+          return resolve(false)
+        }
+        tokenRef.current = result.token
+        saveRemembered(remember && result.remember ? { screenName: result.me.screenName, token: result.remember } : null)
+        setPrefs({ lastScreenName: result.me.screenName, remember })
+        dispatch({ type: "signedOn", me: result.me, online: result.online })
+        sound("doorOpen")
+        resolve(true)
+      })
+    })
+  const openPasskeys = () => openWindow("passkeys", { name: "Passkeys", app: "aim-passkeys", width: 420, height: 470, initialX: 140, positionY: 30 })
+
   // Sign on with this device's remembered token (no password); quietly gives up if the
   // server doesn't know it any more. The Buddy List opens minimized if it isn't open.
   const autoSignOn = () =>
@@ -1067,6 +1093,9 @@ export const AimProvider = ({ socket, windows, dispatch: dispatchWindow, onOpenV
     signOff,
     deleteAccount,
     openDeleteAccount,
+    passkeyOptions,
+    signOnPasskey,
+    openPasskeys,
     sendIm,
     typing: (screenName, typing) => socket.emit("aim:typing", { to: screenName, state: typing }),
     setAway,

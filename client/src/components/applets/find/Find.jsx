@@ -32,6 +32,7 @@ const KINDS = [
   ["song", "Song"],
   ["movie", "Video Clip"],
   ["pdf", "PDF Document"],
+  ["sheet", "Sheets 98 Workbook"],
   ["vcard", "vCard File"],
   ["internet", "Internet Shortcut"],
 ]

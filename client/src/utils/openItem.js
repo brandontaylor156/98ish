@@ -17,6 +17,12 @@ export const openItem = (item, dispatch) => {
     dispatch({ type: "open_window", payload: explorerWindow(fs.partsOf(item)) })
     return true
   }
+  // a Sheets 98 workbook, or a .csv text file: Sheets 98 (Notepad still opens a CSV from
+  // its own File > Open)
+  if (item.type === "sheet" || (item.type === "text" && /\.csv$/i.test(item.name))) {
+    dispatch({ type: "open_window", payload: launch("Sheets 98", { file: item }) })
+    return true
+  }
   if (item.type === "text" || item.type === "note") {
     dispatch({ type: "open_window", payload: notepadWindow(item) })
     return true

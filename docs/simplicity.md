@@ -189,6 +189,14 @@ Reviewed and kept as they are (the first screen is already the baseline, or the 
 
 Help topics updated: wordpad, media-player, clock, using-help, notifications, search, my-computer, internet-explorer, ie-time-machine, homepage-studio, themes, sounds, power, internet-options, add-remove, accessibility, love-letters, quiz-show, us-together, monster-duel, more-options (the two new patterns). The phone search topic no longer mentions the removed Cancel button.
 
+Wave 4 (2026-10-08), new programs built to the pattern:
+- **Sheets 98**: File menu + formula bar + grid; **More options »** (`sheets.tools`, inline) AutoSum, $ % .00 123, Fill Down, Chart; the rest in Edit/Format/Insert. Phones: the formula bar and quick keys above the 98ish keyboard while typing.
+- **Unit Converter**: kind, From (number + unit), Swap, To (answer + unit), Copy Answer; **Every unit** (`units.all`) the full table.
+- **Color Picker**: square + hue bar, swatch, hex/RGB, Copy HEX/RGB/HSL (Pick from Screen where the browser has an eyedropper); **More options** (`colorpicker.more`) pick from a picture, basic colors, recent colors.
+- **QR Code**: Make | Scan tabs; Make = text, the code, Save / Send; **More options** (`qrcode.make`) error correction, Wi-Fi code. Scan = Start Camera, Scan a Picture.
+- **Dice & Coin**: Dice | Coin, the table, Roll Dice / Flip; **More options** (`dice.more`) count, sides, last rolls.
+- **98 Messenger passkeys**: one "Sign On with a passkey" button on Sign On; managing them lives in My AIM > Passkeys... (not on the Buddy List).
+
 ## Remaining candidates (next rounds)
 
 - **Start menu on phones**: a "frequent programs" section was considered and left out; the search box already gets people there fastest.

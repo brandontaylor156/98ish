@@ -1,0 +1,87 @@
+/* Unit Converter */
+.ucRoot {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  height: calc(100% - 25px);
+  min-height: 0;
+  padding: 8px;
+  box-sizing: border-box;
+  overflow: auto;
+  background: #c0c0c0;
+  font-size: 12px;
+}
+.ucRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.ucRow select {
+  flex: 1 1 auto;
+}
+.ucBox {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+}
+.ucValue,
+.ucAnswer {
+  font-size: 18px;
+  font-family: Arial, sans-serif;
+  text-align: right;
+  height: 30px;
+  box-sizing: border-box;
+}
+.ucAnswer {
+  line-height: 26px;
+  padding: 2px 6px;
+  background: #fff;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  -webkit-user-select: text;
+  user-select: text;
+}
+.ucSwap,
+.ucButtons {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+}
+.ucTable {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+}
+.ucTable td {
+  padding: 2px 6px;
+  border-bottom: 1px dotted #c0c0c0;
+}
+.ucNum {
+  text-align: right;
+  font-family: Arial, sans-serif;
+}
+.os-mobile .ucButtons button,
+.os-mobile .ucSwap button {
+  min-height: 36px;
+  min-width: 120px;
+}
+
+/* the etched 98 group box (Bootstrap's reboot removes 98.css's) */
+.ucRoot fieldset {
+  margin: 0;
+  padding: 6px 8px 8px;
+  border: none;
+  min-width: 0;
+  box-shadow: inset -1px -1px #fff, inset -2px 1px #808080, inset 1px -2px #808080, inset 2px 2px #fff;
+}
+.ucRoot legend {
+  float: none;
+  width: auto;
+  margin: 0;
+  padding: 0 3px;
+  font-size: inherit;
+  line-height: inherit;
+}

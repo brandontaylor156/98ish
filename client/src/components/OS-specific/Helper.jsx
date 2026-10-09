@@ -85,6 +85,14 @@ const TIPS = {
   ],
   Clock: ["Alarms and the timer keep going with the Clock closed, as long as 98ish is open.", "Add cities to World Clock to see what time it is for faraway friends."],
   Calculator: ["View > Scientific has sines, logs and binary. Very serious business."],
+  "Sheets 98": [
+    "Start a formula with =, then tap cells to put them in it. =SUM(B2:B9) adds a column.",
+    "Drag the little square at the corner of the selection to pick more cells. More options has AutoSum and a chart.",
+  ],
+  "Unit Converter": ["Pick a kind (Length, Weight, Cooking cups...), type a number, and the answer appears as you type. Swap flips it around."],
+  "Color Picker": ["Drag in the square for the shade and along the rainbow for the color. Copy HEX gives you #RRGGBB for web pages."],
+  "QR Code": ["Type a link and show the code to a friend's camera. Scan reads one with your camera, or from a screenshot with Scan a Picture."],
+  "Dice & Coin": ["Tap the table to roll again. More options picks how many dice and how many sides: d20 for the adventurers."],
   "Address Book": [
     "Give a contact a birthday and it shows up on the Birthdays calendar in Calendar every year, with a reminder.",
     "Right-click a buddy in 98 Messenger and choose Add to Address Book. A green dot means they're on right now!",

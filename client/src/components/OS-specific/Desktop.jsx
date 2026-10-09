@@ -72,6 +72,11 @@ const Maps = lazyApp(() => import("../applets/maps/Maps"))
 const PdfViewer = lazyApp(() => import("../applets/pdfViewer/PdfViewer"))
 const SnippingTool = lazyApp(() => import("../applets/snipping/SnippingTool"))
 const Scanner = lazyApp(() => import("../applets/scanner/Scanner"))
+const Sheets = lazyApp(() => import("../applets/sheets/Sheets"))
+const UnitConverter = lazyApp(() => import("../applets/units/UnitConverter"))
+const ColorPicker = lazyApp(() => import("../applets/colorpicker/ColorPicker"))
+const QrCode = lazyApp(() => import("../applets/qrcode/QrCode"))
+const Dice = lazyApp(() => import("../applets/dice/Dice"))
 const NetWindow = lazyApp(() => import("../applets/network/NetWindow"))
 const Mail = lazyApp(() => import("../applets/mail/Mail"))
 const HomePageStudio = lazyApp(() => import("../applets/homepage/HomePageStudio"))
@@ -165,6 +170,7 @@ const BuddyInfo = lazyApp(() => import("../applets/aim/BuddyInfo"))
 const ChatInvite = lazyApp(() => import("../applets/aim/ChatInvite"))
 const AimNotice = lazyApp(() => import("../applets/aim/ChatInvite").then((m) => ({ default: m.AimNotice })))
 const DeleteAccount = lazyApp(() => import("../applets/aim/DeleteAccount"))
+const Passkeys = lazyApp(() => import("../applets/aim/Passkeys"))
 const CallWindow = lazyApp(() => import("../applets/aim/call/CallWindow"))
 const RingWindow = lazyApp(() => import("../applets/aim/call/RingWindow"))
 const DesktopThemes = lazyApp(() => import("../applets/themes/DesktopThemes"))
@@ -883,6 +889,20 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
       {window.app === "musiclib" && <Music mobile={mobile} handoff={window.handoff} onClose={() => closeWindow(window, index)} />}
       {window.app === "locator" && <Locator mobile={mobile} dispatch={dispatch} onClose={() => closeWindow(window, index)} />}
       {window.app === "snip" && <SnippingTool mobile={mobile} dispatch={dispatch} windowIndex={index} minimized={!!window.minimized} handoff={window.handoff} onClose={() => closeWindow(window, index)} />}
+      {window.app === "sheets" && (
+        <Sheets
+          file={window.file}
+          mobile={mobile}
+          onTitle={rename(index)}
+          // Sheets 98's own Exit has already asked about saving
+          onClose={() => closeWindow(window, index, true)}
+          registerCloseGuard={registerFor(index)}
+        />
+      )}
+      {window.app === "units" && <UnitConverter />}
+      {window.app === "colorpicker" && <ColorPicker />}
+      {window.app === "qrcode" && <QrCode dispatch={dispatch} mobile={mobile} paused={!!window.minimized || (mobile && !window.active)} />}
+      {window.app === "dice" && <Dice />}
       {window.app === "scanner" && <Scanner mobile={mobile} dispatch={dispatch} onClose={() => closeWindow(window, index)} paused={!!window.minimized || (mobile && !window.active)} />}
       {window.app === "pdf" && <PdfViewer file={window.file} mobile={mobile} dispatch={dispatch} onTitle={rename(index)} onClose={() => closeWindow(window, index)} />}
       {window.app === "maps" && <Maps mobile={mobile} handoff={window.handoff} onClose={() => closeWindow(window, index)} />}
@@ -970,6 +990,7 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
             <AimNotice text={window.text} onClose={() => closeWindow(window, index)} />
           )}
           {window.app === "aim-delete" && <DeleteAccount onClose={() => closeWindow(window, index)} />}
+          {window.app === "aim-passkeys" && <Passkeys onClose={() => closeWindow(window, index)} />}
           {window.app === "aim-call" && <CallWindow />}
           {window.app === "aim-ring" && <RingWindow />}
         </div>

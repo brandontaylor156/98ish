@@ -406,6 +406,7 @@ export const topics = [
           rows: [
             ["Account: screen name, password (scrambled with bcrypt), profile text, Buddy List, block list, when you joined", "Until you delete the account", "Profile and member-since: any signed-on user. The rest: only you"],
             ["\"Sign me on automatically\" keys (scrambled), up to 6 devices", "60 days after last use, or until you sign off on purpose", "Nobody"],
+            ["Passkeys: each one's id, public key (the half that can check a sign-on, not make one), counter, name (\"iPhone\"), and when it was added and last used; up to 10", "Until you remove it (My AIM > Passkeys...) or delete the account", "Only you"],
             ["Saved conversations: the words of your IMs and Buddy Chat messages, who sent them and when, reactions, and **Meet me at** cards (a court's name, town, address and map position; never yours) (only if **Save my conversations on the server** is on, the default; never SmarterChild)", "Up to a year, the newest 2,000 per conversation (1,000 per chat room); until you clear the conversation, turn saving off, or delete the account", "You and the person you were talking to (each has their own copy, kept by their own setting); in a chat room, the people who were in it at the time"],
             ["Pictures and voice messages sent in IMs", "90 days, then deleted", "You and the person you sent it to (fetched with links that work for a few minutes)"],
             ["Shared Albums: the album's name and people, the photos and videos added (in Vercel Blob) with a small preview, who added each and when, captions, likes and comments", "Until removed, or the album is deleted; up to 40 MB added per screen name, 500 items and 20 people per album", "The album's members (photos fetched with links that work for 5 minutes)"],
@@ -473,6 +474,7 @@ export const topics = [
             ["Wiktionary", "\"Define\" in Word Duel", "The word you look up (it opens their page)."],
             ["jsDelivr (cdn.jsdelivr.net)", "LAN Party 98's DOS player and Flash player (Ruffle), Virtual PC 98's PC emulator and PDF Viewer's page viewer (pdf.js), downloaded the first time you use them", "Your device's IP address, as for any download. Never your PDFs: they're shown on your device."],
             ["jsDelivr (cdn.jsdelivr.net)", "Snipping Tool's screen copier (modern-screenshot), downloaded the first time you snip", "Your device's IP address, as for any download. Never your snips: the picture is made on your device."],
+            ["jsDelivr (cdn.jsdelivr.net)", "QR Code's code reader (jsQR), downloaded the first time you scan on a device without a built-in one (iPhones)", "Your device's IP address, as for any download. Never your camera picture or what the code says: it's read on your device."],
             ["js-dos network (net.dos.zone)", "Connecting LAN Party 98 players to each other for a LAN game (the game itself then goes directly between the players)", "Your device's IP address and a random player number while you host or join a LAN game; the other players' devices see your IP address too, as in any direct connection."],
             ["Hugging Face (huggingface.co, Meta's MapAnything Space)", "Pickleball 98's Capture this court (only when you use it)", "The frames picked from your walk-around video of the court, and your device's IP address; the 3D points come back to your device and are saved on drive C:"],
             ["Hugging Face (huggingface.co: the TRELLIS.2, Hunyuan3D-2, Hunyuan3D-2.1, TRELLIS, TripoSG and AniGen Spaces; one after another only when the one before couldn't)", "3D Viewer 98's Make 3D from a Photo and Bring to Life (only when you tap them)", "The one photo you chose, your device's IP address and, if you added one, your own Hugging Face token; the 3D model comes back to your device and is saved on drive C: (C:\\My 3D)"],
@@ -532,6 +534,7 @@ export const topics = [
       {
         list: [
           "Your account: screen name (someone else can take it afterward), password, profile, Buddy List, block list and remembered devices. Your name comes off other people's Buddy Lists.",
+          "Your passkeys (they stay saved on your devices but no longer sign on; delete them in your device's passwords).",
           "Synced files and their online contents, and the old online drive copy.",
           "Your mail, every folder. Mail you sent stays in the recipients' mailboxes (it's theirs, like any e-mail), but shows **(deleted account)** instead of your name.",
           "Your Address Book's online copy.",
@@ -583,6 +586,7 @@ export const topics = [
             ["Your location in Buddy Locator", "Stop Sharing Everywhere (the tray's location arrow, or Buddy Locator > More options). The server forgets your position right away."],
             ["A 98 Messenger conversation", "In the IM window: More » > Clear History (this device, your other devices and your copy on the server; the other person keeps theirs)."],
             ["All your conversations on the server", "Buddy List > My AIM > Preferences... > clear Save my conversations on the server. Your devices keep theirs."],
+            ["A passkey", "Buddy List > My AIM > Passkeys... > Remove... Then delete it on the device too (iPhone: Settings > Passwords)."],
             ["Your 98 Messenger account and everything on the server", "My AIM > Delete My Account... (see [[delete-account]])."],
             ["Previous versions of files", "They go by themselves after 7 days. To clear them sooner, remove the user profile, or Delete My Account with \"erase this device\" checked."],
             ["Clipboard history", "Ctrl+Shift+V (or Clipboard on the 98ish keyboard) > Clear all (pinned items stay; delete those one by one), or turn it off in Keyboard Properties > While typing (that deletes everything in it)."],

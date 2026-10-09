@@ -1,0 +1,121 @@
+.pkRoot {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+  height: 100%;
+  box-sizing: border-box;
+  overflow: auto;
+  font-size: 12px;
+}
+.pkHead {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+.pkHead svg {
+  flex: none;
+}
+.pkHead p {
+  margin: 0;
+}
+.pkList {
+  flex: 1 1 auto;
+  min-height: 90px;
+  margin: 0;
+}
+.pkList ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  background: #fff;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080, inset -2px -2px #dfdfdf, inset 2px 2px #0a0a0a;
+  max-height: 220px;
+  overflow: auto;
+}
+.pkList li {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px 8px;
+  padding: 6px 8px;
+  border-bottom: 1px dotted #c0c0c0;
+}
+.pkName {
+  font-weight: bold;
+}
+.pkSynced {
+  font-weight: normal;
+  color: #555;
+}
+.pkMeta {
+  grid-column: 1;
+  color: #444;
+}
+.pkRemove,
+.pkConfirm {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: center;
+}
+.pkEmpty {
+  padding: 10px;
+  color: #444;
+}
+.pkButtons {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.pkPrimary {
+  font-weight: bold;
+}
+.pkAdd {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.pkAdd label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.pkAdd p,
+.pkHint {
+  margin: 0;
+}
+.pkHint {
+  color: #444;
+}
+.pkError {
+  color: #c00000;
+  padding: 4px 6px;
+  background: #fff;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #808080;
+}
+.pkNotice {
+  padding: 4px 6px;
+  background: #ffffe1;
+  border: 1px solid #000;
+}
+.os-mobile .pkButtons button {
+  min-height: 36px;
+  flex: 1 1 auto;
+}
+
+/* the etched 98 group box (Bootstrap's reboot removes 98.css's) */
+.pkRoot fieldset {
+  margin: 0;
+  padding: 6px 8px 8px;
+  border: none;
+  min-width: 0;
+  box-shadow: inset -1px -1px #fff, inset -2px 1px #808080, inset 1px -2px #808080, inset 2px 2px #fff;
+}
+.pkRoot legend {
+  float: none;
+  width: auto;
+  margin: 0;
+  padding: 0 3px;
+  font-size: inherit;
+  line-height: inherit;
+}

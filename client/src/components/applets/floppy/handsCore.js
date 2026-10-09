@@ -22,7 +22,7 @@ import { dayIn, firstObject, parseWhen, tryJson } from "./floppyCore.js"
 export const ACTIONS = ["open", "click", "type", "set", "select", "menu", "key", "wait", "tool", "say", "done"]
 export const KEYS = ["Enter", "Escape", "Tab", "Backspace", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"]
 // Floppy never works inside these, even if asked
-export const NEVER_APPS = new Set(["passwords", "users", "lock", "aim-delete", "backup"])
+export const NEVER_APPS = new Set(["passwords", "users", "lock", "aim-delete", "aim-passkeys", "backup"])
 // -> "never" | "ask" (only after the person allows it, once per job) | "ok"
 export const appAccess = (app) => {
   const a = String(app || "")

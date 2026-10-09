@@ -931,4 +931,131 @@ export const topics = [
     ],
     related: ["accessibility", "display", "mouse"],
   },
+
+  // ---- Sheets 98 ----
+  {
+    id: "sheets-98",
+    book: "accessories",
+    title: "Sheets 98",
+    summary: "A spreadsheet: rows and columns of numbers with formulas that add them up, saved on drive C: or as CSV.",
+    keywords: ["spreadsheet", "sheets", "excel", "lotus", "budget", "formula", "sum", "average", "csv", "cells", "autosum", "chart", "fill down", "absolute reference"],
+    programs: ["Sheets 98"],
+    body: [
+      { img: "/assets/program_icons/sheets.svg", alt: "Sheets 98 icon" },
+      "Sheets 98 is a grid of cells. Type numbers and words in them, and formulas that work things out from other cells. When a number changes, every formula that uses it changes too.",
+      {
+        steps: [
+          "Select a cell (click it, or tap it).",
+          "Type in the **formula bar** at the top. On a phone, tap the bar; it moves just above the keyboard while you type.",
+          "Press {{Enter}} (or ✓) to put it in the cell and move down. {{Tab}} moves right, {{Esc}} (or ✕) cancels.",
+        ],
+        title: "To type in a cell:",
+      },
+      { h: "Formulas" },
+      "A formula starts with **=**. It can use numbers, cells (B2), ranges (B2:B9), + - * / ^ (power), & (join text), comparisons (= <> < > <= >=) and these functions: SUM, AVERAGE, MIN, MAX, COUNT, COUNTA, IF, ROUND, ROUNDUP, ROUNDDOWN, ABS, INT, MOD, POWER, SQRT, AND, OR, NOT, CONCATENATE, LEN, UPPER, LOWER, TRIM. Insert > Function... lists them with examples.",
+      {
+        table: {
+          head: ["Formula", "What it does"],
+          rows: [
+            ["=SUM(B2:B9)", "Adds B2 through B9"],
+            ["=AVERAGE(B2:B9)", "Their average"],
+            ['=IF(C2>100,"Over","OK")', "Over or OK, depending on C2"],
+            ["=ROUND(B2*8.25%,2)", "Sales tax, rounded to cents"],
+            ["=B2*$E$1", "B2 times E1; copied down, B2 moves but E1 stays"],
+          ],
+        },
+      },
+      { tip: "While typing a formula, tap (or click) a cell to put its address in. Type **:** and tap another cell for a range." },
+      "Copying a formula (Edit > Copy, Paste, or Fill Down) moves its cell addresses along with it: =A1+B1 copied one row down becomes =A2+B2. A **$** keeps that part fixed ($A$1 never moves, A$1 keeps its row).",
+      "If a formula ends up using its own answer (A1 uses B1 and B1 uses A1), the cells show **#CYCLE!**. Other messages: #DIV/0! (dividing by zero), #VALUE! (text where a number should be), #NAME? (a function name that doesn't exist), #REF! (a cell off the sheet), #ERROR! (the formula can't be read).",
+      { h: "Selecting several cells" },
+      { computer: "Drag across the cells, or hold {{Shift}} and use the arrow keys. Click a column letter or row number to pick the whole column or row." },
+      { phone: "Tap a cell, then drag the small square at the corner of the selection. Drag anywhere else to scroll. The status bar shows the Sum, Average and Count of what's selected." },
+      { h: "More options" },
+      "**More options »** under the formula bar has AutoSum (Σ: adds the numbers above), number formats ($, %, .00), Fill Down, and **Chart**: select labels and numbers first and a bar or line chart appears under the grid. The Format menu has the same formats and Column Width.",
+      { h: "Saving" },
+      "File > Save keeps the workbook on drive C: (My Documents to start with) with its formulas. In Save As, **Save as type: CSV** writes a comma-separated file other spreadsheet programs open, with formulas saved as their results. Sheets 98 opens CSV files too (double-click one in My Computer).",
+      "File > Print prints the cells you've used as a table (on a phone: AirPrint, or Save to Files as a PDF).",
+      { keys: [["Ctrl+C / Ctrl+X / Ctrl+V", "Copy, cut, paste"], ["Ctrl+Z / Ctrl+Y", "Undo, redo"], ["Ctrl+D", "Fill down"], ["F2", "Edit the cell"], ["Delete", "Clear the selection"], ["Ctrl+S", "Save"]], title: "Shortcuts" },
+      { open: "Sheets 98", label: "Open Sheets 98" },
+    ],
+    related: ["calculator", "notepad", "file-sync"],
+  },
+
+  // ---- Unit Converter ----
+  {
+    id: "unit-converter",
+    book: "accessories",
+    title: "Unit Converter",
+    summary: "Change feet to meters, pounds to kilograms, Fahrenheit to Celsius, cups to milliliters and more.",
+    keywords: ["convert", "units", "metric", "imperial", "inches", "centimeters", "pounds", "kilograms", "fahrenheit", "celsius", "cups", "tablespoons", "miles", "kilometers", "gigabytes"],
+    programs: ["Unit Converter"],
+    body: [
+      { img: "/assets/program_icons/units.svg", alt: "Unit Converter icon" },
+      { steps: ["Pick what you're converting: Length, Weight, Temperature, Volume (cooking cups and spoons too), Area, Speed, Time or Data.", "Type the number and pick its unit under **From**.", "Pick the unit you want under **To**. The answer appears as you type."], title: "To convert:" },
+      "**Swap** flips From and To. **Copy Answer** copies the number. **Every unit** (More options) shows your number in every unit of that kind at once.",
+      { note: "US cups, spoons and gallons are used (1 cup is 236.6 ml). A year is 365.25 days." },
+      { open: "Unit Converter", label: "Open Unit Converter" },
+    ],
+    related: ["calculator"],
+  },
+
+  // ---- Color Picker ----
+  {
+    id: "color-picker",
+    book: "accessories",
+    title: "Color Picker",
+    summary: "Choose a color and copy its hex, RGB or HSL code; pick a color from a picture or the screen.",
+    keywords: ["color", "colour", "hex", "rgb", "hsl", "eyedropper", "palette", "web colors", "pick a color"],
+    programs: ["Color Picker"],
+    body: [
+      { img: "/assets/program_icons/colorpicker.svg", alt: "Color Picker icon" },
+      "Drag along the rainbow bar to choose the color, then in the square for how light, dark or gray it is. Or type a hex code (#FF8000) or red, green and blue numbers (0 to 255).",
+      "**Copy HEX**, **Copy RGB** and **Copy HSL** copy the color the way web pages and drawing programs write it.",
+      { computer: "**Pick from Screen** (in Chrome and Edge) turns the pointer into an eyedropper: click anywhere on your screen to take that color." },
+      { phone: "iPhones have no screen eyedropper. Use More options > **Pick from a Picture...**, choose a photo or screenshot, and tap the spot you want." },
+      "More options also has Windows 98's 48 basic colors and the colors you copied or picked recently.",
+      { open: "Color Picker", label: "Open Color Picker" },
+    ],
+    related: ["paint"],
+  },
+
+  // ---- QR Code ----
+  {
+    id: "qr-code",
+    book: "accessories",
+    title: "QR Code",
+    summary: "Make a QR code from text, a link or a Wi-Fi network, and scan codes with the camera or from a picture.",
+    keywords: ["qr", "qr code", "barcode", "scan", "scanner", "wifi password", "share a link", "camera"],
+    programs: ["QR Code"],
+    body: [
+      { img: "/assets/program_icons/qrcode.svg", alt: "QR Code icon" },
+      { steps: ["Choose **Make**.", "Type or paste text or a link. The code updates as you type.", "Show it to someone's phone camera, or choose **Save to My Pictures** or **Send...**."], title: "To make a code:" },
+      { steps: ["Choose **Scan**, then **Start Camera** (allow the camera the first time).", "Point it at the code. When it's read, the text or link shows up.", "Choose **Copy**, or **Open Link** to open it in Compass."], title: "To scan a code:" },
+      "**Scan a Picture...** reads a code from a photo or screenshot instead of the camera.",
+      "More options on Make: a **Wi-Fi network** code (friends point their camera at it to join your Wi-Fi) and how much error correction the code has (High still reads when part of it is smudged or covered).",
+      { warning: "Anyone can print a QR code. Look at a link before you open it." },
+      { note: "Codes are made and read on your device. Phones without a built-in code reader download a small reader (jsQR) from jsDelivr the first time you scan; your camera picture never leaves the device. See [[privacy-third-parties]]." },
+      { open: "QR Code", label: "Open QR Code" },
+    ],
+    related: ["camera", "privacy-third-parties"],
+  },
+
+  // ---- Dice & Coin ----
+  {
+    id: "dice-coin",
+    book: "accessories",
+    title: "Dice & Coin",
+    summary: "Roll dice (up to six, with 4 to 100 sides) or flip a coin.",
+    keywords: ["dice", "roll", "coin", "flip a coin", "heads or tails", "d20", "random", "board games"],
+    programs: ["Dice & Coin"],
+    body: [
+      { img: "/assets/program_icons/dice.svg", alt: "Dice & Coin icon" },
+      "Choose **Dice** or **Coin**, then press **Roll Dice** or **Flip** (or tap the green table). The total of the dice shows under them.",
+      "More options picks how many dice (1 to 6) and how many sides (d4, d6, d8, d10, d12, d20, d100), and lists your last rolls.",
+      { note: "Every roll is fair: it uses your device's secure random numbers." },
+      { open: "Dice & Coin", label: "Open Dice & Coin" },
+    ],
+    related: ["calculator"],
+  },
 ]

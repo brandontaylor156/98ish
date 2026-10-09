@@ -878,3 +878,17 @@ html.kb-open .os-mobile .aimIm .aimComposer {
   color: #404040;
   font-size: 11px;
 }
+
+/* "Sign On with a passkey" (Face ID / Touch ID): an ordinary 98 button under the password */
+.aimPasskeyButton {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 10px;
+}
+.os-mobile .aimPasskeyButton {
+  align-self: stretch;
+  justify-content: center;
+  min-height: 36px;
+}
