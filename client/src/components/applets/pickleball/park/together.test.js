@@ -34,6 +34,9 @@ test("hand in hand: you walk beside them by yourself; your own stick lets go", (
   const L = { x: 0, z: 0, yaw: 0, vx: 0, vz: 0 }
   const side = followTarget("hand", L)
   assert.ok(Math.abs(Math.hypot(side.x, side.z) - SIDE) < 1e-9)
+  // (a wall on the right: the other side)
+  const left = followTarget("hand", L, 0, -1)
+  assert.ok(Math.abs(left.x + side.x) < 1e-9 && Math.abs(left.z + side.z) < 1e-9)
   const behind = followTarget("follow", L)
   assert.ok(Math.abs(behind.z + BEHIND) < 1e-9)
   // pushing your own stick past the line lets go; a nudge doesn't; any key does

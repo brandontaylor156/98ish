@@ -635,7 +635,20 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
     }
     const ob = other.body
     if (ob.seat) return null
-    const target = followTarget(l.kind, { x: ob.x, z: ob.z, yaw: ob.yaw, vx: ob.vx, vz: ob.vz })
+    const leader = { x: ob.x, z: ob.z, yaw: ob.yaw, vx: ob.vx, vz: ob.vz }
+    // (hand in hand: on their right, or their left when a wall or a fence is in the way)
+    const blocked = (t) => {
+      const p = resolve(t.x, t.z, 0.35, me.walker.y || 0)
+      return Math.hypot(p.x - t.x, p.z - t.z) > 0.15
+    }
+    let target = followTarget(l.kind, leader, undefined, l.side || 1)
+    if (l.kind === "hand" && blocked(target)) {
+      const other = followTarget(l.kind, leader, undefined, -(l.side || 1))
+      if (!blocked(other)) {
+        l.side = -(l.side || 1)
+        target = other
+      }
+    }
     const p = padToward(me.walker, target, follow.yaw, { speed: ob.speed || 0, stopWithin: l.kind === "hand" ? 0.12 : 0.35 })
     void dt
     return { ...p, face: (ob.speed || 0) < 0.3 ? (l.kind === "hand" ? ob.yaw : Math.atan2(ob.x - me.walker.x, ob.z - me.walker.z)) : undefined }
@@ -835,7 +848,13 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
         if (!ob.seat && me.mode === "walk" && !ob.hidden) {
           // the glue: their drawn spot pulled to just beside you (the network's lag hidden)
           const r = { x: -Math.cos(me.walker.yaw), z: Math.sin(me.walker.yaw) }
-          const sgn = l.lead ? 1 : -1
+          // (whichever side of you they're on: the walker beside picks the side with room)
+          const across = (ob.x - me.walker.x) * r.x + (ob.z - me.walker.z) * r.z
+          if (Math.abs(across) > 0.12) l.mySide = across > 0 ? 1 : -1
+          const sgn = l.mySide || (l.lead ? 1 : -1)
+          // (the hands that reach: theirs toward you, yours toward them)
+          keepMood(meBody, "hold", holdVariant(meBody, sgn > 0))
+          keepMood(ob, "hold", holdVariant(ob, sgn < 0))
           // (never into a wall or a fence: where they could really stand)
           const at = resolve(me.walker.x + r.x * 0.62 * sgn, me.walker.z + r.z * 0.62 * sgn, 0.3, me.walker.y || 0)
           const ix = at.x

@@ -125,7 +125,12 @@ export const useTogether = ({ world, hud, venueName = "My Park", nightOk = false
         const r = await remember("selfie", { photo: shot.thumb, golden })
         lines.push(r.ok ? "In Our Story" : r.error ? `Our Story: ${r.error}` : "Our Story didn't get it")
       }
-    } else lines.push(`${name} keeps it in your shared album`)
+    } else {
+      // (the one who asked shares it: one copy in the album and the story, not two)
+      const album = pickAlbum(getAlbumsState().albums, nameKey(me), nameKey(name))
+      if (album) lines.push(`${name} adds it to "${album.name}"`)
+      if (isPartner(name)) lines.push(`${name} adds it to Our Story`)
+    }
     setPhoto({ url: shot.full, lines, golden })
   }
 

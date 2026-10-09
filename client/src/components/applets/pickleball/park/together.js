@@ -66,13 +66,14 @@ export const breaksAway = (input) => Math.hypot(input?.x || 0, input?.y || 0) > 
 const fwdOf = (yaw) => ({ x: Math.sin(yaw), z: Math.cos(yaw) })
 const rightOf = (yaw) => ({ x: -Math.cos(yaw), z: Math.sin(yaw) })
 
-// where the one who isn't leading wants to be. leader: { x, z, yaw, vx, vz }
-export const followTarget = (kind, leader, lead = LEAD_S) => {
+// where the one who isn't leading wants to be. leader: { x, z, yaw, vx, vz }; side: +1 on the
+// leader's right, -1 on their left (whichever has room: a wall on one side, the other)
+export const followTarget = (kind, leader, lead = LEAD_S, side = 1) => {
   const ax = leader.x + (leader.vx || 0) * lead
   const az = leader.z + (leader.vz || 0) * lead
   if (kind === "hand") {
     const r = rightOf(leader.yaw)
-    return { x: ax + r.x * SIDE, z: az + r.z * SIDE, yaw: leader.yaw }
+    return { x: ax + r.x * SIDE * side, z: az + r.z * SIDE * side, yaw: leader.yaw }
   }
   const f = fwdOf(leader.yaw)
   return { x: ax - f.x * BEHIND, z: az - f.z * BEHIND, yaw: leader.yaw }
@@ -100,7 +101,7 @@ export const padToward = (me, target, camYaw, { speed = 0, stopWithin = 0.14 } =
 export const magFor = (speed) => {
   if (speed < 0.45) return 0
   if (speed <= 1.45) return clamp(0.12 + ((speed / 1.45 - 0.45) / 0.55) * 0.43, 0.13, 0.549)
-  if (speed <= 2.4) return 0.54
+  if (speed <= 1.75) return 0.549
   if (speed <= 3.6) return 0.8
   return 0.97
 }
