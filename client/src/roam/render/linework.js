@@ -4,6 +4,7 @@
 // are painted into the ground's texture (ground.js).
 
 import { DRIVABLE, F, ROAD } from "../data/tile.js"
+import { ROAD_ORDER, ROAD_PAINT, SIDEWALK } from "./paint.js"
 
 const YELLOW = 0xe0b43a
 const WHITE = 0xe9e9e4
@@ -37,7 +38,7 @@ const createArrays = () => {
 }
 
 // a line offset sideways from a road's centre, as a flat strip (dash: [on, off] metres or null)
-const strip = (out, road, groundAt, offset, width, col, dash = null, lift = 0.05) => {
+const strip = (out, road, groundAt, offset, width, col, dash = null, lift = 0.1) => {
   const pts = road.pts
   let phase = 0
   for (let i = 0; i + 1 < pts.length; i++) {
@@ -50,7 +51,7 @@ const strip = (out, road, groundAt, offset, width, col, dash = null, lift = 0.05
     // (right of the heading: (-fz, fx))
     const rx = -fz
     const rz = fx
-    const n = Math.max(1, Math.ceil(L / 4))
+    const n = Math.max(1, Math.ceil(L / 6))
     for (let s = 0; s < n; s++) {
       let t0 = (s / n) * L
       let t1 = ((s + 1) / n) * L
@@ -173,4 +174,58 @@ export const deckAt = (decks, x, z, y, drive = false) => {
     if (best === null || h > best) best = h
   }
   return best
+}
+
+// the road surfaces as geometry on near tiles (crisp edges; the ground texture keeps them
+// from afar): carriageways, sidewalks where mapped, footpaths; round joins at bends
+const hex = (h) => parseInt(h.slice(1), 16)
+const SKIP = new Set([ROAD.driveway, ROAD.rail, ROAD.river, ROAD.stream, ROAD.track])
+export const roadArrays = (roads, groundAt) => {
+  const out = createArrays()
+  const rank = new Map(ROAD_ORDER.map((c, i) => [c, i]))
+  const ribbon = (r, half, col, lift) => {
+    const pts = r.pts
+    for (let i = 0; i + 1 < pts.length; i++) {
+      const a = pts[i]
+      const b = pts[i + 1]
+      const L = Math.hypot(b.x - a.x, b.z - a.z)
+      if (L < 0.1) continue
+      const fx = (b.x - a.x) / L
+      const fz = (b.z - a.z) / L
+      const rx = -fz
+      const rz = fx
+      const n = Math.max(1, Math.ceil(L / 8))
+      for (let s = 0; s < n; s++) {
+        const t0 = (s / n) * L
+        const t1 = ((s + 1) / n) * L
+        const at = (t, side) => {
+          const x = a.x + fx * t + rx * half * side
+          const z = a.z + fz * t + rz * half * side
+          return [x, groundAt(x, z) + lift, z]
+        }
+        out.quad(at(t0, -1), at(t1, -1), at(t1, 1), at(t0, 1), col)
+      }
+      // a round join at the far end of the segment where the road bends
+      if (i + 2 < pts.length && half > 1.2) {
+        const c = pts[i + 2]
+        const L2 = Math.hypot(c.x - b.x, c.z - b.z) || 1
+        const turn = Math.abs(Math.atan2(fx * (c.z - b.z) / L2 - fz * (c.x - b.x) / L2, fx * (c.x - b.x) / L2 + fz * (c.z - b.z) / L2))
+        if (turn > 0.2) {
+          const y = groundAt(b.x, b.z) + lift
+          const K = 6
+          for (let k = 0; k < K; k++) {
+            const a0 = (k / K) * Math.PI * 2
+            const a1 = ((k + 1) / K) * Math.PI * 2
+            const p0 = [b.x + Math.cos(a0) * half, y, b.z + Math.sin(a0) * half]
+            const p1 = [b.x + Math.cos(a1) * half, y, b.z + Math.sin(a1) * half]
+            out.quad([b.x, y, b.z], p0, p1, [b.x, y, b.z], col)
+          }
+        }
+      }
+    }
+  }
+  const list = roads.filter((r) => !SKIP.has(r.cls) && !(r.flags & (F.tunnel | F.bridge)) && ROAD_PAINT[r.cls]).sort((p, q) => (rank.get(p.cls) ?? 0) - (rank.get(q.cls) ?? 0))
+  for (const r of list) if (DRIVABLE.has(r.cls) && r.flags & (F.walkL | F.walkR)) ribbon(r, r.width / 2 + 2, hex(SIDEWALK), 0.03)
+  for (const r of list) ribbon(r, r.width / 2, hex(ROAD_PAINT[r.cls][0]), 0.04 + (rank.get(r.cls) ?? 0) * 0.0025)
+  return out.done()
 }

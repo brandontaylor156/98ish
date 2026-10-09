@@ -852,6 +852,20 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
           if (open(x, z)) return world.teleport(x, z, w.yaw)
         }
     },
+    // (tests) no wall between two points?
+    clearPath: (x0, z0, x1, z1) => colliders.segment(x0, z0, x1, z1, -1e9) >= 1,
+    // (tests) a point on a named street among the tiles drawn -> { x, z, yaw } | null
+    findRoad(re) {
+      const rx = new RegExp(re, "i")
+      for (const e of tiles.values())
+        for (const r of e.t.roads)
+          if (rx.test(r.name) && r.pts.length > 1) {
+            const a = r.pts[0]
+            const b = r.pts[1]
+            return { x: (a.x + b.x) / 2, z: (a.z + b.z) / 2, yaw: Math.atan2(b.x - a.x, b.z - a.z), name: r.name }
+          }
+      return null
+    },
     parkedNear(r = 60) {
       const p = center()
       return parkedList().filter((c) => Math.hypot(c.x - p.x, c.z - p.z) < r)

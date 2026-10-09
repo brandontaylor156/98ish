@@ -356,6 +356,24 @@ test("eggs: 15-25 hidden finds, each at the real mapped place it names; the coup
     const d = Math.min(...named.flatMap((p) => p.pts.map((q) => Math.hypot(q.x - e.x, q.z - e.z))))
     assert.ok(d < 45, `${e.id} is ${d.toFixed(0)} m from ${e.place}`)
   }
+  // every one can be walked up to: open ground, and a clear way in from at least one side
+  const walls = createColliders()
+  const ixb = JSON.parse(fs.readFileSync(path.join(PREBUILT, "index.json"), "utf8")).base
+  for (const x of fs.readdirSync(path.join(PREBUILT, "16")))
+    for (const file of fs.readdirSync(path.join(PREBUILT, "16", x))) {
+      const t = decodeTile(JSON.parse(fs.readFileSync(path.join(PREBUILT, "16", x, file), "utf8")), f, ixb)
+      if (!spots.some((e) => e.x > t.rect.x0 - 60 && e.x < t.rect.x1 + 60 && e.z > t.rect.z0 - 60 && e.z < t.rect.z1 + 60)) continue
+      walls.addTile(t.key, wallRings(t.buildings, () => 0))
+    }
+  for (const e of spots) {
+    assert.equal(walls.inside(e.x, e.z), 0, `${e.id} is outside every building`)
+    let open = 0
+    for (let k = 0; k < 16; k++) {
+      const a = (k / 16) * Math.PI * 2
+      if (walls.segment(e.x + Math.cos(a) * 15, e.z + Math.sin(a) * 15, e.x + Math.cos(a) * 1.2, e.z + Math.sin(a) * 1.2, -1e9) >= 1) open++
+    }
+    assert.ok(open >= 2, `${e.id}: a way in (${open} of 16 directions)`)
+  }
   // taking one: close enough, not the car (found by getting in), the couple's only together
   const disk = spots.find((e) => e.kind === "disk")
   assert.equal(nearestEgg(spots, {}, disk.x + 1, disk.z)?.id, disk.id)

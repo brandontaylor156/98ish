@@ -61,11 +61,11 @@ export const carGeometry = (model) => {
   const pts = cab.map((i) => p.body[i])
   const cx = pts.reduce((a, q) => a + q[0], 0) / 4
   const cy = pts.reduce((a, q) => a + q[1], 0) / 4
-  const out = pts.map(([x, y], k) => {
+  const ring = pts.map(([x, y], k) => {
     const l = Math.hypot(x - cx, y - cy) || 1
     return [x + ((x - cx) / l) * 0.04, y + ((y - cy) / l) * 0.04 - (k === 1 || k === 2 ? 0.09 : 0)]
   })
-  const glass = tint(extrude(out, W + 0.03, 0.02), 0x1c2329)
+  const glass = tint(extrude(ring, W + 0.03, 0.02), 0x1c2329)
   const parts = [glass]
   const half = m.wheelbase / 2
   const wr = model === "suv" || model === "pickup" ? 0.38 : 0.33

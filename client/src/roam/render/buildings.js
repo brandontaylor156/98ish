@@ -78,7 +78,13 @@ export const buildingArrays = (buildings, groundAt, { far = false, key = "" } = 
   const P = []
   const N = []
   const C = []
+  const Wn = [] // windows: along the wall (m), up from the ground (m), style (0 none)
+  let win = null // (set per wall quad)
   const push = (x, y, z, nx, ny, nz, col, k = 1) => {
+    if (win) {
+      const u = win.u0 + (win.u1 - win.u0) * (Math.abs(x - win.ax) + Math.abs(z - win.az) > 1e-6 ? 1 : 0)
+      Wn.push(u, y - win.g, win.style)
+    } else Wn.push(0, 0, 0)
     P.push(x, y, z)
     N.push(nx, ny, nz)
     C.push((((col >> 16) & 255) / 255) * k, (((col >> 8) & 255) / 255) * k, ((col & 255) / 255) * k)
@@ -127,6 +133,10 @@ export const buildingArrays = (buildings, groundAt, { far = false, key = "" } = 
       }
     }
     const eave = pitched ? top - pitched.rise : top
+    // (windows: houses a few, shops storefronts, tall ones rows; sheds, works and roofs none)
+    const tall = b.height >= 10 || ["apartments", "office", "hotel", "hospital", "university", "college"].includes(name)
+    const style = roofOnly || b.height < 2.8 || ["garage", "garages", "shed", "carport", "industrial", "warehouse", "service", "roof", "parking"].includes(name) ? 0 : tall ? 3 : isHouse(b.kind) ? 1 : 2
+    let perim = 0
     // walls (each edge a quad; ring clockwise from above -> (a, b, a_top) faces out)
     for (let i = 0; i < ring.length; i++) {
       const p = ring[i]
@@ -138,8 +148,12 @@ export const buildingArrays = (buildings, groundAt, { far = false, key = "" } = 
       const nrm = faceN(a0, b0, b1)
       // (a little darker at the foot: contact shade)
       const lowK = roofOnly ? 1 : 0.8
+      const len = Math.hypot(q.x - p.x, q.z - p.z)
+      win = { ax: p.x, az: p.z, u0: perim, u1: perim + len, g: ground, style }
+      perim += len
       tri(a0, b0, b1, nrm, wall, [lowK, lowK, 1])
       tri(a0, b1, a1, nrm, wall, [lowK, 1, 1])
+      win = null
     }
     // the roof
     if (pitched) {
@@ -209,7 +223,7 @@ export const buildingArrays = (buildings, groundAt, { far = false, key = "" } = 
     }
     n++
   }
-  return { position: new Float32Array(P), normal: new Float32Array(N), color: new Float32Array(C), count: n }
+  return { position: new Float32Array(P), normal: new Float32Array(N), color: new Float32Array(C), win: new Float32Array(Wn), count: n }
 }
 
 // the outlines that are walls (for collisions): -> [{ ring, top, solid }]
