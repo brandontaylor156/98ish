@@ -742,6 +742,11 @@ export const updateAnim = (a, s, dt) => {
       else if (v === 1) mp = { hand: V(0.22, 1.85, 0.18), axis: norm(V(0, 1, 0.1)), off: V(-0.28, 1.16 + pumpUp * 0.14, 0.32), pole: V(1, -0.2, 0) } // the paddle in the air
       else mp = { hand: V(0.22, 1.82, 0.16), axis: norm(V(0, 1, 0.1)), off: V(-0.25, 1.8, 0.16), pole: V(1, -0.2, 0) } // both arms up
       lookAt = add(add(ground, V(0, 1.8, 0)), mul(fr.f, 3))
+    } else if (mood.kind === "wave") {
+      // a hello: the paddle hand up beside the head, swaying side to side (My Park)
+      const sway = Math.sin(mood.t * 11) * 0.12
+      mp = { hand: V(0.34 + sway, 1.72, 0.22), axis: norm(V(0.15 + sway, 1, 0.15)), off: V(-0.22, 0.95, 0.08), pole: V(1, -0.3, -0.2) }
+      lookAt = add(add(ground, V(0, 1.6, 0)), mul(fr.f, 3))
     } else if (v === 0) {
       // hands on the hips (where the hips are, whatever the posture), head down
       mp = { hand: toStd(V(0.25, 0.98, -0.02)), axis: norm(V(0.3, -0.6, -0.7)), off: toStd(V(-0.25, 0.98, -0.02)), pole: V(1, -0.3, -0.2) }

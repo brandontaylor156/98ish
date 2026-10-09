@@ -701,3 +701,53 @@
   min-height: 0;
   padding: 6px;
 }
+
+/* ---------- hanging out (park menu > Hang out; Pickleball.jsx parkUi.chill) ---------- */
+.pkParkHang {
+  display: grid;
+  gap: 4px;
+  margin: 0 0 8px;
+}
+.pkParkHangRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.pkParkHangRow button {
+  flex: 1 1 100px;
+  min-height: 44px;
+}
+.pkParkHangRow button.is-on {
+  background: #ffe9b0;
+  outline: 2px solid #c08a00;
+}
+/* chill mode: only the park (the move pad stays, faint, so you can still walk) */
+.pkRoot.is-chill .pkParkMenuBtn,
+.pkRoot.is-chill .pkParkActions,
+.pkRoot.is-chill .pkParkLabels,
+.pkRoot.is-chill .pkVoiceChip,
+.pkRoot.is-chill .pkRealBar,
+.pkRoot.is-chill .pkTourneyChip,
+.pkRoot.is-chill .pkParkLive,
+.pkRoot.is-chill .pkParkChip {
+  display: none !important;
+}
+.pkRoot.is-chill .pkParkPad {
+  opacity: 0.25;
+}
+.pkChillExit {
+  position: absolute;
+  left: 50%;
+  bottom: 14px;
+  transform: translateX(-50%);
+  z-index: 12;
+  min-height: 40px;
+  padding: 0 14px !important;
+  background: rgba(20, 24, 40, 0.45) !important;
+  color: #fff !important;
+  border: 1px solid rgba(255, 255, 255, 0.35) !important;
+  box-shadow: none !important;
+  border-radius: 20px;
+  font-size: 13px;
+  white-space: nowrap;
+}

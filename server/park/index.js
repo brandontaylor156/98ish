@@ -57,7 +57,7 @@ const venueInfo = (id) => VENUES[venueOf(id)] || { courts: COURTS, bounds: BOUND
 const BATCH_MS = { normal: 160, low: 400, min: 1000 }
 // the canned lines (park/lines.js CHAT_LINES has the words; this many of them)
 const LINE_COUNT = 8
-const EMOTES = ["cheer", "pump", "clap"]
+const EMOTES = ["cheer", "pump", "clap", "wave"]
 const ACT_MAX = 15
 const REP_LEVELS = 5
 const MB = 1024 * 1024

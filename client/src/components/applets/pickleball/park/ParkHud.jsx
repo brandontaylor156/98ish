@@ -154,7 +154,7 @@ export const ParkVenues = ({ list = [], current = "riverside", favs = [], loadin
 }
 
 // the menu: resume, the courts (watch any of them), say something, the Locker Room, leave
-export const ParkMenu = ({ courts = [], rep, online, venueName = "My Park", onResume, onWatch, onSay, onEmote, onLocker, onVenues, onLeave, voice = null, onBackdrop = null, onClone = null, onTourneys = null }) => {
+export const ParkMenu = ({ courts = [], rep, online, venueName = "My Park", onResume, onWatch, onSay, onEmote, onLocker, onVenues, onLeave, voice = null, onBackdrop = null, onClone = null, onTourneys = null, hangout = null }) => {
   const lv = repLevel(rep?.points || 0)
   return (
     <div className="pkCenter pkDim" onClick={(e) => e.target === e.currentTarget && onResume()}>
@@ -168,6 +168,22 @@ export const ParkMenu = ({ courts = [], rep, online, venueName = "My Park", onRe
           {lv.next ? <small> ({lv.toNext} to {lv.next})</small> : null}
         </p>
         {voice?.supported && <VoiceMenu voice={voice} names={voice.names || {}} />}
+        {hangout && (
+          <div className="pkParkHang" data-park="hangout">
+            <b>Hang out</b>
+            <div className="pkParkHangRow">
+              <button type="button" onClick={hangout.onChill} data-park="chill">
+                😌 Chill mode
+              </button>
+              <button type="button" className={hangout.music ? "is-on" : ""} aria-pressed={hangout.music} onClick={hangout.onMusic} data-park="music">
+                ♫ Music {hangout.music ? "on" : "off"}
+              </button>
+              <button type="button" className={hangout.golden ? "is-on" : ""} aria-pressed={hangout.golden} onClick={hangout.onGolden} data-park="golden">
+                🌅 Golden hour
+              </button>
+            </div>
+          </div>
+        )}
         <div className="pkParkCourts">
           {courts.map((c) => (
             <div key={c.id} className="pkParkCourtRow">

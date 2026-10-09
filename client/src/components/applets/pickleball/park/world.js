@@ -31,6 +31,7 @@ import { aoUniforms, lastAO, setBakedAOOn } from "./occlusion.js"
 import { createMannequins } from "./mannequin.js"
 import { spotFor } from "./presence.js"
 import { cleanMemory, meetRegular, pickLine, scheduleFor } from "./living.js"
+import { helloFor, seatAt, seatNextTo } from "./hangout.js"
 import { ACTIVE, ALL_SEATS, COURTS, INTERACTABLES, LEVEL_NAMES, RIVERSIDE_LAYOUT, SPAWN, WAYPOINTS, dirToWorld, nearestAction, poseToWorld, resolve, seatApproach, setLayout, toLocal, toWorld, yawToWorld } from "./layout.js"
 import { callNext, leaveQueue, nextLineup, ordered, positionOf } from "./queue.js"
 import { LINES, createRegular, goTo, speak, think, tickRegular } from "./regulars.js"
@@ -499,6 +500,9 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
     if (me.mode === "sit") return { kind: "stand", label: "Stand up" }
     // (up on a terrace: the courts' racks and benches are down below)
     if ((me.walker.y || 0) > 1.2) return null
+    // (a friend online sitting near you: sit with them)
+    const pal = sittingFriendNear(3.2)
+    if (pal) return { kind: "sitWith", seat: pal.seat.id, label: `Sit with ${pal.name}`, detail: "Next to them on the bench" }
     // (a friend's clone left here: walk up to challenge it)
     const cl = nearestClone(2.4)
     if (cl) return { kind: "challenge", owner: cl.owner, label: `Challenge ${cl.name}'s clone`, detail: "Plays the way they really play" }
@@ -538,6 +542,21 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
     if (!force && key === hudKey) return
     hudKey = key
     onHud?.(hud)
+  }
+
+  // a friend online who's sitting within d of you, and a free seat by them
+  const sittingFriendNear = (d) => {
+    let best = null
+    for (const r of remotes.values()) {
+      const b = r.body
+      if (!b?.seat || b.hidden) continue
+      const dd = Math.hypot(b.x - me.walker.x, b.z - me.walker.z)
+      if (dd > d || (best && dd >= best.d)) continue
+      const theirs = seatAt(ALL_SEATS, b.seat.x, b.seat.z) || { id: `n${r.num}`, x: b.seat.x, z: b.seat.z }
+      const seat = seatNextTo(ALL_SEATS, (s) => !takenSeats.has(s.id), theirs)
+      if (seat) best = { d: dd, name: r.name, seat }
+    }
+    return best
   }
 
   // ---------- your actions ----------
@@ -597,7 +616,10 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
     if (a.kind === "leave" || a.kind === "stand") standUp()
     else if (a.kind === "watch") watch(a.court)
     else if (a.kind === "rack") toggleQueue(a.court)
-    else if (a.kind === "sit") {
+    else if (a.kind === "sitWith") {
+      const seat = a.seat && a.seat.id ? a.seat : ALL_SEATS.find((s) => s.id === (a.seat?.id || a.seat))
+      if (seat && !takenSeats.has(seat.id)) sitOn(seat)
+    } else if (a.kind === "sit") {
       const seat = ALL_SEATS.filter((s) => s.bench === a.bench && !takenSeats.has(s.id)).sort((x, y) => Math.hypot(x.x - me.walker.x, x.z - me.walker.z) - Math.hypot(y.x - me.walker.x, y.z - me.walker.z))[0]
       if (seat) sitOn(seat)
     } else if (a.kind === "locker") onEvent?.({ type: "locker" })
@@ -950,8 +972,24 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
         parkMemory = met.mem
         speak(r, met.line, clock)
         r.yaw = Math.atan2(me.walker.x - r.x, me.walker.z - r.z)
+        r.body.mood = { kind: "wave", variant: 0, at: clock }
         onMemory?.(parkMemory)
       } else if (d > 12) greeted.delete(key)
+    }
+    // the others: some wave and say hi by name as you pass (once a visit each)
+    for (let i = NAMED; i < regulars.length; i++) {
+      const r = regulars[i]
+      if (r.state === "playing" || r.body.mode !== "walk" || r.say) continue
+      const key = `hi:${r.id}`
+      if (greeted.has(key)) continue
+      const d = Math.hypot(r.x - me.walker.x, r.z - me.walker.z)
+      if (d > 2.2) continue
+      greeted.add(key)
+      const line = helloFor(me.name, false, rand)
+      if (!line) continue
+      speak(r, line, clock)
+      if (!r.seated) r.yaw = Math.atan2(me.walker.x - r.x, me.walker.z - r.z)
+      r.body.mood = { kind: "wave", variant: 0, at: clock }
     }
     // the day: every couple of minutes, how keen they are follows the hour
     if (clock - schedAt > 120) {
@@ -1347,8 +1385,23 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
       b.speed = s.speed
       b.yaw = s.yaw
       if (act === ACTS.sitLow || act === ACTS.sitHigh) {
-        if (!b.seat || Math.hypot(b.seat.x - s.x, b.seat.z - s.z) > 0.3) b.seat = { x: s.x, z: s.z, y: act === ACTS.sitHigh ? 0.85 : 0.45, yaw: s.yaw, court: courtOfSeat(s.x, s.z) }
-      } else b.seat = null
+        if (!b.seat || Math.hypot(b.seat.x - s.x, b.seat.z - s.z) > 0.3) {
+          b.seat = { x: s.x, z: s.z, y: act === ACTS.sitHigh ? 0.85 : 0.45, yaw: s.yaw, court: courtOfSeat(s.x, s.z) }
+          holdSeat(r, seatAt(ALL_SEATS, s.x, s.z))
+        }
+      } else if (b.seat) {
+        b.seat = null
+        holdSeat(r, null)
+      }
+    }
+  }
+  // the seat a person online is on, kept as taken while they sit
+  const holdSeat = (r, seat) => {
+    if (r.seatId && takenSeats.get(r.seatId) === `n${r.num}`) takenSeats.delete(r.seatId)
+    r.seatId = null
+    if (seat && !takenSeats.has(seat.id)) {
+      takenSeats.set(seat.id, `n${r.num}`)
+      r.seatId = seat.id
     }
   }
   const courtOfSeat = (x, z) => {
@@ -1701,6 +1754,7 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
       else if (type === "park:gone" && d) {
         const r = remotes.get(d.num)
         if (r) {
+          holdSeat(r, null)
           removeBody(r.body)
           remotes.delete(d.num)
         }

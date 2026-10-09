@@ -45,6 +45,7 @@ const SplatPanel = React.lazy(() => import("./park/splat/SplatPanel"))
 const nextPaint = () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))
 import { ParkHud, ParkIntro, ParkMenu, ParkResult, ParkTurn, RealFriendsBar, VoiceChip } from "./park/ParkHud"
 import { useParkVoice } from "./park/useParkVoice.js"
+import { createChillMusic } from "./park/chillmusic.js"
 import { badgeText, friendsAt } from "./park/presence.js"
 import { useLiveCourt } from "./twin/live/useLiveCourt.js"
 import { useLocate } from "../../../utils/locate"
@@ -339,6 +340,15 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
   const parkNet = usePark({ world: parkWorld, active: !!parkWorld, me: parkWorld ? myParkInfo() : null })
   // spatial voice in My Park (park menu > Voice; utils/voice)
   const parkVoice = useParkVoice({ world: parkWorld, joined: parkNet.joined, park: parkNet.park })
+  // hanging out in My Park (park menu > Hang out): chill music (park/chillmusic.js, made here,
+  // original), chill mode (the screen hidden for a calm view: parkUi.chill), golden hour
+  const chillMusicRef = useRef(null)
+  const musicOn = !!parkWorld && !!prefs.parkMusic
+  useEffect(() => {
+    if (musicOn) (chillMusicRef.current ??= createChillMusic()).start()
+    else chillMusicRef.current?.stop()
+  }, [musicOn])
+  useEffect(() => () => chillMusicRef.current?.stop(), [])
   // Live Venue Presence (park/presence.js): Buddy Locator friends physically at a real venue.
   // The server decides who's where ({ id, area }: a venue and a court, nothing finer) and only
   // for friends who share their location with you; they stand in My Park "here for real".
@@ -1600,7 +1610,7 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
         : `Point at their court · ${keyName(b.solo.hit[0])} or click: tap soft, hold hard · C camera · P pause`
 
   return (
-    <div className={`pkRoot${mobile ? " is-mobile" : ""}`} onKeyDown={onKeyDown}>
+    <div className={`pkRoot${mobile ? " is-mobile" : ""}${screen === "park" && parkUi.chill ? " is-chill" : ""}`} onKeyDown={onKeyDown}>
       <MenuBar menus={menus} />
       {/* (the chat opens only when you tap its bubble; a new message shows a badge there) */}
       <GameChat game="pickleball" title="Pickleball 98" room={online.chatRoom} ticker={false} />
@@ -1807,6 +1817,11 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
             </div>
           </div>
         )}
+        {screen === "park" && phase === "world" && parkUi.chill && !parkUi.menu && (
+          <button type="button" className="pkChillExit" onClick={() => setParkUi((u) => ({ ...u, chill: false }))} data-park="chill-exit" aria-label="Show the screen again">
+            ☾ Chill · tap to show the screen
+          </button>
+        )}
         {screen === "park" && phase === "world" && parkUi.intro && <ParkIntro showPad={showPad} onDone={() => (setPrefs({ parkIntro: true }), setParkUi((u) => ({ ...u, intro: false })))} />}
         {screen === "park" && parkUi.backdrop && parkWorld && (
           <React.Suspense fallback={null}>
@@ -1830,6 +1845,13 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
             onBackdrop={prefs.quality === "low" ? null : () => setParkUi((u) => ({ ...u, menu: false, backdrop: true }))}
             onClone={() => (setParkUi((u) => ({ ...u, menu: false })), setLivingUi((u) => ({ ...u, panel: true })))}
             onTourneys={tourneyState.status === "off" ? null : () => setParkUi((u) => ({ ...u, menu: false, tourney: true }))}
+            hangout={{
+              music: !!prefs.parkMusic,
+              golden: prefs.tod === "golden",
+              onChill: () => setParkUi((u) => ({ ...u, menu: false, chill: true })),
+              onMusic: () => setPrefs({ parkMusic: !prefs.parkMusic }),
+              onGolden: () => setPrefs({ tod: prefs.tod === "golden" ? "now" : "golden" }),
+            }}
             voice={{ ...parkVoice, names: parkWorld?.voicePlace?.().names || {} }}
           />
         )}

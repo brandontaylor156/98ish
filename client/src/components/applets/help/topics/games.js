@@ -333,7 +333,16 @@ export const topics = [
           "**Watch:** you sit on the bleachers and the view moves to the court; **Cam** changes the angle (sideline, baseline, high) and **Leave** walks on. Only that court's score shows.",
           "**Call next:** your paddle goes in the rack. When the game on that court ends and it's your turn, you're on court for a game of doubles to 11 with the regulars, with your usual controls. Then it's back to the park. Tap the rack again to take your paddle back.",
           "**Park rep:** every game counts: a win more, a streak and the harder courts more still. Your level (Newcomer, Regular, Local, Court Boss, Park Legend) and record show on your nameplate for other people.",
-          "**The menu** (top left) lists the courts with their scores (Watch any of them), has short things to say and cheers, the Locker Room, and Leave My Park.",
+          "**The menu** (top left) lists the courts with their scores (Watch any of them), has short things to say and cheers (and **Wave**), the Locker Room, and Leave My Park.",
+        ],
+      },
+      { h: "Hanging out" },
+      "My Park is also a place to just be. Regulars sit on the benches together chatting, wait their turn by the paddle racks, and wave and say hi to you by name as you pass (the ones who know you remember your last games).",
+      {
+        list: [
+          "**Sit** on any bench or bleacher with the one button. A friend online who's sitting near you shows **Sit with Ali**: you take the seat next to them, and they see you there.",
+          "**Hang out** in the park menu: **Chill mode** hides everything on screen for a calm view of the park (tap **☾ Chill** at the bottom to bring it back; the move pad still works, faintly). **Music** plays a soft lo-fi loop made by 98ish itself (quiet, under the taskbar volume). **Golden hour** puts the sun low and warm (tap again for the real sky now).",
+          "**Talk** with the 🎙 under the menu button: see [[voice-chat]].",
         ],
       },
       "Online, other 98ish people in the same park walk around with you, with their names over them, and can call next on the same court: then you play each other (computer players fill the other spots). A park holds 16 people; more open another one.",
