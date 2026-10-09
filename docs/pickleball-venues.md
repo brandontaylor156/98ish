@@ -271,3 +271,16 @@ Friends who share their location (Buddy Locator) and are physically at one of th
 - Nominatim usage policy: https://operations.osmfoundation.org/policies/nominatim/
 - OpenFreeMap: https://simonwillison.net/2024/Sep/28/openfreemap/
 - Measurements: Overpass queries run 2026-10-05 (OSM base 2026-10-06T02:01Z); scripts were in the session scratchpad `venues/`.
+
+## Production fix: building venues when the server can't (2026-10-08)
+The owner tried Venue Finder on the iPhone: a search said "No venues found", and loading a venue ended with "The map server is busy". Measured on production:
+- **Server builds never worked there.** `GET /api/venues/status` on Render showed `cached: 0`, and every build failed within about 1 s with 503. The public Overpass servers turn away Render's shared outbound address. The earlier tests ran from the dev PC, whose address Overpass accepts.
+- **overpass-api.de answers 406 to any browser User-Agent** (Safari or Chrome, with or without Origin), so a phone can't ask it directly. The app's own User-Agent gets 200. The maps.mail.ru mirror answers browsers (CORS), but slowly (20-30 s).
+- **Search:** old cached app versions still asked for the retired `search.json` (now 404). They update by themselves the next time the app goes to the background (sw.js `skipWaiting` plus the reload in `main.jsx`). The index also missed several of the hand-built venues by their everyday names ("Whittier Narrows", "iPickle", "Wolf + Bear").
+
+The fix:
+- `client/api/osm.js`, a Vercel function: `?lat&lon&r` -> one venue's surroundings from Overpass, asked with the app's User-Agent (overpass-api.de, z., then maps.mail.ru), compacted, and cached by Vercel's CDN for 30 days. It's mounted in `vite.config.js` for dev.
+- `liveVenue.js` `fetchLiveSpec`: the server first (it fails fast), then a copy on the device, then `buildOnDevice`: `/api/osm` first, maps.mail.ru as the last resort, and the spec made on the phone with the server's own code (`osmspec.js` + `venuegen.js`). After a build, the phone posts the court count and bounds to `POST /api/venues/:id/info` (checked against the index; courts 1-200, bounds within 600 m, the per-address limit), so friends who pick the venue still meet in one park.
+- Search (`FinderPanel.jsx`): the hand-built real venues come first when the query matches their name, short name or town.
+- Server: logs the Overpass status when refused (`[venues] overpass refused: <status>`).
+- Tests: `park/live/liveVenue.test.js` (2) and `server/venues/test/venues.test.js` (+1, the info route).

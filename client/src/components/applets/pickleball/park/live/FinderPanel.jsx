@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react"
 import MoreOptions from "../../../../shared/MoreOptions"
 import { RIVERSIDE_ENTRY } from "../ParkHud"
-import { ATTRIBUTION, courtCount } from "./finder.js"
+import { ATTRIBUTION, courtCount, matchScore } from "./finder.js"
 import { loadMeta, searchVenues, venuesNear } from "./liveVenue.js"
 import "./finder.css"
 
@@ -76,7 +76,17 @@ export const FinderPanel = ({ list = [], places = {}, current = "riverside", fav
   const search = (e) => {
     e?.preventDefault?.()
     if (q.trim().length < 2) return
-    run(() => searchVenues(q.trim()))
+    const term = q.trim()
+    // the hand-built real venues first (by name, short name or town: "Los Cab", "Whittier Narrows",
+    // "Wolf + Bear"), then the index; the index alone missed several of them
+    const local = featured.filter((v) => [v.name, v.short, v.city, v.town].some((s) => matchScore(term, s) > 0))
+    run(async () => {
+      const found = await searchVenues(term).catch((e) => {
+        if (!local.length) throw e
+        return []
+      })
+      return [...local, ...found.filter((v) => !local.some((l) => l.id === v.id))]
+    })
   }
   const nearMe = () => {
     if (!navigator.geolocation) return setNote("This device can't tell where it is.")

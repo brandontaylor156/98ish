@@ -116,26 +116,84 @@ const saveCopy = async (rec) => {
   }
 }
 
-// a live venue's spec: the server's (which also tells the server to open parks there), else
-// the device's copy when offline. -> { spec, info, from: "server" | "device" } | throws
-export const fetchLiveSpec = async (id, shard, { timeoutMs = 45000 } = {}) => {
+// ---------- building a venue on this device ----------
+// The public Overpass servers turn away the chat server's shared address on Render (every build
+// there failed in production, 2026-10-08), and overpass-api.de answers 406 to any browser
+// User-Agent. So the phone asks our Vercel function (/api/osm: the app's own User-Agent, cached by
+// Vercel's CDN for 30 days), and as a last resort the one public mirror that answers browsers.
+// The spec is made here with the same code as the server.
+export const OVERPASS = ["https://maps.mail.ru/osm/tools/overpass/api/interpreter"]
+const askOsm = async (v, osm, fetchImpl, signal) => {
+  try {
+    const res = await fetchImpl(`/api/osm?lat=${v.lat.toFixed(5)}&lon=${v.lon.toFixed(5)}&r=${Math.round(v.r)}`, { signal })
+    const body = res.ok ? await res.json() : null
+    if (Array.isArray(body?.elements)) return body
+  } catch (error) {
+    if (error?.name === "AbortError") throw error
+  }
+  const data = "data=" + encodeURIComponent(osm.venueQuery(v.lat, v.lon, v.r))
+  for (const endpoint of OVERPASS) {
+    try {
+      // (a form post is a simple request: no CORS preflight)
+      const res = await fetchImpl(endpoint, { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: data, signal })
+      const raw = res.ok ? await res.json() : null
+      if (Array.isArray(raw?.elements)) return { osm_base: raw.osm3s?.timestamp_osm_base || null, elements: osm.compactElements(raw.elements) }
+    } catch (error) {
+      if (error?.name === "AbortError") throw error
+    }
+  }
+  return null
+}
+export const buildOnDevice = async (id, shard, { fetchImpl = (...a) => fetch(...a), signal, rows = null } = {}) => {
+  const v = (rows || (await loadShard(shard))).find((r) => r.id === id)
+  if (!v) throw new Error("That venue isn't in the index.")
+  const [osm, gen] = await Promise.all([import("./osmspec.js"), import("../venuegen.js")])
+  const raw = await askOsm(v, osm, fetchImpl, signal)
+  if (!raw) throw new Error("The map servers are busy. Try this venue again in a minute.")
+  const spec = osm.specFromOsm({ elements: raw.elements, osm_base: raw.osm_base }, { id, lat: v.lat, lon: v.lon, r: v.r, name: v.name, town: v.town, courts: v.courts, onTennis: v.onTennis, flags: v.flags })
+  const out = gen.generateVenue(spec)
+  if (out.info?.exclude?.length) spec.genExclude = out.info.exclude
+  const b = out.layoutSpec.bounds
+  const info = { courts: out.layoutSpec.courts.length, bounds: { x0: Math.floor(b.x0), x1: Math.ceil(b.x1), z0: Math.floor(b.z0), z1: Math.ceil(b.z1) } }
+  return { spec, info }
+}
+
+// a live venue's spec: the server's (which also tells the server to open parks there); if the
+// server can't build it, built here on the device; else the device's copy when offline.
+// -> { spec, info, from: "server" | "built" | "device" } | throws
+export const fetchLiveSpec = async (id, shard, { timeoutMs = 45000, buildTimeoutMs = 90000 } = {}) => {
   const copy = await readCopy(id).then((c) => (c?.spec ? c : null))
   const ctl = typeof AbortController !== "undefined" ? new AbortController() : null
   const timer = ctl ? setTimeout(() => ctl.abort(), copy ? 8000 : timeoutMs) : null
+  let serverError = null
   try {
     const res = await fetch(`${SERVER_URL}/api/venues/${encodeURIComponent(id)}?s=${encodeURIComponent(shard || "")}`, ctl ? { signal: ctl.signal } : {})
     const body = await res.json().catch(() => null)
-    if (!res.ok || !body?.ok) {
-      if (copy) return { spec: copy.spec, info: copy.info, from: "device" }
-      throw new Error(body?.error || "Venue Finder couldn't build that venue right now.")
+    if (res.ok && body?.ok) {
+      saveCopy({ id, spec: body.spec, info: body.info, at: Date.now() }).catch(() => {})
+      return { spec: body.spec, info: body.info, from: "server" }
     }
-    saveCopy({ id, spec: body.spec, info: body.info, at: Date.now() }).catch(() => {})
-    return { spec: body.spec, info: body.info, from: "server" }
+    serverError = new Error(body?.error || "Venue Finder couldn't build that venue right now.")
   } catch (error) {
-    if (copy) return { spec: copy.spec, info: copy.info, from: "device" }
-    throw error.name === "AbortError" ? new Error("Venue Finder is taking too long. Try again in a minute.") : error
+    serverError = error.name === "AbortError" ? new Error("Venue Finder is taking too long. Try again in a minute.") : error
   } finally {
     if (timer) clearTimeout(timer)
+  }
+  if (copy) return { spec: copy.spec, info: copy.info, from: "device" }
+  // the server couldn't: build it here
+  const ctl2 = typeof AbortController !== "undefined" ? new AbortController() : null
+  const timer2 = ctl2 ? setTimeout(() => ctl2.abort(), buildTimeoutMs) : null
+  try {
+    const built = await buildOnDevice(id, shard, ctl2 ? { signal: ctl2.signal } : {})
+    saveCopy({ id, spec: built.spec, info: built.info, at: Date.now() }).catch(() => {})
+    // (tell the server the court count and bounds, so friends who pick it meet in one park)
+    fetch(`${SERVER_URL}/api/venues/${encodeURIComponent(id)}/info?s=${encodeURIComponent(shard || "")}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(built.info) }).catch(() => {})
+    return { ...built, from: "built" }
+  } catch (error) {
+    if (error?.name === "AbortError") throw new Error("Venue Finder is taking too long. Try again in a minute.")
+    throw error?.message ? error : serverError
+  } finally {
+    if (timer2) clearTimeout(timer2)
   }
 }
 

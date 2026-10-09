@@ -2,6 +2,7 @@ import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import youtubeHandler from './api/youtube.js'
 import waybackHandler from './api/wayback.js'
+import osmHandler from './api/osm.js'
 import a11yCss from './postcss-a11y.js'
 import { readdirSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
@@ -88,6 +89,7 @@ export default defineConfig(({ mode }) => {
         configureServer(server) {
           server.middlewares.use('/api/youtube', youtubeHandler)
           server.middlewares.use('/api/wayback', waybackHandler)
+          server.middlewares.use('/api/osm', osmHandler)
         },
       },
     ],

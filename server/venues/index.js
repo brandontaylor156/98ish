@@ -115,7 +115,10 @@ const createVenues = ({ store = null, fetchImpl = globalThis.fetch, now = Date.n
         }
         if (res.status !== 429 && res.status !== 504 && res.status !== 502) break
       }
-      if (!res || res.status === 429 || res.status === 504 || res.status === 502) throw new Refused(503, "The map server is busy. Try this venue again in a minute.")
+      if (!res || res.status === 429 || res.status === 504 || res.status === 502) {
+        console.warn("[venues] overpass refused:", res ? res.status : "no answer")
+        throw new Refused(503, "The map server is busy. Try this venue again in a minute.")
+      }
       if (!res.ok) throw new Refused(502, "The map server didn't answer. Try again in a minute.")
       const text = await res.text()
       today.bytes += text.length
@@ -206,6 +209,19 @@ const createVenues = ({ store = null, fetchImpl = globalThis.fetch, now = Date.n
       roll()
       const s = await storeReady
       response.json({ ok: true, cached: await s.count(), bytes: await s.bytes(), today: { queries: today.queries, bytes: today.bytes }, budget: { queries: L.dailyQueries, bytes: L.dailyBytes } })
+    })
+    // a venue a phone built itself (the public map servers turned this server away): just its
+    // court count and bounds, so friends who pick it meet in one park. Checked against the index.
+    r.post("/:id/info", express.json({ limit: "1kb" }), async (request, response) => {
+      const id = String(request.params.id)
+      const { courts, bounds: b } = request.body || {}
+      const n = (x) => Number.isInteger(x) && Math.abs(x) <= 600
+      const { finder } = await loadModules()
+      if (!finder.parseVenueId(id) || !Number.isInteger(courts) || courts < 1 || courts > 200 || !b || ![b.x0, b.x1, b.z0, b.z1].every(n) || b.x0 >= b.x1 || b.z0 >= b.z1) return response.status(400).json({ ok: false })
+      if (!(await rowFor(id, String(request.query.s || "")))) return response.status(404).json({ ok: false })
+      if (tooMany(request.ip)) return response.status(429).json({ ok: false })
+      if (!infos.has(id)) remember(id, { courts, bounds: { x0: b.x0, x1: b.x1, z0: b.z0, z1: b.z1 } })
+      response.json({ ok: true })
     })
     r.get("/:id", async (request, response) => {
       try {

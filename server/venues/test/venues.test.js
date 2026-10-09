@@ -157,3 +157,24 @@ test("HTTP: GET /api/venues/:id answers the spec; errors as JSON", async () => {
     server.close()
   }
 })
+
+test("POST /:id/info: a venue a phone built joins the park; bad or unknown ones refused", async () => {
+  const { v } = setup()
+  const app = express()
+  app.use("/api/venues", v.router())
+  const server = http.createServer(app).listen(0)
+  const base = `http://127.0.0.1:${server.address().port}/api/venues`
+  const post = (id, body, s = "9q") => fetch(`${base}/${id}/info?s=${s}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
+  try {
+    const good = { courts: 4, bounds: { x0: -40, x1: 40, z0: -30, z1: 30 } }
+    assert.equal((await post("ow2", good)).status, 200)
+    assert.deepEqual(v.liveVenues.info("ow2"), good)
+    assert.equal((await post("ow9", good)).status, 404) // not in the index
+    assert.equal((await post("ow3", { courts: 0, bounds: good.bounds })).status, 400)
+    assert.equal((await post("ow3", { courts: 4, bounds: { x0: -4000, x1: 40, z0: -30, z1: 30 } })).status, 400)
+    assert.ok([400, 404].includes((await post("../x", good)).status))
+    assert.equal(v.liveVenues.info("ow3"), null)
+  } finally {
+    server.close()
+  }
+})
