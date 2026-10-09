@@ -11,7 +11,7 @@ import { ROAD_ORDER, ROAD_PAINT, SIDEWALK } from "./paint.js"
 const YELLOW = 0xe0b43a
 const WHITE = 0xf1f1ec
 const BLUE = 0x2f62b8
-const CURB = 0xcfcbc1
+const CURB = 0xbfbbb1
 const GUTTER = 0x6b6a66
 
 // a road's height at a point along it: its deck on a bridge, else the ground

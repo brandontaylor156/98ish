@@ -21,8 +21,8 @@ export const AREA_COLORS = {
   sand: "#c9b98d",
   golf: "#5aa04a",
   golfgreen: "#4fb04c",
-  parking: "#36383c",
-  plaza: "#aea89c",
+  parking: "#2f3135",
+  plaza: "#a6a094",
   pitch: "#4f8d47",
   track: "#a9564a",
   playground: "#b59a6e",
@@ -55,12 +55,12 @@ export const ROAD_PAINT = {
   [ROAD.unclassified]: ["#46484b", "#a3a19b"],
   [ROAD.living_street]: ["#4a4c4f", "#a3a19b"],
   [ROAD.link]: ["#3c3e41", "#8b8a86"],
-  [ROAD.service]: ["#424447", null],
+  [ROAD.service]: ["#3a3c40", null],
   [ROAD.driveway]: ["#8e8c86", null],
-  [ROAD.aisle]: ["#3d3f42", null],
-  [ROAD.pedestrian]: ["#b9b3a6", null],
-  [ROAD.footway]: ["#bab4a7", null],
-  [ROAD.cycleway]: ["#b5afa3", null],
+  [ROAD.aisle]: ["#323438", null],
+  [ROAD.pedestrian]: ["#aaa498", null],
+  [ROAD.footway]: ["#aba599", null],
+  [ROAD.cycleway]: ["#a8a296", null],
   [ROAD.steps]: ["#bbb5a8", null],
   [ROAD.path]: ["#b49e78", null],
   [ROAD.track]: ["#a58f69", null],
@@ -68,19 +68,20 @@ export const ROAD_PAINT = {
   [ROAD.river]: ["#ad9f83", null],
   [ROAD.stream]: ["#8f9a7a", null],
 }
-export const SIDEWALK = "#b6b1a6"
+export const SIDEWALK = "#a8a398"
 // the sea floor under the water (a coast town)
 export const SEA = "#2f5a63"
 // round a house: its yard (a watered lawn, a little dry); round other buildings: concrete
 export const YARD = "#6e9a4a"
-export const APRON = "#aaa69c"
+export const APRON = "#9e9a90"
 // the order roads are painted in (later on top): water, paths, rail, small roads, big roads
 export const ROAD_ORDER = [ROAD.river, ROAD.stream, ROAD.track, ROAD.path, ROAD.footway, ROAD.cycleway, ROAD.steps, ROAD.pedestrian, ROAD.rail, ROAD.driveway, ROAD.aisle, ROAD.service, ROAD.living_street, ROAD.unclassified, ROAD.residential, ROAD.link, ROAD.tertiary, ROAD.secondary, ROAD.primary, ROAD.trunk, ROAD.motorway]
 
 // buildings: wall and roof palettes (original; picked per building by a hash)
 export const WALLS = {
   house: [0xe8dcc6, 0xefe6d2, 0xd9c9a8, 0xe4d6bd, 0xcfc2a6, 0xf0ebe0, 0xd8cdb8, 0xc9b89a, 0xe2d2b4],
-  shop: [0xe6e0d2, 0xd9cfbb, 0xeee9df, 0xcfc3ab, 0xe2d6bf, 0xf0ece4, 0xd6cdbd],
+  // (Valencia's Town Center and its shopping streets: cream, sand, peach and sage stucco)
+  shop: [0xe6e0d2, 0xd9cfbb, 0xeee9df, 0xcfc3ab, 0xe2d6bf, 0xf0ece4, 0xe3c8a8, 0xd8bf9c, 0xbfc4a8, 0xe9d3b8],
   // offices (Valencia's business parks: white and cream two-storey blocks with dark glass)
   office: [0xf1eee7, 0xebe7dc, 0xf4f2ed, 0xe6e1d4, 0xeeeae0],
   works: [0xc4c4c0, 0xb8bab8, 0xd0ccc4, 0xbfc3c6],

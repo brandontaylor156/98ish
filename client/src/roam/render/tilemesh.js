@@ -196,6 +196,11 @@ uniform sampler2D surfConcrete;`).replace(
     vec4 dg = texture2D(surfGrass, xz * 0.55);
     vec4 da = texture2D(surfAsphalt, xz * 0.45);
     vec4 dc = texture2D(surfConcrete, xz * 0.3);
+    // (each texture's grain about its own mean, so up close a surface is no lighter or darker
+    // than far off: the coarsest mip is the mean)
+    dg.r *= 0.5 / max(0.05, texture2D(surfGrass, vec2(0.5), 14.0).r);
+    da.r *= 0.5 / max(0.05, texture2D(surfAsphalt, vec2(0.5), 14.0).r);
+    dc.r *= 0.5 / max(0.05, texture2D(surfConcrete, vec2(0.5), 14.0).r);
     vec4 d = mix(mix(dc, da, dark), dg, green);
     float k = mix(mix(0.45, 0.6, dark), 0.75, green) * far;
     diffuseColor.rgb *= mix(1.0, d.r * 2.0, k) * mix(1.0, d.a, 0.5 * far);
@@ -210,7 +215,7 @@ uniform sampler2D surfConcrete;`).replace(
     float nearK = 1.0 - smoothstep(20.0, 80.0, dist);
     vec4 wr = texture2D(wearMap, xz * 0.025);
     diffuseColor.rgb *= mix(1.0, wr.r, dark * nearK * 0.85);
-    diffuseColor.rgb *= 1.0 + (1.0 - wr.b) * 0.22 * dark * far;
+    diffuseColor.rgb *= 1.0 + (1.0 - wr.b) * 0.12 * dark * far;
     // the golden hills (and dry ground, washes): drifts of dark scrub, seen from afar too
     float tanK = smoothstep(0.12, 0.18, paint.r - paint.b) * (1.0 - green) * (1.0 - dark) * (1.0 - smoothstep(0.42, 0.52, lum));
     float sc = (1.0 - texture2D(wearMap, xz * 0.055).g) * 0.75 + (1.0 - texture2D(wearMap, xz * 0.0137 + 0.31).g) * 0.6;
@@ -440,7 +445,7 @@ export const materials = () => {
   const groundProto = (map) => {
     const m = new THREE.MeshLambertMaterial({ map })
     m.onBeforeCompile = groundShader(detail, wear)
-    m.customProgramCacheKey = () => "roam-ground-3"
+    m.customProgramCacheKey = () => "roam-ground-4"
     return m
   }
   const building = new THREE.MeshLambertMaterial({ vertexColors: true })
@@ -465,6 +470,7 @@ uniform sampler2D surfConcrete;`).replace(
     float far = 1.0 - smoothstep(35.0, 140.0, distance(vRoamW, cameraPosition));
     float lum = dot(diffuseColor.rgb, vec3(0.299, 0.587, 0.114));
     vec4 d = lum < 0.32 ? texture2D(surfAsphalt, xz * 0.45) : texture2D(surfConcrete, xz * 0.3);
+    d.r *= 0.5 / max(0.05, lum < 0.32 ? texture2D(surfAsphalt, vec2(0.5), 14.0).r : texture2D(surfConcrete, vec2(0.5), 14.0).r);
     diffuseColor.rgb *= mix(1.0, d.r * 2.0, 0.6 * far) * mix(1.0, d.a, 0.5 * far);
     // worn patches and tyre tracks' polish: a slow variation
     float big = texture2D(detailMap, xz * 0.021).r;
@@ -474,10 +480,15 @@ uniform sampler2D surfConcrete;`).replace(
     float nearK = 1.0 - smoothstep(20.0, 80.0, distance(vRoamW, cameraPosition));
     vec4 wr = texture2D(wearMap, xz * 0.025 + 0.5);
     diffuseColor.rgb *= mix(1.0, wr.r, step(lum, 0.32) * nearK * 0.8);
+    // (sidewalks and plazas: the joints between their slabs, every 1.8 m, up close)
+    vec2 jg = abs(fract(xz / 1.8 + 0.5) - 0.5) * 1.8;
+    vec2 jw = fwidth(xz) * 0.8 + 0.015;
+    float joint = max(1.0 - smoothstep(jw.x, jw.x * 2.0, jg.x), 1.0 - smoothstep(jw.y, jw.y * 2.0, jg.y));
+    diffuseColor.rgb *= 1.0 - joint * step(0.32, lum) * nearK * 0.2;
   }`
     )
   }
-  roads.customProgramCacheKey = () => "roam-roads-3"
+  roads.customProgramCacheKey = () => "roam-roads-4"
   shared = {
     detail,
     wear,

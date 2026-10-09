@@ -26,6 +26,7 @@ test("vegetation: sample pixels from the aerial (NIR, red, green; natural colour
   assert.equal(classifyPixel(148, 97, 102, 10, 85, 97, 75), VEG.canopy, "a young street tree")
   assert.equal(classifyPixel(117, 81, 93, 8, 81, 87, 73), VEG.canopy, "a grey-green street tree")
   assert.equal(classifyPixel(121, 127, 115, 6, 138, 124, 113), VEG.dry, "bare planting bed: not a tree")
+  assert.notEqual(classifyPixel(117, 81, 93, 8, 81, 87, 73, false), VEG.canopy, "the same dark green on the hills, away from paving, is chaparral")
   assert.equal(classifyPixel(150, 110, 110, 22, 120, 110, 85), VEG.dry, "chaparral on the hills: weakly green and lumpy")
   assert.equal(classifyPixel(175, 165, 150, 4, 190, 170, 140), VEG.dry, "dry grass: tan, not green")
   assert.equal(classifyPixel(140, 150, 150, 3, 150, 150, 152), VEG.none, "a car park: grey")

@@ -198,8 +198,8 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
   const fleetLayer = createFleetLayer(scene, { cap: phone ? 30 : 60 })
   // (near you the town's species in full, farther off billboards: two triangles a tree, so the
   // far tiles keep their trees too)
-  const trees = createTreeLayer(scene, { cap: low ? 0 : phone ? 6500 : 14000, kit: low ? null : host.trees?.() || null, nearCap: phone ? 300 : 700, anisotropy: Math.min(4, host.anisotropy || 1) })
-  const TREE_NEAR = phone ? 135 : 240
+  const trees = createTreeLayer(scene, { cap: low ? 0 : phone ? 5000 : 14000, kit: low ? null : host.trees?.() || null, nearCap: phone ? 260 : 700, anisotropy: Math.min(4, host.anisotropy || 1) })
+  const TREE_NEAR = phone ? 120 : 240
   let treesAt = null
   const moved = new Map() // parked car id -> { x, z, yaw } (left somewhere else this session) | "gone"
   let tilesDirty = true
@@ -426,7 +426,7 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
       traffic.cap = busy ? LIFE.busyTraffic : LIFE.traffic
     }
   }
-  const PED_SEE = phone ? 75 : 120
+  const PED_SEE = phone ? 60 : 120
   // (just arrived at a start spot: people walk into the first view, sim/peds.js)
   let freshUntil = 0
   let lifeTick = 0

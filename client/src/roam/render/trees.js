@@ -336,7 +336,7 @@ export const createTreeLayer = (scene, { cap = 4000, kit = null, nearCap = 0, mo
           near[sp].setMatrixAt(i, m4)
           if (t.island && cb < curbCap) {
             // (a lot's tree stands in its curbed planter island)
-            m4.compose(v.set(t.x, t.y - 0.05, t.z), q, s.set(2.6, 0.2, 2.6))
+            m4.compose(v.set(t.x, t.y - 0.05, t.z), q, s.set(2.0, 0.22, 2.0))
             curbs.setMatrixAt(cb++, m4)
           }
           const nt = nearTint(rgb)

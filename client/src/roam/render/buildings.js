@@ -27,7 +27,7 @@ export const SURF = { stucco: 0, panel: 1, tile: 2, shingle: 3, flat: 4 }
 export const materialOf = (b, h = 0) => {
   const name = BUILDING_KINDS[b.kind]
   const house = isHouse(b.kind)
-  const works = ["industrial", "warehouse", "service", "garages", "parking", "supermarket"].includes(name) || (!house && b.area > 2500)
+  const works = ["industrial", "warehouse", "service", "garages", "parking", "supermarket"].includes(name) || (!house && b.area > 2500 && !isOffice(b))
   const wall = works ? SURF.panel : SURF.stucco
   const roof = house ? ((h >>> 4) % 4 === 0 ? SURF.shingle : SURF.tile) : SURF.flat
   return { wall, roof }

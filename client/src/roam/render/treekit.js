@@ -31,13 +31,13 @@ const uvOf = (reg, u, v) => {
 // crown (the aerial's crown radius r -> height h: speciesSize)
 export const SPECIES = {
   // sycamore / London plane: tall, an open upright crown on two or three leaders; deciduous
-  plane: { h: 13, r: 4.2, bark: [0.78, 0.74, 0.66], leaf: [0.5, 0.62, 0.32], trunk: 4.2, leaders: 3, clusters: 13, cr: [1.5, 2.2], cards: 9, card: [1.7, 2.3], env: { y: 8.6, rx: 4.2, ry: 4.3 }, open: 0.35 },
+  plane: { h: 13, r: 4.2, bark: [0.78, 0.74, 0.66], leaf: [0.5, 0.62, 0.32], trunk: 4.2, leaders: 3, clusters: 13, cr: [1.5, 2.2], cards: 6, card: [1.7, 2.3], env: { y: 8.6, rx: 4.2, ry: 4.3 }, open: 0.35 },
   // coast live oak: low and wide, a dense dark dome on a short leaning trunk
-  oak: { h: 8.5, r: 5.2, bark: [0.36, 0.31, 0.26], leaf: [0.3, 0.42, 0.22], trunk: 2.2, leaders: 4, clusters: 16, cr: [1.7, 2.4], cards: 10, card: [1.8, 2.4], env: { y: 5.4, rx: 5.2, ry: 3.1 }, open: 0.12 },
+  oak: { h: 8.5, r: 5.2, bark: [0.36, 0.31, 0.26], leaf: [0.3, 0.42, 0.22], trunk: 2.2, leaders: 4, clusters: 14, cr: [1.8, 2.5], cards: 6, card: [1.8, 2.4], env: { y: 5.4, rx: 5.2, ry: 3.1 }, open: 0.12 },
   // round evergreens (ficus, ash, Brisbane box, carrotwood): a full rounded crown
-  round: { h: 9.5, r: 3.8, bark: [0.5, 0.46, 0.4], leaf: [0.36, 0.5, 0.26], trunk: 3.0, leaders: 3, clusters: 11, cr: [1.4, 2.0], cards: 10, card: [1.6, 2.1], env: { y: 6.1, rx: 3.8, ry: 3.4 }, open: 0.08 },
+  round: { h: 9.5, r: 3.8, bark: [0.5, 0.46, 0.4], leaf: [0.36, 0.5, 0.26], trunk: 3.0, leaders: 3, clusters: 11, cr: [1.4, 2.0], cards: 7, card: [1.6, 2.1], env: { y: 6.1, rx: 3.8, ry: 3.4 }, open: 0.08 },
   // pines (Canary Island, Aleppo, Italian stone): a tall bare trunk, tufts of needles in whorls
-  pine: { h: 19, r: 3.6, bark: [0.42, 0.33, 0.27], leaf: [0.27, 0.4, 0.27], trunk: 18.4, pine: true, clusters: 0, cr: [1.0, 1.5], cards: 8, card: [1.5, 2.0] },
+  pine: { h: 19, r: 3.6, bark: [0.42, 0.33, 0.27], leaf: [0.27, 0.4, 0.27], trunk: 18.4, pine: true, clusters: 0, cr: [1.0, 1.5], cards: 5, card: [1.6, 2.1] },
   // shrubs (the aerial's small crowns): a low rounded bush
   shrub: { h: 1.5, r: 1, bark: [0.4, 0.35, 0.3], leaf: [0.38, 0.52, 0.27], trunk: 0, leaders: 0, clusters: 4, cr: [0.5, 0.65], cards: 7, card: [0.75, 0.95], env: { y: 0.85, rx: 0.85, ry: 0.6 }, open: 0 },
 }
@@ -165,11 +165,17 @@ export const speciesArrays = (name, seed = 1) => {
     const fork = [lean[0], tr, lean[2]]
     if (tr > 0) {
       tube([0, -0.3, 0], fork, name === "oak" ? 0.42 : 0.3, name === "oak" ? 0.32 : 0.22, bark, 7)
+      // (each limb bends on its way up and forks once: thinner as it goes, ending inside the crown)
+      const r0 = name === "oak" ? 0.2 : 0.13
       for (let k = 0; k < S.leaders; k++) {
         const a = (k / S.leaders) * Math.PI * 2 + rand() * 0.8
-        const out = rx * (0.35 + rand() * 0.25)
-        const end = [fork[0] + Math.cos(a) * out, cy + ry * (0.05 + rand() * 0.35), fork[2] + Math.sin(a) * out]
-        tube(fork, end, name === "oak" ? 0.24 : 0.17, 0.06, bark, 5)
+        const out = rx * (0.28 + rand() * 0.22)
+        const mid = [fork[0] + Math.cos(a) * out * 0.45, tr + (cy - tr) * (0.45 + rand() * 0.2), fork[2] + Math.sin(a) * out * 0.45]
+        const end = [fork[0] + Math.cos(a + 0.25) * out, cy + ry * (0.05 + rand() * 0.3), fork[2] + Math.sin(a + 0.25) * out]
+        tube(fork, mid, r0, r0 * 0.65, bark, 5)
+        tube(mid, end, r0 * 0.65, 0.04, bark, 5)
+        const b2 = a - 0.7 - rand() * 0.5
+        tube(mid, [mid[0] + Math.cos(b2) * out * 0.5, mid[1] + ry * 0.5, mid[2] + Math.sin(b2) * out * 0.5], r0 * 0.4, 0.03, bark, 4)
       }
     }
     // the leaf clusters: spread through the crown's envelope, most near its skin (the inside of
@@ -304,9 +310,9 @@ export const paintAtlas = () => {
     const [x0, y0, w] = REG.leaves
     const cx = x0 + w / 2
     const cy = y0 + w / 2
-    for (let i = 0; i < 420; i++) {
+    for (let i = 0; i < 560; i++) {
       const a = rand() * Math.PI * 2
-      const r = w * 0.44 * Math.sqrt(rand())
+      const r = w * 0.45 * Math.sqrt(rand())
       const len = 14 + rand() * 16
       leaf(g, cx + Math.cos(a) * r, cy + Math.sin(a) * r, len, len * (0.45 + rand() * 0.2), rand() * Math.PI, 0.55 + rand() * 0.45)
     }
@@ -338,14 +344,14 @@ export const paintAtlas = () => {
     g.fillStyle = "rgb(205,205,205)"
     g.fillRect(x0, y0, w, h)
     for (let i = 0; i < 260; i++) {
-      const v = Math.round((0.55 + rand() * 0.5) * 255)
-      g.fillStyle = `rgb(${v},${v},${v})`
+      const v = Math.round((0.7 + rand() * 0.35) * 255)
+      g.fillStyle = `rgb(${Math.min(255, v)},${Math.min(255, v)},${Math.min(255, v)})`
       g.beginPath()
       g.ellipse(x0 + rand() * w, y0 + rand() * h, 4 + rand() * 12, 6 + rand() * 18, 0, 0, Math.PI * 2)
       g.fill()
     }
     for (let i = 0; i < 70; i++) {
-      g.strokeStyle = `rgba(60,60,60,${0.25 + rand() * 0.3})`
+      g.strokeStyle = `rgba(70,70,70,${0.1 + rand() * 0.18})`
       g.lineWidth = 1 + rand() * 2
       const x = x0 + rand() * w
       g.beginPath()
@@ -506,7 +512,7 @@ export const paintImpostors = (atlas) => {
       const lum = Math.min(1, (0.35 + 0.65 * ndl) * c.ao)
       const lvl = Math.max(0, Math.min(LEVELS - 1, Math.round(((lum - 0.2) / 0.8) * (LEVELS - 1))))
       const img = (c.needles ? needles : leaves)[lvl]
-      const s = c.s * ppm * 0.95
+      const s = c.s * ppm * 1.12
       g.drawImage(img, X(c.p[0]) - s / 2, Y(c.p[1]) - s / 2, s, s)
     }
   })
