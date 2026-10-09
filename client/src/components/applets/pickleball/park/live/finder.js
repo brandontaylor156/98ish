@@ -6,8 +6,11 @@
 // The index (client/public/venues/idx/, built monthly, ODbL like OSM):
 //   <gh2>.json   one shard per 2-character geohash cell (about 1,250 x 625 km):
 //                { v: 1, rows: [row, ...] }, a row = [id, lat, lon, r, courts, onTennis, flags, name, town]
-//   search.json  { v: 1, towns: [[name, gh2, lat, lon, venues]], named: [[name, gh2, i]] }
-//   meta.json    { v, built, venues, courts, shards, osm_base, attribution }
+//   search/<k>.json  { v: 1, towns: [[name, gh2, lat, lon, venues]], named: [[name, gh2, i]] }:
+//                the town and venue names with a word starting with letter k (a-z, "0" for a
+//                digit, "_" otherwise; searchKey/searchKeysOf), so a search loads one small file
+//                instead of the whole world's names
+//   meta.json    { v, built, venues, courts, named, towns, shards, covered, partial, osm_base, attribution }
 // id: "o" + OSM type letter + OSM id of the venue's biggest court ("ow123456"); flags below.
 
 export const FLAG = { indoor: 1, lit: 2, covered: 4, private: 8, members: 16, building: 32 }
@@ -202,9 +205,11 @@ export const flagsOf = (cluster) => {
 }
 
 // a venue's name: one of its own features' names, else the nearest named park/club/school
-// around it (`places`: [{ name, lat, lon, kind }]), else "Pickleball courts" (+ the town)
+// around it (`places`: [{ name, lat, lon, kind }]), else the named park/club/school the courts
+// stand inside (`enclosing`: a name from the build's names pass, OSM is_in), else the operator,
+// else "Pickleball courts" (+ the town)
 const GENERIC = /^(pickleball( courts?)?|tennis( courts?)?|courts?|pitch)$/i
-export const nameVenue = (cluster, places = []) => {
+export const nameVenue = (cluster, places = [], enclosing = null) => {
   const own = cluster.els.map((e) => e.tags?.name).filter((n) => n && !GENERIC.test(n.trim()))
   // (a hall's or club's name beats a court's "Court 3")
   const best = own.find((n) => !/^court\s*\d+$/i.test(n)) || null
@@ -222,7 +227,46 @@ export const nameVenue = (cluster, places = []) => {
     if (!near || score < near.score) near = { name: p.name, score }
   }
   if (near) return near.name
+  if (enclosing && !GENERIC.test(enclosing.trim())) return enclosing
   return opName || null
+}
+
+// the names pass (build-index.mjs --names): which named OSM area a venue stands inside. `areas`
+// are Overpass `is_in` answers ({ tags }); a sports centre or club beats a park, a park beats a
+// school or campus, a recreation ground, golf club or resort comes last. Returns a name or null.
+const areaRank = (t) =>
+  t.leisure === "sports_centre" || t.leisure === "sports_hall" || t.leisure === "fitness_centre" || t.club
+    ? 0
+    : /^(park|recreation_ground|common|playground)$/.test(t.leisure || "") || t.amenity === "community_centre"
+      ? 1
+      : /^(school|college|university)$/.test(t.amenity || "")
+        ? 2
+        : t.landuse === "recreation_ground" || /^(golf_course|beach_resort|resort)$/.test(t.leisure || "")
+          ? 3
+          : 9
+export const pickEnclosing = (areas = []) => {
+  let best = null
+  for (const a of areas) {
+    const t = a?.tags || {}
+    if (!t.name || GENERIC.test(t.name.trim())) continue
+    const rank = areaRank(t)
+    if (rank < 9 && (!best || rank < best.rank)) best = { name: t.name, rank }
+  }
+  return best?.name || null
+}
+// one names-pass answer: a marker ({ type: "m", tags: { i } }, Overpass `make`) before each
+// point's areas -> Map(i -> [areas])
+export const splitIsIn = (elements = []) => {
+  const out = new Map()
+  let cur = null
+  for (const e of elements) {
+    if (e.type === "m") {
+      cur = String(e.tags?.i ?? "")
+      out.set(cur, [])
+      // (an area comes back as the way or relation it was made from, or as "area")
+    } else if (cur !== null && e.tags) out.get(cur).push(e)
+  }
+  return out
 }
 
 // the nearest town (places: [{ name, lat, lon, pop }]) through a grid built once
@@ -259,12 +303,14 @@ export const readRow = (row, shard = "") => {
 // courts a row stands for (pickleball courts + 2 on each tennis court with lines)
 export const courtCount = (v) => (v.courts || 0) + (v.onTennis || 0) * 2
 
-// ---------- search (offline, over search.json + shards) ----------
+// ---------- search (offline, over search/<k>.json + shards) ----------
 const fold = (s) =>
   String(s || "")
     .normalize("NFD")
     .replace(/[̀-ͯ]/g, "")
     .toLowerCase()
+    // (an apostrophe or Hawaiian ʻokina joins: "Kapaʻa" is found as "kapaa", "O'Neill" as "oneill")
+    .replace(/['’ʻʼ`]/g, "")
     .replace(/[^a-z0-9 ]+/g, " ")
     .replace(/\s+/g, " ")
     .trim()
@@ -277,6 +323,24 @@ export const matchScore = (q, name) => {
   const words = b.split(" ")
   if (a.split(" ").every((w) => words.some((x) => x.startsWith(w)))) return 2
   return b.includes(a) ? 1 : 0
+}
+// the search file a letter's names live in (idx/search/<k>.json): a-z, "0" for a digit
+const keyOf = (c) => (/[a-z]/.test(c) ? c : /[0-9]/.test(c) ? "0" : "_")
+// (words in thousands of names that would put nearly every name in the "p" or "c" file; a name
+// still goes in its first word's file)
+const COMMON = new Set("park parks court courts club center centre pickleball tennis the of at and la el de del los las le school high middle elementary community recreation rec sports sport field fields playground ground complex".split(" "))
+// a query's file: the first letter of its first uncommon word (else of its first word). A name
+// matches a query when every query word starts one of its words, so it's in that file.
+export const searchKey = (q) => {
+  const words = fold(q).split(" ").filter(Boolean)
+  const w = words.find((x) => !COMMON.has(x)) || words[0]
+  return w ? keyOf(w[0]) : null
+}
+// every file a name goes in: its first word's and each uncommon word's first letter
+export const searchKeysOf = (name) => {
+  const words = fold(name).split(" ").filter(Boolean)
+  if (!words.length) return ["_"]
+  return [...new Set([words[0], ...words.filter((w) => !COMMON.has(w))].map((w) => keyOf(w[0])))]
 }
 // which part of a combined index answer an OSM element is (build-index.mjs asks for all three
 // in one query): "features" (tagged pickleball), "towns" (place nodes) or "places" (names nearby)
