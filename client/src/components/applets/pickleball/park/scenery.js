@@ -13,6 +13,7 @@ import { FINISH, roomRect } from "./propkit.js"
 import { surfaced } from "./surfaces.js"
 import { cleanZone, curbTufts, hillScatter, keepTree } from "./clean.js"
 import { spineParts } from "./spine.js"
+import { overheadsOf, cutSet, stepFades } from "./cutaway.js"
 import { buildBushes, buildCars, buildDecals, buildGlow, buildLotDetail, buildTrees, buildTufts, canvasTex, normalFor, windscreenTex, planDecals, setDetailEnv, skyEnvironment, windowMaps } from "./detail.js"
 import { dimEnvironment, loadHDRI, swapEnvironment } from "./environment.js"
 import { COVER, paintSurroundGround, powerLineGeometry, railBridgeGeometry, roadBridgeGeometry, surroundBuildingsGeometry, terrainSampler } from "./surround.js"
@@ -191,6 +192,16 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
   const B = L.BOUNDS
   // the courts kept clean (clean.js): nothing green on or by a court, a pen, a walkway, a deck
   const zone = cleanZone(S)
+  // roofs over open ground (cutaway.js): each its own group, faded while it hides you
+  const overGroups = new Map()
+  const overhead = (id) => {
+    if (!overGroups.has(id)) {
+      const g = new THREE.Group()
+      g.userData.overhead = id
+      overGroups.set(id, g)
+    }
+    return overGroups.get(id)
+  }
   // round 2 realism (detail.js; Medium/High): real trees, cars, decals, windows in relief that
   // reflect a sky, glowing hall lights. Low keeps the cheap shapes below.
   const detail = quality !== "low"
@@ -1170,9 +1181,11 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
   // S.roofs: roof-only parts over a building drawn with roofStyle "none" (a clubhouse's wings
   // at their own heights). A part's walls run from y0 (default: its own height, so none) up
   // to h; parts are drawn, never walked into (collision stays with the building)
-  const roofParts = (S.roofs || []).map((r) => ({ ...r, y0: r.y0 ?? r.h, roofOnly: true }))
+  const roofParts = (S.roofs || []).map((r, i) => ({ ...r, y0: r.y0 ?? r.h, roofOnly: true, overId: `roof:${i}` }))
   for (const b of [...S.buildings, ...roofParts]) {
     if (b.p.length < 3) continue
+    // (a roof-only part may cover a porch you walk under: its roof is an overhead)
+    const roofTo = b.overId ? overhead(b.overId) : group
     const kind = b.k || "yes"
     const color = hex(b.c, WALLS[kind] ?? WALLS.yes)
     const ribs = b.windows === "ribs" || (!b.windows && (kind === "industrial" || kind === "warehouse" || kind === "hall" || kind === "garage" || !!b.hall))
@@ -1200,10 +1213,10 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
     if (style === "none") continue
     if (style === "gable" || style === "hip" || style === "mansard") {
       const r = rectish(b.p) ? slopedRoof(b.p, b.h, style, { rise: b.rise, band: b.band }) : outlineRoof(b.p, b.h, { band: b.band, rise: b.rise })
-      group.add(new THREE.Mesh(r.geo, b.tile === false ? roofMat : tileMatFor(roofColor)))
+      roofTo.add(new THREE.Mesh(r.geo, b.tile === false ? roofMat : tileMatFor(roofColor)))
       if (r.top) {
         const t = r.top.map((q2) => [q2[0], q2[2]])
-        group.add(new THREE.Mesh(flat(t, r.top[0][1]), roofMatFor(hex(b.top, 0xe6e3dc))))
+        roofTo.add(new THREE.Mesh(flat(t, r.top[0][1]), roofMatFor(hex(b.top, 0xe6e3dc))))
         if (b.hvac) {
           const xs = t.map((q2) => q2[0])
           const zs = t.map((q2) => q2[1])
@@ -1218,13 +1231,13 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
         }
       }
     } else {
-      group.add(new THREE.Mesh(flat(b.p, b.h), b.hall ? lambert(hex(b.r, ROOFS.hall)) : roofMat))
+      roofTo.add(new THREE.Mesh(flat(b.p, b.h), b.hall ? lambert(hex(b.r, ROOFS.hall)) : roofMat))
       // (Medium/High: every flat roof gets a parapet and its coping, and a big one its units)
       const par = b.parapet || (detail && !b.hall ? 0.45 : 0)
       if (par) {
-        group.add(new THREE.Mesh(wallRing(b.p, b.h, b.h + par), plainMatFor(color)))
-        group.add(new THREE.Mesh(wallRing(b.p, b.h, b.h + par, { inward: true, offset: 0.25 }), plainMatFor(color)))
-        if (detail) group.add(new THREE.Mesh(flatRing(b.p, b.h + par + 0.01, 0.3), copingMat))
+        roofTo.add(new THREE.Mesh(wallRing(b.p, b.h, b.h + par), plainMatFor(color)))
+        roofTo.add(new THREE.Mesh(wallRing(b.p, b.h, b.h + par, { inward: true, offset: 0.25 }), plainMatFor(color)))
+        if (detail) roofTo.add(new THREE.Mesh(flatRing(b.p, b.h + par + 0.01, 0.3), copingMat))
       }
       const roofArea = Math.abs(signedArea(b.p))
       const hv = b.hvac || (detail && !b.hall && roofArea > 300 ? Math.round(roofArea / 240) : 0)
@@ -1465,15 +1478,17 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
     barsMat = keep(new THREE.MeshLambertMaterial({ map: t, color: hex(c, 0x1b1c1e), transparent: false, alphaTest: 0.5, side: THREE.DoubleSide }))
     return barsMat
   }
-  for (const d of S.decks || []) {
+  for (const [di, d] of (S.decks || []).entries()) {
     // (a lounge walkway's floor: the spine draws itself, below)
     if (d.drawnBy) continue
+    // (the floor, its fascia and its railing: an overhead, faded while you're under it)
+    const dg = overhead(`deck:${di}`)
     if (d.fascia) {
       // a wood deck on posts (Los Cab): planks, a brown fascia round its edge, posts under it
       const slab = new THREE.Mesh(flat(d.p, d.y), surfaced(std(hex(d.color, 0x9b7653), { roughness: 0.75 }), "deck"))
-      group.add(slab)
-      group.add(new THREE.Mesh(flatDown(d.p, d.y - 0.35), lambert(0x4a3a2e)))
-      group.add(new THREE.Mesh(wallRing(d.p, d.y - 0.38, d.y + 0.05, {}), plainMatFor(hex(d.fascia, 0x6e4a33))))
+      dg.add(slab)
+      dg.add(new THREE.Mesh(flatDown(d.p, d.y - 0.35), lambert(0x4a3a2e)))
+      dg.add(new THREE.Mesh(wallRing(d.p, d.y - 0.38, d.y + 0.05, {}), plainMatFor(hex(d.fascia, 0x6e4a33))))
       const pm = lambert(hex(d.postColor, 0x1d1e20))
       for (let i = 0; i < d.p.length; i++) {
         const a = d.p[i]
@@ -1489,10 +1504,10 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
     }
     if (d.slab) {
       const slab = new THREE.Mesh(flat(d.p, d.y), surfaced(std(hex(d.color, 0xb78a52), { roughness: 0.6 }), "deck"))
-      group.add(slab)
+      dg.add(slab)
       const under = new THREE.Mesh(flatDown(d.p, d.y - 0.28), lambert(0x2c2a2e))
-      group.add(under)
-      group.add(new THREE.Mesh(wallRing(d.p, d.y - 0.3, d.y + 0.02, {}), plainMatFor(hex(d.railColor, 0x3a3e44))))
+      dg.add(under)
+      dg.add(new THREE.Mesh(wallRing(d.p, d.y - 0.3, d.y + 0.02, {}), plainMatFor(hex(d.railColor, 0x3a3e44))))
     }
     if (!d.rail) continue
     // posts every 1.6 m and a top rail, open where the stairs arrive
@@ -1514,7 +1529,7 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
         const top = new THREE.Mesh(keep(new THREE.BoxGeometry(e0 - s0, 0.06, 0.06)), mat)
         top.position.set(a[0] + u.x * m, d.y + 1.05, a[1] + u.z * m)
         top.rotation.y = -Math.atan2(u.z, u.x)
-        group.add(top)
+        dg.add(top)
         // glass infill between the posts (a terrace's see-through railing), or black bars
         const bars = d.railStyle === "bars"
         const ig = keep(new THREE.PlaneGeometry(e0 - s0, 0.95))
@@ -1526,17 +1541,19 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
         glass.position.set(a[0] + u.x * m, d.y + 0.55, a[1] + u.z * m)
         glass.rotation.y = -Math.atan2(u.z, u.x)
         glass.renderOrder = 1
-        group.add(glass)
+        dg.add(glass)
         for (let s = s0; s <= e0 + 1e-6; s += Math.max(0.4, (e0 - s0) / Math.max(1, Math.round((e0 - s0) / 1.6)))) {
           const post = new THREE.Mesh(keep(new THREE.BoxGeometry(0.06, 1.05, 0.06)), mat)
           post.position.set(a[0] + u.x * s, d.y + 0.525, a[1] + u.z * s)
-          group.add(post)
+          dg.add(post)
         }
       }
     }
   }
-  for (const s of S.stairs || []) {
-    // steps (0.18 m risers), a stringer each side, a handrail
+  for (const [si, s] of (S.stairs || []).entries()) {
+    // steps (0.18 m risers), a stringer each side, a handrail (an overhead: it fades when it's
+    // between the camera and you, cutaway.js)
+    const sg0 = overhead(`stairs:${si}`)
     const dx = s.b.x - s.a.x
     const dz = s.b.z - s.a.z
     const L = Math.hypot(dx, dz) || 1
@@ -1554,7 +1571,7 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
       const step = new THREE.Mesh(keep(new THREE.BoxGeometry(L / n + 0.02, th, s.w)), stepMat)
       step.position.set(s.a.x + ux * L * t, s.open ? hTop - th / 2 : hTop - (hTop - (s.y0 + (rise * k) / n)) / 2, s.a.z + uz * L * t)
       step.rotation.y = ry
-      group.add(step)
+      sg0.add(step)
     }
     const railMat = railMatFor(s.rail || "#2b2f36")
     for (const sg of [-1, 1]) {
@@ -1566,15 +1583,15 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
       const str = new THREE.Mesh(keep(new THREE.BoxGeometry(len, 0.3, 0.06)), railMat)
       str.position.set(s.a.x + ux * L * 0.5 + nx, s.y0 + rise * 0.5, s.a.z + uz * L * 0.5 + nz)
       str.rotation.set(0, ry, pitch, "YXZ")
-      group.add(str)
+      sg0.add(str)
       const hand = new THREE.Mesh(keep(new THREE.BoxGeometry(len, 0.05, 0.05)), railMat)
       hand.position.set(s.a.x + ux * L * 0.5 + nx, s.y0 + rise * 0.5 + 0.95, s.a.z + uz * L * 0.5 + nz)
       hand.rotation.set(0, ry, pitch, "YXZ")
-      group.add(hand)
+      sg0.add(hand)
       for (const t of [0.02, 0.5, 0.98]) {
         const post = new THREE.Mesh(keep(new THREE.BoxGeometry(0.05, 0.95, 0.05)), railMat)
         post.position.set(s.a.x + ux * L * t + nx, s.y0 + rise * t + 0.475, s.a.z + uz * L * t + nz)
-        group.add(post)
+        sg0.add(post)
       }
     }
   }
@@ -2017,6 +2034,7 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
       crown.setColorAt(i, cc.set(euc ? 0x6f8f6a : 0x2f7a3c).offsetHSL(0, 0, (rand() - 0.5) * 0.06))
       trunk.setMatrixAt(i, m4.compose(v1.set(t.x, s * (euc ? 1.6 : 1), t.z), q.identity(), v2.set(s, s * (euc ? 1.6 : 1), s)))
     })
+    crown.userData.crown = true
     group.add(crown, trunk)
   }
   if (!detail && byKind.palm.length) {
@@ -2035,6 +2053,8 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
         fronds.setMatrixAt(i * 6 + k, m4.compose(v1.set(t.x, h, t.z), q, v2.set(t.s, 1, t.s)))
       }
     })
+    fronds.userData.crown = true
+    tip.userData.crown = true
     group.add(ptrunk, fronds, tip)
   }
   if (!detail && byKind.conifer.length) {
@@ -2045,6 +2065,7 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
       cone.setMatrixAt(i, m4.compose(v1.set(t.x, 1.6 * t.s + 2.1 * t.s, t.z), q.identity(), v2.set(t.s, t.s, t.s)))
       trunk.setMatrixAt(i, m4.compose(v1.set(t.x, 0.8 * t.s, t.z), q.identity(), v2.set(t.s, t.s, t.s)))
     })
+    cone.userData.crown = true
     group.add(cone, trunk)
   }
 
@@ -2203,7 +2224,9 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
       }
     })
   const faceYaw = (f, deg) => (f === "n" ? Math.PI : f === "s" ? 0 : f === "e" ? Math.PI / 2 : f === "w" ? -Math.PI / 2 : -((deg || 0) * Math.PI) / 180)
-  for (const x of S.extras || []) {
+  for (const [xi, x] of (S.extras || []).entries()) {
+    // (its roof, if it has one over open ground: an overhead, cutaway.js)
+    const og = () => overhead(`extra:${xi}`)
     const a = ((x.deg || 0) * Math.PI) / 180
     const ry = -a
     if (x.type === "tower") {
@@ -2246,7 +2269,7 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
       }
       const roof = x.type === "gazebo" ? new THREE.Mesh(keep(new THREE.ConeGeometry(Math.max(w, d) * 0.75, 1.6, 8)), postMat) : new THREE.Mesh(keep(new THREE.BoxGeometry(w + 0.4, 0.12, d + 0.4)), postMat)
       roof.position.set(x.x, x.type === "gazebo" ? 3.4 : 2.65, x.z)
-      group.add(roof)
+      og().add(roof)
       if (x.type === "cabana") {
         const curtain = new THREE.Mesh(keep(new THREE.PlaneGeometry(d, 2.4)), lambert(0xf6f3ea, { side: THREE.DoubleSide }))
         curtain.position.set(x.x - w / 2, 1.3, x.z)
@@ -2270,14 +2293,14 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
         const beam = new THREE.Mesh(keep(new THREE.BoxGeometry(L2 + 0.2, 0.22, 0.14)), mat)
         beam.position.set((ax2 + bx2) / 2, h - 0.11, (az2 + bz2) / 2)
         beam.rotation.y = -Math.atan2(bz2 - az2, bx2 - ax2)
-        group.add(beam)
+        og().add(beam)
       }
       const post = new THREE.InstancedMesh(keep(new THREE.BoxGeometry(0.2, h, 0.2).translate(0, h / 2, 0)), mat, posts.length)
       posts.forEach(([px, pz], i) => post.setMatrixAt(i, m4.compose(v1.set(px, 0, pz), q.identity(), v2.set(1, 1, 1))))
       group.add(post)
       if (x.roof === "tile") {
         const r = slopedRoof(p, h, "hip", { rise: x.rise ?? 1.2, eaves: 0.3 })
-        group.add(new THREE.Mesh(r.geo, tileMatFor(hex(x.roofColor, 0x9a4a32))))
+        og().add(new THREE.Mesh(r.geo, tileMatFor(hex(x.roofColor, 0x9a4a32))))
       } else {
         const { ux, uz, u0, u1, w0, w1 } = rectOf(p)
         const slats = []
@@ -2288,14 +2311,14 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
           const wm = (w0 + w1) / 2
           slat.setMatrixAt(i, m4.compose(v1.set(u * ux - wm * uz, h + 0.08, u * uz + wm * ux), q.setFromEuler(e1.set(0, yaw, 0)), v2.set(1, 1, 1)))
         })
-        group.add(slat)
+        og().add(slat)
       }
     } else if (x.type === "canopy") {
       const w = x.w || 3
       const mat = lambert(hex(x.color, 0xffffff), { side: THREE.DoubleSide })
       const top = new THREE.Mesh(keep(new THREE.ConeGeometry(w * 0.72, 0.7, 4).rotateY(Math.PI / 4)), mat)
       top.position.set(x.x, 2.75, x.z)
-      group.add(top)
+      og().add(top)
       for (const [i, j] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) {
         const leg = new THREE.Mesh(keep(new THREE.CylinderGeometry(0.03, 0.03, 2.4, 4)), lambert(0x9aa0a8))
         leg.position.set(x.x + (i * w) / 2, 1.2, x.z + (j * w) / 2)
@@ -2310,7 +2333,7 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
         const pz = x.z + Math.sin(ang) * (x.r || 4) * 0.6
         const top = new THREE.Mesh(keep(new THREE.ConeGeometry(1.3, 0.5, 8)), mat)
         top.position.set(px, (x.y || 0) + 2.4, pz)
-        group.add(top)
+        og().add(top)
         const pole = new THREE.Mesh(keep(new THREE.CylinderGeometry(0.03, 0.03, 2.3, 4)), lambert(0xdddddd))
         pole.position.set(px, (x.y || 0) + 1.15, pz)
         group.add(pole)
@@ -2319,7 +2342,7 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
       const sail = new THREE.Mesh(keep(new THREE.PlaneGeometry(x.w || 10, x.d || 8).rotateX(-Math.PI / 2)), lambert(hex(x.color, 0x2f6fb8), { side: THREE.DoubleSide }))
       sail.position.set(x.x, 3.2, x.z)
       sail.rotation.z = 0.08
-      group.add(sail)
+      og().add(sail)
     } else if (x.type === "terrace") {
       // a railing round a rooftop deck
       const h = x.h || 6
@@ -2394,7 +2417,7 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
       const panel = new THREE.Mesh(keep(new THREE.BoxGeometry(W, 0.15, D)), lambert(x.color ? new THREE.Color(x.color) : 0x9aa1aa))
       panel.position.set(x.x, sh, x.z)
       panel.rotation.set(0.12, ry, 0, "YXZ")
-      group.add(panel)
+      og().add(panel)
       const rows = Math.max(2, Math.round(D / 3))
       const rowGeo = keep(new THREE.BoxGeometry(W - 0.6, 0.04, (D / rows) * 0.5))
       const rowMat = lambert(0x4a5a72)
@@ -2516,12 +2539,12 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
       const wm = (w0 + w1) / 2
       roof.position.set(um * ux - wm * uz, h + 0.05, um * uz + wm * ux)
       roof.rotation.set(0, -Math.atan2(uz, ux), x.fall ? Math.atan2(x.fall, u1 - u0) : 0, "YXZ")
-      group.add(roof)
+      og().add(roof)
     } else if (x.type === "awnings") {
       const aw = new THREE.Mesh(keep(new THREE.BoxGeometry(x.w || 10, 0.06, 1.4)), lambert(hex(x.color, 0x7a1f2a)))
       aw.position.set(x.x, 2.8, x.z)
       aw.rotation.set(0.25, ry, 0)
-      group.add(aw)
+      og().add(aw)
     }
   }
   // ---------- the real surroundings (OpenStreetMap, beyond the crop: surround.js) ----------
@@ -2567,8 +2590,130 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
     })
   }
 
+  // ---------- you can always see yourself (cutaway.js) ----------
+  // Overheads (roofs over open ground) fade while you're under one or one is between the
+  // camera and you; tree crowns the camera is in, or that stand between it and you, are
+  // hidden (an instance scaled to nothing). A handful of tests a frame.
+  const overs = overheadsOf(S).filter((o) => overGroups.has(o.id))
+  const overIds = overs.map((o) => o.id)
+  const fades = new Map()
+  const fadeMats = new Map() // material -> its see-through copy
+  const fadeMatOf = (m) => {
+    if (!fadeMats.has(m)) {
+      const f = m.clone()
+      // (the surface shader and its program key travel with it: surfaces.js)
+      f.onBeforeCompile = m.onBeforeCompile
+      if (m.customProgramCacheKey) f.customProgramCacheKey = m.customProgramCacheKey
+      f.transparent = true
+      f.depthWrite = false
+      fadeMats.set(m, f)
+    }
+    return fadeMats.get(m)
+  }
+  const applyFade = (g, a) => {
+    if (g.userData.fade === a) return
+    g.userData.fade = a
+    g.visible = a > 0.03
+    g.traverse((o) => {
+      if (!o.isMesh) return
+      if (!o.userData.mat0) o.userData.mat0 = o.material
+      if (a >= 0.999) o.material = o.userData.mat0
+      else {
+        const f = fadeMatOf(o.userData.mat0)
+        f.opacity = a * (o.userData.mat0.opacity ?? 1)
+        o.material = f
+      }
+    })
+  }
+  // tree crowns: their instances, found once, in a 12 m grid
+  let crowns = null
+  const CELL = 12
+  const crownIndex = () => {
+    crowns = new Map()
+    const sph = new THREE.Sphere()
+    const mat = new THREE.Matrix4()
+    group.traverse((o) => {
+      if (!o.isInstancedMesh || !o.userData.crown) return
+      if (!o.geometry.boundingSphere) o.geometry.computeBoundingSphere()
+      const orig = o.instanceMatrix.array.slice()
+      for (let i = 0; i < o.count; i++) {
+        mat.fromArray(orig, i * 16)
+        sph.copy(o.geometry.boundingSphere).applyMatrix4(mat)
+        if (sph.radius < 0.3) continue
+        const e = { mesh: o, i, orig, x: sph.center.x, y: sph.center.y, z: sph.center.z, r: sph.radius, hidden: false, clearT: 0 }
+        const key = `${Math.floor(e.x / CELL)},${Math.floor(e.z / CELL)}`
+        if (!crowns.has(key)) crowns.set(key, [])
+        crowns.get(key).push(e)
+      }
+    })
+  }
+  const hiddenCrowns = new Set()
+  const segDist3 = (a, b, c) => {
+    const dx = b.x - a.x
+    const dy = b.y - a.y
+    const dz = b.z - a.z
+    const L2 = dx * dx + dy * dy + dz * dz || 1e-9
+    const t = Math.max(0, Math.min(1, ((c.x - a.x) * dx + (c.y - a.y) * dy + (c.z - a.z) * dz) / L2))
+    return Math.hypot(a.x + dx * t - c.x, a.y + dy * t - c.y, a.z + dz * t - c.z)
+  }
+  const setCrown = (e, hide) => {
+    if (e.hidden === hide) return
+    e.hidden = hide
+    const arr = e.mesh.instanceMatrix.array
+    if (hide) for (let k = 0; k < 16; k++) arr[e.i * 16 + k] = 0
+    else for (let k = 0; k < 16; k++) arr[e.i * 16 + k] = e.orig[e.i * 16 + k]
+    e.mesh.instanceMatrix.needsUpdate = true
+    if (hide) hiddenCrowns.add(e)
+    else hiddenCrowns.delete(e)
+  }
+  const crownsBlocking = (cam, targets) => {
+    const out = new Set()
+    if (!crowns) crownIndex()
+    if (!crowns.size) return out
+    for (const t of targets) {
+      const x0 = Math.floor((Math.min(cam.x, t.x) - 8) / CELL)
+      const x1 = Math.floor((Math.max(cam.x, t.x) + 8) / CELL)
+      const z0 = Math.floor((Math.min(cam.z, t.z) - 8) / CELL)
+      const z1 = Math.floor((Math.max(cam.z, t.z) + 8) / CELL)
+      // (watching from far off: only the trees near the lens, up to 40 m out)
+      if ((x1 - x0) * (z1 - z0) > 40) continue
+      for (let i = x0; i <= x1; i++)
+        for (let j = z0; j <= z1; j++)
+          for (const e of crowns.get(`${i},${j}`) || []) {
+            if (out.has(e)) continue
+            // (leaf cards are open: the crown's middle is what hides you)
+            if (segDist3(cam, t, e) < e.r * 0.72 || Math.hypot(cam.x - e.x, cam.y - e.y, cam.z - e.z) < e.r * 0.95) out.add(e)
+          }
+    }
+    return out
+  }
+  // cam: the lens; targets: points that must show (you, or the court you watch); me: the walker
+  const cutAway = (cam, targets, me, dt = 1 / 60) => {
+    if (overs.length) {
+      const block = cutSet(overs, cam, targets, me)
+      stepFades(fades, block, overIds, dt)
+      for (const o of overs) applyFade(overGroups.get(o.id), fades.get(o.id) ?? 1)
+    }
+    const cb = crownsBlocking(cam, targets)
+    for (const e of cb) {
+      e.clearT = 0
+      setCrown(e, true)
+    }
+    // (back once it has been clear a moment: no flicker at the edge)
+    for (const e of [...hiddenCrowns])
+      if (!cb.has(e)) {
+        e.clearT += dt
+        if (e.clearT > 0.45) setCrown(e, false)
+      }
+    return { faded: [...fades].filter(([, a]) => a < 0.5).map(([id]) => id), crowns: hiddenCrowns.size }
+  }
+
   return {
     groundMat,
+    // the roofs over open ground, each its own group (build.js merges each and adds it)
+    overheads: [...overGroups.entries()].map(([id, g]) => ({ id, group: g })),
+    overheadList: overs,
+    cutaway: cutAway,
     courtGroup: (c) => groups.get(c) || null,
     // the rooms' zones (build.js merges each and adds them after the venue's own merge)
     zones,

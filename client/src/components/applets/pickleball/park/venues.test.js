@@ -990,3 +990,93 @@ test("clear ways in: from the arrival and the front doors to every live court an
     }
   }
 })
+
+// the owner (2026-10-09): "Why when you go under things you can no longer see your character
+// ... YOU SHOULD ALWAYS BE ABLE TO SEE." Every walkable spot x 8 camera yaws, portrait and
+// landscape, at all eight venues: the follow camera (kept under a low roof) and the roofs that
+// fade (cutaway.js) never leave you fully hidden: feet, middle and head.
+test("you're always in sight: under decks, pergolas, tents and shade roofs, never fully hidden", async () => {
+  const { overheadsOf, cutSet, ceilingOver, bodyPoints, screensOf, screenHit, poleHit } = await import("./cutaway.js")
+  let underAll = 0
+  for (const id of IDS) {
+    const { g, L } = get(id)
+    setLayout(L)
+    const S = g.layoutSpec.scene
+    const overs = overheadsOf(S)
+    const screens = screensOf(S)
+    // (as world.js: walls and boxes, the pens' windscreens, trunks and poles)
+    const occ = (a, b) => {
+      let h = L.segmentHit3(a, b, 0.12)
+      for (const o of [screenHit(screens, a, b), poleHit(L.CIRCLES, a, b)]) if (o && (!h || o.t < h.t)) h = o
+      return h
+    }
+    const halls = S.halls || []
+    const roofY = halls.length ? Math.min(...halls.map((h) => h.h || 9)) - 0.6 : null
+    let views = 0
+    let hidden = 0
+    for (let i = 0; i < L.NAV.length; i += 5) {
+      const p = L.NAV[i]
+      const me = { x: p.x, y: 0, z: p.z }
+      const ceil = ceilingOver(overs, me)
+      if (ceil !== null) underAll++
+      for (let a = 0; a < 8; a++) {
+        const yaw = (a / 8) * Math.PI * 2
+        const portrait = a % 2 === 0
+        let cap = roofY
+        if (ceil !== null && ceil - 0.25 >= 1.9) cap = cap == null ? ceil - 0.25 : Math.min(cap, ceil - 0.25)
+        const st = createFollow(yaw)
+        for (let f = 0; f < 6; f++) stepFollow(st, { x: p.x, z: p.z, yaw, speed: 0 }, 1 / 30, { portrait, roofY: cap, occ })
+        const pts = bodyPoints(me)
+        const faded = cutSet(overs, st.pos, pts, me)
+        const blocked = pts.map((q) => !!L.segmentHit3(st.pos, q, 0) || !!screenHit(screens, st.pos, q, 0) || !!poleHit(L.CIRCLES, st.pos, q, 0) || overs.some((o) => !faded.has(o.id) && cutSet([o], st.pos, [q], null).size > 0))
+        views++
+        if (blocked.every(Boolean)) hidden++
+      }
+    }
+    assert.equal(hidden, 0, `${id}: fully hidden in ${hidden} of ${views} views`)
+  }
+  assert.ok(underAll > 100, `spots under a roof checked: ${underAll}`)
+  // Los Cab's spectator deck: walking under it, it fades and the camera stays under it;
+  // standing on it, it doesn't fade
+  const { g } = get("loscab")
+  const overs = overheadsOf(g.layoutSpec.scene)
+  const deck = overs.find((o) => o.kind === "deck" && o.walk > 2.5 && o.walk < 3.5)
+  const cx = deck.polys[0].reduce((s, q) => s + q[0], 0) / deck.polys[0].length
+  const cz = deck.polys[0].reduce((s, q) => s + q[1], 0) / deck.polys[0].length
+  assert.ok(cutSet(overs, { x: cx, y: 2.4, z: cz + 6 }, bodyPoints({ x: cx, y: 0, z: cz }), { x: cx, y: 0, z: cz }).has(deck.id), "under the deck: it fades")
+  assert.ok(!cutSet(overs, { x: cx, y: 5.5, z: cz + 6 }, bodyPoints({ x: cx, y: deck.walk, z: cz }), { x: cx, y: deck.walk, z: cz }).has(deck.id), "on the deck: it stays")
+  assert.equal(ceilingOver(overs, { x: cx, y: 0, z: cz }), deck.y0, "the camera stays under it")
+})
+
+// "And some courts you can't even see": watching a live court (each of the three angles, the
+// phone held either way), its middle and four corners are all in sight: no windscreen, wall or
+// roof between (a roof over it fades; the camera finds a spot the screens don't block)
+test("watching: every live court in full view from every angle at every venue", async () => {
+  const { overheadsOf, cutSet, screensOf, screenHit, solidHit } = await import("./cutaway.js")
+  const { spectatorShot } = await import("./followcam.js")
+  for (const id of IDS) {
+    const { g, L } = get(id)
+    setLayout(L)
+    const S = g.layoutSpec.scene
+    const overs = overheadsOf(S)
+    const screens = screensOf(S)
+    const halls = S.halls || []
+    const roofY = halls.length ? Math.min(...halls.map((h) => h.h || 9)) - 0.6 : null
+    for (const c of L.COURTS) {
+      const u = c.u || { x: 1, z: 0 }
+      const v = { x: -u.z, z: u.x }
+      const pts = [{ x: c.x, y: 0.8, z: c.z }]
+      for (const [a, b] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) pts.push({ x: c.x + u.x * a * 6.7 + v.x * b * 3.05, y: 0.5, z: c.z + u.z * a * 6.7 + v.z * b * 3.05 })
+      // (as world.js)
+      const sees = (cam) => pts.filter((t) => !screenHit(screens, cam, t, 0) && !solidHit(L.BOXES, cam, t)).length
+      const isClear = (cam) => L.segmentHit({ x: c.x, z: c.z }, cam, Math.min(cam.y - 0.3, 3.2)) === null && sees(cam) === 5
+      for (const portrait of [false, true])
+        for (let angle = 0; angle < 3; angle++) {
+          const shot = spectatorShot(c, angle, [], { portrait, maxY: roofY, isClear, score: (cam) => sees(cam) / 5 })
+          const faded = cutSet(overs, shot.cam, pts, null)
+          const seen = pts.filter((t) => !solidHit(L.BOXES, shot.cam, t) && !screenHit(screens, shot.cam, t, 0) && !overs.some((o) => !faded.has(o.id) && cutSet([o], shot.cam, [t], null).size)).length
+          assert.equal(seen, 5, `${id}: ${c.name}, angle ${angle}${portrait ? " (upright)" : ""}: ${seen} of 5 points in view`)
+        }
+    }
+  }
+})

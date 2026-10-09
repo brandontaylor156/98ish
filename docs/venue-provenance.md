@@ -223,6 +223,8 @@ Not changed: the trees (the canopy's oaks and sycamores are the generic broad-le
 | Metro C/K line viaduct | OSM (bridge=yes light_rail, both tracks) |
 | Surround: 84 buildings (4 default height), 57 roads (the 105 freeway ramps, Nash, Maple) | OSM |
 | Skyline: flat coastal plain; the Palos Verdes hills south, the Santa Monica Mountains north, the Baldwin Hills and San Gabriels north-east (up to 2.1°) | Terrain |
+| The lounge spine walkable, steps at its east (bar) end (2026-10-09) | Reference pack: "steps down to court level at both ends and mid-way", the bar opens onto it (tour). Only the east end is drawn: the west end meets the hall wall and both sides meet the courts' dividers. The steps' exact spot is a GUESS. Its sofas sit along the railings, clear of the steps (were down the middle by rule, the first right in front of the bar's door to the courts) |
+| Removed 2026-10-09 (owner: "couches in front of the entrance ... another obstacle to get in") | The 11 planter boxes along the Maple frontage (our stand-ins for the pack's "planter strip with lawn and shrubs": white boxes with a dark green top that read as couches along the way in; the lawn strip stays). Moved: the lobby desk and TV off the line from the front doors to the bar, the bar's two ping-pong tables clear of the walk past the stair (all GUESS spots) |
 
 ### Bouquet Canyon Park (Santa Clarita) (2026-10-07)
 
@@ -278,6 +280,14 @@ Sources: `refs/bouquet/owner/` (the owner's wide shot from behind court 5 and th
 - How many light poles, and do the east ones match the west ones? (We have one every 6.1 m on both long sides.)
 - Is the south fence windscreened like the west and north (no photo sees it)? Does the alcove hold just the two benches?
 - Where do the wait board and the gates stand? (The wait board is still approximate, outside the east fence.)
+
+## Clean courts and the arrivals (2026-10-09)
+
+The owner: "Too much shrub and bushes ON the court ... Make sure the courts are CLEAN." `park/clean.js` keeps a clean zone: every court and 2 m round its outer lines, the pens, the buildings, halls and rooms, the decks, the shade roofs and tents, the lots, plazas and walks, 1 m either side of a pen's fence. In it nothing green is drawn:
+- **Removed (generated, never sourced):** the weed tufts along the foot of every pen fence (both sides, so inside the pens too), the curb weeds that landed on the lots and walks, leaf litter on courts and walks, Bouquet's hillside scrub clumps and bush cards inside the park's own grounds (the aerial-read cover goes on beyond them, on the hills).
+- **Real trees (OSM, the aerial's tree finder):** kept unless the trunk stands in the zone (on a deck, under a shade roof or a solar canopy, in a building, within 2 m of a court's lines) or the crown would hang over a court's playing area; the walkers' trunks go with them. Los Cab 9, Paseo 5, Sinaloa 17 (under the lot's solar canopy), Newport, Whittier, SMASH, Bouquet and Wolf + Bear 0-2.
+
+**Arrivals** (owner: "At Los Cab you should spawn to the area where the pickleball courts are"): every venue's arrival now stands 8-12 m from its pickleball courts by a live court's gate, facing the nearest four courts (`spawn._src` in the overrides keeps the old one). Picked by script on the walk graph: room to stand, the camera behind clear, all six live courts still reachable.
 
 ## Interiors: the GUESS layouts (kept, need the owner)
 
