@@ -204,6 +204,14 @@ float roamBox(vec2 f, vec4 b, vec2 aa) {
           f = fract(p / cell) * cell;
           roamGlass = roamBox(f, vec4(0.7, 2.3, 1.0, 2.5), aa);
         }
+      } else if (style > 3.5) {
+        // a parking structure: open decks (a dark band under each level's parapet), columns
+        float lv = fract(p.y / 3.0) * 3.0;
+        float open = smoothstep(1.05, 1.05 + aa.y, lv) * (1.0 - smoothstep(2.75, 2.75 + aa.y, lv)) * step(1.0, p.y);
+        float col = 1.0 - smoothstep(0.35, 0.35 + aa.x, abs(fract(p.x / 8.0 + 0.5) - 0.5) * 8.0);
+        float deck = open * (1.0 - col);
+        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.1, 0.1, 0.11), deck * (far * 0.8 + 0.2));
+        roamLit = deck * 0.5;
       } else {
         // tall: punched windows (apartments, hotels), ribbon bands (offices) or a curtain wall
         float floorH = 3.3 + hv * 0.4;
@@ -253,7 +261,7 @@ float roamBox(vec2 f, vec4 b, vec2 aa) {
       float r = roamH(wid);
       vec3 room = mix(vec3(0.07, 0.08, 0.09), vec3(0.2, 0.19, 0.17), r * r);
       diffuseColor.rgb = mix(diffuseColor.rgb, room, roamGlass);
-      roamLit = roamGlass * step(0.5, roamH(wid + 3.1)) * (0.6 + 0.4 * r);
+      roamLit = max(roamLit, roamGlass * step(0.5, roamH(wid + 3.1)) * (0.6 + 0.4 * r));
     }
   }`
     )

@@ -161,7 +161,7 @@ export const buildingArrays = (buildings, groundAt, { far = false, key = "" } = 
     const eave = pitched ? top - pitched.rise : top
     // (windows: houses a few, shops storefronts, tall ones rows; sheds, works and roofs none)
     const tall = b.height >= 10 || ["apartments", "office", "hotel", "hospital", "university", "college"].includes(name)
-    const style0 = roofOnly || b.height < 2.8 || ["garage", "garages", "shed", "carport", "industrial", "warehouse", "service", "roof", "parking"].includes(name) ? 0 : tall ? 3 : isHouse(b.kind) ? 1 : 2
+    const style0 = name === "parking" && !roofOnly && b.height >= 5 ? 4 : roofOnly || b.height < 2.8 || ["garage", "garages", "shed", "carport", "industrial", "warehouse", "service", "roof", "parking"].includes(name) ? 0 : tall ? 3 : isHouse(b.kind) ? 1 : 2
     const style = style0 ? style0 + ((hb >>> 9) % 90) / 100 : 0
     let perim = 0
     // walls (each edge a quad; ring clockwise from above -> (a, b, a_top) faces out)

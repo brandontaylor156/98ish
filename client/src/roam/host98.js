@@ -65,7 +65,9 @@ export const makeHost98 = ({ engineCtx, me = {}, sky = { real: true, mode: "real
     // uniforms, and the venues' trees (docs/venue-realism.md); none on Low (the plain look)
     surface: quality === "low" ? null : (kind) => surfaceUniform(kind, engineCtx?.renderer),
     trees: quality === "low" ? null : () => treeKit(),
-    figure(look) {
+    // a person: you, a friend, or (lite: true) someone walking by, animated more cheaply (no
+    // motion matching: the walk cycle only)
+    figure(look, { lite = false } = {}) {
       if (!engineCtx?.makeFigure) return null
       const fig = engineCtx.makeFigure(look || {}, { shadows: false })
       const key = `roam${++n}`
@@ -81,7 +83,7 @@ export const makeHost98 = ({ engineCtx, me = {}, sky = { real: true, mode: "real
           if (at && Math.hypot(at.x - s.x, at.z - s.z) > 4) anim = null
           at = { x: s.x, z: s.z }
           if (!anim) anim = createAnim(s.x, s.z, s.yaw)
-          anim.useMM = !!fig.skinned
+          anim.useMM = !!fig.skinned && !lite
           anim.mmEvery = 0.2
           fig.apply(liftPose(updateAnim(anim, walkSituation(s, key, t, look), step), s.y || 0), step)
         },

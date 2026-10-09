@@ -23,6 +23,7 @@ way["railway"~"^(rail|light_rail)$"](${b});
 way["golf"](${b});
 way["tourism"](${b});
 node["natural"~"^(tree|peak)$"](${b});
+node["highway"~"^(street_lamp|traffic_signals|stop)$"](${b});
 node["tourism"](${b});
 node["name"](${b});
 );out geom qt;`

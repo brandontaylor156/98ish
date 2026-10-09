@@ -32,6 +32,8 @@ import { parkedCars } from "./sim/parked.js"
 import { ACT, createTrack, packPos, pushSample, sampleTrack, shouldSend, unpackPos, DELAY } from "./sim/sync.js"
 import { createEggs } from "./eggs.js"
 import { createTreeLayer } from "./render/trees.js"
+import { createTraffic, trafficRoad } from "./sim/traffic.js"
+import { createPeds, shopSpots, walkLines } from "./sim/peds.js"
 
 const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a))
 
@@ -304,7 +306,7 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
     }
     const cc = center()
     if (tilesDirty || !treesAt || Math.hypot(cc.x - treesAt.x, cc.z - treesAt.z) > 50) {
-      const all = tilesDirty || !treesAt
+      if (tilesDirty) refreshLife()
       tilesDirty = false
       refreshParked()
       treesAt = { x: cc.x, z: cc.z }
@@ -314,6 +316,115 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
     }
   }
   const buildQueue = new Set()
+
+  // ---------- life: a little traffic, a few people walking near the shops ----------
+  const traffic = createTraffic({ cap: low ? 3 : phone ? 6 : 14, seed: (Date.now() & 0xffff) + 1 })
+  const trafficLayer = createParkedLayer(scene, phone ? 10 : 18)
+  const peds = createPeds({ cap: low ? 0 : phone ? 3 : 6, seed: (Date.now() & 0xffff) + 7 })
+  const pedFigs = new Map() // id -> fig
+  const PED_SEE = phone ? 75 : 120
+  let lifeTick = 0
+  const life = { roads: [], lines: [], street: [], time: 0 }
+  // (the roads, walks and stop/signal nodes of the near tiles: when tiles change)
+  const refreshLife = () => {
+    const roads = []
+    const lines = []
+    for (const e of tiles.values()) {
+      if (!e.near) continue
+      for (const r of e.t.roads) {
+        if (!r._street) r._street = e.t.street || []
+        if (trafficRoad(r)) roads.push(r)
+      }
+      const shops = shopSpots(e.t)
+      for (const l of walkLines(e.t.roads)) {
+        // (near a shop: any point of the walk within 60 m of one)
+        l.shop = shops.some((sh) => l.road.pts.some((q) => Math.hypot(q.x - sh.x, q.z - sh.z) < 60 + sh.r))
+        lines.push(l)
+      }
+    }
+    life.roads = roads
+    life.lines = lines
+  }
+  // where people are, for the traffic to stop for and the walkers to wait for
+  const peopleNow = () => {
+    const out = []
+    if (driving && car) out.push({ x: car.x, z: car.z, car: true }, { x: car.x + Math.sin(car.yaw) * 1.6, z: car.z + Math.cos(car.yaw) * 1.6, car: true }, { x: car.x - Math.sin(car.yaw) * 1.6, z: car.z - Math.cos(car.yaw) * 1.6, car: true })
+    else if (!riding) out.push({ x: me.walker.x, z: me.walker.z })
+    for (const r of remotes.values()) out.push({ x: r.x, z: r.z, car: !!(r.act & ACT.drive) })
+    return out
+  }
+  // the traffic as something to bump into (your car and you): colliders plus the cars' circles
+  const resolveWithTraffic = (x, z, r) => {
+    const p = colliders.resolve(x, z, r)
+    let px = p.x
+    let pz = p.z
+    let hit = p.hit
+    let nx = p.nx || 0
+    let nz = p.nz || 0
+    for (const c of traffic.solids()) {
+      const dx = px - c.x
+      const dz = pz - c.z
+      const d = Math.hypot(dx, dz)
+      const min = r + c.r
+      if (d < min && d > 1e-6) {
+        px = c.x + (dx / d) * min
+        pz = c.z + (dz / d) * min
+        nx = dx / d
+        nz = dz / d
+        hit = true
+      }
+    }
+    return { x: px, z: pz, hit, nx, nz }
+  }
+  const stepLife = (dt) => {
+    life.time = clock
+    const c = center()
+    const people = peopleNow()
+    life.people = people
+    traffic.step(life, c, dt)
+    peds.step({ lines: life.lines, people: [...people, ...traffic.cars.map((t) => ({ x: t.x, z: t.z }))] }, c, dt)
+  }
+  const drawLife = (dt) => {
+    trafficLayer.set(
+      traffic.cars.map((t) => {
+        const y = heightAt(t.x, t.z, 0, true) ?? 0
+        const m = MODELS[t.model] || MODELS.sedan
+        const fx = Math.sin(t.yaw) * (m.wheelbase / 2)
+        const fz = Math.cos(t.yaw) * (m.wheelbase / 2)
+        const hf = groundAt(t.x + fx, t.z + fz) ?? y
+        const hb = groundAt(t.x - fx, t.z - fz) ?? y
+        return { model: t.model, color: t.color, x: t.x, y, z: t.z, yaw: t.yaw, pitch: Math.atan2(hf - hb, m.wheelbase) }
+      })
+    )
+    const seen = new Set()
+    // (people walking by: a figure only within sight, animated every other frame on a phone)
+    lifeTick++
+    const animNow = !phone || lifeTick % 2 === 0
+    const camP = camera.position
+    for (const p of peds.peds) {
+      if (Math.hypot(p.x - camP.x, p.z - camP.z) > PED_SEE) continue
+      seen.add(p.id)
+      let fig = pedFigs.get(p.id)
+      if (!fig && host.figure) {
+        fig = host.figure(host.npcLook ? host.npcLook(p.id + ":" + Math.round(p.s)) : {}, { lite: true })
+        if (fig) {
+          scene.add(fig.group)
+          pedFigs.set(p.id, fig)
+        }
+      }
+      if (!fig) continue
+      fig.dtAcc = (fig.dtAcc || 0) + dt
+      if (!animNow) continue
+      const y = heightAt(p.x, p.z, 0) ?? 0
+      fig.update({ x: p.x, y, z: p.z, yaw: p.yaw, vx: Math.sin(p.yaw) * p.speed, vz: Math.cos(p.yaw) * p.speed, speed: p.speed }, fig.dtAcc)
+      fig.dtAcc = 0
+    }
+    for (const [id, fig] of pedFigs)
+      if (!seen.has(id)) {
+        fig.dispose()
+        pedFigs.delete(id)
+      }
+  }
 
   // ---------- you ----------
   const sp = start || town.spawn || { x: 0, z: 0, yaw: 0 }
@@ -748,7 +859,7 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
       const gas = Math.max(input.gas, ky > 0 ? 1 : 0)
       const brake = Math.max(input.brake, ky < 0 ? 1 : 0)
       const steer = Math.max(-1, Math.min(1, input.steer + kx))
-      stepCar(car, { gas, brake, steer }, dt, { resolve: (x, z, r) => colliders.resolve(x, z, r), heightAt: (x, z, y) => heightAt(x, z, y, true), blocked: (x, z, yaw, dir, m) => personAhead(people, x, z, yaw, dir, m) })
+      stepCar(car, { gas, brake, steer }, dt, { resolve: resolveWithTraffic, heightAt: (x, z, y) => heightAt(x, z, y, true), blocked: (x, z, yaw, dir, m) => personAhead(people, x, z, yaw, dir, m) })
     } else if (riding) {
       const r = remotes.get(riding.num)
       if (r) {
@@ -761,13 +872,15 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
       const kl = Math.hypot(kx, ky) || 1
       const ix = input.x + (kx / kl) * (kx || ky ? 0.85 : 0)
       const iy = input.y + (ky / kl) * (kx || ky ? 0.85 : 0)
-      stepWalker(me.walker, { x: ix, y: iy, sprint: input.sprint || shift }, cam.yaw, dt, { resolve: (x, z, r) => colliders.resolve(x, z, r), heightAt: (x, z, y) => heightAt(x, z, y, false) })
+      stepWalker(me.walker, { x: ix, y: iy, sprint: input.sprint || shift }, cam.yaw, dt, { resolve: resolveWithTraffic, heightAt: (x, z, y) => heightAt(x, z, y, false) })
     }
     stepRemotes()
     eggs.step(dt, center(), clock, camera)
     updateCamera(dt)
     // (the sky dome rides with the lens: the town is bigger than the dome)
     if (sky?.mesh) sky.mesh.position.set(camera.position.x, 0, camera.position.z)
+    stepLife(dt)
+    drawLife(dt)
     drawPeople(dt)
     updateLabels()
     sendPos()
@@ -935,6 +1048,8 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
         remotes: [...remotes.values()].map((r) => ({ num: r.num, name: r.name, x: r.x, z: r.z, act: r.act, car: r.car })),
         net: net ? { you: myNum, info: netInfo ? { town: netInfo.town, n: netInfo.n } : null } : null,
         eggs: { found: eggs.foundCount, total: eggs.total },
+        traffic: traffic.cars.map((t) => ({ id: t.id, x: t.x, z: t.z, yaw: t.yaw, speed: t.speed, road: t.road.name })),
+        peds: peds.peds.map((p) => ({ id: p.id, x: p.x, z: p.z, speed: p.speed })),
         street: lastStreet,
       }
     },
@@ -1026,6 +1141,10 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
     // (tests) what's drawn: shadows, trees, cars
     renderInfo: () => ({ sunI: +sun.intensity.toFixed(2), hemiI: +hemi.intensity.toFixed(2), sunPos: sun.position.toArray().map(Math.round), tgt: sun.target.position.toArray().map(Math.round), exposure, shadow: !!sun.shadow.map, shadowAt: { x: Math.round(shadowAt.x), z: Math.round(shadowAt.z), n: shadowAt.n, t: shadowAt.t, now: clock, nu: sun.shadow.needsUpdate }, sunDir: sunDir.toArray().map((v) => +v.toFixed(2)), trees: trees.nearCount, night: +night.toFixed(2) }),
     devSun: () => sun,
+    devLife({ traffic: t, peds: p } = {}) {
+      if (t !== undefined) traffic.cap = t
+      if (p !== undefined) peds.cap = p
+    },
     devShadowDirty: () => (shadowAt.dirty = true),
     // (tests) a fixed lens for close-up shots: devCamera({ x, y, z }, { x, y, z }) or null
     devCamera(pos, look) {
@@ -1051,6 +1170,9 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
       carMesh?.dispose()
       parkedLayer.dispose()
       trees.dispose()
+      trafficLayer.dispose()
+      for (const f of pedFigs.values()) f.dispose()
+      pedFigs.clear()
       eggs.dispose()
       sky?.dispose?.()
       disposeMaterials()
