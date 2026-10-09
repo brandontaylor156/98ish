@@ -1,248 +1,333 @@
 // Builds Venue Finder's index: every pickleball venue in OpenStreetMap, worldwide, as small
 // static shards the phone searches offline (client/public/venues/idx/). Pure logic lives in
-// client/.../pickleball/park/live/finder.js (shared with the app, the server and the tests).
+// client/.../pickleball/park/live/finder.js (shared with the app, the server and the tests) and
+// tools/venues/world/tiles.mjs (which boxes are asked, resume/coverage).
 // Data © OpenStreetMap contributors, ODbL 1.0: the index is a derivative database under the
 // same licence (client/public/venues/idx/LICENSE.txt says so).
 //
-//   node tools/venues/world/build-index.mjs [--cache DIR] [--refresh] [--region us,canada,...|world]
-//                                           [--tile 5x10] [--zips Gaz_zcta_national.txt] [--partial]
+//   node tools/venues/world/build-index.mjs [--cache DIR] [--region world|us-west,us-east,canada,
+//        europe,oceania,rest,us,uk,spain,australia,california] [--names] [--zips Gaz_zcta_national.txt]
+//        [--fetch-only] [--partial] [--deadline MINUTES] [--refresh] [--force]
 //
-// One Overpass query per tile, one at a time, at least 10 s apart (polite: identify the app,
-// one request in flight, back off and move to another public instance on 429/504/timeouts,
-// cache every answer in --cache so a rebuild only asks for what's missing). Each answer holds:
-//   1. every feature tagged pickleball (courts, tennis courts with lines, halls, clubs), centres
-//   2. named parks, sports centres, clubs and schools within 150 m of those (for names)
-//   3. cities, towns, suburbs and villages within 25 km of them (for "Pickleball courts, <town>"
-//      and town search), with their coordinates
+// Resumable: every answer is cached in --cache, and a run only asks for what's missing, so a run
+// that stops (deadline, Ctrl+C, a 6-hour CI limit) picks up where it left off.
+//   --fetch-only   ask, don't write the index (one CI job per region; a final job merges)
+//   --partial      don't ask at all: build from whatever the cache holds (any region)
+//   --names        the names pass: for venues still unnamed, ask which named park/club/school
+//                  they stand inside (OSM is_in, a few hundred venues per query, cached)
+//   --deadline M   stop asking after M minutes (still builds from what landed; exit 0)
+//   --force        write the index even when it's much smaller than the one it replaces
+//
+// Polite to Overpass (https://wiki.openstreetmap.org/wiki/Overpass_API): one request in flight,
+// at least 10 s apart, identified (User-Agent), a busy instance (429/5xx/timeout) rests (1 min,
+// doubling to 20) and the next public instance is asked; everything cached. Per tile:
+//   1. "all":   every feature tagged pickleball (courts, tennis courts with lines, halls, clubs)
+//               with centres, and named parks/sports centres/clubs/schools within 150 m
+//   2. "towns": cities, towns, suburbs and villages (name, place, population as CSV) in the
+//               1-degree cells that hold courts, padded 0.5 degrees (for "Pickleball courts,
+//               <town>" and town search). (The old combined query asked for towns within 25 km
+//               of every court, which ran out of memory on the server for most US tiles.)
 // --zips: the US Census ZCTA Gazetteer (public domain) -> idx/zip/NN.json for ZIP code search.
-// Monthly from GitHub Actions (.github/workflows/venue-index.yml) or by hand.
+// Monthly from GitHub Actions (.github/workflows/venue-index.yml: one job per region, the raw
+// answers kept in the Actions cache, then a merge job) or by hand.
 
 import fs from "node:fs"
 import path from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
+import { planTiles, quarters, isCovered, townBoxes, SMALL_LAT } from "./tiles.mjs"
 
 const HERE = path.dirname(fileURLToPath(import.meta.url))
 const ROOT = path.join(HERE, "../../..")
-const OUT = path.join(ROOT, "client/public/venues/idx")
+// (--out DIR: write the index somewhere else, e.g. to look at a build before it ships)
+const OUT = process.argv.includes("--out") ? path.resolve(process.argv[process.argv.indexOf("--out") + 1]) : path.join(ROOT, "client/public/venues/idx")
 const F = await import(pathToFileURL(path.join(ROOT, "client/src/components/applets/pickleball/park/live/finder.js")).href)
 
 const arg = (k, d = null) => {
   const i = process.argv.indexOf(k)
   return i > 0 ? process.argv[i + 1] : d
 }
+const has = (k) => process.argv.includes(k)
 const CACHE = arg("--cache", path.join(HERE, ".cache"))
-const REFRESH = process.argv.includes("--refresh")
-// --partial: no asking at all; build the index from every tile already in --cache (any region,
-// any tile size). Resumable: a normal run skips tiles it has cached, so it fills in what's missing.
-const PARTIAL = process.argv.includes("--partial")
-// --names: ask only for places and towns, on the cached feature tiles that have courts (then build)
-const NAMES = process.argv.includes("--names")
+const REFRESH = has("--refresh")
+const PARTIAL = has("--partial")
+const NAMES = has("--names")
+const FETCH_ONLY = has("--fetch-only")
+const FORCE = has("--force")
 const REGION = arg("--region", "world")
+const DEADLINE = arg("--deadline") ? Date.now() + Number(arg("--deadline")) * 60_000 : Infinity
+const pastDeadline = () => Date.now() > DEADLINE
 // Public Overpass instances, in the order tried. Each one's policy allows an app's occasional
-// index build at one request at a time (https://wiki.openstreetmap.org/wiki/Overpass_API#Public_Overpass_API_instances):
-// a busy one (429/5xx/timeout) rests a while (5 min, doubling to 40) and the next is asked.
+// index build at one request at a time (https://wiki.openstreetmap.org/wiki/Overpass_API#Public_Overpass_API_instances).
 const ENDPOINTS = process.env.OVERPASS_URL
   ? process.env.OVERPASS_URL.split(",")
-  : ["https://overpass-api.de/api/interpreter", "https://overpass.kumi.systems/api/interpreter", "https://overpass.private.coffee/api/interpreter"]
-const rest = ENDPOINTS.map(() => ({ until: 0, ms: 5 * 60_000 }))
+  : ["https://overpass-api.de/api/interpreter", "https://maps.mail.ru/osm/tools/overpass/api/interpreter", "https://overpass.private.coffee/api/interpreter", "https://overpass.kumi.systems/api/interpreter"]
+const REST0 = 60_000
+const rest = ENDPOINTS.map(() => ({ until: 0, ms: REST0 }))
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 const pickEndpoint = async () => {
   for (;;) {
     const now = Date.now()
     const i = rest.findIndex((x) => x.until <= now)
     if (i >= 0) return i
     const soonest = Math.min(...rest.map((x) => x.until))
+    if (soonest > DEADLINE) return -1
     console.log(`  every Overpass instance is resting; waiting ${Math.round((soonest - now) / 1000)} s`)
     await sleep(soonest - now + 1000)
   }
 }
 const tired = (i) => {
   rest[i].until = Date.now() + rest[i].ms
-  rest[i].ms = Math.min(rest[i].ms * 2, 40 * 60_000)
+  rest[i].ms = Math.min(rest[i].ms * 2, 20 * 60_000)
 }
-const fine = (i) => (rest[i].ms = 5 * 60_000)
-const UA = "98ish-venue-index/1.0 (Pickleball 98 Venue Finder; https://98ish.vercel.app)"
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
-
-// The world in tiles asked one at a time (one worldwide query is turned down; 5 x 10 degree
-// boxes go through even a busy server, and a box that's still too big splits in four).
-// --region takes one or more of these, comma-separated ("world" is everything).
-const REGIONS = {
-  // the lower 48, Hawaii, southern Alaska
-  us: [[24, -125, 50, -65], [18, -161, 23, -154], [55, -155, 65, -140]],
-  canada: [[41, -141, 50, -52], [50, -141, 62, -52]],
-  australia: [[-44, 112, -10, 154]],
-  uk: [[49, -9, 61, 2]],
-  spain: [[35, -10, 44, 5]],
-  california: [[32, -125, 43, -114]],
-  // everywhere else, in big tiles (mostly empty; a busy one splits itself in four)
-  world: { boxes: [[-60, -180, 80, 180]], tile: [20, 30] },
-}
-const [TLA, TLO] = String(arg("--tile", "5x10")).split("x").map(Number)
-const tiles = []
-for (const name of REGION.split(",")) {
-  const reg = REGIONS[name.trim()] || REGIONS.world
-  const boxes = Array.isArray(reg) ? reg : reg.boxes
-  const [TILE_LA, TILE_LO] = Array.isArray(reg) ? [TLA || 5, TLO || (TLA || 5) * 2] : reg.tile
-  for (const [la0, lo0, la1, lo1] of boxes) {
-    if (la1 - la0 <= TILE_LA && lo1 - lo0 <= TILE_LO) tiles.push([la0, lo0, la1, lo1])
-    else for (let la = la0; la < la1; la += TILE_LA) for (let lo = lo0; lo < lo1; lo += TILE_LO) tiles.push([la, lo, Math.min(la + TILE_LA, la1), Math.min(lo + TILE_LO, lo1)])
-  }
-}
+const fine = (i) => (rest[i].ms = REST0)
+const UA = "98ish-venue-index/1.1 (Pickleball 98 Venue Finder; https://98ish.vercel.app; github.com/brandontaylor156/98ish)"
 const bboxOf = (t) => `(${t.join(",")})`
+const NEAR = (set) => `(
+nwr(around.${set}:150)["name"]["leisure"~"^(park|sports_centre|recreation_ground|sports_hall|fitness_centre|playground|common)$"];
+nwr(around.${set}:150)["name"]["club"];
+nwr(around.${set}:150)["name"]["amenity"~"^(school|college|university|community_centre)$"];
+nwr(around.${set}:150)["name"]["landuse"="recreation_ground"];
+)->.pl;`
 
+// (small declared [timeout]/[maxsize]: a busy server admits a query by what it declares, so a
+// modest ask gets in where a [timeout:180] one is turned away with "Dispatcher ... timeout";
+// a box that really needs more answers "timed out"/"out of memory" and is split in four)
 const QUERIES = {
-  // everything a tile needs in one query (the pickleball scan, the slow part, runs once)
-  all: (b) => `[out:json][timeout:180];
+  // the pickleball scan plus the named places round it, in one query
+  all: (t) => `[out:json][timeout:100][maxsize:268435456];
 (
-nwr["sport"~"pickleball"]${b};
-nwr["leisure"~"^(pitch|court)$"]["pickleball"="yes"]${b};
+nwr["sport"~"pickleball"]${bboxOf(t)};
+nwr["leisure"~"^(pitch|court)$"]["pickleball"="yes"]${bboxOf(t)};
 )->.pb;
 .pb out center tags qt;
-(
-nwr(around.pb:150)["name"]["leisure"~"^(park|sports_centre|recreation_ground|sports_hall|fitness_centre|playground|common)$"];
-nwr(around.pb:150)["name"]["club"];
-nwr(around.pb:150)["name"]["amenity"~"^(school|college|university|community_centre)$"];
-nwr(around.pb:150)["name"]["landuse"="recreation_ground"];
-)->.pl;
+${NEAR("pb")}
 (.pl; - .pb;)->.pl;
-.pl out center tags qt;
-node(around.pb:25000)["place"~"^(city|town|suburb|village)$"]["name"];
-out qt;`,
-  features: (b) => `[out:json][timeout:90];(
-nwr["sport"~"pickleball"]${b};
-nwr["leisure"~"^(pitch|court)$"]["pickleball"="yes"]${b};
-);out center tags qt;`,
-  places: (b) => `[out:json][timeout:90];
-nwr["sport"~"pickleball"]${b}->.pb;
+.pl out center tags qt;`,
+  // (older caches held "features-" tiles; --names fills in their places)
+  places: (t) => `[out:json][timeout:100][maxsize:268435456];
+nwr["sport"~"pickleball"]${bboxOf(t)}->.pb;
+${NEAR("pb")}
+.pl out center tags qt;`,
+  // towns as CSV (a city's name in 200 languages isn't needed): boxes = townBoxes(courts)
+  towns: (boxes) => `[out:csv(::id,::lat,::lon,name,place,population;false;"\\t")][timeout:90][maxsize:67108864];
 (
-nwr(around.pb:150)["name"]["leisure"~"^(park|sports_centre|recreation_ground|sports_hall|fitness_centre|playground|common)$"];
-nwr(around.pb:150)["name"]["club"];
-nwr(around.pb:150)["name"]["amenity"~"^(school|college|university|community_centre)$"];
-nwr(around.pb:150)["name"]["landuse"="recreation_ground"];
-);out center tags qt;`,
-  towns: (b) => `[out:json][timeout:90];
-node["place"~"^(city|town|suburb|village)$"]["name"]${b};
-out qt;`,
+${boxes.map((b) => `node["place"~"^(city|town|suburb|village)$"]["name"]${bboxOf(b)};`).join("\n")}
+);
+out qt;
+make end name="__end__";
+out;`,
+  // the names pass: for each point, a marker and the named areas it stands inside
+  isin: (pts) => `[out:json][timeout:120][maxsize:134217728];
+${pts
+  .map(
+    ([i, lat, lon]) => `make m i=${i};out;
+is_in(${lat},${lon})->.a;
+(area.a["leisure"~"^(park|sports_centre|recreation_ground|sports_hall|fitness_centre|playground|common|golf_course|beach_resort|resort)$"]["name"];area.a["amenity"~"^(school|college|university|community_centre)$"]["name"];area.a["club"]["name"];area.a["landuse"="recreation_ground"]["name"];);
+out tags qt;`,
+  )
+  .join("\n")}`,
+}
+const csvTowns = (text) => {
+  const elements = []
+  for (const line of text.split(/\r?\n/)) {
+    const [id, lat, lon, name, place, population] = line.split("\t")
+    if (!id || !name || !Number.isFinite(Number(lat))) continue
+    const tags = { name, place }
+    if (population) tags.population = population
+    elements.push({ type: "node", id: Number(id), lat: Number(lat), lon: Number(lon), tags })
+  }
+  return { elements }
 }
 
 let lastAsk = 0
+let asked = 0
 const GAP = Number(process.env.OVERPASS_GAP_MS) || 10_000
 const failed = []
-const ask = async (name, tile, tries = 4) => {
+const DEFERRED = Symbol("deferred")
+// ask once (with retries over the instances); returns the answer, null (too big: split it) or
+// DEFERRED (the deadline passed). A busy instance (429, 5xx, "too busy") never counts as a try:
+// the box isn't too big, the server is, so it waits its turn; only answers that look too big
+// (no answer in 240 s, `tries` times) give up so the caller splits the box.
+const ask = async (name, file, query, tries = 2) => {
   fs.mkdirSync(CACHE, { recursive: true })
-  const file = path.join(CACHE, `${name}-${tile.join("_")}.json`)
   if (!REFRESH && fs.existsSync(file)) return JSON.parse(fs.readFileSync(file, "utf8"))
-  for (let attempt = 0; attempt < tries; attempt++) {
+  for (let slow = 0, busy = 0; slow < tries; ) {
+    if (pastDeadline()) return DEFERRED
+    // (busy a dozen times in a row, over the instances: maybe it's the box after all)
+    if (busy++ >= 12) return null
     const wait = GAP - (Date.now() - lastAsk)
     if (lastAsk && wait > 0) await sleep(wait)
-    lastAsk = Date.now()
     const ep = await pickEndpoint()
+    if (ep < 0) return DEFERRED
+    lastAsk = Date.now()
+    asked++
     const host = new URL(ENDPOINTS[ep]).host
     const t0 = Date.now()
+    const label = `${name} ${path.basename(file, ".json").replace(/^[a-z]+-/, "")}`
     let res
     let text
     try {
-      res = await fetch(ENDPOINTS[ep], { method: "POST", headers: { "User-Agent": UA, "Content-Type": "application/x-www-form-urlencoded" }, body: "data=" + encodeURIComponent(QUERIES[name](bboxOf(tile))), signal: AbortSignal.timeout(240_000) })
-      text = res.ok ? await res.text() : ""
+      res = await fetch(ENDPOINTS[ep], { method: "POST", headers: { "User-Agent": UA, "Content-Type": "application/x-www-form-urlencoded" }, body: "data=" + encodeURIComponent(query), signal: AbortSignal.timeout(240_000) })
+      text = await res.text()
     } catch (error) {
       tired(ep)
-      console.log(`  ${name} ${tile} @${host}: ${error.name === "TimeoutError" ? "no answer in 240 s" : error.message}; resting it`)
+      lastAsk = Date.now()
+      if (error.name === "TimeoutError") slow++
+      console.log(`  ${label} @${host}: ${error.name === "TimeoutError" ? "no answer in 240 s" : error.message}; resting it`)
       continue
     }
+    lastAsk = Date.now()
+    const remark = /runtime error[^<\n]*/i.exec(text)?.[0] || ""
     if (res.status === 429 || res.status >= 500) {
+      // (a box too big for the server comes back as a 504 with "timed out"/"out of memory" too)
+      if (/timed out|out of memory/i.test(remark) && !/Dispatcher/i.test(remark)) {
+        console.log(`  ${label} @${host}: ${remark.slice(0, 110)}`)
+        return null
+      }
       tired(ep)
-      console.log(`  ${name} ${tile} @${host}: HTTP ${res.status}; resting it`)
+      console.log(`  ${label} @${host}: HTTP ${res.status}${remark ? ` (${remark.slice(0, 80)})` : ""}; resting it`)
       continue
     }
     if (!res.ok) throw new Error(`${name}: HTTP ${res.status} @${host}`)
     let data
-    try {
-      data = JSON.parse(text)
-    } catch {
-      tired(ep)
-      console.log(`  ${name} ${tile} @${host}: not JSON; resting it`)
-      continue
-    }
-    if (data.remark && /runtime error|timed out|out of memory|too busy/i.test(data.remark)) {
-      console.log(`  ${name} ${tile} @${host}: ${data.remark.slice(0, 120)}`)
-      // (a box too big for the server: give up on it, so the caller splits it)
-      if (/timed out|out of memory/i.test(data.remark)) return null
-      tired(ep)
-      continue
+    if (name === "towns") {
+      // (CSV has no room for an error: an answer counts only with its closing "__end__" row)
+      if (remark || /<html|<\?xml/i.test(text.slice(0, 200)) || !text.includes("__end__")) {
+        // (cut off at its 90 s: too many towns in one ask, so the caller halves it)
+        if (Date.now() - t0 > 85_000 && !/Dispatcher/i.test(remark)) {
+          console.log(`  ${label} @${host}: cut off after ${((Date.now() - t0) / 1000).toFixed(0)} s`)
+          return null
+        }
+        tired(ep)
+        console.log(`  ${label} @${host}: ${remark.slice(0, 110) || "not CSV"}; resting it`)
+        continue
+      }
+      data = csvTowns(text)
+    } else {
+      try {
+        data = JSON.parse(text)
+      } catch {
+        tired(ep)
+        console.log(`  ${label} @${host}: not JSON; resting it`)
+        continue
+      }
+      if (data.remark && /runtime error|timed out|out of memory|too busy/i.test(data.remark)) {
+        console.log(`  ${label} @${host}: ${data.remark.slice(0, 120)}`)
+        // (a box too big for the server: give up on it, so the caller splits it)
+        if (/timed out|out of memory/i.test(data.remark) && !/Dispatcher/i.test(data.remark)) return null
+        tired(ep)
+        continue
+      }
     }
     fine(ep)
-    fs.writeFileSync(file, text)
-    console.log(`  ${name} ${tile} @${host}: ${data.elements.length} elements, ${(text.length / 1e6).toFixed(1)} MB in ${((Date.now() - t0) / 1000).toFixed(0)} s`)
+    const out = JSON.stringify(data)
+    fs.writeFileSync(file, out)
+    console.log(`  ${label} @${host}: ${data.elements.length} elements, ${(out.length / 1e6).toFixed(1)} MB in ${((Date.now() - t0) / 1000).toFixed(0)} s`)
     return data
   }
   return null
 }
-// a tile the server turns down splits into four (to 2.5 degrees), and those are asked instead
-const askTile = async (name, tile) => {
-  const small = tile[2] - tile[0] <= 1.25
-  const d = await ask(name, tile, small ? 6 : 3)
-  if (d) return d
+const cacheFile = (name, tile) => path.join(CACHE, `${name}-${tile.join("_")}.json`)
+const cached = (name, tile) => fs.existsSync(cacheFile(name, tile))
+// a tile the server turns down splits into four (to 1.25 degrees), and those are asked instead.
+// Returns the features asked (for the towns), or DEFERRED.
+const askTile = async (tile) => {
+  // (a tile answered through its quarters on an earlier run isn't asked whole again)
+  if (!cached("all", tile) && tile[2] - tile[0] > SMALL_LAT && quarters(tile).some((q) => isCovered(q, (t) => cached("all", t)))) return askQuarters(tile)
+  const small = tile[2] - tile[0] <= SMALL_LAT
+  const d = await ask("all", cacheFile("all", tile), QUERIES.all(tile), small ? 3 : 1)
+  if (d === DEFERRED) return DEFERRED
+  if (d) return d.elements
   if (small) {
-    failed.push(`${name} ${tile}`)
-    return { elements: [] }
+    failed.push(`${tile}`)
+    return []
   }
-  const [a, b, c, e] = tile
-  const ml = (a + c) / 2
-  const mo = (b + e) / 2
-  console.log(`  ${name} ${tile}: splitting`)
-  const out = { elements: [], osm3s: null }
-  for (const t of [[a, b, ml, mo], [a, mo, ml, e], [ml, b, c, mo], [ml, mo, c, e]]) {
-    const q = await askTile(name, t)
-    out.elements.push(...q.elements)
-    out.osm3s ??= q.osm3s
+  console.log(`  all ${tile}: splitting`)
+  return askQuarters(tile)
+}
+const askQuarters = async (tile) => {
+  const out = []
+  for (const q of quarters(tile)) {
+    const els = await askTile(q)
+    if (els === DEFERRED) return DEFERRED
+    out.push(...els)
   }
   return out
 }
-const askAll = async (name, only = null) => {
-  const out = { elements: [], osm3s: null }
-  for (const t of tiles) {
-    if (only && !only.has(t.join(","))) continue
-    const d = await askTile(name, t)
-    out.elements.push(...d.elements)
-    out.osm3s ??= d.osm3s
+// the towns for a tile's courts (one CSV query; none when the tile has no courts)
+// (a busy area's towns that don't fit one ask are asked in halves: towns-<tile>_a, _ab, ...)
+const askTowns = async (tile, elements, part = "") => {
+  const pts = (part ? elements : elements.filter((e) => F.indexKind(e) === "features").map((e) => (e.center ? [e.center.lat, e.center.lon] : [e.lat, e.lon]))).filter(([a]) => Number.isFinite(a))
+  if (!pts.length) return
+  const name = tile.join("_") + (part ? `_${part}` : "")
+  const file = path.join(CACHE, `towns-${name}.json`)
+  // (asked in halves on an earlier run: the halves carry on, the whole isn't asked again)
+  const child = (k) => path.join(CACHE, `towns-${tile.join("_")}_${part}${k}.json`)
+  const begunInHalves = !REFRESH && !fs.existsSync(file) && fs.readdirSync(CACHE).some((f) => f.startsWith(path.basename(child("a"), ".json")))
+  if (!begunInHalves) {
+    const d = fs.existsSync(file) && !REFRESH ? true : await ask("towns", file, QUERIES.towns(townBoxes(pts)), 1)
+    if (d !== null) return d
+    if (townBoxes(pts).length < 2 || part.length >= 4) {
+      failed.push(`towns ${name}`)
+      return d
+    }
   }
-  return out
+  // halves by longitude
+  pts.sort((x, y) => x[1] - y[1])
+  const mid = Math.ceil(pts.length / 2)
+  for (const [k, half] of [["a", pts.slice(0, mid)], ["b", pts.slice(mid)]]) if ((await askTowns(tile, half, part + k)) === DEFERRED) return DEFERRED
+  return true
 }
 
-// every cached answer of one kind, whatever region or tile size asked it: the combined
-// "all-" answers (split by their tags) and the older one-kind files ("features-", ...)
-const kindOf = F.indexKind
-let cacheFiles = null
-const cachedAll = (name) => {
-  const out = { elements: [], osm3s: null }
-  if (!fs.existsSync(CACHE)) return out
-  cacheFiles ??= fs.readdirSync(CACHE).map((f) => ({ f, d: JSON.parse(fs.readFileSync(path.join(CACHE, f), "utf8")) }))
-  for (const { f, d } of cacheFiles) {
-    if (f.startsWith(`${name}-`)) out.elements.push(...d.elements)
-    else if (f.startsWith("all-")) out.elements.push(...d.elements.filter((e) => kindOf(e) === name))
-    else continue
-    out.osm3s ??= d.osm3s
+const plan = planTiles(REGION)
+let deferred = 0
+if (!PARTIAL) {
+  console.log(`${plan.length} tiles planned (${REGION}); ${plan.filter((t) => isCovered(t, (x) => cached("all", x))).length} already cached`)
+  for (const t of plan) {
+    const els = await askTile(t)
+    if (els === DEFERRED) {
+      deferred++
+      continue
+    }
+    if ((await askTowns(t, els)) === DEFERRED) deferred++
+  }
+  if (deferred) console.log(`deadline: ${deferred} tiles left for the next run (the cache keeps what landed)`)
+  console.log(`${asked} Overpass requests this run`)
+}
+if (FETCH_ONLY && !NAMES) process.exit(0)
+
+// ---------- build from the whole cache ----------
+// every cached answer of one kind, whatever region or tile size asked it: the combined "all-"
+// answers (split by their tags), "towns-" and the older one-kind files ("features-", "places-")
+const readCache = () => (fs.existsSync(CACHE) ? fs.readdirSync(CACHE).filter((f) => /^(all|features|places|towns)-.*\.json$/.test(f)) : [])
+const cachedAll = () => {
+  const out = { features: [], places: [], towns: [], osm3s: null }
+  for (const f of readCache()) {
+    const d = JSON.parse(fs.readFileSync(path.join(CACHE, f), "utf8"))
+    const kind = f.slice(0, f.indexOf("-"))
+    for (const e of d.elements) {
+      const k = kind === "all" ? F.indexKind(e) : kind
+      out[k]?.push(e)
+    }
+    if (kind === "all" || kind === "features") out.osm3s ??= d.osm3s
   }
   return out
 }
-const cachedTiles = () => (fs.existsSync(CACHE) ? fs.readdirSync(CACHE).filter((f) => /^(all|features)-/.test(f)).map((f) => f.replace(/^[a-z]+-/, "").slice(0, -5).split("_").map(Number)) : [])
-// ask for every tile not cached yet (one combined query each), then build from the whole cache
-if (!PARTIAL && !NAMES) await askAll("all")
-if (NAMES) {
-  // older caches: places and towns for the feature tiles that have courts
-  for (const f of fs.readdirSync(CACHE).filter((f) => f.startsWith("features-"))) {
+const coveredTiles = readCache()
+  .filter((f) => /^(all|features)-/.test(f))
+  .map((f) => f.replace(/^[a-z]+-/, "").slice(0, -5).split("_").map(Number))
+const coveredSet = new Set(coveredTiles.map((t) => t.join(",")))
+const isDone = (t) => isCovered(t, (x) => coveredSet.has(x.join(",")))
+// older caches: places for feature tiles that have courts
+if (NAMES && !PARTIAL)
+  for (const f of readCache().filter((f) => f.startsWith("features-"))) {
     const d = JSON.parse(fs.readFileSync(path.join(CACHE, f), "utf8"))
     if (!d.elements.length) continue
     const tile = f.slice(9, -5).split("_").map(Number)
-    await askTile("places", tile)
-    await askTile("towns", tile)
+    await ask("places", cacheFile("places", tile), QUERIES.places(tile), 4)
+    await askTowns(tile, d.elements)
   }
-}
-const coveredTiles = cachedTiles()
-const features = cachedAll("features")
-const placesRaw = cachedAll("places")
-const townsRaw = cachedAll("towns")
-console.log(`${features.elements.length} features from ${coveredTiles.length} cached tiles`)
+const raw = cachedAll()
 // (a feature on a tile edge can come back from both tiles)
 const dedupe = (list) => {
   const seen = new Set()
@@ -253,13 +338,14 @@ const dedupe = (list) => {
     return true
   })
 }
-features.elements = dedupe(features.elements)
-placesRaw.elements = dedupe(placesRaw.elements)
-townsRaw.elements = dedupe(townsRaw.elements)
+const featureEls = dedupe(raw.features)
+const placeEls = dedupe(raw.places)
+const townEls = dedupe(raw.towns)
+console.log(`${featureEls.length} features, ${placeEls.length} places, ${townEls.length} towns from ${coveredTiles.length} cached tiles`)
 
 // places for names
 const kindOfPlace = (t) => (t.amenity && /school|college|university/.test(t.amenity) ? "school" : t.leisure === "sports_centre" || t.leisure === "sports_hall" || t.leisure === "fitness_centre" ? "sports" : t.club ? "club" : "park")
-const places = placesRaw.elements
+const places = placeEls
   .map((e) => {
     const ll = e.center ? [e.center.lat, e.center.lon] : e.lat !== undefined ? [e.lat, e.lon] : null
     return ll && e.tags?.name ? { name: e.tags.name, lat: ll[0], lon: ll[1], kind: kindOfPlace(e.tags) } : null
@@ -280,29 +366,61 @@ const placesNear = (lat, lon) => {
   for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) out.push(...(pgrid.get(`${i + a},${j + b}`) || []))
   return out
 }
-const towns = townsRaw.elements.filter((e) => Number.isFinite(e.lat) && e.tags?.name).map((e) => ({ name: e.tags.name, lat: e.lat, lon: e.lon, pop: parseInt(String(e.tags.population || "").replace(/\D/g, ""), 10) || (e.tags.place === "city" ? 100000 : e.tags.place === "town" ? 10000 : e.tags.place === "village" ? 800 : 3000) }))
+const towns = townEls.filter((e) => Number.isFinite(e.lat) && e.tags?.name).map((e) => ({ name: e.tags.name, place: e.tags.place, lat: e.lat, lon: e.lon, pop: parseInt(String(e.tags.population || "").replace(/\D/g, ""), 10) || (e.tags.place === "city" ? 100000 : e.tags.place === "town" ? 10000 : e.tags.place === "village" ? 800 : 3000) }))
 const townOf = F.townIndex(towns)
 
-// cluster and describe
-const clusters = F.clusterFeatures(features.elements)
+// cluster and name
+const clusters = F.clusterFeatures(featureEls)
+const ids = new Set()
+for (const c of clusters) {
+  let id = F.venueId(c)
+  if (ids.has(id)) id += "b"
+  ids.add(id)
+  c.id = id
+  c.name = F.nameVenue(c, placesNear(c.lat, c.lon))
+}
+const namedBefore = clusters.filter((c) => c.name).length
+
+// the names pass: which named park/club/school an unnamed venue stands inside (is_in), cached
+// per venue id in names.json ({ id: name | "" }) so a rerun only asks for new venues
+const NAMES_FILE = path.join(CACHE, "names.json")
+const enclosing = fs.existsSync(NAMES_FILE) ? JSON.parse(fs.readFileSync(NAMES_FILE, "utf8")) : {}
+if (NAMES) {
+  const todo = clusters.filter((c) => !c.name && !(c.id in enclosing))
+  const BATCH = 250
+  console.log(`names pass: ${clusters.length - namedBefore} unnamed venues, ${todo.length} not asked yet (${Math.ceil(todo.length / BATCH)} queries)`)
+  for (let i = 0; i < todo.length && !pastDeadline(); i += BATCH) {
+    const batch = todo.slice(i, i + BATCH)
+    const pts = batch.map((c, k) => [k, Math.round(c.lat * 1e6) / 1e6, Math.round(c.lon * 1e6) / 1e6])
+    const file = path.join(CACHE, `isin-${batch[0].id}-${batch.length}.json`)
+    const d = await ask("isin", file, QUERIES.isin(pts), 4)
+    if (!d || d === DEFERRED) {
+      if (d === null) failed.push(`names ${batch[0].id}+${batch.length}`)
+      continue
+    }
+    const split = F.splitIsIn(d.elements)
+    batch.forEach((c, k) => (enclosing[c.id] = F.pickEnclosing(split.get(String(k)) || []) || ""))
+    fs.writeFileSync(NAMES_FILE, JSON.stringify(enclosing))
+    fs.rmSync(file, { force: true })
+  }
+}
+for (const c of clusters) if (!c.name && enclosing[c.id]) c.name = F.nameVenue(c, [], enclosing[c.id])
+if (FETCH_ONLY) process.exit(0)
+
 const shards = new Map()
 const townCount = new Map()
 const named = []
 let courtTotal = 0
-const seen = new Set()
+let namedCount = 0
 for (const c of clusters) {
-  let id = F.venueId(c)
-  if (seen.has(id)) id += "b"
-  seen.add(id)
   const { courts, onTennis } = F.countCourts(c)
   const flags = F.flagsOf(c)
   const town = townOf(c.lat, c.lon)
-  const name = F.nameVenue(c, placesNear(c.lat, c.lon))
-  const row = F.makeRow({ id, lat: c.lat, lon: c.lon, r: c.r, courts, onTennis, flags, name, town: town?.name })
+  const row = F.makeRow({ id: c.id, lat: c.lat, lon: c.lon, r: c.r, courts, onTennis, flags, name: c.name, town: town?.name })
+  if (c.name) namedCount++
   const gh = F.geohash(c.lat, c.lon, 2)
   if (!shards.has(gh)) shards.set(gh, [])
-  const rows = shards.get(gh)
-  rows.push(row)
+  shards.get(gh).push(row)
   courtTotal += courts + onTennis * 2
   if (town) {
     const k = `${town.name}|${F.geohash(town.lat, town.lon, 2)}`
@@ -313,13 +431,26 @@ for (const c of clusters) {
   }
 }
 // sort each shard (biggest venues first: they come up first when nothing else ranks them)
-for (const [gh, rows] of shards) rows.sort((a, b) => b[4] + b[5] * 2 - (a[4] + a[5] * 2))
+for (const [, rows] of shards) rows.sort((a, b) => b[4] + b[5] * 2 - (a[4] + a[5] * 2))
 for (const [gh, rows] of shards) rows.forEach((row, i) => row[7] && named.push([row[7], gh, i]))
+console.log(`named: ${namedBefore} of ${clusters.length} before the names pass (${((100 * namedBefore) / Math.max(1, clusters.length)).toFixed(1)}%), ${namedCount} after (${((100 * namedCount) / Math.max(1, clusters.length)).toFixed(1)}%)`)
 
+// what this build covers: the planned tiles (for --partial: the whole world plan) the cache answers
+const fullPlan = planTiles("world")
+const missing = fullPlan.filter((t) => !isDone(t))
+const complete = !missing.length && !failed.length
 // (a run that lost too many tiles keeps the index it had rather than shipping holes)
-if (!PARTIAL && !NAMES && failed.length > Math.max(2, tiles.length * 0.03)) {
+if (!PARTIAL && failed.length > Math.max(2, plan.length * 0.03)) {
   console.error(`${failed.length} tiles failed (${failed.slice(0, 8).join("; ")}): the index is left as it was. Run again later.`)
   process.exit(2)
+}
+let oldMeta = null
+try {
+  oldMeta = JSON.parse(fs.readFileSync(path.join(OUT, "meta.json"), "utf8"))
+} catch {}
+if (!FORCE && oldMeta?.venues && clusters.length < oldMeta.venues * 0.9) {
+  console.error(`this build has ${clusters.length} venues, the shipped index ${oldMeta.venues}: left as it was (--force to write it anyway)`)
+  process.exit(FETCH_ONLY ? 0 : 3)
 }
 if (failed.length) console.warn(`missing tiles: ${failed.join("; ")}`)
 fs.mkdirSync(OUT, { recursive: true })
@@ -332,10 +463,58 @@ for (const [gh, rows] of shards) {
 }
 const r4 = (v) => Math.round(v * 1e4) / 1e4
 // towns: the town's own shard is where it is; a town on a shard edge points at its venues' main shard
+// (a big city whose suburbs are each venue's nearest town still has to come up in town search:
+// "Las Vegas" lists the courts round it although every one of them is in Paradise or Whitney.
+// Cities and towns of 10,000+ with courts within 15 km are added with how many there are.)
+const VCELL = 0.25
+const vgrid = new Map()
+for (const c of clusters) {
+  const k = `${Math.floor(c.lat / VCELL)},${Math.floor(c.lon / VCELL)}`
+  if (!vgrid.has(k)) vgrid.set(k, [])
+  vgrid.get(k).push(c)
+}
+for (const t of towns) {
+  if (t.pop < 10000 || (t.place !== "city" && t.place !== "town")) continue
+  const key = `${t.name}|${F.geohash(t.lat, t.lon, 2)}`
+  if (townCount.has(key)) continue
+  const i = Math.floor(t.lat / VCELL)
+  const j = Math.floor(t.lon / VCELL)
+  let n = 0
+  const sh = new Set()
+  for (let a = -1; a <= 1; a++)
+    for (let b = -1; b <= 1; b++)
+      for (const c of vgrid.get(`${i + a},${j + b}`) || [])
+        if (F.kmBetween([t.lat, t.lon], [c.lat, c.lon]) <= 15) {
+          n++
+          sh.add(F.geohash(c.lat, c.lon, 2))
+        }
+  if (n) townCount.set(key, { name: t.name, lat: t.lat, lon: t.lon, gh: F.geohash(t.lat, t.lon, 2), n, shards: sh })
+}
 const townRows = [...townCount.values()].map((t) => [t.name, t.shards.has(t.gh) ? t.gh : [...t.shards][0], r4(t.lat), r4(t.lon), t.n]).sort((a, b) => b[4] - a[4])
-const search = { v: 1, towns: townRows, named }
-const searchText = JSON.stringify(search)
-fs.writeFileSync(path.join(OUT, "search.json"), searchText)
+// search: one file per first letter of a word (idx/search/<k>.json, finder.js searchKeysOf), so
+// a search loads the names that can match it, not the whole world's
+const buckets = new Map()
+const into = (name, kind, row) => {
+  for (const k of F.searchKeysOf(name)) {
+    if (!buckets.has(k)) buckets.set(k, { v: 1, towns: [], named: [] })
+    buckets.get(k)[kind].push(row)
+  }
+}
+townRows.forEach((t) => into(t[0], "towns", t))
+named.forEach((n) => into(n[0], "named", n))
+const searchDir = path.join(OUT, "search")
+fs.rmSync(searchDir, { recursive: true, force: true })
+fs.rmSync(path.join(OUT, "search.json"), { force: true })
+fs.mkdirSync(searchDir, { recursive: true })
+let searchBytes = 0
+let searchMax = 0
+for (const [k, b] of buckets) {
+  const text = JSON.stringify(b)
+  searchBytes += text.length
+  searchMax = Math.max(searchMax, text.length)
+  fs.writeFileSync(path.join(searchDir, `${k}.json`), text)
+}
+const searchText = { length: searchBytes }
 // ZIP codes (US Census ZCTA Gazetteer, public domain): idx/zip/NN.json { v, z: { "92708": [lat, lon] } }
 // by the first two digits, so a ZIP search loads one ~7 KB file. Without --zips the old ones stay.
 const ZIPS = arg("--zips")
@@ -359,7 +538,25 @@ if (ZIPS) {
   for (const [k, z] of byPrefix) fs.writeFileSync(path.join(dir, `${k}.json`), JSON.stringify({ v: 1, z }))
   console.log(`${zipCount} ZIP codes in ${byPrefix.size} files`)
 }
-const meta = { v: 1, zips: zipCount || (fs.existsSync(path.join(OUT, "zip")) ? undefined : 0), partial: PARTIAL || NAMES || undefined, covered: coveredTiles, failedTiles: failed, built: new Date().toISOString().slice(0, 10), region: REGION, venues: clusters.length, courts: courtTotal, shards: shards.size, osm_base: features.osm3s?.timestamp_osm_base || null, attribution: F.ATTRIBUTION, license: "ODbL 1.0 (https://opendatacommons.org/licenses/odbl/1-0/)" }
-fs.writeFileSync(path.join(OUT, "meta.json"), JSON.stringify(meta, null, 1))
+// covered: the tiles of the world plan this index answers (whole, or through their quarters)
+const covered = fullPlan.filter(isDone)
+const meta = {
+  v: 1,
+  zips: zipCount || oldMeta?.zips || undefined,
+  partial: complete ? undefined : true,
+  covered,
+  missingTiles: missing.length ? missing : undefined,
+  failedTiles: failed,
+  built: new Date().toISOString().slice(0, 10),
+  venues: clusters.length,
+  courts: courtTotal,
+  named: namedCount,
+  towns: townRows.length,
+  shards: shards.size,
+  osm_base: raw.osm3s?.timestamp_osm_base || null,
+  attribution: F.ATTRIBUTION,
+  license: "ODbL 1.0 (https://opendatacommons.org/licenses/odbl/1-0/)",
+}
+fs.writeFileSync(path.join(OUT, "meta.json"), JSON.stringify(meta))
 fs.writeFileSync(path.join(OUT, "LICENSE.txt"), "Pickleball 98 Venue Finder index.\nData © OpenStreetMap contributors (https://www.openstreetmap.org/copyright).\nThis index is a derivative database of OpenStreetMap and is made available under the Open Database License 1.0 (https://opendatacommons.org/licenses/odbl/1-0/).\nBuilt by tools/venues/world/build-index.mjs.\n")
-console.log(`${features.elements.length} features -> ${clusters.length} venues (${courtTotal} courts) in ${shards.size} shards, ${(bytes / 1024).toFixed(0)} KB; search.json ${(searchText.length / 1024).toFixed(0)} KB (${townRows.length} towns, ${named.length} named)`)
+console.log(`${featureEls.length} features -> ${clusters.length} venues (${courtTotal} courts) in ${shards.size} shards, ${(bytes / 1024).toFixed(0)} KB; search/ ${buckets.size} files, ${(searchText.length / 1024).toFixed(0)} KB, largest ${(searchMax / 1024).toFixed(0)} KB (${townRows.length} towns, ${named.length} named); ${covered.length}/${fullPlan.length} world tiles covered${complete ? "" : " (partial)"}`)

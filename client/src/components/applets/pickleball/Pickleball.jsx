@@ -48,6 +48,7 @@ import { useAim } from "../aim/AimContext"
 // Venue Finder: any pickleball venue on Earth (park/live/)
 import { FinderPanel } from "./park/live/FinderPanel"
 import { isLiveId } from "./park/live/liveVenue.js"
+import { ATTRIBUTION as OSM_CREDIT } from "./park/live/finder.js"
 import { VENUE_LIST } from "./park/venues/index.js"
 import { usePark } from "./park/usePark"
 import * as livingNet from "../../../utils/livingpark"
@@ -1743,7 +1744,7 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
             onClose={() => (setParkPick(false), setParkErr(null))}
           />
         )}
-        {parkLoading && screen === "park" && !parkPick && <ParkLoading venue={VENUE_LIST.find((v) => v.id === parkLoading)?.short || prefs.parkPlaces?.[parkLoading]?.short || (isLiveId(parkLoading) ? "A court from the map" : "Riverside Park")} step={parkStep} />}
+        {parkLoading && screen === "park" && !parkPick && <ParkLoading venue={VENUE_LIST.find((v) => v.id === parkLoading)?.short || prefs.parkPlaces?.[parkLoading]?.short || (isLiveId(parkLoading) ? "A court from the map" : "Riverside Park")} step={parkStep} credit={parkLoading !== "riverside" ? OSM_CREDIT : null} />}
 
         {/* ---------- Twin Replay (twin/): a real game, filmed, replayed here ---------- */}
         {screen === "twin" && phase !== "loading" && phase !== "error" && (

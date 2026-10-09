@@ -2,38 +2,127 @@ name: Venue Finder index
 
 # Rebuilds Pickleball 98's Venue Finder index (every pickleball venue in OpenStreetMap) once a
 # month and commits it when it changed. Data © OpenStreetMap contributors, ODbL 1.0.
-# tools/venues/world/build-index.mjs asks public Overpass instances one tile at a time (at least
-# 10 s apart; a busy instance rests and the next is asked) and leaves the index as it was when
-# more than 3% of tiles fail. ZIP search uses the US Census ZCTA Gazetteer (public domain).
+#
+# One job per region (max-parallel 1, so only one Overpass request is ever in flight), each
+# well under GitHub's 6-hour job limit: tools/venues/world/build-index.mjs --fetch-only asks
+# public Overpass instances one tile at a time (at least 10 s apart; a busy instance rests and
+# the next is asked) and stops asking at --deadline. Every raw answer goes into the Actions cache
+# (keyed by month), so a job that runs out of time, or a re-run of the workflow in the same
+# month, resumes where it stopped. The merge job builds the index from all regions' answers, runs
+# the names pass, and commits the shards when they changed (meta.json "partial"/"covered" say
+# what's in). ZIP search uses the US Census ZCTA Gazetteer (public domain).
 
 on:
   schedule:
     - cron: "17 9 3 * *"
   workflow_dispatch:
+    inputs:
+      regions:
+        description: "Regions to ask (JSON list). The merge always builds from every cached region."
+        required: false
+        default: '["us-west","us-east","canada","europe","oceania","rest"]'
+      deadline:
+        description: "Minutes each region job may ask before it stops (it resumes on the next run)"
+        required: false
+        default: "270"
 
 permissions:
   contents: write
 
+concurrency:
+  group: venue-index
+  cancel-in-progress: false
+
 jobs:
-  build:
+  month:
     runs-on: ubuntu-latest
-    timeout-minutes: 350
+    outputs:
+      key: ${{ steps.m.outputs.key }}
+    steps:
+      - id: m
+        run: echo "key=$(date -u +%Y-%m)" >> "$GITHUB_OUTPUT"
+
+  fetch:
+    needs: month
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    strategy:
+      max-parallel: 1
+      fail-fast: false
+      matrix:
+        region: ${{ fromJSON(github.event.inputs.regions || '["us-west","us-east","canada","europe","oceania","rest"]') }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: Restore this month's answers
+        uses: actions/cache/restore@v4
+        with:
+          path: osm-cache
+          key: venue-osm-${{ needs.month.outputs.key }}-${{ matrix.region }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            venue-osm-${{ needs.month.outputs.key }}-${{ matrix.region }}-
+      - name: Ask Overpass (stops at the deadline)
+        run: node tools/venues/world/build-index.mjs --fetch-only --region ${{ matrix.region }} --cache osm-cache --deadline ${{ github.event.inputs.deadline || '270' }}
+      - name: Keep the answers
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: osm-cache
+          key: venue-osm-${{ needs.month.outputs.key }}-${{ matrix.region }}-${{ github.run_id }}-${{ github.run_attempt }}
+
+  merge:
+    needs: [month, fetch]
+    if: always() && needs.month.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # (each region's latest answers into its own folder, then one cache folder for the build)
+      - { name: us-west, uses: actions/cache/restore@v4, with: { path: osm-cache, key: "venue-osm-${{ needs.month.outputs.key }}-us-west-none", restore-keys: "venue-osm-${{ needs.month.outputs.key }}-us-west-" } }
+      - run: mkdir -p all; cp -r osm-cache/. all/ 2>/dev/null || true; rm -rf osm-cache
+      - { name: us-east, uses: actions/cache/restore@v4, with: { path: osm-cache, key: "venue-osm-${{ needs.month.outputs.key }}-us-east-none", restore-keys: "venue-osm-${{ needs.month.outputs.key }}-us-east-" } }
+      - run: cp -r osm-cache/. all/ 2>/dev/null || true; rm -rf osm-cache
+      - { name: canada, uses: actions/cache/restore@v4, with: { path: osm-cache, key: "venue-osm-${{ needs.month.outputs.key }}-canada-none", restore-keys: "venue-osm-${{ needs.month.outputs.key }}-canada-" } }
+      - run: cp -r osm-cache/. all/ 2>/dev/null || true; rm -rf osm-cache
+      - { name: europe, uses: actions/cache/restore@v4, with: { path: osm-cache, key: "venue-osm-${{ needs.month.outputs.key }}-europe-none", restore-keys: "venue-osm-${{ needs.month.outputs.key }}-europe-" } }
+      - run: cp -r osm-cache/. all/ 2>/dev/null || true; rm -rf osm-cache
+      - { name: oceania, uses: actions/cache/restore@v4, with: { path: osm-cache, key: "venue-osm-${{ needs.month.outputs.key }}-oceania-none", restore-keys: "venue-osm-${{ needs.month.outputs.key }}-oceania-" } }
+      - run: cp -r osm-cache/. all/ 2>/dev/null || true; rm -rf osm-cache
+      - { name: rest, uses: actions/cache/restore@v4, with: { path: osm-cache, key: "venue-osm-${{ needs.month.outputs.key }}-rest-none", restore-keys: "venue-osm-${{ needs.month.outputs.key }}-rest-" } }
+      - run: cp -r osm-cache/. all/ 2>/dev/null || true; rm -rf osm-cache; ls all | wc -l
+      # the names pass's answers (names.json) carry over from month to month: a venue's park
+      # rarely changes, and only new venues are asked
+      - name: Restore the names pass
+        uses: actions/cache/restore@v4
+        with:
+          path: names-cache
+          key: venue-names-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: venue-names-
+      - run: cp names-cache/names.json all/ 2>/dev/null || true
       - name: ZIP codes (Census Gazetteer)
         run: |
-          curl -sfL -A "98ish-venue-index/1.0" -o "$RUNNER_TEMP/zcta.zip" "https://www2.census.gov/geo/docs/maps-data/data/gazetteer/2024_Gazetteer/2024_Gaz_zcta_national.zip"
+          curl -sfL -A "98ish-venue-index/1.1" -o "$RUNNER_TEMP/zcta.zip" "https://www2.census.gov/geo/docs/maps-data/data/gazetteer/2024_Gazetteer/2024_Gaz_zcta_national.zip"
           unzip -o -q "$RUNNER_TEMP/zcta.zip" -d "$RUNNER_TEMP/zcta"
-      - name: Build the index
-        run: node tools/venues/world/build-index.mjs --region us,canada,australia,uk,spain,world --cache "$RUNNER_TEMP/osm" --zips "$(ls $RUNNER_TEMP/zcta/*.txt | head -1)"
+      - name: Build the index (+ the names pass)
+        run: node tools/venues/world/build-index.mjs --partial --names --deadline 90 --cache all --zips "$(ls $RUNNER_TEMP/zcta/*.txt | head -1)"
+      - run: mkdir -p names-cache && cp all/names.json names-cache/ 2>/dev/null || true
+        if: always()
+      - name: Keep the names pass
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: names-cache
+          key: venue-names-${{ github.run_id }}-${{ github.run_attempt }}
       - name: Commit when it changed
         run: |
           git config user.name "venue-index-bot"
           git config user.email "actions@users.noreply.github.com"
           git add client/public/venues/idx
           if git diff --cached --quiet; then echo "no changes"; exit 0; fi
-          git commit -m "Venue Finder: monthly index rebuild from OpenStreetMap"
+          git commit -m "Venue Finder: index rebuild from OpenStreetMap ($(node -e 'const m=require("./client/public/venues/idx/meta.json");console.log(`${m.venues} venues, ${m.courts} courts, ${m.named} named${m.partial?", partial":""}`)'))"
           git push
