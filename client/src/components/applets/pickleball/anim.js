@@ -297,8 +297,9 @@ export const splitStep = (a, { fallback = false } = {}) => {
   return true
 }
 // After a point: winners celebrate, losers don't
-export const setMood = (a, kind, variant = 0) => {
-  a.mood = { kind, t: 0, variant }
+// (keep: My Park's Together moods (holding hands, dancing, a selfie) stay until taken away)
+export const setMood = (a, kind, variant = 0, keep = false) => {
+  a.mood = { kind, t: 0, variant, keep }
 }
 
 // The body's velocity and acceleration: the match's velocity, steadied with how the position
@@ -349,7 +350,7 @@ export const updateAnim = (a, s, dt) => {
   const swing = s.swing && !s.swing.whiff && s.swing.t < 0.75 ? s.swing : null
   const whiff = s.swing?.whiff && s.swing.t < 0.5 ? s.swing : null
   if (a.mood) a.mood.t += dt
-  if (a.mood && (a.mood.t > 2.6 || (!s.between && a.mood.t > 0.6))) a.mood = null
+  if (a.mood && !a.mood.keep && (a.mood.t > 2.6 || (!s.between && a.mood.t > 0.6))) a.mood = null
   // the split step: off the court just before the other side hits, landing as they do
   // (not mid-sprint: a player running hard to a ball just keeps running)
   if (!s.between && shouldSplit(s.oppHit, a.t - (a.splitAt ?? -9)) && Math.hypot(s.vx, s.vz) < 2.2) splitStep(a)
@@ -560,6 +561,12 @@ export const updateAnim = (a, s, dt) => {
   const mood = a.mood && s.between ? a.mood : null
   if (mood?.kind === "sulk" && mood.variant === 1) crouch = 0.2 // hands on knees
   if (mood?.kind === "cheer" && mood.variant === 2) hopY += Math.max(0, Math.sin(mood.t * 9)) * 0.08 * (mood.t < 0.8 ? 1 : 0)
+  // (My Park, together: a dance bounces on the lo-fi's beat, 72 a minute; a high five rises onto the toes)
+  if (mood?.kind === "dance") {
+    hopY += Math.abs(Math.sin(mood.t * Math.PI * 1.2)) * 0.045
+    crouch = Math.max(crouch, 0.06 + 0.05 * Math.abs(Math.sin(mood.t * Math.PI * 1.2)))
+  }
+  if (mood?.kind === "highfive") hopY += Math.max(0, Math.sin(Math.min(1, mood.t / 0.9) * Math.PI)) * 0.05
 
   // standing still: weight shifts slowly from foot to foot; ready at the net, a light bounce
   const still = 1 - clamp(speed / 0.5, 0, 1)
@@ -747,6 +754,40 @@ export const updateAnim = (a, s, dt) => {
       const sway = Math.sin(mood.t * 11) * 0.12
       mp = { hand: V(0.34 + sway, 1.72, 0.22), axis: norm(V(0.15 + sway, 1, 0.15)), off: V(-0.22, 0.95, 0.08), pole: V(1, -0.3, -0.2) }
       lookAt = add(add(ground, V(0, 1.6, 0)), mul(fr.f, 3))
+    } else if (mood.kind === "hold") {
+      // hand in hand (My Park, together): the near hand out low toward the other one, the far
+      // arm loose. variant 0: they're on the paddle hand's side; 1: on the other side
+      const swing = Math.sin(a.t * 3.1) * 0.03 * clamp(speed / 1.4, 0, 1)
+      if (v === 0) mp = { hand: V(0.42, 0.9, 0.06 + swing), axis: norm(V(0.2, -1, 0.1)), off: V(-0.2, 0.86, 0.03 - swing), pole: V(0.6, -0.4, -0.6), offPole: V(-0.4, -1, -0.2) }
+      else mp = { hand: V(0.22, 0.86, 0.05 - swing), axis: norm(V(0.05, -1, 0.15)), off: V(-0.42, 0.9, 0.06 + swing), pole: V(0.4, -1, -0.2), offPole: V(-0.6, -0.4, -0.6) }
+    } else if (mood.kind === "hug") {
+      // arms round each other at the shoulders, head turned a little
+      const k = clamp(mood.t / 0.5, 0, 1)
+      mp = { hand: V(0.1 + 0.12 * (1 - k), 1.36, 0.3 + 0.08 * k), axis: norm(V(-0.4, 0.2, -0.6)), off: V(-0.12 - 0.1 * (1 - k), 1.22, 0.32 + 0.06 * k), pole: V(1, -0.1, -0.2), offPole: V(-1, -0.2, -0.2) }
+      lookAt = add(add(ground, V(0.5, 1.5, 0)), mul(fr.f, 2))
+    } else if (mood.kind === "highfive") {
+      // a paddle tap up high: up and back, then forward to meet theirs in the middle
+      const k = clamp((mood.t - 0.25) / 0.3, 0, 1)
+      mp = { hand: V(0.08, 1.74 + 0.08 * (1 - k), 0.12 + 0.28 * k), axis: norm(V(0, 0.4, 1)), off: V(-0.22, 0.98, 0.1), pole: V(1, -0.6, -0.2) }
+      lookAt = add(add(ground, V(0, 1.8, 0)), mul(fr.f, 1.5))
+    } else if (mood.kind === "twirl") {
+      // variant 0: the one turning, a hand up over the head; 1: the other, holding that hand up
+      if (v === 0) mp = { hand: V(0.24, 0.92, 0.08), axis: norm(V(0.1, -1, 0.1)), off: V(-0.06, 2.0, 0.08), pole: V(0.6, -1, -0.2), offPole: V(-1, 0.2, 0) }
+      else mp = { hand: V(0.24, 0.92, 0.1), axis: norm(V(0.1, -1, 0.1)), off: V(-0.05, 1.92, 0.34), pole: V(0.6, -1, -0.2), offPole: V(-1, -0.2, 0) }
+      lookAt = add(add(ground, V(0, 1.6, 0)), mul(fr.f, 2))
+    } else if (mood.kind === "dance") {
+      // to the beat: the arms swing in turn, a little different for each of the two
+      const b = mood.t * Math.PI * 1.2
+      const s1 = Math.sin(b)
+      const s2 = Math.sin(b + (v ? 1.2 : 0))
+      mp = { hand: V(0.3 + 0.08 * s2, 1.12 + 0.24 * s1, 0.24), axis: norm(V(0.2 * s1, 1, 0.3)), off: V(-0.3 - 0.08 * s2, 1.12 - 0.24 * s1, 0.24), pole: V(1, -0.6, -0.3), offPole: V(-1, -0.6, -0.3) }
+      lookAt = add(add(ground, V(0.3 * s1, 1.6, 0)), mul(fr.f, 2))
+    } else if (mood.kind === "selfie") {
+      // (nobody holds a phone: the picture takes itself) variant 0: a peace sign by the face,
+      // the paddle down; 1: a wave with the free hand, the paddle down
+      if (v === 0) mp = { hand: V(0.24, 0.94, 0.08), axis: norm(V(0.1, -1, 0.1)), off: V(-0.18, 1.62, 0.16), pole: V(0.6, -1, -0.2), offPole: V(-0.8, -0.5, -0.2) }
+      else mp = { hand: V(0.24, 0.94, 0.08), axis: norm(V(0.1, -1, 0.1)), off: V(-0.32 + Math.sin(mood.t * 9) * 0.06, 1.6, 0.16), pole: V(0.6, -1, -0.2), offPole: V(-1, -0.4, -0.2) }
+      lookAt = add(add(ground, V(0, 1.55, 0)), mul(fr.f, 3))
     } else if (v === 0) {
       // hands on the hips (where the hips are, whatever the posture), head down
       mp = { hand: toStd(V(0.25, 0.98, -0.02)), axis: norm(V(0.3, -0.6, -0.7)), off: toStd(V(-0.25, 0.98, -0.02)), pole: V(1, -0.3, -0.2) }

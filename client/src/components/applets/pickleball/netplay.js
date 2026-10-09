@@ -32,10 +32,12 @@ const at = (list, i) => (i >= 0 ? list[i] : null)
 
 // Who plays where: seats alternate teams (seat 0 and 2 on the near side), computer players
 // fill doubles. people: [{ seat, name, look, character }]. Returns roster entries for createMatch.
-export const onlineRoster = (people, { doubles, level = "intermediate" }) => {
+// together: two people on one side against two computers (My Park > Together > Mixed doubles)
+export const onlineRoster = (people, { doubles, level = "intermediate", together = false }) => {
   const sorted = [...people].sort((a, b) => a.seat - b.seat)
   const teams = [[], []]
-  sorted.forEach((p, i) => teams[i % 2].push(p))
+  if (together && sorted.length === 2) teams[0].push(...sorted)
+  else sorted.forEach((p, i) => teams[i % 2].push(p))
   const size = doubles || sorted.length > 2 ? 2 : 1
   const roster = []
   for (const team of [0, 1]) {

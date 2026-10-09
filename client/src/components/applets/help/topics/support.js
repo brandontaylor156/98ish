@@ -492,7 +492,7 @@ export const topics = [
         },
       },
       "Chess's puzzles (its Puzzles tab) come from the Lichess puzzle database (public domain) and are built into 98ish: solving them never contacts Lichess, and your puzzle rating and history stay on this device.",
-      "Pickleball 98's real venues in My Park are built from OpenStreetMap data (© OpenStreetMap contributors, ODbL) that ships inside 98ish: choosing a venue never contacts OpenStreetMap or any map service, and 98ish never asks where you are. Online, the 98ish server only learns which venue you picked (so friends at the same venue meet) and your position inside it, as with Riverside Park.",
+      "Pickleball 98's real venues in My Park are built from OpenStreetMap data (© OpenStreetMap contributors, ODbL) that ships inside 98ish: choosing a venue never contacts OpenStreetMap or any map service, and 98ish never asks where you are. Online, the 98ish server only learns which venue you picked (so friends at the same venue meet) and your position inside it, as with Riverside Park. **Together** (holding hands, a selfie, date night...) only works between two signed-on people, after the other says yes; the server passes the ask and the yes and who's walking with whom (kept in memory while you're in the park), never a picture: each device takes its own selfie and keeps it in My Pictures, and only the one who asked puts it in your shared album and, for a couple, Our Story.",
       "98ish has no ads, analytics or tracking scripts, and sells nothing to anyone.",
     ],
     related: ["privacy-overview", "privacy-server", "push-setup", "messenger-calls"],
@@ -505,7 +505,7 @@ export const topics = [
     keywords: ["couples privacy", "Us privacy", "love letters privacy", "unpair", "partner", "who can see"],
     body: [
       "Everything you share in **Us** (Love Letters, Our Story and its photos, flowers, Our Pet, Dream House, couple quizzes, and your Us calendar) can only be seen by your two 98 Messenger accounts. Anyone else asking the server for it is turned away.",
-      { list: ["**Sealed letters** stay sealed on the server until their day: not even the person they're for can open them early.", "Your **Us calendar** is visible only while you're paired.", "Your partner can always visit your Sunny Acres town."] },
+      { list: ["**Sealed letters** stay sealed on the server until their day: not even the person they're for can open them early.", "Your **Us calendar** is visible only while you're paired.", "Your partner can always visit your Sunny Acres town.", "**Pickleball 98's My Park > Together** adds small memories to Our Story by itself: a selfie (a small copy of the picture), a date night or a sunset at a venue, and a new best rally for the two of you (kept as one number). At most 60 of these are kept (the oldest go first); you can edit or delete them like any moment. They're couple things like the rest: only the two of you see them, and they go with Unpair and Delete My Account."] },
       { h: "Unpairing" },
       "In Us you can **Unpair**. That hides everything you share right away, for both of you. It's kept for 30 days in case you pair up again, then deleted for good. To delete it immediately, tick **Delete our letters, story and photos now** when you unpair.",
       { h: "If one of you deletes their account" },

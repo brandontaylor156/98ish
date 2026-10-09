@@ -79,7 +79,9 @@
 //                                                  and the couple's weekly goals deleted; help
 //                                                  and gifts already given read "(deleted account)"
 //   couples     couples, coupleitems               every pairing (also pending and ended ones) and
-//                                                  everything the couple kept: letters, Our Story,
+//                                                  everything the couple kept: letters, Our Story
+//                                                  (with My Park's memories: selfies, date nights,
+//                                                  sunsets, the couple's best rally, "parkbest"),
 //                                                  photos, flowers, Our Pet. Couple things are only
 //                                                  ever visible to the pair while paired, so once
 //                                                  one of them is gone nobody can see them; they

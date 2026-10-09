@@ -183,7 +183,15 @@ const MomentCard = ({ moment, index, focused, onEdit, onDelete, onPhoto }) => {
         <Sticker mood={moment.mood} size={30} />
       </span>
       <div className="osCard">
-        <div className="osDate">{dayLabel(moment.date)}</div>
+        <div className="osDate">
+          {dayLabel(moment.date)}
+          {moment.auto === "park" && (
+            <span className="osAuto" title="Added by Pickleball 98's My Park (Together)">
+              {" "}
+              · from My Park
+            </span>
+          )}
+        </div>
         <h3 className="osTitle">{moment.title}</h3>
         {moment.location && <div className="osPlace">📍 {moment.location}</div>}
         {moment.text && <p className="osText">{moment.text}</p>}

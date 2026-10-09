@@ -19,6 +19,9 @@ const TIMES = ["now", "morning", "midday", "golden", "night"]
 // "drill": two friends drilling together (client practice/coop.js), always two people
 const MODES = ["match", "drill"]
 const DRILLS = ["dinks", "drops", "volleys", "serve", "rally"]
+// who plays with whom: "split" (seats alternate sides, the usual) or "us" (everyone in the room on
+// one side, computers on the other: client netplay.js onlineRoster)
+const TEAMS = ["split", "us"]
 
 const defaultSettings = { format: "singles", target: 11, scoring: "sideout", venue: "stadium" }
 
@@ -54,6 +57,11 @@ module.exports = {
       if (!TIMES.includes(s.tod)) return { error: "Pick a time of day." }
       out.tod = s.tod
     }
+    // "us": two people on one side against the computers (My Park > Together > Mixed doubles)
+    if (s.teams !== undefined) {
+      if (!TEAMS.includes(s.teams)) return { error: "Pick who plays with whom." }
+      out.teams = s.teams
+    }
     if (s.mode !== undefined) {
       if (!MODES.includes(s.mode)) return { error: "Pick a match or a drill." }
       if (s.mode === "drill") {
@@ -63,6 +71,8 @@ module.exports = {
         out.format = "singles"
       }
     }
+    // (a side of two is doubles, and never a drill)
+    if (out.teams === "us" && (out.format !== "doubles" || out.mode === "drill")) delete out.teams
     return out
   },
   // Quick Match pairs people who want the same game (a drill: the same drill); the venue and

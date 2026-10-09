@@ -1,0 +1,243 @@
+/* My Park > Together (useTogether.jsx): the button, its sheet, the ask card, the selfie */
+
+.pkTgCol {
+  display: flex;
+  flex-direction: column;
+  align-items: inherit;
+  gap: 6px;
+}
+
+.pkTgBtn,
+.pkTgStop {
+  display: flex !important;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 120px !important;
+  min-height: 48px;
+  padding: 4px 12px !important;
+  line-height: 1.15;
+}
+
+.pkTgBtn {
+  flex-direction: row;
+  gap: 6px;
+  background: #ffe3ef !important;
+}
+
+.pkTgBtn small,
+.pkTgStop small {
+  font-size: 11px;
+  max-width: 120px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pkTgBtn small {
+  opacity: 0.8;
+}
+
+.pkTgStop {
+  min-height: 44px;
+  background: #fff6d6 !important;
+}
+
+/* the sheet: a bottom sheet on a phone */
+.pkTgSheetWrap {
+  align-items: flex-end !important;
+}
+
+.pkTgSheet {
+  width: min(420px, calc(100% - 16px));
+  max-height: 72%;
+  overflow-y: auto;
+  margin-bottom: 8px;
+  padding: 10px !important;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.pkTgGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin: 8px 0;
+}
+
+.pkTgGrid.is-small {
+  grid-template-columns: 1fr 1fr;
+}
+
+.pkTgItem {
+  display: flex !important;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-height: 52px;
+  padding: 6px 4px !important;
+  text-align: center;
+  line-height: 1.15;
+}
+
+.pkTgItem.is-big {
+  min-height: 78px;
+}
+
+.pkTgItem.is-on {
+  background: #ffe9b0 !important;
+  outline: 2px solid #c08a00;
+}
+
+.pkTgItem b {
+  font-size: 13px;
+}
+
+.pkTgItem small {
+  font-size: 11px;
+  opacity: 0.75;
+}
+
+.pkTgIcon {
+  font-size: 22px;
+  line-height: 1;
+}
+
+.pkTgItem:not(.is-big) .pkTgIcon {
+  font-size: 18px;
+}
+
+.pkTgHint {
+  margin: 6px 0 0;
+  font-size: 11px;
+  opacity: 0.7;
+  text-align: center;
+}
+
+/* an ask: top of the screen, clear of the menu button and the mic */
+.pkTgAsk {
+  position: absolute;
+  top: 100px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 16;
+  width: min(340px, calc(100% - 24px));
+  max-width: none;
+  height: auto !important;
+  padding: 10px 12px !important;
+  text-align: center;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.pkTgAsk p {
+  margin: 0 0 10px;
+  font-size: 15px;
+  font-weight: bold;
+}
+
+.pkTgAskRow {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+.pkTgAskRow button {
+  min-width: 110px;
+  min-height: 46px;
+}
+
+.pkTgNote {
+  position: absolute;
+  top: 100px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 15;
+  max-width: calc(100% - 24px);
+  padding: 8px 14px;
+  border-radius: 18px;
+  background: rgba(20, 24, 40, 0.72);
+  color: #fff;
+  font-size: 13px;
+  text-align: center;
+  pointer-events: none;
+}
+
+/* the selfie: a big count in the middle, then a flash */
+.pkTgSelfie {
+  position: absolute;
+  inset: 0;
+  z-index: 15;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  color: #fff;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+}
+
+.pkTgSelfie b {
+  font-size: 84px;
+  line-height: 1;
+}
+
+.pkTgSelfie small {
+  font-size: 18px;
+}
+
+.pkTgSelfie.is-flash {
+  background: #fff;
+  animation: pkTgFlash 0.6s ease-out forwards;
+}
+
+@keyframes pkTgFlash {
+  from {
+    opacity: 0.95;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pkTgSelfie.is-flash {
+    animation: none;
+    opacity: 0;
+  }
+}
+
+.pkTgPhoto {
+  width: min(360px, calc(100% - 24px));
+  max-height: 88%;
+  overflow-y: auto;
+  padding: 10px !important;
+  text-align: center;
+}
+
+.pkTgPhoto img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 60vh;
+  object-fit: contain;
+  margin: 0 auto 8px;
+}
+
+.pkTgPhoto ul {
+  margin: 0 0 10px;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+}
+
+.pkTgPhoto li::before {
+  content: "✓ ";
+  color: #1a7f37;
+}
+
+.pkTgPhoto button {
+  min-height: 44px;
+  min-width: 120px;
+}

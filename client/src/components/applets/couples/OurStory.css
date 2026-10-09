@@ -565,3 +565,9 @@ button.osPrivate.is-on {
     transition: none;
   }
 }
+
+/* a memory My Park added by itself (Pickleball 98 > My Park > Together) */
+.osAuto {
+  font-style: italic;
+  opacity: 0.75;
+}

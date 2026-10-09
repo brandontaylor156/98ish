@@ -66,7 +66,8 @@ import { COURTS as PARK_COURTS, LEVEL_NAMES as PARK_LEVELS } from "./park/layout
 import { PlaySetup, PlayTabs, VenueSheet, WhereRow } from "./play/PlaySetup"
 import { useVenueBuilds } from "./play/useVenueBuilds.js"
 import { ARENA_IDS, currentPlace, isArena, placeById, placeText } from "./play/places.js"
-import { TIMES, timeAt, validTime } from "./park/timeofday.js"
+import { TIMES, nightOk, timeAt, validTime } from "./park/timeofday.js"
+import { useTogether } from "./park/useTogether.jsx"
 // drilling with a friend online (practice/coop.js: the host's match runs it)
 import { COOP_DRILLS, coopById, createCoop } from "./practice/coop.js"
 import { CoopHud, cleanCoopSnap } from "./practice/CoopHud"
@@ -423,6 +424,13 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
     save(PREFS_KEY, next)
     engineRef.current?.setSettings(engineSettings(next))
   }
+  // My Park > Together (park/useTogether.jsx): things to do with your partner or a buddy there
+  const together = useTogether({ world: parkWorld, hud: parkHud, venueName: parkWorld?.layout?.name || "My Park", nightOk: nightOk(placeById(parkWorld?.venue, prefs)), prefs, setPrefs, aim, active: !!parkWorld })
+  // (a co-op rally from My Park: the best streak, for the couple's record when you leave)
+  useEffect(() => {
+    const pg = parkGameRef.current
+    if (coop?.best && pg?.together === "rally") pg.best = Math.max(pg.best || 0, coop.best)
+  }, [coop])
   const setTour = (t) => {
     setTourState(t)
     save(TOUR_KEY, t)
@@ -540,7 +548,7 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
       }
       const mine = e.youWon ? e.score[e.winner] : e.score[1 - e.winner]
       const theirs = e.youWon ? e.score[1 - e.winner] : e.score[e.winner]
-      setParkUi((u) => ({ ...u, result: { won: !!e.youWon, score: [mine, theirs], earned, rep: kept } }))
+      setParkUi((u) => ({ ...u, result: { won: !!e.youWon, score: [mine, theirs], earned, rep: kept, ...(pg.together === "team" ? { vs: "the computers, the two of you together" } : {}) } }))
       return
     }
     if (s?.kind === "online") {
@@ -978,6 +986,12 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
     const w = parkRef.current
     const e = engineRef.current
     if (!w || !e) return
+    // (back from rallying together: how long you kept it going)
+    const was = parkGameRef.current
+    if (was?.together === "rally" && was.best > 0 && !was.told) {
+      was.told = true
+      together.rallyDone(was.best)
+    }
     parkGameRef.current = null
     reset()
     setTrain(null)
@@ -1055,10 +1069,13 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
     const w = parkRef.current
     const e = engineRef.current
     if (!w || !e) return
+    // (Together's asks, answers and moments: park/useTogether.jsx)
+    if (together.onEvent(ev)) return
     if (ev.type === "turn") {
       if (ev.kind === "room") {
-        // (the room's own state starts the game: startOnlineEngine)
-        parkGameRef.current = { court: ev.court, kind: "room", level: ev.level }
+        // (the room's own state starts the game: startOnlineEngine; together: mixed doubles
+        // vs the computers, or a co-op rally)
+        parkGameRef.current = { court: ev.court, kind: "room", level: ev.level, together: ev.together || null }
         return
       }
       setParkUi((u) => ({ ...u, menu: false, turn: { ...ev, name: PARK_COURTS[ev.court]?.name || "court", levelName: PARK_LEVELS[ev.level] || "Club" } }))
@@ -1203,7 +1220,9 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
     const people = room.seats.map((s, seat) => (s && !s.bot ? { seat, name: s.name, ...(hellos.current.get(seat) || {}) } : null)).filter(Boolean)
     const settings = { ...ONLINE_DEFAULTS, ...room.settings }
     const drill = settings.mode === "drill" ? coopById(settings.drill).id : null
-    const start = { people, settings: { doubles: !drill && settings.format === "doubles", target: settings.target, scoring: settings.scoring, venue: settings.venue, tod: validTime(settings.tod), ...(drill ? { mode: "drill", drill } : {}) }, seed: (Math.random() * 1e9) | 0 }
+    // (My Park > Together > Mixed doubles: the two of you on one side, the computers at the court's level)
+    const us = !drill && settings.teams === "us" ? { teams: "us", level: PARK_LEVELS[parkGameRef.current?.level] ? parkGameRef.current.level : "intermediate" } : {}
+    const start = { people, settings: { doubles: !drill && settings.format === "doubles", target: settings.target, scoring: settings.scoring, venue: settings.venue, tod: validTime(settings.tod), ...(drill ? { mode: "drill", drill } : {}), ...us }, seed: (Math.random() * 1e9) | 0 }
     netStarted.start = start
     o.sendRelay({ type: "start", ...start })
     startOnlineEngine({ role: "host", seat: room.you, ...start, send: { snap: o.sendSnap, relay: (d, to) => o.sendRelay(d, to) } })
@@ -1778,8 +1797,10 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
             onAction={() => parkRef.current?.action()}
             onCam={() => parkRef.current?.cycleCam()}
             onMenu={() => setParkUi((u) => ({ ...u, menu: true }))}
+            extra={together.button}
           />
         )}
+        {screen === "park" && phase === "world" && parkWorld && !parkUi.menu && !parkUi.turn && together.overlays}
         {screen === "park" && phase === "world" && parkWorld && liveCourt && !parkUi.menu && !parkUi.turn && !parkUi.intro && (
           <div className="pkPanel window pkParkLive" data-park-live>
             <span>

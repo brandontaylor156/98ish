@@ -25,6 +25,9 @@
 //   POST   /api/couples/photos              { data, private } -> { id }
 //   GET    /api/couples/photos              ids; GET|PATCH|DELETE /api/couples/photos/:id
 //   GET    /api/couples/flowers             POST /api/couples/flowers, POST .../:id/water, DELETE .../:id
+//   GET    /api/couples/park                { best } the couple's longest rally in My Park
+//   POST   /api/couples/park                { memory: { kind, venue, date, streak?, photo?, golden? } }
+//                                           a memory from My Park > Together into Our Story
 // Live notices go to the partner's 98 Messenger socket: couple:update, couple:request,
 // couple:letter, couple:letter-opened, couple:flowers, couple:watered, couple:story.
 //
@@ -51,6 +54,11 @@ const MAX_BOUQUETS = 20
 const MAX_SERIES = 14
 const WILT_DEAD_MS = 5 * DAY // a bouquet nobody watered this long can't be saved
 
+// memories My Park adds to Our Story by itself (POST /api/couples/park)
+const PARK_KINDS = ["selfie", "rally", "datenight", "sunset"]
+const PARK_MOODS = { selfie: "love", rally: "star", datenight: "cozy", sunset: "cozy" }
+const PARK_MAX = 60
+const PARK_SELFIES_A_DAY = 6
 const STATIONERY = ["parchment", "hearts", "floral", "notepad"]
 const ENVELOPES = ["rose", "blush", "lavender", "sky", "mint", "cream"]
 const LETTER_FONTS = ["script", "typewriter", "print", "pixel"]
@@ -405,6 +413,8 @@ const momentView = (item, photos) => ({
   updatedBy: item.data.updatedByName,
   createdAt: item.createdAt,
   updatedAt: item.updatedAt,
+  // (added by My Park: "park", with which kind)
+  ...(item.data.auto ? { auto: item.data.auto, parkKind: item.data.parkKind || null } : {}),
 })
 
 const bouquetView = (item, me) => ({
@@ -784,7 +794,9 @@ const couplesRouter = ({ service = defaultService() } = {}) => {
         const data = cleanMoment(request.body?.moment)
         await attachPhotos(store, couple, item.id, data.photos, item.data.photos)
         const now = service.clock()
-        const updated = await store.items.update(couple.id, item.id, { data: { ...data, byName: item.data.byName, updatedByName: couple.meName }, size: bytes(data) + 200, updatedAt: now })
+        // (a memory My Park added stays one when it's edited)
+        const auto = item.data.auto ? { auto: item.data.auto, parkKind: item.data.parkKind } : {}
+        const updated = await store.items.update(couple.id, item.id, { data: { ...data, ...auto, byName: item.data.byName, updatedByName: couple.meName }, size: bytes(data) + 200, updatedAt: now })
         service.emitTo(couple.partner, "couple:story", { by: couple.meName, moment: item.id })
         return { moment: momentView(updated, await photosOf(store, couple)) }
       },
@@ -802,6 +814,84 @@ const couplesRouter = ({ service = defaultService() } = {}) => {
         await store.items.remove(couple.id, item.id)
         service.emitTo(couple.partner, "couple:story", { by: couple.meName })
         return { removed: true }
+      },
+      { write: true }
+    )
+  )
+
+  // ---- memories from My Park (Pickleball 98 > My Park > Together) ----
+  // A selfie, a new best rally, a date night or a sunset at a venue adds a small moment to Our
+  // Story by itself (data.auto = "park"). Kept small: at most PARK_MAX of them (the oldest go
+  // first, with their photo), one date night / sunset per venue a day, a rally only when it
+  // beats the couple's best (kept as one "parkbest" item), a few selfies a day.
+  const bestId = (couple) => `parkbest${couple.id}`
+  const parkMoments = async (store, couple) => (await store.items.list(couple.id, "moment")).filter((m) => m.data.auto === "park")
+  const dropMoment = async (store, couple, m) => {
+    for (const id of m.data.photos || []) await store.items.remove(couple.id, id)
+    await store.items.remove(couple.id, m.id)
+  }
+
+  router.get(
+    "/park",
+    handle(async (request, session, store) => {
+      const couple = coupleOf(session)
+      const best = await store.items.get(couple.id, bestId(couple))
+      return { best: best?.data.best || 0, bestAt: best?.data.at || null, bestVenue: best?.data.venue || "" }
+    })
+  )
+
+  router.post(
+    "/park",
+    // paired before the (selfie-sized) body is read
+    (request, response, next) => (service.pairedWith(request.coupleSession.key) ? next() : response.status(403).json({ ok: false, error: "You're not paired with anyone." })),
+    big,
+    handle(
+      async (request, session, store) => {
+        const couple = coupleOf(session)
+        const input = request.body?.memory || {}
+        const kind = v.pick(input.kind, PARK_KINDS, null, "That memory")
+        if (!kind) v.fail("That memory isn't one My Park keeps.")
+        const venue = v.text(input.venue, { max: 60, min: 1, label: "The venue", lines: false })
+        const date = v.date(input.date, { label: "The day" })
+        const mine = await parkMoments(store, couple)
+        const same = (m) => m.data.parkKind === kind && m.data.location === venue && m.data.date === date
+        let streak = 0
+        if (kind === "rally") {
+          streak = Number(input.streak)
+          if (!Number.isInteger(streak) || streak < 1 || streak > 9999) v.fail("That streak isn't a number of shots.")
+          const best = await store.items.get(couple.id, bestId(couple))
+          if (best && best.data.best >= streak) return { best: best.data.best, record: false }
+          const data = { best: streak, venue, at: service.clock() }
+          if (best) await store.items.update(couple.id, best.id, { data, updatedAt: service.clock() })
+          else await store.items.insert({ id: bestId(couple), coupleId: couple.id, kind: "parkbest", by: couple.me, data, blob: null, size: bytes(data), createdAt: service.clock(), updatedAt: service.clock() })
+          // (one record moment: the old record's moment makes way for the new one)
+          for (const m of mine.filter((m) => m.data.parkKind === "rally")) await dropMoment(store, couple, m)
+        } else if (kind === "selfie") {
+          if (mine.filter((m) => m.data.parkKind === "selfie" && m.data.date === date).length >= PARK_SELFIES_A_DAY) v.fail("That's a lot of selfies for one day! They're still in your Photos.")
+        } else {
+          const had = mine.find(same)
+          if (had) return { moment: momentView(had, await photosOf(store, couple)), duplicate: true }
+        }
+        const picture = kind === "selfie" && input.photo ? v.image(input.photo, "The selfie") : null
+        const title = kind === "selfie" ? `Selfie at ${venue}` : kind === "rally" ? `New rally record: ${streak} in a row` : kind === "datenight" ? `Date night at ${venue}` : `Watched the sunset at ${venue}`
+        const text = kind === "rally" ? `Our longest rally yet, at ${venue}.` : input.golden === true && kind === "selfie" ? "Golden hour." : ""
+        const moment = { date, title, text, location: venue, mood: PARK_MOODS[kind], photos: [], auto: "park", parkKind: kind }
+        await fits(store, couple, bytes(moment) + (picture ? picture.data.length : 0))
+        if ((await store.items.list(couple.id, "moment")).length >= MAX_MOMENTS) v.fail(`Your story has ${MAX_MOMENTS} moments already. What a story!`)
+        // (the cap: the oldest park memories go)
+        const still = await parkMoments(store, couple)
+        for (const m of still.slice(0, Math.max(0, still.length - (PARK_MAX - 1)))) await dropMoment(store, couple, m)
+        const now = service.clock()
+        const id = newId()
+        if (picture) {
+          const photo = { id: newId(), coupleId: couple.id, kind: "photo", by: couple.me, data: { momentId: id, private: false }, blob: picture.data, size: picture.data.length + 100, createdAt: now, updatedAt: now }
+          await store.items.insert(photo)
+          moment.photos = [photo.id]
+        }
+        const item = { id, coupleId: couple.id, kind: "moment", by: couple.me, data: { ...moment, byName: couple.meName, updatedByName: couple.meName }, blob: null, size: bytes(moment) + 200, createdAt: now, updatedAt: now }
+        await store.items.insert(item)
+        service.emitTo(couple.partner, "couple:story", { by: couple.meName, moment: id })
+        return { moment: momentView(item, await photosOf(store, couple)), ...(kind === "rally" ? { best: streak, record: true } : {}) }
       },
       { write: true }
     )
