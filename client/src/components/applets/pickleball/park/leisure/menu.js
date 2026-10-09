@@ -26,6 +26,8 @@ export const ITEMS = {
   fries: { name: "Fries", icon: "🍟", price: 6, kind: "food", held: "fries", sips: 5 },
   tacos: { name: "Fish tacos", icon: "🌮", price: 12, kind: "food", held: "taco", sips: 4 },
   wrap: { name: "Chicken wrap", icon: "🌯", price: 11, kind: "food", held: "wrap", sips: 5 },
+  // (Explore's warehouse club, client/src/roam/life/catalog.js: the food court's combo; on no menu here)
+  hotdog: { name: "Hot dog", icon: "🌭", price: 2, kind: "food", held: "hotdog", sips: 4 },
   // the machine
   fizz: { name: "Fizz (orange soda)", short: "Fizz", icon: "🥤", price: 3, kind: "drink", held: "can", color: "#ff8a1f", sips: 5, machine: true },
   limepop: { name: "Lemon-lime pop", icon: "🥤", price: 3, kind: "drink", held: "can", color: "#7ccf4a", sips: 5, machine: true },

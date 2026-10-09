@@ -117,6 +117,15 @@ const MAKERS = {
     }
     return g
   },
+  // a hot dog in its bun with a line of mustard (Explore's warehouse club food court)
+  hotdog: () => {
+    const g = new THREE.Group()
+    const bun = mesh(geo("hdBun", () => new THREE.CapsuleGeometry(0.03, 0.12, 4, 10)), mat("#d9a25a"), 0, 0.03, 0)
+    g.add(bun)
+    g.add(mesh(geo("hdDog", () => new THREE.CapsuleGeometry(0.018, 0.15, 4, 8)), mat("#a8452c"), 0, 0.03, 0.02))
+    g.add(mesh(geo("hdMustard", () => new THREE.BoxGeometry(0.008, 0.13, 0.006)), mat("#f2c81a"), 0, 0.03, 0.04))
+    return g
+  },
   wrap: () => {
     const g = new THREE.Group()
     g.add(mesh(geo("wrap", () => cyl(0.03, 0.03, 0.16, 12)), mat("#e9d6a6"), 0, 0.02, 0))
