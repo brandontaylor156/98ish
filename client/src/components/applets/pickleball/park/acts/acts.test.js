@@ -392,3 +392,36 @@ test("stats: what each activity adds, fitness levels, your player's gains", asyn
   assert.equal(S.fitnessOf(st, now + 9 * 3600_000).name, "Fit")
   assert.equal(S.gainsLook({ build: "slim" }, st, { now: now + 9 * 3600_000 }).build, "regular", "fit: for good")
 })
+
+test("TV: what's on (friends' live games, your videos, YouTube together), where you sit", async () => {
+  const T = await import("./tv.js")
+  // the channels: never a broadcast; YouTube together needs 98 Messenger
+  assert.deepEqual(T.channelsFor({}).map((c) => c.id), ["live", "videos", "together"])
+  assert.ok(T.channelsFor({ signedOn: false }).find((c) => c.id === "together").disabled)
+  assert.equal(T.channelsFor({ signedOn: true, pal: { name: "Ava" } }).find((c) => c.id === "together").label, "💞 With Ava")
+  // live: this venue's game first; nobody live: says so
+  const live = T.listFor("live", { venue: "loscab", venueName: () => "SMASH", live: [{ id: "a1", host: "Ben", venue: "smash", courtName: "Court 2" }, { id: "b2", host: "Ava", venue: "loscab" }] })
+  assert.deepEqual(live.list.map((x) => x.id), ["b2", "a1"])
+  assert.equal(live.list[0].sub, "Here")
+  assert.equal(live.list[1].sub, "SMASH · Court 2")
+  assert.ok(live.list.every((x) => x.live))
+  assert.match(T.listFor("live", { live: [] }).msg, /Nobody's live/)
+  // your videos: what's on drive C: (no file, no item)
+  const vids = T.listFor("videos", { videos: [{ key: "k1", title: "Highlights", duration: 75, file: {} }, { key: "k2", title: "Gone" }] })
+  assert.deepEqual(vids.list.map((x) => [x.id, x.sub]), [["k1", "1:15"]])
+  assert.match(T.listFor("videos", { videos: [] }).msg, /My Videos/)
+  assert.match(T.listFor("together", { signedOn: false }).msg, /sign on/)
+  assert.match(T.listFor("together", { signedOn: true, pal: { name: "Ava" } }).msg, /Ava gets a Join button/)
+  // the seat: in front of the set, turned toward it, free, within reach
+  const tv = { x: 0, y: 2, z: 0, a: 0 } // facing +z
+  const spot = { x: 0, z: 2.6, y: 0 }
+  const seats = [
+    { id: "behind", x: 0, z: -2, y: 0.47, yaw: Math.PI },
+    { id: "away", x: 0.5, z: 3, y: 0.47, yaw: 0 },
+    { id: "good", x: -0.6, z: 3.2, y: 0.47, yaw: Math.PI },
+    { id: "taken", x: 0, z: 2.8, y: 0.47, yaw: Math.PI },
+    { id: "upstairs", x: 0, z: 2.7, y: 5.4, yaw: Math.PI },
+  ]
+  assert.equal(T.seatFor(tv, spot, seats, (id) => id === "taken").id, "good")
+  assert.equal(T.seatFor(tv, spot, seats.slice(0, 2), () => false), null, "nowhere to sit: you stand")
+})

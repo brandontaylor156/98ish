@@ -1850,11 +1850,21 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
   // the view itself unchanged. 2026-10-09: "my hand is in the way")
   const LENS_SHIFT = 0.16
   let lensShift = 0
-  const setLensShift = (k) => {
-    if (Math.abs(k - lensShift) < 1e-4) return
+  // (three.js's setViewOffset also sets the camera's aspect to fullWidth / fullHeight: the
+  // offset is given in the picture's own pixels so the aspect stays the screen's. It was
+  // 1000 x 1000, which made the aspect 1 and stretched an upright phone's picture sideways,
+  // fixed 2026-10-09; resize() puts it back on with the new size)
+  const setLensShift = (k, force = false) => {
+    if (!force && Math.abs(k - lensShift) < 1e-4) return
     lensShift = k
-    if (k) camera.setViewOffset(1000, 1000, 0, 1000 * k, 1000, 1000)
-    else camera.clearViewOffset()
+    const w = size.width || 1
+    const h = size.height || 1
+    if (k) camera.setViewOffset(w, h, 0, h * k, w, h)
+    else {
+      camera.clearViewOffset()
+      camera.aspect = w / h
+      camera.updateProjectionMatrix()
+    }
   }
   const updateCamera = (dt) => {
     const por = portrait()
@@ -2387,6 +2397,7 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
       size = { width: Math.max(1, width), height: Math.max(1, height) }
       camera.aspect = size.width / size.height
       camera.updateProjectionMatrix()
+      if (lensShift) setLensShift(lensShift, true)
     },
     // the move pad: x right, y up the pad (forward), each -1..1
     setStick(x, y) {

@@ -4,6 +4,7 @@ import { useNet } from "../../../network/NetContext"
 import { ActHud } from "./ActivityHud.jsx"
 import { addStats, fitnessOf } from "./stats.js"
 import { MOVES, MOVE_IDS } from "./workout.js"
+import { VENUE_LIST } from "../venues/index.js"
 import "./acts.css"
 
 // My Park activities (the owner: "other fun activities to do at each venue"): the context
@@ -167,7 +168,9 @@ export const useActivities = ({ world, prefs, setPrefs, aim, mobile = false, sho
         r = createWorkoutRun({ spot, mode: opts.mode || "daily", move: opts.move || prefsRef.current.actMove || null, link: opts.link || null, mate: opts.link ? { name: opts.link.name, look: opts.link.look } : null, seed: opts.link?.seed, camera: !!opts.camera, stats: prefsRef.current.actStats || {} })
       } else if (spot.kind === "tv") {
         const { createTvRun } = await import("./tvRun.js")
-        r = createTvRun({ spot, channel: opts.channel || "live" })
+        // (who's live right now, anywhere: Live Broadcast's list)
+        const got = await Promise.race([net?.request?.("bc:list", {}), new Promise((res) => setTimeout(() => res(null), 4000))]).catch(() => null)
+        r = createTvRun({ spot, channel: opts.channel || "live", live: got?.ok ? got.live || [] : [], pal: opts.pal || null, signedOn: aim?.status === "online", venueName: (id) => VENUE_LIST.find((v) => v.id === id)?.short || "Another venue" })
       }
     } catch (e) {
       console.error(e)
@@ -185,6 +188,7 @@ export const useActivities = ({ world, prefs, setPrefs, aim, mobile = false, sho
         }
       })
     }
+    r.pal = opts.pal || null
     r.unsub = r.subscribe((h) => setHud(h))
     world.setActivity(r)
     setRun(r)
@@ -205,6 +209,11 @@ export const useActivities = ({ world, prefs, setPrefs, aim, mobile = false, sho
     setHud(null)
   }
 
+  const openTogether = (pal) => {
+    if (aim?.status !== "online" || !aim?.openTogether) return say("Watch Together needs 98 Messenger. Sign on first.")
+    aim.openTogether(pal ? { with: pal.name } : {})
+  }
+
   // ---- the sheet's choices ----
   const choose = async (item) => {
     const s = sheet
@@ -221,20 +230,10 @@ export const useActivities = ({ world, prefs, setPrefs, aim, mobile = false, sho
       return
     }
     if (spot.kind === "tv") {
-      if (item.id === "together" || item.id === "youtube") {
-        setSheet(null)
-        if (aim?.openTogether) aim.openTogether(s.pal ? { with: s.pal.name } : {})
-        else say("Watch Together needs 98 Messenger. Sign on first.")
-        return startRun(spot, { channel: "together" })
-      }
-      if (item.id === "live" && onWatchLive) {
-        setSheet(null)
-        const r = await net?.request?.("bc:list", {})
-        const live = r?.ok ? r.live || [] : []
-        if (!live.length) return startRun(spot, { channel: "nolive" })
-        return startRun(spot, { channel: "live", live })
-      }
-      return startRun(spot, { channel: item.id })
+      setSheet(null)
+      // (YouTube together: Watch Together's own window, with the friend by you; the TV waits on it)
+      if (item.id === "together" || item.id === "youtube") openTogether(s.pal)
+      return startRun(spot, { channel: item.id === "youtube" ? "together" : item.id, pal: s.pal })
     }
     startRun(spot, { mode: item.id, camera: !!s.camera })
   }
@@ -336,10 +335,7 @@ export const useActivities = ({ world, prefs, setPrefs, aim, mobile = false, sho
               stopRun(true)
               onWatchLive?.(it)
             },
-            together: () => {
-              if (aim?.openTogether) aim.openTogether({})
-              else say("Watch Together needs 98 Messenger. Sign on first.")
-            },
+            together: () => openTogether(run.pal || null),
           }}
         />
       )}

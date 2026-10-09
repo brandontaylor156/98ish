@@ -211,52 +211,55 @@ const WorkoutHud = ({ run, hud, onLeave, onAgain, fitness }) => (
 )
 
 // ---- the TV ----
-const TvHud = ({ run, hud, onLeave, actions }) => {
-  const vref = useRef(null)
-  return (
-    <>
-      <div className="pkActTop">
-        <div className="pkActScore">
-          <small className="pkActWhere">{hud.court}</small>
-          <b>📺 {hud.title}</b>
+// (what's on plays on the set itself, in the park: tvRun.js; this is the remote: the
+// channels, what's on each, and pause / stop while a video plays)
+const TvHud = ({ run, hud, onLeave, actions }) => (
+  <>
+    <Top hud={{ court: hud.court, big: `📺 ${hud.title}`, small: hud.seated ? "Sitting in front of the TV" : null }} onLeave={onLeave} />
+    <div className={`pkPanel window pkActTv${hud.playing ? " is-playing" : ""}`} data-act="tv">
+      {hud.playing ? (
+        <div className="pkActTvNow" data-act="tv-now">
+          <span>▶ {hud.playing.name}</span>
+          <button type="button" onClick={() => run.pause?.()} data-act="tv-pause">
+            {hud.playing.paused ? "Play" : "Pause"}
+          </button>
+          <button type="button" onClick={() => run.stopVideo?.()} data-act="tv-stop">
+            Stop
+          </button>
         </div>
-        <button type="button" className="pkActLeave" onClick={onLeave} data-act="leave">
-          Leave
-        </button>
-      </div>
-      <div className={`pkActTv${hud.playing ? " is-playing" : ""}`} data-act="tv">
-        <div className="pkActTvScreen">
-          {hud.playing?.url ? (
-            <video ref={vref} src={hud.playing.url} controls playsInline autoPlay data-act="tv-video" />
-          ) : (
-            <div className="pkActTvMenu">
-              <p>{hud.msg}</p>
-              {hud.list?.length ? (
-                <ul>
-                  {hud.list.map((it) => (
-                    <li key={it.id}>
-                      <button type="button" onClick={() => (it.live ? actions.watchLive?.(it) : run.play?.(it))} data-act={`tv-${it.id}`}>
-                        <b>{it.name}</b>
-                        {it.sub && <small>{it.sub}</small>}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              ) : null}
-            </div>
+      ) : (
+        <div className="pkActTvMenu" data-act="tv-menu">
+          {hud.msg && <p>{hud.msg}</p>}
+          {hud.list?.length ? (
+            <ul>
+              {hud.list.map((it) => (
+                <li key={it.id}>
+                  <button type="button" onClick={() => (it.live ? actions.watchLive?.(it) : run.play?.(it))} data-act={`tv-${it.id}`}>
+                    <b>{it.name}</b>
+                    {it.sub && <small>{it.sub}</small>}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          {hud.channel === "together" && (
+            <button type="button" className="pkPrimary" onClick={() => actions.together?.()} data-act="tv-open-together">
+              Open Watch Together
+            </button>
           )}
         </div>
-        <div className="pkActTvRow">
-          {hud.channels?.map((c) => (
-            <button type="button" key={c.id} className={c.id === hud.channel ? "is-on" : ""} onClick={() => (c.id === "together" ? actions.together?.() : run.channel?.(c.id))} data-act={`ch-${c.id}`}>
-              {c.label}
-            </button>
-          ))}
-        </div>
+      )}
+      <div className="pkActTvRow" role="tablist" aria-label="Channels">
+        {hud.channels?.map((c) => (
+          <button type="button" key={c.id} role="tab" aria-selected={c.id === hud.channel} className={c.id === hud.channel ? "is-on" : ""} disabled={c.disabled} onClick={() => run.channel?.(c.id)} data-act={`ch-${c.id}`}>
+            {c.label}
+          </button>
+        ))}
       </div>
-    </>
-  )
-}
+    </div>
+    {hud.note && <div className="pkActWord" data-act="word">{hud.note}</div>}
+  </>
+)
 
 export const ActHud = ({ run, hud, mobile, showPad, padSide, onLeave, onAgain, fitness, actions = {} }) => {
   const props = { run, hud, mobile, showPad, padSide, onLeave, onAgain, fitness, actions }
