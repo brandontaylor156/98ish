@@ -1572,3 +1572,149 @@ export const seatedPose = (seat, lookAt, signal = null, { drop = 0.72, ahead = 0
     hand: 1,
   }
 }
+
+// ---------- riding a bike or a scooter (the open world: roam/host98.js figure.ride) ----------
+// The owner (2026-10-09): "Scooter animation is not good, it's basically the jogging animation".
+// The rider is fixed to the vehicle: everything is placed in the vehicle's own frame (x right,
+// y up from the ground under it, z forward) and leans with it, so nothing slides.
+// - scooter: standing on the deck, the left foot forward, the right behind it, knees soft, hands
+//   on the bars; speeding up from slow, the back foot kicks the ground (kick 0..1 of a push)
+// - bike: on the saddle, hands on the bars, the feet on the pedals going round with the crank
+// r: { x, y (the ground), z, yaw, lean (rad, the vehicle's roll), kind: "bike" | "scooter",
+//      crank (rad, bike), kick (0..1 through one push, or null) }
+// geometry: the shapes in roam/render/vehicles.js (deck top 0.145; bars at 1.0 / 1.05 m)
+export const RIDE = {
+  scooter: { deck: 0.145, bars: { y: 1.0, z: 0.44, half: 0.22 }, feet: [{ x: -0.06, z: 0.12 }, { x: 0.07, z: -0.22 }], knee: 0.95, lean: 0.3 },
+  bike: { saddle: { y: 0.98, z: -0.22 }, bars: { y: 1.05, z: 0.3, half: 0.25 }, crank: { y: 0.42, z: -0.02, r: 0.17, half: 0.11 }, lean: 0.6 },
+}
+export const ridePose = (r, lookAt = null) => {
+  const kind = r.kind === "bike" ? "bike" : "scooter"
+  const G = RIDE[kind]
+  const fr = frame(r.yaw)
+  const l = r.lean || 0
+  const c = Math.cos(l)
+  const s = Math.sin(l)
+  // vehicle-local (x right, y up, z forward) -> world, rolled with the lean (as the mesh is)
+  const P = (x, y, z) => {
+    const xr = x * c + y * s
+    const yr = -x * s + y * c
+    return V(r.x + fr.r.x * xr + fr.f.x * z, (r.y || 0) + yr, r.z + fr.r.z * xr + fr.f.z * z)
+  }
+  const up = norm(sub(P(0, 1, 0), P(0, 0, 0)))
+  const sr = norm(sub(P(1, 0, 0), P(0, 0, 0)))
+  let pelvis
+  let spine
+  const feet = []
+  if (kind === "scooter") {
+    // the hips over the feet, a little back; the body tipped toward the bars
+    const fz = (G.feet[0].z + G.feet[1].z) / 2
+    // (a kick: the standing knee bends, the hips sink so the back foot reaches the ground)
+    const k = r.kick
+    const sink = k !== null && k !== undefined ? 0.17 * Math.sin(Math.min(1, k / 0.7) * Math.PI) : 0
+    pelvis = P(0, G.deck + BODY.ankle + LEG * G.knee - sink, fz - 0.06 - sink * 0.4)
+    spine = norm(sub(P(0, 1, 0.38), P(0, 0, 0)))
+    for (let i = 0; i < 2; i++) {
+      let f = P(G.feet[i].x, G.deck, G.feet[i].z)
+      let planted = true
+      // (the back foot pushes: down beside the deck, back along the ground, up and forward again)
+      if (i === 1 && r.kick !== null && r.kick !== undefined) {
+        const k = r.kick
+        const side = 0.2
+        if (k < 0.55) {
+          // on the ground, sweeping back
+          const u = k / 0.55
+          f = P(side, 0, 0.05 - 0.55 * u)
+        } else {
+          // up and forward, back onto the deck
+          const u = (k - 0.55) / 0.45
+          f = P(side - (side - G.feet[1].x) * u, 0.2 * Math.sin(u * Math.PI) + G.deck * u, -0.5 + (G.feet[1].z + 0.5) * u)
+          planted = false
+        }
+      }
+      // (the ground doesn't lean with the scooter)
+      if (f.y < (r.y || 0)) f.y = r.y || 0
+      feet.push({ at: f, planted, toe: i === 1 ? 0.35 : 0 })
+    }
+  } else {
+    pelvis = P(0, G.saddle.y, G.saddle.z)
+    spine = norm(sub(P(0, 0.82, 0.57), P(0, 0, 0)))
+    const a = r.crank || 0
+    for (let i = 0; i < 2; i++) {
+      const ang = a + (i ? Math.PI : 0)
+      const x = (i ? 1 : -1) * G.crank.half
+      feet.push({ at: P(x, G.crank.y + Math.sin(ang) * G.crank.r - BODY.ankle * 0.4, G.crank.z + Math.cos(ang) * G.crank.r), planted: false, toe: 0.15 })
+    }
+  }
+  const neck = add(pelvis, mul(spine, BODY.spine))
+  const chestF = norm(cross(spine, sr), fr.f)
+  const shoulderR = add(sub(neck, mul(spine, 0.045)), mul(sr, BODY.shoulderHalf))
+  const shoulderL = add(sub(neck, mul(spine, 0.045)), mul(sr, -BODY.shoulderHalf))
+  const hipR = add(pelvis, mul(sr, BODY.hipHalf))
+  const hipL = add(pelvis, mul(sr, -BODY.hipHalf))
+  // the legs: ankles above the feet, knees forward (and a little out)
+  const legs = [hipL, hipR].map((hip, i) => {
+    const f = feet[i]
+    const ankle = add(f.at, mul(up, BODY.ankle))
+    const ik = twoBone(hip, ankle, BODY.thigh, BODY.shin, norm(add(fr.f, mul(sr, (i ? 1 : -1) * 0.15))))
+    const yaw = r.yaw + (kind === "scooter" ? (i ? 0.35 : 0.12) : 0)
+    return { knee: ik.mid, ankle: ik.end, foot: { x: ik.end.x, y: ik.end.y - BODY.ankle, z: ik.end.z, yaw, pitch: f.toe * (f.planted ? 0 : 1), planted: f.planted } }
+  })
+  // the hands on the bars
+  const B = G.bars
+  const handR = P(B.half, B.y, B.z)
+  const handL = P(-B.half, B.y, B.z)
+  const pole = (side) => norm(add(V(0, -1, 0), mul(sr, side * 0.8)))
+  const armR = twoBone(shoulderR, handR, BODY.upperArm, BODY.forearm, pole(1))
+  const armL = twoBone(shoulderL, handL, BODY.upperArm, BODY.forearm, pole(-1))
+  const head = add(neck, mul(spine, BODY.neck))
+  let look = lookAt ? norm(sub(V(lookAt.x, lookAt.y, lookAt.z), head), fr.f) : norm(add(fr.f, V(0, -0.12, 0)))
+  if (dot(look, fr.f) < 0.2) look = fr.f
+  return {
+    yaw: r.yaw,
+    pelvis,
+    pelvisRight: sr,
+    spine,
+    neck,
+    chestRight: sr,
+    chestForward: chestF,
+    head,
+    look,
+    shoulderL,
+    shoulderR,
+    hipL,
+    hipR,
+    kneeL: legs[0].knee,
+    kneeR: legs[1].knee,
+    ankleL: legs[0].ankle,
+    ankleR: legs[1].ankle,
+    footL: legs[0].foot,
+    footR: legs[1].foot,
+    paddleShoulder: shoulderR,
+    elbowP: armR.mid,
+    wristP: armR.end,
+    elbowO: armL.mid,
+    wristO: armL.end,
+    paddle: { grip: armR.end, axis: norm(add(mul(fr.f, 0.6), V(0, -0.8, 0))), normal: fr.f, face: armR.end },
+    hand: 1,
+  }
+}
+
+// the rider's rhythm from the ride: the crank turning with the wheels (a city gear: ~70 rpm at
+// 20 km/h), and on a scooter a kick when speeding up from slow (under 3.5 m/s, gaining)
+// st: { crank, kick (null or 0..1), last }; ride: { kind, speed, accel }
+export const stepRider = (st, ride, dt) => {
+  if (ride.kind === "bike") {
+    // (coasting fast or braking: the feet stay still)
+    if (ride.accel > -0.5 || ride.speed < 4) st.crank = (st.crank || 0) + (ride.speed / 0.34) * 0.42 * dt
+    st.kick = null
+    return st
+  }
+  const want = ride.speed < 3.5 && ride.accel > 0.3
+  if (st.kick === null || st.kick === undefined) {
+    if (want) st.kick = 0
+  } else {
+    st.kick += dt / 0.85
+    if (st.kick >= 1) st.kick = want ? 0 : null
+  }
+  return st
+}

@@ -46,6 +46,7 @@ const nextPaint = () => new Promise((resolve) => requestAnimationFrame(() => req
 import { ParkHud, ParkIntro, ParkMenu, ParkResult, ParkTurn, RealFriendsBar, VoiceChip } from "./park/ParkHud"
 import { useParkVoice } from "./park/useParkVoice.js"
 import { STICK } from "./park/walkfeel.js"
+import { CameraButton } from "./park/CameraButton.jsx"
 import { createChillMusic } from "./park/chillmusic.js"
 import { badgeText, friendsAt } from "./park/presence.js"
 import { useLiveCourt } from "./twin/live/useLiveCourt.js"
@@ -2135,6 +2136,7 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
               startPark(from)
             }}
             onLeave={() => leaveRoam()}
+            camera={<CameraButton world={roamWorld} className="roamBtn roamWide" />}
             onClose={() => (setRoamUi((u) => ({ ...u, menu: false })), stageRef.current?.focus({ preventScroll: true }))}
           />
         )}
@@ -2159,6 +2161,7 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
             venueName={parkWorld?.layout?.name || "My Park"}
             onVenues={() => (setParkUi((u) => ({ ...u, menu: false })), setParkPick(true))}
             onLeave={leavePark}
+            camera={<CameraButton world={parkRef.current} />}
             onBackdrop={prefs.quality === "low" ? null : () => setParkUi((u) => ({ ...u, menu: false, backdrop: true }))}
             onClone={() => (setParkUi((u) => ({ ...u, menu: false })), setLivingUi((u) => ({ ...u, panel: true })))}
             onTourneys={tourneyState.status === "off" ? null : () => setParkUi((u) => ({ ...u, menu: false, tourney: true }))}

@@ -16,7 +16,7 @@ import { STICK, steerVelocity, turnFacing } from "./walkfeel.js"
 // (snappier 2026-10-09, the owner: "I move, he doesn't, he lags": a light push already walks
 // briskly, you're up to speed in about a third of a second, and a full push runs almost at once)
 export const SPEEDS = { walk: 1.7, jog: 3.4, run: 4.6, sprint: 6.2 }
-export const ACCEL = 14 // m/s^2 speeding up
+export const ACCEL = 18 // m/s^2 speeding up
 export const DECEL = 26 // m/s^2 slowing down (a run stops in ~0.2 s)
 export const SPRINT_AFTER = 0.25 // s at a full push before a run
 export const DEAD = STICK.DEAD // the stick's dead zone (of its reach)

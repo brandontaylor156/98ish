@@ -312,7 +312,7 @@ export function RoamHud({ world, hud, voice = null, onMenu, onAction, onPhone = 
 }
 
 // the menu: your finds, voice, back to the courts, leave
-export function RoamMenu({ town, found = [], canGoBack, voice, onBack, onLeave, onClose, towns = [], onGo = null, driving = false, onStarts = null }) {
+export function RoamMenu({ town, found = [], canGoBack, voice, onBack, onLeave, onClose, towns = [], onGo = null, driving = false, onStarts = null, camera = null }) {
   const got = found.filter((f) => f.found)
   const [goOpen, setGoOpen] = useState(false)
   return (
@@ -369,6 +369,7 @@ export function RoamMenu({ town, found = [], canGoBack, voice, onBack, onLeave, 
               Back to the courts
             </button>
           )}
+          {camera}
           <button type="button" className="roamBtn roamWide" onClick={onLeave} data-roam="leave">
             Leave {town.name}
           </button>

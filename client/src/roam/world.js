@@ -1368,6 +1368,8 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
   }
 
   // ---------- drawing people ----------
+  const rideMe = { x: 0, y: 0, z: 0, yaw: 0, lean: 0, kind: "bike", speed: 0, accel: 0 }
+  const rideThem = { x: 0, y: 0, z: 0, yaw: 0, lean: 0, kind: "bike", speed: 0, accel: 0 }
   const drawPeople = (dt) => {
     // you
     if (!driving && !riding) {
@@ -1390,10 +1392,21 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
         // (a bike leans into the turn; you stand on it)
         car.lean = (car.lean || 0) + (Math.max(-0.4, Math.min(0.4, yawRate * car.speed * 0.1)) - (car.lean || 0)) * Math.min(1, dt * 5)
         carMesh.body.rotation.set(0, 0, car.lean)
+        // (riding, not jogging: on the saddle pedalling, or standing on the deck with a kick
+        // when speeding up from slow; fixed to it and leaning with it: anim.js ridePose. Owner:
+        // "Scooter animation is not good, it's basically the jogging animation")
         const fig = figFor("me", me.look)
-        const deck = carMesh.deck || 0.2
         if (fig) {
-          fig.update({ x: car.x - Math.cos(car.yaw) * Math.sin(car.lean) * 0.6, y: car.y + deck, z: car.z + Math.sin(car.yaw) * Math.sin(car.lean) * 0.6, yaw: car.yaw, vx: 0, vz: 0, speed: 0 }, dt)
+          rideMe.x = car.x
+          rideMe.y = car.y
+          rideMe.z = car.z
+          rideMe.yaw = car.yaw
+          rideMe.lean = car.lean
+          rideMe.kind = car.model === "bike" ? "bike" : "scooter"
+          rideMe.speed = car.speed
+          rideMe.accel = accel
+          if (fig.ride) fig.ride(rideMe, dt)
+          else fig.update({ x: car.x, y: car.y + (carMesh.deck || 0.2), z: car.z, yaw: car.yaw, vx: 0, vz: 0, speed: 0 }, dt)
         }
         me.walker.x = car.x
         me.walker.z = car.z
@@ -1425,7 +1438,19 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
       }
       const fig = figFor(`r${r.num}`, r.look)
       if (fig && !onTwo) for (const p of plugins) p.figure?.(r.num, fig, dt)
-      if (fig && onTwo) fig.update({ x: r.x, y: r.carMesh.group.position.y + (r.carMesh.deck || 0.2), z: r.z, yaw: r.yaw, vx: 0, vz: 0, speed: 0 }, dt)
+      if (fig && onTwo && fig.ride) {
+        const sp = r.speed || 0
+        rideThem.x = r.x
+        rideThem.y = r.carMesh.group.position.y
+        rideThem.z = r.z
+        rideThem.yaw = r.yaw
+        rideThem.lean = 0
+        rideThem.kind = r.car?.model === "bike" ? "bike" : "scooter"
+        rideThem.speed = sp
+        rideThem.accel = dt > 0 ? (sp - (r.lastSpeed ?? sp)) / dt : 0
+        r.lastSpeed = sp
+        fig.ride(rideThem, dt)
+      } else if (fig && onTwo) fig.update({ x: r.x, y: r.carMesh.group.position.y + (r.carMesh.deck || 0.2), z: r.z, yaw: r.yaw, vx: 0, vz: 0, speed: 0 }, dt)
       else if (fig) fig.update({ x: r.x, y: r.y, z: r.z, yaw: r.yaw, vx: Math.sin(r.yaw) * r.speed, vz: Math.cos(r.yaw) * r.speed, speed: r.speed }, dt)
     }
   }
@@ -2081,7 +2106,11 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
       const w = me.walker
       const d = figs.get("me")?.fig?.drawn || null
       camera.getWorldDirection(tmpA)
-      return { sim: { x: w.x, z: w.z, yaw: w.yaw, speed: w.speed, vx: w.vx, vz: w.vz }, drawn: d, view: Math.atan2(tmpA.x, tmpA.z), cam: { x: camera.position.x, y: camera.position.y, z: camera.position.z } }
+      const cx = camera.position.x
+      const cz = camera.position.z
+      // (the lens: inside a building's outline below its top, or a wall closer than the near plane's corners)
+      const lens = { inside: colliders.inside(cx, cz) > camera.position.y, wall: colliders.resolve(cx, cz, camera.near * 1.25).hit, near: camera.near }
+      return { lens, sim: { x: w.x, z: w.z, yaw: w.yaw, speed: w.speed, vx: w.vx, vz: w.vz }, drawn: d, ride: figs.get("me")?.fig?.riding ? { ...figs.get("me").fig.riding, speed: car?.speed ?? 0, accel: rideMe.accel } : null, view: Math.atan2(tmpA.x, tmpA.z), cam: { x: camera.position.x, y: camera.position.y, z: camera.position.z } }
     },
     // (tests) somewhere else, the parked cars near you, the eggs
     teleport(x, z, yaw = me.walker.yaw) {
