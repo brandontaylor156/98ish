@@ -6,6 +6,12 @@
 // its walls sunk a little into the slope. Roof hints: a near-rectangular house gets a hipped
 // roof (gabled when the map says so) over its outline's rectangle; everything else is flat.
 // Far away (far: true) every building is a plain block and small sheds are skipped.
+//
+// Materials (docs/open-world.md "Buildings"): each vertex carries `win` = (u, v, style, surface):
+// on walls u = metres along the wall, v = metres up from the ground; on pitched roofs u = metres
+// along the ridge, v = metres up the slope (so the tile rows run along the eaves). style: 0 no
+// windows, 1 a house's, 2 a shop's storefront, 3 rows of them on tall buildings, plus a
+// per-building fraction (0..0.9) the shader uses to vary them. surface: SURF below.
 
 import { ShapeUtils, Vector2 } from "three"
 import { BUILDING_KINDS, ROOF_SHAPES, isHouse } from "../data/tile.js"
@@ -13,7 +19,20 @@ import { ROOFS, WALLS } from "./paint.js"
 import { hashStr } from "../sim/parked.js"
 
 const SINK = 0.8
-const pick = (list, h) => list[h % list.length]
+// what a surface is made of (the shader's textures: tilemesh.js)
+export const SURF = { stucco: 0, panel: 1, tile: 2, shingle: 3, flat: 4 }
+// a building's walls and roof by its kind and a hash (SoCal: stucco houses with clay tile or
+// composition shingle roofs; shops and offices stucco; works, warehouses and big boxes
+// concrete tilt-up panels; flat roofs gravel/membrane)
+export const materialOf = (b, h = 0) => {
+  const name = BUILDING_KINDS[b.kind]
+  const house = isHouse(b.kind)
+  const works = ["industrial", "warehouse", "service", "garages", "parking", "supermarket"].includes(name) || (!house && b.area > 2500)
+  const wall = works ? SURF.panel : SURF.stucco
+  const roof = house ? ((h >>> 4) % 4 === 0 ? SURF.shingle : SURF.tile) : SURF.flat
+  return { wall, roof }
+}
+const pick = (list, h) => list[(((h | 0) % list.length) + list.length) % list.length] // (h may be negative after a shift)
 
 // the smallest rectangle round a ring -> { cx, cz, ux, uz, hl, hw, area } (u: the long axis)
 export const orientedBox = (ring) => {
@@ -62,14 +81,13 @@ const signedArea = (ring) => {
   return a / 2
 }
 
-const colorOf = (b, key) => {
+const colorOf = (b, key, h = hashStr(key)) => {
   const name = BUILDING_KINDS[b.kind]
-  const h = hashStr(key)
   const house = isHouse(b.kind)
   const works = ["industrial", "warehouse", "service", "garages"].includes(name)
   const civic = ["school", "church", "civic", "public", "library", "university", "college", "hospital", "fire_station"].includes(name)
   const wall = pick(house ? WALLS.house : works ? WALLS.works : civic ? WALLS.civic : WALLS.shop, h)
-  const roof = house ? pick((h >> 4) % 4 === 0 ? ROOFS.shingle : ROOFS.tile, h >> 6) : pick(ROOFS.flat, h >> 6)
+  const roof = house ? pick((h >>> 4) % 4 === 0 ? ROOFS.shingle : ROOFS.tile, h >>> 6) : pick(ROOFS.flat, h >>> 6)
   return { wall, roof }
 }
 
@@ -78,13 +96,19 @@ export const buildingArrays = (buildings, groundAt, { far = false, key = "" } = 
   const P = []
   const N = []
   const C = []
-  const Wn = [] // windows: along the wall (m), up from the ground (m), style (0 none)
+  const Wn = [] // (u, v, style, surface): see the top
   let win = null // (set per wall quad)
+  let roofUV = null // (set per pitched roof: its box and eave height)
+  let surf = 0
   const push = (x, y, z, nx, ny, nz, col, k = 1) => {
     if (win) {
       const u = win.u0 + (win.u1 - win.u0) * (Math.abs(x - win.ax) + Math.abs(z - win.az) > 1e-6 ? 1 : 0)
-      Wn.push(u, y - win.g, win.style)
-    } else Wn.push(0, 0, 0)
+      Wn.push(u, y - win.g, win.style, surf)
+    } else if (roofUV) {
+      const { box, eave, slope } = roofUV
+      const u = (x - box.cx) * box.ux + (z - box.cz) * box.uz
+      Wn.push(u, (y - eave) * slope, 0, surf)
+    } else Wn.push(x, z, 0, surf)
     P.push(x, y, z)
     N.push(nx, ny, nz)
     C.push((((col >> 16) & 255) / 255) * k, (((col >> 8) & 255) / 255) * k, ((col & 255) / 255) * k)
@@ -118,7 +142,9 @@ export const buildingArrays = (buildings, groundAt, { far = false, key = "" } = 
     let ground = Infinity
     for (const p of ring) ground = Math.min(ground, groundAt(p.x, p.z))
     if (!Number.isFinite(ground)) ground = 0
-    const { wall, roof } = colorOf(b, `${key}:${bi}`)
+    const hb = hashStr(`${key}:${bi}`)
+    const { wall, roof } = colorOf(b, "", hb)
+    const mat = materialOf(b, hb)
     const name = BUILDING_KINDS[b.kind]
     const roofOnly = name === "roof" || name === "carport" || b.min > 0
     const top = ground + Math.max(2.4, b.height)
@@ -135,7 +161,8 @@ export const buildingArrays = (buildings, groundAt, { far = false, key = "" } = 
     const eave = pitched ? top - pitched.rise : top
     // (windows: houses a few, shops storefronts, tall ones rows; sheds, works and roofs none)
     const tall = b.height >= 10 || ["apartments", "office", "hotel", "hospital", "university", "college"].includes(name)
-    const style = roofOnly || b.height < 2.8 || ["garage", "garages", "shed", "carport", "industrial", "warehouse", "service", "roof", "parking"].includes(name) ? 0 : tall ? 3 : isHouse(b.kind) ? 1 : 2
+    const style0 = name === "parking" && !roofOnly && b.height >= 5 ? 4 : roofOnly || b.height < 2.8 || ["garage", "garages", "shed", "carport", "industrial", "warehouse", "service", "roof", "parking"].includes(name) ? 0 : tall ? 3 : isHouse(b.kind) ? 1 : 2
+    const style = style0 ? style0 + ((hb >>> 9) % 90) / 100 : 0
     let perim = 0
     // walls (each edge a quad; ring clockwise from above -> (a, b, a_top) faces out)
     for (let i = 0; i < ring.length; i++) {
@@ -151,8 +178,19 @@ export const buildingArrays = (buildings, groundAt, { far = false, key = "" } = 
       const len = Math.hypot(q.x - p.x, q.z - p.z)
       win = { ax: p.x, az: p.z, u0: perim, u1: perim + len, g: ground, style }
       perim += len
-      tri(a0, b0, b1, nrm, wall, [lowK, lowK, 1])
-      tri(a0, b1, a1, nrm, wall, [lowK, 1, 1])
+      surf = mat.wall
+      if (pitched && eave - bottom > 1.6) {
+        // (the eaves' shade: the top 0.6 m of the wall under the overhang darker)
+        const m0 = [p.x, eave - 0.6, p.z]
+        const m1 = [q.x, eave - 0.6, q.z]
+        tri(a0, b0, m1, nrm, wall, [lowK, lowK, 1])
+        tri(a0, m1, m0, nrm, wall, [lowK, 1, 1])
+        tri(m0, m1, b1, nrm, wall, [1, 1, 0.7])
+        tri(m0, b1, a1, nrm, wall, [1, 0.7, 0.7])
+      } else {
+        tri(a0, b0, b1, nrm, wall, [lowK, lowK, 1])
+        tri(a0, b1, a1, nrm, wall, [lowK, 1, 1])
+      }
       win = null
     }
     // the roof
@@ -169,6 +207,9 @@ export const buildingArrays = (buildings, groundAt, { far = false, key = "" } = 
       const c4 = at(-L, W, eave)
       const r1 = at(-r, 0, top)
       const r2 = at(r, 0, top)
+      // (roof coordinates: along the ridge, and up the slope from the eave)
+      roofUV = { box, eave, slope: Math.hypot(W, rise) / rise }
+      surf = mat.roof
       const up = (a, bb, c) => {
         const f = faceN(a, bb, c)
         if (f[1] < 0) tri(a, c, bb, [-f[0], -f[1], -f[2]], roof)
@@ -186,14 +227,52 @@ export const buildingArrays = (buildings, groundAt, { far = false, key = "" } = 
           if (f[0] * dx + f[2] * dz < 0) tri(a, c, bb, [-f[0], -f[1], -f[2]], wall)
           else tri(a, bb, c, f, wall)
         }
+        roofUV = null
+        surf = mat.wall
         out(c4, c1, r1, -box.ux, -box.uz)
         out(c2, c3, r2, box.ux, box.uz)
       } else {
         up(c4, c1, r1)
         up(c2, c3, r2)
       }
-      // (the soffit isn't drawn: seen from the street the eaves read from the slopes alone)
+      roofUV = null
+      // the eaves: a white fascia board round the overhang's edge and the soffit under it, so
+      // the roof has thickness instead of reading as a sheet
+      surf = mat.wall
+      const FASCIA = 0xf1ede4
+      const fd = 0.2
+      const corners = [c1, c2, c3, c4]
+      const inner = [at(-box.hl, -box.hw, eave - fd), at(box.hl, -box.hw, eave - fd), at(box.hl, box.hw, eave - fd), at(-box.hl, box.hw, eave - fd)]
+      for (let k = 0; k < 4; k++) {
+        const a = corners[k]
+        const bq = corners[(k + 1) % 4]
+        const a0 = [a[0], eave - fd, a[2]]
+        const b0 = [bq[0], eave - fd, bq[2]]
+        // (out from the house's middle)
+        const mx = (a[0] + bq[0]) / 2 - box.cx
+        const mz = (a[2] + bq[2]) / 2 - box.cz
+        const f = faceN(a0, b0, bq)
+        if (f[0] * mx + f[2] * mz < 0) {
+          tri(a0, bq, b0, [-f[0], -f[1], -f[2]], FASCIA)
+          tri(a0, a, bq, [-f[0], -f[1], -f[2]], FASCIA)
+        } else {
+          tri(a0, b0, bq, f, FASCIA)
+          tri(a0, bq, a, f, FASCIA)
+        }
+        // the soffit: from the fascia's foot in to the wall line, facing down (in shade)
+        const i0 = inner[k]
+        const i1 = inner[(k + 1) % 4]
+        const g = faceN(a0, b0, i1)
+        if (g[1] > 0) {
+          tri(a0, i1, b0, [0, -1, 0], wall, [0.72, 0.72, 0.72])
+          tri(a0, i0, i1, [0, -1, 0], wall, [0.72, 0.72, 0.72])
+        } else {
+          tri(a0, b0, i1, [0, -1, 0], wall, [0.72, 0.72, 0.72])
+          tri(a0, i1, i0, [0, -1, 0], wall, [0.72, 0.72, 0.72])
+        }
+      }
     } else {
+      surf = mat.roof
       const contour = ring.map((p) => new Vector2(p.x, p.z))
       let faces
       try {
@@ -210,6 +289,7 @@ export const buildingArrays = (buildings, groundAt, { far = false, key = "" } = 
         else tri(a, bb, c, [0, 1, 0], roof)
       }
       if (roofOnly) {
+        surf = mat.wall
         // (an underside, seen from below)
         for (const [i, j, k] of faces) {
           const a = [ring[i].x, bottom, ring[i].z]

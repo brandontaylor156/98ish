@@ -145,6 +145,29 @@
   background: rgba(255, 255, 255, 0.85);
   border: 1px solid #333;
 }
+.roamMap {
+  position: absolute;
+  left: calc(6px + env(safe-area-inset-left, 0px));
+  top: calc(100px + env(safe-area-inset-top, 0px));
+  border-radius: 50%;
+  pointer-events: none;
+}
+.roamCarBtns {
+  position: absolute;
+  right: calc(12px + env(safe-area-inset-right, 0px));
+  bottom: calc(138px + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  gap: 10px;
+}
+.roamHud.is-ride .roamCarBtns {
+  bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+}
+.roamHorn,
+.roamRadio {
+  min-width: 70px;
+  min-height: 44px;
+  font-weight: bold;
+}
 .roamLoading {
   position: absolute;
   left: 50%;

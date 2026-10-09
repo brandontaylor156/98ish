@@ -6,7 +6,7 @@ import { AREA_CLASSES, ROAD } from "../data/tile.js"
 // unmapped ground: Southern California's dry hillsides
 export const BASE = "#a39b72"
 export const AREA_COLORS = {
-  res: "#8f9476",
+  res: "#83915e",
   com: "#9b978d",
   ind: "#8f8c85",
   farm: "#a8a46a",
@@ -56,6 +56,9 @@ export const ROAD_PAINT = {
   [ROAD.stream]: ["#8f9a7a", null],
 }
 export const SIDEWALK = "#c4c0b6"
+// round a house: its yard (a watered lawn, a little dry); round other buildings: concrete
+export const YARD = "#76924f"
+export const APRON = "#aaa69c"
 // the order roads are painted in (later on top): water, paths, rail, small roads, big roads
 export const ROAD_ORDER = [ROAD.river, ROAD.stream, ROAD.track, ROAD.path, ROAD.footway, ROAD.cycleway, ROAD.steps, ROAD.pedestrian, ROAD.rail, ROAD.driveway, ROAD.aisle, ROAD.service, ROAD.living_street, ROAD.unclassified, ROAD.residential, ROAD.link, ROAD.tertiary, ROAD.secondary, ROAD.primary, ROAD.trunk, ROAD.motorway]
 
@@ -68,6 +71,6 @@ export const WALLS = {
 }
 export const ROOFS = {
   tile: [0x9c5a3c, 0xa8644a, 0x8a5040, 0xa0573a, 0x7e4a36],
-  shingle: [0x6f6a64, 0x5d5a56, 0x77716a, 0x4f4d4b],
+  shingle: [0x8a8279, 0x7a746d, 0x938b80, 0x6f6b66, 0x857a6c],
   flat: [0x9a9893, 0xb0aea8, 0x8a8984, 0xa5a39d, 0xc2c0ba],
 }

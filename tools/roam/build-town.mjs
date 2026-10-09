@@ -79,6 +79,9 @@ for (let k = 0; k < boxes.length; k++) {
   for (const el of data.elements) all.set(`${el.type[0]}${el.id}`, el)
   if (!cached && k < boxes.length - 1) await sleep(20000)
 }
+// (the street furniture, fetched by add-street-nodes.mjs, if it's been fetched)
+const streetFile = path.join(CACHE, "street.json")
+if (fs.existsSync(streetFile)) for (const el of JSON.parse(fs.readFileSync(streetFile, "utf8")).elements) all.set(`${el.type[0]}${el.id}`, compactElement(el) || el)
 console.log(`${all.size} elements (OSM base ${osmBase})`)
 
 // ---- 2. the terrain ----

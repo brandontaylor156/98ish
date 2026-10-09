@@ -7,6 +7,7 @@
 //     b: [[kind, height dm, min dm, levels, roof, name, ...ring]],  buildings (by centroid)
 //     a: [[cls, ...ring]],                                     land use, parks, water, parking
 //     t: [u, v, ...],                                          mapped trees
+//     s: [kind, u, v, ...],                                    street lamps, signals, stop signs (STREET)
 //     p: [[kind, name, u, v]] }                                named places
 // Coordinates are tile units (geo.js EXTENT across), delta-coded ([u0, v0, du1, dv1, ...]);
 // lines and areas are clipped to the tile plus a small margin; buildings belong to the tile
@@ -55,6 +56,9 @@ export const F = { oneway: 1, bridge: 2, tunnel: 4, walkL: 8, walkR: 16, lit: 32
 export const AREA_CLASSES = ["res", "com", "ind", "farm", "dirt", "dry", "scrub", "grass", "park", "wood", "cemetery", "school", "sand", "golf", "golfgreen", "parking", "plaza", "pitch", "track", "playground", "water", "pool"]
 export const AREA = Object.fromEntries(AREA_CLASSES.map((n, i) => [n, i]))
 
+// what stands at a street node (the map's highway=street_lamp / traffic_signals / stop)
+export const STREET = { lamp: 0, signals: 1, stop: 2 }
+export const streetKindOf = (t) => (t.highway === "street_lamp" ? STREET.lamp : t.highway === "traffic_signals" ? STREET.signals : t.highway === "stop" ? STREET.stop : -1)
 export const BUILDING_KINDS = ["yes", "house", "residential", "apartments", "commercial", "retail", "industrial", "warehouse", "school", "garage", "garages", "shed", "roof", "church", "office", "hospital", "hotel", "civic", "public", "parking", "service", "detached", "semidetached_house", "terrace", "carport", "university", "college", "supermarket", "fire_station", "library", "stadium", "grandstand", "other"]
 export const ROOF_SHAPES = ["", "flat", "gabled", "hipped", "pyramidal", "skillion", "dome", "half-hipped", "gambrel", "mansard", "round"]
 
@@ -353,6 +357,7 @@ export const buildTile = ({ z, x, y, elements, elevation = null }) => {
   const areas = []
   const trees = []
   const pois = []
+  const street = []
   const seen = new Set()
   const inTile = ([u, v]) => u >= 0 && u < EXTENT && v >= 0 && v < EXTENT
   const bboxOverlaps = (pts) => {
@@ -378,6 +383,8 @@ export const buildTile = ({ z, x, y, elements, elevation = null }) => {
       const p = toU([el.lat, el.lon])
       if (!inTile(p)) continue
       if (t.natural === "tree") trees.push(Math.round(p[0]), Math.round(p[1]))
+      const sk = streetKindOf(t)
+      if (sk >= 0) street.push(sk, Math.round(p[0]), Math.round(p[1]))
       const kind = poiKindOf(t)
       if (kind && t.name) pois.push([kind, nameIdx(t.name), Math.round(p[0]), Math.round(p[1])])
       continue
@@ -501,7 +508,9 @@ export const buildTile = ({ z, x, y, elements, elevation = null }) => {
   }
   // (areas drawn bottom-up by class; roads by class)
   areas.sort((p, q) => p[0] - q[0])
-  return { v: TILE_VERSION, z, x, y, n: names, h, r: roads, k: decks, b: buildings, a: areas, t: trees, p: pois }
+  const out = { v: TILE_VERSION, z, x, y, n: names, h, r: roads, k: decks, b: buildings, a: areas, t: trees, p: pois }
+  if (street.length) out.s = street
+  return out
 }
 
 // ---------- reading a tile (the browser) ----------
@@ -559,7 +568,9 @@ export const decodeTile = (tile, frame, base = 0) => {
   const trees = []
   for (let i = 0; i + 1 < (tile.t || []).length; i += 2) trees.push(pt([tile.t[i], tile.t[i + 1]]))
   const pois = (tile.p || []).map(([kind, name, u, v]) => ({ kind, name: names[name] || "", ...pt([u, v]) }))
-  return { key: `${tile.z}/${tile.x}/${tile.y}`, z: tile.z, x: tile.x, y: tile.y, bounds: b, rect, heights, grid, roads, buildings, areas, trees, pois }
+  const street = []
+  for (let i = 0; i + 2 < (tile.s || []).length; i += 3) street.push({ kind: tile.s[i], ...pt([tile.s[i + 1], tile.s[i + 2]]) })
+  return { key: `${tile.z}/${tile.x}/${tile.y}`, z: tile.z, x: tile.x, y: tile.y, bounds: b, rect, heights, grid, roads, buildings, areas, trees, pois, street }
 }
 
 // the ground's height inside a decoded tile (bilinear on the lattice) -> m, or null outside

@@ -2,8 +2,8 @@
 // with its land use, parks, water, parking, sidewalks, paths and road surfaces. Node-tested
 // for the mesh and the trees; the painting needs a 2D canvas (the browser).
 
-import { AREA, DRIVABLE, F, ROAD } from "../data/tile.js"
-import { AREA_COLORS, BASE, ROAD_ORDER, ROAD_PAINT, SIDEWALK, areaColor } from "./paint.js"
+import { AREA, BUILDING_KINDS, DRIVABLE, F, ROAD, isHouse } from "../data/tile.js"
+import { APRON, AREA_COLORS, BASE, ROAD_ORDER, ROAD_PAINT, SIDEWALK, YARD, areaColor } from "./paint.js"
 import { hashStr, rng } from "../sim/parked.js"
 
 // the lattice -> { position, normal, uv, index } (two triangles a cell, split the way
@@ -75,6 +75,23 @@ export const paintGround = (ctx, tile, size) => {
       ctx.stroke()
     }
   }
+  // the ground round each mapped building (a material, not a thing: docs/open-world.md):
+  // houses stand in their yards (lawn), everything else on a concrete apron; then the
+  // buildings' own footprints in a darker tone (their contact shade from above)
+  ctx.lineJoin = "round"
+  for (const b of tile.buildings) {
+    if (b.ring.length < 3) continue
+    const name = BUILDING_KINDS[b.kind]
+    const house = isHouse(b.kind) && name !== "garage" && name !== "garages" && name !== "shed"
+    if (name === "roof" || name === "carport") continue
+    poly(b.ring)
+    ctx.lineWidth = (house ? 16 : 5) * sx
+    ctx.strokeStyle = house ? YARD : APRON
+    ctx.fillStyle = house ? YARD : APRON
+    ctx.stroke()
+    ctx.fill()
+  }
+  // (sidewalks over a yard's edge come later with the roads)
   const line = (pts) => {
     ctx.beginPath()
     pts.forEach((p, i) => (i ? ctx.lineTo(X(p.x), Z(p.z)) : ctx.moveTo(X(p.x), Z(p.z))))

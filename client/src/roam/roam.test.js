@@ -19,6 +19,14 @@ import { MAX_PER_TILE, parkedCars } from "./sim/parked.js"
 import { ACT, LIMIT, cleanCar, cleanPos, createTrack, packPos, pushSample, sampleTrack, shouldSend, unpackPos } from "./sim/sync.js"
 import { eggSpots, nearestEgg, REACH } from "./eggs.js"
 import { createTileStore } from "./stream.js"
+import { CAR_KINDS, CAR_SPECS, carParts } from "./render/carmodel.js"
+import { carGeometry, fallbackGeometry } from "./render/cars.js"
+import { createChase, stepChase } from "./sim/chase.js"
+import { carPose, createTraffic, laneOffset, nextRoad, signalGreen, stopsOn } from "./sim/traffic.js"
+import { createPeds, walkLines } from "./sim/peds.js"
+import { SURF, materialOf } from "./render/buildings.js"
+import { kitKindOf } from "./render/trees.js"
+import { STREET } from "./data/tile.js"
 import valencia from "./towns/valencia.js"
 import { townForVenue } from "./towns/index.js"
 
@@ -249,6 +257,207 @@ test("car: gas, speed-sensitive steering, brake, reverse, slopes, people", () =>
   stepCar(p, { gas: 1 }, 1 / 30, { blocked: (x, z, yaw, dir, m) => personAhead([{ x: 0, z: 3.5 }], x, z, yaw, dir, m) })
   assert.ok(p.speed === 0)
   assert.equal(personAhead([{ x: 0, z: -3 }], 0, 0, 0, 1), false)
+})
+
+test("car models: real sizes, wheels on the axles, glass and lamps, a triangle budget", () => {
+  for (const kind of CAR_KINDS) {
+    const p = carParts(kind)
+    const m = MODELS[kind]
+    const spec = CAR_SPECS[kind]
+    // the body's extent matches the physics' car (length, width) within a few centimetres
+    let x0 = Infinity
+    let x1 = -Infinity
+    let z0 = Infinity
+    let z1 = -Infinity
+    let y1 = -Infinity
+    const P = p.paint.position
+    for (let i = 0; i < P.length; i += 3) {
+      x0 = Math.min(x0, P[i])
+      x1 = Math.max(x1, P[i])
+      y1 = Math.max(y1, P[i + 1])
+      z0 = Math.min(z0, P[i + 2])
+      z1 = Math.max(z1, P[i + 2])
+    }
+    assert.ok(near(z1 - z0, spec.len, 0.12), `${kind} length ${(z1 - z0).toFixed(2)}`)
+    assert.ok(Math.abs(spec.len - m.len) < 0.25 && Math.abs(spec.wid - m.wid) < 0.12, `${kind} matches the physics`)
+    assert.ok(x1 - x0 > spec.wid - 0.05 && x1 - x0 < spec.wid + 0.4, `${kind} width (mirrors included) ${(x1 - x0).toFixed(2)}`)
+    assert.ok(y1 > 1.1 && y1 < 2.1, `${kind} height ${y1.toFixed(2)}`)
+    // centred on the wheelbase: wheels at +-wheelbase/2, on the ground
+    assert.equal(p.wheels.length, 4)
+    for (const w of p.wheels) {
+      assert.ok(near(Math.abs(w.z), spec.wb / 2, 1e-9) && near(w.y, spec.R, 1e-9))
+      assert.ok(w.z > z0 && w.z < z1)
+    }
+    // glass (near-black vertices in the paint) and lamps that glow (1 head, 2 tail)
+    const C = p.paint.color
+    let glass = 0
+    for (let i = 0; i < C.length; i += 3) if (C[i] < 0.1 && C[i + 1] < 0.1) glass++
+    assert.ok(glass > 40, `${kind} has windows (${glass})`)
+    assert.ok(p.trim.glow.includes(1) && p.trim.glow.includes(2), `${kind} head and tail lamps`)
+    assert.ok(p.tris > 900 && p.tris < 3000, `${kind}: ${Math.round(p.tris)} triangles`)
+    // every index in range
+    const n = p.paint.position.length / 3
+    assert.ok(p.paint.index.every((i) => i < n))
+  }
+})
+
+test("car geometry: the detailed shape, and the plain one if a shape can't be built", () => {
+  const g = carGeometry("sedan")
+  assert.equal(g.fallback, false)
+  assert.ok(g.paint.attributes.normal && g.trimWithWheels.attributes.position.count > g.trim.attributes.position.count, "wheels merged in for parked cars")
+  assert.ok(g.wheel && g.wheels.length === 4)
+  const broken = carGeometry("brokenModel", {
+    build: () => {
+      throw new Error("no file")
+    },
+  })
+  assert.equal(broken.fallback, true)
+  assert.ok(broken.paint.attributes.position.count > 0 && broken.trimWithWheels.attributes.glow, "a boxy car stands in, lamps attribute and all")
+  assert.ok(fallbackGeometry("pickup").paint.attributes.color)
+})
+
+test("chase camera: behind and above, looking down the road ahead, wider when fast, out of the ground", () => {
+  const ch = createChase()
+  const car = { x: 0, z: 0, y: 0, yaw: 0, speed: 0 }
+  let v = stepChase(ch, car, 1 / 60, { portrait: true, groundAt: () => 0 })
+  assert.ok(v.pos.z < -5 && Math.abs(v.pos.x) < 1e-9 && v.pos.y > 1.8, "behind (the car faces +z) and above")
+  assert.ok(v.look.z > 8 && v.look.y < 1.5, "looking at the road ahead, not the roof")
+  const slowFov = v.fov
+  car.speed = 28
+  for (let i = 0; i < 240; i++) {
+    car.z += car.speed / 60
+    v = stepChase(ch, car, 1 / 60, { portrait: true, groundAt: () => 0 })
+  }
+  assert.ok(v.fov > slowFov + 6, `wider at speed (${slowFov.toFixed(0)} -> ${v.fov.toFixed(0)})`)
+  assert.ok(car.z - v.pos.z > 7, "and further back")
+  // the car turns: the camera swings round after it, behind again in a second or two
+  car.yaw = Math.PI / 2
+  for (let i = 0; i < 120; i++) v = stepChase(ch, car, 1 / 60, { portrait: false, groundAt: () => 0 })
+  assert.ok(v.pos.x < car.x - 5 && Math.abs(v.pos.z - car.z) < 1.5)
+  // uphill ahead: the look rises with the road; downhill behind: the lens stays out of the hill
+  const hill = (x, z) => z * 0.15
+  const ch2 = createChase()
+  const c2 = { x: 0, z: 0, y: 0, yaw: 0, speed: 10 }
+  v = stepChase(ch2, c2, 1 / 60, { groundAt: hill })
+  assert.ok(v.look.y > 1.5, "looks up the hill")
+  const steep = (x, z) => -z * 0.6
+  const ch3 = createChase()
+  v = stepChase(ch3, { x: 0, z: 0, y: 0, yaw: 0, speed: 0 }, 1 / 60, { groundAt: steep })
+  assert.ok(v.pos.y > steep(v.pos.x, v.pos.z) + 1, "above the ground behind")
+  // a wall behind: pulled in
+  const ch4 = createChase()
+  v = stepChase(ch4, { x: 0, z: 0, y: 0, yaw: 0, speed: 0 }, 1 / 60, { groundAt: () => 0, segment: () => 0.4 })
+  assert.ok(v.pos.z > -4, "in front of the wall")
+})
+
+test("traffic: in its lane, on to the next road, stops at stop signs and red lights, never hits you", () => {
+  const road = (pts, cls = ROAD.residential, flags = 0, width = 10) => ({ cls, width, flags, name: "", pts: pts.map(([x, z]) => ({ x, z })) })
+  const a = road([[0, 0], [0, 200]])
+  const b = road([[0, 200], [0, 400]])
+  const side = road([[0, 200], [150, 200]])
+  // a car on a two-way street keeps right of the middle, clear of cars at the curb
+  const off = laneOffset(a)
+  assert.ok(off >= 1.6 && off + 0.9 <= a.width / 2 - 1.0 - 0.9 + 0.01, `lane ${off}`)
+  const pose = carPose({ road: a, s: 50, dir: 1 })
+  assert.ok(pose.x < 0 && near(pose.z, 50), "heading south (+z), its right is west (-x)")
+  // at the end of a way it follows on (mostly straight)
+  let straight = 0
+  for (let i = 0; i < 40; i++) if (nextRoad([a, b, side], a, 1, Math.random)?.road === b) straight++
+  assert.ok(straight > 20, `goes straight on more often (${straight}/40)`)
+  assert.equal(nextRoad([a], a, 1), null)
+  // signals: the cross street's green is the other half of the cycle
+  let both = 0
+  for (let t = 0; t < 52; t += 0.5) if (signalGreen(t, 0) && signalGreen(t, Math.PI / 2)) both++
+  assert.equal(both, 0, "never green both ways")
+  // a stop sign 100 m along: the car stops at it, waits, then goes on
+  const stopRoad = road([[0, 0], [0, 400]])
+  stopRoad._street = [{ kind: STREET.stop, x: 0, z: 100 }]
+  assert.equal(stopsOn(stopRoad, stopRoad._street).length, 1)
+  const tr = createTraffic({ cap: 1, seed: 3 })
+  const c = { id: "t", road: stopRoad, s: 40, dir: 1, speed: 11, model: "sedan", color: 0, wait: 0, stopped: null }
+  Object.assign(c, carPose(c))
+  tr.cars.push(c)
+  const world = { roads: [stopRoad], street: [], people: [], time: 0 }
+  let minAtStop = Infinity
+  for (let i = 0; i < 60 * 12; i++) {
+    tr.step(world, { x: 0, z: 0 }, 1 / 60)
+    if (c.s > 85 && c.s < 100) minAtStop = Math.min(minAtStop, c.speed)
+  }
+  assert.ok(minAtStop < 0.3, "stopped at the sign")
+  assert.ok(c.s > 108 && c.speed > 3, `then went on (${c.s.toFixed(0)}, ${c.speed.toFixed(1)} m/s)`)
+  // you standing in the lane: the car stops short of you, every time, and waits
+  for (const start of [10, 60, 100]) {
+    const t2 = createTraffic({ cap: 1 })
+    const r = road([[0, 0], [0, 400]], ROAD.primary, 0, 16)
+    const car = { id: "u", road: r, s: start, dir: 1, speed: 19, model: "sedan", color: 0, wait: 0, stopped: null }
+    Object.assign(car, carPose(car))
+    t2.cars.push(car)
+    const you = { x: car.x + 0.5, z: 130 }
+    let closest = Infinity
+    for (let i = 0; i < 60 * 20; i++) {
+      t2.step({ roads: [r], people: [you], time: 0 }, { x: 0, z: 0 }, 1 / 60)
+      closest = Math.min(closest, Math.hypot(car.x - you.x, car.z - you.z))
+    }
+    assert.ok(closest > 4, `stopped ${closest.toFixed(1)} m short of you (from ${start})`)
+    assert.ok(car.speed < 0.01, "and waits")
+  }
+  // spawning: away from you, on the roads, never two on top of each other
+  const t3 = createTraffic({ cap: 12, seed: 5 })
+  const grid = []
+  for (let k = -3; k <= 3; k++) grid.push(road([[-400, k * 80], [400, k * 80]], ROAD.secondary), road([[k * 80, -400], [k * 80, 400]], ROAD.tertiary))
+  for (let i = 0; i < 60 * 30; i++) t3.step({ roads: grid, people: [{ x: 0, z: 0 }], time: i / 60 }, { x: 0, z: 0 }, 1 / 60)
+  assert.ok(t3.cars.length >= 6, `cars about (${t3.cars.length})`)
+  for (const x of t3.cars) for (const y of t3.cars) if (x !== y) assert.ok(Math.hypot(x.x - y.x, x.z - y.z) > 3, "never overlapping")
+  for (const x of t3.cars) assert.ok(Math.hypot(x.x, x.z) > 4, "never on you")
+})
+
+test("people walking: on mapped walks near shops, waiting for you", () => {
+  const fw = { cls: ROAD.footway, width: 2, flags: 0, name: "", pts: [{ x: 0, z: 0 }, { x: 0, z: 120 }] }
+  const st = { cls: ROAD.residential, width: 10, flags: F.walkL | F.walkR, name: "", pts: [{ x: 50, z: 0 }, { x: 50, z: 120 }] }
+  const lines = walkLines([fw, st, { ...st, flags: 0 }])
+  assert.equal(lines.length, 3, "the footway and both mapped sidewalks (not an unmapped one)")
+  for (const l of lines) l.shop = true
+  const peds = createPeds({ cap: 3, seed: 2 })
+  const you = { x: 0, z: 60 }
+  for (let i = 0; i < 60 * 40; i++) peds.step({ lines, people: [you] }, { x: 0, z: -60 }, 1 / 60)
+  assert.ok(peds.peds.length > 0)
+  for (const p of peds.peds) assert.ok(Math.hypot(p.x - you.x, p.z - you.z) > 0.9 || p.speed < 0.05, "never walks through you")
+})
+
+test("materials: houses stucco under tile or shingle, works in concrete panels, palms where mapped", () => {
+  const house = { kind: 1, area: 150 }
+  const shop = { kind: 5, area: 900 }
+  const box = { kind: 7, area: 9000 }
+  const roofs = new Set()
+  for (let h = 0; h < 64; h++) {
+    const m = materialOf(house, h * 977)
+    assert.equal(m.wall, SURF.stucco)
+    roofs.add(m.roof)
+  }
+  assert.ok(roofs.has(SURF.tile) && roofs.has(SURF.shingle), "both roof kinds on houses")
+  assert.deepEqual(materialOf(shop, 1), { wall: SURF.stucco, roof: SURF.flat })
+  assert.equal(materialOf(box, 1).wall, SURF.panel)
+  assert.ok(["palm", "fanpalm"].includes(kitKindOf({ x: 3, z: 9, kind: 1 })))
+  assert.ok(kitKindOf({ x: 3, z: 9, kind: 0 }).startsWith("broad"))
+})
+
+test("street nodes: lamps, signals and stop signs kept in the tile", () => {
+  const elements = [
+    { type: "node", id: 1, lat: 0, lon: 0, tags: { highway: "street_lamp" } },
+    { type: "node", id: 2, lat: 0, lon: 0, tags: { highway: "traffic_signals" } },
+    { type: "node", id: 3, lat: 0, lon: 0, tags: { highway: "stop" } },
+    { type: "node", id: 4, lat: 0, lon: 0, tags: { highway: "crossing" } },
+  ]
+  const b = tileBounds(T.z, T.x, T.y)
+  for (const e of elements) {
+    e.lat = (b.north + b.south) / 2
+    e.lon = (b.west + b.east) / 2 + e.id * 1e-5
+  }
+  const tile = buildTile({ ...T, elements })
+  assert.equal(tile.s.length, 9)
+  const d = decodeTile(tile, frame, 0)
+  assert.deepEqual(d.street.map((n) => n.kind), [STREET.lamp, STREET.signals, STREET.stop])
+  assert.equal(decodeTile(buildTile({ ...T, elements: [] }), frame, 0).street.length, 0)
 })
 
 test("parked cars: the same in every browser, in lots and at curbs, never in a building", () => {
