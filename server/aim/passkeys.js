@@ -38,7 +38,9 @@ const configFromEnv = (env = process.env) => {
     .split(",")
     .map((s) => s.trim().replace(/\/+$/, ""))
     .filter(Boolean)
-  return { origins: listed.length ? listed : DEFAULT_ORIGINS, localhost: env.WEBAUTHN_LOCALHOST !== "0" }
+  // (localhost passkeys only in development: off on Render unless WEBAUTHN_LOCALHOST=1)
+  const localhost = env.WEBAUTHN_LOCALHOST != null ? env.WEBAUTHN_LOCALHOST !== "0" : !env.RENDER
+  return { origins: listed.length ? listed : DEFAULT_ORIGINS, localhost }
 }
 
 // the page origin -> { origin, rpId } or null where passkeys aren't offered

@@ -119,6 +119,10 @@ test("RP ID and origins: production, localhost in dev, nothing else", () => {
   assert.equal(rpFor("null", config), null)
   assert.equal(rpFor("", config), null)
   assert.equal(rpFor("http://localhost:5304", configFromEnv({ WEBAUTHN_LOCALHOST: "0" })), null)
+  // on Render (production) localhost is off unless asked for
+  assert.equal(rpFor("http://localhost:5304", configFromEnv({ RENDER: "true" })), null)
+  assert.ok(rpFor("http://localhost:5304", configFromEnv({ RENDER: "true", WEBAUTHN_LOCALHOST: "1" })))
+  assert.deepEqual(rpFor("https://98ish.vercel.app", configFromEnv({ RENDER: "true" })), { origin: "https://98ish.vercel.app", rpId: "98ish.vercel.app" })
   const custom = configFromEnv({ WEBAUTHN_ORIGINS: "https://example.com, https://98ish.example/" })
   assert.deepEqual(rpFor("https://98ish.example", custom), { origin: "https://98ish.example", rpId: "98ish.example" })
   assert.equal(rpFor(PROD, custom), null)
