@@ -122,7 +122,7 @@ ${pts
   .map(
     ([i, lat, lon]) => `make m i=${i};out;
 is_in(${lat},${lon})->.a;
-(area.a["leisure"~"^(park|sports_centre|recreation_ground|sports_hall|fitness_centre|playground|common)$"]["name"];area.a["amenity"~"^(school|college|university|community_centre)$"]["name"];area.a["club"]["name"];area.a["landuse"="recreation_ground"]["name"];);
+(area.a["leisure"~"^(park|sports_centre|recreation_ground|sports_hall|fitness_centre|playground|common|golf_course|beach_resort|resort)$"]["name"];area.a["amenity"~"^(school|college|university|community_centre)$"]["name"];area.a["club"]["name"];area.a["landuse"="recreation_ground"]["name"];);
 out tags qt;`,
   )
   .join("\n")}`,

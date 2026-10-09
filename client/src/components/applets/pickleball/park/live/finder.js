@@ -233,7 +233,7 @@ export const nameVenue = (cluster, places = [], enclosing = null) => {
 
 // the names pass (build-index.mjs --names): which named OSM area a venue stands inside. `areas`
 // are Overpass `is_in` answers ({ tags }); a sports centre or club beats a park, a park beats a
-// school or campus, a recreation ground comes last. Returns a name or null.
+// school or campus, a recreation ground, golf club or resort comes last. Returns a name or null.
 const areaRank = (t) =>
   t.leisure === "sports_centre" || t.leisure === "sports_hall" || t.leisure === "fitness_centre" || t.club
     ? 0
@@ -241,7 +241,7 @@ const areaRank = (t) =>
       ? 1
       : /^(school|college|university)$/.test(t.amenity || "")
         ? 2
-        : t.landuse === "recreation_ground"
+        : t.landuse === "recreation_ground" || /^(golf_course|beach_resort|resort)$/.test(t.leisure || "")
           ? 3
           : 9
 export const pickEnclosing = (areas = []) => {
@@ -263,7 +263,8 @@ export const splitIsIn = (elements = []) => {
     if (e.type === "m") {
       cur = String(e.tags?.i ?? "")
       out.set(cur, [])
-    } else if (cur !== null && e.type === "area") out.get(cur).push(e)
+      // (an area comes back as the way or relation it was made from, or as "area")
+    } else if (cur !== null && e.tags) out.get(cur).push(e)
   }
   return out
 }

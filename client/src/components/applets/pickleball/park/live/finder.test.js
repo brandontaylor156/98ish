@@ -82,7 +82,7 @@ test("naming: own name, a nearby park/club/school, the operator; generic names s
   const answer = [
     { type: "m", id: 1, tags: { i: "0" } },
     { type: "area", id: 1, tags: { amenity: "school", name: "Lincoln Elementary" } },
-    { type: "area", id: 2, tags: { leisure: "park", name: "Lincoln Park" } },
+    { type: "way", id: 2, tags: { leisure: "park", name: "Lincoln Park" } },
     { type: "m", id: 2, tags: { i: "1" } },
     { type: "m", id: 3, tags: { i: "2" } },
     { type: "area", id: 3, tags: { landuse: "recreation_ground", name: "Rec Ground" } },
