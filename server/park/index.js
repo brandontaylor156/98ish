@@ -444,6 +444,32 @@ const createPark = ({ emit = () => {}, emitVolatile = null, rooms = null, clock 
     const settings = kind === "rally" ? { format: "singles", target: 11, scoring: "sideout", venue: "park", mode: "drill", drill: "rally" } : { format: "doubles", target: 11, scoring: "sideout", venue: "park", teams: "us" }
     return goPlay(inst, court, players, settings, { together: kind })
   }
+  // an activity for two (client park/acts/: tennis, H-O-R-S-E, a workout): a private "parkact"
+  // room (relay, the asker's browser hosts), both seated and started; they stay in the park
+  const togetherAct = (inst, players, kind, data) => {
+    if (!rooms) return { ok: false, error: "Playing together isn't available right now." }
+    const people = players.map((q) => inst.people.get(q)).filter(Boolean)
+    if (people.length !== 2) return { ok: false, error: "They're not in the park any more." }
+    const [host, other] = people
+    const act = kind === "horse" ? "horse" : kind
+    const seed = 1 + Math.floor(Math.random() * 2_000_000_000)
+    const made = rooms.create(host.me, "parkact", { act, mode: data.mode, venue: inst.venue || "riverside", spot: data.spot, seed })
+    if (!made?.ok) return { ok: false, error: made?.error || "That couldn't start. Please try again." }
+    rooms.allow(other.pid, made.roomId)
+    rooms.join(other.me, { roomId: made.roomId })
+    rooms.ready(other.pid, made.roomId, true)
+    const started = rooms.start(host.pid, made.roomId)
+    if (!started?.ok) {
+      rooms.leave?.(host.pid, made.roomId)
+      return { ok: false, error: started?.error || "That couldn't start. Please try again." }
+    }
+    for (const [p, q] of [
+      [host, other],
+      [other, host],
+    ])
+      send(p.pid, "park:act", { kind, roomId: made.roomId, spot: data.spot, mode: data.mode, seed, host: host.num, with: q.num, name: q.name, look: q.look || null })
+    return { ok: true }
+  }
   const together = createTogether({
     send,
     toAll,
@@ -451,6 +477,7 @@ const createPark = ({ emit = () => {}, emitVolatile = null, rooms = null, clock 
     clock,
     limit: (n, ms) => windowLimiter(n, ms, clock.now),
     startGame: togetherGame,
+    startAct: togetherAct,
   })
   const withInst = (fn) => (pid, payload) => {
     const inst = instanceOf(pid)

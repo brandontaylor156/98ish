@@ -7,7 +7,7 @@ import { repLevel } from "./rep.js"
 // netJoined / netEvent). Without a connection the park is just yours and the regulars'.
 // -> { joined, park, people, error }
 // (park:ask ... park:tgend: My Park > Together, server/park/together.js)
-const EVENTS = ["park:m", "park:person", "park:gone", "park:fx", "park:courts", "park:go", "park:rate", "park:ask", "park:answer", "park:link", "park:tg", "park:tgend"]
+const EVENTS = ["park:m", "park:person", "park:gone", "park:fx", "park:courts", "park:go", "park:rate", "park:ask", "park:answer", "park:link", "park:tg", "park:tgend", "park:act"]
 
 export const usePark = ({ world, active, me }) => {
   const net = useNet()

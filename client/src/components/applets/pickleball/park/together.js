@@ -31,6 +31,10 @@ export const TOGETHER = [
   { id: "hug", icon: "🤗", label: "Hug", ask: (n) => `${n} wants a hug` },
   { id: "twirl", icon: "💃", label: "Twirl", ask: (n) => `${n} wants to twirl you` },
   { id: "dance", icon: "🕺", label: "Dance", ask: (n) => `${n} wants to dance` },
+  // (My Park activities, acts/: asked from the activity's own sheet at its spot, not this one)
+  { id: "tennis", icon: "🎾", label: "Tennis", act: true, ask: (n, d) => (d?.mode === "rally" ? `${n} wants to rally at tennis with you` : `${n} wants to play you at tennis`) },
+  { id: "horse", icon: "🏀", label: "H-O-R-S-E", act: true, ask: (n) => `${n} wants to play H-O-R-S-E with you` },
+  { id: "workout", icon: "💪", label: "Work out", act: true, ask: (n) => `${n} wants to work out together` },
 ]
 export const TOGETHER_IDS = TOGETHER.map((t) => t.id)
 export const togetherById = (id) => TOGETHER.find((t) => t.id === id) || null

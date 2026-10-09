@@ -693,6 +693,7 @@
    "id": "pcFit",
    "type": "gym",
    "name": "Fitness floor",
+   "tvs": true,
    "poly": [
     {
      "en": [

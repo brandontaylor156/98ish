@@ -68,6 +68,8 @@ import { useVenueBuilds } from "./play/useVenueBuilds.js"
 import { ARENA_IDS, currentPlace, isArena, placeById, placeText } from "./play/places.js"
 import { TIMES, nightOk, timeAt, validTime } from "./park/timeofday.js"
 import { useTogether } from "./park/useTogether.jsx"
+import { useActivities } from "./park/acts/useActivities.jsx"
+import { gainsLook } from "./park/acts/stats.js"
 // drilling with a friend online (practice/coop.js: the host's match runs it)
 import { COOP_DRILLS, coopById, createCoop } from "./practice/coop.js"
 import { CoopHud, cleanCoopSnap } from "./practice/CoopHud"
@@ -336,7 +338,8 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
   }, [parkWorld])
   const myParkInfo = () => {
     const p = prefsRef.current
-    return { name: online.me?.name || characterById(p.character).nick, look: lookForPlayer(p, { character: p.character, outfit: p.outfit }, "park"), rep: validRep(p.parkRep) }
+    // (My Park > Work out: pumped after a workout, and for good once you're fit: park/acts/stats.js)
+    return { name: online.me?.name || characterById(p.character).nick, look: gainsLook(lookForPlayer(p, { character: p.character, outfit: p.outfit }, "park"), p.actStats || {}, { gains: p.actGains !== false }), rep: validRep(p.parkRep) }
   }
   const parkNet = usePark({ world: parkWorld, active: !!parkWorld, me: parkWorld ? myParkInfo() : null })
   // spatial voice in My Park (park menu > Voice; utils/voice)
@@ -426,6 +429,26 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
   }
   // My Park > Together (park/useTogether.jsx): things to do with your partner or a buddy there
   const together = useTogether({ world: parkWorld, hud: parkHud, venueName: parkWorld?.layout?.name || "My Park", nightOk: nightOk(placeById(parkWorld?.venue, prefs)), prefs, setPrefs, aim, active: !!parkWorld })
+  // My Park activities (park/acts/): tennis, hoops, a workout, the TV, where the venue has them
+  const acts = useActivities({
+    world: parkWorld,
+    prefs,
+    setPrefs,
+    aim,
+    mobile: !!mobile,
+    showPad,
+    padSide: prefs.padSide || "left",
+    // (the TV's live courts: Live Broadcast's watch screen, then back to the park)
+    onWatchLive: (it) => {
+      leavePark()
+      setWatchFor({ id: it.id, code: null })
+      setScreen("watch")
+    },
+  })
+  // (a workout just done: your player's pumped; the look follows your fitness)
+  useEffect(() => {
+    parkRef.current?.setMe(myParkInfo())
+  }, [prefs.actStats, prefs.actGains])
   // (a co-op rally from My Park: the best streak, for the couple's record when you leave)
   useEffect(() => {
     const pg = parkGameRef.current
@@ -1069,6 +1092,8 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
     const w = parkRef.current
     const e = engineRef.current
     if (!w || !e) return
+    // (an activity's spot, or one with a friend starting: park/acts/useActivities.jsx)
+    if (acts.onEvent(ev)) return
     // (Together's asks, answers and moments: park/useTogether.jsx)
     if (together.onEvent(ev)) return
     if (ev.type === "turn") {
@@ -1789,7 +1814,8 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
         )}
         {/* ---------- My Park ---------- */}
         {screen === "park" && <div className="pkParkLabels" ref={parkLabelsRef} aria-hidden="true" style={{ display: phase === "world" ? "" : "none" }} />}
-        {screen === "park" && phase === "world" && parkWorld && !parkUi.menu && !parkUi.turn && (
+        {screen === "park" && phase === "world" && parkWorld && !parkUi.menu && !parkUi.turn && acts.overlays}
+        {screen === "park" && phase === "world" && parkWorld && !parkUi.menu && !parkUi.turn && !acts.running && (
           <ParkHud
             hud={parkHud}
             showPad={showPad}
@@ -1800,7 +1826,7 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
             extra={together.button}
           />
         )}
-        {screen === "park" && phase === "world" && parkWorld && !parkUi.menu && !parkUi.turn && together.overlays}
+        {screen === "park" && phase === "world" && parkWorld && !parkUi.menu && !parkUi.turn && !acts.running && together.overlays}
         {screen === "park" && phase === "world" && parkWorld && liveCourt && !parkUi.menu && !parkUi.turn && !parkUi.intro && (
           <div className="pkPanel window pkParkLive" data-park-live>
             <span>
@@ -1901,7 +1927,7 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
         {screen === "park" && phase === "world" && livingUi.away && !parkUi.intro && !parkUi.menu && (
           <AwayCard away={livingUi.away} venueNames={venueNames} onClose={() => (setLivingUi((u) => ({ ...u, away: null })), livingNet.seen(), stageRef.current?.focus({ preventScroll: true }))} />
         )}
-        {parkWorld && (screen === "park" ? phase === "world" && !parkUi.turn && !parkUi.intro : parkVoice.state.status !== "off") && !parkUi.menu && <VoiceChip voice={parkVoice} inPark={screen === "park"} names={parkWorld?.voicePlace?.().names || {}} />}
+        {parkWorld && (screen === "park" ? phase === "world" && !parkUi.turn && !parkUi.intro : parkVoice.state.status !== "off") && !parkUi.menu && !acts.running && <VoiceChip voice={parkVoice} inPark={screen === "park"} names={parkWorld?.voicePlace?.().names || {}} />}
         {parkUi.result && (phase === "over" || online.phase === "over") && (
           <ParkResult
             result={parkUi.result}

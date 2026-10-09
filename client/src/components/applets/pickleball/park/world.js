@@ -46,6 +46,8 @@ import { EMOTE_KINDS, EMOTE_POSE, EMOTE_SECONDS, LINK_KINDS, SELFIE_AT, SELFIE_C
 import { cameraBlockers } from "../play/courtpick.js"
 import { sunPosition } from "./solar.js"
 import { timeDate } from "./timeofday.js"
+import { activitySpots, nearestSpot } from "./acts/spots.js"
+import { gearFig } from "./acts/gear.js"
 
 // Real Sky: Riverside isn't a real place; it borrows a Southern California park's sky
 export const DEFAULT_SKY_PLACE = { lat: 33.709, lon: -117.954 }
@@ -520,11 +522,19 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
     }
   }
 
+  // ---------- activities (acts/): tennis, hoops, a workout, the TV ----------
+  // Only where the venue really has the place (acts/spots.js). While one runs, `me.mode` is
+  // "act": the activity moves your player (from your own move pad), draws its own things into
+  // the scene, and holds the camera; the park carries on round you.
+  const spots = layout.spec?.scene ? activitySpots(layout) : []
+  let activity = null
+
   // ---------- the HUD ----------
   let hudKey = ""
   let hudT = 0
   let action = null
   const actionFor = () => {
+    if (me.mode === "act") return null
     if (me.mode === "watch") return { kind: "leave", label: "Leave" }
     if (me.mode === "sit") return { kind: "stand", label: "Stand up" }
     // (up on a terrace: the courts' racks and benches are down below)
@@ -536,6 +546,9 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
     const cl = nearestClone(2.4)
     if (cl) return { kind: "challenge", owner: cl.owner, label: `Challenge ${cl.name}'s clone`, detail: "Plays the way they really play" }
     const it = nearestAction(me.walker.x, me.walker.z)
+    // (an activity's spot, when it's nearer than the park's own thing there)
+    const sp = spots.length ? nearestSpot(spots, me.walker.x, me.walker.z, me.walker.y || 0) : null
+    if (sp && (!it || it.kind === "sit" || sp.k < Math.hypot(me.walker.x - it.x, me.walker.z - it.z) / it.r)) return { kind: "act", act: sp.spot.kind, spot: sp.spot.id, label: sp.spot.label, detail: sp.spot.detail }
     if (!it) return null
     if (it.kind === "rack") {
       const c = courts[it.court]
@@ -1142,6 +1155,7 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
     sendHud(true)
   }
   const doAction = () => {
+    if (me.mode === "act") return false
     const a = action || actionFor()
     if (!a) return false
     // (standing up yourself from beside the one you hold hands with: you let go)
@@ -1158,6 +1172,10 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
     } else if (a.kind === "locker") onEvent?.({ type: "locker" })
     else if (a.kind === "machine") onEvent?.({ type: "machine" })
     else if (a.kind === "challenge") onEvent?.({ type: "challenge", owner: a.owner, court: nearestCourt() })
+    else if (a.kind === "act") {
+      const spot = spots.find((s) => s.id === a.spot)
+      if (spot) onEvent?.({ type: "activity", spot, pal: tg.pal ? { num: tg.pal.num, name: tg.pal.name } : null })
+    }
     sendHud(true)
     return true
   }
@@ -1638,6 +1656,12 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
     const list = []
     for (const b of bodies.values()) {
       if (b.hidden) continue
+      // (a friend playing with you: drawn by the activity instead, acts/)
+      if (b.actHidden) {
+        b.fig?.group.parent?.remove(b.fig.group)
+        b.inView = false
+        continue
+      }
       if (b.mode === "court") {
         if (!b.p) continue
         courtWorld(b)
@@ -1653,6 +1677,8 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
     const ranked = list.filter((b) => (b.inView && b.dist < FULL_DIST) || (watched && b.court === watched)).sort((a, c) => (watched ? (c.court === watched) - (a.court === watched) : 0) || a.dist - c.dist)
     const fullSet = new Set(ranked.slice(0, Math.max(dev.budget ?? budget, watched && dev.budget === null ? 4 : 0)))
     if (me.mode !== "watch" || meBody.inView) fullSet.add(meBody)
+    // (an activity's players: always real athletes)
+    if (activity) for (const b of list) if (b.drive && b.inView) fullSet.add(b)
     // (together: the one you're with is always a real athlete too)
     const mate = tgMateBody() || (tg.sunset ? tgOther(tg.sunset.other)?.body : null)
     if (mate?.inView) fullSet.add(mate)
@@ -1698,6 +1724,29 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
   }
   const animate = (b, dt) => {
     const step = Math.min(0.1, dt)
+    // (an activity's body: posed from what the activity says, acts/)
+    const d = b.drive ? b.drive() : null
+    gearFig(b.fig, d?.gear || "paddle", d?.gearColor)
+    if (d) {
+      if (d.seat) {
+        b.fig.apply(seatedPose(d.seat, d.look || tmpLook, null, { drop: d.seat.y + 0.02, ahead: 0.42 }), step)
+        return
+      }
+      const key = d.key || "act"
+      if (!b.anim || b.anim.driveKey !== key) {
+        b.anim = createAnim(d.sit.x, d.sit.z, d.sit.facing)
+        b.anim.driveKey = key
+      }
+      if (d.mood) {
+        if (!b.anim.mood || b.anim.mood.kind !== d.mood.kind || b.anim.mood.variant !== (d.mood.variant || 0)) setMood(b.anim, d.mood.kind, d.mood.variant || 0, true)
+        b.anim.mood.p = d.mood.p
+      } else if (b.anim.mood?.keep) b.anim.mood = null
+      b.anim.useMM = !!b.fig.skinned
+      b.anim.mmEvery = quality === "high" ? 0.1 : 0.2
+      const pose = updateAnim(b.anim, d.sit, step)
+      b.fig.apply(d.frame ? poseToWorld(pose, d.frame) : liftPose(pose, d.y || 0), step)
+      return
+    }
     if (b.seat) {
       // sitting: a bench pose looking at the court (clapping after a great point)
       if (b.clapT !== null && b.clapT !== undefined) {
@@ -1809,6 +1858,26 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
   }
   const updateCamera = (dt) => {
     const por = portrait()
+    // an activity holds the camera (its own shot: behind you on court, at the hoop, the TV)
+    if (me.mode === "act" && activity) {
+      setLensShift(0)
+      const shot = activity.shot(dt, { portrait: por })
+      const k = shot.snap ? 1 : 1 - Math.exp(-dt * (shot.ease || 5))
+      tv.set(shot.cam.x, shot.cam.y, shot.cam.z)
+      camera.position.lerp(tv, k)
+      tv.set(shot.look.x, shot.look.y, shot.look.z)
+      lookAt.lerp(tv, k)
+      if (Math.abs(camera.fov - shot.fov) > 0.05) {
+        camera.fov += (shot.fov - camera.fov) * (shot.snap ? 1 : Math.min(1, dt * 4))
+        camera.updateProjectionMatrix()
+      }
+      camera.lookAt(lookAt)
+      const at = activity.focus?.() || { x: meBody.x, y: meBody.y || 0, z: meBody.z }
+      park.cull?.(camera.position, at)
+      if (!dev.noCutaway) park.cutaway?.(camera.position, bodyPoints(at), at, dt)
+      park.followSky?.(camera.position)
+      return
+    }
     // together: the selfie's lens, or the sky ahead of the two of you at sunset
     const special = tg.selfie ? tg.selfie.shot : tg.emote?.shot ? tg.emote.shot : tg.sunset && me.mode === "sit" && me.seat ? sunsetShot() : null
     // (eased, so turning the phone doesn't jump)
@@ -2062,7 +2131,7 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
     for (const s of ALL_SEATS) if (Math.hypot(s.x - x, s.z - z) < 0.3) best = s.court ?? null
     return best
   }
-  const myAct = () => (me.mode === "walk" ? (me.walker.speed > 0.05 ? ACTS.move : ACTS.stand) | ((me.walker.y || 0) > 0.3 ? UP_BIT : 0) : me.seat ? (me.seat.y > 0.6 ? ACTS.sitHigh : ACTS.sitLow) : ACTS.stand)
+  const myAct = () => (me.mode === "walk" || me.mode === "act" ? (me.walker.speed > 0.05 ? ACTS.move : ACTS.stand) | ((me.walker.y || 0) > 0.3 ? UP_BIT : 0) : me.seat ? (me.seat.y > 0.6 ? ACTS.sitHigh : ACTS.sitLow) : ACTS.stand)
   const sendPos = () => {
     if (!net) return
     const now = performance.now()
@@ -2111,7 +2180,20 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
     updateDay(false)
     adaptBudget(dtIn)
     // you
-    if (me.mode === "walk") {
+    if (me.mode === "act" && activity) {
+      activity.step(dt)
+      const m = activity.me?.() || null
+      if (m) {
+        meBody.x = me.walker.x = m.x
+        meBody.z = me.walker.z = m.z
+        meBody.y = me.walker.y = m.y || 0
+        meBody.yaw = me.walker.yaw = m.yaw ?? meBody.yaw
+        meBody.vx = me.walker.vx = m.vx || 0
+        meBody.vz = me.walker.vz = m.vz || 0
+        meBody.speed = me.walker.speed = Math.hypot(m.vx || 0, m.vz || 0)
+        meBody.seat = null
+      }
+    } else if (me.mode === "walk") {
       const kx = (keys.has("ArrowRight") || keys.has("KeyD") ? 1 : 0) - (keys.has("ArrowLeft") || keys.has("KeyA") ? 1 : 0)
       const ky = (keys.has("ArrowUp") || keys.has("KeyW") ? 1 : 0) - (keys.has("ArrowDown") || keys.has("KeyS") ? 1 : 0)
       // (the keys jog; Shift sprints)
@@ -2245,6 +2327,48 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
   // your 3D Viewer 98 model, if you placed one in My Park: it trots after you (viewer3d/petLayer.js)
   const pet = createPetLayer(scene, { quality })
   const post = postFlag && !phone && quality === "high" && layout.id && layout.id !== "riverside" ? createPost(scene) : null
+  // what an activity (acts/) gets from the park
+  const actApi = {
+    scene,
+    camera,
+    renderer,
+    quality,
+    phone,
+    audio,
+    layout,
+    venue: layout.id || "riverside",
+    portrait,
+    get clock() {
+      return clock
+    },
+    get sky() {
+      return look
+    },
+    me: () => ({ name: me.name, look: me.look, num: myNum }),
+    meBody,
+    // a body the activity drives (an opponent, a partner): b.drive = () => ({ sit, frame, ... })
+    body(key, lookOf, name) {
+      return makeBody(`act:${key}`, lookOf, name, { actBody: true })
+    },
+    drop(b) {
+      if (b) removeBody(b)
+    },
+    // someone online in this park (by park number), and hiding them while the activity draws them
+    remote(num) {
+      const r = remotes.get(num)
+      return r ? { num, name: r.name, look: r.look, body: r.body } : null
+    },
+    hideRemote(num, on = true) {
+      const r = remotes.get(num)
+      if (r) r.body.actHidden = !!on
+    },
+    seats: () => ALL_SEATS,
+    seatTaken: (id) => takenSeats.has(id),
+    blocked: (x, z, r = 0.3) => (venue.blocked ? venue.blocked(x, z, r) : false),
+    // the first solid thing taller than h (a fence, a wall) on the ground line a -> b: 0..1, or null
+    segHit: (a, b, h = 1.6, pad = 0.2) => (venue.kind === "riverside" || !venue.segmentHit ? null : venue.segmentHit(a, b, h, pad)),
+    say: (b, text) => speak(b || meBody, text, clock),
+  }
   const world = {
     scene,
     camera,
@@ -2268,11 +2392,18 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
     setStick(x, y) {
       input.x = x
       input.y = y
+      if (me.mode === "act") activity?.setStick?.(x, y)
     },
     setSprint(on) {
       input.sprint = !!on
     },
     key(code, down) {
+      // (an activity takes the keys: moving, swinging, shooting, the beat)
+      if (me.mode === "act" && activity) {
+        if (down) keys.add(code)
+        else keys.delete(code)
+        return activity.key?.(code, down, keys) ?? false
+      }
       if (down) {
         if (code === "Enter" || code === "Space" || code === "KeyF") return doAction()
         if (code === "KeyC" && me.mode === "watch") return world.cycleCam()
@@ -2290,6 +2421,55 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
     // a drag on the picture turns the camera round you (px)
     drag(dx) {
       if (me.mode === "walk" || me.mode === "sit") turnFollow(follow, -dx * 0.008)
+      else if (me.mode === "act") activity?.drag?.(dx)
+    },
+    // ---- activities (acts/): the spots here, and one running ----
+    get spots() {
+      return spots
+    },
+    get activity() {
+      return activity
+    },
+    // start one (act: acts/run*.js's object) or end it (null). The activity gets a small API:
+    // the scene, bodies it drives, the people online, the clock
+    setActivity(act) {
+      if (activity) {
+        try {
+          activity.stop?.()
+        } catch (e) {
+          console.error(e)
+        }
+        for (const b of [...bodies.values()]) if (b.actBody) removeBody(b)
+        for (const r of remotes.values()) if (r.body.actHidden) r.body.actHidden = false
+        meBody.drive = null
+        meBody.anim = null
+        const exit = activity.exit?.() || null
+        activity = null
+        if (me.mode === "act") me.mode = "walk"
+        if (exit) {
+          me.walker.x = exit.x
+          me.walker.z = exit.z
+          me.walker.y = exit.y || 0
+          me.walker.yaw = exit.yaw ?? me.walker.yaw
+        }
+        me.walker.vx = me.walker.vz = 0
+        follow.yaw = me.walker.yaw
+        follow.pos = null
+        lastSent = null
+      }
+      if (act) {
+        if (me.mode !== "walk") standUp()
+        // (off to do something: walking together, a picture or the sunset ends)
+        tg.moveTo = null
+        endSelfie()
+        endSunset(false)
+        if (tg.link) tgUnlink()
+        activity = act
+        me.mode = "act"
+        world.clearKeys()
+        act.start?.(actApi)
+      }
+      sendHud(true)
     },
     action: doAction,
     watch,
@@ -2319,6 +2499,8 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
     },
     // away while you play a game / visit the Locker Room; back with where to stand
     suspend() {
+      // (off somewhere else: an activity here ends)
+      if (activity) world.setActivity(null)
       suspended = true
       world.clearKeys()
       // (off to play: walking together, a picture or the sunset ends; the server ends the link)
@@ -2452,6 +2634,8 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
       } else if (type === "park:courts") applyServerCourts(d)
       else if (type === "park:go" && d && courts[d.court]) myTurn(courts[d.court], { kind: d.kind === "room" ? "room" : "solo", roomId: d.roomId || null, together: d.together === "team" || d.together === "rally" ? d.together : null })
       else if (type === "park:rate" && d?.rate) netRate = d.rate
+      // (an activity with a friend starts: its room is made, acts/useActivities.jsx takes over)
+      else if (type === "park:act" && d) onEvent?.({ type: "actStart", ...d, spot: spots.find((s) => s.id === d.spot) || null, spotId: d.spot, me: myNum })
       else if (type.startsWith("park:") && d) togetherEvent(type, d)
       sendHud(false)
     },
@@ -2558,6 +2742,7 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
       for (const b of bodies.values()) dropFig(b)
     },
     dispose() {
+      if (activity) world.setActivity(null)
       if (disposed) return
       post?.dispose()
       splat.dispose()

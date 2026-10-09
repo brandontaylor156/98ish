@@ -567,6 +567,15 @@ export const updateAnim = (a, s, dt) => {
     crouch = Math.max(crouch, 0.06 + 0.05 * Math.abs(Math.sin(mood.t * Math.PI * 1.2)))
   }
   if (mood?.kind === "highfive") hopY += Math.max(0, Math.sin(Math.min(1, mood.t / 0.9) * Math.PI)) * 0.05
+  // (My Park activities, park/acts/: a jump shot's dip and lift; a workout's reps, mood.p the
+  // rep's phase 0..1 from the beat)
+  if (mood?.kind === "shoot") {
+    const p = mood.p ?? clamp(mood.t / 1.2, 0, 1)
+    crouch = Math.max(crouch, 0.15 * Math.sin(clamp(p / 0.42, 0, 1) * Math.PI))
+    if (p > 0.38 && p < 0.86) hopY += Math.sin(((p - 0.38) / 0.48) * Math.PI) * 0.13
+  }
+  if (mood?.kind === "squat") crouch = Math.max(crouch, 0.4 * Math.sin(clamp(mood.p ?? 0, 0, 1) * Math.PI))
+  if (mood?.kind === "jack") hopY += Math.sin(clamp(mood.p ?? 0, 0, 1) * Math.PI) * 0.09
 
   // standing still: weight shifts slowly from foot to foot; ready at the net, a light bounce
   const still = 1 - clamp(speed / 0.5, 0, 1)
@@ -788,6 +797,44 @@ export const updateAnim = (a, s, dt) => {
       if (v === 0) mp = { hand: V(0.24, 0.94, 0.08), axis: norm(V(0.1, -1, 0.1)), off: V(-0.18, 1.62, 0.16), pole: V(0.6, -1, -0.2), offPole: V(-0.8, -0.5, -0.2) }
       else mp = { hand: V(0.24, 0.94, 0.08), axis: norm(V(0.1, -1, 0.1)), off: V(-0.32 + Math.sin(mood.t * 9) * 0.06, 1.6, 0.16), pole: V(0.6, -1, -0.2), offPole: V(-1, -0.4, -0.2) }
       lookAt = add(add(ground, V(0, 1.55, 0)), mul(fr.f, 3))
+    } else if (mood.kind === "shoot") {
+      // a jump shot (My Park > Shoot hoops): the ball set in front of the forehead, then the
+      // shooting arm up and through, the other hand guiding, held a moment (the wrist flicked)
+      const p = mood.p ?? clamp(mood.t / 1.2, 0, 1)
+      const k = smoothW(clamp((p - 0.4) / 0.22, 0, 1))
+      mp = { hand: lerpV(V(0.12, 1.5, 0.3), V(0.1, 2.12, 0.42), k), axis: norm(lerpV(V(0, 1, 0.25), V(0, 0.4, 1), k)), off: lerpV(V(-0.12, 1.46, 0.3), V(-0.12, 1.85, 0.32), k), pole: V(0.5, -1, -0.15), offPole: V(-0.7, -0.6, -0.2) }
+      lookAt = add(add(ground, V(0, 2.6, 0)), mul(fr.f, 5))
+    } else if (mood.kind === "dribble") {
+      // bouncing the ball at the side (mood.p: 0 the hand up, 0.5 down to push it)
+      const b = Math.sin((mood.p ?? 0) * Math.PI)
+      mp = { hand: V(0.36, 0.98 - 0.22 * b, 0.28), axis: norm(V(0, -0.3, 1)), off: V(-0.24, 0.98, 0.16), pole: V(1, -0.4, -0.4), offPole: V(-0.6, -1, -0.2) }
+    } else if (mood.kind === "squat") {
+      // arms out in front for balance, down with the body
+      const b = Math.sin(clamp(mood.p ?? 0, 0, 1) * Math.PI)
+      mp = { hand: V(0.17, 1.3 - 0.36 * b, 0.46), axis: norm(V(0, 0.2, 1)), off: V(-0.17, 1.3 - 0.36 * b, 0.46), pole: V(0.6, -1, -0.3), offPole: V(-0.6, -1, -0.3) }
+      lookAt = add(add(ground, V(0, 1.5 - 0.3 * b, 0)), mul(fr.f, 4))
+    } else if (mood.kind === "curl") {
+      // both hands from the thighs up to the shoulders, the elbows kept at the sides
+      const b = Math.sin(clamp(mood.p ?? 0, 0, 1) * Math.PI)
+      mp = { hand: V(0.22, 0.86 + 0.48 * b, 0.12 + 0.16 * b), axis: norm(V(0, 0.3 + 0.7 * b, 1 - 0.6 * b)), off: V(-0.22, 0.86 + 0.48 * b, 0.12 + 0.16 * b), pole: V(0.2, -1, -0.5), offPole: V(-0.2, -1, -0.5) }
+    } else if (mood.kind === "press") {
+      // from the shoulders straight up overhead
+      const b = Math.sin(clamp(mood.p ?? 0, 0, 1) * Math.PI)
+      mp = { hand: V(0.27 - 0.08 * b, 1.48 + 0.6 * b, 0.1 - 0.04 * b), axis: norm(V(0, 1, 0.1)), off: V(-0.27 + 0.08 * b, 1.48 + 0.6 * b, 0.1 - 0.04 * b), pole: V(1, -0.6, -0.1), offPole: V(-1, -0.6, -0.1) }
+      lookAt = add(add(ground, V(0, 1.7, 0)), mul(fr.f, 4))
+    } else if (mood.kind === "row") {
+      // bent over at the hips, pulling both hands from hanging to the ribs
+      const b = Math.sin(clamp(mood.p ?? 0, 0, 1) * Math.PI)
+      mp = { hand: V(0.2, 0.72 + 0.28 * b, 0.42 - 0.3 * b), axis: norm(V(0, -0.2, 1)), off: V(-0.2, 0.72 + 0.28 * b, 0.42 - 0.3 * b), pole: V(0.4, 0.4, -1), offPole: V(-0.4, 0.4, -1) }
+      leanT = 0.6
+      lookAt = add(ground, mul(fr.f, 2))
+    } else if (mood.kind === "jack") {
+      // jumping jacks: the arms out and up over the head, and back down
+      const b = Math.sin(clamp(mood.p ?? 0, 0, 1) * Math.PI)
+      mp = { hand: V(0.3 + 0.35 * Math.sin(b * Math.PI * 0.5), 0.85 + 1.15 * b, 0.05), axis: norm(V(0.3, 1, 0)), off: V(-0.3 - 0.35 * Math.sin(b * Math.PI * 0.5), 0.85 + 1.15 * b, 0.05), pole: V(1, -0.5, -0.2), offPole: V(-1, -0.5, -0.2) }
+    } else if (mood.kind === "watch") {
+      // standing watching something up ahead (the TV), arms folded loosely
+      mp = { hand: V(0.08, 1.12, 0.18), axis: norm(V(-1, 0.1, 0.1)), off: V(-0.1, 1.14, 0.2), pole: V(1, -0.6, 0), offPole: V(-1, -0.6, 0) }
     } else if (v === 0) {
       // hands on the hips (where the hips are, whatever the posture), head down
       mp = { hand: toStd(V(0.25, 0.98, -0.02)), axis: norm(V(0.3, -0.6, -0.7)), off: toStd(V(-0.25, 0.98, -0.02)), pole: V(1, -0.3, -0.2) }

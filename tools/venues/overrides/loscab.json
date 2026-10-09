@@ -1073,6 +1073,7 @@
    "id": "fitness",
    "type": "gym",
    "name": "Fitness centre",
+   "tvs": true,
    "floor": "#4a4d52",
    "poly": [
     {
