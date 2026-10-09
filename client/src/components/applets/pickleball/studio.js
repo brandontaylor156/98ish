@@ -51,7 +51,7 @@ export const poseMetrics = (pose) => {
   }
 }
 
-export const STATES = ["tap", "net-tap", "twirl", "wipe", "receive", "walkback", "jog", "sprintstop", "kitchen-shuffle", "backpedal2", "lob-turn", "ready", "split", "run", "shuffle", "walk", "sprint", "backpedal", "stop", "turn", "lunge", "backswing", "drive", "drive-follow", "backhand", "backhand-follow", "dink", "volley", "overhead", "serve", "serve-follow", "celebrate", "celebrate2", "celebrate3", "frustrated", "frustrated2", "frustrated3", "idle", "shuffle-ready", "run-hit", "dink-bh", "volley-bh", "reach-bh", "lob", "ready-net", "kitchen-adjust", "crossover", "transition", "backhand-two", "dink-wide", "hands-battle", "ready-kitchen", "ready-mid", "ready-base", "split-move", "overhead-lob", "drive-low"]
+export const STATES = ["tap", "net-tap", "twirl", "wipe", "receive", "walkback", "jog", "sprintstop", "kitchen-shuffle", "backpedal2", "lob-turn", "ready", "split", "run", "shuffle", "walk", "sprint", "backpedal", "stop", "turn", "lunge", "backswing", "drive", "drive-follow", "backhand", "backhand-follow", "dink", "volley", "overhead", "serve", "serve-follow", "celebrate", "celebrate2", "celebrate3", "frustrated", "frustrated2", "frustrated3", "idle", "shuffle-ready", "run-hit", "dink-bh", "volley-bh", "reach-bh", "lob", "ready-net", "kitchen-adjust", "crossover", "transition", "backhand-two", "dink-wide", "hands-battle", "ready-kitchen", "ready-mid", "ready-base", "split-move", "overhead-lob", "drive-low", "volley-body", "body-bh", "jam-fh"]
 
 // Movement tests for the footwork (motion matching vs the procedural gait): a player moved
 // by the match's own rule (accelerating at most 12 m/s^2 toward the velocity they want, or
@@ -237,6 +237,14 @@ const script = (state, x, z, { hand = 1, twoHand = false } = {}) => {
         },
       }
     }
+    // balls at the body (the paddle out of the body at contact, 2026-10-08): a punch volley at
+    // the chest, a chest-high ball on the backhand (the chicken wing), a forehand jammed at the hip
+    case "volley-body":
+      return stroke("punch", C(0.14, 1.18, 0.3), { atNet: true })
+    case "body-bh":
+      return stroke("block", C(-0.04, 1.08, 0.28), { atNet: true, hand: "bh" })
+    case "jam-fh":
+      return stroke("punch", C(0.24, 0.92, 0.24), { atNet: true })
     case "dink-bh":
       return stroke("dink", C(-0.4, 0.3, 0.5), { atNet: true, hand: "bh" })
     case "volley-bh":

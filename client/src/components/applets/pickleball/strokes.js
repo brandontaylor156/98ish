@@ -128,6 +128,67 @@ export const contactAxis = (c, side, style) => {
 }
 export const contactHand = (c, axis) => sub(c, mul(axis, PADDLE_REACH))
 
+// ---- the hand kept out of the trunk ----
+// (2026-10-08, "the paddle still pierces through the players' bodies": a ball at the chest or
+// hip put the paddle hand, its handle and forearm inside the trunk: the stroke's paddle direction
+// was worked out for a ball out in front.) The trunk in the standard posture (shoulders 1.3 m
+// up, 0.1 m ahead of the feet, the trunk leaning forward from the hips): round its axis at each
+// height, half width `w`, half depth `d` plus the forearm's thickness. A hand inside is moved
+// out to its edge (straight out from the axis, or to the paddle side if it's on the axis), and
+// at contact the paddle then points from there to the ball: a jammed forehand meets it with the
+// elbow back and the paddle head up beside the body; a ball at the chest, on the backhand, with
+// the elbow up and out and the paddle across in front of the chest (the "chicken wing").
+export const TRUNK = { w: 0.27, d: 0.22, lo: 0.72, hi: 1.52 }
+const trunkZ = (y) => 0.1 - (1.3 - y) * 0.43
+export const outOfTrunk = (h, side = 1) => {
+  if (h.y < TRUNK.lo || h.y > TRUNK.hi) return h
+  const zA = trunkZ(h.y)
+  const u = h.x / TRUNK.w
+  const v = (h.z - zA) / TRUNK.d
+  const r = Math.hypot(u, v)
+  if (r >= 1) return h
+  // (fading in over the trunk's top and bottom 8 cm, so nothing jumps)
+  const fade = Math.min(1, (h.y - TRUNK.lo) / 0.08, (TRUNK.hi - h.y) / 0.08)
+  let du = u
+  let dv = v
+  if (r < 0.2) {
+    // (on the axis: out to the paddle side and forward)
+    du = 0.6 * (side || 1)
+    dv = 0.8
+  }
+  const k = 1 / Math.hypot(du, dv)
+  const out = V(du * k * TRUNK.w, h.y, zA + dv * k * TRUNK.d)
+  return lerpV(h, out, fade)
+}
+// the paddle's direction at contact with the hand kept out of the trunk (the face on the ball)
+export const KNEE_ROOM = { hand: 0.16, handle: 0.15 }
+export const roomAxis = (c, axis, side = 1, knees = null) => {
+  let ax = axis
+  for (let i = 0; i < 3; i++) {
+    const h = contactHand(c, ax)
+    let o = outOfTrunk(h, side)
+    // (and out beside the knees: a low ball by the legs had the handle in the thigh)
+    if (knees) {
+      for (const k of knees) {
+        const mid = sub(c, mul(ax, PADDLE_REACH * 0.6))
+        const dh = Math.hypot(o.x - k.x, o.y - k.y, o.z - k.z)
+        const dm = Math.hypot(mid.x - k.x, mid.y - k.y, mid.z - k.z)
+        const need = Math.max(KNEE_ROOM.hand - dh, KNEE_ROOM.handle - dm)
+        if (need > 0) {
+          // out from the knee, across and up (horizontally away from it, and a little higher)
+          const dx = o.x - k.x
+          const dz = o.z - k.z
+          const l = Math.hypot(dx, dz) || 1
+          o = V(o.x + (dx / l) * need, o.y + need * 0.5, o.z + (dz / l) * need)
+        }
+      }
+    }
+    if (Math.abs(o.x - h.x) + Math.abs(o.z - h.z) < 1e-4) break
+    ax = norm(sub(c, o), ax)
+  }
+  return ax
+}
+
 // ---- the keyframes of a stroke: back (end of the wind-up), contact, follow (the finish) ----
 // Each: hand (wrist), axis (paddle direction), coil (shoulder turn: + the paddle shoulder
 // back, - it through), off (the other hand), pole (where the paddle elbow points), lean
@@ -138,7 +199,9 @@ const yAt = (c, add0, lo, hi) => clamp(c.y + add0, lo, hi)
 export const strokeKeys = (style, side, c, opts = {}) => {
   const two = twoHanded(style, side, c, opts.two)
   const fast = !!opts.fast
-  const ax = contactAxis(c, side, style)
+  // (the hand kept out of the trunk for a ball at the body: roomAxis)
+  const free = style !== "serve" && style !== "overhead"
+  const ax = free ? roomAxis(c, contactAxis(c, side, style), 1, opts.knees || null) : contactAxis(c, side, style)
   const ch = contactHand(c, ax)
   const s = side
   const wide = Math.abs(c.x) > 0.75 // a reach: the other arm goes out for balance
@@ -186,7 +249,8 @@ export const strokeKeys = (style, side, c, opts = {}) => {
     }
     case "serve": {
       // (the other hand stays where it let the ball go: match.js handPos)
-      back = P(V(0.3, 0.74, -0.38), N(0.12, -0.85, -0.5), 0.45, V(0.12, 0.96, 0.4), V(0.45, -1, -0.3), 0.12)
+      // (the take-back out beside the hip, so the pendulum passes outside the back knee)
+      back = P(V(0.38, 0.74, -0.38), N(0.18, -0.85, -0.5), 0.45, V(0.12, 0.96, 0.4), V(0.45, -1, -0.3), 0.12)
       contact = P(ch, ax, 0.02, V(-0.28, 1.04, 0.2), V(0.4, -1, 0.15), 0.12)
       follow = P(V(0.3, 1.2, 0.48), N(0.2, 0.88, 0.42), -0.3, V(-0.32, 1.02, 0.06), V(0.45, -0.8, 0.35), 0.06)
       break
@@ -224,7 +288,9 @@ export const strokeKeys = (style, side, c, opts = {}) => {
         contact = P(ch, ax, -0.1, V(-0.2, 1.1, 0.3), V(0.5, -1, 0.1), 0.1)
         // (the finish by the other shoulder: the hand up by it, the paddle's head over it, the
         // elbow out in front at about chest height; not the paddle in front of the face)
-        follow = P(V(-0.2, 1.34, 0.26), N(-0.38, 0.8, -0.45), -0.78, V(-0.32, 1.04, 0.04), V(0.25, -0.5, 1), 0.07)
+        // (2026-10-08: the hand a forearm out in front of the chest at the finish, not on it: the
+        // follow-through used to drag the face across the arm, chest and neck)
+        follow = P(V(-0.16, 1.32, 0.44), N(-0.32, 0.88, -0.2), -0.78, V(-0.32, 1.04, 0.04), V(0.25, -0.5, 1), 0.07)
       } else if (two) {
         // two hands: both on the handle, a C-shaped loop low to high, the chest turning through
         // to face the net, finishing high over the paddle shoulder
@@ -237,6 +303,15 @@ export const strokeKeys = (style, side, c, opts = {}) => {
         follow = P(V(0.4, 1.3, 0.46), N(0.3, 0.88, 0.25), 0.1, V(-0.48, 1.04, -0.22), V(0.2, -1, 0.2), 0.05)
       }
     }
+  }
+  // (the take-back and the finish out of the trunk too)
+  if (free) {
+    back = { ...back, hand: outOfTrunk(back.hand) }
+    // (and the paddle's face: a take-back for a ball at the body cocked it into the chest)
+    const bf = add(back.hand, mul(back.axis, PADDLE_REACH * 0.8))
+    const bo = outOfTrunk(bf)
+    back.hand = add(back.hand, sub(bo, bf))
+    follow = { ...follow, hand: outOfTrunk(follow.hand) }
   }
   // a two-handed take-back on the backhand: the other hand on the paddle's throat
   if (!back.off) back.off = add(back.hand, add(mul(back.axis, 0.07), V(-0.02, 0, 0.03)))

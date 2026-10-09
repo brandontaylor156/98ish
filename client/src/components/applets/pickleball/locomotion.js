@@ -322,7 +322,8 @@ const startStep = (g, i, dur, kind) => {
 }
 
 // One frame of footwork. body: { x, z, vx, vz, yaw, stance (half width standing), reach:
-// { foot, x, z } | null, minHip (the pelvis height, for how far a leg reaches), athletic
+// { foot, x, z } | null, hold: { foot, x, z } | null (where a standing foot settles instead of
+// its stance spot), minHip (the pelvis height, for how far a leg reaches), athletic
 // (the half width the feet keep on the move in a rally; 0 or missing: the gait's own) }
 export const updateGait = (g, body, dt) => {
   const bs = blendSpace({ vx: body.vx, vz: body.vz, yaw: body.yaw, crossover: !!body.crossover, quick: body.quick || 1 })
@@ -389,6 +390,7 @@ export const updateGait = (g, body, dt) => {
     st.t = Math.min(1, st.t + dt / st.dur)
     let want
     if (body.reach && body.reach.foot === i) want = { x: body.reach.x, z: body.reach.z }
+    else if (body.hold && body.hold.foot === i && !g.moving) want = { x: body.hold.x, z: body.hold.z }
     else if (st.kind === "hop") want = spotFor(i, body, body.yaw, width + (st.wider || 0))
     else if (!g.moving) want = spotFor(i, body, body.yaw, width)
     else {
@@ -501,12 +503,14 @@ export const updateGait = (g, body, dt) => {
       let worst = 0
       for (const i of [1 - g.lastFoot, g.lastFoot]) {
         const f = g.feet[i]
-        const want = body.reach && body.reach.foot === i ? { x: body.reach.x, z: body.reach.z } : spotFor(i, body, body.yaw, width)
+        // (body.hold: where the other foot stands for now, e.g. the server's back foot)
+        const want = body.reach && body.reach.foot === i ? { x: body.reach.x, z: body.reach.z } : body.hold && body.hold.foot === i ? { x: body.hold.x, z: body.hold.z } : spotFor(i, body, body.yaw, width)
         const err = Math.hypot(f.bx - want.x, f.bz - want.z)
         const turn = Math.abs(wrap(f.yaw - footYaw(i)))
         // (feet narrower than the stance: a small step out to a wide, athletic base)
         const lat = (f.bx - body.x) * fr.r.x + (f.bz - body.z) * fr.r.z
-        const narrow = Math.max(0, width - 0.01 - lat * (i ? 1 : -1))
+        const held = body.hold && body.hold.foot === i
+        const narrow = held ? 0 : Math.max(0, width - 0.01 - lat * (i ? 1 : -1))
         const score = Math.max(err / 0.11, turn / 0.5, narrow / 0.025)
         if (score > 1 && score > worst) {
           worst = score

@@ -33,7 +33,8 @@ export const stepFootLock = (st, feet, down, dt, { release = LOCK.release, halfl
     const s = st[i]
     const other = st[1 - i]
     let lift = 0
-    const R = reach && reach.foot === i ? reach : null
+    // (reach: one spot, or a list: a step out and a foot held where it is, e.g. the server's back foot)
+    const R = !reach ? null : Array.isArray(reach) ? reach.find((r) => r && r.foot === i) || null : reach.foot === i ? reach : null
     if (R) {
       // (a landed reach whose leg can't get to it any more (the body moved on: pose.js says so
       // with drag, and the spot asked has moved on from where it landed) steps out again, from

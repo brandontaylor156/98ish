@@ -53,6 +53,9 @@ import { bodyCapsules, paddleDepth, resolvePaddle, rollPaddle, skipFor } from ".
 
 // the paddle kept out of the body (paddlebody.js): how far clear (m)
 export const GUARD = { margin: 0.02 }
+// (around contact the paddle may roll about its face if the arm gets the hand within this of its
+// new place: a ball low by the legs, the handle swung out of the thigh)
+const ROLL_REACH = 0.006
 const guardCaps = []
 const offCaps = []
 const guardSkip = skipFor({})
@@ -173,6 +176,8 @@ const springN = (s, target, k, dt) => {
 // ---- the gait: feet that stay put (locomotion.js) ----
 
 const STANCE = { idle: READY.between.stance, wide: 0.04 } // (wide: added to the ready stance)
+// the server's back foot (paddle side, body frame, right-handed): under the hip, a little back
+const SERVE_BACK = { x: 0.07, z: -0.12 }
 export { createGait, updateGait }
 
 // ---- strokes: strokes.js (which stroke, when, and the arm's path through the contact) ----
@@ -195,6 +200,44 @@ const MAX_CROUCH = 0.24 // (outside lunges: lower than this, the trunk bends ins
 const GROUND_CROUCH = 0.03
 const GROUND_HINGE = 0.4
 const GROUND = new Set(["drive", "return", "slice", "drop", "lob", "reset", "roll"])
+
+// ---- a ball at the body: making room ----
+// Pros meet volleys and dinks out in front (30-50 cm) and to the side. A ball coming at the
+// chest or hip can't be: real players lean back or away from it, turn the body out of its way,
+// and (when there's time) take a small step back or aside, so the paddle can meet it with the
+// face on the ball and the hand and handle outside the body. The torso is taken as an ellipse
+// round its axis at the ball's height; a contact inside the room ellipse (side, front, back:
+// the torso's own half width or depth plus a paddle's room) moves the body away from it by what's
+// missing, up to `max`. A person's player only leans (the upper body; nothing moves their feet or
+// where they stand); a computer player's hips take `cpu` of it too.
+export const ROOM = { side: 0.36, front: 0.42, back: 0.3, max: 0.22, cpu: 0.5, lean: [-0.55, 0.25], roll: 0.4 }
+const makeRoom = (body, c, hand, cpu) => {
+  if (!body) return null
+  const P = body.pelvis
+  const up = sub(body.neck, P)
+  const H = len(up)
+  const t = clamp(((c.x - P.x) * up.x + (c.y - P.y) * up.y + (c.z - P.z) * up.z) / (H * H), -0.6, 1.25)
+  // (only at the trunk's heights: the legs keep their own room, ai.js stands low balls off)
+  const w = smooth((t + 0.45) / 0.3) * smooth((1.3 - t) / 0.15)
+  if (w <= 0) return null
+  const dx = c.x - (P.x + up.x * t)
+  const dz = c.z - (P.z + up.z * t)
+  const fl = Math.hypot(body.f.x, body.f.z) || 1
+  const f = V(body.f.x / fl, 0, body.f.z / fl)
+  const r = V(-f.z, 0, f.x) // (the chest's right, horizontal: frame()'s convention)
+  const u = dx * r.x + dz * r.z
+  const v = dx * f.x + dz * f.z
+  const d = Math.hypot(u, v)
+  // the direction from the axis to the ball (straight ahead if it's on the axis)
+  const du = d > 1e-3 ? u / d : 0
+  const dv = d > 1e-3 ? v / d : 1
+  const B = dv >= 0 ? ROOM.front : ROOM.back
+  const re = 1 / Math.hypot(du / ROOM.side, dv / B)
+  const m = clamp(re - d, 0, ROOM.max) * w
+  if (m <= 0.002) return null
+  // the body moves away from the ball (world, horizontal), at the ball's height above the pelvis
+  return { x: -(r.x * du + f.x * dv) * m, z: -(r.z * du + f.z * dv) * m, h: Math.max(0.25, t * H), cpu, m }
+}
 
 // ---- the whole body ----
 
@@ -323,15 +366,24 @@ export const updateAnim = (a, s, dt) => {
   const bt = betweenActs(a.bt || (a.bt = {}), s, speed, a.t, dt)
   const fc = facingFor(a.face, { vx: mv.x, vz: mv.z, facing: s.facing, ball: s.ball, between: s.between, incoming: !!(swing || s.prep || s.holding || s.charging), goal: s.goal || null, x: s.x, z: s.z }, dt)
   let yaw = fc.yaw
-  if (swing || s.prep) {
+  // (not the serve: its ball drops beside the front foot, and turning to it put it in front of
+  // the legs, the swing through the thighs)
+  if ((swing || s.prep) && (swing || s.prep).kind !== "serve") {
     // open up toward the contact
     const c = swing || s.prep
     const cy = Math.atan2(c.x - s.x, c.z - s.z)
-    yaw = yaw + clamp(wrap(cy - yaw), -0.6, 0.6) * 0.35
+    // (a ball met beside or behind them (a late one, a ball that got past): the body turns to
+    // it, so the paddle doesn't reach back through the hips)
+    const ang = wrap(cy - yaw)
+    const behind = isOverhead(c.kind, c.y) ? 0 : smooth((Math.abs(ang) - 1.0) / 0.6) * (Math.hypot(c.x - s.x, c.z - s.z) > 0.15 ? 1 : 0)
+    yaw = yaw + clamp(ang, -0.6, 0.6) * 0.35 + clamp(ang, -2.0, 2.0) * 0.4 * behind
   }
   // an overhead: sideways as soon as the high ball is read (pro.js OVERHEAD_SET), the paddle
   // side back, through square again with the smash
   const oh = s.prep && isOverhead(s.prep.kind, s.prep.y) ? { ...s.prep, tRel: -s.prep.ttc } : swing && isOverhead(swing.kind, swing.y) ? { ...swing, tRel: swing.t } : s.high && !swing ? { ...s.high, tRel: -s.high.ttc } : null
+  // (the serve: square to the net, the ball dropped out beside the front foot; facingFor's turn
+  // toward the ball put it in front of the legs)
+  if (s.holding || (swing || s.prep)?.kind === "serve") yaw = s.facing
   const ohW = oh ? overheadTurn(oh.tRel) : 0
   if (ohW > 0) yaw += wrap(s.facing - hand * OVERHEAD_SET.turn - yaw) * ohW
   if (a.turn.yaw === undefined) a.turn.yaw = a.yaw
@@ -346,7 +398,7 @@ export const updateAnim = (a, s, dt) => {
     // (a stroke coming or under way: the body right at the game's position, so the paddle
     // meets the ball where the match says)
     const tight = swing && swing.t < 0.25 ? 1 : s.prep ? clamp(1 - (s.prep.ttc - 0.15) / 0.45, 0, 1) : 0
-    mmo = driveMM(a, s, mv, dt, { lib: mmLib, yaw, crouch: a.crouch.p ?? 0, down: (a.mmDown || 0) + Math.max(0, -hopPrev), hopY: Math.max(0, hopPrev), every: a.mmEvery, stance: s.between ? READY.between.stance : R.stance + MM_WIDE, tight, reach: a.mmReach || null, shift: { x: (a.shift.p?.x || 0) + (a.mmLunge?.x || 0), z: (a.shift.p?.z || 0) + (a.mmLunge?.z || 0) } })
+    mmo = driveMM(a, s, mv, dt, { lib: mmLib, yaw, crouch: a.crouch.p ?? 0, down: (a.mmDown || 0) + Math.max(0, -hopPrev), hopY: Math.max(0, hopPrev), every: a.mmEvery, stance: s.between ? READY.between.stance : R.stance + MM_WIDE, tight, reach: a.mmReach || null, shift: { x: (a.shift.p?.x || 0) + (a.mmLunge?.x || 0) + (a.roomPelvis?.x || 0), z: (a.shift.p?.z || 0) + (a.mmLunge?.z || 0) + (a.roomPelvis?.z || 0) } })
     a.yaw = mmo.yaw
     a.turn.yaw = a.yaw
     a.turn.w = 0
@@ -382,6 +434,8 @@ export const updateAnim = (a, s, dt) => {
   const running01 = clamp(bl.run + bl.sprint + bl.walk * 0.5, 0, 1)
   const extraT = V(0, 0, s.between ? 0 : -R.back * (1 - running01))
   let lunging = false
+  let roomT = null
+  let roomW = 0
   if (c && !s.between) {
     const lc = toLocal(ground, fr, V(c.x, 0, c.z))
     // (down early for a low ball; back up through the follow-through)
@@ -400,6 +454,9 @@ export const updateAnim = (a, s, dt) => {
       crouch -= (R.crouch + (CROUCH[c.kind] ?? 0.03) + braking * 0.05) * 0.85 * groundUp
     }
     lowLean = clamp((0.75 - c.y) * 1.1, 0, 0.5) * near
+    // a ball at the body: make room (see ROOM)
+    roomT = makeRoom(a.lastBody, c, hand, s.person ? 0 : 1)
+    roomW = smooth(swing ? 1 - (swing.t - 0.1) / 0.3 : 1 - (s.prep.ttc - 0.12) / 0.3)
     // wide or far, and low: the lunge (pro.js): the near foot steps out, that knee bends, the
     // back leg stays long, the hips go over toward the front foot
     // (not on an overhead: that one turns sideways and steps back, pro.js OVERHEAD_SET)
@@ -459,6 +516,17 @@ export const updateAnim = (a, s, dt) => {
     }
   }
   if (s.holding) crouch = 0.04
+  // the serve: a staggered stance, the paddle-side foot back under its hip while the ball is held
+  // (the other one steps forward into the swing: stepIn), so the pendulum swing passes in front of
+  // the back knee to a ball dropped beside the front foot (the square ready stance had that knee
+  // forward, in the paddle's path)
+  let hold = null
+  // (until they move off after it: then the feet are the gait's again)
+  if ((s.holding || (c && c.kind === "serve" && speed < 0.4)) && !s.between) {
+    const spot = toWorld(ground, fr, V(hand * SERVE_BACK.x, 0, SERVE_BACK.z))
+    hold = { foot: hand > 0 ? 1 : 0, x: spot.x, z: spot.z }
+    if (!reach) reach = hold
+  }
   crouch += bt.crouch // (the returner waits low)
   if (s.charging) crouch += 0.02
   crouch += a.extraCrouch // (the stroke's own knee bend, last frame's)
@@ -503,9 +571,21 @@ export const updateAnim = (a, s, dt) => {
   let idleMove = null
   const crouchS = springN(a.crouch, crouch, 10, dt)
 
-  updateGait(a.gait, { x: s.x, z: s.z, vx: mv.x, vz: mv.z, yaw: a.yaw, stance, athletic: s.between ? 0 : R.stance * ATHLETIC, reach, minHip: 0.93 - crouchS - 0.1, crossover: fc.mode !== "face", quick: quickSteps(speed, !!s.atNet && !s.between) }, dt)
+  updateGait(a.gait, { x: s.x, z: s.z, vx: mv.x, vz: mv.z, yaw: a.yaw, stance, athletic: s.between ? 0 : R.stance * ATHLETIC, reach, hold: hold && hold !== reach ? hold : null, minHip: 0.93 - crouchS - 0.1, crossover: fc.mode !== "face", quick: quickSteps(speed, !!s.atNet && !s.between) }, dt)
   const feet = a.gait.feet
   const extra = springV(a.extra, extraT, 24, dt)
+  // making room for a ball at the body (ROOM): world, horizontal; the hips take a computer
+  // player's share, the trunk leans the rest away at the ball's height
+  const roomV = springV(a.room || (a.room = {}), roomT ? V(roomT.x * roomW, 0, roomT.z * roomW) : V(), 22, dt)
+  if (roomT) a.roomH = roomT.h
+  const roomHip = roomT && roomT.cpu ? ROOM.cpu : a.roomHip ?? 0
+  if (roomT) a.roomHip = roomHip
+  const roomLean = mul(roomV, 1 - roomHip)
+  const roomH = a.roomH || 0.45
+  const roomLeanF = clamp((roomLean.x * fr.f.x + roomLean.z * fr.f.z) / roomH, ROOM.lean[0], ROOM.lean[1])
+  const roomRoll = clamp((roomLean.x * fr.r.x + roomLean.z * fr.r.z) / roomH, -ROOM.roll, ROOM.roll)
+  const roomPelvis = mul(roomV, roomHip)
+  a.roomPelvis = roomPelvis // (motion matching: the hips over, next frame)
 
   // ---- the upper body: layers ----
   // Worked out for a right-hander in the body frame (x right, y up, z forward) and mirrored
@@ -519,11 +599,11 @@ export const updateAnim = (a, s, dt) => {
   const local = (p) => toLocal(ground, fr, V(p.x, p.y, p.z))
   const W = a.w
   const sh = 1.3 // (the standard shoulders' height)
-  const lean0 = a.lean.p ?? 0.2
+  const lean0 = (a.lean.p ?? 0.2) + roomLeanF
   const sft = a.shift.p ? toLocal(V(0, 0, 0), fr, a.shift.p) : V()
   // (with motion matching the posture is the captured one: where its shoulders really are)
   // (with last frame's extra bend at the waist, see below)
-  const mmSh = mmo ? local(add(mmo.pelvis, qrot(qaxis(mul(fr.r, -1), a.mmLean.p ?? 0), sub(mul(add(mmo.shoulderL, mmo.shoulderR), 0.5), mmo.pelvis)))) : null
+  const mmSh = mmo ? local(add(mmo.pelvis, qrot(qaxis(mul(fr.r, -1), (a.mmLean.p ?? 0) + roomLeanF), sub(mul(add(mmo.shoulderL, mmo.shoulderR), 0.5), mmo.pelvis)))) : null
   const ofs = mmo ? V(mmSh.x, mmSh.y - sh, mmSh.z - 0.1) : V(sft.x + extra.x, 0.935 - crouchS + sft.y + 0.455 * Math.cos(lean0) - sh, sft.z + extra.z + 0.455 * Math.sin(lean0) - 0.1)
   const toStd = (l) => RH(sub(l, ofs)) // a body-frame point -> the standard, right-handed pose
   let normalT = null
@@ -626,6 +706,9 @@ export const updateAnim = (a, s, dt) => {
     const p = s.prep
     inp = { key: "p" + (p.id ?? 0), kind: p.kind, c: toStd(local(p)), y: p.y, tRel: -p.ttc, after: false, forward: !!p.forward && !s.charging, volley: !!p.volley, two: !!s.twoHand, fast: !!p.fast }
   }
+  // (the knees, last frame's, in the stroke's frame: a low ball by the legs is met with the hand
+  // and handle out beside the knee, strokes.js roomAxis)
+  a.stroke.knees = a.lastKnees ? [toStd(local(a.lastKnees[0])), toStd(local(a.lastKnees[1]))] : null
   const so = stepStroke(a.stroke, inp, pose, dt)
   // the weight through the stroke (pro.js WEIGHT; used next frame by the hips)
   a.weightT = so.w > 0 ? weightFor(so.style, so.phase, so.u) * so.w : 0
@@ -756,7 +839,7 @@ export const updateAnim = (a, s, dt) => {
   const shift = springV(a.shift, shiftT, k >= 200 ? 36 : 16, dt)
   py += shift.y
   const side = sway * 1.2 + a.gait.sway
-  const pelvisXZ = V(s.x + fr.r.x * (side + extra.x) + fr.f.x * extra.z + shift.x, 0, s.z + fr.r.z * (side + extra.x) + fr.f.z * extra.z + shift.z)
+  const pelvisXZ = V(s.x + fr.r.x * (side + extra.x) + fr.f.x * extra.z + shift.x + roomPelvis.x, 0, s.z + fr.r.z * (side + extra.x) + fr.f.z * extra.z + shift.z + roomPelvis.z)
   // ...but never so far that a planted foot comes off the court
   for (let pass = 0; pass < 2; pass++) {
     for (let i = 0; i < 2; i++) {
@@ -798,7 +881,9 @@ export const updateAnim = (a, s, dt) => {
   // (landing from an overhead's jump: the hips come down with the feet)
   const jumpDrop = Math.max(0, (a.jumpPrev || 0) - (a.jumpY || 0))
   a.jumpPrev = a.jumpY || 0
-  a.pelvisY = py < a.pelvisY ? Math.max(py, a.pelvisY - 4.8 * dt - jumpDrop * 1.05) : a.pelvisY + (py - a.pelvisY) * (1 - Math.exp(-dt * ((a.jumpY || 0) > 0.005 ? 40 : 14)))
+  // (a foot landing far out, say a step as a walk starts sideways: what's past a few cm comes
+  // down at once, so the leg still reaches it)
+  a.pelvisY = py < a.pelvisY ? Math.max(py, a.pelvisY - 4.8 * dt - jumpDrop * 1.05 - Math.max(0, a.pelvisY - py - 0.1) * 0.6) : a.pelvisY + (py - a.pelvisY) * (1 - Math.exp(-dt * ((a.jumpY || 0) > 0.005 ? 40 : 14)))
   let pelvis = V(pelvisXZ.x, a.pelvisY, pelvisXZ.z)
 
   // ---- springs: smooth everything that isn't a hard swing ----
@@ -811,8 +896,8 @@ export const updateAnim = (a, s, dt) => {
   // the forward swing the hips fire first and further, the shoulders follow, then the arm)
   const hipTwist = springN(a.hipTwist, twistT * (fast ? 0.6 : 0.26), fast ? 80 : 18, dt)
   // (never folded more than about 52 degrees at the hips)
-  const lean = springN(a.lean, Math.min(0.92, leanT + Math.abs(lungeLean) * 0.4), 12, dt)
-  const roll = springN(a.roll, lungeLean + rollT, 8, dt)
+  const lean = springN(a.lean, Math.min(0.92, leanT + Math.abs(lungeLean) * 0.4), 12, dt) + roomLeanF
+  const roll = springN(a.roll, lungeLean + rollT, 8, dt) + roomRoll
 
   // ---- the spine ----
   // the hips turn a little with the shoulders, and swivel with the stride (the leg going
@@ -847,7 +932,10 @@ export const updateAnim = (a, s, dt) => {
       if (h > hMax) ankle = V(hip.x + (hx / h) * hMax, ankle.y, hip.z + (hz / h) * hMax)
     }
     const ff = frame(f.yaw)
-    const pole = add(norm(add(ff.f, mul(ff.r, i ? 0.32 : -0.32))), V(0, 0.05, 0)) // knees bend forward and out, over the toes
+    // knees bend forward and out, over the toes (the server's back knee straight forward, in
+    // under the swing, not out into the paddle's path)
+    const out = hold && hold.foot === i ? 0 : 0.32
+    const pole = add(norm(add(ff.f, mul(ff.r, i ? out : -out))), V(0, 0.05, 0))
     const ik = twoBone(hip, ankle, BODY.thigh, BODY.shin, pole)
     return { hip, knee: ik.mid, ankle: ik.end, foot: { x: ik.end.x, y: ik.end.y - BODY.ankle, z: ik.end.z, yaw: f.yaw, pitch: f.step ? Math.sin(Math.PI * f.step.t) * -0.35 : 0, planted: !f.step && !((a.jumpY || 0) > 0.01) } }
   })
@@ -858,7 +946,7 @@ export const updateAnim = (a, s, dt) => {
   if (mmo) {
     a.mmDown = Math.max(0, -shift.y)
     // (for next frame: a lunge's or a drive's step out, and the hips going over that foot)
-    a.mmReach = reach ? { foot: reach.foot, x: reach.x, z: reach.z } : null
+    a.mmReach = reach ? (hold && hold !== reach ? [{ foot: reach.foot, x: reach.x, z: reach.z }, { ...hold }] : { foot: reach.foot, x: reach.x, z: reach.z }) : null
     const lt = lunging && a.mmLungeT ? a.mmLungeT : { x: 0, z: 0 }
     a.mmLunge = springV(a.mmLungeS || (a.mmLungeS = {}), V(lt.x, 0, lt.z), 14, dt)
     pelvis = mmo.pelvis
@@ -867,7 +955,7 @@ export const updateAnim = (a, s, dt) => {
     const mLean = Math.atan2(dot(mmo.spine, fr.f), mmo.spine.y)
     const readyLean = s.between ? 0 : Math.max(0, R.lean - mLean) * (1 - clamp(running01, 0, 1)) * 0.85
     const leanS = springN(a.mmLean, clamp((pose.lean || 0) + lowLean + clamp((a.overDown || 0) * 2, 0, 0.45) + readyLean, -0.3, 0.7), fast ? 30 : 12, dt)
-    const Rl = qaxis(mul(fr.r, -1), leanS)
+    const Rl = qmul(qaxis(fr.f, roomRoll), qaxis(mul(fr.r, -1), leanS + roomLeanF))
     spineDir = norm(qrot(Rl, mmo.spine))
     const Rot = qmul(qaxis(spineDir, twist), Rl)
     const rel = (p) => add(pelvis, qrot(Rot, sub(p, pelvis)))
@@ -1053,7 +1141,7 @@ export const updateAnim = (a, s, dt) => {
         const want = sub(face, mul(r.paddle.axis, BODY.paddleReach))
         const st = { bend: a.ikP.bend }
         const arm = armIK(st, paddleSide, want, BODY.upperArm, BODY.forearm, poleP, { maxTurn: (fast ? 40 : 14) * dt })
-        if (len(sub(arm.end, want)) < 0.006) {
+        if (len(sub(arm.end, want)) < ROLL_REACH) {
           a.ikP.bend = st.bend
           armPf = arm
           axisW = a.axisOut = r.paddle.axis
@@ -1076,13 +1164,13 @@ export const updateAnim = (a, s, dt) => {
     // the other arm out of the paddle's way (not while it holds it)
     if (!holds) {
       const pdl = { face: add(armPf.end, mul(axisW, BODY.paddleReach)), axis: axisW, normal: normalW }
-      for (let i = 0; i < 2; i++) {
+      for (let i = 0; i < 4; i++) {
         const tip = add(armOf.end, mul(norm(sub(armOf.end, armOf.mid)), 0.13))
         offCaps.length = 0
         offCaps.push(capsule(otherSide, armOf.mid, 0.063, 0.049, "upperarmO"), capsule(armOf.mid, armOf.end, 0.042, 0.026, "forearmO"), capsule(armOf.end, tip, 0.028, 0.022, "handO"))
         const d = paddleDepth(pdl, offCaps, { margin: GUARD.margin })
         if (d.depth <= -GUARD.margin) break
-        offW = sub(armOf.end, mul(d.n, d.depth + GUARD.margin))
+        offW = sub(armOf.end, mul(d.n, d.depth + GUARD.margin * 1.5))
         armOf = armIK(a.ikO, otherSide, offW, BODY.upperArm, BODY.forearm, poleO, { maxTurn: 12 * dt })
       }
     }
@@ -1093,6 +1181,9 @@ export const updateAnim = (a, s, dt) => {
   const lookW = norm(sub(V(lookAt.x, lookAt.y, lookAt.z), headBase), chestF)
   const lookS = norm(springV(a.head, lookW, 14, dt), chestF)
   const head = lookToward(a.look, lookS, chestF, dt, { maxYaw: 1.25, maxUp: 0.6, maxDown: 0.75, rate: 8 })
+  // (next frame's room for a ball at the body: ROOM)
+  a.lastBody = { pelvis, neck, f: chestF }
+  a.lastKnees = [legs[0].knee, legs[1].knee]
   return {
     yaw: a.yaw,
     pelvis,
@@ -1228,6 +1319,8 @@ export const situation = (m, p) => {
     goal: p.target && (between || p.ctrl === "cpu") ? { x: p.target.x, z: p.target.z } : p.intercept?.stand && !p.intercept.letGo ? { x: p.intercept.stand.x, z: p.intercept.stand.z } : null,
     hand,
     twoHand: !!p.twoHand,
+    // (a person's player: nothing moves where they stand for them; making room is a lean only)
+    person: p.ctrl === "human" || p.ctrl === "remote",
     oppHit,
     // the velocity the match is taking them toward (motion matching predicts the path from it)
     want: p.want ? { x: p.want.x, z: p.want.z } : null,

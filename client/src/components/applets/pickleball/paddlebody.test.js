@@ -13,7 +13,7 @@ import { fileURLToPath } from "node:url"
 import { PADDLE_SHAPE, bodyCapsules, paddleDepth, poseJoints, resolvePaddle, rollPaddle, skipFor } from "./paddlebody.js"
 import { createAnim, updateAnim, situation, splitStep } from "./anim.js"
 import { STATES, studioScript } from "./studio.js"
-import { createMatch, step } from "./match.js"
+import { createMatch, step, handPos } from "./match.js"
 import { STEP } from "./physics.js"
 import { buildLibrary } from "./mm/library.js"
 import { setMotionLibrary, setEnabled } from "./mm/runtime.js"
@@ -107,8 +107,15 @@ const measure = (pose, out) => {
   if (r.depth > 0.05) out.over5++
   // the trunk, head and legs (the other arm moves; at contact the face is where the ball is)
   if (!contact && r.depth > 0.01 && !/O$|P$/.test(r.part)) out.body++
+  // (round 2: contact frames by stroke, |tRel| < 0.17 s)
+  if (contact && out.styles) {
+    const S = (out.styles[info.style || "?"] ||= { n: 0, over1: 0 })
+    S.n++
+    if (r.depth > 0.01) S.over1++
+  }
   return r
 }
+const pct = (S) => `${((100 * S.over1) / Math.max(1, S.n)).toFixed(1)}% of ${S.n}`
 
 test("studio states (ready, every stroke, Ernes and lunges, the between-points routine, celebrations, sulks, taps): the paddle stays out of the body", { skip: !lib }, () => {
   setMotionLibrary(lib)
@@ -146,7 +153,7 @@ test("simulated matches (motion matching and procedural): the paddle out of the 
   setMotionLibrary(lib)
   for (const mm of [true, false]) {
     setEnabled(mm)
-    const tot = { n: 0, over1: 0, over5: 0, body: 0 }
+    const tot = { n: 0, over1: 0, over5: 0, body: 0, styles: {} }
     const between = { n: 0, over1: 0, over5: 0, body: 0 }
     const m = createMatch({ doubles: true, level: "pro", seed: 3, scoring: "rally" })
     m.autoplay = true
@@ -177,6 +184,68 @@ test("simulated matches (motion matching and procedural): the paddle out of the 
     assert.ok(tot.over1 / tot.n < 0.02, `${tag}: ${((100 * tot.over1) / tot.n).toFixed(1)}% > 1 cm`)
     assert.ok(tot.over5 / tot.n < 0.005, `${tag}: ${tot.over5} frames > 5 cm`)
     assert.ok(between.over1 / Math.max(1, between.n) < 0.02, `${tag}: between points ${between.over1}/${between.n}`)
+    // at contact, by stroke (2026-10-08 round 2: the serve's ball beside the front foot and the
+    // swing outside the back knee, the drive's finish out in front, low balls met out in front,
+    // the hand kept out of the trunk and the body making room for a ball at it). Main, this
+    // match, motion matching: 8.8% of contact frames > 1 cm in (serve 23%, drive 11%, dink 9%,
+    // punch 5%). What's left is mostly your own player with a low ball at their knee (nothing
+    // moves your player: it only leans) and balls taken behind the body.
+    const all = Object.values(tot.styles).reduce((a, S) => ({ n: a.n + S.n, over1: a.over1 + S.over1 }), { n: 0, over1: 0 })
+    assert.ok(all.over1 / all.n < 0.06, `${tag}: contact frames ${pct(all)}`)
+    for (const [style, S] of Object.entries(tot.styles)) if (S.n > 150) assert.ok(S.over1 / S.n < 0.14, `${tag}: ${style} at contact ${pct(S)}`)
   }
   setEnabled(false)
+})
+
+// Balls at the body (2026-10-08 round 2): a punch volley at the chest, a chest-high ball on the
+// backhand, a forehand jammed at the hip, the serve. The paddle face stays on the ball and the
+// paddle out of the body (main: 28%, 33% and 22% of these frames > 1 cm in, motion matching);
+// a computer player's hips make room, a person's player only leans (nothing moves their feet or
+// where they stand: the hips stay put).
+test("balls at the body and the serve: the face on the ball, the paddle out of the body; a person's player only leans", { skip: !lib }, () => {
+  setMotionLibrary(lib)
+  const caps = []
+  for (const mm of [true, false]) {
+    setEnabled(mm)
+    for (const state of ["volley-body", "body-bh", "jam-fh", "serve"]) {
+      for (const person of [false, true]) {
+        let n = 0
+        let over = 0
+        let maxHip = 0
+        for (const hand of [1, -1]) {
+          const sc = studioScript(state, 0, -4.6, { hand })
+          const a = createAnim(sc.at(0).x, sc.at(0).z, 0)
+          a.useMM = mm
+          for (let t = 0; t <= sc.T; t += 1 / 60) {
+            const pose = updateAnim(a, { ...sc.at(t), person }, 1 / 60)
+            if (a.roomPelvis) maxHip = Math.max(maxHip, Math.hypot(a.roomPelvis.x, a.roomPelvis.z))
+            if (t < 0.1) continue
+            bodyCapsules(poseJoints(pose), { kind: "any", out: caps })
+            const info = pose.info
+            const near = Math.hypot(pose.wristO.x - pose.wristP.x, pose.wristO.y - pose.wristP.y, pose.wristO.z - pose.wristP.z) < 0.2
+            const r = paddleDepth(pose.paddle, caps, { skip: skipFor({ two: !!info.two, cup: !!info.offGrip && near }) })
+            n++
+            if (r.depth > 0.01) over++
+            // the face meets the ball
+            if (Math.abs(t - 0.7) < 1 / 120) {
+              const c = sc.contact
+              const d = Math.hypot(pose.paddle.face.x - c.x, pose.paddle.face.y - c.y, pose.paddle.face.z - c.z)
+              assert.ok(d < 0.07, `${state} ${mm ? "mm" : "pr"} hand ${hand}: face ${(d * 100).toFixed(1)} cm off the ball`)
+            }
+          }
+        }
+        // (a person's player only leans: the hips stay, so a ball at the belly can still touch them)
+        assert.ok(over / n < (person ? 0.15 : 0.1), `${state} ${mm ? "mm" : "pr"}${person ? " person" : ""}: ${over}/${n} frames > 1 cm in`)
+        if (person) assert.equal(maxHip, 0, `${state}: a person's hips never move to make room`)
+      }
+    }
+  }
+  setEnabled(false)
+  // the serve's ball drops out beside the front foot: on the paddle side, in front
+  const m = createMatch({ doubles: true, level: "pro", seed: 3, scoring: "rally" })
+  for (const p of m.players) {
+    const b = handPos(m, p)
+    const side = (b.x - p.x) * (p.team === 0 ? 1 : -1) * (p.hand || 1)
+    assert.ok(side > 0.24, `ball beside the server (${side.toFixed(2)} m to the paddle side)`)
+  }
 })
