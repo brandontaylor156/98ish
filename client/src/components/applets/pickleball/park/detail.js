@@ -788,9 +788,12 @@ export const buildTrees = (group, byKind, { keep = (x) => x, rand = Math.random,
   const leafMat = (map, opts = {}) => keep(swaying(new THREE.MeshLambertMaterial({ map: keep(map), alphaTest: 0.45, side: THREE.DoubleSide, ...opts })))
   const barkMat = keep(new THREE.MeshLambertMaterial({ map: keep(barkTex(false)), color: 0xffffff }))
   const palmBarkMat = keep(new THREE.MeshLambertMaterial({ map: keep(barkTex(true)), color: 0xffffff }))
-  const add = (geo, mat, list, place, color) => {
+  // (crown: the leaves, which the follow camera may hide when it's inside one or one is between
+  // it and you: scenery.js cutaway)
+  const add = (geo, mat, list, place, color, crown = false) => {
     if (!list.length) return
     const mesh = new THREE.InstancedMesh(keep(geo), mat, list.length)
+    if (crown) mesh.userData.crown = true
     list.forEach((t, i) => {
       mesh.setMatrixAt(i, place(t, i))
       if (color) mesh.setColorAt(i, color(t, i))
@@ -811,7 +814,7 @@ export const buildTrees = (group, byKind, { keep = (x) => x, rand = Math.random,
   variants.forEach((vv, k) => {
     const list = broad.filter((_, i) => i % variants.length === k)
     add(vv.trunk, barkMat, list, (t) => at(t))
-    add(vv.crown, broadLeaf, list, (t) => at(t), tint(0xe6f0e0))
+    add(vv.crown, broadLeaf, list, (t) => at(t), tint(0xe6f0e0), true)
   })
   // (round 4: near trees get the full model, far ones (near(t) false) a lighter one)
   const variantsOf = (list, models) => {
@@ -830,7 +833,7 @@ export const buildTrees = (group, byKind, { keep = (x) => x, rand = Math.random,
     const models = [91, 92, 93].map((s) => ({ full: eucModel(s), lite: eucModel(s, true) }))
     for (const { m, list } of variantsOf(euc, models)) {
       add(m.trunk, eucBark, list, (t) => at(t))
-      add(m.crown, eucMat, list, (t) => at(t), tint(0xdfe6dc))
+      add(m.crown, eucMat, list, (t) => at(t), tint(0xdfe6dc), true)
     }
   }
   // fan palms (Washingtonia): a tall thin ringed trunk, a skirt, a small head of fans
@@ -846,7 +849,7 @@ export const buildTrees = (group, byKind, { keep = (x) => x, rand = Math.random,
     const crowns = [fanPalmCrown(61), fanPalmCrown(62)]
     crowns.forEach((geo, k) => {
       const idx = fans.map((_, i) => i).filter((i) => i % 2 === k)
-      add(geo, fanMat, idx.map((i) => fans[i]), (t, j) => m4.compose(v1.set(t.x, (t.y || 0) + heights[idx[j]], t.z), q.setFromEuler(e.set(0, (t.x + t.z) % 6.28, 0)), v2.setScalar(Math.max(1, t.s) * 1.45)), tint(0xf2f2ea, 0.06))
+      add(geo, fanMat, idx.map((i) => fans[i]), (t, j) => m4.compose(v1.set(t.x, (t.y || 0) + heights[idx[j]], t.z), q.setFromEuler(e.set(0, (t.x + t.z) % 6.28, 0)), v2.setScalar(Math.max(1, t.s) * 1.45)), tint(0xf2f2ea, 0.06), true)
     })
   }
   // palms: a ringed trunk (scaled to each palm's height), a crown of fronds on top
@@ -873,7 +876,8 @@ export const buildTrees = (group, byKind, { keep = (x) => x, rand = Math.random,
         frondMat,
         idx.map((i) => palms[i]),
         (t, j) => m4.compose(v1.set(t.x, (t.y || 0) + heights[idx[j]] - 0.1, t.z), q.setFromEuler(e.set(0, (t.x + t.z) % 6.28, 0)), v2.set(t.s, t.s, t.s)),
-        tint(0xffffff, 0.06)
+        tint(0xffffff, 0.06),
+        true
       )
     })
   }
@@ -881,7 +885,7 @@ export const buildTrees = (group, byKind, { keep = (x) => x, rand = Math.random,
   const con = byKind.conifer || []
   if (con.length) {
     add(trunkWithBranches({ seed: 6, h: 6.0, r0: 0.2, r1: 0.06, branches: 0 }), barkMat, con, (t) => at(t))
-    add(coniferCrown(16), leafMat(needleTex()), con, (t) => at(t), tint(0xe8efe8))
+    add(coniferCrown(16), leafMat(needleTex()), con, (t) => at(t), tint(0xe8efe8), true)
   }
   // pines (Bouquet Canyon's Aleppo-type pines in the owner's photos): a tall leaning trunk bare
   // for half its height, open upswept limbs, the crown in irregular dark clumps
@@ -894,7 +898,7 @@ export const buildTrees = (group, byKind, { keep = (x) => x, rand = Math.random,
     const models = [71, 72, 73].map((s) => ({ full: pineModel(s), lite: pineModel(s, true) }))
     for (const { m, list } of variantsOf(pines, models)) {
       add(m.trunk, barkMat, list, (t) => at(t, 0.88))
-      add(m.crown, pineMat, list, (t) => at(t, 0.88), tint(0xf2f5e8))
+      add(m.crown, pineMat, list, (t) => at(t, 0.88), tint(0xf2f5e8), true)
     }
   }
 }
@@ -1126,7 +1130,9 @@ export const planDecals = ({ courts = [], stalls = [], lots = [], trees = [], ha
           const p = world(c, (rand() - 0.5) * hw * 1.6, side * (half.kitchen + 0.3 + rand() * 0.9))
           out.scuff.push({ ...p, y: 0.013, w: 1.0 + rand() * 0.9, l: 0.3 + rand() * 0.2, yaw: c.rot + (rand() - 0.5) * 0.8 + Math.PI / 2 })
         }
-      for (let i = 0; i < 3; i++) {
+      // (behind the baselines: tennis only; on a pickleball court that wear lands on the surround and
+      // read as dirt or weeds: the owner wants the courts clean, 2026-10-09)
+      for (let i = 0; i < (tennis ? 3 : 0); i++) {
         const p = world(c, (rand() - 0.5) * hw * 1.4, side * (hl + 0.5 + rand() * 1.2))
         out.scuff.push({ ...p, y: 0.013, w: 1.3 + rand() * 1.0, l: 0.35 + rand() * 0.25, yaw: c.rot + (rand() - 0.5) * 0.6 })
       }

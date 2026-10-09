@@ -110,18 +110,25 @@ export const followTarget = (w, camYaw, { portrait = false, bodies = [], roofY =
 }
 
 // is the lens at `pos` hidden from the walker's head by something solid?
-export const lensBlocked = (w, pos) => !!segmentHit3({ x: w.x, y: (w.y || 0) + HEAD_Y, z: w.z }, pos, PAD)
+export const lensBlocked = (w, pos, occ = null) => {
+  const head = { x: w.x, y: (w.y || 0) + HEAD_Y, z: w.z }
+  return occ ? !!occ(head, pos) : !!segmentHit3(head, pos, PAD)
+}
 
 // one frame of the follow camera: swing round behind a walker who's walking away from the
 // camera, ease toward the target. drag: the camera turned by hand (a finger or mouse drag)
 // holds off the swing for a moment.
 export const stepFollow = (st, w, dt, opts = {}) => {
   st.drag = Math.max(0, st.drag - dt)
-  if (w.speed > 0.5 && st.drag <= 0) {
+  // (2026-10-09: "so hard to control walking around". The stick moves you the way the camera
+  // looks, so a camera that swings while you walk sideways bends your path into a circle. Now
+  // it comes round behind you only when you walk away from it, more the straighter away, after
+  // a moment's walking; sideways and toward it, it holds still and just follows along.)
+  st.walkT = w.speed > 0.5 ? (st.walkT || 0) + dt : 0
+  if (w.speed > 0.5 && st.drag <= 0 && st.walkT > 0.35) {
     const d = wrap(w.yaw - st.yaw)
-    // (walking toward the camera: leave it; sideways: swing slowly; away: follow)
     const away = Math.cos(d)
-    if (away > -0.35) st.yaw += d * Math.min(1, dt * FOLLOW.swing * Math.min(1, w.speed / 2.5) * (0.35 + 0.65 * Math.max(0, away)))
+    if (away > 0.5) st.yaw += d * Math.min(1, dt * FOLLOW.swing * Math.min(1, w.speed / 2.5) * ((away - 0.5) / 0.5))
   }
   st.yaw = wrap(st.yaw)
   const t = followTarget(w, st.yaw, { ...opts, prefer: Math.sign(st.off || 0) })
@@ -133,10 +140,10 @@ export const stepFollow = (st, w, dt, opts = {}) => {
   // (the eased position is checked again: never behind a wall, a fence or a roof while it
   // eases; if it would be, it goes straight to the clear spot)
   if (opts.roofY != null && st.pos.y > opts.roofY) st.pos.y = opts.roofY
-  if (lensBlocked(w, st.pos)) st.pos = { ...t.cam }
+  if (lensBlocked(w, st.pos, opts.occ)) st.pos = { ...t.cam }
   const c = clearShot(st.pos, st.look, opts.bodies || [], { near: 1.1, ahead: 2.4, max: 10 })
   const cp = { x: c.x, y: opts.roofY != null ? Math.min(opts.roofY, c.y) : c.y, z: c.z }
-  if (c.moved < 1e-6 || !lensBlocked(w, cp)) st.pos = cp
+  if (c.moved < 1e-6 || !lensBlocked(w, cp, opts.occ)) st.pos = cp
   return st
 }
 // a drag turns the camera round you (radians), and holds the auto-swing off a moment
@@ -153,7 +160,7 @@ export const SPECTATE_ANGLES = ["Sideline", "Baseline", "High"]
 // (a phone held upright looks down the court first: the sideline view is too wide for it)
 const ORDER = { wide: [0, 1, 2], tall: [1, 0, 2] }
 export const angleName = (angle = 0, portrait = false) => SPECTATE_ANGLES[(portrait ? ORDER.tall : ORDER.wide)[((angle % 3) + 3) % 3]]
-export const spectatorShot = (court, angle = 0, bodies = [], { portrait = false, maxY = null, isClear = null } = {}) => {
+export const spectatorShot = (court, angle = 0, bodies = [], { portrait = false, maxY = null, isClear = null, score = null } = {}) => {
   // (in the court's own axes: u along it, v toward the spectators' side; Riverside: u east,
   // v toward the path)
   const u = court.u || { x: 1, z: 0 }
@@ -161,15 +168,22 @@ export const spectatorShot = (court, angle = 0, bodies = [], { portrait = false,
   const hz = court.hz ?? PEN.hz
   // (a real venue: if a building or a wall is between the court and the lens, try the other
   // side, then come in closer)
-  const tries = isClear ? [[1, 1, 1], [-1, 1, 1], [1, -1, 1], [-1, -1, 1], [1, 1, 0.75], [-1, -1, 0.75], [1, 1, 0.5], [1, 1, 0.3]] : [[1, 1, 1]]
+  const tries = isClear ? [[1, 1, 1], [-1, 1, 1], [1, -1, 1], [-1, -1, 1], [1, 1, 0.75], [-1, -1, 0.75], [-1, 1, 0.75], [1, -1, 0.75], [1, 1, 0.5], [-1, -1, 0.5], [-1, 1, 0.5], [1, -1, 0.5], [1, 1, 0.3], [-1, -1, 0.3], [-1, 1, 0.3], [1, -1, 0.3], [1, 1, 0.1], [-1, -1, 0.1], [-1, 1, 0.1], [1, -1, 0.1]] : [[1, 1, 1]]
   let best = null
+  // (none clear: the one that sees the most of the court, score(cam) 0..1, if we can tell)
+  let most = null
   for (const [sv, se, k] of tries) {
     const shot = framing(court, angle, { u, v: { x: v0.x * sv, z: v0.z * sv }, hz, se, k, portrait, maxY })
     if (!isClear || isClear(shot.cam)) {
       best = shot
       break
     }
+    if (score) {
+      const s = score(shot.cam)
+      if (!most || s > most.s) most = { s, shot }
+    }
   }
+  if (!best && most && most.s > 0) best = most.shot
   if (!best) best = framing(court, angle, { u, v: v0, hz, se: 1, k: 0.3, portrait, maxY })
   const c = clearShot(best.cam, best.look, bodies, { near: 1.6, ahead: 3.2 })
   return { cam: { x: c.x, y: c.y, z: c.z }, look: best.look, fov: best.fov, name: SPECTATE_ANGLES[best.a], moved: c.moved, width: HALF_W }

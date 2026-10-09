@@ -1776,6 +1776,23 @@
   opacity: 0.35;
 }
 
+/* My Park's floating stick: drawn only under the thumb, a thin faint ring and a small knob
+   (the zone stays big, the drawing small: the owner's hand was in the way) */
+.pkStick--park {
+  width: 112px;
+  height: 112px;
+  margin: -56px 0 0 -56px;
+  border: 1.5px solid rgba(255, 255, 255, 0.3);
+  background: none;
+}
+
+.pkStick--park .pkKnob {
+  width: 30px;
+  height: 30px;
+  background: rgba(255, 255, 255, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+}
+
 .pkKnob {
   width: 46px;
   height: 46px;

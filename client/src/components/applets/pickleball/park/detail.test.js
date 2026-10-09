@@ -48,8 +48,8 @@ test("decals: wear by the kitchen lines and baselines, ball marks, oil in stalls
     trees: [{ x: 5, z: 5, s: 1 }],
     rand: seeded(11),
   })
-  // pickleball: 4 kitchen + 3 baseline scuffs a side; tennis: 3 baseline scuffs a side; none on basketball
-  assert.equal(plan.scuff.length, 14 + 6)
+  // pickleball: 4 kitchen scuffs a side (none behind its baselines: 2026-10-09, clean courts); tennis: 3 baseline scuffs a side; none on basketball
+  assert.equal(plan.scuff.length, 8 + 6)
   assert.equal(plan.ball.length, 16)
   assert.ok(plan.oil.length > 15 && plan.oil.length < 60)
   assert.equal(plan.leaves.length, 2)

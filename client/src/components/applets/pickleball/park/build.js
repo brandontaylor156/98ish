@@ -1002,6 +1002,20 @@ export const buildPark = (scene, { quality = "medium", layout = RIVERSIDE_LAYOUT
     mergeStatic(z.group, keep)
     group.add(z.group)
   }
+  // (the roofs over open ground: each merged on its own and faded by cutaway(), cutaway.js;
+  // they throw their shade like the rest)
+  for (const ov of scenery?.overheads || []) {
+    if (shadows)
+      ov.group.traverse((o) => {
+        if (!o.isMesh) return
+        const m = Array.isArray(o.material) ? o.material[0] : o.material
+        const seeThrough = !m || m.transparent || m.isMeshBasicMaterial || m.isShaderMaterial
+        o.receiveShadow = !m?.isMeshBasicMaterial && !m?.isShaderMaterial
+        o.castShadow = !seeThrough && !o.userData.noCast
+      })
+    mergeStatic(ov.group, keep)
+    group.add(ov.group)
+  }
   // real surfaces (surfaces.js; off on Low): CC0 detail sampled in world space on tagged materials
   applySurfaces(group, { quality })
   // nothing here moves: its matrices are worked out once (what's added later to a court's
@@ -1129,6 +1143,9 @@ export const buildPark = (scene, { quality = "medium", layout = RIVERSIDE_LAYOUT
     },
     update: scenery?.update || null,
     cull: scenery?.cull || null,
+    // fade what hides you (cutaway.js): (cam, targets, me, dt)
+    cutaway: scenery?.cutaway || null,
+    overheads: scenery?.overheadList || [],
     // (a real venue: the sky dome centred on the camera)
     followSky: S
       ? (p, cam = null) => {

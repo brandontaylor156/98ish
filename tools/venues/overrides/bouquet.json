@@ -12,14 +12,7 @@
   -118.50505
  ],
  "crop": 70,
- "spawn": {
-  "_src": "the park's lot east of the courts (OSM 995954595)",
-  "en": [
-   30,
-   4
-  ],
-  "deg": 270
- },
+ "spawn": {"_src": "by the pickleball courts, facing them (the owner, 2026-10-09: \"spawn to the area where the pickleball courts are\"); the old arrival: the park's lot east of the courts (OSM 995954595)", "en": [14.6, 22.6], "deg": 125.7},
  "light": {
   "sun": 1
  },

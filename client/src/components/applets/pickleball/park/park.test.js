@@ -302,11 +302,15 @@ test("follow camera: behind you, never on the far side of a fence, nobody in fro
     assert.ok(d <= FOLLOW.dist + 1e-6)
   }
   assert.ok(n > 100)
-  // walking away from the camera: it swings round behind; walking toward it: it doesn't flip
+  // walking away from the camera: it swings round behind; sideways it holds still (2026-10-09:
+  // a swinging camera bent a sideways walk into a circle); walking toward it: it doesn't flip
   const st = createFollow(0)
-  const w = { x: -10, z: 0.4, yaw: Math.PI / 2, speed: 3 }
-  for (let i = 0; i < 120; i++) stepFollow(st, w, 1 / 60)
-  assert.ok(Math.abs(st.yaw - Math.PI / 2) < 0.6, `swung to ${st.yaw}`)
+  const w = { x: -10, z: 0.4, yaw: Math.PI / 4, speed: 3 }
+  for (let i = 0; i < 180; i++) stepFollow(st, w, 1 / 60)
+  assert.ok(Math.abs(st.yaw - Math.PI / 4) < 0.3, `swung to ${st.yaw}`)
+  const side = createFollow(0)
+  for (let i = 0; i < 180; i++) stepFollow(side, { x: -10, z: 0.4, yaw: Math.PI / 2, speed: 3 }, 1 / 60)
+  assert.ok(Math.abs(side.yaw) < 1e-9, `sideways: held at ${side.yaw}`)
   const st2 = createFollow(0)
   const toward = { x: -10, z: 0.4, yaw: Math.PI, speed: 3 }
   for (let i = 0; i < 120; i++) stepFollow(st2, toward, 1 / 60)
@@ -424,23 +428,48 @@ test("walking: nothing moves you without your hand (owner's rule)", () => {
   assert.deepEqual({ x: r.x, z: r.z }, at)
 })
 
-test("walking: a little push walks, more jogs, all the way (held) sprints; you stop when you let go", () => {
+test("walking: past a dead zone a light push walks, more jogs, all the way (held) runs, Shift sprints; you stop when you let go", () => {
   assert.equal(speedFor(0.05), 0)
-  assert.ok(speedFor(0.3) > 0.6 && speedFor(0.3) <= SPEEDS.walk)
-  assert.equal(speedFor(0.7), SPEEDS.jog)
-  assert.equal(speedFor(1, { full: 0 }), SPEEDS.run)
-  assert.equal(speedFor(1, { full: 2 }), SPEEDS.sprint)
+  assert.equal(speedFor(0.14), 0)
+  // (analog: a little more push, a little faster)
+  assert.ok(speedFor(0.2) >= 0.6 && speedFor(0.2) < speedFor(0.4) && speedFor(0.4) <= SPEEDS.walk)
+  assert.ok(speedFor(0.7) > SPEEDS.walk && speedFor(0.7) < SPEEDS.jog)
+  assert.equal(speedFor(0.95), SPEEDS.jog)
+  assert.equal(speedFor(1, { full: 0 }), SPEEDS.jog)
+  assert.equal(speedFor(1, { full: 2 }), SPEEDS.run)
+  // (a sprint only on purpose: Shift)
+  assert.equal(speedFor(1, { full: 9, sprint: true }), SPEEDS.sprint)
   const w = createWalker(-18, 0.5, Math.PI / 2)
   // camera looking east: up the pad goes east
   for (let i = 0; i < 120; i++) stepWalker(w, { x: 0, y: 1 }, Math.PI / 2, 1 / 60)
   assert.ok(w.x > -18 + 3 && Math.abs(w.z - 0.5) < 0.01)
-  assert.equal(w.gait, "sprint")
+  assert.equal(w.gait, "jog")
   for (let i = 0; i < 90; i++) stepWalker(w, { x: 0, y: 0 }, Math.PI / 2, 1 / 60)
   assert.equal(w.speed, 0)
   // pad right with the camera looking east: south (+z), into the bleachers' edge, not through it
   const s = createWalker(-12, 0.5, 0)
   for (let i = 0; i < 300; i++) stepWalker(s, { x: 1, y: 0 }, Math.PI / 2, 1 / 60)
   assert.ok(s.z > 0.5 && !inBox(s.x, s.z, 0.3))
+  // the stick held sideways: a straight line across the screen, not a circle (the follow
+  // camera swings round only when you walk away from it)
+  // (on the main path, the camera looking east)
+  const sw = createWalker(-18, 0.5, Math.PI / 2)
+  const sc = createFollow(Math.PI / 2)
+  for (let i = 0; i < 180; i++) {
+    stepWalker(sw, { x: 0.45, y: 0 }, sc.yaw, 1 / 60)
+    stepFollow(sc, sw, 1 / 60, { occ: () => null })
+  }
+  assert.ok(sw.z > 1.5, "walked across")
+  assert.ok(Math.abs(sc.yaw - Math.PI / 2) < 1e-9, `the camera held still: ${sc.yaw.toFixed(3)}`)
+  assert.ok(Math.abs(sw.x + 18) < 0.05, "a straight line")
+  // walking away from it (up and a little right), it comes round behind you
+  const aw = createWalker(-18, 0.5, Math.PI / 2)
+  const ac = createFollow(Math.PI / 2)
+  for (let i = 0; i < 180; i++) {
+    stepWalker(aw, { x: 0.25, y: 0.5 }, ac.yaw, 1 / 60)
+    stepFollow(ac, aw, 1 / 60, { occ: () => null })
+  }
+  assert.ok(ac.yaw < Math.PI / 2 - 0.2, `swung round behind: ${ac.yaw.toFixed(2)}`)
   // nobody walks through anybody
   const a = createWalker(0, 2, 0)
   keepApart(a, [{ x: 0.1, z: 2 }])

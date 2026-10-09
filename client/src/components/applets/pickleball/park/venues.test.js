@@ -837,3 +837,246 @@ test("round 4: Paseo from the owner's photos: one pen, low black partitions, the
   const lights = venueLayoutSpec(s).lights
   assert.ok(lights.filter((l) => parts.some((f) => segDist(l, f.a, f.b) < 0.2)).length >= 6, "poles on the partitions")
 })
+
+// the owner (2026-10-09): "Too much shrub and bushes ON the court ... Make sure the courts are
+// CLEAN." Nothing green on or within 2 m of a court's lines, in a pen, on a deck or a walkway.
+test("clean courts: no tree, scrub, bush or weed tuft in the clean zone at any venue", async () => {
+  const { vegetationOf, cleanZone, crownOf } = await import("./clean.js")
+  for (const id of IDS) {
+    const { g } = get(id)
+    const S = g.layoutSpec.scene
+    const v = vegetationOf(S, { bounds: g.layoutSpec.bounds })
+    // (checked against plain geometry here, not the zone's own code)
+    const nearCourt = (x, z, pad) =>
+      S.courts.some((c) => {
+        const dx = x - c.x
+        const dz = z - c.z
+        const along = Math.abs(dx * Math.sin(c.rot || 0) + dz * Math.cos(c.rot || 0))
+        const across = Math.abs(dx * Math.cos(c.rot || 0) - dz * Math.sin(c.rot || 0))
+        return along <= c.L / 2 + pad && across <= c.W / 2 + pad
+      })
+    const inPen = (x, z, r) => S.banks.some((b) => Math.abs((x - b.cx) * b.ux + (z - b.cz) * b.uz) <= b.hx + r && Math.abs(-(x - b.cx) * b.uz + (z - b.cz) * b.ux) <= b.hz + r)
+    for (const t of v.trees) {
+      assert.ok(!nearCourt(t.x, t.z, 2) && !inPen(t.x, t.z, 0.3), `${id}: tree at ${t.x}, ${t.z} by a court`)
+      assert.ok(!nearCourt(t.x, t.z, crownOf(t) + 0.5), `${id}: a crown over a court at ${t.x}, ${t.z}`)
+    }
+    for (const [x, z, s] of v.shrubs) assert.ok(!nearCourt(x, z, 2 + s * 0.5) && !inPen(x, z, s * 0.5), `${id}: scrub at ${x}, ${z}`)
+    for (const b of v.bushes) assert.ok(!nearCourt(b.x, b.z, 2 + b.s) && !inPen(b.x, b.z, b.s), `${id}: bush at ${b.x}, ${b.z}`)
+    for (const t of v.tufts) assert.ok(!nearCourt(t.x, t.z, 2) && !inPen(t.x, t.z, 0.5), `${id}: weeds at ${t.x}, ${t.z}`)
+    // the scatter never stands on a lot, a plaza, a road or a deck, nor by a pen's fence
+    const zone = cleanZone(S)
+    for (const p of [...v.shrubs.map(([x, z]) => ({ x, z })), ...v.bushes, ...v.tufts]) assert.ok(!zone.dirty(p.x, p.z), `${id}: scatter on a hard surface at ${p.x}, ${p.z}`)
+    // the walkers' tree trunks (colliders) are drawn trees: none left standing invisible
+    const drawn = new Set(v.trees.map((t) => `${t.x},${t.z}`))
+    for (const t of g.layoutSpec.trees) assert.ok(drawn.has(`${t.x},${t.z}`), `${id}: an invisible tree trunk at ${t.x}, ${t.z}`)
+    // the hillside's scrub and bushes stay off the venue's own grounds (Bouquet: a mown park)
+    const B = g.layoutSpec.bounds
+    for (const p of [...v.shrubs.map(([x, z]) => ({ x, z })), ...v.bushes]) assert.ok(!(p.x > B.x0 && p.x < B.x1 && p.z > B.z0 && p.z < B.z1), `${id}: hill scatter inside the grounds at ${p.x}, ${p.z}`)
+  }
+  // Bouquet keeps its hillside (scrub and bushes beyond the park)
+  const bq = get("bouquet").g.layoutSpec
+  const hill = vegetationOf(bq.scene, { bounds: bq.bounds })
+  assert.ok(hill.shrubs.length > 500 && hill.bushes.length > 500, "Bouquet's hillside cover")
+})
+
+// the owner (2026-10-09): "At Los Cab you should spawn to the area where the pickleball courts
+// are." Every venue's arrival stands by its pickleball courts, facing them, near a live court's
+// gate, with the camera behind you clear.
+test("arrival: by the pickleball courts and facing them at every venue", () => {
+  for (const id of IDS) {
+    const { g, L } = get(id)
+    setLayout(L)
+    const S = g.layoutSpec.scene
+    const sp = L.SPAWN
+    const pb = S.courts.filter((c) => c.s === "p")
+    const near = pb.slice().sort((a, b) => Math.hypot(a.x - sp.x, a.z - sp.z) - Math.hypot(b.x - sp.x, b.z - sp.z)).slice(0, 4)
+    assert.ok(Math.hypot(near[0].x - sp.x, near[0].z - sp.z) < 15, `${id}: arrival within 15 m of a pickleball court`)
+    const mid = { x: near.reduce((s, c) => s + c.x, 0) / 4, z: near.reduce((s, c) => s + c.z, 0) / 4 }
+    const want = Math.atan2(mid.x - sp.x, mid.z - sp.z)
+    const err = Math.abs(Math.atan2(Math.sin(want - sp.yaw), Math.cos(want - sp.yaw)))
+    assert.ok(err < 0.5, `${id}: arrival faces the courts (off by ${((err * 180) / Math.PI).toFixed(0)} deg)`)
+    assert.ok(Math.min(...L.COURTS.map((c) => Math.hypot(c.outside.x - sp.x, c.outside.z - sp.z))) < 12, `${id}: a live court's gate close by`)
+    assert.ok(!L.blocked(sp.x, sp.z, 0.8), `${id}: room to stand`)
+    // (and every live court still reachable from it: none swapped out)
+    assert.equal(L.COURTS.length, 6, `${id}: six live courts`)
+    const t = followTarget({ x: sp.x, z: sp.z, y: 0, yaw: sp.yaw }, sp.yaw, { portrait: true, roofY: S.indoor ? Math.min(...S.halls.map((h) => h.h || 9)) - 0.6 : null })
+    assert.ok(t.open && t.pulled < 0.7, `${id}: the camera behind the arrival is clear`)
+  }
+})
+
+// the owner (2026-10-09), SMASH: "there are couches in front of the entrance. Inside there is
+// another obstacle to get in." From the arrival (and from outside a hall's front doors) there
+// is a clear way at least 0.9 m wide to every live court and every ground-floor door (the last
+// 2.5 m excepted: a gate is narrower than that by itself; doors 1.4 m wide and up: the ways
+// in, not a sauna's or a restroom's).
+test("clear ways in: from the arrival and the front doors to every live court and door, 0.9 m wide", () => {
+  const G = 0.5
+  const R = [0.35, 0.45]
+  const widest = (L, start, targets) => {
+    const xs = [start.x, ...targets.map((t) => t.x)]
+    const zs = [start.z, ...targets.map((t) => t.z)]
+    const x0 = Math.min(...xs) - 10
+    const z0 = Math.min(...zs) - 10
+    const nx = Math.ceil((Math.max(...xs) + 10 - x0) / G)
+    const nz = Math.ceil((Math.max(...zs) + 10 - z0) / G)
+    // (per cell: how many of R's radii fit there, 0-2)
+    const cl = new Int8Array(nx * nz)
+    for (let j = 0; j < nz; j++)
+      for (let i = 0; i < nx; i++) {
+        const x = x0 + i * G
+        const z = z0 + j * G
+        let r = 0
+        if ((L.heightAt(x, z, 0) ?? 1) === 0)
+          for (const q of R)
+            if (!L.blocked(x, z, q)) r++
+            else break
+        cl[j * nx + i] = r
+      }
+    // the widest way from the start: a fill at the wide level, then the narrow one
+    const best = new Int8Array(nx * nz)
+    const idx = (x, z) => Math.round((z - z0) / G) * nx + Math.round((x - x0) / G)
+    const s0 = idx(start.x, start.z)
+    best[s0] = Math.max(1, cl[s0])
+    for (const lv of [2, 1]) {
+      const q = []
+      for (let k = 0; k < best.length; k++) if (best[k] >= lv) q.push(k)
+      while (q.length) {
+        const c = q.pop()
+        const i = c % nx
+        const j = (c / nx) | 0
+        for (const [a, b] of [[i + 1, j], [i - 1, j], [i, j + 1], [i, j - 1]]) {
+          if (a < 0 || b < 0 || a >= nx || b >= nz) continue
+          const n = b * nx + a
+          if (cl[n] >= lv && best[n] < lv) {
+            best[n] = lv
+            q.push(n)
+          }
+        }
+      }
+    }
+    // -> the widest radius that gets within `ring` m of t (0 if none)
+    return (t, ring) => {
+      let b = 0
+      for (let dz = -ring; dz <= ring; dz += G) for (let dx = -ring; dx <= ring; dx += G) if (Math.hypot(dx, dz) <= ring) b = Math.max(b, best[idx(t.x + dx, t.z + dz)] ?? 0)
+      return b ? R[b - 1] : 0
+    }
+  }
+  for (const id of IDS) {
+    const { g, L } = get(id)
+    setLayout(L)
+    const S = g.layoutSpec.scene
+    const targets = [...L.COURTS.map((c) => ({ name: c.name, ...c.outside })), ...(S.doors || []).filter((d) => !d.y && d.kind !== "closed" && (d.w || 1.8) >= 1.4 && Number.isFinite(d.x) && Number.isFinite(d.z)).map((d) => ({ name: `the ${d.kind} door at ${d.x}, ${d.z}`, x: d.x, z: d.z }))]
+    const starts = [{ name: "the arrival", ...L.SPAWN }]
+    // (a hall's front doors, from just outside)
+    for (const h of S.halls || []) {
+      if (!h.door) continue
+      const [dx, dz] = h.door
+      const inside = (x, z) => {
+        let c = false
+        for (let i = 0, j = h.p.length - 1; i < h.p.length; j = i++) if (h.p[i][1] > z !== h.p[j][1] > z && x < ((h.p[j][0] - h.p[i][0]) * (z - h.p[i][1])) / (h.p[j][1] - h.p[i][1]) + h.p[i][0]) c = !c
+        return c
+      }
+      // (straight out of the wall the door is in)
+      const out = [[1, 0], [-1, 0], [0, 1], [0, -1]].map(([ox, oz]) => ({ x: dx + ox * 2.5, z: dz + oz * 2.5 })).find((p) => !inside(p.x, p.z) && !L.blocked(p.x, p.z, 0.35))
+      if (out) starts.push({ name: "outside the front doors", ...out })
+    }
+    for (const st of starts) {
+      assert.ok(!L.blocked(st.x, st.z, 0.35), `${id}: ${st.name} is open`)
+      const reach = widest(L, st, targets)
+      for (const t of targets) {
+        assert.ok(reach(t, 1.25) >= 0.35, `${id}: ${t.name} can't be reached from ${st.name}`)
+        assert.ok(reach(t, 2.5) >= 0.45, `${id}: the way from ${st.name} to ${t.name} squeezes under 0.9 m`)
+      }
+    }
+  }
+})
+
+// the owner (2026-10-09): "Why when you go under things you can no longer see your character
+// ... YOU SHOULD ALWAYS BE ABLE TO SEE." Every walkable spot x 8 camera yaws, portrait and
+// landscape, at all eight venues: the follow camera (kept under a low roof) and the roofs that
+// fade (cutaway.js) never leave you fully hidden: feet, middle and head.
+test("you're always in sight: under decks, pergolas, tents and shade roofs, never fully hidden", async () => {
+  const { overheadsOf, cutSet, ceilingOver, bodyPoints, screensOf, screenHit, poleHit } = await import("./cutaway.js")
+  let underAll = 0
+  for (const id of IDS) {
+    const { g, L } = get(id)
+    setLayout(L)
+    const S = g.layoutSpec.scene
+    const overs = overheadsOf(S)
+    const screens = screensOf(S)
+    // (as world.js: walls and boxes, the pens' windscreens, trunks and poles)
+    const occ = (a, b) => {
+      let h = L.segmentHit3(a, b, 0.12)
+      for (const o of [screenHit(screens, a, b), poleHit(L.CIRCLES, a, b)]) if (o && (!h || o.t < h.t)) h = o
+      return h
+    }
+    const halls = S.halls || []
+    const roofY = halls.length ? Math.min(...halls.map((h) => h.h || 9)) - 0.6 : null
+    let views = 0
+    let hidden = 0
+    for (let i = 0; i < L.NAV.length; i += 5) {
+      const p = L.NAV[i]
+      const me = { x: p.x, y: 0, z: p.z }
+      const ceil = ceilingOver(overs, me)
+      if (ceil !== null) underAll++
+      for (let a = 0; a < 8; a++) {
+        const yaw = (a / 8) * Math.PI * 2
+        const portrait = a % 2 === 0
+        let cap = roofY
+        if (ceil !== null && ceil - 0.25 >= 1.9) cap = cap == null ? ceil - 0.25 : Math.min(cap, ceil - 0.25)
+        const st = createFollow(yaw)
+        for (let f = 0; f < 6; f++) stepFollow(st, { x: p.x, z: p.z, yaw, speed: 0 }, 1 / 30, { portrait, roofY: cap, occ })
+        const pts = bodyPoints(me)
+        const faded = cutSet(overs, st.pos, pts, me)
+        const blocked = pts.map((q) => !!L.segmentHit3(st.pos, q, 0) || !!screenHit(screens, st.pos, q, 0) || !!poleHit(L.CIRCLES, st.pos, q, 0) || overs.some((o) => !faded.has(o.id) && cutSet([o], st.pos, [q], null).size > 0))
+        views++
+        if (blocked.every(Boolean)) hidden++
+      }
+    }
+    assert.equal(hidden, 0, `${id}: fully hidden in ${hidden} of ${views} views`)
+  }
+  assert.ok(underAll > 100, `spots under a roof checked: ${underAll}`)
+  // Los Cab's spectator deck: walking under it, it fades and the camera stays under it;
+  // standing on it, it doesn't fade
+  const { g } = get("loscab")
+  const overs = overheadsOf(g.layoutSpec.scene)
+  const deck = overs.find((o) => o.kind === "deck" && o.walk > 2.5 && o.walk < 3.5)
+  const cx = deck.polys[0].reduce((s, q) => s + q[0], 0) / deck.polys[0].length
+  const cz = deck.polys[0].reduce((s, q) => s + q[1], 0) / deck.polys[0].length
+  assert.ok(cutSet(overs, { x: cx, y: 2.4, z: cz + 6 }, bodyPoints({ x: cx, y: 0, z: cz }), { x: cx, y: 0, z: cz }).has(deck.id), "under the deck: it fades")
+  assert.ok(!cutSet(overs, { x: cx, y: 5.5, z: cz + 6 }, bodyPoints({ x: cx, y: deck.walk, z: cz }), { x: cx, y: deck.walk, z: cz }).has(deck.id), "on the deck: it stays")
+  assert.equal(ceilingOver(overs, { x: cx, y: 0, z: cz }), deck.y0, "the camera stays under it")
+})
+
+// "And some courts you can't even see": watching a live court (each of the three angles, the
+// phone held either way), its middle and four corners are all in sight: no windscreen, wall or
+// roof between (a roof over it fades; the camera finds a spot the screens don't block)
+test("watching: every live court in full view from every angle at every venue", async () => {
+  const { overheadsOf, cutSet, screensOf, screenHit, solidHit } = await import("./cutaway.js")
+  const { spectatorShot } = await import("./followcam.js")
+  for (const id of IDS) {
+    const { g, L } = get(id)
+    setLayout(L)
+    const S = g.layoutSpec.scene
+    const overs = overheadsOf(S)
+    const screens = screensOf(S)
+    const halls = S.halls || []
+    const roofY = halls.length ? Math.min(...halls.map((h) => h.h || 9)) - 0.6 : null
+    for (const c of L.COURTS) {
+      const u = c.u || { x: 1, z: 0 }
+      const v = { x: -u.z, z: u.x }
+      const pts = [{ x: c.x, y: 0.8, z: c.z }]
+      for (const [a, b] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) pts.push({ x: c.x + u.x * a * 6.7 + v.x * b * 3.05, y: 0.5, z: c.z + u.z * a * 6.7 + v.z * b * 3.05 })
+      // (as world.js)
+      const sees = (cam) => pts.filter((t) => !screenHit(screens, cam, t, 0) && !solidHit(L.BOXES, cam, t)).length
+      const isClear = (cam) => L.segmentHit({ x: c.x, z: c.z }, cam, Math.min(cam.y - 0.3, 3.2)) === null && sees(cam) === 5
+      for (const portrait of [false, true])
+        for (let angle = 0; angle < 3; angle++) {
+          const shot = spectatorShot(c, angle, [], { portrait, maxY: roofY, isClear, score: (cam) => sees(cam) / 5 })
+          const faded = cutSet(overs, shot.cam, pts, null)
+          const seen = pts.filter((t) => !solidHit(L.BOXES, shot.cam, t) && !screenHit(screens, shot.cam, t, 0) && !overs.some((o) => !faded.has(o.id) && cutSet([o], shot.cam, [t], null).size)).length
+          assert.equal(seen, 5, `${id}: ${c.name}, angle ${angle}${portrait ? " (upright)" : ""}: ${seen} of 5 points in view`)
+        }
+    }
+  }
+})

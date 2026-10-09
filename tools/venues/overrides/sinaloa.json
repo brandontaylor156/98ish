@@ -11,13 +11,7 @@
   -118.7854
  ],
  "crop": 60,
- "spawn": {
-  "en": [
-   5,
-   -40
-  ],
-  "deg": 300
- },
+ "spawn": {"_src": "by the pickleball courts, facing them (the owner, 2026-10-09: \"spawn to the area where the pickleball courts are\")", "en": [-62.8, -45.5], "deg": -59.0},
  "light": {
   "sun": 1
  },

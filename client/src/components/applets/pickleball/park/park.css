@@ -238,22 +238,32 @@
   text-overflow: ellipsis;
 }
 
-/* the move pad: the lower half on its side */
+/* the move zone (2026-10-09, "my hand is in the way"): held upright, the whole lower 45% of
+   the screen, so a thumb can rest at the very bottom or in a corner; turned sideways, the left
+   edge (or the right: Options > Move Pad on the Right). The stick is drawn only under the thumb
+   (Pickleball.jsx, .pkStick--park). A drag anywhere else turns the camera. */
 .pkParkPad {
   position: absolute;
+  left: 0;
+  right: 0;
   bottom: 0;
-  width: 50%;
-  height: 58%;
+  height: 45%;
   pointer-events: auto;
   touch-action: none;
 }
 
-.pkPark--pad-left .pkParkPad {
-  left: 0;
-}
+@media (orientation: landscape) {
+  .pkParkPad {
+    right: auto;
+    top: 22%;
+    height: auto;
+    width: 42%;
+  }
 
-.pkPark--pad-right .pkParkPad {
-  right: 0;
+  .pkPark--pad-right .pkParkPad {
+    left: auto;
+    right: 0;
+  }
 }
 
 /* the one context button, bottom on the other side (bottom center on a computer) */
@@ -272,13 +282,18 @@
   align-items: center;
 }
 
-.pkPark.is-touch.pkPark--pad-left .pkParkActions {
-  right: 16px;
+/* on a phone: up in the top corner, clear of where the thumbs rest (and of the stick zone) */
+.pkPark.is-touch .pkParkActions {
+  top: 8px;
+  bottom: auto;
+  right: 8px;
 }
 
-.pkPark.is-touch.pkPark--pad-right .pkParkActions {
-  left: 16px;
-  align-items: flex-start;
+.pkPark.is-touch .pkParkScore,
+.pkPark.is-touch .pkParkChip {
+  left: 56px;
+  transform: none;
+  max-width: calc(100% - 200px);
 }
 
 .pkParkAct {
@@ -306,7 +321,7 @@
 
 .pkPark.is-touch .pkParkAct {
   min-width: 120px !important;
-  min-height: 64px;
+  min-height: 52px;
 }
 
 .pkParkSmall {

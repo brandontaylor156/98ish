@@ -38,6 +38,7 @@ import { LINES, createRegular, goTo, speak, think, tickRegular } from "./regular
 import { createWalker, keepApart, stepWalker } from "./walker.js"
 import { liftPose } from "./lift.js"
 import { angleName, createFollow, spectatorShot, stepFollow, turnFollow, SPECTATE_ANGLES } from "./followcam.js"
+import { bodyPoints, ceilingOver, poleHit, screenHit, screensOf, solidHit } from "./cutaway.js"
 import { dayLook, hourOf, overrideDate, realLook } from "./sky.js"
 import { lookFor as timeLook } from "./timeofday.js"
 import { CLEAR, OVERRIDES, cachedWeather, fetchWeather } from "./weather.js"
@@ -386,7 +387,7 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
   const sphere = new THREE.Sphere(new THREE.Vector3(), 1.3)
   const courtSphere = new THREE.Sphere(new THREE.Vector3(), 11)
   // (tests: every court played out, a fixed athlete budget, no labels)
-  const dev = { allLive: false, budget: null, noLabels: false }
+  const dev = { allLive: false, budget: null, noLabels: false, noCutaway: false }
   let perfWin = { t: 0, n: 0 }
   // the frame budget: a step down when frames run long, back up when there's time
   const adaptBudget = (dt) => {
@@ -1196,15 +1197,73 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
   // ---------- the camera ----------
   const tv = new THREE.Vector3()
   const lookAt = new THREE.Vector3(0, 1, 0)
+  // what the eye can't see through though people walk round it as one box: the pens' black
+  // windscreens, walls (cutaway.js). The follow camera keeps on your side of them.
+  const screens = venue.kind === "riverside" || !layout.spec?.scene ? [] : screensOf(layout.spec.scene)
+  const watchMemo = { key: "", seen: new Map() }
+  // (trunks and poles: a 6 m grid of the layout's circles, the few by the line looked at)
+  const poleGrid = new Map()
+  if (screens.length) for (const c of venue.CIRCLES || []) {
+    const k = `${Math.floor(c.x / 6)},${Math.floor(c.z / 6)}`
+    if (!poleGrid.has(k)) poleGrid.set(k, [])
+    poleGrid.get(k).push(c)
+  }
+  const polesBy = (a, b) => {
+    const out = []
+    for (let i = Math.floor(Math.min(a.x, b.x) / 6); i <= Math.floor(Math.max(a.x, b.x) / 6); i++)
+      for (let j = Math.floor(Math.min(a.z, b.z) / 6); j <= Math.floor(Math.max(a.z, b.z) / 6); j++) for (const c of poleGrid.get(`${i},${j}`) || []) out.push(c)
+    return out
+  }
+  const camOcc = (a, b) => {
+    let h = venue.segmentHit3(a, b, 0.12)
+    for (const o of screens.length ? [screenHit(screens, a, b), poleGrid.size ? poleHit(polesBy(a, b), a, b) : null] : []) if (o && (!h || o.t < h.t)) h = o
+    return h
+  }
+  // the court you watch: its middle and its four corners, at a player's waist
+  const courtTargets = (c) => {
+    const u = c.def.u || { x: 1, z: 0 }
+    const v = { x: -u.z, z: u.x }
+    const pts = [{ x: c.def.x, y: 0.8, z: c.def.z }]
+    for (const [a, b] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) pts.push({ x: c.def.x + u.x * a * 6.7 + v.x * b * 3.05, y: 0.5, z: c.def.z + u.z * a * 6.7 + v.z * b * 3.05 })
+    return pts
+  }
+  // (a phone held upright, walking: the picture's middle sits lower, so you stand in the upper
+  // middle of the screen, clear of the thumbs, with the courts ahead above them; a lens shift,
+  // the view itself unchanged. 2026-10-09: "my hand is in the way")
+  const LENS_SHIFT = 0.16
+  let lensShift = 0
+  const setLensShift = (k) => {
+    if (Math.abs(k - lensShift) < 1e-4) return
+    lensShift = k
+    if (k) camera.setViewOffset(1000, 1000, 0, 1000 * k, 1000, 1000)
+    else camera.clearViewOffset()
+  }
   const updateCamera = (dt) => {
     const por = portrait()
+    // (eased, so turning the phone doesn't jump)
+    const wantShift = me.mode !== "watch" && por && !dev.noLens ? LENS_SHIFT : 0
+    setLensShift(Math.abs(wantShift - lensShift) < 0.002 ? wantShift : lensShift + (wantShift - lensShift) * Math.min(1, dt * 6))
     if (me.mode === "watch") {
       const c = courts[me.watching]
       const bodiesNear = []
       for (const b of bodies.values()) if (b.court === c || (b.seat && b.seat.court === c.def.id)) bodiesNear.push({ x: b.x, z: b.z, h: b.seat ? b.seat.y + 1.0 : 1.95 })
       // (a real venue: nothing solid between the court and the lens)
-      const isClear = venue.kind === "riverside" ? null : (cam) => venue.segmentHit({ x: c.def.x, z: c.def.z }, cam, Math.min(cam.y - 0.3, 3.2)) === null
-      const shot = spectatorShot(c.def, me.angle, bodiesNear, { portrait: por, maxY: roofY, isClear })
+      // (and no windscreen between the lens and the court's middle or its near half)
+      // (the lens spots the watch camera tries don't move: each is checked once per court,
+      // angle and way the phone's held, not every frame)
+      const ck = `${c.def.id}|${me.angle}|${por}`
+      if (watchMemo.key !== ck) {
+        watchMemo.key = ck
+        watchMemo.seen.clear()
+      }
+      const seesAll = (cam) => {
+        const k = `${cam.x.toFixed(2)},${cam.y.toFixed(2)},${cam.z.toFixed(2)}`
+        if (!watchMemo.seen.has(k)) watchMemo.seen.set(k, courtTargets(c).filter((t) => !screenHit(screens, cam, t, 0) && !solidHit(venue.BOXES, cam, t)).length)
+        return watchMemo.seen.get(k)
+      }
+      const isClear = venue.kind === "riverside" ? null : (cam) => venue.segmentHit({ x: c.def.x, z: c.def.z }, cam, Math.min(cam.y - 0.3, 3.2)) === null && seesAll(cam) === 5
+      const score = venue.kind === "riverside" ? null : (cam) => seesAll(cam) / 5
+      const shot = spectatorShot(c.def, me.angle, bodiesNear, { portrait: por, maxY: roofY, isClear, score })
       const k = 1 - Math.exp(-dt * 3)
       tv.set(shot.cam.x, shot.cam.y, shot.cam.z)
       camera.position.lerp(tv, k)
@@ -1215,6 +1274,8 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
         camera.updateProjectionMatrix()
       }
       camera.lookAt(lookAt)
+      // (nothing over or in front of the court you watch: a roof over it, a tree by the lens)
+      if (!dev.noCutaway) park.cutaway?.(camera.position, courtTargets(c), null, dt)
       return
     }
     const bodiesNear = []
@@ -1224,7 +1285,12 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
     // you; up on a mezzanine in a hall: the hall's ceiling)
     const inRoom = roomAt(w.x, w.z, w.y || 0)
     const up = (w.y || 0) > 1.2
-    stepFollow(follow, w, dt, { portrait: por, bodies: bodiesNear, roofY: inRoom ? roofAt(w.x, w.z, w.y || 0) : up ? roofAt(w.x, w.z, w.y) : roofY, tight: !!inRoom })
+    // (under a deck, a pergola, a tent: the lens stays under it when there's headroom; the roof
+    // itself fades while it hides you, cutaway.js)
+    let cap = inRoom ? roofAt(w.x, w.z, w.y || 0) : up ? roofAt(w.x, w.z, w.y) : roofY
+    const ceil = ceilingOver(park.overheads || [], { x: w.x, y: w.y || 0, z: w.z })
+    if (!dev.noCutaway && ceil !== null && ceil - 0.25 >= (w.y || 0) + 1.9) cap = cap == null ? ceil - 0.25 : Math.min(cap, ceil - 0.25)
+    stepFollow(follow, w, dt, { portrait: por, bodies: bodiesNear, roofY: cap, tight: !!inRoom, occ: dev.noCutaway ? null : camOcc })
     // (in a room, the lens stays in that room: not out through its doorway)
     if (inRoom && !inPoly(follow.pos.x, follow.pos.z, inRoom.p)) {
       let lo = 0
@@ -1240,6 +1306,8 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
     camera.position.set(follow.pos.x, follow.pos.y, follow.pos.z)
     lookAt.set(follow.look.x, follow.look.y, follow.look.z)
     park.cull?.(follow.pos, w)
+    // you, always in sight: roofs and tree crowns between the lens and you fade (cutaway.js)
+    if (!dev.noCutaway) park.cutaway?.(follow.pos, bodyPoints({ x: w.x, y: w.y || 0, z: w.z }), { x: w.x, y: w.y || 0, z: w.z }, dt)
     park.followSky?.(follow.pos)
     const fov = por ? 62 : 55
     if (Math.abs(camera.fov - fov) > 0.05) {
@@ -1893,6 +1961,44 @@ const devHooks = (world, { scene, park, exposure }) => {
   world.devAO = (on) => setBakedAOOn(on)
   world.devAOInfo = () => ({ on: aoUniforms.surfAOOn.value, size: [aoUniforms.surfAOTex.value.image?.width, aoUniforms.surfAOTex.value.image?.height], ...lastAO })
   world.devPark = park
+  // (tests) can the camera see you? rays from the lens to your feet, middle and head against
+  // the venue as drawn (hidden and faded things don't count; see-through fences and nets, and
+  // leaf cards, are told apart) -> [{ hit: null | { what, d } }]
+  const ray = new THREE.Raycaster()
+  world.devSight = () => {
+    const me = world.info.me
+    const cam = world.camera.position.clone()
+    const out = []
+    // (feet, middle, head, and either shoulder: a thin post doesn't hide a whole person)
+    const sx = -(me.z - cam.z)
+    const sz = me.x - cam.x
+    const sl = Math.hypot(sx, sz) || 1
+    for (const [y, side] of [[0.15, 0], [1.0, 0], [1.65, 0], [1.3, 0.24], [1.3, -0.24]]) {
+      const to = new THREE.Vector3(me.x + (sx / sl) * side, (me.y || 0) + y, me.z + (sz / sl) * side)
+      const dir = to.clone().sub(cam)
+      const far = dir.length()
+      ray.set(cam, dir.normalize())
+      ray.far = far - 0.3
+      ray.near = 0.05
+      let hit = null
+      for (const h of ray.intersectObject(park.group, true)) {
+        let o = h.object
+        let shown = true
+        while (o) {
+          if (!o.visible || (o.userData.fade !== undefined && o.userData.fade < 0.5)) shown = false
+          o = o.parent
+        }
+        if (!shown) continue
+        const m = Array.isArray(h.object.material) ? h.object.material[0] : h.object.material
+        const what = h.object.userData.crown ? "leaves" : m.transparent || m.alphaTest > 0 || m.isMeshBasicMaterial ? "seethrough" : "solid"
+        if (what === "seethrough") continue
+        hit = { what, d: +h.distance.toFixed(2), name: h.object.name || h.object.type }
+        break
+      }
+      out.push({ y, hit })
+    }
+    return out
+  }
   let r = null
   let devPost = null
   const swatches = []

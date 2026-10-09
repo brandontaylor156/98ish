@@ -3,15 +3,20 @@
 // a speed you build up and lose like a person (no walking for you, no paths, no
 // auto-run: the owner's rule).
 //
-// The pad pushed a little: a walk; most of the way: a jog; all the way (or Shift) and held:
-// a sprint.
+// The stick (2026-10-09, "so hard to control walking around"): past a small dead zone a light
+// push walks, slow to brisk as you push; further jogs; all the way and held a moment, a run.
+// A sprint only with Shift (a keyboard): a phone's thumb never bolts off by accident. The stick
+// moves you the way the camera looks; the camera only swings round behind you when you walk
+// away from it (followcam.js), so holding the stick sideways walks a straight line across the
+// screen instead of a circle.
 
 import { heightAt, resolve } from "./layout.js"
 
 export const SPEEDS = { walk: 1.45, jog: 3.1, run: 4.3, sprint: 6.2 }
 export const ACCEL = 7 // m/s^2 speeding up
 export const DECEL = 11 // m/s^2 slowing down
-export const SPRINT_AFTER = 0.9 // s at full push before a sprint
+export const SPRINT_AFTER = 1.2 // s at full push before a run
+export const DEAD = 0.15 // the stick's dead zone (of its reach)
 export const RADIUS = 0.35
 
 const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a))
@@ -21,12 +26,15 @@ export const createWalker = (x, z, yaw = 0, y = 0) => ({ x, z, y, yaw, vx: 0, vz
 
 // how fast the push asks for: magnitude 0..1 -> m/s
 export const speedFor = (mag, { sprint = false, full = 0 } = {}) => {
-  if (mag < 0.12) return 0
-  if (sprint || (mag > 0.93 && full >= SPRINT_AFTER)) return SPEEDS.sprint
-  if (mag < 0.55) return SPEEDS.walk * Math.min(1, 0.45 + (mag - 0.12) / 0.43 * 0.55)
-  if (mag < 0.93) return SPEEDS.jog
-  return SPEEDS.run
+  if (mag < DEAD) return 0
+  if (sprint) return SPEEDS.sprint
+  // (past the dead zone, 0..1)
+  const m = Math.min(1, (mag - DEAD) / (1 - DEAD))
+  if (m < 0.5) return 0.7 + (SPEEDS.walk - 0.7) * (m / 0.5)
+  if (m < 0.82) return SPEEDS.walk + (SPEEDS.jog - SPEEDS.walk) * ((m - 0.5) / 0.32)
+  return full >= SPRINT_AFTER ? SPEEDS.run : SPEEDS.jog
 }
+
 export const gaitOf = (speed) => (speed < 0.15 ? "stand" : speed < 2 ? "walk" : speed < 4.6 ? "jog" : "sprint")
 
 // one step. input: { x (right), y (up the pad / forward), sprint }, camYaw: which way the
@@ -40,8 +48,8 @@ export const stepWalker = (w, input, camYaw, dt) => {
     py /= mag
     mag = 1
   }
-  w.full = mag > 0.93 || input?.sprint ? w.full + dt : 0
-  const want = speedFor(mag, { sprint: !!input?.sprint && mag > 0.12, full: w.full })
+  w.full = mag > 0.9 ? w.full + dt : 0
+  const want = speedFor(mag, { sprint: !!input?.sprint && mag > DEAD, full: w.full })
   // the camera's frame: forward (sin, cos) and right (-cos, sin) (anim.js frame())
   const fx = Math.sin(camYaw)
   const fz = Math.cos(camYaw)
@@ -73,8 +81,18 @@ export const stepWalker = (w, input, camYaw, dt) => {
   const y = w.y || 0
   let p = resolve(nx, nz, RADIUS, y)
   // (up the stairs, along a deck; off a deck's edge where there's no railing: nothing to
-  // stand on, so you stay put)
-  const h = heightAt(p.x, p.z, y)
+  // stand on, so you slide along the edge, or stay put)
+  let h = heightAt(p.x, p.z, y)
+  if (h === null) {
+    for (const q of [resolve(nx, w.z, RADIUS, y), resolve(w.x, nz, RADIUS, y)]) {
+      const hq = heightAt(q.x, q.z, y)
+      if (hq !== null) {
+        p = q
+        h = hq
+        break
+      }
+    }
+  }
   if (h === null) p = { x: w.x, z: w.z }
   else w.y = h
   // (sliding along a fence: what the fence took away is gone from the speed too)
