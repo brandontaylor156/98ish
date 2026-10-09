@@ -22,7 +22,23 @@ export const palmHeight = (t, kind) => {
   return (kind === "fanpalm" ? 13 + f * 6 : 7 + f * 5) * (t.s || 1)
 }
 
-export const createTreeLayer = (scene, { cap = 4000, kit = null, nearCap = 0 } = {}) => {
+// autumn (October, November): the deciduous ones (sycamores, plane trees: about half the broad-leaf
+// crowns, by spot) turn yellow-orange; month 0-11 -> how far turned (0..1)
+export const autumnOf = (month) => (month === 9 ? 0.75 : month === 10 ? 1 : month === 11 ? 0.45 : 0)
+// a broad-leaf crown's colour multiplier (r, g, b) at a spot, given the season
+export const crownTint = (t, fall) => {
+  const g = (((t.x * 13.1 + t.z * 7.7) % 1) + 1) % 1
+  const base = [0.85 + g * 0.25, 0.9 + g * 0.15, 0.8 + g * 0.2]
+  const h = (((t.x * 5.3 + t.z * 11.9) % 1) + 1) % 1
+  if (!fall || h > 0.5) return base
+  // (from green to a sycamore's yellow-orange; a few further along than others)
+  const k = fall * (0.55 + h * 0.9)
+  const to = [1.45 + g * 0.2, 1.1 + g * 0.15, 0.35]
+  return base.map((v, i) => v + (to[i] - v) * Math.min(1, k))
+}
+
+export const createTreeLayer = (scene, { cap = 4000, kit = null, nearCap = 0, month = new Date().getMonth() } = {}) => {
+  const fall = autumnOf(month)
   if (!cap) return { set() {}, dispose() {} }
   // ---- the far (or plain) trees ----
   const trunkGeo = new THREE.CylinderGeometry(0.16, 0.26, 1, 6)
@@ -104,10 +120,12 @@ export const createTreeLayer = (scene, { cap = 4000, kit = null, nearCap = 0 } =
           // (a shrub: s is its radius in metres)
           if (sh >= shrubCap) continue
           q.setFromAxisAngle(up, yaw)
-          m4.compose(v.set(t.x, t.y - 0.15, t.z), q, s.set(k, k * 0.72, k * 0.9))
+          if (t.hedge) m4.compose(v.set(t.x, t.y - 0.1, t.z), q, s.set(k * 1.15, Math.min(1.1, k * 0.5), k * 1.15))
+          else m4.compose(v.set(t.x, t.y - 0.15, t.z), q, s.set(k, k * 0.72, k * 0.9))
           shrubs.setMatrixAt(sh, m4)
           const g = ((t.x * 13.1 + t.z * 7.7) % 1 + 1) % 1
           if (t.flower) c.setHex(FLOWERS[(t.flower - 1) % FLOWERS.length]).lerp(c2.setRGB(0.3, 0.5, 0.22), 0.3)
+          else if (t.hedge) c.setRGB(0.22 + g * 0.06, 0.4 + g * 0.08, 0.17)
           else c.setRGB(0.3 + g * 0.12, 0.48 + g * 0.12, 0.2 + g * 0.06)
           shrubs.instanceColor.setXYZ(sh, c.r, c.g, c.b)
           sh++
@@ -116,7 +134,7 @@ export const createTreeLayer = (scene, { cap = 4000, kit = null, nearCap = 0 } =
         if (t.kind === 3) {
           // (a pine: a tall dark cone on a short trunk)
           if (pi >= pineCap) continue
-          const h = 6 + k * 5
+          const h = 8 + k * 7
           q.setFromAxisAngle(up, yaw)
           m4.compose(v.set(t.x, t.y - 0.2, t.z), q, s.set(k, 2.2, k))
           pTrunk2.setMatrixAt(pi, m4)
@@ -140,7 +158,8 @@ export const createTreeLayer = (scene, { cap = 4000, kit = null, nearCap = 0 } =
               mesh.setMatrixAt(i, m4)
               if (part.crown) {
                 const g = ((t.x * 13.1 + t.z * 7.7) % 1 + 1) % 1
-                mesh.instanceColor.setXYZ(i, 0.9 + g * 0.15, 0.92 + g * 0.1, 0.85 + g * 0.12)
+                if (t.kind === 1) mesh.instanceColor.setXYZ(i, 0.9 + g * 0.15, 0.92 + g * 0.1, 0.85 + g * 0.12)
+                else mesh.instanceColor.setXYZ(i, ...crownTint(t, fall))
               }
             }
             continue
@@ -165,7 +184,7 @@ export const createTreeLayer = (scene, { cap = 4000, kit = null, nearCap = 0 } =
         m4.compose(v.set(t.x, t.y + h + r * 0.55, t.z), q, s.set(r, r * 0.85, r))
         crowns.setMatrixAt(n, m4)
         const g = ((t.x * 13.1 + t.z * 7.7) % 1 + 1) % 1
-        crowns.instanceColor.setXYZ(n, ...c.setRGB(0.85 + g * 0.25, 0.9 + g * 0.15, 0.8 + g * 0.2).toArray())
+        crowns.instanceColor.setXYZ(n, ...crownTint(t, fall))
         n++
       }
       trunks.count = crowns.count = n

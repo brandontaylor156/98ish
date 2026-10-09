@@ -191,6 +191,12 @@ export const paintGround = (ctx, tile, size) => {
   void AREA_COLORS
 }
 
+// is a point inside a ring of { x, z }?
+const inRingXZ = (r, x, z) => {
+  let ins = false
+  for (let i = 0, j = r.length - 1; i < r.length; j = i++) if (r[i].z > z !== r[j].z > z && x < ((r[j].x - r[i].x) * (z - r[i].z)) / (r[j].z - r[i].z) + r[i].x) ins = !ins
+  return ins
+}
 // is a point within m metres of a road's edge?
 const nearRoad = (roads, x, z, m) => {
   for (const r of roads)
@@ -243,19 +249,31 @@ export const treeSpots = (tile, { max = 500 } = {}) => {
   if (tile.vegTrees?.length) {
     const mapped = out.slice()
     const arterial = drive.filter((r) => r.cls >= ROAD.trunk && r.cls <= ROAD.tertiary)
+    const lots = tile.areas.filter((a) => a.cls === AREA.parking)
+    const offices = tile.buildings.filter((b) => !isHouse(b.kind) && b.area > 300)
+    const nearBuilding = (x, z) => offices.some((b) => Math.abs(b.ring[0].x - x) < 120 && Math.abs(b.ring[0].z - z) < 120 && b.ring.some((p, i) => {
+      const n = b.ring[(i + 1) % b.ring.length]
+      const dx = n.x - p.x
+      const dz = n.z - p.z
+      const L2 = dx * dx + dz * dz || 1e-9
+      const k = Math.max(0, Math.min(1, ((x - p.x) * dx + (z - p.z) * dz) / L2))
+      return Math.hypot(x - p.x - dx * k, z - p.z - dz * k) < 6
+    }))
     for (const q of tile.vegTrees) {
       if (out.length >= max) break
       if (mapped.some((m) => Math.abs(m.x - q.x) < 3 && Math.abs(m.z - q.z) < 3)) continue
       const h = hashStr(`${Math.round(q.x * 10)},${Math.round(q.z * 10)}`) % 1000
       if (q.r < SHRUB_R) {
         const street = nearRoad(drive, q.x, q.z, 6)
-        out.push({ x: q.x, z: q.z, s: q.r, kind: 2, flower: street && h < 450 ? 1 + (h % 4) : 0 })
+        // (in a car park or by an office: a trimmed hedge in its curbed island)
+        const hedge = lots.some((a) => inRingXZ(a.ring, q.x, q.z)) || nearBuilding(q.x, q.z)
+        out.push({ x: q.x, z: q.z, s: q.r, kind: 2, hedge, flower: !hedge && street && h < 450 ? 1 + (h % 4) : 0 })
         continue
       }
       const s = Math.max(0.45, Math.min(2.5, q.r / 3.2))
       let kind = 0
       if (q.r <= 3.6 && h < 520 && nearRoad(arterial, q.x, q.z, 3)) kind = 1
-      else if (q.r >= 2.4 && h % 9 === 0) kind = 3
+      else if (q.r >= 2.4 && h % 5 === 0) kind = 3
       out.push({ x: q.x, z: q.z, s, kind })
     }
   }
