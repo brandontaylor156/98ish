@@ -13,6 +13,8 @@
 // the sky behind you), the sunset is watched from the benches and bleachers already there,
 // and a dance has no speaker (the hangout's music has no object in the world).
 
+import { itemName } from "./leisure/menu.js"
+
 const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a))
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v))
 const dist = (a, b) => Math.hypot(a.x - b.x, a.z - b.z)
@@ -35,6 +37,10 @@ export const TOGETHER = [
   { id: "tennis", icon: "🎾", label: "Tennis", act: true, ask: (n, d) => (d?.mode === "rally" ? `${n} wants to rally at tennis with you` : `${n} wants to play you at tennis`) },
   { id: "horse", icon: "🏀", label: "H-O-R-S-E", act: true, ask: (n) => `${n} wants to play H-O-R-S-E with you` },
   { id: "workout", icon: "💪", label: "Work out", act: true, ask: (n) => `${n} wants to work out together` },
+  // (My Park leisure, leisure/: asked from the pool's, the hot tub's and the counter's own sheets)
+  { id: "swim", icon: "🏊", label: "Swim", act: true, ask: (n, d) => (d?.mode === "race" ? `${n} wants to race you in the pool` : `${n} wants to swim with you`) },
+  { id: "tub", icon: "♨", label: "Hot tub", act: true, ask: (n) => `${n} wants to sit in the hot tub with you` },
+  { id: "treat", icon: "🥤", label: "A treat", act: true, ask: (n, d) => `${n} wants to buy you ${itemName(d?.item) ? `a ${itemName(d.item).toLowerCase()}` : "something"}` },
 ]
 export const TOGETHER_IDS = TOGETHER.map((t) => t.id)
 export const togetherById = (id) => TOGETHER.find((t) => t.id === id) || null

@@ -30,7 +30,12 @@
 //   park:leave {}
 //   park:pos   [x, z, yaw, speed, act]   (no ack)
 //   park:look  { look }  park:rep { rep }
-//   park:fx    { emote } | { line }      a quick emote or one of the canned lines
+//   park:fx    { emote } | { line } | { lap }   a quick emote (and leisure's "sip", "splash"),
+//              one of the canned lines, or a swim race's time (ms; client park/leisure/)
+//   park:hold  { item | null }  what you're eating or drinking (park/leisure/menu.js ids): shown
+//              in your hand to everyone (park:person carries it)
+//   park:finds {}  -> { ok, finds }   park:find { id, venue } -> { ok, finds, fresh }   the
+//              account's park finds (Vince's car keys: ./finds.js; signed-on people only)
 //   park:call  { court }   park:uncall {}   (the rack)
 //   park:up    { court }   park:score { court, score }   park:done { court }
 //   park:counts {}  -> { ok, counts: { venue: people } }   how many are in each real venue's parks
@@ -61,7 +66,10 @@ const venueInfo = (id) => VENUES[venueOf(id)] || { courts: COURTS, bounds: BOUND
 const BATCH_MS = { normal: 160, low: 400, min: 1000 }
 // the canned lines (park/lines.js CHAT_LINES has the words; this many of them)
 const LINE_COUNT = 8
-const EMOTES = ["cheer", "pump", "clap", "wave"]
+const EMOTES = ["cheer", "pump", "clap", "wave", "sip", "splash"]
+// (park/leisure/menu.js ids: short lower-case words)
+const ITEM_ID = /^[a-z]{2,16}$/
+const LAP_MAX = 3_600_000
 const ACT_MAX = 15
 const REP_LEVELS = 5
 const MB = 1024 * 1024
@@ -134,7 +142,7 @@ const realClock = {
 
 // liveVenues (server/venues): any venue Venue Finder built from OpenStreetMap ({ info(id) ->
 // { courts, bounds } | null }); maxLiveParks: how many of those can have a park open at once
-const createPark = ({ emit = () => {}, emitVolatile = null, rooms = null, clock = realClock, meterTotal = () => null, capBytes = 3000 * MB, cap = CAP, liveVenues = null, maxLiveParks = 60, ice = null, blocked = () => false } = {}) => {
+const createPark = ({ emit = () => {}, emitVolatile = null, rooms = null, clock = realClock, meterTotal = () => null, capBytes = 3000 * MB, cap = CAP, liveVenues = null, maxLiveParks = 60, ice = null, blocked = () => false, finds = null } = {}) => {
   const liveInfo = (id) => (liveVenues && typeof id === "string" && !Object.prototype.hasOwnProperty.call(VENUES, id) ? liveVenues.info(id) : null)
   const vOf = (id) => (liveInfo(id) ? id : venueOf(id))
   const vInfo = (id) => liveInfo(id) || venueInfo(id)
@@ -162,7 +170,7 @@ const createPark = ({ emit = () => {}, emitVolatile = null, rooms = null, clock 
     for (const p of inst.people.values()) if (p.pid !== except) send(p.pid, event, payload)
   }
 
-  const personView = (p) => ({ num: p.num, name: p.name, user: !!p.key, look: p.look, rep: p.rep, pos: p.pos, playing: p.playing })
+  const personView = (p) => ({ num: p.num, name: p.name, user: !!p.key, look: p.look, rep: p.rep, pos: p.pos, playing: p.playing, held: p.held || null })
   const courtsView = (inst) =>
     inst.courts.map((c) => ({
       q: c.queue.map((pid) => inst.people.get(pid)?.num).filter(Boolean),
@@ -341,14 +349,27 @@ const createPark = ({ emit = () => {}, emitVolatile = null, rooms = null, clock 
     toAll(inst, "park:person", personView(p), pid)
     return { ok: true }
   }
-  const fx = (pid, { emote, line } = {}) => {
+  const fx = (pid, { emote, line, lap } = {}) => {
     const inst = instanceOf(pid)
     if (!inst) return { ok: false }
     if (fxLimit(pid)) return { ok: false, error: "Slow down a little." }
     const p = inst.people.get(pid)
     if (EMOTES.includes(emote)) toAll(inst, "park:fx", { num: p.num, emote }, pid)
     else if (Number.isInteger(line) && line >= 0 && line < LINE_COUNT) toAll(inst, "park:fx", { num: p.num, line }, pid)
+    else if (Number.isInteger(lap) && lap > 0 && lap <= LAP_MAX) toAll(inst, "park:fx", { num: p.num, lap }, pid)
     else return { ok: false }
+    return { ok: true }
+  }
+  // what you're eating or drinking (leisure): in your hand for everyone, and for whoever joins
+  const hold = (pid, { item } = {}) => {
+    const inst = instanceOf(pid)
+    if (!inst) return { ok: false }
+    if (fxLimit(pid)) return { ok: false, error: "Slow down a little." }
+    const p = inst.people.get(pid)
+    const held = typeof item === "string" && ITEM_ID.test(item) ? item : null
+    if ((p.held || null) === held) return { ok: true }
+    p.held = held
+    toAll(inst, "park:person", personView(p), pid)
     return { ok: true }
   }
 
@@ -566,6 +587,10 @@ const createPark = ({ emit = () => {}, emitVolatile = null, rooms = null, clock 
     on("park:look", (me, p) => setLook(me.pid, p.look))
     on("park:rep", (me, p) => setRep(me.pid, p.rep))
     on("park:fx", (me, p) => fx(me.pid, p))
+    on("park:hold", (me, p) => hold(me.pid, p))
+    // (the account's park finds: ./finds.js)
+    on("park:finds", (me) => (finds && me.key ? finds.get(me.key) : { ok: false, error: "Sign on to 98 Messenger to keep your finds." }))
+    on("park:find", (me, p) => (finds && me.key ? finds.add(me.key, p.id, { venue: p.venue }) : { ok: false, error: "Sign on to 98 Messenger to keep your finds." }))
     on("park:call", (me, p) => call(me.pid, p.court))
     on("park:uncall", (me) => uncall(me.pid))
     on("park:up", (me, p) => up(me.pid, p.court))
@@ -599,6 +624,7 @@ const createPark = ({ emit = () => {}, emitVolatile = null, rooms = null, clock 
     setLook,
     setRep,
     fx,
+    hold,
     call,
     uncall,
     up,
