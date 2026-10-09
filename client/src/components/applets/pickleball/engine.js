@@ -1980,7 +1980,7 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
       setVenue(s.venueBuild || s.venue || "stadium")
       // (each person's own Locker Room look, checked; or their player's kit)
       const withLooks = people.map((p) => ({ ...p, look: p.look && typeof p.look === "object" ? validateLook(p.look, characterLook(p.character || DEFAULT_LOOKS[p.seat % 4], p.outfit)) : lookFor(p.character || DEFAULT_LOOKS[p.seat % 4], p.outfit) }))
-      const { roster, doubles } = onlineRoster(withLooks, { doubles: s.doubles, level: s.level || "intermediate" })
+      const { roster, doubles } = onlineRoster(withLooks, { doubles: s.doubles, level: s.level || "intermediate", together: s.teams === "us" })
       const named = roster.map((r, i) => (r.ctrl === "cpu" ? { ...r, character: CHARACTERS[(i * 3 + 2) % 9].id, look: lookFor(CHARACTERS[(i * 3 + 2) % 9].id), name: `${CHARACTERS[(i * 3 + 2) % 9].nick} (CPU)` } : r))
       const options = { doubles, scoring: s.scoring || "sideout", target: s.target || 11, assist: settings.assist, window: settings.window, ball: ballKindOf(s.venueBuild || s.venue) }
       if (role === "host") {

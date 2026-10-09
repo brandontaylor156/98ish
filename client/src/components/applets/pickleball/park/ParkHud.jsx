@@ -10,7 +10,8 @@ import "./park.css"
 // Watching a court: that court's score, Cam and Leave. Everything else (the courts list,
 // things to say, leaving the park) is in the menu.
 
-export const ParkHud = ({ hud, showPad, padSide = "left", onAction, onMenu, onCam }) => {
+// extra: what goes above the context button (My Park > Together's button: useTogether.jsx)
+export const ParkHud = ({ hud, showPad, padSide = "left", onAction, onMenu, onCam, extra = null }) => {
   const a = hud?.action
   const w = hud?.watching
   const q = hud?.queued
@@ -41,6 +42,7 @@ export const ParkHud = ({ hud, showPad, padSide = "left", onAction, onMenu, onCa
       )}
       {showPad && hud?.mode === "walk" && <div className="pkParkPad" data-control="move" data-touch-surface aria-label="Move pad" />}
       <div className="pkParkActions">
+        {!w && extra}
         {w && (
           <button type="button" className="pkParkSmall" onClick={onCam} data-park="cam">
             Cam: {w.angle}

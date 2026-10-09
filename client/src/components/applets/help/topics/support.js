@@ -505,7 +505,7 @@ export const topics = [
     keywords: ["couples privacy", "Us privacy", "love letters privacy", "unpair", "partner", "who can see"],
     body: [
       "Everything you share in **Us** (Love Letters, Our Story and its photos, flowers, Our Pet, Dream House, couple quizzes, and your Us calendar) can only be seen by your two 98 Messenger accounts. Anyone else asking the server for it is turned away.",
-      { list: ["**Sealed letters** stay sealed on the server until their day: not even the person they're for can open them early.", "Your **Us calendar** is visible only while you're paired.", "Your partner can always visit your Sunny Acres town."] },
+      { list: ["**Sealed letters** stay sealed on the server until their day: not even the person they're for can open them early.", "Your **Us calendar** is visible only while you're paired.", "Your partner can always visit your Sunny Acres town.", "**Pickleball 98's My Park > Together** adds small memories to Our Story by itself: a selfie (a small copy of the picture), a date night or a sunset at a venue, and a new best rally for the two of you (kept as one number). At most 60 of these are kept (the oldest go first); you can edit or delete them like any moment. They're couple things like the rest: only the two of you see them, and they go with Unpair and Delete My Account."] },
       { h: "Unpairing" },
       "In Us you can **Unpair**. That hides everything you share right away, for both of you. It's kept for 30 days in case you pair up again, then deleted for good. To delete it immediately, tick **Delete our letters, story and photos now** when you unpair.",
       { h: "If one of you deletes their account" },

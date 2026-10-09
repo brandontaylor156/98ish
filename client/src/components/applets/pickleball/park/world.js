@@ -41,6 +41,10 @@ import { angleName, createFollow, spectatorShot, stepFollow, turnFollow, SPECTAT
 import { dayLook, hourOf, overrideDate, realLook } from "./sky.js"
 import { lookFor as timeLook } from "./timeofday.js"
 import { CLEAR, OVERRIDES, cachedWeather, fetchWeather } from "./weather.js"
+import { EMOTE_KINDS, EMOTE_POSE, EMOTE_SECONDS, LINK_KINDS, SELFIE_AT, SELFIE_COUNT, SELFIE_HOLD, breaksAway, emoteSpots, followTarget, givesSpace, isGolden, lapseAt, lapseStart, momentShot, nameKey, nearestPal, padToward, pickSeats, selfieShot, teamCourt, twirlAngle } from "./together.js"
+import { cameraBlockers } from "../play/courtpick.js"
+import { sunPosition } from "./solar.js"
+import { timeDate } from "./timeofday.js"
 
 // Real Sky: Riverside isn't a real place; it borrows a Southern California park's sky
 export const DEFAULT_SKY_PLACE = { lat: 33.709, lon: -117.954 }
@@ -130,7 +134,9 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
   let weather = null
   let wxAt = -1e9
   let look = null
+  let lapseDate = null // watching the sunset together: the sky's own moment (together.js lapseAt)
   const lookNow = () => {
+    if (lapseDate) return skyOn() ? realLook({ date: lapseDate, lat: place.lat, lon: place.lon, weather: CLEAR }) : dayLook(lapseDate.getHours() + lapseDate.getMinutes() / 60)
     // the time of day you chose (timeofday.js: morning, midday, golden hour, night; "now" is
     // the real clock), unless a test set the hour
     const chosen = hourOverride == null && skyCfg.time && skyCfg.time !== "now" && !OVERRIDES[skyCfg.mode]?.hourOffset ? skyCfg.time : null
@@ -297,6 +303,28 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
   let voiceTalk = new Set() // park numbers whose voice is coming through right now (labels)
   let lastSent = null
   let serverCourts = COURTS.map(() => ({ q: [], g: null }))
+
+  // ---------- together (together.js; server/park/together.js): only ever after a yes ----------
+  // friends: the name keys of your partner and buddies (the Together button shows near them)
+  // link: walking together { kind, other: num, lead: you lead }; links: other people's
+  // ("a|b" -> { a, b, kind, lead }); moveTo: stepping into place for a hug or a picture (your
+  // own stick ends it); emote / selfie / sunset / date: what's going on with whom
+  const tg = { friends: null, link: null, links: new Map(), moveTo: null, emote: null, selfie: null, sunset: null, date: null, autoSat: false, pal: null }
+  const tgOther = (num) => remotes.get(num) || null
+  const linkKey = (a, b) => `${Math.min(a, b)}|${Math.max(a, b)}`
+  // a kept mood on a body (holding hands, dancing, the selfie): set it or take it away
+  const keepMood = (b, kind, variant = 0) => {
+    if (!b) return
+    if (!kind) {
+      if (b.mood?.keep) b.mood = null
+      if (b.anim?.mood?.keep) b.anim.mood = null
+      return
+    }
+    if (b.mood?.keep && b.mood.kind === kind && b.mood.variant === variant) return
+    b.mood = { kind, variant, at: clock, keep: true }
+    if (b.anim) setMood(b.anim, kind, variant, true)
+  }
+  const tgEvent = (type, extra = {}) => onEvent?.({ type, ...extra })
 
   // ---------- setting up ----------
   {
@@ -537,7 +565,7 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
     action = actionFor()
     const watching = me.mode === "watch" ? { ...courtView(courts[me.watching]), angle: angleName(me.angle, portrait()) } : null
     const queued = me.queued !== null ? { court: me.queued, name: COURTS[me.queued].name, ahead: myPosition(me.queued), busy: courts[me.queued].state !== "playing" ? courts[me.queued].state : null } : null
-    const hud = { mode: me.mode, action, watching, queued, online: net ? { park: parkNo, people: remotes.size + 1, rate: netRate } : null }
+    const hud = { mode: me.mode, action, watching, queued, online: net ? { park: parkNo, people: remotes.size + 1, rate: netRate } : null, tg: net ? tgHud() : null }
     const key = JSON.stringify(hud)
     if (!force && key === hudKey) return
     hudKey = key
@@ -559,6 +587,489 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
     return best
   }
 
+  // ---------- together: the walking, the moments, the selfie, the sunset ----------
+  // the sunset's view: from behind the two of you, the sky ahead where the sun goes down
+  const sunsetShot = () => {
+    const sd = sunDirNow() || { x: Math.sin(me.seat.yaw), z: Math.cos(me.seat.yaw) }
+    const ob = tgOther(tg.sunset.other)?.body
+    const mx = ob?.seat ? (ob.seat.x + me.seat.x) / 2 : me.seat.x
+    const mz = ob?.seat ? (ob.seat.z + me.seat.z) / 2 : me.seat.z
+    const y0 = me.seat.y > 0.6 ? 0.5 : 0
+    return { cam: { x: mx - sd.x * 3.4, y: y0 + 1.85, z: mz - sd.z * 3.4 }, look: { x: mx + sd.x * 30, y: y0 + 6, z: mz + sd.z * 30 }, fov: portrait() ? 64 : 52 }
+  }
+  // nothing solid between two people and a camera looking at them (real venues)
+  const clearLens = (cam, m) => venue.kind === "riverside" || !venue.segmentHit || venue.segmentHit({ x: m.x, z: m.z }, cam, 1.4) === null
+  const faceOther = (num) => {
+    const b = tgOther(num)?.body
+    return b ? Math.atan2(b.x - me.walker.x, b.z - me.walker.z) : undefined
+  }
+  const tgMateBody = () => {
+    const n = tg.link?.other ?? tg.emote?.other ?? tg.selfie?.other ?? null
+    return n === null ? null : tgOther(n)?.body || null
+  }
+  // your own walking while together (frame): -> a pad push to use instead of yours, or null
+  const togetherWalk = (own, dt) => {
+    const pushing = breaksAway(own)
+    if (tg.moveTo) {
+      // stepping into place for a hug or a picture: your own stick ends it
+      if (pushing || clock > tg.moveTo.until) {
+        tg.moveTo = null
+        return null
+      }
+      const p = padToward(me.walker, tg.moveTo, follow.yaw, { stopWithin: 0.05 })
+      if (p.arrived) {
+        const face = tg.moveTo.yaw
+        tg.moveTo = null
+        return { x: 0, y: 0, sprint: false, face }
+      }
+      return { ...p, face: tg.moveTo.yaw }
+    }
+    const l = tg.link
+    if (!l || l.lead) return null
+    const other = tgOther(l.other)
+    if (!other || other.body.hidden) return null
+    // the owner's rule: your own stick is yours. A push lets go
+    if (pushing) {
+      tgUnlink()
+      return null
+    }
+    const ob = other.body
+    if (ob.seat) return null
+    const target = followTarget(l.kind, { x: ob.x, z: ob.z, yaw: ob.yaw, vx: ob.vx, vz: ob.vz })
+    const p = padToward(me.walker, target, follow.yaw, { speed: ob.speed || 0, stopWithin: l.kind === "hand" ? 0.12 : 0.35 })
+    void dt
+    return { ...p, face: (ob.speed || 0) < 0.3 ? (l.kind === "hand" ? ob.yaw : Math.atan2(ob.x - me.walker.x, ob.z - me.walker.z)) : undefined }
+  }
+  // which hand reaches for whom (anim.js "hold": 0 = toward the paddle hand's side)
+  const holdVariant = (b, partnerOnRight) => (partnerOnRight !== (b?.look?.plays === "left") ? 0 : 1)
+  const linkMoods = (l, on) => {
+    const A = l.a === myNum ? meBody : tgOther(l.a)?.body
+    const B = l.b === myNum ? meBody : tgOther(l.b)?.body
+    if (l.kind !== "hand") return
+    const leadB = l.lead === l.a ? A : B
+    const folB = leadB === A ? B : A
+    if (!on) {
+      keepMood(A, null)
+      keepMood(B, null)
+      return
+    }
+    // (the one not leading walks on the leader's right: together.js followTarget)
+    keepMood(leadB, "hold", holdVariant(leadB, true))
+    keepMood(folB, "hold", holdVariant(folB, false))
+  }
+  const tgUnlink = () => {
+    if (!tg.link) return
+    const was = tg.link
+    tg.link = null
+    tg.autoSat = false
+    linkMoods({ a: myNum, b: was.other, kind: was.kind, lead: was.lead ? myNum : was.other }, false)
+    net?.emit("park:unlink", {})
+    tgEvent("tgNote", { text: was.kind === "hand" ? "You let go." : "You stopped following." })
+    sendHud(true)
+  }
+  // a seat a regular sits on here (each browser has its own regulars): they get up for you
+  const freeSeatFor = (seat) => {
+    const who = takenSeats.get(seat.id)
+    if (!who || who === "me") return true
+    if (String(who).startsWith("n")) return false
+    const r = regulars.find((x) => x.id === who)
+    takenSeats.delete(seat.id)
+    if (r) {
+      const a = seatApproach(seat)
+      r.seat = null
+      r.seated = false
+      r.hang = false
+      r.state = "wander"
+      r.t = 0.1
+      r.x = a.x
+      r.z = a.z
+      r.path = []
+    }
+    return true
+  }
+  const sitTogether = (seatIds, mine) => {
+    const seat = ALL_SEATS.find((s) => s.id === seatIds[mine])
+    if (!seat) return false
+    if (me.mode !== "walk") standUp()
+    if (!freeSeatFor(seat)) return false
+    sitOn(seat)
+    me.mode = "sit"
+    sendHud(true)
+    return true
+  }
+  const sunDirNow = () => {
+    const s = look?.sunSky
+    if (!s) return null
+    const l = Math.hypot(s.x, s.z) || 1
+    return { x: s.x / l, z: s.z / l }
+  }
+  const elevationAt = (d) => sunPosition(d, place.lat, place.lon).elevation
+  const startSunset = (other) => {
+    const golden = timeDate("golden", place.lat, place.lon, new Date())
+    tg.sunset = { other, t: 0, start: lapseStart(new Date(), golden, elevationAt), stepAt: 0 }
+    lapseDate = tg.sunset.start
+    updateDay(true)
+  }
+  const endSunset = (tell = true) => {
+    if (!tg.sunset) return
+    const other = tg.sunset.other
+    tg.sunset = null
+    lapseDate = null
+    updateDay(true)
+    if (tell) net?.emit("park:tgend", { to: other, kind: "sunset" })
+    sendHud(true)
+  }
+  const startEmote = (kind, a, b) => {
+    const mine = a === myNum ? 0 : b === myNum ? 1 : -1
+    const A = a === myNum ? meBody : tgOther(a)?.body
+    const B = b === myNum ? meBody : tgOther(b)?.body
+    if (!A || !B) return
+    const pose = EMOTE_POSE[kind]
+    if (mine >= 0) {
+      // step into place facing each other (where they'll be: the same sums on both screens)
+      const spots = emoteSpots(a === myNum ? { x: me.walker.x, z: me.walker.z, yaw: me.walker.yaw } : A, b === myNum ? { x: me.walker.x, z: me.walker.z, yaw: me.walker.yaw } : B, kind)
+      if (me.mode !== "walk") standUp()
+      tg.moveTo = { ...spots[mine], until: clock + 1.6 }
+      tg.emote = { kind, other: mine === 0 ? b : a, role: mine, t: 0, started: false }
+    } else {
+      // someone else's: shown as it happens
+      for (const [body, p] of [
+        [A, pose[0]],
+        [B, pose[1]],
+      ])
+        playEmote(body, kind, p)
+    }
+  }
+  const playEmote = (body, kind, [mood, variant]) => {
+    if (kind === "dance") {
+      keepMood(body, mood, variant)
+      body.danceUntil = clock + EMOTE_SECONDS.dance
+    } else {
+      body.mood = { kind: mood, variant, at: clock }
+      if (body.anim) setMood(body.anim, mood, variant)
+    }
+    if (kind === "twirl" && mood === "twirl" && variant === 0) body.twirlAt = clock
+  }
+  const startSelfie = (a, b) => {
+    const mine = a === myNum ? 0 : 1
+    const other = mine === 0 ? b : a
+    const ob = tgOther(other)?.body
+    if (!ob) return
+    if (me.mode !== "walk") standUp()
+    const mePos = { x: me.walker.x, z: me.walker.z }
+    // the background: the low sun at golden hour, else the nearest court
+    const sun = sunDirNow()
+    const mid = { x: (mePos.x + ob.x) / 2, z: (mePos.z + ob.z) / 2 }
+    const golden = isGolden(look?.sunEl)
+    let toward = null
+    if (golden && sun) toward = { x: mid.x + sun.x * 20, z: mid.z + sun.z * 20 }
+    else {
+      let best = null
+      for (const c of COURTS) {
+        const d = Math.hypot(c.x - mid.x, c.z - mid.z)
+        if (!best || d < best.d) best = { d, x: c.x, z: c.z }
+      }
+      toward = best
+    }
+    const isClear = clearLens
+    // (the asker on one side and the one asked on the other, the same on both screens)
+    const A = mine === 0 ? mePos : { x: ob.x, z: ob.z }
+    const B = mine === 0 ? { x: ob.x, z: ob.z } : mePos
+    const shot = selfieShot(A, B, toward, isClear, { portrait: portrait() })
+    tg.moveTo = { ...shot.spots[mine], until: clock + 2.4 }
+    tg.selfie = { other, role: mine, t: 0, shot, golden, taken: false }
+    keepMood(meBody, "selfie", mine === 0 ? 0 : 1)
+    keepMood(ob, "selfie", mine === 0 ? 1 : 0)
+    sendHud(true)
+  }
+  const endSelfie = () => {
+    if (!tg.selfie) return
+    const ob = tgOther(tg.selfie.other)?.body
+    keepMood(meBody, null)
+    keepMood(ob, null)
+    tg.selfie = null
+    tg.moveTo = null
+    sendHud(true)
+  }
+  // the picture: drawn once more with the selfie camera at a sharper pixel ratio, as the page shows a flash
+  const snapSelfie = () => {
+    if (!renderer) return null
+    const prev = renderer.getPixelRatio()
+    try {
+      const dpr = typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1
+      renderer.setPixelRatio(Math.min(2, Math.max(prev, dpr)))
+      renderer.render(scene, camera)
+      return renderer.domElement.toDataURL("image/jpeg", 0.92)
+    } catch (error) {
+      console.warn("[park] selfie", error)
+      return null
+    } finally {
+      renderer.setPixelRatio(prev)
+    }
+  }
+  // every frame (after the people online moved): walking together, the moments, the lapse
+  const togetherStep = (dt) => {
+    // the links' hand-holding: on my screen they're exactly side by side when close
+    const l = tg.link
+    if (l) {
+      const other = tgOther(l.other)
+      if (!other) {
+        tg.link = null
+        tg.autoSat = false
+        keepMood(meBody, null)
+      } else if (l.kind === "hand") {
+        const ob = other.body
+        // (sitting down together: the one walking beside sits next to the one leading, and
+        // stands when they do)
+        if (!l.lead && ob.seat && me.mode === "walk" && Math.hypot(ob.x - me.walker.x, ob.z - me.walker.z) < 3.2) {
+          const theirs = seatAt(ALL_SEATS, ob.seat.x, ob.seat.z) || { id: `n${l.other}`, x: ob.seat.x, z: ob.seat.z }
+          const seat = seatNextTo(ALL_SEATS, (s) => !takenSeats.has(s.id) || !String(takenSeats.get(s.id)).startsWith("n"), theirs)
+          if (seat && freeSeatFor(seat)) {
+            sitOn(seat)
+            tg.autoSat = true
+          }
+        } else if (!l.lead && tg.autoSat && me.mode === "sit" && !ob.seat) {
+          standUp()
+          tg.autoSat = false
+        }
+        if (!ob.seat && me.mode === "walk" && !ob.hidden) {
+          // the glue: their drawn spot pulled to just beside you (the network's lag hidden)
+          const r = { x: -Math.cos(me.walker.yaw), z: Math.sin(me.walker.yaw) }
+          const sgn = l.lead ? 1 : -1
+          // (never into a wall or a fence: where they could really stand)
+          const at = resolve(me.walker.x + r.x * 0.62 * sgn, me.walker.z + r.z * 0.62 * sgn, 0.3, me.walker.y || 0)
+          const ix = at.x
+          const iz = at.z
+          const d = Math.hypot(ob.x - ix, ob.z - iz)
+          ob.glue = Math.min(1, Math.max(0, (ob.glue || 0) + (d < 1.4 ? dt * 3 : -dt * 3)))
+          if (ob.glue > 0) {
+            ob.x += (ix - ob.x) * ob.glue
+            ob.z += (iz - ob.z) * ob.glue
+            if (me.walker.speed > 0.3) ob.yaw += wrap(me.walker.yaw - ob.yaw) * ob.glue
+          }
+        }
+      }
+    }
+    // a paired emote of yours: once you've stepped into place, the two of you do it
+    const e = tg.emote
+    if (e) {
+      e.t += dt
+      const ob = tgOther(e.other)?.body
+      if (!ob) tg.emote = null
+      else {
+        if (!e.started && (!tg.moveTo || e.t > 1.6)) {
+          e.started = true
+          // (the camera side on to the two of you for the moment)
+          e.shot = momentShot({ x: me.walker.x, z: me.walker.z }, ob, camera.position, clearLens, { portrait: portrait() })
+          e.startT = e.t
+          tg.moveTo = null
+          me.walker.yaw = Math.atan2(ob.x - me.walker.x, ob.z - me.walker.z)
+          const pose = EMOTE_POSE[e.kind]
+          playEmote(meBody, e.kind, pose[e.role])
+          playEmote(ob, e.kind, pose[1 - e.role])
+        }
+        if (e.started && e.t - e.startT > EMOTE_SECONDS[e.kind] + 0.2) tg.emote = null
+      }
+    }
+    // twirls and dances (yours and everyone's)
+    for (const b of [meBody, ...[...remotes.values()].map((r) => r.body)]) {
+      if (b.twirlAt !== undefined && b.twirlAt !== null) {
+        const t = clock - b.twirlAt
+        b.spin = twirlAngle(t)
+        if (t > 2.2) {
+          b.spin = 0
+          b.twirlAt = null
+        }
+      }
+      if (b.danceUntil && clock > b.danceUntil) {
+        b.danceUntil = 0
+        keepMood(b, null)
+      }
+    }
+    // the selfie: count down, click, hold, done
+    const s = tg.selfie
+    if (s) {
+      s.t += dt
+      if (!tgOther(s.other)) endSelfie()
+      else if (s.t >= SELFIE_AT && !s.taken) {
+        s.taken = true
+        const url = snapSelfie()
+        tgEvent("selfie", { url, golden: s.golden, with: tgOther(s.other)?.name || "", asker: s.role === 0 })
+      } else if (s.t > SELFIE_AT + SELFIE_HOLD) endSelfie()
+    }
+    // the sunset: the sky moves on gently while you sit; standing up ends it
+    const ss = tg.sunset
+    if (ss) {
+      if (me.mode !== "sit") endSunset(true)
+      else {
+        ss.t += dt
+        if (ss.t - ss.stepAt > 0.5) {
+          ss.stepAt = ss.t
+          const next = lapseAt(ss.start, ss.t, elevationAt)
+          if (next) {
+            lapseDate = next
+            updateDay(true)
+          }
+        }
+      }
+    }
+  }
+  // what the Together button and its chips show
+  const tgHud = () => {
+    const l = tg.link
+    const s = tg.selfie
+    return {
+      pal: tg.pal ? { num: tg.pal.num, name: tg.pal.name } : null,
+      link: l ? { kind: l.kind, lead: l.lead, name: tgOther(l.other)?.name || "", num: l.other } : null,
+      date: tg.date ? { name: tgOther(tg.date.other)?.name || "", num: tg.date.other } : null,
+      sunset: tg.sunset ? { name: tgOther(tg.sunset.other)?.name || "", num: tg.sunset.other } : null,
+      selfie: s ? { left: Math.max(0, Math.ceil(SELFIE_COUNT - s.t)), num: s.other, flash: s.taken } : null,
+      emote: tg.emote ? tg.emote.kind : null,
+    }
+  }
+  const updatePal = () => {
+    const people = []
+    for (const r of remotes.values()) people.push({ num: r.num, name: r.name, x: r.body.x, z: r.body.z, hidden: r.body.hidden })
+    tg.pal = me.mode === "watch" ? null : nearestPal(me.walker, people, tg.friends, 6)
+  }
+  // the court for playing together: free, the clearest camera, near you
+  let courtBlockers = null
+  const tgCourt = () => {
+    courtBlockers ??= COURTS.map((c) => (venue.kind === "riverside" || !layout.BOXES ? 0 : cameraBlockers(layout, c)))
+    return teamCourt(
+      courts.map((c) => ({ id: c.def.id, x: c.def.x, z: c.def.z, busy: !!serverCourts[c.def.id]?.g || c.state === "human", blockers: courtBlockers[c.def.id] || 0 })),
+      me.walker
+    )
+  }
+  // an ask's data (where to sit, which court)
+  const askData = (kind, other) => {
+    if (kind === "sit" || kind === "sunset") {
+      const ob = tgOther(other)?.body
+      const from = ob ? { x: (ob.x + me.walker.x) / 2, z: (ob.z + me.walker.z) / 2 } : me.walker
+      const pair = pickSeats(ALL_SEATS, (s) => !takenSeats.has(s.id) || takenSeats.get(s.id) === "me" || !String(takenSeats.get(s.id)).startsWith("n"), from, { sunDir: kind === "sunset" ? sunDirNow() : null, max: kind === "sunset" ? 60 : 30 })
+      return pair ? { seats: [pair[0].id, pair[1].id] } : null
+    }
+    if (kind === "team" || kind === "rally") return { court: tgCourt() }
+    return {}
+  }
+  // the server's together news (server/park/together.js)
+  const togetherEvent = (type, d) => {
+    if (type === "park:ask") return tgEvent("tgAsk", { id: d.id, from: d.from, name: d.name, kind: d.kind, data: d.data || {} })
+    if (type === "park:answer") return tgEvent("tgAnswer", { id: d.id, yes: !!d.yes, num: d.num, name: tgOther(d.num)?.name || "", error: d.error || null })
+    const mineOf = (a, b) => (a === myNum ? b : b === myNum ? a : null)
+    if (type === "park:link") {
+      const other = mineOf(d.a, d.b)
+      if (other !== null) {
+        const name = tgOther(other)?.name || ""
+        if (d.kind) {
+          if (tg.link) linkMoods({ a: myNum, b: tg.link.other, kind: tg.link.kind, lead: tg.link.lead ? myNum : tg.link.other }, false)
+          tg.link = { kind: d.kind, other, lead: d.lead === myNum }
+          tg.autoSat = false
+          // (the one walking along stands up to go)
+          if (!tg.link.lead && me.mode !== "walk") standUp()
+          linkMoods(d, true)
+          tgEvent("tgLink", { kind: d.kind, lead: tg.link.lead, name })
+        } else if (tg.link && tg.link.other === other) {
+          linkMoods({ a: myNum, b: other, kind: tg.link.kind, lead: tg.link.lead ? myNum : other }, false)
+          const was = tg.link.kind
+          tg.link = null
+          tg.autoSat = false
+          if (d.by !== myNum) tgEvent("tgNote", { text: d.by === other ? (was === "hand" ? `${name} let go.` : `${name} stopped.`) : "You drifted apart." })
+        }
+      } else {
+        const key = linkKey(d.a, d.b)
+        const old = tg.links.get(key)
+        if (old) linkMoods(old, false)
+        if (d.kind) {
+          tg.links.set(key, d)
+          linkMoods(d, true)
+        } else tg.links.delete(key)
+      }
+      return sendHud(true)
+    }
+    if (type === "park:tg") {
+      const other = mineOf(d.a, d.b)
+      const kind = d.kind
+      if (other === null) {
+        if (EMOTE_KINDS.includes(kind)) startEmote(kind, d.a, d.b)
+        return
+      }
+      const role = d.a === myNum ? 0 : 1
+      const name = tgOther(other)?.name || ""
+      if (kind === "sit" || kind === "sunset") {
+        if (!sitTogether(d.data?.seats || [], role)) tgEvent("tgNote", { text: "Someone's on that bench now." })
+        else if (kind === "sunset") startSunset(other)
+      } else if (kind === "selfie") startSelfie(d.a, d.b)
+      else if (kind === "date") tg.date = { other }
+      else if (EMOTE_KINDS.includes(kind)) startEmote(kind, d.a, d.b)
+      tgEvent("tgStart", { kind, name, num: other, data: d.data || {}, asker: role === 0 })
+      return sendHud(true)
+    }
+    if (type === "park:tgend") {
+      const name = tgOther(d.from)?.name || ""
+      const all = d.kind === "all"
+      if ((all || d.kind === "date") && tg.date?.other === d.from) {
+        tg.date = null
+        tgEvent("tgEnd", { kind: "date", name })
+      }
+      if ((all || d.kind === "sunset") && tg.sunset?.other === d.from) {
+        endSunset(false)
+        tgEvent("tgEnd", { kind: "sunset", name })
+      }
+      if ((all || d.kind === "selfie") && tg.selfie?.other === d.from) {
+        endSelfie()
+        tgEvent("tgEnd", { kind: "selfie", name })
+      }
+      if ((all || d.kind === "dance") && tg.emote?.kind === "dance" && tg.emote.other === d.from) {
+        tg.emote = null
+        meBody.danceUntil = clock
+        const ob = tgOther(d.from)?.body
+        if (ob) ob.danceUntil = clock
+      }
+      return sendHud(true)
+    }
+  }
+  // someone left the park: anything with them is over
+  const togetherGone = (num) => {
+    if (tg.link?.other === num) {
+      linkMoods({ a: myNum, b: num, kind: tg.link.kind, lead: tg.link.lead ? myNum : num }, false)
+      tg.link = null
+      tg.autoSat = false
+    }
+    if (tg.date?.other === num) {
+      tg.date = null
+      tgEvent("tgEnd", { kind: "date", name: tgOther(num)?.name || "" })
+    }
+    if (tg.sunset?.other === num) endSunset(false)
+    if (tg.selfie?.other === num) endSelfie()
+    if (tg.emote?.other === num) tg.emote = null
+    for (const [key, l] of tg.links) if (l.a === num || l.b === num) {
+      linkMoods(l, false)
+      tg.links.delete(key)
+    }
+  }
+  // you stop something (the chips' Let go / End / Stand up)
+  const tgStop = (kind) => {
+    if (kind === "hand" || kind === "follow") return tgUnlink()
+    if (kind === "date" && tg.date) {
+      net?.emit("park:tgend", { to: tg.date.other, kind: "date" })
+      tg.date = null
+      tgEvent("tgEnd", { kind: "date", name: "", mine: true })
+    } else if (kind === "sunset" && tg.sunset) {
+      endSunset(true)
+      if (me.mode === "sit") standUp()
+    } else if (kind === "selfie" && tg.selfie) {
+      net?.emit("park:tgend", { to: tg.selfie.other, kind: "selfie" })
+      endSelfie()
+    } else if (kind === "dance" && tg.emote?.kind === "dance") {
+      net?.emit("park:tgend", { to: tg.emote.other, kind: "dance" })
+      meBody.danceUntil = clock
+      const ob = tgOther(tg.emote.other)?.body
+      if (ob) ob.danceUntil = clock
+      tg.emote = null
+    }
+    sendHud(true)
+  }
   // ---------- your actions ----------
   const sitOn = (seat) => {
     me.mode = "sit"
@@ -613,6 +1124,8 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
   const doAction = () => {
     const a = action || actionFor()
     if (!a) return false
+    // (standing up yourself from beside the one you hold hands with: you let go)
+    if (a.kind === "stand" && tg.autoSat) tgUnlink()
     if (a.kind === "leave" || a.kind === "stand") standUp()
     else if (a.kind === "watch") watch(a.court)
     else if (a.kind === "rack") toggleQueue(a.court)
@@ -737,7 +1250,7 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
   // Your turn on court c: you and three of the park's players (the next in the rack, or the
   // ones who just played). The page plays the game (the engine, or an online room); the
   // court waits for you, then afterMyGame puts the regulars back on.
-  const myTurn = (c, { kind = "solo", roomId = null } = {}) => {
+  const myTurn = (c, { kind = "solo", roomId = null, together = null } = {}) => {
     if (c.human?.mine) return
     const winner = c.match?.game.winner ?? 0
     const rest = nextLineup(c.on, c.queue.filter((e) => !e.me), winner)
@@ -752,7 +1265,7 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
     c.pendingOn = lineup
     c.human = { mine: true, names: [lineup.slice(0, 2).map(entryName).join(" / "), lineup.slice(2).map(entryName).join(" / ")], score: [0, 0] }
     updateRacks()
-    onEvent?.({ type: "turn", court: c.def.id, kind, roomId, level: c.def.level, lineup: lineup.map((e, i) => ({ id: e.id, me: !!e.me, team: i < 2 ? 0 : 1, name: entryName(e), look: entryLook(e) })) })
+    onEvent?.({ type: "turn", court: c.def.id, kind, roomId, together, level: c.def.level, lineup: lineup.map((e, i) => ({ id: e.id, me: !!e.me, team: i < 2 ? 0 : 1, name: entryName(e), look: entryLook(e) })) })
     sendHud(true)
   }
   // back from your game: the three who played with you stay on with whoever's next; everyone
@@ -952,7 +1465,39 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
   const NAMED = 4
   const greeted = new Set()
   let schedAt = -1e9
+  // date night: the regulars give the two of you space (and keep their hellos to themselves)
+  let spaceAt = 0
+  const giveSpace = () => {
+    if (clock - spaceAt < 1) return
+    spaceAt = clock
+    const away = WAYPOINTS.filter((w) => Math.hypot(w.x - me.walker.x, w.z - me.walker.z) > 14)
+    if (!away.length) return
+    for (const r of regulars) {
+      if (r.body.mode !== "walk" || !givesSpace(r, me.walker) || (r.target && Math.hypot(r.target.x - me.walker.x, r.target.z - me.walker.z) > 10 && !r.seated)) continue
+      if (r.seat) {
+        takenSeats.delete(r.seat.id)
+        if (r.seated) {
+          const a = seatApproach(r.seat)
+          r.x = a.x
+          r.z = a.z
+        }
+        r.seat = null
+        r.seated = false
+        r.hang = false
+      }
+      r.state = "wander"
+      r.partner = null
+      r.face = null
+      r.t = 20 + rand() * 20
+      goTo(r, away[Math.floor(rand() * away.length) % away.length])
+    }
+  }
   const stepLiving = () => {
+    // (date night, or a picture being taken: the regulars give the two of you space)
+    if (tg.date || tg.selfie) {
+      giveSpace()
+      return
+    }
     // clones say hi when you come up (then not again until you've walked away)
     for (const b of cloneBodies()) {
       const d = Math.hypot(b.x - me.walker.x, b.z - me.walker.z)
@@ -1050,7 +1595,7 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
     const fz = Math.cos(b.yaw)
     const hand = b.look?.plays === "left" ? -1 : 1
     b.phaseT = (b.phaseT || 0) + dt
-    return { x: b.x, z: b.z, vx: b.vx, vz: b.vz, facing: b.yaw, ball: { x: b.x + fx * 3, y: 1.1, z: b.z + fz * 3 }, holding: false, swing: null, prep: null, charging: false, between: true, atNet: false, goal: null, hand, twoHand: b.look?.backhand === "two", oppHit: null, want: { x: b.vx, z: b.vz }, id: b.key, phase: "intro", phaseT: b.phaseT % 20, point: 0, mate: null, across: null, receiving: false }
+    return { x: b.x, z: b.z, vx: b.vx, vz: b.vz, facing: b.yaw + (b.spin || 0), ball: { x: b.x + fx * 3, y: 1.1, z: b.z + fz * 3 }, holding: false, swing: null, prep: null, charging: false, between: true, atNet: false, goal: null, hand, twoHand: b.look?.backhand === "two", oppHit: null, want: { x: b.vx, z: b.vz }, id: b.key, phase: "intro", phaseT: b.phaseT % 20, point: 0, mate: null, across: null, receiving: false }
   }
   const courtWorld = (b) => {
     const w = toWorld(b.court.def, b.p.x, b.p.z)
@@ -1088,6 +1633,9 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
     const ranked = list.filter((b) => (b.inView && b.dist < FULL_DIST) || (watched && b.court === watched)).sort((a, c) => (watched ? (c.court === watched) - (a.court === watched) : 0) || a.dist - c.dist)
     const fullSet = new Set(ranked.slice(0, Math.max(dev.budget ?? budget, watched && dev.budget === null ? 4 : 0)))
     if (me.mode !== "watch" || meBody.inView) fullSet.add(meBody)
+    // (together: the one you're with is always a real athlete too)
+    const mate = tgMateBody() || (tg.sunset ? tgOther(tg.sunset.other)?.body : null)
+    if (mate?.inView) fullSet.add(mate)
     let fullIndex = 0
     mann.begin()
     let nb = 0
@@ -1162,6 +1710,8 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
     }
     if (!b.anim) b.anim = createAnim(b.x, b.z, b.yaw)
     if (b.mood && clock - b.mood.at < 0.2 && !b.anim.mood) setMood(b.anim, b.mood.kind, b.mood.variant)
+    // (a kept mood: back on after the figure was made again)
+    if (b.mood?.keep && (b.anim.mood?.kind !== b.mood.kind || b.anim.mood?.variant !== b.mood.variant)) setMood(b.anim, b.mood.kind, b.mood.variant, true)
     b.anim.useMM = !!b.fig.skinned
     b.anim.mmEvery = quality === "high" ? 0.1 : 0.2
     // (up a stair or on a terrace: the walk animated at ground level, then raised)
@@ -1198,6 +1748,22 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
   const lookAt = new THREE.Vector3(0, 1, 0)
   const updateCamera = (dt) => {
     const por = portrait()
+    // together: the selfie's lens, or the sky ahead of the two of you at sunset
+    const special = tg.selfie ? tg.selfie.shot : tg.emote?.shot ? tg.emote.shot : tg.sunset && me.mode === "sit" && me.seat ? sunsetShot() : null
+    if (special) {
+      const k = 1 - Math.exp(-dt * (tg.selfie ? 5 : 1.6))
+      tv.set(special.cam.x, special.cam.y, special.cam.z)
+      camera.position.lerp(tv, k)
+      tv.set(special.look.x, special.look.y, special.look.z)
+      lookAt.lerp(tv, k)
+      if (Math.abs(camera.fov - special.fov) > 0.05) {
+        camera.fov += (special.fov - camera.fov) * Math.min(1, dt * 4)
+        camera.updateProjectionMatrix()
+      }
+      camera.lookAt(lookAt)
+      park.followSky?.(camera.position)
+      return
+    }
     if (me.mode === "watch") {
       const c = courts[me.watching]
       const bodiesNear = []
@@ -1463,15 +2029,29 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
       const ky = (keys.has("ArrowUp") || keys.has("KeyW") ? 1 : 0) - (keys.has("ArrowDown") || keys.has("KeyS") ? 1 : 0)
       // (the keys jog; Shift sprints)
       const kl = Math.hypot(kx, ky) || 1
-      const ix = input.x + (kx / kl) * 0.85
-      const iy = input.y + (ky / kl) * 0.85
-      stepWalker(me.walker, { x: ix, y: iy, sprint: input.sprint || keys.has("ShiftLeft") || keys.has("ShiftRight") }, follow.yaw, dt)
+      let ix = input.x + (kx / kl) * 0.85
+      let iy = input.y + (ky / kl) * 0.85
+      let sprint = input.sprint || keys.has("ShiftLeft") || keys.has("ShiftRight")
+      // together, after a yes: walking beside or behind them, or stepping into place; your
+      // own stick lets go at once (together.js breaksAway)
+      const auto = togetherWalk({ x: ix, y: iy, keys: kx !== 0 || ky !== 0 }, dt)
+      if (auto) {
+        ix = auto.x
+        iy = auto.y
+        sprint = auto.sprint
+      }
+      stepWalker(me.walker, { x: ix, y: iy, sprint }, follow.yaw, dt)
+      // (posing for the picture: at the lens; a hug, a high five...: at each other)
+      const faceTo = auto?.face ?? (tg.selfie ? tg.selfie.shot.yaw : tg.emote ? faceOther(tg.emote.other) : undefined)
+      if (faceTo !== undefined && me.walker.speed < 0.3) me.walker.yaw += wrap(faceTo - me.walker.yaw) * Math.min(1, dt * 6)
       // you can't walk through people, but nothing moves you while you aren't moving (the
       // owner's rule): standing still, the others steer around you instead
       if (Math.hypot(ix, iy) > 0.02) {
         const near = []
         // (only people on your floor: not the ones under the terrace you're on)
-        for (const b of bodies.values()) if (!b.isMe && !b.hidden && b.mode === "walk" && !b.seat && Math.abs(b.x - me.walker.x) < 1 && Math.abs(b.z - me.walker.z) < 1 && Math.abs((b.y || 0) - (me.walker.y || 0)) < 1) near.push(b)
+        // (not the one you're hand in hand with, hugging or posing with)
+        const mate = tgMateBody()
+        for (const b of bodies.values()) if (!b.isMe && b !== mate && !b.hidden && b.mode === "walk" && !b.seat && Math.abs(b.x - me.walker.x) < 1 && Math.abs(b.z - me.walker.z) < 1 && Math.abs((b.y || 0) - (me.walker.y || 0)) < 1) near.push(b)
         keepApart(me.walker, near)
       }
       meBody.x = me.walker.x
@@ -1538,6 +2118,7 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
     stepRegulars(dt)
     stepLiving()
     stepRemotes()
+    togetherStep(dt)
     pet.step(dt, me.mode === "sit" && me.seat ? { x: me.seat.x, z: me.seat.z, yaw: me.seat.yaw, y: 0 } : me.walker)
     makeOne()
     updateCamera(dt)
@@ -1547,6 +2128,7 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
     hudT += dt
     if (hudT > 0.12) {
       hudT = 0
+      updatePal()
       sendHud(false)
     }
   }
@@ -1652,6 +2234,15 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
     suspend() {
       suspended = true
       world.clearKeys()
+      // (off to play: walking together, a picture or the sunset ends; the server ends the link)
+      tg.moveTo = null
+      endSelfie()
+      endSunset(false)
+      if (tg.link) {
+        linkMoods({ a: myNum, b: tg.link.other, kind: tg.link.kind, lead: tg.link.lead ? myNum : tg.link.other }, false)
+        tg.link = null
+        tg.autoSat = false
+      }
       // (people online see you leave the path: off playing, or in the pro shop)
       if (net) net.volatile("park:pos", packPos({ x: me.walker.x, z: me.walker.z, yaw: me.walker.yaw, speed: 0, act: ACTS.play }))
       lastSent = null
@@ -1715,6 +2306,7 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
     setNet(n) {
       net = n
       if (!n) {
+        for (const num of remotes.keys()) togetherGone(num)
         for (const r of remotes.values()) removeBody(r.body)
         remotes.clear()
         myNum = null
@@ -1753,6 +2345,8 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
       } else if (type === "park:person" && d) addRemote(d)
       else if (type === "park:gone" && d) {
         const r = remotes.get(d.num)
+        // (they left: whatever you were doing together is over)
+        togetherGone(d.num)
         if (r) {
           holdSeat(r, null)
           removeBody(r.body)
@@ -1769,8 +2363,9 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
           if (r.body.seat) r.body.clapT = 0
         }
       } else if (type === "park:courts") applyServerCourts(d)
-      else if (type === "park:go" && d && courts[d.court]) myTurn(courts[d.court], { kind: d.kind === "room" ? "room" : "solo", roomId: d.roomId || null })
+      else if (type === "park:go" && d && courts[d.court]) myTurn(courts[d.court], { kind: d.kind === "room" ? "room" : "solo", roomId: d.roomId || null, together: d.together === "team" || d.together === "rally" ? d.together : null })
       else if (type === "park:rate" && d?.rate) netRate = d.rate
+      else if (type.startsWith("park:") && d) togetherEvent(type, d)
       sendHud(false)
     },
     // Spatial voice (utils/voice): where you listen from (your spot, facing the camera's way),
@@ -1788,6 +2383,27 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
     },
     setVoiceTalk(nums) {
       voiceTalk = new Set(nums)
+    },
+    // ---- together (together.js): who counts as a friend here (your partner and buddies) ----
+    setFriends(names = []) {
+      tg.friends = new Set(names.map(nameKey).filter(Boolean))
+      updatePal()
+      sendHud(true)
+    },
+    // ask the friend near you (or `to`, a park number) to do something together -> the ack
+    async tgAsk(kind, to = tg.pal?.num ?? tg.link?.other ?? null, extra = null) {
+      if (!net) return { ok: false, error: "Doing things together needs the park online." }
+      if (to === null || to === undefined) return { ok: false, error: "Walk over to them first." }
+      const data = askData(kind, to)
+      if (!data) return { ok: false, error: "There's no free bench for two nearby." }
+      return net.emit("park:ask", { to, kind, data: { ...data, ...(extra || {}) } })
+    },
+    tgAnswer(id, yes) {
+      return net ? net.emit("park:answer", { id, yes: !!yes }) : Promise.resolve({ ok: false })
+    },
+    tgStop,
+    get together() {
+      return { ...tgHud(), friends: tg.friends ? [...tg.friends] : [], lapse: lapseDate ? lapseDate.getTime() : null, moving: !!tg.moveTo, spin: meBody.spin || 0, mood: meBody.mood?.kind || null, mateMood: tgMateBody()?.mood?.kind || null, golden: isGolden(look?.sunEl), sunEl: look?.sunEl ?? null }
     },
     // where you are in the park and what everyone's doing (tests)
     get info() {
