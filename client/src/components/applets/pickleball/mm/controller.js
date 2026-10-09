@@ -46,6 +46,11 @@ export const MM = {
   turnPlanted: 1.2, // rad/s the pull may turn the body with a foot down
   turnFree: 5, // ...and with both feet off the court
   warp: [0.8, 1.3],
+  // walking about under your own thumb (My Park, the open world; park/walkfeel.js): the body is
+  // where the walker is and faces where it faces, at once; the capture only supplies the legs
+  // (owner, 2026-10-09: "he lags, he doesn't go the direction I'm pointing": a planted foot held
+  // the turn to 1.2 rad/s, so a half turn took a second on screen)
+  walk: { posPull: 0.03, maxGap: 0.05, yawPull: 0.02, turn: 30, turnRate: 12 },
 }
 
 // Where the match will put the player: its movement rule run forward (60 Hz) from position
@@ -200,7 +205,8 @@ export const updateMM = (st, input, dt) => {
       // (no faster than a person turns: about 200 degrees a second at most, so the query asks
       // for a turn the capture can show)
       const yawS = predictYaw(r.yaw, st.yawRate, input.yaw, t)
-      const yawT = r.yaw + clamp(wrap(yawS - r.yaw), -MM.turnRate * t, MM.turnRate * t)
+      const tr = input.walking ? MM.walk.turnRate : MM.turnRate
+      const yawT = r.yaw + clamp(wrap(yawS - r.yaw), -tr * t, tr * t)
       const dy = yawT - r.yaw
       q[6 + j * 2] = Math.sin(dy)
       q[6 + j * 2 + 1] = Math.cos(dy)
@@ -293,7 +299,8 @@ export const updateMM = (st, input, dt) => {
   // body goes right to the game's position; the pinned feet take up the difference)
   st.tight = (st.tight || 0) + clamp(clamp(input.tight || 0, 0, 1) - (st.tight || 0), -dt * 4, dt * 4)
   const tight = st.tight
-  const hl = (planted ? MM.posPullPlanted : MM.posPull) * (1 - tight) + 0.03 * tight
+  const walking = !!input.walking
+  const hl = walking ? MM.walk.posPull : (planted ? MM.posPullPlanted : MM.posPull) * (1 - tight) + 0.03 * tight
   const kp = 1 - Math.exp((-Math.LN2 * dt) / hl)
   r.x += (input.x - r.x) * kp
   r.z += (input.z - r.z) * kp
@@ -301,16 +308,16 @@ export const updateMM = (st, input, dt) => {
   const gz = r.z - input.z
   const gap = Math.hypot(gx, gz)
   // (a little more room at a sprint: the match accelerates harder than any person)
-  const maxGap = (MM.maxGap + clamp((gameSpeed - 2.5) * 0.04, 0, 0.08)) * (1 - tight) + 0.03 * tight
+  const maxGap = walking ? MM.walk.maxGap : (MM.maxGap + clamp((gameSpeed - 2.5) * 0.04, 0, 0.08)) * (1 - tight) + 0.03 * tight
   if (gap > maxGap) {
     r.x = input.x + (gx / gap) * maxGap
     r.z = input.z + (gz / gap) * maxGap
   }
-  const ky = 1 - Math.exp((-Math.LN2 * dt) / (planted ? MM.yawPullPlanted : MM.yawPull))
+  const ky = 1 - Math.exp((-Math.LN2 * dt) / (walking ? MM.walk.yawPull : planted ? MM.yawPullPlanted : MM.yawPull))
   const yawErr = wrap(input.yaw - r.yaw)
   const oldYaw = r.yaw
   // (at most so fast: a planted body only turns on its own legs, through the capture)
-  const maxTurn = (planted ? MM.turnPlanted : MM.turnFree) * dt
+  const maxTurn = (walking ? MM.walk.turn : planted ? MM.turnPlanted : MM.turnFree) * dt
   r.yaw += Math.max(-maxTurn, Math.min(maxTurn, yawErr * ky))
   r.yaw = wrap(r.yaw)
   st.yawRate = dt > 0 ? wrap(r.yaw - oldYaw + myaw * 0) / dt : 0

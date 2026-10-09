@@ -71,7 +71,7 @@ import { hashStr, rng } from "./sim/parked.js"
 const walkSituation = (s, key, t, look) => {
   const fx = Math.sin(s.yaw)
   const fz = Math.cos(s.yaw)
-  return { x: s.x, z: s.z, vx: s.vx || 0, vz: s.vz || 0, facing: s.yaw, ball: { x: s.x + fx * 3, y: 1.1, z: s.z + fz * 3 }, holding: false, swing: null, prep: null, charging: false, between: true, atNet: false, goal: null, hand: look?.plays === "left" ? -1 : 1, twoHand: look?.backhand === "two", oppHit: null, want: { x: s.vx || 0, z: s.vz || 0 }, id: key, phase: "intro", phaseT: t % 20, point: 0, mate: null, across: null, receiving: false }
+  return { x: s.x, z: s.z, vx: s.vx || 0, vz: s.vz || 0, facing: s.yaw, ball: { x: s.x + fx * 3, y: 1.1, z: s.z + fz * 3 }, holding: false, swing: null, prep: null, charging: false, between: true, atNet: false, goal: null, hand: look?.plays === "left" ? -1 : 1, twoHand: look?.backhand === "two", oppHit: null, want: s.want || { x: s.vx || 0, z: s.vz || 0 }, id: key, phase: "intro", phaseT: t % 20, point: 0, mate: null, across: null, receiving: false, walking: true }
 }
 
 const NO_PADDLE = new Set(["hug", "hold", "dance", "twirl", "thumbs", "point"])

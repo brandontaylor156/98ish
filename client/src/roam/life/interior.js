@@ -485,7 +485,7 @@ export const createInterior = ({ town, host = {}, room, layout: L, phone = false
     const fig = figFor("me", me.look)
     if (fig) {
       for (const p of plugins) p.figure?.("me", fig, dt)
-      fig.update({ x: me.walker.x, y: 0, z: me.walker.z, yaw: me.walker.yaw, vx: me.walker.vx, vz: me.walker.vz, speed: me.walker.speed }, dt)
+      fig.update({ x: me.walker.x, y: 0, z: me.walker.z, yaw: me.walker.yaw, vx: me.walker.vx, vz: me.walker.vz, speed: me.walker.speed, want: me.walker.want }, dt)
     }
     for (const r of remotes.values()) {
       if (!r.seen) continue

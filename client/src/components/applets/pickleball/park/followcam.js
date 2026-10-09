@@ -9,12 +9,16 @@
 import { clearShot } from "../camera.js"
 import { HALF_L, HALF_W } from "../physics.js"
 import { PEN, segmentHit3 } from "./layout.js"
+import { createOrbit, orbitDrag, orbitRecenter, orbitRelease, orbitTurn, stepBoom, stepOrbit } from "./walkfeel.js"
 
 const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a))
 
 export const FOLLOW = { dist: 4.6, height: 2.35, lookUp: 1.25, ahead: 1.6, minDist: 1.3, swing: 1.6 }
 
-export const createFollow = (yaw = 0) => ({ yaw, pos: null, look: null, dist: FOLLOW.dist, drag: 0, off: 0 })
+// (an orbit you turn by hand, walkfeel.js: yaw / goalYaw / pitch (here: lift, m) / manual...;
+// pos: the lens; rel: where it sits from you { d, off, y }; view: the heading the picture shows)
+export const LIFT = { lo: -0.9, hi: 2.4 }
+export const createFollow = (yaw = 0) => ({ ...createOrbit(yaw, 0), pos: null, look: null, piv: null, rel: null, off: 0, view: yaw, turned: 0 })
 
 // The lens never sits behind anything solid as seen from your head (a hall's walls, a
 // building, a pen's fence below its top) and never above a hall's roof: segmentHit3 tests the
@@ -24,7 +28,10 @@ export const createFollow = (yaw = 0) => ({ yaw, pos: null, look: null, dist: FO
 const HEAD_Y = 1.55
 const GAP = 0.35 // kept between the lens and whatever it would have gone through
 const OFFSETS = [0.35, 0.7, 1.05, 1.4, 1.75, 2.1] // radians to either side, nearest first
-const PAD = 0.12 // (the near plane: a lens 0.1 m from a wall still clips it)
+// (the near plane: a lens 0.1 m from a wall still clips it. With the lens pulled in close, the
+// world brings the near plane in to 0.08 m so its corners stay inside this pad: owner,
+// 2026-10-09, "able to see through buildings if you get up close to the side")
+const PAD = 0.12
 
 // one try at a camera yaw: as far back as `dist` allows, pulled in to the first solid thing,
 // or over a low one (a fence) when the roof allows -> { cam, d } or null
@@ -61,7 +68,8 @@ const placeAt = (w, yaw, dist, height, maxY, occ, minDist = FOLLOW.minDist, shou
 // lens may go. prefer: the side (-1, 0, 1) it swung to last time, tried first so it doesn't
 // flip-flop. occ: the occlusion test (the active layout's segmentHit3 by default).
 // tight: in a room (a lobby, a locker room): closer and lower, so the camera stays inside
-export const followTarget = (w, camYaw, { portrait = false, bodies = [], roofY = null, prefer = 0, occ = null, tight = false } = {}) => {
+// lift: m higher (+) or lower (-) than the usual height (a drag up or down the picture)
+export const followTarget = (w, camYaw, { portrait = false, bodies = [], roofY = null, prefer = 0, occ = null, tight = false, lift = 0 } = {}) => {
   const hit3 = occ || ((a, b) => segmentHit3(a, b, PAD))
   // (a room: closer, lower, over the shoulder, looking further ahead into the room)
   const dist = tight ? 2.3 + (portrait ? 0.6 : 0) : FOLLOW.dist + (portrait ? 1.6 : 0)
@@ -70,7 +78,7 @@ export const followTarget = (w, camYaw, { portrait = false, bodies = [], roofY =
   const maxY = roofY ?? Infinity
   // (heights from the floor you're on: the ground, a stair, a rooftop terrace)
   const floor = w.y || 0
-  const height = Math.min(maxY, floor + (tight ? 1.85 + (portrait ? 0.25 : 0) : FOLLOW.height + (portrait ? 0.9 : 0)))
+  const height = Math.min(maxY, floor + Math.max(1.0, (tight ? 1.85 + (portrait ? 0.25 : 0) : FOLLOW.height + (portrait ? 0.9 : 0)) + (tight ? lift * 0.4 : lift)))
   let best = null
   const tryOff = (off) => {
     const p = placeAt(w, camYaw + off, dist, height, maxY, hit3, minDist, shoulder)
@@ -106,7 +114,7 @@ export const followTarget = (w, camYaw, { portrait = false, bodies = [], roofY =
   const c = clearShot(cam, look, bodies, { near: 1.1, ahead: 2.4, max: 10 })
   const cleared = { x: c.x, y: Math.min(maxY, c.y), z: c.z }
   const ok = c.moved < 1e-6 || !hit3({ x: w.x, y: floor + HEAD_Y, z: w.z }, cleared)
-  return { cam: ok ? cleared : cam, look, pulled, cleared: ok ? c.moved : 0, off, open: !!best }
+  return { cam: ok ? cleared : cam, look, pulled, cleared: ok ? c.moved : 0, off, open: !!best, ahead, lookY: look.y - floor }
 }
 
 // is the lens at `pos` hidden from the walker's head by something solid?
@@ -115,42 +123,97 @@ export const lensBlocked = (w, pos, occ = null) => {
   return occ ? !!occ(head, pos) : !!segmentHit3(head, pos, PAD)
 }
 
-// one frame of the follow camera: swing round behind a walker who's walking away from the
-// camera, ease toward the target. drag: the camera turned by hand (a finger or mouse drag)
-// holds off the swing for a moment.
+// one frame of the follow camera (2026-10-09, the owner: "the camera rotation is interesting,
+// that needs to maybe be thought through more"; walkfeel.js has the why):
+// - opts.mode "free" (the default): it turns only by your hand (a drag, a fling, a double tap
+//   round behind you); "follow": it also comes round behind you while you walk away from it
+//   (never sideways or toward it, never right after a drag).
+// - it rides with you (no lag of its own behind the body), a little smoothing on the pivot;
+// - walls pull it in on a spring, fast in and slow out (no jumps), and it swings to the open
+//   side of a wall right behind you gently; if the eased spot would be behind something solid
+//   it goes straight to the clear one (the picture never shows through a wall).
+// st.turned: the yaw your own hand turned it by this frame (the stick's frame turns with it);
+// st.view: the heading the picture shows (the stick's frame when a thumb lands).
 export const stepFollow = (st, w, dt, opts = {}) => {
-  st.drag = Math.max(0, st.drag - dt)
-  // (2026-10-09: "so hard to control walking around". The stick moves you the way the camera
-  // looks, so a camera that swings while you walk sideways bends your path into a circle. Now
-  // it comes round behind you only when you walk away from it, more the straighter away, after
-  // a moment's walking; sideways and toward it, it holds still and just follows along.)
-  st.walkT = w.speed > 0.5 ? (st.walkT || 0) + dt : 0
-  if (w.speed > 0.5 && st.drag <= 0 && st.walkT > 0.35) {
-    const d = wrap(w.yaw - st.yaw)
-    const away = Math.cos(d)
-    if (away > 0.5) st.yaw += d * Math.min(1, dt * FOLLOW.swing * Math.min(1, w.speed / 2.5) * ((away - 0.5) / 0.5))
+  const floor = w.y || 0
+  // (a snap: a new place, back from a court; teleport sets yaw and clears pos)
+  if (!st.pos) {
+    st.goalYaw = st.yaw
+    st.piv = null
+    st.rel = null
   }
-  st.yaw = wrap(st.yaw)
-  const t = followTarget(w, st.yaw, { ...opts, prefer: Math.sign(st.off || 0) })
+  st.turned = stepOrbit(st, dt, { walker: w, mode: opts.mode || "free" })
+  const t = followTarget(w, st.yaw, { ...opts, lift: st.pitch, prefer: Math.sign(st.off || 0) })
   st.off = t.off
-  const k = st.pos ? 1 - Math.exp(-dt * 7) : 1
-  st.pos = st.pos ? { x: st.pos.x + (t.cam.x - st.pos.x) * k, y: st.pos.y + (t.cam.y - st.pos.y) * k, z: st.pos.z + (t.cam.z - st.pos.z) * k } : { ...t.cam }
-  const kl = st.look ? 1 - Math.exp(-dt * 9) : 1
-  st.look = st.look ? { x: st.look.x + (t.look.x - st.look.x) * kl, y: st.look.y + (t.look.y - st.look.y) * kl, z: st.look.z + (t.look.z - st.look.z) * kl } : { ...t.look }
-  // (the eased position is checked again: never behind a wall, a fence or a roof while it
-  // eases; if it would be, it goes straight to the clear spot)
-  if (opts.roofY != null && st.pos.y > opts.roofY) st.pos.y = opts.roofY
-  if (lensBlocked(w, st.pos, opts.occ)) st.pos = { ...t.cam }
+  // the pivot: you, smoothed a touch (steps, stairs)
+  if (!st.piv) st.piv = { x: w.x, y: floor, z: w.z }
+  else {
+    const kp = 1 - Math.exp(-dt * 20)
+    const ky = 1 - Math.exp(-dt * 10)
+    st.piv.x += (w.x - st.piv.x) * kp
+    st.piv.z += (w.z - st.piv.z) * kp
+    st.piv.y += (floor - st.piv.y) * ky
+    // (never more than a step behind)
+    const gx = w.x - st.piv.x
+    const gz = w.z - st.piv.z
+    const g = Math.hypot(gx, gz)
+    if (g > 0.25) {
+      st.piv.x = w.x - (gx / g) * 0.25
+      st.piv.z = w.z - (gz / g) * 0.25
+    }
+  }
+  // where the target lens sits from you: how far, turned how far from straight behind, how high
+  const rx = t.cam.x - w.x
+  const rz = t.cam.z - w.z
+  const td = Math.hypot(rx, rz)
+  const tOff = td > 0.05 ? wrap(Math.atan2(-rx, -rz) - st.yaw) : 0
+  const ty = t.cam.y - floor
+  if (!st.rel) st.rel = { d: td, off: tOff, y: ty }
+  else {
+    st.rel.d = stepBoom(st.rel.d, td, dt)
+    st.rel.off = wrap(st.rel.off + wrap(tOff - st.rel.off) * (1 - Math.exp(-dt * 8)))
+    st.rel.y += (ty - st.rel.y) * (1 - Math.exp(-dt * 12))
+  }
+  const a = st.yaw + st.rel.off
+  st.view = wrap(a)
+  const px = st.piv.x - Math.sin(a) * st.rel.d
+  const pz = st.piv.z - Math.cos(a) * st.rel.d
+  let py = st.piv.y + st.rel.y
+  if (opts.roofY != null && py > opts.roofY) py = opts.roofY
+  if (!st.pos) st.pos = { x: px, y: py, z: pz }
+  else {
+    st.pos.x = px
+    st.pos.y = py
+    st.pos.z = pz
+  }
+  if (!st.look) st.look = { x: 0, y: 0, z: 0 }
+  st.look.x = st.piv.x + Math.sin(a) * t.ahead
+  st.look.y = st.piv.y + t.lookY
+  st.look.z = st.piv.z + Math.cos(a) * t.ahead
+  // (the eased spot is checked again: never behind a wall, a fence or a roof; if it would be, it
+  // goes straight to the clear spot)
+  if (lensBlocked(w, st.pos, opts.occ)) {
+    st.pos.x = t.cam.x
+    st.pos.y = t.cam.y
+    st.pos.z = t.cam.z
+    st.rel.d = td
+    st.rel.off = tOff
+    st.rel.y = ty
+  }
   const c = clearShot(st.pos, st.look, opts.bodies || [], { near: 1.1, ahead: 2.4, max: 10 })
-  const cp = { x: c.x, y: opts.roofY != null ? Math.min(opts.roofY, c.y) : c.y, z: c.z }
-  if (c.moved < 1e-6 || !lensBlocked(w, cp, opts.occ)) st.pos = cp
+  if (c.moved > 1e-6) {
+    const cp = { x: c.x, y: opts.roofY != null ? Math.min(opts.roofY, c.y) : c.y, z: c.z }
+    if (!lensBlocked(w, cp, opts.occ)) st.pos = cp
+  }
   return st
 }
-// a drag turns the camera round you (radians), and holds the auto-swing off a moment
-export const turnFollow = (st, delta) => {
-  st.yaw = wrap(st.yaw + delta)
-  st.drag = 1.6
-}
+// a turn by hand (radians: a key, a button)
+export const turnFollow = (st, delta) => orbitTurn(st, delta)
+// a finger or the mouse dragging the picture (px); size { w, h }; now ms
+export const dragFollow = (st, dx, dy, size, now) => orbitDrag(st, dx, dy, size, now, { lo: LIFT.lo, hi: LIFT.hi, pitchRate: 0.012 })
+export const releaseFollow = (st, now) => orbitRelease(st, now)
+// a double tap: round behind you (the way you face)
+export const recenterFollow = (st, w) => orbitRecenter(st, w.yaw)
 
 // ---------- watching a court ----------
 export const SPECTATE_ANGLES = ["Sideline", "Baseline", "High"]

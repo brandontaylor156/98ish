@@ -11,21 +11,22 @@
 // screen instead of a circle.
 
 import { heightAt, resolve } from "./layout.js"
+import { STICK, steerVelocity, turnFacing } from "./walkfeel.js"
 
 // (snappier 2026-10-09, the owner: "I move, he doesn't, he lags": a light push already walks
 // briskly, you're up to speed in about a third of a second, and a full push runs almost at once)
 export const SPEEDS = { walk: 1.7, jog: 3.4, run: 4.6, sprint: 6.2 }
 export const ACCEL = 14 // m/s^2 speeding up
-export const DECEL = 18 // m/s^2 slowing down
-export const TURN_ACCEL = 45 // m/s^2 while changing direction
-export const SPRINT_AFTER = 0.35 // s at full push before a run
-export const DEAD = 0.15 // the stick's dead zone (of its reach)
+export const DECEL = 26 // m/s^2 slowing down (a run stops in ~0.2 s)
+export const SPRINT_AFTER = 0.25 // s at a full push before a run
+export const DEAD = STICK.DEAD // the stick's dead zone (of its reach)
 export const RADIUS = 0.35
 
 const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a))
 
 // (y: the height of what you stand on: the ground, a stair, a rooftop terrace)
-export const createWalker = (x, z, yaw = 0, y = 0) => ({ x, z, y, yaw, vx: 0, vz: 0, speed: 0, full: 0, gait: "stand" })
+// (want: the velocity the push asks for, so the body's animation can look ahead)
+export const createWalker = (x, z, yaw = 0, y = 0) => ({ x, z, y, yaw, vx: 0, vz: 0, speed: 0, full: 0, gait: "stand", want: { x: 0, z: 0 } })
 
 // how fast the push asks for: magnitude 0..1 -> m/s
 export const speedFor = (mag, { sprint = false, full = 0 } = {}) => {
@@ -51,7 +52,7 @@ export const stepWalker = (w, input, camYaw, dt) => {
     py /= mag
     mag = 1
   }
-  w.full = mag > 0.9 ? w.full + dt : 0
+  w.full = mag >= STICK.RUN ? w.full + dt : 0
   const want = speedFor(mag, { sprint: !!input?.sprint && mag > DEAD, full: w.full })
   // the camera's frame: forward (sin, cos) and right (-cos, sin) (anim.js frame())
   const fx = Math.sin(camYaw)
@@ -67,21 +68,15 @@ export const stepWalker = (w, input, camYaw, dt) => {
   }
   const tvx = dx * want
   const tvz = dz * want
-  // speed up / slow down toward that like a body would
-  const ex = tvx - w.vx
-  const ez = tvz - w.vz
-  const el = Math.hypot(ex, ez)
-  // (a new direction answers at once: turning or reversing changes the velocity fast instead of
-  // braking to a stop first. Owner: "switching directions takes a few seconds to register")
-  const turning = want > 0 && w.speed > 0.5 && (w.vx * tvx + w.vz * tvz) / (w.speed * want) < 0.7
-  const rate = (turning ? TURN_ACCEL : want < w.speed ? DECEL : ACCEL) * dt
-  if (el <= rate) {
-    w.vx = tvx
-    w.vz = tvz
-  } else {
-    w.vx += (ex / el) * rate
-    w.vz += (ez / el) * rate
-  }
+  // the speed the new way builds quickly; what still goes across or against it goes much faster
+  // (walkfeel.js: a turn or a reversal answers at once. Owner: "switching directions takes a few
+  // seconds to register")
+  steerVelocity(w, tvx, tvz, dt, { accel: ACCEL, decel: DECEL })
+  if (!w.want) w.want = { x: 0, z: 0 }
+  w.want.x = tvx
+  w.want.z = tvz
+  // you face where you push (quick, not a snap), not where your momentum still carries you
+  if (want > 0 && dl > 1e-6) w.yaw = turnFacing(w.yaw, Math.atan2(dx, dz), dt)
   const nx = w.x + w.vx * dt
   const nz = w.z + w.vz * dt
   const y = w.y || 0
@@ -113,7 +108,8 @@ export const stepWalker = (w, input, camYaw, dt) => {
   w.x = p.x
   w.z = p.z
   w.speed = Math.hypot(w.vx, w.vz)
-  if (w.speed > 0.3) w.yaw = Math.atan2(w.vx, w.vz)
+  // (moving without a push of your own, sliding to a stop: face the way you go)
+  if (want <= 0 && w.speed > 0.3) w.yaw = turnFacing(w.yaw, Math.atan2(w.vx, w.vz), dt)
   w.gait = gaitOf(w.speed)
   return w
 }

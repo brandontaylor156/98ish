@@ -48,12 +48,12 @@ export const driveMM = (a, s, mv, dt, o) => {
   // turn and run, like a pro going back for a lob)
   let yaw = o.yaw
   const ws = Math.hypot(want.x, want.z)
-  if (ws > 2.9 && speed > 1.2) {
+  if (!o.walking && ws > 2.9 && speed > 1.2) {
     const travel = Math.atan2(want.x, want.z)
     const off = Math.atan2(Math.sin(travel - yaw), Math.cos(travel - yaw))
     if (Math.abs(off) > 0.9) yaw = travel
   }
-  const out = updateMM(a.mm, { x: s.x, z: s.z, vx: mv.x, vz: mv.z, want, goal: s.goal || null, maxSpeed: Math.max(Math.hypot(want.x, want.z), speed, 0.5), yaw, mask, every: o.every ?? 0.1, tight: o.tight || 0 }, dt)
+  const out = updateMM(a.mm, { x: s.x, z: s.z, vx: mv.x, vz: mv.z, want, goal: s.goal || null, maxSpeed: Math.max(Math.hypot(want.x, want.z), speed, 0.5), yaw, mask, every: o.every ?? 0.1, tight: o.tight || 0, walking: !!o.walking }, dt)
   // lower than the motion capture's own hips if anim.js wants a crouch
   const mocapY = out.hip.y
   // (between points the crouch is measured from how high the captures really stand, not the

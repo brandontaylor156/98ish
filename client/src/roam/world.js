@@ -32,6 +32,7 @@ import { createParkedLayer, lampUniforms, makeCarMesh, setCarEnvironment } from 
 import { createChase, stepChase } from "./sim/chase.js"
 import { createColliders } from "./sim/collide.js"
 import { createWalker, stepWalker } from "./sim/walker.js"
+import { createOrbit, loadCameraMode, orbitDrag, orbitRecenter, orbitRelease, orbitTurn, saveCameraMode, stepBoom, stepOrbit } from "../components/applets/pickleball/park/walkfeel.js"
 import { MODELS, createCar, doorSpot, isTwo, personAhead, stepCar, steerLimit, stickToRide } from "./sim/car.js"
 import { parkedCars } from "./sim/parked.js"
 import { ACT, createTrack, packPos, pushSample, sampleTrack, shouldSend, unpackPos, DELAY } from "./sim/sync.js"
@@ -599,7 +600,10 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
   // (plug-ins from roam/life/: going inside, emotes and doing things together, things put down;
   // each may offer an action, steer your walk (only after a yes), touch figures, hear the network)
   const plugins = new Set()
-  const cam = { yaw: wrap((sp.yaw ?? 0) + 0), pitch: 0.3, dist: phone ? 5.2 : 4.6, pos: null, look: new THREE.Vector3(), behindT: 0 }
+  // the walking camera: an orbit you turn by hand (pickleball/park/walkfeel.js: yaw, goalYaw,
+  // pitch, manual...); boom: how far back it sits now (walls pull it in on a spring)
+  const cam = { ...createOrbit(wrap(sp.yaw ?? 0), 0.3), dist: phone ? 5.2 : 4.6, pos: null, look: new THREE.Vector3(), boom: null, near: 0 }
+  let camMode = loadCameraMode()
 
   // figures (the host makes them: an athlete in 98ish)
   const figs = new Map() // key -> { fig, look }
@@ -1264,7 +1268,8 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
 
   // ---------- the camera ----------
   const tmpA = new THREE.Vector3()
-  const portrait = () => size.height > size.width * 1.05
+  const nearOut = {}
+  const portrait =() => size.height > size.width * 1.05
   const chase = createChase()
   // (closer behind a bike, farther behind a bus)
   const CHASE_SCALE = { bike: 0.55, scooter: 0.5, bus: 1.6, train: 2.3 }
@@ -1302,45 +1307,58 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
       camera.updateProjectionMatrix()
     }
     const w = me.walker
+    // (2026-10-09, the owner: "the camera rotation is interesting, that needs to maybe be thought
+    // through more"): free by default, it turns only by your hand (a drag, a fling, a double tap
+    // round behind you); "Follow behind" (a setting) also brings it round while you walk away
+    // from it. What it does on its own never turns the way you're walking (moveRef): only your
+    // own look does. pickleball/park/walkfeel.js has the why.
+    if (!cam.pos) {
+      cam.goalYaw = cam.yaw
+      cam.boom = null
+    }
+    const turned = stepOrbit(cam, dt, { walker: w, mode: camMode })
+    if (moveRef !== null) moveRef += turned
+    // the pivot rides with you: no lag behind the body (the ground's height eased a little)
     const tx = w.x
     const tz = w.z
-    const ty = (w.y || 0) + 1.45
+    if (!cam.pos || cam.pivY === undefined) cam.pivY = w.y || 0
+    else cam.pivY += ((w.y || 0) - cam.pivY) * Math.min(1, dt * 10)
+    const ty = cam.pivY + 1.45
     const dist = cam.dist
     // (a drag up or down tilts the view: lower sees more of the town ahead)
     const height = 0.35 + cam.pitch * 2.2
-    // (comes round behind you only when you walk away from it)
-    // (and only while the push is mostly straight up the stick: a sideways or diagonal push walks
-    // its line with the camera holding still, so what you point at is where you go)
-    const pushUp = Math.hypot(input.x, input.y) > 0.12 && Math.abs(Math.atan2(input.x, input.y)) < 0.45
-    if (w.speed > 0.6 && (pushUp || moveRef === null)) {
-      const away = Math.cos(wrap(w.yaw - cam.yaw))
-      if (away > 0.3) {
-        cam.behindT += dt
-        if (cam.behindT > 0.35) {
-          const turn = wrap(w.yaw - cam.yaw) * Math.min(1, dt * 1.6 * away)
-          cam.yaw += turn
-          // (the stick's frame comes round with it: up the stick stays straight ahead on screen)
-          if (moveRef !== null) moveRef += turn
-        }
-      } else cam.behindT = 0
-    } else cam.behindT = 0
-    const bx = tx - Math.sin(cam.yaw) * dist
-    const bz = tz - Math.cos(cam.yaw) * dist
-    // walls between you and the lens pull it in
-    const f = colliders.segment(tx, tz, bx, bz, ty)
-    const k = f < 1 ? Math.max(0.12, f - 0.06) : 1
-    const cx = tx + (bx - tx) * k
-    const cz = tz + (bz - tz) * k
+    const sy = Math.sin(cam.yaw)
+    const cyw = Math.cos(cam.yaw)
+    // walls between you and the lens pull it in: the middle of the view and a little to each side
+    // (a ray each), so the lens comes in before the picture's edge would cross a wall
+    // (owner: "able to see through buildings if you get up close to the side")
+    const bx = tx - sy * dist
+    const bz = tz - cyw * dist
+    let f = colliders.segment(tx, tz, bx, bz, ty)
+    const side = 0.45
+    f = Math.min(f, colliders.segment(tx, tz, bx - cyw * side, bz + sy * side, ty), colliders.segment(tx, tz, bx + cyw * side, bz - sy * side, ty))
+    const wantD = f < 1 ? Math.max(0.5, dist * f - 0.35) : dist
+    // (in fast, out slowly; never further than the wall allows)
+    cam.boom = Math.min(wantD, stepBoom(cam.boom, wantD, dt))
+    const k = cam.boom / dist
+    const cx = tx - sy * cam.boom
+    const cz = tz - cyw * cam.boom
     let cy = ty + height * (0.55 + 0.45 * k)
     // (never under the ground)
     const g = groundAt(cx, cz)
     if (g !== null && cy < g + 0.8) cy = g + 0.8
     if (!cam.pos) cam.pos = new THREE.Vector3(cx, cy, cz)
-    const lerp = Math.min(1, dt * 10)
-    cam.pos.x += (cx - cam.pos.x) * lerp
-    cam.pos.y += (cy - cam.pos.y) * lerp
-    cam.pos.z += (cz - cam.pos.z) * lerp
+    else cam.pos.set(cx, cy, cz)
     camera.position.copy(cam.pos)
+    // (close to a wall the near plane comes in, so it never cuts into the wall; out in the open
+    // it stays further out for depth precision far away)
+    const nearWall = colliders.resolve(cx, cz, 0.9, nearOut).hit
+    const near = nearWall ? 0.08 : 0.3
+    if (near !== cam.near) {
+      cam.near = near
+      camera.near = near
+      camera.updateProjectionMatrix()
+    }
     // (upright phones: you sit a little above the middle, the way ahead above the thumbs;
     // looking a little past you, the way the camera faces: more town, less ground)
     tmpA.set(tx + Math.sin(cam.yaw) * 2.5, ty + 0.45, tz + Math.cos(cam.yaw) * 2.5)
@@ -1356,7 +1374,7 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
       const fig = figFor("me", me.look)
       if (fig) {
         for (const p of plugins) p.figure?.("me", fig, dt)
-        fig.update({ x: me.walker.x, y: me.walker.y, z: me.walker.z, yaw: me.walker.yaw, vx: me.walker.vx, vz: me.walker.vz, speed: me.walker.speed }, dt)
+        fig.update({ x: me.walker.x, y: me.walker.y, z: me.walker.z, yaw: me.walker.yaw, vx: me.walker.vx, vz: me.walker.vz, speed: me.walker.speed, want: me.walker.want }, dt)
       }
     }
     if (driving && car && carMesh) {
@@ -1660,7 +1678,7 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
     key(code, down) {
       if (down) {
         if (code === "Enter" || code === "KeyF" || code === "KeyE") return doAction()
-        if (code === "KeyQ") return (cam.yaw += 0.35)
+        if (code === "KeyQ") return orbitTurn(cam, 0.35)
         if (code === "KeyH") {
           world.horn(true)
           return true
@@ -1682,12 +1700,26 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
       input.sprint = false
     },
     // a drag on the picture turns the camera round you (px)
+    // (looking round while you walk steers you the same way: stepOrbit's own-hand turn)
     drag(dx, dy = 0) {
       if (driving || riding) return
-      cam.yaw -= dx * 0.008
-      // (looking round while you walk steers you the same way)
-      if (moveRef !== null) moveRef -= dx * 0.008
-      cam.pitch = Math.max(0.05, Math.min(0.9, cam.pitch + dy * 0.004))
+      orbitDrag(cam, dx, dy, { w: size.width, h: size.height }, performance.now(), { lo: 0.05, hi: 0.9 })
+    },
+    // the finger lifted from the picture (a flick keeps turning a moment)
+    dragEnd() {
+      orbitRelease(cam, performance.now())
+    },
+    // a double tap on the picture: the camera round behind you
+    recenter() {
+      if (!driving && !riding) orbitRecenter(cam, me.walker.yaw)
+    },
+    // the camera setting: "free" | "follow" (this device; My Park's too)
+    get cameraMode() {
+      return camMode
+    },
+    setCameraMode(m) {
+      camMode = m === "follow" ? "follow" : "free"
+      saveCameraMode(camMode)
     },
     action: doAction,
     // the car's horn (held) and radio (on/off; it goes off when you get out)

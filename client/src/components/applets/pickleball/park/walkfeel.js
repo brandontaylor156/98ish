@@ -31,7 +31,7 @@ export const STICK = { R: 56, DEAD: 0.12, RUN: 0.86 }
 
 // ---------- moving ----------
 // pivot: m/s^2 taking away the speed that goes across or against the way you push now
-export const MOVE = { pivot: 80 }
+export const MOVE = { pivot: 110 }
 
 // steer the walker's velocity (w.vx, w.vz) toward (tvx, tvz) for dt seconds.
 // accel: m/s^2 building speed the new way; decel: easing off (a lighter push, letting go)
@@ -95,7 +95,7 @@ export const LOOK = { perShort: 2.9, minShort: 320, maxShort: 760, pitchK: 0.55,
 export const lookRate = (w, h) => LOOK.perShort / clamp(Math.min(w || 390, h || 844), LOOK.minShort, LOOK.maxShort)
 
 // yaw: the view's heading; pitch: the world's own measure (the open world: tilt; My Park: lift)
-export const createOrbit = (yaw = 0, pitch = 0) => ({ yaw, goalYaw: yaw, pitch, goalPitch: pitch, manual: 0, vYaw: 0, samples: [], recenterTo: null, sinceDrag: 99, walkT: 0, auto: 0 })
+export const createOrbit = (yaw = 0, pitch = 0) => ({ yaw, goalYaw: yaw, pitch, goalPitch: pitch, manual: 0, seen: 0, vYaw: 0, samples: [], recenterTo: null, sinceDrag: 99, walkT: 0, auto: 0 })
 
 const turnGoal = (o, d) => {
   o.goalYaw += d
@@ -148,9 +148,10 @@ export const orbitSnap = (o, yaw, pitch = o.goalPitch) => {
 
 // one frame. walker { yaw, speed } and mode "free" | "follow": "follow" brings the view round
 // behind you while you walk away from it (never sideways or toward it, never right after a
-// drag). Returns the yaw your own hand turned it by this frame (the stick's frame turns with it)
+// drag). Returns the yaw your own hand turned it by since the last frame (drags and keys between
+// frames too; the stick's frame turns with it)
 export const stepOrbit = (o, dt, { walker = null, mode = "free" } = {}) => {
-  const m0 = o.manual
+  const m0 = o.seen ?? o.manual
   o.sinceDrag += dt
   if (o.vYaw) {
     turnGoal(o, o.vYaw * dt)
@@ -177,6 +178,7 @@ export const stepOrbit = (o, dt, { walker = null, mode = "free" } = {}) => {
   const k = 1 - Math.exp(-dt * LOOK.ease)
   o.yaw = wrap(o.yaw + wrap(o.goalYaw - o.yaw) * k)
   o.pitch += (o.goalPitch - o.pitch) * k
+  o.seen = o.manual
   return o.manual - m0
 }
 

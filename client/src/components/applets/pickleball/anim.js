@@ -366,7 +366,9 @@ export const updateAnim = (a, s, dt) => {
   // between points and after the game: taps, glances, fidgets (between.js)
   const bt = betweenActs(a.bt || (a.bt = {}), s, speed, a.t, dt)
   const fc = facingFor(a.face, { vx: mv.x, vz: mv.z, facing: s.facing, ball: s.ball, between: s.between, incoming: !!(swing || s.prep || s.holding || s.charging), goal: s.goal || null, x: s.x, z: s.z }, dt)
-  let yaw = fc.yaw
+  // (walking about My Park or the open world under your own thumb: the walker already turns you
+  // where you push, quickly (park/walkfeel.js); the body faces exactly that, with no lag of its own)
+  let yaw = s.walking ? s.facing : fc.yaw
   // (not the serve: its ball drops beside the front foot, and turning to it put it in front of
   // the legs, the swing through the thighs)
   if ((swing || s.prep) && (swing || s.prep).kind !== "serve") {
@@ -399,13 +401,13 @@ export const updateAnim = (a, s, dt) => {
     // (a stroke coming or under way: the body right at the game's position, so the paddle
     // meets the ball where the match says)
     const tight = swing && swing.t < 0.25 ? 1 : s.prep ? clamp(1 - (s.prep.ttc - 0.15) / 0.45, 0, 1) : 0
-    mmo = driveMM(a, s, mv, dt, { lib: mmLib, yaw, crouch: a.crouch.p ?? 0, down: (a.mmDown || 0) + Math.max(0, -hopPrev), hopY: Math.max(0, hopPrev), every: a.mmEvery, stance: s.between ? READY.between.stance : R.stance + MM_WIDE, tight, reach: a.mmReach || null, shift: { x: (a.shift.p?.x || 0) + (a.mmLunge?.x || 0) + (a.roomPelvis?.x || 0), z: (a.shift.p?.z || 0) + (a.mmLunge?.z || 0) + (a.roomPelvis?.z || 0) } })
+    mmo = driveMM(a, s, mv, dt, { lib: mmLib, yaw, crouch: a.crouch.p ?? 0, down: (a.mmDown || 0) + Math.max(0, -hopPrev), hopY: Math.max(0, hopPrev), every: a.mmEvery, walking: !!s.walking, stance: s.between ? READY.between.stance : R.stance + MM_WIDE, tight, reach: a.mmReach || null, shift: { x: (a.shift.p?.x || 0) + (a.mmLunge?.x || 0) + (a.roomPelvis?.x || 0), z: (a.shift.p?.z || 0) + (a.mmLunge?.z || 0) + (a.roomPelvis?.z || 0) } })
     a.yaw = mmo.yaw
     a.turn.yaw = a.yaw
     a.turn.w = 0
   } else {
     if (a.mm) a.mm = null // (back to the procedural footwork: the controller starts afresh next time)
-    a.yaw = turnToward(a.turn, yaw, dt, { maxRate: fc.mode === "face" ? (speed > 1.5 ? 8 : 6) : 10, k: speed > 1.5 || swing ? 16 : 11 })
+    a.yaw = s.walking ? turnToward(a.turn, yaw, dt, { maxRate: 30, k: 40 }) : turnToward(a.turn, yaw, dt, { maxRate: fc.mode === "face" ? (speed > 1.5 ? 8 : 6) : 10, k: speed > 1.5 || swing ? 16 : 11 })
   }
   const fr = frame(a.yaw)
   const ground = V(s.x, 0, s.z)

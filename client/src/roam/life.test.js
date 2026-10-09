@@ -114,7 +114,7 @@ test("no Run button: pushing the stick all the way out runs; partway jogs and wa
   assert.ok(!/data-roam="sprint"/.test(hud) && !/>\s*Run\s*</.test(hud), "the HUD has no Run button")
   assert.equal(targetSpeed(0.1, false), 0, "the dead zone")
   assert.ok(targetSpeed(0.4, false) <= SPEED.walk + 1e-9, "a little push walks")
-  const mid = targetSpeed(0.7, false)
+  const mid = targetSpeed(0.6, false)
   assert.ok(mid > SPEED.walk && mid <= SPEED.jog + 1e-9, `partway jogs (${mid})`)
   assert.ok(Math.abs(targetSpeed(1, false) - SPEED.sprint) < 1e-9, "all the way out runs")
   assert.equal(targetSpeed(0.5, true), SPEED.sprint, "Shift (desktop) sprints")

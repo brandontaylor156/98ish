@@ -1776,21 +1776,33 @@
   opacity: 0.35;
 }
 
+/* the live stick is always in the page, shown under a thumb (Pickleball.jsx, no React render) */
+.pkStick--live:not([data-on]),
+.pkStick--hint[data-off] {
+  display: none;
+}
+
 /* My Park's floating stick: drawn only under the thumb, a thin faint ring and a small knob
    (the zone stays big, the drawing small: the owner's hand was in the way) */
 .pkStick--park {
   width: 112px;
   height: 112px;
   margin: -56px 0 0 -56px;
-  border: 1.5px solid rgba(255, 255, 255, 0.3);
-  background: none;
+  border: 1.5px solid rgba(255, 255, 255, 0.5);
+  background: rgba(0, 0, 0, 0.06);
 }
 
+/* (a clear knob with a dark rim, so it reads on bright paving and on grass; it lights up warm when
+   the push is a run) */
 .pkStick--park .pkKnob {
   width: 30px;
   height: 30px;
-  background: rgba(255, 255, 255, 0.3);
-  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(0, 0, 0, 0.35);
+}
+
+.pkStick--park.is-run .pkKnob {
+  background: rgba(255, 214, 90, 0.85);
 }
 
 .pkKnob {

@@ -13,8 +13,9 @@ import React, { useEffect, useRef, useState } from "react"
 import "./roam.css"
 import "./getaround.css"
 import { Minimap } from "./Minimap.jsx"
+import { STICK, createDoubleTap } from "../../components/applets/pickleball/park/walkfeel.js"
 
-const STICK_R = 56
+const STICK_R = STICK.R
 // the minimap's size: a little bigger with room for it
 const mapSize = () => (typeof window !== "undefined" && Math.min(window.innerWidth, window.innerHeight) > 600 ? 124 : 92)
 
@@ -37,25 +38,40 @@ export function RoamHud({ world, hud, voice = null, onMenu, onAction, onPhone = 
   }, [arrival?.id])
   const rootRef = useRef(null)
   const touches = useRef(new Map()) // pointerId -> { kind, x0, y0, x, y }
-  const [stick, setStick] = useState(null)
+  // (the stick is drawn straight in the page under the thumb: no React render when it lands or
+  // moves; pickleball/park/walkfeel.js)
   const knobRef = useRef(null)
   const baseRef = useRef(null)
+  const lookTap = useRef(createDoubleTap())
   const [pedal, setPedal] = useState({ gas: false, brake: false })
   const mode = hud?.mode || "walk"
   // (a bike or a scooter rides on the walking stick; a car steers on the left with pedals on the right)
   const driving = mode === "drive" && !hud?.two
 
+  const showStick = (x, y, steer) => {
+    const el = baseRef.current
+    if (!el) return
+    el.classList.toggle("is-steer", !!steer)
+    el.classList.remove("is-run")
+    el.style.left = `${x}px`
+    el.style.top = `${y}px`
+    el.dataset.on = "1"
+    if (knobRef.current) knobRef.current.style.transform = "translate(0px, 0px)"
+  }
+  const hideStick = () => {
+    if (baseRef.current) delete baseRef.current.dataset.on
+  }
+
   // (leaving a mode lets go of everything)
   useEffect(() => {
     touches.current.clear()
-    setStick(null)
+    hideStick()
     setPedal({ gas: false, brake: false })
     world?.setStick(0, 0)
     world?.setDrive({ steer: 0, gas: 0, brake: 0 })
   }, [mode, world, hud?.two])
 
-  const zoneOf = (e) => {
-    const r = rootRef.current.getBoundingClientRect()
+  const zoneOf = (e, r) => {
     const x = e.clientX - r.left
     const y = e.clientY - r.top
     const upright = r.height > r.width * 1.05
@@ -66,7 +82,8 @@ export function RoamHud({ world, hud, voice = null, onMenu, onAction, onPhone = 
   const down = (e) => {
     // (any touch on the picture moves or looks; only the buttons and panels keep their own)
     if (e.target !== rootRef.current && e.target.closest?.("button, a, input, select, textarea, [role=button], .roamSheet, .roamTripBar, .roamGps, .roamTop > *")) return
-    const kind = zoneOf(e)
+    const r = rootRef.current.getBoundingClientRect()
+    const kind = zoneOf(e, r)
     if (kind === "move" && [...touches.current.values()].some((t) => t.kind === "move")) return
     if (kind === "steer" && [...touches.current.values()].some((t) => t.kind === "steer")) return
     try {
@@ -74,10 +91,10 @@ export function RoamHud({ world, hud, voice = null, onMenu, onAction, onPhone = 
     } catch {
       // (the pointer is gone already)
     }
-    const r = rootRef.current.getBoundingClientRect()
-    touches.current.set(e.pointerId, { kind, x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, left: r.left, top: r.top })
-    if (kind === "move") setStick({ x: e.clientX - r.left, y: e.clientY - r.top })
-    if (kind === "steer") setStick({ x: e.clientX - r.left, y: e.clientY - r.top, steer: true })
+    touches.current.set(e.pointerId, { kind, x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, left: r.left, top: r.top, run: false })
+    if (kind === "move" || kind === "steer") showStick(e.clientX - r.left, e.clientY - r.top, kind === "steer")
+    // (a double tap on the picture: the camera round behind you)
+    if (kind === "look" && lookTap.current(e.clientX, e.clientY, performance.now())) world?.recenter?.()
     e.preventDefault()
   }
   const move = (e) => {
@@ -109,6 +126,12 @@ export function RoamHud({ world, hud, voice = null, onMenu, onAction, onPhone = 
         baseRef.current.style.top = `${t.y0 - t.top}px`
       }
     }
+    // (a run: the knob lights up)
+    const run = d >= STICK_R * STICK.RUN
+    if (run !== t.run) {
+      t.run = run
+      baseRef.current?.classList.toggle("is-run", run)
+    }
     world?.setStick(dx / STICK_R, -dy / STICK_R)
     if (knobRef.current) knobRef.current.style.transform = `translate(${dx}px, ${dy}px)`
   }
@@ -116,13 +139,14 @@ export function RoamHud({ world, hud, voice = null, onMenu, onAction, onPhone = 
     const t = touches.current.get(e.pointerId)
     if (!t) return
     touches.current.delete(e.pointerId)
+    if (t.kind === "look") world?.dragEnd?.()
     if (t.kind === "move") {
       world?.setStick(0, 0)
-      setStick(null)
+      hideStick()
     }
     if (t.kind === "steer") {
       world?.setDrive({ steer: 0 })
-      setStick(null)
+      hideStick()
     }
   }
   const hold = (which, on) => (e) => {
@@ -278,11 +302,9 @@ export function RoamHud({ world, hud, voice = null, onMenu, onAction, onPhone = 
           </button>
         </div>
       )}
-      {stick && (
-        <div className={`roamStick${stick.steer ? " is-steer" : ""}`} ref={baseRef} style={{ left: stick.x, top: stick.y }} aria-hidden="true">
-          <div className="roamKnob" ref={knobRef} />
-        </div>
-      )}
+      <div className="roamStick" ref={baseRef} aria-hidden="true">
+        <div className="roamKnob" ref={knobRef} />
+      </div>
       {hud?.loading && <div className="roamLoading">Loading the town...</div>}
       <div className="roamCredit">{credit}</div>
     </div>
