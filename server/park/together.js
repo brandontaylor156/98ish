@@ -113,10 +113,10 @@ const cleanData = (kind, data) => {
 // limit(n, ms) -> a sliding-window counter, startGame(inst, [pid, pid], kind, court) -> { ok }
 // (park/index.js: a private room on a free court)
 // startAct(inst, [pid, pid], kind, data) -> { ok } (park/index.js: a "parkact" room for the two)
-const createTogether = ({ send, toAll, blocked = () => false, clock, limit, startGame, startAct = () => ({ ok: false, error: "That isn't ready yet." }) }) => {
+const createTogether = ({ send, toAll, blocked = () => false, clock, limit, startGame, startAct = () => ({ ok: false, error: "That isn't ready yet." }), prefix = "park", unit = 20, busy = (p) => p.playing !== null, only = null }) => {
   const askLimit = limit(8, 30_000)
   const endLimit = limit(20, 30_000)
-  const distOf = (p, q) => (p.pos && q.pos ? Math.hypot(p.pos[0] - q.pos[0], p.pos[1] - q.pos[1]) / 20 : Infinity)
+  const distOf = (p, q) => (p.pos && q.pos ? Math.hypot(p.pos[0] - q.pos[0], p.pos[1] - q.pos[1]) / unit : Infinity)
   const byNum = (inst, num) => {
     for (const q of inst.people.values()) if (q.num === num) return q
     return null
@@ -128,13 +128,14 @@ const createTogether = ({ send, toAll, blocked = () => false, clock, limit, star
 
   const ask = (inst, pid, { to, kind, data } = {}) => {
     const k = KINDS[kind]
-    if (!k) return { ok: false, error: "That isn't something to do together." }
+    // (only: the kinds a place offers; Explore's towns and rooms: walking together and the emotes)
+    if (!k || (only && !only.includes(kind))) return { ok: false, error: "That isn't something to do together." }
     const p = inst.people.get(pid)
     const q = Number.isInteger(to) ? byNum(inst, to) : null
     if (!p || !q || q.pid === pid) return { ok: false, error: "They're not in the park any more." }
     if (!p.key || !q.key) return { ok: false, error: "Doing things together needs both of you signed on to 98 Messenger." }
     if (blocked(pid, q.pid)) return { ok: false, error: "They're not in the park any more." }
-    if (p.playing !== null || q.playing !== null) return { ok: false, error: `${q.name} is playing a game right now.` }
+    if (busy(p) || busy(q)) return { ok: false, error: `${q.name} is playing a game right now.` }
     if (distOf(p, q) > k.near) return { ok: false, error: `Walk over to ${q.name} first.` }
     if (askLimit(pid)) return { ok: false, error: "Slow down a little." }
     const clean = cleanData(kind, data)
@@ -146,7 +147,7 @@ const createTogether = ({ send, toAll, blocked = () => false, clock, limit, star
     if (waiting.length >= MAX_ASKS) s.asks.delete([...s.asks.entries()].find(([, a]) => a === waiting[0])[0])
     const id = crypto.randomBytes(5).toString("hex")
     s.asks.set(id, { id, from: pid, to: q.pid, kind, data: clean, at: clock.now() })
-    send(q.pid, "park:ask", { id, from: p.num, name: p.name, kind, data: clean })
+    send(q.pid, `${prefix}:ask`, { id, from: p.num, name: p.name, kind, data: clean })
     return { ok: true, id }
   }
 
@@ -159,7 +160,7 @@ const createTogether = ({ send, toAll, blocked = () => false, clock, limit, star
     s.links.delete(l.b)
     const a = inst.people.get(l.a)
     const b = inst.people.get(l.b)
-    toAll(inst, "park:link", { a: a?.num ?? l.an, b: b?.num ?? l.bn, kind: null, lead: null, by })
+    toAll(inst, `${prefix}:link`, { a: a?.num ?? l.an, b: b?.num ?? l.bn, kind: null, lead: null, by })
     return true
   }
   const mate = (inst, a, b) => {
@@ -187,15 +188,15 @@ const createTogether = ({ send, toAll, blocked = () => false, clock, limit, star
     const q = inst.people.get(pid)
     if (!p || !q) return { ok: false, error: "They've left the park." }
     if (!yes) {
-      send(p.pid, "park:answer", { id, yes: false, num: q.num })
+      send(p.pid, `${prefix}:answer`, { id, yes: false, num: q.num })
       return { ok: true }
     }
-    if (p.playing !== null || q.playing !== null) return { ok: false, error: "One of you is playing a game right now." }
+    if (busy(p) || busy(q)) return { ok: false, error: "One of you is playing a game right now." }
     const k = KINDS[a.kind]
     if (k.game) {
       const r = startGame(inst, [p.pid, q.pid], a.kind, a.data.court)
       if (!r.ok) {
-        send(p.pid, "park:answer", { id, yes: false, num: q.num, error: r.error })
+        send(p.pid, `${prefix}:answer`, { id, yes: false, num: q.num, error: r.error })
         return r
       }
       endLink(inst, p.pid)
@@ -203,7 +204,7 @@ const createTogether = ({ send, toAll, blocked = () => false, clock, limit, star
     } else if (k.act) {
       const r = startAct(inst, [p.pid, q.pid], a.kind, a.data)
       if (!r.ok) {
-        send(p.pid, "park:answer", { id, yes: false, num: q.num, error: r.error })
+        send(p.pid, `${prefix}:answer`, { id, yes: false, num: q.num, error: r.error })
         return r
       }
       endLink(inst, p.pid)
@@ -216,10 +217,10 @@ const createTogether = ({ send, toAll, blocked = () => false, clock, limit, star
       const l = { a: p.pid, b: q.pid, an: p.num, bn: q.num, kind: a.kind, lead: lead.pid, since: clock.now() }
       s.links.set(p.pid, l)
       s.links.set(q.pid, l)
-      toAll(inst, "park:link", { a: p.num, b: q.num, kind: a.kind, lead: lead.num, by: null })
-    } else toAll(inst, "park:tg", { kind: a.kind, a: p.num, b: q.num, data: a.data })
+      toAll(inst, `${prefix}:link`, { a: p.num, b: q.num, kind: a.kind, lead: lead.num, by: null })
+    } else toAll(inst, `${prefix}:tg`, { kind: a.kind, a: p.num, b: q.num, data: a.data })
     mate(inst, p.pid, q.pid)
-    send(p.pid, "park:answer", { id, yes: true, num: q.num })
+    send(p.pid, `${prefix}:answer`, { id, yes: true, num: q.num })
     return { ok: true }
   }
 
@@ -238,7 +239,7 @@ const createTogether = ({ send, toAll, blocked = () => false, clock, limit, star
     const at = state(inst).mates.get(pid)?.get(q.pid)
     if (!at || clock.now() - at > MATE_MS) return { ok: false }
     if (endLimit(pid)) return { ok: false, error: "Slow down a little." }
-    send(q.pid, "park:tgend", { from: p.num, kind })
+    send(q.pid, `${prefix}:tgend`, { from: p.num, kind })
     return { ok: true }
   }
 

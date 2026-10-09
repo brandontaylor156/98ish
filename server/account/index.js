@@ -117,6 +117,16 @@
 //                                                  unlock his car in Explore Valencia): the record
 //                                                  deleted. What's in someone's hand (park:hold)
 //                                                  lives only in memory
+//   roam life   roamlife                           Pickleball 98 Explore (server/roam/life.js): their
+//                                                  private Home/Work places (buildings picked in the
+//                                                  game's towns) and who they shared them with,
+//                                                  the Bag (things bought with play chips), gifts
+//                                                  waiting for them and time worked: the record
+//                                                  deleted. Their name comes off places others
+//                                                  share with them; gifts they sent that weren't
+//                                                  taken yet are deleted. Office/home visits, the
+//                                                  shared cart and things put down in town are
+//                                                  memory only (server/roam)
 //   tournaments pbtourneys, pbtrophies             Pickleball 98 tournaments (server/tourney):
 //                                                  sign-ups for events that haven't started
 //                                                  removed (a partner they invited gets a computer

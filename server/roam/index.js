@@ -36,6 +36,11 @@
 
 const { sanitizeLook } = require("../arcade/games/pickleballLooks")
 const { createVoiceRelay } = require("../voice/relay")
+// (going inside, waving, things put down: ./inside.js; doing things together by consent: My
+// Park's own rules, server/park/together.js, with roam: events)
+const { createInside } = require("./inside")
+const { createTogether } = require("../park/together")
+const ROAM_TOGETHER = ["hand", "follow", "hug", "highfive", "twirl", "dance"]
 
 const CAP = 16
 // the towns (client/src/roam/towns/): how far from the origin a position may be (decimetres)
@@ -134,7 +139,19 @@ const createRoam = ({ emit = () => {}, emitVolatile = null, clock = realClock, m
   const toAll = (inst, event, payload, except = null) => {
     for (const p of inst.people.values()) if (p.pid !== except) send(p.pid, event, payload)
   }
-  const personView = (p) => ({ num: p.num, name: p.name, user: !!p.key, look: p.look, pos: p.pos, car: p.car })
+  const personView = (p) => ({ num: p.num, name: p.name, user: !!p.key, look: p.look, pos: p.pos, car: p.car, inside: p.inside || null })
+  const inside = createInside({ send, toAll, clock, limit: (n, ms) => windowLimiter(n, ms, clock.now) })
+  const together = createTogether({
+    send,
+    toAll,
+    clock,
+    limit: (n, ms) => windowLimiter(n, ms, clock.now),
+    startGame: () => ({ ok: false, error: "Not here." }),
+    prefix: "roam",
+    unit: 10, // (roam positions are in decimetres)
+    busy: (p) => !!p.car,
+    only: ROAM_TOGETHER,
+  })
 
   const currentRate = () => {
     const now = clock.now()
@@ -213,7 +230,7 @@ const createRoam = ({ emit = () => {}, emitVolatile = null, clock = realClock, m
     where.set(me.pid, inst.n)
     toAll(inst, "roam:person", personView(p), me.pid)
     if (partners.length) queueMicrotask(() => seatFollowers(inst))
-    return { ok: true, n: inst.n, town, you: p.num, people: [...inst.people.values()].filter((q) => q.pid !== me.pid).map(personView), moved: [...inst.moved.values()], rate: currentRate(), cap }
+    return { ok: true, n: inst.n, town, you: p.num, people: [...inst.people.values()].filter((q) => q.pid !== me.pid).map(personView), moved: [...inst.moved.values()], rate: currentRate(), cap, ...inside.joinView(inst) }
   }
   // riders who followed their driver here: into the passenger seat once the driver's car is here
   const seatFollowers = (inst) => {
@@ -266,6 +283,10 @@ const createRoam = ({ emit = () => {}, emitVolatile = null, clock = realClock, m
     if (!inst) return { ok: true }
     const p = inst.people.get(pid)
     if (p) voice.set(`t${inst.n}`, p.num, false)
+    if (p) {
+      inside.forget(inst, p)
+      together.forget(inst, pid)
+    }
     inst.people.delete(pid)
     where.delete(pid)
     if (p) {
@@ -284,8 +305,27 @@ const createRoam = ({ emit = () => {}, emitVolatile = null, clock = realClock, m
     const p = inst.people.get(pid)
     p.pos = clean
     p.dirty = true
+    together.moved(inst, pid)
     return true
   }
+  // (the inside/together calls: the person in their instance, or "You're not in town.")
+  const inInst = (fn) => (pid, payload) => {
+    const inst = instanceOf(pid)
+    const p = inst?.people.get(pid)
+    if (!p) return { ok: false, error: "You're not in town." }
+    return fn(inst, p, payload || {})
+  }
+  const enterRoom = inInst((inst, p, d) => inside.enter(inst, p, d))
+  const exitRoom = inInst((inst, p) => inside.exit(inst, p))
+  const inviteIn = inInst((inst, p, d) => inside.invite(inst, p, d))
+  const sayIn = inInst((inst, p, d) => inside.say(inst, p, d))
+  const emote = inInst((inst, p, d) => inside.emote(inst, p, d))
+  const placeIt = inInst((inst, p, d) => inside.place(inst, p, d))
+  const unplaceIt = inInst((inst, p, d) => inside.unplace(inst, p, d))
+  const tgAsk = inInst((inst, p, d) => together.ask(inst, p.pid, d))
+  const tgAnswer = inInst((inst, p, d) => together.answer(inst, p.pid, d))
+  const tgUnlink = inInst((inst, p) => together.unlink(inst, p.pid))
+  const tgEnd = inInst((inst, p, d) => together.tgEnd(inst, p.pid, d))
   const setLook = (pid, look) => {
     const inst = instanceOf(pid)
     if (!inst || lookLimit(pid)) return { ok: false }
@@ -390,6 +430,17 @@ const createRoam = ({ emit = () => {}, emitVolatile = null, clock = realClock, m
     on("roam:hop", (me, p) => hop(me.pid, p))
     on("roam:vc", (me, p) => voiceOn(me.pid, p.on))
     on("roam:sig", (me, p) => voiceSignal(me.pid, p))
+    on("roam:enter", (me, p) => enterRoom(me.pid, p))
+    on("roam:exit", (me, p) => exitRoom(me.pid, p))
+    on("roam:invite", (me, p) => inviteIn(me.pid, p))
+    on("roam:say", (me, p) => sayIn(me.pid, p))
+    on("roam:emote", (me, p) => emote(me.pid, p))
+    on("roam:place", (me, p) => placeIt(me.pid, p))
+    on("roam:unplace", (me, p) => unplaceIt(me.pid, p))
+    on("roam:ask", (me, p) => tgAsk(me.pid, p))
+    on("roam:answer", (me, p) => tgAnswer(me.pid, p))
+    on("roam:unlink", (me, p) => tgUnlink(me.pid, p))
+    on("roam:tgend", (me, p) => tgEnd(me.pid, p))
     socket.on("roam:pos", (data) => {
       const computer = current()
       if (!computer) return
@@ -414,6 +465,17 @@ const createRoam = ({ emit = () => {}, emitVolatile = null, clock = realClock, m
     tickets,
     voiceOn,
     voiceSignal,
+    enterRoom,
+    exitRoom,
+    inviteIn,
+    sayIn,
+    emote,
+    placeIt,
+    unplaceIt,
+    tgAsk,
+    tgAnswer,
+    tgUnlink,
+    tgEnd,
     flush: (n) => {
       const inst = instances.get(n)
       if (inst) flush(inst)

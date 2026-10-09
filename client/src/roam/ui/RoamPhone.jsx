@@ -11,9 +11,12 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react"
 import "./phone.css"
+import { BagApp, PlacesApp, setPlaceAt } from "./LifeApps.jsx"
 
 const APPS = [
   { id: "map", name: "Maps", icon: "🗺️", bg: "#2f8f5b" },
+  { id: "places", name: "Places", icon: "🏠", bg: "#d9822b" },
+  { id: "bag", name: "Bag", icon: "🛍️", bg: "#b5446e" },
   { id: "rides", name: "Rides", icon: "🚕", bg: "#f2b632" },
   { id: "transit", name: "Transit", icon: "🚌", bg: "#2f6fd1" },
   { id: "messages", name: "Messages", icon: "💬", bg: "#35c25b" },
@@ -27,8 +30,8 @@ const fmtT = (s) => (s < 60 ? "<1 min" : `${Math.round(s / 60)} min`)
 const clock = (s) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")}`
 const KIND_ICON = { mall: "🛍️", restaurant: "🍽️", cafe: "☕", fast_food: "🍔", park: "🌳", school: "🏫", library: "📚", station: "🚆", street: "🛣️", building: "🏢", cinema: "🎬", supermarket: "🛒", university: "🎓", college: "🎓", pier: "🌊", beach: "🏖️" }
 
-export function RoamPhone({ world, onClose, found = [] }) {
-  const [app, setApp] = useState(null)
+export function RoamPhone({ world, onClose, found = [], life = null, start = null }) {
+  const [app, setApp] = useState(start)
   const [drag, setDrag] = useState(0)
   const dragRef = useRef(null)
   const [now, setNow] = useState(() => new Date())
@@ -107,6 +110,8 @@ export function RoamPhone({ world, onClose, found = [] }) {
           {app === "music" && <MusicApp world={world} />}
           {app === "finds" && <FindsApp found={found} />}
           {app === "bikes" && <BikesApp world={world} onClose={onClose} />}
+          {app === "places" && <PlacesApp world={world} life={life} onClose={onClose} />}
+          {app === "bag" && <BagApp world={world} life={life} />}
         </div>
         <div className="rphHomeBar" {...swipe} onClick={() => (app ? setApp(null) : onClose())} data-roam="phone-home">
           <span />
@@ -233,6 +238,17 @@ function MapApp({ world, onRide, onClose }) {
       for (const s of m.stations) dot(s.x ?? s[1], s.z ?? s[2], 7, "#6b3fa0")
       if (v.scale > 0.5) for (const s of m.stops) dot(s.x, s.z, 3.5, "#1f5fb8")
       if (m.dest) dot(m.dest.x, m.dest.z, 8, "#e0392b")
+      // your Home/Work, places friends share with you, the stores (roam/life/town.js)
+      for (const p of m.pins || []) {
+        dot(p.x, p.z, 9, p.mine ? (p.kind === "work" ? "#6b3fa0" : "#d9822b") : p.kind === "club" || p.kind === "mall" ? "#c8102e" : "#2f6fd1")
+        g.fillStyle = "#fff"
+        g.font = `${11 * dpr}px system-ui, sans-serif`
+        g.fillText(p.kind === "work" ? "💼" : p.kind === "home" ? "🏠" : "🛒", X(p.x) - 7 * dpr, Z(p.z) + 4 * dpr)
+        if (v.scale > 0.25) {
+          g.fillStyle = "#123"
+          g.fillText(p.name, X(p.x) + 11 * dpr, Z(p.z) + 4 * dpr)
+        }
+      }
       if (pin) dot(pin.x, pin.z, 8, "#e0392b")
       if (m.ride) dot(m.ride.x, m.ride.z, 7, "#f2b632", "#222")
       g.font = `${12 * dpr}px system-ui, sans-serif`
@@ -299,6 +315,13 @@ function MapApp({ world, onRide, onClose }) {
       setPin({ x, z, name: near?.name || "Dropped pin" })
     }
   }
+  // the tapped building becomes your Home or your Work (private: only on your own map)
+  const setHere = async (kind) => {
+    if (!pin) return
+    setMsg("Saving...")
+    const r = await setPlaceAt(world, kind, pin.x, pin.z)
+    setMsg(r.ok ? `${kind === "work" ? "Work" : "Home"} set. Only you see it (Places to share it).` : r.error)
+  }
   const go = async (dest) => {
     setMsg("Finding a route...")
     const r = await world.setDestination(dest)
@@ -334,6 +357,16 @@ function MapApp({ world, onRide, onClose }) {
               Ride there
             </button>
           </div>
+          {world.host?.life && (
+            <div className="rphRow">
+              <button type="button" onClick={() => setHere("home")} data-life="map-set-home">
+                🏠 Set as Home
+              </button>
+              <button type="button" onClick={() => setHere("work")} data-life="map-set-work">
+                💼 Set as Work
+              </button>
+            </div>
+          )}
         </div>
       ) : world.gpsState ? (
         <div className="rphCard">

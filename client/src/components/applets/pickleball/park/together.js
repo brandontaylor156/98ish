@@ -141,7 +141,7 @@ export const emoteSpots = (a, b, kind) => {
 }
 // the athlete's mood for a paired emote (anim.js): [kind, variant] for the asker and the one asked
 export const EMOTE_POSE = {
-  hug: [["hug", 0], ["hug", 0]],
+  hug: [["hug", 0], ["hug", 1]], // (one over the shoulders, the other round the waist)
   highfive: [["highfive", 0], ["highfive", 0]],
   twirl: [["twirl", 1], ["twirl", 0]], // the asker holds the hand up; the other one spins
   dance: [["dance", 0], ["dance", 1]],

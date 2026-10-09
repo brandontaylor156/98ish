@@ -784,10 +784,33 @@ export const updateAnim = (a, s, dt) => {
       if (v === 0) mp = { hand: V(0.42, 0.9, 0.06 + swing), axis: norm(V(0.2, -1, 0.1)), off: V(-0.2, 0.86, 0.03 - swing), pole: V(0.6, -0.4, -0.6), offPole: V(-0.4, -1, -0.2) }
       else mp = { hand: V(0.22, 0.86, 0.05 - swing), axis: norm(V(0.05, -1, 0.15)), off: V(-0.42, 0.9, 0.06 + swing), pole: V(0.4, -1, -0.2), offPole: V(-0.6, -0.4, -0.6) }
     } else if (mood.kind === "hug") {
-      // arms round each other at the shoulders, head turned a little
-      const k = clamp(mood.t / 0.5, 0, 1)
-      mp = { hand: V(0.1 + 0.12 * (1 - k), 1.36, 0.3 + 0.08 * k), axis: norm(V(-0.4, 0.2, -0.6)), off: V(-0.12 - 0.1 * (1 - k), 1.22, 0.32 + 0.06 * k), pole: V(1, -0.1, -0.2), offPole: V(-1, -0.2, -0.2) }
-      lookAt = add(add(ground, V(0.5, 1.5, 0)), mul(fr.f, 2))
+      // a warm hug, arms all the way round: the hands cross behind the other one's back (the
+      // right hand to their far shoulder blade, the left to the small of the back), the two
+      // rocking gently, heads turned past each other's shoulder. variant 0 hugs over the
+      // shoulders, 1 round the waist (so the two pairs of arms don't meet in the same place)
+      const k = clamp(mood.t / 0.55, 0, 1)
+      const e = k * k * (3 - 2 * k)
+      const rock = Math.sin(mood.t * 1.7) * 0.025 * e
+      const hi = v === 1 ? 1.1 : 1.4
+      const lo = v === 1 ? 1.04 : 1.16
+      mp = {
+        hand: V(0.24 - 0.34 * e + rock, hi, 0.22 + 0.3 * e),
+        axis: norm(V(-0.8, 0.1, -0.3)),
+        off: V(-0.24 + 0.34 * e + rock, lo, 0.22 + 0.28 * e),
+        pole: V(1, v === 1 ? -0.5 : 0.1, -0.1),
+        offPole: V(-1, -0.4, -0.1),
+      }
+      lookAt = add(add(ground, V((v === 1 ? -0.55 : 0.55) + rock * 4, 1.5, 0)), mul(fr.f, 1.6))
+    } else if (mood.kind === "thumbs") {
+      // a thumbs up: the hand out in front at the chest, the other arm loose
+      const k = clamp(mood.t / 0.3, 0, 1)
+      mp = { hand: V(0.26, 1.0 + 0.26 * k, 0.18 + 0.16 * k), axis: norm(V(0, 1, 0.1)), off: V(-0.22, 0.92, 0.06), pole: V(1, -0.8, -0.2) }
+      lookAt = add(add(ground, V(0, 1.6, 0)), mul(fr.f, 3))
+    } else if (mood.kind === "point") {
+      // pointing out ahead ("look at that!")
+      const k = clamp(mood.t / 0.35, 0, 1)
+      mp = { hand: V(0.3, 1.1 + 0.36 * k, 0.2 + 0.4 * k), axis: norm(V(0.05, 0.15, 1)), off: V(-0.22, 0.92, 0.06), pole: V(1, -0.6, -0.4) }
+      lookAt = add(add(ground, V(0.3, 1.7, 0)), mul(fr.f, 6))
     } else if (mood.kind === "highfive") {
       // a paddle tap up high: up and back, then forward to meet theirs in the middle
       const k = clamp((mood.t - 0.25) / 0.3, 0, 1)
