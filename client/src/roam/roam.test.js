@@ -19,6 +19,9 @@ import { MAX_PER_TILE, parkedCars } from "./sim/parked.js"
 import { ACT, LIMIT, cleanCar, cleanPos, createTrack, packPos, pushSample, sampleTrack, shouldSend, unpackPos } from "./sim/sync.js"
 import { eggSpots, nearestEgg, REACH } from "./eggs.js"
 import { createTileStore } from "./stream.js"
+import { CAR_KINDS, CAR_SPECS, carParts } from "./render/carmodel.js"
+import { carGeometry, fallbackGeometry } from "./render/cars.js"
+import { createChase, stepChase } from "./sim/chase.js"
 import valencia from "./towns/valencia.js"
 import { townForVenue } from "./towns/index.js"
 
@@ -249,6 +252,97 @@ test("car: gas, speed-sensitive steering, brake, reverse, slopes, people", () =>
   stepCar(p, { gas: 1 }, 1 / 30, { blocked: (x, z, yaw, dir, m) => personAhead([{ x: 0, z: 3.5 }], x, z, yaw, dir, m) })
   assert.ok(p.speed === 0)
   assert.equal(personAhead([{ x: 0, z: -3 }], 0, 0, 0, 1), false)
+})
+
+test("car models: real sizes, wheels on the axles, glass and lamps, a triangle budget", () => {
+  for (const kind of CAR_KINDS) {
+    const p = carParts(kind)
+    const m = MODELS[kind]
+    const spec = CAR_SPECS[kind]
+    // the body's extent matches the physics' car (length, width) within a few centimetres
+    let x0 = Infinity
+    let x1 = -Infinity
+    let z0 = Infinity
+    let z1 = -Infinity
+    let y1 = -Infinity
+    const P = p.paint.position
+    for (let i = 0; i < P.length; i += 3) {
+      x0 = Math.min(x0, P[i])
+      x1 = Math.max(x1, P[i])
+      y1 = Math.max(y1, P[i + 1])
+      z0 = Math.min(z0, P[i + 2])
+      z1 = Math.max(z1, P[i + 2])
+    }
+    assert.ok(near(z1 - z0, spec.len, 0.12), `${kind} length ${(z1 - z0).toFixed(2)}`)
+    assert.ok(Math.abs(spec.len - m.len) < 0.25 && Math.abs(spec.wid - m.wid) < 0.12, `${kind} matches the physics`)
+    assert.ok(x1 - x0 > spec.wid - 0.05 && x1 - x0 < spec.wid + 0.4, `${kind} width (mirrors included) ${(x1 - x0).toFixed(2)}`)
+    assert.ok(y1 > 1.1 && y1 < 2.1, `${kind} height ${y1.toFixed(2)}`)
+    // centred on the wheelbase: wheels at +-wheelbase/2, on the ground
+    assert.equal(p.wheels.length, 4)
+    for (const w of p.wheels) {
+      assert.ok(near(Math.abs(w.z), spec.wb / 2, 1e-9) && near(w.y, spec.R, 1e-9))
+      assert.ok(w.z > z0 && w.z < z1)
+    }
+    // glass (near-black vertices in the paint) and lamps that glow (1 head, 2 tail)
+    const C = p.paint.color
+    let glass = 0
+    for (let i = 0; i < C.length; i += 3) if (C[i] < 0.1 && C[i + 1] < 0.1) glass++
+    assert.ok(glass > 40, `${kind} has windows (${glass})`)
+    assert.ok(p.trim.glow.includes(1) && p.trim.glow.includes(2), `${kind} head and tail lamps`)
+    assert.ok(p.tris > 900 && p.tris < 3000, `${kind}: ${Math.round(p.tris)} triangles`)
+    // every index in range
+    const n = p.paint.position.length / 3
+    assert.ok(p.paint.index.every((i) => i < n))
+  }
+})
+
+test("car geometry: the detailed shape, and the plain one if a shape can't be built", () => {
+  const g = carGeometry("sedan")
+  assert.equal(g.fallback, false)
+  assert.ok(g.paint.attributes.normal && g.trimWithWheels.attributes.position.count > g.trim.attributes.position.count, "wheels merged in for parked cars")
+  assert.ok(g.wheel && g.wheels.length === 4)
+  const broken = carGeometry("brokenModel", {
+    build: () => {
+      throw new Error("no file")
+    },
+  })
+  assert.equal(broken.fallback, true)
+  assert.ok(broken.paint.attributes.position.count > 0 && broken.trimWithWheels.attributes.glow, "a boxy car stands in, lamps attribute and all")
+  assert.ok(fallbackGeometry("pickup").paint.attributes.color)
+})
+
+test("chase camera: behind and above, looking down the road ahead, wider when fast, out of the ground", () => {
+  const ch = createChase()
+  const car = { x: 0, z: 0, y: 0, yaw: 0, speed: 0 }
+  let v = stepChase(ch, car, 1 / 60, { portrait: true, groundAt: () => 0 })
+  assert.ok(v.pos.z < -5 && Math.abs(v.pos.x) < 1e-9 && v.pos.y > 1.8, "behind (the car faces +z) and above")
+  assert.ok(v.look.z > 8 && v.look.y < 1.5, "looking at the road ahead, not the roof")
+  const slowFov = v.fov
+  car.speed = 28
+  for (let i = 0; i < 240; i++) {
+    car.z += car.speed / 60
+    v = stepChase(ch, car, 1 / 60, { portrait: true, groundAt: () => 0 })
+  }
+  assert.ok(v.fov > slowFov + 6, `wider at speed (${slowFov.toFixed(0)} -> ${v.fov.toFixed(0)})`)
+  assert.ok(car.z - v.pos.z > 7, "and further back")
+  // the car turns: the camera swings round after it, behind again in a second or two
+  car.yaw = Math.PI / 2
+  for (let i = 0; i < 120; i++) v = stepChase(ch, car, 1 / 60, { portrait: false, groundAt: () => 0 })
+  assert.ok(v.pos.x < car.x - 5 && Math.abs(v.pos.z - car.z) < 1.5)
+  // uphill ahead: the look rises with the road; downhill behind: the lens stays out of the hill
+  const hill = (x, z) => z * 0.15
+  const ch2 = createChase()
+  const c2 = { x: 0, z: 0, y: 0, yaw: 0, speed: 10 }
+  v = stepChase(ch2, c2, 1 / 60, { groundAt: hill })
+  assert.ok(v.look.y > 1.5, "looks up the hill")
+  const steep = (x, z) => -z * 0.6
+  const ch3 = createChase()
+  v = stepChase(ch3, { x: 0, z: 0, y: 0, yaw: 0, speed: 0 }, 1 / 60, { groundAt: steep })
+  assert.ok(v.pos.y > steep(v.pos.x, v.pos.z) + 1, "above the ground behind")
+  // a wall behind: pulled in
+  const ch4 = createChase()
+  v = stepChase(ch4, { x: 0, z: 0, y: 0, yaw: 0, speed: 0 }, 1 / 60, { groundAt: () => 0, segment: () => 0.4 })
+  assert.ok(v.pos.z > -4, "in front of the wall")
 })
 
 test("parked cars: the same in every browser, in lots and at curbs, never in a building", () => {

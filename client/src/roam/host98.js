@@ -15,6 +15,7 @@ import { liftPose } from "../components/applets/pickleball/park/lift.js"
 import { createRealSky } from "../components/applets/pickleball/park/realsky.js"
 import { dayLook, hourOf, realLook } from "../components/applets/pickleball/park/sky.js"
 import { CLEAR, cachedWeather, fetchWeather } from "../components/applets/pickleball/park/weather.js"
+import { loadHDRI } from "../components/applets/pickleball/park/environment.js"
 import { parkLook } from "../components/applets/pickleball/park/regulars.js"
 import { useNet } from "../components/applets/network/NetContext"
 import { createVoiceSession, voiceSupported } from "../utils/voice/session.js"
@@ -55,6 +56,9 @@ export const makeHost98 = ({ engineCtx, me = {}, sky = { real: true, mode: "real
     store,
     anisotropy: Math.min(4, engineCtx?.renderer?.capabilities?.getMaxAnisotropy?.() || 1),
     fetch: (...a) => globalThis.fetch(...a),
+    // a real sky for car paint and glass to reflect: My Park's CC0 outdoor HDRI (Poly Haven
+    // "Park Parking", normalized; docs/venue-realism.md round 3)
+    environment: () => loadHDRI(false),
     figure(look) {
       if (!engineCtx?.makeFigure) return null
       const fig = engineCtx.makeFigure(look || {}, { shadows: false })

@@ -23,10 +23,11 @@ import { buildTileMesh, disposeMaterials } from "./render/tilemesh.js"
 import { treeSpots } from "./render/ground.js"
 import { deckAt, deckSurfaces } from "./render/linework.js"
 import { wallRings } from "./render/buildings.js"
-import { createParkedLayer, makeCarMesh } from "./render/cars.js"
+import { createParkedLayer, lampUniforms, makeCarMesh, setCarEnvironment } from "./render/cars.js"
+import { createChase, stepChase } from "./sim/chase.js"
 import { createColliders } from "./sim/collide.js"
 import { createWalker, stepWalker } from "./sim/walker.js"
-import { MODELS, createCar, doorSpot, personAhead, stepCar } from "./sim/car.js"
+import { MODELS, createCar, doorSpot, personAhead, stepCar, steerLimit } from "./sim/car.js"
 import { parkedCars } from "./sim/parked.js"
 import { ACT, createTrack, packPos, pushSample, sampleTrack, shouldSend, unpackPos, DELAY } from "./sim/sync.js"
 import { createEggs } from "./eggs.js"
@@ -79,7 +80,23 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
     scene.fog.color.setHex(d.fog)
     if (sky) scene.background = scene.fog.color
     exposure = d.exposure ?? 1
+    // night (0 day .. 1 night): lamps on, reflections dim
+    night = d.sunEl !== undefined ? Math.max(0, Math.min(1, (4 - d.sunEl) / 10)) : d.lights ? 1 : 0
+    lampUniforms.head.value = lampUniforms.tail.value = night
+    setCarEnvironment(envTex, 0.2 + 0.8 * (1 - night))
   }
+  // the sky the cars' paint and glass reflect (the host's HDRI; none on Low)
+  let envTex = null
+  let night = 0
+  if (!low && host.environment)
+    host
+      .environment()
+      .then((t) => {
+        if (disposed || !t) return
+        envTex = t
+        setCarEnvironment(envTex, 0.2 + 0.8 * (1 - night))
+      })
+      .catch(() => {})
   const stepSky = () => {
     if (clock - skyAt < 60) return
     skyAt = clock
@@ -423,64 +440,76 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
   // ---------- the camera ----------
   const tmpA = new THREE.Vector3()
   const portrait = () => size.height > size.width * 1.05
+  const chase = createChase()
+  const baseFov = camera.fov
+  let devCam = null // (tests: a fixed lens { pos, look })
   const updateCamera = (dt) => {
-    let tx
-    let ty
-    let tz
-    let yawWant
-    let dist
-    let height
+    if (devCam) {
+      camera.position.set(devCam.pos.x, devCam.pos.y, devCam.pos.z)
+      tmpA.set(devCam.look.x, devCam.look.y, devCam.look.z)
+      camera.lookAt(tmpA)
+      camera.clearViewOffset()
+      return
+    }
     if (driving || riding) {
       const c = driving ? car : remotes.get(riding.num)
       if (!c) return
-      tx = c.x
-      tz = c.z
-      ty = (c.y || 0) + 1.3
-      // (behind the car, looking the way it goes; backing up, still behind)
-      yawWant = c.yaw
-      dist = (portrait() ? 8.6 : 7.4) + Math.min(3, Math.abs(c.speed || 0) * 0.08)
-      height = 2.6
-      cam.yaw = cam.yaw + wrap(yawWant - cam.yaw) * Math.min(1, dt * 3.2)
-    } else {
-      const w = me.walker
-      tx = w.x
-      tz = w.z
-      ty = (w.y || 0) + 1.45
-      dist = cam.dist
-      // (a drag up or down tilts the view: lower sees more of the town ahead)
-      height = 0.35 + cam.pitch * 2.2
-      // (comes round behind you only when you walk away from it)
-      if (w.speed > 0.6) {
-        const away = Math.cos(wrap(w.yaw - cam.yaw))
-        if (away > 0.3) {
-          cam.behindT += dt
-          if (cam.behindT > 0.35) cam.yaw += wrap(w.yaw - cam.yaw) * Math.min(1, dt * 1.6 * away)
-        } else cam.behindT = 0
-      } else cam.behindT = 0
+      const v = stepChase(chase, c, dt, { portrait: portrait(), groundAt, segment: (x0, z0, x1, z1, y) => colliders.segment(x0, z0, x1, z1, y) })
+      camera.position.set(v.pos.x, v.pos.y, v.pos.z)
+      tmpA.set(v.look.x, v.look.y, v.look.z)
+      camera.lookAt(tmpA)
+      if (Math.abs(camera.fov - v.fov) > 0.05) {
+        camera.fov = v.fov
+        camera.updateProjectionMatrix()
+      }
+      camera.clearViewOffset()
+      cam.yaw = chase.yaw
+      cam.pos = null
+      return
     }
+    chase.yaw = null
+    chase.pos = null
+    if (camera.fov !== baseFov) {
+      camera.fov = baseFov
+      camera.updateProjectionMatrix()
+    }
+    const w = me.walker
+    const tx = w.x
+    const tz = w.z
+    const ty = (w.y || 0) + 1.45
+    const dist = cam.dist
+    // (a drag up or down tilts the view: lower sees more of the town ahead)
+    const height = 0.35 + cam.pitch * 2.2
+    // (comes round behind you only when you walk away from it)
+    if (w.speed > 0.6) {
+      const away = Math.cos(wrap(w.yaw - cam.yaw))
+      if (away > 0.3) {
+        cam.behindT += dt
+        if (cam.behindT > 0.35) cam.yaw += wrap(w.yaw - cam.yaw) * Math.min(1, dt * 1.6 * away)
+      } else cam.behindT = 0
+    } else cam.behindT = 0
     const bx = tx - Math.sin(cam.yaw) * dist
     const bz = tz - Math.cos(cam.yaw) * dist
     // walls between you and the lens pull it in
     const f = colliders.segment(tx, tz, bx, bz, ty)
     const k = f < 1 ? Math.max(0.12, f - 0.06) : 1
-    let cx = tx + (bx - tx) * k
-    let cz = tz + (bz - tz) * k
+    const cx = tx + (bx - tx) * k
+    const cz = tz + (bz - tz) * k
     let cy = ty + height * (0.55 + 0.45 * k)
     // (never under the ground)
     const g = groundAt(cx, cz)
     if (g !== null && cy < g + 0.8) cy = g + 0.8
     if (!cam.pos) cam.pos = new THREE.Vector3(cx, cy, cz)
-    const lerp = Math.min(1, dt * (driving || riding ? 8 : 10))
+    const lerp = Math.min(1, dt * 10)
     cam.pos.x += (cx - cam.pos.x) * lerp
     cam.pos.y += (cy - cam.pos.y) * lerp
     cam.pos.z += (cz - cam.pos.z) * lerp
     camera.position.copy(cam.pos)
-    // (upright phones: you sit a little above the middle, the way ahead above the thumbs)
-    // (looking a little past you, the way the camera faces: more town, less ground)
-    const ahead = driving || riding ? 4 : 2.5
-    tmpA.set(tx + Math.sin(cam.yaw) * ahead, ty + (driving || riding ? 0.2 : 0.45), tz + Math.cos(cam.yaw) * ahead)
+    // (upright phones: you sit a little above the middle, the way ahead above the thumbs;
+    // looking a little past you, the way the camera faces: more town, less ground)
+    tmpA.set(tx + Math.sin(cam.yaw) * 2.5, ty + 0.45, tz + Math.cos(cam.yaw) * 2.5)
     camera.lookAt(tmpA)
-    if (portrait()) camera.setViewOffset(size.width, size.height, 0, size.height * (driving || riding ? 0.1 : 0.14), size.width, size.height)
+    if (portrait()) camera.setViewOffset(size.width, size.height, 0, size.height * 0.14, size.width, size.height)
     else camera.clearViewOffset()
   }
 
@@ -494,6 +523,17 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
     if (driving && car && carMesh) {
       carMesh.group.position.set(car.x, car.y, car.z)
       carMesh.group.rotation.set(-car.pitch, car.yaw, car.roll, "YXZ")
+      // the wheels steer and roll; the body leans out of a turn and dips under the brake
+      const steerA = car.steer * steerLimit(car.speed)
+      carMesh.setWheels(steerA, car.speed * dt)
+      const yawRate = (car.speed * Math.tan(steerA)) / (MODELS[car.model] || MODELS.sedan).wheelbase
+      const accel = dt > 0 ? (car.speed - (car.lastSpeed ?? car.speed)) / dt : 0
+      car.lastSpeed = car.speed
+      car.lean = (car.lean || 0) + (Math.max(-0.05, Math.min(0.05, -yawRate * car.speed * 0.006)) - (car.lean || 0)) * Math.min(1, dt * 6)
+      car.dive = (car.dive || 0) + (Math.max(-0.03, Math.min(0.03, -accel * 0.003)) - (car.dive || 0)) * Math.min(1, dt * 6)
+      carMesh.body.rotation.set(car.dive, 0, car.lean)
+      const braking = (input.brake > 0 || keys.has("ArrowDown") || keys.has("KeyS")) && car.speed > 0.3
+      carMesh.setBrake(braking)
     }
     // the others
     for (const r of remotes.values()) {
@@ -503,6 +543,7 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
         const g = heightAt(r.x, r.z, r.y, true)
         r.carMesh.group.position.set(r.x, Number.isFinite(g) ? g : r.y, r.z)
         r.carMesh.group.rotation.set(0, r.yaw, 0)
+        r.carMesh.setWheels(0, (r.speed || 0) * dt)
       }
       const hidden = inCar || (r.act & ACT.ride)
       if (hidden || Math.hypot(r.x - camera.position.x, r.z - camera.position.z) > 120) {
@@ -903,6 +944,10 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
       return [...tiles.values()].reduce((n, e) => n + e.mesh.calls, 0)
     },
     heightAt,
+    // (tests) a fixed lens for close-up shots: devCamera({ x, y, z }, { x, y, z }) or null
+    devCamera(pos, look) {
+      devCam = pos && look ? { pos, look } : null
+    },
     setHour(h) {
       hourOverride = h
       applyLook()
