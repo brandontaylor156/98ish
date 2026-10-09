@@ -89,5 +89,9 @@ export default async function handler(req, res) {
   const box = { south: b.south - PAD, west: b.west - PAD, north: b.north + PAD, east: b.east + PAD }
   const [elements, elevation] = await Promise.all([overpass(townQuery(box, 25)), terrain(b)])
   if (!elements) return send(503, { error: "The map servers are busy. Try again in a minute." })
-  send(200, buildTile({ z, x, y, elements, elevation }))
+  // (a tile out at sea has no coastline in it to say so: with nothing mapped on it and the
+  // ground well under sea level (the terrain's bathymetry), it's the sea; data/sea.js)
+  const empty = !elements.some((el) => el.type !== "node")
+  const sea = empty && elevation ? (lat, lon) => (elevation(lat, lon) ?? 0) < -5 : null
+  send(200, buildTile({ z, x, y, elements, elevation, sea }))
 }

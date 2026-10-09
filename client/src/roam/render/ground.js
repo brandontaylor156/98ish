@@ -3,7 +3,7 @@
 // for the mesh and the trees; the painting needs a 2D canvas (the browser).
 
 import { AREA, BUILDING_KINDS, DRIVABLE, F, ROAD, isHouse } from "../data/tile.js"
-import { APRON, AREA_COLORS, BASE, ROAD_ORDER, ROAD_PAINT, SIDEWALK, YARD, areaColor } from "./paint.js"
+import { APRON, AREA_COLORS, BASE, ROAD_ORDER, ROAD_PAINT, SEA, SIDEWALK, YARD, areaColor } from "./paint.js"
 import { hashStr, rng } from "../sim/parked.js"
 
 // the lattice -> { position, normal, uv, index } (two triangles a cell, split the way
@@ -74,6 +74,17 @@ export const paintGround = (ctx, tile, size) => {
       ctx.strokeStyle = "rgba(240,240,232,0.55)"
       ctx.stroke()
     }
+  }
+  // the sea (a coast town): the sea floor's colour under the water (render/sea.js draws the
+  // water itself; far off and through the shallows this is what shows)
+  for (const group of tile.sea || []) {
+    ctx.beginPath()
+    for (const r of group) {
+      r.forEach((p, i) => (i ? ctx.lineTo(X(p.x), Z(p.z)) : ctx.moveTo(X(p.x), Z(p.z))))
+      ctx.closePath()
+    }
+    ctx.fillStyle = SEA
+    ctx.fill("evenodd")
   }
   // the ground round each mapped building (a material, not a thing: docs/open-world.md):
   // houses stand in their yards (lawn), everything else on a concrete apron; then the

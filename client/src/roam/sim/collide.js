@@ -12,6 +12,7 @@ export const createColliders = () => {
   const cells = new Map() // cell -> [edge]
   const byTile = new Map() // tile key -> [cell] it filled
   const polys = new Map() // tile key -> [{ ring, x0, z0, x1, z1 }]
+  const lone = new Map() // tile key -> lone edges it added
   let count = 0
 
   const addEdge = (tile, e, list) => {
@@ -56,6 +57,18 @@ export const createColliders = () => {
     byTile.set(key, list)
     polys.set(key, ps)
   }
+  // lone edges ([[{ x, z }, { x, z }]]: a shore), a tile at a time
+  const addEdges = (key, segs, top = 1) => {
+    if (byTile.has(key)) removeTile(key)
+    const list = []
+    for (const [a, b] of segs) {
+      addEdge(key, { ax: a.x, az: a.z, bx: b.x, bz: b.z, top, tile: key }, list)
+      count++
+    }
+    byTile.set(key, list)
+    polys.set(key, [])
+    lone.set(key, segs.length)
+  }
   const removeTile = (key) => {
     const list = byTile.get(key)
     if (!list) return
@@ -66,7 +79,8 @@ export const createColliders = () => {
       if (kept.length) cells.set(k, kept)
       else cells.delete(k)
     }
-    count -= (polys.get(key) || []).reduce((n, p) => n + p.ring.length, 0)
+    count -= (polys.get(key) || []).reduce((n, p) => n + p.ring.length, 0) + (lone.get(key) || 0)
+    lone.delete(key)
     byTile.delete(key)
     polys.delete(key)
   }
@@ -167,6 +181,7 @@ export const createColliders = () => {
 
   return {
     addTile,
+    addEdges,
     removeTile,
     resolve,
     inside,

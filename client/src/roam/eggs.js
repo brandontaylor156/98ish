@@ -6,7 +6,7 @@
 
 import * as THREE from "three"
 
-export const REACH = { disk: 2.8, npc: 3.6, view: 4.5, couple: 3.5, car: 0 }
+export const REACH = { disk: 2.8, npc: 3.6, view: 4.5, couple: 3.5, boat: 4, car: 0 }
 export const HINT_R = 70
 
 // the eggs in town metres -> [{ ...egg, x, z }]
@@ -27,7 +27,7 @@ export const nearestEgg = (list, found, x, z, { together = () => false } = {}) =
   }
   return best
 }
-export const HINTS = { disk: "Something's glowing nearby...", npc: "Someone around here has something to say.", view: "There's a view worth finding up here.", couple: "This place feels like it's for two." }
+export const HINTS = { disk: "Something's glowing nearby...", npc: "Someone around here has something to say.", view: "There's a view worth finding up here.", couple: "This place feels like it's for two.", boat: "Something's bobbing nearby..." }
 
 const glowTexture = () => {
   const c = document.createElement("canvas")
@@ -87,6 +87,31 @@ const heartMesh = () => {
   return new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color: 0xff4f8b, emissive: 0x7a1030 }))
 }
 
+// a toy sailboat (original: a white hull, a teal stripe, one sail)
+const boatMesh = () => {
+  const g = new THREE.Group()
+  const hs = new THREE.Shape()
+  hs.moveTo(-0.55, 0.12)
+  hs.lineTo(0.55, 0.12)
+  hs.quadraticCurveTo(0.5, -0.12, 0.3, -0.16)
+  hs.lineTo(-0.42, -0.16)
+  hs.lineTo(-0.55, 0.12)
+  const hull = new THREE.Mesh(new THREE.ExtrudeGeometry(hs, { depth: 0.32, bevelEnabled: false }), new THREE.MeshLambertMaterial({ color: 0xf4f2ea, emissive: 0x2e2c28 }))
+  hull.geometry.translate(0, 0, -0.16)
+  const stripe = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.05, 0.335), new THREE.MeshLambertMaterial({ color: 0x0f8f8a, emissive: 0x05302e }))
+  stripe.position.y = 0.06
+  const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.022, 0.95, 6), new THREE.MeshLambertMaterial({ color: 0x8a6a46 }))
+  mast.position.set(0.02, 0.58, 0)
+  const ss = new THREE.Shape()
+  ss.moveTo(0, 0)
+  ss.lineTo(0.42, 0)
+  ss.lineTo(0, 0.78)
+  const sail = new THREE.Mesh(new THREE.ShapeGeometry(ss), new THREE.MeshLambertMaterial({ color: 0xfffdf4, emissive: 0x3a3a34, side: THREE.DoubleSide }))
+  sail.position.set(0.05, 0.2, 0)
+  g.add(hull, stripe, mast, sail)
+  return g
+}
+
 export const createEggs = ({ town, frame, scene, host = {}, groundAt = () => 0, onFound = () => {} }) => {
   const list = eggSpots(town, frame)
   const storeKey = `roam.found.${town.id}`
@@ -111,8 +136,8 @@ export const createEggs = ({ town, frame, scene, host = {}, groundAt = () => 0, 
     const y = groundAt(e.x, e.z) ?? 0
     group.position.set(e.x, y, e.z)
     const item = { group, spin: null, glow: null, npc: null, label: null, y }
-    if (e.kind === "disk" || e.kind === "couple") {
-      const m = e.kind === "disk" ? diskMesh() : heartMesh()
+    if (e.kind === "disk" || e.kind === "couple" || e.kind === "boat") {
+      const m = e.kind === "disk" ? diskMesh() : e.kind === "boat" ? boatMesh() : heartMesh()
       m.position.y = 1.1
       group.add(m)
       item.spin = m
@@ -127,7 +152,7 @@ export const createEggs = ({ town, frame, scene, host = {}, groundAt = () => 0, 
       if (item.npc) scene.add(item.npc.group)
     }
     if (glowTex && e.kind !== "npc") {
-      const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: e.kind === "couple" ? 0xff8fb6 : e.kind === "view" ? 0x8ff3ff : 0xfff1a8, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }))
+      const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: e.kind === "couple" ? 0xff8fb6 : e.kind === "view" || e.kind === "boat" ? 0x8ff3ff : 0xfff1a8, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }))
       sp.scale.set(2.4, 2.4, 1)
       sp.position.y = e.kind === "view" ? 0.6 : 1.1
       group.add(sp)
@@ -156,6 +181,7 @@ export const createEggs = ({ town, frame, scene, host = {}, groundAt = () => 0, 
     shown.delete(id)
   }
   let t = 0
+  let frames = 0
   return {
     list: () => list.map((e) => ({ id: e.id, name: e.name, kind: e.kind, place: e.place, found: found[e.id] || 0, text: found[e.id] ? e.text : null })),
     get: (id) => list.find((e) => e.id === id) || null,
@@ -170,7 +196,8 @@ export const createEggs = ({ town, frame, scene, host = {}, groundAt = () => 0, 
       together = fn
     },
     // the hidden cars (parked like any other, found by getting in)
-    cars: () => list.filter((e) => e.kind === "car").map((e) => ({ id: `egg:${e.id}`, model: "turbo", color: 0x0f8f8a, x: e.x, z: e.z, yaw: 0, egg: e.id })),
+    // (each town has its own: model and colour from the egg, the Turbo 98 by default)
+    cars: () => list.filter((e) => e.kind === "car").map((e) => ({ id: `egg:${e.id}`, model: e.model || "turbo", color: e.color ?? 0x0f8f8a, x: e.x, z: e.z, yaw: e.yaw ?? 0, egg: e.id, label: e.name })),
     nearest: (x, z) => nearestEgg(list, found, x, z, { together }),
     hint(x, z) {
       let best = null
@@ -204,11 +231,26 @@ export const createEggs = ({ town, frame, scene, host = {}, groundAt = () => 0, 
         if (want && !shown.has(e.id)) shown.set(e.id, make(e))
         else if (!want && shown.has(e.id)) drop(e.id)
       }
+      // (the ground under each, again now and then: its tile may have come in after it did)
+      if ((frames = (frames + 1) % 30) === 0)
+        for (const [id, it] of shown) {
+          const e = list.find((q) => q.id === id)
+          const y = groundAt(e.x, e.z)
+          if (Number.isFinite(y) && Math.abs(y - it.y) > 0.01) {
+            it.y = y
+            it.group.position.y = y
+          }
+        }
       for (const [id, it] of shown) {
         const e = list.find((q) => q.id === id)
         if (it.spin) {
           if (e.kind === "view") it.spin.rotation.z = t * 0.6
-          else {
+          else if (e.kind === "boat") {
+            // (rocking on a swell that isn't there yet)
+            it.spin.rotation.y = t * 0.5
+            it.spin.rotation.z = Math.sin(t * 1.3) * 0.12
+            it.spin.position.y = 0.9 + Math.sin(t * 1.3 + 1) * 0.08
+          } else {
             it.spin.rotation.y = t * 1.6
             it.spin.position.y = 1.1 + Math.sin(t * 2.2) * 0.12
           }

@@ -199,8 +199,9 @@ export function RoamHud({ world, hud, voice = null, onMenu, onAction, credit = "
 }
 
 // the menu: your finds, voice, back to the courts, leave
-export function RoamMenu({ town, found = [], canGoBack, voice, onBack, onLeave, onClose }) {
+export function RoamMenu({ town, found = [], canGoBack, voice, onBack, onLeave, onClose, towns = [], onGo = null, driving = false }) {
   const got = found.filter((f) => f.found)
+  const [goOpen, setGoOpen] = useState(false)
   return (
     <div className="roamSheet" data-roam="sheet" onPointerDown={(e) => e.target === e.currentTarget && onClose()}>
       <div className="roamPanel">
@@ -229,6 +230,21 @@ export function RoamMenu({ town, found = [], canGoBack, voice, onBack, onLeave, 
             <button type="button" className="roamBtn roamWide" onClick={voice.toggle} data-roam="voice">
               {voice.state.status === "on" ? "Voice: on (tap to turn off)" : "Talk with people nearby"}
             </button>
+          )}
+          {onGo && towns.length > 0 && (
+            <button type="button" className="roamBtn roamWide" onClick={() => setGoOpen((o) => !o)} aria-expanded={goOpen} data-roam="goto">
+              Go to... {goOpen ? "▴" : "▾"}
+            </button>
+          )}
+          {onGo && goOpen && (
+            <div className="roamGoList" data-roam="goto-list">
+              <small>{driving ? "You drive there; anyone riding along comes with you." : "You'll arrive on foot. Get in a car first to bring a friend riding along."}</small>
+              {towns.map((t) => (
+                <button key={t.id} type="button" className="roamBtn roamWide" onClick={() => onGo(t.id)} data-roam={`goto-${t.id}`}>
+                  {t.name}
+                </button>
+              ))}
+            </div>
           )}
           {canGoBack && (
             <button type="button" className="roamBtn roamWide" onClick={onBack} data-roam="back">

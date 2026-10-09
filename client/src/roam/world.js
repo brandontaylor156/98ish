@@ -22,7 +22,7 @@
 
 import * as THREE from "three"
 import { TILE_ZOOM, tileKey, tileOf, tilesAround, townFrame } from "./geo.js"
-import { DRIVABLE, ROAD, tileHeightAt } from "./data/tile.js"
+import { DRIVABLE, ROAD, tileHeightAt, tileSeaAt } from "./data/tile.js"
 import { createTileStore } from "./stream.js"
 import { buildTileMesh, disposeMaterials, roamLight, setRoamSurfaces } from "./render/tilemesh.js"
 import { treeSpots } from "./render/ground.js"
@@ -40,6 +40,7 @@ import { createTreeLayer } from "./render/trees.js"
 import { createTraffic, trafficRoad } from "./sim/traffic.js"
 import { createPeds, shopSpots, walkLines } from "./sim/peds.js"
 import { createStreetLayer, streetFurniture } from "./render/street.js"
+import { seaUniforms } from "./render/sea.js"
 
 const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a))
 
@@ -150,6 +151,11 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
     lampUniforms.head.value = lampUniforms.tail.value = night
     roamLight.night.value = night
     roamLight.sky.value.setHex(d.sky[1]).lerp(new THREE.Color(d.sky[0]), 0.35)
+    // (the sea: the same sky and sun)
+    seaUniforms.seaSky.value.copy(roamLight.sky.value)
+    seaUniforms.seaSunColor.value.setHex(d.sun.color)
+    seaUniforms.seaSunDir.value.copy(sunDir)
+    seaUniforms.seaNight.value = night
     setCarEnvironment(envTex, 0.2 + 0.8 * (1 - night))
   }
   // the sky the cars' paint and glass reflect (the host's HDRI; none on Low)
@@ -173,6 +179,9 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
   // ---------- the town's tiles ----------
   const tiles = new Map() // key -> { t (decoded), mesh, near, decks, trees, cars, walls }
   const colliders = createColliders()
+  // the shore (a coast town): you walk and drive up to the water's edge, not into the sea;
+  // out on a pier's deck you're above it (and its railings keep you on it)
+  const shoreCol = createColliders()
   const parkedLayer = createParkedLayer(scene, phone ? 120 : 220)
   const trees = createTreeLayer(scene, { cap: low ? 0 : phone ? 1800 : 4500, kit: low ? null : host.trees?.() || null, nearCap: phone ? 260 : 700 })
   const TREE_NEAR = phone ? 150 : 240
@@ -210,9 +219,17 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
     return d !== null && d > (g ?? -1e9) ? d : g
   }
   // a tile's own ground (clamped inside it): for building its meshes
-  const ownGround = (t) => (x, z) => {
-    const r = t.rect
-    return tileHeightAt(t, Math.max(r.x0, Math.min(r.x1, x)), Math.max(r.z0, Math.min(r.z1, z))) ?? 0
+  const ownGround = (t) => {
+    // (on a pier's deck: what stands on it stands on the deck, not the sea floor)
+    const plats = t.platforms?.length ? deckSurfaces([], t.platforms) : null
+    return (x, z) => {
+      const r = t.rect
+      const g = tileHeightAt(t, Math.max(r.x0, Math.min(r.x1, x)), Math.max(r.z0, Math.min(r.z1, z))) ?? 0
+      if (!plats) return g
+      let top = g
+      for (const p of plats) if (p.h > top && deckAt([p], x, z, p.h, false) !== null) top = p.h
+      return top
+    }
   }
 
   const parkedList = () => {
@@ -255,13 +272,17 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
     const old = tiles.get(t.key)
     if (old) {
       old.mesh.dispose()
-      if (old.near) colliders.removeTile(t.key)
+      if (old.near) {
+        colliders.removeTile(t.key)
+        shoreCol.removeTile(t.key)
+      }
     }
     const g = ownGround(t)
     const mesh = buildTileMesh(t, g, { near, texSize: near ? (phone ? 512 : 1024) : phone ? 128 : 256, anisotropy: host.anisotropy || 1 })
     scene.add(mesh.group)
-    const e = { t, mesh, near, decks: deckSurfaces(t.roads), trees: near || !phone ? treeSpots(t, { max: near ? 500 : 150 }).map((p) => ({ ...p, y: g(p.x, p.z) })) : [], cars: near ? parkedCars(t) : null, street: near ? streetFurniture(t).map((p) => ({ ...p, y: g(p.x, p.z) })) : [] }
+    const e = { t, mesh, near, decks: deckSurfaces(t.roads, t.platforms), trees: near || !phone ? treeSpots(t, { max: near ? 500 : 150 }).map((p) => ({ ...p, y: g(p.x, p.z) })) : [], cars: near ? parkedCars(t) : null, street: near ? streetFurniture(t).map((p) => ({ ...p, y: g(p.x, p.z) })) : [] }
     if (near) colliders.addTile(t.key, wallRings(t.buildings, g))
+    if (near && t.shore?.length) shoreCol.addEdges(t.key, t.shore)
     tiles.set(t.key, e)
     tilesDirty = true
     tilesDirtyForShadow = true
@@ -271,7 +292,10 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
     const e = tiles.get(key)
     if (!e) return
     e.mesh.dispose()
-    if (e.near) colliders.removeTile(key)
+    if (e.near) {
+      colliders.removeTile(key)
+      shoreCol.removeTile(key)
+    }
     tiles.delete(key)
     tilesDirty = true
   }
@@ -363,6 +387,37 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
     else if (!riding) out.push({ x: me.walker.x, z: me.walker.z })
     for (const r of remotes.values()) out.push({ x: r.x, z: r.z, car: !!(r.act & ACT.drive) })
     return out
+  }
+  // the sea under a point (a coast town)?
+  const seaAt = (x, z) => {
+    const t = tileAt(x, z)
+    return !!t && tileSeaAt(t, x, z)
+  }
+  const deckUnder = (x, z, y) => {
+    const t = tileAt(x, z)
+    const e = t && tiles.get(t.key)
+    return !!e?.decks?.length && deckAt(e.decks, x, z, y, false) !== null
+  }
+  // on foot: the walls and traffic, then the shore
+  const resolveFoot = (x, z, r) => {
+    const p = resolveWithTraffic(x, z, r)
+    if (!town.coast) return p
+    const w = me.walker
+    if (deckUnder(w.x, w.z, w.y)) {
+      // (on a pier: never off its side into the water)
+      if (seaAt(p.x, p.z) && !deckUnder(p.x, p.z, w.y)) return { x: w.x, z: w.z, hit: true, nx: 0, nz: 0 }
+      return p
+    }
+    const q = shoreCol.resolve(p.x, p.z, r)
+    if (seaAt(q.x, q.z) && !seaAt(w.x, w.z) && !deckUnder(q.x, q.z, w.y)) return { x: w.x, z: w.z, hit: true, nx: 0, nz: 0 }
+    return q.hit ? q : p
+  }
+  // driving: the walls and traffic, then the shore
+  const resolveCar = (x, z, r) => {
+    const p = resolveWithTraffic(x, z, r)
+    if (!town.coast) return p
+    const q = shoreCol.resolve(p.x, p.z, r)
+    return q.hit ? { x: q.x, z: q.z, hit: true, nx: q.nx, nz: q.nz } : p
   }
   // the traffic as something to bump into (your car and you): colliders plus the cars' circles
   const resolveWithTraffic = (x, z, r) => {
@@ -485,7 +540,17 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
   }
 
   // ---------- the hidden finds ----------
-  const eggs = createEggs({ town, frame, scene, host, groundAt, onFound: (egg) => onEvent({ type: "found", egg }) })
+  // (what an egg stands on: the ground, or a pier's deck)
+  const topAt = (x, z) => {
+    const g = groundAt(x, z)
+    if (g === null) return null
+    const t = tileAt(x, z)
+    const e = t && tiles.get(t.key)
+    let top = g
+    for (const d of e?.decks || []) if (d.ring && d.h > top && deckAt([d], x, z, d.h, false) !== null) top = d.h
+    return top
+  }
+  const eggs = createEggs({ town, frame, scene, host, groundAt: topAt, onFound: (egg) => onEvent({ type: "found", egg }) })
   eggs.setTogether((e) => togetherAt(e))
   const eggCars = eggs.cars()
 
@@ -565,7 +630,7 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
     const egg = eggs.nearest(w.x, w.z)
     if (egg) return { kind: "egg", label: egg.verb || "Take a look", target: egg.id }
     const c = nearestParked(w.x, w.z, 3.4)
-    if (c) return { kind: "car", label: c.model === "turbo" ? "Get in the Turbo 98" : "Get in", target: c }
+    if (c) return { kind: "car", label: c.label ? `Get in ${c.label.replace(/^The /, "the ")}` : "Get in", target: c }
     const back = town.venues ? Object.entries(town.venues).find(([, v]) => v.back && Math.hypot(w.x - v.back.x, w.z - v.back.z) < v.back.r) : null
     if (back) return { kind: "venue", label: "Back to the courts", target: back[0] }
     return null
@@ -877,6 +942,7 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
     const dt = Math.min(0.1, dtIn)
     clock += dt
     frameNo++
+    seaUniforms.seaTime.value = clock
     stepSky()
     stepTiles(dt)
     if (tilesDirtyForShadow) {
@@ -893,7 +959,7 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
       const gas = Math.max(input.gas, ky > 0 ? 1 : 0)
       const brake = Math.max(input.brake, ky < 0 ? 1 : 0)
       const steer = Math.max(-1, Math.min(1, input.steer + kx))
-      stepCar(car, { gas, brake, steer }, dt, { resolve: resolveWithTraffic, heightAt: (x, z, y) => heightAt(x, z, y, true), blocked: (x, z, yaw, dir, m) => personAhead(people, x, z, yaw, dir, m) })
+      stepCar(car, { gas, brake, steer }, dt, { resolve: resolveCar, heightAt: (x, z, y) => heightAt(x, z, y, true), blocked: (x, z, yaw, dir, m) => personAhead(people, x, z, yaw, dir, m) })
     } else if (riding) {
       const r = remotes.get(riding.num)
       if (r) {
@@ -906,7 +972,7 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
       const kl = Math.hypot(kx, ky) || 1
       const ix = input.x + (kx / kl) * (kx || ky ? 0.85 : 0)
       const iy = input.y + (ky / kl) * (kx || ky ? 0.85 : 0)
-      stepWalker(me.walker, { x: ix, y: iy, sprint: input.sprint || shift }, cam.yaw, dt, { resolve: resolveWithTraffic, heightAt: (x, z, y) => heightAt(x, z, y, false) })
+      stepWalker(me.walker, { x: ix, y: iy, sprint: input.sprint || shift }, cam.yaw, dt, { resolve: resolveFoot, heightAt: (x, z, y) => heightAt(x, z, y, false) })
     }
     stepRemotes()
     eggs.step(dt, center(), clock, camera)
@@ -1087,6 +1153,17 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
         const r = remotes.get(d.num)
         if (r) r.car = d.car || r.car
         onEvent({ type: "toast", text: `${r?.name || "A friend"} is riding along` })
+      } else if (type === "roam:seat" && d && Number.isInteger(d.num)) {
+        // (you followed your driver to this town: back in the passenger seat)
+        if (driving) return
+        riding = { num: d.num }
+        dropFig("me")
+        cam.pos = null
+        lastSent = null
+        onEvent({ type: "ride", on: true, name: remotes.get(d.num)?.name || "your friend" })
+      } else if (type === "roam:hop" && d && typeof d.town === "string") {
+        // (your driver is off to another town: you're coming too)
+        if (riding) onEvent({ type: "hop", town: d.town, driver: String(d.driver || "Your friend").slice(0, 40) })
       }
       sendHud(false)
     },
@@ -1111,7 +1188,7 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
       const p = center()
       return {
         me: { x: me.walker.x, y: me.walker.y, z: me.walker.z, yaw: me.walker.yaw, speed: me.walker.speed, mode: world.mode },
-        car: car ? { id: car.id, model: car.model, x: car.x, y: car.y, z: car.z, yaw: car.yaw, speed: car.speed, steer: car.steer, hitT: car.hitT } : null,
+        car: car ? { id: car.id, model: car.model, color: car.color, x: car.x, y: car.y, z: car.z, yaw: car.yaw, speed: car.speed, steer: car.steer, hitT: car.hitT } : null,
         riding,
         at: p,
         latlon: frame.toLatLon(p.x, p.z),
@@ -1149,7 +1226,7 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
     ensureOpen(spot = null) {
       if (driving || riding) return
       const w = me.walker
-      const open = (x, z) => !colliders.inside(x, z) && !colliders.resolve(x, z, 0.5).hit
+      const open = (x, z) => !colliders.inside(x, z) && !colliders.resolve(x, z, 0.5).hit && !seaAt(x, z)
       if (open(w.x, w.z)) return
       if (spot && open(spot.x, spot.z)) return world.teleport(spot.x, spot.z, spot.yaw ?? w.yaw)
       const x0 = spot ? spot.x : w.x
@@ -1227,6 +1304,52 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
     setHour(h) {
       hourOverride = h
       applyLook()
+    },
+    // going to another town (the page swaps the world): your riders are told to come too
+    hop(townId) {
+      if (!net?.request) return Promise.resolve({ ok: true, riders: 0 })
+      return net.request("roam:hop", { town: townId }).catch(() => ({ ok: false }))
+    },
+    // arriving from another town in your car: on the nearest through road to the town's
+    // arrival spot, in its lane, facing along it
+    arriveByCar: async ({ model = "sedan", color = 0x8a8f98 } = {}) => {
+      await world.whenReady()
+      if (disposed || driving || riding) return false
+      const sp = town.spawn || { x: 0, z: 0, yaw: 0 }
+      let best = null
+      let bd = 450
+      for (const t of tilesAround(frame, sp.x, sp.z, 450)) {
+        const d = store.get(tileKey(t))
+        if (!d) continue
+        for (const r of d.roads) {
+          if (!DRIVABLE.has(r.cls) || r.cls === ROAD.driveway || r.cls === ROAD.aisle || r.cls === ROAD.link || r.flags & 6) continue
+          for (let i = 0; i + 1 < r.pts.length; i++) {
+            const a = r.pts[i]
+            const b = r.pts[i + 1]
+            const dx = b.x - a.x
+            const dz = b.z - a.z
+            const L2 = dx * dx + dz * dz
+            if (L2 < 25) continue
+            const k = Math.max(0.2, Math.min(0.8, ((sp.x - a.x) * dx + (sp.z - a.z) * dz) / L2))
+            const px = a.x + dx * k
+            const pz = a.z + dz * k
+            const dd = Math.hypot(sp.x - px, sp.z - pz)
+            if (dd < bd) {
+              bd = dd
+              const yaw = Math.atan2(dx, dz)
+              // (a two-way street: the right-hand lane)
+              const off = r.flags & 1 ? 0 : Math.min(3, r.width / 4)
+              best = { x: px - Math.cos(yaw) * off, z: pz + Math.sin(yaw) * off, yaw }
+            }
+          }
+        }
+      }
+      const at = best || { x: sp.x, z: sp.z, yaw: sp.yaw ?? 0 }
+      me.walker.x = at.x
+      me.walker.z = at.z
+      getIn({ id: `hop:${model}:${Math.floor(Math.random() * 1e6)}`, model: MODELS[model] ? model : "sedan", color, x: at.x, z: at.z, yaw: at.yaw })
+      lastCenter = null
+      return true
     },
     whenReady: async () => {
       await store.ready()

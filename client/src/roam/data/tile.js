@@ -8,7 +8,14 @@
 //     a: [[cls, ...ring]],                                     land use, parks, water, parking
 //     t: [u, v, ...],                                          mapped trees
 //     s: [kind, u, v, ...],                                    street lamps, signals, stop signs (STREET)
-//     p: [[kind, name, u, v]] }                                named places
+//     p: [[kind, name, u, v]],                                 named places
+//     w: [ring, ...],                                          the sea (data/sea.js; even-odd),
+//                                                              only on a coast
+//     wb: [[ring, ...], ...],                                  bays and tidal water behind the
+//                                                              coastline (each even-odd: islands)
+//     q: [[own, height dm, name, ...ring]] }                   piers mapped as areas: a deck
+//                                                              (own: drawn by this tile; every
+//                                                              tile it reaches can stand on it)
 // Coordinates are tile units (geo.js EXTENT across), delta-coded ([u0, v0, du1, dv1, ...]);
 // lines and areas are clipped to the tile plus a small margin; buildings belong to the tile
 // their middle is in.
@@ -18,6 +25,7 @@
 
 import { EXTENT, fromTileUnits, tileBounds, toTileUnits } from "../geo.js"
 import { stitchRings } from "./osm.js"
+import { inRings, seaRings } from "./sea.js"
 
 export const TILE_VERSION = 1
 export const GRID = 33 // height samples per side (32 cells, ~16 m at z16)
@@ -72,8 +80,10 @@ const num = (v) => {
   return m ? Number(m[1]) : NaN
 }
 
+export const isPier = (t) => t.man_made === "pier"
 export const roadClassOf = (t) => {
   const h = t.highway
+  if (isPier(t) && !h) return ROAD.footway
   if (t.railway === "rail" || t.railway === "light_rail") return ROAD.rail
   if (t.waterway === "river") return ROAD.river
   if (t.waterway === "stream" || t.waterway === "canal") return ROAD.stream
@@ -90,6 +100,8 @@ export const roadClassOf = (t) => {
 export const roadWidth = (cls, t) => {
   const w = num(t.width)
   if (w >= 1 && w <= 40) return w
+  // (a pier the map gives no width: a named one a public pier's deck, else a boat dock)
+  if (isPier(t)) return t.name ? 6 : 2.5
   const lanes = Math.round(num(t.lanes))
   const name = ROAD_CLASSES[cls][0]
   if (lanes >= 1 && lanes <= 10 && DRIVABLE.has(cls)) {
@@ -104,7 +116,7 @@ export const roadWidth = (cls, t) => {
 export const roadFlags = (t) => {
   let f = 0
   if (t.oneway === "yes" || t.oneway === "1" || t.highway === "motorway") f |= F.oneway
-  if (t.bridge && t.bridge !== "no") f |= F.bridge
+  if ((t.bridge && t.bridge !== "no") || isPier(t)) f |= F.bridge
   if (t.tunnel && t.tunnel !== "no") f |= F.tunnel
   const sw = t.sidewalk || (t["sidewalk:both"] === "yes" ? "both" : "")
   if (sw === "both" || sw === "left" || t["sidewalk:left"] === "yes") f |= F.walkL
@@ -336,7 +348,9 @@ export const undelta = (arr, from = 0) => {
 
 // ---------- building a tile ----------
 // elements: compact Overpass elements; elevation(lat, lon) -> metres (or null: flat)
-export const buildTile = ({ z, x, y, elements, elevation = null }) => {
+// sea(lat, lon) -> bool: is a point the sea, for a tile no coastline crosses (the town-wide
+// coast from data/sea.js townSea, or a guess from the terrain); null: inland
+export const buildTile = ({ z, x, y, elements, elevation = null, sea = null }) => {
   const b = tileBounds(z, x, y)
   const toU = (p) => toTileUnits(b, p[0], p[1])
   const lo = -MARGIN
@@ -358,6 +372,9 @@ export const buildTile = ({ z, x, y, elements, elevation = null }) => {
   const trees = []
   const pois = []
   const street = []
+  const coast = [] // the coastline's lines in tile units, y up ([u, -v])
+  const platforms = [] // piers mapped as areas
+  const bayCands = [] // water that may be at sea level (a coast's bays, harbours, lagoons)
   const seen = new Set()
   const inTile = ([u, v]) => u >= 0 && u < EXTENT && v >= 0 && v < EXTENT
   const bboxOverlaps = (pts) => {
@@ -389,10 +406,35 @@ export const buildTile = ({ z, x, y, elements, elevation = null }) => {
       if (kind && t.name) pois.push([kind, nameIdx(t.name), Math.round(p[0]), Math.round(p[1])])
       continue
     }
+    if (el.type === "way" && t.natural === "coastline") {
+      coast.push(
+        el.geom.map((p) => {
+          const [u, v] = toU(p)
+          return [u, -v]
+        })
+      )
+      continue
+    }
     // rings (closed ways, multipolygon outers) and lines
     const rings = el.type === "relation" ? stitchRings(el.members.filter((m) => m.role !== "inner").map((m) => m.geom)) : null
     const geomU = el.type === "way" ? el.geom.map(toU) : null
     const closed = el.type === "way" && el.geom.length >= 4 && el.geom[0][0] === el.geom[el.geom.length - 1][0] && el.geom[0][1] === el.geom[el.geom.length - 1][1]
+    // a pier mapped as an area: a level deck, out from where it leaves the land
+    if (isPier(t) && closed && !t.highway) {
+      const ring = geomU.slice(0, -1)
+      if (!bboxOverlaps(ring)) continue
+      // (level with the ground where it leaves the land: the middle height of its corners on dry
+      // land, so one high or low sample doesn't lift it off or sink it)
+      const dry = elevation ? el.geom.map((p) => elevation(p[0], p[1]) ?? 0).filter((e) => e > 0.5).sort((a, b) => a - b) : []
+      const top = dry.length ? Math.max(2, dry[Math.floor((dry.length - 1) / 2)]) : 2
+      const r = roundPts(simplify(geomU, 2)).slice(0, -1)
+      if (r.length < 3) continue
+      if (ringArea(r) < 0) r.reverse()
+      const c = centroid(ring)
+      platforms.push([inTile(c) ? 1 : 0, Math.round(top * 10), nameIdx(t.name), ...delta(r)])
+      if (t.name && inTile(c)) pois.push(["pier", nameIdx(t.name), Math.round(c[0]), Math.round(c[1])])
+      continue
+    }
     // buildings
     const bd = buildingOf(t)
     if (bd) {
@@ -419,10 +461,12 @@ export const buildTile = ({ z, x, y, elements, elevation = null }) => {
         const cum = [0]
         for (let i = 1; i < geomU.length; i++) cum.push(cum[i - 1] + Math.hypot(geomU[i][0] - geomU[i - 1][0], geomU[i][1] - geomU[i - 1][1]))
         const total = cum[cum.length - 1] || 1
-        const hA = elevation(el.geom[0][0], el.geom[0][1]) ?? 0
-        const hB = elevation(el.geom[el.geom.length - 1][0], el.geom[el.geom.length - 1][1]) ?? 0
+        let hA = elevation(el.geom[0][0], el.geom[0][1]) ?? 0
+        let hB = elevation(el.geom[el.geom.length - 1][0], el.geom[el.geom.length - 1][1]) ?? 0
         const metres = (total / EXTENT) * 504
-        const hump = FOOT.has(rc) && metres > 14 ? Math.min(5.5, metres * 0.18) : 0
+        // (a pier: level with the shore it leaves from, its far end standing over the sea)
+        if (isPier(t)) hA = hB = Math.max(hA, hB, 1.5)
+        const hump = FOOT.has(rc) && metres > 14 && !isPier(t) ? Math.min(5.5, metres * 0.18) : 0
         deckAt = ([u, v]) => {
           let best = Infinity
           let along = 0
@@ -475,6 +519,12 @@ export const buildTile = ({ z, x, y, elements, elevation = null }) => {
       }
       continue
     }
+    // (a bay or water: at sea level if it's on a coast and the map or the ground says so)
+    if ((t.natural === "bay" || t.natural === "water") && (rings || closed)) {
+      const outers = rings ? rings : [el.geom]
+      const inners = el.type === "relation" ? stitchRings(el.members.filter((m) => m.role === "inner").map((m) => m.geom)) : []
+      bayCands.push({ t, outers, inners })
+    }
     // areas
     const ac = areaClassOf(t)
     if (ac >= 0) {
@@ -490,7 +540,42 @@ export const buildTile = ({ z, x, y, elements, elevation = null }) => {
       }
     }
   }
+  // the sea (on a coast: data/sea.js), even-odd rings in tile units
+  let water = []
+  if (coast.length || sea) {
+    const box = { x0: lo, y0: -hi, x1: hi, y1: -lo }
+    const isSea = (u, w) => {
+      if (!sea) return false
+      const ll = fromTileUnits(b, u, -w)
+      return !!sea(ll.lat, ll.lon)
+    }
+    const rings = seaRings(coast, box, { inside: isSea }) || (isSea(EXTENT / 2, -EXTENT / 2) ? [[[lo, -lo], [hi, -lo], [hi, -hi], [lo, -hi]]] : [])
+    water = rings.map((r) => r.map(([u, w]) => [u, -w]))
+  }
+  // bays and tidal water behind the coastline: natural=bay, water=bay|harbour|lagoon, tidal, or
+  // water whose shore is at sea level (the ground under 1.5 m all round it)
+  const bays = []
+  if (coast.length || sea)
+    for (const c of bayCands) {
+      let level = c.t.natural === "bay" || ["bay", "harbour", "lagoon", "tidal"].includes(c.t.water) || c.t.tidal === "yes"
+      if (!level && elevation) {
+        let top = -Infinity
+        for (const r of c.outers) for (let i = 0; i < r.length; i += Math.max(1, Math.floor(r.length / 24))) top = Math.max(top, elevation(r[i][0], r[i][1]) ?? 0)
+        level = top < 1.5
+      }
+      if (!level) continue
+      const group = []
+      for (const r of [...c.outers, ...c.inners]) {
+        const ru = r.map(toU)
+        if (!bboxOverlaps(ru)) continue
+        const clipped = clipPolygon(simplify(ru, 3), lo, hi)
+        if (clipped.length >= 3 && Math.abs(ringArea(clipped)) > 40) group.push(clipped)
+      }
+      if (group.length) bays.push(group)
+    }
+  const inWater = water.length || bays.length ? (u, v) => inRings(water, u, v) || bays.some((g) => inRings(g, u, v)) : null
   // the ground's height: a GRID x GRID lattice over the tile, edges shared with the neighbours
+  // (on a coast: under the sea at least 1.5 m down, the land beside it above the water)
   let h = null
   if (elevation) {
     const d = []
@@ -498,8 +583,17 @@ export const buildTile = ({ z, x, y, elements, elevation = null }) => {
     for (let j = 0; j < GRID; j++) {
       for (let i = 0; i < GRID; i++) {
         const ll = fromTileUnits(b, (i / (GRID - 1)) * EXTENT, (j / (GRID - 1)) * EXTENT)
-        const m = elevation(ll.lat, ll.lon)
-        const dm = Math.round((Number.isFinite(m) ? m : 0) * 10)
+        let m = elevation(ll.lat, ll.lon)
+        if (!Number.isFinite(m)) m = 0
+        if (inWater) {
+          const u = (i / (GRID - 1)) * EXTENT
+          const v = (j / (GRID - 1)) * EXTENT
+          // (half a cell round it: by the shore the sea floor stays shallow, so the ground
+          // between the last land point and the water doesn't dip under the water's level)
+          const shore = () => [[-64, 0], [64, 0], [0, -64], [0, 64], [-64, -64], [64, 64], [-64, 64], [64, -64]].some(([du, dv]) => !inWater(u + du, v + dv))
+          m = inWater(u, v) ? (shore() ? -0.3 : Math.min(m, -1.5)) : Math.max(m, 0.4)
+        }
+        const dm = Math.round(m * 10)
         d.push(dm - prev)
         prev = dm
       }
@@ -510,6 +604,15 @@ export const buildTile = ({ z, x, y, elements, elevation = null }) => {
   areas.sort((p, q) => p[0] - q[0])
   const out = { v: TILE_VERSION, z, x, y, n: names, h, r: roads, k: decks, b: buildings, a: areas, t: trees, p: pois }
   if (street.length) out.s = street
+  if (water.length) {
+    const w = water
+      .map((r) => roundPts(simplify([...r, r[0]], 3)).slice(0, -1))
+      .filter((r) => r.length >= 3)
+      .map(delta)
+    if (w.length) out.w = w
+  }
+  if (bays.length) out.wb = bays.map((g) => g.map((r) => delta(roundPts(r))))
+  if (platforms.length) out.q = platforms
   return out
 }
 
@@ -570,8 +673,48 @@ export const decodeTile = (tile, frame, base = 0) => {
   const pois = (tile.p || []).map(([kind, name, u, v]) => ({ kind, name: names[name] || "", ...pt([u, v]) }))
   const street = []
   for (let i = 0; i + 2 < (tile.s || []).length; i += 3) street.push({ kind: tile.s[i], ...pt([tile.s[i + 1], tile.s[i + 2]]) })
-  return { key: `${tile.z}/${tile.x}/${tile.y}`, z: tile.z, x: tile.x, y: tile.y, bounds: b, rect, heights, grid, roads, buildings, areas, trees, pois, street }
+  // the sea: groups of rings (each even-odd: the open sea, then each bay with its islands) and
+  // the shore's edges (the rings' edges that aren't the clip box, with land on one side)
+  const sea = []
+  const edges = []
+  for (const group of [tile.w || [], ...(tile.wb || [])]) {
+    const rings = []
+    for (const r of group) {
+      const uv = undelta(r)
+      if (uv.length < 3) continue
+      rings.push(uv.map(pt))
+      for (let i = 0; i < uv.length; i++) {
+        const a = uv[i]
+        const c = uv[(i + 1) % uv.length]
+        const onBox = (k, e) => Math.abs(a[k] - e) < 1.5 && Math.abs(c[k] - e) < 1.5
+        if (onBox(0, -MARGIN) || onBox(0, EXTENT + MARGIN) || onBox(1, -MARGIN) || onBox(1, EXTENT + MARGIN)) continue
+        edges.push([pt(a), pt(c)])
+      }
+    }
+    if (rings.length) sea.push(rings)
+  }
+  const wetAt = (x, z) => sea.some((g) => inEO(g, x, z))
+  const shore = edges.filter(([a, c]) => {
+    const L = Math.hypot(c.x - a.x, c.z - a.z) || 1
+    const mx = (a.x + c.x) / 2
+    const mz = (a.z + c.z) / 2
+    const nx = (-(c.z - a.z) / L) * 2
+    const nz = ((c.x - a.x) / L) * 2
+    return !(wetAt(mx + nx, mz + nz) && wetAt(mx - nx, mz - nz))
+  })
+  const platforms = (tile.q || []).map((r) => ({ own: r[0] === 1, h: r[1] / 10 - base, name: names[r[2]] || "", ring: undelta(r, 3).map(pt) }))
+  return { key: `${tile.z}/${tile.x}/${tile.y}`, z: tile.z, x: tile.x, y: tile.y, bounds: b, rect, heights, grid, roads, buildings, areas, trees, pois, street, sea, shore, platforms, seaY: -base || 0 }
 }
+
+// even-odd over rings of { x, z }
+const inEO = (rings, x, z) => {
+  let inside = false
+  for (const r of rings)
+    for (let i = 0, j = r.length - 1; i < r.length; j = i++) if (r[i].z > z !== r[j].z > z && x < ((r[j].x - r[i].x) * (z - r[i].z)) / (r[j].z - r[i].z) + r[i].x) inside = !inside
+  return inside
+}
+// is a town point in a decoded tile's sea (the open sea or a bay)?
+export const tileSeaAt = (t, x, z) => !!t?.sea?.length && t.sea.some((g) => inEO(g, x, z))
 
 // the ground's height inside a decoded tile (bilinear on the lattice) -> m, or null outside
 export const tileHeightAt = (t, x, z) => {
