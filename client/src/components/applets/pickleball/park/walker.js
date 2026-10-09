@@ -17,6 +17,7 @@ import { heightAt, resolve } from "./layout.js"
 export const SPEEDS = { walk: 1.7, jog: 3.4, run: 4.6, sprint: 6.2 }
 export const ACCEL = 14 // m/s^2 speeding up
 export const DECEL = 18 // m/s^2 slowing down
+export const TURN_ACCEL = 45 // m/s^2 while changing direction
 export const SPRINT_AFTER = 0.35 // s at full push before a run
 export const DEAD = 0.15 // the stick's dead zone (of its reach)
 export const RADIUS = 0.35
@@ -70,7 +71,10 @@ export const stepWalker = (w, input, camYaw, dt) => {
   const ex = tvx - w.vx
   const ez = tvz - w.vz
   const el = Math.hypot(ex, ez)
-  const rate = (want < w.speed ? DECEL : ACCEL) * dt
+  // (a new direction answers at once: turning or reversing changes the velocity fast instead of
+  // braking to a stop first. Owner: "switching directions takes a few seconds to register")
+  const turning = want > 0 && w.speed > 0.5 && (w.vx * tvx + w.vz * tvz) / (w.speed * want) < 0.7
+  const rate = (turning ? TURN_ACCEL : want < w.speed ? DECEL : ACCEL) * dt
   if (el <= rate) {
     w.vx = tvx
     w.vz = tvz

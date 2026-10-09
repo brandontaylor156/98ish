@@ -794,7 +794,7 @@ test("Newport Beach: the ocean and the harbour from the coastline, the beach, th
   assert.ok(tiles.some((t) => t.roads.some((r) => r.deck && r.width <= 3)), "boat docks in the harbour")
 })
 
-test("tile store: static tiles for the town, the function elsewhere, a pause after a failure", async () => {
+test("tile store: a prebuilt town draws only its own tiles; a live town asks the function, with a pause after a failure", async () => {
   const asked = []
   const index = { z: 16, x0: 10, x1: 11, y0: 20, y1: 21, base: 100 }
   const fetchFn = async (url) => {
@@ -810,10 +810,17 @@ test("tile store: static tiles for the town, the function elsewhere, a pause aft
   store.want([{ z: 16, x: 10, y: 20 }, { z: 16, x: 99, y: 99 }])
   await new Promise((r) => setTimeout(r, 10))
   assert.ok(asked.includes("/roam/t/16/10/20.json"))
-  assert.ok(asked.includes("/api/town?z=16&x=99&y=99"))
+  // (past a prebuilt town's edge: nothing asked of the function, which costs Vercel CPU)
+  assert.ok(!asked.some((u) => u.includes("/api/town")))
   assert.ok(store.get("16/10/20"))
+  // a town with no prebuilt tiles, marked live: the function, and a failed tile waits
+  const live = createTileStore({ town: { id: "l", live: true }, frame: townFrame([0, 0]), fetchFn })
+  await live.ready()
+  live.want([{ z: 16, x: 99, y: 99 }])
+  await new Promise((r) => setTimeout(r, 10))
+  assert.ok(asked.includes("/api/town?z=16&x=99&y=99"))
   const n = asked.length
-  store.want([{ z: 16, x: 99, y: 99 }])
+  live.want([{ z: 16, x: 99, y: 99 }])
   assert.equal(asked.length, n, "a failed tile waits before it's asked again")
 })
 

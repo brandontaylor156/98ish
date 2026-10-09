@@ -32,6 +32,11 @@ export const createTileStore = ({ town, frame, fetchFn = (...a) => globalThis.fe
     return indexP
   }
   const prebuilt = (t) => !!index && t.z === index.z && t.x >= index.x0 && t.x <= index.x1 && t.y >= index.y0 && t.y <= index.y1
+  // (a prebuilt town only draws its own tiles: past its edge there's nothing to fetch. The live
+  // tile function built every tile past every town's edge on Vercel's CPU and used up the free
+  // plan's 4 hours of function CPU on 2026-10-09; it's off unless a town has no prebuilt tiles,
+  // and then only with town.live)
+  const live = !town.prebuilt && !!town.live
   const urlOf = (t) => (prebuilt(t) ? `${town.prebuilt}/${t.z}/${t.x}/${t.y}.json` : `${apiBase}/api/town?z=${t.z}&x=${t.x}&y=${t.y}`)
 
   const fetchTile = async (t) => {
@@ -78,6 +83,7 @@ export const createTileStore = ({ town, frame, fetchFn = (...a) => globalThis.fe
       const f = failed.get(key)
       if (f && Date.now() < f.until) continue
       if (!indexDone) continue // (wait for the index: it says where the static tiles are)
+      if (!prebuilt(t) && !live) continue
       const kind = prebuilt(t) ? "static" : "api"
       if (inflight[kind] >= (kind === "static" ? 3 : 1)) continue
       pending.set(key, fetchTile(t))

@@ -15,6 +15,7 @@ const JOG_AT = 0.35
 const RUN_AT = 0.65
 const ACCEL = 18
 const DECEL = 20
+const TURN_ACCEL = 45 // m/s^2 while changing direction
 const TURN = 14 // rad/s toward where you're going
 export const RADIUS = 0.35
 
@@ -52,7 +53,10 @@ export const stepWalker = (w, input, camYaw, dt, world = null) => {
   }
   const tvx = dx * want
   const tvz = dz * want
-  const rate = want > w.speed ? ACCEL : DECEL
+  // (a new direction answers at once: turning or reversing changes the velocity fast, instead of
+  // braking to a stop and building speed again. Owner: "switching directions takes a few seconds")
+  const turning = want > 0 && w.speed > 0.5 && (w.vx * tvx + w.vz * tvz) / (w.speed * want) < 0.7
+  const rate = turning ? TURN_ACCEL : want > w.speed ? ACCEL : DECEL
   const ddx = tvx - w.vx
   const ddz = tvz - w.vz
   const dl = Math.hypot(ddx, ddz)

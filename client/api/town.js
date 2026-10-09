@@ -71,6 +71,14 @@ const terrain = async (box) => {
 }
 
 export default async function handler(req, res) {
+  // (off by default: building tiles here used up the free plan's 4 hours of function CPU on
+  // 2026-10-09; the four towns are prebuilt static files. ROAM_LIVE_TILES=1 turns it back on)
+  if (process.env.ROAM_LIVE_TILES !== "1") {
+    res.statusCode = 404
+    res.setHeader("Cache-Control", "public, s-maxage=86400")
+    res.setHeader("Content-Type", "application/json")
+    return res.end('{"error":"Live town tiles are off."}')
+  }
   const params = Object.fromEntries(new URL(req.url, "http://localhost").searchParams)
   res.setHeader("Content-Type", "application/json")
   const send = (status, body) => {
