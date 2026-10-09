@@ -100,7 +100,9 @@ const tx = async (mode, fn) => {
   return new Promise((resolve) => {
     const t = db.transaction("specs", mode)
     const out = fn(t.objectStore("specs"))
-    t.oncomplete = () => resolve(out?.result ?? out ?? null)
+    // (a request's result: a get for a venue never kept is undefined, so null, not the request
+    // itself; that once made a first build slower than 8 s fall back to an empty "device copy")
+    t.oncomplete = () => resolve(out && typeof out === "object" && "result" in out ? (out.result ?? null) : (out ?? null))
     t.onerror = () => resolve(null)
   })
 }
@@ -117,7 +119,7 @@ const saveCopy = async (rec) => {
 // a live venue's spec: the server's (which also tells the server to open parks there), else
 // the device's copy when offline. -> { spec, info, from: "server" | "device" } | throws
 export const fetchLiveSpec = async (id, shard, { timeoutMs = 45000 } = {}) => {
-  const copy = await readCopy(id)
+  const copy = await readCopy(id).then((c) => (c?.spec ? c : null))
   const ctl = typeof AbortController !== "undefined" ? new AbortController() : null
   const timer = ctl ? setTimeout(() => ctl.abort(), copy ? 8000 : timeoutMs) : null
   try {
