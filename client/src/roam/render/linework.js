@@ -3,11 +3,14 @@
 // lines on freeways) and the bridges' decks with their parapets. The road surfaces themselves
 // are painted into the ground's texture (ground.js).
 
-import { DRIVABLE, F, ROAD } from "../data/tile.js"
+import { AREA, DRIVABLE, F, ROAD } from "../data/tile.js"
+import { STALL_W, edgeDist, inRing, lotStalls } from "../sim/parked.js"
 import { ROAD_ORDER, ROAD_PAINT, SIDEWALK } from "./paint.js"
 
 const YELLOW = 0xe0b43a
 const WHITE = 0xe9e9e4
+const CURB = 0xcfcbc1
+const GUTTER = 0x6b6a66
 
 // a road's height at a point along it: its deck on a bridge, else the ground
 export const roadHeight = (road, i, k, groundAt, x, z) => (road.deck ? road.deck[i] + (road.deck[i + 1] - road.deck[i]) * k : groundAt(x, z))
@@ -75,9 +78,48 @@ const strip = (out, road, groundAt, offset, width, col, dash = null, lift = 0.1)
   }
 }
 
-// the markings of a tile's roads -> arrays
-export const markingArrays = (roads, groundAt) => {
+// a straight painted line from (ax, az) to (bx, bz), w wide, on the ground
+const line = (out, groundAt, ax, az, bx, bz, w, col, lift = 0.07) => {
+  const L = Math.hypot(bx - ax, bz - az)
+  if (L < 0.05) return
+  const rx = (-(bz - az) / L) * w * 0.5
+  const rz = ((bx - ax) / L) * w * 0.5
+  const P = (x, z) => [x, groundAt(x, z) + lift, z]
+  out.quad(P(ax - rx, az - rz), P(bx - rx, bz - rz), P(bx + rx, bz + rz), P(ax + rx, az + rz), col)
+}
+
+// a lot's stall lines (the grid the parked cars use, sim/parked.js lotStalls): a line between
+// neighbouring stalls and across each stall's head, kept inside the lot and off buildings
+export const stallLines = (out, areas, groundAt, buildings = []) => {
+  let n = 0
+  for (const a of areas) {
+    if (a.cls !== AREA.parking || a.ring.length < 3) continue
+    for (const st of lotStalls(a.ring)) {
+      const f = st.f
+      const at = (u, v) => [f.ox + f.ux * u + f.vx * v, f.oz + f.uz * u + f.vz * v]
+      const ok = (x, z) => inRing(a.ring, x, z) && edgeDist(a.ring, x, z) > 0.4 && !buildings.some((b) => inRing(b.ring, x, z))
+      for (const side of [-0.5, 0.5]) {
+        const [x0, z0] = at(st.u + side * STALL_W, st.v - 2.6)
+        const [x1, z1] = at(st.u + side * STALL_W, st.v + 2.6)
+        if (ok(x0, z0) && ok(x1, z1)) {
+          line(out, groundAt, x0, z0, x1, z1, 0.1, WHITE)
+          n++
+        }
+      }
+      // (the head of the stall: the side the car's nose points to)
+      const head = Math.sin(st.yaw) * f.vx + Math.cos(st.yaw) * f.vz > 0 ? 2.6 : -2.6
+      const [x0, z0] = at(st.u - 0.5 * STALL_W, st.v + head)
+      const [x1, z1] = at(st.u + 0.5 * STALL_W, st.v + head)
+      if (ok(x0, z0) && ok(x1, z1)) line(out, groundAt, x0, z0, x1, z1, 0.1, WHITE)
+    }
+  }
+  return n
+}
+
+// the markings of a tile's roads (and its lots' stalls) -> arrays
+export const markingArrays = (roads, groundAt, areas = [], buildings = []) => {
   const out = createArrays()
+  stallLines(out, areas, groundAt, buildings)
   for (const r of roads) {
     if (!DRIVABLE.has(r.cls) || r.flags & F.tunnel) continue
     const big = r.cls === ROAD.primary || r.cls === ROAD.secondary || r.cls === ROAD.tertiary || r.cls === ROAD.trunk
@@ -227,5 +269,17 @@ export const roadArrays = (roads, groundAt) => {
   const list = roads.filter((r) => !SKIP.has(r.cls) && !(r.flags & (F.tunnel | F.bridge)) && ROAD_PAINT[r.cls]).sort((p, q) => (rank.get(p.cls) ?? 0) - (rank.get(q.cls) ?? 0))
   for (const r of list) if (DRIVABLE.has(r.cls) && r.flags & (F.walkL | F.walkR)) ribbon(r, r.width / 2 + 2, hex(SIDEWALK), 0.03)
   for (const r of list) ribbon(r, r.width / 2, hex(ROAD_PAINT[r.cls][0]), 0.04 + (rank.get(r.cls) ?? 0) * 0.0025)
+  // curbs and gutters where the map has sidewalks: a pale curb top and a darker gutter line
+  for (const r of list) {
+    if (!DRIVABLE.has(r.cls)) continue
+    if (r.flags & F.walkL) {
+      strip(out, r, groundAt, -(r.width / 2 + 0.12), 0.24, CURB, null, 0.13)
+      strip(out, r, groundAt, -(r.width / 2 - 0.25), 0.45, GUTTER, null, 0.085)
+    }
+    if (r.flags & F.walkR) {
+      strip(out, r, groundAt, r.width / 2 + 0.12, 0.24, CURB, null, 0.13)
+      strip(out, r, groundAt, r.width / 2 - 0.25, 0.45, GUTTER, null, 0.085)
+    }
+  }
   return out.done()
 }

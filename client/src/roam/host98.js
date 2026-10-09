@@ -16,6 +16,8 @@ import { createRealSky } from "../components/applets/pickleball/park/realsky.js"
 import { dayLook, hourOf, realLook } from "../components/applets/pickleball/park/sky.js"
 import { CLEAR, cachedWeather, fetchWeather } from "../components/applets/pickleball/park/weather.js"
 import { loadHDRI } from "../components/applets/pickleball/park/environment.js"
+import { surfaceUniform } from "../components/applets/pickleball/park/surfaces.js"
+import { treeKit } from "../components/applets/pickleball/park/detail.js"
 import { parkLook } from "../components/applets/pickleball/park/regulars.js"
 import { useNet } from "../components/applets/network/NetContext"
 import { createVoiceSession, voiceSupported } from "../utils/voice/session.js"
@@ -59,6 +61,10 @@ export const makeHost98 = ({ engineCtx, me = {}, sky = { real: true, mode: "real
     // a real sky for car paint and glass to reflect: My Park's CC0 outdoor HDRI (Poly Haven
     // "Park Parking", normalized; docs/venue-realism.md round 3)
     environment: () => loadHDRI(false),
+    // the venues' CC0 surface textures (stucco, concrete, roof tile, grass, asphalt) as shared
+    // uniforms, and the venues' trees (docs/venue-realism.md); none on Low (the plain look)
+    surface: quality === "low" ? null : (kind) => surfaceUniform(kind, engineCtx?.renderer),
+    trees: quality === "low" ? null : () => treeKit(),
     figure(look) {
       if (!engineCtx?.makeFigure) return null
       const fig = engineCtx.makeFigure(look || {}, { shadows: false })

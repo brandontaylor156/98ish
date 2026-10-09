@@ -19,7 +19,7 @@ import * as THREE from "three"
 import { TILE_ZOOM, tileKey, tileOf, tilesAround, townFrame } from "./geo.js"
 import { DRIVABLE, ROAD, tileHeightAt } from "./data/tile.js"
 import { createTileStore } from "./stream.js"
-import { buildTileMesh, disposeMaterials } from "./render/tilemesh.js"
+import { buildTileMesh, disposeMaterials, roamLight, setRoamSurfaces } from "./render/tilemesh.js"
 import { treeSpots } from "./render/ground.js"
 import { deckAt, deckSurfaces } from "./render/linework.js"
 import { wallRings } from "./render/buildings.js"
@@ -40,6 +40,8 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
   const store = createTileStore({ town, frame, fetchFn: host.fetch })
   const scene = new THREE.Scene()
   const low = quality === "low"
+  // (the host's surface textures for walls, roofs and ground: before any tile's material is made)
+  if (!low) setRoamSurfaces(host.surface)
   // (how far the town is drawn: near tiles in full, far tiles as blocks; fog hides the edge)
   const NEAR_R = phone ? 380 : 560
   const FAR_R = low ? 700 : phone ? 900 : 1500
@@ -49,6 +51,56 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
   const sun = new THREE.DirectionalLight(0xfff3dc, 2.4)
   sun.position.set(-0.4, 0.8, 0.3)
   scene.add(hemi, sun, sun.target)
+  // sun shadows in a box round you (buildings, trees, parked cars; Medium/High), drawn again
+  // only when the box moves or the light changes: the town is static (docs/open-world.md)
+  const sunDir = new THREE.Vector3(-0.4, 0.8, 0.3).normalize()
+  const SHADOW_R = phone ? 75 : 120
+  const shadowAt = { x: Infinity, z: Infinity, dirty: true, frames: 0, t: 0, n: 0 }
+  if (!low) {
+    sun.castShadow = true
+    sun.shadow.mapSize.set(phone ? 1024 : 2048, phone ? 1024 : 2048)
+    const sc = sun.shadow.camera
+    sc.left = sc.bottom = -SHADOW_R
+    sc.right = sc.top = SHADOW_R
+    sc.near = 1
+    sc.far = 900
+    sc.updateProjectionMatrix()
+    sun.shadow.bias = -0.0005
+    sun.shadow.normalBias = 0.35
+    sun.shadow.autoUpdate = false
+  }
+  const stepShadow = () => {
+    if (low) {
+      if (shadowAt.dirty) sun.position.copy(sunDir)
+      shadowAt.dirty = false
+      return
+    }
+    const c = center()
+    // (a fresh map is drawn on a few frames in a row after a change, and again every couple of
+    // seconds: a single redraw was sometimes lost in the browsers tested)
+    if (shadowAt.frames > 0) {
+      shadowAt.frames--
+      sun.shadow.needsUpdate = true
+    }
+    if (clock - shadowAt.t > 2.5) shadowAt.dirty = true
+    if (!shadowAt.dirty && Math.hypot(c.x - shadowAt.x, c.z - shadowAt.z) < 8) return
+    // (snapped to the map's texels, so standing still the edges don't crawl)
+    const texel = (SHADOW_R * 2) / sun.shadow.mapSize.x
+    const x = Math.round(c.x / texel) * texel
+    const z = Math.round(c.z / texel) * texel
+    const y = heightAt(c.x, c.z, 0) ?? 0
+    sun.target.position.set(x, y, z)
+    sun.position.set(x + sunDir.x * 400, y + sunDir.y * 400, z + sunDir.z * 400)
+    sun.target.updateMatrixWorld()
+    sun.updateMatrixWorld()
+    sun.shadow.needsUpdate = true
+    shadowAt.frames = 2
+    shadowAt.x = c.x
+    shadowAt.z = c.z
+    shadowAt.dirty = false
+    shadowAt.n++
+    shadowAt.t = clock
+  }
   let exposure = 1
   let size = { width: 1, height: 1 }
   let disposed = false
@@ -73,9 +125,12 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
     if (!sky) scene.background = new THREE.Color(d.sky[0])
     sun.color.setHex(d.sun.color)
     sun.intensity = d.sun.intensity
-    sun.position.set(d.sun.dir.x, d.sun.dir.y, d.sun.dir.z)
+    sunDir.set(d.sun.dir.x, Math.max(0.12, d.sun.dir.y), d.sun.dir.z).normalize()
+    shadowAt.dirty = true
     hemi.color.setHex(d.hemi[0])
-    hemi.groundColor.setHex(d.hemi[1])
+    // (light bounced off a town is pavement and stucco, not a lawn: warmer and greyer than a
+    // park's, so walls in shade don't turn green)
+    hemi.groundColor.setHex(d.hemi[1]).lerp(new THREE.Color(0x8a7f6e), 0.65)
     hemi.intensity = d.hemi[2]
     scene.fog.color.setHex(d.fog)
     if (sky) scene.background = scene.fog.color
@@ -83,6 +138,8 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
     // night (0 day .. 1 night): lamps on, reflections dim
     night = d.sunEl !== undefined ? Math.max(0, Math.min(1, (4 - d.sunEl) / 10)) : d.lights ? 1 : 0
     lampUniforms.head.value = lampUniforms.tail.value = night
+    roamLight.night.value = night
+    roamLight.sky.value.setHex(d.sky[1]).lerp(new THREE.Color(d.sky[0]), 0.35)
     setCarEnvironment(envTex, 0.2 + 0.8 * (1 - night))
   }
   // the sky the cars' paint and glass reflect (the host's HDRI; none on Low)
@@ -107,9 +164,12 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
   const tiles = new Map() // key -> { t (decoded), mesh, near, decks, trees, cars, walls }
   const colliders = createColliders()
   const parkedLayer = createParkedLayer(scene, phone ? 120 : 220)
-  const trees = createTreeLayer(scene, { cap: low ? 0 : phone ? 1800 : 4500 })
+  const trees = createTreeLayer(scene, { cap: low ? 0 : phone ? 1800 : 4500, kit: low ? null : host.trees?.() || null, nearCap: phone ? 260 : 700 })
+  const TREE_NEAR = phone ? 150 : 240
+  let treesAt = null
   const moved = new Map() // parked car id -> { x, z, yaw } (left somewhere else this session) | "gone"
   let tilesDirty = true
+  let tilesDirtyForShadow = true
   let wantT = 0
   let lastCenter = null
   let wanted = { near: new Set(), far: new Set(), list: [] }
@@ -171,7 +231,15 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
     const hb = groundAt(c.x - fx * m.wheelbase / 2, c.z - fz * m.wheelbase / 2) ?? y
     return { ...c, y, pitch: Math.atan2(hf - hb, m.wheelbase), roll: 0 }
   }
-  const refreshParked = () => parkedLayer.set(parkedList().map(placeCar).filter((c) => !driving || c.id !== car?.id))
+  // (the nearest ones drawn: a parked car 200 m off is a few pixels; phone 70, desktop 160)
+  const PARKED_DRAW = phone ? 70 : 160
+  const refreshParked = () => {
+    const c = center()
+    const list = parkedList().filter((p) => !driving || p.id !== car?.id)
+    for (const p of list) p.d2 = (p.x - c.x) ** 2 + (p.z - c.z) ** 2
+    list.sort((a, b) => a.d2 - b.d2)
+    parkedLayer.set(list.slice(0, PARKED_DRAW).map(placeCar))
+  }
 
   const buildTile = (t, near) => {
     const old = tiles.get(t.key)
@@ -186,6 +254,7 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
     if (near) colliders.addTile(t.key, wallRings(t.buildings, g))
     tiles.set(t.key, e)
     tilesDirty = true
+    tilesDirtyForShadow = true
     return e
   }
   const dropTile = (key) => {
@@ -233,10 +302,15 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
       buildQueue.delete(k)
       budget--
     }
-    if (tilesDirty) {
+    const cc = center()
+    if (tilesDirty || !treesAt || Math.hypot(cc.x - treesAt.x, cc.z - treesAt.z) > 50) {
+      const all = tilesDirty || !treesAt
       tilesDirty = false
       refreshParked()
-      trees.set([...tiles.values()].flatMap((e) => e.trees))
+      treesAt = { x: cc.x, z: cc.z }
+      // (the venues' trees near you, plain ones farther off)
+      const r2 = TREE_NEAR * TREE_NEAR
+      trees.set([...tiles.values()].flatMap((e) => e.trees), (t) => (t.x - cc.x) ** 2 + (t.z - cc.z) ** 2 < r2)
     }
   }
   const buildQueue = new Set()
@@ -660,6 +734,11 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
     frameNo++
     stepSky()
     stepTiles(dt)
+    if (tilesDirtyForShadow) {
+      tilesDirtyForShadow = false
+      shadowAt.dirty = true
+    }
+    stepShadow()
     // keys
     const kx = (keys.has("ArrowRight") || keys.has("KeyD") ? 1 : 0) - (keys.has("ArrowLeft") || keys.has("KeyA") ? 1 : 0)
     const ky = (keys.has("ArrowUp") || keys.has("KeyW") ? 1 : 0) - (keys.has("ArrowDown") || keys.has("KeyS") ? 1 : 0)
@@ -944,6 +1023,10 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
       return [...tiles.values()].reduce((n, e) => n + e.mesh.calls, 0)
     },
     heightAt,
+    // (tests) what's drawn: shadows, trees, cars
+    renderInfo: () => ({ sunI: +sun.intensity.toFixed(2), hemiI: +hemi.intensity.toFixed(2), sunPos: sun.position.toArray().map(Math.round), tgt: sun.target.position.toArray().map(Math.round), exposure, shadow: !!sun.shadow.map, shadowAt: { x: Math.round(shadowAt.x), z: Math.round(shadowAt.z), n: shadowAt.n, t: shadowAt.t, now: clock, nu: sun.shadow.needsUpdate }, sunDir: sunDir.toArray().map((v) => +v.toFixed(2)), trees: trees.nearCount, night: +night.toFixed(2) }),
+    devSun: () => sun,
+    devShadowDirty: () => (shadowAt.dirty = true),
     // (tests) a fixed lens for close-up shots: devCamera({ x, y, z }, { x, y, z }) or null
     devCamera(pos, look) {
       devCam = pos && look ? { pos, look } : null

@@ -52,8 +52,8 @@ const toGeometry = (arr, crease = true) => {
   g.setAttribute("color", new THREE.BufferAttribute(arr.color, 3))
   g.setAttribute("glow", new THREE.BufferAttribute(arr.glow, 1))
   g.setIndex(new THREE.BufferAttribute(arr.index, 1))
-  // (smooth over the body's curves, crisp at the creases: 50 degrees)
-  g = crease ? toCreasedNormals(g, (50 * Math.PI) / 180) : g.toNonIndexed()
+  // (smooth over the body's curves, crisp at the creases: 36 degrees)
+  g = crease ? toCreasedNormals(g, (36 * Math.PI) / 180) : g.toNonIndexed()
   if (!crease) g.computeVertexNormals()
   g.computeBoundingSphere()
   return g
@@ -171,6 +171,7 @@ export const makeCarMesh = (model, color) => {
   const body = new THREE.Group() // (leans a little in turns and under braking)
   group.add(body)
   body.add(new THREE.Mesh(g.paint, paintMat), new THREE.Mesh(g.wheel ? g.trim : g.trimWithWheels, trimMat))
+  for (const m of body.children) m.receiveShadow = true
   const shadow = new THREE.Mesh(shadowGeo(model), mats.shadow)
   shadow.renderOrder = 1
   group.add(shadow)
@@ -251,8 +252,10 @@ export const createParkedLayer = (scene, cap = 220) => {
     for (const im of [paint, trim]) {
       im.count = 0
       im.frustumCulled = false
+      im.receiveShadow = true
       scene.add(im)
     }
+    paint.castShadow = true
     return (layers[model] = { paint, trim })
   }
   return {

@@ -52,6 +52,58 @@ const edgeDist = (ring, x, z) => {
   return best
 }
 
+// a lot's own axes: u along its longest side, v across -> { ox, oz, ux, uz, vx, vz, u0, u1, v0, v1 }
+export const lotFrame = (r) => {
+  let best = 0
+  let ux = 1
+  let uz = 0
+  for (let i = 0; i < r.length; i++) {
+    const p = r[i]
+    const q = r[(i + 1) % r.length]
+    const L = Math.hypot(q.x - p.x, q.z - p.z)
+    if (L > best) {
+      best = L
+      ux = (q.x - p.x) / L
+      uz = (q.z - p.z) / L
+    }
+  }
+  const vx = -uz
+  const vz = ux
+  let u0 = Infinity
+  let u1 = -Infinity
+  let v0 = Infinity
+  let v1 = -Infinity
+  const ox = r[0].x
+  const oz = r[0].z
+  for (const p of r) {
+    const u = (p.x - ox) * ux + (p.z - oz) * uz
+    const v = (p.x - ox) * vx + (p.z - oz) * vz
+    u0 = Math.min(u0, u)
+    u1 = Math.max(u1, u)
+    v0 = Math.min(v0, v)
+    v1 = Math.max(v1, v)
+  }
+  return { ox, oz, ux, uz, vx, vz, u0, u1, v0, v1 }
+}
+// the stalls of a lot (rows of 2.75 m stalls, a row every 9 m across the lot, facing alternate
+// ways), the same grid the parked cars use -> [{ x, z, yaw, u, v }]
+export const STALL_W = 2.75
+export const lotStalls = (r) => {
+  const f = lotFrame(r)
+  const out = []
+  for (let v = f.v0 + 3.2; v < f.v1 - 2.5; v += 9) {
+    const facing = Math.round((v - f.v0) / 9) % 2 === 0 ? 1 : -1
+    for (let u = f.u0 + 2; u < f.u1 - 1.5; u += STALL_W) {
+      const x = f.ox + f.ux * u + f.vx * v
+      const z = f.oz + f.uz * u + f.vz * v
+      if (!inRing(r, x, z) || edgeDist(r, x, z) < 1.6) continue
+      out.push({ x, z, yaw: Math.atan2(f.vx * facing, f.vz * facing), u, v, f })
+    }
+  }
+  return out
+}
+export { inRing, edgeDist }
+
 // decoded tile (data/tile.js decodeTile) -> [{ id, x, z, yaw, model, color }]
 export const parkedCars = (tile) => {
   const rand = rng(hashStr(`cars:${tile.key}`))
@@ -87,50 +139,14 @@ export const parkedCars = (tile) => {
     if (a.cls !== AREA.parking || out.length >= MAX_PER_TILE) continue
     const r = a.ring
     if (r.length < 3) continue
-    // the lot's direction: its longest side
-    let best = 0
-    let ux = 1
-    let uz = 0
-    for (let i = 0; i < r.length; i++) {
-      const p = r[i]
-      const q = r[(i + 1) % r.length]
-      const L = Math.hypot(q.x - p.x, q.z - p.z)
-      if (L > best) {
-        best = L
-        ux = (q.x - p.x) / L
-        uz = (q.z - p.z) / L
-      }
-    }
-    const vx = -uz
-    const vz = ux
-    // the lot in its own axes
-    let u0 = Infinity
-    let u1 = -Infinity
-    let v0 = Infinity
-    let v1 = -Infinity
-    const ox = r[0].x
-    const oz = r[0].z
-    for (const p of r) {
-      const u = (p.x - ox) * ux + (p.z - oz) * uz
-      const v = (p.x - ox) * vx + (p.z - oz) * vz
-      u0 = Math.min(u0, u)
-      u1 = Math.max(u1, u)
-      v0 = Math.min(v0, v)
-      v1 = Math.max(v1, v)
-    }
-    // (double rows of 5.5 m stalls with a 7 m aisle between each pair: a 18 m module)
+    // (double rows of 5.5 m stalls along the lot's longest side: lotStalls; about a third taken)
     let n = 0
-    for (let v = v0 + 3.2; v < v1 - 2.5 && n < MAX_PER_LOT; v += 9) {
-      const facing = Math.round((v - v0) / 9) % 2 === 0 ? 1 : -1
-      for (let u = u0 + 2; u < u1 - 1.5 && n < MAX_PER_LOT && out.length < MAX_PER_TILE; u += 2.75) {
-        if (rand() > 0.34) continue
-        const x = ox + ux * u + vx * v
-        const z = oz + uz * u + vz * v
-        if (!inRing(r, x, z) || edgeDist(r, x, z) < 1.6 || !clearOf(x, z)) continue
-        // (nose into the stall: along the lot's short way)
-        add(x, z, Math.atan2(vx * facing, vz * facing), "lot")
-        n++
-      }
+    for (const st of lotStalls(r)) {
+      if (n >= MAX_PER_LOT || out.length >= MAX_PER_TILE) break
+      if (rand() > 0.34) continue
+      if (!clearOf(st.x, st.z)) continue
+      add(st.x, st.z, st.yaw, "lot")
+      n++
     }
   }
   // the curbs of residential streets
