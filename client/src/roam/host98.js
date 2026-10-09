@@ -10,7 +10,7 @@
 // - a per-person store (98ish's per-user localStorage) for the finds.
 
 import { useEffect, useRef, useState } from "react"
-import { createAnim, updateAnim, setMood, seatedPose } from "../components/applets/pickleball/anim.js"
+import { createAnim, updateAnim, setMood, seatedPose, ridePose, stepRider } from "../components/applets/pickleball/anim.js"
 import { gearFig } from "../components/applets/pickleball/park/acts/gear.js"
 import { holdFig } from "../components/applets/pickleball/park/leisure/held.js"
 import { ITEMS as LEISURE_ITEMS } from "../components/applets/pickleball/park/leisure/menu.js"
@@ -71,7 +71,7 @@ import { hashStr, rng } from "./sim/parked.js"
 const walkSituation = (s, key, t, look) => {
   const fx = Math.sin(s.yaw)
   const fz = Math.cos(s.yaw)
-  return { x: s.x, z: s.z, vx: s.vx || 0, vz: s.vz || 0, facing: s.yaw, ball: { x: s.x + fx * 3, y: 1.1, z: s.z + fz * 3 }, holding: false, swing: null, prep: null, charging: false, between: true, atNet: false, goal: null, hand: look?.plays === "left" ? -1 : 1, twoHand: look?.backhand === "two", oppHit: null, want: { x: s.vx || 0, z: s.vz || 0 }, id: key, phase: "intro", phaseT: t % 20, point: 0, mate: null, across: null, receiving: false }
+  return { x: s.x, z: s.z, vx: s.vx || 0, vz: s.vz || 0, facing: s.yaw, ball: { x: s.x + fx * 3, y: 1.1, z: s.z + fz * 3 }, holding: false, swing: null, prep: null, charging: false, between: true, atNet: false, goal: null, hand: look?.plays === "left" ? -1 : 1, twoHand: look?.backhand === "two", oppHit: null, want: s.want || { x: s.vx || 0, z: s.vz || 0 }, id: key, phase: "intro", phaseT: t % 20, point: 0, mate: null, across: null, receiving: false, walking: true }
 }
 
 const NO_PADDLE = new Set(["hug", "hold", "dance", "twirl", "thumbs", "point"])
@@ -207,6 +207,8 @@ export const makeHost98 = ({ engineCtx, me = {}, sky = { real: true, mode: "real
       let mood = null // { kind, variant, keep, at }
       let seat = null // { x, y, z, yaw, ground? }
       let held = null
+      let rideSt = null // (riding: the crank and the kick)
+      const rideArg = { x: 0, y: 0, z: 0, yaw: 0, lean: 0, kind: "bike", crank: 0, kick: null }
       const tmpLook = { x: 0, y: 1.2, z: 0 }
       return {
         group: fig.group,
@@ -233,8 +235,34 @@ export const makeHost98 = ({ engineCtx, me = {}, sky = { real: true, mode: "real
           gearFig(fig, held ? "none" : "paddle")
           holdFig(fig, held)
         },
+        // on a bike or a scooter: r { x, y, z, yaw, lean, kind: "bike" | "scooter", speed, accel }
+        // (a riding pose fixed to the vehicle: anim.js ridePose; the paddle put away)
+        ride(r, dt) {
+          const step = Math.min(0.1, dt)
+          if (!rideSt) {
+            rideSt = { crank: 0, kick: null }
+            gearFig(fig, "none")
+          }
+          stepRider(rideSt, r, step)
+          rideArg.x = r.x
+          rideArg.y = r.y
+          rideArg.z = r.z
+          rideArg.yaw = r.yaw
+          rideArg.lean = r.lean || 0
+          rideArg.kind = r.kind
+          rideArg.crank = rideSt.crank
+          rideArg.kick = rideSt.kick
+          fig.apply(ridePose(rideArg), step)
+          at = { x: r.x, z: r.z }
+          anim = null
+        },
         update(s, dt) {
           const step = Math.min(0.1, dt)
+          if (rideSt) {
+            // (off the bike: the paddle back, the walk starts afresh)
+            rideSt = null
+            gearFig(fig, held || NO_PADDLE.has(mood?.kind) ? "none" : "paddle")
+          }
           t += step
           // (a jump: out of a car, or a friend's first position: the animation starts afresh)
           if (at && Math.hypot(at.x - s.x, at.z - s.z) > 4) anim = null
@@ -256,6 +284,13 @@ export const makeHost98 = ({ engineCtx, me = {}, sky = { real: true, mode: "real
           anim.useMM = !!fig.skinned && !lite
           anim.mmEvery = 0.2
           fig.apply(liftPose(updateAnim(anim, walkSituation(s, key, t, look), step), s.y || 0), step)
+        },
+        // (tests: where the body is drawn and which way it faces, vs the walker's own)
+        get riding() {
+          return rideSt
+        },
+        get drawn() {
+          return anim ? { x: anim.mm?.root?.x ?? at?.x ?? 0, z: anim.mm?.root?.z ?? at?.z ?? 0, yaw: anim.yaw } : null
         },
         dispose: () => {
           fig.group.removeFromParent()

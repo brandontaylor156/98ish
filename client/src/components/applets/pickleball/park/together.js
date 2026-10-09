@@ -14,6 +14,9 @@
 // and a dance has no speaker (the hangout's music has no object in the world).
 
 import { itemName } from "./leisure/menu.js"
+import { STICK } from "./walkfeel.js"
+
+const DEAD = STICK.DEAD
 
 const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a))
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v))
@@ -108,12 +111,12 @@ export const padToward = (me, target, camYaw, { speed = 0, stopWithin = 0.14 } =
   return { x: (ux * r.x + uz * r.z) * mag, y: (ux * f.x + uz * f.z) * mag, sprint: want > 4.8, arrived: false }
 }
 // walker.js speedFor, the other way: a speed -> how far to push the pad
-// (the 2026-10-09 curve: past the 0.15 dead zone, 1.1 m/s up to a 1.7 walk by 35% of the push, a
+// (the 2026-10-09 curve: past the dead zone (walkfeel.js STICK.DEAD), 1.1 m/s up to a 1.7 walk by 35% of the push, a
 // 3.4 jog by 75%; anything slower than 1.1 is the lightest walk, which keeps up)
 export const magFor = (speed) => {
   if (speed < 0.45) return 0
   const m = speed <= 1.1 ? 0.002 : speed < 1.7 ? ((speed - 1.1) / 0.6) * 0.35 : speed < 3.4 ? 0.35 + ((speed - 1.7) / 1.7) * 0.4 : 0.8
-  return clamp(0.15 + m * 0.85, 0.152, 0.97)
+  return clamp(DEAD + m * (1 - DEAD), DEAD + 0.002, 0.97)
 }
 
 // ---------- stepping together for a hug, a high five, a twirl, a dance ----------

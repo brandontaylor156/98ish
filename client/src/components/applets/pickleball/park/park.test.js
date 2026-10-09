@@ -304,20 +304,30 @@ test("follow camera: behind you, never on the far side of a fence, nobody in fro
   assert.ok(n > 100)
   // walking away from the camera: it swings round behind; sideways it holds still (2026-10-09:
   // a swinging camera bent a sideways walk into a circle); walking toward it: it doesn't flip
+  // ("Follow behind", the setting)
+  const F = { mode: "follow" }
   const st = createFollow(0)
   const w = { x: -10, z: 0.4, yaw: Math.PI / 4, speed: 3 }
-  for (let i = 0; i < 180; i++) stepFollow(st, w, 1 / 60)
+  for (let i = 0; i < 180; i++) stepFollow(st, w, 1 / 60, F)
   assert.ok(Math.abs(st.yaw - Math.PI / 4) < 0.3, `swung to ${st.yaw}`)
+  assert.equal(st.turned, 0, "coming round on its own is never your hand")
   const side = createFollow(0)
-  for (let i = 0; i < 180; i++) stepFollow(side, { x: -10, z: 0.4, yaw: Math.PI / 2, speed: 3 }, 1 / 60)
+  for (let i = 0; i < 180; i++) stepFollow(side, { x: -10, z: 0.4, yaw: Math.PI / 2, speed: 3 }, 1 / 60, F)
   assert.ok(Math.abs(side.yaw) < 1e-9, `sideways: held at ${side.yaw}`)
   const st2 = createFollow(0)
   const toward = { x: -10, z: 0.4, yaw: Math.PI, speed: 3 }
-  for (let i = 0; i < 120; i++) stepFollow(st2, toward, 1 / 60)
+  for (let i = 0; i < 120; i++) stepFollow(st2, toward, 1 / 60, F)
   assert.ok(Math.abs(st2.yaw) < 0.05)
-  // a drag turns it, and holds the auto-swing off a moment
+  // free (the default): it never turns on its own, whichever way you walk
+  const free = createFollow(0)
+  for (let i = 0; i < 180; i++) stepFollow(free, w, 1 / 60)
+  assert.ok(Math.abs(free.yaw) < 1e-9, `free: held at ${free.yaw}`)
+  // a turn by hand: turns it (eased in a frame or two) and says so
   turnFollow(st, 1)
-  assert.ok(st.drag > 0)
+  const y0 = st.yaw
+  let byHand = 0
+  for (let i = 0; i < 12; i++) byHand += stepFollow(st, w, 1 / 60, F).turned
+  assert.ok(Math.abs(byHand - 1) < 1e-9 && st.yaw > y0 + 0.5, `turned by hand ${byHand}`)
 })
 
 // ---------- park rep ----------
@@ -430,7 +440,7 @@ test("walking: nothing moves you without your hand (owner's rule)", () => {
 
 test("walking: past a dead zone a light push walks, more jogs, all the way (held) runs, Shift sprints; you stop when you let go", () => {
   assert.equal(speedFor(0.05), 0)
-  assert.equal(speedFor(0.14), 0)
+  assert.equal(speedFor(0.11), 0)
   // (analog: a little more push, a little faster)
   assert.ok(speedFor(0.2) >= 0.6 && speedFor(0.2) < speedFor(0.4) && speedFor(0.4) <= SPEEDS.walk)
   assert.ok(speedFor(0.7) > SPEEDS.walk && speedFor(0.7) < SPEEDS.jog)
@@ -468,7 +478,7 @@ test("walking: past a dead zone a light push walks, more jogs, all the way (held
   const ac = createFollow(Math.PI / 2)
   for (let i = 0; i < 180; i++) {
     stepWalker(aw, { x: 0.25, y: 0.5 }, ac.yaw, 1 / 60)
-    stepFollow(ac, aw, 1 / 60, { occ: () => null })
+    stepFollow(ac, aw, 1 / 60, { occ: () => null, mode: "follow" })
   }
   assert.ok(ac.yaw < Math.PI / 2 - 0.2, `swung round behind: ${ac.yaw.toFixed(2)}`)
   // nobody walks through anybody

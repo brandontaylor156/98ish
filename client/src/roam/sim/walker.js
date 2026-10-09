@@ -2,24 +2,27 @@
 // owner's rule: nothing moves your player for you): the stick or keys (Shift sprints).
 //
 // The stick is turned by the camera's heading (up the stick = away from the camera). A push
-// past the 15% dead zone walks (0.8-1.6 m/s), further jogs (to 3.8), and pushed all the way
-// out it runs (6.8): there's no Run button (the owner: "The 'run' button is kinda useless").
+// past the 12% dead zone walks (1.2-1.8 m/s), further jogs (to 4.2), and pushed (nearly) all the
+// way out it runs (6.8): there's no Run button (the owner: "The 'run' button is kinda useless").
 // The ground's height comes from the town (terrain, bridge decks); walls push you along them.
+// Turning, reversing and facing come from the shared walking feel (pickleball/park/walkfeel.js):
+// the new way builds fast, the old way goes faster, and you face where you push in ~0.14 s.
 
-export const DEAD = 0.15
+import { STICK, steerVelocity, turnFacing } from "../../components/applets/pickleball/park/walkfeel.js"
+
+export const DEAD = STICK.DEAD
 export const SPEED = { walk: 1.8, jog: 4.2, sprint: 6.8 }
-// (the push, past the dead zone, where jogging starts, where running starts, and where it's full).
-// Snappy (owner, 2026-10-09: "I move, he doesn't, he lags"): a small push already walks briskly,
-// half way jogs, and you're up to speed in about a third of a second.
+// (the push, past the dead zone, where jogging starts and where running starts; a run all the way
+// up by STICK.RUN of the reach). Snappy (owner, 2026-10-09: "I move, he doesn't, he lags"): a small
+// push already walks briskly, half way jogs, and you're up to speed in about a third of a second.
 const JOG_AT = 0.35
 const RUN_AT = 0.65
-const ACCEL = 18
-const DECEL = 20
-const TURN_ACCEL = 45 // m/s^2 while changing direction
-const TURN = 14 // rad/s toward where you're going
+const FULL_AT = (STICK.RUN - DEAD) / (1 - DEAD)
+const ACCEL = 20
+const DECEL = 30
 export const RADIUS = 0.35
 
-export const createWalker = (x = 0, z = 0, yaw = 0) => ({ x, z, y: 0, yaw, vx: 0, vz: 0, speed: 0, gait: "stand" })
+export const createWalker = (x = 0, z = 0, yaw = 0) => ({ x, z, y: 0, yaw, vx: 0, vz: 0, speed: 0, gait: "stand", want: { x: 0, z: 0 } })
 
 // the speed a push asks for -> m/s
 export const targetSpeed = (m, sprint) => {
@@ -29,12 +32,11 @@ export const targetSpeed = (m, sprint) => {
   if (k < JOG_AT) return 1.2 + (SPEED.walk - 1.2) * (k / JOG_AT)
   if (k < RUN_AT) return SPEED.walk + (SPEED.jog - SPEED.walk) * ((k - JOG_AT) / (RUN_AT - JOG_AT))
   // (the last of the push: up to a run, all the way out)
-  return SPEED.jog + (SPEED.sprint - SPEED.jog) * Math.min(1, (k - RUN_AT) / (0.9 - RUN_AT))
+  return SPEED.jog + (SPEED.sprint - SPEED.jog) * Math.min(1, (k - RUN_AT) / (FULL_AT - RUN_AT))
 }
 
-const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a))
-
-// input: { x, y, sprint } (x right, y up the stick, each -1..1); camYaw: the camera's heading
+// input: { x, y, sprint } (x right, y up the stick, each -1..1); camYaw: the stick's frame (the
+// camera's heading when the thumb landed)
 // world: { resolve(x, z, r) -> { x, z }, heightAt(x, z, y) -> m }
 export const stepWalker = (w, input, camYaw, dt, world = null) => {
   let ix = input.x || 0
@@ -53,21 +55,12 @@ export const stepWalker = (w, input, camYaw, dt, world = null) => {
   }
   const tvx = dx * want
   const tvz = dz * want
-  // (a new direction answers at once: turning or reversing changes the velocity fast, instead of
-  // braking to a stop and building speed again. Owner: "switching directions takes a few seconds")
-  const turning = want > 0 && w.speed > 0.5 && (w.vx * tvx + w.vz * tvz) / (w.speed * want) < 0.7
-  const rate = turning ? TURN_ACCEL : want > w.speed ? ACCEL : DECEL
-  const ddx = tvx - w.vx
-  const ddz = tvz - w.vz
-  const dl = Math.hypot(ddx, ddz)
-  const step = rate * dt
-  if (dl <= step) {
-    w.vx = tvx
-    w.vz = tvz
-  } else {
-    w.vx += (ddx / dl) * step
-    w.vz += (ddz / dl) * step
-  }
+  // (a new direction answers at once: the old way's speed goes fast and the new way's builds,
+  // instead of braking to a stop and building again. Owner: "switching directions takes a few seconds")
+  steerVelocity(w, tvx, tvz, dt, { accel: ACCEL, decel: DECEL })
+  if (!w.want) w.want = { x: 0, z: 0 }
+  w.want.x = tvx
+  w.want.z = tvz
   let nx = w.x + w.vx * dt
   let nz = w.z + w.vz * dt
   if (world?.resolve) {
@@ -86,12 +79,9 @@ export const stepWalker = (w, input, camYaw, dt, world = null) => {
   w.x = nx
   w.z = nz
   w.speed = Math.hypot(w.vx, w.vz)
-  if (w.speed > 0.25) {
-    const face = Math.atan2(w.vx, w.vz)
-    const d = wrap(face - w.yaw)
-    const turn = TURN * dt
-    w.yaw = wrap(w.yaw + Math.max(-turn, Math.min(turn, d)))
-  }
+  // you face where you push (quick, not a snap); sliding to a stop, the way you go
+  if (want > 0) w.yaw = turnFacing(w.yaw, Math.atan2(dx, dz), dt)
+  else if (w.speed > 0.25) w.yaw = turnFacing(w.yaw, Math.atan2(w.vx, w.vz), dt)
   if (world?.heightAt) {
     const h = world.heightAt(w.x, w.z, w.y)
     if (Number.isFinite(h)) w.y = h

@@ -37,7 +37,8 @@ import { callNext, leaveQueue, nextLineup, ordered, positionOf } from "./queue.j
 import { LINES, createRegular, goTo, speak, think, tickRegular } from "./regulars.js"
 import { createWalker, keepApart, stepWalker } from "./walker.js"
 import { liftPose } from "./lift.js"
-import { angleName, createFollow, spectatorShot, stepFollow, turnFollow, SPECTATE_ANGLES } from "./followcam.js"
+import { angleName, createFollow, dragFollow, recenterFollow, releaseFollow, spectatorShot, stepFollow, turnFollow, SPECTATE_ANGLES } from "./followcam.js"
+import { loadCameraMode, saveCameraMode } from "./walkfeel.js"
 import { bodyPoints, ceilingOver, poleHit, screenHit, screensOf, solidHit } from "./cutaway.js"
 import { dayLook, hourOf, overrideDate, realLook } from "./sky.js"
 import { lookFor as timeLook } from "./timeofday.js"
@@ -235,10 +236,12 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
   meBody.z = SPAWN.z
   meBody.yaw = SPAWN.yaw
   const follow = createFollow(SPAWN.yaw)
-  // the pad's frame: the camera's heading when the thumb went down, held while you push (the
-  // follow camera may swing round behind you as you walk; a diagonal push still walks its straight
-  // line instead of curling as the camera turns). A look drag turns it with the camera.
+  // the pad's frame: the heading the picture shows when the thumb went down, held while you push.
+  // Nothing the camera does on its own turns it (walls swinging it, "Follow behind"); only your
+  // own look does (a drag, a fling, a double tap: follow.turned). walkfeel.js has the why.
   let moveRef = null
+  // the camera: "free" (turns only by hand) or "follow" (also comes round behind you); a setting
+  let camMode = loadCameraMode()
   const input = { x: 0, y: 0, sprint: false }
   const keys = new Set()
 
@@ -1681,7 +1684,7 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
     const fz = Math.cos(b.yaw)
     const hand = b.look?.plays === "left" ? -1 : 1
     b.phaseT = (b.phaseT || 0) + dt
-    return { x: b.x, z: b.z, vx: b.vx, vz: b.vz, facing: b.yaw + (b.spin || 0), ball: { x: b.x + fx * 3, y: 1.1, z: b.z + fz * 3 }, holding: false, swing: null, prep: null, charging: false, between: true, atNet: false, goal: null, hand, twoHand: b.look?.backhand === "two", oppHit: null, want: { x: b.vx, z: b.vz }, id: b.key, phase: "intro", phaseT: b.phaseT % 20, point: 0, mate: null, across: null, receiving: false }
+    return { x: b.x, z: b.z, vx: b.vx, vz: b.vz, facing: b.yaw + (b.spin || 0), ball: { x: b.x + fx * 3, y: 1.1, z: b.z + fz * 3 }, holding: false, swing: null, prep: null, charging: false, between: true, atNet: false, goal: null, hand, twoHand: b.look?.backhand === "two", oppHit: null, want: b.want || { x: b.vx, z: b.vz }, id: b.key, phase: "intro", phaseT: b.phaseT % 20, point: 0, mate: null, across: null, receiving: false, walking: true }
   }
   const courtWorld = (b) => {
     const w = toWorld(b.court.def, b.p.x, b.p.z)
@@ -2035,7 +2038,16 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
     const ceil = ceilingOver(park.overheads || [], { x: w.x, y: w.y || 0, z: w.z })
     if (!dev.noCutaway && ceil !== null && ceil - 0.25 >= (w.y || 0) + 1.9) cap = cap == null ? ceil - 0.25 : Math.min(cap, ceil - 0.25)
     const ft = pmark()
-    stepFollow(follow, w, dt, { portrait: por, bodies: bodiesNear, roofY: cap, tight: !!inRoom, occ: dev.noCutaway ? null : camOcc })
+    stepFollow(follow, w, dt, { portrait: por, bodies: bodiesNear, roofY: cap, tight: !!inRoom, occ: dev.noCutaway ? null : camOcc, mode: camMode })
+    // (your own look turns the way you're walking with it; the camera on its own never does)
+    if (moveRef !== null) moveRef += follow.turned
+    // (the lens pulled in close (a wall behind you, a room): the near plane comes in too, so its
+    // corners never cut into a wall beside you; out in the open 0.15 for the paint far away)
+    const nearWant = follow.rel && follow.rel.d < 2.6 ? 0.06 : 0.15
+    if (camera.near !== nearWant) {
+      camera.near = nearWant
+      camera.updateProjectionMatrix()
+    }
     pspent("camera.follow", ft)
     // (in a room, the lens stays in that room: not out through its doorway)
     if (inRoom && !inPoly(follow.pos.x, follow.pos.z, inRoom.p)) {
@@ -2315,8 +2327,8 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
         sprint = auto.sprint
       }
       if (auto || Math.hypot(ix, iy) < 0.12) moveRef = null
-      else if (moveRef === null) moveRef = follow.yaw
-      stepWalker(me.walker, { x: ix, y: iy, sprint }, moveRef ?? follow.yaw, dt)
+      else if (moveRef === null) moveRef = follow.view ?? follow.yaw
+      stepWalker(me.walker, { x: ix, y: iy, sprint }, moveRef ?? follow.view ?? follow.yaw, dt)
       // (posing for the picture: at the lens; a hug, a high five...: at each other)
       const faceTo = auto?.face ?? (tg.selfie ? tg.selfie.shot.yaw : tg.emote ? faceOther(tg.emote.other) : undefined)
       if (faceTo !== undefined && me.walker.speed < 0.3) me.walker.yaw += wrap(faceTo - me.walker.yaw) * Math.min(1, dt * 6)
@@ -2337,6 +2349,7 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
       meBody.vz = me.walker.vz
       meBody.speed = me.walker.speed
       meBody.yaw = me.walker.yaw
+      meBody.want = me.walker.want
       meBody.seat = null
     } else if (me.seat) {
       meBody.x = me.seat.x
@@ -2550,13 +2563,26 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
       keys.clear()
       input.x = input.y = 0
     },
-    // a drag on the picture turns the camera round you (px)
-    drag(dx) {
-      if (me.mode === "walk" || me.mode === "sit") {
-        turnFollow(follow, -dx * 0.008)
-        if (moveRef !== null) moveRef -= dx * 0.008
-      }
+    // a drag on the picture turns the camera round you (px; down: a higher view)
+    drag(dx, dy = 0) {
+      if (me.mode === "walk" || me.mode === "sit") dragFollow(follow, dx, dy, { w: size.width, h: size.height }, performance.now())
       else if (me.mode === "act") activity?.drag?.(dx)
+    },
+    // the finger lifted from the picture (a flick keeps turning a moment)
+    dragEnd() {
+      releaseFollow(follow, performance.now())
+    },
+    // a double tap on the picture: the camera round behind you
+    recenter() {
+      if (me.mode === "walk" || me.mode === "sit") recenterFollow(follow, me.walker)
+    },
+    // the camera setting: "free" | "follow" (kept on this device, the open world's too)
+    get cameraMode() {
+      return camMode
+    },
+    setCameraMode(m) {
+      camMode = m === "follow" ? "follow" : "free"
+      saveCameraMode(camMode)
     },
     // ---- activities (acts/): the spots here, and one running ----
     get spots() {
@@ -2860,6 +2886,33 @@ export const createWorld = ({ layout = RIVERSIDE_LAYOUT, makeFigure, quality = "
       const list = []
       for (const b of bodies.values()) if (!b.hidden && !(b.isMe && me.mode !== "watch")) list.push({ x: b.x, z: b.z, h: b.seat ? b.seat.y + 1.0 : 1.95, id: b.key })
       return blocker(cam, at, list, { near: 1.0, ahead: 2.2 })?.id || null
+    },
+    // (tests: the walking chain) the walker, the body as drawn, and which way the lens looks
+    moveProbe() {
+      const w = me.walker
+      const a = meBody.anim
+      const d = a ? { x: a.mm?.root?.x ?? w.x, z: a.mm?.root?.z ?? w.z, yaw: a.yaw } : null
+      const v = new THREE.Vector3()
+      camera.getWorldDirection(v)
+      return { sim: { x: w.x, z: w.z, yaw: w.yaw, speed: w.speed, vx: w.vx, vz: w.vz }, drawn: d, view: Math.atan2(v.x, v.z), cam: { x: camera.position.x, y: camera.position.y, z: camera.position.z } }
+    },
+    // (tests) the most open ground near you: a spot with nothing solid within r m, or null
+    openSpot(r = 12, span = 70, stepM = 4) {
+      const w = me.walker
+      const free = (x, z) => {
+        const p = resolve(x, z, 0.35, 0)
+        return Math.hypot(p.x - x, p.z - z) < 1e-3 && venue.heightAt(x, z, 0) !== null
+      }
+      let best = null
+      for (let gx = -span; gx <= span; gx += stepM)
+        for (let gz = -span; gz <= span; gz += stepM) {
+          const x = w.x + gx
+          const z = w.z + gz
+          let ok = free(x, z)
+          for (let rr = 2; ok && rr <= r; rr += 2) for (let k = 0; ok && k < 16; k++) ok = free(x + Math.cos((k / 16) * Math.PI * 2) * rr, z + Math.sin((k / 16) * Math.PI * 2) * rr)
+          if (ok && (!best || Math.hypot(gx, gz) < best.d)) best = { x, z, d: Math.hypot(gx, gz) }
+        }
+      return best
     },
     // (y: a floor above the ground, a rooftop terrace: tests; else the floor you're on)
     teleport(x, z, yaw = me.walker.yaw, y = me.walker.y || 0) {

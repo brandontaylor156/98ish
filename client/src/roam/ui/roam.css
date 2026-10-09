@@ -139,6 +139,13 @@
   background: rgba(0, 0, 0, 0.12);
   pointer-events: none;
 }
+/* (always in the page; shown under a thumb by RoamHud without a React render) */
+.roamStick:not([data-on]) {
+  display: none;
+}
+.roamStick.is-run .roamKnob {
+  background: rgba(255, 214, 90, 0.95);
+}
 .roamStick.is-steer {
   height: 40px;
   margin-top: -20px;

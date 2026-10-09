@@ -507,3 +507,57 @@ Activities and leisure (`actprof.mjs`, three alternating rounds; the first round
 **Tests:** `park/perf.test.js` (every venue under a whole-venue draw budget, these numbers + ~8%; the merge's color rule and what it leaves alone; one pass; the program sort), `utils/frameClock.test.js` (the floor), all 59 Pickleball test files. Browser scripts (session scratchpad `perf/`; vite 5301 = this branch, 8301 = a copy of the base with the profiler): `prof.mjs` (the frame split at the arrival, walking, Watch), `ab.sh` + `absum.mjs` (alternating runs), `actprof.mjs` (tennis, the tub, swimming, the pool deck, SMASH's TV, Los Cab at night), `abtoggle.mjs` (a switch on and off in one page), `glcount.mjs` (GL calls per frame by function), `calls.mjs` (the render list), `cpuprof.mjs` + `incl.mjs`, `trace.mjs`, `shots.mjs`, `tubshot.mjs`.
 
 **Left:** still under 30 at 4x where four or five athletes are on screen (Watch, SMASH's TV): an athlete is ~3.5 ms of posing and ~8 draws; next would be fewer draws per athlete (body and kit in one skinned mesh) or a cheaper pose for the far side of the court. The venue's remaining draws are mostly instanced trees and cars split per shape (three or four draws each; `BatchedMesh` could make them one, if Safari's multi-draw holds up). The shadow box's redraw (every 8 m walked) is a one-frame +80 draws. React's dev build costs ~1.5% here, not in production. All of it needs the owner's iPhone.
+
+## Walking that answers: the stick, turning, facing and the camera (2026-10-09)
+
+The owner on his iPhone: "I'm just trying to run around, it is SO HARD to control my character. I move, he doesn't, he lags, he doesn't go the direction I'm pointing", "switching directions takes a few seconds to register", "the camera rotation is interesting, that needs to maybe be thought through more" (and he likes the floating stick with a drag elsewhere to look). Everything shared by My Park and the open world lives in `park/walkfeel.js` (pure; `walkfeel.test.js`).
+
+**Where the lag was (measured, frame by frame: thumb event -> walker -> body as drawn -> lens).** Pointer moves already went straight into the sim (no React state per move; Chrome and Safari deliver them before the frame, so the walker reads a move in the same frame, and the picture shows it one vsync later: 1 frame, 17 ms at 60 / 33 ms at 30). The walker itself answered in 1-2 frames. The lag was after it:
+- **The body as drawn.** Motion matching (`mm/controller.js`) kept the facing "the animation's": with a foot down the body could turn at most 1.2 rad/s (a 0.8 s pull half-life), so a half turn took 0.7-1.1 s on screen while the walker had already turned; between points `facingFor` also eased it (8-10 rad/s). Node chain at 30 fps (`scratchpad mv/sim.mjs`): the drawn body faced a reversal in 733-933 ms (motion matching) / 533 ms (procedural); faced a 90-degree turn in 300-583 ms; the drawn root trailed the walker by up to 0.2 m.
+- **The walker's facing** followed its velocity, which through a reversal passes through zero: the open world turned it at 14 rad/s after the velocity, so facing came 150-350 ms after the turn.
+- **The camera.** It swung round behind you while you walked; with the stick latched to the frame at touch-down that no longer curled the path in My Park, but the open world turned the latched frame with the swing (a push 20 degrees off up circled slowly), and in My Park the lens swung to the open side of a wall (`off`) while the stick used the un-swung yaw (up the stick went 20-60 degrees off screen-up).
+- **The stick's landing** rendered the whole Pickleball component (`setStickUi`) on the touch-down frame; at 4x CPU that frame was long.
+- dt clamping (0.1 s) and the frame clock add nothing at 15-60 fps; there's no fixed-step accumulator; `touch-action: none` is on both stick zones, so iOS doesn't scroll or delay.
+
+**What changed.**
+- **Moving** (`steerVelocity`): the speed the new way builds at 18-20 m/s^2; what goes across or against it is taken away at 110 m/s^2 (a run reversed and going the other way at 0.5 m/s in ~0.1 s); letting go stops a run in ~0.2 s (decel 26-30).
+- **Facing** (`turnFacing`): you face where the stick points (not where momentum still carries you), easing at 24/s, at most 22 rad/s: a half turn in ~0.14 s (5 frames at 30 fps), no overshoot. Pulling the stick toward the camera turns you round to run at it (no backpedal) and the camera doesn't move.
+- **The body as drawn follows at once** (`s.walking` from both `walkSituation`s): `anim.js` faces `s.facing` exactly (procedural: 30 rad/s); motion matching's walking mode (`MM.walk`) pulls the root to the walker's position (0.03 s half-life, 5 cm at most) and facing (0.02 s, 30 rad/s) and asks the capture for turns up to 12 rad/s, so the legs come from mocap but the body is where the walker is. `want` (the velocity the push asks for) is handed to the matcher so it looks ahead. Matches are unchanged.
+- **The camera: free by default** (decided; `stepOrbit`, `followcam.js stepFollow`, roam `updateCamera`). Fortnite, Genshin and GTA on phones all move you relative to the camera; the ones that feel best on a phone don't swing it under your thumb. With a camera-relative stick, any camera that turns on its own changes what "up" means while you push; that is exactly "he doesn't go the direction I'm pointing". So: it turns only by your hand: a drag (sensitivity by screen size, 2.9 rad across the short side: 165 degrees on a 390 px phone; up and down tilts, with limits), eased in a frame or two (40/s), a flick keeps turning a moment (0.12 s), and a **double tap** on the picture brings it round behind you in ~0.3 s. **Camera: Follow behind** (Menu, both worlds, `CameraButton.jsx`, kept on the device `98ish.walkCamera`) also brings it round behind you while you walk away from it (never sideways or toward it, never within 1.6 s of a drag). **Nothing the camera does on its own turns your path**: the stick's frame is the picture's heading when your thumb lands (My Park: including the swing to a wall's open side, `follow.view`), and only your own look (drag, fling, double tap, keys: `turned`, counted between frames too) turns it with the view.
+- **Smooth collisions:** the lens rides with you (no positional lag; the pivot smoothed 20/s, at most 0.25 m behind); walls pull it in on a spring, fast in (22/s) and slow out (3.2/s), never past the wall (roam) or straight to the clear spot if the eased spot is hidden (My Park). The open world tests three rays (the middle and 0.45 m to each side), so it comes in before the picture's edge crosses a wall.
+- **Seeing through buildings up close** (owner: "able to see through buildings if you get up close to the side"): the open world's near plane was **0.35 m** while walls pulled the lens to 0.3 m from them; now 0.08 m whenever a wall is within 0.9 m of the lens (0.3 m in the open, for depth precision far away), with the side rays. My Park: 0.06 m while the lens is pulled in (under 2.6 m), else 0.15 (the court paint far away); its lens keeps 0.12 m + 0.35 m from boxes as before. With a wall right behind you the lens stays this side of it however close (at least 0.12 m) and rises to look down over your shoulder (it used to stop at 0.5 m: inside the wall). Checked at 10 walls in Valencia and at Fashion Island (scratchpad `mv/walls.mjs`: hug each wall with the stick, turn the view all the way round beside it, then stand with your back to it; the lens probe `moveProbe().lens` flags a lens inside a building or a wall within the near plane's corners): 165 of 1,561 frames flagged with the first fix (all with the back to a wall), **1 of 4,035** after.
+- **The stick:** a 12% dead zone (6.7 px of the 56 px reach), the run from 86% of the reach (the knob turns yellow: clear feedback for a run without a button), the ring brighter in My Park (0.5 white with a dark-rimmed knob). It is drawn straight in the page (`data-on`, no React render when it lands or moves) in both worlds. No haptics (Safari has none).
+
+**Measured** (scratchpad `mv/feel.mjs park|roam <tag>`: 390x844 touch, 4x CPU with the GPU flags, real CDP touches on the stick: walk up, a quick 90-degree turn, a 180-degree reversal through the middle, a diagonal, a full circle of the thumb in 3 s, letting go, a pull toward the camera from standing, a light push; ms from the touch event that points the new way to: the walker going 0.5 m/s the new way / the drawn body doing so / the walker facing within 20 degrees / the drawn body facing within 20 degrees. The frame rates differ between runs with the machine's load; at these rates a frame is 30-70 ms, so one frame is the floor.)
+
+My Park (Los Cab's lot), 23.7 fps before / 32.3 after:
+
+| gesture | before | after |
+|---|---|---|
+| start | 30 / 89 / 30 / 30 | 63 / 63 / 24 / 24 |
+| 90 turn | 21 / 21 / 83 / **344** | 40 / 7 / 68 / 68 |
+| 180 reversal | 96 / 175 / 96 / **703** | 60 / 60 / 125 / 125 |
+| diagonal | 54 / 89 / 137 / **557**, camera turned 37 deg | 47 / 47 / 99 / 122, camera still |
+| circle | body off the thumb by **47 deg**, camera turned 99 deg | off by 2 deg, camera still |
+| stop | walker 238 / body **529** | 136 / 160 |
+| toward the camera | 63 / 126 / 16 / 300 | 39 / 39 / 121 / 121 |
+| light push | 54 / 137 / 54 / **610** | 36 / 9 / 117 / 148 |
+
+The open world (Valencia, the Town Center), 14.2 fps before / 24.2 after:
+
+| gesture | before | after |
+|---|---|---|
+| start | 32 / 32 / 32 / 32 | 18 / 18 / 18 / 18 |
+| 90 turn | 45 / 45 / 161 / **459** | 16 / 16 / 55 / 103 |
+| 180 reversal | 94 / 162 / 217 / **806** | 106 / 68 / 142 / 142 |
+| diagonal | 112 / 112 / 211 / **618** | 72 / 72 / 72 / 109 |
+| circle | off by 9 deg, camera turned 13 deg | off by 1 deg, camera still |
+| stop | walker 337 / body 389 | 243 / 243 |
+| toward the camera | 29 / 100 / 100 / **680** | 13 / 13 / 121 / 121 |
+| light push | 12 / 153 / 203 / **693** | 14 / 14 / 118 / 118 |
+
+Targets (under ~100 ms to move, ~200 ms to face at 30 fps): met everywhere but the open world's full-run reversal, which moves the new way at 106 ms (one frame over at 24 fps; 100 ms at 30 fps in Node). Node, exact at 30 fps (`walkfeel.test.js`): start 33 ms, 90 turn moves 33 / faces 100 ms, reversal moves 100 / faces 167 ms, the drawn body (motion matching or procedural) faces a reversal within 167-200 ms. Screenshots: scratchpad `mv/shots/{park,roam}-after-{run,toward}.png`.
+
+**Tests:** `park/walkfeel.test.js` (9: reversal and sideways steering, a stop; a half turn in <= 0.2 s at 30 and 60 fps without overshoot; both walkers' start/90/180/toward-the-camera latencies at 30 fps; the drawn body with motion matching (the shipped database) and procedural keeps up; free never turns, follow only walking away, nothing but your hand turns your path; screen-scaled sensitivity, fling, double tap, recenter, pitch limits; the boom in fast / out slow; the dead zone; riding poses), `park.test.js` follow camera (both modes, a turn by hand), `venues.test.js` (the lens never behind a wall at any venue, with the new spring), `roam.test.js`, `life.test.js` (no Run button, the new push curve).
+
+**Left:** a real-iPhone pass (does the free camera suit him, or does he want Follow behind as the default; is 22 rad/s turning natural with the captured legs; the double tap); the interiors (`roam/life/interior.js`) keep their own camera (the walker and the drawn body are the new ones); a car's steering already reads the stick in the same frame (no change needed).

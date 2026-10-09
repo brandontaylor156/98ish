@@ -29,6 +29,7 @@ import { createFrameClock } from "../../../utils/frameClock.js"
 import { createResolution } from "../../../utils/dynamicResolution.js"
 import { mark as pmark, prof, spent as pspent } from "./park/prof.js"
 import { releaseGpu } from "../../../utils/webglLoss.js"
+import { createDoubleTap } from "./park/walkfeel.js"
 
 const BALL_SCALE = 1.5 // drawn a little bigger than life so it reads on a phone
 const TRAIL_N = 18
@@ -411,6 +412,8 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
   // clearKeys(), refigure(), suspended }); set with api.setWorld
   let world = null
   let worldDrag = null
+  // (My Park: a double tap on the picture brings the camera round behind you; park/walkfeel.js)
+  const worldTap = createDoubleTap()
   let status = "title" // title | playing | paused | over | showcase | world
   let size = { width: 0, height: 0 }
   let raf = 0
@@ -690,8 +693,10 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
 
   const onPointerMove = (e) => {
     if (worldDrag && e.pointerId === worldDrag.id && world) {
-      world.drag(e.clientX - worldDrag.x)
+      // (every point the browser saw this frame is in the last one's position: one call)
+      world.drag(e.clientX - worldDrag.x, e.clientY - worldDrag.y)
       worldDrag.x = e.clientX
+      worldDrag.y = e.clientY
       return
     }
     if (e.pointerType === "touch" || !playing() || humans >= 2) return
@@ -756,7 +761,8 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
     audio.unlock()
     // My Park: a drag on the picture turns the camera round you
     if (world && status === "world") {
-      worldDrag = { id: e.pointerId, x: e.clientX }
+      worldDrag = { id: e.pointerId, x: e.clientX, y: e.clientY }
+      if (worldTap(e.clientX, e.clientY, performance.now())) world.recenter?.()
       return
     }
     if (replay) return endReplay()
@@ -773,7 +779,10 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
     }
   }
   const onPointerUp = (e) => {
-    if (worldDrag && e.pointerId === worldDrag.id) worldDrag = null
+    if (worldDrag && e.pointerId === worldDrag.id) {
+      worldDrag = null
+      world?.dragEnd?.()
+    }
     if (e.pointerType === "touch") return
     if (e.button === 0 || e.type === "pointercancel") shotUp(0, "mouse")
   }

@@ -45,6 +45,8 @@ const SplatPanel = React.lazy(() => import("./park/splat/SplatPanel"))
 const nextPaint = () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))
 import { ParkHud, ParkIntro, ParkMenu, ParkResult, ParkTurn, RealFriendsBar, VoiceChip } from "./park/ParkHud"
 import { useParkVoice } from "./park/useParkVoice.js"
+import { STICK } from "./park/walkfeel.js"
+import { CameraButton } from "./park/CameraButton.jsx"
 import { createChillMusic } from "./park/chillmusic.js"
 import { badgeText, friendsAt } from "./park/presence.js"
 import { useLiveCourt } from "./twin/live/useLiveCourt.js"
@@ -275,7 +277,9 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
   const layerRef = useRef(null)
   const [dialog, setDialog] = useState(null)
   const [editing, setEditing] = useState(false)
-  const [stickUi, setStickUi] = useState(null)
+  // (the floating stick is drawn straight in the page: shown, placed and hidden from the pointer
+  // handlers, no React render on the thumb's landing: park/walkfeel.js)
+  const hintRef = useRef(null)
   const [zoneHint, setZoneHint] = useState(null)
   const [toast, setToast] = useState(null)
   const [coop, setCoop] = useState(null) // drilling with a friend: the latest report (practice/coop.js)
@@ -1578,7 +1582,16 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
       // follows the thumb if it slides past the ring, so it never runs out of reach)
       const park = phaseRef.current === "world"
       stick.current = { id: e.pointerId, x0: e.clientX, y0: e.clientY, park, left: r.left, top: r.top }
-      setStickUi({ x: e.clientX - r.left, y: e.clientY - r.top, park })
+      const el = stickBase.current
+      if (el) {
+        el.classList.toggle("pkStick--park", park)
+        el.classList.remove("is-run")
+        el.style.left = `${e.clientX - r.left}px`
+        el.style.top = `${e.clientY - r.top}px`
+        el.dataset.on = "1"
+      }
+      if (knobRef.current) knobRef.current.style.transform = "translate(0px, 0px)"
+      if (hintRef.current) hintRef.current.dataset.off = "1"
     }
     const move = (e) => {
       const sw = swipeTouch.current
@@ -1606,7 +1619,15 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
       let dy = e.clientY - s.y0
       const d = Math.hypot(dx, dy)
       // (My Park: a slightly longer throw, for finer walking speeds)
-      const Rr = s.park ? 56 : R
+      const Rr = s.park ? STICK.R : R
+      // (a run: the knob lights up, so you can tell a run from a jog by feel and by eye)
+      if (s.park && stickBase.current) {
+        const run = d >= Rr * STICK.RUN
+        if (run !== !!s.run) {
+          s.run = run
+          stickBase.current.classList.toggle("is-run", run)
+        }
+      }
       if (d > Rr) {
         dx = (dx / d) * Rr
         dy = (dy / d) * Rr
@@ -1650,7 +1671,8 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
       if (!stick.current || stick.current.id !== e.pointerId) return
       stick.current = null
       engineRef.current?.setStick(0, 0)
-      setStickUi(null)
+      if (stickBase.current) delete stickBase.current.dataset.on
+      if (hintRef.current) delete hintRef.current.dataset.off
     }
     stage.addEventListener("pointerdown", down, true)
     stage.addEventListener("pointermove", move, true)
@@ -2130,6 +2152,7 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
               startPark(from)
             }}
             onLeave={() => leaveRoam()}
+            camera={<CameraButton world={roamWorld} className="roamBtn roamWide" />}
             onClose={() => (setRoamUi((u) => ({ ...u, menu: false })), stageRef.current?.focus({ preventScroll: true }))}
           />
         )}
@@ -2154,6 +2177,7 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
             venueName={parkWorld?.layout?.name || "My Park"}
             onVenues={() => (setParkUi((u) => ({ ...u, menu: false })), setParkPick(true))}
             onLeave={leavePark}
+            camera={<CameraButton world={parkRef.current} />}
             onBackdrop={prefs.quality === "low" ? null : () => setParkUi((u) => ({ ...u, menu: false, backdrop: true }))}
             onClone={() => (setParkUi((u) => ({ ...u, menu: false })), setLivingUi((u) => ({ ...u, panel: true })))}
             onTourneys={tourneyState.status === "off" ? null : () => setParkUi((u) => ({ ...u, menu: false, tourney: true }))}
@@ -2389,14 +2413,14 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
           </div>
         )}
 
-        {showPad && stickUi && (
-          <div className={`pkStick${stickUi.park ? " pkStick--park" : ""}`} ref={stickBase} style={{ left: stickUi.x, top: stickUi.y }} aria-hidden="true">
+        {showPad && (
+          <div className="pkStick pkStick--live" ref={stickBase} aria-hidden="true">
             <div className="pkKnob" ref={knobRef} />
           </div>
         )}
         {/* (My Park: no stick drawn until a thumb lands; matches show where the pad is) */}
-        {showPad && !stickUi && zoneHint && phase === "playing" && !editing && (
-          <div className="pkStick pkStick--hint" style={{ left: zoneHint.x, top: zoneHint.y }} aria-hidden="true">
+        {showPad && zoneHint && phase === "playing" && !editing && (
+          <div className="pkStick pkStick--hint" ref={hintRef} style={{ left: zoneHint.x, top: zoneHint.y }} aria-hidden="true">
             <div className="pkKnob" />
           </div>
         )}
