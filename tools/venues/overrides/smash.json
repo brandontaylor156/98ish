@@ -11,7 +11,7 @@
   -118.38807
  ],
  "crop": 50,
- "spawn": {"_src": "by the pickleball courts, facing them (the owner, 2026-10-09: \"spawn to the area where the pickleball courts are\")", "en": [14.1, -5.8], "deg": 201.6},
+ "spawn": {"_src": "by the pickleball courts, facing them (the owner, 2026-10-09: \"spawn to the area where the pickleball courts are\"); the old arrival: by the pickleball courts, facing them (the owner, 2026-10-09: \"spawn to the area where the pickleball courts are\"); the old arrival: by the pickleball courts, facing them (the owner, 2026-10-09: \"spawn to the area where the pickleball courts are\")", "en": [14.5, -6.6], "deg": 204.5},
  "courts": {
   "osm": false,
   "add": [
@@ -201,11 +201,12 @@
     {
      "t": "desk",
      "en": [
-      29.5,
+      24.8,
       -9.2
      ],
      "face": 180,
-     "c": "#f2f2f0"
+     "c": "#f2f2f0",
+     "_why": "off the line from the front doors to the bar (2026-10-09: \"inside there is another obstacle to get in\"); its spot is a GUESS"
     },
     {
      "t": "vending",
@@ -219,7 +220,7 @@
     {
      "t": "tv",
      "en": [
-      29.5,
+      32.4,
       -6.15
      ],
      "face": 180,
@@ -508,17 +509,19 @@
      "t": "pingpong",
      "en": [
       21.5,
-      -1.5
+      2.1
      ],
-     "face": 90
+     "face": 90,
+     "_why": "moved north, clear of the walk from the lobby to the courts past the stair (2026-10-09); spots are GUESSES"
     },
     {
      "t": "pingpong",
      "en": [
       21.5,
-      3.6
+      6.5
      ],
-     "face": 90
+     "face": 90,
+     "_why": "moved north, clear of the walk from the lobby to the courts past the stair (2026-10-09); spots are GUESSES"
     },
     {
      "t": "table",
@@ -842,7 +845,11 @@
    "d": 5.5,
    "h": 0.9,
    "color": "#b78a52",
-   "frames": "#e8602a"
+   "frames": "#e8602a",
+   "steps": [
+    "east"
+   ],
+   "_steps": "reference pack: \"steps down to court level at both ends and mid-way\"; the bar opens onto it (the tour). Only the east end fits: the west end meets the hall wall, the sides meet the courts' dividers"
   },
   {
    "type": "mural",
@@ -910,25 +917,6 @@
   }
  ],
  "props": [
-  {
-   "t": "planter",
-   "line": {
-    "from": {
-     "en": [
-      -30,
-      -18.4
-     ]
-    },
-    "to": {
-     "en": [
-      20,
-      -18.4
-     ]
-    },
-    "every": 5
-   },
-   "face": 0
-  },
   {
    "t": "plant",
    "en": [

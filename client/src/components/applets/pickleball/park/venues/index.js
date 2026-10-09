@@ -104,7 +104,7 @@ export const VENUE_LIST = [
     "courts": 9,
     "tennis": 0,
     "live": 6,
-    "kb": 44
+    "kb": 44.1
   },
   {
     "id": "bouquet",

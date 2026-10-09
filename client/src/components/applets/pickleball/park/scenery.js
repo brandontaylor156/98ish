@@ -12,6 +12,7 @@ import { addProps, propMaterials } from "./props.js"
 import { FINISH, roomRect } from "./propkit.js"
 import { surfaced } from "./surfaces.js"
 import { cleanZone, curbTufts, hillScatter, keepTree } from "./clean.js"
+import { spineParts } from "./spine.js"
 import { buildBushes, buildCars, buildDecals, buildGlow, buildLotDetail, buildTrees, buildTufts, canvasTex, normalFor, windscreenTex, planDecals, setDetailEnv, skyEnvironment, windowMaps } from "./detail.js"
 import { dimEnvironment, loadHDRI, swapEnvironment } from "./environment.js"
 import { COVER, paintSurroundGround, powerLineGeometry, railBridgeGeometry, roadBridgeGeometry, surroundBuildingsGeometry, terrainSampler } from "./surround.js"
@@ -1465,6 +1466,8 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
     return barsMat
   }
   for (const d of S.decks || []) {
+    // (a lounge walkway's floor: the spine draws itself, below)
+    if (d.drawnBy) continue
     if (d.fascia) {
       // a wood deck on posts (Los Cab): planks, a brown fascia round its edge, posts under it
       const slab = new THREE.Mesh(flat(d.p, d.y), surfaced(std(hex(d.color, 0x9b7653), { roughness: 0.75 }), "deck"))
@@ -2373,12 +2376,12 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
         rail.rotation.y = ry
         group.add(rail)
       }
+      // cream sofas (spine.js: along the railings when you can walk on it, clear of its steps)
       const sofaMat = lambert(0xe8d3ad)
-      for (let u = -w / 2 + 3; u < w / 2 - 2; u += 7) {
-        const [px, pz] = at(u, 0)
+      for (const sf of spineParts(x).sofas) {
         const sofa = new THREE.Mesh(keep(new THREE.BoxGeometry(2, 0.7, 0.9)), sofaMat)
-        sofa.position.set(px, h + 0.35, pz)
-        sofa.rotation.y = ry
+        sofa.position.set(sf.x, h + 0.35, sf.z)
+        sofa.rotation.y = sf.yaw
         group.add(sofa)
       }
     } else if (x.type === "solar") {

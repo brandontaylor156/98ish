@@ -903,3 +903,90 @@ test("arrival: by the pickleball courts and facing them at every venue", () => {
     assert.ok(t.open && t.pulled < 0.7, `${id}: the camera behind the arrival is clear`)
   }
 })
+
+// the owner (2026-10-09), SMASH: "there are couches in front of the entrance. Inside there is
+// another obstacle to get in." From the arrival (and from outside a hall's front doors) there
+// is a clear way at least 0.9 m wide to every live court and every ground-floor door (the last
+// 2.5 m excepted: a gate is narrower than that by itself; doors 1.4 m wide and up: the ways
+// in, not a sauna's or a restroom's).
+test("clear ways in: from the arrival and the front doors to every live court and door, 0.9 m wide", () => {
+  const G = 0.5
+  const R = [0.35, 0.45]
+  const widest = (L, start, targets) => {
+    const xs = [start.x, ...targets.map((t) => t.x)]
+    const zs = [start.z, ...targets.map((t) => t.z)]
+    const x0 = Math.min(...xs) - 10
+    const z0 = Math.min(...zs) - 10
+    const nx = Math.ceil((Math.max(...xs) + 10 - x0) / G)
+    const nz = Math.ceil((Math.max(...zs) + 10 - z0) / G)
+    // (per cell: how many of R's radii fit there, 0-2)
+    const cl = new Int8Array(nx * nz)
+    for (let j = 0; j < nz; j++)
+      for (let i = 0; i < nx; i++) {
+        const x = x0 + i * G
+        const z = z0 + j * G
+        let r = 0
+        if ((L.heightAt(x, z, 0) ?? 1) === 0)
+          for (const q of R)
+            if (!L.blocked(x, z, q)) r++
+            else break
+        cl[j * nx + i] = r
+      }
+    // the widest way from the start: a fill at the wide level, then the narrow one
+    const best = new Int8Array(nx * nz)
+    const idx = (x, z) => Math.round((z - z0) / G) * nx + Math.round((x - x0) / G)
+    const s0 = idx(start.x, start.z)
+    best[s0] = Math.max(1, cl[s0])
+    for (const lv of [2, 1]) {
+      const q = []
+      for (let k = 0; k < best.length; k++) if (best[k] >= lv) q.push(k)
+      while (q.length) {
+        const c = q.pop()
+        const i = c % nx
+        const j = (c / nx) | 0
+        for (const [a, b] of [[i + 1, j], [i - 1, j], [i, j + 1], [i, j - 1]]) {
+          if (a < 0 || b < 0 || a >= nx || b >= nz) continue
+          const n = b * nx + a
+          if (cl[n] >= lv && best[n] < lv) {
+            best[n] = lv
+            q.push(n)
+          }
+        }
+      }
+    }
+    // -> the widest radius that gets within `ring` m of t (0 if none)
+    return (t, ring) => {
+      let b = 0
+      for (let dz = -ring; dz <= ring; dz += G) for (let dx = -ring; dx <= ring; dx += G) if (Math.hypot(dx, dz) <= ring) b = Math.max(b, best[idx(t.x + dx, t.z + dz)] ?? 0)
+      return b ? R[b - 1] : 0
+    }
+  }
+  for (const id of IDS) {
+    const { g, L } = get(id)
+    setLayout(L)
+    const S = g.layoutSpec.scene
+    const targets = [...L.COURTS.map((c) => ({ name: c.name, ...c.outside })), ...(S.doors || []).filter((d) => !d.y && d.kind !== "closed" && (d.w || 1.8) >= 1.4 && Number.isFinite(d.x) && Number.isFinite(d.z)).map((d) => ({ name: `the ${d.kind} door at ${d.x}, ${d.z}`, x: d.x, z: d.z }))]
+    const starts = [{ name: "the arrival", ...L.SPAWN }]
+    // (a hall's front doors, from just outside)
+    for (const h of S.halls || []) {
+      if (!h.door) continue
+      const [dx, dz] = h.door
+      const inside = (x, z) => {
+        let c = false
+        for (let i = 0, j = h.p.length - 1; i < h.p.length; j = i++) if (h.p[i][1] > z !== h.p[j][1] > z && x < ((h.p[j][0] - h.p[i][0]) * (z - h.p[i][1])) / (h.p[j][1] - h.p[i][1]) + h.p[i][0]) c = !c
+        return c
+      }
+      // (straight out of the wall the door is in)
+      const out = [[1, 0], [-1, 0], [0, 1], [0, -1]].map(([ox, oz]) => ({ x: dx + ox * 2.5, z: dz + oz * 2.5 })).find((p) => !inside(p.x, p.z) && !L.blocked(p.x, p.z, 0.35))
+      if (out) starts.push({ name: "outside the front doors", ...out })
+    }
+    for (const st of starts) {
+      assert.ok(!L.blocked(st.x, st.z, 0.35), `${id}: ${st.name} is open`)
+      const reach = widest(L, st, targets)
+      for (const t of targets) {
+        assert.ok(reach(t, 1.25) >= 0.35, `${id}: ${t.name} can't be reached from ${st.name}`)
+        assert.ok(reach(t, 2.5) >= 0.45, `${id}: the way from ${st.name} to ${t.name} squeezes under 0.9 m`)
+      }
+    }
+  }
+})

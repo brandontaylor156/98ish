@@ -17,6 +17,7 @@ import { HALF_L, HALF_W } from "../physics.js"
 import { makeLayout } from "./layout.js"
 import { ROOM_LOOK, furnishRoom, propSolid } from "./propkit.js"
 import { cleanZone, keepTree } from "./clean.js"
+import { spineParts } from "./spine.js"
 
 const DEG = Math.PI / 180
 const SIZES = { p: { L: 2 * HALF_L, W: 2 * HALF_W }, t: { L: 23.77, W: 10.97 }, b: { L: 28, W: 15 } }
@@ -348,7 +349,11 @@ export const generateVenue = (spec, opts = {}) => {
   }
   // ---------- floors above the ground: decks (a rooftop terrace, a mezzanine) and stairs ----------
   // (layout.js: a body's height decides what's solid for it; the walker climbs the stairs)
-  const stairs = (spec.stairs || []).map((s) => {
+  // (a raised lounge walkway with steps, spine.js: a deck you walk on, its steps)
+  const spines = (spec.extras || []).filter((x) => x.type === "spine" && x.steps?.length).map((x) => ({ x, parts: spineParts(x) }))
+  const spineStairs = spines.flatMap(({ x, parts }) => parts.stairs.map((st) => ({ a: st.a, b: st.b, w: st.w, y0: st.y0, y1: st.y1, color: x.color || null, rail: x.frames || null })))
+  const spineDecks = spines.map(({ x, parts }) => ({ y: parts.h, p: parts.deck, name: x.name || "Lounge walkway", drawnBy: "spine", openings: parts.stairs.map((st) => [st.b[0], st.b[1], (x.d || 5) + 0.4]) }))
+  const stairs = [...(spec.stairs || []), ...spineStairs].map((s) => {
     const a = { x: s.a[0], z: s.a[1] }
     const b = { x: s.b[0], z: s.b[1] }
     const L = len(sub(b, a)) || 1
@@ -365,7 +370,7 @@ export const generateVenue = (spec, opts = {}) => {
     extraBoxes.push({ cx: round(under.x), cz: round(under.z), hx: round(L * 0.325), hz: round(w / 2), ux: u.x, uz: u.z, h: round(y0 + (y1 - y0) * 0.35), kind: "stairs" })
     return { a, b, w, y0, y1, color: s.color || null, rail: s.rail || null, ...(s.open ? { open: true } : {}) }
   })
-  const decks = (spec.decks || []).map((d) => {
+  const decks = [...(spec.decks || []), ...spineDecks].map((d) => {
     const p = d.p
     // (an upstairs room's doors onto this deck: Los Cab's ballroom opens onto its balcony; the
     // railing round the balcony had run across both glass doors, so nobody could go in)
@@ -382,7 +387,7 @@ export const generateVenue = (spec, opts = {}) => {
       const zs = p.map((q) => q[1])
       extraBoxes.push({ cx: round((Math.min(...xs) + Math.max(...xs)) / 2), cz: round((Math.min(...zs) + Math.max(...zs)) / 2), hx: round((Math.max(...xs) - Math.min(...xs)) / 2), hz: round((Math.max(...zs) - Math.min(...zs)) / 2), ux: 1, uz: 0, y0: round(d.y - 0.3), h: d.y, kind: "deck" })
     }
-    return { y: d.y, p, name: d.name || null, rail: d.rail !== false, railColor: d.railColor || null, slab: !!d.slab, color: d.color || null, openings: deckOpenings, ...(d.fascia ? { fascia: d.fascia, railStyle: d.railStyle || null, postColor: d.postColor || null, postEvery: d.postEvery || null } : {}) }
+    return { y: d.y, p, name: d.name || null, rail: d.rail !== false, railColor: d.railColor || null, slab: !!d.slab, color: d.color || null, openings: deckOpenings, ...(d.drawnBy ? { drawnBy: d.drawnBy } : {}), ...(d.fascia ? { fascia: d.fascia, railStyle: d.railStyle || null, postColor: d.postColor || null, postEvery: d.postEvery || null } : {}) }
   })
   // props: the rooms' furniture and the venue's own (outdoors), solid ones bumped into
   const venueProps = (spec.props || []).filter((pr) => pr && pr.t)
@@ -457,7 +462,14 @@ export const generateVenue = (spec, opts = {}) => {
     const u = { x: Math.cos(a), z: Math.sin(a) }
     if (x.type === "stands") extraBoxes.push({ cx: x.x, cz: x.z, hx: (x.w || 10) / 2, hz: ((x.rows || 4) * 0.8) / 2 + 0.2, ux: u.x, uz: u.z, h: (x.rows || 4) * 0.45 + 0.4, kind: "stands" })
     else if (x.type === "tower" && !x.base) extraBoxes.push({ cx: x.x, cz: x.z, hx: (x.w || 5) / 2, hz: (x.w || 5) / 2, ux: 1, uz: 0, h: x.h || 14, kind: "tower" })
-    else if (x.type === "spine") extraBoxes.push({ cx: x.x, cz: x.z, hx: (x.w || 20) / 2, hz: (x.d || 5) / 2, ux: u.x, uz: u.z, h: (x.h || 1) + 1.1, kind: "spine" })
+    else if (x.type === "spine" && x.steps?.length) {
+      // walkable: solid below its floor (for the people on the ground), its sofas and frame
+      // posts solid for the people on it
+      const parts = spineParts(x)
+      extraBoxes.push({ cx: x.x, cz: x.z, hx: parts.w / 2, hz: parts.d / 2, ux: u.x, uz: u.z, h: parts.h, kind: "spine" })
+      for (const sf of parts.sofas) extraBoxes.push({ cx: sf.x, cz: sf.z, hx: 1.05, hz: 0.47, ux: u.x, uz: u.z, y0: parts.h, h: parts.h + 0.85, kind: "prop" })
+      for (const [px, pz] of parts.posts) extraCircles.push({ x: px, z: pz, r: 0.12 })
+    } else if (x.type === "spine") extraBoxes.push({ cx: x.x, cz: x.z, hx: (x.w || 20) / 2, hz: (x.d || 5) / 2, ux: u.x, uz: u.z, h: (x.h || 1) + 1.1, kind: "spine" })
     else if (x.type === "gazebo") extraCircles.push({ x: x.x, z: x.z, r: 0.25 })
     else if (x.type === "pergola" && x.poly) {
       // (its posts, as scenery.js stands them: one every 3.5 m at most round the edge)
