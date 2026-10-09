@@ -68,19 +68,119 @@ const detailTexture = () => {
   return t
 }
 
+// the ground's wear (a tileable 512 px picture, ~40 m across): R asphalt cracks and sealed
+// patches (dark), G the hills' scrub (dark clumps of chaparral and sage on the golden grass),
+// B worn, sun-bleached blotches. Painted once in the browser; neutral elsewhere.
+export const wearTexture = () => {
+  const n = 512
+  const make = () => (typeof OffscreenCanvas !== "undefined" ? new OffscreenCanvas(n, n) : typeof document !== "undefined" ? Object.assign(document.createElement("canvas"), { width: n, height: n }) : null)
+  const cv = make()
+  const g = cv?.getContext("2d")
+  let data
+  if (!g) data = new Uint8Array(n * n * 4).fill(255)
+  else {
+    let seed = 99
+    const rand = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646
+    const layer = (draw) => {
+      g.fillStyle = "#fff"
+      g.fillRect(0, 0, n, n)
+      // (drawn nine times round the middle, so the picture tiles)
+      for (const dx of [-n, 0, n])
+        for (const dy of [-n, 0, n]) {
+          g.save()
+          g.translate(dx, dy)
+          seed = 99
+          draw()
+          g.restore()
+        }
+      return g.getImageData(0, 0, n, n).data
+    }
+    const cracks = layer(() => {
+      // sealed patches (dark rectangles with soft edges), then cracks: wandering lines that branch
+      for (let i = 0; i < 7; i++) {
+        g.fillStyle = `rgba(0,0,0,${0.1 + rand() * 0.12})`
+        g.fillRect(rand() * n, rand() * n, 20 + rand() * 90, 12 + rand() * 50)
+      }
+      g.lineCap = "round"
+      for (let i = 0; i < 26; i++) {
+        let x = rand() * n
+        let y = rand() * n
+        let a = rand() * Math.PI * 2
+        const steps = 10 + Math.floor(rand() * 40)
+        g.strokeStyle = `rgba(0,0,0,${0.45 + rand() * 0.35})`
+        g.lineWidth = 0.8 + rand() * 1.4
+        g.beginPath()
+        g.moveTo(x, y)
+        for (let s = 0; s < steps; s++) {
+          a += (rand() - 0.5) * 0.9
+          x += Math.cos(a) * 6
+          y += Math.sin(a) * 6
+          g.lineTo(x, y)
+          if (rand() < 0.08) {
+            // (a branch: a short spur)
+            const b = a + (rand() < 0.5 ? 1 : -1) * (0.6 + rand())
+            g.moveTo(x, y)
+            g.lineTo(x + Math.cos(b) * 14, y + Math.sin(b) * 14)
+            g.moveTo(x, y)
+          }
+        }
+        g.stroke()
+      }
+    })
+    const scrub = layer(() => {
+      // clumps: dark rounded bushes in drifts
+      for (let i = 0; i < 900; i++) {
+        const cx = rand() * n
+        const cy = rand() * n
+        const r = 2 + rand() * 7
+        g.fillStyle = `rgba(0,0,0,${0.35 + rand() * 0.5})`
+        g.beginPath()
+        g.ellipse(cx, cy, r, r * (0.6 + rand() * 0.4), rand() * 3, 0, Math.PI * 2)
+        g.fill()
+      }
+    })
+    const worn = layer(() => {
+      g.filter = "blur(8px)"
+      for (let i = 0; i < 40; i++) {
+        g.fillStyle = `rgba(0,0,0,${0.15 + rand() * 0.25})`
+        g.beginPath()
+        g.ellipse(rand() * n, rand() * n, 10 + rand() * 40, 8 + rand() * 30, rand() * 3, 0, Math.PI * 2)
+        g.fill()
+      }
+      g.filter = "none"
+    })
+    data = new Uint8Array(n * n * 4)
+    for (let i = 0; i < n * n; i++) {
+      data[i * 4] = cracks[i * 4]
+      data[i * 4 + 1] = scrub[i * 4]
+      data[i * 4 + 2] = worn[i * 4]
+      data[i * 4 + 3] = 255
+    }
+  }
+  const t = new THREE.DataTexture(data, n, n, THREE.RGBAFormat)
+  t.wrapS = t.wrapT = THREE.RepeatWrapping
+  t.magFilter = THREE.LinearFilter
+  t.minFilter = THREE.LinearMipmapLinearFilter
+  t.generateMipmaps = true
+  t.needsUpdate = true
+  return t
+}
+
 const WORLD_VARY = /* glsl */ `
 varying vec3 vRoamW;`
 
 // the ground: grass, asphalt or concrete detail picked per pixel from the painted colour (like
 // the venues' "ground" surface), a slow second sample against tiling, lawns a little uneven
-const groundShader = (detail) => (sh) => {
+const groundShader = (detail, wear) => (sh) => {
   sh.uniforms.detailMap = { value: detail }
+  sh.uniforms.wearMap = { value: wear }
   sh.uniforms.surfGrass = surf.grass
   sh.uniforms.surfAsphalt = surf.asphalt
   sh.uniforms.surfConcrete = surf.concrete
   sh.vertexShader = sh.vertexShader.replace("#include <common>", `#include <common>${WORLD_VARY}`).replace("#include <worldpos_vertex>", "#include <worldpos_vertex>\nvRoamW = (modelMatrix * vec4(transformed, 1.0)).xyz;")
   sh.fragmentShader = sh.fragmentShader.replace("#include <common>", `#include <common>${WORLD_VARY}
 uniform sampler2D detailMap;
+uniform sampler2D wearMap;
 uniform sampler2D surfGrass;
 uniform sampler2D surfAsphalt;
 uniform sampler2D surfConcrete;`).replace(
@@ -105,6 +205,24 @@ uniform sampler2D surfConcrete;`).replace(
     diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(1.08, 1.0, 0.82), green * smoothstep(0.55, 0.75, big) * 0.6);
     float roamD = texture2D(detailMap, xz * 0.31).r;
     diffuseColor.rgb *= mix(1.0, 0.9 + 0.2 * roamD, 1.0 - far * 0.7);
+    // asphalt up close: cracks and sealed patches, sun-bleached worn blotches
+    float dist = distance(vRoamW, cameraPosition);
+    float nearK = 1.0 - smoothstep(20.0, 80.0, dist);
+    vec4 wr = texture2D(wearMap, xz * 0.025);
+    diffuseColor.rgb *= mix(1.0, wr.r, dark * nearK * 0.85);
+    diffuseColor.rgb *= 1.0 + (1.0 - wr.b) * 0.22 * dark * far;
+    // the golden hills (and dry ground, washes): drifts of dark scrub, seen from afar too
+    float tanK = smoothstep(0.12, 0.18, paint.r - paint.b) * (1.0 - green) * (1.0 - dark) * (1.0 - smoothstep(0.42, 0.52, lum));
+    float sc = (1.0 - texture2D(wearMap, xz * 0.055).g) * 0.75 + (1.0 - texture2D(wearMap, xz * 0.0137 + 0.31).g) * 0.6;
+    // (up close the drifts fade: they read as bushes from afar, as flat spots underfoot)
+    float scK = smoothstep(25.0, 90.0, dist);
+    diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.05, 0.058, 0.024), clamp(sc, 0.0, 1.0) * tanK * mix(0.12, 0.6, scK));
+    // pale paving (plazas, sidewalks, aprons): its joints, a slab every 1.8 m, up close
+    float pale = smoothstep(0.2, 0.3, lum) * (1.0 - green) * (1.0 - tanK);
+    vec2 jg = abs(fract(xz / 1.8 + 0.5) - 0.5) * 1.8;
+    vec2 jw = fwidth(xz) * 0.8 + 0.015;
+    float joint = max(1.0 - smoothstep(jw.x, jw.x * 2.0, jg.x), 1.0 - smoothstep(jw.y, jw.y * 2.0, jg.y));
+    diffuseColor.rgb *= 1.0 - joint * pale * nearK * 0.18;
   }`
   )
 }
@@ -121,12 +239,15 @@ const buildingShader = (sh) => {
   sh.vertexShader = sh.vertexShader
     .replace("#include <common>", `#include <common>${WORLD_VARY}
 attribute vec4 win;
-varying vec4 vWin;`)
-    .replace("#include <begin_vertex>", "#include <begin_vertex>\nvWin = win;")
+attribute float wtop;
+varying vec4 vWin;
+varying float vTop;`)
+    .replace("#include <begin_vertex>", "#include <begin_vertex>\nvWin = win;\nvTop = wtop;")
     .replace("#include <worldpos_vertex>", "#include <worldpos_vertex>\nvRoamW = (modelMatrix * vec4(transformed, 1.0)).xyz;")
   sh.fragmentShader = sh.fragmentShader
     .replace("#include <common>", `#include <common>${WORLD_VARY}
 varying vec4 vWin;
+varying float vTop;
 uniform sampler2D surfStucco;
 uniform sampler2D surfConcrete;
 uniform sampler2D surfRoof;
@@ -162,6 +283,27 @@ float roamBox(vec2 f, vec4 b, vec2 aa) {
     diffuseColor.rgb *= 1.0 + ((d.g - 0.5) * 0.5 + (d.b - 0.5) * 0.7) * far;
     // tilt-up panels: a joint every 9 m
     if (sk > 0.5 && sk < 1.5) diffuseColor.rgb *= 1.0 - 0.25 * (1.0 - smoothstep(0.0, 0.06, abs(fract(vWin.x / 9.0 + 0.5) - 0.5) * 9.0)) * far;
+    // the walls of shops, offices and works: a darker base at the foot, a parapet's coping at
+    // the top with its shadow line, and on blank walls two reveal lines under it (so a big wall
+    // isn't a flat grey slab)
+    {
+      float st0 = floor(vWin.z + 0.001);
+      if (vTop > 2.0 && (st0 < 0.5 || st0 > 1.5)) {
+        float y = vWin.y;
+        float ay = max(fwidth(y), 0.01);
+        float base = 1.0 - smoothstep(0.45 - ay, 0.45 + ay, y);
+        diffuseColor.rgb *= 1.0 - 0.24 * base;
+        float cap = smoothstep(vTop - 0.5 - ay, vTop - 0.5 + ay, y);
+        diffuseColor.rgb = mix(diffuseColor.rgb, min(vec3(1.0), diffuseColor.rgb * 1.12 + 0.025), cap);
+        float shade = smoothstep(vTop - 0.68 - ay, vTop - 0.68 + ay, y) * (1.0 - smoothstep(vTop - 0.5 - ay, vTop - 0.5 + ay, y));
+        diffuseColor.rgb *= 1.0 - 0.38 * shade;
+        if (st0 < 0.5 && vTop > 5.0) {
+          float r1 = 1.0 - smoothstep(0.03, 0.03 + ay * 1.5, abs(y - (vTop - 1.6)));
+          float r2 = 1.0 - smoothstep(0.03, 0.03 + ay * 1.5, abs(y - (vTop - 2.1)));
+          diffuseColor.rgb *= 1.0 - 0.3 * max(r1, r2) * far;
+        }
+      }
+    }
     float style = floor(vWin.z + 0.001);
     float hv = fract(vWin.z + 0.001);
     if (style > 0.5) {
@@ -197,9 +339,16 @@ float roamBox(vec2 f, vec4 b, vec2 aa) {
           // (a door now and then: a taller pane)
           roamGlass = glass * (1.0 - mull) * step(0.12, roamH(floor(vec2(p.x / 9.0, hv * 7.0))));
           frame = glass * mull * 0.6 + (1.0 - smoothstep(0.3, 0.36, p.y)) * 0.4;
-          // the fascia (a darker band above the glass)
+          // the fascia (a darker band above the glass) and the shops' sign panels on it (blank:
+          // no names; a light or a dark panel over most bays)
           float fas = smoothstep(3.1, 3.1 + aa.y, p.y) * (1.0 - smoothstep(4.0, 4.0 + aa.y, p.y));
           diffuseColor.rgb *= 1.0 - 0.28 * fas;
+          float bay = floor(p.x / 9.0);
+          float bx = p.x - bay * 9.0;
+          float sh = roamH(vec2(bay, hv * 13.0));
+          float sign = roamBox(vec2(bx, p.y), vec4(1.6, 7.4, 3.25, 3.88), aa) * step(0.3, sh);
+          vec3 signC = sh > 0.65 ? vec3(0.16, 0.17, 0.19) : vec3(0.93, 0.92, 0.88);
+          diffuseColor.rgb = mix(diffuseColor.rgb, signC, sign * (far * 0.7 + 0.3));
           frameC = vec3(0.24, 0.25, 0.26);
         } else {
           cell = vec2(3.0, 3.4);
@@ -287,23 +436,26 @@ float roamBox(vec2 f, vec4 b, vec2 aa) {
 export const materials = () => {
   if (shared) return shared
   const detail = detailTexture()
+  const wear = wearTexture()
   const groundProto = (map) => {
     const m = new THREE.MeshLambertMaterial({ map })
-    m.onBeforeCompile = groundShader(detail)
-    m.customProgramCacheKey = () => "roam-ground-2"
+    m.onBeforeCompile = groundShader(detail, wear)
+    m.customProgramCacheKey = () => "roam-ground-3"
     return m
   }
   const building = new THREE.MeshLambertMaterial({ vertexColors: true })
   building.onBeforeCompile = buildingShader
-  building.customProgramCacheKey = () => "roam-buildings-2"
+  building.customProgramCacheKey = () => "roam-buildings-3"
   const roads = new THREE.MeshLambertMaterial({ vertexColors: true, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 })
   roads.onBeforeCompile = (sh) => {
     sh.uniforms.detailMap = { value: detail }
+    sh.uniforms.wearMap = { value: wear }
     sh.uniforms.surfAsphalt = surf.asphalt
     sh.uniforms.surfConcrete = surf.concrete
     sh.vertexShader = sh.vertexShader.replace("#include <common>", `#include <common>${WORLD_VARY}`).replace("#include <worldpos_vertex>", "#include <worldpos_vertex>\nvRoamW = (modelMatrix * vec4(transformed, 1.0)).xyz;")
     sh.fragmentShader = sh.fragmentShader.replace("#include <common>", `#include <common>${WORLD_VARY}
 uniform sampler2D detailMap;
+uniform sampler2D wearMap;
 uniform sampler2D surfAsphalt;
 uniform sampler2D surfConcrete;`).replace(
       "#include <color_fragment>",
@@ -318,12 +470,17 @@ uniform sampler2D surfConcrete;`).replace(
     float big = texture2D(detailMap, xz * 0.021).r;
     diffuseColor.rgb *= 0.9 + 0.2 * big;
     diffuseColor.rgb *= mix(1.0, 0.92 + 0.16 * texture2D(detailMap, xz * 0.5).r, 1.0 - far * 0.6);
+    // (asphalt: cracks and sealed patches up close)
+    float nearK = 1.0 - smoothstep(20.0, 80.0, distance(vRoamW, cameraPosition));
+    vec4 wr = texture2D(wearMap, xz * 0.025 + 0.5);
+    diffuseColor.rgb *= mix(1.0, wr.r, step(lum, 0.32) * nearK * 0.8);
   }`
     )
   }
-  roads.customProgramCacheKey = () => "roam-roads-2"
+  roads.customProgramCacheKey = () => "roam-roads-3"
   shared = {
     detail,
+    wear,
     surfVersion: 0,
     ground: groundProto,
     building,
@@ -336,6 +493,7 @@ uniform sampler2D surfConcrete;`).replace(
 export const disposeMaterials = () => {
   if (!shared) return
   shared.detail.dispose()
+  shared.wear.dispose()
   shared.building.dispose()
   shared.lines.dispose()
   shared.roads.dispose()
@@ -344,9 +502,10 @@ export const disposeMaterials = () => {
   shared = null
 }
 
-const geometryOf = ({ position, normal, color, uv, index, win }) => {
+const geometryOf = ({ position, normal, color, uv, index, win, wtop }) => {
   const g = new THREE.BufferGeometry()
   if (win) g.setAttribute("win", new THREE.BufferAttribute(win, 4))
+  if (wtop) g.setAttribute("wtop", new THREE.BufferAttribute(wtop, 1))
   g.setAttribute("position", new THREE.BufferAttribute(position, 3))
   if (normal) g.setAttribute("normal", new THREE.BufferAttribute(normal, 3))
   if (color) g.setAttribute("color", new THREE.BufferAttribute(color, 3))

@@ -15,8 +15,9 @@ import { createRequire } from "node:module"
 import { fileURLToPath } from "node:url"
 import { townById } from "../../client/src/roam/towns/index.js"
 import { DRIVABLE, F, decodeTile } from "../../client/src/roam/data/tile.js"
-import { MAX_TREES, VEG_N, canopyTrees, classifyImage, encodeVeg, vegRaster } from "../../client/src/roam/data/veg.js"
+import { MAX_TREES, VEG_N, canopyTrees, classifyImage, encodeVeg, onLanes, vegRaster } from "../../client/src/roam/data/veg.js"
 import { TILE_ZOOM, tileBounds, townFrame } from "../../client/src/roam/geo.js"
+import { settleCrown } from "../../client/src/roam/data/settle.js"
 
 const HERE = path.dirname(fileURLToPath(import.meta.url))
 const ROOT = path.join(HERE, "..", "..")
@@ -57,6 +58,14 @@ const fetchImage = async (b, bands, file) => {
 const raw = async (buf) => {
   const { data, info } = await sharp(buf).removeAlpha().raw().toBuffer({ resolveWithObject: true })
   return { data, w: info.width, h: info.height }
+}
+
+// a tile of open hills: few buildings and little road
+const hills = (d) => {
+  if (d.buildings.length >= 25) return false
+  let road = 0
+  for (const r of d.roads) if (DRIVABLE.has(r.cls)) for (let i = 0; i + 1 < r.pts.length; i++) road += Math.hypot(r.pts[i + 1].x - r.pts[i].x, r.pts[i + 1].z - r.pts[i].z)
+  return road < 1200
 }
 
 const index = JSON.parse(fs.readFileSync(path.join(OUT, "index.json"), "utf8"))
@@ -101,16 +110,25 @@ for (const t of list) {
           const dz = c.z - a.z
           const L2 = dx * dx + dz * dz || 1e-9
           const k = Math.max(0, Math.min(1, ((px - a.x) * dx + (pz - a.z) * dz) / L2))
-          if (Math.hypot(px - a.x - dx * k, pz - a.z - dz * k) < r.width / 2 - 0.5) return true
+          if (onLanes(r, Math.hypot(px - a.x - dx * k, pz - a.z - dz * k), !!(r.flags & F.oneway), -0.5)) return true
         }
       }
       return false
     }
+    void blocked
+    // (a crown a little inside a road's lanes or a building's outline, where the aerial and the
+    // map disagree by a few metres, is stood at the curb or outside the wall: data/settle.js)
+    const W = d.rect.x1 - d.rect.x0
+    const H = d.rect.z1 - d.rect.z0
     const crowns = canopyTrees(cls, cir.w, cir.h, mpp, { max: MAX_TREES * 2 })
-      .map((c) => ({ u: c.x / cir.w, v: c.y / cir.h, r: c.r }))
-      .filter((c) => !blocked(d.rect.x0 + c.u * (d.rect.x1 - d.rect.x0), d.rect.z0 + c.v * (d.rect.z1 - d.rect.z0)))
-      // (the hills: the oaks and the biggest scrub, fewer of them; streets get the full count)
-      .slice(0, d.buildings.length < 25 ? Math.round(MAX_TREES * 0.55) : MAX_TREES)
+      .map((c) => {
+        const s = settleCrown(d.rect.x0 + (c.x / cir.w) * W, d.rect.z0 + (c.y / cir.h) * H, d.buildings, d.roads)
+        return s ? { u: (s.x - d.rect.x0) / W, v: (s.z - d.rect.z0) / H, r: c.r } : null
+      })
+      .filter((c) => c && c.u >= 0 && c.u < 1 && c.v >= 0 && c.v < 1)
+      // (the hills: the oaks and the biggest scrub, fewer of them; streets get the full count. A
+      // tile of a few big buildings among streets, a mall or a business park, is streets)
+      .slice(0, hills(d) ? Math.round(MAX_TREES * 0.55) : MAX_TREES)
     tile.g = encodeVeg({ raster, trees: crowns })
     for (const v of raster) counts[v]++
     trees += crowns.length

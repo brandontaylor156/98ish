@@ -15,7 +15,7 @@
 
 import { ShapeUtils, Vector2 } from "three"
 import { BUILDING_KINDS, ROOF_SHAPES, isHouse } from "../data/tile.js"
-import { ROOFS, WALLS } from "./paint.js"
+import { AWNINGS, ROOFS, WALLS } from "./paint.js"
 import { hashStr } from "../sim/parked.js"
 
 const SINK = 0.8
@@ -81,12 +81,20 @@ const signedArea = (ring) => {
   return a / 2
 }
 
+// an office (mapped as one, or a commercial block of two storeys or more): ribbon windows of dark
+// glass on white walls, like the owner's photo of a Valencia business park
+export const isOffice = (b) => {
+  const name = BUILDING_KINDS[b.kind]
+  return name === "office" || (name === "commercial" && b.height >= 6.5) || (name === "yes" && b.height >= 7 && b.area > 600 && b.area < 6000)
+}
+
 const colorOf = (b, key, h = hashStr(key)) => {
   const name = BUILDING_KINDS[b.kind]
   const house = isHouse(b.kind)
   const works = ["industrial", "warehouse", "service", "garages"].includes(name)
   const civic = ["school", "church", "civic", "public", "library", "university", "college", "hospital", "fire_station"].includes(name)
-  const wall = pick(house ? WALLS.house : works ? WALLS.works : civic ? WALLS.civic : WALLS.shop, h)
+  const office = isOffice(b)
+  const wall = pick(house ? WALLS.house : works ? WALLS.works : civic ? WALLS.civic : office ? WALLS.office : WALLS.shop, h)
   const roof = house ? pick((h >>> 4) % 4 === 0 ? ROOFS.shingle : ROOFS.tile, h >>> 6) : pick(ROOFS.flat, h >>> 6)
   return { wall, roof }
 }
@@ -97,6 +105,8 @@ export const buildingArrays = (buildings, groundAt, { far = false, key = "" } = 
   const N = []
   const C = []
   const Wn = [] // (u, v, style, surface): see the top
+  const Wt = [] // the wall's height above its ground (m): the shader's base trim and parapet
+  let wallTop = 0
   let win = null // (set per wall quad)
   let roofUV = null // (set per pitched roof: its box and eave height)
   let surf = 0
@@ -110,6 +120,7 @@ export const buildingArrays = (buildings, groundAt, { far = false, key = "" } = 
       Wn.push(u, (y - eave) * slope, 0, surf)
     } else Wn.push(x, z, 0, surf)
     P.push(x, y, z)
+    Wt.push(wallTop)
     N.push(nx, ny, nz)
     C.push((((col >> 16) & 255) / 255) * k, (((col >> 8) & 255) / 255) * k, ((col & 255) / 255) * k)
   }
@@ -161,8 +172,12 @@ export const buildingArrays = (buildings, groundAt, { far = false, key = "" } = 
     const eave = pitched ? top - pitched.rise : top
     // (windows: houses a few, shops storefronts, tall ones rows; sheds, works and roofs none)
     const tall = b.height >= 10 || ["apartments", "office", "hotel", "hospital", "university", "college"].includes(name)
-    const style0 = name === "parking" && !roofOnly && b.height >= 5 ? 4 : roofOnly || b.height < 2.8 || ["garage", "garages", "shed", "carport", "industrial", "warehouse", "service", "roof", "parking"].includes(name) ? 0 : tall ? 3 : isHouse(b.kind) ? 1 : 2
-    const style = style0 ? style0 + ((hb >>> 9) % 90) / 100 : 0
+    const office = isOffice(b)
+    const style0 = name === "parking" && !roofOnly && b.height >= 5 ? 4 : roofOnly || b.height < 2.8 || ["garage", "garages", "shed", "carport", "industrial", "warehouse", "service", "roof", "parking"].includes(name) ? 0 : tall || office ? 3 : isHouse(b.kind) ? 1 : 2
+    // (an office: ribbon windows (0.45-0.75) or now and then a curtain wall, never punched)
+    const frac = office && style0 === 3 ? 0.46 + ((hb >>> 9) % 28) / 100 + ((hb >>> 13) % 6 === 0 ? 0.3 : 0) : ((hb >>> 9) % 90) / 100
+    const style = style0 ? style0 + Math.min(0.9, frac) : 0
+    wallTop = roofOnly ? 0 : (pitched ? top - pitched.rise : top) - ground
     let perim = 0
     // walls (each edge a quad; ring clockwise from above -> (a, b, a_top) faces out)
     for (let i = 0; i < ring.length; i++) {
@@ -193,6 +208,8 @@ export const buildingArrays = (buildings, groundAt, { far = false, key = "" } = 
       }
       win = null
     }
+    // (only walls carry their height: roofs, eaves and awnings get no trim)
+    wallTop = 0
     // the roof
     if (pitched) {
       const { box, gabled, rise } = pitched
@@ -301,9 +318,50 @@ export const buildingArrays = (buildings, groundAt, { far = false, key = "" } = 
         }
       }
     }
+    // shop awnings: over the storefronts of a shop's longer walls, every other bay (about half
+    // the shops have them; a material, like the windows: canvas over the glass)
+    if (!far && style0 === 2 && !mat.wall && (hb >>> 17) % 2 === 0 && eave - ground >= 4) {
+      const col = AWNINGS[(hb >>> 19) % AWNINGS.length]
+      surf = SURF.stucco
+      for (let i = 0; i < ring.length; i++) {
+        const p = ring[i]
+        const q = ring[(i + 1) % ring.length]
+        const len = Math.hypot(q.x - p.x, q.z - p.z)
+        if (len < 7) continue
+        const fx = (q.x - p.x) / len
+        const fz = (q.z - p.z) / len
+        // (out of the building: the wall's normal; the ring is wound so that is (-fz, fx))
+        const ox = -fz
+        const oz = fx
+        const bays = Math.floor(len / 6)
+        for (let k = 0; k < bays; k++) {
+          if ((k + (hb >>> 3)) % 2) continue
+          const s0 = (len - bays * 6) / 2 + k * 6 + 0.7
+          const s1 = s0 + 4.6
+          const hi = ground + 3.15
+          const lo = ground + 2.7
+          const out = 1.15
+          const A = [p.x + fx * s0, hi, p.z + fz * s0]
+          const B = [p.x + fx * s1, hi, p.z + fz * s1]
+          const C2 = [B[0] + ox * out, lo, B[2] + oz * out]
+          const D = [A[0] + ox * out, lo, A[2] + oz * out]
+          const up = faceN(A, B, C2)
+          if (up[1] < 0) tri(A, C2, B, [-up[0], -up[1], -up[2]], col)
+          else tri(A, B, C2, up, col)
+          if (up[1] < 0) tri(A, D, C2, [-up[0], -up[1], -up[2]], col)
+          else tri(A, C2, D, up, col)
+          // (the valance: a short drop at the front, a little darker)
+          const D2 = [D[0], lo - 0.28, D[2]]
+          const C3 = [C2[0], lo - 0.28, C2[2]]
+          const fn = [ox, 0, oz]
+          tri(D, C2, C3, fn, col, [0.8, 0.8, 0.8])
+          tri(D, C3, D2, fn, col, [0.8, 0.8, 0.8])
+        }
+      }
+    }
     n++
   }
-  return { position: new Float32Array(P), normal: new Float32Array(N), color: new Float32Array(C), win: new Float32Array(Wn), count: n }
+  return { position: new Float32Array(P), normal: new Float32Array(N), color: new Float32Array(C), win: new Float32Array(Wn), wtop: new Float32Array(Wt), count: n }
 }
 
 // the outlines that are walls (for collisions): -> [{ ring, top, solid }]

@@ -34,7 +34,7 @@ node["name"](${b});
 export const KEEP_TAGS = new Set([
   "highway", "name", "ref", "lanes", "width", "oneway", "bridge", "tunnel", "layer", "sidewalk", "sidewalk:both", "sidewalk:left", "sidewalk:right", "footway", "service", "area", "lit", "surface",
   "building", "building:levels", "height", "min_height", "building:min_level", "roof:shape", "roof:levels",
-  "landuse", "leisure", "natural", "waterway", "water", "amenity", "parking", "railway", "golf", "tourism", "shop", "historic", "office", "sport", "denotation", "covered", "location", "man_made",
+  "landuse", "leisure", "natural", "waterway", "water", "amenity", "parking", "railway", "golf", "tourism", "shop", "historic", "office", "sport", "denotation", "covered", "location", "man_made", "intermittent", "seasonal",
 ])
 
 // a raw Overpass element -> a small one ({ type, id, tags, geom | lat/lon | members }), or null

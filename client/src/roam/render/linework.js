@@ -9,7 +9,8 @@ import { STALL_W, edgeDist, inRing, lotStalls } from "../sim/parked.js"
 import { ROAD_ORDER, ROAD_PAINT, SIDEWALK } from "./paint.js"
 
 const YELLOW = 0xe0b43a
-const WHITE = 0xe9e9e4
+const WHITE = 0xf1f1ec
+const BLUE = 0x2f62b8
 const CURB = 0xcfcbc1
 const GUTTER = 0x6b6a66
 
@@ -89,21 +90,46 @@ const line = (out, groundAt, ax, az, bx, bz, w, col, lift = 0.07) => {
   out.quad(P(ax - rx, az - rz), P(bx - rx, bz - rz), P(bx + rx, bz + rz), P(ax + rx, az + rz), col)
 }
 
+// the accessible stalls of a lot: the two (three in a big lot) nearest a building's wall within
+// 45 m, the way lots by offices and shops are striped -> Set of stall indexes
+export const accessibleStalls = (stalls, buildings) => {
+  const out = new Set()
+  if (!stalls.length || !buildings.length) return out
+  const scored = []
+  stalls.forEach((st, i) => {
+    const f = st.f
+    const x = f.ox + f.ux * st.u + f.vx * st.v
+    const z = f.oz + f.uz * st.u + f.vz * st.v
+    let best = 45
+    for (const b of buildings) {
+      if (b.area < 200 || Math.abs(b.ring[0].x - x) > 200 || Math.abs(b.ring[0].z - z) > 200) continue
+      best = Math.min(best, edgeDist(b.ring, x, z))
+    }
+    if (best < 45) scored.push([best, i])
+  })
+  scored.sort((p, q) => p[0] - q[0])
+  for (const [, i] of scored.slice(0, stalls.length > 60 ? 3 : 2)) out.add(i)
+  return out
+}
+
 // a lot's stall lines (the grid the parked cars use, sim/parked.js lotStalls): a line between
 // neighbouring stalls and across each stall's head, kept inside the lot and off buildings
 export const stallLines = (out, areas, groundAt, buildings = []) => {
   let n = 0
   for (const a of areas) {
     if (a.cls !== AREA.parking || a.ring.length < 3) continue
-    for (const st of lotStalls(a.ring)) {
+    const stalls = lotStalls(a.ring)
+    const blue = accessibleStalls(stalls, buildings)
+    stalls.forEach((st, si) => {
       const f = st.f
       const at = (u, v) => [f.ox + f.ux * u + f.vx * v, f.oz + f.uz * u + f.vz * v]
       const ok = (x, z) => inRing(a.ring, x, z) && edgeDist(a.ring, x, z) > 0.4 && !buildings.some((b) => inRing(b.ring, x, z))
+      const col = blue.has(si) ? BLUE : WHITE
       for (const side of [-0.5, 0.5]) {
         const [x0, z0] = at(st.u + side * STALL_W, st.v - 2.6)
         const [x1, z1] = at(st.u + side * STALL_W, st.v + 2.6)
         if (ok(x0, z0) && ok(x1, z1)) {
-          line(out, groundAt, x0, z0, x1, z1, 0.1, WHITE)
+          line(out, groundAt, x0, z0, x1, z1, 0.12, col)
           n++
         }
       }
@@ -111,8 +137,18 @@ export const stallLines = (out, areas, groundAt, buildings = []) => {
       const head = Math.sin(st.yaw) * f.vx + Math.cos(st.yaw) * f.vz > 0 ? 2.6 : -2.6
       const [x0, z0] = at(st.u - 0.5 * STALL_W, st.v + head)
       const [x1, z1] = at(st.u + 0.5 * STALL_W, st.v + head)
-      if (ok(x0, z0) && ok(x1, z1)) line(out, groundAt, x0, z0, x1, z1, 0.1, WHITE)
-    }
+      if (ok(x0, z0) && ok(x1, z1)) line(out, groundAt, x0, z0, x1, z1, 0.12, col)
+      if (blue.has(si)) {
+        // (an accessible stall: a blue square painted in it, a white mark in the middle)
+        const [cx, cz] = at(st.u, st.v - head * 0.35)
+        const [sx0, sz0] = at(st.u - 0.6, st.v - head * 0.35)
+        const [sx1, sz1] = at(st.u + 0.6, st.v - head * 0.35)
+        if (ok(cx, cz)) {
+          line(out, groundAt, sx0, sz0, sx1, sz1, 1.3, BLUE, 0.075)
+          line(out, groundAt, (sx0 + cx) / 2, (sz0 + cz) / 2, (sx1 + cx) / 2, (sz1 + cz) / 2, 0.45, WHITE, 0.08)
+        }
+      }
+    })
   }
   return n
 }

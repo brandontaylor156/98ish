@@ -1098,6 +1098,9 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
     return w.whenReady().then(async () => {
       if (roamRef.current !== w) return
       w.ensureOpen(at ? null : venueSpot)
+      // (arriving at a town spot: face its best view, down the street or into the plaza, never
+      // a wall; docs/open-world.md "Arriving")
+      if (spot && !spot.venue && !arrive && !car) w.faceView?.(spot.yaw)
       if (car) await w.arriveByCar({ ...car, at: at || null })
     })
   }

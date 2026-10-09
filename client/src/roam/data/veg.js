@@ -28,9 +28,25 @@ const TREE_LUM = 92 // a crown from above is darker than this in natural colour
 
 export const ndviOf = (nir, red) => (nir - red) / (nir + red + 1)
 
+// is a crown d metres from a road's line standing on its lanes? A wide two-way road (14 m+) keeps
+// the trees on its outer verge (the last 1.5 m: OSM's widths often take in the parkway strip the
+// street trees stand in) and in its median (within 1.5 m of the line: the aerial only shows a
+// crown there when there is a planted median, Valencia's boulevards; the traffic's lanes start
+// 2.6 m out). margin: added to the road's half width.
+export const onLanes = (r, d, oneway = false, margin = 0) => {
+  if (d >= r.width / 2 + margin) return false
+  if (!oneway && r.width >= 14 && (d < 1.5 || d > r.width / 2 - 1.5)) return false
+  return true
+}
+
 // one pixel: nir, red, green (0-255), the NIR's local spread, and its natural colour (r, g, b)
 export const classifyPixel = (nir, red, green, spread, r = red, g = green, b = green) => {
   const v = ndviOf(nir, red)
+  // (a young street tree or a grey-green one (elms, olives, ficus kept small): only weakly green
+  // in NIR at 1.2 m, but dark and green from above and not bright in NIR the way a lawn is.
+  // Checked against Valencia's Town Center, where these line every street)
+  const lum0 = (r + g + b) / 3
+  if (v > 0.12 && lum0 < 108 && nir < 165 && g >= r + 5 && g >= b + 5) return VEG.canopy
   // (a crown: strongly green and lumpy or shaded; the hills' chaparral is only weakly green and
   // reads as dry scrub, not trees)
   // (from above a crown is dark: its own shade between the leaves; a watered lawn is a light,

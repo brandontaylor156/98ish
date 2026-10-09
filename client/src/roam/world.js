@@ -37,6 +37,7 @@ import { parkedCars } from "./sim/parked.js"
 import { ACT, createTrack, packPos, pushSample, sampleTrack, shouldSend, unpackPos, DELAY } from "./sim/sync.js"
 import { createEggs } from "./eggs.js"
 import { createTreeLayer } from "./render/trees.js"
+import { bestFacing } from "./sim/arrival.js"
 import { along, createTraffic, projectOn, roadLength, trafficRoad } from "./sim/traffic.js"
 import { createPeds, shopSpots, walkLines } from "./sim/peds.js"
 import { createStreetLayer, streetFurniture } from "./render/street.js"
@@ -63,7 +64,7 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
   const NEAR_R = phone ? 380 : 560
   const FAR_R = low ? 700 : phone ? 900 : 1500
   const camera = new THREE.PerspectiveCamera(phone ? 62 : 58, 1, 0.35, FAR_R + 400)
-  scene.fog = new THREE.Fog(0xd8ecfb, FAR_R * 0.45, FAR_R * 0.98)
+  scene.fog = new THREE.Fog(0xd8ecfb, FAR_R * 0.55, FAR_R * 0.98)
   const hemi = new THREE.HemisphereLight(0xdcefff, 0x6d6a4c, 1.3)
   const sun = new THREE.DirectionalLight(0xfff3dc, 2.4)
   sun.position.set(-0.4, 0.8, 0.3)
@@ -143,14 +144,15 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
     // (a warmer Southern California sun in the day: the owner asked for "more vibrant")
     const dayK = d.sunEl !== undefined ? Math.max(0, Math.min(1, (d.sunEl - 2) / 12)) : 1
     sun.color.setHex(d.sun.color).lerp(new THREE.Color(0xffdcae), 0.22 * dayK)
-    sun.intensity = d.sun.intensity * (1 + 0.06 * dayK)
+    sun.intensity = d.sun.intensity * (1 + 0.12 * dayK)
     sunDir.set(d.sun.dir.x, Math.max(0.12, d.sun.dir.y), d.sun.dir.z).normalize()
     shadowAt.dirty = true
     hemi.color.setHex(d.hemi[0])
     // (light bounced off a town is pavement and stucco, not a lawn: warmer and greyer than a
     // park's, so walls in shade don't turn green)
     hemi.groundColor.setHex(d.hemi[1]).lerp(new THREE.Color(0x8a7f6e), 0.65)
-    hemi.intensity = d.hemi[2]
+    // (a little less sky fill by day: the owner's photo has crisp sun and real shade)
+    hemi.intensity = d.hemi[2] * (1 - 0.14 * dayK)
     scene.fog.color.setHex(d.fog)
     if (sky) scene.background = scene.fog.color
     // (a little under the venues': a town of pale stucco and concrete in full sun reads washed out
@@ -194,8 +196,10 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
   const shoreCol = createColliders()
   const parkedLayer = createParkedLayer(scene, phone ? 120 : 220)
   const fleetLayer = createFleetLayer(scene, { cap: phone ? 30 : 60 })
-  const trees = createTreeLayer(scene, { cap: low ? 0 : phone ? 3200 : 7000, kit: low ? null : host.trees?.() || null, nearCap: phone ? 260 : 700 })
-  const TREE_NEAR = phone ? 150 : 240
+  // (near you the town's species in full, farther off billboards: two triangles a tree, so the
+  // far tiles keep their trees too)
+  const trees = createTreeLayer(scene, { cap: low ? 0 : phone ? 6500 : 14000, kit: low ? null : host.trees?.() || null, nearCap: phone ? 300 : 700, anisotropy: Math.min(4, host.anisotropy || 1) })
+  const TREE_NEAR = phone ? 135 : 240
   let treesAt = null
   const moved = new Map() // parked car id -> { x, z, yaw } (left somewhere else this session) | "gone"
   let tilesDirty = true
@@ -290,7 +294,7 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
     return { ...c, y, pitch: Math.atan2(hf - hb, m.wheelbase), roll: 0 }
   }
   // (the nearest ones drawn: a parked car 200 m off is a few pixels; phone 70, desktop 160)
-  const PARKED_DRAW = phone ? 70 : 160
+  const PARKED_DRAW = phone ? 90 : 200
   const refreshParked = () => {
     const c = center()
     const list = parkedList().filter((p) => !driving || p.id !== car?.id)
@@ -312,7 +316,7 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
     const g = ownGround(t)
     const mesh = buildTileMesh(t, g, { near, texSize: near ? (phone ? 512 : 1024) : phone ? 128 : 256, anisotropy: host.anisotropy || 1 })
     scene.add(mesh.group)
-    const e = { t, mesh, near, decks: deckSurfaces(t.roads, t.platforms), trees: near || !phone ? treeSpots(t, { max: near ? 1400 : phone ? 0 : 400 }).map((p) => ({ ...p, y: g(p.x, p.z) })) : [], cars: near ? parkedCars(t) : null, street: near ? streetFurniture(t).map((p) => ({ ...p, y: g(p.x, p.z) })) : [], fleet: near ? fleetSpots(t).map((f) => ({ ...f, y: g(f.x, f.z) })) : [], tables: near && !low ? tableSpots(t).map((tb) => ({ ...tb, y: g(tb.x, tb.z), chairs: tb.chairs.map((c) => ({ ...c, y: g(c.x, c.z) })) })) : [] }
+    const e = { t, mesh, near, decks: deckSurfaces(t.roads, t.platforms), trees: treeSpots(t, { max: near ? 1400 : phone ? 500 : 800 }).map((p) => ({ ...p, y: g(p.x, p.z) })), cars: near ? parkedCars(t) : null, street: near ? streetFurniture(t).map((p) => ({ ...p, y: g(p.x, p.z) })) : [], fleet: near ? fleetSpots(t).map((f) => ({ ...f, y: g(f.x, f.z) })) : [], tables: near && !low ? tableSpots(t).map((tb) => ({ ...tb, y: g(tb.x, tb.z), chairs: tb.chairs.map((c) => ({ ...c, y: g(c.x, c.z) })) })) : [] }
     if (near) colliders.addTile(t.key, wallRings(t.buildings, g))
     if (near && t.shore?.length) shoreCol.addEdges(t.key, t.shore)
     tiles.set(t.key, e)
@@ -404,7 +408,7 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
   // people sitting out at the cafés' tables (sim/tables.js; not on Low)
   const crowd = low ? { set() {}, dispose() {}, count: 0 } : createCrowdLayer(scene, { cap: phone ? 40 : 80, shadows: true })
   // round the shops (a mall, a main street): a few more people about and a little more traffic
-  const LIFE = { peds: low ? 0 : phone ? 3 : 6, traffic: low ? 3 : phone ? 6 : 14, busyPeds: low ? 0 : phone ? 5 : 9, busyTraffic: low ? 3 : phone ? 8 : 16 }
+  const LIFE = { peds: low ? 0 : phone ? 3 : 6, traffic: low ? 3 : phone ? 6 : 14, busyPeds: low ? 0 : phone ? 4 : 9, busyTraffic: low ? 3 : phone ? 8 : 16 }
   let busy = false
   let devLifeSet = false
   const busyNow = (c) => {
@@ -423,6 +427,8 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
     }
   }
   const PED_SEE = phone ? 75 : 120
+  // (just arrived at a start spot: people walk into the first view, sim/peds.js)
+  let freshUntil = 0
   let lifeTick = 0
   const life = { roads: [], lines: [], street: [], time: 0 }
   // (the roads, walks and stop/signal nodes of the near tiles: when tiles change)
@@ -524,7 +530,8 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
     const people = peopleNow()
     life.people = people
     traffic.step(life, c, dt)
-    peds.step({ lines: life.lines, people: [...people, ...traffic.cars.map((t) => ({ x: t.x, z: t.z }))] }, c, dt)
+    const view = { x: camera.position.x, z: camera.position.z, fx: Math.sin(cam.yaw), fz: Math.cos(cam.yaw), fresh: clock < freshUntil }
+    peds.step({ lines: life.lines, people: [...people, ...traffic.cars.map((t) => ({ x: t.x, z: t.z }))], view }, c, dt)
   }
   const drawLife = (dt) => {
     trafficLayer.set(
@@ -544,7 +551,8 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
     const animNow = !phone || lifeTick % 2 === 0
     const camP = camera.position
     for (const p of peds.peds) {
-      if (Math.hypot(p.x - camP.x, p.z - camP.z) > PED_SEE) continue
+      const dCam = Math.hypot(p.x - camP.x, p.z - camP.z)
+      if (dCam > PED_SEE) continue
       seen.add(p.id)
       let fig = pedFigs.get(p.id)
       if (!fig && host.figure) {
@@ -556,7 +564,11 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
       }
       if (!fig) continue
       fig.dtAcc = (fig.dtAcc || 0) + dt
-      if (!animNow) continue
+      // (on a phone farther ones less often: every 2nd frame near, 3rd past 25 m, 4th past 45 m,
+      // each on its own beat so they don't all land on one frame)
+      const every = !phone ? 1 : dCam < 25 ? 2 : dCam < 45 ? 3 : 4
+      fig.beat ??= (pedFigs.size * 7) % 4
+      if (phone ? (lifeTick + fig.beat) % every !== 0 : !animNow) continue
       const y = heightAt(p.x, p.z, 0) ?? 0
       fig.update({ x: p.x, y, z: p.z, yaw: p.yaw, vx: Math.sin(p.yaw) * p.speed, vz: Math.cos(p.yaw) * p.speed, speed: p.speed }, fig.dtAcc)
       fig.dtAcc = 0
@@ -1927,8 +1939,32 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
       if (driving || riding) getOut()
       world.teleport(spot.x, spot.z, spot.yaw ?? me.walker.yaw)
       cam.yaw = spot.yaw ?? cam.yaw
-      world.whenReady().then(() => !disposed && world.ensureOpen(spot))
+      world.whenReady().then(() => {
+        if (disposed) return
+        world.ensureOpen(spot)
+        // (a town spot, not a venue's door: face its best view, never a wall)
+        if (!spot.venue) world.faceView(spot.yaw)
+      })
       sendHud(true)
+    },
+    // turn to the best view from where you stand (sim/arrival.js: the longest open sightline
+    // with the most life in it) -> the facing found, or null
+    faceView(prefer = null) {
+      if (driving || riding) return null
+      const w = me.walker
+      // (the walls of every loaded tile round you, built or not yet)
+      const near = tilesAround(frame, w.x, w.z, 220).map((t) => store.get(tileKey(t))).filter(Boolean)
+      const col = createColliders()
+      for (const t of near) col.addTile(t.key, wallRings(t.buildings, () => 0))
+      const f = bestFacing(w.x, w.z, { segment: (ax, az, bx, bz) => col.segment(ax, az, bx, bz, -1e9), tiles: near, prefer })
+      if (!f) return null
+      w.yaw = f.yaw
+      me.yaw = f.yaw
+      cam.yaw = f.yaw
+      freshUntil = clock + 10
+      cam.pos = null
+      lastCenter = null
+      return { yaw: f.yaw, clear: Math.round(f.clear), center: Math.round(f.center), life: +f.life.toFixed(1) }
     },
     // not inside a building (coming out of a venue somewhere the town draws a wall round):
     // the venue's own way out, else the nearest open ground
