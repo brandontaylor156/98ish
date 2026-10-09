@@ -67,6 +67,23 @@ const MAKERS = {
     g.add(mesh(geo("label", () => cyl(0.0325, 0.0325, 0.05, 12)), mat("#ffffff"), 0, 0.02, 0))
     return g
   },
+  pint: (it) => {
+    const g = new THREE.Group()
+    // a 16 oz pint: 8.5 cm across the top, 15 cm tall; the beer and its head
+    g.add(mesh(geo("pintBeer", () => cyl(0.04, 0.032, 0.12)), mat(it.color), 0, 0.0, 0))
+    g.add(mesh(geo("pintHead", () => cyl(0.042, 0.04, 0.02)), mat("#fbf6e6"), 0, 0.07, 0))
+    g.add(mesh(geo("pintShell", () => cyl(0.043, 0.033, 0.15, 14)), mat("#e8f4f8", { opacity: 0.3 }), 0, 0.01, 0))
+    return g
+  },
+  wine: (it) => {
+    const g = new THREE.Group()
+    // a stemmed glass: the bowl, the wine in it, the stem and foot
+    g.add(mesh(geo("wineIn", () => cyl(0.034, 0.024, 0.04, 14)), mat(it.color), 0, 0.075, 0))
+    g.add(mesh(geo("wineBowl", () => cyl(0.04, 0.026, 0.09, 14)), mat("#eef6f8", { opacity: 0.3 }), 0, 0.09, 0))
+    g.add(mesh(geo("wineStem", () => cyl(0.004, 0.004, 0.08, 6)), mat("#eef6f8", { opacity: 0.6 }), 0, 0.005, 0))
+    g.add(mesh(geo("wineFoot", () => cyl(0.03, 0.03, 0.004, 14)), mat("#eef6f8", { opacity: 0.6 }), 0, -0.035, 0))
+    return g
+  },
   burger: () => {
     const g = new THREE.Group()
     g.add(mesh(geo("bunB", () => cyl(0.055, 0.052, 0.025, 14)), mat("#c98a43"), 0, 0.0, 0))

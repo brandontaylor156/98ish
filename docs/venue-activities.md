@@ -117,7 +117,7 @@ The owner: "Swimming wherever there are pools", "Hanging out at the hot tub", "O
 - Six seats round the bench inside (`spots.js`), the free one nearest you; with a friend two side by side (`tubPair`). On the bench, shoulders at the water, arms along the rim (`tubPose`); the camera low and a few metres out, drifting round at 0.045 rad/s; the hangout's lo-fi comes on (`prefs.parkMusic`, put back after). park:pos act 6 = in the tub; people online see you sitting in it.
 
 ### Food and drinks (`leisure/menu.js`, `leisure/held.js`)
-- Menus by place: bar (lemonade, half & half, sparkling water, burger, fries, fish tacos, a wrap), cafe (two smoothies, iced and hot coffee, lemonade, a wrap, fries), snack window, and the machine (Fizz orange soda, lemon-lime pop, water, a sports drink). Original names, no brands, no alcohol. 2-14 chips from **Casino 98's chip bank** (`casino/bank.js`: the house refills you under 5, as at the tables).
+- Menus by place: bar (draft beer, red and white wine, lemonade, half & half, sparkling water, burger, fries, fish tacos, a wrap), cafe (two smoothies, iced and hot coffee, lemonade, a wrap, fries), snack window, and the machine (Fizz orange soda, lemon-lime pop, water, a sports drink). Original names, no brands, no alcohol. 2-14 chips from **Casino 98's chip bank** (`casino/bank.js`: the house refills you under 5, as at the tables).
 - What you buy is in your hand (`held.js`: a cup with a straw, a coffee cup, a can, a bottle, a burger, fries, tacos, a wrap, a few shapes each, in the paddle's holder; the paddle hides) and carried at the waist (anim.js mood `carry`); **Sip** / **Bite** lifts it to your mouth (`sip`, 1.7 s), 4-6 times until it's gone; **×** puts it down. Everyone in the park sees it (`park:hold`, kept on the server with you for whoever joins; `park:fx` "sip").
 - **One for Ava too** (a friend near you): asked first (Together kind `treat`); a yes puts it in their hand, and only then is it paid for.
 
@@ -142,7 +142,7 @@ The owner: "Swimming wherever there are pools", "Hanging out at the hot tub", "O
 - The Paseo Club: is one of the two small pools beside the main pool a hot tub (and which)?
 - Los Cab's two outdoor vending machines by the fitness building and Newport's by the courts: are they real? (Not offered until we know.)
 - Whittier: where in the clubhouse is the snack window?
-- Bars: beer and wine on the menus, or keep them alcohol-free?
+- ~~Bars: beer and wine?~~ Answered 2026-10-09: yes. The bars and Paseo's cafe and bar serve a draft beer and red and white wine (`menu.js` `beer`, `wine`, `white`; held as a pint and a wine glass).
 
 ### Left
 - No diving board or underwater view; the body under the water is hidden (the pool is level with the deck), not seen through it.
@@ -150,3 +150,5 @@ The owner: "Swimming wherever there are pools", "Hanging out at the hot tub", "O
 - Vince is drawn as a cheap mannequin when he's past the athletes' budget (like any regular); his look is the same everywhere.
 - No buff from food (an energy boost for a rally challenge was optional).
 - The Sundowner, like the Turbo 98, has its stripes only while driven (parked cars are instanced plain).
+
+**Owner answers (2026-10-09):** Paseo has a hot tub (one of the small pools by the main pool; `spots.js` `tub.area`), Los Cab's and Newport's outdoor vending machines are real and now sell drinks, beer and wine at the bars, and food trucks for Whittier (to do: a food-truck model and the `truck` menu, which is already in `menu.js`).

@@ -332,7 +332,7 @@ My Park's leisure (`docs/venue-activities.md` "Leisure") is offered only where t
 **Not offered** for want of a source (they stay drawn as they were):
 - **Newport's pool and spa** (OSM ways 1414460953/4, the only ones in the crop) are in the back garden of a house on Granville Drive (OSM building 1081610426), not the club's: no swimming or hot tub there.
 - **Paseo's two small pools** beside the main pool (the aerial shows one in a walled courtyard north of it and one south-east of it, each about 4 x 4 m; the south one is painted from the aerial, and a `spa` prop sits on the roof line between) could be a hot tub and a wading pool: owner question. Paseo's west pool (x -80..-72) is outside the walkable crop.
-- **Los Cab's two outdoor vending machines** (by the fitness building) and **Newport's vending machine** (by the courts): neither is in the pack, a photo or OSM. Owner question.
+- **Los Cab's two outdoor vending machines** (by the fitness building) and **Newport's vending machine** (by the courts): **the owner confirmed both are real (2026-10-09)**; they now sell drinks (and Vince can stand by them).
 - **Newport's rooftop terrace bar**: already an owner question (is it real?).
 - No alcohol on the menus (the owner can say otherwise).
 
@@ -402,3 +402,5 @@ Tests: `node --test client/src/components/applets/pickleball/park/venues.test.js
 - SMASH's OSM viaduct.
 
 Specs grew by about 25–45 KB each (lazy-loaded, about a quarter of that gzipped; the size cap is now 96 KB).
+
+**Owner answers (2026-10-09, leisure):** one of Paseo's two small pools beside the main pool is a hot tub (we use the small pool at the main pool's north-east corner, `leisure/spots.js` `tub.area`; which of the two is a guess, say if it's the other); Los Cab's and Newport's outdoor vending machines are real; Whittier's snack window: the owner doesn't know where it is and asked for food trucks instead (queued: food trucks need a truck model; until then Whittier keeps the snack window spot); the bars serve beer and wine (Paseo's cafe and bar too).
