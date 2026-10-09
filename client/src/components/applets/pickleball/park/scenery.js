@@ -11,9 +11,9 @@ import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js
 import { addProps, propMaterials } from "./props.js"
 import { FINISH, roomRect } from "./propkit.js"
 import { surfaced } from "./surfaces.js"
-import { buildCars, buildDecals, buildGlow, buildLotDetail, buildTrees, buildTufts, canvasTex, normalFor, windscreenTex, planDecals, setDetailEnv, skyEnvironment, windowMaps } from "./detail.js"
+import { buildBushes, buildCars, buildDecals, buildGlow, buildLotDetail, buildTrees, buildTufts, canvasTex, normalFor, windscreenTex, planDecals, setDetailEnv, skyEnvironment, windowMaps } from "./detail.js"
 import { dimEnvironment, loadHDRI, swapEnvironment } from "./environment.js"
-import { paintSurroundGround, powerLineGeometry, railBridgeGeometry, roadBridgeGeometry, surroundBuildingsGeometry, terrainSampler } from "./surround.js"
+import { COVER, coverGrid, paintSurroundGround, powerLineGeometry, railBridgeGeometry, roadBridgeGeometry, surroundBuildingsGeometry, terrainSampler } from "./surround.js"
 
 const canvasTexture = (w, h, draw) => {
   const c = document.createElement("canvas")
@@ -329,7 +329,7 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
     }
     // shade under trees
     for (const t of S.trees) {
-      const r = (t.kind === "palm" ? 1.6 : 2.6) * t.s
+      const r = (t.kind === "palm" || t.kind === "fanpalm" ? 1.6 : 2.6) * t.s
       const g = ctx.createRadialGradient(X(t.x + 0.6), Z(t.z + 0.5), 0, X(t.x + 0.6), Z(t.z + 0.5), r * PX)
       g.addColorStop(0, "rgba(10,30,10,0.32)")
       g.addColorStop(1, "rgba(10,30,10,0)")
@@ -354,8 +354,8 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
   const farMat = SU
     ? lambert(0xffffff, {
         map: keep(
-          canvasTexture(quality === "low" ? 512 : 1024, quality === "low" ? 512 : 1024, (ctx, N) =>
-            paintSurroundGround(ctx, N, { cx: (X0 + X1) / 2, cz: (Z0 + Z1) / 2, R: farR, base: C.far || "#8f9a6a", surround: SU }),
+          canvasTexture(quality === "low" ? 512 : S.terrain?.cover ? 2048 : 1024, quality === "low" ? 512 : S.terrain?.cover ? 2048 : 1024, (ctx, N) =>
+            paintSurroundGround(ctx, N, { cx: (X0 + X1) / 2, cz: (Z0 + Z1) / 2, R: farR, base: C.far || "#8f9a6a", surround: SU, cover: S.terrain?.cover ? S.terrain : null }),
           ),
         ),
       })
@@ -372,6 +372,30 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
     const cz = (Z0 + Z1) / 2
     for (let i = 0; i < pos.count; i++) pos.setY(i, groundAt(pos.getX(i) + cx, pos.getZ(i) + cz))
     geo.computeVertexNormals()
+    // (round 4: the ravines darker than the spurs (each point against its neighbours 2 cells
+    // round), so the hillside reads as folds of ground and not a flat backdrop)
+    if (S.terrain.cover) {
+      const n1 = segs + 1
+      const col = new Float32Array(pos.count * 3)
+      for (let j = 0; j < n1; j++)
+        for (let i = 0; i < n1; i++) {
+          let sum = 0
+          let n = 0
+          for (let dj = -2; dj <= 2; dj++)
+            for (let di = -2; di <= 2; di++) {
+              const a = Math.min(n1 - 1, Math.max(0, i + di))
+              const b = Math.min(n1 - 1, Math.max(0, j + dj))
+              sum += pos.getY(b * n1 + a)
+              n++
+            }
+          const k = j * n1 + i
+          const conc = pos.getY(k) - sum / n
+          const sh = Math.max(0.68, Math.min(1.1, 1 + conc * 0.05))
+          col.set([sh, sh, sh], k * 3)
+        }
+      geo.setAttribute("color", new THREE.BufferAttribute(col, 3))
+      farMat.vertexColors = true
+    }
     far = new THREE.Mesh(keep(geo), farMat)
     far.position.set(cx, -0.05, cz)
   } else {
@@ -380,6 +404,64 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
     far.position.set((X0 + X1) / 2, -0.05, (Z0 + Z1) / 2)
   }
   group.add(far)
+  // the hills' grass up close (Medium/High: the CC0 grass detail over the painted cover)
+  if (S.terrain?.cover && detail) surfaced(farMat, "grass")
+  // the scrub on the slopes (terrain-cover.py: the cells where the aerial is dark scrub, nothing
+  // added): two or three low rounded clumps a cell, darker underneath, standing on the terrain
+  const shrubs = []
+  if (S.terrain?.cover) {
+    const { r: r0, cell } = S.terrain.cover
+    const { rows } = coverGrid(S.terrain)
+    let sd = 3
+    const rnd = () => ((sd = (sd * 16807) % 2147483647) / 2147483647)
+    for (let j = 0; j < rows.length && shrubs.length < 3000; j++)
+      for (let i = 0; i < rows[j].length; i++) if (rows[j][i] === "s") for (let k = 0; k < 2 + (rnd() < 0.5 ? 1 : 0); k++) shrubs.push([-r0 + (i + rnd() - 0.5) * cell, -r0 + (j + rnd() - 0.5) * cell, 2 + rnd() * 2.6])
+  }
+  if (shrubs.length) {
+    const g = new THREE.IcosahedronGeometry(1, 0)
+    const p = g.attributes.position
+    const col = new Float32Array(p.count * 3)
+    let sd = 5
+    const rnd = () => ((sd = (sd * 16807) % 2147483647) / 2147483647)
+    for (let i = 0; i < p.count; i++) {
+      const k = 0.82 + rnd() * 0.36
+      p.setXYZ(i, p.getX(i) * k, Math.max(-0.35, p.getY(i)) * k, p.getZ(i) * k)
+      const sh = 0.55 + 0.45 * Math.max(0, (p.getY(i) + 0.35) / 1.35)
+      col.set([sh, sh, sh], i * 3)
+    }
+    g.setAttribute("color", new THREE.BufferAttribute(col, 3))
+    g.computeVertexNormals()
+    const scrubCol = new THREE.Color(S.terrain.colors?.scrub || COVER.scrub)
+    const mesh = new THREE.InstancedMesh(keep(g), lambert(0xffffff, { vertexColors: true }), shrubs.length)
+    const cc = new THREE.Color()
+    shrubs.forEach(([x, z, s], i) => {
+      const w = s * 0.5
+      mesh.setMatrixAt(i, m4.compose(v1.set(x, groundAt(x, z) - 0.05, z), q.setFromEuler(e1.set(0, x * 1.7 + z, 0)), v2.set(w * (0.9 + rnd() * 0.3), w * (0.55 + rnd() * 0.25), w)))
+      mesh.setColorAt(i, cc.copy(scrubCol).offsetHSL((rnd() - 0.5) * 0.04, (rnd() - 0.5) * 0.1, (rnd() - 0.5) * 0.08))
+    })
+    mesh.userData.noCast = true
+    group.add(mesh)
+  }
+  // (Medium/High: the small bushes dotted over the grass, as many per cell as the aerial's
+  // dark specks there (cover.dots), as low crossed cards; at most 4500)
+  const dotRows = S.terrain?.cover?.dots ? coverGrid(S.terrain).dots : null
+  if (detail && dotRows) {
+    const { r: r0, cell } = S.terrain.cover
+    const scrubCol = new THREE.Color(S.terrain.colors?.scrub || COVER.scrub)
+    const list = []
+    let sd = 17
+    const rnd = () => ((sd = (sd * 16807) % 2147483647) / 2147483647)
+    for (let j = 0; j < dotRows.length && list.length < 4500; j++)
+      for (let i = 0; i < dotRows[j].length; i++) {
+        const d = dotRows[j][i]
+        for (let k = 0; k < Math.floor(d / 2); k++) {
+          const x = -r0 + (i + rnd() - 0.5) * cell
+          const z = -r0 + (j + rnd() - 0.5) * cell
+          list.push({ x, z, y: groundAt(x, z), s: 0.7 + rnd() * 1.1, c: scrubCol.clone().offsetHSL((rnd() - 0.5) * 0.05, (rnd() - 0.5) * 0.1, (rnd() - 0.5) * 0.1 + 0.06) })
+        }
+      }
+    buildBushes(group, list, { keep })
+  }
 
   // ---------- the banks' surfaces and every court ----------
   const surroundMat = surfaced(std(hex(C.surround, 0x3c8a5a), { roughness: 0.9 }), "acrylic")
@@ -1922,7 +2004,7 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
   }
 
   // ---------- trees ----------
-  const byKind = { broadleaf: [], palm: [], conifer: [], eucalyptus: [], pine: [] }
+  const byKind = { broadleaf: [], palm: [], conifer: [], eucalyptus: [], pine: [], fanpalm: [] }
   for (const t of S.trees) (byKind[t.kind] || byKind.broadleaf).push(t)
   // only real trees: the venue's own (OSM, the aerial canopy, hand-placed from the reference pack)
   // and the mapped ones around it (S.surround.trees); nothing is scattered to fill the view
@@ -1931,7 +2013,11 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
   const trunkMat = lambert(0x6b4a2b)
   // (Low: pines drawn as the plain conifers)
   if (!detail) byKind.conifer.push(...byKind.pine.splice(0))
-  if (detail) buildTrees(group, byKind, { keep, rand })
+  // (Low: fan palms as the plain palms, a little taller)
+  if (!detail) byKind.palm.push(...byKind.fanpalm.splice(0).map((t) => ({ ...t, s: t.s * 1.3 })))
+  // (trees within 60 m of the venue's bounds get the full models, the rest the lighter ones)
+  const nearTree = (t) => t.x > B.x0 - 60 && t.x < B.x1 + 60 && t.z > B.z0 - 60 && t.z < B.z1 + 60
+  if (detail) buildTrees(group, byKind, { keep, rand, near: nearTree })
   if (!detail && (byKind.broadleaf.length || byKind.eucalyptus.length)) {
     const list = [...byKind.broadleaf, ...byKind.eucalyptus]
     const crown = new THREE.InstancedMesh(keep(new THREE.IcosahedronGeometry(1.6, 0)), lambert(0xffffff, { flatShading: true }), list.length)

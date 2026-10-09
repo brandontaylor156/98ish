@@ -491,11 +491,15 @@ const buildOne = (v) => {
       for (let i = 0, j = q.length - 1; i < q.length; j = i++) if (q[i][1] > z !== q[j][1] > z && x < ((q[j][0] - q[i][0]) * (z - q[i][1])) / (q[j][1] - q[i][1]) + q[i][0]) o = !o
       return o
     }
-    for (const t of trees) if (inside(t)) {
+    // (area.from: only the trees of that kind there)
+    for (const t of trees) if (inside(t) && (!area.from || (t[3] || "broadleaf") === area.from)) {
       t[3] = area.kind
       if (area.s) t[2] = Math.round(t[2] * area.s * 100) / 100
     }
   }
+  // trees.rename: { kind: kind }: every tree of one kind drawn as another (Los Cab's small
+  // canopies are the tall fan palms of the owner's photos: "fanpalm")
+  for (const t of trees) if (ov.trees?.rename?.[t[3]]) t[3] = ov.trees.rename[t[3]]
   for (const tr of ov.trees?.after || []) {
     const p = sh(P(tr))
     trees.push([r1(p[0]), r1(p[1]), tr.s ?? 1, tr.kind || "palm"])
@@ -654,6 +658,17 @@ const buildOne = (v) => {
   if (ov.terrain && fs.existsSync(trPath)) {
     const tr = JSON.parse(fs.readFileSync(trPath, "utf8"))
     spec.terrain = { r: tr.r, step: tr.step, n: tr.n, h: tr.h, src: tr.source, ...(ov.terrain.color ? { color: ov.terrain.color } : {}) }
+    // what covers it (terrain-cover.py, off the aerial: grass, scrub, bare; the scrub's clumps)
+    const cvPath = path.join(HERE, "terrain", `${v.id}.cover.json`)
+    if (fs.existsSync(cvPath)) {
+      const cv = JSON.parse(fs.readFileSync(cvPath, "utf8"))
+      // (run-length: a letter and how many of it; the dots' digits as letters a-j; surround.js
+      // decodeRuns; the big clumps are drawn from the s cells, so the shrub list stays out)
+      const rle = (row) => row.replace(/(.)\1*/g, (m, ch) => ch + (m.length > 1 ? m.length : ""))
+      const dig = (row) => row.replace(/\d/g, (d) => String.fromCharCode(97 + +d))
+      spec.terrain.cover = { r: cv.r, cell: cv.cell, n: cv.n, rows: cv.cover.map(rle), ...(cv.dots ? { dots: cv.dots.map((r) => rle(dig(r))) } : {}), src: cv.source }
+      if (ov.terrain.colors) spec.terrain.colors = ov.terrain.colors
+    }
   }
   const hzPath = path.join(HERE, "horizon", `${v.id}.json`)
   if (fs.existsSync(hzPath)) {

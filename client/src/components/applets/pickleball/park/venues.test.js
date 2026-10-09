@@ -718,9 +718,28 @@ test("fence heights per type: Bouquet 3.66 m windscreened (east side bare), 1.52
   const vill = L.fences.filter((f) => f.k === "chain" && !f.part && f.t)
   assert.equal(vill.filter((f) => f.t === "pair").length, 4, "the north sides and the walkway ends are low")
   assert.ok(vill.filter((f) => f.t === "tall").length >= 4)
-  // the T-arm poles in every gap, along it
+  // round 4 (the drone photo's solved pose): the poles stand on the partitions only, two a
+  // court along each, mirrored across the centre aisle, the T arm across the partition; 6.9 m
   const lights = venueLayoutSpec(spec("loscab")).lights
-  assert.ok(lights.length > 60 && lights.every((l) => l.arm), `${lights.length} gap poles with arms`)
+  assert.ok(lights.every((l) => l.arm), "T arms")
+  const parts = L.fences.filter((f) => Array.isArray(f.part))
+  const seg = (p, [ax, az], [bx, bz]) => {
+    const dx = bx - ax
+    const dz = bz - az
+    const t = Math.max(0, Math.min(1, ((p.x - ax) * dx + (p.z - az) * dz) / (dx * dx + dz * dz)))
+    return Math.hypot(p.x - ax - t * dx, p.z - az - t * dz)
+  }
+  const onPart = lights.map((l) => ({ l, f: parts.find((f) => seg(l, f.a, f.b) < 0.3) })).filter((x) => x.f)
+  assert.equal(onPart.length, parts.length * 2, `${onPart.length} poles on ${parts.length} partitions`)
+  for (const { l, f } of onPart) {
+    const len = Math.hypot(f.b[0] - f.a[0], f.b[1] - f.a[1])
+    assert.ok(Math.abs((l.arm[0] * (f.b[0] - f.a[0]) + l.arm[1] * (f.b[1] - f.a[1])) / len) < 0.1, "the arm crosses the partition")
+  }
+  assert.ok(lights.length < 86, `${lights.length} poles (round 3 had 86)`)
+  assert.equal(L.fence.poleH, 6.9)
+  // the partitions' top rail is a round padded tube, not a box
+  assert.equal(P.cap.shape, "round")
+  assert.ok(P.cap.h <= 0.11 && P.cap.w <= 0.11)
   // other venues keep their untyped fences
   for (const id of ["newport", "whittier", "paseo", "sinaloa"]) assert.ok(sceneOf(id).fences.every((f) => !f.t), `${id} untyped`)
 })
@@ -761,4 +780,30 @@ test("terrain sampler: flat inside the crop, the real height beyond the blend", 
   assert.equal(g(5, 0), 0)
   assert.ok(Math.abs(g(25, 0) - 10) < 1e-9)
   assert.ok(g(10, 0) > 0 && g(10, 0) < 10)
+})
+
+// ---------- fidelity round 4 (2026-10-08): trees, the hillside, the deck's stairs ----------
+test("round 4: tree species from the owner's photos, the hillside's cover, Los Cab's east stairs", async () => {
+  const { coverGrid, decodeRuns } = await import("./surround.js")
+  const kinds = (id) => spec(id).trees.reduce((m, t) => ((m[t[3] || "broadleaf"] = (m[t[3] || "broadleaf"] || 0) + 1), m), {})
+  // Bouquet: the pines all round the pen; Los Cab: eucalyptus north of the deck, fan palms
+  assert.ok(kinds("bouquet").pine > 100, "Bouquet's pines")
+  const lk = kinds("loscab")
+  assert.ok(lk.eucalyptus >= 10 && lk.fanpalm >= 100 && !lk.palm, `Los Cab ${JSON.stringify(lk)}`)
+  // the hillside: run-length rows decode to the full grid, grass, scrub and bush specks on it
+  assert.equal(decodeRuns("g3.2s"), "ggg..s")
+  const T = spec("bouquet").terrain
+  const { rows, dots } = coverGrid(T)
+  assert.equal(rows.length, T.cover.n)
+  assert.ok(rows.every((r) => r.length === T.cover.n) && dots.every((r) => r.length === T.cover.n))
+  const all = rows.join("")
+  for (const c of "gsb.") assert.ok(all.includes(c), `cover has ${c}`)
+  assert.ok(dots.flat().filter((d) => d > 0).length > 1000, "bushes dotted over the grass")
+  // nothing but the venues that ask for it gets a cover
+  for (const id of IDS) if (id !== "bouquet") assert.ok(!spec(id).terrain?.cover, `${id} has no cover`)
+  // Los Cab: open stairs come down from the deck's east end (photo 1, the aerial's dark patch)
+  const deck = spec("loscab").decks.find((d) => d.y > 3 && d.y < 3.2)
+  const x1 = Math.max(...deck.p.map((p) => p[0]))
+  const east = spec("loscab").stairs.find((s) => Math.abs(Math.min(s.a[0], s.b[0]) - x1) < 0.3 && Math.max(s.a[0], s.b[0]) > x1 + 4)
+  assert.ok(east && east.open, "east stairs")
 })

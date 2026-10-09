@@ -45,6 +45,7 @@ So every object outside a venue's buildings has a source, and nothing is drawn t
 
 - **Newport (2026-10-07, the owner's "bench during the game"):** a bench 0.23 m off Court 43's sideline by its kitchen and a paddle wait board in the 4.2 m between the back-to-back baselines of Courts 35 and 43. Neither had a source; both are gone. `venues.test.js` "live courts are clear" keeps every live court's sidelines (0.3 m) and baselines (1 m) clear at every venue.
 - **Every real venue's match view:** the umpire's chair by the net post (a stadium thing; no real court here has one).
+- **Every real venue (2026-10-08, fidelity round 4):** the ball machine and the 26 practice balls strewn over its court (the game's Ball Machine court, picked by rule; the owner saw them in Bouquet's side by side). Now drawn only at Riverside; the Ball Machine spot still works.
 
 ## Per venue
 
@@ -89,7 +90,22 @@ Sources: `refs/loscab/owner/` (photos 1-7; from "/10" carousels), the pack's z20
 
 Not changed: trees (the canopy's 420: palms by default, as the photos show palms and eucalyptus round the village; the eucalyptus aren't told apart yet), courts and colours (photo 7's dark blue `#2f5284` / kitchen `#5292dc` / green `#587654` agree with the pack's albedo within the overcast light).
 
+#### Los Cab, fidelity round 4 (2026-10-08): poles measured, the round rail, the east stairs, the trees
+
+Photo 2 is now solved too (7 features: four corners and kitchen-line ends of courts 32 and 44, a pole's foot; 6.8 px rms: camera at en (11.1, 64.5), 5.6 m up, heading 100, a 24-degree telephoto view); photo 1 keeps a hand pose (en (45.5, 59.5), heading 15: only one court junction is clear) that now puts the deck, its east stairs and the partition where the photo has them.
+
+| Object | Built | Method, uncertainty | Source |
+|---|---|---|---|
+| Light poles | 28 white poles on the 14 partitions only (none between the two courts of a pair, none at the rows' ends), 2.1 m from each court's middle on its outer side and 5.1 m on the aisle side, so the two rows mirror each other across the centre aisle; 6.9 m to a T arm 3 m across the partition with a flat head over each court; the pole 0.15 m thick, the heads' housings pale grey. The south pod keeps the old gap rule (no photo) | Drone photo 7's solved pose: the poles' feet back-projected onto the ground land on the partitions (e 39.3, 57.1) at n 36.8 / 44.2 and 51.6 / 58.8; heights 6.8-6.9 m to the arm on the near partition (6.4 on the far one, less sure); the heads' pixels fit an arm of ±1.5 m within 7 px. Photo 2 sees the pole on the partition between courts 32 and 44 between court 44's kitchen line and its net (n ~58), as the rule puts it (58.7). Round 3 had 86 poles of 8.5 m, one in every gap: about 2x too many and 1.6 m too tall | Owner photos 7, 2 |
+| Partition top rail | a round padded tube 0.10 m thick (was a 0.11 x 0.12 m box), riding on 0.065 m galvanized line posts with 0.09 m terminals at the ends | Photo 1 at full size: the rail is round, 14 px against the 0.28 m curb's 45 px (±0.02 m) | Owner photo 1 |
+| Deck stairs, east | open steel stairs from the deck's east end (e 48.9) down eastward to e 54.6 along n 68.0, 1.3 m wide, 3.1 m in 5.7 m: black stringers, wood treads, black bar railing both sides; walkable | Photo 1: the deck at the left, the flight starting at its end and coming down to the right behind the partition, the tennis courts' bare chain-link behind it (no deck over it); the z20 aerial: a dark 5.5 m patch just east of the deck's brown strip (e 49-54.5, n 66.5-69) | Owner photo 1 + aerial |
+| Deck stairs, west | kept at the deck's west end (e 14.3..20) | Photos 2 and 3 see a flight under the deck's west end; the spot is still the aerial's lighter landing: **GUESS** within a few metres | Owner photos 2, 3 + aerial |
+| Eucalyptus | the 17 big canopies north of the deck and the tennis courts (e 40..100, n 95..150): tall forked pale trunks, airy grey-green crowns of hanging sickle leaves (`eucalyptus`, ~17 m) | Photo 2 from the deck: the big trees over the tennis courts to the north-east are eucalyptus (pale bark, sparse high crowns). The other big canopies stay generic broad-leaf (species not seen) | Owner photo 2 + canopy |
+| Fan palms | the 128 small canopies (the pack's palms) are tall thin Washingtonia fan palms (`fanpalm`: a ringed trunk 12-17 m, a short skirt of old leaves, a head of 16 fan leaves) | Photo 3 (sunset): rows of very tall thin palms with small round heads all round the west and south; photo 4's corner | Owner photos 3, 4 + canopy |
+
 **Owner questions (Los Cab, 2026-10-08):**
+- Are there stairs at both ends of the deck (photo 1 sees one at the east end, photos 2 and 3 one at the west end)?
+- Do the south pod's courts have the same poles on partitions, or poles between every court?
 - The rest of the "/10" carousels, especially a photo of the stairs from further back (where along the deck are they?) and one along the south side by the white building.
 - How tall are the low partitions to the top of the green cap (we have 1.2 m) and how tall are the light poles (8.5 m)?
 - Does the deck run the whole north side of the east block or stop near x 49 (as the aerial's brown strip does)? Is the lighter strip west of it (x -3..20) a walkway on the ground?
@@ -223,6 +239,16 @@ Sources: `refs/bouquet/owner/` (the owner's wide shot from behind court 5 and th
 | Pines | the 132 canopy trees west of the lot are Aleppo-type pines (a new `pine` kind: a tall leaning trunk bare for half its height, upswept limbs, the crown in dark clumps, ~13 m); the trees east of the lot stay broad-leaf | Both photos: pines on the north, west and south, about twice the poles' height; broad-leaf trees beyond the lot on the right | Owner photos + canopy |
 | Hillside | the hills round the park from the USGS 3DEP terrain (`tools/venues/terrain.py`: a 15 m grid to 450 m, -12 to +80 m); the far ground is lifted onto it (flat under the walkable crop, blended over 25 m), its base colour the hillside's dry grass `#a8986a` | Terrain tiles; colour from the wide shot's hillside (the aerial is a green-season one) | Terrain + owner photo |
 | Houses round the park | 257 OSM buildings (256 with mapped heights): 170 hip roofs and 87 flat, each roof's colour read off the z18 aerial | `tools/venues/surround-roofs.py`: a footprint's two halves along its long axis differ by more than 9 (0-255) in brightness = two slopes = hip (under 1,500 m2); rise 5:12 over its width, at most 3 m; colour the footprint's median. OSM's height is the ridge | Aerial + OSM |
+
+#### Bouquet, fidelity round 4 (2026-10-08): the posts, the pines, the hillside's skin
+
+| Object | Built | Method, uncertainty | Source |
+|---|---|---|---|
+| Partition posts | line posts 0.073 m (2 7/8 in) with a loop cap the top rail runs through and a band at the mid rail; terminal posts at every run's end 0.102 m (4 in) with a dome cap and tension bands every 0.32 m; hot-dip galvanized (a light grey with a metallic sheen); the perimeter's posts the same sizes | Partition shot at full size: the terminal post is about 2.4x the 1.66 in top rail, the line posts about 1.7x; the bands, the loop caps and the dome cap are visible on the near posts (±0.01 m) | Owner photo |
+| Partition mesh | black vinyl (it only glints in the sun: its highlight is now a third of a galvanized one) | Partition shot: the mesh reads near black against the courts | Owner photo |
+| Pines | the same 132 trees, a new model: a tall slightly leaning trunk (~14 m x 0.88 x the tree's size), 14 limbs from a third of the way up rising 25-45 degrees, needle pads at their ends and partway along (lit on top, dark underneath and inside), the crown an irregular ovoid with sky between the pads; three shapes; trees more than 60 m outside the venue get a lighter one | Both photos (the pines' shape and colour; the hillside crop shows their open, clumpy crowns) | Owner photos |
+| Hillside cover | grass, scrub, bare ground and built-up land per 7.5 m cell, and the bushes dotted over the grass (0-9 per cell), off the z18 aerial (`tools/venues/terrain-cover.py`: scrub = clearly darker than the hill's own grass and on a slope or 4 m up; bushes = specks darker than the ground within 7 m; bare = light, unsaturated; built = grey clusters or near a mapped building). Colours from the wide photo: dry grass `#a39778`, scrub `#565638`, bare `#c2b08c` (the aerial is a green-season one, so it says where, not what colour) | The cells are classes only (letters, run-length coded in the spec); drawn as soft patches in the far ground (2048 px over 920 m) with broad darker/lighter drifts, the scrub cells as two or three low 2-4.6 m clumps each, the dotted bushes as small crossed cards (at most 4500); ravines darker than spurs from the terrain itself | Aerial (where) + owner photo (colours) |
+| Ball machine | none drawn (the scattered practice balls on one court in the courts-wide view were the game's Ball Machine court, drawn at every venue); the Ball Machine spot still works | Not seen in any photo of a city park's courts; now drawn only at Riverside | Rule removed |
 
 **Owner questions (Bouquet, 2026-10-08):**
 - The other six photos of the carousel ("1 of 7"): a shot of the east side and the lot, and one from the north fence looking south, would settle the south fence's screen and the poles' count.
