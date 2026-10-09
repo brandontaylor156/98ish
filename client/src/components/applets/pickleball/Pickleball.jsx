@@ -59,7 +59,7 @@ import { usePark } from "./park/usePark"
 // Roam, the open world (client/src/roam/; docs/open-world.md): Explore Valencia from the Paseo Club
 import { RoamFound, RoamHud, RoamMenu } from "../../../roam/ui/RoamHud.jsx"
 import { makeHost98, useRoamNet, useRoamVoice } from "../../../roam/host98.js"
-import { townById, townForVenue } from "../../../roam/towns/index.js"
+import { TOWNS, townById, townForVenue } from "../../../roam/towns/index.js"
 import * as livingNet from "../../../utils/livingpark"
 import { memoryKey, pickLine, rememberResult } from "./park/living.js"
 import { AwayCard, ClonePanel } from "./park/LivingPanel"
@@ -356,6 +356,8 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
   const [roamWorld, setRoamWorld] = useState(null)
   const [roamHud, setRoamHud] = useState(null)
   const [roamUi, setRoamUi] = useState({ menu: false, found: null, from: null })
+  // (on the way to another town: the quick trip's card)
+  const [roamHop, setRoamHop] = useState(null)
   const roamNet = useRoamNet({ world: roamWorld, active: !!roamWorld, look: roamWorld ? myParkInfo().look : null })
   const roamVoice = useRoamVoice({ world: roamWorld, joined: roamNet.joined, n: roamNet.n })
   // (in My Park at a venue with a town round it: the way out shows near the arrival)
@@ -1044,9 +1046,10 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
     w.resume()
     e.setWorld(w)
   }
-  // Roam: out of the venue into its town (from: the venue; you come out where you stood)
-  // (start: "keyCar": beside the car Vince's keys unlock, the town's keyCar: from another venue)
-  const startRoam = async (townId, { from = null, start = null } = {}) => {
+  // Roam: out of the venue into its town (from: the venue; you come out where you stood);
+  // car: arriving from another town in your car (Go to...); start: "keyCar": beside the car
+  // Vince's keys unlock (the town's keyCar), from another venue
+  const startRoam = async (townId, { from = null, car = null, start = null } = {}) => {
     const e = engineRef.current
     const town = townById(townId)
     if (!e || !town) return
@@ -1083,8 +1086,38 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
     setRoamWorld(w)
     e.setWorld(w)
     if (import.meta.env?.DEV) window.__roam = w
-    w.whenReady().then(() => roamRef.current === w && w.ensureOpen(v))
+    return w.whenReady().then(async () => {
+      if (roamRef.current !== w) return
+      w.ensureOpen(v)
+      if (car) await w.arriveByCar(car)
+    })
   }
+  // Roam: Go to... another town (a quick trip). Driving, you arrive in your car and anyone
+  // riding along comes too (server/roam tickets); follow: you're the one riding along.
+  const hopTo = async (townId, { follow = false } = {}) => {
+    const w = roamRef.current
+    const town = townById(townId)
+    if (!w || !town || town.id === w.town.id) return
+    const car = !follow && w.mode === "drive" ? w.info.car : null
+    setRoamUi((u) => ({ ...u, menu: false, found: null }))
+    setRoamHop({ to: town.name, follow })
+    const t0 = performance.now()
+    if (!follow) await w.hop(town.id)
+    roamRef.current = null
+    setRoamWorld(null)
+    setRoamHud(null)
+    engineRef.current?.setWorld(null)
+    w.dispose()
+    try {
+      await Promise.race([startRoam(town.id, { from: Object.keys(town.venues || {})[0] || null, car: car ? { model: car.model, color: car.color } : null }), new Promise((r) => setTimeout(r, 12000))])
+    } finally {
+      // (long enough to read where you're going)
+      const wait = 900 - (performance.now() - t0)
+      if (wait > 0) await new Promise((r) => setTimeout(r, wait))
+      setRoamHop(null)
+    }
+  }
+  if (import.meta.env?.DEV) window.__pbHopTo = hopTo
   if (import.meta.env?.DEV) window.__pbStartRoam = startRoam
   const leaveRoam = ({ quit = true } = {}) => {
     const w = roamRef.current
@@ -1106,6 +1139,10 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
       startPark(ev.venue)
     } else if (ev.type === "toast") flash(ev.text)
     else if (ev.type === "worldMenu") setRoamUi((u) => ({ ...u, menu: !u.menu }))
+    else if (ev.type === "hop") {
+      flash(`${ev.driver} is driving to ${townById(ev.town)?.name || "another town"}. You're coming along.`)
+      hopTo(ev.town, { follow: true })
+    }
   }
   // back to the park after a game, the Locker Room or the ball machine
   const backToPark = ({ court = null } = {}) => {
@@ -2019,6 +2056,9 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
             town={roamWorld.town}
             found={roamWorld.found}
             canGoBack={!!roamUi.from}
+            towns={Object.values(TOWNS).filter((t) => t.id !== roamWorld.town.id).map((t) => ({ id: t.id, name: t.name }))}
+            onGo={(id) => hopTo(id)}
+            driving={roamWorld.mode === "drive"}
             voice={roamVoice}
             onBack={() => {
               const from = roamUi.from
@@ -2028,6 +2068,12 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
             onLeave={() => leaveRoam()}
             onClose={() => (setRoamUi((u) => ({ ...u, menu: false })), stageRef.current?.focus({ preventScroll: true }))}
           />
+        )}
+        {screen === "roam" && roamHop && (
+          <div className="roamHop" data-roam="hop" role="status">
+            {roamHop.follow ? "Riding along to" : "On the way to"} {roamHop.to}...
+            <small>{roamHop.follow ? "Your friend is driving." : "The map is loading."}</small>
+          </div>
         )}
         {screen === "roam" && roamUi.found && <RoamFound egg={roamUi.found} onClose={() => (setRoamUi((u) => ({ ...u, found: null })), stageRef.current?.focus({ preventScroll: true }))} />}
         {screen === "park" && parkUi.turn && !parkUi.menu && <ParkTurn key={parkUi.turn.court} turn={parkUi.turn} onGo={() => withScheme(() => startParkGame(parkUi.turn))} />}

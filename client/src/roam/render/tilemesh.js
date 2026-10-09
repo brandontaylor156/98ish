@@ -14,7 +14,9 @@
 import * as THREE from "three"
 import { buildingArrays } from "./buildings.js"
 import { groundArrays, paintGround } from "./ground.js"
-import { deckArrays, markingArrays, roadArrays } from "./linework.js"
+import { deckArrays, markingArrays, platformArrays, roadArrays } from "./linework.js"
+import { tileSeaAt } from "../data/tile.js"
+import { disposeSea, seaArrays, seaMaterial } from "./sea.js"
 
 // ---------- shared uniforms (set by the world) ----------
 // the sky's colour (window reflections), night (0 day .. 1 night: lit windows, lamps)
@@ -338,6 +340,7 @@ export const disposeMaterials = () => {
   shared.lines.dispose()
   shared.roads.dispose()
   shared.deck.dispose()
+  disposeSea()
   shared = null
 }
 
@@ -414,6 +417,37 @@ export const buildTileMesh = (tile, groundAt, { near = true, texSize = 512, anis
       mesh.name = "markings"
       mesh.receiveShadow = true
       mesh.renderOrder = 1
+      group.add(mesh)
+      owned.push(mesh.geometry)
+      calls++
+    }
+  }
+  // the sea (a coast town; render/sea.js), near and far
+  const sa = seaArrays(tile, tile.seaY ?? 0)
+  if (sa) {
+    const g = new THREE.BufferGeometry()
+    g.setAttribute("position", new THREE.BufferAttribute(sa.position, 3))
+    g.setAttribute("foam", new THREE.BufferAttribute(sa.foam, 1))
+    g.setIndex(new THREE.BufferAttribute(sa.index, 1))
+    g.computeBoundingSphere()
+    const mesh = new THREE.Mesh(g, seaMaterial())
+    mesh.matrixAutoUpdate = false
+    mesh.name = "sea"
+    group.add(mesh)
+    owned.push(g)
+    calls++
+  }
+  // piers mapped as areas: their decks, pilings and railings
+  if (tile.platforms?.some((p) => p.own)) {
+    const r = tile.rect
+    const wet = (x, z) => x < r.x0 - 10 || x > r.x1 + 10 || z < r.z0 - 10 || z > r.z1 + 10 || tileSeaAt(tile, x, z)
+    const pa = platformArrays(tile.platforms, tile.seaY ?? 0, wet)
+    if (pa.position.length) {
+      const mesh = new THREE.Mesh(geometryOf(pa), mats.deck)
+      mesh.matrixAutoUpdate = false
+      mesh.name = "piers"
+      mesh.castShadow = near
+      mesh.receiveShadow = true
       group.add(mesh)
       owned.push(mesh.geometry)
       calls++

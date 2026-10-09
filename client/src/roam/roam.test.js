@@ -6,7 +6,9 @@ import path from "node:path"
 import zlib from "node:zlib"
 import { fileURLToPath } from "node:url"
 import { EXTENT, fromTileUnits, tileBounds, tileOf, tilesAround, toTileUnits, townFrame } from "./geo.js"
-import { AREA, F, FOOT, ROAD, ROAD_CLASSES, buildTile, fillMissing, buildingHeight, clipLine, clipPolygon, decodeTile, roadWidth, simplify, tileHeightAt } from "./data/tile.js"
+import { AREA, F, FOOT, ROAD, ROAD_CLASSES, buildTile, fillMissing, buildingHeight, clipLine, clipPolygon, decodeTile, roadWidth, simplify, tileHeightAt, tileSeaAt } from "./data/tile.js"
+import { inRings, joinLines, seaRings, townSea } from "./data/sea.js"
+import { nestRings, seaArrays } from "./render/sea.js"
 import { compactElement, stitchRings } from "./data/osm.js"
 import { decodePng, terrainSampler, terrariumHeight } from "./data/terrain.js"
 import { buildingArrays, orientedBox, wallRings } from "./render/buildings.js"
@@ -28,7 +30,7 @@ import { SURF, materialOf } from "./render/buildings.js"
 import { kitKindOf } from "./render/trees.js"
 import { STREET } from "./data/tile.js"
 import valencia from "./towns/valencia.js"
-import { townForVenue } from "./towns/index.js"
+import { TOWNS, townForVenue } from "./towns/index.js"
 
 const HERE = path.dirname(fileURLToPath(import.meta.url))
 const PREBUILT = path.join(HERE, "..", "..", "public", "roam", "valencia")
@@ -599,44 +601,56 @@ test("nothing drawn strays into the sky: buildings, bridge decks and the ground 
   assert.ok(worst < 9, `the farthest a roof reaches past its footprint's box: ${worst.toFixed(1)} m`)
 })
 
+// a town's prebuilt tiles, decoded (in its own frame)
+const townTiles = (town) => {
+  const dir = path.join(HERE, "..", "..", "public", "roam", town.id)
+  const ix = JSON.parse(fs.readFileSync(path.join(dir, "index.json"), "utf8"))
+  const f = townFrame(town.origin)
+  const tiles = []
+  for (const x of fs.readdirSync(path.join(dir, "16")))
+    for (const file of fs.readdirSync(path.join(dir, "16", x))) tiles.push(decodeTile(JSON.parse(fs.readFileSync(path.join(dir, "16", x, file), "utf8")), f, ix.base))
+  return { ix, f, tiles }
+}
 // every place named in the prebuilt tiles: POIs, areas' and roads' names (for the eggs test)
-const mappedPlaces = () => {
-  const ix = JSON.parse(fs.readFileSync(path.join(PREBUILT, "index.json"), "utf8"))
-  const f = townFrame(valencia.origin)
+const mappedPlaces = (tiles) => {
   const out = []
-  for (const x of fs.readdirSync(path.join(PREBUILT, "16")))
-    for (const file of fs.readdirSync(path.join(PREBUILT, "16", x))) {
-      const t = decodeTile(JSON.parse(fs.readFileSync(path.join(PREBUILT, "16", x, file), "utf8")), f, ix.base)
-      for (const p of t.pois) out.push({ name: p.name, pts: [p] })
-      for (const r of t.roads) if (r.name) out.push({ name: r.name, pts: r.pts })
-      for (const b of t.buildings) if (b.name) out.push({ name: b.name, pts: b.ring })
-    }
-  return { f, out }
+  for (const t of tiles) {
+    for (const p of t.pois) out.push({ name: p.name, pts: [p] })
+    for (const r of t.roads) if (r.name) out.push({ name: r.name, pts: r.pts })
+    for (const b of t.buildings) if (b.name) out.push({ name: b.name, pts: b.ring })
+    for (const p of t.platforms) if (p.name) out.push({ name: p.name, pts: p.ring })
+  }
+  return out
 }
 
-test("eggs: 15-25 hidden finds, each at the real mapped place it names; the couple's needs two", () => {
-  const eggs = valencia.eggs
+for (const town of Object.values(TOWNS))
+  test(`eggs (${town.name}): 15-25 hidden finds, each at the real mapped place it names; a car and a couple's find`, () => {
+  const eggs = town.eggs
   assert.ok(eggs.length >= 15 && eggs.length <= 25, `${eggs.length} eggs`)
   assert.equal(new Set(eggs.map((e) => e.id)).size, eggs.length)
   assert.ok(eggs.some((e) => e.kind === "couple") && eggs.some((e) => e.kind === "car"))
-  const { f, out } = mappedPlaces()
-  const spots = eggSpots(valencia, f)
+  for (const e of eggs.filter((q) => q.kind === "car")) assert.ok(MODELS[e.model || "turbo"], `${e.id}: a car we can draw and drive`)
+  const { f, tiles } = townTiles(town)
+  const out = mappedPlaces(tiles)
+  const spots = eggSpots(town, f)
   for (const e of spots) {
     const named = out.filter((p) => p.name === e.place)
     assert.ok(named.length, `${e.id}: "${e.place}" is on the map`)
     const d = Math.min(...named.flatMap((p) => p.pts.map((q) => Math.hypot(q.x - e.x, q.z - e.z))))
     assert.ok(d < 45, `${e.id} is ${d.toFixed(0)} m from ${e.place}`)
   }
-  // every one can be walked up to: open ground, and a clear way in from at least one side
+  // every one can be walked up to: open ground (not the sea), and a clear way in from at least
+  // one side
   const walls = createColliders()
-  const ixb = JSON.parse(fs.readFileSync(path.join(PREBUILT, "index.json"), "utf8")).base
-  for (const x of fs.readdirSync(path.join(PREBUILT, "16")))
-    for (const file of fs.readdirSync(path.join(PREBUILT, "16", x))) {
-      const t = decodeTile(JSON.parse(fs.readFileSync(path.join(PREBUILT, "16", x, file), "utf8")), f, ixb)
-      if (!spots.some((e) => e.x > t.rect.x0 - 60 && e.x < t.rect.x1 + 60 && e.z > t.rect.z0 - 60 && e.z < t.rect.z1 + 60)) continue
-      walls.addTile(t.key, wallRings(t.buildings, () => 0))
-    }
+  for (const t of tiles) {
+    if (!spots.some((e) => e.x > t.rect.x0 - 60 && e.x < t.rect.x1 + 60 && e.z > t.rect.z0 - 60 && e.z < t.rect.z1 + 60)) continue
+    walls.addTile(t.key, wallRings(t.buildings, () => 0))
+  }
   for (const e of spots) {
+    const t = tiles.find((q) => e.x >= q.rect.x0 && e.x < q.rect.x1 && e.z >= q.rect.z0 && e.z < q.rect.z1)
+    assert.ok(t, `${e.id} is inside the prebuilt town`)
+    const onDeck = tiles.some((q) => q.platforms.some((p) => deckAt(deckSurfaces([], [p]), e.x, e.z, p.h, false) !== null))
+    assert.ok(!tileSeaAt(t, e.x, e.z) || onDeck, `${e.id} is on land (or out on a pier)`)
     assert.equal(walls.inside(e.x, e.z), 0, `${e.id} is outside every building`)
     let open = 0
     for (let k = 0; k < 16; k++) {
@@ -653,9 +667,130 @@ test("eggs: 15-25 hidden finds, each at the real mapped place it names; the coup
   const two = spots.find((e) => e.kind === "couple")
   assert.equal(nearestEgg(spots, {}, two.x, two.z), null)
   assert.equal(nearestEgg(spots, {}, two.x, two.z, { together: () => true })?.id, two.id)
-  // the venue's way into town
+})
+
+test("towns: each opens from its venue, shares the venue's frame, and its prebuilt tiles stay small", () => {
   assert.equal(townForVenue("paseo")?.id, "valencia")
   assert.equal(townForVenue("riverside"), null)
+  for (const town of Object.values(TOWNS)) {
+    assert.equal(TOWNS[town.id], town)
+    const [venueId, v] = Object.entries(town.venues)[0]
+    assert.equal(townForVenue(venueId)?.id, town.id, `${venueId} opens onto ${town.id}`)
+    const venue = JSON.parse(fs.readFileSync(path.join(HERE, "..", "components", "applets", "pickleball", "park", "venues", `${venueId}.json`), "utf8"))
+    assert.deepEqual(town.origin, venue.origin, `${town.id}: the venue's own origin`)
+    const { lat, lon } = townFrame(town.origin).toLatLon(v.x, v.z)
+    assert.ok(lat > town.bbox.south && lat < town.bbox.north && lon > town.bbox.west && lon < town.bbox.east, `${town.id}: the venue is in the box`)
+    assert.ok(v.back && v.back.r > 0)
+    const ix = JSON.parse(fs.readFileSync(path.join(HERE, "..", "..", "public", "roam", town.id, "index.json"), "utf8"))
+    assert.equal(ix.town, town.id)
+    assert.ok(ix.bytes < 10.5 * 1024 * 1024, `${town.id}: ${(ix.bytes / 1e6).toFixed(1)} MB`)
+    assert.ok(ix.counts.buildings > 5000 && ix.counts.roads > 5000, `${town.id}: a whole town`)
+    assert.equal(town.prebuilt, `/roam/${town.id}`, "a relative path the deployed site serves")
+  }
+})
+
+test("sea: the coastline becomes water (islands land again), the ground dips under it, the shore stops you", () => {
+  // a box with the coast across it, land to the north (the coast runs west to east)
+  const box = { x0: 0, y0: 0, x1: 100, y1: 100 }
+  const across = seaRings([[[-10, 50], [40, 55]], [[40, 55], [110, 45]]], box)
+  assert.ok(inRings(across, 50, 10) && !inRings(across, 50, 90))
+  // the ways joined end to start
+  assert.equal(joinLines([[[0, 0], [1, 1]], [[1, 1], [2, 0]], [[5, 5], [6, 6]]]).length, 2)
+  // an island in the sea (a closed ring wound counter-clockwise) is land
+  const isl = seaRings([[[-10, 80], [110, 80]], [[20, 20], [30, 20], [30, 30], [20, 30], [20, 20]]], box)
+  assert.ok(inRings(isl, 50, 50) && !inRings(isl, 25, 25) && !inRings(isl, 50, 90))
+  // a coast that goes in and out the same side: a peninsula
+  const pen = seaRings([[[60, -5], [60, 80], [40, 80], [40, -5]]], box)
+  assert.ok(!inRings(pen, 50, 50) && inRings(pen, 80, 50) && inRings(pen, 50, 90))
+  // no coast: all sea or all land, as told; broken data (a coast stopping mid-box): unknown
+  assert.equal(seaRings([], box, { inside: () => true }).length, 1)
+  assert.equal(seaRings([], box).length, 0)
+  assert.equal(seaRings([[[-10, 50], [50, 50]]], box), null)
+  // the town-wide sea from coastline ways
+  const ts = townSea([{ type: "way", id: 1, tags: { natural: "coastline" }, geom: [[33.6, -118.1], [33.6, -117.9]] }], { south: 33.5, west: -118, north: 33.7, east: -117.95 })
+  assert.equal(ts(33.55, -117.97), true)
+  assert.equal(ts(33.65, -117.97), false)
+
+  // a tile: the coast across its middle, a pier out over the sea
+  const coastV = 2600
+  const els = [
+    way(1, { natural: "coastline" }, [[-300, coastV + 50], [4400, coastV - 50]]),
+    way(2, { man_made: "pier", name: "Test Pier" }, [[2000, coastV - 300], [2000, coastV + 900]]),
+    way(3, { highway: "residential", name: "Shore Drive" }, [[-100, 1500], [4200, 1500]]),
+  ]
+  const elevation = (lat) => (lat - B.south) * 30000 - 8 // (sloping down to the south, under 0 at the bottom)
+  const raw = buildTile({ z: T.z, x: T.x, y: T.y, elements: els, elevation })
+  assert.ok(raw.w?.length >= 1, "the sea is in the tile")
+  const t = decodeTile(raw, frame, 0)
+  assert.equal(t.seaY, 0)
+  const at = (u, v) => ({ x: t.rect.x0 + (u / EXTENT) * (t.rect.x1 - t.rect.x0), z: t.rect.z0 + (v / EXTENT) * (t.rect.z1 - t.rect.z0) })
+  const sea = at(1000, 3800)
+  const land = at(1000, 1000)
+  assert.equal(tileSeaAt(t, sea.x, sea.z), true)
+  assert.equal(tileSeaAt(t, land.x, land.z), false)
+  assert.ok(tileHeightAt(t, sea.x, sea.z) <= -1.5 + 1e-6, "the sea floor is under the water")
+  assert.ok(tileHeightAt(t, land.x, land.z) >= 0.4 - 1e-6, "the land is above it")
+  // the shore's edges are the coast only (none along the tile's clip box), and stop a walker
+  assert.ok(t.shore.length >= 1)
+  for (const [a, b] of t.shore) assert.ok(Math.abs(a.z - b.z) < 30, "shore edges run along the coast")
+  const shore = createColliders()
+  shore.addEdges(t.key, t.shore)
+  const c = at(1000, coastV)
+  const w = createWalker(c.x, c.z - 3, Math.PI) // (yaw pi: walking south, toward the sea)
+  for (let i = 0; i < 120; i++) stepWalker(w, { x: 0, y: 1 }, 0, 1 / 30, { resolve: (x, z, r) => shore.resolve(x, z, r) })
+  assert.equal(tileSeaAt(t, w.x, w.z), false, "stopped at the water's edge")
+  assert.ok(shore.edges > 0)
+  shore.removeTile(t.key)
+  assert.equal(shore.edges, 0)
+  // the pier: a deck level with the shore, out over the water
+  const pier = t.roads.find((r) => r.name === "Test Pier")
+  assert.ok(pier && pier.flags & F.bridge && pier.deck, "a deck")
+  assert.ok(Math.max(...pier.deck) - Math.min(...pier.deck) < 0.01, "level")
+  assert.ok(pier.width >= 5)
+  const end = at(2000, coastV + 800)
+  assert.ok(deckAt(deckSurfaces(t.roads), end.x, end.z, pier.deck[0], false) !== null, "you can stand at its far end")
+  // the water mesh: triangles over the rings and a surf strip along the shore
+  const m = seaArrays(t, t.seaY)
+  assert.ok(m.index.length >= 6 && m.foam.some((f) => f === 1))
+  for (let i = 1; i < m.position.length; i += 3) assert.ok(Math.abs(m.position[i]) < 0.1, "at sea level")
+  // nesting: a hole inside an outer
+  const sq = (x0, z0, s) => [{ x: x0, z: z0 }, { x: x0 + s, z: z0 }, { x: x0 + s, z: z0 + s }, { x: x0, z: z0 + s }]
+  const nest = nestRings([sq(0, 0, 100), sq(20, 20, 10)])
+  assert.equal(nest.length, 1)
+  assert.equal(nest[0].holes.length, 1)
+  // a tile out at sea (no coastline in it): all water when the town's coast says so
+  const open = decodeTile(buildTile({ z: T.z, x: T.x, y: T.y, elements: [], elevation: () => -20, sea: () => true }), frame, 0)
+  assert.equal(open.sea.length, 1)
+  assert.equal(open.shore.length, 0, "the clip box is no shore")
+  const mid = at(2048, 2048)
+  assert.equal(tileSeaAt(open, mid.x, mid.z), true)
+  // inland: no sea at all (Valencia's tiles are unchanged)
+  const dry = buildTile({ z: T.z, x: T.x, y: T.y, elements: [els[2]], elevation })
+  assert.equal(dry.w, undefined)
+})
+
+test("Newport Beach: the ocean and the harbour from the coastline, the beach, the club on land, a pier", { skip: !TOWNS.newport }, () => {
+  const town = TOWNS.newport
+  const { f, tiles } = townTiles(town)
+  const tileAtP = (x, z) => tiles.find((q) => x >= q.rect.x0 && x < q.rect.x1 && z >= q.rect.z0 && z < q.rect.z1)
+  const seaAtLL = (lat, lon) => {
+    const p = f.toXZ(lat, lon)
+    return tileSeaAt(tileAtP(p.x, p.z), p.x, p.z)
+  }
+  assert.ok(tiles.filter((t) => t.sea.length).length > 40, "plenty of ocean")
+  assert.equal(seaAtLL(33.59, -117.94), true, "the ocean off the peninsula")
+  assert.equal(seaAtLL(33.603, -117.895), true, "the harbour")
+  assert.equal(seaAtLL(town.origin[0], town.origin[1]), false, "the club")
+  assert.equal(seaAtLL(33.6115, -117.9255), false, "the peninsula")
+  assert.ok(tiles.some((t) => t.areas.some((a) => a.cls === AREA.sand)), "sand beaches")
+  // the Newport Pier: a level deck out over the ocean, named on the map
+  const pierAt = tiles.flatMap((t) => t.pois).find((p) => p.name === "Newport Pier" && p.kind === "pier")
+  assert.ok(pierAt, "the Newport Pier is on the map")
+  const plat = tiles.flatMap((t) => t.platforms).find((p) => p.own && deckAt(deckSurfaces([], [p]), pierAt.x, pierAt.z, p.h, false) !== null)
+  assert.ok(plat, "you can stand on it")
+  assert.ok(plat.h + 34.3 > 2 && plat.h + 34.3 < 12, `the deck ${(plat.h + 34.3).toFixed(1)} m above the sea`)
+  assert.equal(seaAtLL(f.toLatLon(pierAt.x, pierAt.z).lat, f.toLatLon(pierAt.x, pierAt.z).lon), true, "over the water")
+  assert.ok(tiles.some((t) => t.roads.some((r) => r.deck && r.width <= 3)), "boat docks in the harbour")
 })
 
 test("tile store: static tiles for the town, the function elsewhere, a pause after a failure", async () => {

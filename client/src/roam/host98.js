@@ -172,7 +172,7 @@ export const makeHost98 = ({ engineCtx, me = {}, sky = { real: true, mode: "real
 
 // Roam online over 98ish's shared connection (server/roam): joins the town while you're in it
 // and passes everything to the world (setNet / netJoined / netEvent). -> { joined, n, people, error }
-const EVENTS = ["roam:m", "roam:person", "roam:gone", "roam:car", "roam:ride"]
+const EVENTS = ["roam:m", "roam:person", "roam:gone", "roam:car", "roam:ride", "roam:seat", "roam:hop"]
 export const useRoamNet = ({ world, active, look }) => {
   const net = useNet()
   const socket = net?.socket

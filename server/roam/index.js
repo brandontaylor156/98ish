@@ -16,6 +16,11 @@
 // parked there (the last 200 left cars an instance remembers). Riding along (roam:ride
 // { num }): only in a car someone is driving, within 8 m of it, up to 3 riders.
 //
+// Going to another town (roam:hop { town }): a driver's riders are told (roam:hop { town,
+// driver }) and come too; each gets a ticket (30 s, memory only) so that joining that town puts
+// them in the driver's instance and, once the driver's car is there, in its passenger seat
+// (roam:seat { num, car }).
+//
 // Socket events (client -> server, with an ack unless noted):
 //   roam:join  { town, look }  -> { ok, n, town, you, people: [person], moved: [{ id, x, z, yaw }], rate, cap }
 //   roam:leave {}
@@ -23,16 +28,19 @@
 //   roam:look  { look }
 //   roam:car   { car: { id, model, color } | null, left?: { id, x, z, yaw } }
 //   roam:ride  { num }  -> { ok, car } | { ok: false, error }
+//   roam:hop   { town } -> { ok, riders }
 //   roam:vc    { on } -> { ok, on, ice }   roam:sig { to, kind, data }   (spatial voice, server/voice/relay.js)
 // Server -> client: roam:m, roam:person, roam:gone { num }, roam:car { num, car, left? },
-// roam:ride { num, car } (to the driver), roam:vc, roam:sig.
+// roam:ride { num, car } (to the driver), roam:hop { town, driver } (to riders), roam:seat
+// { num, car } (to a rider who followed), roam:vc, roam:sig.
 
 const { sanitizeLook } = require("../arcade/games/pickleballLooks")
 const { createVoiceRelay } = require("../voice/relay")
 
 const CAP = 16
 // the towns (client/src/roam/towns/): how far from the origin a position may be (decimetres)
-const TOWNS = { valencia: { reach: 300000 } }
+const TOWNS = { valencia: { reach: 300000 }, simi: { reach: 300000 }, northridge: { reach: 300000 }, newport: { reach: 300000 } }
+const HOP_MS = 30_000
 const MODELS = ["sedan", "hatch", "suv", "pickup", "turbo", "sundowner"]
 const LIMIT = { y: 30000, speed: 900, act: 15 }
 const ACT_RIDE = 8
@@ -107,6 +115,7 @@ const createRoam = ({ emit = () => {}, emitVolatile = null, clock = realClock, m
   const volatile = emitVolatile || emit
   const instances = new Map()
   const where = new Map() // pid -> n
+  const tickets = new Map() // rider pid -> { driver: pid, town, until } (following a driver to a town)
   let nextN = 1
   const posLimit = windowLimiter(30, 2000, clock.now)
   const carLimit = windowLimiter(20, 60_000, clock.now)
@@ -180,13 +189,66 @@ const createRoam = ({ emit = () => {}, emitVolatile = null, clock = realClock, m
     if (joinLimit(me.pid)) return { ok: false, error: "Slow down a little and try again in a minute." }
     if (typeof town !== "string" || !Object.prototype.hasOwnProperty.call(TOWNS, town)) return { ok: false, error: "There's no such town." }
     if (where.has(me.pid)) leave(me.pid)
-    const pick = pickInstance([...instances.values()].filter((i) => i.town === town).map((i) => ({ n: i.n, size: i.people.size })), cap)
-    const inst = pick ? instances.get(pick.n) : makeInstance(town)
+    // (following a driver, or a driver whose riders are already there: the same instance)
+    const now = clock.now()
+    for (const [k, t] of tickets) if (t.until < now) tickets.delete(k)
+    const mine = tickets.get(me.pid)
+    const partners = [mine && mine.town === town ? mine.driver : null, ...[...tickets].filter(([, t]) => t.driver === me.pid && t.town === town).map(([k]) => k)].filter(Boolean)
+    let inst = null
+    for (const other of partners) {
+      const i = instanceOf(other)
+      if (i && i.town === town && i.people.size < cap) {
+        inst = i
+        break
+      }
+    }
+    if (!inst) {
+      const pick = pickInstance([...instances.values()].filter((i) => i.town === town).map((i) => ({ n: i.n, size: i.people.size })), cap)
+      inst = pick ? instances.get(pick.n) : makeInstance(town)
+    }
     const p = { pid: me.pid, me, name: String(me.name || "Guest").slice(0, 40), key: me.key || null, num: ++inst.nums, look: sanitizeLook(look), pos: null, dirty: false, car: null }
     inst.people.set(me.pid, p)
     where.set(me.pid, inst.n)
     toAll(inst, "roam:person", personView(p), me.pid)
+    if (partners.length) queueMicrotask(() => seatFollowers(inst))
     return { ok: true, n: inst.n, town, you: p.num, people: [...inst.people.values()].filter((q) => q.pid !== me.pid).map(personView), moved: [...inst.moved.values()], rate: currentRate(), cap }
+  }
+  // riders who followed their driver here: into the passenger seat once the driver's car is here
+  const seatFollowers = (inst) => {
+    if (!instances.has(inst.n)) return
+    const now = clock.now()
+    for (const [pid, t] of tickets) {
+      if (t.until < now || t.town !== inst.town) continue
+      const q = inst.people.get(pid)
+      const d = inst.people.get(t.driver)
+      if (!q || !d || d.car?.seat !== 0 || q.car) continue
+      const riders = [...inst.people.values()].filter((x) => x.car?.seat === 1 && x.car.driver === d.num).length
+      if (riders >= RIDERS) continue
+      tickets.delete(pid)
+      q.car = { id: d.car.id, model: d.car.model, color: d.car.color, seat: 1, driver: d.num }
+      if (d.pos) {
+        q.pos = [...d.pos.slice(0, 5), ACT_RIDE]
+        q.dirty = true
+      }
+      toAll(inst, "roam:car", { num: q.num, car: q.car }, pid)
+      send(pid, "roam:seat", { num: d.num, car: q.car })
+      send(d.pid, "roam:ride", { num: q.num, car: q.car })
+    }
+  }
+  // off to another town: a driver's riders come too
+  const hop = (pid, { town } = {}) => {
+    if (typeof town !== "string" || !Object.prototype.hasOwnProperty.call(TOWNS, town)) return { ok: false, error: "There's no such town." }
+    const inst = instanceOf(pid)
+    if (!inst) return { ok: true, riders: 0 }
+    if (carLimit(pid)) return { ok: false, error: "Slow down a little." }
+    const p = inst.people.get(pid)
+    const riders = p.car?.seat === 0 ? [...inst.people.values()].filter((q) => q.car?.seat === 1 && q.car.driver === p.num) : []
+    const until = clock.now() + HOP_MS
+    for (const q of riders) {
+      tickets.set(q.pid, { driver: pid, town, until })
+      send(q.pid, "roam:hop", { town, driver: p.name })
+    }
+    return { ok: true, riders: riders.length }
   }
   // a driver's riders lose their seat when the driver gets out or goes
   const dropRiders = (inst, driver) => {
@@ -246,6 +308,7 @@ const createRoam = ({ emit = () => {}, emitVolatile = null, clock = realClock, m
       while (inst.moved.size > MOVED_CAP) inst.moved.delete(inst.moved.keys().next().value)
     }
     toAll(inst, "roam:car", { num: p.num, car: p.car, ...(l ? { left: l } : {}) }, pid)
+    if (next) seatFollowers(inst)
     return { ok: true }
   }
   const ride = (pid, { num } = {}) => {
@@ -322,6 +385,7 @@ const createRoam = ({ emit = () => {}, emitVolatile = null, clock = realClock, m
     on("roam:look", (me, p) => setLook(me.pid, p.look))
     on("roam:car", (me, p) => car(me.pid, p))
     on("roam:ride", (me, p) => ride(me.pid, p))
+    on("roam:hop", (me, p) => hop(me.pid, p))
     on("roam:vc", (me, p) => voiceOn(me.pid, p.on))
     on("roam:sig", (me, p) => voiceSignal(me.pid, p))
     socket.on("roam:pos", (data) => {
@@ -344,6 +408,8 @@ const createRoam = ({ emit = () => {}, emitVolatile = null, clock = realClock, m
     setLook,
     car,
     ride,
+    hop,
+    tickets,
     voiceOn,
     voiceSignal,
     flush: (n) => {

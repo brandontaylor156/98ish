@@ -3,6 +3,7 @@
 // lines on freeways) and the bridges' decks with their parapets. The road surfaces themselves
 // are painted into the ground's texture (ground.js).
 
+import * as THREE from "three"
 import { AREA, DRIVABLE, F, ROAD } from "../data/tile.js"
 import { STALL_W, edgeDist, inRing, lotStalls } from "../sim/parked.js"
 import { ROAD_ORDER, ROAD_PAINT, SIDEWALK } from "./paint.js"
@@ -190,12 +191,96 @@ export const deckArrays = (roads) => {
   return out.done()
 }
 
-// the decks as surfaces to stand or drive on -> [{ ax, az, bx, bz, ha, hb, hw, drive }]
-export const deckSurfaces = (roads) => {
+// piers mapped as areas (data/tile.js `q`): a level deck of weathered boards on pilings, a
+// railing along the sides over the water (wet(x, z): is a point the sea?) -> arrays
+export const platformArrays = (platforms, seaY = 0, wet = () => true) => {
+  const out = createArrays()
+  const BOARD = 0x9b8b73
+  const FASCIA = 0x75685a
+  const RAIL = 0xd9d6cf
+  const PILE = 0x5f5548
+  for (const p of platforms || []) {
+    if (!p.own || p.ring.length < 3) continue
+    const h = p.h
+    let tris = []
+    try {
+      tris = THREE.ShapeUtils.triangulateShape(p.ring.map((q) => new THREE.Vector2(q.x, q.z)), [])
+    } catch {
+      tris = []
+    }
+    for (const [i, j, k] of tris) out.quad([p.ring[i].x, h, p.ring[i].z], [p.ring[j].x, h, p.ring[j].z], [p.ring[k].x, h, p.ring[k].z], [p.ring[k].x, h, p.ring[k].z], BOARD)
+    // (which way is out: the ring's winding in the x/z plane)
+    let area2 = 0
+    for (let i = 0; i < p.ring.length; i++) {
+      const a = p.ring[i]
+      const b = p.ring[(i + 1) % p.ring.length]
+      area2 += a.x * b.z - b.x * a.z
+    }
+    const out1 = area2 > 0 ? 1 : -1
+    for (let i = 0; i < p.ring.length; i++) {
+      const a = p.ring[i]
+      const b = p.ring[(i + 1) % p.ring.length]
+      const L = Math.hypot(b.x - a.x, b.z - a.z)
+      if (L < 0.3) continue
+      const fx = (b.x - a.x) / L
+      const fz = (b.z - a.z) / L
+      const nx = fz * out1
+      const nz = -fx * out1
+      const V = (q, y, o = 0) => [q.x + nx * o, y, q.z + nz * o]
+      out.quad(V(a, h), V(b, h), V(b, h - 0.6), V(a, h - 0.6), FASCIA, 0, nx, nz)
+      out.quad(V(b, h), V(a, h), V(a, h - 0.6), V(b, h - 0.6), FASCIA, 0, -nx, -nz)
+      // pilings down into the water every ~9 m
+      const n = Math.max(1, Math.round(L / 9))
+      for (let k = 0; k < n; k++) {
+        const t = (k + 0.5) / n
+        const q = { x: a.x + (b.x - a.x) * t - nx * 0.3, z: a.z + (b.z - a.z) * t - nz * 0.3 }
+        if (!wet(q.x, q.z)) continue
+        for (const [ux, uz] of [[fx, fz], [nx, nz]]) {
+          const P = (s, y) => [q.x + ux * 0.18 * s, y, q.z + uz * 0.18 * s]
+          out.quad(P(-1, h - 0.6), P(1, h - 0.6), P(1, seaY - 3), P(-1, seaY - 3), PILE, 0, -uz, ux)
+          out.quad(P(1, h - 0.6), P(-1, h - 0.6), P(-1, seaY - 3), P(1, seaY - 3), PILE, 0, uz, -ux)
+        }
+      }
+      // the railing (where the side is over the water, not across the way on from the shore)
+      if (!wet((a.x + b.x) / 2 + nx * 1.5, (a.z + b.z) / 2 + nz * 1.5)) continue
+      for (const [y0, y1] of [[h + 0.95, h + 1.07], [h + 0.47, h + 0.55]]) {
+        out.quad(V(a, y0, -0.05), V(b, y0, -0.05), V(b, y1, -0.05), V(a, y1, -0.05), RAIL, 0, nx, nz)
+        out.quad(V(b, y0, -0.05), V(a, y0, -0.05), V(a, y1, -0.05), V(b, y1, -0.05), RAIL, 0, -nx, -nz)
+      }
+      const posts = Math.max(1, Math.round(L / 2.5))
+      for (let k = 0; k <= posts; k++) {
+        const t = k / posts
+        const q = { x: a.x + (b.x - a.x) * t - nx * 0.05, z: a.z + (b.z - a.z) * t - nz * 0.05 }
+        const P = (s, y) => [q.x + fx * 0.05 * s, y, q.z + fz * 0.05 * s]
+        out.quad(P(-1, h), P(1, h), P(1, h + 1.07), P(-1, h + 1.07), RAIL, 0, nx, nz)
+        out.quad(P(1, h), P(-1, h), P(-1, h + 1.07), P(1, h + 1.07), RAIL, 0, -nx, -nz)
+      }
+    }
+  }
+  return out.done()
+}
+
+// the decks as surfaces to stand or drive on -> [{ ax, az, bx, bz, ha, hb, hw, drive }], and
+// the piers' level decks [{ ring, h, x0, z0, x1, z1 }]
+export const deckSurfaces = (roads, platforms = []) => {
   const list = []
   for (const r of roads) {
     if (!r.deck) continue
     for (let i = 0; i + 1 < r.pts.length; i++) list.push({ ax: r.pts[i].x, az: r.pts[i].z, bx: r.pts[i + 1].x, bz: r.pts[i + 1].z, ha: r.deck[i], hb: r.deck[i + 1], hw: r.width / 2 + 0.5, drive: DRIVABLE.has(r.cls) })
+  }
+  for (const p of platforms || []) {
+    if (p.ring.length < 3) continue
+    let x0 = Infinity
+    let z0 = Infinity
+    let x1 = -Infinity
+    let z1 = -Infinity
+    for (const q of p.ring) {
+      x0 = Math.min(x0, q.x)
+      x1 = Math.max(x1, q.x)
+      z0 = Math.min(z0, q.z)
+      z1 = Math.max(z1, q.z)
+    }
+    list.push({ ring: p.ring, h: p.h, x0, z0, x1, z1, drive: false })
   }
   return list
 }
@@ -204,6 +289,14 @@ export const deckAt = (decks, x, z, y, drive = false) => {
   let best = null
   for (const d of decks) {
     if (drive && !d.drive) continue
+    if (d.ring) {
+      if (x < d.x0 || x > d.x1 || z < d.z0 || z > d.z1 || d.h > y + 1.3 || d.h < y - 2.5) continue
+      let inside = false
+      const r = d.ring
+      for (let i = 0, j = r.length - 1; i < r.length; j = i++) if (r[i].z > z !== r[j].z > z && x < ((r[j].x - r[i].x) * (z - r[i].z)) / (r[j].z - r[i].z) + r[i].x) inside = !inside
+      if (inside && (best === null || d.h > best)) best = d.h
+      continue
+    }
     const dx = d.bx - d.ax
     const dz = d.bz - d.az
     const L2 = dx * dx + dz * dz || 1e-9
