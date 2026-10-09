@@ -203,6 +203,7 @@ export const levelFor = (level, style = "allround") => {
 export const REACH = 1.05 // m from a player's center to the farthest ball they can hit
 const STAND_SIDE = 0.5 // where a player stands relative to the ball they'll hit
 const STAND_BACK = 0.22
+const STAND_LOW = 0.18 // (further back for a low ball: out in front of the knees)
 export const NET_LINE = KITCHEN + 0.42 // "at the kitchen line": toes just behind it
 export const BASE_LINE = HALF_L + 0.25
 // the transition zone where a team coming in from the baseline in stages splits before going on
@@ -269,6 +270,7 @@ export const interceptFor = (m, p, path, { speed, reaction, judge = 0.2, maxY = 
     if (outBy > judge + Math.max(0, speed - 8) * 0.03 && !atBody) return { letGo: true }
   }
   const nearNet = Math.abs(p.z) < 4.2
+  const cpu = p.ctrl === "cpu" || p.ctrl === "feeder"
   let best = null
   let fallback = null
   for (const s of path) {
@@ -279,8 +281,12 @@ export const interceptFor = (m, p, path, { speed, reaction, judge = 0.2, maxY = 
     const volley = bounces === 0
     if (volley && !volleyAllowed) continue
     // stand beside the ball (on whichever side is closer) and a step behind it
-    let sx = s.x + (p.x >= s.x ? STAND_SIDE : -STAND_SIDE)
-    let sz = s.z + side * STAND_BACK
+    // (a low ball further out in front: a crouched player's knees come forward ~25 cm, and a
+    // dink met level with them put the paddle into the leg; pros meet it 35-50 cm out in front)
+    // (computer players only: a person's stand-in and intercept keep the old spot)
+    const low = cpu ? clamp((0.85 - s.y) / 0.4, 0, 1) : 0
+    let sx = s.x + (p.x >= s.x ? STAND_SIDE : -STAND_SIDE) * (1 - 0.12 * low)
+    let sz = s.z + side * (STAND_BACK + STAND_LOW * low)
     let lunge = false
     let ernie = false
     if (volley && inKitchen(sx, sz)) {

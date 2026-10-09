@@ -61,6 +61,8 @@ export const SWING_LEAD_FAST = 0.07 // a compact block or counter at the net get
 const MIN_SWING = 0.05 // the quickest a swing can get there
 const LATE_MAX = 0.22 // still holding this long after the ball got there: swing anyway
 const ARM_S = 1.0 // let go early: the swing waits this long for the ball
+const MATE_ROOM = 0.9 // partners walking between points keep this far apart (m)
+const MATE_PASS = 0.5 // ...and partners swapping sides pass this far either side of their line (m)
 const STRETCH = 1.15 // a person reaches this much past REACH for a ball at its nearest pass
 export const DEFAULT_WINDOW = 0.06 // the perfect timing zone, +- seconds
 // maxY: the highest ball you can play (2.4: an overhead jumps up to it, pro.js overheadLift)
@@ -300,8 +302,11 @@ export const beginPoint = (m, { snap = false } = {}) => {
   emit(m, { type: "call", call: scoreCall(m.game), server: server.id })
 }
 
-// The server's hand: in front, on their paddle side, about waist high
-export const handPos = (m, p) => v3(p.x + rightSign(p.team) * (p.hand || 1) * 0.18, HAND_Y, p.z - sideOf(p.team) * 0.42)
+// The server's hand: in front, on their paddle side, about waist high. (The ball drops from
+// here to the contact: out to the paddle side of the front foot, where a pendulum swing from the
+// shoulder meets it beside the legs, not across them: 0.18 m put the paddle into the thighs.)
+export const SERVE_SIDE = 0.28
+export const handPos = (m, p) => v3(p.x + rightSign(p.team) * (p.hand || 1) * SERVE_SIDE, HAND_Y, p.z - sideOf(p.team) * 0.42)
 const holdBall = (m, p) => {
   m.ball.p = handPos(m, p)
 }
@@ -980,6 +985,20 @@ const movePlayer = (m, p, dt) => {
   let target = null
   if (between || ai) target = p.target
   else if (!manual && assist === "full" && p.intercept && !p.intercept.letGo && m.phase === "rally") target = p.intercept.stand
+  // (partners swapping sides between points walk round each other: one passes a little in front,
+  // the other a little behind, then eases back onto the line to their spot; they used to meet
+  // body to body)
+  if (between && target && m.game.doubles) {
+    const q = m.players.find((o) => o !== p && o.team === p.team)
+    const g = q ? Math.abs(p.x - q.x) : 9
+    if (q && q.target && Math.sign(p.x - q.x) !== Math.sign(target.x - q.target.x) && Math.abs(target.x - p.x) > 0.4 && Math.hypot(p.x - q.x, p.z - q.z) < 3.2) {
+      // (by way of a point just past where they'd meet, offset to this player's side of the line)
+      const first = m.players.indexOf(p) < m.players.indexOf(q)
+      p.pass = (first ? -1 : 1) * side * MATE_PASS
+      target = { x: (p.x + q.x) / 2 + Math.sign(target.x - p.x) * 0.5, z: (p.z + q.z) / 2 + p.pass }
+    } else if (p.pass && g < 1.6) target = { x: target.x, z: target.z + p.pass * Math.max(0, Math.min(1, 1 - (g - 0.4) / 1.2)) }
+    else p.pass = 0
+  } else p.pass = 0
   // (a computer player reading a new ball, before they react: the split step. They don't
   // stop dead: momentum already going the ball's way carries on, checked gently (pros are
   // still drifting ~1 m/s at the other side's contact, PPA footage); momentum the wrong way is
@@ -1014,6 +1033,23 @@ const movePlayer = (m, p, dt) => {
       }
       wantX = (dx / d) * s
       wantZ = (dz / d) * s
+    }
+  }
+  // (between points partners walking to their spots pass each other instead of walking through
+  // each other: a side-step off the line of travel, and apart, when they're close. Partners
+  // swapping sides in the walk-on met body to body.)
+  if (between && target && m.game.doubles) {
+    const q = m.players.find((o) => o !== p && o.team === p.team)
+    const tl = Math.hypot(wantX, wantZ)
+    const dx = p.x - q.x
+    const dz = p.z - q.z
+    const d = Math.hypot(dx, dz)
+    if (q && tl > 0.2 && d < MATE_ROOM && d > 1e-4) {
+      const w = (MATE_ROOM - d) / MATE_ROOM
+      const ux = wantX / tl
+      const uz = wantZ / tl
+      wantX += (uz * 1.1 * tl + (dx / d) * 0.3) * w
+      wantZ += (-ux * 1.1 * tl + (dz / d) * 0.3) * w
     }
   }
   // the light assist: while you swing, small steps put you the right distance from the ball
@@ -1140,6 +1176,12 @@ const think = (m) => {
       continue
     }
     if (m.ball.held) {
+      p.target = null
+      continue
+    }
+    // (a computer server stays where they dropped the ball until they've struck it: walking off
+    // toward their spot during the drop put the ball across their body, into the hip)
+    if (p.serving && m.rally.hits === 0 && isAi(m, p)) {
       p.target = null
       continue
     }

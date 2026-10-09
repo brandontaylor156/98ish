@@ -2212,7 +2212,7 @@ const buildAthlete = (look = {}, { shadows = false, withPaddle = true } = {}, de
     const L = LIMBS[kind] || LIMBS.any
     let out = res
     let t = target
-    for (let i = 0; i < 2; i++) {
+    for (let i = 0; i < 4; i++) {
       yieldCaps.length = 0
       const fk = armFK(rigO, S, out)
       const tip = add3(fk.W, scale3(norm(sub3(fk.W, fk.E)), 0.13 * height))
@@ -2223,7 +2223,7 @@ const buildAthlete = (look = {}, { shadows = false, withPaddle = true } = {}, de
       const d = paddleDepth(p, yieldCaps, { margin: 0.015 })
       if (d.depth <= -0.015) break
       // (the contact's way out is the paddle's: the arm goes the other way)
-      t = sub3(t, scale3(d.n, d.depth + 0.015))
+      t = sub3(t, scale3(d.n, d.depth + 0.03)) // (pushed past the margin: the arm settles just clear)
       out = solveAt(t)
     }
     if (prof) prof.yieldMs = (prof.yieldMs || 0) + performance.now() - t0

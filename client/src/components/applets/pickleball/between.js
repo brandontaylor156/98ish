@@ -66,10 +66,20 @@ export const betweenActs = (st, s, speed, t, dt) => {
     if (u >= 1 || !other) st.tap = u >= 1 ? { ...st.tap, done: true } : null
     if (st.tap && !st.tap.done) {
       // up and in toward the middle, a touch, back down
-      const w = Math.sin(Math.PI * clamp(u, 0, 1)) ** 0.7
-      const dx = other.x - s.x
-      const dz = other.z - s.z
+      let w = Math.sin(Math.PI * clamp(u, 0, 1)) ** 0.7
+      let dx = other.x - s.x
+      let dz = other.z - s.z
       const d = Math.hypot(dx, dz) || 1
+      // (partners passing each other on the way to their spots: the tap stays on the side it
+      // started, rather than the paddle swinging round behind the body after them, and lets go as they pass)
+      if (!st.tap.dir) st.tap.dir = { x: dx / d, z: dz / d }
+      const along = (dx * st.tap.dir.x + dz * st.tap.dir.z) / d
+      // (fading out as they go by)
+      w *= clamp((along - 0.1) / 0.6, 0, 1)
+      if (along < 0.85) {
+        dx = st.tap.dir.x * d
+        dz = st.tap.dir.z * d
+      }
       // the paddle faces meet halfway (each player's face stops just short of it)
       const reach = Math.min(d / 2 - 0.04, 0.62)
       out.tap = { x: s.x + (dx / d) * reach, y: tapCfg.y, z: s.z + (dz / d) * reach, nx: dx / d, nz: dz / d, w }
