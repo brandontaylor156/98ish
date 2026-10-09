@@ -9,7 +9,7 @@
 // - rain or snow: streaks in a box that wraps round the camera, falling on the GPU (no
 //   per-frame JavaScript), slanted by the wind; outdoors only
 import * as THREE from "three"
-import { EL_MIN, SKY_H, SKY_W, V_POW, renderSky } from "./atmosphere.js"
+import { EL_MIN, SKY_H, SKY_W, V_POW, horizonRowV, renderSky } from "./atmosphere.js"
 
 const noise = `
 float rsHash(vec2 p) { p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }
@@ -78,7 +78,7 @@ void main() {
   float el = degrees(asin(clamp(d.y, -1.0, 1.0)));
   float v = pow(clamp((el - (${EL_MIN.toFixed(1)})) / (90.0 - (${EL_MIN.toFixed(1)})), 0.0, 1.0), ${(1 / V_POW).toFixed(4)});
   float u = fract(atan(d.x, -d.z) / 6.2831853);
-  vec3 sky = texture2D(skyTex, vec2(u, max(v, 0.5 / ${h.toFixed(1)}))).rgb;
+  vec3 sky = texture2D(skyTex, vec2(u, max(v, ${horizonRowV(h).toFixed(5)}))).rgb;
   vec3 look = mix(lookHorizon, lookTop, pow(clamp(d.y, 0.0, 1.0), 0.5));
   sky = mix(sky, look, lookK);
   // the sun: a disk and its glow (hidden by cloud and overcast)

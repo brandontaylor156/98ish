@@ -78,6 +78,8 @@ export const ACHIEVEMENTS = [
   { id: "pickleball-pro", title: "Pickleball Pro", text: "Beat the Pro opponents in Pickleball 98.", hint: "Set Pickleball 98 to Pro (or Legend) and win a game." },
   { id: "pickleball-online", title: "Net Gain", text: "Won an online match of Pickleball 98.", hint: "Pickleball 98: Play Online and win a match against a real person." },
   { id: "pickleball-champion", title: "Kitchen King", text: "Won the Pickleball 98 World Tour.", hint: "Pickleball 98: win all eight World Tour matches, final included." },
+  { id: "park-keys", title: "Keys to the Sundowner", text: "Traded a cold drink for a regular's car keys.", hint: "Pickleball 98 > My Park: somebody by a venue's drinks machine looks awfully hot and thirsty." },
+  { id: "park-cannonball", title: "Cannonball!", text: "Jumped into a real venue's pool.", hint: "Pickleball 98 > My Park: walk up to a pool's edge." },
   { id: "shred-encore", title: "Encore!", text: "Played a song all the way through in Shred 98.", hint: "Shred 98 (in Games): finish any song without getting booed off." },
   { id: "shred-five", title: "Five-Star Show", text: "Earned five stars on a song in Shred 98.", hint: "In Shred 98, nail a song well enough for all five stars. Star power helps." },
   { id: "shred-fc", title: "Full Combo", text: "Played every note of a song in Shred 98 without a miss.", hint: "Every note, no misses, one Shred 98 song. Any difficulty." },

@@ -309,6 +309,33 @@ My Park's activities (`docs/venue-activities.md`) are offered only where the ven
 
 Not offered for want of a source: Newport's lounge TV (drawn by the bar preset, not in the pack), the cafes' preset TVs at Los Cab and Whittier, Los Cab's ballroom TVs, Paseo's OSM basketball pitch (where the aerial shows the pickleball pen), Sinaloa's "Gym" (a school building, not walkable).
 
+## Leisure: pools, the hot tub, food and drinks, drinks machines (2026-10-09)
+
+My Park's leisure (`docs/venue-activities.md` "Leisure") is offered only where the venue has the place (`park/leisure/spots.js LEISURE_SOURCES`; the test "leisure only where the venue really has it" checks each against the spec and that it's reachable on foot). **Nothing new is drawn at any venue** except the water's surface on pools already drawn, and the hot tub's water on the tub already there.
+
+| Venue | What's there | Source |
+|---|---|---|
+| Los Cab | Swim: the 50 m pool (9 lanes; a length against the clock) | Reference pack layout (the 50 m pool south of the clubhouse's bell tower) + the z20 aerial; the club's tour video (bNNCw6NC6DM) |
+| Los Cab | Swim: the lap pool (4 x 7 m, too short for laps) | Pack site sketch "[lap pool]" east of the racquetball building; its outline in the pack's layout from the aerial |
+| Los Cab | Hot tub: the round tub at the 50 m pool's south-east corner (the `spa` prop) | Aerial (a round white tub, checked on the pack's aerial crop); pack site sketch "(jacuzzi)" beside the 50 m pool |
+| Los Cab | Food and drinks: Los Cab Cafe's counter; drinks fridge: the cafe's | loscab.com in the pack: "Los Cab Cafe counter; drinks fridge" (the cafe's place in the clubhouse is the pack's GUESS) |
+| Newport | Food and drinks: the clubhouse bar; the social lawn's outdoor bar | Pack floorplan (the lounge's "bar counter with black ladder-back stools"); pack notes (the 2025-26 social lawn, "wood-clad outdoor bar with shelves") |
+| Whittier | Food and drinks: the snack window | Pack notes "snack window with string lights"; the Friday social video (R7JzprkIfns). Where it is in the clubhouse: owner question below |
+| Paseo | Swim: the pool (2 lengths against the clock) | OSM way 1020677413 (leisure=swimming_pool, outdoor, lit); pack "junior-Olympic pool with cabanas" |
+| Paseo | Food and drinks: the cafe and bar | Pack floorplan (the club's Virtual Club Tour) "Cafe and bar"; which building is the pack's GUESS |
+| SMASH | Food and drinks: the bar and restaurant; drinks fridge in the lobby | Pack ("Social Club": "red stools, long white bar, lit back bar"; lobby "drinks fridge at desk"; club tour 3JwJzKRyTQs) |
+| Wolf + Bear | Drinks fridges on the spectator strip | Pack: the streamed court's strip, "drinks fridges with green light" |
+| Sinaloa, Bouquet | none | |
+
+**Vince** (the drinks machine's easter egg) is a game character, like the regulars: he stands by a sourced drinks machine or fridge (Los Cab, SMASH, Wolf + Bear) and adds nothing to the venue.
+
+**Not offered** for want of a source (they stay drawn as they were):
+- **Newport's pool and spa** (OSM ways 1414460953/4, the only ones in the crop) are in the back garden of a house on Granville Drive (OSM building 1081610426), not the club's: no swimming or hot tub there.
+- **Paseo's two small pools** beside the main pool (the aerial shows one in a walled courtyard north of it and one south-east of it, each about 4 x 4 m; the south one is painted from the aerial, and a `spa` prop sits on the roof line between) could be a hot tub and a wading pool: owner question. Paseo's west pool (x -80..-72) is outside the walkable crop.
+- **Los Cab's two outdoor vending machines** (by the fitness building) and **Newport's vending machine** (by the courts): neither is in the pack, a photo or OSM. Owner question.
+- **Newport's rooftop terrace bar**: already an owner question (is it real?).
+- No alcohol on the menus (the owner can say otherwise).
+
 ## Interiors: the GUESS layouts (kept, need the owner)
 
 These rooms are inside real buildings and are furnished from tour videos and photos. Which room sits where inside each building is a guess. Their contents are reasonably sourced.

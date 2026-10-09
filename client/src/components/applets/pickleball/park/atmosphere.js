@@ -146,3 +146,12 @@ export const renderSky = (sun, { haze = 1, exposure = 2, saturation = 1.3, w = S
   const rows = Math.max(1, [...Array(h).keys()].filter((y) => Math.abs(rowElevation((y + 0.5) / h) - 2) < 3).length)
   return { data, w, h, horizon: horizon.map((v) => v / rows), zenith }
 }
+
+// the first texture row whose middle is at or above the horizon (its v): the sky never samples
+// below it. With few rows near the horizon (24 on a phone), the row under the horizon (the short,
+// dark ray to the ground) blended into the first degree or so above it: a dark band over any open
+// horizon (the sea at Newport, the flats round Simi Valley and Northridge; the sky-bar fix, 2026-10-09)
+export const horizonRowV = (h) => {
+  for (let j = 0; j < h; j++) if (rowElevation((j + 0.5) / h) >= 0) return (j + 0.5) / h
+  return 0.5 / h
+}

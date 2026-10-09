@@ -73,6 +73,7 @@ import { ARENA_IDS, currentPlace, isArena, placeById, placeText } from "./play/p
 import { TIMES, nightOk, timeAt, validTime } from "./park/timeofday.js"
 import { useTogether } from "./park/useTogether.jsx"
 import { useActivities } from "./park/acts/useActivities.jsx"
+import { useLeisure } from "./park/leisure/useLeisure.jsx"
 import { gainsLook } from "./park/acts/stats.js"
 // drilling with a friend online (practice/coop.js: the host's match runs it)
 import { COOP_DRILLS, coopById, createCoop } from "./practice/coop.js"
@@ -472,6 +473,18 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
       setWatchFor({ id: it.id, code: null })
       setScreen("watch")
     },
+  })
+  // My Park leisure (park/leisure/): swimming, the hot tub, food and drinks, the drinks machine
+  // (and Vince's car keys: the Sundowner GT waits in Explore Valencia by the Paseo Club)
+  const leisure = useLeisure({
+    world: parkWorld,
+    prefs,
+    setPrefs,
+    mobile: !!mobile,
+    showPad,
+    padSide: prefs.padSide || "left",
+    aim,
+    onDrive: () => startRoam("valencia", { from: "paseo", start: "keyCar" }),
   })
   // (a workout just done: your player's pumped; the look follows your fitness)
   useEffect(() => {
@@ -1034,8 +1047,9 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
     e.setWorld(w)
   }
   // Roam: out of the venue into its town (from: the venue; you come out where you stood);
-  // car: arriving from another town in your car (Go to...)
-  const startRoam = async (townId, { from = null, car = null, startId = undefined, at: arrive = null } = {}) => {
+  // car: arriving from another town in your car (Go to...); start: "keyCar": beside the car
+  // Vince's keys unlock (the town's keyCar), from another venue; startId: a start spot; at: a spot
+  const startRoam = async (townId, { from = null, car = null, start = null, startId = undefined, at: arrive = null } = {}) => {
     const e = engineRef.current
     const town = townById(townId)
     if (!e || !town) return
@@ -1044,12 +1058,17 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
     // spot the first time: the mall, docs/open-world.md "Arriving"); the venue's spot is one
     // of them (then you come out where you stood)
     const picked = startId !== undefined ? startId : roamStartPref(town.id)
-    const spot = arrive ? null : startSpot(town, picked)
+    const spot = arrive || (start === "keyCar" && town.keyCar) ? null : startSpot(town, picked)
     let at = arrive || (spot && !spot.venue ? { x: spot.x, z: spot.z, yaw: spot.yaw } : null)
     const pw = parkRef.current
+    if (start === "keyCar" && town.keyCar) {
+      const k = town.keyCar
+      at = { x: k.x + Math.cos(k.yaw) * 2.6, z: k.z - Math.sin(k.yaw) * 2.6, yaw: k.yaw }
+    }
     if (pw) {
       const m = pw.info?.me
-      if (m && v && !at) at = { x: m.x, z: m.z, yaw: m.yaw }
+      // (out of the venue where you stood: only when that venue is the one this town opens from)
+      if (m && v && !at && (pw.venue || pw.layout?.id) === from) at = { x: m.x, z: m.z, yaw: m.yaw }
       parkRef.current = null
       parkGameRef.current = null
       setParkWorld(null)
@@ -1240,6 +1259,8 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
     const e = engineRef.current
     if (!w || !e) return
     // (an activity's spot, or one with a friend starting: park/acts/useActivities.jsx)
+    // (leisure's spots, Vince, a swim or the hot tub with a friend: park/leisure/useLeisure.jsx)
+    if (leisure.onEvent(ev)) return
     if (acts.onEvent(ev)) return
     // (Together's asks, answers and moments: park/useTogether.jsx)
     if (together.onEvent(ev)) return
@@ -1963,7 +1984,8 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
         {/* ---------- My Park ---------- */}
         {screen === "park" && <div className="pkParkLabels" ref={parkLabelsRef} aria-hidden="true" style={{ display: phase === "world" ? "" : "none" }} />}
         {screen === "park" && phase === "world" && parkWorld && !parkUi.menu && !parkUi.turn && acts.overlays}
-        {screen === "park" && phase === "world" && parkWorld && !parkUi.menu && !parkUi.turn && !acts.running && (
+        {screen === "park" && phase === "world" && parkWorld && !parkUi.menu && !parkUi.turn && leisure.overlays}
+        {screen === "park" && phase === "world" && parkWorld && !parkUi.menu && !parkUi.turn && !acts.running && !leisure.running && (
           <ParkHud
             hud={parkHud}
             showPad={showPad}
@@ -1971,7 +1993,12 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
             onAction={() => parkRef.current?.action()}
             onCam={() => parkRef.current?.cycleCam()}
             onMenu={() => setParkUi((u) => ({ ...u, menu: true }))}
-            extra={together.button}
+            extra={
+              <>
+                {leisure.chip}
+                {together.button}
+              </>
+            }
           />
         )}
         {screen === "park" && phase === "world" && parkWorld && !parkUi.menu && !parkUi.turn && !acts.running && together.overlays}

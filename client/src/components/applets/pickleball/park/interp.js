@@ -9,7 +9,7 @@
 
 export const TAU = Math.PI * 2
 // what someone is doing (the last number of a position)
-export const ACTS = { stand: 0, move: 1, sitLow: 2, sitHigh: 3, play: 4 }
+export const ACTS = { stand: 0, move: 1, sitLow: 2, sitHigh: 3, play: 4, swim: 5, tub: 6 }
 export const ACT_NAMES = Object.fromEntries(Object.entries(ACTS).map(([k, v]) => [v, k]))
 // added to an act: up off the ground (a stair, a rooftop terrace); the others work out the
 // height from the venue's floors where you are (the server only clamps acts to 0..15)

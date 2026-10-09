@@ -6,7 +6,7 @@ import path from "node:path"
 import zlib from "node:zlib"
 import { fileURLToPath } from "node:url"
 import { EXTENT, fromTileUnits, tileBounds, tileOf, tilesAround, toTileUnits, townFrame } from "./geo.js"
-import { AREA, F, ROAD, ROAD_CLASSES, buildTile, buildingHeight, clipLine, clipPolygon, decodeTile, roadWidth, simplify, tileHeightAt, tileSeaAt } from "./data/tile.js"
+import { AREA, F, FOOT, ROAD, ROAD_CLASSES, buildTile, fillMissing, buildingHeight, clipLine, clipPolygon, decodeTile, roadWidth, simplify, tileHeightAt, tileSeaAt } from "./data/tile.js"
 import { inRings, joinLines, seaRings, townSea } from "./data/sea.js"
 import { nestRings, seaArrays } from "./render/sea.js"
 import { compactElement, stitchRings } from "./data/osm.js"
@@ -18,7 +18,7 @@ import { createColliders } from "./sim/collide.js"
 import { createWalker, stepWalker } from "./sim/walker.js"
 import { MODELS, createCar, personAhead, stepCar } from "./sim/car.js"
 import { MAX_PER_TILE, parkedCars } from "./sim/parked.js"
-import { ACT, LIMIT, cleanCar, cleanPos, createTrack, packPos, pushSample, sampleTrack, shouldSend, unpackPos } from "./sim/sync.js"
+import { ACT, LIMIT, MODEL_LIST, cleanCar, cleanPos, createTrack, packPos, pushSample, sampleTrack, shouldSend, unpackPos } from "./sim/sync.js"
 import { eggSpots, nearestEgg, REACH } from "./eggs.js"
 import { createTileStore } from "./stream.js"
 import { CAR_KINDS, CAR_SPECS, carParts } from "./render/carmodel.js"
@@ -539,6 +539,68 @@ test("Valencia's prebuilt tiles: present, small, and with the town in them", () 
   assert.ok(tile.roads.filter((r) => r.name).length > 3, "named streets")
 })
 
+// The owner's "dark bar across the sky" on Mesa Court (2026-10-09, rx7/shots/h1.png): a long dark
+// band edge to edge above the houses. A band like that is a triangle with a corner far from its
+// own thing (a roof's eave or soffit, a bridge deck) or ground lifted off its lattice. Every
+// building, deck and ground vertex in Valencia's prebuilt tiles stays by what it belongs to.
+test("nothing drawn strays into the sky: buildings, bridge decks and the ground stay by their own things", () => {
+  const ix = JSON.parse(fs.readFileSync(path.join(PREBUILT, "index.json"), "utf8"))
+  const f = townFrame(valencia.origin)
+  let buildings = 0
+  let decks = 0
+  let worst = 0
+  for (const x of fs.readdirSync(path.join(PREBUILT, "16")))
+    for (const file of fs.readdirSync(path.join(PREBUILT, "16", x))) {
+      const t = decodeTile(JSON.parse(fs.readFileSync(path.join(PREBUILT, "16", x, file), "utf8")), f, ix.base)
+      const g = (px, pz) => tileHeightAt(t, Math.max(t.rect.x0, Math.min(t.rect.x1, px)), Math.max(t.rect.z0, Math.min(t.rect.z1, pz))) ?? 0
+      // (the ground: every lattice point finite and real: the terrain's no-data, a raw 0, put the
+      // box's north row and west column 342 m down before decodeTile filled them)
+      for (let k = 0; k < (t.heights?.length || 0); k++) assert.ok(Number.isFinite(t.heights[k]) && t.heights[k] > -250, `${t.key}: a real ground height (${t.heights[k]})`)
+      // (far tiles' plain blocks in every fourth tile: the same footprints)
+      for (const far of (Number(x) + Number(file.split(".")[0])) % 4 ? [false] : [false, true])
+        for (const b of t.buildings) {
+          const P = buildingArrays([b], g, { far }).position
+          if (!P.length) continue
+          buildings++
+          let x0 = Infinity
+          let x1 = -Infinity
+          let z0 = Infinity
+          let z1 = -Infinity
+          let lo = Infinity
+          for (const p of b.ring) {
+            x0 = Math.min(x0, p.x)
+            x1 = Math.max(x1, p.x)
+            z0 = Math.min(z0, p.z)
+            z1 = Math.max(z1, p.z)
+            lo = Math.min(lo, g(p.x, p.z))
+          }
+          const top = Math.max(...b.ring.map((p) => g(p.x, p.z))) + Math.max(b.height, 2.4) + 6
+          for (let i = 0; i < P.length; i += 3) {
+            const out = Math.max(x0 - P[i], P[i] - x1, z0 - P[i + 2], P[i + 2] - z1, 0)
+            worst = Math.max(worst, out)
+            // (a hipped roof over an L-shaped house's rectangle reaches a few metres past its corner)
+            assert.ok(out < 9 && P[i + 1] < top && P[i + 1] > lo - 3, `${t.key}: a building's vertex strays (${out.toFixed(1)} m out, y ${P[i + 1].toFixed(1)})`)
+          }
+        }
+      // (bridge decks: over their own road, never far above the ground at their ends)
+      for (const r of t.roads) {
+        if (!r.deck) continue
+        decks++
+        for (let i = 0; i < r.pts.length; i++) {
+          assert.ok(Number.isFinite(r.deck[i]), `${t.key}: a finite deck`)
+          // (the highest real ones: footbridges over Wiley Canyon Road and the Iron Horse Bridge, 13-17 m)
+          const over = r.deck[i] - g(r.pts[i].x, r.pts[i].z)
+          assert.ok(over < (FOOT.has(r.cls) ? 20 : 30) && over > -25, `${t.key}: a deck ${over.toFixed(1)} m over the ground`)
+        }
+      }
+    }
+  assert.ok(buildings > 40000 && decks > 50, `${buildings} buildings, ${decks} decks checked`)
+  // (the filling itself: a no-data sample takes the mean of the nearest real ones)
+  const filled = fillMissing(Float32Array.from([10, 10, 10, 10, -342, 12, 10, 14, 10]), 3, new Set([4]))
+  assert.ok(Math.abs(filled[4] - 10.75) < 1e-6 && filled[0] === 10)
+  assert.ok(worst < 9, `the farthest a roof reaches past its footprint's box: ${worst.toFixed(1)} m`)
+})
+
 // a town's prebuilt tiles, decoded (in its own frame)
 const townTiles = (town) => {
   const dir = path.join(HERE, "..", "..", "public", "roam", town.id)
@@ -752,4 +814,40 @@ test("tile store: static tiles for the town, the function elsewhere, a pause aft
   const n = asked.length
   store.want([{ z: 16, x: 99, y: 99 }])
   assert.equal(asked.length, n, "a failed tile waits before it's asked again")
+})
+
+// Vince's car (My Park's drinks-machine easter egg): a real model everywhere, in its stall
+test("the Sundowner GT: a model of its own, parked in a stall by the Paseo Club, clear of buildings and lanes", () => {
+  const k = valencia.keyCar
+  assert.ok(k && k.model === "sundowner")
+  assert.ok(CAR_SPECS.sundowner && MODELS.sundowner && MODEL_LIST.includes("sundowner"))
+  assert.ok(MODELS.sundowner.top > MODELS.sedan.top, "quicker than the town's cars")
+  const parts = carParts("sundowner")
+  assert.ok(parts.paint.position.length > 1000)
+  // in its stall: no building, no road's lanes, near where you come out of the Paseo Club
+  const ix = JSON.parse(fs.readFileSync(path.join(PREBUILT, "index.json"), "utf8"))
+  const f = townFrame(valencia.origin)
+  const exit = valencia.venues.paseo
+  assert.ok(Math.hypot(k.x - exit.x, k.z - exit.z) < 30, "by the way out")
+  for (const t of tilesAround(f, k.x, k.z, 60)) {
+    const file = path.join(PREBUILT, "16", String(t.x), `${t.y}.json`)
+    if (!fs.existsSync(file)) continue
+    const d = decodeTile(JSON.parse(fs.readFileSync(file, "utf8")), f, ix.base)
+    for (const b of d.buildings) {
+      let inside = false
+      for (let i = 0, j = b.ring.length - 1; i < b.ring.length; j = i++) if (b.ring[i].z > k.z !== b.ring[j].z > k.z && k.x < ((b.ring[j].x - b.ring[i].x) * (k.z - b.ring[i].z)) / (b.ring[j].z - b.ring[i].z) + b.ring[i].x) inside = !inside
+      assert.ok(!inside, "not in a building")
+    }
+    for (const r of d.roads) {
+      if (r.cls !== ROAD.residential && r.cls !== ROAD.primary && r.cls !== ROAD.secondary && r.cls !== ROAD.tertiary) continue
+      for (let i = 0; i + 1 < r.pts.length; i++) {
+        const a = r.pts[i]
+        const b = r.pts[i + 1]
+        const dx = b.x - a.x
+        const dz = b.z - a.z
+        const q = Math.max(0, Math.min(1, ((k.x - a.x) * dx + (k.z - a.z) * dz) / (dx * dx + dz * dz || 1)))
+        assert.ok(Math.hypot(k.x - a.x - dx * q, k.z - a.z - dz * q) > r.width / 2 + 1, "off the street's lanes")
+      }
+    }
+  }
 })

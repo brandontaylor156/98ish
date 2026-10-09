@@ -97,3 +97,56 @@ The walk camera's lens shift (2026-10-09, "my hand is in the way") called `camer
 - H-O-R-S-E with a friend has no "call your shot"; a bank shot counts like any make.
 - Real workout: rows from the front camera are a rough signal; sprints count knee lifts. Twin Replay's worker still lets MediaPipe's usage ping through (it's in a worker: `blockTelemetry` covers the page only).
 - Watch TV: Twin Replay's 3D replays don't play on a set (they need the game's own engine); Live opens the watch screen rather than playing on the set.
+
+## Leisure: swimming, the hot tub, food and drinks, the drinks machine (2026-10-09)
+
+The owner: "Swimming wherever there are pools", "Hanging out at the hot tub", "Ordering food at the bar or drinks or at the clubhouse/restaurant", and "Fun little Easter eggs where you can get a drink from a vending machine and then give it to a player and he gives you the keys to his car", then "the ability to drive". Lives in `client/src/components/applets/pickleball/park/leisure/`; the open world's part is in `client/src/roam/` through `host98.js`. Not yet tried on a real iPhone.
+
+**What's where** (`leisure/spots.js LEISURE_SOURCES`; the sources and what's not offered: `docs/venue-provenance.md` "Leisure"): pools at Los Cab (the 50 m pool, the lap pool) and the Paseo Club; the hot tub at Los Cab; food and drinks at Los Cab Cafe, Newport's clubhouse bar and social lawn bar, Whittier's snack window, Paseo's cafe and bar, SMASH's bar and restaurant; drinks fridges at Los Cab Cafe, SMASH's lobby, Wolf + Bear's spectator strip. Newport's OSM pool and spa are a neighbour's (not offered).
+
+**The way in:** the park's one context button at a pool's edge (within 1.6 m of it, or in it), the tub, a counter or a machine (`leisureAt`), checked before the park's benches and loungers and before an activity unless that's nearer (`world.js actionFor`). The sheets are bottom sheets (Together's `pkTgSheet` look); the menu rows are 48 px.
+
+### Swim (`leisure/swimRun.js`, `leisure/poses.js`, `leisure/water.js`)
+- **Swim** gets in at the edge nearest you; **Cannonball!** jumps off the deck in a tuck (0.8 s arc), a splash (drops + a ring), under for 0.7 s, up treading. The move pad swims on the camera's frame (freestyle 1.15 m/s, 1.6 m/s with the pad pushed all the way), letting go treads water, **Float** lies you on your back; the pool's outline keeps you 0.45 m off its walls (sliding along them). **Get out** climbs out on the deck nearest you.
+- **A length / Laps** where it's a lap pool (lanes, or 20 m+): from the nearer wall in your lane, a 3-2-1, the clock; Los Cab's 50 m pool is one length, Paseo's 22.5 m two. At the far wall the camera swings round so "up the pad" swims you home (you still swim yourself: the owner's rule). Best per pool in `prefs.leisure.best`.
+- **The body in the water** is a pose made whole (`swimPose`, `tuckPose`; the world's `animate` takes `drive().pose`): freestyle face down along the way you swim, the body rolling, the arms pulling under and coming over the water in turn, a flutter kick, a breath to the side every other stroke; treading upright with the head and shoulders out; floating on your back. The pool is drawn level with the deck, so whatever is under the surface is under the ground and hidden: what shows is what's above the water.
+- **The water:** one flat mesh per pool on its own outline (a hair over the painted pool, lane lines showing through) with a shader of three moving waves, the sky by the view angle (Fresnel), the sun's glint, caustic lines, and up to 6 rings (strokes, splashes); the tub's disc foams (bubbles) and steams (7 soft sprites, 3 on Low). Splash drops are one instanced mesh. Measured cost on the phone (4x CPU, Los Cab's pool deck): 30.4 / 31.4 fps with the water, 28.4 / 29.6 without (noise).
+- **With a friend near you:** **Swim with Ava** (both get in, each sees the other swim: park:pos act 5 = swimming, the remote's pose from their speed) and **Race Ava** (lap pools: lanes 0 and 1, the same start when the yes arrives, each times their own swim and the time goes round as `park:fx { lap }`; the end card says who won).
+
+### The hot tub (`leisure/tubRun.js`)
+- Six seats round the bench inside (`spots.js`), the free one nearest you; with a friend two side by side (`tubPair`). On the bench, shoulders at the water, arms along the rim (`tubPose`); the camera low and a few metres out, drifting round at 0.045 rad/s; the hangout's lo-fi comes on (`prefs.parkMusic`, put back after). park:pos act 6 = in the tub; people online see you sitting in it.
+
+### Food and drinks (`leisure/menu.js`, `leisure/held.js`)
+- Menus by place: bar (lemonade, half & half, sparkling water, burger, fries, fish tacos, a wrap), cafe (two smoothies, iced and hot coffee, lemonade, a wrap, fries), snack window, and the machine (Fizz orange soda, lemon-lime pop, water, a sports drink). Original names, no brands, no alcohol. 2-14 chips from **Casino 98's chip bank** (`casino/bank.js`: the house refills you under 5, as at the tables).
+- What you buy is in your hand (`held.js`: a cup with a straw, a coffee cup, a can, a bottle, a burger, fries, tacos, a wrap, a few shapes each, in the paddle's holder; the paddle hides) and carried at the waist (anim.js mood `carry`); **Sip** / **Bite** lifts it to your mouth (`sip`, 1.7 s), 4-6 times until it's gone; **×** puts it down. Everyone in the park sees it (`park:hold`, kept on the server with you for whoever joins; `park:fx` "sip").
+- **One for Ava too** (a friend near you): asked first (Together kind `treat`); a yes puts it in their hand, and only then is it paid for.
+
+### The drinks machine's easter egg: Vince's keys (`leisure/parkside.js`)
+- At venues with a sourced machine (Los Cab, SMASH, Wolf + Bear), **Vince** (a regular with his own seeded look and a cap) stands by it, turning to face you when you're near, **fanning himself** every few seconds (anim.js mood `fan`) and saying he's hot ("Left my water bottle in the car. Again."); holding a cold one from the machine he notices it. Walk up with a machine drink and the button says **Give Vince your Fizz** ("He looks thirsty"; a drink from a bar won't do). He thanks you, sips it, and hands you his keys: the **Found!** card ("Vince's car keys"; **Drive it now** / **Later**), the achievement **Keys to the Sundowner**.
+- **Kept per account:** `prefs.parkFinds.keys` on the device, `98ish.roam.unlocks` for the open world (through `host98.unlocks()`), and on the server when signed on (`server/park/finds.js`, collection `parkfinds`, one tiny record per account: `park:finds` / `park:find`; merged both ways when you sign on; **Delete My Account** erases it: step "park finds"). He hands them over once; after that he just thanks you.
+- **The car:** the **Sundowner GT** (an original grand tourer, `roam/render/carmodel.js` `sundowner`: long hood, set-back cabin, fastback to a ducktail, sunset orange with gold pinstripes and a dark lip; top speed 40 m/s) in the Paseo Club's lot in Explore Valencia (`towns/valencia.js keyCar`: the north stall of the venue's aerial-traced east row by the way out). **Drive it now** opens Valencia beside it from any venue (`startRoam(..., { start: "keyCar" })`). `docs/open-world.md` "Cars".
+
+### Storage, network, privacy
+- Device: `prefs.leisure` (best swim times, how many swims, soaks and orders), `prefs.parkFinds`, `98ish.roam.unlocks`. Account: `parkfinds`. Memory only: what's in a hand (`park:hold`), the swim/tub acts. Network: an item id when it changes, a sip, a splash, a race's time; asks as Together's. Help: games.js "Swimming, the hot tub, food and drinks", the Explore topic's Sundowner line, privacy topics (server table, deletion, device keys).
+
+### Measured (scratchpad `leis/`: vite 5301 / server 8301; phone 390x844, GPU flags, 4x CPU)
+- One phone at Los Cab (`l1.mjs`): the tub (in, music on, out, music back off), a cannonball (splash, the achievement), swimming (1.6 m/s), treading, floating, a length in 28.0 s (before the speeds were lowered; now ~31 s), the cafe (9 chips: 1,000 -> 991, sips), the fridge, Vince ("Whew. Hot one today."), Give Vince your Fizz, the keys card, saved (prefs, roam unlocks, achievements), Drive it now -> Valencia beside the Sundowner, "Get in the Sundowner GT", driving. Paseo (`l1.mjs paseo`): two lengths in 43.7 s, the cafe. Every venue walked (`l3.mjs`): each place's button, Vince at SMASH and Wolf + Bear, nothing at Sinaloa.
+- Two phones signed on as buddies (`l2.mjs`): **Race**: Ava 34.8 s, Ben 57.4 s, each sees the other's time; **hot tub together**: seats tub0 and tub1, each sees the other soaking; **a treat**: Ben asked "LsAva wants to buy you a fresh lemonade", yes, Ben holds it, Ava's chips 1,000 -> 988 (hers and his).
+- Frame rate (phone, 4x CPU, a loaded machine): swimming at Los Cab 27.2-28.2 fps, at Paseo 46.8; in the tub 23.7 (one phone), 13.0 with two phones rendering at once.
+
+### Tests
+- `node --test client/src/components/applets/pickleball/park/leisure/leisure.test.js` (9): only at sourced places and reachable from the arrival; where you are; the poses (head out, body under, the arm over the water part of the stroke, the tuck, the tub); swimming (turning, speed, never out of the pool in 2,000 steps, lanes, a whole two-length swim); the cannonball; the tub's seats and pair; the menu and the chips (refill, short, refund, sips); Together's words; Vince (hot lines, only a machine drink, keys once, none without a machine).
+- `server/park/test/leisure.test.js` (6, in `npm test`): park:hold, park:fx (sip, splash, lap; nonsense refused), the Together kinds' data, a treat's ask/yes/no, park finds (per account, known finds only, kept once, erased with the account), finds over the sockets (signed on only).
+
+### Owner questions
+- The Paseo Club: is one of the two small pools beside the main pool a hot tub (and which)?
+- Los Cab's two outdoor vending machines by the fitness building and Newport's by the courts: are they real? (Not offered until we know.)
+- Whittier: where in the clubhouse is the snack window?
+- Bars: beer and wine on the menus, or keep them alcohol-free?
+
+### Left
+- No diving board or underwater view; the body under the water is hidden (the pool is level with the deck), not seen through it.
+- The swim is freestyle only (no breaststroke or backstroke); laps don't keep you in your lane.
+- Vince is drawn as a cheap mannequin when he's past the athletes' budget (like any regular); his look is the same everywhere.
+- No buff from food (an energy boost for a rally challenge was optional).
+- The Sundowner, like the Turbo 98, has its stripes only while driven (parked cars are instanced plain).
