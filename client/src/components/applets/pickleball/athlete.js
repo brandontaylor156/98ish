@@ -2116,7 +2116,8 @@ const buildAthlete = (look = {}, { shadows = false, withPaddle = true, live = {}
   const guardCaps = []
   let guardNear = false // (the paddle within 5 cm of the body last time it was checked)
   // (live.noGuard: a figure the owner says is too far away for it to show, My Park on a phone)
-  const guarding = () => withPaddle && !live.noGuard && !(typeof window !== "undefined" && window.__pbNoGuard)
+  let padNow = withPaddle // (the paddle in the hand this frame: apply's padOn)
+  const guarding = () => padNow && !live.noGuard && !(typeof window !== "undefined" && window.__pbNoGuard)
   const guardJoints = (S, res) => {
     const fk = armFK(rigs[paddleSide], S, res)
     const hq = turnOf("Head")
@@ -2340,6 +2341,9 @@ const buildAthlete = (look = {}, { shadows = false, withPaddle = true, live = {}
     // the twist shared along the forearm ----
     const right = (pose.hand ?? 1) > 0
     const handSide = right ? "r" : "l"
+    // (the paddle in the hand: not when it's put away, park/acts/gear.js gearFig "none")
+    const padOn = withPaddle && paddleHolder.userData.gear !== "none"
+    padNow = padOn
     if (handSide !== paddleSide && withPaddle) {
       placePaddle(handSide)
       setFingers()
@@ -2355,6 +2359,10 @@ const buildAthlete = (look = {}, { shadows = false, withPaddle = true, live = {}
     // straight), or from the pose's elbow; the solver weighs it against the anatomy
     const bends = { r: right ? pose.bendP : pose.bendO, l: right ? pose.bendO : pose.bendP }
     const bendOf = (sd) => bends[sd] || sub3(elbowTarget[sd], scale3(add3(shoulderPose[sd], wristTarget[sd]), 0.5))
+    // a free arm's wrist: where the pose has it from the pose's shoulder, from this body's own
+    // shoulder S, scaled by this body's arm length against the pose's skeleton (anim.js BODY)
+    const freeWrist = (sd, S) => add3(S, scale3(sub3(wristTarget[sd], shoulderPose[sd]), (rigs[sd].l1 + rigs[sd].l2) / (BODY.upperArm + BODY.forearm)))
+    const lerp3 = (a, b, t) => ({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t, z: a.z + (b.z - a.z) * t })
     // the chest's frame: the figure's right, up, forward
     const cr = norm(pose.chestRight || { x: -1, y: 0, z: 0 })
     const cf = norm(pose.chestForward)
@@ -2363,7 +2371,7 @@ const buildAthlete = (look = {}, { shadows = false, withPaddle = true, live = {}
     const toChest = (v) => ({ x: dot3(v, cr), y: dot3(v, cu), z: dot3(v, cf) })
     const torso = { a: matP(B.pelvis), b: matP(B.neck_01), r: 0.115 }
     // where each hand is going (the paddle hand: about where its wrist will be)
-    const handGoal = { [oSide]: wristTarget[oSide], [pSide]: withPaddle ? sub3(pose.paddle.face, scale3(norm(pose.paddle.axis), FACE_FROM_GRIP + 0.07)) : wristTarget[pSide] }
+    const handGoal = { [oSide]: wristTarget[oSide], [pSide]: padOn ? sub3(pose.paddle.face, scale3(norm(pose.paddle.axis), FACE_FROM_GRIP + 0.07)) : wristTarget[pSide] }
     // the shoulder girdle: up as the arm rises past about 40 degrees, forward on reaches in
     // front and across, back on a backswing, out after a long reach (smoothed); a breath lifts it
     const kG = Math.min(1, dt * (info.fast ? 22 : 10))
@@ -2385,11 +2393,17 @@ const buildAthlete = (look = {}, { shadows = false, withPaddle = true, live = {}
     }
     // the other hand: a fist to celebrate, cupped on the paddle's throat in the ready
     // position, gripping the handle for a two-hander, relaxed otherwise
-    if (withPaddle) {
+    if (padOn) {
       const near = Math.hypot(pose.wristO.x - pose.wristP.x, pose.wristO.y - pose.wristP.y, pose.wristO.z - pose.wristP.z) < 0.2
       offShape = info.fist ? "fist" : info.two ? "grip" : info.offGrip && near ? "cup" : info.open ? "open" : "relaxed"
       setHand(oSide, offShape, dt)
       setHand(pSide, "grip", dt)
+    } else if (withPaddle) {
+      // (the paddle put away: a hug, holding hands, something to eat, walking about in town:
+      // both hands as the pose wants them, the arm solved as a free arm)
+      offShape = info.fist ? "fist" : info.open ? "open" : "relaxed"
+      setHand(oSide, offShape, dt)
+      setHand(pSide, info.fist ? "fist" : info.open ? "open" : "relaxed", dt)
     }
 
     // the paddle arm: the face's center and its normal exactly where the pose has them; the
@@ -2415,7 +2429,10 @@ const buildAthlete = (look = {}, { shadows = false, withPaddle = true, live = {}
     // (and on a slow device, every other frame away from a stroke: the athletes take turns)
     // (not while the paddle is close to the body: the guard checks it every frame then)
     const calm = exact === 0 && !info.fast && armHold.side === pSide && armHold.two === !!info.two && !guardNear
-    const holdArms = calm && ((moved < 0.008 && armHold.skips < 2 && (info.stroke || 0) < 0.05) || (dt > 1 / 40 && armHold.skips < 1 && (info.stroke || 0) < 0.3))
+    // (a slow device's every-other-frame rest only while the hands barely move against the chest:
+    // walking or running, a held arm froze for a frame while the body went on, and the swing and
+    // the paddle stuttered at half the frame rate: the owner's "paddle vibrates in hand")
+    const holdArms = calm && ((moved < 0.008 && armHold.skips < 2 && (info.stroke || 0) < 0.05) || (dt > 1 / 40 && moved < 0.02 && armHold.skips < 1 && (info.stroke || 0) < 0.3))
     if (holdArms) armHold.skips++
     else {
       armHold.key = holdKey
@@ -2425,10 +2442,15 @@ const buildAthlete = (look = {}, { shadows = false, withPaddle = true, live = {}
     }
     if (holdArms) {
       // (nothing to do)
-    } else if (withPaddle) {
+    } else if (padOn) {
       const st = armState[pSide]
       const S = childP(B["clavicle_" + pSide], B["upperarm_" + pSide])
-      const armOpts = { faceFromGrip: FACE_FROM_GRIP, pole: bendOf(pSide), poleW: 0.35, prev: st.prev || null, maxTurn: (info.fast ? 40 : 14) * h, handRate: (info.fast ? 40 : 14) * h, handTurn: (info.fast ? 30 : 11) * h, exact, sideWant: (info.stroke || 0) > 0.05 && info.side ? info.side : 0, wrist: add3(wristTarget[pSide], scale3(sub3(S, shoulderPose[pSide]), 0.7)), stroke: info.stroke || 0, carry: Math.max(Math.max(0, Math.min(1, (1 - (info.ready ?? 1)) * 1.4 - 0.2)), info.swinging ? 0 : Math.max(0, Math.min(1, ((info.speed || 0) - 1.4) / 1.2))) * (1 - Math.min(1, (info.stroke || 0) * 3)) * (info.tap ? 0 : 1), dt, lite: frameNo % 2 === 1 && !info.fast, torso, ...carryWay(chest, pSide, info.speed || 0) }
+      const carryK = Math.max(Math.max(0, Math.min(1, (1 - (info.ready ?? 1)) * 1.4 - 0.2)), info.swinging ? 0 : Math.max(0, Math.min(1, ((info.speed || 0) - 1.4) / 1.2))) * (1 - Math.min(1, (info.stroke || 0) * 3)) * (info.tap ? 0 : 1)
+      // (carried, walking or running: the wrist where the pose has it from ITS shoulder, scaled to
+      // this body's arm: the elbow bends as the pose says on any build. Only 70% of the shoulder
+      // offset, on a longer or shorter arm, opened or closed the elbow by 15-20 degrees running)
+      const wristP = lerp3(add3(wristTarget[pSide], scale3(sub3(S, shoulderPose[pSide]), 0.7)), freeWrist(pSide, S), carryK)
+      const armOpts = { faceFromGrip: FACE_FROM_GRIP, pole: bendOf(pSide), poleW: 0.35, prev: st.prev || null, maxTurn: (info.fast ? 40 : 14) * h, handRate: (info.fast ? 40 : 14) * h, handTurn: (info.fast ? 30 : 11) * h, exact, sideWant: (info.stroke || 0) > 0.05 && info.side ? info.side : 0, wrist: wristP, stroke: info.stroke || 0, carry: carryK, dt, lite: frameNo % 2 === 1 && !info.fast, torso, ...carryWay(chest, pSide, info.speed || 0) }
       let res = solvePaddleArm(rigs[pSide], S, pose.paddle, chest, armOpts)
       // (the paddle's whole shape kept out of the body: paddlebody.js, arms.js guardPaddleArm)
       if (guarding()) res = guardPaddle(res, S, exact, (shift, paddle) => (paddle ? solvePaddleArm(rigs[pSide], S, paddle, chest, { ...armOpts, psiMax: 0.12 }) : solvePaddleArm(rigs[pSide], S, { ...pose.paddle, face: add3(pose.paddle.face, shift) }, chest, { ...armOpts, wrist: add3(armOpts.wrist, shift) })))
@@ -2438,7 +2460,8 @@ const buildAthlete = (look = {}, { shadows = false, withPaddle = true, live = {}
       paddleNow = res
     } else {
       const st = armState[pSide]
-      const res = solveArm(rigs[pSide], childP(B["clavicle_" + pSide], B["upperarm_" + pSide]), wristTarget[pSide], chest, { pole: bendOf(pSide), poleW: 0.5, prev: st.bend || null, maxTurn: 12 * Math.max(dt, 1 / 240), torso, relax: relaxFor(pSide) })
+      const Sp = childP(B["clavicle_" + pSide], B["upperarm_" + pSide])
+      const res = solveArm(rigs[pSide], Sp, freeWrist(pSide, Sp), chest, { pole: bendOf(pSide), poleW: 0.5, prev: st.bend || null, maxTurn: 12 * Math.max(dt, 1 / 240), torso, relax: relaxFor(pSide) })
       st.bend = res.bend
       st.last = res
       placeArm(pSide, res)
@@ -2451,7 +2474,8 @@ const buildAthlete = (look = {}, { shadows = false, withPaddle = true, live = {}
       // (the pose's hand kept where it is against its own shoulder, mostly: this body's shoulders
       // are broader than the pose's skeleton; less so for a hand by the paddle's throat)
       const nearP = Math.hypot(pose.wristO.x - pose.wristP.x, pose.wristO.y - pose.wristP.y, pose.wristO.z - pose.wristP.z) < 0.2
-      let target = add3(wristTarget[oSide], scale3(sub3(S, shoulderPose[oSide]), nearP ? 0.2 : 0.7))
+      // (a free arm: the pose's elbow on this body's own arm, freeWrist; by the paddle's throat: kept by it)
+      let target = nearP ? add3(wristTarget[oSide], scale3(sub3(S, shoulderPose[oSide]), 0.2)) : lerp3(add3(wristTarget[oSide], scale3(sub3(S, shoulderPose[oSide]), 0.7)), freeWrist(oSide, S), 1 - Math.min(1, (info.stroke || 0) * 3))
       let H = null
       if (paddleNow && info.two) {
         const gO = tpl.grip[oSide]

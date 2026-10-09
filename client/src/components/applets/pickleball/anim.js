@@ -49,6 +49,7 @@ import { driveMM } from "./mm/drive.js"
 import { betweenActs } from "./between.js"
 import { gestureArms } from "./mm/gesture.js"
 import { createIdle, stepIdle } from "./idle.js"
+import { createGaitArms, stepGaitArms } from "./gaitarms.js"
 import { bodyCapsules, paddleDepth, resolvePaddle, rollPaddle, skipFor } from "./paddlebody.js"
 
 // the paddle kept out of the body (paddlebody.js): how far clear (m)
@@ -56,6 +57,15 @@ export const GUARD = { margin: 0.02 }
 // (around contact the paddle may roll about its face if the arm gets the hand within this of its
 // new place: a ball low by the legs, the handle swung out of the thigh)
 const ROLL_REACH = 0.006
+// a rotation scaled toward none (f: how much of it is left)
+const qscale = (q, f) => {
+  const w = Math.max(-1, Math.min(1, q.w))
+  const ang = 2 * Math.acos(Math.abs(w))
+  const s = Math.sqrt(Math.max(0, 1 - w * w))
+  if (ang < 1e-6 || s < 1e-9) return { x: 0, y: 0, z: 0, w: 1 }
+  const sg = w < 0 ? -1 : 1
+  return qaxis({ x: (q.x / s) * sg, y: (q.y / s) * sg, z: (q.z / s) * sg }, ang * f)
+}
 const guardCaps = []
 const offCaps = []
 const guardSkip = skipFor({})
@@ -640,39 +650,13 @@ export const updateAnim = (a, s, dt) => {
   const rHand = V(R.hand.x, R.hand.y, R.hand.z)
   const rOff = s.twoHand ? add(rHand, mul(rAxis, ON_HANDLE)) : add(rHand, add(mul(rAxis, 0.13), V(-0.03, -0.01, 0.03)))
   const ready = { hand: rHand, axis: rAxis, coil: 0, off: rOff, pole: V(0.6, -1, -0.2), lean: 0, crouch: 0, sh }
-  let relaxed = { hand: V(0.25, 0.84, 0.13), axis: norm(V(0.05, -0.95, 0.25)), coil: 0, off: V(-0.23, 0.82, 0.08), pole: V(0.3, -1, -0.4), lean: 0, crouch: 0, sh }
-  // with motion matching, the arms between points (and the swing of the free arm on a run)
-  // are the motion capture's own: its wrists, its elbows, the paddle hanging along the hand
-  let mmArms = null
-  if (mmo) {
-    const wP = hand > 0 ? mmo.wristR : mmo.wristL
-    const wO = hand > 0 ? mmo.wristL : mmo.wristR
-    const eP = hand > 0 ? mmo.elbowR : mmo.elbowL
-    const eO = hand > 0 ? mmo.elbowL : mmo.elbowR
-    const endP = hand > 0 ? mmo.handEndR : mmo.handEndL
-    // the elbows' directions in the chest's frame (standard, right-handed), for the IK poles
-    const cr = mmo.chestRight
-    const cf = mmo.chestForward
-    const cu = norm(cross(cf, cr))
-    const chestLocal = (v) => RH(V(dot(v, cr), dot(v, cu), dot(v, cf)))
-    const poleOf = (e, sh2, w) => chestLocal(sub(e, mul(add(sh2, w), 0.5)))
-    const hangDir = norm(add(norm(sub(endP, wP)), add(V(0, -0.35, 0), mul(fr.f, 0.25))))
-    // (standing about, the hands come up and forward a little: elbows softly bent, the way
-    // an athlete stands, not the capture's straight hanging arms; less on the move)
-    const soft = V(0, 0.07 * still, 0.09 * still)
-    mmArms = {
-      hand: add(toStd(local(wP)), soft),
-      axis: RH(toLocal(V(0, 0, 0), fr, hangDir)),
-      off: add(toStd(local(wO)), soft),
-      pole: poleOf(eP, hand > 0 ? mmo.shoulderR : mmo.shoulderL, wP),
-      offPole: poleOf(eO, hand > 0 ? mmo.shoulderL : mmo.shoulderR, wO),
-      coil: 0,
-      lean: 0,
-      crouch: 0,
-      sh,
-    }
-    relaxed = mmArms
-  }
+  // the arms walking about, jogging and running (gaitarms.js): one model for every gait, driven
+  // by the legs as drawn (last frame's ankles), with motion matching or without. (The capture's
+  // own arms changed with whichever clip the search picked: straight hanging arms on a walk, high
+  // fists on a jog, open elbows on a run; the old procedural pose bent the elbows 75 degrees even
+  // standing.)
+  const ga = stepGaitArms(a.gaitArms || (a.gaitArms = createGaitArms()), { spread: a.lastSpread || 0, speed, hand, dt, paddle: !a.noPaddle })
+  const relaxed = { hand: ga.P.hand, axis: ga.axis, coil: 0, off: ga.O.hand, pole: ga.P.pole, offPole: ga.O.pole, lean: 0, crouch: 0, sh }
   W.relax = ramp(W.relax, s.between && !mood ? 1 : 0, dt, 0.45, 0.2)
   let pose = mixPose(ready, relaxed, smoothW(W.relax))
 
@@ -682,7 +666,6 @@ export const updateAnim = (a, s, dt) => {
   // (shuffles, backpedals, a ball on the way) or swings
   const ph = a.gait.phase
   const cph = Math.cos(ph)
-  const cphA = cph * hand // (the paddle arm forward as the opposite foot lands)
   const pump = (bl.run + bl.sprint) * clamp((speed - 1.0) / 2, 0, 1) + bl.walk * 0.45 * clamp(speed / 1.2, 0, 1)
   const incoming = !!(s.prep || swing || whiff || s.holding || s.charging)
   // (running hard the arms pump, the paddle arm too, the paddle kept up in front; shuffling or
@@ -693,18 +676,13 @@ export const updateAnim = (a, s, dt) => {
   const holdReady = s.between ? 0 : incoming ? 1 : facing ? 1 - 0.45 * fastRun : 0.45
   W.pumpP = ramp(W.pumpP, pump * (1 - holdReady), dt, 0.3, 0.12)
   W.pumpO = ramp(W.pumpO, s.holding ? 0 : pump * (s.between ? 1 : incoming ? 0.35 : facing ? 0.55 + 0.45 * fastRun : 1), dt, 0.25, 0.2)
-  const amp = 0.55 + 0.45 * clamp(pump, 0, 1)
   if (W.pumpP > 1e-3) {
-    const at = lerpV(V(0.22, 0.96, 0.2), relaxed.hand, smoothW(W.relax))
-    // (motion matching: the captured arm's own swing, the paddle along the hand)
-    const swingP = mmArms ? { ...pose, hand: mmArms.hand, axis: norm(lerpV(V(0.15, 0.5, 0.85), mmArms.axis, 0.5)), pole: mmArms.pole } : { ...pose, hand: add(at, V(0, Math.max(0, cphA) * 0.08 * amp, cphA * 0.22 * amp)), axis: norm(lerpV(V(0.15, 0.5, 0.85), relaxed.axis, smoothW(W.relax))), pole: V(0.35, -0.6, -1) }
+    // (the gait's own swing: the paddle hand between the hip and the lower chest, the paddle up
+    // along the forearm running)
+    const swingP = { ...pose, hand: ga.P.hand, axis: ga.axis, pole: ga.P.pole }
     pose = { ...mixPose(pose, swingP, smoothW(Math.min(1, W.pumpP * 1.5))), off: pose.off }
   }
-  if (W.pumpO > 1e-3) {
-    const at = lerpV(V(-0.21, 0.94, 0.12), relaxed.off, smoothW(W.relax))
-    const off = mmArms ? mmArms.off : add(at, V(0, Math.max(0, -cphA) * (0.14 - 0.07 * W.relax) * amp, -cphA * 0.3 * amp))
-    pose = { ...pose, off: lerpV(pose.off, off, smoothW(Math.min(1, W.pumpO * 1.5))) }
-  }
+  if (W.pumpO > 1e-3) pose = { ...pose, off: lerpV(pose.off, ga.O.hand, smoothW(Math.min(1, W.pumpO * 1.5))) }
   // the shoulders turn against the hips with the stride (the captured trunk turns by itself)
   const runTwist = mmo ? 0 : cph * 0.16 * Math.min(1, pump) * Math.max(W.pumpO, W.pumpP, 0.35)
 
@@ -944,7 +922,7 @@ export const updateAnim = (a, s, dt) => {
   // how quickly the hands may move: a swing is fast, everything else smooth
   const fast = so.fast
   // (the captured arms swing freely: followed closely)
-  const k = so.w > 0.02 ? (fast ? 200 : 45) : mmArms ? 22 + 38 * Math.max(smoothW(W.relax), W.pumpP) : 22
+  const k = so.w > 0.02 ? (fast ? 200 : 45) : 22 + 23 * Math.max(smoothW(W.relax), W.pumpP)
 
   // ---- the pelvis: as high as the stance wants, low enough that both legs reach ----
   // (the steps' own rise and fall, from the gait)
@@ -1146,7 +1124,7 @@ export const updateAnim = (a, s, dt) => {
   // frame (a forward swing really is that fast; nothing else is)
   let handL = springV(a.hand, handT, k, dt)
   let axisL = norm(springV(a.axis, axisT, fast ? 200 : Math.min(k, 60), dt))
-  let offL = springV(a.off, offT, mmArms ? 16 + 34 * Math.max(smoothW(W.relax), W.pumpO) : 16, dt)
+  let offL = springV(a.off, offT, 16 + 29 * Math.max(smoothW(W.relax), W.pumpO), dt)
   handL = a.handLim = limitStep(a.handLim, handL, (fast ? 16 : 7) * dt)
   axisL = a.axisLim = limitTurn(a.axisLim, axisL, (fast ? 40 : 12) * dt)
   offL = a.offLim = limitStep(a.offLim, offL, 6 * dt)
@@ -1165,6 +1143,28 @@ export const updateAnim = (a, s, dt) => {
   const otherSide = hand > 0 ? shoulderL : shoulderR
   let handW = toWorld(ground, fr, handL)
   let offW = toWorld(ground, fr, offL)
+  // (the gait's arms are made for the standard shoulders: moved with the real ones, so a crouch,
+  // a lean or broad shoulders never shorten or stretch them: the elbows bend as gaitarms.js says)
+  {
+    const gw = (1 - smoothW(Math.min(1, so.w * 2))) * (1 - smoothW(W.hold)) * (1 - smoothW(W.mood)) * (1 - W.two)
+    // (not over a paddle tap, a wipe of the hand on the shorts, an arm up tracking a lob)
+    const tapW = bt.tap && !swing && !s.prep ? smoothW(bt.tap.w) : 0
+    const wipeW = bt.wipe !== null && !swing && !s.prep ? smoothW(clamp(Math.sin(Math.PI * bt.wipe) * 1.6, 0, 1)) : 0
+    const wP = gw * (1 - tapW) * Math.max(smoothW(W.relax), smoothW(Math.min(1, W.pumpP * 1.5)))
+    const wO = gw * (1 - tapW) * (1 - wipeW) * (1 - smoothW(W.track || 0)) * Math.max(smoothW(W.relax), smoothW(Math.min(1, W.pumpO * 1.5)))
+    const sP = hand > 0 ? shoulderR : shoulderL
+    const sO = hand > 0 ? shoulderL : shoulderR
+    // (from each real shoulder, in the chest's frame: the arms swing with the trunk as it turns
+    // and leans; "up" halfway between the spine and plumb, the arms hang with gravity)
+    if (wP > 1e-3 || wO > 1e-3) {
+      const cu = norm(add(mul(norm(sub(neck, pelvis)), 0.5), mul(UP, 0.5)))
+      const cf = norm(sub(chestF, mul(cu, dot(chestF, cu))), fr.f)
+      const cr = norm(sub(sub(sr, mul(cu, dot(sr, cu))), mul(cf, dot(sr, cf))), fr.r)
+      const place = (s0, l) => add(s0, add(add(mul(cr, l.x), mul(cu, l.y)), mul(cf, l.z)))
+      if (wP > 1e-3) handW = lerpV(handW, place(sP, RH(sub(ga.P.hand, V(BODY.shoulderHalf, sh, 0.1)))), wP)
+      if (wO > 1e-3) offW = lerpV(offW, place(sO, RH(sub(ga.O.hand, V(-BODY.shoulderHalf, sh, 0.1)))), wO)
+    }
+  }
   if (idleMove) {
     handW = add(handW, idleMove)
     offW = add(offW, idleMove)
@@ -1188,11 +1188,10 @@ export const updateAnim = (a, s, dt) => {
   const poleP = chestDir(poleT)
   const offUp = clamp((offL.y - sh) / 0.3, 0, 1) // (an arm raised: the elbow goes out to the side)
   let poleO = chestDir(V(-hand * lerp(0.6, 1, offUp), lerp(-1, -0.15, offUp), lerp(lerp(-0.15, -1, W.pumpO), 0.1, offUp)))
-  // (motion matching: the free arm's elbow where the capture has it, as far as that arm is
-  // the capture's)
-  if (mmArms) {
+  // (walking about or running: the free arm's elbow where the gait has it, gaitarms.js)
+  {
     const wArm = Math.max(smoothW(W.relax), smoothW(Math.min(1, W.pumpO * 1.5)))
-    if (wArm > 1e-3) poleO = norm(lerpV(poleO, chestDir(RH(mmArms.offPole)), wArm))
+    if (wArm > 1e-3) poleO = norm(lerpV(poleO, chestDir(RH(relaxed.offPole)), wArm))
   }
   if (a.moodPose?.offPole && W.mood > 0) poleO = norm(lerpV(poleO, chestDir(RH(a.moodPose.offPole)), smoothW(W.mood)))
   // the hands and the paddle stay out of the torso and the thighs (except right at contact:
@@ -1281,17 +1280,39 @@ export const updateAnim = (a, s, dt) => {
       }
     }
     if (keep > 0.02) {
-      const pdl = { face: add(armPf.end, mul(axisW, BODY.paddleReach)), axis: axisW, normal: normalW }
+      // (the correction is kept from frame to frame and eased back only once the paddle is clear:
+      // worked out afresh each frame from the uncorrected paddle, it flipped between "in the
+      // thigh" and "pushed out" every other frame on a run, the owner's "paddle vibrates in hand")
+      const gq = a.gTurn || (a.gTurn = { x: 0, y: 0, z: 0, w: 1 })
+      const gs = a.gShift || (a.gShift = V())
+      let ax0 = norm(qrot(gq, axisW), axisW)
+      let nm0 = norm(qrot(gq, normalW), normalW)
+      if (len(gs) > 0.0005) armPf = armIK(a.ikP, paddleSide, add(armPf.end, mul(gs, keep)), BODY.upperArm, BODY.forearm, poleP, { maxTurn: (fast ? 40 : 14) * dt })
+      const pdl = { face: add(armPf.end, mul(ax0, BODY.paddleReach)), axis: ax0, normal: nm0 }
       const r = resolvePaddle(pdl, guardCaps, { pivot: armPf.end, margin: GUARD.margin, skip: guardSkip, maxTurn: 0.9 * keep, maxShift: 0.14 * keep })
       a.guard = r.before
       if (r.before > -GUARD.margin) {
-        axisW = a.axisOut = r.paddle.axis
-        normalW = a.normalOut = r.paddle.normal
+        ax0 = r.paddle.axis
+        nm0 = r.paddle.normal
+        a.gTurn = qmul(r.turn, gq)
         if (len(r.shift) > 0.0005) {
+          a.gShift = add(gs, r.shift)
           // (the hand goes out: the arm solved again to it)
           armPf = armIK(a.ikP, paddleSide, add(armPf.end, r.shift), BODY.upperArm, BODY.forearm, poleP, { maxTurn: (fast ? 40 : 14) * dt })
         }
+      } else if (r.before < -2.5 * GUARD.margin) {
+        // clear by a good margin: the correction eases away (a third of it a second... gently)
+        const f = Math.exp(-dt * 2.5)
+        a.gTurn = qscale(gq, f)
+        a.gShift = mul(gs, f)
       }
+      // (a.axisOut / normalOut keep the uncorrected paddle for the limiters: the kept correction
+      // goes on top again next frame)
+      axisW = ax0
+      normalW = nm0
+    } else {
+      a.gTurn = null
+      a.gShift = null
     }
     // the other arm out of the paddle's way (not while it holds it)
     if (!holds) {
@@ -1316,6 +1337,8 @@ export const updateAnim = (a, s, dt) => {
   // (next frame's room for a ball at the body: ROOM)
   a.lastBody = { pelvis, neck, f: chestF }
   a.lastKnees = [legs[0].knee, legs[1].knee]
+  // (the arms' swing next frame: how far the left ankle leads the right, gaitarms.js)
+  a.lastSpread = (legs[0].ankle.x - legs[1].ankle.x) * fr.f.x + (legs[0].ankle.z - legs[1].ankle.z) * fr.f.z
   return {
     yaw: a.yaw,
     pelvis,

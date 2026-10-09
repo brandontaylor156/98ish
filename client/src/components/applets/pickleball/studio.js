@@ -70,6 +70,12 @@ export const MOVES = {
   backpedal2: [{ t: 0.4, want: [0, 0], atNet: true }, { t: 1.2, want: [0, -2.6] }, { t: 0.8, want: [0, 0] }],
   // a lob over the head: turn and run back (4.5 m/s), stop
   "lob-turn": [{ t: 0.4, want: [0, 0], atNet: true }, { t: 1.5, want: [-0.8, -4.5] }, { t: 0.9, want: [0, 0] }],
+  // walking about (My Park, the open world: between: true), straight ahead at a steady pace, for
+  // the gait's arms and legs (gaitarms.js); filmstrips take frames from the last seconds
+  "about-stand": [{ t: 3, want: [0, 0], between: true }],
+  "about-walk": [{ t: 0.3, want: [0, 0], between: true }, { t: 4.2, want: [0, 1.4], between: true }],
+  "about-jog": [{ t: 0.3, want: [0, 0], between: true }, { t: 4.2, want: [0, 3.0], between: true }],
+  "about-run": [{ t: 0.3, want: [0, 0], between: true }, { t: 4.2, want: [0, 5.0], between: true }],
 }
 export const MOVE_STATES = Object.keys(MOVES)
 const moveScript = (name, x, z, base) => {
@@ -369,7 +375,7 @@ const script = (state, x, z, { hand = 1, twoHand = false } = {}) => {
 }
 
 // eye / at: [x, y, dz] a camera of your own (dz from the lineup's z), with fov
-export const studioShot = (ctx, { looks = [{}], state = "ready", cam = "close", z = -4.6, spacing, eye, at = [0, 1, 0], fov, T, follow = false, mm = true, noPaddle = false, focus = null, measure = false } = {}) => {
+export const studioShot = (ctx, { looks = [{}], state = "ready", cam = "close", z = -4.6, spacing, eye, at = [0, 1, 0], fov, T, follow = false, mm = true, noPaddle = false, focus = null, measure = false, track = null, trackDt = null } = {}) => {
   const { scene, camera, renderer, size, makeFigure, shadows } = ctx
   for (const f of lineup) {
     scene.remove(f.fig.group, f.ball)
@@ -384,21 +390,32 @@ export const studioShot = (ctx, { looks = [{}], state = "ready", cam = "close", 
     const x = (i - (n - 1) / 2) * gap
     const fig = makeFigure(look, { shadows })
     scene.add(fig.group)
-    if (noPaddle && fig.debug?.paddle) fig.debug.paddle.visible = false
+    if (noPaddle && fig.debug?.paddle) {
+      fig.debug.paddle.visible = false
+      fig.debug.paddle.userData.gear = "none"
+    }
     const sc = script(state, x, z, { hand: look.plays === "left" ? -1 : 1, twoHand: look.backhand === "two" })
     if (T !== undefined) sc.T = T
     const s0 = sc.at(0)
     const anim = createAnim(s0.x, s0.z, 0)
     anim.useMM = mm && !!fig.skinned // (motion matching; mm: false for the old footwork)
-    const dt = 1 / 60
+    const dt = trackDt || 1 / 60
     const events = [...(sc.events || [])]
     let pose = null
     const measured = []
+    const tracked = []
     for (let t = 0; t <= sc.T; t += dt) {
       while (events.length && events[0][0] <= t) events.shift()[1](anim)
       pose = updateAnim(anim, sc.at(t), dt)
       fig.apply(pose, dt)
       if (measure && fig.probePaddleBody) measured.push(paddleBodyFrame(fig.probePaddleBody(), t, pose))
+      if (track !== null && t >= track && fig.debug?.paddle) {
+        // (tests: the drawn paddle's handle axis and the paddle hand's wrist, every frame, for jitter)
+        const m = fig.debug.paddle.matrixWorld.elements
+        const ax = new THREE.Vector3(m[4], m[5], m[6]).normalize()
+        const w = new THREE.Vector3().setFromMatrixPosition(fig.debug.paddle.matrixWorld)
+        tracked.push([+t.toFixed(4), ax.x, ax.y, ax.z, w.x, w.y, w.z])
+      }
     }
     const ball = new THREE.Mesh(new THREE.SphereGeometry(0.037 * 1.5, 16, 12), new THREE.MeshStandardMaterial({ color: "#d8f03a", roughness: 0.6 }))
     ball.visible = !!sc.contact
@@ -416,6 +433,8 @@ export const studioShot = (ctx, { looks = [{}], state = "ready", cam = "close", 
       metrics: poseMetrics(pose),
       arms: fig.probeArms ? fig.probeArms() : null,
       paddleBody: measure ? measured : null,
+      track: track !== null ? tracked : null,
+      joints: { shoulderP: pose.paddleShoulder, elbowP: pose.elbowP, wristP: pose.wristP, shoulderO: pose.hand > 0 ? pose.shoulderL : pose.shoulderR, elbowO: pose.elbowO, wristO: pose.wristO },
       info: pose.info ? { phase: pose.info.phase, stroke: pose.info.stroke, ready: pose.info.ready, between: pose.info.between, footL: pose.footL, footR: pose.footR, yaw: pose.yaw } : null,
     })
   })

@@ -62,9 +62,9 @@ const sample = (arr, s) => {
 // ---- the gaits: cadence (steps a second) by speed, duty (the part of a cycle a foot is
 // down), how wide the feet are, how high a stepping foot goes ----
 export const GAITS = {
-  walk: { sps: (v) => 1.75 + 0.3 * v, duty: (v) => 0.62 - 0.04 * clamp(v - 1, 0, 1), width: 0.1, clear: () => 0.09, path: "walk", heel: 0.5 },
-  run: { sps: (v) => clamp(2.55 + 0.27 * v, 2.6, 3.8), duty: (v) => clamp(0.47 - 0.035 * v, 0.33, 0.42), width: 0.085, clear: (v) => clamp(0.05 + 0.05 * v, 0.1, 0.26), path: "run", heel: 0.55 },
-  sprint: { sps: (v) => clamp(2.9 + 0.22 * v, 3.5, 4.2), duty: () => 0.32, width: 0.075, clear: (v) => clamp(0.08 + 0.045 * v, 0.2, 0.3), path: "run", heel: 0.6 },
+  walk: { sps: (v) => 1.75 + 0.3 * v, duty: (v) => 0.62 - 0.04 * clamp(v - 1, 0, 1), width: 0.06, clear: () => 0.09, path: "walk", heel: 0.5 },
+  run: { sps: (v) => clamp(2.55 + 0.27 * v, 2.6, 3.8), duty: (v) => clamp(0.47 - 0.035 * v, 0.33, 0.42), width: 0.045, clear: (v) => clamp(0.04 + 0.07 * v, 0.12, 0.38), path: "run", heel: 0.55 },
+  sprint: { sps: (v) => clamp(2.9 + 0.22 * v, 3.5, 4.2), duty: () => 0.32, width: 0.04, clear: (v) => clamp(0.1 + 0.06 * v, 0.3, 0.45), path: "run", heel: 0.6 },
   shuffle: { sps: (v) => clamp(2.4 + 0.5 * v, 2.4, 4.0), duty: () => 0.55, width: 0.12, clear: (v) => clamp(0.035 + 0.02 * v, 0.04, 0.09), path: "shuffle", heel: 0.15 },
   back: { sps: (v) => clamp(2.6 + 0.45 * v, 2.6, 4.0), duty: () => 0.52, width: 0.13, clear: (v) => clamp(0.04 + 0.025 * v, 0.05, 0.1), path: "back", heel: 0.1 },
 }
