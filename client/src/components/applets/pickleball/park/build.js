@@ -10,6 +10,7 @@ import * as THREE from "three"
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js"
 import { HALF_L } from "../physics.js"
 import { mergeStatic } from "../venue.js"
+import { mergeByLook, singlePass } from "./perf.js"
 import { LEVEL_NAMES, PATH_W, PEN, RIVERSIDE_LAYOUT, SEAT_ROWS } from "./layout.js"
 import { createCourtKit } from "./courtkit.js"
 import { buildScenery } from "./scenery.js"
@@ -877,6 +878,7 @@ export const buildPark = (scene, { quality = "medium", layout = RIVERSIDE_LAYOUT
   const POLE_H = S?.fence?.poleH || 7.5
   const double = !!S?.fence?.doubleHeads
   const lampMat = keep(new THREE.MeshBasicMaterial({ color: 0x9aa0a8 }))
+  lampMat.userData.live = true // (its color follows the time of day: never merged by look)
   const hex6 = (c, d) => (c ? new THREE.Color(c).getHex() : d)
   if (LIGHTS.length) {
     const poles = new THREE.InstancedMesh(keep(S?.fence?.poleD ? new THREE.CylinderGeometry(S.fence.poleD * 0.42, S.fence.poleD * 0.5, 7.5, 10) : new THREE.CylinderGeometry(0.07, 0.1, 7.5, 6)), S?.fence?.poleColor ? lambert(hex6(S.fence.poleColor)) : frameMat, LIGHTS.length)
@@ -994,12 +996,17 @@ export const buildPark = (scene, { quality = "medium", layout = RIVERSIDE_LAYOUT
   }
   let shadowAt = null
 
+  // (the ground's color follows the time of day)
+  if (groundMat) groundMat.userData.live = true
   mergeStatic(group, keep)
+  // (and the meshes that differ only in color: one draw per look, perf.js)
+  mergeByLook(group, keep)
   // (added after the merge: switched on and off by the time of day)
   group.add(pools)
   // (the rooms: each merged on its own, shown and hidden by cull())
   for (const z of scenery?.zones || []) {
     mergeStatic(z.group, keep)
+    mergeByLook(z.group, keep)
     group.add(z.group)
   }
   // (the roofs over open ground: each merged on its own and faded by cutaway(), cutaway.js;
@@ -1014,10 +1021,14 @@ export const buildPark = (scene, { quality = "medium", layout = RIVERSIDE_LAYOUT
         o.castShadow = !seeThrough && !o.userData.noCast
       })
     mergeStatic(ov.group, keep)
+    mergeByLook(ov.group, keep)
     group.add(ov.group)
   }
   // real surfaces (surfaces.js; off on Low): CC0 detail sampled in world space on tagged materials
   applySurfaces(group, { quality })
+  // see-through double-sided things (chain-link, nets, glass, weed cards) in one pass, not two
+  // (perf.js)
+  singlePass(group)
   // nothing here moves: its matrices are worked out once (what's added later to a court's
   // group, the players and the ball, still updates itself)
   group.traverse((o) => {

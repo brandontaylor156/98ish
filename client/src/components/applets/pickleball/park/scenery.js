@@ -1898,6 +1898,7 @@ export const buildScenery = ({ group, keep, lambert, std, kit, layout: L, scene:
   if (detail && lightRows.length) buildGlow(group, lightRows.map((l) => ({ x: l.x, y: l.y, z: l.z })), { keep, size: lightRows[0]?.round ? 1.6 : 2.4 })
   if (lightRows.length) {
     hallLampMat = keep(new THREE.MeshBasicMaterial({ color: 0xfff8e8 }))
+    hallLampMat.userData.live = true
     const boxes = lightRows.filter((l) => !l.round)
     const rounds = lightRows.filter((l) => l.round)
     if (boxes.length) {
