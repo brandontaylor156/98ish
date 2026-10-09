@@ -10,6 +10,7 @@ import Scorekeeper from "./Scorekeeper"
 import Matches from "./Matches"
 import Ladder from "./Ladder"
 import { SessionEditor, SessionList, SessionView } from "./Sessions"
+import Tournaments from "./Tournaments"
 import "./PbClub.css"
 import { useNet } from "../network/NetContext"
 import { openMaps } from "../../../utils/maps"
@@ -60,6 +61,7 @@ const LiveCard = ({ onLive, onWatch }) => {
 const ICON = "/assets/program_icons/pickleball.svg"
 const TABS = [
   ["play", "Play"],
+  ["tourneys", "Tournaments"],
   ["score", "Score"],
   ["matches", "Matches"],
   ["ladder", "Ladder"],
@@ -147,7 +149,7 @@ const CourtsList = ({ onPlan, onMeet, canMeet, canPlan }) => (
   </ul>
 )
 
-const PbClub = ({ mobile, handoff, onClose, embedded = false, onTwin = null, onLive = null, onWatch = null, onCoach = null }) => {
+const PbClub = ({ mobile, handoff, onClose, embedded = false, onTwin = null, onLive = null, onWatch = null, onCoach = null, onTourneyPlay = null }) => {
   const aim = useAim()
   const state = club.useClub()
   const [tab, setTab] = useState("play")
@@ -157,6 +159,7 @@ const PbClub = ({ mobile, handoff, onClose, embedded = false, onTwin = null, onL
   const [focusMatch, setFocusMatch] = useState(null)
   const [meet, setMeet] = useState(null)
   const [about, setAbout] = useState(false)
+  const [tourneyFocus, setTourneyFocus] = useState(null)
 
   const online = aim?.status === "online"
   const myName = aim?.me?.screenName || ""
@@ -174,7 +177,10 @@ const PbClub = ({ mobile, handoff, onClose, embedded = false, onTwin = null, onL
   // a deep link or notification: a session or a match to show
   useEffect(() => {
     if (!handoff?.id) return
-    if (handoff.session) {
+    if (handoff.tourney) {
+      setTab("tourneys")
+      setTourneyFocus(handoff.tourney)
+    } else if (handoff.session) {
       setTab("play")
       setOpen(handoff.session)
     } else if (handoff.match) {
@@ -216,7 +222,9 @@ const PbClub = ({ mobile, handoff, onClose, embedded = false, onTwin = null, onL
   )
 
   let body
-  if (tab === "score") {
+  if (tab === "tourneys") {
+    body = <Tournaments buddies={buddies} onPlay={onTourneyPlay} focus={tourneyFocus} />
+  } else if (tab === "score") {
     body = (
       <Scorekeeper
         me={meKey ? { k: meKey, name: myName || meKey } : null}

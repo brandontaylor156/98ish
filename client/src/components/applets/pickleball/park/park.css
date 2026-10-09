@@ -660,3 +660,44 @@
   font-size: 11px;
   color: #333;
 }
+
+/* ---------- tournaments at this venue (Pickleball.jsx parkTourney; Tournaments.jsx) ---------- */
+.pkTourneyChip {
+  position: absolute;
+  top: 52px;
+  right: 8px;
+  z-index: 11;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  max-width: min(230px, calc(100% - 120px));
+  min-height: 44px;
+  padding: 4px 8px !important;
+  text-align: left;
+  border-left: 4px solid #19a99a !important;
+}
+.pkTourneyChip small {
+  display: block;
+  font-size: 10px;
+}
+.pkTourneyChip b {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pkTourneyChip.is-go {
+  background: #c9f2ec;
+}
+.pkParkTourney {
+  width: min(560px, calc(100vw - 16px));
+  max-height: calc(100% - 24px);
+  display: flex;
+  flex-direction: column;
+}
+.pkParkTourneyBody {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  min-height: 0;
+  padding: 6px;
+}

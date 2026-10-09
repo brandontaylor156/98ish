@@ -10,6 +10,12 @@ const PbClubBridge = ({ socket }) => {
   useEffect(() => {
     if (!socket) return
     const onChanged = (p) => {
+      // tournaments (utils/tourney.js): a partner invitation, the draw, a result
+      if (p?.kind === "tourney") {
+        import("../../../utils/tourney").then((m) => (m.refreshSoon(), p.id && m.getTourneys().docs[p.id] && m.open(p.id))).catch(() => {})
+        if (p.partner) notify({ app: "pbclub", key: `pb-t-${p.id}`, title: `${p.by} wants you as a tournament partner`, text: "Accept in Pickleball 98 > Real Games > Tournaments.", target: { kind: "program", name: "Pickleball 98", extra: { handoff: { id: Date.now(), tourney: p.id } } } })
+        return
+      }
       refreshSoon()
       if (p?.invited && p.kind === "session") {
         notify({ app: "pbclub", key: `pb-s-${p.id}`, title: `${p.by} invited you to play pickleball`, text: "In or out? Open Real Games in Pickleball 98.", target: { kind: "program", name: "Pickleball 98", extra: { handoff: { id: Date.now(), session: p.id } } } })

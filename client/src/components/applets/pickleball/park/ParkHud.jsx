@@ -154,7 +154,7 @@ export const ParkVenues = ({ list = [], current = "riverside", favs = [], loadin
 }
 
 // the menu: resume, the courts (watch any of them), say something, the Locker Room, leave
-export const ParkMenu = ({ courts = [], rep, online, venueName = "My Park", onResume, onWatch, onSay, onEmote, onLocker, onVenues, onLeave, voice = null, onBackdrop = null, onClone = null }) => {
+export const ParkMenu = ({ courts = [], rep, online, venueName = "My Park", onResume, onWatch, onSay, onEmote, onLocker, onVenues, onLeave, voice = null, onBackdrop = null, onClone = null, onTourneys = null }) => {
   const lv = repLevel(rep?.points || 0)
   return (
     <div className="pkCenter pkDim" onClick={(e) => e.target === e.currentTarget && onResume()}>
@@ -203,6 +203,11 @@ export const ParkMenu = ({ courts = [], rep, online, venueName = "My Park", onRe
           {onVenues && (
             <button type="button" onClick={onVenues} data-park="venues-open">
               Change venue...
+            </button>
+          )}
+          {onTourneys && (
+            <button type="button" onClick={onTourneys} data-park="tourneys-open">
+              Tournaments here...
             </button>
           )}
           {onClone && (

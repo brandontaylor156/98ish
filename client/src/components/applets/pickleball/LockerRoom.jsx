@@ -1,6 +1,7 @@
 import React, { useEffect, useId, useMemo, useRef, useState } from "react"
 import Combo from "../../shared/select/Combo"
 import { CHARACTERS } from "./looks.js"
+import { useTourneys } from "../../../utils/tourney.js"
 import { BODIES, faceById, facesForBody, BOTTOMS, BUILDS, DESIGNS, GLASSES, HAIR_COLORS, HAIR_COLOR_NAMES, HAIR_STYLES, HATS, HEIGHT, KIT_COLORS, PLAYS, PRO_STYLES, SKIN_TONES, SOCKS, THEMES, TOPS, applyTheme, characterLook, defaultStyleFor, randomLook, themeById, validateLook } from "./locker.js"
 
 // Pickleball 98's Locker Room: dress any player (yours, or the computer's) over the 3D
@@ -15,7 +16,31 @@ const TABS = [
   ["kit", "Kit"],
   ["gear", "Gear"],
   ["paddle", "Paddle"],
+  ["trophies", "Trophies"],
 ]
+
+// the trophies you won in tournaments (utils/tourney.js; kept on this device too)
+const Trophies = () => {
+  const { trophies } = useTourneys()
+  if (!trophies.length) return <p className="pkLockerHint">{"No trophies yet. Win a tournament (Real Games > Tournaments, or the trophy chip in My Park) and it stands here."}</p>
+  return (
+    <ul className="pkTrophies" data-trophies>
+      {trophies.map((t) => (
+        <li key={t.id}>
+          <span aria-hidden="true">{t.place === 1 ? "🏆" : "🥈"}</span>
+          <span>
+            <b>{t.place === 1 ? "Champion" : "Runner-up"}</b>, {t.name}
+            <small>
+              {t.div}
+              {t.partner ? ` with ${t.partner}` : ""}
+              {t.score ? ` · final ${t.score[0]}-${t.score[1]}` : ""} · {new Date(t.at).toLocaleDateString()}
+            </small>
+          </span>
+        </li>
+      ))}
+    </ul>
+  )
+}
 
 // a row of color swatches, plus "Other..." (any color)
 const Swatches = ({ label, value, colors = KIT_COLORS, names, onChange, name }) => (
@@ -233,6 +258,7 @@ export const LockerRoom = ({ prefs, setPrefs, engine, onBack, initial }) => {
                   <Swatches label="Shoe stripe" name="shoeAccent" value={look.shoeAccent} onChange={(c) => setPiece({ shoeAccent: c })} />
                 </>
               )}
+              {tab === "trophies" && <Trophies />}
               {tab === "paddle" && (
                 <>
                   <Pick label="Design" name="paddleDesign" value={look.paddleDesign} options={DESIGNS} onChange={(v) => set({ paddleDesign: v })} />

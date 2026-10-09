@@ -110,6 +110,12 @@
 //                                                  their clone left in My Park (with its phrasebook
 //                                                  and memory log) deleted; in other clones' logs
 //                                                  they become "Deleted player"
+//   tournaments pbtourneys, pbtrophies             Pickleball 98 tournaments (server/tourney):
+//                                                  sign-ups for events that haven't started
+//                                                  removed (a partner they invited gets a computer
+//                                                  partner); in started or finished ones they
+//                                                  become "Deleted player" so the other teams'
+//                                                  results stay; their trophy shelf deleted
 //   shared documents  shareddocs                   Come Over (server/aim/ydocs.js): shared Notepad
 //                                                  texts, Paint pictures and Shared with Friends
 //                                                  folders only they're in deleted; in shared ones
