@@ -824,6 +824,13 @@ export const generateVenue = (spec, opts = {}) => {
       const dx = p.b[0] - p.a[0]
       const dz = p.b[1] - p.a[1]
       const len = Math.hypot(dx, dz)
+      // (only on partitions that run alongside the courts, between neighbours: one across the
+      // courts' ends lies behind the baselines, where every match camera looks from, and a 7 m
+      // pole there stood right in front of the lens: owner, 2026-10-09, Paseo Court 1)
+      const mx = (p.a[0] + p.b[0]) / 2
+      const mz = (p.a[1] + p.b[1]) / 2
+      const near = courts.reduce((b, c) => (!b || Math.hypot(c.x - mx, c.z - mz) < Math.hypot(b.x - mx, b.z - mz) ? c : b), null)
+      if (near && len > 0 && Math.abs((dx * near.u.x + dz * near.u.z) / len) < 0.5) continue
       const n = Math.max(1, Math.round(len / (lop.every || 12)))
       for (let k = 0; k < n; k++) {
         const t = (k + 0.5) / n
