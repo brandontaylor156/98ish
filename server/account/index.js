@@ -148,7 +148,8 @@
 //                                                  them dropped. The screen name is free again.
 //
 // Kept only in memory and gone when they sign off (nothing to delete): who's online, away
-// messages, chat rooms, calls, Come Over hangouts, Network Neighborhood computers and file offers, live games.
+// messages, chat rooms, calls, Come Over hangouts, Network Neighborhood computers and file offers, live games,
+// My Park and Explore Valencia presence (positions, the car you are in; server/park, server/roam).
 // Rate-limit counters keyed by the account forget themselves within their window (an hour at
 // most). Copies on someone else's device (an IM they received, a contact card they made, a
 // calendar they exported) are theirs and out of reach.
