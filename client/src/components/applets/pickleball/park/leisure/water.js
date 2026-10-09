@@ -110,6 +110,38 @@ const makeMaterial = ({ shallow, deep, foam = 0, opacity = 0.84 }) =>
     polygonOffsetUnits: -2,
   })
 
+// the steam's puffs: one instanced mesh of camera-facing quads, each its own fade
+// (camera-facing quads like sprites: each instance's centre and size from its matrix)
+const STEAM_VERT = /* glsl */ `
+  attribute float alpha;
+  varying float vAlpha;
+  varying vec2 vUv;
+  #include <fog_pars_vertex>
+  void main() {
+    vec3 centre = (instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
+    float size = length(instanceMatrix[0].xyz);
+    vec4 mvPosition = modelViewMatrix * vec4(centre, 1.0);
+    mvPosition.xy += position.xy * size;
+    gl_Position = projectionMatrix * mvPosition;
+    vAlpha = alpha;
+    vUv = uv;
+    #include <fog_vertex>
+  }
+`
+const STEAM_FRAG = /* glsl */ `
+  uniform sampler2D map;
+  varying float vAlpha;
+  varying vec2 vUv;
+  #include <fog_pars_fragment>
+  void main() {
+    vec4 c = texture2D(map, vUv);
+    gl_FragColor = vec4(c.rgb, c.a * vAlpha);
+    #include <tonemapping_fragment>
+    #include <colorspace_fragment>
+    #include <fog_fragment>
+  }
+`
+
 // a soft round puff for the steam
 let puffTex = null
 const puff = () => {
@@ -143,7 +175,9 @@ export const createWater = (scene, { pools = [], tubs = [], quality = "medium" }
     group.add(m)
     surfaces.push({ spot: s, mesh: m, ripples: [], at: 0 })
   }
-  const steam = []
+  // the steam: soft puffs rising and fading over each tub (fewer on Low), all of them one
+  // instanced draw (it was a sprite and a material each: 7 draws a tub)
+  const puffs = []
   for (const s of tubs) {
     const geo = new THREE.CircleGeometry(Math.max(0.6, s.R - 0.24), 28)
     geo.rotateX(-Math.PI / 2)
@@ -152,17 +186,24 @@ export const createWater = (scene, { pools = [], tubs = [], quality = "medium" }
     m.renderOrder = 2
     group.add(m)
     surfaces.push({ spot: s, mesh: m, ripples: [], at: 0 })
-    // steam: a few soft puffs rising and fading over the water (fewer on Low)
     const n = quality === "low" ? 3 : 7
-    const sm = new THREE.SpriteMaterial({ map: puff(), transparent: true, depthWrite: false, opacity: 0.0, color: 0xffffff })
-    for (let i = 0; i < n; i++) {
-      const sp = new THREE.Sprite(sm.clone())
-      sp.userData = { tub: s, phase: i / n, ang: (i * 2.4) % (Math.PI * 2) }
-      sp.renderOrder = 3
-      group.add(sp)
-      steam.push(sp)
-    }
+    for (let i = 0; i < n; i++) puffs.push({ tub: s, phase: i / n, ang: (i * 2.4) % (Math.PI * 2) })
   }
+  const steamGeo = new THREE.PlaneGeometry(1, 1)
+  steamGeo.setAttribute("alpha", new THREE.InstancedBufferAttribute(new Float32Array(Math.max(1, puffs.length)), 1))
+  const steamMat = new THREE.ShaderMaterial({
+    uniforms: { map: { value: puffs.length ? puff() : null }, ...THREE.UniformsUtils.clone(THREE.UniformsLib.fog) },
+    vertexShader: STEAM_VERT,
+    fragmentShader: STEAM_FRAG,
+    transparent: true,
+    depthWrite: false,
+    fog: true,
+  })
+  const steam = new THREE.InstancedMesh(steamGeo, steamMat, Math.max(1, puffs.length))
+  steam.renderOrder = 3
+  steam.frustumCulled = false
+  steam.visible = puffs.length > 0
+  group.add(steam)
   // splashes: drops thrown up and falling back (one instanced mesh)
   const DROPS = 48
   const dropGeo = new THREE.SphereGeometry(0.035, 5, 4)
@@ -206,15 +247,21 @@ export const createWater = (scene, { pools = [], tubs = [], quality = "medium" }
         if (sky !== null && sky !== undefined) u.uSky.value.set(sky)
       }
       // the steam: rising, drifting, fading (thicker in the cool of the evening)
-      for (const sp of steam) {
-        const d = sp.userData
-        const k = (time * 0.18 + d.phase) % 1
-        const tub = d.tub
-        const r = (tub.R - 0.5) * (0.3 + 0.6 * ((d.phase * 7.3) % 1))
-        sp.position.set(tub.x + Math.sin(d.ang + time * 0.05) * r, (tub.water || 0.51) + 0.1 + k * 1.3, tub.z + Math.cos(d.ang + time * 0.05) * r)
-        const sc = 0.5 + k * 1.1
-        sp.scale.set(sc, sc, 1)
-        sp.material.opacity = Math.sin(k * Math.PI) * 0.32 * (1.25 - 0.5 * light)
+      if (puffs.length) {
+        const alpha = steamGeo.attributes.alpha.array
+        puffs.forEach((d, i) => {
+          const k = (time * 0.18 + d.phase) % 1
+          const tub = d.tub
+          const r = (tub.R - 0.5) * (0.3 + 0.6 * ((d.phase * 7.3) % 1))
+          tmp.position.set(tub.x + Math.sin(d.ang + time * 0.05) * r, (tub.water || 0.51) + 0.1 + k * 1.3, tub.z + Math.cos(d.ang + time * 0.05) * r)
+          tmp.scale.setScalar(0.5 + k * 1.1)
+          tmp.rotation.set(0, 0, 0)
+          tmp.updateMatrix()
+          steam.setMatrixAt(i, tmp.matrix)
+          alpha[i] = Math.sin(k * Math.PI) * 0.32 * (1.25 - 0.5 * light)
+        })
+        steam.instanceMatrix.needsUpdate = true
+        steamGeo.attributes.alpha.needsUpdate = true
       }
       // the drops
       let n = 0
@@ -253,7 +300,8 @@ export const createWater = (scene, { pools = [], tubs = [], quality = "medium" }
         s.mesh.geometry.dispose()
         s.mesh.material.dispose()
       }
-      for (const sp of steam) sp.material.dispose()
+      steamGeo.dispose()
+      steamMat.dispose()
       dropGeo.dispose()
       dropMat.dispose()
       drops.dispose()
