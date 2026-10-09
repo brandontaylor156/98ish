@@ -125,3 +125,37 @@ test("it climbs back one step at a time", () => {
   feed(fresh, 1000 / 60, 12.5, 3)
   assert.equal(fresh.ratio, 1.75)
 })
+
+test("a floor under min (My Park on a phone): under 28 fps for two windows steps to it, back up when it holds", () => {
+  const res = createResolution({ max: 1.5, min: 1, upAfter: 3 })
+  res.setFloor(0.75)
+  // (each phase in whole 2 s windows)
+  const run = (ms, windows) => {
+    res.reset()
+    for (let i = 0; i < windows * Math.ceil(2000 / ms + 1e-9); i++) res.frame(ms, 4)
+  }
+  run(25, 2) // 1.5 -> 1.25 -> 1 (the usual steps first)
+  assert.equal(res.ratio, 1)
+  run(34, 2) // 29 fps: slow for 60 Hz, but not under 28: stays
+  assert.equal(res.ratio, 1)
+  run(40, 1) // one window at 25 fps: not yet
+  assert.equal(res.ratio, 1)
+  run(40, 1) // two in a row
+  assert.equal(res.ratio, 0.75)
+  run(40, 5) // never under the floor
+  assert.equal(res.ratio, 0.75)
+  run(1000 / 33, 5) // holding 33 fps: six windows, then back to 1
+  assert.equal(res.ratio, 0.75)
+  run(1000 / 33, 1)
+  assert.equal(res.ratio, 1)
+  run(40, 2) // too slow again: down, and twice as slow to come back
+  assert.equal(res.ratio, 0.75)
+  run(1000 / 33, 11)
+  assert.equal(res.ratio, 0.75)
+  run(1000 / 33, 1)
+  assert.equal(res.ratio, 1)
+  // no floor: never under min
+  res.setFloor(null)
+  run(40, 5)
+  assert.equal(res.ratio, 1)
+})

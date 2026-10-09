@@ -2083,6 +2083,9 @@ export const createEngine = ({ canvas, container, onHud, onEvent, onStatus, sett
       world?.clearKeys?.()
       world = next || null
       worldDrag = null
+      // (My Park on a phone may go under 1.0 pixel ratio, to 0.75, while it runs under 28 fps:
+      // utils/dynamicResolution.js setFloor)
+      resolution.setFloor(world?.phone ? 0.75 : null)
       if (world) {
         world.resize(size.width || 1, size.height || 1)
         if (showcaseFig) showcaseFig.fig.group.visible = false
