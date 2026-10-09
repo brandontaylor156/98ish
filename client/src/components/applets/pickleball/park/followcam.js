@@ -120,11 +120,15 @@ export const lensBlocked = (w, pos, occ = null) => {
 // holds off the swing for a moment.
 export const stepFollow = (st, w, dt, opts = {}) => {
   st.drag = Math.max(0, st.drag - dt)
-  if (w.speed > 0.5 && st.drag <= 0) {
+  // (2026-10-09: "so hard to control walking around". The stick moves you the way the camera
+  // looks, so a camera that swings while you walk sideways bends your path into a circle. Now
+  // it comes round behind you only when you walk away from it, more the straighter away, after
+  // a moment's walking; sideways and toward it, it holds still and just follows along.)
+  st.walkT = w.speed > 0.5 ? (st.walkT || 0) + dt : 0
+  if (w.speed > 0.5 && st.drag <= 0 && st.walkT > 0.35) {
     const d = wrap(w.yaw - st.yaw)
-    // (walking toward the camera: leave it; sideways: swing slowly; away: follow)
     const away = Math.cos(d)
-    if (away > -0.35) st.yaw += d * Math.min(1, dt * FOLLOW.swing * Math.min(1, w.speed / 2.5) * (0.35 + 0.65 * Math.max(0, away)))
+    if (away > 0.5) st.yaw += d * Math.min(1, dt * FOLLOW.swing * Math.min(1, w.speed / 2.5) * ((away - 0.5) / 0.5))
   }
   st.yaw = wrap(st.yaw)
   const t = followTarget(w, st.yaw, { ...opts, prefer: Math.sign(st.off || 0) })

@@ -1203,6 +1203,10 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
   const classicDown = useRef(0) // Classic: when the finger went down (for the release ripple's pace)
   const schemeRef = useRef(prefs.scheme)
   schemeRef.current = prefs.scheme || "swipe"
+  // (My Park walks with a floating stick: phase "world")
+  const phaseRef = useRef(phase)
+  phaseRef.current = phase
+  const stickBase = useRef(null)
   useEffect(() => {
     const stage = stageRef.current
     if (!stage || !showPad) return
@@ -1224,8 +1228,11 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
       }
       if (stick.current || !e.target.closest?.('[data-control="move"]')) return
       const r = stage.getBoundingClientRect()
-      stick.current = { id: e.pointerId, x0: e.clientX, y0: e.clientY }
-      setStickUi({ x: e.clientX - r.left, y: e.clientY - r.top })
+      // (My Park: the stick appears where the thumb lands, anywhere in the lower part, and
+      // follows the thumb if it slides past the ring, so it never runs out of reach)
+      const park = phaseRef.current === "world"
+      stick.current = { id: e.pointerId, x0: e.clientX, y0: e.clientY, park, left: r.left, top: r.top }
+      setStickUi({ x: e.clientX - r.left, y: e.clientY - r.top, park })
     }
     const move = (e) => {
       const sw = swipeTouch.current
@@ -1252,12 +1259,24 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
       let dx = e.clientX - s.x0
       let dy = e.clientY - s.y0
       const d = Math.hypot(dx, dy)
-      if (d > R) {
-        dx = (dx / d) * R
-        dy = (dy / d) * R
+      // (My Park: a slightly longer throw, for finer walking speeds)
+      const Rr = s.park ? 56 : R
+      if (d > Rr) {
+        dx = (dx / d) * Rr
+        dy = (dy / d) * Rr
+        if (s.park) {
+          // (the ring follows the thumb: the base slides along behind it)
+          s.x0 = e.clientX - dx
+          s.y0 = e.clientY - dy
+          if (stickBase.current) {
+            stickBase.current.style.left = `${s.x0 - s.left}px`
+            stickBase.current.style.top = `${s.y0 - s.top}px`
+          }
+        }
       }
-      const live = d > 6
-      engineRef.current?.setStick(live ? dx / R : 0, live ? -dy / R : 0)
+      // (the walker has its own dead zone: walker.js DEAD; a match's stick a few pixels)
+      const live = s.park || d > 6
+      engineRef.current?.setStick(live ? dx / Rr : 0, live ? -dy / Rr : 0)
       // (the knob moves straight in the page: a React render per finger move cost frames)
       if (knobRef.current) knobRef.current.style.transform = `translate(${dx}px, ${dy}px)`
     }
@@ -1917,11 +1936,12 @@ const Pickleball = ({ onClose, mobile, handoff }) => {
         )}
 
         {showPad && stickUi && (
-          <div className="pkStick" style={{ left: stickUi.x, top: stickUi.y }} aria-hidden="true">
+          <div className={`pkStick${stickUi.park ? " pkStick--park" : ""}`} ref={stickBase} style={{ left: stickUi.x, top: stickUi.y }} aria-hidden="true">
             <div className="pkKnob" ref={knobRef} />
           </div>
         )}
-        {showPad && !stickUi && zoneHint && (phase === "playing" || (phase === "world" && parkHud?.mode === "walk")) && !editing && (
+        {/* (My Park: no stick drawn until a thumb lands; matches show where the pad is) */}
+        {showPad && !stickUi && zoneHint && phase === "playing" && !editing && (
           <div className="pkStick pkStick--hint" style={{ left: zoneHint.x, top: zoneHint.y }} aria-hidden="true">
             <div className="pkKnob" />
           </div>
