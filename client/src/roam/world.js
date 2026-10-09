@@ -981,7 +981,10 @@ export const createRoam = ({ town, host = {}, phone = false, quality = "medium",
     eggs.step(dt, center(), clock, camera)
     updateCamera(dt)
     // (the sky dome rides with the lens: the town is bigger than the dome)
-    if (sky?.mesh) sky.mesh.position.set(camera.position.x, 0, camera.position.z)
+    // (the dome is centred on the eye, height too: at y 0 its horizon sat above the eye wherever the
+    // ground is below the town's base, a dark band over the sea at Newport and in the low parts of
+    // a town: the sky-bar fix)
+    if (sky?.mesh) sky.mesh.position.copy(camera.position)
     stepLife(dt)
     drawLife(dt)
     drawLights()
