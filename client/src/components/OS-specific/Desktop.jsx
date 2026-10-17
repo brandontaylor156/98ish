@@ -874,7 +874,7 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
       {window.app === "freecell" && <FreeCell onClose={() => closeWindow(window, index)} onTitle={rename(index)} />}
       {window.app === "critterpinball" && <CritterPinball mobile={mobile} onClose={() => closeWindow(window, index)} onTitle={rename(index)} />}
       {window.app === "ski" && <Ski mobile={mobile} onClose={() => closeWindow(window, index)} />}
-      {window.app === "pickleball" && <PickleballLauncher meet={window.meet} onClose={() => closeWindow(window, index)} />}
+      {window.app === "pickleball" && <PickleballLauncher handoff={window.handoff} active={!!window.active && !window.minimized} onClose={() => closeWindow(window, index)} />}
       {window.app === "shred" && <Shred mobile={mobile} onClose={() => closeWindow(window, index)} />}
       {window.app === "blockten" && <BlockTen mobile={mobile} onClose={() => closeWindow(window, index)} />}
       {window.app === "boomfrenzy" && <BoomFrenzy mobile={mobile} paused={!!window.minimized || !window.active} onClose={() => closeWindow(window, index)} />}

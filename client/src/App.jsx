@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState, useReducer } from "react"
+import React, { useEffect, useRef, useState, useReducer } from "react"
 import TaskBar from "./components/OS-specific/TaskBar"
 import StartMenu from "./components/OS-specific/StartMenu"
 import Desktop from "./components/OS-specific/Desktop"
@@ -26,7 +26,6 @@ import { hasSecret, lockNow, useLock, watchActivity } from "./utils/lock"
 import { hasProfiles, takeLoggedOnFlag } from "./utils/users"
 import { launch } from "./utils/programs"
 import { HELP_EVENT, helpHandoff } from "./utils/help"
-import { openPickleball } from "./utils/pickleballSite"
 import "./components/OS-specific/lock/Lock.css"
 
 const MsDos = lazyApp(() => import("./components/applets/dos/MsDos"))
@@ -249,18 +248,7 @@ const loggedOn = takeLoggedOnFlag()
 const firstPhase = () => (getSettings().bootScreen && !fromNotification() && !loggedOn ? "boot" : "desktop")
 
 function App() {
-  const [windows, dispatchWindows] = useReducer(reducer, [])
-  // Pickleball 98 has its own site now: opening it (the icon, Messenger's "Play here", Floppy)
-  // opens a new tab; only when the browser blocks that does a small window offer the link
-  const dispatch = useCallback((action) => {
-    if (action?.type === "open_window" && action.payload?.app === "pickleball" && !action.payload.blocked) {
-      const handoff = action.payload.handoff || {}
-      const meet = handoff.meet || (handoff.floppy ? { mode: handoff.floppy.mode || null, venue: handoff.floppy.venue || null } : null)
-      if (openPickleball(meet)) return
-      action = { ...action, payload: { ...action.payload, blocked: true, meet } }
-    }
-    dispatchWindows(action)
-  }, [])
+  const [windows, dispatch] = useReducer(reducer, [])
   const [startMenuVisible, setStartMenuVisible] = useState(false)
   const [query, setQuery] = useState("") // typed in the Start menu's search box
   const [searchFocus, setSearchFocus] = useState(false)

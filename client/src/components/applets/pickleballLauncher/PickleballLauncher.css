@@ -1,22 +1,15 @@
+/* Pickleball 98's window: the game's own site fills the window body (PickleballLauncher.jsx).
+   (the window is laid out as a column: title bar, then this) */
 .pklRoot {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-  padding: 16px;
-  text-align: center;
+  position: relative;
+  height: calc(100% - 25px);
+  background: #c0c0c0;
+}
+.pklFrame {
+  position: absolute;
+  inset: 0;
+  width: 100%;
   height: 100%;
-  justify-content: center;
-}
-.pklRoot p {
-  margin: 0;
-  max-width: 300px;
-}
-.pklOpen {
-  display: inline-block;
-  padding: 6px 16px;
-  color: #000;
-  text-decoration: none;
-  background: silver;
-  box-shadow: inset -1px -1px #0a0a0a, inset 1px 1px #fff, inset -2px -2px grey, inset 2px 2px #dfdfdf;
+  border: 0;
+  display: block;
 }

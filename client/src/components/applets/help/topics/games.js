@@ -233,20 +233,19 @@ export const topics = [
     ],
     related: ["tetris", "online-play", "game-invites"],
   },
-  // ---- Pickleball 98: its own site now (utils/pickleballSite.js; repo brandontaylor156/pickleball-98) ----
+  // ---- Pickleball 98: its own site, shown in its 98ish window (utils/pickleballSite.js; repo brandontaylor156/pickleball-98) ----
   {
     id: "pickleball",
     book: "games-action",
     title: "Pickleball 98",
-    summary: "3D pickleball at real venues, with My Park, Explore, Real Games and tournaments. It has its own site now: the icon opens it in a new tab.",
-    keywords: ["pickleball", "Pickleball 98", "My Park", "park", "venue", "real venues", "Los Cab", "Newport Beach", "Wolf + Bear", "Whittier Narrows", "Paseo Club", "Sinaloa", "California SMASH", "Bouquet Canyon", "Real Games", "score my game", "score my real pickleball game", "scorekeeper", "ladder", "open play", "tournament", "tournaments", "trophies", "Explore", "Valencia", "Twin Replay", "Go Live", "World Tour", "practice", "own site", "new tab"],
+    summary: "3D pickleball at real venues, with My Park, Explore, Real Games and tournaments. It plays in its window here, and also has its own site.",
+    keywords: ["pickleball", "Pickleball 98", "My Park", "park", "venue", "real venues", "Los Cab", "Newport Beach", "Wolf + Bear", "Whittier Narrows", "Paseo Club", "Sinaloa", "California SMASH", "Bouquet Canyon", "Real Games", "score my game", "score my real pickleball game", "scorekeeper", "ladder", "open play", "tournament", "tournaments", "trophies", "Explore", "Valencia", "Twin Replay", "Go Live", "World Tour", "practice", "own site", "pickleball-98.vercel.app"],
     programs: ["Pickleball 98"],
     body: [
       { img: "/assets/program_icons/pickleball.svg", alt: "Pickleball 98 icon" },
-      "Pickleball 98 grew big enough to get its own site. Its icon in 98ish (Start > Programs > Games) opens it in a **new tab**, where everything is: vs Computer, Practice, World Tour, online matches, **My Park** at the real venues, **Explore** the towns, **Real Games** (the scorekeeper, sessions and the ladder) and the weekly **tournaments**.",
-      "On the new site you pick a **player name** the first time (no password). It doesn't use your 98 Messenger account, so games, matches, trophies and park clones you had in 98ish's Pickleball 98 don't carry over.",
-      "**Meet me at a court** still works in 98 Messenger (**+** > **Meet Me at a Court...**): your buddy's **Play here** opens My Park at that court on the new site, and **Directions** opens Maps 98. [[buddy-locator|Buddy Locator]] can still tell you when a buddy arrives at one of the courts.",
-      { tip: "If nothing opens, your browser blocked the new tab: a small window with an **Open Pickleball 98** button shows instead. Tap it." },
+      "Pickleball 98 (Start > Programs > Games) opens in its window here as always: vs Computer, Practice, World Tour, online matches, **My Park** at the real venues, **Explore** the towns, **Real Games** (the scorekeeper, sessions and the ladder) and the weekly **tournaments**. It grew big enough to get its own site too, **pickleball-98.vercel.app**, the same game full screen.",
+      "The first time, you pick a **player name** (no password; your Messenger screen name is filled in to start). Pickleball 98 doesn't use your 98 Messenger account any more, so your name in 98ish and on its own site are kept apart: pick the same one on both if you like.",
+      "**Meet me at a court** still works in 98 Messenger (**+** > **Meet Me at a Court...**): your buddy's **Play here** opens My Park at that court, and **Directions** opens Maps 98. [[buddy-locator|Buddy Locator]] can still tell you when a buddy arrives at one of the courts.",
       { open: "Pickleball 98", label: "Open Pickleball 98" },
     ],
     related: ["buddy-locator", "messenger-history"],
