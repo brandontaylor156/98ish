@@ -1,7 +1,6 @@
 const test = require("node:test")
 const assert = require("node:assert/strict")
 const { createVoiceRelay, cleanSignal, SIGNALS_PER_10S } = require("../relay")
-const { createPark } = require("../../park")
 
 const SDP = "v=0\r\no=- 1 2 IN IP4 127.0.0.1\r\ns=-\r\n"
 
@@ -63,40 +62,3 @@ test("caps: people per room and signals per 10 seconds", () => {
   assert.equal(relay.signal("r", "a", "b", { kind: "bye" }).ok, true)
 })
 
-test("My Park: voice by park number, only inside your park, gone when you leave, ICE config on", async () => {
-  const sent = []
-  const park = createPark({ emit: (pid, event, payload) => sent.push({ pid, event, payload }), ice: { config: async () => ({ iceServers: [{ urls: "stun:x" }], turn: false }) } })
-  try {
-    const a = park.join({ pid: "A", name: "Alice" }, { venue: "loscab" })
-    const b = park.join({ pid: "B", name: "Bob" }, { venue: "loscab" })
-    const c = park.join({ pid: "C", name: "Cara" }, { venue: "smash" }) // another venue: another park
-    assert.equal(a.park, b.park)
-    assert.notEqual(c.park, a.park)
-    const ra = await park.voiceOn("A", true)
-    assert.equal(ra.ok, true)
-    assert.deepEqual(ra.ice.iceServers, [{ urls: "stun:x" }])
-    await park.voiceOn("B", true)
-    await park.voiceOn("C", true)
-    assert.deepEqual(sent.filter((s) => s.pid === "A" && s.event === "park:vc").at(-1).payload.on, [a.you, b.you])
-    // A -> B by number reaches B's browser; A -> C (other park) is refused
-    assert.equal(park.voiceSignal("A", { to: b.you, kind: "offer", data: { sdp: SDP } }).ok, true)
-    const got = sent.at(-1)
-    assert.equal(got.pid, "B")
-    assert.equal(got.event, "park:sig")
-    assert.equal(got.payload.from, a.you)
-    assert.equal(park.voiceSignal("A", { to: c.you, kind: "bye" }).ok, false)
-    assert.equal(park.voiceSignal("A", { to: "B", kind: "bye" }).ok, false)
-    // Bob leaves: off the list, and Alice is told
-    park.leave("B")
-    assert.deepEqual(sent.filter((s) => s.pid === "A" && s.event === "park:vc").at(-1).payload.on, [a.you])
-    assert.equal(park.voiceSignal("A", { to: b.you, kind: "bye" }).ok, false)
-    // voice off answers without ICE
-    const off = await park.voiceOn("A", false)
-    assert.equal(off.ok, true)
-    assert.equal(off.ice, undefined)
-    // not in a park: refused
-    assert.equal((await park.voiceOn("Z", true)).ok, false)
-  } finally {
-    park.stop()
-  }
-})

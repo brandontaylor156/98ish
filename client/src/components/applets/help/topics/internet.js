@@ -301,13 +301,12 @@ export const topics = [
     id: "voice-chat",
     book: "internet",
     title: "Voice chat (hear friends where they are)",
-    summary: "Talk out loud with friends in My Park, Come Over and Watch Together. In My Park you hear people from where they stand: louder up close, from the left or the right.",
+    summary: "Talk out loud with friends in Come Over and Watch Together. In Come Over a friend's voice comes from the side their pointer is on.",
     keywords: ["voice", "voice chat", "talk", "microphone", "mic", "spatial audio", "proximity chat", "push to talk", "mute", "hear friends", "party chat", "can't hear", "voice not working", "mic not working", "couldn't connect", "relay", "cellular", "speaker", "earpiece"],
     body: [
       "Voice chat is off until you turn it on, and asks for your microphone the first time. While it's on, a **mic** shows on screen: tap it to mute or unmute yourself.",
       {
         list: [
-          "**My Park** (Pickleball 98): tap **🎙 Talk** under the menu button (top left) to turn it on (or the park menu ☰ > **Voice**). Then that button mutes and unmutes you, and **×** turns voice off. You hear the people near you who have voice on, **from where they stand**: louder up close, fading out by about 15 meters, from your left or right as you turn. A green dot by a name shows who's talking. **Push to talk** (in the menu) sends your voice only while you hold **Hold to talk**. **Mute** next to a name silences that person for you. In a court game with other people, your court-mates come through clearly and the rest of the park quietly.",
           "**Come Over**: press the **🎙** on the taskbar strip (or Voice Chat in its menu). A friend's voice comes from the side their pointer is on. Turn **Spatial Sound** off in the menu to hear everyone in the middle.",
           "**Watch Together**: press **🎙 Voice** at the top. The video turns down while someone talks and comes back after.",
         ],
@@ -316,7 +315,7 @@ export const topics = [
       { h: "If you can't hear each other" },
       {
         list: [
-          "**Both of you** have to turn voice on, and in My Park you have to be near each other (within about 15-25 meters). The line under the mic says who's too far away.",
+          "**Both of you** have to turn voice on.",
           "**\"Microphone blocked\"**: on iPhone open Settings > Apps > Safari > Microphone and choose **Ask** or **Allow**, then tap the mic again. From the Home Screen app, choose **Allow** when it asks.",
           "**\"Voice couldn't connect to ... needs a relay\"**: one of you is on a network that won't let two phones talk directly (often cellular data, or a school or work Wi-Fi). Try both on Wi-Fi. When the 98ish server has a relay set up, voice gets through on any network; 98ish tries again by itself every half minute.",
           "Still nothing? Check the taskbar volume isn't muted, and that your phone's volume is up.",
@@ -324,7 +323,7 @@ export const topics = [
       },
       { note: "Your voice goes straight from your device to your friends' devices; it's never recorded or saved, and the 98ish server only passes along the setup messages. On networks that block direct connections, voice can't connect unless the 98ish server has a relay set up (see [[privacy-third-parties]])." },
     ],
-    related: ["come-over", "watch-together", "pickleball", "privacy-server"],
+    related: ["come-over", "watch-together", "privacy-server"],
   },
   {
     id: "buddy-locator",
@@ -357,9 +356,7 @@ export const topics = [
       },
       { h: "Places and alerts" },
       "Under More options, **Add a Place...** names a spot (Home, Work, the courts) from where you are or the middle of the map, with a size. Then tap a buddy, press **Notify Me...**, pick the place, and choose arrives, leaves, or both. You'll get a notification (and a push if you're away from 98ish; Do Not Disturb holds it).",
-      "**Pickleball courts are ready-made places.** **Notify Me...** also lists Pickleball 98's real venues (Los Cab, Newport Beach Club, Wolf + Bear, Whittier Narrows, Paseo Club, Sinaloa MS, California SMASH, Bouquet Canyon): pick one and it becomes one of your places, so you hear \"Rosie arrived at Los Cab\". It counts as one of your 20 places; remove it under More options > Places like any other.",
-      { h: "At the courts" },
-      "If you're at one of the eight real pickleball venues in Pickleball 98 (Los Cab, Newport Beach, Wolf + Bear, Whittier Narrows, Paseo Club, Sinaloa, California SMASH, Bouquet Canyon), the buddies you share with see you there in **My Park**, \"here for real\" beside the court you're on, and the venue list says **1 friend here now**. They see the court, not your spot on it. With approximate location on you only show as **nearby**.",
+      "**Pickleball courts are ready-made places.** **Notify Me...** also lists [[pickleball|Pickleball 98]]'s real venues (Los Cab, Newport Beach Club, Wolf + Bear, Whittier Narrows, Paseo Club, Sinaloa MS, California SMASH, Bouquet Canyon): pick one and it becomes one of your places, so you hear \"Rosie arrived at Los Cab\". It counts as one of your 20 places; remove it under More options > Places like any other.",
       { h: "Privacy" },
       {
         list: [

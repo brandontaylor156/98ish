@@ -5,7 +5,7 @@ import { openResult } from "../../../utils/search"
 import { openHelp } from "../../../utils/help"
 import { describeCall } from "./floppyCore"
 import { ask, runTool } from "./floppyTools"
-import { brainBytes, brainChosen, deleteBrain, generate, getBrain, loadBrain, pickleballOpen, unloadBrain, useBrain } from "./brain"
+import { brainBytes, brainChosen, deleteBrain, generate, getBrain, loadBrain, unloadBrain, useBrain } from "./brain"
 import { runAgent, runPlan } from "./hands"
 import { makeProgram } from "./vbgen"
 import { launch } from "../../../utils/programs"
@@ -46,12 +46,8 @@ const FloppyChat = ({ windows, dispatch, first, onClose, mobile }) => {
 
   const say = (entry) => setLog((l) => [...l, entry].slice(-30))
 
-  // the memory goes when Floppy closes, or when Pickleball 98 opens
+  // the memory goes when Floppy closes
   useEffect(() => () => unloadBrain(), [])
-  const pbOpen = pickleballOpen(windows)
-  useEffect(() => {
-    if (pbOpen && brain.status === "ready") unloadBrain()
-  }, [pbOpen])
 
   useEffect(() => {
     listRef.current?.scrollTo?.({ top: 1e6 })
@@ -62,11 +58,11 @@ const FloppyChat = ({ windows, dispatch, first, onClose, mobile }) => {
   }, [brain.status])
 
   const wake = async () => {
-    if (!brainChosen() || brain.status === "ready" || pbOpen) return
+    if (!brainChosen() || brain.status === "ready") return
     try {
       await loadBrain(windows)
     } catch (e) {
-      if (e.message !== "pickleball") say({ from: "floppy", text: "My brain wouldn't wake up. I can still do the simple things!" })
+      say({ from: "floppy", text: "My brain wouldn't wake up. I can still do the simple things!" })
     }
   }
 
@@ -180,7 +176,7 @@ const FloppyChat = ({ windows, dispatch, first, onClose, mobile }) => {
       await loadBrain(windows)
       say({ from: "floppy", text: "Ding! I'm smarter now. Ask me anything about 98ish." })
     } catch (e) {
-      say({ from: "floppy", text: e.message === "pickleball" ? "Close Pickleball 98 first: it needs the memory." : `The download didn't finish: ${e.message}` })
+      say({ from: "floppy", text: `The download didn't finish: ${e.message}` })
     }
   }
 
@@ -190,9 +186,7 @@ const FloppyChat = ({ windows, dispatch, first, onClose, mobile }) => {
       : brain.status === "ready"
         ? `Brain on (${brain.model?.name}, ${brain.device === "webgpu" ? "graphics chip" : "processor"})${brain.stats?.tps ? ` · ${brain.stats.tps} words/s` : ""}`
         : brainChosen()
-          ? pbOpen
-            ? "Brain napping while Pickleball 98 plays"
-            : "Brain asleep: it wakes when you ask something new"
+          ? "Brain asleep: it wakes when you ask something new"
           : "Simple commands only"
 
   return (

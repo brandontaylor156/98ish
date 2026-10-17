@@ -52,7 +52,7 @@ const PRIVATE_APPS = new Set(["aim", "aim-im", "aim-info", "aim-chat", "aim-dele
 // default-deny: no program id (98 Messenger's Buddy List), any aim-* window, or the list
 const isPrivate = (app) => !app || app.startsWith("aim") || PRIVATE_APPS.has(app)
 // programs a follower's screen may open to mirror the leader
-const FOLLOW_APPS = new Set(["notepad", "paint", "wordpad", "internetexplorer", "compass", "help", "calculator", "fileexplorer", "mediaplayer", "music", "weather", "calendar", "minesweeper", "solitaire", "freecell", "pickleball", "hangout"])
+const FOLLOW_APPS = new Set(["notepad", "paint", "wordpad", "internetexplorer", "compass", "help", "calculator", "fileexplorer", "mediaplayer", "music", "weather", "calendar", "minesweeper", "solitaire", "freecell", "hangout"])
 
 const clean = (v, max = MAX_TEXT) =>
   String(v ?? "")

@@ -535,7 +535,7 @@ export const topics = [
           "Touch and hold the map (or right-click it) to drop a pin anywhere and get directions there.",
           "No location? Directions asks where you're starting: type an address.",
           "Your recent places show when the search box is empty.",
-          "Other programs open Maps 98 straight into directions: **Directions** on a buddy in [[buddy-locator|Buddy Locator]], on a court in Pickleball 98's Real Games and its **where & when** list, and on a **Meet me at** card in [[messenger-history|98 Messenger]].",
+          "Other programs open Maps 98 straight into directions: **Directions** on a buddy in [[buddy-locator|Buddy Locator]] and on a **Meet me at** card in [[messenger-history|98 Messenger]].",
         ],
       },
       { phone: "For spoken turn-by-turn directions with the screen off, press **Open in Apple Maps**: the same place opens in the iPhone's Maps app.", computer: "On a Mac or iPhone the button says **Open in Apple Maps**; elsewhere it opens Google Maps." },
@@ -821,7 +821,7 @@ export const topics = [
     id: "viewer-3d",
     book: "accessories",
     title: "3D Viewer 98",
-    summary: "Turn a photo into a 3D model, spin it, put it in My Park, make it a desktop toy or send it to a friend.",
+    summary: "Turn a photo into a 3D model, spin it, make it a desktop toy or send it to a friend.",
     keywords: ["3d", "3d viewer", "snap to 3d", "make 3d", "3d model", "model", "glb", "gltf", ".glb", "photo to 3d", "bring to life", "rig", "pet", "desktop toy", "trellis", "anigen", "hugging face", "token"],
     programs: ["3D Viewer 98"],
     body: [
@@ -837,7 +837,6 @@ export const topics = [
       { h: "Use it" },
       {
         list: [
-          "**Place in My Park**: your model stands next to you in Pickleball 98's My Park and trots after you as you walk (it never moves you, and only you see it).",
           "**Set as Desktop Toy**: a small window where it spins. Open as many as you like.",
           "**Send in Messenger...**: pick a buddy; it's shrunk to 2 MB and sent like a picture. They tap **Open** and it lands in their C:\\My 3D.",
           "**Bring a Creature to Life...** (More options): from a photo of an animal or character, a second free service (AniGen) builds a model **with bones**, and it sways and breathes in the viewer.",
@@ -858,7 +857,7 @@ export const topics = [
       { note: "Your photo is sent to Hugging Face only when you tap Make 3D or Bring to Life (see [[privacy-third-parties]]). The services' models: TRELLIS.2 and TRELLIS (MIT), Hunyuan3D-2 and 2.1 (Tencent Hunyuan community license), TripoSG (MIT) and AniGen (MIT); the models you make are yours to keep and use." },
       { open: "3D Viewer 98", label: "Open 3D Viewer 98" },
     ],
-    related: ["photos", "camera", "pickleball", "messenger"],
+    related: ["photos", "camera", "messenger"],
   },
   // ---- Music 98 ----
   {

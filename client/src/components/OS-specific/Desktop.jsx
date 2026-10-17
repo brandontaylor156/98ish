@@ -81,7 +81,8 @@ const NetWindow = lazyApp(() => import("../applets/network/NetWindow"))
 const Mail = lazyApp(() => import("../applets/mail/Mail"))
 const HomePageStudio = lazyApp(() => import("../applets/homepage/HomePageStudio"))
 const Ski = lazyApp(() => import("../applets/ski/Ski"))
-const Pickleball = lazyApp(() => import("../applets/pickleball/Pickleball"))
+// Pickleball 98 has its own site; this small window only shows when its new tab was blocked (App.jsx)
+const PickleballLauncher = lazyApp(() => import("../applets/pickleballLauncher/PickleballLauncher"))
 const Shred = lazyApp(() => import("../applets/shred/Shred"))
 const BlockTen = lazyApp(() => import("../applets/blockten/BlockTen"))
 const BoomFrenzy = lazyApp(() => import("../applets/boomfrenzy/BoomFrenzy"))
@@ -129,7 +130,6 @@ const Viewer3D = lazyApp(() => import("../applets/viewer3d/Viewer3D"))
 const LanParty = lazyApp(() => import("../applets/lanparty/LanParty"))
 const VirtualPC = lazyApp(() => import("../applets/lanparty/VirtualPC"))
 const HangoutLayer = React.lazy(() => import("../applets/hangout/HangoutLayer"))
-const PbClubBridge = React.lazy(() => import("../applets/pbclub/PbClubBridge"))
 const FloppyBridge = React.lazy(() => import("../applets/floppy/FloppyBridge"))
 const Find = lazyApp(() => import("../applets/find/Find"))
 // 98ish Help (Start > Help, F1, Help > Help Topics: utils/help.js openHelp)
@@ -874,7 +874,7 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
       {window.app === "freecell" && <FreeCell onClose={() => closeWindow(window, index)} onTitle={rename(index)} />}
       {window.app === "critterpinball" && <CritterPinball mobile={mobile} onClose={() => closeWindow(window, index)} onTitle={rename(index)} />}
       {window.app === "ski" && <Ski mobile={mobile} onClose={() => closeWindow(window, index)} />}
-      {window.app === "pickleball" && <Pickleball mobile={mobile} handoff={window.handoff} onClose={() => closeWindow(window, index)} />}
+      {window.app === "pickleball" && <PickleballLauncher meet={window.meet} onClose={() => closeWindow(window, index)} />}
       {window.app === "shred" && <Shred mobile={mobile} onClose={() => closeWindow(window, index)} />}
       {window.app === "blockten" && <BlockTen mobile={mobile} onClose={() => closeWindow(window, index)} />}
       {window.app === "boomfrenzy" && <BoomFrenzy mobile={mobile} paused={!!window.minimized || !window.active} onClose={() => closeWindow(window, index)} />}
@@ -1257,7 +1257,6 @@ const Desktop = ({ windows, dispatch, closeMenu, mobile }) => {
           <PhotosBridge socket={socket} />
           <LocatorBridge socket={socket} />
           <HangoutLayer windows={windows} dispatch={dispatch} mobile={mobile} />
-          <PbClubBridge socket={socket} />
           <FloppyBridge />
         </React.Suspense>
       </NetProvider>

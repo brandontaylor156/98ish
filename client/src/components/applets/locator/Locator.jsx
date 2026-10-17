@@ -7,8 +7,8 @@ import * as loc from "../../../utils/locate"
 import { agoText, distanceM, distanceText, untilText } from "./locateCore"
 import { openMaps } from "../../../utils/maps"
 import { ArrowIcon } from "./LocatorTray"
-import { VENUE_LIST } from "../pickleball/park/venues/index.js"
-import { venuePlace, venuePlaceChoices, venuePlaceId } from "../pickleball/play/meet.js"
+import { VENUE_LIST } from "../../../utils/courts/venues.js"
+import { venuePlace, venuePlaceChoices, venuePlaceId } from "../../../utils/courts/meet.js"
 import "./Locator.css"
 
 // Buddy Locator: a map of the buddies who share their location with you, and sharing yours

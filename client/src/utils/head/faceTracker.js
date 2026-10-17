@@ -3,7 +3,7 @@
 // storage, both cached by the browser; the same loader as Twin Replay's pose model). Frames
 // stay on the device; only the numbers go out. With no face in view (camera off, face lost),
 // the voice drives the mouth instead, and idle blinks keep the head alive.
-import { CDN } from "../../components/applets/pickleball/twin/poseModel.js"
+import { CDN } from "./poseModel.js"
 import { N, anglesFromMatrix, chooseSource, encodePacket, fromMediaPipe, idleFace, rateGate, smoothInto, voiceMouth } from "./headCore.js"
 
 const MODEL = "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task"

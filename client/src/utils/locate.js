@@ -11,7 +11,7 @@ import * as core from "../components/applets/locator/locateCore.js"
 //   setLocateSession({ token, screenName } | null)   from AimContext (signing on/off)
 //   useLocate() -> { status, error, me, friends, geo, here, alerts }
 //     (friends[].venue / me.venue: Live Venue Presence, the real Pickleball 98 venue they're at:
-//     { id, area } | { id, nearby } | null; see applets/pickleball/park/presence.js)
+//     { id, area } | { id, nearby } | null; see utils/courts/presence.js)
 //   shareWith(name, choice), stopSharing(name), stopAll(), setPaused(b), setCoarse(b),
 //   askToSee(name), answerAsk(from, accept, choice), savePlaces(list), setWatch(who, place, on),
 //   locateMe() -> { ok, pos }  (this device only; nothing is sent)

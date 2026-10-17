@@ -100,39 +100,17 @@
 //                                                  them are told; they're taken out of everyone
 //                                                  else's record (shares with them, their asks,
 //                                                  alerts about them). No position history exists
-//   pickleball  pbsessions, pbmatches              Pickleball 98 Real Games (server/pbclub): play
-//                                                  sessions they host deleted (the invited are
-//                                                  told); their RSVPs, invitations and chat lines
-//                                                  taken out of others' sessions. In matches they
-//                                                  played they become "Deleted player" (a random id
-//                                                  not linked to them) so the other players'
-//                                                  records and ratings stay; matches with no other
-//                                                  account, and unconfirmed ones they logged, deleted
-//   park clones parkclones                         Pickleball 98 Living Park (server/livingpark):
-//                                                  their clone left in My Park (with its phrasebook
-//                                                  and memory log) deleted; in other clones' logs
-//                                                  they become "Deleted player"
-//   park finds  parkfinds                          Pickleball 98 My Park's easter eggs found
-//                                                  (server/park/finds.js: Vince's car keys, which
-//                                                  unlock his car in Explore Valencia): the record
-//                                                  deleted. What's in someone's hand (park:hold)
-//                                                  lives only in memory
-//   roam life   roamlife                           Pickleball 98 Explore (server/roam/life.js): their
-//                                                  private Home/Work places (buildings picked in the
-//                                                  game's towns) and who they shared them with,
-//                                                  the Bag (things bought with play chips), gifts
-//                                                  waiting for them and time worked: the record
-//                                                  deleted. Their name comes off places others
-//                                                  share with them; gifts they sent that weren't
-//                                                  taken yet are deleted. Office/home visits, the
-//                                                  shared cart and things put down in town are
-//                                                  memory only (server/roam)
-//   tournaments pbtourneys, pbtrophies             Pickleball 98 tournaments (server/tourney):
-//                                                  sign-ups for events that haven't started
-//                                                  removed (a partner they invited gets a computer
-//                                                  partner); in started or finished ones they
-//                                                  become "Deleted player" so the other teams'
-//                                                  results stay; their trophy shelf deleted
+//   pickleball  pbsessions, pbmatches,             Pickleball 98 from before it moved to its own
+//               pbtourneys, pbtrophies,            site (repo brandontaylor156/pickleball-98, its
+//               parkclones, parkfinds, roamlife    own server and player names): nothing serves
+//                                                  these any more and nobody can see them, so
+//                                                  server/account/pickleballLegacy.js deletes their
+//                                                  part: sessions they host, every match and
+//                                                  tournament they were in, their trophies, clone,
+//                                                  finds and Explore record; they're taken out of
+//                                                  others' sessions, places shared with them and
+//                                                  gifts they sent; in clones' logs they become
+//                                                  "Deleted player"
 //   shared documents  shareddocs                   Come Over (server/aim/ydocs.js): shared Notepad
 //                                                  texts, Paint pictures and Shared with Friends
 //                                                  folders only they're in deleted; in shared ones
@@ -163,8 +141,7 @@
 //                                                  them dropped. The screen name is free again.
 //
 // Kept only in memory and gone when they sign off (nothing to delete): who's online, away
-// messages, chat rooms, calls, Come Over hangouts, Network Neighborhood computers and file offers, live games,
-// My Park and Explore Valencia presence (positions, the car you are in; server/park, server/roam).
+// messages, chat rooms, calls, Come Over hangouts, Network Neighborhood computers and file offers, live games.
 // Rate-limit counters keyed by the account forget themselves within their window (an hour at
 // most). Copies on someone else's device (an IM they received, a contact card they made, a
 // calendar they exported) are theirs and out of reach.

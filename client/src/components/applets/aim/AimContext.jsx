@@ -14,6 +14,7 @@ import { attachTogether, handleTogetherEvent, TOGETHER_EVENTS } from "../togethe
 import { attachHangout, handleHangoutEvent, HANGOUT_EVENTS } from "../../../utils/hangout"
 import { attachVbApps, handleVbEvent, VBAPP_EVENTS } from "../../../utils/vbapps"
 import { attachYdocs, handleYdocEvent, YDOC_EVENTS } from "../../../utils/ydoc"
+import { parkHandoff } from "../../../utils/courts/meet.js"
 
 // One 98 Messenger session shared by every Messenger window: the Buddy List ("98 Messenger"),
 // Instant Message windows, chat rooms, Buddy Info and chat invitations.
@@ -660,14 +661,6 @@ export const AimProvider = ({ socket, windows, dispatch: dispatchWindow, onOpenV
     import("../../../utils/albums").then((m) => m.setAlbumsSession(session)).catch(() => {})
     // Buddy Locator (utils/locate.js: who shares with whom, live positions)
     import("../../../utils/locate").then((m) => m.setLocateSession(session)).catch(() => {})
-    // Pickleball 98 > Explore: your Home/Work places, the Bag and gifts (utils/roamLife.js)
-    import("../../../utils/roamLife").then((m) => m.setRoamLifeSession(session)).catch(() => {})
-    // Pickleball 98's Real Games (utils/pbclub.js: sessions, matches, the friends' ladder)
-    import("../../../utils/pbclub").then((m) => m.setClubSession(session)).catch(() => {})
-    // and its tournaments (utils/tourney.js: sign-ups, brackets, trophies)
-    import("../../../utils/tourney").then((m) => m.setTourneySession(session)).catch(() => {})
-    // and its Living Park (utils/livingpark.js: clones left in My Park)
-    import("../../../utils/livingpark").then((m) => m.setLivingSession(session)).catch(() => {})
   }, [state.status, state.me?.screenName])
 
   // ---- search: the signed-on account's conversations (this device's copy) ----
@@ -906,7 +899,7 @@ export const AimProvider = ({ socket, windows, dispatch: dispatchWindow, onOpenV
     try {
       text = await smartAnswer({ name: stateRef.current.me?.screenName, history, text: temp.text, windows: windowsRef.current })
     } catch (error) {
-      text = error?.message === "pickleball" ? "My big brain is napping while Pickleball 98 is open. Ask me again after! :-)" : "Whoa, that one made my circuits smoke. Try asking again? :-P"
+      text = "Whoa, that one made my circuits smoke. Try asking again? :-P"
     }
     dispatch({ type: "typing", screenName: BOT_NAME, state: "none" })
     const reply = { id: sysId().replace("s-", "l-"), ck, conv: BOT_NAME, from: BOT_NAME, mine: false, text: text || "Hmm, I'm drawing a blank. Ask me another way?", time: Date.now(), held: false }
@@ -974,12 +967,12 @@ export const AimProvider = ({ socket, windows, dispatch: dispatchWindow, onOpenV
     return sendIm(screenName, "", { media: { id: uploaded.id }, thumb: item.thumb, local: { media: { ...localMedia, id: uploaded.id }, thumb: item.thumb } })
   }
 
-  // "Meet me at <venue>": a small card (pickleball/play/meet.js; the server checks it)
+  // "Meet me at <venue>": a small card (utils/courts/meet.js; the server checks it)
   const sendCard = (screenName, card, text = "") => sendIm(screenName, text, { card, local: { card } })
 
-  // Play here on a venue card: Pickleball 98 opens My Park at that venue
-  const openVenue = async (card) => {
-    const { parkHandoff } = await import("../pickleball/play/meet.js")
+  // Play here on a venue card: Pickleball 98's site opens My Park at that venue (a new tab,
+  // so straight from the tap: App.jsx)
+  const openVenue = (card) => {
     const meet = parkHandoff(card)
     if (meet) dispatchWindow({ type: "open_window", payload: launch("Pickleball 98", { handoff: { id: Date.now(), meet } }) })
   }

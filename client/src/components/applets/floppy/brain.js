@@ -98,11 +98,8 @@ export const pickModel = async () => {
   return (await probe()) ? MODELS.webgpu : MODELS.wasm
 }
 
-// windows: the desktop's windows (Pickleball 98 open -> no brain, to keep memory for the game)
-export const pickleballOpen = (windows = []) => windows.some((w) => !w.closed && (w.app === "pickleball" || w.name === "Pickleball 98"))
-
+// (windows: kept for callers; Pickleball 98, which needed the memory, has its own site now)
 export const loadBrain = async (windows) => {
-  if (pickleballOpen(windows)) throw new Error("pickleball")
   if (state.status === "ready") return state
   const spec = await pickModel()
   savePrefs({ brain: spec.device === "webgpu" ? "webgpu" : "wasm" })

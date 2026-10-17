@@ -153,13 +153,13 @@ export const Composer = ({ onSend, onTypingChange, disabled, autoFocus, onAttach
 }
 
 // "Meet me at...": pick one of Pickleball 98's real venues (or a Venue Finder court you kept)
-// and send it as a card (+ menu; pickleball/play/meet.js)
+// and send it as a card (+ menu; utils/courts/meet.js)
 const MeetPicker = ({ screenName, onSend, onCancel }) => {
   const [choices, setChoices] = useState(null)
   const [pick, setPick] = useState(null)
   useEffect(() => {
     let live = true
-    import("../pickleball/play/meet.js").then(({ meetChoices }) => {
+    import("../../../utils/courts/meet.js").then(({ meetChoices }) => {
       let prefs = {}
       try {
         prefs = JSON.parse(localStorage.getItem("98ish.pickleball") || "{}") || {}

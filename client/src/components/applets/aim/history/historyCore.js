@@ -5,7 +5,7 @@
 // case), or "#<room key>" for a Buddy Chat room. A message:
 //   { id, ck, conv (who / which room, as shown), from, mine, text, style, time,
 //     media?: { id, k: "image" | "audio", w, h, d, z, wf }, thumb? (preview, this device only),
-//     card?: { k: "venue", id, n, lat, lon, a?, c?, sh? } ("Meet me at <venue>", pickleball/play/meet.js),
+//     card?: { k: "venue", id, n, lat, lon, a?, c?, sh? } ("Meet me at <venue>", utils/courts/meet.js),
 //     r?: { key: reaction }, held? (waiting for someone signed off), deliveredAt?, auto?,
 //     system? (a grey line, never saved), error? }
 

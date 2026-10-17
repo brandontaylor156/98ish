@@ -1,43 +1,30 @@
 // Live Venue Presence on the server: which of Pickleball 98's real venues a sharing friend is
 // physically at, worked out here from the latest position Buddy Locator already keeps, so the
 // people who may see them get only { id, area } (a venue and a court, never a finer spot).
-// The rules are client/src/components/applets/pickleball/park/presence.js (the same file the
-// app uses); the venues are My Park's hand-tuned specs (their origin and courts) with the
-// walkable bounds from server/park/venues.json. Nothing is stored: the answer sits in memory
-// next to the position (for the hysteresis at the gate) and goes when the position goes.
+// The rules are client/src/utils/courts/presence.js (a copy of Pickleball 98's own, which now
+// lives in its own repo, brandontaylor156/pickleball-98); the venues are prebuilt records
+// (origin, walkable bounds, courts) in server/locate/venues.json, made from Pickleball 98's
+// hand-tuned specs. Nothing is stored: the answer sits in memory next to the position (for the
+// hysteresis at the gate) and goes when the position goes.
 
 const fs = require("fs")
 const path = require("path")
 const { pathToFileURL } = require("url")
 
-const VENUE_DIR = path.join(__dirname, "../../client/src/components/applets/pickleball/park/venues")
-const BOUNDS_FILE = path.join(__dirname, "../park/venues.json")
+const VENUES_FILE = path.join(__dirname, "venues.json")
 
 let rulesModule = null
-const loadRules = () => (rulesModule ??= import(pathToFileURL(path.join(__dirname, "../../client/src/components/applets/pickleball/park/presence.js")).href))
+const loadRules = () => (rulesModule ??= import(pathToFileURL(path.join(__dirname, "../../client/src/utils/courts/presence.js")).href))
 
 let table = null
-// the real venues (Riverside is made up: nobody is ever "at" it)
+// the real venues (Riverside, the made-up park, was never in the list)
 const loadVenues = async () => {
   if (table) return table
-  const rules = await loadRules()
-  let bounds = {}
   try {
-    bounds = JSON.parse(fs.readFileSync(BOUNDS_FILE, "utf8"))
+    table = JSON.parse(fs.readFileSync(VENUES_FILE, "utf8"))
   } catch {
-    bounds = {}
+    table = []
   }
-  const out = []
-  for (const id of Object.keys(bounds)) {
-    if (id === "riverside") continue
-    try {
-      const spec = JSON.parse(fs.readFileSync(path.join(VENUE_DIR, `${id}.json`), "utf8"))
-      if (Array.isArray(spec.origin)) out.push(rules.venueRecord(spec, bounds[id].bounds))
-    } catch {
-      // a venue without a spec file is skipped
-    }
-  }
-  table = out
   return table
 }
 

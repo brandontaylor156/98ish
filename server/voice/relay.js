@@ -1,4 +1,4 @@
-// Spatial voice: the signaling relay shared by My Park (server/park), Come Over
+// Spatial voice: the signaling relay shared by Come Over
 // (server/aim/hangout.js) and Watch Together (server/aim/together.js).
 //
 // Voice itself never touches the server: browsers connect to each other directly over

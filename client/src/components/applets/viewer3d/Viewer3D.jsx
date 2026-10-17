@@ -15,7 +15,7 @@ import "./Viewer3D.css"
 // (C:\My 3D). "Make 3D from a Photo..." sends a photo to free Hugging Face Spaces (TRELLIS.2
 // first, then the others in space.js when one is out of free time or busy) and gets a model
 // back (a shape-only one is colored from the photo, paint.js); "Bring to Life" asks AniGen for a rigged one; "Import" opens
-// any .glb/.gltf. Then: Place in My Park (it trots after you), Set as Desktop Toy (a small
+// any .glb/.gltf. Then: Set as Desktop Toy (a small
 // spinning window), Send in Messenger (shrunk to 2 MB), Share a picture of the view.
 //   handoff: { open: path } | { toy: path } | { photo: path (an image on the drive) }
 // A toy window (handoff.toy) shows just the model, spinning.
@@ -181,11 +181,10 @@ const Viewer3D = ({ mobile, handoff, dispatch, onClose, onTitle }) => {
 
   // ---- using it ----
   const currentModel = models.find((m) => pathFor(m) === current)
-  const placeInPark = () => {
-    const next = pet === current ? null : current
-    setPet(next)
-    setPetPath(next)
-    setNote(next ? "It'll trot after you next time you walk My Park in Pickleball 98." : "Taken out of My Park.")
+  // (Place in My Park went with Pickleball 98 to its own site; a model placed before is forgotten)
+  const forgetPark = () => {
+    setPet(null)
+    setPetPath(null)
   }
   const desktopToy = () => dispatch?.({ type: "open_window", payload: launch("3D Viewer 98", { name: `3D Toy - ${currentModel?.title || "Model"}`, width: 220, height: 240, handoff: { id: Date.now(), toy: current } }) })
   const sharePicture = async () => {
@@ -200,7 +199,7 @@ const Viewer3D = ({ mobile, handoff, dispatch, onClose, onTitle }) => {
     if (!f) return
     fs.deleteItem(f)
     await saveNow({ quiet: true })
-    if (pet === current) placeInPark()
+    if (pet === current) forgetPark()
     setCurrent(null)
     setInfo(null)
     await refresh()
@@ -268,7 +267,6 @@ const Viewer3D = ({ mobile, handoff, dispatch, onClose, onTitle }) => {
     {
       label: "Model",
       items: [
-        { label: pet === current && has ? "Take Out of My Park" : "Place in My Park", disabled: !has, onClick: placeInPark },
         { label: "Set as Desktop Toy", disabled: !has, onClick: desktopToy },
         { label: "Send in Messenger...", disabled: !has || !online, onClick: () => setSend(true) },
         "-",
@@ -294,7 +292,7 @@ const Viewer3D = ({ mobile, handoff, dispatch, onClose, onTitle }) => {
             <p>
               <b>No 3D models yet.</b>
             </p>
-            <p>Take or pick a photo of a thing (a mug, a shoe, a toy, your dog) and 3D Viewer turns it into a model you can spin, put in My Park or send to a friend.</p>
+            <p>Take or pick a photo of a thing (a mug, a shoe, a toy, your dog) and 3D Viewer turns it into a model you can spin, make a desktop toy or send to a friend.</p>
             <p>
               Or <button type="button" className="v3dLink" onClick={() => modelInput.current?.click()}>import a .glb file</button>.
             </p>
@@ -312,13 +310,10 @@ const Viewer3D = ({ mobile, handoff, dispatch, onClose, onTitle }) => {
         )}
       </div>
       <div className="v3dStatus" data-v3d-status>
-        {error ? <span className="v3dError">{error}</span> : note ? <span>{note}</span> : info ? <span>{`${info.triangles.toLocaleString()} triangles${info.rigged ? " · has bones" : ""}${info.animations ? ` · ${info.animations} animation${info.animations === 1 ? "" : "s"}` : ""}${pet === current ? " · in My Park" : ""}`}</span> : <span>&nbsp;</span>}
+        {error ? <span className="v3dError">{error}</span> : note ? <span>{note}</span> : info ? <span>{`${info.triangles.toLocaleString()} triangles${info.rigged ? " · has bones" : ""}${info.animations ? ` · ${info.animations} animation${info.animations === 1 ? "" : "s"}` : ""}`}</span> : <span>&nbsp;</span>}
       </div>
-      <MoreOptions id="viewer3d.more" summary={`${has ? "Place in My Park · Desktop toy · Send · Bring to life" : "Bring to life"} · ${token ? "Your Hugging Face token is set" : "Add a free Hugging Face token for more 3D time"}`} className="v3dMore" forceOpen={/free 3D time/i.test(error || "") && !token}>
+      <MoreOptions id="viewer3d.more" summary={`${has ? "Desktop toy · Send · Bring to life" : "Bring to life"} · ${token ? "Your Hugging Face token is set" : "Add a free Hugging Face token for more 3D time"}`} className="v3dMore" forceOpen={/free 3D time/i.test(error || "") && !token}>
         <div className="v3dMoreRow">
-          <button type="button" disabled={!has} onClick={placeInPark} data-v3d-park>
-            {pet === current && has ? "Take Out of My Park" : "Place in My Park"}
-          </button>
           <button type="button" disabled={!has} onClick={desktopToy} data-v3d-toy>
             Set as Desktop Toy
           </button>

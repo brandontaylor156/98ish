@@ -24,8 +24,8 @@
   echo...), Calculator, Character Map and an MS-DOS Prompt
 - **Games:** Tetris (Marathon, Sprint 40L, Ultra, Survival, and Tetris Online: Battle 2P, a 2-6 player Arena
   with items and Sprint races, with Quick Match, computer players and star rankings), Sunny Acres (a farming and
-  town-building game, with live co-op: farm one town together in real time), Pickleball 98 (3D, with animated
-  athletes, real pickleball physics and rules, timing-based shots, a World Tour and online singles and doubles),
+  town-building game, with live co-op: farm one town together in real time), Pickleball 98 (3D pickleball at
+  real venues; it has its own site now, github.com/brandontaylor156/pickleball-98, and its 98ish icon opens it),
   Shred 98 (a 3D rock rhythm game with six original songs, keyboard, gamepad or touch), Word Duel (guess the word:
   a daily puzzle and online races, battle royale, co-op, sabotage and multi-board, with every rule adjustable),
   Last Card (a shedding card game for 2-10 with house rules), Monster Duel (a monster card duel with 170+ original

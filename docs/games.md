@@ -1,5 +1,5 @@
 # Games: performance rules, quick games, retro art kit, Pinball
-Moved from CLAUDE.md on 2026-10-05. Pickleball is in docs/pickleball-log.md; Tetris phone controls in docs/tetris-mobile.md.
+Moved from CLAUDE.md on 2026-10-05. Pickleball 98 moved to its own repo (brandontaylor156/pickleball-98) on 2026-10-17, with its notes; the Pickleball mentions below are history. Tetris phone controls in docs/tetris-mobile.md.
 
 ## Game performance (wave 1, 2026-10-04)
 - **The clock rule:** a game loop measures real time with `utils/frameClock.js` (`createFrameClock().tick(rafTime)`). Keep `last` across frames; `reset()` only when the loop starts again after a stop (start/resume, resize, context restore, the tab coming back), never in the per-frame reschedule. (Pickleball and SPECTRA reset it every frame, so every frame counted 16 ms: half speed at 30 fps, double at 120 Hz.) Long frames clamp at 100 ms. Pickleball's physics already runs fixed 1/240 s steps (`match.advance`); SPECTRA's `logic.step` takes at most 50 ms, so the engine splits a frame into `substeps(dt, 1/30)` and handles events after each. Test: `node --test client/src/utils/frameClock.test.js` (clock + resolution); browser `hz.mjs` (rAF shim at 120/60/42/30 Hz) in the wave1 scratchpad.

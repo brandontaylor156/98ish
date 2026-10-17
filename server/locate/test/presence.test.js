@@ -13,9 +13,9 @@ const TOKENS = { alice: "a".repeat(48), bob: "b".repeat(48), carol: "c".repeat(4
 const NAMES = { alice: "Alice", bob: "Bob", carol: "Carol" }
 const BUDDIES = { alice: ["Bob", "Carol"], bob: ["Alice"], carol: ["Alice"] }
 
-// Los Cab's real origin and first court, from the files the server reads
-const SPEC = JSON.parse(fs.readFileSync(path.join(__dirname, "../../../client/src/components/applets/pickleball/park/venues/loscab.json"), "utf8"))
-const BOUNDS = JSON.parse(fs.readFileSync(path.join(__dirname, "../../park/venues.json"), "utf8")).loscab.bounds
+// Los Cab's real origin, first court and bounds, from the prebuilt records the server reads
+const SPEC = JSON.parse(fs.readFileSync(path.join(__dirname, "../venues.json"), "utf8")).find((v) => v.id === "loscab")
+const BOUNDS = SPEC.bounds
 const M = 111320
 const at = (x, z, acc = 8) => {
   const [lat0, lon0] = SPEC.origin

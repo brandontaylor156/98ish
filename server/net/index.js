@@ -17,9 +17,6 @@ const { createQuizLive } = require("../quiz/live")
 const { createCoop } = require("../town/coop")
 const { createRooms } = require("../arcade/rooms")
 const ROOM_GAMES = require("../arcade/games")
-const { createPark } = require("../park")
-const { createRoam } = require("../roam")
-const { createBroadcasts } = require("../broadcast")
 const { createLanParty } = require("../lanparty")
 
 const RESUME_GRACE_MS = 30_000
@@ -58,7 +55,7 @@ const validFileName = (name) => {
   return value && value.length <= 64 && !INVALID_NAME.test(value) && value !== "." && value !== ".." ? value : null
 }
 
-const attachNet = (io, { aim: initialAim = null, graceMs = RESUME_GRACE_MS, games: gameOptions = {}, tetrisRanks = null, quiz: quizOptions = {}, coop: coopOptions = {}, rooms: roomsOptions = {}, park: parkOptions = {}, roam: roamOptions = null, broadcast: broadcastOptions = {} } = {}) => {
+const attachNet = (io, { aim: initialAim = null, graceMs = RESUME_GRACE_MS, games: gameOptions = {}, tetrisRanks = null, quiz: quizOptions = {}, coop: coopOptions = {}, rooms: roomsOptions = {} } = {}) => {
   let aim = initialAim
   const computers = new Map() // token -> computer
   const byPid = new Map() // pid -> computer
@@ -149,34 +146,6 @@ const attachNet = (io, { aim: initialAim = null, graceMs = RESUME_GRACE_MS, game
     ...roomsOptions,
   })
   const games = createGames({ emit: emitPid, tetris, doodle, quiz, coop, rooms, ...gameOptions })
-  // My Park (Pickleball 98's walk-around park): who is where, the paddle racks, handing a court's
-  // people into a Pickleball room (server/park)
-  const park = createPark({
-    emit: emitPid,
-    emitVolatile: (pid, event, payload) => byPid.get(pid)?.socket?.volatile.emit(event, payload),
-    rooms,
-    // (doing things together in the park: never between people who block each other)
-    blocked: (a, b) => {
-      const ca = byPid.get(a)
-      const cb = byPid.get(b)
-      return !!(ca && cb && blocked(ca, cb))
-    },
-    ...parkOptions,
-  })
-  // Roam, the open world (Explore Valencia): who's where in town, cars, riding along (server/roam)
-  const roam = createRoam({
-    emit: emitPid,
-    emitVolatile: (pid, event, payload) => byPid.get(pid)?.socket?.volatile.emit(event, payload),
-    ...(roamOptions || { meterTotal: parkOptions.meterTotal, capBytes: parkOptions.capBytes }),
-  })
-  // Live Broadcast (Pickleball 98 > Real Games > Go Live): a real game's tracked data relayed
-  // live to the host's buddies (server/broadcast)
-  const liveCasts = createBroadcasts({
-    emit: emitPid,
-    emitVolatile: (pid, event, payload) => byPid.get(pid)?.socket?.volatile.emit(event, payload),
-    aim: () => aim,
-    ...broadcastOptions,
-  })
   // LAN Party 98: the lobby for DOS LAN games (the game traffic itself goes phone to phone
   // over WebRTC; server/lanparty only passes the host's peer id and who's coming)
   const lanParty = createLanParty({ emit: emitPid, aim: () => aim })
@@ -204,9 +173,6 @@ const attachNet = (io, { aim: initialAim = null, graceMs = RESUME_GRACE_MS, game
     quiz.drop(computer.pid)
     coop.drop(computer.pid)
     rooms.drop(computer.pid)
-    park.drop(computer.pid)
-    roam.drop(computer.pid)
-    liveCasts.drop(computer.pid)
     lanParty.drop(computer.pid)
     broadcast()
   }
@@ -424,11 +390,6 @@ const attachNet = (io, { aim: initialAim = null, graceMs = RESUME_GRACE_MS, game
     coop.wire(socket, current, (computer) => ({ pid: computer.pid, name: nameOf(computer), key: aimSessionOf(computer)?.key || null }))
     // ---- online rooms (server/arcade) ----
     rooms.wire(socket, current, (computer) => ({ pid: computer.pid, name: nameOf(computer), key: aimSessionOf(computer)?.key || null }))
-    // ---- My Park (server/park) ----
-    park.wire(socket, current, (computer) => ({ pid: computer.pid, name: nameOf(computer), key: aimSessionOf(computer)?.key || null }))
-    roam.wire(socket, current, (computer) => ({ pid: computer.pid, name: nameOf(computer), key: aimSessionOf(computer)?.key || null }))
-    // ---- Live Broadcast (server/broadcast) ----
-    liveCasts.wire(socket, current, (computer) => ({ pid: computer.pid, name: nameOf(computer), key: aimSessionOf(computer)?.key || null }))
     // ---- LAN Party 98 (server/lanparty) ----
     lanParty.wire(socket, current, (computer) => ({ pid: computer.pid, name: nameOf(computer), key: aimSessionOf(computer)?.key || null }))
 
@@ -476,8 +437,6 @@ const attachNet = (io, { aim: initialAim = null, graceMs = RESUME_GRACE_MS, game
     quiz,
     coop,
     rooms,
-    park,
-    liveCasts,
     // Delete My Account (../account): Tetris Online ranks, and their place in co-op towns
     eraseAccount: async (ctx) => {
       const store = await ranks

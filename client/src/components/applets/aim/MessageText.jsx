@@ -121,7 +121,7 @@ export const TranscriptLine = React.memo(({ message, me, meKey, onMenu, onReact,
           )}
         </span>
       )}
-      {/* "Meet me at <venue>" (pickleball/play/meet.js): Play here opens My Park there, Directions opens Maps 98 */}
+      {/* "Meet me at <venue>" (utils/courts/meet.js): Play here opens My Park there on Pickleball 98's site, Directions opens Maps 98 */}
       {message.card?.k === "venue" && (
         <span className="aimMsgBody aimVenueCard" data-venue-card={message.card.id}>
           <span aria-hidden="true">📍</span> <b>Meet me at {message.card.n}</b>

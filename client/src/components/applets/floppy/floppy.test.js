@@ -157,7 +157,7 @@ test("help questions find the right page", () => {
   assert.ok(top("how do I change my wallpaper").some((id) => /wallpaper|display|desktop/.test(id)), top("how do I change my wallpaper").join())
   assert.ok(top("lock my computer with a pin").some((id) => /lock|password/.test(id)))
   assert.ok(top("how do I watch youtube with a friend").includes("watch-together"))
-  assert.ok(top("score my real pickleball game").includes("pickleball-club"))
+  assert.ok(top("score my real pickleball game").includes("pickleball"))
   // vectors win when they're given
   const vectors = Object.fromEntries(docs.map((d) => [d.id, d.id === "calendar" ? [1, 0] : [0, 1]]))
   assert.equal(rankHelp("zzz", docs, { vectors, qvec: [1, 0] })[0].id, "calendar")

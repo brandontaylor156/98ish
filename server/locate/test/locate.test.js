@@ -219,8 +219,8 @@ test("places and alerts: arriving and leaving, with a margin, once each", async 
 })
 
 test("venue places: Pickleball 98's real venues as places, so 'Alice arrived at Los Cab' just works", async (t) => {
-  const meet = await import("../../../client/src/components/applets/pickleball/play/meet.js")
-  const { VENUE_LIST } = await import("../../../client/src/components/applets/pickleball/park/venues/index.js")
+  const meet = await import("../../../client/src/utils/courts/meet.js")
+  const { VENUE_LIST } = await import("../../../client/src/utils/courts/venues.js")
   // every real venue makes a valid place (the same rules as any other place), one id each
   const core = await import("../../../client/src/components/applets/locator/locateCore.js")
   const all = VENUE_LIST.map((v) => meet.venuePlace(v.id))

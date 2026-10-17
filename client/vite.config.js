@@ -2,8 +2,6 @@ import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import youtubeHandler from './api/youtube.js'
 import waybackHandler from './api/wayback.js'
-import osmHandler from './api/osm.js'
-import townHandler from './api/town.js'
 import a11yCss from './postcss-a11y.js'
 import { readdirSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
@@ -30,11 +28,8 @@ const swManifest = () => ({
     // brain, the AI worker and its 27 MB WebAssembly runtime, only for people who opt in; and
     // LAN Party 98's game bundles and disk images under /emu/, loaded when a game starts; and
     // Spark, the 2.6 MB splat renderer, only for people who add a photoreal backdrop; and
-    // Pickleball's High skins (KTX2, about 450 KB each, fetched per skin tone on High, with
-    // their transcoder's .wasm): not precached)
-    // (and Pickleball's photographed faces, about 0.7 MB each, fetched per face a match shows)
-    // (and Roam's prebuilt town tiles, megabytes of map, fetched round where you walk or drive)
-    const onDemand = (f) => f.startsWith('/assets/pickleball/pl-face-') || f.startsWith('/venues/idx/') || f.startsWith('/roam/') || f.startsWith('/emu/') || f.startsWith('/vendor/lam/') || f.endsWith('.wasm') || f.endsWith('.ktx2') || /\/brain\.worker-[^/]+\.js$/.test(f) || /\/spark\.module-[^/]+\.js$/.test(f)
+    // KTX2 textures with their transcoder's .wasm): not precached)
+    const onDemand = (f) => f.startsWith('/emu/') || f.startsWith('/vendor/lam/') || f.endsWith('.wasm') || f.endsWith('.ktx2') || /\/brain\.worker-[^/]+\.js$/.test(f) || /\/spark\.module-[^/]+\.js$/.test(f)
     const all = [...new Set([...files, ...walk('public')])].filter((f) => !skip.has(f) && !f.endsWith('.map') && !onDemand(f))
     this.emitFile({
       type: 'asset',
@@ -91,8 +86,6 @@ export default defineConfig(({ mode }) => {
         configureServer(server) {
           server.middlewares.use('/api/youtube', youtubeHandler)
           server.middlewares.use('/api/wayback', waybackHandler)
-          server.middlewares.use('/api/osm', osmHandler)
-          server.middlewares.use('/api/town', townHandler)
         },
       },
     ],

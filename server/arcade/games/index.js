@@ -5,7 +5,6 @@ module.exports = [
   require("./checkers"),
   require("./wordduel"),
   require("./lastcard"),
-  require("./pickleball"),
   require("./hexlands"),
   require("./monsterduel"),
   require("./speedtype"),
@@ -14,5 +13,4 @@ module.exports = [
   require("./tetherball"),
   require("./imposter"),
   require("./holdem"),
-  require("./parkact"),
 ]
